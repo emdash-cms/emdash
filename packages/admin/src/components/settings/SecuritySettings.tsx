@@ -16,11 +16,16 @@ import { PasskeyRegistration } from "../auth/PasskeyRegistration.js";
 import { PasskeyList } from "./PasskeyList.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
-export function SecuritySettings() {
+interface SecuritySettingsProps {
+	/** Open the add-passkey form, e.g. after signing in at a new address. */
+	addPasskey?: boolean;
+}
+
+export function SecuritySettings({ addPasskey = false }: SecuritySettingsProps) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = useKumoToastManager();
-	const [isAdding, setIsAdding] = React.useState(false);
+	const [isAdding, setIsAdding] = React.useState(addPasskey);
 
 	const { data: manifest, isLoading: manifestLoading } = useQuery({
 		queryKey: ["manifest"],
@@ -161,6 +166,12 @@ export function SecuritySettings() {
 					<SettingRow>
 						{isAdding ? (
 							<div className="grid gap-4">
+								{addPasskey && (
+									<Banner
+										title={t`Add a passkey for ${window.location.host}`}
+										description={t`Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time.`}
+									/>
+								)}
 								<div className="flex justify-end">
 									<Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>
 										{t`Cancel`}

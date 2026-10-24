@@ -153,7 +153,15 @@ async function acquireMedia(
 			),
 			failedMediaRefs: [],
 		};
-	} catch {
+	} catch (error) {
+		console.error(
+			JSON.stringify({
+				event: "assessment_media_acquisition_failed",
+				subjectUri: subject.uri,
+				subjectCid: subject.cid,
+				error: error instanceof Error ? error.message : String(error),
+			}),
+		);
 		return { media: [], failedMediaRefs };
 	}
 }

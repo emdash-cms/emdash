@@ -57,6 +57,7 @@ function lifecycle(observed: string[]): AssessmentLifecycleStore {
 			};
 		},
 		getRun: async () => null,
+		supersedeAbandonedRun: async () => false,
 		startRun: async () => {
 			throw new Error("not used");
 		},

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { getApproval, listApproverCredentials } from "./api.js";
 import { App } from "./App.js";
 import { applyLocale, i18n } from "./i18n.js";
+import { PublisherPage } from "./PublisherPage.js";
 
 const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
@@ -30,6 +31,33 @@ afterEach(() => {
 });
 
 describe("release-service web surfaces", () => {
+	it("shows the service error message and code from the publisher client", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () =>
+				Response.json(
+					{
+						error: {
+							code: "PROFILE_FETCH_FAILED",
+							message: "Package profile could not be verified",
+						},
+						requestId: "request-1",
+					},
+					{ status: 503 },
+				),
+			),
+		);
+		render(
+			<I18nProvider i18n={i18n}>
+				<PublisherPage />
+			</I18nProvider>,
+		);
+		expect(
+			await screen.findByText("Package profile could not be verified (PROFILE_FETCH_FAILED)"),
+		).toBeTruthy();
+		expect(screen.queryByText("The release service request failed.")).toBeNull();
+	});
+
 	it("shows one account login without role navigation", async () => {
 		vi.stubGlobal(
 			"fetch",
@@ -166,6 +194,23 @@ describe("release-service web surfaces", () => {
 							result: null,
 							approvalUrl: `${location.origin}/approvals/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}`,
 						},
+						{
+							id: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+							publisherDid: PUBLISHER_DID,
+							packageSlug: "linguadash",
+							version: "0.2.1",
+							state: "failed",
+							stateGeneration: 8,
+							reasonCode: "PDS_RETRY_EXHAUSTED",
+							reasonMessage:
+								"Your PDS rejected the release record. Start a fresh workflow dispatch.",
+							workflowId: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+							expiresAt: 1_800_000_000_000,
+							createdAt: 1_799_999_000_000,
+							updatedAt: 1_799_999_500_000,
+							result: null,
+							approvalUrl: null,
+						},
 					],
 				});
 			}),
@@ -176,6 +221,9 @@ describe("release-service web surfaces", () => {
 		expect(screen.queryByText(PUBLISHER_DID)).toBeNull();
 		expect(screen.getAllByText("gallery").length).toBeGreaterThan(0);
 		expect(screen.getByText("Awaiting approval")).toBeTruthy();
+		expect(
+			screen.getByText("Your PDS rejected the release record. Start a fresh workflow dispatch."),
+		).toBeTruthy();
 		expect(screen.getByText("APPROVAL_REQUIRED")).toBeTruthy();
 		expect(screen.getByRole("link", { name: "Review release" })).toBeTruthy();
 		expect(screen.getByRole("heading", { name: "Account activity" })).toBeTruthy();

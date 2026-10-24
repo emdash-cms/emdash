@@ -397,6 +397,43 @@ describe("definePlugin", () => {
 			expect(plugin.capabilities).not.toContain("write:content");
 			expect(plugin.capabilities).not.toContain("read:content");
 		});
+
+		it("warns once per plugin that declares deprecated capability names", () => {
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+			try {
+				const definition = {
+					id: "legacy-capability-warning",
+					version: "1.0.0",
+					capabilities: ["read:content", "network:fetch", "email:send"],
+				} as const;
+				definePlugin(definition);
+				definePlugin(definition);
+
+				expect(warn).toHaveBeenCalledOnce();
+				const message = String(warn.mock.calls[0]?.[0]);
+				expect(message).toContain('"legacy-capability-warning"');
+				expect(message).toContain("read:content → content:read");
+				expect(message).toContain("network:fetch → network:request");
+				expect(message).not.toContain("email:send");
+			} finally {
+				warn.mockRestore();
+			}
+		});
+
+		it("does not warn for plugins that use current capability names", () => {
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+			try {
+				definePlugin({
+					id: "current-capability-names",
+					version: "1.0.0",
+					capabilities: ["content:read", "network:request"],
+				});
+
+				expect(warn).not.toHaveBeenCalled();
+			} finally {
+				warn.mockRestore();
+			}
+		});
 	});
 
 	describe("hook resolution", () => {

@@ -10,187 +10,424 @@ const query = Astro.url.searchParams.get("q")?.trim() || "";
 // filtering in JS. FTS scales as the post count grows, returns ranked
 // results, and handles tokenization/stemming. Templates that grep all
 // post bodies in JS quickly become unusable past a few hundred posts.
-const { items: results } = query
+const { items: results, nextCursor } = query
 	? await search(query, { collections: ["posts"], limit: 30 })
-	: { items: [] };
+	: { items: [], nextCursor: undefined };
+
+function escapeHtml(text: string) {
+	return text
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&#39;");
+}
+
+// The snippet is cut from the first indexed field, which for posts is the
+// title. When it is the whole title, show its highlights in the heading
+// instead of repeating the title underneath.
+const rows = results.map((result) => {
+	const title = result.title ?? "Untitled";
+	const snippetIsTitle =
+		result.snippet?.replaceAll("<mark>", "").replaceAll("</mark>", "") ===
+		escapeHtml(title);
+	return {
+		path: `/posts/${result.slug ?? result.id}`,
+		title,
+		titleHtml: snippetIsTitle ? result.snippet : undefined,
+		snippet: snippetIsTitle ? undefined : result.snippet,
+	};
+});
+
+const countLabel = nextCursor
+	? `Top ${rows.length} results`
+	: `${rows.length} ${rows.length === 1 ? "result" : "results"}`;
 ---
 
 <Base
 	title={query ? `Search: ${query}` : "Search"}
 	description="Search blog posts"
 >
-	<section class="search-page">
-		<h1 class="search-title">Search</h1>
-
-		<form method="get" action="/search" class="search-form">
-			<label for="site-search-query" class="visually-hidden"
-				>Search blog posts</label
+	<header class="band intro">
+		<div class="frame">
+			<p class="eyebrow">Search</p>
+			<h1 class="intro__title">What are you looking for?</h1>
+			<form
+				method="get"
+				action="/search"
+				role="search"
+				aria-label="Posts"
+				class="search-form"
 			>
-			<input
-				id="site-search-query"
-				type="search"
-				name="q"
-				value={query}
-				placeholder="Search posts..."
-				class="search-input"
-				autofocus
-			/>
-			<button type="submit" class="search-button">Search</button>
-		</form>
+				<label for="search-query" class="sr-only">Search posts</label>
+				<div class="search-field">
+					<svg
+						class="search-field__icon"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.75"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+						><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"
+						></path></svg
+					>
+					<input
+						id="search-query"
+						class="search-field__input"
+						type="search"
+						name="q"
+						value={query}
+						placeholder="Search posts"
+						autofocus={!query}
+					/>
+					<button type="submit" class="btn search-field__submit">Search</button>
+				</div>
+			</form>
+			{
+				!query && (
+					<p class="search-hint">
+						Searches post titles and full text. Not sure where to start?{" "}
+						<a href="/posts">Browse all posts</a>.
+					</p>
+				)
+			}
+		</div>
+	</header>
 
-		{
-			query && (
-				<p class="search-summary">
-					{results.length === 0
-						? `No results for "${query}"`
-						: `${results.length} result${results.length === 1 ? "" : "s"} for "${query}"`}
-				</p>
-			)
-		}
-
-		{
-			results.length > 0 && (
-				<ol class="search-results">
-					{results.map((result) => (
-						<li class="search-result">
-							<a
-								href={`/posts/${result.slug ?? result.id}`}
-								class="result-link"
-							>
-								<h2 class="result-title">{result.title ?? "Untitled"}</h2>
-								{result.snippet && (
-									<p class="result-snippet" set:html={result.snippet} />
-								)}
-							</a>
-						</li>
-					))}
-				</ol>
-			)
-		}
-
-		{!query && <p class="search-hint">Enter a search term to find posts.</p>}
-	</section>
+	{
+		query && (
+			<section class="band section">
+				<div class="frame">
+					{rows.length > 0 ? (
+						<>
+							<div class="section-head">
+								<p class="search-summary">
+									<strong>{countLabel}</strong> for “{query}”
+								</p>
+								<a href="/posts" class="arrow-link">
+									All posts
+									<svg
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="1.75"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										aria-hidden="true"
+									>
+										<path d="M5 12h14" />
+										<path d="m12 5 7 7-7 7" />
+									</svg>
+								</a>
+							</div>
+							<ol class="results" role="list">
+								{rows.map((row) => (
+									<li class="result">
+										<div class="result__body">
+											<h2 class="result__title">
+												<a href={row.path} class="result__link">
+													{row.titleHtml ? (
+														<Fragment set:html={row.titleHtml} />
+													) : (
+														row.title
+													)}
+												</a>
+											</h2>
+											{row.snippet && (
+												<p class="result__snippet" set:html={row.snippet} />
+											)}
+											<p class="result__path">
+												<span dir="ltr">{row.path}</span>
+											</p>
+										</div>
+										<svg
+											class="result__arrow"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="1.75"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											aria-hidden="true"
+										>
+											<path d="M5 12h14" />
+											<path d="m12 5 7 7-7 7" />
+										</svg>
+									</li>
+								))}
+							</ol>
+						</>
+					) : (
+						<div class="empty-state">
+							<h2 class="empty-state__title">No results for “{query}”</h2>
+							<p class="empty-state__text">
+								Check the spelling, try fewer or different words, or browse
+								every post instead.
+							</p>
+							<div class="empty-state__actions">
+								<a href="/posts" class="btn btn--ghost">
+									Browse all posts
+								</a>
+							</div>
+						</div>
+					)}
+				</div>
+			</section>
+		)
+	}
 </Base>
 
 <style>
-	.search-page {
-		max-width: var(--max-width);
-		margin: 0 auto;
-		padding: var(--spacing-8) var(--spacing-6) var(--spacing-16);
-	}
-
-	.visually-hidden {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
-
-	.search-title {
-		font-size: var(--font-size-2xl);
-		margin-bottom: var(--spacing-6);
-	}
-
 	.search-form {
-		display: flex;
-		gap: var(--spacing-2);
-		margin-bottom: var(--spacing-8);
+		max-width: 640px;
+		margin-top: var(--spacing-8);
 	}
 
-	.search-input {
-		flex: 1;
-		padding: var(--spacing-2) var(--spacing-4);
-		font-size: var(--font-size-base);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius);
-		background: var(--color-bg);
-		color: var(--color-text);
+	.search-field {
+		position: relative;
 	}
 
-	.search-input:focus {
-		outline: none;
-		border-color: var(--color-brand);
-	}
-
-	.search-button {
-		padding: var(--spacing-2) var(--spacing-6);
-		font-size: var(--font-size-base);
-		background: var(--color-brand);
-		color: var(--color-on-brand);
-		border: none;
-		border-radius: var(--radius);
-		cursor: pointer;
-		font-weight: 500;
-	}
-
-	.search-button:hover {
-		opacity: 0.9;
-	}
-
-	.search-summary {
+	.search-field__icon {
+		position: absolute;
+		inset-inline-start: 20px;
+		top: 50%;
+		width: 20px;
+		height: 20px;
+		translate: 0 -50%;
 		color: var(--color-muted);
-		margin-bottom: var(--spacing-6);
+		pointer-events: none;
+	}
+
+	.search-field__input {
+		display: block;
+		width: 100%;
+		height: 56px;
+		padding-block: 0;
+		padding-inline: 52px 112px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-full);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-sm);
+		color: var(--color-text);
+		font: inherit;
+		font-size: var(--font-size-base);
+		-webkit-appearance: none;
+		appearance: none;
+		transition:
+			border-color var(--transition-fast),
+			box-shadow var(--transition-fast);
+	}
+
+	.search-field__input::placeholder {
+		color: var(--color-muted);
+	}
+
+	.search-field__input::-webkit-search-cancel-button {
+		margin-inline-start: var(--spacing-2);
+		filter: grayscale(1);
+		cursor: pointer;
+	}
+
+	.search-field__input:hover {
+		border-color: var(--color-border-strong);
+	}
+
+	/* Transparent rather than none so forced-colors mode still draws a ring */
+	.search-field__input:focus {
+		outline: 2px solid transparent;
+		border-color: var(--color-muted);
+		box-shadow:
+			0 0 0 3px var(--color-brand-ring),
+			var(--shadow-sm);
+	}
+
+	.search-field__submit {
+		position: absolute;
+		inset-block: 6px;
+		inset-inline-end: 6px;
+		height: auto;
 	}
 
 	.search-hint {
+		max-width: 640px;
+		margin-top: var(--spacing-4);
+		padding-inline: var(--spacing-5);
+		font-size: var(--font-size-sm);
 		color: var(--color-muted);
 	}
 
-	.search-results {
+	.search-summary {
+		min-width: 0;
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+		overflow-wrap: anywhere;
+	}
+
+	.search-summary strong {
+		font-weight: 500;
+		color: var(--color-text);
+	}
+
+	.results {
+		counter-reset: result;
 		list-style: none;
-		padding: 0;
-		margin: 0;
-		display: flex;
-		flex-direction: column;
+		padding: var(--card-padding);
+		border-radius: var(--radius-xl);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-card);
 	}
 
-	.search-result {
-		padding: var(--spacing-6) 0;
-		border-bottom: 1px solid var(--color-border-subtle);
+	.result {
+		position: relative;
+		display: grid;
+		grid-template-columns: 2rem minmax(0, 1fr) auto;
+		align-items: baseline;
+		gap: var(--spacing-4);
+		padding: var(--spacing-5);
+		border-radius: var(--radius-lg);
+		counter-increment: result;
+		transition: background-color var(--transition-fast);
 	}
 
-	.search-result:first-child {
-		padding-top: 0;
+	.result::before {
+		content: counter(result, decimal-leading-zero);
+		content: counter(result, decimal-leading-zero) / "";
+		font-family: var(--font-mono);
+		font-size: var(--font-size-label);
+		color: var(--color-muted);
+		font-variant-numeric: tabular-nums;
 	}
 
-	.search-result:last-child {
-		border-bottom: none;
+	.result + .result::after {
+		content: "";
+		position: absolute;
+		top: 0;
+		inset-inline: var(--spacing-5);
+		border-top: 1px solid var(--color-border);
+		transition: opacity var(--transition-fast);
 	}
 
-	.result-link {
-		display: block;
-		text-decoration: none;
-		color: inherit;
+	.result:hover,
+	.result:has(.result__link:focus-visible) {
+		background: var(--color-fill);
 	}
 
-	.result-title {
-		font-size: var(--font-size-xl);
-		font-weight: var(--font-weight-heading);
+	.result:hover::after,
+	.result:hover + .result::after,
+	.result:has(.result__link:focus-visible)::after,
+	.result:has(.result__link:focus-visible) + .result::after {
+		opacity: 0;
+	}
+
+	.result__body {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: var(--spacing-1);
+		min-width: 0;
+	}
+
+	.result__title {
+		font-size: var(--font-size-lg);
 		line-height: var(--leading-snug);
-		margin-bottom: var(--spacing-2);
-		transition: color var(--transition-fast);
 	}
 
-	.result-link:hover .result-title {
-		color: var(--color-brand);
+	.result__link {
+		color: var(--color-text);
+		text-decoration: none;
 	}
 
-	.result-snippet {
-		font-size: var(--font-size-base);
-		line-height: var(--leading-relaxed);
+	/* Stretch the link over the whole row; the focus ring is drawn on it too */
+	.result__link::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		border-radius: var(--radius-lg);
+	}
+
+	.result__link:focus-visible {
+		outline: none;
+	}
+
+	.result__link:focus-visible::after {
+		outline: 2px solid var(--color-brand);
+		outline-offset: 2px;
+	}
+
+	.result__snippet {
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		max-width: 72ch;
+		font-size: var(--font-size-sm);
+		line-height: var(--leading-normal);
 		color: var(--color-text-secondary);
 	}
 
-	/* FTS returns <mark> wrapping the matched terms */
-	.result-snippet :global(mark) {
-		background: var(--color-brand-ring);
-		color: inherit;
-		padding: 0 0.1em;
-		border-radius: 2px;
+	.result__path {
+		min-width: 0;
+		margin-top: var(--spacing-1);
+		font-family: var(--font-mono);
+		font-size: var(--font-size-label);
+		color: var(--color-muted);
+	}
+
+	.result__path span {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.result__arrow {
+		align-self: center;
+		width: 16px;
+		height: 16px;
+		color: var(--color-muted);
+		transition:
+			color var(--transition-fast),
+			translate var(--transition-fast);
+	}
+
+	.result:hover .result__arrow {
+		color: var(--color-text);
+		translate: 2px 0;
+	}
+
+	.result__arrow:dir(rtl) {
+		scale: -1 1;
+	}
+
+	.result:hover .result__arrow:dir(rtl) {
+		translate: -2px 0;
+	}
+
+	/* FTS wraps matched terms in <mark> */
+	.results :global(mark) {
+		padding-inline: 2px;
+		border-radius: 3px;
+		background: var(--color-fill-strong);
+		background: color-mix(in srgb, var(--color-text) 10%, transparent);
+		color: var(--color-text);
+		-webkit-box-decoration-break: clone;
+		box-decoration-break: clone;
+	}
+
+	.empty-state__title {
+		overflow-wrap: anywhere;
+	}
+
+	@media (max-width: 560px) {
+		.result {
+			grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+			gap: var(--spacing-3);
+			padding: var(--spacing-4);
+		}
+
+		.result + .result::after {
+			inset-inline: var(--spacing-4);
+		}
 	}
 </style>

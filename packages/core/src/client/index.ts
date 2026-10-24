@@ -185,7 +185,12 @@ export interface MediaUsageOccurrenceDetail {
 	fieldSlug: string;
 	fieldPath: string;
 	occurrenceIndex: number;
-	referenceType: "image_field" | "file_field" | "portable_text_image" | "unknown";
+	referenceType:
+		| "image_field"
+		| "file_field"
+		| "portable_text_image"
+		| "portable_text_video"
+		| "unknown";
 }
 
 /** Indexed references from one visible content source */
@@ -615,6 +620,7 @@ export class EmDashClient {
 								options.onTokenRefresh!(accessToken, expiresIn);
 							}
 						: undefined,
+					fetch: createTransport({ interceptors: options.interceptors }).fetch,
 				}),
 			);
 		}
@@ -647,7 +653,12 @@ export class EmDashClient {
 		if (col.fields) {
 			this.fieldSchemaCache.set(
 				slug,
-				col.fields.map((f) => ({ slug: f.slug, type: f.type, blockTypes: f.blockTypes })),
+				col.fields.map((field) => ({
+					slug: field.slug,
+					type: field.type,
+					blockTypes: field.blockTypes,
+					validation: field.validation,
+				})),
 			);
 		}
 		return col;
@@ -1643,7 +1654,12 @@ export class EmDashClient {
 
 		try {
 			const col = await this.collection(collection);
-			cached = col.fields.map((f) => ({ slug: f.slug, type: f.type, blockTypes: f.blockTypes }));
+			cached = col.fields.map((field) => ({
+				slug: field.slug,
+				type: field.type,
+				blockTypes: field.blockTypes,
+				validation: field.validation,
+			}));
 			this.fieldSchemaCache.set(collection, cached);
 			return cached;
 		} catch {

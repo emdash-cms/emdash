@@ -110,7 +110,7 @@ test.describe("Sandboxed plugin editor extensions", () => {
 			throw new Error(await retry.text());
 		}
 		expect(patchResponse.status()).toBe(200);
-		const preview = admin.page.getByRole("dialog", { name: "Review proposed changes" });
+		const preview = admin.page.getByRole("dialog", { name: "مراجعة التغييرات المقترحة" });
 		await expect(preview).toBeVisible();
 		await expect(preview.getByText("Unsaved title", { exact: true })).toBeVisible();
 		await expect(preview.getByText("Unsaved title translated", { exact: true })).toBeVisible();
@@ -119,7 +119,7 @@ test.describe("Sandboxed plugin editor extensions", () => {
 			fullPage: true,
 		});
 		expect(extensionRequests).toHaveLength(2);
-		await preview.getByRole("button", { name: "Apply changes" }).click();
+		await preview.getByRole("button", { name: "تطبيق التغييرات" }).click();
 		await expect(title).toHaveValue("Unsaved title translated");
 		await expect(admin.page.locator('form button[type="submit"]').first()).toBeEnabled();
 	});
@@ -144,11 +144,9 @@ test.describe("Sandboxed plugin editor extensions", () => {
 		await title.fill("Typed while plugin worked");
 		const slowResponse = await slowResponsePromise;
 		expect(slowResponse.status()).toBe(200);
-		await expect(
-			admin.page.getByText("Plugin changes were not applied", { exact: true }),
-		).toBeVisible();
+		await expect(admin.page.getByText("لم تُطبَّق تغييرات الإضافة", { exact: true })).toBeVisible();
 		await expect(title).toHaveValue("Typed while plugin worked");
-		await expect(admin.page.getByRole("dialog", { name: "Review proposed changes" })).toHaveCount(
+		await expect(admin.page.getByRole("dialog", { name: "مراجعة التغييرات المقترحة" })).toHaveCount(
 			0,
 		);
 		await admin.page.screenshot({

@@ -29,6 +29,7 @@ import { FTSManager } from "../../search/fts-manager.js";
 import type { SearchTokenizer } from "../../search/types.js";
 import { SEARCH_TOKENIZERS } from "../../search/types.js";
 import { invalidateSiteSettingsCache } from "../../settings/index.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
 import { TransferError } from "../errors.js";
 import { compareIds, type CollectionRecord } from "../format/kinds.js";
 import { POST_IMPORT_OPTION_RESETS } from "../format/settings.js";
@@ -43,8 +44,8 @@ const FTS_POPULATE_STATEMENTS = 4;
 const STALE_STATEMENTS = 4;
 const OPTION_STATEMENTS = 4;
 const TAXONOMY_STATEMENTS = 4;
-/** Cache invalidation runs no queries; its checkpoint does. */
-const CACHE_STATEMENTS = 1;
+/** Unpublishing the redirect generation, plus the checkpoint. */
+const CACHE_STATEMENTS = 2;
 
 export interface RebuildPosition {
 	step: RebuildStep;
@@ -280,6 +281,7 @@ async function taxonomyUnit(
 }
 
 async function invalidateCaches(context: ImportContext): Promise<void> {
+	await unpublishRedirectArtifacts(context);
 	for (const namespace of Object.values(CacheNamespace)) invalidateObjectCache(namespace);
 	for (const collection of await collections(context)) {
 		invalidateCollectionCache(collection.slug);
@@ -297,4 +299,17 @@ async function invalidateCaches(context: ImportContext): Promise<void> {
 	invalidateBylineCache();
 	invalidateRedirectCache();
 	invalidateUrlPatternCache();
+}
+
+/** Point redirect readers at the imported rules table until a repair republishes. */
+async function unpublishRedirectArtifacts(context: ImportContext): Promise<void> {
+	try {
+		await context.db
+			.updateTable("_emdash_redirect_state")
+			.set({ generation: null, generation_revision: -1 })
+			.where("id", "=", 1)
+			.execute();
+	} catch (error) {
+		if (!isMissingTableError(error)) throw error;
+	}
 }

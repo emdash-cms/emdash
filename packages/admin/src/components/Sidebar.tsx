@@ -1,5 +1,6 @@
 import { Sidebar as KumoSidebar, useSidebar } from "@cloudflare/kumo";
 import { isSafePluginPagePath, normalizePluginPagePath } from "@emdash-cms/blocks";
+import type { I18n } from "@lingui/core";
 import { useLingui } from "@lingui/react/macro";
 import { Gear, Storefront, Users } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +13,8 @@ import { useCurrentUser } from "../lib/api/current-user";
 import { resolvePluginPagePath, usePluginAdmins } from "../lib/plugin-context";
 import {
 	groupNavItems,
+	joinsContentFolder,
+	normalizeGroup,
 	taxonomyGroup,
 	type GroupableNavItem,
 	type NavEntry,
@@ -37,6 +40,7 @@ export { resolveNavIcon, toPhosphorIconName };
 // Role levels (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 const ROLE_EDITOR = 40;
+const ROLE_CONTRIBUTOR = 20;
 
 /**
  * Static invariants for nav entries that have AC-level visibility
@@ -70,6 +74,14 @@ export function filterNavItemsByRole<T extends { minRole?: number }>(
 	return items.filter((item) => !item.minRole || userRole >= item.minRole);
 }
 
+function filterHiddenNavItems<T extends { navId?: string }>(
+	items: T[],
+	hidden: readonly string[] | undefined,
+): T[] {
+	if (!hidden?.length) return items;
+	return items.filter((item) => !item.navId || !hidden.includes(item.navId));
+}
+
 /**
  * Manifest collections that get an auto-generated sidebar entry and dashboard
  * quick action, in manifest order. Pure function — exported so tests can pin
@@ -98,6 +110,7 @@ export interface SidebarNavProps {
 					path: string;
 					label?: string;
 					icon?: string;
+					group?: string;
 				}>;
 				dashboardWidgets?: Array<{ id: string; title?: string }>;
 				version?: string;
@@ -123,6 +136,7 @@ export interface SidebarNavProps {
 			siteName?: string;
 			footerLabel?: string | false;
 			favicon?: string;
+			hiddenNavItems?: string[];
 		};
 	};
 }
@@ -146,10 +160,12 @@ export interface NavItem extends GroupableNavItem {
 	minRole?: number;
 	/** Optional badge count (e.g., pending comments) */
 	badge?: number;
+	/** Name under which `admin.hiddenNavItems` can hide this built-in entry */
+	navId?: string;
 }
 
-/** Folder member order: collections, then their taxonomies. */
-const GROUP_RANK = { collection: 0, taxonomy: 1 } as const;
+/** Folder member order: collections, then their taxonomies, then plugin pages. */
+const GROUP_RANK = { collection: 0, taxonomy: 1, pluginPage: 2 } as const;
 
 const FOLDER_STATE_STORAGE_KEY = "emdash-sidebar-folders";
 
@@ -323,14 +339,12 @@ export function NavIcon({
 
 /**
  * Resolve the display label for a plugin admin page (sidebar + command
- * palette). Declared labels are run through the shared Lingui instance:
- * plugins that load their own catalog — with the English label as msgid —
- * get localized nav items. The catalog is shared with the admin, so common
- * labels like "Settings" pick up the admin's own translations even without
- * a plugin catalog (deliberate: a localized admin shouldn't show stray
- * English nav items). Labels with no catalog entry anywhere fall back to
- * the literal string. Pages without a label prettify the plugin id
- * ("my-shop" → "My Shop").
+ * palette). Declared labels are translated only when the active catalog has
+ * an entry for them; otherwise they are returned as declared. Plugins that
+ * load their own catalog — with the English label as msgid — get localized
+ * nav items, and common labels like "Settings" pick up the admin's own
+ * translations even without a plugin catalog. Pages without a label prettify
+ * the plugin id ("my-shop" → "My Shop").
  */
 export function resolvePluginPageLabel(
 	label: string | undefined,
@@ -342,6 +356,34 @@ export function resolvePluginPageLabel(
 		.split("-")
 		.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
 		.join(" ");
+}
+
+/**
+ * Resolve the display title for a plugin dashboard widget. Declared titles
+ * are run through the shared Lingui instance so a plugin-provided catalog
+ * localizes dashboard card headings the same way it localizes sidebar nav
+ * labels. Widgets without a title fall back to the raw widget id.
+ */
+export function resolvePluginWidgetTitle(
+	title: string | undefined,
+	widgetId: string,
+	translate: (id: string) => string,
+): string {
+	if (title) return translate(title);
+	return widgetId;
+}
+
+/**
+ * Wrap `translate` so a declared label reaches it only when the active catalog
+ * has an entry for it; any other label is returned as declared. Most plugin
+ * labels have no catalog entry, and passing one to Lingui logs an
+ * "Uncompiled message detected" warning on every render.
+ */
+export function declaredLabelTranslator(
+	i18n: Pick<I18n, "messages">,
+	translate: (id: string) => string,
+): (id: string) => string {
+	return (id) => (i18n.messages[id] === undefined ? id : translate(id));
 }
 
 /** Resolves a nav item's route path by substituting $param placeholders. */
@@ -387,7 +429,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		queryFn: fetchCommentCounts,
 		staleTime: 60 * 1000,
 		retry: false,
-		enabled: userRole >= ROLE_EDITOR,
+		enabled: userRole >= ROLE_EDITOR && !manifest.admin?.hiddenNavItems?.includes("comments"),
 	});
 
 	// --- Build nav item groups ---
@@ -406,10 +448,18 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			params: { collection: name },
 		});
 	}
-	contentItems.push({ to: "/media", label: t`Media`, icon: ADMIN_NAV_ICONS.media });
+	contentItems.push({
+		to: "/media",
+		label: t`Media`,
+		icon: ADMIN_NAV_ICONS.media,
+		navId: "media",
+	});
 
 	const collectionGroups = new Map(
 		visibleCollectionEntries(manifest.collections).map(([name, config]) => [name, config.group]),
+	);
+	const contentGroups = new Set(
+		Array.from(collectionGroups.values(), normalizeGroup).filter((group) => group !== undefined),
 	);
 
 	const manageItems: NavItem[] = [
@@ -419,17 +469,43 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			icon: ADMIN_NAV_ICONS.comments,
 			minRole: ROLE_EDITOR,
 			badge: commentCounts?.pending,
+			navId: "comments",
 		},
-		{ to: "/menus", label: t`Menus`, icon: ADMIN_NAV_ICONS.menus, minRole: ROLE_EDITOR },
+		{
+			to: "/menus",
+			label: t`Menus`,
+			icon: ADMIN_NAV_ICONS.menus,
+			minRole: ROLE_EDITOR,
+			navId: "menus",
+		},
 		{
 			to: "/redirects",
 			label: t`Redirects`,
 			icon: ADMIN_NAV_ICONS.redirects,
 			minRole: ROLE_ADMIN,
+			navId: "redirects",
 		},
-		{ to: "/widgets", label: t`Widgets`, icon: ADMIN_NAV_ICONS.widgets, minRole: ROLE_EDITOR },
-		{ to: "/sections", label: t`Sections`, icon: ADMIN_NAV_ICONS.sections, minRole: ROLE_EDITOR },
-		{ to: "/bylines", label: t`Bylines`, icon: ADMIN_NAV_ICONS.bylines, minRole: ROLE_EDITOR },
+		{
+			to: "/widgets",
+			label: t`Widgets`,
+			icon: ADMIN_NAV_ICONS.widgets,
+			minRole: ROLE_EDITOR,
+			navId: "widgets",
+		},
+		{
+			to: "/sections",
+			label: t`Sections`,
+			icon: ADMIN_NAV_ICONS.sections,
+			minRole: ROLE_EDITOR,
+			navId: "sections",
+		},
+		{
+			to: "/bylines",
+			label: t`Bylines`,
+			icon: ADMIN_NAV_ICONS.bylines,
+			minRole: ROLE_EDITOR,
+			navId: "bylines",
+		},
 	];
 	for (const tax of getSidebarTaxonomies(
 		manifest.taxonomies,
@@ -484,6 +560,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			label: t`Import`,
 			icon: ADMIN_NAV_ICONS.import,
 			minRole: ROLE_ADMIN,
+			navId: "import",
 		},
 		{ to: "/settings", label: t`Settings`, icon: Gear, minRole: ROLE_ADMIN },
 	);
@@ -497,22 +574,40 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			for (const page of config.adminPages) {
 				if (!isBlocksMode && !resolvePluginPagePath(pluginPages, page.path)) continue;
 				if (!isSafePluginPagePath(page.path)) continue;
-				const label = resolvePluginPageLabel(page.label, pluginId, (id) => i18n._(id));
-				pluginItems.push({
+				const label = resolvePluginPageLabel(
+					page.label,
+					pluginId,
+					declaredLabelTranslator(i18n, (id) => i18n._(id)),
+				);
+				const group = normalizeGroup(page.group);
+				const item: NavItem = {
 					to: `/plugins/${pluginId}${normalizePluginPagePath(page.path)}`,
 					label,
 					icon: resolveNavIcon(page.icon),
-				});
+					iconName: page.icon,
+					group,
+					groupRank: GROUP_RANK.pluginPage,
+				};
+				(joinsContentFolder(group, contentGroups) ? contentItems : pluginItems).push(item);
 			}
 		}
 	}
 
+	const hiddenNavItems = manifest.admin?.hiddenNavItems;
 	const visibleContent = groupNavItems(
-		filterNavItemsByRole(contentItems, userRole).filter((i) => i.to !== "/"),
+		filterHiddenNavItems(filterNavItemsByRole(contentItems, userRole), hiddenNavItems).filter(
+			(i) => i.to !== "/",
+		),
 	);
-	const visibleManage = filterNavItemsByRole(manageItems, userRole);
-	const visibleAdmin = filterNavItemsByRole(adminItems, userRole);
-	const visiblePlugins = filterNavItemsByRole(pluginItems, userRole);
+	const visibleManage = filterHiddenNavItems(
+		filterNavItemsByRole(manageItems, userRole),
+		hiddenNavItems,
+	);
+	const visibleAdmin = filterHiddenNavItems(
+		filterNavItemsByRole(adminItems, userRole),
+		hiddenNavItems,
+	);
+	const visiblePlugins = groupNavItems(filterNavItemsByRole(pluginItems, userRole));
 
 	const folders = useFolderState();
 
@@ -582,11 +677,17 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 							item={{ to: "/", label: t`Dashboard`, icon: ADMIN_NAV_ICONS.dashboard }}
 							isActive={isItemActive("/", currentPath)}
 						/>
+						{userRole >= ROLE_CONTRIBUTOR && !hiddenNavItems?.includes("calendar") && (
+							<NavMenuLink
+								item={{ to: "/calendar", label: t`Calendar`, icon: ADMIN_NAV_ICONS.calendar }}
+								isActive={isItemActive("/calendar", currentPath)}
+							/>
+						)}
 					</KumoSidebar.Menu>
 				</KumoSidebar.Group>
 
 				{/* Content — collections + media */}
-				{visibleContent.length > 1 && (
+				{visibleCollectionEntries(manifest.collections).length > 0 && (
 					<KumoSidebar.Group>
 						<KumoSidebar.GroupLabel>{t`Content`}</KumoSidebar.GroupLabel>
 						<KumoSidebar.Menu>{renderNavEntries(visibleContent)}</KumoSidebar.Menu>
@@ -613,7 +714,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				{visiblePlugins.length > 0 && (
 					<KumoSidebar.Group>
 						<KumoSidebar.GroupLabel>{t`Plugins`}</KumoSidebar.GroupLabel>
-						<KumoSidebar.Menu>{renderNavItems(visiblePlugins)}</KumoSidebar.Menu>
+						<KumoSidebar.Menu>{renderNavEntries(visiblePlugins)}</KumoSidebar.Menu>
 					</KumoSidebar.Group>
 				)}
 			</KumoSidebar.Content>

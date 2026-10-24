@@ -337,6 +337,8 @@ export default {
 				event: { content: Record<string, unknown>; collection: string; isNew: boolean },
 				ctx: PluginContext,
 			) => {
+				// With a pending draft, afterSave carries the draft's data, not the published version.
+				if (event.content.draftRevisionId) return;
 				await syndicatePublishedContent(event, ctx, { allowCreate: false });
 			},
 		},
@@ -680,6 +682,7 @@ async function buildStatusPage(ctx: PluginContext) {
 					{ type: "header", text: "Recent Syncs" },
 					{
 						type: "table",
+						page_action_id: "recent_syncs",
 						columns: [
 							{ key: "collection", label: "Collection", format: "text" },
 							{ key: "contentId", label: "Content", format: "code" },

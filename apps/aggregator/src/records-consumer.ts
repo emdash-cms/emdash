@@ -21,10 +21,15 @@
  * Error policy:
  *   - Verification failure (signature, MST, lexicon, structural): write a
  *     `dead_letters` row with the structured reason + payload, ack the message.
- *     Never retry — these are malicious or broken upstream.
+ *     Never retry — these are malicious or broken upstream. A failure to fetch
+ *     or verify the record at the PDS is first checked once more against a
+ *     freshly resolved identity, since the cached PDS and signing key go stale
+ *     when the publisher migrates PDS or rotates keys.
  *   - Transient PDS failure (network, timeout, 5xx): `retry()` so Cloudflare
  *     Queues backs off and retries. After `max_retries` (5) it lands in the
  *     configured DLQ.
+ *   - Identity resolution failure (PLC directory or did:web host down):
+ *     `retry()`, same path as a transient PDS failure.
  *   - Unexpected programming errors: log loud, write a `dead_letters` row,
  *     ack the message. Never crash the worker — that would block the queue.
  */
@@ -41,7 +46,7 @@ import {
 } from "@emdash-cms/registry-lexicons";
 import { canonicalizeRepositoryUrl } from "@emdash-cms/registry-verification/repository";
 
-import { createProductionDidResolver, DidResolver } from "./did-resolver.js";
+import { createProductionDidResolver, DidResolver, type ResolvedDidDoc } from "./did-resolver.js";
 import type { RecordsJob } from "./env.js";
 import {
 	fetchAndVerifyRecord,
@@ -58,7 +63,7 @@ import { boundFetch, isPlainObject, parseSignatureMetadataCid } from "./utils.js
  */
 export interface ConsumerDeps {
 	db: D1Database;
-	resolver: DidResolver;
+	resolver: Pick<DidResolver, "resolve" | "resolveFresh">;
 	fetch?: typeof fetch;
 	now?: () => Date;
 	/**
@@ -117,6 +122,10 @@ export type DeadLetterReason =
  */
 export class MissingDependencyError extends Error {
 	override readonly name = "MissingDependencyError";
+}
+
+class IdentityResolutionError extends Error {
+	override readonly name = "IdentityResolutionError";
 }
 
 /** Thrown by writers and structural checks. Carries the reason for the
@@ -284,6 +293,16 @@ export async function processMessage(
 			controller.retry();
 			return;
 		}
+		if (err instanceof IdentityResolutionError) {
+			console.warn("[aggregator] publisher identity resolution failed, retrying", {
+				did: job.did,
+				collection: job.collection,
+				rkey: job.rkey,
+				reason: err.message,
+			});
+			controller.retry();
+			return;
+		}
 		// Unexpected — log loud, dead-letter, ack so the queue isn't blocked.
 		// We don't retry because we have no evidence the next attempt will
 		// succeed and unbounded retries on a poison message stall the slot.
@@ -305,16 +324,13 @@ export async function processMessage(
 }
 
 async function verifyAndIngest(job: RecordsJob, deps: ConsumerDeps): Promise<void> {
-	const resolved = await deps.resolver.resolve(job.did);
-	const verifyFn = deps.verify ?? fetchAndVerifyRecord;
-	const verified = await verifyFn({
-		pds: resolved.pds,
-		did: job.did,
-		collection: job.collection,
-		rkey: job.rkey,
-		publicKey: resolved.publicKey,
-		fetch: deps.fetch,
-	});
+	let verified: VerifiedPdsRecord;
+	try {
+		verified = await resolveAndVerify(job, deps, false);
+	} catch (err) {
+		if (!(err instanceof PdsVerificationError) || isTransient(err.reason, err.status)) throw err;
+		verified = await resolveAndVerify(job, deps, true);
+	}
 
 	// Cross-check vs Jetstream copy intentionally omitted: the verified PDS
 	// copy is canonical and always wins, so the comparison is a monitoring
@@ -342,6 +358,32 @@ async function verifyAndIngest(job: RecordsJob, deps: ConsumerDeps): Promise<voi
 				job.collection,
 			);
 	}
+}
+
+async function resolveAndVerify(
+	job: RecordsJob,
+	deps: ConsumerDeps,
+	refreshIdentity: boolean,
+): Promise<VerifiedPdsRecord> {
+	let resolved: ResolvedDidDoc;
+	try {
+		resolved = await (refreshIdentity
+			? deps.resolver.resolveFresh(job.did)
+			: deps.resolver.resolve(job.did));
+	} catch (err) {
+		throw new IdentityResolutionError(
+			`could not resolve ${job.did}: ${err instanceof Error ? err.message : String(err)}`,
+		);
+	}
+	const verifyFn = deps.verify ?? fetchAndVerifyRecord;
+	return await verifyFn({
+		pds: resolved.pds,
+		did: job.did,
+		collection: job.collection,
+		rkey: job.rkey,
+		publicKey: resolved.publicKey,
+		fetch: deps.fetch,
+	});
 }
 
 // ─── Writers ────────────────────────────────────────────────────────────────

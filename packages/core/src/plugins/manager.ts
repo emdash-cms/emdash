@@ -27,6 +27,7 @@ import {
 import { PluginRouteRegistry, type RouteResult, type InvokeRouteOptions } from "./routes.js";
 import type {
 	ActorInfo,
+	ContentSaveHookDetails,
 	PluginDefinition,
 	ResolvedPlugin,
 	PluginStorageConfig,
@@ -308,12 +309,13 @@ export class PluginManager {
 		isNew: boolean,
 		id?: string,
 		actor?: ActorInfo,
+		details?: ContentSaveHookDetails,
 	): Promise<{
 		content: Record<string, unknown>;
 		results: HookResult<Record<string, unknown>>[];
 	}> {
 		this.ensureInitialized();
-		return this.hookPipeline!.runContentBeforeSave(content, collection, isNew, id, actor);
+		return this.hookPipeline!.runContentBeforeSave(content, collection, isNew, id, actor, details);
 	}
 
 	/**
@@ -324,9 +326,17 @@ export class PluginManager {
 		collection: string,
 		isNew: boolean,
 		actor?: ActorInfo,
+		details?: ContentSaveHookDetails,
 	): Promise<HookResult<void>[]> {
 		this.ensureInitialized();
-		return this.hookPipeline!.runContentAfterSave(content, collection, isNew, actor);
+		return this.hookPipeline!.runContentAfterSave(
+			content,
+			collection,
+			isNew,
+			actor,
+			undefined,
+			details,
+		);
 	}
 
 	/**

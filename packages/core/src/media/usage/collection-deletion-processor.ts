@@ -55,16 +55,43 @@ export async function processDueMediaUsageCollectionDeletions(
 		return { candidateCount: candidates.length, claimedCount: 0, outcome: "claim_lost" };
 	}
 
+	return {
+		candidateCount: candidates.length,
+		claimedCount: 1,
+		outcome: await runClaimedDeletion(db, repository, claim),
+	};
+}
+
+/**
+ * Advance the given collection's deletion by one step. Returns `idle` when the
+ * deletion can't be claimed now: another request holds its lease, it is
+ * waiting out a retry, or it failed.
+ */
+export async function processMediaUsageCollectionDeletion(
+	db: Kysely<Database>,
+	deletion: Pick<MediaUsageCollectionDeletionRecord, "collectionId" | "phase">,
+): Promise<MediaUsageCollectionDeletionTickResult["outcome"]> {
+	const repository = new MediaUsageCollectionDeletionRepository(db);
+	const claim = await repository.claim({
+		collectionId: deletion.collectionId,
+		phase: deletion.phase,
+		leaseDurationSeconds: MEDIA_USAGE_COLLECTION_DELETION_LIMITS.leaseDurationSeconds,
+	});
+	if (!claim) return "idle";
+	return runClaimedDeletion(db, repository, claim);
+}
+
+async function runClaimedDeletion(
+	db: Kysely<Database>,
+	repository: MediaUsageCollectionDeletionRepository,
+	claim: MediaUsageCollectionDeletionRecord & { leaseToken: string },
+): Promise<Exclude<MediaUsageCollectionDeletionTickResult["outcome"], "idle">> {
 	try {
 		const processed = await processClaimedDeletion(db, claim);
 		if (!processed.finalized && !processed.released && !(await repository.release(claim))) {
-			return { candidateCount: candidates.length, claimedCount: 1, outcome: "claim_lost" };
+			return "claim_lost";
 		}
-		return {
-			candidateCount: candidates.length,
-			claimedCount: 1,
-			outcome: processed.finalized ? "finalized" : "progress",
-		};
+		return processed.finalized ? "finalized" : "progress";
 	} catch (error) {
 		const terminal = claim.attemptCount + 1 >= MEDIA_USAGE_COLLECTION_DELETION_LIMITS.maxAttempts;
 		const recorded = await repository.recordFailure({
@@ -74,15 +101,9 @@ export async function processDueMediaUsageCollectionDeletions(
 			terminal,
 			retryDelaySeconds: retryDelaySeconds(claim.attemptCount),
 		});
-		if (!recorded) {
-			return { candidateCount: candidates.length, claimedCount: 1, outcome: "claim_lost" };
-		}
+		if (!recorded) return "claim_lost";
 		console.error("[media-usage:collection-deletion] Processing failed:", error);
-		return {
-			candidateCount: candidates.length,
-			claimedCount: 1,
-			outcome: terminal ? "failed" : "retry",
-		};
+		return terminal ? "failed" : "retry";
 	}
 }
 

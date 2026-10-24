@@ -44,7 +44,7 @@ export interface MemoryCacheOptions extends ObjectCacheRuntimeConfig {
  */
 export function memoryCache(options: MemoryCacheOptions = {}): ObjectCacheDescriptor {
 	return {
-		entrypoint: "emdash/object-cache/memory",
+		entrypoint: "emdash/internal/object-cache/memory",
 		config: { ...options },
 	};
 }

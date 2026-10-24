@@ -14,6 +14,7 @@ import type { AstroConfig } from "astro";
 import type { Plugin } from "vite";
 
 import { COMMIT, VERSION } from "../../version.js";
+import { createAdminLocaleResolverPlugin, readAdminLocaleManifest } from "./admin-locales.js";
 import type { EmDashConfig, PluginDescriptor } from "./runtime.js";
 import {
 	VIRTUAL_CONFIG_ID,
@@ -120,7 +121,7 @@ export function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string
  * Resolve path to the admin package dist directory.
  * Used for Vite alias to ensure the package is found in pnpm's isolated node_modules.
  */
-function resolveAdminDist(): string {
+export function resolveAdminDist(): string {
 	const require = createRequire(import.meta.url);
 	const adminPath = require.resolve("@emdash-cms/admin");
 	// Return the directory containing the built package (dist/)
@@ -182,10 +183,7 @@ export interface VitePluginOptions {
 /**
  * Creates the EmDash virtual modules Vite plugin.
  */
-export function createVirtualModulesPlugin(
-	options: VitePluginOptions,
-	astroCommand: "dev" | "build" | "preview" | "sync",
-): Plugin {
+export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 	const { serializableConfig, resolvedConfig, pluginDescriptors, astroConfig } = options;
 
 	let viteCommand: "build" | "serve" | undefined;
@@ -337,17 +335,9 @@ export function createVirtualModulesPlugin(
 			}
 			// Generate scheduler module — a NodeCronScheduler factory on
 			// long-lived runtimes, or null under the Cloudflare adapter where
-			// a Cron Trigger drives scheduled work instead.
-			//
-			// Decide from Astro's command, not Vite's config.command: the
-			// Cloudflare adapter builds the worker bundle via a nested Vite
-			// *build* pass even during `astro dev`, so viteCommand reports
-			// "build" and would wrongly suppress the in-process timer (#1635).
-			// Astro's command stays "dev", which is the only case that should
-			// fall through to a NodeCronScheduler.
+			// platform events drive scheduled work.
 			if (id === RESOLVED_VIRTUAL_SCHEDULER_ID) {
-				const schedulerCommand = astroCommand === "dev" ? "serve" : "build";
-				return generateSchedulerModule(astroConfig.adapter?.name, schedulerCommand);
+				return generateSchedulerModule(astroConfig.adapter?.name);
 			}
 			// Generate env module — re-exports cloudflare:workers' env under
 			// the Cloudflare adapter, undefined otherwise (#1736).
@@ -418,6 +408,9 @@ export function createViteConfig(
 	command: "dev" | "build" | "preview" | "sync",
 ): NonNullable<AstroConfig["vite"]> {
 	const adminDistPath = resolveAdminDist();
+	const adminRequire = createRequire(resolve(adminDistPath, "index.js"));
+	const adminLinguiReactPath = dirname(adminRequire.resolve("@lingui/react/package.json"));
+	const adminLinguiCorePath = dirname(adminRequire.resolve("@lingui/core/package.json"));
 	const cloudflare = isCloudflareAdapter(options.astroConfig);
 	const isDev = command === "dev";
 	const projectRoot = fileURLToPath(options.astroConfig.root);
@@ -425,6 +418,7 @@ export function createViteConfig(
 
 	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
+	const adminLocales = options.resolvedConfig.admin?.locales;
 	const useSyncExternalStoreShimPath = resolveIntegrationShim("use-sync-external-store.js");
 	const useSyncExternalStoreWithSelectorShimPath = resolveIntegrationShim(
 		"use-sync-external-store-with-selector.js",
@@ -445,18 +439,24 @@ export function createViteConfig(
 			__EMDASH_PSEUDO_LOCALE__: JSON.stringify(
 				isDev && process.env["EMDASH_PSEUDO_LOCALE"] === "1",
 			),
+			__EMDASH_ADMIN_LOCALES__: JSON.stringify(adminLocales ?? null),
 		},
 		resolve: {
 			dedupe: ["@emdash-cms/admin", "react", "react-dom"],
-			// Array form so more-specific entries are checked first.
-			// The styles.css alias must come before the package alias, otherwise
-			// Vite's prefix matching on "@emdash-cms/admin" would resolve
-			// "@emdash-cms/admin/styles.css" through the source directory.
-			// Regex (not string) so the `?url` variant — admin.astro imports the
-			// stylesheet as `?url` to keep it out of the page CSS graph — also
-			// resolves to dist; a string `find` only matches on a `/` or end
-			// boundary, so `styles.css?url` would slip through to the source alias.
+			// Admin and auth providers must share Lingui's React context. In pnpm
+			// installs, resolving each package from its importer can otherwise load
+			// separate copies even when the versions match.
 			alias: [
+				{ find: "@lingui/react", replacement: adminLinguiReactPath },
+				{ find: "@lingui/core", replacement: adminLinguiCorePath },
+				// Array form so more-specific entries are checked first. The styles.css
+				// alias must come before the package alias, otherwise Vite's prefix
+				// matching on "@emdash-cms/admin" would resolve
+				// "@emdash-cms/admin/styles.css" through the source directory.
+				// Regex (not string) so the `?url` variant — admin.astro imports the
+				// stylesheet as `?url` to keep it out of the page CSS graph — also
+				// resolves to dist; a string `find` only matches on a `/` or end
+				// boundary, so `styles.css?url` would slip through to the source alias.
 				{ find: ADMIN_STYLES_ALIAS, replacement: resolve(adminDistPath, "styles.css") },
 				{ find: "@emdash-cms/admin", replacement: useSource ? adminSourcePath : adminDistPath },
 				// `use-sync-external-store/shim` is a React <18 polyfill that ships
@@ -492,7 +492,19 @@ export function createViteConfig(
 		},
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
-			createVirtualModulesPlugin(options, command),
+			createVirtualModulesPlugin(options),
+			// Must precede the Lingui macro plugin, which redirects source
+			// catalog imports to dist/ in dev.
+			...(adminLocales
+				? [
+						createAdminLocaleResolverPlugin({
+							adminDistPath,
+							adminSourcePath,
+							locales: adminLocales,
+							manifest: readAdminLocaleManifest(adminDistPath),
+						}),
+					]
+				: []),
 			...(cloudflare ? [] : [createWorkersBuiltinsExternalPlugin()]),
 			// In dev mode with source alias, compile Lingui macros on the fly
 			// and redirect locale .mjs imports to dist/.
@@ -646,6 +658,19 @@ export function createViteConfig(
 						"emdash > lowlight",
 						"emdash > highlight.js",
 						"emdash > highlight.js/lib/core",
+						// The HTML block's code editor loads these lazily. Discovering
+						// them on first use would re-optimize and reload the admin.
+						"emdash > @emdash-cms/admin > @codemirror/autocomplete",
+						"emdash > @emdash-cms/admin > @codemirror/commands",
+						"emdash > @emdash-cms/admin > @codemirror/lang-css",
+						"emdash > @emdash-cms/admin > @codemirror/lang-html",
+						"emdash > @emdash-cms/admin > @codemirror/lang-javascript",
+						"emdash > @emdash-cms/admin > @codemirror/language",
+						"emdash > @emdash-cms/admin > @codemirror/state",
+						"emdash > @emdash-cms/admin > @codemirror/view",
+						"emdash > @emdash-cms/admin > @lezer/highlight",
+						// Each admin language loads its date locale on first use.
+						"emdash > @emdash-cms/admin > react-day-picker/locale/*",
 					]
 				: [
 						"@emdash-cms/admin",

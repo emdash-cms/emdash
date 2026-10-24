@@ -78,9 +78,12 @@ export function x402(config: X402Config): AstroIntegration {
 					},
 				});
 
-				// Register the middleware that puts the enforcer on locals
+				// Register the middleware that puts the enforcer on locals. Point at the
+				// built file next to this module: Astro resolves a bare package name from
+				// the site's root, which fails when the site gets this package through
+				// another integration and pnpm keeps it out of the site's node_modules.
 				addMiddleware({
-					entrypoint: "@emdash-cms/x402/middleware",
+					entrypoint: new URL("./middleware.mjs", import.meta.url),
 					order: "pre",
 				});
 			},

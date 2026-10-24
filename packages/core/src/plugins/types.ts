@@ -106,6 +106,35 @@ export function normalizePluginCapabilities(capabilities: readonly string[]): st
 	return [...normalized];
 }
 
+const WARNED_DEPRECATED_CAPABILITY_PLUGINS = Symbol.for(
+	"emdash:warned-deprecated-capability-plugins",
+);
+
+/**
+ * Warn, once per plugin per process, that a plugin declares deprecated
+ * capability names. Call with the plugin's raw, un-normalized capabilities.
+ */
+export function warnDeprecatedPluginCapabilities(
+	pluginId: string,
+	capabilities: readonly string[],
+): void {
+	const deprecated = capabilities.filter(isDeprecatedCapability);
+	if (deprecated.length === 0) return;
+
+	const g = globalThis as Record<symbol, unknown>;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	const warned = (g[WARNED_DEPRECATED_CAPABILITY_PLUGINS] ??= new Set<string>()) as Set<string>;
+	if (warned.has(pluginId)) return;
+	warned.add(pluginId);
+
+	const renames = deprecated.map((cap) => `${cap} → ${CAPABILITY_RENAMES[cap]}`).join(", ");
+	console.warn(
+		`[emdash] Plugin "${pluginId}" declares deprecated capability names (${renames}). ` +
+			"They still work, but support will be removed in a future major release. " +
+			"Update the plugin, or ask its author to publish a version that uses the current names.",
+	);
+}
+
 // =============================================================================
 // Storage Types
 // =============================================================================
@@ -1392,6 +1421,22 @@ export interface ContentHookEvent {
 	 * who made the change.
 	 */
 	actor?: ActorInfo;
+	/**
+	 * Locale of the entry being saved: the resolved target locale on a create,
+	 * the stored entry's locale on an update.
+	 */
+	locale?: string;
+	/**
+	 * ID of the source entry when a create comes from the translation flow.
+	 * Absent on updates and on creates that start a new translation group.
+	 */
+	translationOf?: string;
+}
+
+/** Locale details a save passes to its `content:beforeSave` and `content:afterSave` hooks. */
+export interface ContentSaveHookDetails {
+	locale?: string;
+	translationOf?: string;
 }
 
 /**
@@ -1924,6 +1969,12 @@ export interface PluginAdminPage {
 	path: string;
 	label: string;
 	icon?: string;
+	/**
+	 * Admin sidebar folder. Pages sharing a group with a collection shown in
+	 * the sidebar join that folder; pages with any other group share a folder
+	 * with that label in the Plugins section, across plugins.
+	 */
+	group?: string;
 }
 
 /**

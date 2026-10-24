@@ -4,20 +4,23 @@ import {
 	PlcDidDocumentResolver,
 } from "@atcute/identity-resolver";
 import { isDid, type AtprotoDid } from "@atcute/lexicons/syntax";
+import { REGISTRY_CUMULUS_ORIGIN } from "@emdash-cms/registry-lexicons";
 import { INITIAL_LISTING_POLICY_FIXTURE } from "@emdash-cms/registry-moderation/fixtures";
 import { fetchVerifiedResource } from "@emdash-cms/registry-verification/fetch";
 
+import {
+	CLEF_IMAGE_ASSESSMENT_SETTINGS,
+	CLEF_TEXT_ASSESSMENT_SETTINGS,
+	createClefImageAdapter,
+	createClefTextAdapter,
+	requireClefModelId,
+} from "../ai/clef.js";
 import {
 	createCloudflareImagesDerivativeTransformer,
 	createResizedImageModerationAdapter,
 	DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
 } from "../ai/image-resize.js";
-import { createUnanimousTextModerationAdapter } from "../ai/unanimous.js";
-import {
-	createWorkersAiImageAdapter,
-	createWorkersAiTextAdapter,
-	workersAiBindingFromEnv,
-} from "../ai/workers-ai.js";
+import { workersAiBindingFromEnv } from "../ai/workers-ai.js";
 import { createD1ListingLabelIssuer, type ListingLabelIssuer } from "../labels/issuer.js";
 import {
 	LABELER_POLICY_EFFECTIVE_AT,
@@ -34,6 +37,7 @@ import {
 	createCloudflareImagesDecoder,
 	createR2MediaContentStore,
 	createR2ModerationMediaReader,
+	createTrustedOriginServiceBindingTransport,
 	createWorkersSocketPinnedTransport,
 } from "./runtime-media.js";
 import type { AssessmentWorkflowDependencies } from "./workflow.js";
@@ -47,23 +51,17 @@ export async function createProductionAssessmentWorkflowDependencies(
 	const ai = workersAiBindingFromEnv(env.AI);
 	const { connect } = await import("cloudflare:sockets");
 	const issuer = await createProductionListingLabelIssuer(env, config);
-	const textAdapter = createUnanimousTextModerationAdapter([
-		createWorkersAiTextAdapter(ai, {
-			modelId: config.textModelIds[0],
-			promptHash: config.versions.textPromptHash,
-		}),
-		createWorkersAiTextAdapter(ai, {
-			modelId: config.textModelIds[1],
-			promptHash: config.versions.textPromptHash,
-			thinking: false,
-		}),
-	]);
+	const textAdapter = createClefTextAdapter(ai, {
+		...CLEF_TEXT_ASSESSMENT_SETTINGS,
+		modelId: requireClefModelId(config.versions.textModelId),
+		promptHash: config.versions.textPromptHash,
+	});
 	const imageAdapter = createResizedImageModerationAdapter(
 		createCloudflareImagesDerivativeTransformer(env.IMAGES),
-		createWorkersAiImageAdapter(ai, {
-			modelId: config.versions.imageModelId,
+		createClefImageAdapter(ai, {
+			...CLEF_IMAGE_ASSESSMENT_SETTINGS,
+			modelId: requireClefModelId(config.versions.imageModelId),
 			promptHash: config.versions.imagePromptHash,
-			thinking: false,
 		}),
 		DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
 	);
@@ -87,7 +85,11 @@ export async function createProductionAssessmentWorkflowDependencies(
 					return addresses;
 				},
 			},
-			transport: createWorkersSocketPinnedTransport(connect),
+			transport: createTrustedOriginServiceBindingTransport(
+				REGISTRY_CUMULUS_ORIGIN,
+				env.REGISTRY_BLOB_CACHE,
+				createWorkersSocketPinnedTransport(connect),
+			),
 			store: createR2MediaContentStore(env.MEDIA_QUARANTINE, env.DB),
 			decoder: createCloudflareImagesDecoder(env.IMAGES),
 		}),

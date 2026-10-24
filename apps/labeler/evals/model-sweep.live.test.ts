@@ -5,6 +5,15 @@ import { fileURLToPath } from "node:url";
 
 import { afterAll, describe, expect, it } from "vitest";
 
+import {
+	CLEF_IMAGE_ASSESSMENT_SETTINGS,
+	CLEF_TEXT_ASSESSMENT_SETTINGS,
+	clefImagePromptHash,
+	clefTextPromptHash,
+	createClefImageAdapter,
+	createClefTextAdapter,
+	isClefModelId,
+} from "../src/ai/clef.js";
 import { sha256Hex } from "../src/ai/hash.js";
 import { IMAGE_SYSTEM_PROMPT, TEXT_SYSTEM_PROMPT } from "../src/ai/prompts.js";
 import type {
@@ -41,6 +50,9 @@ const disableThinkingModels = new Set(parseModels(process.env.MODEL_SWEEP_DISABL
 const imageMaxDimension = parseOptionalInteger(process.env.MODEL_SWEEP_IMAGE_MAX_DIMENSION);
 const maxCompletionTokens = parseOptionalInteger(process.env.MODEL_SWEEP_MAX_COMPLETION_TOKENS);
 const reasoningEffort = parseReasoningEffort(process.env.MODEL_SWEEP_REASONING_EFFORT);
+const clefThreshold = process.env.MODEL_SWEEP_CLEF_THRESHOLD
+	? Number(process.env.MODEL_SWEEP_CLEF_THRESHOLD)
+	: undefined;
 
 describe("live Workers AI model sweep", () => {
 	it("evaluates production adapters against the canonical corpus", async () => {
@@ -78,6 +90,16 @@ describe("live Workers AI model sweep", () => {
 		});
 		const textPromptHash = await sha256Hex(TEXT_SYSTEM_PROMPT);
 		const imagePromptHash = await sha256Hex(IMAGE_SYSTEM_PROMPT);
+		const clefText = {
+			...CLEF_TEXT_ASSESSMENT_SETTINGS,
+			...(clefThreshold === undefined ? {} : { threshold: clefThreshold }),
+		};
+		const clefImage = {
+			...CLEF_IMAGE_ASSESSMENT_SETTINGS,
+			...(clefThreshold === undefined ? {} : { threshold: clefThreshold }),
+		};
+		const clefTextHash = await clefTextPromptHash(clefText);
+		const clefImageHash = await clefImagePromptHash(clefImage);
 		const runnerCommit = execFileSync("git", ["rev-parse", "HEAD"], {
 			encoding: "utf8",
 		}).trim();
@@ -113,14 +135,22 @@ describe("live Workers AI model sweep", () => {
 									],
 								)
 							: textAdapter(model);
-				const image = createWorkersAiImageAdapter(ai, {
-					modelId: lane === "image" ? model : baseline.imageIdentity.modelId,
-					promptHash: imagePromptHash,
-					configuredUnits: 1,
-					...(disableThinkingModels.has(model) ? { thinking: false } : {}),
-					...(maxCompletionTokens === undefined ? {} : { maxCompletionTokens }),
-					...(reasoningEffort === undefined ? {} : { reasoningEffort }),
-				});
+				const image =
+					lane === "image" && isClefModelId(model)
+						? createClefImageAdapter(ai, {
+								...clefImage,
+								modelId: model,
+								promptHash: clefImageHash,
+								configuredUnits: 1,
+							})
+						: createWorkersAiImageAdapter(ai, {
+								modelId: lane === "image" ? model : baseline.imageIdentity.modelId,
+								promptHash: imagePromptHash,
+								configuredUnits: 1,
+								...(disableThinkingModels.has(model) ? { thinking: false } : {}),
+								...(maxCompletionTokens === undefined ? {} : { maxCompletionTokens }),
+								...(reasoningEffort === undefined ? {} : { reasoningEffort }),
+							});
 				const bundle = await runEvaluation({
 					dataset,
 					mode: "live",
@@ -150,6 +180,14 @@ describe("live Workers AI model sweep", () => {
 			}
 
 			function textAdapter(modelId: string): TextModerationAdapter {
+				if (isClefModelId(modelId)) {
+					return createClefTextAdapter(ai, {
+						...clefText,
+						modelId,
+						promptHash: clefTextHash,
+						configuredUnits: 1,
+					});
+				}
 				return createWorkersAiTextAdapter(ai, {
 					modelId,
 					promptHash: textPromptHash,
@@ -173,6 +211,7 @@ describe("live Workers AI model sweep", () => {
 			imageMaxDimension,
 			maxCompletionTokens,
 			reasoningEffort,
+			clef: { text: clefText, image: clefImage },
 			repeatCount,
 			caseConcurrency,
 			liveFixtureIds: [...liveFixtureIds],

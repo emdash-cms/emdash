@@ -1,5 +1,6 @@
 import { safeParse } from "@atcute/lexicons/validations";
-import { declaredAccessToCapabilities } from "@emdash-cms/plugin-types";
+import { declaredAccessToCapabilities, describeCapability } from "@emdash-cms/plugin-types";
+import type { CapabilityDescription } from "@emdash-cms/plugin-types";
 import { RECORD_SCOPED_BLOB_CACHE_TYPE } from "@emdash-cms/registry-lexicons";
 import { PackageReleaseExtension } from "@emdash-cms/registry-lexicons";
 import type { RegistryEntryData } from "@emdash-cms/registry-loader";
@@ -12,6 +13,7 @@ import sanitizeHtml from "sanitize-html";
 
 const RELEASE_COLLECTION = "com.emdashcms.experimental.package.release";
 const OFFICIAL_PUBLISHER_DID = "did:plc:xyraubanwc5fwemkduw3upi6";
+const COMMENT_OR_HEADING_TAG = /<!--[\s\S]*?-->|<h([1-6])[\s>]/gi;
 
 export const REGISTRY_PAGE_CACHE = {
 	maxAge: 60,
@@ -59,67 +61,9 @@ export function requestedPermissions(data: RegistryEntryData): PermissionSummary
 	return { declared: true, capabilities, allowedHosts: summary.allowedHosts };
 }
 
-const PERMISSION_COPY: Record<string, { label: string; description: string }> = {
-	"content:read": {
-		label: "Read content",
-		description: "Read entries from your site’s content collections.",
-	},
-	"content:write": {
-		label: "Manage content",
-		description: "Create, update, and delete content entries.",
-	},
-	"taxonomies:read": {
-		label: "Read taxonomies",
-		description: "Read taxonomy definitions, terms, and content assignments.",
-	},
-	"bylines:read": {
-		label: "Read bylines",
-		description: "Read public byline profiles and the bylines credited on content entries.",
-	},
-	"media:read": {
-		label: "Read media",
-		description: "Read media metadata and files from your library.",
-	},
-	"media:write": {
-		label: "Manage media",
-		description: "Upload, update, and delete media from your library.",
-	},
-	"network:request": {
-		label: "Make network requests",
-		description: "Connect to the publisher-declared external hosts.",
-	},
-	"network:request:unrestricted": {
-		label: "Make unrestricted network requests",
-		description: "Connect to any external host.",
-	},
-	"email:send": {
-		label: "Send email",
-		description: "Send email through your site’s configured mail service.",
-	},
-	"hooks.email-events:register": {
-		label: "Observe outgoing email",
-		description: "Observe and modify messages before or after they are sent.",
-	},
-	"hooks.email-transport:register": {
-		label: "Provide the email transport",
-		description: "Deliver every message sent by the site, replacing the current transport.",
-	},
-	"hooks.page-fragments:register": {
-		label: "Add page scripts and styles",
-		description: "Inject script or style fragments into rendered pages.",
-	},
-	"users:read": {
-		label: "Read user accounts",
-		description: "Read user records from your site.",
-	},
-};
-
-export function permissionCopy(capability: string): {
-	label: string;
-	description: string;
-} {
+export function permissionCopy(capability: string): CapabilityDescription {
 	return (
-		PERMISSION_COPY[capability] ?? {
+		describeCapability(capability) ?? {
 			label: capability,
 			description: "Use this publisher-declared capability.",
 		}
@@ -128,6 +72,20 @@ export function permissionCopy(capability: string): {
 
 export function isLiveEntryNotFoundError(error: unknown): boolean {
 	return error instanceof Error && error.name === "LiveEntryNotFoundError";
+}
+
+/**
+ * The lookup itself was invalid, such as an over-long handle, DID, slug, or
+ * query: the registry client refused to send it, or the registry answered 400.
+ * Anything else means the registry is unreachable or failing.
+ */
+export function isRegistryRequestRejected(error: unknown): boolean {
+	const cause = error instanceof Error ? error.cause : undefined;
+	if (!isRecord(cause)) return false;
+	return (
+		(cause.name === "ClientValidationError" && cause.target === "params") ||
+		(cause.name === "ClientResponseError" && cause.status === 400)
+	);
 }
 
 export function safeExternalUrl(value: unknown): string | undefined {
@@ -148,8 +106,24 @@ export function repositoryUrl(
 	return isRecord(extension) ? safeExternalUrl(extension.repository) : undefined;
 }
 
+/**
+ * Renders publisher Markdown for a page section whose heading is an `h2`. The
+ * shallowest publisher heading becomes an `h3` and deeper ones an `h4`, so they
+ * nest under the section whatever level the publisher started at.
+ */
 export function renderRegistryMarkdown(markdown: string): string {
 	const rendered = marked.parse(markdown, { async: false });
+	// Sanitizing drops comments, so a comment matches whole and the headings inside it don't count.
+	const shallowest = Math.min(
+		...[...rendered.matchAll(COMMENT_OR_HEADING_TAG)].flatMap((match) =>
+			match[1] ? [Number(match[1])] : [],
+		),
+	);
+	// The pattern can miss a heading the sanitizer still parses, such as `<h2/>`.
+	const nestHeading = (tagName: string) => ({
+		tagName: `h${Math.max(3, Math.min(4, 3 + Number(tagName.slice(1)) - shallowest))}`,
+		attribs: {},
+	});
 	return sanitizeHtml(rendered, {
 		allowedTags: [
 			"a",
@@ -157,7 +131,6 @@ export function renderRegistryMarkdown(markdown: string): string {
 			"br",
 			"code",
 			"em",
-			"h2",
 			"h3",
 			"h4",
 			"hr",
@@ -172,6 +145,12 @@ export function renderRegistryMarkdown(markdown: string): string {
 		allowedSchemes: ["https", "mailto"],
 		allowProtocolRelative: false,
 		transformTags: {
+			h1: nestHeading,
+			h2: nestHeading,
+			h3: nestHeading,
+			h4: nestHeading,
+			h5: nestHeading,
+			h6: nestHeading,
 			a: (_tagName, attribs) => {
 				const href = safeMarkdownHref(attribs.href);
 				return {
@@ -248,4 +227,61 @@ function recordScopedCacheEndpoint(value: unknown): string | undefined {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function isOfficialPublisher(plugin: Pick<RegistryEntryData["package"], "did">): boolean {
+	return plugin.did === OFFICIAL_PUBLISHER_DID;
+}
+
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+
+const NEW_PLUGIN_DAYS = 14;
+
+/**
+ * A first release (mirroring `isProvenFirstRelease` in registry-client: only a complete
+ * history proves one) that the registry indexed recently.
+ */
+export function isNewPlugin(
+	plugin: Pick<
+		RegistryEntryData["package"],
+		"historicalReleaseCount" | "releaseHistoryComplete" | "indexedAt"
+	>,
+	now: Date = new Date(),
+): boolean {
+	const age = now.getTime() - Date.parse(plugin.indexedAt);
+	return (
+		plugin.releaseHistoryComplete === true &&
+		Number.isSafeInteger(plugin.historicalReleaseCount) &&
+		plugin.historicalReleaseCount === 1 &&
+		age >= 0 &&
+		age < NEW_PLUGIN_DAYS * DAY_MS
+	);
+}
+
+export function permissionCountLabel(count: number): string {
+	if (count === 0) return "No permissions";
+	return count === 1 ? "1 permission" : `${count} permissions`;
+}
+
+/** "5 hr. ago" or "3 days ago" within a week, otherwise a short date such as "Oct 3" or "Oct 3, 2025". */
+export function relativeUpdated(value: string, now: Date = new Date()): string | undefined {
+	const time = Date.parse(value);
+	if (Number.isNaN(time)) return undefined;
+	const elapsed = now.getTime() - time;
+	if (elapsed >= 0 && elapsed < 7 * DAY_MS) {
+		const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "short" });
+		if (elapsed < HOUR_MS)
+			return relative.format(-Math.max(1, Math.floor(elapsed / MINUTE_MS)), "minute");
+		if (elapsed < DAY_MS) return relative.format(-Math.floor(elapsed / HOUR_MS), "hour");
+		return relative.format(-Math.floor(elapsed / DAY_MS), "day");
+	}
+	const date = new Date(time);
+	return new Intl.DateTimeFormat("en", {
+		month: "short",
+		day: "numeric",
+		year: date.getUTCFullYear() === now.getUTCFullYear() ? undefined : "numeric",
+		timeZone: "UTC",
+	}).format(date);
 }

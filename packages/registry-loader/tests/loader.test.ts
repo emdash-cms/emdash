@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_REGISTRY_URL, registryLoader } from "../src/index.js";
+import { DEFAULT_REGISTRY_URL, LATEST_RELEASE_TIMEOUT_MS, registryLoader } from "../src/index.js";
 
 const CID = `bafyrei${"a".repeat(52)}`;
 const DID = "did:plc:abcdefghijklmnopqrstuvwx";
@@ -85,6 +85,80 @@ describe("registryLoader", () => {
 		expect(requestUrl.searchParams.get("q")).toBe("gallery");
 		expect(requestUrl.searchParams.get("capability")).toBe("media");
 		expect(requestUrl.searchParams.get("limit")).toBe("12");
+	});
+
+	it("includes each package's latest release in collection entries when asked", async () => {
+		const fetch = fetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.searchPackages": {
+				packages: [PACKAGE, { ...PACKAGE, slug: "draft", latestVersion: undefined }],
+			},
+			"/xrpc/com.emdashcms.experimental.aggregator.getLatestRelease": RELEASE,
+		});
+		const loader = registryLoader({ aggregatorUrl: "https://registry.test", fetch });
+
+		const result = await loader.loadCollection({
+			collection: "plugins",
+			filter: { q: "gallery", includeLatestRelease: true },
+		});
+
+		expect(result).toMatchObject({
+			entries: [
+				{
+					data: { package: { slug: "gallery" }, latestRelease: { version: "1.0.0" } },
+					cacheHint: { tags: [PACKAGE.uri, RELEASE.uri] },
+				},
+				{ data: { package: { slug: "draft" } } },
+			],
+		});
+		expect(result.entries?.[1]?.data.latestRelease).toBeUndefined();
+		const urls = vi.mocked(fetch).mock.calls.map((call) => new URL(call[0] as string));
+		expect(urls).toHaveLength(2);
+		expect(urls[0]!.searchParams.has("includeLatestRelease")).toBe(false);
+	});
+
+	it("keeps a collection entry when its latest release cannot be loaded", async () => {
+		const fetch = fetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.searchPackages": { packages: [PACKAGE] },
+		});
+		const loader = registryLoader({ aggregatorUrl: "https://registry.test", fetch });
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		const result = await loader.loadCollection({
+			collection: "plugins",
+			filter: { includeLatestRelease: true },
+		});
+
+		expect(result.entries).toHaveLength(1);
+		expect(result.entries?.[0]?.data.latestRelease).toBeUndefined();
+		expect(warn).toHaveBeenCalledOnce();
+		warn.mockRestore();
+	});
+
+	it("stops waiting for a slow latest release after the timeout", async () => {
+		vi.useFakeTimers();
+		const fetch: typeof globalThis.fetch = vi.fn(async (input) => {
+			const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url);
+			if (url.pathname.endsWith(".searchPackages")) return Response.json({ packages: [PACKAGE] });
+			return new Promise<Response>((_resolve, reject) => {
+				setTimeout(() => reject(new Error("late failure")), LATEST_RELEASE_TIMEOUT_MS + 1000);
+			});
+		});
+		const loader = registryLoader({ aggregatorUrl: "https://registry.test", fetch });
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		const pending = loader.loadCollection({
+			collection: "plugins",
+			filter: { includeLatestRelease: true },
+		});
+		await vi.advanceTimersByTimeAsync(LATEST_RELEASE_TIMEOUT_MS);
+		const result = await pending;
+		await vi.advanceTimersByTimeAsync(1000);
+
+		expect(result.entries).toHaveLength(1);
+		expect(result.entries?.[0]?.data.latestRelease).toBeUndefined();
+		expect(warn).toHaveBeenCalledOnce();
+		warn.mockRestore();
+		vi.useRealTimers();
 	});
 
 	it("resolves a handle and includes the latest visible release", async () => {

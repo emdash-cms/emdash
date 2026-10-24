@@ -125,15 +125,15 @@ Runs before save. Return modified content, or void to keep it unchanged. To reje
 	}
 
 	// Transform
-	if (content.slug) {
-		content.slug = content.slug.toLowerCase().replace(/\s+/g, "-");
+	if (typeof content.title === "string") {
+		content.title = content.title.trim();
 	}
 
 	return content;
 }
 ```
 
-Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean, id?: string, actor?: { id: string, role: number } }`. Authenticated REST, visual editing, and MCP saves include a read-only actor snapshot; internal writes may omit it. On updates, `id` identifies the existing item. The actor snapshot does not identify the request origin, so a hook cannot distinguish REST, visual editing, MCP, or another authenticated path from this field alone.
+Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean, id?: string, actor?: { id: string, role: number } }`. Authenticated REST, visual editing, and MCP saves include a read-only actor snapshot; internal writes may omit it. On updates, `id` identifies the existing item. `content` holds field values only: the entry's slug is not part of it, and a `slug` key returned from the hook fails validation as an unknown field. The actor snapshot does not identify the request origin, so a hook cannot distinguish REST, visual editing, MCP, or another authenticated path from this field alone.
 Returns: `Record<string, unknown> | SandboxHookErrorEnvelope | void`
 
 ### `content:afterSave`

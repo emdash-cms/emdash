@@ -130,15 +130,15 @@ The following manifest block adds listing images. Paths are relative to `emdash-
       "icon": { "file": "./icon.png" },
       "banner": { "file": "./banner.webp" },
       "screenshots": [
-        { "file": "./screenshots/editor.png" },
-        { "file": "./screenshots/settings.jpg", "lang": "en" }
+        { "file": "./images/editor.png" },
+        { "file": "./images/settings.jpg", "lang": "en" }
       ]
     }
   }
 }
 ```
 
-Manifest-declared listing images are separate from the conventional `icon.png` and `screenshots/` files included in the tarball. Publishing uploads each declared image to the publisher's PDS and writes its blob reference into the release record. Each image is limited to 1 MiB and 8,192 pixels in either dimension; a release can declare up to eight screenshots. See [Release fields](/plugins/creating-plugins/manifest/#release-fields) for the complete shape.
+Publishing uploads each declared image to the publisher's PDS and writes its blob reference into the release record. Each image is limited to 1 MiB and 8,192 pixels in either dimension; a release can declare up to eight screenshots. `bundle` also packs the conventional `icon.png` and the PNG and JPEG files in `screenshots/` into the tarball, whether or not the manifest declares them, and each packed file counts toward the [size caps](#validation) of 128 KB per file and 256 KB in total. Store declared screenshots in another folder, such as `images/`. See [Release fields](/plugins/creating-plugins/manifest/#release-fields) for the complete shape.
 
 What `publish` does:
 

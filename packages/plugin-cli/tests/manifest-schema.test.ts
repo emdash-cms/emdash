@@ -587,6 +587,45 @@ describe("ManifestSchema (full document)", () => {
 		expect(result.success).toBe(false);
 	});
 
+	it.each([
+		["name", { name: "n".repeat(101) }, ["name"], "name must be <= 100 graphemes"],
+		[
+			"description",
+			{ description: "d".repeat(141) },
+			["description"],
+			"description must be <= 140 graphemes",
+		],
+		[
+			"author.name",
+			{ author: { name: "a".repeat(65) } },
+			["author", "name"],
+			"author.name must be <= 64 graphemes",
+		],
+		[
+			"a keyword",
+			{ keywords: ["k".repeat(65)] },
+			["keywords", 0],
+			"each keyword must be <= 64 graphemes",
+		],
+	])("rejects %s over the registry profile limit", (_field, fields, path, message) => {
+		const result = ManifestSchema.safeParse({ ...minimal, ...fields });
+		expect(result.error?.issues).toEqual([expect.objectContaining({ path, message })]);
+	});
+
+	it.each([
+		["name", { name: "n".repeat(100) }],
+		["description", { description: "d".repeat(140) }],
+		["author.name", { author: { name: "a".repeat(64) } }],
+		["a keyword", { keywords: ["k".repeat(64)] }],
+	])("accepts %s at the registry profile limit", (_field, fields) => {
+		expect(ManifestSchema.safeParse({ ...minimal, ...fields }).success).toBe(true);
+	});
+
+	it("counts a letter with a combining accent as one grapheme", () => {
+		const result = ManifestSchema.safeParse({ ...minimal, description: "e\u0301".repeat(140) });
+		expect(result.success).toBe(true);
+	});
+
 	it("accepts a full populated manifest", () => {
 		const result = ManifestSchema.safeParse({
 			$schema: "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",

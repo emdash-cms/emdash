@@ -12,6 +12,7 @@ import {
 	type BulkTagSource,
 	type TaxonomyTerm,
 } from "../lib/api/taxonomies.js";
+import { inlineLabel } from "../lib/inline-label.js";
 import { DialogError } from "./DialogError.js";
 
 const NEWLINES = /\r?\n/;
@@ -100,16 +101,16 @@ export function BulkTagDialog({
 	defaultLocale?: string;
 	onApplied?: (results: BulkTagResult[]) => void;
 }) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const queryClient = useQueryClient();
 	const termLocale = activeLocale ?? defaultLocale ?? "en";
 	const [taxonomyName, setTaxonomyName] = React.useState<string | null>(null);
 	const taxonomy = taxonomies.find((def) => def.name === taxonomyName) ?? taxonomies[0];
 	const name = taxonomy?.name ?? "";
 	const singular = taxonomy?.labelSingular || taxonomy?.label || t`Term`;
-	const singularLower = singular.toLowerCase();
+	const singularLower = inlineLabel(singular, i18n.locale);
 	const plural = taxonomy?.label || t`Terms`;
-	const pluralLower = plural.toLowerCase();
+	const pluralLower = inlineLabel(plural, i18n.locale);
 	const {
 		data: terms = [],
 		isLoading,
@@ -394,6 +395,7 @@ export function BulkTagDialog({
 								</div>
 							) : (
 								<InputArea
+									dir="ltr"
 									className="w-full"
 									label={t`Post URLs (one per line)`}
 									rows={4}

@@ -105,7 +105,9 @@ export const bylineCreateBody = z
 		locale: localeCode.optional(),
 		/**
 		 * When set, the new row joins the source byline's translation_group
-		 * rather than minting a fresh one. Requires `locale`.
+		 * rather than minting a fresh one. Requires `locale`. The new row keeps
+		 * the source's `userId` unless the body sets one; `null` leaves it
+		 * unlinked.
 		 */
 		translationOf: z.string().min(1).optional(),
 		/**

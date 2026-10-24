@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
@@ -341,6 +342,33 @@ describe("bulk tag dialog", () => {
 		await expect.element(page.getByText("Internship experience")).toBeInTheDocument();
 		await expect.element(page.getByText("en", { exact: true })).toBeInTheDocument();
 		expect(requests[0]).toMatchObject({ termId: "tag-2", apply: false });
+	});
+
+	it("keeps the taxonomy label capitalized for a German admin", async () => {
+		const previousLocale = i18n.locale;
+		i18n.load("de", {});
+		i18n.activate("de");
+
+		try {
+			await render(
+				<BulkTagDialog
+					taxonomies={[{ name: "tag", label: "Schlagwörter", labelSingular: "Schlagwort" }]}
+					open
+					onClose={() => undefined}
+				/>,
+			);
+			await expect
+				.element(page.getByText("Add Schlagwort to posts", { exact: true }))
+				.toBeInTheDocument();
+			await expect
+				.element(page.getByText("Existing Schlagwörter stay in place.", { exact: true }))
+				.toBeInTheDocument();
+			await expect
+				.element(page.getByRole("button", { name: "Create new Schlagwort", exact: true }))
+				.toBeInTheDocument();
+		} finally {
+			i18n.activate(previousLocale);
+		}
 	});
 
 	it("prefers the configured language and skips unused term counts", async () => {

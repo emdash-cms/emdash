@@ -20,6 +20,8 @@ Declare navigation and widget cards in `emdash-plugin.jsonc`:
 
 Pages mount at `/_emdash/admin/plugins/<plugin-id>/<path>`. Widget sizes are `full`, `half`, and `third`.
 
+Set `group` on a page to place it in a collapsible sidebar folder. A group matching the group of a collection shown in the sidebar puts the page in that folder next to the collections it manages; pages with any other group, from any plugin, share one folder with that label in the Plugins section.
+
 Any sandboxed plugin that declares a page or widget must define an `admin` route. The admin sends a `page_load`, `block_action`, or `form_submit` interaction as `routeCtx.input`:
 
 ```typescript title="src/plugin.ts"
@@ -89,7 +91,7 @@ Validate interactions before production side effects; `routeCtx.input` is `unkno
 
 The plugin CLI preserves `admin.settingsSchema` in the registry manifest and generated descriptor, so the host can generate a settings form. Both sandbox bridges route `ctx.settings` through the same options records as that form. Read a generated setting with `ctx.settings.get("<key>")`; writes, deletes, list operations, and revision-based operations use the same namespace on Cloudflare and Node/workerd.
 
-The `secret` settings field is write-only in the admin response and encrypted before persistence. The site must provide `EMDASH_ENCRYPTION_KEY`; missing, wrong, or tampered key material fails closed. Keep the encryption-key list with database backups. Existing `ctx.kv.get("settings:<key>")` reads remain compatible through EmDash 0.x.
+The `secret` settings field is write-only in the admin response and encrypted before persistence. The site must provide `EMDASH_ENCRYPTION_KEY`; missing, wrong, or tampered key material fails closed. Keep the encryption-key list with database backups. Existing `ctx.kv.get("settings:<key>")` reads remain compatible throughout EmDash 1.x.
 
 ## Sandboxed saved-entry extensions
 
@@ -203,9 +205,10 @@ definePlugin({
 		entry: "@my-org/plugin-color/admin",
 		pages: [{ path: "/settings", label: "Settings" }],
 		widgets: [{ id: "status", title: "Status", size: "half" }],
-		fieldWidgets: [{ name: "picker", label: "Color picker", fieldTypes: ["string"] }],
 	},
 });
 ```
+
+A schema field selects a `fields` entry with `widget: "<plugin-id>:<widget-name>"`. The component receives `value`, `onChange(value)`, `label`, `id`, and optionally `required`, `options`, `validation`, and `minimal`. `options` is the field's schema `options` unless the field is a `select` or `multiSelect` with legacy `validation.options`, in which case it is an array of `{ value, label }` items. The host renders no label around the widget, so render `label` yourself. A missing widget name falls back to the default editor for the field type. Trusted React widgets need no `admin.fieldWidgets` declaration; that field is for sandboxed Block Kit widgets.
 
 Native admin code must follow the repository's Kumo, localization, accessibility, and RTL rules. It runs with the site's authority and is not registry-installable.

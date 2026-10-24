@@ -23,6 +23,7 @@ import {
 	PencilSimple,
 	SquaresFour,
 	Upload,
+	VideoCamera,
 	X,
 } from "@phosphor-icons/react";
 import {
@@ -194,7 +195,7 @@ export interface MediaPickerModalProps {
 	title?: string;
 	confirmLabel?: string;
 	hideUrlInput?: boolean;
-	mediaKind?: "image" | "file";
+	mediaKind?: "image" | "file" | "video";
 	mimeTypeFilters?: string[];
 	fieldId?: string;
 	localOnly?: boolean;
@@ -219,17 +220,22 @@ export function MediaPickerModal({
 	const queryClient = useQueryClient();
 	const currentUser = useCurrentUser().data;
 	const isFileKind = mediaKind === "file";
+	const isVideoKind = mediaKind === "video";
 	const filters = React.useMemo(() => {
 		if (mimeTypeFilters !== undefined) {
 			return mimeTypeFilters.length > 0 ? mimeTypeFilters : undefined;
 		}
 		return mimeTypeFilter ? [mimeTypeFilter] : undefined;
 	}, [mimeTypeFilter, mimeTypeFilters]);
-	const title = providedTitle ?? (isFileKind ? t`Select file` : t`Select image`);
+	const title =
+		providedTitle ??
+		(isFileKind ? t`Select file` : isVideoKind ? t`Select video` : t`Select image`);
 	const description = isFileKind
 		? t`Choose a file from the library or upload a new one.`
-		: t`Choose an image from the library or upload a new one.`;
-	const EmptyStateIcon = isFileKind ? Paperclip : Image;
+		: isVideoKind
+			? t`Choose a video from the library or upload a new one.`
+			: t`Choose an image from the library or upload a new one.`;
+	const EmptyStateIcon = isFileKind ? Paperclip : isVideoKind ? VideoCamera : Image;
 
 	const [activeSource, setActiveSource] = React.useState("local");
 	const [selectedItems, setSelectedItems] = React.useState<SelectedMedia[]>([]);
@@ -275,7 +281,9 @@ export function MediaPickerModal({
 			if (providerId === "local") {
 				return {
 					providerId,
-					item: withLocalMediaUrl(await uploadMedia(file, { fieldId, signal })),
+					item: withLocalMediaUrl(
+						await uploadMedia(file, { fieldId, folderId: folderId ?? null, signal }),
+					),
 				};
 			}
 			return {
@@ -283,7 +291,7 @@ export function MediaPickerModal({
 				item: await uploadToProvider(providerId, file, undefined, { signal }),
 			};
 		},
-		[fieldId],
+		[fieldId, folderId],
 	);
 	const uploadQueue = useMediaUploadQueue<UploadedMedia>({ upload: uploadFile });
 
@@ -856,7 +864,9 @@ export function MediaPickerModal({
 		(multiple
 			? isFileKind
 				? plural(selectedItems.length, { one: "Add # file", other: "Add # files" })
-				: plural(selectedItems.length, { one: "Add # image", other: "Add # images" })
+				: isVideoKind
+					? plural(selectedItems.length, { one: "Add # video", other: "Add # videos" })
+					: plural(selectedItems.length, { one: "Add # image", other: "Add # images" })
 			: t`Select`);
 	const providerItems = React.useMemo(
 		() =>
@@ -870,8 +880,7 @@ export function MediaPickerModal({
 			: (localQuery.data?.items ?? []).filter((item) =>
 					matchesAnyFilter(item.mimeType, effectiveMimeFilters),
 				);
-	const canUpload =
-		activeSource === "local" ? !folderId : Boolean(activeProviderInfo?.capabilities.upload);
+	const canUpload = activeProviderInfo?.capabilities.upload ?? false;
 	const hasSourceControls = sourceTabs.length > 1 || canUpload;
 	const canSearch = activeSource === "local" || Boolean(activeProviderInfo?.capabilities.search);
 	const currentLoading = activeSource === "local" ? localQuery.isPending : providerQuery.isPending;
@@ -1109,7 +1118,7 @@ export function MediaPickerModal({
 										<div className="grid gap-1.5">
 											<Label htmlFor="media-picker-url">{t`Image URL`}</Label>
 											<div className="flex flex-col gap-2 sm:flex-row">
-												<div className="relative min-w-0 flex-1">
+												<div dir="ltr" className="relative min-w-0 flex-1">
 													<Globe
 														className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-kumo-subtle"
 														aria-hidden="true"
@@ -1411,7 +1420,9 @@ export function MediaPickerModal({
 																	? t`This folder is empty.`
 																	: isFileKind
 																		? t`Upload a file to get started`
-																		: t`Upload an image to get started`}
+																		: isVideoKind
+																			? t`Upload a video to get started`
+																			: t`Upload an image to get started`}
 														</p>
 													</div>
 												</div>

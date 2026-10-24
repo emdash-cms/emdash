@@ -51,12 +51,17 @@ async function runTableAction(page: Page, name: string) {
 }
 
 async function insertTable(page: Page, rows: number, columns: number, header = true) {
+	const arabic = (await page.locator("html").getAttribute("lang")) === "ar";
 	await page.locator("#field-body [data-emdash-table-trigger]").click();
 	await page.locator('[role="menu"]:visible').getByRole("menuitem").first().click();
-	const picker = page.getByRole("grid", { name: "Table size" });
+	const picker = page.getByRole("grid", { name: arabic ? "حجم الجدول" : "Table size" });
 	await expect(picker).toBeVisible();
-	if (!header) await page.getByRole("switch", { name: "Header row" }).click();
-	await picker.getByRole("gridcell", { name: `${rows} × ${columns} table` }).click();
+	if (!header) await page.getByRole("switch", { name: arabic ? "صف الرأس" : "Header row" }).click();
+	await picker
+		.getByRole("gridcell", {
+			name: arabic ? `جدول ${rows} × ${columns}` : `${rows} × ${columns} table`,
+		})
+		.click();
 	await expect(picker).not.toBeVisible();
 }
 
@@ -89,9 +94,21 @@ async function createPost(
 
 function monitorErrors(page: Page) {
 	const errors: string[] = [];
-	page.on("pageerror", (error) => errors.push(error.message));
+	// WebKit reports a same-origin fetch that a navigation cancels as failing
+	// access control checks, which a same-origin request can't really fail.
+	const isCancelledFetch = (text: string) => {
+		const { host } = new URL(page.url());
+		return (
+			host !== "" && text.includes(`${host}/`) && text.endsWith("due to access control checks.")
+		);
+	};
+	page.on("pageerror", (error) => {
+		if (!isCancelledFetch(error.message)) errors.push(error.message);
+	});
 	page.on("console", (message) => {
-		if (message.type() === "error") errors.push(`${message.text()} (${message.location().url})`);
+		if (message.type() === "error" && !isCancelledFetch(message.text())) {
+			errors.push(`${message.text()} (${message.location().url})`);
+		}
 	});
 	return () => expect(errors).toEqual([]);
 }
@@ -298,6 +315,8 @@ test.describe("Portable Text tables", () => {
 			const menu = await openTableMenu(page);
 			const initial = (await menu.boundingBox())!;
 			expect.soft(initial.height).toBeLessThanOrEqual(400);
+			const selectRowLabel = locale === "ar" ? "تحديد الصف" : "Select row";
+			const addRowBelowLabel = locale === "ar" ? "إضافة صف أدناه" : "Add row below";
 			const deleteLabel = locale === "ar" ? "حذف الجدول" : "Delete table";
 			const header = menu.getByRole("menuitemcheckbox", {
 				name: locale === "ar" ? "تبديل صف الرأس" : "Toggle header row",
@@ -320,8 +339,8 @@ test.describe("Portable Text tables", () => {
 			});
 			expect.soft(tickGap).toBeGreaterThanOrEqual(4);
 			for (const name of [
-				"Select row",
-				"Add row below",
+				selectRowLabel,
+				addRowBelowLabel,
 				locale === "ar" ? "إضافة عمود بعده" : "Add column after",
 				deleteLabel,
 			]) {
@@ -358,7 +377,7 @@ test.describe("Portable Text tables", () => {
 				(await last.boundingBox())!.y + (await last.boundingBox())!.height,
 			).toBeLessThanOrEqual(initial.y + initial.height);
 			await page.keyboard.press("Home");
-			await expect(menu.getByRole("menuitem", { name: "Select row", exact: true })).toBeFocused();
+			await expect(menu.getByRole("menuitem", { name: selectRowLabel, exact: true })).toBeFocused();
 			await page.keyboard.press("Escape");
 			await expect(page.locator(EDITOR)).toBeFocused();
 		});
@@ -416,9 +435,13 @@ test.describe("Portable Text tables", () => {
 				new URL(response.url()).pathname === "/_emdash/api/content/posts",
 		);
 		await admin.clickSave();
-		expect((await savedResponse).ok()).toBe(true);
-		await admin.waitForSaveComplete();
-		const id = new URL(page.url()).pathname.split("/").pop()!;
+		const created = await savedResponse;
+		expect(created.ok()).toBe(true);
+		const createdPayload = (await created.json()) as {
+			data: { item?: { id: string }; id?: string };
+		};
+		const id = createdPayload.data.item?.id ?? createdPayload.data.id!;
+		await page.waitForURL((url) => url.pathname.endsWith(`/${id}`));
 		const response = await page.request.get(`/_emdash/api/content/posts/${id}`, {
 			headers: { Authorization: `Bearer ${serverInfo.token}` },
 		});
@@ -551,7 +574,7 @@ test.describe("Portable Text table responsive accessibility", () => {
 
 		const cells = editor.locator("th, td");
 		await cells.first().locator("p").click();
-		await runTableAction(page, "Select row");
+		await runTableAction(page, "تحديد الصف");
 		await expect(editor.locator(".selectedCell")).toHaveCount(10);
 		const outline = await editor
 			.locator(".selectedCell")

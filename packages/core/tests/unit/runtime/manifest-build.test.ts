@@ -152,7 +152,9 @@ describe("generateManifest()", () => {
 		expect(manifest.collections.currents?.fields.priority).toMatchObject({
 			kind: "number",
 			label: "Priority",
+			integer: true,
 		});
+		expect(manifest.collections.currents?.fields.title).not.toHaveProperty("integer");
 	});
 
 	it("publishes the sidebar icon and group for database collections", async () => {
@@ -440,6 +442,51 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(fields?.subtitle?.validation).toBeUndefined();
 	});
 
+	it("forwards each field's default value, including false and 0", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "posts",
+			label: "Posts",
+			labelSingular: "Post",
+			source: "test",
+		});
+		await registry.createField("posts", {
+			slug: "featured",
+			label: "Featured",
+			type: "boolean",
+			defaultValue: true,
+		});
+		await registry.createField("posts", {
+			slug: "pinned",
+			label: "Pinned",
+			type: "boolean",
+			defaultValue: false,
+		});
+		await registry.createField("posts", {
+			slug: "priority",
+			label: "Priority",
+			type: "number",
+			defaultValue: 0,
+		});
+		await registry.createField("posts", {
+			slug: "color",
+			label: "Color",
+			type: "select",
+			validation: { options: ["red", "blue"] },
+			defaultValue: "blue",
+		});
+		await registry.createField("posts", { slug: "subtitle", label: "Subtitle", type: "string" });
+
+		const runtime = buildRuntime(db);
+		const fields = (await runtime.getManifest()).collections.posts?.fields;
+
+		expect(fields?.featured?.defaultValue).toBe(true);
+		expect(fields?.pinned?.defaultValue).toBe(false);
+		expect(fields?.priority?.defaultValue).toBe(0);
+		expect(fields?.color?.defaultValue).toBe("blue");
+		expect(fields?.subtitle).not.toHaveProperty("defaultValue");
+	});
+
 	it("reports the implicit English content locale when i18n is not configured", async () => {
 		const runtime = buildRuntime(db);
 
@@ -493,24 +540,6 @@ describe("EmDashRuntime.getManifest()", () => {
 	it("keeps the admin manifest available with a safe registry configuration diagnostic", async () => {
 		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
 		const runtime = buildRuntime(db, {
-			experimental: { registry: { aggregatorUrl: "not a URL" } },
-		});
-
-		const manifest = await runtime.getManifest();
-
-		expect(manifest.registry).toBeUndefined();
-		expect(manifest.registryConfigurationError).toEqual({
-			code: "REGISTRY_AGGREGATOR_URL_INVALID",
-			field: "experimental.registry.aggregatorUrl",
-		});
-		expect(log).toHaveBeenCalledWith(
-			"EmDash registry configuration error in experimental.registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
-		);
-	});
-
-	it("reports top-level registry configuration fields", async () => {
-		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-		const runtime = buildRuntime(db, {
 			registry: { aggregatorUrl: "not a URL" },
 		});
 
@@ -524,18 +553,6 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(log).toHaveBeenCalledWith(
 			"EmDash registry configuration error in registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
 		);
-	});
-
-	it("lets the top-level false option override legacy registry configuration", async () => {
-		const runtime = buildRuntime(db, {
-			registry: false,
-			experimental: { registry: { aggregatorUrl: "not a URL" } },
-		});
-
-		const manifest = await runtime.getManifest();
-
-		expect(manifest.registry).toBeUndefined();
-		expect(manifest.registryConfigurationError).toBeUndefined();
 	});
 
 	it("reports the configured content default independently of admin language", async () => {

@@ -20,21 +20,30 @@ export async function repairLabelerReconciliationFindings(input: {
 	authoritative: AggregatorReconciliationClient;
 	versions: AssessmentVersionSet;
 	now?: () => Date;
-}): Promise<{ staleRuns: number; quarantineItems: number; unresolvedMissingLabels: number }> {
+}): Promise<{
+	staleRuns: number;
+	supersededRuns: number;
+	quarantineItems: number;
+	unresolvedMissingLabels: number;
+}> {
 	const now = input.now ?? (() => new Date());
 	const recoveryRuns = [];
+	let supersededRuns = 0;
 	for (const stale of input.report.staleRuns) {
+		if ((await input.workflowPresence(stale.runKey)) === "existing") continue;
+		if (!(await input.lifecycle.supersedeAbandonedRun(stale.runKey, now().toISOString()))) continue;
+		supersededRuns += 1;
 		const params = await createAssessmentWorkflowParams({
 			subject: stale.subject,
 			versions: input.versions,
 			logicalTriggerId: `recovery:${stale.runKey}:${stale.state}`,
 		});
-		await input.lifecycle.observeRun({
+		const run = await input.lifecycle.observeRun({
 			params,
 			observedAt: now().toISOString(),
 			makeCurrent: false,
 		});
-		recoveryRuns.push(params);
+		if (run) recoveryRuns.push(params);
 	}
 	await ensureAssessmentWorkflowRuns({
 		workflow: input.workflow,
@@ -86,6 +95,7 @@ export async function repairLabelerReconciliationFindings(input: {
 	}
 	return {
 		staleRuns: recoveryRuns.length,
+		supersededRuns,
 		quarantineItems: repairedQuarantine,
 		unresolvedMissingLabels: input.report.missingOutcomeLabels.length,
 	};

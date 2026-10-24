@@ -12,7 +12,7 @@ import ProjectCard from "../../components/ProjectCard.astro";
 const slug = decodeSlug(Astro.params.slug);
 
 if (!slug) {
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 
 const {
@@ -23,7 +23,7 @@ const {
 
 if (error) return new Response("Could not load the project", { status: 500 });
 if (!project) {
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 
 // Related projects: order by date in the DB and request a small lookahead

@@ -182,7 +182,7 @@ export function refRuleMatches(rule: string, value: string): boolean {
 }
 
 export function validWorkflowRefRule(value: string): boolean {
-	const separator = value.lastIndexOf("@");
+	const separator = value.indexOf("@");
 	if (separator < 1) return false;
 	const ref = value.slice(separator + 1);
 	return (
@@ -193,8 +193,8 @@ export function validWorkflowRefRule(value: string): boolean {
 export function workflowRefRuleMatches(rule: string, value: string): boolean {
 	const normalizedRule = normalizeWorkflowRefRepository(rule);
 	const normalizedValue = normalizeWorkflowRefRepository(value);
-	const ruleSeparator = normalizedRule.lastIndexOf("@");
-	const valueSeparator = normalizedValue.lastIndexOf("@");
+	const ruleSeparator = normalizedRule.indexOf("@");
+	const valueSeparator = normalizedValue.indexOf("@");
 	if (ruleSeparator < 1 || valueSeparator < 1) return false;
 	const ruleRef = normalizedRule.slice(ruleSeparator + 1);
 	const valueRef = normalizedValue.slice(valueSeparator + 1);

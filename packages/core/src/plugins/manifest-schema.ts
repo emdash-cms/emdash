@@ -237,6 +237,7 @@ const adminPageSchema = z.object({
 	path: z.string(),
 	label: z.string(),
 	icon: z.string().optional(),
+	group: z.string().trim().min(1).max(100).optional(),
 });
 
 const dashboardWidgetSchema = z.object({

@@ -255,6 +255,7 @@ describe("hook actor payloads", () => {
 				isNew: false,
 				id: item.id,
 				actor: actorB,
+				locale: "en",
 			},
 		]);
 
@@ -364,6 +365,7 @@ describe("sandboxed hook actor payloads", () => {
 			collection: "posts",
 			isNew: true,
 			actor: actorA,
+			locale: "en",
 		});
 	});
 
@@ -382,6 +384,7 @@ describe("sandboxed hook actor payloads", () => {
 			isNew: false,
 			id: item.id,
 			actor: actorB,
+			locale: "en",
 		});
 	});
 });

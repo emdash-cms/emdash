@@ -18,6 +18,8 @@ import { decodeAwaitingApprovalState, type ApprovalEvidence } from "./digest.js"
 const DNS_ENDPOINT = "https://cloudflare-dns.com/dns-query";
 const MAX_DNS_RESPONSE_BYTES = 64 * 1024;
 const MAX_PROFILE_RESPONSE_BYTES = 256 * 1024;
+const PROFILE_FETCH_RETRY_DELAYS_MS = [100, 250] as const;
+const RETRYABLE_PROFILE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 const PACKAGE_SLUG_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 
 export type ApprovalAuthorityErrorCode =
@@ -50,6 +52,7 @@ export interface LoadedApprovalIntent {
 export interface VerifyCurrentApproverOptions {
 	didDocumentResolver?: DirectPdsDidDocumentResolver;
 	fetch?: typeof globalThis.fetch;
+	retryDelaysMs?: readonly number[];
 }
 
 export interface CurrentApprovalPolicy {
@@ -177,7 +180,7 @@ async function resolveDnsType(
 	url.searchParams.set("type", type);
 	const response = await fetchImplementation(url, {
 		headers: { accept: "application/dns-json" },
-		redirect: "error",
+		redirect: "manual",
 		signal: AbortSignal.timeout(5_000),
 	});
 	const parsed = await readBoundedJson(response);
@@ -209,7 +212,44 @@ async function resolvePublicHostname(
 	return [...ipv4, ...ipv6];
 }
 
-function createGuardedIdentityFetch(fetchImplementation: typeof fetch): typeof fetch {
+function wait(delayMs: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+function createRetryingProfileFetch(
+	fetchImplementation: typeof fetch,
+	retryDelaysMs: readonly number[],
+): typeof fetch {
+	return async (input, init) => {
+		const method = (
+			init?.method ?? (input instanceof Request ? input.method : "GET")
+		).toUpperCase();
+		if (method !== "GET") return fetchImplementation(input, init);
+		const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+		for (let attempt = 0; ; attempt += 1) {
+			try {
+				const response = await fetchImplementation(input, init);
+				const retryDelayMs = retryDelaysMs[attempt];
+				if (retryDelayMs === undefined || !RETRYABLE_PROFILE_STATUSES.has(response.status)) {
+					return response;
+				}
+				if (signal?.aborted) return response;
+				await response.body?.cancel().catch(() => undefined);
+				if (retryDelayMs > 0) await wait(retryDelayMs);
+			} catch (error) {
+				const retryDelayMs = retryDelaysMs[attempt];
+				if (retryDelayMs === undefined || signal?.aborted) throw error;
+				if (retryDelayMs > 0) await wait(retryDelayMs);
+			}
+		}
+	};
+}
+
+function createGuardedIdentityFetch(
+	fetchImplementation: typeof fetch,
+	retryDelaysMs: readonly number[],
+): typeof fetch {
+	const retryingFetch = createRetryingProfileFetch(fetchImplementation, retryDelaysMs);
 	return async (input, init) => {
 		const requestedUrl = new URL(input instanceof Request ? input.url : input.toString());
 		const method = init?.method ?? (input instanceof Request ? input.method : "GET");
@@ -219,11 +259,11 @@ function createGuardedIdentityFetch(fetchImplementation: typeof fetch): typeof f
 		const headers = init?.headers ?? (input instanceof Request ? input.headers : undefined);
 		const resource = await fetchVerifiedResource(requestedUrl, {
 			fetch: (url, requestInit) =>
-				fetchImplementation(url, {
+				retryingFetch(url, {
 					...requestInit,
 					...(headers === undefined ? {} : { headers }),
 				}),
-			resolveHostname: (hostname) => resolvePublicHostname(hostname, fetchImplementation),
+			resolveHostname: (hostname) => resolvePublicHostname(hostname, retryingFetch),
 			allowedStatuses: [404],
 			headerTimeoutMs: 10_000,
 			totalTimeoutMs: 30_000,
@@ -274,11 +314,12 @@ export async function loadCurrentApprovalPolicy(
 		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
 	}
 	const fetchImplementation = options.fetch ?? globalThis.fetch;
+	const retryDelaysMs = options.retryDelaysMs ?? PROFILE_FETCH_RETRY_DELAYS_MS;
 	let record;
 	try {
 		record = await new DirectPdsClient({
 			did: publisherDid,
-			fetch: createGuardedIdentityFetch(fetchImplementation),
+			fetch: createGuardedIdentityFetch(fetchImplementation, retryDelaysMs),
 			...(options.didDocumentResolver === undefined
 				? {}
 				: { didDocumentResolver: options.didDocumentResolver }),

@@ -237,6 +237,166 @@ describe("labeler reconciliation", () => {
 		expect(workflow.batches[0]).toHaveLength(2);
 	});
 
+	it("does not re-assess a decided listing after the model or prompt changes", async () => {
+		const subject = subjectFixture(40);
+		await finalizedRun(subject, "event:decided-before-model-change", "passed");
+		const workflow = createWorkflowHarness("restartable");
+
+		const report = await reconcileLabeler({
+			...dependenciesFor(workflow, new Date("2026-08-24T10:05:00.000Z")),
+			versions: {
+				...ASSESSMENT_VERSIONS,
+				textModelId: "@cf/example/another-model",
+				textPromptHash: "a".repeat(64),
+			},
+		});
+
+		expect(report.repairCandidates).toEqual([]);
+		expect(report.ensuredRunKeys).toEqual([]);
+		expect(workflow.batches).toEqual([]);
+		expect(workflow.restarts).toEqual([]);
+	});
+
+	it("supersedes a stale run on a decided listing instead of starting a replacement", async () => {
+		const subject = subjectFixture(41);
+		const decided = await finalizedRun(subject, "event:decided-before-orphan", "passed");
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+		const orphan = await createAssessmentWorkflowParams({
+			subject,
+			versions: ASSESSMENT_VERSIONS,
+			logicalTriggerId: "operator:orphaned",
+		});
+		await lifecycle.observeRun({
+			params: orphan,
+			observedAt: "2026-08-24T08:00:00.000Z",
+			origin: { kind: "operator" },
+		});
+		await lifecycle.startRun(orphan.runKey, 0, "2026-08-24T08:00:01.000Z");
+		const workflow = createWorkflowHarness();
+		const report = await reconcileLabeler({
+			...dependenciesFor(workflow, new Date("2026-08-24T10:05:00.000Z")),
+			staleAfterMs: 60 * 60 * 1_000,
+		});
+		expect(report.staleRuns).toEqual([expect.objectContaining({ runKey: orphan.runKey })]);
+
+		await expect(
+			repairLabelerReconciliationFindings({
+				db: env.DB,
+				report,
+				lifecycle,
+				workflow: workflow.binding,
+				workflowPresence: workflow.presence,
+				restartWorkflow: workflow.restart,
+				queue: { send: async () => undefined },
+				authoritative: {
+					listCurrentSubjects: async () => ({ items: [] }),
+					isCurrentSubject: async () => true,
+				},
+				versions: ASSESSMENT_VERSIONS,
+				now: () => new Date("2026-08-24T10:05:01.000Z"),
+			}),
+		).resolves.toMatchObject({ staleRuns: 0, supersededRuns: 1 });
+
+		expect(workflow.batches).toEqual([]);
+		expect(await lifecycle.getRun(orphan.runKey)).toMatchObject({ state: "superseded" });
+		const current = await env.DB.prepare(
+			"SELECT assessment_id FROM current_assessments WHERE subject_uri = ? AND subject_cid = ?",
+		)
+			.bind(subject.uri, subject.cid)
+			.first<string>("assessment_id");
+		expect(current).toBe(decided);
+	});
+
+	it("leaves a stale run alone while its Workflow instance is still alive", async () => {
+		const subject = subjectFixture(42);
+		await finalizedRun(subject, "event:decided-before-slow-rerun", "passed");
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+		const rerun = await createAssessmentWorkflowParams({
+			subject,
+			versions: ASSESSMENT_VERSIONS,
+			logicalTriggerId: "operator:slow-rerun",
+		});
+		await lifecycle.observeRun({
+			params: rerun,
+			observedAt: "2026-08-24T08:00:00.000Z",
+			origin: { kind: "operator" },
+		});
+		await lifecycle.startRun(rerun.runKey, 0, "2026-08-24T08:00:01.000Z");
+		const workflow = createWorkflowHarness();
+		const report = await reconcileLabeler({
+			...dependenciesFor(workflow, new Date("2026-08-24T10:05:00.000Z")),
+			staleAfterMs: 60 * 60 * 1_000,
+		});
+
+		await expect(
+			repairLabelerReconciliationFindings({
+				db: env.DB,
+				report,
+				lifecycle,
+				workflow: workflow.binding,
+				workflowPresence: async () => "existing",
+				restartWorkflow: workflow.restart,
+				queue: { send: async () => undefined },
+				authoritative: {
+					listCurrentSubjects: async () => ({ items: [] }),
+					isCurrentSubject: async () => true,
+				},
+				versions: ASSESSMENT_VERSIONS,
+				now: () => new Date("2026-08-24T10:05:01.000Z"),
+			}),
+		).resolves.toMatchObject({ staleRuns: 0, supersededRuns: 0 });
+
+		expect(await lifecycle.getRun(rerun.runKey)).toMatchObject({ state: "running" });
+		expect(workflow.batches).toEqual([]);
+	});
+
+	it("replaces two abandoned runs on one undecided listing with a single run", async () => {
+		const subject = subjectFixture(43);
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+		const abandoned = [];
+		for (const trigger of ["operator:abandoned-first", "operator:abandoned-second"]) {
+			const params = await createAssessmentWorkflowParams({
+				subject,
+				versions: ASSESSMENT_VERSIONS,
+				logicalTriggerId: trigger,
+			});
+			await lifecycle.observeRun({
+				params,
+				observedAt: "2026-08-24T08:00:00.000Z",
+				origin: { kind: "operator" },
+			});
+			abandoned.push(params.runKey);
+		}
+		const workflow = createWorkflowHarness();
+		const report = await reconcileLabeler({
+			...dependenciesFor(workflow, new Date("2026-08-24T10:05:00.000Z")),
+			staleAfterMs: 60 * 60 * 1_000,
+		});
+
+		await expect(
+			repairLabelerReconciliationFindings({
+				db: env.DB,
+				report,
+				lifecycle,
+				workflow: workflow.binding,
+				workflowPresence: workflow.presence,
+				restartWorkflow: workflow.restart,
+				queue: { send: async () => undefined },
+				authoritative: {
+					listCurrentSubjects: async () => ({ items: [] }),
+					isCurrentSubject: async () => true,
+				},
+				versions: ASSESSMENT_VERSIONS,
+				now: () => new Date("2026-08-24T10:05:01.000Z"),
+			}),
+		).resolves.toMatchObject({ staleRuns: 1, supersededRuns: 2 });
+
+		for (const runKey of abandoned) {
+			expect(await lifecycle.getRun(runKey)).toMatchObject({ state: "superseded" });
+		}
+		expect(workflow.batches.flat()).toHaveLength(1);
+	});
+
 	it("authoritatively cancels a quarantined delete hint", async () => {
 		const subject = subjectFixture(30);
 		await seedCurrentSubject(subject, "2026-08-24T08:00:00.000Z");
@@ -495,4 +655,32 @@ function subjectFixture(index: number): AssessmentSubject {
 		cid: `${PROFILE_CID.slice(0, -4)}${suffix}`,
 		kind: "profile",
 	};
+}
+
+async function finalizedRun(
+	subject: AssessmentSubject,
+	logicalTriggerId: string,
+	outcome: "passed" | "review",
+): Promise<string> {
+	const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+	const params = await createAssessmentWorkflowParams({
+		subject,
+		versions: ASSESSMENT_VERSIONS,
+		logicalTriggerId,
+	});
+	await lifecycle.observeRun({ params, observedAt: "2026-08-24T07:00:00.000Z" });
+	const running = await lifecycle.startRun(params.runKey, 0, "2026-08-24T07:00:01.000Z");
+	const prepared = await lifecycle.persistPrepared(
+		params.runKey,
+		running.stateVersion,
+		{ moderationFingerprint: `sha256:${logicalTriggerId}`, canonicalInput: {}, coverage: {} },
+		"2026-08-24T07:00:02.000Z",
+	);
+	await lifecycle.finalizeRun(
+		params.runKey,
+		prepared.stateVersion,
+		outcome,
+		"2026-08-24T07:00:03.000Z",
+	);
+	return params.runKey;
 }

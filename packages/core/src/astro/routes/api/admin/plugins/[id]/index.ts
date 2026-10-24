@@ -33,6 +33,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 		emdash.sandboxedPluginEntries,
 		id,
 		emdash.config.marketplace,
+		(pluginId) => emdash.getRuntimePluginSettingsSchema(pluginId),
 	);
 	if (result.success) {
 		const tools = await emdash.getPluginMcpTools(id);

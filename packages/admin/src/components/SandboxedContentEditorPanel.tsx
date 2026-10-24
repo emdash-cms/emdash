@@ -1,4 +1,4 @@
-import { Button, Collapsible, SkeletonLine, Text, Toast } from "@cloudflare/kumo";
+import { Button, Collapsible, SkeletonLine, Text, useKumoToastManager } from "@cloudflare/kumo";
 import { BlockRenderer } from "@emdash-cms/blocks";
 import type {
 	Block,
@@ -64,7 +64,7 @@ export function SandboxedContentEditorPanel({
 	reserveHeaderEnd = false,
 }: SandboxedContentEditorPanelProps) {
 	const { t } = useLingui();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [open, setOpen] = React.useState(false);
 	const [loaded, setLoaded] = React.useState(false);
 	const [loading, setLoading] = React.useState(false);
@@ -139,7 +139,7 @@ export function SandboxedContentEditorPanel({
 				setBlocks(body.data.blocks);
 				setLoaded(true);
 				if (body.data.toast) {
-					toastManager.add({ title: body.data.toast.message, type: body.data.toast.type });
+					toastManager.add({ title: body.data.toast.message, variant: body.data.toast.type });
 				}
 				if (body.data.refresh) await onEntryRefresh?.();
 				applyNavigation(body.data);
@@ -245,13 +245,12 @@ export function SandboxedContentEditorPanel({
 				/>
 			</Collapsible.Trigger>
 			<Collapsible.Panel
-				className="-mx-2 overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+				className="-mx-2 overflow-hidden transition-[height] duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
 				style={({ transitionStatus }) => ({
 					height:
 						transitionStatus === "starting" || transitionStatus === "ending"
 							? 0
 							: "var(--collapsible-panel-height)",
-					transitionProperty: "height",
 				})}
 			>
 				<div className="min-w-0 px-2 pt-2 pb-1">

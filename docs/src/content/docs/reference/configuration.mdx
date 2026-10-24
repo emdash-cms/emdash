@@ -66,7 +66,7 @@ migrations: {
 }
 ```
 
-`auto` checks and applies pending migrations, `check` returns 503 when migrations known to the running build are pending, and `manual` performs no runtime migration query. `EMDASH_MIGRATIONS_MODE` overrides the effective runtime mode. See [Manage Core Database Migrations](/deployment/core-migrations/) before adopting `check` or `manual`.
+`auto` checks and applies pending migrations (a deployed Cloudflare Worker leaves [large content migrations](/deployment/core-migrations/#apply-large-content-migrations-from-the-cli) to `emdash migrate`), `check` returns 503 when migrations known to the running build are pending (except for requests to the image endpoint EmDash installs), and `manual` performs no runtime migration query. `EMDASH_MIGRATIONS_MODE` overrides the effective runtime mode. See [Manage Core Database Migrations](/deployment/core-migrations/) before adopting `check` or `manual`.
 
 ### `storage`
 
@@ -105,7 +105,7 @@ See [Storage Options](/deployment/storage/) for details.
 
 **Optional.** Controls whether EmDash integrates stored media with Astro's image optimization. The default is `true`.
 
-When enabled, EmDash wraps Astro's image endpoint so `<Image>` and `getImage()` can read source bytes directly from the configured storage adapter. This also works when the original media URL is behind Cloudflare Access. Set `images: false` when another image service handles the media or when every image should render without EmDash's endpoint wrapper.
+When enabled, EmDash wraps Astro's image endpoint so `<Image>` and `getImage()` can read source bytes directly from the configured storage adapter. This also works when the original media URL is behind Cloudflare Access. Requests to the wrapped endpoint skip EmDash's runtime startup, so on them `locals.emdash` holds only `storage`, plus `db` for a signed-in user. `locals.user` is set as on other public routes. Set `images: false` when another image service handles the media or when every image should render without EmDash's endpoint wrapper.
 
 ```js
 emdash({
@@ -385,6 +385,7 @@ Options for `access()`:
 | `autoProvision`  | `boolean` | `true`                 | Create an EmDash user on first login                                                         |
 | `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)) |
 | `syncRoles`      | `boolean` | `false`                | Re-apply `roleMapping` on every login instead of only at provisioning                        |
+| `syncName`       | `boolean` | `true`                 | Replace the user's name with the IdP name on every authenticated request. Set `false` to make names editable in the admin |
 | `roleMapping`    | `object`  | —                      | Map IdP group names to EmDash role levels; first match wins                                  |
 
 <Aside>
@@ -409,6 +410,7 @@ Built-in providers:
 
 - `github()` — reads `EMDASH_OAUTH_GITHUB_CLIENT_ID` / `EMDASH_OAUTH_GITHUB_CLIENT_SECRET` (or unprefixed fallbacks).
 - `google()` — reads `EMDASH_OAUTH_GOOGLE_CLIENT_ID` / `EMDASH_OAUTH_GOOGLE_CLIENT_SECRET`.
+- `microsoft()` — reads `EMDASH_OAUTH_MICROSOFT_CLIENT_ID` / `EMDASH_OAUTH_MICROSOFT_CLIENT_SECRET` / `EMDASH_OAUTH_MICROSOFT_TENANT_ID` (or unprefixed fallbacks). Accepts `{ emailVerified }`. See [Microsoft](/guides/authentication/#microsoft).
 - `atproto()` — Atmosphere account login (Bluesky and the wider AT Protocol network). No env vars needed. Accepts `{ allowedDIDs, allowedHandles, defaultRole }`. See the [Atmosphere login guide](/guides/atmosphere-auth/).
 
 Third-party packages can register their own providers using the same `AuthProviderDescriptor` shape — see [Login Providers](/guides/authentication/#login-providers).
@@ -429,7 +431,7 @@ See [MCP Server Reference](/reference/mcp-server/) for token creation and client
 
 ### `siteUrl`
 
-The public browser-facing origin for the site (scheme + host + optional port, **no path**). Set it before running production setup. Only loopback development hosts can complete setup without a configured origin.
+The public browser-facing origin for the site (scheme + host + optional port, **no path**). Set it before running production setup, unless the site is deployed to Cloudflare Workers. Only loopback development hosts can otherwise complete setup without a configured origin.
 
 Behind a **TLS-terminating reverse proxy**, `Astro.url` returns the internal address (`http://localhost:4321`) instead of the public one (`https://cms.example.com`). This breaks passkeys, CSRF origin matching, OAuth redirects, login redirects, MCP discovery, snapshot exports, sitemap, robots.txt, and JSON-LD structured data. Set `siteUrl` to fix all of these at once.
 
@@ -450,7 +452,11 @@ emdash({
 
 When `siteUrl` is not set in config, EmDash checks environment variables in order: `EMDASH_SITE_URL`, then `SITE_URL`. This is useful for container deployments where the public URL is set at runtime.
 
-Setup fails with `SITE_URL_REQUIRED` on a non-loopback host when neither source is set. This prevents the first unauthenticated setup request from choosing the origin used in later authentication emails.
+Image optimization reads these environment variables at **build time**, because Astro records the allowed image origins in `image.remotePatterns` when `astro build` runs. If `EMDASH_SITE_URL` or `SITE_URL` is set only in the runtime environment, as on hosts that inject variables when the app starts, locally stored media is served unoptimized. Set the variable in the build environment as well, or set `siteUrl` in config.
+
+Setup fails with `SITE_URL_REQUIRED` on a non-loopback host when neither source is set. This prevents the first unauthenticated setup request from choosing the origin used in later authentication emails. A production build deployed to Cloudflare Workers is the exception: Cloudflare only routes requests for hostnames bound to the Worker, so setup records `https://` and the hostname it runs on. The same build served by `wrangler dev`, `astro preview`, or self-hosted workerd on a reachable address gets no such guarantee; set `siteUrl` or `EMDASH_SITE_URL` there first.
+
+Links in sign-in, invitation, self-signup, recovery, and comment notification emails use the first origin available from: `siteUrl` or its environment variables, the **Site URL** in **Settings > General**, then the origin recorded during setup. Only the origin of the **Site URL** is used, and it must use `https://` unless the host is `localhost`, `127.0.0.1`, or `[::1]`. [`ctx.site.url`](/reference/hooks/#plugin-context) uses the same origin as links in emails, and it is read when the runtime starts. After moving a site to a new domain without a configured `siteUrl`, change the **Site URL** with **Change domain** so email links point to it; see [Move to a New Domain](/guides/change-domain/). Sitemaps and `robots.txt` use a different order, where the **Site URL** comes before `siteUrl`; see [`robots.txt`](/guides/seo/#robotstxt).
 
 On **Cloudflare Workers**, the env-var fallback reads `process.env`. With `nodejs_compat`, Cloudflare populates `process.env` by default for compatibility dates on or after `2025-04-01`. Projects pinned to an earlier date must also add `nodejs_compat_populate_process_env`.
 
@@ -613,7 +619,7 @@ Uploads that exceed the configured limit are rejected with a `413 Payload Too La
 
 ### `admin`
 
-**Optional.** Replaces EmDash branding in the admin interface. These values do not change the public site's title, logo, or favicon.
+**Optional.** Replaces EmDash branding in the admin interface and limits which admin languages the build includes. The branding values do not change the public site's title, logo, or favicon.
 
 ```js
 emdash({
@@ -632,6 +638,20 @@ emdash({
 | `siteName`    | `string`          | Name shown in the sidebar header and browser title                             |
 | `footerLabel` | `string \| false` | Label shown beside the sidebar version. Defaults to `"EmDash"`; `false` hides it |
 | `favicon`     | `string`          | Favicon URL or path for admin pages                                             |
+| `locales`     | `string[]`        | Admin languages to include, such as `["en", "de"]`. Catalogs for other languages are left out of the admin bundle, and only the listed languages appear in the language switcher. Users whose preferred languages are not listed see English. `en` is always included as the fallback, even if you omit it, so `admin: { locales: ["en-GB"] }` ships both English and British English. An unknown code fails the build and the error lists the available codes. |
+| `hiddenNavItems` | `string[]`     | Built-in admin areas to leave out of the sidebar and the command palette. The dashboard hides the Upload Media button when `media` is listed and keeps the Scheduled count but drops its link to the calendar when `calendar` is listed. Valid names (TypeScript accepts only these): `calendar`, `media`, `comments`, `menus`, `redirects`, `widgets`, `sections`, `bylines`, `import`. An unknown name fails the build and the error lists the valid names. |
+
+To keep the sidebar focused on what a site uses, hide the built-in areas it doesn't need:
+
+```js
+emdash({
+	admin: {
+		hiddenNavItems: ["comments", "redirects", "widgets"],
+	},
+});
+```
+
+Hiding an area only removes the links to it. The pages, API routes, and permissions stay unchanged, so anyone with the URL and the required role can still open them.
 
 ### `updateCheck`
 
@@ -680,32 +700,9 @@ Notes on `"client"` mode:
 - Logged-out visitors who open a shared `?_edit` URL are redirected to the canonical URL, so the param can't leak drafts or prime extra cache entries with page content.
 - The "logged in" signal is a non-secret `localStorage` flag set by the admin; the pill verifies the real session before entering the edit view.
 - The bootstrap is a small inline `<script>`. If your site sends a strict `Content-Security-Policy` without `'unsafe-inline'`, add a hash for it — the same applies to the server-injected toolbar.
-- EmDash injects nothing session-specific — but if your own templates branch on `Astro.locals.user` (e.g. an "Admin" nav link for logged-in users), that variance is still in your HTML and still fragments the cache.
+- EmDash injects nothing session-specific, but your own templates may branch on `Astro.locals.user` (for example an "Admin" nav link for logged-in users). EmDash keeps pages rendered for a signed-in user out of Astro's route cache, so on a cache hit an editor still sees the anonymous variant. Other shared caches in front of the site may store the signed-in variant unless you exclude it.
 
 In every mode, the toolbar can be dismissed in the browser via its × button (per-browser, until the next time an editor opens the admin). Preview and edit-mode responses always render server-side with `Cache-Control: private, no-store`.
-
-### `experimental`
-
-**Optional.** Opt-in features whose behaviour or wire format may change, or be removed, in a minor release. Each field is independently enabled.
-
-<Aside type="caution">
-	Experimental options are unstable. Pin EmDash to an exact version when you depend on one, and check the changelog before upgrading.
-</Aside>
-
-#### `experimental.registry`
-
-**Deprecated.** Use the top-level [`registry`](#registry) option. Existing `experimental.registry` configuration continues to work when the top-level option is omitted. If both are present, the top-level value takes precedence.
-
-The following change moves an existing registry URL to the top level:
-
-```js title="astro.config.mjs" del={2-4} ins={5}
-emdash({
-	experimental: {
-		registry: "https://registry.example.com",
-	},
-	registry: "https://registry.example.com",
-});
-```
 
 ## Database adapters
 
@@ -776,21 +773,21 @@ Cloudflare D1 database. Import from `@emdash-cms/cloudflare`.
 | Option           | Type     | Default              | Description                                         |
 | ---------------- | -------- | -------------------- | --------------------------------------------------- |
 | `binding`        | `string` | —                    | D1 binding name from `wrangler.jsonc`               |
-| `session`        | `string` | `"disabled"`         | Read replication mode: `"disabled"`, `"auto"`, or `"primary-first"` |
+| `session`        | `string` | `"disabled"`         | D1 Sessions API mode: `"disabled"`, `"auto"`, or `"primary-first"` |
 | `bookmarkCookie` | `string` | `"__em_d1_bookmark"` | Cookie name for session bookmarks                   |
 | `coalesce`       | `boolean` | `false`               | Batch concurrent reads in the same event-loop turn; requires a session mode other than `"disabled"` |
 
-The following example shows a basic binding and one with read replicas enabled:
+The following example shows a basic binding and the sessions-with-coalescing setup the Cloudflare templates use:
 
 ```js
 // Basic
 d1({ binding: "DB" });
 
-// With read replicas
-d1({ binding: "DB", session: "auto" });
+// With sessions and query coalescing
+d1({ binding: "DB", session: "auto", coalesce: true });
 ```
 
-When `session` is `"auto"` or `"primary-first"`, EmDash uses the D1 Sessions API to route read queries to nearby replicas. Authenticated users get bookmark-based read-your-writes consistency. See [Database Options — Read Replicas](/deployment/database/#read-replicas) for details.
+When `session` is `"auto"` or `"primary-first"`, EmDash uses the D1 Sessions API to route read queries to nearby replicas. Authenticated users get bookmark-based read-your-writes consistency. A session runs a request's queries one at a time; `coalesce` lets reads issued together share one round trip. See [Database Options: Read Replicas](/deployment/database/#read-replicas) for details.
 
 <Aside>
 	D1 core migrations run automatically by default or through the deployment migration manifest.
@@ -1000,7 +997,7 @@ emdash({
 });
 ```
 
-`teamDomain` is required. The adapter can read the application audience from `audience` or from the variable named by `audienceEnvVar`; it also accepts `autoProvision`, `defaultRole`, `syncRoles`, and `roleMapping`. The [`auth`](#auth) option documents their defaults and role behavior.
+`teamDomain` is required. The adapter can read the application audience from `audience` or from the variable named by `audienceEnvVar`; it also accepts `autoProvision`, `defaultRole`, `syncRoles`, `syncName`, and `roleMapping`. The [`auth`](#auth) option documents their defaults, role behavior, and name sync.
 
 ### `sandbox()`
 
@@ -1063,31 +1060,6 @@ mediaProviders: [cloudflareStream({ controls: true })];
 
 See [Media Library: Media providers](/guides/media-library/#media-providers) for the required bindings and rendering components.
 
-## Astro cache adapter
-
-### `cloudflareCache(config?)`
-
-<Aside type="caution" title="Deprecated adapter">
-	`cloudflareCache()` is retained for existing sites. New Cloudflare sites should enable native
-	Workers Caching in `wrangler.jsonc` and use `cacheCloudflare()` from
-	`@astrojs/cloudflare/cache`. The native provider invalidates through `cache.purge()` and does
-	not need zone credentials.
-</Aside>
-
-The legacy adapter returns an Astro `cache.provider` that stores responses in the Workers Cache API and purges cache tags through the Cloudflare REST API:
-
-```js title="astro.config.mjs"
-import { cloudflareCache } from "@emdash-cms/cloudflare";
-
-export default defineConfig({
-	cache: {
-		provider: cloudflareCache(),
-	},
-});
-```
-
-It accepts `cacheName` (default `"emdash"`) and `bookmarkCookie` (default `"__em_d1_bookmark"`), plus `zoneId` or `zoneIdEnvVar` and `apiToken` or `apiTokenEnvVar` for purge-by-tag requests. The default variable names are `CF_ZONE_ID` and `CF_CACHE_PURGE_TOKEN`.
-
 ## Live collections
 
 Configure the EmDash loader in `src/live.config.ts`:
@@ -1142,8 +1114,7 @@ Templates and sites can declare optional metadata under an `emdash` key in `pack
 	"emdash": {
 		"label": "My Blog Template",
 		"schema": ".emdash/schema.sql",
-		"seed": ".emdash/seed.json",
-		"url": "https://my-site.pages.dev"
+		"seed": ".emdash/seed.json"
 	}
 }
 ```
@@ -1153,7 +1124,6 @@ Templates and sites can declare optional metadata under an `emdash` key in `pack
 | `label`       | Template name for display          |
 | `schema`      | Optional SQL schema read by `emdash init` |
 | `seed`        | Path to seed JSON file             |
-| `url`         | Remote URL used by the deprecated `emdash dev --types` flow |
 
 ## TypeScript configuration
 

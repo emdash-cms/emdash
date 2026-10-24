@@ -7,17 +7,19 @@
  * execute as serial DB round trips. This fires them all CONCURRENTLY at the
  * very start of the request, before `next()`:
  *
- *   - On remote backends (D1, Durable Objects) the round trips overlap instead
- *     of serializing, collapsing ~N sequential RTTs into ~1 wall-clock RTT. On
- *     a coalescing backend they additionally batch into a single round trip.
+ *   - On remote backends whose adapter can overlap queries the round trips
+ *     overlap instead of serializing, collapsing ~N sequential RTTs into ~1
+ *     wall-clock RTT. On a coalescing backend they additionally batch into a
+ *     single round trip.
  *   - The results land in the per-request `requestCached` store under the exact
  *     keys the layout helpers use, so when the components render they hit a warm
  *     (in-flight or resolved) cache entry instead of issuing their own query.
  *
  * Nothing here changes what templates call -- it warms the real helpers, so the
  * cache keys and value shapes are guaranteed identical. The caller gates this to
- * the public-page path on a request-scoped (remote) backend; it is a no-op-ish
- * waste on synchronous local SQLite, so don't call it there.
+ * the public-page path on a request-scoped (remote) backend that can overlap
+ * queries; it is a no-op-ish waste on synchronous local SQLite and only delays
+ * the page on a handle that runs one query at a time, so don't call it there.
  *
  * Fire-and-forget: never awaited by middleware, never throws (a prefetch failure
  * must not affect the request -- the helpers will simply run on demand).
@@ -25,6 +27,7 @@
 
 import { getDb } from "../loader.js";
 import { getMenu } from "../menus/index.js";
+import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
 import { requestCached, setRequestCacheEntry } from "../request-cache.js";
 import { getSiteSettings } from "../settings/index.js";
 import { getTaxonomyDefs, getTaxonomyTerms } from "../taxonomies/index.js";
@@ -53,11 +56,17 @@ async function prefetchTaxonomyTerms(): Promise<void> {
 
 /** Warm every menu via the real helper (primes `menu:${name}:${locale}`). */
 async function prefetchMenus(): Promise<void> {
-	const db = await getDb();
 	// The layout calls getMenu(name) with hardcoded names; we can't know them, so
 	// discover every menu name and warm them all (small, bounded chrome table).
-	const rows = await db.selectFrom("_emdash_menus").select("name").distinct().execute();
-	const names = [...new Set(rows.map((r) => r.name))];
+	const names = await cachedQuery({
+		namespace: CacheNamespace.MENUS,
+		key: "names",
+		load: async () => {
+			const db = await getDb();
+			const rows = await db.selectFrom("_emdash_menus").select("name").distinct().execute();
+			return [...new Set(rows.map((r) => r.name))];
+		},
+	});
 	await Promise.allSettled(names.map((name) => getMenu(name)));
 }
 

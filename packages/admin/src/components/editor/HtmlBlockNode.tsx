@@ -1,173 +1,258 @@
 /**
  * HTML block node for the admin editor.
  *
- * Renders a first-class `htmlBlock` in the Portable Text editor with:
- * - A textarea for editing raw HTML source
- * - Selection ring, drag handle, and delete action
- *
- * Modeled on `PluginBlockNode.tsx` (atom node with React node view) and
- * the existing `{ _type: "htmlBlock", _key, html }` Portable Text shape
- * used by the WordPress and Contentful importers.
+ * A card with a code editor for each of the block's fields (HTML, and CSS and
+ * JavaScript while the block renders in an isolated frame) and a menu that
+ * switches how the site renders it. Round-trips through Portable Text as
+ * `{ _type: "htmlBlock", _key, html, css?, js?, isolated? }`.
  */
 
-import { Button } from "@cloudflare/kumo";
+import { DropdownMenu } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { BracketsAngle, DotsSixVertical, Trash } from "@phosphor-icons/react";
+import { Eye, FileCss, FileHtml, FileJs } from "@phosphor-icons/react";
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { NodeViewProps } from "@tiptap/react";
-import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import * as React from "react";
 
-import { cn } from "../../lib/utils";
+import type { CodeEditorLanguage } from "./CodeEditor";
+import {
+	CLIPBOARD_TOKEN,
+	EmbedBlockCard,
+	EmbedCodeEditor,
+	embedBlockKeyboardShortcuts,
+	embedBlockNodeView,
+	useEmbedBlockFocus,
+	type EmbedBlockTab,
+} from "./EmbedBlockShell";
+import { HtmlBlockPreview } from "./HtmlBlockPreview";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+export { TopBlockDocument } from "./EmbedBlockShell";
 
-/**
- * True when focus is inside a text input or textarea (e.g. the HTML block's
- * source <textarea>). Editor-level keyboard shortcuts must defer to native
- * field editing in that case.
- */
-function isEditingFormField(): boolean {
-	if (typeof document === "undefined") return false;
-	const active = document.activeElement;
-	if (!active) return false;
-	const tag = active.tagName;
-	return tag === "TEXTAREA" || tag === "INPUT";
+type Field = "html" | "css" | "js";
+type Tab = Field | "preview";
+
+const FIELDS: readonly Field[] = ["html", "css", "js"];
+const PREVIEW_LABEL = msg`Preview`;
+const WRITE_DELAY_MS = 250;
+
+const TABS: Record<
+	Field,
+	{
+		label: MessageDescriptor;
+		editorLabel: MessageDescriptor;
+		placeholder: MessageDescriptor;
+		language: CodeEditorLanguage;
+		Icon: typeof FileHtml;
+	}
+> = {
+	html: {
+		label: msg`HTML`,
+		editorLabel: msg`HTML code`,
+		placeholder: msg`Write HTML…`,
+		language: "html",
+		Icon: FileHtml,
+	},
+	css: {
+		label: msg`CSS`,
+		editorLabel: msg`CSS code`,
+		placeholder: msg`Write CSS…`,
+		language: "css",
+		Icon: FileCss,
+	},
+	js: {
+		label: msg`JS`,
+		editorLabel: msg`JavaScript code`,
+		placeholder: msg`Write JavaScript…`,
+		language: "javascript",
+		Icon: FileJs,
+	},
+};
+
+// Isolated blocks run the HTML tab as written, so a whole snippet works there.
+const ISOLATED_HTML_PLACEHOLDER = msg`Write HTML, or paste a snippet with its styles and scripts…`;
+
+function isTab(value: string): value is Tab {
+	return value === "preview" || (FIELDS as readonly string[]).includes(value);
 }
 
-// ---------------------------------------------------------------------------
-// Node View
-// ---------------------------------------------------------------------------
+function fieldValue(attrs: Record<string, unknown>, field: Field): string {
+	const value = attrs[field];
+	return typeof value === "string" ? value : "";
+}
 
-function HtmlBlockNodeView({ node, updateAttributes, selected, deleteNode }: NodeViewProps) {
+const PREVIEW_TAB: EmbedBlockTab = { value: "preview", label: PREVIEW_LABEL, Icon: Eye };
+
+const isEmpty = (attrs: Record<string, unknown>) =>
+	FIELDS.every((field) => !fieldValue(attrs, field));
+
+function HtmlBlockNodeView({ editor, node, getPos, updateAttributes }: NodeViewProps) {
 	const { t } = useLingui();
-	const html = typeof node.attrs.html === "string" ? node.attrs.html : "";
-	const [draft, setDraft] = React.useState(html);
-	const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+	const editable = editor.isEditable;
+	const isolated = node.attrs.isolated === true;
+	const values: Record<Field, string> = {
+		html: fieldValue(node.attrs, "html"),
+		css: fieldValue(node.attrs, "css"),
+		js: fieldValue(node.attrs, "js"),
+	};
 
-	// Sync draft when the stored html changes from outside the node view.
-	React.useEffect(() => {
-		setDraft(html);
-	}, [html]);
+	// New blocks open on HTML and saved blocks on Preview. A saved block with
+	// scripts waits for Run preview, so a broken script can't freeze the editor.
+	const [tab, setTab] = React.useState<Tab>(() =>
+		FIELDS.some((field) => values[field]) ? "preview" : "html",
+	);
+	const activeTab: Tab = isolated || tab === "html" ? tab : "preview";
+	const [allowScripts, setAllowScripts] = React.useState(() =>
+		FIELDS.every((field) => !values[field]),
+	);
+	const previewHeight = React.useRef(128);
+	const [revisions, setRevisions] = React.useState<Record<Field, number>>({
+		html: 0,
+		css: 0,
+		js: 0,
+	});
+	const pending = React.useRef<Partial<Record<Field, string>>>({});
+	const known = React.useRef(values);
+	const timer = React.useRef<number | undefined>(undefined);
 
-	// Auto-resize textarea to fit content.
+	// Each write replaces the node and converts the whole document, so edits
+	// are held briefly and written together.
+	const flush = React.useCallback(() => {
+		window.clearTimeout(timer.current);
+		const changes = pending.current;
+		if (Object.keys(changes).length === 0) return;
+		// Edits that can't be written now wait for the next flush.
+		if (editor.isDestroyed || !editor.isEditable || typeof getPos() !== "number") return;
+		pending.current = {};
+		Object.assign(known.current, changes);
+		updateAttributes(changes);
+	}, [editor, getPos, updateAttributes]);
+
+	const focus = useEmbedBlockFocus({ editor, getPos, flush, isEmpty });
+
+	// Undo, redo and other tools change the attributes directly. Show their
+	// value and drop the edit waiting to be written.
+	const { html, css, js } = values;
 	React.useEffect(() => {
-		const el = textareaRef.current;
-		if (el) {
-			el.style.height = "auto";
-			el.style.height = `${el.scrollHeight}px`;
+		const current: Record<Field, string> = { html, css, js };
+		const changed = FIELDS.filter((field) => current[field] !== known.current[field]);
+		if (changed.length === 0) return;
+		for (const field of changed) {
+			known.current[field] = current[field];
+			delete pending.current[field];
 		}
-	}, [draft]);
+		setRevisions((revision) => {
+			const next = { ...revision };
+			for (const field of changed) next[field] += 1;
+			return next;
+		});
+	}, [html, css, js]);
 
-	const commitHtml = React.useCallback(
-		(value: string) => {
-			updateAttributes({ html: value });
-		},
-		[updateAttributes],
-	);
+	const handleChange = (field: Field, value: string) => {
+		setAllowScripts(true);
+		pending.current[field] = value;
+		window.clearTimeout(timer.current);
+		timer.current = window.setTimeout(flush, WRITE_DELAY_MS);
+	};
 
-	const handleChange = React.useCallback(
-		(e: React.ChangeEvent<HTMLTextAreaElement>) => {
-			setDraft(e.target.value);
-			commitHtml(e.target.value);
-		},
-		[commitHtml],
-	);
+	const handleTabChange = (value: string) => {
+		if (!isTab(value)) return;
+		flush();
+		setTab(value);
+	};
+
+	const setIsolated = (value: string) => {
+		flush();
+		updateAttributes({ isolated: value === "isolated" });
+	};
+
+	const tabs = [
+		...(isolated ? FIELDS : (["html"] as const)).map((field) => ({ value: field, ...TABS[field] })),
+		PREVIEW_TAB,
+	];
 
 	return (
-		<NodeViewWrapper
-			className={cn(
-				"html-block relative my-3",
-				selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg",
-			)}
-			contentEditable={false}
-			data-drag-handle
+		<EmbedBlockCard
+			className="html-block"
+			editable={editable}
+			tabs={tabs}
+			activeTab={activeTab}
+			onTabChange={handleTabChange}
+			menuLabel={t`HTML block options`}
+			menu={
+				<DropdownMenu.Group>
+					<DropdownMenu.Label>{t`On the site`}</DropdownMenu.Label>
+					<DropdownMenu.RadioGroup
+						value={isolated ? "isolated" : "inline"}
+						onValueChange={setIsolated}
+					>
+						<DropdownMenu.RadioItem value="isolated" closeOnClick>
+							<span className="flex flex-col">
+								{t`Isolated frame`}
+								<span className="text-xs text-kumo-subtle">
+									{t`Runs HTML, CSS and JavaScript in a sandbox.`}
+								</span>
+							</span>
+						</DropdownMenu.RadioItem>
+						<DropdownMenu.RadioItem value="inline" closeOnClick>
+							<span className="flex flex-col">
+								{t`Inline`}
+								<span className="text-xs text-kumo-subtle">
+									{t`HTML only, cleaned, using your site's styles.`}
+								</span>
+							</span>
+						</DropdownMenu.RadioItem>
+					</DropdownMenu.RadioGroup>
+				</DropdownMenu.Group>
+			}
+			onDelete={focus.deleteBlock}
+			focus={focus}
 		>
-			<div className="relative group">
-				{/* Drag handle */}
-				<div
-					className={cn(
-						"absolute -start-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing",
-						selected && "opacity-100",
+			{activeTab === "preview" ? (
+				<HtmlBlockPreview
+					{...values}
+					isolated={isolated}
+					allowScripts={allowScripts}
+					onRun={() => {
+						setAllowScripts(true);
+						focus.panelRef.current?.focus();
+					}}
+					lastHeight={previewHeight}
+				/>
+			) : (
+				<EmbedCodeEditor
+					// The HTML tab's placeholder depends on the mode.
+					key={`${activeTab}-${isolated}-${revisions[activeTab]}`}
+					language={TABS[activeTab].language}
+					value={values[activeTab]}
+					onChange={(value) => handleChange(activeTab, value)}
+					onFocusChange={focus.onFocusChange}
+					onEscape={focus.onEscape}
+					editable={editable}
+					autoFocus={focus.autoFocus}
+					ariaLabel={t(TABS[activeTab].editorLabel)}
+					placeholder={t(
+						activeTab === "html" && isolated
+							? ISOLATED_HTML_PLACEHOLDER
+							: TABS[activeTab].placeholder,
 					)}
-					data-drag-handle
-				>
-					<DotsSixVertical className="h-5 w-5 text-kumo-subtle/50" />
-				</div>
-
-				{/* Main block */}
-				<div
-					className={cn(
-						"rounded-lg border bg-kumo-base transition-colors overflow-hidden",
-						selected ? "border-kumo-brand/50 bg-kumo-tint/30" : "hover:border-kumo-line",
-					)}
-				>
-					{/* Header */}
-					<div className="flex items-center gap-3 px-4 py-3">
-						<div className="flex-shrink-0 w-10 h-10 rounded-lg bg-kumo-tint flex items-center justify-center text-kumo-subtle">
-							<BracketsAngle className="h-5 w-5" />
-						</div>
-
-						<div className="flex-1 min-w-0">
-							<div className="text-sm font-medium">{t`HTML`}</div>
-						</div>
-
-						{/* Actions */}
-						<div
-							className={cn(
-								"flex items-center gap-1 transition-opacity",
-								selected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-							)}
-						>
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className="h-8 w-8 text-kumo-danger hover:text-kumo-danger hover:bg-kumo-danger/10"
-								onClick={() => deleteNode()}
-								title={t`Delete`}
-								aria-label={t`Delete HTML block`}
-							>
-								<Trash className="h-4 w-4" />
-							</Button>
-						</div>
-					</div>
-
-					{/* Content area */}
-					<div className="px-4 pb-4">
-						<textarea
-							ref={textareaRef}
-							value={draft}
-							onChange={handleChange}
-							placeholder={t`Enter HTML...`}
-							className="w-full min-h-[100px] resize-y rounded-md border bg-kumo-overlay p-3 font-mono text-sm text-kumo-strong placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-kumo-brand"
-							spellCheck={false}
-							aria-label={t`HTML source`}
-						/>
-					</div>
-				</div>
-			</div>
-		</NodeViewWrapper>
+				/>
+			)}
+		</EmbedBlockCard>
 	);
 }
-
-// ---------------------------------------------------------------------------
-// TipTap Extension
-// ---------------------------------------------------------------------------
 
 /**
  * TipTap extension: first-class HTML block.
  *
- * An atom node that stores raw HTML in a `html` attribute. Round-trips
- * through Portable Text as `{ _type: "htmlBlock", _key, html }`.
+ * A top-level atom. The editor's global drag handle moves it.
  */
 export const HtmlBlockExtension = Node.create({
 	name: "htmlBlock",
-	group: "block",
+	group: "topBlock",
 	atom: true,
-	draggable: true,
+	draggable: false,
 	selectable: true,
 
 	addAttributes() {
@@ -183,6 +268,29 @@ export const HtmlBlockExtension = Node.create({
 					if (!html) return {};
 					return { "data-html-content": html };
 				},
+			},
+			css: {
+				default: "",
+				parseHTML: (element) => element.getAttribute("data-html-css") ?? "",
+				renderHTML: (attributes) =>
+					typeof attributes.css === "string" && attributes.css
+						? { "data-html-css": attributes.css }
+						: {},
+			},
+			js: {
+				default: "",
+				parseHTML: (element) => element.getAttribute("data-html-js") ?? "",
+				renderHTML: (attributes) =>
+					typeof attributes.js === "string" && attributes.js
+						? { "data-html-js": attributes.js }
+						: {},
+			},
+			isolated: {
+				default: false,
+				// Blocks pasted from other pages render inline, so their scripts don't run on the site.
+				parseHTML: (element) => element.getAttribute("data-html-isolated") === CLIPBOARD_TOKEN,
+				renderHTML: (attributes) =>
+					attributes.isolated === true ? { "data-html-isolated": CLIPBOARD_TOKEN } : {},
 			},
 		};
 	},
@@ -200,25 +308,10 @@ export const HtmlBlockExtension = Node.create({
 	},
 
 	addNodeView() {
-		return ReactNodeViewRenderer(HtmlBlockNodeView);
+		return embedBlockNodeView(this.editor, HtmlBlockNodeView);
 	},
 
 	addKeyboardShortcuts() {
-		const deleteHtmlBlock = () => {
-			// Don't hijack Backspace/Delete while the user is editing the source
-			// in the nested <textarea> -- let the native field handle the keystroke.
-			if (isEditingFormField()) return false;
-			const { selection } = this.editor.state;
-			const node = this.editor.state.doc.nodeAt(selection.from);
-			if (node?.type.name === "htmlBlock") {
-				this.editor.commands.deleteSelection();
-				return true;
-			}
-			return false;
-		};
-		return {
-			Backspace: deleteHtmlBlock,
-			Delete: deleteHtmlBlock,
-		};
+		return embedBlockKeyboardShortcuts(this.type);
 	},
 });

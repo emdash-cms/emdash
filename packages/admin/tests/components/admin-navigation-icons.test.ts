@@ -32,6 +32,7 @@ describe("ADMIN_NAV_ICONS", () => {
 	it("keeps shared admin navigation surfaces on the approved icon set", () => {
 		expect(ADMIN_NAV_ICONS).toEqual({
 			dashboard: SquaresFour,
+			calendar: CalendarBlank,
 			collection: Files,
 			pages: Browser,
 			posts: Newspaper,

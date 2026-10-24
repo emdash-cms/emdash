@@ -175,6 +175,25 @@ describe("Image caption round-trip (inline editor seam)", () => {
 	});
 });
 
+describe("Image link and alignment round-trip (inline editor seam)", () => {
+	it("drops unknown alignments and empty links", () => {
+		const [restored] = pmToPortableText(
+			portableTextToPM([
+				{
+					_type: "image",
+					_key: "img-invalid",
+					asset: { _ref: "01INVALID", url: "/invalid.jpg" },
+					alignment: "diagonal",
+					link: { href: "  ", blank: true },
+				},
+			]),
+		) as Array<{ alignment?: unknown; link?: unknown }>;
+
+		expect(restored.alignment).toBeUndefined();
+		expect(restored.link).toBeUndefined();
+	});
+});
+
 describe("Image media reference (inline editor seam)", () => {
 	it("keeps the media reference of a seeded $media asset through PT → PM → PT", () => {
 		const seeded = [

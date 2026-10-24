@@ -15,7 +15,7 @@ import {
 	LayerCard,
 	Select,
 	Table,
-	Toast,
+	useKumoToastManager,
 } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -51,7 +51,8 @@ import {
 	deleteTaxonomy,
 	deleteTerm,
 } from "../lib/api/taxonomies.js";
-import { slugify } from "../lib/utils";
+import { inlineLabel } from "../lib/inline-label.js";
+import { slugify, slugifyIdentifier } from "../lib/utils";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { BulkTagDialog } from "./BulkTagDialog.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
@@ -73,8 +74,6 @@ interface TaxonomyManagerProps {
 }
 
 // Regex patterns for taxonomy name generation and validation (module-scoped per lint rules)
-const NON_ALPHANUMERIC_PATTERN = /[^a-z0-9]+/g;
-const LEADING_TRAILING_UNDERSCORE_PATTERN = /^_|_$/g;
 const TAXONOMY_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
 
 /**
@@ -426,7 +425,9 @@ function TermRow({
 			<div className="flex items-center gap-4 py-2 px-4 hover:bg-kumo-tint/50">
 				<div style={{ marginInlineStart: `${level * 1.5}rem` }} className="flex-1">
 					<span className="font-medium">{term.label}</span>
-					<span className="text-sm text-kumo-subtle ms-2">({term.slug})</span>
+					<span className="text-sm text-kumo-subtle ms-2">
+						(<bdi dir="ltr">{term.slug}</bdi>)
+					</span>
 				</div>
 				<div className="text-sm text-kumo-subtle">{term.count || 0}</div>
 				<div className="flex gap-2">
@@ -616,7 +617,7 @@ function TermFormDialog({
 	i18n: { defaultLocale: string; locales: string[] } | null;
 	onOpenTranslation?: (translatedTerm: { slug: string; locale: string }) => void;
 }) {
-	const { t } = useLingui();
+	const { t, i18n: lingui } = useLingui();
 	const queryClient = useQueryClient();
 	const slugInputId = React.useId();
 	const [label, setLabel] = React.useState(term?.label || "");
@@ -673,7 +674,7 @@ function TermFormDialog({
 					slug,
 					label,
 					parentId: parentId || undefined,
-					description: description || undefined,
+					description,
 				},
 				{ locale: term.locale ?? locale },
 			);
@@ -756,8 +757,8 @@ function TermFormDialog({
 							</Dialog.Title>
 							<Dialog.Description className="mt-1 text-sm text-kumo-subtle">
 								{term
-									? t`Update the ${taxonomyDef.labelSingular?.toLowerCase() || "term"} details`
-									: t`Create a new ${taxonomyDef.labelSingular?.toLowerCase() || "term"}`}
+									? t`Update the ${inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)} details`
+									: t`Create a new ${inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)}`}
 							</Dialog.Description>
 						</div>
 						<Dialog.Close
@@ -798,6 +799,7 @@ function TermFormDialog({
 								{t`Slug`}
 							</FieldHelpLabel>
 							<Input
+								dir="ltr"
 								id={slugInputId}
 								aria-label={t`Slug`}
 								className="w-full"
@@ -933,12 +935,7 @@ function CreateTaxonomyDialog({
 	// Auto-generate name from label
 	React.useEffect(() => {
 		if (autoName && label) {
-			setName(
-				label
-					.toLowerCase()
-					.replace(NON_ALPHANUMERIC_PATTERN, "_")
-					.replace(LEADING_TRAILING_UNDERSCORE_PATTERN, ""),
-			);
+			setName(slugifyIdentifier(label));
 		}
 	}, [label, autoName]);
 
@@ -962,6 +959,11 @@ function CreateTaxonomyDialog({
 		setError(null);
 		createMutation.reset();
 	};
+
+	const nameError =
+		autoName && label.trim().length > 0 && !name
+			? t`A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`
+			: undefined;
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -1041,6 +1043,7 @@ function CreateTaxonomyDialog({
 
 						<div>
 							<Input
+								dir="ltr"
 								label={t`Name`}
 								value={name}
 								onChange={(e) => {
@@ -1051,6 +1054,7 @@ function CreateTaxonomyDialog({
 								required
 								pattern="[a-z][a-z0-9_]*"
 								title={t`Lowercase letters, numbers, and underscores only, starting with a letter`}
+								error={nameError}
 							/>
 							<p className="text-xs text-kumo-subtle mt-1">
 								{t`Used as the identifier. Lowercase letters, numbers, and underscores only.`}
@@ -1111,9 +1115,9 @@ function CreateTaxonomyDialog({
  * Main TaxonomyManager component
  */
 export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProps) {
-	const { t } = useLingui();
+	const { t, i18n: lingui } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [formOpen, setFormOpen] = React.useState(false);
 	const [editingTerm, setEditingTerm] = React.useState<TaxonomyTerm | undefined>();
 	const [deleteTarget, setDeleteTarget] = React.useState<TaxonomyTerm | null>(null);
@@ -1203,7 +1207,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 		mutationFn: ({ parentId, ids }: { parentId: string | null; ids: string[] }) =>
 			reorderTerms(taxonomyName, { parentId, ids }),
 		onError: (error: Error) => {
-			toastManager.add({ title: t`Error`, description: error.message, type: "error" });
+			toastManager.add({ title: t`Error`, description: error.message, variant: "error" });
 		},
 		onSettled: () => {
 			// The count includes this mutation, so >1 means another move is queued
@@ -1287,7 +1291,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 				<div>
 					<h1 className="text-2xl font-semibold leading-tight">{taxonomyDef.label}</h1>
 					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
-						{t`Manage ${taxonomyDef.label.toLowerCase()} for ${taxonomyDef.collections.join(", ")}`}
+						{t`Manage ${inlineLabel(taxonomyDef.label, lingui.locale)} for ${taxonomyDef.collections.join(", ")}`}
 					</p>
 				</div>
 				<div
@@ -1395,7 +1399,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 						<div className="p-8 text-center text-kumo-subtle">{t`Loading terms...`}</div>
 					) : terms.length === 0 ? (
 						<div className="p-8 text-center text-kumo-subtle">
-							{t`No ${taxonomyDef.label.toLowerCase()} yet. Create one to get started.`}
+							{t`No ${inlineLabel(taxonomyDef.label, lingui.locale)} yet. Create one to get started.`}
 						</div>
 					) : (
 						<LayerCard className="p-0">
@@ -1455,32 +1459,34 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 					)}
 				</div>
 			) : (
-				<div className="border rounded-lg">
-					<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 font-medium">
-						<div className="flex-1">{t`Name`}</div>
-						<div className="w-16 text-center">{t`Count`}</div>
-						<div className="w-24 text-center">{t`Actions`}</div>
-					</div>
+				<div className="border rounded-lg overflow-x-auto">
+					<div className="min-w-[560px]">
+						<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 font-medium">
+							<div className="flex-1">{t`Name`}</div>
+							<div className="w-16 text-center">{t`Count`}</div>
+							<div className="w-24 text-center">{t`Actions`}</div>
+						</div>
 
-					{termsLoading ? (
-						<div className="p-8 text-center text-kumo-subtle">{t`Loading terms...`}</div>
-					) : terms.length === 0 ? (
-						<div className="p-8 text-center text-kumo-subtle">
-							{t`No ${taxonomyDef.label.toLowerCase()} yet. Create one to get started.`}
-						</div>
-					) : (
-						<div className="divide-y divide-kumo-line">
-							<TermGroup
-								siblings={terms}
-								parentId={null}
-								onEdit={handleEdit}
-								onDelete={handleDelete}
-								onMove={handleMove}
-								onTranslate={setTranslateTarget}
-								canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
-							/>
-						</div>
-					)}
+						{termsLoading ? (
+							<div className="p-8 text-center text-kumo-subtle">{t`Loading terms...`}</div>
+						) : terms.length === 0 ? (
+							<div className="p-8 text-center text-kumo-subtle">
+								{t`No ${inlineLabel(taxonomyDef.label, lingui.locale)} yet. Create one to get started.`}
+							</div>
+						) : (
+							<div className="divide-y divide-kumo-line">
+								<TermGroup
+									siblings={terms}
+									parentId={null}
+									onEdit={handleEdit}
+									onDelete={handleDelete}
+									onMove={handleMove}
+									onTranslate={setTranslateTarget}
+									canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
+								/>
+							</div>
+						)}
+					</div>
 				</div>
 			)}
 
@@ -1525,7 +1531,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 					setDeleteTarget(null);
 					deleteMutation.reset();
 				}}
-				title={t`Delete ${taxonomyDef.labelSingular || "Term"}?`}
+				title={t`Delete ${taxonomyDef.labelSingular || t`Term`}?`}
 				description={
 					<>{t`This will permanently delete "${deleteTarget?.label}" and remove it from all content.`}</>
 				}

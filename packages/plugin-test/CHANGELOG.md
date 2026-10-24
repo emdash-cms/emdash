@@ -1,5 +1,155 @@
 # @emdash-cms/plugin-test
 
+## 0.2.10
+
+### Patch Changes
+
+- Updated dependencies [[`30604dc`](https://github.com/emdash-cms/emdash/commit/30604dcb0538df477ea0d8bde894ecdb57388bad), [`b01d06e`](https://github.com/emdash-cms/emdash/commit/b01d06e0f1939b772969c506ff35f8c1ef314748), [`ed01613`](https://github.com/emdash-cms/emdash/commit/ed01613f5258b45e3d8da8e83e43ae946586ee55), [`fedaf4c`](https://github.com/emdash-cms/emdash/commit/fedaf4caad7b0db828079f8fc18442c626e34f21), [`421cb0a`](https://github.com/emdash-cms/emdash/commit/421cb0a42acd56f0cac1c3f5487d1dc5ba7d7892), [`974b77b`](https://github.com/emdash-cms/emdash/commit/974b77b682b078211f72c13a4538a9b68b161a68), [`d33d0a5`](https://github.com/emdash-cms/emdash/commit/d33d0a50b40ca3b2f1f79069895f2917988ebb5c), [`4045436`](https://github.com/emdash-cms/emdash/commit/404543656d9dd21729a9be6776f949f9fead36b7), [`03409e6`](https://github.com/emdash-cms/emdash/commit/03409e67ee01a949a8c3ddc4948e10ebbef4f9a7), [`c958045`](https://github.com/emdash-cms/emdash/commit/c95804553d01deba84f2dfc0015e5a63cb4b90a2), [`bfc435a`](https://github.com/emdash-cms/emdash/commit/bfc435a437feb253c6a474ecc26a5116a38687a0), [`cfbd6bb`](https://github.com/emdash-cms/emdash/commit/cfbd6bb78751077d1b9bf6ef23846b4cc46937e5), [`ee8ed8e`](https://github.com/emdash-cms/emdash/commit/ee8ed8e7113b9ef79015e5a969d7540857b30149), [`9e74ea3`](https://github.com/emdash-cms/emdash/commit/9e74ea36b88509ba3e6b61f718aabe4dda26784a), [`621d12f`](https://github.com/emdash-cms/emdash/commit/621d12f0b9aec0b6747e4619c268f7c9de480a4c), [`b0129fb`](https://github.com/emdash-cms/emdash/commit/b0129fb2da697a575322aacc30fe15f31801e97b), [`185c709`](https://github.com/emdash-cms/emdash/commit/185c709c096f78f390da81279f1732929e67423a), [`37c6537`](https://github.com/emdash-cms/emdash/commit/37c653726028308780a3a5134112ac5135b91bec), [`5be4504`](https://github.com/emdash-cms/emdash/commit/5be45045e147063b6e7e2a3b11c310e39501e686), [`d45bd2d`](https://github.com/emdash-cms/emdash/commit/d45bd2d71ee4f3f26111c7246aeed2fc9f97a15c), [`f1ccf45`](https://github.com/emdash-cms/emdash/commit/f1ccf45bf434314603873a6dba03ce43906c4c01), [`ba4d402`](https://github.com/emdash-cms/emdash/commit/ba4d4025d1516ef8b4145e51d9409545a4dac21c), [`4752b90`](https://github.com/emdash-cms/emdash/commit/4752b9011d098b19974896e638919a5f79495657), [`a0b6610`](https://github.com/emdash-cms/emdash/commit/a0b661073ba5bcd22f8f59ddac43156b221d5766), [`e5dda7b`](https://github.com/emdash-cms/emdash/commit/e5dda7bcdc2b7ecb31bf7983ea544354c51670b5), [`7ad1393`](https://github.com/emdash-cms/emdash/commit/7ad139355023e14c2f9c1606c4184e397f8a99fd)]:
+  - emdash@1.3.1
+  - @emdash-cms/blocks@1.3.1
+  - @emdash-cms/cloudflare@1.3.1
+
+## 0.2.9
+
+### Patch Changes
+
+- [#3886](https://github.com/emdash-cms/emdash/pull/3886) [`f16f9f7`](https://github.com/emdash-cms/emdash/commit/f16f9f7f38a97ebdcc077e0f73cb0db1fb3227c8) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes sandboxed plugins' `ctx.media.readBytes()` calls failing with "Media storage is not configured" under concurrent requests on Cloudflare Workers with an R2 `MEDIA` binding. Sites without that binding continue to use the existing storage callback fallback.
+  
+  Updates `createPluginRuntimeTestHost()` to store media fixtures and uploads in its local R2 binding, so plugins can read their bytes through the production bridge.
+- Updated dependencies [[`d7f2b8a`](https://github.com/emdash-cms/emdash/commit/d7f2b8ac1c75d90c6c6aad1e2605e58315f37ec1), [`291e0f8`](https://github.com/emdash-cms/emdash/commit/291e0f8b5fef4e8ab81635076572499b8a6d0f81), [`bf046ca`](https://github.com/emdash-cms/emdash/commit/bf046caf76e7bf324baa89c8689add44d5719967), [`ae6c1a4`](https://github.com/emdash-cms/emdash/commit/ae6c1a40a911e3dd3cbb65ab1de9596d9685a6ae), [`9ba9753`](https://github.com/emdash-cms/emdash/commit/9ba9753c2da55be87fc6133e63701e1e2fee52b5), [`3116dbe`](https://github.com/emdash-cms/emdash/commit/3116dbe22c7a8742321de69c84aee73e97e25e38), [`e7414c2`](https://github.com/emdash-cms/emdash/commit/e7414c2f49865cd5eb11a4a478d3b140c6953d28), [`20b7177`](https://github.com/emdash-cms/emdash/commit/20b717774e0c71878de6f586c12fc3f7da994adc), [`f16f9f7`](https://github.com/emdash-cms/emdash/commit/f16f9f7f38a97ebdcc077e0f73cb0db1fb3227c8), [`55adb91`](https://github.com/emdash-cms/emdash/commit/55adb91bfe8b15bc9f82721d73021a632a26a14e), [`13293c5`](https://github.com/emdash-cms/emdash/commit/13293c5041ba9da2624fbe500f51eda172ceed27), [`bd0095e`](https://github.com/emdash-cms/emdash/commit/bd0095ebea21211003e3d8a10a71661d57f9924f), [`02d57de`](https://github.com/emdash-cms/emdash/commit/02d57de460dd5d6618af585b8d0db9857a330ce7), [`af92bf7`](https://github.com/emdash-cms/emdash/commit/af92bf731e33f7d2d1b81b3c75fdf840c99067c8), [`52dfe3f`](https://github.com/emdash-cms/emdash/commit/52dfe3f3c39ad5305553d88058c35e49c094c959), [`d9705ad`](https://github.com/emdash-cms/emdash/commit/d9705ad17b4f599079bcb95155369bd0e51c5831), [`57e6507`](https://github.com/emdash-cms/emdash/commit/57e6507be57829af3eca45d095cf813b0e22eb11), [`9b11a80`](https://github.com/emdash-cms/emdash/commit/9b11a80db048cca352febf4eff93e9c75deba097), [`8e1e849`](https://github.com/emdash-cms/emdash/commit/8e1e849159e53fbd962e3810555d8ab9f43f56ed), [`d98e381`](https://github.com/emdash-cms/emdash/commit/d98e38198f055fb18cb0d662d59ec067045b849d), [`4fc0ced`](https://github.com/emdash-cms/emdash/commit/4fc0cedb92e1c4b582bd6e228a8ec84f4b852a68), [`dd983cd`](https://github.com/emdash-cms/emdash/commit/dd983cdb26e91435be750226797cccc93c4b90e8), [`24d5ea4`](https://github.com/emdash-cms/emdash/commit/24d5ea4bda6d7f002de8ce8344e2c12aee0d49b5), [`9f7eb22`](https://github.com/emdash-cms/emdash/commit/9f7eb2288067d4f31f41a9f1f24514e9071930d5), [`a7ff1bf`](https://github.com/emdash-cms/emdash/commit/a7ff1bfd510090a7ce4e3392cad81be0348469c7), [`0ce875f`](https://github.com/emdash-cms/emdash/commit/0ce875fcd956d31d0702be331d49f5eab6da4866), [`2652774`](https://github.com/emdash-cms/emdash/commit/2652774d50a341392f26d69ed020528b1d92d7e8), [`ecbd1ff`](https://github.com/emdash-cms/emdash/commit/ecbd1ffadc802b005e67febbac6b78c023c5985b), [`9daecce`](https://github.com/emdash-cms/emdash/commit/9daeccebcdf3eb1fc0b18610c8d1d6b137ca395d), [`cea0841`](https://github.com/emdash-cms/emdash/commit/cea084176848c7d9d5e69d7a7114c7910ee6f3bf), [`83fe26d`](https://github.com/emdash-cms/emdash/commit/83fe26dff5ef18fccbafbc04f941d6da99d3c3ef), [`2ccc645`](https://github.com/emdash-cms/emdash/commit/2ccc6451c68b9be97986cce73ced9e05db84bcbb), [`651aaf9`](https://github.com/emdash-cms/emdash/commit/651aaf90ade93bbb9e3da636a252c86ebd247cd9), [`4e458bb`](https://github.com/emdash-cms/emdash/commit/4e458bbfffd9a331a890d8ebf1bac69b75cea229), [`e0d395d`](https://github.com/emdash-cms/emdash/commit/e0d395dfa6211e1466a2d883475b2373860f0400), [`1dd1b37`](https://github.com/emdash-cms/emdash/commit/1dd1b37c14dcea4a37d9b7cd65b68eae5ea73414), [`2b7ad41`](https://github.com/emdash-cms/emdash/commit/2b7ad4161d95aadba6ac83466d603a9a8050d9fb), [`49319eb`](https://github.com/emdash-cms/emdash/commit/49319eb171ee2262d913ee65a9d66a3ff8b5bbc4), [`b60ec26`](https://github.com/emdash-cms/emdash/commit/b60ec26841116b539bad3f73a4de024813cd3c33), [`57e6507`](https://github.com/emdash-cms/emdash/commit/57e6507be57829af3eca45d095cf813b0e22eb11), [`7167d89`](https://github.com/emdash-cms/emdash/commit/7167d893d1725a347afd1d5c31f9537d806a47e6), [`b358838`](https://github.com/emdash-cms/emdash/commit/b3588388aa496e4e76dd7c486fd5860171749050), [`3e58e0e`](https://github.com/emdash-cms/emdash/commit/3e58e0e9fb7edbaa641bf0725bb319b0a64145e7), [`ab47586`](https://github.com/emdash-cms/emdash/commit/ab47586106b5364b8bf960a0412a91753b7f7b76), [`f414d0a`](https://github.com/emdash-cms/emdash/commit/f414d0add811f3ab4a79776b87ec8257de54afed), [`f414d0a`](https://github.com/emdash-cms/emdash/commit/f414d0add811f3ab4a79776b87ec8257de54afed), [`5053e19`](https://github.com/emdash-cms/emdash/commit/5053e190b1a94f753ad8edda27131dd643750340), [`d93b130`](https://github.com/emdash-cms/emdash/commit/d93b130ae12dd6861b8119fd0a9762e78669bd73), [`a065c0e`](https://github.com/emdash-cms/emdash/commit/a065c0e3da3fe34e56fe8feefbce6a7572dd18e2)]:
+  - emdash@1.3.0
+  - @emdash-cms/cloudflare@1.3.0
+  - @emdash-cms/plugin-cli@0.13.4
+  - @emdash-cms/blocks@1.3.0
+
+## 0.2.8
+
+### Patch Changes
+
+- Updated dependencies [[`d22f62f`](https://github.com/emdash-cms/emdash/commit/d22f62fb46844e377eec4fd331f5071df3d76467), [`b92f2d6`](https://github.com/emdash-cms/emdash/commit/b92f2d653689984b804998633276d1bdd7ccec89), [`5f69896`](https://github.com/emdash-cms/emdash/commit/5f69896ade7567f8af99373ef655046d6b823518), [`04a3d8d`](https://github.com/emdash-cms/emdash/commit/04a3d8db8d1c88b889167a1567a5d7a2ef76332d), [`fa71be7`](https://github.com/emdash-cms/emdash/commit/fa71be7658fe82fdd78ca5044c11f4ab17fb177a), [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6), [`36b46d9`](https://github.com/emdash-cms/emdash/commit/36b46d9431fac3787396b0db2d42474530a41e91), [`f09797c`](https://github.com/emdash-cms/emdash/commit/f09797c847778e29a697f83ae76f9e7f253cbdcf), [`cd21162`](https://github.com/emdash-cms/emdash/commit/cd211628e602471c63cf3c46f1206722d1dd1de8), [`e3a9de3`](https://github.com/emdash-cms/emdash/commit/e3a9de322736de8398225225f5909bff07bf4e1e), [`0742f27`](https://github.com/emdash-cms/emdash/commit/0742f27408d14bfba8477063f36c26357483cedc), [`5b01664`](https://github.com/emdash-cms/emdash/commit/5b016649799b681a531d19be213abf7c97c7ad57), [`4b2b6e4`](https://github.com/emdash-cms/emdash/commit/4b2b6e4591abc8a4782399aecfc8b2755536fea2), [`47cb798`](https://github.com/emdash-cms/emdash/commit/47cb7985ec0d0dfc0643a15a64ba85c4700fd9ef), [`c4e6737`](https://github.com/emdash-cms/emdash/commit/c4e6737c937acacd240d634d6df116843ad0a6f1), [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6), [`373446f`](https://github.com/emdash-cms/emdash/commit/373446f973d33703718f2f0c22322548fad6ab1a), [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6), [`0a17191`](https://github.com/emdash-cms/emdash/commit/0a171919fd68507516f6a50c951336817b25165f), [`709dbf4`](https://github.com/emdash-cms/emdash/commit/709dbf42dbc6764057c5eceb8997ff4131ef047a), [`038e322`](https://github.com/emdash-cms/emdash/commit/038e3228773132a753172968b33ec413dcff3f5c), [`b9613bd`](https://github.com/emdash-cms/emdash/commit/b9613bd4bbf2bd5ecc1935279821c37b43445a6e), [`6cf612c`](https://github.com/emdash-cms/emdash/commit/6cf612cbf2a04a7eb1b22cb3e4ffecb53a1a438a), [`8450114`](https://github.com/emdash-cms/emdash/commit/845011455d8badcede71d4a2c994b1c492b197be), [`3bcd2cb`](https://github.com/emdash-cms/emdash/commit/3bcd2cbb949b6eb69182446cc6c49a38cf156d7f), [`9ee7415`](https://github.com/emdash-cms/emdash/commit/9ee7415a35c01ae2591af1a1c21787ca694b9c99), [`36aee2d`](https://github.com/emdash-cms/emdash/commit/36aee2d17225a44cd4060f1ae158e723e3730372), [`da088aa`](https://github.com/emdash-cms/emdash/commit/da088aa96ac11c6f65af889f7272c76d24a3e736), [`609c912`](https://github.com/emdash-cms/emdash/commit/609c91298940ccee0566d1eb14e01c0f7ff51967), [`a834e75`](https://github.com/emdash-cms/emdash/commit/a834e75327368f24a42f358564c316449c9503e1), [`e2a07ae`](https://github.com/emdash-cms/emdash/commit/e2a07ae1b02951d77a32341302ff5c504cb52b1c), [`e8b61b3`](https://github.com/emdash-cms/emdash/commit/e8b61b304e33c18c77dd7b85cc9960a16cb41f4e), [`d0c7384`](https://github.com/emdash-cms/emdash/commit/d0c73843245234ea1230d570b1ed9f586f6698c1), [`e6fe5d4`](https://github.com/emdash-cms/emdash/commit/e6fe5d498a527b5e6bd6cbc80ee5220ce626673c), [`c3cc974`](https://github.com/emdash-cms/emdash/commit/c3cc97432fb76098d918eefdf3676e45f60d52c6), [`07f6f44`](https://github.com/emdash-cms/emdash/commit/07f6f443fa16fb0fd2f50fea85039d216e0345df), [`2c8c12a`](https://github.com/emdash-cms/emdash/commit/2c8c12a6b84d7c790944aebd5e7e090514fccfd6), [`2210c2c`](https://github.com/emdash-cms/emdash/commit/2210c2c7688a8d407143dfe4d565898674470412), [`f2fe380`](https://github.com/emdash-cms/emdash/commit/f2fe3807a45b27d33dc3b39e1eb5783b71c309e2), [`82cea2c`](https://github.com/emdash-cms/emdash/commit/82cea2cd54ee14506d043818a423cfc58f339c54), [`4bc129c`](https://github.com/emdash-cms/emdash/commit/4bc129ce6e36041596b63c59e680a5dca7838a1d), [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6), [`9f389fb`](https://github.com/emdash-cms/emdash/commit/9f389fb1e95a4c4d24b02ec0deb14c5a65604431), [`9538600`](https://github.com/emdash-cms/emdash/commit/95386001e4ac5a964fb568fa3d75113fe539e0fe), [`d8c6d64`](https://github.com/emdash-cms/emdash/commit/d8c6d643d64ca762012b3bfc319ab41d6827d92f), [`aa7cc95`](https://github.com/emdash-cms/emdash/commit/aa7cc95e2f0037ef6ab80b8beb48704a733368ae), [`e9cf2c3`](https://github.com/emdash-cms/emdash/commit/e9cf2c3ff804b54ccfdceb2fbe93e74e26799833), [`766aa29`](https://github.com/emdash-cms/emdash/commit/766aa29f25246486c8ba0673db23227cf366c1aa), [`f223ecd`](https://github.com/emdash-cms/emdash/commit/f223ecdc060038ffb75363a4e10ef341d065e5ca), [`34f480e`](https://github.com/emdash-cms/emdash/commit/34f480ecc1662d61c4608fc61dfaf606b9e6d7d6), [`f6ee57e`](https://github.com/emdash-cms/emdash/commit/f6ee57e92445d7c01df6863968875cb979bfae87), [`9451267`](https://github.com/emdash-cms/emdash/commit/94512678307b592dbdee9c8715e7a6600827b1dc), [`3d5a102`](https://github.com/emdash-cms/emdash/commit/3d5a1024cd7f9266b39bdb8f8d974d586e2bd302), [`0157a63`](https://github.com/emdash-cms/emdash/commit/0157a6300e5351efcdde191bd1f175b1e31ac1aa), [`064f46c`](https://github.com/emdash-cms/emdash/commit/064f46ce298a3dc123fea3638d1edbb8764cdbce), [`bafa475`](https://github.com/emdash-cms/emdash/commit/bafa475cc7de266f7bd3ea1486ee286808fc2e0f), [`7f3093e`](https://github.com/emdash-cms/emdash/commit/7f3093ef9f4523ba6323c7c5d95ae16e67a7ae41), [`3bfd6fc`](https://github.com/emdash-cms/emdash/commit/3bfd6fc1965f21700b23355499866980e90fece4), [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6), [`1bad6d8`](https://github.com/emdash-cms/emdash/commit/1bad6d8414aa98315c9d1ff33e1a1598e8ac45ae), [`4f967ae`](https://github.com/emdash-cms/emdash/commit/4f967aed349096c749ac64e16bb03188aa4d5a1e), [`d5b8b38`](https://github.com/emdash-cms/emdash/commit/d5b8b38e422f04fbda02b2c17e4f0d599a6e2ff9), [`cfc7e7d`](https://github.com/emdash-cms/emdash/commit/cfc7e7d95677caf177f12fa338e2c9599d3633c5), [`f4dc955`](https://github.com/emdash-cms/emdash/commit/f4dc955453d021f1cc2f245f1468677f9302b659), [`550e59b`](https://github.com/emdash-cms/emdash/commit/550e59b51ab4d0bc3ad3ab13e70d94ca96313863), [`ea88e8e`](https://github.com/emdash-cms/emdash/commit/ea88e8e3801ff127c111c85b2872a93d89a3b641), [`740de2b`](https://github.com/emdash-cms/emdash/commit/740de2b1b42f1d871b91195bc3bbfc9e5e869df6), [`161ff98`](https://github.com/emdash-cms/emdash/commit/161ff98663cb8b5ade88d16154e2bf8f8ed43516), [`f715431`](https://github.com/emdash-cms/emdash/commit/f7154317cdc5ce26dfee837c391b32a665e846ee), [`622a324`](https://github.com/emdash-cms/emdash/commit/622a324788784890377c355acc3c2a5ec65daec5)]:
+  - emdash@1.2.0
+  - @emdash-cms/plugin-cli@0.13.3
+  - @emdash-cms/cloudflare@1.2.0
+  - @emdash-cms/plugin-types@0.6.0
+  - @emdash-cms/blocks@1.2.0
+
+## 0.2.7
+
+### Patch Changes
+
+- Updated dependencies [[`75de9a4`](https://github.com/emdash-cms/emdash/commit/75de9a4b4bdb3a8298456b4b730aee31c86897fd), [`85ab50c`](https://github.com/emdash-cms/emdash/commit/85ab50c60e325b564b427d2d7ffde7e903c2dbf7), [`3a00448`](https://github.com/emdash-cms/emdash/commit/3a00448c05604eab26c4ad2b851d33b2de8bc605), [`2d84db5`](https://github.com/emdash-cms/emdash/commit/2d84db536174436637f3223ef1885653479248a0), [`5bbcc3c`](https://github.com/emdash-cms/emdash/commit/5bbcc3c10bb92cfebce1754d2b6503a0aaed013a), [`2436119`](https://github.com/emdash-cms/emdash/commit/24361197b40bdde7aa5efba2ee53165f801ca3d2), [`3c70ca5`](https://github.com/emdash-cms/emdash/commit/3c70ca524abc3f70fe65a1753dbc4d10114fc816), [`33a00e4`](https://github.com/emdash-cms/emdash/commit/33a00e4abf409edff8e67d1f92f530423b75050a), [`76b06d4`](https://github.com/emdash-cms/emdash/commit/76b06d4e40a9d37ab44ec7109e75339af7aeef85), [`a880323`](https://github.com/emdash-cms/emdash/commit/a88032398d25a93c8159392e4bad4c495f5cd89a), [`0cfa989`](https://github.com/emdash-cms/emdash/commit/0cfa989bcfc1914caa4b11e92170154fdaef1ec1), [`2ef2d01`](https://github.com/emdash-cms/emdash/commit/2ef2d0194ea4dee6620eda0eaadcc649bf72def7), [`02da2bd`](https://github.com/emdash-cms/emdash/commit/02da2bd4cb6690aa0ffc9ba62404567af164f9ad), [`ea3c927`](https://github.com/emdash-cms/emdash/commit/ea3c927a994e64d43ea718fa38449e3170ac2b90), [`5de3bdc`](https://github.com/emdash-cms/emdash/commit/5de3bdc4310f6bcca013f05002f05a61e208b2a4), [`02da2bd`](https://github.com/emdash-cms/emdash/commit/02da2bd4cb6690aa0ffc9ba62404567af164f9ad), [`02da2bd`](https://github.com/emdash-cms/emdash/commit/02da2bd4cb6690aa0ffc9ba62404567af164f9ad), [`7583f9b`](https://github.com/emdash-cms/emdash/commit/7583f9bba933e50eb783d68d6efb0bf1b048a627), [`73304f4`](https://github.com/emdash-cms/emdash/commit/73304f42a1b1b689b3d121b4d9f021eca51c4fb2), [`2a0cb93`](https://github.com/emdash-cms/emdash/commit/2a0cb93ebe2c74306762c4116fb2e02d49fdf6b2), [`d1b4402`](https://github.com/emdash-cms/emdash/commit/d1b4402b0fdafcc49ea603dbc1dffd70ee24e06a), [`1d93e7c`](https://github.com/emdash-cms/emdash/commit/1d93e7c66871a9aa796f9d7e2db144b55b4e1b2d), [`0a5c604`](https://github.com/emdash-cms/emdash/commit/0a5c604fe419419ed97a72b69272d6d94d13b4dd), [`7d06f5d`](https://github.com/emdash-cms/emdash/commit/7d06f5d4dfb5df8d81e33b6d42a341e61368bafe), [`189c6b3`](https://github.com/emdash-cms/emdash/commit/189c6b31566c5bcf3b2eb48972f1ee346d175503), [`f925a89`](https://github.com/emdash-cms/emdash/commit/f925a89feca7dcea4c2026cf840673a4594d2015), [`a40b7ce`](https://github.com/emdash-cms/emdash/commit/a40b7ce52ed205c61624b5c291a0a2388f1b9280), [`6940899`](https://github.com/emdash-cms/emdash/commit/69408991639957d25b4de3290f131fa43bd0b27e), [`0b9426e`](https://github.com/emdash-cms/emdash/commit/0b9426e1bffa435f40388bb4864acd8d0d5bc989), [`728790b`](https://github.com/emdash-cms/emdash/commit/728790b099b4a9322cea94ff72216340d7ebc8f7)]:
+  - emdash@1.1.0
+  - @emdash-cms/blocks@1.1.0
+  - @emdash-cms/plugin-cli@0.13.2
+  - @emdash-cms/cloudflare@1.1.0
+
+## 0.2.6
+
+### Patch Changes
+
+- [#3518](https://github.com/emdash-cms/emdash/pull/3518) [`bc54886`](https://github.com/emdash-cms/emdash/commit/bc5488685c8a886e2375d066d7424ddf4aac9a78) Thanks [@ascorbic](https://github.com/ascorbic)! - Moves the subpaths that only EmDash itself loads under `emdash/internal/`, and the D1 and Hyperdrive migration executors under `@emdash-cms/cloudflare/internal/`. These paths are not public API: their exports can change or be removed in any release.
+  
+  Sites that use `emdash()` in `astro.config.mjs` need no changes. The integration, the database, cache and media adapter helpers, and the first-party Cloudflare, workerd sandbox and plugin-test packages all load the new paths automatically.
+  
+  The following subpaths are removed:
+  
+  | Removed subpath                                   | Now loaded from                                            |
+  | ------------------------------------------------- | ---------------------------------------------------------- |
+  | `emdash/routes/*`                                 | `emdash/internal/routes/*`                                 |
+  | `emdash/middleware/auth`                          | `emdash/internal/middleware/auth`                          |
+  | `emdash/middleware/redirect`                      | `emdash/internal/middleware/redirect`                      |
+  | `emdash/middleware/request-context`               | `emdash/internal/middleware/request-context`               |
+  | `emdash/middleware/setup`                         | `emdash/internal/middleware/setup`                         |
+  | `emdash/middleware/media-usage-write-fence`       | `emdash/internal/middleware/media-usage-write-fence`       |
+  | `emdash/image-endpoint`                           | `emdash/internal/image-endpoint`                           |
+  | `emdash/media/local-runtime`                      | `emdash/internal/media/local-runtime`                      |
+  | `emdash/object-cache/memory`                      | `emdash/internal/object-cache/memory`                      |
+  | `emdash/db/sqlite-migrations`                     | `emdash/internal/db/sqlite-migrations`                     |
+  | `emdash/db/libsql-migrations`                     | `emdash/internal/db/libsql-migrations`                     |
+  | `emdash/db/postgres-migrations`                   | `emdash/internal/db/postgres-migrations`                   |
+  | `emdash/database/migration-lock`                  | `emdash/internal/database/migration-lock`                  |
+  | `emdash/database/pg-migration-lock`               | `emdash/internal/database/pg-migration-lock`               |
+  | `emdash/plugins/host`                             | `emdash/internal/plugins/host`                             |
+  | `emdash/plugins/http-wire`                        | `emdash/internal/plugins/http-wire`                        |
+  | `emdash/plugins/adapt-sandbox-entry`              | `emdash/internal/plugins/adapt-sandbox-entry`              |
+  | `emdash/plugin-test-runtime`                      | `emdash/internal/plugin-test-runtime`                      |
+  | `emdash/testing/registry`                         | `emdash/internal/testing/registry`                         |
+  | `@emdash-cms/cloudflare/db/d1-migrations`         | `@emdash-cms/cloudflare/internal/db/d1-migrations`         |
+  | `@emdash-cms/cloudflare/db/hyperdrive-migrations` | `@emdash-cms/cloudflare/internal/db/hyperdrive-migrations` |
+  
+  #### What should I do?
+  
+  If your project or package imports one of the removed subpaths directly, replace the import with a public entrypoint:
+  
+  - To configure a database, object cache or media provider, use `sqlite()`, `libsql()` or `postgres()` from `emdash/db`, `memoryCache()` from `emdash/astro`, or `localMedia()` from `emdash/media`, instead of writing their entrypoints by hand.
+  - To test a plugin, use `@emdash-cms/plugin-test` instead of `emdash/plugin-test-runtime`.
+  - To run your own middleware before EmDash's, set the `middleware.outer` option of `emdash()`. The internal auth, setup, redirect and request-context middleware have no public replacement.
+  
+  Rebuild after upgrading. `emdash migrate` rejects a migration manifest written by an earlier EmDash version.
+- Updated dependencies [[`698a0f8`](https://github.com/emdash-cms/emdash/commit/698a0f810af0286652db2e0e9d47aad69eec8a01), [`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d), [`f6674fa`](https://github.com/emdash-cms/emdash/commit/f6674fa346964f78ab329fbce1bc4f3b9f0d05ef), [`02c2ad3`](https://github.com/emdash-cms/emdash/commit/02c2ad3b2e6993ca3fbc19fe51086a4cb8c0bb8a), [`bc54886`](https://github.com/emdash-cms/emdash/commit/bc5488685c8a886e2375d066d7424ddf4aac9a78), [`0ef2e5b`](https://github.com/emdash-cms/emdash/commit/0ef2e5b385547557833c517278dd5c2b984e0960), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`1cdca21`](https://github.com/emdash-cms/emdash/commit/1cdca21510fa10eec6969fa4f83b20e6f9663870), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd)]:
+  - @emdash-cms/plugin-cli@0.13.1
+  - emdash@1.0.1
+  - @emdash-cms/blocks@1.0.1
+  - @emdash-cms/cloudflare@1.0.1
+
+## 0.2.6-rc.1
+
+### Patch Changes
+
+- Updated dependencies [[`f6674fa`](https://github.com/emdash-cms/emdash/commit/f6674fa346964f78ab329fbce1bc4f3b9f0d05ef), [`02c2ad3`](https://github.com/emdash-cms/emdash/commit/02c2ad3b2e6993ca3fbc19fe51086a4cb8c0bb8a), [`0ef2e5b`](https://github.com/emdash-cms/emdash/commit/0ef2e5b385547557833c517278dd5c2b984e0960), [`1cdca21`](https://github.com/emdash-cms/emdash/commit/1cdca21510fa10eec6969fa4f83b20e6f9663870)]:
+  - emdash@1.0.1-rc.1
+  - @emdash-cms/plugin-cli@0.13.1-rc.0
+  - @emdash-cms/cloudflare@1.0.1-rc.1
+  - @emdash-cms/blocks@1.0.1-rc.1
+
+## 0.2.6-rc.0
+
+### Patch Changes
+
+- [#3518](https://github.com/emdash-cms/emdash/pull/3518) [`bc54886`](https://github.com/emdash-cms/emdash/commit/bc5488685c8a886e2375d066d7424ddf4aac9a78) Thanks [@ascorbic](https://github.com/ascorbic)! - Moves the subpaths that only EmDash itself loads under `emdash/internal/`, and the D1 and Hyperdrive migration executors under `@emdash-cms/cloudflare/internal/`. These paths are not public API: their exports can change or be removed in any release.
+  
+  Sites that use `emdash()` in `astro.config.mjs` need no changes. The integration, the database, cache and media adapter helpers, and the first-party Cloudflare, workerd sandbox and plugin-test packages all load the new paths automatically.
+  
+  The following subpaths are removed:
+  
+  | Removed subpath                                   | Now loaded from                                            |
+  | ------------------------------------------------- | ---------------------------------------------------------- |
+  | `emdash/routes/*`                                 | `emdash/internal/routes/*`                                 |
+  | `emdash/middleware/auth`                          | `emdash/internal/middleware/auth`                          |
+  | `emdash/middleware/redirect`                      | `emdash/internal/middleware/redirect`                      |
+  | `emdash/middleware/request-context`               | `emdash/internal/middleware/request-context`               |
+  | `emdash/middleware/setup`                         | `emdash/internal/middleware/setup`                         |
+  | `emdash/middleware/media-usage-write-fence`       | `emdash/internal/middleware/media-usage-write-fence`       |
+  | `emdash/image-endpoint`                           | `emdash/internal/image-endpoint`                           |
+  | `emdash/media/local-runtime`                      | `emdash/internal/media/local-runtime`                      |
+  | `emdash/object-cache/memory`                      | `emdash/internal/object-cache/memory`                      |
+  | `emdash/db/sqlite-migrations`                     | `emdash/internal/db/sqlite-migrations`                     |
+  | `emdash/db/libsql-migrations`                     | `emdash/internal/db/libsql-migrations`                     |
+  | `emdash/db/postgres-migrations`                   | `emdash/internal/db/postgres-migrations`                   |
+  | `emdash/database/migration-lock`                  | `emdash/internal/database/migration-lock`                  |
+  | `emdash/database/pg-migration-lock`               | `emdash/internal/database/pg-migration-lock`               |
+  | `emdash/plugins/host`                             | `emdash/internal/plugins/host`                             |
+  | `emdash/plugins/http-wire`                        | `emdash/internal/plugins/http-wire`                        |
+  | `emdash/plugins/adapt-sandbox-entry`              | `emdash/internal/plugins/adapt-sandbox-entry`              |
+  | `emdash/plugin-test-runtime`                      | `emdash/internal/plugin-test-runtime`                      |
+  | `emdash/testing/registry`                         | `emdash/internal/testing/registry`                         |
+  | `@emdash-cms/cloudflare/db/d1-migrations`         | `@emdash-cms/cloudflare/internal/db/d1-migrations`         |
+  | `@emdash-cms/cloudflare/db/hyperdrive-migrations` | `@emdash-cms/cloudflare/internal/db/hyperdrive-migrations` |
+  
+  #### What should I do?
+  
+  If your project or package imports one of the removed subpaths directly, replace the import with a public entrypoint:
+  
+  - To configure a database, object cache or media provider, use `sqlite()`, `libsql()` or `postgres()` from `emdash/db`, `memoryCache()` from `emdash/astro`, or `localMedia()` from `emdash/media`, instead of writing their entrypoints by hand.
+  - To test a plugin, use `@emdash-cms/plugin-test` instead of `emdash/plugin-test-runtime`.
+  - To run your own middleware before EmDash's, set the `middleware.outer` option of `emdash()`. The internal auth, setup, redirect and request-context middleware have no public replacement.
+  
+  Rebuild after upgrading. `emdash migrate` rejects a migration manifest written by an earlier EmDash version.
+- Updated dependencies [[`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d), [`bc54886`](https://github.com/emdash-cms/emdash/commit/bc5488685c8a886e2375d066d7424ddf4aac9a78), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd)]:
+  - emdash@1.0.1-rc.0
+  - @emdash-cms/blocks@1.0.1-rc.0
+  - @emdash-cms/cloudflare@1.0.1-rc.0
+
 ## 0.2.5
 
 ### Patch Changes

@@ -88,6 +88,8 @@ export interface DatabaseDescriptor {
 	 * runtime config (e.g. whether the user opted into D1 sessions) — whether
 	 * to return a per-request Kysely or null. Use this for features like D1
 	 * read-replica sessions, bookmark cookies, or any per-request DB handle.
+	 * The handle must address the configured database: core shares values it
+	 * caches from one handle, such as the preview secret, with later requests.
 	 *
 	 * When false or absent, the generator emits a stub that returns null and
 	 * the middleware takes its default (singleton) path.
@@ -149,7 +151,7 @@ export function sqlite(config: SqliteConfig): DatabaseDescriptor {
 		config,
 		type: "sqlite",
 		migrations: {
-			entrypoint: "emdash/db/sqlite-migrations",
+			entrypoint: "emdash/internal/db/sqlite-migrations",
 			manifestConfig: { url: config.url },
 		},
 	};
@@ -175,7 +177,7 @@ export function libsql(config: LibsqlConfig): DatabaseDescriptor {
 		config: runtimeConfig,
 		type: "sqlite",
 		migrations: {
-			entrypoint: "emdash/db/libsql-migrations",
+			entrypoint: "emdash/internal/db/libsql-migrations",
 			manifestConfig: {
 				url: config.url,
 				authTokenEnv: migrationEnvironmentVariable(
@@ -227,7 +229,7 @@ export function postgres(config: PostgresConfig): DatabaseDescriptor {
 		config: runtimeConfig,
 		type: "postgres",
 		migrations: {
-			entrypoint: "emdash/db/postgres-migrations",
+			entrypoint: "emdash/internal/db/postgres-migrations",
 			manifestConfig: {
 				connectionStringEnv: migrationEnvironmentVariable(
 					migrationConnectionStringEnv,

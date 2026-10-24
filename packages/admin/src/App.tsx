@@ -20,6 +20,7 @@ import { ThemeProvider } from "./components/ThemeProvider";
 import { AdminBrandingProvider, type AdminBranding } from "./lib/admin-branding-context";
 import { AuthProviderProvider, type AuthProviders } from "./lib/auth-provider-context";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
+import { getLoadedDateLocale, waitForDateLocale } from "./locales/date-locale.js";
 import { LocaleDirectionProvider } from "./locales/index.js";
 import { createAdminRouter } from "./router";
 
@@ -36,6 +37,7 @@ const queryClient = new QueryClient({
 // Create the router with query client context
 const router = createAdminRouter(queryClient);
 const ADMIN_BASEPATH = "/_emdash/admin";
+const DATE_LOCALE_BOOT_TIMEOUT_MS = 3000;
 
 export function normalizeAdminHref(href: string): string {
 	if (href === ADMIN_BASEPATH) return "/";
@@ -131,15 +133,35 @@ export function AdminApp({
 	locale = "en",
 	messages = {},
 }: AdminAppProps) {
+	// Date locales can't be serialized from the server, so the first render waits
+	// for the active one. Otherwise calendars would render with the US week start
+	// and then shift. The timeout keeps a stalled request from blocking the admin.
+	const [dateLocaleReady, setDateLocaleReady] = React.useState(
+		() => getLoadedDateLocale(locale) !== undefined,
+	);
 	React.useEffect(() => {
-		document.getElementById("emdash-boot-loader")?.remove();
-	}, []);
+		if (dateLocaleReady) return;
+		let active = true;
+		void (async () => {
+			await waitForDateLocale(locale, DATE_LOCALE_BOOT_TIMEOUT_MS);
+			if (active) setDateLocaleReady(true);
+		})();
+		return () => {
+			active = false;
+		};
+	}, [locale, dateLocaleReady]);
+
+	React.useEffect(() => {
+		if (dateLocaleReady) document.getElementById("emdash-boot-loader")?.remove();
+	}, [dateLocaleReady]);
 
 	const i18nInitialized = React.useRef(false);
 	if (!i18nInitialized.current) {
 		i18n.loadAndActivate({ locale, messages });
 		i18nInitialized.current = true;
 	}
+
+	if (!dateLocaleReady) return null;
 
 	return (
 		<ThemeProvider>

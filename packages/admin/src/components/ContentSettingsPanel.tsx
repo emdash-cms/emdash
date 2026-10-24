@@ -29,6 +29,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
+import { flushSync } from "react-dom";
 
 import type {
 	AdminManifest,
@@ -53,9 +54,10 @@ import {
 	formatPublishingInstantWithZone,
 } from "../lib/publishing-datetime.js";
 import { resolveSandboxedEditorPanels } from "../lib/sandboxed-editor-extensions.js";
-import { cn } from "../lib/utils";
+import { cn, isolate } from "../lib/utils.js";
 import { getLocaleLabel } from "../locales/config.js";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
+import type { BylineFormValues } from "./BylineFormDialog.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { ContentStatusIcon } from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
@@ -66,6 +68,7 @@ import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
 import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
+import { useRevisionViewContext } from "./revisions/revision-view-context.js";
 import { SandboxedContentEditorPanel } from "./SandboxedContentEditorPanel.js";
 import type {
 	BrowserEditorDraftRequest,
@@ -125,12 +128,14 @@ function PublishingVersionRelationship({
 	scheduledAt,
 	locale,
 	onDiscardDraft,
+	discardDisabled,
 }: {
 	publishingState: ContentPublishingState;
 	supportsDrafts: boolean;
 	scheduledAt?: string | null;
 	locale: string;
 	onDiscardDraft?: () => void;
+	discardDisabled?: boolean;
 }) {
 	const { t } = useLingui();
 	const formattedSchedule = scheduledAt
@@ -138,7 +143,7 @@ function PublishingVersionRelationship({
 		: null;
 	const scheduledSummary =
 		scheduledAt && formattedSchedule ? (
-			<time dateTime={scheduledAt}>{t`Scheduled for ${formattedSchedule}`}</time>
+			<time dateTime={scheduledAt}>{t`Scheduled for ${isolate(formattedSchedule)}`}</time>
 		) : null;
 
 	if (!supportsDrafts) {
@@ -197,7 +202,11 @@ function PublishingVersionRelationship({
 						description={t`Ready to publish now or schedule for later`}
 						action={
 							onDiscardDraft ? (
-								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerSize="sm" />
+								<DiscardDraftDialog
+									onDiscard={onDiscardDraft}
+									triggerSize="sm"
+									disabled={discardDisabled}
+								/>
 							) : undefined
 						}
 					/>
@@ -219,7 +228,11 @@ function PublishingVersionRelationship({
 						description={scheduledSummary ?? t`A publication time has not been selected`}
 						action={
 							onDiscardDraft ? (
-								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerSize="sm" />
+								<DiscardDraftDialog
+									onDiscard={onDiscardDraft}
+									triggerSize="sm"
+									disabled={discardDisabled}
+								/>
 							) : undefined
 						}
 					/>
@@ -259,7 +272,7 @@ function TimestampValue({
 	return (
 		<time dateTime={value}>
 			<Text as="span" size={size}>
-				{formatPublishingInstant(value, locale)}
+				<bdi>{formatPublishingInstant(value, locale)}</bdi>
 			</Text>
 		</time>
 	);
@@ -283,25 +296,53 @@ function TimestampRow({
 }
 
 /**
- * Discard-draft confirmation shared by the settings action bar and the
- * distraction-free overlay, so the copy and behavior can't drift.
+ * When the editor bar is narrow, its secondary buttons keep only their icon so
+ * the bar stays on one row. The buttons distraction-free mode adds give up
+ * their labels first, at a wider bar.
+ */
+export const compactBarButtonClassName =
+	"@max-2xl/editor-bar:w-6.5 @max-2xl/editor-bar:justify-center @max-2xl/editor-bar:px-0";
+export const compactBarLabelClassName = "@max-2xl/editor-bar:sr-only";
+const compactBarExtraButtonClassName =
+	"@max-[60rem]/editor-bar:w-6.5 @max-[60rem]/editor-bar:justify-center @max-[60rem]/editor-bar:px-0";
+const compactBarExtraLabelClassName = "@max-[60rem]/editor-bar:sr-only";
+
+/**
+ * Discard-draft confirmation shared by the settings panel and the
+ * distraction-free bar, so the copy and behavior can't drift.
  */
 export function DiscardDraftDialog({
 	onDiscard,
 	triggerVariant = "ghost",
 	triggerSize,
+	compact,
+	disabled,
 }: {
 	onDiscard?: () => void;
 	triggerVariant?: "ghost" | "outline";
 	triggerSize?: "sm";
+	/** Shows only the icon on small screens, for the editor bar. */
+	compact?: boolean;
+	disabled?: boolean;
 }) {
 	const { t } = useLingui();
 	return (
 		<Dialog.Root>
 			<Dialog.Trigger
+				disabled={disabled}
 				render={(p) => (
-					<Button {...p} type="button" variant={triggerVariant} size={triggerSize} icon={<X />}>
-						{t`Discard changes`}
+					<Button
+						{...p}
+						type="button"
+						variant={triggerVariant}
+						size={triggerSize}
+						disabled={disabled}
+						className={compact ? compactBarExtraButtonClassName : undefined}
+						icon={<X />}
+					>
+						<span className={compact ? compactBarExtraLabelClassName : undefined}>
+							{t`Discard changes`}
+						</span>
 					</Button>
 				)}
 			/>
@@ -331,7 +372,7 @@ export function DiscardDraftDialog({
 	);
 }
 
-export interface SettingsActionBarProps {
+export interface EditorActionsProps {
 	collectionLabel?: string;
 	isNew?: boolean;
 	isDirty: boolean;
@@ -352,15 +393,8 @@ export interface SettingsActionBarProps {
 	onPublish?: () => void;
 	onUnpublish?: () => void;
 	onMenuOpenChange?: (open: boolean) => void;
-	announceSaveStatus?: boolean;
-}
-
-function SettingsActionSlot({ children }: React.PropsWithChildren) {
-	return (
-		<div className="flex min-w-max flex-[1_1_auto] [&>*]:w-full [&>*]:justify-center">
-			{children}
-		</div>
-	);
+	/** Shown before Publish, e.g. scheduling while the settings panel is hidden. */
+	beforePublish?: React.ReactNode;
 }
 
 export interface PreviewButtonProps {
@@ -368,6 +402,9 @@ export interface PreviewButtonProps {
 	isLoadingPreview?: boolean;
 	onPreview?: () => void;
 	size?: "sm";
+	variant?: "outline" | "ghost";
+	/** Shows only the icon on small screens, for the editor bar. */
+	compact?: boolean;
 }
 
 export function PreviewButton({
@@ -375,18 +412,23 @@ export function PreviewButton({
 	isLoadingPreview,
 	onPreview,
 	size,
+	variant = "outline",
+	compact,
 }: PreviewButtonProps) {
 	const { t } = useLingui();
 	return (
 		<Button
 			type="button"
-			variant="outline"
+			variant={variant}
 			size={size}
+			className={compact ? compactBarButtonClassName : undefined}
 			onClick={onPreview}
 			disabled={isLoadingPreview}
 			icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
 		>
-			{hasPendingChanges ? t`Preview draft` : t`Preview`}
+			<span className={compact ? compactBarLabelClassName : undefined}>
+				{hasPendingChanges ? t`Preview draft` : t`Preview`}
+			</span>
 		</Button>
 	);
 }
@@ -404,7 +446,8 @@ export interface PublishActionsProps {
 	onUnpublish?: () => void;
 	onMenuOpenChange?: (open: boolean) => void;
 	size?: "sm";
-	fullWidth?: boolean;
+	/** In the editor's bar, which shortens or hides the labels when it's narrow. */
+	compact?: boolean;
 }
 
 export function PublishActions({
@@ -419,7 +462,7 @@ export function PublishActions({
 	onUnpublish,
 	onMenuOpenChange,
 	size,
-	fullWidth,
+	compact,
 }: PublishActionsProps) {
 	const { t } = useLingui();
 	const [publishOpen, setPublishOpen] = React.useState(false);
@@ -452,8 +495,11 @@ export function PublishActions({
 				loading={isPending}
 				disabled={disabled}
 				icon={<EyeSlash />}
+				className={compact ? compactBarButtonClassName : undefined}
 			>
-				{t`Unpublish ${itemLabel}`}
+				<span className={compact ? compactBarLabelClassName : undefined}>
+					{t`Unpublish ${itemLabel}`}
+				</span>
 			</Button>
 		) : null;
 	}
@@ -477,7 +523,6 @@ export function PublishActions({
 						type="button"
 						variant="primary"
 						size={size}
-						className={cn(fullWidth && "w-full")}
 						icon={<Upload aria-hidden="true" />}
 						loading={isPending}
 						disabled={disabled}
@@ -485,7 +530,14 @@ export function PublishActions({
 					/>
 				}
 			>
-				{publishLabel}
+				{compact ? (
+					<>
+						<span className="@max-2xl/editor-bar:hidden">{publishLabel}</span>
+						<span className="hidden @max-2xl/editor-bar:inline">{t`Publish`}</span>
+					</>
+				) : (
+					publishLabel
+				)}
 			</Dialog.Trigger>
 			<Dialog className="p-6" size="sm">
 				<Dialog.Title className="text-lg font-semibold">{confirmationTitle}</Dialog.Title>
@@ -558,7 +610,7 @@ export function ScheduleActions({
 					size="sm"
 					className={cn(
 						"min-w-0 justify-center overflow-hidden whitespace-nowrap",
-						!inline && "w-full",
+						inline ? compactBarExtraButtonClassName : "w-full",
 					)}
 					icon={
 						hasSchedule ? <CalendarDots aria-hidden="true" /> : <CalendarPlus aria-hidden="true" />
@@ -567,7 +619,9 @@ export function ScheduleActions({
 					disabled={disabled || isUnscheduling}
 					onClick={onOpenSchedule}
 				>
-					{hasSchedule ? t`Change schedule` : t`Schedule`}
+					<span className={inline ? compactBarExtraLabelClassName : undefined}>
+						{hasSchedule ? t`Change schedule` : t`Schedule`}
+					</span>
 				</Button>
 			) : null}
 			{showRemove ? (
@@ -577,14 +631,16 @@ export function ScheduleActions({
 					size="sm"
 					className={cn(
 						"min-w-0 justify-center overflow-hidden whitespace-nowrap",
-						!inline && "w-full",
+						inline ? compactBarExtraButtonClassName : "w-full",
 					)}
 					icon={<CalendarX aria-hidden="true" />}
 					loading={isUnscheduling}
 					disabled={disabled || isScheduling}
 					onClick={() => void Promise.resolve(onUnschedule?.()).catch(() => undefined)}
 				>
-					{t`Remove schedule`}
+					<span
+						className={inline ? compactBarExtraLabelClassName : undefined}
+					>{t`Remove schedule`}</span>
 				</Button>
 			) : null}
 		</div>
@@ -592,15 +648,14 @@ export function ScheduleActions({
 }
 
 /**
- * Single action row pinned above the settings panel body. Publish-state
- * context lives in the Publish section below so the sidebar has one action
- * surface and one status surface.
+ * The entry's save, view, and publish actions for the editor's top bar.
+ * Publish-state context lives in the settings panel's Publish section.
  *
  * Deliberately NOT memoized — it exists so high-frequency props
- * (isDirty, isSaving, isAutosaving) stop here instead of busting the
- * memoized panel body below it.
+ * (isDirty, isSaving, isAutosaving) stop here instead of re-rendering the
+ * rest of the editor.
  */
-export function SettingsActionBar({
+export function EditorActions({
 	collectionLabel,
 	isNew,
 	isDirty,
@@ -619,62 +674,63 @@ export function SettingsActionBar({
 	onPublish,
 	onUnpublish,
 	onMenuOpenChange,
-	announceSaveStatus,
-}: SettingsActionBarProps) {
+	beforePublish,
+}: EditorActionsProps) {
 	const { t } = useLingui();
+	const busy = isSaving || Boolean(isAutosaving);
+	// Saved reads as a quiet status; unsaved work becomes a button again.
+	const saveVariant = !isDirty && !busy ? "ghost" : isNew ? "primary" : "secondary";
 
 	return (
-		<div className="flex shrink-0 flex-wrap items-stretch gap-2 border-b px-4 py-3">
-			<SettingsActionSlot>
-				<SaveButton
-					type="submit"
-					size="sm"
-					isDirty={isDirty}
-					isSaving={isSaving || Boolean(isAutosaving)}
-					announce={announceSaveStatus}
-					disabled={saveDisabled}
-				/>
-			</SettingsActionSlot>
+		<div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+			<SaveButton
+				type="submit"
+				size="sm"
+				variant={saveVariant}
+				className={cn("min-w-0", compactBarButtonClassName)}
+				labelClassName="@max-2xl/editor-bar:hidden"
+				isDirty={isDirty}
+				isSaving={busy}
+				disabled={saveDisabled}
+			/>
 			{liveViewUrl && (
-				<SettingsActionSlot>
-					<LinkButton
-						href={liveViewUrl}
-						external
-						variant="outline"
-						size="sm"
-						icon={<ArrowSquareOut />}
-					>
-						{t`Live View`}
-					</LinkButton>
-				</SettingsActionSlot>
+				<LinkButton
+					href={liveViewUrl}
+					external
+					variant="ghost"
+					size="sm"
+					className={compactBarButtonClassName}
+					icon={<ArrowSquareOut />}
+				>
+					<span className={compactBarLabelClassName}>{t`Live View`}</span>
+				</LinkButton>
 			)}
 			{!isNew && supportsPreview && (
-				<SettingsActionSlot>
-					<PreviewButton
-						size="sm"
-						hasPendingChanges={hasPendingChanges}
-						isLoadingPreview={isLoadingPreview}
-						onPreview={onPreview}
-					/>
-				</SettingsActionSlot>
+				<PreviewButton
+					size="sm"
+					variant="ghost"
+					compact
+					hasPendingChanges={hasPendingChanges}
+					isLoadingPreview={isLoadingPreview}
+					onPreview={onPreview}
+				/>
 			)}
+			{beforePublish}
 			{!isNew && (
-				<SettingsActionSlot>
-					<PublishActions
-						collectionLabel={collectionLabel}
-						isNew={isNew}
-						isLive={isLive}
-						hasPendingChanges={hasPendingChanges}
-						publishingState={publishingState}
-						isPending={publishingPending}
-						disabled={publishDisabled}
-						onPublish={onPublish}
-						onUnpublish={onUnpublish}
-						onMenuOpenChange={onMenuOpenChange}
-						size="sm"
-						fullWidth
-					/>
-				</SettingsActionSlot>
+				<PublishActions
+					collectionLabel={collectionLabel}
+					isNew={isNew}
+					isLive={isLive}
+					hasPendingChanges={hasPendingChanges}
+					publishingState={publishingState}
+					isPending={publishingPending}
+					disabled={publishDisabled}
+					onPublish={onPublish}
+					onUnpublish={onUnpublish}
+					onMenuOpenChange={onMenuOpenChange}
+					size="sm"
+					compact
+				/>
 			)}
 		</div>
 	);
@@ -704,7 +760,6 @@ export interface ContentSettingsPanelProps {
 	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 	isUpdatingPublishedAt?: boolean;
 	onDiscardDraft?: () => void;
-	onRevisionRestored?: (item: ContentItem) => void;
 	onDelete?: () => void;
 	isDeleting?: boolean;
 	currentUser?: CurrentUserInfo;
@@ -715,11 +770,8 @@ export interface ContentSettingsPanelProps {
 	availableBylines?: BylineSummary[];
 	availableBylinesLoaded?: boolean;
 	onBylinesChange: (next: BylineCreditInput[]) => void;
-	onQuickCreateByline?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
-	onQuickEditByline?: (
-		bylineId: string,
-		input: { slug: string; displayName: string },
-	) => Promise<BylineSummary>;
+	onQuickCreateByline?: (input: BylineFormValues) => Promise<BylineSummary>;
+	onQuickEditByline?: (bylineId: string, input: BylineFormValues) => Promise<BylineSummary>;
 	i18n?: { defaultLocale: string; locales: string[] };
 	translations?: TranslationSummary[];
 	onTranslate?: (locale: string) => void;
@@ -771,7 +823,6 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onPublishedAtChange,
 	isUpdatingPublishedAt,
 	onDiscardDraft,
-	onRevisionRestored,
 	onDelete,
 	isDeleting,
 	currentUser,
@@ -800,6 +851,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const { t, i18n: lingui } = useLingui();
 	const navigate = useNavigate();
 	const pluginAdmins = usePluginAdmins();
+	const revisionView = useRevisionViewContext();
+	const viewingRevision = Boolean(revisionView?.viewingId);
 	const trustedExtensionPanels = React.useMemo(
 		() =>
 			!isNew && item
@@ -894,7 +947,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		<div className="flex flex-col whitespace-normal [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base">
 			<SortableContentSettingsSections
 				collection={collection}
-				userId={currentUser?.id}
+				// A new entry shows fewer sections, and saving its order would drop the rest.
+				userId={isNew ? undefined : currentUser?.id}
 				onSortingChange={setIsReorderingSections}
 			>
 				<SortableContentSettingsSection id="publish" label={t`Publish`} hidden={isNew}>
@@ -914,6 +968,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 										scheduledAt={item?.scheduledAt}
 										locale={lingui.locale}
 										onDiscardDraft={showDiscard ? onDiscardDraft : undefined}
+										discardDisabled={viewingRevision}
 									/>
 								) : null}
 
@@ -1027,6 +1082,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						</Text>
 						<div className="grid gap-4">
 							<Input
+								dir="ltr"
 								label={t`Slug`}
 								value={slug}
 								onChange={(event) => onSlugChange(event.target.value)}
@@ -1257,7 +1313,23 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 				{portableTextEditor && (
 					<SortableContentSettingsSection id="outline" label={t`Outline`} disclosure>
-						<div className="p-4">
+						<div
+							className="p-4"
+							// A heading moves the caret in the editor, so the editor has to be back on screen
+							// before the outline handles the click. The section toggle stays in the view.
+							onClickCapture={
+								viewingRevision && revisionView
+									? (event) => {
+											if (
+												event.target instanceof Element &&
+												event.target.closest("button:not([aria-expanded])")
+											) {
+												flushSync(revisionView.exit);
+											}
+										}
+									: undefined
+							}
+						>
 							<DocumentOutline editor={portableTextEditor} reserveHeaderEnd />
 						</div>
 					</SortableContentSettingsSection>
@@ -1266,12 +1338,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{!isNew && item && supportsRevisions && (
 					<SortableContentSettingsSection id="revisions" label={t`Revisions`} disclosure>
 						<div className="p-4">
-							<RevisionHistory
-								collection={collection}
-								entryId={item.id}
-								onRestored={onRevisionRestored}
-								reserveHeaderEnd
-							/>
+							<RevisionHistory collection={collection} entryId={item.id} reserveHeaderEnd />
 						</div>
 					</SortableContentSettingsSection>
 				)}
@@ -1363,12 +1430,20 @@ function AuthorSelector({ authorId, users, onChange }: AuthorSelectorProps) {
 					<Select.Option key={user.id} value={user.id}>
 						<span className="flex items-center gap-2">
 							{user.name || user.email}
-							{user.name && <span className="text-xs text-kumo-subtle">({user.email})</span>}
+							{user.name && (
+								<span className="text-xs text-kumo-subtle">
+									(<bdi dir="ltr">{user.email}</bdi>)
+								</span>
+							)}
 						</span>
 					</Select.Option>
 				))}
 			</Select>
-			{currentAuthor && <p className="text-xs text-kumo-subtle">{currentAuthor.email}</p>}
+			{currentAuthor && (
+				<p className="text-xs text-kumo-subtle">
+					<bdi dir="ltr">{currentAuthor.email}</bdi>
+				</p>
+			)}
 		</div>
 	);
 }

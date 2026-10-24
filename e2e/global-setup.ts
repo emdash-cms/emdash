@@ -26,7 +26,6 @@ interface Target {
 	usesTempDb: boolean;
 }
 
-const COLOR_PLUGIN_DIST = resolve(ROOT, "packages/plugins/color/dist/index.mjs");
 const REGISTRY_TEST_PLUGIN_DIST = resolve(ROOT, "packages/plugins/marketplace-test/dist/index.mjs");
 const WORKERD_DIST = resolve(ROOT, "packages/workerd/dist/index.mjs");
 const CLOUDFLARE_DIST = resolve(ROOT, "packages/cloudflare/dist/index.mjs");
@@ -35,13 +34,13 @@ const TARGETS: Record<string, Target> = {
 	node: {
 		fixtureDir: resolve(ROOT, "e2e/fixture"),
 		buildFilter: "emdash-e2e-fixture...",
-		depsMarkers: [COLOR_PLUGIN_DIST, REGISTRY_TEST_PLUGIN_DIST, WORKERD_DIST],
+		depsMarkers: [REGISTRY_TEST_PLUGIN_DIST, WORKERD_DIST],
 		usesTempDb: true,
 	},
 	cloudflare: {
 		fixtureDir: resolve(ROOT, "e2e/fixture-cloudflare"),
 		buildFilter: "emdash-e2e-fixture-cloudflare...",
-		depsMarkers: [CLOUDFLARE_DIST, COLOR_PLUGIN_DIST, REGISTRY_TEST_PLUGIN_DIST],
+		depsMarkers: [CLOUDFLARE_DIST, REGISTRY_TEST_PLUGIN_DIST],
 		usesTempDb: false,
 	},
 };
@@ -69,8 +68,9 @@ async function ensureBuilt(): Promise<void> {
 
 /**
  * Ensure all e2e fixture dependencies are built.
- * The CI build filter (--filter emdash...) only builds emdash and its deps,
- * not the fixture's plugin dependencies like @emdash-cms/plugin-color.
+ * Some CI jobs build only `emdash...`, which leaves out the fixture's built
+ * dependencies such as @emdash-cms/plugin-marketplace-test.
+ * Source-only packages such as @emdash-cms/plugin-color have no dist to check.
  */
 async function ensureFixtureDepsBuilt(): Promise<void> {
 	if (TARGET.depsMarkers.every((marker) => existsSync(marker))) return;
@@ -291,6 +291,31 @@ async function seedTestData(
 	};
 }
 
+async function warmUpAdmin(baseUrl: string): Promise<void> {
+	const { chromium } = await import("@playwright/test");
+	const browser = await chromium.launch();
+	try {
+		const page = await browser.newPage();
+		// The second load starts after any optimizer reload from the first, so
+		// its hydration means the dependency set has settled.
+		for (let load = 0; load < 2; load++) {
+			try {
+				await page.goto(`${baseUrl}/_emdash/admin/login`, {
+					waitUntil: "commit",
+					timeout: 120_000,
+				});
+				await page.waitForSelector("astro-island:not([ssr])", { timeout: 120_000 });
+				await page.waitForLoadState("networkidle", { timeout: 60_000 });
+			} catch (error) {
+				// Non-fatal: a cold first admin test can still pass on retry.
+				console.warn(`[pw] Admin warm-up load ${load + 1} failed:`, error);
+			}
+		}
+	} finally {
+		await browser.close();
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Global setup
 // ---------------------------------------------------------------------------
@@ -399,6 +424,12 @@ export default async function globalSetup(): Promise<void> {
 				await new Promise((r) => setTimeout(r, 1000));
 			}
 		}
+
+		// 5c. Load the admin in a browser. Its client dependencies are only
+		// discovered when a browser requests them, and the optimizer then forces
+		// a full reload that would otherwise land inside the first admin test.
+		console.log("[pw] Warming up admin...");
+		await warmUpAdmin(baseUrl);
 
 		// 6. Write server info
 		const info = {

@@ -19,6 +19,8 @@ import {
 import type { EmDashHandlers, EmDashManifest } from "../../../src/astro/types.js";
 import type { Database } from "../../../src/database/types.js";
 import type { NormalizedItem } from "../../../src/import/types.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { createTestRuntime, handlersFromRuntime } from "../../utils/mcp-runtime.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
 function makeItem(overrides: Partial<NormalizedItem>): NormalizedItem {
@@ -140,6 +142,68 @@ describe("WordPress plugin import — field auto-creation", () => {
 			.executeTakeFirst();
 		expect(field).toBeUndefined();
 	});
+
+	it("stores only the IDs of posts, users and terms in ACF values", async () => {
+		const registry = new SchemaRegistry(db);
+		for (const slug of ["related", "reviewer", "topics", "credits"]) {
+			await registry.createField("post", { slug, label: slug, type: "json" });
+		}
+		const config: WpPluginImportConfig = {
+			postTypeMappings: { post: { collection: "post", enabled: true } },
+			skipExisting: false,
+		};
+		const emdash = {
+			db,
+			handleContentCreate: (collection: string, body: { data: Record<string, unknown> }) =>
+				handleContentCreate(db, collection, body),
+		} as unknown as EmDashHandlers;
+		const manifest = { collections: { post: {} } } as unknown as EmDashManifest;
+		const wpPost = { ID: 14, post_type: "post", post_content: "Body", post_password: "secret" };
+		const wpUser = {
+			data: { ID: "1", user_login: "admin", user_pass: "$wp$2y$hash" },
+			ID: 1,
+			caps: { administrator: true },
+			cap_key: "wp_capabilities",
+		};
+		const wpTerm = { term_id: 3, name: "News", slug: "news", taxonomy: "category" };
+		const acfUserArray = { ID: 2, display_name: "Bob", user_email: "bob@example.com" };
+
+		const items = [
+			makeItem({
+				slug: "book",
+				meta: {
+					_acf: {
+						related: [wpPost],
+						reviewer: wpUser,
+						topics: [wpTerm],
+						credits: [{ name: "Ada", profile: wpPost, editor: acfUserArray }],
+					},
+				},
+			}),
+		];
+
+		const { result } = await importContent(generate(items), config, emdash, manifest, undefined);
+		expect(result.errors).toEqual([]);
+
+		const row = await db
+			// eslint-disable-next-line typescript/no-explicit-any -- dynamic ec_ table not in the static schema
+			.selectFrom("ec_post" as any)
+			.select(["related", "reviewer", "topics", "credits"])
+			.where("slug", "=", "book")
+			.executeTakeFirstOrThrow();
+		const values = Object.fromEntries(
+			Object.entries(row).map(([key, value]) => [
+				key,
+				typeof value === "string" ? JSON.parse(value) : value,
+			]),
+		);
+		expect(values).toEqual({
+			related: [14],
+			reviewer: 1,
+			topics: [3],
+			credits: [{ name: "Ada", profile: 14, editor: 2 }],
+		});
+	});
 });
 
 describe("WordPress plugin import — custom taxonomy def auto-creation", () => {
@@ -232,5 +296,125 @@ describe("coerceToFieldType", () => {
 		expect(coerceToFieldType("not a date", "datetime")).toBeUndefined();
 		expect(coerceToFieldType({ a: 1 }, "json")).toEqual({ a: 1 });
 		expect(coerceToFieldType("123", "image")).toBeUndefined();
+	});
+});
+
+describe("WordPress plugin import: scheduled posts", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("schedules future posts and keeps missed schedules as drafts", async () => {
+		const emdash = handlersFromRuntime(createTestRuntime(db));
+		const items = [
+			makeItem({
+				sourceId: 1,
+				slug: "upcoming",
+				status: "future",
+				date: new Date("2099-06-01T09:30:00Z"),
+			}),
+			makeItem({
+				sourceId: 2,
+				slug: "missed",
+				status: "future",
+				date: new Date("2020-06-01T09:30:00Z"),
+			}),
+		];
+
+		const { result } = await importContent(
+			generate(items),
+			{ postTypeMappings: { post: { collection: "post", enabled: true } }, skipExisting: false },
+			emdash,
+			await emdash.getManifest(),
+			undefined,
+		);
+		expect(result.errors).toEqual([]);
+
+		const rows = await db
+			// eslint-disable-next-line typescript/no-explicit-any -- dynamic ec_ table not in the static schema
+			.selectFrom("ec_post" as any)
+			.select(["slug", "status", "scheduled_at"])
+			.orderBy("slug")
+			.execute();
+		expect(rows).toEqual([
+			{ slug: "missed", status: "draft", scheduled_at: null },
+			{ slug: "upcoming", status: "scheduled", scheduled_at: "2099-06-01T09:30:00.000Z" },
+		]);
+	});
+});
+
+describe("WordPress plugin import: post types with hyphens", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "team_member",
+			label: "Team Members",
+			labelSingular: "Team Member",
+		});
+		await registry.createField("team_member", { slug: "title", label: "Title", type: "string" });
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	// The admin sends the mapping's collection unsanitized; prepare created `team_member`.
+	const config: WpPluginImportConfig = {
+		postTypeMappings: { "team-member": { collection: "team-member", enabled: true } },
+		skipExisting: false,
+	};
+
+	it("imports into the sanitized collection that prepare created", async () => {
+		const emdash = {
+			db,
+			handleContentCreate: (collection: string, body: { data: Record<string, unknown> }) =>
+				handleContentCreate(db, collection, body),
+		} as unknown as EmDashHandlers;
+		const manifest = { collections: { team_member: {} } } as unknown as EmDashManifest;
+
+		const { result, collectionByWpId } = await importContent(
+			generate([makeItem({ sourceId: 5, postType: "team-member", slug: "ada" })]),
+			config,
+			emdash,
+			manifest,
+			undefined,
+		);
+
+		expect(result.errors).toEqual([]);
+		expect(result.imported).toBe(1);
+		expect(collectionByWpId.get(5)).toBe("team_member");
+	});
+
+	it("scopes custom taxonomies to the sanitized collection", async () => {
+		const term = { id: 1, name: "Term", slug: "term", description: "", parent: null, count: 1 };
+		await ensureCustomTaxonomyDefs(
+			db,
+			[
+				{
+					name: "abteilung",
+					label: "Abteilungen",
+					hierarchical: false,
+					post_types: ["team-member"],
+					terms: [term],
+				},
+			],
+			config,
+		);
+
+		const row = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.select("collections")
+			.where("name", "=", "abteilung")
+			.executeTakeFirstOrThrow();
+		expect(JSON.parse(row.collections ?? "[]")).toEqual(["team_member"]);
 	});
 });

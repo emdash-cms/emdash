@@ -1,47 +1,87 @@
 ---
 import { getEmDashCollection } from "../../query.js";
+import { getI18nConfig } from "../../i18n/config.js";
+import { getSiteSettings } from "../../settings/index.js";
+import { sanitizeHref } from "../../utils/url.js";
+import EmDashImage from "../EmDashImage.astro";
+import { buildLiveSearchResultUrl } from "../live-search-routing.js";
+import {
+	createPublishedDateFormatter,
+	isThumbnailImage,
+	toPublishedDate,
+} from "../../widgets/recent-posts.js";
 
 interface Props {
 	count?: number;
 	showThumbnails?: boolean;
 	showDate?: boolean;
+	/** URL template for post links, e.g. "/blog/:slug" (tokens: :collection, :id, :slug, :path) */
+	urlTemplate?: string;
 }
 
-const { count = 5, showThumbnails = false, showDate = true } = Astro.props;
+const { count = 5, showThumbnails = false, showDate = true, urlTemplate } = Astro.props;
 
-const { entries: posts } = await getEmDashCollection("posts", {
-	limit: count,
-	orderBy: { published_at: "desc" },
+const [{ entries: posts }, settings] = await Promise.all([
+	getEmDashCollection("posts", {
+		limit: count,
+		orderBy: { published_at: "desc" },
+	}),
+	showDate ? getSiteSettings() : undefined,
+]);
+
+const dateFormatter = createPublishedDateFormatter({
+	locale: Astro.currentLocale ?? getI18nConfig()?.defaultLocale,
+	timezone: settings?.timezone,
 });
 
-// Helper to get typed values from dynamic data
-function getString(data: Record<string, unknown>, key: string): string | undefined {
-	const val = data[key];
-	return typeof val === "string" ? val : undefined;
+function getTitle(data: Record<string, unknown>): string | undefined {
+	return typeof data.title === "string" ? data.title : undefined;
 }
 ---
 
 <ul class="widget-recent-posts">
 	{
 		posts.map((post) => {
-			const publishedAt = getString(post.data, "publishedAt");
-			const featuredImage = getString(post.data, "featured_image");
-			const title = getString(post.data, "title");
+			const title = getTitle(post.data);
+			const publishedAt = toPublishedDate(post.data.publishedAt);
+			const featuredImage = post.data.featured_image;
+			// Without a template, keep the widget's long-standing default:
+			// `post.id` is the loader's slug (or `locale/slug` with i18n
+			// prefixing), so the locale prefix is preserved. With a template,
+			// use the same token semantics as LiveSearch's routeMap — `:id`
+			// is the content ULID (`data.id`), `:slug` the bare slug.
+			const href = urlTemplate
+				? sanitizeHref(
+						buildLiveSearchResultUrl(
+							{
+								collection: "posts",
+								id: typeof post.data.id === "string" ? post.data.id : post.id,
+								slug: typeof post.data.slug === "string" ? post.data.slug : post.id,
+							},
+							{ posts: urlTemplate },
+						),
+					)
+				: `/posts/${post.id}`;
 			return (
 				<li>
-					{showThumbnails && featuredImage && (
-						<img
-							src={featuredImage}
+					{showThumbnails && isThumbnailImage(featuredImage) && (
+						<EmDashImage
+							image={featuredImage}
 							alt=""
+							width={96}
+							height={96}
 							class="widget-recent-posts__thumbnail"
 						/>
 					)}
-					<a href={`/posts/${post.id}`} class="widget-recent-posts__link">
+					<a href={href} class="widget-recent-posts__link">
 						{title}
 					</a>
 					{showDate && publishedAt && (
-						<time datetime={publishedAt} class="widget-recent-posts__date">
-							{new Date(publishedAt).toLocaleDateString()}
+						<time
+							datetime={publishedAt.toISOString()}
+							class="widget-recent-posts__date"
+						>
+							{dateFormatter.format(publishedAt)}
 						</time>
 					)}
 				</li>

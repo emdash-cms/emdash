@@ -6,7 +6,15 @@
  * Widgets within an area can be reordered via drag-and-drop.
  */
 
-import { Button, Dialog, Input, Label, Select, Switch, Toast } from "@cloudflare/kumo";
+import {
+	Button,
+	Dialog,
+	Input,
+	Label,
+	Select,
+	Switch,
+	useKumoToastManager,
+} from "@cloudflare/kumo";
 import {
 	DndContext,
 	DragOverlay,
@@ -129,6 +137,7 @@ const CORE_WIDGET_META: Record<string, CoreWidgetMeta> = {
 			count: { label: msg`Number of posts` },
 			showThumbnails: { label: msg`Show thumbnails` },
 			showDate: { label: msg`Show date` },
+			urlTemplate: { label: msg`URL template (e.g. /blog/:slug)` },
 		},
 	},
 	"core:categories": {
@@ -170,7 +179,7 @@ const CORE_WIDGET_META: Record<string, CoreWidgetMeta> = {
 export function Widgets() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [isCreateAreaOpen, setIsCreateAreaOpen] = React.useState(false);
 	const [createAreaError, setCreateAreaError] = React.useState<string | null>(null);
 	const [activeId, setActiveId] = React.useState<string | null>(null);
@@ -235,7 +244,7 @@ export function Widgets() {
 			toastManager.add({
 				title: t`Error adding widget`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -296,7 +305,7 @@ export function Widgets() {
 			toastManager.add({
 				title: t`Error reordering widgets`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -427,6 +436,7 @@ export function Widgets() {
 								</div>
 								<form onSubmit={handleCreateArea} className="space-y-4">
 									<Input
+										dir="ltr"
 										label={t`Name`}
 										name="name"
 										required
@@ -459,65 +469,67 @@ export function Widgets() {
 						</Dialog.Root>
 					</div>
 
-					<div className="grid grid-cols-12 gap-6">
-						{/* Available Widgets (draggable palette) */}
-						<div className="col-span-4">
-							<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
-								<h2 className="text-xl font-semibold">{t`Available Widgets`}</h2>
-								<p className="text-sm text-kumo-subtle">{t`Drag widgets into an area to add them`}</p>
-								<div className="space-y-2">
-									{BUILTIN_WIDGETS.map((item) => (
-										<DraggablePaletteItem
-											key={item.id}
-											id={item.id}
-											label={t(item.label)}
-											description={t(item.description)}
-											widgetInput={{ ...item.input, title: t(item.label) }}
-										/>
-									))}
-									{components.map((comp) => {
-										const meta = CORE_WIDGET_META[comp.id];
-										const label = meta ? t(meta.label) : comp.label;
-										const description = meta ? t(meta.description) : comp.description;
-										return (
+					<div className="overflow-x-auto">
+						<div className="min-w-[768px] grid grid-cols-12 gap-6">
+							{/* Available Widgets (draggable palette) */}
+							<div className="col-span-4">
+								<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
+									<h2 className="text-xl font-semibold">{t`Available Widgets`}</h2>
+									<p className="text-sm text-kumo-subtle">{t`Drag widgets into an area to add them`}</p>
+									<div className="space-y-2">
+										{BUILTIN_WIDGETS.map((item) => (
 											<DraggablePaletteItem
-												key={`palette-comp-${comp.id}`}
-												id={`palette-comp-${comp.id}`}
-												label={label}
-												description={description}
-												widgetInput={{
-													type: "component",
-													title: label,
-													componentId: comp.id,
-												}}
+												key={item.id}
+												id={item.id}
+												label={t(item.label)}
+												description={t(item.description)}
+												widgetInput={{ ...item.input, title: t(item.label) }}
 											/>
-										);
-									})}
+										))}
+										{components.map((comp) => {
+											const meta = CORE_WIDGET_META[comp.id];
+											const label = meta ? t(meta.label) : comp.label;
+											const description = meta ? t(meta.description) : comp.description;
+											return (
+												<DraggablePaletteItem
+													key={`palette-comp-${comp.id}`}
+													id={`palette-comp-${comp.id}`}
+													label={label}
+													description={description}
+													widgetInput={{
+														type: "component",
+														title: label,
+														componentId: comp.id,
+													}}
+												/>
+											);
+										})}
+									</div>
 								</div>
 							</div>
-						</div>
 
-						{/* Widget Areas (droppable + sortable) */}
-						<div className="col-span-8 space-y-4">
-							{areas.length === 0 ? (
-								<div className="rounded-lg border bg-kumo-base p-12 text-center">
-									<p className="text-kumo-subtle">{t`No widget areas yet. Create one to get started.`}</p>
-								</div>
-							) : (
-								areas.map((area) => (
-									<WidgetAreaPanel
-										key={area.id}
-										area={area}
-										expandedWidgets={expandedWidgets}
-										onToggleWidget={toggleWidget}
-										isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
-										components={components}
-										pluginBlocks={pluginBlocks}
-										onBlockSidebarOpen={handleBlockSidebarOpen}
-										onBlockSidebarClose={handleBlockSidebarClose}
-									/>
-								))
-							)}
+							{/* Widget Areas (droppable + sortable) */}
+							<div className="col-span-8 space-y-4">
+								{areas.length === 0 ? (
+									<div className="rounded-lg border bg-kumo-base p-12 text-center">
+										<p className="text-kumo-subtle">{t`No widget areas yet. Create one to get started.`}</p>
+									</div>
+								) : (
+									areas.map((area) => (
+										<WidgetAreaPanel
+											key={area.id}
+											area={area}
+											expandedWidgets={expandedWidgets}
+											onToggleWidget={toggleWidget}
+											isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
+											components={components}
+											pluginBlocks={pluginBlocks}
+											onBlockSidebarOpen={handleBlockSidebarOpen}
+											onBlockSidebarClose={handleBlockSidebarClose}
+										/>
+									))
+								)}
+							</div>
 						</div>
 					</div>
 				</div>
@@ -629,7 +641,7 @@ function WidgetAreaPanel({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [deleteAreaName, setDeleteAreaName] = React.useState<string | null>(null);
 
 	// Make the area a droppable target for palette items
@@ -744,7 +756,7 @@ function WidgetItem({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
 		id: widget.id,
 		data: {
@@ -768,7 +780,7 @@ function WidgetItem({
 			toastManager.add({
 				title: t`Error`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -783,7 +795,7 @@ function WidgetItem({
 			toastManager.add({
 				title: t`Error updating widget`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});

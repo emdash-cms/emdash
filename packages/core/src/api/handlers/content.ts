@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { after } from "../../after.js";
 import type { ContentFieldFilters } from "../../content-list-query.js";
 import { isSqlite } from "../../database/dialect-helpers.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
@@ -25,6 +26,7 @@ import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import {
 	ContentCollectionNotFoundError,
 	ContentMutationConflictError,
+	ContentSlugConflictError,
 	EmDashValidationError,
 	ScheduledNotDueError,
 	InvalidCursorError,
@@ -42,10 +44,12 @@ import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled, resolveConfiguredLocale } from "../../i18n/config.js";
+import { interpolateUrlPattern } from "../../i18n/resolve.js";
 import {
 	scheduledPolicyRejectionKey,
 	type ScheduledPolicyRejection,
 } from "../../plugins/content-policy.js";
+import { publishRedirectChanges } from "../../redirects/artifacts.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { requestCached } from "../../request-cache.js";
 import { isStoragelessFieldRow } from "../../schema/types.js";
@@ -632,7 +636,8 @@ export interface TrashedContentItem {
  * the `title`/`name` display fields when the collection actually defines them,
  * mirroring the admin's item-title resolution (titleField -> title -> name ->
  * slug), and includes every field explicitly marked searchable. Returning only
- * schema-backed columns avoids "no such column" errors.
+ * fields that have a column (a reference field bound to a relation has none)
+ * avoids "no such column" errors.
  */
 async function resolveSearchColumns(db: Kysely<Database>, collection: string): Promise<string[]> {
 	const row = await db
@@ -642,12 +647,13 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 		.executeTakeFirst();
 	if (!row) return ["slug"];
 
-	const fields = await db
+	const fieldRows = await db
 		.selectFrom("_emdash_fields")
-		.select(["slug", "searchable"])
+		.select(["slug", "searchable", "type", "validation"])
 		.where("collection_id", "=", row.id)
 		.orderBy("sort_order", "asc")
 		.execute();
+	const fields = fieldRows.filter((f) => !isStoragelessFieldRow(f));
 	const columns = new Set(["slug"]);
 	const fieldSlugs = new Set(fields.map((f) => f.slug));
 
@@ -779,7 +785,7 @@ async function createSlugChangeRedirect(
 	contentId: string,
 	oldPublishedAt: string | null,
 	newPublishedAt: string | null,
-): Promise<void> {
+): Promise<boolean> {
 	// A URL pattern has no locale token, so every locale variant of an entry
 	// generates the same URL, and slugs are unique per (slug, locale) — a
 	// translation may still hold the old slug. Redirecting away from a URL
@@ -787,7 +793,7 @@ async function createSlugChangeRedirect(
 	// middleware runs `order: "pre"`, so routing never gets a chance.
 	// Any surviving row counts, published or not: a draft that publishes later
 	// would otherwise be shadowed by the redirect.
-	if (await slugStillTaken(db, collection, oldSlug, contentId)) return;
+	if (await slugStillTaken(db, collection, oldSlug, contentId)) return false;
 
 	const collectionRow = await db
 		.selectFrom("_emdash_collections")
@@ -796,7 +802,7 @@ async function createSlugChangeRedirect(
 		.executeTakeFirst();
 
 	const redirectRepo = new RedirectRepository(db);
-	await redirectRepo.createAutoRedirect(
+	const redirect = await redirectRepo.createAutoRedirect(
 		collection,
 		oldSlug,
 		newSlug,
@@ -806,6 +812,46 @@ async function createSlugChangeRedirect(
 		newPublishedAt,
 	);
 	invalidateRedirectCache();
+	return redirect !== null;
+}
+
+/**
+ * Remove any auto-redirect whose source is the URL a newly published entry
+ * now occupies. This prevents an earlier slug-change redirect from shadowing
+ * the new live page, because the redirect middleware runs before routing.
+ */
+async function removeShadowingAutoRedirect(
+	db: Kysely<Database>,
+	collection: string,
+	slug: string | null | undefined,
+	contentId: string,
+	publishedAt: string | null | undefined,
+): Promise<boolean> {
+	if (!slug) return false;
+	validateIdentifier(collection, "collection slug");
+
+	const collectionRow = await db
+		.selectFrom("_emdash_collections")
+		.select("url_pattern")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+
+	const url = interpolateUrlPattern({
+		pattern: collectionRow?.url_pattern ?? null,
+		collection,
+		slug,
+		id: contentId,
+		date: publishedAt,
+	});
+
+	const result = await db
+		.deleteFrom("_emdash_redirects")
+		.where("source", "=", url)
+		.where("auto", "=", 1)
+		.executeTakeFirst();
+	const removed = BigInt(result.numDeletedRows ?? 0n) > 0n;
+	if (removed) invalidateRedirectCache();
+	return removed;
 }
 
 /** Whether a row other than `contentId` still holds `slug` in this collection. */
@@ -866,6 +912,23 @@ function resolveBylineFilter(
 }
 
 /**
+ * Rows to skip for a numbered page, or `null` when the page can't be served
+ * (combined with a cursor, or past the safe-integer range).
+ */
+function pageOffset(params: { page: number; limit: number; cursor?: string }): number | null {
+	const offset = (params.page - 1) * params.limit;
+	if (
+		params.cursor !== undefined ||
+		!Number.isSafeInteger(params.page) ||
+		params.page < 1 ||
+		!Number.isSafeInteger(offset)
+	) {
+		return null;
+	}
+	return offset;
+}
+
+/**
  * Create content list handler
  */
 export async function handleContentList(
@@ -873,6 +936,7 @@ export async function handleContentList(
 	collection: string,
 	params: {
 		cursor?: string;
+		page?: number;
 		limit?: number;
 		status?: string;
 		orderBy?: string;
@@ -890,6 +954,18 @@ export async function handleContentList(
 	},
 ): Promise<ApiResult<ContentListResponse>> {
 	try {
+		const limit = Math.max(1, Math.min(params.limit || 50, 100));
+		const offset =
+			params.page === undefined
+				? undefined
+				: pageOffset({ page: params.page, limit, cursor: params.cursor });
+		if (offset === null) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: "Invalid content page" },
+			};
+		}
+
 		const repo = new ContentRepository(db);
 		const where: FindManyOptions["where"] = {};
 		if (params.status) where.status = params.status;
@@ -937,7 +1013,8 @@ export async function handleContentList(
 
 		const result = await repo.findMany(collection, {
 			cursor: params.cursor,
-			limit: params.limit || 50,
+			offset,
+			limit,
 			where: Object.keys(where).length > 0 ? where : undefined,
 			orderBy: params.orderBy
 				? { field: params.orderBy, direction: params.order || "desc" }
@@ -1216,6 +1293,7 @@ export async function handleContentCreate(
 		if (!requiredReferences.success) return requiredReferences;
 
 		// Wrap content + SEO writes in a transaction for atomicity
+		let redirectChanged = false;
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
@@ -1356,8 +1434,19 @@ export async function handleContentCreate(
 				}
 			}
 
+			if (created.status === "published") {
+				redirectChanged = await removeShadowingAutoRedirect(
+					trx,
+					collection,
+					created.slug,
+					created.id,
+					created.publishedAt,
+				);
+			}
+
 			return created;
 		});
+		if (redirectChanged) after(() => publishRedirectChanges(db));
 
 		return {
 			success: true,
@@ -1378,6 +1467,18 @@ export async function handleContentCreate(
 				error: {
 					code: "COLLECTION_NOT_FOUND",
 					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		if (error instanceof ContentMutationConflictError) {
+			return { success: false, error: { code: "CONFLICT", message: error.message } };
+		}
+		if (error instanceof ContentSlugConflictError) {
+			return {
+				success: false,
+				error: {
+					code: "SLUG_CONFLICT",
+					message: `Slug '${body.slug ?? "(auto-generated)"}' already exists in collection '${collection}'`,
 				},
 			};
 		}
@@ -1505,9 +1606,11 @@ export async function handleContentUpdate(
 			}
 		}
 
-		// Wrap content + SEO writes in a transaction for atomicity.
-		// The _rev check is inside the transaction so the read-then-write
-		// is atomic -- no concurrent write can slip between the check and update.
+		// Wrap content + SEO writes in a transaction for atomicity. The transaction
+		// does not keep a concurrent save out between the _rev check and the update
+		// (D1 has none, and Postgres reads without a lock), so the update repeats
+		// the check in its WHERE clause.
+		let redirectChanged = false;
 		const item = await withTransaction(db, async (trx) => {
 			const trxRepo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
@@ -1575,13 +1678,23 @@ export async function handleContentUpdate(
 				}
 			}
 
-			const updated = await trxRepo.update(collection, resolvedId, {
-				data: body.data,
-				slug: body.slug,
-				status: body.status,
-				authorId: body.authorId,
-				publishedAt: body.publishedAt,
-			});
+			// Collections without revisions save to the columns, and reads show any
+			// draft revision over them, so no draft pointer may outlive a save.
+			const { supportsRevisions } = await getCollectionPublishConfig(trx, collection);
+			const updated = await trxRepo.update(
+				collection,
+				resolvedId,
+				{
+					data: body.data,
+					slug: body.slug,
+					locale: existing?.locale ?? body.locale,
+					status: body.status,
+					authorId: body.authorId,
+					publishedAt: body.publishedAt,
+					...(supportsRevisions ? {} : { draftRevisionId: null }),
+				},
+				body._rev ? decodeRevisionPrecondition(body._rev) : undefined,
+			);
 
 			if (body.bylines !== undefined) {
 				const credits = await bylineRepo.setContentBylines(collection, resolvedId, body.bylines);
@@ -1597,7 +1710,7 @@ export async function handleContentUpdate(
 			// pre-update date (the URL that was actually live) and the new URL
 			// the post-update one.
 			if (oldSlug && body.slug) {
-				await createSlugChangeRedirect(
+				redirectChanged = await createSlugChangeRedirect(
 					trx,
 					collection,
 					oldSlug,
@@ -1650,8 +1763,20 @@ export async function handleContentUpdate(
 				await writeReferenceSelection(trx, write);
 			}
 
+			if (updated.status === "published") {
+				redirectChanged =
+					(await removeShadowingAutoRedirect(
+						trx,
+						collection,
+						updated.slug,
+						updated.id,
+						updated.publishedAt,
+					)) || redirectChanged;
+			}
+
 			return updated;
 		});
+		if (redirectChanged) after(() => publishRedirectChanges(db));
 
 		return {
 			success: true,
@@ -1664,6 +1789,12 @@ export async function handleContentUpdate(
 			return {
 				success: false,
 				error: { code: error.apiError.code, message: error.message },
+			};
+		}
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
 			};
 		}
 		if (isMissingTableError(error)) {
@@ -1679,6 +1810,15 @@ export async function handleContentUpdate(
 			return {
 				success: false,
 				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
+		if (error instanceof ContentSlugConflictError) {
+			return {
+				success: false,
+				error: {
+					code: "SLUG_CONFLICT",
+					message: `Slug '${body.slug ?? id}' already exists in collection '${collection}'`,
+				},
 			};
 		}
 		const message = error instanceof Error ? error.message.toLowerCase() : "";
@@ -2028,15 +2168,32 @@ export async function handleContentPermanentDelete(
 export async function handleContentListTrashed(
 	db: Kysely<Database>,
 	collection: string,
-	options: { limit?: number; cursor?: string; locale?: string } = {},
-): Promise<ApiResult<{ items: TrashedContentItem[]; nextCursor?: string }>> {
+	options: { limit?: number; cursor?: string; page?: number; locale?: string } = {},
+): Promise<ApiResult<{ items: TrashedContentItem[]; nextCursor?: string; total?: number }>> {
 	try {
+		const limit = Math.max(1, Math.min(options.limit || 50, 100));
+		const offset =
+			options.page === undefined
+				? undefined
+				: pageOffset({ page: options.page, limit, cursor: options.cursor });
+		if (offset === null) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: "Invalid content page" },
+			};
+		}
+
 		const repo = new ContentRepository(db);
-		const result = await repo.findTrashed(collection, {
-			limit: options.limit,
-			cursor: options.cursor,
-			where: { locale: options.locale },
-		});
+		const where = { locale: options.locale };
+		// Settled like findMany's count, so a rejection can't leave the other
+		// query holding a pooled connection.
+		const [rowsResult, countResult] = await Promise.allSettled([
+			repo.findTrashed(collection, { limit, cursor: options.cursor, offset, where }),
+			offset === undefined ? undefined : repo.countTrashed(collection, where),
+		]);
+		if (rowsResult.status === "rejected") throw rowsResult.reason;
+		if (countResult.status === "rejected") throw countResult.reason;
+		const result = rowsResult.value;
 
 		return {
 			success: true,
@@ -2056,6 +2213,7 @@ export async function handleContentListTrashed(
 					deletedAt: item.deletedAt,
 				})),
 				nextCursor: result.nextCursor,
+				total: countResult.value,
 			},
 		};
 	} catch (error) {
@@ -2298,6 +2456,7 @@ export async function handleContentPublish(
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const expectedRevision = decodeRevisionPrecondition(options._rev);
+		let redirectChanged = false;
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
@@ -2417,7 +2576,7 @@ export async function handleContentPublish(
 				published.slug &&
 				existing.slug !== published.slug
 			) {
-				await createSlugChangeRedirect(
+				redirectChanged = await createSlugChangeRedirect(
 					trx,
 					collection,
 					existing.slug,
@@ -2428,8 +2587,18 @@ export async function handleContentPublish(
 				);
 			}
 
+			redirectChanged =
+				(await removeShadowingAutoRedirect(
+					trx,
+					collection,
+					published.slug,
+					published.id,
+					published.publishedAt,
+				)) || redirectChanged;
+
 			return published;
 		});
+		if (redirectChanged) after(() => publishRedirectChanges(db));
 
 		const hasSeo = await collectionHasSeo(db, collection);
 		await hydrateSeo(db, collection, item, hasSeo);
@@ -2527,7 +2696,8 @@ export async function handleContentUnpublish(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.unpublish(collection, resolvedId, expectedRevision);
+			const { supportsRevisions } = await getCollectionPublishConfig(trx, collection);
+			return repo.unpublish(collection, resolvedId, expectedRevision, supportsRevisions);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);

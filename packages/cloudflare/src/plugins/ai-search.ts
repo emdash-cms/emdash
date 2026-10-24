@@ -798,7 +798,7 @@ export function aiSearch(config: AISearchConfig = {}): PluginDescriptor<AISearch
 		version: "1.0.0",
 		entrypoint: "@emdash-cms/cloudflare/plugins/ai-search",
 		options: config,
-		capabilities: ["read:content"],
+		capabilities: ["content:read"],
 		adminEntry: "@emdash-cms/cloudflare/plugins/ai-search-admin",
 		adminPages: [{ path: "/settings", label: "Cloudflare AI Search", icon: "search" }],
 	};
@@ -1128,7 +1128,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 	return definePlugin({
 		id: "ai-search",
 		version: "1.0.0",
-		capabilities: ["read:content"],
+		capabilities: ["content:read"],
 		admin: {
 			entry: "@emdash-cms/cloudflare/plugins/ai-search-admin",
 			pages: [{ path: "/settings", label: "Cloudflare AI Search", icon: "search" }],

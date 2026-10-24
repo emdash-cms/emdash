@@ -168,7 +168,7 @@ export async function runAction(
 		const runnerTemp = runtime.getEnvironment("RUNNER_TEMP");
 		const repository = runtime.getEnvironment("GITHUB_REPOSITORY");
 		const workflowRef = runtime.getEnvironment("GITHUB_WORKFLOW_REF");
-		const repositoryVisibility = runtime.getEnvironment("GITHUB_REPOSITORY_VISIBILITY");
+		const repositoryVisibility = runtime.getInput("repository-visibility");
 		if (!runnerTemp || !repository || !workflowRef || !repositoryVisibility) {
 			throw new ActionConfigurationError("GitHub workflow identity is unavailable");
 		}
@@ -312,7 +312,7 @@ export async function runAction(
 	}
 	if (FAILURE_STATES.has(intent.state)) {
 		throw new ActionConfigurationError(
-			`Release intent ended in ${intent.state}${intent.reasonCode ? ` (${intent.reasonCode})` : ""}`,
+			`Release intent ${intent.id} ended in ${intent.state}${intent.reasonCode ? ` (${intent.reasonCode})` : ""}${intent.reasonMessage ? `: ${intent.reasonMessage}` : ""}`,
 		);
 	}
 	throw new ActionConfigurationError(`Release intent stopped in unexpected state ${intent.state}`);

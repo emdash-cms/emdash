@@ -11,7 +11,7 @@ import { Checkbox } from "@cloudflare/kumo/components/checkbox";
 import { InputGroup } from "@cloudflare/kumo/components/input-group";
 import { LayerCard } from "@cloudflare/kumo/components/layer-card";
 import { Text } from "@cloudflare/kumo/components/text";
-import { Toast } from "@cloudflare/kumo/components/toast";
+import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Popover as PopoverPrimitive } from "@cloudflare/kumo/primitives/popover";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
@@ -22,6 +22,7 @@ import * as React from "react";
 
 import { apiFetch, parseApiResponse, throwResponseError } from "../lib/api/client.js";
 import { createTerm, createTermTranslation, withLocale } from "../lib/api/taxonomies.js";
+import { inlineLabel } from "../lib/inline-label.js";
 import { resolveTaxonomyDefinitions } from "../lib/taxonomy-definitions.js";
 import { foldForMatch, termExactMatches, termMatches } from "../lib/taxonomy-match.js";
 import { cn } from "../lib/utils.js";
@@ -637,9 +638,9 @@ function TaxonomySection({
 	canManageTaxonomies: boolean;
 	onChange?: (termIds: string[]) => void;
 }) {
-	const { t } = useLingui();
+	const { t, i18n: lingui } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 
 	// The count mode belongs in the key: the Taxonomies settings page reads the
 	// same endpoint with counts and must not be served this count-free list.
@@ -682,9 +683,9 @@ function TaxonomySection({
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: t`Failed to update ${taxonomy.label.toLowerCase()}`,
+				title: t`Failed to update ${inlineLabel(taxonomy.label, lingui.locale)}`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -780,7 +781,7 @@ function TaxonomySection({
 			toastManager.add({
 				title: t`Failed to create translation`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});

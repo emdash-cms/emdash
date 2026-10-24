@@ -12,8 +12,35 @@ import {
 
 describe("responsiveWidths", () => {
 	it("includes breakpoints up to 2x the rendered width", () => {
-		// maxWidth 400 -> cap 800: 640, 750 qualify (<=800), 828 does not
-		expect(responsiveWidths(400)).toEqual([400, 640, 750]);
+		expect(responsiveWidths(400)).toEqual([400, 640, 750, 800]);
+	});
+
+	it("offers 1x and 2x for images narrower than the first breakpoint", () => {
+		expect(responsiveWidths(40)).toEqual([40, 80]);
+	});
+
+	it("adds 2x only up to the largest breakpoint", () => {
+		expect(responsiveWidths(900)).toContain(1800);
+		expect(responsiveWidths(1000)).not.toContain(2000);
+	});
+
+	it("offers the original instead of an upscaled high-density width", () => {
+		expect(responsiveWidths(40, 40)).toEqual([40]);
+		expect(responsiveWidths(40, 60)).toEqual([40, 60]);
+		expect(responsiveWidths(400, 700)).toEqual([400, 640, 700]);
+		expect(responsiveWidths(1000, 500)).toEqual([500, 1000]);
+	});
+
+	it("rounds fractional widths and ignores unusable original widths", () => {
+		expect(responsiveWidths(40.4, 60.6)).toEqual([40, 61]);
+		expect(responsiveWidths(40, -5)).toEqual([40, 80]);
+	});
+
+	it("returns no widths for unusable rendered widths", () => {
+		expect(responsiveWidths(0.3)).toEqual([]);
+		expect(responsiveWidths(0)).toEqual([]);
+		expect(responsiveWidths(-5)).toEqual([]);
+		expect(responsiveWidths(Number.NaN)).toEqual([]);
 	});
 
 	it("always includes the rendered width and sorts ascending", () => {
@@ -113,6 +140,12 @@ describe("buildResponsiveImage", () => {
 			widths: responsiveWidths(800),
 			sizes: "(min-width: 800px) 800px, 100vw",
 		});
+	});
+
+	it("does not request widths above a known original width", async () => {
+		const getImage: GetImage = vi.fn(async (opts) => ({ src: `/_image?href=${opts.src}` }));
+		await buildResponsiveImage(getImage, { src: ABS, width: 400, height: 300, originalWidth: 400 });
+		expect(getImage).toHaveBeenCalledWith(expect.objectContaining({ widths: [400] }));
 	});
 
 	it("returns null when the service passes the URL through unchanged (unauthorized host)", async () => {

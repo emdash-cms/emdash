@@ -4,11 +4,11 @@ import { buildMiddlewareEntries } from "../../../../src/astro/integration/index.
 
 const defaultEntries = [
 	{ entrypoint: "emdash/middleware", order: "pre" },
-	{ entrypoint: "emdash/middleware/redirect", order: "pre" },
-	{ entrypoint: "emdash/middleware/setup", order: "pre" },
-	{ entrypoint: "emdash/middleware/auth", order: "pre" },
-	{ entrypoint: "emdash/middleware/media-usage-write-fence", order: "pre" },
-	{ entrypoint: "emdash/middleware/request-context", order: "pre" },
+	{ entrypoint: "emdash/internal/middleware/redirect", order: "pre" },
+	{ entrypoint: "emdash/internal/middleware/setup", order: "pre" },
+	{ entrypoint: "emdash/internal/middleware/auth", order: "pre" },
+	{ entrypoint: "emdash/internal/middleware/media-usage-write-fence", order: "pre" },
+	{ entrypoint: "emdash/internal/middleware/request-context", order: "pre" },
 ] as const;
 const root = new URL("file:///project/");
 const invalidMiddleware: Array<[string, unknown]> = [
@@ -63,9 +63,9 @@ describe("EmDash middleware registration order", () => {
 			{ entrypoint: new URL("file:///project/src/outer-middleware.ts"), order: "pre" },
 			{ entrypoint: "playground/middleware", order: "pre" },
 			{ entrypoint: "emdash/middleware", order: "pre" },
-			{ entrypoint: "emdash/middleware/redirect", order: "pre" },
-			{ entrypoint: "emdash/middleware/media-usage-write-fence", order: "pre" },
-			{ entrypoint: "emdash/middleware/request-context", order: "pre" },
+			{ entrypoint: "emdash/internal/middleware/redirect", order: "pre" },
+			{ entrypoint: "emdash/internal/middleware/media-usage-write-fence", order: "pre" },
+			{ entrypoint: "emdash/internal/middleware/request-context", order: "pre" },
 		]);
 	});
 });

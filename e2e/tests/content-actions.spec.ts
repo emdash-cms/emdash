@@ -196,10 +196,10 @@ test.describe("Schedule content", () => {
 
 		await page.setViewportSize({ width: 320, height: 576 });
 		await page.getByRole("button", { name: "Enter distraction-free mode" }).click();
-		const distractionFreeHeader = page
-			.getByRole("heading", { name: "Edit Post" })
-			.locator("..")
-			.locator("..");
+		const distractionFreeHeader = page.locator("[data-emdash-editor-bar]");
+		await expect(
+			distractionFreeHeader.getByRole("button", { name: "Exit distraction-free mode" }),
+		).toBeVisible();
 		const headerBox = await distractionFreeHeader.boundingBox();
 		expect(headerBox).not.toBeNull();
 		for (const action of [
@@ -406,7 +406,7 @@ test.describe("Schedule content", () => {
 		await page.getByRole("button", { name: "Schedule" }).click();
 		const dialog = page.getByRole("dialog", { name: "Schedule changes" });
 		await expect(
-			dialog.getByText("Choose when these changes replace the live version.", { exact: true }),
+			dialog.getByRole("button", { name: "Schedule changes", exact: true }),
 		).toBeVisible();
 		await selectTomorrow(dialog);
 		await fillTime(page, dialog, "09:00");
@@ -441,10 +441,10 @@ test.describe("Schedule content", () => {
 		await admin.waitForLoading();
 		await page.getByRole("button", { name: "Entrar no modo sem distrações" }).click();
 
-		const distractionFreeHeader = page
-			.getByRole("heading", { name: "Editar Post" })
-			.locator("..")
-			.locator("..");
+		const distractionFreeHeader = page.locator("[data-emdash-editor-bar]");
+		await expect(
+			distractionFreeHeader.getByRole("button", { name: "Sair do modo sem distrações" }),
+		).toBeVisible();
 		const headerBox = await distractionFreeHeader.boundingBox();
 		expect(headerBox).not.toBeNull();
 		const headerActions = distractionFreeHeader.locator("button, a");

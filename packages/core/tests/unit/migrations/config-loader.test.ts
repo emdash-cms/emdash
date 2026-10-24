@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DatabaseDescriptor } from "../../../src/db/adapters.js";
+import { resolveContentCreateLocale } from "../../../src/i18n/config.js";
 import {
 	buildMigrationManifestFromConfig,
 	findAstroConfigFile,
@@ -21,7 +22,7 @@ const sqliteDatabase: DatabaseDescriptor = {
 	entrypoint: "emdash/db/sqlite",
 	config: { secret: "runtime only" },
 	migrations: {
-		entrypoint: "emdash/db/sqlite-migrations",
+		entrypoint: "emdash/internal/db/sqlite-migrations",
 		manifestConfig: { url: "file:./data.db" },
 	},
 };
@@ -34,7 +35,7 @@ describe("migration integration metadata", () => {
 			database: {
 				type: "sqlite",
 				migrations: {
-					entrypoint: "emdash/db/sqlite-migrations",
+					entrypoint: "emdash/internal/db/sqlite-migrations",
 					manifestConfig: { url: "file:./data.db" },
 				},
 			},
@@ -48,7 +49,7 @@ describe("migration integration metadata", () => {
 			createMigrationIntegrationMetadata({
 				...sqliteDatabase,
 				migrations: {
-					entrypoint: "emdash/db/sqlite-migrations",
+					entrypoint: "emdash/internal/db/sqlite-migrations",
 					manifestConfig: { password: "do-not-attach" },
 				},
 			}),
@@ -121,12 +122,14 @@ describe("buildMigrationManifestFromConfig", () => {
 		expect(manifest.i18n).toEqual({
 			defaultLocale: "en",
 			locales: ["en", "fr"],
+			localeAliases: { "fr-FR": "fr" },
 			fallback: { fr: "en" },
 			prefixDefaultLocale: true,
 		});
+		expect(resolveContentCreateLocale("fr-FR", manifest.i18n)).toBe("fr");
 		expect(manifest.database).toEqual({
 			type: "sqlite",
-			executorEntrypoint: "emdash/db/sqlite-migrations",
+			executorEntrypoint: "emdash/internal/db/sqlite-migrations",
 			executorConfig: { url: "file:./data.db" },
 		});
 	});
@@ -215,7 +218,7 @@ describe("project-local package resolution", () => {
 						database: {
 							type: "sqlite",
 							migrations: {
-								entrypoint: "emdash/db/sqlite-migrations",
+								entrypoint: "emdash/internal/db/sqlite-migrations",
 								manifestConfig: { url: "file:./project.db" }
 							}
 						}
@@ -278,7 +281,7 @@ describe("project-local package resolution", () => {
 						database: {
 							type: "sqlite",
 							migrations: {
-								entrypoint: "emdash/db/sqlite-migrations",
+								entrypoint: "emdash/internal/db/sqlite-migrations",
 								manifestConfig: { url: \`file:./\${plugin.id}.db\` }
 							}
 						}

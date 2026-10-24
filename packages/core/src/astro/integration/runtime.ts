@@ -23,14 +23,11 @@ import type {
 	ResolvedPlugin,
 	SettingField,
 } from "../../plugins/types.js";
-import type { ExperimentalConfig, RegistryConfigOption } from "../../registry/types.js";
+import type { RegistryConfigOption } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
+import type { HideableAdminNavItem } from "./admin-nav.js";
 
-export type {
-	ExperimentalConfig,
-	RegistryConfig,
-	RegistryConfigOption,
-} from "../../registry/types.js";
+export type { RegistryConfig, RegistryConfigOption } from "../../registry/types.js";
 
 export type { ResolvedPlugin };
 export type { MediaProviderDescriptor };
@@ -326,7 +323,8 @@ export interface EmDashConfig {
 	 *     audience: "abc123...",
 	 *     roleMapping: {
 	 *       "Admins": 50,
-	 *       "Editors": 30,
+	 *       "Editors": 40, // Editor
+	 *       "Authors": 30, // Author
 	 *     },
 	 *   }),
 	 * })
@@ -425,16 +423,6 @@ export interface EmDashConfig {
 	 * @default true
 	 */
 	updateCheck?: boolean | { minimumReleaseAge?: string | number };
-
-	/**
-	 * Experimental features.
-	 *
-	 * These options are not yet stable. Shape, defaults, and behavior may
-	 * change between minor versions. Use only if you're comfortable
-	 * tracking the release notes and updating your config when an
-	 * experimental feature graduates or changes.
-	 */
-	experimental?: ExperimentalConfig;
 
 	/**
 	 * Maximum allowed media file upload size in bytes.
@@ -666,6 +654,34 @@ export interface EmDashConfig {
 		footerLabel?: string | false;
 		/** URL or path to a custom favicon for the admin panel. */
 		favicon?: string;
+		/**
+		 * Build-time allowlist of admin UI locales to ship.
+		 *
+		 * Only the listed locales are bundled and offered in the language
+		 * switcher; other locales fall back to English. `en` is always
+		 * included. Unknown codes fail the build.
+		 *
+		 * @example
+		 * ```ts
+		 * emdash({
+		 *   admin: { locales: ["en", "de"] },
+		 * })
+		 * ```
+		 */
+		locales?: string[];
+		/**
+		 * Built-in sidebar and command palette entries to hide, for sites that
+		 * don't use those features. The pages stay reachable by URL. Unknown
+		 * names fail the build.
+		 *
+		 * @example
+		 * ```ts
+		 * emdash({
+		 *   admin: { hiddenNavItems: ["comments", "redirects", "widgets"] },
+		 * })
+		 * ```
+		 */
+		hiddenNavItems?: HideableAdminNavItem[];
 	};
 
 	/**

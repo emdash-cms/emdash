@@ -1,0 +1,80 @@
+---
+/**
+ * WebMcpSearch - Lets AI agents in the visitor's browser search the site
+ *
+ * Registers a read-only `search_site` tool through WebMCP
+ * (`document.modelContext`) in browsers that support it, and does nothing in
+ * others. The tool calls the public search API only when an agent uses it.
+ *
+ * ```astro
+ * ---
+ * import WebMcpSearch from "emdash/ui/webmcp-search";
+ * ---
+ * <WebMcpSearch collections={["posts", "pages"]} routeMap={{ posts: "/blog/:slug" }} />
+ * ```
+ */
+
+export interface Props {
+	/** Collections to search (defaults to all searchable collections) */
+	collections?: string[];
+	/**
+	 * Locale to restrict results to. Defaults to `Astro.currentLocale`.
+	 * Pass `null` to search across every locale.
+	 */
+	locale?: string | null;
+	/** Maximum results per search, from 1 to 100 (defaults to 10) */
+	limit?: number;
+	/** Per-collection URL templates, e.g. { posts: "/blog/:path" } */
+	routeMap?: Record<string, string>;
+}
+
+const {
+	collections,
+	locale = Astro.currentLocale ?? null,
+	limit = 10,
+	routeMap = {},
+} = Astro.props;
+
+const config = {
+	collections: collections?.join(",") ?? "",
+	locale: locale ?? "",
+	limit,
+	routeMap,
+};
+---
+
+<emdash-webmcp-search data-config={JSON.stringify(config)} hidden></emdash-webmcp-search>
+
+<script>
+	import {
+		registerSiteSearchTool,
+		resolveModelContext,
+		type SiteSearchToolConfig,
+		type WithModelContext,
+	} from "./webmcp-search.js";
+
+	class EmDashWebMcpSearch extends HTMLElement {
+		private controller: AbortController | null = null;
+
+		connectedCallback() {
+			const modelContext = resolveModelContext(
+				document as WithModelContext,
+				navigator as WithModelContext,
+			);
+			if (!modelContext) return;
+
+			const config = JSON.parse(this.dataset.config ?? "{}") as SiteSearchToolConfig;
+			this.controller = new AbortController();
+			registerSiteSearchTool(modelContext, config, location.origin, this.controller.signal);
+		}
+
+		disconnectedCallback() {
+			this.controller?.abort();
+			this.controller = null;
+		}
+	}
+
+	if (!customElements.get("emdash-webmcp-search")) {
+		customElements.define("emdash-webmcp-search", EmDashWebMcpSearch);
+	}
+</script>

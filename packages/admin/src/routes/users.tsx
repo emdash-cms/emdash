@@ -25,6 +25,7 @@ import {
 	disableUser,
 	enableUser,
 	inviteUser,
+	fetchManifest,
 	type UpdateUserInput,
 } from "../lib/api";
 
@@ -63,6 +64,8 @@ export function UsersPage() {
 	const debouncedSearch = useDebounce(searchQuery, 300);
 
 	// Queries
+	const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest });
+
 	const usersQuery = useInfiniteQuery({
 		queryKey: ["users", debouncedSearch, roleFilter],
 		queryFn: ({ pageParam }) =>
@@ -240,6 +243,7 @@ export function UsersPage() {
 				recoverySent={recoveryMutation.isSuccess}
 				recoveryError={recoveryMutation.error?.message ?? null}
 				currentUserId={undefined} // Would come from session
+				providerManagedName={manifest?.providerManagedName}
 				onClose={handleCloseDetail}
 				onSave={handleSave}
 				onDisable={handleDisable}

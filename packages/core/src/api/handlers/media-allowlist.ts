@@ -22,6 +22,7 @@ export const GLOBAL_UPLOAD_ALLOWLIST: readonly string[] = [
 	"image/gif",
 	"image/webp",
 	"image/avif",
+	"image/jxl",
 	"video/",
 	"audio/",
 	"application/pdf",

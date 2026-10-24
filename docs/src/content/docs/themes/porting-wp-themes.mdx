@@ -111,11 +111,11 @@ import { PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
 const slug = decodeSlug(Astro.params.slug);
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, error, cacheHint } = await getEmDashEntry("posts", slug);
 if (error) return new Response("Could not load the post", { status: 500 });
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 
@@ -139,7 +139,7 @@ import { decodeSlug, getEmDashCollection, getTerm } from "emdash";
 
 const slug = decodeSlug(Astro.params.slug);
 const term = slug ? await getTerm("category", slug, { includeCounts: false }) : null;
-if (!term) return Astro.redirect("/404");
+if (!term) return Astro.rewrite("/404");
 
 const { entries: posts } = await getEmDashCollection("posts", {
   where: { category: term.slug },

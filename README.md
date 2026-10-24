@@ -1,6 +1,6 @@
 # EmDash
 
-A full-stack TypeScript CMS built on [Astro](https://astro.build/) and [Cloudflare](https://www.cloudflare.com/). EmDash takes the ideas that made WordPress dominant -- extensibility, admin UX, a plugin ecosystem -- and rebuilds them on serverless, type-safe foundations. Plugins run in sandboxed Worker isolates, solving the fundamental security problem with WordPress's plugin architecture.
+A full-stack TypeScript CMS built on [Astro](https://astro.build/). EmDash takes the ideas that made WordPress dominant -- extensibility, admin UX, a plugin ecosystem -- and rebuilds them on serverless, type-safe foundations. Plugins run in sandboxed Worker isolates, solving the fundamental security problem with WordPress's plugin architecture.
 
 ## Get Started
 
@@ -41,12 +41,12 @@ A classic blog with sidebar widgets, search, and RSS.
 
 <a href="assets/templates/marketing/latest/"><img src="assets/templates/marketing/latest/homepage-light-desktop.jpg" alt="Marketing template" width="100%"></a>
 
-A conversion-focused landing page with pricing and contact form.
+A photo-led landing page built from modular blocks.
 
-- Hero with CTAs
-- Feature grid
-- Pricing cards
-- FAQ and contact form
+- Hero with photo and CTAs
+- Logo wall, features and stats
+- Text and photo sections
+- Pricing, FAQ and closing CTA
 - Dark / light mode
 
 </td>
@@ -73,13 +73,13 @@ A visual portfolio for showcasing creative work.
 
 **WordPress was built for a different era.** Running WordPress today means managing PHP alongside JavaScript, layering caches to get acceptable performance, and knowing that [96% of WordPress security vulnerabilities come from plugins](https://patchstack.com/whitepaper/state-of-wordpress-security-in-2024/). EmDash is what WordPress would look like if you started from scratch with today's tools.
 
-**Sandboxed plugins.** WordPress plugins have full access to the database, filesystem, and user data. A single vulnerable plugin can compromise the entire site. EmDash plugins run in isolated [Worker sandboxes](https://developers.cloudflare.com/workers/runtime-apis/bindings/worker-loader/) via Dynamic Worker Loaders, each with a declared capability manifest. A plugin that requests `read:content` and `email:send` can do exactly that and nothing else.
+**Sandboxed plugins.** WordPress plugins have full access to the database, filesystem, and user data. A single vulnerable plugin can compromise the entire site. EmDash plugins run in isolated [Worker sandboxes](https://developers.cloudflare.com/workers/runtime-apis/bindings/worker-loader/) via Dynamic Worker Loaders, each with a declared capability manifest. A plugin that requests `content:read` and `email:send` can do exactly that and nothing else.
 
 ```typescript
 export default () =>
 	definePlugin({
 		id: "notify-on-publish",
-		capabilities: ["read:content", "email:send"],
+		capabilities: ["content:read", "email:send"],
 		hooks: {
 			"content:afterSave": async (event, ctx) => {
 				if (event.content.status !== "published") return;
@@ -94,7 +94,7 @@ export default () =>
 
 **Structured content, not serialized HTML.** WordPress stores rich text as HTML with metadata embedded in comments -- tying your content to its DOM representation. EmDash uses [Portable Text](https://www.portabletext.org/), a structured JSON format that decouples content from presentation. Your content can render as a web page, a mobile app, an email, or an API response without parsing HTML.
 
-**Built for agents.** EmDash ships with agent skills for building plugins and themes, a CLI that lets agents manage content and schema programmatically, and a built-in [MCP server](https://modelcontextprotocol.io/) so AI tools like Claude and ChatGPT can interact with your site directly.
+**Built for agents.** EmDash publishes [agent skills](https://docs.emdashcms.com/agent-skills) that teach coding assistants its APIs, a CLI that lets agents manage content and schema programmatically, and a built-in [MCP server](https://modelcontextprotocol.io/) so AI tools like Claude and ChatGPT can interact with your site directly.
 
 **Runs anywhere.** EmDash uses portable abstractions at every layer -- Kysely for SQL, S3 API for storage -- that work with SQLite, D1, Turso, PostgreSQL, R2, AWS S3, or local files. It runs best on Cloudflare, but it's not locked to it.
 
@@ -137,9 +137,9 @@ const { entries: posts } = await getEmDashCollection("posts");
 
 **Auth** -- Passkey-first (WebAuthn) with OAuth and magic link fallbacks. Role-based access control: Administrator, Editor, Author, Contributor.
 
-**Plugins** -- `definePlugin()` API with lifecycle hooks, KV storage, settings, admin pages, dashboard widgets, custom block types, and API routes. Sandboxed execution on Cloudflare via Dynamic Worker Loaders.
+**Plugins** -- `definePlugin()` API with lifecycle hooks, KV storage, settings, admin pages, dashboard widgets, custom block types, and API routes. Sandboxed execution on Cloudflare via Dynamic Worker Loaders, and on Node.js in a `workerd` child process.
 
-**Agents** -- Skill files for AI-assisted plugin and theme development. CLI for programmatic site management. Built-in MCP server for direct AI tool integration.
+**Agents** -- [Agent skills](https://github.com/emdash-cms/skills) for AI-assisted site, plugin, and theme development. CLI for programmatic site management. Built-in MCP server for direct AI tool integration.
 
 **WordPress migration** -- Import posts, pages, media, and taxonomies from WXR exports, the WordPress REST API, or WordPress.com. Agent skills help port plugins and themes.
 
@@ -150,11 +150,13 @@ const { entries: posts } = await getEmDashCollection("posts");
 | Database | D1                          | SQLite, Turso/libSQL, PostgreSQL                    |
 | Storage  | R2                          | AWS S3, any S3-compatible service, local filesystem |
 | Sessions | KV                          | Redis, file-based                                   |
-| Plugins  | Worker isolates (sandboxed) | In-process (safe mode)                              |
+| Plugins  | Worker isolates (sandboxed) | `workerd` child process (sandboxed)                 |
 
 ## Status
 
-EmDash is in **beta preview**. We welcome contributions, feedback, plugins, themes, and ideas.
+EmDash is **stable** and ready for production. The core packages (`emdash`, `create-emdash`, and the `@emdash-cms` admin, auth, blocks, and Cloudflare packages) follow [semantic versioning](https://semver.org/): breaking changes ship only in major releases and are called out in the changelog. First-party plugins and plugin tooling are still on `0.x` and may change between minor releases.
+
+We welcome contributions, feedback, plugins, themes, and ideas.
 
 ```bash
 npm create emdash@latest

@@ -15,6 +15,7 @@ import { EmDashDB } from "../../src/db/do-sql-class.js";
 interface FakeCursor {
 	rowsWritten: number;
 	toArray(): Record<string, unknown>[];
+	one(): Record<string, unknown>;
 	[Symbol.iterator](): Iterator<Record<string, unknown>>;
 }
 
@@ -22,6 +23,10 @@ function cursor(rows: Record<string, unknown>[] = [], rowsWritten = 0): FakeCurs
 	return {
 		rowsWritten,
 		toArray: () => rows,
+		one: () => {
+			if (rows.length !== 1) throw new Error(`Expected exactly one row, got ${rows.length}`);
+			return rows[0]!;
+		},
 		[Symbol.iterator]: () => rows[Symbol.iterator](),
 	};
 }
@@ -116,6 +121,9 @@ describe("EmDashDB collection deletion guard", () => {
 				if (statement.includes("UPDATE _emdash_media_usage_index_status")) {
 					return cursor([], 1);
 				}
+				if (statement.includes("SELECT changes()")) {
+					return cursor([{ changes: 1 }]);
+				}
 				return cursor();
 			}),
 		};
@@ -139,6 +147,54 @@ describe("EmDashDB collection deletion guard", () => {
 			outcome: "fenced",
 		});
 		expect(statements.some((statement) => statement.includes("UPDATE _emdash"))).toBe(true);
+	});
+
+	it("fences on the one updated status row even when index writes raise rowsWritten", async () => {
+		// capture_state is indexed, so the platform counts the row and its index
+		// entries in rowsWritten while exactly one status row changed.
+		const sql = {
+			exec: vi.fn((statement: string) => {
+				statements.push(statement);
+				if (statement.includes("SELECT collection_id")) {
+					return cursor([{ collection_id: "collection-1" }]);
+				}
+				if (statement.includes("UPDATE _emdash_media_usage_index_status")) {
+					return cursor([], 3);
+				}
+				if (statement.includes("SELECT changes()")) {
+					return cursor([{ changes: 1 }]);
+				}
+				return cursor();
+			}),
+		};
+		const object = new EmDashDB({ storage: { sql, transactionSync } } as never, {});
+
+		await expect(
+			object.executeCollectionDeletionGuard({
+				action: "fence",
+				collectionId: "collection-1",
+				collectionSlug: "articles",
+				leaseToken: "current-owner",
+				forceDelete: true,
+			}),
+		).resolves.toEqual({ outcome: "fenced" });
+	});
+});
+
+describe("EmDashDB affected-row counts", () => {
+	it("reports changed table rows, not rowsWritten, as the write's changes", async () => {
+		// One UPDATE against a table with two indexes: rowsWritten counts the
+		// row plus its index entries, changes() counts the one changed row.
+		const exec = vi.fn((statement: string) => {
+			if (statement.startsWith("UPDATE")) return cursor([], 3);
+			if (statement.includes("SELECT changes()")) return cursor([{ changes: 1 }]);
+			return cursor();
+		});
+		const object = new EmDashDB({ storage: { sql: { exec } } } as never, {});
+
+		const result = await object.query("UPDATE posts SET title = ? WHERE id = ?", ["t", "1"]);
+
+		expect(result.changes).toBe(1);
 	});
 });
 

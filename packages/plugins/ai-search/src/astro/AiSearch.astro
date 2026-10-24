@@ -1,0 +1,187 @@
+---
+/**
+ * Search button that opens Cloudflare's AI Search modal, already wired to the
+ * plugin's search route. The modal also opens with Cmd/Ctrl+K, so render one
+ * per page.
+ *
+ * Theme the modal with the snippet's `--search-snippet-*` custom properties on
+ * `search-modal-snippet`, and the button with `--ai-search-trigger-*`. The
+ * modal moves to the end of `<body>`, so it does not inherit custom properties
+ * set on the button's ancestors.
+ */
+import type { Translations } from "@cloudflare/ai-search-snippet";
+
+interface Props {
+	/** Visible button text. */
+	label?: string;
+	/** Placeholder of the modal's search input. */
+	placeholder?: string;
+	/** Most results to show. */
+	maxResults?: number;
+	/** Restricts results to one content locale. Defaults to the current Astro locale. */
+	locale?: string;
+	/** Key pressed with Cmd/Ctrl to open the modal. */
+	shortcut?: string;
+	/** Show each result's address under its title. */
+	showUrl?: boolean;
+	/** Overrides the modal's built-in English strings. */
+	translations?: Translations;
+	theme?: "auto" | "light" | "dark";
+	class?: string;
+}
+
+const {
+	label = "Search",
+	placeholder = "Search this site",
+	maxResults = 20,
+	locale = Astro.currentLocale,
+	shortcut = "k",
+	showUrl = false,
+	translations,
+	theme = "auto",
+	class: className,
+} = Astro.props;
+
+const requestOptions = {
+	headers: { "X-EmDash-Request": "1" },
+	...(locale ? { body: { locale } } : {}),
+};
+---
+
+<emdash-ai-search class:list={["ais", className]}>
+	<button type="button" class="ais-trigger" aria-haspopup="dialog" data-ai-search-trigger>
+		<svg class="ais-icon" viewBox="0 0 24 24" aria-hidden="true">
+			<circle cx="11" cy="11" r="7"></circle>
+			<path d="m20 20-4-4"></path>
+		</svg>
+		<span class="ais-label">{label}</span>
+		<kbd class="ais-shortcut" dir="ltr" aria-hidden="true" data-ai-search-shortcut={shortcut.toUpperCase()}
+		></kbd>
+	</button>
+	<search-modal-snippet
+		api-url="/_emdash/api/plugins/ai-search"
+		placeholder={placeholder}
+		max-results={maxResults}
+		max-render-results={maxResults}
+		shortcut={shortcut}
+		show-url={showUrl ? "true" : "false"}
+		group-by="group"
+		theme={theme}
+		disable-analytics="true"
+		request-options={JSON.stringify(requestOptions)}
+		translations={translations ? JSON.stringify(translations) : undefined}></search-modal-snippet>
+</emdash-ai-search>
+
+<script>
+	import { SearchModalSnippet } from "@cloudflare/ai-search-snippet/search";
+
+	const APPLE_PLATFORM = /Mac|iPhone|iPad/;
+
+	class EmDashAiSearch extends HTMLElement {
+		private modal: SearchModalSnippet | null = null;
+
+		connectedCallback() {
+			if (!this.modal) {
+				const modal = this.querySelector("search-modal-snippet");
+				if (!(modal instanceof SearchModalSnippet)) return;
+				this.modal = modal;
+				this.querySelector("[data-ai-search-trigger]")?.addEventListener("click", () =>
+					openFocused(modal),
+				);
+				const shortcut = this.querySelector<HTMLElement>("[data-ai-search-shortcut]");
+				if (shortcut) {
+					const modifier = APPLE_PLATFORM.test(navigator.userAgent) ? "⌘" : "Ctrl ";
+					shortcut.textContent = modifier + shortcut.dataset.aiSearchShortcut;
+				}
+			}
+			// An ancestor with a transform, filter, or backdrop-filter would confine
+			// the modal's fixed-position backdrop to that ancestor's box.
+			document.body.append(this.modal);
+		}
+
+		disconnectedCallback() {
+			this.modal?.remove();
+		}
+	}
+
+	const MAX_FOCUS_FRAMES = 30;
+
+	/**
+	 * Opens the modal with its input focused. The snippet focuses the input two
+	 * frames after opening, and frames that follow a click closely can arrive
+	 * before its fade-in makes the input focusable.
+	 */
+	function openFocused(modal: SearchModalSnippet) {
+		modal.open();
+		const input = modal.shadowRoot?.querySelector("input");
+		if (!input) return;
+		let closed = false;
+		modal.addEventListener("close", () => (closed = true), { once: true });
+		let frames = 0;
+		const focus = () => {
+			if (closed || modal.shadowRoot?.activeElement === input) return;
+			if (getComputedStyle(input).visibility === "visible") input.focus();
+			else if (++frames < MAX_FOCUS_FRAMES) requestAnimationFrame(focus);
+		};
+		requestAnimationFrame(focus);
+	}
+
+	if (!customElements.get("emdash-ai-search")) {
+		customElements.define("emdash-ai-search", EmDashAiSearch);
+	}
+</script>
+
+<style>
+	.ais {
+		display: inline-block;
+		inline-size: var(--ai-search-trigger-width, auto);
+	}
+	.ais-trigger {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		inline-size: 100%;
+		padding-block: 0.4rem;
+		padding-inline: 0.75rem 0.5rem;
+		border: 1px solid
+			var(--ai-search-trigger-border, color-mix(in srgb, currentColor 20%, transparent));
+		border-radius: var(--ai-search-trigger-radius, 0.5rem);
+		background: var(--ai-search-trigger-background, transparent);
+		color: var(--ai-search-trigger-color, inherit);
+		font: inherit;
+		font-size: 0.875rem;
+		cursor: pointer;
+	}
+	.ais-trigger:hover {
+		border-color: var(--ai-search-trigger-accent, currentColor);
+	}
+	.ais-trigger:focus-visible {
+		outline: 2px solid var(--ai-search-trigger-accent, currentColor);
+		outline-offset: 2px;
+	}
+	.ais-icon {
+		inline-size: 1rem;
+		block-size: 1rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		opacity: 0.7;
+	}
+	.ais-label {
+		flex: 1;
+		text-align: start;
+		opacity: 0.7;
+	}
+	.ais-shortcut {
+		padding-inline: 0.35rem;
+		border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+		border-radius: 0.25rem;
+		font: inherit;
+		font-size: 0.75rem;
+		opacity: 0.7;
+	}
+	.ais-shortcut:empty {
+		display: none;
+	}
+</style>

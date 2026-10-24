@@ -73,125 +73,180 @@ test("publisher login sends mutation fencing and remains RTL-safe on mobile", as
 	});
 });
 
-test("account approves a connection requested by the permanent release workflow", async ({
-	page,
-}) => {
-	await page.context().addCookies([
-		{
-			name: "__Host-emdash_publisher_csrf",
-			value: "C".repeat(43),
-			url: "https://localhost:5185",
-			httpOnly: false,
-			secure: true,
-			sameSite: "Strict",
-		},
-	]);
-	let confirmed = false;
-	const connectionRequest = {
-		id: "01JABCDEFGHJKMNPQRSTVWXYZ1",
-		packageSlug: "gallery",
-		state: "pending",
-		claim: {
-			repository: "example/gallery",
-			repositoryId: "123",
-			repositoryOwner: "example",
-			repositoryOwnerId: "456",
-			repositoryVisibility: "private",
-			workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
-			ref: "refs/tags/v1.2.3",
-			environment: "production",
-		},
-		refScope: null,
-		expiresAt: 1_900_000_000_000,
-		createdAt: 1_800_000_000_000,
-		confirmedAt: null,
-	};
-	await page.route("**/v1/**", async (route) => {
-		const request = route.request();
-		const path = new URL(request.url()).pathname;
-		if (path === "/v1/publisher") {
-			await route.fulfill(
-				success({
-					publisher: {
-						did: PUBLISHER_DID,
-						handle: "publisher.example.com",
-						delegation: {
-							releaseNsid: "com.emdashcms.experimental.package.release",
-							scope:
-								"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
-							issuer: "https://authorization.example.com",
-							pdsUrl: "https://pds.example.com",
-							expiresAt: null,
-							refreshBefore: null,
-							status: "active",
-							stateVersion: 1,
+for (const scenario of [
+	{
+		name: "account approves a connection requested by the permanent release workflow",
+		rejected: false,
+		locale: "en",
+		colorScheme: "light",
+	},
+	{
+		name: "publisher sees the service error when connecting a repository",
+		rejected: true,
+		locale: "en",
+		colorScheme: "light",
+	},
+	{
+		name: "publisher sees connection errors in Arabic RTL and dark mode",
+		rejected: true,
+		locale: "ar",
+		colorScheme: "dark",
+	},
+] as const) {
+	test(scenario.name, async ({ page }, testInfo) => {
+		await page.emulateMedia({ colorScheme: scenario.colorScheme });
+		await page.context().addCookies([
+			{
+				name: "__Host-emdash_publisher_csrf",
+				value: "C".repeat(43),
+				url: "https://localhost:5185",
+				httpOnly: false,
+				secure: true,
+				sameSite: "Strict",
+			},
+		]);
+		let confirmed = false;
+		const connectionRequest = {
+			id: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+			packageSlug: "gallery",
+			state: "pending",
+			claim: {
+				repository: "example/gallery",
+				repositoryId: "123",
+				repositoryOwner: "example",
+				repositoryOwnerId: "456",
+				repositoryVisibility: "private",
+				workflowRef: "example/gallery/.github/workflows/release.yml@refs/tags/gallery@1.2.3",
+				ref: "refs/tags/gallery@1.2.3",
+				environment: "production",
+			},
+			refScope: null,
+			expiresAt: 1_900_000_000_000,
+			createdAt: 1_800_000_000_000,
+			confirmedAt: null,
+		};
+		await page.route("**/v1/**", async (route) => {
+			const request = route.request();
+			const path = new URL(request.url()).pathname;
+			if (path === "/v1/publisher") {
+				await route.fulfill(
+					success({
+						publisher: {
+							did: PUBLISHER_DID,
+							handle: "publisher.example.com",
+							delegation: {
+								releaseNsid: "com.emdashcms.experimental.package.release",
+								scope:
+									"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
+								issuer: "https://authorization.example.com",
+								pdsUrl: "https://pds.example.com",
+								expiresAt: null,
+								refreshBefore: null,
+								status: "active",
+								stateVersion: 1,
+							},
 						},
-					},
-				}),
-			);
-			return;
-		}
-		if (path === "/v1/publisher/workflow-connections" && request.method() === "GET") {
-			await route.fulfill(success({ items: confirmed ? [] : [connectionRequest] }));
-			return;
-		}
-		if (
-			path === "/v1/publisher/workloads" ||
-			path === "/v1/publisher/intents" ||
-			path === "/v1/publisher/audit" ||
-			path === "/v1/approver/credentials"
-		) {
-			await route.fulfill(success({ items: [] }));
-			return;
-		}
-		if (path.endsWith("/confirm")) {
-			confirmed = true;
-			await route.fulfill(
-				success({
-					request: {
-						...connectionRequest,
-						state: "confirmed",
-						refScope: "version_tags",
-						confirmedAt: 1_800_000_002_000,
-					},
-					policy: {
-						packageSlug: "gallery",
-						repository: "example/gallery",
-						repositoryId: "123",
-						repositoryOwnerId: "456",
-						workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
-						allowedRefs: ["refs/tags/*"],
-						allowedEnvironments: ["production"],
-						repositoryConnection: true,
-						active: true,
-						stateVersion: 1,
-						authorizedBy: PUBLISHER_DID,
-						createdAt: 1_800_000_002_000,
-						updatedAt: 1_800_000_002_000,
-					},
-					replayed: false,
-				}),
-			);
-			return;
-		}
-		await route.abort();
-	});
+					}),
+				);
+				return;
+			}
+			if (path === "/v1/publisher/workflow-connections" && request.method() === "GET") {
+				await route.fulfill(success({ items: confirmed ? [] : [connectionRequest] }));
+				return;
+			}
+			if (
+				path === "/v1/publisher/workloads" ||
+				path === "/v1/publisher/intents" ||
+				path === "/v1/publisher/audit" ||
+				path === "/v1/approver/credentials"
+			) {
+				await route.fulfill(success({ items: [] }));
+				return;
+			}
+			if (path.endsWith("/confirm")) {
+				if (scenario.rejected) {
+					await route.fulfill({
+						status: 503,
+						contentType: "application/json",
+						body: JSON.stringify({
+							error: {
+								code: "PROFILE_FETCH_FAILED",
+								message: "Package profile could not be verified",
+							},
+							requestId: "pw",
+						}),
+					});
+					return;
+				}
+				confirmed = true;
+				await route.fulfill(
+					success({
+						request: {
+							...connectionRequest,
+							state: "confirmed",
+							refScope: "version_tags",
+							confirmedAt: 1_800_000_002_000,
+						},
+						policy: {
+							packageSlug: "gallery",
+							repository: "example/gallery",
+							repositoryId: "123",
+							repositoryOwnerId: "456",
+							workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+							allowedRefs: ["refs/tags/*"],
+							allowedEnvironments: ["production"],
+							repositoryConnection: true,
+							active: true,
+							stateVersion: 1,
+							authorizedBy: PUBLISHER_DID,
+							createdAt: 1_800_000_002_000,
+							updatedAt: 1_800_000_002_000,
+						},
+						replayed: false,
+					}),
+				);
+				return;
+			}
+			await route.abort();
+		});
 
-	await page.goto(`/publisher?connection=${connectionRequest.id}`);
-	await expect(page.getByText("Signed in as @publisher.example.com")).toBeVisible();
-	await expect(page.getByText(PUBLISHER_DID)).toHaveCount(0);
-	await expect(
-		page.getByRole("heading", { name: "2. Connect your GitHub repository" }),
-	).toBeVisible();
-	await expect(page.getByRole("heading", { name: "Connect GitHub repository" })).toBeVisible();
-	await expect(page.getByText("example/gallery")).toBeVisible();
-	await expect(page.getByText(".github/workflows/release.yml")).toBeVisible();
-	await expect(page.getByText("v1.2.3")).toBeVisible();
-	await expect(page.getByText("All package version tags")).toBeVisible();
-	await page.getByRole("button", { name: "Connect repository" }).click();
-	await expect(page.getByRole("button", { name: "Check for workflow requests" })).toBeVisible();
-	expect(confirmed).toBe(true);
-});
+		await page.goto(`/publisher?connection=${connectionRequest.id}&locale=${scenario.locale}`);
+		await page.evaluate((mode) => {
+			document.documentElement.dataset["mode"] = mode;
+		}, scenario.colorScheme);
+		await expect(page.locator("html")).toHaveCSS("color-scheme", scenario.colorScheme);
+		await expect(page.getByText("Signed in as @publisher.example.com")).toBeVisible();
+		await expect(page.getByText(PUBLISHER_DID)).toHaveCount(0);
+		await expect(
+			page.getByRole("heading", { name: "2. Connect your GitHub repository" }),
+		).toBeVisible();
+		await expect(page.getByRole("heading", { name: "Connect GitHub repository" })).toBeVisible();
+		await expect(page.getByText("example/gallery")).toBeVisible();
+		await expect(page.getByText(".github/workflows/release.yml")).toBeVisible();
+		await expect(page.getByText("gallery@1.2.3")).toBeVisible();
+		await expect(page.getByText("All package version tags")).toBeVisible();
+		await page.getByRole("button", { name: "Connect repository" }).click();
+		if (scenario.rejected) {
+			await expect(page.getByText("Request failed", { exact: true })).toBeVisible();
+			await page.screenshot({ path: testInfo.outputPath("connection-error.png"), fullPage: true });
+			await expect(
+				page.getByText("Package profile could not be verified (PROFILE_FETCH_FAILED)"),
+			).toBeVisible();
+			await expect(page.getByRole("button", { name: "Connect repository" })).toBeEnabled();
+			expect(await page.locator("html").getAttribute("dir")).toBe(
+				scenario.locale === "ar" ? "rtl" : "ltr",
+			);
+			expect(
+				await page.evaluate(
+					() => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+				),
+			).toBe(true);
+		} else {
+			await expect(page.getByRole("button", { name: "Check for workflow requests" })).toBeVisible();
+			expect(confirmed).toBe(true);
+		}
+	});
+}
 
 test("approver enrols and uses a user-verified virtual passkey", async ({ page }) => {
 	const removeAuthenticator = await addVirtualWebAuthnAuthenticator(page);
@@ -336,3 +391,71 @@ test("approver enrols and uses a user-verified virtual passkey", async ({ page }
 		await removeAuthenticator();
 	}
 });
+
+for (const locale of ["en", "ar"]) {
+	test(`publisher sees actionable release failures (${locale})`, async ({ page }) => {
+		await page.setViewportSize({ width: locale === "ar" ? 390 : 1280, height: 900 });
+		const reasonMessage =
+			"Your PDS rejected the release record. Contact the release service operator with the intent ID so they can check the PDS rejection. Start a fresh workflow dispatch after resolving the problem; re-running jobs reuses this terminal intent.";
+		await page.route("**/v1/**", async (route) => {
+			const path = new URL(route.request().url()).pathname;
+			if (path === "/v1/publisher") {
+				await route.fulfill(
+					success({
+						publisher: {
+							did: PUBLISHER_DID,
+							handle: "publisher.example.com",
+							delegation: {
+								releaseNsid: "com.emdashcms.experimental.package.release",
+								scope:
+									"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
+								issuer: "https://authorization.example.com",
+								pdsUrl: "https://pds.example.com",
+								expiresAt: null,
+								refreshBefore: null,
+								status: "active",
+								stateVersion: 1,
+							},
+						},
+					}),
+				);
+			} else if (path === "/v1/publisher/intents") {
+				await route.fulfill(
+					success({
+						items: [
+							{
+								id: INTENT_ID,
+								publisherDid: PUBLISHER_DID,
+								packageSlug: "linguadash",
+								version: "0.2.1",
+								state: "failed",
+								stateGeneration: 13,
+								reasonCode: "PDS_RETRY_EXHAUSTED",
+								reasonMessage,
+								workflowId: INTENT_ID,
+								expiresAt: 1_800_000_000_000,
+								createdAt: 1_799_999_000_000,
+								updatedAt: 1_799_999_500_000,
+								result: null,
+								approvalUrl: null,
+							},
+						],
+					}),
+				);
+			} else {
+				await route.fulfill(success({ items: [] }));
+			}
+		});
+		await page.goto(`/publisher?locale=${locale}`);
+		await expect(page.getByText(reasonMessage, { exact: true })).toBeVisible();
+		await expect(page.getByText("PDS_RETRY_EXHAUSTED", { exact: true })).toBeVisible();
+		await expect(page.getByText(INTENT_ID, { exact: true })).toBeVisible();
+		expect(await page.locator("html").getAttribute("dir")).toBe(locale === "ar" ? "rtl" : "ltr");
+		expect(
+			await page.evaluate(
+				() => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+			),
+		).toBe(true);
+		await page.screenshot({ path: `/tmp/emdash-release-failure-${locale}.png`, fullPage: true });
+	});
+}

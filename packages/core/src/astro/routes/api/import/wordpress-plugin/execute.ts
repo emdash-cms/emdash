@@ -24,7 +24,7 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { wpPluginExecuteBody } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 import { importCommentsFromPlugin } from "#import/comments.js";
-import { getSource } from "#import/index.js";
+import { getSource, SiteChallengeError } from "#import/index.js";
 import { importMenusFromPlugin } from "#import/menus.js";
 import { importSiteSettings, parseSiteSettingsFromPlugin } from "#import/settings.js";
 import {
@@ -37,7 +37,7 @@ import {
 } from "#import/sources/wordpress-plugin.js";
 import { resolveAndValidateExternalUrl, SsrfError } from "#import/ssrf.js";
 import type { ImportConfig, ImportResult, NormalizedItem } from "#import/types.js";
-import { resolveImportByline, sanitizeFieldSlug } from "#import/utils.js";
+import { resolveImportByline, sanitizeCollectionSlug, sanitizeFieldSlug } from "#import/utils.js";
 import {
 	attachPostTaxonomies,
 	loadTaxonomyPlanFromDb,
@@ -195,6 +195,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			taxonomyPlan = built.plan;
 			taxonomyDefsCreated = built.defsCreated;
 		} catch (e) {
+			if (e instanceof SiteChallengeError) throw e;
 			console.warn("[WP Plugin Import] Taxonomy pre-import failed:", e);
 		}
 
@@ -240,15 +241,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				}
 			}
 		} catch (e) {
+			if (e instanceof SiteChallengeError) throw e;
 			console.warn("[WP Plugin Import] Comment import failed:", e);
 		}
 
 		// Apply site identity (title, tagline, logo, favicon) from the source
 		// site's options, replacing the starter template's seed placeholders.
-		// Non-fatal: content is already imported at this point.
+		// Non-fatal unless bot protection challenges the request.
 		try {
 			result.siteSettings = await applySiteSettings(emdash, body.url, body.token, config);
 		} catch (e) {
+			if (e instanceof SiteChallengeError) throw e;
 			console.warn("[WP Plugin Import] Site settings import failed:", e);
 		}
 
@@ -263,6 +266,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			result,
 		});
 	} catch (error) {
+		if (error instanceof SiteChallengeError) {
+			return apiError("WP_SITE_CHALLENGE", error.message, 502);
+		}
 		return handleError(error, "Failed to import from WordPress", "WP_PLUGIN_IMPORT_ERROR");
 	}
 };
@@ -292,6 +298,7 @@ async function importMenusInto(
 			}
 		}
 	} catch (e) {
+		if (e instanceof SiteChallengeError) throw e;
 		console.warn("[WP Plugin Import] Menu import failed:", e);
 	}
 }
@@ -351,6 +358,7 @@ async function runContentChunk(
 			taxonomyPlan = await loadTaxonomyPlanFromDb(emdash.db);
 		}
 	} catch (e) {
+		if (e instanceof SiteChallengeError) throw e;
 		console.warn("[WP Plugin Import] Taxonomy pre-import failed:", e);
 	}
 
@@ -467,6 +475,7 @@ async function runFinalizePhase(
 	try {
 		result.siteSettings = await applySiteSettings(emdash, body.url, body.token, config);
 	} catch (e) {
+		if (e instanceof SiteChallengeError) throw e;
 		console.warn("[WP Plugin Import] Site settings import failed:", e);
 	}
 
@@ -569,6 +578,27 @@ export function coerceToFieldType(value: unknown, fieldType: string): unknown {
 }
 
 /**
+ * ACF relationship, post object, user and taxonomy fields set to the object
+ * return format give WP_Post, WP_User and WP_Term objects, and a user field's
+ * default array format gives the user's email and profile. Exporters that
+ * pass them through send a related post's content and password or a user's
+ * password hash. Keep only the IDs.
+ */
+function reduceWordPressObjects(value: unknown): unknown {
+	if (Array.isArray(value)) return value.map(reduceWordPressObjects);
+	if (typeof value !== "object" || value === null) return value;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to non-null object above
+	const record = value as Record<string, unknown>;
+	if ("ID" in record && ("post_type" in record || "cap_key" in record || "user_email" in record)) {
+		return record.ID;
+	}
+	if ("term_id" in record && "taxonomy" in record) return record.term_id;
+	return Object.fromEntries(
+		Object.entries(record).map(([key, entry]) => [key, reduceWordPressObjects(entry)]),
+	);
+}
+
+/**
  * Pull the per-post SEO title/description out of the Yoast / Rank Math
  * blobs the plugin source stashes in `item.meta`. Empty strings mean "not
  * overridden for this post" (the plugin exports the raw meta values) and
@@ -635,7 +665,7 @@ export async function ensureCustomTaxonomyDefs(
 		const collections = (taxonomy.post_types ?? [])
 			.map((postType) => config.postTypeMappings[postType])
 			.filter((mapping) => mapping?.enabled)
-			.map((mapping) => mapping.collection);
+			.map((mapping) => sanitizeCollectionSlug(mapping.collection));
 
 		const result = await handleTaxonomyCreate(db, {
 			name: taxonomy.name,
@@ -833,13 +863,12 @@ export async function importContent(
 
 		const mapping = config.postTypeMappings[item.postType];
 
-		// Skip if not mapped or disabled
+		// Unmapped or disabled post types are not part of the import.
 		if (!mapping || !mapping.enabled) {
-			result.skipped++;
 			continue;
 		}
 
-		const collection = mapping.collection;
+		const collection = sanitizeCollectionSlug(mapping.collection);
 
 		// Check if collection exists in manifest
 		if (!manifest?.collections[collection]) {
@@ -971,7 +1000,7 @@ export async function importContent(
 			const acf = item.meta?._acf;
 			if (typeof acf === "object" && acf !== null) {
 				for (const [key, value] of Object.entries(acf)) {
-					assignMetaValue(key, value);
+					assignMetaValue(key, reduceWordPressObjects(value));
 				}
 			}
 			if (item.meta) {
@@ -1067,6 +1096,21 @@ export async function importContent(
 				// Track translation group: first item in a group establishes the mapping
 				if (item.translationGroup && !translationGroupMap.has(item.translationGroup) && createdId) {
 					translationGroupMap.set(item.translationGroup, createdId);
+				}
+
+				if (
+					createdId &&
+					item.status === "future" &&
+					createdAt &&
+					Date.parse(createdAt) > Date.now()
+				) {
+					const scheduled = await emdash.handleContentSchedule(collection, createdId, createdAt);
+					if (!scheduled.success) {
+						result.errors.push({
+							title: item.title || "Untitled",
+							error: `Imported as draft but failed to schedule: ${scheduled.error?.message ?? "Unknown error"}`,
+						});
+					}
 				}
 			} else {
 				result.errors.push({

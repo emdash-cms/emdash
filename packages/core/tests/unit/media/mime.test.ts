@@ -4,6 +4,7 @@ import {
 	matchesMimeAllowlist,
 	normalizeMime,
 	expandExtensionShorthand,
+	resolveUploadMimeType,
 } from "../../../src/media/mime.js";
 
 describe("matchesMimeAllowlist", () => {
@@ -64,6 +65,25 @@ describe("normalizeMime", () => {
 
 	it("leaves already-normalized types unchanged", () => {
 		expect(normalizeMime("image/png")).toBe("image/png");
+	});
+});
+
+describe("resolveUploadMimeType", () => {
+	it("trusts a known client-supplied MIME type", () => {
+		expect(resolveUploadMimeType("photo.jxl", "image/jxl")).toBe("image/jxl");
+		expect(resolveUploadMimeType("photo.png", "image/png")).toBe("image/png");
+	});
+
+	it("falls back to the extension when the client sends an empty type", () => {
+		expect(resolveUploadMimeType("photo.jxl", "")).toBe("image/jxl");
+	});
+
+	it("falls back to the extension for a generic octet-stream type", () => {
+		expect(resolveUploadMimeType("photo.jxl", "application/octet-stream")).toBe("image/jxl");
+	});
+
+	it("returns an empty string when neither type nor extension is known", () => {
+		expect(resolveUploadMimeType("photo.unknown", "")).toBe("");
 	});
 });
 

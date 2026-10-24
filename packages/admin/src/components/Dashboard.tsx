@@ -12,7 +12,7 @@ import type { CollectionStats, DashboardStats, RecentItem } from "../lib/api/das
 import { dismissScheduledPolicyRejection, fetchDashboardStats } from "../lib/api/dashboard";
 import { fetchTransferCapabilities, TRANSFER_CAPABILITIES_QUERY_KEY } from "../lib/api/transfer.js";
 import { usePluginWidget } from "../lib/plugin-context";
-import { cn, formatRelativeTime } from "../lib/utils";
+import { cn, formatRelativeTime } from "../lib/utils.js";
 import { ArrowNext } from "./ArrowIcons";
 import {
 	ContentStatusIcon,
@@ -24,7 +24,11 @@ import { getMutationError } from "./DialogError.js";
 import { MarketplaceMigrationBanner } from "./MarketplaceMigrationBanner.js";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
-import { visibleCollectionEntries } from "./Sidebar.js";
+import {
+	declaredLabelTranslator,
+	resolvePluginWidgetTitle,
+	visibleCollectionEntries,
+} from "./Sidebar.js";
 
 const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
 	published: "published",
@@ -38,6 +42,7 @@ const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
 
 const ROLE_ADMIN = 50;
 const ROLE_EDITOR = 40;
+const ROLE_CONTRIBUTOR = 20;
 
 const SITE_IMPORT_HINT_DISMISSED_KEY = "emdash:dashboard:site-import-hint-dismissed";
 
@@ -81,7 +86,14 @@ export function Dashboard({ manifest }: DashboardProps) {
 					{stats && (
 						<SchedulerWarning stats={stats} canDismissPolicy={(user?.role ?? 0) >= ROLE_EDITOR} />
 					)}
-					<SummaryMetrics stats={stats} loading={isLoading} />
+					<SummaryMetrics
+						stats={stats}
+						loading={isLoading}
+						linkCalendar={
+							(user?.role ?? 0) >= ROLE_CONTRIBUTOR &&
+							!manifest.admin?.hiddenNavItems?.includes("calendar")
+						}
+					/>
 
 					{/* Collections + Recent activity */}
 					<div className="grid gap-6 lg:grid-cols-2">
@@ -339,16 +351,27 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 					{config.labelSingular ?? config.label}
 				</RouterLinkButton>
 			))}
-			<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
-				{t`Upload Media`}
-			</RouterLinkButton>
+			{!manifest.admin?.hiddenNavItems?.includes("media") && (
+				<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
+					{t`Upload Media`}
+				</RouterLinkButton>
+			)}
 		</div>
 	);
 }
 
 // --- Summary metrics ---
 
-function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: boolean }) {
+function SummaryMetrics({
+	stats,
+	loading,
+	linkCalendar,
+}: {
+	stats?: DashboardStats;
+	loading: boolean;
+	/** Link the Scheduled count to the calendar, for roles that can open it. */
+	linkCalendar: boolean;
+}) {
 	if (loading) {
 		return (
 			<div className="grid gap-4 sm:grid-cols-3">
@@ -376,7 +399,7 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 	const totalScheduled = stats.collections.reduce((sum, c) => sum + c.scheduled, 0);
 	const hasScheduledContent = totalScheduled > 0;
 
-	const metrics: Array<{ label: string; value: number }> = [
+	const metrics: Array<{ label: string; value: number; calendar?: boolean }> = [
 		{
 			label: plural(totalDrafts, { one: "Draft", other: "Drafts" }),
 			value: totalDrafts,
@@ -386,30 +409,56 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 					{
 						label: plural(totalScheduled, { one: "Scheduled", other: "Scheduled" }),
 						value: totalScheduled,
+						calendar: linkCalendar,
 					},
 				]
 			: []),
-		{
-			label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
-			value: stats.mediaCount,
-		},
-		{
-			label: plural(stats.userCount, { one: "User", other: "Users" }),
-			value: stats.userCount,
-		},
+		...(stats.mediaCount === undefined
+			? []
+			: [
+					{
+						label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
+						value: stats.mediaCount,
+					},
+				]),
+		...(stats.userCount === undefined
+			? []
+			: [
+					{
+						label: plural(stats.userCount, { one: "User", other: "Users" }),
+						value: stats.userCount,
+					},
+				]),
 	];
 
 	return (
 		<div
 			className={
-				hasScheduledContent
+				metrics.length === 4
 					? "grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-					: "grid gap-4 sm:grid-cols-3"
+					: metrics.length === 3
+						? "grid gap-4 sm:grid-cols-3"
+						: "grid gap-4 sm:grid-cols-2"
 			}
 		>
 			{metrics.map((metric) => (
 				<LayerCard key={metric.label} data-testid="dashboard-metric">
-					<DashboardCardHeading>{metric.label}</DashboardCardHeading>
+					<DashboardCardHeading>
+						{metric.calendar ? (
+							<Link
+								to="/calendar"
+								className="group inline-flex items-center gap-1 rounded-sm hover:text-kumo-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
+							>
+								{metric.label}
+								<ArrowNext
+									aria-hidden="true"
+									className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100 motion-reduce:transition-none"
+								/>
+							</Link>
+						) : (
+							metric.label
+						)}
+					</DashboardCardHeading>
 					<LayerCard.Primary className="text-3xl font-semibold leading-none tabular-nums">
 						<DashboardCardInset data-testid="dashboard-metric-value">
 							{metric.value}
@@ -555,7 +604,7 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 									data-testid="activity-time"
 									className="shrink-0 text-xs font-normal leading-5 text-kumo-subtle tabular-nums"
 								>
-									{formatRelativeTime(item.updatedAt, i18n.locale)}
+									<bdi>{formatRelativeTime(item.updatedAt, i18n.locale)}</bdi>
 								</span>
 							</Link>
 						))}
@@ -626,11 +675,17 @@ function PluginWidgetCard({
 }: {
 	widget: { id: string; pluginId: string; title?: string; size?: string };
 }) {
+	const { i18n } = useLingui();
 	const WidgetComponent = usePluginWidget(widget.pluginId, widget.id);
+	const title = resolvePluginWidgetTitle(
+		widget.title,
+		widget.id,
+		declaredLabelTranslator(i18n, (id) => i18n._(id)),
+	);
 
 	return (
 		<LayerCard className="h-full">
-			<DashboardCardHeading>{widget.title || widget.id}</DashboardCardHeading>
+			<DashboardCardHeading>{title}</DashboardCardHeading>
 			<LayerCard.Primary className="flex-1">
 				<DashboardCardInset>
 					{WidgetComponent ? (

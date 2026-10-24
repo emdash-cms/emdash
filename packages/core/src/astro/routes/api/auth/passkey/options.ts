@@ -22,6 +22,8 @@ import { checkRateLimit, getClientIp, rateLimitResponse } from "#auth/rate-limit
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
+import { after } from "../../../../../after.js";
+
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash } = locals;
 
@@ -30,8 +32,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	}
 
 	try {
-		// Fire-and-forget cleanup of expired challenges -- prevents accumulation
-		void cleanupExpiredChallenges(emdash.db).catch(() => {});
+		// Cleanup of expired challenges -- prevents accumulation
+		after(async () => {
+			try {
+				await cleanupExpiredChallenges(emdash.db);
+			} catch (error) {
+				console.error("[passkey] failed to delete expired challenges:", error);
+			}
+		});
 
 		// Parse body before rate limiting so malformed requests don't consume slots
 		const body = await parseOptionalBody(request, passkeyOptionsBody, {});

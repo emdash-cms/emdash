@@ -88,10 +88,10 @@ function QueryWrapper({ children }: { children: React.ReactNode }) {
 	);
 }
 
-async function renderSecuritySettings() {
+async function renderSecuritySettings(props: { addPasskey?: boolean } = {}) {
 	return render(
 		<QueryWrapper>
-			<SecuritySettings />
+			<SecuritySettings {...props} />
 		</QueryWrapper>,
 	);
 }
@@ -231,5 +231,15 @@ describe("SecuritySettings", () => {
 			expect(mockDeletePasskey).toHaveBeenCalledWith("passkey-1");
 		});
 		await expect.element(screen.getByText("Passkey removed")).toBeInTheDocument();
+	});
+
+	it("opens the add-passkey form for this address after a sign-in handover", async () => {
+		const screen = await renderSecuritySettings({ addPasskey: true });
+
+		await expect
+			.element(screen.getByText(`Add a passkey for ${window.location.host}`))
+			.toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Add Passkey" }).query()).toBeNull();
 	});
 });

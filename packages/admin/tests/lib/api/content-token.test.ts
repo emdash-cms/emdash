@@ -1,6 +1,15 @@
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { discardDraft, restoreRevision, unpublishContent } from "../../../src/lib/api/index.js";
+import {
+	discardDraft,
+	publishContent,
+	restoreRevision,
+	scheduleContent,
+	unpublishContent,
+	unscheduleContent,
+} from "../../../src/lib/api/index.js";
 
 const CONTENT_ITEM = {
 	id: "post_1",
@@ -86,5 +95,57 @@ describe("Content token APIs", () => {
 
 		const result = await restoreRevision("revision-old");
 		expect(result._rev).toBe("rev-restore-1");
+	});
+});
+
+describe("Publishing API localization", () => {
+	const originalFetch = globalThis.fetch;
+	const previousLocale = i18n.locale;
+
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+		i18n.loadAndActivate({ locale: previousLocale, messages: {} });
+	});
+
+	it.each([
+		{
+			name: "publish",
+			message: msg`Failed to publish content`,
+			action: () => publishContent("posts", "post_1"),
+		},
+		{
+			name: "unpublish",
+			message: msg`Failed to unpublish content`,
+			action: () => unpublishContent("posts", "post_1"),
+		},
+		{
+			name: "discard draft",
+			message: msg`Failed to discard draft`,
+			action: () => discardDraft("posts", "post_1"),
+		},
+		{
+			name: "schedule",
+			message: msg`Failed to schedule content`,
+			action: () => scheduleContent("posts", "post_1", "2026-10-05T12:00:00Z"),
+		},
+		{
+			name: "unschedule",
+			message: msg`Failed to unschedule content`,
+			action: () => unscheduleContent("posts", "post_1"),
+		},
+	])("uses the active catalog for a $name fallback", async ({ message, action }) => {
+		i18n.loadAndActivate({
+			locale: "de",
+			messages: { [message.id]: "Translated publishing error" },
+		});
+		globalThis.fetch = vi.fn(
+			async () =>
+				new Response("<html>Upstream failed</html>", { status: 502, statusText: "Bad Gateway" }),
+		);
+		await expect(action()).rejects.toMatchObject({
+			message: "Translated publishing error",
+			status: 502,
+			code: "UNKNOWN_ERROR",
+		});
 	});
 });

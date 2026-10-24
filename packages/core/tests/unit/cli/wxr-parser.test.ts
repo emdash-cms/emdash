@@ -6,7 +6,7 @@ import { Readable } from "node:stream";
 
 import { describe, it, expect } from "vitest";
 
-import { parseWxr } from "../../../src/cli/wxr/parser.js";
+import { parseWxr, parseWxrString } from "../../../src/cli/wxr/parser.js";
 
 function createStream(content: string): Readable {
 	return Readable.from([content]);
@@ -744,6 +744,30 @@ describe("parseWxr", () => {
 			expect(post?.taxonomyLabels?.get("category\u0000breaking-news")).toBe("Breaking News");
 			expect(post?.taxonomyLabels?.get("tag\u0000featured")).toBe("Featured");
 			expect(post?.taxonomyLabels?.get("genre\u0000sci-fi")).toBe("Science Fiction");
+		});
+	});
+});
+
+describe("parseWxrString", () => {
+	it("reads the site metadata from the channel", async () => {
+		const result = await parseWxrString(`<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <title>Test Site</title>
+    <link>https://example.com</link>
+    <description>A test WordPress site</description>
+    <language>en-US</language>
+    <wp:base_site_url>https://example.com/wp</wp:base_site_url>
+    <image><title>Logo</title><link>https://example.com/logo</link></image>
+  </channel>
+</rss>`);
+
+		expect(result.site).toMatchObject({
+			title: "Test Site",
+			link: "https://example.com",
+			description: "A test WordPress site",
+			language: "en-US",
+			baseSiteUrl: "https://example.com/wp",
 		});
 	});
 });

@@ -101,6 +101,17 @@ the selection. A field's MIME-type rules limit which library items and media sou
 The blog template's `featured_image` field stores the selected media value with the post. Saving the
 entry saves that reference to the draft; publishing makes it available to public content queries.
 
+When a selected image has a caption, the image field's media value includes it as `caption`, alongside
+`alt`. Templates should read the top-level `caption`. An empty string means this use has no caption.
+The legacy `meta.caption` alias, when present, is kept in step with `caption` when the value is selected
+or normalized on save. Normalization also promotes legacy values that only have `meta.caption`.
+
+Captions are saved with the content reference. **Edit asset** preserves a caption already stored for
+that use, including an empty string, when updating the image or its focal point. Explicitly changing
+**Caption** and saving applies the new caption to that use as well as the library item. Select the
+image again with **Replace** to copy its current library caption. Changing library metadata does not
+rewrite other entries.
+
 ### Gallery fields
 
 Select one or more images, arrange them under **Selected media**, and confirm. A gallery keeps its
@@ -221,7 +232,7 @@ settings that select the file: **Logo**, **Favicon**, or **Default Social Image*
 - image and file fields
 - image fields inside repeaters
 - image, file, and Portable Text fields inside `blocks` fields
-- image and gallery blocks in Portable Text fields
+- image, gallery, and video blocks in Portable Text fields
 - the site logo, favicon, and default social image
 
 When usage coverage is complete and the file has none of these references, the list shows **No
@@ -276,7 +287,7 @@ import { Image } from "emdash/ui";
 
 const { entry: post, error } = await getEmDashEntry("posts", Astro.params.slug);
 if (error) return new Response("Unable to load post", { status: 500 });
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 ---
 
 {post.data.featured_image && (
@@ -288,6 +299,14 @@ Use `priority` only for the main image visible at the top of the page. It reques
 gives the browser a high fetch-priority hint. Other images should retain the component's lazy-loading
 default.
 
+Set `quality={70}` to control optimized image output, or use an Astro preset: `"low"`, `"mid"`,
+`"high"`, or `"max"`. The setting applies to both light and dark variants. External media providers
+must support the quality option; unoptimized images retain their original quality. The built-in
+Cloudflare Images media provider does not currently apply this option. For internally stored media
+on Cloudflare, presets map to 25, 50, 80, and 100, and finite numeric values are rounded and clamped
+to 1–100. Other preset strings are not recognized by that endpoint and fall back to the original
+upload without optimization.
+
 If the field has a dark-mode counterpart, `Image` renders both sources and selects one from the
 visitor's color scheme. See [Dark mode images](/guides/dark-mode/#dark-image-variants) for the field and
 template setup.
@@ -296,6 +315,41 @@ The template receives the media metadata stored with the content reference witho
 Library query. If a custom integration requires the provider's latest metadata, request that item
 explicitly and avoid one provider lookup per image on a collection page. The
 [field type reference](/reference/field-types/#file) describes stored file and image values.
+
+## Render a file in a template
+
+A file field value from the Media Library has no ready-made URL. Pass its `meta.storageKey` to
+`Astro.locals.emdash.getPublicMediaUrl()`, which returns the public URL and respects a configured R2
+or S3 public domain without querying the media table. Older values without a storage key keep their
+URL in `url`, and files added by URL (stored with `provider: "external"`) keep it in `src`.
+
+For a file from a registered media provider, such as Cloudflare Stream, `src` holds a preview image
+rather than the file itself, so this approach does not apply to it.
+
+The following page renders a video stored in a `video` file field:
+
+```astro title="src/pages/videos/[slug].astro (excerpt)"
+---
+import { getEmDashEntry } from "emdash";
+
+const { entry, error } = await getEmDashEntry("videos", Astro.params.slug);
+if (error) return new Response("Unable to load video", { status: 500 });
+if (!entry) return Astro.rewrite("/404");
+
+const file = entry.data.video;
+const storageKey = typeof file?.meta?.storageKey === "string" ? file.meta.storageKey : undefined;
+const url = storageKey
+  ? Astro.locals.emdash?.getPublicMediaUrl?.(storageKey)
+  : file?.provider === "external"
+    ? file.src
+    : file?.url;
+---
+
+{url && <video src={url} controls preload="metadata" />}
+```
+
+The same URL works for a download link or any other element that needs the file's address. The
+filename, MIME type, and size in the value are the ones stored when the file was selected.
 
 ## Configure storage and providers
 

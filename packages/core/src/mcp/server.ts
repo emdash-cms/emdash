@@ -31,14 +31,17 @@ import {
 } from "#api/schemas.js";
 
 import { after } from "../after.js";
+import { entryEditAccess } from "../api/authorize.js";
 import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
 import { menuTag, siteSettingsTag, taxonomyTag } from "../cache/chrome-tags.js";
+import { invalidateRouteCache } from "../cache/route-cache.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import { resolveConfiguredLocale } from "../i18n/config.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
 import {
 	TRANSFER_SCOPES,
@@ -49,6 +52,7 @@ import { readSiteWriteFence, recordSiteWrite } from "../transfer/fence.js";
 import { toSha256Digest } from "../transfer/format/digest.js";
 import { siteImportDecisionsInputSchema } from "../transfer/format/plan.js";
 import { decodeBase64, encodeBase64 } from "../utils/base64.js";
+import { pluginToolName } from "./plugin-tool-name.js";
 import {
 	analyzeImport,
 	exportStatus,
@@ -177,6 +181,10 @@ const settingsSeoSchema = z.object({
 		.max(5000)
 		.optional()
 		.describe("Custom robots.txt body. Leave unset for the EmDash default."),
+	disallowAiTraining: z
+		.boolean()
+		.optional()
+		.describe("Add robots.txt rules asking AI crawlers not to use the site for training"),
 	googleVerification: z
 		.string()
 		.max(100)
@@ -553,6 +561,14 @@ function isPublished(t: unknown): boolean {
 	);
 }
 
+function isEntry(t: unknown, idOrSlug: string): boolean {
+	return (
+		typeof t === "object" &&
+		t !== null &&
+		(("id" in t && t.id === idOrSlug) || ("slug" in t && t.slug === idOrSlug))
+	);
+}
+
 function getExtra(extra: { authInfo?: { extra?: Record<string, unknown> } }): EmDashExtra {
 	const payload = extra.authInfo?.extra as EmDashExtra | undefined;
 	if (!payload?.emdash) {
@@ -577,8 +593,7 @@ async function unwrapAndInvalidate(
 	changedEarlier = false,
 ): Promise<SuccessEnvelope | ErrorEnvelope> {
 	if (result.success || changedEarlier) {
-		const { cache } = getExtra(extra);
-		if (cache?.enabled) await cache.invalidate({ tags });
+		await invalidateRouteCache(getExtra(extra).cache, tags);
 	}
 	return unwrap(result);
 }
@@ -828,6 +843,15 @@ async function refuseLockedEntry(
 	return refusal ? respondError(refusal.code, refusal.message, { ...refusal.details }) : null;
 }
 
+/** Extract the status from a content handler response. */
+function extractContentStatus(data: unknown): unknown {
+	if (!data || typeof data !== "object") return undefined;
+	const obj = data as Record<string, unknown>;
+	const item =
+		obj.item && typeof obj.item === "object" ? (obj.item as Record<string, unknown>) : obj;
+	return item?.status;
+}
+
 /** Extract the `_rev` token from a content handler response. */
 function extractContentRev(data: unknown): string | undefined {
 	if (!data || typeof data !== "object") return undefined;
@@ -905,10 +929,19 @@ export function createMcpServer(
 		)(name, config, wrapped);
 	}) as typeof server.registerTool;
 
+	const registeredPluginNames = new Set<string>();
 	for (const tool of pluginTools) {
 		if (!Object.hasOwn(Permissions, tool.permission)) continue;
+		const name = pluginToolName(tool.pluginId, tool.name);
+		if (registeredPluginNames.has(name)) {
+			console.warn(
+				`[emdash] Skipping duplicate MCP tool name ${name} from ${tool.pluginId}/${tool.name}`,
+			);
+			continue;
+		}
+		registeredPluginNames.add(name);
 		server.registerTool(
-			`${tool.pluginId}__${tool.name}`,
+			name,
 			{
 				description: tool.description,
 				inputSchema: tool.inputSchema,
@@ -1015,7 +1048,11 @@ export function createMcpServer(
 				orderBy: z
 					.string()
 					.optional()
-					.describe("Field to sort by (e.g. 'created_at', 'updated_at')"),
+					.describe(
+						"Field to sort by: 'createdAt' (default), 'updatedAt', 'publishedAt', 'scheduledAt', " +
+							"'slug', 'status', 'locale', or a field slug that is indexed or set as the " +
+							"collection's titleField or dateField",
+					),
 				order: z.enum(["asc", "desc"]).optional().describe("Sort direction (default 'desc')"),
 				locale: z
 					.string()
@@ -1110,6 +1147,15 @@ export function createMcpServer(
 						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
 					});
 				}
+				// handleContentGet overlays the draft revision onto item.data and
+				// moves the published values to item.liveData.
+				if (item) {
+					if (item.liveData && typeof item.liveData === "object") {
+						item.data = item.liveData;
+					}
+					delete item.liveData;
+					delete item.draftRevisionId;
+				}
 			}
 			if (result.success && args.markdown && result.data?.item) {
 				await applyReadMarkdown(ec, args.collection, [result.data.item]);
@@ -1130,7 +1176,8 @@ export function createMcpServer(
 				"this. Pass a Portable Text JSON array only for complex content Markdown " +
 				"can't express (custom blocks, embeds). A slug is auto-generated if not " +
 				"provided. Items are created as 'draft' by default — use content_publish " +
-				"to make them live.",
+				"or pass status='published' to make them live. `seo` and `publishedAt` " +
+				"can be set in the same call; `publishedAt` requires content:publish_any.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug (e.g. 'posts', 'pages')"),
 				data: z
@@ -1171,6 +1218,18 @@ export function createMcpServer(
 					.describe(
 						"Taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Call taxonomy_list to see available taxonomies and taxonomy_list_terms to look up slugs. Missing keys leave that taxonomy unchanged.",
 					),
+				// Reuse the REST schema so `canonical` is gated through `httpUrl`,
+				// rejecting javascript:/data: URIs that would become stored XSS.
+				seo: contentSeoInput
+					.optional()
+					.describe(
+						"Per-content SEO metadata. Only valid for collections with SEO enabled (see schema_get_collection.hasSeo).",
+					),
+				publishedAt: contentDateTimeInputSchema
+					.nullish()
+					.describe(
+						"Override the publication timestamp (ISO 8601). Requires content:publish_any permission. Useful for content migrations.",
+					),
 			}),
 			annotations: { destructiveHint: false },
 		},
@@ -1179,6 +1238,19 @@ export function createMcpServer(
 			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId, userRole } = getExtra(extra);
 			const actor = { id: userId, role: userRole };
+
+			// Writing publishedAt directly (including clearing to null) overwrites
+			// historical record — gate behind publish_any, mirroring the REST POST
+			// route and the MCP content_update tool.
+			if (args.publishedAt !== undefined) {
+				const user = { id: userId, role: userRole };
+				if (!hasPermission(user, "content:publish_any")) {
+					throw new EmDashAuthError(
+						"Setting publishedAt requires content:publish_any permission",
+						"INSUFFICIENT_PERMISSIONS",
+					);
+				}
+			}
 
 			// Creating a translation requires edit permission on the source item
 			if (args.translationOf) {
@@ -1213,6 +1285,8 @@ export function createMcpServer(
 					taxonomies: args.taxonomies,
 					migrateBlocks: args.migrateBlocks,
 					replaceBlocks: args.replaceBlocks,
+					seo: args.seo,
+					publishedAt: args.publishedAt,
 					actor,
 				});
 				if (!result.success) return unwrap(result);
@@ -1221,6 +1295,7 @@ export function createMcpServer(
 					return unwrapAndInvalidate(
 						extra,
 						await emdash.handleContentPublish(args.collection, itemId, {
+							publishedAt: args.publishedAt ?? undefined,
 							actor: { ...actor, source: "mcp" },
 							origin: { source: "mcp" },
 						}),
@@ -1228,11 +1303,10 @@ export function createMcpServer(
 						true,
 					);
 				}
-				return unwrapAndInvalidate(extra, result, [args.collection]);
+				return unwrap(result);
 			}
 
-			return unwrapAndInvalidate(
-				extra,
+			return unwrap(
 				await emdash.handleContentCreate(args.collection, {
 					data,
 					slug: args.slug,
@@ -1243,9 +1317,10 @@ export function createMcpServer(
 					taxonomies: args.taxonomies,
 					migrateBlocks: args.migrateBlocks,
 					replaceBlocks: args.replaceBlocks,
+					seo: args.seo,
+					publishedAt: args.publishedAt,
 					actor,
 				}),
-				[args.collection],
 			);
 		},
 	);
@@ -1329,7 +1404,7 @@ export function createMcpServer(
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:write");
-			requireRole(extra, Role.AUTHOR);
+			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId, userRole } = getExtra(extra);
 			const actor = { id: userId, role: userRole };
 
@@ -1339,7 +1414,17 @@ export function createMcpServer(
 				return unwrap(existing);
 			}
 			const ownerId = extractContentAuthorId(existing.data);
-			requireOwnership(extra, ownerId, "content:edit_own", "content:edit_any");
+			if (
+				!entryEditAccess(
+					{ id: userId, role: userRole },
+					{ authorId: ownerId, status: extractContentStatus(existing.data) },
+				)
+			) {
+				throw new EmDashAuthError(
+					"Insufficient permissions for this operation",
+					"INSUFFICIENT_PERMISSIONS",
+				);
+			}
 
 			const data = args.data
 				? await convertWriteData(emdash, args.collection, args.data)
@@ -1892,11 +1977,7 @@ export function createMcpServer(
 				"content:edit_any",
 			);
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrapAndInvalidate(
-				extra,
-				await emdash.handleContentDuplicate(args.collection, resolvedId, userId),
-				[args.collection],
-			);
+			return unwrap(await emdash.handleContentDuplicate(args.collection, resolvedId, userId));
 		},
 	);
 
@@ -1920,6 +2001,8 @@ export function createMcpServer(
 			const result = await ec.handleContentTranslations(args.collection, args.id);
 			// Filter out non-published translations for users without draft
 			// access so a subscriber can't enumerate locales that aren't yet live.
+			// The requested entry is one of the translations; if it isn't
+			// published, report it as not found so its id or slug can't be probed.
 			if (result.success && !canReadDrafts(extra)) {
 				const data =
 					result.data && typeof result.data === "object"
@@ -1928,6 +2011,12 @@ export function createMcpServer(
 						: undefined;
 				const translations = Array.isArray(data?.translations) ? data.translations : [];
 				const filtered = translations.filter(isPublished);
+				if (!filtered.some((t) => isEntry(t, args.id))) {
+					return unwrap({
+						success: false,
+						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
+					});
+				}
 				return unwrap({
 					success: true,
 					data: { ...data, translations: filtered },
@@ -2015,8 +2104,10 @@ export function createMcpServer(
 			description:
 				"Create a new byline (author/contributor credit). The slug must be unique " +
 				"and contain only lowercase letters, digits, and hyphens. Link the byline " +
-				"to a CMS user via userId, or leave it as a standalone guest credit. The " +
-				"returned id can then be passed to content_create/content_update bylines.",
+				"to a CMS user via userId, or leave it as a standalone guest credit. A " +
+				"translation created with translationOf keeps the source's userId unless " +
+				"you pass one; pass null to leave it unlinked. The returned id can then be " +
+				"passed to content_create/content_update bylines.",
 			inputSchema: z.object({ ...bylineCreateBody.shape }),
 			annotations: { destructiveHint: false },
 		},
@@ -3117,7 +3208,8 @@ export function createMcpServer(
 					if (
 						!cursorTerm ||
 						cursorTerm.name !== args.taxonomy ||
-						(args.locale !== undefined && cursorTerm.locale !== args.locale)
+						(args.locale !== undefined &&
+							resolveConfiguredLocale(cursorTerm.locale) !== resolveConfiguredLocale(args.locale))
 					) {
 						return respondError("INVALID_CURSOR", "Pagination cursor no longer identifies a term");
 					}
@@ -3690,7 +3782,9 @@ export function createMcpServer(
 			title: "Update Site Settings",
 			description:
 				"Update one or more site-wide settings. This is a partial update: only " +
-				"the fields provided are changed; omitted fields are left as-is. Returns " +
+				"the fields provided are changed; omitted fields are left as-is, including " +
+				"fields inside `seo` and `social`. Send an empty string to clear a text " +
+				"field. Returns " +
 				"the full settings object after the update. To set a media reference " +
 				"(logo, favicon, seo.defaultOgImage), pass an object with `mediaId` " +
 				"(and optional `alt`) — the media item must already exist (use " +

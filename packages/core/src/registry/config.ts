@@ -13,35 +13,23 @@ import type { RegistryConfig, RegistryConfigInput, RegistryConfigOption } from "
 
 export const DEFAULT_REGISTRY_AGGREGATOR_URL = "https://registry.emdashcms.com";
 
-export interface ResolvedRegistryConfigInput {
-	input?: RegistryConfigInput;
-	fieldPrefix: RegistryConfigurationPrefix;
-}
-
 export function resolveRegistryConfigForSandbox(options: {
 	registry?: RegistryConfigOption;
-	experimentalRegistry?: RegistryConfigInput;
 	sandboxRunner?: string;
 	sandboxEnabled?: boolean;
-}): ResolvedRegistryConfigInput {
-	if (options.registry === false) return { fieldPrefix: "registry" };
-	if (options.registry !== undefined) {
-		return { input: options.registry, fieldPrefix: "registry" };
-	}
-	if (options.experimentalRegistry !== undefined) {
-		return { input: options.experimentalRegistry, fieldPrefix: "experimental.registry" };
-	}
+}): RegistryConfigInput | undefined {
+	if (options.registry === false) return undefined;
+	if (options.registry !== undefined) return options.registry;
 	if (options.sandboxRunner && options.sandboxEnabled !== false) {
-		return { input: DEFAULT_REGISTRY_AGGREGATOR_URL, fieldPrefix: "registry" };
+		return DEFAULT_REGISTRY_AGGREGATOR_URL;
 	}
-	return { fieldPrefix: "registry" };
+	return undefined;
 }
 
 export function getRegistryConfigInput(
 	registry: RegistryConfigOption | undefined,
-	experimentalRegistry: RegistryConfigInput | undefined,
 ): RegistryConfigInput | undefined {
-	return resolveRegistryConfigForSandbox({ registry, experimentalRegistry }).input;
+	return registry === false ? undefined : registry;
 }
 
 /**
@@ -80,15 +68,12 @@ export type RegistryConfigurationErrorCode =
 	| "REGISTRY_MINIMUM_RELEASE_AGE_INVALID"
 	| "REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID";
 
-export type RegistryConfigurationPrefix = "registry" | "experimental.registry";
-
 type RegistryConfigurationFieldSuffix =
 	| "aggregatorUrl"
 	| "policy.minimumReleaseAge"
 	| "policy.minimumReleaseAgeExclude";
 
-export type RegistryConfigurationField =
-	`${RegistryConfigurationPrefix}.${RegistryConfigurationFieldSuffix}`;
+export type RegistryConfigurationField = `registry.${RegistryConfigurationFieldSuffix}`;
 
 export interface ManifestRegistryConfigurationError {
 	code: RegistryConfigurationErrorCode;
@@ -109,14 +94,10 @@ class RegistryConfigurationError extends Error {
 
 export interface RegistryConfigurationValidationOptions {
 	allowLocalhost?: boolean;
-	fieldPrefix?: RegistryConfigurationPrefix;
 }
 
-function registryField(
-	options: RegistryConfigurationValidationOptions,
-	suffix: RegistryConfigurationFieldSuffix,
-): RegistryConfigurationField {
-	return `${options.fieldPrefix ?? "experimental.registry"}.${suffix}`;
+function registryField(suffix: RegistryConfigurationFieldSuffix): RegistryConfigurationField {
+	return `registry.${suffix}`;
 }
 
 /**
@@ -257,7 +238,7 @@ export function validateAggregatorUrl(
 	} catch (cause) {
 		throw new RegistryConfigurationError(
 			"REGISTRY_AGGREGATOR_URL_INVALID",
-			registryField(options, "aggregatorUrl"),
+			registryField("aggregatorUrl"),
 			"must be a valid URL",
 			{ cause },
 		);
@@ -265,7 +246,7 @@ export function validateAggregatorUrl(
 	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
 		throw new RegistryConfigurationError(
 			"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
-			registryField(options, "aggregatorUrl"),
+			registryField("aggregatorUrl"),
 			"must use HTTP or HTTPS",
 		);
 	}
@@ -277,7 +258,7 @@ export function validateAggregatorUrl(
 	if (parsed.username || parsed.password) {
 		throw new RegistryConfigurationError(
 			"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
-			registryField(options, "aggregatorUrl"),
+			registryField("aggregatorUrl"),
 			"must not contain embedded credentials",
 		);
 	}
@@ -304,21 +285,21 @@ export function validateAggregatorUrl(
 		if (parsed.protocol === "http:") {
 			throw new RegistryConfigurationError(
 				"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
-				registryField(options, "aggregatorUrl"),
+				registryField("aggregatorUrl"),
 				"must use HTTPS outside development",
 			);
 		}
 		if (isLocalhost) {
 			throw new RegistryConfigurationError(
 				"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
-				registryField(options, "aggregatorUrl"),
+				registryField("aggregatorUrl"),
 				"must not point at localhost outside development",
 			);
 		}
 	} else if (parsed.protocol === "http:" && !isLocalhost) {
 		throw new RegistryConfigurationError(
 			"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
-			registryField(options, "aggregatorUrl"),
+			registryField("aggregatorUrl"),
 			"must use HTTPS unless it points at localhost in development",
 		);
 	}
@@ -372,7 +353,7 @@ export function normalizeRegistryConfig(
 	if (!aggregatorUrl) {
 		throw new RegistryConfigurationError(
 			"REGISTRY_AGGREGATOR_URL_REQUIRED",
-			registryField(options, "aggregatorUrl"),
+			registryField("aggregatorUrl"),
 			"is required when the registry is configured",
 		);
 	}
@@ -398,7 +379,7 @@ export function normalizeRegistryConfig(
 		} catch (cause) {
 			throw new RegistryConfigurationError(
 				"REGISTRY_MINIMUM_RELEASE_AGE_INVALID",
-				registryField(options, "policy.minimumReleaseAge"),
+				registryField("policy.minimumReleaseAge"),
 				'must be a duration such as "48h", "7d", or a non-negative number of seconds',
 				{ cause },
 			);
@@ -410,7 +391,7 @@ export function normalizeRegistryConfig(
 		if (!Array.isArray(config.policy.minimumReleaseAgeExclude)) {
 			throw new RegistryConfigurationError(
 				"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
-				registryField(options, "policy.minimumReleaseAgeExclude"),
+				registryField("policy.minimumReleaseAgeExclude"),
 				"must be an array of DIDs or <did>/<slug> entries",
 			);
 		}
@@ -421,7 +402,7 @@ export function normalizeRegistryConfig(
 			if (typeof entry !== "string") {
 				throw new RegistryConfigurationError(
 					"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
-					registryField(options, "policy.minimumReleaseAgeExclude"),
+					registryField("policy.minimumReleaseAgeExclude"),
 					"minimumReleaseAgeExclude entry must be a DID or <did>/<slug>",
 				);
 			}
@@ -429,7 +410,7 @@ export function normalizeRegistryConfig(
 			if (!trimmed) {
 				throw new RegistryConfigurationError(
 					"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
-					registryField(options, "policy.minimumReleaseAgeExclude"),
+					registryField("policy.minimumReleaseAgeExclude"),
 					"entries cannot be empty",
 				);
 			}
@@ -443,7 +424,7 @@ export function normalizeRegistryConfig(
 			) {
 				throw new RegistryConfigurationError(
 					"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
-					registryField(options, "policy.minimumReleaseAgeExclude"),
+					registryField("policy.minimumReleaseAgeExclude"),
 					"minimumReleaseAgeExclude entry must be a DID or <did>/<slug>",
 				);
 			}

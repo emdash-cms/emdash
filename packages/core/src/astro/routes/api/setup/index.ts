@@ -17,6 +17,7 @@ import { OptionsRepository } from "#db/repositories/options.js";
 import { applySeedWithinBudget, type SeedApplyBudget } from "#seed/apply.js";
 import { loadSeed } from "#seed/load.js";
 import { validateSeed } from "#seed/validate.js";
+import { setSiteSettings } from "#settings/index.js";
 
 /**
  * What one setup request may spend on the seed before the rest continues in
@@ -54,8 +55,20 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 		const configuredSiteUrl = getConfiguredOrigin(emdash.config);
 		const loopbackHost =
 			url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]";
-		const siteUrl =
-			configuredSiteUrl ?? (import.meta.env.DEV && loopbackHost ? url.origin : undefined);
+		// On Cloudflare's network a Worker only receives requests for hostnames bound
+		// to it, each with an edge TLS certificate. `astro dev` runs in workerd
+		// without that guarantee, so development keeps the loopback-only rule.
+		const onCloudflareWorkers =
+			typeof navigator !== "undefined" &&
+			typeof navigator.userAgent === "string" &&
+			navigator.userAgent.includes("Cloudflare-Workers");
+		let requestOrigin: string | undefined;
+		if (import.meta.env.DEV) {
+			if (loopbackHost) requestOrigin = url.origin;
+		} else if (onCloudflareWorkers) {
+			requestOrigin = `https://${url.hostname}`;
+		}
+		const siteUrl = configuredSiteUrl ?? requestOrigin;
 		if (!siteUrl) {
 			return apiError(
 				"SITE_URL_REQUIRED",
@@ -100,6 +113,12 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 			return handleError(error, "Failed to apply seed", "SEED_ERROR");
 		}
 		const { result, complete: seedComplete, progress: seedProgress } = seeded;
+
+		if (seedComplete) {
+			// The seed only fills settings that are still unset, and the runtime
+			// has usually auto-seeded the template's title and tagline already.
+			await setSiteSettings({ title: body.title, tagline: body.tagline }, emdash.db);
+		}
 
 		// Store setup state
 		// In external auth mode, mark setup complete immediately (first user to login becomes admin)

@@ -176,7 +176,7 @@
 					"type": "component",
 					"componentId": "core:recent-posts",
 					"title": "Recent Posts",
-					"settings": {
+					"props": {
 						"count": 5,
 						"showDate": true
 					}
@@ -185,7 +185,7 @@
 					"type": "component",
 					"componentId": "core:archives",
 					"title": "Archives",
-					"settings": {
+					"props": {
 						"type": "monthly",
 						"limit": 6
 					}

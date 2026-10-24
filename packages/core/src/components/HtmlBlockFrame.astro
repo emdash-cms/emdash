@@ -1,0 +1,63 @@
+---
+/**
+ * Sandboxed frame for an isolated HTML block. Its height follows the content.
+ */
+import { HTML_BLOCK_FRAME_SANDBOX, buildHtmlBlockFrame } from "@emdash-cms/admin/html-block";
+
+export interface Props {
+	html: string;
+	css: string;
+	js: string;
+}
+
+const MARKUP_RE = /[&"<>]/g;
+const ENTITIES: Record<string, string> = { "&": "&amp;", '"': "&quot;", "<": "&lt;", ">": "&gt;" };
+
+// Astro leaves `<` and `>` unescaped in attributes. Middleware that finds
+// `</body>` by searching the page's text could then match one inside `srcdoc`
+// and break the tag, dropping its sandbox.
+const srcdoc = buildHtmlBlockFrame(Astro.props).replace(MARKUP_RE, (char) => ENTITIES[char] ?? char);
+const frame = `<iframe class="emdash-html-block" data-emdash-html-block srcdoc="${srcdoc}" sandbox="${HTML_BLOCK_FRAME_SANDBOX}" title="Embedded HTML"></iframe>`;
+---
+
+<Fragment set:html={frame} />
+
+<script>
+	import {
+		HTML_BLOCK_FRAME_MAX_HEIGHT,
+		HTML_BLOCK_FRAME_MESSAGE,
+	} from "@emdash-cms/admin/html-block";
+
+	const frames = () =>
+		document.querySelectorAll<HTMLIFrameElement>("iframe[data-emdash-html-block]");
+
+	window.addEventListener("message", (event) => {
+		const data: unknown = event.data;
+		if (typeof data !== "object" || data === null) return;
+		if (!("type" in data) || data.type !== HTML_BLOCK_FRAME_MESSAGE) return;
+		if (!("height" in data) || typeof data.height !== "number" || !Number.isFinite(data.height)) {
+			return;
+		}
+		const height = Math.min(Math.max(data.height, 0), HTML_BLOCK_FRAME_MAX_HEIGHT);
+		for (const frame of frames()) {
+			if (frame.contentWindow === event.source) {
+				frame.style.height = `${height}px`;
+				return;
+			}
+		}
+	});
+
+	// Frames can load before this module runs, so ask each one for its height.
+	for (const frame of frames()) {
+		frame.contentWindow?.postMessage({ type: HTML_BLOCK_FRAME_MESSAGE }, "*");
+	}
+</script>
+
+<style is:global>
+	iframe[data-emdash-html-block] {
+		display: block;
+		width: 100%;
+		border: 0;
+		margin: 1.5rem 0;
+	}
+</style>

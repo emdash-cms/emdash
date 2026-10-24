@@ -24,13 +24,13 @@ function resolveRoute(route: string): string {
 	const __dirname = dirname(fileURLToPath(import.meta.url));
 
 	// .astro routes ship as source (the consumer's Astro build processes them);
-	// .ts/.tsx routes are compiled, exported extensionless via emdash/routes/*.
+	// .ts/.tsx routes are compiled, exported extensionless via emdash/internal/routes/*.
 	const isAstro = route.endsWith(".astro");
 	const specifier = isAstro ? route : routeArtifactName(route.replace(TS_EXT, ""));
 
 	try {
 		// Try to resolve as package export
-		return require.resolve(`emdash/routes/${specifier}`);
+		return require.resolve(`emdash/internal/routes/${specifier}`);
 	} catch {
 		// Fallback for development (e.g. dist not yet built).
 		return isAstro
@@ -44,6 +44,7 @@ type InjectRoute = (route: { pattern: string; entrypoint: string }) => void;
 
 interface InjectCoreRoutesOptions {
 	srcDir?: URL;
+	cloudflareDevScheduler?: boolean;
 }
 
 const ROUTE_OVERRIDE_EXTENSIONS = [
@@ -124,6 +125,11 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/dashboard",
 		entrypoint: resolveRoute("api/dashboard.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/calendar",
+		entrypoint: resolveRoute("api/calendar.ts"),
 	});
 
 	injectRoute({
@@ -478,6 +484,21 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/settings/email",
 		entrypoint: resolveRoute("api/settings/email.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/settings/domain",
+		entrypoint: resolveRoute("api/settings/domain.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/settings/domain/notify",
+		entrypoint: resolveRoute("api/settings/domain-notify.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/site/domain-proof",
+		entrypoint: resolveRoute("api/site/domain-proof.ts"),
 	});
 
 	// Backup routes
@@ -1080,6 +1101,13 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/dev/emails.ts"),
 	});
 
+	if (options.cloudflareDevScheduler) {
+		injectRoute({
+			pattern: "/_emdash/api/dev/scheduled-tasks",
+			entrypoint: resolveRoute("api/dev/scheduled-tasks.ts"),
+		});
+	}
+
 	// Current user endpoint (always available)
 	injectRoute({
 		pattern: "/_emdash/api/auth/me",
@@ -1198,6 +1226,11 @@ export function injectBuiltinAuthRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/auth/magic-link/verify",
 		entrypoint: resolveRoute("api/auth/magic-link/verify.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/auth/handover",
+		entrypoint: resolveRoute("api/auth/handover.ts"),
 	});
 
 	// OAuth routes

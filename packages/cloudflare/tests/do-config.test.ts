@@ -8,7 +8,7 @@ describe("d1()", () => {
 		expect(result.supportsRequestScope).toBe(true);
 		expect(result.supportsCoalescing).toBe(true);
 		expect(result.migrations).toEqual({
-			entrypoint: "@emdash-cms/cloudflare/db/d1-migrations",
+			entrypoint: "@emdash-cms/cloudflare/internal/db/d1-migrations",
 			manifestConfig: { binding: "DB" },
 		});
 	});

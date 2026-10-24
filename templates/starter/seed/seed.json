@@ -145,7 +145,7 @@
 					"type": "component",
 					"componentId": "core:recent-posts",
 					"title": "Recent Posts",
-					"settings": {
+					"props": {
 						"count": 5
 					}
 				}

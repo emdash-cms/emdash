@@ -5,11 +5,11 @@ description: Deploy EmDash to a long-running Node.js server with persistent data
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash runs on Node.js 22.16 or later. This guide uses SQLite and local storage for one server. Use PostgreSQL or libSQL when several instances need one database, and S3-compatible storage when media must survive independently of the server disk.
+This guide uses SQLite and local storage for one server. Use PostgreSQL or libSQL when several instances need one database, and S3-compatible storage when media must survive independently of the server disk.
 
 ## Prerequisites
 
-- Node.js v22.16.0 or higher
+- Node.js v22.23.4 or higher (v22.16.0 is enough on Astro 7.3 or earlier)
 - A Node.js hosting provider or VPS
 
 <Aside>
@@ -42,6 +42,16 @@ export default defineConfig({
 	],
 });
 ```
+
+## Reverse proxies and HTTPS
+
+When the Node process sits behind a reverse proxy that terminates TLS, internal requests arrive over HTTP while visitors reach the site over HTTPS. Set the public origin with `EMDASH_SITE_URL` or `SITE_URL` so EmDash builds correct absolute URLs:
+
+```bash
+export EMDASH_SITE_URL=https://example.com
+```
+
+Set the variable both where `npm run build` runs and where the server runs. The build uses it to enable image optimization for locally stored media. If it is missing at build time, images are served as unoptimized originals instead of through Astro's `/_image` endpoint. See [`siteUrl`](/reference/configuration/#siteurl) for how EmDash resolves the public origin.
 
 ## Build and run
 
@@ -202,6 +212,7 @@ See [Secrets and key management](/deployment/secrets/) for the key format, every
 
 | Variable               | Description             | Example                    |
 | ---------------------- | ----------------------- | -------------------------- |
+| `EMDASH_SITE_URL`      | Public site origin      | `https://example.com`      |
 | `DATABASE_PATH`        | Path to SQLite database | `/data/emdash.db`        |
 | `HOST`                 | Server host             | `0.0.0.0`                  |
 | `PORT`                 | Server port             | `4321`                     |

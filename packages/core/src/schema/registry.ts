@@ -10,6 +10,7 @@ import { sql } from "kysely";
 import { ulid } from "ulidx";
 
 import { refreshDevTypes } from "../astro/dev-typegen.js";
+import { deleteSharedCollectionRecords } from "../database/collection-cleanup.js";
 import {
 	columnExists,
 	currentTimestamp,
@@ -37,6 +38,7 @@ import {
 	invalidateContentMediaUsageSchemaChange,
 	markContentMediaUsageCollectionStaleSafely,
 } from "../media/usage/content-refresh.js";
+import { finishMediaUsageCollectionDeletion } from "../media/usage/maintenance-engine.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { getPortableTableSpec } from "../transfer/format/columns.js";
 import { canonicalDigest } from "../transfer/format/digest.js";
@@ -49,6 +51,7 @@ import type {
 } from "../transfer/schema-importer.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { resetRegisteredCollectionsCache } from "./collection-slugs-cache.js";
+import { MAX_SCHEMA_SLUG_LENGTH, SCHEMA_SLUG_PATTERN } from "./slug.js";
 import {
 	type Collection,
 	type CollectionAdminConfig,
@@ -75,7 +78,6 @@ import {
 import { compileUrlPattern } from "./url-pattern.js";
 
 // Regex patterns for schema registry
-const SLUG_VALIDATION_PATTERN = /^[a-z][a-z0-9_]*$/;
 const EC_PREFIX_PATTERN = /^ec_/;
 const SINGLE_QUOTE_PATTERN = /'/g;
 const UNDERSCORE_PATTERN = /_/g;
@@ -319,6 +321,13 @@ export class SchemaError extends Error {
 	}
 }
 
+function collectionBeingDeletedError(slug: string): SchemaError {
+	return new SchemaError(
+		`Collection "${slug}" is being deleted. Try again shortly.`,
+		"COLLECTION_EXISTS",
+	);
+}
+
 /**
  * Schema Registry
  *
@@ -333,6 +342,19 @@ export class SchemaRegistry {
 	 */
 	private notifyTypegen(): void {
 		refreshDevTypes();
+	}
+
+	/** A deleted collection's slug stays taken until its media usage cleanup finalizes. */
+	private async finishPendingDeletion(slug: string): Promise<void> {
+		const deletion = await finishMediaUsageCollectionDeletion(this.db, slug);
+		if (deletion.state === "failed") {
+			throw new SchemaError(
+				`Deleting the previous collection "${slug}" failed. Retry it by sending {"collectionId":"${deletion.collectionId}"} to POST /_emdash/api/admin/media-usage/collection-deletions/retry, then create the collection again.`,
+				"COLLECTION_EXISTS",
+				{ deletedCollectionId: deletion.collectionId },
+			);
+		}
+		if (deletion.state === "pending") throw collectionBeingDeletedError(slug);
 	}
 
 	// ============================================
@@ -499,14 +521,12 @@ export class SchemaRegistry {
 		if (RESERVED_COLLECTION_SLUGS.includes(input.slug)) {
 			throw new SchemaError(`Collection slug "${input.slug}" is reserved`, "RESERVED_SLUG");
 		}
-		if (await isMediaUsageCollectionSlugDeleting(this.db, input.slug)) {
-			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
-		}
+		await this.finishPendingDeletion(input.slug);
 
 		// Check if collection already exists
 		const existing = await this.getCollection(input.slug);
 		if (await isMediaUsageCollectionSlugDeleting(this.db, input.slug)) {
-			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
+			throw collectionBeingDeletedError(input.slug);
 		}
 		if (
 			existing &&
@@ -627,9 +647,6 @@ export class SchemaRegistry {
 		if (RESERVED_COLLECTION_SLUGS.includes(input.slug)) {
 			throw new SchemaError(`Collection slug "${input.slug}" is reserved`, "RESERVED_SLUG");
 		}
-		if (await isMediaUsageCollectionSlugDeleting(this.db, input.slug)) {
-			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
-		}
 
 		const fieldSlugs = new Set<string>();
 		const normalizedFields: CreateFieldInput[] = [];
@@ -669,9 +686,10 @@ export class SchemaRegistry {
 			input,
 			normalizedFields,
 		);
+		await this.finishPendingDeletion(input.slug);
 		const existing = await this.getCollection(input.slug);
 		if (await isMediaUsageCollectionSlugDeleting(this.db, input.slug)) {
-			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
+			throw collectionBeingDeletedError(input.slug);
 		}
 		if (
 			existing &&
@@ -1194,10 +1212,17 @@ export class SchemaRegistry {
 				const ftsManager = new FTSManager(trx);
 				await ftsManager.dropFtsTable(slug);
 
-				// Drop the content table
+				// Drop the content table first: ec_* rows hold foreign keys to
+				// revisions.id, so the content table must go before revisions can
+				// be removed.
 				const tableName = this.getTableName(slug);
 				await sql`DROP TABLE IF EXISTS ${sql.ref(tableName)}`.execute(trx);
 				contentTableDropped = true;
+
+				// Remove shared-table records that are keyed by collection slug.
+				// Dropping the content table or deleting the collection row does not
+				// cascade to these, so they have to be cleared explicitly.
+				await deleteSharedCollectionRecords(trx, slug);
 
 				// Delete the collection record (fields will cascade)
 				await trx.deleteFrom("_emdash_collections").where("id", "=", existing.id).execute();
@@ -1299,6 +1324,7 @@ export class SchemaRegistry {
 		);
 
 		let schemaMutated = false;
+		let fieldStorageReady = false;
 		try {
 			const created = await withTransaction(this.db, async (trx) => {
 				// Insert field record
@@ -1342,6 +1368,8 @@ export class SchemaRegistry {
 					);
 				}
 
+				fieldStorageReady = true;
+
 				if (input.indexed) {
 					await this.createFieldIndex(collectionSlug, id, input.slug, trx);
 				}
@@ -1380,6 +1408,12 @@ export class SchemaRegistry {
 			return created;
 		} catch (error) {
 			if (schemaMutated) {
+				// D1 cannot roll back the insert when ADD COLUMN fails. Once storage
+				// exists, later failures must not remove its field metadata.
+				if (!fieldStorageReady) {
+					await this.db.deleteFrom("_emdash_fields").where("id", "=", id).execute();
+				}
+
 				if (activeCoverageInvalidated) {
 					await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
 				} else {
@@ -2314,15 +2348,18 @@ export class SchemaRegistry {
 			throw new SchemaError(`${type} slug is required`, "INVALID_SLUG");
 		}
 
-		if (!SLUG_VALIDATION_PATTERN.test(slug)) {
+		if (!SCHEMA_SLUG_PATTERN.test(slug)) {
 			throw new SchemaError(
 				`${type} slug must start with a letter and contain only lowercase letters, numbers, and underscores`,
 				"INVALID_SLUG",
 			);
 		}
 
-		if (slug.length > 63) {
-			throw new SchemaError(`${type} slug must be 63 characters or less`, "INVALID_SLUG");
+		if (slug.length > MAX_SCHEMA_SLUG_LENGTH) {
+			throw new SchemaError(
+				`${type} slug must be ${MAX_SCHEMA_SLUG_LENGTH} characters or less`,
+				"INVALID_SLUG",
+			);
 		}
 	}
 

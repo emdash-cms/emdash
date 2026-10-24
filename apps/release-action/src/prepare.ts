@@ -12,7 +12,7 @@ import { computeMultihash } from "@emdash-cms/registry-verification/checksum";
 const MAX_PROVENANCE_BYTES = 5 * 1024 * 1024;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const WORKFLOW_REF_PATTERN =
-	/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9._/-]+$/;
+	/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9.@_/-]+$/;
 
 export class ReleasePreparationError extends Error {
 	constructor(message: string) {

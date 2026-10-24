@@ -56,6 +56,7 @@ import {
 } from "../lib/api/registry.js";
 import { renderMarkdown } from "../lib/markdown.js";
 import { registryIdentity } from "../lib/registry-identity.js";
+import { formatDate } from "../lib/utils.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
@@ -70,7 +71,7 @@ export interface RegistryPluginDetailProps {
 }
 
 export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const queryClient = useQueryClient();
 	const [showConsent, setShowConsent] = React.useState(false);
 	const [mcpConsentTools, setMcpConsentTools] = React.useState<PluginMcpConsentTool[]>([]);
@@ -578,12 +579,16 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 							{lastUpdated ? (
 								<div className="flex items-center gap-1">
 									<dt className="font-medium">{t`Updated`}</dt>
-									<dd>{formatDate(lastUpdated)}</dd>
+									<dd>
+										<bdi>{formatRegistryDate(lastUpdated, i18n.locale)}</bdi>
+									</dd>
 								</div>
 							) : null}
 							<div className="flex items-center gap-1">
 								<dt className="font-medium">{t`Indexed`}</dt>
-								<dd>{formatDate(release.indexedAt)}</dd>
+								<dd>
+									<bdi>{formatRegistryDate(release.indexedAt, i18n.locale)}</bdi>
+								</dd>
 							</div>
 						</dl>
 					) : null}
@@ -781,7 +786,11 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 									</a>
 								) : null}
 								{a.email ? (
-									<a href={`mailto:${a.email}`} className="text-kumo-link hover:underline">
+									<a
+										href={`mailto:${a.email}`}
+										dir="ltr"
+										className="text-kumo-link hover:underline"
+									>
 										{a.email}
 									</a>
 								) : null}
@@ -803,13 +812,18 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 								className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
 							>
 								{c.email ? (
-									<a href={`mailto:${c.email}`} className="text-kumo-link hover:underline">
+									<a
+										href={`mailto:${c.email}`}
+										dir="ltr"
+										className="text-kumo-link hover:underline"
+									>
 										{c.email}
 									</a>
 								) : null}
 								{c.url ? (
 									<a
 										href={c.url}
+										dir="ltr"
 										target="_blank"
 										rel="noreferrer"
 										className="text-kumo-link hover:underline"
@@ -933,9 +947,10 @@ function envLabel(key: string): string {
 	return key.startsWith("env:") ? key.slice("env:".length) : key;
 }
 
-function formatDate(iso: string): string {
+/** Registry timestamps come from a third party: show the raw value rather than throw on a bad one. */
+function formatRegistryDate(iso: string, locale: string): string {
 	try {
-		return new Date(iso).toLocaleDateString();
+		return formatDate(iso, locale, {});
 	} catch {
 		return iso;
 	}

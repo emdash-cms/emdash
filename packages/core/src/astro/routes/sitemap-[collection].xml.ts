@@ -1,7 +1,8 @@
 /**
  * Per-collection sitemap endpoint
  *
- * GET /sitemap-{collection}.xml - Sitemap for a single content collection.
+ * GET /sitemap-{collection}.xml - First page of a single collection's sitemap.
+ * GET /sitemap-{collection}-{n}.xml - Page n (2 and up) of that sitemap.
  *
  * Uses the collection's url_pattern to build URLs. Falls back to
  * /{collection}/{slug} when no pattern is configured.
@@ -26,6 +27,7 @@ import { getSiteSettingsWithDb } from "#settings/index.js";
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { resolveLocalizedContentRoutePath } from "../../i18n/resolve.js";
 import { buildSeoImageUrl } from "../../seo/media-url.js";
+import { parseCollectionSitemapName } from "../../seo/sitemap-name.js";
 
 export const prerender = false;
 
@@ -38,9 +40,19 @@ const APOS_RE = /'/g;
 
 export const GET: APIRoute = async ({ params, locals, url }) => {
 	const { emdash } = locals;
-	const collectionSlug = params.collection;
 
-	if (!emdash?.db || !collectionSlug) {
+	// The middleware skips runtime setup for names no collection can have, so
+	// this check must run before the configuration check below.
+	const parsed = params.collection ? parseCollectionSitemapName(params.collection) : null;
+	if (!parsed) {
+		return new Response("<!-- Sitemap not found -->", {
+			status: 404,
+			headers: { "Content-Type": "application/xml" },
+		});
+	}
+	const { collection: collectionSlug, page } = parsed;
+
+	if (!emdash?.db) {
 		return new Response("<!-- EmDash not configured -->", {
 			status: 500,
 			headers: { "Content-Type": "application/xml" },
@@ -54,7 +66,7 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 			"",
 		);
 
-		const result = await handleSitemapData(emdash.db, collectionSlug);
+		const result = await handleSitemapData(emdash.db, collectionSlug, { page });
 
 		if (!result.success || !result.data) {
 			return new Response("<!-- Failed to generate sitemap -->", {
@@ -88,6 +100,17 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 			} else {
 				ungrouped.push(entry);
 			}
+		}
+		// Translations listed on other pages still count as alternates here.
+		const alternatesByGroup = new Map<string, Entry[]>();
+		const all = [...col.entries, ...col.translations].toSorted((a, b) =>
+			a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+		);
+		for (const entry of all) {
+			if (!i18nEnabled || !entry.translationGroup) continue;
+			const list = alternatesByGroup.get(entry.translationGroup);
+			if (list) list.push(entry);
+			else alternatesByGroup.set(entry.translationGroup, [entry]);
 		}
 
 		// Resolve every URL up-front so we can reference sibling URLs
@@ -159,8 +182,7 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 				}
 
 				// x-default: prefer the default-locale sibling, otherwise
-				// the first sibling with a routable URL. Stable order:
-				// rows arrive sorted by updated_at DESC from the handler.
+				// the first sibling with a routable URL (siblings are sorted by ID).
 				const defaultSibling =
 					i18nConfig && alternateEntries.find((s) => s.locale === i18nConfig.defaultLocale);
 				let xDefaultLoc: string | null = null;
@@ -186,9 +208,10 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 			lines.push("  </url>");
 		};
 
-		for (const siblings of groups.values()) {
+		for (const [group, siblings] of groups) {
+			const alternates = alternatesByGroup.get(group) ?? siblings;
 			for (const entry of siblings) {
-				await writeUrl(entry, siblings);
+				await writeUrl(entry, alternates);
 			}
 		}
 		for (const entry of ungrouped) {

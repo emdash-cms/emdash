@@ -568,6 +568,59 @@ describe("searchPackages", () => {
 		expect(body.packages).toMatchObject([{ did: DID_A, slug: "gallery" }]);
 	});
 
+	it("falls back to FTS when a handle-shaped query does not resolve to a publisher", async () => {
+		await seedPackage({ slug: "atproto", keywords: ["standard.site"] });
+		await seedPackage({ slug: "forms" });
+
+		const res = await searchPackages(
+			env,
+			{ q: "standard.site" },
+			{ resolvePublisher: () => Promise.reject(new Error("no such handle")) },
+		);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+
+		expect(body.packages.map((pkg) => pkg.slug)).toEqual(["atproto"]);
+	});
+
+	it("falls back to FTS when a resolved publisher has no matching packages", async () => {
+		await seedPackage({ slug: "atproto", keywords: ["standard.site"] });
+
+		const res = await searchPackages(
+			env,
+			{ q: "standard.site" },
+			{ resolvePublisher: async () => ({ did: DID_B, handle: "standard.site" }) },
+		);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+
+		expect(body.packages.map((pkg) => pkg.slug)).toEqual(["atproto"]);
+	});
+
+	it("does not fall back to FTS for an exact handle and slug with no match", async () => {
+		await seedPackage({ slug: "gallery", keywords: ["publisher.example/nonexistent"] });
+
+		const res = await searchPackages(
+			env,
+			{ q: "publisher.example/nonexistent" },
+			{ resolvePublisher: async () => ({ did: DID_A, handle: "publisher.example" }) },
+		);
+
+		await expect(res.json()).resolves.toEqual({ packages: [] });
+	});
+
+	it("prefers publisher matches over FTS for a resolved handle", async () => {
+		await seedPackage({ slug: "gallery" });
+		await seedPackage({ did: DID_B, slug: "mentions", keywords: ["publisher.example"] });
+
+		const res = await searchPackages(
+			env,
+			{ q: "publisher.example" },
+			{ resolvePublisher: async () => ({ did: DID_A, handle: "publisher.example" }) },
+		);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+
+		expect(body.packages.map((pkg) => pkg.slug)).toEqual(["gallery"]);
+	});
+
 	it("returns FTS-matched packages", async () => {
 		await seedPackage({ slug: "gallery", name: "Gallery Plugin", description: "image gallery" });
 		await seedPackage({ slug: "form", name: "Form Plugin", description: "form builder" });
@@ -633,6 +686,44 @@ describe("searchPackages", () => {
 		expect(overlap).toEqual([]);
 	});
 
+	it("matches a partly typed last word as a prefix", async () => {
+		await seedPackage({ slug: "bulletin", name: "Bulletin", description: "Email newsletters" });
+		await seedPackage({ slug: "gallery", name: "Gallery", description: "Image gallery" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=${encodeURIComponent("email newslet")}`,
+		);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+
+		expect(body.packages.map((p) => p.slug)).toEqual(["bulletin"]);
+	});
+
+	it.each(["newslet", "newslet*", "newslet**"])(
+		"matches a single partly typed word as a prefix: %s",
+		async (query) => {
+			await seedPackage({ slug: "bulletin", name: "Bulletin", description: "Email newsletters" });
+
+			const res = await SELF.fetch(
+				`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=${encodeURIComponent(query)}`,
+			);
+
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as { packages: Array<{ slug: string }> };
+			expect(body.packages.map((p) => p.slug)).toEqual(["bulletin"]);
+		},
+	);
+
+	it("returns no matches for a query with no word characters", async () => {
+		await seedPackage({ slug: "demo", name: "Demo" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=${encodeURIComponent('( * "')}`,
+		);
+
+		expect(res.status).toBe(200);
+		await expect(res.json()).resolves.toEqual({ packages: [] });
+	});
+
 	it("doesn't blow up on FTS-unsafe query chars (defensive quoting)", async () => {
 		await seedPackage({ slug: "demo", name: "Demo" });
 		const res = await SELF.fetch(
@@ -646,10 +737,10 @@ describe("searchPackages", () => {
 		await seedPackage({ slug: "alpha", name: "Alpha" });
 		await seedPackage({ slug: "beta", name: "Beta" });
 		// `alpha OR beta` would match both packages if `OR` were interpreted
-		// as the FTS5 operator. With proper escaping the whole string is one
-		// literal phrase that can't possibly appear in either record's
-		// indexed text → zero matches. A buggy escape that stripped the
-		// quotes would return *both* packages.
+		// as the FTS5 operator. With proper escaping every term is a literal
+		// that must appear, and neither record contains all three → zero
+		// matches. A buggy escape that stripped the quotes would return
+		// *both* packages.
 		const res = await SELF.fetch(
 			`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=${encodeURIComponent("alpha OR beta")}`,
 		);

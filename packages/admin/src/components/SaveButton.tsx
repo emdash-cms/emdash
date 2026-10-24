@@ -14,12 +14,15 @@ export interface SaveButtonProps extends Omit<ComponentProps<typeof Button>, "ch
 	isDirty: boolean;
 	isSaving: boolean;
 	announce?: boolean;
+	/** Classes for the visible label, e.g. to hide it on small screens and keep only the icon. */
+	labelClassName?: string;
 }
 
 export function SaveButton({
 	isDirty,
 	isSaving,
 	announce = true,
+	labelClassName,
 	className,
 	disabled,
 	icon,
@@ -115,7 +118,7 @@ export function SaveButton({
 						className="inline-flex items-center justify-center gap-1.5"
 					>
 						<span style={{ width: 16, height: 16 }} />
-						{state.label}
+						<span className={labelClassName}>{state.label}</span>
 					</span>
 				))}
 				<span
@@ -130,7 +133,7 @@ export function SaveButton({
 				>
 					<span className="flex items-center justify-center gap-1.5 leading-none">
 						{displayedIcon}
-						{displayedLabel}
+						<span className={labelClassName}>{displayedLabel}</span>
 					</span>
 				</span>
 			</span>

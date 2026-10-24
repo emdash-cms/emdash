@@ -63,9 +63,13 @@ export class EmDashPreviewDB extends DurableObject {
 
 		const isRead = READ_PREFIXES.some((p) => sql.trimStart().toUpperCase().startsWith(p));
 
+		// `cursor.rowsWritten` also counts index entries, so it is not an
+		// affected-row count; SQLite `changes()` is.
 		return {
 			rows,
-			changes: isRead ? undefined : cursor.rowsWritten,
+			changes: isRead
+				? undefined
+				: Number(this.ctx.storage.sql.exec("SELECT changes() AS changes").one().changes),
 		};
 	}
 

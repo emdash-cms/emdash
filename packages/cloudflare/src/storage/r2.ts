@@ -15,6 +15,8 @@ import { env } from "cloudflare:workers";
 import type {
 	Storage,
 	UploadResult,
+	ByteRange,
+	DownloadOptions,
 	DownloadResult,
 	ListResult,
 	ListOptions,
@@ -25,6 +27,18 @@ import { EmDashStorageError } from "emdash";
 
 /** Regex to remove trailing slashes from URLs */
 const TRAILING_SLASH_REGEX = /\/$/;
+
+/** The bytes of an object of `size` bytes that an R2 range covers */
+function servedRange(
+	{ offset = 0, length, suffix }: { offset?: number; length?: number; suffix?: number },
+	size: number,
+): { offset: number; length: number } {
+	if (suffix !== undefined) {
+		const tail = Math.min(suffix, size);
+		return { offset: size - tail, length: tail };
+	}
+	return { offset, length: Math.min(length ?? size, size - offset) };
+}
 
 /**
  * R2 Storage implementation using native bindings
@@ -67,9 +81,11 @@ export class R2Storage implements Storage {
 		}
 	}
 
-	async download(key: string): Promise<DownloadResult> {
+	async download(key: string, options: DownloadOptions = {}): Promise<DownloadResult> {
+		const { range } = options;
 		try {
-			const object = await this.bucket.get(key);
+			const ranged = range ? await this.getRange(key, range) : undefined;
+			const object = ranged === undefined ? await this.bucket.get(key) : ranged;
 
 			if (!object) {
 				throw new EmDashStorageError(`File not found: ${key}`, "NOT_FOUND");
@@ -84,10 +100,27 @@ export class R2Storage implements Storage {
 				body: object.body,
 				contentType: object.httpMetadata?.contentType || "application/octet-stream",
 				size: object.size,
+				lastModified: object.uploaded,
+				// R2 may not report the range it read, which is the requested one clamped to the object
+				...(range && ranged && { range: servedRange(ranged.range ?? range, ranged.size) }),
 			};
 		} catch (error) {
 			if (error instanceof EmDashStorageError) throw error;
 			throw new EmDashStorageError(`Failed to download file: ${key}`, "DOWNLOAD_FAILED", error);
+		}
+	}
+
+	/**
+	 * Resolves to undefined when the ranged read fails, so the caller reads the
+	 * whole object instead. A range past the end of the object doesn't always
+	 * fail with R2's invalid-range error, and a persistent failure fails the
+	 * whole read too.
+	 */
+	private async getRange(key: string, range: ByteRange): Promise<R2ObjectBody | null | undefined> {
+		try {
+			return await this.bucket.get(key, { range });
+		} catch {
+			return undefined;
 		}
 	}
 

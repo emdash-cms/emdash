@@ -10,7 +10,7 @@ describe("hyperdrive()", () => {
 			config: { binding: "HYPERDRIVE", max: undefined },
 			type: "postgres",
 			migrations: {
-				entrypoint: "@emdash-cms/cloudflare/db/hyperdrive-migrations",
+				entrypoint: "@emdash-cms/cloudflare/internal/db/hyperdrive-migrations",
 				manifestConfig: {
 					binding: "HYPERDRIVE",
 					connectionStringEnv: "CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE",
@@ -59,7 +59,7 @@ describe("hyperdrive()", () => {
 
 		expect(result.config).not.toHaveProperty("migrationConnectionStringEnv");
 		expect(result.migrations).toEqual({
-			entrypoint: "@emdash-cms/cloudflare/db/hyperdrive-migrations",
+			entrypoint: "@emdash-cms/cloudflare/internal/db/hyperdrive-migrations",
 			manifestConfig: {
 				binding: "PRIMARY_DB",
 				connectionStringEnv: "DEPLOYMENT_DATABASE_URL",

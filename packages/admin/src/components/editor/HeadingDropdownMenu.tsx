@@ -18,7 +18,7 @@ import { useEditorState } from "@tiptap/react";
 import * as React from "react";
 
 import { cn } from "../../lib/utils.js";
-import { selectionTouchesTable } from "./TableExtensions.js";
+import { canTurnInto, toggleTextBlockType } from "./blockTypes.js";
 
 /**
  * TipTap's heading-dropdown-menu API adapted to EmDash's Kumo primitives.
@@ -55,17 +55,15 @@ export function getActiveHeadingLevel(
 	return levels.find((level) => editor.isActive("heading", { level }));
 }
 
-function canToggleHeading(editor: Editor | null, levels: readonly HeadingLevel[]): boolean {
-	if (!editor || !editor.isEditable || !editor.schema.nodes.heading) return false;
-	if (selectionTouchesTable(editor.state)) return false;
-	return levels.some(
-		(level) => editor.can().setNode("heading", { level }) || editor.can().clearNodes(),
-	);
+function canToggleHeading(editor: Editor | null): boolean {
+	return Boolean(editor?.schema.nodes.heading) && canTurnInto(editor!);
 }
 
+/** Converts like Turn into, and back into text when the selection is already that heading. */
 function toggleHeading(editor: Editor | null, level: HeadingLevel): boolean {
-	if (!editor || !canToggleHeading(editor, [level])) return false;
-	return editor.chain().focus().toggleHeading({ level }).run();
+	if (!editor || !canToggleHeading(editor)) return false;
+	toggleTextBlockType(editor, `heading${level}`);
+	return true;
 }
 
 export interface UseHeadingDropdownMenuConfig {
@@ -81,7 +79,7 @@ export function useHeadingDropdownMenu(config: UseHeadingDropdownMenuConfig = {}
 		editor,
 		selector: ({ editor: currentEditor }) => {
 			const activeLevel = getActiveHeadingLevel(currentEditor, levels);
-			const canToggle = canToggleHeading(currentEditor, levels);
+			const canToggle = canToggleHeading(currentEditor);
 			return {
 				activeLevel,
 				isActive: activeLevel !== undefined,
@@ -105,6 +103,8 @@ export function useHeadingDropdownMenu(config: UseHeadingDropdownMenuConfig = {}
 
 export interface HeadingDropdownMenuProps extends UseHeadingDropdownMenuConfig {
 	className?: string;
+	/** Classes for the trigger while the selection is a heading. */
+	activeClassName?: string;
 	onOpenChange?: (isOpen: boolean) => void;
 }
 
@@ -115,6 +115,7 @@ export const HeadingDropdownMenu = React.forwardRef<HTMLButtonElement, HeadingDr
 			levels = DEFAULT_LEVELS,
 			hideWhenUnavailable = false,
 			className,
+			activeClassName = "bg-kumo-interact/50 text-kumo-default",
 			onOpenChange,
 		},
 		ref,
@@ -152,8 +153,9 @@ export const HeadingDropdownMenu = React.forwardRef<HTMLButtonElement, HeadingDr
 									variant="ghost"
 									className={cn(
 										"h-8 min-w-11 flex-none gap-0.5 px-2 hover:bg-kumo-interact/50",
-										isActive && "bg-kumo-interact/50 text-kumo-default",
 										className,
+										"w-auto min-w-10 px-1.5",
+										isActive && activeClassName,
 									)}
 									disabled={!canToggle}
 									onMouseDown={(event) => event.preventDefault()}
