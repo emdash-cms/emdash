@@ -34,6 +34,8 @@ describe("Block Kit button confirmation dialog", () => {
 
 		const dialog = screen.getByRole("dialog");
 		await expect.element(dialog).toBeVisible();
+		await expect.element(dialog).toHaveAccessibleName(element.confirm.title);
+		await expect.element(dialog).toHaveAccessibleDescription(element.confirm.text);
 		expect(onAction).not.toHaveBeenCalled();
 
 		await expect.poll(() => dialog.element().getAnimations().length).toBe(0);
