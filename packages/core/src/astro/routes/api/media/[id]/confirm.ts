@@ -17,6 +17,7 @@ import { mediaConfirmBody } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { enrichImageMetadata } from "#media/enrich.js";
 import { readDimensions } from "#media/placeholder.js";
+import { THUMBNAIL_MAX_DIMENSION } from "#media/thumbnail.js";
 import type { MediaItem } from "#types";
 import { decodeBase64Bytes } from "#utils/base64.js";
 import { computeContentHash, MAX_CONTENT_HASH_BYTES } from "#utils/hash.js";
@@ -84,7 +85,10 @@ function decodeThumbnail(thumbnail?: {
 	try {
 		const bytes = decodeBase64Bytes(thumbnail.data);
 		const dimensions = readDimensions(bytes);
-		return dimensions && dimensions.width * dimensions.height <= 64 * 64 ? bytes : new Uint8Array();
+		return dimensions &&
+			dimensions.width * dimensions.height <= THUMBNAIL_MAX_DIMENSION * THUMBNAIL_MAX_DIMENSION
+			? bytes
+			: new Uint8Array();
 	} catch (error) {
 		console.error("[media] confirm thumbnail decode failed:", error);
 		return new Uint8Array();
@@ -231,9 +235,10 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 							body.width != null && body.height != null
 								? { width: body.width, height: body.height }
 								: undefined,
-						placeholder: thumbnailBytes
-							? { bytes: thumbnailBytes, contentType: thumbnail.contentType }
-							: undefined,
+						placeholder:
+							thumbnail && thumbnailBytes
+								? { bytes: thumbnailBytes, contentType: thumbnail.contentType }
+								: undefined,
 						placeholders: placeholdersEnabled,
 					},
 				);
