@@ -1891,6 +1891,16 @@ export async function handleContentDuplicate(
 			const original = await repo.findById(collection, resolvedId);
 			const dup = await repo.duplicate(collection, resolvedId, authorId);
 
+			// Not staged as the draft, so autosave never replaces this first revision.
+			if ((await getCollectionPublishConfig(trx, collection)).supportsRevisions) {
+				await new RevisionRepository(trx).create({
+					collection,
+					entryId: dup.id,
+					data: dup.data,
+					authorId: dup.authorId ?? undefined,
+				});
+			}
+
 			// Reference edges are storage-less (keyed by translation_group, not in
 			// `data`), so they don't ride along in the row copy — carry the original's
 			// outgoing references onto the duplicate explicitly.
