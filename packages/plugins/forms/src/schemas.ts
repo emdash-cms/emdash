@@ -222,6 +222,15 @@ export const submitSchema = z.object({
 		.optional(),
 });
 
+/**
+ * Paging for the forms list. Every field is optional so the admin's existing
+ * calls, which send an empty body, keep returning the first 100 forms.
+ */
+export const formsListSchema = z.object({
+	cursor: z.string().optional(),
+	limit: z.number().int().min(1).max(100).default(100),
+});
+
 export const submissionsListSchema = z.object({
 	formId: z.string().min(1),
 	status: z.enum(["new", "read", "archived"]).optional(),
@@ -260,6 +269,7 @@ export type FormUpdateInput = z.infer<typeof formUpdateSchema>;
 export type FormDeleteInput = z.infer<typeof formDeleteSchema>;
 export type FormDuplicateInput = z.infer<typeof formDuplicateSchema>;
 export type SubmitInput = z.infer<typeof submitSchema>;
+export type FormsListInput = z.infer<typeof formsListSchema>;
 export type SubmissionsListInput = z.infer<typeof submissionsListSchema>;
 export type SubmissionGetInput = z.infer<typeof submissionGetSchema>;
 export type SubmissionUpdateInput = z.infer<typeof submissionUpdateSchema>;
