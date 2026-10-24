@@ -23,11 +23,11 @@ export const GET: APIRoute = async ({ site, url, locals, request }) =>
 				const postUrl = new URL(`/posts/${post.id}`, siteUrl).href;
 				const content =
 					Array.isArray(post.data.content) && post.data.content.length > 0
-						? await renderer!.renderToString(PortableText, {
+						? (await renderer?.renderToString(PortableText, {
 								props: { value: post.data.content },
 								locals,
 								request,
-							})
+							})) ?? ""
 						: "";
 				return `    <item>
       <title>${escapeXml(post.data.title || "Untitled")}</title>

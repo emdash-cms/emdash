@@ -586,7 +586,7 @@ export function ContentList({
 			{/* Content based on active tab */}
 			{activeTab === "all" ? (
 				<>
-					{
+					{(serverSearch || items.length > 0 || onStatusFilterChange) && (
 						<TableToolbar
 							trailing={
 								<div role="group" aria-label={t`View mode`}>
@@ -643,7 +643,7 @@ export function ContentList({
 								/>
 							)}
 						</TableToolbar>
-					}
+					)}
 
 					{/* Bulk action toolbar — appears once one or more rows are selected */}
 					{bulkEnabled && selectedCount > 0 && (
