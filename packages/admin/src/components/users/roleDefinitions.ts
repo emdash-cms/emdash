@@ -39,7 +39,7 @@ export const ROLE_ENTRIES = [
 	{
 		value: 50,
 		color: "red",
-		label: msg`Admin`,
+		label: msg({ message: "Admin", context: "user role" }),
 		description: msg`Full access`,
 	},
 ] as const satisfies readonly {
