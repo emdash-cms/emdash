@@ -201,7 +201,8 @@ function getConfig(): EmDashConfig | null {
  */
 function getPlugins(): ResolvedPlugin[] {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module import is untyped (@ts-ignore above)
-	return (virtualPlugins as ResolvedPlugin[]) || [];
+	const plugins = virtualPlugins as ResolvedPlugin[] | (() => ResolvedPlugin[]);
+	return (typeof plugins === "function" ? plugins() : plugins) || [];
 }
 
 /**

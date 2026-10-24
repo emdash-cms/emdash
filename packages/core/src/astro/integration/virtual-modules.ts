@@ -6,6 +6,7 @@
  * so Vite can properly resolve and bundle them.
  */
 
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
@@ -250,10 +251,6 @@ ${entries.join("\n")}
  * between build time and runtime.
  */
 export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
-	if (descriptors.length === 0) {
-		return `export const plugins = [];`;
-	}
-
 	const imports: string[] = [];
 	const instantiations: string[] = [];
 
@@ -310,16 +307,22 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 		? `import { adaptSandboxEntry } from "emdash/internal/plugins/adapt-sandbox-entry";\n`
 		: "";
 
+	// Share instances across duplicated SSR chunks, but not across plugin configurations.
+	const cacheId = createHash("sha256")
+		.update(adapterImport + imports.join("\n") + instantiations.join(",\n"))
+		.digest("hex");
+
 	return `
 // Auto-generated plugins module
-// Imports and instantiates all configured plugins at runtime
-
 ${adapterImport}${imports.join("\n")}
 
-/** Resolved plugins array */
-export const plugins = [
-  ${instantiations.join(",\n  ")}
-];
+// Defer factories and adaptation until the runtime's module graph has initialized.
+export function plugins() {
+  const key = Symbol.for("emdash:plugins:v1:${cacheId}");
+  return globalThis[key] ??= [
+    ${instantiations.join(",\n    ")}
+  ];
+}
 `;
 }
 
