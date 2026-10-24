@@ -3,7 +3,9 @@ import { BarChart, LineChart, PieChart } from "echarts/charts";
 import {
 	AriaComponent,
 	AxisPointerComponent,
+	BrushComponent,
 	GridComponent,
+	ToolboxComponent,
 	TooltipComponent,
 } from "echarts/components";
 import * as echarts from "echarts/core";
@@ -19,7 +21,9 @@ echarts.use([
 	PieChart,
 	AriaComponent,
 	AxisPointerComponent,
+	BrushComponent,
 	GridComponent,
+	ToolboxComponent,
 	TooltipComponent,
 	CanvasRenderer,
 ]);
