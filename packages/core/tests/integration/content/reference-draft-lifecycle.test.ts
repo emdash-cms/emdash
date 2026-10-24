@@ -434,6 +434,24 @@ describeEachDialect("versioned reference selections", (dialect) => {
 		expect(links.items.map((edge) => edge.childGroup)).toEqual([a.translationGroup]);
 	});
 
+	it("restores a duplicate's copied selection with its first revision", async () => {
+		const [a, b] = [await createPage("A"), await createPage("B")];
+		const id = await publishedPost("Copied", [a.id]);
+		const copy = await handleContentDuplicate(ctx.db, "posts", id);
+		if (!copy.success) throw new Error(copy.error.message);
+		const copyId = copy.data.item.id;
+		const [firstRevision] = await new RevisionRepository(ctx.db).findByEntry("posts", copyId);
+
+		await runtime.handleContentUpdate("posts", copyId, { references: { related_pages: [b.id] } });
+		await runtime.handleContentPublish("posts", copyId);
+		expect(await liveGroups(copyId)).toEqual([b.translationGroup]);
+
+		const restored = await runtime.handleRevisionRestore(firstRevision!.id, "user-1");
+		expect(restored.success).toBe(true);
+		await runtime.handleContentPublish("posts", copyId);
+		expect(await liveGroups(copyId)).toEqual([a.translationGroup]);
+	});
+
 	it("refuses to publish a staged selection the relation has since outgrown", async () => {
 		const [a, b] = [await createPage("A"), await createPage("B")];
 		const relations = new RelationRepository(ctx.db);
