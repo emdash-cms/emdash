@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { getBuild, recentBuildUploads, runBuild, startBuild } from "../src/build.js";
 import { Indexer, type PageResult } from "../src/indexer.js";
 import { getRetryQueue, queueRetries } from "../src/retry.js";
-import { FakeItems } from "./fake-ai-search.js";
+import { FakeAiSearch } from "./fake-ai-search.js";
 import { config, entry, fakeEmDash, memoryKv } from "./fakes.js";
 
 const CONFIG = config();
@@ -213,13 +213,13 @@ describe("build", () => {
 	it("removes an unpublished entry when the sweep resumes after its failure could not be queued", async () => {
 		const ctx = await buildContext();
 		const post = entry();
-		const items = new FakeItems();
-		const indexer = new Indexer({ ...fakeEmDash({ entries: [post] }), items }, CONFIG);
+		const items = new FakeAiSearch();
+		const indexer = new Indexer({ ...fakeEmDash({ entries: [post] }), provider: items }, CONFIG);
 		await startBuild(ctx, ["posts"]);
 		await runBuild(ctx, indexer, 10_000);
 		post.status = "draft";
-		const remove = items.delete.bind(items);
-		items.delete = async () => {
+		const remove = items.deleteItem.bind(items);
+		items.deleteItem = async () => {
 			throw new Error("AiSearchError: internal_error");
 		};
 		const compareAndSet = ctx.kv.compareAndSet;
@@ -230,7 +230,7 @@ describe("build", () => {
 
 		await startBuild(ctx, ["posts"]);
 		await expect(runBuild(ctx, indexer, 10_000)).rejects.toThrow("kv unavailable");
-		items.delete = remove;
+		items.deleteItem = remove;
 		ctx.kv.compareAndSet = compareAndSet;
 		await runBuild(ctx, indexer, 10_000);
 
@@ -321,6 +321,51 @@ describe("build", () => {
 
 		expect(indexer.calls).toBe(4);
 		expect(await getBuild(ctx)).toBeNull();
+	});
+
+	it("pauses a REST build once its requests, deletions included, reach its share of the limit", async () => {
+		const run = async (kind: "rest" | "binding") => {
+			const ctx = await buildContext();
+			await startBuild(ctx, ["posts"]);
+			await ctx.kv.set("build", { ...(await getBuild(ctx)), step: { phase: "sweep" } });
+			const provider = { kind, requests: 0 };
+			let pages = 0;
+			// Each sweep page deletes 50 items and uploads nothing.
+			const sweeping = {
+				...pagedIndexer(),
+				sweepPage: async () => {
+					pages++;
+					provider.requests += 50;
+					return { synced: [], uploaded: 0, failures: [], backOff: false, done: pages === 20 };
+				},
+			};
+			const build = await runBuild(ctx, sweeping, 10_000, provider);
+			return { pages, build };
+		};
+
+		const rest = await run("rest");
+		const binding = await run("binding");
+
+		expect(rest.pages).toBe(12);
+		expect(rest.build?.requests?.count).toBe(600);
+		expect(rest.build?.pausedUntil).toBeGreaterThan(Date.now());
+		expect(binding.pages).toBe(20);
+		expect(binding.build).toBeNull();
+	});
+
+	it("pauses for minutes instead of seconds when a rate-limited token is rejected", async () => {
+		const pausedFor = async (tokenRejected: boolean) => {
+			const ctx = await buildContext();
+			await startBuild(ctx, ["posts"]);
+			const build = await runBuild(ctx, pagedIndexer({ backOff: true }), 10_000, {
+				kind: "rest",
+				tokenRejected: async () => tokenRejected,
+			});
+			return (build?.pausedUntil ?? 0) - Date.now();
+		};
+
+		expect(await pausedFor(false)).toBeLessThanOrEqual(10_000);
+		expect(await pausedFor(true)).toBeGreaterThan(60_000);
 	});
 
 	it("pauses on a rate limit and retries the same page once the pause is over", async () => {
