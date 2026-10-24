@@ -499,10 +499,11 @@ export function generateWaitUntilModule(adapterName: string | undefined): string
  * routes can read Worker bindings/secrets without touching
  * `Astro.locals.runtime.env`, which Astro 6+ removed (accessing it throws
  * rather than returning undefined, so `locals.runtime?.env` optional-chaining
- * doesn't help -- see #1736). For any other adapter, exports `undefined` so
- * callers fall back to `import.meta.env`. Mirrors generateWaitUntilModule:
- * core stays adapter-agnostic, with no direct `cloudflare:workers` import
- * that would fail to resolve under a Node build.
+ * doesn't help). For any other adapter, exports `undefined`. Callers that
+ * need runtime secrets then prefer `process.env` over `import.meta.env`,
+ * which Vite replaces with the environment present at build time. Mirrors
+ * generateWaitUntilModule: core stays adapter-agnostic, with no direct
+ * `cloudflare:workers` import that would fail to resolve under a Node build.
  */
 export function generateEnvModule(adapterName: string | undefined): string {
 	if (adapterName === "@astrojs/cloudflare") {
