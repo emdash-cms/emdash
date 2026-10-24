@@ -44,9 +44,7 @@ describe("SandboxedContentEditorActions", () => {
 			await expect
 				.element(screen.getByRole("button", { name: "Inspect saved entry" }))
 				.toBeVisible();
-			expect(warn).not.toHaveBeenCalledWith(
-				expect.stringContaining("Uncompiled message detected!"),
-			);
+			expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Inspect saved entry"));
 		} finally {
 			warn.mockRestore();
 		}

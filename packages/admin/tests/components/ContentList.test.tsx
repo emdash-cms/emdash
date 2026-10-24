@@ -1245,9 +1245,7 @@ describe("ContentList", () => {
 				await expect
 					.element(screen.getByRole("columnheader", { name: "Review status" }))
 					.toBeVisible();
-				expect(warn).not.toHaveBeenCalledWith(
-					expect.stringContaining("Uncompiled message detected!"),
-				);
+				expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Review status"));
 			} finally {
 				warn.mockRestore();
 			}

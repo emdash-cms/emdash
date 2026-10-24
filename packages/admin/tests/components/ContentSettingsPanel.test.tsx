@@ -629,9 +629,8 @@ describe("ContentSettingsPanel", () => {
 			await expect
 				.element(screen.getByRole("button", { name: "Sandbox insights", exact: true }))
 				.toBeInTheDocument();
-			expect(warn).not.toHaveBeenCalledWith(
-				expect.stringContaining("Uncompiled message detected!"),
-			);
+			expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Content insights"));
+			expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Sandbox insights"));
 		} finally {
 			warn.mockRestore();
 		}
