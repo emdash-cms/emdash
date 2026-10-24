@@ -1,6 +1,6 @@
 import { I18nProvider } from "@lingui/react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { getApproval, listApproverCredentials } from "./api.js";
 import { App } from "./App.js";
@@ -21,6 +21,96 @@ function renderApp(path: string) {
 			<App />
 		</I18nProvider>,
 	);
+}
+
+function stubApprovalDecision(firstAnswer: { status: number; code: string; message: string }) {
+	class AssertionResponseStub {
+		clientDataJSON = new Uint8Array([1]).buffer;
+		authenticatorData = new Uint8Array([2]).buffer;
+		signature = new Uint8Array([3]).buffer;
+		userHandle = null;
+	}
+	class PublicKeyCredentialStub {
+		id = "credential";
+		rawId = new Uint8Array([4]).buffer;
+		type = "public-key";
+		authenticatorAttachment = null;
+		response = new AssertionResponseStub();
+	}
+	vi.stubGlobal("AuthenticatorAssertionResponse", AssertionResponseStub);
+	vi.stubGlobal("PublicKeyCredential", PublicKeyCredentialStub);
+	const getPasskey = vi.fn(async () => new PublicKeyCredentialStub());
+	Object.defineProperty(navigator, "credentials", {
+		configurable: true,
+		value: { get: getPasskey },
+	});
+	onTestFinished(() => {
+		Reflect.deleteProperty(navigator, "credentials");
+	});
+	const decisionStored = firstAnswer.code === "WORKFLOW_UNAVAILABLE";
+	const decisionBodies: unknown[] = [];
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+			const path = new URL(input instanceof Request ? input.url : input.toString(), location.origin)
+				.pathname;
+			if (path === "/v1/approver/credentials") {
+				return success({
+					items: [
+						{
+							id: "credential",
+							name: "Work laptop",
+							transports: ["internal"],
+							createdAt: 1_799_999_000_000,
+							lastUsedAt: null,
+							revokedAt: null,
+						},
+					],
+				});
+			}
+			if (path === `/v1/approvals/${INTENT_ID}/options`) {
+				return decisionBodies.length > 0 && decisionStored
+					? Response.json(
+							{ error: { code: "NOT_FOUND", message: "Approval not found" } },
+							{ status: 404 },
+						)
+					: success({ challenge: "AAAA", userVerification: "required" });
+			}
+			if (path === `/v1/approvals/${INTENT_ID}` && init?.method === "POST") {
+				decisionBodies.push(JSON.parse(init.body as string));
+				return decisionBodies.length === 1
+					? Response.json(
+							{ error: { code: firstAnswer.code, message: firstAnswer.message } },
+							{ status: firstAnswer.status },
+						)
+					: success({});
+			}
+			return success({
+				intent: {
+					id: INTENT_ID,
+					packageSlug: "gallery",
+					version: "1.2.3",
+					state: "awaiting_approval",
+					expiresAt: 1_800_000_000_000,
+				},
+				evidence: {},
+				evidenceDigest: "D".repeat(43),
+				review: {
+					source: {
+						repository: null,
+						workflowRef: null,
+						commitSha: null,
+						runId: null,
+						actor: null,
+					},
+					artifact: { url: "https://example.com/gallery.tgz", checksum: "sha256:artifact" },
+					provenance: null,
+					accessDiff: { escalation: false, changes: [] },
+				},
+			});
+		}),
+	);
+	return { getPasskey, decisionBodies };
 }
 
 afterEach(() => {
@@ -675,6 +765,49 @@ describe("release-service web surfaces", () => {
 		const approve = screen.getByRole("button", { name: "Approve release" });
 		expect(approve).toBeInstanceOf(HTMLButtonElement);
 		expect(approve.hasAttribute("disabled")).toBe(false);
+	});
+
+	it.each([
+		["approval", "Approve release", "Approval recorded. The release workflow can continue."],
+		["rejection", "Reject release", "Rejection recorded. The release will not be published."],
+	])(
+		"resends a recorded %s that the release workflow did not receive",
+		async (_, button, recorded) => {
+			const { getPasskey, decisionBodies } = stubApprovalDecision({
+				status: 503,
+				code: "WORKFLOW_UNAVAILABLE",
+				message: "Decision recorded, but the release workflow did not receive it.",
+			});
+			renderApp(`/approvals/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}`);
+
+			fireEvent.click(await screen.findByRole("button", { name: button }));
+			expect(await screen.findByText(/the release workflow did not receive it/)).toBeTruthy();
+			fireEvent.click(screen.getByRole("button", { name: button }));
+
+			expect(await screen.findByText(recorded)).toBeTruthy();
+			expect(getPasskey).toHaveBeenCalledOnce();
+			expect(decisionBodies).toHaveLength(2);
+			expect(decisionBodies[1]).toEqual(decisionBodies[0]);
+		},
+	);
+
+	it("asks for the passkey again after a decision the service could not verify", async () => {
+		const { getPasskey, decisionBodies } = stubApprovalDecision({
+			status: 400,
+			code: "APPROVAL_INVALID",
+			message: "Passkey approval could not be verified",
+		});
+		renderApp(`/approvals/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}`);
+
+		fireEvent.click(await screen.findByRole("button", { name: "Approve release" }));
+		expect(await screen.findByText(/could not be verified/)).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "Approve release" }));
+
+		expect(
+			await screen.findByText("Approval recorded. The release workflow can continue."),
+		).toBeTruthy();
+		expect(getPasskey).toHaveBeenCalledTimes(2);
+		expect(decisionBodies).toHaveLength(2);
 	});
 
 	it("manages approver passkeys without requiring an active release", async () => {
