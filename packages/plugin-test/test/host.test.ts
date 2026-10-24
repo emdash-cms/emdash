@@ -1181,8 +1181,6 @@ describe("runtime plugin test host", () => {
 	});
 
 	it("runs versioned publication and restore actions through Worker Loader", async () => {
-		const deferredTasksUrl = new URL("../../core/src/deferred-tasks.ts", import.meta.url).href;
-		const { waitForDeferredTasks } = await import(/* @vite-ignore */ deferredTasksUrl);
 		runtimeHost = await createPluginRuntimeTestHost();
 		await runtimeHost.fixtures.collection({
 			slug: "posts",
@@ -1216,7 +1214,7 @@ describe("runtime plugin test host", () => {
 				throw new Error("Expected versioned action response");
 			}
 			// After-hooks retain the reentrancy guard until their deferred work finishes.
-			await waitForDeferredTasks();
+			await runtimeHost!.waitForDeferredTasks();
 			return json.data as {
 				item: { id: string; status: string; scheduledAt?: string | null };
 				_rev: string;
@@ -1298,13 +1296,11 @@ describe("runtime plugin test host", () => {
 			_rev: trashed._rev,
 		});
 		expect(restored.item.id).toBe(content.id);
-		await vi.waitFor(async () => {
-			for (const action of ["publish", "unpublish", "schedule", "unschedule", "restore"]) {
-				await expect(
-					runtimeHost!.inspect.storage.get("events", `action:${action}:${content.id}`),
-				).resolves.toMatchObject({ type: "content-action", action, contentId: content.id });
-			}
-		});
+		for (const action of ["publish", "unpublish", "schedule", "unschedule", "restore"]) {
+			await expect(
+				runtimeHost.inspect.storage.get("events", `action:${action}:${content.id}`),
+			).resolves.toMatchObject({ type: "content-action", action, contentId: content.id });
+		}
 	});
 
 	it("runs public comment policy and follows every content-list cursor", async () => {
@@ -1391,6 +1387,9 @@ describe("runtime plugin test host", () => {
 		runtimeHost = await createPluginRuntimeTestHost();
 		await runtimeHost.fixtures.collection({ slug: "temporary", label: "Temporary" });
 		await runtimeHost.dispose();
+		await expect(runtimeHost.waitForDeferredTasks()).rejects.toThrow(
+			"Plugin runtime test host has been disposed",
+		);
 		runtimeHost = await createPluginRuntimeTestHost();
 		await expect(runtimeHost.inspect.content.list("temporary")).rejects.toThrow();
 	});
