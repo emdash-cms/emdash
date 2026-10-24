@@ -103,16 +103,7 @@ function invalidCommentStatus(value: string, name: string): string | null {
 	return COMMENT_STATUSES.has(value) ? null : `${name} must be one of: approved, pending, spam`;
 }
 
-/**
- * Module-level email send callback.
- *
- * The bridge runs in the host process (same worker), so we can use a
- * module-level callback that the runner sets before creating bridge bindings.
- * This avoids the need to pass non-serializable functions through props.
- *
- * @see runner.ts setEmailSendCallback()
- */
-let emailSendCallback: SandboxEmailSendCallback | null = null;
+const EMAIL_SEND_CALLBACK_KEY = Symbol.for("emdash:sandbox-email-send-callback");
 const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
 const TAXONOMY_WRITE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-taxonomy-write-callbacks");
 const CONTENT_ACTION_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-action-callbacks");
@@ -121,6 +112,14 @@ let cronNowCallback: (() => Date) | null = null;
 let commentModerateCallback: SandboxCommentModerateCallback | null = null;
 const httpFetchCallbacks = new Map<string, typeof fetch>();
 const mediaStorageCallbacks = new Map<string, Pick<Storage, "download">>();
+
+// The runner and exported WorkerEntrypoint may be loaded in separate SSR chunks.
+function emailSendState(): { callback: SandboxEmailSendCallback | null } {
+	const store = globalThis as typeof globalThis & {
+		[EMAIL_SEND_CALLBACK_KEY]?: { callback: SandboxEmailSendCallback | null };
+	};
+	return (store[EMAIL_SEND_CALLBACK_KEY] ??= { callback: null });
+}
 
 function contentCreateCallbacks(): Map<string, SandboxContentCreateCallback> {
 	const store = globalThis as Record<symbol, unknown>;
@@ -163,7 +162,7 @@ function contentActionCallbacks(): Map<string, ContentActionCallbacks> {
  * Called by the runner when the EmailPipeline is available.
  */
 export function setEmailSendCallback(callback: SandboxEmailSendCallback | null): void {
-	emailSendCallback = callback;
+	emailSendState().callback = callback;
 }
 
 export function setContentCreateCallback(
@@ -1942,10 +1941,11 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!capabilities.includes("email:send")) {
 			throw new Error("Missing capability: email:send");
 		}
-		if (!emailSendCallback) {
+		const callback = emailSendState().callback;
+		if (!callback) {
 			throw new Error("Email is not configured. No email provider is available.");
 		}
-		await emailSendCallback(message, pluginId);
+		await callback(message, pluginId);
 	}
 
 	async cronSchedule(
