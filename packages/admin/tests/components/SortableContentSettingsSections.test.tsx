@@ -87,10 +87,12 @@ describe("SortableContentSettingsSections", () => {
 			const sectionHandle = section.querySelector<HTMLElement>("[data-sortable-handle]");
 
 			expect(heading?.style.minHeight).toBe("48px");
+			expect(section.style.height).toBe("48px");
+			expect(section.classList.contains("overflow-hidden")).toBe(true);
 			expect(section.className).toContain(
-				"[&>*:not([data-sortable-heading]):not([data-sortable-handle])]:hidden",
+				"[&>*:not([data-sortable-heading]):not([data-sortable-handle])]:invisible",
 			);
-			expect(sectionHandle?.classList.contains("top-1/2")).toBe(true);
+			expect(sectionHandle?.classList.contains("top-6")).toBe(true);
 			expect(sectionHandle?.classList.contains("-translate-y-1/2")).toBe(true);
 		}
 
@@ -100,11 +102,57 @@ describe("SortableContentSettingsSections", () => {
 			expect(sections.every((section) => section.dataset.sorting === "false")).toBe(true);
 		});
 		expect(container.querySelector("[data-sortable-heading]")).toBeNull();
-		expect(sections[0]?.className).not.toContain(
-			"[&>*:not([data-sortable-heading]):not([data-sortable-handle])]:hidden",
-		);
+		expect(sections[0]?.classList.contains("overflow-hidden")).toBe(false);
 		expect(screen.getByTestId("publish-section").parentElement).toBe(sections[0]);
 		expect(screen.getByTestId("seo-section").parentElement).toBe(sections[1]);
+	});
+
+	it("keeps the grabbed section anchored while surrounding sections collapse toward it", async () => {
+		const { container } = render(
+			<I18nProvider i18n={i18n}>
+				<SortableContentSettingsSections collection="posts" userId="user-1">
+					<SortableContentSettingsSection id="publish" label="Publish">
+						<div style={{ height: 120 }}>Publish content</div>
+					</SortableContentSettingsSection>
+					<SortableContentSettingsSection id="ownership" label="Ownership">
+						<div style={{ height: 200 }}>Ownership content</div>
+					</SortableContentSettingsSection>
+					<SortableContentSettingsSection id="seo" label="SEO">
+						<div style={{ height: 160 }}>SEO content</div>
+					</SortableContentSettingsSection>
+				</SortableContentSettingsSections>
+			</I18nProvider>,
+		);
+		const sections = [...container.querySelectorAll<HTMLElement>("section")];
+		const initialRects = sections.map((section) => section.getBoundingClientRect());
+
+		const handle = screen.getByRole("button", { name: "Drag to reorder Ownership" });
+		handle.focus();
+		await pressKey(handle, " ", "Space");
+		await waitFor(() => {
+			expect(sections.every((section) => section.dataset.sortAnimation === "collapsed")).toBe(true);
+		});
+		await act(async () => new Promise((resolve) => setTimeout(resolve, 200)));
+		const collapsedRects = sections.map((section) => section.getBoundingClientRect());
+
+		expect(collapsedRects[0]?.top).toBeGreaterThan(initialRects[0]?.top ?? 0);
+		expect(collapsedRects[1]?.top).toBeCloseTo(initialRects[1]?.top ?? 0, 0);
+		expect(collapsedRects[2]?.top).toBeLessThan(initialRects[2]?.top ?? 0);
+		expect(collapsedRects.every((rect) => Math.round(rect.height) === 48)).toBe(true);
+	});
+
+	it("never overlaps the original and sortable headings", async () => {
+		const { container } = renderSections();
+		const handle = screen.getByRole("button", { name: "Drag to reorder Publish" });
+
+		handle.focus();
+		await pressKey(handle, " ", "Space");
+
+		const sortableHeading = container.querySelector<HTMLElement>("[data-sortable-heading]");
+		expect(screen.getByTestId("publish-section").parentElement?.className).toContain(
+			"[&>*:not([data-sortable-heading]):not([data-sortable-handle])]:invisible",
+		);
+		expect(sortableHeading).toBeTruthy();
 	});
 
 	it("persists a keyboard reorder and restores expanded section content", async () => {
