@@ -1181,6 +1181,8 @@ describe("runtime plugin test host", () => {
 	});
 
 	it("runs versioned publication and restore actions through Worker Loader", async () => {
+		const deferredTasksUrl = new URL("../../core/src/deferred-tasks.ts", import.meta.url).href;
+		const { waitForDeferredTasks } = await import(/* @vite-ignore */ deferredTasksUrl);
 		runtimeHost = await createPluginRuntimeTestHost();
 		await runtimeHost.fixtures.collection({
 			slug: "posts",
@@ -1213,6 +1215,8 @@ describe("runtime plugin test host", () => {
 			) {
 				throw new Error("Expected versioned action response");
 			}
+			// After-hooks retain the reentrancy guard until their deferred work finishes.
+			await waitForDeferredTasks();
 			return json.data as {
 				item: { id: string; status: string; scheduledAt?: string | null };
 				_rev: string;
@@ -1605,6 +1609,45 @@ describe("runtime plugin test host", () => {
 });
 
 describe("plugin test host", () => {
+	it("creates content and linked translations through the transport host", async () => {
+		host = await createPluginTestHost();
+		await host.createCollection({
+			slug: "posts",
+			label: "Posts",
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+
+		const source = (await host.invokeRoute("content-crud", {
+			operation: "create",
+			data: { title: "Transport source", slug: "transport-source", status: "published" },
+		})) as { id: string; translationGroup: string };
+		await expect(
+			host.invokeRoute("content-crud", { operation: "get", id: source.id }),
+		).resolves.toMatchObject({
+			data: { title: "Transport source" },
+			locale: "en",
+			slug: "transport-source",
+			status: "published",
+		});
+
+		const translated = (await host.invokeRoute("content-translation-create", {
+			translationOf: source.id,
+			locale: "fr",
+			data: { title: "Traduction" },
+		})) as { id: string; translationGroup: string };
+		expect(translated.id).not.toBe(source.id);
+		expect(translated.translationGroup).toBe(source.translationGroup);
+		await expect(
+			host.invokeRoute("content-crud", { operation: "get", id: translated.id }),
+		).resolves.toMatchObject({ data: { title: "Traduction" }, locale: "fr" });
+		await expect(
+			host.invokeRoute("content-translation-error", { translationOf: "missing", locale: "fr" }),
+		).resolves.toMatchObject({ name: "NOT_FOUND", code: "NOT_FOUND" });
+		await expect(
+			host.invokeRoute("content-translation-error", { translationOf: source.id, locale: "fr" }),
+		).resolves.toMatchObject({ name: "CONFLICT", code: "CONFLICT" });
+	});
+
 	it("loads the built plugin through Worker Loader and persists host state", async () => {
 		host = await createPluginTestHost();
 		expect(host.manifest.routes).toContainEqual({
