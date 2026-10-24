@@ -5,7 +5,7 @@ import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
-import { createServer } from "vite";
+import { build, createServer } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -205,6 +205,41 @@ describe("createViteConfig use-sync-external-store shim aliasing", () => {
 		}
 		return alias.replacement;
 	}
+
+	it.each([
+		["use-sync-external-store/shim", "useSyncExternalStore"],
+		["use-sync-external-store/shim/index.js", "useSyncExternalStore"],
+		["use-sync-external-store/shim/with-selector", "useSyncExternalStoreWithSelector"],
+		["use-sync-external-store/shim/with-selector.js", "useSyncExternalStoreWithSelector"],
+	])("bundles default and named imports from %s", async (specifier, hook) => {
+		const config = buildConfig("@astrojs/node");
+		const entry = resolve("shim-consumer.js");
+
+		await expect(
+			build({
+				configFile: false,
+				logLevel: "silent",
+				resolve: config.resolve,
+				plugins: [
+					{
+						name: "shim-consumer",
+						resolveId: (id) => (id === entry ? entry : null),
+						load: (id) =>
+							id === entry
+								? `import hooks, { ${hook} } from "${specifier}";
+export const named = ${hook};
+export const fromDefault = hooks.${hook};`
+								: null,
+					},
+				],
+				build: {
+					write: false,
+					lib: { entry, formats: ["es"], fileName: "shim-consumer" },
+					rollupOptions: { external: ["react"] },
+				},
+			}),
+		).resolves.toBeDefined();
+	});
 
 	// Regression: with pnpm + React 18+, @tiptap/react pulls in
 	// `use-sync-external-store/shim` (CJS). Vite can't pre-bundle from the
