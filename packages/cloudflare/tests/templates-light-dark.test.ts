@@ -1,16 +1,12 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-import { transform } from "lightningcss";
-import { describe, expect, it, vi } from "vitest";
-
-// The configs are imported for their `vite` options only; stub the EmDash
-// packages so the test doesn't need them built.
-vi.mock("emdash/astro", () => ({ default: () => ({ name: "emdash" }), local: () => ({}) }));
-vi.mock("emdash/db", () => ({ sqlite: () => ({}) }));
+import { describe, expect, it } from "vitest";
 
 // Vite's default `build.cssTarget` ("baseline-widely-available"), which the
-// production CSS minifier compiles for. Safari 16.4 predates light-dark().
+// production CSS minifier compiles the Cloudflare templates for. Safari 16.4
+// predates light-dark().
 const VITE_DEFAULT_CSS_TARGETS = {
 	chrome: 111 << 16,
 	edge: 111 << 16,
@@ -18,18 +14,22 @@ const VITE_DEFAULT_CSS_TARGETS = {
 	safari: (16 << 16) | (4 << 8),
 };
 
-// The Cloudflare variants carry the same `vite.css` options but aren't covered
-// here: their configs import @emdash-cms/cloudflare, which the core test job
-// doesn't build.
-const TEMPLATES = ["blog", "marketing", "portfolio"] as const;
+const TEMPLATES = ["blog-cloudflare", "marketing-cloudflare", "portfolio-cloudflare"] as const;
+
+interface LightningCss {
+	transform(options: Record<string, unknown>): { code: Uint8Array };
+}
 
 function templatePath(template: string, file: string): string {
-	return fileURLToPath(new URL(`../../../../../templates/${template}/${file}`, import.meta.url));
+	return fileURLToPath(new URL(`../../../templates/${template}/${file}`, import.meta.url));
 }
 
 describe.each(TEMPLATES)("%s template theme switcher", (template) => {
 	it("keeps light-dark() through the production CSS minifier", async () => {
 		const { default: config } = await import(templatePath(template, "astro.config.mjs"));
+		// The template's own Lightning CSS, the copy Vite minifies its CSS with.
+		const require = createRequire(templatePath(template, "package.json"));
+		const { transform } = require("lightningcss") as LightningCss;
 		const tokens = readFileSync(templatePath(template, "src/styles/tokens.css"));
 
 		// Mirrors Vite's Lightning CSS minify step: the config's
@@ -41,7 +41,7 @@ describe.each(TEMPLATES)("%s template theme switcher", (template) => {
 			code: tokens,
 			minify: true,
 		});
-		const css = code.toString();
+		const css = new TextDecoder().decode(code);
 
 		// Transpiled light-dark() follows only prefers-color-scheme, so the
 		// footer switcher's :root.light / :root.dark color-scheme has no effect.
