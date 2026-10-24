@@ -106,7 +106,6 @@ import { Extension, InputRule, Mark, type EditorEvents, type Range } from "@tipt
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
 import { isAllowedUri } from "@tiptap/extension-link";
-import Placeholder from "@tiptap/extension-placeholder";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import TextAlign from "@tiptap/extension-text-align";
@@ -225,6 +224,7 @@ import {
 	selectionTouchesTable,
 } from "./editor/TableExtensions.js";
 import { createTableResize } from "./editor/TableResize.js";
+import { createTextBlockPlaceholder } from "./editor/TextBlockPlaceholder.js";
 import {
 	VideoExtension,
 	isVideoBlock,
@@ -3493,20 +3493,18 @@ export function PortableTextEditor({
 	onArrowUpAtStartRef.current = onArrowUpAtStart;
 	const isDocument = variant === "document";
 	const documentPlaceholder = placeholder ?? t`Start writing, or type '/' for commands`;
-	const placeholderRef = React.useRef(
-		(_props: { node: ProseMirrorNode; pos: number; editor: Editor; hasAnchor: boolean }) =>
-			documentPlaceholder,
+	const placeholderRef = React.useRef<Parameters<typeof createTextBlockPlaceholder>[0]>(
+		() => documentPlaceholder,
 	);
 	// An empty heading always names its level; other blocks hint only where the caret is.
-	placeholderRef.current = ({ node, pos, editor: placeholderEditor, hasAnchor }) => {
+	placeholderRef.current = ({ node, parent, hasAnchor }) => {
 		if (node.type.name === "heading") {
 			const headingType = textBlockTypes.find((type) => type.id === `heading${node.attrs.level}`);
 			return headingType ? t(headingType.label) : documentPlaceholder;
 		}
 		if (node.type.name !== "paragraph" || !hasAnchor) return "";
-		const parent = placeholderEditor.state.doc.resolve(pos).parent.type.name;
-		if (parent === "listItem") return t`List`;
-		if (parent === "blockquote") return t`Quote`;
+		if (parent?.type.name === "listItem") return t`List`;
+		if (parent?.type.name === "blockquote") return t`Quote`;
 		return documentPlaceholder;
 	};
 	const toolbarRef = React.useRef<HTMLDivElement>(null);
@@ -3951,11 +3949,7 @@ export function PortableTextEditor({
 			createTableClipboard(rejectTablePaste, (rows, columns) =>
 				extensionAnnouncementRef.current(rows, columns),
 			),
-			Placeholder.configure({
-				includeChildren: true,
-				showOnlyCurrent: false,
-				placeholder: (props) => placeholderRef.current(props),
-			}),
+			createTextBlockPlaceholder((props) => placeholderRef.current(props)),
 			TextAlign.configure({
 				types: ["heading", "paragraph"],
 			}),
