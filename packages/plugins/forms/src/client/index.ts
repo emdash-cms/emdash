@@ -98,6 +98,7 @@ async function handleSubmit(e: Event) {
 	if (!validateVisibleFields(form)) return;
 
 	const submitBtn = form.querySelector<HTMLButtonElement>(".ec-form-submit");
+	const renderedSubmitLabel = submitBtn?.textContent ?? "";
 	if (submitBtn) {
 		submitBtn.disabled = true;
 		submitBtn.textContent = "Submitting...";
@@ -138,7 +139,7 @@ async function handleSubmit(e: Event) {
 	} finally {
 		if (submitBtn) {
 			submitBtn.disabled = false;
-			submitBtn.textContent = form.dataset.submitLabel || "Submit";
+			submitBtn.textContent = renderedSubmitLabel;
 		}
 	}
 }
