@@ -161,7 +161,7 @@ export function Sections() {
 							)}
 						/>
 						<Dialog
-							className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-[32rem]"
+							className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-lg"
 							size="lg"
 						>
 							<form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col">
@@ -453,7 +453,7 @@ function SectionCard({
 						/>
 						<DropdownMenu.Content align="end">
 							<DropdownMenu.Item
-								icon={<Copy className="me-2 size-4" aria-hidden="true" />}
+								icon={<Copy className="size-4" aria-hidden="true" />}
 								onClick={onCopySlug}
 							>
 								{t`Copy slug`}
@@ -461,7 +461,7 @@ function SectionCard({
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item
 								variant="danger"
-								icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+								icon={<Trash className="size-4" aria-hidden="true" />}
 								aria-label={section.source === "theme" ? undefined : t`Delete ${section.title}`}
 								disabled={section.source === "theme"}
 								onClick={onDelete}

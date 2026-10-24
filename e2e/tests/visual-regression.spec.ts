@@ -355,9 +355,9 @@ test.describe("visual regression", () => {
 			tableShot,
 		);
 		await page.keyboard.press("Escape");
-		await visualAction(admin, "Select table");
+		await visualAction(admin, "تحديد الجدول");
 		await page.locator("#field-body [data-emdash-table-trigger]").click();
-		await expect(page.getByRole("menuitem", { name: /Delete.*rows/ })).toBeDisabled();
+		await expect(page.getByRole("menuitem", { name: "حذف الصفوف", exact: true })).toBeDisabled();
 		await expect(page.locator('[role="menu"]:visible')).toHaveScreenshot(
 			"table-d-delete-disabled.png",
 			tableShot,
@@ -407,11 +407,11 @@ test.describe("visual regression", () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		view = await openTableVisual(admin, 3, 3, false, LOCALES[1], "dark");
 		await visualAction(admin, "تبديل صف الرأس");
-		await visualAction(admin, "Toggle header column");
+		await visualAction(admin, "تبديل عمود الرأس");
 		await settleTableGeometry(admin);
 		await expect(view.table).toHaveScreenshot("table-h-header-row-column.png", tableShot);
 		await visualAction(admin, "تبديل صف الرأس");
-		await visualAction(admin, "Toggle header column");
+		await visualAction(admin, "تبديل عمود الرأس");
 		await settleTableGeometry(admin);
 		await expect(view.table).toHaveScreenshot("table-h-body-only.png", tableShot);
 

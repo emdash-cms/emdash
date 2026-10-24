@@ -182,12 +182,12 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes }: NodeViewP
 			menuLabel={t`HTML block options`}
 			menu={
 				<DropdownMenu.Group>
-					<DropdownMenu.Label>{t`On the site`}</DropdownMenu.Label>
+					<DropdownMenu.Label className="px-2!">{t`On the site`}</DropdownMenu.Label>
 					<DropdownMenu.RadioGroup
 						value={isolated ? "isolated" : "inline"}
 						onValueChange={setIsolated}
 					>
-						<DropdownMenu.RadioItem value="isolated" closeOnClick>
+						<DropdownMenu.RadioItem value="isolated" closeOnClick className="px-2!">
 							<span className="flex flex-col">
 								{t`Isolated frame`}
 								<span className="text-xs text-kumo-subtle">
@@ -195,7 +195,7 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes }: NodeViewP
 								</span>
 							</span>
 						</DropdownMenu.RadioItem>
-						<DropdownMenu.RadioItem value="inline" closeOnClick>
+						<DropdownMenu.RadioItem value="inline" closeOnClick className="px-2!">
 							<span className="flex flex-col">
 								{t`Inline`}
 								<span className="text-xs text-kumo-subtle">

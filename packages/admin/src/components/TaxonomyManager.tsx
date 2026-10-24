@@ -329,7 +329,7 @@ function TagTermRow({
 								{!searchActive && (
 									<>
 										<DropdownMenu.Item
-											icon={<ArrowUp className="me-2 size-4" aria-hidden="true" />}
+											icon={<ArrowUp className="size-4" aria-hidden="true" />}
 											aria-label={t`Move up ${term.label}`}
 											disabled={stranded || place <= 0}
 											onClick={() => onMove(parentId, siblings, movable, term, -1)}
@@ -337,7 +337,7 @@ function TagTermRow({
 											{t`Move up`}
 										</DropdownMenu.Item>
 										<DropdownMenu.Item
-											icon={<ArrowDown className="me-2 size-4" aria-hidden="true" />}
+											icon={<ArrowDown className="size-4" aria-hidden="true" />}
 											aria-label={t`Move down ${term.label}`}
 											disabled={stranded || place >= movable.length - 1}
 											onClick={() => onMove(parentId, siblings, movable, term, 1)}
@@ -349,7 +349,7 @@ function TagTermRow({
 								)}
 								{canTranslate && onTranslate && (
 									<DropdownMenu.Item
-										icon={<Translate className="me-2 size-4" aria-hidden="true" />}
+										icon={<Translate className="size-4" aria-hidden="true" />}
 										onClick={() => onTranslate(term)}
 									>
 										{t`Translate`}
@@ -357,7 +357,7 @@ function TagTermRow({
 								)}
 								<DropdownMenu.Item
 									variant="danger"
-									icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+									icon={<Trash className="size-4" aria-hidden="true" />}
 									aria-label={t`Delete tag ${term.label}`}
 									onClick={() => onDelete(term)}
 								>
@@ -744,7 +744,7 @@ function TermFormDialog({
 			}}
 		>
 			<Dialog
-				className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-[32rem]"
+				className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-lg"
 				size="lg"
 			>
 				<form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
@@ -1006,7 +1006,7 @@ function CreateTaxonomyDialog({
 			}}
 		>
 			<Dialog
-				className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-[32rem]"
+				className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-lg"
 				size="lg"
 			>
 				<form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
@@ -1357,7 +1357,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 							{taxonomyName === "tag" && (
 								<>
 									<DropdownMenu.Item
-										icon={<StackSimple className="me-2 size-4" aria-hidden="true" />}
+										icon={<StackSimple className="size-4" aria-hidden="true" />}
 										onClick={() => setCreateTaxonomyOpen(true)}
 									>
 										{t`New taxonomy`}
@@ -1367,7 +1367,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 							)}
 							<DropdownMenu.Item
 								variant="danger"
-								icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+								icon={<Trash className="size-4" aria-hidden="true" />}
 								onClick={() => setDeleteTaxonomyOpen(true)}
 							>
 								{t`Delete taxonomy`}

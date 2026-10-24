@@ -420,7 +420,7 @@ export function BylinesPage() {
 													>
 														<DropdownMenu.Item
 															variant="danger"
-															icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+															icon={<Trash className="size-4" aria-hidden="true" />}
 															aria-label={t`Delete byline ${item.displayName}`}
 															onClick={() => setDeleteTarget(item)}
 														>
