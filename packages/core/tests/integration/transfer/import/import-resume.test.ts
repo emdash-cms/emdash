@@ -53,6 +53,38 @@ async function activateCapture(db: Kysely<Database>): Promise<void> {
 	throw new Error("Capture activation did not finish");
 }
 
+async function preparePostsDeletion(db: Kysely<Database>): Promise<void> {
+	await activateCapture(db);
+	const registry = new SchemaRegistry(db);
+	const posts = await registry.getCollection("posts");
+	expect(posts).not.toBeNull();
+	await db
+		.insertInto("_emdash_media_usage_sources")
+		.values(
+			Array.from({ length: 3 }, (_, index) => ({
+				source_key: `deleted-post-source-${index}`,
+				source_type: "content",
+				collection_id: posts!.id,
+				collection_slug: "posts",
+				content_id: `deleted-post-${index}`,
+				source_variant: "columns",
+				current_generation: "generation-old",
+			})),
+		)
+		.execute();
+	await registry.deleteCollection("posts", { force: true });
+	await registry.deleteCollection("pages", { force: true });
+}
+
+async function deletedPostsSourceCount(db: Kysely<Database>): Promise<number> {
+	const row = await db
+		.selectFrom("_emdash_media_usage_sources")
+		.select((eb) => eb.fn.countAll<number>().as("count"))
+		.where("collection_slug", "=", "posts")
+		.executeTakeFirstOrThrow();
+	return Number(row.count);
+}
+
 /** A dump with each run's media storage keys replaced by the media id they belong to. */
 async function normalizedDump(db: Kysely<Database>): Promise<Record<string, string[]>> {
 	const keys = await mediaKeys(db);
@@ -404,6 +436,110 @@ describeEachDialect("site import resumption", (dialect) => {
 			"POST /_emdash/api/admin/media-usage/collection-deletions/retry",
 		);
 		expect(operation.errorDetail?.message).toContain('"collectionId":"deleted-posts"');
+	});
+
+	it("finishes several collection cleanup entries before importing in one request", async () => {
+		await preparePostsDeletion(ctx.db);
+		expect(await deletedPostsSourceCount(ctx.db)).toBe(3);
+		const staged = await stageGoldenImport(ctx.db, storage, dialect);
+		const { db, faults } = withFaults(ctx.db);
+
+		const result = await advanceImport({
+			db,
+			storage,
+			operationId: staged.operationId,
+			verify: verifyOk,
+			budget: countingBudget(faults, 1000)(),
+		});
+
+		expect(result.operation.state).not.toBe("failed");
+		expect(result.nextRequestInMs).not.toBe(IMPORT_RETRY_MS);
+		expect(await deletedPostsSourceCount(ctx.db)).toBe(0);
+		expect(await new SchemaRegistry(ctx.db).getCollection("posts")).toMatchObject({
+			id: ids.posts,
+		});
+		expect(await new MediaUsageCollectionDeletionRepository(ctx.db).findBySlug("posts")).toBeNull();
+	});
+
+	it("keeps the collection cursor while cleanup spans budget-limited requests", async () => {
+		await preparePostsDeletion(ctx.db);
+		expect(await deletedPostsSourceCount(ctx.db)).toBe(3);
+		const staged = await stageGoldenImport(ctx.db, storage, dialect);
+		const { db, faults } = withFaults(ctx.db);
+		const ceiling = 100;
+		const perStep: number[] = [];
+		let cleanupCursor: unknown;
+		let steps = 0;
+
+		for (;;) {
+			const before = faults.executed;
+			const result = await advanceImport({
+				db,
+				storage,
+				operationId: staged.operationId,
+				verify: verifyOk,
+				budget: countingBudget(faults, ceiling)(),
+			});
+			perStep.push(faults.executed - before);
+			steps++;
+			const remaining = await deletedPostsSourceCount(ctx.db);
+			if (remaining > 0 && result.operation.stage === "schema") {
+				cleanupCursor ??= result.operation.cursor;
+				expect(result.operation.cursor).toEqual(cleanupCursor);
+			}
+			if (result.nextRequestInMs === null) break;
+			expect(steps).toBeLessThan(100);
+		}
+
+		expect(Math.max(...perStep)).toBeLessThanOrEqual(ceiling);
+		expect(cleanupCursor).toBeDefined();
+		expect(steps).toBeGreaterThan(1);
+		expect(await deletedPostsSourceCount(ctx.db)).toBe(0);
+		expect((await new TransferOperationRepository(ctx.db).require(staged.operationId)).state).toBe(
+			"complete",
+		);
+	});
+
+	it("cancels after cleanup finalizes without importing the collection", async () => {
+		await preparePostsDeletion(ctx.db);
+		const staged = await stageGoldenImport(ctx.db, storage, dialect);
+		const finalizations = new WeakSet<object>();
+		let cancelled = false;
+		let cancellationCursor: unknown;
+		const db = ctx.db.withPlugin({
+			transformQuery(args) {
+				if (
+					args.node.kind === "DeleteQueryNode" &&
+					JSON.stringify(args.node.from).includes('"_emdash_media_usage_collection_deletions"')
+				) {
+					finalizations.add(args.queryId);
+				}
+				return args.node;
+			},
+			async transformResult(args) {
+				if (!cancelled && finalizations.has(args.queryId)) {
+					cancelled = true;
+					const operation = await new TransferOperationRepository(ctx.db).requestCancel(
+						staged.operationId,
+					);
+					expect(operation.state).toBe("running");
+					cancellationCursor = operation.cursor;
+				}
+				return args.result;
+			},
+		});
+
+		const result = await advanceImport({
+			db,
+			storage,
+			operationId: staged.operationId,
+			verify: verifyOk,
+		});
+		expect(cancelled).toBe(true);
+		expect(result.operation.state).toBe("cancelled");
+		expect(result.nextRequestInMs).toBeNull();
+		expect(result.operation.cursor).toEqual(cancellationCursor);
+		expect(await new SchemaRegistry(ctx.db).getCollection("posts")).toBeNull();
 	});
 
 	it.each(["pending", "leased", "retry"] as const)(

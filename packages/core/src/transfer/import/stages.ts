@@ -54,6 +54,7 @@ export const STAGE_STREAMS: Readonly<Record<ImportRecordStage, readonly RecordKi
 const DEFAULT_BATCH = 100;
 const ENTRY_BATCH = 50;
 const COLLECTION_STATEMENTS = 81;
+const COLLECTION_DELETION_STATEMENTS = 40;
 
 /** Thrown out of a stage when the operation was asked to cancel. */
 export class ImportCancelledSignal extends Error {}
@@ -220,10 +221,16 @@ async function importCollection(
 	context: ImportContext,
 	record: RecordOfKind<"collection">,
 ): Promise<void> {
-	const deletion = await new MediaUsageCollectionDeletionRepository(context.db).findBySlug(
-		record.slug,
-	);
-	if (deletion) {
+	const deletions = new MediaUsageCollectionDeletionRepository(context.db);
+	let deletion = await deletions.findBySlug(record.slug);
+	const hadDeletion = deletion !== null;
+	while (deletion) {
+		if (!context.budget.canStart({ queries: COLLECTION_DELETION_STATEMENTS })) {
+			throw new ImportCollectionDeletionSignal(false);
+		}
+		context.budget.start();
+		const operation = await context.ops.require(context.operationId);
+		if (operation.cancelRequestedAt !== null) throw new ImportCancelledSignal();
 		const outcome =
 			deletion.state === "failed"
 				? "failed"
@@ -239,7 +246,16 @@ async function importCollection(
 				},
 			});
 		}
-		throw new ImportCollectionDeletionSignal(outcome !== "progress" && outcome !== "finalized");
+		if (outcome === "finalized") break;
+		if (outcome !== "progress") throw new ImportCollectionDeletionSignal(true);
+		deletion = await deletions.findBySlug(record.slug);
+	}
+	if (hadDeletion) {
+		if (!context.budget.canStart({ queries: COLLECTION_STATEMENTS + 3 })) {
+			throw new ImportCollectionDeletionSignal(false);
+		}
+		const operation = await context.ops.require(context.operationId);
+		if (operation.cancelRequestedAt !== null) throw new ImportCancelledSignal();
 	}
 	const fields = (await context.allRecords("field")).filter(
 		(field) => field.collectionId === record.id,
