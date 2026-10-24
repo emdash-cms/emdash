@@ -27,6 +27,7 @@ import {
 } from "@emdash-cms/registry-verification/artifact";
 import type { Kysely } from "kysely";
 
+import { OptionsRepository } from "../../database/repositories/options.js";
 import type { Database } from "../../database/types.js";
 import { withUnavailableReason } from "../../plugins/sandbox/types.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
@@ -1199,6 +1200,7 @@ export async function handleRegistryUninstall(
 		let dataDeleted = false;
 		if (opts?.deleteData) {
 			await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
+			await new OptionsRepository(db).deleteByPrefix(`plugin:${pluginId}:`);
 			dataDeleted = true;
 		}
 

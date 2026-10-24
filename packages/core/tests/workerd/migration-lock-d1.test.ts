@@ -159,3 +159,55 @@ describe("content row limit on D1", () => {
 		expect(await readMigrationLock(db)).toBeNull();
 	});
 });
+
+describe("plugin KV options row limit on D1", () => {
+	beforeEach(async () => {
+		await resetD1Schema(db);
+		await migrateThrough("091_redirect_artifacts");
+		await sql`
+			INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision)
+			VALUES
+				('plugin', '__kv', 'one', '{"value":1}', 'revision-one'),
+				('plugin', '__kv', 'two', '{"value":2}', 'revision-two'),
+				('plugin', '__kv', 'SETTINGS:uppercase', '{"value":3}', 'revision-three'),
+				('plugin', '__kv', 'settings:ignored', '{"value":4}', 'revision-four'),
+				('plugin', 'other', 'ignored', '{"value":5}', 'revision-five')
+		`.execute(db);
+		await sql`
+			INSERT INTO options (name, value, revision)
+			VALUES ('plugin:plugin:one', '{"old":true}', 'existing')
+		`.execute(db);
+	});
+
+	it("refuses before the lock or writes when KV rows exceed the limit", async () => {
+		const heldSince = Date.now() - 10 * 60_000;
+		await holdLock(heldSince);
+
+		await expect(runMigrations(db, { contentRowLimit: 2 })).rejects.toBeInstanceOf(
+			MigrationRowLimitError,
+		);
+		expect(await readMigrationLock(db)).toBe(heldSince);
+		expect((await getExactMigrationStatus(db)).pending[0]).toBe("092_plugin_kv_options");
+		expect(
+			await db.selectFrom("options").selectAll().where("name", "like", "plugin:plugin:%").execute(),
+		).toEqual([{ name: "plugin:plugin:one", value: '{"old":true}', revision: "existing" }]);
+	});
+
+	it("counts conflicts and migrates the qualifying KV rows at the limit", async () => {
+		const { applied } = await runMigrations(db, { contentRowLimit: 3 });
+
+		expect(applied[0]).toBe("092_plugin_kv_options");
+		expect(
+			(await db.selectFrom("options").select(["name", "value"]).execute()).toSorted((a, b) =>
+				a.name.localeCompare(b.name),
+			),
+		).toEqual(
+			[
+				{ name: "byline_fields_version", value: "0" },
+				{ name: "plugin:plugin:SETTINGS:uppercase", value: '{"value":3}' },
+				{ name: "plugin:plugin:one", value: '{"old":true}' },
+				{ name: "plugin:plugin:two", value: '{"value":2}' },
+			].toSorted((a, b) => a.name.localeCompare(b.name)),
+		);
+	});
+});

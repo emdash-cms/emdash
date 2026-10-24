@@ -7,6 +7,7 @@
 
 import type { Kysely } from "kysely";
 
+import { OptionsRepository } from "../../database/repositories/options.js";
 import type { Database } from "../../database/types.js";
 import { validatePluginIdentifier } from "../../database/validate.js";
 import { pluginManifestSchema, reconcileManifestAccess } from "../../plugins/manifest-schema.js";
@@ -881,6 +882,7 @@ export async function handleMarketplaceUninstall(
 		if (opts?.deleteData) {
 			try {
 				await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
+				await new OptionsRepository(db).deleteByPrefix(`plugin:${pluginId}:`);
 				dataDeleted = true;
 			} catch {
 				// Plugin storage table may not have data for this plugin

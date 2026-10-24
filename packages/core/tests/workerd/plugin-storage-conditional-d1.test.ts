@@ -4,12 +4,17 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
 import { up } from "../../src/database/migrations/077_plugin_storage_revisions.js";
+import { up as upPluginKvOptions } from "../../src/database/migrations/092_plugin_kv_options.js";
+import { OptionsRepository } from "../../src/database/repositories/options.js";
+import { PluginStorageRepository } from "../../src/database/repositories/plugin-storage.js";
 import type { Database } from "../../src/database/types.js";
+import { createKVAccess } from "../../src/plugins/context.js";
 import type {
 	ConditionalDeleteResult,
 	ConditionalWriteResult,
 	VersionedValue,
 } from "../../src/plugins/types.js";
+import { pluginKvMigrationCases } from "../utils/plugin-kv-migration-cases.js";
 import { createLegacyPluginStorageTables } from "../utils/plugin-storage-revision-cases.js";
 import { resetD1Schema } from "./d1-schema.js";
 
@@ -97,7 +102,73 @@ async function current(target: AtomicStore, key = "key"): Promise<VersionedValue
 	return value;
 }
 
+describe("plugin KV migration on D1", () => {
+	pluginKvMigrationCases(() => db);
+});
+
 describe("conditional plugin storage through Cloudflare RPC and D1", () => {
+	it("shares native and sandboxed KV values and revisions", async () => {
+		const native = createKVAccess(new OptionsRepository(db), "owner");
+		const rpc = bridge();
+		const literalKey = "%_literal";
+
+		await native.set("config", { name: "Acme" });
+		expect(await rpc.kvGet("config")).toEqual({ name: "Acme" });
+		await rpc.kvSet(literalKey, null);
+		expect(await native.get(literalKey)).toBeNull();
+		expect(await native.getVersioned(literalKey)).toMatchObject({ value: null });
+		expect(await rpc.kvGetVersioned("config")).toEqual(await native.getVersioned("config"));
+		expect(await rpc.kvList("%_")).toEqual([{ key: literalKey, value: null }]);
+		expect(await native.list("%_")).toEqual([{ key: literalKey, value: null }]);
+
+		const config = await native.getVersioned<{ name: string }>("config");
+		if (!config) throw new Error("Missing native KV fixture");
+		const nativeUpdate = await native.compareAndSet("config", config.revision, {
+			name: "Updated",
+		});
+		expect(nativeUpdate.applied).toBe(true);
+		expect(await rpc.kvGetVersioned("config")).toEqual(await native.getVersioned("config"));
+
+		const updated = await rpc.kvGetVersioned("config");
+		if (!updated) throw new Error("Missing RPC KV fixture");
+		const rpcUpdate = await rpc.kvCompareAndSet("config", updated.revision, {
+			name: "Final",
+		});
+		expect(rpcUpdate.applied).toBe(true);
+		expect(await native.get("config")).toEqual({ name: "Final" });
+		const final = await native.getVersioned("config");
+		if (!final) throw new Error("Missing final KV fixture");
+		expect(await native.compareAndDelete("config", final.revision)).toEqual({ applied: true });
+		expect(await rpc.kvGet("config")).toBeNull();
+		expect(await rpc.kvDelete(literalKey)).toBe(true);
+		expect(await native.list()).toEqual([]);
+
+		await rpc.kvSet("isolated", "owner");
+		const other = bridge("other");
+		expect(await other.kvGet("isolated")).toBeNull();
+		await other.kvSet("isolated", "other");
+		expect(await native.get("isolated")).toBe("owner");
+	});
+
+	it("migrates legacy sandbox KV rows for native and RPC access without resurrecting deletes", async () => {
+		const legacy = new PluginStorageRepository(db, "owner", "__kv", []);
+		await legacy.put("config", { name: "Legacy" });
+		const legacyValue = await legacy.getVersioned("config");
+		if (!legacyValue) throw new Error("Missing legacy KV fixture");
+
+		await upPluginKvOptions(db);
+		const native = createKVAccess(new OptionsRepository(db), "owner");
+		const rpc = bridge();
+		expect(await native.getVersioned("config")).toEqual(legacyValue);
+		expect(await rpc.kvGetVersioned("config")).toEqual(legacyValue);
+		expect(await rpc.kvCompareAndDelete("config", legacyValue.revision)).toEqual({ applied: true });
+		expect(await native.get("config")).toBeNull();
+		expect(await rpc.kvGet("config")).toBeNull();
+		expect(await native.list()).toEqual([]);
+		expect(await rpc.kvList()).toEqual([]);
+		expect(await legacy.get("config")).toEqual({ name: "Legacy" });
+	});
+
 	it.each(["running", "ready"])(
 		"updateIf through RPC invalidates older revisions when setting state to %s",
 		async (state) => {
@@ -175,7 +246,7 @@ describe("conditional plugin storage through Cloudflare RPC and D1", () => {
 		const rpc = bridge();
 		await rpc.kvSet("key", "stored");
 		expect(await rpc.kvGet("key")).toBe("stored");
-		await sql`DROP TABLE _plugin_storage`.execute(db);
+		await sql`DROP TABLE options`.execute(db);
 		await expect(awaitRpc(rpc.kvGet("key"))).rejects.toThrow();
 	});
 
@@ -291,7 +362,12 @@ describe("conditional plugin storage through Cloudflare RPC and D1", () => {
 		it(`${kind}: preserves secondary constraint errors for creation and replacement`, async () => {
 			await sql`
 				CREATE UNIQUE INDEX conditional_unique_value
-				ON _plugin_storage (plugin_id, collection, data)
+				ON ${sql.ref(kind === "kv" ? "options" : "_plugin_storage")} (${sql.join(
+					(kind === "kv" ? ["value"] : ["plugin_id", "collection", "data"]).map((column) =>
+						sql.ref(column),
+					),
+					sql`, `,
+				)})
 			`.execute(db);
 			const target = store(kind);
 			await target.put("first", "unique");
@@ -362,8 +438,8 @@ describe("conditional plugin storage through Cloudflare RPC and D1", () => {
 	});
 
 	it("rejects operational database failures instead of reporting conflicts", async () => {
-		await sql`DROP TABLE _plugin_storage`.execute(db);
 		for (const kind of ["collection", "kv"] as const) {
+			await sql`DROP TABLE ${sql.ref(kind === "kv" ? "options" : "_plugin_storage")}`.execute(db);
 			const target = store(kind);
 			await expect(target.getVersioned("key")).rejects.toThrow();
 			await expect(target.compareAndSet("key", null, "value")).rejects.toThrow();

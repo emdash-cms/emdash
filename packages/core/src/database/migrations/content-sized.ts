@@ -47,6 +47,15 @@ const DATETIME_COLLECTIONS = sql`
  */
 const READ_ONLY_REVISIONS_PER_ROW = 16;
 
+async function countPluginKvOptionsRows(db: Kysely<Database>, cap: number): Promise<number> {
+	return countCapped(
+		db,
+		sql`SELECT 1 FROM _plugin_storage
+			WHERE collection = '__kv' AND substr(id, 1, 9) <> 'settings:'`,
+		cap,
+	);
+}
+
 async function countDatetimeNormalizationRows(db: Kysely<Database>, cap: number): Promise<number> {
 	let slugs: string[];
 	try {
@@ -79,4 +88,5 @@ async function countDatetimeNormalizationRows(db: Kysely<Database>, cap: number)
 /** Keyed by migration name, since a published migration's module must not change. */
 export const CONTENT_SIZED_MIGRATIONS: ReadonlyMap<string, ContentSizedMigration> = new Map([
 	["079_datetime_normalization", { countRows: countDatetimeNormalizationRows }],
+	["092_plugin_kv_options", { countRows: countPluginKvOptionsRows }],
 ]);

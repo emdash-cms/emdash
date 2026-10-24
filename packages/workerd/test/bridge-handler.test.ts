@@ -9,10 +9,12 @@
  * error handling at the bridge level.
  */
 
+import { OptionsRepository } from "emdash";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "../../core/src/db/node-sqlite-compat.js";
+import { createKVAccess } from "../../core/src/plugins/context.js";
 import {
 	bytesOverLimit,
 	INVALID_PLUGIN_HTTP_BYTES,
@@ -153,6 +155,51 @@ describe("Bridge Handler Conformance", () => {
 		const response = await handler(request);
 		return response.json() as Promise<{ result?: unknown; error?: string }>;
 	}
+
+	it("shares non-settings KV with in-process plugins across mode switches", async () => {
+		const native = createKVAccess(new OptionsRepository(db), "test-plugin");
+		const sandbox = makeHandler({});
+		await native.set("config", { name: "Acme" });
+		expect(await call(sandbox, "kv/get", { key: "config" })).toEqual({ result: { name: "Acme" } });
+		const initial = await native.getVersioned("config");
+		expect(initial).not.toBeNull();
+		expect(await call(sandbox, "kv/getVersioned", { key: "config" })).toEqual({ result: initial });
+		expect(
+			await call(sandbox, "kv/compareAndSet", {
+				key: "config",
+				expectedRevision: initial!.revision,
+				value: { name: "Updated" },
+			}),
+		).toMatchObject({ result: { applied: true } });
+		expect(await native.get("config")).toEqual({ name: "Updated" });
+		expect(
+			await call(sandbox, "kv/compareAndDelete", {
+				key: "config",
+				expectedRevision: initial!.revision,
+			}),
+		).toEqual({ result: { applied: false } });
+		await call(sandbox, "kv/set", { key: "scan", value: false });
+		expect(await native.get("scan")).toBe(false);
+		expect(await call(sandbox, "kv/list", {})).toEqual({ result: await native.list() });
+		await call(sandbox, "kv/set", { key: "prefix_%:literal", value: null });
+		await call(sandbox, "kv/set", { key: "prefixXYZ:other", value: 1 });
+		expect(await call(sandbox, "kv/list", { prefix: "prefix_%" })).toEqual({
+			result: [{ key: "prefix_%:literal", value: null }],
+		});
+		expect(await call(makeHandler({ pluginId: "other" }), "kv/get", { key: "config" })).toEqual({
+			result: null,
+		});
+		const current = await native.getVersioned("config");
+		expect(
+			await call(sandbox, "kv/compareAndDelete", {
+				key: "config",
+				expectedRevision: current!.revision,
+			}),
+		).toEqual({ result: { applied: true } });
+		expect(await native.get("config")).toBeNull();
+		expect(await call(sandbox, "kv/delete", { key: "scan" })).toEqual({ result: true });
+		expect(await native.get("scan")).toBeNull();
+	});
 
 	describe("publication actions", () => {
 		it("routes capability-gated actions through the host callback", async () => {

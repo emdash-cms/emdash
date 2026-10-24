@@ -524,6 +524,17 @@ export async function createPluginRuntimeTestHost(
 			data: JSON.parse(row.data) as T,
 		}));
 	};
+	const readKv = async <T>(key?: string) => {
+		assertActive();
+		const prefix = `plugin:${manifest.id}:`;
+		const values =
+			key === undefined
+				? await optionRepo.getByPrefix<T>(prefix)
+				: await optionRepo.getMany<T>([`${prefix}${key}`]);
+		return Array.from(values, ([name, data]) => ({ id: name.slice(prefix.length), data })).filter(
+			({ id }) => !id.startsWith("settings:"),
+		);
+	};
 	const invokeAdmin = async (
 		interaction: BlockInteraction,
 		adminOptions: PluginRuntimeAdminRequestOptions = {},
@@ -968,7 +979,7 @@ export async function createPluginRuntimeTestHost(
 						.run();
 				},
 				kv(key, value) {
-					return this.storage("__kv", key, value);
+					return optionRepo.set(`plugin:${manifest.id}:${key}`, value);
 				},
 			},
 		},
@@ -1087,9 +1098,9 @@ export async function createPluginRuntimeTestHost(
 			},
 			kv: {
 				async get<T>(key: string) {
-					return (await readStorage<T>("__kv", key))[0]?.data ?? null;
+					return (await readKv<T>(key))[0]?.data ?? null;
 				},
-				list: () => readStorage("__kv"),
+				list: () => readKv(),
 			},
 			setting: (key) => optionRepo.get(`plugin:${manifest.id}:settings:${key}`),
 			settings: {
