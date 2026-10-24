@@ -228,23 +228,25 @@ describe("TaxonomySidebar", () => {
 
 	describe.each([tagsTaxonomy, categoriesTaxonomy])("$label IME input", (taxonomy) => {
 		describe.each([
-			{ name: "active composition", isComposing: true, keyCode: 13 },
-			{ name: "composition ending with keyCode 229", isComposing: false, keyCode: 229 },
-		])("$name", ({ isComposing, keyCode }) => {
+			{ name: "active composition", eventInit: { isComposing: true } },
+			{
+				name: "composition ending with keyCode 229",
+				eventInit: { isComposing: false, keyCode: 229 },
+			},
+		])("$name", ({ eventInit }) => {
 			async function composeKey(input: Element, key: string) {
 				const event = new KeyboardEvent("keydown", {
 					key,
-					isComposing,
-					keyCode,
+					...eventInit,
 					bubbles: true,
 					cancelable: true,
 				});
 				input.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
-				if (!isComposing) {
+				if (!eventInit.isComposing) {
 					input.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
 				}
 				input.dispatchEvent(event);
-				if (isComposing) {
+				if (eventInit.isComposing) {
 					input.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
 				}
 				await new Promise(requestAnimationFrame);
