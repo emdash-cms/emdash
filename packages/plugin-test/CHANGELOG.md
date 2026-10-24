@@ -1,5 +1,15 @@
 # @emdash-cms/plugin-test
 
+## 0.2.11
+
+### Patch Changes
+
+- Updated dependencies [[`064fbbf`](https://github.com/emdash-cms/emdash/commit/064fbbfe00a9f3b8c2fdea8b0b1abec43e785505), [`b145faf`](https://github.com/emdash-cms/emdash/commit/b145faf1bd7e1069025baa2b43c2ad98d7ce8dc0), [`ec973c0`](https://github.com/emdash-cms/emdash/commit/ec973c06c216c8e81dae77848f476982649b29f5), [`d871288`](https://github.com/emdash-cms/emdash/commit/d8712882fc3e065fa3452e3d3903fb1ea0cd918f), [`3d29980`](https://github.com/emdash-cms/emdash/commit/3d29980290fd2ebcbe9ce7d53808b17c4aa65190), [`190022c`](https://github.com/emdash-cms/emdash/commit/190022cbd71a20d06c856cf5673acb0b2d2d9f1f), [`8da0792`](https://github.com/emdash-cms/emdash/commit/8da0792564d06cf2411eee2bcbb832d7a1cdfc5c), [`c238da2`](https://github.com/emdash-cms/emdash/commit/c238da2931b12ab58f6228a5a4d79551d05f6d3b), [`f197acf`](https://github.com/emdash-cms/emdash/commit/f197acf3abdac8bde0f67fc3e87ae26559dab67c), [`57abb5c`](https://github.com/emdash-cms/emdash/commit/57abb5c445e0627acff748999e2ca35b75d1e102), [`c16941e`](https://github.com/emdash-cms/emdash/commit/c16941e1e9ba1c91177a2877a6a07d8521dcf5de), [`42503f0`](https://github.com/emdash-cms/emdash/commit/42503f08a4c6e36f8a830454438f12eaf023d71b), [`bed3e42`](https://github.com/emdash-cms/emdash/commit/bed3e421e02429f51c2717fe0aa90ea5340ff921), [`4409acb`](https://github.com/emdash-cms/emdash/commit/4409acb10736c2bf8031bbf29c761dc594e919ed), [`6c5d878`](https://github.com/emdash-cms/emdash/commit/6c5d87831c4e0ed3976ac6d449e37952c4387a61), [`56cb9da`](https://github.com/emdash-cms/emdash/commit/56cb9dab91c2798c147dc6482aa2db62d0f6f7f1)]:
+  - emdash@1.4.0
+  - @emdash-cms/plugin-cli@0.13.5
+  - @emdash-cms/cloudflare@1.4.0
+  - @emdash-cms/blocks@1.4.0
+
 ## 0.2.10
 
 ### Patch Changes
