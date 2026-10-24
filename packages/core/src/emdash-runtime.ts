@@ -67,6 +67,7 @@ import { AuditRepository } from "./database/repositories/audit.js";
 import { CommentRepository } from "./database/repositories/comment.js";
 import type { CommentStatus } from "./database/repositories/comment.js";
 import { ContentRepository } from "./database/repositories/content.js";
+import { MediaRepository } from "./database/repositories/media.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
 import { ContentMutationConflictError } from "./database/repositories/types.js";
@@ -81,6 +82,7 @@ import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-dia
 import { safeJsonSchemaToZod } from "./mcp/json-schema.js";
 import { pluginToolName } from "./mcp/plugin-tool-name.js";
 import { normalizeMediaValue } from "./media/normalize.js";
+import { linkPortableTextFileUrls } from "./media/portable-text-file-refs.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import { activateMediaUsageCapture } from "./media/usage/activation.js";
 import {
@@ -5980,8 +5982,9 @@ export class EmDashRuntime {
 
 	/**
 	 * Normalize field values in content data before validation.
-	 * Turns a blank string in an array-valued field into `null`, and fills
-	 * missing image/file dimensions, storageKey, mimeType, and filename from providers.
+	 * Turns a blank string in an array-valued field into `null`, fills
+	 * missing image/file dimensions, storageKey, mimeType, and filename from
+	 * providers, and links rich text media named by file URL to its media item.
 	 */
 	private async normalizeFieldValues(
 		collection: string,
@@ -6020,7 +6023,27 @@ export class EmDashRuntime {
 		const blockFields = includeBlocks
 			? collectionInfo.fields.filter((field) => field.type === "blocks")
 			: [];
+		// Collected across top-level and block fields so linking costs one lookup.
+		const portableTextValues: { owner: Record<string, unknown>; slug: string }[] =
+			collectionInfo.fields
+				.filter((field) => field.type === "portableText" && Array.isArray(result[field.slug]))
+				.map((field) => ({ owner: result, slug: field.slug }));
+		const linkPortableTextValues = async () => {
+			if (portableTextValues.length === 0) return;
+			try {
+				const linked = await linkPortableTextFileUrls(
+					portableTextValues.map(({ owner, slug }) => owner[slug]),
+					(storageKeys) => new MediaRepository(this.db).findIdsByStorageKeys(storageKeys),
+				);
+				for (const [index, { owner, slug }] of portableTextValues.entries()) {
+					owner[slug] = linked[index];
+				}
+			} catch {
+				// Don't fail the save if linking file URLs to media items fails
+			}
+		};
 		if (imageFields.length === 0 && repeaterFields.length === 0 && blockFields.length === 0) {
+			await linkPortableTextValues();
 			return result;
 		}
 
@@ -6099,6 +6122,8 @@ export class EmDashRuntime {
 								} else if (nestedField.type === "file") {
 									const normalized = await normalizeMediaValue(nestedValue, getProvider);
 									if (normalized) normalizedBlock[nestedField.slug] = normalized;
+								} else if (nestedField.type === "portableText" && Array.isArray(nestedValue)) {
+									portableTextValues.push({ owner: normalizedBlock, slug: nestedField.slug });
 								} else if (nestedField.type === "repeater" && Array.isArray(nestedValue)) {
 									const imageSlugs = (nestedField.validation?.subFields ?? [])
 										.filter((subField) => subField.type === "image")
@@ -6132,6 +6157,7 @@ export class EmDashRuntime {
 			}
 		}
 
+		await linkPortableTextValues();
 		return result;
 	}
 

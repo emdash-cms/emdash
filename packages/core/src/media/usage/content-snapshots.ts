@@ -5,6 +5,7 @@ import type {
 	MediaUsageOccurrenceInput,
 	MediaUsageSourceInput,
 } from "../../database/repositories/media-usage.js";
+import { MediaRepository } from "../../database/repositories/media.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import {
@@ -18,7 +19,7 @@ import {
 	buildContentMediaUsageSourceKey,
 	type MediaUsageContentSourceVariant,
 } from "./source-key.js";
-import { CONTENT_SOURCE_SCHEMA_VERSION } from "./types.js";
+import { CONTENT_SOURCE_SCHEMA_VERSION, type ExtractedMediaUsageOccurrence } from "./types.js";
 
 export { CONTENT_SOURCE_SCHEMA_VERSION } from "./types.js";
 const CONTENT_COLLECTION_ID_RESULT = "__emdash_media_usage_collection_id";
@@ -111,15 +112,39 @@ export async function loadContentMediaUsageSnapshotsBatch(
 		readNullableString(row.draft_revision_id),
 	).filter((revisionId): revisionId is string => revisionId !== null);
 	const revisions = await loadRevisionRows(db, revisionIds);
+	const prepared = new Map<string, PreparedSnapshotsOutcome>();
+	for (const contentId of new Set(contentIds)) {
+		const row = rows.get(contentId);
+		if (!row) {
+			prepared.set(contentId, { result: { success: false, error: "CONTENT_NOT_FOUND" } });
+			continue;
+		}
+		try {
+			prepared.set(contentId, {
+				result: prepareContentMediaUsageSnapshots(
+					row,
+					collectionSlug,
+					discovery,
+					options,
+					revisions,
+				),
+			});
+		} catch (error) {
+			prepared.set(contentId, { error });
+		}
+	}
+	const mediaIdsByStorageKey = await loadMediaIdsByStorageKey(db, prepared.values());
 	const results = new Map<string, LoadContentMediaUsageSnapshotsResult>();
 	let occurrenceCount = 0;
 	let projectionBytes = 0;
-	for (const contentId of new Set(contentIds)) {
+	for (const [contentId, outcome] of prepared) {
 		if (control.shouldContinue && !control.shouldContinue()) break;
-		const row = rows.get(contentId);
-		const result: LoadContentMediaUsageSnapshotsResult = row
-			? await buildContentMediaUsageSnapshots(row, collectionSlug, discovery, options, revisions)
-			: { success: false, error: "CONTENT_NOT_FOUND" };
+		if (!outcome.result) throw outcome.error;
+		const result = await finalizeContentMediaUsageSnapshots(
+			outcome.result,
+			discovery,
+			mediaIdsByStorageKey,
+		);
 		const snapshots = result.success ? result.snapshots : (result.snapshots ?? []);
 		const itemOccurrenceCount = snapshots.reduce(
 			(total, snapshot) => total + snapshot.occurrences.length,
@@ -145,7 +170,26 @@ export async function loadContentMediaUsageSnapshotsBatch(
 	return results;
 }
 
-async function buildContentMediaUsageSnapshots(
+interface PreparedSnapshot {
+	collectionId: string;
+	source: MediaUsageSourceInput;
+	occurrences: ExtractedMediaUsageOccurrence[];
+}
+
+type PreparedSnapshotsResult =
+	| { success: true; snapshots: PreparedSnapshot[] }
+	| {
+			success: false;
+			error: Extract<LoadContentMediaUsageSnapshotsResult, { success: false }>["error"];
+			source?: MediaUsageSourceInput;
+			snapshots?: PreparedSnapshot[];
+	  };
+
+type PreparedSnapshotsOutcome =
+	| { result: PreparedSnapshotsResult; error?: never }
+	| { result?: never; error: unknown };
+
+function prepareContentMediaUsageSnapshots(
 	row: Record<string, unknown>,
 	collectionSlug: string,
 	discovery: ContentMediaUsageFieldDiscovery,
@@ -154,7 +198,7 @@ async function buildContentMediaUsageSnapshots(
 		string,
 		{ success: true; revision: RevisionSnapshotRow } | { success: false }
 	>,
-): Promise<LoadContentMediaUsageSnapshotsResult> {
+): PreparedSnapshotsResult {
 	const collectionId = readString(row[CONTENT_COLLECTION_ID_RESULT]);
 	if (!collectionId) {
 		throw new Error("Media usage snapshot query did not return a collection identity");
@@ -179,21 +223,7 @@ async function buildContentMediaUsageSnapshots(
 		sourceVariant: "columns",
 		revisionId: columnsRevisionId,
 	});
-	const columnsProjection = await buildMediaUsageProjectionFingerprint({
-		collectionId,
-		source: columnsSource,
-		occurrences,
-		extractionFields: discovery.extractionFields,
-	});
-	columnsSource.sourceFingerprint = columnsProjection.fingerprint;
-	const snapshots: ContentMediaUsageSnapshot[] = [
-		{
-			source: columnsSource,
-			occurrences,
-			fields: discovery.extractionFields,
-			projectionByteLength: columnsProjection.byteLength,
-		},
-	];
+	const snapshots: PreparedSnapshot[] = [{ collectionId, source: columnsSource, occurrences }];
 
 	const draftRevisionId = readNullableString(row.draft_revision_id);
 	if (draftRevisionId) {
@@ -255,25 +285,72 @@ async function buildContentMediaUsageSnapshots(
 			revisionId: draftRevisionId,
 			contentSlug: draftContentSlug,
 		});
-		const draftProjection = await buildMediaUsageProjectionFingerprint({
-			collectionId,
-			source: draftSource,
-			occurrences: draftOccurrences,
-			extractionFields: discovery.extractionFields,
-		});
-		draftSource.sourceFingerprint = draftProjection.fingerprint;
-		snapshots.push({
-			source: draftSource,
-			occurrences: draftOccurrences,
-			fields: discovery.extractionFields,
-			projectionByteLength: draftProjection.byteLength,
-		});
+		snapshots.push({ collectionId, source: draftSource, occurrences: draftOccurrences });
 	}
 
 	return {
 		success: true,
 		snapshots,
 	};
+}
+
+async function finalizeContentMediaUsageSnapshots(
+	prepared: PreparedSnapshotsResult,
+	discovery: ContentMediaUsageFieldDiscovery,
+	mediaIdsByStorageKey: ReadonlyMap<string, string>,
+): Promise<LoadContentMediaUsageSnapshotsResult> {
+	const snapshots: ContentMediaUsageSnapshot[] = [];
+	for (const snapshot of prepared.snapshots ?? []) {
+		const occurrences = resolveLocalFileOccurrences(snapshot.occurrences, mediaIdsByStorageKey);
+		const projection = await buildMediaUsageProjectionFingerprint({
+			collectionId: snapshot.collectionId,
+			source: snapshot.source,
+			occurrences,
+			extractionFields: discovery.extractionFields,
+		});
+		snapshot.source.sourceFingerprint = projection.fingerprint;
+		snapshots.push({
+			source: snapshot.source,
+			occurrences,
+			fields: discovery.extractionFields,
+			projectionByteLength: projection.byteLength,
+		});
+	}
+	if (prepared.success) return { success: true, snapshots };
+	return {
+		success: false,
+		error: prepared.error,
+		...(prepared.source ? { source: prepared.source } : {}),
+		...(prepared.snapshots ? { snapshots } : {}),
+	};
+}
+
+/** Files named by URL count as uses of the media item stored under that key, if there is one. */
+function resolveLocalFileOccurrences(
+	occurrences: readonly ExtractedMediaUsageOccurrence[],
+	mediaIdsByStorageKey: ReadonlyMap<string, string>,
+): MediaUsageOccurrenceInput[] {
+	return occurrences.flatMap(({ storageKey, ...occurrence }) => {
+		if (storageKey === undefined) return [occurrence];
+		const mediaId = mediaIdsByStorageKey.get(storageKey);
+		return mediaId ? [{ ...occurrence, mediaId, providerAssetId: mediaId }] : [];
+	});
+}
+
+async function loadMediaIdsByStorageKey(
+	db: Kysely<Database>,
+	outcomes: Iterable<PreparedSnapshotsOutcome>,
+): Promise<Map<string, string>> {
+	const storageKeys = new Set<string>();
+	for (const outcome of outcomes) {
+		for (const snapshot of outcome.result?.snapshots ?? []) {
+			for (const occurrence of snapshot.occurrences) {
+				if (occurrence.storageKey !== undefined) storageKeys.add(occurrence.storageKey);
+			}
+		}
+	}
+	if (storageKeys.size === 0) return new Map();
+	return new MediaRepository(db).findIdsByStorageKeys([...storageKeys]);
 }
 
 interface RevisionSnapshotRow {

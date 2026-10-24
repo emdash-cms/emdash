@@ -232,7 +232,9 @@ settings that select the file: **Logo**, **Favicon**, or **Default Social Image*
 - image and file fields
 - image fields inside repeaters
 - image, file, and Portable Text fields inside `blocks` fields
-- image, gallery, and video blocks in Portable Text fields
+- image, gallery, and video blocks in Portable Text fields, including blocks that refer to the file by
+  its `/_emdash/api/media/file/` URL instead of its media ID, as Markdown images written through MCP
+  or the CLI do
 - the site logo, favicon, and default social image
 
 When usage coverage is complete and the file has none of these references, the list shows **No
