@@ -878,6 +878,10 @@ export class EmDashClient {
 			status?: string;
 			locale?: string;
 			translationOf?: string;
+			/** ISO 8601 publication date to record, e.g. when migrating content. Requires `content:publish_any`. */
+			publishedAt?: string | null;
+			/** ISO 8601 creation date to record, e.g. when migrating content. Requires `content:publish_any`. */
+			createdAt?: string | null;
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
 		},
@@ -908,6 +912,8 @@ export class EmDashClient {
 			status?: string;
 			_rev?: string;
 			locale?: string;
+			/** ISO 8601 publication date to record, or `null` to clear it. Requires `content:publish_any`. */
+			publishedAt?: string | null;
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
 			/** Write even though another editor holds this entry's edit lock. */
@@ -925,6 +931,7 @@ export class EmDashClient {
 			data,
 			slug: input.slug,
 			status: input.status,
+			publishedAt: input.publishedAt,
 			migrateBlocks: input.migrateBlocks,
 			replaceBlocks: input.replaceBlocks,
 			...(input._rev ? { _rev: input._rev } : {}),
@@ -962,12 +969,20 @@ export class EmDashClient {
 	async publish(
 		collection: string,
 		id: string,
-		options: { overrideLock?: boolean } = {},
+		options: {
+			overrideLock?: boolean;
+			/** ISO 8601 publication date to record, e.g. when migrating content. Requires `content:publish_any`. */
+			publishedAt?: string;
+		} = {},
 	): Promise<void> {
+		const body = {
+			...(options.overrideLock ? { overrideLock: true } : {}),
+			...(options.publishedAt !== undefined ? { publishedAt: options.publishedAt } : {}),
+		};
 		await this.request<unknown>(
 			"POST",
 			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/publish`,
-			options.overrideLock ? { overrideLock: true } : undefined,
+			Object.keys(body).length > 0 ? body : undefined,
 		);
 	}
 
