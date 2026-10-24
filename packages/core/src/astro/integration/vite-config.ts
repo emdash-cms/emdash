@@ -103,9 +103,9 @@ export function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string
 		},
 		async transform(code, id) {
 			if (!id.startsWith(adminSourceVitePath) || !code.includes("@lingui")) return;
-			const { transformAsync } = (await import(
+			const { transformAsync }: typeof import("@babel/core") = await import(
 				pathToImportUrl(babelCorePath)
-			)) as typeof import("@babel/core");
+			);
 			const result = await transformAsync(code, {
 				filename: id,
 				plugins: [linguiMacroPluginPath],

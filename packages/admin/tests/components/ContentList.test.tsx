@@ -1502,3 +1502,94 @@ describe("ContentList", () => {
 		});
 	});
 });
+
+describe("ContentList card view", () => {
+	it("defaults to the table and shows the same post with its excerpt and image in cards", async () => {
+		const screen = await render(
+			<ContentList
+				{...defaultProps}
+				items={[
+					makeItem({
+						data: {
+							title: "Visual post",
+							excerpt: "A useful summary",
+							featured_image: { meta: { storageKey: "cover.jpg" } },
+						},
+					}),
+				]}
+			/>,
+		);
+		await expect.element(screen.getByRole("table")).toBeInTheDocument();
+		await screen.getByRole("tab", { name: "Cards", exact: true }).click();
+		await expect.element(screen.getByRole("listitem", { name: "Visual post" })).toBeInTheDocument();
+		await expect.element(screen.getByText("A useful summary")).toBeInTheDocument();
+		const image = screen
+			.getByRole("listitem", { name: "Visual post" })
+			.element()
+			.querySelector("img");
+		expect(image?.getAttribute("src")).toBe("/_emdash/api/media/file/cover.jpg");
+		await expect.element(screen.getByRole("heading", { name: "Visual post" })).toBeInTheDocument();
+		await screen.getByRole("tab", { name: "Table", exact: true }).click();
+		await expect.element(screen.getByRole("table")).toBeInTheDocument();
+	});
+
+	it("keeps the current page, bulk selection and item actions when switching layouts", async () => {
+		const items = Array.from({ length: 21 }, (_, index) =>
+			makeItem({ id: String(index), data: { title: `Post ${index}` } }),
+		);
+		const onDuplicate = vi.fn();
+		const onBulkPublish = vi.fn().mockResolvedValue([]);
+		const screen = await render(
+			<ContentList
+				{...defaultProps}
+				items={items}
+				onDuplicate={onDuplicate}
+				onBulkPublish={onBulkPublish}
+			/>,
+		);
+		await screen.getByRole("checkbox", { name: "Select all on this page" }).click();
+		await screen.getByRole("button", { name: "Next page" }).click();
+		await screen.getByRole("tab", { name: "Cards", exact: true }).click();
+		await expect
+			.element(screen.getByRole("listitem", { name: "Post 20", exact: true }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("20 selected", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Duplicate Post 20", exact: true }).click();
+		expect(onDuplicate).toHaveBeenCalledWith("20");
+		await screen.getByRole("button", { name: "Publish", exact: true }).click();
+		expect(onBulkPublish).toHaveBeenCalledWith(items.slice(0, 20).map((item) => item.id));
+	});
+
+	it("preserves search and exposes sorting in cards", async () => {
+		const onSortChange = vi.fn();
+		const screen = await render(
+			<ContentList
+				{...defaultProps}
+				items={[makeItem(), makeItem({ id: "other", data: { title: "Other post" } })]}
+				sort={{ field: "title", direction: "asc" }}
+				onSortChange={onSortChange}
+			/>,
+		);
+		await screen.getByRole("searchbox").fill("Hello");
+		await screen.getByRole("tab", { name: "Cards", exact: true }).click();
+		await expect.element(screen.getByRole("searchbox")).toHaveValue("Hello");
+		await expect.element(screen.getByRole("listitem", { name: "Hello World" })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Ascending", exact: true }).click();
+		expect(onSortChange).toHaveBeenCalledWith({ field: "title", direction: "desc" });
+	});
+
+	it("shows a card empty state and preserves custom field data", async () => {
+		const screen = await render(
+			<ContentList
+				{...defaultProps}
+				items={[makeItem({ data: { title: "Reviewed", score: 7 } })]}
+				listColumns={[{ slug: "score", label: "Score", kind: "number" }]}
+			/>,
+		);
+		await screen.getByRole("tab", { name: "Cards", exact: true }).click();
+		await expect.element(screen.getByText("Score", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("7", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("searchbox").fill("missing");
+		await expect.element(screen.getByRole("status")).toHaveTextContent('No results for "missing"');
+	});
+});
