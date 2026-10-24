@@ -363,7 +363,7 @@ export interface ImportResult {
 	/** Custom taxonomy defs auto-created during the import (plugin import) */
 	taxonomiesCreated?: string[];
 	/** Navigation menu import summary (plugin import) */
-	menus?: { created: number; items: number };
+	menus?: { created: number; skipped: number; items: number };
 	/** Comment import summary (plugin import) */
 	comments?: { imported: number; skipped: number };
 	/** Site settings applied from the source (plugin import) */

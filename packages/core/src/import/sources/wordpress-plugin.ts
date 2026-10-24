@@ -23,6 +23,7 @@ import type {
 	NormalizedItem,
 	PostTypeAnalysis,
 	AttachmentInfo,
+	NavMenuAnalysis,
 } from "../types.js";
 import {
 	BASE_REQUIRED_FIELDS,
@@ -511,6 +512,26 @@ export const wordpressPluginSource: ImportSource = {
 		const categoryTaxonomy = data.taxonomies.find((t) => t.name === "category");
 		const tagTaxonomy = data.taxonomies.find((t) => t.name === "post_tag");
 
+		// Fetch navigation menus (added in emdash-exporter 1.1.0).
+		// Non-fatal: older plugin versions have no /menus endpoint.
+		let navMenus: NavMenuAnalysis[] | undefined;
+		try {
+			const menusResponse = await fetchPluginApi(siteUrl, "menus", {}, headers, 30000);
+			if (menusResponse.ok) {
+				const pluginMenus: PluginMenu[] = await menusResponse.json();
+				if (pluginMenus.length > 0) {
+					navMenus = pluginMenus.map((m) => ({
+						name: m.name,
+						label: m.label,
+						itemCount: m.items.length,
+					}));
+				}
+			}
+		} catch (e) {
+			if (e instanceof SiteChallengeError) throw e;
+			console.warn("Failed to fetch menus:", e);
+		}
+
 		return {
 			sourceId: "wordpress-plugin",
 			site: {
@@ -531,6 +552,7 @@ export const wordpressPluginSource: ImportSource = {
 				displayName: a.display_name,
 				postCount: a.post_count,
 			})),
+			navMenus,
 			i18n: pluginI18nToDetection(data.i18n),
 		};
 	},
