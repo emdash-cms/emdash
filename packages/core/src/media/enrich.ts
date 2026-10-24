@@ -40,6 +40,7 @@ export async function enrichImageMetadata(
 	opts?: {
 		knownDimensions?: { width: number; height: number };
 		placeholder?: { bytes: Uint8Array; contentType: string };
+		placeholders?: boolean;
 	},
 ): Promise<EnrichedImageMetadata> {
 	const normalizedContentType = normalizeMime(contentType);
@@ -57,6 +58,17 @@ export async function enrichImageMetadata(
 	// (e.g. browser naturalWidth/Height, which apply EXIF orientation) over the
 	// raw header dims, which are swapped for 90°/270°-rotated JPEGs.
 	const recordDims = opts?.knownDimensions ?? headerDims;
+
+	// Placeholder generation can be disabled entirely for sites that do not use
+	// LQIP, avoiding CPU-intensive decoding on constrained runtimes. Dimensions
+	// and validation are independent concerns and remain enabled.
+	const placeholdersEnabled = opts?.placeholders ?? true;
+	if (!placeholdersEnabled) {
+		return {
+			width: recordDims?.width,
+			height: recordDims?.height,
+		};
+	}
 
 	// When a smaller thumbnail override is supplied, decode that for the blurhash
 	// and let generatePlaceholder read the thumbnail's own header for the OOM

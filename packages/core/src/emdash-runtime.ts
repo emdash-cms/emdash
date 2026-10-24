@@ -4832,12 +4832,17 @@ export class EmDashRuntime {
 				error: { code: "NO_STORAGE", message: "Storage not configured" },
 			};
 		}
-		const result = await uploadMedia(this.db, this.storage, input, {
-			beforeUpload: async (file) => {
-				if (!this.hooks.hasHooks("media:beforeUpload")) return file;
-				return (await this.hooks.runMediaBeforeUpload(file)).file;
+		const result = await uploadMedia(
+			this.db,
+			this.storage,
+			{ ...input, placeholders: input.placeholders ?? this.config.imagePlaceholders ?? true },
+			{
+				beforeUpload: async (file) => {
+					if (!this.hooks.hasHooks("media:beforeUpload")) return file;
+					return (await this.hooks.runMediaBeforeUpload(file)).file;
+				},
 			},
-		});
+		);
 		if (result.success && !result.data.deduplicated && this.hooks.hasHooks("media:afterUpload")) {
 			const item = result.data.item;
 			await this.hooks.runMediaAfterUpload({

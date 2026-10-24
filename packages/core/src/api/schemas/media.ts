@@ -192,6 +192,16 @@ export const mediaConfirmBody = z
 		size: z.number().int().nonnegative().optional(),
 		width: z.number().int().positive().optional(),
 		height: z.number().int().positive().optional(),
+		thumbnail: z
+			.object({
+				contentType: z.string().regex(CONTENT_TYPE_RE),
+				data: z.string(),
+			})
+			.optional()
+			.meta({
+				description:
+					"Optional base64-encoded thumbnail for LQIP generation. Supplied instead of decoding the full-resolution original on constrained runtimes.",
+			}),
 	})
 	.meta({ id: "MediaConfirmBody" });
 
