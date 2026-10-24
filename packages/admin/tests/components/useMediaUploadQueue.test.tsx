@@ -67,6 +67,23 @@ it("retries a failed file as a new attempt", async () => {
 	expect(result.current.jobs[0]).toMatchObject({ attempt: 2, result: "uploaded" });
 });
 
+it("keeps the rejection message on a failed file until it is retried", async () => {
+	const file = new File(["image"], "too-big.png", { type: "image/png" });
+	const upload = vi
+		.fn<(file: File, options: { signal: AbortSignal }) => Promise<string>>()
+		.mockRejectedValueOnce(new Error("size: File size must not exceed 50MB"))
+		.mockResolvedValueOnce("uploaded");
+	const { result, act } = await renderHook(() => useMediaUploadQueue({ upload }));
+
+	await act(() => result.current.addFiles([file]));
+	await vi.waitFor(() => expect(result.current.jobs[0]?.status).toBe("failed"));
+	expect(result.current.jobs[0]?.error).toBe("size: File size must not exceed 50MB");
+
+	await act(() => result.current.retry(result.current.jobs[0]!.id));
+	await vi.waitFor(() => expect(result.current.jobs[0]?.status).toBe("complete"));
+	expect(result.current.jobs[0]?.error).toBeUndefined();
+});
+
 it("aborts a removed upload and ignores its late completion", async () => {
 	const file = new File(["image"], "cancel.png", { type: "image/png" });
 	const pending = deferred<string>();

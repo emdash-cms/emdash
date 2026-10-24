@@ -231,6 +231,19 @@ describe("MediaPickerModal inline uploads", () => {
 			.toHaveAttribute("aria-pressed", "true");
 	});
 
+	it("shows the server's message on a failed inline upload", async () => {
+		apiMocks.uploadMedia.mockRejectedValueOnce(new Error("size: File size must not exceed 50MB"));
+		const screen = await renderPicker();
+		setInputFiles(screen.getByLabelText("Choose files to upload").element() as HTMLInputElement, [
+			new File(["huge"], "huge.jpg", { type: "image/jpeg" }),
+		]);
+
+		await expect.element(screen.getByText("Upload failed", { exact: true })).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("size: File size must not exceed 50MB", { exact: true }))
+			.toBeInTheDocument();
+	});
+
 	it("aborts an unfinished upload when the picker is cancelled", async () => {
 		let signal: AbortSignal | undefined;
 		apiMocks.uploadMedia.mockImplementation((_file, options) => {
