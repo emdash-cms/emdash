@@ -1,4 +1,4 @@
-import { sql, type Kysely, type Selectable } from "kysely";
+import { sql, type Kysely, type Selectable, type SqlBool } from "kysely";
 import { ulid } from "ulidx";
 
 import { getLocaleCandidates, getLocaleChainRank, getLocaleRank } from "../../i18n/config.js";
@@ -268,17 +268,23 @@ export class TaxonomyRepository {
 	/** Generate a locale-scoped term slug, adding a numeric suffix when needed. */
 	async generateUniqueSlug(name: string, text: string, locale?: string): Promise<string> {
 		const baseSlug = slugify(text);
+		const prefix = `${baseSlug}-`;
+		// A prefix comparison rather than LIKE: D1 rejects LIKE patterns over 50 bytes.
 		let query = this.db
 			.selectFrom("taxonomies")
 			.select("slug")
 			.where("name", "=", name)
-			.where((eb) => eb.or([eb("slug", "=", baseSlug), eb("slug", "like", `${baseSlug}-%`)]));
+			.where((eb) =>
+				eb.or([
+					eb("slug", "=", baseSlug),
+					sql<SqlBool>`substr(slug, 1, length(${prefix})) = ${prefix}`,
+				]),
+			);
 		if (locale !== undefined) query = query.where(localeMatches("locale", locale));
 		const candidates = await query.execute();
 		if (!candidates.some((candidate) => candidate.slug === baseSlug)) return baseSlug;
 
 		let maxSuffix = 0;
-		const prefix = `${baseSlug}-`;
 		for (const candidate of candidates) {
 			if (!candidate.slug.startsWith(prefix)) continue;
 			const suffix = candidate.slug.slice(prefix.length);
