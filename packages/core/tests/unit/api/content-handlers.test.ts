@@ -939,6 +939,11 @@ describe("Content Handlers — slug-change auto-redirect on publish", () => {
 
 	beforeEach(async () => {
 		db = await setupTestDatabaseWithCollections();
+		await db
+			.updateTable("_emdash_collections")
+			.set({ url_pattern: "/post/{slug}" })
+			.where("slug", "=", "post")
+			.execute();
 	});
 
 	afterEach(async () => {
@@ -993,6 +998,31 @@ describe("Content Handlers — slug-change auto-redirect on publish", () => {
 			auto: 1,
 		});
 	});
+
+	it.each([null, ""])(
+		"publishes a staged slug change without a redirect when there is no url pattern (%s)",
+		async (urlPattern) => {
+			await db
+				.updateTable("_emdash_collections")
+				.set({ url_pattern: urlPattern })
+				.where("slug", "=", "post")
+				.execute();
+			const created = await handleContentCreate(db, "post", {
+				data: { title: "Hello" },
+				slug: "hello",
+				status: "published",
+			});
+			expect(created.success).toBe(true);
+			const id = created.data!.item.id;
+
+			await stageDraftSlugChange("post", id, { title: "Hello" }, "hello-world");
+
+			const published = await handleContentPublish(db, "post", id);
+			expect(published.success).toBe(true);
+			expect(published.data?.item.slug).toBe("hello-world");
+			expect(await db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([]);
+		},
+	);
 
 	it("does not create a redirect on first publish (draft URL was never live)", async () => {
 		const created = await handleContentCreate(db, "post", {

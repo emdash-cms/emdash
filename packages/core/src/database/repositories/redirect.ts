@@ -519,7 +519,7 @@ export class RedirectRepository {
 	 * removes redirects that would shadow the now-live new URL, so a
 	 * rename that is later reverted cannot form a loop (#1986).
 	 *
-	 * Returns null when old and new URL are identical (nothing to redirect).
+	 * Returns null without an explicit URL pattern or when old and new URLs are identical.
 	 */
 	async createAutoRedirect(
 		collection: string,
@@ -530,6 +530,8 @@ export class RedirectRepository {
 		oldPublishedAt?: string | null,
 		newPublishedAt?: string | null,
 	): Promise<Redirect | null> {
+		if (!urlPattern) return null;
+
 		return this.withWriteLock(async (fence, repository) => {
 			const oldUrl = interpolateUrlPattern({
 				pattern: urlPattern,
