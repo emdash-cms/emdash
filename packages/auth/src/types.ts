@@ -108,6 +108,11 @@ export interface UpdateUser {
 export type AuthenticatorTransport = "usb" | "nfc" | "ble" | "internal" | "hybrid";
 export type DeviceType = "singleDevice" | "multiDevice";
 
+export interface CredentialBackupState {
+	deviceType: DeviceType;
+	backedUp: boolean;
+}
+
 export interface Credential {
 	id: string; // Base64url credential ID
 	userId: string;
@@ -282,7 +287,11 @@ export interface AuthAdapter {
 	getCredentialById(id: string): Promise<Credential | null>;
 	getCredentialsByUserId(userId: string): Promise<Credential[]>;
 	createCredential(credential: NewCredential): Promise<Credential>;
-	updateCredentialCounter(id: string, counter: number): Promise<void>;
+	updateCredentialCounter(
+		id: string,
+		counter: number,
+		backupState?: CredentialBackupState,
+	): Promise<void>;
 	updateCredentialName(id: string, name: string | null): Promise<void>;
 	deleteCredential(id: string): Promise<void>;
 	countCredentialsByUserId(userId: string): Promise<number>;

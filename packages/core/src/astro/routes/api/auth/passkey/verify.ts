@@ -69,6 +69,10 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 		});
 	} catch (error) {
 		if (error instanceof PasskeyAuthenticationError) {
+			// The client relays this to the browser's Signal API so the stale passkey leaves autofill.
+			if (error.code === "credential_not_found") {
+				return apiError("CREDENTIAL_NOT_FOUND", "Passkey is not registered", 401);
+			}
 			return apiError("UNAUTHORIZED", "Authentication failed", 401);
 		}
 

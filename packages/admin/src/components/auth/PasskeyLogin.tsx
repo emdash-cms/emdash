@@ -13,7 +13,8 @@ import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
-import { apiFetch, parseApiResponse } from "../../lib/api/client";
+import { ApiResponseError, apiFetch, parseApiResponse } from "../../lib/api/client";
+import { signalPasskeyUserDetails, signalUnknownPasskey } from "../../lib/passkey-signals.js";
 import {
 	isPasskeyEnvironmentUsable,
 	isWebAuthnSecureContext,
@@ -28,6 +29,7 @@ const BASE64URL_DASH_REGEX = /-/g;
 const BASE64URL_UNDERSCORE_REGEX = /_/g;
 const BASE64_PLUS_REGEX = /\+/g;
 const BASE64_SLASH_REGEX = /\//g;
+const BASE64_PADDING_REGEX = /=+$/;
 
 // ============================================================================
 // WebAuthn types
@@ -42,6 +44,13 @@ interface PublicKeyCredentialRequestOptionsJSON {
 		id: string;
 		transports?: AuthenticatorTransport[];
 	}>;
+}
+
+interface VerifyResult {
+	user?: {
+		email?: string;
+		name?: string | null;
+	};
 }
 
 interface AuthenticationResponse {
@@ -240,10 +249,31 @@ export function PasskeyLogin({
 					body: JSON.stringify({ credential: authenticationResponse }),
 				});
 
-				const result = await parseApiResponse<unknown>(
-					verifyResponse,
-					t`Failed to verify authentication`,
-				);
+				let result: VerifyResult;
+				try {
+					result = await parseApiResponse<VerifyResult>(
+						verifyResponse,
+						t`Failed to verify authentication`,
+					);
+				} catch (error) {
+					if (error instanceof ApiResponseError && error.code === "CREDENTIAL_NOT_FOUND") {
+						signalUnknownPasskey(options.rpId, credential.id);
+						throw new Error(
+							t`This passkey is no longer registered on this site. Sign in another way, then add a new passkey.`,
+							{ cause: error },
+						);
+					}
+					throw error;
+				}
+
+				if (assertionResponse.userHandle && result.user?.email) {
+					signalPasskeyUserDetails(
+						options.rpId,
+						bufferToBase64url(assertionResponse.userHandle).replace(BASE64_PADDING_REGEX, ""),
+						result.user.email,
+						result.user.name || result.user.email,
+					);
+				}
 
 				setState({ status: "success" });
 				onSuccess(result);

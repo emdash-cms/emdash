@@ -5,6 +5,7 @@
  * https://webauthn.oslojs.dev/examples/registration
  */
 
+import { decodeCBORToNativeValueNoLeftoverBytes } from "@oslojs/cbor";
 import { ECDSAPublicKey, p256 } from "@oslojs/crypto/ecdsa";
 import { RSAPublicKey } from "@oslojs/crypto/rsa";
 import { encodeBase64urlNoPadding, decodeBase64urlIgnorePadding } from "@oslojs/encoding";
@@ -20,7 +21,8 @@ import {
 } from "@oslojs/webauthn";
 
 import { generateToken } from "../tokens.js";
-import type { Credential, NewCredential, AuthAdapter, User, DeviceType } from "../types.js";
+import type { Credential, NewCredential, AuthAdapter, User } from "../types.js";
+import { readBackupState } from "./backup-state.js";
 import {
 	createContextBoundChallenge,
 	decodeChallengeContext,
@@ -90,7 +92,9 @@ export async function generateRegistrationOptions<Type extends string, Context>(
 		timeout: 60000,
 		attestation: "none", // We don't need attestation for our use case
 		authenticatorSelection: {
-			residentKey: "preferred", // Allow discoverable credentials
+			// Sign-in never sends allowCredentials, so a non-discoverable credential could never be used.
+			residentKey: "required",
+			requireResidentKey: true,
 			userVerification: config.userVerification ?? "preferred",
 		},
 		excludeCredentials: existingCredentials.map((cred) => ({
@@ -237,11 +241,7 @@ export async function verifyRegistrationResponse<Type extends string, Context>(
 		throw new Error(`Unsupported credential algorithm: ${algorithm}`);
 	}
 
-	// Determine device type and backup status
-	// Note: oslo webauthn doesn't expose backup flags, so we default to singleDevice
-	// In practice, most modern passkeys are multi-device (e.g., iCloud Keychain, Google Password Manager)
-	const deviceType: DeviceType = "singleDevice";
-	const backedUp = false;
+	const { deviceType, backedUp } = readBackupState(readRawAuthenticatorData(attestationObject));
 
 	const verified: VerifiedRegistration = {
 		credentialId: response.id,
@@ -253,6 +253,17 @@ export async function verifyRegistrationResponse<Type extends string, Context>(
 		transports: response.response.transports ?? [],
 	};
 	return !contextResult.present ? verified : { ...verified, challengeContext: contextResult.value };
+}
+
+/** @oslojs/webauthn parses the attestation's flags but does not expose the backup bits. */
+function readRawAuthenticatorData(attestationObject: Uint8Array): Uint8Array {
+	const decoded = decodeCBORToNativeValueNoLeftoverBytes(attestationObject, 4);
+	const authData: unknown =
+		typeof decoded === "object" && decoded !== null ? Reflect.get(decoded, "authData") : undefined;
+	if (!(authData instanceof Uint8Array)) {
+		throw new Error("No authenticator data in attestation");
+	}
+	return authData;
 }
 
 function isAtomicChallengeStore(
