@@ -152,7 +152,9 @@ describe("generateManifest()", () => {
 		expect(manifest.collections.currents?.fields.priority).toMatchObject({
 			kind: "number",
 			label: "Priority",
+			integer: true,
 		});
+		expect(manifest.collections.currents?.fields.title).not.toHaveProperty("integer");
 	});
 
 	it("publishes the sidebar icon and group for database collections", async () => {

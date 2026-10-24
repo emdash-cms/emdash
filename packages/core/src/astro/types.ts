@@ -9,6 +9,7 @@ import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
 import type { ContentFieldFilters } from "../content-list-query.js";
+import type { ContentSeoInput } from "../database/repositories/types.js";
 import type {
 	PluginEditorExtensionDispatch,
 	ResolvedPluginEditorExtension,
@@ -254,6 +255,7 @@ export interface EmDashManifest {
 		siteName?: string;
 		footerLabel?: string | false;
 		favicon?: string;
+		hiddenNavItems?: string[];
 	};
 }
 
@@ -343,6 +345,7 @@ export interface EmDashHandlers {
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
 			locale?: string;
 			translationOf?: string;
+			seo?: ContentSeoInput;
 			taxonomies?: Record<string, string[]>;
 			references?: Record<string, string[]>;
 			createdAt?: string | null;
@@ -563,7 +566,14 @@ export interface EmDashHandlers {
 		request: Request,
 	) => Promise<HandlerResponse>;
 
-	// Plugin route metadata (for auth/caching decisions before dispatch)
+	// Public-only plugin route metadata for SSR page components.
+	// Public routes return their meta. Private and unknown routes return null.
+	// Present on both anonymous and signed-in locals so the result does not
+	// change when a visitor logs in.
+	getPublicPluginRouteMeta: (pluginId: string, path: string) => RouteMeta | null;
+
+	// Plugin route metadata (for auth/caching decisions before dispatch).
+	// Signed-in locals only. Private routes return `{ public: false }`.
 	getPluginRouteMeta: (pluginId: string, path: string) => RouteMeta | null;
 	getEnabledPluginMcpTools: () => Promise<
 		Array<{

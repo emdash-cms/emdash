@@ -42,6 +42,7 @@ import {
 	isInstrumentationEnabled,
 } from "../database/instrumentation.js";
 import {
+	isMigrationRequiredError,
 	PendingMigrationsError,
 	resolveRuntimeMigrationMode,
 	type RuntimeMigrationMode,
@@ -84,7 +85,10 @@ import {
 } from "./middleware/scoped-db.js";
 import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
 import { prefetchLayoutData } from "./prefetch.js";
-import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
+import {
+	createPublicPluginApiRouteHandler,
+	getPublicPluginRouteMeta,
+} from "./public-plugin-api-routes.js";
 import { resolveSessionUser } from "./session-user.js";
 import type { EmDashHandlers } from "./types.js";
 
@@ -478,6 +482,18 @@ function resolveConfiguredMigrationMode(config: EmDashConfig): RuntimeMigrationM
 
 function pendingMigrationsResponse(error: PendingMigrationsError): Response {
 	console.error("[emdash] database migrations are pending:", error.pending.join(", "));
+	return migrationRequiredResponse();
+}
+
+function migrationRequiredErrorResponse(error: unknown): Response {
+	if (error instanceof PendingMigrationsError) return pendingMigrationsResponse(error);
+	if (Date.now() - lastRuntimeInitErrorLogAt >= RUNTIME_INIT_ERROR_LOG_INTERVAL_MS) {
+		lastRuntimeInitErrorLogAt = Date.now();
+		console.error(
+			"[emdash] database migrations are required:",
+			error instanceof Error ? error.message : error,
+		);
+	}
 	return migrationRequiredResponse();
 }
 
@@ -895,14 +911,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
 							handlePublicPluginApiRoute,
+							getPublicPluginRouteMeta: (pluginId, path) =>
+								getPublicPluginRouteMeta(runtime, pluginId, path),
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
 							storage: runtime.storage,
 						} as EmDashHandlers;
 					} catch (error) {
-						if (error instanceof PendingMigrationsError) {
-							return pendingMigrationsResponse(error);
+						if (isMigrationRequiredError(error)) {
+							return migrationRequiredErrorResponse(error);
 						}
 						if (migrationMode === "manual" && isMissingTableError(error)) {
 							console.error(
@@ -971,9 +989,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Eagerly warm site-global layout data (menus, widget areas,
 					// taxonomy terms, settings) concurrently so the layout's
 					// per-component reads overlap into ~one wall-clock round trip and
-					// hit a warm cache instead of serializing. Three guards:
+					// hit a warm cache instead of serializing. Four guards:
 					//  - request-scoped (remote) backend only -- this branch implies it;
 					//    pointless on synchronous local SQLite.
+					//  - an adapter that can overlap queries -- without that, Kysely's
+					//    connection mutex (D1 sessions without `coalesce`) queues the
+					//    prefetch ahead of the page's own first query.
 					//  - HTML navigations only -- feeds/sitemaps/JSON don't render the
 					//    layout, so prefetching their chrome is pure waste.
 					//  - the work starts immediately, then after() keeps both it and the
@@ -987,7 +1008,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						.trim()
 						.startsWith("text/html");
 					return runWithContext(ctx, async () => {
-						if (acceptsHtml) after(() => prefetchLayoutData());
+						if (
+							acceptsHtml &&
+							anonScoped.db.getExecutor().adapter.supportsMultipleConnections !== false
+						) {
+							after(() => prefetchLayoutData());
+						}
 						// commit() persists per-request state (e.g. the D1 bookmark cookie)
 						// before the response is returned, even if render throws; close()
 						// waits for stream-end and request-owned deferred work. See finishScoped.
@@ -1092,6 +1118,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					getPluginEditorExtension: runtime.getPluginEditorExtension.bind(runtime),
 					getPluginEditorDraftSchema: runtime.getPluginEditorDraftSchema.bind(runtime),
 					handlePublicPluginApiRoute: createPublicPluginApiRouteHandler(runtime),
+					getPublicPluginRouteMeta: (pluginId, path) =>
+						getPublicPluginRouteMeta(runtime, pluginId, path),
 					getPluginRouteMeta: runtime.getPluginRouteMeta.bind(runtime),
 					getPluginMcpTools: runtime.getPluginMcpTools.bind(runtime),
 					getEnabledPluginMcpTools: runtime.getEnabledPluginMcpTools.bind(runtime),
@@ -1161,8 +1189,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					setPluginStatus: runtime.setPluginStatus.bind(runtime),
 				};
 			} catch (error) {
-				if (error instanceof PendingMigrationsError) {
-					return pendingMigrationsResponse(error);
+				if (isMigrationRequiredError(error)) {
+					return migrationRequiredErrorResponse(error);
 				}
 				if (migrationMode === "manual" && isMissingTableError(error)) {
 					console.error("[emdash] database schema is unavailable in manual migration mode:", error);

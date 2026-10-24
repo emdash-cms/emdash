@@ -114,7 +114,10 @@ export function InviteUserModal({
 						</div>
 
 						<div className="flex items-center gap-2">
-							<code className="flex-1 rounded bg-kumo-tint px-3 py-2 text-sm font-mono border truncate">
+							<code
+								dir="ltr"
+								className="flex-1 rounded bg-kumo-tint px-3 py-2 text-sm font-mono border truncate"
+							>
 								{inviteUrl}
 							</code>
 							<Button
@@ -149,6 +152,7 @@ export function InviteUserModal({
 						<div className="grid gap-4 py-4">
 							{/* Email */}
 							<Input
+								dir="ltr"
 								label={t`Email address`}
 								type="email"
 								value={email}

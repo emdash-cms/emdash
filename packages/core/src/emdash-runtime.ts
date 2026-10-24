@@ -61,6 +61,7 @@ import {
 	MIGRATION_RACE_WAIT_MS,
 	MigrationFailedError,
 	MigrationLockHeldError,
+	MigrationRowLimitError,
 } from "./database/migrations/runner.js";
 import { AuditRepository } from "./database/repositories/audit.js";
 import { CommentRepository } from "./database/repositories/comment.js";
@@ -77,6 +78,8 @@ import type { ImageValue } from "./fields/types.js";
 import { getI18nConfig, resolveContentCreateLocale } from "./i18n/config.js";
 import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
+import { safeJsonSchemaToZod } from "./mcp/json-schema.js";
+import { pluginToolName } from "./mcp/plugin-tool-name.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import { activateMediaUsageCapture } from "./media/usage/activation.js";
@@ -136,6 +139,7 @@ import type {
 } from "./plugins/types.js";
 import { normalizePluginCapabilities, warnDeprecatedPluginCapabilities } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
+import { inferBlockTypes } from "./schema/block-values.js";
 import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
 import { isStoragelessField, isStoragelessFieldRow } from "./schema/types.js";
 import type { CollectionWithFields } from "./schema/types.js";
@@ -629,7 +633,7 @@ interface DbHolder {
 	 * through the migration advisory lock (#1744). Entries expire after
 	 * DB_INIT_FAILURE_BACKOFF_MS; a successful init clears them.
 	 */
-	failures: Map<string, { at: number; message: string }>;
+	failures: Map<string, { at: number; message: string; cause?: unknown }>;
 }
 const globalSymbolStore = globalThis as Record<symbol, unknown>;
 function getDbHolder(): DbHolder {
@@ -656,6 +660,24 @@ function getDbHolder(): DbHolder {
  * most once per backoff window per isolate instead of on every request.
  */
 const DB_INIT_FAILURE_BACKOFF_MS = 30_000;
+
+/**
+ * The most content rows auto mode migrates inside a deployed Worker request.
+ * Datetime normalization (079) issues about one statement per row it changes,
+ * a paid Worker invocation stops at 10,000 subrequests and 30 s of CPU by
+ * default, and the migrations around it need some of that budget too.
+ */
+const WORKER_AUTO_MIGRATION_CONTENT_ROW_LIMIT = 5_000;
+
+/** Local development enforces no Worker limits, and Node has none. */
+function autoMigrationContentRowLimit(): number | undefined {
+	if (import.meta.env.DEV) return undefined;
+	const onWorkers =
+		typeof navigator !== "undefined" &&
+		typeof navigator.userAgent === "string" &&
+		navigator.userAgent.includes("Cloudflare-Workers");
+	return onWorkers ? WORKER_AUTO_MIGRATION_CONTENT_ROW_LIMIT : undefined;
+}
 
 /**
  * Auto-seed runs at most once per isolate per database. Its lock + "done" set
@@ -2419,6 +2441,7 @@ export class EmDashRuntime {
 			if (Date.now() - failure.at < DB_INIT_FAILURE_BACKOFF_MS) {
 				throw new Error(
 					`Database initialization is backing off after a recent migration failure: ${failure.message}`,
+					{ cause: failure.cause },
 				);
 			}
 			// Expired — drop it so the map only ever holds active backoffs.
@@ -2439,18 +2462,25 @@ export class EmDashRuntime {
 				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
 				try {
-					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto");
+					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto", {
+						contentRowLimit: autoMigrationContentRowLimit(),
+					});
 				} catch (error) {
-					// Only a failed migration run, or a lock its holder left behind,
-					// backs off. Waiting behind a slow concurrent migrator, pending
-					// migrations in check mode, and errors from the applied-migration
-					// check on an up-to-date database (a lost connection, an
-					// unavailable replica) stay retryable, so the next request tries
-					// again.
-					if (error instanceof MigrationFailedError || error instanceof MigrationLockHeldError) {
+					// Only a failed migration run, a lock its holder left behind, or
+					// content migrations too large for a request back off. Waiting
+					// behind a slow concurrent migrator, pending migrations in check
+					// mode, and errors from the applied-migration check on an
+					// up-to-date database (a lost connection, an unavailable replica)
+					// stay retryable, so the next request tries again.
+					if (
+						error instanceof MigrationFailedError ||
+						error instanceof MigrationLockHeldError ||
+						error instanceof MigrationRowLimitError
+					) {
 						holder.failures.set(cacheKey, {
 							at: Date.now(),
-							message: error instanceof Error ? error.message : String(error),
+							message: error.message,
+							cause: error,
 						});
 					}
 					// Every attempt builds a fresh dialect/pool; close it or each
@@ -3515,12 +3545,21 @@ export class EmDashRuntime {
 			...(body.translationOf ? { translationOf: body.translationOf } : {}),
 		};
 
+		const collectionInfo = await this.schemaRegistry
+			.getCollectionWithFields(collection)
+			.catch(() => null);
+
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
 		if (!options.skipSaveHooks && this.hooks.hasHooks("content:beforeSave")) {
+			const hookData = collectionInfo
+				? await inferBlockTypes(collectionInfo, body.data, () =>
+						Promise.resolve(translationSource?.data),
+					)
+				: body.data;
 			try {
 				const hookResult = await this.hooks.runContentBeforeSave(
-					body.data,
+					hookData,
 					collection,
 					true,
 					undefined,
@@ -3543,9 +3582,6 @@ export class EmDashRuntime {
 				}
 			}
 		}
-		const collectionInfo = await this.schemaRegistry
-			.getCollectionWithFields(collection)
-			.catch(() => null);
 		const resolvedBlockTypes = collectionInfo?.fields.some((field) => field.type === "blocks")
 			? await resolveBlockTypes(this.db)
 			: undefined;
@@ -3726,9 +3762,20 @@ export class EmDashRuntime {
 		let resolvedBlockTypes: Awaited<ReturnType<typeof resolveBlockTypes>> | undefined;
 		if (bodyWithoutRev.data) {
 			if (this.hooks.hasHooks("content:beforeSave")) {
+				const hookData = collectionInfo
+					? await inferBlockTypes(collectionInfo, bodyWithoutRev.data, async () => {
+							if (resolvedItem?.draftRevisionId && collectionInfo.supports?.includes("revisions")) {
+								const draft = await new RevisionRepository(this.db).findById(
+									resolvedItem.draftRevisionId,
+								);
+								return draft?.data ?? resolvedItem.data;
+							}
+							return resolvedItem?.data;
+						})
+					: bodyWithoutRev.data;
 				try {
 					const hookResult = await this.hooks.runContentBeforeSave(
-						bodyWithoutRev.data,
+						hookData,
 						collection,
 						false,
 						resolvedItem?.id,
@@ -4824,9 +4871,7 @@ export class EmDashRuntime {
 				url: `/media/${item.id}/${item.filename}`,
 				createdAt: item.createdAt,
 			};
-			this.hooks
-				.runMediaAfterUpload(mediaItem)
-				.catch((err) => console.error("EmDash afterUpload hook error:", err));
+			this.runMediaAfterUploadHook(mediaItem);
 		}
 
 		return result;
@@ -4866,7 +4911,6 @@ export class EmDashRuntime {
 		// Create the media record
 		const result = await handleMediaCreate(this.db, processedInput);
 
-		// Run afterUpload hooks (fire-and-forget)
 		if (result.success && this.hooks.hasHooks("media:afterUpload")) {
 			const item = result.data.item;
 			const mediaItem: MediaItem = {
@@ -4877,9 +4921,7 @@ export class EmDashRuntime {
 				url: `/media/${item.id}/${item.filename}`,
 				createdAt: item.createdAt,
 			};
-			this.hooks
-				.runMediaAfterUpload(mediaItem)
-				.catch((err) => console.error("EmDash afterUpload hook error:", err));
+			this.runMediaAfterUploadHook(mediaItem);
 		}
 
 		return result;
@@ -5707,6 +5749,7 @@ export class EmDashRuntime {
 		const tools: Array<{
 			pluginId: string;
 			name: string;
+			mcpName: string;
 			description: string;
 			route: string;
 			permission: string;
@@ -5735,6 +5778,7 @@ export class EmDashRuntime {
 				tools.push({
 					pluginId: plugin.id,
 					name,
+					mcpName: pluginToolName(plugin.id, name),
 					description: tool.description,
 					route: tool.route,
 					permission: route.permission,
@@ -5765,12 +5809,17 @@ export class EmDashRuntime {
 				tools.push({
 					pluginId: id,
 					name: tool.name,
+					mcpName: pluginToolName(id, tool.name),
 					description: tool.description,
 					route: tool.route,
 					permission: tool.permission,
 					destructive: tool.destructive,
-					inputSchema: z.fromJSONSchema({ ...tool.inputSchema }),
-					outputSchema: tool.outputSchema ? z.fromJSONSchema({ ...tool.outputSchema }) : undefined,
+					inputSchema:
+						safeJsonSchemaToZod({ ...tool.inputSchema }, `${id}/${tool.name}`, "input") ??
+						z.record(z.string(), z.unknown()),
+					outputSchema: tool.outputSchema
+						? safeJsonSchemaToZod({ ...tool.outputSchema }, `${id}/${tool.name}`, "output")
+						: undefined,
 				});
 			}
 		};
@@ -5916,7 +5965,9 @@ export class EmDashRuntime {
 			const draft = await new RevisionRepository(this.db)
 				.findById(existing.draftRevisionId)
 				.catch(() => null);
-			if (draft?.data) stored = draft.data;
+			// A retired key may survive in the published row while the draft
+			// revision has already shed it, so the baseline has to cover both.
+			if (draft?.data) stored = { ...stored, ...draft.data };
 		}
 
 		const stale = staleStoredKeys(data, stored, knownFieldSlugs);
@@ -6120,6 +6171,16 @@ export class EmDashRuntime {
 				} catch (err) {
 					console.error("EmDash afterDelete hook error:", err);
 				}
+			}
+		});
+	}
+
+	private runMediaAfterUploadHook(mediaItem: MediaItem): void {
+		after(async () => {
+			try {
+				await this.hooks.runMediaAfterUpload(mediaItem);
+			} catch (err) {
+				console.error("EmDash afterUpload hook error:", err);
 			}
 		});
 	}

@@ -50,6 +50,10 @@
 	width: 100%;
 }
 
+.ec-form-field[hidden] {
+	display: none;
+}
+
 .ec-form-field--half {
 	width: calc(50% - var(--ec-form-gap) / 2);
 }

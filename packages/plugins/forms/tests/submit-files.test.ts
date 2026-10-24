@@ -126,7 +126,7 @@ describe("file uploads on public submissions", () => {
 	it("rejects file bytes above the 10 MB ceiling", () => {
 		const bytes = Array.from<number>({ length: MAX_SUBMISSION_FILE_BYTES + 1 }).fill(0);
 		expect(submitSchema.safeParse(submission(bytes)).success).toBe(false);
-	});
+	}, 30_000);
 
 	it("deletes files already uploaded when a later file in the submission is rejected", async () => {
 		const upload = vi

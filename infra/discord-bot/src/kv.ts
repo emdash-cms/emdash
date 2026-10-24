@@ -82,7 +82,7 @@ export async function markDeliveryProcessed(kv: KVNamespace, deliveryId: string)
 export async function storeOAuthState(
 	kv: KVNamespace,
 	state: string,
-	data: { discord_id: string; discord_username: string },
+	data: { discord_id: string; discord_username: string; link_generation?: number },
 ): Promise<void> {
 	await kv.put(`oauth:${state}`, JSON.stringify(data), {
 		expirationTtl: 600,
@@ -95,11 +95,12 @@ export async function storeOAuthState(
 export async function consumeOAuthState(
 	kv: KVNamespace,
 	state: string,
-): Promise<{ discord_id: string; discord_username: string } | null> {
+): Promise<{ discord_id: string; discord_username: string; link_generation?: number } | null> {
 	const value = await kv.get(`oauth:${state}`);
 	if (!value) return null;
 	await kv.delete(`oauth:${state}`);
-	const data: { discord_id: string; discord_username: string } = JSON.parse(value);
+	const data: { discord_id: string; discord_username: string; link_generation?: number } =
+		JSON.parse(value);
 	return data;
 }
 

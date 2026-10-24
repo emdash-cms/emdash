@@ -56,30 +56,35 @@ describeEachDialect("batched menu reference resolution", (dialect) => {
 				{
 					id: "page-local-en",
 					slug: "contact",
+					status: "published",
 					locale: "en",
 					translation_group: "page-local",
 				},
 				{
 					id: "page-local-fr",
 					slug: "contact-fr",
+					status: "published",
 					locale: "fr",
 					translation_group: "page-local",
 				},
 				{
 					id: "page-fallback-en",
 					slug: "about",
+					status: "published",
 					locale: "en",
 					translation_group: "page-fallback",
 				},
 				{
 					id: "page-fallback-es",
 					slug: "acerca-de",
+					status: "published",
 					locale: "es",
 					translation_group: "page-fallback",
 				},
 				{
 					id: "legacy-page-id",
 					slug: "legacy",
+					status: "published",
 					locale: "en",
 					translation_group: "legacy-page-group",
 				},
@@ -92,26 +97,59 @@ describeEachDialect("batched menu reference resolution", (dialect) => {
 				{
 					id: "post-local-en",
 					slug: "hello",
+					status: "published",
 					locale: "en",
 					translation_group: "post-local",
 				},
 				{
 					id: "post-local-fr",
 					slug: "bonjour",
+					status: "published",
 					locale: "fr",
 					translation_group: "post-local",
 				},
 				{
 					id: "post-fallback-en",
 					slug: "static",
+					status: "published",
 					locale: "en",
 					translation_group: "post-fallback",
 				},
 				{
 					id: "post-fallback-es",
 					slug: "estatico",
+					status: "published",
 					locale: "es",
 					translation_group: "post-fallback",
+				},
+				{
+					id: "post-draft-fr",
+					slug: "brouillon",
+					status: "draft",
+					locale: "fr",
+					translation_group: "post-draft",
+				},
+				{
+					id: "post-trashed-fr",
+					slug: "corbeille",
+					status: "published",
+					locale: "fr",
+					translation_group: "post-trashed",
+					deleted_at: "2026-10-01T00:00:00.000Z",
+				},
+				{
+					id: "post-hidden-en",
+					slug: "launch",
+					status: "published",
+					locale: "en",
+					translation_group: "post-hidden",
+				},
+				{
+					id: "post-hidden-fr",
+					slug: "lancement",
+					status: "draft",
+					locale: "fr",
+					translation_group: "post-hidden",
 				},
 			] as never)
 			.execute();
@@ -183,6 +221,9 @@ describeEachDialect("batched menu reference resolution", (dialect) => {
 			["item-post-local", 4, "post", "post", "post-local", "Bonjour"],
 			["item-post-fallback", 5, "post", "post", "post-fallback", "Static"],
 			["item-collection-entry", 6, "collection", "page", "page-fallback", "Featured page"],
+			["item-post-draft", 11, "post", "post", "post-draft", "Draft post"],
+			["item-post-trashed", 12, "post", "post", "post-trashed", "Trashed post"],
+			["item-post-hidden", 13, "post", "post", "post-hidden", "Launch"],
 		];
 		const taxonomyItems: Array<[string, number, string, string]> = [
 			["item-taxonomy-local", 8, "taxonomy-local", "Nouvelles"],
@@ -258,6 +299,7 @@ describeEachDialect("batched menu reference resolution", (dialect) => {
 			{ label: "Nouvelles", url: "/category/nouvelles" },
 			{ label: "Releases", url: "/tag/releases" },
 			{ label: "Legacy topic", url: "/category/legacy-topic" },
+			{ label: "Launch", url: "/fr/articles/launch-post-hidden-en/" },
 		]);
 		expect(counter.count).toBe(7);
 	});

@@ -174,6 +174,8 @@ export interface AdminManifest {
 					blockTypeFingerprint?: string;
 					/** Value a new entry starts with. */
 					defaultValue?: unknown;
+					/** Set on `integer` fields, which share the `number` kind. */
+					integer?: boolean;
 				}
 			>;
 		}
@@ -325,6 +327,8 @@ export interface AdminManifest {
 		logo?: string;
 		siteName?: string;
 		footerLabel?: string | false;
+		/** Built-in navigation entries hidden from the sidebar and command palette. */
+		hiddenNavItems?: string[];
 		favicon?: string;
 	};
 }

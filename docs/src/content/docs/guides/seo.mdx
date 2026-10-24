@@ -51,6 +51,8 @@ The **SEO** panel in the entry editor holds these fields:
 
 Empty fields fall back to the values the page passes to `createPublicPageContext()`. `getSeoMeta()` falls back to the entry's `title` and `excerpt` fields.
 
+Imported or programmatically written SEO data can store a bare media ID. The editor can show that image while shared links still point to a missing file. When **Sharing image needs a URL** appears below the loaded preview, choose **Save image URL** to replace the ID with the file URL used for social previews and sitemap images. Viewing the preview alone does not change the saved value. If you see **Image not found**, check that the media is available and try reloading the editor before replacing the image.
+
 ## Render SEO metadata on a content page
 
 `<EmDashHead>` renders the SEO metadata for a page context. On a content page, pass the entry's collection and database ID as `content`, so `<EmDashHead>` applies the entry's SEO panel values.
@@ -150,6 +152,27 @@ Sitemap: https://example.com/sitemap.xml
 
 To replace the default, enter custom content in **Settings > SEO > robots.txt**. EmDash appends the `Sitemap:` line when the custom content has none.
 
+### AI training
+
+Turn on **Settings > SEO > Disallow AI training** to ask AI crawlers not to use the site for training. EmDash adds a block of rules before the `Sitemap:` line of the default `robots.txt`. In a custom `robots.txt`, the block goes after your content: if your file has no `Sitemap:` line, EmDash appends one after the block; if it has one, the file keeps it, since a `Sitemap:` line applies to the whole file wherever it appears. The block starts like this, with one `Disallow: /` group per crawler:
+
+```txt title="/robots.txt"
+# Disallow AI training
+User-agent: *
+Content-Signal: search=yes, ai-train=no
+Disallow:
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+```
+
+The rules list the AI training crawlers and opt-out tokens from Cloudflare's [managed `robots.txt`](https://developers.cloudflare.com/bots/additional-configurations/managed-robots-txt/): `Amazonbot`, `Applebot-Extended`, `Bytespider`, `CCBot`, `ClaudeBot`, `Google-Extended`, `GPTBot`, and `meta-externalagent`. `Google-Extended` and `Applebot-Extended` are tokens rather than crawlers: Googlebot and Applebot keep crawling for search, and the tokens tell Google and Apple not to use the content for AI training. The `Content-Signal` line states the preference in the [Content Signals](https://contentsignals.org/) format.
+
+Search engines keep the access your other rules give them. If a custom `robots.txt` already has a group for one of these crawlers, crawlers merge it with the added group, and an `Allow` rule there can still let that crawler in. A `robots.txt` route in your own project, described below, replaces EmDash's route and ignores this option. Crawlers follow `robots.txt` voluntarily; it does not block requests.
+
 `robots.txt` and the sitemaps build absolute URLs from the **Site URL** in **Settings > General**, then the [`siteUrl`](/reference/configuration/#siteurl) option or the `EMDASH_SITE_URL` environment variable, then the request origin. Set one of these so the URLs match the public domain. Browsers and shared caches may keep `robots.txt` for up to a day and sitemaps for up to an hour.
 
 <Aside>
@@ -164,6 +187,7 @@ To serve your own version, add a route file such as `src/pages/robots.txt.ts`, `
 - **Default Social Image** is the `og:image` for pages without their own image. `<EmDashHead>` applies it.
 - **Google Verification** and **Bing Verification** add the `google-site-verification` and `msvalidate.01` meta tags that prove site ownership to Google Search Console and Bing Webmaster Tools. `<EmDashHead>` adds them to every page.
 - **robots.txt** replaces the default [`robots.txt`](#robotstxt).
+- **Disallow AI training** adds [rules for AI training crawlers](#ai-training) to `robots.txt`.
 
 ## Translated content
 

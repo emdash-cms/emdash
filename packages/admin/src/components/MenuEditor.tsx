@@ -4,7 +4,7 @@
  * Edit menu items with basic reordering (simplified version without drag-and-drop)
  */
 
-import { Button, Dialog, Input, Select, Toast } from "@cloudflare/kumo";
+import { Button, Dialog, Input, Select, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
@@ -14,6 +14,7 @@ import {
 	Link as LinkIcon,
 	X,
 	File as FileIcon,
+	Pencil,
 } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
@@ -21,6 +22,7 @@ import * as React from "react";
 
 import {
 	fetchMenu,
+	updateMenu,
 	createMenuItem,
 	deleteMenuItem,
 	updateMenuItem,
@@ -45,8 +47,7 @@ interface DisplayItem {
 
 /**
  * Flattens items into parent-then-children display order. Guards against
- * cyclic parentId data (not currently possible via this UI, but the API
- * doesn't validate against it either) with a visited set.
+ * cyclic parentId data from older API writes with a visited set.
  */
 function buildDisplayList(items: MenuItem[]): DisplayItem[] {
 	const childrenByParent = new Map<string | null, MenuItem[]>();
@@ -98,8 +99,9 @@ export function MenuEditor() {
 	const routeLocale = search.locale;
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [isAddOpen, setIsAddOpen] = React.useState(false);
+	const [isRenameOpen, setIsRenameOpen] = React.useState(false);
 	const [isContentPickerOpen, setIsContentPickerOpen] = React.useState(false);
 	const [editingItem, setEditingItem] = React.useState<MenuItem | null>(null);
 	const [localItems, setLocalItems] = React.useState<MenuItem[]>([]);
@@ -155,10 +157,40 @@ export function MenuEditor() {
 			toastManager.add({
 				title: t`Error`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
+
+	const renameMutation = useMutation({
+		mutationFn: (label: string) => updateMenu(name, { label }, { locale: menuLocale }),
+		onSuccess: (renamed) => {
+			void queryClient.invalidateQueries({ queryKey: ["menus"] });
+			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
+			void queryClient.invalidateQueries({ queryKey: ["menu-translations", name] });
+			setIsRenameOpen(false);
+			toastManager.add({
+				title: t`Menu renamed`,
+				description: t`The menu is now called "${renamed.label}".`,
+			});
+		},
+	});
+
+	const handleRenameOpenChange = (open: boolean) => {
+		setIsRenameOpen(open);
+		if (!renameMutation.isPending) renameMutation.reset();
+	};
+
+	const handleRename = (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		const labelVal = new FormData(e.currentTarget).get("label");
+		const label = typeof labelVal === "string" ? labelVal.trim() : "";
+		if (label === menu?.label) {
+			handleRenameOpenChange(false);
+			return;
+		}
+		renameMutation.mutate(label);
+	};
 
 	// Sync local items with fetched data
 	React.useEffect(() => {
@@ -193,7 +225,7 @@ export function MenuEditor() {
 			toastManager.add({
 				title: t`Error`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -233,7 +265,7 @@ export function MenuEditor() {
 			toastManager.add({
 				title: t`Error`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -245,11 +277,13 @@ export function MenuEditor() {
 		const labelVal = formData.get("label");
 		const urlVal = formData.get("url");
 		const targetVal = formData.get("target");
+		const classesVal = formData.get("cssClasses");
 		createMutation.mutate({
 			type: "custom",
 			label: typeof labelVal === "string" ? labelVal : "",
 			customUrl: typeof urlVal === "string" ? urlVal : "",
 			target: (typeof targetVal === "string" ? targetVal : "") || undefined,
+			cssClasses: (typeof classesVal === "string" ? classesVal.trim() : "") || undefined,
 		});
 	};
 
@@ -279,6 +313,8 @@ export function MenuEditor() {
 		const uUrlVal = formData.get("url");
 		const uTargetVal = formData.get("target");
 		const uParentIdVal = formData.get("parentId");
+		const uClassesVal = formData.get("cssClasses");
+		const cssClasses = typeof uClassesVal === "string" ? uClassesVal.trim() : "";
 		updateMutation.mutate({
 			itemId: editingItem.id,
 			input: {
@@ -286,6 +322,7 @@ export function MenuEditor() {
 				customUrl:
 					editingItem.type === "custom" ? (typeof uUrlVal === "string" ? uUrlVal : "") : undefined,
 				target: (typeof uTargetVal === "string" ? uTargetVal : "") || undefined,
+				cssClasses: cssClasses === (editingItem.cssClasses ?? "") ? undefined : cssClasses,
 				parentId: typeof uParentIdVal === "string" && uParentIdVal !== "" ? uParentIdVal : null,
 			},
 		});
@@ -368,7 +405,71 @@ export function MenuEditor() {
 				</RouterLinkButton>
 				<div className="flex flex-wrap items-center justify-between gap-4">
 					<div className="min-w-0">
-						<h1 className="text-2xl font-semibold leading-tight">{menu.label}</h1>
+						<div className="flex min-w-0 items-start gap-1.5">
+							<h1 className="min-w-0 break-words text-2xl font-semibold leading-tight">
+								{menu.label}
+							</h1>
+							<Dialog.Root open={isRenameOpen} onOpenChange={handleRenameOpenChange}>
+								<Dialog.Trigger
+									render={(props) => (
+										<Button
+											{...props}
+											variant="ghost"
+											shape="square"
+											size="sm"
+											className="size-7 shrink-0"
+											icon={<Pencil className="size-4" aria-hidden="true" />}
+											aria-label={t`Rename menu`}
+										/>
+									)}
+								/>
+								<Dialog className="p-6" size="lg">
+									<div className="flex items-start justify-between gap-4 mb-4">
+										<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
+											{t`Rename menu`}
+										</Dialog.Title>
+										<Dialog.Close
+											aria-label={t`Close`}
+											render={(props) => (
+												<Button
+													{...props}
+													variant="ghost"
+													shape="square"
+													aria-label={t`Close`}
+													className="absolute end-4 top-4"
+												>
+													<X className="h-4 w-4" />
+													<span className="sr-only">{t`Close`}</span>
+												</Button>
+											)}
+										/>
+									</div>
+									<form onSubmit={handleRename} className="space-y-4">
+										<Input
+											label={t`Label`}
+											name="label"
+											required
+											autoFocus
+											defaultValue={menu.label}
+											description={t`Shown in the admin. Some themes also show it on the site.`}
+										/>
+										<DialogError message={getMutationError(renameMutation.error)} />
+										<div className="flex justify-end gap-2">
+											<Button
+												type="button"
+												variant="outline"
+												onClick={() => handleRenameOpenChange(false)}
+											>
+												{t`Cancel`}
+											</Button>
+											<Button type="submit" disabled={renameMutation.isPending}>
+												{renameMutation.isPending ? t`Saving...` : t`Save`}
+											</Button>
+										</div>
+									</form>
+								</Dialog>
+							</Dialog.Root>
+						</div>
 						<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">{t`Edit menu items`}</p>
 					</div>
 					<div className="flex flex-wrap gap-2">
@@ -417,6 +518,7 @@ export function MenuEditor() {
 								<form onSubmit={handleAddCustomLink} className="space-y-4">
 									<Input label={t`Label`} name="label" required placeholder={t`Home`} />
 									<Input
+										dir="ltr"
 										label={t`URL`}
 										name="url"
 										type="text"
@@ -434,6 +536,12 @@ export function MenuEditor() {
 										<Select.Option value="">{t`Same window`}</Select.Option>
 										<Select.Option value="_blank">{t`New window`}</Select.Option>
 									</Select>
+									<Input
+										label={t`CSS classes`}
+										name="cssClasses"
+										dir="ltr"
+										description={t`Separate class names with spaces. Themes can use them to style the link.`}
+									/>
 									<DialogError message={addError || getMutationError(createMutation.error)} />
 									<div className="flex justify-end gap-2">
 										<Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
@@ -525,6 +633,15 @@ export function MenuEditor() {
 											</span>
 										)}
 										{item.target === "_blank" && t` (opens in new window)`}
+										{item.cssClasses && (
+											<>
+												<span aria-hidden="true"> · </span>
+												<span className="sr-only">{t`CSS classes:`} </span>
+												<code dir="ltr" className="text-xs">
+													{item.cssClasses}
+												</code>
+											</>
+										)}
 									</div>
 								</div>
 								<div className="flex gap-2">
@@ -599,6 +716,7 @@ export function MenuEditor() {
 							<Input label={t`Label`} name="label" required defaultValue={editingItem.label} />
 							{editingItem.type === "custom" && (
 								<Input
+									dir="ltr"
 									label={t`URL`}
 									name="url"
 									type="text"
@@ -617,6 +735,13 @@ export function MenuEditor() {
 								<Select.Option value="">{t`Same window`}</Select.Option>
 								<Select.Option value="_blank">{t`New window`}</Select.Option>
 							</Select>
+							<Input
+								label={t`CSS classes`}
+								name="cssClasses"
+								dir="ltr"
+								defaultValue={editingItem.cssClasses ?? ""}
+								description={t`Separate class names with spaces. Themes can use them to style the link.`}
+							/>
 							<Select
 								label={t`Parent`}
 								name="parentId"

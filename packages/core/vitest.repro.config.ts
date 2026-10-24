@@ -8,18 +8,23 @@ const stubs: Record<string, string> = {
 	"virtual:emdash/block-components": "export const pluginBlockComponents = {};",
 };
 
-export default getViteConfig({
-	plugins: [
-		{
-			name: "emdash-virtual-stubs",
-			resolveId(id: string) {
-				return Object.hasOwn(stubs, id) ? "\0" + id : null;
+export default getViteConfig(
+	{
+		plugins: [
+			{
+				name: "emdash-virtual-stubs",
+				resolveId(id: string) {
+					return Object.hasOwn(stubs, id) ? "\0" + id : null;
+				},
+				load(id: string) {
+					const key = id.startsWith("\0") ? id.slice(1) : id;
+					return Object.hasOwn(stubs, key) ? stubs[key] : null;
+				},
 			},
-			load(id: string) {
-				const key = id.startsWith("\0") ? id.slice(1) : id;
-				return Object.hasOwn(stubs, key) ? stubs[key] : null;
-			},
-		},
-	],
-	test: { globals: true, include: ["tests/repro/**/*.render.test.ts"] },
-});
+		],
+		test: { globals: true, include: ["tests/repro/**/*.render.test.ts"] },
+	},
+	{
+		image: { domains: ["quality.example.com", "quality-storage.example.com"] },
+	},
+);

@@ -34,6 +34,7 @@ vi.mock("../../src/lib/api", async () => {
 	return {
 		...actual,
 		fetchMenu: vi.fn(),
+		updateMenu: vi.fn(),
 		createMenuItem: vi.fn().mockResolvedValue({ id: "3" }),
 		deleteMenuItem: vi.fn().mockResolvedValue(undefined),
 		updateMenuItem: vi.fn().mockResolvedValue({}),
@@ -189,6 +190,73 @@ describe("MenuEditor", () => {
 		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
 
 		await expect.element(screen.getByRole("heading", { name: "Main Menu" })).toBeInTheDocument();
+	});
+
+	it("renames the menu and shows the new label", async () => {
+		vi.mocked(api.updateMenu).mockImplementation(async (_name, input) => {
+			const renamed = { ...defaultMenu, label: input.label ?? "" };
+			vi.mocked(api.fetchMenu).mockResolvedValue(renamed);
+			return renamed;
+		});
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: "Rename menu" }).click();
+		const labelInput = screen.getByLabelText("Label");
+		await expect.element(labelInput).toHaveValue("Main Menu");
+		await labelInput.fill("Footer links");
+		screen.getByRole("button", { name: "Save" }).element().click();
+
+		await expect
+			.element(screen.getByRole("heading", { name: "Footer links", level: 1 }))
+			.toBeInTheDocument();
+		expect(api.updateMenu).toHaveBeenCalledWith(
+			"main-menu",
+			{ label: "Footer links" },
+			{ locale: "en" },
+		);
+	});
+
+	it("adds a custom link with trimmed CSS classes", async () => {
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: ADD_CUSTOM_LINK_REGEX }).click();
+		await screen.getByLabelText("Label").fill("Book a demo");
+		await screen.getByLabelText("URL").fill("/contact");
+		await screen.getByLabelText("CSS classes").fill(" button ");
+		screen.getByRole("button", { name: "Add", exact: true }).element().click();
+
+		await vi.waitFor(() =>
+			expect(api.createMenuItem).toHaveBeenCalledWith(
+				"main-menu",
+				expect.objectContaining({ label: "Book a demo", cssClasses: "button" }),
+				{ locale: "en" },
+			),
+		);
+	});
+
+	it("clears a menu item's CSS classes", async () => {
+		const [home, about] = defaultMenu.items;
+		vi.mocked(api.fetchMenu).mockResolvedValue({
+			...defaultMenu,
+			items: [{ ...home!, cssClasses: "button" }, about!],
+		});
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await expect.element(screen.getByText("Home")).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Edit" }).first().click();
+		const classesInput = screen.getByLabelText("CSS classes");
+		await expect.element(classesInput).toHaveValue("button");
+		await classesInput.fill("");
+		screen.getByRole("button", { name: "Save" }).element().click();
+
+		await vi.waitFor(() =>
+			expect(api.updateMenuItem).toHaveBeenCalledWith(
+				"main-menu",
+				"1",
+				expect.objectContaining({ cssClasses: "" }),
+				{ locale: "en" },
+			),
+		);
 	});
 
 	it("shows custom URLs for custom link items", async () => {

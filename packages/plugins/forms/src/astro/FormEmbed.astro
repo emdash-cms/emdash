@@ -129,9 +129,7 @@ function fieldId(name: string): string {
 								required={field.required}
 								minlength={field.validation?.minLength}
 								maxlength={field.validation?.maxLength}
-							>
-								{field.defaultValue || ""}
-							</textarea>
+							>{field.defaultValue || ""}</textarea>
 						)}
 						{field.type === "select" && (
 							<select
@@ -170,7 +168,6 @@ function fieldId(name: string): string {
 							<label class="ec-form-checkbox-label">
 								<input
 									type="checkbox"
-									class="ec-form-input"
 									id={fieldId(field.name)}
 									name={field.name}
 									value={field.defaultValue || "1"}

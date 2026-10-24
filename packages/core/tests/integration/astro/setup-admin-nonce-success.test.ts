@@ -111,12 +111,18 @@ function buildVerifyRequest(body: unknown): Request {
 	});
 }
 
-function buildContext(db: Kysely<Database>, request: Request, cookies: AstroCookies): APIContext {
+function buildContext(
+	db: Kysely<Database>,
+	request: Request,
+	cookies: AstroCookies,
+	session?: { set: ReturnType<typeof vi.fn> },
+): APIContext {
 	return {
 		params: {},
 		url: new URL(request.url),
 		request,
 		cookies,
+		session: session as APIContext["session"],
 		locals: {
 			emdash: {
 				db,
@@ -171,8 +177,9 @@ describe("POST /setup/admin/verify — success path", () => {
 		// 2. Verify with the mocked-out WebAuthn check. The nonce gate
 		//    runs first (real code path), then the stub returns a
 		//    synthetic credential and the route creates the user.
+		const sessionSet = vi.fn();
 		const verifyRes = await postAdminVerify(
-			buildContext(db, buildVerifyRequest(fakeCredential), cookies),
+			buildContext(db, buildVerifyRequest(fakeCredential), cookies, { set: sessionSet }),
 		);
 		expect(verifyRes.status).toBe(200);
 
@@ -189,6 +196,43 @@ describe("POST /setup/admin/verify — success path", () => {
 		expect(setupState).toBeNull();
 		const setupComplete = await options.get("emdash:setup_complete");
 		expect(setupComplete).toBe(true);
+	});
+
+	it("establishes an authenticated Astro session for the newly created admin", async () => {
+		const { cookies } = createCookieJar();
+		expect((await postAdmin(buildContext(db, buildAdminRequest(adminBody), cookies))).status).toBe(
+			200,
+		);
+
+		const sessionSet = vi.fn();
+		const verifyRes = await postAdminVerify(
+			buildContext(db, buildVerifyRequest(fakeCredential), cookies, { set: sessionSet }),
+		);
+		expect(verifyRes.status).toBe(200);
+
+		const body = (await verifyRes.json()) as {
+			success: boolean;
+			data?: { success: boolean; user?: { id: string } };
+		};
+		expect(body.success).toBe(true);
+		expect(body.data?.success).toBe(true);
+		expect(body.data?.user?.id).toBeDefined();
+		expect(sessionSet).toHaveBeenCalledTimes(1);
+		expect(sessionSet).toHaveBeenCalledWith("user", { id: body.data!.user!.id });
+	});
+
+	it("rejects verification when no Astro session is available", async () => {
+		const { cookies } = createCookieJar();
+		expect((await postAdmin(buildContext(db, buildAdminRequest(adminBody), cookies))).status).toBe(
+			200,
+		);
+
+		const verifyRes = await postAdminVerify(
+			buildContext(db, buildVerifyRequest(fakeCredential), cookies),
+		);
+		expect(verifyRes.status).toBe(500);
+		const body = (await verifyRes.json()) as { error?: { code: string } };
+		expect(body.error?.code).toBe("SESSION_UNAVAILABLE");
 	});
 
 	it("creates only one admin when a second verify completes while the first is in flight", async () => {
@@ -215,7 +259,9 @@ describe("POST /setup/admin/verify — success path", () => {
 			};
 		});
 		const operatorVerify = postAdminVerify(
-			buildContext(db, buildVerifyRequest(fakeCredential), operator.cookies),
+			buildContext(db, buildVerifyRequest(fakeCredential), operator.cookies, {
+				set: vi.fn(),
+			}),
 		);
 		await vi.waitFor(() => expect(entered).toBe(true));
 
@@ -225,8 +271,13 @@ describe("POST /setup/admin/verify — success path", () => {
 			(await postAdmin(buildContext(db, buildAdminRequest(otherBody), other.cookies))).status,
 		).toBe(200);
 		expect(
-			(await postAdminVerify(buildContext(db, buildVerifyRequest(fakeCredential), other.cookies)))
-				.status,
+			(
+				await postAdminVerify(
+					buildContext(db, buildVerifyRequest(fakeCredential), other.cookies, {
+						set: vi.fn(),
+					}),
+				)
+			).status,
 		).toBe(200);
 
 		release();

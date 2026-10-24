@@ -77,6 +77,7 @@ import {
 	ImageSquare,
 	Rows,
 	SlidersHorizontal,
+	Subtitles,
 	TextAa,
 	Minus,
 	LinkBreak,
@@ -132,7 +133,11 @@ import { htmlBlockFields } from "../html-block";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { fetchMediaItem, uploadMedia } from "../lib/api/media.js";
-import { canonicalMediaProviderId, localMediaFileUrl } from "../lib/media-utils.js";
+import {
+	canonicalMediaProviderId,
+	dropsDisplayHeight,
+	localMediaFileUrl,
+} from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -618,6 +623,23 @@ function customBlockIdentityField(block: PortableTextBlock): "id" | "url" | unde
 	if (Object.hasOwn(block, "id")) return "id";
 	if (Object.hasOwn(block, "url")) return "url";
 	return undefined;
+}
+
+/**
+ * TrailingNode adds an empty paragraph after a final block on the first
+ * transaction. It isn't content: `prosemirrorToPortableText` drops it too.
+ */
+function withoutTrailingEmptyParagraph(doc: ProseMirrorNode): ProseMirrorNode {
+	const last = doc.lastChild;
+	if (
+		doc.childCount > 1 &&
+		last?.type.name === "paragraph" &&
+		last.childCount === 0 &&
+		portableTextKeyFromAttrs(last.attrs) === undefined
+	) {
+		return doc.copy(doc.content.cut(0, doc.content.size - last.nodeSize));
+	}
+	return doc;
 }
 
 function equalJsonValues(left: unknown, right: unknown): boolean {
@@ -1346,6 +1368,10 @@ function isTextBlock(block: PortableTextBlock): block is PortableTextTextBlock {
 	return block._type === "block";
 }
 
+function isQuoteBlock(block: PortableTextBlock): block is PortableTextTextBlock {
+	return isTextBlock(block) && !block.listItem && block.style === "blockquote";
+}
+
 /** A built-in `iframe` block. Any other belongs to a plugin and stays a plugin block. */
 function isIframeBlock(block: PortableTextBlock): block is PortableTextIframeBlock {
 	return block._type === "iframe" && isBuiltInIframeBlock(block);
@@ -1411,6 +1437,14 @@ function portableTextToProsemirror(
 			}
 
 			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
+		} else if (isQuoteBlock(block)) {
+			// Portable Text stores each paragraph of a quote as its own block.
+			const quoteBlocks: PortableTextTextBlock[] = [];
+			while (i < blocks.length && isQuoteBlock(blocks[i]!)) {
+				quoteBlocks.push(blocks[i] as PortableTextTextBlock);
+				i++;
+			}
+			content.push(convertPTQuote(quoteBlocks));
 		} else {
 			const converted = convertPTBlock(block, `root:${i}`, pluginTypes);
 			if (converted) {
@@ -1483,16 +1517,7 @@ function convertPTBlock(
 					};
 				}
 				case "blockquote":
-					return {
-						type: "blockquote",
-						attrs: attrsWithPortableTextKey(undefined, block._key),
-						content: [
-							{
-								type: "paragraph",
-								content: pmContent.length > 0 ? pmContent : undefined,
-							},
-						],
-					};
+					return convertPTQuote([block]);
 				default:
 					return {
 						type: "paragraph",
@@ -1639,6 +1664,23 @@ function convertPTBlock(
 			return convertCustomBlock(block);
 		}
 	}
+}
+
+/** One quote from consecutive quote blocks, one paragraph each. */
+function convertPTQuote(blocks: PortableTextTextBlock[]): unknown {
+	return {
+		type: "blockquote",
+		attrs: attrsWithPortableTextKey(undefined, blocks[0]!._key),
+		content: blocks.map((block, index) => {
+			const content = convertPTSpans(block.children, block.markDefs ?? []);
+			return {
+				type: "paragraph",
+				// The first paragraph is saved under the quote's key.
+				...(index > 0 ? { attrs: attrsWithPortableTextKey(undefined, block._key) } : {}),
+				content: content.length > 0 ? content : undefined,
+			};
+		}),
+	};
 }
 
 function convertCustomBlock(block: PortableTextBlock): unknown {
@@ -2681,6 +2723,7 @@ function PluginBlockModal({
 							))
 						) : (
 							<Input
+								dir="ltr"
 								ref={inputRef}
 								type="url"
 								className="w-full"
@@ -2719,6 +2762,7 @@ function BlockKitField({
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
 }) {
+	const id = React.useId();
 	switch (field.type) {
 		case "text_input": {
 			const multiline = !!field.multiline;
@@ -2726,9 +2770,13 @@ function BlockKitField({
 			const Tag = multiline ? "textarea" : "input";
 			return (
 				<div>
-					<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
+					<label id={`${id}-label`} htmlFor={id} className="text-sm font-medium mb-1.5 block">
+						{field.label}
+					</label>
 					{multiline ? (
 						<Tag
+							id={id}
+							aria-labelledby={`${id}-label`}
 							className="flex w-full rounded-md border border-kumo-line bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-kumo-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kumo-ring focus-visible:ring-offset-2 min-h-[80px]"
 							placeholder={placeholder}
 							value={typeof value === "string" ? value : ""}
@@ -2736,6 +2784,8 @@ function BlockKitField({
 						/>
 					) : (
 						<Input
+							id={id}
+							aria-labelledby={`${id}-label`}
 							type="text"
 							className="w-full"
 							placeholder={placeholder}
@@ -2751,8 +2801,12 @@ function BlockKitField({
 			const max = typeof field.max === "number" ? field.max : undefined;
 			return (
 				<div>
-					<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
+					<label id={`${id}-label`} htmlFor={id} className="text-sm font-medium mb-1.5 block">
+						{field.label}
+					</label>
 					<Input
+						id={id}
+						aria-labelledby={`${id}-label`}
 						type="number"
 						className="w-full"
 						min={min}
@@ -2771,6 +2825,7 @@ function BlockKitField({
 		case "toggle": {
 			return (
 				<Switch
+					aria-label={field.label}
 					checked={!!value}
 					onCheckedChange={(checked) => onChange(field.action_id, checked)}
 					label={<span className="text-sm font-medium">{field.label}</span>}
@@ -2835,6 +2890,7 @@ function BlockKitRepeater({
 	onChange: (actionId: string, value: unknown) => void;
 }) {
 	const { t } = useLingui();
+	const labelId = React.useId();
 	const rawItems = React.useMemo<unknown[]>(() => (Array.isArray(value) ? value : []), [value]);
 
 	const [items, setItems] = React.useState<RepeaterItem[]>(() => ensureKeys(rawItems));
@@ -2945,14 +3001,14 @@ function BlockKitRepeater({
 	};
 
 	return (
-		<div className="space-y-2">
+		<div role="group" aria-labelledby={labelId} className="space-y-2">
 			<div className="flex items-center justify-between">
-				<label className="text-sm font-medium">
+				<span id={labelId} className="text-sm font-medium">
 					{field.label}
 					{items.length > 0 && (
 						<span className="ms-2 text-kumo-subtle font-normal">({items.length})</span>
 					)}
-				</label>
+				</span>
 				{canAdd && (
 					<Button variant="outline" size="sm" icon={<Plus />} onClick={handleAdd} type="button">
 						{addButtonLabel}
@@ -3117,6 +3173,7 @@ function DynamicSelect({
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
 }) {
+	const labelId = React.useId();
 	const [dynamicOptions, setDynamicOptions] = React.useState<Array<{
 		label: string;
 		value: string;
@@ -3164,12 +3221,14 @@ function DynamicSelect({
 
 	return (
 		<div>
-			<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
+			<span id={labelId} className="text-sm font-medium mb-1.5 block">
+				{field.label}
+			</span>
 			{loading ? (
 				<div className="flex h-10 items-center px-3 text-sm text-kumo-subtle">{t`Loading...`}</div>
 			) : (
 				<Select
-					aria-label={field.label}
+					aria-labelledby={labelId}
 					value={typeof value === "string" ? value : ""}
 					onValueChange={(v) => onChange(field.action_id, v ?? "")}
 					items={{
@@ -3482,6 +3541,8 @@ export function PortableTextEditor({
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
 	const lastPortableTextValueRef = React.useRef(value || []);
+	// The document last handed to onChange, starting from the loaded one.
+	const lastReportedDocRef = React.useRef<ProseMirrorNode | null>(null);
 	React.useEffect(() => {
 		onChangeRef.current = onChange;
 	}, [onChange]);
@@ -3766,12 +3827,24 @@ export function PortableTextEditor({
 	 * Hands the document to `onChange` as Portable Text. While the slash line
 	 * the block insert button typed is open, changes wait until its menu
 	 * closes, so the line alone isn't an edit for autosave to save.
+	 *
+	 * Documents are compared rather than their Portable Text: stored content
+	 * the converter would write in a different shape (empty `markDefs`, a
+	 * missing `style`, fields it doesn't map) is unchanged until the document is.
 	 */
 	const reportChange = React.useCallback((changedEditor: Editor) => {
 		const cb = onChangeRef.current;
 		if (!cb) return;
 		if (insertedLineRef.current && SuggestionPluginKey.getState(changedEditor.state)?.active)
 			return;
+		lastReportedDocRef.current ??= changedEditor.schema.nodeFromJSON(initialContent);
+		if (
+			withoutTrailingEmptyParagraph(changedEditor.state.doc).eq(
+				withoutTrailingEmptyParagraph(lastReportedDocRef.current),
+			)
+		)
+			return;
+		lastReportedDocRef.current = changedEditor.state.doc;
 		const doc = changedEditor.getJSON();
 		// TipTap's getJSON() returns JSONContent which is structurally compatible
 		const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];
@@ -3822,7 +3895,11 @@ export function PortableTextEditor({
 				link: {
 					shouldAutoLink: (url) => URL_SCHEME_REGEX.test(url) || WWW_PREFIX_REGEX.test(url),
 					openOnClick: false,
+					// TipTap's Link extension defaults HTMLAttributes.target to "_blank".
+					// Without an explicit override every link created via setLink would be
+					// serialized as blank: true, even though there is no UI to enable it.
 					HTMLAttributes: {
+						target: null,
 						class: "text-kumo-link underline",
 					},
 				},
@@ -5392,6 +5469,7 @@ function ImageBubbleMenu({
 				alt: typeof attrs?.alt === "string" ? attrs.alt : "",
 				alignment: (attrs?.alignment as string | null | undefined) ?? null,
 				link: (attrs?.link as { href?: string } | null | undefined)?.href ?? "",
+				caption: typeof attrs?.caption === "string" ? attrs.caption : "",
 				mediaId:
 					typeof attrs?.mediaId === "string" &&
 					attrs.mediaId &&
@@ -5761,6 +5839,13 @@ function ImageBubbleMenu({
 							>
 								<LinkIcon className="h-4 w-4" aria-hidden="true" />
 							</BubbleButton>
+							<BubbleButton
+								onClick={() => getSelectedCaption()?.focus()}
+								active={Boolean(image.caption)}
+								title={image.caption ? t`Edit caption` : t`Add caption`}
+							>
+								<Subtitles className="h-4 w-4" aria-hidden="true" />
+							</BubbleButton>
 							{canOpenSettings && (
 								<BubbleButton onClick={toggleSettings} title={t`Image settings`}>
 									<SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -5784,11 +5869,17 @@ function ImageBubbleMenu({
 					setPickerOpen(open);
 				}}
 				onSelect={(item) => {
-					if (!getSelectedImage(editor.state)) return;
+					const selected = getSelectedImage(editor.state);
+					if (!selected) return;
 					if (canonicalMediaProviderId(item.provider) === "local") {
 						queryClient.setQueryData(["media", item.id], item);
 					}
-					const attrs = { ...mediaItemToImageAttrs(item), caption: undefined, title: undefined };
+					const attrs = {
+						...mediaItemToImageAttrs(item),
+						caption: undefined,
+						title: undefined,
+						...(dropsDisplayHeight(selected.node.attrs, item) ? { displayHeight: undefined } : {}),
+					};
 					editor.chain().updateAttributes("image", attrs).run();
 				}}
 				mimeTypeFilter="image/"
@@ -6061,8 +6152,8 @@ function EditorToolbar({
 	React.useEffect(() => {
 		const sentinel = stuckSentinelRef.current;
 		if (!sentinel) return;
-		const observer = new IntersectionObserver(([entry]) =>
-			setStuck(entry?.isIntersecting === false),
+		const observer = new IntersectionObserver((entries) =>
+			setStuck(entries.at(-1)?.isIntersecting === false),
 		);
 		observer.observe(sentinel);
 		return () => observer.disconnect();

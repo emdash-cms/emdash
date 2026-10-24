@@ -1,0 +1,274 @@
+---
+/**
+ * The registry search form. `lg` is the hero field, `md` sits in page headers,
+ * and `sm` is the compact field beside breadcrumbs, which submits with Enter.
+ * The `/` key focuses the first visible field on the page.
+ */
+interface Props {
+	id: string;
+	value?: string;
+	size?: "lg" | "md" | "sm";
+	class?: string;
+}
+
+const { id, value, size = "lg", class: className } = Astro.props;
+const placeholder =
+	size === "sm" ? "Search plugins" : "Name, keyword, or publisher";
+const searchIcon = '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>';
+---
+
+<form
+	class:list={["search-field", `search-field--${size}`, className]}
+	method="get"
+	action="/search"
+	role="search"
+>
+	<svg
+		class="search-field-icon"
+		viewBox="0 0 24 24"
+		aria-hidden="true"
+		set:html={searchIcon}
+	/>
+	<label class="visually-hidden" for={id}>Search plugins</label>
+	<input
+		id={id}
+		class="search-field-input"
+		name="q"
+		type="search"
+		value={value || undefined}
+		placeholder={placeholder}
+		autocomplete="off"
+		enterkeyhint="search"
+		aria-keyshortcuts="/"
+		maxlength="256"
+		data-search-shortcut
+	/>
+	<kbd class="kbd search-field-kbd" aria-hidden="true">/</kbd>
+	{
+		size !== "sm" && (
+			<button class="btn btn-primary search-field-submit" type="submit">
+				<svg viewBox="0 0 24 24" aria-hidden="true" set:html={searchIcon} />
+				<span class="search-field-submit-label">Search</span>
+			</button>
+		)
+	}
+</form>
+
+<script>
+	function isEditable(target: EventTarget | null): boolean {
+		if (!(target instanceof HTMLElement)) return false;
+		return (
+			target.isContentEditable ||
+			target.closest("input, textarea, select, [contenteditable]") !== null
+		);
+	}
+
+	document.addEventListener("keydown", (event) => {
+		if (event.key !== "/" || event.defaultPrevented) return;
+		if (event.metaKey || event.ctrlKey || event.altKey) return;
+		if (isEditable(event.target)) return;
+		const input = [...document.querySelectorAll("[data-search-shortcut]")].find(
+			(field) =>
+				field instanceof HTMLInputElement && field.getClientRects().length > 0,
+		);
+		if (
+			!(input instanceof HTMLInputElement) ||
+			document.querySelector("dialog[open]")
+		)
+			return;
+		event.preventDefault();
+		input.focus();
+		input.select();
+	});
+</script>
+
+<style>
+	.search-field {
+		--search-height: 56px;
+		--search-radius: 14px;
+
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: 100%;
+		height: var(--search-height);
+		padding-inline: 18px 6px;
+		text-align: start;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: var(--search-radius);
+		box-shadow:
+			0 0 0 4px var(--line-soft),
+			var(--shadow-sm);
+		transition:
+			border-color 150ms ease,
+			box-shadow 150ms ease;
+	}
+
+	.search-field--lg {
+		max-width: 640px;
+	}
+
+	.search-field--md {
+		--search-height: 52px;
+		--search-radius: 13px;
+
+		max-width: 720px;
+		padding-inline: 16px 5px;
+	}
+
+	.search-field--sm {
+		--search-height: 40px;
+		--search-radius: var(--radius);
+
+		gap: 8px;
+		padding-inline: 12px 8px;
+		box-shadow: var(--shadow-sm);
+	}
+
+	@media (hover: hover) {
+		.search-field:hover {
+			border-color: var(--line-strong);
+		}
+	}
+
+	.search-field:focus-within {
+		border-color: var(--accent-ink);
+		box-shadow:
+			0 0 0 4px var(--accent-tint),
+			var(--shadow-sm);
+	}
+
+	.search-field--sm:focus-within {
+		box-shadow:
+			0 0 0 3px var(--accent-tint),
+			var(--shadow-sm);
+	}
+
+	.search-field-icon {
+		flex: none;
+		width: 20px;
+		height: 20px;
+		color: var(--subtle);
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.75;
+		stroke-linecap: round;
+	}
+
+	.search-field--sm .search-field-icon {
+		width: 18px;
+		height: 18px;
+	}
+
+	.search-field-input {
+		flex: 1;
+		min-width: 0;
+		height: 100%;
+		padding: 0;
+		color: var(--ink);
+		font: inherit;
+		font-size: 16px;
+		text-overflow: ellipsis;
+		background: transparent;
+		border: 0;
+		outline: none;
+	}
+
+	.search-field--sm .search-field-input {
+		font-size: 14px;
+	}
+
+	/* Chrome's blue × is off-palette; Escape still clears the field, and results have a Clear search link. */
+	.search-field-input::-webkit-search-cancel-button {
+		appearance: none;
+	}
+
+	.search-field-input::placeholder {
+		color: var(--muted);
+		opacity: 1;
+	}
+
+	.search-field-input:focus-visible {
+		outline: none;
+	}
+
+	.search-field-kbd {
+		flex: none;
+		transition: opacity 150ms ease;
+	}
+
+	:global(:root:not(.js)) .search-field-kbd {
+		display: none;
+	}
+
+	.search-field:focus-within .search-field-kbd,
+	.search-field-input:not(:placeholder-shown) ~ .search-field-kbd {
+		opacity: 0;
+	}
+
+	.search-field-submit {
+		flex: none;
+		min-height: 42px;
+		padding-inline: 16px;
+		border-radius: 10px;
+	}
+
+	.search-field--md .search-field-submit {
+		min-height: 40px;
+		border-radius: 9px;
+	}
+
+	.search-field-submit svg {
+		display: none;
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+	}
+
+	@media (hover: none), (max-width: 639.98px) {
+		.search-field-kbd {
+			display: none;
+		}
+	}
+
+	@media (max-width: 479.98px) {
+		.search-field--lg,
+		.search-field--md {
+			--search-height: 52px;
+
+			padding-inline: 14px 5px;
+		}
+
+		.search-field-submit,
+		.search-field--md .search-field-submit {
+			width: 42px;
+			min-height: 40px;
+			padding: 0;
+		}
+
+		.search-field-submit svg {
+			display: block;
+		}
+
+		.search-field-submit-label {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			margin: -1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.search-field,
+		.search-field-kbd {
+			transition: none;
+		}
+	}
+</style>

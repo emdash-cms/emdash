@@ -1,5 +1,13 @@
 # @emdash-cms/registry-cli
 
+## 0.13.4
+
+### Patch Changes
+
+- [#4003](https://github.com/emdash-cms/emdash/pull/4003) [`af92bf7`](https://github.com/emdash-cms/emdash/commit/af92bf731e33f7d2d1b81b3c75fdf840c99067c8) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds an optional `reasonMessage` to delegated release intents and shows it in `emdash-plugin release` output. Failed releases include the intent ID and guidance for resolving the failure, including when to start a fresh workflow dispatch. Clients remain compatible with release services that return only a reason code.
+- Updated dependencies [[`af92bf7`](https://github.com/emdash-cms/emdash/commit/af92bf731e33f7d2d1b81b3c75fdf840c99067c8)]:
+  - @emdash-cms/registry-client@0.7.1
+
 ## 0.13.3
 
 ### Patch Changes

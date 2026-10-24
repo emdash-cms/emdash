@@ -40,6 +40,7 @@ vi.mock("@tanstack/react-router", async () => {
 	return {
 		...actual,
 		Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+		useBlocker: () => ({ status: "idle" }),
 	};
 });
 

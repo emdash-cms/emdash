@@ -99,6 +99,7 @@ import * as m088 from "./088_cron_oneshot_utc.js";
 import * as m089 from "./089_auto_seed_completion.js";
 import * as m090 from "./090_redirect_enable_loop_guard.js";
 import * as m091 from "./091_redirect_artifacts.js";
+import { CONTENT_SIZED_MIGRATIONS } from "./content-sized.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -265,6 +266,27 @@ export class MigrationFailedError extends Error {
 	}
 }
 
+/**
+ * Thrown before the migration lock is taken when the pending content-sized
+ * migrations process more rows than the caller's `contentRowLimit`. Nothing
+ * has been applied; `emdash migrate` applies them outside a request.
+ */
+export class MigrationRowLimitError extends Error {
+	readonly migrations: string[];
+	readonly rowLimit: number;
+
+	constructor(migrations: readonly string[], rowLimit: number) {
+		super(
+			`Pending migration ${migrations.join(", ")} processes more than ${rowLimit} content rows, ` +
+				"too many to apply while serving a request. Apply it with `emdash migrate`: " +
+				"https://docs.emdashcms.com/deployment/core-migrations/#apply-large-content-migrations-from-the-cli",
+		);
+		this.name = "MigrationRowLimitError";
+		this.migrations = [...migrations];
+		this.rowLimit = rowLimit;
+	}
+}
+
 /** Custom migration table name */
 const MIGRATION_TABLE = "_emdash_migrations";
 
@@ -276,6 +298,11 @@ export interface MigrationOptions {
 	 * give-up path doesn't take 10 seconds per case.
 	 */
 	raceWaitMs?: number;
+	/**
+	 * Refuse with MigrationRowLimitError, before taking the migration lock, when
+	 * the pending content-sized migrations process more rows than this.
+	 */
+	contentRowLimit?: number;
 }
 
 export function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
@@ -486,6 +513,23 @@ export async function getExactMigrationStatus(
 	return { knownApplied, pending, unknownApplied };
 }
 
+async function assertWithinContentRowLimit(
+	db: Kysely<Database>,
+	rowLimit: number,
+	options: MigrationOptions | undefined,
+): Promise<void> {
+	const { pending } = await getExactMigrationStatus(db, options);
+	const sized = pending.filter((name) => CONTENT_SIZED_MIGRATIONS.has(name));
+	let rows = 0;
+	for (const name of sized) {
+		const migration = CONTENT_SIZED_MIGRATIONS.get(name);
+		if (!migration) continue;
+		// oxlint-disable-next-line no-await-in-loop -- each count is capped by what the previous ones left
+		rows += await migration.countRows(db, rowLimit + 1 - rows);
+		if (rows > rowLimit) throw new MigrationRowLimitError(sized, rowLimit);
+	}
+}
+
 /**
  * Run all pending migrations.
  *
@@ -522,6 +566,10 @@ export async function runMigrations(
 		if (initialCount !== null && initialCount >= MIGRATION_COUNT) {
 			return { applied: [] };
 		}
+	}
+
+	if (options?.contentRowLimit !== undefined) {
+		await assertWithinContentRowLimit(db, options.contentRowLimit, options);
 	}
 
 	const migrator = createMigrator(db, options);
