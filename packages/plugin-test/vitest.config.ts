@@ -9,6 +9,7 @@ export default defineConfig({
 	plugins: [emdashPluginTest({ dir: fixture })],
 	test: {
 		include: ["test/**/*.test.ts"],
+		exclude: ["test/node/**/*.test.ts"],
 		testTimeout: 30_000,
 		hookTimeout: 30_000,
 	},
