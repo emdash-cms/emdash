@@ -1,11 +1,13 @@
 /**
- * Server-side Turnstile verification for public comment submissions.
+ * Server-side Turnstile verification for public comment submissions and
+ * the admin's email sign-in and self-signup forms.
  *
  * The comment form widget (`CommentForm.astro`) submits a `turnstileToken`;
  * this verifies it against Cloudflare's siteverify API. Enforcement is
- * opt-in: it only runs when the operator configures the Turnstile secret
- * key (`EMDASH_TURNSTILE_SECRET_KEY` or `TURNSTILE_SECRET_KEY`), so
- * existing non-Turnstile sites are unaffected.
+ * opt-in: comments are checked when the operator configures the Turnstile
+ * secret key (`EMDASH_TURNSTILE_SECRET_KEY` or `TURNSTILE_SECRET_KEY`), and
+ * the admin auth forms are checked when `EMDASH_TURNSTILE_SITE_KEY` is set
+ * as well, so existing non-Turnstile sites are unaffected.
  *
  * Mirrors `verifyTurnstile` in `@emdash-cms/plugin-forms` (not imported —
  * core doesn't depend on plugin packages).
@@ -24,6 +26,18 @@ const SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverif
 export function getTurnstileSecretKey(): string {
 	const env = typeof process !== "undefined" && process.env ? process.env : {};
 	return env.EMDASH_TURNSTILE_SECRET_KEY || env.TURNSTILE_SECRET_KEY || "";
+}
+
+/**
+ * Resolve the Turnstile keys for the admin's email sign-in and self-signup
+ * forms, or `null` when either key is missing. The site key is sent to the
+ * browser; the secret key never leaves the server.
+ */
+export function getAuthTurnstileKeys(): { siteKey: string; secretKey: string } | null {
+	const env = typeof process !== "undefined" && process.env ? process.env : {};
+	const siteKey = env.EMDASH_TURNSTILE_SITE_KEY || "";
+	const secretKey = getTurnstileSecretKey();
+	return siteKey && secretKey ? { siteKey, secretKey } : null;
 }
 
 /**
@@ -51,17 +65,17 @@ export async function verifyTurnstileToken(
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body),
 			// Fail closed *quickly* if siteverify is slow — without a timeout
-			// the comment POST would hang until the runtime kills it
+			// the request would hang until the runtime kills it
 			signal: AbortSignal.timeout(10_000),
 		});
 		const data: { success?: boolean; "error-codes"?: string[] } = await res.json();
 		if (!data.success) {
-			console.warn("[comments] Turnstile verification failed:", data["error-codes"] ?? []);
+			console.warn("[turnstile] Turnstile verification failed:", data["error-codes"] ?? []);
 		}
 		return data.success === true;
 	} catch (error) {
 		console.error(
-			"[comments] Turnstile siteverify request failed:",
+			"[turnstile] Turnstile siteverify request failed:",
 			error instanceof Error ? error.message : error,
 		);
 		return false;

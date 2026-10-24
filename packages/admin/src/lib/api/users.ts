@@ -363,14 +363,19 @@ export interface SignupVerifyResult {
 }
 
 /**
- * Request signup - send verification email
- * Always returns success to prevent enumeration
+ * Request signup - send verification email.
+ * Succeeds whether or not the domain is allowed, to prevent enumeration.
+ * Throws with TURNSTILE_FAILED when Turnstile is enabled and the token is
+ * missing or invalid.
  */
-export async function requestSignup(email: string): Promise<{ success: true; message: string }> {
+export async function requestSignup(
+	email: string,
+	turnstileToken?: string,
+): Promise<{ success: true; message: string }> {
 	const response = await apiFetch(`${API_BASE}/auth/signup/request`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ email }),
+		body: JSON.stringify({ email, turnstileToken }),
 	});
 	return parseApiResponse<{ success: true; message: string }>(
 		response,

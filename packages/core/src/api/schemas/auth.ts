@@ -42,6 +42,7 @@ const authenticationCredential = z.object({
 export const signupRequestBody = z
 	.object({
 		email: z.email(),
+		turnstileToken: z.string().max(2048).optional(),
 	})
 	.meta({ id: "SignupRequestBody" });
 
@@ -78,6 +79,7 @@ export const inviteCompleteBody = z
 export const magicLinkSendBody = z
 	.object({
 		email: z.email(),
+		turnstileToken: z.string().max(2048).optional(),
 	})
 	.meta({ id: "MagicLinkSendBody" });
 

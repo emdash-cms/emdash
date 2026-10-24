@@ -4,15 +4,17 @@
  * Public endpoint that returns the active authentication mode.
  * Used by the login page to determine which login UI to render.
  *
- * Unlike the full manifest endpoint, this is intentionally public
- * and returns only the auth mode — no collection schemas, plugin
- * info, or other internal details.
+ * Unlike the full manifest endpoint, this is public and returns only
+ * what the login page needs: the auth mode, signup and provider options,
+ * and the Turnstile site key. No collection schemas, plugin info, or
+ * other internal details.
  */
 
 import type { APIRoute } from "astro";
 
 import { apiSuccess } from "#api/error.js";
 import { getAuthMode } from "#auth/mode.js";
+import { getAuthTurnstileKeys } from "#comments/turnstile.js";
 
 export const prerender = false;
 
@@ -41,9 +43,13 @@ export const GET: APIRoute = async ({ locals }) => {
 		label: p.label,
 	}));
 
+	const turnstileSiteKey =
+		authMode.type === "passkey" ? getAuthTurnstileKeys()?.siteKey : undefined;
+
 	return apiSuccess({
 		authMode: authMode.type === "external" ? authMode.providerType : "passkey",
 		signupEnabled,
 		providers,
+		...(turnstileSiteKey ? { turnstileSiteKey } : {}),
 	});
 };
