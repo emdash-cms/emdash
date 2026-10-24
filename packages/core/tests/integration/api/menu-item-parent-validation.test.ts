@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import {
 	handleMenuCreate,
 	handleMenuItemCreate,
+	handleMenuItemDelete,
 	handleMenuItemReorder,
 	handleMenuItemUpdate,
 } from "../../../src/api/handlers/menus.js";
@@ -251,6 +252,41 @@ describeEachDialect("menu item parent validation", (dialect) => {
 			expect(menu?.items[0]?.children[0]?.label).toBe("Edited");
 		},
 	);
+
+	it("deletes the descendants of a deleted menu item", async () => {
+		const parent = await createItem("Parent");
+		const child = await createItem("Child", parent.id);
+		await createItem("Grandchild", child.id);
+		const sibling = await createItem("Sibling");
+		const result = await handleMenuItemDelete(db, "primary", parent.id);
+		expect(result.success).toBe(true);
+		expect((await currentItems()).map((item) => item.id)).toEqual([sibling.id]);
+		const menu = await getMenuWithDb("primary", db);
+		expect(menu?.items.map((item) => item.label)).toEqual(["Sibling"]);
+	});
+
+	it("keeps the rest of the branch when a nested item is deleted", async () => {
+		const parent = await createItem("Parent");
+		const child = await createItem("Child", parent.id);
+		await createItem("Grandchild", child.id);
+		await createItem("Other child", parent.id);
+		await handleMenuItemDelete(db, "primary", child.id);
+		const menu = await getMenuWithDb("primary", db);
+		expect(menu?.items.map((item) => item.label)).toEqual(["Parent"]);
+		expect(menu?.items[0]?.children.map((item) => item.label)).toEqual(["Other child"]);
+	});
+
+	it("deletes an item whose legacy links form a cycle", async () => {
+		const a = await createItem("A");
+		const b = await createItem("B", a.id);
+		await db
+			.updateTable("_emdash_menu_items")
+			.set({ parent_id: b.id })
+			.where("id", "=", a.id)
+			.execute();
+		expect((await handleMenuItemDelete(db, "primary", a.id)).success).toBe(true);
+		expect(await currentItems()).toEqual([]);
+	});
 
 	it("allows full admin reorder batches with untouched legacy cycles", async () => {
 		const a = await createItem("A");

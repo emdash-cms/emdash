@@ -13,7 +13,7 @@
  * single menu item survives content translations.
  */
 
-import type { Kysely, Selectable } from "kysely";
+import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { localeMatches, localeOrder } from "../../i18n/query.js";
@@ -611,12 +611,28 @@ export class MenuRepository {
 		return rowToMenuItem(row);
 	}
 
-	/** Delete an item scoped to its menu. Returns false if nothing was deleted. */
+	/**
+	 * Delete an item and its descendants, scoped to its menu. Returns false if
+	 * the item was not found. SQLite/D1 has no `parent_id` cascade (dropped by
+	 * migration 036), so descendants are removed here for every dialect.
+	 */
 	async deleteItem(menuId: string, itemId: string): Promise<boolean> {
+		// A single statement, so a failure on D1 (no transactions) leaves the
+		// whole subtree in place. UNION, not UNION ALL, ends the walk on cyclic
+		// links from older API writes.
+		const subtreeIds = sql<string>`(
+			WITH RECURSIVE subtree(id) AS (
+				SELECT id FROM _emdash_menu_items WHERE id = ${itemId} AND menu_id = ${menuId}
+				UNION
+				SELECT item.id FROM _emdash_menu_items AS item
+				INNER JOIN subtree ON item.parent_id = subtree.id
+				WHERE item.menu_id = ${menuId}
+			)
+			SELECT id FROM subtree
+		)`;
 		const result = await this.db
 			.deleteFrom("_emdash_menu_items")
-			.where("id", "=", itemId)
-			.where("menu_id", "=", menuId)
+			.where("id", "in", subtreeIds)
 			.execute();
 		const deleted = result[0]?.numDeletedRows !== 0n;
 		if (deleted) invalidateMenuObjectCache();
