@@ -3,10 +3,10 @@ import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { SandboxedContentEditorActions } from "../../src/components/SandboxedContentEditorActions";
-import type { ResolvedSandboxedEditorAction } from "../../src/lib/sandboxed-editor-extensions";
+import { SandboxedContentEditorActions } from "../../src/components/SandboxedContentEditorActions.js";
+import type { ResolvedSandboxedEditorAction } from "../../src/lib/sandboxed-editor-extensions.js";
 import { messages as enMessages } from "../../src/locales/en/messages.mjs";
-import { render } from "../utils/render.tsx";
+import { render } from "../utils/render.js";
 
 function action(label: string): ResolvedSandboxedEditorAction {
 	return {
