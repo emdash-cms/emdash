@@ -3023,6 +3023,16 @@ export class EmDashRuntime {
 					const value = storedSelections?.get(key);
 					if (value !== undefined) selections.set(key, value);
 				}
+				// A stored console choice must not pin delivery to the dev fallback.
+				const emailKey = `${EXCLUSIVE_HOOK_KEY_PREFIX}email:deliver`;
+				if (selections.get(emailKey) === DEV_CONSOLE_EMAIL_PLUGIN_ID) {
+					selections.delete(emailKey);
+					try {
+						await optionsRepo.delete(emailKey);
+					} catch {
+						// Non-fatal
+					}
+				}
 				return selections;
 			},
 			setOption: (key, value) => optionsRepo.set(key, value),
@@ -3030,7 +3040,10 @@ export class EmDashRuntime {
 				await optionsRepo.delete(key);
 			},
 			preferredHints,
-			fallbackProviders: new Set([DEFAULT_COMMENT_MODERATOR_PLUGIN_ID]),
+			fallbackProviders: new Set([
+				DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
+				DEV_CONSOLE_EMAIL_PLUGIN_ID,
+			]),
 		});
 	}
 

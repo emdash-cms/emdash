@@ -10,10 +10,10 @@
  * The invite accept page (/_emdash/admin/invite/accept) is a public
  * route — auth middleware allows unauthenticated access.
  *
- * In dev mode the built-in console email provider auto-activates,
- * so invite creation sends an email (captured in memory) rather than
- * returning the invite URL directly. We retrieve the URL from the
- * dev emails endpoint using server-side fetch with the PAT.
+ * These tests select the dev console email provider to capture invite
+ * messages in memory rather than returning the invite URL directly.
+ * We retrieve the URL from the dev emails endpoint using server-side
+ * fetch with the PAT.
  */
 
 import { readFileSync } from "node:fs";
@@ -45,6 +45,18 @@ function getServerInfo(): { baseUrl: string; token: string; sessionCookie: strin
  */
 async function createInviteViaApi(email: string, role = 30): Promise<string> {
 	const { baseUrl, token, sessionCookie } = getServerInfo();
+
+	// The shared fixture also registers a sandboxed email delivery provider.
+	const selectionRes = await fetch(`${baseUrl}/_emdash/api/admin/hooks/exclusive/email:deliver`, {
+		method: "PUT",
+		headers: {
+			"Content-Type": "application/json",
+			"X-EmDash-Request": "1",
+			Authorization: `Bearer ${token}`,
+		},
+		body: JSON.stringify({ pluginId: "emdash-console-email" }),
+	});
+	expect(selectionRes.status, await selectionRes.text()).toBe(200);
 
 	// Clear previously captured emails
 	await fetch(`${baseUrl}/_emdash/api/dev/emails`, {

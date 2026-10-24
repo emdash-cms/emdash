@@ -41,13 +41,10 @@ export const GET: APIRoute = async ({ locals }) => {
 
 	try {
 		const pipeline = emdash.hooks;
-		const optionsRepo = new OptionsRepository(emdash.db);
 
 		// Get email:deliver providers and current selection
 		const providers = pipeline.getExclusiveHookProviders(EMAIL_DELIVER_HOOK);
-		const selectedProviderId = await optionsRepo.get<string>(
-			`emdash:exclusive_hook:${EMAIL_DELIVER_HOOK}`,
-		);
+		const selectedProviderId = pipeline.getExclusiveSelection(EMAIL_DELIVER_HOOK);
 
 		// Get middleware hooks (beforeSend / afterSend). These are non-exclusive —
 		// many plugins can subscribe — so we enumerate non-exclusive providers.
