@@ -15,6 +15,7 @@ import { NSID } from "@emdash-cms/registry-lexicons";
 import { applyD1Migrations, env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { upsertPublisherHandle } from "../src/did-resolver.js";
 import { searchPackages } from "../src/routes/xrpc/searchPackages.js";
 
 interface TestEnv {
@@ -712,6 +713,77 @@ describe("searchPackages", () => {
 			expect(body.packages.map((p) => p.slug)).toEqual(["bulletin"]);
 		},
 	);
+
+	it.each(["audit-log", "audit", "log"])("finds a package by its slug: %s", async (query) => {
+		await seedPackage({ slug: "audit-log", name: "History", description: "Who changed what" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=${encodeURIComponent(query)}`,
+		);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+
+		expect(body.packages.map((p) => p.slug)).toEqual(["audit-log"]);
+	});
+
+	it.each([
+		["meekmedia.bsky.social", "meekmedia"],
+		["meekmedia.bsky.social", "meekmed"],
+		["plugins.emdashcms.com", "emdashcms"],
+		["plugins.emdashcms.com", "plugins"],
+	])("finds a package by part of its publisher's handle %s: %s", async (handle, query) => {
+		await seedPublisherHandle(DID_A, handle);
+		await seedPackage({ slug: "bulletin", name: "Bulletin", description: "Email newsletters" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=${encodeURIComponent(query)}`,
+		);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+
+		expect(body.packages.map((p) => p.slug)).toEqual(["bulletin"]);
+	});
+
+	it.each([
+		["meekmedia.bsky.social", "social"],
+		["meekmedia.bsky.social", "bsky"],
+		["plugins.emdashcms.com", "com"],
+	])("doesn't match the shared ending of the handle %s: %s", async (handle, query) => {
+		await seedPublisherHandle(DID_A, handle);
+		await seedPackage({ slug: "bulletin", name: "Bulletin", description: "Email newsletters" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=${encodeURIComponent(query)}`,
+		);
+
+		await expect(res.json()).resolves.toEqual({ packages: [] });
+	});
+
+	it("follows a publisher's handle when it is added, changed, or taken by another publisher", async () => {
+		await seedPackage({ slug: "bulletin", name: "Bulletin", description: "Email newsletters" });
+		const search = async (query: string) => {
+			const res = await SELF.fetch(
+				`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=${encodeURIComponent(query)}`,
+			);
+			const body = (await res.json()) as { packages: Array<{ slug: string }> };
+			return body.packages.map((p) => p.slug);
+		};
+
+		await upsertPublisherHandle(testEnv.DB, DID_A, "oldname.bsky.social", NOW);
+		expect(await search("oldname")).toEqual(["bulletin"]);
+
+		await upsertPublisherHandle(testEnv.DB, DID_A, "newname.bsky.social", NOW);
+		expect(await search("oldname")).toEqual([]);
+		expect(await search("newname")).toEqual(["bulletin"]);
+
+		await upsertPublisherHandle(testEnv.DB, DID_B, "newname.bsky.social", NOW);
+		expect(await search("newname")).toEqual([]);
+		expect(await search("bulletin")).toEqual(["bulletin"]);
+
+		await expect(
+			testEnv.DB.prepare(
+				"INSERT INTO packages_fts(packages_fts, rank) VALUES ('integrity-check', 1)",
+			).run(),
+		).resolves.toMatchObject({ success: true });
+	});
 
 	it("returns no matches for a query with no word characters", async () => {
 		await seedPackage({ slug: "demo", name: "Demo" });
