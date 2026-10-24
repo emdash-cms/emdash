@@ -3974,6 +3974,7 @@ export class EmDashRuntime {
 						entryId: resolvedId,
 						data: mergedData,
 						authorId: actor?.id,
+						source: bodyWithoutRev.skipRevision ? "autosave" : "manual",
 					});
 
 					let staged: boolean;
@@ -4015,17 +4016,22 @@ export class EmDashRuntime {
 					processedData = attemptData;
 
 					if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
-						try {
-							await revisionRepo.deleteIfUnreferenced(
-								collection,
-								resolvedId,
-								existing.draftRevisionId,
-							);
-						} catch (error) {
-							console.error(
-								`[emdash] Failed to clean up superseded revision ${existing.draftRevisionId}:`,
-								error,
-							);
+						// Only rotate a previous autosave snapshot. Baseline checkpoints
+						// (duplication) and explicit saves are retained.
+						const previousRevision = await revisionRepo.findById(existing.draftRevisionId);
+						if (previousRevision?.source === "autosave") {
+							try {
+								await revisionRepo.deleteIfUnreferenced(
+									collection,
+									resolvedId,
+									existing.draftRevisionId,
+								);
+							} catch (error) {
+								console.error(
+									`[emdash] Failed to clean up superseded revision ${existing.draftRevisionId}:`,
+									error,
+								);
+							}
 						}
 					} else {
 						after(async () => {

@@ -345,6 +345,7 @@ export const revisionRecordSchema = z.strictObject({
 	entryId: portableIdSchema,
 	data: jsonValue,
 	authorPrincipal: portableIdSchema.optional(),
+	source: shortString.optional(),
 	createdAt: timestamp.optional(),
 });
 

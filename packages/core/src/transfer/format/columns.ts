@@ -302,6 +302,7 @@ const PORTABLE_TABLE_LIST: PortableTableSpec[] = [
 			entry_id: f("entryId"),
 			data: f("data", "json"),
 			author_id: principal("authorPrincipal"),
+			source: f("source"),
 			created_at: f("createdAt"),
 		},
 	},
