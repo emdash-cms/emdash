@@ -13,7 +13,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { MenuGoneError, MenuRepository } from "../../../src/database/repositories/menu.js";
 import type { Database } from "../../../src/database/types.js";
-import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import {
+	describeEachDialect,
+	setupForDialect,
+	setupTestDatabase,
+	teardownForDialect,
+	teardownTestDatabase,
+	type DialectTestContext,
+} from "../../utils/test-db.js";
 
 describe("MenuRepository", () => {
 	let db: Kysely<Database>;
@@ -409,5 +416,50 @@ describe("MenuRepository", () => {
 			const result = await repo.listTranslations("01XXNOTREALXXXXXXXXXXXXXXX");
 			expect(result).toBeNull();
 		});
+	});
+});
+
+describeEachDialect("MenuRepository.create() with translationOf", (dialect) => {
+	let ctx: DialectTestContext;
+	let repo: MenuRepository;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		repo = new MenuRepository(ctx.db);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("copies a nested item that sorts before its parent", async () => {
+		const src = await repo.create({ name: "primary", label: "Primary", locale: "en" });
+		for (const label of ["A", "B", "C", "D"]) {
+			await repo.createItem(src.id, "en", { type: "custom", label, customUrl: "/" });
+		}
+		const parent = await repo.createItem(src.id, "en", {
+			type: "custom",
+			label: "Parent",
+			customUrl: "/parent",
+		});
+		await repo.createItem(src.id, "en", {
+			type: "custom",
+			label: "Child",
+			customUrl: "/child",
+			parentId: parent.id,
+			sortOrder: 0,
+		});
+
+		const target = await repo.create({
+			name: "primary",
+			label: "Principal",
+			locale: "fr",
+			translationOf: src.id,
+		});
+
+		const items = await repo.findItems(target.id);
+		expect(items).toHaveLength(6);
+		const copiedParent = items.find((item) => item.label === "Parent");
+		expect(items.find((item) => item.label === "Child")?.parentId).toBe(copiedParent?.id);
 	});
 });
