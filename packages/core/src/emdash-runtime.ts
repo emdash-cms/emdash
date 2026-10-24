@@ -292,7 +292,10 @@ import { isContentSaveRejection } from "./plugins/save-rejection.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository, rowToPluginState } from "./plugins/state.js";
 import type { PluginState } from "./plugins/state.js";
-import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
+import {
+	syncDeclaredStorageIndexes,
+	type StorageIndexSyncResult,
+} from "./plugins/storage-indexes.js";
 import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
@@ -819,8 +822,21 @@ export class EmDashRuntime {
 	/** All plugins eligible for the hook pipeline (includes built-in plugins).
 	 *  Stored so we can rebuild the pipeline when plugins are enabled/disabled. */
 	private allPipelinePlugins: ResolvedPlugin[];
-	/** Guards the once-per-process plugin storage-index sync. */
-	private storageIndexesSynced = false;
+	/**
+	 * Plugin IDs whose declared storage indexes have been materialized without
+	 * errors. Per-plugin tracking lets retries target only the plugins that
+	 * failed a previous synchronization, and it keeps newly-installed plugins
+	 * from being treated as ready before their own indexes exist.
+	 */
+	private storageIndexesReady = new Set<string>();
+	/**
+	 * In-flight storage-index sync promises keyed by target plugin ID (or the
+	 * sentinel `__all__` for the scheduled all-plugins pass). Keeping separate
+	 * promises for each target prevents callers for different plugins from
+	 * waiting on a sync pass that only covers another plugin, which used to cause
+	 * false "not ready" responses.
+	 */
+	private storageIndexesSyncPromises = new Map<string, Promise<StorageIndexSyncResult>>();
 	/** Factory options for the hook pipeline context factory */
 	private pipelineFactoryOptions: {
 		db: Kysely<Database>;
@@ -973,6 +989,16 @@ export class EmDashRuntime {
 		if (options.invalidateContentCache) {
 			this.pluginContentCacheInvalidator = options.invalidateContentCache;
 		}
+
+		// Try to materialize plugin-declared indexes before any scheduled plugin
+		// work runs. A partial result leaves failed plugins unmarked so the next
+		// tick retries them.
+		try {
+			await this.ensureStorageIndexesSynced();
+		} catch (error) {
+			console.error("[plugins] Storage index sync failed:", error);
+		}
+
 		let processed = 0;
 		if (this.cronExecutor) {
 			try {
@@ -1016,8 +1042,10 @@ export class EmDashRuntime {
 
 		await this.runSystemCleanupIfDue(currentTime);
 
+		// Retry any plugin storage-index sync that did not complete earlier in
+		// this tick or in a previous tick.
 		try {
-			await this.syncPluginStorageIndexesOnce();
+			await this.ensureStorageIndexesSynced();
 		} catch (error) {
 			console.error("[plugins] Storage index sync failed:", error);
 		}
@@ -1046,21 +1074,101 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Materialize plugin-declared storage indexes, once per process.
-	 *
-	 * Called from the scheduler path, not from request handlers — configured
-	 * plugins have no install handler, so the tick is their only sync moment.
+	 * Build the deduplicated set of plugins that may declare storage indexes.
+	 * Includes configured/trusted plugins, adapted sandboxed plugins, and cached
+	 * marketplace/registry manifests for plugins that may not have been loaded
+	 * into the pipeline yet.
 	 */
-	async syncPluginStorageIndexesOnce(): Promise<void> {
-		if (this.storageIndexesSynced) return;
-		this.storageIndexesSynced = true;
-		// Sandboxed marketplace/registry plugins never join allPipelinePlugins;
-		// their manifests are cached at bundle load. Without them, plugins
-		// installed before this feature shipped would never get their indexes.
-		await syncDeclaredStorageIndexes(this.db, [
-			...this.allPipelinePlugins,
-			...marketplaceManifestCache.values(),
-		]);
+	private getStorageIndexPlugins(): Map<
+		string,
+		{
+			id: string;
+			storage?: Record<
+				string,
+				{ indexes: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+			>;
+		}
+	> {
+		const map = new Map<
+			string,
+			{
+				id: string;
+				storage?: Record<
+					string,
+					{ indexes: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+				>;
+			}
+		>();
+		for (const plugin of this.allPipelinePlugins) {
+			map.set(plugin.id, plugin);
+		}
+		for (const manifest of marketplaceManifestCache.values()) {
+			if (!map.has(manifest.id)) {
+				map.set(manifest.id, manifest);
+			}
+		}
+		return map;
+	}
+
+	/**
+	 * Run one sync pass for plugins that are not yet marked ready. If a target
+	 * plugin has no storage declarations, mark it ready immediately. Adds plugins
+	 * with no errors to `storageIndexesReady`; leaves failed plugins unmarked so
+	 * the next pass retries them.
+	 */
+	private async runStorageIndexSync(pluginId?: string): Promise<StorageIndexSyncResult> {
+		const pluginsById = this.getStorageIndexPlugins();
+		const target = pluginId ? pluginsById.get(pluginId) : undefined;
+
+		if (pluginId && target && (!target.storage || Object.keys(target.storage).length === 0)) {
+			this.storageIndexesReady.add(pluginId);
+			return { ok: true, errors: [] };
+		}
+
+		const candidates = [...pluginsById.values()].filter(
+			(p) =>
+				!this.storageIndexesReady.has(p.id) &&
+				p.storage &&
+				Object.keys(p.storage).length > 0 &&
+				(!pluginId || p.id === pluginId),
+		);
+
+		if (candidates.length === 0) {
+			return { ok: true, errors: [] };
+		}
+
+		const result = await syncDeclaredStorageIndexes(this.db, candidates);
+		const erroredPlugins = new Set(result.errors.map((e) => e.pluginId));
+
+		for (const plugin of candidates) {
+			if (!erroredPlugins.has(plugin.id)) {
+				this.storageIndexesReady.add(plugin.id);
+			}
+		}
+
+		return result;
+	}
+
+	/**
+	 * Ensure declared storage indexes are ready before state-changing plugin
+	 * work runs. Returns `true` only when the requested plugin (or all plugins,
+	 * when no ID is given) has been successfully synchronized. Uses a single
+	 * in-flight sync per process to avoid duplicate DDL from concurrent callers.
+	 */
+	async ensureStorageIndexesSynced(pluginId?: string): Promise<boolean> {
+		if (pluginId && this.storageIndexesReady.has(pluginId)) return true;
+
+		const key = pluginId ?? "__all__";
+		let promise = this.storageIndexesSyncPromises.get(key);
+		if (!promise) {
+			promise = this.runStorageIndexSync(pluginId).finally(() => {
+				this.storageIndexesSyncPromises.delete(key);
+			});
+			this.storageIndexesSyncPromises.set(key, promise);
+		}
+
+		const result = await promise;
+		return pluginId ? this.storageIndexesReady.has(pluginId) : result.ok;
 	}
 
 	/**
@@ -5641,6 +5749,24 @@ export class EmDashRuntime {
 				status: 405,
 				error: { code: "METHOD_NOT_ALLOWED", message: "Method not allowed" },
 			};
+		}
+
+		// State-changing plugin routes may rely on declared unique indexes and
+		// other constraints. Block them until those indexes are materialized.
+		// Read-only routes skip this check so ordinary logged-out GET requests
+		// don't pay for index DDL.
+		if (normalizedMethod !== "GET" && normalizedMethod !== "HEAD") {
+			const indexesReady = await this.ensureStorageIndexesSynced(pluginId);
+			if (!indexesReady) {
+				return {
+					success: false,
+					status: 503,
+					error: {
+						code: "STORAGE_INDEXES_NOT_READY",
+						message: "Plugin storage indexes are not ready",
+					},
+				};
+			}
 		}
 
 		// Authenticated caller for `ctx.user`. Undefined for public routes
