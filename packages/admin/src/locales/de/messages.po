@@ -1295,7 +1295,7 @@ msgstr "Autorenangabe hinzufügen"
 #: packages/admin/src/components/editor/VideoNode.tsx:389
 #: packages/admin/src/components/PortableTextEditor.tsx:5845
 msgid "Add caption"
-msgstr ""
+msgstr "Bildunterschrift hinzufügen"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
 #: packages/admin/src/components/PortableTextEditor.tsx:5411
@@ -2887,7 +2887,7 @@ msgstr "Wähle einen Passwortmanager auf diesem Gerät, ein anderes Gerät oder 
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:36
 msgid "Choose a date"
-msgstr ""
+msgstr "Wähle ein Datum"
 
 #: packages/admin/src/components/ContentList.tsx:1210
 #: packages/admin/src/components/ContentList.tsx:1216
@@ -2913,11 +2913,11 @@ msgstr "Wähle einen Begriff und gib 1 bis 50 Beiträge an."
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:40
 msgid "Choose a time in the future"
-msgstr ""
+msgstr "Wähle einen Zeitpunkt in der Zukunft"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:37
 msgid "Choose a valid date"
-msgstr ""
+msgstr "Wähle ein gültiges Datum"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:236
 msgid "Choose a video from the library or upload a new one."
@@ -4830,7 +4830,7 @@ msgstr "Bild hier ablegen oder <0>durchsuchen</0>"
 
 #: packages/admin/src/components/media/ImageDropTarget.tsx:118
 msgid "Drop an image here or browse for {label}"
-msgstr "Bild für {label} hier ablegen oder durchsuchen"
+msgstr "{label}: Bild hier ablegen oder durchsuchen"
 
 #: packages/admin/src/components/MediaLibrary.tsx:727
 msgid "Drop files to upload"
@@ -4965,7 +4965,7 @@ msgstr "Autorenangaben-Feld bearbeiten"
 #: packages/admin/src/components/editor/VideoNode.tsx:389
 #: packages/admin/src/components/PortableTextEditor.tsx:5845
 msgid "Edit caption"
-msgstr ""
+msgstr "Bildunterschrift bearbeiten"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:440
 msgid "Edit dark mode asset"
@@ -5332,7 +5332,7 @@ msgstr "Gib einen Slug ein."
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:38
 msgid "Enter a time"
-msgstr ""
+msgstr "Gib eine Uhrzeit ein"
 
 #: packages/admin/src/components/MenuEditor.tsx:527
 #: packages/admin/src/components/MenuEditor.tsx:725
@@ -5341,7 +5341,7 @@ msgstr "Gib eine URL (https://…) oder einen relativen Pfad (/…) ein"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:39
 msgid "Enter a valid time"
-msgstr ""
+msgstr "Gib eine gültige Uhrzeit ein"
 
 #: packages/admin/src/components/ContentEditor.tsx:3278
 msgid "Enter a valid URL (e.g. https://example.com)"
@@ -8038,7 +8038,7 @@ msgstr "Mehr erfahren"
 #: packages/admin/src/components/UnsavedChangesGuard.tsx:38
 #: packages/admin/src/components/UnsavedChangesGuard.tsx:40
 msgid "Leave"
-msgstr ""
+msgstr "Verlassen"
 
 #: packages/admin/src/components/WordPressImport.tsx:2556
 msgid "Leave unassigned"
@@ -8046,7 +8046,7 @@ msgstr "Nicht zugewiesen"
 
 #: packages/admin/src/components/UnsavedChangesGuard.tsx:36
 msgid "Leave without saving?"
-msgstr ""
+msgstr "Seite ohne Speichern verlassen?"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
@@ -9822,7 +9822,7 @@ msgstr "Aus"
 
 #: packages/admin/src/components/SeoImageField.tsx:88
 msgid "OG Image"
-msgstr "OG-Bild"
+msgstr "Bild für soziale Medien"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:178
 msgid "Older version"
@@ -11871,7 +11871,7 @@ msgstr "Speichern fehlgeschlagen"
 
 #: packages/admin/src/components/SeoImageField.tsx:241
 msgid "Save image URL"
-msgstr ""
+msgstr "Bild-URL speichern"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:112
 msgid "Save name"
@@ -12704,7 +12704,7 @@ msgstr "Für alle Übersetzungen derselben Autorenangabe gemeinsam."
 
 #: packages/admin/src/components/SeoImageField.tsx:226
 msgid "Sharing image needs a URL"
-msgstr ""
+msgstr "Bild-URL zum Teilen fehlt"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:47
 msgid "Short text"
@@ -13182,7 +13182,7 @@ msgstr "Status: {status}"
 
 #: packages/admin/src/components/UnsavedChangesGuard.tsx:39
 msgid "Stay"
-msgstr ""
+msgstr "Bleiben"
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:115
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:419
@@ -13443,7 +13443,7 @@ msgstr "Textformatierung"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:41
 msgid "That time does not exist in your time zone"
-msgstr ""
+msgstr "Diese Uhrzeit gibt es in deiner Zeitzone nicht"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:546
 msgid "That version is no longer available. Back to editing."
@@ -13789,7 +13789,7 @@ msgstr "Die bisher hinzugefügten Beispielinhalte bleiben erhalten. Fahre fort, 
 
 #: packages/admin/src/components/SeoImageField.tsx:229
 msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
-msgstr ""
+msgstr "Mit der gespeicherten Medien-ID wird das Bild beim Teilen von Links möglicherweise nicht angezeigt. Speichere die Bild-URL, damit diese Datei dafür verwendet wird."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:193
 msgid "The scheduled changes to {title} stay as a draft."
@@ -15886,11 +15886,11 @@ msgstr "Deine Rolle"
 
 #: packages/admin/src/router.tsx:2044
 msgid "Your role can edit your own entries only while they are drafts."
-msgstr ""
+msgstr "Mit deiner Rolle kannst du eigene Einträge nur bearbeiten, solange sie Entwürfe sind."
 
 #: packages/admin/src/router.tsx:2045
 msgid "Your role can't edit this entry."
-msgstr ""
+msgstr "Mit deiner Rolle kannst du diesen Eintrag nicht bearbeiten."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:376
 msgid "Your role does not permit any of the permissions this device requested."
