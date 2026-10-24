@@ -162,7 +162,9 @@ function RelationRow({
 		<div className="flex items-center gap-4 px-4 py-3 hover:bg-kumo-tint/25">
 			<div className="min-w-0 flex-1">
 				<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-					<code className="text-sm font-medium">{relation.slug}</code>
+					<code dir="ltr" className="text-sm font-medium">
+						{relation.slug}
+					</code>
 					<span className="flex items-center gap-1.5 text-sm text-kumo-subtle">
 						{relation.parentCollection}
 						<ArrowRight className="h-3 w-3 rtl:-scale-x-100" aria-hidden="true" />
@@ -182,7 +184,7 @@ function RelationRow({
 					<ul className="mt-1 flex flex-wrap gap-1.5">
 						{ownFields.map((bound) => (
 							<li key={bound.fieldSlug}>
-								<code className="rounded bg-kumo-tint px-1.5 py-0.5 text-xs">
+								<code dir="ltr" className="rounded bg-kumo-tint px-1.5 py-0.5 text-xs">
 									{bound.fieldSlug}
 								</code>
 							</li>

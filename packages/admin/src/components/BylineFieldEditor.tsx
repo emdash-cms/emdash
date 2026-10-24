@@ -230,6 +230,7 @@ export function BylineFieldEditor({
 						/>
 						<div>
 							<Input
+								dir="ltr"
 								label={t`Slug`}
 								value={state.slug}
 								onChange={(e) => setField("slug", e.target.value)}

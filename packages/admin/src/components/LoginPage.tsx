@@ -103,8 +103,10 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 					<p className="text-kumo-subtle mt-2">
 						<Trans>
 							If an account exists for{" "}
-							<span className="font-medium text-kumo-default">{email}</span>, we've sent a sign-in
-							link.
+							<span dir="ltr" className="font-medium text-kumo-default">
+								{email}
+							</span>
+							, we've sent a sign-in link.
 						</Trans>
 					</p>
 				</div>
@@ -124,6 +126,7 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4">
 			<Input
+				dir="ltr"
 				label={t`Email address`}
 				type="email"
 				value={email}

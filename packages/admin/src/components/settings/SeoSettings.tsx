@@ -246,6 +246,7 @@ export function SeoSettings() {
 				>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`Google Verification`}
 							value={formData.seo?.googleVerification || ""}
 							onChange={(e) => handleSeoChange("googleVerification", e.target.value)}
@@ -254,6 +255,7 @@ export function SeoSettings() {
 					</SettingRow>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`Bing Verification`}
 							value={formData.seo?.bingVerification || ""}
 							onChange={(e) => handleSeoChange("bingVerification", e.target.value)}
@@ -265,6 +267,7 @@ export function SeoSettings() {
 				<SettingsSection title={t`robots.txt`}>
 					<SettingRow>
 						<InputArea
+							dir="ltr"
 							label={t`robots.txt`}
 							value={formData.seo?.robotsTxt || ""}
 							onChange={(e) => handleSeoChange("robotsTxt", e.target.value)}

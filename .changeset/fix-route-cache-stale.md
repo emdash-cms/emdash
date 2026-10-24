@@ -2,8 +2,12 @@
 "emdash": patch
 ---
 
-Fixes purged Astro route-cache pages being cached again with outdated site settings and taxonomy definitions, including on sites without an object cache. Route-cache fills read fresh settings and taxonomy data instead of reusing another server process's old snapshot.
+Fixes Cloudflare-cached pages remaining outdated after content is deleted or unpublished. Pages using EmDash cache hints no longer send an automatic `Last-Modified` header, so Cloudflare stops answering `304 Not Modified` based on an entry timestamp that does not cover related lists or settings changes. This applies to entry, collection, publication-date, and reference-list hints. Sites using an object cache reload those content snapshots once after upgrading so cached validators from earlier versions are not reused.
 
-Sites with an Astro cache provider perform fresh settings and taxonomy reads on rendered requests, including routes that ultimately remain uncached. This increases database queries on the render/miss path; edge-cache hits do not run these queries.
+Taxonomy definitions and collection-to-taxonomy mappings also revalidate in the background after 30 seconds, so long-lived server processes pick up changes saved elsewhere without adding a blocking query to each render. A failed refresh retains the last good snapshot.
 
-Removes automatic `Last-Modified` validators from collection, publication-date, and reference-list cache hints. The newest modification time of the listed rows does not cover deletions, unpublishes, or settings changes, so conditional refreshes could keep stale list bodies visible indefinitely. Collection pages that relied on these automatic validators lose Astro's implicit `Cache-Control: no-cache` header and conditional `304` revalidation; set browser `Cache-Control` explicitly if you need a fresh check on every visit. Single-entry hints still carry an automatic `Last-Modified` validator from the entry's `updated_at`. Explicit custom validators remain supported, but must cover every dependency of the response.
+#### What should I do?
+
+`cacheHint.lastModified` is no longer populated automatically. For an entry's displayed modification date, use `entry.data.updatedAt` instead; it is not a validator for the whole page.
+
+Pages relying on automatic validators also lose Astro's implicit `Cache-Control: no-cache` header. Set your own browser `Cache-Control` if you need a fresh check on every visit. If you want conditional requests, supply a custom `lastModified` hint to `Astro.cache.set()`. Its timestamp must advance whenever any part of the response changes, including settings, related entries, deletions, and unpublishes.

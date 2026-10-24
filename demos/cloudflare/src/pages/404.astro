@@ -34,6 +34,12 @@ import Base from "../layouts/Base.astro";
 	</section>
 </Base>
 
+<script>
+	document.querySelector(".not-found__search")?.addEventListener("click", () => {
+		document.querySelector<HTMLElement>("[data-ai-search-trigger]")?.click();
+	});
+</script>
+
 <style>
 	.not-found {
 		padding-block: clamp(4rem, 2.5rem + 6vw, 8rem);

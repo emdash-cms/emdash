@@ -1440,6 +1440,7 @@ export function MediaDetailPanel({
 										/>
 									</div>
 									<Input
+										dir="auto"
 										aria-label={t`Filename`}
 										value={filename}
 										onChange={(event) => setFilename(event.target.value)}

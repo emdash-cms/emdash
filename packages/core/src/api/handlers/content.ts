@@ -636,7 +636,8 @@ export interface TrashedContentItem {
  * the `title`/`name` display fields when the collection actually defines them,
  * mirroring the admin's item-title resolution (titleField -> title -> name ->
  * slug), and includes every field explicitly marked searchable. Returning only
- * schema-backed columns avoids "no such column" errors.
+ * fields that have a column (a reference field bound to a relation has none)
+ * avoids "no such column" errors.
  */
 async function resolveSearchColumns(db: Kysely<Database>, collection: string): Promise<string[]> {
 	const row = await db
@@ -646,12 +647,13 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 		.executeTakeFirst();
 	if (!row) return ["slug"];
 
-	const fields = await db
+	const fieldRows = await db
 		.selectFrom("_emdash_fields")
-		.select(["slug", "searchable"])
+		.select(["slug", "searchable", "type", "validation"])
 		.where("collection_id", "=", row.id)
 		.orderBy("sort_order", "asc")
 		.execute();
+	const fields = fieldRows.filter((f) => !isStoragelessFieldRow(f));
 	const columns = new Set(["slug"]);
 	const fieldSlugs = new Set(fields.map((f) => f.slug));
 
@@ -1604,9 +1606,10 @@ export async function handleContentUpdate(
 			}
 		}
 
-		// Wrap content + SEO writes in a transaction for atomicity.
-		// The _rev check is inside the transaction so the read-then-write
-		// is atomic -- no concurrent write can slip between the check and update.
+		// Wrap content + SEO writes in a transaction for atomicity. The transaction
+		// does not keep a concurrent save out between the _rev check and the update
+		// (D1 has none, and Postgres reads without a lock), so the update repeats
+		// the check in its WHERE clause.
 		let redirectChanged = false;
 		const item = await withTransaction(db, async (trx) => {
 			const trxRepo = new ContentRepository(trx);
@@ -1678,15 +1681,20 @@ export async function handleContentUpdate(
 			// Collections without revisions save to the columns, and reads show any
 			// draft revision over them, so no draft pointer may outlive a save.
 			const { supportsRevisions } = await getCollectionPublishConfig(trx, collection);
-			const updated = await trxRepo.update(collection, resolvedId, {
-				data: body.data,
-				slug: body.slug,
-				locale: existing?.locale ?? body.locale,
-				status: body.status,
-				authorId: body.authorId,
-				publishedAt: body.publishedAt,
-				...(supportsRevisions ? {} : { draftRevisionId: null }),
-			});
+			const updated = await trxRepo.update(
+				collection,
+				resolvedId,
+				{
+					data: body.data,
+					slug: body.slug,
+					locale: existing?.locale ?? body.locale,
+					status: body.status,
+					authorId: body.authorId,
+					publishedAt: body.publishedAt,
+					...(supportsRevisions ? {} : { draftRevisionId: null }),
+				},
+				body._rev ? decodeRevisionPrecondition(body._rev) : undefined,
+			);
 
 			if (body.bylines !== undefined) {
 				const credits = await bylineRepo.setContentBylines(collection, resolvedId, body.bylines);
@@ -1781,6 +1789,12 @@ export async function handleContentUpdate(
 			return {
 				success: false,
 				error: { code: error.apiError.code, message: error.message },
+			};
+		}
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
 			};
 		}
 		if (isMissingTableError(error)) {

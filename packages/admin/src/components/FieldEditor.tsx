@@ -841,6 +841,7 @@ export function FieldEditor({
 									/>
 									<div>
 										<Input
+											dir="ltr"
 											label={t`Slug`}
 											value={slug}
 											onChange={(e) => setField("slug", e.target.value)}
@@ -912,6 +913,7 @@ export function FieldEditor({
 								</div>
 								{selectedType === "string" && (
 									<Input
+										dir="ltr"
 										label={t`Pattern (Regex)`}
 										value={pattern}
 										onChange={(e) => setField("pattern", e.target.value)}
@@ -1122,7 +1124,9 @@ export function FieldEditor({
 																);
 															}}
 														/>
-														<code className="text-xs text-kumo-subtle">{blockType.slug}</code>
+														<code dir="ltr" className="text-xs text-kumo-subtle">
+															{blockType.slug}
+														</code>
 														{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
 														{selected && (
 															<div className="ms-auto flex gap-1">
@@ -1169,7 +1173,7 @@ export function FieldEditor({
 																{version.active
 																	? t`Active v${version.version}`
 																	: t`v${version.version}`}{" "}
-																· <code>{version.fingerprint.slice(-8)}</code>
+																· <code dir="ltr">{version.fingerprint.slice(-8)}</code>
 															</span>
 														))}
 													</div>
@@ -1263,6 +1267,7 @@ export function FieldEditor({
 														placeholder={t`Field label`}
 													/>
 													<Input
+														dir="ltr"
 														label={t`Slug`}
 														className="min-w-0"
 														value={sf.slug}

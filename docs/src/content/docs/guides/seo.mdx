@@ -51,6 +51,8 @@ The **SEO** panel in the entry editor holds these fields:
 
 Empty fields fall back to the values the page passes to `createPublicPageContext()`. `getSeoMeta()` falls back to the entry's `title` and `excerpt` fields.
 
+Imported or programmatically written SEO data can store a bare media ID. The editor can show that image while shared links still point to a missing file. When **Sharing image needs a URL** appears below the loaded preview, choose **Save image URL** to replace the ID with the file URL used for social previews and sitemap images. Viewing the preview alone does not change the saved value. If you see **Image not found**, check that the media is available and try reloading the editor before replacing the image.
+
 ## Render SEO metadata on a content page
 
 `<EmDashHead>` renders the SEO metadata for a page context. On a content page, pass the entry's collection and database ID as `content`, so `<EmDashHead>` applies the entry's SEO panel values.

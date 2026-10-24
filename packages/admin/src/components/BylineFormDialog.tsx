@@ -599,6 +599,7 @@ function CustomFieldInput({
 		case "url":
 			return (
 				<Input
+					dir="ltr"
 					type="url"
 					label={label}
 					value={stringValue}

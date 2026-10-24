@@ -69,6 +69,8 @@ EmDash's content API routes invalidate the route cache whenever live content cha
 
 Site chrome is covered too: saving site settings invalidates `emdash:settings`, menu edits invalidate `emdash:menu:{name}`, and taxonomy and widget-area writes invalidate their matching `emdash:taxonomy:{name}` / `emdash:widget-area:{name}` tags. Pages pick these tags up automatically when they use the `cacheHint` from `getMenuWithCacheHint()`, `getSiteSettingsWithCacheHint()`, `getTaxonomyTermsWithCacheHint()`, or `getWidgetAreaWithCacheHint()`.
 
+Menu tags cover menu edits only. Publishing, unpublishing, trashing, or restoring an entry that a menu links to, or changing the slug of a linked entry or taxonomy term, doesn't invalidate the menu's tag. A page that shows the menu picks up such a change when its tags also name that entry, its collection, or that term's taxonomy, and otherwise when the page expires.
+
 Creating, editing, or deleting a redirect invalidates the cached page at the redirect's source path, with and without a trailing slash, so the redirect applies on the next request.
 
 Restoring an older revision, and changes to bylines, the media library, and comments, invalidate nothing. Cached pages affected by them update once they expire or the entry that renders them is saved again. Scheduled publishing invalidates the published entries' tags on Cloudflare only; see [Provider differences](#provider-differences).
@@ -101,8 +103,6 @@ Set [`toolbar: "client"`](/reference/configuration/#toolbar) for sites that use 
 
 ## Provider differences
 
-With a cache provider enabled, EmDash reads fresh settings and taxonomy data during rendering so a cache miss after a purge cannot reuse an old server-process snapshot. These reads also happen on routes that ultimately remain uncached: a page can opt into caching while it renders, after its data has been read. This adds database queries to rendered requests; cache hits bypass rendering.
-
 ### Node.js with `memoryCache()`
 
 - Each server process keeps its own cache, and an invalidation only clears the process that handled the write. If you run several processes or instances, the others keep serving their cached pages until `maxAge` expires.
@@ -126,8 +126,8 @@ A rate-limited purge fails without an error in the admin, and the affected pages
 
 ## Browser caching is separate
 
-The route cache can afford long TTLs because EmDash invalidates it; browser caches are not invalidated. Collection, publication-date, and reference-list cache hints carry purge tags only. A page can depend on settings, related entries, and reference lists, so the newest modification time of the listed rows does not describe the whole response. Using that time as a validator can produce a `304 Not Modified` after an entry is deleted or unpublished, keeping a stale cached body.
+The route cache can afford long TTLs because EmDash invalidates it; browser caches are not invalidated. EmDash hints supply purge tags, not automatic `Last-Modified` validators or Astro's implicit `Cache-Control: no-cache` header. One entry's modification time does not cover settings, related lists, or deleted entries, so using it as a page validator can keep an outdated body through conditional `304` responses.
 
-Single-entry hints still carry an automatic `Last-Modified` validator based on the entry's `updated_at`. If the page also renders referenced entries, menus, or settings, that timestamp does not cover those dependencies, so a custom `lastModified` hint that advances with every dependency is safer.
+Set browser caching with `Astro.response.headers.set("Cache-Control", ...)`: use `no-cache` for a fresh check on each visit, or a short lifetime (minutes, not days). To enable conditional requests, supply your own `lastModified` hint whose timestamp advances whenever any dependency of the response changes.
 
-Tag-only hints do not trigger Astro's implicit `Cache-Control: no-cache` header or enable conditional `304` revalidation on their own. Set browser caching explicitly with `Astro.response.headers.set("Cache-Control", ...)`. Use `no-cache` to require a fresh check on each visit, or a short lifetime (minutes, not days) so a publish reaches returning visitors quickly. `stale-while-revalidate` in that header gives returning visitors instant loads while their browser revalidates in the background. If you supply a custom `lastModified` hint, its timestamp must advance whenever any dependency of the response changes.
+For an entry's displayed modification date, use `entry.data.updatedAt` rather than `cacheHint.lastModified`, which EmDash does not populate automatically.

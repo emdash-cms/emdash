@@ -1,3 +1,4 @@
+import { setConditionalHeaders } from "astro/cache/provider-utils";
 import { sql, type Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
@@ -42,10 +43,6 @@ describe("Cache hints", () => {
 		});
 
 		it("should not include lastModified on a collection hint", async () => {
-			// Collection/list hints must not emit a validator: deleting or unpublishing
-			// an entry changes the list but does not advance max(updated_at), so a
-			// conditional refresh after a missed purge would answer 304 and freeze
-			// the stale body indefinitely.
 			await createPublishedPost("First Post");
 			await createPublishedPost("Second Post");
 
@@ -73,7 +70,7 @@ describe("Cache hints", () => {
 			expect(entry.cacheHint!.tags).toEqual([post.id]);
 		});
 
-		it("should include lastModified on each entry", async () => {
+		it("should not include lastModified on each entry", async () => {
 			await createPublishedPost("Test Post");
 
 			const loader = emdashLoader();
@@ -82,12 +79,12 @@ describe("Cache hints", () => {
 			);
 
 			const entry = result.entries![0];
-			expect(entry.cacheHint!.lastModified).toBeInstanceOf(Date);
+			expect(entry.cacheHint!.lastModified).toBeUndefined();
 		});
 	});
 
 	describe("detail pages with related content", () => {
-		it("keeps collection-level validators off even when the entry has one", async () => {
+		it("does not expose a validator when related content is unpublished", async () => {
 			const main = await createPublishedPost("Main Post");
 			const related = await handleContentCreate(db, "page", {
 				data: { title: "Related Post" },
@@ -102,9 +99,13 @@ describe("Cache hints", () => {
 					filter: { type: "page", status: "published" },
 				}),
 			}));
-			expect(initial.entry?.cacheHint.lastModified).toBeInstanceOf(Date);
+			expect(initial.entry?.cacheHint.lastModified).toBeUndefined();
 			expect(initial.related.cacheHint?.lastModified).toBeUndefined();
 			expect(initial.related.entries).toHaveLength(1);
+			const headers = new Headers();
+			setConditionalHeaders(headers, initial.entry!.cacheHint);
+			setConditionalHeaders(headers, initial.related.cacheHint!);
+			expect(headers.has("Last-Modified")).toBe(false);
 
 			const mainBefore = await sql<{ updated_at: string }>`
 				SELECT updated_at FROM ec_post WHERE id = ${main.id}

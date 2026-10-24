@@ -1530,6 +1530,7 @@ function PluginAuthStep({
 							{t`WordPress Username`}
 						</label>
 						<Input
+							dir="ltr"
 							id="wp-username"
 							type="text"
 							value={username}
@@ -1740,7 +1741,9 @@ function ReviewStep({
 			{/* Site info */}
 			<div className="rounded-lg border bg-kumo-base p-4">
 				<h3 className="font-medium">{analysis.site.title}</h3>
-				<p className="text-sm text-kumo-subtle">{analysis.site.url}</p>
+				<p className="text-sm text-kumo-subtle">
+					<bdi dir="ltr">{analysis.site.url}</bdi>
+				</p>
 			</div>
 
 			{/* Errors */}
@@ -2457,7 +2460,9 @@ function CompleteStep({
 					<div className="divide-y divide-destructive/20 max-h-64 overflow-y-auto">
 						{mediaResult.failed.map((error, i) => (
 							<div key={i} className="p-4">
-								<p className="font-medium text-sm font-mono truncate">{error.originalUrl}</p>
+								<p className="font-medium text-sm font-mono truncate">
+									<bdi dir="ltr">{error.originalUrl}</bdi>
+								</p>
 								<p className="text-sm text-kumo-subtle">{error.error}</p>
 							</div>
 						))}

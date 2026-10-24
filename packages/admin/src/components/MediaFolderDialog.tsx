@@ -1,4 +1,4 @@
-import { Button, Dialog, Input, Toast } from "@cloudflare/kumo";
+import { Button, Dialog, Input, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { useMutation } from "@tanstack/react-query";
 import * as React from "react";
@@ -25,7 +25,7 @@ export function MediaFolderDialog({
 	onDelete,
 }: MediaFolderDialogProps) {
 	const { t } = useLingui();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [name, setName] = React.useState("");
 	const [validationError, setValidationError] = React.useState<string | null>(null);
 	const [deleteOpen, setDeleteOpen] = React.useState(false);
@@ -48,7 +48,7 @@ export function MediaFolderDialog({
 		onSuccess: () => {
 			toastManager.add({
 				title: isEditing ? t`Folder successfully edited` : t`Folder successfully created`,
-				type: "success",
+				variant: "success",
 				timeout: 3000,
 			});
 			onClose();
@@ -64,7 +64,7 @@ export function MediaFolderDialog({
 		},
 		onSuccess: () => {
 			setDeleteOpen(false);
-			toastManager.add({ title: t`Folder deleted`, type: "success", timeout: 3000 });
+			toastManager.add({ title: t`Folder deleted`, variant: "success", timeout: 3000 });
 			onClose();
 		},
 		onSettled: () => {

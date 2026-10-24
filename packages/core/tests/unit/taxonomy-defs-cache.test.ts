@@ -1,82 +1,89 @@
-import { randomUUID } from "node:crypto";
-
-import type { Kysely } from "kysely";
-import { beforeEach, describe, it, expect, afterEach } from "vitest";
+import type { Kysely, KyselyPlugin } from "kysely";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { handleTaxonomyCreate } from "../../src/api/handlers/taxonomies.js";
 import type { Database } from "../../src/database/types.js";
+import { waitForDeferredTasks } from "../../src/deferred-tasks.js";
 import { runWithContext } from "../../src/request-context.js";
-import {
-	getTaxonomyDefs,
-	__setTaxonomyDefsCacheForTests,
-	resetTaxonomyDefsCacheForTests,
-} from "../../src/taxonomies/index.js";
+import { getTaxonomyDefs, invalidateTaxonomyDefsCache } from "../../src/taxonomies/index.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
 
-describe("taxonomy definitions isolate cache", () => {
+describe("taxonomy definitions background cache", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
 		db = await setupTestDatabaseWithCollections();
+		invalidateTaxonomyDefsCache();
+		const result = await handleTaxonomyCreate(db, {
+			name: "topic",
+			label: "Original",
+			collections: ["post"],
+		});
+		if (!result.success) throw new Error("Failed to create taxonomy");
 	});
 
 	afterEach(async () => {
+		await waitForDeferredTasks();
+		invalidateTaxonomyDefsCache();
+		vi.restoreAllMocks();
+		vi.useRealTimers();
 		await teardownTestDatabase(db);
-		resetTaxonomyDefsCacheForTests();
 	});
 
-	async function createTaxonomy(name: string, label: string) {
-		const result = await handleTaxonomyCreate(db, {
-			name,
-			label,
-			collections: ["post"],
-		});
-		if (!result.success) throw new Error(String(result.error?.message));
-		return result.data!.taxonomy;
-	}
+	const label = (defs: Awaited<ReturnType<typeof getTaxonomyDefs>>) =>
+		defs.find((definition) => definition.name === "topic")?.label;
+	const read = (database: Kysely<Database>) =>
+		runWithContext({ editMode: false, db: database }, () => getTaxonomyDefs());
+	const update = () =>
+		db
+			.updateTable("_emdash_taxonomy_defs")
+			.set({ label: "Updated" })
+			.where("name", "=", "topic")
+			.execute();
 
-	it("bypasses the isolate cache during a route-cache fill", async () => {
-		const name = `tax_${randomUUID().replace(/-/g, "")}`;
-		const fresh = await createTaxonomy(name, "Fresh Taxonomy");
-		__setTaxonomyDefsCacheForTests([
-			{
-				id: "stale",
-				name: "stale",
-				label: "Stale",
-				hierarchical: false,
-				collections: [],
-				locale: fresh.locale,
-				translationGroup: null,
-			},
-		]);
-
-		const defs = await runWithContext({ editMode: false, db, routeCacheFill: true }, () =>
-			getTaxonomyDefs(),
-		);
-
-		const found = defs.find((d) => d.name === name);
-		expect(found).toBeDefined();
-		expect(found!.label).toBe("Fresh Taxonomy");
+	it("serves an expired snapshot and refreshes a remote change in the background", async () => {
+		expect(label(await read(db))).toBe("Original");
+		await update();
+		vi.setSystemTime(Date.now() + 29_999);
+		expect(label(await read(db))).toBe("Original");
+		vi.setSystemTime(Date.now() + 1);
+		expect(label(await read(db))).toBe("Original");
+		await waitForDeferredTasks();
+		expect(label(await read(db))).toBe("Updated");
 	});
 
-	it("uses the isolate cache outside of route-cache fills", async () => {
-		const name = `tax_${randomUUID().replace(/-/g, "")}`;
-		await createTaxonomy(name, "Fresh Taxonomy");
-		__setTaxonomyDefsCacheForTests([
-			{
-				id: "stale",
-				name: "stale",
-				label: "Stale",
-				hierarchical: false,
-				collections: [],
-				locale: "en",
-				translationGroup: null,
+	it("retains the last good snapshot after a failed refresh and retries later", async () => {
+		expect(label(await read(db))).toBe("Original");
+		await update();
+		let fail = true;
+		const plugin: KyselyPlugin = {
+			transformQuery(args) {
+				const sql = db.getExecutor().compileQuery(args.node, args.queryId).sql;
+				if (fail && /^select/i.test(sql) && sql.includes('from "_emdash_taxonomy_defs"')) {
+					fail = false;
+					throw new Error("temporary database outage");
+				}
+				return args.node;
 			},
-		]);
+			transformResult: (args) => Promise.resolve(args.result),
+		};
+		const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		vi.setSystemTime(Date.now() + 30_000);
+		expect(label(await read(db.withPlugin(plugin)))).toBe("Original");
+		await waitForDeferredTasks();
+		expect(error).toHaveBeenCalledOnce();
+		expect(label(await read(db))).toBe("Original");
+		vi.setSystemTime(Date.now() + 30_000);
+		expect(label(await read(db))).toBe("Original");
+		await waitForDeferredTasks();
+		expect(label(await read(db))).toBe("Updated");
+	});
 
-		const defs = await runWithContext({ editMode: false, db }, () => getTaxonomyDefs());
-
-		expect(defs).toHaveLength(1);
-		expect(defs[0]!.name).toBe("stale");
+	it("observes explicit local invalidation immediately", async () => {
+		await read(db);
+		await update();
+		invalidateTaxonomyDefsCache();
+		expect(label(await read(db))).toBe("Updated");
 	});
 });
