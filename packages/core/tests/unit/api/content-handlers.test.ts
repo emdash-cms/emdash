@@ -10,6 +10,7 @@ import {
 	handleContentSchedule,
 	handleContentUnschedule,
 	handleContentUpdate,
+	handleRevisionRestore,
 } from "../../../src/api/index.js";
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
@@ -17,6 +18,7 @@ import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database } from "../../../src/database/types.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { createTestRuntime } from "../../utils/mcp-runtime.js";
 import {
 	setupTestDatabase,
 	setupTestDatabaseWithCollections,
@@ -1188,5 +1190,144 @@ describe("handleContentList — unknown orderBy column on a healthy collection",
 		expect(res.success).toBe(false);
 		if (res.success) return;
 		expect(res.error.code).toBe("COLLECTION_NOT_FOUND");
+	});
+});
+
+describe("Content Handlers — slug whitespace", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("removes whitespace from a slug set on create", async () => {
+		const result = await handleContentCreate(db, "post", {
+			data: { title: "TypeScript Rust port" },
+			slug: " typescript rust  port  ",
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.data?.item.slug).toBe("typescript-rust-port");
+	});
+
+	it("generates a slug from the title when the slug given on create is only whitespace", async () => {
+		const result = await handleContentCreate(db, "post", {
+			data: { title: "Hello World" },
+			slug: "   ",
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.data?.item.slug).toBe("hello-world");
+	});
+
+	it("trims whitespace around a slug changed on update", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Hello" },
+			slug: "hello",
+		});
+		const id = created.data!.item.id;
+
+		const result = await handleContentUpdate(db, "post", id, { slug: "  hello-world  " });
+
+		expect(result.success).toBe(true);
+		expect(result.data?.item.slug).toBe("hello-world");
+	});
+
+	it("keeps a stored slug with whitespace when an update sends it back unchanged", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Legacy" },
+			slug: "legacy",
+		});
+		const id = created.data!.item.id;
+		await sql`UPDATE ec_post SET slug = ${"legacy  "} WHERE id = ${id}`.execute(db);
+
+		const result = await handleContentUpdate(db, "post", id, {
+			data: { title: "Legacy, edited" },
+			slug: "legacy  ",
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.data?.item.slug).toBe("legacy  ");
+	});
+
+	it("trims whitespace around a slug edited in a draft once the draft is published", async () => {
+		const runtime = createTestRuntime(db);
+		const created = await runtime.handleContentCreate("post", {
+			data: { title: "Port" },
+			slug: "port",
+		});
+		const id = created.data!.item.id;
+		await runtime.handleContentPublish("post", id);
+
+		await runtime.handleContentUpdate("post", id, {
+			data: { title: "Port" },
+			slug: "typescript-rust-port  ",
+		});
+		const published = await runtime.handleContentPublish("post", id);
+
+		expect(published.success).toBe(true);
+		expect(published.data?.item.slug).toBe("typescript-rust-port");
+	});
+
+	it("keeps a live slug with whitespace when a draft save sends it back unchanged", async () => {
+		const runtime = createTestRuntime(db);
+		const created = await runtime.handleContentCreate("post", {
+			data: { title: "Legacy" },
+			slug: "legacy",
+		});
+		const id = created.data!.item.id;
+		await runtime.handleContentPublish("post", id);
+		await sql`UPDATE ec_post SET slug = ${"legacy  "} WHERE id = ${id}`.execute(db);
+
+		await runtime.handleContentUpdate("post", id, {
+			data: { title: "Legacy, edited" },
+			slug: "legacy  ",
+		});
+		const published = await runtime.handleContentPublish("post", id);
+
+		expect(published.success).toBe(true);
+		expect(published.data?.item.slug).toBe("legacy  ");
+	});
+
+	it("publishes a slug staged with whitespace by an older release without it", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Port" },
+			slug: "port",
+		});
+		const id = created.data!.item.id;
+		await handleContentPublish(db, "post", id);
+		const draft = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: id,
+			data: { title: "Port", _slug: "new-port  " },
+		});
+		await sql`UPDATE ec_post SET draft_revision_id = ${draft.id} WHERE id = ${id}`.execute(db);
+
+		const published = await handleContentPublish(db, "post", id);
+
+		expect(published.success).toBe(true);
+		expect(published.data?.item.slug).toBe("new-port");
+	});
+
+	it("restores a revision's slug without its whitespace", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Port" },
+			slug: "port",
+		});
+		const id = created.data!.item.id;
+		const revision = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: id,
+			data: { title: "Port", _slug: "port-2  " },
+		});
+
+		const restored = await handleRevisionRestore(db, revision.id, "user_1");
+
+		expect(restored.success).toBe(true);
+		expect(restored.data?.item.slug).toBe("port-2");
 	});
 });

@@ -201,6 +201,20 @@ function makePanelProps(
 	};
 }
 
+function SlugPanel({ initial }: { initial: string }) {
+	const [slug, setSlug] = React.useState(initial);
+	const [props] = React.useState(makePanelProps);
+	// An autosave patches the cached entry with the slug it sent, so the entry's
+	// slug can already match the field when it loses focus.
+	const item = React.useMemo(() => makeItem({ slug }), [slug]);
+	return (
+		<>
+			<ContentSettingsPanel {...props} item={item} slug={slug} onSlugChange={setSlug} />
+			<button type="button">Elsewhere</button>
+		</>
+	);
+}
+
 describe("ContentSettingsPanel", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -250,6 +264,26 @@ describe("ContentSettingsPanel", () => {
 		expect(publishSection?.contains(slug)).toBe(false);
 		expect(detailsSection?.contains(slug)).toBe(true);
 		expect(detailsSection?.textContent).toContain("Content language");
+	});
+
+	it("turns spaces in a typed slug into hyphens when the field is left", async () => {
+		const screen = await render(<SlugPanel initial="my-post" />);
+		const input = screen.getByLabelText("Slug");
+
+		await userEvent.fill(input, "  typescript rust  port  ");
+		await userEvent.click(screen.getByRole("button", { name: "Elsewhere" }));
+
+		await expect.element(input).toHaveValue("typescript-rust-port");
+	});
+
+	it("leaves a stored slug alone when the field is only visited", async () => {
+		const screen = await render(<SlugPanel initial="legacy slug  " />);
+		const input = screen.getByLabelText("Slug");
+
+		await userEvent.click(input);
+		await userEvent.click(screen.getByRole("button", { name: "Elsewhere" }));
+
+		await expect.element(input).toHaveValue("legacy slug  ");
 	});
 
 	it("renders scheduled actions as two sibling buttons", async () => {

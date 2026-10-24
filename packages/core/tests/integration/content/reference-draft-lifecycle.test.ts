@@ -174,6 +174,32 @@ describeEachDialect("versioned reference selections", (dialect) => {
 		expect(await stagedGroups(id)).toEqual([b.translationGroup]);
 	});
 
+	it("leaves the live selection alone when a staged slug collides once its spaces are cleaned", async () => {
+		const [a, b] = [await createPage("A"), await createPage("B")];
+		await publishedPost("Taken", []);
+		const id = await publishedPost("Refused", [a.id]);
+		await runtime.handleContentUpdate("posts", id, { references: { related_pages: [b.id] } });
+
+		// A draft saved by an earlier release can stage a slug with spaces, which
+		// publishing cleans to the taken "taken".
+		const revisions = new RevisionRepository(ctx.db);
+		const post = await new ContentRepository(ctx.db).findById("posts", id);
+		const draft = await revisions.findById(post!.draftRevisionId!);
+		const older = await revisions.create({
+			collection: "posts",
+			entryId: id,
+			data: { ...draft!.data, _slug: "taken  " },
+		});
+		await sql`UPDATE ec_posts SET draft_revision_id = ${older.id} WHERE id = ${id}`.execute(ctx.db);
+
+		// Run inline — D1's boundary — so a promotion that ran before the refusal
+		// would still be standing afterwards.
+		const published = await handleContentPublish(asInlineTransaction(ctx.db), "posts", id);
+
+		expect(published.success).toBe(false);
+		expect(await liveGroups(id)).toEqual([a.translationGroup]);
+	});
+
 	it("pages a staged selection the way it pages a live one", async () => {
 		const pages: string[] = [];
 		for (let index = 0; index < REFERENCE_PAGE_LIMIT + 1; index++) {

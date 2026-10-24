@@ -342,6 +342,10 @@ Content-Type: application/json
 }
 ```
 
+A create or update that sets a new slug stores it with its whitespace cleaned, as described in
+[Slugs](/reference/content-lifecycle/#slugs). To look the entry up later, use the `slug` in the
+response.
+
 Changing a published entry creates a draft while the previous version stays live. Call the compare operation to review both versions, then publish the draft or discard it. Unpublishing keeps the content and its publication date, cancels any pending schedule, and removes the entry from the live site.
 
 Creation and update bodies accept byline credits, and content responses include the primary byline and ordered credits. The content list can filter by stored byline IDs and optionally include an author's inferred byline. Creating and managing the byline records themselves is available through the [MCP byline tools](/reference/mcp-server/#byline-tools), not the public REST contract.

@@ -148,6 +148,7 @@ import { isMissingTableError } from "./utils/db-errors.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
 import { createSingleFlightCache, singleFlightCached } from "./utils/single-flight-cache.js";
+import { normalizeIncomingSlug } from "./utils/slugify.js";
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
@@ -3729,6 +3730,7 @@ export class EmDashRuntime {
 			replaceBlocks,
 			...bodyWithoutRev
 		} = body;
+		bodyWithoutRev.slug = normalizeIncomingSlug(bodyWithoutRev.slug, resolvedItem?.slug);
 		const blockWriteOptions = { migrateBlocks, replaceBlocks };
 
 		// Loaded once and threaded through normalization, the stale-key drop and the draft

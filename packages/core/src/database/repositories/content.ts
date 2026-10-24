@@ -11,7 +11,7 @@ import { isIndexableFieldType, isStoragelessFieldRow, type FieldType } from "../
 import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
-import { slugify } from "../../utils/slugify.js";
+import { normalizeIncomingSlug, slugify } from "../../utils/slugify.js";
 import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
 import { executeAtomicBatchIfSupported, isPostgres } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
@@ -1179,7 +1179,9 @@ export class ContentRepository {
 		const now = new Date().toISOString();
 		const assignments: ReturnType<typeof sql>[] = [];
 
-		if (typeof _slug === "string") assignments.push(sql`slug = ${_slug}`);
+		if (typeof _slug === "string") {
+			assignments.push(sql`slug = ${normalizeIncomingSlug(_slug, existing.slug)}`);
+		}
 		for (const [field, value] of Object.entries(fieldData)) {
 			validateIdentifier(field, "content field name");
 			assignments.push(sql`${sql.ref(field)} = ${serializeValue(value)}`);
@@ -2672,7 +2674,10 @@ export class ContentRepository {
 			const writableFieldSlugs = await this.datetimes.writableFieldSlugs(type);
 			const revisionData = keepKnownFields(revision.data, writableFieldSlugs);
 
-			const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
+			const stagedSlug =
+				typeof revision.data._slug === "string"
+					? normalizeIncomingSlug(revision.data._slug, existing.slug)
+					: null;
 			const intendedSlug = stagedSlug ?? existing.slug;
 			if (requireSlug && !intendedSlug?.trim()) {
 				throw new EmDashValidationError("Cannot publish routable content without a slug");

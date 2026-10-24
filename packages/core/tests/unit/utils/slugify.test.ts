@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { decodeSlug } from "../../../src/utils/slugify.js";
+import { decodeSlug, normalizeIncomingSlug } from "../../../src/utils/slugify.js";
+
+describe("normalizeIncomingSlug", () => {
+	it("joins words separated by any whitespace with one hyphen", () => {
+		expect(normalizeIncomingSlug(" a \t b  c ")).toBe("a-b-c");
+	});
+
+	it("absorbs hyphens beside whitespace and keeps the rest", () => {
+		expect(normalizeIncomingSlug("a - b")).toBe("a-b");
+		expect(normalizeIncomingSlug("a--b")).toBe("a--b");
+	});
+
+	it("handles a long run of hyphens in linear time", () => {
+		const slug = "-".repeat(200_000);
+		const start = performance.now();
+
+		expect(normalizeIncomingSlug(slug)).toBe(slug);
+		expect(performance.now() - start).toBeLessThan(1000);
+	});
+});
 
 describe("decodeSlug", () => {
 	it("returns undefined for empty or undefined input", () => {
