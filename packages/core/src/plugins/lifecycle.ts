@@ -40,7 +40,7 @@ export async function enableRuntimePlugin(runtime: PluginLifecycleRuntime, plugi
 			console.error(`EmDash: Failed to persist plugin "${pluginId}" as inactive:`, rollbackError);
 		}
 		try {
-			await setCronTasksEnabled(runtime.db, pluginId, false);
+			await setCronTasksEnabled(runtime.db, pluginId, false, { throwOnError: true });
 		} catch (rollbackError) {
 			console.error(
 				`EmDash: Failed to disable cron tasks for plugin "${pluginId}":`,

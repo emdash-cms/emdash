@@ -465,6 +465,101 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		).toEqual([1, 1]);
 	});
 
+	it("reports cron rollback persistence failures without exposing activation details", async () => {
+		runtime = await EmDashRuntime.create(createDeps(async () => undefined));
+		const cron = new CronAccessImpl(runtime.db, "sandbox-host", () => undefined);
+		await cron.schedule("before-disable", { schedule: "*/5 * * * *" });
+		await runtime.handlePluginDisable("sandbox-host");
+		await sql`
+			CREATE TRIGGER fail_cron_task_rollback
+			BEFORE UPDATE OF enabled ON _emdash_cron_tasks
+			WHEN NEW.enabled = 0
+			BEGIN
+				SELECT RAISE(ABORT, 'simulated cron rollback failure');
+			END
+		`.execute(runtime.db);
+
+		currentInvokeHook = async (name: string) => {
+			if (name === "plugin:activate") {
+				const activationCron = new CronAccessImpl(runtime!.db, "sandbox-host", () => undefined);
+				await activationCron.schedule("activation-task", { schedule: "*/5 * * * *" });
+				throw new Error("activation failed");
+			}
+		};
+		const context = {
+			params: { id: "sandbox-host" },
+			locals: { emdash: runtime, user: { id: "admin-1", role: 50 } },
+			request: new Request("http://test.local/_emdash/api/admin/plugins/sandbox-host/enable"),
+		} as unknown as APIContext;
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		try {
+			const result = await enablePlugin(context);
+
+			expect(result.status).toBe(500);
+			expect(await result.json()).toEqual({
+				success: false,
+				error: { code: "PLUGIN_ENABLE_ERROR", message: "Failed to enable plugin" },
+			});
+			expect(errorSpy).toHaveBeenCalledWith(
+				'EmDash: Failed to disable cron tasks for plugin "sandbox-host":',
+				expect.objectContaining({ message: "simulated cron rollback failure" }),
+			);
+		} finally {
+			errorSpy.mockRestore();
+		}
+
+		expect(sandboxActive).toBe(false);
+		expect(runtime.getPluginRouteMeta("sandbox-host", "/ping")).toBeNull();
+		expect((await new PluginStateRepository(runtime.db).get("sandbox-host"))?.status).toBe(
+			"inactive",
+		);
+		expect(
+			await runtime.db
+				.selectFrom("_emdash_cron_tasks")
+				.select(["task_name", "enabled"])
+				.where("plugin_id", "=", "sandbox-host")
+				.orderBy("task_name")
+				.execute(),
+		).toEqual([
+			{ task_name: "activation-task", enabled: 1 },
+			{ task_name: "before-disable", enabled: 0 },
+		]);
+	});
+
+	it("tolerates a missing cron task table during failed activation rollback", async () => {
+		runtime = await EmDashRuntime.create(
+			createDeps(async (name) => {
+				if (name === "plugin:activate") throw new Error("activation failed");
+			}),
+		);
+		await runtime.handlePluginDisable("sandbox-host");
+		await sql`DROP TABLE _emdash_cron_tasks`.execute(runtime.db);
+
+		const context = {
+			params: { id: "sandbox-host" },
+			locals: { emdash: runtime, user: { id: "admin-1", role: 50 } },
+			request: new Request("http://test.local/_emdash/api/admin/plugins/sandbox-host/enable"),
+		} as unknown as APIContext;
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		try {
+			const result = await enablePlugin(context);
+
+			expect(result.status).toBe(500);
+			expect(await result.json()).toEqual({
+				success: false,
+				error: { code: "PLUGIN_ENABLE_ERROR", message: "Failed to enable plugin" },
+			});
+			expect(
+				errorSpy.mock.calls.some(
+					([message]) =>
+						message === 'EmDash: Failed to disable cron tasks for plugin "sandbox-host":',
+				),
+			).toBe(false);
+		} finally {
+			errorSpy.mockRestore();
+		}
+	});
+
 	it("disables cron tasks when activation rollback persistence fails", async () => {
 		const invokeHook = async (name: string) => {
 			if (name === "plugin:activate") {
