@@ -113,6 +113,8 @@ it.each([
 	["rtl", 480, 210],
 	["ltr", 320, 130],
 	["rtl", 320, 130],
+	["ltr", 300, 120],
+	["rtl", 300, 120],
 ] as const)(
 	"fits a short viewport and keeps the last term reachable after resizing (%s, %s)",
 	async (direction, height, top) => {
