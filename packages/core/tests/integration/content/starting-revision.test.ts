@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
+import { ContentMutationConflictError } from "../../../src/database/repositories/types.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
@@ -296,6 +297,75 @@ describeEachDialect("an entry's starting content in Revisions", (dialect) => {
 			"Duis aute irure dolor in reprehenderit.",
 			"Lorem ipsum dolor sit amet.",
 		]);
+	});
+
+	it("keeps the starting content when a publish outside a transaction loses to a first save", async () => {
+		const id = await create("posts");
+		const findById = RevisionRepository.prototype.findById;
+		const spy = vi
+			.spyOn(RevisionRepository.prototype, "findById")
+			.mockImplementationOnce(async function (this: RevisionRepository, revisionId) {
+				await save("posts", id, "Duis aute irure dolor in reprehenderit.");
+				return findById.call(this, revisionId);
+			});
+
+		await expect(new ContentRepository(ctx.db).publish("posts", id)).rejects.toThrow(
+			ContentMutationConflictError,
+		);
+		spy.mockRestore();
+		const published = await runtime.handleContentPublish("posts", id);
+		expect(published.success).toBe(true);
+
+		expect(await revisionTitles("posts", id)).toEqual([
+			"Duis aute irure dolor in reprehenderit.",
+			"Lorem ipsum dolor sit amet.",
+		]);
+	});
+
+	it("publishes the stored content of an entry restored from trash, not its starting content", async () => {
+		const id = await create("posts");
+		await save("posts", id, "Duis aute irure dolor in reprehenderit.");
+		expect((await runtime.handleContentPublish("posts", id)).success).toBe(true);
+		expect((await runtime.handleContentDelete("posts", id)).success).toBe(true);
+		expect((await runtime.handleContentRestore("posts", id)).success).toBe(true);
+
+		expect((await runtime.handleContentPublish("posts", id)).success).toBe(true);
+
+		const entry = await new ContentRepository(ctx.db).findById("posts", id);
+		expect(entry?.data.title).toBe("Duis aute irure dolor in reprehenderit.");
+	});
+
+	it("publishes the stored content when it changed after a refused first save", async () => {
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createField("posts", {
+			slug: "category",
+			label: "Category",
+			type: "string",
+			translatable: false,
+		});
+		const created = await runtime.handleContentCreate("posts", {
+			data: { title: "Lorem ipsum dolor sit amet.", category: "Blog" },
+			slug: "lorem-ipsum",
+		});
+		if (!created.success) throw new Error(created.error.message);
+		const id = created.data.item.id;
+		const createRevision = RevisionRepository.prototype.create;
+		const spy = vi
+			.spyOn(RevisionRepository.prototype, "create")
+			.mockImplementationOnce(async function (this: RevisionRepository, input) {
+				const revision = await createRevision.call(this, input);
+				await sql`UPDATE ec_posts SET version = version + 1 WHERE id = ${id}`.execute(ctx.db);
+				return revision;
+			});
+		await firstSaves["the admin"]!(id, "Duis aute irure dolor in reprehenderit.");
+		spy.mockRestore();
+		const repo = new ContentRepository(ctx.db);
+		const group = (await repo.findById("posts", id))?.translationGroup;
+		await repo.syncNonTranslatableFields("posts", "another-locale", group!, { category: "News" });
+
+		expect((await runtime.handleContentPublish("posts", id)).success).toBe(true);
+
+		expect((await repo.findById("posts", id))?.data.category).toBe("News");
 	});
 
 	it("records an entry published before its first edit once", async () => {
