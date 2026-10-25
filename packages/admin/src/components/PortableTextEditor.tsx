@@ -3974,10 +3974,10 @@ export function PortableTextEditor({
 		[], // Created once — all mutable state accessed via refs
 	);
 
+	const editorLabel = t`Rich text editor`;
 	// Stable editorProps reference — a new object every render would cause
 	// compareOptions to call setOptions → updateState → plugin teardown →
 	// Suggestion onExit → setSlashMenuState → re-render → infinite loop.
-	const editorLabel = t`Rich text editor`;
 	const editorProps = React.useMemo(
 		() => ({
 			// Typing or moving the caret under the document's sticky toolbar, or the fade under
