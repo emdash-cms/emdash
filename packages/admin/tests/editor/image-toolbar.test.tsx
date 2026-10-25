@@ -540,6 +540,21 @@ describe("Image toolbar", () => {
 		expect(toolbar).toBeVisible();
 	});
 
+	it("keeps the cursor in place while typing at the start of a caption, and follows undo", async () => {
+		const { editor, img, caption } = await setup({ image: { caption: "Red bike" } });
+		await selectImage(img);
+		await userEvent.click(caption);
+		caption.setSelectionRange(0, 0);
+		await userEvent.keyboard("Big ");
+
+		expect(caption).toHaveValue("Big Red bike");
+		expect(caption.selectionStart).toBe(4);
+		expect(imageAttrs(editor)?.caption).toBe("Big Red bike");
+
+		editor.commands.undo();
+		await vi.waitFor(() => expect(caption).toHaveValue("Red bike"));
+	});
+
 	it("shows the toolbar when a caption is clicked from another field", async () => {
 		const { editor, caption } = await setup({ image: { caption: "Red bike" } });
 		await userEvent.click(document.querySelector<HTMLInputElement>('input[aria-label="Title"]')!);

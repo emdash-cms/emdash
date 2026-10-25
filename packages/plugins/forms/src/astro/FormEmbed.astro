@@ -51,6 +51,7 @@ function fieldId(name: string): string {
 	action={submitUrl}
 	enctype={hasFiles ? "multipart/form-data" : undefined}
 	data-form-id={formId}
+	data-submit-label={form.settings.submitLabel || "Submit"}
 	data-ec-form
 	data-pages={isMultiPage ? form.pages.length : undefined}
 >
