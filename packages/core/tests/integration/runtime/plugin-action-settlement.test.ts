@@ -15,6 +15,7 @@ vi.mock("../../../src/after.js", () => ({
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import type { ContentActionCallbacks } from "../../../src/plugins/context.js";
+import { CronAccessImpl } from "../../../src/plugins/cron.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import type { SandboxedPluginInstance } from "../../../src/plugins/sandbox/types.js";
 import type { ContentAfterPublishHandler } from "../../../src/plugins/types.js";
@@ -25,6 +26,7 @@ let contentActions: ContentActionCallbacks;
 let cronTargetId = "";
 let loadedSandboxCapabilities: string[] = [];
 const routeGates = new Map<string, Promise<void>>();
+let sandboxCron = async () => {};
 
 function routeContentId(input: unknown): string {
 	if (
@@ -46,7 +48,9 @@ function createDeps(pluginId: string): RuntimeDependencies {
 			loadedSandboxCapabilities = [...manifest.capabilities];
 			const instance: SandboxedPluginInstance = {
 				id: `${manifest.id}:${manifest.version}`,
-				invokeHook: vi.fn(),
+				invokeHook: vi.fn(async (name) => {
+					if (name === "cron") await sandboxCron();
+				}),
 				invokeRoute: vi.fn(),
 				terminate: vi.fn(),
 			};
@@ -122,7 +126,7 @@ function createDeps(pluginId: string): RuntimeDependencies {
 				capabilities: ["content:publish"],
 				allowedHosts: [],
 				storage: {},
-				hooks: [],
+				hooks: ["cron"],
 				routes: [],
 			},
 		],
@@ -151,6 +155,7 @@ describe("sandboxed plugin action settlement", () => {
 		afterPublish.mockClear();
 		afterPublish.mockImplementation(async () => undefined);
 		routeGates.clear();
+		sandboxCron = async () => {};
 		runtime.setPluginContentCacheInvalidator(undefined);
 	});
 
@@ -397,6 +402,45 @@ describe("sandboxed plugin action settlement", () => {
 		expect((await new ContentRepository(runtime.db).findByIdOrSlug("post", item.id))?.status).toBe(
 			"published",
 		);
+	});
+
+	it("batches sandbox callbacks even when RPC actions arrive outside the tick's async context", async () => {
+		const items = [await draft(), await draft()];
+		const invalidate = vi.fn(async (_tags: string[]) => {});
+		const started = Promise.withResolvers<void>();
+		const release = Promise.withResolvers<void>();
+		const invocationId = randomUUID();
+		sandboxCron = async () => {
+			contentActions.begin?.(pluginId, invocationId);
+			started.resolve();
+			await release.promise;
+			await contentActions.flush(pluginId, invocationId);
+		};
+		await new CronAccessImpl(runtime.db, pluginId, () => {}).schedule("import", {
+			schedule: new Date(Date.now() - 60_000).toISOString(),
+		});
+		const tick = runtime.runScheduledTasks({ invalidateContentCache: invalidate });
+		try {
+			await started.promise;
+			for (const item of items) {
+				const current = await contentActions.getVersioned(pluginId, "post", item.id);
+				if (!current) throw new Error("Content not found");
+				await contentActions.publish(
+					pluginId,
+					"post",
+					item.id,
+					{ _rev: current._rev },
+					invocationId,
+				);
+			}
+			expect(invalidate).not.toHaveBeenCalled();
+		} finally {
+			release.resolve();
+			await tick;
+		}
+		expect(invalidate).toHaveBeenCalledExactlyOnceWith(["post", ...items.map((item) => item.id)]);
+		await flushDeferred();
+		expect(afterPublish).toHaveBeenCalledTimes(2);
 	});
 
 	it("self-schedules an after-hook when an action commits after timeout release", async () => {
