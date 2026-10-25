@@ -69,6 +69,8 @@ EmDash's content API routes invalidate the route cache whenever live content cha
 
 Site chrome is covered too: saving site settings invalidates `emdash:settings`, menu edits invalidate `emdash:menu:{name}`, and taxonomy and widget-area writes invalidate their matching `emdash:taxonomy:{name}` / `emdash:widget-area:{name}` tags. Pages pick these tags up automatically when they use the `cacheHint` from `getMenuWithCacheHint()`, `getSiteSettingsWithCacheHint()`, `getTaxonomyTermsWithCacheHint()`, or `getWidgetAreaWithCacheHint()`.
 
+Menu tags cover menu edits only. Publishing, unpublishing, trashing, or restoring an entry that a menu links to, or changing the slug of a linked entry or taxonomy term, doesn't invalidate the menu's tag. A page that shows the menu picks up such a change when its tags also name that entry, its collection, or that term's taxonomy, and otherwise when the page expires.
+
 Creating, editing, or deleting a redirect invalidates the cached page at the redirect's source path, with and without a trailing slash, so the redirect applies on the next request.
 
 Restoring an older revision, and changes to bylines, the media library, and comments, invalidate nothing. Cached pages affected by them update once they expire or the entry that renders them is saved again. Scheduled publishing invalidates the published entries' tags on Cloudflare only; see [Provider differences](#provider-differences).
@@ -124,4 +126,8 @@ A rate-limited purge fails without an error in the admin, and the affected pages
 
 ## Browser caching is separate
 
-The route cache can afford long TTLs because EmDash invalidates it; browser caches are not invalidated. When a page passes a cache hint with a last-modified date (as entry and collection hints do) and sets no `Cache-Control` itself, Astro sends `Cache-Control: no-cache`, so browsers revalidate on every visit. If you set your own header, for example with `Astro.response.headers.set("Cache-Control", ...)`, keep it short (minutes, not days), so a publish also reaches returning visitors quickly. `stale-while-revalidate` in that header gives returning visitors instant loads while their browser revalidates in the background.
+The route cache can afford long TTLs because EmDash invalidates it; browser caches are not invalidated. EmDash hints supply purge tags, not automatic `Last-Modified` validators or Astro's implicit `Cache-Control: no-cache` header. One entry's modification time does not cover settings, related lists, or deleted entries, so using it as a page validator can keep an outdated body through conditional `304` responses.
+
+Set browser caching with `Astro.response.headers.set("Cache-Control", ...)`: use `no-cache` for a fresh check on each visit, or a short lifetime (minutes, not days). To enable conditional requests, supply your own `lastModified` hint whose timestamp advances whenever any dependency of the response changes.
+
+For an entry's displayed modification date, use `entry.data.updatedAt` rather than `cacheHint.lastModified`, which EmDash does not populate automatically.

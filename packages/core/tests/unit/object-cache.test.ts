@@ -7,6 +7,7 @@ import {
 	__setObjectCacheBackendForTests,
 	__setObjectCacheBackendInitForTests,
 	cachedQuery,
+	cachedQueryWithEpochs,
 	coalesceObjectCacheWrites,
 	getLastContentWriteAt,
 	invalidateCollectionCache,
@@ -212,6 +213,34 @@ describe("cachedQuery", () => {
 
 		await cachedQuery({ namespace: ns, key: "k", load });
 		expect(load).toHaveBeenCalledTimes(2);
+	});
+
+	it("reports the epochs it reads under before loading, and on a hit", async () => {
+		invalidateObjectCache("bylines");
+		const reported: (readonly number[])[] = [];
+		const load = vi.fn(() => {
+			expect(reported).toHaveLength(1);
+			return Promise.resolve({ n: 1 });
+		});
+		const read = () =>
+			cachedQueryWithEpochs({
+				namespace: ["posts", "bylines"],
+				key: "k",
+				load,
+				onEpochs: (epochs) => {
+					reported.push(epochs);
+				},
+			});
+
+		await read();
+		await flush();
+		await read();
+
+		expect(load).toHaveBeenCalledTimes(1);
+		expect(reported).toHaveLength(2);
+		expect(reported[0]?.[0]).toBe(0);
+		expect(reported[0]?.[1]).toBeGreaterThan(0);
+		expect(reported[1]).toEqual(reported[0]);
 	});
 
 	it("does not let a stale in-flight epoch read clobber a concurrent invalidation", async () => {

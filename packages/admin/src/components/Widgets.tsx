@@ -6,7 +6,15 @@
  * Widgets within an area can be reordered via drag-and-drop.
  */
 
-import { Button, Dialog, Input, Label, Select, Switch, Toast } from "@cloudflare/kumo";
+import {
+	Button,
+	Dialog,
+	Input,
+	Label,
+	Select,
+	Switch,
+	useKumoToastManager,
+} from "@cloudflare/kumo";
 import {
 	DndContext,
 	DragOverlay,
@@ -171,7 +179,7 @@ const CORE_WIDGET_META: Record<string, CoreWidgetMeta> = {
 export function Widgets() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [isCreateAreaOpen, setIsCreateAreaOpen] = React.useState(false);
 	const [createAreaError, setCreateAreaError] = React.useState<string | null>(null);
 	const [activeId, setActiveId] = React.useState<string | null>(null);
@@ -236,7 +244,7 @@ export function Widgets() {
 			toastManager.add({
 				title: t`Error adding widget`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -297,7 +305,7 @@ export function Widgets() {
 			toastManager.add({
 				title: t`Error reordering widgets`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -633,7 +641,7 @@ function WidgetAreaPanel({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [deleteAreaName, setDeleteAreaName] = React.useState<string | null>(null);
 
 	// Make the area a droppable target for palette items
@@ -748,7 +756,7 @@ function WidgetItem({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
 		id: widget.id,
 		data: {
@@ -772,7 +780,7 @@ function WidgetItem({
 			toastManager.add({
 				title: t`Error`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -787,7 +795,7 @@ function WidgetItem({
 			toastManager.add({
 				title: t`Error updating widget`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
