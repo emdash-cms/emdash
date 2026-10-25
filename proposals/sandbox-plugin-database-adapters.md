@@ -37,12 +37,12 @@ import emdash from "emdash/astro";
 import { hyperdrive, sandbox } from "@emdash-cms/cloudflare";
 
 export default defineConfig({
-  integrations: [
-    emdash({
-      database: hyperdrive({ binding: "HYPERDRIVE" }),
-      sandboxRunner: sandbox(),
-    }),
-  ],
+	integrations: [
+		emdash({
+			database: hyperdrive({ binding: "HYPERDRIVE" }),
+			sandboxRunner: sandbox(),
+		}),
+	],
 });
 ```
 
