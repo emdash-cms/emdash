@@ -708,7 +708,7 @@ const cta = await getSection("newsletter-cta");
 
 ## Search
 
-SQLite search requires FTS5. A non-empty search throws `SearchUnavailableError` (exported from `emdash`) when the SQLite build lacks FTS5, even if no collections have search enabled. See the [Node.js deployment prerequisites](/deployment/nodejs/#prerequisites) for a capability check and recovery steps.
+SQLite search requires FTS5. A non-empty search throws `SearchUnavailableError` (exported from `emdash`, with code `SEARCH_UNAVAILABLE`) when the SQLite build lacks FTS5, even if no collections have search enabled. A server-rendered page that does not catch this error returns an error response; catch it at the page boundary to show a search-unavailable message. See the [Node.js deployment prerequisites](/deployment/nodejs/#prerequisites) for a capability check and recovery steps.
 
 Run a global search across collections. Results include highlighted snippets:
 
