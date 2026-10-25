@@ -7,6 +7,8 @@
  * Created once per worker lifetime, cached and reused across requests.
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { getLocaleDir, resolveLocale } from "@emdash-cms/admin/locales";
 import { Permissions, toRoleLevel, type RoleLevel } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
@@ -939,6 +941,8 @@ export class EmDashRuntime {
 		PluginContentCacheInvalidator
 	>();
 	private pluginContentCacheInvalidator?: PluginContentCacheInvalidator;
+	private readonly scheduledContentCacheInvalidator =
+		new AsyncLocalStorage<PluginContentCacheInvalidator>();
 
 	/**
 	 * Isolate-lifetime guard so FTS indexes are verified at most once per
@@ -1171,10 +1175,6 @@ export class EmDashRuntime {
 	async runScheduledTasksWithStats(
 		options: ScheduledTasksOptions = {},
 	): Promise<{ processed: number; published: PublishedRef[] }> {
-		if (options.invalidateContentCache) {
-			this.pluginContentCacheInvalidator = options.invalidateContentCache;
-		}
-
 		// Try to materialize plugin-declared indexes before any scheduled plugin
 		// work runs. A partial result leaves failed plugins unmarked so the next
 		// tick retries them.
@@ -1193,7 +1193,7 @@ export class EmDashRuntime {
 		// Plugin cron runs alongside maintenance, as it does on the Node scheduler,
 		// so a slow task cannot hold up a scheduled publication.
 		const [processed, { published }] = await Promise.all([
-			this.runCronTick(),
+			this.runCronTick(options.invalidateContentCache),
 			this.runScheduledMaintenanceTick(
 				{ onPublished: options.onPublished, upcomingUntil },
 				currentTime,
@@ -1203,20 +1203,50 @@ export class EmDashRuntime {
 		return { processed, published };
 	}
 
-	private async runCronTick(): Promise<number> {
-		if (!this.cronExecutor) return 0;
+	private async runCronTick(
+		invalidateContentCache = this.pluginContentCacheInvalidator,
+	): Promise<number> {
+		const executor = this.cronExecutor;
+		if (!executor) return 0;
 		let processed = 0;
 		try {
-			processed = await this.cronExecutor.tick();
+			processed = await this.runPluginCronTick(executor, invalidateContentCache);
 		} catch (error) {
 			console.error("[cron] Tick failed:", error);
 		}
 		try {
-			await this.cronExecutor.recoverStaleLocks();
+			await executor.recoverStaleLocks();
 		} catch (error) {
 			console.error("[cron] Stale lock recovery failed:", error);
 		}
 		return processed;
+	}
+
+	private async runPluginCronTick(
+		executor: CronExecutor,
+		invalidateContentCache: PluginContentCacheInvalidator | undefined,
+	): Promise<number> {
+		if (!invalidateContentCache) return executor.tick();
+
+		const tags = new Set<string>();
+		let collecting = true;
+		const collect: PluginContentCacheInvalidator = async (actionTags) => {
+			if (!collecting) return invalidateContentCache(actionTags);
+			for (const tag of actionTags) tags.add(tag);
+		};
+		try {
+			return await this.scheduledContentCacheInvalidator.run(collect, () => executor.tick());
+		} finally {
+			// Deferred hooks can outlive the tick; their writes must still purge immediately.
+			collecting = false;
+			if (tags.size > 0) {
+				try {
+					await invalidateContentCache([...tags]);
+				} catch (error) {
+					console.error("[cron] Cache invalidation failed:", error);
+				}
+			}
+		}
 	}
 
 	/**
@@ -5319,7 +5349,10 @@ export class EmDashRuntime {
 			const result = await fn(resolvedId);
 			await recordWrite();
 			const invalidator =
-				invalidateContentCache ?? invocationInvalidator ?? this.pluginContentCacheInvalidator;
+				this.scheduledContentCacheInvalidator.getStore() ??
+				invalidateContentCache ??
+				invocationInvalidator ??
+				this.pluginContentCacheInvalidator;
 			if (invalidator) {
 				try {
 					await invalidator([collection, resolvedId]);
@@ -7624,6 +7657,8 @@ export class EmDashRuntime {
 		invalidateContentCache?: PluginContentCacheInvalidator,
 	): void {
 		const key = this.pluginInvocationKey(pluginId, invocationId);
+		invalidateContentCache =
+			this.scheduledContentCacheInvalidator.getStore() ?? invalidateContentCache;
 		this.pendingPluginAfterHooks.delete(key);
 		this.releasedPluginInvocations.delete(key);
 		if (invalidateContentCache)
