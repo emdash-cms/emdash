@@ -3977,6 +3977,7 @@ export function PortableTextEditor({
 	// Stable editorProps reference — a new object every render would cause
 	// compareOptions to call setOptions → updateState → plugin teardown →
 	// Suggestion onExit → setSlashMenuState → re-render → infinite loop.
+	const editorLabel = t`Rich text editor`;
 	const editorProps = React.useMemo(
 		() => ({
 			// Typing or moving the caret under the document's sticky toolbar, or the fade under
@@ -3984,13 +3985,15 @@ export function PortableTextEditor({
 			scrollThreshold: isDocument ? { top: 96, right: 0, bottom: 0, left: 0 } : 0,
 			scrollMargin: isDocument ? { top: 96, right: 5, bottom: 5, left: 5 } : 5,
 			attributes: {
+				"aria-label": editorLabel,
+				...(ariaLabelledby ? { "aria-labelledby": ariaLabelledby } : {}),
 				class: isDocument
 					? "emdash-document flow-root min-h-32 pb-2 focus:outline-none"
 					: "prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
 				dir: "auto",
 			},
 		}),
-		[isDocument],
+		[ariaLabelledby, editorLabel, isDocument],
 	);
 
 	const editor = useEditor({

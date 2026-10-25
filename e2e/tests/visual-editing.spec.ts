@@ -301,6 +301,10 @@ test.describe("Inline Editor", () => {
 		const editor = page.locator(".emdash-inline-editor");
 		await expect(editor).toBeVisible({ timeout: 15000 });
 
+		await expect(
+			page.getByRole("textbox", { name: "Rich text editor", exact: true }),
+		).toBeEditable();
+
 		// The island failed to hydrate with zero height when highlight.js/lib/core
 		// was served raw as CommonJS, so also assert some static content rendered
 		// inside the editor rather than disappearing.
