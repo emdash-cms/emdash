@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { SqliteDialect } from "kysely";
+import type { KyselyPlugin } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
@@ -13,6 +14,7 @@ import {
 	removeAllPluginIndexes,
 	syncDeclaredStorageIndexes,
 } from "../../../src/plugins/storage-indexes.js";
+import { runWithContext } from "../../../src/request-context.js";
 import type { Storage } from "../../../src/storage/types.js";
 
 class MemoryStorage implements Storage {
@@ -203,6 +205,90 @@ describe.each(["registry", "marketplace"] as const)(
 			expect(await post(runtime)).toMatchObject({ success: true });
 			expect(indexesSeenByRoute).toContain(`uidx_plugin_${pluginId}_records_externalId`);
 		});
+
+		it.each(["plugin", "all"] as const)(
+			"does not let an old %s-plugin sync undo a new version's indexes",
+			async (target) => {
+				const storage = new MemoryStorage();
+				await putBundle(storage, source, "1.0.0", false);
+				runtime = await EmDashRuntime.create(createDeps(storage, source));
+				const states = new PluginStateRepository(runtime.db);
+				await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+				await syncPlugins(runtime, source);
+
+				let releaseOldSync!: () => void;
+				const oldSyncReleased = new Promise<void>((resolve) => {
+					releaseOldSync = resolve;
+				});
+				let oldSyncPaused!: () => void;
+				const oldSyncPause = new Promise<void>((resolve) => {
+					oldSyncPaused = resolve;
+				});
+				const pausedQueryIds = new Set<unknown>();
+				const oldSyncDb = runtime.db.withPlugin({
+					transformQuery: ({ node, queryId }) => {
+						const query = runtime!.db.getExecutor().compileQuery(node, queryId);
+						if (
+							query.sql.toUpperCase().includes("SELECT") &&
+							query.sql.includes("_plugin_indexes") &&
+							query.parameters.includes(pluginId)
+						) {
+							pausedQueryIds.add(queryId);
+							oldSyncPaused();
+						}
+						return node;
+					},
+					async transformResult({ queryId, result }) {
+						if (pausedQueryIds.has(queryId)) await oldSyncReleased;
+						return result;
+					},
+				} satisfies KyselyPlugin);
+
+				let oldSyncFinished = false;
+				const oldSync = runWithContext({ editMode: false, db: oldSyncDb }, () =>
+					runtime!.ensureStorageIndexesSynced(target === "plugin" ? pluginId : undefined),
+				).then((result) => {
+					oldSyncFinished = true;
+					return result;
+				});
+
+				let newPost: Promise<unknown> | undefined;
+				try {
+					await oldSyncPause;
+					await putBundle(storage, source, "2.0.0", true);
+					await states.upsert(pluginId, "2.0.0", "active", stateOptions(source, "2.0.0"));
+					await syncPlugins(runtime, source);
+
+					let routeSawOldSyncFinished = false;
+					invokeRoute = vi.fn(async () => {
+						routeSawOldSyncFinished = oldSyncFinished;
+						return { ok: true };
+					});
+					newPost = post(runtime);
+					await new Promise((resolve) => setImmediate(resolve));
+					expect(routeSawOldSyncFinished).toBe(false);
+					expect(invokeRoute).not.toHaveBeenCalled();
+
+					releaseOldSync();
+					await expect(oldSync).resolves.toBe(false);
+					expect(await newPost).toMatchObject({ success: true });
+					expect(routeSawOldSyncFinished).toBe(true);
+
+					const repository = new PluginStorageRepository<{ externalId: string }>(
+						runtime.db,
+						pluginId,
+						"records",
+						["externalId"],
+					);
+					await repository.put("one", { externalId: "duplicate" });
+					await expect(repository.put("two", { externalId: "duplicate" })).rejects.toThrow();
+				} finally {
+					releaseOldSync();
+					await oldSync.catch(() => undefined);
+					await newPost?.catch(() => undefined);
+				}
+			},
+		);
 
 		it("does not retain readiness after removal and reinstall", async () => {
 			const storage = new MemoryStorage();

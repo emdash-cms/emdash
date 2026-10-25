@@ -811,8 +811,10 @@ export class EmDashRuntime {
 	 * from being treated as ready before their own indexes exist.
 	 */
 	private storageIndexesReady = new Set<string>();
-	/** In-flight storage-index sync promises keyed by plugin ID or `__all__`. */
-	private storageIndexesSyncPromises = new Map<string, Promise<StorageIndexSyncResult>>();
+	private storageIndexesSyncPromises = new Map<
+		string,
+		{ declaration: object; promise: Promise<StorageIndexSyncResult> }
+	>();
 	/** Factory options for the hook pipeline context factory */
 	private pipelineFactoryOptions: {
 		db: Kysely<Database>;
@@ -1086,9 +1088,9 @@ export class EmDashRuntime {
 		return map;
 	}
 
-	private async runStorageIndexSync(pluginId?: string): Promise<StorageIndexSyncResult> {
+	private async runStorageIndexSync(pluginId: string): Promise<StorageIndexSyncResult> {
 		const candidates = [...this.getStorageIndexPlugins().values()].filter(
-			(plugin) => !this.storageIndexesReady.has(plugin.id) && (!pluginId || plugin.id === pluginId),
+			(plugin) => !this.storageIndexesReady.has(plugin.id) && plugin.id === pluginId,
 		);
 		const errors: StorageIndexSyncResult["errors"] = [];
 
@@ -1148,32 +1150,46 @@ export class EmDashRuntime {
 	}
 
 	private invalidateStorageIndexReadiness(pluginId: string): void {
+		// Keep the flight: its DDL must finish before a replacement version can sync.
 		this.storageIndexesReady.delete(pluginId);
-		this.storageIndexesSyncPromises.delete(pluginId);
 	}
 
 	/**
 	 * Ensure declared storage indexes are ready before state-changing plugin
 	 * work runs. Returns `true` only when the requested plugin (or all plugins,
 	 * when no ID is given) has been successfully synchronized. Uses a single
-	 * in-flight sync per target to avoid duplicate DDL from identical callers.
+	 * in-flight sync per plugin, shared by targeted and all-plugin callers.
 	 */
 	async ensureStorageIndexesSynced(pluginId?: string): Promise<boolean> {
-		if (pluginId && this.storageIndexesReady.has(pluginId)) return true;
+		if (!pluginId) {
+			const results = await Promise.all(
+				Array.from(this.getStorageIndexPlugins().keys(), (id) =>
+					this.ensureStorageIndexesSynced(id),
+				),
+			);
+			return results.every(Boolean);
+		}
+		if (this.storageIndexesReady.has(pluginId)) return true;
 
-		const key = pluginId ?? "__all__";
-		let promise = this.storageIndexesSyncPromises.get(key);
-		if (!promise) {
-			promise = this.runStorageIndexSync(pluginId).finally(() => {
-				if (this.storageIndexesSyncPromises.get(key) === promise) {
-					this.storageIndexesSyncPromises.delete(key);
+		const declaration = this.getStorageIndexPlugins().get(pluginId);
+		if (!declaration) return false;
+		let flight = this.storageIndexesSyncPromises.get(pluginId);
+		if (!flight) {
+			const promise = this.runStorageIndexSync(pluginId).finally(() => {
+				if (this.storageIndexesSyncPromises.get(pluginId)?.promise === promise) {
+					this.storageIndexesSyncPromises.delete(pluginId);
 				}
 			});
-			this.storageIndexesSyncPromises.set(key, promise);
+			flight = { declaration, promise };
+			this.storageIndexesSyncPromises.set(pluginId, flight);
 		}
 
-		const result = await promise;
-		return pluginId ? this.storageIndexesReady.has(pluginId) : result.ok;
+		await flight.promise;
+		if (this.getStorageIndexPlugins().get(pluginId) !== declaration) return false;
+		if (flight.declaration !== declaration) {
+			return this.ensureStorageIndexesSynced(pluginId);
+		}
+		return this.storageIndexesReady.has(pluginId);
 	}
 
 	/**

@@ -315,7 +315,7 @@ describe("plugin storage index readiness", () => {
 		]);
 	});
 
-	it("scheduled all-plugin sync is not captured by an in-flight per-plugin sync", async () => {
+	it("shares per-plugin flights between targeted and all-plugin syncs", async () => {
 		const runtime = await createMultiPluginRuntime([
 			{ id: "shop", storage: { orders: { indexes: ["status"], uniqueIndexes: ["externalId"] } } },
 			{ id: "forum", storage: { threads: { indexes: ["pinned"] } } },
@@ -323,13 +323,16 @@ describe("plugin storage index readiness", () => {
 		runtimes.push(runtime);
 
 		const sync = runtime as unknown as IndexSyncAccessor;
-		const [shopReady, allReady] = await Promise.all([
-			sync.ensureStorageIndexesSynced("shop"),
-			sync.ensureStorageIndexesSynced(),
-		]);
+		const recorder = createRecorder("scheduled-and-route", "POST", "cold");
+		const [shopReady, allReady] = await runWithContext(
+			{ editMode: false, queryRecorder: recorder },
+			() =>
+				Promise.all([sync.ensureStorageIndexesSynced("shop"), sync.ensureStorageIndexesSynced()]),
+		);
 
 		expect(shopReady).toBe(true);
 		expect(allReady).toBe(true);
+		expect(ddlQueries(recorder).filter((event) => /create/i.test(event.sql))).toHaveLength(3);
 
 		const indexes = await runtime.db.selectFrom("_plugin_indexes").select("index_name").execute();
 		expect(indexes.map((r) => r.index_name).toSorted()).toEqual([
