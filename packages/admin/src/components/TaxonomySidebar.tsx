@@ -208,6 +208,7 @@ function TaxonomyTermPicker({
 	const [input, setInput] = React.useState("");
 	const [isOpen, setIsOpen] = React.useState(false);
 	const [activeIndex, setActiveIndex] = React.useState(0);
+	const [resultsHeight, setResultsHeight] = React.useState<number>();
 	const anchorRef = React.useRef<HTMLDivElement>(null);
 	const fieldTriggerRef = React.useRef<HTMLButtonElement>(null);
 	const addTriggerRef = React.useRef<HTMLButtonElement>(null);
@@ -264,6 +265,7 @@ function TaxonomyTermPicker({
 		setIsOpen(false);
 		setInput("");
 		setActiveIndex(0);
+		setResultsHeight(undefined);
 		pastedDelimitedInputRef.current = null;
 	};
 	const openPicker = (trigger: HTMLButtonElement | null) => {
@@ -530,10 +532,16 @@ function TaxonomyTermPicker({
 								</p>
 							) : null}
 							<div
+								ref={(node) => {
+									if (node && isOpen && !trimmedInput && node.scrollHeight !== resultsHeight) {
+										setResultsHeight(node.scrollHeight);
+									}
+								}}
 								id={listId}
 								role="group"
 								aria-label={t`${label} options`}
-								className="emdash-auto-scrollbar h-56 min-h-0 overflow-y-auto overscroll-contain p-1.5"
+								style={{ height: resultsHeight }}
+								className="emdash-auto-scrollbar max-h-56 min-h-0 overflow-y-auto overscroll-contain p-1.5"
 							>
 								{visibleOptions.length > 0 ? (
 									visibleOptions.map((option, index) => (

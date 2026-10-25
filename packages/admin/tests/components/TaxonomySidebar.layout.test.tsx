@@ -31,7 +31,12 @@ async function settlePosition() {
 	}
 }
 
-async function openPicker(label: string, top: number, direction: "ltr" | "rtl") {
+async function openPicker(
+	label: string,
+	top: number,
+	direction: "ltr" | "rtl",
+	pickerTerms = terms,
+) {
 	document.documentElement.dir = direction;
 	vi.mocked(apiFetch).mockImplementation(async (url) => {
 		const urlString = typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
@@ -48,7 +53,7 @@ async function openPicker(label: string, top: number, direction: "ltr" | "rtl") 
 							},
 						],
 					}
-				: { terms };
+				: { terms: pickerTerms };
 		return new Response(JSON.stringify({ data }), {
 			headers: { "Content-Type": "application/json" },
 		});
@@ -87,6 +92,31 @@ afterEach(async () => {
 describe("TaxonomySidebar picker layout", () => {
 	for (const label of ["Categories", "Tags"]) {
 		for (const direction of ["ltr", "rtl"] as const) {
+			it(`keeps a small ${label} list compact and stable while filtering (${direction})`, async () => {
+				const { search, options } = await openPicker(label, 650, direction, terms.slice(0, 3));
+				const initialBounds = options.element().getBoundingClientRect();
+				const list = options.element();
+				const listStyle = getComputedStyle(list);
+				const contentHeight = [...list.children].reduce(
+					(height, row) => height + row.getBoundingClientRect().height,
+					Number.parseFloat(listStyle.paddingTop) + Number.parseFloat(listStyle.paddingBottom),
+				);
+				expect(initialBounds.height).toBeCloseTo(contentHeight, 0);
+				const initialTop = search.element().getBoundingClientRect().top;
+				for (const query of ["Term 02", "no-match", ""]) {
+					await search.fill(query);
+					await expect
+						.poll(() => options.element().querySelectorAll('[role="checkbox"]').length)
+						.toBe(query === "" ? 3 : query === "Term 02" ? 1 : 0);
+					await settlePosition();
+					expect(
+						Math.abs(search.element().getBoundingClientRect().top - initialTop),
+					).toBeLessThanOrEqual(1);
+					expect(
+						Math.abs(options.element().getBoundingClientRect().height - initialBounds.height),
+					).toBeLessThanOrEqual(1);
+				}
+			});
 			it.each([20, 400, 650])(
 				`keeps ${label} search still while filtering at y=%s (${direction})`,
 				async (top) => {
