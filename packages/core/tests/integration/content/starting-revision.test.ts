@@ -91,7 +91,12 @@ describeEachDialect("an entry's starting content in Revisions", (dialect) => {
 	type FirstSave = (id: string, title: string) => Promise<void>;
 
 	const firstSaves: Record<string, FirstSave> = {
-		"the admin": (id, title) => save("posts", id, title),
+		"the admin": async (id, title) => {
+			const current = await runtime.handleContentGet("posts", id);
+			if (!current.success) throw new Error(current.error.message);
+			await runtime.handleContentUpdate("posts", id, { data: { title }, _rev: current.data._rev });
+		},
+		"the API without _rev": (id, title) => save("posts", id, title),
 		"a plugin": async (id, title) => {
 			await new ContentRepository(ctx.db).updateDraftAware("posts", id, { data: { title } });
 		},
@@ -120,12 +125,11 @@ describeEachDialect("an entry's starting content in Revisions", (dialect) => {
 		},
 	};
 
-	it.each([
-		["the admin", "checked for revisions"],
-		["the admin", "wrote its draft"],
-		["a plugin", "checked for revisions"],
-		["a plugin", "wrote its draft"],
-	])(
+	it.each(
+		Object.keys(firstSaves).flatMap((source) =>
+			Object.keys(overlapPoints).map((point) => [source, point]),
+		),
+	)(
 		"keeps the starting content once when a first save from %s overlaps another after it %s",
 		async (source, point) => {
 			const firstSave = firstSaves[source]!;
@@ -147,7 +151,7 @@ describeEachDialect("an entry's starting content in Revisions", (dialect) => {
 	);
 
 	it.each(Object.keys(firstSaves))(
-		"keeps the starting content when a first save from %s retries while another save's draft is not staged yet",
+		"keeps the starting content when a first save from %s is refused while another save's draft is not staged yet",
 		async (source) => {
 			const firstSave = firstSaves[source]!;
 			const id = await create("posts");
