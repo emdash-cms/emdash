@@ -1924,22 +1924,6 @@ export async function handleContentDuplicate(
 				}
 			}
 
-			// Not staged as the draft, so autosave never replaces this first revision. Written
-			// after the links are copied: a restore brings back only the selection a revision carries.
-			if ((await getCollectionPublishConfig(trx, collection)).supportsRevisions) {
-				const data = { ...dup.data };
-				if (dup.translationGroup) {
-					const selection = await liveReferenceSelection(trx, collection, dup.translationGroup);
-					if (Object.keys(selection).length > 0) data[STAGED_REFERENCES_KEY] = selection;
-				}
-				await new RevisionRepository(trx).create({
-					collection,
-					entryId: dup.id,
-					data,
-					authorId: dup.authorId ?? undefined,
-				});
-			}
-
 			const existingBylines = await bylineRepo.getContentBylines(collection, resolvedId);
 			if (existingBylines.length > 0) {
 				await bylineRepo.setContentBylines(

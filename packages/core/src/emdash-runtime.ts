@@ -4134,37 +4134,51 @@ export class EmDashRuntime {
 						);
 					}
 
+					const entryGroup = existing.translationGroup;
+					const startingId = await repo.createStartingRevision(
+						revisionRepo,
+						collection,
+						existing,
+						async () => {
+							if (!entryGroup) return {};
+							const selection = await liveReferenceSelection(this.db, collection, entryGroup);
+							return Object.keys(selection).length > 0
+								? { [STAGED_REFERENCES_KEY]: selection }
+								: {};
+						},
+					);
+					const unstagedIds = startingId ? [startingId] : [];
+
 					const revision = await revisionRepo.create({
 						collection,
 						entryId: resolvedId,
 						data: mergedData,
 						authorId: actor?.id,
 					});
+					unstagedIds.push(revision.id);
+					const cleanUpUnstaged = async () => {
+						for (const unstagedId of unstagedIds) {
+							try {
+								await revisionRepo.deleteIfUnreferenced(collection, resolvedId, unstagedId);
+							} catch (cleanupError) {
+								console.error(
+									`[emdash] Failed to clean up unstaged revision ${unstagedId}:`,
+									cleanupError,
+								);
+							}
+						}
+					};
 
 					let staged: boolean;
 					try {
 						staged = await repo.replaceDraftRevision(collection, resolvedId, revision.id, existing);
 					} catch (error) {
-						try {
-							await revisionRepo.deleteIfUnreferenced(collection, resolvedId, revision.id);
-						} catch (cleanupError) {
-							console.error(
-								`[emdash] Failed to clean up unstaged revision ${revision.id}:`,
-								cleanupError,
-							);
-						}
+						await cleanUpUnstaged();
 						throw error;
 					}
 
 					if (!staged) {
-						try {
-							await revisionRepo.deleteIfUnreferenced(collection, resolvedId, revision.id);
-						} catch (cleanupError) {
-							console.error(
-								`[emdash] Failed to clean up unstaged revision ${revision.id}:`,
-								cleanupError,
-							);
-						}
+						await cleanUpUnstaged();
 						if (body._rev || attempt === MAX_DRAFT_STAGE_ATTEMPTS - 1) {
 							const error = new ContentMutationConflictError();
 							return {

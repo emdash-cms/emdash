@@ -1408,18 +1408,22 @@ export class ContentRepository {
 
 			const mergedData = keepKnownFields({ ...baseData, ...incoming }, fieldSlugs);
 			if (stagedSlug !== undefined) mergedData._slug = stagedSlug;
+			const startingId = await this.createStartingRevision(revisionRepo, type, existing);
 			const revision = await revisionRepo.create({
 				collection: type,
 				entryId: id,
 				data: mergedData,
 				...(input.revisionAuthorId ? { authorId: input.revisionAuthorId } : {}),
 			});
+			const unstagedIds = startingId ? [startingId, revision.id] : [revision.id];
 
 			let staged: boolean;
 			try {
 				staged = await this.replaceDraftRevisionForUpdate(type, id, revision.id, existing, input);
 			} catch (error) {
-				await this.deleteUnstagedRevision(revisionRepo, type, id, revision.id);
+				for (const unstagedId of unstagedIds) {
+					await this.deleteUnstagedRevision(revisionRepo, type, id, unstagedId);
+				}
 				throw error;
 			}
 
@@ -1433,12 +1437,37 @@ export class ContentRepository {
 				return { ...updated, data: { ...updated.data, ...draftData } };
 			}
 
-			await this.deleteUnstagedRevision(revisionRepo, type, id, revision.id);
+			for (const unstagedId of unstagedIds) {
+				await this.deleteUnstagedRevision(revisionRepo, type, id, unstagedId);
+			}
 			existing = await this.findById(type, id);
 		}
 
 		if (!existing) throw new Error("Content not found");
 		throw new ContentMutationConflictError();
+	}
+
+	/**
+	 * Keep an entry's starting content before its first draft is staged. Until then the
+	 * columns hold it, and once a draft takes over, nothing else does. The revision is never
+	 * the draft, so autosave never replaces it; call this before writing the draft revision,
+	 * so it lists as the oldest. Returns its id, or null when the entry already has one.
+	 */
+	async createStartingRevision(
+		revisionRepo: RevisionRepository,
+		type: string,
+		existing: ContentItem,
+		extraData?: () => Promise<Record<string, unknown>>,
+	): Promise<string | null> {
+		if (existing.draftRevisionId || existing.liveRevisionId) return null;
+		if (await revisionRepo.findLatest(type, existing.id)) return null;
+		const revision = await revisionRepo.create({
+			collection: type,
+			entryId: existing.id,
+			data: { ...existing.data, ...(await extraData?.()) },
+			authorId: existing.authorId ?? undefined,
+		});
+		return revision.id;
 	}
 
 	private async deleteUnstagedRevision(
