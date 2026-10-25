@@ -1,5 +1,5 @@
 import { sql, type Kysely, type Selectable } from "kysely";
-import { monotonicFactory } from "ulidx";
+import { B32_CHARACTERS, decodeTime, encodeTime, monotonicFactory, ULID_REGEX } from "ulidx";
 
 import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
 import type { Database, RevisionTable } from "../types.js";
@@ -9,6 +9,26 @@ const monotonic = monotonicFactory();
 
 export function createRevisionId(): string {
 	return monotonic();
+}
+
+/**
+ * The id of an entry's starting revision. Every save of the entry derives the same id, so
+ * overlapping first saves write the row once. Its time is just before the entry was created,
+ * so it sorts before every other revision of the entry.
+ */
+export function startingRevisionId(collection: string, entryId: string, createdAt: string): string {
+	const created = ULID_REGEX.test(entryId) ? decodeTime(entryId) : Date.parse(createdAt);
+	const time = Number.isFinite(created) ? Math.max(created - 1, 0) : 0;
+	let hash = 0xcbf29ce484222325n;
+	let suffix = "";
+	for (const char of `${collection}/${entryId}`) {
+		hash = BigInt.asUintN(64, (hash ^ BigInt(char.codePointAt(0)!)) * 0x100000001b3n);
+	}
+	for (let i = 0; i < 16; i++) {
+		hash = BigInt.asUintN(64, (hash ^ BigInt(i)) * 0x100000001b3n);
+		suffix += B32_CHARACTERS[Number(hash >> 59n)];
+	}
+	return encodeTime(time, 10) + suffix;
 }
 
 export interface Revision {
@@ -32,8 +52,6 @@ export interface RevisionWithAuthor extends Revision {
 }
 
 export interface CreateRevisionInput {
-	/** An id from `createRevisionId()`, reserved before the revision is written. */
-	id?: string;
 	collection: string;
 	entryId: string;
 	data: Record<string, unknown>;
@@ -66,7 +84,7 @@ export class RevisionRepository {
 	 * Create a new revision
 	 */
 	async create(input: CreateRevisionInput): Promise<Revision> {
-		const id = input.id ?? createRevisionId();
+		const id = createRevisionId();
 		const data = await this.datetimes.normalizeData(input.collection, input.data);
 
 		const row: Omit<RevisionTable, "created_at"> = {
@@ -87,6 +105,24 @@ export class RevisionRepository {
 		await this.queuePruning(input.collection, input.entryId, id);
 
 		return revision;
+	}
+
+	/**
+	 * Write a revision under a given id unless one with that id already exists.
+	 */
+	async createIfMissing(input: CreateRevisionInput & { id: string }): Promise<void> {
+		const data = await this.datetimes.normalizeData(input.collection, input.data);
+		await this.db
+			.insertInto("revisions")
+			.values({
+				id: input.id,
+				collection: input.collection,
+				entry_id: input.entryId,
+				data: JSON.stringify(data),
+				author_id: input.authorId ?? null,
+			})
+			.onConflict((conflict) => conflict.column("id").doNothing())
+			.execute();
 	}
 
 	async queuePruning(collection: string, entryId: string, revisionId: string): Promise<void> {

@@ -17,7 +17,7 @@ import { executeAtomicBatchIfSupported, isPostgres } from "../dialect-helpers.js
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
-import { createRevisionId, RevisionRepository } from "./revision.js";
+import { createRevisionId, RevisionRepository, startingRevisionId } from "./revision.js";
 import type {
 	CreateContentInput,
 	UpdateContentInput,
@@ -1399,7 +1399,6 @@ export class ContentRepository {
 			}
 		}
 
-		let startingId: string | null = null;
 		for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
 			let baseData = existing.data;
 			if (existing.draftRevisionId) {
@@ -1409,7 +1408,7 @@ export class ContentRepository {
 
 			const mergedData = keepKnownFields({ ...baseData, ...incoming }, fieldSlugs);
 			if (stagedSlug !== undefined) mergedData._slug = stagedSlug;
-			startingId = await this.reserveStartingRevisionId(revisionRepo, type, existing, startingId);
+			await this.keepStartingRevision(revisionRepo, type, existing);
 			const revision = await revisionRepo.create({
 				collection: type,
 				entryId: id,
@@ -1426,7 +1425,6 @@ export class ContentRepository {
 			}
 
 			if (staged) {
-				if (startingId) await this.writeStartingRevision(revisionRepo, type, existing, startingId);
 				const updated = await this.findById(type, id);
 				if (!updated) throw new Error("Content not found");
 				const draftData: Record<string, unknown> = {};
@@ -1445,65 +1443,26 @@ export class ContentRepository {
 	}
 
 	/**
-	 * Reserve the id of an entry's starting revision, before its first draft revision is written,
-	 * so it lists as the oldest. Until that draft is staged only the columns hold the starting
-	 * content, and publishing a later draft overwrites them. Returns null when the entry already
-	 * has a revision.
-	 *
-	 * Pass the id an earlier attempt reserved to check it again once that attempt's draft was
-	 * refused. Other saves' drafts that aren't staged yet can be visible then, and an overlapping
-	 * first save that staged its draft first may have skipped the starting revision because this
-	 * save's draft was visible to it. So the reservation is kept unless a revision older than the
-	 * staged draft exists.
+	 * Keep an entry's starting content as a revision before its first draft revision is written.
+	 * Until then only the columns hold it, and publishing a later draft overwrites them. Every
+	 * first save writes it ahead of its own draft and never removes it, so a save that finds any
+	 * revision already there can rely on the starting one being among them.
 	 */
-	async reserveStartingRevisionId(
+	async keepStartingRevision(
 		revisionRepo: RevisionRepository,
 		type: string,
 		existing: ContentItem,
-		reserved: string | null,
-	): Promise<string | null> {
-		if (existing.liveRevisionId) return null;
-		if (existing.draftRevisionId) {
-			if (!reserved) return null;
-			const older = await this.db
-				.selectFrom("revisions")
-				.select("id")
-				.where("collection", "=", type)
-				.where("entry_id", "=", existing.id)
-				.where("id", "<", existing.draftRevisionId)
-				.limit(1)
-				.executeTakeFirst();
-			return older ? null : reserved;
-		}
-		if (reserved) return reserved;
-		if (await revisionRepo.findLatest(type, existing.id)) return null;
-		return createRevisionId();
-	}
-
-	/**
-	 * Write the starting revision reserved by `reserveStartingRevisionId`. Call it only once this
-	 * save's draft is staged, or once the save gives up and a fresh check still keeps the
-	 * reservation. Written any earlier, it can end up beside the one an overlapping first save
-	 * writes.
-	 */
-	async writeStartingRevision(
-		revisionRepo: RevisionRepository,
-		type: string,
-		existing: ContentItem,
-		id: string,
-		extraData: Record<string, unknown> = {},
+		extraData?: () => Promise<Record<string, unknown>>,
 	): Promise<void> {
-		try {
-			await revisionRepo.create({
-				id,
-				collection: type,
-				entryId: existing.id,
-				data: { ...existing.data, ...extraData },
-				authorId: existing.authorId ?? undefined,
-			});
-		} catch (error) {
-			console.error(`[content] Failed to write starting revision ${id}:`, error);
-		}
+		if (existing.draftRevisionId || existing.liveRevisionId) return;
+		if (await revisionRepo.findLatest(type, existing.id)) return;
+		await revisionRepo.createIfMissing({
+			id: startingRevisionId(type, existing.id, existing.createdAt),
+			collection: type,
+			entryId: existing.id,
+			data: { ...existing.data, ...(await extraData?.()) },
+			authorId: existing.authorId ?? undefined,
+		});
 	}
 
 	private async deleteUnstagedRevision(
