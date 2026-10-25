@@ -5,7 +5,7 @@
  */
 
 import { sql } from "kysely";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import {
 	handleContentCompare,
@@ -372,10 +372,11 @@ describeEachDialect("versioned reference selections", (dialect) => {
 	});
 
 	it.each([
-		["created with links", true, false],
-		["created without links", false, false],
-		["duplicated with links", true, true],
-	])("restores the selection an entry was %s", async (_, withLinks, duplicated) => {
+		["created with links", true, false, false],
+		["created without links", false, false, false],
+		["duplicated with links", true, true, false],
+		["created with links, after a refused first save", true, false, true],
+	])("restores the selection an entry was %s", async (_, withLinks, duplicated, refused) => {
 		const [a, b] = [await createPage("A"), await createPage("B")];
 		const created = await runtime.handleContentCreate("posts", {
 			data: { title: "Created" },
@@ -389,6 +390,24 @@ describeEachDialect("versioned reference selections", (dialect) => {
 			const copy = await handleContentDuplicate(ctx.db, "posts", id);
 			if (!copy.success) throw new Error(copy.error.message);
 			id = copy.data.item.id;
+		}
+		if (refused) {
+			const current = await runtime.handleContentGet("posts", id);
+			if (!current.success) throw new Error(current.error.message);
+			const createRevision = RevisionRepository.prototype.create;
+			const spy = vi
+				.spyOn(RevisionRepository.prototype, "create")
+				.mockImplementationOnce(async function (this: RevisionRepository, input) {
+					const revision = await createRevision.call(this, input);
+					await sql`UPDATE ec_posts SET version = version + 1 WHERE id = ${id}`.execute(ctx.db);
+					return revision;
+				});
+			const refusedSave = await runtime.handleContentUpdate("posts", id, {
+				references: { related_pages: [b.id] },
+				_rev: current.data._rev,
+			});
+			spy.mockRestore();
+			expect(refusedSave.success).toBe(false);
 		}
 
 		await runtime.handleContentUpdate("posts", id, { references: { related_pages: [b.id] } });

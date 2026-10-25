@@ -1450,10 +1450,11 @@ export class ContentRepository {
 	 * content, and publishing a later draft overwrites them. Returns null when the entry already
 	 * has a revision.
 	 *
-	 * Pass the id an earlier attempt reserved. A retry can see other saves' drafts that aren't
-	 * staged yet, and an overlapping first save that staged its draft first may have skipped the
-	 * starting revision because this save's draft was visible to it. So the reservation is kept
-	 * unless a revision older than the staged draft exists.
+	 * Pass the id an earlier attempt reserved to check it again once that attempt's draft was
+	 * refused. Other saves' drafts that aren't staged yet can be visible then, and an overlapping
+	 * first save that staged its draft first may have skipped the starting revision because this
+	 * save's draft was visible to it. So the reservation is kept unless a revision older than the
+	 * staged draft exists.
 	 */
 	async reserveStartingRevisionId(
 		revisionRepo: RevisionRepository,
@@ -1481,7 +1482,9 @@ export class ContentRepository {
 
 	/**
 	 * Write the starting revision reserved by `reserveStartingRevisionId`. Call it only once this
-	 * save's draft is staged, so a save whose draft is refused leaves no starting revision behind.
+	 * save's draft is staged, or once the save gives up and a fresh check still keeps the
+	 * reservation. Written any earlier, it can end up beside the one an overlapping first save
+	 * writes.
 	 */
 	async writeStartingRevision(
 		revisionRepo: RevisionRepository,

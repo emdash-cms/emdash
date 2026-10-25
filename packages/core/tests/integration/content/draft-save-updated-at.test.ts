@@ -153,7 +153,6 @@ describe("draft saves on published entries keep updated_at (#2143)", () => {
 		});
 		const id = created.data!.item.id;
 		const revisionRepo = new RevisionRepository(db);
-		const beforeCount = await revisionRepo.countByEntry("posts", id);
 		const originalCreate = RevisionRepository.prototype.create;
 		const create = vi
 			.spyOn(RevisionRepository.prototype, "create")
@@ -172,7 +171,8 @@ describe("draft saves on published entries keep updated_at (#2143)", () => {
 		create.mockRestore();
 
 		expect(result).toMatchObject({ success: false, error: { code: "CONFLICT" } });
-		expect(await revisionRepo.countByEntry("posts", id)).toBe(beforeCount);
+		const revisions = await revisionRepo.findByEntry("posts", id);
+		expect(revisions.map((revision) => revision.data.title)).toEqual(["Initial"]);
 		expect((await new ContentRepository(db).findById("posts", id))?.draftRevisionId).toBeNull();
 	});
 
