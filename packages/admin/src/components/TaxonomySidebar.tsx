@@ -476,6 +476,7 @@ function TaxonomyTermPicker({
 					side="bottom"
 					sideOffset={6}
 					positionMethod="fixed"
+					sticky
 					collisionAvoidance={{ fallbackAxisSide: "none" }}
 					className="z-[100]"
 				>
