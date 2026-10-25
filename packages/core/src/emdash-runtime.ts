@@ -4073,6 +4073,7 @@ export class EmDashRuntime {
 					}
 				}
 
+				let startingId: string | null = null;
 				for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
 					let baseData: Record<string, unknown>;
 					if (existing.draftRevisionId) {
@@ -4134,51 +4135,47 @@ export class EmDashRuntime {
 						);
 					}
 
-					const entryGroup = existing.translationGroup;
-					const startingId = await repo.createStartingRevision(
+					startingId = await repo.reserveStartingRevisionId(
 						revisionRepo,
 						collection,
 						existing,
-						async () => {
-							if (!entryGroup) return {};
-							const selection = await liveReferenceSelection(this.db, collection, entryGroup);
-							return Object.keys(selection).length > 0
-								? { [STAGED_REFERENCES_KEY]: selection }
-								: {};
-						},
+						startingId,
 					);
-					const unstagedIds = startingId ? [startingId] : [];
-
+					const startingReferences =
+						startingId && existing.translationGroup
+							? await liveReferenceSelection(this.db, collection, existing.translationGroup)
+							: {};
 					const revision = await revisionRepo.create({
 						collection,
 						entryId: resolvedId,
 						data: mergedData,
 						authorId: actor?.id,
 					});
-					unstagedIds.push(revision.id);
-					const cleanUpUnstaged = async () => {
-						for (const unstagedId of unstagedIds) {
-							try {
-								await revisionRepo.deleteIfUnreferenced(collection, resolvedId, unstagedId);
-							} catch (cleanupError) {
-								console.error(
-									`[emdash] Failed to clean up unstaged revision ${unstagedId}:`,
-									cleanupError,
-								);
-							}
-						}
-					};
 
 					let staged: boolean;
 					try {
 						staged = await repo.replaceDraftRevision(collection, resolvedId, revision.id, existing);
 					} catch (error) {
-						await cleanUpUnstaged();
+						try {
+							await revisionRepo.deleteIfUnreferenced(collection, resolvedId, revision.id);
+						} catch (cleanupError) {
+							console.error(
+								`[emdash] Failed to clean up unstaged revision ${revision.id}:`,
+								cleanupError,
+							);
+						}
 						throw error;
 					}
 
 					if (!staged) {
-						await cleanUpUnstaged();
+						try {
+							await revisionRepo.deleteIfUnreferenced(collection, resolvedId, revision.id);
+						} catch (cleanupError) {
+							console.error(
+								`[emdash] Failed to clean up unstaged revision ${revision.id}:`,
+								cleanupError,
+							);
+						}
 						if (body._rev || attempt === MAX_DRAFT_STAGE_ATTEMPTS - 1) {
 							const error = new ContentMutationConflictError();
 							return {
@@ -4188,6 +4185,18 @@ export class EmDashRuntime {
 						}
 						existing = await repo.findById(collection, resolvedId);
 						continue;
+					}
+
+					if (startingId) {
+						await repo.writeStartingRevision(
+							revisionRepo,
+							collection,
+							existing,
+							startingId,
+							Object.keys(startingReferences).length > 0
+								? { [STAGED_REFERENCES_KEY]: startingReferences }
+								: {},
+						);
 					}
 
 					draftStorageChanged = true;

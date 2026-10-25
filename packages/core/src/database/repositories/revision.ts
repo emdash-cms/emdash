@@ -32,6 +32,8 @@ export interface RevisionWithAuthor extends Revision {
 }
 
 export interface CreateRevisionInput {
+	/** An id from `createRevisionId()`, reserved before the revision is written. */
+	id?: string;
 	collection: string;
 	entryId: string;
 	data: Record<string, unknown>;
@@ -64,7 +66,7 @@ export class RevisionRepository {
 	 * Create a new revision
 	 */
 	async create(input: CreateRevisionInput): Promise<Revision> {
-		const id = createRevisionId();
+		const id = input.id ?? createRevisionId();
 		const data = await this.datetimes.normalizeData(input.collection, input.data);
 
 		const row: Omit<RevisionTable, "created_at"> = {
