@@ -4805,9 +4805,8 @@ const FORMATTING_MARKS = [
 	"superscript",
 ] as const;
 
-function playBubbleEntrance(element: HTMLElement | null) {
-	const surface = element;
-	if (!(surface instanceof HTMLElement) || typeof surface.animate !== "function") return;
+function playBubbleEntrance(surface: HTMLElement | null) {
+	if (!surface || typeof surface.animate !== "function") return;
 	const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 	surface.animate(
 		reduceMotion
@@ -4929,10 +4928,7 @@ function EditorBubbleMenu({
 				}) => {
 					elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
 					// The surface scrolls itself, so no wrapper clips its rounded ring.
-					const surface = elements.floating;
-					if (surface instanceof HTMLElement) {
-						surface.style.overflowX = "auto";
-					}
+					elements.floating.style.overflowX = "auto";
 				},
 			}),
 			onShow: () => {
@@ -5502,9 +5498,8 @@ function ImageBubbleMenu({
 	}, [editor]);
 	// A quick fade and scale in, played when the toolbar appears or moves to another image.
 	const playEntrance = React.useCallback(() => {
-		const menu = menuRef.current;
-		const toolbar = menu;
-		if (!menu?.isConnected || menu.hidden || !(toolbar instanceof HTMLElement)) return;
+		const toolbar = menuRef.current;
+		if (!toolbar?.isConnected || toolbar.hidden) return;
 		const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 		for (const animation of toolbar.getAnimations()) animation.cancel();
 		toolbar.animate(
@@ -6611,6 +6606,7 @@ function EditorToolbar({
  * the toolbar keep them.
  */
 function moveToolbarFocus(event: React.KeyboardEvent<HTMLElement>, vertical: boolean) {
+	// BubbleMenu wraps native events without forwarding their keyboard property getters.
 	if (event.nativeEvent.isComposing) return;
 	const toolbar = event.currentTarget;
 	const items = [

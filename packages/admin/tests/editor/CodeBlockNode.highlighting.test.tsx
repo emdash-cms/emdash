@@ -4,7 +4,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { CodeBlockExtension } from "../../src/components/editor/CodeBlockNode";
+import { CodeBlockExtension } from "../../src/components/editor/CodeBlockNode.js";
 import { render } from "../utils/render.js";
 
 import "../../src/styles.css";

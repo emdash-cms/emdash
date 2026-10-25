@@ -390,9 +390,12 @@ export function ToolbarMenu({
 		whileElementsMounted: autoUpdate,
 	});
 	React.useLayoutEffect(() => {
-		// The element TipTap positions, around the toolbar, which plays its entrance as a transform.
-		const toolbar = triggerRef.current?.closest('[role="toolbar"]')?.parentElement;
+		const toolbar = triggerRef.current?.closest('[role="toolbar"]');
 		if (!toolbar) return;
+		// An open menu needs a stable anchor, not the toolbar's entrance transform.
+		if (open) {
+			for (const animation of toolbar.getAnimations?.() ?? []) animation.finish();
+		}
 		let rect = new DOMRect();
 		refs.setPositionReference({
 			contextElement: toolbar,
@@ -402,7 +405,7 @@ export function ToolbarMenu({
 				return rect;
 			},
 		});
-	}, [refs]);
+	}, [open, refs]);
 	useRepositionOnOpen(open, update);
 	const triggerRefs = useMergeRefs([refs.setReference, triggerRef]);
 	const { isMounted, status } = useTransitionStatus(context, {
@@ -580,6 +583,7 @@ function focusAfterEditor(editor: Editor): boolean {
  * right-to-left text; Home and End go to the first and last.
  */
 export function handleToolbarKeyDown(event: React.KeyboardEvent<HTMLElement>, editor: Editor) {
+	// BubbleMenu wraps native events without forwarding their keyboard property getters.
 	if (event.nativeEvent.isComposing || event.nativeEvent.defaultPrevented) return;
 	const toolbar = event.currentTarget;
 	const controls = [...toolbar.querySelectorAll(TOOLBAR_CONTROL_SELECTOR)];
