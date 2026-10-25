@@ -3908,7 +3908,6 @@ export class EmDashRuntime {
 					}
 				}
 
-				let startingId: string | null = null;
 				for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
 					let baseData: Record<string, unknown>;
 					if (existing.draftRevisionId) {
@@ -3970,20 +3969,12 @@ export class EmDashRuntime {
 						);
 					}
 
-					startingId = await repo.reserveStartingRevisionId(
-						revisionRepo,
-						collection,
-						existing,
-						startingId,
-					);
-					const startingReferences =
-						startingId && existing.translationGroup
-							? await liveReferenceSelection(this.db, collection, existing.translationGroup)
-							: {};
-					const startingExtra =
-						Object.keys(startingReferences).length > 0
-							? { [STAGED_REFERENCES_KEY]: startingReferences }
-							: {};
+					const entryGroup = existing.translationGroup;
+					await repo.keepStartingRevision(revisionRepo, collection, existing, async () => {
+						if (!entryGroup) return {};
+						const selection = await liveReferenceSelection(this.db, collection, entryGroup);
+						return Object.keys(selection).length > 0 ? { [STAGED_REFERENCES_KEY]: selection } : {};
+					});
 					const revision = await revisionRepo.create({
 						collection,
 						entryId: resolvedId,
@@ -4016,26 +4007,6 @@ export class EmDashRuntime {
 							);
 						}
 						if (body._rev || attempt === MAX_DRAFT_STAGE_ATTEMPTS - 1) {
-							if (startingId) {
-								const current = await repo.findById(collection, resolvedId);
-								if (
-									current &&
-									(await repo.reserveStartingRevisionId(
-										revisionRepo,
-										collection,
-										current,
-										startingId,
-									))
-								) {
-									await repo.writeStartingRevision(
-										revisionRepo,
-										collection,
-										current,
-										startingId,
-										startingExtra,
-									);
-								}
-							}
 							const error = new ContentMutationConflictError();
 							return {
 								success: false as const,
@@ -4044,16 +4015,6 @@ export class EmDashRuntime {
 						}
 						existing = await repo.findById(collection, resolvedId);
 						continue;
-					}
-
-					if (startingId) {
-						await repo.writeStartingRevision(
-							revisionRepo,
-							collection,
-							existing,
-							startingId,
-							startingExtra,
-						);
 					}
 
 					draftStorageChanged = true;

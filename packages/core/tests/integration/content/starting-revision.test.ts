@@ -178,6 +178,101 @@ describeEachDialect("an entry's starting content in Revisions", (dialect) => {
 		},
 	);
 
+	it.each(Object.keys(firstSaves))(
+		"keeps the starting content when two more saves finish while a first save from %s waits to stage its draft",
+		async (source) => {
+			const firstSave = firstSaves[source]!;
+			const id = await create("posts");
+			const spy = overlapPoints["wrote its draft"]!(async () => {
+				await save("posts", id, "Duis aute irure dolor in reprehenderit.");
+				await save("posts", id, "Ut enim ad minim veniam.");
+			});
+
+			await firstSave(id, "Excepteur sint occaecat cupidatat.");
+			spy.mockRestore();
+			const published = await runtime.handleContentPublish("posts", id);
+			expect(published.success).toBe(true);
+
+			const titles = await revisionTitles("posts", id);
+			expect(titles.filter((title) => title === "Lorem ipsum dolor sit amet.")).toHaveLength(1);
+			expect(titles.at(-1)).toBe("Lorem ipsum dolor sit amet.");
+		},
+	);
+
+	it("keeps the starting content of entries that share a custom id in two collections", async () => {
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createCollection({ slug: "notes", label: "Notes" });
+		await registry.createField("notes", { slug: "title", label: "Title", type: "string" });
+		const repo = new ContentRepository(ctx.db);
+
+		for (const collection of ["posts", "notes"]) {
+			await repo.create({
+				type: collection,
+				id: "about",
+				slug: "about",
+				data: { title: collection },
+				createdAt: "2026-01-01T00:00:00.000Z",
+			});
+			await save(collection, "about", "Duis aute irure dolor in reprehenderit.");
+			await save(collection, "about", "Excepteur sint occaecat cupidatat.");
+		}
+
+		for (const collection of ["posts", "notes"]) {
+			const titles = await revisionTitles(collection, "about");
+			expect(titles.at(-1)).toBe(collection);
+		}
+	});
+
+	it("keeps the starting content of entries created at the same moment", async () => {
+		const repo = new ContentRepository(ctx.db);
+		const ids = Array.from({ length: 33 }, (_, index) => `entry-${index}`);
+
+		for (const id of ids) {
+			await repo.create({
+				type: "posts",
+				id,
+				slug: id,
+				data: { title: id },
+				createdAt: "2026-01-01T00:00:00.000Z",
+			});
+			await save("posts", id, "Duis aute irure dolor in reprehenderit.");
+		}
+
+		for (const id of ids) {
+			expect((await revisionTitles("posts", id)).at(-1)).toBe(id);
+		}
+	});
+
+	it("keeps the starting content of an entry whose custom id only looks like a ULID", async () => {
+		const id = "8ZZZZZZZZZZZZZZZZZZZZZZZZZ";
+		await new ContentRepository(ctx.db).create({
+			type: "posts",
+			id,
+			slug: "custom",
+			data: { title: "Lorem ipsum dolor sit amet." },
+		});
+
+		await save("posts", id, "Duis aute irure dolor in reprehenderit.");
+
+		expect((await revisionTitles("posts", id)).at(-1)).toBe("Lorem ipsum dolor sit amet.");
+	});
+
+	it("writes no starting revision for an entry that already has revisions", async () => {
+		const id = await create("posts");
+		await new RevisionRepository(ctx.db).create({
+			collection: "posts",
+			entryId: id,
+			data: { title: "Duis aute irure dolor in reprehenderit." },
+		});
+
+		await save("posts", id, "Excepteur sint occaecat cupidatat.");
+
+		expect(await revisionTitles("posts", id)).toEqual([
+			"Excepteur sint occaecat cupidatat.",
+			"Duis aute irure dolor in reprehenderit.",
+		]);
+	});
+
 	it("writes the starting content once when a draft is discarded and saved again", async () => {
 		const id = await create("posts");
 
