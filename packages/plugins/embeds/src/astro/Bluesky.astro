@@ -17,19 +17,22 @@ interface Props {
 }
 
 const { node } = Astro.props;
-const postId = node.id || node.url;
-const postUrl = postId ? resolveBlueskyPostUrl(postId) : null;
+const postId = typeof node.id === "string" && node.id ? node.id : node.url;
+const postUrl = typeof postId === "string" ? resolveBlueskyPostUrl(postId) : null;
 
 let html: string | null = null;
 if (postUrl) {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), 5000);
+	let warning: string | null = null;
 	try {
 		const response = await fetch(
 			`https://embed.bsky.app/oembed?url=${encodeURIComponent(postUrl)}&format=json`,
 			{ signal: controller.signal },
 		);
-		if (response.ok) {
+		if (!response.ok) {
+			warning = `Bluesky oEmbed returned HTTP ${response.status}`;
+		} else {
 			const data: unknown = await response.json();
 			if (data && typeof data === "object" && "html" in data && typeof data.html === "string") {
 				html =
@@ -48,13 +51,17 @@ if (postUrl) {
 						allowedSchemes: ["https"],
 						allowProtocolRelative: false,
 					}).trim() || null;
+			} else {
+				warning = "Bluesky oEmbed response did not include HTML";
 			}
 		}
 	} catch {
 		html = null;
+		warning = "Bluesky oEmbed request failed";
 	} finally {
 		clearTimeout(timeout);
 	}
+	if (warning) console.warn(`[plugin-embeds] ${warning}`);
 }
 ---
 

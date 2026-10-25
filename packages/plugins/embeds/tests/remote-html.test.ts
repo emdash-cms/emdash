@@ -77,7 +77,7 @@ describe("embeds that render remote HTML", () => {
 	describe("Bluesky", () => {
 		const postUrl = "https://bsky.app/profile/alice.bsky.social/post/3juwcxjcku52k";
 
-		async function renderBluesky(id: string) {
+		async function renderBluesky(id: unknown) {
 			const container = await AstroContainer.create();
 			return container.renderToString(Bluesky, {
 				props: { node: { _type: "bluesky", _key: "b", id } },
@@ -169,6 +169,29 @@ describe("embeds that render remote HTML", () => {
 				expect(html).not.toContain("example.com");
 			} finally {
 				fetchSpy.mockRestore();
+			}
+		});
+
+		it("skips a non-string post id without failing the render", async () => {
+			const fetchSpy = vi.spyOn(globalThis, "fetch");
+			try {
+				const html = await renderBluesky(42);
+				expect(fetchSpy).not.toHaveBeenCalled();
+				expect(html).not.toContain("42");
+			} finally {
+				fetchSpy.mockRestore();
+			}
+		});
+
+		it("warns when the oEmbed request fails", async () => {
+			const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("network down"));
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+			try {
+				await renderBluesky(postUrl);
+				expect(warn).toHaveBeenCalledWith("[plugin-embeds] Bluesky oEmbed request failed");
+			} finally {
+				fetchSpy.mockRestore();
+				warn.mockRestore();
 			}
 		});
 	});
