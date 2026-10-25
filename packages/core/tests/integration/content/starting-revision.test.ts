@@ -1,6 +1,8 @@
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { sql } from "kysely";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
@@ -85,6 +87,92 @@ describeEachDialect("an entry's starting content in Revisions", (dialect) => {
 		expect(titles.at(-1)).toBe("Lorem ipsum dolor sit amet.");
 		expect(titles[0]).toBe("Excepteur sint occaecat.");
 	});
+
+	type FirstSave = (id: string, title: string) => Promise<void>;
+
+	const firstSaves: Record<string, FirstSave> = {
+		"the admin": (id, title) => save("posts", id, title),
+		"a plugin": async (id, title) => {
+			await new ContentRepository(ctx.db).updateDraftAware("posts", id, { data: { title } });
+		},
+	};
+
+	const overlapPoints: Record<string, (overlap: () => Promise<void>) => { mockRestore(): void }> = {
+		"checked for revisions": (overlap) => {
+			const findLatest = RevisionRepository.prototype.findLatest;
+			return vi
+				.spyOn(RevisionRepository.prototype, "findLatest")
+				.mockImplementationOnce(async function (this: RevisionRepository, collection, entryId) {
+					const latest = await findLatest.call(this, collection, entryId);
+					await overlap();
+					return latest;
+				});
+		},
+		"wrote its draft": (overlap) => {
+			const createRevision = RevisionRepository.prototype.create;
+			return vi
+				.spyOn(RevisionRepository.prototype, "create")
+				.mockImplementationOnce(async function (this: RevisionRepository, input) {
+					const revision = await createRevision.call(this, input);
+					await overlap();
+					return revision;
+				});
+		},
+	};
+
+	it.each([
+		["the admin", "checked for revisions"],
+		["the admin", "wrote its draft"],
+		["a plugin", "checked for revisions"],
+		["a plugin", "wrote its draft"],
+	])(
+		"keeps the starting content once when a first save from %s overlaps another after it %s",
+		async (source, point) => {
+			const firstSave = firstSaves[source]!;
+			const id = await create("posts");
+			const spy = overlapPoints[point]!(() =>
+				firstSave(id, "Duis aute irure dolor in reprehenderit."),
+			);
+
+			await firstSave(id, "Excepteur sint occaecat cupidatat.");
+			spy.mockRestore();
+			await save("posts", id, "Ut enim ad minim veniam.", true);
+			const published = await runtime.handleContentPublish("posts", id);
+			expect(published.success).toBe(true);
+
+			const titles = await revisionTitles("posts", id);
+			expect(titles.filter((title) => title === "Lorem ipsum dolor sit amet.")).toHaveLength(1);
+			expect(titles.at(-1)).toBe("Lorem ipsum dolor sit amet.");
+		},
+	);
+
+	it.each(Object.keys(firstSaves))(
+		"keeps the starting content when a first save from %s retries while another save's draft is not staged yet",
+		async (source) => {
+			const firstSave = firstSaves[source]!;
+			const id = await create("posts");
+			const createRevision = RevisionRepository.prototype.create;
+			const spy = vi
+				.spyOn(RevisionRepository.prototype, "create")
+				.mockImplementationOnce(async function (this: RevisionRepository, input) {
+					const revision = await createRevision.call(this, input);
+					await sql`UPDATE ec_posts SET version = version + 1 WHERE id = ${id}`.execute(ctx.db);
+					await createRevision.call(this, {
+						collection: "posts",
+						entryId: id,
+						data: { title: "Duis aute irure dolor in reprehenderit." },
+					});
+					return revision;
+				});
+
+			await firstSave(id, "Excepteur sint occaecat cupidatat.");
+			spy.mockRestore();
+
+			const titles = await revisionTitles("posts", id);
+			expect(titles.filter((title) => title === "Lorem ipsum dolor sit amet.")).toHaveLength(1);
+			expect(titles.at(-1)).toBe("Lorem ipsum dolor sit amet.");
+		},
+	);
 
 	it("writes the starting content once when a draft is discarded and saved again", async () => {
 		const id = await create("posts");

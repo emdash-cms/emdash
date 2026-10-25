@@ -1399,6 +1399,7 @@ export class ContentRepository {
 			}
 		}
 
+		let startingId: string | null = null;
 		for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
 			let baseData = existing.data;
 			if (existing.draftRevisionId) {
@@ -1408,26 +1409,24 @@ export class ContentRepository {
 
 			const mergedData = keepKnownFields({ ...baseData, ...incoming }, fieldSlugs);
 			if (stagedSlug !== undefined) mergedData._slug = stagedSlug;
-			const startingId = await this.createStartingRevision(revisionRepo, type, existing);
+			startingId = await this.reserveStartingRevisionId(revisionRepo, type, existing, startingId);
 			const revision = await revisionRepo.create({
 				collection: type,
 				entryId: id,
 				data: mergedData,
 				...(input.revisionAuthorId ? { authorId: input.revisionAuthorId } : {}),
 			});
-			const unstagedIds = startingId ? [startingId, revision.id] : [revision.id];
 
 			let staged: boolean;
 			try {
 				staged = await this.replaceDraftRevisionForUpdate(type, id, revision.id, existing, input);
 			} catch (error) {
-				for (const unstagedId of unstagedIds) {
-					await this.deleteUnstagedRevision(revisionRepo, type, id, unstagedId);
-				}
+				await this.deleteUnstagedRevision(revisionRepo, type, id, revision.id);
 				throw error;
 			}
 
 			if (staged) {
+				if (startingId) await this.writeStartingRevision(revisionRepo, type, existing, startingId);
 				const updated = await this.findById(type, id);
 				if (!updated) throw new Error("Content not found");
 				const draftData: Record<string, unknown> = {};
@@ -1437,9 +1436,7 @@ export class ContentRepository {
 				return { ...updated, data: { ...updated.data, ...draftData } };
 			}
 
-			for (const unstagedId of unstagedIds) {
-				await this.deleteUnstagedRevision(revisionRepo, type, id, unstagedId);
-			}
+			await this.deleteUnstagedRevision(revisionRepo, type, id, revision.id);
 			existing = await this.findById(type, id);
 		}
 
@@ -1448,26 +1445,62 @@ export class ContentRepository {
 	}
 
 	/**
-	 * Keep an entry's starting content before its first draft is staged. Until then only the
-	 * columns hold it, and publishing a later draft overwrites them. The revision is never the
-	 * draft, so autosave never replaces it; call this before writing the draft revision, so it
-	 * lists as the oldest. Returns its id, or null when the entry already has a revision.
+	 * Reserve the id of an entry's starting revision, before its first draft revision is written,
+	 * so it lists as the oldest. Until that draft is staged only the columns hold the starting
+	 * content, and publishing a later draft overwrites them. Returns null when the entry already
+	 * has a revision.
+	 *
+	 * Pass the id an earlier attempt reserved. A retry can see other saves' drafts that aren't
+	 * staged yet, and an overlapping first save that staged its draft first may have skipped the
+	 * starting revision because this save's draft was visible to it. So the reservation is kept
+	 * unless a revision older than the staged draft exists.
 	 */
-	async createStartingRevision(
+	async reserveStartingRevisionId(
 		revisionRepo: RevisionRepository,
 		type: string,
 		existing: ContentItem,
-		extraData?: () => Promise<Record<string, unknown>>,
+		reserved: string | null,
 	): Promise<string | null> {
-		if (existing.draftRevisionId || existing.liveRevisionId) return null;
+		if (existing.liveRevisionId) return null;
+		if (existing.draftRevisionId) {
+			if (!reserved) return null;
+			const older = await this.db
+				.selectFrom("revisions")
+				.select("id")
+				.where("collection", "=", type)
+				.where("entry_id", "=", existing.id)
+				.where("id", "<", existing.draftRevisionId)
+				.limit(1)
+				.executeTakeFirst();
+			return older ? null : reserved;
+		}
+		if (reserved) return reserved;
 		if (await revisionRepo.findLatest(type, existing.id)) return null;
-		const revision = await revisionRepo.create({
-			collection: type,
-			entryId: existing.id,
-			data: { ...existing.data, ...(await extraData?.()) },
-			authorId: existing.authorId ?? undefined,
-		});
-		return revision.id;
+		return createRevisionId();
+	}
+
+	/**
+	 * Write the starting revision reserved by `reserveStartingRevisionId`. Call it only once this
+	 * save's draft is staged, so a save whose draft is refused leaves no starting revision behind.
+	 */
+	async writeStartingRevision(
+		revisionRepo: RevisionRepository,
+		type: string,
+		existing: ContentItem,
+		id: string,
+		extraData: Record<string, unknown> = {},
+	): Promise<void> {
+		try {
+			await revisionRepo.create({
+				id,
+				collection: type,
+				entryId: existing.id,
+				data: { ...existing.data, ...extraData },
+				authorId: existing.authorId ?? undefined,
+			});
+		} catch (error) {
+			console.error(`[content] Failed to write starting revision ${id}:`, error);
+		}
 	}
 
 	private async deleteUnstagedRevision(
