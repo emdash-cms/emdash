@@ -226,6 +226,17 @@ describe("inline Portable Text editor toolbars and slash menu", () => {
 		expect(document.activeElement).toBe(nextOnPage);
 	});
 
+	it("returns focus from the selection toolbar with Escape", async () => {
+		const editable = await mount([block("a", "Some text to format.")]);
+		const toolbar = await selectAndShowToolbar(editable, 1, 5);
+		const bold = toolbar.querySelector<HTMLElement>('[aria-label="Bold"]')!;
+
+		await act(async () => bold.focus());
+		expect(document.activeElement).toBe(bold);
+		await act(async () => press(bold, "Escape"));
+		expect(document.activeElement).toBe(editable);
+	});
+
 	it("hides the toolbar once focus leaves the editor after a toolbar button", async () => {
 		const editable = await mount([block("a", "Some text to format.")]);
 		const toolbar = await selectAndShowToolbar(editable, 1, 5);

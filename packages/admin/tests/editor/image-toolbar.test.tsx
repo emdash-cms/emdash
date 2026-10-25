@@ -397,7 +397,11 @@ describe("Image toolbar", () => {
 		const { editor, img, getPanel } = await setup({ extraImage: true });
 		editor.commands.selectAll();
 		await vi.waitFor(() =>
-			expect(document.querySelectorAll(".ProseMirror .ProseMirror-selectednode")).toHaveLength(2),
+			expect(
+				[...document.querySelectorAll(".ProseMirror img")].filter((image) =>
+					image.closest(".emdash-block-selected"),
+				),
+			).toHaveLength(2),
 		);
 		const toolbar = await selectImage(img);
 
@@ -466,7 +470,7 @@ describe("Image toolbar", () => {
 				expect(box.right).toBeLessThanOrEqual(window.innerWidth);
 			}
 			const top = (label: string) => button(toolbar, label).getBoundingClientRect().top;
-			expect(top("Right")).toBe(top("Replace"));
+			await vi.waitFor(() => expect(top("Right")).toBe(top("Replace")));
 			expect(top("Add link")).toBeGreaterThan(top("Replace"));
 		} finally {
 			await page.viewport(1280, 800);

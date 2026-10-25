@@ -580,20 +580,22 @@ function focusAfterEditor(editor: Editor): boolean {
  * right-to-left text; Home and End go to the first and last.
  */
 export function handleToolbarKeyDown(event: React.KeyboardEvent<HTMLElement>, editor: Editor) {
-	if (event.nativeEvent.isComposing || event.defaultPrevented) return;
+	if (event.nativeEvent.isComposing || event.nativeEvent.defaultPrevented) return;
 	const toolbar = event.currentTarget;
 	const controls = [...toolbar.querySelectorAll(TOOLBAR_CONTROL_SELECTOR)];
 	const backToEditor =
-		event.key === "Escape" ||
-		(event.key === "Tab" && event.shiftKey && document.activeElement === controls[0]);
+		event.nativeEvent.key === "Escape" ||
+		(event.nativeEvent.key === "Tab" &&
+			event.nativeEvent.shiftKey &&
+			document.activeElement === controls[0]);
 	if (backToEditor) {
 		event.preventDefault();
 		if (!editor.isDestroyed) editor.view.focus();
 		return;
 	}
 	if (
-		event.key === "Tab" &&
-		!event.shiftKey &&
+		event.nativeEvent.key === "Tab" &&
+		!event.nativeEvent.shiftKey &&
 		document.activeElement === controls.at(-1) &&
 		focusAfterEditor(editor)
 	) {
@@ -607,7 +609,7 @@ export function handleToolbarKeyDown(event: React.KeyboardEvent<HTMLElement>, ed
 	if (currentIndex === -1) return;
 	const forward = getComputedStyle(toolbar).direction === "rtl" ? -1 : 1;
 	let nextIndex: number;
-	switch (event.key) {
+	switch (event.nativeEvent.key) {
 		case "ArrowRight":
 			nextIndex = currentIndex + forward;
 			break;

@@ -4806,7 +4806,7 @@ const FORMATTING_MARKS = [
 ] as const;
 
 function playBubbleEntrance(element: HTMLElement | null) {
-	const surface = element?.firstElementChild;
+	const surface = element;
 	if (!(surface instanceof HTMLElement) || typeof surface.animate !== "function") return;
 	const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 	surface.animate(
@@ -4929,9 +4929,8 @@ function EditorBubbleMenu({
 				}) => {
 					elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
 					// The surface scrolls itself, so no wrapper clips its rounded ring.
-					const surface = elements.floating.firstElementChild;
+					const surface = elements.floating;
 					if (surface instanceof HTMLElement) {
-						surface.style.maxWidth = "100%";
 						surface.style.overflowX = "auto";
 					}
 				},
@@ -5504,7 +5503,7 @@ function ImageBubbleMenu({
 	// A quick fade and scale in, played when the toolbar appears or moves to another image.
 	const playEntrance = React.useCallback(() => {
 		const menu = menuRef.current;
-		const toolbar = menu?.firstElementChild;
+		const toolbar = menu;
 		if (!menu?.isConnected || menu.hidden || !(toolbar instanceof HTMLElement)) return;
 		const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 		for (const animation of toolbar.getAnimations()) animation.cancel();
@@ -5720,15 +5719,15 @@ function ImageBubbleMenu({
 				}}
 				// Capture, so an open hint can't stop Escape before the toolbar sees it.
 				onKeyDownCapture={(event) => {
-					if (event.key !== "Escape" || event.nativeEvent.isComposing) return;
+					if (event.nativeEvent.key !== "Escape" || event.nativeEvent.isComposing) return;
 					event.stopPropagation();
 					returnToEditor();
 				}}
 				onKeyDown={(event) => {
 					if (event.nativeEvent.isComposing) return;
 					if (
-						event.key === "Tab" &&
-						event.shiftKey &&
+						event.nativeEvent.key === "Tab" &&
+						event.nativeEvent.shiftKey &&
 						event.target === menuRef.current?.querySelector("button, input")
 					) {
 						event.preventDefault();
@@ -6624,7 +6623,7 @@ function moveToolbarFocus(event: React.KeyboardEvent<HTMLElement>, vertical: boo
 	const forward = getComputedStyle(toolbar).direction === "rtl" ? -1 : 1;
 
 	let nextIndex: number;
-	switch (event.key) {
+	switch (event.nativeEvent.key) {
 		case "ArrowRight":
 			nextIndex = currentIndex + forward;
 			break;

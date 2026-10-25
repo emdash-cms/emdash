@@ -449,7 +449,7 @@ export function InlineImageToolbar({
 			onShow: () => {
 				setShown(true);
 				if (performance.now() - hiddenAtRef.current > RESHOW_WITHOUT_ENTRANCE_MS) {
-					playToolbarEntrance(menuRef.current?.firstElementChild);
+					playToolbarEntrance(menuRef.current);
 				}
 			},
 			onHide: () => {
@@ -540,7 +540,7 @@ export function InlineImageToolbar({
 
 	const onKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
 		// Shift+Tab from the first control goes back to the caption, which Tab came from.
-		if (event.key === "Tab" && event.shiftKey && image.position !== null) {
+		if (event.nativeEvent.key === "Tab" && event.nativeEvent.shiftKey && image.position !== null) {
 			const caption = captionField(editor, image.position);
 			const first = event.currentTarget.querySelector(TOOLBAR_CONTROL_SELECTOR);
 			if (caption && document.activeElement === first) {

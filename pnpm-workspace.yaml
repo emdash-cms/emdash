@@ -127,35 +127,35 @@ catalog:
   "@phosphor-icons/react": ^2.1.10
   "@tanstack/react-query": 5.90.21
   "@tanstack/react-router": 1.163.2
-  "@tiptap/core": ^3.20.0
-  "@tiptap/extension-character-count": ^3.20.0
-  "@tiptap/extension-code": ^3.20.0
-  "@tiptap/extension-code-block": ^3.20.0
+  "@tiptap/core": 3.32.0
+  "@tiptap/extension-character-count": 3.32.0
+  "@tiptap/extension-code": 3.32.0
+  "@tiptap/extension-code-block": 3.32.0
   "@tiptap/extension-code-block-lowlight": 3.20.0
-  "@tiptap/extension-collaboration": ^3.20.0
-  "@tiptap/extension-drag-handle": ^3.20.0
-  "@tiptap/extension-drag-handle-react": ^3.20.0
-  "@tiptap/extension-dropcursor": ^3.20.0
-  "@tiptap/extension-focus": ^3.20.0
-  "@tiptap/extension-image": ^3.20.0
-  "@tiptap/extension-link": ^3.20.0
-  "@tiptap/extension-list": ^3.20.0
-  "@tiptap/extension-node-range": ^3.20.0
-  "@tiptap/extension-placeholder": ^3.20.0
-  "@tiptap/extension-subscript": ^3.20.0
-  "@tiptap/extension-superscript": ^3.20.0
-  "@tiptap/extension-table": ^3.20.0
-  "@tiptap/extension-table-cell": ^3.20.0
-  "@tiptap/extension-table-header": ^3.20.0
-  "@tiptap/extension-table-row": ^3.20.0
-  "@tiptap/extension-text-align": ^3.20.0
-  "@tiptap/extension-typography": ^3.20.0
-  "@tiptap/extension-underline": ^3.20.0
-  "@tiptap/pm": ^3.20.0
-  "@tiptap/react": ^3.20.0
-  "@tiptap/starter-kit": ^3.20.0
-  "@tiptap/suggestion": ^3.20.0
-  "@tiptap/y-tiptap": ^3.0.5
+  "@tiptap/extension-collaboration": 3.32.0
+  "@tiptap/extension-drag-handle": 3.32.0
+  "@tiptap/extension-drag-handle-react": 3.32.0
+  "@tiptap/extension-dropcursor": 3.32.0
+  "@tiptap/extension-focus": 3.32.0
+  "@tiptap/extension-image": 3.32.0
+  "@tiptap/extension-link": 3.32.0
+  "@tiptap/extension-list": 3.32.0
+  "@tiptap/extension-node-range": 3.32.0
+  "@tiptap/extension-placeholder": 3.32.0
+  "@tiptap/extension-subscript": 3.32.0
+  "@tiptap/extension-superscript": 3.32.0
+  "@tiptap/extension-table": 3.32.0
+  "@tiptap/extension-table-cell": 3.32.0
+  "@tiptap/extension-table-header": 3.32.0
+  "@tiptap/extension-table-row": 3.32.0
+  "@tiptap/extension-text-align": 3.32.0
+  "@tiptap/extension-typography": 3.32.0
+  "@tiptap/extension-underline": 3.32.0
+  "@tiptap/pm": 3.32.0
+  "@tiptap/react": 3.32.0
+  "@tiptap/starter-kit": 3.32.0
+  "@tiptap/suggestion": 3.32.0
+  "@tiptap/y-tiptap": ^3.0.7
   "@types/node": 24.10.13
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3

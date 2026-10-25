@@ -279,12 +279,6 @@ function hasNonZeroRadius(element: HTMLElement): boolean {
 	return declaredValues.some((value) => value > 0);
 }
 
-function expectRoundedFloatingWrapper(menu: HTMLElement) {
-	const wrapper = findScrollableAncestor(menu);
-	expect(wrapper).toBeTruthy();
-	expect(hasNonZeroRadius(wrapper!)).toBe(true);
-}
-
 /** Get a bubble menu button by aria-label */
 function getBubbleButton(menu: HTMLElement, label: string): HTMLButtonElement | null {
 	return menu.querySelector(`[aria-label="${label}"]`);
@@ -638,7 +632,9 @@ describe("Bubble Menu", () => {
 			expect(menuRect.top).toBeGreaterThanOrEqual(
 				formattingToolbar!.getBoundingClientRect().bottom,
 			);
-			expectRoundedFloatingWrapper(tableToolbar);
+			expect(getComputedStyle(tableToolbar).overflowX).toBe("auto");
+			expect(hasNonZeroRadius(tableToolbar)).toBe(true);
+			expect(findScrollableAncestor(tableToolbar)).toBeNull();
 		});
 	});
 

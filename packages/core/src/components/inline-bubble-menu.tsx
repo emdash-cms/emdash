@@ -283,7 +283,7 @@ function LinkToolbar({
 			scrollTarget,
 			onShow: () => {
 				setShown(true);
-				playToolbarEntrance(menuRef.current?.firstElementChild);
+				playToolbarEntrance(menuRef.current);
 			},
 			onHide: () => setShown(false),
 		}),
@@ -501,7 +501,7 @@ export function InlineBubbleMenu({
 			},
 			scrollTarget: scrollTarget ?? undefined,
 			onShow: () => {
-				const surface = menuRef.current?.firstElementChild;
+				const surface = menuRef.current;
 				setShown(true);
 				playToolbarEntrance(surface);
 				// Edit link opens the field while this toolbar is still hidden, too early to focus it.
