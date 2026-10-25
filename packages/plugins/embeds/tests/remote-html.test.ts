@@ -184,7 +184,9 @@ describe("embeds that render remote HTML", () => {
 		});
 
 		it("warns when the oEmbed request fails", async () => {
-			const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("network down"));
+			const fetchSpy = vi
+				.spyOn(globalThis, "fetch")
+				.mockRejectedValue(new TypeError("network down"));
 			const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 			try {
 				await renderBluesky(postUrl);
