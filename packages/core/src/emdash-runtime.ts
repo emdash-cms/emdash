@@ -1097,10 +1097,20 @@ export class EmDashRuntime {
 	async setPluginStatus(pluginId: string, status: "active" | "inactive"): Promise<void> {
 		this.pluginStates.set(pluginId, status);
 		if (status === "active") {
-			this.setSandboxedPluginActive(pluginId, true);
-			this.enabledPlugins.add(pluginId);
-			await this.rebuildHookPipeline();
-			await this._hooks.runPluginActivate(pluginId);
+			try {
+				this.setSandboxedPluginActive(pluginId, true);
+				this.enabledPlugins.add(pluginId);
+				await this.rebuildHookPipeline();
+				const results = await this._hooks.runPluginActivate(pluginId);
+				const failure = results.find((result) => !result.success);
+				if (failure) throw failure.error ?? new Error("Plugin activation failed");
+			} catch (error) {
+				this.pluginStates.set(pluginId, "inactive");
+				this.setSandboxedPluginActive(pluginId, false);
+				this.enabledPlugins.delete(pluginId);
+				await this.rebuildHookPipeline();
+				throw error;
+			}
 		} else {
 			try {
 				// Deactivate hooks retain access until their cleanup has finished.

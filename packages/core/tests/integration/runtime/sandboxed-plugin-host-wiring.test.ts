@@ -1,11 +1,15 @@
 import { randomUUID } from "node:crypto";
 
-import { SqliteDialect } from "kysely";
+import type { APIContext } from "astro";
+import { sql, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
+import { POST as disablePlugin } from "../../../src/astro/routes/api/admin/plugins/[id]/disable.js";
+import { POST as enablePlugin } from "../../../src/astro/routes/api/admin/plugins/[id]/enable.js";
 import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
+import { CronAccessImpl } from "../../../src/plugins/cron.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import type { SandboxedPluginInstance } from "../../../src/plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../../src/plugins/state.js";
@@ -67,6 +71,8 @@ class MemoryStorage implements Storage {
 
 let currentInvokeHook: SandboxedPluginInstance["invokeHook"] = async () => undefined;
 let loadedSandboxCapabilities: string[] = [];
+let sandboxActive = false;
+let sandboxInvokeRoute: ReturnType<typeof vi.fn> = vi.fn();
 
 function createDeps(
 	invokeHook: SandboxedPluginInstance["invokeHook"],
@@ -75,6 +81,8 @@ function createDeps(
 ): RuntimeDependencies {
 	currentInvokeHook = invokeHook;
 	loadedSandboxCapabilities = [];
+	sandboxActive = false;
+	sandboxInvokeRoute = vi.fn(async () => ({ status: 200, body: { ok: true } }));
 	const runner = {
 		isAvailable: () => true,
 		isHealthy: () => true,
@@ -84,7 +92,10 @@ function createDeps(
 				id: `${manifest.id}:${manifest.version}`,
 				invokeHook: (...args: Parameters<SandboxedPluginInstance["invokeHook"]>) =>
 					currentInvokeHook(...args),
-				invokeRoute: vi.fn(),
+				invokeRoute: sandboxInvokeRoute,
+				setActive: (active: boolean) => {
+					sandboxActive = active;
+				},
 				terminate: vi.fn(),
 			};
 		}),
@@ -349,5 +360,183 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 			createdAt: new Date().toISOString(),
 		});
 		expect(invokeHook).not.toHaveBeenCalledWith("media:afterUpload", expect.anything());
+	});
+
+	it("rolls back a failed sandbox activation during an admin re-enable", async () => {
+		const activationAttempts: string[] = [];
+		const successfulHook = async (name: string) => {
+			activationAttempts.push(name);
+			if (name === "plugin:activate") expect(sandboxActive).toBe(true);
+		};
+		runtime = await EmDashRuntime.create(createDeps(successfulHook));
+		const cron = new CronAccessImpl(runtime.db, "sandbox-host", () => undefined);
+		await cron.schedule("before-disable", { schedule: "*/5 * * * *" });
+
+		const context = (id = "sandbox-host"): APIContext =>
+			({
+				params: { id },
+				locals: { emdash: runtime, user: { id: "admin-1", role: 50 } },
+				request: new Request(`http://test.local/_emdash/api/admin/plugins/${id}`),
+			}) as unknown as APIContext;
+
+		expect((await disablePlugin(context())).status).toBe(200);
+		expect(sandboxActive).toBe(false);
+		expect(
+			(
+				await runtime.db
+					.selectFrom("_emdash_cron_tasks")
+					.select("enabled")
+					.where("plugin_id", "=", "sandbox-host")
+					.execute()
+			).map((task) => task.enabled),
+		).toEqual([0]);
+
+		const secret = "activation secret must not escape";
+		currentInvokeHook = async (name: string) => {
+			activationAttempts.push(name);
+			if (name === "plugin:activate") {
+				expect(sandboxActive).toBe(true);
+				await cron.schedule("activation-task", { schedule: "*/5 * * * *" });
+				throw new Error(secret);
+			}
+		};
+		const failed = await enablePlugin(context());
+		expect(failed.status).toBe(500);
+		expect(await failed.json()).toEqual({
+			success: false,
+			error: { code: "PLUGIN_ENABLE_ERROR", message: "Failed to enable plugin" },
+		});
+		expect(activationAttempts).toContain("plugin:activate");
+		expect((await new PluginStateRepository(runtime.db).get("sandbox-host"))?.status).toBe(
+			"inactive",
+		);
+		expect(
+			(
+				await runtime.db
+					.selectFrom("_emdash_cron_tasks")
+					.select("enabled")
+					.where("plugin_id", "=", "sandbox-host")
+					.execute()
+			).map((task) => task.enabled),
+		).toEqual([0, 0]);
+		expect(sandboxActive).toBe(false);
+		expect(runtime.getPluginRouteMeta("sandbox-host", "/ping")).toBeNull();
+		const rejected = await runtime.handlePluginApiRoute(
+			"sandbox-host",
+			"GET",
+			"/ping",
+			new Request("http://test.local/_emdash/api/plugins/sandbox-host/ping"),
+		);
+		expect(rejected).toMatchObject({ success: false, error: { code: "NOT_FOUND" } });
+		expect(sandboxInvokeRoute).not.toHaveBeenCalled();
+		await runtime.hooks.runMediaAfterUpload({
+			id: "media-1",
+			filename: "image.png",
+			mimeType: "image/png",
+			size: 1,
+			url: "/image.png",
+			createdAt: new Date().toISOString(),
+		});
+		expect(activationAttempts).not.toContain("media:afterUpload");
+
+		currentInvokeHook = successfulHook;
+		const retried = await enablePlugin(context());
+		expect(retried.status).toBe(200);
+		expect((await new PluginStateRepository(runtime.db).get("sandbox-host"))?.status).toBe(
+			"active",
+		);
+		expect(sandboxActive).toBe(true);
+		expect(runtime.getPluginRouteMeta("sandbox-host", "/ping")).toEqual({ public: false });
+		const route = await runtime.handlePluginApiRoute(
+			"sandbox-host",
+			"GET",
+			"/ping",
+			new Request("http://test.local/_emdash/api/plugins/sandbox-host/ping"),
+		);
+		expect(route).toMatchObject({ success: true, data: { status: 200, body: { ok: true } } });
+		expect(
+			(
+				await runtime.db
+					.selectFrom("_emdash_cron_tasks")
+					.select("enabled")
+					.where("plugin_id", "=", "sandbox-host")
+					.execute()
+			).map((task) => task.enabled),
+		).toEqual([1, 1]);
+	});
+
+	it("disables cron tasks when activation rollback persistence fails", async () => {
+		const invokeHook = async (name: string) => {
+			if (name === "plugin:activate") {
+				const cron = new CronAccessImpl(runtime!.db, "sandbox-host", () => undefined);
+				await cron.schedule("activation-task", { schedule: "*/5 * * * *" });
+				throw new Error("activation failed");
+			}
+		};
+		runtime = await EmDashRuntime.create(createDeps(invokeHook));
+		const cron = new CronAccessImpl(runtime.db, "sandbox-host", () => undefined);
+		await cron.schedule("before-disable", { schedule: "*/5 * * * *" });
+		await runtime.handlePluginDisable("sandbox-host");
+		await sql`
+			CREATE TRIGGER fail_plugin_activation_rollback
+			BEFORE UPDATE OF status ON _plugin_state
+			WHEN NEW.status = 'inactive'
+			BEGIN
+				SELECT RAISE(ABORT, 'simulated rollback failure');
+			END
+		`.execute(runtime.db);
+
+		const result = await runtime.handlePluginEnable("sandbox-host");
+
+		expect(result).toEqual({
+			success: false,
+			error: { code: "PLUGIN_ENABLE_ERROR", message: "Failed to enable plugin" },
+		});
+		expect(sandboxActive).toBe(false);
+		expect(runtime.getPluginRouteMeta("sandbox-host", "/ping")).toBeNull();
+		expect(
+			(
+				await runtime.db
+					.selectFrom("_emdash_cron_tasks")
+					.select("enabled")
+					.where("plugin_id", "=", "sandbox-host")
+					.execute()
+			).map((task) => task.enabled),
+		).toEqual([0, 0]);
+	});
+
+	it("rolls back a failed trusted plugin activation", async () => {
+		let shouldThrow = false;
+		const trustedPlugin = definePlugin({
+			id: "trusted-host",
+			version: "1.0.0",
+			capabilities: ["media:read"],
+			hooks: {
+				"plugin:activate": async () => {
+					if (shouldThrow) throw new Error("trusted activation failed");
+				},
+				"media:afterUpload": async () => undefined,
+			},
+			routes: {
+				ping: { handler: async () => ({ status: 200, body: { ok: true } }) },
+			},
+		});
+		runtime = await EmDashRuntime.create(
+			createDeps(vi.fn(), { plugins: [trustedPlugin], sandboxedPluginEntries: [] }),
+		);
+
+		shouldThrow = true;
+		await runtime.handlePluginDisable("trusted-host");
+		const failed = await runtime.handlePluginEnable("trusted-host");
+		expect(failed.success).toBe(false);
+		expect(runtime.getPluginRouteMeta("trusted-host", "/ping")).toBeNull();
+		expect(runtime.hooks.getHookCount("media:afterUpload")).toBe(0);
+		expect((await new PluginStateRepository(runtime.db).get("trusted-host"))?.status).toBe(
+			"inactive",
+		);
+
+		shouldThrow = false;
+		const retried = await runtime.handlePluginEnable("trusted-host");
+		expect(retried.success).toBe(true);
 	});
 });
