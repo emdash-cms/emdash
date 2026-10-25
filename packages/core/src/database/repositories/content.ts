@@ -1448,10 +1448,10 @@ export class ContentRepository {
 	}
 
 	/**
-	 * Keep an entry's starting content before its first draft is staged. Until then the
-	 * columns hold it, and once a draft takes over, nothing else does. The revision is never
-	 * the draft, so autosave never replaces it; call this before writing the draft revision,
-	 * so it lists as the oldest. Returns its id, or null when the entry already has one.
+	 * Keep an entry's starting content before its first draft is staged. Until then only the
+	 * columns hold it, and publishing a later draft overwrites them. The revision is never the
+	 * draft, so autosave never replaces it; call this before writing the draft revision, so it
+	 * lists as the oldest. Returns its id, or null when the entry already has a revision.
 	 */
 	async createStartingRevision(
 		revisionRepo: RevisionRepository,
