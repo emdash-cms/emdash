@@ -371,6 +371,37 @@ describeEachDialect("versioned reference selections", (dialect) => {
 		expect(await liveGroups(id)).toEqual([a.translationGroup]);
 	});
 
+	it.each([
+		["created with links", true, false],
+		["created without links", false, false],
+		["duplicated with links", true, true],
+	])("restores the selection an entry was %s", async (_, withLinks, duplicated) => {
+		const [a, b] = [await createPage("A"), await createPage("B")];
+		const created = await runtime.handleContentCreate("posts", {
+			data: { title: "Created" },
+			slug: "created",
+			references: withLinks ? { related_pages: [a.id] } : undefined,
+		});
+		if (!created.success) throw new Error(created.error.message);
+		let id = created.data.item.id;
+		if (duplicated) {
+			await runtime.handleContentPublish("posts", id);
+			const copy = await handleContentDuplicate(ctx.db, "posts", id);
+			if (!copy.success) throw new Error(copy.error.message);
+			id = copy.data.item.id;
+		}
+
+		await runtime.handleContentUpdate("posts", id, { references: { related_pages: [b.id] } });
+		await runtime.handleContentPublish("posts", id);
+		expect(await liveGroups(id)).toEqual([b.translationGroup]);
+
+		const oldest = (await new RevisionRepository(ctx.db).findByEntry("posts", id)).at(-1);
+		const restored = await runtime.handleRevisionRestore(oldest!.id, "user-1");
+		expect(restored.success).toBe(true);
+		await runtime.handleContentPublish("posts", id);
+		expect(await liveGroups(id)).toEqual(withLinks ? [a.translationGroup] : []);
+	});
+
 	it("restores the selection a revision published without naming", async () => {
 		const [a, b] = [await createPage("A"), await createPage("B")];
 		const id = await publishedPost("Untouched", [a.id]);
@@ -432,24 +463,6 @@ describeEachDialect("versioned reference selections", (dialect) => {
 			copyItem!.translationGroup!,
 		);
 		expect(links.items.map((edge) => edge.childGroup)).toEqual([a.translationGroup]);
-	});
-
-	it("restores a duplicate's copied selection with its first revision", async () => {
-		const [a, b] = [await createPage("A"), await createPage("B")];
-		const id = await publishedPost("Copied", [a.id]);
-		const copy = await handleContentDuplicate(ctx.db, "posts", id);
-		if (!copy.success) throw new Error(copy.error.message);
-		const copyId = copy.data.item.id;
-		const [firstRevision] = await new RevisionRepository(ctx.db).findByEntry("posts", copyId);
-
-		await runtime.handleContentUpdate("posts", copyId, { references: { related_pages: [b.id] } });
-		await runtime.handleContentPublish("posts", copyId);
-		expect(await liveGroups(copyId)).toEqual([b.translationGroup]);
-
-		const restored = await runtime.handleRevisionRestore(firstRevision!.id, "user-1");
-		expect(restored.success).toBe(true);
-		await runtime.handleContentPublish("posts", copyId);
-		expect(await liveGroups(copyId)).toEqual([a.translationGroup]);
 	});
 
 	it("refuses to publish a staged selection the relation has since outgrown", async () => {
