@@ -117,31 +117,62 @@ describe("plugin storage index readiness", () => {
 		expect(indexes).toHaveLength(0);
 	});
 
-	it("rejects a state-changing route until a conflicting unique index can be created", async () => {
-		const runtime = await createRuntime({
-			orders: { indexes: ["status"], uniqueIndexes: ["externalId"] },
-		});
-		runtimes.push(runtime);
+	it.each(["request", "scheduled"])(
+		"retries an incomplete unique index sync in the same runtime via %s",
+		async (retryPath) => {
+			const runtime = await createRuntime({
+				orders: { indexes: ["status"], uniqueIndexes: ["externalId"] },
+			});
+			runtimes.push(runtime);
 
-		const repo = new PluginStorageRepository<{ externalId: string }>(runtime.db, "shop", "orders", [
-			"externalId",
-		]);
-		await repo.put("a", { externalId: "duplicate" });
-		await repo.put("b", { externalId: "duplicate" });
+			const repo = new PluginStorageRepository<{ externalId: string }>(
+				runtime.db,
+				"shop",
+				"orders",
+				["externalId"],
+			);
+			await repo.put("a", { externalId: "duplicate" });
+			await repo.put("b", { externalId: "duplicate" });
 
-		const response = await dispatchPluginApiRequest({
-			runtime,
-			pluginId: "shop",
-			path: "/checkout",
-			request: new Request("https://example.com/_emdash/api/plugins/shop/checkout", {
-				method: "POST",
-			}),
-		});
+			const response = await dispatchPluginApiRequest({
+				runtime,
+				pluginId: "shop",
+				path: "/checkout",
+				request: new Request("https://example.com/_emdash/api/plugins/shop/checkout", {
+					method: "POST",
+				}),
+			});
 
-		expect(response.status).toBe(503);
-		const body = (await response.json()) as { error: { code: string } };
-		expect(body.error.code).toBe("STORAGE_INDEXES_NOT_READY");
-	});
+			expect(response.status).toBe(503);
+			const body = (await response.json()) as { error: { code: string } };
+			expect(body.error.code).toBe("STORAGE_INDEXES_NOT_READY");
+			expect(
+				await runtime.db.selectFrom("_plugin_indexes").select("index_name").execute(),
+			).toHaveLength(1);
+
+			await repo.delete("b");
+			if (retryPath === "scheduled") {
+				await runtime.runScheduledTasks();
+				expect(
+					await runtime.db.selectFrom("_plugin_indexes").select("index_name").execute(),
+				).toHaveLength(2);
+			}
+
+			const retryResponse = await dispatchPluginApiRequest({
+				runtime,
+				pluginId: "shop",
+				path: "/checkout",
+				request: new Request("https://example.com/_emdash/api/plugins/shop/checkout", {
+					method: "POST",
+				}),
+			});
+
+			expect(retryResponse.status).toBe(200);
+			expect(
+				await runtime.db.selectFrom("_plugin_indexes").select("index_name").execute(),
+			).toHaveLength(2);
+		},
+	);
 
 	it("concurrent per-plugin sync requests for different plugins are each satisfied", async () => {
 		const runtime = await createMultiPluginRuntime([
