@@ -36,6 +36,7 @@ async function openPicker(
 	top: number,
 	direction: "ltr" | "rtl",
 	pickerTerms = terms,
+	scrollable = false,
 ) {
 	document.documentElement.dir = direction;
 	vi.mocked(apiFetch).mockImplementation(async (url) => {
@@ -62,8 +63,15 @@ async function openPicker(
 	const screen = await render(
 		<DirectionProvider direction={direction}>
 			<Toasty>
-				<div style={{ position: "absolute", top, insetInlineEnd: 16, width: 288 }}>
-					<TaxonomySidebar collection="posts" canManageTaxonomies />
+				<div
+					data-testid="picker-scrollport"
+					style={scrollable ? { height: 400, overflowY: "auto", position: "relative" } : undefined}
+				>
+					<div style={scrollable ? { height: 1600 } : undefined}>
+						<div style={{ position: "absolute", top, insetInlineEnd: 16, width: 288 }}>
+							<TaxonomySidebar collection="posts" canManageTaxonomies />
+						</div>
+					</div>
 				</div>
 			</Toasty>
 		</DirectionProvider>,
@@ -191,9 +199,32 @@ it.each([
 );
 
 it.each(["ltr", "rtl"] as const)(
+	"hides the picker while its anchor is outside a scrolling sidebar (%s)",
+	async (direction) => {
+		const { search } = await openPicker("Categories", 200, direction, terms, true);
+		const searchElement = search.element();
+		const scrollport = page.getByTestId("picker-scrollport").element();
+		const anchor = page.getByRole("button", { name: "Choose Categories" }).element();
+		scrollport.scrollTop = 700;
+		await settlePosition();
+		expect(anchor.getBoundingClientRect().bottom).toBeLessThan(
+			scrollport.getBoundingClientRect().top,
+		);
+		await expect.element(searchElement).not.toBeVisible();
+		scrollport.scrollTop = 0;
+		await expect.element(search).toBeVisible();
+		await search.fill("Term 19");
+		await expect
+			.element(page.getByRole("checkbox", { name: "Term 19", exact: true }))
+			.toBeVisible();
+	},
+);
+
+it.each(["ltr", "rtl"] as const)(
 	"tracks page scrolling without moving the search when results change (%s)",
 	async (direction) => {
 		const { root, search } = await openPicker("Categories", 650, direction);
+		const searchElement = search.element();
 		root.style.minHeight = "1600px";
 		try {
 			window.scrollTo(0, 400);
@@ -209,6 +240,15 @@ it.each(["ltr", "rtl"] as const)(
 			expect(
 				Math.abs(search.element().getBoundingClientRect().top - searchTop),
 			).toBeLessThanOrEqual(1);
+			window.scrollTo(0, 1000);
+			await settlePosition();
+			expect(
+				page.getByRole("button", { name: "Choose Categories" }).element().getBoundingClientRect()
+					.bottom,
+			).toBeLessThan(0);
+			await expect.element(searchElement).not.toBeVisible();
+			window.scrollTo(0, 400);
+			await expect.element(search).toBeVisible();
 		} finally {
 			root.style.minHeight = "";
 			window.scrollTo(0, 0);

@@ -480,7 +480,7 @@ function TaxonomyTermPicker({
 					positionMethod="fixed"
 					sticky
 					collisionAvoidance={{ fallbackAxisSide: "none" }}
-					className="z-[100]"
+					className="z-[100] data-anchor-hidden:invisible"
 				>
 					<PopoverPrimitive.Popup
 						initialFocus={false}
