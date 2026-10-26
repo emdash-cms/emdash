@@ -63,7 +63,9 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	let entryLocale: string | null = null;
 	let entrySlug: string | null = null;
 	if (emdash?.handleContentGet) {
-		const result = await emdash.handleContentGet(collection, id);
+		const result = await emdash.handleContentGet(collection, id, undefined, undefined, {
+			includeStagedSlug: true,
+		});
 		if (!result.success) return unwrapResult(result);
 		entryLocale = result.data?.item?.locale ?? null;
 		entrySlug = result.data?.item?.slug ?? null;
