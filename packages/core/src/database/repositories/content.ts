@@ -1446,9 +1446,9 @@ export class ContentRepository {
 	 * Keep an entry's starting content as a revision before any other revision of it is written.
 	 * Until then only the columns hold it, and publishing a later draft overwrites them. A save
 	 * writes it ahead of its own draft, and publishing an entry with no live or draft revision
-	 * publishes it. Neither removes it, so a save that finds any revision already there can rely
-	 * on the starting one being among them. Returns its id while it is the entry's newest
-	 * revision and holds the stored content, otherwise null.
+	 * publishes it. Neither removes it, so a save that finds any revision already there can skip
+	 * writing it. Returns its id while it is the entry's newest revision and holds the stored
+	 * content, otherwise null.
 	 */
 	async keepStartingRevision(
 		revisionRepo: RevisionRepository,
