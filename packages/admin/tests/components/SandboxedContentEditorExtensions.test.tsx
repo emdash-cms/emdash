@@ -100,7 +100,9 @@ describe("SandboxedContentEditorPanel", () => {
 			await expect.element(rewrite).not.toBeVisible();
 			await expect.element(submit).not.toBeVisible();
 			expect(fetchMock).toHaveBeenCalledTimes(2);
-			expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toMatchObject({
+			const requestBody = fetchMock.mock.calls[1]?.[1]?.body;
+			if (typeof requestBody !== "string") throw new Error("Expected a JSON request body");
+			expect(JSON.parse(requestBody)).toMatchObject({
 				type: interactionType === "version_refresh" ? "panel_load" : interactionType,
 			});
 			expect(fetchMock.mock.calls[1]?.[1]?.signal?.aborted).toBe(false);
