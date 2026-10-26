@@ -1,22 +1,10 @@
-import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
-
 import type { StorageCollection } from "emdash";
 import { PluginStorageRepository } from "emdash";
 import { runMigrations } from "emdash/db";
 import { createDialect } from "emdash/db/sqlite";
+import { Kysely, sql } from "kysely";
 
 import { FORMS_STORAGE_CONFIG } from "../src/storage.js";
-
-/**
- * Kysely is a dependency of emdash, not of this package. Load the copy emdash resolves so the
- * repository and the database share one Kysely module.
- */
-async function loadKysely() {
-	const emdashEntry = createRequire(import.meta.url).resolve("emdash");
-	const kyselyEntry = createRequire(emdashEntry).resolve("kysely");
-	return import(pathToFileURL(kyselyEntry).href);
-}
 
 export interface FormsStorage {
 	db: { destroy(): Promise<void> };
@@ -28,7 +16,6 @@ export interface FormsStorage {
  * one `PluginStorageRepository` per declared collection, and the unique `slug` index.
  */
 export async function createFormsStorage(): Promise<FormsStorage> {
-	const { Kysely, sql } = await loadKysely();
 	const db = new Kysely({ dialect: createDialect({ url: ":memory:" }) });
 	await runMigrations(db);
 
