@@ -1036,7 +1036,10 @@ export class EmDashRuntime {
 		}
 
 		const currentTime = this.runtimeDeps.now?.() ?? new Date();
-		const { published } = await this.runScheduledMaintenanceTick(options, currentTime);
+		const runMaintenance = () => this.runScheduledMaintenanceTick(options, currentTime);
+		const { published } = await (options.invalidateContentCache
+			? this.scheduledContentCacheInvalidator.run(options.invalidateContentCache, runMaintenance)
+			: runMaintenance());
 
 		return { processed, published };
 	}

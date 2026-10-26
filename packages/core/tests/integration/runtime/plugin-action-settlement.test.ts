@@ -1,3 +1,4 @@
+import { AsyncResource } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 
 import { SqliteDialect } from "kysely";
@@ -8,7 +9,7 @@ import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 const { deferred } = vi.hoisted(() => ({ deferred: [] as Array<() => void | Promise<void>> }));
 vi.mock("../../../src/after.js", () => ({
 	after: (fn: () => void | Promise<void>) => {
-		deferred.push(fn);
+		deferred.push(AsyncResource.bind(fn));
 	},
 }));
 
@@ -27,6 +28,7 @@ let cronTargetId = "";
 let loadedSandboxCapabilities: string[] = [];
 const routeGates = new Map<string, Promise<void>>();
 let sandboxCron = async () => {};
+let sandboxAfterPublication = async () => {};
 
 function routeContentId(input: unknown): string {
 	if (
@@ -50,6 +52,7 @@ function createDeps(pluginId: string): RuntimeDependencies {
 				id: `${manifest.id}:${manifest.version}`,
 				invokeHook: vi.fn(async (name) => {
 					if (name === "cron") await sandboxCron();
+					if (name === "content:afterPublish") await sandboxAfterPublication();
 				}),
 				invokeRoute: vi.fn(),
 				terminate: vi.fn(),
@@ -126,7 +129,7 @@ function createDeps(pluginId: string): RuntimeDependencies {
 				capabilities: ["content:publish"],
 				allowedHosts: [],
 				storage: {},
-				hooks: ["cron"],
+				hooks: ["cron", "content:afterPublish"],
 				routes: [],
 			},
 		],
@@ -156,6 +159,7 @@ describe("sandboxed plugin action settlement", () => {
 		afterPublish.mockImplementation(async () => undefined);
 		routeGates.clear();
 		sandboxCron = async () => {};
+		sandboxAfterPublication = async () => {};
 		runtime.setPluginContentCacheInvalidator(undefined);
 	});
 
@@ -440,6 +444,49 @@ describe("sandboxed plugin action settlement", () => {
 		}
 		expect(invalidate).toHaveBeenCalledExactlyOnceWith(["post", ...items.map((item) => item.id)]);
 		await flushDeferred();
+		expect(afterPublish).toHaveBeenCalledTimes(2);
+	});
+
+	it("invalidates sandbox callbacks from deferred scheduled-publication hooks", async () => {
+		const scheduled = await draft();
+		const target = await draft();
+		const invalidate = vi.fn(async (_tags: string[]) => {});
+		const started = Promise.withResolvers<void>();
+		const release = Promise.withResolvers<void>();
+		const invocationId = randomUUID();
+		let invoked = false;
+		sandboxAfterPublication = async () => {
+			if (invoked) return;
+			invoked = true;
+			contentActions.begin?.(pluginId, invocationId);
+			started.resolve();
+			await release.promise;
+			await contentActions.flush(pluginId, invocationId);
+		};
+		await new ContentRepository(runtime.db).update("post", scheduled.id, {
+			status: "scheduled",
+			scheduledAt: new Date(Date.now() - 60_000).toISOString(),
+		});
+		const result = await runtime.runScheduledTasks({ invalidateContentCache: invalidate });
+		expect(result.published).toEqual([{ collection: "post", id: scheduled.id }]);
+		const flushing = flushDeferred();
+		try {
+			await started.promise;
+			const current = await contentActions.getVersioned(pluginId, "post", target.id);
+			if (!current) throw new Error("Content not found");
+			await contentActions.publish(
+				pluginId,
+				"post",
+				target.id,
+				{ _rev: current._rev },
+				invocationId,
+			);
+			expect(invalidate).toHaveBeenCalledExactlyOnceWith(["post", target.id]);
+		} finally {
+			release.resolve();
+			await flushing;
+			await flushDeferred();
+		}
 		expect(afterPublish).toHaveBeenCalledTimes(2);
 	});
 
