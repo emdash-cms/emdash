@@ -23,10 +23,10 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 					onClick={() =>
 						onSelect({
 							id: "m1",
-							filename: "photo.png",
+							filename: "photo one.png",
 							mimeType: "image/png",
-							url: "/media/photo.png",
-							storageKey: "photo.png",
+							url: "/media/photo one.png",
+							storageKey: "uploads/photo one.png",
 							provider: "local",
 							size: 0,
 							createdAt: "",
@@ -110,13 +110,16 @@ describe("BlockKitMediaPickerField", () => {
 	});
 
 	describe("selection", () => {
-		it("rewrites a local-provider item to the /_emdash/api/media/file/ URL", async () => {
+		it("rewrites and encodes a local-provider storage key for the media file route", async () => {
 			const onChange = vi.fn();
 			const { screen } = await renderField({ placeholder: "open", onChange });
 			(screen.getByText("open").element() as HTMLElement).closest("button")!.click();
 			await expect.element(screen.getByTestId("media-picker-modal")).toBeInTheDocument();
 			(screen.getByText("pick-local").element() as HTMLElement).click();
-			expect(onChange).toHaveBeenCalledWith("hero", "/_emdash/api/media/file/photo.png");
+			expect(onChange).toHaveBeenCalledWith(
+				"hero",
+				"/_emdash/api/media/file/uploads/photo%20one.png",
+			);
 		});
 
 		it("uses the raw URL for items inserted via the URL tab (no provider, no storageKey)", async () => {
@@ -130,6 +133,16 @@ describe("BlockKitMediaPickerField", () => {
 	});
 
 	describe("preview", () => {
+		it("shows the selected filename with visible replace and remove actions", async () => {
+			const { screen } = await renderField({
+				value: "/_emdash/api/media/file/diagram%20final.png",
+			});
+
+			await expect.element(screen.getByText("diagram final.png")).toBeInTheDocument();
+			await expect.element(screen.getByRole("button", { name: "Replace Hero" })).toBeVisible();
+			await expect.element(screen.getByRole("button", { name: "Remove Hero" })).toBeVisible();
+		});
+
 		it("renders the image with no-referrer and lazy loading when value is a safe URL", async () => {
 			await renderField({ value: "/_emdash/api/media/file/abc.png" });
 			const img = await waitForImg();
@@ -182,7 +195,7 @@ describe("BlockKitMediaPickerField", () => {
 			await expect.element(screen.getByText("Image not found")).toBeInTheDocument();
 		});
 
-		it("keeps Change and Remove buttons accessible when the image is broken", async () => {
+		it("keeps Replace and Remove buttons accessible when the image is broken", async () => {
 			const { screen } = await renderField({
 				value: "/_emdash/api/media/file/missing.png",
 			});
@@ -191,8 +204,8 @@ describe("BlockKitMediaPickerField", () => {
 			img.dispatchEvent(new Event("error"));
 
 			// Both action buttons must remain in the DOM and accessible
-			await expect.element(screen.getByLabelText("Remove")).toBeInTheDocument();
-			await expect.element(screen.getByText("Change")).toBeInTheDocument();
+			await expect.element(screen.getByRole("button", { name: "Remove Hero" })).toBeVisible();
+			await expect.element(screen.getByRole("button", { name: "Replace Hero" })).toBeVisible();
 		});
 
 		it("maintains a minimum height so the container does not collapse", async () => {
@@ -208,7 +221,7 @@ describe("BlockKitMediaPickerField", () => {
 			await expect.element(screen.getByText("Image not found")).toBeInTheDocument();
 
 			// The remove button must remain accessible via label
-			await expect.element(screen.getByLabelText("Remove")).toBeInTheDocument();
+			await expect.element(screen.getByRole("button", { name: "Remove Hero" })).toBeVisible();
 		});
 	});
 
@@ -219,7 +232,7 @@ describe("BlockKitMediaPickerField", () => {
 				value: "/_emdash/api/media/file/abc.png",
 				onChange,
 			});
-			const removeBtn = screen.getByLabelText("Remove");
+			const removeBtn = screen.getByRole("button", { name: "Remove Hero" });
 			await expect.element(removeBtn).toBeInTheDocument();
 			(removeBtn.element() as HTMLElement).click();
 			expect(onChange).toHaveBeenCalledWith("hero", "");

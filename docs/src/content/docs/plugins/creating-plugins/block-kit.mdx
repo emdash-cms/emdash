@@ -366,6 +366,21 @@ Two behaviors described above currently apply only to sandboxed plugins on admin
 
 The Portable Text field editor also supports `repeater` and `media_picker`. They are not form fields for a sandboxed plugin admin page.
 
+### Repeat images with captions
+
+A repeater in a native plugin's Portable Text block supports `text_input`, `number_input`, `select`, `toggle`, and `media_picker` subfields. Each media picker stores the selected asset's URL string in its row.
+
+The following field captures images and captions. Add `slides` to the block's `fields` array:
+
+```typescript title="src/index.ts"
+import { elements } from "@emdash-cms/blocks";
+
+const slides = elements.repeater("slides", "Slides", [
+	elements.mediaPicker("image", "Image", { mimeTypeFilter: "image/" }),
+	elements.textInput("caption", "Caption"),
+]);
+```
+
 ### Load select options from a plugin route
 
 A `select` in a Portable Text block's `fields` can set `optionsRoute` to fill its dropdown from one of the plugin's own routes. The same works for a `select` nested in a `repeater` in those fields.
