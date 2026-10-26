@@ -41,6 +41,23 @@ describe("RepeaterField", () => {
 				expect.objectContaining({ recall_date: "2026-02-26T09:30:00.000Z" }),
 			]);
 		});
+
+		it("emits null when an optional datetime sub-field is cleared", async () => {
+			const onChange = vi.fn();
+			const screen = await render(
+				<RepeaterField
+					label="Recalls"
+					id="recalls"
+					value={[{ recall_date: "2026-02-26T09:30:00.000Z" }]}
+					onChange={onChange}
+					subFields={[{ slug: "recall_date", type: "datetime", label: "Recall date" }]}
+				/>,
+			);
+
+			await screen.getByLabelText("Recall date").fill("");
+
+			expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ recall_date: null })]);
+		});
 	});
 });
 
