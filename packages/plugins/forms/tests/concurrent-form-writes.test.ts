@@ -202,6 +202,65 @@ describe("deleting a submission", () => {
 	});
 });
 
+describe("a submission deleted the moment it is saved", () => {
+	async function deleteAll(storage: Storage, formId: string) {
+		for (const id of await submissionIds(formId)) {
+			await submissionDeleteHandler({ input: { id }, storage } as never);
+		}
+	}
+
+	it("leaves the count matching the stored rows when deleted before the counter update", async () => {
+		const { storage } = harness;
+		const formId = await createForm(storage);
+
+		const held = holdFirstCall(storage.forms, ["put", "updateIf"]);
+		const submitting = submit({ ...storage, forms: held.proxy }, formId);
+		await held.reached;
+		await deleteAll(storage, formId);
+		held.release();
+		await submitting;
+
+		const rows = await submissionIds(formId);
+		expect((await storedForm(formId)).submissionCount).toBe(rows.length);
+	});
+
+	it("leaves the count matching the stored rows when deletion is tried before the row exists", async () => {
+		const { storage } = harness;
+		const formId = await createForm(storage);
+
+		const held = holdFirstCall(storage.submissions, ["put"]);
+		const submitting = submit({ ...storage, submissions: held.proxy }, formId);
+		await held.reached;
+		await deleteAll(storage, formId);
+		held.release();
+		await submitting;
+
+		expect(await submissionIds(formId)).toHaveLength(1);
+		expect((await storedForm(formId)).submissionCount).toBe(1);
+
+		await deleteAll(storage, formId);
+		expect(await submissionIds(formId)).toHaveLength(0);
+		expect((await storedForm(formId)).submissionCount).toBe(0);
+	});
+
+	it("does not count a submission that fails to save", async () => {
+		const { storage } = harness;
+		const formId = await createForm(storage);
+		const failing = new Proxy(storage.submissions, {
+			get(target, prop) {
+				if (prop === "put") return async () => Promise.reject(new Error("disk full"));
+				const value: unknown = Reflect.get(target, prop);
+				return typeof value === "function" ? value.bind(target) : value;
+			},
+		});
+
+		await expect(submit({ ...storage, submissions: failing }, formId)).rejects.toThrow("disk full");
+
+		expect(await submissionIds(formId)).toHaveLength(0);
+		expect((await storedForm(formId)).submissionCount).toBe(0);
+	});
+});
+
 describe("the retention cleanup", () => {
 	async function ageSubmissions(ids: string[]) {
 		const old = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();

@@ -16,6 +16,7 @@ import { verifyTurnstile } from "../turnstile.js";
 import type { FormDefinition, Submission, SubmissionFile } from "../types.js";
 import { getFormFields } from "../types.js";
 import { evaluateCondition, validateSubmission } from "../validation.js";
+import { decrementSubmissionCount } from "./submission-count.js";
 
 /** Typed access to plugin storage collections */
 function forms(ctx: RouteContext): StorageCollection<FormDefinition> {
@@ -210,15 +211,26 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		},
 	};
 
-	await submissions(ctx).put(submissionId, submission);
-
-	// 6. Update form counters. `form` was read before the awaits above, so writing it back would undo
-	// any edit an admin saved in the meantime; only the counters are written, in one atomic update.
+	// Count it before the row exists: a delete can only lower the count for a row it can see, so
+	// the row must never be visible without its increment. Only the counters are written, because
+	// `form` was read before the awaits above and writing it back would undo an admin's edit.
 	await forms(ctx).updateIf(formId, {
 		where: {},
 		set: { lastSubmissionAt: new Date().toISOString() },
 		delta: { submissionCount: { inc: 1 } },
 	});
+
+	try {
+		await submissions(ctx).put(submissionId, submission);
+	} catch (error) {
+		await decrementSubmissionCount(forms(ctx), formId, 1).catch((releaseError: unknown) => {
+			ctx.log.error("Failed to release submission count", {
+				formId,
+				error: String(releaseError),
+			});
+		});
+		throw error;
+	}
 
 	// The submitter's address (already validated): the recipient of the autoresponder. A required
 	// email field wins over an optional one before it, such as a business's public address, and an
