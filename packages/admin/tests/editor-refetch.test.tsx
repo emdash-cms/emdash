@@ -3,8 +3,10 @@ import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterContextProvider, RouterProvider } from "@tanstack/react-router";
+import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { ContentEditor } from "../src/components/ContentEditor";
 import { ThemeProvider } from "../src/components/ThemeProvider";
@@ -32,6 +34,19 @@ const MANIFEST: AdminManifest = {
 	plugins: {},
 	taxonomies: [],
 	i18n: undefined,
+};
+
+const BODY_MANIFEST: AdminManifest = {
+	...MANIFEST,
+	collections: {
+		posts: {
+			...MANIFEST.collections.posts!,
+			fields: {
+				...MANIFEST.collections.posts!.fields,
+				content: { kind: "portableText", label: "Content" },
+			},
+		},
+	},
 };
 
 type RevisionedContentItem = ContentItem & { _rev: string };
@@ -76,7 +91,15 @@ function contentResponse(item: RevisionedContentItem) {
 	return jsonResponse({ data: { item: contentItem, _rev } });
 }
 
-function createServer() {
+function createServer({
+	manifest = MANIFEST,
+	initialData = { title: "Draft title" },
+	publishedData = { title: "Published title" },
+}: {
+	manifest?: AdminManifest;
+	initialData?: Record<string, unknown>;
+	publishedData?: Record<string, unknown>;
+} = {}) {
 	const originalFetch = globalThis.fetch;
 	const requests: RecordedRequest[] = [];
 	let version = 1;
@@ -84,6 +107,7 @@ function createServer() {
 		status: "draft",
 		liveRevisionId: null,
 		draftRevisionId: null,
+		data: initialData,
 		_rev: revision(version),
 		updatedAt: "2026-01-01T00:00:00Z",
 	});
@@ -94,7 +118,7 @@ function createServer() {
 		const method = (init?.method ?? "GET").toUpperCase();
 		const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
 		requests.push({ method, url, body });
-		if (url === "/_emdash/api/manifest") return jsonResponse({ data: MANIFEST });
+		if (url === "/_emdash/api/manifest") return jsonResponse({ data: manifest });
 		if (url === "/_emdash/api/auth/me") return jsonResponse({ data: { id: "user_1", role: 40 } });
 		if (url.startsWith("/_emdash/api/bylines") || url.startsWith("/_emdash/api/users"))
 			return jsonResponse({ data: { items: [] } });
@@ -146,7 +170,7 @@ function createServer() {
 				version++;
 				current = {
 					...current,
-					data: { title: "Published title" },
+					data: publishedData,
 					draftRevisionId: null,
 					_rev: revision(version),
 				};
@@ -224,6 +248,35 @@ function createServer() {
 
 function revision(version: number) {
 	return btoa(`${version}:2026-01-01T00:00:00Z`);
+}
+
+function textBlocks(text: string) {
+	return [
+		{
+			_type: "block",
+			_key: "b1",
+			style: "normal",
+			markDefs: [],
+			children: [{ _type: "span", _key: "s1", text, marks: [] }],
+		},
+	];
+}
+
+function blockText(blocks: unknown) {
+	return (blocks as Array<{ children: Array<{ text: string }> }>)
+		.map((block) => block.children.map((child) => child.text).join(""))
+		.join("\n");
+}
+
+function bodyEditor() {
+	return document.querySelector<HTMLElement & { editor: Editor }>("#field-content .ProseMirror");
+}
+
+async function typeAtEndOfBody(text: string) {
+	const body = bodyEditor()!;
+	body.focus();
+	body.editor.commands.setTextSelection(body.editor.state.doc.content.size - 1);
+	await userEvent.keyboard(text);
 }
 
 async function renderEditPage(cachedItem?: RevisionedContentItem) {
@@ -442,4 +495,76 @@ describe("ContentEditPage background reads with the real editor", () => {
 			await expect.element(title).toHaveValue("Writer copy");
 		},
 	);
+});
+
+describe("ContentEditPage rich text body", () => {
+	let server: ReturnType<typeof createServer>;
+	beforeEach(() => {
+		vi.useFakeTimers();
+		server = createServer({
+			manifest: BODY_MANIFEST,
+			initialData: { title: "Draft title", content: textBlocks("Draft body") },
+			publishedData: { title: "Published title", content: textBlocks("Published body") },
+		});
+	});
+	afterEach(() => {
+		server.restore();
+		vi.useRealTimers();
+	});
+
+	it("saves the next body edit on top of a body a background read brought in", async () => {
+		const { queryClient } = await renderEditPage();
+		await vi.waitFor(() => expect(bodyEditor()?.textContent).toBe("Draft body"));
+		server.advance({ title: "Draft title", content: textBlocks("Body saved in another tab") });
+		await queryClient.refetchQueries({ queryKey: ["content", "posts", "post_1"] });
+		await vi.advanceTimersByTimeAsync(2500);
+		expect(server.requests.filter((r) => r.method === "PUT")).toHaveLength(0);
+
+		await typeAtEndOfBody("!");
+		await vi.advanceTimersByTimeAsync(2500);
+		const sent = server.requests.find((r) => r.method === "PUT")?.body as
+			| { _rev: string; data: { content: unknown } }
+			| undefined;
+		expect(sent?._rev).toBe(revision(2));
+		expect(blockText(sent?.data.content)).toBe("Body saved in another tab!");
+		expect(blockText(server.current.data.content)).toBe("Body saved in another tab!");
+	});
+
+	it("keeps the body's own autosave when an older read lands after it", async () => {
+		const { queryClient } = await renderEditPage();
+		await vi.waitFor(() => expect(bodyEditor()?.textContent).toBe("Draft body"));
+		const older = server.current;
+		server.delayRead();
+		void queryClient.refetchQueries({ queryKey: ["content", "posts", "post_1"] });
+		await vi.waitFor(() => expect(server.readPending).toBe(true));
+		await typeAtEndOfBody(" more");
+		await vi.advanceTimersByTimeAsync(2500);
+		expect(server.current._rev).toBe(revision(2));
+		server.resolveRead(older);
+		await vi.advanceTimersByTimeAsync(0);
+
+		await typeAtEndOfBody("!");
+		await vi.advanceTimersByTimeAsync(2500);
+		const sent = server.requests.findLast((r) => r.method === "PUT")?.body as
+			| { _rev: string; data: { content: unknown } }
+			| undefined;
+		expect(sent?._rev).toBe(revision(2));
+		expect(blockText(sent?.data.content)).toBe("Draft body more!");
+	});
+
+	it("replaces unsaved body edits after a discard", async () => {
+		vi.useRealTimers();
+		server.publishWithDraft();
+		const { screen } = await renderEditPage();
+		await vi.waitFor(() => expect(bodyEditor()?.textContent).toBe("Draft body"));
+		await typeAtEndOfBody(" with unsaved words");
+		await screen.getByRole("button", { name: "Discard changes", exact: true }).click();
+		await screen
+			.getByRole("dialog", { name: "Discard draft changes?" })
+			.getByRole("button", { name: "Discard changes", exact: true })
+			.element()
+			.click();
+		await vi.waitFor(() => expect(bodyEditor()?.textContent).toBe("Published body"));
+		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+	});
 });

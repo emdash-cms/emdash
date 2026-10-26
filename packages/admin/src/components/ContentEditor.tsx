@@ -119,6 +119,25 @@ function serializeEditorState(input: {
 	});
 }
 
+/** A stored Portable Text value as its field's editor loads it, where anything but a list is empty. */
+function portableTextBlocks(value: unknown): unknown[] {
+	return Array.isArray(value) ? value : [];
+}
+
+/** Whether `next` holds a different value than `current` for a Portable Text field. */
+function changesPortableText(
+	fields: Record<string, FieldDescriptor>,
+	current: Record<string, unknown>,
+	next: Record<string, unknown>,
+): boolean {
+	return Object.entries(fields).some(
+		([name, field]) =>
+			field.kind === "portableText" &&
+			JSON.stringify(portableTextBlocks(current[name])) !==
+				JSON.stringify(portableTextBlocks(next[name])),
+	);
+}
+
 function defaultFieldValues(fields: Record<string, FieldDescriptor>): Record<string, unknown> {
 	const data: Record<string, unknown> = {};
 	for (const [name, field] of Object.entries(fields)) {
@@ -362,6 +381,8 @@ export interface ContentEditorProps {
 	onDirtyChange?: (isDirty: boolean) => void;
 	/** Advanced after an explicit save, discard, or restore has refreshed the item. */
 	itemResetToken?: number;
+	/** Whether the latest item reset follows a discard, which replaces unsaved edits too. */
+	itemResetDiscards?: boolean;
 	onPublish?: (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
@@ -486,6 +507,7 @@ export function ContentEditor({
 	hasSaveConflict,
 	onDirtyChange,
 	itemResetToken = 0,
+	itemResetDiscards = false,
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
@@ -653,7 +675,7 @@ export function ContentEditor({
 	const isViewing = revisionView.viewingId !== null;
 	const isViewingRef = React.useRef(isViewing);
 	isViewingRef.current = isViewing;
-	/** Advanced to remount the field editors after a restore, since the rich text editor reads its value once. */
+	/** Advanced to remount the field editors when the form takes a new rich text value, since the rich text editor reads its value once. */
 	const [fieldsGeneration, setFieldsGeneration] = React.useState(0);
 
 	const handleBlockSidebarDelete = React.useCallback(() => {
@@ -753,6 +775,7 @@ export function ContentEditor({
 			autosaveCompletionTokenRef.current = autosaveCompletionToken ?? 0;
 			const itemReset = itemResetToken > 0 && itemResetToken !== itemResetTokenRef.current;
 			itemResetTokenRef.current = itemResetToken;
+			const discarded = itemReset && itemResetDiscards;
 			// A restore replaces the form whatever it holds, once the item carries the restored draft.
 			const restored = revisionView.isRestoreArrival(item.draftRevisionId, itemReset);
 			setStatus(item.status);
@@ -772,6 +795,16 @@ export function ContentEditor({
 				restored ||
 				(!isPublishingRef.current && !autosaveJustCompleted && !hasSaveConflictRef.current)
 			) {
+				// Apart from a discard or a restore, an item reset follows the writer's own save. The
+				// rich text editor already holds what that save sent, or more if they kept typing.
+				if (
+					restored ||
+					((discarded || !itemReset) && changesPortableText(fields, formDataRef.current, item.data))
+				) {
+					// An open block panel acts on the editor this replaces.
+					handleBlockSidebarClose();
+					setFieldsGeneration((generation) => generation + 1);
+				}
 				setFormData(item.data);
 				setSlug(item.slug || "");
 				setSlugTouched(!!item.slug);
@@ -799,10 +832,7 @@ export function ContentEditor({
 				setReferenceState(seedReferenceState(item));
 				pendingAutosaveReferencesRef.current = null;
 			}
-			if (restored) {
-				setFieldsGeneration((generation) => generation + 1);
-				revisionView.completeRestore();
-			}
+			if (restored) revisionView.completeRestore();
 		}
 	}, [
 		item?.updatedAt,
