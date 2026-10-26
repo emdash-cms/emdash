@@ -6,16 +6,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { CronAccessImpl } from "../../../src/plugins/cron.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
-import type { PluginContext } from "../../../src/plugins/types.js";
+import type { ContentAfterPublishHandler, PluginContext } from "../../../src/plugins/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 
 describe("scheduled plugin cache invalidation", () => {
 	let runtime: EmDashRuntime;
 	let ids: string[];
 	let task: (ctx: PluginContext) => Promise<void>;
+	let afterPublication: ContentAfterPublishHandler;
 
 	async function publish(ctx: PluginContext, id: string) {
 		if (!ctx.content?.getVersioned || !ctx.content.publish) {
@@ -28,6 +30,7 @@ describe("scheduled plugin cache invalidation", () => {
 
 	beforeEach(async () => {
 		task = async () => {};
+		afterPublication = async () => {};
 		runtime = await EmDashRuntime.create({
 			config: {
 				database: {
@@ -41,7 +44,12 @@ describe("scheduled plugin cache invalidation", () => {
 					id: "importer",
 					version: "1.0.0",
 					capabilities: ["content:publish"],
-					hooks: { cron: { handler: async (_event, ctx) => task(ctx) } },
+					hooks: {
+						cron: { handler: async (_event, ctx) => task(ctx) },
+						"content:afterPublish": {
+							handler: async (event, ctx) => afterPublication(event, ctx),
+						},
+					},
 					routes: { publish: { handler: async (ctx) => publish(ctx, ids[1]!) } },
 				}),
 			],
@@ -204,5 +212,34 @@ describe("scheduled plugin cache invalidation", () => {
 			await lateAction;
 		}
 		expect(invalidate.mock.calls).toEqual([[["post", ids[0]]], [["post", ids[1]]]]);
+	});
+
+	it("invalidates writes from scheduled publication hooks even after maintenance returns", async () => {
+		const invalidate = vi.fn(async (_tags: string[]) => {});
+		const onPublished = vi.fn(async () => {});
+		const release = Promise.withResolvers<void>();
+		afterPublication = async (event, ctx) => {
+			if (event.content.id !== ids[0]) return;
+			await release.promise;
+			await publish(ctx, ids[1]!);
+		};
+		const repo = new ContentRepository(runtime.db);
+		await repo.update("post", ids[0]!, {
+			status: "scheduled",
+			scheduledAt: new Date(Date.now() - 60_000).toISOString(),
+		});
+		try {
+			await expect(
+				runtime.runScheduledTasks({ invalidateContentCache: invalidate, onPublished }),
+			).resolves.toEqual({ published: [{ collection: "post", id: ids[0] }] });
+			expect(onPublished).toHaveBeenCalledExactlyOnceWith([{ collection: "post", id: ids[0] }]);
+			expect(invalidate).not.toHaveBeenCalled();
+		} finally {
+			release.resolve();
+			await waitForDeferredTasks();
+		}
+
+		expect((await repo.findById("post", ids[1]!))?.status).toBe("published");
+		expect(invalidate).toHaveBeenCalledExactlyOnceWith(["post", ids[1]]);
 	});
 });

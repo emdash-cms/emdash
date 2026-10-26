@@ -1192,12 +1192,16 @@ export class EmDashRuntime {
 
 		// Plugin cron runs alongside maintenance, as it does on the Node scheduler,
 		// so a slow task cannot hold up a scheduled publication.
-		const [processed, { published }] = await Promise.all([
-			this.runCronTick(options.invalidateContentCache),
+		const runMaintenance = () =>
 			this.runScheduledMaintenanceTick(
 				{ onPublished: options.onPublished, upcomingUntil },
 				currentTime,
-			),
+			);
+		const [processed, { published }] = await Promise.all([
+			this.runCronTick(options.invalidateContentCache),
+			options.invalidateContentCache
+				? this.scheduledContentCacheInvalidator.run(options.invalidateContentCache, runMaintenance)
+				: runMaintenance(),
 		]);
 
 		return { processed, published };
