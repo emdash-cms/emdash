@@ -954,7 +954,14 @@ async function applySeedWrites(
 										seedBylineIdMap,
 										true,
 									);
-									await applyContentTaxonomies(trx, collectionSlug, existing.id, entry, true);
+									await applyContentTaxonomies(
+										trx,
+										collectionSlug,
+										existing.id,
+										entry,
+										existing.locale ?? entryLocale,
+										true,
+									);
 									await applyContentReferences(trx, collectionSlug, existing.id, edges);
 
 									// Seed is declarative — when status is "published", promote to a live
@@ -1084,7 +1091,7 @@ async function applySeedWrites(
 								entry,
 								seedBylineIdMap,
 							);
-							await applyContentTaxonomies(trx, collectionSlug, item.id, entry, false);
+							await applyContentTaxonomies(trx, collectionSlug, item.id, entry, entryLocale, false);
 							await applyContentReferences(trx, collectionSlug, item.id, edges);
 
 							// Seed is declarative — when status is "published", promote to a live
@@ -2095,6 +2102,7 @@ async function applyContentTaxonomies(
 	collectionSlug: string,
 	contentId: string,
 	entry: { taxonomies?: Record<string, string[]> },
+	locale: string,
 	isUpdate: boolean,
 ): Promise<void> {
 	const termRepo = new TaxonomyRepository(db);
@@ -2115,10 +2123,14 @@ async function applyContentTaxonomies(
 
 	for (const [taxonomyName, termSlugs] of Object.entries(entry.taxonomies)) {
 		for (const termSlug of termSlugs) {
-			const term = await termRepo.findBySlug(taxonomyName, termSlug);
-			if (term) {
-				await termRepo.attachToEntry(collectionSlug, contentId, term.id);
+			const term = await termRepo.findBySlug(taxonomyName, termSlug, locale);
+			if (!term) {
+				console.warn(
+					`content.${collectionSlug}: taxonomy term "${taxonomyName}/${termSlug}" not found in locale "${locale}". Skipping assignment.`,
+				);
+				continue;
 			}
+			await termRepo.attachToEntry(collectionSlug, contentId, term.id);
 		}
 	}
 
