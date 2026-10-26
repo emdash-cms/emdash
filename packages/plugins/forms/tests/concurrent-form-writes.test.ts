@@ -189,7 +189,7 @@ describe("deleting a submission", () => {
 		expect((await storedForm(formId)).submissionCount).toBe(1);
 	});
 
-	it("does not take the count below zero", async () => {
+	it("does not lower a count that is already zero", async () => {
 		const { storage } = harness;
 		const formId = await createForm(storage);
 		await submit(storage, formId);
@@ -249,6 +249,26 @@ describe("the retention cleanup", () => {
 });
 
 describe("updating a form", () => {
+	it("keeps a pause saved while an editor save that leaves out the status is in flight", async () => {
+		const { storage } = harness;
+		const formId = await createForm(storage);
+
+		const held = holdFirstCall(storage.forms, ["put", "updateIf"]);
+		const saving = update(
+			{ ...storage, forms: held.proxy },
+			{ id: formId, name: "Support", settings: { submitLabel: "Send" } },
+		);
+		await held.reached;
+		await update(storage, { id: formId, status: "paused" });
+		held.release();
+		await saving;
+
+		const form = await storedForm(formId);
+		expect(form.status).toBe("paused");
+		expect(form.name).toBe("Support");
+		expect(form.settings.submitLabel).toBe("Send");
+	});
+
 	it("still refuses a slug another form uses", async () => {
 		const { storage } = harness;
 		const formId = await createForm(storage);

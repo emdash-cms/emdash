@@ -65,15 +65,18 @@ export async function handleCleanup(ctx: PluginContext) {
 
 				const ids = batch.items.map((item) => item.id);
 				if (ids.length > 0) {
-					deletedCount += await submissions(ctx).deleteMany(ids);
+					// Per batch, so a run that stops partway still accounts for what it removed.
+					const deleted = await submissions(ctx).deleteMany(ids);
+					if (deleted > 0) {
+						await decrementSubmissionCount(forms(ctx), formItem.id, deleted);
+						deletedCount += deleted;
+					}
 				}
 
 				cursor = batch.cursor;
 			} while (cursor);
 
 			if (deletedCount > 0) {
-				await decrementSubmissionCount(forms(ctx), formItem.id, deletedCount);
-
 				ctx.log.info("Cleaned up expired submissions", {
 					formId: formItem.id,
 					formName: form.name,

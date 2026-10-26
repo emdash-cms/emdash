@@ -162,18 +162,16 @@ export async function formsUpdateHandler(ctx: RouteContext<FormUpdateInput>) {
 	if (updated.settings.redirectUrl === "") updated.settings.redirectUrl = undefined;
 	if (updated.settings.webhookUrl === "") updated.settings.webhookUrl = undefined;
 
-	// The counters are left out so a submission recorded since `existing` was read is kept.
-	const saved = await forms(ctx).updateIf(input.id, {
-		where: {},
-		set: {
-			name: updated.name,
-			slug: updated.slug,
-			pages: updated.pages,
-			settings: updated.settings,
-			status: updated.status,
-			updatedAt: updated.updatedAt,
-		},
-	});
+	// Only the fields this request sent are written. The rest of `existing` may be stale by now: a
+	// counter bumped by a submission, or a status toggled by another admin.
+	const set: Partial<FormDefinition> = { updatedAt: updated.updatedAt };
+	if (input.name !== undefined) set.name = updated.name;
+	if (input.slug !== undefined) set.slug = updated.slug;
+	if (input.pages !== undefined) set.pages = updated.pages;
+	if (input.settings !== undefined) set.settings = updated.settings;
+	if (input.status !== undefined) set.status = updated.status;
+
+	const saved = await forms(ctx).updateIf(input.id, { where: {}, set });
 	if (!saved.applied) {
 		throw PluginRouteError.notFound("Form not found");
 	}

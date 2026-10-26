@@ -2,7 +2,7 @@ import type { StorageCollection } from "emdash";
 import { PluginStorageRepository } from "emdash";
 import { runMigrations } from "emdash/db";
 import { createDialect } from "emdash/db/sqlite";
-import { Kysely, sql } from "kysely";
+import { Kysely } from "kysely";
 
 import { FORMS_STORAGE_CONFIG } from "../src/storage.js";
 
@@ -13,16 +13,13 @@ export interface FormsStorage {
 
 /**
  * The plugin's storage as the runtime builds it: core migrations on an in-memory SQLite database,
- * one `PluginStorageRepository` per declared collection, and the unique `slug` index.
+ * and one `PluginStorageRepository` per declared collection.
  */
 export async function createFormsStorage(): Promise<FormsStorage> {
 	const db = new Kysely({ dialect: createDialect({ url: ":memory:" }) });
 	await runMigrations(db);
 
 	const pluginId = "emdash-forms";
-	await sql`CREATE UNIQUE INDEX "uidx_plugin_emdash-forms_forms_slug"
-		ON _plugin_storage(plugin_id, collection, json_extract(data, '$.slug'))`.execute(db);
-
 	const storage = {
 		forms: new PluginStorageRepository(db, pluginId, "forms", [
 			...FORMS_STORAGE_CONFIG.forms.indexes,
