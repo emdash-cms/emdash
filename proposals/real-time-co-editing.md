@@ -54,7 +54,7 @@ Ben's Wi-Fi drops for twenty seconds. He keeps typing, and his edits merge and s
 - **"Saved" is true.** A client shows "Saved" only when a save holds all its edits.
 - **Live outside writes,** shown in open editors within a second.
 - **Deliberate publishing.** Publishing is one operation, by someone with publish permission, on a save made at that moment.
-- **Hosts:** Cloudflare Workers and single-process Node.js, over WebSockets, with no third-party service and no Cloudflare code in `emdash`.
+- **Hosts:** Cloudflare Workers and Node.js, over WebSockets, with no third-party service and no Cloudflare code in `emdash`. On Node.js, several processes can share one database, and only one at a time stores each entry's room.
 - **On by default,** with no added queries on logged-out routes.
 
 ## Non-goals
@@ -63,6 +63,7 @@ Ben's Wi-Fi drops for twenty seconds. He keeps typing, and his edits merge and s
 - Comments, suggestions, tracked changes and approval workflows.
 - Offline edits that outlive the room or the tab.
 - Co-editing in the visual editor, whose writes still merge into open rooms.
+- Co-editing one entry across several Node.js processes. Its room runs in one of them, and joins that reach another wait.
 - Merging inside fields other than rich text, `blocks` and `repeater` included.
 - A per-collection setting.
 
@@ -97,6 +98,7 @@ Yjs is the CRDT library co-editing uses. The rest of this RFC relies on these fa
 | Shared document      | The room's `Y.Doc`, which each client (an editor tab) replicates                                                                                                                                                                                                                                               |
 | Stored entry         | The entry row and its revisions in the site database                                                                                                                                                                                                                                                           |
 | Room storage         | Where a room keeps its document and room record ([Data model](#data-model)): the Durable Object's SQLite on Workers, two site-database tables on Node.js                                                                                                                                                       |
+| Claim                | On Node.js, the mark in room storage that names the one process running a room ([Claims on Node.js](#claims-on-nodejs))                                                                                                                                                                                        |
 | Co-editor, viewer    | A user connected with write access, or with read access only                                                                                                                                                                                                                                                   |
 | Checkpoint           | A snapshot recorded when every edit in it has been saved. An update is **covered** when the last checkpoint contains it. The room records a checkpoint at initialization, at each save, including one skipped because nothing changed, and after a merge into a document with nothing uncovered.               |
 | Kept checkpoint      | A checkpoint made for **Save** or an operation, whose revision later autosaves don't replace. It's saved without `skipRevision`, or marks the draft revision as kept when nothing changed.                                                                                                                     |
@@ -158,7 +160,7 @@ sequenceDiagram
 
 ### Guarantees
 
-1. **One room per entry.** An entry's edits merge and save in one place: Workers runs one Durable Object per name, and Node.js keeps one room registry in a single process.
+1. **One room per entry.** An entry's edits merge and save in one place: Workers runs one Durable Object per name, and on Node.js a room writes room storage only while its process holds the entry's claim.
 2. **One lineage.** A client merges only into the lineage it started from, and resets otherwise, because merging a replica of another document duplicates its content.
 3. **One saver.** Only the room saves the shared document, so a browser that fell behind can't save over newer work. The room's saves send `_rev`, so none lands over a write it hasn't merged.
 4. **One step at a time.** The room runs initialization, saves and merges one at a time, so each checkpoint contains the one before it.
@@ -178,7 +180,7 @@ sequenceDiagram
 - **Normalizing plugins,** such as the trailing paragraph, ordered-list joining and table keys, act only on what the client's own transaction changed. The room writes initial documents, merges and overwrites in the form those plugins produce, so opening an entry or receiving a merge makes no client write.
 - **Undo.** Rich text and the slash menu use `Y.UndoManager`, limited to the client's own origin, instead of TipTap's `undoRedo`. Other inputs keep the browser's undo, and room merges are in no one's undo history.
 - **Presence** is Yjs awareness: each client's field and, in rich text, its cursor and selection. The room sets each connection's user from its token, and relays awareness only for the first Yjs client ID the connection announces, if no other connection holds it. Viewers appear by name only, with no cursor or field.
-- **Plugin UI.** The plugin block modal edits the block by `_key`, not position, and refuses if the block is gone. A remote change remounts a field widget when the widget doesn't have focus, and a plugin editor action is one undo step.
+- **Plugin UI.** The plugin block modal edits the block by `_key`, not position, and refuses if the block is gone. A remote change remounts a field widget when the widget doesn't have focus. Editor panels and actions with `admin.editor-draft` access send the replica's values, with the `_rev` from the latest `checkpoint` as `baseRevision`. While the entry's room is open, the server skips the `baseRevision` check, because room saves change `_rev` every few seconds. The client applies a returned patch in one transaction, one undo step in rich text, unless a field it changes was edited after the capture.
 
 ### Joining a room
 
@@ -187,11 +189,12 @@ The client calls `POST /_emdash/api/content/{collection}/{id}/room` with its ses
 - **A room,** as `{ url, token }`, for callers with `content:read_drafts`. Users whom `requireEntryEditPerm` allows join as co-editors, and the rest as viewers. The route gets the token from the room, passing the entry's `_rev`, status and author as it checked them. At a connection limit, the client opens read-only.
 - **Single-editor mode** when co-editing is off, the collection has no revisions, the host can't run rooms, the session is a playground, or the caller already holds the entry's user lock, for example in another tab, and shares it as today. Also when the room won't run: it can't store, or it must initialize and the entry is over 1 MB or has rich-text marks the editor can't represent.
 - **`ENTRY_LOCKED`** when another user holds a user lock. **Take over**, which needs edit access as today, repeats the join with `takeover: true` and deletes that lock.
+- **`409 ROOM_BUSY`** when another Node.js process holds the room's [claim](#claims-on-nodejs), or this process is shutting down. The client joins again every 5 s, so a tab that hasn't synced stays read-only, and one that has keeps its edits.
 - **`409 CLIENT_OUTDATED`** when the fingerprint differs from the server's. The client saves its uncovered edits as a recovery revision and reloads the admin.
 
-Rooms take no edit lock. While a room is open, today's lock route reports the room as the entry's holder and grants no user lock, and the route's `POST`, which takes and renews locks, deletes any user lock it finds. Single-editor tabs therefore open read-only, and a tab displaced by **Take over** turns read-only at its next heartbeat.
+Rooms take no edit lock. While a room is open, or another Node.js process holds its claim, today's lock route reports the room as the entry's holder and grants no user lock, and the route's `POST`, which takes and renews locks, deletes any user lock it finds. Single-editor tabs therefore open read-only, and a tab displaced by **Take over** turns read-only at its next heartbeat.
 
-The token is random, single use, valid for 60 s, kept in the room's memory, and bound to the user, their name, the access level and the fingerprint. Every connection, reconnects included, needs a fresh token, and the room refuses an upgrade without a valid one. The client connects to `/_emdash/rooms/{collection}/{id}?token=…`, receives `welcome`, and stays read-only until y-protocols sync completes.
+The token is random, single use, valid for 60 s, kept in the room's memory, and bound to the user, their name, the access level and the fingerprint. Every connection, reconnects included, needs a fresh token. The client opens its WebSocket on the join route's path, `/_emdash/api/content/{collection}/{id}/room?token=…`, so one routing rule covers both requests, receives `welcome`, and stays read-only until y-protocols sync completes. A socket without a valid token, or one that reaches a Node.js process that doesn't run the room or is shutting down, is closed at once with `busy`, and the client joins again 5 s later, as after `ROOM_BUSY`.
 
 - **Initialize.** A room without state, when asked for a token, loads the stored entry, builds its document with the shared editor schema, and picks a lineage. It records the document's snapshot as the last checkpoint, and the entry as the merge base, with document hashes from the new document.
 - **Lineage.** A client whose replica comes from another lineage resets.
@@ -199,13 +202,14 @@ The token is random, single use, valid for 60 s, kept in the room's memory, and 
 - **Another build.** The room refuses a token whose `version` or `commit` isn't its own build's, and the client opens in single-editor mode.
 - **Stale room.** If a token's fingerprint differs from the room record's, an entry the room loads has another `hash`, or the room loads a document that another EmDash build made, the room never reads that document with the schema. It saves any uncovered updates as a recovery revision, closes every connection with `rejoin`, drops its state, and initializes again when asked for a token.
 - **Connection lifetime.** On every message, the room closes connections older than 15 minutes. Those clients join again, which rechecks their session and access.
+- **No WebSockets.** If a browser session's first three sockets all fail to open, a proxy or network blocks WebSockets. The client then joins with `singleEditor: true`: the room forgets that user's unused tokens, the route logs a `[co-editing]` warning, and it returns single-editor mode, read-only while the room has connections. The client keeps single-editor mode for the rest of the browser session.
 
 ### Updates and room storage
 
 - **Updates.** The room applies updates only from co-editors, up to 1 MB each. An update that is too large or doesn't decode closes its connection with `reset`. Viewers send only sync step 1 and awareness, and the room ignores anything else from them. A client sends incremental updates only after its sync step 2.
 - **Presence** is relayed, never stored, and removed when its connection closes.
 - **Storing.** The room relays each update at once, and stores it within 1 s.
-- **Restarts.** After a deploy, an eviction or a crash, the room loads its document from room storage when a message needs it, writes with a new Yjs client ID, and gets missing updates from reconnecting clients' sync step 2, credited to those clients' users. An update is lost only if the room lost it and every client that held it is gone, so it was never "Saved".
+- **Restarts.** After a deploy, an eviction or a crash, the room loads its document from room storage when a message needs it, writes with a new Yjs client ID, and gets missing updates from reconnecting clients' sync step 2, credited to those clients' users. An update is lost only if the room lost it and every client that held it is gone, so it was never "Saved". On Node.js, the rooms of a process that crashed, or was killed before its shutdown ended, first wait for its [claims](#claims-on-nodejs) to expire.
 - **Dropping state.** An hour after its last store or closed connection, if it isn't open, the room saves any uncovered updates as a recovery revision, never into the draft, and drops its state. If that fails, it keeps its state and tries again an hour later. A room still holding state past that hour drops it before it answers a token request. A drop first forgets unused tokens, and token requests wait until it ends.
 - **Compaction.** Past 1 MB of appended updates, the room replaces them, in one transaction, with one state from `Y.encodeStateAsUpdate`. The document keeps Yjs garbage collection on. Values over 1 MB are stored in parts. A compacted state over 2 MB means the document has outgrown rooms: the room saves, closes every connection with `rejoin`, and drops its state, falling back as a drop does if the save fails. Joins then initialize again, in single-editor mode if the entry is over 1 MB.
 
@@ -223,7 +227,7 @@ Each save that sends fields is one call to the content update steps, made as one
 - **Hashes** are SHA-256 of RFC 8785 canonical JSON, for each field and for the slug. The stored slug is the draft revision's staged `_slug`, or else the live slug. After a save, the room records the slug it sent, if any, and otherwise keeps the previous hash.
 - **Conflict.** On `409 CONFLICT`, the room merges the entry as for a notification and saves again once. If that conflicts too, it waits for the next update or notification.
 - **Refusals.** A `403`, including for a disabled or deleted actor, means the actor lost edit access. The room closes that user's connections with `rejoin` and saves as the next most recent editor. If no one in `editedBy` can save, the edits wait until someone who can sends an update, or until the room drops its state. A `404` means the entry is in Trash or gone. The room then saves any uncovered updates as a recovery revision, unless the entry is gone, closes every connection with `deleted`, and drops its state. Any other refusal, such as a validation error, reaches clients as a `notice`, and the room tries again at the next update.
-- **Save steps.** The content `PUT` route's edit check and runtime update move into a function the route and rooms share. Room saves also apply the site-write fence, as plugin writes do, and a refusal counts as a failed save. Like plugin writes, they don't check edit locks. As draft saves, they purge no route cache.
+- **Save steps.** The content `PUT` route's edit check and runtime update move into a function the route and rooms share. It returns the `_rev` and stored values of its own write, where today's update reads the entry again after writing. Room saves also apply the site-write fence, as plugin writes do, and a refusal counts as a failed save. Like plugin writes, they don't check edit locks. As draft saves, they purge no route cache.
 - **Revisions.** A prerequisite fix marks autosave revisions in `revisions.kind`, so an autosave replaces the previous draft revision only if that one was an autosave too. The new revision's `edited_by` includes the replaced one's.
 - **Hooks** run on every save, with the actor as the event's actor, and get `editedBy` ([Compatibility](#compatibility-and-migration)).
 
@@ -263,7 +267,7 @@ Scheduled publishing and plugin actions skip these steps. They keep their own `_
 
 A client resets after a lineage mismatch, a refused update, or a join that returns single-editor mode.
 
-Recovery revisions use a new route, `POST /_emdash/api/content/{collection}/{id}/revisions`, with the session, `X-EmDash-Request` and edit access. It stores the document's fields and slug as a revision marked `recovery`, without moving the draft or live pointer. It ignores edit locks and checks size and shape but not fields, so content from before a schema change still saves. A room saves its own recovery revisions the same way, without an edit check, attributed to everyone in `editedBy`. Recovery revisions appear in Revisions with their author and `editedBy`, and are pruned like the others. Because they skip validation and hooks, restoring one saves its fields through the runtime's update, with validation and `content:beforeSave` hooks, as the restoring user.
+Recovery revisions use a new route, `POST /_emdash/api/content/{collection}/{id}/revisions`, with the session, `X-EmDash-Request` and edit access. It stores the document's fields and slug as a revision marked `recovery`, without moving the draft or live pointer. It ignores edit locks and checks size and shape but not fields, so content from before a schema change still saves. A room saves its own recovery revisions the same way, without an edit check and without an author, listing everyone in `editedBy`. Recovery revisions appear in Revisions with their author and `editedBy`, and are pruned like the others. Because they skip validation and hooks, restoring one saves its fields through the runtime's update, with validation and `content:beforeSave` hooks, as the restoring user.
 
 A client keeps its edits in the tab for copying when it has lost edit access, including when it joins again as a viewer, when it's closed with `deleted`, or when its recovery save fails.
 
@@ -272,13 +276,22 @@ A client keeps its edits in the tab for copying when it has lost edit access, in
 The room logic lives in `emdash`, uses `yjs`, `y-protocols`, `lib0`, `@tiptap/y-tiptap` and the shared editor schema, and runs behind internal host boundaries ([Interfaces](#interfaces)). A room reaches the site through core functions that run inside `withEmDashRuntime()`, which gives code outside a request the site's runtime and, where the database has read replicas, reads from the primary.
 
 - **Cloudflare Workers.** Each room is an `EmDashRoom` Durable Object from `@emdash-cms/cloudflare`, with hibernatable WebSockets. Each socket's user, access level, connection time and Yjs client ID live in its attachment, so they survive hibernation. The package's Worker export forwards room upgrades before Astro runs, and routes reach rooms by RPC through the `EMDASH_ROOMS` binding. A room calls back into its own Worker through an `EmDashRoomSite` entrypoint, using `exports` from `cloudflare:workers` as the plugin sandbox does for `PluginBridge`. The output gate holds each save until the store before it is durable. Every store and closed connection sets the drop alarm an hour ahead, and an alarm that fires while the room is open sets itself again.
-- **Node.js.** Astro has no WebSocket API ([withastro/roadmap#695](https://github.com/withastro/roadmap/discussions/695)), so a new `emdash start` command runs the `@astrojs/node` standalone server in one process through its `startServer()`, and hands room upgrades to the room registry. Under `astro dev`, the integration does the same from Vite's dev server. The bundled copy of `emdash` that routes use owns the registry, the room code and Yjs, so a site started any other way gets single-editor mode. Rooms store and save on shutdown. Every store and closed connection updates `_emdash_rooms.updated_at`, and an hourly cleanup applies the drop rule to rooms that aren't open and haven't been updated for an hour, including rooms left by a crash.
+- **Node.js.** Astro has no WebSocket API ([withastro/roadmap#695](https://github.com/withastro/roadmap/discussions/695)), so a new `emdash start` command runs the `@astrojs/node` standalone server in one process through its `startServer()`, and hands room upgrades to the room registry. Under `astro dev`, the integration does the same from Vite's dev server. The bundled copy of `emdash` that routes use owns the registry, the room code and Yjs, so a site started any other way gets single-editor mode. On shutdown, a process answers joins with `ROOM_BUSY` and closes new sockets with `busy`, and its rooms close every connection with `rejoin`, store and save, then release their [claims](#claims-on-nodejs). Every store and closed connection updates `_emdash_rooms.updated_at`, and an hourly cleanup applies the drop rule to rooms that aren't open and haven't been updated for an hour, including rooms left by a crash.
+
+### Claims on Node.js
+
+A site can run several Node.js processes on one database, each with its own room registry. A claim keeps each room in one of them: the `host` and `claimed_at` columns of the room's `_emdash_rooms` row, where `host` is a random ID that each process keeps with its registry. Workers needs no claims, because each room is one Durable Object.
+
+- **Taking.** A process that doesn't hold a room's claim takes it before it opens the room for a token request or drops its state, and then loads the room from room storage, so it starts from what the last holder stored. The claim is one conditional write that succeeds if the row is missing, its `host` is null, or its claim hasn't been renewed for a minute. When a token request's claim fails, the join gets `ROOM_BUSY`.
+- **Holding.** Every room-storage transaction starts by renewing the claim, setting `claimed_at` where `host` is this process, which also orders it against any concurrent claim. A process renews every claim it holds at least every 20 s, as stores already do while people type. A renewal that matches no row means the room lost its claim: it closes every connection with `rejoin` and forgets its document. Until a room notices, its site writes are guarded only by `_rev`, so a recovery revision can be saved twice.
+- **Releasing.** A process clears `host` once the room isn't open and has finished writing, including after a token request that doesn't open it.
+- **Clock.** Every timestamp comes from the database clock, as for edit locks.
 
 ## Compatibility and migration
 
-- **On by default** on Node.js sites started with `emdash start`, and on Cloudflare sites with the `EmDashRoom` binding and exports ([Configuration](#configuration)). Templates and the Docker image include both, and other sites keep today's behavior. `coEditing: false` turns co-editing off.
+- **On by default** on Node.js sites started with `emdash start`, and on Cloudflare sites with the `EmDashRoom` binding and exports ([Configuration](#configuration)). Templates and the Docker image include both, and other sites keep today's behavior. `coEditing: false` turns co-editing off. Sites that run several Node.js processes route each entry's room path to one process, or turn co-editing off ([Drawbacks](#drawbacks-and-risks)). A reverse proxy must forward WebSocket upgrades on that path, or clients fall back to single-editor mode.
 - **Migrations** are additive and forward-only, with no backfill: `revisions.kind`, `revisions.edited_by`, and the room-storage tables, which every site database gets and only Node.js uses.
-- **API.** The revisions list gains `editedBy`, and the content `PUT` doesn't change. Two routes are new: joining a room, and recovery revisions. `ContentHookEvent` gains `editedBy`. A room's save can hold other people's edits under the actor's name, so a hook that checks the actor's role before accepting content must check everyone in it. In a room, `content:beforeSave` hooks get only the fields a checkpoint changed, as they already do for visual-editor saves.
+- **API.** The revisions list gains `editedBy`, and the content `PUT` doesn't change. Two routes are new: joining a room, and recovery revisions. The lock route reports an open room in a new `room` field, and its `POST` then deletes user locks instead of granting one. While a room is open, editor-draft requests skip the `baseRevision` check, and the editor refuses a plugin's patch only when a field it changes was edited after the capture, not after any edit. `ContentHookEvent` gains `editedBy`. A room's save can hold other people's edits under the actor's name, so a hook that checks the actor's role before accepting content must check everyone in it. In a room, `content:beforeSave` hooks get only the fields a checkpoint changed, as they already do for visual-editor saves.
 - **Locks.** The editor takes no edit lock in a room. While a room is open, writes that today get `ENTRY_LOCKED` land and merge. Writers that send `_rev` can get more `409 CONFLICT`, and so can tabs opened before co-editing was on, which keep single-editor mode until they reload. MCP publish, unpublish, schedule and discard, which require `_rev`, conflict whenever the room holds unsaved edits, and `content_update` with a `status` keeps its field changes when that publish or unpublish conflicts.
 - **The autosave fix** applies to every site: autosaves stop deleting revisions that manual saves created.
 - **Turning co-editing off** takes effect when the site restarts or redeploys, and clients reset to single-editor mode. Older EmDash versions ignore the new columns and tables.
@@ -290,7 +303,8 @@ The room logic lives in `emdash`, uses `yjs`, `y-protocols`, `lib0`, `@tiptap/y-
 - **Joining** needs the admin session and `X-EmDash-Request`, so another site can't obtain a token. EmDash never logs tokens, and a token that a platform logs in a URL has already been used.
 - **Saves are authorized as the actor,** with that user's current role. A room reaches the site in-process on Node.js and through its own Worker's entrypoint on Workers, and neither path is reachable from the internet.
 - **One user's save holds others' edits.** Every co-editor has edit access to the entry, and EmDash has no content that only some roles may store: HTML blocks are sanitized or isolated when rendered, whoever saved them. Hooks get `editedBy`, which the room takes from the token of each connection that sent updates, for their own checks. After a restart, it names the users who resent lost updates, not their authors. If EmDash adds content that only some roles may store, checkpoints must check it against everyone in `editedBy`.
-- **Access changes** reach a room within the 15-minute connection lifetime, and at once after a status or author change or a save refused with `403`. Contributors co-edit their own drafts, and rejoin as viewers after a publish.
+- **Forged items.** The room doesn't check the client IDs on an update's items, because clients resend each other's updates after a restart. A malicious co-editor who wins a race to the room with items under another client's ID replaces that client's edits there, while that client still shows "Saved".
+- **Access changes** reach a room within the 15-minute connection lifetime, and at once after a save refused with `403` or a status or author change, though a change written by another Node.js process arrives at the room's next save or join. Contributors co-edit their own drafts, and rejoin as viewers after a publish.
 - **Privacy.** Anyone who can open an entry sees who else has it open. Room storage holds Yjs updates, with content, until the room drops its state. Logs carry IDs and lineages, never content or tokens.
 
 ## Performance
@@ -299,26 +313,29 @@ The room logic lives in `emdash`, uses `yjs`, `y-protocols`, `lib0`, `@tiptap/y-
 - **Saving** costs one save per open entry every few seconds while someone types: today's autosave rate, made once however many people edit. The room serializes only touched fields and sends only changed ones.
 - **Notifications** add one room call per write to an existing entry, after the response, and an entry load when the room is open. A room that isn't open answers without loading its document, and so does a room that wakes only for presence. The room's own writes send none.
 - **Room storage** writes each second's updates as one row, and compaction bounds it.
+- **Claims** on Node.js add a write when a room opens and when it closes, and one every 20 s while its process holds the claim with nothing to store. Asking whether a room is open reads its claim.
 - **Opening an entry** adds the join request and a WebSocket. Where a room could exist, a single-editor tab's lock heartbeat asks whether the entry's room is open.
 - **Memory.** Node.js keeps a room's document in memory while it has connections, and browsers load the co-editing code only when it's active.
 
 ## Failure handling
 
-| Failure                                                      | What happens                                                                                                                                                         |
-| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Room storage is lost                                         | Reconnecting clients reset, and the room initializes from the stored entry                                                                                           |
-| The room can't store                                         | The room closes every connection, and clients reset. Token requests store first, so joins get single-editor mode until storing works again.                          |
-| A save fails: validation, a hook, or the site is unreachable | Every client sees the error, the edits stay in the room, and the room tries again at the next update. When it drops its state, it saves them as a recovery revision. |
-| A notification is lost                                       | The room merges the write when its next save gets `409 CONFLICT`, or at the next join                                                                                |
+| Failure                                                          | What happens                                                                                                                                                                            |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Room storage is lost                                             | Reconnecting clients reset, and the room initializes from the stored entry                                                                                                              |
+| The room can't store                                             | The room closes every connection, and clients reset. Token requests store first, so joins get single-editor mode until storing works again.                                             |
+| A save fails: validation, a hook, or the site is unreachable     | Every client sees the error, the edits stay in the room, and the room tries again at the next update. When it drops its state, it saves them as a recovery revision.                    |
+| WebSockets can't reach the room                                  | When a browser session's first three sockets fail to open, the client uses single-editor mode for the session, and the join route logs a warning                                        |
+| A notification is lost                                           | The room merges the write when its next save gets `409 CONFLICT`, or at the next join                                                                                                   |
+| A Node.js process crashes, or is killed before its shutdown ends | Joins for its rooms get `ROOM_BUSY`, and single-editor tabs open read-only, until its claims expire, up to a minute later. The rooms then load from room storage, as after any restart. |
 
 Rooms log with the `[co-editing]` prefix. Operators turn co-editing off with the site option, and recover content from **Revisions**.
 
 ## Verification
 
 - **Unit and property tests:** coverage, including delete-only edits; compaction; the lineage, stale-room and fingerprint rules; and the merge rule, including two outside writes to one field between saves, a write after a restore, and an unrecorded save.
-- **A fixed-seed convergence harness** runs clients with the editor's real schema and plugins against a room, through random edits, delivery orders, drops and reconnects, restarts that lose unstored updates, unrecorded saves, outside writes and operations. Each run checks that replicas converge, each checkpoint contains the one before it, no covered edit is lost, and no rich text is duplicated.
-- **workerd tests** for hibernation, restarts, the timers and storage failures, and **integration tests** on SQLite, libSQL and PostgreSQL for the join route, room saves, notifications from every writer, the recovery route and the autosave fix.
-- **Playwright tests:** the [Example](#example), two tabs of one user, a viewer, a Contributor after a publish, restore and discard while others type, a reset, and outside writes appearing live. A manual pass covers a screen reader, a keyboard, Arabic and phone width.
+- **A fixed-seed convergence harness** runs clients with the editor's real schema and plugins against a room, through random edits, delivery orders, drops and reconnects, restarts that lose unstored updates, a second Node.js process taking over a stalled room, unrecorded saves, outside writes and operations. Each run checks that replicas converge, each checkpoint contains the one before it, no covered edit is lost, and no rich text is duplicated.
+- **workerd tests** for hibernation, restarts, the timers and storage failures, and **integration tests** on SQLite, libSQL and PostgreSQL for the join route, room saves, notifications from every writer, the recovery route, the autosave fix, and two Node.js processes sharing one database.
+- **Playwright tests:** the [Example](#example), two tabs of one user, a viewer, a Contributor after a publish, restore and discard while others type, a reset, outside writes appearing live, and a blocked WebSocket falling back to single-editor mode. A manual pass covers a screen reader, a keyboard, Arabic and phone width.
 
 ### Acceptance gates
 
@@ -361,7 +378,8 @@ Co-editing ships, on by default, when these gates pass, 100,000 harness runs pas
 - **Direct row updates,** such as the WordPress import's URL rewrite, neither notify nor change `_rev`, so the next save of that field overwrites them, as today's autosave does.
 - **One schema for two places.** The editor and rooms share one schema module, so every editor change lands there ([Yjs in brief](#yjs-in-brief)).
 - **Fingerprint changes reset rooms.** An EmDash upgrade, or a change to any collection, plugin or taxonomy definition, resets every open room within 15 minutes. Clients reload, and unsynced edits become recovery revisions. During a gradual deployment, clients on another version than the room's get single-editor mode.
-- **Several Node.js processes** on one database would each run their own room for an entry, sharing its room storage: edits would be lost, and one process's cleanup could drop another's state. Rooms on Node.js need a single process; sites that run more set `coEditing: false`.
+- **Several Node.js processes** run each entry's room in the process that claimed it, and people co-edit only once both their join and its upgrade, which share a path, reach that process. Routing that path by entry makes it immediate. Otherwise, people pinned to another process wait read-only, with no **Take over**, while the room is open there, and with round-robin routing even someone editing alone can need several tries, because a missed upgrade leaves an unused token that holds the claim for up to 60 s. While a drop holds a claim, other processes' lock routes report the room as open.
+- **Writes on another Node.js process** reach the room as a lost notification does, at its next save or join. Co-editors then aren't told to reload values outside the document, such as SEO, so one saved from a stale form can overwrite another co-editor's change, and a restore there merges like any outside write.
 - **`emdash start` relies on undocumented `@astrojs/node` APIs,** `startServer()` and `ASTRO_NODE_AUTOSTART`. If they change, it can serve the entry's exported `handler` from its own HTTP server.
 
 ## Open questions
@@ -379,10 +397,10 @@ Messages are binary. Yjs sync and awareness use y-protocols' message types 0 and
 | ------------ | --------- | --------------------------------------------------------------------------------------------------------------- |
 | `welcome`    | Room      | The lineage, the client's access level, and the last checkpoint's snapshot                                      |
 | `save`       | Co-editor | A request for a kept checkpoint now, for the **Save** button or before an operation                             |
-| `checkpoint` | Room      | The new last checkpoint's snapshot and `editedBy`                                                               |
+| `checkpoint` | Room      | The new last checkpoint's snapshot, `editedBy`, and the merge base's `_rev`                                     |
 | `notice`     | Room      | What changed and who changed it: an operation, an outside write, values outside the document, or a refused save |
 
-Close codes are 4400 `rejoin`, 4401 `reset` and 4402 `deleted`. The client never reconnects on its own: it joins again for a fresh token. The room relays awareness to every connection, the sender included.
+Close codes are 4400 `rejoin`, 4401 `reset`, 4402 `deleted` and 4403 `busy`. The client never reconnects on its own: it joins again for a fresh token. The room relays awareness to every connection, the sender included.
 
 ### Interfaces
 
@@ -392,18 +410,21 @@ The host boundaries are internal and can change until co-editing is stable:
 // Called by routes and the write path: Durable Object RPC on Workers, the registry on `globalThis` on Node.js.
 interface RoomHost {
 	// Stores first. Resolves to null when the room can't store, runs another build than the
-	// token's, or won't run for the entry; to "full" when a connection limit is reached; and to
-	// "stale" when the entry's status or author changed since the route checked access.
+	// token's, or won't run for the entry; to "full" when a connection limit is reached; to
+	// "stale" when the entry's status or author changed since the route checked access; and to
+	// "busy" when another Node.js process holds the room's claim or this process is shutting down.
 	issueToken(
 		roomId: string,
 		claims: TokenClaims,
-	): Promise<{ token: string } | "full" | "stale" | null>;
-	// Whether the room is open, for today's lock route.
+	): Promise<{ token: string } | "full" | "stale" | "busy" | null>;
+	// Whether the room is open, for today's lock route. On Node.js, also while another process
+	// holds its claim.
 	isOpen(roomId: string): Promise<boolean>;
 	// Waits for any other hold, saves a kept checkpoint as `actorId`, and holds other saves and
 	// merges until `release`. With `rev`, resolves to "conflict" and does neither if `rev` isn't
 	// the stored entry's or the room holds uncovered updates. Resolves to null when the room
-	// isn't open, and rejects with the save's error when the save fails.
+	// isn't open or runs in another Node.js process, and rejects with the save's error when the
+	// save fails.
 	save(
 		roomId: string,
 		actorId: string,
@@ -414,6 +435,8 @@ interface RoomHost {
 	// Queues a merge of the stored entry and returns at once. `outside` names the values outside
 	// the document that the write changed, for clients to reload.
 	notify(roomId: string, outside: OutsideValue[]): Promise<void>;
+	// Forgets the user's unused tokens, for a client that falls back to single-editor mode.
+	forgetTokens(roomId: string, userId: string): Promise<void>;
 }
 
 interface TokenClaims {
@@ -448,6 +471,13 @@ interface RoomStore {
 	writeRecord(record: RoomRecord, update?: Uint8Array): Promise<void>;
 	compact(state: Uint8Array): Promise<void>;
 	drop(): Promise<void>;
+	// Node.js claims; on Workers, `claim` and `renew` resolve to true. `claim` takes the room if no
+	// live claim holds it, and the room loads after it. Every other method first renews this
+	// process's claim in its transaction: `renew` resolves to false, and the others reject, when
+	// the claim isn't this process's.
+	claim(): Promise<boolean>;
+	renew(): Promise<boolean>;
+	release(): Promise<void>;
 }
 ```
 
@@ -455,14 +485,14 @@ Sockets and timers come from the host.
 
 ### Data model
 
-| Change                                                                                                                                             | Purpose                                                                                       |
-| -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `revisions.kind`, a nullable text: `autosave`, `recovery`, or null for a kept revision                                                             | Autosaves replace only autosaves, and restoring a recovery revision runs validation and hooks |
-| `revisions.edited_by`, a nullable JSON list of user IDs                                                                                            | Who edited a revision                                                                         |
-| `_emdash_room_updates`: `room_id`, `seq`, `part` and `data` (a blob on SQLite, `bytea` on PostgreSQL), with primary key (`room_id`, `seq`, `part`) | Room storage: updates and compacted state                                                     |
-| `_emdash_rooms`: `room_id`, `part`, `record` (JSON) and `updated_at`, with primary key (`room_id`, `part`)                                         | Room storage: the room record                                                                 |
+| Change                                                                                                                                                     | Purpose                                                                                       |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `revisions.kind`, a nullable text: `autosave`, `recovery`, or null for a kept revision                                                                     | Autosaves replace only autosaves, and restoring a recovery revision runs validation and hooks |
+| `revisions.edited_by`, a nullable JSON list of user IDs                                                                                                    | Who edited a revision                                                                         |
+| `_emdash_room_updates`: `room_id`, `seq`, `part` and `data` (a blob on SQLite, `bytea` on PostgreSQL), with primary key (`room_id`, `seq`, `part`)         | Room storage: updates and compacted state                                                     |
+| `_emdash_rooms`: `room_id`, `part`, a nullable `record` (JSON), a nullable `host` and `claimed_at`, and `updated_at`, with primary key (`room_id`, `part`) | Room storage: the room record, and on Node.js the room's claim                                |
 
-The room record holds the lineage and fingerprint; the last checkpoint's snapshot; the merge base; the users with updates the last checkpoint doesn't contain, latest first; and the entry's status and author when the room last loaded it. On Workers, each Durable Object keeps the two room-storage tables in its own SQLite, where `room_id` is constant. On Node.js, `room_id` is `{collection}:{entry ID}`.
+The room record holds the lineage and fingerprint; the last checkpoint's snapshot; the merge base; the users with updates the last checkpoint doesn't contain, latest first; and the entry's status and author when the room last loaded it. On Workers, each Durable Object keeps the two room-storage tables in its own SQLite, where `room_id` is constant. On Node.js, `room_id` is `{collection}:{entry ID}`, and the row with `part` 0 holds the claim, with a null `record` until the room initializes.
 
 ### Configuration
 
@@ -479,20 +509,23 @@ Co-editing is on by default, and `coEditing: false` in the `emdash()` options tu
 
 These are starting values, for the prototype to measure.
 
-| Limit                                                | Value                                 |
-| ---------------------------------------------------- | ------------------------------------- |
-| Largest update                                       | 1 MB encoded                          |
-| Largest entry for a room                             | 1 MB of stored data                   |
-| Largest compacted document                           | 2 MB encoded                          |
-| Largest recovery revision                            | 4 MB of stored data                   |
-| Connections per room                                 | 25                                    |
-| Connections per user in a room                       | 5                                     |
-| Token                                                | 60 s, single use                      |
-| Connection lifetime                                  | 15 minutes                            |
-| Store delay                                          | 1 s                                   |
-| Compaction threshold, and part size                  | 1 MB                                  |
-| Save delay                                           | 2 s after the latest co-editor update |
-| Longest wait between saves while updates arrive      | 10 s                                  |
-| Operation hold                                       | 30 s                                  |
-| A room stays open after its last connection closes   | 10 s                                  |
-| Room state after the last store or closed connection | 1 hour                                |
+| Limit                                                | Value                                             |
+| ---------------------------------------------------- | ------------------------------------------------- |
+| Largest update                                       | 1 MB encoded                                      |
+| Largest entry for a room                             | 1 MB of stored data                               |
+| Largest compacted document                           | 2 MB encoded                                      |
+| Largest recovery revision                            | 4 MB of stored data                               |
+| Connections per room                                 | 25                                                |
+| Connections per user in a room                       | 5                                                 |
+| Token                                                | 60 s, single use                                  |
+| Connection lifetime                                  | 15 minutes                                        |
+| Store delay                                          | 1 s                                               |
+| Compaction threshold, and part size                  | 1 MB                                              |
+| Save delay                                           | 2 s after the latest co-editor update             |
+| Longest wait between saves while updates arrive      | 10 s                                              |
+| Operation hold                                       | 30 s                                              |
+| A room stays open after its last connection closes   | 10 s                                              |
+| Room state after the last store or closed connection | 1 hour                                            |
+| Claim renewal and claim expiry (Node.js)             | 20 s, 1 minute                                    |
+| Sockets that fail to open before single-editor mode  | 3, before any socket in the browser session opens |
+| Join retry after `ROOM_BUSY` or a `busy` close       | 5 s                                               |

@@ -81,7 +81,7 @@ In collections that use co-editing:
   - Opening a version changes only your own editor. Everyone else keeps editing, and the list doesn't reorder while you browse it.
   - **Back to editing** returns to the shared document as it is now.
   - If an autosave replaces the version you're viewing, Restore reports that the version is gone, and the list refreshes.
-- **Restore.** This replaces "Restore works like it does today" and the restore-conflict case. Restore applies the version for everyone. The room first keeps the current draft as a version, the version is restored, and then the room copies the restored fields into the shared document. Restore refuses a version whose rich text has marks the editor can't represent.
+- **Restore.** This replaces "Restore works like it does today" and the restore-conflict case. Restore applies the version for everyone. The room first keeps the current draft as a version, the version is restored, and then the room copies the restored fields into the shared document. While someone co-edits the entry, Restore refuses a version whose rich text has marks the editor can't represent.
 
 ## Verification
 
