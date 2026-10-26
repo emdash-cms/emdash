@@ -29,7 +29,7 @@ import {
 import { cn } from "../../lib/utils";
 import { getLocaleDir } from "../../locales/config.js";
 import { MediaPickerModal } from "../MediaPickerModal";
-import { useCaptionField } from "./useCaptionField.js";
+import { useCaptionField, useCaptionText } from "./useCaptionField.js";
 
 type FieldCheck = (value: unknown) => boolean;
 
@@ -176,6 +176,9 @@ function VideoNodeView({
 	const captionRef = React.useRef<HTMLTextAreaElement>(null);
 	const caption = isString(attrs.caption) ? attrs.caption : "";
 	const captionField = useCaptionField(caption);
+	const captionText = useCaptionText(caption, (value) => {
+		if (editor.isEditable) updateAttributes({ caption: value });
+	});
 	const width = isDimension(attrs.width) ? attrs.width : undefined;
 	const height = isDimension(attrs.height) ? attrs.height : undefined;
 	const figureRef = React.useRef<HTMLElement>(null);
@@ -331,11 +334,9 @@ function VideoNodeView({
 							rows={1}
 							tabIndex={-1}
 							dir="auto"
-							value={caption}
+							value={captionText.value}
 							data-video-stop=""
-							onChange={(event) => {
-								if (editor.isEditable) updateAttributes({ caption: event.target.value });
-							}}
+							onChange={captionText.onChange}
 							onFocus={() => {
 								captionField.onFocus();
 								selectBlock(false);

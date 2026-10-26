@@ -7,6 +7,8 @@
 import type { APIRoute } from "astro";
 
 import { apiError, handleError } from "#api/error.js";
+import { MediaRepository } from "#db/repositories/media.js";
+import { contentDisposition } from "#media/content-disposition.js";
 import {
 	IMMUTABLE_IMAGE_CACHE,
 	MUTABLE_MEDIA_CACHE_CONTROL,
@@ -134,11 +136,23 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 
 		// Safe image/media types can render inline; everything else (SVG, PDF,
 		// HTML, JS, etc.) must be downloaded to prevent stored XSS.
-		if (SAFE_INLINE_TYPES.has(result.contentType)) {
-			headers["Content-Disposition"] = "inline";
-		} else {
-			headers["Content-Disposition"] = "attachment";
+		const disposition = SAFE_INLINE_TYPES.has(result.contentType) ? "inline" : "attachment";
+
+		// Name the download after the uploaded filename. Without this the
+		// browser falls back to the last path segment of the URL -- the storage
+		// key -- and every downloaded document is named after its ULID.
+		// Skipped for inline types, where no filename is shown to anyone.
+		let filename: string | null = null;
+		if (disposition === "attachment") {
+			// A failed lookup must not fail the download: naming the file is a
+			// nicety, and media with no row is served under the bare disposition.
+			try {
+				filename = await new MediaRepository(emdash.db).findFilenameByStorageKey(key);
+			} catch {
+				filename = null;
+			}
 		}
+		headers["Content-Disposition"] = contentDisposition(disposition, filename);
 
 		const body = request.method === "HEAD" ? null : result.body;
 

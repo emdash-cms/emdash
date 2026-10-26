@@ -1,8 +1,8 @@
 /**
  * Boots a runtime with the AI Search plugin as a site that lists `aiSearch()`
  * does, and drives it through content actions, plugin routes, and scheduled
- * tasks. Only the AI Search namespace binding is replaced, with an in-memory
- * service that indexes what the plugin uploads. As in AI Search, an upload is
+ * tasks. Only the AI Search provider is replaced, with an in-memory one that
+ * indexes what the plugin uploads. As in AI Search, an upload is
  * queued and becomes searchable only after `INDEXING_MS` on the fake clock;
  * until then, searches still find the version it replaces.
  */
@@ -22,14 +22,23 @@ import type { PluginResponse } from "../../../src/plugin-types.js";
 
 const INDEXING_MS = 30_000;
 
-const aiSearch = vi.hoisted(() => ({ current: null as FakeAiSearch | null }));
+const aiSearch = vi.hoisted(() => ({
+	current: null as FakeAiSearch | null,
+	accountChanged: false,
+}));
 
-vi.mock("cloudflare:workers", () => ({
-	env: {
-		get AI_SEARCH() {
-			return aiSearch.current;
-		},
-	},
+vi.mock("../../../../plugins/ai-search/src/connection.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../../../plugins/ai-search/src/connection.js")>()),
+	openProvider: async () => aiSearch.current,
+	saveCredentials: async (
+		_ctx: unknown,
+		_options: unknown,
+		_input: unknown,
+		save?: { ensureInstance?: boolean },
+	) => ({
+		created: save?.ensureInstance ? (await aiSearch.current!.ensureInstance()).created : false,
+		accountChanged: aiSearch.accountChanged,
+	}),
 }));
 
 // The plugin imports its helpers from the `emdash` package. Resolve it to this
@@ -41,13 +50,14 @@ describe("ai-search plugin", () => {
 	let service: FakeAiSearch;
 
 	beforeEach(async () => {
-		service = new FakeAiSearch({ indexingMs: INDEXING_MS });
+		service = new FakeAiSearch({ indexingMs: INDEXING_MS, requireInstance: true });
 		aiSearch.current = service;
 		vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-09-01T12:00:00.000Z") });
 		const sqlite = new Database(":memory:");
 		runtime = await EmDashRuntime.create({
 			config: {
 				database: { entrypoint: `test-ai-search-${randomUUID()}`, config: {}, type: "sqlite" },
+				trustedProxyHeaders: ["x-real-ip"],
 			},
 			createDialect: () => new SqliteDialect({ database: sqlite }),
 			createStorage: null,
@@ -81,21 +91,35 @@ describe("ai-search plugin", () => {
 		await waitForDeferredTasks();
 		await runtime.shutdown();
 		aiSearch.current = null;
+		aiSearch.accountChanged = false;
 		vi.useRealTimers();
 	});
 
-	async function route(method: "GET" | "POST", path: string, body?: unknown) {
+	async function route(
+		method: "GET" | "POST",
+		path: string,
+		body?: unknown,
+		headers: Record<string, string> = {},
+	) {
 		const request = new Request(`http://localhost/_emdash/api/plugins/ai-search/${path}`, {
 			method,
 			...(body === undefined
-				? {}
-				: { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
+				? { headers }
+				: {
+						headers: { "content-type": "application/json", ...headers },
+						body: JSON.stringify(body),
+					}),
 		});
 		return runtime.handlePluginApiRoute("ai-search", method, path, request);
 	}
 
-	async function data(method: "GET" | "POST", path: string, body?: unknown) {
-		const result = await route(method, path, body);
+	async function data(
+		method: "GET" | "POST",
+		path: string,
+		body?: unknown,
+		headers?: Record<string, string>,
+	) {
+		const result = await route(method, path, body, headers);
 		if (!result.success) throw new Error(`${path} failed: ${JSON.stringify(result.error)}`);
 		return result.data;
 	}
@@ -109,6 +133,11 @@ describe("ai-search plugin", () => {
 	/** Saves `config` and runs its build from the settings page. */
 	async function setUpSearchWith(config: unknown) {
 		await data("POST", "config/save", config);
+		await runBuild();
+	}
+
+	/** Runs the current build from the settings page. */
+	async function runBuild() {
 		for (let step = 0; step < 20; step++) {
 			const { build } = (await data("POST", "index/step")) as { build: unknown };
 			if (!build) return;
@@ -116,10 +145,13 @@ describe("ai-search plugin", () => {
 		throw new Error("the build did not finish");
 	}
 
-	async function search(query: string) {
-		const response = (await data("POST", "search", {
-			messages: [{ role: "user", content: query }],
-		})) as PluginResponse;
+	async function search(query: string, ip?: string) {
+		const response = (await data(
+			"POST",
+			"search",
+			{ messages: [{ role: "user", content: query }] },
+			ip ? { "x-real-ip": ip } : {},
+		)) as PluginResponse;
 		const body = response.body?.kind === "text" ? JSON.parse(response.body.value) : null;
 		return { status: response.status, body };
 	}
@@ -255,9 +287,9 @@ describe("ai-search plugin", () => {
 	it("retries an upload that failed when a post was published", async () => {
 		await setUpSearch();
 		const post = await createPost("Pruning", "Pruning hedges in winter.");
-		service.items.failKeys.add(`posts/${post.id}.md`);
+		service.failKeys.add(`posts/${post.id}.md`);
 		await publish(post.id);
-		service.items.failKeys.clear();
+		service.failKeys.clear();
 
 		await tick(2);
 		finishIndexing();
@@ -271,9 +303,9 @@ describe("ai-search plugin", () => {
 		const { config } = (await data("GET", "config")) as {
 			config: { sources: Record<string, { fields: string[] }> };
 		};
-		const upload = service.items.upload.bind(service.items);
+		const upload = service.uploadItem.bind(service);
 		let saved = false;
-		service.items.upload = async (...args) => {
+		service.uploadItem = async (...args) => {
 			if (!saved) {
 				saved = true;
 				config.sources.posts!.fields = ["title"];
@@ -283,7 +315,7 @@ describe("ai-search plugin", () => {
 		};
 
 		await publish(post.id);
-		service.items.upload = upload;
+		service.uploadItem = upload;
 		await tick(1);
 		finishIndexing();
 
@@ -297,6 +329,94 @@ describe("ai-search plugin", () => {
 			status: 409,
 			error: { code: "NOT_CONFIGURED" },
 		});
+	});
+
+	it("reports credentials Cloudflare rejects, so the admin can ask for new ones", async () => {
+		await setUpSearch();
+		service.failAll = "unauthorized";
+
+		expect(await data("GET", "status")).toMatchObject({
+			connected: false,
+			method: null,
+			credentialsRejected: true,
+			configured: true,
+		});
+	});
+
+	it("still reports status while Cloudflare rate-limits it, so the admin stays usable", async () => {
+		await setUpSearch();
+		service.failAll = "rate-limited";
+
+		expect(await data("GET", "status")).toMatchObject({
+			connected: true,
+			rateLimited: true,
+			credentialsRejected: false,
+		});
+	});
+
+	it("reports a rejected token that Cloudflare answers as rate-limited", async () => {
+		await setUpSearch();
+		service.failAll = "rate-limited";
+		service.rejectsToken = true;
+
+		expect(await data("GET", "status")).toMatchObject({
+			connected: false,
+			rateLimited: false,
+			credentialsRejected: true,
+		});
+	});
+
+	it("rebuilds the index in a new account that has no instance yet", async () => {
+		await publish((await createPost("Rose garden", "Planting roses.")).id);
+		await setUpSearch();
+		service = new FakeAiSearch({ indexingMs: INDEXING_MS, requireInstance: true });
+		aiSearch.current = service;
+
+		expect(await data("GET", "status")).toMatchObject({ instanceMissing: true });
+
+		await data("POST", "connection/save", { accountId: "other-account" });
+		await runBuild();
+		finishIndexing();
+
+		expect(await data("GET", "status")).toMatchObject({ instanceMissing: false });
+		expect(await resultUrls("roses")).toEqual(["/posts/rose-garden"]);
+	});
+
+	it("rebuilds the index in a new account whose instance an earlier failed save created", async () => {
+		await publish((await createPost("Rose garden", "Planting roses.")).id);
+		await setUpSearch();
+		service = new FakeAiSearch({ indexingMs: INDEXING_MS, requireInstance: true });
+		await service.ensureInstance();
+		aiSearch.current = service;
+		aiSearch.accountChanged = true;
+
+		await data("POST", "connection/save", { accountId: "other-account" });
+		await runBuild();
+		finishIndexing();
+
+		expect(await resultUrls("roses")).toEqual(["/posts/rose-garden"]);
+	});
+
+	it("rebuilds the index when setup is saved again after the instance went missing", async () => {
+		await publish((await createPost("Rose garden", "Planting roses.")).id);
+		await setUpSearch();
+		service = new FakeAiSearch({ indexingMs: INDEXING_MS, requireInstance: true });
+		aiSearch.current = service;
+
+		await setUpSearch();
+		finishIndexing();
+
+		expect(await resultUrls("roses")).toEqual(["/posts/rose-garden"]);
+	});
+
+	it("limits how often one visitor searches through the REST API", async () => {
+		await setUpSearch();
+		service.kind = "rest";
+
+		for (let i = 0; i < 30; i++) expect((await search("garden", "192.0.2.10")).status).toBe(200);
+		expect((await search("garden", "192.0.2.10")).status).toBe(429);
+		expect((await search("garden", "192.0.2.11")).status).toBe(200);
+		expect(service.searches).toHaveLength(31);
 	});
 
 	it("answers 503 before AI Search is set up and while it is failing", async () => {

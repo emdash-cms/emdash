@@ -2,14 +2,12 @@ import { Loader, Meter } from "@cloudflare/kumo";
 import { Check } from "@phosphor-icons/react";
 import * as React from "react";
 
-import { call } from "./admin-api.js";
+import { call, type Status, statusPollInterval } from "./admin-api.js";
 import type { BuildState } from "./build.js";
 
 /** Bounds on the wait before asking again while another runner has the build or it is paused. */
 const MIN_RETRY_MS = 3_000;
 const MAX_RETRY_MS = 30_000;
-const POLL_MS = 5_000;
-const SLOW_POLL_MS = 20_000;
 
 /**
  * Advances the build while the page is open, refreshing the status after each
@@ -48,23 +46,11 @@ export function useBuildRunner(
 
 /**
  * Refreshes the status while AI Search processes uploads, and less often while
- * failed uploads wait for an automatic retry or a build's uploads may not show
- * in AI Search's stats yet.
+ * failed uploads wait for an automatic retry, a build's uploads may not show
+ * in AI Search's stats yet, or Cloudflare is limiting requests.
  */
-export function useStatusPoll(
-	status: {
-		build: BuildState | null;
-		totals: { processing: number };
-		retrying: boolean;
-		recentBuild: boolean;
-	} | null,
-	refreshStatus: () => Promise<unknown>,
-) {
-	let intervalMs: number | null = null;
-	if (status && !status.build) {
-		if (status.totals.processing > 0) intervalMs = POLL_MS;
-		else if (status.retrying || status.recentBuild) intervalMs = SLOW_POLL_MS;
-	}
+export function useStatusPoll(status: Status | null, refreshStatus: () => Promise<unknown>) {
+	const intervalMs = status ? statusPollInterval(status) : null;
 	React.useEffect(() => {
 		if (intervalMs === null) return;
 		const timer = setInterval(() => void refreshStatus().catch(() => {}), intervalMs);

@@ -126,4 +126,8 @@ A rate-limited purge fails without an error in the admin, and the affected pages
 
 ## Browser caching is separate
 
-The route cache can afford long TTLs because EmDash invalidates it; browser caches are not invalidated. When a page passes a cache hint with a last-modified date (as entry and collection hints do) and sets no `Cache-Control` itself, Astro sends `Cache-Control: no-cache`, so browsers revalidate on every visit. If you set your own header, for example with `Astro.response.headers.set("Cache-Control", ...)`, keep it short (minutes, not days), so a publish also reaches returning visitors quickly. `stale-while-revalidate` in that header gives returning visitors instant loads while their browser revalidates in the background.
+The route cache can afford long TTLs because EmDash invalidates it; browser caches are not invalidated. EmDash hints supply purge tags, not automatic `Last-Modified` validators or Astro's implicit `Cache-Control: no-cache` header. One entry's modification time does not cover settings, related lists, or deleted entries, so using it as a page validator can keep an outdated body through conditional `304` responses.
+
+Set browser caching with `Astro.response.headers.set("Cache-Control", ...)`: use `no-cache` for a fresh check on each visit, or a short lifetime (minutes, not days). To enable conditional requests, supply your own `lastModified` hint whose timestamp advances whenever any dependency of the response changes.
+
+For an entry's displayed modification date, use `entry.data.updatedAt` rather than `cacheHint.lastModified`, which EmDash does not populate automatically.
