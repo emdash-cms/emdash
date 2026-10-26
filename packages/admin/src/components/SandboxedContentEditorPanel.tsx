@@ -254,8 +254,8 @@ export function SandboxedContentEditorPanel({
 				})}
 			>
 				<div className="min-w-0 px-2 pt-2 pb-1">
-					{loading && !loaded ? (
-						<div className="space-y-2 py-2" aria-label={t`Loading plugin panel`}>
+					{loading ? (
+						<div role="status" className="space-y-2 py-2" aria-label={t`Loading plugin panel`}>
 							<SkeletonLine blockHeight={20} minWidth={60} maxWidth={95} />
 							<SkeletonLine blockHeight={20} minWidth={35} maxWidth={80} />
 						</div>
@@ -272,13 +272,16 @@ export function SandboxedContentEditorPanel({
 								{t`Retry`}
 							</Button>
 						</div>
-					) : loaded ? (
-						<BlockRenderer
-							blocks={blocks}
-							onAction={handleAction}
-							resolveLinkTarget={(target) => resolvePluginLinkTarget(pluginId, target)}
-						/>
 					) : null}
+					{loaded && !error && (
+						<div hidden={loading}>
+							<BlockRenderer
+								blocks={blocks}
+								onAction={handleAction}
+								resolveLinkTarget={(target) => resolvePluginLinkTarget(pluginId, target)}
+							/>
+						</div>
+					)}
 				</div>
 			</Collapsible.Panel>
 		</Collapsible.Root>

@@ -1,4 +1,5 @@
 import { Toasty } from "@cloudflare/kumo";
+import type { Block } from "@emdash-cms/blocks";
 import * as React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -44,6 +45,122 @@ describe("SandboxedContentEditorPanel", () => {
 		await userEvent.click(screen.getByRole("button", { name: "Findings" }));
 		await userEvent.click(screen.getByRole("button", { name: "Findings" }));
 		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it.each(["block_action", "form_submit", "version_refresh"] as const)(
+		"shows loading feedback and hides interactive blocks while %s is pending",
+		async (interactionType) => {
+			const blocks: Block[] = [
+				{ type: "header", text: "Saved findings" },
+				{
+					type: "actions",
+					elements: [
+						{ type: "button", action_id: "analyze", label: "Analyze" },
+						{ type: "button", action_id: "rewrite", label: "Rewrite" },
+					],
+				},
+				{
+					type: "form",
+					fields: [{ type: "text_input", action_id: "summary", label: "Summary" }],
+					submit: { label: "Save findings", action_id: "save" },
+				},
+			];
+			const pending = Promise.withResolvers<Response>();
+			const fetchMock = vi
+				.fn<typeof fetch>()
+				.mockResolvedValueOnce(Response.json({ data: { blocks } }))
+				.mockReturnValueOnce(pending.promise);
+			vi.stubGlobal("fetch", fetchMock);
+			const panel = (versionToken: string) => (
+				<SandboxedContentEditorPanel
+					pluginId="content-guard"
+					panelId="findings"
+					title="Findings"
+					collection="posts"
+					entryId="post-1"
+					versionToken={versionToken}
+				/>
+			);
+			const screen = await render(panel("v1"), { wrapper: Wrapper });
+			await userEvent.click(screen.getByRole("button", { name: "Findings", exact: true }));
+			await expect.element(screen.getByRole("heading", { name: "Saved findings" })).toBeVisible();
+			await screen.getByRole("textbox", { name: "Summary" }).fill("Keep my findings");
+			const rewrite = screen.getByRole("button", { name: "Rewrite" }).element();
+			const submit = screen.getByRole("button", { name: "Save findings" }).element();
+			if (interactionType === "version_refresh") {
+				await screen.rerender(panel("v2"));
+			} else {
+				await userEvent.click(
+					screen.getByRole("button", {
+						name: interactionType === "block_action" ? "Analyze" : "Save findings",
+					}),
+				);
+			}
+			await expect.element(screen.getByLabelText("Loading plugin panel")).toBeVisible();
+			await expect.element(rewrite).not.toBeVisible();
+			await expect.element(submit).not.toBeVisible();
+			expect(fetchMock).toHaveBeenCalledTimes(2);
+			expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toMatchObject({
+				type: interactionType === "version_refresh" ? "panel_load" : interactionType,
+			});
+			expect(fetchMock.mock.calls[1]?.[1]?.signal?.aborted).toBe(false);
+
+			pending.resolve(
+				Response.json({
+					data: { blocks: [{ type: "header", text: "Updated findings" }, ...blocks.slice(1)] },
+				}),
+			);
+			await expect.element(screen.getByRole("heading", { name: "Updated findings" })).toBeVisible();
+			await expect.element(screen.getByLabelText("Loading plugin panel")).not.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("textbox", { name: "Summary" }))
+				.toHaveValue("Keep my findings");
+			await expect.element(screen.getByRole("button", { name: "Rewrite" })).toBeVisible();
+		},
+	);
+
+	it("clears interaction loading on failure and shows loading again during retry", async () => {
+		const interaction = Promise.withResolvers<Response>();
+		const retry = Promise.withResolvers<Response>();
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(
+				Response.json({
+					data: {
+						blocks: [
+							{
+								type: "actions",
+								elements: [{ type: "button", action_id: "analyze", label: "Analyze" }],
+							},
+						],
+					},
+				}),
+			)
+			.mockReturnValueOnce(interaction.promise)
+			.mockReturnValueOnce(retry.promise);
+		vi.stubGlobal("fetch", fetchMock);
+		const screen = await render(
+			<SandboxedContentEditorPanel
+				pluginId="content-guard"
+				panelId="findings"
+				title="Findings"
+				collection="posts"
+				entryId="post-1"
+			/>,
+			{ wrapper: Wrapper },
+		);
+		await userEvent.click(screen.getByRole("button", { name: "Findings" }));
+		await userEvent.click(screen.getByRole("button", { name: "Analyze" }));
+		await expect.element(screen.getByLabelText("Loading plugin panel")).toBeVisible();
+		interaction.resolve(new Response(null, { status: 502 }));
+		await expect.element(screen.getByRole("alert")).toBeVisible();
+		await expect.element(screen.getByLabelText("Loading plugin panel")).not.toBeInTheDocument();
+		await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+		await expect.element(screen.getByLabelText("Loading plugin panel")).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+		retry.resolve(Response.json({ data: { blocks: [{ type: "header", text: "Recovered" }] } }));
+		await expect.element(screen.getByRole("heading", { name: "Recovered" })).toBeVisible();
+		await expect.element(screen.getByLabelText("Loading plugin panel")).not.toBeInTheDocument();
 	});
 
 	it("captures draft data only after an explicit panel action", async () => {
