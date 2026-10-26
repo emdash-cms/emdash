@@ -1,6 +1,7 @@
 import type { PluginContext } from "emdash";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { RestAiSearch } from "../src/adapters/rest.js";
 import { getBuild, recentBuildUploads, runBuild, startBuild } from "../src/build.js";
 import { Indexer, type PageResult } from "../src/indexer.js";
 import { getRetryQueue, queueRetries } from "../src/retry.js";
@@ -350,6 +351,75 @@ describe("build", () => {
 		expect(rest.build?.pausedUntil).toBeGreaterThan(Date.now());
 		expect(binding.pages).toBe(20);
 		expect(binding.build).toBeNull();
+	});
+
+	it("stops REST requests within a page at the budget and resumes its remaining records", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		const ctx = await buildContext();
+		const uploaded: string[] = [];
+		let requests = 0;
+		const provider = new RestAiSearch(
+			{ accountId: "account", apiToken: "token", namespace: "default" },
+			"emdash",
+			async (_input, init) => {
+				requests++;
+				if (init?.method === "GET") {
+					return Response.json({ success: true, result: [], result_info: { total_count: 0 } });
+				}
+				const form = init?.body as FormData;
+				const key = (form.get("file") as File).name;
+				uploaded.push(key);
+				return Response.json({
+					success: true,
+					result: {
+						id: key,
+						key,
+						status: "queued",
+						metadata: JSON.parse(form.get("metadata") as string),
+					},
+				});
+			},
+		);
+		const entries = Array.from({ length: 650 }, (_, id) => entry({ id: String(id) }));
+		const indexer = new Indexer({ ...fakeEmDash({ entries }), provider }, CONFIG);
+		await startBuild(ctx, ["posts"]);
+		const startedAt = Date.now();
+
+		const paused = await runBuild(ctx, indexer, 10_000, provider);
+
+		expect(requests).toBe(600);
+		expect(paused).toMatchObject({ requests: { count: 600 }, pausedUntil: startedAt + 5 * 60_000 });
+		vi.advanceTimersByTime(5 * 60_000);
+		expect(await runBuild(ctx, indexer, 10_000, provider)).toBeNull();
+		expect(uploaded).toHaveLength(entries.length);
+		expect(new Set(uploaded).size).toBe(entries.length);
+	});
+
+	it("counts a REST request even when its page throws, so a retry still respects the budget", async () => {
+		const ctx = await buildContext();
+		let requests = 0;
+		const provider = new RestAiSearch(
+			{ accountId: "account", apiToken: "token", namespace: "default" },
+			"emdash",
+			async () => {
+				requests++;
+				return Response.json({ success: false }, { status: 500 });
+			},
+		);
+		const indexer = new Indexer({ ...fakeEmDash({}), provider }, CONFIG);
+		await startBuild(ctx, ["posts"]);
+		await ctx.kv.set("build", {
+			...(await getBuild(ctx)),
+			requests: { since: Date.now(), count: 599 },
+		});
+
+		await expect(runBuild(ctx, indexer, 10_000, provider)).rejects.toMatchObject({
+			reason: "failed",
+		});
+		expect((await getBuild(ctx))?.requests?.count).toBe(600);
+		const paused = await runBuild(ctx, indexer, 10_000, provider);
+		expect(paused?.pausedUntil).toBeGreaterThan(Date.now());
+		expect(requests).toBe(1);
 	});
 
 	it("pauses for minutes instead of seconds when a rate-limited token is rejected", async () => {

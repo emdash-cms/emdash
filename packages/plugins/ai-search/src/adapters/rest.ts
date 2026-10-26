@@ -41,6 +41,7 @@ interface Envelope<T> {
 export class RestAiSearch implements AiSearchProvider {
 	readonly kind = "rest";
 	requests = 0;
+	private requestLimit = Infinity;
 
 	constructor(
 		private readonly credentials: RestCredentials,
@@ -48,6 +49,10 @@ export class RestAiSearch implements AiSearchProvider {
 		// Workers rejects `fetch` called as a method of another object.
 		private readonly fetcher: typeof fetch = (input, init) => fetch(input, init),
 	) {}
+
+	limitRequests(remaining: number): void {
+		this.requestLimit = this.requests + remaining;
+	}
 
 	/** Throws `unauthorized` for a token without AI Search access, `not-found` for a missing namespace. */
 	async verify(): Promise<void> {
@@ -104,6 +109,7 @@ export class RestAiSearch implements AiSearchProvider {
 			`/accounts/${encodeURIComponent(accountId)}/tokens/verify`,
 			"/user/tokens/verify",
 		]) {
+			if (this.requests >= this.requestLimit) return false;
 			this.requests++;
 			const response = await this.fetcher(`${API}${path}`, {
 				headers: { authorization: `Bearer ${apiToken}` },
@@ -131,6 +137,12 @@ export class RestAiSearch implements AiSearchProvider {
 		path: string,
 		payload?: object,
 	): Promise<Envelope<T>> {
+		if (this.requests >= this.requestLimit) {
+			throw new ProviderError(
+				"rate-limited",
+				"The build's Cloudflare API request budget is exhausted",
+			);
+		}
 		const { accountId, apiToken, namespace } = this.credentials;
 		const url = `${API}/accounts/${encodeURIComponent(accountId)}/ai-search/namespaces/${encodeURIComponent(namespace)}${path}`;
 		const form = payload instanceof FormData;

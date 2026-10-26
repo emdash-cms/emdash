@@ -85,6 +85,8 @@ export interface AiSearchProvider {
 	tokenRejected?(): Promise<boolean>;
 	/** Cloudflare API requests this provider has made, when they count against a rate limit. */
 	readonly requests?: number;
+	/** Caps subsequent requests, throwing `rate-limited` once spent. Infinity removes the cap. */
+	limitRequests?(remaining: number): void;
 }
 
 /**

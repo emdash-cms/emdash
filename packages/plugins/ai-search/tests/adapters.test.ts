@@ -211,4 +211,13 @@ describe("RestAiSearch", () => {
 		expect(await verify({ account: refused, user: active })).toBe(false);
 		expect(await verify({ account: limited, user: refused })).toBe(false);
 	});
+
+	it("keeps diagnostic token checks within the remaining request budget", async () => {
+		const { provider, requests } = restWith(() => failure(401));
+		provider.limitRequests(1);
+
+		expect(await provider.tokenRejected()).toBe(false);
+		await expect(provider.stats()).rejects.toMatchObject({ reason: "rate-limited" });
+		expect(requests).toHaveLength(1);
+	});
 });
