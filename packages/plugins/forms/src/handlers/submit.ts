@@ -212,13 +212,12 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 
 	await submissions(ctx).put(submissionId, submission);
 
-	// 6. Update form counters (use count() to avoid race conditions
-	// from concurrent submissions doing read-modify-write)
-	const submissionCount = await submissions(ctx).count({ formId });
-	await forms(ctx).put(formId, {
-		...form,
-		submissionCount,
-		lastSubmissionAt: new Date().toISOString(),
+	// 6. Update form counters. `form` was read before the awaits above, so writing it back would undo
+	// any edit an admin saved in the meantime; only the counters are written, in one atomic update.
+	await forms(ctx).updateIf(formId, {
+		where: {},
+		set: { lastSubmissionAt: new Date().toISOString() },
+		delta: { submissionCount: { inc: 1 } },
 	});
 
 	// The submitter's address (already validated): the recipient of the autoresponder. A required

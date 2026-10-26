@@ -19,6 +19,7 @@ import type {
 } from "../schemas.js";
 import type { FormDefinition, Submission } from "../types.js";
 import { ADMIN_ROLE } from "./forms.js";
+import { decrementSubmissionCount } from "./submission-count.js";
 
 /** Typed access to plugin storage collections */
 function forms(ctx: RouteContext): StorageCollection<FormDefinition> {
@@ -109,18 +110,11 @@ export async function submissionDeleteHandler(ctx: RouteContext<SubmissionDelete
 		}
 	}
 
-	await submissions(ctx).delete(input.id);
+	// Only the request that actually removed the row lowers the count.
+	const deleted = await submissions(ctx).delete(input.id);
 
-	// Update form counter using count() to avoid race conditions
-	if (existing.formId) {
-		const form = await forms(ctx).get(existing.formId);
-		if (form) {
-			const count = await submissions(ctx).count({ formId: existing.formId });
-			await forms(ctx).put(existing.formId, {
-				...form,
-				submissionCount: count,
-			});
-		}
+	if (deleted && existing.formId) {
+		await decrementSubmissionCount(forms(ctx), existing.formId, 1);
 	}
 
 	return { deleted: true };
