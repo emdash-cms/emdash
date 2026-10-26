@@ -460,7 +460,11 @@ test.describe("Portable Text tables", () => {
 		];
 		expect(new Set(keys).size).toBe(keys.length);
 
-		await page.reload();
+		// Start the reload in the page's event loop to avoid interrupting a Firefox render.
+		await Promise.all([
+			page.waitForEvent("domcontentloaded"),
+			page.evaluate(() => window.location.reload()),
+		]);
 		await admin.waitForShell();
 		await expect(page.locator(EDITOR).getByText("Rich", { exact: true })).toBeVisible();
 		await cells.last().locator("p").click();
