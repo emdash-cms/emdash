@@ -381,10 +381,12 @@ describeEachDialect("an entry's starting content in Revisions", (dialect) => {
 		]);
 	});
 
-	it("writes no revision in a collection without revisions", async () => {
+	it("writes no starting revision in a collection without revisions", async () => {
 		const id = await create("pages");
 		await save("pages", id, "Duis aute irure dolor in reprehenderit.");
-
 		expect(await revisionTitles("pages", id)).toEqual([]);
+
+		expect((await runtime.handleContentPublish("pages", id)).success).toBe(true);
+		expect(await revisionTitles("pages", id)).toEqual(["Duis aute irure dolor in reprehenderit."]);
 	});
 });

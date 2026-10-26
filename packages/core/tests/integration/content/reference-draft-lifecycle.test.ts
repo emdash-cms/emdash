@@ -372,10 +372,11 @@ describeEachDialect("versioned reference selections", (dialect) => {
 	});
 
 	it.each([
-		["created with links", true, false, false],
-		["created without links", false, false, false],
-		["duplicated with links", true, true, false],
-		["created with links, after a refused first save", true, false, true],
+		["created with links", true, false, null],
+		["created without links", false, false, null],
+		["duplicated with links", true, true, null],
+		["created with links, after a refused first save", true, false, "save"],
+		["created with links, after a refused publish", true, false, "publish"],
 	])("restores the selection an entry was %s", async (_, withLinks, duplicated, refused) => {
 		const [a, b] = [await createPage("A"), await createPage("B")];
 		const created = await runtime.handleContentCreate("posts", {
@@ -391,7 +392,7 @@ describeEachDialect("versioned reference selections", (dialect) => {
 			if (!copy.success) throw new Error(copy.error.message);
 			id = copy.data.item.id;
 		}
-		if (refused) {
+		if (refused === "save") {
 			const current = await runtime.handleContentGet("posts", id);
 			if (!current.success) throw new Error(current.error.message);
 			const createRevision = RevisionRepository.prototype.create;
@@ -408,6 +409,13 @@ describeEachDialect("versioned reference selections", (dialect) => {
 			});
 			spy.mockRestore();
 			expect(refusedSave.success).toBe(false);
+		}
+		if (refused === "publish") {
+			// Inline, as on D1, so the refused publish leaves behind what it wrote.
+			const refusedPublish = await handleContentPublish(asInlineTransaction(ctx.db), "posts", id, {
+				requireScheduledDue: true,
+			});
+			expect(refusedPublish.success).toBe(false);
 		}
 
 		await runtime.handleContentUpdate("posts", id, { references: { related_pages: [b.id] } });

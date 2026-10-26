@@ -70,6 +70,7 @@ import {
 } from "./relations.js";
 import {
 	applyStagedReferences,
+	liveReferenceData,
 	liveReferenceSelection,
 	pageStagedGroups,
 	readStagedReferenceBaselines,
@@ -2542,6 +2543,14 @@ export async function handleContentPublish(
 						stagedReferenceBaselines,
 					);
 				}
+			}
+
+			// `repo.publish()` writes the starting revision too, but without the links.
+			if (publishConfig.supportsRevisions && existing) {
+				const entryGroup = existing.translationGroup;
+				await repo.keepStartingRevision(new RevisionRepository(trx), collection, existing, () =>
+					liveReferenceData(trx, collection, entryGroup),
+				);
 			}
 
 			const published = await repo.publish(
