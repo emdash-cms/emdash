@@ -114,6 +114,20 @@ export async function liveReferenceSelection(
 }
 
 /**
+ * The live selection as revision data, so that restoring the revision brings these links back.
+ * Empty when the collection has no reference field.
+ */
+export async function liveReferenceData(
+	db: Kysely<Database>,
+	collection: string,
+	entryGroup: string | null,
+): Promise<Record<string, unknown>> {
+	if (!entryGroup) return {};
+	const selection = await liveReferenceSelection(db, collection, entryGroup);
+	return Object.keys(selection).length > 0 ? { [STAGED_REFERENCES_KEY]: selection } : {};
+}
+
+/**
  * Compute the selection that results from applying the staged-versus-baseline
  * diff on top of the current live selection.
  *
