@@ -1,0 +1,51 @@
+docs/src/content/docs/plugins/creating-plugins/block-kit.mdx
+  s_2561e8e5199906::t_7d5404dae6a785 369-383
+.changeset/tidy-media-repeaters.md
+  s_2561e8e5199906::t_d5cc52e62793dc 1-6
+packages/blocks/src/types.ts
+  s_2561e8e5199906::t_96fd5b71d2861c 128-129
+packages/blocks/src/validation.ts
+  s_2561e8e5199906::t_c5a4c0b2c5757f 43-49
+packages/blocks/tests/repeater-media-picker.test.ts
+  s_9947d5865329e4::t_4fa2f275e59b97 1-50
+skills/creating-plugins/references/block-kit.md
+  s_2561e8e5199906::t_8a1518f789b368 409,411-413,418-420,422-423
+packages/admin/src/components/BlockKitMediaPickerField.tsx
+  s_29fc6def7677d4::t_a146f6bcc182a6 1,3,7,20-107,144,151,155-162,167,171-172,181-182
+packages/admin/tests/components/BlockKitMediaPickerField.test.tsx
+  s_29fc6def7677d4::t_b31aaeb7185a02 26,28-29,113,119-122,136-145,198,207-208,224,235
+packages/admin/tests/editor/plugin-block-media-repeater.test.tsx
+  s_29fc6def7677d4::t_fc1477810cd9ab 1-139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1a2bc11f477bf58285a14fef819b7c6a4139de4a",
+  "prompts": {},
+  "sessions": {
+    "s_2561e8e5199906": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eea5a462-b051-43c9-8653-9331efaf3044",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_29fc6def7677d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a177c6-bcac-7483-b07c-2b7995768189",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_9947d5865329e4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a177d6-a045-79c1-adbe-5f070bf4a17b",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
