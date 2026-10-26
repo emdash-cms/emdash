@@ -4119,7 +4119,7 @@ describe("ContentEditor revision view", () => {
 		await expect.element(screen.getByText("Current version", { exact: true })).toBeVisible();
 	});
 
-	it("keeps the body editor mounted when a save reloads the entry", async () => {
+	it("keeps the body editor mounted when a save reloads the entry behind newer typing", async () => {
 		const props = revisionEditorProps();
 		const screen = await render(<ContentEditor {...props} itemResetToken={0} />, {
 			wrapper: Toasty,
@@ -4127,6 +4127,9 @@ describe("ContentEditor revision view", () => {
 		await expect
 			.element(screen.getByTestId("portable-text-editor"))
 			.toHaveAttribute("data-content", "Draft body");
+		const onChange = portableTextProps.current?.onChange as (value: unknown) => void;
+		onChange(textBlocks("Saved body, and more"));
+		await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
 
 		await screen.rerender(
 			<ContentEditor

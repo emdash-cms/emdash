@@ -795,11 +795,12 @@ export function ContentEditor({
 				restored ||
 				(!isPublishingRef.current && !autosaveJustCompleted && !hasSaveConflictRef.current)
 			) {
-				// Apart from a discard or a restore, an item reset follows the writer's own save. The
-				// rich text editor already holds what that save sent, or more if they kept typing.
+				// Replacing the editor drops what it holds beyond the last save, such as text typed
+				// while that save was on its way, which only a discard or a restore may do.
 				if (
 					restored ||
-					((discarded || !itemReset) && changesPortableText(fields, formDataRef.current, item.data))
+					((discarded || !isDirtyRef.current) &&
+						changesPortableText(fields, formDataRef.current, item.data))
 				) {
 					// An open block panel acts on the editor this replaces.
 					handleBlockSidebarClose();

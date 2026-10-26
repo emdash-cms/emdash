@@ -530,6 +530,28 @@ describe("ContentEditPage rich text body", () => {
 		expect(blockText(server.current.data.content)).toBe("Body saved in another tab!");
 	});
 
+	it("saves the next body edit on top of a newer body a save's reload brought in", async () => {
+		const { screen } = await renderEditPage();
+		await vi.waitFor(() => expect(bodyEditor()?.textContent).toBe("Draft body"));
+		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Saved title");
+		await vi.advanceTimersByTimeAsync(150);
+		server.delayRead();
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+		await vi.waitFor(() => expect(server.readPending).toBe(true));
+		server.advance({ title: "Saved title", content: textBlocks("Body saved in another tab") });
+		server.resolveRead();
+		await vi.advanceTimersByTimeAsync(2500);
+		expect(server.requests.filter((r) => r.method === "PUT")).toHaveLength(1);
+
+		await typeAtEndOfBody("!");
+		await vi.advanceTimersByTimeAsync(2500);
+		const sent = server.requests.findLast((r) => r.method === "PUT")?.body as
+			| { _rev: string; data: { content: unknown } }
+			| undefined;
+		expect(sent?._rev).toBe(revision(3));
+		expect(blockText(sent?.data.content)).toBe("Body saved in another tab!");
+	});
+
 	it("keeps the body's own autosave when an older read lands after it", async () => {
 		const { queryClient } = await renderEditPage();
 		await vi.waitFor(() => expect(bodyEditor()?.textContent).toBe("Draft body"));
