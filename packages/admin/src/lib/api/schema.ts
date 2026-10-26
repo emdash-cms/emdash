@@ -346,7 +346,7 @@ export async function fetchCollection(
 	const response = await apiFetch(url);
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error(`Collection "${slug}" not found`);
+			throw new Error(i18n._(msg`Collection "${slug}" not found`));
 		}
 		await throwResponseError(response, i18n._(msg`Failed to fetch collection`));
 	}

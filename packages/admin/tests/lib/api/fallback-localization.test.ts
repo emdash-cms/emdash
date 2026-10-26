@@ -11,23 +11,28 @@ import {
 	duplicateContent,
 	fetchApiTokens,
 	fetchBylines,
+	fetchCollection,
 	fetchCollections,
 	fetchMarketplacePlugin,
 	fetchRelations,
+	fetchRevision,
+	fetchTheme,
+	fetchUser,
 	requestSignup,
+	restoreRevision,
 	searchThemes,
 	updateCommentStatus,
 } from "../../../src/lib/api/index.js";
 
+const originalFetch = globalThis.fetch;
+const previousLocale = i18n.locale;
+
+afterEach(() => {
+	globalThis.fetch = originalFetch;
+	i18n.loadAndActivate({ locale: previousLocale, messages: {} });
+});
+
 describe("API error fallbacks", () => {
-	const originalFetch = globalThis.fetch;
-	const previousLocale = i18n.locale;
-
-	afterEach(() => {
-		globalThis.fetch = originalFetch;
-		i18n.loadAndActivate({ locale: previousLocale, messages: {} });
-	});
-
 	it.each([
 		{ name: "API tokens", message: msg`Failed to fetch API tokens`, action: fetchApiTokens },
 		{ name: "bylines", message: msg`Failed to fetch bylines`, action: () => fetchBylines() },
@@ -86,5 +91,43 @@ describe("API error fallbacks", () => {
 				new Response("<html>Upstream failed</html>", { status: 502, statusText: "Bad Gateway" }),
 		);
 		await expect(action()).rejects.toThrow(/^Translated API error/);
+	});
+});
+
+describe("API not-found errors", () => {
+	const id = "missing";
+	const slug = "missing";
+	const revisionId = "missing";
+
+	it.each([
+		{ name: "theme", message: msg`Theme "${id}" not found`, action: () => fetchTheme(id) },
+		{
+			name: "marketplace plugin",
+			message: msg`Plugin "${id}" not found in marketplace`,
+			action: () => fetchMarketplacePlugin(id),
+		},
+		{
+			name: "collection",
+			message: msg`Collection "${slug}" not found`,
+			action: () => fetchCollection(slug),
+		},
+		{
+			name: "revision",
+			message: msg`Revision not found: ${revisionId}`,
+			action: () => fetchRevision(revisionId),
+		},
+		{
+			name: "revision restore",
+			message: msg`Revision not found: ${revisionId}`,
+			action: () => restoreRevision(revisionId),
+		},
+		{ name: "user", message: msg`User not found: ${id}`, action: () => fetchUser(id) },
+	])("uses the active catalog for the $name error", async ({ message, action }) => {
+		i18n.loadAndActivate({
+			locale: "de",
+			messages: { [message.id]: "Translated not-found error" },
+		});
+		globalThis.fetch = vi.fn(async () => new Response("Not Found", { status: 404 }));
+		await expect(action()).rejects.toThrow(/^Translated not-found error$/);
 	});
 });
