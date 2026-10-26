@@ -62,6 +62,7 @@ import { definePlugin } from "emdash";
 export default definePlugin({
 	id: "my-plugin",
 	version: "1.0.0",
+	capabilities: ["content:write"],
 	hooks: {
 		"content:beforeSave": async (event, ctx) => {
 			const { content } = event;
