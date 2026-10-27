@@ -468,8 +468,8 @@ function linkAtCaret(state: EditorState): ProseMirrorMark | undefined {
 
 /**
  * Links the selected text, or the whole link around the caret, to `value`.
- * At a caret outside a link, the text typed next gets the link. Returns
- * `false`, changing nothing, for a URL the editor won't link.
+ * At a caret outside a link, the text typed next gets the link up to the first
+ * space. Returns `false`, changing nothing, for a URL the editor won't link.
  */
 function setSelectedTextLink(editor: Editor, value: string): boolean {
 	const href = normalizeLinkHref(value);
