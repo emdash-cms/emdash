@@ -1070,7 +1070,12 @@ export class ContentRepository {
 	/**
 	 * Update content
 	 */
-	async update(type: string, id: string, input: UpdateContentInput): Promise<ContentItem> {
+	async update(
+		type: string,
+		id: string,
+		input: UpdateContentInput,
+		expectedRevision?: ContentRevisionPrecondition,
+	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
@@ -1127,12 +1132,20 @@ export class ContentRepository {
 		}
 		updates.version = sql`version + 1`;
 
-		await this.db
+		let query = this.db
 			.updateTable(tableName as keyof Database)
 			.set(updates)
 			.where("id", "=", id)
-			.where("deleted_at" as never, "is", null)
-			.execute();
+			.where("deleted_at" as never, "is", null);
+		if (expectedRevision) {
+			query = query
+				.where(sql<boolean>`version = ${expectedRevision.version}`)
+				.where(sql<boolean>`updated_at = ${expectedRevision.updatedAt}`);
+		}
+		const result = await query.executeTakeFirst();
+		if (expectedRevision && result.numUpdatedRows === 0n) {
+			throw new ContentMutationConflictError();
+		}
 
 		if (hasColumnWrites) invalidateCollectionCache(type);
 

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Indexer } from "../src/indexer.js";
 import { finishSync, getRetryQueue, queueRetries, retryRecord, runRetries } from "../src/retry.js";
-import { FakeItems } from "./fake-ai-search.js";
+import { FakeAiSearch } from "./fake-ai-search.js";
 import { config, entry, fakeEmDash, memoryKv } from "./fakes.js";
 
 const MINUTE = 60_000;
@@ -22,8 +22,8 @@ function fakeCron() {
 /** A post whose failures can be queued, with the indexer's settings saved. */
 async function setup() {
 	const post = entry();
-	const items = new FakeItems();
-	const indexer = new Indexer({ ...fakeEmDash({ entries: [post] }), items }, config());
+	const items = new FakeAiSearch();
+	const indexer = new Indexer({ ...fakeEmDash({ entries: [post] }), provider: items }, config());
 	const { cron, scheduled } = fakeCron();
 	const kv = memoryKv();
 	await kv.set("config", indexer.config);
@@ -120,15 +120,15 @@ describe("retries", () => {
 		}
 		vi.advanceTimersByTime(MINUTE);
 		const changed = config({ sources: { posts: { ...config().sources.posts!, weight: 5 } } });
-		const upload = items.upload.bind(items);
-		items.upload = async (...args) => {
+		const upload = items.uploadItem.bind(items);
+		items.uploadItem = async (...args) => {
 			await ctx.kv.set("config", changed);
 			return upload(...args);
 		};
 
 		const outcome = await retryRecord(ctx, indexer, failure);
-		items.upload = upload;
-		const fresh = new Indexer({ ...fakeEmDash({ entries: [post] }), items }, changed);
+		items.uploadItem = upload;
+		const fresh = new Indexer({ ...fakeEmDash({ entries: [post] }), provider: items }, changed);
 		vi.advanceTimersByTime(MINUTE);
 		await runRetries(ctx, fresh, 10_000);
 

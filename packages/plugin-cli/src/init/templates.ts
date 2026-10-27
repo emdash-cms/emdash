@@ -257,8 +257,8 @@ export function renderPackageJson(input: ScaffoldInputs): string {
 		},
 		devDependencies: {
 			"@emdash-cms/plugin-cli": input.cliVersion,
-			"@emdash-cms/plugin-test": "^0.1.0",
-			emdash: ">=0.12.0 <1.0.0",
+			"@emdash-cms/plugin-test": "^0.2.6",
+			emdash: "^1.0.0",
 			typescript: "^5.9.0",
 			vitest: "^4.1.0",
 		},

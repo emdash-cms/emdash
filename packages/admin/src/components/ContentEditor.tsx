@@ -326,12 +326,13 @@ export interface ContentEditorProps {
 	isSaving?: boolean;
 	/** Whether the current entry's editor save should drive visual feedback. */
 	isSaveFeedbackActive?: boolean;
+	/** A returned promise that resolves marks the payload it was given as saved. */
 	onSave?: (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
 		references?: Record<string, string[]>;
-	}) => void;
+	}) => void | Promise<unknown>;
 	/** Callback for autosave (debounced, skips revision creation) */
 	onAutosave?: (payload: {
 		data: Record<string, unknown>;
@@ -353,6 +354,8 @@ export interface ContentEditorProps {
 	 * through `hasSaveConflict`.
 	 */
 	autosaveRejectionToken?: number;
+	/** Whether the entry's last autosave failed. */
+	hasAutosaveError?: boolean;
 	/** Whether the server refused the last save because it was based on a stale read. */
 	hasSaveConflict?: boolean;
 	/** Called when the dirty state of the editor form changes. */
@@ -479,6 +482,7 @@ export function ContentEditor({
 	isAutosaveFeedbackActive,
 	autosaveCompletionToken,
 	autosaveRejectionToken,
+	hasAutosaveError,
 	hasSaveConflict,
 	onDirtyChange,
 	itemResetToken = 0,
@@ -675,6 +679,14 @@ export function ContentEditor({
 	const pendingAutosaveStateRef = React.useRef<string | null>(null);
 	/** The same payload including its selections — what a rejection is keyed by. */
 	const pendingAutosaveKeyRef = React.useRef<string | null>(null);
+	/** The key of the payload most recently saved. */
+	const savedSaveKeyRef = React.useRef<string | null>(null);
+	/** The key of the payload most recently sent by any save. */
+	const sentSaveKeyRef = React.useRef<string | null>(null);
+	/** Counts entry switches, a switch back to the same entry included: each one reloads the form. */
+	const entrySwitchesRef = React.useRef(0);
+	/** The entry switch count when the last autosave was sent. */
+	const autosaveSwitchesRef = React.useRef(0);
 	const [rejectedAutosaveState, setRejectedAutosaveState] = React.useState<string | null>(null);
 	const [isPublishing, setIsPublishing] = React.useState(false);
 	const isPublishingRef = React.useRef(false);
@@ -710,6 +722,9 @@ export function ContentEditor({
 		pendingAutosaveStateRef.current = null;
 		pendingAutosaveKeyRef.current = null;
 		pendingAutosaveReferencesRef.current = null;
+		savedSaveKeyRef.current = null;
+		sentSaveKeyRef.current = null;
+		entrySwitchesRef.current++;
 		setReferenceState(seedReferenceState(item));
 		setRejectedAutosaveState(null);
 		setBylinesTouched(false);
@@ -729,9 +744,12 @@ export function ContentEditor({
 		if (item) {
 			const nextBylines = resolveEditorBylines(item).explicitCredits;
 			const previousAutosaveToken = autosaveCompletionTokenRef.current;
+			// An autosave sent before an entry switch lands like any other read: the switch
+			// reloaded the form it was sent from.
 			const autosaveJustCompleted =
 				(autosaveCompletionToken ?? 0) > 0 &&
-				(autosaveCompletionToken ?? 0) !== previousAutosaveToken;
+				(autosaveCompletionToken ?? 0) !== previousAutosaveToken &&
+				autosaveSwitchesRef.current === entrySwitchesRef.current;
 			autosaveCompletionTokenRef.current = autosaveCompletionToken ?? 0;
 			const itemReset = itemResetToken > 0 && itemResetToken !== itemResetTokenRef.current;
 			itemResetTokenRef.current = itemResetToken;
@@ -770,6 +788,7 @@ export function ContentEditor({
 			if (!autosaveJustCompleted || restored) {
 				pendingAutosaveStateRef.current = null;
 				pendingAutosaveKeyRef.current = null;
+				savedSaveKeyRef.current = null;
 				setRejectedAutosaveState(null);
 			}
 			// Re-seed only from an item read with its references. An item without them
@@ -875,6 +894,35 @@ export function ContentEditor({
 	hasPendingSaveRef.current = Boolean(isDirty || saveFeedbackActive || autosaveFeedbackActive);
 	const hasSaveConflictRef = React.useRef(false);
 	hasSaveConflictRef.current = Boolean(hasSaveConflict);
+	const currentSaveKey = React.useMemo(
+		() => autosavePayloadKey(currentData, buildReferencesPayload(referenceState)),
+		[currentData, referenceState],
+	);
+	const leaveStateRef = React.useRef({
+		saveKey: "",
+		dirty: false,
+		saveInFlight: false,
+		autosaveFailed: false,
+	});
+	leaveStateRef.current = {
+		saveKey: currentSaveKey,
+		dirty: isDirty,
+		saveInFlight: Boolean(isPublishing || saveFeedbackActive || autosaveFeedbackActive),
+		autosaveFailed: Boolean(hasAutosaveError),
+	};
+	/**
+	 * Runs when a link leaves a saved entry: sends a pending autosave now and
+	 * reports whether the edits are saved or a save on its way carries all of them.
+	 */
+	const saveBeforeLeaving = React.useCallback(() => {
+		const { saveKey, dirty, saveInFlight, autosaveFailed } = leaveStateRef.current;
+		// The guard unsubscribes in an effect, and a save can land before the next render.
+		if (!dirty || savedSaveKeyRef.current === saveKey) return true;
+		if (!autosaveFailed) flushPendingAutosave();
+		// No render has shown a just-flushed autosave in flight yet.
+		const autosaveSent = !autosaveFailed && pendingAutosaveKeyRef.current === saveKey;
+		return autosaveSent || (saveInFlight && sentSaveKeyRef.current === saveKey);
+	}, [flushPendingAutosave]);
 	const isContentOperationPending = Boolean(isSaving);
 	const isContentSaveBlocked =
 		isContentOperationPending || hasUnsupportedPortableTextMarks || readOnly || isViewing;
@@ -1069,35 +1117,52 @@ export function ContentEditor({
 		setPendingEditorDraftPatch(null);
 	}, [editorDraftResponseIsCurrent, pendingEditorDraftPatch, t, markDirty]);
 
-	React.useEffect(() => {
-		if (!autosaveCompletionToken) {
-			return;
-		}
-
-		if (pendingAutosaveStateRef.current) {
-			setLastSavedData(pendingAutosaveStateRef.current);
-			pendingAutosaveStateRef.current = null;
-			editorGenerationRef.current++;
-			setHasAppliedEditorDraftPatch(false);
-		}
-		pendingAutosaveKeyRef.current = null;
-
-		// Mark the reference groups that autosave just persisted as saved by
-		// advancing their baseline to the sent snapshot. Editing further before
-		// the autosave resolved leaves `current` ahead of this baseline, so the
-		// group stays dirty and re-autosaves.
-		if (pendingAutosaveReferencesRef.current) {
-			const snapshot = pendingAutosaveReferencesRef.current;
-			pendingAutosaveReferencesRef.current = null;
+	/**
+	 * Advances the saved baseline to what a successful save sent. Editing further
+	 * before the save resolved leaves the form and `current` ahead of this
+	 * baseline, so those edits stay dirty and autosave again.
+	 */
+	const markSaved = React.useCallback(
+		(
+			state: string | null,
+			referenceRows: Record<string, ReferenceEntryRow[]> | null | undefined,
+			key: string | null,
+			switches?: number,
+		) => {
+			// The editor stays mounted when it switches to another cached entry.
+			if (switches !== undefined && switches !== entrySwitchesRef.current) return;
+			savedSaveKeyRef.current = key;
+			if (state) {
+				setLastSavedData(state);
+				editorGenerationRef.current++;
+				setHasAppliedEditorDraftPatch(false);
+			}
+			if (!referenceRows) return;
 			setReferenceState((prev) => {
 				const next = { ...prev };
-				for (const [group, rows] of Object.entries(snapshot)) {
+				for (const [group, rows] of Object.entries(referenceRows)) {
 					const cur = next[group];
 					if (cur) next[group] = { ...cur, baseline: rows };
 				}
 				return next;
 			});
+		},
+		[],
+	);
+
+	React.useEffect(() => {
+		if (!autosaveCompletionToken) {
+			return;
 		}
+
+		markSaved(
+			pendingAutosaveStateRef.current,
+			pendingAutosaveReferencesRef.current,
+			pendingAutosaveKeyRef.current,
+		);
+		pendingAutosaveStateRef.current = null;
+		pendingAutosaveKeyRef.current = null;
+		pendingAutosaveReferencesRef.current = null;
 	}, [autosaveCompletionToken]);
 
 	React.useEffect(() => {
@@ -1146,6 +1211,30 @@ export function ContentEditor({
 		if (references) payload.references = references;
 		return payload;
 	}, [activeBylines, bylinesTouched, isNew]);
+	/**
+	 * Records `payload` as the save being sent and returns what `markSaved`
+	 * takes once it succeeds.
+	 */
+	const beginSave = React.useCallback(
+		(payload: ReturnType<typeof createSavePayload>) => {
+			let referenceRows: Record<string, ReferenceEntryRow[]> | undefined;
+			if (payload.references) {
+				referenceRows = {};
+				for (const group of Object.keys(payload.references)) {
+					referenceRows[group] = referenceStateRef.current[group]?.current ?? [];
+				}
+			}
+			const state = serializeEditorState({
+				data: payload.data,
+				slug: payload.slug || "",
+				bylines: activeBylines,
+			});
+			const key = autosavePayloadKey(state, payload.references);
+			sentSaveKeyRef.current = key;
+			return { state, referenceRows, key, switches: entrySwitchesRef.current };
+		},
+		[activeBylines],
+	);
 	const cancelPendingAutosave = React.useCallback(() => {
 		if (autosaveTimeoutRef.current) {
 			clearTimeout(autosaveTimeoutRef.current);
@@ -1173,10 +1262,7 @@ export function ContentEditor({
 			return;
 		}
 
-		if (
-			autosavePayloadKey(currentData, buildReferencesPayload(referenceState)) ===
-			rejectedAutosaveState
-		) {
+		if (currentSaveKey === rejectedAutosaveState) {
 			return;
 		}
 
@@ -1196,24 +1282,11 @@ export function ContentEditor({
 			runAutosaveRef.current = null;
 			if (hasInvalidUrls(formDataRef.current)) return;
 			const payload = createSavePayload();
-			let referenceRows: Record<string, ReferenceEntryRow[]> | undefined;
-			if (payload.references) {
-				// Remember what we sent so the baseline can advance on resolve.
-				referenceRows = {};
-				for (const group of Object.keys(payload.references)) {
-					referenceRows[group] = referenceStateRef.current[group]?.current ?? [];
-				}
-				pendingAutosaveReferencesRef.current = referenceRows;
-			}
-			pendingAutosaveStateRef.current = serializeEditorState({
-				data: payload.data,
-				slug: payload.slug || "",
-				bylines: activeBylines,
-			});
-			pendingAutosaveKeyRef.current = autosavePayloadKey(
-				pendingAutosaveStateRef.current,
-				payload.references,
-			);
+			const { state, referenceRows, key, switches } = beginSave(payload);
+			pendingAutosaveStateRef.current = state;
+			pendingAutosaveReferencesRef.current = referenceRows ?? null;
+			pendingAutosaveKeyRef.current = key;
+			autosaveSwitchesRef.current = switches;
 			onAutosave(referenceRows ? { ...payload, referenceRows } : payload);
 		};
 
@@ -1239,12 +1312,14 @@ export function ContentEditor({
 		activeBylines,
 		bylinesTouched,
 		createSavePayload,
+		beginSave,
 		hasInvalidUrls,
 		referenceState,
 		hasUnsupportedPortableTextMarks,
 		isPublishing,
 		readOnly,
 		isViewing,
+		currentSaveKey,
 		rejectedAutosaveState,
 		hasSaveConflict,
 	]);
@@ -1259,7 +1334,17 @@ export function ContentEditor({
 		)
 			return;
 		cancelPendingAutosave();
-		onSave?.(createSavePayload());
+		const payload = createSavePayload();
+		const saved = beginSave(payload);
+		const result = onSave?.(payload);
+		if (!result) return;
+		void result.then(
+			() => {
+				markSaved(saved.state, saved.referenceRows, saved.key, saved.switches);
+				return undefined;
+			},
+			() => undefined,
+		);
 	};
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -1277,11 +1362,7 @@ export function ContentEditor({
 			return;
 		cancelPendingAutosave();
 		const payload = createSavePayload();
-		const savedState = serializeEditorState({
-			data: payload.data,
-			slug: payload.slug || "",
-			bylines: activeBylines,
-		});
+		const saved = beginSave(payload);
 		isPublishingRef.current = true;
 		setIsPublishing(true);
 		const result = onPublish(payload);
@@ -1292,7 +1373,7 @@ export function ContentEditor({
 		}
 		void result.then(
 			() => {
-				setLastSavedData(savedState);
+				markSaved(saved.state, saved.referenceRows, saved.key, saved.switches);
 				isPublishingRef.current = false;
 				setIsPublishing(false);
 				return undefined;
@@ -1304,9 +1385,10 @@ export function ContentEditor({
 			},
 		);
 	}, [
-		activeBylines,
 		cancelPendingAutosave,
 		createSavePayload,
+		beginSave,
+		markSaved,
 		hasInvalidUrls,
 		hasUnsupportedPortableTextMarks,
 		onPublish,
@@ -1343,6 +1425,7 @@ export function ContentEditor({
 
 			cancelPendingAutosave();
 			const payload = hasPendingSaveRef.current ? createSavePayload() : undefined;
+			const saved = payload && beginSave(payload);
 			isPublishingRef.current = true;
 			setIsPublishing(true);
 
@@ -1360,12 +1443,25 @@ export function ContentEditor({
 				return;
 			}
 
-			return result.finally(() => {
-				isPublishingRef.current = false;
-				setIsPublishing(false);
-			});
+			return result
+				.then(() => {
+					if (saved) markSaved(saved.state, saved.referenceRows, saved.key, saved.switches);
+					return undefined;
+				})
+				.finally(() => {
+					isPublishingRef.current = false;
+					setIsPublishing(false);
+				});
 		},
-		[cancelPendingAutosave, createSavePayload, hasInvalidUrls, hasUnsupportedPortableTextMarks, t],
+		[
+			cancelPendingAutosave,
+			createSavePayload,
+			beginSave,
+			markSaved,
+			hasInvalidUrls,
+			hasUnsupportedPortableTextMarks,
+			t,
+		],
 	);
 	const handleSchedule = React.useCallback(
 		(scheduledAt: string) =>
@@ -1460,11 +1556,11 @@ export function ContentEditor({
 			editorGenerationRef.current++;
 			markDirty();
 			setFormData((prev) => ({ ...prev, [name]: value }));
-			if (name === "title" && !slugTouched && typeof value === "string" && value) {
+			if (name === (titleField ?? "title") && !slugTouched && typeof value === "string" && value) {
 				setSlug(slugify(value));
 			}
 		},
-		[slugTouched, markDirty],
+		[slugTouched, markDirty, titleField],
 	);
 
 	const handleSlugChange = React.useCallback(
@@ -1978,7 +2074,10 @@ export function ContentEditor({
 					onClose={() => setPendingEditorDraftPatch(null)}
 				/>
 			) : null}
-			<UnsavedChangesGuard when={hasUnsavedNewEntry} />
+			<UnsavedChangesGuard
+				when={isNew ? hasUnsavedNewEntry : isDirty}
+				saveBeforeLeaving={isNew ? undefined : saveBeforeLeaving}
+			/>
 		</form>
 	);
 }

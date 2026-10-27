@@ -42,7 +42,7 @@ Use `auth/dev-bypass` instead when setup is already complete.
 
 ## Evidence
 
-Record the path tested, inputs, viewport, expected result, actual result, and any console or request failures. For UI changes, capture the rendered result and before-and-after screenshots when the difference is otherwise ambiguous.
+Record the path tested, inputs, viewport, expected result, actual result, and any console or request failures. For UI changes, capture before-and-after screenshots of every affected screen.
 
 Save screenshots inside the task workspace with descriptive filenames. Inspect the saved image before reporting success; a completed screenshot command does not prove that the intended state was visible.
 

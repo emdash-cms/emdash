@@ -70,12 +70,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# element)} other {(# elementer)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3102
+#: packages/admin/src/components/ContentEditor.tsx:3201
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} af # tegn, mindst {min}} other {{counted} af # tegn, mindst {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3107
+#: packages/admin/src/components/ContentEditor.tsx:3206
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} af # tegn} other {{counted} af # tegn}}"
 
@@ -87,7 +87,7 @@ msgid "{0, plural, one {# byline} other {# bylines}}"
 msgstr "{0, plural, one {# byline} other {# bylines}}"
 
 #. placeholder {0}: seedInfo.collections
-#: packages/admin/src/components/SetupWizard.tsx:219
+#: packages/admin/src/components/SetupWizard.tsx:220
 msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# samling} other {# samlinger}}"
 
@@ -97,7 +97,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# kommentar importeret} other {# kommentarer importeret}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2446
+#: packages/admin/src/router.tsx:2472
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# kommentar opdateret} other {# kommentarer opdateret}}"
 
@@ -217,7 +217,7 @@ msgstr "{0, plural, one {# relation, som denne indholdstype indgår i} other {# 
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:5398
+#: packages/admin/src/components/PortableTextEditor.tsx:5403
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {# række} other {# rækker}} × {1, plural, one {# kolonne} other {# kolonner}} valgt"
 
@@ -267,7 +267,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3112
+#: packages/admin/src/components/ContentEditor.tsx:3211
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {Mindst # tegn} other {Mindst # tegn}}"
 
@@ -282,12 +282,12 @@ msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, one {felt} other {felter}}"
 
 #. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:416
+#: packages/admin/src/components/Dashboard.tsx:420
 msgid "{0, plural, one {Media file} other {Media files}}"
 msgstr "{0, plural, one {Mediefiler} other {Mediefiler}}"
 
 #. placeholder {0}: policyRejected - policyRejections.length
-#: packages/admin/src/components/Dashboard.tsx:214
+#: packages/admin/src/components/Dashboard.tsx:218
 msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
 msgstr ""
 
@@ -302,7 +302,7 @@ msgid "{0, plural, one {Show # more} other {Show # more}}"
 msgstr ""
 
 #. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:424
+#: packages/admin/src/components/Dashboard.tsx:428
 msgid "{0, plural, one {User} other {Users}}"
 msgstr "{0, plural, one {Brugere} other {Brugere}}"
 
@@ -385,7 +385,7 @@ msgstr "{0} af {1} filer · {2} af {3}"
 
 #. placeholder {0}: i18n.number(seedProgress.done)
 #. placeholder {1}: i18n.number(seedProgress.total)
-#: packages/admin/src/components/SetupWizard.tsx:210
+#: packages/admin/src/components/SetupWizard.tsx:211
 msgid "{0} of {1} items"
 msgstr "{0} af {1} elementer"
 
@@ -492,7 +492,7 @@ msgstr "{base} til: {0}"
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {# tegn} other {# tegn}}"
 
-#: packages/admin/src/components/ContentList.tsx:899
+#: packages/admin/src/components/ContentList.tsx:900
 msgid "{collectionLabel} pagination"
 msgstr ""
 
@@ -557,7 +557,7 @@ msgstr "{filesMissing, plural, one {# fil mangler stadig at blive uploadet. Væl
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:1373
+#: packages/admin/src/components/ContentList.tsx:1374
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} element} other {#{1} elementer}}"
 
@@ -616,7 +616,7 @@ msgstr ""
 msgid "{lateness} late"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1362
+#: packages/admin/src/components/ContentList.tsx:1363
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# element matcher \"{searchQuery}\"} other {# elementer matcher \"{searchQuery}\"}}"
 
@@ -704,11 +704,11 @@ msgstr ""
 msgid "{origin} redirects to {target}. Enter that address instead."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:154
+#: packages/admin/src/components/Dashboard.tsx:158
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:149
+#: packages/admin/src/components/Dashboard.tsx:153
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr ""
 
@@ -734,7 +734,7 @@ msgstr "Indstillinger for {pluginName}"
 msgid "{plural} go live now; draft edits stay unpublished."
 msgstr "{plural} udgives med det samme. Ændringer i kladder bliver ikke udgivet."
 
-#: packages/admin/src/components/Dashboard.tsx:168
+#: packages/admin/src/components/Dashboard.tsx:172
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr ""
 
@@ -780,11 +780,11 @@ msgstr "{rows, plural, one {Række slettet} other {# rækker slettet}}"
 msgid "{rows} × {columns} table pasted"
 msgstr "{rows} × {columns} tabel indsat"
 
-#: packages/admin/src/components/ContentList.tsx:576
+#: packages/admin/src/components/ContentList.tsx:577
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {# valgt} other {# valgt}}"
 
-#: packages/admin/src/components/ContentList.tsx:652
+#: packages/admin/src/components/ContentList.tsx:653
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {Flyt # element til papirkurven? Du kan gendanne det senere.} other {Flyt # elementer til papirkurven? Du kan gendanne dem senere.}}"
 
@@ -828,15 +828,15 @@ msgstr ""
 msgid "{title} now goes live {when}."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1368
+#: packages/admin/src/components/ContentList.tsx:1369
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# element} other {# elementer}}"
 
-#: packages/admin/src/components/Dashboard.tsx:400
+#: packages/admin/src/components/Dashboard.tsx:404
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr "{totalDrafts, plural, one {Kladder} other {Kladder}}"
 
-#: packages/admin/src/components/Dashboard.tsx:406
+#: packages/admin/src/components/Dashboard.tsx:410
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr "{totalScheduled, plural, one {Planlagte} other {Planlagte}}"
 
@@ -885,8 +885,8 @@ msgstr "• Uploades til dit EmDash medielager"
 msgid "• URLs in your content are updated automatically"
 msgstr "• URL'er i dit indhold opdateres automatisk"
 
-#: packages/admin/src/components/SetupWizard.tsx:289
-#: packages/admin/src/components/SetupWizard.tsx:340
+#: packages/admin/src/components/SetupWizard.tsx:290
+#: packages/admin/src/components/SetupWizard.tsx:341
 #: packages/admin/src/components/WordPressImport.tsx:1656
 msgid "← Back"
 msgstr "← Tilbage"
@@ -1075,13 +1075,13 @@ msgstr "En pakkefil stemmer ikke overens med manifestet"
 msgid "A package file is missing"
 msgstr "En pakkefil mangler"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:177
-#: packages/admin/src/components/ContentSettingsPanel.tsx:228
-#: packages/admin/src/components/ContentSettingsPanel.tsx:254
+#: packages/admin/src/components/ContentSettingsPanel.tsx:178
+#: packages/admin/src/components/ContentSettingsPanel.tsx:229
+#: packages/admin/src/components/ContentSettingsPanel.tsx:255
 msgid "A publication time has not been selected"
 msgstr "Der er ikke valgt et udgivelsestidspunkt"
 
-#: packages/admin/src/components/ContentEditor.tsx:1326
+#: packages/admin/src/components/ContentEditor.tsx:1408
 msgid "A publishing action is already in progress"
 msgstr "En udgivelseshandling er allerede i gang"
 
@@ -1172,7 +1172,7 @@ msgstr "Accepter invitation"
 msgid "Access denied"
 msgstr "Adgang nægtet"
 
-#: packages/admin/src/router.tsx:2466
+#: packages/admin/src/router.tsx:2492
 msgid "Access Denied"
 msgstr "Adgang nægtet"
 
@@ -1181,7 +1181,7 @@ msgstr "Adgang nægtet"
 msgid "Access your media library"
 msgstr "Få adgang til dit mediebibliotek"
 
-#: packages/admin/src/components/SetupWizard.tsx:409
+#: packages/admin/src/components/SetupWizard.tsx:410
 msgid "Account"
 msgstr "Konto"
 
@@ -1202,8 +1202,8 @@ msgid "ACF Fields"
 msgstr "ACF felter"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
-#: packages/admin/src/components/ContentList.tsx:778
-#: packages/admin/src/components/ContentList.tsx:922
+#: packages/admin/src/components/ContentList.tsx:779
+#: packages/admin/src/components/ContentList.tsx:923
 #: packages/admin/src/components/ContentTypeList.tsx:212
 #: packages/admin/src/components/RelationList.tsx:102
 #: packages/admin/src/components/TaxonomyManager.tsx:1413
@@ -1239,7 +1239,7 @@ msgstr "Tilføj"
 #. placeholder {0}: inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
-#: packages/admin/src/components/ContentList.tsx:625
+#: packages/admin/src/components/ContentList.tsx:626
 #: packages/admin/src/components/PortableTextEditor.tsx:2936
 #: packages/admin/src/components/TaxonomyManager.tsx:756
 #: packages/admin/src/components/TaxonomyManager.tsx:1333
@@ -1291,14 +1291,14 @@ msgstr "Tilføj blok"
 msgid "Add byline"
 msgstr "Tilføj byline"
 
-#: packages/admin/src/components/editor/VideoNode.tsx:387
-#: packages/admin/src/components/editor/VideoNode.tsx:389
-#: packages/admin/src/components/PortableTextEditor.tsx:5845
+#: packages/admin/src/components/editor/VideoNode.tsx:388
+#: packages/admin/src/components/editor/VideoNode.tsx:390
+#: packages/admin/src/components/PortableTextEditor.tsx:5856
 msgid "Add caption"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5411
+#: packages/admin/src/components/PortableTextEditor.tsx:5416
 msgid "Add column after"
 msgstr "Tilføj kolonne efter"
 
@@ -1368,9 +1368,9 @@ msgstr "Tilføj element"
 msgid "Add Item"
 msgstr "Tilføj element"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5041
-#: packages/admin/src/components/PortableTextEditor.tsx:5838
-#: packages/admin/src/components/PortableTextEditor.tsx:6286
+#: packages/admin/src/components/PortableTextEditor.tsx:5040
+#: packages/admin/src/components/PortableTextEditor.tsx:5849
+#: packages/admin/src/components/PortableTextEditor.tsx:6298
 msgid "Add link"
 msgstr "Tilføj link"
 
@@ -1382,7 +1382,7 @@ msgstr "Tilføj links for at opbygge din navigationsmenu"
 msgid "Add MIME type or extension"
 msgstr "Tilføj MIME type eller filtypenavn"
 
-#: packages/admin/src/components/ContentList.tsx:514
+#: packages/admin/src/components/ContentList.tsx:515
 msgid "Add New"
 msgstr "Tilføj ny"
 
@@ -1400,8 +1400,8 @@ msgstr "Tilføj noindex meta tag"
 msgid "Add Passkey"
 msgstr "Tilføj Passkey"
 
-#: packages/admin/src/components/ContentEditor.tsx:3024
-#: packages/admin/src/components/ContentEditor.tsx:3024
+#: packages/admin/src/components/ContentEditor.tsx:3123
+#: packages/admin/src/components/ContentEditor.tsx:3123
 msgid "Add reference"
 msgstr "Tilføj reference"
 
@@ -1414,7 +1414,7 @@ msgid "Add row above"
 msgstr "Tilføj række over"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5404
+#: packages/admin/src/components/PortableTextEditor.tsx:5409
 msgid "Add row below"
 msgstr "Tilføj række under"
 
@@ -1439,7 +1439,7 @@ msgstr "Tilføj underfelt"
 msgid "Add tag"
 msgstr "Tilføj tag"
 
-#: packages/admin/src/components/ContentList.tsx:626
+#: packages/admin/src/components/ContentList.tsx:627
 msgid "Add term"
 msgstr "Tilføj term"
 
@@ -1552,12 +1552,12 @@ msgid "admin"
 msgstr "admin"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:692
+#: packages/admin/src/components/Sidebar.tsx:706
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Admin"
 
-#: packages/admin/src/components/Sidebar.tsx:634
+#: packages/admin/src/components/Sidebar.tsx:648
 msgid "Admin navigation"
 msgstr "Administrationsnavigation"
 
@@ -1604,34 +1604,34 @@ msgid "Agent-callable MCP tools"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:5301
+#: packages/admin/src/components/PortableTextEditor.tsx:5304
 msgid "Align"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6460
+#: packages/admin/src/components/PortableTextEditor.tsx:6472
 msgid "Align center"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6452
+#: packages/admin/src/components/PortableTextEditor.tsx:6464
 msgid "Align left"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6468
+#: packages/admin/src/components/PortableTextEditor.tsx:6480
 msgid "Align right"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:484
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:5819
+#: packages/admin/src/components/PortableTextEditor.tsx:5830
 msgid "Alignment"
 msgstr "Justering"
 
-#: packages/admin/src/components/ContentList.tsx:526
+#: packages/admin/src/components/ContentList.tsx:527
 msgid "All"
 msgstr "Alle"
 
-#: packages/admin/src/components/ContentList.tsx:1084
-#: packages/admin/src/components/ContentList.tsx:1088
+#: packages/admin/src/components/ContentList.tsx:1085
+#: packages/admin/src/components/ContentList.tsx:1089
 msgid "All authors"
 msgstr "Alle forfattere"
 
@@ -1669,7 +1669,7 @@ msgstr "Alle roller"
 msgid "All sources"
 msgstr "Alle kilder"
 
-#: packages/admin/src/components/ContentList.tsx:1023
+#: packages/admin/src/components/ContentList.tsx:1024
 #: packages/admin/src/components/Redirects.tsx:399
 msgid "All statuses"
 msgstr "Alle statusser"
@@ -1746,8 +1746,8 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaLibrary.tsx:1144
-#: packages/admin/src/components/PortableTextEditor.tsx:5750
-#: packages/admin/src/components/PortableTextEditor.tsx:5816
+#: packages/admin/src/components/PortableTextEditor.tsx:5761
+#: packages/admin/src/components/PortableTextEditor.tsx:5827
 msgid "Alt text"
 msgstr "Alternativ tekst"
 
@@ -1820,20 +1820,20 @@ msgstr "En krypteret digital nøgle, som du låser op med dit fingeraftryk, dit 
 #: packages/admin/src/router.tsx:676
 #: packages/admin/src/router.tsx:690
 #: packages/admin/src/router.tsx:915
-#: packages/admin/src/router.tsx:1316
-#: packages/admin/src/router.tsx:1435
-#: packages/admin/src/router.tsx:1469
-#: packages/admin/src/router.tsx:1493
+#: packages/admin/src/router.tsx:1337
+#: packages/admin/src/router.tsx:1460
+#: packages/admin/src/router.tsx:1494
 #: packages/admin/src/router.tsx:1518
-#: packages/admin/src/router.tsx:1574
-#: packages/admin/src/router.tsx:1593
-#: packages/admin/src/router.tsx:1626
-#: packages/admin/src/router.tsx:1647
-#: packages/admin/src/router.tsx:2411
-#: packages/admin/src/router.tsx:2427
-#: packages/admin/src/router.tsx:2452
-#: packages/admin/src/router.tsx:2878
-#: packages/admin/src/router.tsx:3063
+#: packages/admin/src/router.tsx:1543
+#: packages/admin/src/router.tsx:1599
+#: packages/admin/src/router.tsx:1618
+#: packages/admin/src/router.tsx:1651
+#: packages/admin/src/router.tsx:1673
+#: packages/admin/src/router.tsx:2437
+#: packages/admin/src/router.tsx:2453
+#: packages/admin/src/router.tsx:2478
+#: packages/admin/src/router.tsx:2904
+#: packages/admin/src/router.tsx:3089
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1898,7 +1898,7 @@ msgid "Application Password"
 msgstr "Applikationsadgangskode"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
-#: packages/admin/src/components/PortableTextEditor.tsx:6551
+#: packages/admin/src/components/PortableTextEditor.tsx:6563
 msgid "Apply"
 msgstr "Anvend"
 
@@ -1906,8 +1906,8 @@ msgstr "Anvend"
 msgid "Apply changes"
 msgstr "Anvend ændringer"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5015
-#: packages/admin/src/components/PortableTextEditor.tsx:5791
+#: packages/admin/src/components/PortableTextEditor.tsx:5014
+#: packages/admin/src/components/PortableTextEditor.tsx:5802
 msgid "Apply link"
 msgstr "Anvend link"
 
@@ -1955,7 +1955,7 @@ msgstr "Godkender…"
 msgid "Arbitrary JSON data"
 msgstr "Vilkårlige JSON data"
 
-#: packages/admin/src/components/ContentList.tsx:1027
+#: packages/admin/src/components/ContentList.tsx:1028
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr "Arkiveret"
@@ -2008,11 +2008,11 @@ msgstr "Assistenter, der er forbundet via MCP, skal have en administrators godke
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3135
+#: packages/admin/src/components/ContentEditor.tsx:3234
 msgid "At least {min}"
 msgstr "Mindst {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3132
+#: packages/admin/src/components/ContentEditor.tsx:3231
 msgid "At most {max}"
 msgstr "Højst {max}"
 
@@ -2135,7 +2135,7 @@ msgstr "Automatiske sikkerhedskopier"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Automatiske sikkerhedskopier kræver en lagerbackend (R2, S3 eller lokal lagring). Konfigurer lagring i din EmDash konfiguration for at aktivere dem."
 
-#: packages/admin/src/router.tsx:1432
+#: packages/admin/src/router.tsx:1457
 msgid "Autosave failed"
 msgstr "Automatisk lagring mislykkedes"
 
@@ -2180,7 +2180,7 @@ msgstr ""
 msgid "Back"
 msgstr "Tilbage"
 
-#: packages/admin/src/components/ContentEditor.tsx:1552
+#: packages/admin/src/components/ContentEditor.tsx:1648
 msgid "Back to {collectionLabel} list"
 msgstr "Tilbage til listen over {collectionLabel}"
 
@@ -2288,7 +2288,7 @@ msgstr "Før afsendelse:"
 msgid "Before you continue:"
 msgstr "Før du fortsætter:"
 
-#: packages/admin/src/components/ContentEditor.tsx:3129
+#: packages/admin/src/components/ContentEditor.tsx:3228
 msgid "Between {min} and {max}"
 msgstr "Mellem {min} og {max}"
 
@@ -2344,8 +2344,8 @@ msgstr "Forhindringer"
 msgid "Blocks"
 msgstr "Blokke"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4795
-#: packages/admin/src/components/PortableTextEditor.tsx:6320
+#: packages/admin/src/components/PortableTextEditor.tsx:4791
+#: packages/admin/src/components/PortableTextEditor.tsx:6332
 msgid "Bold"
 msgstr "Fed"
 
@@ -2406,7 +2406,7 @@ msgstr "Build-oprindelse verificeret"
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
 #: packages/admin/src/components/PortableTextEditor.tsx:2051
-#: packages/admin/src/components/PortableTextEditor.tsx:6377
+#: packages/admin/src/components/PortableTextEditor.tsx:6389
 msgid "Bullet List"
 msgstr "Punktopstilling"
 
@@ -2452,7 +2452,7 @@ msgstr "Byline felter"
 msgid "Byline schema"
 msgstr "Byline skema"
 
-#: packages/admin/src/components/Sidebar.tsx:526
+#: packages/admin/src/components/Sidebar.tsx:536
 msgid "Byline Schema"
 msgstr "Byline skema"
 
@@ -2462,11 +2462,11 @@ msgstr "Byline opdateret"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:339
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1144
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1148
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1145
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1149
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
-#: packages/admin/src/components/Sidebar.tsx:492
+#: packages/admin/src/components/Sidebar.tsx:502
 #: packages/admin/src/routes/bylines.tsx:285
 msgid "Bylines"
 msgstr "Bylines"
@@ -2483,9 +2483,9 @@ msgstr "C#"
 msgid "C++"
 msgstr "C++"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:143
+#: packages/admin/src/components/AdminCommandPalette.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:568
-#: packages/admin/src/components/Sidebar.tsx:666
+#: packages/admin/src/components/Sidebar.tsx:680
 #: packages/admin/src/routes/calendar.tsx:277
 msgid "Calendar"
 msgstr "Kalender"
@@ -2512,16 +2512,16 @@ msgstr "Kan se indhold"
 #: packages/admin/src/components/BylineFormDialog.tsx:546
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:350
 #: packages/admin/src/components/ConfirmDialog.tsx:102
-#: packages/admin/src/components/ContentList.tsx:661
-#: packages/admin/src/components/ContentList.tsx:1545
-#: packages/admin/src/components/ContentList.tsx:1729
+#: packages/admin/src/components/ContentList.tsx:662
+#: packages/admin/src/components/ContentList.tsx:1546
+#: packages/admin/src/components/ContentList.tsx:1730
 #: packages/admin/src/components/ContentPickerModal.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:358
-#: packages/admin/src/components/ContentSettingsPanel.tsx:549
+#: packages/admin/src/components/ContentSettingsPanel.tsx:359
+#: packages/admin/src/components/ContentSettingsPanel.tsx:550
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1380
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:826
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:394
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:78
 #: packages/admin/src/components/FieldEditor.tsx:1386
 #: packages/admin/src/components/MediaDetailPanel.tsx:1859
@@ -2532,10 +2532,10 @@ msgstr "Kan se indhold"
 #: packages/admin/src/components/MenuEditor.tsx:754
 #: packages/admin/src/components/MenuList.tsx:184
 #: packages/admin/src/components/PluginManager.tsx:817
-#: packages/admin/src/components/PortableTextEditor.tsx:5762
-#: packages/admin/src/components/PortableTextEditor.tsx:5788
-#: packages/admin/src/components/PortableTextEditor.tsx:6535
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:369
+#: packages/admin/src/components/PortableTextEditor.tsx:5773
+#: packages/admin/src/components/PortableTextEditor.tsx:5799
+#: packages/admin/src/components/PortableTextEditor.tsx:6547
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:407
 #: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/RelationDialog.tsx:60
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -2553,7 +2553,7 @@ msgstr "Kan se indhold"
 msgid "Cancel"
 msgstr "Annuller"
 
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:393
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:420
 msgid "Cancel (Esc)"
 msgstr "Annuller (Esc)"
 
@@ -2603,8 +2603,8 @@ msgstr "Samtykke til tilladelser"
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:491
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:528
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:753
-#: packages/admin/src/components/editor/ImageNode.tsx:308
-#: packages/admin/src/components/editor/VideoNode.tsx:329
+#: packages/admin/src/components/editor/ImageNode.tsx:311
+#: packages/admin/src/components/editor/VideoNode.tsx:332
 #: packages/admin/src/components/MediaDetailPanel.tsx:1616
 msgid "Caption"
 msgstr "Billedtekst"
@@ -2617,7 +2617,7 @@ msgstr "Tekstning / undertekster"
 msgid "Capture is being prepared. Keep editing paused until setup is complete."
 msgstr "Registreringen forberedes. Hold redigering på pause, indtil opsætningen er fuldført."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:206
+#: packages/admin/src/components/AdminCommandPalette.tsx:210
 #: packages/admin/src/components/Widgets.tsx:144
 msgid "Categories"
 msgstr "Kategorier"
@@ -2645,8 +2645,8 @@ msgstr "Celler flettet"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:5305
-#: packages/admin/src/components/PortableTextEditor.tsx:5423
+#: packages/admin/src/components/PortableTextEditor.tsx:5308
+#: packages/admin/src/components/PortableTextEditor.tsx:5429
 msgid "Center"
 msgstr "Centreret"
 
@@ -2680,17 +2680,17 @@ msgstr "Skift billede"
 msgid "Change Logo"
 msgstr "Skift logo"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:629
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:674
 msgid "Change publication date"
 msgstr "Skift udgivelsesdato"
 
 #. placeholder {0}: isolate(formattedValue)
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:604
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:649
 msgid "Change publication date: {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:623
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
+#: packages/admin/src/components/ContentSettingsPanel.tsx:624
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
 msgid "Change schedule"
 msgstr "Skift planlægning"
 
@@ -2768,7 +2768,7 @@ msgstr "Ændringslog"
 msgid "Changes apply everywhere this byline appears."
 msgstr "Ændringerne gælder alle steder, hvor denne byline vises."
 
-#: packages/admin/src/router.tsx:1510
+#: packages/admin/src/router.tsx:1535
 msgid "Changes discarded"
 msgstr "Ændringer kasseret"
 
@@ -2885,18 +2885,18 @@ msgstr "Vælg {label}"
 msgid "Choose a credential manager on this device, another device, or a security key."
 msgstr "Vælg en adgangskodeadministrator på denne enhed, en anden enhed eller en sikkerhedsnøgle."
 
-#: packages/admin/src/components/ContentList.tsx:1210
-#: packages/admin/src/components/ContentList.tsx:1216
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:36
+msgid "Choose a date"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1211
+#: packages/admin/src/components/ContentList.tsx:1217
 msgid "Choose a date range"
 msgstr "Vælg et datointerval"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:234
 msgid "Choose a file from the library or upload a new one."
 msgstr "Vælg en fil fra biblioteket, eller upload en ny."
-
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
-msgid "Choose a new publication time for this draft."
-msgstr "Vælg et nyt udgivelsestidspunkt for denne kladde."
 
 #. placeholder {0}: formatFileFormat(item.mimeType)
 #: packages/admin/src/components/MediaDetailPanel.tsx:918
@@ -2910,6 +2910,14 @@ msgstr ""
 #: packages/admin/src/components/BulkTagDialog.tsx:184
 msgid "Choose a term and enter between 1 and 50 posts."
 msgstr "Vælg en term, og angiv mellem 1 og 50 indlæg."
+
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:40
+msgid "Choose a time in the future"
+msgstr ""
+
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:37
+msgid "Choose a valid date"
+msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:236
 msgid "Choose a video from the library or upload a new one."
@@ -2949,14 +2957,6 @@ msgstr "Vælg den samme pakkefil igen for at fuldføre uploaden."
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
 msgstr "Vælg Touch ID eller en anden tilgængelig adgangskodeadministrator, og bekræft derefter med dit fingeraftryk eller din Mac adgangskode."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:474
-msgid "Choose when these changes replace the live version."
-msgstr "Vælg, hvornår disse ændringer erstatter den udgivne version."
-
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
-msgid "Choose when this draft becomes public."
-msgstr "Vælg, hvornår denne kladde bliver offentlig."
-
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
 msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
 msgstr "Vælg Windows Hello eller en anden tilgængelig adgangskodeadministrator, og bekræft derefter med din pinkode, dit fingeraftryk eller dit ansigt."
@@ -2973,8 +2973,8 @@ msgstr "Vælg…"
 msgid "Choosing a byline replaces this automatic credit."
 msgstr "Når du vælger en byline, erstatter den denne automatiske kreditering."
 
-#: packages/admin/src/components/ContentList.tsx:687
-#: packages/admin/src/components/ContentList.tsx:1224
+#: packages/admin/src/components/ContentList.tsx:688
+#: packages/admin/src/components/ContentList.tsx:1225
 msgid "Clear"
 msgstr "Ryd"
 
@@ -2985,7 +2985,7 @@ msgstr "Ryd fuldførte"
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:79
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:186
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:103
-#: packages/admin/src/components/ContentList.tsx:1129
+#: packages/admin/src/components/ContentList.tsx:1130
 #: packages/admin/src/components/MediaLibrary.tsx:1020
 #: packages/admin/src/components/Sections.tsx:298
 #: packages/admin/src/components/users/UserList.tsx:122
@@ -2993,7 +2993,7 @@ msgstr "Ryd fuldførte"
 msgid "Clear filters"
 msgstr "Ryd filtre"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5315
+#: packages/admin/src/components/PortableTextEditor.tsx:5318
 msgid "Clear formatting"
 msgstr ""
 
@@ -3075,7 +3075,7 @@ msgstr "Klik på dette link for at logge ind på {siteName}:"
 #: packages/admin/src/components/PortableTextEditor.tsx:2697
 #: packages/admin/src/components/PortableTextEditor.tsx:2703
 #: packages/admin/src/components/PortableTextEditor.tsx:2707
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:349
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:386
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/Redirects.tsx:123
 #: packages/admin/src/components/RelationDialog.tsx:65
@@ -3123,7 +3123,7 @@ msgstr "Luk billedindstillinger"
 msgid "Close panel"
 msgstr "Luk panel"
 
-#: packages/admin/src/components/ContentEditor.tsx:2221
+#: packages/admin/src/components/ContentEditor.tsx:2320
 msgid "Close settings"
 msgstr "Luk indstillinger"
 
@@ -3139,7 +3139,7 @@ msgstr "Kode"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
 #: packages/admin/src/components/PortableTextEditor.tsx:2081
-#: packages/admin/src/components/PortableTextEditor.tsx:6419
+#: packages/admin/src/components/PortableTextEditor.tsx:6431
 msgid "Code Block"
 msgstr "Kodeblok"
 
@@ -3193,7 +3193,7 @@ msgid "Collections created:"
 msgstr "Oprettede samlinger:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5409
+#: packages/admin/src/components/PortableTextEditor.tsx:5414
 msgid "Column added after"
 msgstr "Kolonne tilføjet efter"
 
@@ -3249,7 +3249,7 @@ msgstr "Kommentarreaktioner"
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
-#: packages/admin/src/components/Sidebar.tsx:456
+#: packages/admin/src/components/Sidebar.tsx:466
 msgid "Comments"
 msgstr "Kommentarer"
 
@@ -3330,16 +3330,16 @@ msgstr "Forbundet {0}"
 msgid "Connects"
 msgstr "Forbinder"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:481
+#: packages/admin/src/components/ContentSettingsPanel.tsx:482
 msgid "content"
 msgstr "indhold"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:403
+#: packages/admin/src/components/AdminCommandPalette.tsx:407
 #: packages/admin/src/components/comments/CommentDetail.tsx:106
 #: packages/admin/src/components/comments/CommentInbox.tsx:331
-#: packages/admin/src/components/Dashboard.tsx:494
+#: packages/admin/src/components/Dashboard.tsx:498
 #: packages/admin/src/components/SectionEditor.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:676
+#: packages/admin/src/components/Sidebar.tsx:690
 #: packages/admin/src/components/Widgets.tsx:911
 msgid "Content"
 msgstr "Indhold"
@@ -3361,7 +3361,7 @@ msgstr "Indholdsfejl ({0})"
 msgid "Content found:"
 msgstr "Fundet indhold:"
 
-#: packages/admin/src/router.tsx:1567
+#: packages/admin/src/router.tsx:1592
 msgid "Content has been scheduled for publishing"
 msgstr "Indholdet er planlagt til udgivelse"
 
@@ -3369,11 +3369,11 @@ msgstr "Indholdet er planlagt til udgivelse"
 msgid "Content ID:"
 msgstr "Indholds ID:"
 
-#: packages/admin/src/router.tsx:1463
+#: packages/admin/src/router.tsx:1488
 msgid "Content is now live"
 msgstr "Indholdet er nu udgivet"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1094
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1095
 msgid "Content language"
 msgstr "Indholdets sprog"
 
@@ -3394,11 +3394,11 @@ msgstr "Indhold henviser til media på en ugyldig måde"
 msgid "Content refers to media that is not in the package"
 msgstr "Indhold henviser til media, der ikke er i pakken"
 
-#: packages/admin/src/router.tsx:1487
+#: packages/admin/src/router.tsx:1512
 msgid "Content removed from public view"
 msgstr "Indholdet er fjernet fra offentlig visning"
 
-#: packages/admin/src/router.tsx:1586
+#: packages/admin/src/router.tsx:1611
 msgid "Content reverted to draft"
 msgstr "Indholdet er sat tilbage til kladde"
 
@@ -3414,9 +3414,9 @@ msgstr "Indhold, der skal importeres"
 msgid "Content types"
 msgstr "Indholdstyper"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:198
+#: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:131
-#: packages/admin/src/components/Sidebar.tsx:522
+#: packages/admin/src/components/Sidebar.tsx:532
 msgid "Content Types"
 msgstr "Indholdstyper"
 
@@ -3442,8 +3442,8 @@ msgstr "Indhold (skriv)"
 msgid "Continue"
 msgstr "Fortsæt"
 
-#: packages/admin/src/components/SetupWizard.tsx:201
-#: packages/admin/src/components/SetupWizard.tsx:297
+#: packages/admin/src/components/SetupWizard.tsx:202
+#: packages/admin/src/components/SetupWizard.tsx:298
 msgid "Continue →"
 msgstr "Fortsæt →"
 
@@ -3452,7 +3452,7 @@ msgid "Continue Import"
 msgstr "Fortsæt import"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:6394
+#: packages/admin/src/components/PortableTextEditor.tsx:6406
 msgid "Continue numbering"
 msgstr "Fortsæt nummerering"
 
@@ -3464,7 +3464,7 @@ msgstr ""
 msgid "Continue to finish signing in. The link works only once."
 msgstr "Fortsæt for at fuldføre login. Linket virker kun én gang."
 
-#: packages/admin/src/components/SetupWizard.tsx:356
+#: packages/admin/src/components/SetupWizard.tsx:357
 msgid "Continue to import"
 msgstr "Fortsæt til import"
 
@@ -3532,8 +3532,8 @@ msgstr "Kopier dette token nu - det bliver ikke vist igen."
 msgid "Copy token"
 msgstr "Kopier token"
 
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:309
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:310
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:334
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:335
 #: packages/admin/src/components/MediaDetailPanel.tsx:1378
 msgid "Copy URL"
 msgstr "Kopier URL"
@@ -3562,7 +3562,7 @@ msgstr "Kunne ikke kopiere automatisk. Marker URL'en ovenfor, og kopier den manu
 msgid "Could not create {singularLower}"
 msgstr "Kunne ikke oprette {singularLower}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4590
+#: packages/admin/src/components/PortableTextEditor.tsx:4586
 msgid "Could not insert section"
 msgstr "Sektionen kunne ikke indsættes"
 
@@ -3570,7 +3570,7 @@ msgstr "Sektionen kunne ikke indsættes"
 msgid "Could not load {pluralLower}."
 msgstr "Kunne ikke indlæse {pluralLower}."
 
-#: packages/admin/src/components/Dashboard.tsx:310
+#: packages/admin/src/components/Dashboard.tsx:314
 msgid "Could not load dashboard data"
 msgstr "Data til kontrolpanelet kunne ikke indlæses"
 
@@ -3618,7 +3618,7 @@ msgstr "Kunne ikke bekræfte, om medieelementet eller den valgte mappe stadig fi
 msgid "Couldn't detect WordPress"
 msgstr "WordPress blev ikke fundet"
 
-#: packages/admin/src/components/ContentEditor.tsx:3003
+#: packages/admin/src/components/ContentEditor.tsx:3102
 msgid "Couldn't load all references."
 msgstr "Ikke alle referencer kunne indlæses."
 
@@ -3875,7 +3875,7 @@ msgstr "Opret token"
 msgid "Create Widget Area"
 msgstr "Opret widgetområde"
 
-#: packages/admin/src/components/SetupWizard.tsx:628
+#: packages/admin/src/components/SetupWizard.tsx:620
 msgid "Create your account"
 msgstr "Opret din konto"
 
@@ -3887,7 +3887,7 @@ msgstr "Opret din første indholdstype"
 msgid "Create your first navigation menu to get started"
 msgstr "Opret din første navigationsmenu for at komme i gang"
 
-#: packages/admin/src/components/ContentList.tsx:809
+#: packages/admin/src/components/ContentList.tsx:810
 msgid "Create your first one"
 msgstr "Opret det første"
 
@@ -3912,8 +3912,8 @@ msgstr "Opret, opdater og slet taksonomitermer"
 msgid "Create, update, delete content"
 msgstr "Opret, opdater og slet indhold"
 
-#: packages/admin/src/components/ContentList.tsx:1033
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1045
+#: packages/admin/src/components/ContentList.tsx:1034
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1046
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
 msgid "Created"
@@ -3930,11 +3930,11 @@ msgid "Created {0}"
 msgstr "Oprettet {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1618
+#: packages/admin/src/router.tsx:1643
 msgid "Created {0} translation"
 msgstr "{0} oversættelse oprettet"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1024
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1025
 msgid "Created and updated"
 msgstr "Oprettet og opdateret"
 
@@ -4050,11 +4050,11 @@ msgstr "Daglige automatiske sikkerhedskopier"
 msgid "Dark mode variant"
 msgstr "Variant til mørk tilstand"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:136
+#: packages/admin/src/components/AdminCommandPalette.tsx:140
 #: packages/admin/src/components/ContentTypeList.tsx:394
-#: packages/admin/src/components/Dashboard.tsx:71
-#: packages/admin/src/components/Sidebar.tsx:426
-#: packages/admin/src/components/Sidebar.tsx:661
+#: packages/admin/src/components/Dashboard.tsx:75
+#: packages/admin/src/components/Sidebar.tsx:436
+#: packages/admin/src/components/Sidebar.tsx:675
 msgid "Dashboard"
 msgstr "Kontrolpanel"
 
@@ -4063,7 +4063,7 @@ msgid "Database-owned definitions available to blocks fields."
 msgstr "Databaseejede definitioner, der er tilgængelige for blokfelter."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:334
-#: packages/admin/src/components/ContentList.tsx:767
+#: packages/admin/src/components/ContentList.tsx:768
 msgid "Date"
 msgstr "Dato"
 
@@ -4076,7 +4076,7 @@ msgstr "Dato og tid"
 msgid "Date and time picker"
 msgstr "Dato- og tidsvælger"
 
-#: packages/admin/src/components/ContentList.tsx:1106
+#: packages/admin/src/components/ContentList.tsx:1107
 msgid "Date field to filter on"
 msgstr "Datofelt, der skal filtreres på"
 
@@ -4084,7 +4084,7 @@ msgstr "Datofelt, der skal filtreres på"
 msgid "Date Format"
 msgstr "Datoformat"
 
-#: packages/admin/src/components/ContentList.tsx:1156
+#: packages/admin/src/components/ContentList.tsx:1157
 msgid "Date range"
 msgstr "Datointerval"
 
@@ -4144,7 +4144,7 @@ msgstr "Defineret i kode"
 #: packages/admin/src/components/ContentTypeEditor.tsx:868
 #: packages/admin/src/components/ContentTypeList.tsx:258
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:365
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:392
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaDetailPanel.tsx:1932
 #: packages/admin/src/components/MenuEditor.tsx:672
@@ -4246,7 +4246,7 @@ msgstr "Slet kommentar?"
 msgid "Delete Content Type?"
 msgstr "Slet indholdstype?"
 
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:366
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:393
 msgid "Delete embed"
 msgstr "Slet indlejring"
 
@@ -4265,7 +4265,7 @@ msgstr "Slet mappe"
 msgid "Delete gallery"
 msgstr "Slet galleri"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5857
+#: packages/admin/src/components/PortableTextEditor.tsx:5868
 msgid "Delete image"
 msgstr "Slet billede"
 
@@ -4282,11 +4282,11 @@ msgid "Delete permanently"
 msgstr "Slet permanent"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:185
-#: packages/admin/src/components/ContentList.tsx:1740
+#: packages/admin/src/components/ContentList.tsx:1741
 msgid "Delete Permanently"
 msgstr "Slet permanent"
 
-#: packages/admin/src/components/ContentList.tsx:1720
+#: packages/admin/src/components/ContentList.tsx:1721
 msgid "Delete Permanently?"
 msgstr "Slet permanent?"
 
@@ -4340,8 +4340,8 @@ msgstr "Slet taksonomi"
 msgid "Delete Taxonomy"
 msgstr "Slet taksonomi"
 
-#: packages/admin/src/components/editor/VideoNode.tsx:402
 #: packages/admin/src/components/editor/VideoNode.tsx:403
+#: packages/admin/src/components/editor/VideoNode.tsx:404
 msgid "Delete video"
 msgstr ""
 
@@ -4349,7 +4349,7 @@ msgstr ""
 msgid "Delete Widget Area?"
 msgstr "Slet widgetområde?"
 
-#: packages/admin/src/components/ContentList.tsx:919
+#: packages/admin/src/components/ContentList.tsx:920
 msgid "Deleted"
 msgstr "Slettet"
 
@@ -4419,7 +4419,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:522
-#: packages/admin/src/components/PortableTextEditor.tsx:5751
+#: packages/admin/src/components/PortableTextEditor.tsx:5762
 msgid "Describe the image"
 msgstr "Beskriv billedet"
 
@@ -4555,8 +4555,8 @@ msgstr ""
 msgid "Discard"
 msgstr "Kasser"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:344
-#: packages/admin/src/components/ContentSettingsPanel.tsx:365
+#: packages/admin/src/components/ContentSettingsPanel.tsx:345
+#: packages/admin/src/components/ContentSettingsPanel.tsx:366
 msgid "Discard changes"
 msgstr "Kasser ændringer"
 
@@ -4564,7 +4564,7 @@ msgstr "Kasser ændringer"
 msgid "Discard changes?"
 msgstr "Kasser ændringer?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:350
+#: packages/admin/src/components/ContentSettingsPanel.tsx:351
 msgid "Discard draft changes?"
 msgstr "Kasser ændringer i kladden?"
 
@@ -4573,7 +4573,7 @@ msgid "Discarding..."
 msgstr "Kasserer..."
 
 #: packages/admin/src/components/CoreUpdateBanner.tsx:76
-#: packages/admin/src/components/Dashboard.tsx:204
+#: packages/admin/src/components/Dashboard.tsx:208
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:117
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Dismiss"
@@ -4584,15 +4584,15 @@ msgstr "Luk"
 msgid "Dismiss completed {0}"
 msgstr "Luk fuldført fil {0}"
 
-#: packages/admin/src/components/Dashboard.tsx:294
+#: packages/admin/src/components/Dashboard.tsx:298
 msgid "Dismiss import suggestion"
 msgstr "Luk importforslag"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4611
+#: packages/admin/src/components/PortableTextEditor.tsx:4607
 msgid "Dismiss section error"
 msgstr "Luk sektionsfejl"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4578
+#: packages/admin/src/components/PortableTextEditor.tsx:4574
 msgid "Dismiss table paste error"
 msgstr "Luk fejl ved indsættelse af tabel"
 
@@ -4629,7 +4629,7 @@ msgstr "Vis tagsky"
 msgid "Displayed below the image as a visible caption."
 msgstr "Vises under billedet som en synlig billedtekst."
 
-#: packages/admin/src/components/ContentEditor.tsx:1671
+#: packages/admin/src/components/ContentEditor.tsx:1767
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Distraktionsfri tilstand (⌘⇧\\)"
 
@@ -4686,7 +4686,7 @@ msgstr "Tilknyt ikke"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
-#: packages/admin/src/components/ContentList.tsx:1232
+#: packages/admin/src/components/ContentList.tsx:1233
 #: packages/admin/src/components/MediaUploadDialog.tsx:335
 #: packages/admin/src/components/users/InviteUserModal.tsx:145
 #: packages/admin/src/components/WordPressImport.tsx:2185
@@ -4761,17 +4761,17 @@ msgid "visualEditing.draft"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
-#: packages/admin/src/components/ContentList.tsx:1025
+#: packages/admin/src/components/ContentList.tsx:1026
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "Kladde"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:201
-#: packages/admin/src/components/ContentSettingsPanel.tsx:227
+#: packages/admin/src/components/ContentSettingsPanel.tsx:202
+#: packages/admin/src/components/ContentSettingsPanel.tsx:228
 msgid "Draft changes"
 msgstr "Ændringer i kladden"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:167
+#: packages/admin/src/components/ContentSettingsPanel.tsx:168
 msgid "Draft version"
 msgstr "Kladdeversion"
 
@@ -4780,7 +4780,7 @@ msgid "draft, published, or archived"
 msgstr "kladde, udgivet eller arkiveret"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:91
-#: packages/admin/src/components/Dashboard.tsx:528
+#: packages/admin/src/components/Dashboard.tsx:532
 msgid "Drafts"
 msgstr "Kladder"
 
@@ -4852,7 +4852,7 @@ msgstr "Slip din WordPress eksportfil her"
 msgid "Duplicate"
 msgstr "Dupliker"
 
-#: packages/admin/src/components/ContentList.tsx:1517
+#: packages/admin/src/components/ContentList.tsx:1518
 msgid "Duplicate {title}"
 msgstr "Dupliker {title}"
 
@@ -4897,8 +4897,8 @@ msgstr "Hvert stisegment kan højst indeholde én pladsholder, f.eks. {0}"
 msgid "Earliest saved version"
 msgstr ""
 
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:354
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:355
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:380
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:667
 #: packages/admin/src/components/Sections.tsx:439
@@ -4930,7 +4930,7 @@ msgstr "Rediger {0}"
 msgid "Edit {0} field"
 msgstr "Rediger feltet {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1407
+#: packages/admin/src/components/ContentEditor.tsx:1503
 msgid "Edit {itemLabel}"
 msgstr "Rediger {itemLabel}"
 
@@ -4939,7 +4939,7 @@ msgstr "Rediger {itemLabel}"
 msgid "Edit {label}"
 msgstr "Rediger {label}"
 
-#: packages/admin/src/components/ContentList.tsx:1508
+#: packages/admin/src/components/ContentList.tsx:1509
 msgid "Edit {title}"
 msgstr "Rediger {title}"
 
@@ -4961,9 +4961,9 @@ msgstr "Rediger byline"
 msgid "Edit byline field"
 msgstr "Rediger bylinefelt"
 
-#: packages/admin/src/components/editor/VideoNode.tsx:387
-#: packages/admin/src/components/editor/VideoNode.tsx:389
-#: packages/admin/src/components/PortableTextEditor.tsx:5845
+#: packages/admin/src/components/editor/VideoNode.tsx:388
+#: packages/admin/src/components/editor/VideoNode.tsx:390
+#: packages/admin/src/components/PortableTextEditor.tsx:5856
 msgid "Edit caption"
 msgstr ""
 
@@ -4999,10 +4999,10 @@ msgstr "Rediger billede"
 msgid "Edit image {0}"
 msgstr "Rediger billede {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5041
-#: packages/admin/src/components/PortableTextEditor.tsx:5147
-#: packages/admin/src/components/PortableTextEditor.tsx:5838
-#: packages/admin/src/components/PortableTextEditor.tsx:6285
+#: packages/admin/src/components/PortableTextEditor.tsx:5040
+#: packages/admin/src/components/PortableTextEditor.tsx:5149
+#: packages/admin/src/components/PortableTextEditor.tsx:5849
+#: packages/admin/src/components/PortableTextEditor.tsx:6297
 msgid "Edit link"
 msgstr "Rediger link"
 
@@ -5044,8 +5044,8 @@ msgstr "Rediger omdirigeringen {0}"
 msgid "Edit role"
 msgstr "Rediger rolle"
 
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:354
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:355
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:380
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 msgid "Edit URL"
 msgstr "Rediger URL"
 
@@ -5154,7 +5154,7 @@ msgstr ""
 msgid "Email every other user a link to the sign-in page at {siteHost}."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:242
+#: packages/admin/src/components/SetupWizard.tsx:243
 #: packages/admin/src/components/SignupPage.tsx:69
 msgid "Email is required"
 msgstr "E-mail er påkrævet"
@@ -5265,7 +5265,7 @@ msgstr ""
 msgid "Empty gallery — open settings to add images"
 msgstr "Tomt galleri - åbn indstillinger for at tilføje billeder"
 
-#: packages/admin/src/components/SetupWizard.tsx:173
+#: packages/admin/src/components/SetupWizard.tsx:174
 msgid "Empty site"
 msgstr "Tomt websted"
 
@@ -5306,7 +5306,7 @@ msgstr "Aktiver sporing for at indeksere eksisterende indhold og holde reference
 msgid "Enabled"
 msgstr "Aktiveret"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1099
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1100
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "Der bruges engelsk, fordi der ikke er konfigureret et indholdssprog. Indholdssproget gemmes sammen med indlægget og er adskilt fra dit administrationssprog."
 
@@ -5330,12 +5330,20 @@ msgstr ""
 msgid "Enter a slug."
 msgstr ""
 
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:38
+msgid "Enter a time"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:527
 #: packages/admin/src/components/MenuEditor.tsx:725
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Indtast en URL (https://…) eller en relativ sti (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:3179
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:39
+msgid "Enter a valid time"
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:3278
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Indtast en gyldig URL (f.eks. https://example.com)"
 
@@ -5343,7 +5351,7 @@ msgstr "Indtast en gyldig URL (f.eks. https://example.com)"
 msgid "Enter credentials manually"
 msgstr "Indtast loginoplysninger manuelt"
 
-#: packages/admin/src/components/ContentEditor.tsx:1666
+#: packages/admin/src/components/ContentEditor.tsx:1762
 msgid "Enter distraction-free mode"
 msgstr "Skift til distraktionsfri tilstand"
 
@@ -5351,7 +5359,7 @@ msgstr "Skift til distraktionsfri tilstand"
 msgid "Enter email"
 msgstr "Indtast e-mail"
 
-#: packages/admin/src/components/ContentEditor.tsx:2519
+#: packages/admin/src/components/ContentEditor.tsx:2618
 msgid "Enter markdown content..."
 msgstr "Indtast markdown indhold..."
 
@@ -5367,8 +5375,8 @@ msgstr "Indtast koden fra din terminal"
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
 msgstr ""
 
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:122
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:131
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:127
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:136
 msgid "Enter URL..."
 msgstr "Indtast URL..."
 
@@ -5410,10 +5418,10 @@ msgstr "indlæg på den linkende side"
 #: packages/admin/src/components/MenuEditor.tsx:158
 #: packages/admin/src/components/MenuEditor.tsx:226
 #: packages/admin/src/components/MenuEditor.tsx:266
-#: packages/admin/src/components/SetupWizard.tsx:607
+#: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1210
 #: packages/admin/src/components/Widgets.tsx:781
-#: packages/admin/src/router.tsx:3338
+#: packages/admin/src/router.tsx:3364
 msgid "Error"
 msgstr "Fejl"
 
@@ -5486,11 +5494,11 @@ msgstr "Eksisterende indhold er indekseret. Nye ændringer spores automatisk."
 msgid "Exists"
 msgstr "Findes"
 
-#: packages/admin/src/components/ContentEditor.tsx:1666
+#: packages/admin/src/components/ContentEditor.tsx:1762
 msgid "Exit distraction-free mode"
 msgstr "Afslut distraktionsfri tilstand"
 
-#: packages/admin/src/components/ContentEditor.tsx:1670
+#: packages/admin/src/components/ContentEditor.tsx:1766
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "Afslut distraktionsfri tilstand (⌘⇧\\)"
 
@@ -5658,7 +5666,7 @@ msgstr "{0} kunne ikke oprettes"
 msgid "Failed to create a sign-in link"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:561
+#: packages/admin/src/components/SetupWizard.tsx:557
 msgid "Failed to create admin"
 msgstr "Administratoren kunne ikke oprettes"
 
@@ -5750,7 +5758,7 @@ msgid "Failed to create term translation"
 msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:782
-#: packages/admin/src/router.tsx:1623
+#: packages/admin/src/router.tsx:1648
 msgid "Failed to create translation"
 msgstr "Oversættelsen kunne ikke oprettes"
 
@@ -5765,7 +5773,7 @@ msgstr ""
 #: packages/admin/src/router.tsx:646
 #: packages/admin/src/router.tsx:675
 #: packages/admin/src/router.tsx:758
-#: packages/admin/src/router.tsx:1646
+#: packages/admin/src/router.tsx:1672
 msgid "Failed to delete"
 msgstr "Kunne ikke slette"
 
@@ -5790,7 +5798,7 @@ msgid "Failed to delete collection"
 msgstr "Samlingen kunne ikke slettes"
 
 #: packages/admin/src/lib/api/comments.ts:114
-#: packages/admin/src/router.tsx:2426
+#: packages/admin/src/router.tsx:2452
 msgid "Failed to delete comment"
 msgstr "Kommentaren kunne ikke slettes"
 
@@ -5872,7 +5880,7 @@ msgstr "Søgning kunne ikke deaktiveres"
 msgid "Failed to disable user"
 msgstr "Brugeren kunne ikke deaktiveres"
 
-#: packages/admin/src/router.tsx:1517
+#: packages/admin/src/router.tsx:1542
 msgid "Failed to discard changes"
 msgstr "Ændringerne kunne ikke kasseres"
 
@@ -5880,7 +5888,7 @@ msgstr "Ændringerne kunne ikke kasseres"
 msgid "Failed to discard draft"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:223
+#: packages/admin/src/components/Dashboard.tsx:227
 #: packages/admin/src/lib/api/dashboard.ts:73
 msgid "Failed to dismiss scheduled publication rejection"
 msgstr "Afvisningen af den planlagte udgivelse kunne ikke lukkes"
@@ -6115,7 +6123,7 @@ msgstr "Sektionerne kunne ikke hentes"
 msgid "Failed to fetch settings"
 msgstr "Indstillingerne kunne ikke hentes"
 
-#: packages/admin/src/components/SetupWizard.tsx:502
+#: packages/admin/src/components/SetupWizard.tsx:504
 msgid "Failed to fetch setup status"
 msgstr "Opsætningsstatus kunne ikke hentes"
 
@@ -6155,7 +6163,7 @@ msgstr "Opdateringsstatus kunne ikke hentes"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2357
+#: packages/admin/src/router.tsx:2383
 msgid "Failed to fetch user"
 msgstr "Brugeren kunne ikke hentes"
 
@@ -6310,7 +6318,7 @@ msgstr "Plugins kunne ikke indlæses: {0}"
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
 msgstr "Plugins kunne ikke indlæses. Registry aggregatoren er muligvis ikke tilgængelig."
 
-#: packages/admin/src/components/SetupWizard.tsx:609
+#: packages/admin/src/components/SetupWizard.tsx:605
 msgid "Failed to load setup"
 msgstr "Opsætningen kunne ikke indlæses"
 
@@ -6344,7 +6352,7 @@ msgid "Failed to lock the entry"
 msgstr "Indlægget kunne ikke låses"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2451
+#: packages/admin/src/router.tsx:2477
 msgid "Failed to perform bulk action"
 msgstr "Massehandlingen kunne ikke udføres"
 
@@ -6362,7 +6370,7 @@ msgid "Failed to probe URL"
 msgstr ""
 
 #: packages/admin/src/router.tsx:714
-#: packages/admin/src/router.tsx:1468
+#: packages/admin/src/router.tsx:1493
 msgid "Failed to publish"
 msgstr "Kunne ikke udgive"
 
@@ -6374,7 +6382,7 @@ msgstr ""
 msgid "Failed to read byline field usage"
 msgstr "Brugen af bylinefeltet kunne ikke læses"
 
-#: packages/admin/src/router.tsx:2877
+#: packages/admin/src/router.tsx:2903
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -6456,8 +6464,8 @@ msgid "Failed to rewrite URLs"
 msgstr "URL'erne kunne ikke omskrives"
 
 #: packages/admin/src/router.tsx:910
-#: packages/admin/src/router.tsx:1313
-#: packages/admin/src/router.tsx:3062
+#: packages/admin/src/router.tsx:1334
+#: packages/admin/src/router.tsx:3088
 msgid "Failed to save"
 msgstr "Kunne ikke gemme"
 
@@ -6476,7 +6484,7 @@ msgstr "Feltet kunne ikke gemmes"
 msgid "Failed to save settings"
 msgstr "Indstillingerne kunne ikke gemmes"
 
-#: packages/admin/src/router.tsx:1573
+#: packages/admin/src/router.tsx:1598
 msgid "Failed to schedule"
 msgstr "Kunne ikke planlægge"
 
@@ -6520,7 +6528,7 @@ msgstr "Importen kunne ikke startes"
 msgid "Failed to uninstall plugin"
 msgstr "Pluginet kunne ikke afinstalleres"
 
-#: packages/admin/src/router.tsx:1492
+#: packages/admin/src/router.tsx:1517
 msgid "Failed to unpublish"
 msgstr "Kunne ikke fjerne udgivelse"
 
@@ -6528,7 +6536,7 @@ msgstr "Kunne ikke fjerne udgivelse"
 msgid "Failed to unpublish content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1592
+#: packages/admin/src/router.tsx:1617
 msgid "Failed to unschedule"
 msgstr "Kunne ikke fjerne planlægning"
 
@@ -6627,7 +6635,7 @@ msgstr "Sektionen kunne ikke opdateres"
 msgid "Failed to update settings"
 msgstr "Indstillingerne kunne ikke opdateres"
 
-#: packages/admin/src/router.tsx:2410
+#: packages/admin/src/router.tsx:2436
 msgid "Failed to update status"
 msgstr "Status kunne ikke opdateres"
 
@@ -6775,7 +6783,7 @@ msgstr ""
 msgid "Filter"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1080
+#: packages/admin/src/components/ContentList.tsx:1081
 msgid "Filter by author"
 msgstr "Filtrer efter forfatter"
 
@@ -6791,7 +6799,7 @@ msgstr "Filtrer efter tilladelse"
 msgid "Filter by collection"
 msgstr "Filtrer efter samling"
 
-#: packages/admin/src/components/ContentList.tsx:1202
+#: packages/admin/src/components/ContentList.tsx:1203
 msgid "Filter by date range: {rangeLabel}"
 msgstr "Filtrer efter datointerval: {rangeLabel}"
 
@@ -6803,7 +6811,7 @@ msgstr "Filtrer efter rolle"
 msgid "Filter by source"
 msgstr "Filtrer efter kilde"
 
-#: packages/admin/src/components/ContentList.tsx:1062
+#: packages/admin/src/components/ContentList.tsx:1063
 #: packages/admin/src/components/Redirects.tsx:400
 msgid "Filter by status"
 msgstr "Filtrer efter status"
@@ -6831,7 +6839,7 @@ msgstr "Afslut eventuelle igangværende redigeringer."
 msgid "First page"
 msgstr "Første side"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:176
+#: packages/admin/src/components/ContentSettingsPanel.tsx:177
 msgid "First publication"
 msgstr "Første udgivelse"
 
@@ -6843,11 +6851,11 @@ msgstr ""
 msgid "First-time commenters only"
 msgstr "Kun førstegangskommentatorer"
 
-#: packages/admin/src/components/ContentEditor.tsx:1389
+#: packages/admin/src/components/ContentEditor.tsx:1485
 msgid "Fix invalid fields before changing the publication date"
 msgstr "Ret ugyldige felter, før du ændrer udgivelsesdatoen"
 
-#: packages/admin/src/components/ContentEditor.tsx:1333
+#: packages/admin/src/components/ContentEditor.tsx:1415
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Ret ugyldige felter, før du ændrer planlægningen"
 
@@ -6873,7 +6881,7 @@ msgstr "Mappen er slettet"
 msgid "Folder name must be between 1 and 200 characters"
 msgstr "Mappenavnet skal være mellem 1 og 200 tegn"
 
-#: packages/admin/src/router.tsx:2080
+#: packages/admin/src/router.tsx:2106
 msgid "Folder no longer exists"
 msgstr "Mappen findes ikke længere"
 
@@ -6921,7 +6929,7 @@ msgstr "For en komplet import inklusive kladder og alt indhold skal du eksporter
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "For den bedste importoplevelse skal du installere pluginet <0>EmDash Exporter</0> på dit WordPress websted."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4993
+#: packages/admin/src/components/PortableTextEditor.tsx:4992
 msgid "Format selection"
 msgstr ""
 
@@ -6934,7 +6942,7 @@ msgid "Freeform"
 msgstr "Fri"
 
 #. placeholder {0}: formatter.format(from)
-#: packages/admin/src/components/ContentList.tsx:1153
+#: packages/admin/src/components/ContentList.tsx:1154
 msgid "From {0}"
 msgstr "Fra {0}"
 
@@ -6991,7 +6999,7 @@ msgstr "Generelle indstillinger"
 msgid "Genres"
 msgstr "Genrer"
 
-#: packages/admin/src/components/WelcomeModal.tsx:156
+#: packages/admin/src/components/WelcomeModal.tsx:164
 msgid "Get Started"
 msgstr "Kom i gang"
 
@@ -7011,7 +7019,7 @@ msgstr "Giv denne passkey et navn, så du nemt kan genkende den senere."
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/ContentEditor.tsx:1329
+#: packages/admin/src/components/ContentEditor.tsx:1411
 msgid "Go back to editing first."
 msgstr ""
 
@@ -7020,7 +7028,7 @@ msgid "Go live {countdown}"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3358
+#: packages/admin/src/router.tsx:3384
 msgid "Go to Dashboard"
 msgstr "Gå til kontrolpanelet"
 
@@ -7196,7 +7204,7 @@ msgstr "Hits"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "Lås et indlæg, mens nogen redigerer det, og afvis andre skribenter"
 
-#: packages/admin/src/components/ContentEditor.tsx:2692
+#: packages/admin/src/components/ContentEditor.tsx:2791
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Indeholder et indlægs ID. Angiv en målsamling under Indholdstyper for i stedet at vælge indlæg."
 
@@ -7218,11 +7226,11 @@ msgstr "Hooks"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr "Vandret {0} %, lodret {1} %"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:194
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:232
 msgid "Hour"
 msgstr "Time"
 
-#: packages/admin/src/components/SetupWizard.tsx:158
+#: packages/admin/src/components/SetupWizard.tsx:159
 msgid "How do you want to start?"
 msgstr "Hvordan vil du starte?"
 
@@ -7355,11 +7363,11 @@ msgstr "Billede {0}"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:336
 #: packages/admin/src/components/ImageFieldRenderer.tsx:351
-#: packages/admin/src/components/SeoImageField.tsx:128
+#: packages/admin/src/components/SeoImageField.tsx:171
 msgid "Image actions"
 msgstr "Billedhandlinger"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5716
+#: packages/admin/src/components/PortableTextEditor.tsx:5727
 msgid "Image controls"
 msgstr ""
 
@@ -7367,14 +7375,14 @@ msgstr ""
 msgid "Image from media library"
 msgstr "Billede fra mediebiblioteket"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6283
+#: packages/admin/src/components/PortableTextEditor.tsx:6295
 msgid "Image link"
 msgstr "Billedlink"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:70
 #: packages/admin/src/components/ImageFieldRenderer.tsx:488
 #: packages/admin/src/components/ImageFieldRenderer.tsx:543
-#: packages/admin/src/components/SeoImageField.tsx:107
+#: packages/admin/src/components/SeoImageField.tsx:146
 msgid "Image not found"
 msgstr "Billedet blev ikke fundet"
 
@@ -7387,7 +7395,7 @@ msgid "Image replaced."
 msgstr "Billedet er erstattet."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:391
-#: packages/admin/src/components/PortableTextEditor.tsx:5850
+#: packages/admin/src/components/PortableTextEditor.tsx:5861
 msgid "Image settings"
 msgstr "Billedindstillinger"
 
@@ -7395,7 +7403,7 @@ msgstr "Billedindstillinger"
 msgid "Image Settings"
 msgstr "Billedindstillinger"
 
-#: packages/admin/src/components/SeoImageField.tsx:97
+#: packages/admin/src/components/SeoImageField.tsx:136
 msgid "Image shown when this page is shared on social media"
 msgstr "Billede, der vises, når denne side deles på sociale medier"
 
@@ -7416,9 +7424,9 @@ msgstr "Billed URL"
 msgid "Images"
 msgstr "Billeder"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:240
+#: packages/admin/src/components/AdminCommandPalette.tsx:244
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:548
+#: packages/admin/src/components/Sidebar.tsx:558
 #: packages/admin/src/components/WordPressImport.tsx:783
 msgid "Import"
 msgstr "Import"
@@ -7428,7 +7436,7 @@ msgstr "Import"
 msgid "Import {0}"
 msgstr "Importer {0}"
 
-#: packages/admin/src/components/Dashboard.tsx:286
+#: packages/admin/src/components/Dashboard.tsx:290
 msgid "Import a site package"
 msgstr "Importer en webstedspakke"
 
@@ -7440,7 +7448,7 @@ msgstr "Importer en webstedspakke til dette websted, mens det er tomt, og oversk
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "Importer alt indhold direkte, inklusive kladder, brugerdefinerede indlægstyper, ACF felter og SEO data. Ingen fil skal downloades."
 
-#: packages/admin/src/components/SetupWizard.tsx:178
+#: packages/admin/src/components/SetupWizard.tsx:179
 msgid "Import an existing EmDash site"
 msgstr "Importer et eksisterende EmDash websted"
 
@@ -7610,8 +7618,8 @@ msgstr ""
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4799
-#: packages/admin/src/components/PortableTextEditor.tsx:6352
+#: packages/admin/src/components/PortableTextEditor.tsx:4795
+#: packages/admin/src/components/PortableTextEditor.tsx:6364
 msgid "Inline Code"
 msgstr "Inline kode"
 
@@ -7652,8 +7660,8 @@ msgstr "Indsæt et billedgalleri"
 msgid "Insert block"
 msgstr "Indsæt blok"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6299
-#: packages/admin/src/components/PortableTextEditor.tsx:6309
+#: packages/admin/src/components/PortableTextEditor.tsx:6311
+#: packages/admin/src/components/PortableTextEditor.tsx:6321
 msgid "Insert block after current block"
 msgstr "Indsæt blok efter den aktuelle blok"
 
@@ -7661,12 +7669,12 @@ msgstr "Indsæt blok efter den aktuelle blok"
 msgid "Insert block below"
 msgstr "Indsæt blok nedenfor"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6433
+#: packages/admin/src/components/PortableTextEditor.tsx:6445
 msgid "Insert HTML"
 msgstr "Indsæt HTML"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4705
-#: packages/admin/src/components/PortableTextEditor.tsx:6426
+#: packages/admin/src/components/PortableTextEditor.tsx:4701
+#: packages/admin/src/components/PortableTextEditor.tsx:6438
 msgid "Insert image"
 msgstr "Indsæt billede"
 
@@ -7695,7 +7703,7 @@ msgstr "Indsæt sektion"
 msgid "Insert table"
 msgstr "Indsæt tabel"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4719
+#: packages/admin/src/components/PortableTextEditor.tsx:4715
 msgid "Insert video"
 msgstr ""
 
@@ -7761,7 +7769,7 @@ msgstr "UGYLDIGT HANDLE"
 msgid "Invalid invite link"
 msgstr "Ugyldigt invitationslink"
 
-#: packages/admin/src/components/ContentEditor.tsx:3255
+#: packages/admin/src/components/ContentEditor.tsx:3354
 msgid "Invalid JSON"
 msgstr "Ugyldig JSON"
 
@@ -7818,8 +7826,8 @@ msgstr "Den gemmes af den enhed eller adgangskodeadministrator, du valgte i den 
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr "Den blev startet et andet sted, så dens plan kan ikke længere ændres. Dens fremskridt vises her."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4796
-#: packages/admin/src/components/PortableTextEditor.tsx:6328
+#: packages/admin/src/components/PortableTextEditor.tsx:4792
+#: packages/admin/src/components/PortableTextEditor.tsx:6340
 msgid "Italic"
 msgstr "Kursiv"
 
@@ -7846,7 +7854,7 @@ msgid "Its listing has not been approved for display. Check back later."
 msgstr "Pluginets opslag er ikke godkendt til visning. Kom tilbage senere."
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:76
-#: packages/admin/src/components/SetupWizard.tsx:277
+#: packages/admin/src/components/SetupWizard.tsx:278
 #: packages/admin/src/components/SignupPage.tsx:231
 msgid "Jane Doe"
 msgstr "Jens Hansen"
@@ -8027,8 +8035,8 @@ msgstr "Læs, hvordan du installerer plugins, i <0>dokumentationen<1/></0>."
 msgid "Learn more"
 msgstr "Læs mere"
 
-#: packages/admin/src/components/UnsavedChangesGuard.tsx:27
-#: packages/admin/src/components/UnsavedChangesGuard.tsx:29
+#: packages/admin/src/components/UnsavedChangesGuard.tsx:38
+#: packages/admin/src/components/UnsavedChangesGuard.tsx:40
 msgid "Leave"
 msgstr ""
 
@@ -8036,14 +8044,14 @@ msgstr ""
 msgid "Leave unassigned"
 msgstr "Lad være utildelt"
 
-#: packages/admin/src/components/UnsavedChangesGuard.tsx:25
+#: packages/admin/src/components/UnsavedChangesGuard.tsx:36
 msgid "Leave without saving?"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:5304
-#: packages/admin/src/components/PortableTextEditor.tsx:5422
+#: packages/admin/src/components/PortableTextEditor.tsx:5307
+#: packages/admin/src/components/PortableTextEditor.tsx:5428
 msgid "Left"
 msgstr "Venstre"
 
@@ -8064,7 +8072,7 @@ msgstr "Licens"
 msgid "Limit"
 msgstr "Grænse"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6512
+#: packages/admin/src/components/PortableTextEditor.tsx:6524
 msgid "Link"
 msgstr "Link"
 
@@ -8072,7 +8080,7 @@ msgstr "Link"
 msgid "Link expired"
 msgstr "Linket er udløbet"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5125
+#: packages/admin/src/components/PortableTextEditor.tsx:5127
 msgid "Link options"
 msgstr ""
 
@@ -8166,14 +8174,14 @@ msgid "List view"
 msgstr "Listevisning"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:185
-#: packages/admin/src/components/ContentSettingsPanel.tsx:195
-#: packages/admin/src/components/ContentSettingsPanel.tsx:221
-#: packages/admin/src/components/ContentSettingsPanel.tsx:247
+#: packages/admin/src/components/ContentSettingsPanel.tsx:186
+#: packages/admin/src/components/ContentSettingsPanel.tsx:196
+#: packages/admin/src/components/ContentSettingsPanel.tsx:222
+#: packages/admin/src/components/ContentSettingsPanel.tsx:248
 msgid "Live version"
 msgstr "Live version"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:705
+#: packages/admin/src/components/ContentSettingsPanel.tsx:706
 msgid "Live View"
 msgstr "Live visning"
 
@@ -8188,8 +8196,8 @@ msgstr "Live visning"
 msgid "Load more"
 msgstr "Indlæs flere"
 
-#: packages/admin/src/components/ContentList.tsx:889
-#: packages/admin/src/components/ContentList.tsx:965
+#: packages/admin/src/components/ContentList.tsx:890
+#: packages/admin/src/components/ContentList.tsx:966
 #: packages/admin/src/components/MediaLibrary.tsx:1248
 #: packages/admin/src/components/users/UserList.tsx:162
 msgid "Load More"
@@ -8207,7 +8215,7 @@ msgid "Load preview"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3313
+#: packages/admin/src/router.tsx:3339
 msgid "Loading"
 msgstr "Indlæser"
 
@@ -8236,8 +8244,8 @@ msgstr "Indlæser samlinger..."
 msgid "Loading comments..."
 msgstr "Indlæser kommentarer..."
 
-#: packages/admin/src/router.tsx:3315
-#: packages/admin/src/router.tsx:3327
+#: packages/admin/src/router.tsx:3341
+#: packages/admin/src/router.tsx:3353
 msgid "Loading configuration..."
 msgstr "Indlæser konfiguration..."
 
@@ -8245,7 +8253,7 @@ msgstr "Indlæser konfiguration..."
 msgid "Loading content..."
 msgstr "Indlæser indhold..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4541
+#: packages/admin/src/components/PortableTextEditor.tsx:4537
 msgid "Loading editor..."
 msgstr "Indlæser editor..."
 
@@ -8295,7 +8303,7 @@ msgstr "Indlæser plugins..."
 msgid "Loading redirects..."
 msgstr "Indlæser omdirigeringer..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3011
+#: packages/admin/src/components/ContentEditor.tsx:3110
 msgid "Loading references..."
 msgstr "Indlæser referencer..."
 
@@ -8316,7 +8324,7 @@ msgstr "Indlæser sektioner..."
 msgid "Loading settings..."
 msgstr "Indlæser indstillinger..."
 
-#: packages/admin/src/components/SetupWizard.tsx:596
+#: packages/admin/src/components/SetupWizard.tsx:592
 msgid "Loading setup..."
 msgstr "Indlæser opsætning..."
 
@@ -8337,10 +8345,10 @@ msgstr "Indlæser brug"
 msgid "Loading widgets..."
 msgstr "Indlæser widgets..."
 
-#: packages/admin/src/components/ContentList.tsx:791
-#: packages/admin/src/components/ContentList.tsx:889
-#: packages/admin/src/components/ContentList.tsx:935
-#: packages/admin/src/components/ContentList.tsx:965
+#: packages/admin/src/components/ContentList.tsx:792
+#: packages/admin/src/components/ContentList.tsx:890
+#: packages/admin/src/components/ContentList.tsx:936
+#: packages/admin/src/components/ContentList.tsx:966
 #: packages/admin/src/components/ContentPickerModal.tsx:371
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:606
@@ -8378,14 +8386,14 @@ msgstr ""
 msgid "Loading…"
 msgstr "Indlæser…"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:112
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:129
 msgid "Local time"
 msgstr "Lokal tid"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:320
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
-#: packages/admin/src/components/ContentList.tsx:760
-#: packages/admin/src/components/ContentList.tsx:915
+#: packages/admin/src/components/ContentList.tsx:761
+#: packages/admin/src/components/ContentList.tsx:916
 #: packages/admin/src/components/LocaleSwitcher.tsx:61
 msgid "Locale"
 msgstr "Sprog"
@@ -8463,7 +8471,7 @@ msgstr "Hovedbibliotek"
 msgid "Main Sidebar"
 msgstr "Hovedsidebjælke"
 
-#: packages/admin/src/components/Sidebar.tsx:684
+#: packages/admin/src/components/Sidebar.tsx:698
 msgid "Manage"
 msgstr "Administrer"
 
@@ -8549,11 +8557,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Markedsplads"
 
-#: packages/admin/src/router.tsx:2714
+#: packages/admin/src/router.tsx:2740
 msgid "Marketplace browsing is no longer available."
 msgstr "Markedspladsen er ikke længere tilgængelig."
 
-#: packages/admin/src/router.tsx:2689
+#: packages/admin/src/router.tsx:2715
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Markedspladsen er ikke længere tilgængelig. Administrer installerede plugins under Plugins."
 
@@ -8601,7 +8609,7 @@ msgstr "MDX"
 #: packages/admin/src/components/Settings.tsx:72
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
-#: packages/admin/src/components/Sidebar.tsx:441
+#: packages/admin/src/components/Sidebar.tsx:451
 #: packages/admin/src/components/WordPressImport.tsx:797
 #: packages/admin/src/components/WordPressImport.tsx:1195
 #: packages/admin/src/components/WordPressImport.tsx:1388
@@ -8643,7 +8651,7 @@ msgstr "Media i denne mappe flyttes tilbage til Hovedbibliotek. Ingen filer bliv
 msgid "visualEditing.mediaLibrary"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:167
+#: packages/admin/src/components/AdminCommandPalette.tsx:171
 #: packages/admin/src/components/MediaLibrary.tsx:755
 #: packages/admin/src/components/MediaLibrary.tsx:770
 msgid "Media Library"
@@ -8752,10 +8760,10 @@ msgstr "Menurækkefølgen er opdateret."
 msgid "Menu renamed"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:174
+#: packages/admin/src/components/AdminCommandPalette.tsx:178
 #: packages/admin/src/components/MenuList.tsx:101
 #: packages/admin/src/components/settings/transfer/labels.ts:28
-#: packages/admin/src/components/Sidebar.tsx:464
+#: packages/admin/src/components/Sidebar.tsx:474
 #: packages/admin/src/components/WordPressImport.tsx:1199
 msgid "Menus"
 msgstr "Menuer"
@@ -8818,7 +8826,7 @@ msgstr "Min. antal blokke"
 msgid "Minor section heading"
 msgstr "Mindre sektionsoverskrift"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:216
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:258
 msgid "Minute"
 msgstr "Minut"
 
@@ -8861,7 +8869,7 @@ msgstr "Månedlige/årlige arkiver"
 msgid "More actions for {0}"
 msgstr "Flere handlinger for {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5271
+#: packages/admin/src/components/PortableTextEditor.tsx:5274
 msgid "More formatting"
 msgstr ""
 
@@ -8903,14 +8911,14 @@ msgstr "Flyt \"{0}\" ned"
 msgid "Move \"{0}\" up"
 msgstr "Flyt \"{0}\" op"
 
-#: packages/admin/src/components/ContentList.tsx:1539
+#: packages/admin/src/components/ContentList.tsx:1540
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "Flyt \"{title}\" til papirkurven? Du kan gendanne det senere."
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #. placeholder {0}: term.label
-#: packages/admin/src/components/ContentEditor.tsx:2978
+#: packages/admin/src/components/ContentEditor.tsx:3077
 #: packages/admin/src/components/FieldEditor.tsx:1163
 #: packages/admin/src/components/TaxonomyManager.tsx:463
 msgid "Move {0} down"
@@ -8934,7 +8942,7 @@ msgstr "Flyt {0} senere"
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #. placeholder {0}: term.label
-#: packages/admin/src/components/ContentEditor.tsx:2967
+#: packages/admin/src/components/ContentEditor.tsx:3066
 #: packages/admin/src/components/FieldEditor.tsx:1146
 #: packages/admin/src/components/TaxonomyManager.tsx:450
 msgid "Move {0} up"
@@ -8945,7 +8953,7 @@ msgstr "Flyt {0} op"
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
 msgstr "Flyt {0} op - ikke muligt, dens overordnede term har ingen oversættelse på dette sprog"
 
-#: packages/admin/src/components/ContentList.tsx:1530
+#: packages/admin/src/components/ContentList.tsx:1531
 msgid "Move {title} to trash"
 msgstr "Flyt {title} til papirkurven"
 
@@ -8976,19 +8984,19 @@ msgstr "Flyt dette websted til en anden EmDash installation, eller importer en w
 msgid "Move this site to another EmDash installation, or import a site package into this one."
 msgstr "Flyt dette websted til en anden EmDash installation, eller importer en webstedspakke til dette."
 
-#: packages/admin/src/components/ContentList.tsx:645
+#: packages/admin/src/components/ContentList.tsx:646
 msgid "Move to trash"
 msgstr "Flyt til papirkurven"
 
-#: packages/admin/src/components/ContentList.tsx:672
-#: packages/admin/src/components/ContentList.tsx:1552
+#: packages/admin/src/components/ContentList.tsx:673
+#: packages/admin/src/components/ContentList.tsx:1553
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1367
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1387
 msgid "Move to Trash"
 msgstr "Flyt til papirkurven"
 
-#: packages/admin/src/components/ContentList.tsx:650
-#: packages/admin/src/components/ContentList.tsx:1537
+#: packages/admin/src/components/ContentList.tsx:651
+#: packages/admin/src/components/ContentList.tsx:1538
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1372
 msgid "Move to Trash?"
 msgstr "Flyt til papirkurven?"
@@ -9093,7 +9101,7 @@ msgstr "Flytter {label} til position {0} af {1}."
 msgid "Moving {label} was cancelled."
 msgstr "Flytning af {label} blev annulleret."
 
-#: packages/admin/src/components/Dashboard.tsx:276
+#: packages/admin/src/components/Dashboard.tsx:280
 msgid "Moving from another EmDash site?"
 msgstr "Flytter du fra et andet EmDash websted?"
 
@@ -9109,7 +9117,7 @@ msgstr "Almindelig tekst over flere linjer"
 msgid "Multiple choices from options"
 msgstr "Flere valg blandt muligheder"
 
-#: packages/admin/src/components/SetupWizard.tsx:141
+#: packages/admin/src/components/SetupWizard.tsx:142
 msgid "My Awesome Blog"
 msgstr "Min fantastiske blog"
 
@@ -9144,7 +9152,7 @@ msgstr "Giv din sektion et navn, og tilføj derefter indholdet i editoren."
 msgid "Navigate"
 msgstr "Naviger"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:365
+#: packages/admin/src/components/AdminCommandPalette.tsx:369
 #: packages/admin/src/components/ContentTypeEditor.tsx:562
 msgid "Navigation"
 msgstr "Navigation"
@@ -9165,7 +9173,7 @@ msgstr "Kræver opmærksomhed"
 msgid "Never"
 msgstr "Aldrig"
 
-#: packages/admin/src/router.tsx:1618
+#: packages/admin/src/router.tsx:1643
 msgid "new"
 msgstr "ny"
 
@@ -9173,7 +9181,7 @@ msgstr "ny"
 msgid "NEW"
 msgstr "NY"
 
-#: packages/admin/src/components/ContentEditor.tsx:1407
+#: packages/admin/src/components/ContentEditor.tsx:1503
 msgid "New {itemLabel}"
 msgstr "Ny {itemLabel}"
 
@@ -9239,7 +9247,7 @@ msgstr "Ny genanvendelig profil"
 msgid "New section"
 msgstr "Ny sektion"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:504
+#: packages/admin/src/components/AdminCommandPalette.tsx:508
 msgid "new tab"
 msgstr "ny fane"
 
@@ -9281,7 +9289,7 @@ msgid "Next month"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:396
-#: packages/admin/src/components/ContentList.tsx:877
+#: packages/admin/src/components/ContentList.tsx:878
 #: packages/admin/src/components/ListPaginationFooter.tsx:111
 #: packages/admin/src/components/MediaPickerModal.tsx:1557
 msgid "Next page"
@@ -9301,7 +9309,7 @@ msgstr "Derefter åbnes {0}"
 msgid "Next, the browser's passkey window will open"
 msgstr "Derefter åbnes browserens passkey vindue"
 
-#: packages/admin/src/components/ContentList.tsx:1575
+#: packages/admin/src/components/ContentList.tsx:1576
 #: packages/admin/src/components/users/UserDetail.tsx:255
 #: packages/admin/src/routes/byline-schema.tsx:424
 msgid "No"
@@ -9312,7 +9320,7 @@ msgid "No (shared across translations)"
 msgstr "Nej (deles på tværs af oversættelser)"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:802
+#: packages/admin/src/components/ContentList.tsx:803
 msgid "No {0} yet."
 msgstr "Ingen {0} endnu."
 
@@ -9387,7 +9395,7 @@ msgstr "Ingen bylines endnu"
 msgid "No changes"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:500
+#: packages/admin/src/components/Dashboard.tsx:504
 msgid "No collections configured"
 msgstr "Ingen samlinger konfigureret"
 
@@ -9419,7 +9427,7 @@ msgstr "Ingen indholdstyper endnu."
 msgid "No custom fields yet"
 msgstr "Ingen brugerdefinerede felter endnu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5812
+#: packages/admin/src/components/PortableTextEditor.tsx:5823
 msgid "No description yet"
 msgstr ""
 
@@ -9430,6 +9438,10 @@ msgstr "Ingen detaljeret beskrivelse tilgængelig."
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:285
 msgid "No domains configured. Users must be invited individually."
 msgstr "Ingen domæner konfigureret. Brugere skal inviteres enkeltvis."
+
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:310
+msgid "No editor is available for this block type. Its content is preserved."
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:332
 msgid "No email address"
@@ -9633,7 +9645,7 @@ msgstr "Ingen plugins matcher \"{debouncedQuery}\"."
 msgid "No public URL available"
 msgstr "Ingen offentlig URL tilgængelig"
 
-#: packages/admin/src/components/Dashboard.tsx:579
+#: packages/admin/src/components/Dashboard.tsx:583
 msgid "No recent activity"
 msgstr "Ingen nylig aktivitet"
 
@@ -9641,7 +9653,7 @@ msgstr "Ingen nylig aktivitet"
 msgid "No redirects yet"
 msgstr "Ingen omdirigeringer endnu"
 
-#: packages/admin/src/components/ContentEditor.tsx:2921
+#: packages/admin/src/components/ContentEditor.tsx:3020
 msgid "No references selected."
 msgstr "Ingen referencer valgt."
 
@@ -9658,8 +9670,8 @@ msgstr "Ingen relationer endnu."
 msgid "No results"
 msgstr "Ingen resultater"
 
-#: packages/admin/src/components/ContentList.tsx:799
-#: packages/admin/src/components/ContentList.tsx:818
+#: packages/admin/src/components/ContentList.tsx:800
+#: packages/admin/src/components/ContentList.tsx:819
 msgid "No results for \"{activeSearch}\""
 msgstr "Ingen resultater for \"{activeSearch}\""
 
@@ -9668,7 +9680,7 @@ msgstr "Ingen resultater for \"{activeSearch}\""
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "Ingen resultater for \"{debouncedQuery}\". Prøv et andet søgeord."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:490
+#: packages/admin/src/components/AdminCommandPalette.tsx:494
 #: packages/admin/src/components/Settings.tsx:166
 msgid "No results found"
 msgstr "Ingen resultater fundet"
@@ -9727,7 +9739,7 @@ msgid "Non-guest"
 msgstr "Uden gæster"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:5421
+#: packages/admin/src/components/PortableTextEditor.tsx:5427
 msgid "None"
 msgstr "Ingen"
 
@@ -9752,7 +9764,7 @@ msgstr "Ikke matchet"
 msgid "Not recorded in this version"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1574
+#: packages/admin/src/components/ContentList.tsx:1575
 #: packages/admin/src/components/PluginSettings.tsx:342
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Not set"
@@ -9799,7 +9811,7 @@ msgstr "Antal indlæg, der vises pr. side i listevisninger"
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
 #: packages/admin/src/components/PortableTextEditor.tsx:2061
-#: packages/admin/src/components/PortableTextEditor.tsx:6385
+#: packages/admin/src/components/PortableTextEditor.tsx:6397
 msgid "Numbered List"
 msgstr "Nummereret liste"
 
@@ -9812,7 +9824,7 @@ msgstr "OAuth autorisation kræver HTTPS. Brug manuelle loginoplysninger."
 msgid "Off"
 msgstr "Fra"
 
-#: packages/admin/src/components/SeoImageField.tsx:49
+#: packages/admin/src/components/SeoImageField.tsx:88
 msgid "OG Image"
 msgstr "OG Image"
 
@@ -9828,7 +9840,7 @@ msgstr ""
 msgid "On the site"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:179
+#: packages/admin/src/components/SetupWizard.tsx:180
 msgid "Once setup is done, upload a .emdash package exported from another EmDash site."
 msgstr "Når opsætningen er færdig, kan du uploade en .emdash pakke, der er eksporteret fra et andet EmDash websted."
 
@@ -9879,7 +9891,7 @@ msgid "Open"
 msgstr "Åbn"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:2956
+#: packages/admin/src/components/ContentEditor.tsx:3055
 msgid "Open {0} in a new tab"
 msgstr "Åbn {0} i en ny fane"
 
@@ -9905,8 +9917,8 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:783
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:803
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:804
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:320
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:321
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:345
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:346
 msgid "Open in new tab"
 msgstr "Åbn i ny fane"
 
@@ -9919,7 +9931,7 @@ msgid "Open setup"
 msgstr "Åbn opsætning"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:89
-#: packages/admin/src/components/SetupWizard.tsx:356
+#: packages/admin/src/components/SetupWizard.tsx:357
 #: packages/admin/src/components/SignupPage.tsx:246
 msgid "Open the dashboard"
 msgstr "Åbn kontrolpanelet"
@@ -9990,7 +10002,7 @@ msgstr "eller forbind via URL"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:102
 #: packages/admin/src/components/LoginPage.tsx:282
-#: packages/admin/src/components/SetupWizard.tsx:369
+#: packages/admin/src/components/SetupWizard.tsx:370
 msgid "Or continue with"
 msgstr "Eller fortsæt med"
 
@@ -10049,8 +10061,8 @@ msgstr ""
 msgid "Overrides the page title in search engine results"
 msgstr "Tilsidesætter sidetitlen i søgemaskineresultater"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1129
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1132
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1130
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1133
 msgid "Ownership"
 msgstr "Ejerskab"
 
@@ -10068,7 +10080,7 @@ msgstr "Pakkens digest"
 msgid "Package downloaded"
 msgstr "Pakken er downloadet"
 
-#: packages/admin/src/router.tsx:3353
+#: packages/admin/src/router.tsx:3379
 msgid "Page Not Found"
 msgstr "Siden blev ikke fundet"
 
@@ -10257,15 +10269,15 @@ msgstr "Personer, der vises offentligt på dette indlæg."
 msgid "Per page"
 msgstr "Pr. side"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:235
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:282
 msgid "Period"
 msgstr "AM/PM"
 
-#: packages/admin/src/components/ContentList.tsx:1723
+#: packages/admin/src/components/ContentList.tsx:1724
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "Slet \"{title}\" permanent? Dette kan ikke fortrydes."
 
-#: packages/admin/src/components/ContentList.tsx:1712
+#: packages/admin/src/components/ContentList.tsx:1713
 msgid "Permanently delete {title}"
 msgstr "Slet {title} permanent"
 
@@ -10313,7 +10325,7 @@ msgstr "Planens digest"
 msgid "Please ask your administrator to send a new invite."
 msgstr "Bed din administrator om at sende en ny invitation."
 
-#: packages/admin/src/components/SetupWizard.tsx:244
+#: packages/admin/src/components/SetupWizard.tsx:245
 msgid "Please enter a valid email"
 msgstr "Indtast en gyldig e-mail"
 
@@ -10337,16 +10349,16 @@ msgstr "Pluginet \"{pluginId}\" blev ikke fundet"
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "Pluginet {pluginId} afviste gemningen: {reason}"
 
-#: packages/admin/src/components/SandboxedContentEditorActions.tsx:121
-#: packages/admin/src/components/SandboxedContentEditorActions.tsx:154
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:122
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:155
 msgid "Plugin action failed"
 msgstr "Plugin-handlingen mislykkedes"
 
-#: packages/admin/src/components/SandboxedContentEditorActions.tsx:242
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:244
 msgid "Plugin actions"
 msgstr "Plugin-handlinger"
 
-#: packages/admin/src/components/ContentEditor.tsx:1740
+#: packages/admin/src/components/ContentEditor.tsx:1836
 msgid "Plugin changes were not applied"
 msgstr "Plugin-ændringerne blev ikke anvendt"
 
@@ -10422,8 +10434,8 @@ msgstr "Plugin-register"
 msgid "Plugin registry configuration error"
 msgstr "Konfigurationsfejl i plugin-registeret"
 
-#: packages/admin/src/router.tsx:2649
-#: packages/admin/src/router.tsx:2680
+#: packages/admin/src/router.tsx:2675
+#: packages/admin/src/router.tsx:2706
 msgid "Plugin registry is not configured."
 msgstr "Plugin-registeret er ikke konfigureret."
 
@@ -10455,12 +10467,12 @@ msgstr "Plugin opdateret"
 msgid "Plugin widget error"
 msgstr "Fejl i plugin widget"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:232
+#: packages/admin/src/components/AdminCommandPalette.tsx:236
 #: packages/admin/src/components/PluginManager.tsx:180
 #: packages/admin/src/components/PluginManager.tsx:189
 #: packages/admin/src/components/PluginManager.tsx:199
-#: packages/admin/src/components/Sidebar.tsx:530
-#: packages/admin/src/components/Sidebar.tsx:700
+#: packages/admin/src/components/Sidebar.tsx:540
+#: packages/admin/src/components/Sidebar.tsx:714
 msgid "Plugins"
 msgstr "Plugins"
 
@@ -10524,7 +10536,7 @@ msgid "Preparing to download files from WordPress..."
 msgstr "Forbereder download af filer fra WordPress..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:163
-#: packages/admin/src/components/SetupWizard.tsx:297
+#: packages/admin/src/components/SetupWizard.tsx:298
 msgid "Preparing..."
 msgstr "Forbereder..."
 
@@ -10537,7 +10549,7 @@ msgid "Press Space to pick up an image. Use the Arrow keys to move it, then pres
 msgstr "Tryk på Mellemrum for at samle et billede op. Brug piletasterne til at flytte det, og tryk derefter på Mellemrum for at slippe det."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
-#: packages/admin/src/components/ContentSettingsPanel.tsx:430
+#: packages/admin/src/components/ContentSettingsPanel.tsx:431
 #: packages/admin/src/components/ContentTypeEditor.tsx:101
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
@@ -10554,7 +10566,7 @@ msgstr ""
 msgid "Preview content before publishing"
 msgstr "Forhåndsvis indhold før udgivelse"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:430
+#: packages/admin/src/components/ContentSettingsPanel.tsx:431
 msgid "Preview draft"
 msgstr "Forhåndsvis kladde"
 
@@ -10576,7 +10588,7 @@ msgid "Previous month"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:377
-#: packages/admin/src/components/ContentList.tsx:865
+#: packages/admin/src/components/ContentList.tsx:866
 #: packages/admin/src/components/ListPaginationFooter.tsx:110
 #: packages/admin/src/components/MediaPickerModal.tsx:1556
 msgid "Previous page"
@@ -10631,14 +10643,14 @@ msgstr "Udbyder:"
 msgid "Public routes"
 msgstr "Offentlige ruter"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:987
-#: packages/admin/src/components/ContentSettingsPanel.tsx:992
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1003
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:633
+#: packages/admin/src/components/ContentSettingsPanel.tsx:988
+#: packages/admin/src/components/ContentSettingsPanel.tsx:993
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1004
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:678
 msgid "Publication date"
 msgstr "Udgivelsesdato"
 
-#: packages/admin/src/components/Dashboard.tsx:167
+#: packages/admin/src/components/Dashboard.tsx:171
 msgid "Publication policy blocked scheduled content"
 msgstr "Udgivelsespolitikken blokerede planlagt indhold"
 
@@ -10647,18 +10659,18 @@ msgstr "Udgivelsespolitikken blokerede planlagt indhold"
 msgid "visualEditing.publish"
 msgstr "Udgiv"
 
-#: packages/admin/src/components/ContentList.tsx:587
-#: packages/admin/src/components/ContentSettingsPanel.tsx:536
-#: packages/admin/src/components/ContentSettingsPanel.tsx:954
-#: packages/admin/src/components/ContentSettingsPanel.tsx:957
+#: packages/admin/src/components/ContentList.tsx:588
+#: packages/admin/src/components/ContentSettingsPanel.tsx:537
+#: packages/admin/src/components/ContentSettingsPanel.tsx:955
+#: packages/admin/src/components/ContentSettingsPanel.tsx:958
 msgid "Publish"
 msgstr "Udgiv"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:509
+#: packages/admin/src/components/ContentSettingsPanel.tsx:510
 msgid "Publish changes"
 msgstr "Udgiv ændringer"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:510
+#: packages/admin/src/components/ContentSettingsPanel.tsx:511
 msgid "Publish changes?"
 msgstr "Udgiv ændringer?"
 
@@ -10668,11 +10680,11 @@ msgid "visualEditing.publishFailed"
 msgstr "Udgivelsen mislykkedes. Kontroller dine tilladelser, og prøv igen."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:408
-#: packages/admin/src/components/ContentSettingsPanel.tsx:509
+#: packages/admin/src/components/ContentSettingsPanel.tsx:510
 msgid "Publish now"
 msgstr "Udgiv nu"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:510
+#: packages/admin/src/components/ContentSettingsPanel.tsx:511
 msgid "Publish now?"
 msgstr "Udgiv nu?"
 
@@ -10682,13 +10694,13 @@ msgstr "Udgiv, fjern udgivelse af, planlæg og fjern planlægning af indhold"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
-#: packages/admin/src/components/ContentList.tsx:1024
-#: packages/admin/src/components/ContentList.tsx:1035
+#: packages/admin/src/components/ContentList.tsx:1025
+#: packages/admin/src/components/ContentList.tsx:1036
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
-#: packages/admin/src/components/Dashboard.tsx:522
+#: packages/admin/src/components/Dashboard.tsx:526
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1463
+#: packages/admin/src/router.tsx:1488
 msgid "Published"
 msgstr "Udgivet"
 
@@ -10742,7 +10754,7 @@ msgstr "Udgiverens udgivelsespolitik"
 msgid "Publishing"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:961
+#: packages/admin/src/components/ContentSettingsPanel.tsx:962
 msgid "Publishing summary"
 msgstr "Oversigt over udgivelse"
 
@@ -10774,7 +10786,7 @@ msgstr "Hurtig oprettelse opkalder relationen efter dette felt og denne samling,
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:2071
 #: packages/admin/src/components/PortableTextEditor.tsx:3507
-#: packages/admin/src/components/PortableTextEditor.tsx:6411
+#: packages/admin/src/components/PortableTextEditor.tsx:6423
 msgid "Quote"
 msgstr "Citat"
 
@@ -10850,7 +10862,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Læs dine taksonomier og termer"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:70
-#: packages/admin/src/router.tsx:2013
+#: packages/admin/src/router.tsx:2039
 msgid "Read-only"
 msgstr "Skrivebeskyttet"
 
@@ -10874,7 +10886,7 @@ msgstr "Læser pakken"
 msgid "Ready"
 msgstr "Klar"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:202
+#: packages/admin/src/components/ContentSettingsPanel.tsx:203
 msgid "Ready to publish now or schedule for later"
 msgstr "Klar til at blive udgivet nu eller planlagt til senere"
 
@@ -10886,7 +10898,7 @@ msgstr "Genopbygger søgning og cache"
 msgid "Receipt digest"
 msgstr "Kvitteringens digest"
 
-#: packages/admin/src/components/Dashboard.tsx:573
+#: packages/admin/src/components/Dashboard.tsx:577
 msgid "Recent Activity"
 msgstr "Seneste aktivitet"
 
@@ -10940,7 +10952,7 @@ msgstr "Omdirigerer til login..."
 #: packages/admin/src/components/Redirects.tsx:424
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
-#: packages/admin/src/components/Sidebar.tsx:471
+#: packages/admin/src/components/Sidebar.tsx:481
 msgid "Redirects"
 msgstr "Omdirigeringer"
 
@@ -10948,7 +10960,7 @@ msgstr "Omdirigeringer"
 msgid "Redirects that loop will be imported turned off"
 msgstr "Omdirigeringer, der danner et loop, importeres slået fra"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6574
+#: packages/admin/src/components/PortableTextEditor.tsx:6586
 msgid "Redo"
 msgstr "Annuller fortryd"
 
@@ -10986,7 +10998,7 @@ msgstr "Opdater status"
 msgid "Refresh status before continuing."
 msgstr "Opdater status, før du fortsætter."
 
-#: packages/admin/src/components/Dashboard.tsx:311
+#: packages/admin/src/components/Dashboard.tsx:315
 msgid "Refresh the page or try again."
 msgstr "Opdater siden, eller prøv igen."
 
@@ -11013,7 +11025,7 @@ msgstr "Registreringen blev annulleret eller fik timeout. Prøv igen."
 
 #: packages/admin/src/components/PluginManager.tsx:217
 #: packages/admin/src/components/PluginManager.tsx:460
-#: packages/admin/src/components/Sidebar.tsx:539
+#: packages/admin/src/components/Sidebar.tsx:549
 msgid "Registry"
 msgstr "Register"
 
@@ -11062,7 +11074,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:3417
+#: packages/admin/src/components/ContentEditor.tsx:3516
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11070,7 +11082,7 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:383
 #: packages/admin/src/components/ImageFieldRenderer.tsx:454
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
-#: packages/admin/src/components/PortableTextEditor.tsx:6547
+#: packages/admin/src/components/PortableTextEditor.tsx:6559
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -11082,7 +11094,7 @@ msgstr "Fjern"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:2991
+#: packages/admin/src/components/ContentEditor.tsx:3090
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -11099,9 +11111,9 @@ msgstr "Fjern {0} fra udvalget"
 msgid "Remove {entry}"
 msgstr "Fjern {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3415
-#: packages/admin/src/components/SeoImageField.tsx:163
-#: packages/admin/src/components/SeoImageField.tsx:164
+#: packages/admin/src/components/ContentEditor.tsx:3514
+#: packages/admin/src/components/SeoImageField.tsx:206
+#: packages/admin/src/components/SeoImageField.tsx:207
 msgid "Remove {label}"
 msgstr "Fjern {label}"
 
@@ -11145,9 +11157,9 @@ msgstr "Fjern billede?"
 msgid "Remove item {0}"
 msgstr "Fjern element {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5019
-#: packages/admin/src/components/PortableTextEditor.tsx:5159
-#: packages/admin/src/components/PortableTextEditor.tsx:5784
+#: packages/admin/src/components/PortableTextEditor.tsx:5018
+#: packages/admin/src/components/PortableTextEditor.tsx:5161
+#: packages/admin/src/components/PortableTextEditor.tsx:5795
 msgid "Remove link"
 msgstr "Fjern link"
 
@@ -11160,7 +11172,7 @@ msgid "Remove passkey?"
 msgstr "Fjern passkey?"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:425
-#: packages/admin/src/components/ContentSettingsPanel.tsx:643
+#: packages/admin/src/components/ContentSettingsPanel.tsx:644
 msgid "Remove schedule"
 msgstr "Fjern planlægning"
 
@@ -11301,29 +11313,29 @@ msgstr "Gentagende gruppe af felter"
 msgid "visualEditing.replaceImage"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3407
-#: packages/admin/src/components/ContentEditor.tsx:3444
+#: packages/admin/src/components/ContentEditor.tsx:3506
+#: packages/admin/src/components/ContentEditor.tsx:3543
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:373
-#: packages/admin/src/components/editor/VideoNode.tsx:426
+#: packages/admin/src/components/editor/VideoNode.tsx:427
 #: packages/admin/src/components/ImageFieldRenderer.tsx:303
 #: packages/admin/src/components/ImageFieldRenderer.tsx:364
 #: packages/admin/src/components/ImageFieldRenderer.tsx:427
 #: packages/admin/src/components/ImageFieldRenderer.tsx:601
 #: packages/admin/src/components/ImageFieldRenderer.tsx:604
-#: packages/admin/src/components/PortableTextEditor.tsx:5806
-#: packages/admin/src/components/PortableTextEditor.tsx:5887
-#: packages/admin/src/components/SeoImageField.tsx:151
-#: packages/admin/src/components/SeoImageField.tsx:184
+#: packages/admin/src/components/PortableTextEditor.tsx:5817
+#: packages/admin/src/components/PortableTextEditor.tsx:5899
+#: packages/admin/src/components/SeoImageField.tsx:194
+#: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
 msgstr "Erstat"
 
-#: packages/admin/src/components/ContentEditor.tsx:3443
+#: packages/admin/src/components/ContentEditor.tsx:3542
 #: packages/admin/src/components/ImageFieldRenderer.tsx:595
-#: packages/admin/src/components/SeoImageField.tsx:148
-#: packages/admin/src/components/SeoImageField.tsx:183
+#: packages/admin/src/components/SeoImageField.tsx:191
+#: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Replace {label}"
 msgstr "Erstat {label}"
 
@@ -11339,7 +11351,7 @@ msgstr "Erstat variant til mørk tilstand for {label}"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaDetailPanel.tsx:1967
-#: packages/admin/src/components/PortableTextEditor.tsx:5886
+#: packages/admin/src/components/PortableTextEditor.tsx:5898
 msgid "Replace image"
 msgstr "Erstat billede"
 
@@ -11357,7 +11369,7 @@ msgstr "Erstat originalbillede?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Erstat original er tilgængelig med billedformatet Original."
 
-#: packages/admin/src/components/ContentEditor.tsx:3024
+#: packages/admin/src/components/ContentEditor.tsx:3123
 msgid "Replace reference"
 msgstr "Erstat reference"
 
@@ -11365,9 +11377,9 @@ msgstr "Erstat reference"
 msgid "Replace this site’s content with a package exported from another EmDash site."
 msgstr "Erstat dette websteds indhold med en pakke, der er eksporteret fra et andet EmDash websted."
 
-#: packages/admin/src/components/editor/VideoNode.tsx:373
 #: packages/admin/src/components/editor/VideoNode.tsx:374
-#: packages/admin/src/components/editor/VideoNode.tsx:425
+#: packages/admin/src/components/editor/VideoNode.tsx:375
+#: packages/admin/src/components/editor/VideoNode.tsx:426
 msgid "Replace video"
 msgstr ""
 
@@ -11497,7 +11509,7 @@ msgstr "Tilpas beskæringen fra øverste venstre hjørne. Brug piletasterne til 
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "Tilpas beskæringen fra øverste højre hjørne. Brug piletasterne til at ændre størrelsen."
 
-#: packages/admin/src/components/ContentEditor.tsx:2016
+#: packages/admin/src/components/ContentEditor.tsx:2115
 msgid "Resize settings panel"
 msgstr "Tilpas størrelsen på indstillingspanelet"
 
@@ -11510,7 +11522,7 @@ msgid "Resolving publisher handle..."
 msgstr "Slår udgiverens handle op..."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:6401
+#: packages/admin/src/components/PortableTextEditor.tsx:6413
 msgid "Restart numbering"
 msgstr "Start nummerering forfra"
 
@@ -11519,7 +11531,7 @@ msgstr "Start nummerering forfra"
 msgid "Restore"
 msgstr "Gendan"
 
-#: packages/admin/src/components/ContentList.tsx:1700
+#: packages/admin/src/components/ContentList.tsx:1701
 msgid "Restore {title}"
 msgstr "Gendan {title}"
 
@@ -11557,7 +11569,7 @@ msgid "Retired"
 msgstr "Udfaset"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:3005
+#: packages/admin/src/components/ContentEditor.tsx:3104
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
@@ -11573,7 +11585,7 @@ msgstr "Udfaset"
 #: packages/admin/src/components/Sections.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3341
+#: packages/admin/src/router.tsx:3367
 #: packages/admin/src/routes/byline-schema.tsx:280
 #: packages/admin/src/routes/calendar.tsx:345
 msgid "Retry"
@@ -11624,7 +11636,7 @@ msgstr "Prøver igen…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Genanvendelige indholdsblokke, som du kan indsætte i alt indhold"
 
-#: packages/admin/src/router.tsx:1511
+#: packages/admin/src/router.tsx:1536
 msgid "Reverted to published version"
 msgstr "Gendannet til den udgivne version"
 
@@ -11714,8 +11726,8 @@ msgstr "Rich text editor"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:5306
-#: packages/admin/src/components/PortableTextEditor.tsx:5424
+#: packages/admin/src/components/PortableTextEditor.tsx:5309
+#: packages/admin/src/components/PortableTextEditor.tsx:5430
 msgid "Right"
 msgstr "Højre"
 
@@ -11769,7 +11781,7 @@ msgid "Row added above"
 msgstr "Række tilføjet ovenfor"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5402
+#: packages/admin/src/components/PortableTextEditor.tsx:5407
 msgid "Row added below"
 msgstr "Række tilføjet nedenfor"
 
@@ -11805,14 +11817,14 @@ msgstr ""
 msgid "Same window"
 msgstr "Samme vindue"
 
-#: packages/admin/src/components/SetupWizard.tsx:167
-#: packages/admin/src/components/SetupWizard.tsx:207
+#: packages/admin/src/components/SetupWizard.tsx:168
+#: packages/admin/src/components/SetupWizard.tsx:208
 msgid "Sample content"
 msgstr "Eksempelindhold"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:829
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:405
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:432
 #: packages/admin/src/components/MediaDetailPanel.tsx:1890
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:466
@@ -11823,15 +11835,15 @@ msgstr "Eksempelindhold"
 msgid "Save"
 msgstr "Gem"
 
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:404
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:431
 msgid "Save (Enter)"
 msgstr "Gem (Enter)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5765
+#: packages/admin/src/components/PortableTextEditor.tsx:5776
 msgid "Save alt text"
 msgstr "Gem alternativ tekst"
 
-#: packages/admin/src/components/ContentEditor.tsx:1768
+#: packages/admin/src/components/ContentEditor.tsx:1864
 msgid "Save anyway"
 msgstr "Gem alligevel"
 
@@ -11843,8 +11855,8 @@ msgstr "Gem ændringer"
 msgid "Save Changes"
 msgstr "Gem ændringer"
 
-#: packages/admin/src/components/SandboxedContentEditorActions.tsx:226
-#: packages/admin/src/components/SandboxedContentEditorActions.tsx:245
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:228
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:247
 msgid "Save changes before running plugin actions"
 msgstr "Gem ændringerne, før du kører plugin-handlinger"
 
@@ -11852,13 +11864,17 @@ msgstr "Gem ændringerne, før du kører plugin-handlinger"
 msgid "Save content as draft before publishing"
 msgstr "Gem indhold som kladde før udgivelse"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:635
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:681
 msgid "Save date"
 msgstr "Gem dato"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:62
 msgid "visualEditing.saveFailed"
+msgstr ""
+
+#: packages/admin/src/components/SeoImageField.tsx:241
+msgid "Save image URL"
 msgstr ""
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:112
@@ -11873,7 +11889,7 @@ msgstr "Gem eller kasser de andre ændringer, før du beskærer."
 msgid "Save Relation"
 msgstr "Gem relation"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:478
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:522
 msgid "Save schedule"
 msgstr "Gem planlægning"
 
@@ -11943,21 +11959,21 @@ msgstr "SBOM · {0}"
 msgid "Scan it with a nearby phone or tablet."
 msgstr "Scan den med en telefon eller tablet i nærheden."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:623
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:478
+#: packages/admin/src/components/ContentSettingsPanel.tsx:624
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:522
 msgid "Schedule"
 msgstr "Planlæg"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:471
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:478
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:520
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:522
 msgid "Schedule changes"
 msgstr "Planlæg ændringer"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:489
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:532
 msgid "Schedule date"
 msgstr "Planlægningsdato"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:472
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:521
 msgid "Schedule publication"
 msgstr "Planlæg udgivelse"
 
@@ -11967,9 +11983,9 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
-#: packages/admin/src/components/ContentList.tsx:1026
+#: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1566
+#: packages/admin/src/router.tsx:1591
 msgid "Scheduled"
 msgstr "Planlagt"
 
@@ -11982,16 +11998,16 @@ msgid "Scheduled entries appear here with their publish time."
 msgstr ""
 
 #. placeholder {0}: isolate(formattedSchedule)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:146
+#: packages/admin/src/components/ContentSettingsPanel.tsx:147
 msgid "Scheduled for {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:154
-#: packages/admin/src/components/ContentSettingsPanel.tsx:253
+#: packages/admin/src/components/ContentSettingsPanel.tsx:155
+#: packages/admin/src/components/ContentSettingsPanel.tsx:254
 msgid "Scheduled publication"
 msgstr "Planlagt udgivelse"
 
-#: packages/admin/src/components/Dashboard.tsx:231
+#: packages/admin/src/components/Dashboard.tsx:235
 msgid "Scheduled publishing needs attention"
 msgstr "Planlagt udgivelse kræver opmærksomhed"
 
@@ -12061,12 +12077,12 @@ msgid "Search"
 msgstr "Søg"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:548
+#: packages/admin/src/components/ContentList.tsx:549
 msgid "Search {0}"
 msgstr "Søg i {0}"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:547
+#: packages/admin/src/components/ContentList.tsx:548
 msgid "Search {0}..."
 msgstr "Søg i {0}..."
 
@@ -12166,7 +12182,7 @@ msgstr "Søg i media"
 msgid "Search or type a URL"
 msgstr "Søg, eller indtast en URL"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:463
+#: packages/admin/src/components/AdminCommandPalette.tsx:467
 msgid "Search pages and content..."
 msgstr "Søg i sider og indhold..."
 
@@ -12268,11 +12284,11 @@ msgstr "Sektionen blev ikke fundet"
 msgid "Section title"
 msgstr "Sektionstitel"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:190
+#: packages/admin/src/components/AdminCommandPalette.tsx:194
 #: packages/admin/src/components/Sections.tsx:150
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
-#: packages/admin/src/components/Sidebar.tsx:485
+#: packages/admin/src/components/Sidebar.tsx:495
 msgid "Sections"
 msgstr "Sektioner"
 
@@ -12280,7 +12296,7 @@ msgstr "Sektioner"
 msgid "Sections could not be loaded."
 msgstr "Sektioner kunne ikke indlæses."
 
-#: packages/admin/src/components/SetupWizard.tsx:629
+#: packages/admin/src/components/SetupWizard.tsx:621
 msgid "Secure your account"
 msgstr "Beskyt din konto"
 
@@ -12322,7 +12338,7 @@ msgstr "Sikkerhedskontakter"
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "Sikkerhedsfejl. Sørg for, at du bruger en sikker forbindelse."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:264
+#: packages/admin/src/components/AdminCommandPalette.tsx:268
 #: packages/admin/src/components/Header.tsx:96
 #: packages/admin/src/components/Settings.tsx:83
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
@@ -12343,14 +12359,14 @@ msgid "Select"
 msgstr "Vælg"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:3427
-#: packages/admin/src/components/ContentEditor.tsx:3443
+#: packages/admin/src/components/ContentEditor.tsx:3526
+#: packages/admin/src/components/ContentEditor.tsx:3542
 #: packages/admin/src/components/ImageFieldRenderer.tsx:596
-#: packages/admin/src/components/SeoImageField.tsx:183
+#: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Select {label}"
 msgstr "Vælg {label}"
 
-#: packages/admin/src/components/ContentList.tsx:1428
+#: packages/admin/src/components/ContentList.tsx:1429
 msgid "Select {title}"
 msgstr "Vælg {title}"
 
@@ -12387,11 +12403,11 @@ msgstr "Vælg en version, før du verificerer den"
 msgid "Select all"
 msgstr "Vælg alle"
 
-#: packages/admin/src/components/ContentList.tsx:728
+#: packages/admin/src/components/ContentList.tsx:729
 msgid "Select all on this page"
 msgstr "Vælg alle på denne side"
 
-#: packages/admin/src/components/ContentEditor.tsx:2917
+#: packages/admin/src/components/ContentEditor.tsx:3016
 msgid "Select at least one entry."
 msgstr "Vælg mindst ét indlæg."
 
@@ -12424,18 +12440,18 @@ msgstr "Vælg favicon"
 msgid "Select Favicon"
 msgstr "Vælg favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:3431
+#: packages/admin/src/components/ContentEditor.tsx:3530
 #: packages/admin/src/components/MediaPickerModal.tsx:232
 msgid "Select file"
 msgstr "Vælg fil"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4733
+#: packages/admin/src/components/PortableTextEditor.tsx:4729
 msgid "Select gallery images"
 msgstr "Vælg galleribilleder"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:576
 #: packages/admin/src/components/MediaPickerModal.tsx:232
-#: packages/admin/src/components/PortableTextEditor.tsx:4704
+#: packages/admin/src/components/PortableTextEditor.tsx:4700
 msgid "Select image"
 msgstr "Vælg billede"
 
@@ -12463,12 +12479,12 @@ msgstr "Vælg række"
 msgid "Select table"
 msgstr "Vælg tabel"
 
-#: packages/admin/src/components/ContentList.tsx:631
+#: packages/admin/src/components/ContentList.tsx:632
 msgid "Select up to 50 posts at a time."
 msgstr "Vælg op til 50 indlæg ad gangen."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:232
-#: packages/admin/src/components/PortableTextEditor.tsx:4718
+#: packages/admin/src/components/PortableTextEditor.tsx:4714
 msgid "Select video"
 msgstr ""
 
@@ -12560,8 +12576,8 @@ msgstr "Send testmail"
 msgid "Sending..."
 msgstr "Sender..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1228
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1231
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1229
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1232
 #: packages/admin/src/components/ContentTypeEditor.tsx:648
 #: packages/admin/src/components/Settings.tsx:66
 msgid "SEO"
@@ -12618,7 +12634,7 @@ msgstr "Angiv rolle"
 msgid "Set to 0 to never close comments automatically."
 msgstr "Angiv 0 for aldrig at lukke kommentarer automatisk."
 
-#: packages/admin/src/components/ContentList.tsx:598
+#: packages/admin/src/components/ContentList.tsx:599
 msgid "Set to draft"
 msgstr "Skift til kladde"
 
@@ -12635,7 +12651,7 @@ msgstr "Konfigurer sporing af mediebrug"
 msgid "Set up Windows Hello"
 msgstr "Konfigurer Windows Hello"
 
-#: packages/admin/src/components/SetupWizard.tsx:627
+#: packages/admin/src/components/SetupWizard.tsx:619
 msgid "Set up your site"
 msgstr "Konfigurer dit websted"
 
@@ -12644,18 +12660,18 @@ msgstr "Konfigurer dit websted"
 msgid "Setting up"
 msgstr "Konfigureres"
 
-#: packages/admin/src/components/SetupWizard.tsx:201
+#: packages/admin/src/components/SetupWizard.tsx:202
 msgid "Setting up..."
 msgstr "Konfigurerer..."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:248
-#: packages/admin/src/components/ContentEditor.tsx:1883
-#: packages/admin/src/components/ContentEditor.tsx:2207
+#: packages/admin/src/components/AdminCommandPalette.tsx:252
+#: packages/admin/src/components/ContentEditor.tsx:1979
+#: packages/admin/src/components/ContentEditor.tsx:2306
 #: packages/admin/src/components/ContentTypeEditor.tsx:467
 #: packages/admin/src/components/Header.tsx:104
 #: packages/admin/src/components/PluginManager.tsx:543
 #: packages/admin/src/components/Settings.tsx:46
-#: packages/admin/src/components/Sidebar.tsx:553
+#: packages/admin/src/components/Sidebar.tsx:563
 #: packages/admin/src/components/WordPressImport.tsx:1868
 msgid "Settings"
 msgstr "Indstillinger"
@@ -12677,8 +12693,8 @@ msgstr "Indstillingerne er gemt"
 msgid "Setup couldn’t continue. Try again."
 msgstr "Opsætningen kunne ikke fortsætte. Prøv igen."
 
-#: packages/admin/src/components/SetupWizard.tsx:528
-#: packages/admin/src/components/SetupWizard.tsx:531
+#: packages/admin/src/components/SetupWizard.tsx:524
+#: packages/admin/src/components/SetupWizard.tsx:527
 msgid "Setup failed"
 msgstr "Opsætningen mislykkedes"
 
@@ -12689,6 +12705,10 @@ msgstr "Del dette link med den inviterede bruger"
 #: packages/admin/src/components/BylineFieldEditor.tsx:290
 msgid "Shared across all translations of the same byline."
 msgstr "Deles på tværs af alle oversættelser af samme byline."
+
+#: packages/admin/src/components/SeoImageField.tsx:226
+msgid "Sharing image needs a URL"
+msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:47
 msgid "Short text"
@@ -12744,7 +12764,7 @@ msgstr "Viser {pageShowingRange} af {0}"
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1153
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1154
 msgid "Shown to readers in this order."
 msgstr "Vises for læserne i denne rækkefølge."
 
@@ -12761,7 +12781,7 @@ msgstr "Viser en knap til at oprette et nyt indlæg"
 msgid "Sign in"
 msgstr "Log ind"
 
-#: packages/admin/src/components/SetupWizard.tsx:410
+#: packages/admin/src/components/SetupWizard.tsx:411
 msgid "Sign In"
 msgstr "Log ind"
 
@@ -12781,7 +12801,7 @@ msgstr "Log ind på dit websted"
 #. placeholder {0}: activeProviderEntry.label ?? activeProvider
 #. placeholder {0}: provider.label
 #: packages/admin/src/components/LoginPage.tsx:252
-#: packages/admin/src/components/SetupWizard.tsx:327
+#: packages/admin/src/components/SetupWizard.tsx:328
 msgid "Sign in with {0}"
 msgstr "Log ind med {0}"
 
@@ -12829,7 +12849,7 @@ msgid "Single line text input"
 msgstr "Tekstfelt på én linje"
 
 #: packages/admin/src/components/Settings.tsx:50
-#: packages/admin/src/components/SetupWizard.tsx:408
+#: packages/admin/src/components/SetupWizard.tsx:409
 msgid "Site"
 msgstr "Websted"
 
@@ -12867,7 +12887,7 @@ msgid "Site settings"
 msgstr "Webstedsindstillinger"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
-#: packages/admin/src/components/SetupWizard.tsx:406
+#: packages/admin/src/components/SetupWizard.tsx:407
 #: packages/admin/src/components/WordPressImport.tsx:1201
 msgid "Site Settings"
 msgstr "Webstedsindstillinger"
@@ -12877,7 +12897,7 @@ msgid "Site title"
 msgstr "Webstedstitel"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:278
-#: packages/admin/src/components/SetupWizard.tsx:137
+#: packages/admin/src/components/SetupWizard.tsx:138
 msgid "Site Title"
 msgstr "Webstedstitel"
 
@@ -12885,11 +12905,11 @@ msgstr "Webstedstitel"
 msgid "Site title & tagline"
 msgstr "Webstedstitel og slogan"
 
-#: packages/admin/src/components/SetupWizard.tsx:121
+#: packages/admin/src/components/SetupWizard.tsx:122
 msgid "Site title is required"
 msgstr "Webstedstitel er påkrævet"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:256
+#: packages/admin/src/components/AdminCommandPalette.tsx:260
 msgid "Site Transfer"
 msgstr "Webstedsoverførsel"
 
@@ -12932,7 +12952,7 @@ msgstr "Sprunget over"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:234
 #: packages/admin/src/components/BylineFormDialog.tsx:409
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1086
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1087
 #: packages/admin/src/components/ContentTypeEditor.tsx:131
 #: packages/admin/src/components/ContentTypeEditor.tsx:489
 #: packages/admin/src/components/ContentTypeList.tsx:203
@@ -13107,11 +13127,11 @@ msgstr "Start import"
 msgid "Start Import"
 msgstr "Start import"
 
-#: packages/admin/src/components/SetupWizard.tsx:174
+#: packages/admin/src/components/SetupWizard.tsx:175
 msgid "Start with the template’s content types and no content."
 msgstr "Start med skabelonens indholdstyper og intet indhold."
 
-#: packages/admin/src/components/SetupWizard.tsx:168
+#: packages/admin/src/components/SetupWizard.tsx:169
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
 msgstr "Start med skabelonens eksempelindlæg og sider. Anbefales til nye websteder."
 
@@ -13119,8 +13139,8 @@ msgstr "Start med skabelonens eksempelindlæg og sider. Anbefales til nye webste
 msgid "Start writing with plain text"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2480
-#: packages/admin/src/components/PortableTextEditor.tsx:3493
+#: packages/admin/src/components/ContentEditor.tsx:2579
+#: packages/admin/src/components/PortableTextEditor.tsx:3495
 msgid "Start writing, or type '/' for commands"
 msgstr "Begynd at skrive, eller skriv '/' for kommandoer"
 
@@ -13146,7 +13166,7 @@ msgstr "Starter…"
 msgid "State"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:753
+#: packages/admin/src/components/ContentList.tsx:754
 #: packages/admin/src/components/ContentTypeEditor.tsx:137
 #: packages/admin/src/components/Redirects.tsx:497
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
@@ -13160,11 +13180,11 @@ msgstr "Status"
 msgid "Status code"
 msgstr "Statuskode"
 
-#: packages/admin/src/components/Dashboard.tsx:626
+#: packages/admin/src/components/Dashboard.tsx:630
 msgid "Status: {status}"
 msgstr "Status: {status}"
 
-#: packages/admin/src/components/UnsavedChangesGuard.tsx:28
+#: packages/admin/src/components/UnsavedChangesGuard.tsx:39
 msgid "Stay"
 msgstr ""
 
@@ -13189,8 +13209,8 @@ msgstr "Gemte sikkerhedskopier"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Gemmes pr. sprog - hver oversættelse af en byline får sin egen værdi."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4798
-#: packages/admin/src/components/PortableTextEditor.tsx:6344
+#: packages/admin/src/components/PortableTextEditor.tsx:4794
+#: packages/admin/src/components/PortableTextEditor.tsx:6356
 msgid "Strikethrough"
 msgstr "Gennemstreget"
 
@@ -13224,11 +13244,11 @@ msgstr "Underfelter"
 msgid "Subscriber"
 msgstr "Abonnent"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5285
+#: packages/admin/src/components/PortableTextEditor.tsx:5288
 msgid "Subscript"
 msgstr "Sænket skrift"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5291
+#: packages/admin/src/components/PortableTextEditor.tsx:5294
 msgid "Superscript"
 msgstr "Hævet skrift"
 
@@ -13272,11 +13292,11 @@ msgstr "Systemfelter"
 msgid "Table"
 msgstr "Tabel"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4555
+#: packages/admin/src/components/PortableTextEditor.tsx:4551
 msgid "Table cells accept text, links, and formatting only."
 msgstr "Tabelceller accepterer kun tekst, links og formatering."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5392
+#: packages/admin/src/components/PortableTextEditor.tsx:5397
 msgid "Table controls"
 msgstr "Tabelkontroller"
 
@@ -13285,7 +13305,7 @@ msgid "Table deleted"
 msgstr "Tabel slettet"
 
 #: packages/admin/src/components/editor/TableControls.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:4445
+#: packages/admin/src/components/PortableTextEditor.tsx:4441
 msgid "Table inserted"
 msgstr "Tabel indsat"
 
@@ -13293,17 +13313,17 @@ msgstr "Tabel indsat"
 msgid "Table size"
 msgstr "Tabelstørrelse"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4552
+#: packages/admin/src/components/PortableTextEditor.tsx:4548
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "Tabeller kan ikke indsættes i lister eller citater. Indsæt tabellen i sit eget afsnit, og prøv igen."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:286
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
-#: packages/admin/src/components/SetupWizard.tsx:148
+#: packages/admin/src/components/SetupWizard.tsx:149
 msgid "Tagline"
 msgstr "Slogan"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:215
+#: packages/admin/src/components/AdminCommandPalette.tsx:219
 #: packages/admin/src/components/Widgets.tsx:152
 msgid "Tags"
 msgstr "Tags"
@@ -13332,7 +13352,7 @@ msgstr "Mål"
 msgid "Target locale"
 msgstr "Oversæt til"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1215
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1216
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:898
 msgid "Taxonomies"
@@ -13383,7 +13403,7 @@ msgstr "Tekniske verificeringsdetaljer"
 msgid "Tell users where to sign in"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:218
+#: packages/admin/src/components/SetupWizard.tsx:219
 msgid "Template:"
 msgstr "Skabelon:"
 
@@ -13421,9 +13441,13 @@ msgstr "Termer"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6588
+#: packages/admin/src/components/PortableTextEditor.tsx:6600
 msgid "Text formatting"
 msgstr "Tekstformatering"
+
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:41
+msgid "That time does not exist in your time zone"
+msgstr ""
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:546
 msgid "That version is no longer available. Back to editing."
@@ -13708,7 +13732,7 @@ msgstr "Pakkens indhold skrives til dette websted. Importen kan ikke fortrydes, 
 msgid "The package’s file index is not valid."
 msgstr "Pakkens filindeks er ugyldigt."
 
-#: packages/admin/src/router.tsx:3355
+#: packages/admin/src/router.tsx:3381
 msgid "The page you're looking for doesn't exist."
 msgstr "Siden, du leder efter, findes ikke."
 
@@ -13728,8 +13752,8 @@ msgstr "Pluginets feltwidget kunne ikke vises."
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "Pluginet har ikke gemt disse ændringer. Gennemgå dem, før du opdaterer editoren."
 
-#: packages/admin/src/components/ContentEditor.tsx:1041
-#: packages/admin/src/components/ContentEditor.tsx:1057
+#: packages/admin/src/components/ContentEditor.tsx:1089
+#: packages/admin/src/components/ContentEditor.tsx:1105
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Pluginets resultat er forældet, fordi editoren blev ændret, mens det arbejdede."
 
@@ -13763,9 +13787,13 @@ msgstr "Relationen og den refererede samling kan ikke ændres efter oprettelsen.
 msgid "The relationship decides the referenced collection and how many entries this field accepts."
 msgstr "Relationen bestemmer den refererede samling, og hvor mange indlæg dette felt accepterer."
 
-#: packages/admin/src/components/SetupWizard.tsx:188
+#: packages/admin/src/components/SetupWizard.tsx:189
 msgid "The sample content added so far is kept. Continue to add the rest."
 msgstr "Det eksempelindhold, der er tilføjet indtil nu, beholdes. Fortsæt for at tilføje resten."
+
+#: packages/admin/src/components/SeoImageField.tsx:229
+msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
+msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:193
 msgid "The scheduled changes to {title} stay as a draft."
@@ -13911,11 +13939,11 @@ msgstr "Denne kode er ugyldig eller er allerede brugt."
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "Denne samling er defineret i kode. Nogle indstillinger kan ikke ændres her. Rediger din live.config.ts fil for at ændre skemaet."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4527
+#: packages/admin/src/components/PortableTextEditor.tsx:4523
 msgid "This content cannot be edited safely"
 msgstr "Dette indhold kan ikke redigeres sikkert"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:515
+#: packages/admin/src/components/ContentSettingsPanel.tsx:516
 msgid "This content will be visible on the site immediately."
 msgstr "Dette indhold bliver synligt på webstedet med det samme."
 
@@ -13931,20 +13959,20 @@ msgstr "Denne enhed anmoder om tilladelse til at bruge:"
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "Dette ligner ikke en gyldig migreringsnøgle. Generer en ny i pluginet, og indsæt hele strengen, der starter med \"em1.\"."
 
-#: packages/admin/src/components/ContentEditor.tsx:1764
+#: packages/admin/src/components/ContentEditor.tsx:1860
 msgid "This entry changed somewhere else after you opened it."
 msgstr "Dette indlæg blev ændret et andet sted, efter du åbnede det."
 
-#: packages/admin/src/components/ContentEditor.tsx:1339
-#: packages/admin/src/router.tsx:1130
+#: packages/admin/src/components/ContentEditor.tsx:1421
+#: packages/admin/src/router.tsx:1138
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Dette indlæg blev ændret et andet sted. Gem alligevel, eller genindlæs for at få den nyere version."
 
-#: packages/admin/src/router.tsx:1950
+#: packages/admin/src/router.tsx:1975
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1951
+#: packages/admin/src/router.tsx:1976
 msgid "This entry doesn't exist or was deleted."
 msgstr ""
 
@@ -13956,7 +13984,7 @@ msgstr "Dette indlæg har ingen URL, før det er udgivet. Indsæt i stedet en UR
 msgid "This entry is open somewhere else"
 msgstr "Dette indlæg er åbent et andet sted"
 
-#: packages/admin/src/components/ContentEditor.tsx:1751
+#: packages/admin/src/components/ContentEditor.tsx:1847
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "Dette indlæg er skrivebeskyttet, fordi dets skema bruger felttyper, som denne version af EmDash ikke understøtter."
 
@@ -13968,16 +13996,16 @@ msgstr ""
 msgid "This export is large"
 msgstr "Denne eksport er stor"
 
-#: packages/admin/src/components/ContentEditor.tsx:2308
+#: packages/admin/src/components/ContentEditor.tsx:2407
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "Dette felt kan ikke redigeres af denne version af EmDash."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4510
+#: packages/admin/src/components/PortableTextEditor.tsx:4506
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr "Dette felt indeholder tabelindhold, som editoren ikke kan bevare. Opdater det via API'et, før du redigerer eller gemmer dette indhold."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4529
+#: packages/admin/src/components/PortableTextEditor.tsx:4525
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr "Dette felt indeholder Portable Text markeringer, der ikke understøttes: <0>{markList}</0>. Fjern dem via API'et, før du redigerer eller gemmer dette indhold."
 
@@ -13994,7 +14022,7 @@ msgstr "Dette felt accepterer ikke {mimeType} filer."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "Dette felt forventer en liste. Den gemte værdi forbliver uændret, indtil du erstatter den med en tom liste, hvilket sletter den. Kopier først det, du har brug for fra den."
 
-#: packages/admin/src/components/ContentEditor.tsx:3447
+#: packages/admin/src/components/ContentEditor.tsx:3546
 #: packages/admin/src/components/ImageFieldRenderer.tsx:615
 msgid "This field is required"
 msgstr "Dette felt er påkrævet"
@@ -14106,7 +14134,7 @@ msgstr "Denne pakke er lavet af en nyere eller anden version af EmDash."
 msgid "This passkey is already registered on this device."
 msgstr "Denne passkey er allerede registreret på denne enhed."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4548
+#: packages/admin/src/components/PortableTextEditor.tsx:4544
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr "Det indsatte er for stort. Indsæt færre celler eller mindre tekst ad gangen."
 
@@ -14171,7 +14199,7 @@ msgstr "Dette fjerner byline profilen. Indholdets byline links fjernes, og henvi
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
 msgstr "Dette fjerner relationen, alle links, der er gemt under den, og de referencefelter, der bruger den:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:512
+#: packages/admin/src/components/ContentSettingsPanel.tsx:513
 msgid "This removes the schedule and publishes immediately."
 msgstr "Dette fjerner planlægningen og udgiver med det samme."
 
@@ -14179,12 +14207,12 @@ msgstr "Dette fjerner planlægningen og udgiver med det samme."
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4593
+#: packages/admin/src/components/PortableTextEditor.tsx:4589
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr "Denne sektion indeholder tabelindhold, som editoren ikke kan bevare. Opdater sektionen, før du indsætter den."
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:4595
+#: packages/admin/src/components/PortableTextEditor.tsx:4591
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr "Denne sektion indeholder Portable Text markeringer, der ikke understøttes: <0>{0}</0>. Opdater sektionen, før du indsætter den."
 
@@ -14221,7 +14249,7 @@ msgstr "Dette websted kan ikke modtage en import"
 msgid "This site has no content yet, so it can receive an import. Choose a .emdash package file. It is checked in your browser and uploaded in parts; nothing on this site changes until you review and confirm the import."
 msgstr "Dette websted har endnu intet indhold, så det kan modtage en import. Vælg en .emdash pakkefil. Den kontrolleres i din browser og uploades i dele. Intet på dette websted ændres, før du gennemgår og bekræfter importen."
 
-#: packages/admin/src/components/Dashboard.tsx:277
+#: packages/admin/src/components/Dashboard.tsx:281
 msgid "This site has no content yet, so you can import a .emdash package exported from another EmDash site."
 msgstr "Dette websted har endnu intet indhold, så du kan importere en .emdash pakke, der er eksporteret fra et andet EmDash websted."
 
@@ -14237,15 +14265,15 @@ msgstr "Dette websted indeholder delvise data fra en tidligere import"
 msgid "This site was set up with starter content. It has no entries of its own, and the import deletes it before adding the package’s content."
 msgstr "Dette websted blev oprettet med startindhold. Det har ingen egne indlæg, og importen sletter startindholdet, før pakkens indhold tilføjes."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4550
+#: packages/admin/src/components/PortableTextEditor.tsx:4546
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr "Disse regnearksdata har ugyldige celler i anførselstegn. Ret anførselstegnene, eller fjern tabulatorerne, og prøv igen."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4508
+#: packages/admin/src/components/PortableTextEditor.tsx:4504
 msgid "This table cannot be edited safely"
 msgstr "Denne tabel kan ikke redigeres sikkert"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4554
+#: packages/admin/src/components/PortableTextEditor.tsx:4550
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr "Denne tabel har celleformatering, flettede celler eller kolonnebredder, der ikke understøttes. Indsæt den som almindelig tekst, eller forenkl tabellen, og prøv igen."
 
@@ -14257,11 +14285,11 @@ msgstr "Denne opdatering eksponerer følgende ruter uden autentificering:"
 msgid "This version can't be shown."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:168
+#: packages/admin/src/components/ContentSettingsPanel.tsx:169
 msgid "This version is not visible on the site"
 msgstr "Denne version er ikke synlig på webstedet"
 
-#: packages/admin/src/components/editor/VideoNode.tsx:317
+#: packages/admin/src/components/editor/VideoNode.tsx:320
 msgid "This video can't be played."
 msgstr ""
 
@@ -14291,15 +14319,15 @@ msgstr "Dette sletter denne kommentar permanent. Handlingen kan ikke fortrydes."
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Dette fjerner pluginet og dets bundle fra dit websted."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:352
+#: packages/admin/src/components/ContentSettingsPanel.tsx:353
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Dette vender tilbage til den udgivne version. Dine ændringer i kladden går tabt."
 
-#: packages/admin/src/components/SetupWizard.tsx:152
+#: packages/admin/src/components/SetupWizard.tsx:153
 msgid "Thoughts, tutorials, and more"
 msgstr "Tanker, vejledninger og mere"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:184
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:220
 msgid "Time"
 msgstr "Tidspunkt"
 
@@ -14311,13 +14339,13 @@ msgstr ""
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:254
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:311
 #: packages/admin/src/components/settings/GeneralSettings.tsx:508
 msgid "Timezone"
 msgstr "Tidszone"
 
-#: packages/admin/src/components/ContentList.tsx:738
-#: packages/admin/src/components/ContentList.tsx:911
+#: packages/admin/src/components/ContentList.tsx:739
+#: packages/admin/src/components/ContentList.tsx:912
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
 #: packages/admin/src/components/Widgets.tsx:903
@@ -14332,7 +14360,7 @@ msgstr "Titel (værktøjstip)"
 msgid "Title Separator"
 msgstr "Titelseparator"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:508
+#: packages/admin/src/components/AdminCommandPalette.tsx:512
 msgid "to close"
 msgstr "for at lukke"
 
@@ -14340,7 +14368,7 @@ msgstr "for at lukke"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr "Brug <0>Overførsel</0> for at flytte et websted til en anden EmDash installation."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:498
+#: packages/admin/src/components/AdminCommandPalette.tsx:502
 msgid "to select"
 msgstr "for at vælge"
 
@@ -14441,11 +14469,11 @@ msgstr "Oversætter..."
 #: packages/admin/src/components/MenuEditor.tsx:146
 #: packages/admin/src/components/TaxonomyManager.tsx:1256
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
-#: packages/admin/src/router.tsx:1617
+#: packages/admin/src/router.tsx:1642
 msgid "Translation created"
 msgstr "Oversættelse oprettet"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1193
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1194
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "Oversættelser"
@@ -14462,11 +14490,11 @@ msgstr "papirkurv"
 #: packages/admin/src/components/comments/CommentInbox.tsx:249
 #: packages/admin/src/components/comments/CommentInbox.tsx:290
 #: packages/admin/src/components/comments/CommentInbox.tsx:538
-#: packages/admin/src/components/ContentList.tsx:532
+#: packages/admin/src/components/ContentList.tsx:533
 msgid "Trash"
 msgstr "Papirkurv"
 
-#: packages/admin/src/components/ContentList.tsx:942
+#: packages/admin/src/components/ContentList.tsx:943
 msgid "Trash is empty"
 msgstr "Papirkurven er tom"
 
@@ -14474,7 +14502,7 @@ msgstr "Papirkurven er tom"
 msgid "Trash is empty."
 msgstr "Papirkurven er tom."
 
-#: packages/admin/src/components/ContentList.tsx:975
+#: packages/admin/src/components/ContentList.tsx:976
 msgid "Trash pagination"
 msgstr ""
 
@@ -14556,9 +14584,9 @@ msgid "TSX"
 msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:5208
-#: packages/admin/src/components/PortableTextEditor.tsx:5210
-#: packages/admin/src/components/PortableTextEditor.tsx:5227
+#: packages/admin/src/components/PortableTextEditor.tsx:5211
+#: packages/admin/src/components/PortableTextEditor.tsx:5213
+#: packages/admin/src/components/PortableTextEditor.tsx:5230
 msgid "Turn into"
 msgstr "Lav om til"
 
@@ -14602,11 +14630,11 @@ msgstr ""
 msgid "Type"
 msgstr "Type"
 
-#: packages/admin/src/components/editor/ImageNode.tsx:309
+#: packages/admin/src/components/editor/ImageNode.tsx:312
 msgid "Type caption for image (optional)"
 msgstr ""
 
-#: packages/admin/src/components/editor/VideoNode.tsx:330
+#: packages/admin/src/components/editor/VideoNode.tsx:333
 msgid "Type caption for video (optional)"
 msgstr ""
 
@@ -14619,7 +14647,7 @@ msgstr "Typen passer ikke ({0})"
 msgid "Type to filter"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4665
+#: packages/admin/src/components/PortableTextEditor.tsx:4661
 msgid "Type to search"
 msgstr ""
 
@@ -14641,12 +14669,12 @@ msgstr "Kan ikke få forbindelse til markedspladsen"
 msgid "Unassigned"
 msgstr "Ikke tildelt"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4797
-#: packages/admin/src/components/PortableTextEditor.tsx:6336
+#: packages/admin/src/components/PortableTextEditor.tsx:4793
+#: packages/admin/src/components/PortableTextEditor.tsx:6348
 msgid "Underline"
 msgstr "Understreget"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6567
+#: packages/admin/src/components/PortableTextEditor.tsx:6579
 msgid "Undo"
 msgstr "Fortryd"
 
@@ -14712,11 +14740,11 @@ msgstr "Unavngiven passkey"
 msgid "Unnamed user"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:501
+#: packages/admin/src/components/ContentSettingsPanel.tsx:502
 msgid "Unpublish {itemLabel}"
 msgstr "Fjern udgivelse af {itemLabel}"
 
-#: packages/admin/src/router.tsx:1487
+#: packages/admin/src/router.tsx:1512
 msgid "Unpublished"
 msgstr "Udgivelse fjernet"
 
@@ -14742,7 +14770,7 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr "Ikke-gemt indhold kan forlade dit websted"
 
-#: packages/admin/src/router.tsx:1585
+#: packages/admin/src/router.tsx:1610
 msgid "Unscheduled"
 msgstr "Planlægning fjernet"
 
@@ -14757,16 +14785,16 @@ msgid "Unsupported widget element type: {0}"
 msgstr "Widget elementtype understøttes ikke: {0}"
 
 #. placeholder {0}: formatter.format(to)
-#: packages/admin/src/components/ContentList.tsx:1155
+#: packages/admin/src/components/ContentList.tsx:1156
 msgid "Until {0}"
 msgstr "Indtil {0}"
 
-#: packages/admin/src/components/Dashboard.tsx:593
+#: packages/admin/src/components/Dashboard.tsx:597
 #: packages/admin/src/components/MediaUsedIn.tsx:320
 msgid "Untitled"
 msgstr "Uden titel"
 
-#: packages/admin/src/components/ContentEditor.tsx:3349
+#: packages/admin/src/components/ContentEditor.tsx:3448
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Fil uden titel"
@@ -14833,8 +14861,8 @@ msgstr "Opdater denne omdirigeringsregel."
 msgid "Update to v{0}"
 msgstr "Opdater til v{0}"
 
-#: packages/admin/src/components/ContentList.tsx:1034
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1052
+#: packages/admin/src/components/ContentList.tsx:1035
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1053
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
 msgstr "Opdateret"
@@ -14922,7 +14950,7 @@ msgstr "Upload filer"
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "Upload billeder, videoer og dokumenter for at samle genanvendelige filer ét sted."
 
-#: packages/admin/src/components/Dashboard.tsx:352
+#: packages/admin/src/components/Dashboard.tsx:356
 msgid "Upload Media"
 msgstr "Upload Media"
 
@@ -14996,8 +15024,8 @@ msgstr ""
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1078
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1081
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1079
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1082
 msgid "URL & language"
 msgstr "URL og sprog"
 
@@ -15070,7 +15098,7 @@ msgstr "Brug en URL, der ender på en kendt billedfiltype, f.eks. .jpg eller .pn
 msgid "Use another device"
 msgstr "Brug en anden enhed"
 
-#: packages/admin/src/components/ContentList.tsx:1229
+#: packages/admin/src/components/ContentList.tsx:1230
 msgid "Use as end date"
 msgstr "Brug som slutdato"
 
@@ -15102,7 +15130,7 @@ msgstr "Bruges som fallback billede til Open Graph, når en side ikke har et. An
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Bruges som identifikator. Kun små bogstaver, tal og understregninger."
 
-#: packages/admin/src/components/ContentEditor.tsx:2603
+#: packages/admin/src/components/ContentEditor.tsx:2702
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Bruges som hovedbillede for dette indlæg på oversigtssider og øverst i indlægget"
 
@@ -15153,8 +15181,8 @@ msgstr "Bruger for {0}"
 msgid "User not found"
 msgstr "Bruger ikke fundet"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:224
-#: packages/admin/src/components/Sidebar.tsx:527
+#: packages/admin/src/components/AdminCommandPalette.tsx:228
+#: packages/admin/src/components/Sidebar.tsx:537
 #: packages/admin/src/components/users/UserList.tsx:55
 msgid "Users"
 msgstr "Brugere"
@@ -15257,7 +15285,7 @@ msgstr ""
 msgid "Video"
 msgstr "Video"
 
-#: packages/admin/src/components/editor/VideoNode.tsx:357
+#: packages/admin/src/components/editor/VideoNode.tsx:358
 msgid "Video actions"
 msgstr ""
 
@@ -15279,7 +15307,7 @@ msgstr ""
 msgid "View mode"
 msgstr "Visning"
 
-#: packages/admin/src/components/ContentList.tsx:1500
+#: packages/admin/src/components/ContentList.tsx:1501
 msgid "View published {title}"
 msgstr "Se udgivet {title}"
 
@@ -15307,20 +15335,20 @@ msgstr ""
 msgid "Visitors hitting these paths will see an error."
 msgstr "Besøgende, der rammer disse stier, ser en fejl."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:222
+#: packages/admin/src/components/ContentSettingsPanel.tsx:223
 msgid "Visitors see the published version until the scheduled update"
 msgstr "Besøgende ser den udgivne version indtil den planlagte opdatering"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:186
-#: packages/admin/src/components/ContentSettingsPanel.tsx:248
+#: packages/admin/src/components/ContentSettingsPanel.tsx:187
+#: packages/admin/src/components/ContentSettingsPanel.tsx:249
 msgid "Visitors see this published version"
 msgstr "Besøgende ser denne udgivne version"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:196
+#: packages/admin/src/components/ContentSettingsPanel.tsx:197
 msgid "Visitors still see the published version"
 msgstr "Besøgende ser stadig den udgivne version"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:514
+#: packages/admin/src/components/ContentSettingsPanel.tsx:515
 msgid "Visitors will see these changes immediately."
 msgstr "Besøgende ser disse ændringer med det samme."
 
@@ -15390,11 +15418,19 @@ msgstr "Websted"
 msgid "Website URL"
 msgstr "Webstedets URL"
 
-#: packages/admin/src/components/WelcomeModal.tsx:104
+#: packages/admin/src/components/WelcomeModal.tsx:107
+msgid "Welcome to {siteName}, {firstName}!"
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:108
+msgid "Welcome to {siteName}!"
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:111
 msgid "Welcome to EmDash, {firstName}!"
 msgstr "Velkommen til EmDash, {firstName}!"
 
-#: packages/admin/src/components/WelcomeModal.tsx:104
+#: packages/admin/src/components/WelcomeModal.tsx:111
 msgid "Welcome to EmDash!"
 msgstr "Velkommen til EmDash!"
 
@@ -15434,7 +15470,7 @@ msgstr "Hvad der bliver importeret"
 msgid "What will happen when you import"
 msgstr "Det sker, når du importerer"
 
-#: packages/admin/src/components/ContentEditor.tsx:1765
+#: packages/admin/src/components/ContentEditor.tsx:1861
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "Det, du har skrevet, er her stadig. Når du gemmer, erstattes den nyere version."
 
@@ -15471,7 +15507,7 @@ msgstr "Hvilke indholdstyper der kan bruge denne taksonomi"
 msgid "Whole number"
 msgstr "Heltal"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1166
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1167
 msgid "Why are bylines shown in this order?"
 msgstr "Hvorfor vises bylines i denne rækkefølge?"
 
@@ -15479,7 +15515,7 @@ msgstr "Hvorfor vises bylines i denne rækkefølge?"
 msgid "Why can't this be changed?"
 msgstr "Hvorfor kan dette ikke ændres?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1112
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1113
 msgid "Why English is used"
 msgstr "Hvorfor engelsk bruges"
 
@@ -15499,7 +15535,7 @@ msgstr "Hvorfor er dette vigtigt for titler i søgeresultater?"
 msgid "Why is this important for search visibility?"
 msgstr "Hvorfor er dette vigtigt for synlighed i søgninger?"
 
-#: packages/admin/src/components/SeoImageField.tsx:98
+#: packages/admin/src/components/SeoImageField.tsx:137
 msgid "Why is this important for social sharing?"
 msgstr "Hvorfor er dette vigtigt for deling på sociale medier?"
 
@@ -15544,11 +15580,11 @@ msgstr "Widgettitel"
 msgid "Widget updated"
 msgstr "Widget opdateret"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:182
+#: packages/admin/src/components/AdminCommandPalette.tsx:186
 #: packages/admin/src/components/PluginManager.tsx:491
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
-#: packages/admin/src/components/Sidebar.tsx:478
+#: packages/admin/src/components/Sidebar.tsx:488
 #: packages/admin/src/components/Widgets.tsx:397
 #: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "Widgets"
@@ -15595,11 +15631,11 @@ msgstr "WordPress autorisationen blev afvist"
 msgid "WordPress Username"
 msgstr "WordPress brugernavn"
 
-#: packages/admin/src/components/ContentList.tsx:575
+#: packages/admin/src/components/ContentList.tsx:576
 msgid "Working on {selectedCount} items…"
 msgstr "Behandler {selectedCount} elementer…"
 
-#: packages/admin/src/components/SandboxedContentEditorActions.tsx:282
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:284
 msgid "Working…"
 msgstr "Arbejder…"
 
@@ -15647,7 +15683,7 @@ msgstr "YAML"
 msgid "Yearly"
 msgstr "Årligt"
 
-#: packages/admin/src/components/ContentList.tsx:1577
+#: packages/admin/src/components/ContentList.tsx:1578
 #: packages/admin/src/components/users/UserDetail.tsx:255
 #: packages/admin/src/routes/byline-schema.tsx:422
 #: packages/admin/src/routes/byline-schema.tsx:424
@@ -15719,7 +15755,7 @@ msgstr "Du skal have administratortilladelser for at administrere sporing af med
 msgid "You need Admin permissions to transfer this site."
 msgstr "Du skal have administratortilladelser for at overføre dette websted."
 
-#: packages/admin/src/router.tsx:2467
+#: packages/admin/src/router.tsx:2493
 msgid "You need Editor permissions to moderate comments."
 msgstr "Du skal have redaktørtilladelser for at moderere kommentarer."
 
@@ -15758,7 +15794,7 @@ msgstr "Du tilmelder dig som <0>{roleName}</0>"
 msgid "You're signed in at {0}"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:632
+#: packages/admin/src/components/SetupWizard.tsx:624
 msgid "You're signed in via Cloudflare Access"
 msgstr "Du er logget ind via Cloudflare Access"
 
@@ -15778,7 +15814,7 @@ msgstr "Du er inviteret!"
 msgid "you@company.com"
 msgstr "dig@firma.dk"
 
-#: packages/admin/src/components/SetupWizard.tsx:265
+#: packages/admin/src/components/SetupWizard.tsx:266
 msgid "you@example.com"
 msgstr "dig@eksempel.dk"
 
@@ -15822,7 +15858,7 @@ msgstr ""
 msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the restored version goes live at the scheduled time."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:261
+#: packages/admin/src/components/SetupWizard.tsx:262
 msgid "Your Email"
 msgstr "Din e-mail"
 
@@ -15847,7 +15883,7 @@ msgstr "Dit LinkedIn profilbrugernavn"
 msgid "Your media library is empty"
 msgstr "Dit mediebibliotek er tomt"
 
-#: packages/admin/src/components/SetupWizard.tsx:273
+#: packages/admin/src/components/SetupWizard.tsx:274
 msgid "Your Name"
 msgstr "Dit navn"
 
@@ -15860,11 +15896,11 @@ msgstr "Dit navn (valgfrit)"
 msgid "Your Role"
 msgstr "Din rolle"
 
-#: packages/admin/src/router.tsx:2018
+#: packages/admin/src/router.tsx:2044
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2019
+#: packages/admin/src/router.tsx:2045
 msgid "Your role can't edit this entry."
 msgstr ""
 
@@ -15891,7 +15927,7 @@ msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "Dit Twitter/X handle (f.eks. @brugernavn)"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:123
-#: packages/admin/src/components/UnsavedChangesGuard.tsx:26
+#: packages/admin/src/components/UnsavedChangesGuard.tsx:37
 msgid "Your unsaved changes will be lost."
 msgstr ""
 

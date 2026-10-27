@@ -65,6 +65,34 @@ describe("Content Handlers — auto-slug generation", () => {
 			expect(result.data?.item.slug).toBe("from-title");
 		});
 
+		it("should generate the slug from the collection's titleField instead of title", async () => {
+			// A person's name is the headline; `title` is their job title.
+			await new SchemaRegistry(db).updateCollection("page", { titleField: "name" });
+
+			const first = await handleContentCreate(db, "page", {
+				data: { name: "Jane Smith", title: "Trustee" },
+			});
+			const second = await handleContentCreate(db, "page", {
+				data: { name: "John Doe", title: "Trustee" },
+			});
+
+			expect(first.success).toBe(true);
+			expect(first.data?.item.slug).toBe("jane-smith");
+			expect(second.success).toBe(true);
+			expect(second.data?.item.slug).toBe("john-doe");
+		});
+
+		it("should fall back to title when the entry has no value for the titleField", async () => {
+			await new SchemaRegistry(db).updateCollection("page", { titleField: "name" });
+
+			const result = await handleContentCreate(db, "page", {
+				data: { title: "Trustee" },
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.slug).toBe("trustee");
+		});
+
 		it("should respect explicit slug and not auto-generate", async () => {
 			const result = await handleContentCreate(db, "post", {
 				data: { title: "Hello World" },

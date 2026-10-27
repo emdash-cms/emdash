@@ -460,6 +460,10 @@ test.describe("Portable Text tables", () => {
 		];
 		expect(new Set(keys).size).toBe(keys.length);
 
+		// A reload that lands while Firefox is still rendering the edit page stops
+		// that render partway, and React then logs an error.
+		await expect(page.locator(EDITOR).getByText("Rich", { exact: true })).toBeVisible();
+		await admin.waitForLoading();
 		await page.reload();
 		await admin.waitForShell();
 		await expect(page.locator(EDITOR).getByText("Rich", { exact: true })).toBeVisible();

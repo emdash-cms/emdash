@@ -1,4 +1,6 @@
-import { i18n } from "@lingui/core";
+import { Toasty } from "@cloudflare/kumo";
+import { i18n, setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
@@ -20,6 +22,7 @@ import {
 	publishingInstantToLocalFields,
 	resolvePublishingLocalDateTime,
 } from "../../src/lib/publishing-datetime.js";
+import { messages as enMessages } from "../../src/locales/en/messages.mjs";
 import { render } from "../utils/render.tsx";
 
 // Mock child components with their own data fetching so the panel tests
@@ -586,6 +589,97 @@ describe("ContentSettingsPanel", () => {
 		} finally {
 			i18n.activate(previousLocale);
 		}
+	});
+
+	it("renders trusted and sandboxed panel titles without invoking Lingui's compiler", async () => {
+		const localI18n = setupI18n({ locale: "en", messages: { en: enMessages } });
+		localI18n.setMessagesCompiler(undefined as never);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const pluginAdmins: PluginAdmins = {
+			"trusted-insights": {
+				contentEditorPanels: [
+					{ id: "trusted", title: "Content insights", component: InsightsPanel },
+				],
+			},
+		};
+		const manifest: AdminManifest = {
+			...TEST_MANIFEST,
+			plugins: {
+				"trusted-insights": { enabled: true },
+				"sandbox-insights": {
+					enabled: true,
+					adminMode: "blocks",
+					editorPanels: [{ id: "sandboxed", title: "Sandbox insights", route: "/insights" }],
+				},
+			},
+		};
+
+		try {
+			const screen = await render(<ContentSettingsPanel {...makePanelProps({ manifest })} />, {
+				wrapper: ({ children }) => (
+					<I18nProvider i18n={localI18n}>
+						<Toasty>{pluginWrapper(pluginAdmins)({ children })}</Toasty>
+					</I18nProvider>
+				),
+			});
+
+			await expect
+				.element(screen.getByRole("heading", { name: "Content insights" }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Sandbox insights", exact: true }))
+				.toBeInTheDocument();
+			expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Content insights"));
+			expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Sandbox insights"));
+		} finally {
+			warn.mockRestore();
+		}
+	});
+
+	it("translates trusted and sandboxed panel titles found in the active catalog", async () => {
+		const localI18n = setupI18n({
+			locale: "en",
+			messages: {
+				en: {
+					...enMessages,
+					"Content insights": ["Inhaltsansicht"],
+					"Sandbox insights": ["Sandboxansicht"],
+				},
+			},
+		});
+		localI18n.setMessagesCompiler(undefined as never);
+		const pluginAdmins: PluginAdmins = {
+			"trusted-insights": {
+				contentEditorPanels: [
+					{ id: "trusted", title: "Content insights", component: InsightsPanel },
+				],
+			},
+		};
+		const manifest: AdminManifest = {
+			...TEST_MANIFEST,
+			plugins: {
+				"trusted-insights": { enabled: true },
+				"sandbox-insights": {
+					enabled: true,
+					adminMode: "blocks",
+					editorPanels: [{ id: "sandboxed", title: "Sandbox insights", route: "/insights" }],
+				},
+			},
+		};
+		const screen = await render(<ContentSettingsPanel {...makePanelProps({ manifest })} />, {
+			wrapper: ({ children }) => (
+				<I18nProvider i18n={localI18n}>
+					<Toasty>{pluginWrapper(pluginAdmins)({ children })}</Toasty>
+				</I18nProvider>
+			),
+		});
+
+		await expect
+			.element(screen.getByRole("heading", { name: "Inhaltsansicht" }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Sandboxansicht", exact: true }))
+			.toBeInTheDocument();
 	});
 
 	it("omits panels when their plugin is disabled or the entry is new", async () => {
