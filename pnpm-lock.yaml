@@ -1145,6 +1145,9 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.2.4(react@19.2.4)
+      sharp:
+        specifier: ^0.35.4
+        version: 0.35.4(@types/node@26.1.1)
 
   e2e/fixture-cloudflare:
     dependencies:
@@ -22366,7 +22369,6 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.4
       '@img/sharp-win32-x64': 0.35.4
       '@types/node': 26.1.1
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:
