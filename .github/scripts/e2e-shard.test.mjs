@@ -12,6 +12,7 @@ const script = fileURLToPath(new URL("./e2e-shard.mjs", import.meta.url));
 const EMPTY_SHARD = /has no spec files/;
 const OUT_OF_RANGE = /out of range/;
 const UNKNOWN_TARGET = /unknown target/;
+const DUPLICATE_TITLE = /duplicate test title "saves"/;
 
 function listReport(files, rootDir = "/repo/e2e/tests") {
 	return { config: { rootDir }, suites: files.map((file) => ({ title: file, file })) };
@@ -68,6 +69,7 @@ describe("e2e shards", () => {
 			["mid.spec.ts", 60],
 			["quick.spec.ts", 5],
 			["other.spec.ts", 55],
+			["twin.spec.ts", 5],
 		];
 
 		const forward = assignShards(new Map(entries), 3);
@@ -102,6 +104,17 @@ describe("e2e shards", () => {
 			{ name: "auth.spec.ts", arg: path.join("e2e", "tests", "auth.spec.ts") },
 			{ name: "menus.spec.ts", arg: path.join("e2e", "tests", "menus.spec.ts") },
 		]);
+	});
+
+	it("fails with Playwright's errors when the spec files didn't load", () => {
+		const report = {
+			...listReport([]),
+			errors: [
+				{ message: 'Error: duplicate test title "saves", first declared in auth.spec.ts:4' },
+			],
+		};
+
+		assert.throws(() => listSpecFiles(report, "/repo"), DUPLICATE_TITLE);
 	});
 
 	it("records a file's whole seconds per target, averaged over the reports that ran it", () => {

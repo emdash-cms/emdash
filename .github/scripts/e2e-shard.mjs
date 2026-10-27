@@ -16,9 +16,14 @@ const byName = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 /**
  * Spec files of a Playwright JSON report, keyed as the report names them
  * (relative to the config's root directory), with the path to pass on the
- * command line.
+ * command line. A spec file that fails to load leaves Playwright's report
+ * with no suites at all, so the report's errors are thrown instead.
  */
 export function listSpecFiles(report, cwd = process.cwd()) {
+	if (report.errors?.length > 0) {
+		const messages = report.errors.map((error) => error.message).join("\n");
+		throw new Error(`playwright test --list failed:\n${messages}`);
+	}
 	const seen = new Set();
 	const files = [];
 	for (const suite of report.suites) {
@@ -89,8 +94,7 @@ function sumDurations(suite, totals) {
  * Seconds per spec file and target from Playwright JSON reports of test runs,
  * averaged over the reports that ran the file and merged over the previous
  * times. A spec file or target the reports don't cover keeps its previous
- * values, so a partial download can't erase the rest; a stale entry costs
- * nothing because Playwright's list decides which files exist.
+ * values, so a partial download can't erase the rest.
  */
 export function recordTimes(reports, previous = {}) {
 	const samples = {};
