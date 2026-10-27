@@ -151,7 +151,7 @@ msgid "{0, plural, one {# link} other {# links}}"
 msgstr ""
 
 #. placeholder {0}: tagMatches?.matchCount ?? 0
-#: packages/admin/src/components/TaxonomyManager.tsx:1392
+#: packages/admin/src/components/TaxonomyManager.tsx:1395
 msgid "{0, plural, one {# matching tag} other {# matching tags}}"
 msgstr "{0, plural, one {#টি মিলে যাওয়া ট্যাগ} other {#টি মিলে যাওয়া ট্যাগ}}"
 
@@ -1059,7 +1059,7 @@ msgstr "প্যাকেজ থেকে একটি মিডিয়া �
 msgid "A media folder with this name already exists"
 msgstr "এই নামে একটি মিডিয়া ফোল্ডার ইতিমধ্যে আছে"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:965
+#: packages/admin/src/components/TaxonomyManager.tsx:968
 msgid "A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr ""
 
@@ -1206,8 +1206,8 @@ msgstr "ACF ফিল্ড"
 #: packages/admin/src/components/ContentList.tsx:923
 #: packages/admin/src/components/ContentTypeList.tsx:212
 #: packages/admin/src/components/RelationList.tsx:102
-#: packages/admin/src/components/TaxonomyManager.tsx:1413
-#: packages/admin/src/components/TaxonomyManager.tsx:1467
+#: packages/admin/src/components/TaxonomyManager.tsx:1416
+#: packages/admin/src/components/TaxonomyManager.tsx:1470
 #: packages/admin/src/routes/byline-schema.tsx:249
 #: packages/admin/src/routes/bylines.tsx:348
 msgid "Actions"
@@ -1241,8 +1241,8 @@ msgstr "যোগ করুন"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
 #: packages/admin/src/components/ContentList.tsx:626
 #: packages/admin/src/components/PortableTextEditor.tsx:2936
-#: packages/admin/src/components/TaxonomyManager.tsx:756
-#: packages/admin/src/components/TaxonomyManager.tsx:1333
+#: packages/admin/src/components/TaxonomyManager.tsx:759
+#: packages/admin/src/components/TaxonomyManager.tsx:1336
 msgid "Add {0}"
 msgstr "{0} যোগ করুন"
 
@@ -1435,7 +1435,7 @@ msgstr "SEO মেটাডেটা ফিল্ড (শিরোনাম, ব
 msgid "Add Sub-Field"
 msgstr "সাব-ফিল্ড যোগ করুন"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1317
+#: packages/admin/src/components/TaxonomyManager.tsx:1320
 msgid "Add tag"
 msgstr "ট্যাগ যোগ করুন"
 
@@ -1443,8 +1443,8 @@ msgstr "ট্যাগ যোগ করুন"
 msgid "Add term"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1324
-#: packages/admin/src/components/TaxonomyManager.tsx:1340
+#: packages/admin/src/components/TaxonomyManager.tsx:1327
+#: packages/admin/src/components/TaxonomyManager.tsx:1343
 msgid "Add to posts"
 msgstr "পোস্টে যোগ করুন"
 
@@ -2113,7 +2113,7 @@ msgstr "স্বয়ংক্রিয় (স্লাগ পরিবর্
 msgid "Auto-approve authenticated users"
 msgstr "প্রমাণীকৃত ব্যবহারকারীদের স্বয়ংক্রিয়ভাবে অনুমোদন করুন"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:792
+#: packages/admin/src/components/TaxonomyManager.tsx:795
 msgid "Auto-generated from name (you can edit)"
 msgstr "নাম থেকে স্বয়ংক্রিয়ভাবে তৈরি (আপনি সম্পাদনা করতে পারেন)"
 
@@ -2545,8 +2545,8 @@ msgstr "কনটেন্ট দেখতে পারেন"
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:174
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:581
-#: packages/admin/src/components/TaxonomyManager.tsx:882
-#: packages/admin/src/components/TaxonomyManager.tsx:1102
+#: packages/admin/src/components/TaxonomyManager.tsx:885
+#: packages/admin/src/components/TaxonomyManager.tsx:1105
 #: packages/admin/src/components/users/InviteUserModal.tsx:202
 #: packages/admin/src/components/Widgets.tsx:461
 #: packages/admin/src/components/WordPressImport.tsx:1974
@@ -2999,7 +2999,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:1020
 #: packages/admin/src/components/MediaLibrary.tsx:1055
-#: packages/admin/src/components/TaxonomyManager.tsx:1436
+#: packages/admin/src/components/TaxonomyManager.tsx:1439
 msgid "Clear search"
 msgstr "অনুসন্ধান পরিষ্কার করুন"
 
@@ -3087,10 +3087,10 @@ msgstr "{siteName}-এ সাইন ইন করতে এই লিঙ্ক�
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:348
 #: packages/admin/src/components/TaxonomyManager.tsx:558
-#: packages/admin/src/components/TaxonomyManager.tsx:765
-#: packages/admin/src/components/TaxonomyManager.tsx:773
-#: packages/admin/src/components/TaxonomyManager.tsx:1021
-#: packages/admin/src/components/TaxonomyManager.tsx:1029
+#: packages/admin/src/components/TaxonomyManager.tsx:768
+#: packages/admin/src/components/TaxonomyManager.tsx:776
+#: packages/admin/src/components/TaxonomyManager.tsx:1024
+#: packages/admin/src/components/TaxonomyManager.tsx:1032
 #: packages/admin/src/components/TaxonomySidebar.tsx:606
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
@@ -3180,7 +3180,7 @@ msgid "Collection:"
 msgstr "কালেকশন:"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:11
-#: packages/admin/src/components/TaxonomyManager.tsx:1072
+#: packages/admin/src/components/TaxonomyManager.tsx:1075
 msgid "Collections"
 msgstr "কালেকশন"
 
@@ -3703,8 +3703,8 @@ msgstr "অনুরোধ আপডেট করা যায়নি"
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
 msgstr "\"{0}\"-কে কতগুলো মান রেফারেন্স করে তা যাচাই করা যায়নি। মুছে ফেললেও এই ফিল্ডের সব সংরক্ষিত মান সরানো হবে — কিন্তু ওপরের সংখ্যাটি যাচাই করা যায়নি।"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1411
-#: packages/admin/src/components/TaxonomyManager.tsx:1466
+#: packages/admin/src/components/TaxonomyManager.tsx:1414
+#: packages/admin/src/components/TaxonomyManager.tsx:1469
 msgid "Count"
 msgstr "সংখ্যা"
 
@@ -3713,7 +3713,7 @@ msgstr "সংখ্যা"
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuList.tsx:187
 #: packages/admin/src/components/Redirects.tsx:196
-#: packages/admin/src/components/TaxonomyManager.tsx:893
+#: packages/admin/src/components/TaxonomyManager.tsx:896
 #: packages/admin/src/components/Widgets.tsx:464
 msgid "Create"
 msgstr "তৈরি করুন"
@@ -3750,7 +3750,7 @@ msgid "Create a bullet list"
 msgstr "একটি বুলেট তালিকা তৈরি করুন"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:761
+#: packages/admin/src/components/TaxonomyManager.tsx:764
 msgid "Create a new {0}"
 msgstr "নতুন {0} তৈরি করুন"
 
@@ -3857,8 +3857,8 @@ msgstr ""
 msgid "Create sections in the Sections library to use them here"
 msgstr "এখানে ব্যবহার করতে সেকশন লাইব্রেরিতে সেকশন তৈরি করুন"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1015
-#: packages/admin/src/components/TaxonomyManager.tsx:1105
+#: packages/admin/src/components/TaxonomyManager.tsx:1018
+#: packages/admin/src/components/TaxonomyManager.tsx:1108
 msgid "Create Taxonomy"
 msgstr "ট্যাক্সোনমি তৈরি করুন"
 
@@ -3959,7 +3959,7 @@ msgstr "ক্রপ করা কপি তৈরি করা হচ্ছে.
 #: packages/admin/src/components/RelationFormPanel.tsx:109
 #: packages/admin/src/components/Sections.tsx:234
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:561
-#: packages/admin/src/components/TaxonomyManager.tsx:1105
+#: packages/admin/src/components/TaxonomyManager.tsx:1108
 msgid "Creating..."
 msgstr "তৈরি করা হচ্ছে..."
 
@@ -4118,7 +4118,7 @@ msgstr "ডিফল্ট সোশ্যাল ছবি"
 msgid "Default Social Image"
 msgstr "ডিফল্ট সোশ্যাল ছবি"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1017
+#: packages/admin/src/components/TaxonomyManager.tsx:1020
 msgid "Define a new taxonomy for classifying content"
 msgstr "কনটেন্ট শ্রেণিবদ্ধ করার জন্য একটি নতুন ট্যাক্সোনমি নির্ধারণ করুন"
 
@@ -4153,8 +4153,8 @@ msgstr "কোডে নির্ধারিত"
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/Sections.tsx:349
 #: packages/admin/src/components/settings/BackupSettings.tsx:369
-#: packages/admin/src/components/TaxonomyManager.tsx:1538
-#: packages/admin/src/components/TaxonomyManager.tsx:1554
+#: packages/admin/src/components/TaxonomyManager.tsx:1541
+#: packages/admin/src/components/TaxonomyManager.tsx:1557
 #: packages/admin/src/components/Widgets.tsx:728
 #: packages/admin/src/routes/byline-schema.tsx:378
 msgid "Delete"
@@ -4202,7 +4202,7 @@ msgstr "{0} উইজেট এরিয়া মুছুন"
 
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/TaxonomyManager.tsx:1534
+#: packages/admin/src/components/TaxonomyManager.tsx:1537
 #: packages/admin/src/routes/bylines.tsx:532
 msgid "Delete {0}?"
 msgstr "{0} মুছবেন?"
@@ -4332,11 +4332,11 @@ msgstr "ট্যাগ মুছুন"
 msgid "Delete tag {0}"
 msgstr "ট্যাগ {0} মুছুন"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1373
+#: packages/admin/src/components/TaxonomyManager.tsx:1376
 msgid "Delete taxonomy"
 msgstr "ট্যাক্সোনমি মুছুন"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1552
+#: packages/admin/src/components/TaxonomyManager.tsx:1555
 msgid "Delete Taxonomy"
 msgstr "ট্যাক্সোনমি মুছুন"
 
@@ -4354,7 +4354,7 @@ msgid "Deleted"
 msgstr "মুছে ফেলা হয়েছে"
 
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1553
+#: packages/admin/src/components/TaxonomyManager.tsx:1556
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
 msgstr "\"{0}\" মুছলে এর সব টার্মও সব ভাষায় মুছে যাবে, এবং এর অধীনে থাকা কনটেন্ট থেকে সেই টার্মগুলো সরিয়ে দেওয়া হবে। এন্ট্রিগুলো নিজেরা থেকে যাবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।"
 
@@ -4375,8 +4375,8 @@ msgstr "\"{0}\" মুছলে সব বাইলাইন থেকে {1, pl
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:350
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
-#: packages/admin/src/components/TaxonomyManager.tsx:1539
-#: packages/admin/src/components/TaxonomyManager.tsx:1555
+#: packages/admin/src/components/TaxonomyManager.tsx:1542
+#: packages/admin/src/components/TaxonomyManager.tsx:1558
 #: packages/admin/src/components/Widgets.tsx:729
 #: packages/admin/src/routes/bylines.tsx:535
 msgid "Deleting..."
@@ -4448,7 +4448,7 @@ msgstr "এই সেকশনটি কীসের জন্য তা বর�
 msgid "Description"
 msgstr "বিবরণ"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:844
+#: packages/admin/src/components/TaxonomyManager.tsx:847
 msgid "Description (optional)"
 msgstr "বিবরণ (ঐচ্ছিক)"
 
@@ -4919,7 +4919,7 @@ msgstr "সম্পাদনা করুন"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:263
 #: packages/admin/src/components/TaxonomyManager.tsx:309
 #: packages/admin/src/components/TaxonomyManager.tsx:484
-#: packages/admin/src/components/TaxonomyManager.tsx:755
+#: packages/admin/src/components/TaxonomyManager.tsx:758
 #: packages/admin/src/routes/byline-schema.tsx:451
 #: packages/admin/src/routes/bylines.tsx:401
 msgid "Edit {0}"
@@ -5419,7 +5419,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:226
 #: packages/admin/src/components/MenuEditor.tsx:266
 #: packages/admin/src/components/SetupWizard.tsx:603
-#: packages/admin/src/components/TaxonomyManager.tsx:1210
+#: packages/admin/src/components/TaxonomyManager.tsx:1213
 #: packages/admin/src/components/Widgets.tsx:781
 #: packages/admin/src/router.tsx:3364
 msgid "Error"
@@ -6995,7 +6995,7 @@ msgstr "সাধারণ"
 msgid "General Settings"
 msgstr "সাধারণ সেটিংস"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1040
+#: packages/admin/src/components/TaxonomyManager.tsx:1043
 msgid "Genres"
 msgstr "ধরন"
 
@@ -7191,7 +7191,7 @@ msgstr "টুলবার লুকান"
 msgid "Hide toolbar"
 msgstr "টুলবার লুকান"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1065
+#: packages/admin/src/components/TaxonomyManager.tsx:1068
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "শ্রেণিবদ্ধ (ক্যাটাগরির মতো, প্যারেন্ট/চাইল্ড সম্পর্কসহ)"
 
@@ -7234,7 +7234,7 @@ msgstr "ঘণ্টা"
 msgid "How do you want to start?"
 msgstr "আপনি কীভাবে শুরু করতে চান?"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:794
+#: packages/admin/src/components/TaxonomyManager.tsx:797
 msgid "How is the slug generated?"
 msgstr "স্লাগ কীভাবে তৈরি হয়?"
 
@@ -7954,7 +7954,7 @@ msgstr "Kotlin"
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/MenuEditor.tsx:716
 #: packages/admin/src/components/MenuList.tsx:153
-#: packages/admin/src/components/TaxonomyManager.tsx:1037
+#: packages/admin/src/components/TaxonomyManager.tsx:1040
 #: packages/admin/src/components/Widgets.tsx:446
 #: packages/admin/src/routes/byline-schema.tsx:234
 msgid "Label"
@@ -8328,8 +8328,8 @@ msgstr "সেটিংস লোড হচ্ছে..."
 msgid "Loading setup..."
 msgstr "সেটআপ লোড হচ্ছে..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1399
-#: packages/admin/src/components/TaxonomyManager.tsx:1471
+#: packages/admin/src/components/TaxonomyManager.tsx:1402
+#: packages/admin/src/components/TaxonomyManager.tsx:1474
 msgid "Loading terms..."
 msgstr "টার্ম লোড হচ্ছে..."
 
@@ -8367,7 +8367,7 @@ msgstr "উইজেট লোড হচ্ছে..."
 #: packages/admin/src/components/settings/EmailSettings.tsx:69
 #: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/settings/TransferSettings.tsx:57
-#: packages/admin/src/components/TaxonomyManager.tsx:1277
+#: packages/admin/src/components/TaxonomyManager.tsx:1280
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
@@ -8454,7 +8454,7 @@ msgstr ""
 msgid "Lowercase letters, numbers, and hyphens only"
 msgstr "শুধু ছোট হাতের অক্ষর, সংখ্যা এবং হাইফেন"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1056
+#: packages/admin/src/components/TaxonomyManager.tsx:1059
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "শুধু ছোট হাতের অক্ষর, সংখ্যা এবং আন্ডারস্কোর, শুরু হতে হবে একটি অক্ষর দিয়ে"
 
@@ -8477,7 +8477,7 @@ msgstr "পরিচালনা"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
 #. placeholder {1}: taxonomyDef.collections.join(", ")
-#: packages/admin/src/components/TaxonomyManager.tsx:1294
+#: packages/admin/src/components/TaxonomyManager.tsx:1297
 msgid "Manage {0} for {1}"
 msgstr "{1}-এর জন্য {0} পরিচালনা করুন"
 
@@ -8864,7 +8864,7 @@ msgstr "মাসিক/বার্ষিক আর্কাইভ"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:716
 #: packages/admin/src/components/Sections.tsx:450
 #: packages/admin/src/components/TaxonomyManager.tsx:321
-#: packages/admin/src/components/TaxonomyManager.tsx:1352
+#: packages/admin/src/components/TaxonomyManager.tsx:1355
 #: packages/admin/src/routes/bylines.tsx:413
 msgid "More actions for {0}"
 msgstr "{0}-এর জন্য আরও অ্যাকশন"
@@ -9125,10 +9125,10 @@ msgstr "আমার দারুণ ব্লগ"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MediaFolderDialog.tsx:131
 #: packages/admin/src/components/MenuList.tsx:164
-#: packages/admin/src/components/TaxonomyManager.tsx:781
-#: packages/admin/src/components/TaxonomyManager.tsx:1047
-#: packages/admin/src/components/TaxonomyManager.tsx:1410
-#: packages/admin/src/components/TaxonomyManager.tsx:1465
+#: packages/admin/src/components/TaxonomyManager.tsx:784
+#: packages/admin/src/components/TaxonomyManager.tsx:1050
+#: packages/admin/src/components/TaxonomyManager.tsx:1413
+#: packages/admin/src/components/TaxonomyManager.tsx:1468
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:152
 #: packages/admin/src/components/users/UserDetail.tsx:159
@@ -9136,11 +9136,11 @@ msgstr "আমার দারুণ ব্লগ"
 msgid "Name"
 msgstr "নাম"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:973
+#: packages/admin/src/components/TaxonomyManager.tsx:976
 msgid "Name and label are required"
 msgstr "নাম ও লেবেল আবশ্যক"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:979
+#: packages/admin/src/components/TaxonomyManager.tsx:982
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "নাম অবশ্যই একটি অক্ষর দিয়ে শুরু হতে হবে এবং এতে শুধু ছোট হাতের অক্ষর, সংখ্যা ও আন্ডারস্কোর থাকতে পারবে"
 
@@ -9251,11 +9251,11 @@ msgstr ""
 msgid "new tab"
 msgstr "নতুন ট্যাব"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1363
+#: packages/admin/src/components/TaxonomyManager.tsx:1366
 msgid "New taxonomy"
 msgstr "নতুন ট্যাক্সোনমি"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1330
+#: packages/admin/src/components/TaxonomyManager.tsx:1333
 msgid "New Taxonomy"
 msgstr "নতুন ট্যাক্সোনমি"
 
@@ -9275,7 +9275,7 @@ msgstr ""
 msgid "Newest"
 msgstr "সবচেয়ে নতুন"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:784
+#: packages/admin/src/components/TaxonomyManager.tsx:787
 msgid "News"
 msgstr "সংবাদ"
 
@@ -9325,8 +9325,8 @@ msgid "No {0} yet."
 msgstr "এখনও কোনো {0} নেই।"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:1402
-#: packages/admin/src/components/TaxonomyManager.tsx:1474
+#: packages/admin/src/components/TaxonomyManager.tsx:1405
+#: packages/admin/src/components/TaxonomyManager.tsx:1477
 msgid "No {0} yet. Create one to get started."
 msgstr "এখনও কোনো {0} নেই। শুরু করতে একটি তৈরি করুন।"
 
@@ -9570,7 +9570,7 @@ msgstr "মিলে যাওয়া কোনো মিডিয়া ন�
 msgid "No matching passkey found for this account."
 msgstr "এই অ্যাকাউন্টের জন্য মিলে যাওয়া কোনো পাসকি পাওয়া যায়নি।"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1427
+#: packages/admin/src/components/TaxonomyManager.tsx:1430
 msgid "No matching tags"
 msgstr "মিলে যাওয়া কোনো ট্যাগ নেই"
 
@@ -9743,8 +9743,8 @@ msgstr ""
 msgid "None"
 msgstr "কোনোটি নয়"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:822
-#: packages/admin/src/components/TaxonomyManager.tsx:831
+#: packages/admin/src/components/TaxonomyManager.tsx:825
+#: packages/admin/src/components/TaxonomyManager.tsx:834
 msgid "None (top level)"
 msgstr "কোনোটি নয় (শীর্ষ স্তর)"
 
@@ -9971,7 +9971,7 @@ msgstr "ছবির নিচে দেখানো ঐচ্ছিক ক্�
 msgid "Optional caption for display"
 msgstr "প্রদর্শনের জন্য ঐচ্ছিক ক্যাপশন"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:847
+#: packages/admin/src/components/TaxonomyManager.tsx:850
 msgid "Optional description"
 msgstr "ঐচ্ছিক বিবরণ"
 
@@ -10113,7 +10113,7 @@ msgid "Paragraph inserted before table"
 msgstr "টেবিলের আগে অনুচ্ছেদ যোগ করা হয়েছে"
 
 #: packages/admin/src/components/MenuEditor.tsx:746
-#: packages/admin/src/components/TaxonomyManager.tsx:818
+#: packages/admin/src/components/TaxonomyManager.tsx:821
 msgid "Parent"
 msgstr "প্যারেন্ট"
 
@@ -11931,7 +11931,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/RelationFormPanel.tsx:112
 #: packages/admin/src/components/SaveButton.tsx:36
-#: packages/admin/src/components/TaxonomyManager.tsx:890
+#: packages/admin/src/components/TaxonomyManager.tsx:893
 #: packages/admin/src/components/users/UserDetail.tsx:330
 #: packages/admin/src/components/Widgets.tsx:995
 msgid "Saving..."
@@ -12209,11 +12209,11 @@ msgstr "সেকশন অনুসন্ধান করুন..."
 msgid "Search source or destination..."
 msgstr "উৎস বা গন্তব্য অনুসন্ধান করুন..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1386
+#: packages/admin/src/components/TaxonomyManager.tsx:1389
 msgid "Search tags"
 msgstr "ট্যাগ অনুসন্ধান করুন"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1385
+#: packages/admin/src/components/TaxonomyManager.tsx:1388
 msgid "Search tags…"
 msgstr "ট্যাগ অনুসন্ধান করুন…"
 
@@ -12963,8 +12963,8 @@ msgstr "এড়িয়ে যাওয়া হয়েছে"
 #: packages/admin/src/components/RelationList.tsx:90
 #: packages/admin/src/components/SectionEditor.tsx:281
 #: packages/admin/src/components/Sections.tsx:204
-#: packages/admin/src/components/TaxonomyManager.tsx:799
-#: packages/admin/src/components/TaxonomyManager.tsx:804
+#: packages/admin/src/components/TaxonomyManager.tsx:802
+#: packages/admin/src/components/TaxonomyManager.tsx:807
 #: packages/admin/src/routes/byline-schema.tsx:237
 msgid "Slug"
 msgstr "স্লাগ"
@@ -13371,11 +13371,11 @@ msgstr ""
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr "ট্যাক্সোনমি “{0}” এই সাইটের কনটেন্টে ব্যবহৃত হচ্ছে"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1566
+#: packages/admin/src/components/TaxonomyManager.tsx:1569
 msgid "Taxonomy created"
 msgstr "ট্যাক্সোনমি তৈরি হয়েছে"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1197
+#: packages/admin/src/components/TaxonomyManager.tsx:1200
 msgid "Taxonomy deleted"
 msgstr "ট্যাক্সোনমি মুছে ফেলা হয়েছে"
 
@@ -13408,18 +13408,18 @@ msgid "Template:"
 msgstr "টেমপ্লেট:"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:110
-#: packages/admin/src/components/TaxonomyManager.tsx:755
-#: packages/admin/src/components/TaxonomyManager.tsx:756
-#: packages/admin/src/components/TaxonomyManager.tsx:760
-#: packages/admin/src/components/TaxonomyManager.tsx:761
-#: packages/admin/src/components/TaxonomyManager.tsx:1333
-#: packages/admin/src/components/TaxonomyManager.tsx:1534
+#: packages/admin/src/components/TaxonomyManager.tsx:758
+#: packages/admin/src/components/TaxonomyManager.tsx:759
+#: packages/admin/src/components/TaxonomyManager.tsx:763
+#: packages/admin/src/components/TaxonomyManager.tsx:764
+#: packages/admin/src/components/TaxonomyManager.tsx:1336
+#: packages/admin/src/components/TaxonomyManager.tsx:1537
 msgid "Term"
 msgstr "টার্ম"
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:1257
+#: packages/admin/src/components/TaxonomyManager.tsx:1260
 msgid "Term \"{0}\" created in {1}."
 msgstr "টার্ম \"{0}\" {1}-এ তৈরি হয়েছে।"
 
@@ -13428,7 +13428,7 @@ msgstr "টার্ম \"{0}\" {1}-এ তৈরি হয়েছে।"
 msgid "Term assignments"
 msgstr "টার্ম অ্যাসাইনমেন্ট"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1175
+#: packages/admin/src/components/TaxonomyManager.tsx:1178
 msgid "Term deleted"
 msgstr "টার্ম মুছে ফেলা হয়েছে"
 
@@ -14302,7 +14302,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "এটি আইটেমটিকে ট্র্যাশে সরিয়ে দেবে। পরে আপনি ট্র্যাশ থেকে এটি পুনরুদ্ধার করতে পারবেন।"
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1536
+#: packages/admin/src/components/TaxonomyManager.tsx:1539
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "এটি \"{0}\" স্থায়ীভাবে মুছে ফেলবে এবং সব কনটেন্ট থেকে সরিয়ে দেবে।"
 
@@ -14467,7 +14467,7 @@ msgid "Translating..."
 msgstr "অনুবাদ করা হচ্ছে..."
 
 #: packages/admin/src/components/MenuEditor.tsx:146
-#: packages/admin/src/components/TaxonomyManager.tsx:1256
+#: packages/admin/src/components/TaxonomyManager.tsx:1259
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
 #: packages/admin/src/router.tsx:1642
 msgid "Translation created"
@@ -14812,7 +14812,7 @@ msgstr "অব্যবহৃত রেফারেন্সগুলো বা�
 msgid "Up to {MAX_SELECTED} bylines can be selected"
 msgstr "সর্বোচ্চ {MAX_SELECTED}টি বাইলাইন নির্বাচন করা যাবে"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:892
+#: packages/admin/src/components/TaxonomyManager.tsx:895
 msgid "Update"
 msgstr "আপডেট করুন"
 
@@ -14839,7 +14839,7 @@ msgid "Update site settings"
 msgstr "সাইটের সেটিংস আপডেট করুন"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:760
+#: packages/admin/src/components/TaxonomyManager.tsx:763
 msgid "Update the {0} details"
 msgstr "{0}-এর বিবরণ আপডেট করুন"
 
@@ -15126,7 +15126,7 @@ msgstr "নিরাপদে সাইন ইন করতে আপনার �
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "কোনো পেজে ছবি না থাকলে এটি ফলব্যাক Open Graph ছবি হিসেবে ব্যবহৃত হয়। প্রস্তাবিত আকার: 1200×630।"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1060
+#: packages/admin/src/components/TaxonomyManager.tsx:1063
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "শনাক্তকারী হিসেবে ব্যবহৃত হয়। শুধু ছোট হাতের অক্ষর, সংখ্যা এবং আন্ডারস্কোর।"
 
@@ -15499,7 +15499,7 @@ msgstr "এন্ট্রিটি কখন প্রকাশিত হয়
 msgid "Where is it saved?"
 msgstr "এটি কোথায় সংরক্ষিত হয়?"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1074
+#: packages/admin/src/components/TaxonomyManager.tsx:1077
 msgid "Which content types can use this taxonomy"
 msgstr "কোন কনটেন্ট টাইপ এই ট্যাক্সোনমি ব্যবহার করতে পারবে"
 
