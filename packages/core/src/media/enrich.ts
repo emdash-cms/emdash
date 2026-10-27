@@ -29,10 +29,14 @@ export interface EnrichedImageMetadata {
  * - The placeholder OOM guard uses only header dimensions read from the bytes
  *   actually decoded. Caller-supplied `knownDimensions` are untrusted for the
  *   guard: a client could claim a tiny size for a huge image to bypass the cap.
- * - `placeholder` lets a caller decode a smaller thumbnail for the blurhash to
- *   avoid OOM on large originals; dimensions still come from `bytes`.
- * - Placeholders are jpeg/png only (the generator's supported formats); other
- *   image types still get dimensions.
+ * - `placeholder` supplies thumbnail bytes for LQIP generation instead of
+ *   decoding the original, reducing CPU and memory use. Record dimensions still
+ *   come from `knownDimensions` or the original `bytes`, not the thumbnail.
+ * - `placeholders` defaults to `true`. When `false`, only dimensions are returned
+ *   and the `placeholder` override is ignored.
+ * - Pixel decoding supports JPEG/PNG inputs, either originals or thumbnails.
+ *   Other image formats can receive placeholders through a JPEG/PNG override;
+ *   without one, they receive dimensions only.
  */
 export async function enrichImageMetadata(
 	bytes: Uint8Array,
