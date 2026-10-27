@@ -49,6 +49,7 @@ import {
 	TaxonomyRepository,
 	validateEditorDraftPatch,
 	validateEditorDraftRequest,
+	waitForDeferredTasks,
 	type UserInfo,
 } from "emdash/internal/plugin-test-runtime";
 import { Kysely } from "kysely";
@@ -335,6 +336,8 @@ export interface PluginRuntimeTestHost {
 		requests(): PluginHttpTestRequest[];
 		clear(): void;
 	};
+	/** Wait for queued deferred runtime work, including after-hooks and work they enqueue. */
+	waitForDeferredTasks(): Promise<void>;
 	restart(): Promise<void>;
 	dispose(): Promise<void>;
 }
@@ -1195,6 +1198,10 @@ export async function createPluginRuntimeTestHost(
 				capturedHttpRequests.length = 0;
 				httpResponses.clear();
 			},
+		},
+		async waitForDeferredTasks() {
+			assertActive();
+			await waitForDeferredTasks();
 		},
 		async restart() {
 			assertActive();

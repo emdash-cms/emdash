@@ -138,4 +138,18 @@ describe("WelcomeModal", () => {
 		await expect.element(logo).toBeInTheDocument();
 		await expect.element(logo).toHaveAttribute("src", "/brand.svg");
 	});
+
+	it.each([
+		{ userName: "Alice Smith", title: "Welcome to Acme, Alice!" },
+		{ userName: undefined, title: "Welcome to Acme!" },
+	])("welcomes the user to the configured site name: $title", async ({ userName, title }) => {
+		const screen = await render(
+			<AdminBrandingProvider adminBranding={{ siteName: "Acme" }}>
+				<QueryWrapper>
+					<WelcomeModal open={true} onClose={noop} userName={userName} userRole={30} />
+				</QueryWrapper>
+			</AdminBrandingProvider>,
+		);
+		await expect.element(screen.getByRole("heading", { name: title })).toBeInTheDocument();
+	});
 });

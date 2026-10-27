@@ -1,6 +1,7 @@
 import { SensitiveInput } from "@cloudflare/kumo";
-import { useCallback, useState } from "react";
+import { useCallback, useContext, useState } from "react";
 
+import { FormOwnerContext } from "../form-context.js";
 import type { BlockInteraction, SecretInputElement } from "../types.js";
 
 export function SecretInputElementComponent({
@@ -12,6 +13,7 @@ export function SecretInputElementComponent({
 	onAction: (interaction: BlockInteraction) => void;
 	onChange?: (actionId: string, value: unknown) => void;
 }) {
+	const form = useContext(FormOwnerContext);
 	const [value, setValue] = useState("");
 	const [editing, setEditing] = useState(!element.has_value);
 
@@ -48,6 +50,7 @@ export function SecretInputElementComponent({
 	if (!editing) {
 		return (
 			<SensitiveInput
+				form={form}
 				label={element.label}
 				value={"••••••••"}
 				readOnly
@@ -59,6 +62,7 @@ export function SecretInputElementComponent({
 
 	return (
 		<SensitiveInput
+			form={form}
 			label={element.label}
 			value={value}
 			onValueChange={handleValueChange}

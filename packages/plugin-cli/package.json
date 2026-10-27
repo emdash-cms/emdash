@@ -51,8 +51,10 @@
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",
 		"@types/node": "catalog:",
+		"@types/semver": "catalog:",
 		"image-size": "catalog:",
 		"publint": "catalog:",
+		"semver": "catalog:",
 		"tsdown": "catalog:",
 		"vitest": "catalog:"
 	},
