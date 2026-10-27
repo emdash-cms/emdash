@@ -143,3 +143,48 @@ describe("Content list pagination layout", () => {
 		},
 	);
 });
+
+describe("Content list filter row", () => {
+	function listInShell(statusFilter: "all" | "draft") {
+		return (
+			<div style={{ display: "flex" }}>
+				<aside style={{ width: 260, flexShrink: 0 }} />
+				<main style={{ flex: 1, minWidth: 0, padding: 24 }}>
+					<ContentList
+						collection="posts"
+						collectionLabel="Posts"
+						items={posts.slice(0, 3)}
+						statusFilter={statusFilter}
+						onStatusFilterChange={vi.fn()}
+						onDateFilterChange={vi.fn()}
+					/>
+				</main>
+			</div>
+		);
+	}
+
+	it("keeps the table in place when a filter becomes active, at any width", async () => {
+		const screen = await render(listInShell("all"));
+		const tableTop = () => screen.getByRole("table").element().getBoundingClientRect().top;
+		const moved: number[] = [];
+
+		for (let width = 360; width <= 1500; width += 10) {
+			await page.viewport(width, 800);
+			await screen.rerender(listInShell("all"));
+			const before = tableTop();
+			await screen.rerender(listInShell("draft"));
+			if (tableTop() !== before) moved.push(width);
+		}
+
+		expect(moved).toEqual([]);
+	});
+
+	it("hides Clear filters from assistive technology until a filter is active", async () => {
+		const screen = await render(listInShell("all"));
+		await expect.element(screen.getByRole("combobox", { name: "Filter by status" })).toBeVisible();
+		expect(screen.getByRole("button", { name: "Clear filters" }).query()).toBeNull();
+
+		await screen.rerender(listInShell("draft"));
+		await expect.element(screen.getByRole("button", { name: "Clear filters" })).toBeVisible();
+	});
+});

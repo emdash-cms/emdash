@@ -22,6 +22,7 @@ import {
 import { CoreUpdateBanner } from "./CoreUpdateBanner.js";
 import { getMutationError } from "./DialogError.js";
 import { MarketplaceMigrationBanner } from "./MarketplaceMigrationBanner.js";
+import { PageHeader } from "./PageHeader.js";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
 import {
@@ -71,10 +72,7 @@ export function Dashboard({ manifest }: DashboardProps) {
 	return (
 		<div className="space-y-6">
 			{manifest.marketplace && (user?.role ?? 0) >= ROLE_ADMIN && <MarketplaceMigrationBanner />}
-			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<h1 className="text-2xl font-semibold leading-tight">{t`Dashboard`}</h1>
-				<QuickActions manifest={manifest} />
-			</div>
+			<PageHeader title={t`Dashboard`} actions={<QuickActions manifest={manifest} />} />
 
 			<CoreUpdateBanner />
 

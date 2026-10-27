@@ -8,7 +8,6 @@ import {
 	Loader,
 	Popover,
 	Select,
-	Tabs,
 } from "@cloudflare/kumo";
 import type { DateRange } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
@@ -68,9 +67,10 @@ import {
 } from "./ContentStatusBadge.js";
 import { ListPaginationFooter, type ListPagination } from "./ListPaginationFooter.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
+import { PageHeader } from "./PageHeader.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { declaredLabelTranslator } from "./Sidebar.js";
-import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
+import { TableToolbarSearch } from "./TableToolbar.js";
 
 /**
  * Sortable content list columns. The named values map to the server's system
@@ -488,37 +488,33 @@ export function ContentList({
 		<div
 			className={
 				showPaginationFooter
-					? "flex min-h-full flex-col gap-4 [&_tbody_*]:scroll-mb-48"
-					: "space-y-4"
+					? "flex min-h-full flex-col gap-6 [&_tbody_*]:scroll-mb-48"
+					: "space-y-6"
 			}
 		>
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-4">
-					<h1 className="text-2xl font-semibold leading-tight">{collectionLabel}</h1>
-					{i18n && activeLocale && onLocaleChange && (
-						<LocaleSwitcher
-							locales={i18n.locales}
-							defaultLocale={i18n.defaultLocale}
-							value={activeLocale}
-							onChange={onLocaleChange}
-							size="sm"
-						/>
-					)}
-				</div>
-				<RouterLinkButton
-					to="/content/$collection/new"
-					params={{ collection }}
-					search={{ locale: activeLocale }}
-					icon={<Plus />}
-				>
-					{t`Add New`}
-				</RouterLinkButton>
-			</div>
-
-			{/* Tabs */}
-			<Tabs
-				variant="underline"
+			<PageHeader
+				title={collectionLabel}
+				actions={
+					<>
+						{i18n && activeLocale && onLocaleChange && (
+							<LocaleSwitcher
+								locales={i18n.locales}
+								defaultLocale={i18n.defaultLocale}
+								value={activeLocale}
+								onChange={onLocaleChange}
+							/>
+						)}
+						<RouterLinkButton
+							to="/content/$collection/new"
+							params={{ collection }}
+							search={{ locale: activeLocale }}
+							variant="primary"
+							icon={<Plus />}
+						>
+							{t`Add New`}
+						</RouterLinkButton>
+					</>
+				}
 				value={activeTab}
 				onValueChange={(v) => {
 					if (v === "all" || v === "trash") setActiveTab(v);
@@ -536,13 +532,9 @@ export function ContentList({
 						),
 					},
 				]}
-			/>
-
-			{/* Content based on active tab */}
-			{activeTab === "all" ? (
-				<>
-					{(serverSearch || items.length > 0 || onStatusFilterChange) && (
-						<TableToolbar>
+				tools={
+					activeTab === "all" && (serverSearch || items.length > 0 || onStatusFilterChange) ? (
+						<div className="flex min-w-0 flex-wrap items-center gap-2">
 							{(serverSearch || items.length > 0) && (
 								<TableToolbarSearch
 									placeholder={t`Search ${inlineLabel(collectionLabel, lingui.locale)}...`}
@@ -565,9 +557,14 @@ export function ContentList({
 									locale={activeLocale ?? undefined}
 								/>
 							)}
-						</TableToolbar>
-					)}
+						</div>
+					) : undefined
+				}
+			/>
 
+			{/* Content based on active tab */}
+			{activeTab === "all" ? (
+				<>
 					{/* Bulk action toolbar — appears once one or more rows are selected */}
 					{bulkEnabled && selectedCount > 0 && (
 						<div className="flex flex-wrap items-center gap-3 rounded-md border bg-kumo-tint/40 px-4 py-2">
@@ -1055,6 +1052,21 @@ function FilterBar({
 		});
 	};
 
+	// Kept in the layout while hidden so that setting a filter never re-wraps the row.
+	const clearButton = (
+		<Button
+			variant="ghost"
+			size="sm"
+			shape="square"
+			onClick={handleClear}
+			disabled={!hasActiveFilter}
+			icon={<X />}
+			aria-label={t`Clear filters`}
+			title={t`Clear filters`}
+			className={cn(!hasActiveFilter && "invisible")}
+		/>
+	);
+
 	return (
 		<>
 			<Select
@@ -1121,15 +1133,14 @@ function FilterBar({
 							</Select.Option>
 						))}
 					</Select>
-					<DateRangeFilter value={dateFilter} onChange={onDateFilterChange} />
+					<span className="flex items-center gap-2">
+						<DateRangeFilter value={dateFilter} onChange={onDateFilterChange} />
+						{clearButton}
+					</span>
 				</>
 			)}
 
-			{hasActiveFilter && (
-				<Button variant="ghost" size="sm" onClick={handleClear} icon={<X />}>
-					{t`Clear filters`}
-				</Button>
-			)}
+			{!showDateFilter && clearButton}
 		</>
 	);
 }

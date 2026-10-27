@@ -413,7 +413,6 @@ export function Redirects() {
 				tabs={[
 					{
 						value: "redirects",
-						className: "flex-1 justify-center text-sm sm:flex-none",
 						label: (
 							<span className="flex items-center gap-1.5">
 								<ArrowsLeftRight
@@ -433,7 +432,6 @@ export function Redirects() {
 					},
 					{
 						value: "404s",
-						className: "flex-1 justify-center text-sm sm:flex-none",
 						label: (
 							<span className="flex items-center gap-1.5">
 								<FileX

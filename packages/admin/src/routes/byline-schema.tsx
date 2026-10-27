@@ -28,6 +28,7 @@ import * as React from "react";
 
 import { BylineFieldEditor } from "../components/BylineFieldEditor.js";
 import { ConfirmDialog } from "../components/ConfirmDialog.js";
+import { PageHeader } from "../components/PageHeader.js";
 import {
 	createBylineField,
 	deleteBylineField,
@@ -211,19 +212,16 @@ export function BylineSchemaPage() {
 	};
 
 	return (
-		<div className="space-y-4">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-2xl font-semibold leading-tight">{t`Byline schema`}</h1>
-					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
-						{t`Define custom fields stored on every byline — job title, pronouns, social handles, and more.`}
-					</p>
-				</div>
-				<Button icon={<Plus />} onClick={() => setCreating(true)}>
-					{t`New field`}
-				</Button>
-			</div>
+		<div className="space-y-6">
+			<PageHeader
+				title={t`Byline schema`}
+				description={t`Define custom fields stored on every byline — job title, pronouns, social handles, and more.`}
+				actions={
+					<Button variant="primary" icon={<Plus />} onClick={() => setCreating(true)}>
+						{t`New field`}
+					</Button>
+				}
+			/>
 
 			{/* Table */}
 			<div className="rounded-md border bg-kumo-base overflow-x-auto">

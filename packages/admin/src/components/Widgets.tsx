@@ -69,6 +69,7 @@ import { DialogError, getMutationError } from "./DialogError.js";
 import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
+import { PageHeader } from "./PageHeader.js";
 import {
 	PortableTextEditor,
 	type BlockSidebarPanel,
@@ -392,82 +393,80 @@ export function Widgets() {
 				onDragEnd={handleDragEnd}
 			>
 				<div className="space-y-6">
-					<div className="flex items-center justify-between">
-						<div>
-							<h1 className="text-2xl font-semibold leading-tight">{t`Widgets`}</h1>
-							<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
-								{t`Manage content widgets in your widget areas`}
-							</p>
-						</div>
-						<Dialog.Root
-							open={isCreateAreaOpen}
-							onOpenChange={(open) => {
-								setIsCreateAreaOpen(open);
-								if (!open) setCreateAreaError(null);
-							}}
-						>
-							<Dialog.Trigger
-								render={(props) => (
-									<Button {...props} icon={<Plus />}>
-										{t`Add Widget Area`}
-									</Button>
-								)}
-							/>
-							<Dialog className="p-6" size="lg">
-								<div className="flex items-start justify-between gap-4 mb-4">
-									<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-										{t`Create Widget Area`}
-									</Dialog.Title>
-									<Dialog.Close
-										aria-label={t`Close`}
-										render={(props) => (
-											<Button
-												{...props}
-												variant="ghost"
-												shape="square"
-												aria-label={t`Close`}
-												className="absolute end-4 top-4"
-											>
-												<X className="h-4 w-4" />
-												<span className="sr-only">{t`Close`}</span>
-											</Button>
-										)}
-									/>
-								</div>
-								<form onSubmit={handleCreateArea} className="space-y-4">
-									<Input
-										dir="ltr"
-										label={t`Name`}
-										name="name"
-										required
-										placeholder="sidebar"
-										pattern="[a-z0-9\-]+"
-									/>
-									<Input label={t`Label`} name="label" required placeholder={t`Main Sidebar`} />
-									<Input
-										label={t`Description`}
-										name="description"
-										placeholder={t`Appears on posts and pages`}
-									/>
-									<DialogError
-										message={createAreaError || getMutationError(createAreaMutation.error)}
-									/>
-									<div className="flex justify-end gap-2">
-										<Button
-											type="button"
-											variant="outline"
-											onClick={() => setIsCreateAreaOpen(false)}
-										>
-											{t`Cancel`}
+					<PageHeader
+						title={t`Widgets`}
+						description={t`Manage content widgets in your widget areas`}
+						actions={
+							<Dialog.Root
+								open={isCreateAreaOpen}
+								onOpenChange={(open) => {
+									setIsCreateAreaOpen(open);
+									if (!open) setCreateAreaError(null);
+								}}
+							>
+								<Dialog.Trigger
+									render={(props) => (
+										<Button {...props} variant="primary" icon={<Plus />}>
+											{t`Add Widget Area`}
 										</Button>
-										<Button type="submit" disabled={createAreaMutation.isPending}>
-											{t`Create`}
-										</Button>
+									)}
+								/>
+								<Dialog className="p-6" size="lg">
+									<div className="flex items-start justify-between gap-4 mb-4">
+										<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
+											{t`Create Widget Area`}
+										</Dialog.Title>
+										<Dialog.Close
+											aria-label={t`Close`}
+											render={(props) => (
+												<Button
+													{...props}
+													variant="ghost"
+													shape="square"
+													aria-label={t`Close`}
+													className="absolute end-4 top-4"
+												>
+													<X className="h-4 w-4" />
+													<span className="sr-only">{t`Close`}</span>
+												</Button>
+											)}
+										/>
 									</div>
-								</form>
-							</Dialog>
-						</Dialog.Root>
-					</div>
+									<form onSubmit={handleCreateArea} className="space-y-4">
+										<Input
+											dir="ltr"
+											label={t`Name`}
+											name="name"
+											required
+											placeholder="sidebar"
+											pattern="[a-z0-9\-]+"
+										/>
+										<Input label={t`Label`} name="label" required placeholder={t`Main Sidebar`} />
+										<Input
+											label={t`Description`}
+											name="description"
+											placeholder={t`Appears on posts and pages`}
+										/>
+										<DialogError
+											message={createAreaError || getMutationError(createAreaMutation.error)}
+										/>
+										<div className="flex justify-end gap-2">
+											<Button
+												type="button"
+												variant="outline"
+												onClick={() => setIsCreateAreaOpen(false)}
+											>
+												{t`Cancel`}
+											</Button>
+											<Button type="submit" disabled={createAreaMutation.isPending}>
+												{t`Create`}
+											</Button>
+										</div>
+									</form>
+								</Dialog>
+							</Dialog.Root>
+						}
+					/>
 
 					<div className="overflow-x-auto">
 						<div className="min-w-[768px] grid grid-cols-12 gap-6">

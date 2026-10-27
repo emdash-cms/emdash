@@ -18,6 +18,7 @@ import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
 import { MenuCard } from "./MenuCard.js";
+import { PageHeader } from "./PageHeader.js";
 
 export function MenuList() {
 	const { t } = useLingui();
@@ -96,102 +97,100 @@ export function MenuList() {
 
 	return (
 		<div className="space-y-6">
-			<header className="flex flex-col gap-4 border-b border-kumo-line pb-4 sm:flex-row sm:items-start sm:justify-between">
-				<div className="min-w-0">
-					<h1 className="text-2xl font-semibold leading-tight">{t`Menus`}</h1>
-					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
-						{t`Manage navigation menus for your site`}
-					</p>
-				</div>
-				<div className="flex flex-wrap items-center gap-2">
-					{i18n && activeLocale ? (
-						<LocaleSwitcher
-							locales={i18n.locales}
-							defaultLocale={i18n.defaultLocale}
-							value={activeLocale}
-							onChange={setActiveLocale}
-						/>
-					) : null}
-					<Dialog.Root open={isCreateOpen} onOpenChange={handleCreateOpenChange}>
-						<Dialog.Trigger
-							render={(props) => (
-								<Button {...props} icon={<Plus aria-hidden="true" />}>
-									{t`Create Menu`}
-								</Button>
-							)}
-						/>
-						<Dialog
-							className="flex max-h-[calc(100dvh-2rem)] min-w-0 w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-[32rem]"
-							size="lg"
-						>
-							<form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col">
-								<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
-									<div className="min-w-0">
-										<Dialog.Title className="text-lg font-semibold leading-6">
-											{t`Create menu`}
-										</Dialog.Title>
-										<Dialog.Description className="mt-1 text-sm leading-5 text-kumo-subtle">
-											{t`Give this navigation a label and a site identifier.`}
-										</Dialog.Description>
+			<PageHeader
+				title={t`Menus`}
+				description={t`Manage navigation menus for your site`}
+				actions={
+					<>
+						{i18n && activeLocale ? (
+							<LocaleSwitcher
+								locales={i18n.locales}
+								defaultLocale={i18n.defaultLocale}
+								value={activeLocale}
+								onChange={setActiveLocale}
+							/>
+						) : null}
+						<Dialog.Root open={isCreateOpen} onOpenChange={handleCreateOpenChange}>
+							<Dialog.Trigger
+								render={(props) => (
+									<Button {...props} variant="primary" icon={<Plus aria-hidden="true" />}>
+										{t`Create Menu`}
+									</Button>
+								)}
+							/>
+							<Dialog
+								className="flex max-h-[calc(100dvh-2rem)] min-w-0 w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-[32rem]"
+								size="lg"
+							>
+								<form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col">
+									<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
+										<div className="min-w-0">
+											<Dialog.Title className="text-lg font-semibold leading-6">
+												{t`Create menu`}
+											</Dialog.Title>
+											<Dialog.Description className="mt-1 text-sm leading-5 text-kumo-subtle">
+												{t`Give this navigation a label and a site identifier.`}
+											</Dialog.Description>
+										</div>
+										<Dialog.Close
+											render={(props) => (
+												<Button
+													{...props}
+													type="button"
+													variant="ghost"
+													shape="square"
+													icon={<X className="size-4" aria-hidden="true" />}
+													aria-label={t`Close`}
+												/>
+											)}
+										/>
 									</div>
-									<Dialog.Close
-										render={(props) => (
-											<Button
-												{...props}
-												type="button"
-												variant="ghost"
-												shape="square"
-												icon={<X className="size-4" aria-hidden="true" />}
-												aria-label={t`Close`}
+									<div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+										<div>
+											<Input
+												label={t`Label`}
+												name="label"
+												required
+												placeholder={t`Primary navigation`}
 											/>
-										)}
-									/>
-								</div>
-								<div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
-									<div>
-										<Input
-											label={t`Label`}
-											name="label"
-											required
-											placeholder={t`Primary navigation`}
-										/>
-										<p className="mt-1 text-sm text-kumo-subtle">
-											{t`Shown in the admin. Some themes also show it on the site.`}
-										</p>
+											<p className="mt-1 text-sm text-kumo-subtle">
+												{t`Shown in the admin. Some themes also show it on the site.`}
+											</p>
+										</div>
+										<div>
+											<Input
+												label={t`Name`}
+												name="name"
+												dir="ltr"
+												required
+												placeholder={t`primary`}
+												pattern="[a-z0-9\-]+"
+												title={t`Only lowercase letters, numbers, and hyphens`}
+											/>
+											<p className="mt-1 text-sm text-kumo-subtle">
+												{t`Stable identifier for your site, such as primary or footer.`}
+											</p>
+										</div>
+										<DialogError message={getMutationError(createMutation.error)} />
 									</div>
-									<div>
-										<Input
-											label={t`Name`}
-											name="name"
-											dir="ltr"
-											required
-											placeholder={t`primary`}
-											pattern="[a-z0-9\-]+"
-											title={t`Only lowercase letters, numbers, and hyphens`}
-										/>
-										<p className="mt-1 text-sm text-kumo-subtle">
-											{t`Stable identifier for your site, such as primary or footer.`}
-										</p>
+									<div className="flex shrink-0 justify-end gap-2 border-t border-kumo-line px-6 py-4">
+										<Button
+											type="button"
+											variant="secondary"
+											onClick={() => handleCreateOpenChange(false)}
+										>
+											{t`Cancel`}
+										</Button>
+										<Button type="submit" variant="primary" disabled={createMutation.isPending}>
+											{createMutation.isPending ? t`Creating...` : t`Create`}
+										</Button>
 									</div>
-									<DialogError message={getMutationError(createMutation.error)} />
-								</div>
-								<div className="flex shrink-0 justify-end gap-2 border-t border-kumo-line px-6 py-4">
-									<Button
-										type="button"
-										variant="secondary"
-										onClick={() => handleCreateOpenChange(false)}
-									>
-										{t`Cancel`}
-									</Button>
-									<Button type="submit" variant="primary" disabled={createMutation.isPending}>
-										{createMutation.isPending ? t`Creating...` : t`Create`}
-									</Button>
-								</div>
-							</form>
-						</Dialog>
-					</Dialog.Root>
-				</div>
-			</header>
+								</form>
+							</Dialog>
+						</Dialog.Root>
+					</>
+				}
+			/>
 
 			{!menus || menus.length === 0 ? (
 				<LayerCard className="flex flex-col items-center px-6 py-16 text-center">

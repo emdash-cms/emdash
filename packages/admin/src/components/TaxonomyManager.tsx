@@ -29,7 +29,6 @@ import {
 	Plus,
 	Pencil,
 	StackSimple,
-	Tag,
 	Translate,
 	Trash,
 	X,
@@ -59,6 +58,7 @@ import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
+import { PageHeader } from "./PageHeader.js";
 import { TableToolbarSearch } from "./TableToolbar.js";
 import { TranslationsPanel } from "./TranslationsPanel.js";
 
@@ -1287,106 +1287,76 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 
 	return (
 		<div className="space-y-6">
-			<div className="flex items-center justify-between gap-4 flex-wrap">
-				<div>
-					<h1 className="text-2xl font-semibold leading-tight">{taxonomyDef.label}</h1>
-					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
-						{t`Manage ${inlineLabel(taxonomyDef.label, lingui.locale)} for ${taxonomyDef.collections.join(", ")}`}
-					</p>
-				</div>
-				<div
-					className={
-						taxonomyName === "tag" ? "flex flex-wrap items-center gap-2" : "flex items-center gap-2"
-					}
-				>
-					{i18n && activeLocale ? (
-						<LocaleSwitcher
-							locales={i18n.locales}
-							defaultLocale={i18n.defaultLocale}
-							value={activeLocale}
-							onChange={setActiveLocale}
+			<PageHeader
+				title={taxonomyDef.label}
+				description={t`Manage ${inlineLabel(taxonomyDef.label, lingui.locale)} for ${taxonomyDef.collections.join(", ")}`}
+				actions={
+					<>
+						{i18n && activeLocale ? (
+							<LocaleSwitcher
+								locales={i18n.locales}
+								defaultLocale={i18n.defaultLocale}
+								value={activeLocale}
+								onChange={setActiveLocale}
+							/>
+						) : null}
+						<Button
+							variant="secondary"
+							icon={<ADMIN_NAV_ICONS.posts weight="regular" aria-hidden="true" />}
+							onClick={() => setBulkTagOpen(true)}
+						>
+							{t`Add to posts`}
+						</Button>
+						<Button variant="primary" icon={<Plus />} onClick={() => setFormOpen(true)}>
+							{taxonomyName === "tag" ? t`Add tag` : t`Add ${taxonomyDef.labelSingular || t`Term`}`}
+						</Button>
+						<DropdownMenu>
+							<DropdownMenu.Trigger
+								render={
+									<Button
+										type="button"
+										variant="secondary"
+										shape="square"
+										icon={<DotsThree aria-hidden="true" />}
+										aria-label={t`More actions for ${taxonomyDef.label}`}
+									/>
+								}
+							/>
+							<DropdownMenu.Content align="end">
+								<DropdownMenu.Item
+									icon={<StackSimple className="me-2 size-4" aria-hidden="true" />}
+									onClick={() => setCreateTaxonomyOpen(true)}
+								>
+									{t`New taxonomy`}
+								</DropdownMenu.Item>
+								<DropdownMenu.Separator />
+								<DropdownMenu.Item
+									variant="danger"
+									icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+									onClick={() => setDeleteTaxonomyOpen(true)}
+								>
+									{t`Delete taxonomy`}
+								</DropdownMenu.Item>
+							</DropdownMenu.Content>
+						</DropdownMenu>
+					</>
+				}
+				tools={
+					taxonomyName === "tag" ? (
+						<TableToolbarSearch
+							size="base"
+							inputRef={tagSearchRef}
+							placeholder={t`Search tags…`}
+							aria-label={t`Search tags`}
+							value={tagSearch}
+							onChange={(event) => setTagSearch(event.target.value)}
 						/>
-					) : null}
-					{taxonomyName === "tag" ? (
-						<>
-							<Button
-								variant="secondary"
-								icon={<Tag aria-hidden="true" />}
-								onClick={() => setFormOpen(true)}
-							>
-								{t`Add tag`}
-							</Button>
-							<Button
-								variant="secondary"
-								icon={<ADMIN_NAV_ICONS.posts weight="regular" aria-hidden="true" />}
-								onClick={() => setBulkTagOpen(true)}
-							>
-								{t`Add to posts`}
-							</Button>
-						</>
-					) : (
-						<>
-							<Button variant="outline" icon={<Plus />} onClick={() => setCreateTaxonomyOpen(true)}>
-								{t`New Taxonomy`}
-							</Button>
-							<Button icon={<Plus />} onClick={() => setFormOpen(true)}>
-								{t`Add ${taxonomyDef.labelSingular || t`Term`}`}
-							</Button>
-							<Button
-								variant="outline"
-								icon={<ADMIN_NAV_ICONS.posts weight="regular" aria-hidden="true" />}
-								onClick={() => setBulkTagOpen(true)}
-							>
-								{t`Add to posts`}
-							</Button>
-						</>
-					)}
-					<DropdownMenu>
-						<DropdownMenu.Trigger
-							render={
-								<Button
-									type="button"
-									variant={taxonomyName === "tag" ? "secondary" : "ghost"}
-									shape="square"
-									icon={<DotsThree aria-hidden="true" />}
-									aria-label={t`More actions for ${taxonomyDef.label}`}
-								/>
-							}
-						/>
-						<DropdownMenu.Content align="end">
-							{taxonomyName === "tag" && (
-								<>
-									<DropdownMenu.Item
-										icon={<StackSimple className="me-2 size-4" aria-hidden="true" />}
-										onClick={() => setCreateTaxonomyOpen(true)}
-									>
-										{t`New taxonomy`}
-									</DropdownMenu.Item>
-									<DropdownMenu.Separator />
-								</>
-							)}
-							<DropdownMenu.Item
-								variant="danger"
-								icon={<Trash className="me-2 size-4" aria-hidden="true" />}
-								onClick={() => setDeleteTaxonomyOpen(true)}
-							>
-								{t`Delete taxonomy`}
-							</DropdownMenu.Item>
-						</DropdownMenu.Content>
-					</DropdownMenu>
-				</div>
-			</div>
+					) : undefined
+				}
+			/>
 
 			{taxonomyName === "tag" ? (
 				<div className="flex flex-col gap-3">
-					<TableToolbarSearch
-						size="base"
-						inputRef={tagSearchRef}
-						placeholder={t`Search tags…`}
-						aria-label={t`Search tags`}
-						value={tagSearch}
-						onChange={(event) => setTagSearch(event.target.value)}
-					/>
 					<span role="status" className="sr-only">
 						{rawSearch
 							? plural(tagMatches?.matchCount ?? 0, {

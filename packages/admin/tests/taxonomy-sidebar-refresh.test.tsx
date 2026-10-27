@@ -154,7 +154,8 @@ describe("taxonomy sidebar refresh", () => {
 		await expect.element(screen.getByRole("link", { name: "Categories" })).toBeInTheDocument();
 		expect(screen.getByRole("link", { name: "Genres" }).query()).toBeNull();
 
-		await screen.getByRole("button", { name: "New Taxonomy" }).click();
+		await screen.getByRole("button", { name: "More actions for Categories" }).click();
+		await screen.getByRole("menuitem", { name: "New taxonomy" }).click();
 		await screen.getByRole("textbox", { name: "Label" }).fill("Genres");
 		await userEvent.keyboard("{Enter}");
 

@@ -46,6 +46,7 @@ import { slugify } from "../lib/utils";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { PageHeader } from "./PageHeader.js";
 import { TableToolbarSearch } from "./TableToolbar.js";
 
 const sourceIcons: Record<SectionSource, React.ElementType> = {
@@ -144,14 +145,10 @@ export function Sections() {
 
 	return (
 		<div className="space-y-6">
-			<header className="grid min-w-0 gap-4 border-b border-kumo-line pb-4">
-				<div className="flex flex-wrap items-start justify-between gap-3">
-					<div className="min-w-0">
-						<h1 className="text-2xl font-semibold leading-tight">{t`Sections`}</h1>
-						<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
-							{t`Reusable content blocks you can insert into any content`}
-						</p>
-					</div>
+			<PageHeader
+				title={t`Sections`}
+				description={t`Reusable content blocks you can insert into any content`}
+				actions={
 					<Dialog.Root open={isCreateOpen} onOpenChange={setIsCreateOpen}>
 						<Dialog.Trigger
 							render={(props) => (
@@ -237,32 +234,34 @@ export function Sections() {
 							</form>
 						</Dialog>
 					</Dialog.Root>
-				</div>
-				<div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-					<TableToolbarSearch
-						size="base"
-						className="sm:w-72"
-						placeholder={searchPlaceholder}
-						aria-label={searchPlaceholder}
-						value={searchQuery}
-						onChange={(event) => setSearchQuery(event.target.value)}
-					/>
-					<Select
-						className="w-full sm:w-auto"
-						value={selectedSource ?? ""}
-						onValueChange={(v) => {
-							setSelectedSource(v === "theme" || v === "user" || v === "import" ? v : null);
-						}}
-						items={{
-							"": t`All sources`,
-							...Object.fromEntries(
-								Object.entries(sourceLabels).map(([key, label]) => [key, t(label)]),
-							),
-						}}
-						aria-label={t`Filter by source`}
-					/>
-				</div>
-			</header>
+				}
+				tools={
+					<>
+						<TableToolbarSearch
+							size="base"
+							className="sm:w-72"
+							placeholder={searchPlaceholder}
+							aria-label={searchPlaceholder}
+							value={searchQuery}
+							onChange={(event) => setSearchQuery(event.target.value)}
+						/>
+						<Select
+							className="w-full sm:w-auto"
+							value={selectedSource ?? ""}
+							onValueChange={(v) => {
+								setSelectedSource(v === "theme" || v === "user" || v === "import" ? v : null);
+							}}
+							items={{
+								"": t`All sources`,
+								...Object.fromEntries(
+									Object.entries(sourceLabels).map(([key, label]) => [key, t(label)]),
+								),
+							}}
+							aria-label={t`Filter by source`}
+						/>
+					</>
+				}
+			/>
 
 			{sectionsLoading ? (
 				<div

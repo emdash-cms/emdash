@@ -36,6 +36,7 @@ import { fetchRelations } from "../lib/api";
 import type { SchemaCollection, OrphanedTable } from "../lib/api";
 import { cn } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { PageHeader } from "./PageHeader.js";
 import { RelationImpact } from "./RelationImpact.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
@@ -124,24 +125,25 @@ export function ContentTypeList({
 	};
 
 	return (
-		<div className="space-y-4">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-2xl font-semibold leading-tight">{t`Content Types`}</h1>
-					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
-						{t`Define the structure of your content`}
-					</p>
-				</div>
-				<div className="flex items-center gap-2">
-					<RouterLinkButton to="/content-types/relations" variant="outline" icon={<LinkSimple />}>
-						{t`Relations`}
-					</RouterLinkButton>
-					<RouterLinkButton to="/content-types/new" icon={<Plus />}>
-						{t`New Content Type`}
-					</RouterLinkButton>
-				</div>
-			</div>
+		<div className="space-y-6">
+			<PageHeader
+				title={t`Content Types`}
+				description={t`Define the structure of your content`}
+				actions={
+					<>
+						<RouterLinkButton
+							to="/content-types/relations"
+							variant="secondary"
+							icon={<LinkSimple />}
+						>
+							{t`Relations`}
+						</RouterLinkButton>
+						<RouterLinkButton to="/content-types/new" variant="primary" icon={<Plus />}>
+							{t`New Content Type`}
+						</RouterLinkButton>
+					</>
+				}
+			/>
 
 			{/* Orphaned Tables Warning */}
 			{hasOrphans && (

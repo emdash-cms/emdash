@@ -17,9 +17,10 @@ import * as React from "react";
 import { BylineFormDialog, type BylineFormValues } from "../components/BylineFormDialog.js";
 import { ConfirmDialog } from "../components/ConfirmDialog.js";
 import { LocaleSwitcher, useI18nConfig } from "../components/LocaleSwitcher.js";
+import { PageHeader } from "../components/PageHeader.js";
 import { RouterLinkButton } from "../components/RouterLinkButton.js";
 import { BYLINE_SCHEMA_NAV_ITEM } from "../components/Sidebar.js";
-import { TableToolbar, TableToolbarSearch } from "../components/TableToolbar.js";
+import { TableToolbarSearch } from "../components/TableToolbar.js";
 import { TranslationsPanel } from "../components/TranslationsPanel.js";
 import {
 	createByline,
@@ -280,58 +281,59 @@ export function BylinesPage() {
 
 	return (
 		<div className="space-y-6">
-			<header className="flex flex-wrap items-center justify-between gap-4">
-				<div className="space-y-1">
-					<h1 className="text-2xl font-semibold leading-tight">{t`Bylines`}</h1>
-					<p className="text-sm text-kumo-subtle">
-						{t`Manage the people and teams credited on your content.`}
-					</p>
-				</div>
-				<div className="flex flex-wrap items-center gap-2">
-					{isMultiLocale && i18n && activeLocale && (
-						<LocaleSwitcher
-							locales={i18n.locales}
-							defaultLocale={i18n.defaultLocale}
-							value={activeLocale}
-							onChange={handleLocaleChange}
+			<PageHeader
+				title={t`Bylines`}
+				description={t`Manage the people and teams credited on your content.`}
+				actions={
+					<>
+						{isMultiLocale && i18n && activeLocale && (
+							<LocaleSwitcher
+								locales={i18n.locales}
+								defaultLocale={i18n.defaultLocale}
+								value={activeLocale}
+								onChange={handleLocaleChange}
+							/>
+						)}
+						{canManageBylineSchema && (
+							<RouterLinkButton
+								to={BYLINE_SCHEMA_NAV_ITEM.to}
+								variant="secondary"
+								icon={<BYLINE_SCHEMA_NAV_ITEM.icon aria-hidden="true" />}
+							>
+								{t`Byline schema`}
+							</RouterLinkButton>
+						)}
+						<Button variant="primary" icon={<Plus aria-hidden="true" />} onClick={openCreate}>
+							{t`New byline`}
+						</Button>
+					</>
+				}
+				tools={
+					<>
+						<TableToolbarSearch
+							size="base"
+							placeholder={t`Search bylines`}
+							aria-label={t`Search bylines`}
+							value={search}
+							onChange={(event) => setSearch(event.target.value)}
 						/>
-					)}
-					{canManageBylineSchema && (
-						<RouterLinkButton
-							to={BYLINE_SCHEMA_NAV_ITEM.to}
-							variant="secondary"
-							icon={<BYLINE_SCHEMA_NAV_ITEM.icon aria-hidden="true" />}
-						>
-							{t`Byline schema`}
-						</RouterLinkButton>
-					)}
-					<Button variant="primary" icon={<Plus aria-hidden="true" />} onClick={openCreate}>
-						{t`New byline`}
-					</Button>
-				</div>
-			</header>
-
-			<TableToolbar>
-				<TableToolbarSearch
-					size="base"
-					placeholder={t`Search bylines`}
-					aria-label={t`Search bylines`}
-					value={search}
-					onChange={(event) => setSearch(event.target.value)}
-				/>
-				<Select
-					size="base"
-					aria-label={t`Filter byline type`}
-					value={guestFilter}
-					onValueChange={(value) => setGuestFilter((value as "all" | "guest" | "linked") ?? "all")}
-					items={{
-						all: t`All bylines`,
-						guest: t`Guest only`,
-						linked: t`Non-guest`,
-					}}
-					className="w-full sm:w-44"
-				/>
-			</TableToolbar>
+						<Select
+							size="base"
+							aria-label={t`Filter byline type`}
+							value={guestFilter}
+							onValueChange={(value) =>
+								setGuestFilter((value as "all" | "guest" | "linked") ?? "all")
+							}
+							items={{
+								all: t`All bylines`,
+								guest: t`Guest only`,
+								linked: t`Non-guest`,
+							}}
+							className="w-full sm:w-44"
+						/>
+					</>
+				}
+			/>
 
 			{items.length > 0 ? (
 				<LayerCard className="p-0">

@@ -5,7 +5,8 @@ import * as React from "react";
 
 import type { UserListItem } from "../../lib/api";
 import { cn, formatDate } from "../../lib/utils.js";
-import { TableToolbar, TableToolbarSearch } from "../TableToolbar.js";
+import { PageHeader } from "../PageHeader.js";
+import { TableToolbarSearch } from "../TableToolbar.js";
 import { RoleBadge } from "./RoleBadge";
 import { useRolesConfig } from "./useRolesConfig.js";
 
@@ -49,38 +50,42 @@ export function UserList({
 	);
 
 	return (
-		<div className="space-y-4">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<h1 className="text-2xl font-semibold leading-tight">{t`Users`}</h1>
-				<Button onClick={onInviteUser} icon={<UserPlus />}>
-					{t`Invite User`}
-				</Button>
-			</div>
-
-			<TableToolbar>
-				<TableToolbarSearch
-					placeholder={t`Search by name or email...`}
-					value={searchQuery}
-					onChange={(e) => onSearchChange(e.target.value)}
-					aria-label={t`Search users`}
-				/>
-				<Select
-					size="sm"
-					value={roleFilter?.toString() ?? "all"}
-					onValueChange={(value) =>
-						onRoleFilterChange(value === "all" || value === null ? undefined : parseInt(value, 10))
-					}
-					items={roleFilterSelectItems}
-					aria-label={t`Filter by role`}
-				>
-					{roleFilterSelectOptions.map((option) => (
-						<Select.Option key={option.value} value={option.value}>
-							{option.label}
-						</Select.Option>
-					))}
-				</Select>
-			</TableToolbar>
+		<div className="space-y-6">
+			<PageHeader
+				title={t`Users`}
+				actions={
+					<Button variant="primary" onClick={onInviteUser} icon={<UserPlus />}>
+						{t`Invite User`}
+					</Button>
+				}
+				tools={
+					<>
+						<TableToolbarSearch
+							placeholder={t`Search by name or email...`}
+							value={searchQuery}
+							onChange={(e) => onSearchChange(e.target.value)}
+							aria-label={t`Search users`}
+						/>
+						<Select
+							size="sm"
+							value={roleFilter?.toString() ?? "all"}
+							onValueChange={(value) =>
+								onRoleFilterChange(
+									value === "all" || value === null ? undefined : parseInt(value, 10),
+								)
+							}
+							items={roleFilterSelectItems}
+							aria-label={t`Filter by role`}
+						>
+							{roleFilterSelectOptions.map((option) => (
+								<Select.Option key={option.value} value={option.value}>
+									{option.label}
+								</Select.Option>
+							))}
+						</Select>
+					</>
+				}
+			/>
 
 			{/* Table */}
 			<div className="rounded-md border bg-kumo-base overflow-x-auto">
