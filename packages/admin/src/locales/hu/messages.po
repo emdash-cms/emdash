@@ -217,7 +217,7 @@ msgstr ""
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:5394
+#: packages/admin/src/components/PortableTextEditor.tsx:5403
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr ""
 
@@ -1293,12 +1293,12 @@ msgstr ""
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5841
+#: packages/admin/src/components/PortableTextEditor.tsx:5856
 msgid "Add caption"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5407
+#: packages/admin/src/components/PortableTextEditor.tsx:5416
 msgid "Add column after"
 msgstr "Oszlop hozzáadása utána"
 
@@ -1368,9 +1368,9 @@ msgstr "Elem hozzáadása"
 msgid "Add Item"
 msgstr "Elem hozzáadása"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5037
-#: packages/admin/src/components/PortableTextEditor.tsx:5834
-#: packages/admin/src/components/PortableTextEditor.tsx:6282
+#: packages/admin/src/components/PortableTextEditor.tsx:5040
+#: packages/admin/src/components/PortableTextEditor.tsx:5849
+#: packages/admin/src/components/PortableTextEditor.tsx:6298
 msgid "Add link"
 msgstr "Link hozzáadása"
 
@@ -1414,7 +1414,7 @@ msgid "Add row above"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5400
+#: packages/admin/src/components/PortableTextEditor.tsx:5409
 msgid "Add row below"
 msgstr ""
 
@@ -1604,25 +1604,25 @@ msgid "Agent-callable MCP tools"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:5297
+#: packages/admin/src/components/PortableTextEditor.tsx:5304
 msgid "Align"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6456
+#: packages/admin/src/components/PortableTextEditor.tsx:6472
 msgid "Align center"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6448
+#: packages/admin/src/components/PortableTextEditor.tsx:6464
 msgid "Align left"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6464
+#: packages/admin/src/components/PortableTextEditor.tsx:6480
 msgid "Align right"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:484
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:5815
+#: packages/admin/src/components/PortableTextEditor.tsx:5830
 msgid "Alignment"
 msgstr "Igazítás"
 
@@ -1746,8 +1746,8 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaLibrary.tsx:1144
-#: packages/admin/src/components/PortableTextEditor.tsx:5746
-#: packages/admin/src/components/PortableTextEditor.tsx:5812
+#: packages/admin/src/components/PortableTextEditor.tsx:5761
+#: packages/admin/src/components/PortableTextEditor.tsx:5827
 msgid "Alt text"
 msgstr "Alternatív szöveg"
 
@@ -1898,7 +1898,7 @@ msgid "Application Password"
 msgstr "Alkalmazásjelszó"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
-#: packages/admin/src/components/PortableTextEditor.tsx:6547
+#: packages/admin/src/components/PortableTextEditor.tsx:6563
 msgid "Apply"
 msgstr "Alkalmaz"
 
@@ -1906,8 +1906,8 @@ msgstr "Alkalmaz"
 msgid "Apply changes"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5011
-#: packages/admin/src/components/PortableTextEditor.tsx:5787
+#: packages/admin/src/components/PortableTextEditor.tsx:5014
+#: packages/admin/src/components/PortableTextEditor.tsx:5802
 msgid "Apply link"
 msgstr "Link alkalmazása"
 
@@ -2345,7 +2345,7 @@ msgid "Blocks"
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4791
-#: packages/admin/src/components/PortableTextEditor.tsx:6316
+#: packages/admin/src/components/PortableTextEditor.tsx:6332
 msgid "Bold"
 msgstr "Félkövér"
 
@@ -2406,7 +2406,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
 #: packages/admin/src/components/PortableTextEditor.tsx:2051
-#: packages/admin/src/components/PortableTextEditor.tsx:6373
+#: packages/admin/src/components/PortableTextEditor.tsx:6389
 msgid "Bullet List"
 msgstr "Felsorolás"
 
@@ -2532,9 +2532,9 @@ msgstr "Tartalmat tekinthet meg"
 #: packages/admin/src/components/MenuEditor.tsx:754
 #: packages/admin/src/components/MenuList.tsx:184
 #: packages/admin/src/components/PluginManager.tsx:817
-#: packages/admin/src/components/PortableTextEditor.tsx:5758
-#: packages/admin/src/components/PortableTextEditor.tsx:5784
-#: packages/admin/src/components/PortableTextEditor.tsx:6531
+#: packages/admin/src/components/PortableTextEditor.tsx:5773
+#: packages/admin/src/components/PortableTextEditor.tsx:5799
+#: packages/admin/src/components/PortableTextEditor.tsx:6547
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:407
 #: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/RelationDialog.tsx:60
@@ -2645,8 +2645,8 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:5301
-#: packages/admin/src/components/PortableTextEditor.tsx:5419
+#: packages/admin/src/components/PortableTextEditor.tsx:5308
+#: packages/admin/src/components/PortableTextEditor.tsx:5429
 msgid "Center"
 msgstr "Közép"
 
@@ -2993,7 +2993,7 @@ msgstr ""
 msgid "Clear filters"
 msgstr "Szűrők törlése"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5311
+#: packages/admin/src/components/PortableTextEditor.tsx:5318
 msgid "Clear formatting"
 msgstr ""
 
@@ -3139,7 +3139,7 @@ msgstr "Kód"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
 #: packages/admin/src/components/PortableTextEditor.tsx:2081
-#: packages/admin/src/components/PortableTextEditor.tsx:6415
+#: packages/admin/src/components/PortableTextEditor.tsx:6431
 msgid "Code Block"
 msgstr "Kódblokk"
 
@@ -3193,7 +3193,7 @@ msgid "Collections created:"
 msgstr "Létrehozott gyűjtemények:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5405
+#: packages/admin/src/components/PortableTextEditor.tsx:5414
 msgid "Column added after"
 msgstr ""
 
@@ -3452,7 +3452,7 @@ msgid "Continue Import"
 msgstr "Import folytatása"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:6390
+#: packages/admin/src/components/PortableTextEditor.tsx:6406
 msgid "Continue numbering"
 msgstr ""
 
@@ -4265,7 +4265,7 @@ msgstr ""
 msgid "Delete gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5853
+#: packages/admin/src/components/PortableTextEditor.tsx:5868
 msgid "Delete image"
 msgstr "Kép törlése"
 
@@ -4419,7 +4419,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:522
-#: packages/admin/src/components/PortableTextEditor.tsx:5747
+#: packages/admin/src/components/PortableTextEditor.tsx:5762
 msgid "Describe the image"
 msgstr ""
 
@@ -4963,7 +4963,7 @@ msgstr "Szerző mezőjének szerkesztése"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5841
+#: packages/admin/src/components/PortableTextEditor.tsx:5856
 msgid "Edit caption"
 msgstr ""
 
@@ -4999,10 +4999,10 @@ msgstr ""
 msgid "Edit image {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5037
-#: packages/admin/src/components/PortableTextEditor.tsx:5143
-#: packages/admin/src/components/PortableTextEditor.tsx:5834
-#: packages/admin/src/components/PortableTextEditor.tsx:6281
+#: packages/admin/src/components/PortableTextEditor.tsx:5040
+#: packages/admin/src/components/PortableTextEditor.tsx:5149
+#: packages/admin/src/components/PortableTextEditor.tsx:5849
+#: packages/admin/src/components/PortableTextEditor.tsx:6297
 msgid "Edit link"
 msgstr "Link szerkesztése"
 
@@ -6929,7 +6929,7 @@ msgstr "A vázlatokat és minden tartalmat tartalmazó teljes importhoz exportá
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4989
+#: packages/admin/src/components/PortableTextEditor.tsx:4992
 msgid "Format selection"
 msgstr ""
 
@@ -7367,7 +7367,7 @@ msgstr ""
 msgid "Image actions"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5712
+#: packages/admin/src/components/PortableTextEditor.tsx:5727
 msgid "Image controls"
 msgstr ""
 
@@ -7375,7 +7375,7 @@ msgstr ""
 msgid "Image from media library"
 msgstr "Kép a médiatárból"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6279
+#: packages/admin/src/components/PortableTextEditor.tsx:6295
 msgid "Image link"
 msgstr ""
 
@@ -7395,7 +7395,7 @@ msgid "Image replaced."
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:391
-#: packages/admin/src/components/PortableTextEditor.tsx:5846
+#: packages/admin/src/components/PortableTextEditor.tsx:5861
 msgid "Image settings"
 msgstr "Képbeállítások"
 
@@ -7619,7 +7619,7 @@ msgid "Inline blocks use your site's styles. Your site removes scripts, style ta
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4795
-#: packages/admin/src/components/PortableTextEditor.tsx:6348
+#: packages/admin/src/components/PortableTextEditor.tsx:6364
 msgid "Inline Code"
 msgstr "Soron belüli kód"
 
@@ -7660,8 +7660,8 @@ msgstr ""
 msgid "Insert block"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6295
-#: packages/admin/src/components/PortableTextEditor.tsx:6305
+#: packages/admin/src/components/PortableTextEditor.tsx:6311
+#: packages/admin/src/components/PortableTextEditor.tsx:6321
 msgid "Insert block after current block"
 msgstr ""
 
@@ -7669,12 +7669,12 @@ msgstr ""
 msgid "Insert block below"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6429
+#: packages/admin/src/components/PortableTextEditor.tsx:6445
 msgid "Insert HTML"
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4701
-#: packages/admin/src/components/PortableTextEditor.tsx:6422
+#: packages/admin/src/components/PortableTextEditor.tsx:6438
 msgid "Insert image"
 msgstr ""
 
@@ -7827,7 +7827,7 @@ msgid "It was started somewhere else, so its plan can no longer be changed. Its 
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4792
-#: packages/admin/src/components/PortableTextEditor.tsx:6324
+#: packages/admin/src/components/PortableTextEditor.tsx:6340
 msgid "Italic"
 msgstr "Dőlt"
 
@@ -8050,8 +8050,8 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:5300
-#: packages/admin/src/components/PortableTextEditor.tsx:5418
+#: packages/admin/src/components/PortableTextEditor.tsx:5307
+#: packages/admin/src/components/PortableTextEditor.tsx:5428
 msgid "Left"
 msgstr "Bal"
 
@@ -8072,7 +8072,7 @@ msgstr "Licenc"
 msgid "Limit"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6508
+#: packages/admin/src/components/PortableTextEditor.tsx:6524
 msgid "Link"
 msgstr ""
 
@@ -8080,7 +8080,7 @@ msgstr ""
 msgid "Link expired"
 msgstr "A link lejárt"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5121
+#: packages/admin/src/components/PortableTextEditor.tsx:5127
 msgid "Link options"
 msgstr ""
 
@@ -8869,7 +8869,7 @@ msgstr ""
 msgid "More actions for {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5267
+#: packages/admin/src/components/PortableTextEditor.tsx:5274
 msgid "More formatting"
 msgstr ""
 
@@ -9427,7 +9427,7 @@ msgstr "Még nincsenek tartalomtípusok."
 msgid "No custom fields yet"
 msgstr "Még nincsenek egyedi mezők"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5808
+#: packages/admin/src/components/PortableTextEditor.tsx:5823
 msgid "No description yet"
 msgstr ""
 
@@ -9739,7 +9739,7 @@ msgid "Non-guest"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:5417
+#: packages/admin/src/components/PortableTextEditor.tsx:5427
 msgid "None"
 msgstr "Nincs"
 
@@ -9811,7 +9811,7 @@ msgstr "Listanézetben oldalanként megjelenő bejegyzések száma"
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
 #: packages/admin/src/components/PortableTextEditor.tsx:2061
-#: packages/admin/src/components/PortableTextEditor.tsx:6381
+#: packages/admin/src/components/PortableTextEditor.tsx:6397
 msgid "Numbered List"
 msgstr "Számozott lista"
 
@@ -10786,7 +10786,7 @@ msgstr ""
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:2071
 #: packages/admin/src/components/PortableTextEditor.tsx:3507
-#: packages/admin/src/components/PortableTextEditor.tsx:6407
+#: packages/admin/src/components/PortableTextEditor.tsx:6423
 msgid "Quote"
 msgstr "Idézet"
 
@@ -10960,7 +10960,7 @@ msgstr "Átirányítások"
 msgid "Redirects that loop will be imported turned off"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6570
+#: packages/admin/src/components/PortableTextEditor.tsx:6586
 msgid "Redo"
 msgstr "Újra"
 
@@ -11082,7 +11082,7 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:383
 #: packages/admin/src/components/ImageFieldRenderer.tsx:454
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
-#: packages/admin/src/components/PortableTextEditor.tsx:6543
+#: packages/admin/src/components/PortableTextEditor.tsx:6559
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -11157,9 +11157,9 @@ msgstr ""
 msgid "Remove item {0}"
 msgstr "{0} elem eltávolítása"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5015
-#: packages/admin/src/components/PortableTextEditor.tsx:5155
-#: packages/admin/src/components/PortableTextEditor.tsx:5780
+#: packages/admin/src/components/PortableTextEditor.tsx:5018
+#: packages/admin/src/components/PortableTextEditor.tsx:5161
+#: packages/admin/src/components/PortableTextEditor.tsx:5795
 msgid "Remove link"
 msgstr "Link eltávolítása"
 
@@ -11325,8 +11325,8 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:427
 #: packages/admin/src/components/ImageFieldRenderer.tsx:601
 #: packages/admin/src/components/ImageFieldRenderer.tsx:604
-#: packages/admin/src/components/PortableTextEditor.tsx:5802
-#: packages/admin/src/components/PortableTextEditor.tsx:5883
+#: packages/admin/src/components/PortableTextEditor.tsx:5817
+#: packages/admin/src/components/PortableTextEditor.tsx:5899
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
@@ -11351,7 +11351,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaDetailPanel.tsx:1967
-#: packages/admin/src/components/PortableTextEditor.tsx:5882
+#: packages/admin/src/components/PortableTextEditor.tsx:5898
 msgid "Replace image"
 msgstr ""
 
@@ -11522,7 +11522,7 @@ msgid "Resolving publisher handle..."
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:6397
+#: packages/admin/src/components/PortableTextEditor.tsx:6413
 msgid "Restart numbering"
 msgstr ""
 
@@ -11726,8 +11726,8 @@ msgstr "Formázott szövegszerkesztő"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:5302
-#: packages/admin/src/components/PortableTextEditor.tsx:5420
+#: packages/admin/src/components/PortableTextEditor.tsx:5309
+#: packages/admin/src/components/PortableTextEditor.tsx:5430
 msgid "Right"
 msgstr "Jobb"
 
@@ -11781,7 +11781,7 @@ msgid "Row added above"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5398
+#: packages/admin/src/components/PortableTextEditor.tsx:5407
 msgid "Row added below"
 msgstr ""
 
@@ -11839,7 +11839,7 @@ msgstr "Mentés"
 msgid "Save (Enter)"
 msgstr "Mentés (Enter)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5761
+#: packages/admin/src/components/PortableTextEditor.tsx:5776
 msgid "Save alt text"
 msgstr "Alternatív szöveg mentése"
 
@@ -13210,7 +13210,7 @@ msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Nyelvi változatonként tárolva — a szerzői sor minden fordítása saját értéket kap."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4794
-#: packages/admin/src/components/PortableTextEditor.tsx:6340
+#: packages/admin/src/components/PortableTextEditor.tsx:6356
 msgid "Strikethrough"
 msgstr "Áthúzott"
 
@@ -13244,11 +13244,11 @@ msgstr "Almezők"
 msgid "Subscriber"
 msgstr "Feliratkozó"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5281
+#: packages/admin/src/components/PortableTextEditor.tsx:5288
 msgid "Subscript"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5287
+#: packages/admin/src/components/PortableTextEditor.tsx:5294
 msgid "Superscript"
 msgstr ""
 
@@ -13296,7 +13296,7 @@ msgstr "Táblázat"
 msgid "Table cells accept text, links, and formatting only."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5388
+#: packages/admin/src/components/PortableTextEditor.tsx:5397
 msgid "Table controls"
 msgstr ""
 
@@ -13441,7 +13441,7 @@ msgstr ""
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6584
+#: packages/admin/src/components/PortableTextEditor.tsx:6600
 msgid "Text formatting"
 msgstr "Szövegformázás"
 
@@ -14584,9 +14584,9 @@ msgid "TSX"
 msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:5204
-#: packages/admin/src/components/PortableTextEditor.tsx:5206
-#: packages/admin/src/components/PortableTextEditor.tsx:5223
+#: packages/admin/src/components/PortableTextEditor.tsx:5211
+#: packages/admin/src/components/PortableTextEditor.tsx:5213
+#: packages/admin/src/components/PortableTextEditor.tsx:5230
 msgid "Turn into"
 msgstr "Átalakítás erre"
 
@@ -14670,11 +14670,11 @@ msgid "Unassigned"
 msgstr "Nincs hozzárendelve"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4793
-#: packages/admin/src/components/PortableTextEditor.tsx:6332
+#: packages/admin/src/components/PortableTextEditor.tsx:6348
 msgid "Underline"
 msgstr "Aláhúzás"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6563
+#: packages/admin/src/components/PortableTextEditor.tsx:6579
 msgid "Undo"
 msgstr "Visszavonás"
 

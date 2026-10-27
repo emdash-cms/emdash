@@ -218,7 +218,7 @@ msgstr "{0, plural, one {קשר אחד שסוג התוכן הזה משתתף ב�
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:5394
+#: packages/admin/src/components/PortableTextEditor.tsx:5403
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "נבחרו {0, plural, one {שורה אחת} two {שתי שורות} other {# שורות}} × {1, plural, one {עמודה אחת} two {שתי עמודות} other {# עמודות}}"
 
@@ -1294,12 +1294,12 @@ msgstr "הוספת קרדיט"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5841
+#: packages/admin/src/components/PortableTextEditor.tsx:5856
 msgid "Add caption"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5407
+#: packages/admin/src/components/PortableTextEditor.tsx:5416
 msgid "Add column after"
 msgstr "הוספת עמודה אחרי"
 
@@ -1369,9 +1369,9 @@ msgstr "הוספת פריט"
 msgid "Add Item"
 msgstr "הוספת פריט"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5037
-#: packages/admin/src/components/PortableTextEditor.tsx:5834
-#: packages/admin/src/components/PortableTextEditor.tsx:6282
+#: packages/admin/src/components/PortableTextEditor.tsx:5040
+#: packages/admin/src/components/PortableTextEditor.tsx:5849
+#: packages/admin/src/components/PortableTextEditor.tsx:6298
 msgid "Add link"
 msgstr "הוספת קישור"
 
@@ -1415,7 +1415,7 @@ msgid "Add row above"
 msgstr "הוספת שורה מעל"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5400
+#: packages/admin/src/components/PortableTextEditor.tsx:5409
 msgid "Add row below"
 msgstr "הוספת שורה מתחת"
 
@@ -1605,25 +1605,25 @@ msgid "Agent-callable MCP tools"
 msgstr "כלי MCP שניתן לקרוא להם מסוכן"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:5297
+#: packages/admin/src/components/PortableTextEditor.tsx:5304
 msgid "Align"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6456
+#: packages/admin/src/components/PortableTextEditor.tsx:6472
 msgid "Align center"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6448
+#: packages/admin/src/components/PortableTextEditor.tsx:6464
 msgid "Align left"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6464
+#: packages/admin/src/components/PortableTextEditor.tsx:6480
 msgid "Align right"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:484
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:5815
+#: packages/admin/src/components/PortableTextEditor.tsx:5830
 msgid "Alignment"
 msgstr "יישור"
 
@@ -1747,8 +1747,8 @@ msgstr "טקסט חלופי"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaLibrary.tsx:1144
-#: packages/admin/src/components/PortableTextEditor.tsx:5746
-#: packages/admin/src/components/PortableTextEditor.tsx:5812
+#: packages/admin/src/components/PortableTextEditor.tsx:5761
+#: packages/admin/src/components/PortableTextEditor.tsx:5827
 msgid "Alt text"
 msgstr "טקסט חלופי"
 
@@ -1899,7 +1899,7 @@ msgid "Application Password"
 msgstr "סיסמת יישום"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
-#: packages/admin/src/components/PortableTextEditor.tsx:6547
+#: packages/admin/src/components/PortableTextEditor.tsx:6563
 msgid "Apply"
 msgstr "החלה"
 
@@ -1907,8 +1907,8 @@ msgstr "החלה"
 msgid "Apply changes"
 msgstr "החלת השינויים"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5011
-#: packages/admin/src/components/PortableTextEditor.tsx:5787
+#: packages/admin/src/components/PortableTextEditor.tsx:5014
+#: packages/admin/src/components/PortableTextEditor.tsx:5802
 msgid "Apply link"
 msgstr "החלת קישור"
 
@@ -2346,7 +2346,7 @@ msgid "Blocks"
 msgstr "בלוקים"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4791
-#: packages/admin/src/components/PortableTextEditor.tsx:6316
+#: packages/admin/src/components/PortableTextEditor.tsx:6332
 msgid "Bold"
 msgstr "מודגש"
 
@@ -2407,7 +2407,7 @@ msgstr "מקור הבנייה אומת"
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
 #: packages/admin/src/components/PortableTextEditor.tsx:2051
-#: packages/admin/src/components/PortableTextEditor.tsx:6373
+#: packages/admin/src/components/PortableTextEditor.tsx:6389
 msgid "Bullet List"
 msgstr "רשימת תבליטים"
 
@@ -2533,9 +2533,9 @@ msgstr "יכול/ה להציג תוכן"
 #: packages/admin/src/components/MenuEditor.tsx:754
 #: packages/admin/src/components/MenuList.tsx:184
 #: packages/admin/src/components/PluginManager.tsx:817
-#: packages/admin/src/components/PortableTextEditor.tsx:5758
-#: packages/admin/src/components/PortableTextEditor.tsx:5784
-#: packages/admin/src/components/PortableTextEditor.tsx:6531
+#: packages/admin/src/components/PortableTextEditor.tsx:5773
+#: packages/admin/src/components/PortableTextEditor.tsx:5799
+#: packages/admin/src/components/PortableTextEditor.tsx:6547
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:407
 #: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/RelationDialog.tsx:60
@@ -2646,8 +2646,8 @@ msgstr "התאים מוזגו"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:5301
-#: packages/admin/src/components/PortableTextEditor.tsx:5419
+#: packages/admin/src/components/PortableTextEditor.tsx:5308
+#: packages/admin/src/components/PortableTextEditor.tsx:5429
 msgid "Center"
 msgstr "מרכז"
 
@@ -2994,7 +2994,7 @@ msgstr "ניקוי שהושלמו"
 msgid "Clear filters"
 msgstr "ניקוי מסננים"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5311
+#: packages/admin/src/components/PortableTextEditor.tsx:5318
 msgid "Clear formatting"
 msgstr ""
 
@@ -3140,7 +3140,7 @@ msgstr "קוד"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
 #: packages/admin/src/components/PortableTextEditor.tsx:2081
-#: packages/admin/src/components/PortableTextEditor.tsx:6415
+#: packages/admin/src/components/PortableTextEditor.tsx:6431
 msgid "Code Block"
 msgstr "בלוק קוד"
 
@@ -3194,7 +3194,7 @@ msgid "Collections created:"
 msgstr "אוספים שנוצרו:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5405
+#: packages/admin/src/components/PortableTextEditor.tsx:5414
 msgid "Column added after"
 msgstr "עמודה נוספה אחרי"
 
@@ -3453,7 +3453,7 @@ msgid "Continue Import"
 msgstr "המשך ייבוא"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:6390
+#: packages/admin/src/components/PortableTextEditor.tsx:6406
 msgid "Continue numbering"
 msgstr "המשך מספור"
 
@@ -4266,7 +4266,7 @@ msgstr "מחיקת תיקייה"
 msgid "Delete gallery"
 msgstr "מחיקת גלריה"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5853
+#: packages/admin/src/components/PortableTextEditor.tsx:5868
 msgid "Delete image"
 msgstr "מחיקת תמונה"
 
@@ -4420,7 +4420,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr "תיאור התמונה"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:522
-#: packages/admin/src/components/PortableTextEditor.tsx:5747
+#: packages/admin/src/components/PortableTextEditor.tsx:5762
 msgid "Describe the image"
 msgstr "תיאור התמונה"
 
@@ -4964,7 +4964,7 @@ msgstr "עריכת שדה קרדיט"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5841
+#: packages/admin/src/components/PortableTextEditor.tsx:5856
 msgid "Edit caption"
 msgstr ""
 
@@ -5000,10 +5000,10 @@ msgstr "עריכת תמונה"
 msgid "Edit image {0}"
 msgstr "עריכת תמונה {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5037
-#: packages/admin/src/components/PortableTextEditor.tsx:5143
-#: packages/admin/src/components/PortableTextEditor.tsx:5834
-#: packages/admin/src/components/PortableTextEditor.tsx:6281
+#: packages/admin/src/components/PortableTextEditor.tsx:5040
+#: packages/admin/src/components/PortableTextEditor.tsx:5149
+#: packages/admin/src/components/PortableTextEditor.tsx:5849
+#: packages/admin/src/components/PortableTextEditor.tsx:6297
 msgid "Edit link"
 msgstr "עריכת קישור"
 
@@ -6930,7 +6930,7 @@ msgstr "לייבוא מלא הכולל טיוטות וכל התוכן, ייצא�
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "לחוויית הייבוא הטובה ביותר, התקינו את תוסף <0>EmDash Exporter</0> באתר ה-WordPress שלכם."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4989
+#: packages/admin/src/components/PortableTextEditor.tsx:4992
 msgid "Format selection"
 msgstr ""
 
@@ -7368,7 +7368,7 @@ msgstr "תמונה {0}"
 msgid "Image actions"
 msgstr "פעולות תמונה"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5712
+#: packages/admin/src/components/PortableTextEditor.tsx:5727
 msgid "Image controls"
 msgstr "פקדי תמונה"
 
@@ -7376,7 +7376,7 @@ msgstr "פקדי תמונה"
 msgid "Image from media library"
 msgstr "תמונה מספריית המדיה"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6279
+#: packages/admin/src/components/PortableTextEditor.tsx:6295
 msgid "Image link"
 msgstr "קישור התמונה"
 
@@ -7396,7 +7396,7 @@ msgid "Image replaced."
 msgstr "התמונה הוחלפה."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:391
-#: packages/admin/src/components/PortableTextEditor.tsx:5846
+#: packages/admin/src/components/PortableTextEditor.tsx:5861
 msgid "Image settings"
 msgstr "הגדרות תמונה"
 
@@ -7620,7 +7620,7 @@ msgid "Inline blocks use your site's styles. Your site removes scripts, style ta
 msgstr "בלוקים בתוך הדף מקבלים את העיצוב של האתר. האתר מסיר סקריפטים, תגי style ומאפייני style, ומרוקן כל iframe שאינו של YouTube או Vimeo."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4795
-#: packages/admin/src/components/PortableTextEditor.tsx:6348
+#: packages/admin/src/components/PortableTextEditor.tsx:6364
 msgid "Inline Code"
 msgstr "קוד בתוך שורה"
 
@@ -7661,8 +7661,8 @@ msgstr "הוספת גלריית תמונות"
 msgid "Insert block"
 msgstr "הוספת בלוק"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6295
-#: packages/admin/src/components/PortableTextEditor.tsx:6305
+#: packages/admin/src/components/PortableTextEditor.tsx:6311
+#: packages/admin/src/components/PortableTextEditor.tsx:6321
 msgid "Insert block after current block"
 msgstr "הוספת בלוק אחרי הבלוק הנוכחי"
 
@@ -7670,12 +7670,12 @@ msgstr "הוספת בלוק אחרי הבלוק הנוכחי"
 msgid "Insert block below"
 msgstr "הוספת בלוק מתחת"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6429
+#: packages/admin/src/components/PortableTextEditor.tsx:6445
 msgid "Insert HTML"
 msgstr "הוספת HTML"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4701
-#: packages/admin/src/components/PortableTextEditor.tsx:6422
+#: packages/admin/src/components/PortableTextEditor.tsx:6438
 msgid "Insert image"
 msgstr "הוספת תמונה"
 
@@ -7828,7 +7828,7 @@ msgid "It was started somewhere else, so its plan can no longer be changed. Its 
 msgstr "הוא הופעל ממקום אחר, כך שכבר לא ניתן לשנות את התוכנית שלו. ההתקדמות שלו תוצג כאן."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4792
-#: packages/admin/src/components/PortableTextEditor.tsx:6324
+#: packages/admin/src/components/PortableTextEditor.tsx:6340
 msgid "Italic"
 msgstr "נטוי"
 
@@ -8051,8 +8051,8 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:5300
-#: packages/admin/src/components/PortableTextEditor.tsx:5418
+#: packages/admin/src/components/PortableTextEditor.tsx:5307
+#: packages/admin/src/components/PortableTextEditor.tsx:5428
 msgid "Left"
 msgstr "שמאל"
 
@@ -8073,7 +8073,7 @@ msgstr "רישיון"
 msgid "Limit"
 msgstr "מגבלה"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6508
+#: packages/admin/src/components/PortableTextEditor.tsx:6524
 msgid "Link"
 msgstr "קישור"
 
@@ -8081,7 +8081,7 @@ msgstr "קישור"
 msgid "Link expired"
 msgstr "תוקף הקישור פג"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5121
+#: packages/admin/src/components/PortableTextEditor.tsx:5127
 msgid "Link options"
 msgstr ""
 
@@ -8870,7 +8870,7 @@ msgstr "ארכיונים חודשיים/שנתיים"
 msgid "More actions for {0}"
 msgstr "פעולות נוספות עבור {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5267
+#: packages/admin/src/components/PortableTextEditor.tsx:5274
 msgid "More formatting"
 msgstr ""
 
@@ -9428,7 +9428,7 @@ msgstr "עדיין אין סוגי תוכן."
 msgid "No custom fields yet"
 msgstr "עדיין אין שדות מותאמים אישית"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5808
+#: packages/admin/src/components/PortableTextEditor.tsx:5823
 msgid "No description yet"
 msgstr "אין עדיין תיאור"
 
@@ -9740,7 +9740,7 @@ msgid "Non-guest"
 msgstr "לא אורחים"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:5417
+#: packages/admin/src/components/PortableTextEditor.tsx:5427
 msgid "None"
 msgstr "ללא"
 
@@ -9812,7 +9812,7 @@ msgstr "מספר הפוסטים להצגה בכל עמוד בתצוגות רשי
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
 #: packages/admin/src/components/PortableTextEditor.tsx:2061
-#: packages/admin/src/components/PortableTextEditor.tsx:6381
+#: packages/admin/src/components/PortableTextEditor.tsx:6397
 msgid "Numbered List"
 msgstr "רשימה ממוספרת"
 
@@ -10787,7 +10787,7 @@ msgstr "יצירה מהירה נותנת לקשר שם לפי השדה הזה ו
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:2071
 #: packages/admin/src/components/PortableTextEditor.tsx:3507
-#: packages/admin/src/components/PortableTextEditor.tsx:6407
+#: packages/admin/src/components/PortableTextEditor.tsx:6423
 msgid "Quote"
 msgstr "ציטוט"
 
@@ -10961,7 +10961,7 @@ msgstr "הפניות"
 msgid "Redirects that loop will be imported turned off"
 msgstr "הפניות שיוצרות לולאה ייובאו כשהן מושבתות"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6570
+#: packages/admin/src/components/PortableTextEditor.tsx:6586
 msgid "Redo"
 msgstr "ביצוע מחדש"
 
@@ -11083,7 +11083,7 @@ msgstr "הסרה"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:383
 #: packages/admin/src/components/ImageFieldRenderer.tsx:454
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
-#: packages/admin/src/components/PortableTextEditor.tsx:6543
+#: packages/admin/src/components/PortableTextEditor.tsx:6559
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -11158,9 +11158,9 @@ msgstr "להסיר תמונה?"
 msgid "Remove item {0}"
 msgstr "הסרת פריט {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5015
-#: packages/admin/src/components/PortableTextEditor.tsx:5155
-#: packages/admin/src/components/PortableTextEditor.tsx:5780
+#: packages/admin/src/components/PortableTextEditor.tsx:5018
+#: packages/admin/src/components/PortableTextEditor.tsx:5161
+#: packages/admin/src/components/PortableTextEditor.tsx:5795
 msgid "Remove link"
 msgstr "הסרת קישור"
 
@@ -11326,8 +11326,8 @@ msgstr "החלפה"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:427
 #: packages/admin/src/components/ImageFieldRenderer.tsx:601
 #: packages/admin/src/components/ImageFieldRenderer.tsx:604
-#: packages/admin/src/components/PortableTextEditor.tsx:5802
-#: packages/admin/src/components/PortableTextEditor.tsx:5883
+#: packages/admin/src/components/PortableTextEditor.tsx:5817
+#: packages/admin/src/components/PortableTextEditor.tsx:5899
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
@@ -11352,7 +11352,7 @@ msgstr "החלפת גרסה למצב כהה עבור {label}"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaDetailPanel.tsx:1967
-#: packages/admin/src/components/PortableTextEditor.tsx:5882
+#: packages/admin/src/components/PortableTextEditor.tsx:5898
 msgid "Replace image"
 msgstr "החלפת תמונה"
 
@@ -11523,7 +11523,7 @@ msgid "Resolving publisher handle..."
 msgstr "מתבצע פענוח כינוי המפרסם..."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:6397
+#: packages/admin/src/components/PortableTextEditor.tsx:6413
 msgid "Restart numbering"
 msgstr "התחלת מספור מחדש"
 
@@ -11727,8 +11727,8 @@ msgstr "עורך טקסט עשיר"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:5302
-#: packages/admin/src/components/PortableTextEditor.tsx:5420
+#: packages/admin/src/components/PortableTextEditor.tsx:5309
+#: packages/admin/src/components/PortableTextEditor.tsx:5430
 msgid "Right"
 msgstr "ימין"
 
@@ -11782,7 +11782,7 @@ msgid "Row added above"
 msgstr "שורה נוספה מעל"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5398
+#: packages/admin/src/components/PortableTextEditor.tsx:5407
 msgid "Row added below"
 msgstr "שורה נוספה מתחת"
 
@@ -11840,7 +11840,7 @@ msgstr "שמירה"
 msgid "Save (Enter)"
 msgstr "שמירה (Enter)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5761
+#: packages/admin/src/components/PortableTextEditor.tsx:5776
 msgid "Save alt text"
 msgstr "שמירת טקסט חלופי"
 
@@ -13211,7 +13211,7 @@ msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "נשמר לפי שפה — כל תרגום של קרדיט מקבל ערך משלו."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4794
-#: packages/admin/src/components/PortableTextEditor.tsx:6340
+#: packages/admin/src/components/PortableTextEditor.tsx:6356
 msgid "Strikethrough"
 msgstr "קו חוצה"
 
@@ -13245,11 +13245,11 @@ msgstr "שדות משנה"
 msgid "Subscriber"
 msgstr "מנוי/ה"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5281
+#: packages/admin/src/components/PortableTextEditor.tsx:5288
 msgid "Subscript"
 msgstr "כתב תחתי"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5287
+#: packages/admin/src/components/PortableTextEditor.tsx:5294
 msgid "Superscript"
 msgstr "כתב עילי"
 
@@ -13297,7 +13297,7 @@ msgstr "טבלה"
 msgid "Table cells accept text, links, and formatting only."
 msgstr "תאי טבלה מקבלים טקסט, קישורים ועיצוב בלבד."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5388
+#: packages/admin/src/components/PortableTextEditor.tsx:5397
 msgid "Table controls"
 msgstr "פקדי טבלה"
 
@@ -13442,7 +13442,7 @@ msgstr "מונחים"
 msgid "test@example.com"
 msgstr "בדיקה: test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6584
+#: packages/admin/src/components/PortableTextEditor.tsx:6600
 msgid "Text formatting"
 msgstr "עיצוב טקסט"
 
@@ -14585,9 +14585,9 @@ msgid "TSX"
 msgstr "קובץ TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:5204
-#: packages/admin/src/components/PortableTextEditor.tsx:5206
-#: packages/admin/src/components/PortableTextEditor.tsx:5223
+#: packages/admin/src/components/PortableTextEditor.tsx:5211
+#: packages/admin/src/components/PortableTextEditor.tsx:5213
+#: packages/admin/src/components/PortableTextEditor.tsx:5230
 msgid "Turn into"
 msgstr "המרה ל"
 
@@ -14671,11 +14671,11 @@ msgid "Unassigned"
 msgstr "לא משויך"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4793
-#: packages/admin/src/components/PortableTextEditor.tsx:6332
+#: packages/admin/src/components/PortableTextEditor.tsx:6348
 msgid "Underline"
 msgstr "קו תחתון"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6563
+#: packages/admin/src/components/PortableTextEditor.tsx:6579
 msgid "Undo"
 msgstr "ביטול פעולה"
 
