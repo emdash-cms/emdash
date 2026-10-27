@@ -1073,9 +1073,13 @@ function FilterBar({
 				aria-label={t`Filter by status`}
 				value={statusFilter}
 				onValueChange={(v) => onStatusFilterChange((v as ContentStatusFilter) ?? "all")}
-				renderValue={(v) =>
-					renderStatusLabel(typeof v === "string" && Object.hasOwn(statusItems, v) ? v : "all")
-				}
+				renderValue={(v) => (
+					<StableSelectValue
+						value={typeof v === "string" && Object.hasOwn(statusItems, v) ? v : "all"}
+						options={Object.keys(statusItems)}
+						renderLabel={(option) => renderStatusLabel(option as ContentStatusFilter)}
+					/>
+				)}
 				items={statusItems}
 			>
 				{Object.entries(statusItems).map(([value]) => (
@@ -1117,6 +1121,13 @@ function FilterBar({
 						onValueChange={(v) =>
 							onDateFilterChange?.({ ...dateFilter, field: (v as ContentDateField) ?? "createdAt" })
 						}
+						renderValue={(v) => (
+							<StableSelectValue
+								value={typeof v === "string" ? v : dateFilter.field}
+								options={Object.keys(dateFieldItems)}
+								renderLabel={(option) => dateFieldItems[option]}
+							/>
+						)}
 						items={dateFieldItems}
 					>
 						{Object.entries(dateFieldItems).map(([value, label]) => (
@@ -1134,6 +1145,30 @@ function FilterBar({
 
 			{!showDateFilter && clearButton}
 		</>
+	);
+}
+
+/** Lays every option's label in one cell, so the trigger keeps the width of its longest option. */
+function StableSelectValue({
+	value,
+	options,
+	renderLabel,
+}: {
+	value: string;
+	options: string[];
+	renderLabel: (option: string) => React.ReactNode;
+}) {
+	return (
+		<span className="grid text-start">
+			{options.map((option) => (
+				<span
+					key={option}
+					className={cn("col-start-1 row-start-1", option !== value && "invisible")}
+				>
+					{renderLabel(option)}
+				</span>
+			))}
+		</span>
 	);
 }
 

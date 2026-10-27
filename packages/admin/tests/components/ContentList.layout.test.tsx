@@ -4,7 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 
 import "../../dist/styles.css";
-import { ContentList } from "../../src/components/ContentList.js";
+import {
+	ContentList,
+	type ContentDateFilter,
+	type ContentStatusFilter,
+} from "../../src/components/ContentList.js";
 import type { ContentItem } from "../../src/lib/api";
 import { render } from "../utils/render.js";
 
@@ -145,7 +149,10 @@ describe("Content list pagination layout", () => {
 });
 
 describe("Content list filter row", () => {
-	function listInShell(statusFilter: "all" | "draft") {
+	function listInShell(
+		statusFilter: ContentStatusFilter,
+		dateField: ContentDateFilter["field"] = "createdAt",
+	) {
 		return (
 			<div style={{ display: "flex" }}>
 				<aside style={{ width: 260, flexShrink: 0 }} />
@@ -156,6 +163,7 @@ describe("Content list filter row", () => {
 						items={posts.slice(0, 3)}
 						statusFilter={statusFilter}
 						onStatusFilterChange={vi.fn()}
+						dateFilter={{ field: dateField, from: "", to: "" }}
 						onDateFilterChange={vi.fn()}
 					/>
 				</main>
@@ -177,6 +185,26 @@ describe("Content list filter row", () => {
 		}
 
 		expect(moved).toEqual([]);
+	});
+
+	it("keeps the status and date field filters one width whichever value is chosen", async () => {
+		const screen = await render(listInShell("all"));
+		const width = (name: string) =>
+			screen.getByRole("combobox", { name }).element().getBoundingClientRect().width;
+
+		const statusWidths = new Set<number>();
+		for (const status of ["all", "published", "draft", "scheduled", "archived"] as const) {
+			await screen.rerender(listInShell(status));
+			statusWidths.add(width("Filter by status"));
+		}
+		const dateFieldWidths = new Set<number>();
+		for (const field of ["createdAt", "updatedAt", "publishedAt"] as const) {
+			await screen.rerender(listInShell("all", field));
+			dateFieldWidths.add(width("Date field to filter on"));
+		}
+
+		expect([...statusWidths]).toHaveLength(1);
+		expect([...dateFieldWidths]).toHaveLength(1);
 	});
 
 	it("hides Clear filters from assistive technology until a filter is active", async () => {
