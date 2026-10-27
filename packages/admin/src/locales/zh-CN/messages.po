@@ -151,7 +151,7 @@ msgid "{0, plural, one {# link} other {# links}}"
 msgstr "{0, plural, one {# 个链接} other {# 个链接}}"
 
 #. placeholder {0}: tagMatches?.matchCount ?? 0
-#: packages/admin/src/components/TaxonomyManager.tsx:1392
+#: packages/admin/src/components/TaxonomyManager.tsx:1395
 msgid "{0, plural, one {# matching tag} other {# matching tags}}"
 msgstr "{0, plural, one {# 个匹配的标签} other {# 个匹配的标签}}"
 
@@ -1059,7 +1059,7 @@ msgstr "包中缺少某个媒体文件"
 msgid "A media folder with this name already exists"
 msgstr "已存在同名的媒体文件夹"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:965
+#: packages/admin/src/components/TaxonomyManager.tsx:968
 msgid "A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr "无法从此标签生成名称。请手动输入一个仅包含小写字母、数字和下划线的名称。"
 
@@ -1206,8 +1206,8 @@ msgstr "ACF 字段"
 #: packages/admin/src/components/ContentList.tsx:923
 #: packages/admin/src/components/ContentTypeList.tsx:212
 #: packages/admin/src/components/RelationList.tsx:102
-#: packages/admin/src/components/TaxonomyManager.tsx:1413
-#: packages/admin/src/components/TaxonomyManager.tsx:1467
+#: packages/admin/src/components/TaxonomyManager.tsx:1416
+#: packages/admin/src/components/TaxonomyManager.tsx:1470
 #: packages/admin/src/routes/byline-schema.tsx:249
 #: packages/admin/src/routes/bylines.tsx:348
 msgid "Actions"
@@ -1241,8 +1241,8 @@ msgstr "添加"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
 #: packages/admin/src/components/ContentList.tsx:626
 #: packages/admin/src/components/PortableTextEditor.tsx:2936
-#: packages/admin/src/components/TaxonomyManager.tsx:756
-#: packages/admin/src/components/TaxonomyManager.tsx:1333
+#: packages/admin/src/components/TaxonomyManager.tsx:759
+#: packages/admin/src/components/TaxonomyManager.tsx:1336
 msgid "Add {0}"
 msgstr "添加 {0}"
 
@@ -1435,7 +1435,7 @@ msgstr "添加 SEO 元数据字段（标题、描述、图片）并包含在站�
 msgid "Add Sub-Field"
 msgstr "添加子字段"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1317
+#: packages/admin/src/components/TaxonomyManager.tsx:1320
 msgid "Add tag"
 msgstr "添加标签"
 
@@ -1443,8 +1443,8 @@ msgstr "添加标签"
 msgid "Add term"
 msgstr "添加术语"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1324
-#: packages/admin/src/components/TaxonomyManager.tsx:1340
+#: packages/admin/src/components/TaxonomyManager.tsx:1327
+#: packages/admin/src/components/TaxonomyManager.tsx:1343
 msgid "Add to posts"
 msgstr "添加到文章"
 
@@ -2113,7 +2113,7 @@ msgstr "自动（slug 变更）"
 msgid "Auto-approve authenticated users"
 msgstr "自动批准已认证用户"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:792
+#: packages/admin/src/components/TaxonomyManager.tsx:795
 msgid "Auto-generated from name (you can edit)"
 msgstr "从名称自动生成（您可以编辑）"
 
@@ -2545,8 +2545,8 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:174
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:581
-#: packages/admin/src/components/TaxonomyManager.tsx:882
-#: packages/admin/src/components/TaxonomyManager.tsx:1102
+#: packages/admin/src/components/TaxonomyManager.tsx:885
+#: packages/admin/src/components/TaxonomyManager.tsx:1105
 #: packages/admin/src/components/users/InviteUserModal.tsx:202
 #: packages/admin/src/components/Widgets.tsx:461
 #: packages/admin/src/components/WordPressImport.tsx:1974
@@ -2999,7 +2999,7 @@ msgstr "清除格式"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1020
 #: packages/admin/src/components/MediaLibrary.tsx:1055
-#: packages/admin/src/components/TaxonomyManager.tsx:1436
+#: packages/admin/src/components/TaxonomyManager.tsx:1439
 msgid "Clear search"
 msgstr "清除搜索"
 
@@ -3087,10 +3087,10 @@ msgstr "点击此链接登录 {siteName}："
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:348
 #: packages/admin/src/components/TaxonomyManager.tsx:558
-#: packages/admin/src/components/TaxonomyManager.tsx:765
-#: packages/admin/src/components/TaxonomyManager.tsx:773
-#: packages/admin/src/components/TaxonomyManager.tsx:1021
-#: packages/admin/src/components/TaxonomyManager.tsx:1029
+#: packages/admin/src/components/TaxonomyManager.tsx:768
+#: packages/admin/src/components/TaxonomyManager.tsx:776
+#: packages/admin/src/components/TaxonomyManager.tsx:1024
+#: packages/admin/src/components/TaxonomyManager.tsx:1032
 #: packages/admin/src/components/TaxonomySidebar.tsx:606
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
@@ -3180,7 +3180,7 @@ msgid "Collection:"
 msgstr "合集："
 
 #: packages/admin/src/components/settings/transfer/labels.ts:11
-#: packages/admin/src/components/TaxonomyManager.tsx:1072
+#: packages/admin/src/components/TaxonomyManager.tsx:1075
 msgid "Collections"
 msgstr "合集"
 
@@ -3703,8 +3703,8 @@ msgstr "无法更新请求"
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
 msgstr "无法验证有多少值引用了 \"{0}\"。删除仍将移除此字段的所有存储值 — 但上方的计数无法被检查。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1411
-#: packages/admin/src/components/TaxonomyManager.tsx:1466
+#: packages/admin/src/components/TaxonomyManager.tsx:1414
+#: packages/admin/src/components/TaxonomyManager.tsx:1469
 msgid "Count"
 msgstr "数量"
 
@@ -3713,7 +3713,7 @@ msgstr "数量"
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuList.tsx:187
 #: packages/admin/src/components/Redirects.tsx:196
-#: packages/admin/src/components/TaxonomyManager.tsx:893
+#: packages/admin/src/components/TaxonomyManager.tsx:896
 #: packages/admin/src/components/Widgets.tsx:464
 msgid "Create"
 msgstr "创建"
@@ -3750,7 +3750,7 @@ msgid "Create a bullet list"
 msgstr "创建无序列表"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:761
+#: packages/admin/src/components/TaxonomyManager.tsx:764
 msgid "Create a new {0}"
 msgstr "创建新的 {0}"
 
@@ -3857,8 +3857,8 @@ msgstr "创建分区"
 msgid "Create sections in the Sections library to use them here"
 msgstr "在区块库中创建区块以便在此使用"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1015
-#: packages/admin/src/components/TaxonomyManager.tsx:1105
+#: packages/admin/src/components/TaxonomyManager.tsx:1018
+#: packages/admin/src/components/TaxonomyManager.tsx:1108
 msgid "Create Taxonomy"
 msgstr "创建分类"
 
@@ -3959,7 +3959,7 @@ msgstr "正在创建裁剪副本…"
 #: packages/admin/src/components/RelationFormPanel.tsx:109
 #: packages/admin/src/components/Sections.tsx:234
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:561
-#: packages/admin/src/components/TaxonomyManager.tsx:1105
+#: packages/admin/src/components/TaxonomyManager.tsx:1108
 msgid "Creating..."
 msgstr "创建中..."
 
@@ -4118,7 +4118,7 @@ msgstr "默认社交图片"
 msgid "Default Social Image"
 msgstr "默认社交图片"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1017
+#: packages/admin/src/components/TaxonomyManager.tsx:1020
 msgid "Define a new taxonomy for classifying content"
 msgstr "定义新的分类以对内容进行分类"
 
@@ -4153,8 +4153,8 @@ msgstr "代码定义"
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/Sections.tsx:349
 #: packages/admin/src/components/settings/BackupSettings.tsx:369
-#: packages/admin/src/components/TaxonomyManager.tsx:1538
-#: packages/admin/src/components/TaxonomyManager.tsx:1554
+#: packages/admin/src/components/TaxonomyManager.tsx:1541
+#: packages/admin/src/components/TaxonomyManager.tsx:1557
 #: packages/admin/src/components/Widgets.tsx:728
 #: packages/admin/src/routes/byline-schema.tsx:378
 msgid "Delete"
@@ -4202,7 +4202,7 @@ msgstr "删除 {0} 小部件区域"
 
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/TaxonomyManager.tsx:1534
+#: packages/admin/src/components/TaxonomyManager.tsx:1537
 #: packages/admin/src/routes/bylines.tsx:532
 msgid "Delete {0}?"
 msgstr "删除 {0}？"
@@ -4332,11 +4332,11 @@ msgstr "删除标签"
 msgid "Delete tag {0}"
 msgstr "删除标签 {0}"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1373
+#: packages/admin/src/components/TaxonomyManager.tsx:1376
 msgid "Delete taxonomy"
 msgstr "删除分类法"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1552
+#: packages/admin/src/components/TaxonomyManager.tsx:1555
 msgid "Delete Taxonomy"
 msgstr "删除分类法"
 
@@ -4354,7 +4354,7 @@ msgid "Deleted"
 msgstr "已删除"
 
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1553
+#: packages/admin/src/components/TaxonomyManager.tsx:1556
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
 msgstr "删除“{0}”将同时删除其中所有语言的每个术语，并从归类到这些术语的内容中移除这些术语。条目本身保留。此操作不可撤销。"
 
@@ -4375,8 +4375,8 @@ msgstr "删除 \"{0}\" 将同时移除所有署名中的 {1, plural, one {# 个�
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:350
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
-#: packages/admin/src/components/TaxonomyManager.tsx:1539
-#: packages/admin/src/components/TaxonomyManager.tsx:1555
+#: packages/admin/src/components/TaxonomyManager.tsx:1542
+#: packages/admin/src/components/TaxonomyManager.tsx:1558
 #: packages/admin/src/components/Widgets.tsx:729
 #: packages/admin/src/routes/bylines.tsx:535
 msgid "Deleting..."
@@ -4448,7 +4448,7 @@ msgstr "描述此区块的用途..."
 msgid "Description"
 msgstr "描述"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:844
+#: packages/admin/src/components/TaxonomyManager.tsx:847
 msgid "Description (optional)"
 msgstr "描述（可选）"
 
@@ -4919,7 +4919,7 @@ msgstr "编辑"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:263
 #: packages/admin/src/components/TaxonomyManager.tsx:309
 #: packages/admin/src/components/TaxonomyManager.tsx:484
-#: packages/admin/src/components/TaxonomyManager.tsx:755
+#: packages/admin/src/components/TaxonomyManager.tsx:758
 #: packages/admin/src/routes/byline-schema.tsx:451
 #: packages/admin/src/routes/bylines.tsx:401
 msgid "Edit {0}"
@@ -5419,7 +5419,7 @@ msgstr "链接侧的条目"
 #: packages/admin/src/components/MenuEditor.tsx:226
 #: packages/admin/src/components/MenuEditor.tsx:266
 #: packages/admin/src/components/SetupWizard.tsx:603
-#: packages/admin/src/components/TaxonomyManager.tsx:1210
+#: packages/admin/src/components/TaxonomyManager.tsx:1213
 #: packages/admin/src/components/Widgets.tsx:781
 #: packages/admin/src/router.tsx:3364
 msgid "Error"
@@ -6995,7 +6995,7 @@ msgstr "常规"
 msgid "General Settings"
 msgstr "常规设置"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1040
+#: packages/admin/src/components/TaxonomyManager.tsx:1043
 msgid "Genres"
 msgstr "类型"
 
@@ -7191,7 +7191,7 @@ msgstr "隐藏工具栏"
 msgid "Hide toolbar"
 msgstr "隐藏工具栏"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1065
+#: packages/admin/src/components/TaxonomyManager.tsx:1068
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "层级式（类似分类，具有父子关系）"
 
@@ -7234,7 +7234,7 @@ msgstr "小时"
 msgid "How do you want to start?"
 msgstr "您想如何开始？"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:794
+#: packages/admin/src/components/TaxonomyManager.tsx:797
 msgid "How is the slug generated?"
 msgstr "别名如何生成？"
 
@@ -7954,7 +7954,7 @@ msgstr "Kotlin"
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/MenuEditor.tsx:716
 #: packages/admin/src/components/MenuList.tsx:153
-#: packages/admin/src/components/TaxonomyManager.tsx:1037
+#: packages/admin/src/components/TaxonomyManager.tsx:1040
 #: packages/admin/src/components/Widgets.tsx:446
 #: packages/admin/src/routes/byline-schema.tsx:234
 msgid "Label"
@@ -8328,8 +8328,8 @@ msgstr "正在加载设置..."
 msgid "Loading setup..."
 msgstr "正在加载设置..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1399
-#: packages/admin/src/components/TaxonomyManager.tsx:1471
+#: packages/admin/src/components/TaxonomyManager.tsx:1402
+#: packages/admin/src/components/TaxonomyManager.tsx:1474
 msgid "Loading terms..."
 msgstr "正在加载词条..."
 
@@ -8367,7 +8367,7 @@ msgstr "正在加载小部件..."
 #: packages/admin/src/components/settings/EmailSettings.tsx:69
 #: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/settings/TransferSettings.tsx:57
-#: packages/admin/src/components/TaxonomyManager.tsx:1277
+#: packages/admin/src/components/TaxonomyManager.tsx:1280
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
@@ -8454,7 +8454,7 @@ msgstr "小写字母、数字和下划线。引用字段存储此值。"
 msgid "Lowercase letters, numbers, and hyphens only"
 msgstr "仅限小写字母、数字和连字符"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1056
+#: packages/admin/src/components/TaxonomyManager.tsx:1059
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "仅限小写字母、数字和下划线，以字母开头"
 
@@ -8477,7 +8477,7 @@ msgstr "管理"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
 #. placeholder {1}: taxonomyDef.collections.join(", ")
-#: packages/admin/src/components/TaxonomyManager.tsx:1294
+#: packages/admin/src/components/TaxonomyManager.tsx:1297
 msgid "Manage {0} for {1}"
 msgstr "管理 {1} 的 {0}"
 
@@ -8864,7 +8864,7 @@ msgstr "月度/年度归档"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:716
 #: packages/admin/src/components/Sections.tsx:450
 #: packages/admin/src/components/TaxonomyManager.tsx:321
-#: packages/admin/src/components/TaxonomyManager.tsx:1352
+#: packages/admin/src/components/TaxonomyManager.tsx:1355
 #: packages/admin/src/routes/bylines.tsx:413
 msgid "More actions for {0}"
 msgstr "{0} 的更多操作"
@@ -9125,10 +9125,10 @@ msgstr "我的精彩博客"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MediaFolderDialog.tsx:131
 #: packages/admin/src/components/MenuList.tsx:164
-#: packages/admin/src/components/TaxonomyManager.tsx:781
-#: packages/admin/src/components/TaxonomyManager.tsx:1047
-#: packages/admin/src/components/TaxonomyManager.tsx:1410
-#: packages/admin/src/components/TaxonomyManager.tsx:1465
+#: packages/admin/src/components/TaxonomyManager.tsx:784
+#: packages/admin/src/components/TaxonomyManager.tsx:1050
+#: packages/admin/src/components/TaxonomyManager.tsx:1413
+#: packages/admin/src/components/TaxonomyManager.tsx:1468
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:152
 #: packages/admin/src/components/users/UserDetail.tsx:159
@@ -9136,11 +9136,11 @@ msgstr "我的精彩博客"
 msgid "Name"
 msgstr "名称"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:973
+#: packages/admin/src/components/TaxonomyManager.tsx:976
 msgid "Name and label are required"
 msgstr "名称和标签为必填项"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:979
+#: packages/admin/src/components/TaxonomyManager.tsx:982
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "名称必须以字母开头，且仅包含小写字母、数字和下划线"
 
@@ -9251,11 +9251,11 @@ msgstr "新建分区"
 msgid "new tab"
 msgstr "新标签页"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1363
+#: packages/admin/src/components/TaxonomyManager.tsx:1366
 msgid "New taxonomy"
 msgstr "新建分类法"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1330
+#: packages/admin/src/components/TaxonomyManager.tsx:1333
 msgid "New Taxonomy"
 msgstr "新分类"
 
@@ -9275,7 +9275,7 @@ msgstr "较新的版本"
 msgid "Newest"
 msgstr "最新"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:784
+#: packages/admin/src/components/TaxonomyManager.tsx:787
 msgid "News"
 msgstr "新闻"
 
@@ -9325,8 +9325,8 @@ msgid "No {0} yet."
 msgstr "暂无 {0}。"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:1402
-#: packages/admin/src/components/TaxonomyManager.tsx:1474
+#: packages/admin/src/components/TaxonomyManager.tsx:1405
+#: packages/admin/src/components/TaxonomyManager.tsx:1477
 msgid "No {0} yet. Create one to get started."
 msgstr "暂无{0}。创建一个以开始使用。"
 
@@ -9570,7 +9570,7 @@ msgstr "无匹配的媒体"
 msgid "No matching passkey found for this account."
 msgstr "未找到与此账户匹配的通行密钥。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1427
+#: packages/admin/src/components/TaxonomyManager.tsx:1430
 msgid "No matching tags"
 msgstr "无匹配的标签"
 
@@ -9743,8 +9743,8 @@ msgstr "非访客"
 msgid "None"
 msgstr "无"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:822
-#: packages/admin/src/components/TaxonomyManager.tsx:831
+#: packages/admin/src/components/TaxonomyManager.tsx:825
+#: packages/admin/src/components/TaxonomyManager.tsx:834
 msgid "None (top level)"
 msgstr "无（顶级）"
 
@@ -9971,7 +9971,7 @@ msgstr "显示在图片下方的可选说明"
 msgid "Optional caption for display"
 msgstr "用于显示的可选说明"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:847
+#: packages/admin/src/components/TaxonomyManager.tsx:850
 msgid "Optional description"
 msgstr "可选描述"
 
@@ -10113,7 +10113,7 @@ msgid "Paragraph inserted before table"
 msgstr "已在表格前插入段落"
 
 #: packages/admin/src/components/MenuEditor.tsx:746
-#: packages/admin/src/components/TaxonomyManager.tsx:818
+#: packages/admin/src/components/TaxonomyManager.tsx:821
 msgid "Parent"
 msgstr "父级"
 
@@ -11931,7 +11931,7 @@ msgstr "在此保存集合会将此字段变为条目选择器。其存储的条
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/RelationFormPanel.tsx:112
 #: packages/admin/src/components/SaveButton.tsx:36
-#: packages/admin/src/components/TaxonomyManager.tsx:890
+#: packages/admin/src/components/TaxonomyManager.tsx:893
 #: packages/admin/src/components/users/UserDetail.tsx:330
 #: packages/admin/src/components/Widgets.tsx:995
 msgid "Saving..."
@@ -12209,11 +12209,11 @@ msgstr "搜索区块..."
 msgid "Search source or destination..."
 msgstr "搜索源或目标..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1386
+#: packages/admin/src/components/TaxonomyManager.tsx:1389
 msgid "Search tags"
 msgstr "搜索标签"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1385
+#: packages/admin/src/components/TaxonomyManager.tsx:1388
 msgid "Search tags…"
 msgstr "搜索标签…"
 
@@ -12963,8 +12963,8 @@ msgstr "已跳过"
 #: packages/admin/src/components/RelationList.tsx:90
 #: packages/admin/src/components/SectionEditor.tsx:281
 #: packages/admin/src/components/Sections.tsx:204
-#: packages/admin/src/components/TaxonomyManager.tsx:799
-#: packages/admin/src/components/TaxonomyManager.tsx:804
+#: packages/admin/src/components/TaxonomyManager.tsx:802
+#: packages/admin/src/components/TaxonomyManager.tsx:807
 #: packages/admin/src/routes/byline-schema.tsx:237
 msgid "Slug"
 msgstr "别名"
@@ -13371,11 +13371,11 @@ msgstr "分类法"
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr "分类法「{0}」正被本站点的内容使用"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1566
+#: packages/admin/src/components/TaxonomyManager.tsx:1569
 msgid "Taxonomy created"
 msgstr "分类已创建"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1197
+#: packages/admin/src/components/TaxonomyManager.tsx:1200
 msgid "Taxonomy deleted"
 msgstr "分类法已删除"
 
@@ -13408,18 +13408,18 @@ msgid "Template:"
 msgstr "模板："
 
 #: packages/admin/src/components/BulkTagDialog.tsx:110
-#: packages/admin/src/components/TaxonomyManager.tsx:755
-#: packages/admin/src/components/TaxonomyManager.tsx:756
-#: packages/admin/src/components/TaxonomyManager.tsx:760
-#: packages/admin/src/components/TaxonomyManager.tsx:761
-#: packages/admin/src/components/TaxonomyManager.tsx:1333
-#: packages/admin/src/components/TaxonomyManager.tsx:1534
+#: packages/admin/src/components/TaxonomyManager.tsx:758
+#: packages/admin/src/components/TaxonomyManager.tsx:759
+#: packages/admin/src/components/TaxonomyManager.tsx:763
+#: packages/admin/src/components/TaxonomyManager.tsx:764
+#: packages/admin/src/components/TaxonomyManager.tsx:1336
+#: packages/admin/src/components/TaxonomyManager.tsx:1537
 msgid "Term"
 msgstr "词条"
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:1257
+#: packages/admin/src/components/TaxonomyManager.tsx:1260
 msgid "Term \"{0}\" created in {1}."
 msgstr "词条 \"{0}\" 已在 {1} 中创建。"
 
@@ -13428,7 +13428,7 @@ msgstr "词条 \"{0}\" 已在 {1} 中创建。"
 msgid "Term assignments"
 msgstr "术语分配"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1175
+#: packages/admin/src/components/TaxonomyManager.tsx:1178
 msgid "Term deleted"
 msgstr "词条已删除"
 
@@ -14302,7 +14302,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "这将把项目移至回收站。您可以稍后从回收站恢复它。"
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1536
+#: packages/admin/src/components/TaxonomyManager.tsx:1539
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "这将永久删除「{0}」并将其从所有内容中移除。"
 
@@ -14467,7 +14467,7 @@ msgid "Translating..."
 msgstr "翻译中..."
 
 #: packages/admin/src/components/MenuEditor.tsx:146
-#: packages/admin/src/components/TaxonomyManager.tsx:1256
+#: packages/admin/src/components/TaxonomyManager.tsx:1259
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
 #: packages/admin/src/router.tsx:1642
 msgid "Translation created"
@@ -14812,7 +14812,7 @@ msgstr "未使用的引用被略过"
 msgid "Up to {MAX_SELECTED} bylines can be selected"
 msgstr "最多可选择 {MAX_SELECTED} 个署名"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:892
+#: packages/admin/src/components/TaxonomyManager.tsx:895
 msgid "Update"
 msgstr "更新"
 
@@ -14839,7 +14839,7 @@ msgid "Update site settings"
 msgstr "更新网站设置"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:760
+#: packages/admin/src/components/TaxonomyManager.tsx:763
 msgid "Update the {0} details"
 msgstr "更新{0}详情"
 
@@ -15126,7 +15126,7 @@ msgstr "使用您注册的通行密钥安全登录。"
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "当页面没有 Open Graph 图片时作为默认图片。推荐尺寸：1200×630。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1060
+#: packages/admin/src/components/TaxonomyManager.tsx:1063
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "用作标识符。仅限小写字母、数字和下划线。"
 
@@ -15499,7 +15499,7 @@ msgstr "条目发布时间"
 msgid "Where is it saved?"
 msgstr "它保存在哪里？"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1074
+#: packages/admin/src/components/TaxonomyManager.tsx:1077
 msgid "Which content types can use this taxonomy"
 msgstr "哪些内容类型可以使用此分类"
 

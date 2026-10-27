@@ -151,7 +151,7 @@ msgid "{0, plural, one {# link} other {# links}}"
 msgstr "{0, plural, one {#件のリンク} other {#件のリンク}}"
 
 #. placeholder {0}: tagMatches?.matchCount ?? 0
-#: packages/admin/src/components/TaxonomyManager.tsx:1392
+#: packages/admin/src/components/TaxonomyManager.tsx:1395
 msgid "{0, plural, one {# matching tag} other {# matching tags}}"
 msgstr "{0, plural, one {一致するタグ#件} other {一致するタグ#件}}"
 
@@ -1059,7 +1059,7 @@ msgstr "パッケージにメディアファイルがありません"
 msgid "A media folder with this name already exists"
 msgstr "同じ名前のメディアフォルダーが既に存在します"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:965
+#: packages/admin/src/components/TaxonomyManager.tsx:968
 msgid "A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr "このラベルから名前を生成できません。英小文字、数字、アンダースコアを使って手動で入力してください。"
 
@@ -1206,8 +1206,8 @@ msgstr "ACFフィールド"
 #: packages/admin/src/components/ContentList.tsx:923
 #: packages/admin/src/components/ContentTypeList.tsx:212
 #: packages/admin/src/components/RelationList.tsx:102
-#: packages/admin/src/components/TaxonomyManager.tsx:1413
-#: packages/admin/src/components/TaxonomyManager.tsx:1467
+#: packages/admin/src/components/TaxonomyManager.tsx:1416
+#: packages/admin/src/components/TaxonomyManager.tsx:1470
 #: packages/admin/src/routes/byline-schema.tsx:249
 #: packages/admin/src/routes/bylines.tsx:348
 msgid "Actions"
@@ -1241,8 +1241,8 @@ msgstr "追加"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
 #: packages/admin/src/components/ContentList.tsx:626
 #: packages/admin/src/components/PortableTextEditor.tsx:2936
-#: packages/admin/src/components/TaxonomyManager.tsx:756
-#: packages/admin/src/components/TaxonomyManager.tsx:1333
+#: packages/admin/src/components/TaxonomyManager.tsx:759
+#: packages/admin/src/components/TaxonomyManager.tsx:1336
 msgid "Add {0}"
 msgstr "{0}を追加"
 
@@ -1435,7 +1435,7 @@ msgstr "SEOメタデータフィールド（タイトル、説明、画像）を
 msgid "Add Sub-Field"
 msgstr "サブフィールドを追加"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1317
+#: packages/admin/src/components/TaxonomyManager.tsx:1320
 msgid "Add tag"
 msgstr "タグを追加"
 
@@ -1443,8 +1443,8 @@ msgstr "タグを追加"
 msgid "Add term"
 msgstr "分類項目を追加"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1324
-#: packages/admin/src/components/TaxonomyManager.tsx:1340
+#: packages/admin/src/components/TaxonomyManager.tsx:1327
+#: packages/admin/src/components/TaxonomyManager.tsx:1343
 msgid "Add to posts"
 msgstr "投稿に追加"
 
@@ -2113,7 +2113,7 @@ msgstr "自動（スラッグ変更）"
 msgid "Auto-approve authenticated users"
 msgstr "認証済みユーザーを自動承認"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:792
+#: packages/admin/src/components/TaxonomyManager.tsx:795
 msgid "Auto-generated from name (you can edit)"
 msgstr "名前から自動生成されます（編集可能）"
 
@@ -2545,8 +2545,8 @@ msgstr "コンテンツを閲覧できます"
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:174
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:581
-#: packages/admin/src/components/TaxonomyManager.tsx:882
-#: packages/admin/src/components/TaxonomyManager.tsx:1102
+#: packages/admin/src/components/TaxonomyManager.tsx:885
+#: packages/admin/src/components/TaxonomyManager.tsx:1105
 #: packages/admin/src/components/users/InviteUserModal.tsx:202
 #: packages/admin/src/components/Widgets.tsx:461
 #: packages/admin/src/components/WordPressImport.tsx:1974
@@ -2999,7 +2999,7 @@ msgstr "書式をクリア"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1020
 #: packages/admin/src/components/MediaLibrary.tsx:1055
-#: packages/admin/src/components/TaxonomyManager.tsx:1436
+#: packages/admin/src/components/TaxonomyManager.tsx:1439
 msgid "Clear search"
 msgstr "検索をクリア"
 
@@ -3087,10 +3087,10 @@ msgstr "次のリンクをクリックして、{siteName}にログインして�
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:348
 #: packages/admin/src/components/TaxonomyManager.tsx:558
-#: packages/admin/src/components/TaxonomyManager.tsx:765
-#: packages/admin/src/components/TaxonomyManager.tsx:773
-#: packages/admin/src/components/TaxonomyManager.tsx:1021
-#: packages/admin/src/components/TaxonomyManager.tsx:1029
+#: packages/admin/src/components/TaxonomyManager.tsx:768
+#: packages/admin/src/components/TaxonomyManager.tsx:776
+#: packages/admin/src/components/TaxonomyManager.tsx:1024
+#: packages/admin/src/components/TaxonomyManager.tsx:1032
 #: packages/admin/src/components/TaxonomySidebar.tsx:606
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
@@ -3180,7 +3180,7 @@ msgid "Collection:"
 msgstr "コンテンツタイプ："
 
 #: packages/admin/src/components/settings/transfer/labels.ts:11
-#: packages/admin/src/components/TaxonomyManager.tsx:1072
+#: packages/admin/src/components/TaxonomyManager.tsx:1075
 msgid "Collections"
 msgstr "コンテンツタイプ"
 
@@ -3703,8 +3703,8 @@ msgstr "リクエストを更新できませんでした"
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
 msgstr "「{0}」に保存されている値の件数を確認できませんでした。この項目を削除すると、件数にかかわらず保存済みの値もすべて削除されます。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1411
-#: packages/admin/src/components/TaxonomyManager.tsx:1466
+#: packages/admin/src/components/TaxonomyManager.tsx:1414
+#: packages/admin/src/components/TaxonomyManager.tsx:1469
 msgid "Count"
 msgstr "件数"
 
@@ -3713,7 +3713,7 @@ msgstr "件数"
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuList.tsx:187
 #: packages/admin/src/components/Redirects.tsx:196
-#: packages/admin/src/components/TaxonomyManager.tsx:893
+#: packages/admin/src/components/TaxonomyManager.tsx:896
 #: packages/admin/src/components/Widgets.tsx:464
 msgid "Create"
 msgstr "作成"
@@ -3750,7 +3750,7 @@ msgid "Create a bullet list"
 msgstr "箇条書きリストを作成"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:761
+#: packages/admin/src/components/TaxonomyManager.tsx:764
 msgid "Create a new {0}"
 msgstr "{0}を新規作成"
 
@@ -3857,8 +3857,8 @@ msgstr "セクションを作成"
 msgid "Create sections in the Sections library to use them here"
 msgstr "ここで使用するセクションは、セクションライブラリで作成できます。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1015
-#: packages/admin/src/components/TaxonomyManager.tsx:1105
+#: packages/admin/src/components/TaxonomyManager.tsx:1018
+#: packages/admin/src/components/TaxonomyManager.tsx:1108
 msgid "Create Taxonomy"
 msgstr "分類グループを作成"
 
@@ -3959,7 +3959,7 @@ msgstr "切り抜いたコピーを作成中…"
 #: packages/admin/src/components/RelationFormPanel.tsx:109
 #: packages/admin/src/components/Sections.tsx:234
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:561
-#: packages/admin/src/components/TaxonomyManager.tsx:1105
+#: packages/admin/src/components/TaxonomyManager.tsx:1108
 msgid "Creating..."
 msgstr "作成中…"
 
@@ -4118,7 +4118,7 @@ msgstr "SNS共有用のデフォルト画像"
 msgid "Default Social Image"
 msgstr "SNS共有用のデフォルト画像"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1017
+#: packages/admin/src/components/TaxonomyManager.tsx:1020
 msgid "Define a new taxonomy for classifying content"
 msgstr "カテゴリーやタグのような分類グループを作成します。"
 
@@ -4153,8 +4153,8 @@ msgstr "コードで定義"
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/Sections.tsx:349
 #: packages/admin/src/components/settings/BackupSettings.tsx:369
-#: packages/admin/src/components/TaxonomyManager.tsx:1538
-#: packages/admin/src/components/TaxonomyManager.tsx:1554
+#: packages/admin/src/components/TaxonomyManager.tsx:1541
+#: packages/admin/src/components/TaxonomyManager.tsx:1557
 #: packages/admin/src/components/Widgets.tsx:728
 #: packages/admin/src/routes/byline-schema.tsx:378
 msgid "Delete"
@@ -4202,7 +4202,7 @@ msgstr "ウィジェットエリア「{0}」を削除"
 
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/TaxonomyManager.tsx:1534
+#: packages/admin/src/components/TaxonomyManager.tsx:1537
 #: packages/admin/src/routes/bylines.tsx:532
 msgid "Delete {0}?"
 msgstr "{0}を削除しますか？"
@@ -4332,11 +4332,11 @@ msgstr "タグを削除"
 msgid "Delete tag {0}"
 msgstr "タグ「{0}」を削除"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1373
+#: packages/admin/src/components/TaxonomyManager.tsx:1376
 msgid "Delete taxonomy"
 msgstr "分類グループを削除"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1552
+#: packages/admin/src/components/TaxonomyManager.tsx:1555
 msgid "Delete Taxonomy"
 msgstr "分類グループを削除"
 
@@ -4354,7 +4354,7 @@ msgid "Deleted"
 msgstr "削除日時"
 
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1553
+#: packages/admin/src/components/TaxonomyManager.tsx:1556
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
 msgstr "「{0}」を削除すると、その中のすべての言語の分類項目も削除され、コンテンツへの割り当ても解除されます。コンテンツ自体は残ります。この操作は元に戻せません。"
 
@@ -4375,8 +4375,8 @@ msgstr "「{0}」を削除すると、すべての執筆者から{1, plural, one
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:350
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
-#: packages/admin/src/components/TaxonomyManager.tsx:1539
-#: packages/admin/src/components/TaxonomyManager.tsx:1555
+#: packages/admin/src/components/TaxonomyManager.tsx:1542
+#: packages/admin/src/components/TaxonomyManager.tsx:1558
 #: packages/admin/src/components/Widgets.tsx:729
 #: packages/admin/src/routes/bylines.tsx:535
 msgid "Deleting..."
@@ -4448,7 +4448,7 @@ msgstr "このセクションの用途を説明…"
 msgid "Description"
 msgstr "説明"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:844
+#: packages/admin/src/components/TaxonomyManager.tsx:847
 msgid "Description (optional)"
 msgstr "説明（任意）"
 
@@ -4919,7 +4919,7 @@ msgstr "編集"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:263
 #: packages/admin/src/components/TaxonomyManager.tsx:309
 #: packages/admin/src/components/TaxonomyManager.tsx:484
-#: packages/admin/src/components/TaxonomyManager.tsx:755
+#: packages/admin/src/components/TaxonomyManager.tsx:758
 #: packages/admin/src/routes/byline-schema.tsx:451
 #: packages/admin/src/routes/bylines.tsx:401
 msgid "Edit {0}"
@@ -5419,7 +5419,7 @@ msgstr "参照元のコンテンツ"
 #: packages/admin/src/components/MenuEditor.tsx:226
 #: packages/admin/src/components/MenuEditor.tsx:266
 #: packages/admin/src/components/SetupWizard.tsx:603
-#: packages/admin/src/components/TaxonomyManager.tsx:1210
+#: packages/admin/src/components/TaxonomyManager.tsx:1213
 #: packages/admin/src/components/Widgets.tsx:781
 #: packages/admin/src/router.tsx:3364
 msgid "Error"
@@ -6995,7 +6995,7 @@ msgstr "一般"
 msgid "General Settings"
 msgstr "一般設定"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1040
+#: packages/admin/src/components/TaxonomyManager.tsx:1043
 msgid "Genres"
 msgstr "ジャンル"
 
@@ -7191,7 +7191,7 @@ msgstr "ツールバーを隠す"
 msgid "Hide toolbar"
 msgstr "ツールバーを隠す"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1065
+#: packages/admin/src/components/TaxonomyManager.tsx:1068
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "階層構造を使用する（カテゴリーのように親子関係を設定できます）"
 
@@ -7234,7 +7234,7 @@ msgstr "時"
 msgid "How do you want to start?"
 msgstr "どのように始めますか？"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:794
+#: packages/admin/src/components/TaxonomyManager.tsx:797
 msgid "How is the slug generated?"
 msgstr "スラッグはどのように生成されますか？"
 
@@ -7954,7 +7954,7 @@ msgstr "Kotlin"
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/MenuEditor.tsx:716
 #: packages/admin/src/components/MenuList.tsx:153
-#: packages/admin/src/components/TaxonomyManager.tsx:1037
+#: packages/admin/src/components/TaxonomyManager.tsx:1040
 #: packages/admin/src/components/Widgets.tsx:446
 #: packages/admin/src/routes/byline-schema.tsx:234
 msgid "Label"
@@ -8328,8 +8328,8 @@ msgstr "設定を読み込み中…"
 msgid "Loading setup..."
 msgstr "セットアップを読み込み中…"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1399
-#: packages/admin/src/components/TaxonomyManager.tsx:1471
+#: packages/admin/src/components/TaxonomyManager.tsx:1402
+#: packages/admin/src/components/TaxonomyManager.tsx:1474
 msgid "Loading terms..."
 msgstr "分類項目を読み込み中…"
 
@@ -8367,7 +8367,7 @@ msgstr "ウィジェットを読み込み中…"
 #: packages/admin/src/components/settings/EmailSettings.tsx:69
 #: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/settings/TransferSettings.tsx:57
-#: packages/admin/src/components/TaxonomyManager.tsx:1277
+#: packages/admin/src/components/TaxonomyManager.tsx:1280
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
@@ -8454,7 +8454,7 @@ msgstr "半角英小文字・数字・アンダースコアを使用してくだ
 msgid "Lowercase letters, numbers, and hyphens only"
 msgstr "半角英小文字、数字、ハイフンのみ使用できます"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1056
+#: packages/admin/src/components/TaxonomyManager.tsx:1059
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "半角英小文字で始め、半角英小文字、数字、アンダースコア（_）のみ使用できます"
 
@@ -8477,7 +8477,7 @@ msgstr "管理"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
 #. placeholder {1}: taxonomyDef.collections.join(", ")
-#: packages/admin/src/components/TaxonomyManager.tsx:1294
+#: packages/admin/src/components/TaxonomyManager.tsx:1297
 msgid "Manage {0} for {1}"
 msgstr "{1}の{0}を管理"
 
@@ -8864,7 +8864,7 @@ msgstr "月別・年別のアーカイブを表示"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:716
 #: packages/admin/src/components/Sections.tsx:450
 #: packages/admin/src/components/TaxonomyManager.tsx:321
-#: packages/admin/src/components/TaxonomyManager.tsx:1352
+#: packages/admin/src/components/TaxonomyManager.tsx:1355
 #: packages/admin/src/routes/bylines.tsx:413
 msgid "More actions for {0}"
 msgstr "{0}のその他の操作"
@@ -9125,10 +9125,10 @@ msgstr "マイブログ"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MediaFolderDialog.tsx:131
 #: packages/admin/src/components/MenuList.tsx:164
-#: packages/admin/src/components/TaxonomyManager.tsx:781
-#: packages/admin/src/components/TaxonomyManager.tsx:1047
-#: packages/admin/src/components/TaxonomyManager.tsx:1410
-#: packages/admin/src/components/TaxonomyManager.tsx:1465
+#: packages/admin/src/components/TaxonomyManager.tsx:784
+#: packages/admin/src/components/TaxonomyManager.tsx:1050
+#: packages/admin/src/components/TaxonomyManager.tsx:1413
+#: packages/admin/src/components/TaxonomyManager.tsx:1468
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:152
 #: packages/admin/src/components/users/UserDetail.tsx:159
@@ -9136,11 +9136,11 @@ msgstr "マイブログ"
 msgid "Name"
 msgstr "名前"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:973
+#: packages/admin/src/components/TaxonomyManager.tsx:976
 msgid "Name and label are required"
 msgstr "名前とラベルは必須です"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:979
+#: packages/admin/src/components/TaxonomyManager.tsx:982
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "識別名は半角英小文字で始め、半角英小文字、数字、アンダースコア（_）のみ使用できます"
 
@@ -9251,11 +9251,11 @@ msgstr "新しいセクション"
 msgid "new tab"
 msgstr "新しいタブ"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1363
+#: packages/admin/src/components/TaxonomyManager.tsx:1366
 msgid "New taxonomy"
 msgstr "新しい分類グループ"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1330
+#: packages/admin/src/components/TaxonomyManager.tsx:1333
 msgid "New Taxonomy"
 msgstr "分類グループを追加"
 
@@ -9275,7 +9275,7 @@ msgstr "新しい版"
 msgid "Newest"
 msgstr "新しい順"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:784
+#: packages/admin/src/components/TaxonomyManager.tsx:787
 msgid "News"
 msgstr "ニュース"
 
@@ -9325,8 +9325,8 @@ msgid "No {0} yet."
 msgstr "まだ{0}がありません。"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:1402
-#: packages/admin/src/components/TaxonomyManager.tsx:1474
+#: packages/admin/src/components/TaxonomyManager.tsx:1405
+#: packages/admin/src/components/TaxonomyManager.tsx:1477
 msgid "No {0} yet. Create one to get started."
 msgstr "まだ{0}がありません。作成しましょう。"
 
@@ -9570,7 +9570,7 @@ msgstr "一致するメディアがありません"
 msgid "No matching passkey found for this account."
 msgstr "このアカウントに一致するパスキーが見つかりません。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1427
+#: packages/admin/src/components/TaxonomyManager.tsx:1430
 msgid "No matching tags"
 msgstr "一致するタグはありません"
 
@@ -9743,8 +9743,8 @@ msgstr "ゲスト以外"
 msgid "None"
 msgstr "なし"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:822
-#: packages/admin/src/components/TaxonomyManager.tsx:831
+#: packages/admin/src/components/TaxonomyManager.tsx:825
+#: packages/admin/src/components/TaxonomyManager.tsx:834
 msgid "None (top level)"
 msgstr "なし（最上位）"
 
@@ -9971,7 +9971,7 @@ msgstr "画像の下に表示するキャプション（任意）"
 msgid "Optional caption for display"
 msgstr "表示用キャプション（任意）"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:847
+#: packages/admin/src/components/TaxonomyManager.tsx:850
 msgid "Optional description"
 msgstr "説明（任意）"
 
@@ -10113,7 +10113,7 @@ msgid "Paragraph inserted before table"
 msgstr "テーブルの前に段落を挿入しました"
 
 #: packages/admin/src/components/MenuEditor.tsx:746
-#: packages/admin/src/components/TaxonomyManager.tsx:818
+#: packages/admin/src/components/TaxonomyManager.tsx:821
 msgid "Parent"
 msgstr "親"
 
@@ -11931,7 +11931,7 @@ msgstr "ここでコンテンツタイプを指定して保存すると、この
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/RelationFormPanel.tsx:112
 #: packages/admin/src/components/SaveButton.tsx:36
-#: packages/admin/src/components/TaxonomyManager.tsx:890
+#: packages/admin/src/components/TaxonomyManager.tsx:893
 #: packages/admin/src/components/users/UserDetail.tsx:330
 #: packages/admin/src/components/Widgets.tsx:995
 msgid "Saving..."
@@ -12209,11 +12209,11 @@ msgstr "セクションを検索…"
 msgid "Search source or destination..."
 msgstr "転送元または転送先を検索…"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1386
+#: packages/admin/src/components/TaxonomyManager.tsx:1389
 msgid "Search tags"
 msgstr "タグを検索"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1385
+#: packages/admin/src/components/TaxonomyManager.tsx:1388
 msgid "Search tags…"
 msgstr "タグを検索…"
 
@@ -12963,8 +12963,8 @@ msgstr "スキップ済み"
 #: packages/admin/src/components/RelationList.tsx:90
 #: packages/admin/src/components/SectionEditor.tsx:281
 #: packages/admin/src/components/Sections.tsx:204
-#: packages/admin/src/components/TaxonomyManager.tsx:799
-#: packages/admin/src/components/TaxonomyManager.tsx:804
+#: packages/admin/src/components/TaxonomyManager.tsx:802
+#: packages/admin/src/components/TaxonomyManager.tsx:807
 #: packages/admin/src/routes/byline-schema.tsx:237
 msgid "Slug"
 msgstr "識別名（スラッグ）"
@@ -13371,11 +13371,11 @@ msgstr "分類グループ"
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr "分類グループ「{0}」はこのサイトのコンテンツで使用されています"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1566
+#: packages/admin/src/components/TaxonomyManager.tsx:1569
 msgid "Taxonomy created"
 msgstr "分類グループを作成しました"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1197
+#: packages/admin/src/components/TaxonomyManager.tsx:1200
 msgid "Taxonomy deleted"
 msgstr "分類グループを削除しました"
 
@@ -13408,18 +13408,18 @@ msgid "Template:"
 msgstr "テンプレート："
 
 #: packages/admin/src/components/BulkTagDialog.tsx:110
-#: packages/admin/src/components/TaxonomyManager.tsx:755
-#: packages/admin/src/components/TaxonomyManager.tsx:756
-#: packages/admin/src/components/TaxonomyManager.tsx:760
-#: packages/admin/src/components/TaxonomyManager.tsx:761
-#: packages/admin/src/components/TaxonomyManager.tsx:1333
-#: packages/admin/src/components/TaxonomyManager.tsx:1534
+#: packages/admin/src/components/TaxonomyManager.tsx:758
+#: packages/admin/src/components/TaxonomyManager.tsx:759
+#: packages/admin/src/components/TaxonomyManager.tsx:763
+#: packages/admin/src/components/TaxonomyManager.tsx:764
+#: packages/admin/src/components/TaxonomyManager.tsx:1336
+#: packages/admin/src/components/TaxonomyManager.tsx:1537
 msgid "Term"
 msgstr "分類項目"
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:1257
+#: packages/admin/src/components/TaxonomyManager.tsx:1260
 msgid "Term \"{0}\" created in {1}."
 msgstr "{1}に分類項目「{0}」を作成しました。"
 
@@ -13428,7 +13428,7 @@ msgstr "{1}に分類項目「{0}」を作成しました。"
 msgid "Term assignments"
 msgstr "分類項目の割り当て"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1175
+#: packages/admin/src/components/TaxonomyManager.tsx:1178
 msgid "Term deleted"
 msgstr "分類項目を削除しました"
 
@@ -14302,7 +14302,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "このコンテンツをゴミ箱に移動します。後でゴミ箱から復元できます。"
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1536
+#: packages/admin/src/components/TaxonomyManager.tsx:1539
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "「{0}」を完全に削除し、すべてのコンテンツとの関連付けも解除します。"
 
@@ -14467,7 +14467,7 @@ msgid "Translating..."
 msgstr "翻訳中…"
 
 #: packages/admin/src/components/MenuEditor.tsx:146
-#: packages/admin/src/components/TaxonomyManager.tsx:1256
+#: packages/admin/src/components/TaxonomyManager.tsx:1259
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
 #: packages/admin/src/router.tsx:1642
 msgid "Translation created"
@@ -14812,7 +14812,7 @@ msgstr "使用されていない参照を除外しました"
 msgid "Up to {MAX_SELECTED} bylines can be selected"
 msgstr "執筆者は最大{MAX_SELECTED}名まで選択できます"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:892
+#: packages/admin/src/components/TaxonomyManager.tsx:895
 msgid "Update"
 msgstr "更新"
 
@@ -14839,7 +14839,7 @@ msgid "Update site settings"
 msgstr "サイト設定を変更する"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:760
+#: packages/admin/src/components/TaxonomyManager.tsx:763
 msgid "Update the {0} details"
 msgstr "{0}の詳細を編集"
 
@@ -15126,7 +15126,7 @@ msgstr "登録済みのパスキーで安全にログインできます。"
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "ページにSNS共有用の画像（Open Graph画像）が設定されていない場合、デフォルトの画像が使用されます。推奨サイズは1200×630pxです。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1060
+#: packages/admin/src/components/TaxonomyManager.tsx:1063
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "分類グループの識別名として使用します。半角英小文字、数字、アンダースコア（_）のみ使用できます。"
 
@@ -15499,7 +15499,7 @@ msgstr "コンテンツの公開日時"
 msgid "Where is it saved?"
 msgstr "保存先は？"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1074
+#: packages/admin/src/components/TaxonomyManager.tsx:1077
 msgid "Which content types can use this taxonomy"
 msgstr "この分類グループを使用するコンテンツタイプを選択します。"
 
