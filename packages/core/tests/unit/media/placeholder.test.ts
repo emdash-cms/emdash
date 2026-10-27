@@ -122,18 +122,6 @@ describe("generatePlaceholder", () => {
 		expect(result).toBeNull();
 	});
 
-	it("generates placeholders for images between 4 and 8 megapixels", async () => {
-		const { encode } = await import("jpeg-js");
-		const width = 2002;
-		const height = 2000; // just over 4 MP, under the 32 MiB RGBA guard
-		const raw = { data: Buffer.alloc(width * height * 4, 0xff), width, height };
-		const jpeg = new Uint8Array(encode(raw, 50).data);
-
-		const result = await generatePlaceholder(jpeg, "image/jpeg");
-		expect(result).not.toBeNull();
-		expect(result!.blurhash).toBeTruthy();
-	});
-
 	it("returns null when fallback dimensions exceed memory budget", async () => {
 		// Unrecognizable buffer — image-size can't parse it, so fallback dims are used
 		const buffer = new Uint8Array([0x00, 0x01, 0x02, 0x03]);

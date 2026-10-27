@@ -200,7 +200,7 @@ export const mediaConfirmBody = z
 			.optional()
 			.meta({
 				description:
-					"Optional base64-encoded thumbnail for LQIP generation. Supplied instead of decoding the full-resolution original on constrained runtimes.",
+					"Optional base64-encoded JPEG or PNG thumbnail for LQIP generation. Used instead of decoding the full-resolution original when imagePlaceholders is enabled, on every runtime.",
 			}),
 	})
 	.meta({ id: "MediaConfirmBody" });
