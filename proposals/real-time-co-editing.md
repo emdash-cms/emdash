@@ -29,7 +29,7 @@ Co-editing applies to collections with revisions. Presence for agents and API ca
 
 Only one person can edit an entry at a time. Edit locking ([Discussion #2819](https://github.com/emdash-cms/emdash/discussions/2819)) is on by default: the first person to open an entry holds its lock, and everyone else gets **Open read-only** or **Take over**. With locking off, a save based on an older `_rev` gets `409 CONFLICT`. Nothing merges, so teams take turns, or draft in another tool and paste, which loses Portable Text structure.
 
-The Ideas Discussion ([#4173](https://github.com/emdash-cms/emdash/discussions/4173)) asked for the [goals](#goals) below. A reply asked who answers for a publish that holds several people's edits: revisions record everyone whose edits they hold, and the publish dialog names them.
+The Ideas Discussion ([#4173](https://github.com/emdash-cms/emdash/discussions/4173)) asked for the [goals](#goals) below. A reply asked who answers for a publish that holds several people's edits: each revision records who edited it, and the publish dialog names everyone who edited since the live version.
 
 ### Prior art
 
@@ -53,6 +53,7 @@ Ben's Wi-Fi drops for twenty seconds. He keeps typing, and his edits merge and s
 - **Short disconnects.** A client that reconnects within an hour of everyone leaving merges its offline edits. Edits that can't merge are kept as a revision.
 - **"Saved" is true.** A client shows "Saved" only when a save holds all its edits.
 - **Live outside writes,** shown in open editors within a second.
+- **Credit.** Each version names everyone who edited it since the version before it.
 - **Deliberate publishing.** Publishing is one operation, by someone with publish permission, on a save made at that moment.
 - **Hosts:** Cloudflare Workers and Node.js, over WebSockets, with no third-party service and no Cloudflare code in `emdash`. On Node.js, several processes can share one database, and only one at a time stores each entry's room.
 - **On by default,** with no added queries on logged-out routes.
@@ -307,8 +308,8 @@ A room that drops its state first forgets unused tokens, and token requests wait
 Room saves create revisions as other draft saves do. These rules decide which revisions stay and whom each one names:
 
 - **Autosaves.** A prerequisite fix marks autosave revisions in `revisions.kind`, so an autosave replaces the previous draft revision only if that one was an autosave too.
-- **Author and editors.** Each save's revision has the actor as its author, and stores the save's `editedBy` in `edited_by`. An autosave revision's `edited_by` includes the `edited_by` of the revision it replaced.
-- **Where they show.** The revisions list returns `editedBy`, and Revisions lists everyone in it ([Readable revision history](readable-revision-history.md#co-editing)). The publish dialog names everyone in `edited_by` on the revisions since the live one.
+- **Author and editors.** Each save's revision has the actor as its author, and stores the save's `editedBy` in `edited_by`. An autosave that a room didn't make stores its author there. An autosave that replaces a revision also adds that revision's `edited_by`, without duplicates and latest first. Each version therefore names everyone who edited it since the version before it, and a null `edited_by` means its author alone.
+- **Where they show.** The revisions list returns `editedBy`, and Revisions lists everyone in it ([Readable revision history](readable-revision-history.md#co-editing)). The publish dialog names everyone in each revision's `edited_by`, or its author when that is null, on the revisions since the live one.
 
 ### Client resets and recovery revisions
 
@@ -338,9 +339,9 @@ A site can run several Node.js processes on one database, each with its own room
 - **Migrations** are additive and forward-only, with no backfill: `revisions.kind`, `revisions.edited_by`, and the room-storage tables, which every site database gets and only Node.js uses.
 - **API.** The revisions list gains `editedBy`, and the content `PUT` doesn't change. Two routes are new: joining a room, and recovery revisions. The lock route reports an open room in a new `room` field, and its `POST` then deletes user locks instead of granting one. While a room is open, editor-draft requests skip the `baseRevision` check, and the editor refuses a plugin's patch only when a field it changes was edited after the capture, not after any edit. `ContentHookEvent` gains `editedBy`. A room's save can hold other people's edits under the actor's name, so a hook that checks the actor's role before accepting content must check everyone in it. In a room, `content:beforeSave` hooks get only the fields a checkpoint changed, as they already do for visual-editor saves.
 - **Locks.** The editor takes no edit lock in a room. While a room is open, writes that today get `ENTRY_LOCKED` land and merge. Writers that send `_rev` can get more `409 CONFLICT`, and so can tabs opened before co-editing was on, which keep single-editor mode until they reload. MCP publish, unpublish, schedule and discard, which require `_rev`, conflict whenever the room holds unsaved edits, and `content_update` with a `status` keeps its field changes when that publish or unpublish conflicts.
-- **The autosave fix** applies to every site: autosaves stop deleting revisions that manual saves created.
+- **The autosave fix** applies to every site: autosaves stop deleting revisions that manual saves created, and an autosave keeps the names of the revision it replaces.
 - **Turning co-editing off** takes effect when the site restarts or redeploys, and clients reset to single-editor mode. Older EmDash versions ignore the new columns and tables.
-- **Site transfer** skips recovery revisions, which the target site couldn't tell apart from other revisions, and doesn't carry the new revision columns or room storage.
+- **Site transfer** skips recovery revisions, which the target site couldn't tell apart from other revisions, and doesn't carry the new revision columns or room storage, so transferred versions name only their author.
 - This RFC amends [Readable revision history](readable-revision-history.md#co-editing). **Deprecations:** none.
 
 ## Security and privacy
@@ -379,7 +380,7 @@ Rooms log with the `[co-editing]` prefix. Operators turn co-editing off with the
 
 - **Unit and property tests:** coverage, including delete-only edits; compaction; the lineage, stale-room and fingerprint rules; and the merge rule, including two outside writes to one field between saves, a write after a restore, and an unrecorded save.
 - **A fixed-seed convergence harness** runs clients with the editor's real schema and plugins against a room, through random edits, delivery orders, drops and reconnects, restarts that lose unstored updates, a second Node.js process taking over a stalled room, unrecorded saves, outside writes and operations. Each run checks that replicas converge, each checkpoint contains the one before it, no covered edit is lost, and no rich text is duplicated.
-- **workerd tests** for hibernation, restarts, the timers and storage failures, and **integration tests** on SQLite, libSQL and PostgreSQL for the join route, room saves, notifications from every writer, the recovery route, the autosave fix, and two Node.js processes sharing one database.
+- **workerd tests** for hibernation, restarts, the timers and storage failures, and **integration tests** on SQLite, libSQL and PostgreSQL for the join route, room saves, notifications from every writer, the recovery route, the autosave fix and the names it carries over, and two Node.js processes sharing one database.
 - **Playwright tests:** the [Example](#example), two tabs of one user, a viewer, a Contributor after a publish, restore and discard while others type, a reset, outside writes appearing live, and a blocked WebSocket falling back to single-editor mode. A manual pass covers a screen reader, a keyboard, Arabic and phone width.
 
 ### Acceptance gates
@@ -533,7 +534,7 @@ Sockets and timers come from the host.
 | Change                                                                                                                                                     | Purpose                                                                                       |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `revisions.kind`, a nullable text: `autosave`, `recovery`, or null for a kept revision                                                                     | Autosaves replace only autosaves, and restoring a recovery revision runs validation and hooks |
-| `revisions.edited_by`, a nullable JSON list of user IDs                                                                                                    | Who edited a revision                                                                         |
+| `revisions.edited_by`, a nullable JSON list of user IDs                                                                                                    | Who edited a revision since the one before it. Null means its author alone.                   |
 | `_emdash_room_updates`: `room_id`, `seq`, `part` and `data` (a blob on SQLite, `bytea` on PostgreSQL), with primary key (`room_id`, `seq`, `part`)         | Room storage: updates and compacted state                                                     |
 | `_emdash_rooms`: `room_id`, `part`, a nullable `record` (JSON), a nullable `host` and `claimed_at`, and `updated_at`, with primary key (`room_id`, `part`) | Room storage: the room record, and on Node.js the room's claim                                |
 
