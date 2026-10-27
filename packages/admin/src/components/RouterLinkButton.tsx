@@ -23,12 +23,14 @@
  * `LinkButton` directly with `external`.
  */
 
-import { type LinkButtonProps, buttonVariants } from "@cloudflare/kumo";
-import { type Icon } from "@phosphor-icons/react";
+import {
+	LinkButton,
+	LinkProvider,
+	type LinkButtonProps,
+	type LinkComponentProps,
+} from "@cloudflare/kumo";
 import { Link, type LinkProps } from "@tanstack/react-router";
 import * as React from "react";
-
-import { cn } from "../lib/utils";
 
 type ButtonStyleProps = Pick<LinkButtonProps, "variant" | "size" | "shape" | "icon">;
 
@@ -39,34 +41,37 @@ export type RouterLinkButtonProps = Omit<LinkProps, "children"> &
 		onClick?: React.MouseEventHandler<HTMLAnchorElement>;
 	};
 
+// Kumo's primary and destructive styles need the CSS variables and inner
+// markup that only its own components render, so the button is drawn by
+// `LinkButton` and only its anchor is swapped for the router's `Link`.
+const RouterAnchor = React.forwardRef<HTMLAnchorElement, LinkComponentProps>(function RouterAnchor(
+	{ href: _href, ...props },
+	ref,
+) {
+	return <Link ref={ref} {...(props as LinkProps)} />;
+});
+
 export function RouterLinkButton({
 	className,
-	variant,
+	variant = "secondary",
 	size,
 	shape,
 	icon,
 	children,
 	...linkProps
 }: RouterLinkButtonProps) {
-	const iconNode = renderIcon(icon);
 	return (
-		<Link
-			{...(linkProps as LinkProps)}
-			className={cn(
-				buttonVariants({ variant, size, shape }),
-				"flex items-center no-underline!",
-				className,
-			)}
-		>
-			{iconNode}
-			{children}
-		</Link>
+		<LinkProvider component={RouterAnchor}>
+			<LinkButton
+				{...linkProps}
+				variant={variant}
+				size={size}
+				shape={shape}
+				icon={icon}
+				className={className}
+			>
+				{children}
+			</LinkButton>
+		</LinkProvider>
 	);
-}
-
-function renderIcon(icon: Icon | React.ReactNode | undefined): React.ReactNode {
-	if (!icon) return null;
-	if (React.isValidElement(icon)) return icon;
-	const Comp = icon as React.ComponentType<Record<string, unknown>>;
-	return <Comp />;
 }
