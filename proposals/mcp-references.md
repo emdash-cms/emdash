@@ -24,9 +24,9 @@ On our site the owner writes posts from Claude and ChatGPT through MCP. Every on
 
 ```json
 {
-  "collection": "routes",
-  "data": { "title": "עין חניה" },
-  "references": { "region": ["01J…"] }
+	"collection": "routes",
+	"data": { "title": "עין חניה" },
+	"references": { "region": ["01J…"] }
 }
 ```
 
