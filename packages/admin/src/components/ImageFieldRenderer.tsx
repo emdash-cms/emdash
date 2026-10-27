@@ -22,18 +22,20 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchMediaItem, type MediaItem } from "../lib/api";
+import { fetchMediaItem, type MediaItem, type MediaUpdateInput } from "../lib/api";
 import {
 	canonicalMediaProviderId,
 	getMediaObjectPosition,
 	getMediaPreviewUrl,
 	localMediaFileUrl,
 	metaString,
+	syncMediaCaption,
 } from "../lib/media-utils.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
 import { MediaPickerModal } from "./MediaPickerModal";
+import { OptionalLabel } from "./OptionalLabel.js";
 
 /**
  * Image field value - matches emdash's MediaValue type
@@ -49,6 +51,7 @@ export interface ImageFieldValue {
 	filename?: string;
 	mimeType?: string;
 	alt?: string;
+	caption?: string;
 	width?: number;
 	height?: number;
 	focalX?: number;
@@ -67,7 +70,7 @@ export interface ImageFieldValue {
  * Admin preview URL for a stored value: `previewUrl` for external providers,
  * `src` for legacy data, otherwise the local media file route.
  */
-function mediaDisplayUrl(value: ImageFieldValue | string | undefined): string | undefined {
+export function mediaDisplayUrl(value: ImageFieldValue | string | undefined): string | undefined {
 	if (typeof value === "string") return value;
 	if (!value) return undefined;
 	if (value.previewUrl || value.src) return value.previewUrl || value.src;
@@ -83,12 +86,13 @@ function mediaItemToImageFieldValue(item: MediaItem): ImageFieldValue {
 	const provider = canonicalMediaProviderId(item.provider);
 	const isLocalProvider = provider === "local";
 	const isDirectUrl = provider === "external";
-	return {
+	return syncMediaCaption({
 		id: item.id,
 		provider,
 		src: isDirectUrl ? item.url : undefined,
 		previewUrl: !isLocalProvider && !isDirectUrl ? item.url : undefined,
 		alt: item.alt || "",
+		caption: item.caption ?? metaString(item.meta, "caption"),
 		width: item.width,
 		height: item.height,
 		focalX: item.focalX ?? undefined,
@@ -98,7 +102,7 @@ function mediaItemToImageFieldValue(item: MediaItem): ImageFieldValue {
 		blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
 		dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
 		meta: isLocalProvider ? { ...item.meta, storageKey: item.storageKey } : item.meta,
-	};
+	});
 }
 
 export interface ImageFieldRendererProps {
@@ -108,6 +112,7 @@ export interface ImageFieldRendererProps {
 	value: ImageFieldValue | string | undefined;
 	onChange: (value: ImageFieldValue | null) => void;
 	required?: boolean;
+	showOptional?: boolean;
 	allowedMimeTypes?: string[];
 	fieldId?: string;
 	variant?: "default" | "featured";
@@ -122,6 +127,7 @@ export function ImageFieldRenderer({
 	value,
 	onChange,
 	required,
+	showOptional,
 	allowedMimeTypes,
 	fieldId,
 	variant = "default",
@@ -147,14 +153,23 @@ export function ImageFieldRenderer({
 				: undefined;
 	const darkValue = objectValue?.darkVariant;
 	const handleAssetItemChanged = React.useCallback(
-		(item: MediaItem) => {
+		(item: MediaItem, metadataChanges?: MediaUpdateInput) => {
+			const currentUsage = pickerTarget === "darkVariant" ? darkValue : objectValue;
+			const caption = currentUsage?.caption ?? metaString(currentUsage?.meta, "caption");
 			const selected = mediaItemToImageFieldValue(item);
+			if (caption !== undefined && metadataChanges?.caption === undefined) {
+				selected.caption = caption;
+			}
+			if (currentUsage?.meta && Object.hasOwn(currentUsage.meta, "caption")) {
+				selected.meta = { ...selected.meta, caption: selected.caption };
+			}
+			const updated = syncMediaCaption(selected);
 			setEditedContentHashes((current) => ({ ...current, [item.id]: item.contentHash }));
 			if (pickerTarget === "darkVariant") {
-				if (objectValue) onChange({ ...objectValue, darkVariant: selected });
+				if (objectValue) onChange({ ...objectValue, darkVariant: updated });
 				return;
 			}
-			onChange(darkValue ? { ...selected, darkVariant: darkValue } : selected);
+			onChange(darkValue ? { ...updated, darkVariant: darkValue } : updated);
 		},
 		[darkValue, objectValue, onChange, pickerTarget],
 	);
@@ -502,6 +517,8 @@ export function ImageFieldRenderer({
 		</LayerCard>
 	) : null;
 
+	const labelContent = showOptional ? <OptionalLabel>{label}</OptionalLabel> : label;
+
 	return (
 		// The featured card lays out by its own width, which the editor's column keeps well below the viewport's.
 		<div id={id} className={isFeatured ? "grid gap-2 @container/featured" : "grid gap-2"}>
@@ -511,10 +528,10 @@ export function ImageFieldRenderer({
 					helpLabel={t`More information about ${label}`}
 					labelClassName="text-base font-medium text-kumo-default"
 				>
-					{label}
+					{labelContent}
 				</FieldHelpLabel>
 			) : (
-				<Label>{label}</Label>
+				<Label>{labelContent}</Label>
 			)}
 			{isFeatured && displayUrl ? (
 				featuredCard

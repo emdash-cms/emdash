@@ -6,7 +6,7 @@ import { ContentRepository } from "../../database/repositories/content.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import type { ContentItem } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
-import { getI18nConfig } from "../../i18n/config.js";
+import { getI18nConfig, resolveConfiguredLocale } from "../../i18n/config.js";
 import { localizePath, resolveLocalizedContentRoutePath } from "../../i18n/resolve.js";
 import { SchemaRegistry } from "../../schema/registry.js";
 import { compileUrlPattern } from "../../schema/url-pattern.js";
@@ -155,7 +155,9 @@ export async function handleBulkTag(
 		for (const [key, group] of slugNeeds) {
 			bySlug.set(
 				key,
-				await content.findManyBySlugsInLocale(group.collection, [...group.slugs], group.locale),
+				await content.findManyBySlugsInLocale(group.collection, [...group.slugs], group.locale, {
+					publishedOnly: true,
+				}),
 			);
 		}
 		const prepared: Array<{
@@ -175,7 +177,13 @@ export async function handleBulkTag(
 							: bySlug
 									.get(`${candidate.collection.slug}:${candidate.locale}`)
 									?.get(candidate.identifier);
-					if (!item || item.locale !== candidate.locale || item.status !== "published") continue;
+					if (
+						!item ||
+						item.locale === null ||
+						resolveConfiguredLocale(item.locale) !== resolveConfiguredLocale(candidate.locale) ||
+						item.status !== "published"
+					)
+						continue;
 					const canonical = await resolveLocalizedContentRoutePath({
 						pattern: candidate.collection.urlPattern ?? `/${candidate.collection.slug}/{slug}`,
 						collection: candidate.collection.slug,

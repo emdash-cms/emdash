@@ -6,11 +6,6 @@ import type { Block } from "../src/types.js";
 
 afterEach(cleanup);
 
-// Uses the real Kumo components, not mocks: the fix relies on Button passing `type` and
-// `onClick` to the native <button>, and on Input keeping `min`/`max` for validation.
-
-// The admin renders plugin editor panels inside the content editor's own <form>,
-// so a Block Kit form there is nested in another form.
 const blocks: Block[] = [
 	{
 		type: "form",
@@ -29,12 +24,13 @@ describe("form block inside another form", () => {
 		const nativeSubmit = vi.fn();
 		document.addEventListener("submit", nativeSubmit, true);
 		try {
-			render(
+			const { container } = render(
 				<form onSubmit={outerSubmit}>
 					<BlockRenderer blocks={blocks} onAction={onAction} />
 				</form>,
 			);
 
+			expect(container.querySelector("form form")).toBeNull();
 			fireEvent.click(screen.getByRole("button", { name: "Save price" }));
 
 			expect(onAction).toHaveBeenCalledTimes(1);

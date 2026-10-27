@@ -1,4 +1,6 @@
-import { i18n } from "@lingui/core";
+import { Toasty } from "@cloudflare/kumo";
+import { i18n, setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
@@ -20,6 +22,7 @@ import {
 	publishingInstantToLocalFields,
 	resolvePublishingLocalDateTime,
 } from "../../src/lib/publishing-datetime.js";
+import { messages as enMessages } from "../../src/locales/en/messages.mjs";
 import { render } from "../utils/render.tsx";
 
 // Mock child components with their own data fetching so the panel tests
@@ -588,6 +591,97 @@ describe("ContentSettingsPanel", () => {
 		}
 	});
 
+	it("renders trusted and sandboxed panel titles without invoking Lingui's compiler", async () => {
+		const localI18n = setupI18n({ locale: "en", messages: { en: enMessages } });
+		localI18n.setMessagesCompiler(undefined as never);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const pluginAdmins: PluginAdmins = {
+			"trusted-insights": {
+				contentEditorPanels: [
+					{ id: "trusted", title: "Content insights", component: InsightsPanel },
+				],
+			},
+		};
+		const manifest: AdminManifest = {
+			...TEST_MANIFEST,
+			plugins: {
+				"trusted-insights": { enabled: true },
+				"sandbox-insights": {
+					enabled: true,
+					adminMode: "blocks",
+					editorPanels: [{ id: "sandboxed", title: "Sandbox insights", route: "/insights" }],
+				},
+			},
+		};
+
+		try {
+			const screen = await render(<ContentSettingsPanel {...makePanelProps({ manifest })} />, {
+				wrapper: ({ children }) => (
+					<I18nProvider i18n={localI18n}>
+						<Toasty>{pluginWrapper(pluginAdmins)({ children })}</Toasty>
+					</I18nProvider>
+				),
+			});
+
+			await expect
+				.element(screen.getByRole("heading", { name: "Content insights" }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Sandbox insights", exact: true }))
+				.toBeInTheDocument();
+			expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Content insights"));
+			expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Sandbox insights"));
+		} finally {
+			warn.mockRestore();
+		}
+	});
+
+	it("translates trusted and sandboxed panel titles found in the active catalog", async () => {
+		const localI18n = setupI18n({
+			locale: "en",
+			messages: {
+				en: {
+					...enMessages,
+					"Content insights": ["Inhaltsansicht"],
+					"Sandbox insights": ["Sandboxansicht"],
+				},
+			},
+		});
+		localI18n.setMessagesCompiler(undefined as never);
+		const pluginAdmins: PluginAdmins = {
+			"trusted-insights": {
+				contentEditorPanels: [
+					{ id: "trusted", title: "Content insights", component: InsightsPanel },
+				],
+			},
+		};
+		const manifest: AdminManifest = {
+			...TEST_MANIFEST,
+			plugins: {
+				"trusted-insights": { enabled: true },
+				"sandbox-insights": {
+					enabled: true,
+					adminMode: "blocks",
+					editorPanels: [{ id: "sandboxed", title: "Sandbox insights", route: "/insights" }],
+				},
+			},
+		};
+		const screen = await render(<ContentSettingsPanel {...makePanelProps({ manifest })} />, {
+			wrapper: ({ children }) => (
+				<I18nProvider i18n={localI18n}>
+					<Toasty>{pluginWrapper(pluginAdmins)({ children })}</Toasty>
+				</I18nProvider>
+			),
+		});
+
+		await expect
+			.element(screen.getByRole("heading", { name: "Inhaltsansicht" }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Sandboxansicht", exact: true }))
+			.toBeInTheDocument();
+	});
+
 	it("omits panels when their plugin is disabled or the entry is new", async () => {
 		const pluginAdmins: PluginAdmins = {
 			insights: {
@@ -1025,6 +1119,47 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.container.querySelector('[data-testid="taxonomy-sidebar"]')).toBeNull();
 		expect(screen.container.querySelector('[data-testid="seo-panel"]')).toBeNull();
 		expect(screen.container.querySelector('[data-testid="revision-history"]')).toBeNull();
+	});
+
+	it("keeps the saved section order when sections are reordered on a new entry", async () => {
+		const storageKey = "emdash:content-settings-layout:v1:u1:posts";
+		const savedLayout = JSON.stringify({
+			version: 1,
+			order: ["seo", "taxonomies", "url-language", "ownership", "bylines"],
+		});
+		window.localStorage.setItem(storageKey, savedLayout);
+		try {
+			const screen = await render(
+				<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
+			);
+			const headings = () =>
+				Array.from(
+					screen.container.querySelectorAll("section h3"),
+					(heading) => heading.textContent,
+				);
+			await expect.element(screen.getByRole("heading", { name: "Bylines" })).toBeVisible();
+			expect(headings().indexOf("Bylines")).toBeGreaterThan(headings().indexOf("Ownership"));
+
+			const handle = screen.getByRole("button", { name: "Drag to reorder Bylines" }).element();
+			handle.focus();
+			for (const [target, key, code] of [
+				[handle, " ", "Space"],
+				[document, "ArrowUp", "ArrowUp"],
+				[document, " ", "Space"],
+			] as const) {
+				await act(async () => {
+					fireEvent.keyDown(target, { key, code });
+					await new Promise((resolve) => setTimeout(resolve, 0));
+				});
+			}
+
+			await vi.waitFor(() =>
+				expect(headings().indexOf("Bylines")).toBeLessThan(headings().indexOf("Ownership")),
+			);
+			expect(window.localStorage.getItem(storageKey)).toBe(savedLayout);
+		} finally {
+			window.localStorage.removeItem(storageKey);
+		}
 	});
 
 	it("does not render an empty publishing summary for a new collection without drafts", async () => {

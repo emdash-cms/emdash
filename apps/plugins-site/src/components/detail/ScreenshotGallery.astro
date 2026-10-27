@@ -1,0 +1,470 @@
+---
+/**
+ * Release screenshots. Each thumbnail links to the full image; with
+ * JavaScript, it opens in a lightbox instead.
+ */
+import { detailIcons } from "./icons.js";
+
+interface Props {
+	screenshots: string[];
+	name: string;
+}
+
+const { screenshots, name } = Astro.props;
+const count = screenshots.length;
+---
+
+<div class="gallery" data-gallery data-name={name}>
+	<ul
+		class:list={["gallery-grid", { "gallery-grid--odd": count % 2 === 1 }]}
+		role="list"
+	>
+		{
+			screenshots.map((screenshot, index) => (
+				<li>
+					<a class="gallery-thumb" href={screenshot} data-gallery-thumb={index}>
+						<img
+							src={screenshot}
+							alt={`${name} screenshot ${index + 1}`}
+							loading="lazy"
+							decoding="async"
+							referrerpolicy="no-referrer"
+						/>
+						<span class="gallery-thumb-hint" aria-hidden="true">
+							<svg
+								viewBox="0 0 24 24"
+								focusable="false"
+								set:html={detailIcons.expand}
+							/>
+						</span>
+					</a>
+				</li>
+			))
+		}
+	</ul>
+
+	<dialog class="lightbox" data-lightbox aria-labelledby="lightbox-caption">
+		<div class="lightbox-stage" data-lightbox-stage>
+			<figure class="lightbox-figure" data-lightbox-figure>
+				<img
+					class="lightbox-image"
+					data-lightbox-image
+					alt=""
+					referrerpolicy="no-referrer"
+				/>
+			</figure>
+			<div class="lightbox-bar">
+				<button
+					class="btn btn-ghost btn-icon lightbox-step lightbox-step--prev"
+					type="button"
+					data-lightbox-prev
+					hidden={count < 2}
+				>
+					<svg
+						viewBox="0 0 24 24"
+						focusable="false"
+						aria-hidden="true"
+						set:html={detailIcons.chevronStart}
+					/>
+					<span class="visually-hidden">Previous</span>
+				</button>
+				<p
+					class="lightbox-caption"
+					id="lightbox-caption"
+					data-lightbox-caption
+					aria-live="polite"
+				>
+				</p>
+				<button
+					class="btn btn-ghost btn-icon lightbox-step lightbox-step--next"
+					type="button"
+					data-lightbox-next
+					hidden={count < 2}
+				>
+					<svg
+						viewBox="0 0 24 24"
+						focusable="false"
+						aria-hidden="true"
+						set:html={detailIcons.chevronEnd}
+					/>
+					<span class="visually-hidden">Next</span>
+				</button>
+			</div>
+		</div>
+		<button
+			class="btn btn-secondary btn-icon lightbox-close"
+			type="button"
+			data-lightbox-close
+			autofocus
+		>
+			<svg
+				viewBox="0 0 24 24"
+				focusable="false"
+				aria-hidden="true"
+				set:html={detailIcons.close}
+			/>
+			<span class="visually-hidden">Close</span>
+		</button>
+	</dialog>
+</div>
+
+<style>
+	.gallery-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 16px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	@media (min-width: 640px) {
+		.gallery-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.gallery-grid--odd > li:first-child {
+			grid-column: 1 / -1;
+		}
+	}
+
+	.gallery-thumb {
+		position: relative;
+		display: block;
+		overflow: hidden;
+		background: var(--surface-soft);
+		border: 1px solid var(--line);
+		border-radius: 14px;
+		box-shadow: var(--shadow-card);
+		transition:
+			border-color 150ms ease,
+			box-shadow 150ms ease;
+	}
+
+	@media (hover: hover) {
+		.gallery-thumb:hover {
+			border-color: var(--line-strong);
+			box-shadow: var(--shadow-card-hover);
+		}
+	}
+
+	.gallery-thumb img {
+		display: block;
+		width: 100%;
+		aspect-ratio: 16 / 10;
+		object-fit: cover;
+	}
+
+	/* Keeps an edge on screenshots whose own edge matches the card. */
+	.gallery-thumb::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 5%, transparent);
+		pointer-events: none;
+	}
+
+	.gallery-thumb-hint {
+		position: absolute;
+		inset-block-start: 10px;
+		inset-inline-end: 10px;
+		display: grid;
+		place-items: center;
+		width: 32px;
+		height: 32px;
+		color: var(--ink);
+		background: color-mix(in srgb, var(--surface) 86%, transparent);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-sm);
+		box-shadow: var(--shadow-sm);
+		opacity: 0;
+		backdrop-filter: blur(8px);
+		transition: opacity 150ms ease;
+	}
+
+	.gallery-thumb:focus-visible .gallery-thumb-hint {
+		opacity: 1;
+	}
+
+	@media (hover: hover) {
+		.gallery-thumb:hover .gallery-thumb-hint {
+			opacity: 1;
+		}
+	}
+
+	.gallery-thumb-hint svg,
+	.lightbox svg {
+		width: 16px;
+		height: 16px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.75;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	/* ---------- Lightbox ---------- */
+
+	.lightbox {
+		width: 100vw;
+		max-width: none;
+		height: 100dvh;
+		max-height: none;
+		margin: 0;
+		padding: 0;
+		color: var(--ink);
+		background: transparent;
+		border: 0;
+		overscroll-behavior: contain;
+	}
+
+	.lightbox::backdrop {
+		background: rgb(0 0 0 / 72%);
+		backdrop-filter: blur(6px);
+	}
+
+	.lightbox-stage {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 16px;
+		width: 100%;
+		height: 100%;
+		padding: 64px 16px 20px;
+	}
+
+	/* A fixed box, so the bar below stays put when screenshots differ in shape. */
+	.lightbox-figure {
+		display: flex;
+		flex: 1;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		min-height: 0;
+		margin: 0;
+	}
+
+	.lightbox-image {
+		display: block;
+		max-width: min(90vw, 80rem);
+		max-height: 100%;
+		width: auto;
+		height: auto;
+		object-fit: contain;
+		background: var(--surface-soft);
+		border-radius: var(--radius-md);
+		box-shadow:
+			0 0 0 1px rgb(255 255 255 / 10%),
+			0 24px 60px -20px rgb(0 0 0 / 60%);
+		touch-action: pan-y;
+		user-select: none;
+	}
+
+	.lightbox-bar {
+		display: flex;
+		flex: none;
+		align-items: center;
+		gap: 4px;
+		min-height: 44px;
+		padding: 4px;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-full);
+		box-shadow: var(--shadow-float);
+	}
+
+	.lightbox-step {
+		border-radius: var(--radius-full);
+	}
+
+	.lightbox-step:not([hidden]) + .lightbox-caption {
+		padding-inline: 4px;
+	}
+
+	.lightbox-caption {
+		margin: 0;
+		padding-inline: 14px;
+		color: var(--ink);
+		font-size: 14px;
+		font-weight: 500;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+	}
+
+	/* Its focus ring sits on the dark backdrop in both themes. */
+	.lightbox-close {
+		--accent-ink: #ff7a45;
+
+		position: absolute;
+		inset-block-start: 16px;
+		inset-inline-end: 16px;
+		width: 40px;
+		height: 40px;
+		min-height: 40px;
+		border-radius: var(--radius-full);
+	}
+
+	.lightbox-close svg {
+		width: 18px;
+		height: 18px;
+	}
+
+	.lightbox-step--prev:dir(rtl) svg,
+	.lightbox-step--next:dir(rtl) svg {
+		transform: scaleX(-1);
+	}
+
+	.lightbox [hidden] {
+		display: none;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.lightbox,
+		.lightbox::backdrop {
+			transition:
+				opacity 140ms ease-in,
+				transform 140ms ease-in,
+				overlay 140ms ease-in allow-discrete,
+				display 140ms ease-in allow-discrete;
+		}
+
+		.lightbox[open],
+		.lightbox[open]::backdrop {
+			transition-duration: 200ms;
+			transition-timing-function: var(--ease-out);
+		}
+
+		.lightbox:not([open]) {
+			opacity: 0;
+			transform: scale(0.98);
+		}
+
+		.lightbox:not([open])::backdrop {
+			opacity: 0;
+		}
+
+		@starting-style {
+			.lightbox[open] {
+				opacity: 0;
+				transform: scale(0.98);
+			}
+
+			.lightbox[open]::backdrop {
+				opacity: 0;
+			}
+		}
+
+		.lightbox-image {
+			transition: opacity 120ms ease;
+		}
+
+		.lightbox-image[data-loading] {
+			opacity: 0.4;
+		}
+	}
+</style>
+
+<script>
+	function setUpGallery(gallery: HTMLElement) {
+		const dialog = gallery.querySelector<HTMLDialogElement>("[data-lightbox]");
+		const image = dialog?.querySelector<HTMLImageElement>(
+			"[data-lightbox-image]",
+		);
+		const caption = dialog?.querySelector<HTMLElement>(
+			"[data-lightbox-caption]",
+		);
+		const stage = dialog?.querySelector<HTMLElement>("[data-lightbox-stage]");
+		const figure = dialog?.querySelector<HTMLElement>("[data-lightbox-figure]");
+		const thumbs = [
+			...gallery.querySelectorAll<HTMLAnchorElement>("[data-gallery-thumb]"),
+		];
+		if (!dialog || !image || !caption || thumbs.length === 0) return;
+
+		const name = gallery.dataset.name ?? "";
+		let current = 0;
+
+		function show(index: number) {
+			if (!image || !caption) return;
+			const count = thumbs.length;
+			current = (index + count) % count;
+			const thumb = thumbs[current];
+			if (!thumb) return;
+			image.setAttribute("data-loading", "");
+			image.src = thumb.href;
+			image.alt = `${name} screenshot ${current + 1}`;
+			caption.textContent = `Screenshot ${current + 1} of ${count}`;
+		}
+
+		image.addEventListener("load", () => image.removeAttribute("data-loading"));
+		image.addEventListener("error", () =>
+			image.removeAttribute("data-loading"),
+		);
+
+		const isRtl = () => getComputedStyle(dialog).direction === "rtl";
+
+		thumbs.forEach((thumb, index) => {
+			thumb.addEventListener("click", (event) => {
+				if (
+					event.button !== 0 ||
+					event.metaKey ||
+					event.ctrlKey ||
+					event.shiftKey ||
+					event.altKey
+				) {
+					return;
+				}
+				event.preventDefault();
+				show(index);
+				dialog.showModal();
+			});
+		});
+
+		dialog
+			.querySelector("[data-lightbox-prev]")
+			?.addEventListener("click", () => show(current - 1));
+		dialog
+			.querySelector("[data-lightbox-next]")
+			?.addEventListener("click", () => show(current + 1));
+		dialog
+			.querySelector("[data-lightbox-close]")
+			?.addEventListener("click", () => dialog.close());
+
+		dialog.addEventListener("keydown", (event) => {
+			if (thumbs.length < 2) return;
+			if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+			event.preventDefault();
+			const forward = (event.key === "ArrowRight") !== isRtl();
+			show(current + (forward ? 1 : -1));
+		});
+
+		dialog.addEventListener("click", (event) => {
+			const target = event.target;
+			if (target === dialog || target === stage || target === figure) {
+				dialog.close();
+			}
+		});
+
+		let swipeStart: number | undefined;
+		image.addEventListener("pointerdown", (event) => {
+			if (event.pointerType !== "mouse") swipeStart = event.clientX;
+		});
+		image.addEventListener("pointerup", (event) => {
+			if (swipeStart === undefined || thumbs.length < 2) return;
+			const distance = event.clientX - swipeStart;
+			swipeStart = undefined;
+			if (Math.abs(distance) < 40) return;
+			const forward = distance < 0 !== isRtl();
+			show(current + (forward ? 1 : -1));
+		});
+
+		dialog.addEventListener("close", () => {
+			thumbs[current]?.focus();
+		});
+	}
+
+	document
+		.querySelectorAll<HTMLElement>("[data-gallery]")
+		.forEach(setUpGallery);
+</script>

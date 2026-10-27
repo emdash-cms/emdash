@@ -5,6 +5,7 @@ import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
+import { build, createServer } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -95,6 +96,79 @@ describe("createViteConfig admin aliasing", () => {
 	});
 });
 
+describe("createViteConfig Lingui singleton aliases", () => {
+	const projectDir = mkdtempSync(join(tmpdir(), "emdash-lingui-resolver-"));
+	const providerDir = join(projectDir, "node_modules", "provider");
+	const adminRequire = createRequire(import.meta.url);
+	const adminDistPath = dirname(adminRequire.resolve("@emdash-cms/admin"));
+	const adminPackageRequire = createRequire(resolve(adminDistPath, "index.js"));
+	const adminLinguiReactPath = dirname(adminPackageRequire.resolve("@lingui/react/package.json"));
+	const adminLinguiCorePath = dirname(adminPackageRequire.resolve("@lingui/core/package.json"));
+
+	beforeAll(() => {
+		mkdirSync(providerDir, { recursive: true });
+		writeFileSync(join(projectDir, "package.json"), '{"private":true}');
+		writeFileSync(join(providerDir, "index.js"), 'import "@lingui/react";\n');
+		for (const packageName of ["react", "core"]) {
+			const packageDir = join(providerDir, "node_modules", "@lingui", packageName);
+			mkdirSync(packageDir, { recursive: true });
+			writeFileSync(
+				join(packageDir, "package.json"),
+				JSON.stringify({ name: `@lingui/${packageName}`, version: "secondary" }),
+			);
+			writeFileSync(join(packageDir, "index.js"), "export const secondary = true;\n");
+		}
+	});
+
+	afterAll(() => {
+		rmSync(projectDir, { recursive: true, force: true });
+	});
+
+	for (const command of ["dev", "build"] as const) {
+		it(`resolves Lingui imports to the admin copy in ${command} mode`, async () => {
+			const config = createViteConfig(
+				{
+					serializableConfig: {},
+					resolvedConfig: {} as never,
+					pluginDescriptors: [],
+					astroConfig: {
+						root: pathToFileURL(`${projectDir}/`),
+						adapter: { name: "@astrojs/node" },
+					} as AstroConfig,
+				},
+				command,
+			);
+			const server = await createServer({
+				root: projectDir,
+				logLevel: "silent",
+				resolve: config.resolve,
+				optimizeDeps: { disabled: true },
+			});
+
+			try {
+				const resolveFrom = async (specifier: string, importer: string) => {
+					const result = await server.pluginContainer.resolveId(specifier, importer);
+					if (!result) throw new Error(`Could not resolve ${specifier}`);
+					return typeof result === "string" ? result : result.id;
+				};
+				const adminImporter = join(adminDistPath, "index.js");
+				const providerImporter = join(providerDir, "index.js");
+
+				const adminReact = await resolveFrom("@lingui/react", adminImporter);
+				const providerReact = await resolveFrom("@lingui/react", providerImporter);
+				const providerCoreMacro = await resolveFrom("@lingui/core/macro", providerImporter);
+
+				expect(adminReact).toBe(providerReact);
+				expect(adminReact).toContain(adminLinguiReactPath);
+				expect(providerCoreMacro).toContain(adminLinguiCorePath);
+				expect(providerCoreMacro).not.toContain(join(providerDir, "node_modules"));
+			} finally {
+				await server.close();
+			}
+		});
+	}
+});
+
 describe("createViteConfig use-sync-external-store shim aliasing", () => {
 	const externalProjectRoot = new URL("file:///workspace/emdash-site/");
 
@@ -131,6 +205,41 @@ describe("createViteConfig use-sync-external-store shim aliasing", () => {
 		}
 		return alias.replacement;
 	}
+
+	it.each([
+		["use-sync-external-store/shim", "useSyncExternalStore"],
+		["use-sync-external-store/shim/index.js", "useSyncExternalStore"],
+		["use-sync-external-store/shim/with-selector", "useSyncExternalStoreWithSelector"],
+		["use-sync-external-store/shim/with-selector.js", "useSyncExternalStoreWithSelector"],
+	])("bundles default and named imports from %s", async (specifier, hook) => {
+		const config = buildConfig("@astrojs/node");
+		const entry = resolve("shim-consumer.js");
+
+		await expect(
+			build({
+				configFile: false,
+				logLevel: "silent",
+				resolve: config.resolve,
+				plugins: [
+					{
+						name: "shim-consumer",
+						resolveId: (id) => (id === entry ? entry : null),
+						load: (id) =>
+							id === entry
+								? `import hooks, { ${hook} } from "${specifier}";
+export const named = ${hook};
+export const fromDefault = hooks.${hook};`
+								: null,
+					},
+				],
+				build: {
+					write: false,
+					lib: { entry, formats: ["es"], fileName: "shim-consumer" },
+					rollupOptions: { external: ["react"] },
+				},
+			}),
+		).resolves.toBeDefined();
+	});
 
 	// Regression: with pnpm + React 18+, @tiptap/react pulls in
 	// `use-sync-external-store/shim` (CJS). Vite can't pre-bundle from the

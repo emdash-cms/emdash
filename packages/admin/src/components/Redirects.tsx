@@ -26,7 +26,7 @@ import type {
 	Redirect,
 	UpdateRedirectInput,
 } from "../lib/api/redirects.js";
-import { cn } from "../lib/utils.js";
+import { cn, formatDate } from "../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ArrowNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
@@ -131,6 +131,7 @@ function RedirectFormDialog({
 
 				<form onSubmit={handleSubmit} className="space-y-4">
 					<Input
+						dir="ltr"
 						label={t`Source path`}
 						placeholder={t`/old-page or /blog/[slug]`}
 						value={source}
@@ -140,6 +141,7 @@ function RedirectFormDialog({
 
 					{!isTerminal && (
 						<Input
+							dir="ltr"
 							label={t`Destination path`}
 							placeholder={t`/new-page or /articles/[slug]`}
 							value={destination}
@@ -213,7 +215,7 @@ function NotFoundPanel({
 	onCreateRedirect: (path: string) => void;
 	onMarkGone: (path: string) => void;
 }) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 
 	if (items.length === 0) {
 		return (
@@ -234,12 +236,18 @@ function NotFoundPanel({
 					key={item.path}
 					className="flex items-center gap-4 py-2 px-4 border-b last:border-0 text-sm"
 				>
-					<div className="flex-1 font-mono text-xs truncate">{item.path}</div>
+					<div className="flex-1 font-mono text-xs truncate">
+						<bdi dir="ltr">{item.path}</bdi>
+					</div>
 					<div className="w-16 text-end tabular-nums">{item.count}</div>
 					<div className="w-32 text-kumo-subtle text-xs">
 						{(() => {
 							const d = new Date(item.lastSeen);
-							return Number.isNaN(d.getTime()) ? item.lastSeen : d.toLocaleDateString();
+							return Number.isNaN(d.getTime()) ? (
+								item.lastSeen
+							) : (
+								<bdi>{formatDate(d, i18n.locale)}</bdi>
+							);
 						})()}
 					</div>
 					<div className="w-20 flex items-center justify-end gap-3">
@@ -498,13 +506,13 @@ export function Redirects() {
 										)}
 									>
 										<div className="flex-1 font-mono text-xs truncate" title={r.source}>
-											{r.source}
+											<bdi dir="ltr">{r.source}</bdi>
 										</div>
 										<div className="w-8 text-center text-kumo-subtle">
 											<ArrowNext size={14} />
 										</div>
 										<div className="flex-1 font-mono text-xs truncate" title={r.destination}>
-											{r.destination}
+											<bdi dir="ltr">{r.destination}</bdi>
 										</div>
 										<div className="w-14 text-center">
 											<Badge variant="secondary">{r.type}</Badge>

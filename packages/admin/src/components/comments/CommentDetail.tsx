@@ -12,6 +12,7 @@ import * as React from "react";
 import type { ComponentProps } from "react";
 
 import type { AdminComment, CommentStatus } from "../../lib/api/comments.js";
+import { formatDate } from "../../lib/utils.js";
 
 export interface CommentDetailProps {
 	comment: AdminComment;
@@ -30,7 +31,7 @@ export function CommentDetail({
 	isAdmin,
 	isStatusPending,
 }: CommentDetailProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 
 	// Close on Escape
 	React.useEffect(() => {
@@ -67,7 +68,9 @@ export function CommentDetail({
 					<div className="flex items-center justify-between">
 						<CommentStatusBadge status={comment.status} />
 						<span className="text-sm text-kumo-subtle">
-							{date.toLocaleDateString()} {date.toLocaleTimeString()}
+							<bdi>
+								{formatDate(date, i18n.locale, { dateStyle: "medium", timeStyle: "short" })}
+							</bdi>
 						</span>
 					</div>
 
@@ -108,14 +111,14 @@ export function CommentDetail({
 						</p>
 						<p className="text-sm">
 							<span className="text-kumo-subtle">{t`Content ID:`}</span>{" "}
-							<code className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
+							<code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
 								{comment.contentId}
 							</code>
 						</p>
 						{comment.parentId && (
 							<p className="text-sm">
 								<span className="text-kumo-subtle">{t`Reply to:`}</span>{" "}
-								<code className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
+								<code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
 									{comment.parentId}
 								</code>
 							</p>
@@ -128,7 +131,7 @@ export function CommentDetail({
 							<h3 className="text-sm font-semibold text-kumo-subtle uppercase tracking-wider">
 								{t`Moderation Signals`}
 							</h3>
-							<pre className="text-xs bg-kumo-tint rounded p-3 overflow-x-auto">
+							<pre dir="ltr" className="text-xs bg-kumo-tint rounded p-3 overflow-x-auto">
 								{JSON.stringify(comment.moderationMetadata, null, 2)}
 							</pre>
 						</div>

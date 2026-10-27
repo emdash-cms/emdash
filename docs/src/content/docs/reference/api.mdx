@@ -16,6 +16,7 @@ The maintained templates call these runtime helpers:
 | Function | Used for |
 | -------- | -------- |
 | `decodeSlug` | Decoding a dynamic route parameter before lookup |
+| `getContentSeo` | Reading an entry's SEO panel values without template fallbacks |
 | `getEmDashCollection` | Reading and filtering entries in a collection |
 | `getEmDashEntry` | Reading one entry by ID or slug |
 | `getMenuWithCacheHint` | Rendering a navigation menu with cache invalidation |
@@ -85,7 +86,7 @@ The function resolves to a `CollectionResult`:
 interface CollectionResult<T> {
 	entries: ContentEntry<T>[]; // Empty array if error or none found
 	error?: Error; // Set if query failed
-	cacheHint: CacheHint; // Tags and last-modified time for Astro route caching
+	cacheHint: CacheHint; // Purge tags for Astro route caching
 	nextCursor?: string; // Cursor for the next keyset page, if any
 	hasMore?: boolean; // Whether more entries exist beyond this page (when `limit` is set)
 }
@@ -166,7 +167,7 @@ interface EntryResult<T, R> {
 	error?: Error; // Set only for actual errors, not "not found"
 	isPreview: boolean; // true if draft content is being served
 	fallbackLocale?: string; // Set when locale fallback returned another locale
-	cacheHint: CacheHint; // Tags and last-modified time for Astro route caching
+	cacheHint: CacheHint; // Purge tags for Astro route caching
 }
 ```
 

@@ -8,6 +8,9 @@
  * wording is verified by the integration test in init-scaffold.test.ts.
  */
 
+import { readFileSync } from "node:fs";
+
+import semver from "semver";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -196,8 +199,21 @@ describe("renderPackageJson", () => {
 		const parsed = JSON.parse(renderPackageJson(FULL_INPUTS));
 		expect(parsed.packageManager).toBe("npm@11.6.2");
 		expect(parsed.devDependencies["@emdash-cms/plugin-cli"]).toBe("0.10.0");
-		expect(parsed.devDependencies["@emdash-cms/plugin-test"]).toBe("^0.1.0");
-		expect(parsed.devDependencies.emdash).toBe(">=0.12.0 <1.0.0");
+	});
+
+	it("accepts the current emdash and plugin-test releases as devDependencies", () => {
+		const parsed = JSON.parse(renderPackageJson(FULL_INPUTS));
+		const current = (dir: string): string =>
+			JSON.parse(readFileSync(new URL(`../../${dir}/package.json`, import.meta.url), "utf8"))
+				.version;
+		expect(
+			semver.satisfies(current("core"), parsed.devDependencies.emdash, { includePrerelease: true }),
+		).toBe(true);
+		expect(
+			semver.satisfies(current("plugin-test"), parsed.devDependencies["@emdash-cms/plugin-test"], {
+				includePrerelease: true,
+			}),
+		).toBe(true);
 	});
 
 	it("ships npm-shape main/exports/files so the plugin is pnpm-add-able", () => {

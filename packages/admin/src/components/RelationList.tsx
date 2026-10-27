@@ -179,7 +179,9 @@ function RelationRow({
 	return (
 		<tr className="hover:bg-kumo-tint/25">
 			<td className="px-4 py-3">
-				<code className="text-sm font-medium">{relation.slug}</code>
+				<code dir="ltr" className="text-sm font-medium">
+					{relation.slug}
+				</code>
 			</td>
 			<td className="px-4 py-3">
 				<div className="flex items-center gap-2 text-sm">
@@ -198,7 +200,7 @@ function RelationRow({
 					<ul className="space-y-1">
 						{relation.boundFields.map((bound) => (
 							<li key={`${bound.collectionSlug}.${bound.fieldSlug}`} className="text-sm">
-								<code className="bg-kumo-tint px-1.5 py-0.5 rounded">
+								<code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded">
 									{bound.collectionSlug}.{bound.fieldSlug}
 								</code>
 								<span className="ms-2 text-xs text-kumo-subtle">

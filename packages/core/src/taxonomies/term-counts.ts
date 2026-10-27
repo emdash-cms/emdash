@@ -19,6 +19,7 @@ import { sql } from "kysely";
 import { buildStatusCondition, compoundSelectLimit } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import { localeMatches } from "../i18n/query.js";
 import {
 	filterToRegisteredCollections,
 	noteStaleRegisteredCollections,
@@ -60,7 +61,7 @@ function collectionBranch(
 		WHERE e.translation_group = ct.entry_id
 			AND ct.collection = ${collection}
 			AND ct.taxonomy_id IN (SELECT translation_group FROM taxonomies WHERE name = ${taxonomyName})
-			${locale ? sql`AND e.locale = ${locale}` : sql``}
+			${locale ? sql`AND ${localeMatches("e.locale", locale)}` : sql``}
 			AND ${buildStatusCondition(db, "published", "e")}
 			AND e.deleted_at IS NULL
 		GROUP BY ct.taxonomy_id`;

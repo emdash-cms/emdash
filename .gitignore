@@ -1,6 +1,9 @@
 # build output
 dist/
 
+# package archives
+*.tgz
+
 # generated types
 .astro/
 

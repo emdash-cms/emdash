@@ -5,6 +5,7 @@
  * Handles spam protection, validation, file uploads, notifications, and webhooks.
  */
 
+import { z } from "astro/zod";
 import type { RouteContext, StorageCollection } from "emdash";
 import { after, PluginRouteError } from "emdash";
 import { ulid } from "ulidx";
@@ -220,6 +221,17 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		lastSubmissionAt: new Date().toISOString(),
 	});
 
+	// The submitter's address, from the form's first email field (already validated): the recipient
+	// of the autoresponder.
+	const emailField = allFields.find((f) => f.type === "email");
+	const emailValue = emailField ? result.data[emailField.name] : undefined;
+	const submitterEmail = typeof emailValue === "string" && emailValue ? emailValue : undefined;
+	// The reply address of the notifications, only when it's a plain address. The field's own check
+	// lets through values like `"IT-Support"<someone@example.com>` or `jane@example.com,`, which
+	// would show the team a made-up name or get the notification rejected.
+	const replyTo =
+		submitterEmail && z.email().safeParse(submitterEmail).success ? submitterEmail : undefined;
+
 	// 7. Immediate email notifications (not digest)
 	if (settings.notifyEmails.length > 0 && !settings.digestEnabled && ctx.email) {
 		const text = formatSubmissionText(form, result.data, files);
@@ -229,6 +241,8 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 					to: email,
 					subject: `New submission: ${form.name}`,
 					text,
+					// Replying to the notification reaches the submitter, not the site's sender address.
+					...(replyTo ? { replyTo } : {}),
 				})
 				.catch((err: unknown) => {
 					ctx.log.error("Failed to send notification email", {
@@ -240,20 +254,16 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 	}
 
 	// 8. Autoresponder
-	if (settings.autoresponder && ctx.email) {
-		const emailField = allFields.find((f) => f.type === "email");
-		const submitterEmail = emailField ? result.data[emailField.name] : null;
-		if (typeof submitterEmail === "string" && submitterEmail) {
-			await ctx.email
-				.send({
-					to: submitterEmail,
-					subject: settings.autoresponder.subject,
-					text: settings.autoresponder.body,
-				})
-				.catch((err: unknown) => {
-					ctx.log.error("Failed to send autoresponder", { error: String(err) });
-				});
-		}
+	if (settings.autoresponder && ctx.email && submitterEmail) {
+		await ctx.email
+			.send({
+				to: submitterEmail,
+				subject: settings.autoresponder.subject,
+				text: settings.autoresponder.body,
+			})
+			.catch((err: unknown) => {
+				ctx.log.error("Failed to send autoresponder", { error: String(err) });
+			});
 	}
 
 	// 9. Webhook, deferred past the response rather than dropped.

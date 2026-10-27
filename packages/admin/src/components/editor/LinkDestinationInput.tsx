@@ -254,6 +254,7 @@ export function LinkDestinationInput({
 		<div className={cn("flex min-w-72 flex-col gap-1", className)}>
 			<div className="relative">
 				<Input
+					dir="auto"
 					ref={inputRef}
 					type="text"
 					role="combobox"

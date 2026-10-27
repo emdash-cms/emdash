@@ -19,6 +19,11 @@ const SYSTEM_DATETIME_COLUMNS = [
 const MAX_DIAGNOSTIC_SAMPLES = 50;
 const DATETIME_MIGRATION_BATCH_SIZE = 50;
 const DATETIME_UPDATE_COLUMN_BATCH_SIZE = Math.floor((DATETIME_MIGRATION_BATCH_SIZE - 1) / 2);
+// D1 rejects a bound string longer than 2,000,000 bytes.
+const MAX_JSON_BIND_BYTES = 1_900_000;
+const SITE_TIMEZONE_OPTION = "site:timezone";
+const RESUME_OPTION = "emdash:datetime_normalization_resume";
+const REVISIONS_TABLE = "revisions";
 
 interface CollectionDatetimeSchema {
 	slug: string;
@@ -49,6 +54,34 @@ interface DatetimeColumnChange {
 	before: unknown;
 	after: unknown;
 	json: boolean;
+}
+
+interface ContentRowUpdate {
+	id: string;
+	changes: Map<string, DatetimeColumnChange>;
+}
+
+interface RevisionUpdate {
+	id: string;
+	before: string;
+	after: string;
+}
+
+interface ScanContext {
+	timezone: string;
+	schemas: Map<string, CollectionDatetimeSchema>;
+	resumeOption: string | undefined;
+}
+
+/**
+ * Where the write pass continues after an interrupted run: every row of
+ * `table` up to id `after`, and of the tables before it, is written. Stored
+ * only once the preflight has passed for `timezone`.
+ */
+interface ResumePoint {
+	timezone: string;
+	table: string;
+	after: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -97,18 +130,22 @@ function parseRepeaterDatetimeFields(validation: string | null): string[] {
 	);
 }
 
-async function loadSiteTimezone(db: Kysely<Database>): Promise<string> {
-	const row = await db
+async function loadScanOptions(
+	db: Kysely<Database>,
+): Promise<{ timezone: string; resumeOption: string | undefined }> {
+	const rows = await db
 		.selectFrom("options")
-		.select("value")
-		.where("name", "=", "site:timezone")
-		.executeTakeFirst();
-	if (!row) return "UTC";
+		.select(["name", "value"])
+		.where("name", "in", [SITE_TIMEZONE_OPTION, RESUME_OPTION])
+		.execute();
+	const timezoneRow = rows.find((row) => row.name === SITE_TIMEZONE_OPTION);
+	const resumeOption = rows.find((row) => row.name === RESUME_OPTION)?.value;
+	if (!timezoneRow) return { timezone: "UTC", resumeOption };
 	try {
-		const value: unknown = JSON.parse(row.value);
-		return typeof value === "string" && value ? value : "UTC";
+		const value: unknown = JSON.parse(timezoneRow.value);
+		return { timezone: typeof value === "string" && value ? value : "UTC", resumeOption };
 	} catch {
-		return "UTC";
+		return { timezone: "UTC", resumeOption };
 	}
 }
 
@@ -204,10 +241,231 @@ function parseStoredFieldValue(
 	}
 }
 
+function groupByPayloadSize<T extends { payload: string }>(
+	entries: readonly T[],
+): { batches: T[][]; oversized: T[] } {
+	const encoder = new TextEncoder();
+	const batches: T[][] = [];
+	const oversized: T[] = [];
+	let batch: T[] = [];
+	let batchBytes = 2;
+	for (const entry of entries) {
+		const entryBytes = encoder.encode(entry.payload).byteLength;
+		if (entryBytes + 2 > MAX_JSON_BIND_BYTES) {
+			oversized.push(entry);
+			continue;
+		}
+		if (batch.length > 0 && batchBytes + 1 + entryBytes > MAX_JSON_BIND_BYTES) {
+			batches.push(batch);
+			batch = [];
+			batchBytes = 2;
+		}
+		batchBytes += (batch.length > 0 ? 1 : 0) + entryBytes;
+		batch.push(entry);
+	}
+	if (batch.length > 0) batches.push(batch);
+	return { batches, oversized };
+}
+
+function joinPayloads(entries: readonly { payload: string }[]): string {
+	return `[${entries.map((entry) => entry.payload).join(",")}]`;
+}
+
+function targetColumn(column: string) {
+	return sql.ref(`target.${column}`);
+}
+
+function inputAfter(index: number) {
+	return sql.ref(`input.after_${index}`);
+}
+
+function inputBefore(index: number) {
+	return sql.ref(`input.before_${index}`);
+}
+
+async function updateContentBatch(
+	db: Kysely<Database>,
+	table: string,
+	columns: readonly string[],
+	updates: readonly ContentRowUpdate[],
+	payload: string,
+	postgres: boolean,
+): Promise<void> {
+	const changed: Array<{ column: string; index: number; json: boolean }> = [];
+	for (const [index, column] of columns.entries()) {
+		const change = updates.find((update) => update.changes.has(column))?.changes.get(column);
+		if (change) changed.push({ column, index, json: change.json });
+	}
+	const inputColumns = changed.map(({ index }) =>
+		postgres
+			? sql`entry.value -> 1 ->> ${sql.lit(index)} AS ${sql.ref(`after_${index}`)},
+				entry.value -> 2 ->> ${sql.lit(index)} AS ${sql.ref(`before_${index}`)}`
+			: sql`json_extract(entry.value, ${sql.lit(`$[1][${index}]`)}) AS ${sql.ref(`after_${index}`)},
+				json_extract(entry.value, ${sql.lit(`$[2][${index}]`)}) AS ${sql.ref(`before_${index}`)}`,
+	);
+	const input = postgres
+		? sql`SELECT entry.value ->> 0 AS target_id, ${sql.join(inputColumns)}
+			FROM jsonb_array_elements(CAST(${payload} AS jsonb)) AS entry(value)`
+		: sql`SELECT json_extract(entry.value, '$[0]') AS target_id, ${sql.join(inputColumns)}
+			FROM json_each(${payload}) AS entry`;
+	const assignments = changed.map(({ column, index, json }) =>
+		json && postgres
+			? sql`${sql.ref(column)} = COALESCE(CAST(${inputAfter(index)} AS JSON), ${targetColumn(column)})`
+			: sql`${sql.ref(column)} = COALESCE(${inputAfter(index)}, ${targetColumn(column)})`,
+	);
+	const guards = changed.map(({ column, index, json }) =>
+		json && postgres
+			? sql`(${inputBefore(index)} IS NULL OR CAST(${targetColumn(column)} AS JSONB) = CAST(${inputBefore(index)} AS JSONB))`
+			: sql`(${inputBefore(index)} IS NULL OR ${targetColumn(column)} = ${inputBefore(index)})`,
+	);
+	await sql`
+		WITH input AS (${input})
+		UPDATE ${sql.ref(table)} AS target
+		SET ${sql.join(assignments, sql`, `)}
+		FROM input
+		WHERE target.id = input.target_id
+		AND ${sql.join(guards, sql` AND `)}
+	`.execute(db);
+}
+
+async function updateContentRow(
+	db: Kysely<Database>,
+	table: string,
+	update: ContentRowUpdate,
+	postgres: boolean,
+): Promise<void> {
+	const changeEntries = [...update.changes];
+	for (let offset = 0; offset < changeEntries.length; offset += DATETIME_UPDATE_COLUMN_BATCH_SIZE) {
+		const batch = changeEntries.slice(offset, offset + DATETIME_UPDATE_COLUMN_BATCH_SIZE);
+		const assignments = batch.map(([column, change]) =>
+			change.json && postgres
+				? sql`${sql.ref(column)} = CAST(${change.after} AS JSON)`
+				: sql`${sql.ref(column)} = ${change.after}`,
+		);
+		const predicates = batch.map(([column, change]) =>
+			change.json && postgres
+				? sql`CAST(${sql.ref(column)} AS JSONB) = CAST(${serializedJson(change.before)} AS JSONB)`
+				: sql`${sql.ref(column)} = ${change.before}`,
+		);
+		await sql`
+			UPDATE ${sql.ref(table)}
+			SET ${sql.join(assignments, sql`, `)}
+			WHERE id = ${update.id}
+			AND ${sql.join(predicates, sql` AND `)}
+		`.execute(db);
+	}
+}
+
+async function writeContentUpdates(
+	db: Kysely<Database>,
+	table: string,
+	columns: readonly string[],
+	updates: readonly ContentRowUpdate[],
+	postgres: boolean,
+): Promise<void> {
+	const entries = updates.map((update) => ({
+		update,
+		payload: JSON.stringify([
+			update.id,
+			columns.map((column) => update.changes.get(column)?.after ?? null),
+			columns.map((column) => {
+				const change = update.changes.get(column);
+				if (!change) return null;
+				return change.json ? serializedJson(change.before) : change.before;
+			}),
+		]),
+	}));
+	const { batches, oversized } = groupByPayloadSize(entries);
+	for (const batch of batches) {
+		await updateContentBatch(
+			db,
+			table,
+			columns,
+			batch.map((entry) => entry.update),
+			joinPayloads(batch),
+			postgres,
+		);
+	}
+	for (const { update } of oversized) await updateContentRow(db, table, update, postgres);
+}
+
+async function writeRevisionUpdates(
+	db: Kysely<Database>,
+	updates: readonly RevisionUpdate[],
+	postgres: boolean,
+): Promise<void> {
+	const entries = updates.map((update) => ({
+		update,
+		payload: JSON.stringify([update.id, update.after, update.before]),
+	}));
+	const { batches, oversized } = groupByPayloadSize(entries);
+	for (const batch of batches) {
+		const payload = joinPayloads(batch);
+		const input = postgres
+			? sql`SELECT entry.value ->> 0 AS target_id, entry.value ->> 1 AS next_data, entry.value ->> 2 AS previous_data
+				FROM jsonb_array_elements(CAST(${payload} AS jsonb)) AS entry(value)`
+			: sql`SELECT json_extract(entry.value, '$[0]') AS target_id,
+					json_extract(entry.value, '$[1]') AS next_data,
+					json_extract(entry.value, '$[2]') AS previous_data
+				FROM json_each(${payload}) AS entry`;
+		await sql`
+			WITH input AS (${input})
+			UPDATE revisions AS target
+			SET data = input.next_data
+			FROM input
+			WHERE target.id = input.target_id
+			AND target.data = input.previous_data
+		`.execute(db);
+	}
+	for (const { update } of oversized) {
+		await db
+			.updateTable("revisions")
+			.set({ data: update.after })
+			.where("id", "=", update.id)
+			.where("data", "=", update.before)
+			.execute();
+	}
+}
+
+async function saveResumePoint(db: Kysely<Database>, point: ResumePoint): Promise<void> {
+	const value = JSON.stringify(point);
+	await db
+		.insertInto("options")
+		.values({ name: RESUME_OPTION, value })
+		.onConflict((conflict) => conflict.column("name").doUpdateSet({ value }))
+		.execute();
+}
+
+async function clearResumePoint(db: Kysely<Database>): Promise<void> {
+	await db.deleteFrom("options").where("name", "=", RESUME_OPTION).execute();
+}
+
+function scanTables(context: ScanContext): string[] {
+	return [...Array.from(context.schemas.keys(), (slug) => `ec_${slug}`), REVISIONS_TABLE];
+}
+
+function parseResumePoint(context: ScanContext): ResumePoint | undefined {
+	if (context.resumeOption === undefined) return undefined;
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(context.resumeOption);
+	} catch {
+		return undefined;
+	}
+	if (!isRecord(parsed)) return undefined;
+	const { timezone, table, after } = parsed;
+	if (typeof timezone !== "string" || typeof table !== "string" || typeof after !== "string") {
+		return undefined;
+	}
+	if (timezone !== context.timezone || !scanTables(context).includes(table)) return undefined;
+	return { timezone, table, after };
+}
+
 async function scanContentRows(
 	db: Kysely<Database>,
 	schema: CollectionDatetimeSchema,
 	state: ScanState,
+	startAfter: string,
 ): Promise<void> {
 	validateIdentifier(schema.slug, "collection slug");
 	const table = `ec_${schema.slug}`;
@@ -215,7 +473,7 @@ async function scanContentRows(
 	const fieldColumns = schema.fields.map((field) => field.slug);
 	for (const column of fieldColumns) validateIdentifier(column, "content datetime field");
 	const columns = [...SYSTEM_DATETIME_COLUMNS, ...fieldColumns];
-	let cursor = "";
+	let cursor = startAfter;
 	for (;;) {
 		const selected = [sql.ref("id"), ...columns.map((column) => sql.ref(column))];
 		const result = await sql<Record<string, unknown>>`
@@ -226,6 +484,7 @@ async function scanContentRows(
 			LIMIT ${DATETIME_MIGRATION_BATCH_SIZE}
 		`.execute(db);
 		if (result.rows.length === 0) break;
+		const updates: ContentRowUpdate[] = [];
 		for (const row of result.rows) {
 			const id = String(row.id);
 			const changes = new Map<string, DatetimeColumnChange>();
@@ -279,35 +538,13 @@ async function scanContentRows(
 				}
 			}
 
-			if (state.write && changes.size > 0) {
-				const changeEntries = [...changes];
-				for (
-					let offset = 0;
-					offset < changeEntries.length;
-					offset += DATETIME_UPDATE_COLUMN_BATCH_SIZE
-				) {
-					const batch = changeEntries.slice(offset, offset + DATETIME_UPDATE_COLUMN_BATCH_SIZE);
-					const assignments = batch.map(([column, change]) => {
-						validateIdentifier(column, "content datetime column");
-						return change.json && postgres
-							? sql`${sql.ref(column)} = CAST(${change.after} AS JSON)`
-							: sql`${sql.ref(column)} = ${change.after}`;
-					});
-					const predicates = batch.map(([column, change]) =>
-						change.json && postgres
-							? sql`CAST(${sql.ref(column)} AS JSONB) = CAST(${serializedJson(change.before)} AS JSONB)`
-							: sql`${sql.ref(column)} = ${change.before}`,
-					);
-					await sql`
-						UPDATE ${sql.ref(table)}
-						SET ${sql.join(assignments, sql`, `)}
-						WHERE id = ${id}
-						AND ${sql.join(predicates, sql` AND `)}
-					`.execute(db);
-				}
-			}
+			if (state.write && changes.size > 0) updates.push({ id, changes });
 		}
 		cursor = String(result.rows.at(-1)!.id);
+		if (updates.length > 0) {
+			await writeContentUpdates(db, table, columns, updates, postgres);
+			await saveResumePoint(db, { timezone: state.timezone, table, after: cursor });
+		}
 		if (result.rows.length < DATETIME_MIGRATION_BATCH_SIZE) break;
 	}
 }
@@ -316,8 +553,10 @@ async function scanRevisions(
 	db: Kysely<Database>,
 	schemas: Map<string, CollectionDatetimeSchema>,
 	state: ScanState,
+	startAfter: string,
 ): Promise<void> {
-	let cursor = "";
+	const postgres = db.getExecutor().adapter instanceof PostgresAdapter;
+	let cursor = startAfter;
 	for (;;) {
 		const rows = await db
 			.selectFrom("revisions")
@@ -327,6 +566,7 @@ async function scanRevisions(
 			.limit(DATETIME_MIGRATION_BATCH_SIZE)
 			.execute();
 		if (rows.length === 0) break;
+		const updates: RevisionUpdate[] = [];
 		for (const row of rows) {
 			const schema = schemas.get(row.collection);
 			if (!schema) continue;
@@ -372,23 +612,35 @@ async function scanRevisions(
 				}
 			}
 			if (state.write && changed) {
-				await db
-					.updateTable("revisions")
-					.set({ data: JSON.stringify(normalizedData) })
-					.where("id", "=", row.id)
-					.where("data", "=", row.data)
-					.execute();
+				updates.push({ id: row.id, before: row.data, after: JSON.stringify(normalizedData) });
 			}
 		}
 		cursor = rows.at(-1)!.id;
+		if (updates.length > 0) {
+			await writeRevisionUpdates(db, updates, postgres);
+			await saveResumePoint(db, {
+				timezone: state.timezone,
+				table: REVISIONS_TABLE,
+				after: cursor,
+			});
+		}
 		if (rows.length < DATETIME_MIGRATION_BATCH_SIZE) break;
 	}
 }
 
-async function scan(db: Kysely<Database>, write: boolean): Promise<DatetimeStorageReport> {
-	const [timezone, schemas] = await Promise.all([loadSiteTimezone(db), loadCollectionSchemas(db)]);
+async function loadScanContext(db: Kysely<Database>): Promise<ScanContext> {
+	const [options, schemas] = await Promise.all([loadScanOptions(db), loadCollectionSchemas(db)]);
+	return { ...options, schemas };
+}
+
+async function scan(
+	db: Kysely<Database>,
+	context: ScanContext,
+	write: boolean,
+	start?: ResumePoint,
+): Promise<DatetimeStorageReport> {
 	const state: ScanState = {
-		timezone,
+		timezone: context.timezone,
 		noncanonicalCount: 0,
 		naiveCount: 0,
 		manualReviewCount: 0,
@@ -396,8 +648,17 @@ async function scan(db: Kysely<Database>, write: boolean): Promise<DatetimeStora
 		samples: [],
 		write,
 	};
-	for (const schema of schemas.values()) await scanContentRows(db, schema, state);
-	await scanRevisions(db, schemas, state);
+	const tables = scanTables(context);
+	let pending = start;
+	for (const [index, schema] of [...context.schemas.values()].entries()) {
+		if (pending && pending.table !== `ec_${schema.slug}`) continue;
+		await scanContentRows(db, schema, state, pending?.after ?? "");
+		pending = undefined;
+		const next = tables[index + 1];
+		if (write && next)
+			await saveResumePoint(db, { timezone: state.timezone, table: next, after: "" });
+	}
+	await scanRevisions(db, context.schemas, state, pending?.after ?? "");
 	const { write: _write, ...report } = state;
 	return report;
 }
@@ -422,23 +683,39 @@ export function formatDatetimeStorageReport(report: DatetimeStorageReport): stri
 	].join("\n");
 }
 
-export function scanDatetimeStorage(db: Kysely<Database>): Promise<DatetimeStorageReport> {
-	return scan(db, false);
+export async function scanDatetimeStorage(db: Kysely<Database>): Promise<DatetimeStorageReport> {
+	return scan(db, await loadScanContext(db), false);
 }
 
+/** Migration 079 runs this, so a change here must not alter the data it writes. */
 export async function normalizeDatetimeStorage(
 	db: Kysely<Database>,
 ): Promise<DatetimeStorageReport> {
-	const preflight = await scan(db, false);
-	if (preflight.manualReviewCount > 0 || preflight.inspectionErrorCount > 0) {
-		throw new Error(
-			`Datetime migration requires manual review:\n${formatDatetimeStorageReport(preflight)}`,
+	const context = await loadScanContext(db);
+	const resumeFrom = parseResumePoint(context);
+	let preflight: DatetimeStorageReport | undefined;
+	if (resumeFrom) {
+		console.info(
+			`[datetime migration] resuming in ${resumeFrom.table} after ${JSON.stringify(resumeFrom.after)} using ${resumeFrom.timezone}`,
 		);
+	} else {
+		preflight = await scan(db, context, false);
+		if (preflight.manualReviewCount > 0 || preflight.inspectionErrorCount > 0) {
+			throw new Error(
+				`Datetime migration requires manual review:\n${formatDatetimeStorageReport(preflight)}`,
+			);
+		}
+		if (preflight.noncanonicalCount === 0) {
+			if (context.resumeOption !== undefined) await clearResumePoint(db);
+			return preflight;
+		}
+		console.info(`[datetime migration] ${formatDatetimeStorageReport(preflight)}`);
+		const [firstTable = REVISIONS_TABLE] = scanTables(context);
+		await saveResumePoint(db, { timezone: context.timezone, table: firstTable, after: "" });
 	}
-	if (preflight.noncanonicalCount === 0) return preflight;
-	console.info(`[datetime migration] ${formatDatetimeStorageReport(preflight)}`);
-	await scan(db, true);
-	const verified = await scan(db, false);
+	const written = await scan(db, context, true, resumeFrom);
+	const verified = await scan(db, context, false);
+	await clearResumePoint(db);
 	if (
 		verified.noncanonicalCount > 0 ||
 		verified.manualReviewCount > 0 ||
@@ -448,5 +725,5 @@ export async function normalizeDatetimeStorage(
 			`Datetime migration did not reach a canonical state:\n${formatDatetimeStorageReport(verified)}`,
 		);
 	}
-	return preflight;
+	return preflight ?? written;
 }
