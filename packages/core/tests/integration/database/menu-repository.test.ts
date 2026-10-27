@@ -475,3 +475,48 @@ describeEachDialect("MenuRepository createItem() default sortOrder", (dialect) =
 		expect(child2.sortOrder).toBe(1);
 	});
 });
+
+describeEachDialect("MenuRepository.deleteItem() with nested items", (dialect) => {
+	let ctx: DialectTestContext;
+	let repo: MenuRepository;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		repo = new MenuRepository(ctx.db);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	async function addItem(menuId: string, label: string, parentId?: string) {
+		return repo.createItem(menuId, "en", { type: "custom", label, customUrl: "/", parentId });
+	}
+
+	it("deletes every nested item with the item", async () => {
+		const menu = await repo.create({ name: "primary", label: "Primary" });
+		const parent = await addItem(menu.id, "Parent");
+		const child = await addItem(menu.id, "Child", parent.id);
+		await addItem(menu.id, "Grandchild", child.id);
+		await addItem(menu.id, "Sibling");
+
+		expect(await repo.deleteItem(menu.id, parent.id)).toBe(true);
+
+		expect((await repo.findItems(menu.id)).map((item) => item.label)).toEqual(["Sibling"]);
+	});
+
+	it("deletes items in a legacy parent cycle", async () => {
+		const menu = await repo.create({ name: "primary", label: "Primary" });
+		const a = await addItem(menu.id, "A");
+		const b = await addItem(menu.id, "B", a.id);
+		await ctx.db
+			.updateTable("_emdash_menu_items")
+			.set({ parent_id: b.id })
+			.where("id", "=", a.id)
+			.execute();
+
+		expect(await repo.deleteItem(menu.id, a.id)).toBe(true);
+
+		expect(await repo.findItems(menu.id)).toEqual([]);
+	});
+});
