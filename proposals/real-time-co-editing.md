@@ -5,7 +5,7 @@ status: proposed
 authors:
   - Noah Pham (@khoinguyenpham04)
 champion: Noah Pham (@khoinguyenpham04)
-sponsor: null
+sponsor: MA2153 (@MA2153)
 discussions:
   - https://github.com/emdash-cms/emdash/discussions/4173
 created: 2026-10-16
@@ -13,7 +13,7 @@ created: 2026-10-16
 
 # Real-time co-editing
 
-> **Draft.** Open before acceptance: a Maintainer sponsor, and the prototype results for the [acceptance gates](#acceptance-gates).
+> **Draft.** Acceptance waits on the prototype results for the [acceptance gates](#acceptance-gates).
 
 ## Summary
 
