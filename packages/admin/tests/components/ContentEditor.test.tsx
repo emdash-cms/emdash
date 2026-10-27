@@ -613,6 +613,53 @@ describe("ContentEditor", () => {
 			await expect.element(slugInput).toHaveValue("hello-world-post");
 		});
 
+		it("auto-generates the slug from the collection's title field, not a field named title", async () => {
+			const screen = await renderEditor({
+				isNew: true,
+				fields: {
+					name: { kind: "string", label: "Name" },
+					title: { kind: "string", label: "Job title" },
+				},
+				manifest: {
+					version: "1.0.0",
+					hash: "hash",
+					authMode: "passkey",
+					collections: {
+						posts: {
+							label: "Posts",
+							labelSingular: "Post",
+							supports: [],
+							hasSeo: false,
+							titleField: "name",
+						},
+					},
+					plugins: {},
+					taxonomies: [],
+				},
+			});
+			const slugInput = screen.getByLabelText("Slug");
+
+			await screen.getByLabelText("Job title").fill("Trustee");
+			await expect.element(slugInput).toHaveValue("");
+
+			await screen.getByLabelText("Name").fill("Jane Smith");
+			await expect.element(slugInput).toHaveValue("jane-smith");
+
+			await screen.getByLabelText("Job title").fill("Mayor");
+			await expect.element(slugInput).toHaveValue("jane-smith");
+		});
+
+		it("auto-generates the slug from a multiline title when the collection sets no title field", async () => {
+			const screen = await renderEditor({
+				isNew: true,
+				fields: { title: { kind: "richText", label: "Title" } },
+			});
+
+			await screen.getByLabelText("Title").fill("Hello World");
+
+			await expect.element(screen.getByLabelText("Slug")).toHaveValue("hello-world");
+		});
+
 		it("slug accepts manual override", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const slugInput = screen.getByLabelText("Slug");

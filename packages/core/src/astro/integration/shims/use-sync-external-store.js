@@ -1,1 +1,4 @@
-export { useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
+
+export { useSyncExternalStore };
+export default { useSyncExternalStore };

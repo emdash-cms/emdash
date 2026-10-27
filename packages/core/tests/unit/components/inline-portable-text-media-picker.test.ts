@@ -304,6 +304,14 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		return match!;
 	}
 
+	function makeToolbarControlsVisible(toolbar: HTMLElement) {
+		for (const control of toolbar.querySelectorAll<HTMLElement>(
+			"button:not([disabled]), a[href]",
+		)) {
+			Object.defineProperty(control, "getClientRects", { value: () => [new DOMRect()] });
+		}
+	}
+
 	/** The query of the picker's latest request for library images. */
 	function lastLibraryQuery() {
 		const url = requests.findLast((request) => request.startsWith("/_emdash/api/media?"));
@@ -787,6 +795,46 @@ describe("inline Portable Text image picker and image toolbar", () => {
 
 		await vi.waitFor(() => expect(toolbar.isConnected).toBe(false));
 		outside.remove();
+	});
+
+	it("navigates image controls and returns to the caption with keyboard shortcuts", async () => {
+		stubMedia();
+		const editable = await mount([IMAGE_BLOCK]);
+		const toolbar = await selectImage(editable);
+		makeToolbarControlsVisible(toolbar);
+		const replace = toolbarButton(toolbar, "Replace");
+		const altText = toolbarButton(toolbar, "Alt text");
+		const caption = editable.querySelector<HTMLTextAreaElement>("figcaption textarea")!;
+
+		await act(async () => replace.focus());
+		await act(async () => press(replace, "ArrowRight"));
+		expect(document.activeElement).toBe(altText);
+		await act(async () => press(altText, "ArrowLeft"));
+		expect(document.activeElement).toBe(replace);
+
+		await click(altText);
+		const input = await vi.waitFor(() => {
+			const field = toolbar.querySelector<HTMLInputElement>('input[aria-label="Alt text"]');
+			expect(field).not.toBeNull();
+			return field!;
+		});
+		await act(async () => press(input, "Escape"));
+		expect(document.activeElement).toBe(editable);
+		expect(toolbar.isConnected).toBe(true);
+
+		const firstControl = toolbarButton(toolbar, "Replace");
+		await act(async () => {
+			firstControl.focus();
+			firstControl.dispatchEvent(
+				new KeyboardEvent("keydown", {
+					key: "Tab",
+					shiftKey: true,
+					bubbles: true,
+					cancelable: true,
+				}),
+			);
+		});
+		expect(document.activeElement).toBe(caption);
 	});
 
 	it("describes an image from its toolbar", async () => {

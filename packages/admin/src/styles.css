@@ -791,7 +791,7 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
  */
 [data-emdash-editor-floating-root]
 	> div:has(
-		> :is(
+		:is(
 			[data-emdash-inline-bubble-menu],
 			[data-emdash-link-bubble-menu],
 			[data-emdash-table-bubble-menu],

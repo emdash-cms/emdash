@@ -5,12 +5,7 @@ description: Add Cloudflare AI Search to an EmDash site with the first-party AI 
 
 import { Aside } from "@astrojs/starlight/components";
 
-AI Search is a first-party native plugin that indexes published content into a [Cloudflare AI Search](https://developers.cloudflare.com/ai-search/) instance and serves search results to the site. It keeps the index current as content changes.
-
-<Aside type="note">
-	The plugin runs only on Cloudflare Workers. It needs an `ai_search_namespaces` binding in
-	`wrangler.jsonc`.
-</Aside>
+AI Search is a first-party native plugin that indexes published content into a [Cloudflare AI Search](https://developers.cloudflare.com/ai-search/) instance and serves search results to the site. It keeps the index current as content changes, and runs on Cloudflare Workers and Node.js.
 
 <Aside type="note" title="Switching from @emdash-cms/cloudflare">
 	This plugin replaces `aiSearch` from `@emdash-cms/cloudflare/plugins`. Both register as
@@ -43,7 +38,11 @@ export default defineConfig({
 });
 ```
 
-Add the AI Search namespace binding:
+Then connect the plugin to AI Search with a Workers binding or an API token. When a site has both, the plugin uses the binding.
+
+### Connect with a Workers binding
+
+On Cloudflare Workers, add an AI Search namespace binding to `wrangler.jsonc`:
 
 ```jsonc title="wrangler.jsonc"
 {
@@ -51,12 +50,41 @@ Add the AI Search namespace binding:
 }
 ```
 
+### Connect with an API token
+
+On any platform, the plugin can reach AI Search through the Cloudflare REST API. It needs your Cloudflare account ID and an API token with the **AI Search Edit** and **AI Search Run** account permissions. Create an [account API token](https://developers.cloudflare.com/fundamentals/api/get-started/account-owned-tokens/) under **Manage account** > **Account API tokens** in the Cloudflare dashboard. Unlike a user token, it keeps working if the person who created it leaves the account. A user token with the same permissions also works.
+
+Set the credentials as environment variables:
+
+```sh title=".env"
+EMDASH_AI_SEARCH_ACCOUNT_ID=your-account-id
+EMDASH_AI_SEARCH_API_TOKEN=your-api-token
+```
+
+Alternatively, enter them on the plugin's settings page in the admin. EmDash stores the token encrypted, so saving it there requires `EMDASH_ENCRYPTION_KEY`; see [Secrets](/deployment/secrets/#the-encryption-key). An environment variable takes precedence over a value saved in the admin, and the admin shows that it is set without showing its value.
+
+The plugin uses the account's `default` namespace. To use another, set `EMDASH_AI_SEARCH_NAMESPACE`. Choose the namespace before building the index, because the plugin keeps its instance in that namespace. If you change it later, the settings page reports that the instance is missing. Choose **Edit setup** and finish it to create the instance and rebuild the index. Changing the account on the settings page does this automatically.
+
+With an API token, indexing, the admin, and every visitor search make Cloudflare API requests, and Cloudflare [limits each token](https://developers.cloudflare.com/fundamentals/api/reference/limits/) to 1,200 requests every 5 minutes. A Workers binding does not count against that limit, so busy sites on Workers should use one.
+
+To stay within the limit, indexing uses at most half of it, so building the index takes about an hour per 7,000 records. Each EmDash process also allows a visitor 30 searches a minute, counted by IP address. A self-hosted site behind a reverse proxy must configure [`trustedProxyHeaders`](/reference/configuration/#trustedproxyheaders) for the search limit to apply; without a trusted client IP, searches are not limited.
+
 ## Options
 
-| Option     | Default     | Description                                                           |
-| ---------- | ----------- | --------------------------------------------------------------------- |
-| `binding`  | `AI_SEARCH` | Name of the `ai_search_namespaces` binding in `wrangler.jsonc`.       |
-| `instance` | `emdash`    | AI Search instance the plugin creates and owns inside that namespace. |
+| Option     | Default     | Description                                                          |
+| ---------- | ----------- | -------------------------------------------------------------------- |
+| `binding`  | `AI_SEARCH` | Name of the `ai_search_namespaces` binding in `wrangler.jsonc`.      |
+| `instance` | `emdash`    | AI Search instance the plugin creates and owns inside the namespace. |
+
+## Environment variables
+
+| Variable                      | Description                                                  |
+| ----------------------------- | ------------------------------------------------------------ |
+| `EMDASH_AI_SEARCH_ACCOUNT_ID` | Cloudflare account ID for the REST API.                      |
+| `EMDASH_AI_SEARCH_API_TOKEN`  | Cloudflare API token with AI Search Edit and AI Search Run.  |
+| `EMDASH_AI_SEARCH_NAMESPACE`  | AI Search namespace for the REST API. Defaults to `default`. |
+
+The plugin ignores these variables when a Workers binding is available.
 
 ## Add search to the site
 
@@ -72,4 +100,10 @@ import { AiSearch } from "@emdash-cms/plugin-ai-search/astro";
 
 ## Build the index
 
-After deploying, open **AI Search** in the admin. The setup wizard chooses the content to index, shows an example result address for each source, and builds the index when you select **Build index**. Search is live once the build starts, with results appearing as documents are indexed. Later content changes update the index automatically.
+After deploying, open **AI Search** in the admin. If the plugin cannot reach AI Search yet, the page asks for an account ID and API token. The setup wizard then chooses the content to index, shows an example result address for each source, and builds the index when you select **Build index**. Search is live once the build starts, with results appearing as documents are indexed. Later content changes update the index automatically.
+
+<Aside type="note">
+	When the API token is saved in the admin rather than set in the environment, each search reads
+	it from the database, which adds one query per search. Set the environment variables to avoid
+	that query.
+</Aside>

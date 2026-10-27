@@ -103,15 +103,8 @@ function invalidCommentStatus(value: string, name: string): string | null {
 	return COMMENT_STATUSES.has(value) ? null : `${name} must be one of: approved, pending, spam`;
 }
 
-/**
- * Module-level email send callback.
- *
- * The bridge runs in the host process (same worker), so we can use a
- * module-level callback that the runner sets before creating bridge bindings.
- * This avoids the need to pass non-serializable functions through props.
- *
- * @see runner.ts setEmailSendCallback()
- */
+// The bridge can run in a different isolate than the one that set this callback.
+// emailSend starts EmDash locally when the callback is missing.
 let emailSendCallback: SandboxEmailSendCallback | null = null;
 const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
 const TAXONOMY_WRITE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-taxonomy-write-callbacks");
@@ -1942,10 +1935,18 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!capabilities.includes("email:send")) {
 			throw new Error("Missing capability: email:send");
 		}
-		if (!emailSendCallback) {
-			throw new Error("Email is not configured. No email provider is available.");
+		if (emailSendCallback) {
+			await emailSendCallback(message, pluginId);
+			return;
 		}
-		await emailSendCallback(message, pluginId);
+
+		const { withEmDashRuntime } = await import("emdash/middleware");
+		await withEmDashRuntime(async () => {
+			if (!emailSendCallback) {
+				throw new Error("Email is not configured. No email provider is available.");
+			}
+			await emailSendCallback(message, pluginId);
+		});
 	}
 
 	async cronSchedule(

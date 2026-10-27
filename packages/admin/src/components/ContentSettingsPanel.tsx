@@ -76,6 +76,7 @@ import type {
 } from "./SandboxedContentEditorPanel.js";
 import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
+import { declaredLabelTranslator } from "./Sidebar.js";
 import {
 	SortableContentSettingsSection,
 	SortableContentSettingsSections,
@@ -1246,10 +1247,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{item &&
 					extensionPanels.map(({ kind, pluginId, panel }) => {
 						const sectionId = `${kind === "trusted" ? "plugin" : "sandbox-plugin"}:${pluginId}:${panel.extension.id}`;
-						const title = lingui._({
-							id: panel.extension.title,
-							message: panel.extension.title,
-						});
+						const title = declaredLabelTranslator(lingui, (id) => lingui._(id))(
+							panel.extension.title,
+						);
 						if (kind === "sandboxed") {
 							const extension = panel.extension;
 							return (
