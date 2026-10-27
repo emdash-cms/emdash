@@ -1056,7 +1056,6 @@ function FilterBar({
 	const clearButton = (
 		<Button
 			variant="ghost"
-			size="sm"
 			shape="square"
 			onClick={handleClear}
 			disabled={!hasActiveFilter}
@@ -1070,7 +1069,6 @@ function FilterBar({
 	return (
 		<>
 			<Select
-				size="sm"
 				className="emdash-status-filter-trigger min-w-32 ps-3.5"
 				aria-label={t`Filter by status`}
 				value={statusFilter}
@@ -1081,7 +1079,7 @@ function FilterBar({
 				items={statusItems}
 			>
 				{Object.entries(statusItems).map(([value]) => (
-					<Select.Option key={value} value={value} className="emdash-compact-select-option text-xs">
+					<Select.Option key={value} value={value} className="emdash-compact-select-option">
 						{renderStatusLabel(value as ContentStatusFilter)}
 					</Select.Option>
 				))}
@@ -1089,7 +1087,6 @@ function FilterBar({
 
 			{showAuthorFilter && (
 				<Select
-					size="sm"
 					aria-label={t`Filter by author`}
 					value={authorFilter}
 					onValueChange={(v) => onAuthorFilterChange?.(v ?? "")}
@@ -1114,7 +1111,6 @@ function FilterBar({
 			{showDateFilter && (
 				<>
 					<Select
-						size="sm"
 						className="emdash-date-field-filter-trigger min-w-28 ps-3.5"
 						aria-label={t`Date field to filter on`}
 						value={dateFilter.field}
@@ -1124,11 +1120,7 @@ function FilterBar({
 						items={dateFieldItems}
 					>
 						{Object.entries(dateFieldItems).map(([value, label]) => (
-							<Select.Option
-								key={value}
-								value={value}
-								className="emdash-compact-select-option text-xs"
-							>
+							<Select.Option key={value} value={value} className="emdash-compact-select-option">
 								{label}
 							</Select.Option>
 						))}
@@ -1202,13 +1194,12 @@ function DateRangeFilter({
 				render={
 					<Button
 						variant="secondary"
-						size="sm"
 						icon={
 							<span
-								className="emdash-date-range-icon flex size-3 shrink-0 items-center justify-center"
+								className="emdash-date-range-icon flex size-4 shrink-0 items-center justify-center"
 								aria-hidden="true"
 							>
-								<Calendar className="size-3" />
+								<Calendar className="size-4" />
 							</span>
 						}
 						aria-label={t`Filter by date range: ${rangeLabel}`}

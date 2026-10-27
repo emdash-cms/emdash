@@ -385,7 +385,6 @@ export function Redirects() {
 					tab === "redirects" ? (
 						<>
 							<TableToolbarSearch
-								size="base"
 								placeholder={searchPlaceholder}
 								aria-label={searchPlaceholder}
 								value={search}

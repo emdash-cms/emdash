@@ -170,7 +170,6 @@ export function CommentInbox({
 				tools={
 					<>
 						<TableToolbarSearch
-							size="base"
 							placeholder={searchPlaceholder}
 							aria-label={t`Search comments`}
 							value={searchQuery}

@@ -311,14 +311,12 @@ export function BylinesPage() {
 				tools={
 					<>
 						<TableToolbarSearch
-							size="base"
 							placeholder={t`Search bylines`}
 							aria-label={t`Search bylines`}
 							value={search}
 							onChange={(event) => setSearch(event.target.value)}
 						/>
 						<Select
-							size="base"
 							aria-label={t`Filter byline type`}
 							value={guestFilter}
 							onValueChange={(value) =>
@@ -329,7 +327,7 @@ export function BylinesPage() {
 								guest: t`Guest only`,
 								linked: t`Non-guest`,
 							}}
-							className="w-full sm:w-44"
+							className="w-full sm:w-auto"
 						/>
 					</>
 				}

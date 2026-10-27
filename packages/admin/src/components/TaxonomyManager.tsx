@@ -1344,7 +1344,6 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 				tools={
 					taxonomyName === "tag" ? (
 						<TableToolbarSearch
-							size="base"
 							inputRef={tagSearchRef}
 							placeholder={t`Search tags…`}
 							aria-label={t`Search tags`}

@@ -67,7 +67,7 @@ export function UserList({
 							aria-label={t`Search users`}
 						/>
 						<Select
-							size="sm"
+							className="w-full sm:w-auto"
 							value={roleFilter?.toString() ?? "all"}
 							onValueChange={(value) =>
 								onRoleFilterChange(

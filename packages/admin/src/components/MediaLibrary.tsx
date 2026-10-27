@@ -898,7 +898,6 @@ export function MediaLibrary({
 				>
 					{(canSearch || activeProvider === "local") && (
 						<TableToolbarSearch
-							size="base"
 							placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
 							aria-label={t`Search media`}
 							value={searchQuery}

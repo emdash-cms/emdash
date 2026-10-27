@@ -238,8 +238,6 @@ export function Sections() {
 				tools={
 					<>
 						<TableToolbarSearch
-							size="base"
-							className="sm:w-72"
 							placeholder={searchPlaceholder}
 							aria-label={searchPlaceholder}
 							value={searchQuery}

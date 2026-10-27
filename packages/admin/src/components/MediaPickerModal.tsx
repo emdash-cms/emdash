@@ -1259,7 +1259,6 @@ export function MediaPickerModal({
 								>
 									{canSearch && (
 										<TableToolbarSearch
-											size="base"
 											placeholder={
 												activeSource === "local" ? t`Search by filename...` : t`Search...`
 											}
