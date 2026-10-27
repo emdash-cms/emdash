@@ -64,6 +64,7 @@ import type { RegistryConfig, RegistryConfigInput } from "../../registry/types.j
 import { resolveAndValidateExternalUrlTarget } from "../../security/ssrf.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
+import { isDevOnlyEnabled } from "../dev-only.js";
 import type { ApiResult } from "../types.js";
 import {
 	deleteBundleFromR2,
@@ -374,7 +375,7 @@ async function fetchArtifact(
 			},
 			resolveHostname: async (hostname) =>
 				(await resolveAndValidateExternalUrlTarget(`https://${hostname}`)).addresses,
-			allowHttpLocalhost: import.meta.env.DEV,
+			allowHttpLocalhost: isDevOnlyEnabled(),
 			headerTimeoutMs: ARTIFACT_FETCH_TIMEOUT_MS,
 			totalTimeoutMs: ARTIFACT_TOTAL_BUDGET_MS,
 			maxBytes: MAX_ARTIFACT_BYTES,

@@ -22,6 +22,7 @@ import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
+import { isDevOnlyEnabled } from "./api/dev-only.js";
 import { ErrorCode } from "./api/errors.js";
 import { buildManifestCollections } from "./api/handlers/manifest.js";
 import {
@@ -1923,8 +1924,8 @@ export class EmDashRuntime {
 		// In dev mode, register a built-in console email provider.
 		// It participates in exclusive hook resolution like any other plugin —
 		// auto-selected when it's the sole provider, overridden when a real one is configured.
-		// Gated by import.meta.env.DEV to prevent silent email loss in production.
-		if (import.meta.env.DEV) {
+		// Gated by isDevOnlyEnabled() to prevent silent email loss in production.
+		if (isDevOnlyEnabled()) {
 			try {
 				const devConsolePlugin = definePlugin({
 					id: DEV_CONSOLE_EMAIL_PLUGIN_ID,

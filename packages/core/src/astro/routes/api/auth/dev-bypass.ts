@@ -5,7 +5,7 @@
  * Development-only endpoint to bypass passkey authentication.
  * Creates or uses a test admin user and establishes a session.
  *
- * ONLY available when import.meta.env.DEV is true.
+ * ONLY available when isDevOnlyEnabled() is true.
  *
  * Usage:
  * - GET with redirect: /_emdash/api/auth/dev-bypass?redirect=/_emdash/admin
@@ -21,6 +21,7 @@ export const prerender = false;
 
 import { ulid } from "ulidx";
 
+import { isDevOnlyEnabled } from "#api/dev-only.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { escapeHtml } from "#api/escape.js";
 import { isSafeRedirect } from "#api/redirect.js";
@@ -33,7 +34,7 @@ const ROLE_ADMIN = 50;
 
 async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Response> {
 	// CRITICAL: Only allow in development mode
-	if (!import.meta.env.DEV) {
+	if (!isDevOnlyEnabled()) {
 		return apiError("FORBIDDEN", "Dev bypass is only available in development mode", 403);
 	}
 

@@ -5,18 +5,19 @@
  * Clears the setup_complete flag and deletes all users,
  * returning the site to the pre-setup state.
  *
- * ONLY available when import.meta.env.DEV is true.
+ * ONLY available when isDevOnlyEnabled() is true.
  */
 
 import type { APIRoute } from "astro";
 
 export const prerender = false;
 
+import { isDevOnlyEnabled } from "#api/dev-only.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
 export const POST: APIRoute = async ({ locals }) => {
-	if (!import.meta.env.DEV) {
+	if (!isDevOnlyEnabled()) {
 		return apiError("FORBIDDEN", "Dev reset is only available in development mode", 403);
 	}
 

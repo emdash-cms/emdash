@@ -440,6 +440,9 @@ export function createViteConfig(
 				isDev && process.env["EMDASH_PSEUDO_LOCALE"] === "1",
 			),
 			__EMDASH_ADMIN_LOCALES__: JSON.stringify(adminLocales ?? null),
+			__EMDASH_TEST_HOOKS__: JSON.stringify(
+				options.resolvedConfig.dangerouslyEnableTestHooks === true,
+			),
 		},
 		resolve: {
 			dedupe: ["@emdash-cms/admin", "react", "react-dom"],
