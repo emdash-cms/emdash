@@ -1,4 +1,5 @@
-import { Table } from "@cloudflare/kumo";
+import { Button, DropdownMenu, Table } from "@cloudflare/kumo";
+import { DotsThree } from "@phosphor-icons/react";
 import type * as React from "react";
 
 import { cn } from "../lib/utils.js";
@@ -46,5 +47,21 @@ export function DataTableMessage({
 				<div className="py-4.5">{children}</div>
 			</td>
 		</tr>
+	);
+}
+
+/** The "…" button that opens a row's actions. Pass `DropdownMenu` items as children. */
+export function RowActionsMenu({ label, children }: { label: string; children: React.ReactNode }) {
+	return (
+		<DropdownMenu>
+			<DropdownMenu.Trigger
+				render={
+					<Button variant="ghost" size="sm" shape="square" aria-label={label}>
+						<DotsThree weight="bold" size={18} aria-hidden="true" />
+					</Button>
+				}
+			/>
+			<DropdownMenu.Content align="end">{children}</DropdownMenu.Content>
+		</DropdownMenu>
 	);
 }

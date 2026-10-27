@@ -4,7 +4,7 @@ import {
 	Checkbox,
 	DatePicker,
 	Dialog,
-	LinkButton,
+	DropdownMenu,
 	Loader,
 	Popover,
 	Select,
@@ -66,7 +66,7 @@ import {
 	ContentStatusLabel,
 	isContentStatusState,
 } from "./ContentStatusBadge.js";
-import { DataTable, DataTableMessage } from "./DataTable.js";
+import { DataTable, DataTableMessage, RowActionsMenu } from "./DataTable.js";
 import { ListPaginationFooter, type ListPagination } from "./ListPaginationFooter.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
@@ -1374,6 +1374,7 @@ function ContentListItem({
 	// last-updated / created date when it's unset, empty, or unparseable.
 	const customDate = dateField ? parseListDate(item.data[dateField]) : null;
 	const date = customDate ?? parseTimestamp(item.updatedAt || item.createdAt);
+	const [trashOpen, setTrashOpen] = React.useState(false);
 
 	return (
 		<tr data-selected={selected || undefined}>
@@ -1439,78 +1440,77 @@ function ContentListItem({
 				);
 			})}
 			<td className="text-end">
-				<div className="flex items-center justify-end space-x-1">
+				<RowActionsMenu label={t`Actions for ${title}`}>
+					<DropdownMenu.LinkItem
+						closeOnClick
+						icon={<Pencil className="me-2 size-4" aria-hidden="true" />}
+						render={
+							<Link
+								to="/content/$collection/$id"
+								params={{ collection, id: item.id }}
+								search={{ locale: item.locale }}
+							/>
+						}
+					>
+						{t`Edit`}
+					</DropdownMenu.LinkItem>
 					{item.status === "published" && item.slug && (
-						<LinkButton
+						<DropdownMenu.LinkItem
+							closeOnClick
+							icon={<ArrowSquareOut className="me-2 size-4" aria-hidden="true" />}
 							href={contentUrl(collection, item.slug, urlPattern, {
 								locale: item.locale,
 								i18n,
 								id: item.id,
 								date: item.publishedAt,
 							})}
-							external
-							variant="ghost"
-							shape="square"
-							aria-label={t`View published ${title}`}
-							icon={<ArrowSquareOut />}
-						/>
+							target="_blank"
+							rel="noreferrer"
+						>
+							{t`View published`}
+						</DropdownMenu.LinkItem>
 					)}
-					<RouterLinkButton
-						to="/content/$collection/$id"
-						params={{ collection, id: item.id }}
-						search={{ locale: item.locale }}
-						aria-label={t`Edit ${title}`}
-						variant="ghost"
-						shape="square"
-						icon={<Pencil />}
-					/>
 					{onDuplicate && (
-						<Button
-							variant="ghost"
-							shape="square"
-							aria-label={t`Duplicate ${title}`}
+						<DropdownMenu.Item
+							icon={<Copy className="me-2 size-4" aria-hidden="true" />}
 							onClick={() => onDuplicate(item.id)}
 						>
-							<Copy className="h-4 w-4" aria-hidden="true" />
-						</Button>
+							{t`Duplicate`}
+						</DropdownMenu.Item>
 					)}
-					<Dialog.Root disablePointerDismissal>
-						<Dialog.Trigger
-							render={(p) => (
-								<Button
-									{...p}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Move ${title} to trash`}
-								>
-									<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-							<Dialog.Description className="text-kumo-subtle">
-								{t`Move "${title}" to trash? You can restore it later.`}
-							</Dialog.Description>
-							<div className="mt-6 flex justify-end gap-2">
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="secondary">
-											{t`Cancel`}
-										</Button>
-									)}
-								/>
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="destructive" onClick={() => onDelete?.(item.id)}>
-											{t`Move to Trash`}
-										</Button>
-									)}
-								/>
-							</div>
-						</Dialog>
-					</Dialog.Root>
-				</div>
+					<DropdownMenu.Separator />
+					<DropdownMenu.Item
+						variant="danger"
+						icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+						onClick={() => setTrashOpen(true)}
+					>
+						{t`Move to trash`}
+					</DropdownMenu.Item>
+				</RowActionsMenu>
+				<Dialog.Root open={trashOpen} onOpenChange={setTrashOpen} disablePointerDismissal>
+					<Dialog className="p-6" size="sm">
+						<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
+						<Dialog.Description className="text-kumo-subtle">
+							{t`Move "${title}" to trash? You can restore it later.`}
+						</Dialog.Description>
+						<div className="mt-6 flex justify-end gap-2">
+							<Dialog.Close
+								render={(p) => (
+									<Button {...p} variant="secondary">
+										{t`Cancel`}
+									</Button>
+								)}
+							/>
+							<Dialog.Close
+								render={(p) => (
+									<Button {...p} variant="destructive" onClick={() => onDelete?.(item.id)}>
+										{t`Move to Trash`}
+									</Button>
+								)}
+							/>
+						</div>
+					</Dialog>
+				</Dialog.Root>
 			</td>
 		</tr>
 	);
@@ -1630,6 +1630,7 @@ function TrashedListItem({
 	const { t, i18n } = useLingui();
 	const title = getEntryTitle(item, titleField);
 	const deletedDate = parseTimestamp(item.deletedAt);
+	const [deleteOpen, setDeleteOpen] = React.useState(false);
 
 	return (
 		<tr>
@@ -1647,58 +1648,46 @@ function TrashedListItem({
 				<bdi>{formatDate(deletedDate, i18n.locale)}</bdi>
 			</td>
 			<td className="text-end">
-				<div className="flex items-center justify-end space-x-1">
-					<Button
-						variant="ghost"
-						shape="square"
-						aria-label={t`Restore ${title}`}
+				<RowActionsMenu label={t`Actions for ${title}`}>
+					<DropdownMenu.Item
+						icon={<ArrowCounterClockwise className="me-2 size-4" aria-hidden="true" />}
 						onClick={() => onRestore?.(item.id)}
 					>
-						<ArrowCounterClockwise className="h-4 w-4 text-kumo-link" aria-hidden="true" />
-					</Button>
-					<Dialog.Root disablePointerDismissal>
-						<Dialog.Trigger
-							render={(p) => (
-								<Button
-									{...p}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Permanently delete ${title}`}
-								>
-									<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">
-								{t`Delete Permanently?`}
-							</Dialog.Title>
-							<Dialog.Description className="text-kumo-subtle">
-								{t`Permanently delete "${title}"? This cannot be undone.`}
-							</Dialog.Description>
-							<div className="mt-6 flex justify-end gap-2">
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="secondary">
-											{t`Cancel`}
-										</Button>
-									)}
-								/>
-								<Dialog.Close
-									render={(p) => (
-										<Button
-											{...p}
-											variant="destructive"
-											onClick={() => onPermanentDelete?.(item.id)}
-										>
-											{t`Delete Permanently`}
-										</Button>
-									)}
-								/>
-							</div>
-						</Dialog>
-					</Dialog.Root>
-				</div>
+						{t`Restore`}
+					</DropdownMenu.Item>
+					<DropdownMenu.Separator />
+					<DropdownMenu.Item
+						variant="danger"
+						icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+						onClick={() => setDeleteOpen(true)}
+					>
+						{t`Delete permanently`}
+					</DropdownMenu.Item>
+				</RowActionsMenu>
+				<Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen} disablePointerDismissal>
+					<Dialog className="p-6" size="sm">
+						<Dialog.Title className="text-lg font-semibold">{t`Delete Permanently?`}</Dialog.Title>
+						<Dialog.Description className="text-kumo-subtle">
+							{t`Permanently delete "${title}"? This cannot be undone.`}
+						</Dialog.Description>
+						<div className="mt-6 flex justify-end gap-2">
+							<Dialog.Close
+								render={(p) => (
+									<Button {...p} variant="secondary">
+										{t`Cancel`}
+									</Button>
+								)}
+							/>
+							<Dialog.Close
+								render={(p) => (
+									<Button {...p} variant="destructive" onClick={() => onPermanentDelete?.(item.id)}>
+										{t`Delete Permanently`}
+									</Button>
+								)}
+							/>
+						</div>
+					</Dialog>
+				</Dialog.Root>
 			</td>
 		</tr>
 	);
