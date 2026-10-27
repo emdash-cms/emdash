@@ -1,4 +1,4 @@
-import { Button, DropdownMenu, Toast } from "@cloudflare/kumo";
+import { Button, DropdownMenu, useKumoToastManager } from "@cloudflare/kumo";
 import type { ContentEditorActionResponse } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
 import { DotsThree } from "@phosphor-icons/react";
@@ -15,6 +15,7 @@ import type {
 	BrowserEditorDraftRequest,
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
+import { declaredLabelTranslator } from "./Sidebar.js";
 
 const MAX_TOOLBAR_ACTIONS = 3;
 
@@ -49,7 +50,7 @@ export function SandboxedContentEditorActions({
 	onDraftResponse,
 }: SandboxedContentEditorActionsProps) {
 	const { t, i18n } = useLingui();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [pending, setPending] = React.useState<Set<string>>(() => new Set());
 	const pendingRef = React.useRef(new Set<string>());
 	const [confirming, setConfirming] = React.useState<ResolvedSandboxedEditorAction | null>(null);
@@ -136,7 +137,7 @@ export function SandboxedContentEditorActions({
 					return;
 				}
 				if (body.data.toast) {
-					toastManager.add({ title: body.data.toast.message, type: body.data.toast.type });
+					toastManager.add({ title: body.data.toast.message, variant: body.data.toast.type });
 				}
 				if (action.extension.draft && (body.data.patch || body.data.editorInvocation)) {
 					onDraftResponse?.(action.extension.draft, body.data);
@@ -151,7 +152,7 @@ export function SandboxedContentEditorActions({
 					return;
 				}
 				if (action.extension.confirm) setConfirmError(error);
-				else toastManager.add({ title: t`Plugin action failed`, type: "error" });
+				else toastManager.add({ title: t`Plugin action failed`, variant: "error" });
 			} finally {
 				if (requestIdentity === identityRef.current) {
 					pendingRef.current.delete(key);
@@ -202,8 +203,9 @@ export function SandboxedContentEditorActions({
 			action.extension.placement === "overflow" ||
 			(toolbarCandidates.includes(action) && !toolbarActions.includes(action)),
 	);
+	const translateLabel = declaredLabelTranslator(i18n, (id) => i18n._(id));
 	const actionLabel = (action: ResolvedSandboxedEditorAction) =>
-		i18n._({ id: action.extension.label, message: action.extension.label });
+		translateLabel(action.extension.label);
 	const confirmingKey = confirming ? `${confirming.pluginId}:${confirming.extension.id}` : null;
 	const isActionDisabled = (action: ResolvedSandboxedEditorAction) =>
 		disabled || (hasUnsavedChanges && !action.extension.draft);

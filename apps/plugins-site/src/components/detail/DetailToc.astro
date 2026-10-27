@@ -1,0 +1,268 @@
+---
+/**
+ * "On this page" links. The page renders it twice so keyboard order follows
+ * the layout: `chips`, a scrolling row above the content below 1024px, and
+ * `rail`, the sticky list after the aside from 1024px.
+ */
+interface Props {
+	items: { id: string; title: string }[];
+	variant: "chips" | "rail";
+}
+
+const { items, variant } = Astro.props;
+const labelId = `toc-${variant}-label`;
+---
+
+<nav class:list={["toc", `toc--${variant}`]} aria-labelledby={labelId} data-toc>
+	<p class="toc-label" id={labelId}>On this page</p>
+	<ol class="toc-list">
+		{
+			items.map((item) => (
+				<li>
+					<a class="toc-link" href={`#${item.id}`} data-toc-link>
+						{item.title}
+					</a>
+				</li>
+			))
+		}
+	</ol>
+	{
+		variant === "rail" && (
+			<button
+				class="btn btn-secondary toc-install"
+				type="button"
+				data-install-trigger
+			>
+				Open in EmDash
+			</button>
+		)
+	}
+</nav>
+
+<script>
+	const SCROLL_KEYS = new Set([
+		"ArrowDown",
+		"ArrowUp",
+		"PageDown",
+		"PageUp",
+		"Home",
+		"End",
+		" ",
+	]);
+
+	const links = [
+		...document.querySelectorAll<HTMLAnchorElement>(
+			"[data-toc] [data-toc-link]",
+		),
+	];
+	const ids = [...new Set(links.map((link) => link.hash.slice(1)))];
+	const sections = ids
+		.map((id) => document.getElementById(id))
+		.filter((section): section is HTMLElement => section !== null);
+
+	const setCurrent = (id: string) => {
+		for (const link of links) {
+			if (link.hash.slice(1) === id) link.setAttribute("aria-current", "true");
+			else link.removeAttribute("aria-current");
+		}
+	};
+
+	const first = sections[0];
+	if (first && "IntersectionObserver" in window) {
+		// A section the visitor jumps to stays current until the jump settles, even
+		// when it is too short, or too near the end, to reach the band below. Their
+		// own scrolling takes over at once.
+		let pinned = false;
+		let settle: number | undefined;
+		const unpin = () => {
+			pinned = false;
+			window.clearTimeout(settle);
+		};
+		const unpinWhenSettled = () => {
+			window.clearTimeout(settle);
+			settle = window.setTimeout(unpin, 150);
+		};
+		const pin = (id: string) => {
+			pinned = true;
+			setCurrent(id);
+			unpinWhenSettled();
+		};
+		window.addEventListener("scroll", () => pinned && unpinWhenSettled(), {
+			passive: true,
+		});
+		window.addEventListener("wheel", unpin, { passive: true });
+		window.addEventListener("touchstart", unpin, { passive: true });
+		window.addEventListener("keydown", (event) => {
+			if (SCROLL_KEYS.has(event.key)) unpin();
+		});
+
+		const hash = location.hash.slice(1);
+		if (ids.includes(hash)) pin(hash);
+		else setCurrent(first.id);
+
+		// A thin band 30% down the viewport: the section crossing it is the one being read.
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (pinned) return;
+				const crossing = entries.filter((entry) => entry.isIntersecting);
+				const last = crossing.at(-1);
+				if (last) setCurrent(last.target.id);
+			},
+			{ rootMargin: "-30% 0px -69% 0px" },
+		);
+		for (const section of sections) observer.observe(section);
+
+		for (const link of links) {
+			link.addEventListener("click", () => pin(link.hash.slice(1)));
+		}
+		window.addEventListener("hashchange", () => {
+			const id = location.hash.slice(1);
+			if (ids.includes(id)) pin(id);
+		});
+	}
+</script>
+
+<style>
+	.toc {
+		min-width: 0;
+	}
+
+	.toc--chips {
+		grid-area: toc;
+	}
+
+	.toc--rail {
+		display: none;
+		grid-area: rail;
+	}
+
+	.toc-label {
+		margin: 0 0 0.75rem;
+		color: var(--muted);
+		font-size: 13px;
+		font-weight: 500;
+		line-height: 1.4;
+	}
+
+	.toc-list {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.toc-link {
+		display: block;
+		color: var(--muted);
+		font-size: 14px;
+		line-height: 1.4;
+		text-decoration: none;
+		transition:
+			color 150ms ease,
+			background-color 150ms ease,
+			border-color 150ms ease;
+	}
+
+	@media (hover: hover) {
+		.toc-link:hover {
+			color: var(--ink);
+		}
+	}
+
+	.toc-link[aria-current="true"] {
+		color: var(--ink-strong);
+		font-weight: 500;
+	}
+
+	.toc--chips .toc-list {
+		display: flex;
+		gap: 6px;
+		margin-inline: calc(-1 * var(--gutter));
+		padding: 2px var(--gutter);
+		overflow-x: auto;
+		scrollbar-width: none;
+		-webkit-mask-image: linear-gradient(
+			to right,
+			transparent,
+			#000 var(--gutter),
+			#000 calc(100% - var(--gutter)),
+			transparent
+		);
+		mask-image: linear-gradient(
+			to right,
+			transparent,
+			#000 var(--gutter),
+			#000 calc(100% - var(--gutter)),
+			transparent
+		);
+	}
+
+	.toc--chips .toc-list::-webkit-scrollbar {
+		display: none;
+	}
+
+	.toc--chips li {
+		flex: none;
+	}
+
+	.toc--chips .toc-link {
+		display: inline-flex;
+		align-items: center;
+		min-height: 32px;
+		padding: 0 12px;
+		white-space: nowrap;
+		background: var(--fill);
+		border-radius: var(--radius-full);
+	}
+
+	@media (hover: hover) {
+		.toc--chips .toc-link:hover {
+			background: var(--fill-hover);
+		}
+	}
+
+	/* Fill, not weight: a bolder label would widen the chip and shift the row on scroll. */
+	.toc--chips .toc-link[aria-current="true"] {
+		font-weight: 400;
+		background: var(--fill-active);
+	}
+
+	.toc--chips .toc-link:focus-visible {
+		outline-offset: -2px;
+	}
+
+	.toc--rail .toc-list {
+		display: grid;
+	}
+
+	.toc--rail .toc-link {
+		padding-block: 0.375rem;
+	}
+
+	.toc-install {
+		width: 100%;
+		margin-block-start: 1.5rem;
+	}
+
+	:global(:root:not(.js)) .toc-install {
+		display: none;
+	}
+
+	@media (min-width: 1024px) {
+		.toc--chips {
+			display: none;
+		}
+
+		.toc--rail {
+			position: sticky;
+			top: calc(var(--header-height) + 1.5rem);
+			display: block;
+			align-self: start;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.toc-link {
+			transition: none;
+		}
+	}
+</style>

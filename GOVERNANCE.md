@@ -27,6 +27,7 @@ The role lists in this file are canonical. GitHub, Discord, publishing, infrastr
 - [@masonjames](https://github.com/masonjames)
 - [@BenjaminPrice](https://github.com/BenjaminPrice)
 - [@CacheMeOwside](https://github.com/CacheMeOwside)
+- [@logelog](https://github.com/logelog)
 
 Maintainers are also members of the Project Team. Former members can be recognised separately without retaining project access.
 

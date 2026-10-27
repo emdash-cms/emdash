@@ -36,4 +36,24 @@ describe("providerItemToMediaItem", () => {
 		// `meta` must survive the mapping or the detail panel cannot find playback.
 		expect(metaPlayback(result.meta)).toEqual({ hls: STREAM_HLS });
 	});
+
+	it("maps provider captions and preserves the legacy meta fallback", () => {
+		const firstClass = providerItemToMediaItem("cloudflare-images", {
+			id: "image-1",
+			filename: "image.jpg",
+			mimeType: "image/jpeg",
+			caption: "First-class caption",
+			meta: { caption: "Old caption" },
+		});
+		const legacy = providerItemToMediaItem("cloudflare-images", {
+			id: "image-2",
+			filename: "image-2.jpg",
+			mimeType: "image/jpeg",
+			meta: { caption: "Legacy caption" },
+		});
+
+		expect(firstClass.caption).toBe("First-class caption");
+		expect(firstClass.meta?.caption).toBe("First-class caption");
+		expect(legacy.caption).toBe("Legacy caption");
+	});
 });

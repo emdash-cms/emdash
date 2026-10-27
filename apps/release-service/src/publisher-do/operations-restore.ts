@@ -459,14 +459,17 @@ export class OperationsRestoreStore {
 			integerField(intent, "createdAt"),
 			now,
 		);
-		this.storage.sql.exec(
-			`INSERT INTO release_reservations (package_slug, version, intent_id, created_at)
-			 VALUES (?, ?, ?, ?)`,
-			packageSlug,
-			version,
-			id,
-			integerField(intent, "createdAt"),
-		);
+		// The other terminal states release their reservation (RESERVATION_RELEASING_STATES).
+		if (restoredState === "published") {
+			this.storage.sql.exec(
+				`INSERT INTO release_reservations (package_slug, version, intent_id, created_at)
+				 VALUES (?, ?, ?, ?)`,
+				packageSlug,
+				version,
+				id,
+				integerField(intent, "createdAt"),
+			);
+		}
 		this.storage.sql.exec(
 			`INSERT INTO intent_transitions (
 				intent_id, sequence, from_state, to_state, state_generation,

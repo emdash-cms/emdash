@@ -1,7 +1,8 @@
 /**
  * Form CRUD route handlers.
  *
- * Admin-only routes for managing form definitions.
+ * `forms/list` also serves editors (`plugins:read`), without the webhook URL. Creating,
+ * updating, duplicating and deleting forms stay admin-only (`plugins:manage`).
  */
 
 import type { RouteContext, StorageCollection } from "emdash";
@@ -28,14 +29,30 @@ function submissions(ctx: RouteContext): StorageCollection {
 
 // ─── List Forms ──────────────────────────────────────────────────
 
+/** `Role.ADMIN` from @emdash-cms/auth; plugins do not depend on that package. */
+export const ADMIN_ROLE = 50;
+
+/** The webhook URL is a credential (for Slack or Discord it is all anyone needs to post). */
+function withoutWebhookUrl(form: FormDefinition): FormDefinition {
+	const settings = { ...form.settings };
+	delete settings.webhookUrl;
+	return { ...form, settings };
+}
+
 export async function formsListHandler(ctx: RouteContext) {
 	const result = await forms(ctx).query({
 		orderBy: { createdAt: "desc" },
 		limit: 100,
 	});
 
+	// No user (token without a bound user) is treated like a non-admin.
+	const isAdmin = (ctx.user?.role ?? 0) >= ADMIN_ROLE;
+
 	return {
-		items: result.items.map((item) => ({ id: item.id, ...item.data })),
+		items: result.items.map((item) => ({
+			id: item.id,
+			...(isAdmin ? item.data : withoutWebhookUrl(item.data)),
+		})),
 		hasMore: result.hasMore,
 		cursor: result.cursor,
 	};

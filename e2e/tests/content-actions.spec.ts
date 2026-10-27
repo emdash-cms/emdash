@@ -406,7 +406,7 @@ test.describe("Schedule content", () => {
 		await page.getByRole("button", { name: "Schedule" }).click();
 		const dialog = page.getByRole("dialog", { name: "Schedule changes" });
 		await expect(
-			dialog.getByText("Choose when these changes replace the live version.", { exact: true }),
+			dialog.getByRole("button", { name: "Schedule changes", exact: true }),
 		).toBeVisible();
 		await selectTomorrow(dialog);
 		await fillTime(page, dialog, "09:00");

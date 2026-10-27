@@ -1,4 +1,5 @@
-import { i18n } from "@lingui/core";
+import { i18n, setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -10,6 +11,7 @@ import type {
 	ContentListColumnExtension,
 } from "../../src/lib/content-list-columns.js";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context.js";
+import { messages as enMessages } from "../../src/locales/en/messages.mjs";
 import { render } from "../utils/render.tsx";
 
 const NO_RESULTS_PATTERN = /No results for/;
@@ -1226,6 +1228,43 @@ describe("ContentList", () => {
 				.toBeVisible();
 			await expect.element(screen.getByText("Needs review")).toBeVisible();
 			await expect.element(screen.getByText("Plugin Post")).toBeVisible();
+		});
+
+		it("renders an untranslated label without invoking Lingui's compiler", async () => {
+			const localI18n = setupI18n({ locale: "en", messages: { en: enMessages } });
+			localI18n.setMessagesCompiler(undefined as never);
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+			try {
+				const screen = await render(
+					listWithColumns([{ id: "review-status", label: "Review status", cell: () => null }]),
+					{
+						wrapper: ({ children }) => <I18nProvider i18n={localI18n}>{children}</I18nProvider>,
+					},
+				);
+
+				await expect
+					.element(screen.getByRole("columnheader", { name: "Review status" }))
+					.toBeVisible();
+				expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Review status"));
+			} finally {
+				warn.mockRestore();
+			}
+		});
+
+		it("translates a contributed label found in the active catalog", async () => {
+			const localI18n = setupI18n({
+				locale: "en",
+				messages: { en: { ...enMessages, "Review status": ["Prüfstatus"] } },
+			});
+			localI18n.setMessagesCompiler(undefined as never);
+			const screen = await render(
+				listWithColumns([{ id: "review-status", label: "Review status", cell: () => null }]),
+				{
+					wrapper: ({ children }) => <I18nProvider i18n={localI18n}>{children}</I18nProvider>,
+				},
+			);
+
+			await expect.element(screen.getByRole("columnheader", { name: "Prüfstatus" })).toBeVisible();
 		});
 
 		it("updates contributed header labels when the shared catalog changes", async () => {

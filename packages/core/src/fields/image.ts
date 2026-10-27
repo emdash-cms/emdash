@@ -6,6 +6,7 @@ const mediaSchema = z.object({
 	id: z.string(),
 	src: z.string().optional(),
 	alt: z.string().optional(),
+	caption: z.string().optional(),
 	width: z.number().optional(),
 	height: z.number().optional(),
 	filename: z.string().optional(),

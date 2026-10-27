@@ -10,6 +10,7 @@ import { sql } from "kysely";
 import { ulid } from "ulidx";
 
 import { refreshDevTypes } from "../astro/dev-typegen.js";
+import { deleteSharedCollectionRecords } from "../database/collection-cleanup.js";
 import {
 	columnExists,
 	currentTimestamp,
@@ -1211,10 +1212,17 @@ export class SchemaRegistry {
 				const ftsManager = new FTSManager(trx);
 				await ftsManager.dropFtsTable(slug);
 
-				// Drop the content table
+				// Drop the content table first: ec_* rows hold foreign keys to
+				// revisions.id, so the content table must go before revisions can
+				// be removed.
 				const tableName = this.getTableName(slug);
 				await sql`DROP TABLE IF EXISTS ${sql.ref(tableName)}`.execute(trx);
 				contentTableDropped = true;
+
+				// Remove shared-table records that are keyed by collection slug.
+				// Dropping the content table or deleting the collection row does not
+				// cascade to these, so they have to be cleared explicitly.
+				await deleteSharedCollectionRecords(trx, slug);
 
 				// Delete the collection record (fields will cascade)
 				await trx.deleteFrom("_emdash_collections").where("id", "=", existing.id).execute();
@@ -1316,6 +1324,7 @@ export class SchemaRegistry {
 		);
 
 		let schemaMutated = false;
+		let fieldStorageReady = false;
 		try {
 			const created = await withTransaction(this.db, async (trx) => {
 				// Insert field record
@@ -1359,6 +1368,8 @@ export class SchemaRegistry {
 					);
 				}
 
+				fieldStorageReady = true;
+
 				if (input.indexed) {
 					await this.createFieldIndex(collectionSlug, id, input.slug, trx);
 				}
@@ -1397,6 +1408,12 @@ export class SchemaRegistry {
 			return created;
 		} catch (error) {
 			if (schemaMutated) {
+				// D1 cannot roll back the insert when ADD COLUMN fails. Once storage
+				// exists, later failures must not remove its field metadata.
+				if (!fieldStorageReady) {
+					await this.db.deleteFrom("_emdash_fields").where("id", "=", id).execute();
+				}
+
 				if (activeCoverageInvalidated) {
 					await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
 				} else {

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { isMissingColumnError, isMissingTableError } from "../../../src/utils/db-errors.js";
+import {
+	isMissingColumnError,
+	getMissingColumnIdentifier,
+	isMissingTableError,
+} from "../../../src/utils/db-errors.js";
 
 describe("isMissingTableError", () => {
 	it("detects SQLite / D1 phrasing", () => {
@@ -78,5 +82,33 @@ describe("isMissingColumnError", () => {
 			true,
 		);
 		expect(isMissingColumnError(new Error("no such column: name"), "deleted_at")).toBe(false);
+	});
+});
+
+describe("getMissingColumnIdentifier", () => {
+	it.each([
+		["no such column: _emdash_missing", "_emdash_missing"],
+		['no such column: "missing" - should this be a string literal in single-quotes?', "missing"],
+		['column "_emdash_missing" does not exist', "_emdash_missing"],
+		["no such column: b.avatar_media_id", "b.avatar_media_id"],
+		["column b.avatar_media_id does not exist", "b.avatar_media_id"],
+		['column "ec_posts"."missing" does not exist', "ec_posts.missing"],
+		["D1_ERROR: no such column: r.slug: SQLITE_ERROR", "r.slug"],
+		["COLUMN _emdash_relations.slug DOES NOT EXIST", "_emdash_relations.slug"],
+		["query on _emdash_relations.slug failed: no such column: title", "title"],
+		['column "title" does not exist; query referenced _emdash_bylines.avatar_media_id', "title"],
+	])("extracts only the missing identifier from %s", (message, identifier) => {
+		expect(getMissingColumnIdentifier(new Error(message))).toBe(identifier);
+	});
+
+	it.each([
+		"no such column: title; query referenced _emdash_relations.slug",
+		"no such table: _emdash_relations",
+		"column permission denied",
+		null,
+		undefined,
+		42,
+	])("rejects unrelated or ambiguous errors: %s", (error) => {
+		expect(getMissingColumnIdentifier(error)).toBeUndefined();
 	});
 });

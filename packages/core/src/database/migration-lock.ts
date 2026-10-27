@@ -34,26 +34,42 @@ export function busyLockHeldSince(error: unknown): number | undefined {
  * Kysely creates the lock table with a single row, but none of its adapters
  * writes to it. The holder stores the time it took the lock in `is_locked`
  * (0 means free) and clears the row only while it still holds that time. A
- * lock whose holder never released it stays until `clearMigrationLock` runs:
- * the holder may still be migrating, or may have stopped partway through a
- * migration.
+ * lock whose holder never released it stays until `clearMigrationLock` runs or
+ * another run takes it over: the holder may still be migrating, or may have
+ * stopped partway through a migration.
  */
 export class LockingSqliteAdapter extends SqliteAdapter {
 	// eslint-disable-next-line typescript/no-explicit-any -- matches the DialectAdapter signature
 	readonly #held = new WeakMap<Kysely<any>, number>();
+	#takeOverFrom: number | undefined;
+
+	/**
+	 * Make the next acquire take the lock from the holder that took it at
+	 * `heldSince` instead of waiting for a free lock. One conditional write
+	 * replaces the old holder's time with this run's, so the lock is never free
+	 * for another run to take. A lock freed in the meantime is taken as usual.
+	 */
+	takeOverMigrationLock(heldSince: number): void {
+		this.#takeOverFrom = heldSince;
+	}
 
 	override async acquireMigrationLock(
 		// eslint-disable-next-line typescript/no-explicit-any -- matches the DialectAdapter signature
 		db: Kysely<any>,
 		options: MigrationLockOptions,
 	): Promise<void> {
+		const takeOverFrom = this.#takeOverFrom;
+		this.#takeOverFrom = undefined;
 		const heldSince = Date.now();
-		const result = await db
+		const claim = db
 			.updateTable(options.lockTable)
 			.set({ is_locked: heldSince })
-			.where("id", "=", options.lockRowId)
-			.where("is_locked", "=", 0)
-			.executeTakeFirst();
+			.where("id", "=", options.lockRowId);
+		const result = await (
+			takeOverFrom === undefined
+				? claim.where("is_locked", "=", 0)
+				: claim.where("is_locked", "in", [0, takeOverFrom])
+		).executeTakeFirst();
 		if (result.numUpdatedRows !== 1n) {
 			const row = await db
 				.selectFrom(options.lockTable)
@@ -96,6 +112,26 @@ export class LockingSqliteAdapter extends SqliteAdapter {
 			}
 		}
 	}
+}
+
+function takesLockInRow(adapter: object): adapter is LockingSqliteAdapter {
+	return "takeOverMigrationLock" in adapter && typeof adapter.takeOverMigrationLock === "function";
+}
+
+/**
+ * Make the next migration run on `db` take over the lock held since
+ * `heldSince` (see `LockingSqliteAdapter.takeOverMigrationLock`). Returns false
+ * when `db` does not take the migration lock in its table row.
+ */
+export function armMigrationLockTakeOver(
+	// eslint-disable-next-line typescript/no-explicit-any -- accepts any Kysely instance
+	db: Kysely<any>,
+	heldSince: number,
+): boolean {
+	const adapter: object = db.getExecutor().adapter;
+	if (!takesLockInRow(adapter)) return false;
+	adapter.takeOverMigrationLock(heldSince);
+	return true;
 }
 
 /**

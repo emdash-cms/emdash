@@ -12,8 +12,9 @@
  *
  * Stored on globalThis behind a Symbol key (same pattern as the taxonomy-defs
  * cache in `taxonomies/index.ts`) so bundler chunk duplication cannot produce
- * two independent caches. The promise is cached, so concurrent cold readers
- * share one in-flight query; a rejection evicts the entry.
+ * two independent caches. It holds the resolved set behind a reclaimable
+ * single-flight lock, never an in-flight promise (see
+ * `utils/single-flight-cache.ts`).
  *
  * Freshness:
  * - Primed for free at isolate boot: runtime init's auto-seed gate already
@@ -37,23 +38,30 @@
 
 import type { Kysely } from "kysely";
 
+import { after } from "../after.js";
 import type { Database } from "../database/types.js";
 import { requestCached } from "../request-cache.js";
 import { getRequestContext } from "../request-context.js";
+import {
+	createSingleFlightCache,
+	invalidateSingleFlightCache,
+	type SingleFlightCache,
+	singleFlightCached,
+} from "../utils/single-flight-cache.js";
 
 interface SlugsHolder {
-	promise: Promise<Set<string>> | null;
-	/** When the cached promise was created; gates bounded revalidation. */
+	cache: SingleFlightCache<Set<string>>;
+	/** When the cached set was fetched; gates bounded revalidation. */
 	fetchedAt: number;
 }
 
-const HOLDER_KEY = Symbol.for("emdash:collection-slugs");
+const HOLDER_KEY = Symbol.for("emdash:collection-slugs@2");
 const g = globalThis as Record<symbol, unknown>;
 const holder: SlugsHolder =
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-cache.ts)
 	(g[HOLDER_KEY] as SlugsHolder | undefined) ??
 	(() => {
-		const h: SlugsHolder = { promise: null, fetchedAt: 0 };
+		const h: SlugsHolder = { cache: createSingleFlightCache(), fetchedAt: 0 };
 		g[HOLDER_KEY] = h;
 		return h;
 	})();
@@ -67,14 +75,15 @@ async function fetchSlugs(db: Kysely<Database>): Promise<Set<string>> {
 }
 
 function loadSlugs(db: Kysely<Database>): Promise<Set<string>> {
-	if (holder.promise) return holder.promise;
-	const promise = fetchSlugs(db).catch((error: unknown) => {
-		if (holder.promise === promise) holder.promise = null;
-		throw error;
-	});
-	holder.promise = promise;
-	holder.fetchedAt = Date.now();
-	return promise;
+	return singleFlightCached(
+		holder.cache,
+		async () => {
+			const slugs = await fetchSlugs(db);
+			holder.fetchedAt = Date.now();
+			return slugs;
+		},
+		{ anchor: (promise) => after(() => promise), ownerTimeoutMs: 30_000 },
+	);
 }
 
 /**
@@ -96,7 +105,9 @@ export async function filterToRegisteredCollections(
 	let slugs = await loadSlugs(db);
 	let present = collections.filter((slug) => slugs.has(slug));
 	if (present.length < collections.length && Date.now() - holder.fetchedAt > revalidateWindowMs) {
-		holder.promise = null;
+		// Stamped before the refetch so parallel readers of the stale set skip their own.
+		holder.fetchedAt = Date.now();
+		invalidateSingleFlightCache(holder.cache);
 		slugs = await loadSlugs(db);
 		present = collections.filter((slug) => slugs.has(slug));
 	}
@@ -109,7 +120,10 @@ export async function filterToRegisteredCollections(
  * auto-seed gate.
  */
 export function primeRegisteredCollections(slugs: readonly string[]): void {
-	holder.promise = Promise.resolve(new Set(slugs));
+	const { cache } = holder;
+	cache.value = new Set(slugs);
+	cache.hasValue = true;
+	cache.valueVersion = cache.version;
 	holder.fetchedAt = Date.now();
 }
 
@@ -119,7 +133,7 @@ export function primeRegisteredCollections(slugs: readonly string[]): void {
  * create/delete). Other isolates converge through bounded revalidation.
  */
 export function resetRegisteredCollectionsCache(): void {
-	holder.promise = null;
+	invalidateSingleFlightCache(holder.cache);
 	holder.fetchedAt = 0;
 }
 

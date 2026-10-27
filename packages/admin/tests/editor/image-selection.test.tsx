@@ -72,4 +72,40 @@ describe("Editor image selection", () => {
 			expect(selection instanceof NodeSelection && selection.node.type.name === "image").toBe(true);
 		});
 	});
+
+	it("selects the image a finger taps, but not one it scrolls the page from", async () => {
+		let editor: Editor | undefined;
+		void render(
+			<TestEditor
+				onReady={(instance) => {
+					editor = instance;
+				}}
+			/>,
+		);
+		const image = await screen.findByRole("img", { name: "Example" });
+		await vi.waitFor(() => expect(editor).toBeDefined());
+		editor!.commands.setTextSelection(3);
+		const touch = (type: string) =>
+			image.dispatchEvent(
+				new PointerEvent(type, {
+					bubbles: true,
+					isPrimary: true,
+					pointerId: 2,
+					pointerType: "touch",
+				}),
+			);
+
+		// The browser takes over a finger that moves, to scroll the page.
+		touch("pointerdown");
+		touch("pointercancel");
+		expect(editor!.state.selection instanceof NodeSelection).toBe(false);
+
+		touch("pointerdown");
+		touch("pointerup");
+		image.click();
+		await vi.waitFor(() => {
+			const { selection } = editor!.state;
+			expect(selection instanceof NodeSelection && selection.node.type.name === "image").toBe(true);
+		});
+	});
 });

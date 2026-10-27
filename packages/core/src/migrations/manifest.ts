@@ -23,6 +23,7 @@ const i18nConfigSchema = z
 	.object({
 		defaultLocale: z.string().min(1),
 		locales: z.array(z.string().min(1)).min(1),
+		localeAliases: z.record(z.string(), z.string()).optional(),
 		fallback: z.record(z.string(), z.string()).optional(),
 		prefixDefaultLocale: z.boolean().optional(),
 	})
