@@ -87,7 +87,7 @@ msgid "{0, plural, one {# byline} other {# bylines}}"
 msgstr "{0, plural, one {# 个署名} other {# 个署名}}"
 
 #. placeholder {0}: seedInfo.collections
-#: packages/admin/src/components/SetupWizard.tsx:219
+#: packages/admin/src/components/SetupWizard.tsx:220
 msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# 个合集} other {# 个合集}}"
 
@@ -217,7 +217,7 @@ msgstr "{0, plural, one {该内容类型参与 # 个关联关系} other {该内�
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:5394
+#: packages/admin/src/components/PortableTextEditor.tsx:5403
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {# 行} other {# 行}} × {1, plural, one {# 列} other {# 列}}已选中"
 
@@ -385,7 +385,7 @@ msgstr "{0}/{1} 个文件 · {2}/{3}"
 
 #. placeholder {0}: i18n.number(seedProgress.done)
 #. placeholder {1}: i18n.number(seedProgress.total)
-#: packages/admin/src/components/SetupWizard.tsx:210
+#: packages/admin/src/components/SetupWizard.tsx:211
 msgid "{0} of {1} items"
 msgstr "{0}/{1} 项"
 
@@ -885,8 +885,8 @@ msgstr "• 已上传到您的 EmDash 媒体存储"
 msgid "• URLs in your content are updated automatically"
 msgstr "• 您内容中的 URL 将自动更新"
 
-#: packages/admin/src/components/SetupWizard.tsx:289
-#: packages/admin/src/components/SetupWizard.tsx:340
+#: packages/admin/src/components/SetupWizard.tsx:290
+#: packages/admin/src/components/SetupWizard.tsx:341
 #: packages/admin/src/components/WordPressImport.tsx:1656
 msgid "← Back"
 msgstr "← 返回"
@@ -1181,7 +1181,7 @@ msgstr "访问被拒绝"
 msgid "Access your media library"
 msgstr "访问您的媒体库"
 
-#: packages/admin/src/components/SetupWizard.tsx:409
+#: packages/admin/src/components/SetupWizard.tsx:410
 msgid "Account"
 msgstr "账户"
 
@@ -1293,12 +1293,12 @@ msgstr "添加署名"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5841
+#: packages/admin/src/components/PortableTextEditor.tsx:5856
 msgid "Add caption"
 msgstr "添加说明文字"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5407
+#: packages/admin/src/components/PortableTextEditor.tsx:5416
 msgid "Add column after"
 msgstr "在后面添加列"
 
@@ -1368,9 +1368,9 @@ msgstr "添加项目"
 msgid "Add Item"
 msgstr "添加项目"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5037
-#: packages/admin/src/components/PortableTextEditor.tsx:5834
-#: packages/admin/src/components/PortableTextEditor.tsx:6282
+#: packages/admin/src/components/PortableTextEditor.tsx:5040
+#: packages/admin/src/components/PortableTextEditor.tsx:5849
+#: packages/admin/src/components/PortableTextEditor.tsx:6298
 msgid "Add link"
 msgstr "添加链接"
 
@@ -1414,7 +1414,7 @@ msgid "Add row above"
 msgstr "在上方添加行"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5400
+#: packages/admin/src/components/PortableTextEditor.tsx:5409
 msgid "Add row below"
 msgstr "在下方添加行"
 
@@ -1604,25 +1604,25 @@ msgid "Agent-callable MCP tools"
 msgstr "可供智能体调用的 MCP 工具"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:5297
+#: packages/admin/src/components/PortableTextEditor.tsx:5304
 msgid "Align"
 msgstr "对齐"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6456
+#: packages/admin/src/components/PortableTextEditor.tsx:6472
 msgid "Align center"
 msgstr "居中对齐"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6448
+#: packages/admin/src/components/PortableTextEditor.tsx:6464
 msgid "Align left"
 msgstr "左对齐"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6464
+#: packages/admin/src/components/PortableTextEditor.tsx:6480
 msgid "Align right"
 msgstr "右对齐"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:484
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:5815
+#: packages/admin/src/components/PortableTextEditor.tsx:5830
 msgid "Alignment"
 msgstr "对齐方式"
 
@@ -1746,8 +1746,8 @@ msgstr "替代文本"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaLibrary.tsx:1144
-#: packages/admin/src/components/PortableTextEditor.tsx:5746
-#: packages/admin/src/components/PortableTextEditor.tsx:5812
+#: packages/admin/src/components/PortableTextEditor.tsx:5761
+#: packages/admin/src/components/PortableTextEditor.tsx:5827
 msgid "Alt text"
 msgstr "替代文本"
 
@@ -1898,7 +1898,7 @@ msgid "Application Password"
 msgstr "应用程序密码"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
-#: packages/admin/src/components/PortableTextEditor.tsx:6547
+#: packages/admin/src/components/PortableTextEditor.tsx:6563
 msgid "Apply"
 msgstr "应用"
 
@@ -1906,8 +1906,8 @@ msgstr "应用"
 msgid "Apply changes"
 msgstr "应用更改"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5011
-#: packages/admin/src/components/PortableTextEditor.tsx:5787
+#: packages/admin/src/components/PortableTextEditor.tsx:5014
+#: packages/admin/src/components/PortableTextEditor.tsx:5802
 msgid "Apply link"
 msgstr "应用链接"
 
@@ -2345,7 +2345,7 @@ msgid "Blocks"
 msgstr "区块"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4791
-#: packages/admin/src/components/PortableTextEditor.tsx:6316
+#: packages/admin/src/components/PortableTextEditor.tsx:6332
 msgid "Bold"
 msgstr "粗体"
 
@@ -2406,7 +2406,7 @@ msgstr "构建来源已验证"
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
 #: packages/admin/src/components/PortableTextEditor.tsx:2051
-#: packages/admin/src/components/PortableTextEditor.tsx:6373
+#: packages/admin/src/components/PortableTextEditor.tsx:6389
 msgid "Bullet List"
 msgstr "无序列表"
 
@@ -2532,9 +2532,9 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/MenuEditor.tsx:754
 #: packages/admin/src/components/MenuList.tsx:184
 #: packages/admin/src/components/PluginManager.tsx:817
-#: packages/admin/src/components/PortableTextEditor.tsx:5758
-#: packages/admin/src/components/PortableTextEditor.tsx:5784
-#: packages/admin/src/components/PortableTextEditor.tsx:6531
+#: packages/admin/src/components/PortableTextEditor.tsx:5773
+#: packages/admin/src/components/PortableTextEditor.tsx:5799
+#: packages/admin/src/components/PortableTextEditor.tsx:6547
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:407
 #: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/RelationDialog.tsx:60
@@ -2645,8 +2645,8 @@ msgstr "单元格已合并"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:5301
-#: packages/admin/src/components/PortableTextEditor.tsx:5419
+#: packages/admin/src/components/PortableTextEditor.tsx:5308
+#: packages/admin/src/components/PortableTextEditor.tsx:5429
 msgid "Center"
 msgstr "居中"
 
@@ -2993,7 +2993,7 @@ msgstr "清除已完成"
 msgid "Clear filters"
 msgstr "清除筛选"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5311
+#: packages/admin/src/components/PortableTextEditor.tsx:5318
 msgid "Clear formatting"
 msgstr "清除格式"
 
@@ -3139,7 +3139,7 @@ msgstr "代码"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
 #: packages/admin/src/components/PortableTextEditor.tsx:2081
-#: packages/admin/src/components/PortableTextEditor.tsx:6415
+#: packages/admin/src/components/PortableTextEditor.tsx:6431
 msgid "Code Block"
 msgstr "代码块"
 
@@ -3193,7 +3193,7 @@ msgid "Collections created:"
 msgstr "已创建的合集："
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5405
+#: packages/admin/src/components/PortableTextEditor.tsx:5414
 msgid "Column added after"
 msgstr "已在之后添加列"
 
@@ -3442,8 +3442,8 @@ msgstr "内容写入"
 msgid "Continue"
 msgstr "继续"
 
-#: packages/admin/src/components/SetupWizard.tsx:201
-#: packages/admin/src/components/SetupWizard.tsx:297
+#: packages/admin/src/components/SetupWizard.tsx:202
+#: packages/admin/src/components/SetupWizard.tsx:298
 msgid "Continue →"
 msgstr "继续 →"
 
@@ -3452,7 +3452,7 @@ msgid "Continue Import"
 msgstr "继续导入"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:6390
+#: packages/admin/src/components/PortableTextEditor.tsx:6406
 msgid "Continue numbering"
 msgstr "继续编号"
 
@@ -3464,7 +3464,7 @@ msgstr "在 {handoverHost} 上继续"
 msgid "Continue to finish signing in. The link works only once."
 msgstr "继续完成登录。该链接仅可使用一次。"
 
-#: packages/admin/src/components/SetupWizard.tsx:356
+#: packages/admin/src/components/SetupWizard.tsx:357
 msgid "Continue to import"
 msgstr "继续导入"
 
@@ -3875,7 +3875,7 @@ msgstr "创建令牌"
 msgid "Create Widget Area"
 msgstr "创建小部件区域"
 
-#: packages/admin/src/components/SetupWizard.tsx:628
+#: packages/admin/src/components/SetupWizard.tsx:620
 msgid "Create your account"
 msgstr "创建您的账户"
 
@@ -4265,7 +4265,7 @@ msgstr "删除文件夹"
 msgid "Delete gallery"
 msgstr "删除图库"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5853
+#: packages/admin/src/components/PortableTextEditor.tsx:5868
 msgid "Delete image"
 msgstr "删除图片"
 
@@ -4419,7 +4419,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr "描述这张图片"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:522
-#: packages/admin/src/components/PortableTextEditor.tsx:5747
+#: packages/admin/src/components/PortableTextEditor.tsx:5762
 msgid "Describe the image"
 msgstr "描述图片"
 
@@ -4963,7 +4963,7 @@ msgstr "编辑署名字段"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5841
+#: packages/admin/src/components/PortableTextEditor.tsx:5856
 msgid "Edit caption"
 msgstr "编辑说明文字"
 
@@ -4999,10 +4999,10 @@ msgstr "编辑图片"
 msgid "Edit image {0}"
 msgstr "编辑图片 {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5037
-#: packages/admin/src/components/PortableTextEditor.tsx:5143
-#: packages/admin/src/components/PortableTextEditor.tsx:5834
-#: packages/admin/src/components/PortableTextEditor.tsx:6281
+#: packages/admin/src/components/PortableTextEditor.tsx:5040
+#: packages/admin/src/components/PortableTextEditor.tsx:5149
+#: packages/admin/src/components/PortableTextEditor.tsx:5849
+#: packages/admin/src/components/PortableTextEditor.tsx:6297
 msgid "Edit link"
 msgstr "编辑链接"
 
@@ -5154,7 +5154,7 @@ msgstr "向所有用户发送邮件？"
 msgid "Email every other user a link to the sign-in page at {siteHost}."
 msgstr "向其他所有用户发送邮件，附上 {siteHost} 登录页面的链接。"
 
-#: packages/admin/src/components/SetupWizard.tsx:242
+#: packages/admin/src/components/SetupWizard.tsx:243
 #: packages/admin/src/components/SignupPage.tsx:69
 msgid "Email is required"
 msgstr "邮箱为必填项"
@@ -5265,7 +5265,7 @@ msgstr "空"
 msgid "Empty gallery — open settings to add images"
 msgstr "图库为空 — 打开设置以添加图片"
 
-#: packages/admin/src/components/SetupWizard.tsx:173
+#: packages/admin/src/components/SetupWizard.tsx:174
 msgid "Empty site"
 msgstr "空站点"
 
@@ -5418,7 +5418,7 @@ msgstr "链接侧的条目"
 #: packages/admin/src/components/MenuEditor.tsx:158
 #: packages/admin/src/components/MenuEditor.tsx:226
 #: packages/admin/src/components/MenuEditor.tsx:266
-#: packages/admin/src/components/SetupWizard.tsx:607
+#: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1210
 #: packages/admin/src/components/Widgets.tsx:781
 #: packages/admin/src/router.tsx:3364
@@ -5666,7 +5666,7 @@ msgstr "创建 {0} 失败"
 msgid "Failed to create a sign-in link"
 msgstr "创建登录链接失败"
 
-#: packages/admin/src/components/SetupWizard.tsx:561
+#: packages/admin/src/components/SetupWizard.tsx:557
 msgid "Failed to create admin"
 msgstr "创建管理员失败"
 
@@ -6123,7 +6123,7 @@ msgstr "获取分区列表失败"
 msgid "Failed to fetch settings"
 msgstr "获取设置失败"
 
-#: packages/admin/src/components/SetupWizard.tsx:502
+#: packages/admin/src/components/SetupWizard.tsx:504
 msgid "Failed to fetch setup status"
 msgstr "获取设置状态失败"
 
@@ -6318,7 +6318,7 @@ msgstr "加载插件失败：{0}"
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
 msgstr "加载插件失败。仓库聚合服务可能无法访问。"
 
-#: packages/admin/src/components/SetupWizard.tsx:609
+#: packages/admin/src/components/SetupWizard.tsx:605
 msgid "Failed to load setup"
 msgstr "加载设置失败"
 
@@ -6929,7 +6929,7 @@ msgstr "如需完整导入（包括草稿和所有内容），请从 WordPress �
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "为获得最佳导入体验，请在您的 WordPress 站点上安装 <0>EmDash Exporter</0> 插件。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4989
+#: packages/admin/src/components/PortableTextEditor.tsx:4992
 msgid "Format selection"
 msgstr "格式选择"
 
@@ -6999,7 +6999,7 @@ msgstr "常规设置"
 msgid "Genres"
 msgstr "类型"
 
-#: packages/admin/src/components/WelcomeModal.tsx:156
+#: packages/admin/src/components/WelcomeModal.tsx:164
 msgid "Get Started"
 msgstr "开始使用"
 
@@ -7230,7 +7230,7 @@ msgstr "水平 {0}%，垂直 {1}%"
 msgid "Hour"
 msgstr "小时"
 
-#: packages/admin/src/components/SetupWizard.tsx:158
+#: packages/admin/src/components/SetupWizard.tsx:159
 msgid "How do you want to start?"
 msgstr "您想如何开始？"
 
@@ -7367,7 +7367,7 @@ msgstr "图片 {0}"
 msgid "Image actions"
 msgstr "图片操作"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5712
+#: packages/admin/src/components/PortableTextEditor.tsx:5727
 msgid "Image controls"
 msgstr "图片控件"
 
@@ -7375,7 +7375,7 @@ msgstr "图片控件"
 msgid "Image from media library"
 msgstr "来自媒体库的图片"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6279
+#: packages/admin/src/components/PortableTextEditor.tsx:6295
 msgid "Image link"
 msgstr "图片链接"
 
@@ -7395,7 +7395,7 @@ msgid "Image replaced."
 msgstr "图片已替换。"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:391
-#: packages/admin/src/components/PortableTextEditor.tsx:5846
+#: packages/admin/src/components/PortableTextEditor.tsx:5861
 msgid "Image settings"
 msgstr "图片设置"
 
@@ -7448,7 +7448,7 @@ msgstr "在站点为空时将站点包导入此站点，并覆盖其初始设置
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "直接导入所有内容，包括草稿、自定义文章类型、ACF 字段和 SEO 数据。无需下载文件。"
 
-#: packages/admin/src/components/SetupWizard.tsx:178
+#: packages/admin/src/components/SetupWizard.tsx:179
 msgid "Import an existing EmDash site"
 msgstr "导入现有 EmDash 站点"
 
@@ -7619,7 +7619,7 @@ msgid "Inline blocks use your site's styles. Your site removes scripts, style ta
 msgstr "内联区块使用您站点的样式。您的站点会移除脚本、style 标签和 style 属性，并清空除 YouTube 和 Vimeo 之外的 iframe。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4795
-#: packages/admin/src/components/PortableTextEditor.tsx:6348
+#: packages/admin/src/components/PortableTextEditor.tsx:6364
 msgid "Inline Code"
 msgstr "行内代码"
 
@@ -7660,8 +7660,8 @@ msgstr "插入图片画廊"
 msgid "Insert block"
 msgstr "插入区块"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6295
-#: packages/admin/src/components/PortableTextEditor.tsx:6305
+#: packages/admin/src/components/PortableTextEditor.tsx:6311
+#: packages/admin/src/components/PortableTextEditor.tsx:6321
 msgid "Insert block after current block"
 msgstr "在当前区块后插入区块"
 
@@ -7669,12 +7669,12 @@ msgstr "在当前区块后插入区块"
 msgid "Insert block below"
 msgstr "在下方插入区块"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6429
+#: packages/admin/src/components/PortableTextEditor.tsx:6445
 msgid "Insert HTML"
 msgstr "插入 HTML"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4701
-#: packages/admin/src/components/PortableTextEditor.tsx:6422
+#: packages/admin/src/components/PortableTextEditor.tsx:6438
 msgid "Insert image"
 msgstr "插入图片"
 
@@ -7827,7 +7827,7 @@ msgid "It was started somewhere else, so its plan can no longer be changed. Its 
 msgstr "它已在其他位置启动，因此其计划无法再更改。进度将显示在此处。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4792
-#: packages/admin/src/components/PortableTextEditor.tsx:6324
+#: packages/admin/src/components/PortableTextEditor.tsx:6340
 msgid "Italic"
 msgstr "斜体"
 
@@ -7854,7 +7854,7 @@ msgid "Its listing has not been approved for display. Check back later."
 msgstr "其列表尚未获批展示。请稍后再查看。"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:76
-#: packages/admin/src/components/SetupWizard.tsx:277
+#: packages/admin/src/components/SetupWizard.tsx:278
 #: packages/admin/src/components/SignupPage.tsx:231
 msgid "Jane Doe"
 msgstr "张三"
@@ -8050,8 +8050,8 @@ msgstr "不保存直接离开？"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:5300
-#: packages/admin/src/components/PortableTextEditor.tsx:5418
+#: packages/admin/src/components/PortableTextEditor.tsx:5307
+#: packages/admin/src/components/PortableTextEditor.tsx:5428
 msgid "Left"
 msgstr "左侧"
 
@@ -8072,7 +8072,7 @@ msgstr "许可证"
 msgid "Limit"
 msgstr "限制"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6508
+#: packages/admin/src/components/PortableTextEditor.tsx:6524
 msgid "Link"
 msgstr "链接"
 
@@ -8080,7 +8080,7 @@ msgstr "链接"
 msgid "Link expired"
 msgstr "链接已过期"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5121
+#: packages/admin/src/components/PortableTextEditor.tsx:5127
 msgid "Link options"
 msgstr "链接选项"
 
@@ -8324,7 +8324,7 @@ msgstr "正在加载区块..."
 msgid "Loading settings..."
 msgstr "正在加载设置..."
 
-#: packages/admin/src/components/SetupWizard.tsx:596
+#: packages/admin/src/components/SetupWizard.tsx:592
 msgid "Loading setup..."
 msgstr "正在加载设置..."
 
@@ -8869,7 +8869,7 @@ msgstr "月度/年度归档"
 msgid "More actions for {0}"
 msgstr "{0} 的更多操作"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5267
+#: packages/admin/src/components/PortableTextEditor.tsx:5274
 msgid "More formatting"
 msgstr "更多格式"
 
@@ -9117,7 +9117,7 @@ msgstr "多行纯文本"
 msgid "Multiple choices from options"
 msgstr "从选项中选择多个"
 
-#: packages/admin/src/components/SetupWizard.tsx:141
+#: packages/admin/src/components/SetupWizard.tsx:142
 msgid "My Awesome Blog"
 msgstr "我的精彩博客"
 
@@ -9427,7 +9427,7 @@ msgstr "暂无内容类型。"
 msgid "No custom fields yet"
 msgstr "尚无自定义字段"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5808
+#: packages/admin/src/components/PortableTextEditor.tsx:5823
 msgid "No description yet"
 msgstr "暂无描述"
 
@@ -9739,7 +9739,7 @@ msgid "Non-guest"
 msgstr "非访客"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:5417
+#: packages/admin/src/components/PortableTextEditor.tsx:5427
 msgid "None"
 msgstr "无"
 
@@ -9811,7 +9811,7 @@ msgstr "列表视图每页显示的文章数量"
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
 #: packages/admin/src/components/PortableTextEditor.tsx:2061
-#: packages/admin/src/components/PortableTextEditor.tsx:6381
+#: packages/admin/src/components/PortableTextEditor.tsx:6397
 msgid "Numbered List"
 msgstr "有序列表"
 
@@ -9840,7 +9840,7 @@ msgstr "开"
 msgid "On the site"
 msgstr "在站点上"
 
-#: packages/admin/src/components/SetupWizard.tsx:179
+#: packages/admin/src/components/SetupWizard.tsx:180
 msgid "Once setup is done, upload a .emdash package exported from another EmDash site."
 msgstr "设置完成后，上传从另一个 EmDash 站点导出的 .emdash 包。"
 
@@ -9931,7 +9931,7 @@ msgid "Open setup"
 msgstr "打开设置"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:89
-#: packages/admin/src/components/SetupWizard.tsx:356
+#: packages/admin/src/components/SetupWizard.tsx:357
 #: packages/admin/src/components/SignupPage.tsx:246
 msgid "Open the dashboard"
 msgstr "打开仪表板"
@@ -10002,7 +10002,7 @@ msgstr "或通过 URL 连接"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:102
 #: packages/admin/src/components/LoginPage.tsx:282
-#: packages/admin/src/components/SetupWizard.tsx:369
+#: packages/admin/src/components/SetupWizard.tsx:370
 msgid "Or continue with"
 msgstr "或继续使用"
 
@@ -10325,7 +10325,7 @@ msgstr "计划摘要"
 msgid "Please ask your administrator to send a new invite."
 msgstr "请让您的管理员发送新的邀请。"
 
-#: packages/admin/src/components/SetupWizard.tsx:244
+#: packages/admin/src/components/SetupWizard.tsx:245
 msgid "Please enter a valid email"
 msgstr "请输入有效的邮箱"
 
@@ -10536,7 +10536,7 @@ msgid "Preparing to download files from WordPress..."
 msgstr "正在准备从 WordPress 下载文件..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:163
-#: packages/admin/src/components/SetupWizard.tsx:297
+#: packages/admin/src/components/SetupWizard.tsx:298
 msgid "Preparing..."
 msgstr "正在准备..."
 
@@ -10786,7 +10786,7 @@ msgstr "快速创建将根据此字段和此内容集合为关联关系命名，
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:2071
 #: packages/admin/src/components/PortableTextEditor.tsx:3507
-#: packages/admin/src/components/PortableTextEditor.tsx:6407
+#: packages/admin/src/components/PortableTextEditor.tsx:6423
 msgid "Quote"
 msgstr "引用"
 
@@ -10960,7 +10960,7 @@ msgstr "重定向"
 msgid "Redirects that loop will be imported turned off"
 msgstr "存在循环的重定向将在导入后处于关闭状态"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6570
+#: packages/admin/src/components/PortableTextEditor.tsx:6586
 msgid "Redo"
 msgstr "重做"
 
@@ -11082,7 +11082,7 @@ msgstr "移除图片"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:383
 #: packages/admin/src/components/ImageFieldRenderer.tsx:454
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
-#: packages/admin/src/components/PortableTextEditor.tsx:6543
+#: packages/admin/src/components/PortableTextEditor.tsx:6559
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -11157,9 +11157,9 @@ msgstr "要移除图片吗？"
 msgid "Remove item {0}"
 msgstr "移除项目 {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5015
-#: packages/admin/src/components/PortableTextEditor.tsx:5155
-#: packages/admin/src/components/PortableTextEditor.tsx:5780
+#: packages/admin/src/components/PortableTextEditor.tsx:5018
+#: packages/admin/src/components/PortableTextEditor.tsx:5161
+#: packages/admin/src/components/PortableTextEditor.tsx:5795
 msgid "Remove link"
 msgstr "移除链接"
 
@@ -11325,8 +11325,8 @@ msgstr "替换图片"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:427
 #: packages/admin/src/components/ImageFieldRenderer.tsx:601
 #: packages/admin/src/components/ImageFieldRenderer.tsx:604
-#: packages/admin/src/components/PortableTextEditor.tsx:5802
-#: packages/admin/src/components/PortableTextEditor.tsx:5883
+#: packages/admin/src/components/PortableTextEditor.tsx:5817
+#: packages/admin/src/components/PortableTextEditor.tsx:5899
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
@@ -11351,7 +11351,7 @@ msgstr "替换 {label} 的深色模式变体"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaDetailPanel.tsx:1967
-#: packages/admin/src/components/PortableTextEditor.tsx:5882
+#: packages/admin/src/components/PortableTextEditor.tsx:5898
 msgid "Replace image"
 msgstr "替换图片"
 
@@ -11522,7 +11522,7 @@ msgid "Resolving publisher handle..."
 msgstr "正在解析发布者标识…"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:6397
+#: packages/admin/src/components/PortableTextEditor.tsx:6413
 msgid "Restart numbering"
 msgstr "重新编号"
 
@@ -11726,8 +11726,8 @@ msgstr "富文本编辑器"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:5302
-#: packages/admin/src/components/PortableTextEditor.tsx:5420
+#: packages/admin/src/components/PortableTextEditor.tsx:5309
+#: packages/admin/src/components/PortableTextEditor.tsx:5430
 msgid "Right"
 msgstr "右"
 
@@ -11781,7 +11781,7 @@ msgid "Row added above"
 msgstr "已在上方添加行"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5398
+#: packages/admin/src/components/PortableTextEditor.tsx:5407
 msgid "Row added below"
 msgstr "已在下方添加行"
 
@@ -11817,8 +11817,8 @@ msgstr "与当前版本相同"
 msgid "Same window"
 msgstr "同一窗口"
 
-#: packages/admin/src/components/SetupWizard.tsx:167
-#: packages/admin/src/components/SetupWizard.tsx:207
+#: packages/admin/src/components/SetupWizard.tsx:168
+#: packages/admin/src/components/SetupWizard.tsx:208
 msgid "Sample content"
 msgstr "示例内容"
 
@@ -11839,7 +11839,7 @@ msgstr "保存"
 msgid "Save (Enter)"
 msgstr "保存 (Enter)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5761
+#: packages/admin/src/components/PortableTextEditor.tsx:5776
 msgid "Save alt text"
 msgstr "保存替代文本"
 
@@ -12296,7 +12296,7 @@ msgstr "区块"
 msgid "Sections could not be loaded."
 msgstr "无法加载分区。"
 
-#: packages/admin/src/components/SetupWizard.tsx:629
+#: packages/admin/src/components/SetupWizard.tsx:621
 msgid "Secure your account"
 msgstr "保护您的账户"
 
@@ -12651,7 +12651,7 @@ msgstr "设置媒体使用情况跟踪"
 msgid "Set up Windows Hello"
 msgstr "设置 Windows Hello"
 
-#: packages/admin/src/components/SetupWizard.tsx:627
+#: packages/admin/src/components/SetupWizard.tsx:619
 msgid "Set up your site"
 msgstr "设置您的站点"
 
@@ -12660,7 +12660,7 @@ msgstr "设置您的站点"
 msgid "Setting up"
 msgstr "正在设置"
 
-#: packages/admin/src/components/SetupWizard.tsx:201
+#: packages/admin/src/components/SetupWizard.tsx:202
 msgid "Setting up..."
 msgstr "正在设置..."
 
@@ -12693,8 +12693,8 @@ msgstr "设置保存成功"
 msgid "Setup couldn’t continue. Try again."
 msgstr "设置无法继续。请重试。"
 
-#: packages/admin/src/components/SetupWizard.tsx:528
-#: packages/admin/src/components/SetupWizard.tsx:531
+#: packages/admin/src/components/SetupWizard.tsx:524
+#: packages/admin/src/components/SetupWizard.tsx:527
 msgid "Setup failed"
 msgstr "设置失败"
 
@@ -12781,7 +12781,7 @@ msgstr "显示用于创建新条目的按钮"
 msgid "Sign in"
 msgstr "登录"
 
-#: packages/admin/src/components/SetupWizard.tsx:410
+#: packages/admin/src/components/SetupWizard.tsx:411
 msgid "Sign In"
 msgstr "登录"
 
@@ -12801,7 +12801,7 @@ msgstr "登录到您的网站"
 #. placeholder {0}: activeProviderEntry.label ?? activeProvider
 #. placeholder {0}: provider.label
 #: packages/admin/src/components/LoginPage.tsx:252
-#: packages/admin/src/components/SetupWizard.tsx:327
+#: packages/admin/src/components/SetupWizard.tsx:328
 msgid "Sign in with {0}"
 msgstr "使用 {0} 登录"
 
@@ -12849,7 +12849,7 @@ msgid "Single line text input"
 msgstr "单行文本输入"
 
 #: packages/admin/src/components/Settings.tsx:50
-#: packages/admin/src/components/SetupWizard.tsx:408
+#: packages/admin/src/components/SetupWizard.tsx:409
 msgid "Site"
 msgstr "站点"
 
@@ -12887,7 +12887,7 @@ msgid "Site settings"
 msgstr "站点设置"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
-#: packages/admin/src/components/SetupWizard.tsx:406
+#: packages/admin/src/components/SetupWizard.tsx:407
 #: packages/admin/src/components/WordPressImport.tsx:1201
 msgid "Site Settings"
 msgstr "站点设置"
@@ -12897,7 +12897,7 @@ msgid "Site title"
 msgstr "站点标题"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:278
-#: packages/admin/src/components/SetupWizard.tsx:137
+#: packages/admin/src/components/SetupWizard.tsx:138
 msgid "Site Title"
 msgstr "站点标题"
 
@@ -12905,7 +12905,7 @@ msgstr "站点标题"
 msgid "Site title & tagline"
 msgstr "站点标题和副标题"
 
-#: packages/admin/src/components/SetupWizard.tsx:121
+#: packages/admin/src/components/SetupWizard.tsx:122
 msgid "Site title is required"
 msgstr "站点标题为必填项"
 
@@ -13127,11 +13127,11 @@ msgstr "开始导入"
 msgid "Start Import"
 msgstr "开始导入"
 
-#: packages/admin/src/components/SetupWizard.tsx:174
+#: packages/admin/src/components/SetupWizard.tsx:175
 msgid "Start with the template’s content types and no content."
 msgstr "使用模板的内容类型，不带内容。"
 
-#: packages/admin/src/components/SetupWizard.tsx:168
+#: packages/admin/src/components/SetupWizard.tsx:169
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
 msgstr "使用模板的示例文章和页面。推荐新站点使用。"
 
@@ -13210,7 +13210,7 @@ msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "按语言环境存储 — 署名的每个翻译都有各自的值。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4794
-#: packages/admin/src/components/PortableTextEditor.tsx:6340
+#: packages/admin/src/components/PortableTextEditor.tsx:6356
 msgid "Strikethrough"
 msgstr "删除线"
 
@@ -13244,11 +13244,11 @@ msgstr "子字段"
 msgid "Subscriber"
 msgstr "订阅者"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5281
+#: packages/admin/src/components/PortableTextEditor.tsx:5288
 msgid "Subscript"
 msgstr "下标"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5287
+#: packages/admin/src/components/PortableTextEditor.tsx:5294
 msgid "Superscript"
 msgstr "上标"
 
@@ -13296,7 +13296,7 @@ msgstr "表格"
 msgid "Table cells accept text, links, and formatting only."
 msgstr "表格单元格仅接受文本、链接和格式。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5388
+#: packages/admin/src/components/PortableTextEditor.tsx:5397
 msgid "Table controls"
 msgstr "表格控件"
 
@@ -13319,7 +13319,7 @@ msgstr "表格不能粘贴到列表或引用中。请将表格粘贴到独立段
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:286
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
-#: packages/admin/src/components/SetupWizard.tsx:148
+#: packages/admin/src/components/SetupWizard.tsx:149
 msgid "Tagline"
 msgstr "副标题"
 
@@ -13403,7 +13403,7 @@ msgstr "技术验证详情"
 msgid "Tell users where to sign in"
 msgstr "告知用户在哪里登录"
 
-#: packages/admin/src/components/SetupWizard.tsx:218
+#: packages/admin/src/components/SetupWizard.tsx:219
 msgid "Template:"
 msgstr "模板："
 
@@ -13441,7 +13441,7 @@ msgstr "术语"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6584
+#: packages/admin/src/components/PortableTextEditor.tsx:6600
 msgid "Text formatting"
 msgstr "文本格式化"
 
@@ -13787,7 +13787,7 @@ msgstr "关系和引用的集合在创建后无法更改。此字段接受的条
 msgid "The relationship decides the referenced collection and how many entries this field accepts."
 msgstr "关系决定引用的集合以及此字段接受的条目数量。"
 
-#: packages/admin/src/components/SetupWizard.tsx:188
+#: packages/admin/src/components/SetupWizard.tsx:189
 msgid "The sample content added so far is kept. Continue to add the rest."
 msgstr "已添加的示例内容将保留。继续添加其余内容。"
 
@@ -14323,7 +14323,7 @@ msgstr "这将从您的站点移除插件及其包。"
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "这将恢复到已发布的版本。您的草稿更改将会丢失。"
 
-#: packages/admin/src/components/SetupWizard.tsx:152
+#: packages/admin/src/components/SetupWizard.tsx:153
 msgid "Thoughts, tutorials, and more"
 msgstr "想法、教程等"
 
@@ -14584,9 +14584,9 @@ msgid "TSX"
 msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:5204
-#: packages/admin/src/components/PortableTextEditor.tsx:5206
-#: packages/admin/src/components/PortableTextEditor.tsx:5223
+#: packages/admin/src/components/PortableTextEditor.tsx:5211
+#: packages/admin/src/components/PortableTextEditor.tsx:5213
+#: packages/admin/src/components/PortableTextEditor.tsx:5230
 msgid "Turn into"
 msgstr "转换为"
 
@@ -14670,11 +14670,11 @@ msgid "Unassigned"
 msgstr "未分配"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4793
-#: packages/admin/src/components/PortableTextEditor.tsx:6332
+#: packages/admin/src/components/PortableTextEditor.tsx:6348
 msgid "Underline"
 msgstr "下划线"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6563
+#: packages/admin/src/components/PortableTextEditor.tsx:6579
 msgid "Undo"
 msgstr "撤销"
 
@@ -15418,11 +15418,19 @@ msgstr "网站"
 msgid "Website URL"
 msgstr "网站 URL"
 
-#: packages/admin/src/components/WelcomeModal.tsx:104
+#: packages/admin/src/components/WelcomeModal.tsx:107
+msgid "Welcome to {siteName}, {firstName}!"
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:108
+msgid "Welcome to {siteName}!"
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:111
 msgid "Welcome to EmDash, {firstName}!"
 msgstr "欢迎使用 EmDash，{firstName}！"
 
-#: packages/admin/src/components/WelcomeModal.tsx:104
+#: packages/admin/src/components/WelcomeModal.tsx:111
 msgid "Welcome to EmDash!"
 msgstr "欢迎使用 EmDash！"
 
@@ -15786,7 +15794,7 @@ msgstr "您将以 <0>{roleName}</0> 身份注册"
 msgid "You're signed in at {0}"
 msgstr "您已登录 {0}"
 
-#: packages/admin/src/components/SetupWizard.tsx:632
+#: packages/admin/src/components/SetupWizard.tsx:624
 msgid "You're signed in via Cloudflare Access"
 msgstr "您已通过 Cloudflare Access 登录"
 
@@ -15806,7 +15814,7 @@ msgstr "您已被邀请！"
 msgid "you@company.com"
 msgstr "you@company.com"
 
-#: packages/admin/src/components/SetupWizard.tsx:265
+#: packages/admin/src/components/SetupWizard.tsx:266
 msgid "you@example.com"
 msgstr "you@example.com"
 
@@ -15850,7 +15858,7 @@ msgstr "你的草稿将被替换为 {when} 的版本。你当前的草稿会保�
 msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the restored version goes live at the scheduled time."
 msgstr "你的草稿将被替换为 {when} 的版本。你当前的草稿会保留在修订记录中，恢复的版本将在预定时间上线。"
 
-#: packages/admin/src/components/SetupWizard.tsx:261
+#: packages/admin/src/components/SetupWizard.tsx:262
 msgid "Your Email"
 msgstr "您的邮箱"
 
@@ -15875,7 +15883,7 @@ msgstr "您的 LinkedIn 个人资料用户名"
 msgid "Your media library is empty"
 msgstr "您的媒体库为空"
 
-#: packages/admin/src/components/SetupWizard.tsx:273
+#: packages/admin/src/components/SetupWizard.tsx:274
 msgid "Your Name"
 msgstr "您的姓名"
 

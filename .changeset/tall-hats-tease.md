@@ -3,7 +3,7 @@
 "emdash": patch
 ---
 
-Fixes responsive table widths in the admin editor and floating toolbar keyboard controls in both the admin and inline editors with Tiptap 3.32.0. Gives both editors' textboxes accessible names for screen readers.
+Fixes responsive table widths in the admin editor with Tiptap 3.32.0. Gives both editors' textboxes accessible names for screen readers.
 
 Pins the editor's Tiptap dependencies to exactly 3.32.0 so installations use the version covered by the editor tests. Code-block highlighting keeps its existing lowlight extension version. Sites or plugins that share Tiptap dependencies with EmDash should align them to 3.32.0 to avoid installing multiple copies.
 

@@ -390,12 +390,9 @@ export function ToolbarMenu({
 		whileElementsMounted: autoUpdate,
 	});
 	React.useLayoutEffect(() => {
-		const toolbar = triggerRef.current?.closest('[role="toolbar"]');
+		// The element TipTap positions, around the toolbar, which plays its entrance as a transform.
+		const toolbar = triggerRef.current?.closest('[role="toolbar"]')?.parentElement;
 		if (!toolbar) return;
-		// An open menu needs a stable anchor, not the toolbar's entrance transform.
-		if (open) {
-			for (const animation of toolbar.getAnimations?.() ?? []) animation.finish();
-		}
 		let rect = new DOMRect();
 		refs.setPositionReference({
 			contextElement: toolbar,
@@ -405,7 +402,7 @@ export function ToolbarMenu({
 				return rect;
 			},
 		});
-	}, [open, refs]);
+	}, [refs]);
 	useRepositionOnOpen(open, update);
 	const triggerRefs = useMergeRefs([refs.setReference, triggerRef]);
 	const { isMounted, status } = useTransitionStatus(context, {
@@ -583,23 +580,20 @@ function focusAfterEditor(editor: Editor): boolean {
  * right-to-left text; Home and End go to the first and last.
  */
 export function handleToolbarKeyDown(event: React.KeyboardEvent<HTMLElement>, editor: Editor) {
-	// BubbleMenu wraps native events without forwarding their keyboard property getters.
-	if (event.nativeEvent.isComposing || event.nativeEvent.defaultPrevented) return;
+	if (event.nativeEvent.isComposing || event.defaultPrevented) return;
 	const toolbar = event.currentTarget;
 	const controls = [...toolbar.querySelectorAll(TOOLBAR_CONTROL_SELECTOR)];
 	const backToEditor =
-		event.nativeEvent.key === "Escape" ||
-		(event.nativeEvent.key === "Tab" &&
-			event.nativeEvent.shiftKey &&
-			document.activeElement === controls[0]);
+		event.key === "Escape" ||
+		(event.key === "Tab" && event.shiftKey && document.activeElement === controls[0]);
 	if (backToEditor) {
 		event.preventDefault();
 		if (!editor.isDestroyed) editor.view.focus();
 		return;
 	}
 	if (
-		event.nativeEvent.key === "Tab" &&
-		!event.nativeEvent.shiftKey &&
+		event.key === "Tab" &&
+		!event.shiftKey &&
 		document.activeElement === controls.at(-1) &&
 		focusAfterEditor(editor)
 	) {
@@ -613,7 +607,7 @@ export function handleToolbarKeyDown(event: React.KeyboardEvent<HTMLElement>, ed
 	if (currentIndex === -1) return;
 	const forward = getComputedStyle(toolbar).direction === "rtl" ? -1 : 1;
 	let nextIndex: number;
-	switch (event.nativeEvent.key) {
+	switch (event.key) {
 		case "ArrowRight":
 			nextIndex = currentIndex + forward;
 			break;

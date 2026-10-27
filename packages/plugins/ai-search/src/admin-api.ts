@@ -3,6 +3,7 @@ import { apiFetch, getErrorMessage } from "emdash/plugin-utils";
 import { AUTHORS } from "./authors.js";
 import type { BuildState } from "./build.js";
 import type { Config, SourceConfig, SourceInfo, TaxonomyInfo } from "./config.js";
+import type { ConnectionInfo } from "./connection.js";
 import type { IndexTotals } from "./ingestion.js";
 import { URL_TEMPLATE } from "./url-template.js";
 
@@ -32,8 +33,19 @@ export const editUrl = (source: string, id: string) =>
 
 export { AUTHORS };
 
+/** How the plugin reaches AI Search. Environment values are never included. */
+export type Connection = ConnectionInfo;
+
 export interface Status {
 	connected: boolean;
+	/** How the plugin reaches AI Search, when it can. */
+	method: "binding" | "rest" | null;
+	/** Cloudflare refused the account ID or API token, which need replacing. */
+	credentialsRejected: boolean;
+	/** Cloudflare refused this status check for now, so its figures are missing. */
+	rateLimited: boolean;
+	/** AI Search has no instance with the configured name, for example after a change of account. */
+	instanceMissing: boolean;
 	configured: boolean;
 	build: BuildState | null;
 	totals: IndexTotals;
@@ -47,6 +59,21 @@ export interface Status {
 	counts: Record<string, number> | null;
 	/** The instance in the Cloudflare dashboard. Null while a build runs or when AI Search does not answer. */
 	dashboardUrl: string | null;
+}
+
+const POLL_MS = 5_000;
+const SLOW_POLL_MS = 20_000;
+
+/** How often to ask for the status again while something may change on its own, or null when nothing will. */
+export function statusPollInterval(
+	status: Pick<Status, "build" | "retrying" | "recentBuild" | "rateLimited"> & {
+		totals: Pick<IndexTotals, "processing">;
+	},
+): number | null {
+	if (status.build) return null;
+	if (status.totals.processing > 0) return POLL_MS;
+	if (status.retrying || status.recentBuild || status.rateLimited) return SLOW_POLL_MS;
+	return null;
 }
 
 export interface Settings {

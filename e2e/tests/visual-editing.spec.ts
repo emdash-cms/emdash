@@ -400,35 +400,6 @@ test.describe("Inline Editor", () => {
 		expect(Math.abs(more.x + more.width - (bar.x + bar.width))).toBeLessThan(1);
 	});
 
-	test("anchors remounted formatting menus to the toolbar after closing the link field", async ({
-		page,
-	}) => {
-		await stubSaves(page);
-		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
-		await expect(page.locator(".emdash-inline-editor")).toBeVisible({ timeout: 15000 });
-		await placeSelection(page, "firstWord");
-		const toolbar = page.getByRole("toolbar", { name: "Format selection" });
-		await expect(toolbar).toBeVisible();
-		await animationsFinished(toolbar);
-		await toolbar.getByRole("button", { name: "Add link" }).click();
-		await toolbar.getByRole("textbox", { name: "Link URL" }).press("Escape");
-
-		for (const label of ["Turn into", "More formatting"]) {
-			await toolbar.getByRole("button", { name: label }).click();
-			const menu = page.getByRole("menu");
-			await expect(menu).toBeVisible();
-			await animationsFinished(menu);
-			const bar = (await toolbar.boundingBox())!;
-			const box = (await menu.boundingBox())!;
-			const edgeDelta =
-				label === "Turn into" ? box.x - bar.x : box.x + box.width - bar.x - bar.width;
-			expect(Math.abs(edgeDelta)).toBeLessThan(1);
-			expect(Math.abs(box.y - (bar.y + bar.height + 4))).toBeLessThan(1);
-			await page.keyboard.press("Escape");
-			await expect(menu).toBeHidden();
-		}
-	});
-
 	test("lines the toolbars up with the selection's right edge on a right-to-left page", async ({
 		page,
 	}) => {

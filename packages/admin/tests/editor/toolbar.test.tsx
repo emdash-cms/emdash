@@ -189,9 +189,10 @@ async function focusAndSelectAll(screen: Awaited<ReturnType<typeof render>>) {
  *
  * The bubble menu (which appears when text is selected) renders buttons with
  * the same accessible names as some toolbar buttons (Bold, Italic, Underline,
- * Strikethrough). An unscoped `getByRole("button", { name: "Bold" })` after
- * selecting text races with the bubble menu and produces a strict-mode
- * violation in CI. Scoping to the toolbar via its aria-label avoids the race.
+ * Strikethrough, Inline Code, Add link, Edit link). An unscoped
+ * `getByRole("button", { name: "Bold" })` after selecting text races with the
+ * bubble menu and produces a strict-mode violation in CI. Scoping to the
+ * toolbar via its aria-label avoids the race.
  */
 function getToolbarButton(screen: Awaited<ReturnType<typeof render>>, name: string) {
 	return screen.getByRole("toolbar", { name: "Text formatting" }).getByRole("button", { name });

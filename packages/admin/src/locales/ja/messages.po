@@ -87,7 +87,7 @@ msgid "{0, plural, one {# byline} other {# bylines}}"
 msgstr "{0, plural, one {#名の執筆者} other {#名の執筆者}}"
 
 #. placeholder {0}: seedInfo.collections
-#: packages/admin/src/components/SetupWizard.tsx:219
+#: packages/admin/src/components/SetupWizard.tsx:220
 msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {#件のコンテンツタイプ} other {#件のコンテンツタイプ}}"
 
@@ -153,7 +153,7 @@ msgstr "{0, plural, one {#件のリンク} other {#件のリンク}}"
 #. placeholder {0}: tagMatches?.matchCount ?? 0
 #: packages/admin/src/components/TaxonomyManager.tsx:1392
 msgid "{0, plural, one {# matching tag} other {# matching tags}}"
-msgstr ""
+msgstr "{0, plural, one {一致するタグ#件} other {一致するタグ#件}}"
 
 #. placeholder {0}: mcpTools.length
 #: packages/admin/src/components/PluginManager.tsx:503
@@ -183,7 +183,7 @@ msgstr "{0, plural, one {#件のメニューがインポートされます} othe
 #. placeholder {0}: capabilities.length
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:226
 msgid "{0, plural, one {# permission requested} other {# permissions requested}}"
-msgstr ""
+msgstr "{0, plural, one {#件の権限が要求されています} other {#件の権限が要求されています}}"
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
@@ -204,7 +204,7 @@ msgstr "{0, plural, one {#件のリダイレクトがループしています。
 #. placeholder {0}: principal.references
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:335
 msgid "{0, plural, one {# reference} other {# references}}"
-msgstr ""
+msgstr "{0, plural, one {#件の参照} other {#件の参照}}"
 
 #. placeholder {0}: participating.length
 #: packages/admin/src/components/RelationsPanel.tsx:69
@@ -217,7 +217,7 @@ msgstr "{0, plural, one {このコンテンツタイプに関わる#件の関連
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:5394
+#: packages/admin/src/components/PortableTextEditor.tsx:5403
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {#行} other {#行}} × {1, plural, one {#列} other {#列}}を選択中"
 
@@ -249,7 +249,7 @@ msgstr "{0, plural, one {#件のアップロードに失敗} other {#件のア�
 #. placeholder {0}: section.keywords.length - 3
 #: packages/admin/src/components/Sections.tsx:424
 msgid "{0, plural, one {+# more} other {+# more}}"
-msgstr ""
+msgstr "{0, plural, one {他#件} other {他#件}}"
 
 #. placeholder {0}: selectedItems.length
 #: packages/admin/src/components/MediaPickerModal.tsx:866
@@ -299,7 +299,7 @@ msgstr "{0, plural, one {行を削除しました} other {#行を削除しまし
 #. placeholder {0}: names.length - SCAFFOLD_NAMES_SHOWN
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:575
 msgid "{0, plural, one {Show # more} other {Show # more}}"
-msgstr ""
+msgstr "{0, plural, one {さらに#件表示} other {さらに#件表示}}"
 
 #. placeholder {0}: stats.userCount
 #: packages/admin/src/components/Dashboard.tsx:428
@@ -381,11 +381,11 @@ msgstr "{0}件がインポートされます"
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:123
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:427
 msgid "{0} of {1} files · {2} of {3}"
-msgstr ""
+msgstr "{1}ファイル中{0}ファイル · {3}中{2}"
 
 #. placeholder {0}: i18n.number(seedProgress.done)
 #. placeholder {1}: i18n.number(seedProgress.total)
-#: packages/admin/src/components/SetupWizard.tsx:210
+#: packages/admin/src/components/SetupWizard.tsx:211
 msgid "{0} of {1} items"
 msgstr "{0}／{1}件"
 
@@ -393,14 +393,14 @@ msgstr "{0}／{1}件"
 #. placeholder {1}: i18n.number(plan.principals.length)
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:308
 msgid "{0} of {1} matched by email"
-msgstr ""
+msgstr "{1}人中{0}人をメールアドレスで照合"
 
 #. placeholder {0}: i18n.number(progress.done)
 #. placeholder {1}: i18n.number(progress.total)
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:353
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:480
 msgid "{0} of {1} steps"
-msgstr ""
+msgstr "{1}ステップ中{0}ステップ"
 
 #. placeholder {0}: i18n.number(progress.done)
 #. placeholder {1}: i18n.number(progress.total)
@@ -408,7 +408,7 @@ msgstr ""
 #. placeholder {3}: formatFileSize(progress.bytesTotal)
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:352
 msgid "{0} of {1} steps · {2} of {3}"
-msgstr ""
+msgstr "{1}ステップ中{0}ステップ · {3}中{2}"
 
 #. placeholder {0}: failedIds.length
 #: packages/admin/src/router.tsx:759
@@ -429,7 +429,7 @@ msgstr "全{total}件中{0}件を更新できませんでした"
 #. placeholder {1}: formatFileSize(plan.bytes.records)
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:282
 msgid "{0} of media, {1} of records"
-msgstr ""
+msgstr "メディア：{0}、レコード：{1}"
 
 #. placeholder {0}: plugins?.length ?? 0
 #: packages/admin/src/components/PluginManager.tsx:220
@@ -466,7 +466,7 @@ msgstr "{0}が表示されるすべての箇所を更新しました。"
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/PluginManager.tsx:307
 msgid "{0} updated to v{installedVersion}"
-msgstr ""
+msgstr "{0}をv{installedVersion}に更新しました"
 
 #. placeholder {0}: draft.description.length
 #: packages/admin/src/components/SeoPanel.tsx:215
@@ -545,7 +545,7 @@ msgstr "{earlierCount, plural, one {以前の#件を表示} other {以前の#件
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:162
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
-msgstr ""
+msgstr "{failed, plural, one {#件のメールを送信できませんでした。メールプロバイダーを確認してください。} other {#件のメールを送信できませんでした。メールプロバイダーを確認してください。}}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:198
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
@@ -553,7 +553,7 @@ msgstr "{failedCount, plural, one {#件のアップロードに失敗} other {#�
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:262
 msgid "{filesMissing, plural, one {# file still needs to be uploaded. Choose the same package file again to finish; files already uploaded are skipped.} other {# files still need to be uploaded. Choose the same package file again to finish; files already uploaded are skipped.}}"
-msgstr ""
+msgstr "{filesMissing, plural, one {未アップロードのファイルが#件あります。同じパッケージファイルを再度選択して完了してください。アップロード済みのファイルはスキップされます。} other {未アップロードのファイルが#件あります。同じパッケージファイルを再度選択して完了してください。アップロード済みのファイルはスキップされます。}}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
@@ -575,7 +575,7 @@ msgstr "{hiddenCount, plural, one {さらに#件を表示} other {さらに#件�
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:38
 msgid "{host} does not resolve to a public address"
-msgstr ""
+msgstr "{host}の名前解決結果が公開アドレスではありません"
 
 #: packages/admin/src/components/MediaImportSummary.tsx:9
 msgid "{importedFiles, plural, one {<count>#</count> file imported} other {<count>#</count> files imported}}"
@@ -591,13 +591,13 @@ msgstr "{label}（翻訳を表示）"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:261
 msgid "{label} in {menuName}"
-msgstr ""
+msgstr "{menuName}内の{label}"
 
 #. placeholder {0}: newIndex + 1
 #. placeholder {1}: images.length
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:170
 msgid "{label} moved to position {0} of {1}."
-msgstr ""
+msgstr "{label}を{1}件中{0}番目に移動しました。"
 
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/BylineCreditsEditor.tsx:240
@@ -682,7 +682,7 @@ msgstr "{name}は{bound}以下にしてください。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:101
 msgid "{name}: this site already has some"
-msgstr ""
+msgstr "{name}：このサイトにすでに存在します"
 
 #: packages/admin/src/components/WordPressImport.tsx:1936
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
@@ -694,15 +694,15 @@ msgstr "{needsNewFields, plural, one {既存のコンテンツタイプ#件に�
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:49
 msgid "{origin} does not serve this site yet"
-msgstr ""
+msgstr "{origin}ではまだこのサイトが配信されていません"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:47
 msgid "{origin} redirects elsewhere"
-msgstr ""
+msgstr "{origin}は別の場所にリダイレクトされます"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:46
 msgid "{origin} redirects to {target}. Enter that address instead."
-msgstr ""
+msgstr "{origin}は{target}にリダイレクトされます。代わりにそちらのアドレスを入力してください。"
 
 #: packages/admin/src/components/Dashboard.tsx:158
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
@@ -758,7 +758,7 @@ msgstr "{0}件中{ready}件が追加可能"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:359
 msgid "{records, plural, one {# record written} other {# records written}}"
-msgstr ""
+msgstr "{records, plural, one {#件のレコードを書き込みました} other {#件のレコードを書き込みました}}"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:933
 msgid "{rejectedCount, plural, one {# file was not added.} other {# files were not added.}}"
@@ -790,7 +790,7 @@ msgstr "{selectedCount, plural, one {#件のコンテンツをゴミ箱に移動
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:159
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
-msgstr ""
+msgstr "{sent, plural, one {#人のユーザーにメールを送信しました} other {#人のユーザーにメールを送信しました}}"
 
 #: packages/admin/src/locales/emails.ts:71
 msgid "{siteName} has moved to {siteHost}"
@@ -858,7 +858,7 @@ msgstr "{when}、公開済み、{author}"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:268
 msgid "{widgetType} in {areaName}"
-msgstr ""
+msgstr "{areaName}内の{widgetType}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3341
 #: packages/admin/src/components/PortableTextEditor.tsx:3354
@@ -885,15 +885,15 @@ msgstr "• EmDashのメディアストレージにアップロード"
 msgid "• URLs in your content are updated automatically"
 msgstr "• コンテンツ内のURLが自動的に更新されます"
 
-#: packages/admin/src/components/SetupWizard.tsx:289
-#: packages/admin/src/components/SetupWizard.tsx:340
+#: packages/admin/src/components/SetupWizard.tsx:290
+#: packages/admin/src/components/SetupWizard.tsx:341
 #: packages/admin/src/components/WordPressImport.tsx:1656
 msgid "← Back"
 msgstr "← 戻る"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:418
 msgid "<0>{from}</0> becomes <1>{to}</1>"
-msgstr ""
+msgstr "<0>{from}</0>が<1>{to}</1>になります"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:79
 msgid "<0>{name}</0> is editing this entry. Nothing you change here will be saved."
@@ -1029,19 +1029,19 @@ msgstr "このコンテンツタイプの簡単な説明"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:184
 msgid "A file does not match the package manifest. The package may be damaged."
-msgstr ""
+msgstr "ファイルがパッケージのマニフェストと一致しません。パッケージが破損している可能性があります。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:214
 msgid "A file in the package does not match the manifest. The package may be damaged."
-msgstr ""
+msgstr "パッケージ内のファイルがマニフェストと一致しません。パッケージが破損している可能性があります。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:213
 msgid "A file in the package is not the size the manifest declares."
-msgstr ""
+msgstr "パッケージ内のファイルのサイズが、マニフェストに記載されたサイズと一致しません。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:185
 msgid "A file is not the size the package manifest declares. The package may be damaged."
-msgstr ""
+msgstr "ファイルのサイズが、パッケージのマニフェストに記載されたサイズと一致しません。パッケージが破損している可能性があります。"
 
 #: packages/admin/src/components/Sections.tsx:224
 msgid "A full-width hero banner with heading, text, and CTA button"
@@ -1049,11 +1049,11 @@ msgstr "見出し、本文、CTAボタンを配置した全幅のヒーローバ
 
 #: packages/admin/src/components/settings/transfer/labels.ts:132
 msgid "A media file is larger than this site accepts"
-msgstr ""
+msgstr "メディアファイルがこのサイトのサイズ上限を超えています"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:131
 msgid "A media file is missing from the package"
-msgstr ""
+msgstr "パッケージにメディアファイルがありません"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:86
 msgid "A media folder with this name already exists"
@@ -1061,19 +1061,19 @@ msgstr "同じ名前のメディアフォルダーが既に存在します"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:965
 msgid "A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
-msgstr ""
+msgstr "このラベルから名前を生成できません。英小文字、数字、アンダースコアを使って手動で入力してください。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:137
 msgid "A number is too large for this site’s database"
-msgstr ""
+msgstr "このサイトのデータベースで扱える範囲を超えた数値があります"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:123
 msgid "A package file does not match the manifest"
-msgstr ""
+msgstr "パッケージ内のファイルがマニフェストと一致しません"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:122
 msgid "A package file is missing"
-msgstr ""
+msgstr "パッケージ内のファイルが不足しています"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:178
 #: packages/admin/src/components/ContentSettingsPanel.tsx:229
@@ -1087,11 +1087,11 @@ msgstr "公開処理を実行中です"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:124
 msgid "A record in the package is not valid"
-msgstr ""
+msgstr "パッケージ内に無効なレコードがあります"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:128
 msgid "A record refers to something missing from the package"
-msgstr ""
+msgstr "レコードがパッケージに含まれないデータを参照しています"
 
 #: packages/admin/src/components/RelationFormPanel.tsx:87
 msgid "A relation defines how two content types link. Reference fields on either side then pick entries through it."
@@ -1126,24 +1126,24 @@ msgstr "翻訳元と翻訳先の言語を選択してください"
 #. placeholder {0}: operation.errorCode
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:485
 msgid "A step failed and will be retried ({0})."
-msgstr ""
+msgstr "ステップが失敗したため、再試行します（{0}）。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:138
 msgid "A value does not fit this site’s database"
-msgstr ""
+msgstr "このサイトのデータベースに保存できない値があります"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:370
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:525
 msgid "Abandon import"
-msgstr ""
+msgstr "インポートを中止"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:368
 msgid "Abandon this import?"
-msgstr ""
+msgstr "このインポートを中止しますか？"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:371
 msgid "Abandoning…"
-msgstr ""
+msgstr "中止中…"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:535
 msgid "About focal point"
@@ -1181,7 +1181,7 @@ msgstr "アクセスが拒否されました"
 msgid "Access your media library"
 msgstr "メディアライブラリへのアクセス"
 
-#: packages/admin/src/components/SetupWizard.tsx:409
+#: packages/admin/src/components/SetupWizard.tsx:410
 msgid "Account"
 msgstr "アカウント"
 
@@ -1265,7 +1265,7 @@ msgstr "新しいパスキーを追加"
 #. placeholder {0}: window.location.host
 #: packages/admin/src/components/settings/SecuritySettings.tsx:171
 msgid "Add a passkey for {0}"
-msgstr ""
+msgstr "{0}用のパスキーを追加"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:340
 msgid "Add a person or team to credit on your content."
@@ -1293,12 +1293,12 @@ msgstr "執筆者を追加"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5841
+#: packages/admin/src/components/PortableTextEditor.tsx:5856
 msgid "Add caption"
 msgstr "キャプションを追加"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5407
+#: packages/admin/src/components/PortableTextEditor.tsx:5416
 msgid "Add column after"
 msgstr "後に列を追加"
 
@@ -1368,9 +1368,9 @@ msgstr "項目を追加"
 msgid "Add Item"
 msgstr "項目を追加"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5037
-#: packages/admin/src/components/PortableTextEditor.tsx:5834
-#: packages/admin/src/components/PortableTextEditor.tsx:6282
+#: packages/admin/src/components/PortableTextEditor.tsx:5040
+#: packages/admin/src/components/PortableTextEditor.tsx:5849
+#: packages/admin/src/components/PortableTextEditor.tsx:6298
 msgid "Add link"
 msgstr "リンクを追加"
 
@@ -1407,25 +1407,25 @@ msgstr "参照を追加"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:215
 msgid "Add references"
-msgstr ""
+msgstr "参照を追加"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
 msgid "Add row above"
 msgstr "上に行を追加"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5400
+#: packages/admin/src/components/PortableTextEditor.tsx:5409
 msgid "Add row below"
 msgstr "下に行を追加"
 
 #: packages/admin/src/lib/api/marketplace.ts:447
 #: packages/admin/src/lib/api/marketplace.ts:458
 msgid "Add scripts and styles to your site's pages"
-msgstr ""
+msgstr "サイトのページにスクリプトとスタイルを追加"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:390
 msgid "Add selected"
-msgstr ""
+msgstr "選択した項目を追加"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:650
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
@@ -1437,7 +1437,7 @@ msgstr "サブフィールドを追加"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1317
 msgid "Add tag"
-msgstr ""
+msgstr "タグを追加"
 
 #: packages/admin/src/components/ContentList.tsx:627
 msgid "Add term"
@@ -1545,7 +1545,7 @@ msgstr "追加情報"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:282
 msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
-msgstr ""
+msgstr "AIクローラーにこのサイトを学習に使用しないよう求めるルールをrobots.txtに追加します。検索エンジンによるインデックス登録は引き続き可能です。"
 
 #: packages/admin/src/components/WordPressImport.tsx:1538
 msgid "admin"
@@ -1571,7 +1571,7 @@ msgstr "高度なブロック"
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:67
 msgid "After"
-msgstr ""
+msgstr "変更後"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:192
 msgid "After send:"
@@ -1579,12 +1579,12 @@ msgstr "送信後："
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:136
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to external websites without a host restriction."
-msgstr ""
+msgstr "このプラグインを明示的に実行すると、エディターで選択した未保存のコンテンツを、ホストの制限なく外部サイトに送信できるようになります。"
 
 #. placeholder {0}: allowedHosts.join(", ")
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:135
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to: {0}"
-msgstr ""
+msgstr "このプラグインを明示的に実行すると、エディターで選択した未保存のコンテンツを次の送信先に送信できるようになります：{0}"
 
 #: packages/admin/src/routes/calendar.tsx:308
 msgid "Agenda"
@@ -1604,25 +1604,25 @@ msgid "Agent-callable MCP tools"
 msgstr "エージェントから呼び出し可能なMCPツール"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:5297
+#: packages/admin/src/components/PortableTextEditor.tsx:5304
 msgid "Align"
 msgstr "配置"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6456
+#: packages/admin/src/components/PortableTextEditor.tsx:6472
 msgid "Align center"
 msgstr "中央揃え"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6448
+#: packages/admin/src/components/PortableTextEditor.tsx:6464
 msgid "Align left"
 msgstr "左揃え"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6464
+#: packages/admin/src/components/PortableTextEditor.tsx:6480
 msgid "Align right"
 msgstr "右揃え"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:484
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:5815
+#: packages/admin/src/components/PortableTextEditor.tsx:5830
 msgid "Alignment"
 msgstr "配置"
 
@@ -1667,7 +1667,7 @@ msgstr "すべての権限"
 
 #: packages/admin/src/components/Sections.tsx:257
 msgid "All sources"
-msgstr ""
+msgstr "すべてのソース"
 
 #: packages/admin/src/components/ContentList.tsx:1024
 #: packages/admin/src/components/Redirects.tsx:399
@@ -1735,7 +1735,7 @@ msgstr "執筆者が設定されていない場合、コンテンツの投稿者
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:382
 msgid "Also requested, but not available to your role:"
-msgstr ""
+msgstr "次の権限も要求されていますが、現在のロールでは利用できません："
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:65
@@ -1746,8 +1746,8 @@ msgstr "代替テキスト"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaLibrary.tsx:1144
-#: packages/admin/src/components/PortableTextEditor.tsx:5746
-#: packages/admin/src/components/PortableTextEditor.tsx:5812
+#: packages/admin/src/components/PortableTextEditor.tsx:5761
+#: packages/admin/src/components/PortableTextEditor.tsx:5827
 msgid "Alt text"
 msgstr "代替テキスト"
 
@@ -1772,15 +1772,15 @@ msgstr "または、WordPressからエクスポート（ツール → エクス�
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:324
 msgid "An earlier import of this package stopped after it started writing to this site. Abandon that import, then reset this site or set up a new one before importing again."
-msgstr ""
+msgstr "このパッケージの以前のインポートは、サイトへの書き込み開始後に停止しました。そのインポートを中止してから、このサイトをリセットするか新しいサイトを用意し、再度インポートしてください。"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:323
 msgid "An earlier import of this package wrote to this site before it was abandoned. Reset this site or set up a new one before importing again."
-msgstr ""
+msgstr "このパッケージの以前のインポートは、中止される前にサイトへデータを書き込みました。このサイトをリセットするか新しいサイトを用意してから、再度インポートしてください。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:236
 msgid "An encrypted digital key you unlock using your fingerprint, face, PIN, or device password."
-msgstr ""
+msgstr "指紋、顔、PIN、またはデバイスのパスワードでロックを解除する、暗号化されたデジタルキーです。"
 
 #: packages/admin/src/components/DialogError.tsx:14
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
@@ -1843,7 +1843,7 @@ msgstr "エラーが発生しました"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:389
 msgid "An import replaces a new site’s starter content, so it only runs on a site with no content of its own. To move content here, set up a new EmDash site and import into that. These are what this site already has:"
-msgstr ""
+msgstr "インポートは新しいサイトの初期コンテンツを置き換えるため、独自のコンテンツがないサイトでのみ実行できます。コンテンツを移行するには、新しいEmDashサイトを用意してインポートしてください。このサイトには、すでに次のデータがあります："
 
 #: packages/admin/src/routes/byline-schema.tsx:272
 msgid "An unexpected error occurred."
@@ -1871,7 +1871,7 @@ msgstr "ほかの編集者"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:192
 msgid "Another import is already using this package."
-msgstr ""
+msgstr "別のインポートがすでにこのパッケージを使用しています。"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:108
 msgid "Any media type allowed (subject to global limits)."
@@ -1898,22 +1898,22 @@ msgid "Application Password"
 msgstr "アプリケーションパスワード"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
-#: packages/admin/src/components/PortableTextEditor.tsx:6547
+#: packages/admin/src/components/PortableTextEditor.tsx:6563
 msgid "Apply"
 msgstr "適用"
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:81
 msgid "Apply changes"
-msgstr ""
+msgstr "変更を適用"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5011
-#: packages/admin/src/components/PortableTextEditor.tsx:5787
+#: packages/admin/src/components/PortableTextEditor.tsx:5014
+#: packages/admin/src/components/PortableTextEditor.tsx:5802
 msgid "Apply link"
 msgstr "リンクを設定"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:52
 msgid "Approval requests"
-msgstr ""
+msgstr "承認リクエスト"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:151
 #: packages/admin/src/components/comments/CommentInbox.tsx:270
@@ -1925,19 +1925,19 @@ msgstr "承認"
 
 #: packages/admin/src/lib/api/marketplace.ts:427
 msgid "Approve comments and mark them as pending or spam"
-msgstr ""
+msgstr "コメントを承認し、承認待ちまたはスパムに設定"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:155
 msgid "Approve this export?"
-msgstr ""
+msgstr "このエクスポートを承認しますか？"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:155
 msgid "Approve this import?"
-msgstr ""
+msgstr "このインポートを承認しますか？"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:646
 msgid "Approve with that device's face, fingerprint, PIN, or passcode."
-msgstr ""
+msgstr "そのデバイスの顔認証、指紋認証、PIN、またはパスコードで承認してください。"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:198
 msgid "approved"
@@ -1949,7 +1949,7 @@ msgstr "承認済み"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:162
 msgid "Approving…"
-msgstr ""
+msgstr "承認中…"
 
 #: packages/admin/src/components/FieldEditor.tsx:463
 msgid "Arbitrary JSON data"
@@ -2002,7 +2002,7 @@ msgstr "WordPressの投稿者をEmDashユーザーに割り当てます。選択
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:53
 msgid "Assistants connected through MCP need an admin’s approval to start an export or import unless their token was given a transfer scope. Requests expire after 15 minutes."
-msgstr ""
+msgstr "MCPで接続するアシスタントがエクスポートやインポートを開始するには、トークンにサイト移行のスコープが付与されている場合を除き、管理者の承認が必要です。リクエストは15分で有効期限が切れます。"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:27
 msgid "Astro"
@@ -2084,7 +2084,7 @@ msgstr "デバイスを承認"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:208
 msgid "Authorized approvers"
-msgstr ""
+msgstr "承認権限の付与先"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:297
 msgid "Authorizing..."
@@ -2099,7 +2099,7 @@ msgstr "著者"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:163
 msgid "Authors will be assigned to users on this site"
-msgstr ""
+msgstr "投稿者をこのサイトのユーザーに割り当てます"
 
 #: packages/admin/src/components/Redirects.tsx:547
 msgid "auto"
@@ -2119,7 +2119,7 @@ msgstr "名前から自動生成されます（編集可能）"
 
 #: packages/admin/src/components/Sections.tsx:217
 msgid "Auto-generated from the title. You can change it."
-msgstr ""
+msgstr "タイトルから自動生成されます。変更もできます。"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:550
 msgid "Automatic"
@@ -2221,7 +2221,7 @@ msgstr "マーケットプレイスに戻る"
 
 #: packages/admin/src/components/MenuEditor.tsx:402
 msgid "Back to menus"
-msgstr ""
+msgstr "メニュー一覧に戻る"
 
 #: packages/admin/src/components/PluginSettings.tsx:118
 #: packages/admin/src/components/RegistryPluginDetail.tsx:922
@@ -2278,7 +2278,7 @@ msgstr "基本ブロック"
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:61
 msgid "Before"
-msgstr ""
+msgstr "変更前"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:187
 msgid "Before send:"
@@ -2295,7 +2295,7 @@ msgstr "{min}～{max}"
 #: packages/admin/src/components/settings/SeoSettings.tsx:243
 #: packages/admin/src/components/settings/SeoSettings.tsx:259
 msgid "Bing Verification"
-msgstr "Bing Webmaster Tools"
+msgstr "Bingの所有権確認"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:443
 msgid "Bio"
@@ -2321,11 +2321,11 @@ msgstr "ブロック操作 - ドラッグして並べ替え、クリックして
 #. placeholder {0}: blocker.slug
 #: packages/admin/src/components/settings/transfer/labels.ts:108
 msgid "Block type “{0}” was created on this site"
-msgstr ""
+msgstr "ブロックタイプ「{0}」はこのサイトで作成されました"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:10
 msgid "Block type versions"
-msgstr ""
+msgstr "ブロックタイプのバージョン"
 
 #: packages/admin/src/components/BlockTypeList.tsx:16
 #: packages/admin/src/components/settings/transfer/labels.ts:9
@@ -2338,14 +2338,14 @@ msgstr "ブロックタイプを読み込めませんでした。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:432
 msgid "Blockers"
-msgstr ""
+msgstr "インポートを妨げる問題"
 
 #: packages/admin/src/components/FieldEditor.tsx:486
 msgid "Blocks"
 msgstr "ブロック"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4791
-#: packages/admin/src/components/PortableTextEditor.tsx:6316
+#: packages/admin/src/components/PortableTextEditor.tsx:6332
 msgid "Bold"
 msgstr "太字"
 
@@ -2357,7 +2357,7 @@ msgstr "ブール値（true / false）"
 
 #: packages/admin/src/components/WordPressImport.tsx:1314
 msgid "Bot protection blocked the connection"
-msgstr ""
+msgstr "ボット対策により接続がブロックされました"
 
 #: packages/admin/src/components/RelationForm.tsx:345
 msgid "Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links."
@@ -2369,7 +2369,7 @@ msgstr "検索結果でタイトルの下に表示される概要"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:160
 msgid "Broken references were cleared"
-msgstr ""
+msgstr "無効な参照を解除しました"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:106
 msgid "Browse and install plugins published to the decentralized registry."
@@ -2394,7 +2394,7 @@ msgstr "アップロードするファイルを選択"
 
 #: packages/admin/src/components/PluginManager.tsx:74
 msgid "Browse the <0>registry</0> to install plugins."
-msgstr ""
+msgstr "<0>レジストリ</0>でプラグインを探してインストールできます。"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:79
 msgid "Browse themes and preview them with your own content."
@@ -2402,11 +2402,11 @@ msgstr "テーマを探し、サイトのコンテンツでプレビューでき
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:159
 msgid "Build provenance verified"
-msgstr ""
+msgstr "ビルド来歴を検証済み"
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
 #: packages/admin/src/components/PortableTextEditor.tsx:2051
-#: packages/admin/src/components/PortableTextEditor.tsx:6373
+#: packages/admin/src/components/PortableTextEditor.tsx:6389
 msgid "Bullet List"
 msgstr "箇条書きリスト"
 
@@ -2426,7 +2426,7 @@ msgstr "執筆者を作成しました"
 #: packages/admin/src/components/settings/transfer/labels.ts:25
 #: packages/admin/src/components/settings/transfer/labels.ts:83
 msgid "Byline credits"
-msgstr ""
+msgstr "執筆者の表記"
 
 #: packages/admin/src/routes/bylines.tsx:204
 msgid "Byline deleted"
@@ -2434,18 +2434,18 @@ msgstr "執筆者を削除しました"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:21
 msgid "Byline field group values"
-msgstr ""
+msgstr "執筆者情報の項目グループの値"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:20
 #: packages/admin/src/components/settings/transfer/labels.ts:81
 #: packages/admin/src/components/settings/transfer/labels.ts:82
 msgid "Byline field values"
-msgstr ""
+msgstr "執筆者情報の項目の値"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:15
 #: packages/admin/src/components/settings/transfer/labels.ts:80
 msgid "Byline fields"
-msgstr ""
+msgstr "執筆者情報の項目"
 
 #: packages/admin/src/routes/byline-schema.tsx:218
 #: packages/admin/src/routes/bylines.tsx:305
@@ -2532,9 +2532,9 @@ msgstr "コンテンツを閲覧できます"
 #: packages/admin/src/components/MenuEditor.tsx:754
 #: packages/admin/src/components/MenuList.tsx:184
 #: packages/admin/src/components/PluginManager.tsx:817
-#: packages/admin/src/components/PortableTextEditor.tsx:5758
-#: packages/admin/src/components/PortableTextEditor.tsx:5784
-#: packages/admin/src/components/PortableTextEditor.tsx:6531
+#: packages/admin/src/components/PortableTextEditor.tsx:5773
+#: packages/admin/src/components/PortableTextEditor.tsx:5799
+#: packages/admin/src/components/PortableTextEditor.tsx:6547
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:407
 #: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/RelationDialog.tsx:60
@@ -2565,7 +2565,7 @@ msgstr "{0}をキャンセル"
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:215
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:355
 msgid "Cancel import"
-msgstr ""
+msgstr "インポートをキャンセル"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:331
 msgid "Cancel remaining"
@@ -2577,11 +2577,11 @@ msgstr "名前変更をキャンセル"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:349
 msgid "Cancel this import?"
-msgstr ""
+msgstr "このインポートをキャンセルしますか？"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:357
 msgid "Cancelling…"
-msgstr ""
+msgstr "キャンセル中…"
 
 #: packages/admin/src/components/Sections.tsx:469
 msgid "Cannot delete theme sections"
@@ -2645,8 +2645,8 @@ msgstr "セルを結合しました"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:5301
-#: packages/admin/src/components/PortableTextEditor.tsx:5419
+#: packages/admin/src/components/PortableTextEditor.tsx:5308
+#: packages/admin/src/components/PortableTextEditor.tsx:5429
 msgid "Center"
 msgstr "中央"
 
@@ -2666,7 +2666,7 @@ msgstr "<0>{0}</0>を<1>{1}</1>から<2>{2}</2>に変更しますか？上位レ
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:109
 #: packages/admin/src/components/settings/GeneralSettings.tsx:315
 msgid "Change domain"
-msgstr ""
+msgstr "ドメインを変更"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:451
 msgid "Change Favicon"
@@ -2696,7 +2696,7 @@ msgstr "予約を変更"
 
 #: packages/admin/src/lib/api/marketplace.ts:436
 msgid "Change where visitors are sent"
-msgstr ""
+msgstr "訪問者のリダイレクト先を変更"
 
 #: packages/admin/src/components/revisions/change-labels.ts:110
 msgid "Changed {label}"
@@ -2786,7 +2786,7 @@ msgstr "ページタイトルとサイト名の間に表示する文字（例：
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:182
 msgid "Check and switch"
-msgstr ""
+msgstr "確認して切り替え"
 
 #: packages/admin/src/components/PluginManager.tsx:212
 msgid "Check for updates"
@@ -2794,19 +2794,19 @@ msgstr "更新を確認"
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:23
 msgid "Check registry in astro.config.mjs, then restart EmDash."
-msgstr ""
+msgstr "astro.config.mjsのregistryを確認し、EmDashを再起動してください。"
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:14
 msgid "Check registry.aggregatorUrl in astro.config.mjs, then restart EmDash."
-msgstr ""
+msgstr "astro.config.mjsのregistry.aggregatorUrlを確認し、EmDashを再起動してください。"
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:17
 msgid "Check registry.policy.minimumReleaseAge in astro.config.mjs, then restart EmDash."
-msgstr ""
+msgstr "astro.config.mjsのregistry.policy.minimumReleaseAgeを確認し、EmDashを再起動してください。"
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:20
 msgid "Check registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
-msgstr ""
+msgstr "astro.config.mjsのregistry.policy.minimumReleaseAgeExcludeを確認し、EmDashを再起動してください。"
 
 #: packages/admin/src/components/WordPressImport.tsx:1145
 msgid "Check Site"
@@ -2836,7 +2836,7 @@ msgstr "認証を確認中…"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:341
 msgid "Checking code..."
-msgstr ""
+msgstr "コードを確認中..."
 
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:362
@@ -2845,35 +2845,35 @@ msgstr "「{0}」を参照する保存済みの値の数を確認中…"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:49
 msgid "Checking media files"
-msgstr ""
+msgstr "メディアファイルを確認中"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:52
 msgid "Checking package structure"
-msgstr ""
+msgstr "パッケージの構造を確認中"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:53
 msgid "Checking records"
-msgstr ""
+msgstr "レコードを確認中"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:54
 msgid "Checking references"
-msgstr ""
+msgstr "参照を確認中"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:275
 msgid "Checking the package"
-msgstr ""
+msgstr "パッケージを確認中"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:493
 msgid "Checking this device for passkey support..."
-msgstr ""
+msgstr "このデバイスがパスキーに対応しているか確認中..."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:55
 msgid "Checking this site"
-msgstr ""
+msgstr "このサイトを確認中"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:182
 msgid "Checking…"
-msgstr ""
+msgstr "確認中…"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:395
 #: packages/admin/src/components/TaxonomySidebar.tsx:396
@@ -2883,7 +2883,7 @@ msgstr "{label}を選択"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:577
 msgid "Choose a credential manager on this device, another device, or a security key."
-msgstr ""
+msgstr "このデバイスの認証情報マネージャー、別のデバイス、またはセキュリティキーを選択してください。"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:36
 msgid "Choose a date"
@@ -2905,7 +2905,7 @@ msgstr "空ではない{0}画像を選んでください。"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:517
 msgid "Choose a recognized timezone for reliable date display."
-msgstr ""
+msgstr "日付を正しく表示するには、有効なタイムゾーンを選択してください。"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:184
 msgid "Choose a term and enter between 1 and 50 posts."
@@ -2929,7 +2929,7 @@ msgstr "ライブラリから画像を選ぶか、新しくアップロードし
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:567
 msgid "Choose another option"
-msgstr ""
+msgstr "別の方法を選択"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:567
 #: packages/admin/src/components/BylineCreditsEditor.tsx:582
@@ -2943,7 +2943,7 @@ msgstr "アップロードするファイルを選択"
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:244
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:269
 msgid "Choose package file"
-msgstr ""
+msgstr "パッケージファイルを選択"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1848
 msgid "Choose replacement image"
@@ -2951,15 +2951,15 @@ msgstr "置き換える画像を選択"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:261
 msgid "Choose the same package file again to finish uploading it."
-msgstr ""
+msgstr "同じパッケージファイルを再度選択して、アップロードを完了してください。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:187
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
-msgstr ""
+msgstr "Touch IDまたは利用可能な別の認証情報マネージャーを選択し、指紋またはMacのパスワードで確認してください。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
 msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
-msgstr ""
+msgstr "Windows Helloまたは利用可能な別の認証情報マネージャーを選択し、PIN、指紋、または顔で確認してください。"
 
 #: packages/admin/src/components/Settings.tsx:144
 msgid "Choose your preferred admin language"
@@ -2993,7 +2993,7 @@ msgstr "完了した項目を一覧から削除"
 msgid "Clear filters"
 msgstr "フィルターをクリア"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5311
+#: packages/admin/src/components/PortableTextEditor.tsx:5318
 msgid "Clear formatting"
 msgstr "書式をクリア"
 
@@ -3129,7 +3129,7 @@ msgstr "設定を閉じる"
 
 #: packages/admin/src/components/WordPressImport.tsx:93
 msgid "Cloudflare's bot protection answered with a challenge page, so EmDash can't reach the EmDash Exporter API. Allow requests to /wp-json/emdash/v1/ (and ?rest_route=/emdash/v1/ on sites without pretty permalinks), for example with a WAF custom rule that skips bot protection, or pause bot protection during the migration, then try again."
-msgstr ""
+msgstr "Cloudflareのボット対策がチャレンジページを返したため、EmDashからEmDash Exporter APIに接続できません。ボット対策をスキップするWAFカスタムルールなどで、/wp-json/emdash/v1/へのリクエストを許可してください（基本形式のパーマリンクを使うサイトでは?rest_route=/emdash/v1/へのリクエストも許可してください）。または、移行中はボット対策を一時停止してから、もう一度お試しください。"
 
 #: packages/admin/src/components/ContentTypeList.tsx:392
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
@@ -3139,7 +3139,7 @@ msgstr "コード"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
 #: packages/admin/src/components/PortableTextEditor.tsx:2081
-#: packages/admin/src/components/PortableTextEditor.tsx:6415
+#: packages/admin/src/components/PortableTextEditor.tsx:6431
 msgid "Code Block"
 msgstr "コードブロック"
 
@@ -3168,12 +3168,12 @@ msgstr "コンテンツタイプ"
 #. placeholder {0}: blocker.slug
 #: packages/admin/src/components/settings/transfer/labels.ts:104
 msgid "Collection “{0}” has entries"
-msgstr ""
+msgstr "コンテンツタイプ「{0}」にコンテンツがあります"
 
 #. placeholder {0}: blocker.slug
 #: packages/admin/src/components/settings/transfer/labels.ts:106
 msgid "Collection “{0}” was created on this site"
-msgstr ""
+msgstr "コンテンツタイプ「{0}」はこのサイトで作成されました"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:109
 msgid "Collection:"
@@ -3186,14 +3186,14 @@ msgstr "コンテンツタイプ"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:105
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
-msgstr ""
+msgstr "コンテンツタイプとフィールド、下書き・変更履歴・予約投稿・ゴミ箱を含むすべてのコンテンツ、翻訳、分類グループ、執筆者、メディアファイル、メニュー、ウィジェット、セクション、リダイレクト、SEO、サイト設定。"
 
 #: packages/admin/src/components/WordPressImport.tsx:2384
 msgid "Collections created:"
 msgstr "作成したコンテンツタイプ："
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5405
+#: packages/admin/src/components/PortableTextEditor.tsx:5414
 msgid "Column added after"
 msgstr "後に列を追加しました"
 
@@ -3243,7 +3243,7 @@ msgstr "コメントの詳細"
 #: packages/admin/src/components/settings/transfer/labels.ts:35
 #: packages/admin/src/components/settings/transfer/labels.ts:89
 msgid "Comment reactions"
-msgstr ""
+msgstr "コメントへのリアクション"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:162
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
@@ -3259,7 +3259,7 @@ msgstr "ログイン済みCMSユーザーのコメントを自動承認します
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:582
 msgid "Comments with this status will appear here."
-msgstr ""
+msgstr "このステータスのコメントがここに表示されます。"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:68
 msgid "Complete"
@@ -3283,15 +3283,15 @@ msgstr "確認"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:208
 msgid "Confirm using the secure prompt from your device or credential manager."
-msgstr ""
+msgstr "デバイスまたは認証情報マネージャーが表示する安全な確認画面で承認してください。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:194
 msgid "Confirm with Face ID, Touch ID, or your device passcode."
-msgstr ""
+msgstr "Face ID、Touch ID、またはデバイスのパスコードで確認してください。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:201
 msgid "Confirm with your fingerprint, face, or PIN."
-msgstr ""
+msgstr "指紋、顔、またはPINで確認してください。"
 
 #: packages/admin/src/components/WordPressImport.tsx:746
 #: packages/admin/src/components/WordPressImport.tsx:1102
@@ -3310,12 +3310,12 @@ msgstr "{0}に接続"
 #: packages/admin/src/lib/api/marketplace.ts:443
 #: packages/admin/src/lib/api/marketplace.ts:455
 msgid "Connect to any network host and load external plugin admin images (unrestricted)"
-msgstr ""
+msgstr "任意のネットワークホストへの接続と、プラグイン管理画面の外部画像の読み込み（制限なし）"
 
 #: packages/admin/src/lib/api/marketplace.ts:442
 #: packages/admin/src/lib/api/marketplace.ts:454
 msgid "Connect to network hosts and load external plugin admin images"
-msgstr ""
+msgstr "ネットワークホストへの接続と、プラグイン管理画面の外部画像の読み込み"
 
 #: packages/admin/src/components/WordPressImport.tsx:1427
 msgid "Connect with WordPress"
@@ -3350,7 +3350,7 @@ msgstr "コンテンツブロック"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:595
 msgid "Content digest"
-msgstr ""
+msgstr "コンテンツのダイジェスト"
 
 #. placeholder {0}: result.errors.length
 #: packages/admin/src/components/WordPressImport.tsx:2439
@@ -3384,15 +3384,15 @@ msgstr "コンテンツの読み取り"
 #: packages/admin/src/components/settings/transfer/labels.ts:26
 #: packages/admin/src/components/settings/transfer/labels.ts:78
 msgid "Content references"
-msgstr ""
+msgstr "コンテンツの参照"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:130
 msgid "Content refers to media in an invalid way"
-msgstr ""
+msgstr "コンテンツがメディアを無効な形式で参照しています"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:140
 msgid "Content refers to media that is not in the package"
-msgstr ""
+msgstr "コンテンツがパッケージに含まれないメディアを参照しています"
 
 #: packages/admin/src/router.tsx:1512
 msgid "Content removed from public view"
@@ -3442,8 +3442,8 @@ msgstr "コンテンツの書き込み"
 msgid "Continue"
 msgstr "続行"
 
-#: packages/admin/src/components/SetupWizard.tsx:201
-#: packages/admin/src/components/SetupWizard.tsx:297
+#: packages/admin/src/components/SetupWizard.tsx:202
+#: packages/admin/src/components/SetupWizard.tsx:298
 msgid "Continue →"
 msgstr "続行 →"
 
@@ -3452,19 +3452,19 @@ msgid "Continue Import"
 msgstr "インポートを続行"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:6390
+#: packages/admin/src/components/PortableTextEditor.tsx:6406
 msgid "Continue numbering"
 msgstr "番号を継続"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:332
 msgid "Continue on {handoverHost}"
-msgstr ""
+msgstr "{handoverHost}で続行"
 
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:72
 msgid "Continue to finish signing in. The link works only once."
 msgstr "「続行」を押してログインを完了してください。このリンクは1回だけ使えます。"
 
-#: packages/admin/src/components/SetupWizard.tsx:356
+#: packages/admin/src/components/SetupWizard.tsx:357
 msgid "Continue to import"
 msgstr "インポートに進む"
 
@@ -3475,11 +3475,11 @@ msgstr "{0}でログインします。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:673
 msgid "Continue with another device"
-msgstr ""
+msgstr "別のデバイスで続行"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:710
 msgid "Continue with security key"
-msgstr ""
+msgstr "セキュリティキーで続行"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:24
 #: packages/admin/src/components/WelcomeModal.tsx:29
@@ -3500,7 +3500,7 @@ msgstr "クリップボードにコピーしました"
 
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 msgid "Copy {label}"
-msgstr ""
+msgstr "{label}をコピー"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:254
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:261
@@ -3517,7 +3517,7 @@ msgstr "招待リンクをコピー"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:576
 msgid "Copy receipt"
-msgstr ""
+msgstr "移行結果をコピー"
 
 #: packages/admin/src/components/Sections.tsx:459
 msgid "Copy slug"
@@ -3540,7 +3540,7 @@ msgstr "URLをコピー"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:59
 msgid "Copying media"
-msgstr ""
+msgstr "メディアをコピー中"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:241
 msgid "Could not add {singularLower}"
@@ -3548,11 +3548,11 @@ msgstr "{singularLower}を追加できませんでした"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:111
 msgid "Could not check this code"
-msgstr ""
+msgstr "このコードを確認できませんでした"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:347
 msgid "Could not check this code."
-msgstr ""
+msgstr "このコードを確認できませんでした。"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:139
 msgid "Could not copy automatically. Please select the URL above and copy manually."
@@ -3600,7 +3600,7 @@ msgstr "公開できませんでした"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:43
 msgid "Could not reach {origin}"
-msgstr ""
+msgstr "{origin}に接続できませんでした"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:198
 msgid "Could not remove the schedule"
@@ -3624,7 +3624,7 @@ msgstr "参照の一部を読み込めませんでした。"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:67
 msgid "Couldn’t load approval requests"
-msgstr ""
+msgstr "承認リクエストを読み込めませんでした"
 
 #: packages/admin/src/routes/byline-schema.tsx:268
 msgid "Couldn't load byline fields."
@@ -3632,7 +3632,7 @@ msgstr "執筆者情報の項目を読み込めませんでした。"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:276
 msgid "Couldn't load content."
-msgstr ""
+msgstr "コンテンツを読み込めませんでした。"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:513
 msgid "Couldn't load custom fields."
@@ -3640,11 +3640,11 @@ msgstr "追加項目を読み込めませんでした。"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:157
 msgid "Couldn’t load exports"
-msgstr ""
+msgstr "エクスポートを読み込めませんでした"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:232
 msgid "Couldn’t load imports"
-msgstr ""
+msgstr "インポートを読み込めませんでした"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:349
 msgid "Couldn’t load media usage tracking settings."
@@ -3656,7 +3656,7 @@ msgstr "使用状況を追加で読み込めませんでした。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:123
 msgid "Couldn’t load the import plan"
-msgstr ""
+msgstr "インポート計画を読み込めませんでした"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:564
 msgid "Couldn't load this version. Back to editing."
@@ -3668,7 +3668,7 @@ msgstr "使用状況を読み込めませんでした。"
 
 #: packages/admin/src/components/RevisionHistory.tsx:91
 msgid "Couldn't load versions"
-msgstr ""
+msgstr "変更履歴を読み込めませんでした"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
@@ -3680,7 +3680,7 @@ msgstr "ファイルを移動できませんでした"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:467
 msgid "Couldn’t reload the import plan"
-msgstr ""
+msgstr "インポート計画を再読み込みできませんでした"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:368
 msgid "Couldn’t search bylines."
@@ -3688,15 +3688,15 @@ msgstr "執筆者を検索できませんでした。"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:139
 msgid "Couldn’t start the export"
-msgstr ""
+msgstr "エクスポートを開始できませんでした"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:481
 msgid "Couldn’t update the plan"
-msgstr ""
+msgstr "計画を更新できませんでした"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:143
 msgid "Couldn’t update the request"
-msgstr ""
+msgstr "リクエストを更新できませんでした"
 
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:369
@@ -3788,7 +3788,7 @@ msgstr "フィールドを作成"
 
 #: packages/admin/src/components/MenuList.tsx:131
 msgid "Create menu"
-msgstr ""
+msgstr "メニューを作成"
 
 #: packages/admin/src/components/MenuList.tsx:119
 #: packages/admin/src/components/MenuList.tsx:210
@@ -3813,7 +3813,7 @@ msgstr "関連付けを作成すると、このコンテンツタイプから別
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:741
 msgid "Create passkey"
-msgstr ""
+msgstr "パスキーを作成"
 
 #: packages/admin/src/components/Settings.tsx:104
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
@@ -3851,7 +3851,7 @@ msgstr "スキーマを作成してインポート"
 #: packages/admin/src/components/Sections.tsx:234
 #: packages/admin/src/components/Sections.tsx:312
 msgid "Create section"
-msgstr ""
+msgstr "セクションを作成"
 
 #: packages/admin/src/components/SectionPickerModal.tsx:110
 msgid "Create sections in the Sections library to use them here"
@@ -3864,7 +3864,7 @@ msgstr "分類グループを作成"
 
 #: packages/admin/src/lib/api/marketplace.ts:433
 msgid "Create taxonomy terms and change content classifications"
-msgstr ""
+msgstr "分類項目を作成し、コンテンツの分類を変更"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:253
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:561
@@ -3875,7 +3875,7 @@ msgstr "トークンを作成"
 msgid "Create Widget Area"
 msgstr "ウィジェットエリアを作成"
 
-#: packages/admin/src/components/SetupWizard.tsx:628
+#: packages/admin/src/components/SetupWizard.tsx:620
 msgid "Create your account"
 msgstr "アカウントを作成"
 
@@ -3944,7 +3944,7 @@ msgstr "作成日時"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:58
 msgid "Creating collections and fields"
-msgstr ""
+msgstr "コンテンツタイプとフィールドを作成中"
 
 #: packages/admin/src/components/WordPressImport.tsx:932
 msgid "Creating collections and fields..."
@@ -3994,11 +3994,11 @@ msgstr "CSS"
 #: packages/admin/src/components/MenuEditor.tsx:540
 #: packages/admin/src/components/MenuEditor.tsx:739
 msgid "CSS classes"
-msgstr ""
+msgstr "CSSクラス"
 
 #: packages/admin/src/components/MenuEditor.tsx:639
 msgid "CSS classes:"
-msgstr ""
+msgstr "CSSクラス:"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:59
 msgid "CSS code"
@@ -4265,7 +4265,7 @@ msgstr "フォルダーを削除"
 msgid "Delete gallery"
 msgstr "ギャラリーを削除"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5853
+#: packages/admin/src/components/PortableTextEditor.tsx:5868
 msgid "Delete image"
 msgstr "画像を削除"
 
@@ -4275,7 +4275,7 @@ msgstr "メディアを削除しますか？"
 
 #: packages/admin/src/components/MenuList.tsx:233
 msgid "Delete menu"
-msgstr ""
+msgstr "メニューを削除"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:550
 msgid "Delete permanently"
@@ -4313,7 +4313,7 @@ msgstr "行を削除"
 
 #: packages/admin/src/components/Sections.tsx:469
 msgid "Delete section"
-msgstr ""
+msgstr "セクションを削除"
 
 #: packages/admin/src/components/Sections.tsx:337
 msgid "Delete Section?"
@@ -4325,20 +4325,20 @@ msgstr "テーブルを削除"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:364
 msgid "Delete tag"
-msgstr ""
+msgstr "タグを削除"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:361
 msgid "Delete tag {0}"
-msgstr ""
+msgstr "タグ「{0}」を削除"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1373
 msgid "Delete taxonomy"
-msgstr ""
+msgstr "分類グループを削除"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1552
 msgid "Delete Taxonomy"
-msgstr ""
+msgstr "分類グループを削除"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:403
 #: packages/admin/src/components/editor/VideoNode.tsx:404
@@ -4356,7 +4356,7 @@ msgstr "削除日時"
 #. placeholder {0}: taxonomyDef.label
 #: packages/admin/src/components/TaxonomyManager.tsx:1553
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
-msgstr ""
+msgstr "「{0}」を削除すると、その中のすべての言語の分類項目も削除され、コンテンツへの割り当ても解除されます。コンテンツ自体は残ります。この操作は元に戻せません。"
 
 #. placeholder {0}: deletingField.label
 #. placeholder {1}: deleteUsageQuery.data.totalAffectedRows
@@ -4389,7 +4389,7 @@ msgstr "削除中…"
 #: packages/admin/src/lib/api/marketplace.ts:446
 #: packages/admin/src/lib/api/marketplace.ts:457
 msgid "Deliver all email your site sends"
-msgstr ""
+msgstr "サイトが送信するすべてのメールを配信"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:254
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:147
@@ -4419,7 +4419,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr "画像の内容を説明"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:522
-#: packages/admin/src/components/PortableTextEditor.tsx:5747
+#: packages/admin/src/components/PortableTextEditor.tsx:5762
 msgid "Describe the image"
 msgstr "画像の内容を説明"
 
@@ -4496,7 +4496,7 @@ msgstr "Diff"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:396
 msgid "Differences from the source site"
-msgstr ""
+msgstr "移行元サイトとの違い"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1325
 msgid "Dimensions:"
@@ -4549,7 +4549,7 @@ msgstr "無効化中…"
 #: packages/admin/src/components/settings/SeoSettings.tsx:280
 #: packages/admin/src/components/settings/SeoSettings.tsx:290
 msgid "Disallow AI training"
-msgstr ""
+msgstr "AIの学習を許可しない"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1906
 msgid "Discard"
@@ -4666,7 +4666,7 @@ msgstr "ドメインを追加しました"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "Domain changed to {url}"
-msgstr ""
+msgstr "ドメインを{url}に変更しました"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:120
 msgid "Domain removed"
@@ -4682,7 +4682,7 @@ msgstr "アカウントをお持ちでない方は、<0>新規登録</0>"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:229
 msgid "Don’t map"
-msgstr ""
+msgstr "割り当てない"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
@@ -4704,11 +4704,11 @@ msgstr "サイト全体のバックアップをダウンロードします。す
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:103
 msgid "Download a copy of the entire site, including drafts, media, settings, and author emails. Admin includes this; choose it instead of Admin to give an agent narrower access."
-msgstr ""
+msgstr "下書き、メディア、設定、投稿者のメールアドレスを含むサイト全体のコピーをダウンロードします。管理者権限にも含まれています。エージェントのアクセス範囲を制限するには、管理者権限の代わりにこの権限を選択してください。"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:212
 msgid "Download as one file"
-msgstr ""
+msgstr "1つのファイルとしてダウンロード"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:196
 msgid "Download backup"
@@ -4725,15 +4725,15 @@ msgstr "バックアップのダウンロード、ストレージへの自動バ
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:280
 msgid "Download export from {created}"
-msgstr ""
+msgstr "{created}のエクスポートをダウンロード"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:209
 msgid "Download package"
-msgstr ""
+msgstr "パッケージをダウンロード"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:217
 msgid "Download package fetches the export file by file and checks each one, so it works for sites of any size. Download as one file asks the server for a single archive, which is quicker for small sites but can fail for large sites on Cloudflare Workers."
-msgstr ""
+msgstr "「パッケージをダウンロード」では、エクスポートのファイルを1つずつ取得して検証するため、どの規模のサイトでも利用できます。「1つのファイルとしてダウンロード」では、サーバーに単一のアーカイブを要求します。小規模なサイトでは高速ですが、Cloudflare Workers上の大規模なサイトでは失敗する場合があります。"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:572
 msgid "Download SBOM"
@@ -4741,11 +4741,11 @@ msgstr "SBOMをダウンロード"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:99
 msgid "Download this site as a single .emdash package file that another EmDash site can import."
-msgstr ""
+msgstr "別のEmDashサイトにインポートできる単一の.emdashパッケージファイルとして、このサイトをダウンロードします。"
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:120
 msgid "Downloaded"
-msgstr ""
+msgstr "ダウンロード済み"
 
 #: packages/admin/src/components/WordPressImport.tsx:2183
 msgid "Downloading"
@@ -4753,7 +4753,7 @@ msgstr "ダウンロード中"
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:112
 msgid "Downloading the package"
-msgstr ""
+msgstr "パッケージをダウンロード中"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:53
@@ -4862,7 +4862,7 @@ msgstr "ブロックを複製"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:156
 msgid "Duplicate redirects were left out"
-msgstr ""
+msgstr "重複するリダイレクトを除外しました"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:165
 msgid "e.g. application/zip or .pdf"
@@ -4963,7 +4963,7 @@ msgstr "執筆者情報の項目を編集"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5841
+#: packages/admin/src/components/PortableTextEditor.tsx:5856
 msgid "Edit caption"
 msgstr "キャプションを編集"
 
@@ -4999,10 +4999,10 @@ msgstr "画像を編集"
 msgid "Edit image {0}"
 msgstr "画像{0}を編集"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5037
-#: packages/admin/src/components/PortableTextEditor.tsx:5143
-#: packages/admin/src/components/PortableTextEditor.tsx:5834
-#: packages/admin/src/components/PortableTextEditor.tsx:6281
+#: packages/admin/src/components/PortableTextEditor.tsx:5040
+#: packages/admin/src/components/PortableTextEditor.tsx:5149
+#: packages/admin/src/components/PortableTextEditor.tsx:5849
+#: packages/admin/src/components/PortableTextEditor.tsx:6297
 msgid "Edit link"
 msgstr "リンクを編集"
 
@@ -5012,7 +5012,7 @@ msgstr "編集中のロック"
 
 #: packages/admin/src/lib/api/marketplace.ts:439
 msgid "Edit media alt text, captions, and focal points"
-msgstr ""
+msgstr "メディアの代替テキスト、キャプション、画像の焦点を編集"
 
 #: packages/admin/src/components/MenuEditor.tsx:696
 msgid "Edit Menu Item"
@@ -5095,15 +5095,15 @@ msgstr "画像の代替テキストを編集しました"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:301
 msgid "Editing is paused until the import finishes. Keep this page open; if you leave, the import continues when you come back."
-msgstr ""
+msgstr "インポートが完了するまで編集できません。このページを開いたままにしてください。ページを離れた場合は、戻ったときにインポートが再開します。"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:369
 msgid "Editing is unlocked again. Content the import already wrote stays on the site and is not removed. Because the site is no longer empty, another import can’t run here."
-msgstr ""
+msgstr "再び編集できるようになります。インポートで書き込み済みのコンテンツは削除されず、サイトに残ります。サイトが空ではなくなるため、別のインポートは実行できません。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:530
 msgid "Editing on this site is paused until the import finishes."
-msgstr ""
+msgstr "インポートが完了するまで、このサイトは編集できません。"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:41
@@ -5148,13 +5148,13 @@ msgstr "メールアドレス"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:581
 msgid "Email all users?"
-msgstr ""
+msgstr "すべてのユーザーにメールを送信しますか？"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:344
 msgid "Email every other user a link to the sign-in page at {siteHost}."
-msgstr ""
+msgstr "自分以外のすべてのユーザーに、{siteHost}のログインページへのリンクをメールで送信します。"
 
-#: packages/admin/src/components/SetupWizard.tsx:242
+#: packages/admin/src/components/SetupWizard.tsx:243
 #: packages/admin/src/components/SignupPage.tsx:69
 msgid "Email is required"
 msgstr "メールアドレスは必須です"
@@ -5178,7 +5178,7 @@ msgstr "メール設定"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:354
 msgid "Email users"
-msgstr ""
+msgstr "ユーザーにメールを送信"
 
 #: packages/admin/src/components/users/UserDetail.tsx:254
 msgid "Email verified"
@@ -5217,12 +5217,12 @@ msgstr "埋め込み"
 #. placeholder {0}: plan.origin.createdByEmDashVersion
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:269
 msgid "EmDash {0}"
-msgstr ""
+msgstr "EmDash {0}"
 
 #. placeholder {0}: status.current
 #: packages/admin/src/components/CoreUpdateBanner.tsx:67
 msgid "EmDash {latest} is available (you're running {0})"
-msgstr ""
+msgstr "EmDash {latest}が利用可能です（現在のバージョン: {0}）"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1982
 msgid "EmDash does not keep the previous image."
@@ -5242,11 +5242,11 @@ msgstr "EmDashが既存コンテンツを確認しています。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:744
 msgid "EmDash never receives your PIN, password, or biometric information."
-msgstr ""
+msgstr "PIN、パスワード、生体認証情報がEmDashに送信されることはありません。"
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:39
 msgid "EmDash site package"
-msgstr ""
+msgstr "EmDashサイトパッケージ"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:575
 msgid "EmDash will continue setup and resume scanning existing content."
@@ -5265,7 +5265,7 @@ msgstr "空"
 msgid "Empty gallery — open settings to add images"
 msgstr "ギャラリーは空です。設定を開いて画像を追加してください"
 
-#: packages/admin/src/components/SetupWizard.tsx:173
+#: packages/admin/src/components/SetupWizard.tsx:174
 msgid "Empty site"
 msgstr "空のサイト"
 
@@ -5316,7 +5316,7 @@ msgstr "表示名を入力してください。"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:89
 msgid "Enter a domain such as example.com, without a path or port"
-msgstr ""
+msgstr "example.comのように、パスやポートを含めずにドメインを入力してください"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:288
 msgid "Enter a full URL that starts with https:// or http://."
@@ -5324,7 +5324,7 @@ msgstr "https://またはhttp://で始まる完全なURLを入力してくださ
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:521
 msgid "Enter a recognized timezone to save"
-msgstr ""
+msgstr "保存するには有効なタイムゾーンを入力してください"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:283
 msgid "Enter a slug."
@@ -5373,7 +5373,7 @@ msgstr "ターミナルに表示されたコードを入力"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:121
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
-msgstr ""
+msgstr "下にドメインを入力してください。EmDashは切り替え前に、そのドメインでこのサイトが配信されているか確認します。"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:127
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:136
@@ -5395,7 +5395,7 @@ msgstr "WordPressサイトのURLを入力"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:23
 msgid "Entries"
-msgstr ""
+msgstr "コンテンツ"
 
 #: packages/admin/src/components/FieldEditor.tsx:814
 #: packages/admin/src/components/FieldEditor.tsx:1022
@@ -5418,7 +5418,7 @@ msgstr "参照元のコンテンツ"
 #: packages/admin/src/components/MenuEditor.tsx:158
 #: packages/admin/src/components/MenuEditor.tsx:226
 #: packages/admin/src/components/MenuEditor.tsx:266
-#: packages/admin/src/components/SetupWizard.tsx:607
+#: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1210
 #: packages/admin/src/components/Widgets.tsx:781
 #: packages/admin/src/router.tsx:3364
@@ -5451,11 +5451,11 @@ msgstr "Esc"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:566
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
-msgstr ""
+msgstr "インポートしたすべてのレコードとメディアファイルを再読み込みし、パッケージと一致することを確認しました。移行の記録として、この結果を保管してください。"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:582
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
-msgstr ""
+msgstr "自分以外の有効なアカウントを持つすべてのユーザーに、サイトが{siteHost}に移転したことを知らせるメールとログイン用のリンクが送信されます。別のアドレスで作成したパスキーは{siteHost}で使えないため、ユーザーはメールのリンクでログインし、新しいパスキーを追加します。"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1998
 msgid "Every place using this image will update to the cropped version."
@@ -5475,7 +5475,7 @@ msgstr "このコンテンツタイプが含まれるすべての関連付けも
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:502
 msgid "Example: {pattern} → {preview}"
-msgstr ""
+msgstr "例：{pattern} → {preview}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:295
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:127
@@ -5514,11 +5514,11 @@ msgstr "詳細を展開"
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:303
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:307
 msgid "Expired"
-msgstr ""
+msgstr "有効期限切れ"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:91
 msgid "Expires {expires}"
-msgstr ""
+msgstr "有効期限：{expires}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:386
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:547
@@ -5527,7 +5527,7 @@ msgstr "有効期限"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:98
 msgid "Export"
-msgstr ""
+msgstr "エクスポート"
 
 #: packages/admin/src/components/WordPressImport.tsx:1327
 msgid "Export from WordPress manually"
@@ -5535,15 +5535,15 @@ msgstr "WordPressから手動でエクスポート"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:191
 msgid "Export ready"
-msgstr ""
+msgstr "エクスポートの準備完了"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:85
 msgid "Export requested by {requester}"
-msgstr ""
+msgstr "{requester}からのエクスポートリクエスト"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:131
 msgid "Export site"
-msgstr ""
+msgstr "サイトをエクスポート"
 
 #: packages/admin/src/components/WordPressImport.tsx:1451
 msgid "Export your content from WordPress to import everything including drafts."
@@ -5551,23 +5551,23 @@ msgstr "下書きを含むすべてのコンテンツをインポートするに
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:259
 msgid "Exported"
-msgstr ""
+msgstr "エクスポート日時"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:268
 msgid "Exported with"
-msgstr ""
+msgstr "エクスポートに使用したバージョン"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:308
 msgid "Exporting"
-msgstr ""
+msgstr "エクスポート中"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:343
 msgid "Exporting: {stage}"
-msgstr ""
+msgstr "エクスポート中：{stage}"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:35
 msgid "F#"
-msgstr ""
+msgstr "F#"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:158
 msgid "Facebook"
@@ -5589,7 +5589,7 @@ msgstr "セキュリティ監査に不合格"
 
 #: packages/admin/src/lib/api/transfer.ts:491
 msgid "Failed to abandon import"
-msgstr ""
+msgstr "インポートの中止に失敗しました"
 
 #: packages/admin/src/lib/api/schema.ts:319
 msgid "Failed to activate block type version"
@@ -5605,15 +5605,15 @@ msgstr "パスキーを追加できませんでした"
 
 #: packages/admin/src/lib/api/taxonomies.ts:120
 msgid "Failed to add term to entries"
-msgstr ""
+msgstr "コンテンツへの分類項目の追加に失敗しました"
 
 #: packages/admin/src/lib/api/import.ts:378
 msgid "Failed to analyze file"
-msgstr ""
+msgstr "ファイルの解析に失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:442
 msgid "Failed to analyze import"
-msgstr ""
+msgstr "インポートの分析に失敗しました"
 
 #: packages/admin/src/components/WordPressImport.tsx:433
 #: packages/admin/src/lib/api/import.ts:768
@@ -5622,19 +5622,19 @@ msgstr "WordPressサイトの分析に失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:525
 msgid "Failed to approve request"
-msgstr ""
+msgstr "リクエストの承認に失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:482
 msgid "Failed to cancel import"
-msgstr ""
+msgstr "インポートのキャンセルに失敗しました"
 
 #: packages/admin/src/lib/api/settings.ts:119
 msgid "Failed to change the domain"
-msgstr ""
+msgstr "ドメインの変更に失敗しました"
 
 #: packages/admin/src/lib/api/marketplace.ts:401
 msgid "Failed to check for updates"
-msgstr ""
+msgstr "更新の確認に失敗しました"
 
 #: packages/admin/src/components/SandboxedPluginPage.tsx:78
 msgid "Failed to communicate with plugin"
@@ -5650,11 +5650,11 @@ msgstr "アップロードの確認に失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:324
 msgid "Failed to continue export"
-msgstr ""
+msgstr "エクスポートの続行に失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:466
 msgid "Failed to continue import"
-msgstr ""
+msgstr "インポートの続行に失敗しました"
 
 #. placeholder {0}: failedLabels.join(", ")
 #: packages/admin/src/components/TaxonomySidebar.tsx:753
@@ -5664,19 +5664,19 @@ msgstr "{0}の作成に失敗しました"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:146
 #: packages/admin/src/lib/api/settings.ts:96
 msgid "Failed to create a sign-in link"
-msgstr ""
+msgstr "ログインリンクの作成に失敗しました"
 
-#: packages/admin/src/components/SetupWizard.tsx:561
+#: packages/admin/src/components/SetupWizard.tsx:557
 msgid "Failed to create admin"
 msgstr "管理者の作成に失敗しました"
 
 #: packages/admin/src/lib/api/users.ts:313
 msgid "Failed to create allowed domain"
-msgstr ""
+msgstr "許可ドメインの作成に失敗しました"
 
 #: packages/admin/src/lib/api/api-tokens.ts:91
 msgid "Failed to create API token"
-msgstr ""
+msgstr "APIトークンの作成に失敗しました"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:123
 #: packages/admin/src/lib/api/backups.ts:51
@@ -5689,7 +5689,7 @@ msgstr "ブロックタイプの作成に失敗しました"
 
 #: packages/admin/src/lib/api/bylines.ts:127
 msgid "Failed to create byline"
-msgstr ""
+msgstr "執筆者の作成に失敗しました"
 
 #: packages/admin/src/lib/api/byline-fields.ts:120
 msgid "Failed to create byline field"
@@ -5697,7 +5697,7 @@ msgstr "執筆者情報の項目の作成に失敗しました"
 
 #: packages/admin/src/lib/api/bylines.ts:178
 msgid "Failed to create byline translation"
-msgstr ""
+msgstr "執筆者の翻訳の作成に失敗しました"
 
 #: packages/admin/src/lib/api/schema.ts:371
 msgid "Failed to create collection"
@@ -5718,19 +5718,19 @@ msgstr "メディアフォルダーを作成できませんでした"
 
 #: packages/admin/src/lib/api/menus.ts:137
 msgid "Failed to create menu"
-msgstr ""
+msgstr "メニューの作成に失敗しました"
 
 #: packages/admin/src/lib/api/menus.ts:182
 msgid "Failed to create menu item"
-msgstr ""
+msgstr "メニュー項目の作成に失敗しました"
 
 #: packages/admin/src/lib/api/menus.ts:270
 msgid "Failed to create menu translation"
-msgstr ""
+msgstr "メニューの翻訳の作成に失敗しました"
 
 #: packages/admin/src/lib/api/redirects.ts:89
 msgid "Failed to create redirect"
-msgstr ""
+msgstr "リダイレクトの作成に失敗しました"
 
 #: packages/admin/src/lib/api/relations.ts:119
 msgid "Failed to create relation"
@@ -5746,7 +5746,7 @@ msgstr "一部のコンテンツタイプの作成に失敗しました"
 
 #: packages/admin/src/lib/api/taxonomies.ts:164
 msgid "Failed to create taxonomy"
-msgstr ""
+msgstr "分類グループの作成に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:732
 #: packages/admin/src/lib/api/taxonomies.ts:215
@@ -5755,7 +5755,7 @@ msgstr "分類項目の作成に失敗しました"
 
 #: packages/admin/src/lib/api/taxonomies.ts:314
 msgid "Failed to create term translation"
-msgstr ""
+msgstr "分類項目の翻訳の作成に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:782
 #: packages/admin/src/router.tsx:1648
@@ -5764,11 +5764,11 @@ msgstr "翻訳の作成に失敗しました"
 
 #: packages/admin/src/lib/api/widgets.ts:120
 msgid "Failed to create widget"
-msgstr ""
+msgstr "ウィジェットの作成に失敗しました"
 
 #: packages/admin/src/lib/api/widgets.ts:98
 msgid "Failed to create widget area"
-msgstr ""
+msgstr "ウィジェットエリアの作成に失敗しました"
 
 #: packages/admin/src/router.tsx:646
 #: packages/admin/src/router.tsx:675
@@ -5849,7 +5849,7 @@ msgstr "セクションの削除に失敗しました"
 
 #: packages/admin/src/lib/api/taxonomies.ts:176
 msgid "Failed to delete taxonomy"
-msgstr ""
+msgstr "分類グループの削除に失敗しました"
 
 #: packages/admin/src/lib/api/taxonomies.ts:276
 msgid "Failed to delete term"
@@ -5865,7 +5865,7 @@ msgstr "ウィジェットエリアの削除に失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:526
 msgid "Failed to deny request"
-msgstr ""
+msgstr "リクエストの拒否に失敗しました"
 
 #: packages/admin/src/components/PluginManager.tsx:161
 #: packages/admin/src/lib/api/plugins.ts:161
@@ -5899,7 +5899,7 @@ msgstr "ウェルカム画面を閉じられませんでした"
 
 #: packages/admin/src/lib/api/transfer.ts:360
 msgid "Failed to download a package file"
-msgstr ""
+msgstr "パッケージ内のファイルのダウンロードに失敗しました"
 
 #: packages/admin/src/router.tsx:689
 msgid "Failed to duplicate"
@@ -5911,7 +5911,7 @@ msgstr "コンテンツの複製に失敗しました"
 
 #: packages/admin/src/lib/api/settings.ts:106
 msgid "Failed to email users"
-msgstr ""
+msgstr "ユーザーへのメール送信に失敗しました"
 
 #: packages/admin/src/components/PluginManager.tsx:142
 #: packages/admin/src/lib/api/plugins.ts:147
@@ -5932,15 +5932,15 @@ msgstr "インポートの実行に失敗しました"
 
 #: packages/admin/src/lib/api/redirects.ts:127
 msgid "Failed to fetch 404 summary"
-msgstr ""
+msgstr "404エラーの概要の取得に失敗しました"
 
 #: packages/admin/src/lib/api/users.ts:297
 msgid "Failed to fetch allowed domains"
-msgstr ""
+msgstr "許可ドメインの取得に失敗しました"
 
 #: packages/admin/src/lib/api/api-tokens.ts:76
 msgid "Failed to fetch API tokens"
-msgstr ""
+msgstr "APIトークンの取得に失敗しました"
 
 #: packages/admin/src/lib/api/client.ts:373
 msgid "Failed to fetch auth mode"
@@ -5960,15 +5960,15 @@ msgstr "ブロックタイプ一覧の取得に失敗しました"
 
 #: packages/admin/src/lib/api/bylines.ts:118
 msgid "Failed to fetch byline"
-msgstr ""
+msgstr "執筆者の取得に失敗しました"
 
 #: packages/admin/src/lib/api/bylines.ts:157
 msgid "Failed to fetch byline translations"
-msgstr ""
+msgstr "執筆者の翻訳の取得に失敗しました"
 
 #: packages/admin/src/lib/api/bylines.ts:112
 msgid "Failed to fetch bylines"
-msgstr ""
+msgstr "執筆者一覧の取得に失敗しました"
 
 #: packages/admin/src/lib/api/schema.ts:351
 #: packages/admin/src/lib/api/schema.ts:355
@@ -5981,15 +5981,15 @@ msgstr "コンテンツタイプ一覧の取得に失敗しました"
 
 #: packages/admin/src/lib/api/comments.ts:85
 msgid "Failed to fetch comment"
-msgstr ""
+msgstr "コメントの取得に失敗しました"
 
 #: packages/admin/src/lib/api/comments.ts:77
 msgid "Failed to fetch comment counts"
-msgstr ""
+msgstr "コメント数の取得に失敗しました"
 
 #: packages/admin/src/lib/api/comments.ts:68
 msgid "Failed to fetch comments"
-msgstr ""
+msgstr "コメント一覧の取得に失敗しました"
 
 #: packages/admin/src/lib/api/content.ts:237
 #: packages/admin/src/lib/api/content.ts:277
@@ -6046,15 +6046,15 @@ msgstr "メディアの使用状況を取得できませんでした"
 
 #: packages/admin/src/lib/api/menus.ts:125
 msgid "Failed to fetch menu"
-msgstr ""
+msgstr "メニューの取得に失敗しました"
 
 #: packages/admin/src/lib/api/menus.ts:249
 msgid "Failed to fetch menu translations"
-msgstr ""
+msgstr "メニューの翻訳の取得に失敗しました"
 
 #: packages/admin/src/lib/api/menus.ts:117
 msgid "Failed to fetch menus"
-msgstr ""
+msgstr "メニュー一覧の取得に失敗しました"
 
 #: packages/admin/src/lib/api/schema.ts:525
 msgid "Failed to fetch orphaned tables"
@@ -6062,7 +6062,7 @@ msgstr "未登録テーブルの取得に失敗しました"
 
 #: packages/admin/src/lib/api/users.ts:234
 msgid "Failed to fetch passkeys"
-msgstr ""
+msgstr "パスキーの取得に失敗しました"
 
 #: packages/admin/src/lib/api/marketplace.ts:324
 #: packages/admin/src/lib/api/plugins.ts:71
@@ -6084,7 +6084,7 @@ msgstr "連携先のメディア取得に失敗しました"
 
 #: packages/admin/src/lib/api/redirects.ts:77
 msgid "Failed to fetch redirects"
-msgstr ""
+msgstr "リダイレクト一覧の取得に失敗しました"
 
 #: packages/admin/src/lib/api/relations.ts:174
 msgid "Failed to fetch reference children"
@@ -6123,17 +6123,17 @@ msgstr "セクション一覧の取得に失敗しました"
 msgid "Failed to fetch settings"
 msgstr "設定の取得に失敗しました"
 
-#: packages/admin/src/components/SetupWizard.tsx:502
+#: packages/admin/src/components/SetupWizard.tsx:504
 msgid "Failed to fetch setup status"
 msgstr "セットアップ状態の取得に失敗しました"
 
 #: packages/admin/src/lib/api/taxonomies.ts:137
 msgid "Failed to fetch taxonomies"
-msgstr ""
+msgstr "分類グループ一覧の取得に失敗しました"
 
 #: packages/admin/src/lib/api/taxonomies.ts:290
 msgid "Failed to fetch term translations"
-msgstr ""
+msgstr "分類項目の翻訳の取得に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:144
 #: packages/admin/src/lib/api/taxonomies.ts:196
@@ -6142,11 +6142,11 @@ msgstr "分類項目の取得に失敗しました"
 
 #: packages/admin/src/lib/api/settings.ts:88
 msgid "Failed to fetch the site domain"
-msgstr ""
+msgstr "サイトのドメインの取得に失敗しました"
 
 #: packages/admin/src/lib/api/theme-marketplace.ts:99
 msgid "Failed to fetch theme"
-msgstr ""
+msgstr "テーマの取得に失敗しました"
 
 #: packages/admin/src/lib/api/content.ts:113
 msgid "Failed to fetch translations"
@@ -6158,7 +6158,7 @@ msgstr "ゴミ箱のコンテンツの取得に失敗しました"
 
 #: packages/admin/src/lib/api/core-update.ts:29
 msgid "Failed to fetch update status"
-msgstr ""
+msgstr "更新状況の取得に失敗しました"
 
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
@@ -6169,19 +6169,19 @@ msgstr "ユーザーの取得に失敗しました"
 
 #: packages/admin/src/lib/api/users.ts:77
 msgid "Failed to fetch users"
-msgstr ""
+msgstr "ユーザーの取得に失敗しました"
 
 #: packages/admin/src/lib/api/widgets.ts:86
 msgid "Failed to fetch widget area"
-msgstr ""
+msgstr "ウィジェットエリアの取得に失敗しました"
 
 #: packages/admin/src/lib/api/widgets.ts:76
 msgid "Failed to fetch widget areas"
-msgstr ""
+msgstr "ウィジェットエリア一覧の取得に失敗しました"
 
 #: packages/admin/src/lib/api/widgets.ts:168
 msgid "Failed to fetch widget components"
-msgstr ""
+msgstr "ウィジェットコンポーネントの取得に失敗しました"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:263
 msgid "Failed to generate preview"
@@ -6206,7 +6206,7 @@ msgstr "アップロードURLの取得に失敗しました"
 
 #: packages/admin/src/lib/api/import.ts:432
 msgid "Failed to import"
-msgstr ""
+msgstr "インポートに失敗しました"
 
 #: packages/admin/src/components/WordPressImport.tsx:462
 #: packages/admin/src/lib/api/import.ts:257
@@ -6226,7 +6226,7 @@ msgstr "プラグインのインストールに失敗しました"
 
 #: packages/admin/src/lib/api/users.ts:168
 msgid "Failed to invite user"
-msgstr ""
+msgstr "ユーザーの招待に失敗しました"
 
 #: packages/admin/src/lib/api/byline-fields.ts:98
 msgid "Failed to list byline fields"
@@ -6234,7 +6234,7 @@ msgstr "執筆者情報の項目一覧の取得に失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:415
 msgid "Failed to list files to upload"
-msgstr ""
+msgstr "アップロードするファイルの一覧の取得に失敗しました"
 
 #: packages/admin/src/router.tsx:477
 msgid "Failed to load admin"
@@ -6247,7 +6247,7 @@ msgstr "登録を許可するドメインを読み込めませんでした"
 
 #: packages/admin/src/lib/api/transfer.ts:511
 msgid "Failed to load approval requests"
-msgstr ""
+msgstr "承認リクエストの読み込みに失敗しました"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:166
 msgid "Failed to load backup settings"
@@ -6266,11 +6266,11 @@ msgstr "メール設定を読み込めませんでした"
 #: packages/admin/src/lib/api/transfer.ts:329
 #: packages/admin/src/lib/api/transfer.ts:347
 msgid "Failed to load export manifest"
-msgstr ""
+msgstr "エクスポートのマニフェストの読み込みに失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:298
 msgid "Failed to load exports"
-msgstr ""
+msgstr "エクスポートの読み込みに失敗しました"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:654
 msgid "Failed to load image"
@@ -6278,19 +6278,19 @@ msgstr "画像の読み込みに失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:388
 msgid "Failed to load import"
-msgstr ""
+msgstr "インポートの読み込みに失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:449
 msgid "Failed to load import plan"
-msgstr ""
+msgstr "インポート計画の読み込みに失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:473
 msgid "Failed to load import receipt"
-msgstr ""
+msgstr "インポート結果の読み込みに失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:380
 msgid "Failed to load imports"
-msgstr ""
+msgstr "インポートの読み込みに失敗しました"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:77
@@ -6318,13 +6318,13 @@ msgstr "プラグインの読み込みに失敗しました：{0}"
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
 msgstr "プラグインを読み込めませんでした。レジストリアグリゲーターに接続できない可能性があります。"
 
-#: packages/admin/src/components/SetupWizard.tsx:609
+#: packages/admin/src/components/SetupWizard.tsx:605
 msgid "Failed to load setup"
 msgstr "セットアップの読み込みに失敗しました"
 
 #: packages/admin/src/lib/api/calendar.ts:49
 msgid "Failed to load the calendar"
-msgstr ""
+msgstr "カレンダーの読み込みに失敗しました"
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:89
 msgid "Failed to load theme"
@@ -6332,11 +6332,11 @@ msgstr "テーマの読み込みに失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:284
 msgid "Failed to load transfer capabilities"
-msgstr ""
+msgstr "サイト移行の対応状況の読み込みに失敗しました"
 
 #: packages/admin/src/components/settings/TransferSettings.tsx:84
 msgid "Failed to load transfer settings"
-msgstr ""
+msgstr "サイト移行の設定の読み込みに失敗しました"
 
 #. placeholder {0}: usersQuery.error.message
 #: packages/admin/src/routes/users.tsx:208
@@ -6349,7 +6349,7 @@ msgstr "ウィジェットの読み込みに失敗しました"
 
 #: packages/admin/src/lib/api/entry-lock.ts:51
 msgid "Failed to lock the entry"
-msgstr ""
+msgstr "コンテンツのロックに失敗しました"
 
 #: packages/admin/src/lib/api/comments.ts:131
 #: packages/admin/src/router.tsx:2477
@@ -6367,7 +6367,7 @@ msgstr "インポートの準備に失敗しました"
 
 #: packages/admin/src/lib/api/import.ts:712
 msgid "Failed to probe URL"
-msgstr ""
+msgstr "URLの確認に失敗しました"
 
 #: packages/admin/src/router.tsx:714
 #: packages/admin/src/router.tsx:1493
@@ -6392,7 +6392,7 @@ msgstr "未登録テーブルの登録に失敗しました"
 
 #: packages/admin/src/lib/api/entry-lock.ts:70
 msgid "Failed to release the entry lock"
-msgstr ""
+msgstr "コンテンツのロック解除に失敗しました"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:124
 msgid "Failed to remove domain"
@@ -6427,11 +6427,11 @@ msgstr "項目を並べ替えられませんでした"
 
 #: packages/admin/src/lib/api/menus.ts:236
 msgid "Failed to reorder menu items"
-msgstr ""
+msgstr "メニュー項目の並べ替えに失敗しました"
 
 #: packages/admin/src/lib/api/taxonomies.ts:261
 msgid "Failed to reorder terms"
-msgstr ""
+msgstr "分類項目の並べ替えに失敗しました"
 
 #: packages/admin/src/lib/api/widgets.ts:158
 msgid "Failed to reorder widgets"
@@ -6516,12 +6516,12 @@ msgstr "コンテンツへの分類項目の設定に失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:317
 msgid "Failed to start export"
-msgstr ""
+msgstr "エクスポートの開始に失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:405
 #: packages/admin/src/lib/api/transfer.ts:459
 msgid "Failed to start import"
-msgstr ""
+msgstr "インポートの開始に失敗しました"
 
 #: packages/admin/src/lib/api/marketplace.ts:390
 #: packages/admin/src/lib/api/registry.ts:1003
@@ -6555,7 +6555,7 @@ msgstr "{0}の更新に失敗しました"
 
 #: packages/admin/src/lib/api/users.ts:335
 msgid "Failed to update allowed domain"
-msgstr ""
+msgstr "許可ドメインの更新に失敗しました"
 
 #: packages/admin/src/lib/api/backups.ts:46
 msgid "Failed to update backup settings"
@@ -6567,7 +6567,7 @@ msgstr "ブロックタイプの更新に失敗しました"
 
 #: packages/admin/src/lib/api/bylines.ts:139
 msgid "Failed to update byline"
-msgstr ""
+msgstr "執筆者の更新に失敗しました"
 
 #: packages/admin/src/lib/api/byline-fields.ts:135
 msgid "Failed to update byline field"
@@ -6579,7 +6579,7 @@ msgstr "コンテンツタイプの更新に失敗しました"
 
 #: packages/admin/src/lib/api/comments.ts:104
 msgid "Failed to update comment status"
-msgstr ""
+msgstr "コメントのステータスの更新に失敗しました"
 
 #: packages/admin/src/lib/api/content.ts:330
 msgid "Failed to update content"
@@ -6603,7 +6603,7 @@ msgstr "メニューの更新に失敗しました"
 
 #: packages/admin/src/lib/api/menus.ts:202
 msgid "Failed to update menu item"
-msgstr ""
+msgstr "メニュー項目の更新に失敗しました"
 
 #: packages/admin/src/components/PluginManager.tsx:339
 #: packages/admin/src/lib/api/marketplace.ts:373
@@ -6621,7 +6621,7 @@ msgstr "プラグイン設定の更新に失敗しました"
 
 #: packages/admin/src/lib/api/redirects.ts:101
 msgid "Failed to update redirect"
-msgstr ""
+msgstr "リダイレクトの更新に失敗しました"
 
 #: packages/admin/src/lib/api/relations.ts:132
 msgid "Failed to update relation"
@@ -6641,19 +6641,19 @@ msgstr "ステータスの更新に失敗しました"
 
 #: packages/admin/src/lib/api/taxonomies.ts:239
 msgid "Failed to update term"
-msgstr ""
+msgstr "分類項目の更新に失敗しました"
 
 #: packages/admin/src/lib/api/users.ts:112
 msgid "Failed to update user"
-msgstr ""
+msgstr "ユーザーの更新に失敗しました"
 
 #: packages/admin/src/lib/api/widgets.ts:136
 msgid "Failed to update widget"
-msgstr ""
+msgstr "ウィジェットの更新に失敗しました"
 
 #: packages/admin/src/lib/api/transfer.ts:431
 msgid "Failed to upload a package file"
-msgstr ""
+msgstr "パッケージ内のファイルのアップロードに失敗しました"
 
 #: packages/admin/src/lib/api/media.ts:405
 msgid "Failed to upload file"
@@ -6673,7 +6673,7 @@ msgstr "認証の検証に失敗しました"
 
 #: packages/admin/src/lib/api/registry.ts:734
 msgid "Failed to verify plugin"
-msgstr ""
+msgstr "プラグインの検証に失敗しました"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:412
 msgid "Failed to verify registration"
@@ -6736,7 +6736,7 @@ msgstr "項目を更新しました"
 
 #: packages/admin/src/components/FieldEditor.tsx:1284
 msgid "field_slug"
-msgstr ""
+msgstr "field_slug"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:757
 #: packages/admin/src/components/RelationList.tsx:96
@@ -6929,7 +6929,7 @@ msgstr "下書きを含むすべてのコンテンツを完全にインポート
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "よりスムーズにインポートするには、WordPressサイトに<0>EmDash Exporter</0>プラグインをインストールしてください。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4989
+#: packages/admin/src/components/PortableTextEditor.tsx:4992
 msgid "Format selection"
 msgstr "選択範囲の書式"
 
@@ -6948,11 +6948,11 @@ msgstr "{0}以降"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:628
 msgid "From the package (empty)"
-msgstr ""
+msgstr "パッケージの値（空）"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:628
 msgid "From the package: “{packageValue}”"
-msgstr ""
+msgstr "パッケージの値：「{packageValue}」"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:553
 msgid "From the post owner"
@@ -6999,7 +6999,7 @@ msgstr "一般設定"
 msgid "Genres"
 msgstr "ジャンル"
 
-#: packages/admin/src/components/WelcomeModal.tsx:156
+#: packages/admin/src/components/WelcomeModal.tsx:164
 msgid "Get Started"
 msgstr "はじめる"
 
@@ -7009,7 +7009,7 @@ msgstr "GitHub"
 
 #: packages/admin/src/components/MenuList.tsx:134
 msgid "Give this navigation a label and a site identifier."
-msgstr ""
+msgstr "このナビゲーションのラベルと、サイトで使う識別子を設定してください。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:769
 msgid "Give this passkey a name to help you identify it later."
@@ -7047,7 +7047,7 @@ msgstr "{countdown}に公開"
 #: packages/admin/src/components/settings/SeoSettings.tsx:243
 #: packages/admin/src/components/settings/SeoSettings.tsx:250
 msgid "Google Verification"
-msgstr "Google Search Console"
+msgstr "Googleの所有権確認"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:37
 msgid "GraphQL"
@@ -7084,7 +7084,7 @@ msgstr "ゲスト執筆者のみ"
 
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:98
 msgid "Handle unavailable"
-msgstr ""
+msgstr "ハンドルが利用できません"
 
 #: packages/admin/src/components/editor/TableControls.tsx:234
 msgid "Header column added"
@@ -7230,13 +7230,13 @@ msgstr "水平方向{0}%、垂直方向{1}%"
 msgid "Hour"
 msgstr "時"
 
-#: packages/admin/src/components/SetupWizard.tsx:158
+#: packages/admin/src/components/SetupWizard.tsx:159
 msgid "How do you want to start?"
 msgstr "どのように始めますか？"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:794
 msgid "How is the slug generated?"
-msgstr ""
+msgstr "スラッグはどのように生成されますか？"
 
 #: packages/admin/src/components/RelationForm.tsx:342
 msgid "How many"
@@ -7272,7 +7272,7 @@ msgstr "HTMLのみを使用し、不要なコードを除去してサイトの�
 
 #: packages/admin/src/components/BylineFormDialog.tsx:432
 msgid "https://example.com"
-msgstr ""
+msgstr "https://example.com"
 
 #: packages/admin/src/components/MenuEditor.tsx:528
 msgid "https://example.com or /about"
@@ -7301,7 +7301,7 @@ msgstr "上記の手順を完了し、使用状況の記録を一度有効にす
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:554
 msgid "I've set it up — check again"
-msgstr ""
+msgstr "設定したので再確認"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:578
 msgid "Icon"
@@ -7322,7 +7322,7 @@ msgstr "<0>{email}</0>のアカウントが存在する場合、ログインリ�
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:150
 msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
-msgstr ""
+msgstr "localhostやログインが必要な環境など、まだインターネットからサイトに接続できない場合は、確認せずにアドレスを使用できます。"
 
 #: packages/admin/src/locales/emails.ts:67
 msgid "If you didn't request this, you can safely ignore this email."
@@ -7367,7 +7367,7 @@ msgstr "画像{0}"
 msgid "Image actions"
 msgstr "画像の操作"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5712
+#: packages/admin/src/components/PortableTextEditor.tsx:5727
 msgid "Image controls"
 msgstr "画像の操作"
 
@@ -7375,7 +7375,7 @@ msgstr "画像の操作"
 msgid "Image from media library"
 msgstr "メディアライブラリから画像"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6279
+#: packages/admin/src/components/PortableTextEditor.tsx:6295
 msgid "Image link"
 msgstr "画像のリンク"
 
@@ -7395,7 +7395,7 @@ msgid "Image replaced."
 msgstr "画像を置き換えました。"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:391
-#: packages/admin/src/components/PortableTextEditor.tsx:5846
+#: packages/admin/src/components/PortableTextEditor.tsx:5861
 msgid "Image settings"
 msgstr "画像設定"
 
@@ -7442,13 +7442,13 @@ msgstr "サイトパッケージをインポート"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:113
 msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
-msgstr ""
+msgstr "このサイトが空の状態でサイトパッケージをインポートし、初期設定を上書きします。管理者権限にも含まれています。エージェントのアクセス範囲を制限するには、管理者権限の代わりにこの権限を選択してください。"
 
 #: packages/admin/src/components/WordPressImport.tsx:1420
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "下書き、カスタム投稿タイプ、ACFフィールド、SEOデータを含むすべてのコンテンツを直接インポートします。ファイルのダウンロードは不要です。"
 
-#: packages/admin/src/components/SetupWizard.tsx:178
+#: packages/admin/src/components/SetupWizard.tsx:179
 msgid "Import an existing EmDash site"
 msgstr "既存のEmDashサイトをインポート"
 
@@ -7463,7 +7463,7 @@ msgstr "インポート対応状況"
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:548
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:559
 msgid "Import complete"
-msgstr ""
+msgstr "インポート完了"
 
 #: packages/admin/src/components/WordPressImport.tsx:2361
 msgid "Import Complete"
@@ -7495,7 +7495,7 @@ msgstr "WordPressから投稿、ページ、カスタム投稿タイプをイン
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:86
 msgid "Import requested by {requester}"
-msgstr ""
+msgstr "{requester}からのインポートリクエスト"
 
 #: packages/admin/src/components/WordPressImport.tsx:1871
 msgid "Import site configuration from WordPress."
@@ -7503,7 +7503,7 @@ msgstr "WordPressからサイト設定をインポートします。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:515
 msgid "Import this package?"
-msgstr ""
+msgstr "このパッケージをインポートしますか？"
 
 #: packages/admin/src/components/WordPressImport.tsx:1418
 msgid "Import via EmDash Exporter"
@@ -7519,7 +7519,7 @@ msgstr "コンテンツタイプ別のインポート件数"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:294
 msgid "Importing"
-msgstr ""
+msgstr "インポート中"
 
 #. placeholder {0}: wpImportProgress.comments
 #: packages/admin/src/components/WordPressImport.tsx:949
@@ -7528,7 +7528,7 @@ msgstr "コメントをインポート中… {0}"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:61
 msgid "Importing content"
-msgstr ""
+msgstr "コンテンツをインポート中"
 
 #: packages/admin/src/components/WordPressImport.tsx:967
 msgid "Importing content..."
@@ -7554,15 +7554,15 @@ msgstr "メニューとサイト設定をインポート中…"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:63
 msgid "Importing menus, widgets, and settings"
-msgstr ""
+msgstr "メニュー、ウィジェット、設定をインポート中"
 
 #: packages/admin/src/components/WordPressImport.tsx:951
 msgid "Importing reusable blocks..."
-msgstr ""
+msgstr "再利用可能なブロックをインポートしています..."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:60
 msgid "Importing terms and bylines"
-msgstr ""
+msgstr "分類項目と執筆者をインポート中"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:355
 msgid "In trash"
@@ -7570,7 +7570,7 @@ msgstr "ゴミ箱内"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:536
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
-msgstr ""
+msgstr "Windowsの設定で「アカウント」→「サインイン オプション」を開き、PINを設定してください。指紋認証と顔認証の設定は任意です。"
 
 #: packages/admin/src/components/BlocksField.tsx:364
 msgid "Inactive version"
@@ -7578,7 +7578,7 @@ msgstr "非アクティブなバージョン"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:116
 msgid "Include comments"
-msgstr ""
+msgstr "コメントを含める"
 
 #: packages/admin/src/components/BylineFilter.tsx:187
 #: packages/admin/src/components/BylineFilter.tsx:193
@@ -7619,7 +7619,7 @@ msgid "Inline blocks use your site's styles. Your site removes scripts, style ta
 msgstr "インラインのブロックには、サイトのスタイルが適用されます。サイト側でスクリプト・styleタグ・style属性を取り除き、YouTubeとVimeo以外のiframeは空にします。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4795
-#: packages/admin/src/components/PortableTextEditor.tsx:6348
+#: packages/admin/src/components/PortableTextEditor.tsx:6364
 msgid "Inline Code"
 msgstr "インラインコード"
 
@@ -7660,8 +7660,8 @@ msgstr "画像ギャラリーを挿入"
 msgid "Insert block"
 msgstr "ブロックを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6295
-#: packages/admin/src/components/PortableTextEditor.tsx:6305
+#: packages/admin/src/components/PortableTextEditor.tsx:6311
+#: packages/admin/src/components/PortableTextEditor.tsx:6321
 msgid "Insert block after current block"
 msgstr "現在のブロックの後にブロックを挿入"
 
@@ -7669,18 +7669,18 @@ msgstr "現在のブロックの後にブロックを挿入"
 msgid "Insert block below"
 msgstr "下にブロックを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6429
+#: packages/admin/src/components/PortableTextEditor.tsx:6445
 msgid "Insert HTML"
 msgstr "HTMLを挿入"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4701
-#: packages/admin/src/components/PortableTextEditor.tsx:6422
+#: packages/admin/src/components/PortableTextEditor.tsx:6438
 msgid "Insert image"
 msgstr "画像を挿入"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:691
 msgid "Insert or tap your security key when the browser asks."
-msgstr ""
+msgstr "ブラウザーの指示に従って、セキュリティキーを挿入するかタッチしてください。"
 
 #: packages/admin/src/components/editor/TableControls.tsx:30
 msgid "Insert paragraph after"
@@ -7734,7 +7734,7 @@ msgstr "インストール"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:226
 msgid "Installation is unavailable."
-msgstr ""
+msgstr "インストールできません。"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:263
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:195
@@ -7763,7 +7763,7 @@ msgstr "整数"
 
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:79
 msgid "INVALID HANDLE"
-msgstr ""
+msgstr "無効なハンドル"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:157
 msgid "Invalid invite link"
@@ -7796,7 +7796,7 @@ msgstr "ユーザーを招待"
 
 #: packages/admin/src/lib/api/users.ts:194
 msgid "Invite validation failed"
-msgstr ""
+msgstr "招待の検証に失敗しました"
 
 #: packages/admin/src/components/users/UserList.tsx:133
 msgid "Invite your first team member"
@@ -7808,7 +7808,7 @@ msgstr "有効なすべてのプラグインからMCPツールを呼び出す"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:411
 msgid "Invoke MCP tools from the {pluginId} plugin"
-msgstr ""
+msgstr "{pluginId}プラグインのMCPツールを呼び出す"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:538
 msgid "Invoke only this plugin's enabled MCP tools"
@@ -7820,14 +7820,14 @@ msgstr "隔離されたフレーム"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:507
 msgid "It is stored by the authenticator or credential manager you selected in the secure system prompt."
-msgstr ""
+msgstr "システムの安全な確認画面で選択した認証器または認証情報マネージャーに保存されます。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:459
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
-msgstr ""
+msgstr "別の場所から開始されたため、計画は変更できなくなりました。進捗はここに表示されます。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4792
-#: packages/admin/src/components/PortableTextEditor.tsx:6324
+#: packages/admin/src/components/PortableTextEditor.tsx:6340
 msgid "Italic"
 msgstr "斜体"
 
@@ -7854,7 +7854,7 @@ msgid "Its listing has not been approved for display. Check back later."
 msgstr "このプラグインの掲載はまだ承認されていません。しばらくしてからもう一度確認してください。"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:76
-#: packages/admin/src/components/SetupWizard.tsx:277
+#: packages/admin/src/components/SetupWizard.tsx:278
 #: packages/admin/src/components/SignupPage.tsx:231
 msgid "Jane Doe"
 msgstr "山田太郎"
@@ -7907,7 +7907,7 @@ msgstr "コンテンツを編集せずにサーバーの問題を解決し、設
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:356
 msgid "Keep importing"
-msgstr ""
+msgstr "インポートを続行"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:598
 msgid "Keep this page open until setup finishes. If you leave, return to continue where it stopped."
@@ -7915,19 +7915,19 @@ msgstr "設定が完了するまで、このページを開いたままにして
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:431
 msgid "Keep this page open while files upload. If the upload stops, choose the same file again to continue where it left off."
-msgstr ""
+msgstr "ファイルのアップロード中は、このページを開いたままにしてください。アップロードが停止した場合は、同じファイルを再度選択すると続きから再開できます。"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:363
 msgid "Keep this page open. If you leave, the export continues when you come back."
-msgstr ""
+msgstr "このページを開いたままにしてください。ページを離れた場合は、戻ったときにエクスポートが再開します。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:632
 msgid "Keep this site’s (empty)"
-msgstr ""
+msgstr "このサイトの値を維持（空）"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:632
 msgid "Keep this site’s: “{targetValue}”"
-msgstr ""
+msgstr "このサイトの値を維持：「{targetValue}」"
 
 #: packages/admin/src/components/WordPressImport.tsx:963
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
@@ -8029,7 +8029,7 @@ msgstr "これ以降のコンテンツは読み込まれていません。この
 
 #: packages/admin/src/components/PluginManager.tsx:88
 msgid "Learn how to install plugins in the <0>documentation<1/></0>."
-msgstr ""
+msgstr "プラグインのインストール方法は<0>ドキュメント<1/></0>を参照してください。"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:354
 msgid "Learn more"
@@ -8050,8 +8050,8 @@ msgstr "保存せずに移動しますか？"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:5300
-#: packages/admin/src/components/PortableTextEditor.tsx:5418
+#: packages/admin/src/components/PortableTextEditor.tsx:5307
+#: packages/admin/src/components/PortableTextEditor.tsx:5428
 msgid "Left"
 msgstr "左"
 
@@ -8072,7 +8072,7 @@ msgstr "ライセンス"
 msgid "Limit"
 msgstr "最大表示件数"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6508
+#: packages/admin/src/components/PortableTextEditor.tsx:6524
 msgid "Link"
 msgstr "リンク"
 
@@ -8080,7 +8080,7 @@ msgstr "リンク"
 msgid "Link expired"
 msgstr "リンクの有効期限が切れました"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5121
+#: packages/admin/src/components/PortableTextEditor.tsx:5127
 msgid "Link options"
 msgstr "リンクの設定"
 
@@ -8127,7 +8127,7 @@ msgstr "LinkedIn"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:62
 msgid "Linking content"
-msgstr ""
+msgstr "コンテンツを関連付け中"
 
 #: packages/admin/src/components/RelationForm.tsx:294
 msgid "Linking side (plural)"
@@ -8149,11 +8149,11 @@ msgstr "参照元"
 #. placeholder {0}: siteDomain.configuredUrl
 #: packages/admin/src/components/settings/GeneralSettings.tsx:301
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
-msgstr ""
+msgstr "メールとプラグイン内のリンクには、デプロイ設定で指定された{0}が使用されます。"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:114
 msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
-msgstr ""
+msgstr "メールとプラグイン内のリンク、サイトマップ、検索用・ソーシャル用メタデータの絶対URLには、新しいドメインが使用されます。"
 
 #: packages/admin/src/components/RelationForm.tsx:275
 msgid "Links to"
@@ -8225,7 +8225,7 @@ msgstr "{pluralLower}を読み込み中…"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:59
 msgid "Loading approval requests…"
-msgstr ""
+msgstr "承認リクエストを読み込み中…"
 
 #: packages/admin/src/components/BlockTypeList.tsx:22
 #: packages/admin/src/components/FieldEditor.tsx:1091
@@ -8259,7 +8259,7 @@ msgstr "エディターを読み込み中…"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:149
 msgid "Loading exports…"
-msgstr ""
+msgstr "エクスポートを読み込み中…"
 
 #: packages/admin/src/components/MediaLibrary.tsx:937
 #: packages/admin/src/components/MediaLibrary.tsx:1153
@@ -8273,7 +8273,7 @@ msgstr "フォルダーを読み込み中…"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:224
 msgid "Loading imports…"
-msgstr ""
+msgstr "インポートを読み込み中…"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1394
 msgid "Loading media"
@@ -8293,7 +8293,7 @@ msgstr "メニューを読み込み中…"
 
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:258
 msgid "Loading plugin panel"
-msgstr ""
+msgstr "プラグインパネルを読み込み中"
 
 #: packages/admin/src/components/PluginManager.tsx:181
 msgid "Loading plugins..."
@@ -8324,7 +8324,7 @@ msgstr "セクションを読み込み中…"
 msgid "Loading settings..."
 msgstr "設定を読み込み中…"
 
-#: packages/admin/src/components/SetupWizard.tsx:596
+#: packages/admin/src/components/SetupWizard.tsx:592
 msgid "Loading setup..."
 msgstr "セットアップを読み込み中…"
 
@@ -8335,7 +8335,7 @@ msgstr "分類項目を読み込み中…"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:112
 msgid "Loading the import plan…"
-msgstr ""
+msgstr "インポート計画を読み込み中…"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:137
 msgid "Loading usage"
@@ -8400,7 +8400,7 @@ msgstr "言語"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:169
 msgid "Locales will use this site’s capitalization"
-msgstr ""
+msgstr "ロケールの大文字・小文字を、このサイトの表記に合わせます"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1455
 #: packages/admin/src/components/MediaDetailPanel.tsx:1483
@@ -8520,7 +8520,7 @@ msgstr "外部メディアサービスで管理"
 
 #: packages/admin/src/components/users/UserDetail.tsx:155
 msgid "Managed by your identity provider. Change the name there."
-msgstr ""
+msgstr "IDプロバイダーが管理しています。名前はそちらで変更してください。"
 
 #: packages/admin/src/components/Redirects.tsx:406
 msgid "Manual"
@@ -8567,15 +8567,15 @@ msgstr "マーケットプレイスの閲覧は終了しました。インスト
 
 #: packages/admin/src/components/MarketplaceMigrationBanner.tsx:14
 msgid "Marketplace configuration is deprecated"
-msgstr ""
+msgstr "マーケットプレイスの設定は非推奨です"
 
 #: packages/admin/src/lib/api/marketplace.ts:311
 msgid "Marketplace search failed"
-msgstr ""
+msgstr "マーケットプレイスの検索に失敗しました"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:339
 msgid "Matched by email"
-msgstr ""
+msgstr "メールアドレスで照合済み"
 
 #: packages/admin/src/components/FieldEditor.tsx:1349
 msgid "Max Items"
@@ -8628,7 +8628,7 @@ msgstr "メディアエラー（{0}）"
 #: packages/admin/src/components/settings/transfer/labels.ts:16
 #: packages/admin/src/components/settings/transfer/labels.ts:85
 msgid "Media folders"
-msgstr ""
+msgstr "メディアフォルダー"
 
 #: packages/admin/src/components/WordPressImport.tsx:2419
 msgid "Media Import"
@@ -8659,7 +8659,7 @@ msgstr "メディアライブラリ"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:158
 msgid "Media links were made relative"
-msgstr ""
+msgstr "メディアのリンクを相対URLに変換しました"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1241
 #: packages/admin/src/components/MediaPickerModal.tsx:1554
@@ -8746,7 +8746,7 @@ msgstr "メニュー項目を更新しました。"
 #: packages/admin/src/components/settings/transfer/labels.ts:29
 #: packages/admin/src/components/settings/transfer/labels.ts:92
 msgid "Menu items"
-msgstr ""
+msgstr "メニュー項目"
 
 #: packages/admin/src/components/MenuEditor.tsx:388
 msgid "Menu not found"
@@ -8800,7 +8800,7 @@ msgstr "メタタイトル、ディスクリプション、ソーシャル画像
 
 #: packages/admin/src/components/MarketplaceMigrationBanner.tsx:18
 msgid "Migration guide"
-msgstr ""
+msgstr "移行ガイド"
 
 #: packages/admin/src/components/WordPressImport.tsx:1099
 msgid "Migration key"
@@ -8869,7 +8869,7 @@ msgstr "月別・年別のアーカイブを表示"
 msgid "More actions for {0}"
 msgstr "{0}のその他の操作"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5267
+#: packages/admin/src/components/PortableTextEditor.tsx:5274
 msgid "More formatting"
 msgstr "その他の書式"
 
@@ -8887,7 +8887,7 @@ msgstr "表示サイズの説明"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:144
 msgid "More issues were found than are listed"
-msgstr ""
+msgstr "表示されている以外にも問題があります"
 
 #: packages/admin/src/components/editor/TableControls.tsx:368
 msgid "More table actions"
@@ -8966,7 +8966,7 @@ msgstr "下に移動"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:341
 msgid "Move down {0}"
-msgstr ""
+msgstr "{0}を下に移動"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1028
 msgid "Move media here from Media Details."
@@ -8978,11 +8978,11 @@ msgstr "焦点を動かして、切り抜かれたときに残す部分を選ん
 
 #: packages/admin/src/components/Settings.tsx:126
 msgid "Move this site to another EmDash installation, or import a site package"
-msgstr ""
+msgstr "このサイトを別のEmDash環境に移行するか、サイトパッケージをインポートします"
 
 #: packages/admin/src/components/settings/TransferSettings.tsx:47
 msgid "Move this site to another EmDash installation, or import a site package into this one."
-msgstr ""
+msgstr "このサイトを別のEmDash環境に移行するか、サイトパッケージをこのサイトにインポートします。"
 
 #: packages/admin/src/components/ContentList.tsx:646
 msgid "Move to trash"
@@ -9010,7 +9010,7 @@ msgstr "上に移動"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:333
 msgid "Move up {0}"
-msgstr ""
+msgstr "{0}を上に移動"
 
 #: packages/admin/src/components/revisions/change-labels.ts:141
 msgid "Moved “{snippet}”"
@@ -9094,12 +9094,12 @@ msgstr "テーブルの前の段落に移動しました"
 #. placeholder {1}: images.length
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:156
 msgid "Moving {label} to position {0} of {1}."
-msgstr ""
+msgstr "{label}を{1}件中{0}番目に移動しています。"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:169
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:175
 msgid "Moving {label} was cancelled."
-msgstr ""
+msgstr "{label}の移動をキャンセルしました。"
 
 #: packages/admin/src/components/Dashboard.tsx:280
 msgid "Moving from another EmDash site?"
@@ -9117,7 +9117,7 @@ msgstr "複数行プレーンテキスト"
 msgid "Multiple choices from options"
 msgstr "選択肢から複数選択"
 
-#: packages/admin/src/components/SetupWizard.tsx:141
+#: packages/admin/src/components/SetupWizard.tsx:142
 msgid "My Awesome Blog"
 msgstr "マイブログ"
 
@@ -9146,7 +9146,7 @@ msgstr "識別名は半角英小文字で始め、半角英小文字、数字、
 
 #: packages/admin/src/components/Sections.tsx:174
 msgid "Name your section, then add its content in the editor."
-msgstr ""
+msgstr "セクションに名前を付けてから、エディターで内容を追加してください。"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:594
 msgid "Navigate"
@@ -9210,7 +9210,7 @@ msgstr "コンテンツタイプを作成"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:126
 msgid "New domain"
-msgstr ""
+msgstr "新しいドメイン"
 
 #: packages/admin/src/routes/byline-schema.tsx:224
 msgid "New field"
@@ -9222,7 +9222,7 @@ msgstr "新しいフォルダー"
 
 #: packages/admin/src/components/MarketplaceMigrationBanner.tsx:15
 msgid "New plugin discovery uses the registry. Existing marketplace plugins can still be updated or uninstalled while you switch over."
-msgstr ""
+msgstr "新しいプラグインはレジストリで探せます。移行中も、既存のマーケットプレイスのプラグインは更新やアンインストールが可能です。"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:276
 msgid "New public routes"
@@ -9245,7 +9245,7 @@ msgstr "新しい共通プロフィール"
 
 #: packages/admin/src/components/Sections.tsx:159
 msgid "New section"
-msgstr ""
+msgstr "新しいセクション"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:508
 msgid "new tab"
@@ -9253,7 +9253,7 @@ msgstr "新しいタブ"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1363
 msgid "New taxonomy"
-msgstr ""
+msgstr "新しい分類グループ"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1330
 msgid "New Taxonomy"
@@ -9302,12 +9302,12 @@ msgstr "次のスクリーンショット"
 #. placeholder {0}: platformCopy.name
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:726
 msgid "Next, {0} will open"
-msgstr ""
+msgstr "次に{0}が開きます"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:652
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:689
 msgid "Next, the browser's passkey window will open"
-msgstr ""
+msgstr "次にブラウザーのパスキー画面が開きます"
 
 #: packages/admin/src/components/ContentList.tsx:1576
 #: packages/admin/src/components/users/UserDetail.tsx:255
@@ -9361,7 +9361,7 @@ msgstr "ブロックはまだありません"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:585
 msgid "No built-in passkey authenticator found"
-msgstr ""
+msgstr "内蔵のパスキー認証器が見つかりません"
 
 #: packages/admin/src/components/BylineFilter.tsx:101
 msgid "No byline"
@@ -9405,7 +9405,7 @@ msgstr "承認待ちのコメントはありません。"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:577
 msgid "No comments match your filters."
-msgstr ""
+msgstr "条件に一致するコメントはありません。"
 
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:102
 msgid "No content"
@@ -9427,7 +9427,7 @@ msgstr "コンテンツタイプはまだありません。"
 msgid "No custom fields yet"
 msgstr "カスタムフィールドはまだありません"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5808
+#: packages/admin/src/components/PortableTextEditor.tsx:5823
 msgid "No description yet"
 msgstr "説明はまだありません"
 
@@ -9441,11 +9441,11 @@ msgstr "登録を許可するドメインがありません。ユーザーを個
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:310
 msgid "No editor is available for this block type. Its content is preserved."
-msgstr ""
+msgstr "このブロックタイプには対応するエディターがありません。コンテンツは保持されます。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:332
 msgid "No email address"
-msgstr ""
+msgstr "メールアドレスなし"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:145
 msgid "No email provider configured"
@@ -9543,7 +9543,7 @@ msgstr "一致なし"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:323
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
-msgstr ""
+msgstr "一致する言語はありません。Enterキーを押すと「{freeFormLanguage}」を使用できます。"
 
 #: packages/admin/src/components/BlocksField.tsx:220
 msgid "No matching block types"
@@ -9572,11 +9572,11 @@ msgstr "このアカウントに一致するパスキーが見つかりません
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1427
 msgid "No matching tags"
-msgstr ""
+msgstr "一致するタグはありません"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:534
 msgid "No matching timezones"
-msgstr ""
+msgstr "一致するタイムゾーンがありません"
 
 #: packages/admin/src/components/FieldEditor.tsx:911
 #: packages/admin/src/components/FieldEditor.tsx:942
@@ -9623,7 +9623,7 @@ msgstr "パスキーはまだ登録されていません。"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:73
 msgid "No pending requests"
-msgstr ""
+msgstr "承認待ちのリクエストはありません"
 
 #: packages/admin/src/components/PluginManager.tsx:240
 msgid "No plugins configured"
@@ -9724,7 +9724,7 @@ msgstr "ユーザーはまだいません。"
 
 #: packages/admin/src/components/RevisionHistory.tsx:84
 msgid "No versions yet"
-msgstr ""
+msgstr "変更履歴はまだありません"
 
 #: packages/admin/src/components/Widgets.tsx:515
 msgid "No widget areas yet. Create one to get started."
@@ -9732,14 +9732,14 @@ msgstr "ウィジェットエリアを作成しましょう。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:584
 msgid "No Windows Hello authenticator found"
-msgstr ""
+msgstr "Windows Hello認証器が見つかりません"
 
 #: packages/admin/src/routes/bylines.tsx:330
 msgid "Non-guest"
 msgstr "ゲスト以外"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:5417
+#: packages/admin/src/components/PortableTextEditor.tsx:5427
 msgid "None"
 msgstr "なし"
 
@@ -9780,7 +9780,7 @@ msgstr "この日のコンテンツはありません。"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:520
 msgid "Nothing on this site changed."
-msgstr ""
+msgstr "このサイトへの変更はありません。"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:67
 msgid "Nothing published or scheduled in {monthTitle}"
@@ -9811,7 +9811,7 @@ msgstr "一覧表示でページあたりに表示する投稿数"
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
 #: packages/admin/src/components/PortableTextEditor.tsx:2061
-#: packages/admin/src/components/PortableTextEditor.tsx:6381
+#: packages/admin/src/components/PortableTextEditor.tsx:6397
 msgid "Numbered List"
 msgstr "番号付きリスト"
 
@@ -9840,7 +9840,7 @@ msgstr "有効"
 msgid "On the site"
 msgstr "サイトでの表示"
 
-#: packages/admin/src/components/SetupWizard.tsx:179
+#: packages/admin/src/components/SetupWizard.tsx:180
 msgid "Once setup is done, upload a .emdash package exported from another EmDash site."
 msgstr "セットアップの完了後に、ほかのEmDashサイトから書き出した .emdash パッケージをアップロードしてください。"
 
@@ -9931,7 +9931,7 @@ msgid "Open setup"
 msgstr "設定を開始"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:89
-#: packages/admin/src/components/SetupWizard.tsx:356
+#: packages/admin/src/components/SetupWizard.tsx:357
 #: packages/admin/src/components/SignupPage.tsx:246
 msgid "Open the dashboard"
 msgstr "ダッシュボードを開く"
@@ -9942,7 +9942,7 @@ msgstr "新しいアドレスのログイン画面を開いてください："
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:545
 msgid "Open Windows settings"
-msgstr ""
+msgstr "Windowsの設定を開く"
 
 #: packages/admin/src/components/WordPressImport.tsx:1589
 msgid "Open WordPress Profile"
@@ -10002,7 +10002,7 @@ msgstr "またはURLで接続"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:102
 #: packages/admin/src/components/LoginPage.tsx:282
-#: packages/admin/src/components/SetupWizard.tsx:369
+#: packages/admin/src/components/SetupWizard.tsx:370
 msgid "Or continue with"
 msgstr "または次の方法で続行"
 
@@ -10074,11 +10074,11 @@ msgstr "パッケージ"
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:287
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:593
 msgid "Package digest"
-msgstr ""
+msgstr "パッケージのダイジェスト"
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:88
 msgid "Package downloaded"
-msgstr ""
+msgstr "パッケージをダウンロードしました"
 
 #: packages/admin/src/router.tsx:3379
 msgid "Page Not Found"
@@ -10136,7 +10136,7 @@ msgstr "パスキーを追加しました"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:505
 msgid "Passkey created"
-msgstr ""
+msgstr "パスキーを作成しました"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:103
 #: packages/admin/src/components/settings/PasskeyItem.tsx:104
@@ -10184,19 +10184,19 @@ msgstr "この環境ではパスキーを利用できません"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:217
 msgid "Passkeys only work at the address where they were created."
-msgstr ""
+msgstr "パスキーは作成したアドレスでのみ使用できます。"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:172
 msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
-msgstr ""
+msgstr "パスキーは作成したアドレスでのみ使用できます。次回このアドレスでログインできるよう、ここでパスキーを追加してください。"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:143
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
-msgstr ""
+msgstr "パスキーは作成したアドレスでのみ使用できます。切り替え後も現在のアドレスでログインするか、新しいアドレスではメールのログインリンクを使用してください。"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:323
 msgid "Passkeys only work at the address where they were created. Continue on {handoverHost} to sign in there without a passkey, then add one for that address."
-msgstr ""
+msgstr "パスキーは作成したアドレスでのみ使用できます。{handoverHost}で続行してパスキーなしでログインし、そのアドレス用のパスキーを追加してください。"
 
 #: packages/admin/src/components/auth/PasskeyContextMessage.tsx:5
 msgid "Passkeys require a <0>secure context</0>: use <1>HTTPS</1>, or open the admin at <2>http://localhost</2> (with your dev port). Plain <3>http://</3> on a custom hostname is not treated as secure, even on loopback."
@@ -10295,7 +10295,7 @@ msgstr "PHP"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:143
 msgid "Picked up {label}."
-msgstr ""
+msgstr "{label}を選択して移動を開始しました。"
 
 #: packages/admin/src/components/FieldEditor.tsx:1457
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
@@ -10319,13 +10319,13 @@ msgstr "プレーンテキスト"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:594
 msgid "Plan digest"
-msgstr ""
+msgstr "計画のダイジェスト"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:171
 msgid "Please ask your administrator to send a new invite."
 msgstr "管理者に新しい招待を送信するよう依頼してください。"
 
-#: packages/admin/src/components/SetupWizard.tsx:244
+#: packages/admin/src/components/SetupWizard.tsx:245
 msgid "Please enter a valid email"
 msgstr "有効なメールアドレスを入力してください"
 
@@ -10347,16 +10347,16 @@ msgstr "プラグイン「{pluginId}」が見つかりません"
 
 #: packages/admin/src/lib/api/client.ts:68
 msgid "Plugin {pluginId} rejected the save: {reason}"
-msgstr ""
+msgstr "プラグイン{pluginId}が保存を拒否しました: {reason}"
 
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:122
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:155
 msgid "Plugin action failed"
-msgstr ""
+msgstr "プラグインのアクションに失敗しました"
 
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:244
 msgid "Plugin actions"
-msgstr ""
+msgstr "プラグインのアクション"
 
 #: packages/admin/src/components/ContentEditor.tsx:1836
 msgid "Plugin changes were not applied"
@@ -10389,7 +10389,7 @@ msgstr "プラグインエラー（{0}）"
 
 #: packages/admin/src/lib/api/marketplace.ts:120
 msgid "Plugin installation requires explicit consent"
-msgstr ""
+msgstr "プラグインのインストールには明示的な同意が必要です"
 
 #: packages/admin/src/components/PluginManager.tsx:408
 msgid "Plugin MCP access updated"
@@ -10432,7 +10432,7 @@ msgstr "プラグインレジストリ"
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:30
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:31
 msgid "Plugin registry configuration error"
-msgstr ""
+msgstr "プラグインレジストリの設定エラー"
 
 #: packages/admin/src/router.tsx:2675
 #: packages/admin/src/router.tsx:2706
@@ -10478,7 +10478,7 @@ msgstr "プラグイン"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:119
 msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
-msgstr ""
+msgstr "ドメインの接続先をこのサイトに設定してください。Cloudflareでは「Workers & Pages」でWorkerを開き、「Domains」タブでドメインを追加します。"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:344
 msgid "Point-in-Time Restore"
@@ -10521,7 +10521,7 @@ msgstr "プレリリース"
 
 #: packages/admin/src/components/WordPressImport.tsx:943
 msgid "Preparing categories and tags..."
-msgstr ""
+msgstr "カテゴリとタグを準備しています..."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:326
 msgid "Preparing registration..."
@@ -10529,14 +10529,14 @@ msgstr "登録の準備中…"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:56
 msgid "Preparing this site"
-msgstr ""
+msgstr "このサイトを準備中"
 
 #: packages/admin/src/components/WordPressImport.tsx:2236
 msgid "Preparing to download files from WordPress..."
 msgstr "WordPressからファイルをダウンロードする準備をしています…"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:163
-#: packages/admin/src/components/SetupWizard.tsx:297
+#: packages/admin/src/components/SetupWizard.tsx:298
 msgid "Preparing..."
 msgstr "準備中…"
 
@@ -10546,7 +10546,7 @@ msgstr "コードエディターから戻るには、Escキーを押してくだ
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:179
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
-msgstr ""
+msgstr "スペースキーを押して画像の移動を開始します。矢印キーで移動し、もう一度スペースキーを押して配置してください。"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
 #: packages/admin/src/components/ContentSettingsPanel.tsx:431
@@ -10573,11 +10573,11 @@ msgstr "下書きをプレビュー"
 #. placeholder {0}: section.title
 #: packages/admin/src/components/Sections.tsx:381
 msgid "Preview of {0}"
-msgstr ""
+msgstr "{0}のプレビュー"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:501
 msgid "Preview unavailable for this format"
-msgstr ""
+msgstr "この形式ではプレビューを表示できません"
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:308
 msgid "Previous"
@@ -10600,11 +10600,11 @@ msgstr "前のスクリーンショット"
 
 #: packages/admin/src/components/MenuList.tsx:168
 msgid "primary"
-msgstr ""
+msgstr "primary"
 
 #: packages/admin/src/components/MenuList.tsx:156
 msgid "Primary navigation"
-msgstr ""
+msgstr "メインナビゲーション"
 
 #: packages/admin/src/components/ContentStatusBadge.tsx:69
 msgid "Private"
@@ -10612,28 +10612,28 @@ msgstr "非公開"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:183
 msgid "Profile CID"
-msgstr ""
+msgstr "プロフィールCID"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:347
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:477
 msgid "Progress"
-msgstr ""
+msgstr "進捗"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:456
 msgid "Progress stopped"
-msgstr ""
+msgstr "処理が停止しました"
 
 #: packages/admin/src/lib/api/marketplace.ts:430
 msgid "Propose unsaved changes to selected editor fields for your review"
-msgstr ""
+msgstr "エディターで選択したフィールドへの未保存の変更を提案し、確認を求める"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:199
 msgid "Provenance optional"
-msgstr ""
+msgstr "ビルド来歴は任意"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:198
 msgid "Provenance required"
-msgstr ""
+msgstr "ビルド来歴は必須"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:168
 msgid "Provider:"
@@ -10641,7 +10641,7 @@ msgstr "使用中のメール送信サービス："
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:276
 msgid "Public routes"
-msgstr ""
+msgstr "公開ルート"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:988
 #: packages/admin/src/components/ContentSettingsPanel.tsx:993
@@ -10690,7 +10690,7 @@ msgstr "今すぐ公開しますか？"
 
 #: packages/admin/src/lib/api/marketplace.ts:424
 msgid "Publish, unpublish, schedule, and unschedule content"
-msgstr ""
+msgstr "コンテンツの公開、非公開化、公開予約、予約取り消し"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
@@ -10736,19 +10736,19 @@ msgstr "公開者：<0/>"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:202
 msgid "Publisher approval required for every delegated release"
-msgstr ""
+msgstr "委任されたリリースには毎回公開者の承認が必要"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:203
 msgid "Publisher approval required only for permission escalation"
-msgstr ""
+msgstr "権限を拡張する場合のみ公開者の承認が必要"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:663
 msgid "Publisher handle verification failed"
-msgstr ""
+msgstr "公開者のハンドルの検証に失敗しました"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:195
 msgid "Publisher release policy"
-msgstr ""
+msgstr "公開者のリリースポリシー"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:355
 msgid "Publishing"
@@ -10786,7 +10786,7 @@ msgstr "簡易作成では、このフィールドとコンテンツタイプに
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:2071
 #: packages/admin/src/components/PortableTextEditor.tsx:3507
-#: packages/admin/src/components/PortableTextEditor.tsx:6407
+#: packages/admin/src/components/PortableTextEditor.tsx:6423
 msgid "Quote"
 msgstr "引用"
 
@@ -10797,15 +10797,15 @@ msgstr "未加工のメタデータ"
 #: packages/admin/src/lib/api/marketplace.ts:445
 #: packages/admin/src/lib/api/marketplace.ts:456
 msgid "Read and change email your site sends"
-msgstr ""
+msgstr "サイトが送信するメールの読み取りと変更"
 
 #: packages/admin/src/lib/api/marketplace.ts:425
 msgid "Read and restore trashed content"
-msgstr ""
+msgstr "ゴミ箱にあるコンテンツの読み取りと復元"
 
 #: packages/admin/src/lib/api/marketplace.ts:428
 msgid "Read collection and field definitions"
-msgstr ""
+msgstr "コンテンツタイプとフィールドの定義の読み取り"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
@@ -10813,7 +10813,7 @@ msgstr "コンテンツタイプの構造を参照する"
 
 #: packages/admin/src/lib/api/marketplace.ts:426
 msgid "Read comment bodies, author email addresses, pseudonymous IP hashes, user agents, and moderation metadata"
-msgstr ""
+msgstr "コメント本文、投稿者のメールアドレス、仮名化されたIPハッシュ、ユーザーエージェント、モデレーションのメタデータの読み取り"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:48
 msgid "Read content entries"
@@ -10821,7 +10821,7 @@ msgstr "コンテンツを取得する"
 
 #: packages/admin/src/lib/api/marketplace.ts:438
 msgid "Read media file contents"
-msgstr ""
+msgstr "メディアファイルの内容の読み取り"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:58
 msgid "Read media files"
@@ -10829,19 +10829,19 @@ msgstr "メディアファイルを取得する"
 
 #: packages/admin/src/lib/api/marketplace.ts:434
 msgid "Read public byline profiles and content credits"
-msgstr ""
+msgstr "公開されている執筆者プロフィールとコンテンツの執筆者表記の読み取り"
 
 #: packages/admin/src/lib/api/marketplace.ts:435
 msgid "Read redirect rules"
-msgstr ""
+msgstr "リダイレクトルールの読み取り"
 
 #: packages/admin/src/lib/api/marketplace.ts:422
 msgid "Read retained content revision history"
-msgstr ""
+msgstr "保存されているコンテンツの変更履歴の読み取り"
 
 #: packages/admin/src/lib/api/marketplace.ts:429
 msgid "Read selected unsaved editor content after you explicitly invoke the plugin"
-msgstr ""
+msgstr "プラグインを明示的に実行した後に、エディターで選択した未保存のコンテンツを読み取る"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:88
 msgid "Read site settings"
@@ -10872,11 +10872,11 @@ msgstr "表示設定"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:48
 msgid "Reading content"
-msgstr ""
+msgstr "コンテンツを読み取り中"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:416
 msgid "Reading the package"
-msgstr ""
+msgstr "パッケージを読み取り中"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:64
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:481
@@ -10892,11 +10892,11 @@ msgstr "今すぐ公開するか、予約公開できます"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:64
 msgid "Rebuilding search and caches"
-msgstr ""
+msgstr "検索とキャッシュを再構築中"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:592
 msgid "Receipt digest"
-msgstr ""
+msgstr "移行結果のダイジェスト"
 
 #: packages/admin/src/components/Dashboard.tsx:577
 msgid "Recent Activity"
@@ -10904,7 +10904,7 @@ msgstr "最近の更新"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:252
 msgid "Recent exports"
-msgstr ""
+msgstr "最近のエクスポート"
 
 #: packages/admin/src/components/Widgets.tsx:134
 msgid "Recent Posts"
@@ -10921,19 +10921,19 @@ msgstr "受信者メールアドレス"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:125
 msgid "Record counts do not match the manifest"
-msgstr ""
+msgstr "レコード数がマニフェストと一致しません"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:126
 msgid "Records are out of order"
-msgstr ""
+msgstr "レコードの順序が正しくありません"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:129
 msgid "Records refer to each other in a loop"
-msgstr ""
+msgstr "レコードの参照が循環しています"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:159
 msgid "Records without a parent were left out"
-msgstr ""
+msgstr "親のないレコードを除外しました"
 
 #. placeholder {0}: user.email
 #: packages/admin/src/components/users/UserDetail.tsx:355
@@ -10958,9 +10958,9 @@ msgstr "リダイレクト"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:166
 msgid "Redirects that loop will be imported turned off"
-msgstr ""
+msgstr "循環するリダイレクトは無効にしてインポートします"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6570
+#: packages/admin/src/components/PortableTextEditor.tsx:6586
 msgid "Redo"
 msgstr "やり直す"
 
@@ -11045,7 +11045,7 @@ msgstr "関連付け"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:189
 msgid "Release CID"
-msgstr ""
+msgstr "リリースCID"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:694
 msgid "Release is too new to install"
@@ -11053,7 +11053,7 @@ msgstr "リリースが新しすぎるためインストールできません"
 
 #: packages/admin/src/components/CoreUpdateBanner.tsx:75
 msgid "Release notes"
-msgstr ""
+msgstr "リリースノート"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:325
 msgid "Reload after updating EmDash before trying again."
@@ -11065,7 +11065,7 @@ msgstr "ページを再読み込み"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:489
 msgid "Reloading the plan…"
-msgstr ""
+msgstr "計画を再読み込み中…"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:72
@@ -11082,7 +11082,7 @@ msgstr "削除"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:383
 #: packages/admin/src/components/ImageFieldRenderer.tsx:454
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
-#: packages/admin/src/components/PortableTextEditor.tsx:6543
+#: packages/admin/src/components/PortableTextEditor.tsx:6559
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -11157,9 +11157,9 @@ msgstr "画像を削除しますか？"
 msgid "Remove item {0}"
 msgstr "項目{0}を削除"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5015
-#: packages/admin/src/components/PortableTextEditor.tsx:5155
-#: packages/admin/src/components/PortableTextEditor.tsx:5780
+#: packages/admin/src/components/PortableTextEditor.tsx:5018
+#: packages/admin/src/components/PortableTextEditor.tsx:5161
+#: packages/admin/src/components/PortableTextEditor.tsx:5795
 msgid "Remove link"
 msgstr "リンクを解除"
 
@@ -11261,7 +11261,7 @@ msgstr "サイドバー・コマンドパレット・ダッシュボードのク
 
 #: packages/admin/src/components/settings/transfer/labels.ts:57
 msgid "Removing starter content"
-msgstr ""
+msgstr "初期コンテンツを削除中"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:359
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:385
@@ -11325,8 +11325,8 @@ msgstr "置き換え"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:427
 #: packages/admin/src/components/ImageFieldRenderer.tsx:601
 #: packages/admin/src/components/ImageFieldRenderer.tsx:604
-#: packages/admin/src/components/PortableTextEditor.tsx:5802
-#: packages/admin/src/components/PortableTextEditor.tsx:5883
+#: packages/admin/src/components/PortableTextEditor.tsx:5817
+#: packages/admin/src/components/PortableTextEditor.tsx:5899
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
@@ -11351,7 +11351,7 @@ msgstr "{label}のダークモード用の画像を置き換え"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaDetailPanel.tsx:1967
-#: packages/admin/src/components/PortableTextEditor.tsx:5882
+#: packages/admin/src/components/PortableTextEditor.tsx:5898
 msgid "Replace image"
 msgstr "画像を置き換え"
 
@@ -11375,7 +11375,7 @@ msgstr "参照を置き換え"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:211
 msgid "Replace this site’s content with a package exported from another EmDash site."
-msgstr ""
+msgstr "このサイトのコンテンツを、別のEmDashサイトからエクスポートしたパッケージで置き換えます。"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:374
 #: packages/admin/src/components/editor/VideoNode.tsx:375
@@ -11385,7 +11385,7 @@ msgstr "動画を置き換え"
 
 #: packages/admin/src/components/NonListFieldValue.tsx:30
 msgid "Replace with empty list"
-msgstr ""
+msgstr "空のリストに置き換える"
 
 #: packages/admin/src/components/revisions/change-labels.ts:97
 msgid "Replaced an image"
@@ -11515,14 +11515,14 @@ msgstr "設定パネルのサイズを変更"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:492
 msgid "Resolve the blockers to continue."
-msgstr ""
+msgstr "続行するには、インポートを妨げる問題を解決してください。"
 
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:100
 msgid "Resolving publisher handle..."
-msgstr ""
+msgstr "公開者のハンドルを解決中..."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:6397
+#: packages/admin/src/components/PortableTextEditor.tsx:6413
 msgid "Restart numbering"
 msgstr "番号を振り直す"
 
@@ -11646,11 +11646,11 @@ msgstr "確認"
 
 #: packages/admin/src/lib/api/marketplace.ts:431
 msgid "Review and block publishing, scheduling, and unpublishing content"
-msgstr ""
+msgstr "コンテンツの公開、公開予約、非公開化の確認とブロック"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:163
 msgid "Review and moderate comments across your content."
-msgstr ""
+msgstr "コンテンツ全体のコメントを確認・管理します。"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:108
 msgid "Review New Permissions"
@@ -11663,23 +11663,23 @@ msgstr "投稿を確認"
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:51
 msgid "Review proposed changes"
-msgstr ""
+msgstr "提案された変更を確認"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:249
 msgid "Review the import"
-msgstr ""
+msgstr "インポート内容を確認"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:113
 msgid "Review the independently verified release evidence and permissions for {pluginName} before continuing."
-msgstr ""
+msgstr "続行する前に、{pluginName}のリリースに関する独立した検証の結果と、要求する権限を確認してください。"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:106
 msgid "Review Verified Plugin"
-msgstr ""
+msgstr "検証済みプラグインを確認"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:105
 msgid "Review Verified Update"
-msgstr ""
+msgstr "検証済み更新を確認"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:574
 msgid "Reviewing…"
@@ -11726,8 +11726,8 @@ msgstr "リッチテキストエディター"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:5302
-#: packages/admin/src/components/PortableTextEditor.tsx:5420
+#: packages/admin/src/components/PortableTextEditor.tsx:5309
+#: packages/admin/src/components/PortableTextEditor.tsx:5430
 msgid "Right"
 msgstr "右"
 
@@ -11781,7 +11781,7 @@ msgid "Row added above"
 msgstr "上に行を追加しました"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5398
+#: packages/admin/src/components/PortableTextEditor.tsx:5407
 msgid "Row added below"
 msgstr "下に行を追加しました"
 
@@ -11817,8 +11817,8 @@ msgstr "現在の版と同じ"
 msgid "Same window"
 msgstr "同じウィンドウ"
 
-#: packages/admin/src/components/SetupWizard.tsx:167
-#: packages/admin/src/components/SetupWizard.tsx:207
+#: packages/admin/src/components/SetupWizard.tsx:168
+#: packages/admin/src/components/SetupWizard.tsx:208
 msgid "Sample content"
 msgstr "サンプルコンテンツ"
 
@@ -11839,7 +11839,7 @@ msgstr "保存"
 msgid "Save (Enter)"
 msgstr "保存（Enter）"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5761
+#: packages/admin/src/components/PortableTextEditor.tsx:5776
 msgid "Save alt text"
 msgstr "代替テキストを保存"
 
@@ -11858,7 +11858,7 @@ msgstr "変更を保存"
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:228
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:247
 msgid "Save changes before running plugin actions"
-msgstr ""
+msgstr "プラグインのアクションを実行する前に変更を保存してください"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:92
 msgid "Save content as draft before publishing"
@@ -11875,7 +11875,7 @@ msgstr "保存できませんでした"
 
 #: packages/admin/src/components/SeoImageField.tsx:241
 msgid "Save image URL"
-msgstr ""
+msgstr "画像URLを保存"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:112
 msgid "Save name"
@@ -11957,7 +11957,7 @@ msgstr "SBOM · {0}"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:645
 msgid "Scan it with a nearby phone or tablet."
-msgstr ""
+msgstr "近くにあるスマートフォンまたはタブレットで読み取ってください。"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:624
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:522
@@ -12063,7 +12063,7 @@ msgstr "スクリーンショット"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:234
 msgid "Scroll to review all"
-msgstr ""
+msgstr "スクロールしてすべて確認"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:51
 msgid "SCSS"
@@ -12162,11 +12162,11 @@ msgstr "フォルダーを検索"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:300
 msgid "Search for a language…"
-msgstr ""
+msgstr "言語を検索…"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:514
 msgid "Search for an IANA timezone (e.g., Europe/London)"
-msgstr ""
+msgstr "IANAタイムゾーンを検索（例：Europe/London）"
 
 #: packages/admin/src/components/Widgets.tsx:161
 msgid "Search form"
@@ -12211,11 +12211,11 @@ msgstr "転送元または転送先を検索…"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1386
 msgid "Search tags"
-msgstr ""
+msgstr "タグを検索"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1385
 msgid "Search tags…"
-msgstr ""
+msgstr "タグを検索…"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:93
 msgid "Search themes"
@@ -12227,7 +12227,7 @@ msgstr "テーマを検索…"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:525
 msgid "Search timezones…"
-msgstr ""
+msgstr "タイムゾーンを検索…"
 
 #: packages/admin/src/components/BylineFilter.tsx:169
 msgid "Search to narrow the list"
@@ -12239,7 +12239,7 @@ msgstr "ユーザーを検索"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:167
 msgid "Search will be turned off for some collections"
-msgstr ""
+msgstr "一部のコンテンツタイプでは検索が無効になります"
 
 #: packages/admin/src/components/MediaLibrary.tsx:902
 #: packages/admin/src/components/MediaPickerModal.tsx:1264
@@ -12294,9 +12294,9 @@ msgstr "セクション"
 
 #: packages/admin/src/components/Sections.tsx:279
 msgid "Sections could not be loaded."
-msgstr ""
+msgstr "セクションを読み込めませんでした。"
 
-#: packages/admin/src/components/SetupWizard.tsx:629
+#: packages/admin/src/components/SetupWizard.tsx:621
 msgid "Secure your account"
 msgstr "アカウントを保護"
 
@@ -12397,7 +12397,7 @@ msgstr "関連付けを選択"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:401
 msgid "Select a release before verifying it"
-msgstr ""
+msgstr "検証するリリースを選択してください"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:321
 msgid "Select all"
@@ -12422,7 +12422,7 @@ msgstr "{0}のコメントを選択"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:215
 msgid "Select content"
-msgstr ""
+msgstr "コンテンツを選択"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:593
 msgid "Select dark mode variant for {label}"
@@ -12430,11 +12430,11 @@ msgstr "{label}のダークモード用の画像を選択"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:313
 msgid "Select default social image"
-msgstr ""
+msgstr "デフォルトのソーシャル画像を選択"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:564
 msgid "Select favicon"
-msgstr ""
+msgstr "ファビコンを選択"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:472
 msgid "Select Favicon"
@@ -12461,7 +12461,7 @@ msgstr "画像を選択"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:556
 msgid "Select logo"
-msgstr ""
+msgstr "ロゴを選択"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:412
 msgid "Select Logo"
@@ -12540,11 +12540,11 @@ msgstr "新しいチームメンバーに招待メールを送信します。"
 
 #: packages/admin/src/lib/api/marketplace.ts:444
 msgid "Send email through your site"
-msgstr ""
+msgstr "サイトを通じてメールを送信"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:583
 msgid "Send emails"
-msgstr ""
+msgstr "メールを送信"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:205
 msgid "Send Invite"
@@ -12586,7 +12586,7 @@ msgstr "SEO"
 #: packages/admin/src/components/settings/transfer/labels.ts:27
 #: packages/admin/src/components/settings/transfer/labels.ts:87
 msgid "SEO settings"
-msgstr ""
+msgstr "SEO設定"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
 msgid "SEO Settings"
@@ -12608,7 +12608,7 @@ msgstr "SEOタイトル"
 #: packages/admin/src/components/MenuEditor.tsx:543
 #: packages/admin/src/components/MenuEditor.tsx:743
 msgid "Separate class names with spaces. Themes can use them to style the link."
-msgstr ""
+msgstr "クラス名はスペースで区切ってください。テーマでリンクのスタイル設定に使用できます。"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:717
 msgid "Set a custom display size for this image instance."
@@ -12640,7 +12640,7 @@ msgstr "下書きに設定"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:343
 msgid "Set up an email provider in Email settings to email users."
-msgstr ""
+msgstr "ユーザーにメールを送るには、メール設定でメールプロバイダーを設定してください。"
 
 #: packages/admin/src/components/MediaLibrary.tsx:815
 msgid "Set up media usage tracking"
@@ -12649,9 +12649,9 @@ msgstr "メディアの使用状況を設定"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:534
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:602
 msgid "Set up Windows Hello"
-msgstr ""
+msgstr "Windows Helloを設定"
 
-#: packages/admin/src/components/SetupWizard.tsx:627
+#: packages/admin/src/components/SetupWizard.tsx:619
 msgid "Set up your site"
 msgstr "サイトをセットアップ"
 
@@ -12660,7 +12660,7 @@ msgstr "サイトをセットアップ"
 msgid "Setting up"
 msgstr "設定中"
 
-#: packages/admin/src/components/SetupWizard.tsx:201
+#: packages/admin/src/components/SetupWizard.tsx:202
 msgid "Setting up..."
 msgstr "セットアップ中…"
 
@@ -12693,8 +12693,8 @@ msgstr "設定を保存しました"
 msgid "Setup couldn’t continue. Try again."
 msgstr "設定を続行できませんでした。もう一度お試しください。"
 
-#: packages/admin/src/components/SetupWizard.tsx:528
-#: packages/admin/src/components/SetupWizard.tsx:531
+#: packages/admin/src/components/SetupWizard.tsx:524
+#: packages/admin/src/components/SetupWizard.tsx:527
 msgid "Setup failed"
 msgstr "セットアップに失敗しました"
 
@@ -12708,7 +12708,7 @@ msgstr "同じ執筆者のすべての翻訳で共有されます。"
 
 #: packages/admin/src/components/SeoImageField.tsx:226
 msgid "Sharing image needs a URL"
-msgstr ""
+msgstr "共有用の画像にはURLが必要です"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:47
 msgid "Short text"
@@ -12781,7 +12781,7 @@ msgstr "新しいコンテンツを作成するボタンを表示します"
 msgid "Sign in"
 msgstr "ログイン"
 
-#: packages/admin/src/components/SetupWizard.tsx:410
+#: packages/admin/src/components/SetupWizard.tsx:411
 msgid "Sign In"
 msgstr "ログイン"
 
@@ -12801,7 +12801,7 @@ msgstr "サイトにログイン"
 #. placeholder {0}: activeProviderEntry.label ?? activeProvider
 #. placeholder {0}: provider.label
 #: packages/admin/src/components/LoginPage.tsx:252
-#: packages/admin/src/components/SetupWizard.tsx:327
+#: packages/admin/src/components/SetupWizard.tsx:328
 msgid "Sign in with {0}"
 msgstr "{0}でログイン"
 
@@ -12826,7 +12826,7 @@ msgstr "{0}としてログイン中"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:160
 msgid "Signed release verified"
-msgstr ""
+msgstr "署名付きリリースを検証済み"
 
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:56
 msgid "Signing in failed. Please try again."
@@ -12834,11 +12834,11 @@ msgstr "ログインに失敗しました。もう一度お試しください。
 
 #: packages/admin/src/lib/api/users.ts:431
 msgid "Signup completion failed"
-msgstr ""
+msgstr "ユーザー登録の完了に失敗しました"
 
 #: packages/admin/src/lib/api/users.ts:377
 msgid "Signup request failed"
-msgstr ""
+msgstr "ユーザー登録のリクエストに失敗しました"
 
 #: packages/admin/src/components/FieldEditor.tsx:427
 msgid "Single choice from options"
@@ -12849,17 +12849,17 @@ msgid "Single line text input"
 msgstr "1行テキスト入力"
 
 #: packages/admin/src/components/Settings.tsx:50
-#: packages/admin/src/components/SetupWizard.tsx:408
+#: packages/admin/src/components/SetupWizard.tsx:409
 msgid "Site"
 msgstr "サイト"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
 msgid "Site Export"
-msgstr ""
+msgstr "サイトのエクスポート"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:365
 msgid "Site identity"
-msgstr ""
+msgstr "サイトの基本情報"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Site Identity"
@@ -12876,28 +12876,28 @@ msgstr "サイト情報、ロゴ、ファビコン、閲覧設定"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:112
 msgid "Site Import"
-msgstr ""
+msgstr "サイトのインポート"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:107
 msgid "Site Import Analysis"
-msgstr ""
+msgstr "サイトのインポート分析"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:36
 msgid "Site settings"
-msgstr ""
+msgstr "サイト設定"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
-#: packages/admin/src/components/SetupWizard.tsx:406
+#: packages/admin/src/components/SetupWizard.tsx:407
 #: packages/admin/src/components/WordPressImport.tsx:1201
 msgid "Site Settings"
 msgstr "サイト設定"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:368
 msgid "Site title"
-msgstr ""
+msgstr "サイトのタイトル"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:278
-#: packages/admin/src/components/SetupWizard.tsx:137
+#: packages/admin/src/components/SetupWizard.tsx:138
 msgid "Site Title"
 msgstr "サイトタイトル"
 
@@ -12905,13 +12905,13 @@ msgstr "サイトタイトル"
 msgid "Site title & tagline"
 msgstr "サイトタイトルとキャッチフレーズ"
 
-#: packages/admin/src/components/SetupWizard.tsx:121
+#: packages/admin/src/components/SetupWizard.tsx:122
 msgid "Site title is required"
 msgstr "サイトタイトルは必須です"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:260
 msgid "Site Transfer"
-msgstr ""
+msgstr "サイト移行"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:295
 msgid "Site URL"
@@ -12919,11 +12919,11 @@ msgstr "サイトURL"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "Site URL set to {url}"
-msgstr ""
+msgstr "サイトURLを{url}に設定しました"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:113
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
-msgstr ""
+msgstr "サイトマップ、検索用・ソーシャル用メタデータの絶対URLには、新しいドメインが使用されます。メールとプラグイン内のリンクには、引き続きデプロイ設定で指定された{configuredUrl}が使用されます。"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:347
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
@@ -13009,11 +13009,11 @@ msgstr "SNSアカウント"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:155
 msgid "Some byline avatars were left out"
-msgstr ""
+msgstr "一部の執筆者のアバターを除外しました"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:162
 msgid "Some content links to media files the source site doesn’t have; those links won’t work"
-msgstr ""
+msgstr "移行元サイトに存在しないメディアファイルへのリンクが、一部のコンテンツに含まれています。これらのリンクは機能しません"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:119
 #: packages/admin/src/components/MediaUsedIn.tsx:217
@@ -13026,27 +13026,27 @@ msgstr "一部のコンテンツタイプはインポートできません"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:164
 msgid "Some content will have no author"
-msgstr ""
+msgstr "一部のコンテンツは投稿者が未設定になります"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:168
 msgid "Some decimal numbers will be rounded"
-msgstr ""
+msgstr "一部の小数は丸められます"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:216
 msgid "Some files listed in the manifest are not in this package."
-msgstr ""
+msgstr "マニフェストに記載された一部のファイルが、このパッケージに含まれていません。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:141
 msgid "Some media is hosted by an external provider"
-msgstr ""
+msgstr "一部のメディアは外部プロバイダーでホストされています"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:161
 msgid "Some media links could not be matched to files"
-msgstr ""
+msgstr "一部のメディアのリンクをファイルと照合できませんでした"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:142
 msgid "Some references point to content that is not in the package"
-msgstr ""
+msgstr "パッケージに含まれないコンテンツへの参照があります"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:160
 #: packages/admin/src/components/SignupPage.tsx:288
@@ -13078,7 +13078,7 @@ msgstr "転送元パス"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:272
 msgid "Source site ID"
-msgstr ""
+msgstr "移行元サイトID"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:200
 msgid "spam"
@@ -13112,26 +13112,26 @@ msgstr "正方形（1:1）"
 
 #: packages/admin/src/components/MenuList.tsx:173
 msgid "Stable identifier for your site, such as primary or footer."
-msgstr ""
+msgstr "primaryやfooterなど、サイトで継続して使う識別子です。"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:529
 msgid "Start a new import"
-msgstr ""
+msgstr "新しいインポートを開始"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:503
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:521
 msgid "Start import"
-msgstr ""
+msgstr "インポートを開始"
 
 #: packages/admin/src/components/WordPressImport.tsx:1979
 msgid "Start Import"
 msgstr "インポートを開始"
 
-#: packages/admin/src/components/SetupWizard.tsx:174
+#: packages/admin/src/components/SetupWizard.tsx:175
 msgid "Start with the template’s content types and no content."
 msgstr "テンプレートのコンテンツタイプだけを作成し、コンテンツは入れずに始めます。"
 
-#: packages/admin/src/components/SetupWizard.tsx:168
+#: packages/admin/src/components/SetupWizard.tsx:169
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
 msgstr "テンプレートのサンプル投稿とページを入れて始めます。新しいサイトにおすすめです。"
 
@@ -13146,20 +13146,20 @@ msgstr "本文を入力するか、「/」を入力してコマンドを表示"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:386
 msgid "Starter content that will be removed"
-msgstr ""
+msgstr "削除される初期コンテンツ"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:165
 msgid "Starter content will be removed"
-msgstr ""
+msgstr "初期コンテンツは削除されます"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:321
 msgid "Starting"
-msgstr ""
+msgstr "開始中"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:131
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:522
 msgid "Starting…"
-msgstr ""
+msgstr "開始中…"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:294
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
@@ -13191,11 +13191,11 @@ msgstr "このページに残る"
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:115
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:419
 msgid "Stop"
-msgstr ""
+msgstr "停止"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:294
 msgid "Stopping the import"
-msgstr ""
+msgstr "インポートを停止中"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:220
 msgid "Store a daily backup in your site's storage bucket. Old backups are removed automatically."
@@ -13210,7 +13210,7 @@ msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "言語ごとに保存され、執筆者の翻訳ごとに異なる値を設定できます。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4794
-#: packages/admin/src/components/PortableTextEditor.tsx:6340
+#: packages/admin/src/components/PortableTextEditor.tsx:6356
 msgid "Strikethrough"
 msgstr "取り消し線"
 
@@ -13244,11 +13244,11 @@ msgstr "サブフィールド"
 msgid "Subscriber"
 msgstr "閲覧者"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5281
+#: packages/admin/src/components/PortableTextEditor.tsx:5288
 msgid "Subscript"
 msgstr "下付き文字"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5287
+#: packages/admin/src/components/PortableTextEditor.tsx:5294
 msgid "Superscript"
 msgstr "上付き文字"
 
@@ -13262,11 +13262,11 @@ msgstr "Swift"
 
 #: packages/admin/src/components/ThemeToggle.tsx:19
 msgid "Switch to dark"
-msgstr ""
+msgstr "ダークモードに切り替え"
 
 #: packages/admin/src/components/ThemeToggle.tsx:19
 msgid "Switch to light"
-msgstr ""
+msgstr "ライトモードに切り替え"
 
 #: packages/admin/src/components/users/UserDetail.tsx:275
 msgid "Synced"
@@ -13296,7 +13296,7 @@ msgstr "テーブル"
 msgid "Table cells accept text, links, and formatting only."
 msgstr "テーブルのセルには、テキスト・リンク・書式だけを入れられます。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5388
+#: packages/admin/src/components/PortableTextEditor.tsx:5397
 msgid "Table controls"
 msgstr "テーブル操作"
 
@@ -13319,7 +13319,7 @@ msgstr "リストや引用の中にはテーブルを貼り付けられません
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:286
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
-#: packages/admin/src/components/SetupWizard.tsx:148
+#: packages/admin/src/components/SetupWizard.tsx:149
 msgid "Tagline"
 msgstr "キャッチフレーズ"
 
@@ -13369,7 +13369,7 @@ msgstr "分類グループ"
 #. placeholder {0}: blocker.name
 #: packages/admin/src/components/settings/transfer/labels.ts:110
 msgid "Taxonomy “{0}” is used by content on this site"
-msgstr ""
+msgstr "分類グループ「{0}」はこのサイトのコンテンツで使用されています"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1566
 msgid "Taxonomy created"
@@ -13377,7 +13377,7 @@ msgstr "分類グループを作成しました"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1197
 msgid "Taxonomy deleted"
-msgstr ""
+msgstr "分類グループを削除しました"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:67
 msgid "Taxonomy not found: {taxonomyName}"
@@ -13385,7 +13385,7 @@ msgstr "分類グループが見つかりません：{taxonomyName}"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:75
 msgid "Taxonomy terms"
-msgstr ""
+msgstr "分類グループの分類項目"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:553
 msgid "Taxonomy: {taxonomyName}"
@@ -13393,17 +13393,17 @@ msgstr "分類グループ：{taxonomyName}"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:678
 msgid "Technical details"
-msgstr ""
+msgstr "技術的な詳細"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:172
 msgid "Technical verification details"
-msgstr ""
+msgstr "技術的な検証の詳細"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:340
 msgid "Tell users where to sign in"
-msgstr ""
+msgstr "ログイン先をユーザーに通知"
 
-#: packages/admin/src/components/SetupWizard.tsx:218
+#: packages/admin/src/components/SetupWizard.tsx:219
 msgid "Template:"
 msgstr "テンプレート："
 
@@ -13426,7 +13426,7 @@ msgstr "{1}に分類項目「{0}」を作成しました。"
 #: packages/admin/src/components/settings/transfer/labels.ts:24
 #: packages/admin/src/components/settings/transfer/labels.ts:76
 msgid "Term assignments"
-msgstr ""
+msgstr "分類項目の割り当て"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1175
 msgid "Term deleted"
@@ -13441,7 +13441,7 @@ msgstr "分類項目"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6584
+#: packages/admin/src/components/PortableTextEditor.tsx:6600
 msgid "Text formatting"
 msgstr "テキスト書式"
 
@@ -13471,27 +13471,27 @@ msgstr "管理画面のセキュリティポリシーにより、このブロッ
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:200
 msgid "the Android passkey prompt"
-msgstr ""
+msgstr "Androidのパスキー画面"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:159
 msgid "The assistant can start one export of this site, within 15 minutes. The package includes all content and authors’ names and email addresses."
-msgstr ""
+msgstr "アシスタントは15分以内に、このサイトのエクスポートを1回開始できます。パッケージには、すべてのコンテンツと投稿者の名前・メールアドレスが含まれます。"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:158
 msgid "The assistant can start this exact import once, within 15 minutes. It replaces this site’s starter content with the package it analyzed."
-msgstr ""
+msgstr "アシスタントは15分以内に、今回の内容でインポートを1回開始できます。このサイトの初期コンテンツを、分析済みのパッケージで置き換えます。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:654
 msgid "The browser controls the exact prompt and may offer another compatible method."
-msgstr ""
+msgstr "実際に表示される画面はブラウザーによって異なり、対応する別の方法が提示されることもあります。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:644
 msgid "The browser will usually show a QR code."
-msgstr ""
+msgstr "通常、ブラウザーにQRコードが表示されます。"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:164
 msgid "The build provenance matches this release and its package."
-msgstr ""
+msgstr "ビルド来歴は、このリリースとパッケージに一致しています。"
 
 #: packages/admin/src/routes/calendar.tsx:356
 msgid "The calendar shows the first {maxEntries}, which end on {cutOffDay}."
@@ -13515,7 +13515,7 @@ msgstr "コンテンツタイプとスラッグは変更できません。各側
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:639
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
-msgstr ""
+msgstr "選択したスマートフォンまたはタブレットの認証情報マネージャーに保存されます。パスキーがEmDashに送信されることはありません。"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:833
 msgid "The cropped image could not be created."
@@ -13527,7 +13527,7 @@ msgstr "デバイスにはアクセスが許可されません。"
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:97
 msgid "The download stopped"
-msgstr ""
+msgstr "ダウンロードが停止しました"
 
 #: packages/admin/src/components/WordPressImport.tsx:1919
 msgid "The existing collection has fields with incompatible types."
@@ -13535,19 +13535,19 @@ msgstr "既存のコンテンツタイプに互換性のない型のフィール
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:329
 msgid "The export stopped"
-msgstr ""
+msgstr "エクスポートが停止しました"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:217
 msgid "The export’s files no longer match the export. Start a new export."
-msgstr ""
+msgstr "エクスポートのファイルが元のエクスポートと一致しなくなりました。新しいエクスポートを開始してください。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:398
 msgid "The exported package and this import change the content in these ways."
-msgstr ""
+msgstr "エクスポートされたパッケージと今回のインポートにより、コンテンツに次の変更が加わります。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:186
 msgid "The file is not a valid EmDash site package."
-msgstr ""
+msgstr "このファイルは有効なEmDashサイトパッケージではありません。"
 
 #: packages/admin/src/components/MediaLibrary.tsx:578
 msgid "The file or folder no longer exists."
@@ -13563,56 +13563,56 @@ msgstr "画像はメディアライブラリに追加されましたが、この
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:439
 msgid "The import can go ahead, but check these first."
-msgstr ""
+msgstr "インポートは可能ですが、先に次の点を確認してください。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:433
 msgid "The import can’t start until these are resolved."
-msgstr ""
+msgstr "次の問題を解決するまでインポートを開始できません。"
 
 #: packages/admin/src/lib/api/import.ts:470
 msgid "The import did not return a completion cursor"
-msgstr ""
+msgstr "インポートの完了カーソルが返されませんでした"
 
 #: packages/admin/src/lib/api/import.ts:455
 msgid "The import did not return a preparation cursor"
-msgstr ""
+msgstr "インポートの準備カーソルが返されませんでした"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:513
 msgid "The import failed"
-msgstr ""
+msgstr "インポートに失敗しました"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:189
 msgid "The import has blockers that must be resolved first."
-msgstr ""
+msgstr "インポートを妨げる問題があります。先に解決してください。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:450
 msgid "The import plan changed"
-msgstr ""
+msgstr "インポート計画が変更されました"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:190
 msgid "The import plan changed. Review it again before importing."
-msgstr ""
+msgstr "インポート計画が変更されました。インポート前に再度確認してください。"
 
 #. placeholder {0}: operation.errorCode
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:519
 msgid "The import stopped ({0}). Nothing on this site changed."
-msgstr ""
+msgstr "インポートが停止しました（{0}）。このサイトへの変更はありません。"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:516
 msgid "The import stopped after it started writing to this site, so editing is paused. Abandon the import to unlock editing; content it already wrote stays in place."
-msgstr ""
+msgstr "このサイトへの書き込み開始後にインポートが停止したため、編集できなくなっています。インポートを中止すると再び編集できます。書き込み済みのコンテンツはそのまま残ります。"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:352
 msgid "The import stops after its current step. Content already imported stays on the site, and editing stays paused until you abandon the import."
-msgstr ""
+msgstr "現在のステップが完了するとインポートが停止します。インポート済みのコンテンツはサイトに残り、インポートを中止するまで編集できません。"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:513
 msgid "The import was cancelled"
-msgstr ""
+msgstr "インポートはキャンセルされました"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:188
 msgid "The imported site did not match the package when it was checked."
-msgstr ""
+msgstr "インポート後のサイトを検証したところ、パッケージと一致しませんでした。"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:183
 msgid "The invited user will have this role once they complete registration."
@@ -13620,7 +13620,7 @@ msgstr "招待されたユーザーには、登録完了後に選択した権限
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:179
 msgid "The last export failed"
-msgstr ""
+msgstr "前回のエクスポートに失敗しました"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1307
 msgid "The latest media request failed. Showing the previous page."
@@ -13633,7 +13633,7 @@ msgstr "リンクの有効期限は15分です。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:186
 msgid "the macOS passkey prompt"
-msgstr ""
+msgstr "macOSのパスキー画面"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:179
 msgid "The marketplace is empty. Check back later for new plugins."
@@ -13658,79 +13658,79 @@ msgstr "ブロック選択画面での表示順序を指定します。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:191
 msgid "The package changed. Choose it again before importing."
-msgstr ""
+msgstr "パッケージが変更されました。インポート前に再度選択してください。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:127
 msgid "The package contains a duplicate ID"
-msgstr ""
+msgstr "パッケージに重複するIDが含まれています"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:212
 msgid "The package contains a file larger than this site accepts."
-msgstr ""
+msgstr "このサイトのサイズ上限を超えるファイルがパッケージに含まれています。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:210
 msgid "The package contains a file that is not part of the site package format."
-msgstr ""
+msgstr "サイトパッケージの形式に含まれないファイルがパッケージに含まれています。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:209
 msgid "The package contains an entry that is not a regular file."
-msgstr ""
+msgstr "パッケージに通常のファイルではない項目が含まれています。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:211
 msgid "The package contains the same file twice."
-msgstr ""
+msgstr "パッケージに同じファイルが2回含まれています。"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:333
 msgid "The package couldn’t be uploaded"
-msgstr ""
+msgstr "パッケージをアップロードできませんでした"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:119
 msgid "The package format is not supported by this version of EmDash"
-msgstr ""
+msgstr "このバージョンのEmDashは、このパッケージ形式に対応していません"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:282
 msgid "The package is checked against this site before anything changes. You can leave this page and come back."
-msgstr ""
+msgstr "サイトに変更を加える前に、パッケージがこのサイトに適合するか確認します。このページを離れて、後で戻ることもできます。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:121
 msgid "The package is larger than this site allows"
-msgstr ""
+msgstr "パッケージがこのサイトのサイズ上限を超えています"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:187
 msgid "The package is larger than this site allows."
-msgstr ""
+msgstr "パッケージがこのサイトのサイズ上限を超えています。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:118
 msgid "The package is not valid"
-msgstr ""
+msgstr "パッケージが無効です"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:181
 msgid "The package manifest is not valid."
-msgstr ""
+msgstr "パッケージのマニフェストが無効です。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:120
 msgid "The package needs a feature this version of EmDash does not support"
-msgstr ""
+msgstr "このパッケージには、このバージョンのEmDashが対応していない機能が必要です"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:135
 msgid "The package uses a field type this site does not know"
-msgstr ""
+msgstr "パッケージに、このサイトが認識できないフィールドの種類が使用されています"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:134
 msgid "The package uses a locale this site does not have"
-msgstr ""
+msgstr "パッケージに、このサイトにないロケールが使用されています"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:251
 msgid "The package was checked against this site. Review what will be imported, choose who the content belongs to, then start the import."
-msgstr ""
+msgstr "パッケージがこのサイトに適合するか確認しました。インポートする内容を確認し、コンテンツの投稿者を割り当ててから、インポートを開始してください。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:519
 msgid "The package’s content is written to this site. The import can’t be undone once it starts; to go back you would need a backup of this site."
-msgstr ""
+msgstr "パッケージのコンテンツをこのサイトに書き込みます。インポートは開始後に取り消せません。元に戻すには、このサイトのバックアップが必要です。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:208
 msgid "The package’s file index is not valid."
-msgstr ""
+msgstr "パッケージのファイルインデックスが無効です。"
 
 #: packages/admin/src/router.tsx:3381
 msgid "The page you're looking for doesn't exist."
@@ -13738,11 +13738,11 @@ msgstr "お探しのページは存在しません。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:684
 msgid "The passkey is saved on your physical security key and can be used on compatible devices."
-msgstr ""
+msgstr "パスキーは物理的なセキュリティキーに保存され、対応するデバイスで使用できます。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:451
 msgid "The plan was changed somewhere else, such as from the command line or an AI assistant, after this page loaded it. Review it again, then start the import."
-msgstr ""
+msgstr "このページに読み込んだ後、コマンドラインやAIアシスタントなど、別の場所から計画が変更されました。再度確認してからインポートを開始してください。"
 
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:37
 msgid "The plugin field widget failed to render."
@@ -13750,7 +13750,7 @@ msgstr "プラグインのフィールドウィジェットを表示できませ
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:53
 msgid "The plugin has not saved these changes. Review them before updating the editor."
-msgstr ""
+msgstr "プラグインはこれらの変更を保存していません。エディターに反映する前に確認してください。"
 
 #: packages/admin/src/components/ContentEditor.tsx:1089
 #: packages/admin/src/components/ContentEditor.tsx:1105
@@ -13759,12 +13759,12 @@ msgstr "プラグインの処理中に内容が変更されたため、その結
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:297
 msgid "The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata"
-msgstr ""
+msgstr "メールとプラグイン内のリンク、サイトマップ、検索用・ソーシャル用メタデータの絶対URLに使用する、サイトの公開アドレス"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:219
 #: packages/admin/src/components/RegistryPluginDetail.tsx:544
 msgid "The publisher identity cannot be verified."
-msgstr ""
+msgstr "公開者の識別情報を検証できません。"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:71
 msgid "The range has more entries than the calendar can show."
@@ -13787,13 +13787,13 @@ msgstr "作成後は、関連付けと参照先のコンテンツタイプを変
 msgid "The relationship decides the referenced collection and how many entries this field accepts."
 msgstr "参照先のコンテンツタイプと選択できる件数は、関連付けによって決まります。"
 
-#: packages/admin/src/components/SetupWizard.tsx:188
+#: packages/admin/src/components/SetupWizard.tsx:189
 msgid "The sample content added so far is kept. Continue to add the rest."
 msgstr "ここまでに追加したサンプルコンテンツは残っています。続けて残りを追加してください。"
 
 #: packages/admin/src/components/SeoImageField.tsx:229
 msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
-msgstr ""
+msgstr "保存されているメディアIDは、共有リンクでは機能しない場合があります。このファイルを共有用の画像に使うには、画像URLを保存してください。"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:193
 msgid "The scheduled changes to {title} stay as a draft."
@@ -13809,27 +13809,27 @@ msgstr "選択した画像を読み込めませんでした。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:194
 msgid "The server was updated while this ran. Reload the page and try again."
-msgstr ""
+msgstr "処理中にサーバーが更新されました。ページを再読み込みして、もう一度お試しください。"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:165
 msgid "The signed publisher records and package are valid. Build provenance was not provided."
-msgstr ""
+msgstr "署名付きの公開者レコードとパッケージは有効です。ビルド来歴は提供されていません。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:179
 msgid "The site kept changing while it was exported. Try again when editing is quieter."
-msgstr ""
+msgstr "エクスポート中にサイトの変更が続きました。編集が落ち着いてから、もう一度お試しください。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:195
 msgid "The site’s storage could not be read or written."
-msgstr ""
+msgstr "サイトのストレージを読み書きできませんでした。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:518
 msgid "The starter content listed above is deleted and replaced with the package’s content. The import can’t be undone once it starts; to go back you would need a backup of this site."
-msgstr ""
+msgstr "上記の初期コンテンツを削除し、パッケージのコンテンツに置き換えます。インポートは開始後に取り消せません。元に戻すには、このサイトのバックアップが必要です。"
 
 #: packages/admin/src/components/NonListFieldValue.tsx:26
 msgid "The stored value doesn't match this field's type"
-msgstr ""
+msgstr "保存されている値がこのフィールドの型と一致しません"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:153
 msgid "The theme marketplace is empty. Check back later."
@@ -13837,7 +13837,7 @@ msgstr "現在利用できるテーマはありません。後でもう一度確
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:353
 msgid "The uploaded package is discarded. Nothing on this site has changed."
-msgstr ""
+msgstr "アップロードしたパッケージは破棄されます。このサイトへの変更はありません。"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:117
 msgid "The version from {when} becomes your draft and goes live at the scheduled time."
@@ -13861,7 +13861,7 @@ msgstr "動画はメディアライブラリに追加されましたが、この
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:179
 msgid "the Windows passkey prompt"
-msgstr ""
+msgstr "Windowsのパスキー画面"
 
 #: packages/admin/src/components/Sections.tsx:58
 msgid "Theme"
@@ -13878,7 +13878,7 @@ msgstr "テーマが見つかりません"
 
 #: packages/admin/src/lib/api/theme-marketplace.ts:87
 msgid "Theme search failed"
-msgstr ""
+msgstr "テーマの検索に失敗しました"
 
 #: packages/admin/src/components/SectionEditor.tsx:205
 msgid "Theme Section"
@@ -13894,7 +13894,7 @@ msgstr "テーマ"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:143
 msgid "There are too many redirects to check them for loops before importing"
-msgstr ""
+msgstr "リダイレクトが多すぎるため、インポート前に循環を確認できません"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:297
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
@@ -13919,7 +13919,7 @@ msgstr "このブロックはJavaScriptを実行します。"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:225
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
-msgstr ""
+msgstr "このブラウザーでは、ダウンロードが完了するまでパッケージ全体をメモリに保持します。このサイズのエクスポートには、ディスクへ直接保存できるChromiumベースのブラウザーを使うか、CLIでemdash site exportを実行してください。"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1943
 #: packages/admin/src/components/MediaDetailPanel.tsx:1979
@@ -13929,11 +13929,11 @@ msgstr "この操作は取り消せません"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:351
 msgid "This code has expired. Start the sign-in again from your terminal to get a new one."
-msgstr ""
+msgstr "このコードは有効期限が切れています。ターミナルからログインをやり直して、新しいコードを取得してください。"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:349
 msgid "This code is invalid or has already been used."
-msgstr ""
+msgstr "このコードは無効か、すでに使用されています。"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:456
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
@@ -13953,7 +13953,7 @@ msgstr "この日は読み込まれていません。この期間のコンテン
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:371
 msgid "This device is requesting permission to use:"
-msgstr ""
+msgstr "このデバイスは次の権限を要求しています："
 
 #: packages/admin/src/components/WordPressImport.tsx:1107
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
@@ -13994,7 +13994,7 @@ msgstr "このコンテンツは{lateness}に公開予定でしたが、まだ�
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:224
 msgid "This export is large"
-msgstr ""
+msgstr "このエクスポートはサイズが大きくなっています"
 
 #: packages/admin/src/components/ContentEditor.tsx:2407
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
@@ -14020,7 +14020,7 @@ msgstr "このフィールドには{mimeType}ファイルを設定できませ�
 
 #: packages/admin/src/components/NonListFieldValue.tsx:27
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
-msgstr ""
+msgstr "このフィールドにはリストが必要です。保存されている値は、空のリストに置き換えるまで変更されません。置き換えると元の値は削除されるため、必要な内容を先にコピーしてください。"
 
 #: packages/admin/src/components/ContentEditor.tsx:3546
 #: packages/admin/src/components/ImageFieldRenderer.tsx:615
@@ -14051,11 +14051,11 @@ msgstr "このフィールドには、この{linkedSide}を参照する<0>{linki
 
 #: packages/admin/src/components/settings/transfer/labels.ts:206
 msgid "This file is not a readable EmDash site package."
-msgstr ""
+msgstr "このファイルは、読み取り可能なEmDashサイトパッケージではありません。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:207
 msgid "This file is not an EmDash site package: it must start with manifest.json."
-msgstr ""
+msgstr "このファイルはEmDashサイトパッケージではありません。先頭にmanifest.jsonが必要です。"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1027
 msgid "This folder is empty"
@@ -14071,7 +14071,7 @@ msgstr "切り抜き用に画像を読み込めませんでした。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:458
 msgid "This import has already started"
-msgstr ""
+msgstr "このインポートはすでに開始されています"
 
 #: packages/admin/src/components/SectionEditor.tsx:323
 msgid "This is a custom section."
@@ -14083,7 +14083,7 @@ msgstr "WordPressサイトを確認しました。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:215
 msgid "This is not the package the import was started with. Choose the same file again."
-msgstr ""
+msgstr "インポートの開始時に使用したパッケージと異なります。同じファイルを再度選択してください。"
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:332
 msgid "This link can't be used. Enter a web address, such as https://example.com."
@@ -14120,15 +14120,15 @@ msgstr "この月は読み込まれていません"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:193
 msgid "This operation expired. Start again."
-msgstr ""
+msgstr "この操作は有効期限が切れています。最初からやり直してください。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:183
 msgid "This package needs features this version of EmDash does not support."
-msgstr ""
+msgstr "このパッケージには、このバージョンのEmDashが対応していない機能が必要です。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:182
 msgid "This package was made by a newer or different version of EmDash."
-msgstr ""
+msgstr "このパッケージは、より新しいバージョンまたは別のバージョンのEmDashで作成されました。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:429
 msgid "This passkey is already registered on this device."
@@ -14145,19 +14145,19 @@ msgstr "ストレージからバックアップ「{0}」を完全に削除しま
 
 #: packages/admin/src/lib/api/registry.ts:748
 msgid "This plugin cannot be installed because its publisher profile is missing valid verification metadata. Ask the publisher to republish it with the latest EmDash plugin CLI."
-msgstr ""
+msgstr "公開者プロフィールに有効な検証メタデータがないため、このプラグインはインストールできません。最新のEmDashプラグインCLIで再公開するよう、公開者に依頼してください。"
 
 #: packages/admin/src/lib/api/registry.ts:756
 msgid "This plugin cannot be installed because its release provenance could not be verified. Ask the publisher to publish a new verified release."
-msgstr ""
+msgstr "リリースの来歴を検証できなかったため、このプラグインはインストールできません。検証可能な新しいリリースを公開するよう、公開者に依頼してください。"
 
 #: packages/admin/src/lib/api/registry.ts:760
 msgid "This plugin cannot be installed because its signed publisher records failed verification. Ask the publisher to publish a corrected release."
-msgstr ""
+msgstr "署名付きの公開者レコードの検証に失敗したため、このプラグインはインストールできません。修正したリリースを公開するよう、公開者に依頼してください。"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:281
 msgid "This plugin exposes the following routes without authentication:"
-msgstr ""
+msgstr "このプラグインでは、次のルートに認証なしでアクセスできます："
 
 #: packages/admin/src/components/PluginSettings.tsx:177
 msgid "This plugin has no configurable settings."
@@ -14173,11 +14173,11 @@ msgstr "このプラグインに特別な権限は不要です。"
 
 #: packages/admin/src/components/PluginManager.tsx:470
 msgid "This publisher identity no longer resolves."
-msgstr ""
+msgstr "この公開者のIDは解決できなくなっています。"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:665
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
-msgstr ""
+msgstr "この公開者のハンドルの解決結果が、公開者のIDと一致しません。公開者がハンドルを修正するまでインストールは無効です。"
 
 #: packages/admin/src/routes/calendar.tsx:353
 msgid "This range has more than {maxEntries} entries"
@@ -14205,7 +14205,7 @@ msgstr "公開予約を解除して、今すぐ公開します。"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:516
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
-msgstr ""
+msgstr "保存されているタイムゾーンは認識できません。日付を正しく表示するには、候補から選択してください。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4589
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
@@ -14235,19 +14235,19 @@ msgstr "このログインリンクは無効か、すでに使われています
 #: packages/admin/src/components/settings/transfer/labels.ts:112
 #: packages/admin/src/components/settings/transfer/labels.ts:133
 msgid "This site already has content"
-msgstr ""
+msgstr "このサイトにはすでにコンテンツがあります"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:180
 msgid "This site already has content, so it can’t receive an import."
-msgstr ""
+msgstr "このサイトにはすでにコンテンツがあるため、インポートできません。"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:387
 msgid "This site can’t receive an import"
-msgstr ""
+msgstr "このサイトにはインポートできません"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:242
 msgid "This site has no content yet, so it can receive an import. Choose a .emdash package file. It is checked in your browser and uploaded in parts; nothing on this site changes until you review and confirm the import."
-msgstr ""
+msgstr "このサイトにはまだコンテンツがないため、インポートできます。インポートする.emdashパッケージファイルを選択してください。ブラウザーで検証した後、分割してアップロードします。インポート内容を確認して実行するまで、サイトへの変更はありません。"
 
 #: packages/admin/src/components/Dashboard.tsx:281
 msgid "This site has no content yet, so you can import a .emdash package exported from another EmDash site."
@@ -14259,11 +14259,11 @@ msgstr "セッションの保存先が設定されていないため、ログイ
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:320
 msgid "This site holds partial data from an earlier import"
-msgstr ""
+msgstr "このサイトには以前のインポートで書き込まれた一部のデータが残っています"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:388
 msgid "This site was set up with starter content. It has no entries of its own, and the import deletes it before adding the package’s content."
-msgstr ""
+msgstr "このサイトは初期コンテンツ付きでセットアップされており、独自のコンテンツはありません。インポートでは、初期コンテンツを削除してからパッケージのコンテンツを追加します。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4546
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
@@ -14323,7 +14323,7 @@ msgstr "プラグインとそのバンドルがサイトから削除されます
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "公開版に戻ります。下書きの変更は失われます。"
 
-#: packages/admin/src/components/SetupWizard.tsx:152
+#: packages/admin/src/components/SetupWizard.tsx:153
 msgid "Thoughts, tutorials, and more"
 msgstr "記事、チュートリアルなど"
 
@@ -14366,7 +14366,7 @@ msgstr "閉じる"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:203
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
-msgstr ""
+msgstr "サイトを別のEmDash環境に移行するには、<0>サイト移行</0>を使用してください。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:502
 msgid "to select"
@@ -14394,7 +14394,7 @@ msgstr "ヘッダー行を切り替え"
 #. placeholder {0}: approval.requestedByTokenId.slice(0, 8)
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:90
 msgid "Token {0} · expires {expires}"
-msgstr ""
+msgstr "トークン{0} · 有効期限：{expires}"
 
 #. placeholder {0}: newToken.info.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:270
@@ -14407,7 +14407,7 @@ msgstr "トークン名"
 
 #: packages/admin/src/lib/api/users.ts:393
 msgid "Token verification failed"
-msgstr ""
+msgstr "トークンの検証に失敗しました"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:55
 msgid "TOML"
@@ -14437,7 +14437,7 @@ msgstr "コンテンツ内でメディアが使われている場所を記録し
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
 msgid "Transfer"
-msgstr ""
+msgstr "サイト移行"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:283
 #: packages/admin/src/routes/byline-schema.tsx:243
@@ -14516,7 +14516,7 @@ msgstr "表示対象を広げるか、フィルターを解除してください
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:581
 msgid "Try a different search or collection filter."
-msgstr ""
+msgstr "検索条件やコンテンツタイプの絞り込みを変更してみてください。"
 
 #: packages/admin/src/routes/bylines.tsx:451
 msgid "Try a different search or filter."
@@ -14554,7 +14554,7 @@ msgstr "もう一度お試しください。"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:182
 msgid "Try again. If it keeps failing, check the server logs."
-msgstr ""
+msgstr "もう一度お試しください。失敗が続く場合は、サーバーログを確認してください。"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:239
 msgid "Try another code"
@@ -14584,9 +14584,9 @@ msgid "TSX"
 msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:5204
-#: packages/admin/src/components/PortableTextEditor.tsx:5206
-#: packages/admin/src/components/PortableTextEditor.tsx:5223
+#: packages/admin/src/components/PortableTextEditor.tsx:5211
+#: packages/admin/src/components/PortableTextEditor.tsx:5213
+#: packages/admin/src/components/PortableTextEditor.tsx:5230
 msgid "Turn into"
 msgstr "変換"
 
@@ -14616,11 +14616,11 @@ msgstr "Twitter"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:136
 msgid "Two authors with bylines in the same locale are mapped to the same user"
-msgstr ""
+msgstr "同じロケールに執筆者情報を持つ2人の投稿者が、同じユーザーに割り当てられています"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:139
 msgid "Two records have the same value where it must be unique"
-msgstr ""
+msgstr "一意である必要がある値が、2つのレコードで重複しています"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:256
 #: packages/admin/src/components/FieldEditor.tsx:1288
@@ -14670,17 +14670,17 @@ msgid "Unassigned"
 msgstr "未割り当て"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4793
-#: packages/admin/src/components/PortableTextEditor.tsx:6332
+#: packages/admin/src/components/PortableTextEditor.tsx:6348
 msgid "Underline"
 msgstr "下線"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6563
+#: packages/admin/src/components/PortableTextEditor.tsx:6579
 msgid "Undo"
 msgstr "元に戻す"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:157
 msgid "Unfinished media uploads were left out"
-msgstr ""
+msgstr "未完了のメディアアップロードを除外しました"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:202
 #: packages/admin/src/components/PluginManager.tsx:701
@@ -14768,7 +14768,7 @@ msgstr "未保存"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:131
 msgid "Unsaved content may leave your site"
-msgstr ""
+msgstr "未保存のコンテンツがサイトの外部に送信される可能性があります"
 
 #: packages/admin/src/router.tsx:1610
 msgid "Unscheduled"
@@ -14806,7 +14806,7 @@ msgstr "無題のウィジェット"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:154
 msgid "Unused references were left out"
-msgstr ""
+msgstr "使用されていない参照を除外しました"
 
 #: packages/admin/src/components/BylineFilter.tsx:175
 msgid "Up to {MAX_SELECTED} bylines can be selected"
@@ -14845,7 +14845,7 @@ msgstr "{0}の詳細を編集"
 
 #: packages/admin/src/components/CoreUpdateBanner.tsx:68
 msgid "Update the emdash package in your project and redeploy to get the latest fixes."
-msgstr ""
+msgstr "最新の修正を適用するには、プロジェクトのemdashパッケージを更新して再デプロイしてください。"
 
 #. placeholder {0}: source.displayName
 #: packages/admin/src/components/BylineFormDialog.tsx:337
@@ -14877,7 +14877,7 @@ msgstr "コンテンツURLを更新中…"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:489
 msgid "Updating the plan…"
-msgstr ""
+msgstr "計画を更新中…"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:138
 msgid "Updating usage"
@@ -14960,7 +14960,7 @@ msgstr "メディアをアップロードし、再利用できる素材を1か�
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:258
 msgid "Upload not finished"
-msgstr ""
+msgstr "アップロードが完了していません"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3716
 msgid "Upload or choose a video"
@@ -14968,7 +14968,7 @@ msgstr "動画をアップロードまたは選択"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:108
 msgid "Upload site packages and check whether they can be imported. Admin includes this; choose it instead of Admin to give an agent narrower access."
-msgstr ""
+msgstr "サイトパッケージをアップロードし、インポートできるか確認します。管理者権限にも含まれています。エージェントのアクセス範囲を制限するには、管理者権限の代わりにこの権限を選択してください。"
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
 #: packages/admin/src/components/MediaLibrary.tsx:687
@@ -14985,7 +14985,7 @@ msgstr "WordPressのエクスポートファイルをアップロード"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:424
 msgid "Uploaded"
-msgstr ""
+msgstr "アップロード済み"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1341
 msgid "Uploaded:"
@@ -15010,7 +15010,7 @@ msgstr "画像をアップロード中…"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:416
 msgid "Uploading the package"
-msgstr ""
+msgstr "パッケージをアップロード中"
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:125
 msgid "Uploading video…"
@@ -15035,7 +15035,7 @@ msgstr "URLパターン"
 
 #: packages/admin/src/components/Widgets.tsx:140
 msgid "URL template (e.g. /blog/:slug)"
-msgstr ""
+msgstr "URLテンプレート（例: /blog/:slug）"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:133
 #: packages/admin/src/components/FieldEditor.tsx:469
@@ -15084,11 +15084,11 @@ msgstr "パスのパターンには[param]や[...rest]を使用できます。"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:160
 msgid "Use {fallbackUrl} anyway"
-msgstr ""
+msgstr "確認せずに{fallbackUrl}を使用"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:623
 msgid "Use a security key"
-msgstr ""
+msgstr "セキュリティキーを使用"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:647
 msgid "Use a URL ending in a recognized image extension, such as .jpg or .png."
@@ -15096,7 +15096,7 @@ msgstr ".jpg や .png など、画像の拡張子で終わるURLを使ってく�
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:613
 msgid "Use another device"
-msgstr ""
+msgstr "別のデバイスを使用"
 
 #: packages/admin/src/components/ContentList.tsx:1230
 msgid "Use as end date"
@@ -15166,7 +15166,7 @@ msgstr "ユーザー認証は外部認証サービス（{0}）で管理されて
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:109
 msgid "User accounts, passkeys, API tokens, secrets, and plugin data are never exported. Each author’s name and email address are included so they can be matched to users on the other site."
-msgstr ""
+msgstr "ユーザーアカウント、パスキー、APIトークン、シークレット、プラグインデータはエクスポートされません。各投稿者の名前とメールアドレスは、移行先サイトのユーザーと照合するために含まれます。"
 
 #: packages/admin/src/components/users/UserDetail.tsx:119
 msgid "User Details"
@@ -15175,7 +15175,7 @@ msgstr "ユーザーの詳細"
 #. placeholder {0}: principal.displayName
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:341
 msgid "User for {0}"
-msgstr ""
+msgstr "{0}に割り当てるユーザー"
 
 #: packages/admin/src/components/users/UserDetail.tsx:315
 msgid "User not found"
@@ -15189,7 +15189,7 @@ msgstr "ユーザー"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:312
 msgid "Users are not transferred. Choose the user on this site who should own each author’s content. Content of authors you don’t map will have no author."
-msgstr ""
+msgstr "ユーザーは移行されません。各投稿者のコンテンツを割り当てる、このサイトのユーザーを選択してください。割り当てなかった投稿者のコンテンツは、投稿者が未設定になります。"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:38
 msgid "Users from <0>{domain}</0> will no longer be able to sign up without an invite. Existing users are not affected."
@@ -15202,7 +15202,7 @@ msgstr "これらのドメインのメールアドレスを持つユーザーは
 #. placeholder {0}: version.version
 #: packages/admin/src/components/FieldEditor.tsx:1175
 msgid "v{0}"
-msgstr ""
+msgstr "v{0}"
 
 #. placeholder {0}: updateInfo.latest
 #: packages/admin/src/components/PluginManager.tsx:463
@@ -15211,7 +15211,7 @@ msgstr "v{0}が利用可能"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:51
 msgid "Validating the package"
-msgstr ""
+msgstr "パッケージを検証中"
 
 #: packages/admin/src/components/FieldEditor.tsx:897
 #: packages/admin/src/components/FieldEditor.tsx:928
@@ -15220,19 +15220,19 @@ msgstr "バリデーション"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:562
 msgid "Verified"
-msgstr ""
+msgstr "検証済み"
 
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:68
 msgid "Verified publisher"
-msgstr ""
+msgstr "検証済みの公開者"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:418
 msgid "Verify the plugin before installing it"
-msgstr ""
+msgstr "インストールする前にプラグインを検証してください"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:65
 msgid "Verifying the import"
-msgstr ""
+msgstr "インポート結果を検証中"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:233
 msgid "Verifying your invite..."
@@ -15372,7 +15372,7 @@ msgstr "警告"
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:438
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:600
 msgid "Warnings"
-msgstr ""
+msgstr "警告"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:307
 msgid "Was due"
@@ -15380,7 +15380,7 @@ msgstr "超過した公開予定日時"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:588
 msgid "We checked before opening the browser's passkey prompt so you can choose what happens next."
-msgstr ""
+msgstr "次に行う操作を選べるよう、ブラウザーのパスキー画面を開く前に対応状況を確認しました。"
 
 #. placeholder {0}: result.url
 #: packages/admin/src/components/WordPressImport.tsx:1320
@@ -15418,11 +15418,19 @@ msgstr "ウェブサイト"
 msgid "Website URL"
 msgstr "ウェブサイトのURL"
 
-#: packages/admin/src/components/WelcomeModal.tsx:104
+#: packages/admin/src/components/WelcomeModal.tsx:107
+msgid "Welcome to {siteName}, {firstName}!"
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:108
+msgid "Welcome to {siteName}!"
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:111
 msgid "Welcome to EmDash, {firstName}!"
 msgstr "EmDashへようこそ、{firstName}さん！"
 
-#: packages/admin/src/components/WelcomeModal.tsx:104
+#: packages/admin/src/components/WelcomeModal.tsx:111
 msgid "Welcome to EmDash!"
 msgstr "EmDashへようこそ！"
 
@@ -15432,7 +15440,7 @@ msgstr "各側の名称です。この関連付けを使用するフィールド
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:642
 msgid "What happens next?"
-msgstr ""
+msgstr "次の手順は？"
 
 #: packages/admin/src/components/WordPressImport.tsx:2148
 msgid "What happens when you import:"
@@ -15440,11 +15448,11 @@ msgstr "インポート時の動作："
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:234
 msgid "What is a passkey?"
-msgstr ""
+msgstr "パスキーとは？"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:107
 msgid "What it leaves out"
-msgstr ""
+msgstr "含まれないもの"
 
 #: packages/admin/src/components/FieldEditor.tsx:1470
 msgid "What the direction changes"
@@ -15452,11 +15460,11 @@ msgstr "参照の方向による違い"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:103
 msgid "What the package includes"
-msgstr ""
+msgstr "パッケージに含まれるもの"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:292
 msgid "What will be imported"
-msgstr ""
+msgstr "インポートされるもの"
 
 #: packages/admin/src/components/WordPressImport.tsx:1931
 msgid "What will happen when you import"
@@ -15489,7 +15497,7 @@ msgstr "コンテンツの公開日時"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:246
 msgid "Where is it saved?"
-msgstr ""
+msgstr "保存先は？"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1074
 msgid "Which content types can use this taxonomy"
@@ -15558,7 +15566,7 @@ msgstr "ウィジェットエリアを削除しました"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:30
 msgid "Widget areas"
-msgstr ""
+msgstr "ウィジェットエリア"
 
 #: packages/admin/src/components/Widgets.tsx:777
 msgid "Widget deleted"
@@ -15601,15 +15609,15 @@ msgstr "作成予定"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:558
 msgid "Windows Hello still isn't available to this browser. You can try another device or a security key instead."
-msgstr ""
+msgstr "このブラウザーでは、まだWindows Helloを利用できません。別のデバイスまたはセキュリティキーをお試しください。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:181
 msgid "Windows will show which credential manager will save it before creating it."
-msgstr ""
+msgstr "パスキーを作成する前に、保存先の認証情報マネージャーがWindowsに表示されます。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:224
 msgid "With a passkey, you don’t need to remember complex passwords"
-msgstr ""
+msgstr "パスキーを使えば、複雑なパスワードを覚える必要はありません"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:149
 msgid "Without an email provider, invite links must be shared manually."
@@ -15629,7 +15637,7 @@ msgstr "{selectedCount}件を処理中…"
 
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:284
 msgid "Working…"
-msgstr ""
+msgstr "処理中…"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:60
 msgid "Write CSS…"
@@ -15653,7 +15661,7 @@ msgstr "ウィジェットの内容を入力…"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:50
 msgid "Writing the file index"
-msgstr ""
+msgstr "ファイルインデックスを作成中"
 
 #: packages/admin/src/components/WordPressImport.tsx:1231
 msgid "WXR File"
@@ -15712,7 +15720,7 @@ msgstr "サイトの閲覧と投稿ができます。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:511
 msgid "You can view, rename, or add more passkeys later in Security settings."
-msgstr ""
+msgstr "パスキーの確認、名前の変更、追加は、後からセキュリティ設定で行えます。"
 
 #: packages/admin/src/components/users/UserDetail.tsx:188
 msgid "You cannot change your own role"
@@ -15745,7 +15753,7 @@ msgstr "メディアの使用状況を管理するには、管理者権限が必
 
 #: packages/admin/src/components/settings/TransferSettings.tsx:70
 msgid "You need Admin permissions to transfer this site."
-msgstr ""
+msgstr "このサイトを移行するには管理者権限が必要です。"
 
 #: packages/admin/src/router.tsx:2493
 msgid "You need Editor permissions to moderate comments."
@@ -15784,9 +15792,9 @@ msgstr "<0>{roleName}</0>として登録します"
 #. placeholder {0}: window.location.host
 #: packages/admin/src/components/settings/GeneralSettings.tsx:322
 msgid "You're signed in at {0}"
-msgstr ""
+msgstr "{0}にログインしています"
 
-#: packages/admin/src/components/SetupWizard.tsx:632
+#: packages/admin/src/components/SetupWizard.tsx:624
 msgid "You're signed in via Cloudflare Access"
 msgstr "Cloudflare Accessでログイン中です"
 
@@ -15806,7 +15814,7 @@ msgstr "招待が届いています。"
 msgid "you@company.com"
 msgstr "you@company.com"
 
-#: packages/admin/src/components/SetupWizard.tsx:265
+#: packages/admin/src/components/SetupWizard.tsx:266
 msgid "you@example.com"
 msgstr "you@example.com"
 
@@ -15821,12 +15829,12 @@ msgstr "お使いのブラウザーはパスキーに対応していません。
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:202
 msgid "Your credential manager, such as Google Password Manager, saves it and may sync it to your other devices."
-msgstr ""
+msgstr "Google パスワード マネージャーなどの認証情報マネージャーに保存され、他のデバイスにも同期される場合があります。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:188
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:195
 msgid "Your credential manager, such as iCloud Keychain, saves it and may sync it to your other devices."
-msgstr ""
+msgstr "iCloudキーチェーンなどの認証情報マネージャーに保存され、他のデバイスにも同期される場合があります。"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:264
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:432
@@ -15835,12 +15843,12 @@ msgstr "お使いのデバイスは必要なセキュリティ機能に対応し
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:209
 msgid "Your device's credential manager saves it and will show you where before creating it."
-msgstr ""
+msgstr "デバイスの認証情報マネージャーに保存されます。作成前に保存先が表示されます。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:193
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:207
 msgid "your device's passkey prompt"
-msgstr ""
+msgstr "デバイスのパスキー画面"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:115
 msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the live site won't change until you publish."
@@ -15850,7 +15858,7 @@ msgstr "下書きを{when}の版に置き換えます。現在の下書きは変
 msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the restored version goes live at the scheduled time."
 msgstr "下書きを{when}の版に置き換えます。現在の下書きは変更履歴に残り、復元した版は予約日時に公開されます。"
 
-#: packages/admin/src/components/SetupWizard.tsx:261
+#: packages/admin/src/components/SetupWizard.tsx:262
 msgid "Your Email"
 msgstr "メールアドレス"
 
@@ -15875,7 +15883,7 @@ msgstr "LinkedInプロフィールのユーザー名"
 msgid "Your media library is empty"
 msgstr "メディアライブラリは空です"
 
-#: packages/admin/src/components/SetupWizard.tsx:273
+#: packages/admin/src/components/SetupWizard.tsx:274
 msgid "Your Name"
 msgstr "名前"
 
@@ -15898,11 +15906,11 @@ msgstr "あなたの権限では、このコンテンツを編集できません
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:376
 msgid "Your role does not permit any of the permissions this device requested."
-msgstr ""
+msgstr "現在のロールでは、このデバイスが要求した権限をどれも許可できません。"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:111
 msgid "Your site is currently at {currentUrl}."
-msgstr ""
+msgstr "サイトの現在のアドレスは{currentUrl}です。"
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
 #: packages/admin/src/components/RegistryPluginDetail.tsx:696

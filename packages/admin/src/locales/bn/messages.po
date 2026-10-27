@@ -87,7 +87,7 @@ msgid "{0, plural, one {# byline} other {# bylines}}"
 msgstr "{0, plural, one {# বাইলাইন} other {# বাইলাইন}}"
 
 #. placeholder {0}: seedInfo.collections
-#: packages/admin/src/components/SetupWizard.tsx:219
+#: packages/admin/src/components/SetupWizard.tsx:220
 msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# কালেকশন} other {# কালেকশন}}"
 
@@ -217,7 +217,7 @@ msgstr ""
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:5394
+#: packages/admin/src/components/PortableTextEditor.tsx:5403
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {# সারি} other {# সারি}} × {1, plural, one {# কলাম} other {# কলাম}} নির্বাচিত"
 
@@ -385,7 +385,7 @@ msgstr "{1}টির মধ্যে {0}টি ফাইল · {3}-এর মধ
 
 #. placeholder {0}: i18n.number(seedProgress.done)
 #. placeholder {1}: i18n.number(seedProgress.total)
-#: packages/admin/src/components/SetupWizard.tsx:210
+#: packages/admin/src/components/SetupWizard.tsx:211
 msgid "{0} of {1} items"
 msgstr "{1}টির মধ্যে {0}টি আইটেম"
 
@@ -885,8 +885,8 @@ msgstr "• আপনার EmDash মিডিয়া স্টোরেজ�
 msgid "• URLs in your content are updated automatically"
 msgstr "• আপনার কনটেন্টের URL-গুলো স্বয়ংক্রিয়ভাবে আপডেট করা হয়"
 
-#: packages/admin/src/components/SetupWizard.tsx:289
-#: packages/admin/src/components/SetupWizard.tsx:340
+#: packages/admin/src/components/SetupWizard.tsx:290
+#: packages/admin/src/components/SetupWizard.tsx:341
 #: packages/admin/src/components/WordPressImport.tsx:1656
 msgid "← Back"
 msgstr "← ফিরে যান"
@@ -1181,7 +1181,7 @@ msgstr "অ্যাক্সেস অস্বীকৃত"
 msgid "Access your media library"
 msgstr "আপনার মিডিয়া লাইব্রেরিতে অ্যাক্সেস"
 
-#: packages/admin/src/components/SetupWizard.tsx:409
+#: packages/admin/src/components/SetupWizard.tsx:410
 msgid "Account"
 msgstr "অ্যাকাউন্ট"
 
@@ -1293,12 +1293,12 @@ msgstr "বাইলাইন যোগ করুন"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5841
+#: packages/admin/src/components/PortableTextEditor.tsx:5856
 msgid "Add caption"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5407
+#: packages/admin/src/components/PortableTextEditor.tsx:5416
 msgid "Add column after"
 msgstr "পরে কলাম যোগ করুন"
 
@@ -1368,9 +1368,9 @@ msgstr "আইটেম যোগ করুন"
 msgid "Add Item"
 msgstr "আইটেম যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5037
-#: packages/admin/src/components/PortableTextEditor.tsx:5834
-#: packages/admin/src/components/PortableTextEditor.tsx:6282
+#: packages/admin/src/components/PortableTextEditor.tsx:5040
+#: packages/admin/src/components/PortableTextEditor.tsx:5849
+#: packages/admin/src/components/PortableTextEditor.tsx:6298
 msgid "Add link"
 msgstr "লিঙ্ক যোগ করুন"
 
@@ -1414,7 +1414,7 @@ msgid "Add row above"
 msgstr "উপরে সারি যোগ করুন"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5400
+#: packages/admin/src/components/PortableTextEditor.tsx:5409
 msgid "Add row below"
 msgstr "নিচে সারি যোগ করুন"
 
@@ -1604,25 +1604,25 @@ msgid "Agent-callable MCP tools"
 msgstr "এজেন্ট যেসব MCP টুল কল করতে পারে"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:5297
+#: packages/admin/src/components/PortableTextEditor.tsx:5304
 msgid "Align"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6456
+#: packages/admin/src/components/PortableTextEditor.tsx:6472
 msgid "Align center"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6448
+#: packages/admin/src/components/PortableTextEditor.tsx:6464
 msgid "Align left"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6464
+#: packages/admin/src/components/PortableTextEditor.tsx:6480
 msgid "Align right"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:484
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:5815
+#: packages/admin/src/components/PortableTextEditor.tsx:5830
 msgid "Alignment"
 msgstr "সারিবদ্ধকরণ"
 
@@ -1746,8 +1746,8 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaLibrary.tsx:1144
-#: packages/admin/src/components/PortableTextEditor.tsx:5746
-#: packages/admin/src/components/PortableTextEditor.tsx:5812
+#: packages/admin/src/components/PortableTextEditor.tsx:5761
+#: packages/admin/src/components/PortableTextEditor.tsx:5827
 msgid "Alt text"
 msgstr "বিকল্প টেক্সট"
 
@@ -1898,7 +1898,7 @@ msgid "Application Password"
 msgstr "অ্যাপ্লিকেশন পাসওয়ার্ড"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
-#: packages/admin/src/components/PortableTextEditor.tsx:6547
+#: packages/admin/src/components/PortableTextEditor.tsx:6563
 msgid "Apply"
 msgstr "প্রয়োগ করুন"
 
@@ -1906,8 +1906,8 @@ msgstr "প্রয়োগ করুন"
 msgid "Apply changes"
 msgstr "পরিবর্তন প্রয়োগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5011
-#: packages/admin/src/components/PortableTextEditor.tsx:5787
+#: packages/admin/src/components/PortableTextEditor.tsx:5014
+#: packages/admin/src/components/PortableTextEditor.tsx:5802
 msgid "Apply link"
 msgstr "লিঙ্ক প্রয়োগ করুন"
 
@@ -2345,7 +2345,7 @@ msgid "Blocks"
 msgstr "ব্লক"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4791
-#: packages/admin/src/components/PortableTextEditor.tsx:6316
+#: packages/admin/src/components/PortableTextEditor.tsx:6332
 msgid "Bold"
 msgstr "বোল্ড"
 
@@ -2406,7 +2406,7 @@ msgstr "বিল্ডের উৎস-প্রমাণ যাচাই ক�
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
 #: packages/admin/src/components/PortableTextEditor.tsx:2051
-#: packages/admin/src/components/PortableTextEditor.tsx:6373
+#: packages/admin/src/components/PortableTextEditor.tsx:6389
 msgid "Bullet List"
 msgstr "বুলেট তালিকা"
 
@@ -2532,9 +2532,9 @@ msgstr "কনটেন্ট দেখতে পারেন"
 #: packages/admin/src/components/MenuEditor.tsx:754
 #: packages/admin/src/components/MenuList.tsx:184
 #: packages/admin/src/components/PluginManager.tsx:817
-#: packages/admin/src/components/PortableTextEditor.tsx:5758
-#: packages/admin/src/components/PortableTextEditor.tsx:5784
-#: packages/admin/src/components/PortableTextEditor.tsx:6531
+#: packages/admin/src/components/PortableTextEditor.tsx:5773
+#: packages/admin/src/components/PortableTextEditor.tsx:5799
+#: packages/admin/src/components/PortableTextEditor.tsx:6547
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:407
 #: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/RelationDialog.tsx:60
@@ -2645,8 +2645,8 @@ msgstr "সেল একত্রিত করা হয়েছে"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:5301
-#: packages/admin/src/components/PortableTextEditor.tsx:5419
+#: packages/admin/src/components/PortableTextEditor.tsx:5308
+#: packages/admin/src/components/PortableTextEditor.tsx:5429
 msgid "Center"
 msgstr "মাঝখানে"
 
@@ -2993,7 +2993,7 @@ msgstr "সম্পন্নগুলো পরিষ্কার করুন"
 msgid "Clear filters"
 msgstr "ফিল্টার পরিষ্কার করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5311
+#: packages/admin/src/components/PortableTextEditor.tsx:5318
 msgid "Clear formatting"
 msgstr ""
 
@@ -3139,7 +3139,7 @@ msgstr "কোড"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
 #: packages/admin/src/components/PortableTextEditor.tsx:2081
-#: packages/admin/src/components/PortableTextEditor.tsx:6415
+#: packages/admin/src/components/PortableTextEditor.tsx:6431
 msgid "Code Block"
 msgstr "কোড ব্লক"
 
@@ -3193,7 +3193,7 @@ msgid "Collections created:"
 msgstr "তৈরি হওয়া কালেকশন:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5405
+#: packages/admin/src/components/PortableTextEditor.tsx:5414
 msgid "Column added after"
 msgstr "পরে কলাম যোগ করা হয়েছে"
 
@@ -3442,8 +3442,8 @@ msgstr "কনটেন্ট লেখা"
 msgid "Continue"
 msgstr "চালিয়ে যান"
 
-#: packages/admin/src/components/SetupWizard.tsx:201
-#: packages/admin/src/components/SetupWizard.tsx:297
+#: packages/admin/src/components/SetupWizard.tsx:202
+#: packages/admin/src/components/SetupWizard.tsx:298
 msgid "Continue →"
 msgstr "চালিয়ে যান →"
 
@@ -3452,7 +3452,7 @@ msgid "Continue Import"
 msgstr "ইমপোর্ট চালিয়ে যান"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:6390
+#: packages/admin/src/components/PortableTextEditor.tsx:6406
 msgid "Continue numbering"
 msgstr "নম্বর চালিয়ে যান"
 
@@ -3464,7 +3464,7 @@ msgstr ""
 msgid "Continue to finish signing in. The link works only once."
 msgstr "সাইন ইন সম্পন্ন করতে চালিয়ে যান। লিঙ্কটি শুধু একবারই কাজ করে।"
 
-#: packages/admin/src/components/SetupWizard.tsx:356
+#: packages/admin/src/components/SetupWizard.tsx:357
 msgid "Continue to import"
 msgstr "ইমপোর্টে চালিয়ে যান"
 
@@ -3875,7 +3875,7 @@ msgstr "টোকেন তৈরি করুন"
 msgid "Create Widget Area"
 msgstr "উইজেট এরিয়া তৈরি করুন"
 
-#: packages/admin/src/components/SetupWizard.tsx:628
+#: packages/admin/src/components/SetupWizard.tsx:620
 msgid "Create your account"
 msgstr "আপনার অ্যাকাউন্ট তৈরি করুন"
 
@@ -4265,7 +4265,7 @@ msgstr "ফোল্ডার মুছুন"
 msgid "Delete gallery"
 msgstr "গ্যালারি মুছুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5853
+#: packages/admin/src/components/PortableTextEditor.tsx:5868
 msgid "Delete image"
 msgstr "ছবি মুছুন"
 
@@ -4419,7 +4419,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:522
-#: packages/admin/src/components/PortableTextEditor.tsx:5747
+#: packages/admin/src/components/PortableTextEditor.tsx:5762
 msgid "Describe the image"
 msgstr "ছবিটির বর্ণনা দিন"
 
@@ -4963,7 +4963,7 @@ msgstr "বাইলাইন ফিল্ড সম্পাদনা করু
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5841
+#: packages/admin/src/components/PortableTextEditor.tsx:5856
 msgid "Edit caption"
 msgstr ""
 
@@ -4999,10 +4999,10 @@ msgstr "ছবি সম্পাদনা করুন"
 msgid "Edit image {0}"
 msgstr "ছবি {0} সম্পাদনা করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5037
-#: packages/admin/src/components/PortableTextEditor.tsx:5143
-#: packages/admin/src/components/PortableTextEditor.tsx:5834
-#: packages/admin/src/components/PortableTextEditor.tsx:6281
+#: packages/admin/src/components/PortableTextEditor.tsx:5040
+#: packages/admin/src/components/PortableTextEditor.tsx:5149
+#: packages/admin/src/components/PortableTextEditor.tsx:5849
+#: packages/admin/src/components/PortableTextEditor.tsx:6297
 msgid "Edit link"
 msgstr "লিঙ্ক সম্পাদনা করুন"
 
@@ -5154,7 +5154,7 @@ msgstr ""
 msgid "Email every other user a link to the sign-in page at {siteHost}."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:242
+#: packages/admin/src/components/SetupWizard.tsx:243
 #: packages/admin/src/components/SignupPage.tsx:69
 msgid "Email is required"
 msgstr "ইমেইল আবশ্যক"
@@ -5265,7 +5265,7 @@ msgstr ""
 msgid "Empty gallery — open settings to add images"
 msgstr "খালি গ্যালারি — ছবি যোগ করতে সেটিংস খুলুন"
 
-#: packages/admin/src/components/SetupWizard.tsx:173
+#: packages/admin/src/components/SetupWizard.tsx:174
 msgid "Empty site"
 msgstr "খালি সাইট"
 
@@ -5418,7 +5418,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:158
 #: packages/admin/src/components/MenuEditor.tsx:226
 #: packages/admin/src/components/MenuEditor.tsx:266
-#: packages/admin/src/components/SetupWizard.tsx:607
+#: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1210
 #: packages/admin/src/components/Widgets.tsx:781
 #: packages/admin/src/router.tsx:3364
@@ -5666,7 +5666,7 @@ msgstr "{0} তৈরি করতে ব্যর্থ হয়েছে"
 msgid "Failed to create a sign-in link"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:561
+#: packages/admin/src/components/SetupWizard.tsx:557
 msgid "Failed to create admin"
 msgstr "অ্যাডমিন তৈরি করতে ব্যর্থ হয়েছে"
 
@@ -6123,7 +6123,7 @@ msgstr "সেকশনগুলো আনতে ব্যর্থ হয়ে
 msgid "Failed to fetch settings"
 msgstr "সেটিংস আনতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/components/SetupWizard.tsx:502
+#: packages/admin/src/components/SetupWizard.tsx:504
 msgid "Failed to fetch setup status"
 msgstr "সেটআপের স্ট্যাটাস আনতে ব্যর্থ হয়েছে"
 
@@ -6318,7 +6318,7 @@ msgstr "প্লাগইন লোড করতে ব্যর্থ হয�
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
 msgstr "প্লাগইন লোড করতে ব্যর্থ হয়েছে। রেজিস্ট্রি অ্যাগ্রিগেটরে হয়তো পৌঁছানো যাচ্ছে না।"
 
-#: packages/admin/src/components/SetupWizard.tsx:609
+#: packages/admin/src/components/SetupWizard.tsx:605
 msgid "Failed to load setup"
 msgstr "সেটআপ লোড করতে ব্যর্থ হয়েছে"
 
@@ -6929,7 +6929,7 @@ msgstr "খসড়াসহ সম্পূর্ণ কনটেন্ট ই
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "সেরা ইমপোর্ট অভিজ্ঞতার জন্য আপনার WordPress সাইটে <0>EmDash Exporter</0> প্লাগইনটি ইনস্টল করুন।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4989
+#: packages/admin/src/components/PortableTextEditor.tsx:4992
 msgid "Format selection"
 msgstr ""
 
@@ -6999,7 +6999,7 @@ msgstr "সাধারণ সেটিংস"
 msgid "Genres"
 msgstr "ধরন"
 
-#: packages/admin/src/components/WelcomeModal.tsx:156
+#: packages/admin/src/components/WelcomeModal.tsx:164
 msgid "Get Started"
 msgstr "শুরু করুন"
 
@@ -7230,7 +7230,7 @@ msgstr "আনুভূমিক {0}%, উল্লম্ব {1}%"
 msgid "Hour"
 msgstr "ঘণ্টা"
 
-#: packages/admin/src/components/SetupWizard.tsx:158
+#: packages/admin/src/components/SetupWizard.tsx:159
 msgid "How do you want to start?"
 msgstr "আপনি কীভাবে শুরু করতে চান?"
 
@@ -7367,7 +7367,7 @@ msgstr "ছবি {0}"
 msgid "Image actions"
 msgstr "ছবির অ্যাকশন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5712
+#: packages/admin/src/components/PortableTextEditor.tsx:5727
 msgid "Image controls"
 msgstr ""
 
@@ -7375,7 +7375,7 @@ msgstr ""
 msgid "Image from media library"
 msgstr "মিডিয়া লাইব্রেরি থেকে ছবি"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6279
+#: packages/admin/src/components/PortableTextEditor.tsx:6295
 msgid "Image link"
 msgstr "ছবির লিঙ্ক"
 
@@ -7395,7 +7395,7 @@ msgid "Image replaced."
 msgstr "ছবি প্রতিস্থাপন করা হয়েছে।"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:391
-#: packages/admin/src/components/PortableTextEditor.tsx:5846
+#: packages/admin/src/components/PortableTextEditor.tsx:5861
 msgid "Image settings"
 msgstr "ছবির সেটিংস"
 
@@ -7448,7 +7448,7 @@ msgstr "সাইটটি খালি থাকা অবস্থায় �
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "খসড়া, কাস্টম পোস্ট টাইপ, ACF ফিল্ড এবং SEO ডেটাসহ সব কনটেন্ট সরাসরি ইমপোর্ট করুন। কোনো ফাইল ডাউনলোডের প্রয়োজন নেই।"
 
-#: packages/admin/src/components/SetupWizard.tsx:178
+#: packages/admin/src/components/SetupWizard.tsx:179
 msgid "Import an existing EmDash site"
 msgstr "একটি বিদ্যমান EmDash সাইট ইমপোর্ট করুন"
 
@@ -7619,7 +7619,7 @@ msgid "Inline blocks use your site's styles. Your site removes scripts, style ta
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4795
-#: packages/admin/src/components/PortableTextEditor.tsx:6348
+#: packages/admin/src/components/PortableTextEditor.tsx:6364
 msgid "Inline Code"
 msgstr "ইনলাইন কোড"
 
@@ -7660,8 +7660,8 @@ msgstr "একটি ছবির গ্যালারি যোগ করু�
 msgid "Insert block"
 msgstr "ব্লক যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6295
-#: packages/admin/src/components/PortableTextEditor.tsx:6305
+#: packages/admin/src/components/PortableTextEditor.tsx:6311
+#: packages/admin/src/components/PortableTextEditor.tsx:6321
 msgid "Insert block after current block"
 msgstr "বর্তমান ব্লকের পরে ব্লক যোগ করুন"
 
@@ -7669,12 +7669,12 @@ msgstr "বর্তমান ব্লকের পরে ব্লক যো�
 msgid "Insert block below"
 msgstr "নিচে ব্লক যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6429
+#: packages/admin/src/components/PortableTextEditor.tsx:6445
 msgid "Insert HTML"
 msgstr "HTML যোগ করুন"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4701
-#: packages/admin/src/components/PortableTextEditor.tsx:6422
+#: packages/admin/src/components/PortableTextEditor.tsx:6438
 msgid "Insert image"
 msgstr "ছবি যোগ করুন"
 
@@ -7827,7 +7827,7 @@ msgid "It was started somewhere else, so its plan can no longer be changed. Its 
 msgstr "এটি অন্য কোথাও শুরু করা হয়েছে, তাই এর পরিকল্পনা আর পরিবর্তন করা যাবে না। এর অগ্রগতি এখানে দেখা যাবে।"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4792
-#: packages/admin/src/components/PortableTextEditor.tsx:6324
+#: packages/admin/src/components/PortableTextEditor.tsx:6340
 msgid "Italic"
 msgstr "ইটালিক"
 
@@ -7854,7 +7854,7 @@ msgid "Its listing has not been approved for display. Check back later."
 msgstr "এর তালিকাটি প্রদর্শনের জন্য এখনো অনুমোদিত হয়নি। পরে আবার দেখুন।"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:76
-#: packages/admin/src/components/SetupWizard.tsx:277
+#: packages/admin/src/components/SetupWizard.tsx:278
 #: packages/admin/src/components/SignupPage.tsx:231
 msgid "Jane Doe"
 msgstr "Jane Doe"
@@ -8050,8 +8050,8 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:5300
-#: packages/admin/src/components/PortableTextEditor.tsx:5418
+#: packages/admin/src/components/PortableTextEditor.tsx:5307
+#: packages/admin/src/components/PortableTextEditor.tsx:5428
 msgid "Left"
 msgstr "বাম"
 
@@ -8072,7 +8072,7 @@ msgstr "লাইসেন্স"
 msgid "Limit"
 msgstr "সীমা"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6508
+#: packages/admin/src/components/PortableTextEditor.tsx:6524
 msgid "Link"
 msgstr "লিঙ্ক"
 
@@ -8080,7 +8080,7 @@ msgstr "লিঙ্ক"
 msgid "Link expired"
 msgstr "লিঙ্কের মেয়াদ শেষ হয়েছে"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5121
+#: packages/admin/src/components/PortableTextEditor.tsx:5127
 msgid "Link options"
 msgstr ""
 
@@ -8324,7 +8324,7 @@ msgstr "সেকশন লোড হচ্ছে..."
 msgid "Loading settings..."
 msgstr "সেটিংস লোড হচ্ছে..."
 
-#: packages/admin/src/components/SetupWizard.tsx:596
+#: packages/admin/src/components/SetupWizard.tsx:592
 msgid "Loading setup..."
 msgstr "সেটআপ লোড হচ্ছে..."
 
@@ -8869,7 +8869,7 @@ msgstr "মাসিক/বার্ষিক আর্কাইভ"
 msgid "More actions for {0}"
 msgstr "{0}-এর জন্য আরও অ্যাকশন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5267
+#: packages/admin/src/components/PortableTextEditor.tsx:5274
 msgid "More formatting"
 msgstr ""
 
@@ -9117,7 +9117,7 @@ msgstr "একাধিক লাইনের সাধারণ টেক্স
 msgid "Multiple choices from options"
 msgstr "বিকল্প থেকে একাধিক পছন্দ"
 
-#: packages/admin/src/components/SetupWizard.tsx:141
+#: packages/admin/src/components/SetupWizard.tsx:142
 msgid "My Awesome Blog"
 msgstr "আমার দারুণ ব্লগ"
 
@@ -9427,7 +9427,7 @@ msgstr "এখনও কোনো কনটেন্ট টাইপ নেই�
 msgid "No custom fields yet"
 msgstr "এখনও কোনো কাস্টম ফিল্ড নেই"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5808
+#: packages/admin/src/components/PortableTextEditor.tsx:5823
 msgid "No description yet"
 msgstr ""
 
@@ -9739,7 +9739,7 @@ msgid "Non-guest"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:5417
+#: packages/admin/src/components/PortableTextEditor.tsx:5427
 msgid "None"
 msgstr "কোনোটি নয়"
 
@@ -9811,7 +9811,7 @@ msgstr "তালিকা ভিউতে প্রতি পেজে কত�
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
 #: packages/admin/src/components/PortableTextEditor.tsx:2061
-#: packages/admin/src/components/PortableTextEditor.tsx:6381
+#: packages/admin/src/components/PortableTextEditor.tsx:6397
 msgid "Numbered List"
 msgstr "সংখ্যাযুক্ত তালিকা"
 
@@ -9840,7 +9840,7 @@ msgstr ""
 msgid "On the site"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:179
+#: packages/admin/src/components/SetupWizard.tsx:180
 msgid "Once setup is done, upload a .emdash package exported from another EmDash site."
 msgstr "সেটআপ শেষ হলে, অন্য কোনো EmDash সাইট থেকে এক্সপোর্ট করা একটি .emdash প্যাকেজ আপলোড করুন।"
 
@@ -9931,7 +9931,7 @@ msgid "Open setup"
 msgstr "সেটআপ খুলুন"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:89
-#: packages/admin/src/components/SetupWizard.tsx:356
+#: packages/admin/src/components/SetupWizard.tsx:357
 #: packages/admin/src/components/SignupPage.tsx:246
 msgid "Open the dashboard"
 msgstr "ড্যাশবোর্ড খুলুন"
@@ -10002,7 +10002,7 @@ msgstr "অথবা URL দিয়ে সংযুক্ত করুন"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:102
 #: packages/admin/src/components/LoginPage.tsx:282
-#: packages/admin/src/components/SetupWizard.tsx:369
+#: packages/admin/src/components/SetupWizard.tsx:370
 msgid "Or continue with"
 msgstr "অথবা এগুলো দিয়ে চালিয়ে যান"
 
@@ -10325,7 +10325,7 @@ msgstr "প্ল্যান ডাইজেস্ট"
 msgid "Please ask your administrator to send a new invite."
 msgstr "অনুগ্রহ করে আপনার অ্যাডমিনকে একটি নতুন আমন্ত্রণ পাঠাতে বলুন।"
 
-#: packages/admin/src/components/SetupWizard.tsx:244
+#: packages/admin/src/components/SetupWizard.tsx:245
 msgid "Please enter a valid email"
 msgstr "অনুগ্রহ করে একটি সঠিক ইমেইল দিন"
 
@@ -10536,7 +10536,7 @@ msgid "Preparing to download files from WordPress..."
 msgstr "WordPress থেকে ফাইল ডাউনলোডের প্রস্তুতি চলছে..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:163
-#: packages/admin/src/components/SetupWizard.tsx:297
+#: packages/admin/src/components/SetupWizard.tsx:298
 msgid "Preparing..."
 msgstr "প্রস্তুত করা হচ্ছে..."
 
@@ -10786,7 +10786,7 @@ msgstr ""
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:2071
 #: packages/admin/src/components/PortableTextEditor.tsx:3507
-#: packages/admin/src/components/PortableTextEditor.tsx:6407
+#: packages/admin/src/components/PortableTextEditor.tsx:6423
 msgid "Quote"
 msgstr "উদ্ধৃতি"
 
@@ -10960,7 +10960,7 @@ msgstr "রিডাইরেক্ট"
 msgid "Redirects that loop will be imported turned off"
 msgstr "লুপ তৈরি করা রিডাইরেক্টগুলো বন্ধ অবস্থায় ইমপোর্ট করা হবে"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6570
+#: packages/admin/src/components/PortableTextEditor.tsx:6586
 msgid "Redo"
 msgstr "পুনরায় করুন"
 
@@ -11082,7 +11082,7 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:383
 #: packages/admin/src/components/ImageFieldRenderer.tsx:454
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
-#: packages/admin/src/components/PortableTextEditor.tsx:6543
+#: packages/admin/src/components/PortableTextEditor.tsx:6559
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -11157,9 +11157,9 @@ msgstr "ছবি সরাবেন?"
 msgid "Remove item {0}"
 msgstr "আইটেম {0} সরান"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5015
-#: packages/admin/src/components/PortableTextEditor.tsx:5155
-#: packages/admin/src/components/PortableTextEditor.tsx:5780
+#: packages/admin/src/components/PortableTextEditor.tsx:5018
+#: packages/admin/src/components/PortableTextEditor.tsx:5161
+#: packages/admin/src/components/PortableTextEditor.tsx:5795
 msgid "Remove link"
 msgstr "লিঙ্ক সরান"
 
@@ -11325,8 +11325,8 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:427
 #: packages/admin/src/components/ImageFieldRenderer.tsx:601
 #: packages/admin/src/components/ImageFieldRenderer.tsx:604
-#: packages/admin/src/components/PortableTextEditor.tsx:5802
-#: packages/admin/src/components/PortableTextEditor.tsx:5883
+#: packages/admin/src/components/PortableTextEditor.tsx:5817
+#: packages/admin/src/components/PortableTextEditor.tsx:5899
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
@@ -11351,7 +11351,7 @@ msgstr "{label}-এর ডার্ক মোড ভ্যারিয়েন�
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaDetailPanel.tsx:1967
-#: packages/admin/src/components/PortableTextEditor.tsx:5882
+#: packages/admin/src/components/PortableTextEditor.tsx:5898
 msgid "Replace image"
 msgstr "ছবি প্রতিস্থাপন করুন"
 
@@ -11522,7 +11522,7 @@ msgid "Resolving publisher handle..."
 msgstr "প্রকাশকের হ্যান্ডেল খোঁজা হচ্ছে..."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:6397
+#: packages/admin/src/components/PortableTextEditor.tsx:6413
 msgid "Restart numbering"
 msgstr "নম্বর আবার শুরু করুন"
 
@@ -11726,8 +11726,8 @@ msgstr "রিচ টেক্সট এডিটর"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:5302
-#: packages/admin/src/components/PortableTextEditor.tsx:5420
+#: packages/admin/src/components/PortableTextEditor.tsx:5309
+#: packages/admin/src/components/PortableTextEditor.tsx:5430
 msgid "Right"
 msgstr "ডান"
 
@@ -11781,7 +11781,7 @@ msgid "Row added above"
 msgstr "উপরে সারি যোগ করা হয়েছে"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5398
+#: packages/admin/src/components/PortableTextEditor.tsx:5407
 msgid "Row added below"
 msgstr "নিচে সারি যোগ করা হয়েছে"
 
@@ -11817,8 +11817,8 @@ msgstr ""
 msgid "Same window"
 msgstr "একই উইন্ডো"
 
-#: packages/admin/src/components/SetupWizard.tsx:167
-#: packages/admin/src/components/SetupWizard.tsx:207
+#: packages/admin/src/components/SetupWizard.tsx:168
+#: packages/admin/src/components/SetupWizard.tsx:208
 msgid "Sample content"
 msgstr "নমুনা কনটেন্ট"
 
@@ -11839,7 +11839,7 @@ msgstr "সংরক্ষণ করুন"
 msgid "Save (Enter)"
 msgstr "সংরক্ষণ করুন (Enter)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5761
+#: packages/admin/src/components/PortableTextEditor.tsx:5776
 msgid "Save alt text"
 msgstr "বিকল্প টেক্সট সংরক্ষণ করুন"
 
@@ -12296,7 +12296,7 @@ msgstr "সেকশন"
 msgid "Sections could not be loaded."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:629
+#: packages/admin/src/components/SetupWizard.tsx:621
 msgid "Secure your account"
 msgstr "আপনার অ্যাকাউন্ট সুরক্ষিত করুন"
 
@@ -12651,7 +12651,7 @@ msgstr "মিডিয়া ব্যবহার ট্র্যাকিং 
 msgid "Set up Windows Hello"
 msgstr "Windows Hello সেট আপ করুন"
 
-#: packages/admin/src/components/SetupWizard.tsx:627
+#: packages/admin/src/components/SetupWizard.tsx:619
 msgid "Set up your site"
 msgstr "আপনার সাইট সেট আপ করুন"
 
@@ -12660,7 +12660,7 @@ msgstr "আপনার সাইট সেট আপ করুন"
 msgid "Setting up"
 msgstr "সেট আপ করা হচ্ছে"
 
-#: packages/admin/src/components/SetupWizard.tsx:201
+#: packages/admin/src/components/SetupWizard.tsx:202
 msgid "Setting up..."
 msgstr "সেট আপ করা হচ্ছে..."
 
@@ -12693,8 +12693,8 @@ msgstr "সেটিংস সফলভাবে সংরক্ষিত হয
 msgid "Setup couldn’t continue. Try again."
 msgstr "সেটআপ চালিয়ে যাওয়া যায়নি। আবার চেষ্টা করুন।"
 
-#: packages/admin/src/components/SetupWizard.tsx:528
-#: packages/admin/src/components/SetupWizard.tsx:531
+#: packages/admin/src/components/SetupWizard.tsx:524
+#: packages/admin/src/components/SetupWizard.tsx:527
 msgid "Setup failed"
 msgstr "সেটআপ ব্যর্থ হয়েছে"
 
@@ -12781,7 +12781,7 @@ msgstr ""
 msgid "Sign in"
 msgstr "সাইন ইন করুন"
 
-#: packages/admin/src/components/SetupWizard.tsx:410
+#: packages/admin/src/components/SetupWizard.tsx:411
 msgid "Sign In"
 msgstr "সাইন ইন করুন"
 
@@ -12801,7 +12801,7 @@ msgstr "আপনার সাইটে সাইন ইন করুন"
 #. placeholder {0}: activeProviderEntry.label ?? activeProvider
 #. placeholder {0}: provider.label
 #: packages/admin/src/components/LoginPage.tsx:252
-#: packages/admin/src/components/SetupWizard.tsx:327
+#: packages/admin/src/components/SetupWizard.tsx:328
 msgid "Sign in with {0}"
 msgstr "{0} দিয়ে সাইন ইন করুন"
 
@@ -12849,7 +12849,7 @@ msgid "Single line text input"
 msgstr "এক লাইনের টেক্সট ইনপুট"
 
 #: packages/admin/src/components/Settings.tsx:50
-#: packages/admin/src/components/SetupWizard.tsx:408
+#: packages/admin/src/components/SetupWizard.tsx:409
 msgid "Site"
 msgstr "সাইট"
 
@@ -12887,7 +12887,7 @@ msgid "Site settings"
 msgstr "সাইট সেটিংস"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
-#: packages/admin/src/components/SetupWizard.tsx:406
+#: packages/admin/src/components/SetupWizard.tsx:407
 #: packages/admin/src/components/WordPressImport.tsx:1201
 msgid "Site Settings"
 msgstr "সাইট সেটিংস"
@@ -12897,7 +12897,7 @@ msgid "Site title"
 msgstr "সাইটের শিরোনাম"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:278
-#: packages/admin/src/components/SetupWizard.tsx:137
+#: packages/admin/src/components/SetupWizard.tsx:138
 msgid "Site Title"
 msgstr "সাইটের শিরোনাম"
 
@@ -12905,7 +12905,7 @@ msgstr "সাইটের শিরোনাম"
 msgid "Site title & tagline"
 msgstr "সাইটের শিরোনাম ও ট্যাগলাইন"
 
-#: packages/admin/src/components/SetupWizard.tsx:121
+#: packages/admin/src/components/SetupWizard.tsx:122
 msgid "Site title is required"
 msgstr "সাইটের শিরোনাম আবশ্যক"
 
@@ -13127,11 +13127,11 @@ msgstr "ইমপোর্ট শুরু করুন"
 msgid "Start Import"
 msgstr "ইমপোর্ট শুরু করুন"
 
-#: packages/admin/src/components/SetupWizard.tsx:174
+#: packages/admin/src/components/SetupWizard.tsx:175
 msgid "Start with the template’s content types and no content."
 msgstr "টেমপ্লেটের কনটেন্ট টাইপগুলো দিয়ে শুরু করুন, কোনো কনটেন্ট ছাড়া।"
 
-#: packages/admin/src/components/SetupWizard.tsx:168
+#: packages/admin/src/components/SetupWizard.tsx:169
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
 msgstr "টেমপ্লেটের উদাহরণ পোস্ট ও পেজ দিয়ে শুরু করুন। নতুন সাইটের জন্য প্রস্তাবিত।"
 
@@ -13210,7 +13210,7 @@ msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "প্রতিটি লোকেলের জন্য আলাদাভাবে সংরক্ষিত — একটি বাইলাইনের প্রতিটি অনুবাদের নিজস্ব মান থাকে।"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4794
-#: packages/admin/src/components/PortableTextEditor.tsx:6340
+#: packages/admin/src/components/PortableTextEditor.tsx:6356
 msgid "Strikethrough"
 msgstr "স্ট্রাইকথ্রু"
 
@@ -13244,11 +13244,11 @@ msgstr "সাব-ফিল্ড"
 msgid "Subscriber"
 msgstr "সাবস্ক্রাইবার"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5281
+#: packages/admin/src/components/PortableTextEditor.tsx:5288
 msgid "Subscript"
 msgstr "সাবস্ক্রিপ্ট"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5287
+#: packages/admin/src/components/PortableTextEditor.tsx:5294
 msgid "Superscript"
 msgstr "সুপারস্ক্রিপ্ট"
 
@@ -13296,7 +13296,7 @@ msgstr "টেবিল"
 msgid "Table cells accept text, links, and formatting only."
 msgstr "টেবিলের সেলে শুধু টেক্সট, লিঙ্ক ও ফরম্যাটিং ব্যবহার করা যায়।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5388
+#: packages/admin/src/components/PortableTextEditor.tsx:5397
 msgid "Table controls"
 msgstr "টেবিল নিয়ন্ত্রণ"
 
@@ -13319,7 +13319,7 @@ msgstr "তালিকা বা উদ্ধৃতির ভেতরে ট�
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:286
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
-#: packages/admin/src/components/SetupWizard.tsx:148
+#: packages/admin/src/components/SetupWizard.tsx:149
 msgid "Tagline"
 msgstr "ট্যাগলাইন"
 
@@ -13403,7 +13403,7 @@ msgstr "প্রযুক্তিগত যাচাইয়ের বিব�
 msgid "Tell users where to sign in"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:218
+#: packages/admin/src/components/SetupWizard.tsx:219
 msgid "Template:"
 msgstr "টেমপ্লেট:"
 
@@ -13441,7 +13441,7 @@ msgstr "টার্ম"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6584
+#: packages/admin/src/components/PortableTextEditor.tsx:6600
 msgid "Text formatting"
 msgstr "টেক্সট ফরম্যাটিং"
 
@@ -13787,7 +13787,7 @@ msgstr ""
 msgid "The relationship decides the referenced collection and how many entries this field accepts."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:188
+#: packages/admin/src/components/SetupWizard.tsx:189
 msgid "The sample content added so far is kept. Continue to add the rest."
 msgstr "এ পর্যন্ত যোগ করা নমুনা কনটেন্ট রাখা হয়েছে। বাকিগুলো যোগ করতে চালিয়ে যান।"
 
@@ -14323,7 +14323,7 @@ msgstr "এটি আপনার সাইট থেকে প্লাগই�
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "এটি প্রকাশিত সংস্করণে ফিরিয়ে নেবে। আপনার খসড়ার পরিবর্তনগুলো হারিয়ে যাবে।"
 
-#: packages/admin/src/components/SetupWizard.tsx:152
+#: packages/admin/src/components/SetupWizard.tsx:153
 msgid "Thoughts, tutorials, and more"
 msgstr "ভাবনা, টিউটোরিয়াল এবং আরও অনেক কিছু"
 
@@ -14584,9 +14584,9 @@ msgid "TSX"
 msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:5204
-#: packages/admin/src/components/PortableTextEditor.tsx:5206
-#: packages/admin/src/components/PortableTextEditor.tsx:5223
+#: packages/admin/src/components/PortableTextEditor.tsx:5211
+#: packages/admin/src/components/PortableTextEditor.tsx:5213
+#: packages/admin/src/components/PortableTextEditor.tsx:5230
 msgid "Turn into"
 msgstr "রূপান্তর করুন"
 
@@ -14670,11 +14670,11 @@ msgid "Unassigned"
 msgstr "নির্ধারিত নয়"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4793
-#: packages/admin/src/components/PortableTextEditor.tsx:6332
+#: packages/admin/src/components/PortableTextEditor.tsx:6348
 msgid "Underline"
 msgstr "আন্ডারলাইন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6563
+#: packages/admin/src/components/PortableTextEditor.tsx:6579
 msgid "Undo"
 msgstr "পূর্বাবস্থায় ফেরান"
 
@@ -15418,11 +15418,19 @@ msgstr "ওয়েবসাইট"
 msgid "Website URL"
 msgstr "ওয়েবসাইটের URL"
 
-#: packages/admin/src/components/WelcomeModal.tsx:104
+#: packages/admin/src/components/WelcomeModal.tsx:107
+msgid "Welcome to {siteName}, {firstName}!"
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:108
+msgid "Welcome to {siteName}!"
+msgstr ""
+
+#: packages/admin/src/components/WelcomeModal.tsx:111
 msgid "Welcome to EmDash, {firstName}!"
 msgstr "EmDash-এ স্বাগতম, {firstName}!"
 
-#: packages/admin/src/components/WelcomeModal.tsx:104
+#: packages/admin/src/components/WelcomeModal.tsx:111
 msgid "Welcome to EmDash!"
 msgstr "EmDash-এ স্বাগতম!"
 
@@ -15786,7 +15794,7 @@ msgstr "আপনি <0>{roleName}</0> হিসেবে সাইন আপ �
 msgid "You're signed in at {0}"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:632
+#: packages/admin/src/components/SetupWizard.tsx:624
 msgid "You're signed in via Cloudflare Access"
 msgstr "আপনি Cloudflare Access-এর মাধ্যমে সাইন ইন করেছেন"
 
@@ -15806,7 +15814,7 @@ msgstr "আপনাকে আমন্ত্রণ জানানো হয়
 msgid "you@company.com"
 msgstr "you@company.com"
 
-#: packages/admin/src/components/SetupWizard.tsx:265
+#: packages/admin/src/components/SetupWizard.tsx:266
 msgid "you@example.com"
 msgstr "you@example.com"
 
@@ -15850,7 +15858,7 @@ msgstr ""
 msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the restored version goes live at the scheduled time."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:261
+#: packages/admin/src/components/SetupWizard.tsx:262
 msgid "Your Email"
 msgstr "আপনার ইমেইল"
 
@@ -15875,7 +15883,7 @@ msgstr "আপনার LinkedIn প্রোফাইলের ইউজার�
 msgid "Your media library is empty"
 msgstr "আপনার মিডিয়া লাইব্রেরি খালি"
 
-#: packages/admin/src/components/SetupWizard.tsx:273
+#: packages/admin/src/components/SetupWizard.tsx:274
 msgid "Your Name"
 msgstr "আপনার নাম"
 

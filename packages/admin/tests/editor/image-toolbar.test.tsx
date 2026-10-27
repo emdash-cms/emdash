@@ -470,7 +470,7 @@ describe("Image toolbar", () => {
 				expect(box.right).toBeLessThanOrEqual(window.innerWidth);
 			}
 			const top = (label: string) => button(toolbar, label).getBoundingClientRect().top;
-			await vi.waitFor(() => expect(top("Right")).toBe(top("Replace")));
+			expect(top("Right")).toBe(top("Replace"));
 			expect(top("Add link")).toBeGreaterThan(top("Replace"));
 		} finally {
 			await page.viewport(1280, 800);
@@ -503,6 +503,45 @@ describe("Image toolbar", () => {
 		expectFocus(pm);
 		await userEvent.keyboard("{Tab}{Tab}{Tab}{Escape}");
 		expectFocus(pm);
+	});
+
+	it("paints floating controls above the sticky toolbar when their layers overlap", async () => {
+		const { pm, img } = await setup();
+		const menu = await selectImage(img);
+		const root = pm.closest<HTMLElement>("[data-emdash-editor-floating-root]")!;
+		const floating = [...root.children].find((child) => child.contains(menu)) as HTMLElement;
+		const toolbar = document.querySelector<HTMLElement>(
+			'[role="toolbar"][aria-label="Text formatting"]',
+		)!;
+		toolbar.style.position = "sticky";
+		toolbar.style.zIndex = "20";
+		const toolbarRect = toolbar.getBoundingClientRect();
+		// Force an overlap to exercise painting order rather than collision avoidance.
+		floating.style.setProperty("position", "fixed", "important");
+		floating.style.setProperty("left", `${toolbarRect.left}px`, "important");
+		floating.style.setProperty("top", `${toolbarRect.top}px`, "important");
+		const replace = button(menu, "Replace");
+		await vi.waitFor(() => {
+			const rect = replace.getBoundingClientRect();
+			const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+			expect(replace.contains(hit)).toBe(true);
+		});
+	});
+
+	it("moves between image controls with the arrow keys", async () => {
+		const { img } = await setup();
+		const toolbar = await selectImage(img);
+		const replace = button(toolbar, "Replace");
+		const alt = button(toolbar, "Alt text");
+		replace.focus();
+		await userEvent.keyboard("{ArrowRight}");
+		expect(document.activeElement).toBe(alt);
+		await userEvent.keyboard("{Home}");
+		expect(document.activeElement).toBe(replace);
+		await userEvent.keyboard("{ArrowLeft}");
+		expect(document.activeElement).toBe(button(toolbar, "Delete image"));
+		await userEvent.keyboard("{ArrowRight}");
+		expect(document.activeElement).toBe(replace);
 	});
 
 	it("opens the alt text and link rows from the keyboard", async () => {

@@ -1556,11 +1556,11 @@ export function ContentEditor({
 			editorGenerationRef.current++;
 			markDirty();
 			setFormData((prev) => ({ ...prev, [name]: value }));
-			if (name === "title" && !slugTouched && typeof value === "string" && value) {
+			if (name === (titleField ?? "title") && !slugTouched && typeof value === "string" && value) {
 				setSlug(slugify(value));
 			}
 		},
-		[slugTouched, markDirty],
+		[slugTouched, markDirty, titleField],
 	);
 
 	const handleSlugChange = React.useCallback(
