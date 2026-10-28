@@ -11,6 +11,7 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, requireDb, unwrapResult } from "#api/error.js";
 import { handleCommentGet, handleCommentDelete } from "#api/handlers/comments.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
+import { getCommentRouteCacheTags } from "#comments/route-cache.js";
 
 export const prerender = false;
 
@@ -57,19 +58,13 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 	if (denied) return denied;
 
 	try {
-		const existing = cache?.enabled
-			? await emdash.db
-					.selectFrom("_emdash_comments")
-					.select(["collection", "content_id"])
-					.where("id", "=", id)
-					.executeTakeFirst()
-			: undefined;
+		const tags = cache?.enabled ? await getCommentRouteCacheTags(emdash.db, [id], "delete") : [];
 
-		const result = await handleCommentDelete(emdash.db, id);
-		if (result.success && existing) {
-			await invalidateRouteCache(cache, [existing.collection, existing.content_id]);
+		try {
+			return unwrapResult(await handleCommentDelete(emdash.db, id));
+		} finally {
+			if (tags.length > 0) await invalidateRouteCache(cache, tags);
 		}
-		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to delete comment", "COMMENT_DELETE_ERROR");
 	}

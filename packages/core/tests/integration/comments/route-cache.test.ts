@@ -32,6 +32,7 @@ const admin = { id: "admin-1", name: "Admin", role: Role.ADMIN };
 /** A route-cache stand-in that evicts snapshots by the tags supplied by a write. */
 class FakeRouteCache {
 	readonly pages = new Map<string, string[]>();
+	readonly invalidations: string[][] = [];
 	failInvalidation = false;
 
 	constructor(readonly enabled = true) {}
@@ -41,6 +42,7 @@ class FakeRouteCache {
 	}
 
 	async invalidate(input: { tags: string[] }): Promise<void> {
+		this.invalidations.push(input.tags);
 		if (input.tags.length > 100) throw new Error("too many cache tags");
 		if (this.failInvalidation) throw new Error("cache unavailable");
 		for (const [key, page] of this.pages) {
@@ -370,10 +372,43 @@ describeEachDialect("comment route cache invalidation", (dialect) => {
 		expect(cache.pages.has("post")).toBe(true);
 	});
 
-	it("purges a deleted comment's parent entry, including pending comments", async () => {
+	it.each(["pending", "spam", "trash", "approved"] as const)(
+		"deleting a %s comment only purges when its own entry was visible",
+		async (status) => {
+			const comment = await createComment(status);
+			const reply = await createComment("pending", "post-1", comment.id);
+			cache.set("entry", ["post-1"]);
+			const response = await deleteComment(
+				context({
+					params: { id: comment.id },
+					request: new Request("http://localhost", { method: "DELETE" }),
+				}),
+			);
+			expect(response.status).toBe(200);
+			expect(cache.pages.has("entry")).toBe(status !== "approved");
+			expect(cache.invalidations).toEqual(status === "approved" ? [["post", "post-1"]] : []);
+			expect(await comments.findById(comment.id)).toBeNull();
+			expect(await comments.findById(reply.id)).toBeNull();
+		},
+	);
+
+	it("deleting a missing comment returns 404 without spending a purge", async () => {
+		cache.set("entry", ["post-1"]);
+		const response = await deleteComment(
+			context({
+				params: { id: "missing-comment" },
+				request: new Request("http://localhost", { method: "DELETE" }),
+			}),
+		);
+		expect(response.status).toBe(404);
+		expect(cache.pages.has("entry")).toBe(true);
+		expect(cache.invalidations).toEqual([]);
+	});
+
+	it("deleting a pending comment purges its entry when it has an approved reply", async () => {
 		const comment = await createComment("pending");
 		const reply = await createComment("approved", "post-1", comment.id);
-		cache.set("post", ["post-1"]);
+		cache.set("entry", ["post-1"]);
 		const response = await deleteComment(
 			context({
 				params: { id: comment.id },
@@ -381,59 +416,138 @@ describeEachDialect("comment route cache invalidation", (dialect) => {
 			}),
 		);
 		expect(response.status).toBe(200);
-		expect(cache.pages.has("post")).toBe(false);
-		expect(await comments.findById(comment.id)).toBeNull();
+		expect(cache.pages.has("entry")).toBe(false);
+		expect(cache.invalidations).toEqual([["post", "post-1"]]);
 		expect(await comments.findById(reply.id)).toBeNull();
-
-		cache.set("post", ["post-1"]);
-		const missing = await deleteComment(
-			context({
-				params: { id: "missing-comment" },
-				request: new Request("http://localhost", { method: "DELETE" }),
-			}),
-		);
-		expect(missing.status).toBe(404);
-		expect(cache.pages.has("post")).toBe(true);
 	});
 
 	it.each([
-		["approve", "approved"],
-		["spam", "spam"],
-		["trash", "trash"],
-		["delete", null],
-	] as const)("bulk %s purges every affected entry", async (action, expectedStatus) => {
-		const selected = await createComment("pending", "post-1");
-		const sameCollection = await createComment("pending", "post-2");
-		const otherCollection = await createComment("pending", "page-1");
-		await db
-			.updateTable("_emdash_comments")
-			.set({ collection: "page" })
-			.where("id", "=", otherCollection.id)
-			.execute();
-		cache.set("selected", ["post-1"]);
-		cache.set("same-collection", pageTags("post", "post-2"));
-		cache.set("other-collection", ["page-1"]);
-		cache.set("unrelated", ["other", "other-1"]);
+		["spam", false],
+		["trash", false],
+		["delete", false],
+		["approve", true],
+	] as const)(
+		"bulk %s purges pending entries only when visibility changes",
+		async (action, purges) => {
+			const comment = await createComment("pending");
+			cache.set("entry", ["post-1"]);
+			const response = await bulkComments(
+				context({
+					request: new Request("http://localhost/_emdash/api/admin/comments/bulk", {
+						method: "POST",
+						body: JSON.stringify({ ids: [comment.id], action }),
+					}),
+				}),
+			);
+			expect(response.status).toBe(200);
+			expect(cache.pages.has("entry")).toBe(!purges);
+			expect(cache.invalidations).toEqual(purges ? [["post", "post-1"]] : []);
+			expect((await comments.findById(comment.id))?.status ?? null).toBe(
+				action === "delete" ? null : action === "approve" ? "approved" : action,
+			);
+		},
+	);
 
+	it.each([
+		["approve", false],
+		["spam", true],
+		["trash", true],
+		["delete", true],
+	] as const)(
+		"bulk %s handles already-approved entries without wasted purges",
+		async (action, purges) => {
+			const comment = await createComment("approved");
+			cache.set("entry", ["post-1"]);
+			const response = await bulkComments(
+				context({
+					request: new Request("http://localhost/_emdash/api/admin/comments/bulk", {
+						method: "POST",
+						body: JSON.stringify({ ids: [comment.id], action }),
+					}),
+				}),
+			);
+			expect(response.status).toBe(200);
+			expect(cache.pages.has("entry")).toBe(!purges);
+			expect(cache.invalidations).toEqual(purges ? [["post", "post-1"]] : []);
+			expect((await comments.findById(comment.id))?.status ?? null).toBe(
+				action === "delete" ? null : action === "approve" ? "approved" : action,
+			);
+		},
+	);
+
+	it("bulk status changes purge only entries whose visibility changes", async () => {
+		const pending = await createComment("pending");
+		const approved = await createComment("approved", "post-2");
+		cache.set("pending", ["post-1"]);
+		cache.set("approved", ["post-2"]);
 		const response = await bulkComments(
 			context({
 				request: new Request("http://localhost/_emdash/api/admin/comments/bulk", {
 					method: "POST",
+					body: JSON.stringify({ ids: [pending.id, approved.id], action: "spam" }),
+				}),
+			}),
+		);
+		expect(response.status).toBe(200);
+		expect(cache.pages.has("pending")).toBe(true);
+		expect(cache.pages.has("approved")).toBe(false);
+		expect(cache.invalidations).toEqual([["post", "post-2"]]);
+	});
+
+	it("bulk delete purges a pending parent with an approved reply", async () => {
+		const parent = await createComment("pending");
+		const reply = await createComment("approved", "post-1", parent.id);
+		cache.set("entry", ["post-1"]);
+		const response = await bulkComments(
+			context({
+				request: new Request("http://localhost/_emdash/api/admin/comments/bulk", {
+					method: "POST",
+					body: JSON.stringify({ ids: [parent.id], action: "delete" }),
+				}),
+			}),
+		);
+		expect(response.status).toBe(200);
+		expect(cache.pages.has("entry")).toBe(false);
+		expect(cache.invalidations).toEqual([["post", "post-1"]]);
+		expect(await comments.findById(parent.id)).toBeNull();
+		expect(await comments.findById(reply.id)).toBeNull();
+	});
+
+	it("bulk delete skips hidden entries while deduplicating affected entries across collections", async () => {
+		const hidden = await createComment("pending", "post-1");
+		const visible = await createComment("approved", "post-2");
+		const other = await comments.create({
+			collection: "page",
+			contentId: "page-1",
+			authorName: "Jane",
+			authorEmail: "jane@example.com",
+			body: "Approved page comment",
+			status: "approved",
+		});
+		cache.set("hidden", ["post-1"]);
+		cache.set("visible", ["post-2"]);
+		cache.set("other", ["page-1"]);
+		const response = await bulkComments(
+			context({
+				request: new Request("http://localhost", {
+					method: "POST",
 					body: JSON.stringify({
-						ids: [selected.id, selected.id, otherCollection.id, "missing-comment"],
-						action,
+						ids: [hidden.id, visible.id, visible.id, other.id, "missing"],
+						action: "delete",
 					}),
 				}),
 			}),
 		);
 		expect(response.status).toBe(200);
-		expect(cache.pages.has("selected")).toBe(false);
-		expect(cache.pages.has("same-collection")).toBe(false);
-		expect(cache.pages.has("other-collection")).toBe(false);
-		expect(cache.pages.has("unrelated")).toBe(true);
-		expect((await comments.findById(selected.id))?.status ?? null).toBe(expectedStatus);
-		expect((await comments.findById(sameCollection.id))?.status).toBe("pending");
-		expect((await comments.findById(otherCollection.id))?.status ?? null).toBe(expectedStatus);
+		expect(cache.pages.has("hidden")).toBe(true);
+		expect(cache.pages.has("visible")).toBe(false);
+		expect(cache.pages.has("other")).toBe(false);
+		expect(cache.invalidations).toHaveLength(1);
+		expect(cache.invalidations[0]?.toSorted()).toEqual(
+			["post", "post-2", "page", "page-1"].toSorted(),
+		);
+		for (const comment of [hidden, visible, other])
+			expect(await comments.findById(comment.id)).toBeNull();
 	});
 
 	it("invalidates the maximum-size bulk request without exceeding the cache tag limit", async () => {
@@ -469,6 +583,45 @@ describeEachDialect("comment route cache invalidation", (dialect) => {
 			expect((await comments.findById(comment.id))?.status).toBe("approved");
 		}
 		expect(cache.pages.has("unrelated")).toBe(true);
+	});
+
+	it("bulk delete batches reply lookups for 100 pending parents", async () => {
+		const content = new ContentRepository(db);
+		const parents: Comment[] = [];
+		for (let index = 0; index < 100; index++) {
+			const contentId = `delete-post-${index}`;
+			await content.create({
+				id: contentId,
+				type: "post",
+				slug: contentId,
+				data: { title: contentId },
+				status: "published",
+				publishedAt: new Date().toISOString(),
+			});
+			const parent = await createComment("pending", contentId);
+			await createComment("approved", contentId, parent.id);
+			parents.push(parent);
+			cache.set(`entry-${contentId}`, [contentId]);
+		}
+
+		const response = await bulkComments(
+			context({
+				request: new Request("http://localhost/_emdash/api/admin/comments/bulk", {
+					method: "POST",
+					body: JSON.stringify({ ids: parents.map((parent) => parent.id), action: "delete" }),
+				}),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		expect(cache.invalidations.length).toBeGreaterThan(0);
+		expect(cache.invalidations.every((tags) => tags.length <= 100)).toBe(true);
+		const invalidatedTags = cache.invalidations.flat();
+		for (const parent of parents) {
+			expect(invalidatedTags).toContain(parent.contentId);
+			expect(cache.pages.has(`entry-${parent.contentId}`)).toBe(false);
+			expect(await comments.findById(parent.id)).toBeNull();
+		}
 	});
 
 	it.skipIf(dialect !== "sqlite")(

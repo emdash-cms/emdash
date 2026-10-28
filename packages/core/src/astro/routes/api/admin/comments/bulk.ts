@@ -12,6 +12,7 @@ import { handleCommentBulk } from "#api/handlers/comments.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { commentBulkBody } from "#api/schemas.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
+import { getCommentRouteCacheTags } from "#comments/route-cache.js";
 import { chunks } from "#utils/chunks.js";
 
 export const prerender = false;
@@ -37,20 +38,14 @@ export const POST: APIRoute = async ({ request, locals, cache }) => {
 			if (denied) return denied;
 		}
 
-		const entries = cache?.enabled
-			? await emdash.db
-					.selectFrom("_emdash_comments")
-					.select(["collection", "content_id"])
-					.distinct()
-					.where("id", "in", body.ids)
-					.execute()
+		const tags = cache?.enabled
+			? await getCommentRouteCacheTags(emdash.db, body.ids, body.action)
 			: [];
 
 		try {
 			return unwrapResult(await handleCommentBulk(emdash.db, body.ids, body.action));
 		} finally {
 			// D1 can commit earlier batches even when a later batch fails.
-			const tags = [...new Set(entries.flatMap((entry) => [entry.collection, entry.content_id]))];
 			for (const tagBatch of chunks(tags, MAX_CACHE_PURGE_TAGS)) {
 				await invalidateRouteCache(cache, tagBatch);
 			}
