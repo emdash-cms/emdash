@@ -562,6 +562,25 @@ describe("ContentList", () => {
 				.not.toBeInTheDocument();
 			await expect.element(trigger).toHaveFocus();
 		});
+
+		it("closes the dialog when the user confirms", async () => {
+			const onDelete = vi.fn();
+			const items = [makeItem({ id: "item_1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onDelete={onDelete} />,
+			);
+
+			await screen.getByRole("button", { name: "Actions for Post" }).click();
+			await screen.getByRole("menuitem", { name: "Move to trash" }).click();
+			await expect.element(screen.getByRole("dialog", { name: "Move to Trash?" })).toBeVisible();
+			// Direct DOM click to bypass Base UI inert overlay
+			screen.getByRole("button", { name: "Move to Trash" }).element().click();
+
+			expect(onDelete).toHaveBeenCalledWith("item_1");
+			await expect
+				.element(screen.getByRole("dialog", { name: "Move to Trash?" }))
+				.not.toBeInTheDocument();
+		});
 	});
 
 	describe("permanent delete", () => {
@@ -596,6 +615,33 @@ describe("ContentList", () => {
 			await expect
 				.element(screen.getByRole("button", { name: "Delete Permanently" }))
 				.toBeInTheDocument();
+		});
+
+		it("closes the dialog when the user confirms", async () => {
+			const onPermanentDelete = vi.fn();
+			const trashed = [makeTrashedItem({ id: "t1", data: { title: "Old Post" } })];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[]}
+					trashedItems={trashed}
+					onPermanentDelete={onPermanentDelete}
+				/>,
+			);
+
+			await screen.getByText("Trash").click();
+			await screen.getByRole("button", { name: "Actions for Old Post" }).click();
+			await screen.getByRole("menuitem", { name: "Delete permanently" }).click();
+			await expect
+				.element(screen.getByRole("dialog", { name: "Delete Permanently?" }))
+				.toBeVisible();
+			// Direct DOM click to bypass Base UI inert overlay
+			screen.getByRole("button", { name: "Delete Permanently" }).element().click();
+
+			expect(onPermanentDelete).toHaveBeenCalledWith("t1");
+			await expect
+				.element(screen.getByRole("dialog", { name: "Delete Permanently?" }))
+				.not.toBeInTheDocument();
 		});
 	});
 
@@ -951,6 +997,28 @@ describe("ContentList", () => {
 				<ContentList {...defaultProps} items={[second]} onBulkDelete={vi.fn()} />,
 			);
 
+			await expect.element(screen.getByText("1 selected")).toBeInTheDocument();
+		});
+	});
+
+	describe("bulk delete", () => {
+		it("closes the confirmation dialog when the user confirms", async () => {
+			const onBulkDelete = vi.fn((ids: string[]) => Promise.resolve(ids));
+			const items = [makeItem({ id: "a", data: { title: "Alpha" } })];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onBulkDelete={onBulkDelete} />,
+			);
+			await screen.getByRole("checkbox", { name: "Select Alpha" }).click();
+
+			await screen.getByRole("button", { name: "Move to trash", exact: true }).click();
+			await expect.element(screen.getByRole("dialog", { name: "Move to Trash?" })).toBeVisible();
+			// Direct DOM click to bypass Base UI inert overlay
+			screen.getByRole("button", { name: "Move to Trash", exact: true }).element().click();
+
+			expect(onBulkDelete).toHaveBeenCalledWith(["a"]);
+			await expect
+				.element(screen.getByRole("dialog", { name: "Move to Trash?" }))
+				.not.toBeInTheDocument();
 			await expect.element(screen.getByText("1 selected")).toBeInTheDocument();
 		});
 	});
