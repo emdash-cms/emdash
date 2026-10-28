@@ -3,7 +3,8 @@ import { isAbsolute, join, relative, resolve, sep, win32 } from "node:path";
 
 import { computeMultihash } from "@emdash-cms/registry-verification/checksum";
 import { imageSize } from "image-size";
-import { parse, type ParseError } from "jsonc-parser";
+// The UMD entry hides relative requires from the Action bundler.
+import { parse, type ParseError } from "jsonc-parser/lib/esm/main.js";
 
 const MANIFEST_FILENAME = "emdash-plugin.jsonc";
 const MAX_MANIFEST_BYTES = 1024 * 1024;

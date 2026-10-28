@@ -5,7 +5,7 @@
 	"description": "GitHub Action for delegated EmDash plugin releases.",
 	"type": "module",
 	"scripts": {
-		"build": "tsdown && node scripts/normalize-dist.mjs",
+		"build": "tsdown && node scripts/normalize-dist.mjs && node scripts/check-dist.mjs",
 		"test": "vitest run",
 		"typecheck": "tsgo --noEmit"
 	},
