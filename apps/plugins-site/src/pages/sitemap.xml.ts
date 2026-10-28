@@ -6,10 +6,12 @@ import { pluginPath, publisherPath } from "../lib/registry.js";
 export const GET: APIRoute = async ({ site }) => {
 	const origin = site ?? new URL("https://plugins.emdashcms.com");
 	const result = await searchCatalog("");
-	const packages = "packages" in result ? result.packages : [];
-	const plugins = packages.map((plugin) => new URL(pluginPath(plugin), origin).href);
+	if ("error" in result) {
+		return new Response(null, { status: 503, headers: { "retry-after": "30" } });
+	}
+	const plugins = result.packages.map((plugin) => new URL(pluginPath(plugin), origin).href);
 	const publishers = [
-		...new Set(packages.map((plugin) => new URL(publisherPath(plugin), origin).href)),
+		...new Set(result.packages.map((plugin) => new URL(publisherPath(plugin), origin).href)),
 	];
 	const urls = [...publishers, ...plugins];
 
