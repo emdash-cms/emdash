@@ -162,7 +162,9 @@ export function ContentTypeList({
 										className="flex items-center justify-between bg-kumo-base rounded-md px-3 py-2"
 									>
 										<div>
-											<code className="text-sm font-medium">{orphan.slug}</code>
+											<code dir="ltr" className="text-sm font-medium">
+												{orphan.slug}
+											</code>
 											<span className="text-xs text-kumo-subtle ms-2">
 												{plural(orphan.rowCount, { one: "(# item)", other: "(# items)" })}
 											</span>
@@ -339,7 +341,9 @@ function ContentTypeRow({ collection, canReorder, onRequestDelete }: ContentType
 				</div>
 			</td>
 			<td className="px-4 py-3">
-				<code className="text-sm bg-kumo-tint px-1.5 py-0.5 rounded">{collection.slug}</code>
+				<code dir="ltr" className="text-sm bg-kumo-tint px-1.5 py-0.5 rounded">
+					{collection.slug}
+				</code>
 			</td>
 			<td className="px-4 py-3">
 				<SourceBadge source={collection.source} />

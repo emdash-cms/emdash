@@ -50,7 +50,7 @@ import { useDebouncedValue } from "../lib/hooks.js";
 import { inlineLabel } from "../lib/inline-label.js";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
-import { cn, parseTimestamp } from "../lib/utils";
+import { cn, formatDate, parseTimestamp } from "../lib/utils.js";
 import { getLocaleDir } from "../locales/config.js";
 import { useDateLocale } from "../locales/date-locale.js";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
@@ -69,6 +69,7 @@ import {
 import { ListPaginationFooter, type ListPagination } from "./ListPaginationFooter.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { declaredLabelTranslator } from "./Sidebar.js";
 import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
 
 /**
@@ -117,6 +118,8 @@ export interface ContentListProps {
 	isTrashedLoading?: boolean;
 	onDelete?: (id: string) => void;
 	onDuplicate?: (id: string) => void;
+	/** Whether to offer Duplicate on an entry's row. Offered on every row when omitted. */
+	canDuplicate?: (item: ContentItem) => boolean;
 	onRestore?: (id: string) => void;
 	onPermanentDelete?: (id: string) => void;
 	onLoadMore?: () => void;
@@ -263,6 +266,7 @@ export function ContentList({
 	isTrashedLoading,
 	onDelete,
 	onDuplicate,
+	canDuplicate,
 	onRestore,
 	onPermanentDelete,
 	onLoadMore,
@@ -823,7 +827,7 @@ export function ContentList({
 											visibleItems={paginatedItems}
 											collection={collection}
 											onDelete={deleteRow}
-											onDuplicate={onDuplicate}
+											onDuplicate={!canDuplicate || canDuplicate(item) ? onDuplicate : undefined}
 											showLocale={!!i18n}
 											i18n={i18n}
 											urlPattern={urlPattern}
@@ -1308,7 +1312,7 @@ function ExtensionColumnHeader({ column, collection, locale }: ExtensionColumnHe
 	const { i18n } = useLingui();
 	const { pluginId, extension } = column;
 	const Header = extension.header;
-	const label = i18n._(extension.label);
+	const label = declaredLabelTranslator(i18n, (id) => i18n._(id))(extension.label);
 
 	return (
 		<th
@@ -1408,7 +1412,7 @@ function ContentListItem({
 	onToggleSelect,
 	extensionColumns,
 }: ContentListItemProps) {
-	const { t } = useLingui();
+	const { t, i18n: lingui } = useLingui();
 	const title = getEntryTitle(item, titleField);
 	// A configured dateField drives the Date column; fall back to the
 	// last-updated / created date when it's unset, empty, or unparseable.
@@ -1453,7 +1457,7 @@ function ContentListItem({
 				</td>
 			)}
 			<td data-testid="content-updated" className="px-4 py-3 text-sm text-kumo-subtle">
-				{date.toLocaleDateString()}
+				<bdi>{formatDate(date, lingui.locale)}</bdi>
 			</td>
 			{extensionColumns?.map(({ pluginId, extension }) => {
 				const Cell = extension.cell;
@@ -1507,14 +1511,16 @@ function ContentListItem({
 						shape="square"
 						icon={<Pencil />}
 					/>
-					<Button
-						variant="ghost"
-						shape="square"
-						aria-label={t`Duplicate ${title}`}
-						onClick={() => onDuplicate?.(item.id)}
-					>
-						<Copy className="h-4 w-4" aria-hidden="true" />
-					</Button>
+					{onDuplicate && (
+						<Button
+							variant="ghost"
+							shape="square"
+							aria-label={t`Duplicate ${title}`}
+							onClick={() => onDuplicate(item.id)}
+						>
+							<Copy className="h-4 w-4" aria-hidden="true" />
+						</Button>
+					)}
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger
 							render={(p) => (
@@ -1668,7 +1674,7 @@ function TrashedListItem({
 	onRestore,
 	onPermanentDelete,
 }: TrashedListItemProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const title = getEntryTitle(item, titleField);
 	const deletedDate = parseTimestamp(item.deletedAt);
 
@@ -1684,7 +1690,9 @@ function TrashedListItem({
 					</span>
 				</td>
 			)}
-			<td className="px-4 py-3 text-sm text-kumo-subtle">{deletedDate.toLocaleDateString()}</td>
+			<td className="px-4 py-3 text-sm text-kumo-subtle">
+				<bdi>{formatDate(deletedDate, i18n.locale)}</bdi>
+			</td>
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					<Button

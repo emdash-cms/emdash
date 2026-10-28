@@ -9,6 +9,7 @@
  * the provider's `get()` method.
  */
 
+import { syncMediaCaption } from "./caption.js";
 import { normalizeFocalPoint } from "./focal-point.js";
 import type { MediaProvider, MediaProviderItem, MediaValue } from "./types.js";
 
@@ -29,6 +30,7 @@ export function normalizeLegacyExternalMediaValue(value: MediaValue): MediaValue
  * Normalize a media field value into a consistent MediaValue shape.
  *
  * - `null`/`undefined` → `null`
+ * - Empty or whitespace-only string → `null`
  * - Bare URL string → `{ provider: "external", id: "", src: url }`
  * - Bare internal media URL → resolved via local provider's `get()`
  * - Bare local media ID → resolved via local provider's `get()`
@@ -42,6 +44,7 @@ export async function normalizeMediaValue(
 
 	// Bare string URL
 	if (typeof value === "string") {
+		if (value.trim() === "") return null;
 		return normalizeStringUrl(value, getProvider);
 	}
 
@@ -151,7 +154,7 @@ async function resolveInternalUrl(
 	}
 
 	const focalPoint = normalizeFocalPoint(item.focalX, item.focalY);
-	return {
+	return syncMediaCaption({
 		provider: "local",
 		id: item.id,
 		filename: item.filename,
@@ -162,8 +165,9 @@ async function resolveInternalUrl(
 		blurhash: item.blurhash,
 		dominantColor: item.dominantColor,
 		alt: item.alt,
+		caption: item.caption,
 		meta: item.meta,
-	};
+	});
 }
 
 async function resolveLocalId(
@@ -184,7 +188,7 @@ async function resolveLocalId(
 	if (!item) return null;
 
 	const focalPoint = normalizeFocalPoint(item.focalX, item.focalY);
-	return {
+	return syncMediaCaption({
 		provider: "local",
 		id: item.id,
 		filename: item.filename,
@@ -195,13 +199,15 @@ async function resolveLocalId(
 		blurhash: item.blurhash,
 		dominantColor: item.dominantColor,
 		alt: item.alt,
+		caption: item.caption,
 		meta: item.meta,
-	};
+	});
 }
 
 /**
- * Merge provider data into an existing MediaValue, preserving caller-supplied fields.
- * Caller `alt` takes priority over provider `alt` (per-usage, not per-image).
+ * Fill missing media metadata from a provider.
+ * Caller captions, including empty strings, take priority over provider captions.
+ * Provider alt text fills missing or empty caller alt text.
  */
 function mergeProviderData(existing: MediaValue, item: MediaProviderItem): MediaValue {
 	const result = { ...existing };
@@ -223,12 +229,14 @@ function mergeProviderData(existing: MediaValue, item: MediaProviderItem): Media
 	// Fill missing alt (provider alt is fallback, not override)
 	if (!result.alt && item.alt) result.alt = item.alt;
 
+	if (result.caption == null && item.caption != null) result.caption = item.caption;
+
 	// Fill missing meta (merge, don't replace)
 	if (item.meta) {
 		result.meta = { ...item.meta, ...result.meta };
 	}
 
-	return result;
+	return syncMediaCaption(result);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -258,6 +266,7 @@ function recordToMediaValue(obj: Record<string, unknown>): MediaValue {
 	if (typeof obj.blurhash === "string") result.blurhash = obj.blurhash;
 	if (typeof obj.dominantColor === "string") result.dominantColor = obj.dominantColor;
 	if (typeof obj.alt === "string") result.alt = obj.alt;
+	if (typeof obj.caption === "string") result.caption = obj.caption;
 	if (isRecord(obj.meta)) result.meta = obj.meta;
-	return result;
+	return syncMediaCaption(result);
 }

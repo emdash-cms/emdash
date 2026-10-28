@@ -261,6 +261,7 @@ export function DeviceAuthorizePage() {
 								{t`Device code`}
 							</label>
 							<Input
+								dir="ltr"
 								id="user-code"
 								type="text"
 								value={code}

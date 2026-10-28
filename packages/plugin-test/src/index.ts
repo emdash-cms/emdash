@@ -6,6 +6,7 @@ import { reset } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import {
 	ContentRepository,
+	handleContentCreate,
 	SchemaRegistry,
 	type CreateCollectionInput,
 	type CreateFieldInput,
@@ -139,6 +140,24 @@ export async function createPluginTestHost(): Promise<PluginTestHost> {
 		await db.destroy();
 		throw new Error(`Plugin sandbox unavailable: ${runner.unavailableReason()}`);
 	}
+	runner.setContentCreate(async (_pluginId, collection, input, options) => {
+		const { seo, slug, status, ...data } = input;
+		const result = await handleContentCreate(db, collection, {
+			data,
+			seo,
+			slug: typeof slug === "string" ? slug : undefined,
+			status: typeof status === "string" ? status : undefined,
+			locale: options?.locale,
+			translationOf: options?.translationOf,
+		});
+		if (!result.success) {
+			throw Object.assign(new Error(result.error.message), {
+				name: result.error.code,
+				code: result.error.code,
+			});
+		}
+		return result.data.item;
+	});
 	const plugin = await runner.load(manifest, bindings.EMDASH_PLUGIN_CODE);
 	const registry = new SchemaRegistry(db);
 	const content = new ContentRepository(db);

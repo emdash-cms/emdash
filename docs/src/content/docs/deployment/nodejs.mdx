@@ -5,11 +5,11 @@ description: Deploy EmDash to a long-running Node.js server with persistent data
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash runs on Node.js 22.16 or later. This guide uses SQLite and local storage for one server. Use PostgreSQL or libSQL when several instances need one database, and S3-compatible storage when media must survive independently of the server disk.
+This guide uses SQLite and local storage for one server. Use PostgreSQL or libSQL when several instances need one database, and S3-compatible storage when media must survive independently of the server disk.
 
 ## Prerequisites
 
-- Node.js v22.16.0 or higher
+- Node.js v22.23.4 or higher (v22.16.0 is enough on Astro 7.3 or earlier)
 - A Node.js hosting provider or VPS
 
 <Aside>

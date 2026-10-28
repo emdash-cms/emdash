@@ -38,6 +38,8 @@ export default defineConfig({
 
 `emdashPluginTest()` runs the plugin build before Vitest starts. It reads the generated runtime and manifest, creates an isolated D1 database and Worker Loader binding, and exports the same `PluginBridge` used by Cloudflare deployments. Pass `{ dir: "./packages/gallery" }` when the Vitest configuration lives outside the plugin directory.
 
+Test builds use temporary output directories that are removed after the runtime and manifest are loaded. Testing leaves any existing `dist/` directory unchanged. Run `emdash-plugin build` separately to generate build artifacts.
+
 ## Test sandbox transport
 
 Create and dispose a host inside each test. Disposal stops the plugin and resets its test bindings:
@@ -162,6 +164,10 @@ The runtime host groups its API by boundary:
 - `scheduled` controls the effective time for cron tasks and scheduled publishing, then runs one production maintenance batch.
 - `http` queues external responses and captures the requests that a plugin sends through `ctx.http.fetch()`.
 - `restart()` replaces the runtime and isolate while retaining D1, plugin storage, media storage, and plugin state.
+
+Call `await host.waitForDeferredTasks()` after an action to finish deferred runtime work, such as `content:afterPublish` hooks, before inspecting its effects or starting another action on the same entry. Same-entry actions can otherwise fail with `CONTENT_ACTION_REENTRANT` while an after-hook is running.
+
+The method also waits for deferred work queued by those tasks. It does not run future scheduled tasks or wait for arbitrary unawaited plugin promises. Continue to await plugin operations before returning from a route or hook.
 
 Call `dispose()` after each test. Disposal terminates the isolate and resets all bindings, so a later test cannot observe the previous host's database or media.
 

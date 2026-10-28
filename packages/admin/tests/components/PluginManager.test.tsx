@@ -117,9 +117,9 @@ function makeManifest(overrides: Partial<AdminManifest> = {}): AdminManifest {
 	};
 }
 
-function Wrapper({ children }: { children: React.ReactNode }) {
+function Wrapper({ children, staleTime }: { children: React.ReactNode; staleTime?: number }) {
 	const qc = new QueryClient({
-		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+		defaultOptions: { queries: { retry: false, staleTime }, mutations: { retry: false } },
 	});
 	return (
 		<QueryClientProvider client={qc}>
@@ -169,6 +169,23 @@ describe("PluginManager", () => {
 		await expect.element(screen.getByText("v1.0.0")).toBeInTheDocument();
 		await expect.element(screen.getByText("SEO Helper")).toBeInTheDocument();
 		await expect.element(screen.getByText("v2.0.0")).toBeInTheDocument();
+	});
+
+	it.each([
+		{ count: 1, label: "1 plugin" },
+		{ count: 2, label: "2 plugins" },
+	])("shows the plugin count as $label", async ({ count, label }) => {
+		mockFetchPlugins.mockResolvedValue(
+			Array.from({ length: count }, (_, i) =>
+				makePlugin({ id: `plugin-${i}`, name: `Plugin ${i}` }),
+			),
+		);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await expect.element(screen.getByText(label, { exact: true })).toBeInTheDocument();
 	});
 
 	it("shows the server's MCP tool name before enabling a scoped plugin's tools", async () => {
@@ -311,6 +328,42 @@ describe("PluginManager", () => {
 				acknowledgedReleaseCid: "release-cid",
 			});
 		});
+	});
+
+	it.each([
+		{
+			source: "registry" as const,
+			id: "r_abcdefghijklmnop",
+			extra: { registryPublisherDid: "did:plc:publisher", registrySlug: "editorial-workflow" },
+		},
+		{ source: "marketplace" as const, id: "mp-plugin", extra: {} },
+	])("clears the $source update badge once the update succeeds", async ({ source, id, extra }) => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({ id, name: "Editorial Workflow", source, version: "1.0.0", ...extra }),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{ pluginId: id, installed: "1.0.0", latest: "2.0.0", hasCapabilityChanges: false },
+		]);
+		const screen = await render(
+			<Wrapper staleTime={60_000}>
+				<PluginManager />
+			</Wrapper>,
+		);
+
+		await screen.getByText("Check for updates").click();
+		await expect.element(screen.getByText("v2.0.0 available")).toBeInTheDocument();
+
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({ id, name: "Editorial Workflow", source, version: "2.0.0", ...extra }),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{ pluginId: id, installed: "2.0.0", latest: "2.0.0", hasCapabilityChanges: false },
+		]);
+		await screen.getByText("Update to v2.0.0").click();
+
+		await expect.element(screen.getByText("v2.0.0", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("v2.0.0 available")).not.toBeInTheDocument();
+		await expect.element(screen.getByText("Update to v2.0.0")).not.toBeInTheDocument();
 	});
 
 	it("enabled plugins show toggle in on state", async () => {

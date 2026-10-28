@@ -440,7 +440,9 @@ export function ContentTypeEditor({
 				</h1>
 				{!isNew && (
 					<p className="text-kumo-subtle text-sm">
-						<code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code>
+						<code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded">
+							{collection?.slug}
+						</code>
 						{isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>}
 					</p>
 				)}
@@ -483,6 +485,7 @@ export function ContentTypeEditor({
 							{isNew && (
 								<div>
 									<Input
+										dir="ltr"
 										label={t`Slug`}
 										value={slug}
 										onChange={(e) => setSlug(e.target.value)}
@@ -533,6 +536,7 @@ export function ContentTypeEditor({
 
 							<div>
 								<Input
+									dir="ltr"
 									label={t`URL Pattern`}
 									value={urlPattern}
 									onChange={(e) => setUrlPattern(e.target.value)}
@@ -570,6 +574,7 @@ export function ContentTypeEditor({
 								</div>
 								<div>
 									<Input
+										dir="ltr"
 										label={t`Icon`}
 										value={icon}
 										onChange={(e) => setIcon(e.target.value)}
@@ -937,7 +942,7 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center space-x-2">
 					<span className="font-medium">{field.label}</span>
-					<code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle">
+					<code dir="ltr" className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle">
 						{field.slug}
 					</code>
 				</div>
@@ -991,7 +996,7 @@ function SystemFieldRow({ field }: { field: SystemFieldInfo }) {
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center space-x-2">
 					<span className="font-medium text-sm">{t(field.label)}</span>
-					<code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle">
+					<code dir="ltr" className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle">
 						{field.slug}
 					</code>
 					<Badge variant="secondary">{t`System`}</Badge>
