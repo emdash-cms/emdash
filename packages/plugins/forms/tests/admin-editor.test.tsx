@@ -180,7 +180,8 @@ async function addConditionalFields() {
 	fireEvent.change(labels[1]!, { target: { value: "Details" } });
 	fireEvent.change(names[2]!, { target: { value: "details" } });
 	const conditionField = screen.getAllByLabelText("Show when field")[1]!;
-	fireEvent.change(conditionField, { target: { value: "choice" } });
+	const choiceOption = screen.getByRole("option", { name: "Choice (choice)" });
+	fireEvent.change(conditionField, { target: { value: choiceOption.getAttribute("value") } });
 }
 
 describe("forms editor", () => {
@@ -238,6 +239,7 @@ describe("forms editor", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Create Form" }));
 		await waitFor(() => expect(requests[1]?.route).toBe("forms/create"));
 		const body = formCreateSchema.parse(requests[1]!.body);
+		expect(requests[1]!.body).not.toHaveProperty("pages.0.fields.1.conditionFieldId");
 		expect(body.settings).toMatchObject({
 			digestEnabled: true,
 			digestHour: 18,
@@ -277,7 +279,7 @@ describe("forms editor", () => {
 		});
 		fireEvent.change(screen.getAllByLabelText("Name")[1]!, { target: { value: "renamed" } });
 		expect((screen.getAllByLabelText("Show when field")[1] as HTMLSelectElement).value).toBe(
-			"renamed",
+			"id:controller",
 		);
 		fireEvent.click(screen.getAllByLabelText("Remove")[0]!);
 		expect((screen.getAllByLabelText("Show when field")[0] as HTMLSelectElement).value).toBe("");
@@ -298,13 +300,120 @@ describe("forms editor", () => {
 		expect(screen.getAllByLabelText("Show when field")).toHaveLength(2);
 	});
 
-	it("clears dependents when a controller name is cleared instead of attaching them to an unnamed field", async () => {
+	it("keeps a condition bound while its controller is cleared, retyped, or auto-renamed", async () => {
 		await openEditor([existing]);
-		fireEvent.change(screen.getAllByLabelText("Name")[1]!, { target: { value: "" } });
-		expect(screen.queryByLabelText("Condition operator")).toBeNull();
+		const controllerName = screen.getAllByLabelText("Name")[1]!;
+		const condition = screen.getAllByLabelText("Show when field")[1] as HTMLSelectElement;
+		fireEvent.change(controllerName, { target: { value: "" } });
+		fireEvent.change(controllerName, { target: { value: "choice" } });
+		expect(condition.value).toBe("id:controller");
+		fireEvent.change(screen.getAllByLabelText("Label")[0]!, { target: { value: "" } });
+		expect(condition.value).toBe("id:controller");
+		fireEvent.change(screen.getAllByLabelText("Label")[0]!, {
+			target: { value: "Renamed Choice" },
+		});
+		expect(condition.value).toBe("id:controller");
+		fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+		await waitFor(() => expect(requests[1]?.route).toBe("forms/update"));
+		const body = formUpdateSchema.parse(requests[1]!.body);
+		expect(body.pages?.[0]?.fields[1]?.condition?.field).toBe("renamed_choice");
+	});
+
+	it("does not switch a condition during a duplicate-name edit", async () => {
+		await openEditor([existing]);
+		const controllerName = screen.getAllByLabelText("Name")[1]!;
+		const condition = screen.getAllByLabelText("Show when field")[1] as HTMLSelectElement;
+		fireEvent.change(controllerName, { target: { value: "details" } });
+		expect(condition.value).toBe("id:controller");
+		fireEvent.change(controllerName, { target: { value: "new_controller" } });
+		expect(condition.value).toBe("id:controller");
+		fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+		await waitFor(() => expect(requests[1]?.route).toBe("forms/update"));
+		const body = formUpdateSchema.parse(requests[1]!.body);
+		expect(body.pages?.[0]?.fields[1]?.condition?.field).toBe("new_controller");
+		expect(requests[1]!.body).not.toHaveProperty("pages.0.fields.1.conditionFieldId");
+	});
+
+	it("does not let an unnamed field steal dependents of an unnamed controller", async () => {
+		await openEditor([existing]);
+		const controllerName = screen.getAllByLabelText("Name")[1]!;
+		fireEvent.change(controllerName, { target: { value: "" } });
 		fireEvent.click(screen.getByRole("button", { name: "Add Field" }));
 		fireEvent.change(screen.getAllByLabelText("Name")[3]!, { target: { value: "other" } });
-		expect(screen.queryByLabelText("Condition operator")).toBeNull();
+		fireEvent.change(controllerName, { target: { value: "restored" } });
+		expect((screen.getAllByLabelText("Show when field")[1] as HTMLSelectElement).value).toBe(
+			"id:controller",
+		);
+		expect(
+			screen.getAllByLabelText("Show when field")[1]!.querySelector("option:checked")?.textContent,
+		).toBe("choice (restored)");
+	});
+
+	it("preserves an autoresponder draft when toggled off and back on", async () => {
+		await openEditor([existing]);
+		fireEvent.click(screen.getByLabelText("Send an autoresponder"));
+		fireEvent.click(screen.getByLabelText("Send an autoresponder"));
+		expect(screen.getByDisplayValue("Old subject")).toBeTruthy();
+		expect(screen.getByDisplayValue("Old body")).toBeTruthy();
+		change("Autoresponder subject", "Edited subject");
+		fireEvent.change(screen.getByLabelText("Autoresponder body"), {
+			target: { value: "Edited body" },
+		});
+		fireEvent.click(screen.getByLabelText("Send an autoresponder"));
+		fireEvent.click(screen.getByLabelText("Send an autoresponder"));
+		expect(screen.getByDisplayValue("Edited subject")).toBeTruthy();
+		expect(screen.getByDisplayValue("Edited body")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+		await waitFor(() => expect(requests[1]?.route).toBe("forms/update"));
+		const body = formUpdateSchema.parse(requests[1]!.body);
+		expect(body.settings?.autoresponder).toEqual({
+			subject: "Edited subject",
+			body: "Edited body",
+		});
+	});
+
+	it("hides default value for unsupported field types and preserves it when changed back", async () => {
+		await openEditor([existing]);
+		fireEvent.change(screen.getAllByLabelText("Default value")[0]!, { target: { value: "kept" } });
+		const type = screen.getAllByLabelText("Type")[0]!;
+		fireEvent.change(type, { target: { value: "file" } });
+		expect(screen.getAllByLabelText("Default value")).toHaveLength(1);
+		fireEvent.change(type, { target: { value: "checkbox-group" } });
+		expect(screen.getAllByLabelText("Default value")).toHaveLength(1);
+		fireEvent.change(type, { target: { value: "text" } });
+		expect((screen.getAllByLabelText("Default value")[0] as HTMLInputElement).value).toBe("kept");
+	});
+
+	it("does not offer unsupported field types as new condition controllers", async () => {
+		await openEditor();
+		change("Name", "Contact");
+		await addConditionalFields();
+		fireEvent.change(screen.getAllByLabelText("Show when field")[1]!, { target: { value: "" } });
+		for (const type of ["file", "checkbox-group"]) {
+			fireEvent.change(screen.getAllByLabelText("Type")[0]!, { target: { value: type } });
+			const options = screen.getAllByLabelText("Show when field")[1]!.querySelectorAll("option");
+			expect([...options].some((option) => option.textContent === "Choice (choice)")).toBe(false);
+		}
+	});
+
+	it.each(["radio", "checkbox", "checkbox-group", "file", "hidden"])(
+		"does not offer an ineffective placeholder for %s fields",
+		async (type) => {
+			await openEditor([existing]);
+			fireEvent.change(screen.getAllByLabelText("Type")[0]!, { target: { value: type } });
+			expect(screen.getAllByLabelText("Placeholder")).toHaveLength(1);
+			expect(screen.getByDisplayValue("old placeholder")).toBeTruthy();
+		},
+	);
+
+	it("labels a single checkbox's submitted value without implying it starts checked", async () => {
+		await openEditor([existing]);
+		fireEvent.change(screen.getAllByLabelText("Type")[0]!, { target: { value: "checkbox" } });
+		change("Value when checked", "1");
+		fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+		await waitFor(() => expect(requests[1]?.route).toBe("forms/update"));
+		const body = formUpdateSchema.parse(requests[1]!.body);
+		expect(body.pages?.[0]?.fields[0]?.defaultValue).toBe("1");
 	});
 
 	it("does not save an autoresponder with a missing subject or body", async () => {

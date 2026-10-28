@@ -116,6 +116,10 @@ interface FormField {
 	width: "full" | "half";
 }
 
+interface EditorField extends FormField {
+	conditionFieldId?: string;
+}
+
 interface FormSettings {
 	confirmationMessage: string;
 	redirectUrl?: string;
@@ -461,8 +465,22 @@ function FormEditor({
 	const i18n = useEditorI18n();
 	const [name, setName] = React.useState(form?.name ?? "");
 	const [slug, setSlug] = React.useState(form?.slug ?? "");
-	const [fields, setFields] = React.useState<FormField[]>(form?.pages[0]?.fields ?? []);
+	const [fields, setFields] = React.useState<EditorField[]>(() => {
+		const initialFields = form?.pages[0]?.fields ?? [];
+		return initialFields.map((field) => ({
+			...field,
+			conditionFieldId: field.condition
+				? initialFields.find((controller) => controller.name === field.condition?.field)?.id
+				: undefined,
+		}));
+	});
 	const [settings, setSettings] = React.useState<Partial<FormSettings>>(form?.settings ?? {});
+	const [autoresponderEnabled, setAutoresponderEnabled] = React.useState(
+		form?.settings.autoresponder != null,
+	);
+	const [autoresponderDraft, setAutoresponderDraft] = React.useState(
+		form?.settings.autoresponder ?? { subject: "", body: "" },
+	);
 	const [saving, setSaving] = React.useState(false);
 	const [error, setError] = React.useState<string | null>(null);
 	const [turnstileStatus, setTurnstileStatus] = React.useState<{
@@ -509,29 +527,30 @@ function FormEditor({
 		]);
 	};
 
-	const updateField = (index: number, updates: Partial<FormField>) => {
-		setFields((prev) => {
-			const previousName = prev[index]?.name;
-			const uniqueName = previousName && prev.filter((f) => f.name === previousName).length === 1;
-			return prev.map((f, i) => {
-				const updated = i === index ? { ...f, ...updates } : f;
-				if (updates.name !== undefined && uniqueName && updated.condition?.field === previousName) {
-					return {
-						...updated,
-						condition: updates.name ? { ...updated.condition, field: updates.name } : undefined,
-					};
+	const updateField = (index: number, updates: Partial<EditorField>) => {
+		setFields((prev) =>
+			prev.map((field, i) => {
+				const updated = i === index ? { ...field, ...updates } : field;
+				if (
+					updates.name !== undefined &&
+					updated.condition &&
+					updated.conditionFieldId === prev[index]?.id
+				) {
+					return { ...updated, condition: { ...updated.condition, field: updates.name } };
 				}
 				return updated;
-			});
-		});
+			}),
+		);
 	};
 
 	const removeField = (index: number) => {
 		setFields((prev) =>
 			prev
 				.filter((_, i) => i !== index)
-				.map((f) =>
-					f.condition?.field === prev[index]?.name ? { ...f, condition: undefined } : f,
+				.map((field) =>
+					field.conditionFieldId === prev[index]?.id
+						? { ...field, condition: undefined, conditionFieldId: undefined }
+						: field,
 				),
 		);
 	};
@@ -563,8 +582,8 @@ function FormEditor({
 		}
 
 		if (
-			settings.autoresponder &&
-			(!settings.autoresponder.subject.trim() || !settings.autoresponder.body.trim())
+			autoresponderEnabled &&
+			(!autoresponderDraft.subject.trim() || !autoresponderDraft.body.trim())
 		) {
 			setError(i18n._("Autoresponder subject and body are required"));
 			return;
@@ -573,18 +592,23 @@ function FormEditor({
 		setSaving(true);
 		setError(null);
 
+		const savedSettings = {
+			...settings,
+			autoresponder: autoresponderEnabled ? autoresponderDraft : form ? null : undefined,
+		};
+		const savedFields = fields.map(({ conditionFieldId: _controllerId, ...field }) => field);
 		const payload = form
 			? {
 					id: form.id,
 					name,
 					slug,
-					pages: [{ fields }],
-					settings,
+					pages: [{ fields: savedFields }],
+					settings: savedSettings,
 				}
 			: {
 					name,
 					slug,
-					pages: [{ fields }],
+					pages: [{ fields: savedFields }],
 					settings: {
 						confirmationMessage: "Thank you for your submission.",
 						notifyEmails: [],
@@ -593,8 +617,7 @@ function FormEditor({
 						retentionDays: 0,
 						spamProtection: "honeypot",
 						submitLabel: "Submit",
-						...settings,
-						autoresponder: settings.autoresponder ?? undefined,
+						...savedSettings,
 					},
 				};
 
@@ -760,42 +783,28 @@ function FormEditor({
 					<div className="col-span-2 space-y-3">
 						<Checkbox
 							label={i18n._("Send an autoresponder")}
-							checked={settings.autoresponder != null}
-							onCheckedChange={(checked) =>
-								setSettings((s) => ({
-									...s,
-									autoresponder: checked ? { subject: "", body: "" } : null,
-								}))
-							}
+							checked={autoresponderEnabled}
+							onCheckedChange={setAutoresponderEnabled}
 						/>
 						<p className="text-sm text-kumo-subtle">
 							{i18n._(
 								"Send a reply to the first email field in the form. Email must be configured.",
 							)}
 						</p>
-						{settings.autoresponder && (
+						{autoresponderEnabled && (
 							<>
 								<Input
 									label={i18n._("Autoresponder subject")}
-									value={settings.autoresponder.subject}
+									value={autoresponderDraft.subject}
 									onChange={(e) =>
-										setSettings((s) => ({
-											...s,
-											autoresponder: { subject: e.target.value, body: s.autoresponder?.body ?? "" },
-										}))
+										setAutoresponderDraft((draft) => ({ ...draft, subject: e.target.value }))
 									}
 								/>
 								<InputArea
 									label={i18n._("Autoresponder body")}
-									value={settings.autoresponder.body}
+									value={autoresponderDraft.body}
 									onChange={(e) =>
-										setSettings((s) => ({
-											...s,
-											autoresponder: {
-												subject: s.autoresponder?.subject ?? "",
-												body: e.target.value,
-											},
-										}))
+										setAutoresponderDraft((draft) => ({ ...draft, body: e.target.value }))
 									}
 								/>
 							</>
@@ -848,22 +857,34 @@ function FieldRow({
 	onRemove,
 	onMove,
 }: {
-	field: FormField;
-	fields: FormField[];
+	field: EditorField;
+	fields: EditorField[];
 	index: number;
 	total: number;
-	onChange: (updates: Partial<FormField>) => void;
+	onChange: (updates: Partial<EditorField>) => void;
 	onRemove: () => void;
 	onMove: (direction: -1 | 1) => void;
 }) {
 	const i18n = useEditorI18n();
-	const conditionFields = fields.filter((f) => f.id !== field.id && f.name);
+	const conditionFields = fields.filter(
+		(f) =>
+			f.id !== field.id &&
+			((f.name && !["checkbox-group", "file"].includes(f.type)) || f.id === field.conditionFieldId),
+	);
 	const conditionItems = [
 		{ label: i18n._("Always visible"), value: "" },
-		...conditionFields.map((f) => ({ label: `${f.label} (${f.name})`, value: f.name })),
+		...conditionFields.map((f) => ({
+			label: f.name ? `${f.label} (${f.name})` : f.label || i18n._("Unnamed field"),
+			value: `id:${f.id}`,
+		})),
 	];
-	if (field.condition?.field && !conditionFields.some((f) => f.name === field.condition?.field)) {
-		conditionItems.push({ label: field.condition.field, value: field.condition.field });
+	const conditionValue = field.conditionFieldId
+		? `id:${field.conditionFieldId}`
+		: field.condition
+			? `name:${field.condition.field}`
+			: "";
+	if (field.condition && !conditionItems.some((item) => item.value === conditionValue)) {
+		conditionItems.push({ label: field.condition.field, value: conditionValue });
 	}
 	const needsOptions = ["select", "radio", "checkbox-group"].includes(field.type);
 
@@ -948,39 +969,53 @@ function FieldRow({
 			</div>
 
 			<div className="ms-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
-				<Input
-					label={i18n._("Placeholder")}
-					value={field.placeholder ?? ""}
-					onChange={(e) => onChange({ placeholder: e.target.value })}
-				/>
+				{["text", "email", "textarea", "number", "tel", "url", "date", "select"].includes(
+					field.type,
+				) && (
+					<Input
+						label={i18n._("Placeholder")}
+						value={field.placeholder ?? ""}
+						onChange={(e) => onChange({ placeholder: e.target.value })}
+					/>
+				)}
 				<Input
 					label={i18n._("Help text")}
 					value={field.helpText ?? ""}
 					onChange={(e) => onChange({ helpText: e.target.value })}
 				/>
-				<Input
-					label={i18n._("Default value")}
-					value={field.defaultValue ?? ""}
-					onChange={(e) => onChange({ defaultValue: e.target.value })}
-				/>
+				{!["checkbox-group", "file"].includes(field.type) && (
+					<Input
+						label={
+							field.type === "checkbox" ? i18n._("Value when checked") : i18n._("Default value")
+						}
+						placeholder={field.type === "checkbox" ? "1" : undefined}
+						value={field.defaultValue ?? ""}
+						onChange={(e) => onChange({ defaultValue: e.target.value })}
+					/>
+				)}
 			</div>
 			<div className="ms-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
 				<Select
 					label={i18n._("Show when field")}
 					hideLabel={false}
-					value={field.condition?.field ?? ""}
+					value={conditionValue}
 					items={conditionItems}
-					onValueChange={(value) =>
+					onValueChange={(value) => {
+						if (!value) {
+							onChange({ condition: undefined, conditionFieldId: undefined });
+							return;
+						}
+						const controller = conditionFields.find((f) => `id:${f.id}` === value);
+						if (!controller) return;
 						onChange({
-							condition: value
-								? {
-										field: value,
-										op: field.condition?.op ?? "eq",
-										value: field.condition?.value ?? "",
-									}
-								: undefined,
-						})
-					}
+							conditionFieldId: controller.id,
+							condition: {
+								field: controller.name,
+								op: field.condition?.op ?? "eq",
+								value: field.condition?.value ?? "",
+							},
+						});
+					}}
 				/>
 				{field.condition && (
 					<>
