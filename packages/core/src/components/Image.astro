@@ -5,11 +5,11 @@
  * Renders image blocks from WordPress imports and EmDash media.
  * Uses the provider's getSrc function for responsive srcset generation.
  */
-import { Image as AstroImage } from "astro:assets";
+import { Image as AstroImage, getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
-import { toAbsoluteMediaUrl, responsiveWidths } from "../media/responsive.js";
+import { canOptimizeImage, toAbsoluteMediaUrl, responsiveWidths } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
 import { sanitizeHref } from "../utils/url.js";
 import { normalizeImageLink } from "../content/converters/image-link.js";
@@ -170,7 +170,10 @@ if (!src) {
 		id: asset._ref,
 	});
 	if (renderWidth && renderHeight) {
-		astroImageSrc = toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config));
+		const absoluteSrc = toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config));
+		if (await canOptimizeImage(getImage, { src: absoluteSrc, width: renderWidth, height: renderHeight })) {
+			astroImageSrc = absoluteSrc;
+		}
 	}
 }
 
