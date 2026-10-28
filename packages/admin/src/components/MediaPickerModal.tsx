@@ -88,6 +88,7 @@ interface SelectedMedia {
 	providerId: string;
 	item: MediaItem | MediaProviderItem;
 	uploadJobId?: number;
+	uploadFolderId?: string | null;
 }
 
 interface UploadedMedia {
@@ -564,8 +565,14 @@ export function MediaPickerModal({
 			providerId: result.providerId,
 			item: result.item,
 			uploadJobId: id,
+			uploadFolderId: uploadTargetsRef.current.get(id)?.folderId,
 		}));
-		setPinnedItems((current) => appendUniqueSelections(current, additions));
+		setPinnedItems((current) =>
+			appendUniqueSelections(
+				current.filter((selected) => !additions.some((addition) => addition.key === selected.key)),
+				additions,
+			),
+		);
 		setSelectedItems((current) => {
 			if (!multiple) return [additions.at(-1)!];
 			return appendUniqueSelections(current, additions, !selectionOrderEditedRef.current);
@@ -899,19 +906,25 @@ export function MediaPickerModal({
 	const visibleItems = React.useMemo(() => {
 		const pinnedSearch = activeSource === "local" ? activeSearch : searchQuery.trim();
 		const pinnedMimeFilters = activeSource === "local" ? effectiveMimeFilters : filters;
-		const pinned = pinnedItems.filter(
-			(selected) =>
+		const pinned = pinnedItems.filter((selected) => {
+			const pinnedFolderId =
+				selected.uploadFolderId !== undefined
+					? selected.uploadFolderId
+					: "folderId" in selected.item
+						? selected.item.folderId
+						: null;
+			return (
 				selected.providerId === activeSource &&
 				!(
 					activeSource === "local" &&
 					!activeSearch &&
-					(("folderId" in selected.item ? selected.item.folderId : null) ?? null) !==
-						(folderId ?? null)
+					(pinnedFolderId ?? null) !== (folderId ?? null)
 				) &&
 				!(activeSource === "local" && effectiveMimeFilters?.length === 0) &&
 				matchesFilenameSearch(selected.item.filename, pinnedSearch) &&
-				matchesAnyFilter(selected.item.mimeType, pinnedMimeFilters),
-		);
+				matchesAnyFilter(selected.item.mimeType, pinnedMimeFilters)
+			);
+		});
 		const keys = new Set(pinned.map((selected) => selected.key));
 		return [
 			...pinned.map((selected) => selected.item),

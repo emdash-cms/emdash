@@ -143,6 +143,53 @@ describe("MediaPickerModal inline uploads", () => {
 		).toContain("/_emdash/api/media/file/existing.jpg");
 	});
 
+	it.each([false, true])(
+		"keeps a Main upload visible when it reuses a folder item (already pinned: %s)",
+		async (alreadyPinned) => {
+			const existing = { ...mediaItem("existing-folder", "existing.jpg"), folderId: "folder-1" };
+			apiMocks.uploadMedia.mockResolvedValueOnce(existing);
+			const onSelect = vi.fn();
+			const api = await import("../../src/lib/api");
+			vi.mocked(api.fetchMediaFolders).mockResolvedValue({
+				items: [{ id: "folder-1", name: "Photography" }],
+			});
+			const screen = await renderPicker({ onSelect });
+			if (alreadyPinned) {
+				screen.getByRole("button", { name: "Open folder Photography" }).element().click();
+				await expect.element(screen.getByText("Photography", { exact: true })).toBeInTheDocument();
+				setInputFiles(
+					screen.getByLabelText("Choose files to upload").element() as HTMLInputElement,
+					[new File(["existing"], "existing.jpg", { type: "image/jpeg" })],
+				);
+				await expect
+					.element(screen.getByRole("button", { name: "existing.jpg", exact: true }))
+					.toHaveAttribute("aria-pressed", "true");
+				screen.getByRole("button", { name: "Main library", exact: true }).element().click();
+				await expect
+					.element(screen.getByRole("button", { name: "Open folder Photography" }))
+					.toBeInTheDocument();
+				apiMocks.uploadMedia.mockResolvedValueOnce(existing);
+			}
+			setInputFiles(screen.getByLabelText("Choose files to upload").element() as HTMLInputElement, [
+				new File(["existing"], "existing.jpg", { type: "image/jpeg" }),
+			]);
+
+			const card = screen.getByRole("button", { name: "existing.jpg", exact: true });
+			await expect.element(card).toHaveAttribute("aria-pressed", "true");
+			card.element().click();
+			await expect.element(card).toHaveAttribute("aria-pressed", "false");
+			await expect
+				.element(screen.getByRole("button", { name: "Select", exact: true }))
+				.toBeDisabled();
+			card.element().click();
+			await expect.element(card).toHaveAttribute("aria-pressed", "true");
+			screen.getByRole("button", { name: "Select", exact: true }).element().click();
+			expect(onSelect).toHaveBeenCalledWith(
+				expect.objectContaining({ id: existing.id, folderId: "folder-1" }),
+			);
+		},
+	);
+
 	it("does not show a Main-library upload inside a folder", async () => {
 		const api = await import("../../src/lib/api");
 		(api.fetchMediaFolders as any).mockResolvedValueOnce({
