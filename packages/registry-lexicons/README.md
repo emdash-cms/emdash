@@ -14,13 +14,13 @@ Generated TypeScript types and runtime validation schemas for the EmDash plugin 
 ## Usage
 
 ```ts
+import { is, safeParse } from "@atcute/lexicons/validations";
 import {
 	NSID,
 	PackageProfile,
 	PackageProfileExtension,
 	PackageRelease,
 } from "@emdash-cms/registry-lexicons";
-import { is, safeParse } from "@atcute/lexicons/validations";
 
 // Type a profile record:
 const profile: PackageProfile.Main = {

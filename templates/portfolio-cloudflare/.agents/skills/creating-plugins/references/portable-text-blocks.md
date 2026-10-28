@@ -111,9 +111,9 @@ To render block types on the site, export Astro components from a `componentsEnt
 ### Component File
 
 ```typescript
+import CodePen from "./CodePen.astro";
 // src/astro/index.ts
 import YouTube from "./YouTube.astro";
-import CodePen from "./CodePen.astro";
 
 // This export name is required
 export const blockComponents = {
@@ -242,9 +242,9 @@ export default createPlugin;
 ```
 
 ```typescript
+import LinkPreview from "./LinkPreview.astro";
 // src/astro/index.ts
 import YouTube from "./YouTube.astro";
-import LinkPreview from "./LinkPreview.astro";
 
 export const blockComponents = {
 	youtube: YouTube,

@@ -445,22 +445,20 @@ async function exportCollections(db: Kysely<Database>): Promise<SeedCollection[]
 			commentsEnabled: collection.commentsEnabled || undefined,
 			titleField: collection.titleField,
 			dateField: collection.dateField,
-			fields: fields.map(
-				(field): SeedField => ({
-					slug: field.slug,
-					label: field.label,
-					type: field.type,
-					required: field.required || undefined,
-					unique: field.unique || undefined,
-					searchable: field.searchable || undefined,
-					indexed: field.indexed || undefined,
-					translatable: field.translatable === false ? false : undefined,
-					defaultValue: field.defaultValue,
-					validation: field.validation ? { ...field.validation } : undefined,
-					widget: field.widget || undefined,
-					options: field.options || undefined,
-				}),
-			),
+			fields: fields.map((field): SeedField => ({
+				slug: field.slug,
+				label: field.label,
+				type: field.type,
+				required: field.required || undefined,
+				unique: field.unique || undefined,
+				searchable: field.searchable || undefined,
+				indexed: field.indexed || undefined,
+				translatable: field.translatable === false ? false : undefined,
+				defaultValue: field.defaultValue,
+				validation: field.validation ? { ...field.validation } : undefined,
+				widget: field.widget || undefined,
+				options: field.options || undefined,
+			})),
 		};
 
 		result.push(seedCollection);

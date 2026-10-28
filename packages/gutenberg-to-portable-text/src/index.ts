@@ -105,15 +105,13 @@ function createKeyGenerator(): () => string {
  * null attrs to empty objects and recursively process innerBlocks.
  */
 function normalizeBlocks(blocks: ReturnType<typeof parse>): GutenbergBlock[] {
-	return blocks.map(
-		(block): GutenbergBlock => ({
-			blockName: block.blockName,
-			attrs: (block.attrs ?? {}) satisfies Record<string, unknown>,
-			innerHTML: block.innerHTML,
-			innerBlocks: normalizeBlocks(block.innerBlocks),
-			innerContent: block.innerContent,
-		}),
-	);
+	return blocks.map((block): GutenbergBlock => ({
+		blockName: block.blockName,
+		attrs: (block.attrs ?? {}) satisfies Record<string, unknown>,
+		innerHTML: block.innerHTML,
+		innerBlocks: normalizeBlocks(block.innerBlocks),
+		innerContent: block.innerContent,
+	}));
 }
 
 /**

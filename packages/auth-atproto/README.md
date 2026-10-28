@@ -13,10 +13,10 @@ pnpm add @emdash-cms/auth-atproto
 ## Quick Start
 
 ```js
+import { atproto } from "@emdash-cms/auth-atproto";
 // astro.config.mjs
 import { defineConfig } from "astro/config";
 import emdash from "emdash/astro";
-import { atproto } from "@emdash-cms/auth-atproto";
 
 export default defineConfig({
 	server: {
