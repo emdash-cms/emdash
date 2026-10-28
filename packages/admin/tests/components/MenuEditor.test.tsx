@@ -46,6 +46,8 @@ import * as api from "../../src/lib/api";
 
 const ADD_CUSTOM_LINK_REGEX = /Add Custom Link/;
 const ABOUT_DELETE_MSG_REGEX = /"About" will be removed from this menu/;
+const HOME_NESTED_DELETE_MSG_REGEX = /"Home" and its nested items will be removed from this menu/;
+const SERVICES_DELETE_MSG_REGEX = /"Services" will be removed from this menu/;
 
 const defaultMenu = {
 	id: "menu1",
@@ -178,6 +180,44 @@ describe("MenuEditor", () => {
 		dialog.getByRole("button", { name: "Delete" }).element().click();
 
 		await expect.element(dialog.getByRole("alert")).toHaveTextContent("Menu item not found");
+	});
+
+	it("says nested items are deleted too only for an item that has them", async () => {
+		vi.mocked(api.fetchMenu).mockResolvedValue({
+			...defaultMenu,
+			items: [
+				...defaultMenu.items,
+				{
+					id: "3",
+					menuId: "menu1",
+					parentId: "1",
+					sortOrder: 0,
+					type: "custom",
+					referenceCollection: null,
+					referenceId: null,
+					customUrl: "/services",
+					label: "Services",
+					titleAttr: null,
+					target: "_self",
+					cssClasses: null,
+					createdAt: "",
+					locale: "en",
+					translationGroup: "3",
+				},
+			],
+		});
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await expect.element(screen.getByText("Services", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Delete" }).nth(0).click();
+		const dialog = screen.getByRole("dialog", { name: "Delete menu item?" });
+		await expect.element(dialog.getByText(HOME_NESTED_DELETE_MSG_REGEX)).toBeInTheDocument();
+
+		dialog.getByRole("button", { name: "Cancel" }).element().click();
+		await expect.element(dialog).not.toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "Delete" }).nth(1).click();
+		await expect.element(dialog.getByText(SERVICES_DELETE_MSG_REGEX)).toBeInTheDocument();
 	});
 
 	it("up/down reorder buttons — first item up disabled, last item down disabled", async () => {

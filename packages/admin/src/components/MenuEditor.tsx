@@ -678,7 +678,11 @@ export function MenuEditor() {
 										deleteMutation.reset();
 									}}
 									title={t`Delete menu item?`}
-									description={t`"${item.label}" will be removed from this menu. This action cannot be undone.`}
+									description={
+										localItems.some((i) => i.parentId === item.id)
+											? t`"${item.label}" and its nested items will be removed from this menu. This action cannot be undone.`
+											: t`"${item.label}" will be removed from this menu. This action cannot be undone.`
+									}
 									confirmLabel={t`Delete`}
 									pendingLabel={t`Deleting...`}
 									isPending={deleteMutation.isPending}
