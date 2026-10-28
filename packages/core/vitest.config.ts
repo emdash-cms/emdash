@@ -1,5 +1,7 @@
 import { defineConfig } from "vitest/config";
 
+import { ShardSequencer } from "./tests/shard-sequencer.mjs";
+
 // Stub the adapter-provided virtual modules that runtime code imports.
 // Individual tests still `vi.mock()` the ones they care about; this plugin
 // just prevents "cannot find package" errors when a test pulls in a chunk
@@ -41,6 +43,8 @@ export default defineConfig({
 	],
 	test: {
 		globals: true,
+		// --shard deals files out by their recorded durations, not by count.
+		sequence: { sequencer: ShardSequencer },
 		environment: "node",
 		include: ["tests/**/*.test.ts"],
 		// Server integration tests (cli, client, smoke) start real Astro dev
