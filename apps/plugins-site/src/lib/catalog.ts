@@ -5,7 +5,7 @@ import { LATEST_RELEASE_TIMEOUT_MS, type RegistryEntryData } from "@emdash-cms/r
 import { REGISTRY_CLIENT_OPTIONS } from "./registry.js";
 
 const REGISTRY_PAGE_LIMIT = 100;
-/** The registry refuses cursors past its first 10,000 results. */
+/** Stops the walk at 10,000 plugins; the registry refuses offsets past 10,000. */
 const MAX_REGISTRY_PAGES = 100;
 
 const registry = new DiscoveryClient(REGISTRY_CLIENT_OPTIONS);
