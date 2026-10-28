@@ -665,16 +665,12 @@ export function ContentList({
 													)}
 												/>
 												<Dialog.Close
-													render={(p) => (
-														<Button
-															{...p}
-															variant="destructive"
-															onClick={() => runBulk(onBulkDelete)}
-														>
-															{t`Move to Trash`}
-														</Button>
-													)}
-												/>
+													render={
+														<Button variant="destructive" onClick={() => runBulk(onBulkDelete)} />
+													}
+												>
+													{t`Move to Trash`}
+												</Dialog.Close>
 											</div>
 										</Dialog>
 									</Dialog.Root>
@@ -1502,12 +1498,10 @@ function ContentListItem({
 								)}
 							/>
 							<Dialog.Close
-								render={(p) => (
-									<Button {...p} variant="destructive" onClick={() => onDelete?.(item.id)}>
-										{t`Move to Trash`}
-									</Button>
-								)}
-							/>
+								render={<Button variant="destructive" onClick={() => onDelete?.(item.id)} />}
+							>
+								{t`Move to Trash`}
+							</Dialog.Close>
 						</div>
 					</Dialog>
 				</Dialog.Root>
@@ -1679,12 +1673,12 @@ function TrashedListItem({
 								)}
 							/>
 							<Dialog.Close
-								render={(p) => (
-									<Button {...p} variant="destructive" onClick={() => onPermanentDelete?.(item.id)}>
-										{t`Delete Permanently`}
-									</Button>
-								)}
-							/>
+								render={
+									<Button variant="destructive" onClick={() => onPermanentDelete?.(item.id)} />
+								}
+							>
+								{t`Delete Permanently`}
+							</Dialog.Close>
 						</div>
 					</Dialog>
 				</Dialog.Root>
