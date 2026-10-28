@@ -49,12 +49,12 @@ msgstr "「{0}」を完全に削除します。"
 #. placeholder {0}: item.label
 #: packages/admin/src/components/MenuEditor.tsx:681
 msgid "\"{0}\" will be removed from this menu. This action cannot be undone."
-msgstr ""
+msgstr "「{0}」をこのメニューから削除します。この操作は元に戻せません。"
 
 #. placeholder {0}: widget.title || t`Untitled Widget`
 #: packages/admin/src/components/Widgets.tsx:849
 msgid "\"{0}\" will be removed from this widget area. This action cannot be undone."
-msgstr ""
+msgstr "「{0}」をこのウィジェットエリアから削除します。この操作は元に戻せません。"
 
 #: packages/admin/src/components/OptionalLabel.tsx:13
 msgid "(optional)"
@@ -204,7 +204,7 @@ msgstr "{0, plural, one {#件の権限} other {#件の権限}}"
 #. placeholder {0}: plugins?.length ?? 0
 #: packages/admin/src/components/PluginManager.tsx:221
 msgid "{0, plural, one {# plugin} other {# plugins}}"
-msgstr ""
+msgstr "{0, plural, one {#件のプラグイン} other {#件のプラグイン}}"
 
 #. placeholder {0}: mapping.postCount
 #: packages/admin/src/components/WordPressImport.tsx:2545
@@ -3188,7 +3188,7 @@ msgstr "コンテンツタイプ「{0}」はこのサイトで作成されまし
 #: packages/admin/src/router.tsx:982
 #: packages/admin/src/router.tsx:1963
 msgid "Collection \"{collection}\" not found"
-msgstr ""
+msgstr "コンテンツタイプ「{collection}」が見つかりません"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:109
 msgid "Collection:"
@@ -4296,7 +4296,7 @@ msgstr "メニューを削除"
 
 #: packages/admin/src/components/MenuEditor.tsx:680
 msgid "Delete menu item?"
-msgstr ""
+msgstr "メニュー項目を削除しますか？"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:550
 msgid "Delete permanently"
@@ -4372,7 +4372,7 @@ msgstr "ウィジェットエリアを削除しますか？"
 
 #: packages/admin/src/components/Widgets.tsx:848
 msgid "Delete widget?"
-msgstr ""
+msgstr "ウィジェットを削除しますか？"
 
 #: packages/admin/src/components/ContentList.tsx:920
 msgid "Deleted"
@@ -11281,7 +11281,7 @@ msgstr "削除："
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:595
 msgid "Removes the sidebar entry, command palette link, dashboard quick action, and dashboard Content card row; entries stay reachable by URL, API, and plugins"
-msgstr ""
+msgstr "サイドバー、コマンドパレット、ダッシュボードのクイック操作、ダッシュボードの「コンテンツ」カードに表示されなくなります。コンテンツには引き続きURL、API、プラグインからアクセスできます"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:57
 msgid "Removing starter content"
@@ -12173,7 +12173,7 @@ msgstr "検索エンジン最適化と検証"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:240
 msgid "Search Engine Verification"
-msgstr ""
+msgstr "検索エンジンの所有権確認"
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
 msgid "Search failed"
@@ -15449,11 +15449,11 @@ msgstr "ウェブサイトのURL"
 
 #: packages/admin/src/components/WelcomeModal.tsx:107
 msgid "Welcome to {siteName}, {firstName}!"
-msgstr ""
+msgstr "{siteName}へようこそ、{firstName}さん！"
 
 #: packages/admin/src/components/WelcomeModal.tsx:108
 msgid "Welcome to {siteName}!"
-msgstr ""
+msgstr "{siteName}へようこそ！"
 
 #: packages/admin/src/components/WelcomeModal.tsx:111
 msgid "Welcome to EmDash, {firstName}!"
