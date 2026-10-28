@@ -2,9 +2,9 @@ import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import { UserList } from "../../../src/components/users/UserList";
-import type { UserListItem } from "../../../src/lib/api";
-import { render } from "../../utils/render";
+import { UserList } from "../../../src/components/users/UserList.js";
+import type { UserListItem } from "../../../src/lib/api/index.js";
+import { render } from "../../utils/render.js";
 
 function makeUser(overrides: Partial<UserListItem> = {}): UserListItem {
 	return {
