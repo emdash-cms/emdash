@@ -1,16 +1,14 @@
 import { ClientResponseError } from "@emdash-cms/registry-client";
 import { DiscoveryClient, type ValidatedPackageView } from "@emdash-cms/registry-client/discovery";
-import {
-	DEFAULT_REGISTRY_URL,
-	LATEST_RELEASE_TIMEOUT_MS,
-	type RegistryEntryData,
-} from "@emdash-cms/registry-loader";
+import { LATEST_RELEASE_TIMEOUT_MS, type RegistryEntryData } from "@emdash-cms/registry-loader";
+
+import { REGISTRY_CLIENT_OPTIONS } from "./registry.js";
 
 const REGISTRY_PAGE_LIMIT = 100;
 /** The registry refuses cursors past its first 10,000 results. */
 const MAX_REGISTRY_PAGES = 100;
 
-const registry = new DiscoveryClient({ aggregatorUrl: DEFAULT_REGISTRY_URL });
+const registry = new DiscoveryClient(REGISTRY_CLIENT_OPTIONS);
 
 export type CatalogSearchResult = { packages: ValidatedPackageView[] } | { error: Error };
 
