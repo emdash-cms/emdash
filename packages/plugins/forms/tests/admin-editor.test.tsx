@@ -212,6 +212,40 @@ describe("forms editor", () => {
 		},
 	);
 
+	it("starts a newly selected condition with Is filled and no comparison input", async () => {
+		await openEditor();
+		change("Name", "Contact");
+		await addConditionalFields();
+		expect((screen.getByLabelText("Condition operator") as HTMLSelectElement).value).toBe("filled");
+		expect(screen.queryByLabelText("Condition value")).toBeNull();
+		fireEvent.click(screen.getByRole("button", { name: "Create Form" }));
+		await waitFor(() => expect(requests[1]?.route).toBe("forms/create"));
+		const body = formCreateSchema.parse(requests[1]!.body);
+		expect(body.pages[0]!.fields[1]!.condition).toMatchObject({ field: "choice", op: "filled" });
+	});
+
+	it("preserves an existing condition's operator and value when changing its controller", async () => {
+		await openEditor([
+			{
+				...existing,
+				pages: [{ fields: [...existing.pages[0]!.fields, field("other-controller", "other")] }],
+			},
+		]);
+		fireEvent.change(screen.getAllByLabelText("Show when field")[1]!, {
+			target: { value: "id:other-controller" },
+		});
+		expect((screen.getByLabelText("Condition operator") as HTMLSelectElement).value).toBe("eq");
+		expect((screen.getByLabelText("Condition value") as HTMLInputElement).value).toBe("yes");
+		fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+		await waitFor(() => expect(requests[1]?.route).toBe("forms/update"));
+		const body = formUpdateSchema.parse(requests[1]!.body);
+		expect(body.pages?.[0]?.fields[1]?.condition).toEqual({
+			field: "other",
+			op: "eq",
+			value: "yes",
+		});
+	});
+
 	it("creates settings and field metadata, and clearing a condition omits it", async () => {
 		await openEditor();
 		change("Name", "Contact");
@@ -396,7 +430,7 @@ describe("forms editor", () => {
 		}
 	});
 
-	it.each(["radio", "checkbox", "checkbox-group", "file", "hidden"])(
+	it.each(["radio", "checkbox", "checkbox-group", "file", "hidden", "date"])(
 		"does not offer an ineffective placeholder for %s fields",
 		async (type) => {
 			await openEditor([existing]);
@@ -405,6 +439,27 @@ describe("forms editor", () => {
 			expect(screen.getByDisplayValue("old placeholder")).toBeTruthy();
 		},
 	);
+
+	it("shows a select placeholder only while Required is enabled and preserves its text", async () => {
+		await openEditor([existing]);
+		const type = screen.getAllByLabelText("Type")[1]!;
+		const required = screen.getAllByLabelText("Required")[1]!;
+		fireEvent.change(type, { target: { value: "select" } });
+		expect(screen.queryByDisplayValue("old placeholder")).toBeNull();
+		fireEvent.click(required);
+		expect(screen.getByDisplayValue("old placeholder")).toBeTruthy();
+		fireEvent.change(screen.getAllByLabelText("Placeholder")[1]!, {
+			target: { value: "Choose a topic" },
+		});
+		fireEvent.click(required);
+		expect(screen.queryByDisplayValue("Choose a topic")).toBeNull();
+		fireEvent.click(required);
+		expect(screen.getByDisplayValue("Choose a topic")).toBeTruthy();
+		fireEvent.change(type, { target: { value: "date" } });
+		expect(screen.queryByDisplayValue("Choose a topic")).toBeNull();
+		fireEvent.change(type, { target: { value: "select" } });
+		expect(screen.getByDisplayValue("Choose a topic")).toBeTruthy();
+	});
 
 	it("labels a single checkbox's submitted value without implying it starts checked", async () => {
 		await openEditor([existing]);

@@ -969,9 +969,8 @@ function FieldRow({
 			</div>
 
 			<div className="ms-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
-				{["text", "email", "textarea", "number", "tel", "url", "date", "select"].includes(
-					field.type,
-				) && (
+				{(["text", "email", "textarea", "number", "tel", "url"].includes(field.type) ||
+					(field.type === "select" && field.required)) && (
 					<Input
 						label={i18n._("Placeholder")}
 						value={field.placeholder ?? ""}
@@ -1011,7 +1010,7 @@ function FieldRow({
 							conditionFieldId: controller.id,
 							condition: {
 								field: controller.name,
-								op: field.condition?.op ?? "eq",
+								op: field.condition?.op ?? "filled",
 								value: field.condition?.value ?? "",
 							},
 						});
