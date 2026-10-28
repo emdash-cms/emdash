@@ -97,17 +97,24 @@ describe("searchCatalog", () => {
 		expect(await searchCatalog("", client)).toEqual({ error: expect.any(Error) });
 	});
 
-	it("tells a rejected search apart from an unreachable registry", async () => {
+	it("treats only a first request the registry rejects as a rejected search", async () => {
 		const answering = (status: number) =>
 			registryAnswering(() => Response.json({ error: "Example", message: "Example" }, { status }))
 				.client;
+		const rejectingPage2 = registryAnswering((url) =>
+			url.searchParams.has("cursor")
+				? Response.json({ error: "InvalidRequest", message: "Invalid cursor" }, { status: 400 })
+				: Response.json({ packages: [packageView("alpha")], cursor: "page-2" }),
+		).client;
 		const errorOf = async (client: DiscoveryClient) => {
 			const result = await searchCatalog("forms", client);
+			expect(result).toHaveProperty("error");
 			return "error" in result ? result.error : undefined;
 		};
 
 		expect(isRegistryRequestRejected(await errorOf(answering(400)))).toBe(true);
 		expect(isRegistryRequestRejected(await errorOf(answering(502)))).toBe(false);
+		expect(isRegistryRequestRejected(await errorOf(rejectingPage2))).toBe(false);
 	});
 });
 
