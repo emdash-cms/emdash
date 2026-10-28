@@ -59,7 +59,9 @@ export function reconcileReleaseRecord(
 	const parsed = safeParse(PackageRelease.mainSchema, authoritative.value);
 	if (!parsed.ok) return { outcome: "conflict" };
 	try {
-		return canonicalJson(parsed.value) === canonicalJson(expected)
+		// CAR decoding returns CID wrappers; compare their AT Protocol JSON representation.
+		const authoritativeJson: unknown = JSON.parse(JSON.stringify(parsed.value));
+		return canonicalJson(authoritativeJson) === canonicalJson(expected)
 			? { outcome: "exact", uri: authoritative.uri, cid: authoritative.cid }
 			: { outcome: "conflict" };
 	} catch {

@@ -31,7 +31,7 @@ const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const NOW = 1_800_000_000_000;
 const CREATED_URI = `at://${PUBLISHER_DID}/${NSID.packageRelease}/gallery:1.2.3`;
-const CREATED_CID = "bafyreihjpivdl5qdxouzqcstugdxujn55wjoivzhunem3wx6q7r5nz3fbe";
+const CREATED_CID = "bafyreic5lkyolknbppo7wnbiuqyfip6jt5i2m53ezruagtjkibuez6ddam";
 const PACKAGE_BYTES = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x01]);
 const ARTIFACT_CHECKSUM = "bciqhazpl5w2ra742ngjezwxoy4p74p2eyiftnnhycsofanwmdrezity";
 const ARTIFACT_BLOB_CID = "bafkreidqmxv63niqp6ngtesm3lxmoh76h5cmeczwwt4bjhcqg3gbysmuj4";
@@ -583,7 +583,7 @@ describe("ReleaseIntentWorkflow", { timeout: 15_000 }, () => {
 		});
 	});
 
-	it("persists every verification stage and publishes a valid non-escalating intent", async () => {
+	it("publishes a non-escalating intent with DAG-CBOR blob links and persists every verification stage", async () => {
 		let createAttempts = 0;
 		let proofReads = 0;
 		vi.stubGlobal(
@@ -627,6 +627,16 @@ describe("ReleaseIntentWorkflow", { timeout: 15_000 }, () => {
 			{ name: "policy-decision" },
 			{ name: "final-verification" },
 		]);
+		const published = await env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(
+			PUBLISHER_DID,
+			INTENT_ID,
+		);
+		expect(published).not.toBeNull();
+		const resource = await serializeIntentResource(PUBLISHER_DID, published!, env.PUBLIC_ORIGIN);
+		expect(resource).toMatchObject({
+			state: "published",
+			result: { uri: CREATED_URI, cid: CREATED_CID },
+		});
 		expect(createAttempts).toBe(1);
 		expect(proofReads).toBe(1);
 	});
