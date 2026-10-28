@@ -46,7 +46,7 @@
 		"@changesets/cli": "^3.0.2",
 		"@e18e/eslint-plugin": "^0.5.1",
 		"@lunariajs/core": "^0.2.0",
-		"@playwright/test": "^1.61.1",
+		"@playwright/test": "^1.64.1",
 		"@types/node": "catalog:",
 		"@typescript/native-preview": "7.0.0-dev.20260421.2",
 		"emdash": "workspace:*",
