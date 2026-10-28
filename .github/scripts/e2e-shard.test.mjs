@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -33,8 +33,9 @@ function runReport(durationsByFile) {
 	};
 }
 
-function workspace(times) {
+function workspace(t, times) {
 	const cwd = realpathSync(mkdtempSync(path.join(tmpdir(), "e2e-shard-")));
+	t.after(() => rmSync(cwd, { recursive: true, force: true }));
 	const timesFile = path.join(cwd, "times.json");
 	writeFileSync(timesFile, JSON.stringify(times));
 	return { cwd, timesFile };
@@ -137,8 +138,8 @@ describe("e2e shards", () => {
 		});
 	});
 
-	it("prints one shard's spec files from a list report on stdin", () => {
-		const { cwd, timesFile } = workspace({
+	it("prints one shard's spec files from a list report on stdin", (t) => {
+		const { cwd, timesFile } = workspace(t, {
 			"accessibility.spec.ts": { node: 100, cloudflare: 120 },
 			"menus.spec.ts": { node: 90, cloudflare: 110 },
 		});
@@ -161,8 +162,8 @@ describe("e2e shards", () => {
 		]);
 	});
 
-	it("fails instead of printing an empty shard or an unknown target", () => {
-		const { timesFile } = workspace({});
+	it("fails instead of printing an empty shard or an unknown target", (t) => {
+		const { timesFile } = workspace(t, {});
 		const report = JSON.stringify(listReport(["auth.spec.ts"]));
 		const run = (args) =>
 			execFileSync(process.execPath, [script, ...args, "--times", timesFile], {
@@ -176,8 +177,8 @@ describe("e2e shards", () => {
 		assert.throws(() => run(["--shard", "1/1", "--target", "deno"]), UNKNOWN_TARGET);
 	});
 
-	it("records times from the report files under a directory", () => {
-		const { cwd, timesFile } = workspace({ "old.spec.ts": { node: 1, cloudflare: 1 } });
+	it("records times from the report files under a directory", (t) => {
+		const { cwd, timesFile } = workspace(t, { "old.spec.ts": { node: 1, cloudflare: 1 } });
 		const reports = path.join(cwd, "reports", "e2e-timings-3");
 		mkdirSync(reports, { recursive: true });
 		writeFileSync(
