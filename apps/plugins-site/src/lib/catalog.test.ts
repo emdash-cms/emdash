@@ -88,6 +88,15 @@ describe("searchCatalog", () => {
 		expect(requests.map((params) => params.get("cursor"))).toEqual([null, "page-2"]);
 	});
 
+	it("fails instead of returning part of a catalog with more pages than it walks", async () => {
+		let page = 0;
+		const { client } = registryAnswering(() =>
+			Response.json({ packages: [packageView(`plugin-${page}`)], cursor: `page-${++page}` }),
+		);
+
+		expect(await searchCatalog("", client)).toEqual({ error: expect.any(Error) });
+	});
+
 	it("tells a rejected search apart from an unreachable registry", async () => {
 		const answering = (status: number) =>
 			registryAnswering(() => Response.json({ error: "Example", message: "Example" }, { status }))

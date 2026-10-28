@@ -14,8 +14,9 @@ export type CatalogSearchResult = { packages: ValidatedPackageView[] } | { error
 
 /**
  * Every plugin that matches `query`, following the registry's cursor to the
- * last page, since the registry reports no total. Errors keep the registry
- * client's error as their `cause`, as live collection errors do.
+ * last page, since the registry reports no total. More pages than the walk
+ * allows is an error, not a partial list. Errors keep the registry client's
+ * error as their `cause`, as live collection errors do.
  */
 export async function searchCatalog(
 	query: string,
@@ -32,13 +33,15 @@ export async function searchCatalog(
 			});
 			packages.push(...result.packages);
 			cursor = result.cursor;
-			if (!cursor) break;
+			if (!cursor) return { packages };
 		}
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return { error: new Error(`Failed to search the registry: ${message}`, { cause: error }) };
 	}
-	return { packages };
+	return {
+		error: new Error(`Stopped after ${MAX_REGISTRY_PAGES} registry pages with more results left`),
+	};
 }
 
 /**
