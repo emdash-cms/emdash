@@ -1,9 +1,14 @@
 import { createRequire } from "node:module";
-import { appendFile, readFile, readdir, realpath, stat } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { appendFile, open, readFile, readdir, realpath, stat } from "node:fs/promises";
+import { isAbsolute, join, relative, resolve, sep, win32 } from "node:path";
 import { Buffer as Buffer$1 } from "node:buffer";
 import { spawn } from "node:child_process";
 
+//#region \0rolldown/runtime.js
+var __commonJSMin$1 = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
+var __require$1 = /* @__PURE__ */ createRequire(import.meta.url);
+
+//#endregion
 //#region ../../node_modules/.pnpm/@atcute+lexicons@2.0.0/node_modules/@atcute/lexicons/dist/syntax/did.js
 const DID_RE = /^did:([a-z]+):([a-zA-Z0-9._:%-]*[a-zA-Z0-9._-])$/;
 const isDid = /* @__NO_SIDE_EFFECTS__ */ (input) => {
@@ -280,7 +285,7 @@ const lazy = /* @__NO_SIDE_EFFECTS__ */ (getter) => {
 	} };
 };
 const isArray = Array.isArray;
-const isObject$1 = /* @__NO_SIDE_EFFECTS__ */ (input) => {
+const isObject$2 = /* @__NO_SIDE_EFFECTS__ */ (input) => {
 	return typeof input === "object" && input !== null && !isArray(input);
 };
 const allowsEval$1 = /* @__PURE__ */ lazy(() => {
@@ -901,13 +906,13 @@ const object$1 = /* @__NO_SIDE_EFFECTS__ */ (shape) => {
 			if (allowsEval$1.value) {
 				const fastpass = generateFastpass();
 				const matcher = (input, flags) => {
-					if (!/* @__PURE__ */ isObject$1(input)) return ISSUE_TYPE_OBJECT;
+					if (!/* @__PURE__ */ isObject$2(input)) return ISSUE_TYPE_OBJECT;
 					return fastpass(input, flags);
 				};
 				return /* @__PURE__ */ lazyProperty(this, "~run", matcher);
 			}
 			const matcher = (input, flags) => {
-				if (!/* @__PURE__ */ isObject$1(input)) return ISSUE_TYPE_OBJECT;
+				if (!/* @__PURE__ */ isObject$2(input)) return ISSUE_TYPE_OBJECT;
 				let issues;
 				let output;
 				for (let idx = 0; idx < len; idx++) {
@@ -991,7 +996,7 @@ const variant = /* @__NO_SIDE_EFFECTS__ */ (members, closed = false) => {
 				}
 			};
 			const matcher = (input, flags) => {
-				if (!/* @__PURE__ */ isObject$1(input)) return ISSUE_TYPE_OBJECT;
+				if (!/* @__PURE__ */ isObject$2(input)) return ISSUE_TYPE_OBJECT;
 				const type = input.$type;
 				if (type === void 0 && !("$type" in input)) return ISSUE_VARIANT_MISSING;
 				if (typeof type !== "string") return closed ? issue : ISSUE_VARIANT_TYPE;
@@ -2508,6 +2513,1229 @@ function parsePage(value, parseItem) {
 		items: value["items"].map(parseItem),
 		...nextCursor ? { nextCursor } : {}
 	};
+}
+
+//#endregion
+//#region ../../packages/registry-verification/dist/errors-D3_zxvwe.js
+function verificationError(code, message, details) {
+	return {
+		success: false,
+		error: {
+			code,
+			message,
+			...details === void 0 ? {} : { details }
+		}
+	};
+}
+
+//#endregion
+//#region ../../packages/registry-verification/dist/checksum.js
+const SHA2_256_CODE = 18;
+const BASE32_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
+async function computeMultihash(bytes, algorithm = "sha2-256") {
+	if (algorithm !== "sha2-256") return verificationError("UNSUPPORTED_MULTIHASH", "The multihash algorithm is not supported.");
+	try {
+		const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)));
+		const multihash = new Uint8Array(2 + digest.length);
+		multihash[0] = SHA2_256_CODE;
+		multihash[1] = digest.length;
+		multihash.set(digest, 2);
+		return {
+			success: true,
+			value: `b${encodeBase32(multihash)}`
+		};
+	} catch {
+		return verificationError("UNSUPPORTED_MULTIHASH", "The sha2-256 algorithm is unavailable.");
+	}
+}
+function encodeBase32(bytes) {
+	let result = "";
+	let buffer = 0;
+	let bits = 0;
+	for (const byte of bytes) {
+		buffer = buffer << 8 | byte;
+		bits += 8;
+		while (bits >= 5) {
+			result += BASE32_ALPHABET[buffer >>> bits - 5 & 31] ?? "";
+			bits -= 5;
+		}
+	}
+	if (bits > 0) result += BASE32_ALPHABET[buffer << 5 - bits & 31] ?? "";
+	return result;
+}
+
+//#endregion
+//#region ../../node_modules/.pnpm/image-size@2.0.2_patch_hash=77c12533e3a635c4066c55da8952f4912e8210416539dc1249550fa639271595/node_modules/image-size/dist/index.mjs
+var decoder$3 = new TextDecoder();
+var toUTF8String = (input, start = 0, end = input.length) => decoder$3.decode(input.slice(start, end));
+var toHexString = (input, start = 0, end = input.length) => input.slice(start, end).reduce((memo, i) => memo + `0${i.toString(16)}`.slice(-2), "");
+var getView = (input, offset) => new DataView(input.buffer, input.byteOffset + offset);
+var readInt16LE = (input, offset = 0) => getView(input, offset).getInt16(0, true);
+var readUInt16BE = (input, offset = 0) => getView(input, offset).getUint16(0, false);
+var readUInt16LE = (input, offset = 0) => getView(input, offset).getUint16(0, true);
+var readUInt24LE = (input, offset = 0) => {
+	const view = getView(input, offset);
+	return view.getUint16(0, true) + (view.getUint8(2) << 16);
+};
+var readInt32LE = (input, offset = 0) => getView(input, offset).getInt32(0, true);
+var readUInt32BE = (input, offset = 0) => getView(input, offset).getUint32(0, false);
+var readUInt32LE = (input, offset = 0) => getView(input, offset).getUint32(0, true);
+var readUInt64 = (input, offset, isBigEndian) => getView(input, offset).getBigUint64(0, !isBigEndian);
+var methods = {
+	readUInt16BE,
+	readUInt16LE,
+	readUInt32BE,
+	readUInt32LE
+};
+function readUInt(input, bits, offset = 0, isBigEndian = false) {
+	return methods[`readUInt${bits}${isBigEndian ? "BE" : "LE"}`](input, offset);
+}
+function readBox(input, offset) {
+	if (input.length - offset < 4) return;
+	const boxSize = readUInt32BE(input, offset);
+	if (input.length - offset < boxSize) return;
+	return {
+		name: toUTF8String(input, 4 + offset, 8 + offset),
+		offset,
+		size: boxSize
+	};
+}
+function findBox(input, boxName, currentOffset) {
+	while (currentOffset < input.length) {
+		const box = readBox(input, currentOffset);
+		if (!box) break;
+		if (box.name === boxName) return box;
+		currentOffset += box.size > 0 ? box.size : 8;
+	}
+}
+var BMP = {
+	validate: (input) => toUTF8String(input, 0, 2) === "BM",
+	calculate: (input) => ({
+		height: Math.abs(readInt32LE(input, 22)),
+		width: readUInt32LE(input, 18)
+	})
+};
+var TYPE_ICON = 1;
+var SIZE_HEADER = 6;
+var SIZE_IMAGE_ENTRY = 16;
+function getSizeFromOffset(input, offset) {
+	const value = input[offset];
+	return value === 0 ? 256 : value;
+}
+function getImageSize(input, imageIndex) {
+	const offset = SIZE_HEADER + imageIndex * SIZE_IMAGE_ENTRY;
+	return {
+		height: getSizeFromOffset(input, offset + 1),
+		width: getSizeFromOffset(input, offset)
+	};
+}
+var ICO = {
+	validate(input) {
+		const reserved = readUInt16LE(input, 0);
+		const imageCount = readUInt16LE(input, 4);
+		if (reserved !== 0 || imageCount === 0) return false;
+		return readUInt16LE(input, 2) === TYPE_ICON;
+	},
+	calculate(input) {
+		const nbImages = readUInt16LE(input, 4);
+		const imageSize2 = getImageSize(input, 0);
+		if (nbImages === 1) return imageSize2;
+		const images = [];
+		for (let imageIndex = 0; imageIndex < nbImages; imageIndex += 1) images.push(getImageSize(input, imageIndex));
+		return {
+			width: imageSize2.width,
+			height: imageSize2.height,
+			images
+		};
+	}
+};
+var TYPE_CURSOR = 2;
+var CUR = {
+	validate(input) {
+		const reserved = readUInt16LE(input, 0);
+		const imageCount = readUInt16LE(input, 4);
+		if (reserved !== 0 || imageCount === 0) return false;
+		return readUInt16LE(input, 2) === TYPE_CURSOR;
+	},
+	calculate: (input) => ICO.calculate(input)
+};
+var DDS = {
+	validate: (input) => readUInt32LE(input, 0) === 542327876,
+	calculate: (input) => ({
+		height: readUInt32LE(input, 12),
+		width: readUInt32LE(input, 16)
+	})
+};
+var gifRegexp = /^GIF8[79]a/;
+var GIF = {
+	validate: (input) => gifRegexp.test(toUTF8String(input, 0, 6)),
+	calculate: (input) => ({
+		height: readUInt16LE(input, 8),
+		width: readUInt16LE(input, 6)
+	})
+};
+var brandMap = {
+	avif: "avif",
+	mif1: "heif",
+	msf1: "heif",
+	heic: "heic",
+	heix: "heic",
+	hevc: "heic",
+	hevx: "heic"
+};
+var HEIF = {
+	validate(input) {
+		if (toUTF8String(input, 4, 8) !== "ftyp") return false;
+		const ftypBox = findBox(input, "ftyp", 0);
+		if (!ftypBox) return false;
+		return toUTF8String(input, ftypBox.offset + 8, ftypBox.offset + 12) in brandMap;
+	},
+	calculate(input) {
+		const metaBox = findBox(input, "meta", 0);
+		const iprpBox = metaBox && findBox(input, "iprp", metaBox.offset + 12);
+		const ipcoBox = iprpBox && findBox(input, "ipco", iprpBox.offset + 8);
+		if (!ipcoBox) throw new TypeError("Invalid HEIF, no ipco box found");
+		const type = toUTF8String(input, 8, 12);
+		const images = [];
+		let currentOffset = ipcoBox.offset + 8;
+		while (currentOffset < ipcoBox.offset + ipcoBox.size) {
+			const ispeBox = findBox(input, "ispe", currentOffset);
+			if (!ispeBox) break;
+			const rawWidth = readUInt32BE(input, ispeBox.offset + 12);
+			const rawHeight = readUInt32BE(input, ispeBox.offset + 16);
+			const clapBox = findBox(input, "clap", currentOffset);
+			let width = rawWidth;
+			let height = rawHeight;
+			if (clapBox && clapBox.offset < ipcoBox.offset + ipcoBox.size) width = rawWidth - readUInt32BE(input, clapBox.offset + 12);
+			images.push({
+				height,
+				width
+			});
+			currentOffset = ispeBox.offset + (ispeBox.size > 0 ? ispeBox.size : 8);
+		}
+		if (images.length === 0) throw new TypeError("Invalid HEIF, no sizes found");
+		return {
+			width: images[0].width,
+			height: images[0].height,
+			type,
+			...images.length > 1 ? { images } : {}
+		};
+	}
+};
+var SIZE_HEADER2 = 8;
+var FILE_LENGTH_OFFSET = 4;
+var ENTRY_LENGTH_OFFSET = 4;
+var ICON_TYPE_SIZE = {
+	ICON: 32,
+	"ICN#": 32,
+	"icm#": 16,
+	icm4: 16,
+	icm8: 16,
+	"ics#": 16,
+	ics4: 16,
+	ics8: 16,
+	is32: 16,
+	s8mk: 16,
+	icp4: 16,
+	icl4: 32,
+	icl8: 32,
+	il32: 32,
+	l8mk: 32,
+	icp5: 32,
+	ic11: 32,
+	ich4: 48,
+	ich8: 48,
+	ih32: 48,
+	h8mk: 48,
+	icp6: 64,
+	ic12: 32,
+	it32: 128,
+	t8mk: 128,
+	ic07: 128,
+	ic08: 256,
+	ic13: 256,
+	ic09: 512,
+	ic14: 512,
+	ic10: 1024
+};
+function readImageHeader(input, imageOffset) {
+	const imageLengthOffset = imageOffset + ENTRY_LENGTH_OFFSET;
+	return [toUTF8String(input, imageOffset, imageLengthOffset), readUInt32BE(input, imageLengthOffset)];
+}
+function getImageSize2(type) {
+	const size = ICON_TYPE_SIZE[type];
+	return {
+		width: size,
+		height: size,
+		type
+	};
+}
+var ICNS = {
+	validate: (input) => toUTF8String(input, 0, 4) === "icns",
+	calculate(input) {
+		const inputLength = input.length;
+		const fileLength = readUInt32BE(input, FILE_LENGTH_OFFSET);
+		let imageOffset = SIZE_HEADER2;
+		const images = [];
+		while (imageOffset < fileLength && imageOffset < inputLength) {
+			const imageHeader = readImageHeader(input, imageOffset);
+			const imageSize2 = getImageSize2(imageHeader[0]);
+			images.push(imageSize2);
+			imageOffset += imageHeader[1] > 0 ? imageHeader[1] : 8;
+		}
+		if (images.length === 0) throw new TypeError("Invalid ICNS, no sizes found");
+		return {
+			width: images[0].width,
+			height: images[0].height,
+			...images.length > 1 ? { images } : {}
+		};
+	}
+};
+var J2C = {
+	validate: (input) => readUInt32BE(input, 0) === 4283432785,
+	calculate: (input) => ({
+		height: readUInt32BE(input, 12),
+		width: readUInt32BE(input, 8)
+	})
+};
+var JP2 = {
+	validate(input) {
+		if (toUTF8String(input, 4, 8) !== "jP  ") return false;
+		const ftypBox = findBox(input, "ftyp", 0);
+		if (!ftypBox) return false;
+		return toUTF8String(input, ftypBox.offset + 8, ftypBox.offset + 12) === "jp2 ";
+	},
+	calculate(input) {
+		const jp2hBox = findBox(input, "jp2h", 0);
+		const ihdrBox = jp2hBox && findBox(input, "ihdr", jp2hBox.offset + 8);
+		if (ihdrBox) return {
+			height: readUInt32BE(input, ihdrBox.offset + 8),
+			width: readUInt32BE(input, ihdrBox.offset + 12)
+		};
+		throw new TypeError("Unsupported JPEG 2000 format");
+	}
+};
+var EXIF_MARKER = "45786966";
+var APP1_DATA_SIZE_BYTES = 2;
+var EXIF_HEADER_BYTES = 6;
+var TIFF_BYTE_ALIGN_BYTES = 2;
+var BIG_ENDIAN_BYTE_ALIGN = "4d4d";
+var LITTLE_ENDIAN_BYTE_ALIGN = "4949";
+var IDF_ENTRY_BYTES = 12;
+var NUM_DIRECTORY_ENTRIES_BYTES = 2;
+function isEXIF(input) {
+	return toHexString(input, 2, 6) === EXIF_MARKER;
+}
+function extractSize(input, index) {
+	return {
+		height: readUInt16BE(input, index),
+		width: readUInt16BE(input, index + 2)
+	};
+}
+function extractOrientation(exifBlock, isBigEndian) {
+	const offset = EXIF_HEADER_BYTES + 8;
+	const idfDirectoryEntries = readUInt(exifBlock, 16, offset, isBigEndian);
+	for (let directoryEntryNumber = 0; directoryEntryNumber < idfDirectoryEntries; directoryEntryNumber++) {
+		const start = offset + NUM_DIRECTORY_ENTRIES_BYTES + directoryEntryNumber * IDF_ENTRY_BYTES;
+		const end = start + IDF_ENTRY_BYTES;
+		if (start > exifBlock.length) return;
+		const block = exifBlock.slice(start, end);
+		if (readUInt(block, 16, 0, isBigEndian) === 274) {
+			if (readUInt(block, 16, 2, isBigEndian) !== 3) return;
+			if (readUInt(block, 32, 4, isBigEndian) !== 1) return;
+			return readUInt(block, 16, 8, isBigEndian);
+		}
+	}
+}
+function validateExifBlock(input, index) {
+	const exifBlock = input.slice(APP1_DATA_SIZE_BYTES, index);
+	const byteAlign = toHexString(exifBlock, EXIF_HEADER_BYTES, EXIF_HEADER_BYTES + TIFF_BYTE_ALIGN_BYTES);
+	const isBigEndian = byteAlign === BIG_ENDIAN_BYTE_ALIGN;
+	if (isBigEndian || byteAlign === LITTLE_ENDIAN_BYTE_ALIGN) return extractOrientation(exifBlock, isBigEndian);
+}
+function validateInput(input, index) {
+	if (index > input.length) throw new TypeError("Corrupt JPG, exceeded buffer limits");
+}
+var JPG = {
+	validate: (input) => toHexString(input, 0, 2) === "ffd8",
+	calculate(_input) {
+		let input = _input.slice(4);
+		let orientation;
+		let next;
+		while (input.length) {
+			const i = readUInt16BE(input, 0);
+			validateInput(input, i);
+			if (input[i] !== 255) {
+				input = input.slice(1);
+				continue;
+			}
+			if (isEXIF(input)) orientation = validateExifBlock(input, i);
+			next = input[i + 1];
+			if (next === 192 || next === 193 || next === 194) {
+				const size = extractSize(input, i + 5);
+				if (!orientation) return size;
+				return {
+					height: size.height,
+					orientation,
+					width: size.width
+				};
+			}
+			input = input.slice(i + 2);
+		}
+		throw new TypeError("Invalid JPG, no size found");
+	}
+};
+var BitReader = class {
+	constructor(input, endianness) {
+		this.input = input;
+		this.endianness = endianness;
+		this.byteOffset = 2;
+		this.bitOffset = 0;
+	}
+	/** Reads a specified number of bits, and move the offset */
+	getBits(length = 1) {
+		let result = 0;
+		let bitsRead = 0;
+		while (bitsRead < length) {
+			if (this.byteOffset >= this.input.length) throw new Error("Reached end of input");
+			const currentByte = this.input[this.byteOffset];
+			const bitsLeft = 8 - this.bitOffset;
+			const bitsToRead = Math.min(length - bitsRead, bitsLeft);
+			if (this.endianness === "little-endian") {
+				const mask = (1 << bitsToRead) - 1;
+				const bits = currentByte >> this.bitOffset & mask;
+				result |= bits << bitsRead;
+			} else {
+				const bits = (currentByte & (1 << bitsToRead) - 1 << 8 - this.bitOffset - bitsToRead) >> 8 - this.bitOffset - bitsToRead;
+				result = result << bitsToRead | bits;
+			}
+			bitsRead += bitsToRead;
+			this.bitOffset += bitsToRead;
+			if (this.bitOffset === 8) {
+				this.byteOffset++;
+				this.bitOffset = 0;
+			}
+		}
+		return result;
+	}
+};
+function calculateImageDimension(reader, isSmallImage) {
+	if (isSmallImage) return 8 * (1 + reader.getBits(5));
+	const extraBits = [
+		9,
+		13,
+		18,
+		30
+	][reader.getBits(2)];
+	return 1 + reader.getBits(extraBits);
+}
+function calculateImageWidth(reader, isSmallImage, widthMode, height) {
+	if (isSmallImage && widthMode === 0) return 8 * (1 + reader.getBits(5));
+	if (widthMode === 0) return calculateImageDimension(reader, false);
+	return Math.floor(height * [
+		1,
+		1.2,
+		4 / 3,
+		1.5,
+		16 / 9,
+		5 / 4,
+		2
+	][widthMode - 1]);
+}
+var JXLStream = {
+	validate: (input) => {
+		return toHexString(input, 0, 2) === "ff0a";
+	},
+	calculate(input) {
+		const reader = new BitReader(input, "little-endian");
+		const isSmallImage = reader.getBits(1) === 1;
+		const height = calculateImageDimension(reader, isSmallImage);
+		return {
+			width: calculateImageWidth(reader, isSmallImage, reader.getBits(3), height),
+			height
+		};
+	}
+};
+function extractCodestream(input) {
+	const jxlcBox = findBox(input, "jxlc", 0);
+	if (jxlcBox) return input.slice(jxlcBox.offset + 8, jxlcBox.offset + jxlcBox.size);
+	const partialStreams = extractPartialStreams(input);
+	if (partialStreams.length > 0) return concatenateCodestreams(partialStreams);
+}
+function extractPartialStreams(input) {
+	const partialStreams = [];
+	let offset = 0;
+	while (offset < input.length) {
+		const jxlpBox = findBox(input, "jxlp", offset);
+		if (!jxlpBox) break;
+		partialStreams.push(input.slice(jxlpBox.offset + 12, jxlpBox.offset + jxlpBox.size));
+		offset = jxlpBox.offset + (jxlpBox.size > 0 ? jxlpBox.size : 8);
+	}
+	return partialStreams;
+}
+function concatenateCodestreams(partialCodestreams) {
+	const totalLength = partialCodestreams.reduce((acc, curr) => acc + curr.length, 0);
+	const codestream = new Uint8Array(totalLength);
+	let position = 0;
+	for (const partial of partialCodestreams) {
+		codestream.set(partial, position);
+		position += partial.length;
+	}
+	return codestream;
+}
+var JXL = {
+	validate: (input) => {
+		if (toUTF8String(input, 4, 8) !== "JXL ") return false;
+		const ftypBox = findBox(input, "ftyp", 0);
+		if (!ftypBox) return false;
+		return toUTF8String(input, ftypBox.offset + 8, ftypBox.offset + 12) === "jxl ";
+	},
+	calculate(input) {
+		const codestream = extractCodestream(input);
+		if (codestream) return JXLStream.calculate(codestream);
+		throw new Error("No codestream found in JXL container");
+	}
+};
+var KTX = {
+	validate: (input) => {
+		const signature = toUTF8String(input, 1, 7);
+		return ["KTX 11", "KTX 20"].includes(signature);
+	},
+	calculate: (input) => {
+		const type = input[5] === 49 ? "ktx" : "ktx2";
+		const offset = type === "ktx" ? 36 : 20;
+		return {
+			height: readUInt32LE(input, offset + 4),
+			width: readUInt32LE(input, offset),
+			type
+		};
+	}
+};
+var pngSignature = "PNG\r\n\n";
+var pngImageHeaderChunkName = "IHDR";
+var pngFriedChunkName = "CgBI";
+var PNG = {
+	validate(input) {
+		if (pngSignature === toUTF8String(input, 1, 8)) {
+			let chunkName = toUTF8String(input, 12, 16);
+			if (chunkName === pngFriedChunkName) chunkName = toUTF8String(input, 28, 32);
+			if (chunkName !== pngImageHeaderChunkName) throw new TypeError("Invalid PNG");
+			return true;
+		}
+		return false;
+	},
+	calculate(input) {
+		if (toUTF8String(input, 12, 16) === pngFriedChunkName) return {
+			height: readUInt32BE(input, 36),
+			width: readUInt32BE(input, 32)
+		};
+		return {
+			height: readUInt32BE(input, 20),
+			width: readUInt32BE(input, 16)
+		};
+	}
+};
+var PNMTypes = {
+	P1: "pbm/ascii",
+	P2: "pgm/ascii",
+	P3: "ppm/ascii",
+	P4: "pbm",
+	P5: "pgm",
+	P6: "ppm",
+	P7: "pam",
+	PF: "pfm"
+};
+var handlers = {
+	default: (lines) => {
+		let dimensions = [];
+		while (lines.length > 0) {
+			const line = lines.shift();
+			if (line[0] === "#") continue;
+			dimensions = line.split(" ");
+			break;
+		}
+		if (dimensions.length === 2) return {
+			height: Number.parseInt(dimensions[1], 10),
+			width: Number.parseInt(dimensions[0], 10)
+		};
+		throw new TypeError("Invalid PNM");
+	},
+	pam: (lines) => {
+		const size = {};
+		while (lines.length > 0) {
+			const line = lines.shift();
+			if (line.length > 16 || line.charCodeAt(0) > 128) continue;
+			const [key, value] = line.split(" ");
+			if (key && value) size[key.toLowerCase()] = Number.parseInt(value, 10);
+			if (size.height && size.width) break;
+		}
+		if (size.height && size.width) return {
+			height: size.height,
+			width: size.width
+		};
+		throw new TypeError("Invalid PAM");
+	}
+};
+var PNM = {
+	validate: (input) => toUTF8String(input, 0, 2) in PNMTypes,
+	calculate(input) {
+		const type = PNMTypes[toUTF8String(input, 0, 2)];
+		const lines = toUTF8String(input, 3).split(/[\r\n]+/);
+		return (handlers[type] || handlers.default)(lines);
+	}
+};
+var PSD = {
+	validate: (input) => toUTF8String(input, 0, 4) === "8BPS",
+	calculate: (input) => ({
+		height: readUInt32BE(input, 14),
+		width: readUInt32BE(input, 18)
+	})
+};
+var svgReg = /<svg\s([^>"']|"[^"]*"|'[^']*')*>/;
+var extractorRegExps = {
+	height: /\sheight=(['"])([^%]+?)\1/,
+	root: svgReg,
+	viewbox: /\sviewBox=(['"])(.+?)\1/i,
+	width: /\swidth=(['"])([^%]+?)\1/
+};
+var INCH_CM = 2.54;
+var units = {
+	in: 96,
+	cm: 96 / INCH_CM,
+	em: 16,
+	ex: 8,
+	m: 96 / INCH_CM * 100,
+	mm: 96 / INCH_CM / 10,
+	pc: 96 / 72 / 12,
+	pt: 96 / 72,
+	px: 1
+};
+var unitsReg = new RegExp(`^([0-9.]+(?:e\\d+)?)(${Object.keys(units).join("|")})?$`);
+function parseLength(len) {
+	const m = unitsReg.exec(len);
+	if (!m) return;
+	return Math.round(Number(m[1]) * (units[m[2]] || 1));
+}
+function parseViewbox(viewbox) {
+	const bounds = viewbox.split(" ");
+	return {
+		height: parseLength(bounds[3]),
+		width: parseLength(bounds[2])
+	};
+}
+function parseAttributes(root) {
+	const width = root.match(extractorRegExps.width);
+	const height = root.match(extractorRegExps.height);
+	const viewbox = root.match(extractorRegExps.viewbox);
+	return {
+		height: height && parseLength(height[2]),
+		viewbox: viewbox && parseViewbox(viewbox[2]),
+		width: width && parseLength(width[2])
+	};
+}
+function calculateByDimensions(attrs) {
+	return {
+		height: attrs.height,
+		width: attrs.width
+	};
+}
+function calculateByViewbox(attrs, viewbox) {
+	const ratio = viewbox.width / viewbox.height;
+	if (attrs.width) return {
+		height: Math.floor(attrs.width / ratio),
+		width: attrs.width
+	};
+	if (attrs.height) return {
+		height: attrs.height,
+		width: Math.floor(attrs.height * ratio)
+	};
+	return {
+		height: viewbox.height,
+		width: viewbox.width
+	};
+}
+var SVG = {
+	validate: (input) => svgReg.test(toUTF8String(input, 0, 1e3)),
+	calculate(input) {
+		const root = toUTF8String(input).match(extractorRegExps.root);
+		if (root) {
+			const attrs = parseAttributes(root[0]);
+			if (attrs.width && attrs.height) return calculateByDimensions(attrs);
+			if (attrs.viewbox) return calculateByViewbox(attrs, attrs.viewbox);
+		}
+		throw new TypeError("Invalid SVG");
+	}
+};
+var TGA = {
+	validate(input) {
+		return readUInt16LE(input, 0) === 0 && readUInt16LE(input, 4) === 0;
+	},
+	calculate(input) {
+		return {
+			height: readUInt16LE(input, 14),
+			width: readUInt16LE(input, 12)
+		};
+	}
+};
+var CONSTANTS = {
+	TAG: {
+		WIDTH: 256,
+		HEIGHT: 257,
+		COMPRESSION: 259
+	},
+	TYPE: {
+		SHORT: 3,
+		LONG: 4,
+		LONG8: 16
+	},
+	ENTRY_SIZE: {
+		STANDARD: 12,
+		BIG: 20
+	},
+	COUNT_SIZE: {
+		STANDARD: 2,
+		BIG: 8
+	}
+};
+function readIFD(input, { isBigEndian, isBigTiff }) {
+	const ifdOffset = isBigTiff ? Number(readUInt64(input, 8, isBigEndian)) : readUInt(input, 32, 4, isBigEndian);
+	const entryCountSize = isBigTiff ? CONSTANTS.COUNT_SIZE.BIG : CONSTANTS.COUNT_SIZE.STANDARD;
+	return input.slice(ifdOffset + entryCountSize);
+}
+function readTagValue(input, type, offset, isBigEndian) {
+	switch (type) {
+		case CONSTANTS.TYPE.SHORT: return readUInt(input, 16, offset, isBigEndian);
+		case CONSTANTS.TYPE.LONG: return readUInt(input, 32, offset, isBigEndian);
+		case CONSTANTS.TYPE.LONG8: {
+			const value = Number(readUInt64(input, offset, isBigEndian));
+			if (value > Number.MAX_SAFE_INTEGER) throw new TypeError("Value too large");
+			return value;
+		}
+		default: return 0;
+	}
+}
+function nextTag(input, isBigTiff) {
+	const entrySize = isBigTiff ? CONSTANTS.ENTRY_SIZE.BIG : CONSTANTS.ENTRY_SIZE.STANDARD;
+	if (input.length > entrySize) return input.slice(entrySize);
+}
+function extractTags(input, { isBigEndian, isBigTiff }) {
+	const tags = {};
+	let temp = input;
+	while (temp?.length) {
+		const code = readUInt(temp, 16, 0, isBigEndian);
+		const type = readUInt(temp, 16, 2, isBigEndian);
+		const length = isBigTiff ? Number(readUInt64(temp, 4, isBigEndian)) : readUInt(temp, 32, 4, isBigEndian);
+		if (code === 0) break;
+		if (length === 1 && (type === CONSTANTS.TYPE.SHORT || type === CONSTANTS.TYPE.LONG || isBigTiff && type === CONSTANTS.TYPE.LONG8)) tags[code] = readTagValue(temp, type, isBigTiff ? 12 : 8, isBigEndian);
+		temp = nextTag(temp, isBigTiff);
+	}
+	return tags;
+}
+function determineFormat(input) {
+	const signature = toUTF8String(input, 0, 2);
+	const version = readUInt(input, 16, 2, signature === "MM");
+	return {
+		isBigEndian: signature === "MM",
+		isBigTiff: version === 43
+	};
+}
+function validateBigTIFFHeader(input, isBigEndian) {
+	const byteSize = readUInt(input, 16, 4, isBigEndian);
+	const reserved = readUInt(input, 16, 6, isBigEndian);
+	if (byteSize !== 8 || reserved !== 0) throw new TypeError("Invalid BigTIFF header");
+}
+var signatures = /* @__PURE__ */ new Set([
+	"49492a00",
+	"4d4d002a",
+	"49492b00",
+	"4d4d002b"
+]);
+var TIFF = {
+	validate: (input) => {
+		const signature = toHexString(input, 0, 4);
+		return signatures.has(signature);
+	},
+	calculate(input) {
+		const format = determineFormat(input);
+		if (format.isBigTiff) validateBigTIFFHeader(input, format.isBigEndian);
+		const tags = extractTags(readIFD(input, format), format);
+		const info = {
+			height: tags[CONSTANTS.TAG.HEIGHT],
+			width: tags[CONSTANTS.TAG.WIDTH],
+			type: format.isBigTiff ? "bigtiff" : "tiff"
+		};
+		if (tags[CONSTANTS.TAG.COMPRESSION]) info.compression = tags[CONSTANTS.TAG.COMPRESSION];
+		if (!info.width || !info.height) throw new TypeError("Invalid Tiff. Missing tags");
+		return info;
+	}
+};
+function calculateExtended(input) {
+	return {
+		height: 1 + readUInt24LE(input, 7),
+		width: 1 + readUInt24LE(input, 4)
+	};
+}
+function calculateLossless(input) {
+	return {
+		height: 1 + ((input[4] & 15) << 10 | input[3] << 2 | (input[2] & 192) >> 6),
+		width: 1 + ((input[2] & 63) << 8 | input[1])
+	};
+}
+function calculateLossy(input) {
+	return {
+		height: readInt16LE(input, 8) & 16383,
+		width: readInt16LE(input, 6) & 16383
+	};
+}
+var typeHandlers = /* @__PURE__ */ new Map([
+	["bmp", BMP],
+	["cur", CUR],
+	["dds", DDS],
+	["gif", GIF],
+	["heif", HEIF],
+	["icns", ICNS],
+	["ico", ICO],
+	["j2c", J2C],
+	["jp2", JP2],
+	["jpg", JPG],
+	["jxl", JXL],
+	["jxl-stream", JXLStream],
+	["ktx", KTX],
+	["png", PNG],
+	["pnm", PNM],
+	["psd", PSD],
+	["svg", SVG],
+	["tga", TGA],
+	["tiff", TIFF],
+	["webp", {
+		validate(input) {
+			const riffHeader = "RIFF" === toUTF8String(input, 0, 4);
+			const webpHeader = "WEBP" === toUTF8String(input, 8, 12);
+			const vp8Header = "VP8" === toUTF8String(input, 12, 15);
+			return riffHeader && webpHeader && vp8Header;
+		},
+		calculate(_input) {
+			const chunkHeader = toUTF8String(_input, 12, 16);
+			const input = _input.slice(20, 30);
+			if (chunkHeader === "VP8X") {
+				const extendedHeader = input[0];
+				const validStart = (extendedHeader & 192) === 0;
+				const validEnd = (extendedHeader & 1) === 0;
+				if (validStart && validEnd) return calculateExtended(input);
+				throw new TypeError("Invalid WebP");
+			}
+			if (chunkHeader === "VP8 " && input[0] !== 47) return calculateLossy(input);
+			const signature = toHexString(input, 3, 6);
+			if (chunkHeader === "VP8L" && signature !== "9d012a") return calculateLossless(input);
+			throw new TypeError("Invalid WebP");
+		}
+	}]
+]);
+var types = Array.from(typeHandlers.keys());
+var firstBytes = /* @__PURE__ */ new Map([
+	[0, "heif"],
+	[56, "psd"],
+	[66, "bmp"],
+	[68, "dds"],
+	[71, "gif"],
+	[73, "tiff"],
+	[77, "tiff"],
+	[82, "webp"],
+	[105, "icns"],
+	[137, "png"],
+	[255, "jpg"]
+]);
+function detector(input) {
+	const byte = input[0];
+	const type = firstBytes.get(byte);
+	if (type && typeHandlers.get(type).validate(input)) return type;
+	return types.find((type2) => typeHandlers.get(type2).validate(input));
+}
+var globalOptions = { disabledTypes: [] };
+function imageSize(input) {
+	const type = detector(input);
+	if (typeof type !== "undefined") {
+		if (globalOptions.disabledTypes.indexOf(type) > -1) throw new TypeError(`disabled file type: ${type}`);
+		const size = typeHandlers.get(type).calculate(input);
+		if (size !== void 0) {
+			size.type = size.type ?? type;
+			if (size.images && size.images.length > 1) {
+				const largestImage = size.images.reduce((largest, current) => {
+					return current.width * current.height > largest.width * largest.height ? current : largest;
+				}, size.images[0]);
+				size.width = largestImage.width;
+				size.height = largestImage.height;
+			}
+			return size;
+		}
+	}
+	throw new TypeError(`unsupported file type: ${type}`);
+}
+
+//#endregion
+//#region ../../node_modules/.pnpm/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/umd/main.js
+var require_main = /* @__PURE__ */ __commonJSMin$1(((exports, module) => {
+	(function(factory) {
+		if (typeof module === "object" && typeof module.exports === "object") {
+			var v = factory(__require$1, exports);
+			if (v !== void 0) module.exports = v;
+		} else if (typeof define === "function" && define.amd) define([
+			"require",
+			"exports",
+			"./impl/format",
+			"./impl/edit",
+			"./impl/scanner",
+			"./impl/parser"
+		], factory);
+	})(function(require, exports$1) {
+		"use strict";
+		Object.defineProperty(exports$1, "__esModule", { value: true });
+		exports$1.applyEdits = exports$1.modify = exports$1.format = exports$1.printParseErrorCode = exports$1.ParseErrorCode = exports$1.stripComments = exports$1.visit = exports$1.getNodeValue = exports$1.getNodePath = exports$1.findNodeAtOffset = exports$1.findNodeAtLocation = exports$1.parseTree = exports$1.parse = exports$1.getLocation = exports$1.SyntaxKind = exports$1.ScanError = exports$1.createScanner = void 0;
+		const formatter = require("./impl/format");
+		const edit = require("./impl/edit");
+		const scanner = require("./impl/scanner");
+		const parser = require("./impl/parser");
+		/**
+		* Creates a JSON scanner on the given text.
+		* If ignoreTrivia is set, whitespaces or comments are ignored.
+		*/
+		exports$1.createScanner = scanner.createScanner;
+		var ScanError;
+		(function(ScanError) {
+			ScanError[ScanError["None"] = 0] = "None";
+			ScanError[ScanError["UnexpectedEndOfComment"] = 1] = "UnexpectedEndOfComment";
+			ScanError[ScanError["UnexpectedEndOfString"] = 2] = "UnexpectedEndOfString";
+			ScanError[ScanError["UnexpectedEndOfNumber"] = 3] = "UnexpectedEndOfNumber";
+			ScanError[ScanError["InvalidUnicode"] = 4] = "InvalidUnicode";
+			ScanError[ScanError["InvalidEscapeCharacter"] = 5] = "InvalidEscapeCharacter";
+			ScanError[ScanError["InvalidCharacter"] = 6] = "InvalidCharacter";
+		})(ScanError || (exports$1.ScanError = ScanError = {}));
+		var SyntaxKind;
+		(function(SyntaxKind) {
+			SyntaxKind[SyntaxKind["OpenBraceToken"] = 1] = "OpenBraceToken";
+			SyntaxKind[SyntaxKind["CloseBraceToken"] = 2] = "CloseBraceToken";
+			SyntaxKind[SyntaxKind["OpenBracketToken"] = 3] = "OpenBracketToken";
+			SyntaxKind[SyntaxKind["CloseBracketToken"] = 4] = "CloseBracketToken";
+			SyntaxKind[SyntaxKind["CommaToken"] = 5] = "CommaToken";
+			SyntaxKind[SyntaxKind["ColonToken"] = 6] = "ColonToken";
+			SyntaxKind[SyntaxKind["NullKeyword"] = 7] = "NullKeyword";
+			SyntaxKind[SyntaxKind["TrueKeyword"] = 8] = "TrueKeyword";
+			SyntaxKind[SyntaxKind["FalseKeyword"] = 9] = "FalseKeyword";
+			SyntaxKind[SyntaxKind["StringLiteral"] = 10] = "StringLiteral";
+			SyntaxKind[SyntaxKind["NumericLiteral"] = 11] = "NumericLiteral";
+			SyntaxKind[SyntaxKind["LineCommentTrivia"] = 12] = "LineCommentTrivia";
+			SyntaxKind[SyntaxKind["BlockCommentTrivia"] = 13] = "BlockCommentTrivia";
+			SyntaxKind[SyntaxKind["LineBreakTrivia"] = 14] = "LineBreakTrivia";
+			SyntaxKind[SyntaxKind["Trivia"] = 15] = "Trivia";
+			SyntaxKind[SyntaxKind["Unknown"] = 16] = "Unknown";
+			SyntaxKind[SyntaxKind["EOF"] = 17] = "EOF";
+		})(SyntaxKind || (exports$1.SyntaxKind = SyntaxKind = {}));
+		/**
+		* For a given offset, evaluate the location in the JSON document. Each segment in the location path is either a property name or an array index.
+		*/
+		exports$1.getLocation = parser.getLocation;
+		/**
+		* Parses the given text and returns the object the JSON content represents. On invalid input, the parser tries to be as fault tolerant as possible, but still return a result.
+		* Therefore, always check the errors list to find out if the input was valid.
+		*/
+		exports$1.parse = parser.parse;
+		/**
+		* Parses the given text and returns a tree representation the JSON content. On invalid input, the parser tries to be as fault tolerant as possible, but still return a result.
+		*/
+		exports$1.parseTree = parser.parseTree;
+		/**
+		* Finds the node at the given path in a JSON DOM.
+		*/
+		exports$1.findNodeAtLocation = parser.findNodeAtLocation;
+		/**
+		* Finds the innermost node at the given offset. If includeRightBound is set, also finds nodes that end at the given offset.
+		*/
+		exports$1.findNodeAtOffset = parser.findNodeAtOffset;
+		/**
+		* Gets the JSON path of the given JSON DOM node
+		*/
+		exports$1.getNodePath = parser.getNodePath;
+		/**
+		* Evaluates the JavaScript object of the given JSON DOM node
+		*/
+		exports$1.getNodeValue = parser.getNodeValue;
+		/**
+		* Parses the given text and invokes the visitor functions for each object, array and literal reached.
+		*/
+		exports$1.visit = parser.visit;
+		/**
+		* Takes JSON with JavaScript-style comments and remove
+		* them. Optionally replaces every none-newline character
+		* of comments with a replaceCharacter
+		*/
+		exports$1.stripComments = parser.stripComments;
+		var ParseErrorCode;
+		(function(ParseErrorCode) {
+			ParseErrorCode[ParseErrorCode["InvalidSymbol"] = 1] = "InvalidSymbol";
+			ParseErrorCode[ParseErrorCode["InvalidNumberFormat"] = 2] = "InvalidNumberFormat";
+			ParseErrorCode[ParseErrorCode["PropertyNameExpected"] = 3] = "PropertyNameExpected";
+			ParseErrorCode[ParseErrorCode["ValueExpected"] = 4] = "ValueExpected";
+			ParseErrorCode[ParseErrorCode["ColonExpected"] = 5] = "ColonExpected";
+			ParseErrorCode[ParseErrorCode["CommaExpected"] = 6] = "CommaExpected";
+			ParseErrorCode[ParseErrorCode["CloseBraceExpected"] = 7] = "CloseBraceExpected";
+			ParseErrorCode[ParseErrorCode["CloseBracketExpected"] = 8] = "CloseBracketExpected";
+			ParseErrorCode[ParseErrorCode["EndOfFileExpected"] = 9] = "EndOfFileExpected";
+			ParseErrorCode[ParseErrorCode["InvalidCommentToken"] = 10] = "InvalidCommentToken";
+			ParseErrorCode[ParseErrorCode["UnexpectedEndOfComment"] = 11] = "UnexpectedEndOfComment";
+			ParseErrorCode[ParseErrorCode["UnexpectedEndOfString"] = 12] = "UnexpectedEndOfString";
+			ParseErrorCode[ParseErrorCode["UnexpectedEndOfNumber"] = 13] = "UnexpectedEndOfNumber";
+			ParseErrorCode[ParseErrorCode["InvalidUnicode"] = 14] = "InvalidUnicode";
+			ParseErrorCode[ParseErrorCode["InvalidEscapeCharacter"] = 15] = "InvalidEscapeCharacter";
+			ParseErrorCode[ParseErrorCode["InvalidCharacter"] = 16] = "InvalidCharacter";
+		})(ParseErrorCode || (exports$1.ParseErrorCode = ParseErrorCode = {}));
+		function printParseErrorCode(code) {
+			switch (code) {
+				case 1: return "InvalidSymbol";
+				case 2: return "InvalidNumberFormat";
+				case 3: return "PropertyNameExpected";
+				case 4: return "ValueExpected";
+				case 5: return "ColonExpected";
+				case 6: return "CommaExpected";
+				case 7: return "CloseBraceExpected";
+				case 8: return "CloseBracketExpected";
+				case 9: return "EndOfFileExpected";
+				case 10: return "InvalidCommentToken";
+				case 11: return "UnexpectedEndOfComment";
+				case 12: return "UnexpectedEndOfString";
+				case 13: return "UnexpectedEndOfNumber";
+				case 14: return "InvalidUnicode";
+				case 15: return "InvalidEscapeCharacter";
+				case 16: return "InvalidCharacter";
+			}
+			return "<unknown ParseErrorCode>";
+		}
+		exports$1.printParseErrorCode = printParseErrorCode;
+		/**
+		* Computes the edit operations needed to format a JSON document.
+		*
+		* @param documentText The input text
+		* @param range The range to format or `undefined` to format the full content
+		* @param options The formatting options
+		* @returns The edit operations describing the formatting changes to the original document following the format described in {@linkcode EditResult}.
+		* To apply the edit operations to the input, use {@linkcode applyEdits}.
+		*/
+		function format(documentText, range, options) {
+			return formatter.format(documentText, range, options);
+		}
+		exports$1.format = format;
+		/**
+		* Computes the edit operations needed to modify a value in the JSON document.
+		*
+		* @param documentText The input text
+		* @param path The path of the value to change. The path represents either to the document root, a property or an array item.
+		* If the path points to an non-existing property or item, it will be created.
+		* @param value The new value for the specified property or item. If the value is undefined,
+		* the property or item will be removed.
+		* @param options Options
+		* @returns The edit operations describing the changes to the original document, following the format described in {@linkcode EditResult}.
+		* To apply the edit operations to the input, use {@linkcode applyEdits}.
+		*/
+		function modify(text, path, value, options) {
+			return edit.setProperty(text, path, value, options);
+		}
+		exports$1.modify = modify;
+		/**
+		* Applies edits to an input string.
+		* @param text The input text
+		* @param edits Edit operations following the format described in {@linkcode EditResult}.
+		* @returns The text with the applied edits.
+		* @throws An error if the edit operations are not well-formed as described in {@linkcode EditResult}.
+		*/
+		function applyEdits(text, edits) {
+			let sortedEdits = edits.slice(0).sort((a, b) => {
+				const diff = a.offset - b.offset;
+				if (diff === 0) return a.length - b.length;
+				return diff;
+			});
+			let lastModifiedOffset = text.length;
+			for (let i = sortedEdits.length - 1; i >= 0; i--) {
+				let e = sortedEdits[i];
+				if (e.offset + e.length <= lastModifiedOffset) text = edit.applyEdit(text, e);
+				else throw new Error("Overlapping edit");
+				lastModifiedOffset = e.offset;
+			}
+			return text;
+		}
+		exports$1.applyEdits = applyEdits;
+	});
+}));
+
+//#endregion
+//#region src/media.ts
+var import_main = require_main();
+const MANIFEST_FILENAME = "emdash-plugin.jsonc";
+const MAX_MANIFEST_BYTES = 1024 * 1024;
+const MAX_IMAGE_BYTES = 1024 * 1024;
+const MAX_PATH_LENGTH = 1024;
+const MAX_LANG_LENGTH = 64;
+const MAX_SCREENSHOTS = 8;
+const MAX_DIMENSION = 8192;
+const PATH_SEPARATOR_PATTERN = /[\\/]+/;
+var ReleaseMediaPreparationError = class extends Error {
+	name = "ReleaseMediaPreparationError";
+};
+async function prepareReleaseMedia(options) {
+	const workspace = await directoryRealpath(options.workspace, "Workspace");
+	const pluginDirectory = await directoryRealpath(resolve(workspace, options.pluginDirectory), "Plugin directory");
+	if (!within(workspace, pluginDirectory)) throw new ReleaseMediaPreparationError("Plugin directory is outside the workspace");
+	const manifestPath = join(pluginDirectory, MANIFEST_FILENAME);
+	let manifestBytes;
+	try {
+		manifestBytes = await boundedFile$1(manifestPath, MAX_MANIFEST_BYTES, "Manifest", pluginDirectory);
+	} catch (error) {
+		if (error instanceof MissingFileError) return {};
+		throw error;
+	}
+	const manifest = parseManifest(manifestBytes);
+	if (options.ignoreUnrelatedManifest && isObject$1(manifest) && manifest.slug !== options.packageSlug) return {};
+	validateManifest(manifest, options.packageSlug, options.version);
+	const artifacts = getArtifacts(manifest);
+	const result = {};
+	if (artifacts.icon !== void 0) result.icon = await prepareImage(pluginDirectory, artifacts.icon, "Icon");
+	if (artifacts.banner !== void 0) result.banner = await prepareImage(pluginDirectory, artifacts.banner, "Banner");
+	if (artifacts.screenshots !== void 0) {
+		result.screenshots = [];
+		for (const [index, image] of artifacts.screenshots.entries()) result.screenshots.push(await prepareImage(pluginDirectory, image, `Screenshot ${index + 1}`));
+	}
+	return result;
+}
+var MissingFileError = class extends Error {};
+async function directoryRealpath(path, label) {
+	try {
+		const trusted = await realpath(path);
+		if (!(await stat(trusted)).isDirectory()) throw new Error();
+		return trusted;
+	} catch {
+		throw new ReleaseMediaPreparationError(`${label} could not be read`);
+	}
+}
+function within(root, candidate) {
+	const rel = relative(root, candidate);
+	return rel === "" || rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+}
+async function boundedFile$1(path, maximum, label, root) {
+	let trusted;
+	try {
+		trusted = await realpath(path);
+	} catch (error) {
+		if (isNotFound(error)) throw new MissingFileError();
+		throw new ReleaseMediaPreparationError(`${label} could not be read`);
+	}
+	try {
+		if (root !== void 0 && !within(root, trusted)) throw new Error();
+		if (!(await stat(trusted)).isFile()) throw new Error();
+		const handle = await open(trusted, "r");
+		try {
+			const buffer = Buffer.allocUnsafe(maximum + 1);
+			const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+			if (bytesRead === 0) throw new Error("empty");
+			if (bytesRead > maximum) throw new Error("large");
+			return new Uint8Array(buffer.subarray(0, bytesRead));
+		} finally {
+			await handle.close();
+		}
+	} catch {
+		throw new ReleaseMediaPreparationError(`${label} is missing, not a file, unreadable, or too large`);
+	}
+}
+function isNotFound(error) {
+	return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+}
+function parseManifest(bytes) {
+	const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+	const valueErrors = [];
+	const value = (0, import_main.parse)(text, valueErrors, {
+		allowTrailingComma: true,
+		disallowComments: false
+	});
+	if (valueErrors.length > 0) throw new ReleaseMediaPreparationError("Manifest contains invalid JSONC");
+	return value;
+}
+function validateManifest(value, packageSlug, version) {
+	if (!isObject$1(value)) throw new ReleaseMediaPreparationError("Manifest must be an object");
+	if (value.slug !== packageSlug) throw new ReleaseMediaPreparationError("Manifest slug does not match the bundle");
+	if (value.version !== void 0 && value.version !== version) throw new ReleaseMediaPreparationError("Manifest version does not match the bundle");
+	if (value.release !== void 0 && !isObject$1(value.release)) throw new ReleaseMediaPreparationError("Manifest release must be an object");
+	if (isObject$1(value.release) && value.release.artifacts !== void 0 && !isObject$1(value.release.artifacts)) throw new ReleaseMediaPreparationError("Manifest release.artifacts must be an object");
+}
+function getArtifacts(manifest) {
+	const release = isObject$1(manifest.release) ? manifest.release : void 0;
+	const artifacts = release && isObject$1(release.artifacts) ? release.artifacts : void 0;
+	if (!artifacts) return {};
+	for (const key of Object.keys(artifacts)) if (key !== "icon" && key !== "banner" && key !== "screenshots") throw new ReleaseMediaPreparationError(`Manifest release.artifacts has unsupported key ${key}`);
+	const result = {};
+	for (const key of ["icon", "banner"]) if (artifacts[key] !== void 0) result[key] = descriptor(artifacts[key], key);
+	if (artifacts.screenshots !== void 0) {
+		if (!Array.isArray(artifacts.screenshots) || artifacts.screenshots.length < 1 || artifacts.screenshots.length > MAX_SCREENSHOTS) throw new ReleaseMediaPreparationError("Manifest screenshots must contain 1 to 8 images");
+		result.screenshots = artifacts.screenshots.map((item, index) => descriptor(item, `screenshots[${index}]`));
+	}
+	return result;
+}
+function descriptor(value, label) {
+	if (!isObject$1(value)) throw new ReleaseMediaPreparationError(`Manifest ${label} must be an object`);
+	for (const key of Object.keys(value)) if (key !== "file" && key !== "lang") throw new ReleaseMediaPreparationError(`Manifest ${label} has unsupported key ${key}`);
+	if (typeof value.file !== "string" || value.file.length === 0 || value.file.length > MAX_PATH_LENGTH) throw new ReleaseMediaPreparationError(`Manifest ${label}.file is invalid`);
+	if (typeof value.lang === "string" && (value.lang.length < 2 || value.lang.length > MAX_LANG_LENGTH)) throw new ReleaseMediaPreparationError(`Manifest ${label}.lang is invalid`);
+	if (value.lang !== void 0 && typeof value.lang !== "string") throw new ReleaseMediaPreparationError(`Manifest ${label}.lang is invalid`);
+	return {
+		file: value.file,
+		...value.lang === void 0 ? {} : { lang: value.lang }
+	};
+}
+async function prepareImage(root, input, label) {
+	if (!safeRelativePath(input.file)) throw new ReleaseMediaPreparationError(`${label} path is invalid`);
+	const path = resolve(root, input.file);
+	let trusted;
+	try {
+		trusted = await realpath(path);
+	} catch {
+		throw new ReleaseMediaPreparationError(`${label} could not be read`);
+	}
+	if (!within(root, trusted)) throw new ReleaseMediaPreparationError(`${label} path is outside the plugin directory`);
+	const bytes = await boundedFile$1(trusted, MAX_IMAGE_BYTES, label);
+	let measured;
+	try {
+		measured = imageSize(bytes);
+	} catch {
+		throw new ReleaseMediaPreparationError(`${label} is not a readable PNG, JPEG, or WebP image`);
+	}
+	const contentType = {
+		png: "image/png",
+		jpg: "image/jpeg",
+		jpeg: "image/jpeg",
+		webp: "image/webp"
+	}[measured.type ?? ""];
+	const width = measured.width;
+	const height = measured.height;
+	if (!contentType || typeof width !== "number" || typeof height !== "number" || !Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > MAX_DIMENSION || height > MAX_DIMENSION) throw new ReleaseMediaPreparationError(`${label} is not a supported image or has invalid dimensions`);
+	const checksum = await computeMultihash(bytes);
+	if (!checksum.success) throw new ReleaseMediaPreparationError(`${label} checksum could not be computed`);
+	return {
+		bytes,
+		checksum: checksum.value,
+		contentType,
+		width,
+		height,
+		...input.lang === void 0 ? {} : { lang: input.lang }
+	};
+}
+function safeRelativePath(value) {
+	if (isAbsolute(value) || win32.isAbsolute(value)) return false;
+	let depth = 0;
+	for (const part of value.split(PATH_SEPARATOR_PATTERN)) {
+		if (part === "" || part === ".") continue;
+		if (part === ".." && depth-- === 0) return false;
+		if (part !== "..") depth++;
+	}
+	return true;
+}
+function isObject$1(value) {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 //#endregion
@@ -4459,7 +5687,7 @@ const $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
 		}
 		return propValues;
 	});
-	const isObject$2 = isObject;
+	const isObject$3 = isObject;
 	const catchall = def.catchall;
 	let value;
 	const memo = globalConfig.memoizer;
@@ -4467,7 +5695,7 @@ const $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
 	inst._zod.parse = (payload, ctx) => {
 		value ?? (value = _normalized.value);
 		const input = payload.value;
-		if (!isObject$2(input)) {
+		if (!isObject$3(input)) {
 			payload.issues.push({
 				expected: "object",
 				code: "invalid_type",
@@ -4582,7 +5810,7 @@ const $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) 
 		return doc.compile();
 	};
 	let fastpass;
-	const isObject$3 = isObject;
+	const isObject$4 = isObject;
 	const jit = !globalConfig.jitless;
 	const allowsEval$2 = allowsEval;
 	const fastEnabled = jit && allowsEval$2.value;
@@ -4591,7 +5819,7 @@ const $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) 
 	inst._zod.parse = (payload, ctx) => {
 		value ?? (value = _normalized.value);
 		const input = payload.value;
-		if (!isObject$3(input)) {
+		if (!isObject$4(input)) {
 			payload.issues.push({
 				expected: "object",
 				code: "invalid_type",
@@ -5346,7 +6574,7 @@ function bucketFor(state, inst) {
 	return bucket;
 }
 let handoff;
-const open = [];
+const open$1 = [];
 const memo = {
 	alloc(_inst, payload, empty) {
 		const bucket = handoff;
@@ -5357,7 +6585,7 @@ const memo = {
 			issues: null
 		};
 		bucket.set(payload.value, entry);
-		open.push(entry);
+		open$1.push(entry);
 		return empty;
 	},
 	guard(inst) {
@@ -5420,10 +6648,10 @@ const memo = {
 					return payload;
 				}
 				handoff = bucket;
-				const depth = open.length;
+				const depth = open$1.length;
 				const result = base(payload, ctx);
 				handoff = void 0;
-				const entry = open.length > depth ? open.pop() : void 0;
+				const entry = open$1.length > depth ? open$1.pop() : void 0;
 				if (result instanceof Promise) return result.then((r) => {
 					if (entry) entry.issues = r.issues.length ? cloneIssues(r.issues) : NO_ISSUES;
 					return r;
@@ -12840,19 +14068,6 @@ const verifier = new import_dist$2.Verifier((0, import_dist$2.toTrustMaterial)(i
 });
 
 //#endregion
-//#region ../../packages/registry-verification/dist/errors-D3_zxvwe.js
-function verificationError(code, message, details) {
-	return {
-		success: false,
-		error: {
-			code,
-			message,
-			...details === void 0 ? {} : { details }
-		}
-	};
-}
-
-//#endregion
 //#region ../../packages/registry-verification/dist/bundle.js
 /** Maximum accepted gzip payload size. */
 const MAX_BUNDLE_COMPRESSED_BYTES = 384 * 1024;
@@ -13069,42 +14284,6 @@ function invalidArchive() {
 }
 
 //#endregion
-//#region ../../packages/registry-verification/dist/checksum.js
-const SHA2_256_CODE = 18;
-const BASE32_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
-async function computeMultihash(bytes, algorithm = "sha2-256") {
-	if (algorithm !== "sha2-256") return verificationError("UNSUPPORTED_MULTIHASH", "The multihash algorithm is not supported.");
-	try {
-		const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)));
-		const multihash = new Uint8Array(2 + digest.length);
-		multihash[0] = SHA2_256_CODE;
-		multihash[1] = digest.length;
-		multihash.set(digest, 2);
-		return {
-			success: true,
-			value: `b${encodeBase32(multihash)}`
-		};
-	} catch {
-		return verificationError("UNSUPPORTED_MULTIHASH", "The sha2-256 algorithm is unavailable.");
-	}
-}
-function encodeBase32(bytes) {
-	let result = "";
-	let buffer = 0;
-	let bits = 0;
-	for (const byte of bytes) {
-		buffer = buffer << 8 | byte;
-		bits += 8;
-		while (bits >= 5) {
-			result += BASE32_ALPHABET[buffer >>> bits - 5 & 31] ?? "";
-			bits -= 5;
-		}
-	}
-	if (bits > 0) result += BASE32_ALPHABET[buffer << 5 - bits & 31] ?? "";
-	return result;
-}
-
-//#endregion
 //#region src/prepare.ts
 const MAX_PROVENANCE_BYTES = 5 * 1024 * 1024;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -13202,6 +14381,13 @@ async function prepareReleaseFiles(options, dependencies = {}) {
 	if (!bundle.success) throw new ReleasePreparationError(`Plugin bundle is invalid (${bundle.code})`);
 	const computeChecksum = dependencies.computeChecksum ?? checksum;
 	return {
+		media: await prepareReleaseMedia({
+			workspace: options.workspace,
+			pluginDirectory: resolve(options.workspace, options.pluginDirectory ?? "."),
+			packageSlug: bundle.value.packageSlug,
+			version: bundle.value.version,
+			ignoreUnrelatedManifest: Boolean(options.bundleFile) && (options.pluginDirectory ?? ".") === "."
+		}),
 		packageSlug: bundle.value.packageSlug,
 		version: bundle.value.version,
 		packageBytes,
@@ -13269,16 +14455,19 @@ async function setIntentOutputs(runtime, intent) {
 	await runtime.setOutput("release-cid", intent.result?.cid ?? "");
 	await runtime.setOutput("reason-code", intent.reasonCode ?? "");
 }
-function sourceReleaseFromPrepared(prepared, packageUrl, provenanceUrl) {
+function sourceReleaseFromPrepared(prepared, packageUrl, provenanceUrl, media) {
 	const release = parseDelegatedReleaseSourceRecord({
 		$type: NSID.packageRelease,
 		package: prepared.packageSlug,
 		version: prepared.version,
-		artifacts: { package: {
-			url: packageUrl,
-			checksum: prepared.packageChecksum,
-			contentType: "application/gzip"
-		} },
+		artifacts: {
+			...media,
+			package: {
+				url: packageUrl,
+				checksum: prepared.packageChecksum,
+				contentType: "application/gzip"
+			}
+		},
 		extensions: { [NSID.packageReleaseExtension]: {
 			$type: NSID.packageReleaseExtension,
 			declaredAccess: prepared.declaredAccess,
@@ -13383,7 +14572,30 @@ async function runAction(runtime, dependencies = {}) {
 			contentType: "application/json",
 			bytes: prepared.provenanceBytes
 		}, { idempotencyKey: `github-upload-${runId}-${packageSlug}-provenance` });
-		release = sourceReleaseFromPrepared(prepared, packageUpload.artifact.sourceUrl, provenanceUpload.artifact.sourceUrl);
+		const media = {};
+		const uploadImage = async (slot, image) => {
+			const { bytes, ...descriptor } = image;
+			const uploaded = await client.uploadReleaseArtifact({
+				publisherDid,
+				packageSlug,
+				version,
+				slot,
+				checksum: image.checksum,
+				contentType: image.contentType,
+				bytes
+			}, { idempotencyKey: `github-upload-${runId}-${packageSlug}-${slot.replaceAll("[", "-").replaceAll("]", "")}` });
+			return {
+				...descriptor,
+				url: uploaded.artifact.sourceUrl
+			};
+		};
+		if (prepared.media?.icon) media.icon = await uploadImage("icon", prepared.media.icon);
+		if (prepared.media?.banner) media.banner = await uploadImage("banner", prepared.media.banner);
+		if (prepared.media?.screenshots) {
+			media.screenshots = [];
+			for (const [index, image] of prepared.media.screenshots.entries()) media.screenshots.push(await uploadImage(`screenshots[${index}]`, image));
+		}
+		release = sourceReleaseFromPrepared(prepared, packageUpload.artifact.sourceUrl, provenanceUpload.artifact.sourceUrl, media);
 	}
 	if (!release) throw new ActionConfigurationError("Release input is unavailable");
 	const submitted = await client.submitIntent({
@@ -13422,7 +14634,7 @@ async function executeAction(runtime, dependencies = {}) {
 	try {
 		await runAction(runtime, dependencies);
 	} catch (error) {
-		if (error instanceof ReleaseServiceError || error instanceof ActionConfigurationError || error instanceof ReleasePreparationError) {
+		if (error instanceof ReleaseServiceError || error instanceof ActionConfigurationError || error instanceof ReleasePreparationError || error instanceof ReleaseMediaPreparationError) {
 			runtime.setFailed(error instanceof ReleaseServiceError ? `${error.code}: ${error.message}` : error.message);
 			return;
 		}
