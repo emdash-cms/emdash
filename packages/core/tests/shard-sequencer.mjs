@@ -7,10 +7,7 @@ import { assignShards, fileWeights } from "../../../.github/scripts/vitest-shard
 
 const times = JSON.parse(readFileSync(new URL("./shard-times.json", import.meta.url), "utf8"));
 
-/**
- * Deals the test files out to `--shard` groups by their recorded durations
- * instead of by count, so the shards finish at about the same time.
- */
+/** Deals the test files out to `--shard` groups by recorded duration, not by count. */
 export class ShardSequencer extends BaseSequencer {
 	async shard(files) {
 		const { index, count } = this.ctx.config.shard;

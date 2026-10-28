@@ -152,9 +152,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run --filter emdash... build
       - id: unit
-        run: >-
-          pnpm --filter emdash exec vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-          --reporter=default --reporter=github-actions --reporter=json --outputFile.json=vitest-timings/unit.json
+        run: pnpm --filter emdash exec vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           EMDASH_TEST_PG: postgres://postgres:test@localhost:5432/emdash_test
       # The durations behind packages/core/tests/shard-times.json; see .github/scripts/vitest-shard.mjs --record.

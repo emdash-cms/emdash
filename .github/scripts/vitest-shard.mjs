@@ -5,7 +5,6 @@ import { pathToFileURL } from "node:url";
 
 export const TIMES_FILE = new URL("../../packages/core/tests/shard-times.json", import.meta.url);
 
-const PACKAGE_DIR = "packages/core/";
 const byName = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
 function median(values) {
@@ -15,7 +14,7 @@ function median(values) {
 
 /**
  * Seconds per test file. A file the times don't know gets the median of the
- * known files, so a new test file is placed as an average one until the
+ * known files, so a new test file is placed as a typical one until the
  * times are recorded again.
  */
 export function fileWeights(names, times) {
@@ -45,21 +44,17 @@ export function assignShards(weights, total) {
 }
 
 /**
- * Seconds per test file from Vitest JSON reports, averaged over the reports
- * that ran the file and merged over the previous times. A file the reports
- * don't cover keeps its previous value, so a partial download can't erase
- * the rest; a stale entry costs nothing because Vitest decides which files
- * exist.
+ * Seconds per test file from the files ShardTimesReporter writes, averaged
+ * over the reports that ran the file and merged over the previous times. A
+ * file the reports don't cover keeps its previous value, so a partial
+ * download can't erase the rest; a stale entry costs nothing because Vitest
+ * decides which files exist.
  */
 export function recordTimes(reports, previous = {}) {
 	const samples = {};
 	for (const report of reports) {
-		for (const result of report.testResults ?? []) {
-			const at = result.name.indexOf(PACKAGE_DIR);
-			if (at === -1 || !Number.isFinite(result.startTime) || !Number.isFinite(result.endTime))
-				continue;
-			const name = result.name.slice(at + PACKAGE_DIR.length);
-			(samples[name] ??= []).push((result.endTime - result.startTime) / 1000);
+		for (const [name, seconds] of Object.entries(report)) {
+			if (Number.isFinite(seconds)) (samples[name] ??= []).push(seconds);
 		}
 	}
 	const times = {};
@@ -78,7 +73,7 @@ function readReports(dir) {
 	for (const entry of readdirSync(dir, { recursive: true, withFileTypes: true })) {
 		if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
 		const report = JSON.parse(readFileSync(path.join(entry.parentPath, entry.name), "utf8"));
-		if (Array.isArray(report.testResults)) reports.push(report);
+		if (report && typeof report === "object" && !Array.isArray(report)) reports.push(report);
 	}
 	return reports;
 }
@@ -90,7 +85,8 @@ function main() {
 		process.stdout.write(
 			[
 				"Usage: vitest-shard.mjs --record <dir> [--times <file>]",
-				"  updates packages/core/tests/shard-times.json from the Vitest JSON reports under <dir>",
+				"  updates packages/core/tests/shard-times.json from the vitest-timings reports under <dir>,",
+				"  for example after: gh run download <run-id> -p 'vitest-timings-*' -D <dir>",
 				"",
 			].join("\n"),
 		);
@@ -98,7 +94,8 @@ function main() {
 	}
 	const timesFile = option("--times") ?? TIMES_FILE;
 	const reports = readReports(option("--record"));
-	if (reports.length === 0) throw new Error(`no Vitest JSON reports under ${option("--record")}`);
+	if (reports.length === 0)
+		throw new Error(`no vitest-timings reports under ${option("--record")}`);
 	const previous = JSON.parse(readFileSync(timesFile, "utf8"));
 	const times = recordTimes(reports, previous);
 	writeFileSync(timesFile, `${JSON.stringify(times, null, "\t")}\n`);

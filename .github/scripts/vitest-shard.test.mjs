@@ -10,16 +10,6 @@ import { assignShards, fileWeights, recordTimes } from "./vitest-shard.mjs";
 
 const script = fileURLToPath(new URL("./vitest-shard.mjs", import.meta.url));
 
-function report(durationsByFile, root = "/home/runner/work/emdash/emdash/packages/core") {
-	return {
-		testResults: Object.entries(durationsByFile).map(([name, ms]) => ({
-			name: `${root}/${name}`,
-			startTime: 1_000_000,
-			endTime: 1_000_000 + ms,
-		})),
-	};
-}
-
 describe("vitest shards", () => {
 	it("puts every test file in exactly one shard", () => {
 		const weights = new Map([
@@ -43,18 +33,20 @@ describe("vitest shards", () => {
 		]);
 	});
 
-	it("gives the same shards whatever the input order", () => {
+	it("gives the same shards whatever the input order, with tied weights too", () => {
 		const entries = [
 			["slow.test.ts", 120],
 			["mid.test.ts", 60],
 			["quick.test.ts", 5],
 			["other.test.ts", 55],
 		];
+		const tied = ["a", "b", "c", "d", "e", "f", "g"].map((name) => [`${name}.test.ts`, 1]);
 
-		const forward = assignShards(new Map(entries), 3);
-		const backward = assignShards(new Map(entries.toReversed()), 3);
-
-		assert.deepEqual(forward, backward);
+		assert.deepEqual(
+			assignShards(new Map(entries), 3),
+			assignShards(new Map(entries.toReversed()), 3),
+		);
+		assert.deepEqual(assignShards(new Map(tied), 3), assignShards(new Map(tied.toReversed()), 3));
 	});
 
 	it("weighs an unrecorded test file like the median recorded one", () => {
@@ -69,9 +61,8 @@ describe("vitest shards", () => {
 	it("records a file's whole seconds, averaged over the reports that ran it", () => {
 		const previous = { "tests/kept.test.ts": 5, "tests/unseen.test.ts": 5 };
 		const reports = [
-			report({ "tests/kept.test.ts": 4100, "tests/new.test.ts": 100 }),
-			report({ "tests/kept.test.ts": 5900, "tests/late.test.ts": 30000 }),
-			{ testResults: [{ name: "/elsewhere/tests/other.test.ts", startTime: 0, endTime: 1000 }] },
+			{ "tests/kept.test.ts": 4.1, "tests/new.test.ts": 0.1 },
+			{ "tests/kept.test.ts": 5.9, "tests/late.test.ts": 30, "tests/broken.test.ts": "x" },
 		];
 
 		const times = recordTimes(reports, previous);
@@ -90,10 +81,7 @@ describe("vitest shards", () => {
 		writeFileSync(timesFile, JSON.stringify({ "tests/old.test.ts": 1 }));
 		const reports = path.join(dir, "reports", "vitest-timings-3");
 		mkdirSync(reports, { recursive: true });
-		writeFileSync(
-			path.join(reports, "unit.json"),
-			JSON.stringify(report({ "tests/auth.test.ts": 2400 })),
-		);
+		writeFileSync(path.join(reports, "unit.json"), JSON.stringify({ "tests/auth.test.ts": 2.4 }));
 
 		execFileSync(process.execPath, [
 			script,
