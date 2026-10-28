@@ -66,8 +66,11 @@ async function renderPicker(props: Partial<React.ComponentProps<typeof MediaPick
 }
 
 describe("MediaPickerModal inline uploads", () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		vi.clearAllMocks();
+		const api = await import("../../src/lib/api");
+		vi.mocked(api.fetchMediaFolders).mockResolvedValue({ items: [] });
+		vi.mocked(api.fetchMediaProviders).mockResolvedValue([]);
 	});
 
 	it("uploads one file inline and turns it into the selected card", async () => {
@@ -103,6 +106,9 @@ describe("MediaPickerModal inline uploads", () => {
 		await expect.element(screen.getByRole("button", { name: "Select" })).toBeEnabled();
 		await expect.element(screen.getByRole("tab", { name: "From URL" })).toBeEnabled();
 		expect(apiMocks.uploadMedia.mock.calls[0]?.[0].name).toBe("first.jpg");
+		expect(apiMocks.uploadMedia.mock.calls[0]?.[1]).not.toEqual(
+			expect.objectContaining({ deduplicate: false }),
+		);
 	});
 
 	it("accepts files dropped onto the picker results", async () => {
@@ -156,7 +162,43 @@ describe("MediaPickerModal inline uploads", () => {
 		expect(screen.getByRole("button", { name: "main-only.jpg", exact: true }).query()).toBeNull();
 	});
 
-	it("prevents a disabled-source file drop from leaving the editor", async () => {
+	it("keeps a folder upload visible and selected only in its destination", async () => {
+		const api = await import("../../src/lib/api");
+		vi.mocked(api.fetchMediaFolders).mockResolvedValue({
+			items: [{ id: "folder-1", name: "Photography" }],
+		});
+		apiMocks.uploadMedia.mockResolvedValueOnce({
+			...mediaItem("uploaded-folder", "folder.jpg"),
+			folderId: "folder-1",
+		} as MediaItem);
+		const onSelect = vi.fn();
+		const screen = await renderPicker({ onSelect });
+		screen.getByRole("button", { name: "Open folder Photography" }).element().click();
+		await expect.element(screen.getByRole("button", { name: "Upload files" })).toBeVisible();
+		setInputFiles(screen.getByLabelText("Choose files to upload").element() as HTMLInputElement, [
+			new File(["folder"], "folder.jpg", { type: "image/jpeg" }),
+		]);
+
+		await expect
+			.element(screen.getByRole("button", { name: "folder.jpg", exact: true }))
+			.toHaveAttribute("aria-pressed", "true");
+		expect(apiMocks.uploadMedia).toHaveBeenCalledWith(
+			expect.objectContaining({ name: "folder.jpg" }),
+			expect.objectContaining({ folderId: "folder-1", deduplicate: false }),
+		);
+		screen.getByRole("button", { name: "Main library", exact: true }).element().click();
+		await vi.waitFor(() =>
+			expect(screen.getByRole("button", { name: "folder.jpg", exact: true }).query()).toBeNull(),
+		);
+		screen.getByRole("button", { name: "Open folder Photography" }).element().click();
+		await expect
+			.element(screen.getByRole("button", { name: "folder.jpg", exact: true }))
+			.toHaveAttribute("aria-pressed", "true");
+		screen.getByRole("button", { name: "Select", exact: true }).element().click();
+		expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: "uploaded-folder" }));
+	});
+
+	it("uploads dropped files into the open folder without leaving the editor", async () => {
 		const api = await import("../../src/lib/api");
 		(api.fetchMediaFolders as any).mockResolvedValueOnce({
 			items: [{ id: "folder-1", name: "Photography" }],
@@ -169,7 +211,7 @@ describe("MediaPickerModal inline uploads", () => {
 		await expect.element(screen.getByText("Photography", { exact: true })).toBeInTheDocument();
 
 		const transfer = new DataTransfer();
-		transfer.items.add(new File(["blocked"], "blocked.jpg", { type: "image/jpeg" }));
+		transfer.items.add(new File(["folder"], "folder.jpg", { type: "image/jpeg" }));
 		const results = screen.getByRole("region", { name: "Media results" }).element();
 		const dragOver = new DragEvent("dragover", {
 			bubbles: true,
@@ -184,6 +226,69 @@ describe("MediaPickerModal inline uploads", () => {
 		results.dispatchEvent(dragOver);
 		results.dispatchEvent(drop);
 
+		expect(dragOver.defaultPrevented).toBe(true);
+		expect(drop.defaultPrevented).toBe(true);
+		await vi.waitFor(() => expect(apiMocks.uploadMedia).toHaveBeenCalledTimes(1));
+		expect(apiMocks.uploadMedia).toHaveBeenCalledWith(
+			expect.objectContaining({ name: "folder.jpg" }),
+			expect.objectContaining({ folderId: "folder-1", deduplicate: false }),
+		);
+	});
+
+	it("keeps failed folder uploads scoped to their folder across navigation and retry", async () => {
+		const api = await import("../../src/lib/api");
+		vi.mocked(api.fetchMediaFolders).mockResolvedValue({
+			items: [{ id: "folder-1", name: "Photography" }],
+		});
+		apiMocks.uploadMedia.mockRejectedValueOnce(new Error("network")).mockResolvedValueOnce({
+			...mediaItem("retried-folder", "retry.jpg"),
+			folderId: "folder-1",
+		} as MediaItem);
+		const screen = await renderPicker();
+		screen.getByRole("button", { name: "Open folder Photography" }).element().click();
+		await expect.element(screen.getByText("Photography", { exact: true })).toBeInTheDocument();
+		setInputFiles(screen.getByLabelText("Choose files to upload").element() as HTMLInputElement, [
+			new File(["retry"], "retry.jpg", { type: "image/jpeg" }),
+		]);
+		await expect.element(screen.getByText("Upload failed", { exact: true })).toBeInTheDocument();
+		screen.getByRole("button", { name: "Main library", exact: true }).element().click();
+		await expect
+			.element(screen.getByRole("button", { name: "Open folder Photography" }))
+			.toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Remove retry.jpg" }).query()).toBeNull();
+		screen.getByRole("button", { name: "Open folder Photography" }).element().click();
+		await expect
+			.element(screen.getByRole("button", { name: "Retry retry.jpg" }))
+			.toBeInTheDocument();
+		screen.getByRole("button", { name: "Retry retry.jpg" }).element().click();
+		await vi.waitFor(() => expect(apiMocks.uploadMedia).toHaveBeenCalledTimes(2));
+		expect(apiMocks.uploadMedia.mock.calls[1]?.[1]).toEqual(
+			expect.objectContaining({ folderId: "folder-1", deduplicate: false }),
+		);
+	});
+
+	it("cancels drops and does not upload on an external provider without upload capability", async () => {
+		const api = await import("../../src/lib/api");
+		vi.mocked(api.fetchMediaProviders).mockResolvedValueOnce([
+			{
+				id: "external",
+				name: "External files",
+				capabilities: { browse: true, search: false, upload: false, delete: false },
+			},
+		]);
+		const screen = await renderPicker();
+		screen.getByRole("tab", { name: "External files" }).element().click();
+		const transfer = new DataTransfer();
+		transfer.items.add(new File(["blocked"], "blocked.jpg", { type: "image/jpeg" }));
+		const results = screen.getByRole("region", { name: "Media results" }).element();
+		const dragOver = new DragEvent("dragover", {
+			bubbles: true,
+			cancelable: true,
+			dataTransfer: transfer,
+		});
+		const drop = new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: transfer });
+		results.dispatchEvent(dragOver);
+		results.dispatchEvent(drop);
 		expect(dragOver.defaultPrevented).toBe(true);
 		expect(drop.defaultPrevented).toBe(true);
 		expect(apiMocks.uploadMedia).not.toHaveBeenCalled();
