@@ -5,7 +5,7 @@ status: proposed
 authors:
   - Noah Pham (@khoinguyenpham04)
 champion: Noah Pham (@khoinguyenpham04)
-sponsor: MA2153 (@MA2153)
+sponsor: null
 discussions:
   - https://github.com/emdash-cms/emdash/discussions/2022
 created: 2026-10-28
@@ -367,6 +367,10 @@ The feature ships in one minor release of `emdash`, `@emdash-cms/admin` and `@em
 - Comment submissions during the freeze are refused, not queued.
 - A forgotten freeze blocks editing until someone turns it off. The banner shows when it started.
 - The fence gains a third source, a second scope flag and an allowlist, and the sandbox bridge keeps a second copy of the fence statement.
+
+## Open questions
+
+- A Maintainer sponsor.
 
 ## Appendix A: Implementation reference
 
