@@ -18,7 +18,7 @@ msgstr ""
 msgid " (default)"
 msgstr " (per defecte)"
 
-#: packages/admin/src/components/MenuEditor.tsx:635
+#: packages/admin/src/components/MenuEditor.tsx:631
 msgid " (opens in new window)"
 msgstr " (s'obre en una finestra nova)"
 
@@ -45,6 +45,16 @@ msgstr "\"{0}\" s'eliminarà del seu proveïdor multimèdia."
 #: packages/admin/src/components/MediaDetailPanel.tsx:1928
 msgid "\"{0}\" will be permanently deleted."
 msgstr "\"{0}\" s'eliminarà permanentment."
+
+#. placeholder {0}: item.label
+#: packages/admin/src/components/MenuEditor.tsx:681
+msgid "\"{0}\" will be removed from this menu. This action cannot be undone."
+msgstr ""
+
+#. placeholder {0}: widget.title || t`Untitled Widget`
+#: packages/admin/src/components/Widgets.tsx:849
+msgid "\"{0}\" will be removed from this widget area. This action cannot be undone."
+msgstr ""
 
 #: packages/admin/src/components/OptionalLabel.tsx:13
 msgid "(optional)"
@@ -151,12 +161,12 @@ msgid "{0, plural, one {# link} other {# links}}"
 msgstr "{0, plural, one {# enllaç} other {# enllaços}}"
 
 #. placeholder {0}: tagMatches?.matchCount ?? 0
-#: packages/admin/src/components/TaxonomyManager.tsx:1392
+#: packages/admin/src/components/TaxonomyManager.tsx:1395
 msgid "{0, plural, one {# matching tag} other {# matching tags}}"
 msgstr "{0, plural, one {# etiqueta coincident} other {# etiquetes coincidents}}"
 
 #. placeholder {0}: mcpTools.length
-#: packages/admin/src/components/PluginManager.tsx:503
+#: packages/admin/src/components/PluginManager.tsx:505
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# eina MCP} other {# eines MCP}}"
 
@@ -187,9 +197,14 @@ msgstr "{0, plural, one {# permís sol·licitat} other {# permisos sol·licitats
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
-#: packages/admin/src/components/PluginManager.tsx:517
+#: packages/admin/src/components/PluginManager.tsx:519
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# permís} other {# permisos}}"
+
+#. placeholder {0}: plugins?.length ?? 0
+#: packages/admin/src/components/PluginManager.tsx:221
+msgid "{0, plural, one {# plugin} other {# plugins}}"
+msgstr ""
 
 #. placeholder {0}: mapping.postCount
 #: packages/admin/src/components/WordPressImport.tsx:2545
@@ -344,7 +359,7 @@ msgid "{0} has been deactivated"
 msgstr "S'ha desactivat {0}"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:398
+#: packages/admin/src/components/PluginManager.tsx:400
 msgid "{0} has been removed"
 msgstr "S'ha eliminat {0}"
 
@@ -431,11 +446,6 @@ msgstr "No s'han pogut actualitzar {0} de {total}"
 msgid "{0} of media, {1} of records"
 msgstr "{0} de multimèdia, {1} de registres"
 
-#. placeholder {0}: plugins?.length ?? 0
-#: packages/admin/src/components/PluginManager.tsx:220
-msgid "{0} plugins"
-msgstr "{0} connectors"
-
 #. placeholder {0}: theme.name
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:206
 msgid "{0} preview"
@@ -448,7 +458,7 @@ msgstr "{0} s'ha tret d'aquesta entrada."
 
 #. placeholder {0}: SYSTEM_FIELDS.length
 #. placeholder {1}: fields.length
-#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useQuery } from "@tanstack/react-query"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchCollections, fetchRelations } from "../lib/api"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import type { CreateRelationInput, RelationDef, UpdateRelationInput, } from "../lib/api/relations.js"; import { cn, slugifyIdentifier } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { getMutationError } from "./DialogError"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RelationImpact } from "./RelationImpact.js"; import { RelationsPanel } from "./RelationsPanel.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; const MULTIPLE_PLACEHOLDERS_IN_SEGMENT = /\{\w+\}[^/]*\{\w+\}/; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; /** Resolves once the field is saved; rejects with the server's message. */ onAddField?: (input: CreateFieldInput) => Promise<unknown>; /** Resolves once the field is saved; rejects with the server's message. */ onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => Promise<unknown>; /** `deleteRelation` also removes the relationship a reference field views, * its links, and the field on the other end. */ onDeleteField?: (fieldSlug: string, options?: { deleteRelation?: boolean }) => void; onReorderFields?: (fieldSlugs: string[]) => void; /** Resolves with the new relation; rejects with the server's message. */ onCreateRelation?: (input: CreateRelationInput) => Promise<RelationDef>; /** Resolves once the relation is saved; rejects with the server's message. */ onUpdateRelation?: (id: string, input: UpdateRelationInput) => Promise<unknown>; /** Also removes the relation's links and the reference fields bound to it. */ onDeleteRelation?: (id: string) => Promise<unknown>; isDeletingRelation?: boolean; deleteRelationError?: unknown; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, onCreateRelation, onUpdateRelation, onDeleteRelation, isDeletingRelation, deleteRelationError, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); const [routable, setRoutable] = React.useState(collection?.routable ?? true); const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true); const [icon, setIcon] = React.useState(collection?.icon ?? ""); const [group, setGroup] = React.useState(collection?.group ?? ""); const [hidden, setHidden] = React.useState(collection?.hidden ?? false); const [quickCreate, setQuickCreate] = React.useState(collection?.admin?.quickCreate ?? true); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [fieldSaveError, setFieldSaveError] = React.useState<string | null>(null); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); // Checked by default: deleting a reference field almost always means the // relationship it views is finished too. const [deleteFieldRelation, setDeleteFieldRelation] = React.useState(true); const urlPatternChanged = urlPattern !== (collection?.urlPattern ?? ""); const urlPatternSharesSegment = urlPatternChanged && MULTIPLE_PLACEHOLDERS_IN_SEGMENT.test(urlPattern); const urlPatternValid = !urlPattern || (urlPattern.includes("{slug}") && !urlPatternSharesSegment); const slugError = isNew && !slug && label.trim().length > 0 ? t`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.` : undefined; // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || routable !== (collection.routable ?? true) || editLocking !== (collection.editLocking ?? true) || icon !== (collection.icon ?? "") || group !== (collection.group ?? "") || hidden !== (collection.hidden ?? false) || quickCreate !== (collection.admin?.quickCreate ?? true) || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, routable, editLocking, icon, group, hidden, quickCreate, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug(slugifyIdentifier(value)); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, editLocking, icon: icon.trim() || undefined, group: group.trim() || undefined, hidden, admin: quickCreate ? undefined : { quickCreate: false }, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, editLocking, icon: icon.trim(), group: group.trim() || null, hidden, admin: quickCreate !== (collection?.admin?.quickCreate ?? true) ? { ...collection?.admin, quickCreate: quickCreate ? undefined : false } : undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); setFieldSaveError(null); try { if (editingField) { await onUpdateField?.(editingField.slug, input); } else { await onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } catch (err) { setFieldSaveError(getMutationError(err)); } finally { setFieldSaving(false); } }; const requestDeleteField = (field: SchemaField) => { setDeleteFieldRelation(true); setDeleteFieldTarget(field); }; const handleEditField = (field: SchemaField) => { if (field.unsupportedType) return; setEditingField(field); setFieldSaveError(null); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldSaveError(null); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const { data: relations = [], isLoading: relationsLoading } = useQuery({ queryKey: ["relations"], queryFn: () => fetchRelations(), }); const { data: allCollections = [] } = useQuery({ queryKey: ["schema", "collections"], queryFn: fetchCollections, }); const targetRelationSlug = deleteFieldTarget?.validation?.relation; const targetRelation = relations.find((rel) => rel.slug === targetRelationSlug); const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="truncate text-2xl font-semibold"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded"> {collection?.slug} </code> {isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-kumo-info" /> <p className="text-sm text-kumo-subtle"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input dir="ltr" label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} error={slugError} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <Switch checked={routable} onCheckedChange={setRoutable} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Routable`}</span> <p className="text-xs text-kumo-subtle"> {t`Require a slug before content can be published`} </p> </div> } /> <Switch checked={editLocking} onCheckedChange={setEditLocking} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Edit locking`}</span> <p className="text-xs text-kumo-subtle"> {t`Hold an entry while someone is editing it, and refuse other writers`} </p> </div> } /> <div> <Input dir="ltr" label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} {urlPatternSharesSegment && ( <p className="text-xs text-kumo-danger mt-2"> {t`Each path segment can contain at most one placeholder, e.g. ${"/{year}/{slug}"}`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}. Tokens: ${"{slug}"}, ${"{id}"}, and date tokens ${"{year}"}/${"{month}"}/${"{day}"} (also ${"{hour}"}/${"{minute}"}/${"{second}"}) from the publish date — e.g. ${"/{year}/{month}/{day}/{slug}.html"} for WordPress-style permalinks.`} </p> </div> <div className="space-y-3"> <Label>{t`Navigation`}</Label> <div> <Input label={t`Group`} value={group} onChange={(e) => setGroup(e.target.value)} placeholder={t`Calendar`} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle mt-1"> {t`Content types with the same group share a collapsible folder in the sidebar`} </p> </div> <div> <Input dir="ltr" label={t`Icon`} value={icon} onChange={(e) => setIcon(e.target.value)} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle mt-1"> {t`Phosphor icon name, e.g. calendar-blank or trophy`} </p> </div> <Switch checked={hidden} onCheckedChange={setHidden} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Hide from navigation`}</span> <p className="text-xs text-kumo-subtle"> {t`Removes the sidebar entry, command palette link, and dashboard quick action; entries stay reachable by URL, API, and plugins`} </p> </div> } /> <Switch checked={quickCreate} onCheckedChange={setQuickCreate} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Quick action on the dashboard`}</span> <p className="text-xs text-kumo-subtle"> {t`Shows a button for creating a new entry`} </p> </div> } /> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && (isNew ? ( <Button type="submit" disabled={!hasChanges || !urlPatternValid} loading={isSaving} className="w-full justify-center" > {t`Create Content Type`} </Button> ) : ( <SaveButton type="submit" isDirty={!!hasChanges} isSaving={!!isSaving} announce={false} disabled={!urlPatternValid} className="w-full justify-center" /> ))} </form> </div> {/* Fields and relations - only shown for existing collections */} {!isNew && ( <div className="lg:col-span-2 space-y-6"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => requestDeleteField(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> {collection && ( <RelationsPanel collectionSlug={collection.slug} relations={relations} collections={allCollections} isLoading={relationsLoading} onCreateRelation={onCreateRelation} onUpdateRelation={onUpdateRelation} onDeleteRelation={onDeleteRelation} isDeletingRelation={isDeletingRelation} deleteRelationError={deleteRelationError} /> )} </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={(nextOpen) => { setFieldEditorOpen(nextOpen); if (!nextOpen) setFieldSaveError(null); }} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} saveError={fieldSaveError} collectionSlug={collection?.slug} onCreateRelation={onCreateRelation} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.( deleteFieldTarget.slug, targetRelation ? { deleteRelation: deleteFieldRelation } : undefined, ); setDeleteFieldTarget(null); } }} > {targetRelation && ( <div className="mt-4 space-y-3"> <Checkbox checked={deleteFieldRelation} onCheckedChange={(checked) => setDeleteFieldRelation(checked === true)} label={t`Also delete the relationship this field uses`} /> {deleteFieldRelation && collection && ( <div className="rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3"> <p className="text-sm font-medium">{t`This also removes:`}</p> <RelationImpact relations={[targetRelation]} excludeField={{ collectionSlug: collection.slug, fieldSlug: deleteFieldTarget?.slug ?? "", }} /> </div> )} </div> )} </ConfirmDialog> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code dir="ltr" className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className={cn("text-xs text-kumo-subtle", !field.unsupportedType && "capitalize")}> {field.unsupportedType?.type ?? field.type} </span> {field.unsupportedType && <Badge variant="secondary">{t`Unsupported`}</Badge>} {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} disabled={Boolean(field.unsupportedType)} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code dir="ltr" className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
+#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useQuery } from "@tanstack/react-query"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchCollections, fetchRelations } from "../lib/api"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import type { CreateRelationInput, RelationDef, UpdateRelationInput, } from "../lib/api/relations.js"; import { cn, slugifyIdentifier } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { getMutationError } from "./DialogError"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RelationImpact } from "./RelationImpact.js"; import { RelationsPanel } from "./RelationsPanel.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; const MULTIPLE_PLACEHOLDERS_IN_SEGMENT = /\{\w+\}[^/]*\{\w+\}/; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; /** Resolves once the field is saved; rejects with the server's message. */ onAddField?: (input: CreateFieldInput) => Promise<unknown>; /** Resolves once the field is saved; rejects with the server's message. */ onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => Promise<unknown>; /** `deleteRelation` also removes the relationship a reference field views, * its links, and the field on the other end. */ onDeleteField?: (fieldSlug: string, options?: { deleteRelation?: boolean }) => void; onReorderFields?: (fieldSlugs: string[]) => void; /** Resolves with the new relation; rejects with the server's message. */ onCreateRelation?: (input: CreateRelationInput) => Promise<RelationDef>; /** Resolves once the relation is saved; rejects with the server's message. */ onUpdateRelation?: (id: string, input: UpdateRelationInput) => Promise<unknown>; /** Also removes the relation's links and the reference fields bound to it. */ onDeleteRelation?: (id: string) => Promise<unknown>; isDeletingRelation?: boolean; deleteRelationError?: unknown; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, onCreateRelation, onUpdateRelation, onDeleteRelation, isDeletingRelation, deleteRelationError, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); const [routable, setRoutable] = React.useState(collection?.routable ?? true); const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true); const [icon, setIcon] = React.useState(collection?.icon ?? ""); const [group, setGroup] = React.useState(collection?.group ?? ""); const [hidden, setHidden] = React.useState(collection?.hidden ?? false); const [quickCreate, setQuickCreate] = React.useState(collection?.admin?.quickCreate ?? true); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [fieldSaveError, setFieldSaveError] = React.useState<string | null>(null); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); // Checked by default: deleting a reference field almost always means the // relationship it views is finished too. const [deleteFieldRelation, setDeleteFieldRelation] = React.useState(true); const urlPatternChanged = urlPattern !== (collection?.urlPattern ?? ""); const urlPatternSharesSegment = urlPatternChanged && MULTIPLE_PLACEHOLDERS_IN_SEGMENT.test(urlPattern); const urlPatternValid = !urlPattern || (urlPattern.includes("{slug}") && !urlPatternSharesSegment); const slugError = isNew && !slug && label.trim().length > 0 ? t`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.` : undefined; // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || routable !== (collection.routable ?? true) || editLocking !== (collection.editLocking ?? true) || icon !== (collection.icon ?? "") || group !== (collection.group ?? "") || hidden !== (collection.hidden ?? false) || quickCreate !== (collection.admin?.quickCreate ?? true) || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, routable, editLocking, icon, group, hidden, quickCreate, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug(slugifyIdentifier(value)); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, editLocking, icon: icon.trim() || undefined, group: group.trim() || undefined, hidden, admin: quickCreate ? undefined : { quickCreate: false }, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, editLocking, icon: icon.trim(), group: group.trim() || null, hidden, admin: quickCreate !== (collection?.admin?.quickCreate ?? true) ? { ...collection?.admin, quickCreate: quickCreate ? undefined : false } : undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); setFieldSaveError(null); try { if (editingField) { await onUpdateField?.(editingField.slug, input); } else { await onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } catch (err) { setFieldSaveError(getMutationError(err)); } finally { setFieldSaving(false); } }; const requestDeleteField = (field: SchemaField) => { setDeleteFieldRelation(true); setDeleteFieldTarget(field); }; const handleEditField = (field: SchemaField) => { if (field.unsupportedType) return; setEditingField(field); setFieldSaveError(null); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldSaveError(null); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const { data: relations = [], isLoading: relationsLoading } = useQuery({ queryKey: ["relations"], queryFn: () => fetchRelations(), }); const { data: allCollections = [] } = useQuery({ queryKey: ["schema", "collections"], queryFn: fetchCollections, }); const targetRelationSlug = deleteFieldTarget?.validation?.relation; const targetRelation = relations.find((rel) => rel.slug === targetRelationSlug); const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="truncate text-2xl font-semibold"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded"> {collection?.slug} </code> {isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-kumo-info" /> <p className="text-sm text-kumo-subtle"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input dir="ltr" label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} error={slugError} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <Switch checked={routable} onCheckedChange={setRoutable} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Routable`}</span> <p className="text-xs text-kumo-subtle"> {t`Require a slug before content can be published`} </p> </div> } /> <Switch checked={editLocking} onCheckedChange={setEditLocking} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Edit locking`}</span> <p className="text-xs text-kumo-subtle"> {t`Hold an entry while someone is editing it, and refuse other writers`} </p> </div> } /> <div> <Input dir="ltr" label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} {urlPatternSharesSegment && ( <p className="text-xs text-kumo-danger mt-2"> {t`Each path segment can contain at most one placeholder, e.g. ${"/{year}/{slug}"}`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}. Tokens: ${"{slug}"}, ${"{id}"}, and date tokens ${"{year}"}/${"{month}"}/${"{day}"} (also ${"{hour}"}/${"{minute}"}/${"{second}"}) from the publish date — e.g. ${"/{year}/{month}/{day}/{slug}.html"} for WordPress-style permalinks.`} </p> </div> <div className="space-y-3"> <Label>{t`Navigation`}</Label> <div> <Input label={t`Group`} value={group} onChange={(e) => setGroup(e.target.value)} placeholder={t`Calendar`} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle mt-1"> {t`Content types with the same group share a collapsible folder in the sidebar`} </p> </div> <div> <Input dir="ltr" label={t`Icon`} value={icon} onChange={(e) => setIcon(e.target.value)} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle mt-1"> {t`Phosphor icon name, e.g. calendar-blank or trophy`} </p> </div> <Switch checked={hidden} onCheckedChange={setHidden} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Hide from navigation`}</span> <p className="text-xs text-kumo-subtle"> {t`Removes the sidebar entry, command palette link, dashboard quick action, and dashboard Content card row; entries stay reachable by URL, API, and plugins`} </p> </div> } /> <Switch checked={quickCreate} onCheckedChange={setQuickCreate} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Quick action on the dashboard`}</span> <p className="text-xs text-kumo-subtle"> {t`Shows a button for creating a new entry`} </p> </div> } /> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && (isNew ? ( <Button type="submit" disabled={!hasChanges || !urlPatternValid} loading={isSaving} className="w-full justify-center" > {t`Create Content Type`} </Button> ) : ( <SaveButton type="submit" isDirty={!!hasChanges} isSaving={!!isSaving} announce={false} disabled={!urlPatternValid} className="w-full justify-center" /> ))} </form> </div> {/* Fields and relations - only shown for existing collections */} {!isNew && ( <div className="lg:col-span-2 space-y-6"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => requestDeleteField(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> {collection && ( <RelationsPanel collectionSlug={collection.slug} relations={relations} collections={allCollections} isLoading={relationsLoading} onCreateRelation={onCreateRelation} onUpdateRelation={onUpdateRelation} onDeleteRelation={onDeleteRelation} isDeletingRelation={isDeletingRelation} deleteRelationError={deleteRelationError} /> )} </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={(nextOpen) => { setFieldEditorOpen(nextOpen); if (!nextOpen) setFieldSaveError(null); }} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} saveError={fieldSaveError} collectionSlug={collection?.slug} onCreateRelation={onCreateRelation} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.( deleteFieldTarget.slug, targetRelation ? { deleteRelation: deleteFieldRelation } : undefined, ); setDeleteFieldTarget(null); } }} > {targetRelation && ( <div className="mt-4 space-y-3"> <Checkbox checked={deleteFieldRelation} onCheckedChange={(checked) => setDeleteFieldRelation(checked === true)} label={t`Also delete the relationship this field uses`} /> {deleteFieldRelation && collection && ( <div className="rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3"> <p className="text-sm font-medium">{t`This also removes:`}</p> <RelationImpact relations={[targetRelation]} excludeField={{ collectionSlug: collection.slug, fieldSlug: deleteFieldTarget?.slug ?? "", }} /> </div> )} </div> )} </ConfirmDialog> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code dir="ltr" className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className={cn("text-xs text-kumo-subtle", !field.unsupportedType && "capitalize")}> {field.unsupportedType?.type ?? field.type} </span> {field.unsupportedType && <Badge variant="secondary">{t`Unsupported`}</Badge>} {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} disabled={Boolean(field.unsupportedType)} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code dir="ltr" className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
 #: packages/admin/src/components/ContentTypeEditor.tsx:759
 msgid "{0} system + {1} custom {2}"
 msgstr "{0} del sistema + {1} personalitzats {2}"
@@ -464,7 +474,7 @@ msgid "{0} updated everywhere it appears."
 msgstr "{0} s'ha actualitzat a tots els llocs on apareix."
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:307
+#: packages/admin/src/components/PluginManager.tsx:309
 msgid "{0} updated to v{installedVersion}"
 msgstr "{0} s'ha actualitzat a la v{installedVersion}"
 
@@ -1059,7 +1069,7 @@ msgstr "Falta un fitxer multimèdia del paquet"
 msgid "A media folder with this name already exists"
 msgstr "Ja existeix una carpeta multimèdia amb aquest nom"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:965
+#: packages/admin/src/components/TaxonomyManager.tsx:968
 msgid "A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr ""
 
@@ -1206,8 +1216,8 @@ msgstr "Camps ACF"
 #: packages/admin/src/components/ContentList.tsx:923
 #: packages/admin/src/components/ContentTypeList.tsx:212
 #: packages/admin/src/components/RelationList.tsx:102
-#: packages/admin/src/components/TaxonomyManager.tsx:1413
-#: packages/admin/src/components/TaxonomyManager.tsx:1467
+#: packages/admin/src/components/TaxonomyManager.tsx:1416
+#: packages/admin/src/components/TaxonomyManager.tsx:1470
 #: packages/admin/src/routes/byline-schema.tsx:249
 #: packages/admin/src/routes/bylines.tsx:348
 msgid "Actions"
@@ -1231,7 +1241,7 @@ msgstr "Actiu v{0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:175
 #: packages/admin/src/components/BylineCreditsEditor.tsx:402
-#: packages/admin/src/components/MenuEditor.tsx:551
+#: packages/admin/src/components/MenuEditor.tsx:547
 msgid "Add"
 msgstr "Afegeix"
 
@@ -1241,8 +1251,8 @@ msgstr "Afegeix"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
 #: packages/admin/src/components/ContentList.tsx:626
 #: packages/admin/src/components/PortableTextEditor.tsx:2936
-#: packages/admin/src/components/TaxonomyManager.tsx:756
-#: packages/admin/src/components/TaxonomyManager.tsx:1333
+#: packages/admin/src/components/TaxonomyManager.tsx:759
+#: packages/admin/src/components/TaxonomyManager.tsx:1336
 msgid "Add {0}"
 msgstr "Afegeix {0}"
 
@@ -1306,14 +1316,14 @@ msgstr "Afegeix una columna després"
 msgid "Add column before"
 msgstr "Afegeix una columna abans"
 
-#: packages/admin/src/components/MenuEditor.tsx:481
-#: packages/admin/src/components/MenuEditor.tsx:607
+#: packages/admin/src/components/MenuEditor.tsx:477
+#: packages/admin/src/components/MenuEditor.tsx:603
 msgid "Add Content"
 msgstr "Afegeix contingut"
 
-#: packages/admin/src/components/MenuEditor.tsx:493
-#: packages/admin/src/components/MenuEditor.tsx:500
-#: packages/admin/src/components/MenuEditor.tsx:610
+#: packages/admin/src/components/MenuEditor.tsx:489
+#: packages/admin/src/components/MenuEditor.tsx:496
+#: packages/admin/src/components/MenuEditor.tsx:606
 msgid "Add Custom Link"
 msgstr "Afegeix un enllaç personalitzat"
 
@@ -1374,7 +1384,7 @@ msgstr "Afegeix un element"
 msgid "Add link"
 msgstr "Afegeix un enllaç"
 
-#: packages/admin/src/components/MenuEditor.tsx:600
+#: packages/admin/src/components/MenuEditor.tsx:596
 msgid "Add links to build your navigation menu"
 msgstr "Afegeix enllaços per construir el teu menú de navegació"
 
@@ -1435,7 +1445,7 @@ msgstr "Afegeix camps de metadades SEO (títol, descripció, imatge) i inclou-lo
 msgid "Add Sub-Field"
 msgstr "Afegeix un subcamp"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1317
+#: packages/admin/src/components/TaxonomyManager.tsx:1320
 msgid "Add tag"
 msgstr "Afegeix una etiqueta"
 
@@ -1443,8 +1453,8 @@ msgstr "Afegeix una etiqueta"
 msgid "Add term"
 msgstr "Afegeix un terme"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1324
-#: packages/admin/src/components/TaxonomyManager.tsx:1340
+#: packages/admin/src/components/TaxonomyManager.tsx:1327
+#: packages/admin/src/components/TaxonomyManager.tsx:1343
 msgid "Add to posts"
 msgstr "Afegeix a les entrades"
 
@@ -1526,7 +1536,7 @@ msgstr ""
 msgid "Added:"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:551
+#: packages/admin/src/components/MenuEditor.tsx:547
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:316
 msgid "Adding..."
 msgstr "S'està afegint..."
@@ -1543,7 +1553,7 @@ msgstr "Dades addicionals per importar."
 msgid "Additional details"
 msgstr "Detalls addicionals"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:282
+#: packages/admin/src/components/settings/SeoSettings.tsx:276
 msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
 msgstr ""
 
@@ -1590,12 +1600,12 @@ msgstr "Després d'invocar explícitament aquest connector, pot enviar contingut
 msgid "Agenda"
 msgstr "Agenda"
 
-#: packages/admin/src/components/PluginManager.tsx:612
+#: packages/admin/src/components/PluginManager.tsx:614
 msgid "Agent access"
 msgstr "Accés per a agents"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:409
+#: packages/admin/src/components/PluginManager.tsx:411
 msgid "Agent access for {0} has been updated"
 msgstr "L'accés per a agents de {0} s'ha actualitzat"
 
@@ -1684,7 +1694,7 @@ msgstr "Tots els tipus"
 msgid "All uploads finished"
 msgstr "Totes les pujades han acabat"
 
-#: packages/admin/src/components/PluginManager.tsx:614
+#: packages/admin/src/components/PluginManager.tsx:616
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr "Permet que els tokens MCP amb abast d'eines de connectors invoquin aquestes rutes."
 
@@ -1721,7 +1731,7 @@ msgstr "Ja assignat o duplicat"
 msgid "Already have an account?"
 msgstr "Ja tens un compte?"
 
-#: packages/admin/src/components/PluginManager.tsx:811
+#: packages/admin/src/components/PluginManager.tsx:813
 msgid "Also delete plugin storage data"
 msgstr "Elimina també les dades d'emmagatzematge del connector"
 
@@ -1786,7 +1796,7 @@ msgstr "Una clau digital xifrada que desbloquegen amb la teva empremta, la cara,
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:143
 #: packages/admin/src/components/PluginManager.tsx:162
-#: packages/admin/src/components/PluginManager.tsx:340
+#: packages/admin/src/components/PluginManager.tsx:342
 #: packages/admin/src/components/PluginSettings.tsx:75
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
@@ -2113,7 +2123,7 @@ msgstr "Automàtic (canvi de slug)"
 msgid "Auto-approve authenticated users"
 msgstr "Aprova automàticament els usuaris autenticats"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:792
+#: packages/admin/src/components/TaxonomyManager.tsx:795
 msgid "Auto-generated from name (you can edit)"
 msgstr "Generat automàticament a partir del nom (el pots editar)"
 
@@ -2174,7 +2184,7 @@ msgstr "visualEditing.back"
 #: packages/admin/src/components/FieldEditor.tsx:673
 #: packages/admin/src/components/MediaDetailPanel.tsx:1817
 #: packages/admin/src/components/MediaLibrary.tsx:747
-#: packages/admin/src/components/MenuEditor.tsx:404
+#: packages/admin/src/components/MenuEditor.tsx:400
 #: packages/admin/src/components/WordPressImport.tsx:1565
 #: packages/admin/src/components/WordPressImport.tsx:2586
 msgid "Back"
@@ -2219,7 +2229,7 @@ msgstr "Torna a la biblioteca principal"
 msgid "Back to marketplace"
 msgstr "Torna al mercat"
 
-#: packages/admin/src/components/MenuEditor.tsx:402
+#: packages/admin/src/components/MenuEditor.tsx:398
 msgid "Back to menus"
 msgstr "Torna als menús"
 
@@ -2292,8 +2302,7 @@ msgstr "Abans de continuar:"
 msgid "Between {min} and {max}"
 msgstr "Entre {min} i {max}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:243
-#: packages/admin/src/components/settings/SeoSettings.tsx:259
+#: packages/admin/src/components/settings/SeoSettings.tsx:253
 msgid "Bing Verification"
 msgstr "Verificació de Bing"
 
@@ -2527,11 +2536,11 @@ msgstr "Pot veure el contingut"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1859
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1599
-#: packages/admin/src/components/MenuEditor.tsx:463
-#: packages/admin/src/components/MenuEditor.tsx:548
-#: packages/admin/src/components/MenuEditor.tsx:754
+#: packages/admin/src/components/MenuEditor.tsx:459
+#: packages/admin/src/components/MenuEditor.tsx:544
+#: packages/admin/src/components/MenuEditor.tsx:764
 #: packages/admin/src/components/MenuList.tsx:184
-#: packages/admin/src/components/PluginManager.tsx:817
+#: packages/admin/src/components/PluginManager.tsx:819
 #: packages/admin/src/components/PortableTextEditor.tsx:5773
 #: packages/admin/src/components/PortableTextEditor.tsx:5799
 #: packages/admin/src/components/PortableTextEditor.tsx:6547
@@ -2545,8 +2554,8 @@ msgstr "Pot veure el contingut"
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:174
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:581
-#: packages/admin/src/components/TaxonomyManager.tsx:882
-#: packages/admin/src/components/TaxonomyManager.tsx:1102
+#: packages/admin/src/components/TaxonomyManager.tsx:885
+#: packages/admin/src/components/TaxonomyManager.tsx:1105
 #: packages/admin/src/components/users/InviteUserModal.tsx:202
 #: packages/admin/src/components/Widgets.tsx:461
 #: packages/admin/src/components/WordPressImport.tsx:1974
@@ -2592,7 +2601,7 @@ msgstr "No es poden eliminar les seccions del tema"
 msgid "Canonical URL"
 msgstr "URL canònic"
 
-#: packages/admin/src/components/PluginManager.tsx:588
+#: packages/admin/src/components/PluginManager.tsx:590
 msgid "Capabilities"
 msgstr "Capacitats"
 
@@ -2999,7 +3008,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:1020
 #: packages/admin/src/components/MediaLibrary.tsx:1055
-#: packages/admin/src/components/TaxonomyManager.tsx:1436
+#: packages/admin/src/components/TaxonomyManager.tsx:1439
 msgid "Clear search"
 msgstr "Neteja la cerca"
 
@@ -3062,15 +3071,15 @@ msgstr "Fes clic en aquest enllaç per iniciar la sessió a {siteName}:"
 #: packages/admin/src/components/MediaPickerModal.tsx:1010
 #: packages/admin/src/components/MediaPickerModal.tsx:1017
 #: packages/admin/src/components/MediaUploadDialog.tsx:237
-#: packages/admin/src/components/MenuEditor.tsx:432
+#: packages/admin/src/components/MenuEditor.tsx:428
+#: packages/admin/src/components/MenuEditor.tsx:434
 #: packages/admin/src/components/MenuEditor.tsx:438
-#: packages/admin/src/components/MenuEditor.tsx:442
-#: packages/admin/src/components/MenuEditor.tsx:503
+#: packages/admin/src/components/MenuEditor.tsx:499
+#: packages/admin/src/components/MenuEditor.tsx:505
 #: packages/admin/src/components/MenuEditor.tsx:509
-#: packages/admin/src/components/MenuEditor.tsx:513
-#: packages/admin/src/components/MenuEditor.tsx:699
-#: packages/admin/src/components/MenuEditor.tsx:705
 #: packages/admin/src/components/MenuEditor.tsx:709
+#: packages/admin/src/components/MenuEditor.tsx:715
+#: packages/admin/src/components/MenuEditor.tsx:719
 #: packages/admin/src/components/MenuList.tsx:145
 #: packages/admin/src/components/PortableTextEditor.tsx:2697
 #: packages/admin/src/components/PortableTextEditor.tsx:2703
@@ -3087,10 +3096,10 @@ msgstr "Fes clic en aquest enllaç per iniciar la sessió a {siteName}:"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:348
 #: packages/admin/src/components/TaxonomyManager.tsx:558
-#: packages/admin/src/components/TaxonomyManager.tsx:765
-#: packages/admin/src/components/TaxonomyManager.tsx:773
-#: packages/admin/src/components/TaxonomyManager.tsx:1021
-#: packages/admin/src/components/TaxonomyManager.tsx:1029
+#: packages/admin/src/components/TaxonomyManager.tsx:768
+#: packages/admin/src/components/TaxonomyManager.tsx:776
+#: packages/admin/src/components/TaxonomyManager.tsx:1024
+#: packages/admin/src/components/TaxonomyManager.tsx:1032
 #: packages/admin/src/components/TaxonomySidebar.tsx:606
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
@@ -3151,8 +3160,8 @@ msgstr "Accions del bloc de codi"
 msgid "Collapse block"
 msgstr "Replega el bloc"
 
-#: packages/admin/src/components/PluginManager.tsx:571
-#: packages/admin/src/components/PluginManager.tsx:576
+#: packages/admin/src/components/PluginManager.tsx:573
+#: packages/admin/src/components/PluginManager.tsx:578
 msgid "Collapse details"
 msgstr "Replega els detalls"
 
@@ -3175,12 +3184,18 @@ msgstr "La col·lecció “{0}” té entrades"
 msgid "Collection “{0}” was created on this site"
 msgstr "La col·lecció “{0}” s'ha creat en aquest lloc"
 
+#: packages/admin/src/router.tsx:780
+#: packages/admin/src/router.tsx:982
+#: packages/admin/src/router.tsx:1963
+msgid "Collection \"{collection}\" not found"
+msgstr ""
+
 #: packages/admin/src/components/comments/CommentDetail.tsx:109
 msgid "Collection:"
 msgstr "Col·lecció:"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:11
-#: packages/admin/src/components/TaxonomyManager.tsx:1072
+#: packages/admin/src/components/TaxonomyManager.tsx:1075
 msgid "Collections"
 msgstr "Col·leccions"
 
@@ -3269,7 +3284,7 @@ msgstr "Completat"
 msgid "Complete signup"
 msgstr "Completa el registre"
 
-#: packages/admin/src/components/Widgets.tsx:943
+#: packages/admin/src/components/Widgets.tsx:953
 msgid "Component"
 msgstr "Component"
 
@@ -3337,10 +3352,10 @@ msgstr "contingut"
 #: packages/admin/src/components/AdminCommandPalette.tsx:407
 #: packages/admin/src/components/comments/CommentDetail.tsx:106
 #: packages/admin/src/components/comments/CommentInbox.tsx:331
-#: packages/admin/src/components/Dashboard.tsx:498
+#: packages/admin/src/components/Dashboard.tsx:499
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:690
-#: packages/admin/src/components/Widgets.tsx:911
+#: packages/admin/src/components/Widgets.tsx:921
 msgid "Content"
 msgstr "Contingut"
 
@@ -3703,8 +3718,8 @@ msgstr "No s'ha pogut actualitzar la sol·licitud"
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
 msgstr "No s'ha pogut verificar quants valors fan referència a \"{0}\". En eliminar-lo, se suprimiran igualment tots els valors emmagatzemats d'aquest camp — però el recompte anterior no s'ha pogut comprovar."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1411
-#: packages/admin/src/components/TaxonomyManager.tsx:1466
+#: packages/admin/src/components/TaxonomyManager.tsx:1414
+#: packages/admin/src/components/TaxonomyManager.tsx:1469
 msgid "Count"
 msgstr "Recompte"
 
@@ -3713,7 +3728,7 @@ msgstr "Recompte"
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuList.tsx:187
 #: packages/admin/src/components/Redirects.tsx:196
-#: packages/admin/src/components/TaxonomyManager.tsx:893
+#: packages/admin/src/components/TaxonomyManager.tsx:896
 #: packages/admin/src/components/Widgets.tsx:464
 msgid "Create"
 msgstr "Crea"
@@ -3750,7 +3765,7 @@ msgid "Create a bullet list"
 msgstr "Crea una llista de vinyetes"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:761
+#: packages/admin/src/components/TaxonomyManager.tsx:764
 msgid "Create a new {0}"
 msgstr "Crea {0}"
 
@@ -3857,8 +3872,8 @@ msgstr "Crea una secció"
 msgid "Create sections in the Sections library to use them here"
 msgstr "Crea seccions a la biblioteca de seccions per utilitzar-les aquí"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1015
-#: packages/admin/src/components/TaxonomyManager.tsx:1105
+#: packages/admin/src/components/TaxonomyManager.tsx:1018
+#: packages/admin/src/components/TaxonomyManager.tsx:1108
 msgid "Create Taxonomy"
 msgstr "Crea una taxonomia"
 
@@ -3959,7 +3974,7 @@ msgstr "S'està creant la còpia retallada..."
 #: packages/admin/src/components/RelationFormPanel.tsx:109
 #: packages/admin/src/components/Sections.tsx:234
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:561
-#: packages/admin/src/components/TaxonomyManager.tsx:1105
+#: packages/admin/src/components/TaxonomyManager.tsx:1108
 msgid "Creating..."
 msgstr "S'està creant..."
 
@@ -3991,12 +4006,12 @@ msgstr "Còpia retallada creada."
 msgid "CSS"
 msgstr "CSS"
 
-#: packages/admin/src/components/MenuEditor.tsx:540
-#: packages/admin/src/components/MenuEditor.tsx:739
+#: packages/admin/src/components/MenuEditor.tsx:536
+#: packages/admin/src/components/MenuEditor.tsx:749
 msgid "CSS classes"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:639
+#: packages/admin/src/components/MenuEditor.tsx:635
 msgid "CSS classes:"
 msgstr ""
 
@@ -4029,7 +4044,7 @@ msgstr "Personalitzat"
 msgid "Custom Fields"
 msgstr "Camps personalitzats"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:275
+#: packages/admin/src/components/settings/SeoSettings.tsx:269
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "Contingut personalitzat del robots.txt. Deixa-ho buit per utilitzar el valor per defecte."
 
@@ -4118,7 +4133,7 @@ msgstr "Imatge social per defecte"
 msgid "Default Social Image"
 msgstr "Imatge social per defecte"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1017
+#: packages/admin/src/components/TaxonomyManager.tsx:1020
 msgid "Define a new taxonomy for classifying content"
 msgstr "Defineix una taxonomia nova per classificar el contingut"
 
@@ -4147,15 +4162,17 @@ msgstr "Definit al codi"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:392
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaDetailPanel.tsx:1932
-#: packages/admin/src/components/MenuEditor.tsx:672
+#: packages/admin/src/components/MenuEditor.tsx:668
+#: packages/admin/src/components/MenuEditor.tsx:682
 #: packages/admin/src/components/MenuList.tsx:235
 #: packages/admin/src/components/Redirects.tsx:620
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/Sections.tsx:349
 #: packages/admin/src/components/settings/BackupSettings.tsx:369
-#: packages/admin/src/components/TaxonomyManager.tsx:1538
-#: packages/admin/src/components/TaxonomyManager.tsx:1554
+#: packages/admin/src/components/TaxonomyManager.tsx:1541
+#: packages/admin/src/components/TaxonomyManager.tsx:1557
 #: packages/admin/src/components/Widgets.tsx:728
+#: packages/admin/src/components/Widgets.tsx:850
 #: packages/admin/src/routes/byline-schema.tsx:378
 msgid "Delete"
 msgstr "Elimina"
@@ -4180,7 +4197,7 @@ msgstr "Vols eliminar “{0}”?"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:275
 #: packages/admin/src/components/settings/BackupSettings.tsx:329
 #: packages/admin/src/components/TaxonomyManager.tsx:492
-#: packages/admin/src/components/Widgets.tsx:829
+#: packages/admin/src/components/Widgets.tsx:824
 #: packages/admin/src/routes/byline-schema.tsx:460
 msgid "Delete {0}"
 msgstr "Elimina {0}"
@@ -4202,7 +4219,7 @@ msgstr "Elimina l'àrea de ginys {0}"
 
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/TaxonomyManager.tsx:1534
+#: packages/admin/src/components/TaxonomyManager.tsx:1537
 #: packages/admin/src/routes/bylines.tsx:532
 msgid "Delete {0}?"
 msgstr "Vols eliminar {0}?"
@@ -4277,6 +4294,10 @@ msgstr "Vols eliminar el multimèdia?"
 msgid "Delete menu"
 msgstr "Elimina el menú"
 
+#: packages/admin/src/components/MenuEditor.tsx:680
+msgid "Delete menu item?"
+msgstr ""
+
 #: packages/admin/src/components/comments/CommentInbox.tsx:550
 msgid "Delete permanently"
 msgstr "Elimina permanentment"
@@ -4332,11 +4353,11 @@ msgstr "Elimina l'etiqueta"
 msgid "Delete tag {0}"
 msgstr "Elimina l'etiqueta {0}"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1373
+#: packages/admin/src/components/TaxonomyManager.tsx:1376
 msgid "Delete taxonomy"
 msgstr "Elimina la taxonomia"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1552
+#: packages/admin/src/components/TaxonomyManager.tsx:1555
 msgid "Delete Taxonomy"
 msgstr "Elimina la taxonomia"
 
@@ -4349,12 +4370,16 @@ msgstr ""
 msgid "Delete Widget Area?"
 msgstr "Vols eliminar l'àrea de ginys?"
 
+#: packages/admin/src/components/Widgets.tsx:848
+msgid "Delete widget?"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:920
 msgid "Deleted"
 msgstr "Eliminat"
 
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1553
+#: packages/admin/src/components/TaxonomyManager.tsx:1556
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
 msgstr "Eliminar \"{0}\" també elimina tots els termes que conté, en tots els idiomes, i treu aquests termes del contingut arxivat sota seu. Les entrades en si es conserven. Aquesta acció no es pot desfer."
 
@@ -4370,14 +4395,16 @@ msgstr "En eliminar \"{0}\" també se suprimirà {1, plural, one {# valor emmaga
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaDetailPanel.tsx:1933
 #: packages/admin/src/components/MediaFolderDialog.tsx:185
+#: packages/admin/src/components/MenuEditor.tsx:683
 #: packages/admin/src/components/MenuList.tsx:236
 #: packages/admin/src/components/Redirects.tsx:621
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:350
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
-#: packages/admin/src/components/TaxonomyManager.tsx:1539
-#: packages/admin/src/components/TaxonomyManager.tsx:1555
+#: packages/admin/src/components/TaxonomyManager.tsx:1542
+#: packages/admin/src/components/TaxonomyManager.tsx:1558
 #: packages/admin/src/components/Widgets.tsx:729
+#: packages/admin/src/components/Widgets.tsx:851
 #: packages/admin/src/routes/bylines.tsx:535
 msgid "Deleting..."
 msgstr "S'està eliminant..."
@@ -4448,7 +4475,7 @@ msgstr "Descriu per a què serveix aquesta secció..."
 msgid "Description"
 msgstr "Descripció"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:844
+#: packages/admin/src/components/TaxonomyManager.tsx:847
 msgid "Description (optional)"
 msgstr "Descripció (opcional)"
 
@@ -4461,7 +4488,7 @@ msgid "Destination path"
 msgstr "Ruta de destinació"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:311
-#: packages/admin/src/components/PluginManager.tsx:633
+#: packages/admin/src/components/PluginManager.tsx:635
 msgid "Destructive"
 msgstr "Destructiu"
 
@@ -4506,11 +4533,11 @@ msgstr "Dimensions:"
 msgid "Disable"
 msgstr "Desactiva"
 
-#: packages/admin/src/components/PluginManager.tsx:565
+#: packages/admin/src/components/PluginManager.tsx:567
 msgid "Disable plugin"
 msgstr "Desactiva el connector"
 
-#: packages/admin/src/components/PluginManager.tsx:623
+#: packages/admin/src/components/PluginManager.tsx:625
 msgid "Disable plugin MCP tools"
 msgstr "Desactiva les eines MCP del connector"
 
@@ -4526,14 +4553,14 @@ msgstr "Desactiva l'usuari"
 msgid "Disable User?"
 msgstr "Vols desactivar l'usuari?"
 
-#: packages/admin/src/components/PluginManager.tsx:458
+#: packages/admin/src/components/PluginManager.tsx:460
 #: packages/admin/src/components/Redirects.tsx:399
 #: packages/admin/src/components/users/UserDetail.tsx:214
 #: packages/admin/src/components/users/UserList.tsx:209
 msgid "Disabled"
 msgstr "Desactivat"
 
-#: packages/admin/src/components/PluginManager.tsx:685
+#: packages/admin/src/components/PluginManager.tsx:687
 msgid "Disabled:"
 msgstr "Desactivat:"
 
@@ -4546,8 +4573,8 @@ msgstr "Si desactives <0>{0}</0>, no podrà iniciar la sessió fins que es torni
 msgid "Disabling..."
 msgstr "S'està desactivant..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:280
-#: packages/admin/src/components/settings/SeoSettings.tsx:290
+#: packages/admin/src/components/settings/SeoSettings.tsx:274
+#: packages/admin/src/components/settings/SeoSettings.tsx:284
 msgid "Disallow AI training"
 msgstr ""
 
@@ -4780,7 +4807,7 @@ msgid "draft, published, or archived"
 msgstr "esborrany, publicat o arxivat"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:91
-#: packages/admin/src/components/Dashboard.tsx:532
+#: packages/admin/src/components/Dashboard.tsx:533
 msgid "Drafts"
 msgstr "Esborranys"
 
@@ -4807,7 +4834,7 @@ msgstr "Arrossega per reordenar"
 #. placeholder {0}: field.label
 #. placeholder {0}: widget.title ?? t`widget`
 #: packages/admin/src/components/ContentTypeEditor.tsx:937
-#: packages/admin/src/components/Widgets.tsx:814
+#: packages/admin/src/components/Widgets.tsx:809
 msgid "Drag to reorder {0}"
 msgstr "Arrossega per reordenar {0}"
 
@@ -4900,7 +4927,7 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
-#: packages/admin/src/components/MenuEditor.tsx:667
+#: packages/admin/src/components/MenuEditor.tsx:663
 #: packages/admin/src/components/Sections.tsx:439
 #: packages/admin/src/components/Shell.tsx:87
 #: packages/admin/src/components/TranslationsPanel.tsx:95
@@ -4919,7 +4946,7 @@ msgstr "Edita"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:263
 #: packages/admin/src/components/TaxonomyManager.tsx:309
 #: packages/admin/src/components/TaxonomyManager.tsx:484
-#: packages/admin/src/components/TaxonomyManager.tsx:755
+#: packages/admin/src/components/TaxonomyManager.tsx:758
 #: packages/admin/src/routes/byline-schema.tsx:451
 #: packages/admin/src/routes/bylines.tsx:401
 msgid "Edit {0}"
@@ -5014,11 +5041,11 @@ msgstr "Edita el blocatge"
 msgid "Edit media alt text, captions, and focal points"
 msgstr "Edita el text alternatiu, els peus de foto i els punts focals del multimèdia"
 
-#: packages/admin/src/components/MenuEditor.tsx:696
+#: packages/admin/src/components/MenuEditor.tsx:706
 msgid "Edit Menu Item"
 msgstr "Edita l'element del menú"
 
-#: packages/admin/src/components/MenuEditor.tsx:473
+#: packages/admin/src/components/MenuEditor.tsx:469
 msgid "Edit menu items"
 msgstr "Edita els elements del menú"
 
@@ -5281,11 +5308,11 @@ msgstr "Activa els comentaris"
 msgid "Enable full-text search on this collection"
 msgstr "Activa la cerca de text complet en aquesta col·lecció"
 
-#: packages/admin/src/components/PluginManager.tsx:565
+#: packages/admin/src/components/PluginManager.tsx:567
 msgid "Enable plugin"
 msgstr "Activa el connector"
 
-#: packages/admin/src/components/PluginManager.tsx:624
+#: packages/admin/src/components/PluginManager.tsx:626
 msgid "Enable plugin MCP tools"
 msgstr "Activa les eines MCP del connector"
 
@@ -5334,8 +5361,8 @@ msgstr ""
 msgid "Enter a time"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:527
-#: packages/admin/src/components/MenuEditor.tsx:725
+#: packages/admin/src/components/MenuEditor.tsx:523
+#: packages/admin/src/components/MenuEditor.tsx:735
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Introdueix un URL (https://…) o una ruta relativa (/…)"
 
@@ -5415,12 +5442,10 @@ msgstr "entrada de la banda enllaçada"
 msgid "entry on the linking side"
 msgstr "entrada de la banda que enllaça"
 
-#: packages/admin/src/components/MenuEditor.tsx:158
-#: packages/admin/src/components/MenuEditor.tsx:226
-#: packages/admin/src/components/MenuEditor.tsx:266
+#: packages/admin/src/components/MenuEditor.tsx:160
+#: packages/admin/src/components/MenuEditor.tsx:262
 #: packages/admin/src/components/SetupWizard.tsx:603
-#: packages/admin/src/components/TaxonomyManager.tsx:1210
-#: packages/admin/src/components/Widgets.tsx:781
+#: packages/admin/src/components/TaxonomyManager.tsx:1213
 #: packages/admin/src/router.tsx:3364
 msgid "Error"
 msgstr "Error"
@@ -5437,7 +5462,7 @@ msgstr "Error en reordenar els ginys"
 msgid "Error saving section"
 msgstr "Error en desar la secció"
 
-#: packages/admin/src/components/Widgets.tsx:796
+#: packages/admin/src/components/Widgets.tsx:791
 msgid "Error updating widget"
 msgstr "Error en actualitzar el giny"
 
@@ -5506,8 +5531,8 @@ msgstr "Surt del mode sense distraccions (⌘⇧\\)"
 msgid "Expand block"
 msgstr "Desplega el bloc"
 
-#: packages/admin/src/components/PluginManager.tsx:571
-#: packages/admin/src/components/PluginManager.tsx:576
+#: packages/admin/src/components/PluginManager.tsx:573
+#: packages/admin/src/components/PluginManager.tsx:578
 msgid "Expand details"
 msgstr "Desplega els detalls"
 
@@ -6605,7 +6630,7 @@ msgstr ""
 msgid "Failed to update menu item"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:339
+#: packages/admin/src/components/PluginManager.tsx:341
 #: packages/admin/src/lib/api/marketplace.ts:373
 #: packages/admin/src/lib/api/registry.ts:878
 msgid "Failed to update plugin"
@@ -6995,7 +7020,7 @@ msgstr "General"
 msgid "General Settings"
 msgstr "Configuració general"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1040
+#: packages/admin/src/components/TaxonomyManager.tsx:1043
 msgid "Genres"
 msgstr "Gèneres"
 
@@ -7044,8 +7069,7 @@ msgstr "Es publica"
 msgid "Goes live {countdown}"
 msgstr "Es publica {countdown}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:243
-#: packages/admin/src/components/settings/SeoSettings.tsx:250
+#: packages/admin/src/components/settings/SeoSettings.tsx:244
 msgid "Google Verification"
 msgstr "Verificació de Google"
 
@@ -7191,7 +7215,7 @@ msgstr "visualEditing.hideToolbar"
 msgid "Hide toolbar"
 msgstr "Amaga la barra d'eines"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1065
+#: packages/admin/src/components/TaxonomyManager.tsx:1068
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "Jeràrquic (com les categories, amb relacions pare/fill)"
 
@@ -7208,7 +7232,7 @@ msgstr "Reté una entrada mentre algú l'edita i rebutja els altres escriptors"
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Conté un ID d'entrada. Defineix una col·lecció de destinació a Tipus de contingut per triar entrades."
 
-#: packages/admin/src/components/MenuEditor.tsx:519
+#: packages/admin/src/components/MenuEditor.tsx:515
 msgid "Home"
 msgstr "Inici"
 
@@ -7216,7 +7240,7 @@ msgstr "Inici"
 msgid "Homepage"
 msgstr "Pàgina d'inici"
 
-#: packages/admin/src/components/PluginManager.tsx:497
+#: packages/admin/src/components/PluginManager.tsx:499
 msgid "Hooks"
 msgstr "Ganxos"
 
@@ -7234,7 +7258,7 @@ msgstr "Hora"
 msgid "How do you want to start?"
 msgstr "Com vols començar?"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:794
+#: packages/admin/src/components/TaxonomyManager.tsx:797
 msgid "How is the slug generated?"
 msgstr "Com es genera el slug?"
 
@@ -7274,7 +7298,7 @@ msgstr "Només HTML, netejat, amb els estils del teu lloc."
 msgid "https://example.com"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:528
+#: packages/admin/src/components/MenuEditor.tsx:524
 msgid "https://example.com or /about"
 msgstr "https://exemple.com o /acerca"
 
@@ -7744,11 +7768,11 @@ msgid "Installed"
 msgstr "Instal·lat"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:652
+#: packages/admin/src/components/PluginManager.tsx:654
 msgid "Installed from marketplace (v{0})"
 msgstr "Instal·lat des del mercat (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:673
+#: packages/admin/src/components/PluginManager.tsx:675
 msgid "Installed:"
 msgstr "Instal·lat:"
 
@@ -7837,15 +7861,15 @@ msgstr "Cursiva"
 msgid "Item {0}"
 msgstr "Element {0}"
 
-#: packages/admin/src/components/MenuEditor.tsx:208
+#: packages/admin/src/components/MenuEditor.tsx:210
 msgid "Item added"
 msgstr "S'ha afegit l'element"
 
-#: packages/admin/src/components/MenuEditor.tsx:220
+#: packages/admin/src/components/MenuEditor.tsx:223
 msgid "Item deleted"
 msgstr "S'ha eliminat l'element"
 
-#: packages/admin/src/components/MenuEditor.tsx:245
+#: packages/admin/src/components/MenuEditor.tsx:241
 msgid "Item updated"
 msgstr "S'ha actualitzat l'element"
 
@@ -7950,11 +7974,11 @@ msgstr "Kotlin"
 #: packages/admin/src/components/BylineFieldEditor.tsx:226
 #: packages/admin/src/components/FieldEditor.tsx:837
 #: packages/admin/src/components/FieldEditor.tsx:1253
-#: packages/admin/src/components/MenuEditor.tsx:449
-#: packages/admin/src/components/MenuEditor.tsx:519
-#: packages/admin/src/components/MenuEditor.tsx:716
+#: packages/admin/src/components/MenuEditor.tsx:445
+#: packages/admin/src/components/MenuEditor.tsx:515
+#: packages/admin/src/components/MenuEditor.tsx:726
 #: packages/admin/src/components/MenuList.tsx:153
-#: packages/admin/src/components/TaxonomyManager.tsx:1037
+#: packages/admin/src/components/TaxonomyManager.tsx:1040
 #: packages/admin/src/components/Widgets.tsx:446
 #: packages/admin/src/routes/byline-schema.tsx:234
 msgid "Label"
@@ -7988,7 +8012,7 @@ msgstr "Encapçalament de secció gran"
 msgid "Last edited"
 msgstr "Darrera edició"
 
-#: packages/admin/src/components/PluginManager.tsx:679
+#: packages/admin/src/components/PluginManager.tsx:681
 msgid "Last enabled:"
 msgstr "Última activació:"
 
@@ -8283,7 +8307,7 @@ msgstr "S'està carregant el multimèdia"
 msgid "Loading media usage tracking settings…"
 msgstr "S'està carregant la configuració de seguiment de l'ús de multimèdia…"
 
-#: packages/admin/src/components/MenuEditor.tsx:380
+#: packages/admin/src/components/MenuEditor.tsx:376
 msgid "Loading menu..."
 msgstr "S'està carregant el menú..."
 
@@ -8328,8 +8352,8 @@ msgstr "S'està carregant la configuració..."
 msgid "Loading setup..."
 msgstr "S'està carregant la configuració inicial..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1399
-#: packages/admin/src/components/TaxonomyManager.tsx:1471
+#: packages/admin/src/components/TaxonomyManager.tsx:1402
+#: packages/admin/src/components/TaxonomyManager.tsx:1474
 msgid "Loading terms..."
 msgstr "S'estan carregant els termes..."
 
@@ -8367,7 +8391,7 @@ msgstr "S'estan carregant els ginys..."
 #: packages/admin/src/components/settings/EmailSettings.tsx:69
 #: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/settings/TransferSettings.tsx:57
-#: packages/admin/src/components/TaxonomyManager.tsx:1277
+#: packages/admin/src/components/TaxonomyManager.tsx:1280
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
@@ -8454,7 +8478,7 @@ msgstr "Lletres minúscules, nombres i guions baixos. Els camps de referència h
 msgid "Lowercase letters, numbers, and hyphens only"
 msgstr "Només lletres minúscules, números i guions"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1056
+#: packages/admin/src/components/TaxonomyManager.tsx:1059
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "Només lletres minúscules, números i guions baixos, començant per una lletra"
 
@@ -8477,7 +8501,7 @@ msgstr "Gestiona"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
 #. placeholder {1}: taxonomyDef.collections.join(", ")
-#: packages/admin/src/components/TaxonomyManager.tsx:1294
+#: packages/admin/src/components/TaxonomyManager.tsx:1297
 msgid "Manage {0} for {1}"
 msgstr "Gestiona {0} per a {1}"
 
@@ -8553,7 +8577,7 @@ msgid "Markdown"
 msgstr "Markdown"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:459
+#: packages/admin/src/components/PluginManager.tsx:461
 msgid "Marketplace"
 msgstr "Mercat"
 
@@ -8708,13 +8732,13 @@ msgid "Medium section heading"
 msgstr "Encapçalament de secció mitjà"
 
 #: packages/admin/src/components/Widgets.tsx:112
-#: packages/admin/src/components/Widgets.tsx:926
+#: packages/admin/src/components/Widgets.tsx:936
 msgid "Menu"
 msgstr "Menú"
 
 #. placeholder {0}: translated.label
 #. placeholder {1}: translated.locale.toUpperCase()
-#: packages/admin/src/components/MenuEditor.tsx:147
+#: packages/admin/src/components/MenuEditor.tsx:149
 msgid "Menu \"{0}\" ({1}) created."
 msgstr "S'ha creat el menú \"{0}\" ({1})."
 
@@ -8731,15 +8755,15 @@ msgstr "S'ha creat el menú"
 msgid "Menu deleted"
 msgstr "S'ha eliminat el menú"
 
-#: packages/admin/src/components/MenuEditor.tsx:208
+#: packages/admin/src/components/MenuEditor.tsx:210
 msgid "Menu item has been added."
 msgstr "S'ha afegit l'element del menú."
 
-#: packages/admin/src/components/MenuEditor.tsx:221
+#: packages/admin/src/components/MenuEditor.tsx:224
 msgid "Menu item has been deleted."
 msgstr "S'ha eliminat l'element del menú."
 
-#: packages/admin/src/components/MenuEditor.tsx:246
+#: packages/admin/src/components/MenuEditor.tsx:242
 msgid "Menu item has been updated."
 msgstr "S'ha actualitzat l'element del menú."
 
@@ -8748,15 +8772,15 @@ msgstr "S'ha actualitzat l'element del menú."
 msgid "Menu items"
 msgstr "Elements del menú"
 
-#: packages/admin/src/components/MenuEditor.tsx:388
+#: packages/admin/src/components/MenuEditor.tsx:384
 msgid "Menu not found"
 msgstr "No s'ha trobat el menú"
 
-#: packages/admin/src/components/MenuEditor.tsx:261
+#: packages/admin/src/components/MenuEditor.tsx:257
 msgid "Menu order has been updated."
 msgstr "S'ha actualitzat l'ordre del menú."
 
-#: packages/admin/src/components/MenuEditor.tsx:173
+#: packages/admin/src/components/MenuEditor.tsx:175
 msgid "Menu renamed"
 msgstr ""
 
@@ -8786,11 +8810,11 @@ msgstr "Combina les cel·les seleccionades"
 msgid "Meta Description"
 msgstr "Meta descripció"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:262
+#: packages/admin/src/components/settings/SeoSettings.tsx:256
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "Contingut de l'etiqueta meta per a la verificació de Bing Webmaster Tools"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:253
+#: packages/admin/src/components/settings/SeoSettings.tsx:247
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Contingut de l'etiqueta meta per a la verificació de Google Search Console"
 
@@ -8864,7 +8888,7 @@ msgstr "Arxius mensuals/anuals"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:716
 #: packages/admin/src/components/Sections.tsx:450
 #: packages/admin/src/components/TaxonomyManager.tsx:321
-#: packages/admin/src/components/TaxonomyManager.tsx:1352
+#: packages/admin/src/components/TaxonomyManager.tsx:1355
 #: packages/admin/src/routes/bylines.tsx:413
 msgid "More actions for {0}"
 msgstr "Més accions per a {0}"
@@ -8958,7 +8982,7 @@ msgid "Move {title} to trash"
 msgstr "Mou {title} a la paperera"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:212
-#: packages/admin/src/components/MenuEditor.tsx:660
+#: packages/admin/src/components/MenuEditor.tsx:656
 #: packages/admin/src/components/TaxonomyManager.tsx:345
 msgid "Move down"
 msgstr "Mou avall"
@@ -9002,7 +9026,7 @@ msgid "Move to Trash?"
 msgstr "Vols moure-ho a la paperera?"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:206
-#: packages/admin/src/components/MenuEditor.tsx:651
+#: packages/admin/src/components/MenuEditor.tsx:647
 #: packages/admin/src/components/TaxonomyManager.tsx:337
 msgid "Move up"
 msgstr "Mou amunt"
@@ -9125,10 +9149,10 @@ msgstr "El meu blog"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MediaFolderDialog.tsx:131
 #: packages/admin/src/components/MenuList.tsx:164
-#: packages/admin/src/components/TaxonomyManager.tsx:781
-#: packages/admin/src/components/TaxonomyManager.tsx:1047
-#: packages/admin/src/components/TaxonomyManager.tsx:1410
-#: packages/admin/src/components/TaxonomyManager.tsx:1465
+#: packages/admin/src/components/TaxonomyManager.tsx:784
+#: packages/admin/src/components/TaxonomyManager.tsx:1050
+#: packages/admin/src/components/TaxonomyManager.tsx:1413
+#: packages/admin/src/components/TaxonomyManager.tsx:1468
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:152
 #: packages/admin/src/components/users/UserDetail.tsx:159
@@ -9136,11 +9160,11 @@ msgstr "El meu blog"
 msgid "Name"
 msgstr "Nom"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:973
+#: packages/admin/src/components/TaxonomyManager.tsx:976
 msgid "Name and label are required"
 msgstr "El nom i l'etiqueta són obligatoris"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:979
+#: packages/admin/src/components/TaxonomyManager.tsx:982
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "El nom ha de començar per una lletra i contenir només lletres minúscules, números i guions baixos"
 
@@ -9251,18 +9275,18 @@ msgstr "Secció nova"
 msgid "new tab"
 msgstr "pestanya nova"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1363
+#: packages/admin/src/components/TaxonomyManager.tsx:1366
 msgid "New taxonomy"
 msgstr "Taxonomia nova"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1330
+#: packages/admin/src/components/TaxonomyManager.tsx:1333
 msgid "New Taxonomy"
 msgstr "Taxonomia nova"
 
-#: packages/admin/src/components/MenuEditor.tsx:534
-#: packages/admin/src/components/MenuEditor.tsx:537
-#: packages/admin/src/components/MenuEditor.tsx:733
-#: packages/admin/src/components/MenuEditor.tsx:736
+#: packages/admin/src/components/MenuEditor.tsx:530
+#: packages/admin/src/components/MenuEditor.tsx:533
+#: packages/admin/src/components/MenuEditor.tsx:743
+#: packages/admin/src/components/MenuEditor.tsx:746
 msgid "New window"
 msgstr "Finestra nova"
 
@@ -9275,7 +9299,7 @@ msgstr ""
 msgid "Newest"
 msgstr "Més recents"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:784
+#: packages/admin/src/components/TaxonomyManager.tsx:787
 msgid "News"
 msgstr "Notícies"
 
@@ -9325,8 +9349,8 @@ msgid "No {0} yet."
 msgstr "Encara no hi ha cap {0}."
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:1402
-#: packages/admin/src/components/TaxonomyManager.tsx:1474
+#: packages/admin/src/components/TaxonomyManager.tsx:1405
+#: packages/admin/src/components/TaxonomyManager.tsx:1477
 msgid "No {0} yet. Create one to get started."
 msgstr "Encara no hi ha cap {0}. Crea'n un per començar."
 
@@ -9395,7 +9419,7 @@ msgstr "Encara no hi ha signatures"
 msgid "No changes"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:504
+#: packages/admin/src/components/Dashboard.tsx:505
 msgid "No collections configured"
 msgstr "No hi ha cap col·lecció configurada"
 
@@ -9570,7 +9594,7 @@ msgstr "Cap fitxer multimèdia coincident"
 msgid "No matching passkey found for this account."
 msgstr "No s'ha trobat cap clau d'accés coincident per a aquest compte."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1427
+#: packages/admin/src/components/TaxonomyManager.tsx:1430
 msgid "No matching tags"
 msgstr "Cap etiqueta coincident"
 
@@ -9592,7 +9616,7 @@ msgstr "No hi ha cap fitxer multimèdia disponible d'aquest proveïdor."
 msgid "No media found"
 msgstr "No s'ha trobat cap fitxer multimèdia"
 
-#: packages/admin/src/components/MenuEditor.tsx:599
+#: packages/admin/src/components/MenuEditor.tsx:595
 msgid "No menu items yet"
 msgstr "Encara no hi ha cap element del menú"
 
@@ -9609,7 +9633,7 @@ msgstr "Sense mínim"
 msgid "No moderation (auto-approve all)"
 msgstr "Sense moderació (aprova-ho tot automàticament)"
 
-#: packages/admin/src/components/MenuEditor.tsx:367
+#: packages/admin/src/components/MenuEditor.tsx:363
 msgid "No parent (top level)"
 msgstr "Sense pare (nivell superior)"
 
@@ -9625,7 +9649,7 @@ msgstr "Encara no hi ha cap clau d'accés registrada."
 msgid "No pending requests"
 msgstr "No hi ha sol·licituds pendents"
 
-#: packages/admin/src/components/PluginManager.tsx:240
+#: packages/admin/src/components/PluginManager.tsx:242
 msgid "No plugins configured"
 msgstr "No hi ha cap connector configurat"
 
@@ -9645,7 +9669,7 @@ msgstr "Cap connector coincideix amb \"{debouncedQuery}\"."
 msgid "No public URL available"
 msgstr "No hi ha cap URL públic disponible"
 
-#: packages/admin/src/components/Dashboard.tsx:583
+#: packages/admin/src/components/Dashboard.tsx:584
 msgid "No recent activity"
 msgstr "No hi ha activitat recent"
 
@@ -9743,8 +9767,8 @@ msgstr "No convidat"
 msgid "None"
 msgstr "Cap"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:822
-#: packages/admin/src/components/TaxonomyManager.tsx:831
+#: packages/admin/src/components/TaxonomyManager.tsx:825
+#: packages/admin/src/components/TaxonomyManager.tsx:834
 msgid "None (top level)"
 msgstr "Cap (nivell superior)"
 
@@ -9971,7 +9995,7 @@ msgstr "Llegenda opcional que es mostra sota la imatge"
 msgid "Optional caption for display"
 msgstr "Llegenda opcional per mostrar"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:847
+#: packages/admin/src/components/TaxonomyManager.tsx:850
 msgid "Optional description"
 msgstr "Descripció opcional"
 
@@ -10014,7 +10038,7 @@ msgstr "O puja un fitxer d'exportació"
 msgid "or upload directly"
 msgstr "o puja'l directament"
 
-#: packages/admin/src/components/MenuEditor.tsx:260
+#: packages/admin/src/components/MenuEditor.tsx:256
 msgid "Order saved"
 msgstr "S'ha desat l'ordre"
 
@@ -10066,7 +10090,7 @@ msgstr "Substitueix el títol de la pàgina als resultats dels motors de cerca"
 msgid "Ownership"
 msgstr "Propietat"
 
-#: packages/admin/src/components/PluginManager.tsx:661
+#: packages/admin/src/components/PluginManager.tsx:663
 msgid "Package"
 msgstr "Paquet"
 
@@ -10094,7 +10118,7 @@ msgstr "Número de pàgina"
 msgid "Page size"
 msgstr "Mida de pàgina"
 
-#: packages/admin/src/components/PluginManager.tsx:485
+#: packages/admin/src/components/PluginManager.tsx:487
 #: packages/admin/src/components/WordPressImport.tsx:1382
 msgid "Pages"
 msgstr "Pàgines"
@@ -10112,8 +10136,8 @@ msgstr "Paràgraf inserit després de la taula"
 msgid "Paragraph inserted before table"
 msgstr "Paràgraf inserit abans de la taula"
 
-#: packages/admin/src/components/MenuEditor.tsx:746
-#: packages/admin/src/components/TaxonomyManager.tsx:818
+#: packages/admin/src/components/MenuEditor.tsx:756
+#: packages/admin/src/components/TaxonomyManager.tsx:821
 msgid "Parent"
 msgstr "Pare"
 
@@ -10391,7 +10415,7 @@ msgstr "Error del connector ({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "La instal·lació de connectors requereix consentiment explícit"
 
-#: packages/admin/src/components/PluginManager.tsx:408
+#: packages/admin/src/components/PluginManager.tsx:410
 msgid "Plugin MCP access updated"
 msgstr "Accés MCP del connector actualitzat"
 
@@ -10412,7 +10436,7 @@ msgstr "No s'ha trobat el connector"
 msgid "Plugin not found. The publisher or slug may be incorrect."
 msgstr "No s'ha trobat el connector. L'editor o el slug poden ser incorrectes."
 
-#: packages/admin/src/components/PluginManager.tsx:554
+#: packages/admin/src/components/PluginManager.tsx:556
 msgid "Plugin pages"
 msgstr "Pàgines del connector"
 
@@ -10450,7 +10474,7 @@ msgstr "El connector ha respost amb {0}: {text}"
 msgid "Plugin tools: {0}"
 msgstr "Eines del connector: {0}"
 
-#: packages/admin/src/components/PluginManager.tsx:397
+#: packages/admin/src/components/PluginManager.tsx:399
 msgid "Plugin uninstalled"
 msgstr "S'ha desinstal·lat el connector"
 
@@ -10459,7 +10483,7 @@ msgstr "S'ha desinstal·lat el connector"
 msgid "Plugin update requires re-consent"
 msgstr "L'actualització del connector requereix tornar a donar consentiment"
 
-#: packages/admin/src/components/PluginManager.tsx:306
+#: packages/admin/src/components/PluginManager.tsx:308
 msgid "Plugin updated"
 msgstr "S'ha actualitzat el connector"
 
@@ -10697,7 +10721,7 @@ msgstr "Publica, despublica, programa i desprograma contingut"
 #: packages/admin/src/components/ContentList.tsx:1025
 #: packages/admin/src/components/ContentList.tsx:1036
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
-#: packages/admin/src/components/Dashboard.tsx:526
+#: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1488
@@ -10898,7 +10922,7 @@ msgstr "S'estan reconstruint la cerca i les memòries cau"
 msgid "Receipt digest"
 msgstr "Resum del rebut"
 
-#: packages/admin/src/components/Dashboard.tsx:577
+#: packages/admin/src/components/Dashboard.tsx:578
 msgid "Recent Activity"
 msgstr "Activitat recent"
 
@@ -11024,7 +11048,7 @@ msgid "Registration was cancelled or timed out. Please try again."
 msgstr "El registre s'ha cancel·lat o ha excedit el temps d'espera. Torna-ho a provar."
 
 #: packages/admin/src/components/PluginManager.tsx:217
-#: packages/admin/src/components/PluginManager.tsx:460
+#: packages/admin/src/components/PluginManager.tsx:462
 #: packages/admin/src/components/Sidebar.tsx:549
 msgid "Registry"
 msgstr "Registre"
@@ -11256,8 +11280,8 @@ msgid "Removed:"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:595
-msgid "Removes the sidebar entry, command palette link, and dashboard quick action; entries stay reachable by URL, API, and plugins"
-msgstr "Treu l'entrada de la barra lateral, l'enllaç de la paleta d'ordres i l'acció ràpida del tauler; les entrades segueixen accessibles per URL, API i connectors"
+msgid "Removes the sidebar entry, command palette link, dashboard quick action, and dashboard Content card row; entries stay reachable by URL, API, and plugins"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:57
 msgid "Removing starter content"
@@ -11278,8 +11302,8 @@ msgstr "Canvia el nom"
 msgid "Rename {0}"
 msgstr "Canvia el nom de {0}"
 
-#: packages/admin/src/components/MenuEditor.tsx:422
-#: packages/admin/src/components/MenuEditor.tsx:429
+#: packages/admin/src/components/MenuEditor.tsx:418
+#: packages/admin/src/components/MenuEditor.tsx:425
 msgid "Rename menu"
 msgstr ""
 
@@ -11736,8 +11760,8 @@ msgstr "Dreta"
 msgid "Risk score: {0}/100"
 msgstr "Puntuació de risc: {0}/100"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:267
-#: packages/admin/src/components/settings/SeoSettings.tsx:271
+#: packages/admin/src/components/settings/SeoSettings.tsx:261
+#: packages/admin/src/components/settings/SeoSettings.tsx:265
 msgid "robots.txt"
 msgstr "robots.txt"
 
@@ -11772,7 +11796,7 @@ msgstr "Enroutable"
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:307
-#: packages/admin/src/components/PluginManager.tsx:637
+#: packages/admin/src/components/PluginManager.tsx:639
 msgid "Route: {0} · Permission: {1}"
 msgstr "Ruta: {0} · Permís: {1}"
 
@@ -11810,10 +11834,10 @@ msgstr "Rust"
 msgid "Same as current version"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:534
-#: packages/admin/src/components/MenuEditor.tsx:536
-#: packages/admin/src/components/MenuEditor.tsx:733
-#: packages/admin/src/components/MenuEditor.tsx:735
+#: packages/admin/src/components/MenuEditor.tsx:530
+#: packages/admin/src/components/MenuEditor.tsx:532
+#: packages/admin/src/components/MenuEditor.tsx:743
+#: packages/admin/src/components/MenuEditor.tsx:745
 msgid "Same window"
 msgstr "Mateixa finestra"
 
@@ -11827,11 +11851,11 @@ msgstr "Contingut d'exemple"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:432
 #: packages/admin/src/components/MediaDetailPanel.tsx:1890
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
-#: packages/admin/src/components/MenuEditor.tsx:466
-#: packages/admin/src/components/MenuEditor.tsx:757
+#: packages/admin/src/components/MenuEditor.tsx:462
+#: packages/admin/src/components/MenuEditor.tsx:767
 #: packages/admin/src/components/Redirects.tsx:195
 #: packages/admin/src/components/SaveButton.tsx:35
-#: packages/admin/src/components/Widgets.tsx:995
+#: packages/admin/src/components/Widgets.tsx:1005
 msgid "Save"
 msgstr "Desa"
 
@@ -11924,16 +11948,16 @@ msgstr "Desar una col·lecció aquí converteix aquest camp en un selector d'ent
 #: packages/admin/src/components/FieldEditor.tsx:1401
 #: packages/admin/src/components/MediaDetailPanel.tsx:1890
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
-#: packages/admin/src/components/MenuEditor.tsx:466
-#: packages/admin/src/components/MenuEditor.tsx:757
+#: packages/admin/src/components/MenuEditor.tsx:462
+#: packages/admin/src/components/MenuEditor.tsx:767
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/RelationFormPanel.tsx:112
 #: packages/admin/src/components/SaveButton.tsx:36
-#: packages/admin/src/components/TaxonomyManager.tsx:890
+#: packages/admin/src/components/TaxonomyManager.tsx:893
 #: packages/admin/src/components/users/UserDetail.tsx:330
-#: packages/admin/src/components/Widgets.tsx:995
+#: packages/admin/src/components/Widgets.tsx:1005
 msgid "Saving..."
 msgstr "S'està desant..."
 
@@ -12147,6 +12171,10 @@ msgstr "Optimització per a motors de cerca"
 msgid "Search engine optimization and verification"
 msgstr "Optimització i verificació per a motors de cerca"
 
+#: packages/admin/src/components/settings/SeoSettings.tsx:240
+msgid "Search Engine Verification"
+msgstr ""
+
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
 msgid "Search failed"
 msgstr "La cerca ha fallat"
@@ -12209,11 +12237,11 @@ msgstr "Cerca seccions..."
 msgid "Search source or destination..."
 msgstr "Cerca origen o destinació..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1386
+#: packages/admin/src/components/TaxonomyManager.tsx:1389
 msgid "Search tags"
 msgstr "Cerca etiquetes"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1385
+#: packages/admin/src/components/TaxonomyManager.tsx:1388
 msgid "Search tags…"
 msgstr "Cerca etiquetes…"
 
@@ -12374,7 +12402,7 @@ msgstr "Selecciona {title}"
 msgid "Select a collection"
 msgstr "Selecciona una col·lecció"
 
-#: packages/admin/src/components/Widgets.tsx:968
+#: packages/admin/src/components/Widgets.tsx:978
 msgid "Select a component..."
 msgstr "Selecciona un component..."
 
@@ -12387,7 +12415,7 @@ msgstr "Selecciona un tipus de contingut"
 msgid "Select a location"
 msgstr "Selecciona una ubicació"
 
-#: packages/admin/src/components/Widgets.tsx:931
+#: packages/admin/src/components/Widgets.tsx:941
 msgid "Select a menu..."
 msgstr "Selecciona un menú..."
 
@@ -12428,7 +12456,7 @@ msgstr "Selecciona contingut"
 msgid "Select dark mode variant for {label}"
 msgstr "Selecciona la variant de mode fosc de {label}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:313
+#: packages/admin/src/components/settings/SeoSettings.tsx:307
 msgid "Select default social image"
 msgstr "Selecciona la imatge social per defecte"
 
@@ -12605,8 +12633,8 @@ msgstr "S'ha desat la configuració de SEO"
 msgid "SEO Title"
 msgstr "Títol SEO"
 
-#: packages/admin/src/components/MenuEditor.tsx:543
-#: packages/admin/src/components/MenuEditor.tsx:743
+#: packages/admin/src/components/MenuEditor.tsx:539
+#: packages/admin/src/components/MenuEditor.tsx:753
 msgid "Separate class names with spaces. Themes can use them to style the link."
 msgstr ""
 
@@ -12669,7 +12697,7 @@ msgstr "S'està configurant..."
 #: packages/admin/src/components/ContentEditor.tsx:2306
 #: packages/admin/src/components/ContentTypeEditor.tsx:467
 #: packages/admin/src/components/Header.tsx:104
-#: packages/admin/src/components/PluginManager.tsx:543
+#: packages/admin/src/components/PluginManager.tsx:545
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:563
 #: packages/admin/src/components/WordPressImport.tsx:1868
@@ -12759,7 +12787,7 @@ msgstr "Mostra el token"
 msgid "Showing {pageShowingRange} of {0}"
 msgstr "Es mostren {pageShowingRange} de {0}"
 
-#: packages/admin/src/components/MenuEditor.tsx:454
+#: packages/admin/src/components/MenuEditor.tsx:450
 #: packages/admin/src/components/MenuList.tsx:159
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr ""
@@ -12963,8 +12991,8 @@ msgstr "Omès"
 #: packages/admin/src/components/RelationList.tsx:90
 #: packages/admin/src/components/SectionEditor.tsx:281
 #: packages/admin/src/components/Sections.tsx:204
-#: packages/admin/src/components/TaxonomyManager.tsx:799
-#: packages/admin/src/components/TaxonomyManager.tsx:804
+#: packages/admin/src/components/TaxonomyManager.tsx:802
+#: packages/admin/src/components/TaxonomyManager.tsx:807
 #: packages/admin/src/routes/byline-schema.tsx:237
 msgid "Slug"
 msgstr "Slug"
@@ -13066,7 +13094,7 @@ msgstr "Ordena els temes"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:568
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:790
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
-#: packages/admin/src/components/PluginManager.tsx:649
+#: packages/admin/src/components/PluginManager.tsx:651
 #: packages/admin/src/components/Redirects.tsx:492
 #: packages/admin/src/components/SectionEditor.tsx:316
 msgid "Source"
@@ -13180,7 +13208,7 @@ msgstr "Estat"
 msgid "Status code"
 msgstr "Codi d'estat"
 
-#: packages/admin/src/components/Dashboard.tsx:630
+#: packages/admin/src/components/Dashboard.tsx:631
 msgid "Status: {status}"
 msgstr "Estat: {status}"
 
@@ -13343,8 +13371,8 @@ msgstr "Pren el control"
 msgid "Taking over..."
 msgstr "S'està prenent el control..."
 
-#: packages/admin/src/components/MenuEditor.tsx:531
-#: packages/admin/src/components/MenuEditor.tsx:730
+#: packages/admin/src/components/MenuEditor.tsx:527
+#: packages/admin/src/components/MenuEditor.tsx:740
 msgid "Target"
 msgstr "Destinació"
 
@@ -13371,11 +13399,11 @@ msgstr "Taxonomia"
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr "La taxonomia «{0}» s'utilitza al contingut d'aquest lloc"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1566
+#: packages/admin/src/components/TaxonomyManager.tsx:1569
 msgid "Taxonomy created"
 msgstr "S'ha creat la taxonomia"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1197
+#: packages/admin/src/components/TaxonomyManager.tsx:1200
 msgid "Taxonomy deleted"
 msgstr "Taxonomia eliminada"
 
@@ -13408,18 +13436,18 @@ msgid "Template:"
 msgstr "Plantilla:"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:110
-#: packages/admin/src/components/TaxonomyManager.tsx:755
-#: packages/admin/src/components/TaxonomyManager.tsx:756
-#: packages/admin/src/components/TaxonomyManager.tsx:760
-#: packages/admin/src/components/TaxonomyManager.tsx:761
-#: packages/admin/src/components/TaxonomyManager.tsx:1333
-#: packages/admin/src/components/TaxonomyManager.tsx:1534
+#: packages/admin/src/components/TaxonomyManager.tsx:758
+#: packages/admin/src/components/TaxonomyManager.tsx:759
+#: packages/admin/src/components/TaxonomyManager.tsx:763
+#: packages/admin/src/components/TaxonomyManager.tsx:764
+#: packages/admin/src/components/TaxonomyManager.tsx:1336
+#: packages/admin/src/components/TaxonomyManager.tsx:1537
 msgid "Term"
 msgstr "Terme"
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:1257
+#: packages/admin/src/components/TaxonomyManager.tsx:1260
 msgid "Term \"{0}\" created in {1}."
 msgstr "S'ha creat el terme \"{0}\" a {1}."
 
@@ -13428,7 +13456,7 @@ msgstr "S'ha creat el terme \"{0}\" a {1}."
 msgid "Term assignments"
 msgstr "Assignacions de termes"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1175
+#: packages/admin/src/components/TaxonomyManager.tsx:1178
 msgid "Term deleted"
 msgstr "S'ha eliminat el terme"
 
@@ -13644,7 +13672,7 @@ msgid "The menu has been deleted."
 msgstr "S'ha eliminat el menú."
 
 #. placeholder {0}: renamed.label
-#: packages/admin/src/components/MenuEditor.tsx:174
+#: packages/admin/src/components/MenuEditor.tsx:176
 msgid "The menu is now called \"{0}\"."
 msgstr ""
 
@@ -14171,7 +14199,7 @@ msgstr "Aquest connector encara no està disponible"
 msgid "This plugin requires no special permissions."
 msgstr "Aquest connector no requereix cap permís especial."
 
-#: packages/admin/src/components/PluginManager.tsx:470
+#: packages/admin/src/components/PluginManager.tsx:472
 msgid "This publisher identity no longer resolves."
 msgstr "Aquesta identitat d'editor ja no es resol."
 
@@ -14302,7 +14330,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "Això mourà l'element a la paperera. El podràs restaurar més tard des de la paperera."
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1536
+#: packages/admin/src/components/TaxonomyManager.tsx:1539
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "Això eliminarà permanentment \"{0}\" i el traurà de tot el contingut."
 
@@ -14315,7 +14343,7 @@ msgstr "Això eliminarà permanentment \"{0}\". Aquesta acció no es pot desfer.
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Això eliminarà permanentment aquest comentari. Aquesta acció no es pot desfer."
 
-#: packages/admin/src/components/PluginManager.tsx:806
+#: packages/admin/src/components/PluginManager.tsx:808
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Això traurà el connector i el seu paquet del teu lloc."
 
@@ -14348,7 +14376,7 @@ msgstr "Fus horari"
 #: packages/admin/src/components/ContentList.tsx:912
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
-#: packages/admin/src/components/Widgets.tsx:903
+#: packages/admin/src/components/Widgets.tsx:913
 msgid "Title"
 msgstr "Títol"
 
@@ -14466,8 +14494,8 @@ msgstr "Tradueix {0}"
 msgid "Translating..."
 msgstr "S'està traduint..."
 
-#: packages/admin/src/components/MenuEditor.tsx:146
-#: packages/admin/src/components/TaxonomyManager.tsx:1256
+#: packages/admin/src/components/MenuEditor.tsx:148
+#: packages/admin/src/components/TaxonomyManager.tsx:1259
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
 #: packages/admin/src/router.tsx:1642
 msgid "Translation created"
@@ -14683,20 +14711,20 @@ msgid "Unfinished media uploads were left out"
 msgstr "S'han omès les pujades de multimèdia no acabades"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:202
-#: packages/admin/src/components/PluginManager.tsx:701
-#: packages/admin/src/components/PluginManager.tsx:820
+#: packages/admin/src/components/PluginManager.tsx:703
+#: packages/admin/src/components/PluginManager.tsx:822
 msgid "Uninstall"
 msgstr "Desinstal·la"
 
-#: packages/admin/src/components/PluginManager.tsx:804
+#: packages/admin/src/components/PluginManager.tsx:806
 msgid "Uninstall {pluginName}?"
 msgstr "Vols desinstal·lar {pluginName}?"
 
-#: packages/admin/src/components/PluginManager.tsx:799
+#: packages/admin/src/components/PluginManager.tsx:801
 msgid "Uninstall confirmation"
 msgstr "Confirmació de la desinstal·lació"
 
-#: packages/admin/src/components/PluginManager.tsx:820
+#: packages/admin/src/components/PluginManager.tsx:822
 msgid "Uninstalling..."
 msgstr "S'està desinstal·lant..."
 
@@ -14789,7 +14817,7 @@ msgstr "Tipus d'element de giny no admès: {0}"
 msgid "Until {0}"
 msgstr "Fins a {0}"
 
-#: packages/admin/src/components/Dashboard.tsx:597
+#: packages/admin/src/components/Dashboard.tsx:598
 #: packages/admin/src/components/MediaUsedIn.tsx:320
 msgid "Untitled"
 msgstr "Sense títol"
@@ -14800,7 +14828,8 @@ msgid "Untitled file"
 msgstr "Fitxer sense títol"
 
 #: packages/admin/src/components/Widgets.tsx:548
-#: packages/admin/src/components/Widgets.tsx:821
+#: packages/admin/src/components/Widgets.tsx:816
+#: packages/admin/src/components/Widgets.tsx:849
 msgid "Untitled Widget"
 msgstr "Giny sense títol"
 
@@ -14812,7 +14841,7 @@ msgstr "S'han omès les referències no utilitzades"
 msgid "Up to {MAX_SELECTED} bylines can be selected"
 msgstr "Es poden seleccionar fins a {MAX_SELECTED} signatures"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:892
+#: packages/admin/src/components/TaxonomyManager.tsx:895
 msgid "Update"
 msgstr "Actualitza"
 
@@ -14839,7 +14868,7 @@ msgid "Update site settings"
 msgstr "Actualitza la configuració del lloc"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:760
+#: packages/admin/src/components/TaxonomyManager.tsx:763
 msgid "Update the {0} details"
 msgstr "Actualitza els detalls de {0}"
 
@@ -14857,7 +14886,7 @@ msgid "Update this redirect rule."
 msgstr "Actualitza aquesta regla de redirecció."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:535
+#: packages/admin/src/components/PluginManager.tsx:537
 msgid "Update to v{0}"
 msgstr "Actualitza a la v{0}"
 
@@ -14884,7 +14913,7 @@ msgid "Updating usage"
 msgstr "S'està actualitzant l'ús"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:355
-#: packages/admin/src/components/PluginManager.tsx:535
+#: packages/admin/src/components/PluginManager.tsx:537
 #: packages/admin/src/components/SandboxedPluginPage.tsx:161
 #: packages/admin/src/components/SandboxedPluginPage.tsx:165
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:122
@@ -15019,8 +15048,8 @@ msgstr ""
 #: packages/admin/src/components/BylineFieldEditor.tsx:49
 #: packages/admin/src/components/FieldEditor.tsx:474
 #: packages/admin/src/components/FieldEditor.tsx:1303
-#: packages/admin/src/components/MenuEditor.tsx:522
-#: packages/admin/src/components/MenuEditor.tsx:720
+#: packages/admin/src/components/MenuEditor.tsx:518
+#: packages/admin/src/components/MenuEditor.tsx:730
 msgid "URL"
 msgstr "URL"
 
@@ -15126,7 +15155,7 @@ msgstr "Utilitza la teva clau d'accés registrada per iniciar la sessió de mane
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "S'utilitza com a imatge Open Graph alternativa quan una pàgina no en té. Mida recomanada: 1200×630."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1060
+#: packages/admin/src/components/TaxonomyManager.tsx:1063
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "S'utilitza com a identificador. Només lletres minúscules, números i guions baixos."
 
@@ -15205,7 +15234,7 @@ msgid "v{0}"
 msgstr "v{0}"
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:463
+#: packages/admin/src/components/PluginManager.tsx:465
 msgid "v{0} available"
 msgstr "v{0} disponible"
 
@@ -15499,7 +15528,7 @@ msgstr "Quan es va publicar l'entrada"
 msgid "Where is it saved?"
 msgstr "On es desa?"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1074
+#: packages/admin/src/components/TaxonomyManager.tsx:1077
 msgid "Which content types can use this taxonomy"
 msgstr "Quins tipus de contingut poden utilitzar aquesta taxonomia"
 
@@ -15547,8 +15576,8 @@ msgstr "Per què és important això?"
 msgid "Wide"
 msgstr "Ample"
 
-#: packages/admin/src/components/Widgets.tsx:814
-#: packages/admin/src/components/Widgets.tsx:829
+#: packages/admin/src/components/Widgets.tsx:809
+#: packages/admin/src/components/Widgets.tsx:824
 msgid "widget"
 msgstr "giny"
 
@@ -15568,20 +15597,20 @@ msgstr "S'ha eliminat l'àrea de ginys"
 msgid "Widget areas"
 msgstr "Àrees de ginys"
 
-#: packages/admin/src/components/Widgets.tsx:777
+#: packages/admin/src/components/Widgets.tsx:779
 msgid "Widget deleted"
 msgstr "S'ha eliminat el giny"
 
-#: packages/admin/src/components/Widgets.tsx:906
+#: packages/admin/src/components/Widgets.tsx:916
 msgid "Widget title"
 msgstr "Títol del giny"
 
-#: packages/admin/src/components/Widgets.tsx:792
+#: packages/admin/src/components/Widgets.tsx:787
 msgid "Widget updated"
 msgstr "S'ha actualitzat el giny"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:186
-#: packages/admin/src/components/PluginManager.tsx:491
+#: packages/admin/src/components/PluginManager.tsx:493
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
 #: packages/admin/src/components/Sidebar.tsx:488
@@ -15655,7 +15684,7 @@ msgstr "Escriu HTML…"
 msgid "Write JavaScript…"
 msgstr "Escriu JavaScript…"
 
-#: packages/admin/src/components/Widgets.tsx:916
+#: packages/admin/src/components/Widgets.tsx:926
 msgid "Write widget content..."
 msgstr "Escriu el contingut del giny..."
 

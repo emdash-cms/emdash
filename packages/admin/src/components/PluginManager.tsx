@@ -217,7 +217,9 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 							{t`Registry`}
 						</RouterLinkButton>
 					)}
-					<span className="text-sm text-kumo-subtle">{t`${plugins?.length ?? 0} plugins`}</span>
+					<span className="text-sm text-kumo-subtle">
+						{plural(plugins?.length ?? 0, { one: "# plugin", other: "# plugins" })}
+					</span>
 				</div>
 			</div>
 

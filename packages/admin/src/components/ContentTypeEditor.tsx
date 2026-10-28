@@ -592,7 +592,7 @@ export function ContentTypeEditor({
 										<div>
 											<span className="text-sm font-medium">{t`Hide from navigation`}</span>
 											<p className="text-xs text-kumo-subtle">
-												{t`Removes the sidebar entry, command palette link, and dashboard quick action; entries stay reachable by URL, API, and plugins`}
+												{t`Removes the sidebar entry, command palette link, dashboard quick action, and dashboard Content card row; entries stay reachable by URL, API, and plugins`}
 											</p>
 										</div>
 									}
