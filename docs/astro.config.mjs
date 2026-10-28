@@ -86,6 +86,7 @@ export default defineConfig({
 						{ label: "Site Settings", slug: "guides/site-settings" },
 						{ label: "Move to a New Domain", slug: "guides/change-domain" },
 						{ label: "Built-in SEO Features", slug: "guides/seo" },
+						{ label: "Google AdSense", slug: "guides/google-adsense" },
 						{ label: "Authentication", slug: "guides/authentication" },
 						{ label: "Email Setup", slug: "guides/email" },
 						{ label: "Atmosphere Login", slug: "guides/atmosphere-auth" },
