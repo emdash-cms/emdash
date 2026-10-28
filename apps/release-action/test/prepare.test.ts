@@ -79,20 +79,22 @@ describe("release Action file preparation", () => {
 		});
 	});
 
-	it("prepares manifest media from the selected nested plugin, outside the tarball", async () => {
-		const pluginDirectory = join(workspace, "packages", "gallery");
-		await mkdir(join(pluginDirectory, "assets"), { recursive: true });
-		const image = Buffer.from(
-			"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5XkAAAAASUVORK5CYII=",
-			"base64",
-		);
-		await Promise.all([
-			writeFile(join(workspace, "artifacts", "gallery.tar.gz"), PACKAGE_BYTES),
-			writeFile(join(runnerTemp, "attestation.json"), PROVENANCE_BYTES),
-			writeFile(join(pluginDirectory, "assets", "image.png"), image),
-			writeFile(
-				join(pluginDirectory, "emdash-plugin.jsonc"),
-				`{
+	it.each([".", "packages/gallery"])(
+		"prepares manifest media outside the tarball from %s",
+		async (directory) => {
+			const pluginDirectory = join(workspace, directory);
+			await mkdir(join(pluginDirectory, "assets"), { recursive: true });
+			const image = Buffer.from(
+				"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5XkAAAAASUVORK5CYII=",
+				"base64",
+			);
+			await Promise.all([
+				writeFile(join(workspace, "artifacts", "gallery.tar.gz"), PACKAGE_BYTES),
+				writeFile(join(runnerTemp, "attestation.json"), PROVENANCE_BYTES),
+				writeFile(join(pluginDirectory, "assets", "image.png"), image),
+				writeFile(
+					join(pluginDirectory, "emdash-plugin.jsonc"),
+					`{
 				// The package version can come from package.json.
 				"slug": "gallery",
 				"release": { "artifacts": {
@@ -101,29 +103,30 @@ describe("release Action file preparation", () => {
 					"screenshots": [{ "file": "./assets/image.png", "lang": "en" }],
 				}},
 			}`,
-			),
-		]);
-		const prepared = await prepareReleaseFiles(
-			{
-				workspace,
-				runnerTemp,
-				pluginDirectory: "packages/gallery",
-				bundleFile: "artifacts/gallery.tar.gz",
-				provenanceFile: "attestation.json",
-				repository: "example/gallery",
-				workflowRef: "example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
-				repositoryVisibility: "public",
-			},
-			validationDependencies,
-		);
-		expect(prepared).toMatchObject({
-			media: {
-				icon: { bytes: new Uint8Array(image), contentType: "image/png", width: 1, height: 1 },
-				banner: { bytes: new Uint8Array(image), contentType: "image/png" },
-				screenshots: [{ bytes: new Uint8Array(image), lang: "en" }],
-			},
-		});
-	});
+				),
+			]);
+			const prepared = await prepareReleaseFiles(
+				{
+					workspace,
+					runnerTemp,
+					...(directory === "." ? {} : { pluginDirectory: directory }),
+					bundleFile: "artifacts/gallery.tar.gz",
+					provenanceFile: "attestation.json",
+					repository: "example/gallery",
+					workflowRef: "example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
+					repositoryVisibility: "public",
+				},
+				validationDependencies,
+			);
+			expect(prepared).toMatchObject({
+				media: {
+					icon: { bytes: new Uint8Array(image), contentType: "image/png", width: 1, height: 1 },
+					banner: { bytes: new Uint8Array(image), contentType: "image/png" },
+					screenshots: [{ bytes: new Uint8Array(image), lang: "en" }],
+				},
+			});
+		},
+	);
 
 	it("accepts workflows triggered by a package@version tag", async () => {
 		const bundlePath = join(workspace, "artifacts", "gallery.tar.gz");

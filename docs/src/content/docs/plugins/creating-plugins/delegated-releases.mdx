@@ -225,6 +225,7 @@ The standard generated workflow supplies these inputs. They are shown here so yo
 | `service-url` | Release-service HTTPS origin. |
 | `publisher-did` | DID that owns the package profile and releases. |
 | `bundle-file` | The single tarball produced by `emdash-plugin release prepare`. |
+| `plugin-directory` | The selected plugin's source directory, from `steps.prepare.outputs.plugin-directory`; also used to resolve listing images when `bundle-file` is supplied. |
 | `provenance-file` | Raw `bundle-path` output from `actions/attest-build-provenance`. |
 
 The Action returns these outputs:
@@ -240,6 +241,14 @@ The Action returns these outputs:
 | `reason-code` | Stable reason for a terminal intent. |
 
 See the [Action reference](https://github.com/emdash-cms/emdash/tree/main/apps/release-action) for optional inputs, custom URL-source workflows, polling controls, and exact output behavior.
+
+### Listing images
+
+The Action uploads the `release.artifacts` icon, banner, and screenshots declared in `emdash-plugin.jsonc` inside `plugin-directory`. Image paths are relative to that manifest's directory. Images must be PNG, JPEG, or WebP, at most 1 MiB each and 8192 pixels per dimension. A release can include up to eight screenshots; their order and each image's `lang` are preserved. A declared image that cannot be read or validated fails the release before any upload. Listing images are supported when the package profile requires provenance; the package's provenance checks still apply.
+
+For an existing workflow, use the updated `emdash-cms/emdash/apps/release-action`; update its revision if your workflow pins it to an older commit. Root-level plugins use the default `plugin-directory: .`, so they need only the updated Action. For a nested plugin in a generated workflow that omits `plugin-directory`, add `plugin-directory: ${{ steps.prepare.outputs.plugin-directory }}` to the publish Action's `with` block alongside `bundle-file`. For a nested plugin in a custom workflow, pass its workspace-relative source directory.
+
+When releasing several plugins with listing images in a matrix, stagger jobs to stay within the service's upload rate limits. A full gallery with an icon and banner makes 12 uploads plus the release-intent request per plugin. If the Action fails with `WORKLOAD_RATE_LIMITED`, rerun after the rate-limit window.
 
 ## Troubleshooting
 
