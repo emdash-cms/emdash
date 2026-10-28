@@ -12,8 +12,11 @@ import { handleCommentBulk } from "#api/handlers/comments.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { commentBulkBody } from "#api/schemas.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
+import { chunks } from "#utils/chunks.js";
 
 export const prerender = false;
+
+const MAX_CACHE_PURGE_TAGS = 100;
 
 export const POST: APIRoute = async ({ request, locals, cache }) => {
 	const { emdash, user } = locals;
@@ -43,14 +46,15 @@ export const POST: APIRoute = async ({ request, locals, cache }) => {
 					.execute()
 			: [];
 
-		const result = await handleCommentBulk(emdash.db, body.ids, body.action);
-
-		if (result.success && result.data.affected > 0 && entries.length > 0) {
+		try {
+			return unwrapResult(await handleCommentBulk(emdash.db, body.ids, body.action));
+		} finally {
+			// D1 can commit earlier batches even when a later batch fails.
 			const tags = [...new Set(entries.flatMap((entry) => [entry.collection, entry.content_id]))];
-			await invalidateRouteCache(cache, tags);
+			for (const tagBatch of chunks(tags, MAX_CACHE_PURGE_TAGS)) {
+				await invalidateRouteCache(cache, tagBatch);
+			}
 		}
-
-		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to perform bulk operation", "COMMENT_BULK_ERROR");
 	}

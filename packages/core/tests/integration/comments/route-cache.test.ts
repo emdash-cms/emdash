@@ -1,6 +1,6 @@
 import { Role } from "@emdash-cms/auth";
 import type { APIContext } from "astro";
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { DELETE as deleteComment } from "../../../src/astro/routes/api/admin/comments/[id].js";
@@ -23,6 +23,7 @@ import {
 	describeEachDialect,
 	setupForDialectWithCollections,
 	type DialectTestContext,
+	asInlineTransaction,
 	teardownForDialect,
 } from "../../utils/test-db.js";
 
@@ -40,6 +41,7 @@ class FakeRouteCache {
 	}
 
 	async invalidate(input: { tags: string[] }): Promise<void> {
+		if (input.tags.length > 100) throw new Error("too many cache tags");
 		if (this.failInvalidation) throw new Error("cache unavailable");
 		for (const [key, page] of this.pages) {
 			if (page.some((tag) => input.tags.includes(tag))) this.pages.delete(key);
@@ -108,9 +110,9 @@ describeEachDialect("comment route cache invalidation", (dialect) => {
 		await teardownForDialect(ctx);
 	});
 
-	function runtime() {
+	function runtime(runtimeDb = db) {
 		return {
-			db,
+			db: runtimeDb,
 			config: {},
 			email: null,
 			hooks,
@@ -121,7 +123,7 @@ describeEachDialect("comment route cache invalidation", (dialect) => {
 				expectedStatus?: "pending" | "approved" | "spam" | "trash",
 			) =>
 				moderateComment(
-					db,
+					runtimeDb,
 					id,
 					status,
 					expectedStatus ?? "pending",
@@ -433,6 +435,100 @@ describeEachDialect("comment route cache invalidation", (dialect) => {
 		expect((await comments.findById(sameCollection.id))?.status).toBe("pending");
 		expect((await comments.findById(otherCollection.id))?.status ?? null).toBe(expectedStatus);
 	});
+
+	it("invalidates the maximum-size bulk request without exceeding the cache tag limit", async () => {
+		const content = new ContentRepository(db);
+		const selected: Comment[] = [];
+		for (let index = 0; index < 100; index++) {
+			const contentId = `bulk-post-${index}`;
+			await content.create({
+				id: contentId,
+				type: "post",
+				slug: contentId,
+				data: { title: contentId },
+				status: "published",
+				publishedAt: new Date().toISOString(),
+			});
+			selected.push(await createComment("pending", contentId));
+			cache.set(`entry-${contentId}`, [contentId]);
+		}
+		cache.set("unrelated", ["other", "other-1"]);
+
+		const response = await bulkComments(
+			context({
+				request: new Request("http://localhost/_emdash/api/admin/comments/bulk", {
+					method: "POST",
+					body: JSON.stringify({ ids: selected.map((comment) => comment.id), action: "approve" }),
+				}),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		for (const comment of selected) {
+			expect(cache.pages.has(`entry-${comment.contentId}`)).toBe(false);
+			expect((await comments.findById(comment.id))?.status).toBe("approved");
+		}
+		expect(cache.pages.has("unrelated")).toBe(true);
+	});
+
+	it.skipIf(dialect !== "sqlite")(
+		"invalidates every entry when a later bulk status batch fails on D1",
+		async () => {
+			const selected: Comment[] = [];
+			const content = new ContentRepository(db);
+			for (let index = 0; index < 51; index++) {
+				const contentId = `partial-post-${index}`;
+				await content.create({
+					id: contentId,
+					type: "post",
+					slug: contentId,
+					data: { title: contentId },
+					status: "published",
+					publishedAt: new Date().toISOString(),
+				});
+				selected.push(await createComment("pending", contentId));
+				cache.set(`entry-${index}`, [contentId]);
+			}
+			cache.set("unrelated", ["other", "other-1"]);
+			const failed = selected[50]!;
+			await db
+				.updateTable("_emdash_comments")
+				.set({ body: "Reject update" })
+				.where("id", "=", failed.id)
+				.execute();
+			await sql`
+				CREATE TRIGGER reject_comment_status_for_bulk_test
+				BEFORE UPDATE OF status ON _emdash_comments
+				WHEN OLD.body = 'Reject update'
+				BEGIN
+					SELECT RAISE(ABORT, 'bulk test rejection');
+				END
+			`.execute(db);
+
+			const inlineDb = asInlineTransaction(db);
+			const response = await bulkComments(
+				context({
+					locals: { emdash: runtime(inlineDb) },
+					request: new Request("http://localhost/_emdash/api/admin/comments/bulk", {
+						method: "POST",
+						body: JSON.stringify({
+							ids: selected.map((comment) => comment.id),
+							action: "approve",
+						}),
+					}),
+				}),
+			);
+
+			expect(response.status).toBe(500);
+			for (const [index, comment] of selected.entries()) {
+				expect((await comments.findById(comment.id))?.status).toBe(
+					index < 50 ? "approved" : "pending",
+				);
+				expect(cache.pages.has(`entry-${index}`)).toBe(false);
+			}
+			expect(cache.pages.has("unrelated")).toBe(true);
+		},
+	);
 
 	it("leaves cache intact for unauthorized and invalid bulk writes", async () => {
 		const comment = await createComment("pending");
