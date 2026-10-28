@@ -113,7 +113,8 @@ export function readDimensions(buffer: Uint8Array): { width: number; height: num
  *   readDimensions); otherwise dimensions are read from this buffer's header.
  *   Generation is skipped (returns null) when no dimensions are available at
  *   all, or when the decoded size (width * height * 4) exceeds
- *   MAX_DECODED_BYTES.
+ *   MAX_DECODED_BYTES — both guards avoid OOM from unbounded decodes on
+ *   memory-constrained runtimes.
  */
 export async function generatePlaceholder(
 	buffer: Uint8Array,
@@ -140,10 +141,15 @@ export async function generatePlaceholder(
 		if (dims.width * dims.height * 4 > MAX_DECODED_BYTES) {
 			return null;
 		}
+
 		const imageData = format === "jpeg" ? await decodeJpeg(buffer) : await decodePng(buffer);
 		const { width, height, data } = imageData;
 
 		if (width === 0 || height === 0) return null;
+
+		for (let i = 3; i < data.length; i += 4) {
+			if (data[i] !== 255) return null;
+		}
 
 		// Downsample for blurhash encoding if needed
 		let encodePixels: Uint8ClampedArray;

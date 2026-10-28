@@ -6,7 +6,7 @@ import { POST as postConfirm } from "../../../src/astro/routes/api/media/[id]/co
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import type { Database } from "../../../src/database/types.js";
 import { computeContentHash } from "../../../src/utils/hash.js";
-import { JPEG_4x4, PNG_4x4 } from "../../utils/image-fixtures.js";
+import { JPEG_4x4, PNG_4x4, PNG_TRANSPARENT_2x2 } from "../../utils/image-fixtures.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 vi.mock("jpeg-js", { spy: true });
@@ -106,6 +106,40 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 		expect(row?.blurhash).toBeTruthy();
 		expect(row?.dominantColor).toMatch(/^rgb\(/);
 		expect(row?.contentHash).toBe(await computeContentHash(JPEG_4x4));
+	});
+
+	it("stores no placeholder when confirming with a fully transparent PNG thumbnail", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "photo.jpg",
+			mimeType: "image/jpeg",
+			storageKey: "photo.jpg",
+			authorId: "user-1",
+		});
+
+		const res = await postConfirm(
+			buildContext({
+				db,
+				id: pending.id,
+				storage: storageWith(JPEG_4x4),
+				body: {
+					thumbnail: {
+						contentType: "image/png",
+						data: Buffer.from(PNG_TRANSPARENT_2x2).toString("base64"),
+					},
+				},
+			}),
+		);
+
+		expect(res.status).toBe(200);
+		expect(await repo.findById(pending.id)).toMatchObject({
+			status: "ready",
+			width: 4,
+			height: 4,
+			blurhash: null,
+			dominantColor: null,
+			contentHash: await computeContentHash(JPEG_4x4),
+		});
 	});
 
 	it("allows a contributing uploader to confirm their own pending file", async () => {

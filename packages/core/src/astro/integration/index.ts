@@ -625,7 +625,6 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 			}) => {
 				astroCommand = command;
 				usesCloudflareAdapter = astroConfig.adapter?.name === "@astrojs/cloudflare";
-
 				normalizeRegistryConfig(registry, {
 					allowLocalhost: command === "dev" || command === "sync",
 				});

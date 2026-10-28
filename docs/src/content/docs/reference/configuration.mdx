@@ -127,7 +127,7 @@ emdash({
 });
 ```
 
-The admin and visual-editing toolbar create a small browser thumbnail for every image the browser can decode and send it with uploads. These thumbnails also enable placeholders for formats such as WebP and AVIF, including transparent images. In the built-in image components, placeholder backgrounds can remain visible through transparent areas. EmDash uses that thumbnail for placeholder generation instead of decoding the full original when the upload path provides one. A client can also provide a thumbnail in the signed-upload confirmation request; see [`POST /_emdash/api/media/{id}/confirm`](/reference/rest-api/#upload-target-flow).
+The admin and visual-editing toolbar create a small browser thumbnail for every image the browser can decode and send it with uploads. These thumbnails also enable placeholders for opaque images in formats such as WebP and AVIF. New uploads and imports do not generate placeholders for transparent images, including PNGs, so placeholder backgrounds do not show through transparent areas. Previously stored placeholders are not removed. EmDash uses that thumbnail for placeholder generation instead of decoding the full original when the upload path provides one. A client can also provide a thumbnail in the signed-upload confirmation request; see [`POST /_emdash/api/media/{id}/confirm`](/reference/rest-api/#upload-target-flow).
 
 ### `mediaProviders`
 

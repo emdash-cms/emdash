@@ -14,6 +14,22 @@ export const PNG_4x4 = new Uint8Array(
 	),
 );
 
+/** Fully transparent 2x2 PNG with black RGB channels, as produced by a browser canvas. */
+export const PNG_TRANSPARENT_2x2 = new Uint8Array(
+	Buffer.from(
+		"iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABIeJ9nAAAAAXNSR0IB2cksfwAAAANQTFRFAAAAp3o92gAAAAF0Uk5TAEDm2GYAAAAMSURBVHicY2BgYAAAAAQAAfYXOFUAAAAASUVORK5CYII=",
+		"base64",
+	),
+);
+
+/** White 64x64 PNG with one alpha-254 pixel at (61, 63), outside the downsample grid. */
+export const PNG_PARTIALLY_TRANSPARENT_64x64 = new Uint8Array(
+	Buffer.from(
+		"iVBORw0KGgoAAAANSUhEUgAAAEAAAABAAgMAAADXB5lNAAAAAXNSR0IB2cksfwAAAAlQTFRFAAAA////////c3ilYwAAAAN0Uk5TAP/+M1fmtwAAABhJREFUeJxjCEUDDKMCowKjAqMCRAmkAgCunlQgHAhyWAAAAABJRU5ErkJggg==",
+		"base64",
+	),
+);
+
 /** 1x1 transparent GIF — image-size parses dimensions, but blurhash does not support GIF. */
 export const GIF_1x1 = new Uint8Array(
 	Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64"),
