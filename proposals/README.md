@@ -90,6 +90,7 @@ Add a row for each accepted proposal in its design pull request, keeping the row
 
 | Proposal                                                  | Type         | Design PR                                               | Implemented in                                          |
 | --------------------------------------------------------- | ------------ | ------------------------------------------------------- | ------------------------------------------------------- |
+| [Read-only mode](read-only-mode.md)                       | RFC          | [#4461](https://github.com/emdash-cms/emdash/pull/4461) |                                                         |
 | [Readable revision history](readable-revision-history.md) | Feature plan | [#4127](https://github.com/emdash-cms/emdash/pull/4127) | [#4136](https://github.com/emdash-cms/emdash/pull/4136) |
 
 The numbered RFCs under [`rfcs/`](../rfcs/) predate this process and keep their existing paths as historical records.
