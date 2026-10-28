@@ -37,6 +37,7 @@
 		"@lingui/core": "catalog:",
 		"@lingui/react": "catalog:",
 		"@testing-library/react": "^16.3.0",
+		"@types/react": "catalog:",
 		"astro": "catalog:",
 		"jsdom": "^26.1.0",
 		"react": "catalog:",

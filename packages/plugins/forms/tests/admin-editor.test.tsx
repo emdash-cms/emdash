@@ -84,7 +84,7 @@ beforeEach(() => {
 				new Promise<Response>((resolve) => {
 					requests.push({
 						route: url.split("/emdash-forms/")[1] ?? url,
-						body: init.body ? JSON.parse(String(init.body)) : {},
+						body: typeof init.body === "string" ? JSON.parse(init.body) : {},
 						resolve,
 					});
 				}),
