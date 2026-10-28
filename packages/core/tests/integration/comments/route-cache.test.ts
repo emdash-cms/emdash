@@ -1,0 +1,505 @@
+import { Role } from "@emdash-cms/auth";
+import type { APIContext } from "astro";
+import type { Kysely } from "kysely";
+import { afterEach, beforeEach, expect, it } from "vitest";
+
+import { DELETE as deleteComment } from "../../../src/astro/routes/api/admin/comments/[id].js";
+import { PUT as updateCommentStatus } from "../../../src/astro/routes/api/admin/comments/[id]/status.js";
+import { POST as bulkComments } from "../../../src/astro/routes/api/admin/comments/bulk.js";
+import { POST as submitComment } from "../../../src/astro/routes/api/comments/[collection]/[contentId]/index.js";
+import {
+	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
+	defaultCommentModerate,
+} from "../../../src/comments/moderator.js";
+import { moderateComment } from "../../../src/comments/service.js";
+import { CommentRepository, type Comment } from "../../../src/database/repositories/comment.js";
+import { ContentRepository } from "../../../src/database/repositories/content.js";
+import type { Database } from "../../../src/database/types.js";
+import { definePlugin } from "../../../src/plugins/define-plugin.js";
+import { createHookPipeline } from "../../../src/plugins/hooks.js";
+import type { HookPipeline } from "../../../src/plugins/hooks.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
+import {
+	describeEachDialect,
+	setupForDialectWithCollections,
+	type DialectTestContext,
+	teardownForDialect,
+} from "../../utils/test-db.js";
+
+const admin = { id: "admin-1", name: "Admin", role: Role.ADMIN };
+
+/** A route-cache stand-in that evicts snapshots by the tags supplied by a write. */
+class FakeRouteCache {
+	readonly pages = new Map<string, string[]>();
+	failInvalidation = false;
+
+	constructor(readonly enabled = true) {}
+
+	set(key: string, tags: string[]): void {
+		this.pages.set(key, tags);
+	}
+
+	async invalidate(input: { tags: string[] }): Promise<void> {
+		if (this.failInvalidation) throw new Error("cache unavailable");
+		for (const [key, page] of this.pages) {
+			if (page.some((tag) => input.tags.includes(tag))) this.pages.delete(key);
+		}
+	}
+}
+
+describeEachDialect("comment route cache invalidation", (dialect) => {
+	let ctx: DialectTestContext;
+	let db: Kysely<Database>;
+	let comments: CommentRepository;
+	let hooks: HookPipeline;
+	let cache: FakeRouteCache;
+
+	beforeEach(async () => {
+		ctx = await setupForDialectWithCollections(dialect);
+		db = ctx.db;
+		comments = new CommentRepository(db);
+		const defaultModerator = definePlugin({
+			id: DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
+			version: "0.0.0",
+			capabilities: ["users:read"],
+			hooks: {
+				"comment:moderate": { exclusive: true, handler: defaultCommentModerate },
+			},
+		});
+		hooks = createHookPipeline([defaultModerator], { db });
+		hooks.setExclusiveSelection("comment:moderate", DEFAULT_COMMENT_MODERATOR_PLUGIN_ID);
+		cache = new FakeRouteCache();
+		await new SchemaRegistry(db).updateCollection("post", {
+			commentsEnabled: true,
+			commentsModeration: "all",
+		});
+		await new SchemaRegistry(db).updateCollection("page", {
+			commentsEnabled: true,
+			commentsModeration: "all",
+		});
+		const content = new ContentRepository(db);
+		await content.create({
+			id: "post-1",
+			type: "post",
+			slug: "hello",
+			data: { title: "Hello" },
+			status: "published",
+			publishedAt: new Date().toISOString(),
+		});
+		await content.create({
+			id: "post-2",
+			type: "post",
+			slug: "another",
+			data: { title: "Another" },
+			status: "published",
+			publishedAt: new Date().toISOString(),
+		});
+		await content.create({
+			id: "page-1",
+			type: "page",
+			slug: "page",
+			data: { title: "Page" },
+			status: "published",
+			publishedAt: new Date().toISOString(),
+		});
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	function runtime() {
+		return {
+			db,
+			config: {},
+			email: null,
+			hooks,
+			handleCommentModerate: (
+				id: string,
+				status: "pending" | "approved" | "spam" | "trash",
+				moderator: { id: string; name: string | null },
+				expectedStatus?: "pending" | "approved" | "spam" | "trash",
+			) =>
+				moderateComment(
+					db,
+					id,
+					status,
+					expectedStatus ?? "pending",
+					{ source: "admin", userId: moderator.id, name: moderator.name },
+					{
+						runBeforeCreate: async (event) => event,
+						runModerate: async () => ({ status: "pending" as const }),
+						fireAfterCreate: () => undefined,
+						fireAfterModerate: (event) => hooks.runCommentAfterModerate(event),
+					},
+				),
+		};
+	}
+
+	function context(route: {
+		params?: Record<string, string>;
+		request?: Request;
+		locals?: Record<string, unknown>;
+	}): APIContext {
+		return {
+			params: route.params ?? { collection: "post", contentId: "post-1" },
+			request: route.request,
+			cache,
+			locals: {
+				emdash: runtime(),
+				user: admin,
+				...route.locals,
+			},
+		} as unknown as APIContext;
+	}
+
+	function pageTags(collection = "post", contentId = "post-1"): string[] {
+		return [collection, contentId];
+	}
+
+	async function createComment(
+		status: Comment["status"] = "pending",
+		contentId = "post-1",
+		parentId?: string,
+	) {
+		return comments.create({
+			collection: "post",
+			contentId,
+			authorName: "Jane",
+			authorEmail: `${contentId}@example.com`,
+			body: "A comment",
+			status,
+			parentId,
+		});
+	}
+
+	it("purges only approved public submissions, while pending and honeypot submissions retain pages", async () => {
+		cache.set("post", ["post-1"]);
+		cache.set("unrelated", ["page", "page-1"]);
+		const pendingResponse = await submitComment(
+			context({
+				locals: { user: undefined },
+				request: new Request("http://localhost/_emdash/api/comments/post/post-1", {
+					method: "POST",
+					body: JSON.stringify({
+						authorName: "Jane",
+						authorEmail: "jane@example.com",
+						body: "Pending",
+					}),
+				}),
+			}),
+		);
+		expect(pendingResponse.status).toBe(201);
+		expect(cache.pages.has("post")).toBe(true);
+
+		await new SchemaRegistry(db).updateCollection("post", { commentsModeration: "none" });
+		const approvedResponse = await submitComment(
+			context({
+				locals: { user: undefined },
+				request: new Request("http://localhost/_emdash/api/comments/post/post-1", {
+					method: "POST",
+					body: JSON.stringify({
+						authorName: "Jane",
+						authorEmail: "new@example.com",
+						body: "Approved",
+					}),
+				}),
+			}),
+		);
+		expect(approvedResponse.status).toBe(201);
+		expect(cache.pages.has("post")).toBe(false);
+		expect(cache.pages.has("unrelated")).toBe(true);
+
+		cache.set("post", ["post-1"]);
+		const honeypotResponse = await submitComment(
+			context({
+				locals: { user: undefined },
+				request: new Request("http://localhost/_emdash/api/comments/post/post-1", {
+					method: "POST",
+					body: JSON.stringify({
+						authorName: "Bot",
+						authorEmail: "bot@example.com",
+						body: "Spam",
+						website_url: "https://spam.example",
+					}),
+				}),
+			}),
+		);
+		expect(honeypotResponse.status).toBe(200);
+		expect(cache.pages.has("post")).toBe(true);
+	});
+
+	it("purges public first-time returning and CMS-user auto-approved submissions", async () => {
+		await comments.create({
+			collection: "post",
+			contentId: "post-1",
+			authorName: "Jane",
+			authorEmail: "returning@example.com",
+			body: "Already approved",
+			status: "approved",
+		});
+		await new SchemaRegistry(db).updateCollection("post", { commentsModeration: "first_time" });
+		cache.set("returning", pageTags());
+		const returning = await submitComment(
+			context({
+				locals: { user: undefined },
+				request: new Request("http://localhost", {
+					method: "POST",
+					body: JSON.stringify({
+						authorName: "Jane",
+						authorEmail: "returning@example.com",
+						body: "Welcome back",
+					}),
+				}),
+			}),
+		);
+		expect(returning.status).toBe(201);
+		expect(cache.pages.has("returning")).toBe(false);
+
+		await db
+			.insertInto("users")
+			.values({
+				id: "commenter-1",
+				email: "member@example.com",
+				name: "Member",
+				role: Role.ADMIN,
+				email_verified: 1,
+			})
+			.execute();
+		await new SchemaRegistry(db).updateCollection("post", {
+			commentsModeration: "all",
+			commentsAutoApproveUsers: true,
+		});
+		cache.set("member", pageTags());
+		const member = await submitComment(
+			context({
+				locals: {
+					user: {
+						id: "commenter-1",
+						name: "Member",
+						email: "member@example.com",
+						role: Role.ADMIN,
+					},
+				},
+				request: new Request("http://localhost", {
+					method: "POST",
+					body: JSON.stringify({
+						authorName: "Member",
+						authorEmail: "member@example.com",
+						body: "Hi",
+					}),
+				}),
+			}),
+		);
+		expect(member.status).toBe(201);
+		expect(cache.pages.has("member")).toBe(false);
+	});
+
+	it("does not purge for a pending-to-spam transition", async () => {
+		const comment = await createComment("pending");
+		cache.set("post", ["post-1"]);
+		const response = await updateCommentStatus(
+			context({
+				params: { id: comment.id },
+				request: new Request("http://localhost", {
+					method: "PUT",
+					body: JSON.stringify({ status: "spam" }),
+				}),
+			}),
+		);
+		expect(response.status).toBe(200);
+		expect(cache.pages.has("post")).toBe(true);
+		expect((await comments.findById(comment.id))?.status).toBe("spam");
+	});
+
+	it("purges status transitions involving approved, but not missing or unauthorized writes", async () => {
+		const comment = await createComment("pending");
+		cache.set("post", ["post-1"]);
+		const approved = await updateCommentStatus(
+			context({
+				params: { id: comment.id },
+				request: new Request("http://localhost", {
+					method: "PUT",
+					body: JSON.stringify({ status: "approved" }),
+				}),
+			}),
+		);
+		expect(approved.status).toBe(200);
+		expect(cache.pages.has("post")).toBe(false);
+
+		cache.set("post", ["post-1"]);
+		const spam = await updateCommentStatus(
+			context({
+				params: { id: comment.id },
+				request: new Request("http://localhost", {
+					method: "PUT",
+					body: JSON.stringify({ status: "spam" }),
+				}),
+			}),
+		);
+		expect(spam.status).toBe(200);
+		expect(cache.pages.has("post")).toBe(false);
+
+		cache.set("post", ["post-1"]);
+		const missing = await updateCommentStatus(
+			context({
+				params: { id: "missing-comment" },
+				request: new Request("http://localhost", {
+					method: "PUT",
+					body: JSON.stringify({ status: "approved" }),
+				}),
+			}),
+		);
+		expect(missing.status).toBe(404);
+		expect(cache.pages.has("post")).toBe(true);
+
+		cache.set("post", ["post-1"]);
+		const denied = await updateCommentStatus(
+			context({
+				params: { id: comment.id },
+				request: new Request("http://localhost", {
+					method: "PUT",
+					body: JSON.stringify({ status: "pending" }),
+				}),
+				locals: { user: { id: "viewer", name: "Viewer", role: Role.SUBSCRIBER } },
+			}),
+		);
+		expect(denied.status).toBe(403);
+		expect(cache.pages.has("post")).toBe(true);
+	});
+
+	it("purges a deleted comment's parent entry, including pending comments", async () => {
+		const comment = await createComment("pending");
+		const reply = await createComment("approved", "post-1", comment.id);
+		cache.set("post", ["post-1"]);
+		const response = await deleteComment(
+			context({
+				params: { id: comment.id },
+				request: new Request("http://localhost", { method: "DELETE" }),
+			}),
+		);
+		expect(response.status).toBe(200);
+		expect(cache.pages.has("post")).toBe(false);
+		expect(await comments.findById(comment.id)).toBeNull();
+		expect(await comments.findById(reply.id)).toBeNull();
+
+		cache.set("post", ["post-1"]);
+		const missing = await deleteComment(
+			context({
+				params: { id: "missing-comment" },
+				request: new Request("http://localhost", { method: "DELETE" }),
+			}),
+		);
+		expect(missing.status).toBe(404);
+		expect(cache.pages.has("post")).toBe(true);
+	});
+
+	it.each([
+		["approve", "approved"],
+		["spam", "spam"],
+		["trash", "trash"],
+		["delete", null],
+	] as const)("bulk %s purges every affected entry", async (action, expectedStatus) => {
+		const selected = await createComment("pending", "post-1");
+		const sameCollection = await createComment("pending", "post-2");
+		const otherCollection = await createComment("pending", "page-1");
+		await db
+			.updateTable("_emdash_comments")
+			.set({ collection: "page" })
+			.where("id", "=", otherCollection.id)
+			.execute();
+		cache.set("selected", ["post-1"]);
+		cache.set("same-collection", pageTags("post", "post-2"));
+		cache.set("other-collection", ["page-1"]);
+		cache.set("unrelated", ["other", "other-1"]);
+
+		const response = await bulkComments(
+			context({
+				request: new Request("http://localhost/_emdash/api/admin/comments/bulk", {
+					method: "POST",
+					body: JSON.stringify({
+						ids: [selected.id, selected.id, otherCollection.id, "missing-comment"],
+						action,
+					}),
+				}),
+			}),
+		);
+		expect(response.status).toBe(200);
+		expect(cache.pages.has("selected")).toBe(false);
+		expect(cache.pages.has("same-collection")).toBe(false);
+		expect(cache.pages.has("other-collection")).toBe(false);
+		expect(cache.pages.has("unrelated")).toBe(true);
+		expect((await comments.findById(selected.id))?.status ?? null).toBe(expectedStatus);
+		expect((await comments.findById(sameCollection.id))?.status).toBe("pending");
+		expect((await comments.findById(otherCollection.id))?.status ?? null).toBe(expectedStatus);
+	});
+
+	it("leaves cache intact for unauthorized and invalid bulk writes", async () => {
+		const comment = await createComment("pending");
+		cache.set("post", ["post-1"]);
+		const denied = await bulkComments(
+			context({
+				locals: { user: { id: "viewer", name: "Viewer", role: Role.SUBSCRIBER } },
+				request: new Request("http://localhost", {
+					method: "POST",
+					body: JSON.stringify({ ids: [comment.id], action: "approve" }),
+				}),
+			}),
+		);
+		expect(denied.status).toBe(403);
+		expect(cache.pages.has("post")).toBe(true);
+
+		const invalid = await bulkComments(
+			context({
+				request: new Request("http://localhost", {
+					method: "POST",
+					body: JSON.stringify({ ids: [], action: "approve" }),
+				}),
+			}),
+		);
+		expect(invalid.status).toBe(400);
+		expect(cache.pages.has("post")).toBe(true);
+	});
+
+	it("keeps a successful write successful when cache is disabled, unavailable, or absent", async () => {
+		const comment = await createComment("pending");
+		cache.set("post", ["post-1"]);
+		const disabledCache = new FakeRouteCache(false);
+		disabledCache.set("post", ["post-1"]);
+		const disabledContext = context({
+			params: { id: comment.id },
+			request: new Request("http://localhost", {
+				method: "PUT",
+				body: JSON.stringify({ status: "approved" }),
+			}),
+		});
+		(disabledContext as unknown as { cache: unknown }).cache = disabledCache;
+		const disabledResponse = await updateCommentStatus(disabledContext);
+		expect(disabledResponse.status).toBe(200);
+		expect(disabledCache.pages.has("post")).toBe(true);
+
+		cache.failInvalidation = true;
+		const response = await updateCommentStatus(
+			context({
+				params: { id: comment.id },
+				request: new Request("http://localhost", {
+					method: "PUT",
+					body: JSON.stringify({ status: "spam" }),
+				}),
+			}),
+		);
+		expect(response.status).toBe(200);
+
+		await comments.updateStatus(comment.id, "approved");
+		const noCacheContext = context({
+			params: { id: comment.id },
+			request: new Request("http://localhost", {
+				method: "PUT",
+				body: JSON.stringify({ status: "pending" }),
+			}),
+		});
+		(noCacheContext as unknown as { cache?: unknown }).cache = undefined;
+		const noCacheResponse = await updateCommentStatus(noCacheContext);
+		expect(noCacheResponse.status).toBe(200);
+	});
+});
