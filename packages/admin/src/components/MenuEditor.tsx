@@ -194,10 +194,16 @@ export function MenuEditor() {
 		renameMutation.mutate(label);
 	};
 
-	// Sync local items with fetched data
+	// Sync local items with fetched data. An item whose parent is missing is
+	// edited as a top-level item, which is where the site renders it.
 	React.useEffect(() => {
 		if (menu?.items) {
-			setLocalItems(menu.items);
+			const ids = new Set(menu.items.map((item) => item.id));
+			setLocalItems(
+				menu.items.map((item) =>
+					item.parentId === null || ids.has(item.parentId) ? item : { ...item, parentId: null },
+				),
+			);
 		}
 	}, [menu]);
 

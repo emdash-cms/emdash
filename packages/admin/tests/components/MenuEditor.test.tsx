@@ -458,6 +458,43 @@ describe("MenuEditor", () => {
 		expect((servicesRow as HTMLElement | null)?.style.marginInlineStart).toBe("1.5rem");
 	});
 
+	it("treats an item whose parent is missing as a top-level item", async () => {
+		vi.mocked(api.fetchMenu).mockResolvedValue({
+			...defaultMenu,
+			items: [
+				...defaultMenu.items,
+				{
+					id: "3",
+					menuId: "menu1",
+					parentId: "deleted-parent",
+					sortOrder: 0,
+					type: "custom",
+					referenceCollection: null,
+					referenceId: null,
+					customUrl: "/services",
+					label: "Services",
+					titleAttr: null,
+					target: "_self",
+					cssClasses: null,
+					createdAt: "",
+					locale: "en",
+					translationGroup: "3",
+				},
+			],
+		});
+
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await expect.element(screen.getByText("Services", { exact: true })).toBeInTheDocument();
+		const servicesRow = screen
+			.getByText("Services", { exact: true })
+			.element()
+			.closest("div.border") as HTMLElement;
+		expect(servicesRow.style.marginInlineStart).toBe("0rem");
+		const upBtn = servicesRow.querySelector('button[aria-label="Move up"]') as HTMLButtonElement;
+		expect(upBtn.disabled).toBe(false);
+	});
+
 	it("reorder buttons only compare against siblings, not the whole flat list", async () => {
 		vi.mocked(api.fetchMenu).mockResolvedValue({
 			...defaultMenu,
