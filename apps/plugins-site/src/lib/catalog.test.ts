@@ -88,6 +88,25 @@ describe("searchCatalog", () => {
 		expect(requests.map((params) => params.get("cursor"))).toEqual([null, "page-2"]);
 	});
 
+	it("lists a plugin once when a publish mid-walk shifts it onto the next page", async () => {
+		const { client } = registryAnswering((url) =>
+			url.searchParams.get("cursor") === "page-2"
+				? Response.json({ packages: [packageView("beta"), packageView("gamma")] })
+				: Response.json({
+						packages: [packageView("alpha"), packageView("beta")],
+						cursor: "page-2",
+					}),
+		);
+
+		const result = await searchCatalog("", client);
+
+		expect("packages" in result && result.packages.map((pkg) => pkg.slug)).toEqual([
+			"alpha",
+			"beta",
+			"gamma",
+		]);
+	});
+
 	it("fails instead of returning part of a catalog with more pages than it walks", async () => {
 		let page = 0;
 		const { client } = registryAnswering(() =>

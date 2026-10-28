@@ -23,7 +23,7 @@ export async function searchCatalog(
 	query: string,
 	client: DiscoveryClient = registry,
 ): Promise<CatalogSearchResult> {
-	const packages: ValidatedPackageView[] = [];
+	const packages = new Map<string, ValidatedPackageView>();
 	let cursor: string | undefined;
 	try {
 		for (let page = 0; page < MAX_REGISTRY_PAGES; page++) {
@@ -32,9 +32,11 @@ export async function searchCatalog(
 				limit: REGISTRY_PAGE_LIMIT,
 				...(cursor ? { cursor } : {}),
 			});
-			packages.push(...result.packages);
+			// A plugin published mid-walk shifts the registry's offset pages, so the
+			// next page can repeat the last plugin of this one.
+			for (const pkg of result.packages) packages.set(pkg.uri, pkg);
 			cursor = result.cursor;
-			if (!cursor) return { packages };
+			if (!cursor) return { packages: [...packages.values()] };
 		}
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
