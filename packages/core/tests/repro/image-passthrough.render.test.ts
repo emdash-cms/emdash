@@ -49,7 +49,7 @@ afterEach(() => {
 function usePassthroughService() {
 	globalThis.astroAsset.imageService = {
 		...originalService,
-		getURL: (options) => String(options.src),
+		getURL: (options) => (typeof options.src === "string" ? options.src : options.src.src),
 	};
 }
 
