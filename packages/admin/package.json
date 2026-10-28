@@ -136,7 +136,7 @@
     "@vitejs/plugin-react": "^4.6.0",
     "@vitest/browser-playwright": "catalog:",
     "jsdom": "^26.1.0",
-    "playwright": "^1.61.1",
+    "playwright": "^1.64.1",
     "publint": "catalog:",
     "tailwindcss": "^4.1.10",
     "tsdown": "catalog:",
