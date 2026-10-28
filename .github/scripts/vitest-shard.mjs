@@ -47,8 +47,7 @@ export function assignShards(weights, total) {
  * Seconds per test file from the files ShardTimesReporter writes, averaged
  * over the reports that ran the file and merged over the previous times. A
  * file the reports don't cover keeps its previous value, so a partial
- * download can't erase the rest; a stale entry costs nothing because Vitest
- * decides which files exist.
+ * download can't erase the rest.
  */
 export function recordTimes(reports, previous = {}) {
 	const samples = {};

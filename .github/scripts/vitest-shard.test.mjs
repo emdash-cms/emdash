@@ -13,12 +13,12 @@ const script = fileURLToPath(new URL("./vitest-shard.mjs", import.meta.url));
 describe("vitest shards", () => {
 	it("puts every test file in exactly one shard", () => {
 		const weights = new Map([
-			["a.test.ts", 10],
-			["b.test.ts", 9],
-			["c.test.ts", 8],
-			["d.test.ts", 1],
-			["e.test.ts", 1],
-			["f.test.ts", 1],
+			["a.test.ts", 1],
+			["b.test.ts", 1],
+			["c.test.ts", 1],
+			["d.test.ts", 8],
+			["e.test.ts", 9],
+			["f.test.ts", 10],
 		]);
 
 		const shards = assignShards(weights, 2);
@@ -28,8 +28,8 @@ describe("vitest shards", () => {
 			[...weights.keys()],
 		);
 		assert.deepEqual(shards, [
-			["a.test.ts", "d.test.ts", "e.test.ts", "f.test.ts"],
-			["b.test.ts", "c.test.ts"],
+			["a.test.ts", "b.test.ts", "c.test.ts", "f.test.ts"],
+			["d.test.ts", "e.test.ts"],
 		]);
 	});
 

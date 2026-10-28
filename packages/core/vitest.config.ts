@@ -44,13 +44,12 @@ export default defineConfig({
 	],
 	test: {
 		globals: true,
-		// --shard deals files out by their recorded durations, not by count.
 		sequence: { sequencer: ShardSequencer },
-		// Vitest adds github-actions on its own only when no reporter is named.
-		reporters:
-			process.env.GITHUB_ACTIONS === "true"
-				? ["default", "github-actions", new ShardTimesReporter()]
-				: "default",
+		// Naming any reporter replaces Vitest's own choice: `agent` under a coding
+		// agent, `default` plus `github-actions` in CI.
+		...(process.env.GITHUB_ACTIONS === "true"
+			? { reporters: ["default", "github-actions", new ShardTimesReporter()] }
+			: {}),
 		environment: "node",
 		include: ["tests/**/*.test.ts"],
 		// Server integration tests (cli, client, smoke) start real Astro dev
