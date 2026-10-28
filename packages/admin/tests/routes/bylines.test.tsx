@@ -242,10 +242,24 @@ describe("BylinesPage directory", () => {
 			</QueryWrapper>,
 		);
 
-		await screen.getByRole("button", { name: "More actions for Guest Contributor" }).click();
+		await screen.getByRole("button", { name: "Actions for Guest Contributor" }).click();
 		await expect
 			.element(screen.getByRole("menuitem", { name: "Delete byline Guest Contributor" }))
 			.toBeVisible();
+	});
+
+	it("opens the edit dialog from the row's menu", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<Toast.Provider>
+					<BylinesPage />
+				</Toast.Provider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByRole("button", { name: "Actions for Guest Contributor" }).click();
+		await screen.getByRole("menuitem", { name: "Edit", exact: true }).click();
+		await expect.element(screen.getByRole("dialog", { name: "Edit byline" })).toBeVisible();
 	});
 
 	it("shows byline identities and discards edits when the profile dialog is cancelled", async () => {

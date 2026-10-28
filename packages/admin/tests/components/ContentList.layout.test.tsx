@@ -1,7 +1,7 @@
 import { Sidebar } from "@cloudflare/kumo";
 import * as React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
 import { ContentList } from "../../src/components/ContentList.js";
@@ -173,4 +173,29 @@ describe("Content list header alignment", () => {
 			expect(textAlign("Words")).toBe("end");
 		},
 	);
+});
+
+describe("Content list row actions menu", () => {
+	it("returns focus to the row's menu button after a mouse user cancels a dialog the menu opened", async () => {
+		const screen = await render(
+			<ContentList
+				collection="posts"
+				collectionLabel="Posts"
+				items={posts.slice(0, 1)}
+				onDelete={vi.fn()}
+			/>,
+		);
+		const trigger = screen.getByRole("button", { name: "Actions for Post 0" });
+		const dialog = screen.getByRole("dialog", { name: "Move to Trash?" });
+
+		await trigger.click();
+		await screen.getByRole("menuitem", { name: "Move to trash" }).click();
+		await expect.element(dialog).toBeVisible();
+		await userEvent.keyboard("{Escape}");
+		await expect.element(dialog).not.toBeInTheDocument();
+		// Chromium moves focus at the next rendering update, not when the dialog unmounts.
+		await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+		expect(trigger.element()).toHaveFocus();
+	});
 });
