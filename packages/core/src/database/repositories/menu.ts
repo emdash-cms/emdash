@@ -656,11 +656,12 @@ export class MenuRepository {
 	 * it. Returns false if nothing was deleted.
 	 *
 	 * SQLite and D1 have no `parent_id` cascade since migration 036, so the
-	 * nested items are deleted explicitly. `union` (not `unionAll`) keeps the
-	 * recursion finite when legacy data has a parent cycle. The CTE stays inside
-	 * the subquery so the statement starts with DELETE: the playground database
-	 * (`EmDashPreviewDB`) counts statements that start with WITH as reads and
-	 * reports no deleted rows for them.
+	 * nested items are deleted explicitly. The recursion stays inside the menu:
+	 * an item whose parent is in another menu is top level in its own menu.
+	 * `union` (not `unionAll`) keeps the recursion finite when legacy data has
+	 * a parent cycle. The CTE stays inside the subquery so the statement starts
+	 * with DELETE: the playground database (`EmDashPreviewDB`) counts statements
+	 * that start with WITH as reads and reports no deleted rows for them.
 	 */
 	async deleteItem(menuId: string, itemId: string): Promise<boolean> {
 		const subtree = this.db
@@ -674,7 +675,8 @@ export class MenuRepository {
 						db
 							.selectFrom("_emdash_menu_items as child")
 							.innerJoin("subtree", "subtree.id", "child.parent_id")
-							.select("child.id"),
+							.select("child.id")
+							.where("child.menu_id", "=", menuId),
 					),
 			)
 			.selectFrom("subtree")

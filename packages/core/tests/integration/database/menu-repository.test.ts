@@ -519,4 +519,24 @@ describeEachDialect("MenuRepository.deleteItem() with nested items", (dialect) =
 
 		expect(await repo.findItems(menu.id)).toEqual([]);
 	});
+
+	// PostgreSQL's parent foreign key still cascades into other menus.
+	it.skipIf(dialect === "postgres")(
+		"keeps items in other menus that point at the deleted item",
+		async () => {
+			const primary = await repo.create({ name: "primary", label: "Primary" });
+			const footer = await repo.create({ name: "footer", label: "Footer" });
+			const parent = await addItem(primary.id, "Parent");
+			const footerItem = await addItem(footer.id, "Footer item");
+			await ctx.db
+				.updateTable("_emdash_menu_items")
+				.set({ parent_id: parent.id })
+				.where("id", "=", footerItem.id)
+				.execute();
+
+			expect(await repo.deleteItem(primary.id, parent.id)).toBe(true);
+
+			expect((await repo.findItems(footer.id)).map((item) => item.label)).toEqual(["Footer item"]);
+		},
+	);
 });
