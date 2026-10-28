@@ -119,23 +119,27 @@ function serializeEditorState(input: {
 	});
 }
 
-/** A stored Portable Text value as its field's editor loads it, where anything but a list is empty. */
-function portableTextBlocks(value: unknown): unknown[] {
+/** Field kinds whose editors read their value once, as rich text does, also inside blocks. */
+const READ_ONCE_FIELD_KINDS = new Set(["portableText", "blocks"]);
+
+/** A stored list value as its field's editor loads it, where anything but a list is empty. */
+function listValue(value: unknown): unknown[] {
 	return Array.isArray(value) ? value : [];
 }
 
-/** Whether `next` holds a different value than `current` for a Portable Text field. */
-function changesPortableText(
+/** The fields with editors that read their value once, where `next` holds a different value than `current`. */
+function changedReadOnceFields(
 	fields: Record<string, FieldDescriptor>,
 	current: Record<string, unknown>,
 	next: Record<string, unknown>,
-): boolean {
-	return Object.entries(fields).some(
-		([name, field]) =>
-			field.kind === "portableText" &&
-			JSON.stringify(portableTextBlocks(current[name])) !==
-				JSON.stringify(portableTextBlocks(next[name])),
-	);
+): string[] {
+	return Object.entries(fields)
+		.filter(
+			([name, field]) =>
+				READ_ONCE_FIELD_KINDS.has(field.kind) &&
+				JSON.stringify(listValue(current[name])) !== JSON.stringify(listValue(next[name])),
+		)
+		.map(([name]) => name);
 }
 
 function defaultFieldValues(fields: Record<string, FieldDescriptor>): Record<string, unknown> {
@@ -675,8 +679,10 @@ export function ContentEditor({
 	const isViewing = revisionView.viewingId !== null;
 	const isViewingRef = React.useRef(isViewing);
 	isViewingRef.current = isViewing;
-	/** Advanced to remount the field editors when the form takes a new rich text value, since the rich text editor reads its value once. */
+	/** Advanced to remount the field editors after a restore, since the rich text editor reads its value once. */
 	const [fieldsGeneration, setFieldsGeneration] = React.useState(0);
+	/** Advanced per field to remount an editor that reads its value once when the form takes a new value for it. */
+	const [fieldGenerations, setFieldGenerations] = React.useState<Record<string, number>>({});
 
 	const handleBlockSidebarDelete = React.useCallback(() => {
 		blockSidebarPanel?.onDelete();
@@ -795,18 +801,41 @@ export function ContentEditor({
 				restored ||
 				(!isPublishingRef.current && !autosaveJustCompleted && !hasSaveConflictRef.current)
 			) {
-				// Replacing the editor drops what it holds beyond the last save, such as text typed
-				// while that save was on its way, which only a discard or a restore may do.
-				if (
-					restored ||
-					((discarded || !isDirtyRef.current) &&
-						changesPortableText(fields, formDataRef.current, item.data))
-				) {
-					// An open block panel acts on the editor this replaces.
+				const saved =
+					itemReset && !discarded && !restored
+						? (JSON.parse(lastSavedData) as { data: Record<string, unknown> }).data
+						: undefined;
+				// A save's reload can arrive behind edits made after the save went out. Where the
+				// editor reads its value once, they stay in the editor and in the form, so the next
+				// save sends them under the revision they were made on.
+				const keepEdits = (current: Record<string, unknown>) => {
+					let next = item.data;
+					if (!saved) return next;
+					for (const name of changedReadOnceFields(fields, saved, current)) {
+						next = { ...next, [name]: current[name] };
+					}
+					return next;
+				};
+				const replaced = changedReadOnceFields(
+					fields,
+					formDataRef.current,
+					keepEdits(formDataRef.current),
+				);
+				if (restored || replaced.length > 0) {
+					// An open block panel acts on an editor this replaces.
 					handleBlockSidebarClose();
-					setFieldsGeneration((generation) => generation + 1);
 				}
-				setFormData(item.data);
+				if (restored) {
+					setFieldsGeneration((generation) => generation + 1);
+				} else if (replaced.length > 0) {
+					setFieldGenerations((generations) => {
+						const next = { ...generations };
+						for (const name of replaced) next[name] = (next[name] ?? 0) + 1;
+						return next;
+					});
+				}
+				// An edit can still be waiting to render, so the kept edits come from the latest form.
+				setFormData(keepEdits);
 				setSlug(item.slug || "");
 				setSlugTouched(!!item.slug);
 				setInternalBylines(nextBylines);
@@ -1905,7 +1934,7 @@ export function ContentEditor({
 										// mount; without this key, navigating between translations leaves
 										// the previous locale's body in the editor and silently overwrites
 										// the new translation on the next edit.
-										const fieldKey = `${name}:${item?.id ?? "new"}:${fieldsGeneration}`;
+										const fieldKey = `${name}:${item?.id ?? "new"}:${fieldsGeneration}:${fieldGenerations[name] ?? 0}`;
 										const isDocumentBody = field.kind === "portableText" && name === "content";
 										const fieldEl = (
 											<FieldRenderer
