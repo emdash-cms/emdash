@@ -5,7 +5,8 @@
  * Communicates with the plugin's API routes via fetch.
  */
 
-import { Badge, Button, Checkbox, Input, Loader, Select } from "@cloudflare/kumo";
+import { Badge, Button, Checkbox, Input, InputArea, Loader, Select } from "@cloudflare/kumo";
+import { LinguiContext } from "@lingui/react";
 import {
 	Plus,
 	Trash,
@@ -31,6 +32,7 @@ import {
 	submissionsLoadError,
 	writeError,
 } from "./admin-errors.js";
+import type { FieldCondition } from "./types.js";
 
 // =============================================================================
 // Constants
@@ -110,6 +112,7 @@ interface FormField {
 	validation?: Record<string, unknown>;
 	options?: Array<{ label: string; value: string }>;
 	defaultValue?: string;
+	condition?: FieldCondition;
 	width: "full" | "half";
 }
 
@@ -119,6 +122,7 @@ interface FormSettings {
 	notifyEmails: string[];
 	digestEnabled: boolean;
 	digestHour: number;
+	autoresponder?: { subject: string; body: string } | null;
 	webhookUrl?: string;
 	retentionDays: number;
 	spamProtection: "none" | "honeypot" | "turnstile";
@@ -179,6 +183,11 @@ function formatDateTime(iso: string): string {
 		hour: "2-digit",
 		minute: "2-digit",
 	});
+}
+
+function useEditorI18n() {
+	// Older hosts may load a separate Lingui context for plugin source.
+	return React.useContext(LinguiContext)?.i18n ?? { _: (message: string) => message };
 }
 
 function autoName(label: string): string {
@@ -449,6 +458,7 @@ function FormEditor({
 	onSave: () => void;
 	onCancel: () => void;
 }) {
+	const i18n = useEditorI18n();
 	const [name, setName] = React.useState(form?.name ?? "");
 	const [slug, setSlug] = React.useState(form?.slug ?? "");
 	const [fields, setFields] = React.useState<FormField[]>(form?.pages[0]?.fields ?? []);
@@ -500,11 +510,30 @@ function FormEditor({
 	};
 
 	const updateField = (index: number, updates: Partial<FormField>) => {
-		setFields((prev) => prev.map((f, i) => (i === index ? { ...f, ...updates } : f)));
+		setFields((prev) => {
+			const previousName = prev[index]?.name;
+			const uniqueName = previousName && prev.filter((f) => f.name === previousName).length === 1;
+			return prev.map((f, i) => {
+				const updated = i === index ? { ...f, ...updates } : f;
+				if (updates.name !== undefined && uniqueName && updated.condition?.field === previousName) {
+					return {
+						...updated,
+						condition: updates.name ? { ...updated.condition, field: updates.name } : undefined,
+					};
+				}
+				return updated;
+			});
+		});
 	};
 
 	const removeField = (index: number) => {
-		setFields((prev) => prev.filter((_, i) => i !== index));
+		setFields((prev) =>
+			prev
+				.filter((_, i) => i !== index)
+				.map((f) =>
+					f.condition?.field === prev[index]?.name ? { ...f, condition: undefined } : f,
+				),
+		);
 	};
 
 	const moveField = (index: number, direction: -1 | 1) => {
@@ -533,6 +562,14 @@ function FormEditor({
 			}
 		}
 
+		if (
+			settings.autoresponder &&
+			(!settings.autoresponder.subject.trim() || !settings.autoresponder.body.trim())
+		) {
+			setError(i18n._("Autoresponder subject and body are required"));
+			return;
+		}
+
 		setSaving(true);
 		setError(null);
 
@@ -557,6 +594,7 @@ function FormEditor({
 						spamProtection: "honeypot",
 						submitLabel: "Submit",
 						...settings,
+						autoresponder: settings.autoresponder ?? undefined,
 					},
 				};
 
@@ -628,6 +666,7 @@ function FormEditor({
 							<FieldRow
 								key={field.id}
 								field={field}
+								fields={fields}
 								index={index}
 								total={fields.length}
 								onChange={(updates) => updateField(index, updates)}
@@ -696,6 +735,80 @@ function FormEditor({
 							}))
 						}
 					/>
+					<Checkbox
+						label={i18n._("Daily digest")}
+						checked={settings.digestEnabled ?? false}
+						onCheckedChange={(checked) => setSettings((s) => ({ ...s, digestEnabled: checked }))}
+					/>
+					{settings.digestEnabled && (
+						<Select
+							label={i18n._("Digest hour (UTC)")}
+							hideLabel={false}
+							value={String(settings.digestHour ?? 9)}
+							onValueChange={(v) => setSettings((s) => ({ ...s, digestHour: Number(v ?? 9) }))}
+							items={Array.from({ length: 24 }, (_, hour) => ({
+								label: `${String(hour).padStart(2, "0")}:00`,
+								value: String(hour),
+							}))}
+						/>
+					)}
+					<p className="col-span-2 text-sm text-kumo-subtle">
+						{i18n._(
+							"Send a daily summary to the notification recipients instead of an email for each submission. Email must be configured.",
+						)}
+					</p>
+					<div className="col-span-2 space-y-3">
+						<Checkbox
+							label={i18n._("Send an autoresponder")}
+							checked={settings.autoresponder != null}
+							onCheckedChange={(checked) =>
+								setSettings((s) => ({
+									...s,
+									autoresponder: checked ? { subject: "", body: "" } : null,
+								}))
+							}
+						/>
+						<p className="text-sm text-kumo-subtle">
+							{i18n._(
+								"Send a reply to the first email field in the form. Email must be configured.",
+							)}
+						</p>
+						{settings.autoresponder && (
+							<>
+								<Input
+									label={i18n._("Autoresponder subject")}
+									value={settings.autoresponder.subject}
+									onChange={(e) =>
+										setSettings((s) => ({
+											...s,
+											autoresponder: { subject: e.target.value, body: s.autoresponder?.body ?? "" },
+										}))
+									}
+								/>
+								<InputArea
+									label={i18n._("Autoresponder body")}
+									value={settings.autoresponder.body}
+									onChange={(e) =>
+										setSettings((s) => ({
+											...s,
+											autoresponder: {
+												subject: s.autoresponder?.subject ?? "",
+												body: e.target.value,
+											},
+										}))
+									}
+								/>
+							</>
+						)}
+					</div>
+					<div className="col-span-2">
+						<Input
+							label={i18n._("Webhook URL (optional)")}
+							type="url"
+							value={settings.webhookUrl ?? ""}
+							onChange={(e) => setSettings((s) => ({ ...s, webhookUrl: e.target.value }))}
+						/>
+					</div>
 					<div className="col-span-2">
 						<Input
 							label="Redirect URL (optional)"
@@ -728,6 +841,7 @@ function FormEditor({
 
 function FieldRow({
 	field,
+	fields,
 	index,
 	total,
 	onChange,
@@ -735,12 +849,22 @@ function FieldRow({
 	onMove,
 }: {
 	field: FormField;
+	fields: FormField[];
 	index: number;
 	total: number;
 	onChange: (updates: Partial<FormField>) => void;
 	onRemove: () => void;
 	onMove: (direction: -1 | 1) => void;
 }) {
+	const i18n = useEditorI18n();
+	const conditionFields = fields.filter((f) => f.id !== field.id && f.name);
+	const conditionItems = [
+		{ label: i18n._("Always visible"), value: "" },
+		...conditionFields.map((f) => ({ label: `${f.label} (${f.name})`, value: f.name })),
+	];
+	if (field.condition?.field && !conditionFields.some((f) => f.name === field.condition?.field)) {
+		conditionItems.push({ label: field.condition.field, value: field.condition.field });
+	}
 	const needsOptions = ["select", "radio", "checkbox-group"].includes(field.type);
 
 	const handleLabelChange = (label: string) => {
@@ -821,6 +945,72 @@ function FieldRow({
 						<Trash className="h-3.5 w-3.5" />
 					</Button>
 				</div>
+			</div>
+
+			<div className="ms-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
+				<Input
+					label={i18n._("Placeholder")}
+					value={field.placeholder ?? ""}
+					onChange={(e) => onChange({ placeholder: e.target.value })}
+				/>
+				<Input
+					label={i18n._("Help text")}
+					value={field.helpText ?? ""}
+					onChange={(e) => onChange({ helpText: e.target.value })}
+				/>
+				<Input
+					label={i18n._("Default value")}
+					value={field.defaultValue ?? ""}
+					onChange={(e) => onChange({ defaultValue: e.target.value })}
+				/>
+			</div>
+			<div className="ms-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
+				<Select
+					label={i18n._("Show when field")}
+					hideLabel={false}
+					value={field.condition?.field ?? ""}
+					items={conditionItems}
+					onValueChange={(value) =>
+						onChange({
+							condition: value
+								? {
+										field: value,
+										op: field.condition?.op ?? "eq",
+										value: field.condition?.value ?? "",
+									}
+								: undefined,
+						})
+					}
+				/>
+				{field.condition && (
+					<>
+						<Select
+							label={i18n._("Condition operator")}
+							hideLabel={false}
+							value={field.condition.op}
+							items={[
+								{ label: i18n._("Equals"), value: "eq" },
+								{ label: i18n._("Does not equal"), value: "neq" },
+								{ label: i18n._("Is filled"), value: "filled" },
+								{ label: i18n._("Is empty"), value: "empty" },
+							]}
+							onValueChange={(op) =>
+								onChange({
+									condition: { ...field.condition!, op: (op ?? "eq") as FieldCondition["op"] },
+								})
+							}
+						/>
+						{["eq", "neq"].includes(field.condition.op) && (
+							<Input
+								label={i18n._("Condition value")}
+								value={field.condition.value ?? ""}
+								onChange={(e) =>
+									onChange({ condition: { ...field.condition!, value: e.target.value } })
+								}
+							/>
+						)}
+					</>
+				)}
 			</div>
 
 			{needsOptions && (
