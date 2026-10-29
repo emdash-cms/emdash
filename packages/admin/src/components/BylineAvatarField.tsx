@@ -43,11 +43,11 @@ export function BylineAvatarField({ value, onChange }: BylineAvatarFieldProps) {
 	// before the fetch lands.
 	if (value && isLoading) {
 		return (
-			<div>
+			<div className="grid gap-2">
 				<Label>
 					<OptionalLabel>{t`Avatar`}</OptionalLabel>
 				</Label>
-				<div className="mt-2 flex h-32 items-center justify-center rounded-lg border">
+				<div className="flex size-16 items-center justify-center rounded-full bg-kumo-tint ring ring-kumo-line">
 					<Loader />
 				</div>
 			</div>
@@ -73,6 +73,7 @@ export function BylineAvatarField({ value, onChange }: BylineAvatarFieldProps) {
 		<ImageFieldRenderer
 			label={t`Avatar`}
 			showOptional
+			variant="avatar"
 			value={fieldValue}
 			onChange={(next) => onChange(next?.id ?? null)}
 		/>
