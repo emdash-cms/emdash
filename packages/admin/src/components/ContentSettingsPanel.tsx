@@ -10,7 +10,6 @@ import {
 	Loader,
 	Select,
 	Text,
-	Tooltip,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -21,7 +20,6 @@ import {
 	CaretDown,
 	Eye,
 	EyeSlash,
-	Info,
 	Trash,
 	Upload,
 	X,
@@ -67,6 +65,7 @@ import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
+import { HelpTooltip } from "./FieldHelpLabel.js";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
 import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
@@ -1076,25 +1075,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									<div className="flex items-center gap-1.5">
 										<Label>{t`Content language`}</Label>
 										{usesImplicitEnglish ? (
-											<Tooltip
-												content={
-													<span className="block max-w-64 text-pretty">
-														{t`English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.`}
-													</span>
-												}
-												delay={0}
-												closeDelay={0}
-												render={
-													<Button
-														type="button"
-														variant="ghost"
-														shape="square"
-														size="xs"
-														icon={<Info aria-hidden="true" />}
-														className="text-kumo-subtle hover:text-kumo-default"
-														aria-label={t`Why English is used`}
-													/>
-												}
+											<HelpTooltip
+												help={t`English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.`}
+												ariaLabel={t`Why English is used`}
 											/>
 										) : null}
 									</div>
@@ -1130,25 +1113,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								<Text as="h3" DANGEROUS_className="font-semibold">
 									{t`Bylines`}
 								</Text>
-								<Tooltip
-									content={
-										<span className="block max-w-64 text-pretty">
-											{t`Shown to readers in this order.`}
-										</span>
-									}
-									delay={0}
-									closeDelay={0}
-									render={
-										<Button
-											type="button"
-											variant="ghost"
-											shape="square"
-											size="xs"
-											icon={<Info aria-hidden="true" />}
-											className="text-kumo-subtle hover:text-kumo-default"
-											aria-label={t`Why are bylines shown in this order?`}
-										/>
-									}
+								<HelpTooltip
+									help={t`Shown to readers in this order.`}
+									ariaLabel={t`Why are bylines shown in this order?`}
 								/>
 							</div>
 							<BylineCreditsEditor
