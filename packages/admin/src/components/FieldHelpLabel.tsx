@@ -1,7 +1,7 @@
 import { Button, Label, Tooltip } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Info } from "@phosphor-icons/react";
-import { useId, useState, type ComponentProps, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 export function HelpTooltip({
@@ -22,11 +22,30 @@ export function HelpTooltip({
 	// A press pins the tooltip open. On a touch screen the hover that the tap
 	// emulates ends at once and would close it again.
 	const [pinned, setPinned] = useState(false);
+	const buttonRef = useRef<HTMLButtonElement>(null);
+	const helpRef = useRef<HTMLSpanElement>(null);
+
+	// Inside a popover, Base UI leaves the tooltip open on presses elsewhere,
+	// so close it here. A press on the tooltip itself keeps it open, or the tap
+	// would land on whatever the tooltip covered once it closed.
+	useEffect(() => {
+		if (!pinned) return;
+		const closeOnPressElsewhere = (event: PointerEvent) => {
+			if (!(event.target instanceof Node)) return;
+			if (buttonRef.current?.contains(event.target)) return;
+			if (helpRef.current?.closest(".kumo-tooltip-popup")?.contains(event.target)) return;
+			setPinned(false);
+			setOpen(false);
+		};
+		document.addEventListener("pointerdown", closeOnPressElsewhere, true);
+		return () => document.removeEventListener("pointerdown", closeOnPressElsewhere, true);
+	}, [pinned]);
+
 	return (
 		<>
 			<Tooltip
 				content={
-					<span dir="auto" className="block max-w-64 text-pretty">
+					<span ref={helpRef} dir="auto" className="block max-w-64 text-pretty">
 						{help}
 					</span>
 				}
@@ -48,6 +67,7 @@ export function HelpTooltip({
 				closeDelay={0}
 				render={
 					<Button
+						ref={buttonRef}
 						type="button"
 						variant="ghost"
 						shape="square"
