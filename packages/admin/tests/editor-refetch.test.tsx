@@ -326,9 +326,13 @@ describe("ContentEditPage background reads with the real editor", () => {
 				.click();
 		} else {
 			await screen.getByRole("button", { name: "Revisions", exact: true }).click();
-			await screen.getByRole("button", { name: "Restore this version", exact: true }).click();
 			await screen
-				.getByRole("dialog", { name: "Restore Revision?" })
+				.getByRole("button", { name: /Unknown author$/ })
+				.nth(1)
+				.click();
+			await screen.getByRole("button", { name: "Restore", exact: true }).click();
+			await screen
+				.getByRole("dialog", { name: "Restore this version?" })
 				.getByRole("button", { name: "Restore", exact: true })
 				.element()
 				.click();

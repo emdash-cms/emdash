@@ -4,6 +4,8 @@ import { ulid } from "ulidx";
 import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content-list-query.js";
 import { keepKnownFields, staleStoredKeys } from "../../content/known-fields.js";
 import { normalizeExplicitDatetime } from "../../datetime-normalization.js";
+import { getLocaleCandidates } from "../../i18n/config.js";
+import { canonicalLocaleColumn, localeMatches, localeOrder } from "../../i18n/query.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
 import { isIndexableFieldType, isStoragelessFieldRow, type FieldType } from "../../schema/types.js";
 import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
@@ -28,6 +30,7 @@ import type {
 import {
 	ContentCollectionNotFoundError,
 	ContentMutationConflictError,
+	ContentSlugConflictError,
 	EmDashValidationError,
 	InvalidCursorError,
 	ScheduledNotDueError,
@@ -381,6 +384,30 @@ export class ContentRepository {
 		this.datetimes = new ContentDatetimeNormalizer(db, datetimeContexts);
 	}
 
+	private async assertAliasAwareSlugAvailable(
+		type: string,
+		slug: string | null | undefined,
+		locale: string | undefined,
+		excludeId?: string,
+	): Promise<void> {
+		if (!slug || !locale || getLocaleCandidates(locale).length <= 1) return;
+
+		const tableName = getTableName(type);
+		const result = await sql<{ id: string }>`
+			SELECT id FROM ${sql.ref(tableName)}
+			WHERE slug = ${slug}
+			AND ${localeMatches("locale", locale)}
+			${
+				excludeId === undefined
+					? sql``
+					: sql`AND id <> ${excludeId}
+				AND coalesce((SELECT existing_row.slug FROM ${sql.ref(tableName)} AS existing_row WHERE existing_row.id = ${excludeId}), '') <> ${slug}`
+			}
+			LIMIT 1
+		`.execute(this.db);
+		if (result.rows.length > 0) throw new ContentSlugConflictError();
+	}
+
 	/**
 	 * Create a new content item
 	 */
@@ -415,6 +442,22 @@ export class ContentRepository {
 		}
 
 		const tableName = getTableName(type);
+		if (translationOf && getLocaleCandidates(locale ?? "en").length > 1) {
+			const existing = await sql<{ id: string }>`
+				SELECT sibling.id FROM ${sql.ref(tableName)} AS sibling
+				INNER JOIN ${sql.ref(tableName)} AS source
+					ON coalesce(source.translation_group, source.id) = sibling.translation_group
+				WHERE source.id = ${translationOf} AND source.deleted_at IS NULL
+					AND sibling.deleted_at IS NULL AND ${localeMatches("sibling.locale", locale ?? "en")}
+				LIMIT 1
+			`.execute(this.db);
+			if (existing.rows.length > 0) {
+				throw new ContentMutationConflictError(
+					`Translation already exists in locale "${locale ?? "en"}" for this content item`,
+				);
+			}
+		}
+		await this.assertAliasAwareSlugAvailable(type, slug, locale);
 
 		// Build column names and values
 		const columns: string[] = [
@@ -524,7 +567,7 @@ export class ContentRepository {
 			? await sql<{ slug: string }>`
 					SELECT slug FROM ${sql.ref(tableName)}
 					WHERE slug = ${baseSlug}
-					AND locale = ${locale}
+					AND ${localeMatches("locale", locale)}
 					LIMIT 1
 				`.execute(this.db)
 			: await sql<{ slug: string }>`
@@ -543,7 +586,7 @@ export class ContentRepository {
 			? await sql<{ slug: string }>`
 					SELECT slug FROM ${sql.ref(tableName)}
 					WHERE (slug = ${baseSlug} OR slug LIKE ${pattern})
-					AND locale = ${locale}
+					AND ${localeMatches("locale", locale)}
 				`.execute(this.db)
 			: await sql<{ slug: string }>`
 					SELECT slug FROM ${sql.ref(tableName)}
@@ -655,20 +698,22 @@ export class ContentRepository {
 		type: string,
 		slugs: string[],
 		locale: string,
-		options: { includeTrashed?: boolean } = {},
+		options: { includeTrashed?: boolean; publishedOnly?: boolean } = {},
 	): Promise<Map<string, ContentItem>> {
 		const items = new Map<string, ContentItem>();
 		if (slugs.length === 0) return items;
 		const tableName = getTableName(type);
 		const deletedFilter = options.includeTrashed ? sql`` : sql`AND deleted_at IS NULL`;
+		const statusFilter = options.publishedOnly ? sql`AND status = ${"published"}` : sql``;
 		for (const batch of chunks([...new Set(slugs)], SQL_BATCH_SIZE)) {
 			const result = await sql<Record<string, unknown>>`
 				SELECT * FROM ${sql.ref(tableName)}
-				WHERE slug IN (${sql.join(batch)}) AND locale = ${locale} ${deletedFilter}
+				WHERE slug IN (${sql.join(batch)}) AND ${localeMatches("locale", locale)} ${deletedFilter} ${statusFilter}
+				ORDER BY ${localeOrder("locale", locale)}, id ASC
 			`.execute(this.db);
 			for (const row of result.rows) {
 				const item = this.mapRow(type, row);
-				if (item.slug !== null) items.set(item.slug, item);
+				if (item.slug !== null && !items.has(item.slug)) items.set(item.slug, item);
 			}
 		}
 		return items;
@@ -787,8 +832,9 @@ export class ContentRepository {
 			? await sql<Record<string, unknown>>`
 					SELECT * FROM ${sql.ref(tableName)}
 					WHERE slug = ${slug}
-					AND locale = ${locale}
+					AND ${localeMatches("locale", locale)}
 					AND deleted_at IS NULL
+					ORDER BY ${localeOrder("locale", locale)}, id ASC
 				`.execute(this.db)
 			: await sql<Record<string, unknown>>`
 					SELECT * FROM ${sql.ref(tableName)}
@@ -821,7 +867,8 @@ export class ContentRepository {
 			? await sql<Record<string, unknown>>`
 					SELECT * FROM ${sql.ref(tableName)}
 					WHERE slug = ${slug}
-					AND locale = ${locale}
+					AND ${localeMatches("locale", locale)}
+					ORDER BY ${localeOrder("locale", locale)}, id ASC
 				`.execute(this.db)
 			: await sql<Record<string, unknown>>`
 					SELECT * FROM ${sql.ref(tableName)}
@@ -882,7 +929,7 @@ export class ContentRepository {
 		}
 
 		if (options.where?.locale) {
-			query = query.where("locale" as any, "=", options.where.locale);
+			query = query.where(localeMatches("locale", options.where.locale));
 		}
 
 		query = this.applySearchFilter(query, options.where, type);
@@ -1023,9 +1070,16 @@ export class ContentRepository {
 	/**
 	 * Update content
 	 */
-	async update(type: string, id: string, input: UpdateContentInput): Promise<ContentItem> {
+	async update(
+		type: string,
+		id: string,
+		input: UpdateContentInput,
+		expectedRevision?: ContentRevisionPrecondition,
+	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
+
+		await this.assertAliasAwareSlugAvailable(type, input.slug, input.locale, id);
 
 		// Every update advances the optimistic-concurrency version. updated_at
 		// advances only when a content-row column actually changes.
@@ -1073,14 +1127,25 @@ export class ContentRepository {
 		if (hasColumnWrites) {
 			updates.updated_at = now;
 		}
+		if (input.draftRevisionId === null) {
+			updates.draft_revision_id = null;
+		}
 		updates.version = sql`version + 1`;
 
-		await this.db
+		let query = this.db
 			.updateTable(tableName as keyof Database)
 			.set(updates)
 			.where("id", "=", id)
-			.where("deleted_at" as never, "is", null)
-			.execute();
+			.where("deleted_at" as never, "is", null);
+		if (expectedRevision) {
+			query = query
+				.where(sql<boolean>`version = ${expectedRevision.version}`)
+				.where(sql<boolean>`updated_at = ${expectedRevision.updatedAt}`);
+		}
+		const result = await query.executeTakeFirst();
+		if (expectedRevision && result.numUpdatedRows === 0n) {
+			throw new ContentMutationConflictError();
+		}
 
 		if (hasColumnWrites) invalidateCollectionCache(type);
 
@@ -1298,7 +1363,8 @@ export class ContentRepository {
 		const supportsRaw = collectionRows[0]?.supports;
 		const supports: unknown = supportsRaw ? JSON.parse(supportsRaw) : [];
 		if (!Array.isArray(supports) || !supports.includes("revisions")) {
-			return this.update(type, id, { ...input, data });
+			// Reads show any draft revision over the columns this writes.
+			return this.update(type, id, { ...input, data, draftRevisionId: null });
 		}
 
 		const fieldSlugs = new Set(
@@ -1726,7 +1792,7 @@ export class ContentRepository {
 			.where("deleted_at" as never, "is not", null);
 
 		if (options.where?.locale) {
-			query = query.where("locale" as any, "=", options.where.locale);
+			query = query.where(localeMatches("locale", options.where.locale));
 		}
 
 		// Handle cursor pagination — decodeCursor throws on invalid input.
@@ -1797,7 +1863,7 @@ export class ContentRepository {
 			.where("deleted_at" as never, "is not", null);
 
 		if (options.locale) {
-			query = query.where("locale" as any, "=", options.locale);
+			query = query.where(localeMatches("locale", options.locale));
 		}
 
 		const result = await query.executeTakeFirst();
@@ -1923,8 +1989,10 @@ export class ContentRepository {
 				.where("cb.collection_slug", "=", type)
 				.whereRef("cb.content_id", "=", idColumn);
 			sub = filter.locale
-				? sub.where("b.locale", "=", filter.locale)
-				: sub.whereRef("b.locale", "=", localeColumn);
+				? sub.where(localeMatches("b.locale", filter.locale))
+				: sub.where(
+						sql<boolean>`${canonicalLocaleColumn("b.locale")} = ${canonicalLocaleColumn(localeColumn)}`,
+					);
 			if (bylineIds) sub = sub.where("cb.byline_id", "in", bylineIds);
 			return eb.exists(sub);
 		};
@@ -1956,8 +2024,10 @@ export class ContentRepository {
 				.select("b.id")
 				.whereRef("b.user_id", "=", authorColumn);
 			sub = filter.locale
-				? sub.where("b.locale", "=", filter.locale)
-				: sub.whereRef("b.locale", "=", localeColumn);
+				? sub.where(localeMatches("b.locale", filter.locale))
+				: sub.where(
+						sql<boolean>`${canonicalLocaleColumn("b.locale")} = ${canonicalLocaleColumn(localeColumn)}`,
+					);
 			if (bylineIds) sub = sub.where("b.translation_group", "in", bylineIds);
 			return eb.exists(sub);
 		};
@@ -2020,7 +2090,7 @@ export class ContentRepository {
 		}
 
 		if (where?.locale) {
-			query = query.where("locale" as any, "=", where.locale);
+			query = query.where(localeMatches("locale", where.locale));
 		}
 
 		query = this.applySearchFilter(query, where, type);
@@ -2723,13 +2793,16 @@ export class ContentRepository {
 	 * Unpublish content
 	 *
 	 * Removes live pointer and cancels any pending schedule, but preserves the
-	 * draft and publication date. If no draft exists, creates one from the live
-	 * version so the content isn't lost.
+	 * draft and publication date. If no draft exists and `draftFromLive` is set,
+	 * creates one from the live version so the content isn't lost. Collections
+	 * without revisions save to the columns, and a draft revision would hide
+	 * those saves.
 	 */
 	async unpublish(
 		type: string,
 		id: string,
 		expectedRevision?: ContentRevisionPrecondition,
+		draftFromLive = true,
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
@@ -2747,7 +2820,7 @@ export class ContentRepository {
 		let provisionalRevisionId: string | null = null;
 		try {
 			let draftRevisionId = existing.draftRevisionId;
-			if (!draftRevisionId && existing.liveRevisionId) {
+			if (draftFromLive && !draftRevisionId && existing.liveRevisionId) {
 				const liveRevision = await revisionRepo.findById(existing.liveRevisionId);
 				if (liveRevision) {
 					const draft = await revisionRepo.create({

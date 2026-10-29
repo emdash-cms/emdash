@@ -7,8 +7,17 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { POST as analyzeRoute } from "../../../src/astro/routes/api/import/wordpress-plugin/analyze.js";
+import { POST as executeRoute } from "../../../src/astro/routes/api/import/wordpress-plugin/execute.js";
+import {
+	clearSources,
+	probeUrl,
+	registerSource,
+	SiteChallengeError,
+} from "../../../src/import/registry.js";
 import { wordpressPluginSource } from "../../../src/import/sources/wordpress-plugin.js";
 import { setDefaultDnsResolver } from "../../../src/import/ssrf.js";
+import { setupTestDatabase } from "../../utils/test-db.js";
 
 // ─── Mock fetch ──────────────────────────────────────────────────────────────
 
@@ -30,6 +39,26 @@ beforeEach(() => {
 
 function toUrlString(input: RequestInfo | URL): string {
 	return typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+}
+
+function getUserAgentFromCall(call: [RequestInfo | URL, RequestInit | undefined]): string | null {
+	const [, init] = call;
+	const headers = new Headers(init?.headers ?? {});
+	return headers.get("User-Agent");
+}
+
+function expectUserAgentOnCall(index: number) {
+	const call = mockFetch.mock.calls[index] as
+		| [RequestInfo | URL, RequestInit | undefined]
+		| undefined;
+	expect(call, `expected at least ${index + 1} fetch call(s)`).toBeDefined();
+	expect(getUserAgentFromCall(call!)).toBe("EmDash-Importer/1.0");
+}
+
+function expectUserAgentOnAllCalls() {
+	for (let i = 0; i < mockFetch.mock.calls.length; i++) {
+		expectUserAgentOnCall(i);
+	}
 }
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -205,6 +234,196 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 		expect(bySlug.has("ampforwp_amp_on_off")).toBe(false);
 	});
 
+	it("suggests every field of the ACF field groups assigned to a post type", async () => {
+		const field = (name: string, type: string) => ({
+			key: `field_${name}`,
+			name,
+			label: name,
+			type,
+			required: false,
+		});
+		const postTypeRule = (value: string, operator = "==") => [
+			[{ param: "post_type", operator, value }],
+		];
+		const analyzeResponse = {
+			...makeAnalyzeResponse(0),
+			post_types: [
+				{
+					name: "post",
+					label: "Posts",
+					label_singular: "Post",
+					total: 2,
+					by_status: { publish: 2 },
+					supports: {},
+					taxonomies: [],
+					custom_fields: [
+						{ key: "subtitle", count: 2, inferred_type: "string", sample: "A subtitle" },
+						{ key: "credits", count: 2, inferred_type: "integer", sample: "2" },
+						{ key: "credits_0_credit_name", count: 2, inferred_type: "string", sample: "Ada" },
+						{ key: "credits_0_credit_role", count: 2, inferred_type: "string", sample: "Author" },
+						{ key: "credits_note", count: 2, inferred_type: "string", sample: "Reprint" },
+						{ key: "sections_0_heading", count: 2, inferred_type: "string", sample: "Intro" },
+						{ key: "authors_0_name", count: 2, inferred_type: "string", sample: "Ada" },
+						{ key: "publisher_name", count: 2, inferred_type: "string", sample: "Acme" },
+					],
+					hierarchical: false,
+					has_archive: false,
+				},
+			],
+			acf: [
+				{
+					key: "group_book",
+					title: "Book details",
+					location: postTypeRule("post"),
+					fields: [
+						field("subtitle", "text"),
+						field("blurb", "textarea"),
+						field("rating", "number"),
+						field("featured", "true_false"),
+						field("genres", "checkbox"),
+						field("related", "relationship"),
+						field("credits", "repeater"),
+						field("sections", "flexible_content"),
+						field("publisher", "group"),
+						field("details", "tab"),
+					],
+				},
+				{
+					key: "group_page",
+					title: "Page details",
+					location: postTypeRule("page"),
+					fields: [field("hero_text", "text")],
+				},
+				{
+					key: "group_not_post",
+					title: "Everything but posts",
+					location: postTypeRule("post", "!="),
+					fields: [field("banner_text", "text")],
+				},
+			],
+		};
+		mockFetch.mockResolvedValueOnce(new Response(JSON.stringify(analyzeResponse), { status: 200 }));
+
+		const analysis = await wordpressPluginSource.analyze(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{},
+		);
+
+		const custom = analysis.postTypes[0]!.requiredFields.filter(
+			(f) => !["title", "content", "excerpt", "featured_image"].includes(f.slug),
+		);
+		expect(Object.fromEntries(custom.map((f) => [f.slug, f.type]))).toEqual({
+			subtitle: "string",
+			blurb: "text",
+			rating: "number",
+			featured: "boolean",
+			genres: "json",
+			related: "json",
+			credits: "json",
+			sections: "json",
+			publisher: "json",
+			credits_note: "string",
+			authors_0_name: "string",
+			publisher_name: "string",
+		});
+	});
+
+	describe("ACF fields in a collection that already exists", () => {
+		const acfGroup = (fields: Array<{ name: string; type: string }>) => [
+			{
+				key: "group_book",
+				title: "Book details",
+				location: [[{ param: "post_type", operator: "==", value: "post" }]],
+				fields: fields.map((f) => ({
+					key: `field_${f.name}`,
+					label: f.name,
+					required: false,
+					...f,
+				})),
+			},
+		];
+		const analyzeWith = async (
+			acf: ReturnType<typeof acfGroup>,
+			customFields: Array<{ key: string; inferred_type: string }>,
+			existingFields: Record<string, string>,
+		) => {
+			const analyzeResponse = {
+				...makeAnalyzeResponse(0),
+				post_types: [
+					{
+						name: "post",
+						label: "Posts",
+						label_singular: "Post",
+						total: 2,
+						by_status: { publish: 2 },
+						supports: {},
+						taxonomies: [],
+						custom_fields: customFields.map((f) => ({ ...f, count: 2, sample: "x" })),
+						hierarchical: false,
+						has_archive: false,
+					},
+				],
+				acf,
+			};
+			mockFetch.mockResolvedValueOnce(
+				new Response(JSON.stringify(analyzeResponse), { status: 200 }),
+			);
+			const fields = new Map(
+				Object.entries(existingFields).map(([slug, type]) => [slug, { type }]),
+			);
+			const analysis = await wordpressPluginSource.analyze(
+				{ type: "url", url: "https://example.com", token: "test-token" },
+				{ getExistingCollections: async () => new Map([["posts", { slug: "posts", fields }]]) },
+			);
+			return analysis.postTypes[0]!;
+		};
+
+		it("keeps the fields an earlier import created from the raw meta", async () => {
+			const postType = await analyzeWith(
+				acfGroup([
+					{ name: "featured", type: "true_false" },
+					{ name: "credits", type: "repeater" },
+				]),
+				[
+					{ key: "featured", inferred_type: "integer" },
+					{ key: "credits", inferred_type: "integer" },
+					{ key: "credits_0_credit_name", inferred_type: "string" },
+					{ key: "credits_1_credit_name", inferred_type: "string" },
+				],
+				{
+					title: "string",
+					featured: "integer",
+					credits: "integer",
+					credits_0_credit_name: "string",
+				},
+			);
+
+			expect(postType.schemaStatus.canImport).toBe(true);
+			const types = new Map(postType.requiredFields.map((f) => [f.slug, f.type]));
+			expect(types.get("featured")).toBe("integer");
+			expect(types.get("credits")).toBe("integer");
+			expect(types.get("credits_1_credit_name")).toBe("string");
+		});
+
+		const rawMeta: Array<[string, Array<{ key: string; inferred_type: string }>]> = [
+			["without", []],
+			["with", [{ key: "rating", inferred_type: "integer" }]],
+		];
+		it.each(rawMeta)(
+			"reports an ACF field whose type conflicts with a field the site defined, %s raw meta",
+			async (_label, customFields) => {
+				const postType = await analyzeWith(
+					acfGroup([{ name: "rating", type: "number" }]),
+					customFields,
+					{ title: "string", rating: "boolean" },
+				);
+
+				expect(postType.schemaStatus.canImport).toBe(false);
+				expect(postType.schemaStatus.fieldStatus.rating?.status).toBe("type_mismatch");
+			},
+		);
+	});
+
 	it("fetches every media page during analyze, not just the first", async () => {
 		mockFetch.mockImplementation((input: RequestInfo | URL) => {
 			const url = toUrlString(input);
@@ -249,5 +468,293 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 
 		expect(items).toHaveLength(1);
 		expect(items[0]!.slug).toBe("hello");
+		expectUserAgentOnAllCalls();
 	});
+
+	it("sends an identifying User-Agent header during probe", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(
+				JSON.stringify({
+					emdash_exporter: "1.2.0",
+					wordpress_version: "6.5",
+					site: {
+						title: "Test",
+						description: "",
+						url: "https://example.com",
+						home: "https://example.com",
+						language: "en",
+						timezone: "UTC",
+					},
+					capabilities: {
+						application_passwords: true,
+						acf: false,
+						yoast: false,
+						rankmath: false,
+					},
+					post_types: [{ name: "post", label: "Posts", count: 1 }],
+					media_count: 0,
+					endpoints: {},
+					auth_instructions: { method: "basic", instructions: "" },
+				}),
+				{ status: 200 },
+			),
+		);
+
+		await wordpressPluginSource.probe("https://example.com");
+		expectUserAgentOnCall(0);
+	});
+
+	it("sends an identifying User-Agent header during analyze", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(makeAnalyzeResponse(0)), { status: 200 }),
+		);
+
+		await wordpressPluginSource.analyze(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{},
+		);
+		expectUserAgentOnCall(0);
+	});
+
+	it("sends an identifying User-Agent header during fetchContent", async () => {
+		mockFetch.mockResolvedValueOnce(contentResponse([makePost()]));
+
+		for await (const _ of wordpressPluginSource.fetchContent(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{ postTypes: ["post"] },
+		)) {
+			// consume generator
+		}
+
+		expectUserAgentOnCall(0);
+	});
+
+	it("sends an identifying User-Agent header during fetchMedia", async () => {
+		mockFetch.mockResolvedValueOnce(new Response(new Blob(["pixels"]), { status: 200 }));
+
+		await wordpressPluginSource.fetchMedia("https://example.com/image.jpg", {
+			type: "url",
+			url: "https://example.com",
+		});
+
+		expectUserAgentOnCall(0);
+	});
+
+	it("sends the User-Agent on the ?rest_route= fallback during probe", async () => {
+		mockFetch.mockImplementation((input: RequestInfo | URL) => {
+			const url = toUrlString(input);
+			if (url.includes("/wp-json/")) {
+				return Promise.resolve(new Response("Not Found", { status: 404 }));
+			}
+			if (url.includes("rest_route=")) {
+				return Promise.resolve(
+					new Response(
+						JSON.stringify({
+							emdash_exporter: "1.2.0",
+							wordpress_version: "6.5",
+							site: {
+								title: "Test",
+								description: "",
+								url: "https://example.com",
+								home: "https://example.com",
+								language: "en",
+								timezone: "UTC",
+							},
+							capabilities: {
+								application_passwords: true,
+								acf: false,
+								yoast: false,
+								rankmath: false,
+							},
+							post_types: [{ name: "post", label: "Posts", count: 1 }],
+							media_count: 0,
+							endpoints: {},
+							auth_instructions: { method: "basic", instructions: "" },
+						}),
+						{ status: 200 },
+					),
+				);
+			}
+			return Promise.resolve(new Response("Unexpected", { status: 500 }));
+		});
+
+		const result = await wordpressPluginSource.probe("https://example.com");
+		expect(result).not.toBeNull();
+		expect(result!.detected.siteTitle).toBe("Test");
+		expectUserAgentOnAllCalls();
+	});
+
+	it("sends the User-Agent on the ?rest_route= fallback during analyze", async () => {
+		mockFetch.mockImplementation((input: RequestInfo | URL) => {
+			const url = toUrlString(input);
+			if (url.includes("/wp-json/")) {
+				return Promise.resolve(new Response("Not Found", { status: 404 }));
+			}
+			if (url.includes("rest_route=")) {
+				return Promise.resolve(
+					new Response(JSON.stringify(makeAnalyzeResponse(0)), { status: 200 }),
+				);
+			}
+			return Promise.resolve(new Response("Unexpected", { status: 500 }));
+		});
+
+		await wordpressPluginSource.analyze(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{},
+		);
+		expectUserAgentOnAllCalls();
+	});
+});
+
+describe("WordPress Plugin Source: bot-protection challenges", () => {
+	function challengeResponse() {
+		return new Response("<!DOCTYPE html><title>Just a moment...</title>", {
+			status: 403,
+			headers: { "cf-mitigated": "challenge", "content-type": "text/html" },
+		});
+	}
+
+	beforeEach(() => {
+		clearSources();
+		registerSource(wordpressPluginSource);
+	});
+
+	afterAll(() => {
+		clearSources();
+	});
+
+	it("rejects analyze with a SiteChallengeError when a challenge page answers", async () => {
+		mockFetch.mockImplementation(() => Promise.resolve(challengeResponse()));
+
+		await expect(
+			wordpressPluginSource.analyze(
+				{ type: "url", url: "https://example.com", token: "test-token" },
+				{},
+			),
+		).rejects.toBeInstanceOf(SiteChallengeError);
+	});
+
+	it("marks the probe result as challenged when a challenge page answers", async () => {
+		mockFetch.mockImplementation(() => Promise.resolve(challengeResponse()));
+
+		const result = await probeUrl("https://example.com");
+
+		expect(result.isWordPress).toBe(false);
+		expect(result.challenged).toBe(true);
+	});
+
+	it("does not mark a plain 403 as challenged", async () => {
+		mockFetch.mockImplementation(() => Promise.resolve(new Response("Forbidden", { status: 403 })));
+
+		const result = await probeUrl("https://example.com");
+
+		expect(result.isWordPress).toBe(false);
+		expect(result.challenged).toBeUndefined();
+	});
+
+	function routeContext(path: string, body: unknown, emdash: unknown) {
+		return {
+			request: new Request(`http://localhost/_emdash/api/import/wordpress-plugin/${path}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+				body: JSON.stringify(body),
+			}),
+			locals: { emdash, user: { id: "admin", role: 50 } },
+		};
+	}
+
+	it.each([
+		[
+			"analyze",
+			analyzeRoute,
+			{ url: "https://example.com", token: "test-token" },
+			async () => ({ db: await setupTestDatabase() }),
+		],
+		[
+			"execute",
+			executeRoute,
+			{
+				url: "https://example.com",
+				token: "test-token",
+				config: { postTypeMappings: { post: { collection: "posts", enabled: true } } },
+				phase: "content",
+			},
+			async () => ({
+				db: await setupTestDatabase(),
+				handleContentCreate: vi.fn(),
+				getManifest: async () => ({ collections: {} }),
+			}),
+		],
+	])(
+		"the %s route answers a challenge with WP_SITE_CHALLENGE",
+		async (path, route, body, makeEmdash) => {
+			mockFetch.mockImplementation(() => Promise.resolve(challengeResponse()));
+
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal Astro context
+			const response = await route(routeContext(path, body, await makeEmdash()) as any);
+
+			expect(response.status).toBe(502);
+			const json = (await response.json()) as { error: { code: string } };
+			expect(json.error.code).toBe("WP_SITE_CHALLENGE");
+		},
+	);
+
+	function challengeOnly(endpoint: string) {
+		mockFetch.mockImplementation((input: RequestInfo | URL) => {
+			const url = toUrlString(input);
+			if (url.includes(`/emdash/v1/${endpoint}`)) return Promise.resolve(challengeResponse());
+			if (url.includes("/emdash/v1/analyze")) {
+				return Promise.resolve(new Response(JSON.stringify(makeAnalyzeResponse(1))));
+			}
+			if (url.includes("/emdash/v1/content")) return Promise.resolve(contentResponse([]));
+			return Promise.resolve(new Response("[]"));
+		});
+	}
+
+	it("rejects analyze when only the media list answers with a challenge", async () => {
+		challengeOnly("media");
+
+		await expect(
+			wordpressPluginSource.analyze(
+				{ type: "url", url: "https://example.com", token: "test-token" },
+				{},
+			),
+		).rejects.toBeInstanceOf(SiteChallengeError);
+	});
+
+	it.each([
+		["taxonomies", "content", {}],
+		["menus", "finalize", {}],
+		["options", "finalize", { importMenus: false }],
+		["taxonomies", "unchunked", {}],
+		["menus", "unchunked", {}],
+		["comments", "unchunked", { importMenus: false }],
+		["options", "unchunked", { importMenus: false }],
+	])(
+		"a challenged %s request in the %s import answers with WP_SITE_CHALLENGE",
+		async (endpoint, phase, extraConfig) => {
+			challengeOnly(endpoint);
+			const body = {
+				url: "https://example.com",
+				token: "test-token",
+				config: {
+					postTypeMappings: { post: { collection: "posts", enabled: true } },
+					...extraConfig,
+				},
+				...(phase === "unchunked" ? {} : { phase }),
+			};
+			const emdash = {
+				db: await setupTestDatabase(),
+				handleContentCreate: vi.fn(),
+				getManifest: async () => ({ collections: {} }),
+			};
+
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal Astro context
+			const response = await executeRoute(routeContext("execute", body, emdash) as any);
+
+			expect(response.status).toBe(502);
+			const json = (await response.json()) as { error: { code: string } };
+			expect(json.error.code).toBe("WP_SITE_CHALLENGE");
+		},
+	);
 });

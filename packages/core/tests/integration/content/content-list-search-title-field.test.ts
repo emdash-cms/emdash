@@ -1,6 +1,7 @@
 import { it, expect, beforeEach, afterEach } from "vitest";
 
 import { handleContentCreate, handleContentList } from "../../../src/api/handlers/content.js";
+import { handleSchemaFieldCreate } from "../../../src/api/handlers/schema.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
@@ -67,5 +68,39 @@ describeEachDialect("content list search honours a custom titleField", (dialect)
 	it("matches the titleField case-insensitively", async () => {
 		const result = await handleContentList(ctx.db, "employees", { q: "jane", limit: 20 });
 		expect(namesOf(result)).toContain("Jane Doe");
+	});
+});
+
+// A reference field bound to a relation keeps its values in a relation table,
+// so a `name` field of that kind has no column to match against.
+describeEachDialect("content list search with a reference field named like a title", (dialect) => {
+	let ctx: DialectTestContext;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createCollection({ slug: "people", label: "People" });
+		await registry.createCollection({ slug: "credits", label: "Credits" });
+		const field = await handleSchemaFieldCreate(ctx.db, "credits", {
+			slug: "name",
+			label: "Name",
+			type: "reference",
+			validation: { targetCollection: "people" },
+		});
+		if (!field.success) throw new Error("field create failed");
+		const created = await handleContentCreate(ctx.db, "credits", {
+			slug: "lead-actor",
+			data: {},
+		});
+		if (!created.success) throw new Error("seed failed");
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("searches the columns the collection has", async () => {
+		const result = await handleContentList(ctx.db, "credits", { q: "lead" });
+		expect(result.success && result.data.items.map((i) => i.slug)).toEqual(["lead-actor"]);
 	});
 });

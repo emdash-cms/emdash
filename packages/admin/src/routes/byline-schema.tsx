@@ -19,7 +19,7 @@
  * this page — so the in-component check is the source of truth.
  */
 
-import { Button, Loader, Toast } from "@cloudflare/kumo";
+import { Button, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown, ArrowUp, IdentificationCard, Pencil, Plus, Trash } from "@phosphor-icons/react";
@@ -55,7 +55,7 @@ const QUERY_KEY = ["byline-fields"] as const;
 export function BylineSchemaPage() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const { data: currentUser, isLoading: userLoading } = useCurrentUser();
 
 	const [editingField, setEditingField] = React.useState<BylineFieldDefinition | null>(null);
@@ -101,7 +101,7 @@ export function BylineSchemaPage() {
 			toastManager.add({
 				title: t`Failed to create field`,
 				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -121,7 +121,7 @@ export function BylineSchemaPage() {
 			toastManager.add({
 				title: t`Failed to save field`,
 				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -137,7 +137,7 @@ export function BylineSchemaPage() {
 			toastManager.add({
 				title: t`Failed to delete field`,
 				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -151,7 +151,7 @@ export function BylineSchemaPage() {
 			toastManager.add({
 				title: t`Failed to reorder fields`,
 				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -413,7 +413,9 @@ function FieldRow({
 		<tr className="hover:bg-kumo-tint/25">
 			<td className="px-4 py-3 font-medium">{field.label}</td>
 			<td className="px-4 py-3">
-				<code className="text-sm bg-kumo-tint px-1.5 py-0.5 rounded">{field.slug}</code>
+				<code dir="ltr" className="text-sm bg-kumo-tint px-1.5 py-0.5 rounded">
+					{field.slug}
+				</code>
 			</td>
 			<td className="px-4 py-3 text-sm">{field.type}</td>
 			<td className="px-4 py-3 text-sm">

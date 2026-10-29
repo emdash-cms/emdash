@@ -1,0 +1,267 @@
+---
+/** The catalog's page head: title with the result count, the search field and refine links. */
+import PluginArt from "../PluginArt.astro";
+import SearchField from "../SearchField.astro";
+
+interface Props {
+	query: string;
+	/** Undefined when the registry could not be reached. */
+	summary?: string;
+	keywords: string[];
+}
+
+const { query, summary, keywords } = Astro.props;
+const showRefine = keywords.length > 0 || Boolean(query);
+const longQuery = query.length > 32;
+const tiles = Array.from({ length: 12 }, (_, index) => index);
+---
+
+<div class="search-head page-head shell">
+	<div class="search-stage" aria-hidden="true">
+		<div class="search-stage-tiles">
+			{
+				tiles.map((index) =>
+					index === 6 ? (
+						<span class="search-stage-tile search-stage-tile--lit">
+							<PluginArt seed="emdash-plugins/search" variant="tile" />
+						</span>
+					) : (
+						<span class="search-stage-tile" />
+					),
+				)
+			}
+		</div>
+	</div>
+
+	<div class="search-head-copy">
+		<p class="eyebrow">Browse</p>
+		<h1
+			id="search-title"
+			class:list={["h-page search-title", { "search-title--long": longQuery }]}
+		>
+			{
+				query ? (
+					<>
+						Results for “<bdi>{query}</bdi>”
+					</>
+				) : (
+					"All plugins"
+				)
+			}
+			{summary && <span class="tone">{summary}</span>}
+		</h1>
+
+		<div class="search-tool">
+			<SearchField id="plugin-search" size="md" value={query} />
+			{
+				showRefine && (
+					<div class="search-refine">
+						{keywords.length > 0 && (
+							<>
+								<span class="search-refine-label" id="search-refine-label">
+									{query ? "Related" : "Popular"}
+								</span>
+								<ul
+									class="chip-list search-refine-chips"
+									aria-labelledby="search-refine-label"
+								>
+									{keywords.map((keyword) => (
+										<li>
+											<a
+												class="chip"
+												href={`/search?q=${encodeURIComponent(keyword)}`}
+												dir="auto"
+											>
+												<span class="chip-label">{keyword}</span>
+											</a>
+										</li>
+									))}
+								</ul>
+							</>
+						)}
+						{query && (
+							<a class="btn btn-ghost search-clear tap-target" href="/search">
+								<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+									<path d="m7 7 10 10M17 7 7 17" />
+								</svg>
+								Clear search
+							</a>
+						)}
+					</div>
+				)
+			}
+		</div>
+	</div>
+</div>
+
+<style>
+	.search-head {
+		isolation: isolate;
+	}
+
+	.search-head-copy {
+		position: relative;
+		max-width: 45rem;
+	}
+
+	.search-title {
+		overflow-wrap: anywhere;
+	}
+
+	.search-title--long {
+		font-size: clamp(1.75rem, 1.35rem + 1.6vw, 2.5rem);
+	}
+
+	.search-title bdi {
+		unicode-bidi: isolate;
+	}
+
+	.search-tool {
+		margin-block-start: clamp(1.75rem, 1.25rem + 1.5vw, 2.5rem);
+	}
+
+	.search-refine {
+		display: grid;
+		grid-template-areas: "label chips clear";
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 0.625rem 0.875rem;
+		max-width: 720px;
+		min-height: 32px;
+		margin-block-start: 1rem;
+		padding-inline-start: 4px;
+	}
+
+	.search-refine-chips {
+		grid-area: chips;
+		min-width: 0;
+	}
+
+	.search-refine-label {
+		grid-area: label;
+		color: var(--muted);
+		font-size: 13px;
+		font-weight: 500;
+	}
+
+	.search-clear {
+		grid-area: clear;
+		min-height: 32px;
+		padding-inline: 8px 10px;
+		gap: 6px;
+		color: var(--ink);
+		font-size: 13px;
+	}
+
+	.search-clear svg {
+		width: 14px;
+		height: 14px;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-width: 2;
+	}
+
+	.search-stage {
+		position: absolute;
+		inset-block: 0;
+		inset-inline-end: 0;
+		z-index: -1;
+		width: min(44rem, 70%);
+		pointer-events: none;
+		background-image: radial-gradient(
+			color-mix(in srgb, var(--ink) 13%, transparent) 1px,
+			transparent 1.2px
+		);
+		background-size: 14px 14px;
+		-webkit-mask-image: radial-gradient(
+			ellipse 75% 85% at 100% 50%,
+			#000 15%,
+			transparent 72%
+		);
+		mask-image: radial-gradient(
+			ellipse 75% 85% at 100% 50%,
+			#000 15%,
+			transparent 72%
+		);
+	}
+
+	.search-stage:dir(rtl) {
+		-webkit-mask-image: radial-gradient(
+			ellipse 75% 85% at 0% 50%,
+			#000 15%,
+			transparent 72%
+		);
+		mask-image: radial-gradient(
+			ellipse 75% 85% at 0% 50%,
+			#000 15%,
+			transparent 72%
+		);
+	}
+
+	.search-stage-tiles {
+		display: none;
+	}
+
+	@media (min-width: 1120px) {
+		.search-stage-tiles {
+			position: absolute;
+			inset-block-start: 50%;
+			inset-inline-end: 2.5rem;
+			display: grid;
+			grid-template-columns: repeat(4, 3.5rem);
+			gap: 1rem;
+			transform: translateY(-50%);
+		}
+
+		.search-stage-tile {
+			width: 3.5rem;
+			height: 3.5rem;
+			border: 1px dashed var(--line-strong);
+			border-radius: var(--radius-md);
+		}
+
+		.search-stage-tile--lit {
+			overflow: hidden;
+			background: var(--surface);
+			border: 1px solid var(--line);
+			box-shadow: var(--shadow-card);
+		}
+	}
+
+	@media (max-width: 639.98px) {
+		.search-refine {
+			grid-template-areas:
+				"label clear"
+				"chips chips";
+			grid-template-columns: minmax(0, 1fr) auto;
+		}
+
+		.search-stage {
+			width: 100%;
+			-webkit-mask-image: radial-gradient(
+				ellipse 60% 55% at 100% 0%,
+				#000 10%,
+				transparent 70%
+			);
+			mask-image: radial-gradient(
+				ellipse 60% 55% at 100% 0%,
+				#000 10%,
+				transparent 70%
+			);
+		}
+
+		.search-stage:dir(rtl) {
+			-webkit-mask-image: radial-gradient(
+				ellipse 60% 55% at 0% 0%,
+				#000 10%,
+				transparent 70%
+			);
+			mask-image: radial-gradient(
+				ellipse 60% 55% at 0% 0%,
+				#000 10%,
+				transparent 70%
+			);
+		}
+	}
+</style>

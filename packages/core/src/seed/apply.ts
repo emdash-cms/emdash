@@ -7,6 +7,8 @@
 
 import { imageSize } from "image-size";
 import type {
+	Compilable,
+	Insertable,
 	Kysely,
 	KyselyPlugin,
 	PluginTransformQueryArgs,
@@ -22,6 +24,7 @@ import { setReferenceSelection } from "../api/handlers/relations.js";
 import { bindReferenceField, createFieldRelation } from "../api/handlers/schema.js";
 import { sanitizeGalleryImages } from "../content/converters/gallery.js";
 import type { DatetimeContextCache } from "../database/content-datetime.js";
+import { executeAtomicBatchIfSupported, isPostgres } from "../database/dialect-helpers.js";
 import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
@@ -35,12 +38,17 @@ import {
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import type { ContentItem } from "../database/repositories/types.js";
 import { withTransaction } from "../database/transaction.js";
-import type { Database } from "../database/types.js";
+import type { Database, MenuItemTable, WidgetTable } from "../database/types.js";
 import type { MediaValue } from "../fields/types.js";
-import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
+import { getI18nConfig, getLocaleRank, resolveConfiguredLocale } from "../i18n/config.js";
+import { localeMatches, localeOrder } from "../i18n/query.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
-import { coalesceObjectCacheWrites, invalidateMenuObjectCache } from "../object-cache/index.js";
+import {
+	coalesceObjectCacheWrites,
+	invalidateMenuObjectCache,
+	invalidateWidgetObjectCache,
+} from "../object-cache/index.js";
 import { BlockTypeRegistry } from "../schema/block-type-registry.js";
 import { normalizeBlocksData, resolveBlockTypes } from "../schema/block-values.js";
 import { SchemaError, SchemaRegistry } from "../schema/registry.js";
@@ -66,6 +74,40 @@ import type {
 	SeedMediaReference,
 	SeedBylineAvatar,
 } from "./types.js";
+
+// Each menu item binds 15 columns; six rows stay below D1's 100-parameter limit.
+const SEED_MENU_ITEM_INSERT_BATCH_SIZE = 6;
+// Widgets bind nine columns; ten rows stay below the same limit.
+const SEED_WIDGET_INSERT_BATCH_SIZE = 10;
+
+interface SeedReplacementStatement extends Compilable {
+	execute(): Promise<unknown>;
+}
+
+async function replaceSeedChildren(
+	db: Kysely<Database>,
+	parentTable: "_emdash_menus" | "_emdash_widget_areas",
+	parentIds: string[],
+	buildStatements: (target: Kysely<Database>) => readonly SeedReplacementStatement[],
+): Promise<void> {
+	if (parentIds.length === 0) return;
+	const batched = await executeAtomicBatchIfSupported(db, buildStatements(db));
+	if (batched !== null) return;
+	await withTransaction(db, async (trx) => {
+		if (isPostgres(trx)) {
+			await trx
+				.selectFrom(parentTable)
+				.select("id")
+				.where("id", "in", parentIds)
+				.orderBy("id")
+				.forUpdate()
+				.execute();
+		}
+		for (const statement of buildStatements(trx)) {
+			await statement.execute();
+		}
+	});
+}
 
 async function applySiteSettings(
 	db: Kysely<Database>,
@@ -582,8 +624,15 @@ async function applySeedWrites(
 				.select(["id", "locale"])
 				.where("name", "=", taxonomy.name)
 				.execute();
-			// (name, locale) is the UNIQUE key after migration 036.
-			const existingDef = defsOfName.find((def) => def.locale === defLocale);
+			// Prefer the canonical path when a legacy code-stamped row also exists.
+			const matchingDefs = defsOfName
+				.filter((def) => resolveConfiguredLocale(def.locale) === defLocale)
+				.toSorted(
+					(a, b) =>
+						getLocaleRank(a.locale, defLocale) - getLocaleRank(b.locale, defLocale) ||
+						a.id.localeCompare(b.id),
+				);
+			const existingDef = matchingDefs[0];
 			const unclaimed = existingDef !== undefined && untouchedBuiltInDefIds.has(existingDef.id);
 			if (existingDef && onConflict === "error" && !unclaimed) {
 				throw new Error(`Conflict: taxonomy "${taxonomy.name}" (${defLocale}) already exists`);
@@ -1087,6 +1136,8 @@ async function applySeedWrites(
 		const menuSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 		// Shared across menus: translated items reference anchor items in sibling menus.
 		const itemSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
+		const menuIds: string[] = [];
+		const itemRows: Insertable<MenuItemTable>[] = [];
 
 		try {
 			for (const menu of seed.menus) {
@@ -1095,7 +1146,9 @@ async function applySeedWrites(
 					.selectFrom("_emdash_menus")
 					.selectAll()
 					.where("name", "=", menu.name)
-					.where("locale", "=", locale);
+					.where(localeMatches("locale", locale))
+					.orderBy(localeOrder("locale", locale), "asc")
+					.orderBy("id", "asc");
 				const existingMenu = await lookup.executeTakeFirst();
 
 				let menuId: string;
@@ -1104,8 +1157,6 @@ async function applySeedWrites(
 				if (existingMenu) {
 					menuId = existingMenu.id;
 					translationGroup = existingMenu.translation_group ?? existingMenu.id;
-					// Clear existing items (menus are recreated)
-					await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId).execute();
 				} else {
 					menuId = ulid();
 					// Resolve translationOf to the source menu's translation_group.
@@ -1118,7 +1169,7 @@ async function applySeedWrites(
 								`menu "${menu.name}" (${locale}): translationOf "${menu.translationOf}" not found yet; minting a fresh group.`,
 							);
 					}
-					await db
+					const inserted = await db
 						.insertInto("_emdash_menus")
 						.values({
 							id: menuId,
@@ -1129,17 +1180,26 @@ async function applySeedWrites(
 							locale,
 							translation_group: translationGroup,
 						})
-						.execute();
-					result.menus.created++;
+						.onConflict((conflict) => conflict.columns(["name", "locale"]).doNothing())
+						.returning("id")
+						.executeTakeFirst();
+					if (inserted) {
+						result.menus.created++;
+					} else {
+						const concurrentMenu = await lookup.executeTakeFirstOrThrow();
+						menuId = concurrentMenu.id;
+						translationGroup = concurrentMenu.translation_group ?? concurrentMenu.id;
+					}
 				}
 
 				if (menu.id) menuSeedIdMap.set(menu.id, { id: menuId, translationGroup });
 
 				// Create menu items
-				const itemCount = await applyMenuItems(
-					db,
+				menuIds.push(menuId);
+				const itemCount = collectMenuItems(
+					itemRows,
 					menuId,
-					locale,
+					existingMenu?.locale ?? locale,
 					menu.items,
 					null, // parent_id
 					0, // sort_order
@@ -1148,6 +1208,16 @@ async function applySeedWrites(
 				);
 				result.menus.items += itemCount;
 			}
+
+			// Keep translated menus in the same replacement: their items share
+			// translation groups minted while collecting the rows.
+			const buildStatements = (target: Kysely<Database>) => [
+				...menuIds.map((id) => target.deleteFrom("_emdash_menu_items").where("menu_id", "=", id)),
+				...chunks(itemRows, SEED_MENU_ITEM_INSERT_BATCH_SIZE).map((rows) =>
+					target.insertInto("_emdash_menu_items").values(rows),
+				),
+			];
+			await replaceSeedChildren(db, "_emdash_menus", menuIds, buildStatements);
 		} finally {
 			invalidateMenuObjectCache();
 		}
@@ -1193,41 +1263,57 @@ async function applySeedWrites(
 
 	// 10. Widget Areas and Widgets
 	if (seed.widgetAreas) {
-		for (const area of seed.widgetAreas) {
-			// Check if area exists
-			const existingArea = await db
-				.selectFrom("_emdash_widget_areas")
-				.selectAll()
-				.where("name", "=", area.name)
-				.executeTakeFirst();
+		try {
+			const areaIds: string[] = [];
+			const widgetRows: Insertable<WidgetTable>[] = [];
+			for (const area of seed.widgetAreas) {
+				// Check if area exists
+				const lookup = db
+					.selectFrom("_emdash_widget_areas")
+					.selectAll()
+					.where("name", "=", area.name);
+				const existingArea = await lookup.executeTakeFirst();
 
-			let areaId: string;
+				let areaId: string;
 
-			if (existingArea) {
-				areaId = existingArea.id;
-				// Clear existing widgets (areas are recreated)
-				await db.deleteFrom("_emdash_widgets").where("area_id", "=", areaId).execute();
-			} else {
-				// Create area
-				areaId = ulid();
-				await db
-					.insertInto("_emdash_widget_areas")
-					.values({
-						id: areaId,
-						name: area.name,
-						label: area.label,
-						description: area.description ?? null,
-					})
-					.execute();
-				result.widgetAreas.created++;
+				if (existingArea) {
+					areaId = existingArea.id;
+				} else {
+					// Create area
+					areaId = ulid();
+					const inserted = await db
+						.insertInto("_emdash_widget_areas")
+						.values({
+							id: areaId,
+							name: area.name,
+							label: area.label,
+							description: area.description ?? null,
+						})
+						.onConflict((conflict) => conflict.column("name").doNothing())
+						.returning("id")
+						.executeTakeFirst();
+					if (inserted) {
+						result.widgetAreas.created++;
+					} else {
+						areaId = (await lookup.executeTakeFirstOrThrow()).id;
+					}
+				}
+
+				areaIds.push(areaId);
+				for (let i = 0; i < area.widgets.length; i++) {
+					const widget = area.widgets[i];
+					widgetRows.push(createSeedWidgetRow(areaId, widget, i));
+					result.widgetAreas.widgets++;
+				}
 			}
-
-			// Create widgets
-			for (let i = 0; i < area.widgets.length; i++) {
-				const widget = area.widgets[i];
-				await applyWidget(db, areaId, widget, i);
-				result.widgetAreas.widgets++;
-			}
+			await replaceSeedChildren(db, "_emdash_widget_areas", areaIds, (target) => [
+				...areaIds.map((id) => target.deleteFrom("_emdash_widgets").where("area_id", "=", id)),
+				...chunks(widgetRows, SEED_WIDGET_INSERT_BATCH_SIZE).map((rows) =>
+					target.insertInto("_emdash_widgets").values(rows),
+				),
+			]);
+		} finally {
+			invalidateWidgetObjectCache();
 		}
 	}
 
@@ -1347,7 +1433,7 @@ async function findExistingSeedTerms(
 	taxonomyName: string,
 	terms: SeedTaxonomyTerm[],
 ): Promise<Map<string, string>> {
-	const existing = new Map<string, string>();
+	const selected = new Map<string, { id: string; locale: string }>();
 	for (const batch of chunks([...new Set(terms.map((term) => term.slug))], SQL_BATCH_SIZE)) {
 		const rows = await db
 			.selectFrom("taxonomies")
@@ -1355,33 +1441,54 @@ async function findExistingSeedTerms(
 			.where("name", "=", taxonomyName)
 			.where("slug", "in", batch)
 			.execute();
-		for (const row of rows) existing.set(seedTermKey(row.locale, row.slug), row.id);
+		for (const row of rows) {
+			const canonicalLocale = resolveConfiguredLocale(row.locale);
+			const key = seedTermKey(canonicalLocale, row.slug);
+			const previous = selected.get(key);
+			if (
+				previous === undefined ||
+				getLocaleRank(row.locale, canonicalLocale) <
+					getLocaleRank(previous.locale, canonicalLocale) ||
+				(getLocaleRank(row.locale, canonicalLocale) ===
+					getLocaleRank(previous.locale, canonicalLocale) &&
+					row.id.localeCompare(previous.id) < 0)
+			) {
+				selected.set(key, { id: row.id, locale: row.locale });
+			}
+		}
 	}
-	return existing;
+	return new Map(Array.from(selected, ([key, value]) => [key, value.id]));
 }
 
 /**
- * Find which seed bylines already exist, as byline ids keyed by slug. A slug
- * in several locales resolves to the lowest locale code, as
- * `BylineRepository.findBySlug` does. Each query covers a batch of slugs.
+ * Match seed bylines by slug, preferring a path over its stored code aliases.
+ * Across different configured locales, keep the lowest-locale selection.
  */
 async function findExistingSeedBylines(
 	db: Kysely<Database>,
 	slugs: string[],
 ): Promise<Map<string, string>> {
-	const existing = new Map<string, string>();
+	const existing = new Map<string, { id: string; locale: string }>();
 	for (const batch of chunks([...new Set(slugs)], SQL_BATCH_SIZE)) {
 		const rows = await db
 			.selectFrom("_emdash_bylines")
-			.select(["id", "slug"])
+			.select(["id", "slug", "locale"])
 			.where("slug", "in", batch)
 			.orderBy("locale", "asc")
+			.orderBy("id", "asc")
 			.execute();
 		for (const row of rows) {
-			if (!existing.has(row.slug)) existing.set(row.slug, row.id);
+			const previous = existing.get(row.slug);
+			const locale = resolveConfiguredLocale(row.locale);
+			if (
+				!previous ||
+				(resolveConfiguredLocale(previous.locale) === locale &&
+					getLocaleRank(row.locale, locale) < getLocaleRank(previous.locale, locale))
+			)
+				existing.set(row.slug, row);
 		}
 	}
-	return existing;
+	return new Map(Array.from(existing, ([slug, row]) => [slug, row.id]));
 }
 
 /**
@@ -2023,15 +2130,15 @@ async function applyContentTaxonomies(
 }
 
 /**
- * Apply menu items recursively.
+ * Collect menu item rows recursively.
  *
  * When a `SeedMenuItem` carries `id`/`translationOf`, the import resolves the
  * source item's `translation_group` so cross-locale "same nav entry" links
  * survive export → apply. Items without `translationOf` get a fresh group
  * (= their own id).
  */
-async function applyMenuItems(
-	db: Kysely<Database>,
+function collectMenuItems(
+	rows: Insertable<MenuItemTable>[],
 	menuId: string,
 	locale: string,
 	items: SeedMenuItem[],
@@ -2039,7 +2146,7 @@ async function applyMenuItems(
 	startOrder: number,
 	seedIdMap: Map<string, string>,
 	itemSeedIdMap: Map<string, { id: string; translationGroup: string }>,
-): Promise<number> {
+): number {
 	let count = 0;
 	let order = startOrder;
 
@@ -2077,26 +2184,23 @@ async function applyMenuItems(
 				);
 		}
 
-		await db
-			.insertInto("_emdash_menu_items")
-			.values({
-				id: itemId,
-				menu_id: menuId,
-				parent_id: parentId,
-				sort_order: order,
-				type: item.type,
-				reference_collection: referenceCollection,
-				reference_id: referenceId,
-				custom_url: item.url ?? null,
-				label: item.label || "",
-				title_attr: item.titleAttr ?? null,
-				target: item.target ?? null,
-				css_classes: item.cssClasses ?? null,
-				created_at: new Date().toISOString(),
-				locale: itemLocale,
-				translation_group: translationGroup,
-			})
-			.execute();
+		rows.push({
+			id: itemId,
+			menu_id: menuId,
+			parent_id: parentId,
+			sort_order: order,
+			type: item.type,
+			reference_collection: referenceCollection,
+			reference_id: referenceId,
+			custom_url: item.url ?? null,
+			label: item.label || "",
+			title_attr: item.titleAttr ?? null,
+			target: item.target ?? null,
+			css_classes: item.cssClasses ?? null,
+			created_at: new Date().toISOString(),
+			locale: itemLocale,
+			translation_group: translationGroup,
+		});
 
 		if (item.id) itemSeedIdMap.set(item.id, { id: itemId, translationGroup });
 
@@ -2104,8 +2208,8 @@ async function applyMenuItems(
 		order++;
 
 		if (item.children && item.children.length > 0) {
-			const childCount = await applyMenuItems(
-				db,
+			const childCount = collectMenuItems(
+				rows,
 				menuId,
 				itemLocale,
 				item.children,
@@ -2122,30 +2226,26 @@ async function applyMenuItems(
 }
 
 /**
- * Apply a widget
+ * Build a widget row
  */
-async function applyWidget(
-	db: Kysely<Database>,
+function createSeedWidgetRow(
 	areaId: string,
 	widget: SeedWidget,
 	sortOrder: number,
-): Promise<void> {
-	await db
-		.insertInto("_emdash_widgets")
-		.values({
-			id: ulid(),
-			area_id: areaId,
-			sort_order: sortOrder,
-			type: widget.type,
-			title: widget.title ?? null,
-			// `widget.content` is Portable Text for content-type widgets;
-			// for other widget kinds it's null.
-			content: widget.content ? JSON.stringify(widget.content) : null,
-			menu_name: widget.menuName ?? null,
-			component_id: widget.componentId ?? null,
-			component_props: widget.props ? JSON.stringify(widget.props) : null,
-		})
-		.execute();
+): Insertable<WidgetTable> {
+	return {
+		id: ulid(),
+		area_id: areaId,
+		sort_order: sortOrder,
+		type: widget.type,
+		title: widget.title ?? null,
+		// `widget.content` is Portable Text for content-type widgets;
+		// for other widget kinds it's null.
+		content: widget.content ? JSON.stringify(widget.content) : null,
+		menu_name: widget.menuName ?? null,
+		component_id: widget.componentId ?? null,
+		component_props: widget.props ? JSON.stringify(widget.props) : null,
+	};
 }
 
 /**
@@ -2306,26 +2406,33 @@ async function resolveMedia(
 	ctx: MediaContext,
 	result: SeedApplyResult,
 ): Promise<MediaValue | null> {
-	const { url, alt, filename, caption } = ref.$media;
+	const { url, alt, filename, caption, libraryCaption } = ref.$media;
 
-	// Check cache first
+	// Check cache first. The cached caption is the library default; a reference's
+	// caption is only an override for the content value being resolved.
 	const cached = ctx.mediaCache.get(url);
 	if (cached) {
 		result.media.skipped++;
-		return { ...cached, alt: alt ?? cached.alt };
+		return {
+			...cached,
+			alt: alt ?? cached.alt,
+			caption: caption ?? cached.caption,
+		};
 	}
 
 	// When skipMediaDownload is set, resolve $media to an external URL reference
 	// without downloading or storing anything. Used by playground mode.
 	if (ctx.skipMediaDownload) {
+		const defaultCaption = libraryCaption ?? undefined;
 		const mediaValue: MediaValue = {
 			provider: "external",
 			id: ulid(),
 			src: url,
 			alt: alt ?? undefined,
+			caption: caption ?? defaultCaption,
 			filename: filename ?? undefined,
 		};
-		ctx.mediaCache.set(url, mediaValue);
+		ctx.mediaCache.set(url, { ...mediaValue, caption: defaultCaption });
 		result.media.skipped++;
 		return mediaValue;
 	}
@@ -2375,13 +2482,14 @@ async function resolveMedia(
 				provider: "local",
 				id: existing.id,
 				alt: alt ?? existing.alt ?? undefined,
+				caption: caption ?? existing.caption ?? undefined,
 				width: existing.width ?? undefined,
 				height: existing.height ?? undefined,
 				mimeType: existing.mimeType,
 				filename: existing.filename,
 				meta: { storageKey: existing.storageKey },
 			};
-			ctx.mediaCache.set(url, mediaValue);
+			ctx.mediaCache.set(url, { ...mediaValue, caption: existing.caption ?? undefined });
 			result.media.skipped++;
 			console.log(`  ✅ Reused: ${existing.filename}`);
 			return mediaValue;
@@ -2416,7 +2524,7 @@ async function resolveMedia(
 			width,
 			height,
 			alt,
-			caption,
+			caption: (libraryCaption === undefined ? caption : libraryCaption) ?? undefined,
 			storageKey,
 			contentHash,
 			status: "ready",
@@ -2427,6 +2535,7 @@ async function resolveMedia(
 			provider: "local",
 			id: media.id,
 			alt: alt ?? undefined,
+			caption: caption ?? media.caption ?? undefined,
 			width,
 			height,
 			mimeType: contentType,
@@ -2434,8 +2543,11 @@ async function resolveMedia(
 			meta: { storageKey },
 		};
 
-		// Cache for reuse
-		ctx.mediaCache.set(url, mediaValue);
+		// Cache the library default for reuse; this reference may have a per-use override.
+		ctx.mediaCache.set(url, {
+			...mediaValue,
+			caption: media.caption ?? undefined,
+		});
 		result.media.created++;
 
 		console.log(`  ✅ Uploaded: ${finalFilename}`);

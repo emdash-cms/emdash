@@ -2,7 +2,7 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageFieldRenderer, type ImageFieldValue } from "../../src/components/ImageFieldRenderer";
-import { fetchMediaItem, type LocalMediaItem } from "../../src/lib/api";
+import { fetchMediaItem, type LocalMediaItem, type MediaUpdateInput } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
 vi.mock("../../src/lib/api", async () => {
@@ -30,6 +30,7 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 							focalX: 0.2,
 							focalY: 0.8,
 							alt: "Replacement image",
+							caption: "Replacement caption",
 							createdAt: "2026-07-23T12:00:00.000Z",
 						})
 					}
@@ -73,11 +74,40 @@ vi.mock("../../src/components/MediaDetailPanel.js", () => ({
 		open: boolean;
 		onClose: () => void;
 		onClosed?: () => void;
-		onItemRefreshed?: (item: LocalMediaItem) => void;
+		onItemRefreshed?: (item: LocalMediaItem, metadataChanges?: MediaUpdateInput) => void;
 		onCroppedCopyCreated?: (item: LocalMediaItem) => void;
 	}) =>
 		open ? (
 			<>
+				{["Saved caption", ""].map((caption) => (
+					<button
+						type="button"
+						key={caption}
+						onClick={() =>
+							onItemRefreshed?.(
+								{
+									id: "featured-image",
+									filename: "notes-on-simplicity.jpg",
+									mimeType: "image/jpeg",
+									url: "/_emdash/api/media/file/featured-image.jpg",
+									storageKey: "featured-image.jpg",
+									size: 30000,
+									width: 1200,
+									height: 800,
+									alt: "Saved alt",
+									caption,
+									authorId: "editor-1",
+									folderId: null,
+									createdAt: "2026-01-01T00:00:00.000Z",
+								},
+								{ caption },
+							)
+						}
+					>
+						{caption ? "Save caption" : "Clear caption"}
+					</button>
+				))}
+
 				<button
 					type="button"
 					onClick={() =>
@@ -91,6 +121,7 @@ vi.mock("../../src/components/MediaDetailPanel.js", () => ({
 							width: 1200,
 							height: 800,
 							contentHash: "sha256:replaced-original",
+							caption: "Edited asset caption",
 							status: "ready",
 							authorId: "editor-1",
 							folderId: null,
@@ -114,6 +145,7 @@ vi.mock("../../src/components/MediaDetailPanel.js", () => ({
 							height: 600,
 							contentHash: "sha256:cropped-copy",
 							alt: "Cropped asset alt",
+							caption: "Cropped asset caption",
 							focalX: 0.4,
 							focalY: 0.6,
 							blurhash: "cropped-hash",
@@ -334,12 +366,12 @@ describe("ImageFieldRenderer", () => {
 		expect(image).toHaveAttribute("src", "/_emdash/api/media/file/featured%3Fdraft%231.jpg");
 	});
 
-	it("preserves filename and MIME type when a replacement is selected", async () => {
+	it("copies metadata and the library caption when a replacement is selected", async () => {
 		const onChange = vi.fn();
 		const screen = await render(
 			<ImageFieldRenderer
 				label="Featured image"
-				value={selectedImage}
+				value={{ ...selectedImage, caption: "Old per-use credit" }}
 				onChange={onChange}
 				variant="featured"
 			/>,
@@ -357,6 +389,7 @@ describe("ImageFieldRenderer", () => {
 				height: 800,
 				focalX: 0.2,
 				focalY: 0.8,
+				caption: "Replacement caption",
 			}),
 		);
 	});
@@ -628,6 +661,7 @@ describe("ImageFieldRenderer", () => {
 			src: undefined,
 			previewUrl: undefined,
 			alt: "Cropped asset alt",
+			caption: "Cropped asset caption",
 			width: 900,
 			height: 600,
 			focalX: 0.4,
@@ -640,6 +674,113 @@ describe("ImageFieldRenderer", () => {
 			darkVariant,
 		});
 	});
+
+	it.each(["Per-use credit", ""])(
+		"preserves caption %j when editing the selected asset",
+		async (caption) => {
+			const onChange = vi.fn();
+			const screen = await render(
+				<ImageFieldRenderer
+					label="Image"
+					value={{
+						...selectedImage,
+						caption,
+						meta: { ...selectedImage.meta, caption: "Old credit" },
+					}}
+					onChange={onChange}
+				/>,
+			);
+			await screen.getByRole("button", { name: "Edit asset" }).click();
+			await screen.getByRole("button", { name: "Refresh original asset" }).click();
+			expect(onChange).toHaveBeenCalledWith(
+				expect.objectContaining({
+					id: selectedImage.id,
+					caption,
+					meta: { storageKey: "featured-image.jpg", caption },
+				}),
+			);
+		},
+	);
+
+	it.each(["Per-use credit", ""])(
+		"preserves caption %j when cropping the selected asset",
+		async (caption) => {
+			const onChange = vi.fn();
+			const screen = await render(
+				<ImageFieldRenderer
+					label="Image"
+					value={{
+						...selectedImage,
+						caption,
+						meta: { ...selectedImage.meta, caption: "Old credit" },
+					}}
+					onChange={onChange}
+				/>,
+			);
+			await screen.getByRole("button", { name: "Edit asset" }).click();
+			await screen.getByRole("button", { name: "Use cropped asset" }).click();
+			expect(onChange).toHaveBeenCalledWith(
+				expect.objectContaining({
+					id: "cropped-image",
+					caption,
+					meta: { storageKey: "cropped.webp", caption },
+				}),
+			);
+		},
+	);
+
+	it.each(["Dark credit", ""])(
+		"preserves the dark variant caption %j when its asset changes",
+		async (caption) => {
+			const onChange = vi.fn();
+			const primary = { ...selectedImage, caption: "Light credit" };
+			const screen = await render(
+				<ImageFieldRenderer
+					label="Image"
+					value={{ ...primary, darkVariant: { ...selectedImage, caption } }}
+					onChange={onChange}
+					darkVariant
+				/>,
+			);
+			await screen.getByRole("button", { name: "Edit dark mode asset" }).click();
+			await screen.getByRole("button", { name: "Use cropped asset" }).click();
+			expect(onChange).toHaveBeenCalledWith(
+				expect.objectContaining({
+					...primary,
+					darkVariant: expect.objectContaining({ id: "cropped-image", caption }),
+				}),
+			);
+		},
+	);
+
+	it.each(["Saved caption", ""])(
+		"applies explicit caption edits %j to an existing per-use value",
+		async (caption) => {
+			const onChange = vi.fn();
+			const screen = await render(
+				<ImageFieldRenderer
+					label="Image"
+					value={{
+						...selectedImage,
+						caption: "Old per-use credit",
+						meta: { ...selectedImage.meta, caption: "Old per-use credit" },
+					}}
+					onChange={onChange}
+				/>,
+			);
+			await screen.getByRole("button", { name: "Edit asset" }).click();
+			await screen
+				.getByRole("button", { name: caption ? "Save caption" : "Clear caption" })
+				.click();
+			expect(onChange).toHaveBeenCalledWith(
+				expect.objectContaining({
+					caption,
+					alt: "Saved alt",
+					meta: { storageKey: "featured-image.jpg", caption },
+				}),
+			);
+		},
+	);
 
 	it("refreshes a custom field preview from the edited item without persisting its content hash", async () => {
 		let persistedValue: ImageFieldValue | null | undefined;
@@ -681,10 +822,12 @@ describe("ImageFieldRenderer", () => {
 			).toBe(true);
 		});
 		observer.disconnect();
+		expect(persistedValue).toHaveProperty("caption", "Cropped asset caption");
 		expect(persistedValue).not.toHaveProperty("contentHash");
 	});
 
 	it("refreshes both previews when light and dark variants share one replaced asset", async () => {
+		const onChange = vi.fn();
 		function Harness() {
 			const [value, setValue] = React.useState<ImageFieldValue>({
 				...selectedImage,
@@ -694,7 +837,10 @@ describe("ImageFieldRenderer", () => {
 				<ImageFieldRenderer
 					label="Image"
 					value={value}
-					onChange={(next) => next && setValue(next)}
+					onChange={(next) => {
+						if (next) onChange(next);
+						if (next) setValue(next);
+					}}
 					darkVariant
 				/>
 			);
@@ -720,5 +866,8 @@ describe("ImageFieldRenderer", () => {
 			expect(sources.filter((source) => source.endsWith(refreshedSource))).toHaveLength(2);
 		});
 		observer.disconnect();
+		expect(onChange).toHaveBeenCalledWith(
+			expect.objectContaining({ caption: "Edited asset caption" }),
+		);
 	});
 });

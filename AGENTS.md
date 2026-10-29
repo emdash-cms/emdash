@@ -4,6 +4,8 @@ For human-facing contributor info (setup, repo layout, PR policy, i18n), see [CO
 
 Follow [AI_POLICY.md](AI_POLICY.md) for external actions and project communication. In particular, do not open design PRs, and do not comment on issues, Discussions, or design PRs. On implementation PRs, post only a specifically requested code review or a reply to code review, and sign agent-written comments posted from a human account as the policy requires.
 
+To check the autofix bot's status on an issue or PR, read `https://autofix.emdashcms.com/api/cases?issue=N`, where N is the issue or PR number.
+
 `CLAUDE.md` is a symlink to this file. `.agents/skills` and `.claude/skills` are symlinks to `skills/`. Don't try to sync between them.
 
 When writing, revising, or reviewing documentation, load the `writing-emdash-docs` skill. Use it for public docs, READMEs, contributor guidance, technical specifications, release notes and changesets, and skill instructions.
@@ -40,7 +42,9 @@ A changeset is user-facing documentation that lands verbatim in a package CHANGE
 
 When opening an implementation PR with `gh`/the API, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body and fill every section. When helping prepare a design PR for a human to open, use `.github/PULL_REQUEST_TEMPLATE/design.md` instead. The GitHub UI injects a template automatically but the CLI does not, and PRs missing one are auto-closed. Check the AI assistance disclosure box and name the model. Tick checklist items only for what you actually verified; for test-only/docs/CI PRs, note why changeset, i18n, screenshots, or design links are not applicable.
 
-Issues that refer to the interface must include a screenshot that shows the reported state. PRs that change the UI must include screenshots of the rendered result; include before-and-after images when the change is not clear from the result alone. Keep the behavior described in text and give every image useful alt text.
+Issues that refer to the interface must include a screenshot that shows the reported state. PRs that change the UI must include before-and-after screenshots of every screen they affect; for a new screen, the after state is enough. Keep the behavior described in text and give every image useful alt text.
+
+Lay out screenshots as [CONTRIBUTING.md § Interface screenshots](CONTRIBUTING.md#interface-screenshots) shows: each pair side by side in a two-column table, cropped to the changed area, at the same viewport and with the same content, and extra states such as Arabic in a collapsed `<details>` block.
 
 Agents can attach local images with GitHub CLI 2.99.0 or later. The `--attach` flag is repeatable on `gh issue create|edit|comment` and `gh pr create|edit|comment`. For example:
 

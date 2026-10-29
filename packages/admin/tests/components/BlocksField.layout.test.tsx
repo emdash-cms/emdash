@@ -4,10 +4,16 @@ import { userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
 import { BlocksField } from "../../src/components/BlocksField.js";
-import type { BlockType } from "../../src/lib/api/schema.js";
+import { RepeaterField } from "../../src/components/RepeaterField.js";
+import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
 import { render } from "../utils/render.js";
 
-function blockType(slug: string, label: string, description?: string): BlockType {
+function blockType(
+	slug: string,
+	label: string,
+	description?: string,
+	fields: BlockFieldDefinition[] = [{ slug: "title", label: "Title", type: "string" }],
+): BlockType {
 	return {
 		id: `${slug}-id`,
 		slug,
@@ -23,7 +29,7 @@ function blockType(slug: string, label: string, description?: string): BlockType
 				id: `${slug}-v1`,
 				blockTypeId: `${slug}-id`,
 				version: 1,
-				fields: [{ slug: "title", label: "Title", type: "string" }],
+				fields,
 				fingerprint: `${slug}-v1`,
 				active: true,
 				createdAt: "2026-01-01T00:00:00.000Z",
@@ -158,4 +164,61 @@ describe("Block card layout", () => {
 		const duplicate = screen.getByRole("button", { name: "Duplicate block" }).element();
 		expect(labelBox.right).toBeLessThanOrEqual(duplicate.getBoundingClientRect().left);
 	});
+
+	it.each(["ltr", "rtl"] as const)(
+		"keeps a long repeater item title from widening the field (%s)",
+		async (dir) => {
+			const quoteFields = [{ slug: "quote", label: "Quote", type: "text" }];
+			const quote =
+				"We found more savings in the first month than in five years of energy audits, and the people who run our buildings finally trust the numbers they see every morning.";
+			const screen = await render(
+				<div dir={dir} data-testid="scroller" style={{ width: 640, overflow: "auto" }}>
+					<BlocksField
+						id="field-layout"
+						fieldPath="layout"
+						label="Layout"
+						value={[{ _type: "testimonials", _version: 1, _key: "block-1", quotes: [{ quote }] }]}
+						onChange={() => {}}
+						blockTypes={[
+							blockType("testimonials", "Testimonials", undefined, [
+								{
+									slug: "quotes",
+									label: "Quotes",
+									type: "repeater",
+									validation: { subFields: quoteFields },
+								},
+							]),
+						]}
+						allowedTypes={["testimonials"]}
+						retiredTypes={[]}
+						renderField={({ name, field, value, onChange }) => (
+							<RepeaterField
+								key={name}
+								id={name}
+								label={field.label ?? name}
+								value={value}
+								onChange={onChange}
+								subFields={quoteFields}
+							/>
+						)}
+					/>
+				</div>,
+			);
+
+			const scroller = screen.getByTestId("scroller").element();
+			const bounds = scroller.getBoundingClientRect();
+			expect(scroller.scrollWidth).toBeLessThanOrEqual(scroller.clientWidth);
+			for (const name of [
+				"Add block",
+				"Duplicate block",
+				"Delete block",
+				"Add Item",
+				"Remove item 1",
+			]) {
+				const control = screen.getByRole("button", { name }).element().getBoundingClientRect();
+				expect(control.left, name).toBeGreaterThanOrEqual(bounds.left);
+				expect(control.right, name).toBeLessThanOrEqual(bounds.right);
+			}
+		},
+	);
 });
