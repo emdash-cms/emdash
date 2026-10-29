@@ -852,6 +852,7 @@ async function applySeedWrites(
 		try {
 			// Create content entries
 			for (const [collectionSlug, entries] of Object.entries(seed.content)) {
+				const clearedTaxonomyGroups = new Set<string>();
 				const collectionInfo = await schemaRegistry.getCollectionWithFields(collectionSlug);
 				const collectionRoutable = collectionInfo?.routable !== false;
 				const referenceFields = referenceFieldsOf(collectionInfo);
@@ -960,7 +961,8 @@ async function applySeedWrites(
 										existing.id,
 										entry,
 										existing.locale ?? entryLocale,
-										true,
+										existing.translationGroup ?? existing.id,
+										clearedTaxonomyGroups,
 									);
 									await applyContentReferences(trx, collectionSlug, existing.id, edges);
 
@@ -1091,7 +1093,15 @@ async function applySeedWrites(
 								entry,
 								seedBylineIdMap,
 							);
-							await applyContentTaxonomies(trx, collectionSlug, item.id, entry, entryLocale, false);
+							await applyContentTaxonomies(
+								trx,
+								collectionSlug,
+								item.id,
+								entry,
+								entryLocale,
+								undefined,
+								clearedTaxonomyGroups,
+							);
 							await applyContentReferences(trx, collectionSlug, item.id, edges);
 
 							// Seed is declarative — when status is "published", promote to a live
@@ -2103,18 +2113,21 @@ async function applyContentTaxonomies(
 	contentId: string,
 	entry: { taxonomies?: Record<string, string[]> },
 	locale: string,
-	isUpdate: boolean,
+	updateGroup: string | undefined,
+	clearedGroups: Set<string>,
 ): Promise<void> {
 	const termRepo = new TaxonomyRepository(db);
-	// In update mode, clear existing taxonomy assignments first
-	if (isUpdate) {
+	// Assignments are shared by all translations; later translations add to the same set.
+	const shouldClear = updateGroup !== undefined && !clearedGroups.has(updateGroup);
+	if (shouldClear) {
 		await termRepo.clearEntryTerms(collectionSlug, contentId);
+		clearedGroups.add(updateGroup);
 	}
 
 	if (!entry.taxonomies) {
 		// In update mode we may have just deleted rows above; invalidate so
 		// hydration doesn't serve stale "has terms" cached value.
-		if (isUpdate) {
+		if (shouldClear) {
 			const { invalidateTermCache } = await import("../taxonomies/index.js");
 			invalidateTermCache();
 		}
