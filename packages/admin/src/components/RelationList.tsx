@@ -7,7 +7,7 @@
  * behind, and this page is the only way to reach it again.
  */
 
-import { Button } from "@cloudflare/kumo";
+import { Button, DropdownMenu } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowRight, Pencil, Plus, Trash } from "@phosphor-icons/react";
@@ -19,7 +19,18 @@ import type {
 	RelationWithUsage,
 	UpdateRelationInput,
 } from "../lib/api/relations.js";
+import { cn } from "../lib/utils.js";
 import { ArrowPrev } from "./ArrowIcons.js";
+import {
+	DataTable,
+	DataTableMessage,
+	RowActionsMenu,
+	RowMeta,
+	RowTitleButton,
+	cellCodeClassName,
+	secondaryColumn,
+	tertiaryColumn,
+} from "./DataTable.js";
 import { RelationDeleteDialog } from "./RelationDeleteDialog.js";
 import { RelationDialog } from "./RelationDialog.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
@@ -55,7 +66,7 @@ export function RelationList({
 
 	return (
 		<div className="space-y-4">
-			<div className="flex items-center justify-between gap-4">
+			<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
 				<div className="flex items-center gap-4 min-w-0">
 					<RouterLinkButton
 						to="/content-types"
@@ -82,53 +93,41 @@ export function RelationList({
 				</div>
 			)}
 
-			<div className="rounded-md border bg-kumo-base overflow-x-auto">
-				<table className="w-full">
-					<thead>
-						<tr className="border-b bg-kumo-tint/50">
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Slug`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Connects`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Fields`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Links`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
-								{t`Actions`}
-							</th>
-						</tr>
-					</thead>
-					<tbody className="divide-y divide-kumo-line">
-						{isLoading ? (
-							<tr>
-								<td colSpan={5} className="px-4 py-8 text-center text-kumo-subtle">
-									{t`Loading relations...`}
-								</td>
-							</tr>
-						) : relations.length === 0 ? (
-							<tr>
-								<td colSpan={5} className="px-4 py-8 text-center text-kumo-subtle">
-									{t`No relations yet.`}
-								</td>
-							</tr>
-						) : (
-							relations.map((relation) => (
-								<RelationRow
-									key={relation.id}
-									relation={relation}
-									onEdit={() => setEditing(relation)}
-									onDelete={() => setDeleting(relation)}
-								/>
-							))
-						)}
-					</tbody>
-				</table>
-			</div>
+			<DataTable>
+				<thead>
+					<tr>
+						<th scope="col">{t`Slug`}</th>
+						<th scope="col" {...secondaryColumn}>
+							{t`Connects`}
+						</th>
+						<th scope="col" {...tertiaryColumn}>
+							{t`Fields`}
+						</th>
+						<th scope="col" {...secondaryColumn}>
+							{t`Links`}
+						</th>
+						<th scope="col" className="w-0">
+							<span className="sr-only">{t`Actions`}</span>
+						</th>
+					</tr>
+				</thead>
+				<tbody>
+					{isLoading ? (
+						<DataTableMessage colSpan={5}>{t`Loading relations...`}</DataTableMessage>
+					) : relations.length === 0 ? (
+						<DataTableMessage colSpan={5}>{t`No relations yet.`}</DataTableMessage>
+					) : (
+						relations.map((relation) => (
+							<RelationRow
+								key={relation.id}
+								relation={relation}
+								onEdit={() => setEditing(relation)}
+								onDelete={() => setDeleting(relation)}
+							/>
+						))
+					)}
+				</tbody>
+			</DataTable>
 
 			<RelationDialog
 				open={createOpen}
@@ -176,31 +175,48 @@ function RelationRow({
 }) {
 	const { t } = useLingui();
 
+	const connects = (
+		<span className="inline-flex flex-wrap items-center gap-x-2 text-sm">
+			<span className={cellCodeClassName}>{relation.parentCollection}</span>
+			<ArrowRight className="h-3.5 w-3.5 text-kumo-subtle rtl:-scale-x-100" aria-hidden="true" />
+			<span className={cellCodeClassName}>{relation.childCollection}</span>
+		</span>
+	);
+	const links = plural(relation.linkCount, { one: "# link", other: "# links" });
+	const fieldCount =
+		relation.boundFields.length === 0
+			? t`No fields`
+			: plural(relation.boundFields.length, { one: "# field", other: "# fields" });
+
 	return (
-		<tr className="hover:bg-kumo-tint/25">
-			<td className="px-4 py-3">
-				<code dir="ltr" className="text-sm font-medium">
-					{relation.slug}
-				</code>
+		<tr>
+			<td>
+				<RowTitleButton aria-label={t`Edit ${relation.slug}`} onClick={onEdit}>
+					<code dir="ltr" className="text-sm wrap-anywhere">
+						{relation.slug}
+					</code>
+				</RowTitleButton>
+				<RowMeta>
+					{connects}
+					<span aria-hidden="true">·</span>
+					<span className="text-sm">{links}</span>
+				</RowMeta>
+				<RowMeta priority="tertiary">
+					<span className="text-sm">{fieldCount}</span>
+				</RowMeta>
 			</td>
-			<td className="px-4 py-3">
-				<div className="flex items-center gap-2 text-sm">
-					<span>{relation.parentCollection}</span>
-					<ArrowRight
-						className="h-3.5 w-3.5 text-kumo-subtle rtl:-scale-x-100"
-						aria-hidden="true"
-					/>
-					<span>{relation.childCollection}</span>
-				</div>
-			</td>
-			<td className="px-4 py-3">
+			<td {...secondaryColumn}>{connects}</td>
+			<td {...tertiaryColumn}>
 				{relation.boundFields.length === 0 ? (
 					<span className="text-sm text-kumo-subtle">{t`No fields`}</span>
 				) : (
-					<ul className="space-y-1">
+					<ul className="space-y-1 text-sm">
 						{relation.boundFields.map((bound) => (
-							<li key={`${bound.collectionSlug}.${bound.fieldSlug}`} className="text-sm">
-								<code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded">
+							<li key={`${bound.collectionSlug}.${bound.fieldSlug}`}>
+								<code
+									dir="ltr"
+									className={cn(cellCodeClassName, "rounded bg-kumo-tint px-1.5 py-0.5")}
+								>
 									{bound.collectionSlug}.{bound.fieldSlug}
 								</code>
 								<span className="ms-2 text-xs text-kumo-subtle">
@@ -213,26 +229,27 @@ function RelationRow({
 					</ul>
 				)}
 			</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle">
-				{plural(relation.linkCount, { one: "# link", other: "# links" })}
+			<td className="text-sm whitespace-nowrap text-kumo-subtle" {...secondaryColumn}>
+				{links}
 			</td>
-			<td className="px-4 py-3">
-				<div className="flex items-center justify-end gap-1">
-					<Button
+			<td className="text-end">
+				<RowActionsMenu label={t`Actions for ${relation.slug}`}>
+					<DropdownMenu.Item
+						icon={<Pencil className="me-2 size-4" aria-hidden="true" />}
 						onClick={onEdit}
-						aria-label={t`Edit ${relation.slug}`}
-						variant="ghost"
-						shape="square"
-						icon={<Pencil />}
-					/>
-					<Button
-						onClick={onDelete}
+					>
+						{t`Edit`}
+					</DropdownMenu.Item>
+					<DropdownMenu.Separator />
+					<DropdownMenu.Item
+						variant="danger"
+						icon={<Trash className="me-2 size-4" aria-hidden="true" />}
 						aria-label={t`Delete ${relation.slug}`}
-						variant="ghost"
-						shape="square"
-						icon={<Trash className="text-kumo-danger" />}
-					/>
-				</div>
+						onClick={onDelete}
+					>
+						{t`Delete`}
+					</DropdownMenu.Item>
+				</RowActionsMenu>
 			</td>
 		</tr>
 	);
