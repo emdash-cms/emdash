@@ -57,6 +57,15 @@ interface SandboxedContentEditorPanelProps {
 }
 
 type PanelAction = Exclude<ContentEditorPanelInteraction, { type: "panel_load" }>;
+type EditorDraftIdentity = Omit<BrowserEditorDraftRequest, "invocationId">;
+
+function getEditorDraftIdentity(
+	draft: BrowserEditorDraftRequest | null | undefined,
+): EditorDraftIdentity | null {
+	if (!draft) return null;
+	const { invocationId: _invocationId, ...identity } = draft;
+	return identity;
+}
 
 function sameInteractionValue(left: unknown, right: unknown): boolean {
 	if (Object.is(left, right)) return true;
@@ -109,7 +118,10 @@ export function SandboxedContentEditorPanel({
 		type: ContentEditorPanelInteraction["type"];
 		versionToken: string | undefined;
 	} | null>(null);
-	const lastInteraction = React.useRef<PanelAction | null>(null);
+	const lastInteraction = React.useRef<{
+		interaction: PanelAction;
+		draftIdentity: EditorDraftIdentity | null;
+	} | null>(null);
 	const requestQueue = React.useRef(Promise.resolve());
 	const pendingRequests = React.useRef(0);
 	const panelIdentity = `${pluginId}:${panelId}:${collection}:${entryId}:${locale ?? ""}`;
@@ -165,18 +177,33 @@ export function SandboxedContentEditorPanel({
 				panelIdentity === identityRef.current && requestGeneration === generation.current;
 			const isInteraction = interaction.type !== "panel_load";
 			if (isInteraction) {
+				// Compare the draft at click time; the invocation captures it again when dequeued.
+				let draftIdentity: EditorDraftIdentity | null = null;
+				if (draftAccess) {
+					try {
+						draftIdentity = getEditorDraftIdentity(captureDraft?.(draftAccess));
+					} catch {
+						draftIdentity = null;
+					}
+				}
 				const previous = lastInteraction.current;
 				if (
-					previous?.type === interaction.type &&
-					previous.action_id === interaction.action_id &&
-					previous.block_id === interaction.block_id &&
+					previous?.interaction.type === interaction.type &&
+					previous.interaction.action_id === interaction.action_id &&
+					previous.interaction.block_id === interaction.block_id &&
 					sameInteractionValue(
-						previous.type === "form_submit" ? previous.values : previous.value,
+						previous.interaction.type === "form_submit"
+							? previous.interaction.values
+							: previous.interaction.value,
 						interaction.type === "form_submit" ? interaction.values : interaction.value,
-					)
+					) &&
+					(!draftAccess ||
+						(draftIdentity !== null &&
+							previous.draftIdentity !== null &&
+							sameInteractionValue(previous.draftIdentity, draftIdentity)))
 				)
 					return Promise.resolve();
-				lastInteraction.current = interaction;
+				lastInteraction.current = { interaction, draftIdentity };
 			}
 			pendingRequests.current++;
 			setLoading(true);
@@ -198,6 +225,9 @@ export function SandboxedContentEditorPanel({
 						if (!canApplyResponse()) return;
 						setError(false);
 						const draft = !isInteraction || !draftAccess ? null : captureDraft?.(draftAccess);
+						if (lastInteraction.current?.interaction === interaction) {
+							lastInteraction.current.draftIdentity = getEditorDraftIdentity(draft);
+						}
 						const requestInteraction = draft ? { ...interaction, draft } : interaction;
 						const response = await apiFetch(
 							editorExtensionUrl(collection, entryId, pluginId, "panel", panelId, locale),
@@ -242,7 +272,8 @@ export function SandboxedContentEditorPanel({
 						pendingRequests.current--;
 						setLoading(pendingRequests.current > 0);
 						if (showPending) setPendingInteractions((count) => count - 1);
-						if (lastInteraction.current === interaction) lastInteraction.current = null;
+						if (lastInteraction.current?.interaction === interaction)
+							lastInteraction.current = null;
 					}
 				}
 			};

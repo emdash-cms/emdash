@@ -1,4 +1,4 @@
-import { Toasty } from "@cloudflare/kumo";
+import { Input, Toasty } from "@cloudflare/kumo";
 import type { Block } from "@emdash-cms/blocks";
 import * as React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -759,6 +759,142 @@ describe("SandboxedContentEditorPanel", () => {
 		},
 	);
 
+	it.each(["title", "description"] as const)(
+		"queues an identical draft-aware action after editing the entry %s",
+		async (field) => {
+			const blocks: Block[] = [
+				{
+					type: "actions",
+					elements: [{ type: "button", action_id: "translate", label: "Translate" }],
+				},
+			];
+			const first = Promise.withResolvers<Response>();
+			const second = Promise.withResolvers<Response>();
+			const fetchMock = vi
+				.fn<typeof fetch>()
+				.mockResolvedValueOnce(Response.json({ data: { blocks } }))
+				.mockReturnValueOnce(first.promise)
+				.mockReturnValueOnce(second.promise);
+			vi.stubGlobal("fetch", fetchMock);
+			function Editor() {
+				const [entry, setEntry] = React.useState({
+					title: "Original title",
+					description: "Original description",
+				});
+				const editorGeneration = React.useRef(1);
+				const entryRef = React.useRef(entry);
+				entryRef.current = entry;
+				return (
+					<>
+						{(["title", "description"] as const).map((name) => (
+							<Input
+								key={name}
+								label={`Entry ${name}`}
+								value={entry[name]}
+								onChange={(event) => {
+									editorGeneration.current++;
+									setEntry({ ...entry, [name]: event.target.value });
+								}}
+							/>
+						))}
+						<SandboxedContentEditorPanel
+							pluginId="translator"
+							panelId="translation"
+							title="Translation"
+							collection="posts"
+							entryId="post-1"
+							draftAccess={{ read: { fields: ["title"] }, patch: { fields: ["title"] } }}
+							captureDraft={() => ({
+								collection: "posts",
+								entryId: "post-1",
+								locale: "en",
+								baseRevision: "rev-1",
+								generation: editorGeneration.current,
+								invocationId: crypto.randomUUID(),
+								fields: { title: entryRef.current.title },
+							})}
+						/>
+					</>
+				);
+			}
+			const screen = await render(<Editor />, { wrapper: Wrapper });
+			await userEvent.click(screen.getByRole("button", { name: "Translation" }));
+			const translate = screen.getByRole("button", { name: "Translate", exact: true });
+			await userEvent.click(translate);
+			await userEvent.click(translate);
+			expect(fetchMock).toHaveBeenCalledTimes(2);
+			const original = requestBody(fetchMock, 1);
+			expect(original).toMatchObject({
+				type: "block_action",
+				action_id: "translate",
+				draft: { generation: 1, fields: { title: "Original title" } },
+			});
+			await screen.getByRole("textbox", { name: `Entry ${field}` }).fill("Edited entry");
+			await userEvent.click(translate);
+			await userEvent.click(translate);
+			expect(fetchMock).toHaveBeenCalledTimes(2);
+			await screen.getByRole("textbox", { name: `Entry ${field}` }).fill("Latest entry");
+			first.resolve(Response.json({ data: { blocks } }));
+			await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+			const updated = requestBody(fetchMock, 2);
+			expect(updated).toMatchObject({
+				type: "block_action",
+				action_id: "translate",
+				draft: { fields: { title: field === "title" ? "Latest entry" : "Original title" } },
+			});
+			expect(updated.draft.generation).toBeGreaterThan(original.draft.generation);
+			expect(updated.draft.invocationId).not.toBe(original.draft.invocationId);
+			expect(fetchMock.mock.calls[1]?.[1]?.signal?.aborted).toBe(false);
+			await userEvent.click(translate);
+			second.resolve(Response.json({ data: { blocks } }));
+			await expect.element(screen.getByRole("status")).toHaveTextContent("");
+			expect(fetchMock).toHaveBeenCalledTimes(3);
+		},
+	);
+
+	it.each(["missing", "null"] as const)(
+		"does not suppress draft-aware actions when their editor draft identity is %s",
+		async (identity) => {
+			const blocks: Block[] = [
+				{
+					type: "actions",
+					elements: [{ type: "button", action_id: "translate", label: "Translate" }],
+				},
+			];
+			const pending = Promise.withResolvers<Response>();
+			const fetchMock = vi
+				.fn<typeof fetch>()
+				.mockResolvedValueOnce(Response.json({ data: { blocks } }))
+				.mockReturnValueOnce(pending.promise)
+				.mockResolvedValueOnce(Response.json({ data: { blocks } }));
+			vi.stubGlobal("fetch", fetchMock);
+			const screen = await render(
+				<SandboxedContentEditorPanel
+					pluginId="translator"
+					panelId="translation"
+					title="Translation"
+					collection="posts"
+					entryId="post-1"
+					draftAccess={{ read: { fields: ["title"] } }}
+					captureDraft={identity === "missing" ? undefined : () => null}
+				/>,
+				{ wrapper: Wrapper },
+			);
+			await userEvent.click(screen.getByRole("button", { name: "Translation" }));
+			const translate = screen.getByRole("button", { name: "Translate", exact: true });
+			await userEvent.click(translate);
+			await userEvent.click(translate);
+			expect(fetchMock).toHaveBeenCalledTimes(2);
+			pending.resolve(Response.json({ data: { blocks } }));
+			await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+			expect(requestBody(fetchMock, 2)).toMatchObject({
+				type: "block_action",
+				action_id: "translate",
+			});
+			await expect.element(screen.getByRole("status")).toHaveTextContent("");
+		},
+	);
+
 	it("captures draft data only after an explicit panel action", async () => {
 		const fetchMock = vi
 			.fn<() => Promise<Response>>()
@@ -823,7 +959,7 @@ describe("SandboxedContentEditorPanel", () => {
 		expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({ type: "panel_load" });
 		await userEvent.click(screen.getByRole("button", { name: "Translate" }));
 		await vi.waitFor(() => expect(onDraftResponse).toHaveBeenCalledTimes(1));
-		expect(captureDraft).toHaveBeenCalledTimes(1);
+		expect(captureDraft).toHaveBeenCalledTimes(2);
 		expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toMatchObject({
 			type: "block_action",
 			action_id: "translate",
