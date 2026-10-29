@@ -152,14 +152,23 @@ test.describe("Autosave", () => {
 		expect(manualResponse.request().postDataJSON()).not.toHaveProperty("skipRevision");
 		await admin.waitForSaveComplete();
 		await page.getByRole("button", { name: "Close settings", exact: true }).click();
+		await title.click();
+		await expect(title).toBeFocused();
 
 		const laterAutosave = page.waitForResponse(
-			(response) => response.url().includes(contentUrl) && response.request().method() === "PUT",
+			(response) =>
+				response.url().includes(contentUrl) &&
+				response.request().method() === "PUT" &&
+				response.request().postDataJSON()?.data?.title === "Later changes",
 		);
 		await title.fill("Later changes");
+		await expect(title).toHaveValue("Later changes");
 		expect((await laterAutosave).status()).toBe(200);
 		await admin.waitForSaveComplete();
 		const after = await (await fetch(`${baseUrl}${contentUrl}/revisions`, { headers })).json();
+		expect(after.data.items).toContainEqual(
+			expect.objectContaining({ data: expect.objectContaining({ title: "Later changes" }) }),
+		);
 		expect(after.data.items).toContainEqual(
 			expect.objectContaining({
 				id: checkpointId,
@@ -167,6 +176,7 @@ test.describe("Autosave", () => {
 			}),
 		);
 		await expect(page.getByRole("status").filter({ hasText: "Saved" })).toHaveText("Saved");
+		await expect(title).toHaveValue("Later changes");
 	});
 
 	test("does not resend a rejected autosave until the content changes", async ({ admin }) => {
@@ -227,7 +237,11 @@ test.describe("Autosave", () => {
 		await admin.page.locator("#field-excerpt").fill("short");
 		expect((await rejectedPut).status()).toBe(400);
 
-		await expect(admin.page.getByText("Summary needs at least 10 characters.")).toBeVisible();
+		await expect(
+			admin.page
+				.getByRole("alert")
+				.getByText("Summary needs at least 10 characters.", { exact: true }),
+		).toBeVisible();
 		await expect(admin.page.getByText("excerpt:", { exact: false })).toHaveCount(0);
 	});
 });
