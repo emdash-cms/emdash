@@ -1,0 +1,23 @@
+packages/admin/src/components/DataTable.tsx
+  s_f567737122c9e5::t_a17686a09eeb36 23-24
+packages/admin/src/components/TaxonomyManager.tsx
+  s_f567737122c9e5::t_ca4300c7466886 292,1410
+packages/admin/src/routes/bylines.tsx
+  s_f567737122c9e5::t_d533cf24d186e3 339,354
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6d63664aec94f38d7b3668b11e4e3ff6f7b5b6af",
+  "prompts": {},
+  "sessions": {
+    "s_f567737122c9e5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "80025384-f6c6-4da6-b0ac-2c0fede0a738",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
