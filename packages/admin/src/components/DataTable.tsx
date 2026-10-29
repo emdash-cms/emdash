@@ -5,13 +5,30 @@ import type * as React from "react";
 import { cn } from "../lib/utils.js";
 
 /**
+ * Spread on a column's header and on each of its cells to hide the column while
+ * the table is narrower than 28rem. Repeat what matters from it in `RowMeta`.
+ */
+export const secondaryColumn = { "data-priority": "secondary" } as const;
+
+/**
+ * Spread on a column's header and on each of its cells to hide the column while
+ * the table is narrower than 42rem. To repeat it, use `RowMeta` with `priority="tertiary"`.
+ */
+export const tertiaryColumn = { "data-priority": "tertiary" } as const;
+
+export type ColumnPriority = (typeof secondaryColumn | typeof tertiaryColumn)["data-priority"];
+
+/**
  * A Kumo table laid out like a LayerCard: the header row sits on the tinted
  * outer layer and the rows on a raised card inside it. Cell padding, background
  * and borders come from the table, so a class on a single cell can't change them.
+ *
+ * Breakpoints follow the table's own width, not the viewport's, because the
+ * sidebar takes part of the screen from 768px up.
  */
 export function DataTable({ className, children, ...props }: React.ComponentProps<typeof Table>) {
 	return (
-		<div className="overflow-x-auto rounded-xl bg-kumo-elevated ring ring-kumo-line">
+		<div className="@container overflow-x-auto rounded-xl bg-kumo-elevated ring ring-kumo-line">
 			<Table
 				{...props}
 				className={cn(
@@ -24,11 +41,45 @@ export function DataTable({ className, children, ...props }: React.ComponentProp
 					"[&_tr[data-selected]_td]:bg-kumo-tint",
 					"[&_tbody_tr:first-child_td]:border-t",
 					"[&_tbody_tr:first-child_td:first-child]:rounded-ss-xl [&_tbody_tr:first-child_td:last-child]:rounded-se-xl",
+					"@max-md:[&_th]:px-3 @max-md:[&_td]:px-3",
+					"@max-md:[&_:is(th,td)[data-priority=secondary]]:hidden @max-2xl:[&_:is(th,td)[data-priority=tertiary]]:hidden",
+					// The card's top-end corner belongs to the last cell still shown.
+					"@max-md:[&_tbody_tr:first-child_td:nth-last-child(1_of_:not([data-priority]))]:rounded-se-xl",
+					"@max-2xl:[&_tbody_tr:first-child_td:nth-last-child(1_of_:not([data-priority=tertiary]))]:rounded-se-xl",
 					className,
 				)}
 			>
 				{children}
 			</Table>
+		</div>
+	);
+}
+
+const rowMetaHidden: Record<ColumnPriority, string> = {
+	secondary: "@md:hidden",
+	tertiary: "@2xl:hidden",
+};
+
+/**
+ * Details shown under a row's name while the columns they repeat are hidden: below 28rem
+ * for a `priority` of `"secondary"`, the default, and below 42rem for `"tertiary"`.
+ * Badges and other nowrap content inside it wrap, so a long label can't widen the table.
+ */
+export function RowMeta({
+	priority = "secondary",
+	children,
+}: {
+	priority?: ColumnPriority;
+	children: React.ReactNode;
+}) {
+	return (
+		<div
+			className={cn(
+				"mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-kumo-subtle [&_*]:max-w-full [&_*]:whitespace-normal",
+				rowMetaHidden[priority],
+			)}
+		>
+			{children}
 		</div>
 	);
 }
@@ -51,7 +102,7 @@ export function DataTableMessage({
 }
 
 /** Styles the name that opens a row's record, as a link or a button. */
-export const rowTitleClassName = "font-medium hover:text-kumo-link";
+export const rowTitleClassName = "font-medium @max-2xl:wrap-anywhere hover:text-kumo-link";
 
 /** A row's name as a button, for rows whose record opens in place rather than at a URL. */
 export function RowTitleButton({ className, ...props }: React.ComponentProps<"button">) {
