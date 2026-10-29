@@ -42,7 +42,7 @@ import type { Database } from "../../../src/database/types.js";
 import { __setObjectCacheBackendForTests, cachedQuery } from "../../../src/object-cache/index.js";
 import { generatePreviewToken } from "../../../src/preview/tokens.js";
 import { getEmDashEntry } from "../../../src/query.js";
-import { getRequestContext } from "../../../src/request-context.js";
+import { getRequestContext, runWithContext } from "../../../src/request-context.js";
 import { createPostFixture } from "../../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -52,6 +52,7 @@ function buildContext(opts: {
 	user?: { id: string; role: number } | null;
 	editCookie?: boolean;
 	playgroundDb?: Kysely<Database>;
+	emdashDb?: Kysely<Database>;
 	cache: { enabled?: boolean; set: (input: unknown) => void } | undefined;
 }) {
 	const url = new URL(`https://example.com${opts.pathname ?? "/blog"}${opts.search ?? ""}`);
@@ -64,7 +65,11 @@ function buildContext(opts: {
 			),
 			set: vi.fn(),
 		},
-		locals: { user: opts.user ?? null, __playgroundDb: opts.playgroundDb },
+		locals: {
+			user: opts.user ?? null,
+			emdash: opts.emdashDb && { db: opts.emdashDb },
+			__playgroundDb: opts.playgroundDb,
+		},
 		cache: opts.cache,
 	} as unknown as Parameters<typeof onRequest>[0];
 }
@@ -207,7 +212,7 @@ describe("requests without a route-cache handle", () => {
 	});
 });
 
-describe("Playground preview links", () => {
+describe("preview links", () => {
 	let db: Kysely<Database>;
 	let postId: string;
 
@@ -231,41 +236,48 @@ describe("Playground preview links", () => {
 		await teardownTestDatabase(db);
 	});
 
-	async function renderWithToken(token: string) {
+	async function renderWithToken(token: string, site: "Playground" | "standard" = "Playground") {
 		const cache = { set: vi.fn() };
 		const context = buildContext({
 			pathname: "/posts/first",
 			search: `?_preview=${encodeURIComponent(token)}`,
-			playgroundDb: db,
+			...(site === "Playground" ? { playgroundDb: db } : { emdashDb: db }),
 			cache,
 		});
-		const response = await onRequest(context, async () => {
-			const { entry } = await getEmDashEntry("post", "first");
-			return new Response(String(entry?.data.title));
-		});
+		// The runtime middleware runs first and puts the site database in the
+		// request context.
+		const response = await runWithContext({ editMode: false, db }, () =>
+			onRequest(context, async () => {
+				const { entry } = await getEmDashEntry("post", "first");
+				return new Response(String(entry?.data.title));
+			}),
+		);
 		return { response, cache };
 	}
 
-	async function sessionToken(expiresIn: string | number = "1h") {
+	async function siteToken(expiresIn: string | number = "1h") {
 		const { previewSecret } = await resolveSecretsCached(db);
 		return generatePreviewToken({ contentId: `post:${postId}`, secret: previewSecret, expiresIn });
 	}
 
-	it("renders the draft for a token signed by the session", async () => {
-		const { response, cache } = await renderWithToken(await sessionToken());
+	it.each(["Playground", "standard"] as const)(
+		"renders the draft, uncached, for a valid token on a %s site",
+		async (site) => {
+			const { response, cache } = await renderWithToken(await siteToken(), site);
 
-		expect(await response.text()).toBe("First draft");
-		expect(response.headers.get("Cache-Control")).toBe("private, no-store");
-		expect(cache.set).toHaveBeenCalledWith(false);
-	});
+			expect(await response.text()).toBe("First draft");
+			expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+			expect(cache.set).toHaveBeenCalledWith(false);
+		},
+	);
 
 	it.each([
-		{ name: "an expired token", token: () => sessionToken(-60) },
+		{ name: "an expired token", token: () => siteToken(-60) },
 		{
 			name: "a token signed with another secret",
 			token: () => generatePreviewToken({ contentId: `post:${postId}`, secret: "other-secret" }),
 		},
-	])("renders the published page for $name", async ({ token }) => {
+	])("renders the published page in the Playground for $name", async ({ token }) => {
 		const { response, cache } = await renderWithToken(await token());
 
 		expect(await response.text()).toBe("First live");
