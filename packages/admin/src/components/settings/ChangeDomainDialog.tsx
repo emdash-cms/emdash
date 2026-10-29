@@ -46,7 +46,7 @@ function domainCheckFailure(error: unknown): string | undefined {
 				? i18n._(msg`${origin} redirects to ${target}. Enter that address instead.`)
 				: i18n._(msg`${origin} redirects elsewhere`);
 		case "NOT_SERVING":
-			return i18n._(msg`${origin} does not serve this site yet`);
+			return i18n._(msg`Could not verify that ${origin} serves this site`);
 		default:
 			return undefined;
 	}
@@ -84,6 +84,10 @@ export function ChangeDomainDialog({
 	const isPending = checkMutation.isPending || uncheckedMutation.isPending;
 	const fallbackUrl = checkMutation.isError ? uncheckedSiteUrl(domain) : undefined;
 	const checkError = checkMutation.error;
+	const showWorkersHint =
+		checkError instanceof ApiResponseError &&
+		checkError.code === "DOMAIN_CHECK_FAILED" &&
+		(checkError.details?.reason === "NOT_SERVING" || checkError.details?.reason === "UNREACHABLE");
 	const errorMessage =
 		checkError instanceof ApiResponseError && checkError.code === "VALIDATION_ERROR"
 			? t`Enter a domain such as example.com, without a path or port`
@@ -149,6 +153,11 @@ export function ChangeDomainDialog({
 							<p>
 								{t`If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check.`}
 							</p>
+							{showWorkersHint && (
+								<p>
+									{t`On Cloudflare Workers, the check may fail because a Worker cannot reach its own domain. Open the new address in your browser and confirm it shows this site before choosing to use it anyway.`}
+								</p>
+							)}
 							<div>
 								<Button
 									type="button"
