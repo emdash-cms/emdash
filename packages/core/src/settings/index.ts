@@ -15,6 +15,7 @@ import { OptionsRepository } from "../database/repositories/options.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
+import { buildRenderMediaUrl } from "../media/url.js";
 import { cachedQuery, invalidateObjectCache } from "../object-cache/index.js";
 import { isRecord } from "../plugin-utils.js";
 import {
@@ -197,6 +198,34 @@ async function resolveMediaReference(
 	return mediaRef;
 }
 
+function withPublicMediaUrl(
+	ref: MediaReference,
+	resolve: (storageKey: string) => string,
+): MediaReference {
+	if (!ref.url) return ref;
+	return { ...ref, url: buildRenderMediaUrl(resolve, { url: ref.url }) };
+}
+
+/**
+ * Rewrite resolved media URLs through the request's storage adapter so a
+ * configured `publicUrl` applies. The cached snapshot keeps the internal
+ * route, so the result is a copy.
+ */
+function withPublicMediaUrls(settings: Partial<SiteSettings>): Partial<SiteSettings> {
+	const resolve = getRequestContext()?.publicMediaUrl;
+	if (!resolve) return settings;
+	const resolved = { ...settings };
+	if (settings.logo) resolved.logo = withPublicMediaUrl(settings.logo, resolve);
+	if (settings.favicon) resolved.favicon = withPublicMediaUrl(settings.favicon, resolve);
+	if (settings.seo?.defaultOgImage) {
+		resolved.seo = {
+			...settings.seo,
+			defaultOgImage: withPublicMediaUrl(settings.seo.defaultOgImage, resolve),
+		};
+	}
+	return resolved;
+}
+
 /**
  * Get a single site setting by key
  *
@@ -234,7 +263,11 @@ export async function getSiteSetting<K extends SiteSettingKey>(
 	// independently still share the in-flight query for each one.
 	return requestCached(`siteSetting:${key}`, async () => {
 		const db = await getDb();
-		return getSiteSettingWithDb(key, db);
+		const value = await getSiteSettingWithDb(key, db);
+		if (value === undefined) return undefined;
+		const settings: Partial<SiteSettings> = {};
+		settings[key] = value;
+		return withPublicMediaUrls(settings)[key];
 	});
 }
 
@@ -345,7 +378,7 @@ async function loadCachedSiteSettings(): Promise<CachedSiteSettings> {
  *
  * const settings = await getSiteSettings();
  * console.log(settings.title); // "My Site"
- * console.log(settings.logo?.url); // "/_emdash/api/media/file/abc123"
+ * console.log(settings.logo?.url); // "/_emdash/api/media/file/abc123.png", or the storage publicUrl
  * ```
  */
 export function getSiteSettings(): Promise<Partial<SiteSettings>> {
@@ -365,7 +398,7 @@ export function getSiteSettings(): Promise<Partial<SiteSettings>> {
 			}
 			return loaded;
 		});
-		return snapshot.data;
+		return withPublicMediaUrls(snapshot.data);
 	}).then(async (data) => {
 		const snapshot = await peekRequestCache<CachedSiteSettings>("siteSettingsSnapshot");
 		if (snapshot) getRequestContext()?.siteSettings?.onRead(snapshot.version);
