@@ -104,7 +104,6 @@ export function RevisionRestoreDialog({
 		<ConfirmDialog
 			open={open}
 			onClose={onClose}
-			compact
 			variant="primary"
 			title={t`Restore this version?`}
 			description={

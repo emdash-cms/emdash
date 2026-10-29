@@ -578,7 +578,6 @@ function ConfirmationDialog({
 			confirmLabel={retry ? t`Retry setup` : t`Turn on`}
 			pendingLabel={retry ? t`Retrying…` : t`Turning on…`}
 			variant="primary"
-			compact
 			preventCloseWhilePending
 			confirmDisabled={!drainAcknowledged}
 			isPending={pending}

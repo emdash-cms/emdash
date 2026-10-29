@@ -1918,7 +1918,6 @@ export function MediaDetailPanel({
 				}}
 				role="alertdialog"
 				title={t`Delete media?`}
-				titleClassName="text-[18px] font-semibold leading-6"
 				description={
 					<span className="text-[14px] leading-5">
 						{isProviderAsset
@@ -1928,11 +1927,9 @@ export function MediaDetailPanel({
 							: t`"${item.filename}" will be permanently deleted.`}
 					</span>
 				}
-				descriptionClassName="text-pretty text-[14px] leading-5 text-kumo-subtle"
 				confirmLabel={t`Delete`}
 				pendingLabel={t`Deleting...`}
 				isPending={deleteMutation.isPending}
-				compact
 				error={deleteMutation.error}
 				onConfirm={() => deleteMutation.mutate()}
 			>
@@ -1957,18 +1954,15 @@ export function MediaDetailPanel({
 				onClose={clearReplacement}
 				role="alertdialog"
 				title={t`Replace original image?`}
-				titleClassName="text-[18px] font-semibold leading-6"
 				description={
 					<span className="text-[14px] leading-5">
 						{t`Every place using this image will update to the selected version.`}
 					</span>
 				}
-				descriptionClassName="text-pretty text-[14px] leading-5 text-kumo-subtle"
 				confirmLabel={t`Replace image`}
 				pendingLabel={t`Replacing image...`}
 				isPending={isReplacing}
 				confirmDisabled={!replacementImage || replaceActionDisabled}
-				compact
 				preventCloseWhilePending
 				error={replaceMutation.error}
 				onConfirm={startReplacement}
@@ -1992,17 +1986,14 @@ export function MediaDetailPanel({
 				onClose={() => setShowCropConfirm(false)}
 				role="alertdialog"
 				title={t`Replace original image?`}
-				titleClassName="text-[18px] font-semibold leading-6"
 				description={
 					<span className="text-[14px] leading-5">
 						{t`Every place using this image will update to the cropped version.`}
 					</span>
 				}
-				descriptionClassName="text-pretty text-[14px] leading-5 text-kumo-subtle"
 				confirmLabel={t`Replace original`}
 				pendingLabel={t`Replacing original...`}
 				isPending={isCropping && cropMutation.variables === "replace"}
-				compact
 				preventCloseWhilePending
 				error={null}
 				onConfirm={() => startCrop("replace")}

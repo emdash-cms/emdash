@@ -1,4 +1,4 @@
-import { Button, Dialog } from "@cloudflare/kumo";
+import { Button, LayerDialog, Text } from "@cloudflare/kumo";
 import { Trans, useLingui } from "@lingui/react/macro";
 
 import type { EntryLockHolder } from "../lib/api/entry-lock.js";
@@ -29,33 +29,33 @@ export function EntryLockNotice({
 	if (state.status === "blocked") {
 		const name = holderName(state.holder, anotherEditor);
 		return (
-			<Dialog.Root
-				role="alertdialog"
+			<LayerDialog.Alert
 				open
 				onOpenChange={(next) => {
 					if (!next) onReadInstead();
 				}}
 			>
-				<Dialog className="p-6" size="sm">
-					<Dialog.Title dir="auto" className="text-lg font-semibold">
-						{t`This entry is open somewhere else`}
-					</Dialog.Title>
-					<Dialog.Description dir="auto" className="text-kumo-subtle">
-						<Trans>
-							<strong dir="auto">{name}</strong> is editing this entry. Open it read-only, or take
-							over; they will be told the entry moved on.
-						</Trans>
-					</Dialog.Description>
-					<div className="mt-6 flex justify-end gap-2">
-						<Button variant="secondary" onClick={onReadInstead}>
-							{t`Open read-only`}
-						</Button>
-						<Button variant="primary" disabled={isTakingOver} onClick={onTakeOver}>
+				<LayerDialog.Content size="sm">
+					<LayerDialog.Title>
+						<span dir="auto" className="block">
+							{t`This entry is open somewhere else`}
+						</span>
+					</LayerDialog.Title>
+					<LayerDialog.Body>
+						<Text variant="secondary" dir="auto">
+							<Trans>
+								<strong dir="auto">{name}</strong> is editing this entry. Open it read-only, or take
+								over; they will be told the entry moved on.
+							</Trans>
+						</Text>
+					</LayerDialog.Body>
+					<LayerDialog.Actions dismissLabel={t`Open read-only`}>
+						<LayerDialog.Action disabled={isTakingOver} onClick={onTakeOver}>
 							{isTakingOver ? t`Taking over...` : t`Take over`}
-						</Button>
-					</div>
-				</Dialog>
-			</Dialog.Root>
+						</LayerDialog.Action>
+					</LayerDialog.Actions>
+				</LayerDialog.Content>
+			</LayerDialog.Alert>
 		);
 	}
 

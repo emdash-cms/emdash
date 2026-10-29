@@ -5,7 +5,7 @@
  * cancel/confirm buttons with pending state. Dialog stays open on error.
  */
 
-import { Button, Dialog } from "@cloudflare/kumo";
+import { LayerDialog, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
@@ -17,12 +17,8 @@ export interface ConfirmDialogProps {
 	/** ARIA role; use alertdialog for destructive actions requiring acknowledgment. */
 	role?: "dialog" | "alertdialog";
 	title: string;
-	/** Optional typography override for a confirmation with stronger hierarchy. */
-	titleClassName?: string;
-	/** Static description or dynamic JSX content */
+	/** Static description or inline JSX; it renders inside a paragraph. */
 	description: React.ReactNode;
-	/** Optional typography override for the primary explanatory copy. */
-	descriptionClassName?: string;
 	/** Label for the confirm button (e.g. "Delete", "Disable User") */
 	confirmLabel: string;
 	/** Optional cancel label; defaults to the localized host label. */
@@ -31,8 +27,6 @@ export interface ConfirmDialogProps {
 	pendingLabel: string;
 	/** Button variant — defaults to "destructive" */
 	variant?: "destructive" | "primary";
-	/** Use tighter Kumo spacing for short, focused confirmations. */
-	compact?: boolean;
 	/** Prevent dismissing an irreversible request after it has started. */
 	preventCloseWhilePending?: boolean;
 	/** Disable confirmation until required input in the dialog is complete. */
@@ -50,14 +44,11 @@ export function ConfirmDialog({
 	onClose,
 	role = "dialog",
 	title,
-	titleClassName,
 	description,
-	descriptionClassName,
 	confirmLabel,
 	cancelLabel,
 	pendingLabel,
 	variant = "destructive",
-	compact = false,
 	preventCloseWhilePending = false,
 	confirmDisabled = false,
 	isPending,
@@ -67,45 +58,37 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
 	const { t } = useLingui();
 	const closeLocked = preventCloseWhilePending && isPending;
+	const Root = role === "alertdialog" ? LayerDialog.Alert : LayerDialog.Root;
 	return (
-		<Dialog.Root
-			role={role}
+		<Root
 			open={open}
 			onOpenChange={(nextOpen) => !nextOpen && !closeLocked && onClose()}
+			dismissDisabled={closeLocked}
 			disablePointerDismissal
 		>
-			<Dialog className={compact ? "max-w-md px-5 pt-6 pb-4" : "p-6"} size="sm">
-				<div className={compact ? "grid gap-1" : undefined}>
-					<Dialog.Title
-						dir="auto"
-						className={
-							titleClassName ??
-							(compact ? "text-lg font-semibold leading-6" : "text-lg font-semibold")
-						}
-					>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>
+					<span dir="auto" className="block">
 						{title}
-					</Dialog.Title>
-					<Dialog.Description
-						dir="auto"
-						className={
-							descriptionClassName ??
-							(compact ? "text-sm leading-5 text-pretty text-kumo-subtle" : "text-kumo-subtle")
-						}
-					>
+					</span>
+				</LayerDialog.Title>
+				<LayerDialog.Body>
+					<Text variant="secondary" dir="auto">
 						{description}
-					</Dialog.Description>
-				</div>
-				{children}
-				<DialogError message={getMutationError(error)} className="mt-3" />
-				<div className={`${compact ? "mt-5" : "mt-6"} flex justify-end gap-2`}>
-					<Button variant="secondary" disabled={closeLocked} onClick={onClose}>
-						{cancelLabel ?? t`Cancel`}
-					</Button>
-					<Button variant={variant} disabled={isPending || confirmDisabled} onClick={onConfirm}>
+					</Text>
+					{children}
+					<DialogError message={getMutationError(error)} className="mt-3" />
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={cancelLabel ?? t`Cancel`}>
+					<LayerDialog.Action
+						variant={variant}
+						disabled={isPending || confirmDisabled}
+						onClick={onConfirm}
+					>
 						{isPending ? pendingLabel : confirmLabel}
-					</Button>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</Root>
 	);
 }

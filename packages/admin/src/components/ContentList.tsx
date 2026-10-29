@@ -3,12 +3,13 @@ import {
 	Button,
 	Checkbox,
 	DatePicker,
-	Dialog,
 	DropdownMenu,
+	LayerDialog,
 	Loader,
 	Popover,
 	Select,
 	Tabs,
+	Text,
 } from "@cloudflare/kumo";
 import type { DateRange } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
@@ -460,6 +461,7 @@ export function ContentList({
 		[collection, pluginAdmins, pluginStates, userRole],
 	);
 	const [bulkBusy, setBulkBusy] = React.useState(false);
+	const [bulkTrashOpen, setBulkTrashOpen] = React.useState(false);
 	const runBulk = (fn?: BulkActionHandler) => {
 		if (!fn || selectedCount === 0 || bulkBusy) return;
 		const ids = [...selectedIds];
@@ -634,8 +636,12 @@ export function ContentList({
 									</span>
 								)}
 								{onBulkDelete && (
-									<Dialog.Root disablePointerDismissal>
-										<Dialog.Trigger
+									<LayerDialog.Root
+										open={bulkTrashOpen}
+										onOpenChange={setBulkTrashOpen}
+										disablePointerDismissal
+									>
+										<LayerDialog.Trigger
 											render={(p) => (
 												<Button
 													{...p}
@@ -648,32 +654,29 @@ export function ContentList({
 												</Button>
 											)}
 										/>
-										<Dialog className="p-6" size="sm">
-											<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-											<Dialog.Description className="text-kumo-subtle">
-												{plural(selectedCount, {
-													one: "Move # item to trash? You can restore it later.",
-													other: "Move # items to trash? You can restore them later.",
-												})}
-											</Dialog.Description>
-											<div className="mt-6 flex justify-end gap-2">
-												<Dialog.Close
-													render={(p) => (
-														<Button {...p} variant="secondary">
-															{t`Cancel`}
-														</Button>
-													)}
-												/>
-												<Dialog.Close
-													render={
-														<Button variant="destructive" onClick={() => runBulk(onBulkDelete)} />
-													}
+										<LayerDialog.Content size="sm">
+											<LayerDialog.Title>{t`Move to Trash?`}</LayerDialog.Title>
+											<LayerDialog.Body>
+												<Text variant="secondary">
+													{plural(selectedCount, {
+														one: "Move # item to trash? You can restore it later.",
+														other: "Move # items to trash? You can restore them later.",
+													})}
+												</Text>
+											</LayerDialog.Body>
+											<LayerDialog.Actions dismissLabel={t`Cancel`}>
+												<LayerDialog.Action
+													variant="destructive"
+													onClick={() => {
+														setBulkTrashOpen(false);
+														runBulk(onBulkDelete);
+													}}
 												>
 													{t`Move to Trash`}
-												</Dialog.Close>
-											</div>
-										</Dialog>
-									</Dialog.Root>
+												</LayerDialog.Action>
+											</LayerDialog.Actions>
+										</LayerDialog.Content>
+									</LayerDialog.Root>
 								)}
 								<Button
 									size="sm"
@@ -1483,28 +1486,25 @@ function ContentListItem({
 						{t`Move to trash`}
 					</DropdownMenu.Item>
 				</RowActionsMenu>
-				<Dialog.Root open={trashOpen} onOpenChange={setTrashOpen} disablePointerDismissal>
-					<Dialog className="p-6" size="sm">
-						<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-						<Dialog.Description className="text-kumo-subtle">
-							{t`Move "${title}" to trash? You can restore it later.`}
-						</Dialog.Description>
-						<div className="mt-6 flex justify-end gap-2">
-							<Dialog.Close
-								render={(p) => (
-									<Button {...p} variant="secondary">
-										{t`Cancel`}
-									</Button>
-								)}
-							/>
-							<Dialog.Close
-								render={<Button variant="destructive" onClick={() => onDelete?.(item.id)} />}
+				<LayerDialog.Root open={trashOpen} onOpenChange={setTrashOpen} disablePointerDismissal>
+					<LayerDialog.Content size="sm">
+						<LayerDialog.Title>{t`Move to Trash?`}</LayerDialog.Title>
+						<LayerDialog.Body>
+							<Text variant="secondary">{t`Move "${title}" to trash? You can restore it later.`}</Text>
+						</LayerDialog.Body>
+						<LayerDialog.Actions dismissLabel={t`Cancel`}>
+							<LayerDialog.Action
+								variant="destructive"
+								onClick={() => {
+									setTrashOpen(false);
+									onDelete?.(item.id);
+								}}
 							>
 								{t`Move to Trash`}
-							</Dialog.Close>
-						</div>
-					</Dialog>
-				</Dialog.Root>
+							</LayerDialog.Action>
+						</LayerDialog.Actions>
+					</LayerDialog.Content>
+				</LayerDialog.Root>
 			</td>
 		</tr>
 	);
@@ -1658,30 +1658,25 @@ function TrashedListItem({
 						{t`Delete permanently`}
 					</DropdownMenu.Item>
 				</RowActionsMenu>
-				<Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen} disablePointerDismissal>
-					<Dialog className="p-6" size="sm">
-						<Dialog.Title className="text-lg font-semibold">{t`Delete Permanently?`}</Dialog.Title>
-						<Dialog.Description className="text-kumo-subtle">
-							{t`Permanently delete "${title}"? This cannot be undone.`}
-						</Dialog.Description>
-						<div className="mt-6 flex justify-end gap-2">
-							<Dialog.Close
-								render={(p) => (
-									<Button {...p} variant="secondary">
-										{t`Cancel`}
-									</Button>
-								)}
-							/>
-							<Dialog.Close
-								render={
-									<Button variant="destructive" onClick={() => onPermanentDelete?.(item.id)} />
-								}
+				<LayerDialog.Root open={deleteOpen} onOpenChange={setDeleteOpen} disablePointerDismissal>
+					<LayerDialog.Content size="sm">
+						<LayerDialog.Title>{t`Delete Permanently?`}</LayerDialog.Title>
+						<LayerDialog.Body>
+							<Text variant="secondary">{t`Permanently delete "${title}"? This cannot be undone.`}</Text>
+						</LayerDialog.Body>
+						<LayerDialog.Actions dismissLabel={t`Cancel`}>
+							<LayerDialog.Action
+								variant="destructive"
+								onClick={() => {
+									setDeleteOpen(false);
+									onPermanentDelete?.(item.id);
+								}}
 							>
 								{t`Delete Permanently`}
-							</Dialog.Close>
-						</div>
-					</Dialog>
-				</Dialog.Root>
+							</LayerDialog.Action>
+						</LayerDialog.Actions>
+					</LayerDialog.Content>
+				</LayerDialog.Root>
 			</td>
 		</tr>
 	);

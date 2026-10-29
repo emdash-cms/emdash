@@ -2,10 +2,10 @@ import {
 	Badge,
 	Button,
 	Collapsible,
-	Dialog,
 	Input,
 	Label,
 	LayerCard,
+	LayerDialog,
 	LinkButton,
 	Loader,
 	Select,
@@ -327,9 +327,10 @@ export function DiscardDraftDialog({
 	disabled?: boolean;
 }) {
 	const { t } = useLingui();
+	const [open, setOpen] = React.useState(false);
 	return (
-		<Dialog.Root>
-			<Dialog.Trigger
+		<LayerDialog.Root open={open} onOpenChange={setOpen}>
+			<LayerDialog.Trigger
 				disabled={disabled}
 				render={(p) => (
 					<Button
@@ -347,29 +348,26 @@ export function DiscardDraftDialog({
 					</Button>
 				)}
 			/>
-			<Dialog className="p-6" size="sm">
-				<Dialog.Title className="text-lg font-semibold">{t`Discard draft changes?`}</Dialog.Title>
-				<Dialog.Description className="text-kumo-subtle">
-					{t`This will revert to the published version. Your draft changes will be lost.`}
-				</Dialog.Description>
-				<div className="mt-6 flex justify-end gap-2">
-					<Dialog.Close
-						render={(p) => (
-							<Button {...p} variant="secondary">
-								{t`Cancel`}
-							</Button>
-						)}
-					/>
-					<Dialog.Close
-						render={(p) => (
-							<Button {...p} variant="destructive" onClick={onDiscard}>
-								{t`Discard changes`}
-							</Button>
-						)}
-					/>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>{t`Discard draft changes?`}</LayerDialog.Title>
+				<LayerDialog.Body>
+					<Text variant="secondary">
+						{t`This will revert to the published version. Your draft changes will be lost.`}
+					</Text>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action
+						variant="destructive"
+						onClick={() => {
+							setOpen(false);
+							onDiscard?.();
+						}}
+					>
+						{t`Discard changes`}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
@@ -516,8 +514,8 @@ export function PublishActions({
 			: t`This content will be visible on the site immediately.`;
 
 	return (
-		<Dialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
-			<Dialog.Trigger
+		<LayerDialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
+			<LayerDialog.Trigger
 				disabled={disabled}
 				render={
 					<Button
@@ -539,18 +537,14 @@ export function PublishActions({
 				) : (
 					publishLabel
 				)}
-			</Dialog.Trigger>
-			<Dialog className="p-6" size="sm">
-				<Dialog.Title className="text-lg font-semibold">{confirmationTitle}</Dialog.Title>
-				<Dialog.Description className="text-kumo-subtle">
-					{confirmationDescription}
-				</Dialog.Description>
-				<div className="mt-6 flex justify-end gap-2">
-					<Dialog.Close render={(props) => <Button {...props} variant="secondary" />}>
-						{t`Cancel`}
-					</Dialog.Close>
-					<Button
-						variant="primary"
+			</LayerDialog.Trigger>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>{confirmationTitle}</LayerDialog.Title>
+				<LayerDialog.Body>
+					<Text variant="secondary">{confirmationDescription}</Text>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action
 						loading={isPending}
 						disabled={disabled}
 						aria-label={publishLabel}
@@ -560,10 +554,10 @@ export function PublishActions({
 						}}
 					>
 						{publishLabel}
-					</Button>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
@@ -896,6 +890,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
 	const [datesOpen, setDatesOpen] = React.useState(false);
+	const [trashOpen, setTrashOpen] = React.useState(false);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
 	const activeEntryLocale = item?.locale ?? entryLocale ?? undefined;
 	const resolvedPublishingState =
@@ -1353,8 +1348,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						isReorderingSections && "invisible pointer-events-none",
 					)}
 				>
-					<Dialog.Root disablePointerDismissal>
-						<Dialog.Trigger
+					<LayerDialog.Root open={trashOpen} onOpenChange={setTrashOpen} disablePointerDismissal>
+						<LayerDialog.Trigger
 							render={(p) => (
 								<Button
 									{...p}
@@ -1368,29 +1363,26 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								</Button>
 							)}
 						/>
-						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-							<Dialog.Description className="text-kumo-subtle">
-								{t`This will move the item to trash. You can restore it later from the trash.`}
-							</Dialog.Description>
-							<div className="mt-6 flex justify-end gap-2">
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="secondary">
-											{t`Cancel`}
-										</Button>
-									)}
-								/>
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="destructive" onClick={onDelete}>
-											{t`Move to Trash`}
-										</Button>
-									)}
-								/>
-							</div>
-						</Dialog>
-					</Dialog.Root>
+						<LayerDialog.Content size="sm">
+							<LayerDialog.Title>{t`Move to Trash?`}</LayerDialog.Title>
+							<LayerDialog.Body>
+								<Text variant="secondary">
+									{t`This will move the item to trash. You can restore it later from the trash.`}
+								</Text>
+							</LayerDialog.Body>
+							<LayerDialog.Actions dismissLabel={t`Cancel`}>
+								<LayerDialog.Action
+									variant="destructive"
+									onClick={() => {
+										setTrashOpen(false);
+										onDelete();
+									}}
+								>
+									{t`Move to Trash`}
+								</LayerDialog.Action>
+							</LayerDialog.Actions>
+						</LayerDialog.Content>
+					</LayerDialog.Root>
 				</div>
 			)}
 		</div>
