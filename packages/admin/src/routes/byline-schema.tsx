@@ -152,8 +152,10 @@ export function BylineSchemaPage() {
 	const reorderMutation = useMutation({
 		mutationFn: (slugs: string[]) => reorderBylineFields(slugs),
 		// The response is the reordered list. Caching it before the mutation settles
-		// keeps a quick second move from reading the old positions.
-		onSuccess: (result) => {
+		// keeps a quick second move from reading the old positions. A list refresh
+		// already in flight could still land the old order on top, so cancel it first.
+		onSuccess: async (result) => {
+			await queryClient.cancelQueries({ queryKey: QUERY_KEY });
 			queryClient.setQueryData(QUERY_KEY, result);
 		},
 		onError: (mutationError) => {

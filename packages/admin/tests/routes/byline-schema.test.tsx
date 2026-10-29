@@ -22,7 +22,7 @@
  */
 
 import { Toast } from "@cloudflare/kumo";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, focusManager } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -92,10 +92,19 @@ beforeEach(() => {
 	vi.clearAllMocks();
 });
 
-function PageWrapper({ children }: { children: React.ReactNode }) {
-	const queryClient = new QueryClient({
+function makeQueryClient() {
+	return new QueryClient({
 		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 	});
+}
+
+function PageWrapper({
+	children,
+	queryClient = makeQueryClient(),
+}: {
+	children: React.ReactNode;
+	queryClient?: QueryClient;
+}) {
 	// `<Toast.Provider>` is normally supplied by Shell; the page calls
 	// `useKumoToastManager()` unconditionally so the test wrapper has
 	// to provide it even for the early-return access-denied path.
@@ -176,9 +185,9 @@ describe("BylineSchemaPage — field rows", () => {
 		});
 	});
 
-	function renderPage() {
+	function renderPage(queryClient?: QueryClient) {
 		return render(
-			<PageWrapper>
+			<PageWrapper queryClient={queryClient}>
 				<BylineSchemaPage />
 			</PageWrapper>,
 		);
@@ -266,6 +275,51 @@ describe("BylineSchemaPage — field rows", () => {
 		await vi.waitFor(() =>
 			expect(reorderBylineFields).toHaveBeenLastCalledWith(["job_title", "pronouns"]),
 		);
+	});
+
+	it("keeps the moved order when an older list refresh finishes after the move", async () => {
+		const [jobTitle, pronouns] = fields;
+		vi.mocked(reorderBylineFields).mockResolvedValue({
+			items: [
+				{ ...pronouns!, sortOrder: 0 },
+				{ ...jobTitle!, sortOrder: 1 },
+			],
+		});
+		const queryClient = makeQueryClient();
+		const screen = await renderPage(queryClient);
+		const rowLabels = () =>
+			screen
+				.getByRole("button", { name: /^Edit / })
+				.elements()
+				.map((button) => button.textContent);
+		await expect.poll(rowLabels).toEqual(["Job title", "Pronouns"]);
+
+		let finishRefresh!: (result: { items: BylineFieldDefinition[] }) => void;
+		vi.mocked(listBylineFields).mockReturnValueOnce(
+			new Promise((resolve) => {
+				finishRefresh = resolve;
+			}),
+		);
+		focusManager.setFocused(false);
+		focusManager.setFocused(true);
+		await vi.waitFor(() => expect(listBylineFields).toHaveBeenCalledTimes(2));
+
+		await screen.getByRole("button", { name: "Actions for Job title" }).click();
+		await screen.getByRole("menuitem", { name: "Move down" }).click();
+		await expect.poll(rowLabels).toEqual(["Pronouns", "Job title"]);
+
+		finishRefresh({ items: fields });
+		await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0));
+		// Let the settled list render before reading the rows.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(rowLabels()).toEqual(["Pronouns", "Job title"]);
+
+		await screen.getByRole("button", { name: "Actions for Job title" }).click();
+		await screen.getByRole("menuitem", { name: "Move up" }).click();
+		await vi.waitFor(() =>
+			expect(reorderBylineFields).toHaveBeenLastCalledWith(["job_title", "pronouns"]),
+		);
+		focusManager.setFocused(undefined);
 	});
 
 	it("offers no Move items for a lone field", async () => {
