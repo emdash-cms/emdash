@@ -242,7 +242,7 @@ describe("ContentEditPage save conflict", () => {
 		await title.fill("Writer copy");
 		await vi.advanceTimersByTimeAsync(2500);
 
-		await expect.element(screen.getByText("Autosave failed")).toBeVisible();
+		await expect.element(screen.getByRole("alert").getByText("Autosave failed")).toBeVisible();
 		expect(screen.getByRole("button", { name: "Save anyway", exact: true }).query()).toBeNull();
 	});
 

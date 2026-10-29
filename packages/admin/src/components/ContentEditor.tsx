@@ -18,6 +18,7 @@ import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowSquareOut,
 	Faders,
+	FloppyDisk,
 	Paperclip,
 	X,
 	ArrowsInSimple,
@@ -1506,6 +1507,10 @@ export function ContentEditor({
 	const barTitle = liveTitle || entryTitle || (isNew ? t`New ${itemLabel}` : t`Edit ${itemLabel}`);
 	const collectionListLabel = manifest?.collections[collection]?.label ?? collectionLabel;
 	const documentTitleRef = React.useRef<HTMLInputElement>(null);
+	const editorHeadingRef = React.useRef<HTMLHeadingElement>(null);
+	const focusEditorHeading = React.useCallback(() => {
+		editorHeadingRef.current?.focus({ preventScroll: true });
+	}, []);
 	const hasDocumentTitle =
 		documentTitleField !== undefined && fields[documentTitleField]?.kind === "string";
 	const focusDocumentBody = React.useCallback(() => {
@@ -1676,7 +1681,12 @@ export function ContentEditor({
 							</span>
 						</>
 					)}
-					<h1 dir="auto" className="min-w-0 truncate text-base font-medium">
+					<h1
+						ref={editorHeadingRef}
+						tabIndex={-1}
+						dir="auto"
+						className="min-w-0 truncate text-base font-medium"
+					>
 						{barTitle}
 					</h1>
 					{i18n && item?.locale && (
@@ -1708,8 +1718,15 @@ export function ContentEditor({
 							collectionLabel={collectionLabel}
 							isNew={isNew}
 							isDirty={isDirty}
+							onSaveControlRemoved={focusEditorHeading}
 							showMobileSave={Boolean(
-								isNew || !onAutosave || !onPublish || saveError || hasSaveConflict,
+								isNew ||
+								!onAutosave ||
+								!onPublish ||
+								!supportsDrafts ||
+								!supportsRevisions ||
+								saveError ||
+								hasSaveConflict,
 							)}
 							isSaving={Boolean(saveFeedbackActive)}
 							isAutosaving={autosaveFeedbackActive}
@@ -2004,6 +2021,27 @@ export function ContentEditor({
 									</div>
 								)}
 								<RevisionViewProvider value={supportsRevisions ? revisionView.context : null}>
+									{isBelowLg &&
+										!isNew &&
+										supportsDrafts &&
+										supportsRevisions &&
+										onAutosave &&
+										onSave &&
+										!blockSidebarPanel && (
+											<div className="border-b border-kumo-line p-4 sm:hidden">
+												<Button
+													type="submit"
+													variant="secondary"
+													className="w-full"
+													icon={<FloppyDisk />}
+													loading={Boolean(saveFeedbackActive)}
+													disabled={isContentSaveBlocked || autosaveFeedbackActive}
+													data-keep-mobile-sidebar-open=""
+												>
+													{t`Save draft`}
+												</Button>
+											</div>
+										)}
 									<ContentSettingsPanel
 										collection={collection}
 										item={item}
@@ -2066,6 +2104,17 @@ export function ContentEditor({
 				<MobileSidebarPortalGuard />
 				<RevisionViewSheetSync sheetRef={revisionView.sheetRef} />
 			</Sidebar.Provider>
+			<span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+				{saveFeedbackActive || autosaveFeedbackActive
+					? t`Saving...`
+					: saveError || hasAutosaveError || hasSaveConflict
+						? (saveError?.title ?? t`Failed to save`)
+						: isNew
+							? t`Not saved yet`
+							: isDirty
+								? t`Unsaved changes`
+								: t`Saved`}
+			</span>
 			{/* Outside the sidebar, which is inert while the phone sheet is closed. */}
 			<p role="status" aria-live="polite" aria-atomic="true" className="sr-only">
 				{revisionView.announcement}

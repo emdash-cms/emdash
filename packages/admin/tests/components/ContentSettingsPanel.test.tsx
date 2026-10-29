@@ -1332,7 +1332,6 @@ describe("EditorActions", () => {
 			<EditorActions {...makeBarProps({ isDirty: true, isAutosaving: true })} />,
 		);
 		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
-		expect(screen.getByRole("status").element().textContent).toBe("Saving...");
 	});
 
 	it("marks the Save button dirty state", async () => {

@@ -49,6 +49,8 @@ async function renderDirectEditor(
 		supportsPreview?: boolean;
 		autosave?: boolean;
 		isAutosaving?: boolean;
+		isNew?: boolean;
+		supportsRevisions?: boolean;
 	} = {},
 ) {
 	const router = createAdminRouter(createTestQueryClient());
@@ -63,8 +65,10 @@ async function renderDirectEditor(
 							collection="posts"
 							collectionLabel="Post"
 							fields={fields}
-							item={entry}
+							item={options.isNew ? undefined : entry}
+							isNew={options.isNew}
 							supportsDrafts
+							supportsRevisions={options.supportsRevisions}
 							supportsPreview={options.supportsPreview}
 							saveError={options.saveError}
 							onAutosave={options.autosave ? () => undefined : undefined}
@@ -121,6 +125,19 @@ afterEach(async () => {
 });
 
 describe("ContentEditor mobile action bar", () => {
+	it("does not announce a new entry as saved", async () => {
+		const { screen } = await renderDirectEditor(item(false), "en", { isNew: true });
+		await expect
+			.element(screen.getByRole("status").filter({ hasText: "Not saved yet" }))
+			.toHaveTextContent("Not saved yet");
+		expect(
+			screen
+				.getByRole("status")
+				.filter({ hasText: /^Saved$/ })
+				.query(),
+		).toBeNull();
+	});
+
 	it("keeps a clean draft toolbar in a four-column mobile grid", async () => {
 		await page.viewport(390, 800);
 		const { toolbar } = await renderDirectEditor(item(false));
@@ -146,6 +163,7 @@ describe("ContentEditor mobile action bar", () => {
 		const { toolbar, screen } = await renderDirectEditor(item(false), "en", {
 			autosave: true,
 			isAutosaving: true,
+			supportsRevisions: true,
 		});
 		const before = actionRects(toolbar).map(({ rect }) => [
 			rect.x,

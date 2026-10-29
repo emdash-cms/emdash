@@ -379,6 +379,7 @@ export interface EditorActionsProps {
 	isSaving: boolean;
 	/** Publishing already flushes autosave; show a mobile save action when a retry is needed. */
 	showMobileSave?: boolean;
+	onSaveControlRemoved?: () => void;
 	/** Autosave in flight — reported by the save button's busy state. */
 	isAutosaving?: boolean;
 	/** Preserve operation blocking independently of the visual feedback state. */
@@ -669,6 +670,7 @@ export function EditorActions({
 	isDirty,
 	isSaving,
 	showMobileSave = true,
+	onSaveControlRemoved,
 	isAutosaving,
 	saveDisabled,
 	isLive,
@@ -688,11 +690,26 @@ export function EditorActions({
 	const { t } = useLingui();
 	const busy = isSaving || Boolean(isAutosaving);
 	const saveVariant = isNew ? "primary" : "secondary";
+	const showSave = isDirty || busy;
+	const saveHadFocus = React.useRef(false);
+	React.useLayoutEffect(() => {
+		if (!showSave && saveHadFocus.current) {
+			saveHadFocus.current = false;
+			onSaveControlRemoved?.();
+		}
+	}, [showSave, onSaveControlRemoved]);
 
 	return (
 		<div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 max-sm:contents">
-			{(isDirty || busy) && (
+			{showSave && (
 				<SaveButton
+					announce={false}
+					onFocus={() => {
+						saveHadFocus.current = true;
+					}}
+					onBlur={(event) => {
+						if (event.relatedTarget) saveHadFocus.current = false;
+					}}
 					type="submit"
 					size="sm"
 					variant={saveVariant}

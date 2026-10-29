@@ -1353,12 +1353,17 @@ function ContentEditPage() {
 		setEditorSaveError((current) => (current?.entryId === entryId ? undefined : current));
 	};
 	const handleContentUpdateError = React.useCallback(
-		(error: unknown, targetId: string, toastTitle = t`Failed to save`) => {
+		(
+			error: unknown,
+			targetId: string,
+			source: "editor" | "autosave" | "auxiliary",
+			toastTitle = t`Failed to save`,
+		) => {
 			if (editorShows(targetId) && entryLock.reportWriteError(error, targetId)) return;
 			const message =
 				describeContentValidationError(error, collectionFields) ??
 				(error instanceof Error ? error.message : t`An error occurred`);
-			if (editorShows(targetId)) {
+			if (source !== "auxiliary" && editorShows(targetId)) {
 				setEditorSaveError((current) => ({
 					entryId: targetId,
 					message,
@@ -1405,7 +1410,7 @@ function ContentEditPage() {
 		},
 		onError: async (error, variables) => {
 			if (await recoverInEditor(error, variables.targetId)) return;
-			handleContentUpdateError(error, variables.targetId);
+			handleContentUpdateError(error, variables.targetId, variables.source);
 		},
 		onSettled: (_, __, variables) => {
 			if (variables.source === "editor") {
@@ -1430,7 +1435,7 @@ function ContentEditPage() {
 		},
 		onError: async (error) => {
 			if (isSaveConflict(error) && (await recoverFromSaveConflict(id))) return;
-			handleContentUpdateError(error, id);
+			handleContentUpdateError(error, id, "auxiliary");
 		},
 	});
 
@@ -1483,7 +1488,7 @@ function ContentEditPage() {
 		onError: async (err, variables) => {
 			if (await recoverInEditor(err, variables.targetId)) return;
 			if (isTerminalRequestError(err)) recordAutosaveRejection(variables.targetId);
-			handleContentUpdateError(err, variables.targetId, t`Autosave failed`);
+			handleContentUpdateError(err, variables.targetId, "autosave", t`Autosave failed`);
 		},
 	});
 
