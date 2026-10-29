@@ -977,17 +977,16 @@ function FieldRow({
 						onChange={(e) => onChange({ placeholder: e.target.value })}
 					/>
 				)}
-				<Input
-					label={i18n._("Help text")}
-					value={field.helpText ?? ""}
-					onChange={(e) => onChange({ helpText: e.target.value })}
-				/>
-				{!["checkbox-group", "file"].includes(field.type) && (
+				{field.type !== "hidden" && (
 					<Input
-						label={
-							field.type === "checkbox" ? i18n._("Value when checked") : i18n._("Default value")
-						}
-						placeholder={field.type === "checkbox" ? "1" : undefined}
+						label={i18n._("Help text")}
+						value={field.helpText ?? ""}
+						onChange={(e) => onChange({ helpText: e.target.value })}
+					/>
+				)}
+				{!["checkbox", "checkbox-group", "file"].includes(field.type) && (
+					<Input
+						label={i18n._("Default value")}
 						value={field.defaultValue ?? ""}
 						onChange={(e) => onChange({ defaultValue: e.target.value })}
 					/>

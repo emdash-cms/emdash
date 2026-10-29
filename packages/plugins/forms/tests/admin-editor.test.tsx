@@ -461,14 +461,41 @@ describe("forms editor", () => {
 		expect(screen.getByDisplayValue("Choose a topic")).toBeTruthy();
 	});
 
-	it("labels a single checkbox's submitted value without implying it starts checked", async () => {
-		await openEditor([existing]);
-		fireEvent.change(screen.getAllByLabelText("Type")[0]!, { target: { value: "checkbox" } });
-		change("Value when checked", "1");
+	it("hides single-checkbox value editing and preserves API-configured values", async () => {
+		await openEditor([
+			{
+				...existing,
+				pages: [
+					{ fields: [field("checkbox", "consent", { type: "checkbox", defaultValue: "yes" })] },
+				],
+			},
+		]);
+		expect(screen.queryByLabelText("Value when checked")).toBeNull();
+		expect(screen.queryByLabelText("Default value")).toBeNull();
 		fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
 		await waitFor(() => expect(requests[1]?.route).toBe("forms/update"));
 		const body = formUpdateSchema.parse(requests[1]!.body);
-		expect(body.pages?.[0]?.fields[0]?.defaultValue).toBe("1");
+		expect(body.pages?.[0]?.fields[0]?.defaultValue).toBe("yes");
+	});
+
+	it("hides hidden-field help text editing and preserves API-configured text", async () => {
+		await openEditor([
+			{
+				...existing,
+				pages: [
+					{
+						fields: [
+							field("hidden", "source", { type: "hidden", helpText: "Existing API help text" }),
+						],
+					},
+				],
+			},
+		]);
+		expect(screen.queryByLabelText("Help text")).toBeNull();
+		fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+		await waitFor(() => expect(requests[1]?.route).toBe("forms/update"));
+		const body = formUpdateSchema.parse(requests[1]!.body);
+		expect(body.pages?.[0]?.fields[0]?.helpText).toBe("Existing API help text");
 	});
 
 	it("does not save an autoresponder with a missing subject or body", async () => {
