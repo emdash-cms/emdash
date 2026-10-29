@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-router";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { FieldEditor } from "../../src/components/FieldEditor";
 import { fetchCollections, fetchRelations } from "../../src/lib/api";
@@ -151,7 +151,7 @@ describe("FieldEditor", () => {
 		it("shows label and slug inputs", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={stringField} />);
 			await expect.element(screen.getByLabelText("Label")).toBeInTheDocument();
-			await expect.element(screen.getByLabelText("Slug")).toBeInTheDocument();
+			await expect.element(screen.getByLabelText("Slug", { exact: true })).toBeInTheDocument();
 		});
 
 		it("shows searchable checkbox for string type", async () => {
@@ -287,14 +287,15 @@ describe("FieldEditor", () => {
 
 		it("disables slug input in edit mode", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={existingField} />);
-			await expect.element(screen.getByLabelText("Slug")).toBeDisabled();
+			await expect.element(screen.getByLabelText("Slug", { exact: true })).toBeDisabled();
 		});
 
-		it("shows hint about slug immutability", async () => {
+		it("explains slug immutability in a tooltip", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={existingField} />);
+			await screen.getByRole("button", { name: "More information about Slug" }).hover();
 			await expect
-				.element(screen.getByText("Field slugs cannot be changed after creation"))
-				.toBeInTheDocument();
+				.element(page.getByText("Field slugs cannot be changed after creation"))
+				.toBeVisible();
 		});
 
 		it("does not show Change button in edit mode", async () => {
@@ -316,7 +317,7 @@ describe("FieldEditor", () => {
 
 		it("pre-populates slug value", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={existingField} />);
-			await expect.element(screen.getByLabelText("Slug")).toHaveValue("title");
+			await expect.element(screen.getByLabelText("Slug", { exact: true })).toHaveValue("title");
 		});
 
 		it("pre-populates required checkbox", async () => {
@@ -329,7 +330,7 @@ describe("FieldEditor", () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={existingField} />);
 			await screen.getByLabelText("Label").fill("New Label");
 			// Slug should remain "title", not change to "new_label"
-			await expect.element(screen.getByLabelText("Slug")).toHaveValue("title");
+			await expect.element(screen.getByLabelText("Slug", { exact: true })).toHaveValue("title");
 		});
 
 		it("shows type indicator with field type info", async () => {
@@ -482,11 +483,10 @@ describe("FieldEditor", () => {
 			await expect
 				.element(screen.getByRole("combobox", { name: "Referenced collection" }))
 				.toBeDisabled();
+			await screen.getByRole("button", { name: "More information about Relationship" }).hover();
 			await expect
-				.element(
-					screen.getByText(/The relationship and the referenced collection cannot be changed/),
-				)
-				.toBeInTheDocument();
+				.element(page.getByText(/The relationship and the referenced collection cannot be changed/))
+				.toBeVisible();
 		});
 
 		it("sends the collection on save so the server can bind the field", async () => {

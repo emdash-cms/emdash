@@ -7,7 +7,6 @@ import {
 	LayerDialog,
 	Select,
 	Switch,
-	Tooltip,
 } from "@cloudflare/kumo";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -28,7 +27,6 @@ import {
 	Rows,
 	Plus,
 	Trash,
-	Info,
 	ArrowUp,
 	ArrowDown,
 } from "@phosphor-icons/react";
@@ -49,6 +47,8 @@ import { singularize } from "../lib/singularize.js";
 import { cn, slugifyIdentifier } from "../lib/utils";
 import { AllowedTypesEditor } from "./AllowedTypesEditor";
 import { DialogError } from "./DialogError";
+import { DialogSection } from "./DialogSection.js";
+import { HelpLabel, HelpTooltip } from "./FieldHelpLabel.js";
 import { RelationDialog } from "./RelationDialog.js";
 
 // ============================================================================
@@ -684,7 +684,7 @@ export function FieldEditor({
 							})}
 						</div>
 					) : (
-						<div className="space-y-6">
+						<div className="grid gap-5">
 							{/* Type indicator */}
 							{typeConfig && (
 								<div className="flex items-center space-x-3 p-3 bg-kumo-tint/50 rounded-lg">
@@ -710,11 +710,10 @@ export function FieldEditor({
 						    field itself: it decides what the field is called, what it
 						    points at, and how many entries it holds. */}
 							{referenceNeedsRelation && (
-								<div className="flex flex-col gap-4">
-									<h4 className="font-medium text-sm">{t`Reference`}</h4>
-
+								<div className="grid gap-5">
 									<Select
 										label={t`Relationship`}
+										className="w-full"
 										value={relation}
 										onValueChange={(v) => handleRelationChange(v ?? "")}
 										items={[
@@ -733,16 +732,25 @@ export function FieldEditor({
 									{selectedRelation && (
 										<>
 											<Select
-												label={t`Referenced collection`}
+												label={
+													<HelpLabel
+														help={t`The relationship decides the referenced collection and how many entries this field accepts.`}
+													>
+														{t`Referenced collection`}
+													</HelpLabel>
+												}
+												aria-label={t`Referenced collection`}
+												className="w-full"
 												value={boundTarget}
 												onValueChange={() => undefined}
 												items={collections.map((c) => ({ label: c.label, value: c.slug }))}
 												disabled
 											/>
 											{sideIsAChoice && (
-												<div className="flex items-end gap-1.5">
+												<div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-1.5">
 													<Select
 														label={t`This field picks`}
+														className="w-full"
 														value={effectiveSide}
 														onValueChange={(v) =>
 															handleSideChange(v === "child" ? "child" : "parent")
@@ -759,9 +767,6 @@ export function FieldEditor({
 												<SideNote relation={selectedRelation.relation} side={effectiveSide} />
 												{!sideIsAChoice && <SideTooltip />}
 											</div>
-											<p className="text-xs text-kumo-subtle">
-												{t`The relationship decides the referenced collection and how many entries this field accepts.`}
-											</p>
 										</>
 									)}
 								</div>
@@ -770,44 +775,51 @@ export function FieldEditor({
 							{showFieldDetails && (
 								<>
 									{/* Basic info */}
-									<div className="grid grid-cols-1 sm:grid-cols-2 items-start gap-4">
+									<div
+										className={cn(
+											"grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4",
+											referenceNeedsRelation && "border-t border-kumo-line pt-5",
+										)}
+									>
 										<Input
 											label={t`Label`}
 											value={label}
 											onChange={(e) => handleLabelChange(e.target.value)}
 											placeholder={t`Field Label`}
 										/>
-										<div>
-											<Input
-												dir="ltr"
-												label={t`Slug`}
-												value={slug}
-												onChange={(e) => setField("slug", e.target.value)}
-												placeholder="field_slug"
-												disabled={!!field}
-												error={slugError}
-											/>
-											{field && (
-												<p className="text-xs text-kumo-subtle mt-2">
-													{t`Field slugs cannot be changed after creation`}
-												</p>
-											)}
-										</div>
+										<Input
+											dir="ltr"
+											label={
+												field ? (
+													<HelpLabel help={t`Field slugs cannot be changed after creation`}>
+														{t`Slug`}
+													</HelpLabel>
+												) : (
+													t`Slug`
+												)
+											}
+											aria-label={t`Slug`}
+											value={slug}
+											onChange={(e) => setField("slug", e.target.value)}
+											placeholder="field_slug"
+											disabled={!!field}
+											error={slugError}
+										/>
 									</div>
 
 									{/* Toggles */}
-									<div className="flex items-center space-x-6">
+									<div className="flex flex-wrap items-center gap-x-6 gap-y-3">
 										{selectedType !== "blocks" && (
 											<>
 												<Switch
 													checked={required}
 													onCheckedChange={(checked) => setField("required", checked)}
-													label={<span className="text-sm">{t`Required`}</span>}
+													label={t`Required`}
 												/>
 												<Switch
 													checked={unique}
 													onCheckedChange={(checked) => setField("unique", checked)}
-													label={<span className="text-sm">{t`Unique`}</span>}
+													label={t`Unique`}
 												/>
 											</>
 										)}
@@ -815,14 +827,14 @@ export function FieldEditor({
 											<Switch
 												checked={searchable}
 												onCheckedChange={(checked) => setField("searchable", checked)}
-												label={<span className="text-sm">{t`Searchable`}</span>}
+												label={t`Searchable`}
 											/>
 										)}
 										{isIndexableFieldType(selectedType) && (
 											<Switch
 												checked={indexed}
 												onCheckedChange={(checked) => setField("indexed", checked)}
-												label={<span className="text-sm">{t`Indexed`}</span>}
+												label={t`Indexed`}
 											/>
 										)}
 									</div>
@@ -833,9 +845,8 @@ export function FieldEditor({
 							{(selectedType === "string" ||
 								selectedType === "text" ||
 								selectedType === "slug") && (
-								<div className="space-y-4">
-									<h4 className="font-medium text-sm">{t`Validation`}</h4>
-									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+								<DialogSection title={t`Validation`}>
+									<div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4">
 										<Input
 											label={t`Min Length`}
 											type="number"
@@ -860,13 +871,12 @@ export function FieldEditor({
 											placeholder="^[a-z]+$"
 										/>
 									)}
-								</div>
+								</DialogSection>
 							)}
 
 							{(selectedType === "number" || selectedType === "integer") && (
-								<div className="space-y-4">
-									<h4 className="font-medium text-sm">{t`Validation`}</h4>
-									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+								<DialogSection title={t`Validation`}>
+									<div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4">
 										<Input
 											label={t`Min Value`}
 											type="number"
@@ -882,7 +892,7 @@ export function FieldEditor({
 											placeholder={t`No maximum`}
 										/>
 									</div>
-								</div>
+								</DialogSection>
 							)}
 
 							{(selectedType === "select" || selectedType === "multiSelect") && (
@@ -896,13 +906,19 @@ export function FieldEditor({
 							)}
 
 							{selectedType === "reference" && field && (
-								<div className="flex flex-col gap-4">
-									<h4 className="font-medium text-sm">{t`Reference`}</h4>
-
+								<DialogSection title={t`Reference`}>
 									{isBoundReference ? (
 										<>
 											<Select
-												label={t`Relationship`}
+												label={
+													<HelpLabel
+														help={t`The relationship and the referenced collection cannot be changed after creation. How many entries this field accepts is set on the relationship.`}
+													>
+														{t`Relationship`}
+													</HelpLabel>
+												}
+												aria-label={t`Relationship`}
+												className="w-full"
 												value={field?.validation?.relation ?? ""}
 												onValueChange={() => undefined}
 												items={{
@@ -912,6 +928,7 @@ export function FieldEditor({
 											/>
 											<Select
 												label={t`Referenced collection`}
+												className="w-full"
 												value={targetCollection}
 												onValueChange={() => undefined}
 												items={collections.map((c) => ({ label: c.label, value: c.slug }))}
@@ -921,14 +938,12 @@ export function FieldEditor({
 												relation={boundRelation}
 												side={field?.validation?.relationSide ?? "parent"}
 											/>
-											<p className="text-xs text-kumo-subtle">
-												{t`The relationship and the referenced collection cannot be changed after creation. How many entries this field accepts is set on the relationship.`}
-											</p>
 										</>
 									) : (
 										<>
 											<Select
 												label={t`Relationship`}
+												className="w-full"
 												value={relation}
 												onValueChange={(v) => handleRelationChange(v ?? "")}
 												items={[
@@ -943,16 +958,25 @@ export function FieldEditor({
 											{relation ? (
 												<>
 													<Select
-														label={t`Referenced collection`}
+														label={
+															<HelpLabel
+																help={t`The relationship decides the referenced collection and how many entries this field accepts.`}
+															>
+																{t`Referenced collection`}
+															</HelpLabel>
+														}
+														aria-label={t`Referenced collection`}
+														className="w-full"
 														value={boundTarget}
 														onValueChange={() => undefined}
 														items={collections.map((c) => ({ label: c.label, value: c.slug }))}
 														disabled
 													/>
 													{sideIsAChoice && (
-														<div className="flex items-end gap-1.5">
+														<div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-1.5">
 															<Select
 																label={t`This field picks`}
+																className="w-full"
 																value={effectiveSide}
 																onValueChange={(v) =>
 																	handleSideChange(v === "child" ? "child" : "parent")
@@ -969,14 +993,12 @@ export function FieldEditor({
 														<SideNote relation={selectedRelation?.relation} side={effectiveSide} />
 														{!sideIsAChoice && <SideTooltip />}
 													</div>
-													<p className="text-xs text-kumo-subtle">
-														{t`The relationship decides the referenced collection and how many entries this field accepts.`}
-													</p>
 												</>
 											) : (
 												<>
 													<Select
 														label={t`Referenced collection`}
+														className="w-full"
 														value={targetCollection}
 														onValueChange={(v) => {
 															setField("targetCollection", v ?? "");
@@ -994,7 +1016,7 @@ export function FieldEditor({
 													<Switch
 														checked={allowMultiple}
 														onCheckedChange={(checked) => setField("allowMultiple", checked)}
-														label={<span className="text-sm">{t`Allow multiple references`}</span>}
+														label={t`Allow multiple references`}
 													/>
 													<p className="text-xs text-kumo-subtle">
 														<Trans>
@@ -1016,17 +1038,14 @@ export function FieldEditor({
 											)}
 										</>
 									)}
-								</div>
+								</DialogSection>
 							)}
 
 							{selectedType === "blocks" && (
-								<div className="space-y-4">
-									<div>
-										<h4 className="font-medium text-sm">{t`Allowed block types`}</h4>
-										<p className="text-xs text-kumo-subtle">
-											{t`The order controls how block types appear in the picker.`}
-										</p>
-									</div>
+								<DialogSection
+									title={t`Allowed block types`}
+									help={t`The order controls how block types appear in the picker.`}
+								>
 									{blockTypesLoading ? (
 										<p className="text-sm text-kumo-subtle">{t`Loading block types…`}</p>
 									) : blockTypesError ? (
@@ -1122,7 +1141,7 @@ export function FieldEditor({
 											})}
 										</div>
 									)}
-									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+									<div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4">
 										<Input
 											label={t`Minimum blocks`}
 											type="number"
@@ -1141,13 +1160,13 @@ export function FieldEditor({
 											placeholder="100"
 										/>
 									</div>
-								</div>
+								</DialogSection>
 							)}
 
 							{selectedType === "repeater" && (
-								<div className="space-y-4">
-									<div className="flex items-center justify-between">
-										<h4 className="font-medium text-sm">{t`Sub-Fields`}</h4>
+								<DialogSection
+									title={t`Sub-Fields`}
+									action={
 										<Button
 											variant="outline"
 											size="sm"
@@ -1171,8 +1190,8 @@ export function FieldEditor({
 										>
 											{t`Add Sub-Field`}
 										</Button>
-									</div>
-
+									}
+								>
 									{formState.subFields.length === 0 && (
 										<p className="text-sm text-kumo-subtle text-center py-4">
 											{t`Add at least one sub-field to define the repeater structure.`}
@@ -1208,7 +1227,18 @@ export function FieldEditor({
 														/>
 														<Input
 															dir="ltr"
-															label={t`Slug`}
+															label={
+																sf.slugPersisted ? (
+																	<HelpLabel
+																		help={t`Sub-field slugs cannot be changed after creation.`}
+																	>
+																		{t`Slug`}
+																	</HelpLabel>
+																) : (
+																	t`Slug`
+																)
+															}
+															aria-label={t`Slug`}
 															className="min-w-0"
 															value={sf.slug}
 															disabled={sf.slugPersisted}
@@ -1245,11 +1275,6 @@ export function FieldEditor({
 															}}
 														/>
 													</div>
-													{sf.slugPersisted && (
-														<p className="text-xs text-kumo-subtle">
-															{t`Sub-field slugs cannot be changed after creation.`}
-														</p>
-													)}
 													<Switch
 														label={t`Required`}
 														checked={sf.required ?? false}
@@ -1277,7 +1302,7 @@ export function FieldEditor({
 										);
 									})}
 
-									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+									<div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4">
 										<Input
 											label={t`Min Items`}
 											type="number"
@@ -1293,7 +1318,7 @@ export function FieldEditor({
 											placeholder={t`No limit`}
 										/>
 									</div>
-								</div>
+								</DialogSection>
 							)}
 
 							{(selectedType === "file" || selectedType === "image") && (
@@ -1304,16 +1329,18 @@ export function FieldEditor({
 							)}
 
 							{selectedType === "image" && (
-								<div className="grid gap-1">
-									<Switch
-										checked={formState.darkVariant}
-										onCheckedChange={(checked) => setField("darkVariant", checked)}
-										label={<span className="text-sm">{t`Dark mode variant`}</span>}
-									/>
-									<p className="text-xs text-kumo-subtle">
-										{t`Editors can select a second image that the site shows in dark mode.`}
-									</p>
-								</div>
+								<Switch
+									checked={formState.darkVariant}
+									onCheckedChange={(checked) => setField("darkVariant", checked)}
+									label={
+										<HelpLabel
+											help={t`Editors can select a second image that the site shows in dark mode.`}
+										>
+											{t`Dark mode variant`}
+										</HelpLabel>
+									}
+									aria-label={t`Dark mode variant`}
+								/>
 							)}
 						</div>
 					)}
@@ -1404,25 +1431,9 @@ function SideNote({ relation, side }: { relation?: RelationWithUsage; side: Rela
 function SideTooltip() {
 	const { t } = useLingui();
 	return (
-		<Tooltip
-			content={
-				<span className="block max-w-64 text-pretty">
-					{t`Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered.`}
-				</span>
-			}
-			delay={0}
-			closeDelay={0}
-			render={
-				<Button
-					type="button"
-					variant="ghost"
-					shape="square"
-					size="xs"
-					icon={<Info aria-hidden="true" />}
-					className="text-kumo-subtle hover:text-kumo-default ms-1"
-					aria-label={t`What the direction changes`}
-				/>
-			}
+		<HelpTooltip
+			help={t`Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered.`}
+			ariaLabel={t`What the direction changes`}
 		/>
 	);
 }

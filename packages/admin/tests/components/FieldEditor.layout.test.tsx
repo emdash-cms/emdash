@@ -169,9 +169,15 @@ describe("FieldEditor layout", () => {
 		[
 			"an error",
 			undefined,
-			"A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.",
+			page.getByText(
+				"A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.",
+			),
 		],
-		["its hint", existingField, "Field slugs cannot be changed after creation"],
+		[
+			"its help button",
+			existingField,
+			page.getByRole("button", { name: "More information about Slug" }),
+		],
 	] as const)(
 		"keeps the Label input in line with the Slug input when the slug shows %s",
 		async (_, field, note) => {
@@ -186,7 +192,7 @@ describe("FieldEditor layout", () => {
 					.click();
 				await screen.getByLabelText("Label", { exact: true }).fill("!!!");
 			}
-			await expect.element(screen.getByText(note)).toBeVisible();
+			await expect.element(note).toBeVisible();
 			const label = screen.getByLabelText("Label", { exact: true }).element();
 			const slug = screen.getByLabelText("Slug", { exact: true }).element();
 

@@ -16,6 +16,7 @@ import {
 	createRouter,
 } from "@tanstack/react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { page } from "vitest/browser";
 
 import { RelationList } from "../../src/components/RelationList";
 import type { SchemaCollection } from "../../src/lib/api";
@@ -164,6 +165,12 @@ describe("RelationList", () => {
 		await screen.getByRole("button", { name: "Edit posts_authors" }).click();
 
 		await expect.element(screen.getByLabelText("Slug", { exact: true })).toBeDisabled();
+		await screen.getByRole("button", { name: "More information about Slug" }).hover();
+		await expect
+			.element(
+				page.getByText("The content types and slug cannot be changed after a relation is created."),
+			)
+			.toBeVisible();
 		await screen.getByLabelText("Linked side (plural)").fill("Writers");
 		screen.getByRole("button", { name: "Save Relation" }).element().click();
 

@@ -23,6 +23,8 @@ import type {
 } from "../lib/api/relations.js";
 import { singularize } from "../lib/singularize.js";
 import { slugifyIdentifier } from "../lib/utils.js";
+import { DialogSection } from "./DialogSection.js";
+import { HelpLabel } from "./FieldHelpLabel.js";
 
 /** How a limit is expressed in the form. `limit` reveals a number input. */
 type LimitMode = "one" | "many" | "limit";
@@ -255,13 +257,9 @@ export function RelationFormFields({ form, collections, isNew }: RelationFormFie
 	const linkedSideName = state.childLabelSingular || t`entry on the linked side`;
 
 	return (
-		<div className="space-y-6">
-			<div className="space-y-4">
-				<h3 className="text-xs font-medium uppercase tracking-wider text-kumo-subtle">
-					{t`Content types`}
-				</h3>
-
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+		<div className="grid gap-5">
+			<DialogSection title={t`Content types`}>
+				<div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4">
 					<Select
 						label={t`Links from`}
 						className="w-full"
@@ -281,15 +279,13 @@ export function RelationFormFields({ form, collections, isNew }: RelationFormFie
 						disabled={!isNew}
 					/>
 				</div>
-			</div>
+			</DialogSection>
 
-			<div className="space-y-4">
-				<h3 className="text-xs font-medium uppercase tracking-wider text-kumo-subtle">{t`Roles`}</h3>
-				<p className="text-sm text-kumo-subtle">
-					{t`What each side is called. These name the fields bound to this relationship.`}
-				</p>
-
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+			<DialogSection
+				title={t`Roles`}
+				help={t`What each side is called. These name the fields bound to this relationship.`}
+			>
+				<div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-x-4">
 					<Input
 						label={t`Linking side (plural)`}
 						value={state.parentLabel}
@@ -315,37 +311,13 @@ export function RelationFormFields({ form, collections, isNew }: RelationFormFie
 						placeholder={t`Author`}
 					/>
 				</div>
-			</div>
+			</DialogSection>
 
-			<div>
-				<Input
-					dir="ltr"
-					label={t`Slug`}
-					value={state.slug}
-					onChange={(e) => {
-						set("slugEdited", true);
-						set("slug", e.target.value);
-					}}
-					placeholder="posts_authors"
-					disabled={!isNew}
-					error={slugError}
-				/>
-				<p className="text-xs text-kumo-subtle mt-2">
-					{isNew
-						? t`Lowercase letters, numbers and underscores. Reference fields store this.`
-						: t`The content types and slug cannot be changed after a relation is created.`}
-				</p>
-			</div>
-
-			<div className="space-y-4">
-				<h3 className="text-xs font-medium uppercase tracking-wider text-kumo-subtle">
-					{t`How many`}
-				</h3>
-				<p className="text-sm text-kumo-subtle">
-					{t`Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links.`}
-				</p>
-
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:grid-rows-[auto_auto] sm:gap-y-2">
+			<DialogSection
+				title={t`How many`}
+				help={t`Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links.`}
+			>
+				<div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:grid-rows-[auto_auto] sm:gap-x-4 sm:gap-y-2">
 					<LimitControl
 						label={t`Each ${linkingSideName} links to`}
 						oneLabel={t`One`}
@@ -365,6 +337,37 @@ export function RelationFormFields({ form, collections, isNew }: RelationFormFie
 						onLimitChange={(value) => set("parentsLimit", value)}
 					/>
 				</div>
+			</DialogSection>
+
+			<div className="border-t border-kumo-line pt-5">
+				<Input
+					dir="ltr"
+					label={
+						isNew ? (
+							t`Slug`
+						) : (
+							<HelpLabel
+								help={t`The content types and slug cannot be changed after a relation is created.`}
+							>
+								{t`Slug`}
+							</HelpLabel>
+						)
+					}
+					aria-label={t`Slug`}
+					description={
+						isNew
+							? t`Lowercase letters, numbers and underscores. Reference fields store this.`
+							: undefined
+					}
+					value={state.slug}
+					onChange={(e) => {
+						set("slugEdited", true);
+						set("slug", e.target.value);
+					}}
+					placeholder="posts_authors"
+					disabled={!isNew}
+					error={slugError}
+				/>
 			</div>
 		</div>
 	);
