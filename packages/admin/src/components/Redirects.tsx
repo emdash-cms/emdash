@@ -288,12 +288,19 @@ export function Redirects() {
 	const [debouncedSearch, setDebouncedSearch] = useState("");
 	const [filterEnabled, setFilterEnabled] = useState<string>("all");
 	const [filterAuto, setFilterAuto] = useState<string>("all");
+	const [filterGroup, setFilterGroup] = useState("");
+	const [debouncedGroup, setDebouncedGroup] = useState("");
 
 	// Debounce search input
 	useEffect(() => {
 		const timer = setTimeout(setDebouncedSearch, 300, search);
 		return () => clearTimeout(timer);
 	}, [search]);
+
+	useEffect(() => {
+		const timer = setTimeout(setDebouncedGroup, 300, filterGroup);
+		return () => clearTimeout(timer);
+	}, [filterGroup]);
 
 	// Dialog state
 	const [showCreate, setShowCreate] = useState(false);
@@ -304,12 +311,16 @@ export function Redirects() {
 	// Queries
 	const enabledFilter = filterEnabled === "all" ? undefined : filterEnabled === "true";
 	const autoFilter = filterAuto === "all" ? undefined : filterAuto === "true";
+	const groupFilter = debouncedGroup.trim() || undefined;
+	const hasFilters =
+		!!debouncedSearch || enabledFilter !== undefined || autoFilter !== undefined || !!groupFilter;
 
 	const redirectsQuery = useInfiniteQuery({
-		queryKey: ["redirects", debouncedSearch, enabledFilter, autoFilter],
+		queryKey: ["redirects", debouncedSearch, enabledFilter, autoFilter, groupFilter],
 		queryFn: ({ pageParam }) =>
 			fetchRedirects({
 				search: debouncedSearch || undefined,
+				group: groupFilter,
 				enabled: enabledFilter,
 				auto: autoFilter,
 				cursor: pageParam,
@@ -390,6 +401,14 @@ export function Redirects() {
 								aria-label={searchPlaceholder}
 								value={search}
 								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+							/>
+							<Input
+								aria-label={t`Filter by group`}
+								placeholder={t`Exact group name...`}
+								value={filterGroup}
+								onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+									setFilterGroup(e.target.value)
+								}
 							/>
 							<div className="grid grid-cols-2 gap-2 sm:flex">
 								<Select
@@ -482,90 +501,112 @@ export function Redirects() {
 					) : redirects.length === 0 ? (
 						<div className="py-10 text-center text-kumo-subtle">
 							<ADMIN_NAV_ICONS.redirects size={40} className="mx-auto mb-3 opacity-30" />
-							<p className="text-base font-medium">{t`No redirects yet`}</p>
-							<p className="text-sm mt-1">{t`Create redirect rules to manage URL changes.`}</p>
+							<p className="text-base font-medium">
+								{hasFilters ? t`No redirects match these filters` : t`No redirects yet`}
+							</p>
+							<p className="text-sm mt-1">
+								{hasFilters
+									? t`Try changing or clearing your filters.`
+									: t`Create redirect rules to manage URL changes.`}
+							</p>
 						</div>
 					) : (
 						<>
-							<div className="border rounded-lg">
-								<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 text-sm font-medium text-kumo-subtle">
-									<div className="flex-1">{t`Source`}</div>
-									<div className="w-8 text-center" />
-									<div className="flex-1">{t`Destination`}</div>
-									<div className="w-14 text-center">{t`Code`}</div>
-									<div className="w-16 text-end">{t`Hits`}</div>
-									<div className="w-20 text-center">{t`Status`}</div>
-									<div className="w-20" />
-								</div>
-								{redirects.map((r) => (
-									<div
-										key={r.id}
-										className={cn(
-											"flex items-center gap-4 py-2 px-4 border-b last:border-0 text-sm",
-											!r.enabled && "opacity-50",
-										)}
-									>
-										<div className="flex-1 font-mono text-xs truncate" title={r.source}>
-											<bdi dir="ltr">{r.source}</bdi>
-										</div>
-										<div className="w-8 text-center text-kumo-subtle">
-											<ArrowNext size={14} />
-										</div>
-										<div className="flex-1 font-mono text-xs truncate" title={r.destination}>
-											<bdi dir="ltr">{r.destination}</bdi>
-										</div>
-										<div className="w-14 text-center">
-											<Badge variant="secondary">{r.type}</Badge>
-										</div>
-										<div className="w-16 text-end tabular-nums text-kumo-subtle">{r.hits}</div>
-										<div className="w-20 text-center">
-											<Switch
-												checked={r.enabled}
-												onCheckedChange={(checked) =>
-													toggleMutation.mutate({
-														id: r.id,
-														enabled: checked,
-													})
-												}
-												aria-label={r.enabled ? t`Disable redirect` : t`Enable redirect`}
-											/>
-										</div>
-										<div className="w-20 flex items-center justify-end gap-1">
-											{loopRedirectIds.has(r.id) && (
-												<span title={t`Part of a redirect loop`} className="me-1 inline-flex">
-													<WarningCircle
-														size={14}
-														weight="fill"
-														className="text-kumo-warning"
-														role="img"
-														aria-label={t`Part of a redirect loop`}
-													/>
-												</span>
-											)}
-											{r.auto && (
-												<Badge variant="outline" className="me-1 text-xs">
-													{t`auto`}
-												</Badge>
-											)}
-											<button
-												onClick={() => setEditRedirect(r)}
-												className="p-1 text-kumo-subtle hover:text-kumo-default"
-												title={t`Edit redirect`}
-												aria-label={t`Edit redirect ${r.source}`}
-											>
-												<PencilSimple size={14} />
-											</button>
-											<button
-												onClick={() => setDeleteId(r.id)}
-												className="p-1 text-kumo-subtle hover:text-kumo-danger"
-												title={t`Delete redirect`}
-												aria-label={t`Delete redirect ${r.source}`}
-											>
-												<Trash size={14} />
-											</button>
-										</div>
+							<div className="border rounded-lg overflow-x-auto">
+								<div className="min-w-[800px]">
+									<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 text-sm font-medium text-kumo-subtle">
+										<div className="flex-1">{t`Source`}</div>
+										<div className="w-8 text-center" />
+										<div className="flex-1">{t`Destination`}</div>
+										<div className="w-36 shrink-0">{t`Group`}</div>
+										<div className="w-14 text-center">{t`Code`}</div>
+										<div className="w-16 text-end">{t`Hits`}</div>
+										<div className="w-20 text-center">{t`Status`}</div>
+										<div className="w-20" />
 									</div>
-								))}
+									{redirects.map((r) => (
+										<div
+											key={r.id}
+											className={cn(
+												"flex items-center gap-4 py-2 px-4 border-b last:border-0 text-sm",
+												!r.enabled && "opacity-50",
+											)}
+										>
+											<div className="flex-1 font-mono text-xs truncate" title={r.source}>
+												<bdi dir="ltr">{r.source}</bdi>
+											</div>
+											<div className="w-8 text-center text-kumo-subtle">
+												<ArrowNext size={14} />
+											</div>
+											<div className="flex-1 font-mono text-xs truncate" title={r.destination}>
+												<bdi dir="ltr">{r.destination}</bdi>
+											</div>
+											<div
+												className="w-36 shrink-0 truncate text-kumo-subtle"
+												title={r.groupName ?? undefined}
+											>
+												{r.groupName ? (
+													<bdi>{r.groupName}</bdi>
+												) : (
+													<>
+														<span aria-hidden="true">—</span>
+														<span className="sr-only">{t`No group`}</span>
+													</>
+												)}
+											</div>
+											<div className="w-14 text-center">
+												<Badge variant="secondary">{r.type}</Badge>
+											</div>
+											<div className="w-16 text-end tabular-nums text-kumo-subtle">{r.hits}</div>
+											<div className="w-20 text-center">
+												<Switch
+													checked={r.enabled}
+													onCheckedChange={(checked) =>
+														toggleMutation.mutate({
+															id: r.id,
+															enabled: checked,
+														})
+													}
+													aria-label={r.enabled ? t`Disable redirect` : t`Enable redirect`}
+												/>
+											</div>
+											<div className="w-20 flex items-center justify-end gap-1">
+												{loopRedirectIds.has(r.id) && (
+													<span title={t`Part of a redirect loop`} className="me-1 inline-flex">
+														<WarningCircle
+															size={14}
+															weight="fill"
+															className="text-kumo-warning"
+															role="img"
+															aria-label={t`Part of a redirect loop`}
+														/>
+													</span>
+												)}
+												{r.auto && (
+													<Badge variant="outline" className="me-1 text-xs">
+														{t`auto`}
+													</Badge>
+												)}
+												<button
+													onClick={() => setEditRedirect(r)}
+													className="p-1 text-kumo-subtle hover:text-kumo-default"
+													title={t`Edit redirect`}
+													aria-label={t`Edit redirect ${r.source}`}
+												>
+													<PencilSimple size={14} />
+												</button>
+												<button
+													onClick={() => setDeleteId(r.id)}
+													className="p-1 text-kumo-subtle hover:text-kumo-danger"
+													title={t`Delete redirect`}
+													aria-label={t`Delete redirect ${r.source}`}
+												>
+													<Trash size={14} />
+												</button>
+											</div>
+										</div>
+									))}
+								</div>
 							</div>
 							{redirectsQuery.hasNextPage && (
 								<div className="flex justify-center">
