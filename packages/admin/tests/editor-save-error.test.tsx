@@ -119,7 +119,8 @@ function createMockServer(
 			});
 		}
 		if (method === "PUT" && url.startsWith("/_emdash/api/content/posts/")) {
-			const payload = JSON.parse(String(init?.body));
+			if (typeof init?.body !== "string") throw new Error("Expected a JSON request body");
+			const payload = JSON.parse(init.body);
 			if ("authorId" in payload) {
 				const status = authorResponses[authorIndex++] ?? 200;
 				if (status !== 200)
@@ -140,7 +141,7 @@ function createMockServer(
 					{ error: { code: "VALIDATION_ERROR", message: "Title is rejected by the server." } },
 					status,
 				);
-			const data = JSON.parse(String(init?.body)).data;
+			const data = payload.data;
 			savedData.set("post-1", data);
 			return jsonResponse({
 				data: { item: { ...item("post-1"), data }, _rev: `revision-${putIndex}` },
