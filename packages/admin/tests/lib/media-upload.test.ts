@@ -162,6 +162,80 @@ it("forces a distinct signed upload when deduplication is disabled", async () =>
 	expect(fetch).toHaveBeenCalledTimes(3);
 });
 
+it("passes nested block upload context to signed URL requests", async () => {
+	let uploadUrlBody: Record<string, unknown> | undefined;
+	const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+		const url =
+			typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+		if (url === "/_emdash/api/media/upload-url") {
+			if (typeof init?.body !== "string") throw new TypeError("Expected a JSON request body");
+			uploadUrlBody = JSON.parse(init.body) as Record<string, unknown>;
+			return Response.json({
+				success: true,
+				data: {
+					uploadUrl: "https://uploads.example/attachment.docx",
+					method: "PUT",
+					headers: {
+						"Content-Type":
+							"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+					},
+					mediaId: "word-media",
+					storageKey: "attachment.docx",
+					expiresAt: "2026-01-01T01:00:00.000Z",
+				},
+			});
+		}
+		if (url === "https://uploads.example/attachment.docx")
+			return new Response(null, { status: 200 });
+		if (url === "/_emdash/api/media/word-media/confirm") {
+			return mediaItemResponse(
+				"word-media",
+				"attachment.docx",
+				"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+			);
+		}
+		return new Response(null, { status: 500 });
+	});
+
+	await uploadMedia(
+		new File(["docx"], "attachment.docx", {
+			type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		}),
+		{ fieldId: "attachments:block-key:file", blockType: "attachment", blockVersion: 3 },
+	);
+
+	expect(uploadUrlBody).toMatchObject({
+		fieldId: "attachments:block-key:file",
+		blockType: "attachment",
+		blockVersion: 3,
+	});
+	expect(fetch).toHaveBeenCalledTimes(3);
+});
+
+it("passes nested block upload context to multipart fallback", async () => {
+	let directBody: FormData | undefined;
+	vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+		const url =
+			typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+		if (url === "/_emdash/api/media/upload-url") return new Response(null, { status: 501 });
+		if (url === "/_emdash/api/media") {
+			directBody = init?.body as FormData;
+			return mediaItemResponse("word-media", "attachment.doc", "application/msword");
+		}
+		return new Response(null, { status: 500 });
+	});
+
+	await uploadMedia(new File(["doc"], "attachment.doc", { type: "application/msword" }), {
+		fieldId: "attachments:block-key:file",
+		blockType: "attachment",
+		blockVersion: 3,
+	});
+
+	expect(directBody?.get("fieldId")).toBe("attachments:block-key:file");
+	expect(directBody?.get("blockType")).toBe("attachment");
+	expect(directBody?.get("blockVersion")).toBe("3");
+});
+
 it("forces a distinct direct upload when deduplication is disabled", async () => {
 	let directBody: FormData | undefined;
 	vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {

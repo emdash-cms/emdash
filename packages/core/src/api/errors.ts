@@ -378,6 +378,7 @@ export const ErrorCode = {
 	BACKUP_DOWNLOAD_ERROR: "BACKUP_DOWNLOAD_ERROR",
 
 	// Search
+	SEARCH_UNAVAILABLE: "SEARCH_UNAVAILABLE",
 	SEARCH_ERROR: "SEARCH_ERROR",
 	STATS_ERROR: "STATS_ERROR",
 	SUGGESTION_ERROR: "SUGGESTION_ERROR",
@@ -581,6 +582,7 @@ export function mapErrorStatus(code: string | undefined): number {
 			return 502;
 
 		// 503 Service Unavailable
+		case ErrorCode.SEARCH_UNAVAILABLE:
 		case ErrorCode.MARKETPLACE_UNAVAILABLE:
 		case ErrorCode.MARKETPLACE_NOT_CONFIGURED:
 		case ErrorCode.SANDBOX_NOT_AVAILABLE:
