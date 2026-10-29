@@ -109,7 +109,9 @@ describe("BlocksField", () => {
 	});
 
 	it("passes retained block type and version to nested field rendering", async () => {
-		let renderedField: { field: { blockType?: string; blockVersion?: number } } | undefined;
+		let renderedField:
+			| { field: { id?: string; blockType?: string; blockVersion?: number } }
+			| undefined;
 		const screen = await render(
 			<BlocksField
 				id="field-layout"
