@@ -224,9 +224,11 @@ hooks: {
 },
 ```
 
-EmDash runs `plugin:install` once when the plugin has no recorded installation state. Once that state is recorded, a new plugin version does not rerun the hook. Keep the read-time fallback for new settings, or initialize missing keys idempotently during `plugin:activate`.
+EmDash runs `plugin:install` for a plugin with no recorded installation state. Successful initialization is recorded, and a new plugin version does not rerun the hook.
 
-A config-declared sandboxed plugin can run `plugin:install` on an existing site the first time the site starts after an upgrade if its installation state is missing. Before upgrading, check that install hooks preserve existing settings and data. Initialize only missing keys, as in the example above.
+For config-declared sandboxed plugins, missing state can also cause install to run on an existing site after an upgrade. If the sandbox becomes unavailable before activation completes, the next boot runs install again, even if it previously succeeded. Before upgrading, check that install hooks are idempotent and preserve existing settings and data by initializing only missing keys, as in the example above.
+
+Keep the read-time fallback for new settings, or initialize missing keys idempotently during `plugin:activate`.
 
 ## Choose KV or storage
 

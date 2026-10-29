@@ -272,6 +272,7 @@ import {
 	createHookPipeline,
 	EXCLUSIVE_HOOK_KEY_PREFIX,
 	getActiveContentSaveHookName,
+	HookTimeoutError,
 	resolveExclusiveHooks as resolveExclusiveHooksShared,
 	type HookPipeline,
 } from "./plugins/hooks.js";
@@ -1192,9 +1193,7 @@ export class EmDashRuntime {
 			if (
 				this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
 				(error?.name === "SandboxUnavailableError" ||
-					(error?.message.startsWith("Hook timeout after ") &&
-						sandboxRunner &&
-						!sandboxRunner.isHealthy()))
+					(error instanceof HookTimeoutError && sandboxRunner && !sandboxRunner.isHealthy()))
 			) {
 				sandboxUnavailable = true;
 				await this.db
