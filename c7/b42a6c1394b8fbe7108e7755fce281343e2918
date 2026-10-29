@@ -1,0 +1,21 @@
+.changeset/kumo-2-15.md
+  s_f567737122c9e5::t_180123f150aea6 8,11
+packages/admin/src/components/ContentList.tsx
+  s_f567737122c9e5::t_f55ed4901a1f55 1442,1456,1471,1480,1647,1655
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c7b42a6c1394b8fbe7108e7755fce281343e2918",
+  "prompts": {},
+  "sessions": {
+    "s_f567737122c9e5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "80025384-f6c6-4da6-b0ac-2c0fede0a738",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
