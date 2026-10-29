@@ -16,7 +16,14 @@ import * as React from "react";
 
 import { BylineFormDialog, type BylineFormValues } from "../components/BylineFormDialog.js";
 import { ConfirmDialog } from "../components/ConfirmDialog.js";
-import { DataTable, RowActionsMenu, RowTitleButton } from "../components/DataTable.js";
+import {
+	DataTable,
+	RowActionsMenu,
+	RowMeta,
+	RowTitleButton,
+	secondaryColumn,
+	tertiaryColumn,
+} from "../components/DataTable.js";
 import { LocaleSwitcher, useI18nConfig } from "../components/LocaleSwitcher.js";
 import { RouterLinkButton } from "../components/RouterLinkButton.js";
 import { BYLINE_SCHEMA_NAV_ITEM } from "../components/Sidebar.js";
@@ -76,6 +83,15 @@ function BylineMonogram({ name }: { name: string }) {
 		>
 			{initials || <IdentificationCard className="size-5" />}
 		</span>
+	);
+}
+
+function BylineTypeBadge({ byline }: { byline: BylineSummary }) {
+	const { t } = useLingui();
+	return (
+		<Badge variant={byline.userId && !byline.isGuest ? "success" : "secondary"}>
+			{byline.isGuest ? t`Guest` : byline.userId ? t`Linked user` : t`Unlinked`}
+		</Badge>
 	);
 }
 
@@ -339,8 +355,12 @@ export function BylinesPage() {
 					<Table.Header>
 						<Table.Row>
 							<Table.Head>{t`Byline`}</Table.Head>
-							<Table.Head className="w-32">{t`Type`}</Table.Head>
-							<Table.Head className="hidden w-48 lg:table-cell">{t`Website`}</Table.Head>
+							<Table.Head className="w-32" {...secondaryColumn}>
+								{t`Type`}
+							</Table.Head>
+							<Table.Head className="w-48" {...tertiaryColumn}>
+								{t`Website`}
+							</Table.Head>
 							<Table.Head className="w-0">
 								<span className="sr-only">{t`Actions`}</span>
 							</Table.Head>
@@ -361,26 +381,31 @@ export function BylinesPage() {
 											>
 												{item.displayName}
 											</RowTitleButton>
-											<div className="text-xs text-kumo-subtle">
+											<div className="text-xs text-kumo-subtle wrap-anywhere">
 												<bdi dir="ltr">/{item.slug}</bdi>
 											</div>
 											{item.bio && (
-												<div
-													dir="auto"
-													className="w-fit max-w-lg truncate text-sm text-kumo-subtle"
-												>
-													{item.bio}
+												// A minmax(0, 1fr) track adds nothing to the cell's minimum width,
+												// so the truncated bio can't widen the column.
+												<div className="grid max-w-lg grid-cols-1">
+													<div
+														dir="auto"
+														className="w-fit max-w-full truncate text-sm text-kumo-subtle"
+													>
+														{item.bio}
+													</div>
 												</div>
 											)}
+											<RowMeta>
+												<BylineTypeBadge byline={item} />
+											</RowMeta>
 										</div>
 									</div>
 								</Table.Cell>
-								<Table.Cell>
-									<Badge variant={item.userId && !item.isGuest ? "success" : "secondary"}>
-										{item.isGuest ? t`Guest` : item.userId ? t`Linked user` : t`Unlinked`}
-									</Badge>
+								<Table.Cell {...secondaryColumn}>
+									<BylineTypeBadge byline={item} />
 								</Table.Cell>
-								<Table.Cell className="hidden lg:table-cell">
+								<Table.Cell {...tertiaryColumn}>
 									{item.websiteUrl ? (
 										<bdi
 											dir="ltr"
