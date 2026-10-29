@@ -15,7 +15,7 @@ import {
 	LayerCard,
 	Select,
 	Table,
-	Toast,
+	useKumoToastManager,
 } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -627,16 +627,6 @@ function TermFormDialog({
 	const [autoSlug, setAutoSlug] = React.useState(!term);
 	const [error, setError] = React.useState<string | null>(null);
 
-	// Sync form state when term prop changes (for edit mode)
-	React.useEffect(() => {
-		setLabel(term?.label || "");
-		setSlug(term?.slug || "");
-		setParentId(term?.parentId || "");
-		setDescription(term?.description || "");
-		setAutoSlug(!term);
-		setError(null);
-	}, [term]);
-
 	// Auto-generate slug from label
 	React.useEffect(() => {
 		if (autoSlug && label) {
@@ -720,6 +710,19 @@ function TermFormDialog({
 			setError(err.message);
 		},
 	});
+
+	React.useEffect(() => {
+		if (!open) return;
+		setLabel(term?.label || "");
+		setSlug(term?.slug || "");
+		setParentId(term?.parentId || "");
+		setDescription(term?.description || "");
+		setAutoSlug(!term);
+		setError(null);
+		createMutation.reset();
+		updateMutation.reset();
+		translateMutation.reset();
+	}, [open, term, createMutation.reset, updateMutation.reset, translateMutation.reset]);
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -1117,7 +1120,7 @@ function CreateTaxonomyDialog({
 export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProps) {
 	const { t, i18n: lingui } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [formOpen, setFormOpen] = React.useState(false);
 	const [editingTerm, setEditingTerm] = React.useState<TaxonomyTerm | undefined>();
 	const [deleteTarget, setDeleteTarget] = React.useState<TaxonomyTerm | null>(null);
@@ -1207,7 +1210,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 		mutationFn: ({ parentId, ids }: { parentId: string | null; ids: string[] }) =>
 			reorderTerms(taxonomyName, { parentId, ids }),
 		onError: (error: Error) => {
-			toastManager.add({ title: t`Error`, description: error.message, type: "error" });
+			toastManager.add({ title: t`Error`, description: error.message, variant: "error" });
 		},
 		onSettled: () => {
 			// The count includes this mutation, so >1 means another move is queued

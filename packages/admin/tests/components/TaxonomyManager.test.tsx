@@ -498,6 +498,101 @@ describe("TaxonomyManager", () => {
 		});
 	});
 
+	it("opens an empty form after creating a tag without leaving the page", async () => {
+		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
+		await screen.getByRole("button", { name: "Add tag" }).click();
+		await screen.getByRole("textbox", { name: "Name" }).fill("Internship Experience");
+		await expect
+			.element(screen.getByRole("textbox", { name: "Slug" }))
+			.toHaveValue("internship-experience");
+		await screen.getByRole("dialog").getByRole("button", { name: "Create" }).click();
+		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "Add tag" }).click();
+		await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
+		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("");
+	});
+
+	it.each(["Create", "Cancel", "Close", "Escape"])(
+		"resets every create field after %s",
+		async (action) => {
+			const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+				wrapper: Wrapper,
+			});
+			await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+			await screen.getByRole("textbox", { name: "Name" }).fill("Music");
+			await screen.getByRole("textbox", { name: "Slug" }).fill("custom-music");
+			await screen.getByRole("textbox", { name: "Description (optional)" }).fill("Music news");
+			await screen.getByRole("combobox", { name: "Parent" }).click();
+			await screen.getByRole("option", { name: "Technology" }).click();
+			if (action === "Escape") {
+				await userEvent.keyboard("{Escape}");
+			} else {
+				await screen.getByRole("dialog").getByRole("button", { name: action, exact: true }).click();
+			}
+			await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+
+			await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+			await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
+			await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("");
+			await expect
+				.element(screen.getByRole("textbox", { name: "Description (optional)" }))
+				.toHaveValue("");
+			await expect
+				.element(screen.getByRole("combobox", { name: "Parent" }))
+				.toHaveTextContent("None (top level)");
+			await screen.getByRole("textbox", { name: "Name" }).fill("New term");
+			await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("new-term");
+		},
+	);
+
+	it("preserves a failed create for retry but clears its values and error on reopening", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		await screen.getByRole("textbox", { name: "Name" }).fill("Music");
+		await screen.getByRole("textbox", { name: "Slug" }).fill("custom-music");
+		vi.mocked(apiFetch).mockResolvedValueOnce(
+			new Response(JSON.stringify({ error: { message: "Term already exists" } }), {
+				status: 409,
+				headers: { "Content-Type": "application/json" },
+			}),
+		);
+		await screen.getByRole("dialog").getByRole("button", { name: "Create", exact: true }).click();
+		await expect.element(screen.getByText("Term already exists")).toBeVisible();
+		await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Music");
+		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("custom-music");
+		await screen.getByRole("button", { name: "Cancel", exact: true }).click();
+		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
+		await expect.element(screen.getByText("Term already exists")).not.toBeInTheDocument();
+	});
+
+	it("reloads saved values after cancelling an edit of the same term", async () => {
+		mockApiFetch(termsWithDescriptionResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "Edit Technology", exact: true }).click();
+		await screen.getByRole("textbox", { name: "Name" }).fill("Unsaved name");
+		await screen
+			.getByRole("textbox", { name: "Description (optional)" })
+			.fill("Unsaved description");
+		await screen.getByRole("button", { name: "Cancel", exact: true }).click();
+		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+		await screen.getByRole("button", { name: "Edit Technology", exact: true }).click();
+		await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Technology");
+		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("tech");
+		await expect
+			.element(screen.getByRole("textbox", { name: "Description (optional)" }))
+			.toHaveValue("Previously saved description");
+		await screen.getByRole("textbox", { name: "Name" }).fill("New name");
+		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("tech");
+	});
+
 	it("filters tags by label or slug without changing their stored order", async () => {
 		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
 		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });

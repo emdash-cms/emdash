@@ -613,6 +613,53 @@ describe("ContentEditor", () => {
 			await expect.element(slugInput).toHaveValue("hello-world-post");
 		});
 
+		it("auto-generates the slug from the collection's title field, not a field named title", async () => {
+			const screen = await renderEditor({
+				isNew: true,
+				fields: {
+					name: { kind: "string", label: "Name" },
+					title: { kind: "string", label: "Job title" },
+				},
+				manifest: {
+					version: "1.0.0",
+					hash: "hash",
+					authMode: "passkey",
+					collections: {
+						posts: {
+							label: "Posts",
+							labelSingular: "Post",
+							supports: [],
+							hasSeo: false,
+							titleField: "name",
+						},
+					},
+					plugins: {},
+					taxonomies: [],
+				},
+			});
+			const slugInput = screen.getByLabelText("Slug");
+
+			await screen.getByLabelText("Job title").fill("Trustee");
+			await expect.element(slugInput).toHaveValue("");
+
+			await screen.getByLabelText("Name").fill("Jane Smith");
+			await expect.element(slugInput).toHaveValue("jane-smith");
+
+			await screen.getByLabelText("Job title").fill("Mayor");
+			await expect.element(slugInput).toHaveValue("jane-smith");
+		});
+
+		it("auto-generates the slug from a multiline title when the collection sets no title field", async () => {
+			const screen = await renderEditor({
+				isNew: true,
+				fields: { title: { kind: "richText", label: "Title" } },
+			});
+
+			await screen.getByLabelText("Title").fill("Hello World");
+
+			await expect.element(screen.getByLabelText("Slug")).toHaveValue("hello-world");
+		});
+
 		it("slug accepts manual override", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const slugInput = screen.getByLabelText("Slug");
@@ -1362,6 +1409,44 @@ describe("ContentEditor", () => {
 					}),
 				}),
 			);
+		});
+
+		it("saves null when an optional datetime field is cleared", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				onSave,
+				item: makeItem({ data: { title: "Recall", recall_date: "2026-02-26T09:30:00.000Z" } }),
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					recall_date: { kind: "datetime", label: "Recall date" },
+				},
+			});
+
+			await screen.getByLabelText("Recall date").fill("");
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({ data: expect.objectContaining({ recall_date: null }) }),
+			);
+		});
+
+		it("does not save when a required datetime field is cleared", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				onSave,
+				item: makeItem({ data: { title: "Recall", recall_date: "2026-02-26T09:30:00.000Z" } }),
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					recall_date: { kind: "datetime", label: "Recall date", required: true },
+				},
+			});
+
+			await screen.getByLabelText("Recall date").fill("");
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			expect(onSave).not.toHaveBeenCalled();
 		});
 
 		it("renders json fields as a textarea", async () => {
@@ -2617,7 +2702,7 @@ describe("ContentEditor", () => {
 			await screen.getByRole("button", { name: "Schedule" }).click();
 			const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
 			await expect
-				.element(dialog.getByText("Choose when these changes replace the live version."))
+				.element(dialog.getByRole("button", { name: "Schedule changes", exact: true }))
 				.toBeVisible();
 		});
 

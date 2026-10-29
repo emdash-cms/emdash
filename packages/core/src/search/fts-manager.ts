@@ -10,6 +10,7 @@ import { sql } from "kysely";
 import { isSqlite, tableExists as dialectTableExists } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import { isStoragelessFieldRow } from "../schema/types.js";
 import { SEARCH_TOKENIZERS } from "./types.js";
 import type { SearchConfig, SearchTokenizer } from "./types.js";
 
@@ -513,7 +514,8 @@ export class FTSManager {
 	}
 
 	/**
-	 * Get searchable fields for a collection
+	 * Get searchable fields for a collection. Fields that store no column (bound
+	 * reference fields) are left out: the index triggers read each field's column.
 	 */
 	async getSearchableFields(collectionSlug: string): Promise<string[]> {
 		const collection = await this.db
@@ -528,12 +530,12 @@ export class FTSManager {
 
 		const fields = await this.db
 			.selectFrom("_emdash_fields")
-			.select("slug")
+			.select(["slug", "type", "validation"])
 			.where("collection_id", "=", collection.id)
 			.where("searchable", "=", 1)
 			.execute();
 
-		return fields.map((f) => f.slug);
+		return fields.filter((f) => !isStoragelessFieldRow(f)).map((f) => f.slug);
 	}
 
 	/**

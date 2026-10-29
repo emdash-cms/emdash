@@ -13,17 +13,23 @@
  * single menu item survives content translations.
  */
 
-import type { Kysely, Selectable } from "kysely";
+import type { Compilable, Insertable, Kysely, Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { localeMatches, localeOrder } from "../../i18n/query.js";
 import { invalidateMenuObjectCache } from "../../object-cache/index.js";
+import { SQL_BATCH_SIZE, chunks } from "../../utils/chunks.js";
+import {
+	executeAtomicBatchIfSupported,
+	isPostgres,
+	supportsAtomicBatch,
+} from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { Database, MenuItemTable, MenuTable } from "../types.js";
 
 /**
- * Thrown from inside a repository transaction when the menu the caller
- * resolved earlier has since been deleted. Handlers translate this to a
+ * Thrown by a repository write when the menu the caller resolved earlier has
+ * since been deleted. Handlers translate this to a
  * `NOT_FOUND` API response. Necessary because D1 disables FK enforcement
  * (so `ON DELETE CASCADE` won't fire), and an unchecked `setItems` would
  * happily insert items whose `menu_id` no longer exists, leaving orphans.
@@ -40,6 +46,50 @@ export class MenuItemParentError extends Error {
 		super(message);
 		this.name = "MenuItemParentError";
 	}
+}
+
+interface MenuWriteStatement extends Compilable {
+	execute(): Promise<unknown>;
+}
+
+/**
+ * Run the statements as one atomic batch where the adapter supports it (D1),
+ * otherwise inside a transaction. D1 has no interactive transactions, so a
+ * `withTransaction` there would commit each statement on its own. `check`
+ * runs inside the transaction, or just before the batch on D1, where a read
+ * can't be part of it.
+ */
+async function executeMenuWrite(
+	db: Kysely<Database>,
+	buildStatements: (target: Kysely<Database>) => readonly MenuWriteStatement[],
+	check?: (target: Kysely<Database>) => Promise<void>,
+): Promise<void> {
+	if (supportsAtomicBatch(db)) {
+		await check?.(db);
+		const statements = buildStatements(db);
+		if (statements.length > 0) await executeAtomicBatchIfSupported(db, statements);
+		return;
+	}
+	await withTransaction(db, async (trx) => {
+		await check?.(trx);
+		for (const statement of buildStatements(trx)) {
+			await statement.execute();
+		}
+	});
+}
+
+function insertItemRows(target: Kysely<Database>, rows: Insertable<MenuItemTable>[]) {
+	const first = rows[0];
+	if (!first) return [];
+	// Postgres still has the `parent_id` foreign key and checks it after each
+	// statement, and a copied child can come before its parent, so it gets a
+	// single insert. SQLite has no such key, and the chunks keep each insert
+	// within D1's bound-parameter limit.
+	if (isPostgres(target)) return [target.insertInto("_emdash_menu_items").values(rows)];
+	const rowsPerInsert = Math.max(1, Math.floor(SQL_BATCH_SIZE / Object.keys(first).length));
+	return chunks(rows, rowsPerInsert).map((chunk) =>
+		target.insertInto("_emdash_menu_items").values(chunk),
+	);
 }
 
 async function validateItemParents(
@@ -371,62 +421,49 @@ export class MenuRepository {
 		const id = ulid();
 
 		let translationGroup: string = id;
-		let sourceMenuId: string | null = null;
+		let sourceItems: Selectable<MenuItemTable>[] = [];
 		if (input.translationOf) {
 			const source = await this.findById(input.translationOf);
 			if (!source) throw new Error("Source menu for translation not found");
 			translationGroup = source.translationGroup ?? source.id;
-			sourceMenuId = source.id;
+			sourceItems = await this.db
+				.selectFrom("_emdash_menu_items")
+				.selectAll()
+				.where("menu_id", "=", source.id)
+				.orderBy("sort_order", "asc")
+				.execute();
 		}
 
-		await withTransaction(this.db, async (trx) => {
-			await trx
-				.insertInto("_emdash_menus")
-				.values({
-					id,
-					name: input.name,
-					label: input.label,
-					...(input.locale !== undefined ? { locale: input.locale } : {}),
-					translation_group: translationGroup,
-				})
-				.execute();
+		// old-id → new-id map so parent pointers land on the clones.
+		const idMap = new Map<string, string>();
+		for (const item of sourceItems) idMap.set(item.id, ulid());
+		const itemRows: Insertable<MenuItemTable>[] = sourceItems.map((item) => ({
+			id: idMap.get(item.id)!,
+			menu_id: id,
+			parent_id: item.parent_id ? (idMap.get(item.parent_id) ?? null) : null,
+			sort_order: item.sort_order,
+			type: item.type,
+			reference_collection: item.reference_collection,
+			reference_id: item.reference_id,
+			custom_url: item.custom_url,
+			label: item.label,
+			title_attr: item.title_attr,
+			target: item.target,
+			css_classes: item.css_classes,
+			...(input.locale !== undefined ? { locale: input.locale } : {}),
+			translation_group: item.translation_group ?? item.id,
+		}));
 
-			if (sourceMenuId) {
-				const sourceItems = await trx
-					.selectFrom("_emdash_menu_items")
-					.selectAll()
-					.where("menu_id", "=", sourceMenuId)
-					.orderBy("sort_order", "asc")
-					.execute();
-				if (sourceItems.length > 0) {
-					// old-id → new-id map so parent pointers land on the clones.
-					const idMap = new Map<string, string>();
-					for (const item of sourceItems) idMap.set(item.id, ulid());
-
-					await trx
-						.insertInto("_emdash_menu_items")
-						.values(
-							sourceItems.map((item) => ({
-								id: idMap.get(item.id)!,
-								menu_id: id,
-								parent_id: item.parent_id ? (idMap.get(item.parent_id) ?? null) : null,
-								sort_order: item.sort_order,
-								type: item.type,
-								reference_collection: item.reference_collection,
-								reference_id: item.reference_id,
-								custom_url: item.custom_url,
-								label: item.label,
-								title_attr: item.title_attr,
-								target: item.target,
-								css_classes: item.css_classes,
-								...(input.locale !== undefined ? { locale: input.locale } : {}),
-								translation_group: item.translation_group ?? item.id,
-							})),
-						)
-						.execute();
-				}
-			}
-		});
+		await executeMenuWrite(this.db, (target) => [
+			target.insertInto("_emdash_menus").values({
+				id,
+				name: input.name,
+				label: input.label,
+				...(input.locale !== undefined ? { locale: input.locale } : {}),
+				translation_group: translationGroup,
+			}),
+			...insertItemRows(target, itemRows),
+		]);
 
 		invalidateMenuObjectCache();
 
@@ -462,10 +499,10 @@ export class MenuRepository {
 		const existing = await this.findById(id);
 		if (!existing) return false;
 
-		await withTransaction(this.db, async (trx) => {
-			await trx.deleteFrom("_emdash_menu_items").where("menu_id", "=", id).execute();
-			await trx.deleteFrom("_emdash_menus").where("id", "=", id).execute();
-		});
+		await executeMenuWrite(this.db, (target) => [
+			target.deleteFrom("_emdash_menu_items").where("menu_id", "=", id),
+			target.deleteFrom("_emdash_menus").where("id", "=", id),
+		]);
 		invalidateMenuObjectCache();
 		return true;
 	}
@@ -524,12 +561,15 @@ export class MenuRepository {
 		}
 		let sortOrder = input.sortOrder ?? 0;
 		if (input.sortOrder === undefined) {
-			const maxOrder = await this.db
+			const query = this.db
 				.selectFrom("_emdash_menu_items")
 				.select(({ fn }) => fn.max("sort_order").as("max"))
-				.where("menu_id", "=", menuId)
-				.where("parent_id", "is", input.parentId ?? null)
-				.executeTakeFirst();
+				.where("menu_id", "=", menuId);
+			const maxOrder = await (
+				input.parentId == null
+					? query.where("parent_id", "is", null)
+					: query.where("parent_id", "=", input.parentId)
+			).executeTakeFirst();
 			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely fn.max returns unknown; always a number for sort_order column
 			sortOrder = ((maxOrder?.max as number) ?? -1) + 1;
 		}
@@ -635,59 +675,57 @@ export class MenuRepository {
 		locale: string,
 		items: SetMenuItem[],
 	): Promise<{ itemCount: number }> {
-		await withTransaction(this.db, async (trx) => {
-			// Re-check menu existence INSIDE the transaction. The handler
-			// resolved by (name, locale) before this call; if a concurrent
+		const insertedIds: string[] = [];
+		const itemRows: Insertable<MenuItemTable>[] = [];
+		for (let i = 0; i < items.length; i++) {
+			const item = items[i];
+			if (!item) continue;
+			const id = ulid();
+			const parentId =
+				item.parentIndex !== undefined ? (insertedIds[item.parentIndex] ?? null) : null;
+			itemRows.push({
+				id,
+				translation_group: id,
+				menu_id: menuId,
+				parent_id: parentId,
+				sort_order: i,
+				type: item.type,
+				reference_collection: item.referenceCollection ?? null,
+				reference_id: item.referenceId ?? null,
+				custom_url: item.customUrl ?? null,
+				label: item.label,
+				title_attr: item.titleAttr ?? null,
+				target: item.target ?? null,
+				css_classes: item.cssClasses ?? null,
+				locale,
+			});
+			insertedIds.push(id);
+		}
+
+		await executeMenuWrite(
+			this.db,
+			(target) => [
+				target.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId),
+				...insertItemRows(target, itemRows),
+				target
+					.updateTable("_emdash_menus")
+					.set({ updated_at: new Date().toISOString() })
+					.where("id", "=", menuId),
+			],
+			// The handler resolved the menu before this call; if a concurrent
 			// menu_delete landed in between, inserting new items would
-			// silently orphan them. The FK from migration 005 was removed
-			// by migration 036 (#1021) and not restored, so nothing at the
-			// schema level stops the orphans. Throw a MenuGoneError so the
-			// rollback fires and the handler returns NOT_FOUND with the
-			// original menu name in the message.
-			const stillThere = await trx
-				.selectFrom("_emdash_menus")
-				.select("id")
-				.where("id", "=", menuId)
-				.executeTakeFirst();
-			if (!stillThere) throw new MenuGoneError(menuId);
-
-			await trx.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId).execute();
-
-			const insertedIds: string[] = [];
-			for (let i = 0; i < items.length; i++) {
-				const item = items[i];
-				if (!item) continue;
-				const id = ulid();
-				const parentId =
-					item.parentIndex !== undefined ? (insertedIds[item.parentIndex] ?? null) : null;
-				await trx
-					.insertInto("_emdash_menu_items")
-					.values({
-						id,
-						translation_group: id,
-						menu_id: menuId,
-						parent_id: parentId,
-						sort_order: i,
-						type: item.type,
-						reference_collection: item.referenceCollection ?? null,
-						reference_id: item.referenceId ?? null,
-						custom_url: item.customUrl ?? null,
-						label: item.label,
-						title_attr: item.titleAttr ?? null,
-						target: item.target ?? null,
-						css_classes: item.cssClasses ?? null,
-						locale,
-					})
-					.execute();
-				insertedIds.push(id);
-			}
-
-			await trx
-				.updateTable("_emdash_menus")
-				.set({ updated_at: new Date().toISOString() })
-				.where("id", "=", menuId)
-				.execute();
-		});
+			// silently orphan them. On SQLite the FK from migration 005 was
+			// removed by migration 036 and not restored, so nothing at the
+			// schema level stops the orphans.
+			async (target) => {
+				const stillThere = await target
+					.selectFrom("_emdash_menus")
+					.select("id")
+					.where("id", "=", menuId)
+					.executeTakeFirst();
+				if (!stillThere) throw new MenuGoneError(menuId);
+			},
+		);
 
 		invalidateMenuObjectCache();
 		return { itemCount: items.length };
@@ -698,26 +736,19 @@ export class MenuRepository {
 	 * malicious payload cannot move foreign items into this menu's siblings.
 	 */
 	async reorderItems(menuId: string, items: ReorderItem[]): Promise<MenuItem[]> {
-		const updated = await withTransaction(this.db, async (trx) => {
-			await validateItemParents(trx, menuId, items);
-			for (const item of items) {
-				await trx
-					.updateTable("_emdash_menu_items")
-					.set({ parent_id: item.parentId, sort_order: item.sortOrder })
-					.where("id", "=", item.id)
-					.where("menu_id", "=", menuId)
-					.execute();
-			}
-
-			const rows = await trx
-				.selectFrom("_emdash_menu_items")
-				.selectAll()
-				.where("menu_id", "=", menuId)
-				.orderBy("sort_order", "asc")
-				.execute();
-			return rows.map(rowToMenuItem);
-		});
+		await executeMenuWrite(
+			this.db,
+			(target) =>
+				items.map((item) =>
+					target
+						.updateTable("_emdash_menu_items")
+						.set({ parent_id: item.parentId, sort_order: item.sortOrder })
+						.where("id", "=", item.id)
+						.where("menu_id", "=", menuId),
+				),
+			(target) => validateItemParents(target, menuId, items),
+		);
 		invalidateMenuObjectCache();
-		return updated;
+		return this.findItems(menuId);
 	}
 }

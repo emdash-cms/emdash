@@ -1,4 +1,4 @@
-import { Button, Collapsible, SkeletonLine, Text, Toast } from "@cloudflare/kumo";
+import { Button, Collapsible, SkeletonLine, Text, useKumoToastManager } from "@cloudflare/kumo";
 import { BlockRenderer } from "@emdash-cms/blocks";
 import type {
 	Block,
@@ -64,7 +64,7 @@ export function SandboxedContentEditorPanel({
 	reserveHeaderEnd = false,
 }: SandboxedContentEditorPanelProps) {
 	const { t } = useLingui();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [open, setOpen] = React.useState(false);
 	const [loaded, setLoaded] = React.useState(false);
 	const [loading, setLoading] = React.useState(false);
@@ -139,7 +139,7 @@ export function SandboxedContentEditorPanel({
 				setBlocks(body.data.blocks);
 				setLoaded(true);
 				if (body.data.toast) {
-					toastManager.add({ title: body.data.toast.message, type: body.data.toast.type });
+					toastManager.add({ title: body.data.toast.message, variant: body.data.toast.type });
 				}
 				if (body.data.refresh) await onEntryRefresh?.();
 				applyNavigation(body.data);

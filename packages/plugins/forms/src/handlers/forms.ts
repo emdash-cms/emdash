@@ -30,7 +30,7 @@ function submissions(ctx: RouteContext): StorageCollection {
 // ─── List Forms ──────────────────────────────────────────────────
 
 /** `Role.ADMIN` from @emdash-cms/auth; plugins do not depend on that package. */
-const ADMIN_ROLE = 50;
+export const ADMIN_ROLE = 50;
 
 /** The webhook URL is a credential (for Slack or Discord it is all anyone needs to post). */
 function withoutWebhookUrl(form: FormDefinition): FormDefinition {

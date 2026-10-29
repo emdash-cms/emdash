@@ -6,6 +6,7 @@ import { page } from "vitest/browser";
 import "../../dist/styles.css";
 import { ContentList } from "../../src/components/ContentList.js";
 import type { ContentItem } from "../../src/lib/api";
+import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context.js";
 import { render } from "../utils/render.js";
 
 vi.mock("@tanstack/react-router", async () => {
@@ -140,6 +141,36 @@ describe("Content list pagination layout", () => {
 			expect(lastTitle.getBoundingClientRect().bottom).toBeLessThan(
 				footer.getBoundingClientRect().top,
 			);
+		},
+	);
+});
+
+describe("Content list header alignment", () => {
+	it.each(["ltr", "rtl"] as const)(
+		"starts headers and keeps a plugin column's end alignment in %s",
+		async (direction) => {
+			const pluginAdmins: PluginAdmins = {
+				"editorial-workflow": {
+					contentListColumns: [{ id: "words", label: "Words", align: "end", cell: () => null }],
+				},
+			};
+			const screen = await render(
+				<div dir={direction}>
+					<PluginAdminProvider pluginAdmins={pluginAdmins}>
+						<ContentList
+							collection="posts"
+							collectionLabel="Posts"
+							items={posts.slice(0, 1)}
+							pluginStates={{ "editorial-workflow": { enabled: true } }}
+						/>
+					</PluginAdminProvider>
+				</div>,
+			);
+			const textAlign = (name: string) =>
+				getComputedStyle(screen.getByRole("columnheader", { name }).element()).textAlign;
+
+			expect(textAlign("Title")).toBe("start");
+			expect(textAlign("Words")).toBe("end");
 		},
 	);
 });

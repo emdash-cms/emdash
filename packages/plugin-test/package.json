@@ -23,7 +23,7 @@
 	],
 	"scripts": {
 		"build": "tsdown",
-		"test": "vitest run",
+		"test": "vitest run --config vitest.config.node.ts && vitest run --config vitest.config.ts",
 		"typecheck": "tsgo --noEmit",
 		"check": "publint"
 	},

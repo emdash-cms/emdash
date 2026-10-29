@@ -33,7 +33,11 @@
 		"@cloudflare/kumo": "catalog:"
 	},
 	"devDependencies": {
+		"@testing-library/react": "^16.3.0",
 		"astro": "catalog:",
+		"jsdom": "^26.1.0",
+		"react": "catalog:",
+		"react-dom": "catalog:",
 		"vitest": "catalog:"
 	},
 	"dependencies": {

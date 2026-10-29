@@ -69,3 +69,5 @@ export function useSyncExternalStoreWithSelector(
 	React.useDebugValue(value);
 	return value;
 }
+
+export default { useSyncExternalStoreWithSelector };
