@@ -359,7 +359,7 @@ export function SandboxedContentEditorPanel({
 				<span className="flex shrink-0 items-center gap-2">
 					{pendingInteractions > 0 && (
 						<span aria-hidden="true">
-							<Loader className="size-3 text-kumo-subtle" />
+							<Loader size="sm" className="text-kumo-subtle" />
 						</span>
 					)}
 					<CaretDown
