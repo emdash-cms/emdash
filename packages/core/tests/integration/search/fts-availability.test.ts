@@ -18,7 +18,7 @@ import { connectMcpHarness, extractText } from "../../utils/mcp-runtime.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 // Run this file on both FTS5-enabled Node builds and builds without FTS5
-// (for example Node 23.11.0). No database behavior is mocked.
+// (for example Node 23.11.0).
 const probe = new DatabaseSync(":memory:");
 let hasFts5 = false;
 try {

@@ -461,7 +461,7 @@ export class FTSManager {
 			.select([
 				// SQLite resolves bm25 at prepare time even when no rows match.
 				// The unreachable branch probes FTS5 without invoking bm25 outside
-				// a MATCH query or adding a round trip.
+				// a MATCH query.
 				sql<null>`CASE WHEN 0 THEN bm25(NULL) END`.as("fts5_capability"),
 				"c.slug",
 				"c.search_config",
