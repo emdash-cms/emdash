@@ -1,5 +1,7 @@
 import { Button, DropdownMenu, Table } from "@cloudflare/kumo";
-import { DotsThree } from "@phosphor-icons/react";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
+import { DotsThree, X } from "@phosphor-icons/react";
 import type * as React from "react";
 
 import { cn } from "../lib/utils.js";
@@ -107,6 +109,40 @@ export function DataTableMessage({
 				<div className="py-4.5">{children}</div>
 			</td>
 		</tr>
+	);
+}
+
+/**
+ * The bar shown above a table while rows are selected: the number selected, the bulk
+ * actions passed as children, and Clear. The actions wrap when the bar is narrow.
+ * While `busy`, the count says the selected rows are being worked on and Clear is disabled.
+ */
+export function DataTableBulkBar({
+	selectedCount,
+	busy = false,
+	onClear,
+	children,
+}: {
+	selectedCount: number;
+	busy?: boolean;
+	onClear: () => void;
+	children: React.ReactNode;
+}) {
+	const { t } = useLingui();
+	return (
+		<div className="flex flex-wrap items-center gap-3 rounded-xl bg-kumo-elevated px-4 py-2 ring ring-kumo-line">
+			<span className="text-sm font-medium">
+				{busy
+					? t`Working on ${selectedCount} items…`
+					: plural(selectedCount, { one: "# selected", other: "# selected" })}
+			</span>
+			<div className="flex flex-wrap items-center gap-2">
+				{children}
+				<Button size="sm" variant="ghost" icon={<X />} disabled={busy} onClick={onClear}>
+					{t`Clear`}
+				</Button>
+			</div>
+		</div>
 	);
 }
 
