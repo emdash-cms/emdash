@@ -11,6 +11,8 @@ const collections = [
 	{ slug: "authors", label: "Authors" },
 ] as SchemaCollection[];
 
+const SLUG_ERROR_REGEX = /slug cannot be generated from these role names/;
+
 function Harness({
 	initialCollections = collections,
 }: {
@@ -60,5 +62,18 @@ describe("RelationDialog", () => {
 
 		await expect.element(screen.getByLabelText("Linking side (plural)")).toHaveValue("Posts");
 		await expect.element(screen.getByLabelText("Linking side (singular)")).toHaveValue("Post");
+	});
+
+	it("waits for both role names before saying no slug can be made from them", async () => {
+		const screen = await render(<Harness />);
+
+		await screen.getByRole("button", { name: "Define relation" }).click();
+		const dialog = screen.getByRole("dialog", { name: "New Relation" });
+		await expect.element(dialog).toBeVisible();
+		expect(dialog.getByText(SLUG_ERROR_REGEX).query()).toBeNull();
+
+		await screen.getByLabelText("Linking side (plural)").fill("記事");
+		await screen.getByLabelText("Linked side (plural)").fill("作者");
+		await expect.element(dialog.getByText(SLUG_ERROR_REGEX)).toBeVisible();
 	});
 });

@@ -245,7 +245,7 @@ export function RelationFormFields({ form, collections, isNew }: RelationFormFie
 	const collectionItems = collections.map((c) => ({ label: c.label, value: c.slug }));
 
 	const slugError =
-		isNew && !state.slug && (state.parentLabel || state.childLabel)
+		isNew && !state.slug && state.parentLabel && state.childLabel
 			? t`A slug cannot be generated from these role names. Type one manually using lowercase letters, numbers, and underscores.`
 			: undefined;
 
