@@ -289,7 +289,7 @@ function TagTermRow({
 	const stranded = isStranded(term, parentId);
 	return (
 		<>
-			<Table.Row className="hover:bg-kumo-tint/25">
+			<Table.Row className="even:bg-transparent hover:bg-kumo-tint/25">
 				<Table.Cell>
 					<div className="min-w-0" style={{ paddingInlineStart: `${level * 1.5}rem` }}>
 						<span className="block break-words font-medium">{term.label}</span>
@@ -1407,7 +1407,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 					) : (
 						<LayerCard className="p-0">
 							<div className="overflow-x-auto">
-								<Table className="text-start">
+								<Table className="text-start [&_td]:border-b [&_td]:border-kumo-fill [&_tr:last-child_td]:border-b-0">
 									<Table.Header variant="compact">
 										<Table.Row>
 											<Table.Head className="text-start">{t`Name`}</Table.Head>
