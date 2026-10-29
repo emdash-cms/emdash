@@ -75,7 +75,7 @@ msgstr "(공개 후 대기 기간 미충족)"
 #. placeholder {0}: items.length
 #. placeholder {0}: orphan.rowCount
 #: packages/admin/src/components/ContentTypeList.tsx:169
-#: packages/admin/src/components/RepeaterField.tsx:154
+#: packages/admin/src/components/RepeaterField.tsx:157
 msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(#개 항목)} other {(#개 항목)}}"
 
@@ -502,7 +502,7 @@ msgstr "{base} — 연결 대상: {0}"
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {#자} other {#자}}"
 
-#: packages/admin/src/components/ContentList.tsx:900
+#: packages/admin/src/components/ContentList.tsx:878
 msgid "{collectionLabel} pagination"
 msgstr ""
 
@@ -567,7 +567,7 @@ msgstr "{filesMissing, plural, one {아직 파일 #개를 업로드해야 합니
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:1374
+#: packages/admin/src/components/ContentList.tsx:1326
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0}개 항목} other {#{1}개 항목}}"
 
@@ -626,7 +626,7 @@ msgstr ""
 msgid "{lateness} late"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1363
+#: packages/admin/src/components/ContentList.tsx:1315
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {\"{searchQuery}\"에 일치하는 항목 #개} other {\"{searchQuery}\"에 일치하는 항목 #개}}"
 
@@ -790,11 +790,11 @@ msgstr "{rows, plural, one {행 삭제됨} other {#개 행 삭제됨}}"
 msgid "{rows} × {columns} table pasted"
 msgstr "{rows} × {columns} 표 붙여넣기 완료"
 
-#: packages/admin/src/components/ContentList.tsx:577
+#: packages/admin/src/components/ContentList.tsx:578
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {#개 선택됨} other {#개 선택됨}}"
 
-#: packages/admin/src/components/ContentList.tsx:653
+#: packages/admin/src/components/ContentList.tsx:654
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {항목 #개를 휴지통으로 이동하시겠어요? 나중에 복원할 수 있습니다.} other {항목 #개를 휴지통으로 이동하시겠어요? 나중에 복원할 수 있습니다.}}"
 
@@ -838,7 +838,7 @@ msgstr ""
 msgid "{title} now goes live {when}."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1369
+#: packages/admin/src/components/ContentList.tsx:1321
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {#개 항목} other {#개 항목}}"
 
@@ -1212,8 +1212,8 @@ msgid "ACF Fields"
 msgstr "ACF 필드"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
-#: packages/admin/src/components/ContentList.tsx:779
-#: packages/admin/src/components/ContentList.tsx:923
+#: packages/admin/src/components/ContentList.tsx:767
+#: packages/admin/src/components/ContentList.tsx:892
 #: packages/admin/src/components/ContentTypeList.tsx:212
 #: packages/admin/src/components/RelationList.tsx:102
 #: packages/admin/src/components/TaxonomyManager.tsx:1416
@@ -1222,6 +1222,11 @@ msgstr "ACF 필드"
 #: packages/admin/src/routes/bylines.tsx:348
 msgid "Actions"
 msgstr "작업"
+
+#: packages/admin/src/components/ContentList.tsx:1439
+#: packages/admin/src/components/ContentList.tsx:1645
+msgid "Actions for {title}"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
@@ -1249,7 +1254,7 @@ msgstr "추가"
 #. placeholder {0}: inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
-#: packages/admin/src/components/ContentList.tsx:626
+#: packages/admin/src/components/ContentList.tsx:627
 #: packages/admin/src/components/PortableTextEditor.tsx:2936
 #: packages/admin/src/components/TaxonomyManager.tsx:759
 #: packages/admin/src/components/TaxonomyManager.tsx:1336
@@ -1358,7 +1363,7 @@ msgstr "필드를 추가해 콘텐츠 구조를 정의하세요"
 msgid "Add First Field"
 msgstr "첫 필드 추가"
 
-#: packages/admin/src/components/RepeaterField.tsx:176
+#: packages/admin/src/components/RepeaterField.tsx:179
 msgid "Add First Item"
 msgstr "첫 번째 항목 추가"
 
@@ -1374,7 +1379,7 @@ msgstr "갤러리에 이미지 추가"
 msgid "Add item"
 msgstr "항목 추가"
 
-#: packages/admin/src/components/RepeaterField.tsx:160
+#: packages/admin/src/components/RepeaterField.tsx:163
 msgid "Add Item"
 msgstr "항목 추가"
 
@@ -1392,7 +1397,7 @@ msgstr "탐색 메뉴에 링크를 추가하여 구성하세요."
 msgid "Add MIME type or extension"
 msgstr "MIME 유형 또는 확장자 추가"
 
-#: packages/admin/src/components/ContentList.tsx:515
+#: packages/admin/src/components/ContentList.tsx:516
 msgid "Add New"
 msgstr "추가"
 
@@ -1449,7 +1454,7 @@ msgstr "하위 필드 추가"
 msgid "Add tag"
 msgstr "태그 추가"
 
-#: packages/admin/src/components/ContentList.tsx:627
+#: packages/admin/src/components/ContentList.tsx:628
 msgid "Add term"
 msgstr "분류 항목 추가"
 
@@ -1636,12 +1641,12 @@ msgstr ""
 msgid "Alignment"
 msgstr "정렬"
 
-#: packages/admin/src/components/ContentList.tsx:527
+#: packages/admin/src/components/ContentList.tsx:528
 msgid "All"
 msgstr "모두"
 
-#: packages/admin/src/components/ContentList.tsx:1085
-#: packages/admin/src/components/ContentList.tsx:1089
+#: packages/admin/src/components/ContentList.tsx:1044
+#: packages/admin/src/components/ContentList.tsx:1048
 msgid "All authors"
 msgstr "모든 작성자"
 
@@ -1679,7 +1684,7 @@ msgstr "전체 역할"
 msgid "All sources"
 msgstr "모든 소스"
 
-#: packages/admin/src/components/ContentList.tsx:1024
+#: packages/admin/src/components/ContentList.tsx:983
 #: packages/admin/src/components/Redirects.tsx:399
 msgid "All statuses"
 msgstr "모든 상태"
@@ -1965,7 +1970,7 @@ msgstr "승인 중…"
 msgid "Arbitrary JSON data"
 msgstr "자유 형식 JSON 데이터"
 
-#: packages/admin/src/components/ContentList.tsx:1028
+#: packages/admin/src/components/ContentList.tsx:987
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr "보관됨"
@@ -2521,9 +2526,9 @@ msgstr "콘텐츠 조회 가능"
 #: packages/admin/src/components/BylineFormDialog.tsx:546
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:350
 #: packages/admin/src/components/ConfirmDialog.tsx:102
-#: packages/admin/src/components/ContentList.tsx:662
-#: packages/admin/src/components/ContentList.tsx:1546
-#: packages/admin/src/components/ContentList.tsx:1730
+#: packages/admin/src/components/ContentList.tsx:663
+#: packages/admin/src/components/ContentList.tsx:1496
+#: packages/admin/src/components/ContentList.tsx:1671
 #: packages/admin/src/components/ContentPickerModal.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:359
 #: packages/admin/src/components/ContentSettingsPanel.tsx:550
@@ -2898,8 +2903,8 @@ msgstr "이 기기의 자격 증명 관리자, 다른 기기 또는 보안 키�
 msgid "Choose a date"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1211
-#: packages/admin/src/components/ContentList.tsx:1217
+#: packages/admin/src/components/ContentList.tsx:1170
+#: packages/admin/src/components/ContentList.tsx:1176
 msgid "Choose a date range"
 msgstr "날짜 범위 선택"
 
@@ -2982,8 +2987,8 @@ msgstr "선택하세요…"
 msgid "Choosing a byline replaces this automatic credit."
 msgstr "저자 정보를 선택하면 자동으로 표시되던 저자 정보가 대체됩니다."
 
-#: packages/admin/src/components/ContentList.tsx:688
-#: packages/admin/src/components/ContentList.tsx:1225
+#: packages/admin/src/components/ContentList.tsx:685
+#: packages/admin/src/components/ContentList.tsx:1184
 msgid "Clear"
 msgstr "초기화"
 
@@ -2994,7 +2999,7 @@ msgstr "완료한 항목 지우기"
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:79
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:186
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:103
-#: packages/admin/src/components/ContentList.tsx:1130
+#: packages/admin/src/components/ContentList.tsx:1089
 #: packages/admin/src/components/MediaLibrary.tsx:1020
 #: packages/admin/src/components/Sections.tsx:298
 #: packages/admin/src/components/users/UserList.tsx:122
@@ -3902,7 +3907,7 @@ msgstr "첫 콘텐츠 유형 만들기"
 msgid "Create your first navigation menu to get started"
 msgstr "시작하려면 첫 번째 탐색 메뉴를 만드세요."
 
-#: packages/admin/src/components/ContentList.tsx:810
+#: packages/admin/src/components/ContentList.tsx:792
 msgid "Create your first one"
 msgstr "처음 만들어 보세요"
 
@@ -3927,7 +3932,7 @@ msgstr "분류 항목 생성, 업데이트, 삭제"
 msgid "Create, update, delete content"
 msgstr "콘텐츠 생성, 업데이트, 삭제"
 
-#: packages/admin/src/components/ContentList.tsx:1034
+#: packages/admin/src/components/ContentList.tsx:993
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1046
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
@@ -4078,7 +4083,7 @@ msgid "Database-owned definitions available to blocks fields."
 msgstr "블록 필드에서 사용할 수 있는, 데이터베이스에서 관리하는 정의입니다."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:334
-#: packages/admin/src/components/ContentList.tsx:768
+#: packages/admin/src/components/ContentList.tsx:756
 msgid "Date"
 msgstr "날짜"
 
@@ -4091,7 +4096,7 @@ msgstr "날짜 및 시간"
 msgid "Date and time picker"
 msgstr "날짜 및 시간 선택기"
 
-#: packages/admin/src/components/ContentList.tsx:1107
+#: packages/admin/src/components/ContentList.tsx:1066
 msgid "Date field to filter on"
 msgstr "필터에 사용할 날짜 필드"
 
@@ -4099,7 +4104,7 @@ msgstr "필터에 사용할 날짜 필드"
 msgid "Date Format"
 msgstr "날짜 형식"
 
-#: packages/admin/src/components/ContentList.tsx:1157
+#: packages/admin/src/components/ContentList.tsx:1116
 msgid "Date range"
 msgstr "날짜 범위"
 
@@ -4299,15 +4304,16 @@ msgid "Delete menu item?"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:550
+#: packages/admin/src/components/ContentList.tsx:1658
 msgid "Delete permanently"
 msgstr "완전히 삭제"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:185
-#: packages/admin/src/components/ContentList.tsx:1741
+#: packages/admin/src/components/ContentList.tsx:1680
 msgid "Delete Permanently"
 msgstr "완전히 삭제"
 
-#: packages/admin/src/components/ContentList.tsx:1721
+#: packages/admin/src/components/ContentList.tsx:1663
 msgid "Delete Permanently?"
 msgstr "완전히 삭제하시겠습니까?"
 
@@ -4374,7 +4380,7 @@ msgstr "위젯 영역을 삭제하시겠습니까?"
 msgid "Delete widget?"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:920
+#: packages/admin/src/components/ContentList.tsx:890
 msgid "Deleted"
 msgstr "삭제일"
 
@@ -4713,7 +4719,7 @@ msgstr "매핑하지 않음"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
-#: packages/admin/src/components/ContentList.tsx:1233
+#: packages/admin/src/components/ContentList.tsx:1192
 #: packages/admin/src/components/MediaUploadDialog.tsx:335
 #: packages/admin/src/components/users/InviteUserModal.tsx:145
 #: packages/admin/src/components/WordPressImport.tsx:2185
@@ -4788,7 +4794,7 @@ msgid "visualEditing.draft"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
-#: packages/admin/src/components/ContentList.tsx:1026
+#: packages/admin/src/components/ContentList.tsx:985
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "초안"
@@ -4875,13 +4881,10 @@ msgstr "놓아서 위젯을 추가하세요."
 msgid "Drop your WordPress export file here"
 msgstr "WordPress 내보내기 파일을 여기에 드롭하세요."
 
+#: packages/admin/src/components/ContentList.tsx:1474
 #: packages/admin/src/components/editor/BlockMenu.tsx:201
 msgid "Duplicate"
 msgstr "복제"
-
-#: packages/admin/src/components/ContentList.tsx:1518
-msgid "Duplicate {title}"
-msgstr "{title} 복제"
 
 #: packages/admin/src/components/BlocksField.tsx:382
 msgid "Duplicate block"
@@ -4924,6 +4927,7 @@ msgstr "각 경로 세그먼트에는 플레이스홀더를 최대 하나만 넣
 msgid "Earliest saved version"
 msgstr ""
 
+#: packages/admin/src/components/ContentList.tsx:1451
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
@@ -4965,10 +4969,6 @@ msgstr "{itemLabel} 편집"
 #: packages/admin/src/components/TaxonomySidebar.tsx:424
 msgid "Edit {label}"
 msgstr "{label} 편집"
-
-#: packages/admin/src/components/ContentList.tsx:1509
-msgid "Edit {title}"
-msgstr "{title} 편집"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:462
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
@@ -6808,7 +6808,7 @@ msgstr ""
 msgid "Filter"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1081
+#: packages/admin/src/components/ContentList.tsx:1040
 msgid "Filter by author"
 msgstr "작성자로 필터링"
 
@@ -6824,7 +6824,7 @@ msgstr "권한별로 필터링"
 msgid "Filter by collection"
 msgstr "컬렉션으로 필터링"
 
-#: packages/admin/src/components/ContentList.tsx:1203
+#: packages/admin/src/components/ContentList.tsx:1162
 msgid "Filter by date range: {rangeLabel}"
 msgstr "날짜 범위로 필터링: {rangeLabel}"
 
@@ -6836,7 +6836,7 @@ msgstr "역할별 필터링"
 msgid "Filter by source"
 msgstr "소스로 필터링"
 
-#: packages/admin/src/components/ContentList.tsx:1063
+#: packages/admin/src/components/ContentList.tsx:1022
 #: packages/admin/src/components/Redirects.tsx:400
 msgid "Filter by status"
 msgstr "상태로 필터링"
@@ -6967,7 +6967,7 @@ msgid "Freeform"
 msgstr "자유 비율"
 
 #. placeholder {0}: formatter.format(from)
-#: packages/admin/src/components/ContentList.tsx:1154
+#: packages/admin/src/components/ContentList.tsx:1113
 msgid "From {0}"
 msgstr "{0}부터"
 
@@ -7857,7 +7857,7 @@ msgstr "기울임꼴"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/PortableTextEditor.tsx:3098
-#: packages/admin/src/components/RepeaterField.tsx:247
+#: packages/admin/src/components/RepeaterField.tsx:250
 msgid "Item {0}"
 msgstr "항목 {0}"
 
@@ -8220,8 +8220,8 @@ msgstr "실시간 미리보기"
 msgid "Load more"
 msgstr "더 보기"
 
-#: packages/admin/src/components/ContentList.tsx:890
-#: packages/admin/src/components/ContentList.tsx:966
+#: packages/admin/src/components/ContentList.tsx:868
+#: packages/admin/src/components/ContentList.tsx:925
 #: packages/admin/src/components/MediaLibrary.tsx:1248
 #: packages/admin/src/components/users/UserList.tsx:162
 msgid "Load More"
@@ -8369,10 +8369,10 @@ msgstr "사용 현황을 불러오는 중"
 msgid "Loading widgets..."
 msgstr "위젯 로드 중..."
 
-#: packages/admin/src/components/ContentList.tsx:792
-#: packages/admin/src/components/ContentList.tsx:890
-#: packages/admin/src/components/ContentList.tsx:936
-#: packages/admin/src/components/ContentList.tsx:966
+#: packages/admin/src/components/ContentList.tsx:776
+#: packages/admin/src/components/ContentList.tsx:868
+#: packages/admin/src/components/ContentList.tsx:901
+#: packages/admin/src/components/ContentList.tsx:925
 #: packages/admin/src/components/ContentPickerModal.tsx:371
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:606
@@ -8416,8 +8416,8 @@ msgstr "현지 시간"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:320
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
-#: packages/admin/src/components/ContentList.tsx:761
-#: packages/admin/src/components/ContentList.tsx:916
+#: packages/admin/src/components/ContentList.tsx:749
+#: packages/admin/src/components/ContentList.tsx:889
 #: packages/admin/src/components/LocaleSwitcher.tsx:61
 msgid "Locale"
 msgstr "로케일"
@@ -8935,7 +8935,7 @@ msgstr "\"{0}\"을(를) 아래로 이동"
 msgid "Move \"{0}\" up"
 msgstr "\"{0}\"을(를) 위로 이동"
 
-#: packages/admin/src/components/ContentList.tsx:1540
+#: packages/admin/src/components/ContentList.tsx:1490
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "\"{title}\"을(를) 휴지통으로 이동하시겠습니까? 나중에 복원할 수 있습니다."
 
@@ -8977,10 +8977,6 @@ msgstr "{0} 위로 이동"
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
 msgstr "{0} 위로 이동 불가: 상위 항목에 이 언어의 번역이 없습니다."
 
-#: packages/admin/src/components/ContentList.tsx:1531
-msgid "Move {title} to trash"
-msgstr "{title}을(를) 휴지통으로 이동"
-
 #: packages/admin/src/components/editor/BlockMenu.tsx:212
 #: packages/admin/src/components/MenuEditor.tsx:656
 #: packages/admin/src/components/TaxonomyManager.tsx:345
@@ -9008,19 +9004,20 @@ msgstr "이 사이트를 다른 EmDash 설치로 이전하거나 사이트 패�
 msgid "Move this site to another EmDash installation, or import a site package into this one."
 msgstr "이 사이트를 다른 EmDash 설치 환경으로 이전하거나, 사이트 패키지를 이 사이트로 가져옵니다."
 
-#: packages/admin/src/components/ContentList.tsx:646
+#: packages/admin/src/components/ContentList.tsx:647
+#: packages/admin/src/components/ContentList.tsx:1483
 msgid "Move to trash"
 msgstr "휴지통으로 이동"
 
-#: packages/admin/src/components/ContentList.tsx:673
-#: packages/admin/src/components/ContentList.tsx:1553
+#: packages/admin/src/components/ContentList.tsx:672
+#: packages/admin/src/components/ContentList.tsx:1503
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1367
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1387
 msgid "Move to Trash"
 msgstr "휴지통으로 이동"
 
-#: packages/admin/src/components/ContentList.tsx:651
-#: packages/admin/src/components/ContentList.tsx:1538
+#: packages/admin/src/components/ContentList.tsx:652
+#: packages/admin/src/components/ContentList.tsx:1488
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1372
 msgid "Move to Trash?"
 msgstr "휴지통으로 이동하시겠습니까?"
@@ -9313,7 +9310,7 @@ msgid "Next month"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:396
-#: packages/admin/src/components/ContentList.tsx:878
+#: packages/admin/src/components/ContentList.tsx:856
 #: packages/admin/src/components/ListPaginationFooter.tsx:111
 #: packages/admin/src/components/MediaPickerModal.tsx:1557
 msgid "Next page"
@@ -9333,7 +9330,7 @@ msgstr "다음 단계에서 {0}이 열립니다"
 msgid "Next, the browser's passkey window will open"
 msgstr "다음 단계에서 브라우저의 패스키 창이 열립니다"
 
-#: packages/admin/src/components/ContentList.tsx:1576
+#: packages/admin/src/components/ContentList.tsx:1523
 #: packages/admin/src/components/users/UserDetail.tsx:255
 #: packages/admin/src/routes/byline-schema.tsx:424
 msgid "No"
@@ -9344,7 +9341,7 @@ msgid "No (shared across translations)"
 msgstr "아니요(모든 번역에서 공유)"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:803
+#: packages/admin/src/components/ContentList.tsx:785
 msgid "No {0} yet."
 msgstr "아직 {0}이(가) 없습니다."
 
@@ -9543,7 +9540,7 @@ msgid "No invite token provided"
 msgstr "초대 토큰이 제공되지 않았습니다"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3021
-#: packages/admin/src/components/RepeaterField.tsx:167
+#: packages/admin/src/components/RepeaterField.tsx:170
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
 msgid "No items yet"
 msgstr "아직 항목이 없습니다"
@@ -9690,12 +9687,12 @@ msgid "No relations yet."
 msgstr "아직 관계가 없습니다."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2530
-#: packages/admin/src/components/RepeaterField.tsx:398
+#: packages/admin/src/components/RepeaterField.tsx:401
 msgid "No results"
 msgstr "결과 없음"
 
-#: packages/admin/src/components/ContentList.tsx:800
-#: packages/admin/src/components/ContentList.tsx:819
+#: packages/admin/src/components/ContentList.tsx:782
+#: packages/admin/src/components/ContentList.tsx:799
 msgid "No results for \"{activeSearch}\""
 msgstr "\"{activeSearch}\" 검색 결과가 없습니다"
 
@@ -9788,7 +9785,7 @@ msgstr "일치하지 않음"
 msgid "Not recorded in this version"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1575
+#: packages/admin/src/components/ContentList.tsx:1522
 #: packages/admin/src/components/PluginSettings.tsx:342
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Not set"
@@ -10297,13 +10294,9 @@ msgstr "페이지당"
 msgid "Period"
 msgstr "오전/오후"
 
-#: packages/admin/src/components/ContentList.tsx:1724
+#: packages/admin/src/components/ContentList.tsx:1665
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "\"{title}\"을(를) 영구적으로 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
-
-#: packages/admin/src/components/ContentList.tsx:1713
-msgid "Permanently delete {title}"
-msgstr "{title}을(를) 영구적으로 삭제"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:295
 msgid "Permissions"
@@ -10612,7 +10605,7 @@ msgid "Previous month"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:377
-#: packages/admin/src/components/ContentList.tsx:866
+#: packages/admin/src/components/ContentList.tsx:844
 #: packages/admin/src/components/ListPaginationFooter.tsx:110
 #: packages/admin/src/components/MediaPickerModal.tsx:1556
 msgid "Previous page"
@@ -10683,7 +10676,7 @@ msgstr "게시 정책에 따라 예약된 콘텐츠가 차단되었습니다"
 msgid "visualEditing.publish"
 msgstr "게시"
 
-#: packages/admin/src/components/ContentList.tsx:588
+#: packages/admin/src/components/ContentList.tsx:589
 #: packages/admin/src/components/ContentSettingsPanel.tsx:537
 #: packages/admin/src/components/ContentSettingsPanel.tsx:955
 #: packages/admin/src/components/ContentSettingsPanel.tsx:958
@@ -10718,8 +10711,8 @@ msgstr "콘텐츠 게시, 게시 취소, 예약 및 예약 취소"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
-#: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentList.tsx:1036
+#: packages/admin/src/components/ContentList.tsx:984
+#: packages/admin/src/components/ContentList.tsx:995
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
@@ -11177,7 +11170,7 @@ msgstr "이미지를 삭제할까요?"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/PortableTextEditor.tsx:3137
-#: packages/admin/src/components/RepeaterField.tsx:283
+#: packages/admin/src/components/RepeaterField.tsx:286
 msgid "Remove item {0}"
 msgstr "항목 {0} 삭제"
 
@@ -11550,14 +11543,11 @@ msgstr "게시자 핸들 확인 중..."
 msgid "Restart numbering"
 msgstr "번호 다시 매기기"
 
+#: packages/admin/src/components/ContentList.tsx:1650
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:129
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:237
 msgid "Restore"
 msgstr "복원"
-
-#: packages/admin/src/components/ContentList.tsx:1701
-msgid "Restore {title}"
-msgstr "{title} 복원"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:91
 msgid "Restore failed"
@@ -12007,7 +11997,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
-#: packages/admin/src/components/ContentList.tsx:1027
+#: packages/admin/src/components/ContentList.tsx:986
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
 #: packages/admin/src/router.tsx:1591
 msgid "Scheduled"
@@ -12101,12 +12091,12 @@ msgid "Search"
 msgstr "검색"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:549
+#: packages/admin/src/components/ContentList.tsx:550
 msgid "Search {0}"
 msgstr "{0} 검색"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:548
+#: packages/admin/src/components/ContentList.tsx:549
 msgid "Search {0}..."
 msgstr "{0} 검색..."
 
@@ -12394,7 +12384,7 @@ msgstr "선택"
 msgid "Select {label}"
 msgstr "{label} 선택"
 
-#: packages/admin/src/components/ContentList.tsx:1429
+#: packages/admin/src/components/ContentList.tsx:1382
 msgid "Select {title}"
 msgstr "{title} 선택"
 
@@ -12431,7 +12421,7 @@ msgstr "검증하기 전에 릴리스를 선택하세요"
 msgid "Select all"
 msgstr "모두 선택"
 
-#: packages/admin/src/components/ContentList.tsx:729
+#: packages/admin/src/components/ContentList.tsx:721
 msgid "Select all on this page"
 msgstr "이 페이지의 모든 항목 선택"
 
@@ -12507,7 +12497,7 @@ msgstr "행 선택"
 msgid "Select table"
 msgstr "표 선택"
 
-#: packages/admin/src/components/ContentList.tsx:632
+#: packages/admin/src/components/ContentList.tsx:633
 msgid "Select up to 50 posts at a time."
 msgstr "한 번에 최대 50개의 게시물을 선택하세요."
 
@@ -12522,7 +12512,7 @@ msgstr "가져올 콘텐츠 유형을 선택하세요."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
 #: packages/admin/src/components/PortableTextEditor.tsx:3235
-#: packages/admin/src/components/RepeaterField.tsx:396
+#: packages/admin/src/components/RepeaterField.tsx:399
 msgid "Select..."
 msgstr "선택..."
 
@@ -12662,7 +12652,7 @@ msgstr "기여 역할 설정"
 msgid "Set to 0 to never close comments automatically."
 msgstr "0으로 설정하면 댓글을 자동으로 닫지 않습니다."
 
-#: packages/admin/src/components/ContentList.tsx:599
+#: packages/admin/src/components/ContentList.tsx:600
 msgid "Set to draft"
 msgstr "초안으로 변경"
 
@@ -13194,7 +13184,7 @@ msgstr "시작 중…"
 msgid "State"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:754
+#: packages/admin/src/components/ContentList.tsx:742
 #: packages/admin/src/components/ContentTypeEditor.tsx:137
 #: packages/admin/src/components/Redirects.tsx:497
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
@@ -14372,8 +14362,8 @@ msgstr ""
 msgid "Timezone"
 msgstr "시간대"
 
-#: packages/admin/src/components/ContentList.tsx:739
-#: packages/admin/src/components/ContentList.tsx:912
+#: packages/admin/src/components/ContentList.tsx:731
+#: packages/admin/src/components/ContentList.tsx:888
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
 #: packages/admin/src/components/Widgets.tsx:913
@@ -14518,11 +14508,11 @@ msgstr "휴지통"
 #: packages/admin/src/components/comments/CommentInbox.tsx:249
 #: packages/admin/src/components/comments/CommentInbox.tsx:290
 #: packages/admin/src/components/comments/CommentInbox.tsx:538
-#: packages/admin/src/components/ContentList.tsx:533
+#: packages/admin/src/components/ContentList.tsx:534
 msgid "Trash"
 msgstr "휴지통"
 
-#: packages/admin/src/components/ContentList.tsx:943
+#: packages/admin/src/components/ContentList.tsx:905
 msgid "Trash is empty"
 msgstr "휴지통이 비어 있습니다."
 
@@ -14530,7 +14520,7 @@ msgstr "휴지통이 비어 있습니다."
 msgid "Trash is empty."
 msgstr "휴지통이 비어 있습니다."
 
-#: packages/admin/src/components/ContentList.tsx:976
+#: packages/admin/src/components/ContentList.tsx:935
 msgid "Trash pagination"
 msgstr ""
 
@@ -14813,7 +14803,7 @@ msgid "Unsupported widget element type: {0}"
 msgstr "지원되지 않는 위젯 요소 유형: {0}"
 
 #. placeholder {0}: formatter.format(to)
-#: packages/admin/src/components/ContentList.tsx:1156
+#: packages/admin/src/components/ContentList.tsx:1115
 msgid "Until {0}"
 msgstr "{0}까지"
 
@@ -14890,7 +14880,7 @@ msgstr "이 리디렉션 규칙을 업데이트하세요."
 msgid "Update to v{0}"
 msgstr "v{0}로 업데이트"
 
-#: packages/admin/src/components/ContentList.tsx:1035
+#: packages/admin/src/components/ContentList.tsx:994
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1053
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
@@ -15127,7 +15117,7 @@ msgstr ".jpg 또는 .png처럼 인식할 수 있는 이미지 확장자로 끝�
 msgid "Use another device"
 msgstr "다른 기기 사용"
 
-#: packages/admin/src/components/ContentList.tsx:1230
+#: packages/admin/src/components/ContentList.tsx:1189
 msgid "Use as end date"
 msgstr "종료일로 사용"
 
@@ -15336,9 +15326,9 @@ msgstr ""
 msgid "View mode"
 msgstr "보기 모드"
 
-#: packages/admin/src/components/ContentList.tsx:1501
-msgid "View published {title}"
-msgstr "게시된 {title} 보기"
+#: packages/admin/src/components/ContentList.tsx:1466
+msgid "View published"
+msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:825
 msgid "View setup"
@@ -15660,7 +15650,7 @@ msgstr "WordPress에서 승인이 거부되었습니다"
 msgid "WordPress Username"
 msgstr "WordPress 사용자 이름"
 
-#: packages/admin/src/components/ContentList.tsx:576
+#: packages/admin/src/components/ContentList.tsx:577
 msgid "Working on {selectedCount} items…"
 msgstr "항목 {selectedCount}개 처리 중…"
 
@@ -15712,7 +15702,7 @@ msgstr "YAML"
 msgid "Yearly"
 msgstr "연도별"
 
-#: packages/admin/src/components/ContentList.tsx:1578
+#: packages/admin/src/components/ContentList.tsx:1525
 #: packages/admin/src/components/users/UserDetail.tsx:255
 #: packages/admin/src/routes/byline-schema.tsx:422
 #: packages/admin/src/routes/byline-schema.tsx:424

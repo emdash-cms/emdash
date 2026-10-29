@@ -1411,6 +1411,44 @@ describe("ContentEditor", () => {
 			);
 		});
 
+		it("saves null when an optional datetime field is cleared", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				onSave,
+				item: makeItem({ data: { title: "Recall", recall_date: "2026-02-26T09:30:00.000Z" } }),
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					recall_date: { kind: "datetime", label: "Recall date" },
+				},
+			});
+
+			await screen.getByLabelText("Recall date").fill("");
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({ data: expect.objectContaining({ recall_date: null }) }),
+			);
+		});
+
+		it("does not save when a required datetime field is cleared", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				onSave,
+				item: makeItem({ data: { title: "Recall", recall_date: "2026-02-26T09:30:00.000Z" } }),
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					recall_date: { kind: "datetime", label: "Recall date", required: true },
+				},
+			});
+
+			await screen.getByLabelText("Recall date").fill("");
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			expect(onSave).not.toHaveBeenCalled();
+		});
+
 		it("renders json fields as a textarea", async () => {
 			const screen = await renderEditor({
 				fields: { metadata: { kind: "json", label: "Metadata" } },
