@@ -577,7 +577,11 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 		isCoveredByMarker(namespace) &&
 		(changeMarker.at === 0 ||
 			(changeMarker.marker === null && now - changeMarker.at >= markerRecheckMs));
-	if (markerUnknown && !changeMarker.promise) {
+	// A read past its deadline may never settle (see epochReadDeadline), so it
+	// no longer blocks a new one; getChangeMarker replaces it.
+	const markerReadPending =
+		changeMarker.promise !== undefined && now - (changeMarker.promiseAt ?? 0) < epochReadDeadline();
+	if (markerUnknown && !markerReadPending) {
 		void getChangeMarker(backend);
 	}
 

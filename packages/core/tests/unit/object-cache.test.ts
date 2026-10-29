@@ -667,7 +667,7 @@ describe("change marker", () => {
 		clock = 1_800_000_000_000;
 		vi.spyOn(Date, "now").mockImplementation(() => clock);
 		backend = spyBackend();
-		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600, timeout: 2000 });
 	});
 	afterEach(() => {
 		vi.restoreAllMocks();
@@ -946,6 +946,33 @@ describe("change marker", () => {
 		await cachedQuery({ namespace: "posts", key: "k", load });
 		await flush();
 		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		vi.mocked(backend.get).mockClear();
+
+		clock += 60_000;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(epochReads()).toEqual([MARKER]);
+	});
+
+	it("starts a new marker read once a stalled one passes the deadline", async () => {
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600, timeout: 0 });
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		remoteWrite("posts");
+		const get = backend.get;
+		backend.get = vi.fn((key: string) =>
+			key === MARKER ? neverSettles<string | null>() : get(key),
+		);
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		backend.get = vi.fn(get);
+		clock += 3_001; // past epochReadDeadline() with timeout: 0
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		clock += 1_001;
 		await cachedQuery({ namespace: "posts", key: "k", load });
 		await flush();
 		vi.mocked(backend.get).mockClear();
