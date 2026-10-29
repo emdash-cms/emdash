@@ -229,6 +229,8 @@ The operation ID is stable within the generated contract and is commonly used as
 
 ### Search
 
+SQLite full-text search requires FTS5. Search, suggestions, and enabling search return `503` with error code `SEARCH_UNAVAILABLE` when the SQLite build lacks FTS5. Rebuilding an already enabled index reports the same error; rebuilding a collection whose search setup never succeeded returns `400 SEARCH_NOT_ENABLED`. See the [Node.js deployment prerequisites](/deployment/nodejs/#prerequisites) for a capability check and recovery steps. A successful response with an empty `items` list means there are no matches or no enabled collections, not that FTS5 is missing.
+
 | Method | Path | Operation | Summary |
 | --- | --- | --- | --- |
 | `GET` | `/_emdash/api/search` | `search` | Full-text search across collections |

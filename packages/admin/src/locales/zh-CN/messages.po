@@ -13,6 +13,111 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:588
+msgid "Autoresponder subject and body are required"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:762
+msgid "Daily digest"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:768
+msgid "Digest hour (UTC)"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:779
+msgid "Send a daily summary to the notification recipients instead of an email for each submission. Email must be configured."
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:785
+msgid "Send an autoresponder"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:790
+msgid "Send a reply to the first email field in the form. Email must be configured."
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:797
+msgid "Autoresponder subject"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:804
+msgid "Autoresponder body"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:815
+msgid "Webhook URL (optional)"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:875
+msgid "Always visible"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:877
+msgid "Unnamed field"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:975
+msgid "Placeholder"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:982
+msgid "Help text"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:989
+msgid "Default value"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:997
+msgid "Show when field"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:1021
+msgid "Condition operator"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:1025
+msgid "Equals"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:1026
+msgid "Does not equal"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:1027
+msgid "Is filled"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:1028
+msgid "Is empty"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:1038
+msgid "Condition value"
+msgstr ""
+
 #: packages/admin/src/components/LocaleSwitcher.tsx:75
 #: packages/admin/src/components/TranslationsPanel.tsx:81
 msgid " (default)"
@@ -132,19 +237,19 @@ msgid "{0, plural, one {# entry} other {# entries}}"
 msgstr "{0, plural, one {# 个条目} other {# 个条目}}"
 
 #. placeholder {0}: uploadQueue.jobs.filter( (job) => job.status === "queued" || job.status === "uploading", ).length
-#: packages/admin/src/components/MediaPickerModal.tsx:1618
+#: packages/admin/src/components/MediaPickerModal.tsx:1654
 msgid "{0, plural, one {# file uploading} other {# files uploading}}"
 msgstr "{0, plural, one {# 个文件正在上传} other {# 个文件正在上传}}"
 
 #. placeholder {0}: uploadQueue.overflowCount
-#: packages/admin/src/components/MediaPickerModal.tsx:1299
+#: packages/admin/src/components/MediaPickerModal.tsx:1335
 msgid "{0, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr "{0, plural, one {# 个文件未添加，因为上传列表已满。} other {# 个文件未添加，因为上传列表已满。}}"
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
 #: packages/admin/src/components/MediaDetailPanel.tsx:1520
-#: packages/admin/src/components/MediaLibrary.tsx:938
+#: packages/admin/src/components/MediaLibrary.tsx:954
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {已加载 # 个文件夹} other {已加载 # 个文件夹}}"
 
@@ -257,7 +362,7 @@ msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr "{0, plural, one {已创建 # 个分类法} other {已创建 # 个分类法}}"
 
 #. placeholder {0}: uploadQueue.failedCount
-#: packages/admin/src/components/MediaPickerModal.tsx:1625
+#: packages/admin/src/components/MediaPickerModal.tsx:1661
 msgid "{0, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{0, plural, one {# 个上传失败} other {# 个上传失败}}"
 
@@ -267,17 +372,17 @@ msgid "{0, plural, one {+# more} other {+# more}}"
 msgstr "{0, plural, one {还有 # 项} other {还有 # 项}}"
 
 #. placeholder {0}: selectedItems.length
-#: packages/admin/src/components/MediaPickerModal.tsx:866
+#: packages/admin/src/components/MediaPickerModal.tsx:881
 msgid "{0, plural, one {Add # file} other {Add # files}}"
 msgstr "{0, plural, one {添加 # 个文件} other {添加 # 个文件}}"
 
 #. placeholder {0}: selectedItems.length
-#: packages/admin/src/components/MediaPickerModal.tsx:869
+#: packages/admin/src/components/MediaPickerModal.tsx:884
 msgid "{0, plural, one {Add # image} other {Add # images}}"
 msgstr "{0, plural, one {添加 # 张图片} other {添加 # 张图片}}"
 
 #. placeholder {0}: selectedItems.length
-#: packages/admin/src/components/MediaPickerModal.tsx:868
+#: packages/admin/src/components/MediaPickerModal.tsx:883
 msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {添加 # 个视频} other {添加 # 个视频}}"
 
@@ -502,7 +607,7 @@ msgstr "{base} 到：{0}"
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {# 个字符} other {# 个字符}}"
 
-#: packages/admin/src/components/ContentList.tsx:900
+#: packages/admin/src/components/ContentList.tsx:878
 msgid "{collectionLabel} pagination"
 msgstr "{collectionLabel} 分页"
 
@@ -567,7 +672,7 @@ msgstr "{filesMissing, plural, one {还有 # 个文件需要上传。请再次�
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:1374
+#: packages/admin/src/components/ContentList.tsx:1326
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} 个项目} other {#{1} 个项目}}"
 
@@ -626,7 +731,7 @@ msgstr "{label}, {restored}"
 msgid "{lateness} late"
 msgstr "延迟 {lateness}"
 
-#: packages/admin/src/components/ContentList.tsx:1363
+#: packages/admin/src/components/ContentList.tsx:1315
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# 个项目匹配 \"{searchQuery}\"} other {# 个项目匹配 \"{searchQuery}\"}}"
 
@@ -770,7 +875,7 @@ msgstr "{0} 项中有 {ready} 项已就绪"
 msgid "{records, plural, one {# record written} other {# records written}}"
 msgstr "{records, plural, one {已写入 # 条记录} other {已写入 # 条记录}}"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:933
+#: packages/admin/src/components/MediaPickerModal.tsx:969
 msgid "{rejectedCount, plural, one {# file was not added.} other {# files were not added.}}"
 msgstr "{rejectedCount, plural, one {# 个文件未添加。} other {# 个文件未添加。}}"
 
@@ -790,11 +895,11 @@ msgstr "{rows, plural, one {已删除行} other {已删除 # 行}}"
 msgid "{rows} × {columns} table pasted"
 msgstr "已粘贴 {rows} × {columns} 表格"
 
-#: packages/admin/src/components/ContentList.tsx:577
+#: packages/admin/src/components/ContentList.tsx:578
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {已选 # 项} other {已选 # 项}}"
 
-#: packages/admin/src/components/ContentList.tsx:653
+#: packages/admin/src/components/ContentList.tsx:654
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {将 # 项移入回收站？之后可以恢复。} other {将 # 项移入回收站？之后可以恢复。}}"
 
@@ -838,7 +943,7 @@ msgstr "{title} 现已上线。"
 msgid "{title} now goes live {when}."
 msgstr "{title} 将于 {when} 上线。"
 
-#: packages/admin/src/components/ContentList.tsx:1369
+#: packages/admin/src/components/ContentList.tsx:1321
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# 个项目} other {# 个项目}}"
 
@@ -1212,8 +1317,8 @@ msgid "ACF Fields"
 msgstr "ACF 字段"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
-#: packages/admin/src/components/ContentList.tsx:779
-#: packages/admin/src/components/ContentList.tsx:923
+#: packages/admin/src/components/ContentList.tsx:767
+#: packages/admin/src/components/ContentList.tsx:892
 #: packages/admin/src/components/ContentTypeList.tsx:212
 #: packages/admin/src/components/RelationList.tsx:102
 #: packages/admin/src/components/TaxonomyManager.tsx:1416
@@ -1222,6 +1327,11 @@ msgstr "ACF 字段"
 #: packages/admin/src/routes/bylines.tsx:348
 msgid "Actions"
 msgstr "操作"
+
+#: packages/admin/src/components/ContentList.tsx:1439
+#: packages/admin/src/components/ContentList.tsx:1645
+msgid "Actions for {title}"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
@@ -1249,7 +1359,7 @@ msgstr "添加"
 #. placeholder {0}: inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
-#: packages/admin/src/components/ContentList.tsx:626
+#: packages/admin/src/components/ContentList.tsx:627
 #: packages/admin/src/components/PortableTextEditor.tsx:2936
 #: packages/admin/src/components/TaxonomyManager.tsx:759
 #: packages/admin/src/components/TaxonomyManager.tsx:1336
@@ -1392,13 +1502,13 @@ msgstr "添加链接以构建您的导航菜单"
 msgid "Add MIME type or extension"
 msgstr "添加 MIME 类型或扩展名"
 
-#: packages/admin/src/components/ContentList.tsx:515
+#: packages/admin/src/components/ContentList.tsx:516
 msgid "Add New"
 msgstr "添加新内容"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:127
-#: packages/admin/src/components/MediaLibrary.tsx:788
-#: packages/admin/src/components/MediaLibrary.tsx:793
+#: packages/admin/src/components/MediaLibrary.tsx:804
+#: packages/admin/src/components/MediaLibrary.tsx:809
 msgid "Add new folder"
 msgstr "新建文件夹"
 
@@ -1449,7 +1559,7 @@ msgstr "添加子字段"
 msgid "Add tag"
 msgstr "添加标签"
 
-#: packages/admin/src/components/ContentList.tsx:627
+#: packages/admin/src/components/ContentList.tsx:628
 msgid "Add term"
 msgstr "添加术语"
 
@@ -1636,12 +1746,12 @@ msgstr "右对齐"
 msgid "Alignment"
 msgstr "对齐方式"
 
-#: packages/admin/src/components/ContentList.tsx:527
+#: packages/admin/src/components/ContentList.tsx:528
 msgid "All"
 msgstr "全部"
 
-#: packages/admin/src/components/ContentList.tsx:1085
-#: packages/admin/src/components/ContentList.tsx:1089
+#: packages/admin/src/components/ContentList.tsx:1044
+#: packages/admin/src/components/ContentList.tsx:1048
 msgid "All authors"
 msgstr "所有作者"
 
@@ -1679,13 +1789,13 @@ msgstr "所有角色"
 msgid "All sources"
 msgstr "所有来源"
 
-#: packages/admin/src/components/ContentList.tsx:1024
+#: packages/admin/src/components/ContentList.tsx:983
 #: packages/admin/src/components/Redirects.tsx:399
 msgid "All statuses"
 msgstr "所有状态"
 
-#: packages/admin/src/components/MediaLibrary.tsx:920
-#: packages/admin/src/components/MediaPickerModal.tsx:389
+#: packages/admin/src/components/MediaLibrary.tsx:936
+#: packages/admin/src/components/MediaPickerModal.tsx:398
 #: packages/admin/src/components/Redirects.tsx:406
 msgid "All types"
 msgstr "所有类型"
@@ -1755,7 +1865,7 @@ msgstr "替代文本"
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
-#: packages/admin/src/components/MediaLibrary.tsx:1144
+#: packages/admin/src/components/MediaLibrary.tsx:1165
 #: packages/admin/src/components/PortableTextEditor.tsx:5761
 #: packages/admin/src/components/PortableTextEditor.tsx:5827
 msgid "Alt text"
@@ -1767,12 +1877,12 @@ msgstr "替代文本"
 msgid "Alt Text"
 msgstr "替代文本"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1455
+#: packages/admin/src/components/MediaLibrary.tsx:1476
 msgid "Alt text is not applicable to folders"
 msgstr "替代文本不适用于文件夹"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1683
-#: packages/admin/src/components/MediaLibrary.tsx:1740
+#: packages/admin/src/components/MediaLibrary.tsx:1704
+#: packages/admin/src/components/MediaLibrary.tsx:1761
 msgid "Alt text set"
 msgstr "替代文本已设置"
 
@@ -1965,7 +2075,7 @@ msgstr "正在批准…"
 msgid "Arbitrary JSON data"
 msgstr "任意 JSON 数据"
 
-#: packages/admin/src/components/ContentList.tsx:1028
+#: packages/admin/src/components/ContentList.tsx:987
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr "已归档"
@@ -2035,8 +2145,8 @@ msgid "Attribution"
 msgstr "署名"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
-#: packages/admin/src/components/MediaLibrary.tsx:923
-#: packages/admin/src/components/MediaPickerModal.tsx:393
+#: packages/admin/src/components/MediaLibrary.tsx:939
+#: packages/admin/src/components/MediaPickerModal.tsx:402
 msgid "Audio"
 msgstr "音频"
 
@@ -2183,7 +2293,7 @@ msgstr "返回"
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:673
 #: packages/admin/src/components/MediaDetailPanel.tsx:1817
-#: packages/admin/src/components/MediaLibrary.tsx:747
+#: packages/admin/src/components/MediaLibrary.tsx:763
 #: packages/admin/src/components/MenuEditor.tsx:400
 #: packages/admin/src/components/WordPressImport.tsx:1565
 #: packages/admin/src/components/WordPressImport.tsx:2586
@@ -2220,7 +2330,7 @@ msgstr "返回编辑。"
 msgid "Back to login"
 msgstr "返回登录"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1031
+#: packages/admin/src/components/MediaLibrary.tsx:1051
 msgid "Back to Main library"
 msgstr "返回主库"
 
@@ -2521,9 +2631,9 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/BylineFormDialog.tsx:546
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:350
 #: packages/admin/src/components/ConfirmDialog.tsx:102
-#: packages/admin/src/components/ContentList.tsx:662
-#: packages/admin/src/components/ContentList.tsx:1546
-#: packages/admin/src/components/ContentList.tsx:1730
+#: packages/admin/src/components/ContentList.tsx:663
+#: packages/admin/src/components/ContentList.tsx:1496
+#: packages/admin/src/components/ContentList.tsx:1671
 #: packages/admin/src/components/ContentPickerModal.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:359
 #: packages/admin/src/components/ContentSettingsPanel.tsx:550
@@ -2535,7 +2645,7 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/FieldEditor.tsx:1386
 #: packages/admin/src/components/MediaDetailPanel.tsx:1859
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
-#: packages/admin/src/components/MediaPickerModal.tsx:1599
+#: packages/admin/src/components/MediaPickerModal.tsx:1635
 #: packages/admin/src/components/MenuEditor.tsx:459
 #: packages/admin/src/components/MenuEditor.tsx:544
 #: packages/admin/src/components/MenuEditor.tsx:764
@@ -2898,12 +3008,12 @@ msgstr "在此设备、其他设备上选择凭据管理器，或使用安全密
 msgid "Choose a date"
 msgstr "选择日期"
 
-#: packages/admin/src/components/ContentList.tsx:1211
-#: packages/admin/src/components/ContentList.tsx:1217
+#: packages/admin/src/components/ContentList.tsx:1170
+#: packages/admin/src/components/ContentList.tsx:1176
 msgid "Choose a date range"
 msgstr "选择日期范围"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:234
+#: packages/admin/src/components/MediaPickerModal.tsx:235
 msgid "Choose a file from the library or upload a new one."
 msgstr "从媒体库选择文件或上传新文件。"
 
@@ -2928,11 +3038,11 @@ msgstr "请选择未来的时间"
 msgid "Choose a valid date"
 msgstr "请选择有效的日期"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:236
+#: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Choose a video from the library or upload a new one."
 msgstr "从媒体库选择视频或上传新视频。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:237
+#: packages/admin/src/components/MediaPickerModal.tsx:238
 msgid "Choose an image from the library or upload a new one."
 msgstr "从媒体库选择图片或上传新图片。"
 
@@ -2945,7 +3055,7 @@ msgstr "选择其他选项"
 msgid "Choose bylines"
 msgstr "选择署名"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1103
+#: packages/admin/src/components/MediaPickerModal.tsx:1139
 msgid "Choose files to upload"
 msgstr "选择要上传的文件"
 
@@ -2982,8 +3092,8 @@ msgstr "选择…"
 msgid "Choosing a byline replaces this automatic credit."
 msgstr "选择署名将替换此自动署名。"
 
-#: packages/admin/src/components/ContentList.tsx:688
-#: packages/admin/src/components/ContentList.tsx:1225
+#: packages/admin/src/components/ContentList.tsx:685
+#: packages/admin/src/components/ContentList.tsx:1184
 msgid "Clear"
 msgstr "清除"
 
@@ -2994,8 +3104,8 @@ msgstr "清除已完成"
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:79
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:186
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:103
-#: packages/admin/src/components/ContentList.tsx:1130
-#: packages/admin/src/components/MediaLibrary.tsx:1020
+#: packages/admin/src/components/ContentList.tsx:1089
+#: packages/admin/src/components/MediaLibrary.tsx:1036
 #: packages/admin/src/components/Sections.tsx:298
 #: packages/admin/src/components/users/UserList.tsx:122
 #: packages/admin/src/routes/bylines.tsx:467
@@ -3006,8 +3116,8 @@ msgstr "清除筛选"
 msgid "Clear formatting"
 msgstr "清除格式"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1020
-#: packages/admin/src/components/MediaLibrary.tsx:1055
+#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1076
 #: packages/admin/src/components/TaxonomyManager.tsx:1439
 msgid "Clear search"
 msgstr "清除搜索"
@@ -3068,8 +3178,8 @@ msgstr "点击此链接登录 {siteName}："
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:462
 #: packages/admin/src/components/MediaDetailPanel.tsx:1127
 #: packages/admin/src/components/MediaDetailPanel.tsx:1859
-#: packages/admin/src/components/MediaPickerModal.tsx:1010
-#: packages/admin/src/components/MediaPickerModal.tsx:1017
+#: packages/admin/src/components/MediaPickerModal.tsx:1046
+#: packages/admin/src/components/MediaPickerModal.tsx:1053
 #: packages/admin/src/components/MediaUploadDialog.tsx:237
 #: packages/admin/src/components/MenuEditor.tsx:428
 #: packages/admin/src/components/MenuEditor.tsx:434
@@ -3589,11 +3699,11 @@ msgstr "无法加载{pluralLower}。"
 msgid "Could not load dashboard data"
 msgstr "无法加载仪表板数据"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:670
+#: packages/admin/src/components/MediaPickerModal.tsx:685
 msgid "Could not load image from URL"
 msgstr "无法从 URL 加载图片"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1399
+#: packages/admin/src/components/MediaPickerModal.tsx:1435
 msgid "Could not load media."
 msgstr "无法加载媒体。"
 
@@ -3605,7 +3715,7 @@ msgstr "无法加载日历"
 msgid "Could not load this entry's details."
 msgstr "无法加载此条目的详情。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1211
+#: packages/admin/src/components/MediaPickerModal.tsx:1247
 msgid "Could not load this folder."
 msgstr "无法加载此文件夹。"
 
@@ -3689,7 +3799,7 @@ msgstr "无法加载版本"
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "无法将 \"{draft}\" 映射到 MIME 类型。请直接输入 MIME。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:575
+#: packages/admin/src/components/MediaLibrary.tsx:587
 msgid "Couldn’t move file"
 msgstr "无法移动文件"
 
@@ -3902,7 +4012,7 @@ msgstr "创建第一个内容类型"
 msgid "Create your first navigation menu to get started"
 msgstr "创建您的第一个导航菜单以开始使用"
 
-#: packages/admin/src/components/ContentList.tsx:810
+#: packages/admin/src/components/ContentList.tsx:792
 msgid "Create your first one"
 msgstr "创建第一个内容"
 
@@ -3927,7 +4037,7 @@ msgstr "创建、更新、删除分类词条"
 msgid "Create, update, delete content"
 msgstr "创建、更新、删除内容"
 
-#: packages/admin/src/components/ContentList.tsx:1034
+#: packages/admin/src/components/ContentList.tsx:993
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1046
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
@@ -3997,7 +4107,7 @@ msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "裁剪选区。使用方向键移动。"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:772
-#: packages/admin/src/components/MediaLibrary.tsx:1289
+#: packages/admin/src/components/MediaLibrary.tsx:1310
 msgid "Cropped copy created."
 msgstr "裁剪副本已创建。"
 
@@ -4078,7 +4188,7 @@ msgid "Database-owned definitions available to blocks fields."
 msgstr "区块字段可用的数据库定义。"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:334
-#: packages/admin/src/components/ContentList.tsx:768
+#: packages/admin/src/components/ContentList.tsx:756
 msgid "Date"
 msgstr "日期"
 
@@ -4091,7 +4201,7 @@ msgstr "日期和时间"
 msgid "Date and time picker"
 msgstr "日期和时间选择器"
 
-#: packages/admin/src/components/ContentList.tsx:1107
+#: packages/admin/src/components/ContentList.tsx:1066
 msgid "Date field to filter on"
 msgstr "用于筛选的日期字段"
 
@@ -4099,7 +4209,7 @@ msgstr "用于筛选的日期字段"
 msgid "Date Format"
 msgstr "日期格式"
 
-#: packages/admin/src/components/ContentList.tsx:1157
+#: packages/admin/src/components/ContentList.tsx:1116
 msgid "Date range"
 msgstr "日期范围"
 
@@ -4299,15 +4409,16 @@ msgid "Delete menu item?"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:550
+#: packages/admin/src/components/ContentList.tsx:1658
 msgid "Delete permanently"
 msgstr "永久删除"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:185
-#: packages/admin/src/components/ContentList.tsx:1741
+#: packages/admin/src/components/ContentList.tsx:1680
 msgid "Delete Permanently"
 msgstr "永久删除"
 
-#: packages/admin/src/components/ContentList.tsx:1721
+#: packages/admin/src/components/ContentList.tsx:1663
 msgid "Delete Permanently?"
 msgstr "永久删除？"
 
@@ -4374,7 +4485,7 @@ msgstr "删除小部件区域？"
 msgid "Delete widget?"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:920
+#: packages/admin/src/components/ContentList.tsx:890
 msgid "Deleted"
 msgstr "已删除"
 
@@ -4678,8 +4789,8 @@ msgid "Document"
 msgstr "文档"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
-#: packages/admin/src/components/MediaLibrary.tsx:924
-#: packages/admin/src/components/MediaPickerModal.tsx:394
+#: packages/admin/src/components/MediaLibrary.tsx:940
+#: packages/admin/src/components/MediaPickerModal.tsx:403
 msgid "Documents"
 msgstr "文档"
 
@@ -4713,7 +4824,7 @@ msgstr "不映射"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
-#: packages/admin/src/components/ContentList.tsx:1233
+#: packages/admin/src/components/ContentList.tsx:1192
 #: packages/admin/src/components/MediaUploadDialog.tsx:335
 #: packages/admin/src/components/users/InviteUserModal.tsx:145
 #: packages/admin/src/components/WordPressImport.tsx:2185
@@ -4788,7 +4899,7 @@ msgid "visualEditing.draft"
 msgstr "草稿"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
-#: packages/admin/src/components/ContentList.tsx:1026
+#: packages/admin/src/components/ContentList.tsx:985
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "草稿"
@@ -4859,7 +4970,7 @@ msgstr "将图片拖放到此处或<0>浏览</0>"
 msgid "Drop an image here or browse for {label}"
 msgstr "将图片拖放到此处或浏览{label}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:727
+#: packages/admin/src/components/MediaLibrary.tsx:743
 msgid "Drop files to upload"
 msgstr "拖放文件以上传"
 
@@ -4875,13 +4986,10 @@ msgstr "放置以添加小部件"
 msgid "Drop your WordPress export file here"
 msgstr "将 WordPress 导出文件拖放到此处"
 
+#: packages/admin/src/components/ContentList.tsx:1474
 #: packages/admin/src/components/editor/BlockMenu.tsx:201
 msgid "Duplicate"
 msgstr "复制"
-
-#: packages/admin/src/components/ContentList.tsx:1518
-msgid "Duplicate {title}"
-msgstr "复制 {title}"
 
 #: packages/admin/src/components/BlocksField.tsx:382
 msgid "Duplicate block"
@@ -4924,6 +5032,7 @@ msgstr "每个路径段最多可包含一个占位符，例如 {0}"
 msgid "Earliest saved version"
 msgstr "最早保存的版本"
 
+#: packages/admin/src/components/ContentList.tsx:1451
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
@@ -4966,16 +5075,12 @@ msgstr "编辑{itemLabel}"
 msgid "Edit {label}"
 msgstr "编辑{label}"
 
-#: packages/admin/src/components/ContentList.tsx:1509
-msgid "Edit {title}"
-msgstr "编辑 {title}"
-
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:462
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
 #: packages/admin/src/components/ImageFieldRenderer.tsx:317
 #: packages/admin/src/components/ImageFieldRenderer.tsx:374
 #: packages/admin/src/components/ImageFieldRenderer.tsx:442
-#: packages/admin/src/components/MediaPickerModal.tsx:1595
+#: packages/admin/src/components/MediaPickerModal.tsx:1631
 msgid "Edit asset"
 msgstr "编辑资源"
 
@@ -5011,8 +5116,8 @@ msgid "Edit folder"
 msgstr "编辑文件夹"
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:1370
-#: packages/admin/src/components/MediaLibrary.tsx:1437
+#: packages/admin/src/components/MediaLibrary.tsx:1391
+#: packages/admin/src/components/MediaLibrary.tsx:1458
 msgid "Edit folder {0}"
 msgstr "编辑文件夹 {0}"
 
@@ -6297,7 +6402,7 @@ msgstr "加载导出清单失败"
 msgid "Failed to load exports"
 msgstr "加载导出失败"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:654
+#: packages/admin/src/components/MediaPickerModal.tsx:669
 msgid "Failed to load image"
 msgstr "加载图片失败"
 
@@ -6788,7 +6893,7 @@ msgstr "来自媒体库的文件"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1426
 #: packages/admin/src/components/MediaDetailPanel.tsx:1444
-#: packages/admin/src/components/MediaLibrary.tsx:1141
+#: packages/admin/src/components/MediaLibrary.tsx:1162
 msgid "Filename"
 msgstr "文件名"
 
@@ -6808,7 +6913,7 @@ msgstr "根据显示名称自动填入。请使用小写字母、数字和连字
 msgid "Filter"
 msgstr "筛选"
 
-#: packages/admin/src/components/ContentList.tsx:1081
+#: packages/admin/src/components/ContentList.tsx:1040
 msgid "Filter by author"
 msgstr "按作者筛选"
 
@@ -6824,7 +6929,7 @@ msgstr "按功能筛选"
 msgid "Filter by collection"
 msgstr "按合集筛选"
 
-#: packages/admin/src/components/ContentList.tsx:1203
+#: packages/admin/src/components/ContentList.tsx:1162
 msgid "Filter by date range: {rangeLabel}"
 msgstr "按日期范围筛选：{rangeLabel}"
 
@@ -6836,13 +6941,13 @@ msgstr "按角色筛选"
 msgid "Filter by source"
 msgstr "按来源筛选"
 
-#: packages/admin/src/components/ContentList.tsx:1063
+#: packages/admin/src/components/ContentList.tsx:1022
 #: packages/admin/src/components/Redirects.tsx:400
 msgid "Filter by status"
 msgstr "按状态筛选"
 
-#: packages/admin/src/components/MediaLibrary.tsx:926
-#: packages/admin/src/components/MediaPickerModal.tsx:1285
+#: packages/admin/src/components/MediaLibrary.tsx:942
+#: packages/admin/src/components/MediaPickerModal.tsx:1321
 #: packages/admin/src/components/Redirects.tsx:407
 msgid "Filter by type"
 msgstr "按类型筛选"
@@ -6860,7 +6965,7 @@ msgid "Finish any current edits."
 msgstr "完成当前所有编辑。"
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:109
-#: packages/admin/src/components/MediaPickerModal.tsx:1555
+#: packages/admin/src/components/MediaPickerModal.tsx:1591
 msgid "First page"
 msgstr "第一页"
 
@@ -6893,7 +6998,7 @@ msgstr "对焦点"
 msgid "Focal point. Use arrow keys to move it."
 msgstr "对焦点。使用方向键移动。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1205
+#: packages/admin/src/components/MediaPickerModal.tsx:1241
 msgid "Folder"
 msgstr "文件夹"
 
@@ -6910,7 +7015,7 @@ msgstr "文件夹名称必须为 1 到 200 个字符"
 msgid "Folder no longer exists"
 msgstr "文件夹已不存在"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:489
+#: packages/admin/src/components/MediaPickerModal.tsx:498
 msgid "Folder no longer exists. Returned to the main library."
 msgstr "文件夹已不存在。已返回主媒体库。"
 
@@ -6926,19 +7031,19 @@ msgstr "文件夹编辑成功"
 msgid "Folder unavailable"
 msgstr "文件夹不可用"
 
-#: packages/admin/src/components/MediaLibrary.tsx:953
-#: packages/admin/src/components/MediaPickerModal.tsx:1323
+#: packages/admin/src/components/MediaLibrary.tsx:969
+#: packages/admin/src/components/MediaPickerModal.tsx:1359
 msgid "Folders"
 msgstr "文件夹"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
-#: packages/admin/src/components/MediaLibrary.tsx:963
-#: packages/admin/src/components/MediaLibrary.tsx:1467
-#: packages/admin/src/components/MediaPickerModal.tsx:1328
+#: packages/admin/src/components/MediaLibrary.tsx:979
+#: packages/admin/src/components/MediaLibrary.tsx:1488
+#: packages/admin/src/components/MediaPickerModal.tsx:1364
 msgid "Folders could not be loaded."
 msgstr "无法加载文件夹。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:758
+#: packages/admin/src/components/MediaLibrary.tsx:774
 msgid "Folders navigation"
 msgstr "文件夹导航"
 
@@ -6967,7 +7072,7 @@ msgid "Freeform"
 msgstr "自由格式"
 
 #. placeholder {0}: formatter.format(from)
-#: packages/admin/src/components/ContentList.tsx:1154
+#: packages/admin/src/components/ContentList.tsx:1113
 msgid "From {0}"
 msgstr "来自 {0}"
 
@@ -6983,7 +7088,7 @@ msgstr "来自包：“{packageValue}”"
 msgid "From the post owner"
 msgstr "来自文章作者"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:371
+#: packages/admin/src/components/MediaPickerModal.tsx:380
 msgid "From URL"
 msgstr "来自 URL"
 
@@ -7077,8 +7182,8 @@ msgstr "Google 验证"
 msgid "GraphQL"
 msgstr "GraphQL"
 
-#: packages/admin/src/components/MediaLibrary.tsx:881
-#: packages/admin/src/components/MediaPickerModal.tsx:1241
+#: packages/admin/src/components/MediaLibrary.tsx:897
+#: packages/admin/src/components/MediaPickerModal.tsx:1277
 msgid "Grid view"
 msgstr "网格视图"
 
@@ -7311,7 +7416,7 @@ msgstr "https://example.com 或 /page"
 msgid "https://example.com/blog/my-post"
 msgstr "https://example.com/blog/my-post"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1130
+#: packages/admin/src/components/MediaPickerModal.tsx:1166
 msgid "https://example.com/image.jpg"
 msgstr "https://example.com/image.jpg"
 
@@ -7436,15 +7541,15 @@ msgstr "当此页面在社交媒体上分享时显示的图片"
 msgid "Image upload failed. Try again."
 msgstr "图片上传失败。请重试。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1119
-#: packages/admin/src/components/MediaPickerModal.tsx:1129
+#: packages/admin/src/components/MediaPickerModal.tsx:1155
+#: packages/admin/src/components/MediaPickerModal.tsx:1165
 msgid "Image URL"
 msgstr "图片 URL"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:64
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
-#: packages/admin/src/components/MediaLibrary.tsx:921
-#: packages/admin/src/components/MediaPickerModal.tsx:391
+#: packages/admin/src/components/MediaLibrary.tsx:937
+#: packages/admin/src/components/MediaPickerModal.tsx:400
 msgid "Images"
 msgstr "图片"
 
@@ -7617,7 +7722,7 @@ msgstr "不兼容"
 msgid "Increase column width"
 msgstr "增加列宽"
 
-#: packages/admin/src/components/MediaLibrary.tsx:822
+#: packages/admin/src/components/MediaLibrary.tsx:838
 msgid "Index existing content and keep Used in results up to date."
 msgstr "为现有内容建立索引，并使结果中的「使用位置」保持最新。"
 
@@ -8025,7 +8130,7 @@ msgid "Last Login"
 msgstr "上次登录"
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:112
-#: packages/admin/src/components/MediaPickerModal.tsx:1558
+#: packages/admin/src/components/MediaPickerModal.tsx:1594
 msgid "Last page"
 msgstr "最后一页"
 
@@ -8079,12 +8184,12 @@ msgstr "不保存直接离开？"
 msgid "Left"
 msgstr "左侧"
 
-#: packages/admin/src/components/MediaLibrary.tsx:304
-#: packages/admin/src/components/MediaLibrary.tsx:414
-#: packages/admin/src/components/MediaLibrary.tsx:687
-#: packages/admin/src/components/MediaLibrary.tsx:1255
-#: packages/admin/src/components/MediaPickerModal.tsx:366
-#: packages/admin/src/components/MediaPickerModal.tsx:383
+#: packages/admin/src/components/MediaLibrary.tsx:308
+#: packages/admin/src/components/MediaLibrary.tsx:426
+#: packages/admin/src/components/MediaLibrary.tsx:703
+#: packages/admin/src/components/MediaLibrary.tsx:1276
+#: packages/admin/src/components/MediaPickerModal.tsx:375
+#: packages/admin/src/components/MediaPickerModal.tsx:392
 msgid "Library"
 msgstr "库"
 
@@ -8192,8 +8297,8 @@ msgstr "链接到 {0}"
 msgid "List"
 msgstr "列表"
 
-#: packages/admin/src/components/MediaLibrary.tsx:890
-#: packages/admin/src/components/MediaPickerModal.tsx:1251
+#: packages/admin/src/components/MediaLibrary.tsx:906
+#: packages/admin/src/components/MediaPickerModal.tsx:1287
 msgid "List view"
 msgstr "列表视图"
 
@@ -8220,17 +8325,17 @@ msgstr "实时预览"
 msgid "Load more"
 msgstr "加载更多"
 
-#: packages/admin/src/components/ContentList.tsx:890
-#: packages/admin/src/components/ContentList.tsx:966
-#: packages/admin/src/components/MediaLibrary.tsx:1248
+#: packages/admin/src/components/ContentList.tsx:868
+#: packages/admin/src/components/ContentList.tsx:925
+#: packages/admin/src/components/MediaLibrary.tsx:1269
 #: packages/admin/src/components/users/UserList.tsx:162
 msgid "Load More"
 msgstr "加载更多"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1566
-#: packages/admin/src/components/MediaLibrary.tsx:993
-#: packages/admin/src/components/MediaLibrary.tsx:1185
-#: packages/admin/src/components/MediaPickerModal.tsx:1377
+#: packages/admin/src/components/MediaLibrary.tsx:1009
+#: packages/admin/src/components/MediaLibrary.tsx:1206
+#: packages/admin/src/components/MediaPickerModal.tsx:1413
 msgid "Load more folders"
 msgstr "加载更多文件夹"
 
@@ -8285,9 +8390,9 @@ msgstr "正在加载编辑器..."
 msgid "Loading exports…"
 msgstr "正在加载导出…"
 
-#: packages/admin/src/components/MediaLibrary.tsx:937
-#: packages/admin/src/components/MediaLibrary.tsx:1153
-#: packages/admin/src/components/MediaPickerModal.tsx:1346
+#: packages/admin/src/components/MediaLibrary.tsx:953
+#: packages/admin/src/components/MediaLibrary.tsx:1174
+#: packages/admin/src/components/MediaPickerModal.tsx:1382
 msgid "Loading folders"
 msgstr "正在加载文件夹"
 
@@ -8299,7 +8404,7 @@ msgstr "正在加载文件夹..."
 msgid "Loading imports…"
 msgstr "正在加载导入…"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1394
+#: packages/admin/src/components/MediaPickerModal.tsx:1430
 msgid "Loading media"
 msgstr "正在加载媒体"
 
@@ -8369,17 +8474,17 @@ msgstr "正在加载用量"
 msgid "Loading widgets..."
 msgstr "正在加载小部件..."
 
-#: packages/admin/src/components/ContentList.tsx:792
-#: packages/admin/src/components/ContentList.tsx:890
-#: packages/admin/src/components/ContentList.tsx:936
-#: packages/admin/src/components/ContentList.tsx:966
+#: packages/admin/src/components/ContentList.tsx:776
+#: packages/admin/src/components/ContentList.tsx:868
+#: packages/admin/src/components/ContentList.tsx:901
+#: packages/admin/src/components/ContentList.tsx:925
 #: packages/admin/src/components/ContentPickerModal.tsx:371
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:606
 #: packages/admin/src/components/MediaDetailPanel.tsx:622
 #: packages/admin/src/components/MediaDetailPanel.tsx:624
 #: packages/admin/src/components/MediaDetailPanel.tsx:1753
-#: packages/admin/src/components/MediaLibrary.tsx:1248
+#: packages/admin/src/components/MediaLibrary.tsx:1269
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3228
 #: packages/admin/src/components/Redirects.tsx:577
@@ -8416,8 +8521,8 @@ msgstr "本地时间"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:320
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
-#: packages/admin/src/components/ContentList.tsx:761
-#: packages/admin/src/components/ContentList.tsx:916
+#: packages/admin/src/components/ContentList.tsx:749
+#: packages/admin/src/components/ContentList.tsx:889
 #: packages/admin/src/components/LocaleSwitcher.tsx:61
 msgid "Locale"
 msgstr "语言区域"
@@ -8487,7 +8592,7 @@ msgid "Lua"
 msgstr "Lua"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:575
-#: packages/admin/src/components/MediaPickerModal.tsx:1199
+#: packages/admin/src/components/MediaPickerModal.tsx:1235
 msgid "Main library"
 msgstr "主库"
 
@@ -8676,8 +8781,8 @@ msgid "visualEditing.mediaLibrary"
 msgstr "媒体库"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:171
-#: packages/admin/src/components/MediaLibrary.tsx:755
-#: packages/admin/src/components/MediaLibrary.tsx:770
+#: packages/admin/src/components/MediaLibrary.tsx:771
+#: packages/admin/src/components/MediaLibrary.tsx:786
 msgid "Media Library"
 msgstr "媒体库"
 
@@ -8685,8 +8790,8 @@ msgstr "媒体库"
 msgid "Media links were made relative"
 msgstr "媒体链接已改为相对路径"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1241
-#: packages/admin/src/components/MediaPickerModal.tsx:1554
+#: packages/admin/src/components/MediaLibrary.tsx:1262
+#: packages/admin/src/components/MediaPickerModal.tsx:1590
 msgid "Media pagination"
 msgstr "媒体分页"
 
@@ -8694,7 +8799,7 @@ msgstr "媒体分页"
 msgid "Media Read"
 msgstr "媒体读取"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1385
+#: packages/admin/src/components/MediaPickerModal.tsx:1421
 msgid "Media results"
 msgstr "媒体结果"
 
@@ -8703,7 +8808,7 @@ msgstr "媒体结果"
 msgid "Media usage tracking"
 msgstr "媒体用量跟踪"
 
-#: packages/admin/src/components/MediaLibrary.tsx:819
+#: packages/admin/src/components/MediaLibrary.tsx:835
 msgid "Media usage tracking is indexing existing content"
 msgstr "媒体用量跟踪正在索引已有内容"
 
@@ -8715,11 +8820,11 @@ msgstr "媒体用量跟踪已关闭"
 msgid "Media usage tracking is ready"
 msgstr "媒体用量跟踪已就绪"
 
-#: packages/admin/src/components/MediaLibrary.tsx:820
+#: packages/admin/src/components/MediaLibrary.tsx:836
 msgid "Media usage tracking is setting up"
 msgstr "媒体用量跟踪正在初始化"
 
-#: packages/admin/src/components/MediaLibrary.tsx:817
+#: packages/admin/src/components/MediaLibrary.tsx:833
 msgid "Media usage tracking needs attention"
 msgstr "媒体用量跟踪需要注意"
 
@@ -8935,7 +9040,7 @@ msgstr "将 \"{0}\" 下移"
 msgid "Move \"{0}\" up"
 msgstr "将 \"{0}\" 上移"
 
-#: packages/admin/src/components/ContentList.tsx:1540
+#: packages/admin/src/components/ContentList.tsx:1490
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "将「{title}」移至回收站？您可以稍后恢复它。"
 
@@ -8977,10 +9082,6 @@ msgstr "将 {0} 上移"
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
 msgstr "将 {0} 上移 — 不可用，其父级在当前语言环境中没有翻译"
 
-#: packages/admin/src/components/ContentList.tsx:1531
-msgid "Move {title} to trash"
-msgstr "将 {title} 移至回收站"
-
 #: packages/admin/src/components/editor/BlockMenu.tsx:212
 #: packages/admin/src/components/MenuEditor.tsx:656
 #: packages/admin/src/components/TaxonomyManager.tsx:345
@@ -8991,10 +9092,6 @@ msgstr "下移"
 #: packages/admin/src/components/TaxonomyManager.tsx:341
 msgid "Move down {0}"
 msgstr "下移 {0}"
-
-#: packages/admin/src/components/MediaLibrary.tsx:1028
-msgid "Move media here from Media Details."
-msgstr "从“媒体详情”将媒体移动到此处。"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:534
 msgid "Move the focal point to choose what stays visible in cropped images."
@@ -9008,19 +9105,20 @@ msgstr "将此站点迁移到另一个 EmDash 安装，或导入站点包"
 msgid "Move this site to another EmDash installation, or import a site package into this one."
 msgstr "将此站点迁移到另一个 EmDash 安装，或将站点包导入到当前站点。"
 
-#: packages/admin/src/components/ContentList.tsx:646
+#: packages/admin/src/components/ContentList.tsx:647
+#: packages/admin/src/components/ContentList.tsx:1483
 msgid "Move to trash"
 msgstr "移到回收站"
 
-#: packages/admin/src/components/ContentList.tsx:673
-#: packages/admin/src/components/ContentList.tsx:1553
+#: packages/admin/src/components/ContentList.tsx:672
+#: packages/admin/src/components/ContentList.tsx:1503
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1367
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1387
 msgid "Move to Trash"
 msgstr "移至回收站"
 
-#: packages/admin/src/components/ContentList.tsx:651
-#: packages/admin/src/components/ContentList.tsx:1538
+#: packages/admin/src/components/ContentList.tsx:652
+#: packages/admin/src/components/ContentList.tsx:1488
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1372
 msgid "Move to Trash?"
 msgstr "移至回收站？"
@@ -9041,7 +9139,7 @@ msgid "Moved “{snippet}”"
 msgstr "移动了“{snippet}”"
 
 #. placeholder {0}: to + 1
-#: packages/admin/src/components/MediaPickerModal.tsx:701
+#: packages/admin/src/components/MediaPickerModal.tsx:716
 msgid "Moved {filename} to position {0}."
 msgstr "已将 {filename} 移到位置 {0}。"
 
@@ -9102,7 +9200,7 @@ msgid "Moved an image"
 msgstr "移动了图片"
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:568
+#: packages/admin/src/components/MediaLibrary.tsx:580
 msgid "Moved to {0}"
 msgstr "已移到 {0}"
 
@@ -9240,7 +9338,7 @@ msgstr "新域名"
 msgid "New field"
 msgstr "新建字段"
 
-#: packages/admin/src/components/MediaLibrary.tsx:792
+#: packages/admin/src/components/MediaLibrary.tsx:808
 msgid "New folder"
 msgstr "新建文件夹"
 
@@ -9313,9 +9411,9 @@ msgid "Next month"
 msgstr "下月"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:396
-#: packages/admin/src/components/ContentList.tsx:878
+#: packages/admin/src/components/ContentList.tsx:856
 #: packages/admin/src/components/ListPaginationFooter.tsx:111
-#: packages/admin/src/components/MediaPickerModal.tsx:1557
+#: packages/admin/src/components/MediaPickerModal.tsx:1593
 msgid "Next page"
 msgstr "下一页"
 
@@ -9333,7 +9431,7 @@ msgstr "接下来将打开 {0}"
 msgid "Next, the browser's passkey window will open"
 msgstr "接下来将打开浏览器的通行密钥窗口"
 
-#: packages/admin/src/components/ContentList.tsx:1576
+#: packages/admin/src/components/ContentList.tsx:1523
 #: packages/admin/src/components/users/UserDetail.tsx:255
 #: packages/admin/src/routes/byline-schema.tsx:424
 msgid "No"
@@ -9344,7 +9442,7 @@ msgid "No (shared across translations)"
 msgstr "否（跨翻译共享）"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:803
+#: packages/admin/src/components/ContentList.tsx:785
 msgid "No {0} yet."
 msgstr "暂无 {0}。"
 
@@ -9362,8 +9460,8 @@ msgstr "未找到{label}。"
 msgid "No 404 errors recorded yet."
 msgstr "暂无 404 错误记录。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1683
-#: packages/admin/src/components/MediaLibrary.tsx:1740
+#: packages/admin/src/components/MediaLibrary.tsx:1704
+#: packages/admin/src/components/MediaLibrary.tsx:1761
 msgid "No alt text"
 msgstr "无替代文本"
 
@@ -9585,8 +9683,8 @@ msgstr "没有匹配的署名。"
 msgid "No matching content found."
 msgstr "未找到匹配的内容。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1012
-#: packages/admin/src/components/MediaLibrary.tsx:1051
+#: packages/admin/src/components/MediaLibrary.tsx:1028
+#: packages/admin/src/components/MediaLibrary.tsx:1072
 msgid "No matching media"
 msgstr "无匹配的媒体"
 
@@ -9607,12 +9705,12 @@ msgstr "无匹配的时区"
 msgid "No maximum"
 msgstr "无最大值"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1074
+#: packages/admin/src/components/MediaLibrary.tsx:1095
 msgid "No media available from this provider."
 msgstr "此服务商没有可用媒体。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1073
-#: packages/admin/src/components/MediaPickerModal.tsx:1415
+#: packages/admin/src/components/MediaLibrary.tsx:1094
+#: packages/admin/src/components/MediaPickerModal.tsx:1451
 msgid "No media found"
 msgstr "未找到媒体"
 
@@ -9694,8 +9792,8 @@ msgstr "暂无关联。"
 msgid "No results"
 msgstr "无结果"
 
-#: packages/admin/src/components/ContentList.tsx:800
-#: packages/admin/src/components/ContentList.tsx:819
+#: packages/admin/src/components/ContentList.tsx:782
+#: packages/admin/src/components/ContentList.tsx:799
 msgid "No results for \"{activeSearch}\""
 msgstr "没有 \"{activeSearch}\"的搜索结果"
 
@@ -9788,7 +9886,7 @@ msgstr "未匹配"
 msgid "Not recorded in this version"
 msgstr "此版本未记录"
 
-#: packages/admin/src/components/ContentList.tsx:1575
+#: packages/admin/src/components/ContentList.tsx:1522
 #: packages/admin/src/components/PluginSettings.tsx:342
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Not set"
@@ -9921,8 +10019,8 @@ msgstr "在新标签页中打开 {0}"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:182
-#: packages/admin/src/components/MediaLibrary.tsx:1354
-#: packages/admin/src/components/MediaLibrary.tsx:1425
+#: packages/admin/src/components/MediaLibrary.tsx:1375
+#: packages/admin/src/components/MediaLibrary.tsx:1446
 msgid "Open folder {0}"
 msgstr "打开文件夹 {0}"
 
@@ -9950,7 +10048,7 @@ msgstr "在新标签页中打开"
 msgid "Open read-only"
 msgstr "以只读方式打开"
 
-#: packages/admin/src/components/MediaLibrary.tsx:825
+#: packages/admin/src/components/MediaLibrary.tsx:841
 msgid "Open setup"
 msgstr "打开设置"
 
@@ -10109,12 +10207,12 @@ msgid "Page Not Found"
 msgstr "页面未找到"
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:113
-#: packages/admin/src/components/MediaPickerModal.tsx:1559
+#: packages/admin/src/components/MediaPickerModal.tsx:1595
 msgid "Page number"
 msgstr "页码"
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:114
-#: packages/admin/src/components/MediaPickerModal.tsx:1560
+#: packages/admin/src/components/MediaPickerModal.tsx:1596
 msgid "Page size"
 msgstr "每页大小"
 
@@ -10297,13 +10395,9 @@ msgstr "每页"
 msgid "Period"
 msgstr "周期"
 
-#: packages/admin/src/components/ContentList.tsx:1724
+#: packages/admin/src/components/ContentList.tsx:1665
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "永久删除「{title}」？此操作无法撤销。"
-
-#: packages/admin/src/components/ContentList.tsx:1713
-msgid "Permanently delete {title}"
-msgstr "永久删除 {title}"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:295
 msgid "Permissions"
@@ -10357,7 +10451,7 @@ msgstr "请输入有效的邮箱"
 msgid "Please enter a valid email address"
 msgstr "请输入有效的邮箱地址"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:638
+#: packages/admin/src/components/MediaPickerModal.tsx:653
 msgid "Please enter a valid URL"
 msgstr "请输入有效的 URL"
 
@@ -10578,7 +10672,7 @@ msgstr "按空格拾取图片。使用方向键移动，然后按空格放下。
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
 #: packages/admin/src/components/MediaDetailPanel.tsx:1700
-#: packages/admin/src/components/MediaLibrary.tsx:1140
+#: packages/admin/src/components/MediaLibrary.tsx:1161
 msgid "Preview"
 msgstr "预览"
 
@@ -10612,9 +10706,9 @@ msgid "Previous month"
 msgstr "上月"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:377
-#: packages/admin/src/components/ContentList.tsx:866
+#: packages/admin/src/components/ContentList.tsx:844
 #: packages/admin/src/components/ListPaginationFooter.tsx:110
-#: packages/admin/src/components/MediaPickerModal.tsx:1556
+#: packages/admin/src/components/MediaPickerModal.tsx:1592
 msgid "Previous page"
 msgstr "上一页"
 
@@ -10683,7 +10777,7 @@ msgstr "发布策略阻止了定时发布的内容"
 msgid "visualEditing.publish"
 msgstr "发布"
 
-#: packages/admin/src/components/ContentList.tsx:588
+#: packages/admin/src/components/ContentList.tsx:589
 #: packages/admin/src/components/ContentSettingsPanel.tsx:537
 #: packages/admin/src/components/ContentSettingsPanel.tsx:955
 #: packages/admin/src/components/ContentSettingsPanel.tsx:958
@@ -10716,21 +10810,21 @@ msgstr "立即发布？"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "发布、取消发布、定时发布和取消定时发布内容"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "已发布"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
-#: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentList.tsx:1036
+#: packages/admin/src/components/ContentList.tsx:984
+#: packages/admin/src/components/ContentList.tsx:995
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1488
 msgid "Published"
-msgstr "已发布"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "已发布"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11213,7 +11307,7 @@ msgid "Removed “{snippet}”"
 msgstr "移除了“{snippet}”"
 
 #. placeholder {0}: selected.item.filename
-#: packages/admin/src/components/MediaPickerModal.tsx:706
+#: packages/admin/src/components/MediaPickerModal.tsx:721
 msgid "Removed {0} from selection."
 msgstr "已从选中项中移除 {0}。"
 
@@ -11550,14 +11644,11 @@ msgstr "正在解析发布者标识…"
 msgid "Restart numbering"
 msgstr "重新编号"
 
+#: packages/admin/src/components/ContentList.tsx:1650
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:129
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:237
 msgid "Restore"
 msgstr "恢复"
-
-#: packages/admin/src/components/ContentList.tsx:1701
-msgid "Restore {title}"
-msgstr "恢复 {title}"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:91
 msgid "Restore failed"
@@ -11598,12 +11689,12 @@ msgstr "已退役"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
 #: packages/admin/src/components/MediaDetailPanel.tsx:1553
-#: packages/admin/src/components/MediaLibrary.tsx:957
-#: packages/admin/src/components/MediaLibrary.tsx:1470
-#: packages/admin/src/components/MediaPickerModal.tsx:1217
-#: packages/admin/src/components/MediaPickerModal.tsx:1313
-#: packages/admin/src/components/MediaPickerModal.tsx:1335
-#: packages/admin/src/components/MediaPickerModal.tsx:1408
+#: packages/admin/src/components/MediaLibrary.tsx:973
+#: packages/admin/src/components/MediaLibrary.tsx:1491
+#: packages/admin/src/components/MediaPickerModal.tsx:1253
+#: packages/admin/src/components/MediaPickerModal.tsx:1349
+#: packages/admin/src/components/MediaPickerModal.tsx:1371
+#: packages/admin/src/components/MediaPickerModal.tsx:1444
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:272
 #: packages/admin/src/components/Sections.tsx:281
@@ -12007,7 +12098,7 @@ msgstr "已移除定时发布"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
-#: packages/admin/src/components/ContentList.tsx:1027
+#: packages/admin/src/components/ContentList.tsx:986
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
 #: packages/admin/src/router.tsx:1591
 msgid "Scheduled"
@@ -12101,12 +12192,12 @@ msgid "Search"
 msgstr "搜索"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:549
+#: packages/admin/src/components/ContentList.tsx:550
 msgid "Search {0}"
 msgstr "搜索 {0}"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:548
+#: packages/admin/src/components/ContentList.tsx:549
 msgid "Search {0}..."
 msgstr "搜索 {0}..."
 
@@ -12126,8 +12217,8 @@ msgstr "搜索区块类型"
 msgid "Search blocks"
 msgstr "搜索区块"
 
-#: packages/admin/src/components/MediaLibrary.tsx:902
-#: packages/admin/src/components/MediaPickerModal.tsx:1264
+#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaPickerModal.tsx:1300
 msgid "Search by filename..."
 msgstr "按文件名搜索..."
 
@@ -12200,8 +12291,8 @@ msgstr "搜索 IANA 时区（例如 Europe/London）"
 msgid "Search form"
 msgstr "搜索表单"
 
-#: packages/admin/src/components/MediaLibrary.tsx:903
-#: packages/admin/src/components/MediaPickerModal.tsx:1266
+#: packages/admin/src/components/MediaLibrary.tsx:919
+#: packages/admin/src/components/MediaPickerModal.tsx:1302
 msgid "Search media"
 msgstr "搜索媒体"
 
@@ -12269,8 +12360,8 @@ msgstr "搜索用户"
 msgid "Search will be turned off for some collections"
 msgstr "部分集合的搜索将被关闭"
 
-#: packages/admin/src/components/MediaLibrary.tsx:902
-#: packages/admin/src/components/MediaPickerModal.tsx:1264
+#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaPickerModal.tsx:1300
 msgid "Search..."
 msgstr "搜索..."
 
@@ -12381,7 +12472,7 @@ msgstr "查看此文件的引用位置。"
 #: packages/admin/src/components/BylineFieldEditor.tsx:51
 #: packages/admin/src/components/FieldEditor.tsx:426
 #: packages/admin/src/components/FieldEditor.tsx:1302
-#: packages/admin/src/components/MediaPickerModal.tsx:870
+#: packages/admin/src/components/MediaPickerModal.tsx:885
 #: packages/admin/src/components/Settings.tsx:159
 msgid "Select"
 msgstr "选择"
@@ -12394,7 +12485,7 @@ msgstr "选择"
 msgid "Select {label}"
 msgstr "选择 {label}"
 
-#: packages/admin/src/components/ContentList.tsx:1429
+#: packages/admin/src/components/ContentList.tsx:1382
 msgid "Select {title}"
 msgstr "选择 {title}"
 
@@ -12431,7 +12522,7 @@ msgstr "验证前请先选择一个发行版"
 msgid "Select all"
 msgstr "全选"
 
-#: packages/admin/src/components/ContentList.tsx:729
+#: packages/admin/src/components/ContentList.tsx:721
 msgid "Select all on this page"
 msgstr "选择本页全部"
 
@@ -12469,7 +12560,7 @@ msgid "Select Favicon"
 msgstr "选择网站图标"
 
 #: packages/admin/src/components/ContentEditor.tsx:3530
-#: packages/admin/src/components/MediaPickerModal.tsx:232
+#: packages/admin/src/components/MediaPickerModal.tsx:233
 msgid "Select file"
 msgstr "选择文件"
 
@@ -12478,7 +12569,7 @@ msgid "Select gallery images"
 msgstr "选择图库图片"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:576
-#: packages/admin/src/components/MediaPickerModal.tsx:232
+#: packages/admin/src/components/MediaPickerModal.tsx:233
 #: packages/admin/src/components/PortableTextEditor.tsx:4700
 msgid "Select image"
 msgstr "选择图片"
@@ -12507,11 +12598,11 @@ msgstr "选择行"
 msgid "Select table"
 msgstr "选择表格"
 
-#: packages/admin/src/components/ContentList.tsx:632
+#: packages/admin/src/components/ContentList.tsx:633
 msgid "Select up to 50 posts at a time."
 msgstr "每次最多选择 50 篇文章。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:232
+#: packages/admin/src/components/MediaPickerModal.tsx:233
 #: packages/admin/src/components/PortableTextEditor.tsx:4714
 msgid "Select video"
 msgstr "选择视频"
@@ -12540,7 +12631,7 @@ msgstr "已选择 {selectedItemTitle}"
 msgid "Selected image"
 msgstr "已选图片"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:946
+#: packages/admin/src/components/MediaPickerModal.tsx:982
 msgid "Selected media"
 msgstr "已选媒体"
 
@@ -12662,7 +12753,7 @@ msgstr "设置角色"
 msgid "Set to 0 to never close comments automatically."
 msgstr "设置为 0 以永不自动关闭评论。"
 
-#: packages/admin/src/components/ContentList.tsx:599
+#: packages/admin/src/components/ContentList.tsx:600
 msgid "Set to draft"
 msgstr "设为草稿"
 
@@ -12670,7 +12761,7 @@ msgstr "设为草稿"
 msgid "Set up an email provider in Email settings to email users."
 msgstr "在邮件设置中设置邮件服务商，以便给用户发送邮件。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:815
+#: packages/admin/src/components/MediaLibrary.tsx:831
 msgid "Set up media usage tracking"
 msgstr "设置媒体使用情况跟踪"
 
@@ -12783,7 +12874,7 @@ msgstr "显示令牌"
 #. placeholder {0}: count ?? 0
 #. placeholder {0}: totalCount ?? 0
 #: packages/admin/src/components/ListPaginationFooter.tsx:119
-#: packages/admin/src/components/MediaPickerModal.tsx:1565
+#: packages/admin/src/components/MediaPickerModal.tsx:1601
 msgid "Showing {pageShowingRange} of {0}"
 msgstr "正在显示 {0} 中的 {pageShowingRange}"
 
@@ -12957,12 +13048,12 @@ msgstr "搜索和社交元数据中的站点地图和绝对 URL 将使用新域�
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr "使用 Cloudflare D1 的站点还可通过 D1 Time Travel 将数据库恢复到过去 30 天内的任意分钟——始终开启，无需设置。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1143
+#: packages/admin/src/components/MediaLibrary.tsx:1164
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:280
 msgid "Size"
 msgstr "大小"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1451
+#: packages/admin/src/components/MediaLibrary.tsx:1472
 msgid "Size is not applicable to folders"
 msgstr "大小不适用于文件夹"
 
@@ -13194,7 +13285,7 @@ msgstr "正在启动…"
 msgid "State"
 msgstr "状态"
 
-#: packages/admin/src/components/ContentList.tsx:754
+#: packages/admin/src/components/ContentList.tsx:742
 #: packages/admin/src/components/ContentTypeEditor.tsx:137
 #: packages/admin/src/components/Redirects.tsx:497
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
@@ -13577,7 +13668,7 @@ msgstr "导出的软件包和本次导入将以以下方式更改内容。"
 msgid "The file is not a valid EmDash site package."
 msgstr "此文件不是有效的 EmDash 站点软件包。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:578
+#: packages/admin/src/components/MediaLibrary.tsx:590
 msgid "The file or folder no longer exists."
 msgstr "文件或文件夹已不存在。"
 
@@ -13650,7 +13741,7 @@ msgstr "被邀请的用户完成注册后将拥有此角色。"
 msgid "The last export failed"
 msgstr "上次导出失败"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1307
+#: packages/admin/src/components/MediaPickerModal.tsx:1343
 msgid "The latest media request failed. Showing the previous page."
 msgstr "最新媒体请求失败。正在显示上一页。"
 
@@ -14042,7 +14133,7 @@ msgstr "此字段包含不支持的 Portable Text 标记：<0>{markList}</0>。�
 msgid "This field does not accept {0} files."
 msgstr "此字段不接受 {0} 文件。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:651
+#: packages/admin/src/components/MediaPickerModal.tsx:666
 msgid "This field does not accept {mimeType} files."
 msgstr "此字段不接受 {mimeType} 文件。"
 
@@ -14085,11 +14176,11 @@ msgstr "此文件不是可读的 EmDash 站点包。"
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr "此文件不是 EmDash 站点包：它必须以 manifest.json 开头。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1027
+#: packages/admin/src/components/MediaLibrary.tsx:1043
 msgid "This folder is empty"
 msgstr "此文件夹为空"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1420
+#: packages/admin/src/components/MediaPickerModal.tsx:1456
 msgid "This folder is empty."
 msgstr "此文件夹为空。"
 
@@ -14372,8 +14463,8 @@ msgstr "时间为 {zoneName} 时间。您的浏览器使用 {viewerZoneName}。"
 msgid "Timezone"
 msgstr "时区"
 
-#: packages/admin/src/components/ContentList.tsx:739
-#: packages/admin/src/components/ContentList.tsx:912
+#: packages/admin/src/components/ContentList.tsx:731
+#: packages/admin/src/components/ContentList.tsx:888
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
 #: packages/admin/src/components/Widgets.tsx:913
@@ -14518,11 +14609,11 @@ msgstr "回收站"
 #: packages/admin/src/components/comments/CommentInbox.tsx:249
 #: packages/admin/src/components/comments/CommentInbox.tsx:290
 #: packages/admin/src/components/comments/CommentInbox.tsx:538
-#: packages/admin/src/components/ContentList.tsx:533
+#: packages/admin/src/components/ContentList.tsx:534
 msgid "Trash"
 msgstr "回收站"
 
-#: packages/admin/src/components/ContentList.tsx:943
+#: packages/admin/src/components/ContentList.tsx:905
 msgid "Trash is empty"
 msgstr "回收站为空"
 
@@ -14530,7 +14621,7 @@ msgstr "回收站为空"
 msgid "Trash is empty."
 msgstr "回收站为空。"
 
-#: packages/admin/src/components/ContentList.tsx:976
+#: packages/admin/src/components/ContentList.tsx:935
 msgid "Trash pagination"
 msgstr "回收站分页"
 
@@ -14538,7 +14629,7 @@ msgstr "回收站分页"
 msgid "True/false toggle"
 msgstr "真/假切换"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1016
+#: packages/admin/src/components/MediaLibrary.tsx:1032
 msgid "Try a broader media type or clear your filters."
 msgstr "尝试更广泛的媒体类型或清除筛选条件。"
 
@@ -14576,7 +14667,7 @@ msgstr "重试"
 msgid "Try Again"
 msgstr "重试"
 
-#: packages/admin/src/components/MediaLibrary.tsx:585
+#: packages/admin/src/components/MediaLibrary.tsx:597
 msgid "Try again."
 msgstr "重试。"
 
@@ -14588,12 +14679,12 @@ msgstr "重试。如果仍然失败，请检查服务器日志。"
 msgid "Try another code"
 msgstr "尝试其他代码"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1052
-#: packages/admin/src/components/MediaPickerModal.tsx:1418
+#: packages/admin/src/components/MediaLibrary.tsx:1073
+#: packages/admin/src/components/MediaPickerModal.tsx:1454
 msgid "Try another filename or clear your search."
 msgstr "尝试其他文件名或清除搜索。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1015
+#: packages/admin/src/components/MediaLibrary.tsx:1031
 msgid "Try another filename, or clear your search and filters."
 msgstr "尝试其他文件名，或清除搜索和筛选条件。"
 
@@ -14652,7 +14743,7 @@ msgstr "两条记录在必须唯一的位置具有相同的值"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:256
 #: packages/admin/src/components/FieldEditor.tsx:1288
-#: packages/admin/src/components/MediaLibrary.tsx:1142
+#: packages/admin/src/components/MediaLibrary.tsx:1163
 #: packages/admin/src/routes/byline-schema.tsx:240
 #: packages/admin/src/routes/bylines.tsx:343
 msgid "Type"
@@ -14679,7 +14770,7 @@ msgstr "输入以筛选"
 msgid "Type to search"
 msgstr "输入以搜索"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1447
+#: packages/admin/src/components/MediaLibrary.tsx:1468
 msgid "Type: Folder"
 msgstr "类型：文件夹"
 
@@ -14813,7 +14904,7 @@ msgid "Unsupported widget element type: {0}"
 msgstr "不支持的小部件元素类型：{0}"
 
 #. placeholder {0}: formatter.format(to)
-#: packages/admin/src/components/ContentList.tsx:1156
+#: packages/admin/src/components/ContentList.tsx:1115
 msgid "Until {0}"
 msgstr "直到 {0}"
 
@@ -14890,7 +14981,7 @@ msgstr "更新此重定向规则。"
 msgid "Update to v{0}"
 msgstr "更新至 v{0}"
 
-#: packages/admin/src/components/ContentList.tsx:1035
+#: packages/admin/src/components/ContentList.tsx:994
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1053
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
@@ -14926,15 +15017,15 @@ msgstr "更新中..."
 msgid "visualEditing.uploadImage"
 msgstr "上传"
 
-#: packages/admin/src/components/MediaLibrary.tsx:804
+#: packages/admin/src/components/MediaLibrary.tsx:820
 msgid "Upload"
 msgstr "上传"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1422
+#: packages/admin/src/components/MediaPickerModal.tsx:1458
 msgid "Upload a file to get started"
 msgstr "上传文件以开始使用"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1424
+#: packages/admin/src/components/MediaPickerModal.tsx:1460
 msgid "Upload a video to get started"
 msgstr "上传视频以开始"
 
@@ -14942,7 +15033,7 @@ msgstr "上传视频以开始"
 msgid "Upload an export file"
 msgstr "上传导出文件"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1425
+#: packages/admin/src/components/MediaPickerModal.tsx:1461
 msgid "Upload an image to get started"
 msgstr "上传图片以开始使用"
 
@@ -14965,17 +15056,22 @@ msgstr "上传导出文件"
 msgid "Upload failed"
 msgstr "上传失败"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1084
+#: packages/admin/src/components/MediaPickerModal.tsx:1120
 msgid "Upload files"
 msgstr "上传文件"
 
-#: packages/admin/src/components/MediaLibrary.tsx:686
-#: packages/admin/src/components/MediaLibrary.tsx:1042
-#: packages/admin/src/components/MediaLibrary.tsx:1066
+#: packages/admin/src/components/MediaLibrary.tsx:702
+#: packages/admin/src/components/MediaLibrary.tsx:1048
+#: packages/admin/src/components/MediaLibrary.tsx:1063
+#: packages/admin/src/components/MediaLibrary.tsx:1087
 msgid "Upload Files"
 msgstr "上传文件"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1039
+#: packages/admin/src/components/MediaLibrary.tsx:1044
+msgid "Upload files here or move media here from Media Details."
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:1060
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "上传图片、视频和文档，将可复用的素材集中存放。"
 
@@ -14983,7 +15079,7 @@ msgstr "上传图片、视频和文档，将可复用的素材集中存放。"
 msgid "Upload Media"
 msgstr "上传媒体"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1063
+#: packages/admin/src/components/MediaLibrary.tsx:1084
 msgid "Upload media to keep reusable assets in one place."
 msgstr "上传媒体，将可复用的素材集中存放。"
 
@@ -15000,7 +15096,7 @@ msgid "Upload site packages and check whether they can be imported. Admin includ
 msgstr "上传站点包并检查是否可以导入。管理员权限包含此项；选择它而非管理员权限，可为代理授予更窄的访问权限。"
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:687
+#: packages/admin/src/components/MediaLibrary.tsx:703
 msgid "Upload to {0}"
 msgstr "上传至 {0}"
 
@@ -15119,7 +15215,7 @@ msgstr "仍使用 {fallbackUrl}"
 msgid "Use a security key"
 msgstr "使用安全密钥"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:647
+#: packages/admin/src/components/MediaPickerModal.tsx:662
 msgid "Use a URL ending in a recognized image extension, such as .jpg or .png."
 msgstr "请使用以可识别图片扩展名结尾的 URL，例如 .jpg 或 .png。"
 
@@ -15127,7 +15223,7 @@ msgstr "请使用以可识别图片扩展名结尾的 URL，例如 .jpg 或 .png
 msgid "Use another device"
 msgstr "使用其他设备"
 
-#: packages/admin/src/components/ContentList.tsx:1230
+#: packages/admin/src/components/ContentList.tsx:1189
 msgid "Use as end date"
 msgstr "用作结束日期"
 
@@ -15139,7 +15235,7 @@ msgstr "请使用小写字母、数字和连字符，并以字母开头。"
 msgid "Use lowercase letters, numbers, and hyphens."
 msgstr "请使用小写字母、数字和连字符。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1149
+#: packages/admin/src/components/MediaPickerModal.tsx:1185
 msgid "Use URL"
 msgstr "使用 URL"
 
@@ -15307,8 +15403,8 @@ msgstr "版本已恢复"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:70
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
-#: packages/admin/src/components/MediaLibrary.tsx:922
-#: packages/admin/src/components/MediaPickerModal.tsx:392
+#: packages/admin/src/components/MediaLibrary.tsx:938
+#: packages/admin/src/components/MediaPickerModal.tsx:401
 #: packages/admin/src/components/PortableTextEditor.tsx:3715
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:485
 msgid "Video"
@@ -15331,16 +15427,16 @@ msgstr "查看邮件提供商状态并发送测试邮件"
 msgid "View live"
 msgstr "查看线上"
 
-#: packages/admin/src/components/MediaLibrary.tsx:868
-#: packages/admin/src/components/MediaPickerModal.tsx:1224
+#: packages/admin/src/components/MediaLibrary.tsx:884
+#: packages/admin/src/components/MediaPickerModal.tsx:1260
 msgid "View mode"
 msgstr "查看模式"
 
-#: packages/admin/src/components/ContentList.tsx:1501
-msgid "View published {title}"
-msgstr "查看已发布的 {title}"
+#: packages/admin/src/components/ContentList.tsx:1466
+msgid "View published"
+msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:825
+#: packages/admin/src/components/MediaLibrary.tsx:841
 msgid "View setup"
 msgstr "查看设置"
 
@@ -15660,7 +15756,7 @@ msgstr "WordPress 授权被拒绝"
 msgid "WordPress Username"
 msgstr "WordPress 用户名"
 
-#: packages/admin/src/components/ContentList.tsx:576
+#: packages/admin/src/components/ContentList.tsx:577
 msgid "Working on {selectedCount} items…"
 msgstr "正在处理 {selectedCount} 个项目…"
 
@@ -15712,7 +15808,7 @@ msgstr "YAML"
 msgid "Yearly"
 msgstr "每年"
 
-#: packages/admin/src/components/ContentList.tsx:1578
+#: packages/admin/src/components/ContentList.tsx:1525
 #: packages/admin/src/components/users/UserDetail.tsx:255
 #: packages/admin/src/routes/byline-schema.tsx:422
 #: packages/admin/src/routes/byline-schema.tsx:424
@@ -15760,7 +15856,7 @@ msgstr "您无法更改自己的角色"
 msgid "You do not have permission to edit this asset."
 msgstr "您没有编辑此素材的权限。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:583
+#: packages/admin/src/components/MediaLibrary.tsx:595
 msgid "You don’t have permission to move this file."
 msgstr "您没有移动此文件的权限。"
 
@@ -15907,8 +16003,8 @@ msgstr "您的 Instagram 用户名"
 msgid "Your LinkedIn profile username"
 msgstr "您的 LinkedIn 个人资料用户名"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1038
-#: packages/admin/src/components/MediaLibrary.tsx:1062
+#: packages/admin/src/components/MediaLibrary.tsx:1059
+#: packages/admin/src/components/MediaLibrary.tsx:1083
 msgid "Your media library is empty"
 msgstr "您的媒体库为空"
 

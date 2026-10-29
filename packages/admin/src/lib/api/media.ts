@@ -18,13 +18,13 @@ export const MEDIA_SEARCH_MAX_LENGTH = 200;
 export interface MediaUploadOptions {
 	signal?: AbortSignal;
 	folderId?: string | null;
+	deduplicate?: boolean;
 }
 
 export interface UploadMediaOptions extends MediaUploadOptions {
 	fieldId?: string;
 	blockType?: string;
 	blockVersion?: number;
-	deduplicate?: boolean;
 	ensureUniqueFilename?: boolean;
 	folderId?: string | null;
 }

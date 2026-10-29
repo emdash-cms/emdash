@@ -11,11 +11,12 @@ import { apiError, apiSuccess, handleError, requireDb, unwrapResult } from "#api
 import { handleCommentGet } from "#api/handlers/comments.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { commentStatusBody } from "#api/schemas.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 import { CommentStatusConflictError } from "#comments/service.js";
 
 export const prerender = false;
 
-export const PUT: APIRoute = async ({ params, request, locals }) => {
+export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const { id } = params;
 
@@ -55,6 +56,13 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 
 		if (!updated) {
 			return apiError("NOT_FOUND", "Comment not found", 404);
+		}
+
+		if (
+			previousStatus !== updated.status &&
+			(previousStatus === "approved" || updated.status === "approved")
+		) {
+			await invalidateRouteCache(cache, [updated.collection, updated.contentId]);
 		}
 
 		return apiSuccess(updated);

@@ -13,6 +13,111 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:588
+msgid "Autoresponder subject and body are required"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:762
+msgid "Daily digest"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:768
+msgid "Digest hour (UTC)"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:779
+msgid "Send a daily summary to the notification recipients instead of an email for each submission. Email must be configured."
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:785
+msgid "Send an autoresponder"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:790
+msgid "Send a reply to the first email field in the form. Email must be configured."
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:797
+msgid "Autoresponder subject"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:804
+msgid "Autoresponder body"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:815
+msgid "Webhook URL (optional)"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:875
+msgid "Always visible"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:877
+msgid "Unnamed field"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:975
+msgid "Placeholder"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:982
+msgid "Help text"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:989
+msgid "Default value"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:997
+msgid "Show when field"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:1021
+msgid "Condition operator"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:1025
+msgid "Equals"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:1026
+msgid "Does not equal"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:1027
+msgid "Is filled"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:1028
+msgid "Is empty"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/plugins/forms/src/admin.tsx:1038
+msgid "Condition value"
+msgstr ""
+
 #: packages/admin/src/components/LocaleSwitcher.tsx:75
 #: packages/admin/src/components/TranslationsPanel.tsx:81
 msgid " (default)"
@@ -132,19 +237,19 @@ msgid "{0, plural, one {# entry} other {# entries}}"
 msgstr "{0, plural, one {#件} other {#件}}"
 
 #. placeholder {0}: uploadQueue.jobs.filter( (job) => job.status === "queued" || job.status === "uploading", ).length
-#: packages/admin/src/components/MediaPickerModal.tsx:1618
+#: packages/admin/src/components/MediaPickerModal.tsx:1654
 msgid "{0, plural, one {# file uploading} other {# files uploading}}"
 msgstr "{0, plural, one {#件のファイルをアップロード中} other {#件のファイルをアップロード中}}"
 
 #. placeholder {0}: uploadQueue.overflowCount
-#: packages/admin/src/components/MediaPickerModal.tsx:1299
+#: packages/admin/src/components/MediaPickerModal.tsx:1335
 msgid "{0, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr "{0, plural, one {アップロード一覧が上限に達しているため、#件のファイルを追加できませんでした。} other {アップロード一覧が上限に達しているため、#件のファイルを追加できませんでした。}}"
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
 #: packages/admin/src/components/MediaDetailPanel.tsx:1520
-#: packages/admin/src/components/MediaLibrary.tsx:938
+#: packages/admin/src/components/MediaLibrary.tsx:954
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {#件のフォルダーを読み込みました} other {#件のフォルダーを読み込みました}}"
 
@@ -257,7 +362,7 @@ msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr "{0, plural, one {#件の分類グループを作成} other {#件の分類グループを作成}}"
 
 #. placeholder {0}: uploadQueue.failedCount
-#: packages/admin/src/components/MediaPickerModal.tsx:1625
+#: packages/admin/src/components/MediaPickerModal.tsx:1661
 msgid "{0, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{0, plural, one {#件のアップロードに失敗} other {#件のアップロードに失敗}}"
 
@@ -267,17 +372,17 @@ msgid "{0, plural, one {+# more} other {+# more}}"
 msgstr "{0, plural, one {他#件} other {他#件}}"
 
 #. placeholder {0}: selectedItems.length
-#: packages/admin/src/components/MediaPickerModal.tsx:866
+#: packages/admin/src/components/MediaPickerModal.tsx:881
 msgid "{0, plural, one {Add # file} other {Add # files}}"
 msgstr "{0, plural, one {#件のファイルを追加} other {#件のファイルを追加}}"
 
 #. placeholder {0}: selectedItems.length
-#: packages/admin/src/components/MediaPickerModal.tsx:869
+#: packages/admin/src/components/MediaPickerModal.tsx:884
 msgid "{0, plural, one {Add # image} other {Add # images}}"
 msgstr "{0, plural, one {#件の画像を追加} other {#件の画像を追加}}"
 
 #. placeholder {0}: selectedItems.length
-#: packages/admin/src/components/MediaPickerModal.tsx:868
+#: packages/admin/src/components/MediaPickerModal.tsx:883
 msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {#件の動画を追加} other {#件の動画を追加}}"
 
@@ -502,7 +607,7 @@ msgstr "{base}（接続先：{0}）"
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {#文字} other {#文字}}"
 
-#: packages/admin/src/components/ContentList.tsx:900
+#: packages/admin/src/components/ContentList.tsx:878
 msgid "{collectionLabel} pagination"
 msgstr "{collectionLabel}一覧のページ切り替え"
 
@@ -567,7 +672,7 @@ msgstr "{filesMissing, plural, one {未アップロードのファイルが#件�
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:1374
+#: packages/admin/src/components/ContentList.tsx:1326
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0}件} other {#{1}件}}"
 
@@ -626,7 +731,7 @@ msgstr "{label}、{restored}"
 msgid "{lateness} late"
 msgstr "{lateness}の遅れ"
 
-#: packages/admin/src/components/ContentList.tsx:1363
+#: packages/admin/src/components/ContentList.tsx:1315
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {「{searchQuery}」に一致：#件} other {「{searchQuery}」に一致：#件}}"
 
@@ -770,7 +875,7 @@ msgstr "{0}件中{ready}件が追加可能"
 msgid "{records, plural, one {# record written} other {# records written}}"
 msgstr "{records, plural, one {#件のレコードを書き込みました} other {#件のレコードを書き込みました}}"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:933
+#: packages/admin/src/components/MediaPickerModal.tsx:969
 msgid "{rejectedCount, plural, one {# file was not added.} other {# files were not added.}}"
 msgstr "{rejectedCount, plural, one {#件のファイルを追加できませんでした。} other {#件のファイルを追加できませんでした。}}"
 
@@ -790,11 +895,11 @@ msgstr "{rows, plural, one {行を削除しました} other {#行を削除しま
 msgid "{rows} × {columns} table pasted"
 msgstr "{rows}行 × {columns}列のテーブルを貼り付けました"
 
-#: packages/admin/src/components/ContentList.tsx:577
+#: packages/admin/src/components/ContentList.tsx:578
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {#件を選択中} other {#件を選択中}}"
 
-#: packages/admin/src/components/ContentList.tsx:653
+#: packages/admin/src/components/ContentList.tsx:654
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {#件のコンテンツをゴミ箱に移動しますか？後で復元できます。} other {#件のコンテンツをゴミ箱に移動しますか？後で復元できます。}}"
 
@@ -838,7 +943,7 @@ msgstr "「{title}」を公開しました。"
 msgid "{title} now goes live {when}."
 msgstr "「{title}」は{when}に公開されます。"
 
-#: packages/admin/src/components/ContentList.tsx:1369
+#: packages/admin/src/components/ContentList.tsx:1321
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {#件} other {#件}}"
 
@@ -1212,8 +1317,8 @@ msgid "ACF Fields"
 msgstr "ACFフィールド"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
-#: packages/admin/src/components/ContentList.tsx:779
-#: packages/admin/src/components/ContentList.tsx:923
+#: packages/admin/src/components/ContentList.tsx:767
+#: packages/admin/src/components/ContentList.tsx:892
 #: packages/admin/src/components/ContentTypeList.tsx:212
 #: packages/admin/src/components/RelationList.tsx:102
 #: packages/admin/src/components/TaxonomyManager.tsx:1416
@@ -1222,6 +1327,11 @@ msgstr "ACFフィールド"
 #: packages/admin/src/routes/bylines.tsx:348
 msgid "Actions"
 msgstr "操作"
+
+#: packages/admin/src/components/ContentList.tsx:1439
+#: packages/admin/src/components/ContentList.tsx:1645
+msgid "Actions for {title}"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
@@ -1249,7 +1359,7 @@ msgstr "追加"
 #. placeholder {0}: inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
-#: packages/admin/src/components/ContentList.tsx:626
+#: packages/admin/src/components/ContentList.tsx:627
 #: packages/admin/src/components/PortableTextEditor.tsx:2936
 #: packages/admin/src/components/TaxonomyManager.tsx:759
 #: packages/admin/src/components/TaxonomyManager.tsx:1336
@@ -1392,13 +1502,13 @@ msgstr "リンクを追加してナビゲーションメニューを作成しま
 msgid "Add MIME type or extension"
 msgstr "MIMEタイプまたは拡張子を追加"
 
-#: packages/admin/src/components/ContentList.tsx:515
+#: packages/admin/src/components/ContentList.tsx:516
 msgid "Add New"
 msgstr "新規追加"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:127
-#: packages/admin/src/components/MediaLibrary.tsx:788
-#: packages/admin/src/components/MediaLibrary.tsx:793
+#: packages/admin/src/components/MediaLibrary.tsx:804
+#: packages/admin/src/components/MediaLibrary.tsx:809
 msgid "Add new folder"
 msgstr "新しいフォルダーを追加"
 
@@ -1449,7 +1559,7 @@ msgstr "サブフィールドを追加"
 msgid "Add tag"
 msgstr "タグを追加"
 
-#: packages/admin/src/components/ContentList.tsx:627
+#: packages/admin/src/components/ContentList.tsx:628
 msgid "Add term"
 msgstr "分類項目を追加"
 
@@ -1636,12 +1746,12 @@ msgstr "右揃え"
 msgid "Alignment"
 msgstr "配置"
 
-#: packages/admin/src/components/ContentList.tsx:527
+#: packages/admin/src/components/ContentList.tsx:528
 msgid "All"
 msgstr "すべて"
 
-#: packages/admin/src/components/ContentList.tsx:1085
-#: packages/admin/src/components/ContentList.tsx:1089
+#: packages/admin/src/components/ContentList.tsx:1044
+#: packages/admin/src/components/ContentList.tsx:1048
 msgid "All authors"
 msgstr "すべての投稿者"
 
@@ -1679,13 +1789,13 @@ msgstr "すべての権限"
 msgid "All sources"
 msgstr "すべてのソース"
 
-#: packages/admin/src/components/ContentList.tsx:1024
+#: packages/admin/src/components/ContentList.tsx:983
 #: packages/admin/src/components/Redirects.tsx:399
 msgid "All statuses"
 msgstr "すべてのステータス"
 
-#: packages/admin/src/components/MediaLibrary.tsx:920
-#: packages/admin/src/components/MediaPickerModal.tsx:389
+#: packages/admin/src/components/MediaLibrary.tsx:936
+#: packages/admin/src/components/MediaPickerModal.tsx:398
 #: packages/admin/src/components/Redirects.tsx:406
 msgid "All types"
 msgstr "すべての種類"
@@ -1755,7 +1865,7 @@ msgstr "代替テキスト"
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
-#: packages/admin/src/components/MediaLibrary.tsx:1144
+#: packages/admin/src/components/MediaLibrary.tsx:1165
 #: packages/admin/src/components/PortableTextEditor.tsx:5761
 #: packages/admin/src/components/PortableTextEditor.tsx:5827
 msgid "Alt text"
@@ -1767,12 +1877,12 @@ msgstr "代替テキスト"
 msgid "Alt Text"
 msgstr "代替テキスト"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1455
+#: packages/admin/src/components/MediaLibrary.tsx:1476
 msgid "Alt text is not applicable to folders"
 msgstr "フォルダーには代替テキストを設定できません"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1683
-#: packages/admin/src/components/MediaLibrary.tsx:1740
+#: packages/admin/src/components/MediaLibrary.tsx:1704
+#: packages/admin/src/components/MediaLibrary.tsx:1761
 msgid "Alt text set"
 msgstr "代替テキスト設定済み"
 
@@ -1965,7 +2075,7 @@ msgstr "承認中…"
 msgid "Arbitrary JSON data"
 msgstr "自由形式のJSONデータ"
 
-#: packages/admin/src/components/ContentList.tsx:1028
+#: packages/admin/src/components/ContentList.tsx:987
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr "アーカイブ済み"
@@ -2035,8 +2145,8 @@ msgid "Attribution"
 msgstr "執筆者の設定"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
-#: packages/admin/src/components/MediaLibrary.tsx:923
-#: packages/admin/src/components/MediaPickerModal.tsx:393
+#: packages/admin/src/components/MediaLibrary.tsx:939
+#: packages/admin/src/components/MediaPickerModal.tsx:402
 msgid "Audio"
 msgstr "音声"
 
@@ -2183,7 +2293,7 @@ msgstr "戻る"
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:673
 #: packages/admin/src/components/MediaDetailPanel.tsx:1817
-#: packages/admin/src/components/MediaLibrary.tsx:747
+#: packages/admin/src/components/MediaLibrary.tsx:763
 #: packages/admin/src/components/MenuEditor.tsx:400
 #: packages/admin/src/components/WordPressImport.tsx:1565
 #: packages/admin/src/components/WordPressImport.tsx:2586
@@ -2220,7 +2330,7 @@ msgstr "編集に戻りました。"
 msgid "Back to login"
 msgstr "ログインに戻る"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1031
+#: packages/admin/src/components/MediaLibrary.tsx:1051
 msgid "Back to Main library"
 msgstr "メインライブラリに戻る"
 
@@ -2521,9 +2631,9 @@ msgstr "コンテンツを閲覧できます"
 #: packages/admin/src/components/BylineFormDialog.tsx:546
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:350
 #: packages/admin/src/components/ConfirmDialog.tsx:102
-#: packages/admin/src/components/ContentList.tsx:662
-#: packages/admin/src/components/ContentList.tsx:1546
-#: packages/admin/src/components/ContentList.tsx:1730
+#: packages/admin/src/components/ContentList.tsx:663
+#: packages/admin/src/components/ContentList.tsx:1496
+#: packages/admin/src/components/ContentList.tsx:1671
 #: packages/admin/src/components/ContentPickerModal.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:359
 #: packages/admin/src/components/ContentSettingsPanel.tsx:550
@@ -2535,7 +2645,7 @@ msgstr "コンテンツを閲覧できます"
 #: packages/admin/src/components/FieldEditor.tsx:1386
 #: packages/admin/src/components/MediaDetailPanel.tsx:1859
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
-#: packages/admin/src/components/MediaPickerModal.tsx:1599
+#: packages/admin/src/components/MediaPickerModal.tsx:1635
 #: packages/admin/src/components/MenuEditor.tsx:459
 #: packages/admin/src/components/MenuEditor.tsx:544
 #: packages/admin/src/components/MenuEditor.tsx:764
@@ -2898,12 +3008,12 @@ msgstr "このデバイスの認証情報マネージャー、別のデバイス
 msgid "Choose a date"
 msgstr "日付を選択"
 
-#: packages/admin/src/components/ContentList.tsx:1211
-#: packages/admin/src/components/ContentList.tsx:1217
+#: packages/admin/src/components/ContentList.tsx:1170
+#: packages/admin/src/components/ContentList.tsx:1176
 msgid "Choose a date range"
 msgstr "期間を選択"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:234
+#: packages/admin/src/components/MediaPickerModal.tsx:235
 msgid "Choose a file from the library or upload a new one."
 msgstr "ライブラリからファイルを選ぶか、新しくアップロードしてください。"
 
@@ -2928,11 +3038,11 @@ msgstr "未来の日時を選んでください"
 msgid "Choose a valid date"
 msgstr "有効な日付を選んでください"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:236
+#: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Choose a video from the library or upload a new one."
 msgstr "ライブラリから動画を選ぶか、新しくアップロードしてください。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:237
+#: packages/admin/src/components/MediaPickerModal.tsx:238
 msgid "Choose an image from the library or upload a new one."
 msgstr "ライブラリから画像を選ぶか、新しくアップロードしてください。"
 
@@ -2945,7 +3055,7 @@ msgstr "別の方法を選択"
 msgid "Choose bylines"
 msgstr "執筆者を選択"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1103
+#: packages/admin/src/components/MediaPickerModal.tsx:1139
 msgid "Choose files to upload"
 msgstr "アップロードするファイルを選択"
 
@@ -2982,8 +3092,8 @@ msgstr "選択…"
 msgid "Choosing a byline replaces this automatic credit."
 msgstr "執筆者を選択すると、この自動表示を置き換えます。"
 
-#: packages/admin/src/components/ContentList.tsx:688
-#: packages/admin/src/components/ContentList.tsx:1225
+#: packages/admin/src/components/ContentList.tsx:685
+#: packages/admin/src/components/ContentList.tsx:1184
 msgid "Clear"
 msgstr "選択を解除"
 
@@ -2994,8 +3104,8 @@ msgstr "完了した項目を一覧から削除"
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:79
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:186
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:103
-#: packages/admin/src/components/ContentList.tsx:1130
-#: packages/admin/src/components/MediaLibrary.tsx:1020
+#: packages/admin/src/components/ContentList.tsx:1089
+#: packages/admin/src/components/MediaLibrary.tsx:1036
 #: packages/admin/src/components/Sections.tsx:298
 #: packages/admin/src/components/users/UserList.tsx:122
 #: packages/admin/src/routes/bylines.tsx:467
@@ -3006,8 +3116,8 @@ msgstr "フィルターをクリア"
 msgid "Clear formatting"
 msgstr "書式をクリア"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1020
-#: packages/admin/src/components/MediaLibrary.tsx:1055
+#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1076
 #: packages/admin/src/components/TaxonomyManager.tsx:1439
 msgid "Clear search"
 msgstr "検索をクリア"
@@ -3068,8 +3178,8 @@ msgstr "次のリンクをクリックして、{siteName}にログインして�
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:462
 #: packages/admin/src/components/MediaDetailPanel.tsx:1127
 #: packages/admin/src/components/MediaDetailPanel.tsx:1859
-#: packages/admin/src/components/MediaPickerModal.tsx:1010
-#: packages/admin/src/components/MediaPickerModal.tsx:1017
+#: packages/admin/src/components/MediaPickerModal.tsx:1046
+#: packages/admin/src/components/MediaPickerModal.tsx:1053
 #: packages/admin/src/components/MediaUploadDialog.tsx:237
 #: packages/admin/src/components/MenuEditor.tsx:428
 #: packages/admin/src/components/MenuEditor.tsx:434
@@ -3589,11 +3699,11 @@ msgstr "{pluralLower}を読み込めませんでした。"
 msgid "Could not load dashboard data"
 msgstr "ダッシュボードデータを読み込めませんでした"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:670
+#: packages/admin/src/components/MediaPickerModal.tsx:685
 msgid "Could not load image from URL"
 msgstr "URLから画像を読み込めませんでした"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1399
+#: packages/admin/src/components/MediaPickerModal.tsx:1435
 msgid "Could not load media."
 msgstr "メディアを読み込めませんでした。"
 
@@ -3605,7 +3715,7 @@ msgstr "カレンダーを読み込めませんでした"
 msgid "Could not load this entry's details."
 msgstr "このコンテンツの詳細を読み込めませんでした。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1211
+#: packages/admin/src/components/MediaPickerModal.tsx:1247
 msgid "Could not load this folder."
 msgstr "このフォルダーを読み込めませんでした。"
 
@@ -3689,7 +3799,7 @@ msgstr "変更履歴を読み込めませんでした"
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "「{draft}」をMIMEタイプに変換できませんでした。MIMEタイプを直接入力してください。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:575
+#: packages/admin/src/components/MediaLibrary.tsx:587
 msgid "Couldn’t move file"
 msgstr "ファイルを移動できませんでした"
 
@@ -3902,7 +4012,7 @@ msgstr "最初のコンテンツタイプを作成"
 msgid "Create your first navigation menu to get started"
 msgstr "最初のナビゲーションメニューを作成しましょう"
 
-#: packages/admin/src/components/ContentList.tsx:810
+#: packages/admin/src/components/ContentList.tsx:792
 msgid "Create your first one"
 msgstr "最初のコンテンツを作成しましょう"
 
@@ -3927,7 +4037,7 @@ msgstr "分類項目の作成、更新、削除"
 msgid "Create, update, delete content"
 msgstr "コンテンツを作成・更新・削除する"
 
-#: packages/admin/src/components/ContentList.tsx:1034
+#: packages/admin/src/components/ContentList.tsx:993
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1046
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
@@ -3997,7 +4107,7 @@ msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "切り抜き範囲。矢印キーで移動できます。"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:772
-#: packages/admin/src/components/MediaLibrary.tsx:1289
+#: packages/admin/src/components/MediaLibrary.tsx:1310
 msgid "Cropped copy created."
 msgstr "切り抜いたコピーを作成しました。"
 
@@ -4078,7 +4188,7 @@ msgid "Database-owned definitions available to blocks fields."
 msgstr "ブロックフィールドで使用できる、データベースで管理される定義です。"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:334
-#: packages/admin/src/components/ContentList.tsx:768
+#: packages/admin/src/components/ContentList.tsx:756
 msgid "Date"
 msgstr "日付"
 
@@ -4091,7 +4201,7 @@ msgstr "日時"
 msgid "Date and time picker"
 msgstr "日付と時刻を選択"
 
-#: packages/admin/src/components/ContentList.tsx:1107
+#: packages/admin/src/components/ContentList.tsx:1066
 msgid "Date field to filter on"
 msgstr "絞り込み対象の日付"
 
@@ -4099,7 +4209,7 @@ msgstr "絞り込み対象の日付"
 msgid "Date Format"
 msgstr "日付形式"
 
-#: packages/admin/src/components/ContentList.tsx:1157
+#: packages/admin/src/components/ContentList.tsx:1116
 msgid "Date range"
 msgstr "期間"
 
@@ -4299,15 +4409,16 @@ msgid "Delete menu item?"
 msgstr "メニュー項目を削除しますか？"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:550
+#: packages/admin/src/components/ContentList.tsx:1658
 msgid "Delete permanently"
 msgstr "完全に削除"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:185
-#: packages/admin/src/components/ContentList.tsx:1741
+#: packages/admin/src/components/ContentList.tsx:1680
 msgid "Delete Permanently"
 msgstr "完全に削除"
 
-#: packages/admin/src/components/ContentList.tsx:1721
+#: packages/admin/src/components/ContentList.tsx:1663
 msgid "Delete Permanently?"
 msgstr "完全に削除しますか？"
 
@@ -4374,7 +4485,7 @@ msgstr "ウィジェットエリアを削除しますか？"
 msgid "Delete widget?"
 msgstr "ウィジェットを削除しますか？"
 
-#: packages/admin/src/components/ContentList.tsx:920
+#: packages/admin/src/components/ContentList.tsx:890
 msgid "Deleted"
 msgstr "削除日時"
 
@@ -4678,8 +4789,8 @@ msgid "Document"
 msgstr "文書"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
-#: packages/admin/src/components/MediaLibrary.tsx:924
-#: packages/admin/src/components/MediaPickerModal.tsx:394
+#: packages/admin/src/components/MediaLibrary.tsx:940
+#: packages/admin/src/components/MediaPickerModal.tsx:403
 msgid "Documents"
 msgstr "ドキュメント"
 
@@ -4713,7 +4824,7 @@ msgstr "割り当てない"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
-#: packages/admin/src/components/ContentList.tsx:1233
+#: packages/admin/src/components/ContentList.tsx:1192
 #: packages/admin/src/components/MediaUploadDialog.tsx:335
 #: packages/admin/src/components/users/InviteUserModal.tsx:145
 #: packages/admin/src/components/WordPressImport.tsx:2185
@@ -4788,7 +4899,7 @@ msgid "visualEditing.draft"
 msgstr "下書き"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
-#: packages/admin/src/components/ContentList.tsx:1026
+#: packages/admin/src/components/ContentList.tsx:985
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "下書き"
@@ -4859,7 +4970,7 @@ msgstr "ここに画像をドロップするか、<0>ファイルを選択</0>"
 msgid "Drop an image here or browse for {label}"
 msgstr "ここに画像をドロップするか、{label}のファイルを選択"
 
-#: packages/admin/src/components/MediaLibrary.tsx:727
+#: packages/admin/src/components/MediaLibrary.tsx:743
 msgid "Drop files to upload"
 msgstr "ファイルをドロップしてアップロード"
 
@@ -4875,13 +4986,10 @@ msgstr "ドロップしてウィジェットを追加"
 msgid "Drop your WordPress export file here"
 msgstr "WordPressのエクスポートファイルをここにドロップ"
 
+#: packages/admin/src/components/ContentList.tsx:1474
 #: packages/admin/src/components/editor/BlockMenu.tsx:201
 msgid "Duplicate"
 msgstr "複製"
-
-#: packages/admin/src/components/ContentList.tsx:1518
-msgid "Duplicate {title}"
-msgstr "{title}を複製"
 
 #: packages/admin/src/components/BlocksField.tsx:382
 msgid "Duplicate block"
@@ -4924,6 +5032,7 @@ msgstr "パスの各区切りに指定できるプレースホルダーは1つ�
 msgid "Earliest saved version"
 msgstr "保存されている最も古い版"
 
+#: packages/admin/src/components/ContentList.tsx:1451
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
@@ -4966,16 +5075,12 @@ msgstr "{itemLabel}を編集"
 msgid "Edit {label}"
 msgstr "{label}を編集"
 
-#: packages/admin/src/components/ContentList.tsx:1509
-msgid "Edit {title}"
-msgstr "{title}を編集"
-
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:462
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
 #: packages/admin/src/components/ImageFieldRenderer.tsx:317
 #: packages/admin/src/components/ImageFieldRenderer.tsx:374
 #: packages/admin/src/components/ImageFieldRenderer.tsx:442
-#: packages/admin/src/components/MediaPickerModal.tsx:1595
+#: packages/admin/src/components/MediaPickerModal.tsx:1631
 msgid "Edit asset"
 msgstr "画像を編集"
 
@@ -5011,8 +5116,8 @@ msgid "Edit folder"
 msgstr "フォルダーを編集"
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:1370
-#: packages/admin/src/components/MediaLibrary.tsx:1437
+#: packages/admin/src/components/MediaLibrary.tsx:1391
+#: packages/admin/src/components/MediaLibrary.tsx:1458
 msgid "Edit folder {0}"
 msgstr "フォルダー「{0}」を編集"
 
@@ -6297,7 +6402,7 @@ msgstr "エクスポートのマニフェストの読み込みに失敗しまし
 msgid "Failed to load exports"
 msgstr "エクスポートの読み込みに失敗しました"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:654
+#: packages/admin/src/components/MediaPickerModal.tsx:669
 msgid "Failed to load image"
 msgstr "画像の読み込みに失敗しました"
 
@@ -6788,7 +6893,7 @@ msgstr "メディアライブラリからファイル"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1426
 #: packages/admin/src/components/MediaDetailPanel.tsx:1444
-#: packages/admin/src/components/MediaLibrary.tsx:1141
+#: packages/admin/src/components/MediaLibrary.tsx:1162
 msgid "Filename"
 msgstr "ファイル名"
 
@@ -6808,7 +6913,7 @@ msgstr "表示名から自動入力されます。半角英小文字・数字・
 msgid "Filter"
 msgstr "絞り込み"
 
-#: packages/admin/src/components/ContentList.tsx:1081
+#: packages/admin/src/components/ContentList.tsx:1040
 msgid "Filter by author"
 msgstr "投稿者で絞り込む"
 
@@ -6824,7 +6929,7 @@ msgstr "権限で絞り込む"
 msgid "Filter by collection"
 msgstr "コンテンツタイプで絞り込む"
 
-#: packages/admin/src/components/ContentList.tsx:1203
+#: packages/admin/src/components/ContentList.tsx:1162
 msgid "Filter by date range: {rangeLabel}"
 msgstr "期間で絞り込む：{rangeLabel}"
 
@@ -6836,13 +6941,13 @@ msgstr "権限で絞り込む"
 msgid "Filter by source"
 msgstr "ソースで絞り込む"
 
-#: packages/admin/src/components/ContentList.tsx:1063
+#: packages/admin/src/components/ContentList.tsx:1022
 #: packages/admin/src/components/Redirects.tsx:400
 msgid "Filter by status"
 msgstr "ステータスで絞り込む"
 
-#: packages/admin/src/components/MediaLibrary.tsx:926
-#: packages/admin/src/components/MediaPickerModal.tsx:1285
+#: packages/admin/src/components/MediaLibrary.tsx:942
+#: packages/admin/src/components/MediaPickerModal.tsx:1321
 #: packages/admin/src/components/Redirects.tsx:407
 msgid "Filter by type"
 msgstr "種類で絞り込む"
@@ -6860,7 +6965,7 @@ msgid "Finish any current edits."
 msgstr "現在の編集をすべて完了してください。"
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:109
-#: packages/admin/src/components/MediaPickerModal.tsx:1555
+#: packages/admin/src/components/MediaPickerModal.tsx:1591
 msgid "First page"
 msgstr "最初のページ"
 
@@ -6893,7 +6998,7 @@ msgstr "画像の焦点"
 msgid "Focal point. Use arrow keys to move it."
 msgstr "焦点位置。矢印キーで移動できます。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1205
+#: packages/admin/src/components/MediaPickerModal.tsx:1241
 msgid "Folder"
 msgstr "フォルダー"
 
@@ -6910,7 +7015,7 @@ msgstr "フォルダー名は1～200文字で入力してください"
 msgid "Folder no longer exists"
 msgstr "フォルダーが見つかりません"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:489
+#: packages/admin/src/components/MediaPickerModal.tsx:498
 msgid "Folder no longer exists. Returned to the main library."
 msgstr "フォルダーが見つからないため、メインライブラリに戻りました。"
 
@@ -6926,19 +7031,19 @@ msgstr "フォルダーを更新しました"
 msgid "Folder unavailable"
 msgstr "フォルダーを利用できません"
 
-#: packages/admin/src/components/MediaLibrary.tsx:953
-#: packages/admin/src/components/MediaPickerModal.tsx:1323
+#: packages/admin/src/components/MediaLibrary.tsx:969
+#: packages/admin/src/components/MediaPickerModal.tsx:1359
 msgid "Folders"
 msgstr "フォルダー"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
-#: packages/admin/src/components/MediaLibrary.tsx:963
-#: packages/admin/src/components/MediaLibrary.tsx:1467
-#: packages/admin/src/components/MediaPickerModal.tsx:1328
+#: packages/admin/src/components/MediaLibrary.tsx:979
+#: packages/admin/src/components/MediaLibrary.tsx:1488
+#: packages/admin/src/components/MediaPickerModal.tsx:1364
 msgid "Folders could not be loaded."
 msgstr "フォルダーを読み込めませんでした。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:758
+#: packages/admin/src/components/MediaLibrary.tsx:774
 msgid "Folders navigation"
 msgstr "フォルダー階層"
 
@@ -6967,7 +7072,7 @@ msgid "Freeform"
 msgstr "自由形式"
 
 #. placeholder {0}: formatter.format(from)
-#: packages/admin/src/components/ContentList.tsx:1154
+#: packages/admin/src/components/ContentList.tsx:1113
 msgid "From {0}"
 msgstr "{0}以降"
 
@@ -6983,7 +7088,7 @@ msgstr "パッケージの値：「{packageValue}」"
 msgid "From the post owner"
 msgstr "投稿の所有者から自動設定"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:371
+#: packages/admin/src/components/MediaPickerModal.tsx:380
 msgid "From URL"
 msgstr "URLから"
 
@@ -7077,8 +7182,8 @@ msgstr "Googleの所有権確認"
 msgid "GraphQL"
 msgstr "GraphQL"
 
-#: packages/admin/src/components/MediaLibrary.tsx:881
-#: packages/admin/src/components/MediaPickerModal.tsx:1241
+#: packages/admin/src/components/MediaLibrary.tsx:897
+#: packages/admin/src/components/MediaPickerModal.tsx:1277
 msgid "Grid view"
 msgstr "グリッド表示"
 
@@ -7311,7 +7416,7 @@ msgstr "https://example.com または /page"
 msgid "https://example.com/blog/my-post"
 msgstr "https://example.com/blog/my-post"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1130
+#: packages/admin/src/components/MediaPickerModal.tsx:1166
 msgid "https://example.com/image.jpg"
 msgstr "https://example.com/image.jpg"
 
@@ -7436,15 +7541,15 @@ msgstr "ソーシャルメディアでこのページを共有する際に表示
 msgid "Image upload failed. Try again."
 msgstr "画像をアップロードできませんでした。もう一度お試しください。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1119
-#: packages/admin/src/components/MediaPickerModal.tsx:1129
+#: packages/admin/src/components/MediaPickerModal.tsx:1155
+#: packages/admin/src/components/MediaPickerModal.tsx:1165
 msgid "Image URL"
 msgstr "画像URL"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:64
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
-#: packages/admin/src/components/MediaLibrary.tsx:921
-#: packages/admin/src/components/MediaPickerModal.tsx:391
+#: packages/admin/src/components/MediaLibrary.tsx:937
+#: packages/admin/src/components/MediaPickerModal.tsx:400
 msgid "Images"
 msgstr "画像"
 
@@ -7617,7 +7722,7 @@ msgstr "非互換"
 msgid "Increase column width"
 msgstr "列幅を拡大"
 
-#: packages/admin/src/components/MediaLibrary.tsx:822
+#: packages/admin/src/components/MediaLibrary.tsx:838
 msgid "Index existing content and keep Used in results up to date."
 msgstr "既存コンテンツを確認し、使用状況を最新の状態に保ちます。"
 
@@ -8025,7 +8130,7 @@ msgid "Last Login"
 msgstr "最終ログイン日時"
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:112
-#: packages/admin/src/components/MediaPickerModal.tsx:1558
+#: packages/admin/src/components/MediaPickerModal.tsx:1594
 msgid "Last page"
 msgstr "最後のページ"
 
@@ -8079,12 +8184,12 @@ msgstr "保存せずに移動しますか？"
 msgid "Left"
 msgstr "左"
 
-#: packages/admin/src/components/MediaLibrary.tsx:304
-#: packages/admin/src/components/MediaLibrary.tsx:414
-#: packages/admin/src/components/MediaLibrary.tsx:687
-#: packages/admin/src/components/MediaLibrary.tsx:1255
-#: packages/admin/src/components/MediaPickerModal.tsx:366
-#: packages/admin/src/components/MediaPickerModal.tsx:383
+#: packages/admin/src/components/MediaLibrary.tsx:308
+#: packages/admin/src/components/MediaLibrary.tsx:426
+#: packages/admin/src/components/MediaLibrary.tsx:703
+#: packages/admin/src/components/MediaLibrary.tsx:1276
+#: packages/admin/src/components/MediaPickerModal.tsx:375
+#: packages/admin/src/components/MediaPickerModal.tsx:392
 msgid "Library"
 msgstr "ライブラリ"
 
@@ -8192,8 +8297,8 @@ msgstr "参照先：{0}"
 msgid "List"
 msgstr "リスト"
 
-#: packages/admin/src/components/MediaLibrary.tsx:890
-#: packages/admin/src/components/MediaPickerModal.tsx:1251
+#: packages/admin/src/components/MediaLibrary.tsx:906
+#: packages/admin/src/components/MediaPickerModal.tsx:1287
 msgid "List view"
 msgstr "リスト表示"
 
@@ -8220,17 +8325,17 @@ msgstr "ライブビュー"
 msgid "Load more"
 msgstr "さらに読み込む"
 
-#: packages/admin/src/components/ContentList.tsx:890
-#: packages/admin/src/components/ContentList.tsx:966
-#: packages/admin/src/components/MediaLibrary.tsx:1248
+#: packages/admin/src/components/ContentList.tsx:868
+#: packages/admin/src/components/ContentList.tsx:925
+#: packages/admin/src/components/MediaLibrary.tsx:1269
 #: packages/admin/src/components/users/UserList.tsx:162
 msgid "Load More"
 msgstr "さらに読み込む"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1566
-#: packages/admin/src/components/MediaLibrary.tsx:993
-#: packages/admin/src/components/MediaLibrary.tsx:1185
-#: packages/admin/src/components/MediaPickerModal.tsx:1377
+#: packages/admin/src/components/MediaLibrary.tsx:1009
+#: packages/admin/src/components/MediaLibrary.tsx:1206
+#: packages/admin/src/components/MediaPickerModal.tsx:1413
 msgid "Load more folders"
 msgstr "さらにフォルダーを読み込む"
 
@@ -8285,9 +8390,9 @@ msgstr "エディターを読み込み中…"
 msgid "Loading exports…"
 msgstr "エクスポートを読み込み中…"
 
-#: packages/admin/src/components/MediaLibrary.tsx:937
-#: packages/admin/src/components/MediaLibrary.tsx:1153
-#: packages/admin/src/components/MediaPickerModal.tsx:1346
+#: packages/admin/src/components/MediaLibrary.tsx:953
+#: packages/admin/src/components/MediaLibrary.tsx:1174
+#: packages/admin/src/components/MediaPickerModal.tsx:1382
 msgid "Loading folders"
 msgstr "フォルダーを読み込み中"
 
@@ -8299,7 +8404,7 @@ msgstr "フォルダーを読み込み中…"
 msgid "Loading imports…"
 msgstr "インポートを読み込み中…"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1394
+#: packages/admin/src/components/MediaPickerModal.tsx:1430
 msgid "Loading media"
 msgstr "メディアを読み込み中"
 
@@ -8369,17 +8474,17 @@ msgstr "使用状況を読み込み中"
 msgid "Loading widgets..."
 msgstr "ウィジェットを読み込み中…"
 
-#: packages/admin/src/components/ContentList.tsx:792
-#: packages/admin/src/components/ContentList.tsx:890
-#: packages/admin/src/components/ContentList.tsx:936
-#: packages/admin/src/components/ContentList.tsx:966
+#: packages/admin/src/components/ContentList.tsx:776
+#: packages/admin/src/components/ContentList.tsx:868
+#: packages/admin/src/components/ContentList.tsx:901
+#: packages/admin/src/components/ContentList.tsx:925
 #: packages/admin/src/components/ContentPickerModal.tsx:371
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:606
 #: packages/admin/src/components/MediaDetailPanel.tsx:622
 #: packages/admin/src/components/MediaDetailPanel.tsx:624
 #: packages/admin/src/components/MediaDetailPanel.tsx:1753
-#: packages/admin/src/components/MediaLibrary.tsx:1248
+#: packages/admin/src/components/MediaLibrary.tsx:1269
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3228
 #: packages/admin/src/components/Redirects.tsx:577
@@ -8416,8 +8521,8 @@ msgstr "端末のタイムゾーン"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:320
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
-#: packages/admin/src/components/ContentList.tsx:761
-#: packages/admin/src/components/ContentList.tsx:916
+#: packages/admin/src/components/ContentList.tsx:749
+#: packages/admin/src/components/ContentList.tsx:889
 #: packages/admin/src/components/LocaleSwitcher.tsx:61
 msgid "Locale"
 msgstr "言語"
@@ -8487,7 +8592,7 @@ msgid "Lua"
 msgstr "Lua"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:575
-#: packages/admin/src/components/MediaPickerModal.tsx:1199
+#: packages/admin/src/components/MediaPickerModal.tsx:1235
 msgid "Main library"
 msgstr "メインライブラリ"
 
@@ -8676,8 +8781,8 @@ msgid "visualEditing.mediaLibrary"
 msgstr "メディアライブラリ"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:171
-#: packages/admin/src/components/MediaLibrary.tsx:755
-#: packages/admin/src/components/MediaLibrary.tsx:770
+#: packages/admin/src/components/MediaLibrary.tsx:771
+#: packages/admin/src/components/MediaLibrary.tsx:786
 msgid "Media Library"
 msgstr "メディアライブラリ"
 
@@ -8685,8 +8790,8 @@ msgstr "メディアライブラリ"
 msgid "Media links were made relative"
 msgstr "メディアのリンクを相対URLに変換しました"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1241
-#: packages/admin/src/components/MediaPickerModal.tsx:1554
+#: packages/admin/src/components/MediaLibrary.tsx:1262
+#: packages/admin/src/components/MediaPickerModal.tsx:1590
 msgid "Media pagination"
 msgstr "メディア一覧のページ切り替え"
 
@@ -8694,7 +8799,7 @@ msgstr "メディア一覧のページ切り替え"
 msgid "Media Read"
 msgstr "メディア読み取り"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1385
+#: packages/admin/src/components/MediaPickerModal.tsx:1421
 msgid "Media results"
 msgstr "メディアの検索結果"
 
@@ -8703,7 +8808,7 @@ msgstr "メディアの検索結果"
 msgid "Media usage tracking"
 msgstr "メディアの使用状況"
 
-#: packages/admin/src/components/MediaLibrary.tsx:819
+#: packages/admin/src/components/MediaLibrary.tsx:835
 msgid "Media usage tracking is indexing existing content"
 msgstr "既存コンテンツの使用状況を確認しています"
 
@@ -8715,11 +8820,11 @@ msgstr "メディア使用状況の記録は無効です"
 msgid "Media usage tracking is ready"
 msgstr "メディアの使用状況を確認できるようになりました"
 
-#: packages/admin/src/components/MediaLibrary.tsx:820
+#: packages/admin/src/components/MediaLibrary.tsx:836
 msgid "Media usage tracking is setting up"
 msgstr "メディアの使用状況を設定中です"
 
-#: packages/admin/src/components/MediaLibrary.tsx:817
+#: packages/admin/src/components/MediaLibrary.tsx:833
 msgid "Media usage tracking needs attention"
 msgstr "メディア使用状況の設定を確認してください"
 
@@ -8935,7 +9040,7 @@ msgstr "「{0}」を下へ移動"
 msgid "Move \"{0}\" up"
 msgstr "「{0}」を上へ移動"
 
-#: packages/admin/src/components/ContentList.tsx:1540
+#: packages/admin/src/components/ContentList.tsx:1490
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "「{title}」をゴミ箱に移動しますか？後で復元できます。"
 
@@ -8977,10 +9082,6 @@ msgstr "{0}を上へ移動"
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
 msgstr "{0}は上へ移動できません。親項目にこの言語の翻訳がありません"
 
-#: packages/admin/src/components/ContentList.tsx:1531
-msgid "Move {title} to trash"
-msgstr "{title}をゴミ箱に移動"
-
 #: packages/admin/src/components/editor/BlockMenu.tsx:212
 #: packages/admin/src/components/MenuEditor.tsx:656
 #: packages/admin/src/components/TaxonomyManager.tsx:345
@@ -8991,10 +9092,6 @@ msgstr "下に移動"
 #: packages/admin/src/components/TaxonomyManager.tsx:341
 msgid "Move down {0}"
 msgstr "{0}を下に移動"
-
-#: packages/admin/src/components/MediaLibrary.tsx:1028
-msgid "Move media here from Media Details."
-msgstr "メディア詳細からここに移動できます。"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:534
 msgid "Move the focal point to choose what stays visible in cropped images."
@@ -9008,19 +9105,20 @@ msgstr "このサイトを別のEmDash環境に移行するか、サイトパッ
 msgid "Move this site to another EmDash installation, or import a site package into this one."
 msgstr "このサイトを別のEmDash環境に移行するか、サイトパッケージをこのサイトにインポートします。"
 
-#: packages/admin/src/components/ContentList.tsx:646
+#: packages/admin/src/components/ContentList.tsx:647
+#: packages/admin/src/components/ContentList.tsx:1483
 msgid "Move to trash"
 msgstr "ゴミ箱に移動"
 
-#: packages/admin/src/components/ContentList.tsx:673
-#: packages/admin/src/components/ContentList.tsx:1553
+#: packages/admin/src/components/ContentList.tsx:672
+#: packages/admin/src/components/ContentList.tsx:1503
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1367
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1387
 msgid "Move to Trash"
 msgstr "ゴミ箱に移動"
 
-#: packages/admin/src/components/ContentList.tsx:651
-#: packages/admin/src/components/ContentList.tsx:1538
+#: packages/admin/src/components/ContentList.tsx:652
+#: packages/admin/src/components/ContentList.tsx:1488
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1372
 msgid "Move to Trash?"
 msgstr "ゴミ箱に移動しますか？"
@@ -9041,7 +9139,7 @@ msgid "Moved “{snippet}”"
 msgstr "「{snippet}」を移動しました"
 
 #. placeholder {0}: to + 1
-#: packages/admin/src/components/MediaPickerModal.tsx:701
+#: packages/admin/src/components/MediaPickerModal.tsx:716
 msgid "Moved {filename} to position {0}."
 msgstr "{filename}を{0}番目に移動しました。"
 
@@ -9102,7 +9200,7 @@ msgid "Moved an image"
 msgstr "画像を移動しました"
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:568
+#: packages/admin/src/components/MediaLibrary.tsx:580
 msgid "Moved to {0}"
 msgstr "{0}に移動しました"
 
@@ -9240,7 +9338,7 @@ msgstr "新しいドメイン"
 msgid "New field"
 msgstr "項目を追加"
 
-#: packages/admin/src/components/MediaLibrary.tsx:792
+#: packages/admin/src/components/MediaLibrary.tsx:808
 msgid "New folder"
 msgstr "新しいフォルダー"
 
@@ -9313,9 +9411,9 @@ msgid "Next month"
 msgstr "翌月"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:396
-#: packages/admin/src/components/ContentList.tsx:878
+#: packages/admin/src/components/ContentList.tsx:856
 #: packages/admin/src/components/ListPaginationFooter.tsx:111
-#: packages/admin/src/components/MediaPickerModal.tsx:1557
+#: packages/admin/src/components/MediaPickerModal.tsx:1593
 msgid "Next page"
 msgstr "次のページ"
 
@@ -9333,7 +9431,7 @@ msgstr "次に{0}が開きます"
 msgid "Next, the browser's passkey window will open"
 msgstr "次にブラウザーのパスキー画面が開きます"
 
-#: packages/admin/src/components/ContentList.tsx:1576
+#: packages/admin/src/components/ContentList.tsx:1523
 #: packages/admin/src/components/users/UserDetail.tsx:255
 #: packages/admin/src/routes/byline-schema.tsx:424
 msgid "No"
@@ -9344,7 +9442,7 @@ msgid "No (shared across translations)"
 msgstr "いいえ（翻訳間で共有）"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:803
+#: packages/admin/src/components/ContentList.tsx:785
 msgid "No {0} yet."
 msgstr "まだ{0}がありません。"
 
@@ -9362,8 +9460,8 @@ msgstr "{label}が見つかりません。"
 msgid "No 404 errors recorded yet."
 msgstr "404エラーはまだ記録されていません。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1683
-#: packages/admin/src/components/MediaLibrary.tsx:1740
+#: packages/admin/src/components/MediaLibrary.tsx:1704
+#: packages/admin/src/components/MediaLibrary.tsx:1761
 msgid "No alt text"
 msgstr "代替テキスト未設定"
 
@@ -9585,8 +9683,8 @@ msgstr "一致する執筆者がありません。"
 msgid "No matching content found."
 msgstr "一致するコンテンツが見つかりません。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1012
-#: packages/admin/src/components/MediaLibrary.tsx:1051
+#: packages/admin/src/components/MediaLibrary.tsx:1028
+#: packages/admin/src/components/MediaLibrary.tsx:1072
 msgid "No matching media"
 msgstr "一致するメディアがありません"
 
@@ -9607,12 +9705,12 @@ msgstr "一致するタイムゾーンがありません"
 msgid "No maximum"
 msgstr "上限なし"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1074
+#: packages/admin/src/components/MediaLibrary.tsx:1095
 msgid "No media available from this provider."
 msgstr "この連携先で利用できるメディアがありません。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1073
-#: packages/admin/src/components/MediaPickerModal.tsx:1415
+#: packages/admin/src/components/MediaLibrary.tsx:1094
+#: packages/admin/src/components/MediaPickerModal.tsx:1451
 msgid "No media found"
 msgstr "メディアが見つかりません"
 
@@ -9694,8 +9792,8 @@ msgstr "関連付けはまだありません。"
 msgid "No results"
 msgstr "一致する項目はありません"
 
-#: packages/admin/src/components/ContentList.tsx:800
-#: packages/admin/src/components/ContentList.tsx:819
+#: packages/admin/src/components/ContentList.tsx:782
+#: packages/admin/src/components/ContentList.tsx:799
 msgid "No results for \"{activeSearch}\""
 msgstr "「{activeSearch}」に一致する項目はありません"
 
@@ -9788,7 +9886,7 @@ msgstr "一致なし"
 msgid "Not recorded in this version"
 msgstr "この版には記録されていません"
 
-#: packages/admin/src/components/ContentList.tsx:1575
+#: packages/admin/src/components/ContentList.tsx:1522
 #: packages/admin/src/components/PluginSettings.tsx:342
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Not set"
@@ -9921,8 +10019,8 @@ msgstr "{0}を新しいタブで開く"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:182
-#: packages/admin/src/components/MediaLibrary.tsx:1354
-#: packages/admin/src/components/MediaLibrary.tsx:1425
+#: packages/admin/src/components/MediaLibrary.tsx:1375
+#: packages/admin/src/components/MediaLibrary.tsx:1446
 msgid "Open folder {0}"
 msgstr "フォルダー「{0}」を開く"
 
@@ -9950,7 +10048,7 @@ msgstr "新しいタブで開く"
 msgid "Open read-only"
 msgstr "閲覧のみで開く"
 
-#: packages/admin/src/components/MediaLibrary.tsx:825
+#: packages/admin/src/components/MediaLibrary.tsx:841
 msgid "Open setup"
 msgstr "設定を開始"
 
@@ -10109,12 +10207,12 @@ msgid "Page Not Found"
 msgstr "ページが見つかりません"
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:113
-#: packages/admin/src/components/MediaPickerModal.tsx:1559
+#: packages/admin/src/components/MediaPickerModal.tsx:1595
 msgid "Page number"
 msgstr "ページ番号"
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:114
-#: packages/admin/src/components/MediaPickerModal.tsx:1560
+#: packages/admin/src/components/MediaPickerModal.tsx:1596
 msgid "Page size"
 msgstr "1ページあたりの表示件数"
 
@@ -10297,13 +10395,9 @@ msgstr "1ページあたり"
 msgid "Period"
 msgstr "午前／午後"
 
-#: packages/admin/src/components/ContentList.tsx:1724
+#: packages/admin/src/components/ContentList.tsx:1665
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "「{title}」を完全に削除しますか？この操作は取り消せません。"
-
-#: packages/admin/src/components/ContentList.tsx:1713
-msgid "Permanently delete {title}"
-msgstr "{title}を完全に削除"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:295
 msgid "Permissions"
@@ -10357,7 +10451,7 @@ msgstr "有効なメールアドレスを入力してください"
 msgid "Please enter a valid email address"
 msgstr "有効なメールアドレスを入力してください"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:638
+#: packages/admin/src/components/MediaPickerModal.tsx:653
 msgid "Please enter a valid URL"
 msgstr "有効なURLを入力してください"
 
@@ -10578,7 +10672,7 @@ msgstr "スペースキーを押して画像の移動を開始します。矢印
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
 #: packages/admin/src/components/MediaDetailPanel.tsx:1700
-#: packages/admin/src/components/MediaLibrary.tsx:1140
+#: packages/admin/src/components/MediaLibrary.tsx:1161
 msgid "Preview"
 msgstr "プレビュー"
 
@@ -10612,9 +10706,9 @@ msgid "Previous month"
 msgstr "前月"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:377
-#: packages/admin/src/components/ContentList.tsx:866
+#: packages/admin/src/components/ContentList.tsx:844
 #: packages/admin/src/components/ListPaginationFooter.tsx:110
-#: packages/admin/src/components/MediaPickerModal.tsx:1556
+#: packages/admin/src/components/MediaPickerModal.tsx:1592
 msgid "Previous page"
 msgstr "前のページ"
 
@@ -10683,7 +10777,7 @@ msgstr "公開ポリシーにより予約公開がブロックされました"
 msgid "visualEditing.publish"
 msgstr "公開"
 
-#: packages/admin/src/components/ContentList.tsx:588
+#: packages/admin/src/components/ContentList.tsx:589
 #: packages/admin/src/components/ContentSettingsPanel.tsx:537
 #: packages/admin/src/components/ContentSettingsPanel.tsx:955
 #: packages/admin/src/components/ContentSettingsPanel.tsx:958
@@ -10716,21 +10810,21 @@ msgstr "今すぐ公開しますか？"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "コンテンツの公開、非公開化、公開予約、予約取り消し"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "公開済み"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
-#: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentList.tsx:1036
+#: packages/admin/src/components/ContentList.tsx:984
+#: packages/admin/src/components/ContentList.tsx:995
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1488
 msgid "Published"
-msgstr "公開済み"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "公開済み"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11213,7 +11307,7 @@ msgid "Removed “{snippet}”"
 msgstr "「{snippet}」を削除しました"
 
 #. placeholder {0}: selected.item.filename
-#: packages/admin/src/components/MediaPickerModal.tsx:706
+#: packages/admin/src/components/MediaPickerModal.tsx:721
 msgid "Removed {0} from selection."
 msgstr "{0}を選択から外しました。"
 
@@ -11550,14 +11644,11 @@ msgstr "公開者のハンドルを解決中..."
 msgid "Restart numbering"
 msgstr "番号を振り直す"
 
+#: packages/admin/src/components/ContentList.tsx:1650
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:129
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:237
 msgid "Restore"
 msgstr "復元"
-
-#: packages/admin/src/components/ContentList.tsx:1701
-msgid "Restore {title}"
-msgstr "{title}を復元"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:91
 msgid "Restore failed"
@@ -11598,12 +11689,12 @@ msgstr "使用終了"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
 #: packages/admin/src/components/MediaDetailPanel.tsx:1553
-#: packages/admin/src/components/MediaLibrary.tsx:957
-#: packages/admin/src/components/MediaLibrary.tsx:1470
-#: packages/admin/src/components/MediaPickerModal.tsx:1217
-#: packages/admin/src/components/MediaPickerModal.tsx:1313
-#: packages/admin/src/components/MediaPickerModal.tsx:1335
-#: packages/admin/src/components/MediaPickerModal.tsx:1408
+#: packages/admin/src/components/MediaLibrary.tsx:973
+#: packages/admin/src/components/MediaLibrary.tsx:1491
+#: packages/admin/src/components/MediaPickerModal.tsx:1253
+#: packages/admin/src/components/MediaPickerModal.tsx:1349
+#: packages/admin/src/components/MediaPickerModal.tsx:1371
+#: packages/admin/src/components/MediaPickerModal.tsx:1444
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:272
 #: packages/admin/src/components/Sections.tsx:281
@@ -12007,7 +12098,7 @@ msgstr "公開予約を解除しました"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
-#: packages/admin/src/components/ContentList.tsx:1027
+#: packages/admin/src/components/ContentList.tsx:986
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
 #: packages/admin/src/router.tsx:1591
 msgid "Scheduled"
@@ -12101,12 +12192,12 @@ msgid "Search"
 msgstr "検索"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:549
+#: packages/admin/src/components/ContentList.tsx:550
 msgid "Search {0}"
 msgstr "{0}を検索"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:548
+#: packages/admin/src/components/ContentList.tsx:549
 msgid "Search {0}..."
 msgstr "{0}を検索…"
 
@@ -12126,8 +12217,8 @@ msgstr "ブロックタイプを検索"
 msgid "Search blocks"
 msgstr "ブロックを検索"
 
-#: packages/admin/src/components/MediaLibrary.tsx:902
-#: packages/admin/src/components/MediaPickerModal.tsx:1264
+#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaPickerModal.tsx:1300
 msgid "Search by filename..."
 msgstr "ファイル名で検索…"
 
@@ -12200,8 +12291,8 @@ msgstr "IANAタイムゾーンを検索（例：Europe/London）"
 msgid "Search form"
 msgstr "検索フォームを表示"
 
-#: packages/admin/src/components/MediaLibrary.tsx:903
-#: packages/admin/src/components/MediaPickerModal.tsx:1266
+#: packages/admin/src/components/MediaLibrary.tsx:919
+#: packages/admin/src/components/MediaPickerModal.tsx:1302
 msgid "Search media"
 msgstr "メディアを検索"
 
@@ -12269,8 +12360,8 @@ msgstr "ユーザーを検索"
 msgid "Search will be turned off for some collections"
 msgstr "一部のコンテンツタイプでは検索が無効になります"
 
-#: packages/admin/src/components/MediaLibrary.tsx:902
-#: packages/admin/src/components/MediaPickerModal.tsx:1264
+#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaPickerModal.tsx:1300
 msgid "Search..."
 msgstr "検索…"
 
@@ -12381,7 +12472,7 @@ msgstr "このファイルの使用箇所を確認できます。"
 #: packages/admin/src/components/BylineFieldEditor.tsx:51
 #: packages/admin/src/components/FieldEditor.tsx:426
 #: packages/admin/src/components/FieldEditor.tsx:1302
-#: packages/admin/src/components/MediaPickerModal.tsx:870
+#: packages/admin/src/components/MediaPickerModal.tsx:885
 #: packages/admin/src/components/Settings.tsx:159
 msgid "Select"
 msgstr "選択"
@@ -12394,7 +12485,7 @@ msgstr "選択"
 msgid "Select {label}"
 msgstr "{label}を選択"
 
-#: packages/admin/src/components/ContentList.tsx:1429
+#: packages/admin/src/components/ContentList.tsx:1382
 msgid "Select {title}"
 msgstr "{title}を選択"
 
@@ -12431,7 +12522,7 @@ msgstr "検証するリリースを選択してください"
 msgid "Select all"
 msgstr "すべて選択"
 
-#: packages/admin/src/components/ContentList.tsx:729
+#: packages/admin/src/components/ContentList.tsx:721
 msgid "Select all on this page"
 msgstr "表示中の項目をすべて選択"
 
@@ -12469,7 +12560,7 @@ msgid "Select Favicon"
 msgstr "ファビコンを選択"
 
 #: packages/admin/src/components/ContentEditor.tsx:3530
-#: packages/admin/src/components/MediaPickerModal.tsx:232
+#: packages/admin/src/components/MediaPickerModal.tsx:233
 msgid "Select file"
 msgstr "ファイルを選択"
 
@@ -12478,7 +12569,7 @@ msgid "Select gallery images"
 msgstr "ギャラリーの画像を選択"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:576
-#: packages/admin/src/components/MediaPickerModal.tsx:232
+#: packages/admin/src/components/MediaPickerModal.tsx:233
 #: packages/admin/src/components/PortableTextEditor.tsx:4700
 msgid "Select image"
 msgstr "画像を選択"
@@ -12507,11 +12598,11 @@ msgstr "行を選択"
 msgid "Select table"
 msgstr "テーブルを選択"
 
-#: packages/admin/src/components/ContentList.tsx:632
+#: packages/admin/src/components/ContentList.tsx:633
 msgid "Select up to 50 posts at a time."
 msgstr "一度に選択できるのは50件までです。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:232
+#: packages/admin/src/components/MediaPickerModal.tsx:233
 #: packages/admin/src/components/PortableTextEditor.tsx:4714
 msgid "Select video"
 msgstr "動画を選択"
@@ -12540,7 +12631,7 @@ msgstr "{selectedItemTitle}を選択中"
 msgid "Selected image"
 msgstr "選択した画像"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:946
+#: packages/admin/src/components/MediaPickerModal.tsx:982
 msgid "Selected media"
 msgstr "選択中のメディア"
 
@@ -12662,7 +12753,7 @@ msgstr "役割を設定"
 msgid "Set to 0 to never close comments automatically."
 msgstr "0に設定すると、コメントを自動的に閉じません。"
 
-#: packages/admin/src/components/ContentList.tsx:599
+#: packages/admin/src/components/ContentList.tsx:600
 msgid "Set to draft"
 msgstr "下書きに設定"
 
@@ -12670,7 +12761,7 @@ msgstr "下書きに設定"
 msgid "Set up an email provider in Email settings to email users."
 msgstr "ユーザーにメールを送るには、メール設定でメールプロバイダーを設定してください。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:815
+#: packages/admin/src/components/MediaLibrary.tsx:831
 msgid "Set up media usage tracking"
 msgstr "メディアの使用状況を設定"
 
@@ -12783,7 +12874,7 @@ msgstr "トークンを表示"
 #. placeholder {0}: count ?? 0
 #. placeholder {0}: totalCount ?? 0
 #: packages/admin/src/components/ListPaginationFooter.tsx:119
-#: packages/admin/src/components/MediaPickerModal.tsx:1565
+#: packages/admin/src/components/MediaPickerModal.tsx:1601
 msgid "Showing {pageShowingRange} of {0}"
 msgstr "全{0}件中{pageShowingRange}件を表示"
 
@@ -12957,12 +13048,12 @@ msgstr "サイトマップ、検索用・ソーシャル用メタデータの絶
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr "Cloudflare D1を使用しているサイトでは、D1 Time Travelを使用して、データベースを過去30日以内の任意の時点に1分単位で復元できます。この機能は常に有効で、設定は必要ありません。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1143
+#: packages/admin/src/components/MediaLibrary.tsx:1164
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:280
 msgid "Size"
 msgstr "サイズ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1451
+#: packages/admin/src/components/MediaLibrary.tsx:1472
 msgid "Size is not applicable to folders"
 msgstr "フォルダーにはサイズを表示できません"
 
@@ -13194,7 +13285,7 @@ msgstr "開始中…"
 msgid "State"
 msgstr "状態"
 
-#: packages/admin/src/components/ContentList.tsx:754
+#: packages/admin/src/components/ContentList.tsx:742
 #: packages/admin/src/components/ContentTypeEditor.tsx:137
 #: packages/admin/src/components/Redirects.tsx:497
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
@@ -13577,7 +13668,7 @@ msgstr "エクスポートされたパッケージと今回のインポートに
 msgid "The file is not a valid EmDash site package."
 msgstr "このファイルは有効なEmDashサイトパッケージではありません。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:578
+#: packages/admin/src/components/MediaLibrary.tsx:590
 msgid "The file or folder no longer exists."
 msgstr "ファイルまたはフォルダーが見つかりません。"
 
@@ -13650,7 +13741,7 @@ msgstr "招待されたユーザーには、登録完了後に選択した権限
 msgid "The last export failed"
 msgstr "前回のエクスポートに失敗しました"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1307
+#: packages/admin/src/components/MediaPickerModal.tsx:1343
 msgid "The latest media request failed. Showing the previous page."
 msgstr "メディアを読み込めなかったため、前のページを表示しています。"
 
@@ -14042,7 +14133,7 @@ msgstr "このフィールドには、サポートされていないPortable Tex
 msgid "This field does not accept {0} files."
 msgstr "このフィールドには{0}ファイルを設定できません。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:651
+#: packages/admin/src/components/MediaPickerModal.tsx:666
 msgid "This field does not accept {mimeType} files."
 msgstr "このフィールドには{mimeType}ファイルを設定できません。"
 
@@ -14085,11 +14176,11 @@ msgstr "このファイルは、読み取り可能なEmDashサイトパッケー
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr "このファイルはEmDashサイトパッケージではありません。先頭にmanifest.jsonが必要です。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1027
+#: packages/admin/src/components/MediaLibrary.tsx:1043
 msgid "This folder is empty"
 msgstr "このフォルダーは空です"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1420
+#: packages/admin/src/components/MediaPickerModal.tsx:1456
 msgid "This folder is empty."
 msgstr "このフォルダーは空です。"
 
@@ -14372,8 +14463,8 @@ msgstr "時刻は{zoneName}で表示しています。ブラウザーのタイ�
 msgid "Timezone"
 msgstr "タイムゾーン"
 
-#: packages/admin/src/components/ContentList.tsx:739
-#: packages/admin/src/components/ContentList.tsx:912
+#: packages/admin/src/components/ContentList.tsx:731
+#: packages/admin/src/components/ContentList.tsx:888
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
 #: packages/admin/src/components/Widgets.tsx:913
@@ -14518,11 +14609,11 @@ msgstr "ゴミ箱"
 #: packages/admin/src/components/comments/CommentInbox.tsx:249
 #: packages/admin/src/components/comments/CommentInbox.tsx:290
 #: packages/admin/src/components/comments/CommentInbox.tsx:538
-#: packages/admin/src/components/ContentList.tsx:533
+#: packages/admin/src/components/ContentList.tsx:534
 msgid "Trash"
 msgstr "ゴミ箱"
 
-#: packages/admin/src/components/ContentList.tsx:943
+#: packages/admin/src/components/ContentList.tsx:905
 msgid "Trash is empty"
 msgstr "ゴミ箱は空です"
 
@@ -14530,7 +14621,7 @@ msgstr "ゴミ箱は空です"
 msgid "Trash is empty."
 msgstr "ゴミ箱は空です。"
 
-#: packages/admin/src/components/ContentList.tsx:976
+#: packages/admin/src/components/ContentList.tsx:935
 msgid "Trash pagination"
 msgstr "ゴミ箱のページ切り替え"
 
@@ -14538,7 +14629,7 @@ msgstr "ゴミ箱のページ切り替え"
 msgid "True/false toggle"
 msgstr "オン／オフの切り替え"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1016
+#: packages/admin/src/components/MediaLibrary.tsx:1032
 msgid "Try a broader media type or clear your filters."
 msgstr "表示対象を広げるか、フィルターを解除してください。"
 
@@ -14576,7 +14667,7 @@ msgstr "もう一度試す"
 msgid "Try Again"
 msgstr "再試行"
 
-#: packages/admin/src/components/MediaLibrary.tsx:585
+#: packages/admin/src/components/MediaLibrary.tsx:597
 msgid "Try again."
 msgstr "もう一度お試しください。"
 
@@ -14588,12 +14679,12 @@ msgstr "もう一度お試しください。失敗が続く場合は、サーバ
 msgid "Try another code"
 msgstr "別のコードを試す"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1052
-#: packages/admin/src/components/MediaPickerModal.tsx:1418
+#: packages/admin/src/components/MediaLibrary.tsx:1073
+#: packages/admin/src/components/MediaPickerModal.tsx:1454
 msgid "Try another filename or clear your search."
 msgstr "別のファイル名で検索するか、検索をクリアしてください。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1015
+#: packages/admin/src/components/MediaLibrary.tsx:1031
 msgid "Try another filename, or clear your search and filters."
 msgstr "別のファイル名で検索するか、検索条件とフィルターを解除してください。"
 
@@ -14652,7 +14743,7 @@ msgstr "一意である必要がある値が、2つのレコードで重複し�
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:256
 #: packages/admin/src/components/FieldEditor.tsx:1288
-#: packages/admin/src/components/MediaLibrary.tsx:1142
+#: packages/admin/src/components/MediaLibrary.tsx:1163
 #: packages/admin/src/routes/byline-schema.tsx:240
 #: packages/admin/src/routes/bylines.tsx:343
 msgid "Type"
@@ -14679,7 +14770,7 @@ msgstr "入力して絞り込み"
 msgid "Type to search"
 msgstr "入力して検索"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1447
+#: packages/admin/src/components/MediaLibrary.tsx:1468
 msgid "Type: Folder"
 msgstr "種類：フォルダー"
 
@@ -14813,7 +14904,7 @@ msgid "Unsupported widget element type: {0}"
 msgstr "サポートされていないウィジェット要素タイプ：{0}"
 
 #. placeholder {0}: formatter.format(to)
-#: packages/admin/src/components/ContentList.tsx:1156
+#: packages/admin/src/components/ContentList.tsx:1115
 msgid "Until {0}"
 msgstr "{0}以前"
 
@@ -14890,7 +14981,7 @@ msgstr "このリダイレクトルールを更新します。"
 msgid "Update to v{0}"
 msgstr "v{0}に更新"
 
-#: packages/admin/src/components/ContentList.tsx:1035
+#: packages/admin/src/components/ContentList.tsx:994
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1053
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
@@ -14926,15 +15017,15 @@ msgstr "更新中…"
 msgid "visualEditing.uploadImage"
 msgstr "アップロード"
 
-#: packages/admin/src/components/MediaLibrary.tsx:804
+#: packages/admin/src/components/MediaLibrary.tsx:820
 msgid "Upload"
 msgstr "アップロード"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1422
+#: packages/admin/src/components/MediaPickerModal.tsx:1458
 msgid "Upload a file to get started"
 msgstr "まずファイルをアップロードしてください"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1424
+#: packages/admin/src/components/MediaPickerModal.tsx:1460
 msgid "Upload a video to get started"
 msgstr "動画をアップロードしてください"
 
@@ -14942,7 +15033,7 @@ msgstr "動画をアップロードしてください"
 msgid "Upload an export file"
 msgstr "エクスポートファイルをアップロード"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1425
+#: packages/admin/src/components/MediaPickerModal.tsx:1461
 msgid "Upload an image to get started"
 msgstr "画像をアップロードしましょう"
 
@@ -14965,17 +15056,22 @@ msgstr "エクスポートファイルをアップロード"
 msgid "Upload failed"
 msgstr "アップロードに失敗しました"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1084
+#: packages/admin/src/components/MediaPickerModal.tsx:1120
 msgid "Upload files"
 msgstr "ファイルをアップロード"
 
-#: packages/admin/src/components/MediaLibrary.tsx:686
-#: packages/admin/src/components/MediaLibrary.tsx:1042
-#: packages/admin/src/components/MediaLibrary.tsx:1066
+#: packages/admin/src/components/MediaLibrary.tsx:702
+#: packages/admin/src/components/MediaLibrary.tsx:1048
+#: packages/admin/src/components/MediaLibrary.tsx:1063
+#: packages/admin/src/components/MediaLibrary.tsx:1087
 msgid "Upload Files"
 msgstr "ファイルをアップロード"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1039
+#: packages/admin/src/components/MediaLibrary.tsx:1044
+msgid "Upload files here or move media here from Media Details."
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:1060
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "画像、動画、ドキュメントをアップロードし、再利用できる素材を1か所で管理します。"
 
@@ -14983,7 +15079,7 @@ msgstr "画像、動画、ドキュメントをアップロードし、再利用
 msgid "Upload Media"
 msgstr "メディアをアップロード"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1063
+#: packages/admin/src/components/MediaLibrary.tsx:1084
 msgid "Upload media to keep reusable assets in one place."
 msgstr "メディアをアップロードし、再利用できる素材を1か所で管理します。"
 
@@ -15000,7 +15096,7 @@ msgid "Upload site packages and check whether they can be imported. Admin includ
 msgstr "サイトパッケージをアップロードし、インポートできるか確認します。管理者権限にも含まれています。エージェントのアクセス範囲を制限するには、管理者権限の代わりにこの権限を選択してください。"
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:687
+#: packages/admin/src/components/MediaLibrary.tsx:703
 msgid "Upload to {0}"
 msgstr "{0}にアップロード"
 
@@ -15119,7 +15215,7 @@ msgstr "確認せずに{fallbackUrl}を使用"
 msgid "Use a security key"
 msgstr "セキュリティキーを使用"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:647
+#: packages/admin/src/components/MediaPickerModal.tsx:662
 msgid "Use a URL ending in a recognized image extension, such as .jpg or .png."
 msgstr ".jpg や .png など、画像の拡張子で終わるURLを使ってください。"
 
@@ -15127,7 +15223,7 @@ msgstr ".jpg や .png など、画像の拡張子で終わるURLを使ってく�
 msgid "Use another device"
 msgstr "別のデバイスを使用"
 
-#: packages/admin/src/components/ContentList.tsx:1230
+#: packages/admin/src/components/ContentList.tsx:1189
 msgid "Use as end date"
 msgstr "終了日に設定"
 
@@ -15139,7 +15235,7 @@ msgstr "先頭を半角英小文字にし、半角英小文字・数字・ハイ
 msgid "Use lowercase letters, numbers, and hyphens."
 msgstr "半角英小文字・数字・ハイフンを使用してください。"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1149
+#: packages/admin/src/components/MediaPickerModal.tsx:1185
 msgid "Use URL"
 msgstr "URLを使う"
 
@@ -15307,8 +15403,8 @@ msgstr "版を復元しました"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:70
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
-#: packages/admin/src/components/MediaLibrary.tsx:922
-#: packages/admin/src/components/MediaPickerModal.tsx:392
+#: packages/admin/src/components/MediaLibrary.tsx:938
+#: packages/admin/src/components/MediaPickerModal.tsx:401
 #: packages/admin/src/components/PortableTextEditor.tsx:3715
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:485
 msgid "Video"
@@ -15331,16 +15427,16 @@ msgstr "メール送信サービスの状態を確認し、テストメールを
 msgid "View live"
 msgstr "公開版を表示"
 
-#: packages/admin/src/components/MediaLibrary.tsx:868
-#: packages/admin/src/components/MediaPickerModal.tsx:1224
+#: packages/admin/src/components/MediaLibrary.tsx:884
+#: packages/admin/src/components/MediaPickerModal.tsx:1260
 msgid "View mode"
 msgstr "表示モード"
 
-#: packages/admin/src/components/ContentList.tsx:1501
-msgid "View published {title}"
-msgstr "{title}の公開ページを表示"
+#: packages/admin/src/components/ContentList.tsx:1466
+msgid "View published"
+msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:825
+#: packages/admin/src/components/MediaLibrary.tsx:841
 msgid "View setup"
 msgstr "設定を確認"
 
@@ -15660,7 +15756,7 @@ msgstr "WordPressとの接続が拒否されました"
 msgid "WordPress Username"
 msgstr "WordPressユーザー名"
 
-#: packages/admin/src/components/ContentList.tsx:576
+#: packages/admin/src/components/ContentList.tsx:577
 msgid "Working on {selectedCount} items…"
 msgstr "{selectedCount}件を処理中…"
 
@@ -15712,7 +15808,7 @@ msgstr "YAML"
 msgid "Yearly"
 msgstr "年別"
 
-#: packages/admin/src/components/ContentList.tsx:1578
+#: packages/admin/src/components/ContentList.tsx:1525
 #: packages/admin/src/components/users/UserDetail.tsx:255
 #: packages/admin/src/routes/byline-schema.tsx:422
 #: packages/admin/src/routes/byline-schema.tsx:424
@@ -15760,7 +15856,7 @@ msgstr "自分のユーザー権限は変更できません"
 msgid "You do not have permission to edit this asset."
 msgstr "この画像を編集する権限がありません。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:583
+#: packages/admin/src/components/MediaLibrary.tsx:595
 msgid "You don’t have permission to move this file."
 msgstr "このファイルを移動する権限がありません。"
 
@@ -15907,8 +16003,8 @@ msgstr "Instagramのユーザー名"
 msgid "Your LinkedIn profile username"
 msgstr "LinkedInプロフィールのユーザー名"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1038
-#: packages/admin/src/components/MediaLibrary.tsx:1062
+#: packages/admin/src/components/MediaLibrary.tsx:1059
+#: packages/admin/src/components/MediaLibrary.tsx:1083
 msgid "Your media library is empty"
 msgstr "メディアライブラリは空です"
 
