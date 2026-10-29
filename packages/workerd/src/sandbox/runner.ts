@@ -1084,6 +1084,11 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
 				},
 				body: JSON.stringify({ event, invocationId }),
+			}).catch((error: unknown) => {
+				throw new SandboxUnavailableError(
+					this.id,
+					error instanceof Error ? error.message : "hook transport failed",
+				);
 			});
 			if (!res.ok) {
 				const text = await res.text();

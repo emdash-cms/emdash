@@ -27,7 +27,12 @@ import type {
 	SandboxOptions,
 	SerializedRequest,
 } from "emdash";
-import { createSandboxRouteError, getI18nConfig, getSandboxRouteErrorEnvelope } from "emdash";
+import {
+	createSandboxRouteError,
+	getI18nConfig,
+	getSandboxRouteErrorEnvelope,
+	SandboxUnavailableError,
+} from "emdash";
 
 const DEFAULT_WALL_TIME_MS = 30_000;
 import type { PluginManifest } from "emdash";
@@ -116,6 +121,13 @@ export class MiniflareDevRunner implements SandboxRunner {
 
 	isHealthy(): boolean {
 		return this.running;
+	}
+
+	/** Wait for Miniflare to finish starting, outside a hook lifecycle timeout. */
+	async ensureRunning(): Promise<void> {
+		if (this.mf) {
+			await this.mf.ready;
+		}
 	}
 
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
@@ -298,17 +310,24 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 
 	async invokeHook(hookName: string, event: unknown): Promise<unknown> {
 		if (!this.runner.isHealthy()) {
-			throw new Error(`Dev sandbox unavailable for ${this.id}`);
+			throw new SandboxUnavailableError(this.id, "development sandbox is not running");
 		}
 		return this.withWallTimeLimit(`hook:${hookName}`, async (invocationId) => {
-			const res = await this.runner.dispatchToPlugin(this.id, `http://plugin/hook/${hookName}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-				},
-				body: JSON.stringify({ event, invocationId }),
-			});
+			const res = await this.runner
+				.dispatchToPlugin(this.id, `http://plugin/hook/${hookName}`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+					},
+					body: JSON.stringify({ event, invocationId }),
+				})
+				.catch((error: unknown) => {
+					throw new SandboxUnavailableError(
+						this.id,
+						error instanceof Error ? error.message : "hook transport failed",
+					);
+				});
 			if (!res.ok) {
 				const text = await res.text();
 				throw new Error(`Plugin ${this.id} hook ${hookName} failed: ${text}`);

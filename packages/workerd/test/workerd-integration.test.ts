@@ -19,6 +19,7 @@ import { Kysely, SqliteDialect, type QueryId } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "../../core/src/db/node-sqlite-compat.js";
+import { MiniflareDevRunner } from "../src/sandbox/dev-runner.js";
 import { WorkerdSandboxRunner } from "../src/sandbox/runner.js";
 
 vi.mock("virtual:emdash/config", () => ({ default: null }), { virtual: true });
@@ -809,9 +810,10 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		expect(httpFetch).toHaveBeenCalledOnce();
 	}, 30_000);
 
-	it.each([false, true])(
-		"installs a config sandbox once and schedules cron during activation (bypassed: %s)",
-		async (sandboxBypassed) => {
+	it.each(["workerd", "bypass", "miniflare"])(
+		"installs a config sandbox once and schedules cron during activation (%s)",
+		async (runnerKind) => {
+			const sandboxBypassed = runnerKind === "bypass";
 			const { EmDashRuntime } = await import("emdash/internal/plugin-test-runtime");
 			const runtimeSqlite = new Database(":memory:");
 			let now = new Date("2030-01-01T00:00:00.000Z");
@@ -862,7 +864,10 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 						routes: [{ name: "state", public: true }],
 					},
 				],
-				createSandboxRunner: (options) => new WorkerdSandboxRunner(options),
+				createSandboxRunner: (options) =>
+					runnerKind === "miniflare"
+						? new MiniflareDevRunner(options)
+						: new WorkerdSandboxRunner(options),
 			};
 			let runtime = await EmDashRuntime.create(deps);
 			try {
