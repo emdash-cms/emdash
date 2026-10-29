@@ -37,6 +37,39 @@ describe("HelpTooltip", () => {
 		await expect.element(page.getByText(HELP)).not.toBeInTheDocument();
 	});
 
+	it("stays open after a click until the next click", async () => {
+		const screen = await render(
+			<>
+				<HelpTooltip help={HELP} ariaLabel="More information about Slug" />
+				<p>Elsewhere</p>
+			</>,
+		);
+		const button = screen.getByRole("button", { name: "More information about Slug" });
+
+		await button.click();
+		await screen.getByText("Elsewhere").hover();
+		await expect.element(page.getByText(HELP)).toBeVisible();
+
+		await button.click();
+		await expect.element(page.getByText(HELP)).not.toBeInTheDocument();
+	});
+
+	it("closes when focus moves on after Enter pins it", async () => {
+		await render(
+			<>
+				<HelpTooltip help={HELP} ariaLabel="More information about Slug" />
+				<button type="button">Next</button>
+			</>,
+		);
+
+		await userEvent.keyboard("{Tab}");
+		await userEvent.keyboard("{Enter}");
+		await expect.element(page.getByText(HELP)).toBeVisible();
+
+		await userEvent.keyboard("{Tab}");
+		await expect.element(page.getByText(HELP)).not.toBeInTheDocument();
+	});
+
 	it("opens on hover", async () => {
 		const screen = await render(
 			<HelpTooltip help={HELP} ariaLabel="More information about Slug" />,

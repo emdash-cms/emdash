@@ -35,7 +35,10 @@ export function HelpTooltip({
 				onOpenChange={
 					openOnPress
 						? (nextOpen, details) => {
-								if (!nextOpen && pinned && details.reason.startsWith("trigger-")) return;
+								// The button's click handler owns presses. Base UI's own close on a
+								// trigger press would run after it and undo the pin.
+								if (details.reason === "trigger-press") return;
+								if (!nextOpen && pinned && details.reason === "trigger-hover") return;
 								if (!nextOpen) setPinned(false);
 								setOpen(nextOpen);
 							}
