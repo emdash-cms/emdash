@@ -1,4 +1,4 @@
-import { Badge, Button } from "@cloudflare/kumo";
+import { Badge, Button, DropdownMenu } from "@cloudflare/kumo";
 import {
 	DndContext,
 	KeyboardSensor,
@@ -36,6 +36,16 @@ import { fetchRelations } from "../lib/api";
 import type { SchemaCollection, OrphanedTable } from "../lib/api";
 import { cn } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
+import {
+	DataTable,
+	DataTableMessage,
+	RowActionsMenu,
+	RowMeta,
+	cellCodeClassName,
+	handleColumn,
+	rowTitleClassName,
+	tertiaryColumn,
+} from "./DataTable.js";
 import { RelationImpact } from "./RelationImpact.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
@@ -75,6 +85,7 @@ export function ContentTypeList({
 	onReorder,
 }: ContentTypeListProps) {
 	const { t } = useLingui();
+	const headingId = React.useId();
 	const [deleteTarget, setDeleteTarget] = React.useState<SchemaCollection | null>(null);
 	const hasOrphans = orphanedTables && orphanedTables.length > 0;
 
@@ -126,14 +137,16 @@ export function ContentTypeList({
 	return (
 		<div className="space-y-4">
 			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-2xl font-semibold leading-tight">{t`Content Types`}</h1>
+			<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+				<div className="min-w-0">
+					<h1 id={headingId} className="text-2xl font-semibold leading-tight">
+						{t`Content Types`}
+					</h1>
 					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
 						{t`Define the structure of your content`}
 					</p>
 				</div>
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2">
 					<RouterLinkButton to="/content-types/relations" variant="outline" icon={<LinkSimple />}>
 						{t`Relations`}
 					</RouterLinkButton>
@@ -187,63 +200,53 @@ export function ContentTypeList({
 
 			{/* Table */}
 			<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-				<div className="rounded-md border bg-kumo-base overflow-x-auto">
-					<table className="w-full">
-						<thead>
-							<tr className="border-b bg-kumo-tint/50">
-								{canReorder && (
-									<th scope="col" className="w-10 px-2 py-3">
-										<span className="sr-only">{t`Reorder`}</span>
-									</th>
-								)}
-								<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-									{t`Name`}
+				<DataTable aria-labelledby={headingId}>
+					<thead>
+						<tr>
+							{canReorder && (
+								<th scope="col" {...handleColumn}>
+									<span className="sr-only">{t`Reorder`}</span>
 								</th>
-								<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-									{t`Slug`}
-								</th>
-								<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-									{t`Source`}
-								</th>
-								<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-									{t`Features`}
-								</th>
-								<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
-									{t`Actions`}
-								</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-kumo-line">
-							{isLoading ? (
-								<tr>
-									<td colSpan={columnCount} className="px-4 py-8 text-center text-kumo-subtle">
-										{t`Loading collections...`}
-									</td>
-								</tr>
-							) : collections.length === 0 && !hasOrphans ? (
-								<tr>
-									<td colSpan={columnCount} className="px-4 py-8 text-center text-kumo-subtle">
-										{t`No content types yet.`}{" "}
-										<Link to="/content-types/new" className="text-kumo-link underline">
-											{t`Create your first content type`}
-										</Link>
-									</td>
-								</tr>
-							) : (
-								<SortableContext items={orderedSlugs} strategy={verticalListSortingStrategy}>
-									{orderedCollections.map((collection) => (
-										<ContentTypeRow
-											key={collection.id}
-											collection={collection}
-											canReorder={canReorder}
-											onRequestDelete={setDeleteTarget}
-										/>
-									))}
-								</SortableContext>
 							)}
-						</tbody>
-					</table>
-				</div>
+							<th scope="col">{t`Name`}</th>
+							<th scope="col" {...tertiaryColumn}>
+								{t`Slug`}
+							</th>
+							<th scope="col" {...tertiaryColumn}>
+								{t`Source`}
+							</th>
+							<th scope="col" {...tertiaryColumn}>
+								{t`Features`}
+							</th>
+							<th scope="col" className="w-0">
+								<span className="sr-only">{t`Actions`}</span>
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{isLoading ? (
+							<DataTableMessage colSpan={columnCount}>{t`Loading collections...`}</DataTableMessage>
+						) : collections.length === 0 && !hasOrphans ? (
+							<DataTableMessage colSpan={columnCount}>
+								{t`No content types yet.`}{" "}
+								<Link to="/content-types/new" className="text-kumo-link underline">
+									{t`Create your first content type`}
+								</Link>
+							</DataTableMessage>
+						) : (
+							<SortableContext items={orderedSlugs} strategy={verticalListSortingStrategy}>
+								{orderedCollections.map((collection) => (
+									<ContentTypeRow
+										key={collection.id}
+										collection={collection}
+										canReorder={canReorder}
+										onRequestDelete={setDeleteTarget}
+									/>
+								))}
+							</SortableContext>
+						)}
+					</tbody>
+				</DataTable>
 			</DndContext>
 
 			<ConfirmDialog
@@ -297,27 +300,29 @@ function ContentTypeRow({ collection, canReorder, onRequestDelete }: ContentType
 		transition,
 	};
 
+	const slug = (
+		<code dir="ltr" className={cn(cellCodeClassName, "rounded bg-kumo-tint px-1.5 py-0.5 text-sm")}>
+			{collection.slug}
+		</code>
+	);
+
 	return (
-		<tr
-			ref={setNodeRef}
-			style={style}
-			className={cn("hover:bg-kumo-tint/25", isDragging && "relative z-10 bg-kumo-base shadow-sm")}
-		>
+		<tr ref={setNodeRef} style={style} data-dragging={isDragging || undefined}>
 			{canReorder && (
-				<td className="w-10 px-2 py-3">
+				<td {...handleColumn}>
 					<button
 						type="button"
 						{...attributes}
 						{...listeners}
 						aria-label={t`Reorder ${collection.label}`}
-						className="flex h-8 w-8 cursor-grab items-center justify-center rounded-md text-kumo-subtle hover:bg-kumo-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus active:cursor-grabbing"
+						className="flex h-8 w-8 cursor-grab touch-none items-center justify-center rounded-md text-kumo-subtle hover:bg-kumo-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus active:cursor-grabbing"
 					>
 						<DotsSixVertical className="h-4 w-4" aria-hidden="true" />
 					</button>
 				</td>
 			)}
-			<td className="px-4 py-3">
-				<div className="flex items-center space-x-3">
+			<td>
+				<div className="flex items-center gap-3">
 					<div
 						className={cn(
 							"flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
@@ -330,25 +335,25 @@ function ContentTypeRow({ collection, canReorder, onRequestDelete }: ContentType
 						<Link
 							to="/content-types/$slug"
 							params={{ slug: collection.slug }}
-							className="font-medium hover:text-kumo-link"
+							className={rowTitleClassName}
 						>
 							{collection.label}
 						</Link>
 						{collection.description && (
 							<p className="text-xs text-kumo-subtle">{collection.description}</p>
 						)}
+						<RowMeta priority="tertiary">
+							{slug}
+							<SourceBadge source={collection.source} />
+						</RowMeta>
 					</div>
 				</div>
 			</td>
-			<td className="px-4 py-3">
-				<code dir="ltr" className="text-sm bg-kumo-tint px-1.5 py-0.5 rounded">
-					{collection.slug}
-				</code>
-			</td>
-			<td className="px-4 py-3">
+			<td {...tertiaryColumn}>{slug}</td>
+			<td {...tertiaryColumn}>
 				<SourceBadge source={collection.source} />
 			</td>
-			<td className="px-4 py-3">
+			<td {...tertiaryColumn}>
 				<div className="flex flex-wrap gap-1">
 					{[
 						...collection.supports.filter((feature) => feature !== "seo"),
@@ -360,27 +365,30 @@ function ContentTypeRow({ collection, canReorder, onRequestDelete }: ContentType
 					))}
 				</div>
 			</td>
-			<td className="px-4 py-3 text-end">
-				<div className="flex items-center justify-end space-x-1">
-					<RouterLinkButton
-						to="/content-types/$slug"
-						params={{ slug: collection.slug }}
+			<td className="text-end">
+				<RowActionsMenu label={t`Actions for ${collection.label}`}>
+					<DropdownMenu.LinkItem
+						closeOnClick
+						icon={<Pencil className="me-2 size-4" aria-hidden="true" />}
 						aria-label={t`Edit ${collection.label}`}
-						variant="ghost"
-						shape="square"
-						icon={<Pencil />}
-					/>
+						render={<Link to="/content-types/$slug" params={{ slug: collection.slug }} />}
+					>
+						{t`Edit`}
+					</DropdownMenu.LinkItem>
 					{!isFromCode && (
-						<Button
-							variant="ghost"
-							shape="square"
-							aria-label={t`Delete ${collection.label}`}
-							onClick={() => onRequestDelete?.(collection)}
-						>
-							<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-						</Button>
+						<>
+							<DropdownMenu.Separator />
+							<DropdownMenu.Item
+								variant="danger"
+								icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+								aria-label={t`Delete ${collection.label}`}
+								onClick={() => onRequestDelete?.(collection)}
+							>
+								{t`Delete`}
+							</DropdownMenu.Item>
+						</>
 					)}
-				</div>
+				</RowActionsMenu>
 			</td>
 		</tr>
 	);
