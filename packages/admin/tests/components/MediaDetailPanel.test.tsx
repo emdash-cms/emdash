@@ -631,13 +631,16 @@ describe("MediaDetailPanel", () => {
 		await expect
 			.element(screen.getByRole("button", { name: "Focal point. Use arrow keys to move it." }))
 			.toBeVisible();
-		const focalDescription = screen
-			.getByText("Move the focal point to choose what stays visible in cropped images.")
-			.element();
-		expect(focalDescription).toHaveClass("sr-only");
-		expect(
-			screen.getByRole("button", { name: "Focal point. Use arrow keys to move it." }).element(),
-		).toHaveAttribute("aria-describedby", focalDescription.id);
+		const focalPoint = screen.getByRole("button", {
+			name: "Focal point. Use arrow keys to move it.",
+		});
+		await expect
+			.element(focalPoint)
+			.toHaveAccessibleDescription(
+				"Move the focal point to choose what stays visible in cropped images.",
+			);
+		const focalDescriptionId = focalPoint.element().getAttribute("aria-describedby") ?? "";
+		expect(document.getElementById(focalDescriptionId)).toHaveClass("sr-only");
 		await expect.element(screen.getByRole("button", { name: "About focal point" })).toBeVisible();
 		await expect.element(screen.getByRole("heading", { name: "Preview" })).toBeVisible();
 		const previewGroup = screen.getByTestId("focal-preview-group").element();
