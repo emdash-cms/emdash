@@ -19,11 +19,10 @@
  * component stays a pure controlled form.
  */
 
-import { Button, Dialog, Input, InputArea, Select, Switch } from "@cloudflare/kumo";
+import { Input, InputArea, LayerDialog, Select, Switch } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type {
@@ -196,125 +195,105 @@ export function BylineFieldEditor({
 			: undefined;
 
 	return (
-		<Dialog.Root open={open} onOpenChange={onOpenChange}>
-			<Dialog className="p-6 max-w-xl" size="lg">
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{isEdit ? t`Edit byline field` : t`New byline field`}
-					</Dialog.Title>
-					<Dialog.Close
-						aria-label={t`Close`}
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								aria-label={t`Close`}
-								className="absolute end-4 top-4"
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">{t`Close`}</span>
-							</Button>
-						)}
-					/>
-				</div>
-
-				<div className="space-y-5">
-					{/* Label + slug */}
-					<div className="grid grid-cols-1 sm:grid-cols-2 items-start gap-4">
-						<Input
-							label={t`Label`}
-							value={state.label}
-							onChange={(e) => handleLabelChange(e.target.value)}
-							placeholder={t`Job title`}
-						/>
-						<div>
+		<LayerDialog.Root open={open} onOpenChange={onOpenChange} dismissDisabled={isSaving}>
+			<LayerDialog.Content>
+				<LayerDialog.Title>{isEdit ? t`Edit byline field` : t`New byline field`}</LayerDialog.Title>
+				<LayerDialog.Body>
+					<div className="space-y-5">
+						{/* Label + slug */}
+						<div className="grid grid-cols-1 sm:grid-cols-2 items-start gap-4">
 							<Input
-								dir="ltr"
-								label={t`Slug`}
-								value={state.slug}
-								onChange={(e) => setField("slug", e.target.value)}
-								// The literal slug is an example identifier, not natural-language
-								// copy — translators will typically leave it as-is, but the
-								// AGENTS.md "every user-facing string via Lingui" rule applies
-								// uniformly, so the catalog extractor sees it.
-								placeholder={t`job_title`}
+								label={t`Label`}
+								value={state.label}
+								onChange={(e) => handleLabelChange(e.target.value)}
+								placeholder={t`Job title`}
+							/>
+							<div>
+								<Input
+									dir="ltr"
+									label={t`Slug`}
+									value={state.slug}
+									onChange={(e) => setField("slug", e.target.value)}
+									// The literal slug is an example identifier, not natural-language
+									// copy — translators will typically leave it as-is, but the
+									// AGENTS.md "every user-facing string via Lingui" rule applies
+									// uniformly, so the catalog extractor sees it.
+									placeholder={t`job_title`}
+									disabled={isEdit}
+									error={slugError}
+								/>
+								{isEdit && (
+									<p className="text-xs text-kumo-subtle mt-2">
+										{t`Slugs cannot be changed after the field is created.`}
+									</p>
+								)}
+							</div>
+						</div>
+
+						{/* Type — disabled on edit because the storage column depends on it */}
+						<div>
+							<Select
+								label={t`Type`}
+								value={state.type}
+								onValueChange={(v) => setField("type", v ?? "string")}
+								items={Object.fromEntries(
+									TYPE_OPTIONS.map(({ value, label }) => [value, t(label)]),
+								)}
 								disabled={isEdit}
-								error={slugError}
 							/>
 							{isEdit && (
 								<p className="text-xs text-kumo-subtle mt-2">
-									{t`Slugs cannot be changed after the field is created.`}
+									{t`Field type cannot be changed after creation.`}
 								</p>
 							)}
 						</div>
-					</div>
 
-					{/* Type — disabled on edit because the storage column depends on it */}
-					<div>
-						<Select
-							label={t`Type`}
-							value={state.type}
-							onValueChange={(v) => setField("type", v ?? "string")}
-							items={Object.fromEntries(TYPE_OPTIONS.map(({ value, label }) => [value, t(label)]))}
-							disabled={isEdit}
-						/>
-						{isEdit && (
-							<p className="text-xs text-kumo-subtle mt-2">
-								{t`Field type cannot be changed after creation.`}
-							</p>
-						)}
-					</div>
-
-					{/* Toggles */}
-					<div className="flex flex-wrap items-start gap-6">
-						{/* TODO: enforce `required` on the write path — currently
-						 * descriptive only, see `BylineRepository.coerceFieldValue`. */}
-						<Switch
-							checked={state.required}
-							onCheckedChange={(checked) => setField("required", checked)}
-							label={<span className="text-sm">{t`Required`}</span>}
-						/>
-						<div className="flex flex-col gap-1">
+						{/* Toggles */}
+						<div className="flex flex-wrap items-start gap-6">
+							{/* TODO: enforce `required` on the write path — currently
+							 * descriptive only, see `BylineRepository.coerceFieldValue`. */}
 							<Switch
-								checked={state.translatable}
-								onCheckedChange={(checked) => setField("translatable", checked)}
-								disabled={translatableLocked}
-								label={<span className="text-sm">{t`Translatable`}</span>}
+								checked={state.required}
+								onCheckedChange={(checked) => setField("required", checked)}
+								label={<span className="text-sm">{t`Required`}</span>}
 							/>
-							<p className="text-xs text-kumo-subtle max-w-xs">
-								{translatableLocked
-									? t`Locked because this field has stored values. Delete the values (or the field) to change this.`
-									: state.translatable
-										? t`Stored per locale — each translation of a byline gets its own value.`
-										: t`Shared across all translations of the same byline.`}
-							</p>
+							<div className="flex flex-col gap-1">
+								<Switch
+									checked={state.translatable}
+									onCheckedChange={(checked) => setField("translatable", checked)}
+									disabled={translatableLocked}
+									label={<span className="text-sm">{t`Translatable`}</span>}
+								/>
+								<p className="text-xs text-kumo-subtle max-w-xs">
+									{translatableLocked
+										? t`Locked because this field has stored values. Delete the values (or the field) to change this.`
+										: state.translatable
+											? t`Stored per locale — each translation of a byline gets its own value.`
+											: t`Shared across all translations of the same byline.`}
+								</p>
+							</div>
 						</div>
+
+						{/* Select-type validation: options list */}
+						{state.type === "select" && (
+							<InputArea
+								label={t`Options (one per line)`}
+								value={state.options}
+								onChange={(e) => setField("options", e.target.value)}
+								placeholder={t`Editor\nReporter\nPhotographer`}
+								rows={5}
+							/>
+						)}
+
+						<DialogError message={getMutationError(error)} className="mt-1" />
 					</div>
-
-					{/* Select-type validation: options list */}
-					{state.type === "select" && (
-						<InputArea
-							label={t`Options (one per line)`}
-							value={state.options}
-							onChange={(e) => setField("options", e.target.value)}
-							placeholder={t`Editor\nReporter\nPhotographer`}
-							rows={5}
-						/>
-					)}
-
-					<DialogError message={getMutationError(error)} className="mt-1" />
-				</div>
-
-				<div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-					<Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
-						{t`Cancel`}
-					</Button>
-					<Button onClick={handleSave} disabled={!canSave || isSaving}>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action onClick={handleSave} disabled={!canSave || isSaving}>
 						{isSaving ? t`Saving…` : isEdit ? t`Save changes` : t`Create field`}
-					</Button>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }

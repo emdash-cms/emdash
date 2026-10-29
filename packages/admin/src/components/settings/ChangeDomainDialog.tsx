@@ -1,4 +1,4 @@
-import { Button, Dialog, Input } from "@cloudflare/kumo";
+import { Button, Input, LayerDialog } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -61,6 +61,7 @@ export function ChangeDomainDialog({
 }: ChangeDomainDialogProps) {
 	const { t } = useLingui();
 	const [domain, setDomain] = React.useState("");
+	const formId = React.useId();
 
 	const checkMutation = useMutation({
 		mutationFn: (value: string) => changeSiteDomain(value),
@@ -97,93 +98,79 @@ export function ChangeDomainDialog({
 	};
 
 	return (
-		<Dialog.Root
+		<LayerDialog.Root
 			open={open}
 			onOpenChange={(nextOpen) => {
 				if (!nextOpen && !isPending) onClose();
 			}}
-			disablePointerDismissal={isPending}
+			dismissDisabled={isPending}
 		>
-			<Dialog className="max-h-[85vh] overflow-y-auto p-6" size="lg">
-				<form onSubmit={submit} noValidate>
-					<Dialog.Title className="text-lg font-semibold">{t`Change domain`}</Dialog.Title>
-					<Dialog.Description className="mt-2 text-sm text-kumo-subtle">
-						{currentUrl && <>{t`Your site is currently at ${currentUrl}.`} </>}
-						{configuredUrl
-							? t`Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using ${configuredUrl}, set by the deployment configuration.`
-							: t`Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain.`}
-					</Dialog.Description>
+			<LayerDialog.Content>
+				<LayerDialog.Title>{t`Change domain`}</LayerDialog.Title>
+				<LayerDialog.Description>
+					{currentUrl && <>{t`Your site is currently at ${currentUrl}.`} </>}
+					{configuredUrl
+						? t`Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using ${configuredUrl}, set by the deployment configuration.`
+						: t`Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain.`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<form id={formId} onSubmit={submit} noValidate>
+						<ol className="grid list-decimal gap-2 ps-5 text-sm">
+							<li>
+								{t`Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain.`}
+							</li>
+							<li>{t`Enter the domain below. EmDash checks that it serves this site before switching.`}</li>
+						</ol>
 
-					<ol className="mt-4 grid list-decimal gap-2 ps-5 text-sm">
-						<li>
-							{t`Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain.`}
-						</li>
-						<li>{t`Enter the domain below. EmDash checks that it serves this site before switching.`}</li>
-					</ol>
-
-					<div className="mt-5">
-						<Input
-							label={t`New domain`}
-							placeholder={t`example.com`}
-							value={domain}
-							onChange={(event) => {
-								setDomain(event.target.value);
-								checkMutation.reset();
-								uncheckedMutation.reset();
-							}}
-							autoFocus
-							disabled={isPending}
-							dir="ltr"
-							autoComplete="off"
-							spellCheck={false}
-						/>
-					</div>
-
-					<p className="mt-4 text-sm text-kumo-subtle">
-						{t`Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one.`}
-					</p>
-
-					<DialogError message={errorMessage} className="mt-4" />
-					{fallbackUrl && (
-						<div className="mt-3 grid gap-2 rounded-md border border-kumo-line p-3 text-sm">
-							<p>
-								{t`If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check.`}
-							</p>
-							<div>
-								<Button
-									type="button"
-									variant="secondary"
-									size="sm"
-									disabled={isPending}
-									onClick={() => uncheckedMutation.mutate(fallbackUrl)}
-								>
-									{t`Use ${fallbackUrl} anyway`}
-								</Button>
-							</div>
+						<div className="mt-5">
+							<Input
+								label={t`New domain`}
+								placeholder={t`example.com`}
+								value={domain}
+								onChange={(event) => {
+									setDomain(event.target.value);
+									checkMutation.reset();
+									uncheckedMutation.reset();
+								}}
+								autoFocus
+								disabled={isPending}
+								dir="ltr"
+								autoComplete="off"
+								spellCheck={false}
+							/>
 						</div>
-					)}
 
-					<div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
-						<Button
-							variant="secondary"
-							type="button"
-							onClick={onClose}
-							disabled={isPending}
-							className="w-full sm:w-auto"
-						>
-							{t`Cancel`}
-						</Button>
-						<Button
-							type="submit"
-							variant="primary"
-							disabled={isPending || !domain.trim()}
-							className="w-full sm:w-auto"
-						>
-							{checkMutation.isPending ? t`Checking…` : t`Check and switch`}
-						</Button>
-					</div>
-				</form>
-			</Dialog>
-		</Dialog.Root>
+						<p className="mt-4 text-sm text-kumo-subtle">
+							{t`Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one.`}
+						</p>
+
+						<DialogError message={errorMessage} className="mt-4" />
+						{fallbackUrl && (
+							<div className="mt-3 grid gap-2 rounded-md border border-kumo-line p-3 text-sm">
+								<p>
+									{t`If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check.`}
+								</p>
+								<div>
+									<Button
+										type="button"
+										variant="secondary"
+										size="sm"
+										disabled={isPending}
+										onClick={() => uncheckedMutation.mutate(fallbackUrl)}
+									>
+										{t`Use ${fallbackUrl} anyway`}
+									</Button>
+								</div>
+							</div>
+						)}
+					</form>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action type="submit" form={formId} disabled={isPending || !domain.trim()}>
+						{checkMutation.isPending ? t`Checking…` : t`Check and switch`}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }

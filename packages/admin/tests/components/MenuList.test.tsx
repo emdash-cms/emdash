@@ -129,42 +129,39 @@ describe("MenuList", () => {
 		await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
 	});
 
-	it.each(["Cancel", "Close"])(
-		"keeps creation pending after %s and reopening",
-		async (dismissButton) => {
-			let resolveCreate!: (menu: Awaited<ReturnType<typeof api.createMenu>>) => void;
-			vi.mocked(api.createMenu).mockImplementationOnce(
-				() =>
-					new Promise((resolve) => {
-						resolveCreate = resolve;
-					}),
-			);
-			const screen = await render(<MenuList />, { wrapper: Wrapper });
+	it.each(["Cancel"])("keeps creation pending after %s and reopening", async (dismissButton) => {
+		let resolveCreate!: (menu: Awaited<ReturnType<typeof api.createMenu>>) => void;
+		vi.mocked(api.createMenu).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveCreate = resolve;
+				}),
+		);
+		const screen = await render(<MenuList />, { wrapper: Wrapper });
 
-			await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
-			await screen.getByLabelText("Label").fill("Slow menu");
-			await screen.getByLabelText("Name").fill("slow");
-			screen.getByRole("button", { name: "Create", exact: true }).element().click();
-			await expect.element(screen.getByRole("button", { name: "Creating..." })).toBeDisabled();
+		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
+		await screen.getByLabelText("Label").fill("Slow menu");
+		await screen.getByLabelText("Name").fill("slow");
+		screen.getByRole("button", { name: "Create", exact: true }).element().click();
+		await expect.element(screen.getByRole("button", { name: "Creating..." })).toBeDisabled();
 
-			screen.getByRole("button", { name: dismissButton, exact: true }).element().click();
-			await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-			await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
-			await expect.element(screen.getByRole("button", { name: "Creating..." })).toBeDisabled();
-			expect(api.createMenu).toHaveBeenCalledTimes(1);
+		screen.getByRole("button", { name: dismissButton, exact: true }).element().click();
+		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
+		await expect.element(screen.getByRole("button", { name: "Creating..." })).toBeDisabled();
+		expect(api.createMenu).toHaveBeenCalledTimes(1);
 
-			resolveCreate({
-				id: "slow",
-				name: "slow",
-				label: "Slow menu",
-				createdAt: "",
-				updatedAt: "",
-				locale: "en",
-				translationGroup: null,
-			});
-			await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-		},
-	);
+		resolveCreate({
+			id: "slow",
+			name: "slow",
+			label: "Slow menu",
+			createdAt: "",
+			updatedAt: "",
+			locale: "en",
+			translationGroup: null,
+		});
+		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+	});
 
 	it("delete button opens confirmation dialog", async () => {
 		const screen = await render(<MenuList />, { wrapper: Wrapper });

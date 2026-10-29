@@ -514,38 +514,35 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("");
 	});
 
-	it.each(["Create", "Cancel", "Close", "Escape"])(
-		"resets every create field after %s",
-		async (action) => {
-			const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
-				wrapper: Wrapper,
-			});
-			await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
-			await screen.getByRole("textbox", { name: "Name" }).fill("Music");
-			await screen.getByRole("textbox", { name: "Slug" }).fill("custom-music");
-			await screen.getByRole("textbox", { name: "Description (optional)" }).fill("Music news");
-			await screen.getByRole("combobox", { name: "Parent" }).click();
-			await screen.getByRole("option", { name: "Technology" }).click();
-			if (action === "Escape") {
-				await userEvent.keyboard("{Escape}");
-			} else {
-				await screen.getByRole("dialog").getByRole("button", { name: action, exact: true }).click();
-			}
-			await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+	it.each(["Create", "Cancel", "Escape"])("resets every create field after %s", async (action) => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		await screen.getByRole("textbox", { name: "Name" }).fill("Music");
+		await screen.getByRole("textbox", { name: "Slug" }).fill("custom-music");
+		await screen.getByRole("textbox", { name: "Description (optional)" }).fill("Music news");
+		await screen.getByRole("combobox", { name: "Parent" }).click();
+		await screen.getByRole("option", { name: "Technology" }).click();
+		if (action === "Escape") {
+			await userEvent.keyboard("{Escape}");
+		} else {
+			await screen.getByRole("dialog").getByRole("button", { name: action, exact: true }).click();
+		}
+		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 
-			await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
-			await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
-			await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("");
-			await expect
-				.element(screen.getByRole("textbox", { name: "Description (optional)" }))
-				.toHaveValue("");
-			await expect
-				.element(screen.getByRole("combobox", { name: "Parent" }))
-				.toHaveTextContent("None (top level)");
-			await screen.getByRole("textbox", { name: "Name" }).fill("New term");
-			await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("new-term");
-		},
-	);
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
+		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("");
+		await expect
+			.element(screen.getByRole("textbox", { name: "Description (optional)" }))
+			.toHaveValue("");
+		await expect
+			.element(screen.getByRole("combobox", { name: "Parent" }))
+			.toHaveTextContent("None (top level)");
+		await screen.getByRole("textbox", { name: "Name" }).fill("New term");
+		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("new-term");
+	});
 
 	it("preserves a failed create for retry but clears its values and error on reopening", async () => {
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {

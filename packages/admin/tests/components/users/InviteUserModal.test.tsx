@@ -80,6 +80,34 @@ describe("InviteUserModal", () => {
 		);
 		const cancelButton = screen.getByText("Cancel").element().closest("button")!;
 		cancelButton.click();
-		expect(onOpenChange).toHaveBeenCalledWith(false);
+		expect(onOpenChange).toHaveBeenCalledWith(false, expect.anything());
+	});
+
+	it("copies the invite link and closes with Done when there is no email provider", async () => {
+		const onOpenChange = vi.fn();
+		const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+		try {
+			const screen = await render(
+				<InviteUserModal
+					open
+					inviteUrl="https://example.com/_emdash/admin/invite/abc"
+					onOpenChange={onOpenChange}
+					onInvite={noop}
+				/>,
+			);
+
+			const copy = screen.getByRole("button", { name: "Copy invite link" });
+			await expect.element(copy).toBeEnabled();
+			copy.element().click();
+			await vi.waitFor(() =>
+				expect(writeText).toHaveBeenCalledWith("https://example.com/_emdash/admin/invite/abc"),
+			);
+			await expect.element(screen.getByText("Copied to clipboard")).toBeInTheDocument();
+
+			screen.getByRole("button", { name: "Done" }).element().click();
+			expect(onOpenChange).toHaveBeenCalledWith(false, expect.anything());
+		} finally {
+			writeText.mockRestore();
+		}
 	});
 });

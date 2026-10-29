@@ -1,6 +1,5 @@
-import { Button, Dialog, Input, Select } from "@cloudflare/kumo";
+import { Input, LayerDialog, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Check, Copy, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import { useRolesConfig } from "./useRolesConfig.js";
@@ -32,6 +31,7 @@ export function InviteUserModal({
 	const [role, setRole] = React.useState(30); // Default to Author
 	const [copied, setCopied] = React.useState(false);
 	const [copyError, setCopyError] = React.useState(false);
+	const formId = React.useId();
 
 	const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -71,143 +71,100 @@ export function InviteUserModal({
 	};
 
 	return (
-		<Dialog.Root open={open} onOpenChange={onOpenChange}>
-			<Dialog className="p-6 max-w-md" size="lg">
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<div className="flex flex-col space-y-1.5">
-						<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-							{inviteUrl ? t`Invite Link Created` : t`Invite User`}
-						</Dialog.Title>
-						<Dialog.Description className="text-sm text-kumo-subtle">
-							{inviteUrl
-								? t`No email provider configured. Share this link manually.`
-								: t`Send an invitation email to a new team member.`}
-						</Dialog.Description>
-					</div>
-					<Dialog.Close
-						aria-label={t`Close`}
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								aria-label={t`Close`}
-								className="absolute end-4 top-4"
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">{t`Close`}</span>
-							</Button>
-						)}
-					/>
-				</div>
-
-				{inviteUrl ? (
-					/* Copy-link view — shown when no email provider is configured */
-					<div className="py-4 space-y-4">
-						<div className="rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint p-4">
-							<p className="text-sm text-kumo-warning font-medium">
-								{t`Share this link with the invited user`}
-							</p>
-							<p className="text-xs text-kumo-subtle mt-1">
-								{t`This link expires in 7 days and can only be used once.`}
-							</p>
-						</div>
-
-						<div className="flex items-center gap-2">
-							<code
-								dir="ltr"
-								className="flex-1 rounded bg-kumo-tint px-3 py-2 text-sm font-mono border truncate"
-							>
-								{inviteUrl}
-							</code>
-							<Button
-								variant="ghost"
-								shape="square"
-								onClick={handleCopyUrl}
-								aria-label={t`Copy invite link`}
-							>
-								{copied ? (
-									<Check className="h-4 w-4 text-kumo-success" />
-								) : (
-									<Copy className="h-4 w-4" />
-								)}
-							</Button>
-						</div>
-						{copied && <p className="text-xs text-kumo-success">{t`Copied to clipboard`}</p>}
-						{copyError && (
-							<p className="text-xs text-kumo-warning">
-								{t`Could not copy automatically. Please select the URL above and copy manually.`}
-							</p>
-						)}
-
-						<div className="flex justify-end">
-							<Button type="button" onClick={() => onOpenChange(false)}>
-								{t`Done`}
-							</Button>
-						</div>
-					</div>
-				) : (
-					/* Standard invite form */
-					<form onSubmit={handleSubmit}>
-						<div className="grid gap-4 py-4">
-							{/* Email */}
-							<Input
-								dir="ltr"
-								label={t`Email address`}
-								type="email"
-								value={email}
-								onChange={(e) => setEmail(e.target.value)}
-								placeholder={t`colleague@example.com`}
-								required
-								autoComplete="off"
-							/>
-
-							{/* Role */}
-							<div className="grid gap-2">
-								<Select
-									label={t`Role`}
-									value={role.toString()}
-									onValueChange={(v) => v !== null && setRole(parseInt(v, 10))}
-									items={roleLabels}
-								>
-									{roles.map((r) => (
-										<Select.Option key={r.value} value={r.value.toString()}>
-											<div>
-												<div>{r.label}</div>
-												<div className="text-xs text-kumo-subtle">{r.description}</div>
-											</div>
-										</Select.Option>
-									))}
-								</Select>
-								<p className="text-xs text-kumo-subtle">
-									{t`The invited user will have this role once they complete registration.`}
+		<LayerDialog.Root open={open} onOpenChange={onOpenChange} dismissDisabled={isSending}>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>{inviteUrl ? t`Invite Link Created` : t`Invite User`}</LayerDialog.Title>
+				<LayerDialog.Description>
+					{inviteUrl
+						? t`No email provider configured. Share this link manually.`
+						: t`Send an invitation email to a new team member.`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					{inviteUrl ? (
+						/* Copy-link view — shown when no email provider is configured */
+						<div className="space-y-4">
+							<div className="rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint p-4">
+								<p className="text-sm text-kumo-warning font-medium">
+									{t`Share this link with the invited user`}
+								</p>
+								<p className="text-xs text-kumo-subtle mt-1">
+									{t`This link expires in 7 days and can only be used once.`}
 								</p>
 							</div>
 
-							{/* Error message */}
-							{error && (
-								<div className="rounded-md bg-kumo-danger/10 p-3 text-sm text-kumo-danger">
-									{error}
-								</div>
+							<code
+								dir="ltr"
+								className="block rounded bg-kumo-tint px-3 py-2 text-sm font-mono border truncate"
+							>
+								{inviteUrl}
+							</code>
+							{copied && <p className="text-xs text-kumo-success">{t`Copied to clipboard`}</p>}
+							{copyError && (
+								<p className="text-xs text-kumo-warning">
+									{t`Could not copy automatically. Please select the URL above and copy manually.`}
+								</p>
 							)}
 						</div>
+					) : (
+						/* Standard invite form */
+						<form id={formId} onSubmit={handleSubmit}>
+							<div className="grid gap-4">
+								{/* Email */}
+								<Input
+									dir="ltr"
+									label={t`Email address`}
+									type="email"
+									value={email}
+									onChange={(e) => setEmail(e.target.value)}
+									placeholder={t`colleague@example.com`}
+									required
+									autoComplete="off"
+								/>
 
-						<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => onOpenChange(false)}
-								disabled={isSending}
-							>
-								{t`Cancel`}
-							</Button>
-							<Button type="submit" disabled={isSending || !email}>
-								{isSending ? t`Sending...` : t`Send Invite`}
-							</Button>
-						</div>
-					</form>
+								{/* Role */}
+								<div className="grid gap-2">
+									<Select
+										label={t`Role`}
+										value={role.toString()}
+										onValueChange={(v) => v !== null && setRole(parseInt(v, 10))}
+										items={roleLabels}
+									>
+										{roles.map((r) => (
+											<Select.Option key={r.value} value={r.value.toString()}>
+												<div>
+													<div>{r.label}</div>
+													<div className="text-xs text-kumo-subtle">{r.description}</div>
+												</div>
+											</Select.Option>
+										))}
+									</Select>
+									<p className="text-xs text-kumo-subtle">
+										{t`The invited user will have this role once they complete registration.`}
+									</p>
+								</div>
+
+								{/* Error message */}
+								{error && (
+									<div className="rounded-md bg-kumo-danger/10 p-3 text-sm text-kumo-danger">
+										{error}
+									</div>
+								)}
+							</div>
+						</form>
+					)}
+				</LayerDialog.Body>
+				{inviteUrl ? (
+					<LayerDialog.Actions dismissLabel={t`Done`}>
+						<LayerDialog.Action onClick={handleCopyUrl}>{t`Copy invite link`}</LayerDialog.Action>
+					</LayerDialog.Actions>
+				) : (
+					<LayerDialog.Actions dismissLabel={t`Cancel`}>
+						<LayerDialog.Action type="submit" form={formId} disabled={isSending || !email}>
+							{isSending ? t`Sending...` : t`Send Invite`}
+						</LayerDialog.Action>
+					</LayerDialog.Actions>
 				)}
-			</Dialog>
-		</Dialog.Root>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }

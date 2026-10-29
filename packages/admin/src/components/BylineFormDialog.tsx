@@ -1,6 +1,5 @@
-import { Button, Dialog, Input, InputArea, Select, Switch } from "@cloudflare/kumo";
+import { Button, Input, InputArea, LayerDialog, Select, Switch } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 import { flushSync } from "react-dom";
@@ -196,6 +195,7 @@ export function BylineFormDialog({
 	renderExtra,
 }: BylineFormDialogProps) {
 	const { t } = useLingui();
+	const formId = React.useId();
 	const queryClient = useQueryClient();
 	const [wasOpen, setWasOpen] = React.useState(false);
 	// While the dialog closes, keep showing the byline it was opened for.
@@ -340,46 +340,26 @@ export function BylineFormDialog({
 			: t`Add a person or team to credit on your content.`;
 
 	return (
-		<Dialog.Root
+		<LayerDialog.Root
 			open={open}
-			onOpenChange={(next) => {
+			onOpenChange={(next, details) => {
+				// Like a press outside, a swipe down on the phone sheet must not discard the form.
+				if (!next && details.reason === "swipe") {
+					details.cancel();
+					return;
+				}
 				if (!next && isSaving) return;
 				onOpenChange(next);
 			}}
 			onOpenChangeComplete={onOpenChangeComplete}
+			dismissDisabled={isSaving}
 			disablePointerDismissal
 		>
-			<Dialog
-				className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-[36rem]"
-				size="lg"
-			>
-				<form noValidate onSubmit={submitForm} className="flex min-h-0 flex-1 flex-col">
-					<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
-						<div className="min-w-0">
-							<Dialog.Title className="text-lg font-semibold">
-								{shownBylineId ? t`Edit byline` : t`New byline`}
-							</Dialog.Title>
-							<Dialog.Description className="mt-1 text-sm text-kumo-subtle">
-								{description}
-							</Dialog.Description>
-						</div>
-						<Dialog.Close
-							aria-label={t`Close`}
-							render={(props) => (
-								<Button
-									{...props}
-									type="button"
-									variant="ghost"
-									shape="square"
-									icon={<X className="size-4" aria-hidden="true" />}
-									aria-label={t`Close`}
-									disabled={isSaving}
-								/>
-							)}
-						/>
-					</div>
-
-					<div className="emdash-auto-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-6 py-6">
+			<LayerDialog.Content>
+				<LayerDialog.Title>{shownBylineId ? t`Edit byline` : t`New byline`}</LayerDialog.Title>
+				{description && <LayerDialog.Description>{description}</LayerDialog.Description>}
+				<LayerDialog.Body>
+					<form id={formId} noValidate onSubmit={submitForm}>
 						<fieldset disabled={!formLoaded} className="min-w-0 space-y-5">
 							<Input
 								ref={displayNameRef}
@@ -519,40 +499,28 @@ export function BylineFormDialog({
 
 							{source && renderExtra ? renderExtra(source) : null}
 						</fieldset>
-					</div>
-					<DialogError
-						message={getMutationError(saveMutation.error ?? error)}
-						className="mx-6 mt-3"
-					/>
-
-					<div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-kumo-line px-6 py-4">
+						<DialogError message={getMutationError(saveMutation.error ?? error)} className="mt-5" />
 						{source && onDelete && (
-							<Button
-								type="button"
-								variant="secondary-destructive"
-								onClick={() => onDelete(source)}
-								disabled={isSaving}
-							>
-								{t`Delete`}
-							</Button>
+							<div className="mt-6 border-t border-kumo-line pt-5">
+								<Button
+									type="button"
+									variant="secondary-destructive"
+									onClick={() => onDelete(source)}
+									disabled={isSaving}
+								>
+									{t`Delete`}
+								</Button>
+							</div>
 						)}
-						<div className="ms-auto flex items-center gap-2">
-							<Button
-								type="button"
-								variant="secondary"
-								onClick={() => onOpenChange(false)}
-								disabled={isSaving}
-							>
-								{t`Cancel`}
-							</Button>
-							<Button type="submit" variant="primary" disabled={!formLoaded || isSaving}>
-								{isSaving ? t`Saving...` : shownBylineId ? t`Save` : (createLabel ?? t`Create`)}
-							</Button>
-						</div>
-					</div>
-				</form>
-			</Dialog>
-		</Dialog.Root>
+					</form>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action type="submit" form={formId} disabled={!formLoaded || isSaving}>
+						{isSaving ? t`Saving...` : shownBylineId ? t`Save` : (createLabel ?? t`Create`)}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 

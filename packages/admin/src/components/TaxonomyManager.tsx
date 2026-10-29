@@ -8,11 +8,11 @@
 import {
 	Button,
 	Checkbox,
-	Dialog,
 	DropdownMenu,
 	Input,
 	InputArea,
 	LayerCard,
+	LayerDialog,
 	Select,
 	Table,
 	useKumoToastManager,
@@ -32,7 +32,6 @@ import {
 	Tag,
 	Translate,
 	Trash,
-	X,
 } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -537,59 +536,39 @@ function TranslateTermDialog({
 	const [selected, setSelected] = React.useState<string>(otherLocales[0] ?? "");
 
 	return (
-		<Dialog.Root
+		<LayerDialog.Root
 			open
 			onOpenChange={(isOpen: boolean) => {
 				if (!isOpen) onClose();
 			}}
 		>
-			<Dialog className="p-6" size="sm">
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<div>
-						<Dialog.Title className="text-lg font-semibold">
-							{t`Translate "${term.label}"`}
-						</Dialog.Title>
-						<Dialog.Description className="text-sm text-kumo-subtle">
-							{t`Taxonomy: ${taxonomyName}`}
-						</Dialog.Description>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>{t`Translate "${term.label}"`}</LayerDialog.Title>
+				<LayerDialog.Description>{t`Taxonomy: ${taxonomyName}`}</LayerDialog.Description>
+				<LayerDialog.Body>
+					<div className="space-y-4">
+						<Select
+							label={t`Target locale`}
+							value={selected}
+							onValueChange={(v) => setSelected(v ?? "")}
+							items={Object.fromEntries(otherLocales.map((l) => [l, l.toUpperCase()]))}
+						>
+							{otherLocales.map((l) => (
+								<Select.Option key={l} value={l}>
+									{l.toUpperCase()}
+								</Select.Option>
+							))}
+						</Select>
+						<DialogError message={error ? error.message : null} />
 					</div>
-					<Dialog.Close
-						render={(props) => (
-							<Button {...props} variant="ghost" shape="square" aria-label={t`Close`}>
-								<X className="h-4 w-4" />
-							</Button>
-						)}
-					/>
-				</div>
-				<div className="space-y-4 py-2">
-					<Select
-						label={t`Target locale`}
-						value={selected}
-						onValueChange={(v) => setSelected(v ?? "")}
-						items={Object.fromEntries(otherLocales.map((l) => [l, l.toUpperCase()]))}
-					>
-						{otherLocales.map((l) => (
-							<Select.Option key={l} value={l}>
-								{l.toUpperCase()}
-							</Select.Option>
-						))}
-					</Select>
-					<DialogError message={error ? error.message : null} />
-				</div>
-				<div className="flex justify-end gap-2">
-					<Button variant="outline" type="button" onClick={onClose}>
-						{t`Cancel`}
-					</Button>
-					<Button
-						type="button"
-						disabled={!selected || isPending}
-						onClick={() => onSubmit(selected)}
-					>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action disabled={!selected || isPending} onClick={() => onSubmit(selected)}>
 						{isPending ? t`Translating...` : t`Translate`}
-					</Button>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
@@ -620,6 +599,7 @@ function TermFormDialog({
 	const { t, i18n: lingui } = useLingui();
 	const queryClient = useQueryClient();
 	const slugInputId = React.useId();
+	const formId = React.useId();
 	const [label, setLabel] = React.useState(term?.label || "");
 	const [slug, setSlug] = React.useState(term?.slug || "");
 	const [parentId, setParentId] = React.useState(term?.parentId || "");
@@ -737,7 +717,7 @@ function TermFormDialog({
 	const availableParents = getAvailableParentTerms(allTerms, term);
 
 	return (
-		<Dialog.Root
+		<LayerDialog.Root
 			open={open}
 			onOpenChange={(isOpen: boolean) => {
 				if (!isOpen) {
@@ -746,40 +726,19 @@ function TermFormDialog({
 				}
 			}}
 		>
-			<Dialog
-				className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-lg"
-				size="lg"
-			>
-				<form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-					<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
-						<div className="min-w-0">
-							<Dialog.Title className="text-lg font-semibold">
-								{term
-									? t`Edit ${taxonomyDef.labelSingular || t`Term`}`
-									: t`Add ${taxonomyDef.labelSingular || t`Term`}`}
-							</Dialog.Title>
-							<Dialog.Description className="mt-1 text-sm text-kumo-subtle">
-								{term
-									? t`Update the ${inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)} details`
-									: t`Create a new ${inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)}`}
-							</Dialog.Description>
-						</div>
-						<Dialog.Close
-							aria-label={t`Close`}
-							render={(props) => (
-								<Button
-									{...props}
-									type="button"
-									variant="ghost"
-									shape="square"
-									icon={<X className="size-4" aria-hidden="true" />}
-									aria-label={t`Close`}
-								/>
-							)}
-						/>
-					</div>
-
-					<div className="emdash-auto-scrollbar min-h-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto px-6 py-6">
+			<LayerDialog.Content>
+				<LayerDialog.Title>
+					{term
+						? t`Edit ${taxonomyDef.labelSingular || t`Term`}`
+						: t`Add ${taxonomyDef.labelSingular || t`Term`}`}
+				</LayerDialog.Title>
+				<LayerDialog.Description>
+					{term
+						? t`Update the ${inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)} details`
+						: t`Create a new ${inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)}`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<form id={formId} onSubmit={handleSubmit} className="space-y-4">
 						<Input
 							label={t`Name`}
 							value={label}
@@ -878,27 +837,23 @@ function TermFormDialog({
 								/>
 							</div>
 						) : null}
-					</div>
-
-					<div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-kumo-line px-6 py-4">
-						<Button type="button" variant="outline" onClick={onClose}>
-							{t`Cancel`}
-						</Button>
-						<Button
-							type="submit"
-							variant="primary"
-							disabled={createMutation.isPending || updateMutation.isPending}
-						>
-							{createMutation.isPending || updateMutation.isPending
-								? t`Saving...`
-								: term
-									? t`Update`
-									: t`Create`}
-						</Button>
-					</div>
-				</form>
-			</Dialog>
-		</Dialog.Root>
+					</form>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action
+						type="submit"
+						form={formId}
+						disabled={createMutation.isPending || updateMutation.isPending}
+					>
+						{createMutation.isPending || updateMutation.isPending
+							? t`Saving...`
+							: term
+								? t`Update`
+								: t`Create`}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
@@ -916,6 +871,7 @@ function CreateTaxonomyDialog({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const formId = React.useId();
 	const [name, setName] = React.useState("");
 	const [label, setLabel] = React.useState("");
 	const [hierarchical, setHierarchical] = React.useState(false);
@@ -999,7 +955,7 @@ function CreateTaxonomyDialog({
 	};
 
 	return (
-		<Dialog.Root
+		<LayerDialog.Root
 			open={open}
 			onOpenChange={(isOpen: boolean) => {
 				if (!isOpen) {
@@ -1008,34 +964,13 @@ function CreateTaxonomyDialog({
 				}
 			}}
 		>
-			<Dialog
-				className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-lg"
-				size="lg"
-			>
-				<form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-					<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
-						<div className="min-w-0">
-							<Dialog.Title className="text-lg font-semibold">{t`Create Taxonomy`}</Dialog.Title>
-							<Dialog.Description className="mt-1 text-sm text-kumo-subtle">
-								{t`Define a new taxonomy for classifying content`}
-							</Dialog.Description>
-						</div>
-						<Dialog.Close
-							aria-label={t`Close`}
-							render={(props) => (
-								<Button
-									{...props}
-									type="button"
-									variant="ghost"
-									shape="square"
-									icon={<X className="size-4" aria-hidden="true" />}
-									aria-label={t`Close`}
-								/>
-							)}
-						/>
-					</div>
-
-					<div className="emdash-auto-scrollbar min-h-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto px-6 py-6">
+			<LayerDialog.Content>
+				<LayerDialog.Title>{t`Create Taxonomy`}</LayerDialog.Title>
+				<LayerDialog.Description>
+					{t`Define a new taxonomy for classifying content`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<form id={formId} onSubmit={handleSubmit} className="space-y-4">
 						<Input
 							label={t`Label`}
 							value={label}
@@ -1091,26 +1026,15 @@ function CreateTaxonomyDialog({
 						)}
 
 						<DialogError message={error || getMutationError(createMutation.error)} />
-					</div>
-
-					<div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-kumo-line px-6 py-4">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => {
-								resetForm();
-								onClose();
-							}}
-						>
-							{t`Cancel`}
-						</Button>
-						<Button type="submit" variant="primary" disabled={createMutation.isPending}>
-							{createMutation.isPending ? t`Creating...` : t`Create Taxonomy`}
-						</Button>
-					</div>
-				</form>
-			</Dialog>
-		</Dialog.Root>
+					</form>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action type="submit" form={formId} disabled={createMutation.isPending}>
+						{createMutation.isPending ? t`Creating...` : t`Create Taxonomy`}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 

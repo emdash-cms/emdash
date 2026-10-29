@@ -8,9 +8,9 @@
 
 import {
 	Button,
-	Dialog,
 	Input,
 	Label,
+	LayerDialog,
 	Select,
 	Switch,
 	useKumoToastManager,
@@ -41,7 +41,6 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, DotsSixVertical, Trash, CaretDown } from "@phosphor-icons/react";
-import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -181,6 +180,7 @@ export function Widgets() {
 	const queryClient = useQueryClient();
 	const toastManager = useKumoToastManager();
 	const [isCreateAreaOpen, setIsCreateAreaOpen] = React.useState(false);
+	const createAreaFormId = React.useId();
 	const [createAreaError, setCreateAreaError] = React.useState<string | null>(null);
 	const [activeId, setActiveId] = React.useState<string | null>(null);
 	const [activeDragData, setActiveDragData] = React.useState<DragItemData | null>(null);
@@ -399,74 +399,54 @@ export function Widgets() {
 								{t`Manage content widgets in your widget areas`}
 							</p>
 						</div>
-						<Dialog.Root
+						<LayerDialog.Root
 							open={isCreateAreaOpen}
 							onOpenChange={(open) => {
 								setIsCreateAreaOpen(open);
 								if (!open) setCreateAreaError(null);
 							}}
 						>
-							<Dialog.Trigger
+							<LayerDialog.Trigger
 								render={(props) => (
 									<Button {...props} icon={<Plus />}>
 										{t`Add Widget Area`}
 									</Button>
 								)}
 							/>
-							<Dialog className="p-6" size="lg">
-								<div className="flex items-start justify-between gap-4 mb-4">
-									<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-										{t`Create Widget Area`}
-									</Dialog.Title>
-									<Dialog.Close
-										aria-label={t`Close`}
-										render={(props) => (
-											<Button
-												{...props}
-												variant="ghost"
-												shape="square"
-												aria-label={t`Close`}
-												className="absolute end-4 top-4"
-											>
-												<X className="h-4 w-4" />
-												<span className="sr-only">{t`Close`}</span>
-											</Button>
-										)}
-									/>
-								</div>
-								<form onSubmit={handleCreateArea} className="space-y-4">
-									<Input
-										dir="ltr"
-										label={t`Name`}
-										name="name"
-										required
-										placeholder="sidebar"
-										pattern="[a-z0-9\-]+"
-									/>
-									<Input label={t`Label`} name="label" required placeholder={t`Main Sidebar`} />
-									<Input
-										label={t`Description`}
-										name="description"
-										placeholder={t`Appears on posts and pages`}
-									/>
-									<DialogError
-										message={createAreaError || getMutationError(createAreaMutation.error)}
-									/>
-									<div className="flex justify-end gap-2">
-										<Button
-											type="button"
-											variant="outline"
-											onClick={() => setIsCreateAreaOpen(false)}
-										>
-											{t`Cancel`}
-										</Button>
-										<Button type="submit" disabled={createAreaMutation.isPending}>
-											{t`Create`}
-										</Button>
-									</div>
-								</form>
-							</Dialog>
-						</Dialog.Root>
+							<LayerDialog.Content>
+								<LayerDialog.Title>{t`Create Widget Area`}</LayerDialog.Title>
+								<LayerDialog.Body>
+									<form id={createAreaFormId} onSubmit={handleCreateArea} className="space-y-4">
+										<Input
+											dir="ltr"
+											label={t`Name`}
+											name="name"
+											required
+											placeholder="sidebar"
+											pattern="[a-z0-9\-]+"
+										/>
+										<Input label={t`Label`} name="label" required placeholder={t`Main Sidebar`} />
+										<Input
+											label={t`Description`}
+											name="description"
+											placeholder={t`Appears on posts and pages`}
+										/>
+										<DialogError
+											message={createAreaError || getMutationError(createAreaMutation.error)}
+										/>
+									</form>
+								</LayerDialog.Body>
+								<LayerDialog.Actions dismissLabel={t`Cancel`}>
+									<LayerDialog.Action
+										type="submit"
+										form={createAreaFormId}
+										disabled={createAreaMutation.isPending}
+									>
+										{t`Create`}
+									</LayerDialog.Action>
+								</LayerDialog.Actions>
+							</LayerDialog.Content>
+						</LayerDialog.Root>
 					</div>
 
 					<div className="overflow-x-auto">

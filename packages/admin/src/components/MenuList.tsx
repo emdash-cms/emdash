@@ -4,9 +4,9 @@
  * Displays all menus with ability to create, edit, and delete.
  */
 
-import { Button, Dialog, Input, LayerCard, Toast } from "@cloudflare/kumo";
+import { Button, Input, LayerCard, LayerDialog, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, X } from "@phosphor-icons/react";
+import { Plus } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
@@ -26,6 +26,7 @@ export function MenuList() {
 	const toastManager = Toast.useToastManager();
 	const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 	const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null);
+	const createFormId = React.useId();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -112,42 +113,21 @@ export function MenuList() {
 							onChange={setActiveLocale}
 						/>
 					) : null}
-					<Dialog.Root open={isCreateOpen} onOpenChange={handleCreateOpenChange}>
-						<Dialog.Trigger
+					<LayerDialog.Root open={isCreateOpen} onOpenChange={handleCreateOpenChange}>
+						<LayerDialog.Trigger
 							render={(props) => (
 								<Button {...props} icon={<Plus aria-hidden="true" />}>
 									{t`Create Menu`}
 								</Button>
 							)}
 						/>
-						<Dialog
-							className="flex max-h-[calc(100dvh-2rem)] min-w-0 w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-lg"
-							size="lg"
-						>
-							<form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col">
-								<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
-									<div className="min-w-0">
-										<Dialog.Title className="text-lg font-semibold leading-6">
-											{t`Create menu`}
-										</Dialog.Title>
-										<Dialog.Description className="mt-1 text-sm leading-5 text-kumo-subtle">
-											{t`Give this navigation a label and a site identifier.`}
-										</Dialog.Description>
-									</div>
-									<Dialog.Close
-										render={(props) => (
-											<Button
-												{...props}
-												type="button"
-												variant="ghost"
-												shape="square"
-												icon={<X className="size-4" aria-hidden="true" />}
-												aria-label={t`Close`}
-											/>
-										)}
-									/>
-								</div>
-								<div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+						<LayerDialog.Content>
+							<LayerDialog.Title>{t`Create menu`}</LayerDialog.Title>
+							<LayerDialog.Description>
+								{t`Give this navigation a label and a site identifier.`}
+							</LayerDialog.Description>
+							<LayerDialog.Body>
+								<form id={createFormId} onSubmit={handleCreate} className="space-y-4">
 									<div>
 										<Input
 											label={t`Label`}
@@ -174,22 +154,19 @@ export function MenuList() {
 										</p>
 									</div>
 									<DialogError message={getMutationError(createMutation.error)} />
-								</div>
-								<div className="flex shrink-0 justify-end gap-2 border-t border-kumo-line px-6 py-4">
-									<Button
-										type="button"
-										variant="secondary"
-										onClick={() => handleCreateOpenChange(false)}
-									>
-										{t`Cancel`}
-									</Button>
-									<Button type="submit" variant="primary" disabled={createMutation.isPending}>
-										{createMutation.isPending ? t`Creating...` : t`Create`}
-									</Button>
-								</div>
-							</form>
-						</Dialog>
-					</Dialog.Root>
+								</form>
+							</LayerDialog.Body>
+							<LayerDialog.Actions dismissLabel={t`Cancel`}>
+								<LayerDialog.Action
+									type="submit"
+									form={createFormId}
+									disabled={createMutation.isPending}
+								>
+									{createMutation.isPending ? t`Creating...` : t`Create`}
+								</LayerDialog.Action>
+							</LayerDialog.Actions>
+						</LayerDialog.Content>
+					</LayerDialog.Root>
 				</div>
 			</header>
 

@@ -13,8 +13,8 @@
 
 import {
 	Button,
-	Dialog,
 	Input,
+	LayerDialog,
 	Popover,
 	Select,
 	Switch,
@@ -2647,6 +2647,7 @@ function PluginBlockModal({
 }) {
 	const [formValues, setFormValues] = React.useState<Record<string, unknown>>({});
 	const inputRef = React.useRef<HTMLInputElement>(null);
+	const formId = React.useId();
 	const { t } = useLingui();
 
 	React.useEffect(() => {
@@ -2687,63 +2688,45 @@ function PluginBlockModal({
 	const dialogSize = hasFields ? "xl" : "sm";
 
 	return (
-		<Dialog.Root open={!!block} onOpenChange={(open: boolean) => !open && onClose()}>
-			<Dialog className="p-6" size={dialogSize}>
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{isEditing ? t`Edit ${block?.label || ""}` : t`Insert ${block?.label || ""}`}
-					</Dialog.Title>
-					<Dialog.Close
-						aria-label={t`Close`}
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								aria-label={t`Close`}
-								className="absolute end-4 top-4"
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">{t`Close`}</span>
-							</Button>
-						)}
-					/>
-				</div>
-				<form onSubmit={handleSubmit}>
-					<div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto -mx-1 px-1">
-						{hasFields ? (
-							block.fields!.map((field) => (
-								<BlockKitField
-									key={field.action_id}
-									field={field}
-									pluginId={block.pluginId}
-									value={formValues[field.action_id]}
-									onChange={handleFieldChange}
+		<LayerDialog.Root open={!!block} onOpenChange={(open: boolean) => !open && onClose()}>
+			<LayerDialog.Content size={dialogSize}>
+				<LayerDialog.Title>
+					{isEditing ? t`Edit ${block?.label || ""}` : t`Insert ${block?.label || ""}`}
+				</LayerDialog.Title>
+				<LayerDialog.Body>
+					<form id={formId} onSubmit={handleSubmit}>
+						<div className="space-y-4">
+							{hasFields ? (
+								block.fields!.map((field) => (
+									<BlockKitField
+										key={field.action_id}
+										field={field}
+										pluginId={block.pluginId}
+										value={formValues[field.action_id]}
+										onChange={handleFieldChange}
+									/>
+								))
+							) : (
+								<Input
+									dir="ltr"
+									ref={inputRef}
+									type="url"
+									className="w-full"
+									placeholder={block?.placeholder || "Enter URL..."}
+									value={typeof formValues.id === "string" ? formValues.id : ""}
+									onChange={(e) => handleFieldChange("id", e.target.value)}
 								/>
-							))
-						) : (
-							<Input
-								dir="ltr"
-								ref={inputRef}
-								type="url"
-								className="w-full"
-								placeholder={block?.placeholder || "Enter URL..."}
-								value={typeof formValues.id === "string" ? formValues.id : ""}
-								onChange={(e) => handleFieldChange("id", e.target.value)}
-							/>
-						)}
-					</div>
-					<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-						<Button type="button" variant="ghost" onClick={onClose}>
-							Cancel
-						</Button>
-						<Button type="submit" disabled={!canSubmit}>
-							{isEditing ? "Save" : "Insert"}
-						</Button>
-					</div>
-				</form>
-			</Dialog>
-		</Dialog.Root>
+							)}
+						</div>
+					</form>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action type="submit" form={formId} disabled={!canSubmit}>
+						{isEditing ? t`Save` : t`Insert`}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 

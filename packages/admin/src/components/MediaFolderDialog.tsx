@@ -1,4 +1,4 @@
-import { Button, Dialog, Input, useKumoToastManager } from "@cloudflare/kumo";
+import { Button, Input, LayerDialog, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { useMutation } from "@tanstack/react-query";
 import * as React from "react";
@@ -30,6 +30,7 @@ export function MediaFolderDialog({
 	const [validationError, setValidationError] = React.useState<string | null>(null);
 	const [deleteOpen, setDeleteOpen] = React.useState(false);
 	const deleteButtonRef = React.useRef<HTMLButtonElement>(null);
+	const formId = React.useId();
 	const savePendingRef = React.useRef(false);
 	const deletePendingRef = React.useRef(false);
 	const isEditing = folder !== null && folder !== undefined;
@@ -114,19 +115,17 @@ export function MediaFolderDialog({
 
 	return (
 		<>
-			<Dialog.Root
+			<LayerDialog.Root
 				open={open}
 				onOpenChange={(nextOpen) => {
 					if (!nextOpen && !isPending && !deleteOpen) onClose();
 				}}
-				disablePointerDismissal={isPending}
+				dismissDisabled={isPending}
 			>
-				<Dialog className="p-6" size="base">
-					<form onSubmit={submit} noValidate>
-						<Dialog.Title className="text-lg font-semibold">
-							{isEditing ? t`Edit folder` : t`Add new folder`}
-						</Dialog.Title>
-						<div className="mt-5">
+				<LayerDialog.Content size="sm">
+					<LayerDialog.Title>{isEditing ? t`Edit folder` : t`Add new folder`}</LayerDialog.Title>
+					<LayerDialog.Body>
+						<form id={formId} onSubmit={submit} noValidate>
 							<Input
 								label={t`Name`}
 								value={name}
@@ -139,20 +138,9 @@ export function MediaFolderDialog({
 								autoFocus
 								disabled={isPending}
 							/>
-						</div>
-						<DialogError message={dialogError} className="mt-3" />
-						<div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-							<Button
-								variant="secondary"
-								type="button"
-								onClick={onClose}
-								disabled={isPending}
-								className="w-full sm:w-auto"
-							>
-								{t`Cancel`}
-							</Button>
-							<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-								{folder && (
+							<DialogError message={dialogError} className="mt-3" />
+							{folder && (
+								<div className="mt-6 border-t border-kumo-line pt-5">
 									<Button
 										ref={deleteButtonRef}
 										variant="secondary-destructive"
@@ -162,19 +150,20 @@ export function MediaFolderDialog({
 											setDeleteOpen(true);
 										}}
 										disabled={isPending}
-										className="w-full sm:w-auto"
 									>
 										{t`Delete folder`}
 									</Button>
-								)}
-								<Button type="submit" disabled={isPending} className="w-full sm:w-auto">
-									{saveMutation.isPending ? t`Saving...` : isEditing ? t`Save` : t`Create`}
-								</Button>
-							</div>
-						</div>
-					</form>
-				</Dialog>
-			</Dialog.Root>
+								</div>
+							)}
+						</form>
+					</LayerDialog.Body>
+					<LayerDialog.Actions dismissLabel={t`Cancel`}>
+						<LayerDialog.Action type="submit" form={formId} disabled={isPending}>
+							{saveMutation.isPending ? t`Saving...` : isEditing ? t`Save` : t`Create`}
+						</LayerDialog.Action>
+					</LayerDialog.Actions>
+				</LayerDialog.Content>
+			</LayerDialog.Root>
 			{folder && (
 				<ConfirmDialog
 					open={deleteOpen}

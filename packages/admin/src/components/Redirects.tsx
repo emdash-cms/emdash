@@ -1,4 +1,4 @@
-import { Badge, Button, Dialog, Input, Label, Select, Switch } from "@cloudflare/kumo";
+import { Badge, Button, Input, Label, LayerDialog, Select, Switch } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -8,10 +8,9 @@ import {
 	Trash,
 	PencilSimple,
 	WarningCircle,
-	X,
 } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import {
 	createRedirect,
@@ -54,6 +53,7 @@ function RedirectFormDialog({
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const isEdit = !!redirect;
+	const formId = useId();
 
 	const [source, setSource] = useState(redirect?.source ?? defaultSource ?? "");
 	const [destination, setDestination] = useState(redirect?.destination ?? "");
@@ -100,105 +100,84 @@ function RedirectFormDialog({
 	}
 
 	return (
-		<Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
-			<Dialog className="p-6" size="lg">
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<div>
-						<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-							{isEdit ? t`Edit Redirect` : t`New Redirect`}
-						</Dialog.Title>
-						<p className="text-sm text-kumo-subtle mt-1">
-							{isEdit
-								? t`Update this redirect rule.`
-								: t`Use [param] or [...rest] in paths for pattern matching.`}
-						</p>
-					</div>
-					<Dialog.Close
-						aria-label={t`Close`}
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								aria-label={t`Close`}
-								className="absolute end-4 top-4"
-							>
-								<X className="h-4 w-4" />
-							</Button>
-						)}
-					/>
-				</div>
-
-				<form onSubmit={handleSubmit} className="space-y-4">
-					<Input
-						dir="ltr"
-						label={t`Source path`}
-						placeholder={t`/old-page or /blog/[slug]`}
-						value={source}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSource(e.target.value)}
-						required
-					/>
-
-					{!isTerminal && (
+		<LayerDialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
+			<LayerDialog.Content>
+				<LayerDialog.Title>{isEdit ? t`Edit Redirect` : t`New Redirect`}</LayerDialog.Title>
+				<LayerDialog.Description>
+					{isEdit
+						? t`Update this redirect rule.`
+						: t`Use [param] or [...rest] in paths for pattern matching.`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<form id={formId} onSubmit={handleSubmit} className="space-y-4">
 						<Input
 							dir="ltr"
-							label={t`Destination path`}
-							placeholder={t`/new-page or /articles/[slug]`}
-							value={destination}
-							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDestination(e.target.value)}
+							label={t`Source path`}
+							placeholder={t`/old-page or /blog/[slug]`}
+							value={source}
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSource(e.target.value)}
 							required
 						/>
-					)}
 
-					<div className="grid grid-cols-2 gap-4">
-						<div>
-							<Select
-								label={t`Status code`}
-								value={type}
-								onValueChange={(v) => setType(v ?? "301")}
-								items={{
-									"301": t`301 Permanent`,
-									"302": t`302 Temporary`,
-									"307": t`307 Temporary (Strict)`,
-									"308": t`308 Permanent (Strict)`,
-									"410": t`410 Content Deleted (Gone)`,
-									"451": t`451 Unavailable for legal reasons`,
-								}}
+						{!isTerminal && (
+							<Input
+								dir="ltr"
+								label={t`Destination path`}
+								placeholder={t`/new-page or /articles/[slug]`}
+								value={destination}
+								onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+									setDestination(e.target.value)
+								}
+								required
+							/>
+						)}
+
+						<div className="grid grid-cols-2 gap-4">
+							<div>
+								<Select
+									label={t`Status code`}
+									value={type}
+									onValueChange={(v) => setType(v ?? "301")}
+									items={{
+										"301": t`301 Permanent`,
+										"302": t`302 Temporary`,
+										"307": t`307 Temporary (Strict)`,
+										"308": t`308 Permanent (Strict)`,
+										"410": t`410 Content Deleted (Gone)`,
+										"451": t`451 Unavailable for legal reasons`,
+									}}
+								/>
+							</div>
+
+							<Input
+								label={t`Group (optional)`}
+								placeholder={t`e.g. import, blog`}
+								value={groupName}
+								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGroupName(e.target.value)}
 							/>
 						</div>
 
-						<Input
-							label={t`Group (optional)`}
-							placeholder={t`e.g. import, blog`}
-							value={groupName}
-							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGroupName(e.target.value)}
-						/>
-					</div>
+						<div className="flex items-center gap-2">
+							<Switch checked={enabled} onCheckedChange={setEnabled} id="redirect-enabled" />
+							<Label htmlFor="redirect-enabled">{t`Enabled`}</Label>
+						</div>
 
-					<div className="flex items-center gap-2">
-						<Switch checked={enabled} onCheckedChange={setEnabled} id="redirect-enabled" />
-						<Label htmlFor="redirect-enabled">{t`Enabled`}</Label>
-					</div>
-
-					<DialogError message={getMutationError(mutation.error)} />
-
-					<div className="flex justify-end gap-2">
-						<Button type="button" variant="outline" onClick={onClose}>
-							{t`Cancel`}
-						</Button>
-						<Button type="submit" disabled={mutation.isPending}>
-							{mutation.isPending
-								? isEdit
-									? t`Saving...`
-									: t`Creating...`
-								: isEdit
-									? t`Save`
-									: t`Create`}
-						</Button>
-					</div>
-				</form>
-			</Dialog>
-		</Dialog.Root>
+						<DialogError message={getMutationError(mutation.error)} />
+					</form>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action type="submit" form={formId} disabled={mutation.isPending}>
+						{mutation.isPending
+							? isEdit
+								? t`Saving...`
+								: t`Creating...`
+							: isEdit
+								? t`Save`
+								: t`Create`}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 

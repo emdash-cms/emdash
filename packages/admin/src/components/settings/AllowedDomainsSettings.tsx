@@ -8,15 +8,15 @@
 import {
 	Banner,
 	Button,
-	Dialog,
 	Input,
+	LayerDialog,
 	Loader,
 	Select,
 	Switch,
 	useKumoToastManager,
 } from "@cloudflare/kumo";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Pencil, Plus, Trash, X } from "@phosphor-icons/react";
+import { Pencil, Plus, Trash } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -320,58 +320,39 @@ export function AllowedDomainsSettings() {
 				)}
 			</SettingsSection>
 
-			<Dialog.Root
+			<LayerDialog.Root
 				open={editingDomain !== null}
 				onOpenChange={(open: boolean) => !open && setEditingDomain(null)}
 			>
-				<Dialog className="p-6" size="lg">
-					<div className="mb-4 flex items-start justify-between gap-4">
-						<div className="flex flex-col gap-1.5">
-							<Dialog.Title className="text-lg font-semibold leading-tight">
-								{t`Edit Domain`}
-							</Dialog.Title>
-							<Dialog.Description className="text-sm leading-5 text-kumo-subtle">
-								{t`Update settings for ${editingDomain?.domain}`}
-							</Dialog.Description>
+				<LayerDialog.Content>
+					<LayerDialog.Title>{t`Edit Domain`}</LayerDialog.Title>
+					<LayerDialog.Description>
+						{t`Update settings for ${editingDomain?.domain}`}
+					</LayerDialog.Description>
+					<LayerDialog.Body>
+						<div className="grid gap-4">
+							<Select
+								label={t`Default Role`}
+								value={String(editingDomain?.defaultRole ?? 30)}
+								onValueChange={(value) =>
+									value !== null &&
+									editingDomain &&
+									handleUpdateRole(editingDomain.domain, Number(value))
+								}
+								items={signupRoleItems}
+								disabled={updateMutation.isPending}
+							>
+								{signupRoles.map((role) => (
+									<Select.Option key={role.value} value={String(role.value)}>
+										{role.label}
+									</Select.Option>
+								))}
+							</Select>
+							<DialogError message={getMutationError(updateMutation.error)} />
 						</div>
-						<Dialog.Close
-							aria-label={t`Close`}
-							render={(props) => (
-								<Button
-									{...props}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Close`}
-									className="absolute end-4 top-4"
-								>
-									<X className="h-4 w-4" />
-									<span className="sr-only">{t`Close`}</span>
-								</Button>
-							)}
-						/>
-					</div>
-					<div className="grid gap-4 py-4">
-						<Select
-							label={t`Default Role`}
-							value={String(editingDomain?.defaultRole ?? 30)}
-							onValueChange={(value) =>
-								value !== null &&
-								editingDomain &&
-								handleUpdateRole(editingDomain.domain, Number(value))
-							}
-							items={signupRoleItems}
-							disabled={updateMutation.isPending}
-						>
-							{signupRoles.map((role) => (
-								<Select.Option key={role.value} value={String(role.value)}>
-									{role.label}
-								</Select.Option>
-							))}
-						</Select>
-						<DialogError message={getMutationError(updateMutation.error)} />
-					</div>
-				</Dialog>
-			</Dialog.Root>
+					</LayerDialog.Body>
+				</LayerDialog.Content>
+			</LayerDialog.Root>
 
 			<ConfirmDialog
 				open={deletingDomain !== null}

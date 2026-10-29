@@ -4,7 +4,7 @@
  * Edit menu items with basic reordering (simplified version without drag-and-drop)
  */
 
-import { Button, Dialog, Input, Select, useKumoToastManager } from "@cloudflare/kumo";
+import { Button, Input, LayerDialog, Select, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
@@ -12,7 +12,6 @@ import {
 	CaretUp,
 	CaretDown,
 	Link as LinkIcon,
-	X,
 	File as FileIcon,
 	Pencil,
 } from "@phosphor-icons/react";
@@ -109,6 +108,9 @@ export function MenuEditor() {
 	const [localItems, setLocalItems] = React.useState<MenuItem[]>([]);
 	const [addError, setAddError] = React.useState<string | null>(null);
 	const [editError, setEditError] = React.useState<string | null>(null);
+	const renameFormId = React.useId();
+	const addFormId = React.useId();
+	const editFormId = React.useId();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -405,8 +407,8 @@ export function MenuEditor() {
 							<h1 className="min-w-0 break-words text-2xl font-semibold leading-tight">
 								{menu.label}
 							</h1>
-							<Dialog.Root open={isRenameOpen} onOpenChange={handleRenameOpenChange}>
-								<Dialog.Trigger
+							<LayerDialog.Root open={isRenameOpen} onOpenChange={handleRenameOpenChange}>
+								<LayerDialog.Trigger
 									render={(props) => (
 										<Button
 											{...props}
@@ -419,52 +421,32 @@ export function MenuEditor() {
 										/>
 									)}
 								/>
-								<Dialog className="p-6" size="lg">
-									<div className="flex items-start justify-between gap-4 mb-4">
-										<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-											{t`Rename menu`}
-										</Dialog.Title>
-										<Dialog.Close
-											aria-label={t`Close`}
-											render={(props) => (
-												<Button
-													{...props}
-													variant="ghost"
-													shape="square"
-													aria-label={t`Close`}
-													className="absolute end-4 top-4"
-												>
-													<X className="h-4 w-4" />
-													<span className="sr-only">{t`Close`}</span>
-												</Button>
-											)}
-										/>
-									</div>
-									<form onSubmit={handleRename} className="space-y-4">
-										<Input
-											label={t`Label`}
-											name="label"
-											required
-											autoFocus
-											defaultValue={menu.label}
-											description={t`Shown in the admin. Some themes also show it on the site.`}
-										/>
-										<DialogError message={getMutationError(renameMutation.error)} />
-										<div className="flex justify-end gap-2">
-											<Button
-												type="button"
-												variant="outline"
-												onClick={() => handleRenameOpenChange(false)}
-											>
-												{t`Cancel`}
-											</Button>
-											<Button type="submit" disabled={renameMutation.isPending}>
-												{renameMutation.isPending ? t`Saving...` : t`Save`}
-											</Button>
-										</div>
-									</form>
-								</Dialog>
-							</Dialog.Root>
+								<LayerDialog.Content>
+									<LayerDialog.Title>{t`Rename menu`}</LayerDialog.Title>
+									<LayerDialog.Body>
+										<form id={renameFormId} onSubmit={handleRename} className="space-y-4">
+											<Input
+												label={t`Label`}
+												name="label"
+												required
+												autoFocus
+												defaultValue={menu.label}
+												description={t`Shown in the admin. Some themes also show it on the site.`}
+											/>
+											<DialogError message={getMutationError(renameMutation.error)} />
+										</form>
+									</LayerDialog.Body>
+									<LayerDialog.Actions dismissLabel={t`Cancel`}>
+										<LayerDialog.Action
+											type="submit"
+											form={renameFormId}
+											disabled={renameMutation.isPending}
+										>
+											{renameMutation.isPending ? t`Saving...` : t`Save`}
+										</LayerDialog.Action>
+									</LayerDialog.Actions>
+								</LayerDialog.Content>
+							</LayerDialog.Root>
 						</div>
 						<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">{t`Edit menu items`}</p>
 					</div>
@@ -476,80 +458,64 @@ export function MenuEditor() {
 						>
 							{t`Add Content`}
 						</Button>
-						<Dialog.Root
+						<LayerDialog.Root
 							open={isAddOpen}
 							onOpenChange={(open) => {
 								setIsAddOpen(open);
 								if (!open) setAddError(null);
 							}}
 						>
-							<Dialog.Trigger
+							<LayerDialog.Trigger
 								render={(props) => (
 									<Button {...props} variant="secondary" icon={<Plus />}>
 										{t`Add Custom Link`}
 									</Button>
 								)}
 							/>
-							<Dialog className="p-6" size="lg">
-								<div className="flex items-start justify-between gap-4 mb-4">
-									<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-										{t`Add Custom Link`}
-									</Dialog.Title>
-									<Dialog.Close
-										aria-label={t`Close`}
-										render={(props) => (
-											<Button
-												{...props}
-												variant="ghost"
-												shape="square"
-												aria-label={t`Close`}
-												className="absolute end-4 top-4"
-											>
-												<X className="h-4 w-4" />
-												<span className="sr-only">{t`Close`}</span>
-											</Button>
-										)}
-									/>
-								</div>
-								<form onSubmit={handleAddCustomLink} className="space-y-4">
-									<Input label={t`Label`} name="label" required placeholder={t`Home`} />
-									<Input
-										dir="ltr"
-										label={t`URL`}
-										name="url"
-										type="text"
-										required
-										pattern="(https?://.+|/.*)"
-										title={t`Enter a URL (https://…) or a relative path (/…)`}
-										placeholder={t`https://example.com or /about`}
-									/>
-									<Select
-										label={t`Target`}
-										name="target"
-										defaultValue=""
-										items={{ "": t`Same window`, _blank: t`New window` }}
+							<LayerDialog.Content>
+								<LayerDialog.Title>{t`Add Custom Link`}</LayerDialog.Title>
+								<LayerDialog.Body>
+									<form id={addFormId} onSubmit={handleAddCustomLink} className="space-y-4">
+										<Input label={t`Label`} name="label" required placeholder={t`Home`} />
+										<Input
+											dir="ltr"
+											label={t`URL`}
+											name="url"
+											type="text"
+											required
+											pattern="(https?://.+|/.*)"
+											title={t`Enter a URL (https://…) or a relative path (/…)`}
+											placeholder={t`https://example.com or /about`}
+										/>
+										<Select
+											label={t`Target`}
+											name="target"
+											defaultValue=""
+											items={{ "": t`Same window`, _blank: t`New window` }}
+										>
+											<Select.Option value="">{t`Same window`}</Select.Option>
+											<Select.Option value="_blank">{t`New window`}</Select.Option>
+										</Select>
+										<Input
+											label={t`CSS classes`}
+											name="cssClasses"
+											dir="ltr"
+											description={t`Separate class names with spaces. Themes can use them to style the link.`}
+										/>
+										<DialogError message={addError || getMutationError(createMutation.error)} />
+									</form>
+								</LayerDialog.Body>
+								<LayerDialog.Actions dismissLabel={t`Cancel`}>
+									<LayerDialog.Action
+										type="submit"
+										form={addFormId}
+										disabled={createMutation.isPending}
 									>
-										<Select.Option value="">{t`Same window`}</Select.Option>
-										<Select.Option value="_blank">{t`New window`}</Select.Option>
-									</Select>
-									<Input
-										label={t`CSS classes`}
-										name="cssClasses"
-										dir="ltr"
-										description={t`Separate class names with spaces. Themes can use them to style the link.`}
-									/>
-									<DialogError message={addError || getMutationError(createMutation.error)} />
-									<div className="flex justify-end gap-2">
-										<Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
-											{t`Cancel`}
-										</Button>
-										<Button type="submit" disabled={createMutation.isPending}>
-											{createMutation.isPending ? t`Adding...` : t`Add`}
-										</Button>
-									</div>
-								</form>
-							</Dialog>
-						</Dialog.Root>
+										{createMutation.isPending ? t`Adding...` : t`Add`}
+									</LayerDialog.Action>
+								</LayerDialog.Actions>
+							</LayerDialog.Content>
+						</LayerDialog.Root>
 					</div>
 				</div>
 			</header>
@@ -691,7 +657,7 @@ export function MenuEditor() {
 				</div>
 			)}
 
-			<Dialog.Root
+			<LayerDialog.Root
 				open={editingItem !== null}
 				onOpenChange={(open: boolean) => {
 					if (!open) {
@@ -700,77 +666,57 @@ export function MenuEditor() {
 					}
 				}}
 			>
-				<Dialog className="p-6" size="lg">
-					<div className="flex items-start justify-between gap-4 mb-4">
-						<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-							{t`Edit Menu Item`}
-						</Dialog.Title>
-						<Dialog.Close
-							aria-label={t`Close`}
-							render={(props) => (
-								<Button
-									{...props}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Close`}
-									className="absolute end-4 top-4"
+				<LayerDialog.Content>
+					<LayerDialog.Title>{t`Edit Menu Item`}</LayerDialog.Title>
+					<LayerDialog.Body>
+						{editingItem && (
+							<form id={editFormId} onSubmit={handleUpdateItem} className="space-y-4">
+								<Input label={t`Label`} name="label" required defaultValue={editingItem.label} />
+								{editingItem.type === "custom" && (
+									<Input
+										dir="ltr"
+										label={t`URL`}
+										name="url"
+										type="text"
+										required
+										pattern="(https?://.+|/.*)"
+										title={t`Enter a URL (https://…) or a relative path (/…)`}
+										defaultValue={editingItem.customUrl || ""}
+									/>
+								)}
+								<Select
+									label={t`Target`}
+									name="target"
+									defaultValue={editingItem.target || ""}
+									items={{ "": t`Same window`, _blank: t`New window` }}
 								>
-									<X className="h-4 w-4" />
-									<span className="sr-only">{t`Close`}</span>
-								</Button>
-							)}
-						/>
-					</div>
-					{editingItem && (
-						<form onSubmit={handleUpdateItem} className="space-y-4">
-							<Input label={t`Label`} name="label" required defaultValue={editingItem.label} />
-							{editingItem.type === "custom" && (
+									<Select.Option value="">{t`Same window`}</Select.Option>
+									<Select.Option value="_blank">{t`New window`}</Select.Option>
+								</Select>
 								<Input
+									label={t`CSS classes`}
+									name="cssClasses"
 									dir="ltr"
-									label={t`URL`}
-									name="url"
-									type="text"
-									required
-									pattern="(https?://.+|/.*)"
-									title={t`Enter a URL (https://…) or a relative path (/…)`}
-									defaultValue={editingItem.customUrl || ""}
+									defaultValue={editingItem.cssClasses ?? ""}
+									description={t`Separate class names with spaces. Themes can use them to style the link.`}
 								/>
-							)}
-							<Select
-								label={t`Target`}
-								name="target"
-								defaultValue={editingItem.target || ""}
-								items={{ "": t`Same window`, _blank: t`New window` }}
-							>
-								<Select.Option value="">{t`Same window`}</Select.Option>
-								<Select.Option value="_blank">{t`New window`}</Select.Option>
-							</Select>
-							<Input
-								label={t`CSS classes`}
-								name="cssClasses"
-								dir="ltr"
-								defaultValue={editingItem.cssClasses ?? ""}
-								description={t`Separate class names with spaces. Themes can use them to style the link.`}
-							/>
-							<Select
-								label={t`Parent`}
-								name="parentId"
-								defaultValue={editingItem.parentId ?? ""}
-								items={parentOptions}
-							/>
-							<DialogError message={editError || getMutationError(updateMutation.error)} />
-							<div className="flex justify-end gap-2">
-								<Button type="button" variant="outline" onClick={() => setEditingItem(null)}>
-									{t`Cancel`}
-								</Button>
-								<Button type="submit" disabled={updateMutation.isPending}>
-									{updateMutation.isPending ? t`Saving...` : t`Save`}
-								</Button>
-							</div>
-						</form>
-					)}
-				</Dialog>
-			</Dialog.Root>
+								<Select
+									label={t`Parent`}
+									name="parentId"
+									defaultValue={editingItem.parentId ?? ""}
+									items={parentOptions}
+								/>
+								<DialogError message={editError || getMutationError(updateMutation.error)} />
+							</form>
+						)}
+					</LayerDialog.Body>
+					<LayerDialog.Actions dismissLabel={t`Cancel`}>
+						<LayerDialog.Action type="submit" form={editFormId} disabled={updateMutation.isPending}>
+							{updateMutation.isPending ? t`Saving...` : t`Save`}
+						</LayerDialog.Action>
+					</LayerDialog.Actions>
+				</LayerDialog.Content>
+			</LayerDialog.Root>
 		</div>
 	);
 }
