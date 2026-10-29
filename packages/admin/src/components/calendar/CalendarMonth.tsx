@@ -170,16 +170,15 @@ function CalendarMonthGrid({
 						))}
 					</tbody>
 				</table>
-				{filteredEmpty &&
-					onClearFilters && (
-						// An overlay, so showing it doesn't resize the grid.
-						<div className="absolute inset-0 flex items-center justify-center bg-radial from-kumo-base/90 via-kumo-base/60 to-kumo-base/30 p-4 backdrop-blur-xs transition-opacity duration-200 starting:opacity-0 motion-reduce:transition-none">
-							<CalendarFilteredNotice
-								cutOff={loadedThrough !== undefined}
-								onClearFilters={onClearFilters}
-							/>
-						</div>
-					)}
+				{filteredEmpty && onClearFilters && (
+					// An overlay, so showing it doesn't resize the grid.
+					<div className="absolute inset-0 flex items-center justify-center bg-radial from-kumo-base/90 via-kumo-base/60 to-kumo-base/30 p-4 backdrop-blur-xs transition-opacity duration-200 starting:opacity-0 motion-reduce:transition-none">
+						<CalendarFilteredNotice
+							cutOff={loadedThrough !== undefined}
+							onClearFilters={onClearFilters}
+						/>
+					</div>
+				)}
 			</div>
 		</TooltipProvider>
 	);

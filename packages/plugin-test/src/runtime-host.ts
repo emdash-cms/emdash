@@ -1149,22 +1149,20 @@ export async function createPluginRuntimeTestHost(
 					.orderBy("created_at", "asc")
 					.orderBy("id", "asc")
 					.execute();
-				return rows.map(
-					(row): RedirectInfo => ({
-						id: row.id,
-						source: row.source,
-						destination: row.destination,
-						type: redirectStatus(row.type),
-						isPattern: row.is_pattern === 1,
-						enabled: row.enabled === 1,
-						hits: row.hits,
-						lastHitAt: row.last_hit_at,
-						groupName: row.group_name,
-						auto: row.auto === 1,
-						createdAt: row.created_at,
-						updatedAt: row.updated_at,
-					}),
-				);
+				return rows.map((row): RedirectInfo => ({
+					id: row.id,
+					source: row.source,
+					destination: row.destination,
+					type: redirectStatus(row.type),
+					isPattern: row.is_pattern === 1,
+					enabled: row.enabled === 1,
+					hits: row.hits,
+					lastHitAt: row.last_hit_at,
+					groupName: row.group_name,
+					auto: row.auto === 1,
+					createdAt: row.created_at,
+					updatedAt: row.updated_at,
+				}));
 			},
 			email: async () => capturedEmail.map((message) => ({ ...message })),
 		},

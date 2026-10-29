@@ -217,17 +217,15 @@ export async function handleCalendarEntries(
 					a.position - b.position,
 			);
 
-		const items = merged.slice(0, params.limit).map(
-			({ row, stream }): CalendarEntry => ({
-				collection: stream.collection,
-				id: row.id,
-				locale: row.locale,
-				title: row.title,
-				status: row.status,
-				kind: stream.kind,
-				at: row.event_at,
-			}),
-		);
+		const items = merged.slice(0, params.limit).map(({ row, stream }): CalendarEntry => ({
+			collection: stream.collection,
+			id: row.id,
+			locale: row.locale,
+			title: row.title,
+			status: row.status,
+			kind: stream.kind,
+			at: row.event_at,
+		}));
 		const last = items.at(-1);
 		const nextCursor =
 			merged.length > params.limit && last ? encodeCalendarCursor(last) : undefined;

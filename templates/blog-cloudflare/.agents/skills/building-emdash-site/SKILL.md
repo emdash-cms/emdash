@@ -98,10 +98,10 @@ import {
 	getSection,
 	getSeoMeta,
 } from "emdash";
-
 // Bylines (standalone queries -- usually not needed since entries have bylines attached)
 import { getByline, getBylineBySlug } from "emdash";
-
+// Page context (for plugin contributions)
+import { createPublicPageContext } from "emdash/page";
 // UI components
 import {
 	PortableText,
@@ -115,9 +115,6 @@ import {
 } from "emdash/ui";
 import { Comments, CommentForm } from "emdash/ui/comments";
 import LiveSearch from "emdash/ui/search";
-
-// Page context (for plugin contributions)
-import { createPublicPageContext } from "emdash/page";
 ```
 
 ## Plugins

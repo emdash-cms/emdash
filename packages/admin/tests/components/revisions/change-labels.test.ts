@@ -72,9 +72,12 @@ const everyItem: ChangeItem[] = [
 	...BLOCK_ACTIONS.map((action) =>
 		block("paragraph", action, { text: "Most teams plan posts in", truncated: true }),
 	),
-	...IMAGE_ACTIONS.map(
-		(action): ChangeItem => ({ kind: "image", field: body, action, target: "b-content-1" }),
-	),
+	...IMAGE_ACTIONS.map((action): ChangeItem => ({
+		kind: "image",
+		field: body,
+		action,
+		target: "b-content-1",
+	})),
 ];
 
 describe("changeLabel", () => {
