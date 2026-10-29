@@ -5,7 +5,14 @@ import * as React from "react";
 
 import type { UserListItem } from "../../lib/api";
 import { cn, formatDate } from "../../lib/utils.js";
-import { DataTable, DataTableMessage, RowTitleButton } from "../DataTable.js";
+import {
+	DataTable,
+	DataTableMessage,
+	RowMeta,
+	RowTitleButton,
+	secondaryColumn,
+	tertiaryColumn,
+} from "../DataTable.js";
 import { TableToolbar, TableToolbarSearch } from "../TableToolbar.js";
 import { RoleBadge } from "./RoleBadge";
 import { useRolesConfig } from "./useRolesConfig.js";
@@ -52,8 +59,8 @@ export function UserList({
 	return (
 		<div className="space-y-4">
 			{/* Header */}
-			<div className="flex items-center justify-between">
-				<h1 className="text-2xl font-semibold leading-tight">{t`Users`}</h1>
+			<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+				<h1 className="min-w-0 text-2xl font-semibold leading-tight">{t`Users`}</h1>
 				<Button onClick={onInviteUser} icon={<UserPlus />}>
 					{t`Invite User`}
 				</Button>
@@ -87,10 +94,18 @@ export function UserList({
 				<thead>
 					<tr>
 						<th scope="col">{t`User`}</th>
-						<th scope="col">{t`Role`}</th>
-						<th scope="col">{t`Status`}</th>
-						<th scope="col">{t`Last Login`}</th>
-						<th scope="col">{t`Passkeys`}</th>
+						<th scope="col" {...secondaryColumn}>
+							{t`Role`}
+						</th>
+						<th scope="col" {...secondaryColumn}>
+							{t`Status`}
+						</th>
+						<th scope="col" {...tertiaryColumn}>
+							{t`Last Login`}
+						</th>
+						<th scope="col" {...tertiaryColumn}>
+							{t`Passkeys`}
+						</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -156,6 +171,13 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 	const displayName = user.name || user.email;
 	const { t, i18n } = useLingui();
 	const lastLogin = user.lastLogin ? formatDate(user.lastLogin, i18n.locale) : t`Never`;
+	const roleBadge = <RoleBadge role={user.role} />;
+	const disabledStatus = (
+		<span className="inline-flex items-center gap-1 text-kumo-danger">
+			<Prohibit className="h-3.5 w-3.5" aria-hidden="true" />
+			{t`Disabled`}
+		</span>
+	);
 
 	return (
 		<tr>
@@ -163,13 +185,17 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 				<div className="flex items-center gap-3">
 					{/* Avatar */}
 					{user.avatarUrl ? (
-						<img src={user.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+						<img
+							src={user.avatarUrl}
+							alt=""
+							className="h-8 w-8 shrink-0 rounded-full object-cover"
+						/>
 					) : (
-						<div className="h-8 w-8 rounded-full bg-kumo-tint flex items-center justify-center text-sm font-medium">
+						<div className="h-8 w-8 shrink-0 rounded-full bg-kumo-tint flex items-center justify-center text-sm font-medium">
 							{(user.name || user.email)?.[0]?.toUpperCase() ?? "?"}
 						</div>
 					)}
-					<div>
+					<div className="wrap-anywhere">
 						<RowTitleButton dir="auto" onClick={onSelect}>
 							{displayName}
 						</RowTitleButton>
@@ -178,18 +204,17 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 								<bdi dir="ltr">{user.email}</bdi>
 							</div>
 						)}
+						<RowMeta>
+							{roleBadge}
+							{user.disabled && disabledStatus}
+						</RowMeta>
 					</div>
 				</div>
 			</td>
-			<td>
-				<RoleBadge role={user.role} />
-			</td>
-			<td>
+			<td {...secondaryColumn}>{roleBadge}</td>
+			<td {...secondaryColumn}>
 				{user.disabled ? (
-					<span className="inline-flex items-center gap-1 text-kumo-danger">
-						<Prohibit className="h-3.5 w-3.5" aria-hidden="true" />
-						{t`Disabled`}
-					</span>
+					disabledStatus
 				) : (
 					<span className="inline-flex items-center gap-1 text-kumo-success">
 						<CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
@@ -197,10 +222,10 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 					</span>
 				)}
 			</td>
-			<td className="whitespace-nowrap text-kumo-subtle">
+			<td className="whitespace-nowrap text-kumo-subtle" {...tertiaryColumn}>
 				<bdi>{lastLogin}</bdi>
 			</td>
-			<td>
+			<td {...tertiaryColumn}>
 				<span className={cn(user.credentialCount === 0 && "text-kumo-subtle")}>
 					{user.credentialCount}
 				</span>
