@@ -777,7 +777,7 @@ function ContentListPage() {
 	const collectionConfig = manifest.collections[collection];
 
 	if (!collectionConfig) {
-		return <NotFoundPage message={`Collection "${collection}" not found`} />;
+		return <NotFoundPage message={t`Collection "${collection}" not found`} />;
 	}
 
 	if (contentList.query.error) {
@@ -979,7 +979,7 @@ function ContentNewPage() {
 	const collectionConfig = manifest.collections[collection];
 
 	if (!collectionConfig) {
-		return <NotFoundPage message={`Collection "${collection}" not found`} />;
+		return <NotFoundPage message={t`Collection "${collection}" not found`} />;
 	}
 
 	return (
@@ -1960,7 +1960,7 @@ function ContentEditPage() {
 	const collectionConfig = manifest.collections[collection];
 
 	if (!collectionConfig) {
-		return <NotFoundPage message={`Collection "${collection}" not found`} />;
+		return <NotFoundPage message={t`Collection "${collection}" not found`} />;
 	}
 
 	if (isLoading) {
@@ -3248,7 +3248,7 @@ function PluginPage() {
 // Catch-all 404 route
 const notFoundRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
-	path: "*",
+	path: "$",
 	component: () => <NotFoundPage />,
 });
 

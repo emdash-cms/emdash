@@ -15,6 +15,7 @@ import type {
 	BrowserEditorDraftRequest,
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
+import { declaredLabelTranslator } from "./Sidebar.js";
 
 const MAX_TOOLBAR_ACTIONS = 3;
 
@@ -202,8 +203,9 @@ export function SandboxedContentEditorActions({
 			action.extension.placement === "overflow" ||
 			(toolbarCandidates.includes(action) && !toolbarActions.includes(action)),
 	);
+	const translateLabel = declaredLabelTranslator(i18n, (id) => i18n._(id));
 	const actionLabel = (action: ResolvedSandboxedEditorAction) =>
-		i18n._({ id: action.extension.label, message: action.extension.label });
+		translateLabel(action.extension.label);
 	const confirmingKey = confirming ? `${confirming.pluginId}:${confirming.extension.id}` : null;
 	const isActionDisabled = (action: ResolvedSandboxedEditorAction) =>
 		disabled || (hasUnsavedChanges && !action.extension.draft);

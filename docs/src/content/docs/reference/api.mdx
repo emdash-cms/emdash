@@ -86,7 +86,7 @@ The function resolves to a `CollectionResult`:
 interface CollectionResult<T> {
 	entries: ContentEntry<T>[]; // Empty array if error or none found
 	error?: Error; // Set if query failed
-	cacheHint: CacheHint; // Tags and last-modified time for Astro route caching
+	cacheHint: CacheHint; // Purge tags for Astro route caching
 	nextCursor?: string; // Cursor for the next keyset page, if any
 	hasMore?: boolean; // Whether more entries exist beyond this page (when `limit` is set)
 }
@@ -167,7 +167,7 @@ interface EntryResult<T, R> {
 	error?: Error; // Set only for actual errors, not "not found"
 	isPreview: boolean; // true if draft content is being served
 	fallbackLocale?: string; // Set when locale fallback returned another locale
-	cacheHint: CacheHint; // Tags and last-modified time for Astro route caching
+	cacheHint: CacheHint; // Purge tags for Astro route caching
 }
 ```
 
@@ -707,6 +707,8 @@ const cta = await getSection("newsletter-cta");
 `getSections(options?)` returns `{ items: Section[]; nextCursor?: string }`. Options are `source` (`"theme" | "user" | "import"`), `search`, `limit` (default 50, max 100), and `cursor`.
 
 ## Search
+
+SQLite search requires FTS5. A non-empty search throws `SearchUnavailableError` (exported from `emdash`, with code `SEARCH_UNAVAILABLE`) when the SQLite build lacks FTS5, even if no collections have search enabled. A server-rendered page that does not catch this error returns an error response; catch it at the page boundary to show a search-unavailable message. See the [Node.js deployment prerequisites](/deployment/nodejs/#prerequisites) for a capability check and recovery steps.
 
 Run a global search across collections. Results include highlighted snippets:
 

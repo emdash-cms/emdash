@@ -18,6 +18,8 @@ export type {
 } from "./types.js";
 export { SEARCH_TOKENIZERS } from "./types.js";
 
+export { SearchUnavailableError } from "./errors.js";
+
 // FTS Manager
 export { FTSManager } from "./fts-manager.js";
 

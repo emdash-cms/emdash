@@ -171,6 +171,23 @@ describe("PluginManager", () => {
 		await expect.element(screen.getByText("v2.0.0")).toBeInTheDocument();
 	});
 
+	it.each([
+		{ count: 1, label: "1 plugin" },
+		{ count: 2, label: "2 plugins" },
+	])("shows the plugin count as $label", async ({ count, label }) => {
+		mockFetchPlugins.mockResolvedValue(
+			Array.from({ length: count }, (_, i) =>
+				makePlugin({ id: `plugin-${i}`, name: `Plugin ${i}` }),
+			),
+		);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await expect.element(screen.getByText(label, { exact: true })).toBeInTheDocument();
+	});
+
 	it("shows the server's MCP tool name before enabling a scoped plugin's tools", async () => {
 		mockFetchPlugins.mockResolvedValue([
 			makePlugin({

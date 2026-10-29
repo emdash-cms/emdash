@@ -98,9 +98,9 @@ export interface SeedCollection {
 	/** Require a slug before an entry can be published. Defaults to true. */
 	routable?: boolean;
 	/**
-	 * Omit this collection from the admin sidebar and the dashboard quick
-	 * actions. It stays reachable through the API, MCP, plugin hooks, and
-	 * direct `/content/:collection` URLs.
+	 * Omit this collection from the admin sidebar, the dashboard quick
+	 * actions, and the dashboard Content card. It stays reachable through the
+	 * API, MCP, plugin hooks, and direct `/content/:collection` URLs.
 	 */
 	hidden?: boolean;
 	/**

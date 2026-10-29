@@ -1,6 +1,8 @@
-import { i18n } from "@lingui/core";
+import { i18n, setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { ContentList } from "../../src/components/ContentList";
 import type { ListPagination } from "../../src/components/ListPaginationFooter";
@@ -10,6 +12,7 @@ import type {
 	ContentListColumnExtension,
 } from "../../src/lib/content-list-columns.js";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context.js";
+import { messages as enMessages } from "../../src/locales/en/messages.mjs";
 import { render } from "../utils/render.tsx";
 
 const NO_RESULTS_PATTERN = /No results for/;
@@ -111,8 +114,9 @@ describe("ContentList", () => {
 				/>,
 			);
 
+			await screen.getByRole("button", { name: "Actions for Polski test" }).click();
 			await expect
-				.element(screen.getByRole("link", { name: "View published Polski test" }))
+				.element(screen.getByRole("menuitem", { name: "View published" }))
 				.toHaveAttribute("href", "/pl/posts/polski-test");
 		});
 
@@ -530,8 +534,8 @@ describe("ContentList", () => {
 				<ContentList {...defaultProps} items={items} onDelete={onDelete} />,
 			);
 
-			// Click trash icon button to open the confirmation dialog
-			await screen.getByRole("button", { name: "Move Post to trash" }).click();
+			await screen.getByRole("button", { name: "Actions for Post" }).click();
+			await screen.getByRole("menuitem", { name: "Move to trash" }).click();
 
 			// Dialog should appear with confirmation text
 			await expect.element(screen.getByText("Move to Trash?")).toBeInTheDocument();
@@ -541,6 +545,41 @@ describe("ContentList", () => {
 				.element(screen.getByRole("button", { name: "Move to Trash" }))
 				.toBeInTheDocument();
 			await expect.element(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+		});
+
+		it("returns focus to the row's menu button when the dialog closes", async () => {
+			const items = [makeItem({ id: "item_1", data: { title: "Post" } })];
+			const screen = await render(<ContentList {...defaultProps} items={items} />);
+			const trigger = screen.getByRole("button", { name: "Actions for Post" });
+
+			await trigger.click();
+			await screen.getByRole("menuitem", { name: "Move to trash" }).click();
+			await expect.element(screen.getByRole("dialog", { name: "Move to Trash?" })).toBeVisible();
+			await userEvent.keyboard("{Escape}");
+
+			await expect
+				.element(screen.getByRole("dialog", { name: "Move to Trash?" }))
+				.not.toBeInTheDocument();
+			await expect.element(trigger).toHaveFocus();
+		});
+
+		it("closes the dialog when the user confirms", async () => {
+			const onDelete = vi.fn();
+			const items = [makeItem({ id: "item_1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onDelete={onDelete} />,
+			);
+
+			await screen.getByRole("button", { name: "Actions for Post" }).click();
+			await screen.getByRole("menuitem", { name: "Move to trash" }).click();
+			await expect.element(screen.getByRole("dialog", { name: "Move to Trash?" })).toBeVisible();
+			// Direct DOM click to bypass Base UI inert overlay
+			screen.getByRole("button", { name: "Move to Trash" }).element().click();
+
+			expect(onDelete).toHaveBeenCalledWith("item_1");
+			await expect
+				.element(screen.getByRole("dialog", { name: "Move to Trash?" }))
+				.not.toBeInTheDocument();
 		});
 	});
 
@@ -565,8 +604,8 @@ describe("ContentList", () => {
 			// Switch to trash tab
 			await screen.getByText("Trash").click();
 
-			// Click permanent delete trigger button
-			await screen.getByRole("button", { name: "Permanently delete Old Post" }).click();
+			await screen.getByRole("button", { name: "Actions for Old Post" }).click();
+			await screen.getByRole("menuitem", { name: "Delete permanently" }).click();
 
 			// Dialog should appear with correct text
 			await expect.element(screen.getByText("Delete Permanently?")).toBeInTheDocument();
@@ -577,10 +616,37 @@ describe("ContentList", () => {
 				.element(screen.getByRole("button", { name: "Delete Permanently" }))
 				.toBeInTheDocument();
 		});
+
+		it("closes the dialog when the user confirms", async () => {
+			const onPermanentDelete = vi.fn();
+			const trashed = [makeTrashedItem({ id: "t1", data: { title: "Old Post" } })];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[]}
+					trashedItems={trashed}
+					onPermanentDelete={onPermanentDelete}
+				/>,
+			);
+
+			await screen.getByText("Trash").click();
+			await screen.getByRole("button", { name: "Actions for Old Post" }).click();
+			await screen.getByRole("menuitem", { name: "Delete permanently" }).click();
+			await expect
+				.element(screen.getByRole("dialog", { name: "Delete Permanently?" }))
+				.toBeVisible();
+			// Direct DOM click to bypass Base UI inert overlay
+			screen.getByRole("button", { name: "Delete Permanently" }).element().click();
+
+			expect(onPermanentDelete).toHaveBeenCalledWith("t1");
+			await expect
+				.element(screen.getByRole("dialog", { name: "Delete Permanently?" }))
+				.not.toBeInTheDocument();
+		});
 	});
 
 	describe("restore", () => {
-		it("calls onRestore when restore button is clicked", async () => {
+		it("calls onRestore when Restore is chosen from the row menu", async () => {
 			const onRestore = vi.fn();
 			const trashed = [
 				makeTrashedItem({
@@ -593,21 +659,23 @@ describe("ContentList", () => {
 			);
 
 			await screen.getByText("Trash").click();
-			await screen.getByRole("button", { name: "Restore Restorable" }).click();
+			await screen.getByRole("button", { name: "Actions for Restorable" }).click();
+			await screen.getByRole("menuitem", { name: "Restore" }).click();
 
 			expect(onRestore).toHaveBeenCalledWith("t1");
 		});
 	});
 
 	describe("duplicate", () => {
-		it("calls onDuplicate when duplicate button is clicked", async () => {
+		it("calls onDuplicate when Duplicate is chosen from the row menu", async () => {
 			const onDuplicate = vi.fn();
 			const items = [makeItem({ id: "item_1", data: { title: "Copyable" } })];
 			const screen = await render(
 				<ContentList {...defaultProps} items={items} onDuplicate={onDuplicate} />,
 			);
 
-			await screen.getByRole("button", { name: "Duplicate Copyable" }).click();
+			await screen.getByRole("button", { name: "Actions for Copyable" }).click();
+			await screen.getByRole("menuitem", { name: "Duplicate" }).click();
 
 			expect(onDuplicate).toHaveBeenCalledWith("item_1");
 		});
@@ -933,6 +1001,28 @@ describe("ContentList", () => {
 		});
 	});
 
+	describe("bulk delete", () => {
+		it("closes the confirmation dialog when the user confirms", async () => {
+			const onBulkDelete = vi.fn((ids: string[]) => Promise.resolve(ids));
+			const items = [makeItem({ id: "a", data: { title: "Alpha" } })];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onBulkDelete={onBulkDelete} />,
+			);
+			await screen.getByRole("checkbox", { name: "Select Alpha" }).click();
+
+			await screen.getByRole("button", { name: "Move to trash", exact: true }).click();
+			await expect.element(screen.getByRole("dialog", { name: "Move to Trash?" })).toBeVisible();
+			// Direct DOM click to bypass Base UI inert overlay
+			screen.getByRole("button", { name: "Move to Trash", exact: true }).element().click();
+
+			expect(onBulkDelete).toHaveBeenCalledWith(["a"]);
+			await expect
+				.element(screen.getByRole("dialog", { name: "Move to Trash?" }))
+				.not.toBeInTheDocument();
+			await expect.element(screen.getByText("1 selected")).toBeInTheDocument();
+		});
+	});
+
 	describe("numbered pages", () => {
 		function makePagination(overrides: Partial<ListPagination> = {}): ListPagination {
 			return {
@@ -1226,6 +1316,43 @@ describe("ContentList", () => {
 				.toBeVisible();
 			await expect.element(screen.getByText("Needs review")).toBeVisible();
 			await expect.element(screen.getByText("Plugin Post")).toBeVisible();
+		});
+
+		it("renders an untranslated label without invoking Lingui's compiler", async () => {
+			const localI18n = setupI18n({ locale: "en", messages: { en: enMessages } });
+			localI18n.setMessagesCompiler(undefined as never);
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+			try {
+				const screen = await render(
+					listWithColumns([{ id: "review-status", label: "Review status", cell: () => null }]),
+					{
+						wrapper: ({ children }) => <I18nProvider i18n={localI18n}>{children}</I18nProvider>,
+					},
+				);
+
+				await expect
+					.element(screen.getByRole("columnheader", { name: "Review status" }))
+					.toBeVisible();
+				expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Review status"));
+			} finally {
+				warn.mockRestore();
+			}
+		});
+
+		it("translates a contributed label found in the active catalog", async () => {
+			const localI18n = setupI18n({
+				locale: "en",
+				messages: { en: { ...enMessages, "Review status": ["Prüfstatus"] } },
+			});
+			localI18n.setMessagesCompiler(undefined as never);
+			const screen = await render(
+				listWithColumns([{ id: "review-status", label: "Review status", cell: () => null }]),
+				{
+					wrapper: ({ children }) => <I18nProvider i18n={localI18n}>{children}</I18nProvider>,
+				},
+			);
+
+			await expect.element(screen.getByRole("columnheader", { name: "Prüfstatus" })).toBeVisible();
 		});
 
 		it("updates contributed header labels when the shared catalog changes", async () => {

@@ -237,13 +237,7 @@ export function SeoSettings() {
 					</SettingRow>
 				</SettingsSection>
 
-				<SettingsSection
-					title={
-						<>
-							{t`Google Verification`} / {t`Bing Verification`}
-						</>
-					}
-				>
+				<SettingsSection title={t`Search Engine Verification`}>
 					<SettingRow>
 						<Input
 							dir="ltr"
