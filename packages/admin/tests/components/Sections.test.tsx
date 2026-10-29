@@ -187,7 +187,7 @@ describe("Sections", () => {
 			.toBeInTheDocument();
 		// Check form fields exist — InputArea uses label prop but may not be associated via aria
 		await expect.element(screen.getByLabelText("Title")).toBeInTheDocument();
-		await expect.element(screen.getByLabelText("Slug")).toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Slug", { exact: true })).toBeInTheDocument();
 	});
 
 	it("auto-generates slug from title in create dialog", async () => {
@@ -200,7 +200,9 @@ describe("Sections", () => {
 		const titleInput = screen.getByLabelText("Title");
 		await titleInput.fill("My Great Section");
 		// Slug should be auto-generated
-		await expect.element(screen.getByLabelText("Slug")).toHaveValue("my-great-section");
+		await expect
+			.element(screen.getByLabelText("Slug", { exact: true }))
+			.toHaveValue("my-great-section");
 	});
 
 	it("keeps the generated slug empty for blank titles", async () => {
@@ -211,7 +213,7 @@ describe("Sections", () => {
 		);
 		await screen.getByText("New section").click();
 		const titleInput = screen.getByLabelText("Title");
-		const slugInput = screen.getByLabelText("Slug");
+		const slugInput = screen.getByLabelText("Slug", { exact: true });
 		await titleInput.fill("Draft");
 		await expect.element(slugInput).toHaveValue("draft");
 		await titleInput.fill("");

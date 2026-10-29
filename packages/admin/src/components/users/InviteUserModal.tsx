@@ -2,6 +2,7 @@ import { Input, LayerDialog, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
+import { HelpLabel } from "../FieldHelpLabel.js";
 import { useRolesConfig } from "./useRolesConfig.js";
 
 export interface InviteUserModalProps {
@@ -108,7 +109,7 @@ export function InviteUserModal({
 					) : (
 						/* Standard invite form */
 						<form id={formId} onSubmit={handleSubmit}>
-							<div className="grid gap-4">
+							<div className="grid gap-5">
 								{/* Email */}
 								<Input
 									dir="ltr"
@@ -122,26 +123,29 @@ export function InviteUserModal({
 								/>
 
 								{/* Role */}
-								<div className="grid gap-2">
-									<Select
-										label={t`Role`}
-										value={role.toString()}
-										onValueChange={(v) => v !== null && setRole(parseInt(v, 10))}
-										items={roleLabels}
-									>
-										{roles.map((r) => (
-											<Select.Option key={r.value} value={r.value.toString()}>
-												<div>
-													<div>{r.label}</div>
-													<div className="text-xs text-kumo-subtle">{r.description}</div>
-												</div>
-											</Select.Option>
-										))}
-									</Select>
-									<p className="text-xs text-kumo-subtle">
-										{t`The invited user will have this role once they complete registration.`}
-									</p>
-								</div>
+								<Select
+									label={
+										<HelpLabel
+											help={t`The invited user will have this role once they complete registration.`}
+										>
+											{t`Role`}
+										</HelpLabel>
+									}
+									aria-label={t`Role`}
+									className="w-full"
+									value={role.toString()}
+									onValueChange={(v) => v !== null && setRole(parseInt(v, 10))}
+									items={roleLabels}
+								>
+									{roles.map((r) => (
+										<Select.Option key={r.value} value={r.value.toString()}>
+											<div>
+												<div>{r.label}</div>
+												<div className="text-xs text-kumo-subtle">{r.description}</div>
+											</div>
+										</Select.Option>
+									))}
+								</Select>
 
 								{/* Error message */}
 								{error && (

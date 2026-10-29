@@ -16,6 +16,7 @@ import { fetchManifest } from "../lib/api/client.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { HelpLabel } from "./FieldHelpLabel.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
 import { MenuCard } from "./MenuCard.js";
 
@@ -127,32 +128,36 @@ export function MenuList() {
 								{t`Give this navigation a label and a site identifier.`}
 							</LayerDialog.Description>
 							<LayerDialog.Body>
-								<form id={createFormId} onSubmit={handleCreate} className="space-y-4">
-									<div>
-										<Input
-											label={t`Label`}
-											name="label"
-											required
-											placeholder={t`Primary navigation`}
-										/>
-										<p className="mt-1 text-sm text-kumo-subtle">
-											{t`Shown in the admin. Some themes also show it on the site.`}
-										</p>
-									</div>
-									<div>
-										<Input
-											label={t`Name`}
-											name="name"
-											dir="ltr"
-											required
-											placeholder={t`primary`}
-											pattern="[a-z0-9\-]+"
-											title={t`Only lowercase letters, numbers, and hyphens`}
-										/>
-										<p className="mt-1 text-sm text-kumo-subtle">
-											{t`Stable identifier for your site, such as primary or footer.`}
-										</p>
-									</div>
+								<form id={createFormId} onSubmit={handleCreate} className="grid gap-5">
+									<Input
+										label={
+											<HelpLabel
+												help={t`Shown in the admin. Some themes also show it on the site.`}
+											>
+												{t`Label`}
+											</HelpLabel>
+										}
+										aria-label={t`Label`}
+										name="label"
+										required
+										placeholder={t`Primary navigation`}
+									/>
+									<Input
+										label={
+											<HelpLabel
+												help={t`Stable identifier for your site, such as primary or footer.`}
+											>
+												{t`Name`}
+											</HelpLabel>
+										}
+										aria-label={t`Name`}
+										name="name"
+										dir="ltr"
+										required
+										placeholder={t`primary`}
+										pattern="[a-z0-9\-]+"
+										title={t`Only lowercase letters, numbers, and hyphens`}
+									/>
 									<DialogError message={getMutationError(createMutation.error)} />
 								</form>
 							</LayerDialog.Body>

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { InviteUserModal } from "../../../src/components/users/InviteUserModal";
 import { render } from "../../utils/render";
@@ -13,7 +13,19 @@ describe("InviteUserModal", () => {
 			<InviteUserModal open={true} onOpenChange={noop} onInvite={noop} />,
 		);
 		await expect.element(screen.getByLabelText("Email address")).toBeInTheDocument();
-		await expect.element(screen.getByLabelText("Role")).toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Role", { exact: true })).toBeInTheDocument();
+	});
+
+	it("explains the role in a tooltip", async () => {
+		const screen = await render(
+			<InviteUserModal open={true} onOpenChange={noop} onInvite={noop} />,
+		);
+		await screen.getByRole("button", { name: "More information about Role" }).hover();
+		await expect
+			.element(
+				page.getByText("The invited user will have this role once they complete registration."),
+			)
+			.toBeVisible();
 	});
 
 	it("default role is Author (30)", async () => {

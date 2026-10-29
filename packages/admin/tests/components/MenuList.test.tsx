@@ -109,8 +109,8 @@ describe("MenuList", () => {
 
 		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
 
-		await expect.element(screen.getByLabelText("Name")).toBeInTheDocument();
-		await expect.element(screen.getByLabelText("Label")).toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Name", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Label", { exact: true })).toBeInTheDocument();
 	});
 
 	it("clears a failed creation error after canceling", async () => {
@@ -118,8 +118,8 @@ describe("MenuList", () => {
 		const screen = await render(<MenuList />, { wrapper: Wrapper });
 
 		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
-		await screen.getByLabelText("Label").fill("Duplicate menu");
-		await screen.getByLabelText("Name").fill("duplicate");
+		await screen.getByLabelText("Label", { exact: true }).fill("Duplicate menu");
+		await screen.getByLabelText("Name", { exact: true }).fill("duplicate");
 		screen.getByRole("button", { name: "Create", exact: true }).element().click();
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Name already in use");
 
@@ -140,8 +140,8 @@ describe("MenuList", () => {
 		const screen = await render(<MenuList />, { wrapper: Wrapper });
 
 		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
-		await screen.getByLabelText("Label").fill("Slow menu");
-		await screen.getByLabelText("Name").fill("slow");
+		await screen.getByLabelText("Label", { exact: true }).fill("Slow menu");
+		await screen.getByLabelText("Name", { exact: true }).fill("slow");
 		screen.getByRole("button", { name: "Create", exact: true }).element().click();
 		await expect.element(screen.getByRole("button", { name: "Creating..." })).toBeDisabled();
 

@@ -219,7 +219,7 @@ describe("MenuEditor", () => {
 		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
 
 		await screen.getByRole("button", { name: "Rename menu" }).click();
-		const labelInput = screen.getByLabelText("Label");
+		const labelInput = screen.getByLabelText("Label", { exact: true });
 		await expect.element(labelInput).toHaveValue("Main Menu");
 		await labelInput.fill("Footer links");
 		screen.getByRole("button", { name: "Save" }).element().click();
@@ -240,7 +240,7 @@ describe("MenuEditor", () => {
 		await screen.getByRole("button", { name: ADD_CUSTOM_LINK_REGEX }).click();
 		await screen.getByLabelText("Label").fill("Book a demo");
 		await screen.getByLabelText("URL").fill("/contact");
-		await screen.getByLabelText("CSS classes").fill(" button ");
+		await screen.getByLabelText("CSS classes", { exact: true }).fill(" button ");
 		screen.getByRole("button", { name: "Add", exact: true }).element().click();
 
 		await vi.waitFor(() =>
@@ -262,7 +262,7 @@ describe("MenuEditor", () => {
 
 		await expect.element(screen.getByText("Home")).toBeInTheDocument();
 		await screen.getByRole("button", { name: "Edit" }).first().click();
-		const classesInput = screen.getByLabelText("CSS classes");
+		const classesInput = screen.getByLabelText("CSS classes", { exact: true });
 		await expect.element(classesInput).toHaveValue("button");
 		await classesInput.fill("");
 		screen.getByRole("button", { name: "Save" }).element().click();

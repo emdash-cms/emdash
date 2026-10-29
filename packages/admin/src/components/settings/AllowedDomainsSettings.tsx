@@ -330,9 +330,10 @@ export function AllowedDomainsSettings() {
 						{t`Update settings for ${editingDomain?.domain}`}
 					</LayerDialog.Description>
 					<LayerDialog.Body>
-						<div className="grid gap-4">
+						<div className="grid gap-5">
 							<Select
 								label={t`Default Role`}
+								className="w-full"
 								value={String(editingDomain?.defaultRole ?? 30)}
 								onValueChange={(value) =>
 									value !== null &&

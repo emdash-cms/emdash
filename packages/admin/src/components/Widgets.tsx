@@ -416,7 +416,7 @@ export function Widgets() {
 							<LayerDialog.Content>
 								<LayerDialog.Title>{t`Create Widget Area`}</LayerDialog.Title>
 								<LayerDialog.Body>
-									<form id={createAreaFormId} onSubmit={handleCreateArea} className="space-y-4">
+									<form id={createAreaFormId} onSubmit={handleCreateArea} className="grid gap-5">
 										<Input
 											dir="ltr"
 											label={t`Name`}

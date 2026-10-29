@@ -2695,7 +2695,7 @@ function PluginBlockModal({
 				</LayerDialog.Title>
 				<LayerDialog.Body>
 					<form id={formId} onSubmit={handleSubmit}>
-						<div className="space-y-4">
+						<div className="grid gap-5">
 							{hasFields ? (
 								block.fields!.map((field) => (
 									<BlockKitField
@@ -3212,6 +3212,7 @@ function DynamicSelect({
 			) : (
 				<Select
 					aria-labelledby={labelId}
+					className="w-full"
 					value={typeof value === "string" ? value : ""}
 					onValueChange={(v) => onChange(field.action_id, v ?? "")}
 					items={{

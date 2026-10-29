@@ -121,7 +121,7 @@ describe("slug pattern attributes are valid v-flag regexes (issue #845)", () => 
 		);
 		await screen.getByText("New Section").click();
 		// Wait for the dialog to render
-		await expect.element(screen.getByLabelText("Slug")).toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Slug", { exact: true })).toBeInTheDocument();
 		expectAllPatternsValidV();
 	});
 
@@ -134,7 +134,7 @@ describe("slug pattern attributes are valid v-flag regexes (issue #845)", () => 
 		// "Create Menu" button opens the create dialog. With empty menus, two
 		// buttons render (header trigger + empty state CTA). Click the first.
 		await screen.getByText("Create Menu").first().click();
-		await expect.element(screen.getByLabelText("Name")).toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Name", { exact: true })).toBeInTheDocument();
 		expectAllPatternsValidV();
 	});
 
@@ -145,7 +145,7 @@ describe("slug pattern attributes are valid v-flag regexes (issue #845)", () => 
 			</Wrapper>,
 		);
 		await screen.getByText("Add Widget Area").click();
-		await expect.element(screen.getByLabelText("Name")).toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Name", { exact: true })).toBeInTheDocument();
 		expectAllPatternsValidV();
 	});
 });

@@ -114,7 +114,7 @@ export function ChangeDomainDialog({
 						: t`Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain.`}
 				</LayerDialog.Description>
 				<LayerDialog.Body>
-					<form id={formId} onSubmit={submit} noValidate>
+					<form id={formId} onSubmit={submit} noValidate className="grid gap-5">
 						<ol className="grid list-decimal gap-2 ps-5 text-sm">
 							<li>
 								{t`Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain.`}
@@ -122,31 +122,29 @@ export function ChangeDomainDialog({
 							<li>{t`Enter the domain below. EmDash checks that it serves this site before switching.`}</li>
 						</ol>
 
-						<div className="mt-5">
-							<Input
-								label={t`New domain`}
-								placeholder={t`example.com`}
-								value={domain}
-								onChange={(event) => {
-									setDomain(event.target.value);
-									checkMutation.reset();
-									uncheckedMutation.reset();
-								}}
-								autoFocus
-								disabled={isPending}
-								dir="ltr"
-								autoComplete="off"
-								spellCheck={false}
-							/>
-						</div>
+						<Input
+							label={t`New domain`}
+							placeholder={t`example.com`}
+							value={domain}
+							onChange={(event) => {
+								setDomain(event.target.value);
+								checkMutation.reset();
+								uncheckedMutation.reset();
+							}}
+							autoFocus
+							disabled={isPending}
+							dir="ltr"
+							autoComplete="off"
+							spellCheck={false}
+						/>
 
-						<p className="mt-4 text-sm text-kumo-subtle">
+						<p className="text-sm text-kumo-subtle">
 							{t`Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one.`}
 						</p>
 
-						<DialogError message={errorMessage} className="mt-4" />
+						<DialogError message={errorMessage} />
 						{fallbackUrl && (
-							<div className="mt-3 grid gap-2 rounded-md border border-kumo-line p-3 text-sm">
+							<div className="grid gap-2 rounded-md border border-kumo-line p-3 text-sm">
 								<p>
 									{t`If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check.`}
 								</p>

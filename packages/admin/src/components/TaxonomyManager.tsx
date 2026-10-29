@@ -56,7 +56,8 @@ import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { BulkTagDialog } from "./BulkTagDialog.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
-import { FieldHelpLabel } from "./FieldHelpLabel.js";
+import { DialogSection } from "./DialogSection.js";
+import { FieldHelpLabel, HelpLabel } from "./FieldHelpLabel.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
 import { TableToolbarSearch } from "./TableToolbar.js";
 import { TranslationsPanel } from "./TranslationsPanel.js";
@@ -546,9 +547,10 @@ function TranslateTermDialog({
 				<LayerDialog.Title>{t`Translate "${term.label}"`}</LayerDialog.Title>
 				<LayerDialog.Description>{t`Taxonomy: ${taxonomyName}`}</LayerDialog.Description>
 				<LayerDialog.Body>
-					<div className="space-y-4">
+					<div className="grid gap-5">
 						<Select
 							label={t`Target locale`}
+							className="w-full"
 							value={selected}
 							onValueChange={(v) => setSelected(v ?? "")}
 							items={Object.fromEntries(otherLocales.map((l) => [l, l.toUpperCase()]))}
@@ -738,7 +740,7 @@ function TermFormDialog({
 						: t`Create a new ${inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)}`}
 				</LayerDialog.Description>
 				<LayerDialog.Body>
-					<form id={formId} onSubmit={handleSubmit} className="space-y-4">
+					<form id={formId} onSubmit={handleSubmit} className="grid gap-5">
 						<Input
 							label={t`Name`}
 							value={label}
@@ -778,6 +780,7 @@ function TermFormDialog({
 						{taxonomyDef.hierarchical && (
 							<Select
 								label={t`Parent`}
+								className="w-full"
 								value={parentId}
 								onValueChange={(v) => setParentId(v ?? "")}
 								items={{
@@ -820,7 +823,7 @@ function TermFormDialog({
 						/>
 
 						{term && i18n && i18n.locales.length > 1 ? (
-							<div className="pt-4 border-t">
+							<div className="border-t border-kumo-line pt-5">
 								<TranslationsPanel
 									locales={i18n.locales}
 									defaultLocale={i18n.defaultLocale}
@@ -970,7 +973,7 @@ function CreateTaxonomyDialog({
 					{t`Define a new taxonomy for classifying content`}
 				</LayerDialog.Description>
 				<LayerDialog.Body>
-					<form id={formId} onSubmit={handleSubmit} className="space-y-4">
+					<form id={formId} onSubmit={handleSubmit} className="grid gap-5">
 						<Input
 							label={t`Label`}
 							value={label}
@@ -979,25 +982,27 @@ function CreateTaxonomyDialog({
 							required
 						/>
 
-						<div>
-							<Input
-								dir="ltr"
-								label={t`Name`}
-								value={name}
-								onChange={(e) => {
-									setName(e.target.value);
-									setAutoName(false);
-								}}
-								placeholder="genre"
-								required
-								pattern="[a-z][a-z0-9_]*"
-								title={t`Lowercase letters, numbers, and underscores only, starting with a letter`}
-								error={nameError}
-							/>
-							<p className="text-xs text-kumo-subtle mt-1">
-								{t`Used as the identifier. Lowercase letters, numbers, and underscores only.`}
-							</p>
-						</div>
+						<Input
+							dir="ltr"
+							label={
+								<HelpLabel
+									help={t`Used as the identifier. Lowercase letters, numbers, and underscores only.`}
+								>
+									{t`Name`}
+								</HelpLabel>
+							}
+							aria-label={t`Name`}
+							value={name}
+							onChange={(e) => {
+								setName(e.target.value);
+								setAutoName(false);
+							}}
+							placeholder="genre"
+							required
+							pattern="[a-z][a-z0-9_]*"
+							title={t`Lowercase letters, numbers, and underscores only, starting with a letter`}
+							error={nameError}
+						/>
 
 						<Checkbox
 							label={t`Hierarchical (like categories, with parent/child relationships)`}
@@ -1006,11 +1011,10 @@ function CreateTaxonomyDialog({
 						/>
 
 						{collectionEntries.length > 0 && (
-							<div>
-								<label className="text-sm font-medium">{t`Collections`}</label>
-								<p className="text-xs text-kumo-subtle mb-2">
-									{t`Which content types can use this taxonomy`}
-								</p>
+							<DialogSection
+								title={t`Collections`}
+								help={t`Which content types can use this taxonomy`}
+							>
 								<div className="border rounded-md p-2 space-y-1">
 									{collectionEntries.map(({ slug, label: collLabel }) => (
 										<div key={slug} className="py-1 px-2 hover:bg-kumo-tint/50 rounded">
@@ -1022,7 +1026,7 @@ function CreateTaxonomyDialog({
 										</div>
 									))}
 								</div>
-							</div>
+							</DialogSection>
 						)}
 
 						<DialogError message={error || getMutationError(createMutation.error)} />

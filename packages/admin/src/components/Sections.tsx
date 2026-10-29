@@ -45,6 +45,7 @@ import { slugify } from "../lib/utils";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { HelpLabel } from "./FieldHelpLabel.js";
 import { TableToolbarSearch } from "./TableToolbar.js";
 
 const sourceIcons: Record<SectionSource, React.ElementType> = {
@@ -172,7 +173,7 @@ export function Sections() {
 								</span>
 							</LayerDialog.Description>
 							<LayerDialog.Body>
-								<form id={createFormId} onSubmit={handleCreate} className="space-y-4">
+								<form id={createFormId} onSubmit={handleCreate} className="grid gap-5">
 									<Input
 										label={t`Title`}
 										value={createTitle}
@@ -184,24 +185,24 @@ export function Sections() {
 										required
 										placeholder={t`Hero Banner`}
 									/>
-									<div>
-										<Input
-											label={t`Slug`}
-											dir="ltr"
-											value={createSlug}
-											onChange={(e) => {
-												setCreateSlug(e.target.value);
-												setSlugTouched(true);
-											}}
-											required
-											placeholder="hero-banner"
-											pattern="[a-z0-9\-]+"
-											title={t`Lowercase letters, numbers, and hyphens only`}
-										/>
-										<p dir="auto" className="mt-1 text-xs text-kumo-subtle">
-											{t`Auto-generated from the title. You can change it.`}
-										</p>
-									</div>
+									<Input
+										label={
+											<HelpLabel help={t`Auto-generated from the title. You can change it.`}>
+												{t`Slug`}
+											</HelpLabel>
+										}
+										aria-label={t`Slug`}
+										dir="ltr"
+										value={createSlug}
+										onChange={(e) => {
+											setCreateSlug(e.target.value);
+											setSlugTouched(true);
+										}}
+										required
+										placeholder="hero-banner"
+										pattern="[a-z0-9\-]+"
+										title={t`Lowercase letters, numbers, and hyphens only`}
+									/>
 									<InputArea
 										label={t`Description`}
 										value={createDescription}

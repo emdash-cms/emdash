@@ -194,7 +194,7 @@ export function PublishingDateTimeFields({
 
 	const errorText = errorMessage || (invalid ? t(VALIDATION_MESSAGES[invalid.reason]) : null);
 	return (
-		<div className="space-y-4">
+		<div className="grid gap-5">
 			<DatePicker
 				mode="single"
 				required

@@ -35,6 +35,7 @@ import { ArrowPrev } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { ContentPickerModal } from "./ContentPickerModal";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { HelpLabel } from "./FieldHelpLabel.js";
 import { useI18nConfig } from "./LocaleSwitcher.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { TranslationsPanel } from "./TranslationsPanel.js";
@@ -424,14 +425,20 @@ export function MenuEditor() {
 								<LayerDialog.Content>
 									<LayerDialog.Title>{t`Rename menu`}</LayerDialog.Title>
 									<LayerDialog.Body>
-										<form id={renameFormId} onSubmit={handleRename} className="space-y-4">
+										<form id={renameFormId} onSubmit={handleRename} className="grid gap-5">
 											<Input
-												label={t`Label`}
+												label={
+													<HelpLabel
+														help={t`Shown in the admin. Some themes also show it on the site.`}
+													>
+														{t`Label`}
+													</HelpLabel>
+												}
+												aria-label={t`Label`}
 												name="label"
 												required
 												autoFocus
 												defaultValue={menu.label}
-												description={t`Shown in the admin. Some themes also show it on the site.`}
 											/>
 											<DialogError message={getMutationError(renameMutation.error)} />
 										</form>
@@ -475,7 +482,7 @@ export function MenuEditor() {
 							<LayerDialog.Content>
 								<LayerDialog.Title>{t`Add Custom Link`}</LayerDialog.Title>
 								<LayerDialog.Body>
-									<form id={addFormId} onSubmit={handleAddCustomLink} className="space-y-4">
+									<form id={addFormId} onSubmit={handleAddCustomLink} className="grid gap-5">
 										<Input label={t`Label`} name="label" required placeholder={t`Home`} />
 										<Input
 											dir="ltr"
@@ -489,6 +496,7 @@ export function MenuEditor() {
 										/>
 										<Select
 											label={t`Target`}
+											className="w-full"
 											name="target"
 											defaultValue=""
 											items={{ "": t`Same window`, _blank: t`New window` }}
@@ -497,10 +505,16 @@ export function MenuEditor() {
 											<Select.Option value="_blank">{t`New window`}</Select.Option>
 										</Select>
 										<Input
-											label={t`CSS classes`}
+											label={
+												<HelpLabel
+													help={t`Separate class names with spaces. Themes can use them to style the link.`}
+												>
+													{t`CSS classes`}
+												</HelpLabel>
+											}
+											aria-label={t`CSS classes`}
 											name="cssClasses"
 											dir="ltr"
-											description={t`Separate class names with spaces. Themes can use them to style the link.`}
 										/>
 										<DialogError message={addError || getMutationError(createMutation.error)} />
 									</form>
@@ -670,7 +684,7 @@ export function MenuEditor() {
 					<LayerDialog.Title>{t`Edit Menu Item`}</LayerDialog.Title>
 					<LayerDialog.Body>
 						{editingItem && (
-							<form id={editFormId} onSubmit={handleUpdateItem} className="space-y-4">
+							<form id={editFormId} onSubmit={handleUpdateItem} className="grid gap-5">
 								<Input label={t`Label`} name="label" required defaultValue={editingItem.label} />
 								{editingItem.type === "custom" && (
 									<Input
@@ -686,6 +700,7 @@ export function MenuEditor() {
 								)}
 								<Select
 									label={t`Target`}
+									className="w-full"
 									name="target"
 									defaultValue={editingItem.target || ""}
 									items={{ "": t`Same window`, _blank: t`New window` }}
@@ -694,14 +709,21 @@ export function MenuEditor() {
 									<Select.Option value="_blank">{t`New window`}</Select.Option>
 								</Select>
 								<Input
-									label={t`CSS classes`}
+									label={
+										<HelpLabel
+											help={t`Separate class names with spaces. Themes can use them to style the link.`}
+										>
+											{t`CSS classes`}
+										</HelpLabel>
+									}
+									aria-label={t`CSS classes`}
 									name="cssClasses"
 									dir="ltr"
 									defaultValue={editingItem.cssClasses ?? ""}
-									description={t`Separate class names with spaces. Themes can use them to style the link.`}
 								/>
 								<Select
 									label={t`Parent`}
+									className="w-full"
 									name="parentId"
 									defaultValue={editingItem.parentId ?? ""}
 									items={parentOptions}
