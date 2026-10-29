@@ -386,6 +386,58 @@ describe("SandboxedContentEditorPanel", () => {
 		await expect.element(screen.getByRole("button", { name: "Rewrite" })).toBeVisible();
 	});
 
+	it("preserves form values when a silent refresh fails with an action queued", async () => {
+		const blocks: Block[] = [
+			{
+				type: "form",
+				fields: [{ type: "text_input", action_id: "summary", label: "Summary" }],
+				submit: { label: "Save findings", action_id: "save" },
+			},
+			{
+				type: "actions",
+				elements: [{ type: "button", action_id: "analyze", label: "Analyze" }],
+			},
+		];
+		const refresh = Promise.withResolvers<Response>();
+		const action = Promise.withResolvers<Response>();
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(Response.json({ data: { blocks } }))
+			.mockReturnValueOnce(refresh.promise)
+			.mockReturnValueOnce(action.promise);
+		vi.stubGlobal("fetch", fetchMock);
+		const panel = (versionToken: string) => (
+			<SandboxedContentEditorPanel
+				pluginId="content-guard"
+				panelId="findings"
+				title="Findings"
+				collection="posts"
+				entryId="post-1"
+				versionToken={versionToken}
+			/>
+		);
+		const screen = await render(panel("v1"), { wrapper: Wrapper });
+		await userEvent.click(screen.getByRole("button", { name: "Findings" }));
+		await screen.getByRole("textbox", { name: "Summary" }).fill("Keep my findings");
+		await screen.rerender(panel("v2"));
+		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+		await userEvent.click(screen.getByRole("button", { name: "Analyze" }));
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		refresh.resolve(new Response(null, { status: 502 }));
+		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+		expect(requestBody(fetchMock, 2)).toMatchObject({ type: "block_action", action_id: "analyze" });
+		await expect.element(screen.getByText("Plugin panel unavailable.")).toBeVisible();
+		await expect
+			.element(screen.getByRole("textbox", { name: "Summary" }))
+			.toHaveValue("Keep my findings");
+		await expect.element(screen.getByRole("button", { name: "Analyze" })).toHaveFocus();
+		action.resolve(Response.json({ data: { blocks } }));
+		await expect.element(screen.getByRole("status")).toHaveTextContent("");
+		await expect
+			.element(screen.getByRole("textbox", { name: "Summary" }))
+			.toHaveValue("Keep my findings");
+	});
+
 	it.each(["close", "entry change", "unmount"] as const)(
 		"cancels active and queued work on %s",
 		async (reason) => {

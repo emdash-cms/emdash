@@ -174,7 +174,7 @@ export function SandboxedContentEditorPanel({
 					}
 				} catch {
 					if (!controller.signal.aborted && canApplyResponse()) {
-						if (showPending && pendingRequests.current > 1) {
+						if (pendingRequests.current > 1) {
 							toastManager.add({ title: t`Plugin panel unavailable.`, variant: "error" });
 						} else {
 							setError(true);
