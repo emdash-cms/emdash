@@ -492,6 +492,273 @@ describe("SandboxedContentEditorPanel", () => {
 		},
 	);
 
+	it.each(["block_action", "form_submit"] as const)(
+		"skips only consecutive duplicate pending %s interactions",
+		async (type) => {
+			const blocks: Block[] = [
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "button",
+							action_id: "search",
+							label: "Search",
+							value: { query: "same", filters: ["a", "b"] },
+						},
+						{ type: "button", action_id: "rewrite", label: "Rewrite" },
+					],
+				},
+				{
+					type: "form",
+					block_id: "summary",
+					fields: [
+						{ type: "text_input", action_id: "summary", label: "Summary", initial_value: "draft" },
+					],
+					submit: { action_id: "save", label: "Save findings" },
+				},
+			];
+			const first = Promise.withResolvers<Response>();
+			const second = Promise.withResolvers<Response>();
+			const third = Promise.withResolvers<Response>();
+			const fetchMock = vi
+				.fn<typeof fetch>()
+				.mockResolvedValueOnce(Response.json({ data: { blocks } }))
+				.mockReturnValueOnce(first.promise)
+				.mockReturnValueOnce(second.promise)
+				.mockReturnValueOnce(third.promise)
+				.mockResolvedValueOnce(Response.json({ data: { blocks } }));
+			vi.stubGlobal("fetch", fetchMock);
+			const screen = await render(
+				<SandboxedContentEditorPanel
+					pluginId="content-guard"
+					panelId="findings"
+					title="Findings"
+					collection="posts"
+					entryId="post-1"
+				/>,
+				{ wrapper: Wrapper },
+			);
+			await userEvent.click(screen.getByRole("button", { name: "Findings", exact: true }));
+			const submit = screen.getByRole("button", {
+				name: type === "block_action" ? "Search" : "Save findings",
+				exact: true,
+			});
+			const rewrite = screen.getByRole("button", { name: "Rewrite" });
+			await userEvent.click(submit);
+			await userEvent.click(submit);
+			await userEvent.click(rewrite);
+			await userEvent.click(rewrite);
+			await userEvent.click(submit);
+			await userEvent.click(submit);
+			expect(fetchMock).toHaveBeenCalledTimes(2);
+			first.resolve(Response.json({ data: { blocks } }));
+			await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+			expect(requestBody(fetchMock, 2)).toMatchObject({ action_id: "rewrite" });
+			second.resolve(Response.json({ data: { blocks } }));
+			await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+			expect(requestBody(fetchMock, 3)).toEqual(requestBody(fetchMock, 1));
+			third.resolve(Response.json({ data: { blocks } }));
+			await expect.element(screen.getByRole("status")).toHaveTextContent("");
+			expect(fetchMock).toHaveBeenCalledTimes(4);
+			await userEvent.click(submit);
+			await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5));
+		},
+	);
+
+	it("accepts search again after an intervening changed input blur", async () => {
+		const requests = Array.from({ length: 3 }, () => Promise.withResolvers<Response>());
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(Response.json({ data: { blocks: editableBlocks } }));
+		for (const request of requests) fetchMock.mockReturnValueOnce(request.promise);
+		vi.stubGlobal("fetch", fetchMock);
+		const screen = await render(
+			<SandboxedContentEditorPanel
+				pluginId="content-guard"
+				panelId="findings"
+				title="Findings"
+				collection="posts"
+				entryId="post-1"
+			/>,
+			{ wrapper: Wrapper },
+		);
+		await userEvent.click(screen.getByRole("button", { name: "Findings" }));
+		await userEvent.click(screen.getByRole("button", { name: "Analyze" }));
+		await screen.getByRole("textbox", { name: "Prompt" }).fill("Changed prompt");
+		await userEvent.click(screen.getByRole("button", { name: "Analyze" }));
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		requests[0]?.resolve(Response.json({ data: { blocks: editableBlocks } }));
+		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+		expect(requestBody(fetchMock, 2)).toMatchObject({
+			action_id: "prompt",
+			value: "Changed prompt",
+		});
+		requests[1]?.resolve(Response.json({ data: { blocks: editableBlocks } }));
+		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+		expect(requestBody(fetchMock, 3)).toEqual(requestBody(fetchMock, 1));
+		requests[2]?.resolve(Response.json({ data: { blocks: editableBlocks } }));
+		await expect.element(screen.getByRole("status")).toHaveTextContent("");
+	});
+
+	it("compares structured action values by content and accepts changed values", async () => {
+		const values = [
+			{ query: "same", filters: ["a", "b"] },
+			{ filters: ["a", "b"], query: "same" },
+			{ query: "same", filters: ["b", "a"] },
+		];
+		const blocks: Block[] = values.map((value, index) => ({
+			type: "actions",
+			block_id: `group-${index}`,
+			elements: [{ type: "button", action_id: "search", label: `Search ${index}`, value }],
+		}));
+		const first = Promise.withResolvers<Response>();
+		const second = Promise.withResolvers<Response>();
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(Response.json({ data: { blocks } }))
+			.mockReturnValueOnce(first.promise)
+			.mockReturnValueOnce(second.promise);
+		vi.stubGlobal("fetch", fetchMock);
+		const screen = await render(
+			<SandboxedContentEditorPanel
+				pluginId="content-guard"
+				panelId="findings"
+				title="Findings"
+				collection="posts"
+				entryId="post-1"
+			/>,
+			{ wrapper: Wrapper },
+		);
+		await userEvent.click(screen.getByRole("button", { name: "Findings" }));
+		for (let index = 0; index < values.length; index++)
+			await userEvent.click(screen.getByRole("button", { name: `Search ${index}` }));
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		first.resolve(Response.json({ data: { blocks } }));
+		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+		expect(requestBody(fetchMock, 2)).toMatchObject({ value: values[2] });
+		second.resolve(Response.json({ data: { blocks } }));
+		await expect.element(screen.getByRole("status")).toHaveTextContent("");
+		expect(fetchMock).toHaveBeenCalledTimes(3);
+	});
+
+	it("accepts changed form values, block identities, and interaction types", async () => {
+		const blocks: Block[] = [
+			...["a", "b"].map(
+				(id): Block => ({
+					type: "form",
+					block_id: id,
+					fields: [
+						{
+							type: "text_input",
+							action_id: "summary",
+							label: `Summary ${id}`,
+							initial_value: "same",
+						},
+					],
+					submit: { action_id: "save", label: `Save ${id}` },
+				}),
+			),
+			{ type: "actions", elements: [{ type: "button", action_id: "save", label: "Save button" }] },
+		];
+		const requests = Array.from({ length: 4 }, () => Promise.withResolvers<Response>());
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(Response.json({ data: { blocks } }));
+		for (const request of requests) fetchMock.mockReturnValueOnce(request.promise);
+		vi.stubGlobal("fetch", fetchMock);
+		const screen = await render(
+			<SandboxedContentEditorPanel
+				pluginId="content-guard"
+				panelId="findings"
+				title="Findings"
+				collection="posts"
+				entryId="post-1"
+			/>,
+			{ wrapper: Wrapper },
+		);
+		await userEvent.click(screen.getByRole("button", { name: "Findings" }));
+		await userEvent.click(screen.getByRole("button", { name: "Save a", exact: true }));
+		await userEvent.click(screen.getByRole("button", { name: "Save b", exact: true }));
+		await screen.getByRole("textbox", { name: "Summary b" }).fill("changed");
+		await userEvent.click(screen.getByRole("button", { name: "Save b", exact: true }));
+		await userEvent.click(screen.getByRole("button", { name: "Save button", exact: true }));
+		const expected = [
+			{ type: "form_submit", block_id: "a", values: { summary: "same" } },
+			{ type: "form_submit", block_id: "b", values: { summary: "same" } },
+			{ type: "form_submit", block_id: "b", values: { summary: "changed" } },
+			{ type: "block_action" },
+		];
+		for (const [index, request] of requests.entries()) {
+			await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(index + 2));
+			expect(requestBody(fetchMock, index + 1)).toMatchObject(expected[index]);
+			request.resolve(Response.json({ data: { blocks } }));
+		}
+		await expect.element(screen.getByRole("status")).toHaveTextContent("");
+	});
+
+	it.each(["fetch", "json"] as const)(
+		"aborts a stale refresh during %s without reordering queued actions",
+		async (phase) => {
+			const staleFetch = Promise.withResolvers<Response>();
+			const staleBody = Promise.withResolvers<unknown>();
+			const staleResponse = Response.json({ data: { blocks: [] } });
+			const json = vi.spyOn(staleResponse, "json").mockReturnValue(staleBody.promise);
+			const action = Promise.withResolvers<Response>();
+			const latest = Promise.withResolvers<Response>();
+			const onEntryRefresh = vi.fn();
+			const fetchMock = vi
+				.fn<typeof fetch>()
+				.mockResolvedValueOnce(Response.json({ data: { blocks: editableBlocks } }))
+				.mockReturnValueOnce(
+					phase === "fetch" ? staleFetch.promise : Promise.resolve(staleResponse),
+				)
+				.mockReturnValueOnce(action.promise)
+				.mockReturnValueOnce(latest.promise);
+			vi.stubGlobal("fetch", fetchMock);
+			const panel = (versionToken: string) => (
+				<SandboxedContentEditorPanel
+					pluginId="content-guard"
+					panelId="findings"
+					title="Findings"
+					collection="posts"
+					entryId="post-1"
+					versionToken={versionToken}
+					onEntryRefresh={onEntryRefresh}
+				/>
+			);
+			const screen = await render(panel("v1"), { wrapper: Wrapper });
+			await userEvent.click(screen.getByRole("button", { name: "Findings" }));
+			await expect.element(screen.getByRole("button", { name: "Analyze" })).toBeVisible();
+			await screen.rerender(panel("v2"));
+			await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+			if (phase === "json") await vi.waitFor(() => expect(json).toHaveBeenCalledOnce());
+			await userEvent.click(screen.getByRole("button", { name: "Analyze" }));
+			await screen.rerender(panel("v3"));
+			await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+			expect(fetchMock.mock.calls[1]?.[1]?.signal?.aborted).toBe(true);
+			expect(requestBody(fetchMock, 2)).toMatchObject({
+				type: "block_action",
+				action_id: "analyze",
+			});
+			action.resolve(Response.json({ data: { blocks: editableBlocks } }));
+			await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+			expect(requestBody(fetchMock, 3)).toEqual({ type: "panel_load" });
+			await expect.element(screen.getByRole("status")).toHaveTextContent("");
+			const staleData = {
+				data: { blocks: [{ type: "header", text: "Stale findings" }], refresh: true },
+			};
+			staleFetch.resolve(Response.json(staleData));
+			staleBody.resolve(staleData);
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			expect(onEntryRefresh).not.toHaveBeenCalled();
+			await expect.element(screen.getByRole("heading", { name: "Saved findings" })).toBeVisible();
+			latest.resolve(
+				Response.json({ data: { blocks: [{ type: "header", text: "Latest findings" }] } }),
+			);
+			await expect.element(screen.getByRole("heading", { name: "Latest findings" })).toBeVisible();
+		},
+	);
+
 	it("captures draft data only after an explicit panel action", async () => {
 		const fetchMock = vi
 			.fn<() => Promise<Response>>()
@@ -642,11 +909,11 @@ describe("SandboxedContentEditorPanel", () => {
 		);
 	});
 
-	it("queues the latest panel load when the version changes during the initial load", async () => {
+	it("immediately replaces a stale panel load when the saved version changes during the initial load", async () => {
 		const first = Promise.withResolvers<Response>();
 		const second = Promise.withResolvers<Response>();
 		const fetchMock = vi
-			.fn<() => Promise<Response>>()
+			.fn<typeof fetch>()
 			.mockReturnValueOnce(first.promise)
 			.mockReturnValueOnce(second.promise);
 		vi.stubGlobal("fetch", fetchMock);
@@ -672,15 +939,15 @@ describe("SandboxedContentEditorPanel", () => {
 				versionToken="v2"
 			/>,
 		);
-		expect(fetchMock).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+		expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
 		await expect
 			.element(screen.getByRole("button", { name: "Findings" }))
 			.toHaveAttribute("aria-expanded", "true");
-		first.resolve(Response.json({ data: { blocks: [{ type: "header", text: "First" }] } }));
-		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-		await expect.element(screen.getByRole("heading", { name: "First" })).not.toBeInTheDocument();
 		second.resolve(Response.json({ data: { blocks: [{ type: "header", text: "Second" }] } }));
 		await expect.element(screen.getByRole("heading", { name: "Second" })).toBeVisible();
+		first.resolve(Response.json({ data: { blocks: [{ type: "header", text: "First" }] } }));
+		await expect.element(screen.getByRole("heading", { name: "First" })).not.toBeInTheDocument();
 	});
 
 	it("loads the latest version after a closed panel changes while loading", async () => {

@@ -56,6 +56,31 @@ interface SandboxedContentEditorPanelProps {
 	reserveHeaderEnd?: boolean;
 }
 
+type PanelAction = Exclude<ContentEditorPanelInteraction, { type: "panel_load" }>;
+
+function sameInteractionValue(left: unknown, right: unknown): boolean {
+	if (Object.is(left, right)) return true;
+	if (typeof left !== "object" || left === null || typeof right !== "object" || right === null)
+		return false;
+	if (Array.isArray(left) || Array.isArray(right)) {
+		return (
+			Array.isArray(left) &&
+			Array.isArray(right) &&
+			left.length === right.length &&
+			left.every((value, index) => sameInteractionValue(value, right[index]))
+		);
+	}
+	const entries = Object.entries(left);
+	return (
+		entries.length === Object.keys(right).length &&
+		entries.every(
+			([key, value]) =>
+				Object.hasOwn(right, key) &&
+				sameInteractionValue(value, (right as Record<string, unknown>)[key]),
+		)
+	);
+}
+
 export function SandboxedContentEditorPanel({
 	pluginId,
 	panelId,
@@ -79,7 +104,12 @@ export function SandboxedContentEditorPanel({
 	const [error, setError] = React.useState(false);
 	const [blocks, setBlocks] = React.useState<Block[]>([]);
 	const generation = React.useRef(0);
-	const abortController = React.useRef<AbortController | null>(null);
+	const activeRequest = React.useRef<{
+		controller: AbortController;
+		type: ContentEditorPanelInteraction["type"];
+		versionToken: string | undefined;
+	} | null>(null);
+	const lastInteraction = React.useRef<PanelAction | null>(null);
 	const requestQueue = React.useRef(Promise.resolve());
 	const pendingRequests = React.useRef(0);
 	const panelIdentity = `${pluginId}:${panelId}:${collection}:${entryId}:${locale ?? ""}`;
@@ -107,8 +137,9 @@ export function SandboxedContentEditorPanel({
 
 	const cancelRequests = React.useCallback(() => {
 		generation.current++;
-		abortController.current?.abort();
-		abortController.current = null;
+		activeRequest.current?.controller.abort();
+		activeRequest.current = null;
+		lastInteraction.current = null;
 		requestQueue.current = Promise.resolve();
 		pendingRequests.current = 0;
 		setLoading(false);
@@ -132,9 +163,21 @@ export function SandboxedContentEditorPanel({
 			const requestGeneration = generation.current;
 			const isCurrent = () =>
 				panelIdentity === identityRef.current && requestGeneration === generation.current;
-			const canApplyResponse = () =>
-				isCurrent() && (interaction.type !== "panel_load" || versionToken === versionRef.current);
 			const isInteraction = interaction.type !== "panel_load";
+			if (isInteraction) {
+				const previous = lastInteraction.current;
+				if (
+					previous?.type === interaction.type &&
+					previous.action_id === interaction.action_id &&
+					previous.block_id === interaction.block_id &&
+					sameInteractionValue(
+						previous.type === "form_submit" ? previous.values : previous.value,
+						interaction.type === "form_submit" ? interaction.values : interaction.value,
+					)
+				)
+					return Promise.resolve();
+				lastInteraction.current = interaction;
+			}
 			pendingRequests.current++;
 			setLoading(true);
 			if (showPending) setPendingInteractions((count) => count + 1);
@@ -142,49 +185,64 @@ export function SandboxedContentEditorPanel({
 			const runRequest = async () => {
 				if (!isCurrent()) return;
 				const controller = new AbortController();
-				abortController.current = controller;
-				try {
-					if (!canApplyResponse()) return;
-					setError(false);
-					const draft = !isInteraction || !draftAccess ? null : captureDraft?.(draftAccess);
-					const requestInteraction = draft ? { ...interaction, draft } : interaction;
-					const response = await apiFetch(
-						editorExtensionUrl(collection, entryId, pluginId, "panel", panelId, locale),
-						{
-							method: "POST",
-							headers: { "Content-Type": "application/json" },
-							body: JSON.stringify(requestInteraction),
-							signal: controller.signal,
-						},
-					);
-					if (!canApplyResponse()) return;
-					if (!response.ok) throw new Error("Plugin panel request failed");
-					const body = (await response.json()) as { data: BlockResponse & EditorDraftResponse };
-					if (!canApplyResponse()) return;
-					setBlocks(body.data.blocks);
-					setLoaded(true);
-					if (body.data.toast) {
-						toastManager.add({ title: body.data.toast.message, variant: body.data.toast.type });
-					}
-					if (body.data.refresh) await onEntryRefresh?.();
-					if (!isCurrent()) return;
-					applyNavigation(body.data);
-					if (draftAccess && (body.data.patch || body.data.editorInvocation)) {
-						onDraftResponse?.(draftAccess, body.data);
-					}
-				} catch {
-					if (!controller.signal.aborted && canApplyResponse()) {
-						if (pendingRequests.current > 1) {
-							toastManager.add({ title: t`Plugin panel unavailable.`, variant: "error" });
-						} else {
-							setError(true);
+				activeRequest.current = { controller, type: interaction.type, versionToken };
+				const canApplyResponse = () =>
+					isCurrent() &&
+					!controller.signal.aborted &&
+					(interaction.type !== "panel_load" || versionToken === versionRef.current);
+				const aborted = new Promise<void>((resolve) => {
+					controller.signal.addEventListener("abort", () => resolve(), { once: true });
+				});
+				const executeRequest = async () => {
+					try {
+						if (!canApplyResponse()) return;
+						setError(false);
+						const draft = !isInteraction || !draftAccess ? null : captureDraft?.(draftAccess);
+						const requestInteraction = draft ? { ...interaction, draft } : interaction;
+						const response = await apiFetch(
+							editorExtensionUrl(collection, entryId, pluginId, "panel", panelId, locale),
+							{
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify(requestInteraction),
+								signal: controller.signal,
+							},
+						);
+						if (!canApplyResponse()) return;
+						if (!response.ok) throw new Error("Plugin panel request failed");
+						const body = (await response.json()) as { data: BlockResponse & EditorDraftResponse };
+						if (!canApplyResponse()) return;
+						setBlocks(body.data.blocks);
+						setLoaded(true);
+						if (body.data.toast) {
+							toastManager.add({ title: body.data.toast.message, variant: body.data.toast.type });
+						}
+						if (body.data.refresh) await onEntryRefresh?.();
+						if (!canApplyResponse()) return;
+						applyNavigation(body.data);
+						if (draftAccess && (body.data.patch || body.data.editorInvocation)) {
+							onDraftResponse?.(draftAccess, body.data);
+						}
+					} catch {
+						if (canApplyResponse()) {
+							if (pendingRequests.current > 1) {
+								toastManager.add({ title: t`Plugin panel unavailable.`, variant: "error" });
+							} else {
+								setError(true);
+							}
 						}
 					}
+				};
+				try {
+					// Release the queue on abort even if response decoding or refresh effects are still pending.
+					await Promise.race([executeRequest(), aborted]);
 				} finally {
+					if (activeRequest.current?.controller === controller) activeRequest.current = null;
 					if (isCurrent()) {
 						pendingRequests.current--;
 						setLoading(pendingRequests.current > 0);
 						if (showPending) setPendingInteractions((count) => count - 1);
+						if (lastInteraction.current === interaction) lastInteraction.current = null;
 					}
 				}
 			};
@@ -215,6 +273,9 @@ export function SandboxedContentEditorPanel({
 		previousVersion.current = { panelIdentity, versionToken };
 		if (previous.panelIdentity !== panelIdentity || previous.versionToken === versionToken) return;
 		if (open) {
+			const active = activeRequest.current;
+			if (active?.type === "panel_load" && active.versionToken !== versionToken)
+				active.controller.abort();
 			void sendInteraction({ type: "panel_load" });
 			return;
 		}
