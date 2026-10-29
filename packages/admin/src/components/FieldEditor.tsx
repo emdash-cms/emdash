@@ -2,9 +2,9 @@ import {
 	Badge,
 	Button,
 	Checkbox,
-	Dialog,
 	Input,
 	InputArea,
+	LayerDialog,
 	Select,
 	Switch,
 	Tooltip,
@@ -28,7 +28,6 @@ import {
 	Rows,
 	Plus,
 	Trash,
-	X,
 	Info,
 	ArrowUp,
 	ArrowDown,
@@ -50,11 +49,7 @@ import { singularize } from "../lib/singularize.js";
 import { cn, slugifyIdentifier } from "../lib/utils";
 import { AllowedTypesEditor } from "./AllowedTypesEditor";
 import { DialogError } from "./DialogError";
-import {
-	RELATION_DIALOG_CLASS,
-	RELATION_DIALOG_STYLE,
-	RelationFormPanel,
-} from "./RelationFormPanel.js";
+import { RelationDialog } from "./RelationDialog.js";
 
 // ============================================================================
 // Constants
@@ -657,755 +652,713 @@ export function FieldEditor({
 			? t`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`
 			: undefined;
 
-	// The relationship step is the relation dialog, in this dialog's frame:
-	// same header, same scroll area, same actions as defining one anywhere else.
-	if (isRelationStep && onCreateRelation) {
-		return (
-			<Dialog.Root open={open} onOpenChange={handleOpenChange}>
-				<Dialog size="lg" className={RELATION_DIALOG_CLASS} style={RELATION_DIALOG_STYLE}>
-					<RelationFormPanel
-						collections={collections}
-						defaultParentCollection={collectionSlug}
-						onSubmit={async (input) => {
-							const created = await onCreateRelation(input);
-							handleRelationCreated({ ...created, boundFields: [], linkCount: 0 });
-						}}
-						cancelLabel={t`Back`}
-						onCancel={() => setField("step", "config")}
-						headerAction={
-							<Dialog.Close
-								render={(props) => (
-									<Button
-										{...props}
-										variant="ghost"
-										shape="square"
-										aria-label={t`Close`}
-										disabled={isSaving}
-									>
-										<X className="h-4 w-4" />
-									</Button>
-								)}
-							/>
-						}
-					/>
-				</Dialog>
-			</Dialog.Root>
-		);
-	}
-
 	return (
-		<Dialog.Root open={open} onOpenChange={handleOpenChange}>
-			<Dialog className="p-6 max-w-2xl" size="lg">
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{field ? t`Edit Field` : step === "type" ? t`Add Field` : t`Configure Field`}
-					</Dialog.Title>
-					<Dialog.Close
-						aria-label={t`Close`}
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								aria-label={t`Close`}
-								className="absolute end-4 top-4"
-								disabled={isSaving}
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">{t`Close`}</span>
-							</Button>
-						)}
-					/>
-				</div>
-
-				{step === "type" ? (
-					<div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto -m-1 p-1">
-						{FIELD_TYPES.map((ft) => {
-							const Icon = ft.icon;
-							return (
-								<button
-									key={ft.type}
-									type="button"
-									onClick={() => handleTypeSelect(ft.type)}
-									className={cn(
-										"flex items-start space-x-3 p-4 rounded-lg border text-start transition-colors hover:border-kumo-brand hover:bg-kumo-tint/50",
-									)}
-								>
-									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-kumo-tint">
-										<Icon className="h-5 w-5" />
-									</div>
-									<div>
-										<p className="font-medium">{ft.label}</p>
-										<p className="text-sm text-kumo-subtle">{ft.description}</p>
-									</div>
-								</button>
-							);
-						})}
-					</div>
-				) : (
-					<div
-						className="space-y-6 max-h-[60vh] overflow-y-auto -m-1 p-1"
-						data-testid="field-editor-config-content"
-					>
-						{/* Type indicator */}
-						{typeConfig && (
-							<div className="flex items-center space-x-3 p-3 bg-kumo-tint/50 rounded-lg">
-								<typeConfig.icon className="h-5 w-5" />
-								<div>
-									<p className="font-medium">{typeConfig.label}</p>
-									<p className="text-sm text-kumo-subtle">{typeConfig.description}</p>
-								</div>
-								{!field && (
-									<Button
-										variant="ghost"
-										size="sm"
-										className="ms-auto"
-										onClick={() => setField("step", "type")}
+		<LayerDialog.Root open={open} onOpenChange={handleOpenChange} dismissDisabled={isSaving}>
+			<LayerDialog.Content size="lg">
+				<LayerDialog.Title>
+					{field ? t`Edit Field` : step === "type" ? t`Add Field` : t`Configure Field`}
+				</LayerDialog.Title>
+				<LayerDialog.Body>
+					{step === "type" ? (
+						<div className="grid grid-cols-2 gap-3">
+							{FIELD_TYPES.map((ft) => {
+								const Icon = ft.icon;
+								return (
+									<button
+										key={ft.type}
+										type="button"
+										onClick={() => handleTypeSelect(ft.type)}
+										className={cn(
+											"flex items-start space-x-3 p-4 rounded-lg border text-start transition-colors hover:border-kumo-brand hover:bg-kumo-tint/50",
+										)}
 									>
-										{t`Change`}
-									</Button>
-								)}
-							</div>
-						)}
+										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-kumo-tint">
+											<Icon className="h-5 w-5" />
+										</div>
+										<div>
+											<p className="font-medium">{ft.label}</p>
+											<p className="text-sm text-kumo-subtle">{ft.description}</p>
+										</div>
+									</button>
+								);
+							})}
+						</div>
+					) : (
+						<div className="space-y-6">
+							{/* Type indicator */}
+							{typeConfig && (
+								<div className="flex items-center space-x-3 p-3 bg-kumo-tint/50 rounded-lg">
+									<typeConfig.icon className="h-5 w-5" />
+									<div>
+										<p className="font-medium">{typeConfig.label}</p>
+										<p className="text-sm text-kumo-subtle">{typeConfig.description}</p>
+									</div>
+									{!field && (
+										<Button
+											variant="ghost"
+											size="sm"
+											className="ms-auto"
+											onClick={() => setField("step", "type")}
+										>
+											{t`Change`}
+										</Button>
+									)}
+								</div>
+							)}
 
-						{/* The relationship a new reference field views, chosen before the
+							{/* The relationship a new reference field views, chosen before the
 						    field itself: it decides what the field is called, what it
 						    points at, and how many entries it holds. */}
-						{referenceNeedsRelation && (
-							<div className="flex flex-col gap-4">
-								<h4 className="font-medium text-sm">{t`Reference`}</h4>
+							{referenceNeedsRelation && (
+								<div className="flex flex-col gap-4">
+									<h4 className="font-medium text-sm">{t`Reference`}</h4>
 
-								<Select
-									label={t`Relationship`}
-									value={relation}
-									onValueChange={(v) => handleRelationChange(v ?? "")}
-									items={[
-										...bindableRelations.map(({ relation: rel }) => ({
-											label: rel.slug,
-											value: rel.slug,
-										})),
-										...(onCreateRelation
-											? [{ label: t`Create relation`, value: CREATE_RELATION }]
-											: []),
-									]}
-									placeholder={t`Select a relationship`}
-									error={refError ? t`A relationship is required` : undefined}
-								/>
-
-								{selectedRelation && (
-									<>
-										<Select
-											label={t`Referenced collection`}
-											value={boundTarget}
-											onValueChange={() => undefined}
-											items={collections.map((c) => ({ label: c.label, value: c.slug }))}
-											disabled
-										/>
-										{sideIsAChoice && (
-											<div className="flex items-end gap-1.5">
-												<Select
-													label={t`This field picks`}
-													value={effectiveSide}
-													onValueChange={(v) =>
-														handleSideChange(v === "child" ? "child" : "parent")
-													}
-													items={{
-														parent: t`Entries this one links to`,
-														child: t`Entries that link to this one`,
-													}}
-												/>
-												<SideTooltip />
-											</div>
-										)}
-										<div className="flex items-center gap-1.5">
-											<SideNote relation={selectedRelation.relation} side={effectiveSide} />
-											{!sideIsAChoice && <SideTooltip />}
-										</div>
-										<p className="text-xs text-kumo-subtle">
-											{t`The relationship decides the referenced collection and how many entries this field accepts.`}
-										</p>
-									</>
-								)}
-							</div>
-						)}
-
-						{showFieldDetails && (
-							<>
-								{/* Basic info */}
-								<div className="grid grid-cols-1 sm:grid-cols-2 items-start gap-4">
-									<Input
-										label={t`Label`}
-										value={label}
-										onChange={(e) => handleLabelChange(e.target.value)}
-										placeholder={t`Field Label`}
+									<Select
+										label={t`Relationship`}
+										value={relation}
+										onValueChange={(v) => handleRelationChange(v ?? "")}
+										items={[
+											...bindableRelations.map(({ relation: rel }) => ({
+												label: rel.slug,
+												value: rel.slug,
+											})),
+											...(onCreateRelation
+												? [{ label: t`Create relation`, value: CREATE_RELATION }]
+												: []),
+										]}
+										placeholder={t`Select a relationship`}
+										error={refError ? t`A relationship is required` : undefined}
 									/>
-									<div>
-										<Input
-											dir="ltr"
-											label={t`Slug`}
-											value={slug}
-											onChange={(e) => setField("slug", e.target.value)}
-											placeholder="field_slug"
-											disabled={!!field}
-											error={slugError}
-										/>
-										{field && (
-											<p className="text-xs text-kumo-subtle mt-2">
-												{t`Field slugs cannot be changed after creation`}
-											</p>
-										)}
-									</div>
-								</div>
 
-								{/* Toggles */}
-								<div className="flex items-center space-x-6">
-									{selectedType !== "blocks" && (
+									{selectedRelation && (
 										<>
-											<Switch
-												checked={required}
-												onCheckedChange={(checked) => setField("required", checked)}
-												label={<span className="text-sm">{t`Required`}</span>}
+											<Select
+												label={t`Referenced collection`}
+												value={boundTarget}
+												onValueChange={() => undefined}
+												items={collections.map((c) => ({ label: c.label, value: c.slug }))}
+												disabled
 											/>
-											<Switch
-												checked={unique}
-												onCheckedChange={(checked) => setField("unique", checked)}
-												label={<span className="text-sm">{t`Unique`}</span>}
-											/>
+											{sideIsAChoice && (
+												<div className="flex items-end gap-1.5">
+													<Select
+														label={t`This field picks`}
+														value={effectiveSide}
+														onValueChange={(v) =>
+															handleSideChange(v === "child" ? "child" : "parent")
+														}
+														items={{
+															parent: t`Entries this one links to`,
+															child: t`Entries that link to this one`,
+														}}
+													/>
+													<SideTooltip />
+												</div>
+											)}
+											<div className="flex items-center gap-1.5">
+												<SideNote relation={selectedRelation.relation} side={effectiveSide} />
+												{!sideIsAChoice && <SideTooltip />}
+											</div>
+											<p className="text-xs text-kumo-subtle">
+												{t`The relationship decides the referenced collection and how many entries this field accepts.`}
+											</p>
 										</>
 									)}
-									{isSearchableFieldType(selectedType) && (
-										<Switch
-											checked={searchable}
-											onCheckedChange={(checked) => setField("searchable", checked)}
-											label={<span className="text-sm">{t`Searchable`}</span>}
-										/>
-									)}
-									{isIndexableFieldType(selectedType) && (
-										<Switch
-											checked={indexed}
-											onCheckedChange={(checked) => setField("indexed", checked)}
-											label={<span className="text-sm">{t`Indexed`}</span>}
-										/>
-									)}
 								</div>
-							</>
-						)}
+							)}
 
-						{/* Type-specific validation */}
-						{(selectedType === "string" || selectedType === "text" || selectedType === "slug") && (
-							<div className="space-y-4">
-								<h4 className="font-medium text-sm">{t`Validation`}</h4>
-								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-									<Input
-										label={t`Min Length`}
-										type="number"
-										value={minLength}
-										onChange={(e) => setField("minLength", e.target.value)}
-										placeholder={t`No minimum`}
-									/>
-									<Input
-										label={t`Max Length`}
-										type="number"
-										value={maxLength}
-										onChange={(e) => setField("maxLength", e.target.value)}
-										placeholder={t`No maximum`}
-									/>
-								</div>
-								{selectedType === "string" && (
-									<Input
-										dir="ltr"
-										label={t`Pattern (Regex)`}
-										value={pattern}
-										onChange={(e) => setField("pattern", e.target.value)}
-										placeholder="^[a-z]+$"
-									/>
-								)}
-							</div>
-						)}
-
-						{(selectedType === "number" || selectedType === "integer") && (
-							<div className="space-y-4">
-								<h4 className="font-medium text-sm">{t`Validation`}</h4>
-								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-									<Input
-										label={t`Min Value`}
-										type="number"
-										value={min}
-										onChange={(e) => setField("min", e.target.value)}
-										placeholder={t`No minimum`}
-									/>
-									<Input
-										label={t`Max Value`}
-										type="number"
-										value={max}
-										onChange={(e) => setField("max", e.target.value)}
-										placeholder={t`No maximum`}
-									/>
-								</div>
-							</div>
-						)}
-
-						{(selectedType === "select" || selectedType === "multiSelect") && (
-							<InputArea
-								label={t`Options (one per line)`}
-								value={options}
-								onChange={(e) => setField("options", e.target.value)}
-								placeholder={t`Option 1\nOption 2\nOption 3`}
-								rows={5}
-							/>
-						)}
-
-						{selectedType === "reference" && field && (
-							<div className="flex flex-col gap-4">
-								<h4 className="font-medium text-sm">{t`Reference`}</h4>
-
-								{isBoundReference ? (
-									<>
-										<Select
-											label={t`Relationship`}
-											value={field?.validation?.relation ?? ""}
-											onValueChange={() => undefined}
-											items={{
-												[field?.validation?.relation ?? ""]: field?.validation?.relation ?? "",
-											}}
-											disabled
+							{showFieldDetails && (
+								<>
+									{/* Basic info */}
+									<div className="grid grid-cols-1 sm:grid-cols-2 items-start gap-4">
+										<Input
+											label={t`Label`}
+											value={label}
+											onChange={(e) => handleLabelChange(e.target.value)}
+											placeholder={t`Field Label`}
 										/>
-										<Select
-											label={t`Referenced collection`}
-											value={targetCollection}
-											onValueChange={() => undefined}
-											items={collections.map((c) => ({ label: c.label, value: c.slug }))}
-											disabled
-										/>
-										<SideNote
-											relation={boundRelation}
-											side={field?.validation?.relationSide ?? "parent"}
-										/>
-										<p className="text-xs text-kumo-subtle">
-											{t`The relationship and the referenced collection cannot be changed after creation. How many entries this field accepts is set on the relationship.`}
-										</p>
-									</>
-								) : (
-									<>
-										<Select
-											label={t`Relationship`}
-											value={relation}
-											onValueChange={(v) => handleRelationChange(v ?? "")}
-											items={[
-												{ label: t`Quick create a relationship`, value: "" },
-												...bindableRelations.map(({ relation: rel }) => ({
-													label: rel.slug,
-													value: rel.slug,
-												})),
-											]}
-										/>
-
-										{relation ? (
-											<>
-												<Select
-													label={t`Referenced collection`}
-													value={boundTarget}
-													onValueChange={() => undefined}
-													items={collections.map((c) => ({ label: c.label, value: c.slug }))}
-													disabled
-												/>
-												{sideIsAChoice && (
-													<div className="flex items-end gap-1.5">
-														<Select
-															label={t`This field picks`}
-															value={effectiveSide}
-															onValueChange={(v) =>
-																handleSideChange(v === "child" ? "child" : "parent")
-															}
-															items={{
-																parent: t`Entries this one links to`,
-																child: t`Entries that link to this one`,
-															}}
-														/>
-														<SideTooltip />
-													</div>
-												)}
-												<div className="flex items-center gap-1.5">
-													<SideNote relation={selectedRelation?.relation} side={effectiveSide} />
-													{!sideIsAChoice && <SideTooltip />}
-												</div>
-												<p className="text-xs text-kumo-subtle">
-													{t`The relationship decides the referenced collection and how many entries this field accepts.`}
+										<div>
+											<Input
+												dir="ltr"
+												label={t`Slug`}
+												value={slug}
+												onChange={(e) => setField("slug", e.target.value)}
+												placeholder="field_slug"
+												disabled={!!field}
+												error={slugError}
+											/>
+											{field && (
+												<p className="text-xs text-kumo-subtle mt-2">
+													{t`Field slugs cannot be changed after creation`}
 												</p>
-											</>
-										) : (
+											)}
+										</div>
+									</div>
+
+									{/* Toggles */}
+									<div className="flex items-center space-x-6">
+										{selectedType !== "blocks" && (
 											<>
-												<Select
-													label={t`Referenced collection`}
-													value={targetCollection}
-													onValueChange={(v) => {
-														setField("targetCollection", v ?? "");
-														setRefError(false);
-													}}
-													items={collections.map((c) => ({ label: c.label, value: c.slug }))}
-													placeholder={t`Select a collection`}
-													error={refError ? t`Referenced collection is required` : undefined}
-												/>
-												{field && (
-													<p className="text-xs text-kumo-subtle">
-														{t`Saving a collection here turns this field into an entry picker. Its stored entry IDs move to the relationship, and the field can no longer be searched or filtered on.`}
-													</p>
-												)}
 												<Switch
-													checked={allowMultiple}
-													onCheckedChange={(checked) => setField("allowMultiple", checked)}
-													label={<span className="text-sm">{t`Allow multiple references`}</span>}
+													checked={required}
+													onCheckedChange={(checked) => setField("required", checked)}
+													label={<span className="text-sm">{t`Required`}</span>}
 												/>
-												<p className="text-xs text-kumo-subtle">
-													<Trans>
-														Quick create names the relationship after this field and this
-														collection, takes how many entries it holds from the switch above, and
-														puts no limit on how many entries link back the other way.{" "}
-														<RouterLink
-															to="/content-types/relations"
-															target="_blank"
-															className="text-kumo-link underline"
-														>
-															Create the relationship yourself
-														</RouterLink>{" "}
-														to set its slug, the name each side goes by, and both limits, then pick
-														it above.
-													</Trans>
-												</p>
+												<Switch
+													checked={unique}
+													onCheckedChange={(checked) => setField("unique", checked)}
+													label={<span className="text-sm">{t`Unique`}</span>}
+												/>
 											</>
 										)}
-									</>
-								)}
-							</div>
-						)}
+										{isSearchableFieldType(selectedType) && (
+											<Switch
+												checked={searchable}
+												onCheckedChange={(checked) => setField("searchable", checked)}
+												label={<span className="text-sm">{t`Searchable`}</span>}
+											/>
+										)}
+										{isIndexableFieldType(selectedType) && (
+											<Switch
+												checked={indexed}
+												onCheckedChange={(checked) => setField("indexed", checked)}
+												label={<span className="text-sm">{t`Indexed`}</span>}
+											/>
+										)}
+									</div>
+								</>
+							)}
 
-						{selectedType === "blocks" && (
-							<div className="space-y-4">
-								<div>
-									<h4 className="font-medium text-sm">{t`Allowed block types`}</h4>
-									<p className="text-xs text-kumo-subtle">
-										{t`The order controls how block types appear in the picker.`}
-									</p>
+							{/* Type-specific validation */}
+							{(selectedType === "string" ||
+								selectedType === "text" ||
+								selectedType === "slug") && (
+								<div className="space-y-4">
+									<h4 className="font-medium text-sm">{t`Validation`}</h4>
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+										<Input
+											label={t`Min Length`}
+											type="number"
+											value={minLength}
+											onChange={(e) => setField("minLength", e.target.value)}
+											placeholder={t`No minimum`}
+										/>
+										<Input
+											label={t`Max Length`}
+											type="number"
+											value={maxLength}
+											onChange={(e) => setField("maxLength", e.target.value)}
+											placeholder={t`No maximum`}
+										/>
+									</div>
+									{selectedType === "string" && (
+										<Input
+											dir="ltr"
+											label={t`Pattern (Regex)`}
+											value={pattern}
+											onChange={(e) => setField("pattern", e.target.value)}
+											placeholder="^[a-z]+$"
+										/>
+									)}
 								</div>
-								{blockTypesLoading ? (
-									<p className="text-sm text-kumo-subtle">{t`Loading block types…`}</p>
-								) : blockTypesError ? (
-									<p className="rounded-lg border border-kumo-danger/50 p-4 text-sm text-kumo-danger">
-										{t`Block types could not be loaded.`}
-									</p>
-								) : blockTypes.length === 0 ? (
-									<p className="rounded-lg border border-dashed p-4 text-sm text-kumo-subtle">
-										{t`Create a block type before adding a blocks field.`}
-									</p>
-								) : (
-									<div className="space-y-2">
-										{blockTypes.map((blockType) => {
-											const selectedIndex = formState.allowedTypes.indexOf(blockType.slug);
-											const selected = selectedIndex !== -1;
-											const retired = formState.retiredTypes.includes(blockType.slug);
-											return (
-												<div
-													key={blockType.slug}
-													className="rounded-lg border border-kumo-line p-3"
-												>
-													<div className="flex items-center gap-2">
-														<Checkbox
-															label={blockType.label}
-															checked={selected}
-															disabled={retired && !selected}
-															onCheckedChange={(checked) => {
-																setField(
-																	"allowedTypes",
-																	checked
-																		? [...formState.allowedTypes, blockType.slug]
-																		: formState.allowedTypes.filter(
-																				(candidateSlug) => candidateSlug !== blockType.slug,
-																			),
-																);
+							)}
+
+							{(selectedType === "number" || selectedType === "integer") && (
+								<div className="space-y-4">
+									<h4 className="font-medium text-sm">{t`Validation`}</h4>
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+										<Input
+											label={t`Min Value`}
+											type="number"
+											value={min}
+											onChange={(e) => setField("min", e.target.value)}
+											placeholder={t`No minimum`}
+										/>
+										<Input
+											label={t`Max Value`}
+											type="number"
+											value={max}
+											onChange={(e) => setField("max", e.target.value)}
+											placeholder={t`No maximum`}
+										/>
+									</div>
+								</div>
+							)}
+
+							{(selectedType === "select" || selectedType === "multiSelect") && (
+								<InputArea
+									label={t`Options (one per line)`}
+									value={options}
+									onChange={(e) => setField("options", e.target.value)}
+									placeholder={t`Option 1\nOption 2\nOption 3`}
+									rows={5}
+								/>
+							)}
+
+							{selectedType === "reference" && field && (
+								<div className="flex flex-col gap-4">
+									<h4 className="font-medium text-sm">{t`Reference`}</h4>
+
+									{isBoundReference ? (
+										<>
+											<Select
+												label={t`Relationship`}
+												value={field?.validation?.relation ?? ""}
+												onValueChange={() => undefined}
+												items={{
+													[field?.validation?.relation ?? ""]: field?.validation?.relation ?? "",
+												}}
+												disabled
+											/>
+											<Select
+												label={t`Referenced collection`}
+												value={targetCollection}
+												onValueChange={() => undefined}
+												items={collections.map((c) => ({ label: c.label, value: c.slug }))}
+												disabled
+											/>
+											<SideNote
+												relation={boundRelation}
+												side={field?.validation?.relationSide ?? "parent"}
+											/>
+											<p className="text-xs text-kumo-subtle">
+												{t`The relationship and the referenced collection cannot be changed after creation. How many entries this field accepts is set on the relationship.`}
+											</p>
+										</>
+									) : (
+										<>
+											<Select
+												label={t`Relationship`}
+												value={relation}
+												onValueChange={(v) => handleRelationChange(v ?? "")}
+												items={[
+													{ label: t`Quick create a relationship`, value: "" },
+													...bindableRelations.map(({ relation: rel }) => ({
+														label: rel.slug,
+														value: rel.slug,
+													})),
+												]}
+											/>
+
+											{relation ? (
+												<>
+													<Select
+														label={t`Referenced collection`}
+														value={boundTarget}
+														onValueChange={() => undefined}
+														items={collections.map((c) => ({ label: c.label, value: c.slug }))}
+														disabled
+													/>
+													{sideIsAChoice && (
+														<div className="flex items-end gap-1.5">
+															<Select
+																label={t`This field picks`}
+																value={effectiveSide}
+																onValueChange={(v) =>
+																	handleSideChange(v === "child" ? "child" : "parent")
+																}
+																items={{
+																	parent: t`Entries this one links to`,
+																	child: t`Entries that link to this one`,
+																}}
+															/>
+															<SideTooltip />
+														</div>
+													)}
+													<div className="flex items-center gap-1.5">
+														<SideNote relation={selectedRelation?.relation} side={effectiveSide} />
+														{!sideIsAChoice && <SideTooltip />}
+													</div>
+													<p className="text-xs text-kumo-subtle">
+														{t`The relationship decides the referenced collection and how many entries this field accepts.`}
+													</p>
+												</>
+											) : (
+												<>
+													<Select
+														label={t`Referenced collection`}
+														value={targetCollection}
+														onValueChange={(v) => {
+															setField("targetCollection", v ?? "");
+															setRefError(false);
+														}}
+														items={collections.map((c) => ({ label: c.label, value: c.slug }))}
+														placeholder={t`Select a collection`}
+														error={refError ? t`Referenced collection is required` : undefined}
+													/>
+													{field && (
+														<p className="text-xs text-kumo-subtle">
+															{t`Saving a collection here turns this field into an entry picker. Its stored entry IDs move to the relationship, and the field can no longer be searched or filtered on.`}
+														</p>
+													)}
+													<Switch
+														checked={allowMultiple}
+														onCheckedChange={(checked) => setField("allowMultiple", checked)}
+														label={<span className="text-sm">{t`Allow multiple references`}</span>}
+													/>
+													<p className="text-xs text-kumo-subtle">
+														<Trans>
+															Quick create names the relationship after this field and this
+															collection, takes how many entries it holds from the switch above, and
+															puts no limit on how many entries link back the other way.{" "}
+															<RouterLink
+																to="/content-types/relations"
+																target="_blank"
+																className="text-kumo-link underline"
+															>
+																Create the relationship yourself
+															</RouterLink>{" "}
+															to set its slug, the name each side goes by, and both limits, then
+															pick it above.
+														</Trans>
+													</p>
+												</>
+											)}
+										</>
+									)}
+								</div>
+							)}
+
+							{selectedType === "blocks" && (
+								<div className="space-y-4">
+									<div>
+										<h4 className="font-medium text-sm">{t`Allowed block types`}</h4>
+										<p className="text-xs text-kumo-subtle">
+											{t`The order controls how block types appear in the picker.`}
+										</p>
+									</div>
+									{blockTypesLoading ? (
+										<p className="text-sm text-kumo-subtle">{t`Loading block types…`}</p>
+									) : blockTypesError ? (
+										<p className="rounded-lg border border-kumo-danger/50 p-4 text-sm text-kumo-danger">
+											{t`Block types could not be loaded.`}
+										</p>
+									) : blockTypes.length === 0 ? (
+										<p className="rounded-lg border border-dashed p-4 text-sm text-kumo-subtle">
+											{t`Create a block type before adding a blocks field.`}
+										</p>
+									) : (
+										<div className="space-y-2">
+											{blockTypes.map((blockType) => {
+												const selectedIndex = formState.allowedTypes.indexOf(blockType.slug);
+												const selected = selectedIndex !== -1;
+												const retired = formState.retiredTypes.includes(blockType.slug);
+												return (
+													<div
+														key={blockType.slug}
+														className="rounded-lg border border-kumo-line p-3"
+													>
+														<div className="flex items-center gap-2">
+															<Checkbox
+																label={blockType.label}
+																checked={selected}
+																disabled={retired && !selected}
+																onCheckedChange={(checked) => {
+																	setField(
+																		"allowedTypes",
+																		checked
+																			? [...formState.allowedTypes, blockType.slug]
+																			: formState.allowedTypes.filter(
+																					(candidateSlug) => candidateSlug !== blockType.slug,
+																				),
+																	);
+																}}
+															/>
+															<code dir="ltr" className="text-xs text-kumo-subtle">
+																{blockType.slug}
+															</code>
+															{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
+															{selected && (
+																<div className="ms-auto flex gap-1">
+																	<Button
+																		variant="ghost"
+																		shape="square"
+																		size="sm"
+																		disabled={selectedIndex === 0}
+																		onClick={() => {
+																			const next = [...formState.allowedTypes];
+																			[next[selectedIndex - 1], next[selectedIndex]] = [
+																				next[selectedIndex]!,
+																				next[selectedIndex - 1]!,
+																			];
+																			setField("allowedTypes", next);
+																		}}
+																		aria-label={t`Move ${blockType.label} up`}
+																	>
+																		<ArrowUp className="h-4 w-4" />
+																	</Button>
+																	<Button
+																		variant="ghost"
+																		shape="square"
+																		size="sm"
+																		disabled={selectedIndex === formState.allowedTypes.length - 1}
+																		onClick={() => {
+																			const next = [...formState.allowedTypes];
+																			[next[selectedIndex], next[selectedIndex + 1]] = [
+																				next[selectedIndex + 1]!,
+																				next[selectedIndex]!,
+																			];
+																			setField("allowedTypes", next);
+																		}}
+																		aria-label={t`Move ${blockType.label} down`}
+																	>
+																		<ArrowDown className="h-4 w-4" />
+																	</Button>
+																</div>
+															)}
+														</div>
+														<div className="mt-2 flex flex-wrap gap-2">
+															{blockType.versions.map((version) => (
+																<span key={version.version} className="text-xs text-kumo-subtle">
+																	{version.active
+																		? t`Active v${version.version}`
+																		: t`v${version.version}`}{" "}
+																	· <code dir="ltr">{version.fingerprint.slice(-8)}</code>
+																</span>
+															))}
+														</div>
+													</div>
+												);
+											})}
+										</div>
+									)}
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+										<Input
+											label={t`Minimum blocks`}
+											type="number"
+											min={0}
+											value={formState.minItems}
+											onChange={(event) => setField("minItems", event.target.value)}
+											placeholder="0"
+										/>
+										<Input
+											label={t`Maximum blocks`}
+											type="number"
+											min={1}
+											max={100}
+											value={formState.maxItems}
+											onChange={(event) => setField("maxItems", event.target.value)}
+											placeholder="100"
+										/>
+									</div>
+								</div>
+							)}
+
+							{selectedType === "repeater" && (
+								<div className="space-y-4">
+									<div className="flex items-center justify-between">
+										<h4 className="font-medium text-sm">{t`Sub-Fields`}</h4>
+										<Button
+											variant="outline"
+											size="sm"
+											icon={<Plus />}
+											onClick={() =>
+												setFormState((prev) => ({
+													...prev,
+													subFields: [
+														...prev.subFields,
+														{
+															slug: "",
+															slugEdited: false,
+															slugPersisted: false,
+															type: "string",
+															label: "",
+															required: false,
+														},
+													],
+												}))
+											}
+										>
+											{t`Add Sub-Field`}
+										</Button>
+									</div>
+
+									{formState.subFields.length === 0 && (
+										<p className="text-sm text-kumo-subtle text-center py-4">
+											{t`Add at least one sub-field to define the repeater structure.`}
+										</p>
+									)}
+
+									{formState.subFields.map((sf, i) => {
+										const subFieldSlugError = duplicateSubFieldSlugs.has(sf.slug)
+											? t`Sub-field slugs must be unique.`
+											: sf.label.trim().length > 0 && !sf.slug
+												? t`A slug cannot be generated from this label. Type one manually.`
+												: undefined;
+										return (
+											<div key={i} className="flex gap-2 items-start border rounded-lg p-3">
+												<div className="flex-1 space-y-2">
+													<div className="grid grid-cols-1 sm:grid-cols-3 items-start gap-2">
+														<Input
+															label={t`Label`}
+															className="min-w-0"
+															value={sf.label}
+															onChange={(e) => {
+																const updated = [...formState.subFields];
+																updated[i] = {
+																	...sf,
+																	label: e.target.value,
+																	...(sf.slugEdited
+																		? {}
+																		: { slug: slugifyIdentifier(e.target.value) }),
+																};
+																setFormState((prev) => ({ ...prev, subFields: updated }));
+															}}
+															placeholder={t`Field label`}
+														/>
+														<Input
+															dir="ltr"
+															label={t`Slug`}
+															className="min-w-0"
+															value={sf.slug}
+															disabled={sf.slugPersisted}
+															onChange={(e) => {
+																const updated = [...formState.subFields];
+																updated[i] = {
+																	...sf,
+																	slug: e.target.value,
+																	slugEdited: true,
+																};
+																setFormState((prev) => ({ ...prev, subFields: updated }));
+															}}
+															placeholder={t`field_slug`}
+															error={subFieldSlugError}
+														/>
+														<Select
+															label={t`Type`}
+															value={sf.type}
+															onValueChange={(v) => {
+																const updated = [...formState.subFields];
+																updated[i] = { ...sf, type: v ?? "string" };
+																setFormState((prev) => ({ ...prev, subFields: updated }));
+															}}
+															items={{
+																string: t`Short Text`,
+																text: t`Long Text`,
+																number: t`Number`,
+																integer: t`Integer`,
+																boolean: t`Boolean`,
+																datetime: t`Date & Time`,
+																select: t`Select`,
+																url: t`URL`,
+																image: t`Image`,
 															}}
 														/>
-														<code dir="ltr" className="text-xs text-kumo-subtle">
-															{blockType.slug}
-														</code>
-														{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
-														{selected && (
-															<div className="ms-auto flex gap-1">
-																<Button
-																	variant="ghost"
-																	shape="square"
-																	size="sm"
-																	disabled={selectedIndex === 0}
-																	onClick={() => {
-																		const next = [...formState.allowedTypes];
-																		[next[selectedIndex - 1], next[selectedIndex]] = [
-																			next[selectedIndex]!,
-																			next[selectedIndex - 1]!,
-																		];
-																		setField("allowedTypes", next);
-																	}}
-																	aria-label={t`Move ${blockType.label} up`}
-																>
-																	<ArrowUp className="h-4 w-4" />
-																</Button>
-																<Button
-																	variant="ghost"
-																	shape="square"
-																	size="sm"
-																	disabled={selectedIndex === formState.allowedTypes.length - 1}
-																	onClick={() => {
-																		const next = [...formState.allowedTypes];
-																		[next[selectedIndex], next[selectedIndex + 1]] = [
-																			next[selectedIndex + 1]!,
-																			next[selectedIndex]!,
-																		];
-																		setField("allowedTypes", next);
-																	}}
-																	aria-label={t`Move ${blockType.label} down`}
-																>
-																	<ArrowDown className="h-4 w-4" />
-																</Button>
-															</div>
-														)}
 													</div>
-													<div className="mt-2 flex flex-wrap gap-2">
-														{blockType.versions.map((version) => (
-															<span key={version.version} className="text-xs text-kumo-subtle">
-																{version.active
-																	? t`Active v${version.version}`
-																	: t`v${version.version}`}{" "}
-																· <code dir="ltr">{version.fingerprint.slice(-8)}</code>
-															</span>
-														))}
-													</div>
-												</div>
-											);
-										})}
-									</div>
-								)}
-								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-									<Input
-										label={t`Minimum blocks`}
-										type="number"
-										min={0}
-										value={formState.minItems}
-										onChange={(event) => setField("minItems", event.target.value)}
-										placeholder="0"
-									/>
-									<Input
-										label={t`Maximum blocks`}
-										type="number"
-										min={1}
-										max={100}
-										value={formState.maxItems}
-										onChange={(event) => setField("maxItems", event.target.value)}
-										placeholder="100"
-									/>
-								</div>
-							</div>
-						)}
-
-						{selectedType === "repeater" && (
-							<div className="space-y-4">
-								<div className="flex items-center justify-between">
-									<h4 className="font-medium text-sm">{t`Sub-Fields`}</h4>
-									<Button
-										variant="outline"
-										size="sm"
-										icon={<Plus />}
-										onClick={() =>
-											setFormState((prev) => ({
-												...prev,
-												subFields: [
-													...prev.subFields,
-													{
-														slug: "",
-														slugEdited: false,
-														slugPersisted: false,
-														type: "string",
-														label: "",
-														required: false,
-													},
-												],
-											}))
-										}
-									>
-										{t`Add Sub-Field`}
-									</Button>
-								</div>
-
-								{formState.subFields.length === 0 && (
-									<p className="text-sm text-kumo-subtle text-center py-4">
-										{t`Add at least one sub-field to define the repeater structure.`}
-									</p>
-								)}
-
-								{formState.subFields.map((sf, i) => {
-									const subFieldSlugError = duplicateSubFieldSlugs.has(sf.slug)
-										? t`Sub-field slugs must be unique.`
-										: sf.label.trim().length > 0 && !sf.slug
-											? t`A slug cannot be generated from this label. Type one manually.`
-											: undefined;
-									return (
-										<div key={i} className="flex gap-2 items-start border rounded-lg p-3">
-											<div className="flex-1 space-y-2">
-												<div className="grid grid-cols-1 sm:grid-cols-3 items-start gap-2">
-													<Input
-														label={t`Label`}
-														className="min-w-0"
-														value={sf.label}
-														onChange={(e) => {
+													{sf.slugPersisted && (
+														<p className="text-xs text-kumo-subtle">
+															{t`Sub-field slugs cannot be changed after creation.`}
+														</p>
+													)}
+													<Switch
+														label={t`Required`}
+														checked={sf.required ?? false}
+														onCheckedChange={(checked) => {
 															const updated = [...formState.subFields];
-															updated[i] = {
-																...sf,
-																label: e.target.value,
-																...(sf.slugEdited
-																	? {}
-																	: { slug: slugifyIdentifier(e.target.value) }),
-															};
+															updated[i] = { ...sf, required: checked };
 															setFormState((prev) => ({ ...prev, subFields: updated }));
-														}}
-														placeholder={t`Field label`}
-													/>
-													<Input
-														dir="ltr"
-														label={t`Slug`}
-														className="min-w-0"
-														value={sf.slug}
-														disabled={sf.slugPersisted}
-														onChange={(e) => {
-															const updated = [...formState.subFields];
-															updated[i] = {
-																...sf,
-																slug: e.target.value,
-																slugEdited: true,
-															};
-															setFormState((prev) => ({ ...prev, subFields: updated }));
-														}}
-														placeholder={t`field_slug`}
-														error={subFieldSlugError}
-													/>
-													<Select
-														label={t`Type`}
-														value={sf.type}
-														onValueChange={(v) => {
-															const updated = [...formState.subFields];
-															updated[i] = { ...sf, type: v ?? "string" };
-															setFormState((prev) => ({ ...prev, subFields: updated }));
-														}}
-														items={{
-															string: t`Short Text`,
-															text: t`Long Text`,
-															number: t`Number`,
-															integer: t`Integer`,
-															boolean: t`Boolean`,
-															datetime: t`Date & Time`,
-															select: t`Select`,
-															url: t`URL`,
-															image: t`Image`,
 														}}
 													/>
 												</div>
-												{sf.slugPersisted && (
-													<p className="text-xs text-kumo-subtle">
-														{t`Sub-field slugs cannot be changed after creation.`}
-													</p>
-												)}
-												<Switch
-													label={t`Required`}
-													checked={sf.required ?? false}
-													onCheckedChange={(checked) => {
-														const updated = [...formState.subFields];
-														updated[i] = { ...sf, required: checked };
-														setFormState((prev) => ({ ...prev, subFields: updated }));
-													}}
-												/>
+												<Button
+													variant="ghost"
+													shape="square"
+													onClick={() =>
+														setFormState((prev) => ({
+															...prev,
+															subFields: prev.subFields.filter((_, j) => j !== i),
+														}))
+													}
+													aria-label={t`Remove sub-field`}
+												>
+													<Trash className="h-4 w-4 text-kumo-danger" />
+												</Button>
 											</div>
-											<Button
-												variant="ghost"
-												shape="square"
-												onClick={() =>
-													setFormState((prev) => ({
-														...prev,
-														subFields: prev.subFields.filter((_, j) => j !== i),
-													}))
-												}
-												aria-label={t`Remove sub-field`}
-											>
-												<Trash className="h-4 w-4 text-kumo-danger" />
-											</Button>
-										</div>
-									);
-								})}
+										);
+									})}
 
-								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-									<Input
-										label={t`Min Items`}
-										type="number"
-										value={formState.minItems}
-										onChange={(e) => setField("minItems", e.target.value)}
-										placeholder="0"
-									/>
-									<Input
-										label={t`Max Items`}
-										type="number"
-										value={formState.maxItems}
-										onChange={(e) => setField("maxItems", e.target.value)}
-										placeholder={t`No limit`}
-									/>
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+										<Input
+											label={t`Min Items`}
+											type="number"
+											value={formState.minItems}
+											onChange={(e) => setField("minItems", e.target.value)}
+											placeholder="0"
+										/>
+										<Input
+											label={t`Max Items`}
+											type="number"
+											value={formState.maxItems}
+											onChange={(e) => setField("maxItems", e.target.value)}
+											placeholder={t`No limit`}
+										/>
+									</div>
 								</div>
-							</div>
-						)}
+							)}
 
-						{(selectedType === "file" || selectedType === "image") && (
-							<AllowedTypesEditor
-								value={formState.allowedMimeTypes}
-								onChange={(next) => setField("allowedMimeTypes", next)}
-							/>
-						)}
-
-						{selectedType === "image" && (
-							<div className="grid gap-1">
-								<Switch
-									checked={formState.darkVariant}
-									onCheckedChange={(checked) => setField("darkVariant", checked)}
-									label={<span className="text-sm">{t`Dark mode variant`}</span>}
+							{(selectedType === "file" || selectedType === "image") && (
+								<AllowedTypesEditor
+									value={formState.allowedMimeTypes}
+									onChange={(next) => setField("allowedMimeTypes", next)}
 								/>
-								<p className="text-xs text-kumo-subtle">
-									{t`Editors can select a second image that the site shows in dark mode.`}
-								</p>
-							</div>
-						)}
-					</div>
-				)}
+							)}
 
-				{step === "config" && (
-					<div className="flex flex-col gap-2 py-2">
-						<DialogError message={saveError} />
-						<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:space-x-2">
-							<Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
-								{t`Cancel`}
-							</Button>
-							{isCreatingRelation ? (
-								<Button onClick={() => setField("step", "relation")}>{t`Next`}</Button>
-							) : (
-								<Button
-									onClick={handleSave}
-									disabled={
-										!slug ||
-										!label ||
-										isSaving ||
-										(selectedType === "repeater" && formState.subFields.length === 0) ||
-										!subFieldsValid
-									}
-								>
-									{isSaving ? t`Saving...` : field ? t`Update Field` : t`Add Field`}
-								</Button>
+							{selectedType === "image" && (
+								<div className="grid gap-1">
+									<Switch
+										checked={formState.darkVariant}
+										onCheckedChange={(checked) => setField("darkVariant", checked)}
+										label={<span className="text-sm">{t`Dark mode variant`}</span>}
+									/>
+									<p className="text-xs text-kumo-subtle">
+										{t`Editors can select a second image that the site shows in dark mode.`}
+									</p>
+								</div>
 							)}
 						</div>
-					</div>
+					)}
+
+					{step !== "type" && <DialogError message={saveError} className="mt-6" />}
+					{onCreateRelation && (
+						<RelationDialog
+							open={open && isRelationStep}
+							onOpenChange={(nextOpen) => {
+								if (!nextOpen) setField("step", "config");
+							}}
+							collections={collections}
+							defaultParentCollection={collectionSlug}
+							onSubmit={async (input) => {
+								const created = await onCreateRelation(input);
+								handleRelationCreated({ ...created, boundFields: [], linkCount: 0 });
+							}}
+							dismissLabel={t`Back`}
+						/>
+					)}
+				</LayerDialog.Body>
+				{step !== "type" && (
+					<LayerDialog.Actions dismissLabel={t`Cancel`}>
+						{isCreatingRelation ? (
+							<LayerDialog.Action onClick={() => setField("step", "relation")}>
+								{t`Next`}
+							</LayerDialog.Action>
+						) : (
+							<LayerDialog.Action
+								onClick={handleSave}
+								disabled={
+									!slug ||
+									!label ||
+									isSaving ||
+									(selectedType === "repeater" && formState.subFields.length === 0) ||
+									!subFieldsValid
+								}
+							>
+								{isSaving ? t`Saving...` : field ? t`Update Field` : t`Add Field`}
+							</LayerDialog.Action>
+						)}
+					</LayerDialog.Actions>
 				)}
-			</Dialog>
-		</Dialog.Root>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 

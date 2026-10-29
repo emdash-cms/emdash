@@ -364,22 +364,16 @@ describe("FieldEditor", () => {
 			await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
 		});
 
-		it("disables the close button while saving", async () => {
-			const field = makeField();
-			const screen = await renderInRouter(
-				<FieldEditor {...defaultProps} isSaving={true} field={field} />,
-			);
-			await expect.element(screen.getByRole("button", { name: "Close" })).toBeDisabled();
-		});
-
-		it("ignores close attempts while saving, via the close button or escape", async () => {
+		it("ignores close attempts while saving, via the cancel button or escape", async () => {
 			const onOpenChange = vi.fn();
 			const field = makeField();
 			const screen = await renderInRouter(
 				<FieldEditor {...defaultProps} onOpenChange={onOpenChange} isSaving={true} field={field} />,
 			);
 
-			screen.getByRole("button", { name: "Close" }).element().click();
+			const cancel = screen.getByRole("button", { name: "Cancel" });
+			await expect.element(cancel).toBeDisabled();
+			cancel.element().click();
 			await userEvent.keyboard("{Escape}");
 
 			expect(onOpenChange).not.toHaveBeenCalled();
@@ -942,6 +936,25 @@ describe("FieldEditor", () => {
 				.toHaveTextContent("chapters_lessons");
 			await expect.element(screen.getByLabelText("Label")).toHaveValue("Lessons");
 		});
+
+		it("goes back to the field without creating the relationship", async () => {
+			const onCreateRelation = vi.fn(async () => relation());
+			const onOpenChange = vi.fn();
+			const screen = await openReferenceField([], { onCreateRelation, onOpenChange });
+
+			await choose(screen, "Relationship", "Create relation");
+			screen.getByRole("button", { name: "Next" }).element().click();
+			const relationDialog = screen.getByRole("dialog", { name: "New Relation" });
+			await expect.element(relationDialog).toBeInTheDocument();
+			relationDialog.getByRole("button", { name: "Back" }).element().click();
+
+			await expect.element(relationDialog).not.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("dialog", { name: "Configure Field" }))
+				.toBeInTheDocument();
+			expect(onCreateRelation).not.toHaveBeenCalled();
+			expect(onOpenChange).not.toHaveBeenCalled();
+		});
 	});
 
 	describe("repeater sub-field identifiers", () => {
@@ -1020,31 +1033,6 @@ describe("FieldEditor", () => {
 		it("renders nothing visible when open is false", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} open={false} />);
 			expect(screen.getByText("Add Field").query()).toBeNull();
-		});
-	});
-
-	describe("scrollable config dialog", () => {
-		it("bounds the config content so save actions remain reachable with many repeater sub-fields", async () => {
-			const subFields = Array.from({ length: 20 }, (_, i) => ({
-				slug: `item_${i}`,
-				type: "string",
-				label: `Item ${i}`,
-				required: false,
-			}));
-			const field = makeField({
-				type: "repeater",
-				validation: { subFields } as SchemaField["validation"],
-			});
-
-			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={field} />);
-			const content = document.querySelector('[data-testid="field-editor-config-content"]');
-
-			expect(content).not.toBeNull();
-			expect(content!.classList.contains("max-h-[60vh]")).toBe(true);
-			expect(content!.classList.contains("overflow-y-auto")).toBe(true);
-			expect(
-				content!.contains(screen.getByRole("button", { name: "Update Field" }).element()),
-			).toBe(false);
 		});
 	});
 });

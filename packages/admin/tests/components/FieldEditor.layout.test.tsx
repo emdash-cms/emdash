@@ -87,6 +87,69 @@ describe("FieldEditor layout", () => {
 		}
 	});
 
+	it("keeps the save action on screen when many repeater sub-fields overflow the dialog", async () => {
+		const subFields = Array.from({ length: 20 }, (_, i) => ({
+			slug: `item_${i}`,
+			type: "string",
+			label: `Item ${i}`,
+			required: false,
+		}));
+		const field: SchemaField = {
+			...existingField,
+			type: "repeater",
+			validation: { subFields } as SchemaField["validation"],
+		};
+		const screen = await render(
+			<FieldEditor open onOpenChange={() => {}} field={field} onSave={() => {}} />,
+			{ container: adminRoot() },
+		);
+
+		const save = screen.getByRole("button", { name: "Update Field" });
+		await expect.element(save).toBeVisible();
+		const dialog = screen.getByRole("dialog");
+		await expect.element(dialog).not.toHaveAttribute("data-starting-style");
+		await expect.poll(() => dialog.element().getAnimations().length).toBe(0);
+		const lastSubField = screen.getByLabelText("Label", { exact: true }).last().element();
+
+		expect(lastSubField.getBoundingClientRect().top).toBeGreaterThan(window.innerHeight);
+		expect(save.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight);
+	});
+
+	it("scrolls a save error into view when the sub-fields push it out of sight", async () => {
+		const subFields = Array.from({ length: 20 }, (_, i) => ({
+			slug: `item_${i}`,
+			type: "string",
+			label: `Item ${i}`,
+			required: false,
+		}));
+		const field: SchemaField = {
+			...existingField,
+			type: "repeater",
+			validation: { subFields } as SchemaField["validation"],
+		};
+		const screen = await render(
+			<FieldEditor open onOpenChange={() => {}} field={field} onSave={() => {}} />,
+			{ container: adminRoot() },
+		);
+		await expect.element(screen.getByRole("button", { name: "Update Field" })).toBeVisible();
+
+		await screen.rerender(
+			<FieldEditor
+				open
+				onOpenChange={() => {}}
+				field={field}
+				onSave={() => {}}
+				saveError="The field could not be saved."
+			/>,
+		);
+
+		const error = screen.getByRole("alert");
+		await expect.element(error).toHaveTextContent("The field could not be saved.");
+		await expect
+			.poll(() => error.element().getBoundingClientRect().bottom)
+			.toBeLessThanOrEqual(window.innerHeight);
+	});
+
 	it("keeps sub-field controls in line and inside their columns when the slug shows an error", async () => {
 		const screen = await openRepeaterWithUnsluggableSubField();
 		const label = screen.getByLabelText("Label", { exact: true }).nth(1).element();
