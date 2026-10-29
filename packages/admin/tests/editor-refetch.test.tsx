@@ -302,8 +302,8 @@ describe("ContentEditPage background reads with the real editor", () => {
 			await screen.rerender(editor(next));
 			await expect.element(title).toHaveValue("Other entry");
 			await expect
-				.element(screen.getByRole("button", { name: "Saved", exact: true }))
-				.toBeDisabled();
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 			await title.fill("Edited other entry");
 			await vi.advanceTimersByTimeAsync(150);
 			await screen.getByRole("button", { name: "Save", exact: true }).click();
@@ -340,7 +340,9 @@ describe("ContentEditPage background reads with the real editor", () => {
 		await expect
 			.element(title)
 			.toHaveValue(action === "discard" ? "Published title" : "Restored title");
-		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+			.toBeNull();
 	});
 
 	it("adopts a fresh revision in a clean cached editor before saving SEO", async () => {

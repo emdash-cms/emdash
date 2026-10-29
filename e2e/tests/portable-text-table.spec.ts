@@ -726,7 +726,7 @@ test.describe("Portable Text table performance evidence", () => {
 			contentType: "application/json",
 		});
 		await admin.clickSave();
-		await expect(page.getByRole("button", { name: "Saved", exact: true }).first()).toBeVisible();
+		await admin.waitForSaveComplete();
 		const lifecycle = [];
 		for (let cycle = 0; cycle < 5; cycle++) {
 			await page.getByRole("link", { name: "Posts", exact: true }).click();

@@ -1317,7 +1317,9 @@ describe("EditorActions", () => {
 	});
 
 	it("hides the publish cluster for new items", async () => {
-		const screen = await render(<EditorActions {...makeBarProps({ isNew: true })} />);
+		const screen = await render(
+			<EditorActions {...makeBarProps({ isNew: true, isDirty: true })} />,
+		);
 
 		expect(screen.container.textContent).not.toContain("Publish");
 		expect(screen.container.textContent).not.toContain("Unpublish");

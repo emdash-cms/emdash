@@ -91,7 +91,7 @@ test.describe("Autosave", () => {
 		const firstPut = admin.page.waitForResponse(isPutOf("Edit One"), { timeout: 10000 });
 		await titleInput.fill("Edit One");
 		await firstPut;
-		await expect(admin.page.getByRole("status").filter({ hasText: "Saved" }).first()).toBeVisible();
+		await admin.waitForSaveComplete();
 
 		// Check revision count after first autosave
 		const res1 = await fetch(
