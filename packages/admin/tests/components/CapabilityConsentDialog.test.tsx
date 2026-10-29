@@ -136,7 +136,9 @@ describe("CapabilityConsentDialog", () => {
 			/>,
 		);
 
-		await screen.getByText("Accept & Install").click();
+		const accept = screen.getByRole("button", { name: "Accept & Install" });
+		await expect.element(accept).toBeEnabled();
+		accept.element().click();
 		expect(onConfirm).toHaveBeenCalledOnce();
 	});
 
@@ -150,7 +152,9 @@ describe("CapabilityConsentDialog", () => {
 			/>,
 		);
 
-		await screen.getByText("Cancel").click();
+		const cancel = screen.getByRole("button", { name: "Cancel" });
+		await expect.element(cancel).toBeEnabled();
+		cancel.element().click();
 		expect(onCancel).toHaveBeenCalledOnce();
 	});
 

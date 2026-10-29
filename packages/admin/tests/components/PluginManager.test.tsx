@@ -317,7 +317,9 @@ describe("PluginManager", () => {
 			expect(mockUpdateRegistryPlugin).toHaveBeenNthCalledWith(1, "r_abcdefghijklmnop", {});
 		});
 		await expect.element(screen.getByText("webhook")).toBeInTheDocument();
-		await screen.getByText("Accept & Update").click();
+		const acceptUpdate = screen.getByRole("button", { name: "Accept & Update" });
+		await expect.element(acceptUpdate).toBeEnabled();
+		acceptUpdate.element().click();
 
 		await vi.waitFor(() => {
 			expect(mockUpdateRegistryPlugin).toHaveBeenNthCalledWith(2, "r_abcdefghijklmnop", {
@@ -635,10 +637,12 @@ describe("PluginManager", () => {
 				hasCapabilityChanges: true,
 			},
 		]);
-		await screen.getByText("Check for updates").click();
+		screen.getByText("Check for updates").element().click();
 		await expect.element(screen.getByText("Update to v3.0.0")).toBeInTheDocument();
 		await expect.element(screen.getByText("2.0.0", { exact: true })).toBeInTheDocument();
-		await screen.getByText("Accept & Update").click();
+		const acceptUpdate = screen.getByRole("button", { name: "Accept & Update" });
+		await expect.element(acceptUpdate).toBeEnabled();
+		acceptUpdate.element().click();
 
 		await vi.waitFor(() => {
 			expect(mockUpdateMarketplacePlugin).toHaveBeenNthCalledWith(2, "mp-plugin", {
