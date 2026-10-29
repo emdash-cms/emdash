@@ -13,6 +13,7 @@ import {
 	contentNamespaces,
 	getLastContentWriteAt,
 	invalidateCollectionCache,
+	invalidateCommentObjectCache,
 	invalidateObjectCache,
 	type ObjectCacheBackend,
 } from "../../src/object-cache/index.js";
@@ -853,29 +854,106 @@ describe("change marker", () => {
 		expect(epochReads()).not.toContain(MARKER);
 	});
 
-	it("does not rewrite the marker when the epoch write fails", async () => {
+	it("rewrites the marker after an epoch write that fails", async () => {
+		// The backend may give up on a write that still lands.
 		const set = backend.set;
 		backend.set = vi.fn((key: string, value: string) =>
-			key === "em:epoch:menus" ? Promise.reject(new Error("kv down")) : set(key, value),
+			key === "em:epoch:menus" ? Promise.reject(new Error("kv timed out")) : set(key, value),
 		);
 		vi.spyOn(console, "error").mockImplementation(() => {});
-		invalidateObjectCache("menus");
-		await flush();
-
-		expect(backend.store.has(MARKER)).toBe(false);
-	});
-
-	it("rewrites the marker when another epoch write in the batch landed", async () => {
-		const set = backend.set;
-		backend.set = vi.fn((key: string, value: string) =>
-			key === "em:epoch:menus" ? Promise.reject(new Error("kv down")) : set(key, value),
-		);
-		vi.spyOn(console, "error").mockImplementation(() => {});
-		invalidateObjectCache("bylines");
 		invalidateObjectCache("menus");
 		await flush();
 
 		expect(backend.store.has(MARKER)).toBe(true);
+	});
+
+	it("does not wait for the marker on a re-check within two minutes of a change", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		remoteWrite("posts");
+		clock += 1_001;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		expect(load).toHaveBeenCalledTimes(2);
+		vi.mocked(backend.get).mockClear();
+
+		clock += 1_001;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(epochReads()).toEqual(["em:epoch:posts"]);
+		expect(load).toHaveBeenCalledTimes(2);
+	});
+
+	it("does not rewrite the marker for a change that only touches comments", async () => {
+		invalidateCommentObjectCache();
+		await flush();
+
+		expect(backend.store.has("em:epoch:comments")).toBe(true);
+		expect(backend.store.has(MARKER)).toBe(false);
+	});
+
+	it("always reads the comments epoch directly", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await cachedQuery({ namespace: CacheNamespace.COMMENTS, key: "k", load });
+		await flush();
+		vi.mocked(backend.get).mockClear();
+
+		clock += 60_000;
+		await cachedQuery({ namespace: CacheNamespace.COMMENTS, key: "k", load });
+
+		expect(epochReads()).toEqual(["em:epoch:comments"]);
+	});
+
+	it("does not hold the marker back for a comments write in flight", async () => {
+		let release!: () => void;
+		const set = backend.set;
+		backend.set = vi.fn((key: string, value: string) =>
+			key === "em:epoch:comments"
+				? new Promise<void>((resolve) => {
+						release = () => resolve(set(key, value));
+					})
+				: set(key, value),
+		);
+		invalidateCommentObjectCache();
+		invalidateObjectCache("bylines");
+		await flush();
+
+		expect(backend.store.has(MARKER)).toBe(true);
+		release();
+		await flush();
+	});
+
+	it("retries a failed marker read after revalidate", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		remoteWrite("posts");
+		const get = backend.get;
+		backend.get = vi.fn((key: string) =>
+			key === MARKER ? Promise.reject(new Error("kv timed out")) : get(key),
+		);
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		backend.get = vi.fn(get);
+		clock += 1_001;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		vi.mocked(backend.get).mockClear();
+
+		clock += 60_000;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(epochReads()).toEqual([MARKER]);
 	});
 
 	it("re-reads epochs when the marker read fails", async () => {

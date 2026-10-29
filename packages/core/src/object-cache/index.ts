@@ -23,7 +23,8 @@
  * Every batch of epoch writes also rewrites one site-wide change marker. When
  * an isolate's cached epochs pass `revalidate`, it reads that marker; if the
  * marker is unchanged it keeps all of them, so a render re-reads one key
- * rather than one per namespace. See {@link getChangeMarker}.
+ * rather than one per namespace. See {@link getChangeMarker}. The `comments`
+ * epoch is left out: any visitor can bump it, and it is always read directly.
  *
  * The singleton backend/config and the per-isolate epoch cache live on
  * `globalThis` behind `Symbol.for` keys so Vite SSR chunk duplication can't
@@ -115,6 +116,8 @@ interface ChangeMarkerState {
 	marker: ChangeMarker | null;
 	/** `Date.now()` when `marker` was read; 0 if never read in this isolate. */
 	at: number;
+	/** Whether that read failed or timed out, rather than finding no marker. */
+	failed: boolean;
 	promise?: Promise<ChangeMarker | null>;
 	promiseAt?: number;
 }
@@ -277,7 +280,7 @@ const changeMarker: ChangeMarkerState =
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
 	(g[CHANGE_MARKER_KEY] as ChangeMarkerState | undefined) ??
 	(() => {
-		const s: ChangeMarkerState = { marker: null, at: 0 };
+		const s: ChangeMarkerState = { marker: null, at: 0, failed: false };
 		g[CHANGE_MARKER_KEY] = s;
 		return s;
 	})();
@@ -289,8 +292,8 @@ interface MarkerWriteState {
 	busySince: number;
 	/** `Date.now()` when this isolate last started a marker write. */
 	lastWriteAt: number;
-	/** Whether an epoch write has landed that no marker write has covered yet. */
-	landedSinceMarker: boolean;
+	/** Whether an epoch write has settled that no marker write has covered yet. */
+	writtenSinceMarker: boolean;
 }
 
 const markerWrite: MarkerWriteState =
@@ -301,7 +304,7 @@ const markerWrite: MarkerWriteState =
 			epochWritesInFlight: 0,
 			busySince: 0,
 			lastWriteAt: 0,
-			landedSinceMarker: false,
+			writtenSinceMarker: false,
 		};
 		g[MARKER_WRITE_KEY] = s;
 		return s;
@@ -422,12 +425,13 @@ export function __setObjectCacheBackendForTests(
 	contentWritePersist.pending = false;
 	changeMarker.marker = null;
 	changeMarker.at = 0;
+	changeMarker.failed = false;
 	changeMarker.promise = undefined;
 	changeMarker.promiseAt = undefined;
 	markerWrite.epochWritesInFlight = 0;
 	markerWrite.busySince = 0;
 	markerWrite.lastWriteAt = 0;
-	markerWrite.landedSinceMarker = false;
+	markerWrite.writtenSinceMarker = false;
 }
 
 /** @internal */
@@ -460,6 +464,14 @@ function parseChangeMarker(raw: string | null): ChangeMarker | null {
 	if (raw === null) return null;
 	const writtenAt = Number(raw.slice(0, raw.indexOf(".")));
 	return Number.isFinite(writtenAt) && writtenAt > 0 ? { token: raw, writtenAt } : null;
+}
+
+/**
+ * Whether the change marker covers `namespace`. Any visitor can bump the
+ * comments epoch, so it neither writes the marker nor relies on it.
+ */
+function isCoveredByMarker(namespace: string): boolean {
+	return namespace !== CacheNamespace.COMMENTS;
 }
 
 function isContentNamespace(namespace: string): boolean {
@@ -543,14 +555,13 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 		}
 	}
 
-	if (cached && canVouch(cached, now)) {
+	// Wait for the marker only when it can spare the epoch read. Otherwise read
+	// the epoch straight away, as without a marker.
+	if (cached && canVouch(namespace, cached, now)) {
 		const marker = await getChangeMarker(backend);
 		if (epochCache.get(namespace) !== cached) return getEpoch(namespace, backend);
-		if (
-			marker !== null &&
-			marker.token === cached.token &&
-			cached.readAt! >= marker.writtenAt + MARKER_SETTLE_MS
-		) {
+		// canVouch already ran the settle check for this token.
+		if (marker?.token === cached.token) {
 			epochCache.set(namespace, { ...cached, at: Date.now() });
 			return cached.value;
 		}
@@ -558,11 +569,14 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 
 	// Learn the marker without waiting on it, so later renders can vouch. A
 	// known marker is refreshed by the vouch path; an absent one is rechecked
-	// here only occasionally, so sites without a marker don't pay a read per render.
+	// here only occasionally, so sites without a marker don't pay a read per
+	// render. A failed read is retried after `revalidate`.
+	const markerRecheckMs = changeMarker.failed ? holder.config.revalidate : MARKER_MAX_TRUST_MS;
 	const markerUnknown =
 		holder.config.revalidate > 0 &&
+		isCoveredByMarker(namespace) &&
 		(changeMarker.at === 0 ||
-			(changeMarker.marker === null && now - changeMarker.at >= MARKER_MAX_TRUST_MS));
+			(changeMarker.marker === null && now - changeMarker.at >= markerRecheckMs));
 	if (markerUnknown && !changeMarker.promise) {
 		void getChangeMarker(backend);
 	}
@@ -590,7 +604,10 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 		const merged = Math.max(value, local);
 		// Any marker seen so far is safe to record: the settle check against
 		// `readAt` rejects a token whose write this read may have missed.
-		const token = readOk && value >= local ? changeMarker.marker?.token : undefined;
+		const token =
+			readOk && value >= local && isCoveredByMarker(namespace)
+				? changeMarker.marker?.token
+				: undefined;
 		epochCache.set(namespace, { value: merged, at: Date.now(), readAt: now, token });
 		return merged;
 	})();
@@ -624,14 +641,24 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
  * Whether a stale cached epoch may be revalidated against the change marker
  * instead of being re-read. `revalidate: 0` keeps its promise of reading every
  * epoch on every query.
+ *
+ * The entry must already pass the settle check against the last marker this
+ * isolate saw. A fresh marker read can only confirm that marker or replace it
+ * with a newer token the entry cannot match, so otherwise it cannot spare the
+ * epoch read.
  */
-function canVouch(entry: EpochEntry, now: number): boolean {
+function canVouch(namespace: string, entry: EpochEntry, now: number): boolean {
+	const seen = changeMarker.marker;
 	return (
 		holder.config.revalidate > 0 &&
+		isCoveredByMarker(namespace) &&
 		entry.promise === undefined &&
 		entry.token !== undefined &&
 		entry.readAt !== undefined &&
-		now - entry.readAt < MARKER_MAX_TRUST_MS
+		now - entry.readAt < MARKER_MAX_TRUST_MS &&
+		seen !== null &&
+		seen.token === entry.token &&
+		entry.readAt >= seen.writtenAt + MARKER_SETTLE_MS
 	);
 }
 
@@ -660,15 +687,18 @@ async function getChangeMarker(backend: ObjectCacheBackend): Promise<ChangeMarke
 
 	const promise = (async () => {
 		let marker: ChangeMarker | null;
+		let failed = false;
 		try {
 			marker = parseChangeMarker(
 				await withTimeout(backend.get(changeMarkerKey()), holder.config.timeout, "marker read"),
 			);
 		} catch {
 			marker = null;
+			failed = true;
 		}
 		changeMarker.marker = marker;
 		changeMarker.at = Date.now();
+		changeMarker.failed = failed;
 		changeMarker.promise = undefined;
 		changeMarker.promiseAt = undefined;
 		return marker;
@@ -925,7 +955,8 @@ function persistEpoch(namespace: string, stamp: number): void {
 	// backend write that persists the latest epoch.
 	if (pendingBumps.has(namespace)) return;
 	pendingBumps.add(namespace);
-	if (markerWrite.epochWritesInFlight++ === 0) markerWrite.busySince = Date.now();
+	const covered = isCoveredByMarker(namespace);
+	if (covered && markerWrite.epochWritesInFlight++ === 0) markerWrite.busySince = Date.now();
 	after(async () => {
 		pendingBumps.delete(namespace);
 		let backend: ObjectCacheBackend | null = null;
@@ -936,35 +967,39 @@ function persistEpoch(namespace: string, stamp: number): void {
 			// Epoch anchors are persistent (no TTL) — they must outlive the
 			// value keys they invalidate.
 			await backend.set(epochKey(namespace), String(latest));
-			markerWrite.landedSinceMarker = true;
 		} catch (error) {
 			console.error("[object-cache] epoch bump failed for", namespace, error);
 		} finally {
-			markerWrite.epochWritesInFlight--;
-			// The last write in flight rewrites the marker. Under a steady stream
-			// of overlapping writes that may never come, so a long busy period
-			// also rewrites it about once per KV write window.
-			const sinceMarker = Date.now() - Math.max(markerWrite.busySince, markerWrite.lastWriteAt);
-			if (
-				backend &&
-				markerWrite.landedSinceMarker &&
-				(markerWrite.epochWritesInFlight === 0 || sinceMarker >= MARKER_RETRY_MS)
-			) {
-				await writeChangeMarker(backend);
+			if (covered) {
+				markerWrite.epochWritesInFlight--;
+				// A failed or timed-out write still needs a marker: the backend may
+				// stop waiting on a write that then lands anyway.
+				if (backend) markerWrite.writtenSinceMarker = true;
+				// The last write in flight rewrites the marker. Under a steady stream
+				// of overlapping writes that may never come, so a long busy period
+				// also rewrites it about once per KV write window.
+				const sinceMarker = Date.now() - Math.max(markerWrite.busySince, markerWrite.lastWriteAt);
+				if (
+					backend &&
+					markerWrite.writtenSinceMarker &&
+					(markerWrite.epochWritesInFlight === 0 || sinceMarker >= MARKER_RETRY_MS)
+				) {
+					await writeChangeMarker(backend);
+				}
 			}
 		}
 	});
 }
 
 /**
- * Rewrite the change marker. Runs only after an epoch write has landed,
- * because it must not land before it: an isolate that sees the new marker
- * re-reads its epochs, and would otherwise keep the old values under the new
- * token.
+ * Rewrite the change marker. Runs after epoch writes settle, whether they
+ * succeeded or not. If the marker lands before an epoch, the settle check
+ * covers it: no epoch read within `MARKER_SETTLE_MS` of the marker's write is
+ * vouched for, so isolates keep re-reading until they see the new epoch.
  */
 async function writeChangeMarker(backend: ObjectCacheBackend): Promise<void> {
 	markerWrite.lastWriteAt = Date.now();
-	markerWrite.landedSinceMarker = false;
+	markerWrite.writtenSinceMarker = false;
 	const write = () => backend.set(changeMarkerKey(), `${Date.now()}.${crypto.randomUUID()}`);
 	try {
 		await write();
@@ -973,7 +1008,7 @@ async function writeChangeMarker(backend: ObjectCacheBackend): Promise<void> {
 			await new Promise((resolve) => setTimeout(resolve, MARKER_RETRY_MS));
 			await write();
 		} catch (error) {
-			markerWrite.landedSinceMarker = true;
+			markerWrite.writtenSinceMarker = true;
 			console.error("[object-cache] change marker write failed:", error);
 		}
 	}
