@@ -519,7 +519,7 @@ describe("GeneralSettings", () => {
 			await userEvent.keyboard("{Enter}");
 
 			await expect
-				.element(screen.getByText(/On Cloudflare Workers, the check may fail/))
+				.element(screen.getByText(/confirm it stays on that address and shows this site/))
 				.toBeInTheDocument();
 			screen.getByRole("button", { name: "Use https://new.example anyway" }).element().focus();
 			await userEvent.keyboard("{Enter}");

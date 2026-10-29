@@ -155,7 +155,7 @@ export function ChangeDomainDialog({
 							</p>
 							{showWorkersHint && (
 								<p>
-									{t`On Cloudflare Workers, the check may fail because a Worker cannot reach its own domain. Open the new address in your browser and confirm it shows this site before choosing to use it anyway.`}
+									{t`On Cloudflare Workers, the check may fail because a Worker cannot reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway.`}
 								</p>
 							)}
 							<div>
