@@ -176,18 +176,17 @@ test.describe("Redirects", () => {
 				await admin.waitForShell();
 				await admin.waitForLoading();
 
-				// The list exposes the saved group values, including the ungrouped row.
 				for (const redirect of redirects) {
 					await expect(page.getByText(redirect.source, { exact: true })).toBeVisible();
 				}
 				await expect(page.getByText("legacy-import-2024", { exact: true })).toBeVisible();
 				await expect(page.getByText("legacy-import-2024-extra", { exact: true })).toBeVisible();
 				await expect(page.getByText("other-group", { exact: true })).toBeVisible();
+				await expect(page.getByText("No group", { exact: true }).first()).toBeAttached();
 
 				const groupFilter = page.getByRole("textbox", { name: "Filter by group" });
 				await groupFilter.fill("  legacy-import-2024  ");
 
-				// Filtering is exact: the similarly named group and all other rows disappear.
 				await expect(page.getByText("/issue-2287-legacy", { exact: true })).toBeVisible();
 				await expect(page.getByText("/issue-2287-legacy-extra", { exact: true })).not.toBeVisible();
 				await expect(page.getByText("/issue-2287-other", { exact: true })).not.toBeVisible();
