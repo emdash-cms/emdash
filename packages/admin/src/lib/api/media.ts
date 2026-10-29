@@ -22,6 +22,8 @@ export interface MediaUploadOptions {
 
 export interface UploadMediaOptions extends MediaUploadOptions {
 	fieldId?: string;
+	blockType?: string;
+	blockVersion?: number;
 	deduplicate?: boolean;
 	ensureUniqueFilename?: boolean;
 	folderId?: string | null;
@@ -336,6 +338,8 @@ async function getUploadUrl(
 				size: file.size,
 				...(contentHash ? { contentHash } : {}),
 				...(opts?.fieldId ? { fieldId: opts.fieldId } : {}),
+				...(opts?.blockType ? { blockType: opts.blockType } : {}),
+				...(opts?.blockVersion !== undefined ? { blockVersion: opts.blockVersion } : {}),
 				...(opts?.deduplicate === false ? { deduplicate: false } : {}),
 				...(opts?.ensureUniqueFilename ? { ensureUniqueFilename: true } : {}),
 				...(opts?.folderId !== undefined ? { folderId: opts.folderId } : {}),
@@ -538,6 +542,8 @@ async function uploadMediaDirect(file: File, opts?: UploadMediaOptions): Promise
 	if (dimensions?.width) formData.append("width", String(dimensions.width));
 	if (dimensions?.height) formData.append("height", String(dimensions.height));
 	if (opts?.fieldId) formData.append("fieldId", opts.fieldId);
+	if (opts?.blockType) formData.append("blockType", opts.blockType);
+	if (opts?.blockVersion !== undefined) formData.append("blockVersion", String(opts.blockVersion));
 	if (opts?.deduplicate === false) formData.append("deduplicate", "false");
 	if (opts?.ensureUniqueFilename) formData.append("ensureUniqueFilename", "true");
 	if (opts?.folderId === null) formData.append("folderId", "unfiled");

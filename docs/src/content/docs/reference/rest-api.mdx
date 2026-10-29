@@ -457,6 +457,8 @@ curl --request POST \
 
 The multipart body can also include `alt` text and a `caption` for the new media item, image `width` and `height`, a `fieldId` whose MIME-type allowlist should be applied, and a downscaled `thumbnail` used to create a low-quality placeholder. An omitted or empty `alt` or `caption` field is stored as `null`. A new file returns `201 Created` and is ready immediately. Identical bytes return the existing media item with `200 OK` and `deduplicated: true`; the `alt` and `caption` sent with the upload are not applied to it.
 
+For an image or file field inside a block, send `fieldId` as `<outerFieldId>:<blockKey>:<fieldSlug>`, where `outerFieldId` is the database ID of the collection's blocks field. Also send `blockType` (the block type slug) and `blockVersion` (the block's retained version number). Use a string for `blockVersion` in multipart requests and a number in upload-target JSON requests. EmDash applies the nested field's `allowedMimeTypes` only when the block type is allowed or retired on the outer field and the version contains that image or file field. Missing or unresolvable context falls back to the default upload allowlist.
+
 ### Upload target flow
 
 Use the upload-target flow when the client can upload directly to S3-compatible storage. The media item remains pending and does not appear in the standard library until the confirmation succeeds.
