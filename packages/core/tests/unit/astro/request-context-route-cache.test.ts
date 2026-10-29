@@ -13,22 +13,45 @@
  * The fix calls `context.cache.set(false)` for requests carrying a
  * `_preview` param and for toolbar-injected editor responses.
  */
-import { afterEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
 }));
 vi.mock("virtual:emdash/config", () => ({ default: { objectCacheEnabled: true } }));
+// Route Astro's live-collection API to the real EmDash loader, so page renders
+// read the database the middleware puts in the request context.
+vi.mock("astro:content", async () => {
+	const { emdashLoader } = await import("../../../src/loader.js");
+	const loader = emdashLoader();
+	return {
+		getLiveEntry: async (_name: string, filter: never) => {
+			const entry = await loader.loadEntry!({ filter });
+			return entry && !("error" in entry) ? { entry, cacheHint: {} } : { entry: undefined };
+		},
+	};
+});
+
+import type { Kysely } from "kysely";
 
 import onRequest from "../../../src/astro/middleware/request-context.js";
+import { resolveSecretsCached } from "../../../src/config/secrets.js";
+import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
+import type { Database } from "../../../src/database/types.js";
 import { __setObjectCacheBackendForTests, cachedQuery } from "../../../src/object-cache/index.js";
+import { generatePreviewToken } from "../../../src/preview/tokens.js";
+import { getEmDashEntry } from "../../../src/query.js";
 import { getRequestContext } from "../../../src/request-context.js";
+import { createPostFixture } from "../../utils/fixtures.js";
+import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
 function buildContext(opts: {
 	pathname?: string;
 	search?: string;
 	user?: { id: string; role: number } | null;
 	editCookie?: boolean;
+	playgroundDb?: Kysely<Database>;
 	cache: { enabled?: boolean; set: (input: unknown) => void } | undefined;
 }) {
 	const url = new URL(`https://example.com${opts.pathname ?? "/blog"}${opts.search ?? ""}`);
@@ -41,7 +64,7 @@ function buildContext(opts: {
 			),
 			set: vi.fn(),
 		},
-		locals: { user: opts.user ?? null },
+		locals: { user: opts.user ?? null, __playgroundDb: opts.playgroundDb },
 		cache: opts.cache,
 	} as unknown as Parameters<typeof onRequest>[0];
 }
@@ -181,5 +204,71 @@ describe("requests without a route-cache handle", () => {
 
 		expect(response.headers.get("Cache-Control")).toBe("private, no-store");
 		expect(await response.text()).toContain('id="emdash-toolbar"');
+	});
+});
+
+describe("Playground preview links", () => {
+	let db: Kysely<Database>;
+	let postId: string;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+		const content = new ContentRepository(db);
+		const created = await content.create(
+			createPostFixture({ slug: "first", data: { title: "First live" } }),
+		);
+		await content.publish("post", created.id);
+		const revision = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: created.id,
+			data: { title: "First draft" },
+		});
+		await content.setDraftRevision("post", created.id, revision.id);
+		postId = created.id;
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	async function renderWithToken(token: string) {
+		const cache = { set: vi.fn() };
+		const context = buildContext({
+			pathname: "/posts/first",
+			search: `?_preview=${encodeURIComponent(token)}`,
+			playgroundDb: db,
+			cache,
+		});
+		const response = await onRequest(context, async () => {
+			const { entry } = await getEmDashEntry("post", "first");
+			return new Response(String(entry?.data.title));
+		});
+		return { response, cache };
+	}
+
+	async function sessionToken(expiresIn: string | number = "1h") {
+		const { previewSecret } = await resolveSecretsCached(db);
+		return generatePreviewToken({ contentId: `post:${postId}`, secret: previewSecret, expiresIn });
+	}
+
+	it("renders the draft for a token signed by the session", async () => {
+		const { response, cache } = await renderWithToken(await sessionToken());
+
+		expect(await response.text()).toBe("First draft");
+		expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+		expect(cache.set).toHaveBeenCalledWith(false);
+	});
+
+	it.each([
+		{ name: "an expired token", token: () => sessionToken(-60) },
+		{
+			name: "a token signed with another secret",
+			token: () => generatePreviewToken({ contentId: `post:${postId}`, secret: "other-secret" }),
+		},
+	])("renders the published page for $name", async ({ token }) => {
+		const { response, cache } = await renderWithToken(await token());
+
+		expect(await response.text()).toBe("First live");
+		expect(cache.set).toHaveBeenCalledWith(false);
 	});
 });
