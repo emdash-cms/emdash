@@ -695,7 +695,8 @@ export function EditorActions({
 	React.useLayoutEffect(() => {
 		if (!showSave && saveHadFocus.current) {
 			saveHadFocus.current = false;
-			onSaveControlRemoved?.();
+			const active = document.activeElement;
+			if (!active || active === document.body) onSaveControlRemoved?.();
 		}
 	}, [showSave, onSaveControlRemoved]);
 

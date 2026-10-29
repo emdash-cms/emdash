@@ -213,6 +213,34 @@ describe("ContentEditPage save error wiring", () => {
 		expect(save.query()).toBeNull();
 	});
 
+	it("keeps title focus when autosave finishes after Save blurred without a target", async () => {
+		let finishSave!: () => void;
+		server = createMockServer(
+			[200],
+			[],
+			new Promise<void>((resolve) => {
+				finishSave = resolve;
+			}),
+		);
+		const { screen } = await renderEditPage();
+		const title = screen.getByRole("textbox", { name: "Title" });
+		await title.fill("Continue editing after blur");
+		const save = screen.getByRole("button", { name: "Save", exact: true });
+		save.element().focus();
+		await expect.element(save).toHaveFocus();
+		save.element().blur();
+		expect(document.activeElement).toBe(document.body);
+		title.element().focus();
+		await expect.element(title).toHaveFocus();
+		await expect.poll(() => server!.writes.length, { timeout: 6000 }).toBe(1);
+		finishSave();
+		await expect
+			.element(screen.getByRole("status").filter({ hasText: "Saved" }))
+			.toHaveTextContent("Saved");
+		expect(save.query()).toBeNull();
+		await expect.element(title).toHaveFocus();
+	});
+
 	it("keeps explicit draft checkpoints reachable on phones after autosave", async () => {
 		await page.viewport(390, 800);
 		server = createMockServer([200, 200], [], undefined, true);
