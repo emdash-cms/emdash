@@ -777,7 +777,7 @@ function ContentListPage() {
 	const collectionConfig = manifest.collections[collection];
 
 	if (!collectionConfig) {
-		return <NotFoundPage message={`Collection "${collection}" not found`} />;
+		return <NotFoundPage message={t`Collection "${collection}" not found`} />;
 	}
 
 	if (contentList.query.error) {
@@ -979,7 +979,7 @@ function ContentNewPage() {
 	const collectionConfig = manifest.collections[collection];
 
 	if (!collectionConfig) {
-		return <NotFoundPage message={`Collection "${collection}" not found`} />;
+		return <NotFoundPage message={t`Collection "${collection}" not found`} />;
 	}
 
 	return (
@@ -1118,6 +1118,14 @@ function ContentEditPage() {
 	// Written together with the conflict state rather than on render, so a save
 	// that runs before the next render still sees the conflict.
 	const conflictedEntryIdRef = React.useRef("");
+	/** The entry the editor shows, or null once the page has closed. */
+	const openEntryIdRef = React.useRef<string | null>(id);
+	React.useEffect(() => {
+		openEntryIdRef.current = id;
+		return () => {
+			openEntryIdRef.current = null;
+		};
+	}, [id]);
 	const serializeEditorSave = React.useCallback(
 		<T,>(operation: () => Promise<T>, { explicitSave = false, allowConflict = false } = {}) => {
 			const savesOverConflict = explicitSave && conflictedEntryIdRef.current === id;
@@ -1306,9 +1314,22 @@ function ContentEditPage() {
 		},
 		[activeLocale, collection, rawItem?.locale, recordWriteRevision],
 	);
+	// Once the editor has moved off an entry, only a toast can tell the writer a save failed.
+	const editorShows = React.useCallback(
+		(entryId: string) => openEntryIdRef.current === entryId,
+		[],
+	);
+	const recoverInEditor = React.useCallback(
+		async (error: unknown, entryId: string) =>
+			editorShows(entryId) &&
+			isSaveConflict(error) &&
+			(await recoverFromSaveConflict(entryId)) &&
+			editorShows(entryId),
+		[editorShows, recoverFromSaveConflict],
+	);
 	const handleContentUpdateError = React.useCallback(
 		(error: unknown, targetId: string) => {
-			if (entryLock.reportWriteError(error, targetId)) return;
+			if (editorShows(targetId) && entryLock.reportWriteError(error, targetId)) return;
 			toastManager.add({
 				title: t`Failed to save`,
 				description:
@@ -1317,7 +1338,7 @@ function ContentEditPage() {
 				variant: "error",
 			});
 		},
-		[collectionFields, entryLock.reportWriteError, t, toastManager],
+		[collectionFields, editorShows, entryLock.reportWriteError, t, toastManager],
 	);
 
 	const updateMutation = useMutation({
@@ -1342,6 +1363,9 @@ function ContentEditPage() {
 			// would hand the editor's stale copy a token the server accepts.
 			if (variables.source === "editor") {
 				setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
+				// The editor holds back autosave on leaving while the last one counts as failed.
+				if (autosaveMutation.isError && autosaveMutation.variables?.targetId === variables.targetId)
+					autosaveMutation.reset();
 			}
 			void handleContentUpdateSuccess(variables.targetId).then(() => {
 				if (variables.source === "editor") resetEditorItem(variables.targetId);
@@ -1349,7 +1373,7 @@ function ContentEditPage() {
 			});
 		},
 		onError: async (error, variables) => {
-			if (isSaveConflict(error) && (await recoverFromSaveConflict(variables.targetId))) return;
+			if (await recoverInEditor(error, variables.targetId)) return;
 			handleContentUpdateError(error, variables.targetId);
 		},
 		onSettled: (_, __, variables) => {
@@ -1425,9 +1449,10 @@ function ContentEditPage() {
 			// while the user is still typing.
 		},
 		onError: async (err, variables) => {
-			if (isSaveConflict(err) && (await recoverFromSaveConflict(variables.targetId))) return;
+			if (await recoverInEditor(err, variables.targetId)) return;
 			if (isTerminalRequestError(err)) recordAutosaveRejection(variables.targetId);
-			if (entryLock.reportWriteError(err, variables.targetId)) return;
+			if (editorShows(variables.targetId) && entryLock.reportWriteError(err, variables.targetId))
+				return;
 			toastManager.add({
 				title: t`Autosave failed`,
 				description:
@@ -1638,6 +1663,7 @@ function ContentEditPage() {
 				to: "/content/$collection",
 				params: { collection },
 				search: { locale: activeLocale },
+				ignoreBlocker: true,
 			});
 		},
 		onError: (error) => {
@@ -1662,8 +1688,8 @@ function ContentEditPage() {
 			slug?: string;
 			bylines?: BylineCreditInput[];
 			references?: Record<string, string[]>;
-		}) => {
-			void serializeEditorSave(
+		}) =>
+			serializeEditorSave(
 				() =>
 					updateMutation.mutateAsync({
 						targetId: id,
@@ -1672,8 +1698,7 @@ function ContentEditPage() {
 						changes: payload,
 					}),
 				{ explicitSave: true },
-			).catch(() => undefined);
-		},
+			),
 		[activeLocale, id, rawItem?.locale, serializeEditorSave, updateMutation.mutateAsync],
 	);
 
@@ -1935,7 +1960,7 @@ function ContentEditPage() {
 	const collectionConfig = manifest.collections[collection];
 
 	if (!collectionConfig) {
-		return <NotFoundPage message={`Collection "${collection}" not found`} />;
+		return <NotFoundPage message={t`Collection "${collection}" not found`} />;
 	}
 
 	if (isLoading) {
@@ -1975,6 +2000,7 @@ function ContentEditPage() {
 			}
 			autosaveCompletionToken={autosaveCompletion.entryId === id ? autosaveCompletion.token : 0}
 			autosaveRejectionToken={autosaveRejection.entryId === id ? autosaveRejection.token : 0}
+			hasAutosaveError={autosaveMutation.isError && autosaveMutation.variables?.targetId === id}
 			hasSaveConflict={conflictedEntryId === id}
 			onPublish={canPublish ? handlePublish : undefined}
 			onUnpublish={canPublish ? handleUnpublish : undefined}
@@ -3222,7 +3248,7 @@ function PluginPage() {
 // Catch-all 404 route
 const notFoundRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
-	path: "*",
+	path: "$",
 	component: () => <NotFoundPage />,
 });
 

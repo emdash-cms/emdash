@@ -1,7 +1,7 @@
 /**
  * Welcome Modal
  *
- * Shown to new users on their first login to welcome them to EmDash.
+ * Shown to new users on their first login.
  */
 
 import { Badge, Button, Dialog } from "@cloudflare/kumo";
@@ -71,7 +71,7 @@ async function dismissWelcome(fallbackMessage: string): Promise<void> {
 
 export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModalProps) {
 	const { t } = useLingui();
-	const { logo: brandLogo, siteName: brandSiteName } = useAdminBranding();
+	const { logo: brandLogo, siteName } = useAdminBranding();
 	const queryClient = useQueryClient();
 
 	const dismissMutation = useMutation({
@@ -100,14 +100,22 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 	const isAdmin = userRole >= 50;
 
 	const firstName = userName?.split(" ")?.[0]?.trim() ?? "";
-	const titleDescriptor =
-		firstName.length > 0 ? msg`Welcome to EmDash, ${firstName}!` : msg`Welcome to EmDash!`;
+	let titleDescriptor: MessageDescriptor;
+	if (siteName) {
+		titleDescriptor =
+			firstName.length > 0
+				? msg`Welcome to ${siteName}, ${firstName}!`
+				: msg`Welcome to ${siteName}!`;
+	} else {
+		titleDescriptor =
+			firstName.length > 0 ? msg`Welcome to EmDash, ${firstName}!` : msg`Welcome to EmDash!`;
+	}
 
 	return (
 		<Dialog.Root open={open} onOpenChange={(isOpen: boolean) => !isOpen && handleGetStarted()}>
 			<Dialog className="p-6 sm:max-w-md">
 				<div className="mb-5 flex items-center justify-between gap-4">
-					<BrandIcon logoUrl={brandLogo} siteName={brandSiteName} className="h-8 w-8" />
+					<BrandIcon logoUrl={brandLogo} siteName={siteName} className="h-8 w-8" />
 					<Dialog.Close
 						render={(props) => (
 							<Button

@@ -119,7 +119,7 @@ The object cache and an HTML edge cache solve different problems. A hit in the H
 
 ## Freshness
 
-Editing content through the admin panel or the REST API invalidates the affected cache entries automatically. Creating, updating, publishing, or deleting an entry clears the cached queries for its collection; changing a byline or taxonomy term clears the entries that display it.
+Editing content through the admin panel or the REST API invalidates the affected cache entries automatically. Creating, updating, publishing, or deleting an entry clears the cached queries for its collection, including navigation menus that link to entries in it; changing a byline or taxonomy term clears the entries and menus that display it.
 
 Widget changes made in the admin, by seeding, or by a site transfer clear the cached widget areas. Code that writes the widget tables directly must call `invalidateWidgetObjectCache()` from `emdash` afterwards.
 

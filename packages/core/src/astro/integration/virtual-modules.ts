@@ -318,8 +318,9 @@ ${adapterImport}${imports.join("\n")}
 
 // Defer factories and adaptation until the runtime's module graph has initialized.
 export function plugins() {
-  const key = Symbol.for("emdash:plugins:v1:${cacheId}");
-  return globalThis[key] ??= [
+  const key = Symbol.for("emdash:plugins");
+  const cache = globalThis[key] ??= {};
+  return cache["${cacheId}"] ??= [
     ${instantiations.join(",\n    ")}
   ];
 }

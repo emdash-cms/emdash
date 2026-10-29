@@ -36,8 +36,10 @@ describe("toDatetimeLocalInputValue", () => {
 });
 
 describe("fromDatetimeLocalInputValue", () => {
-	it("returns empty for empty input", () => {
-		expect(fromDatetimeLocalInputValue("")).toBe("");
+	it("clears the stored value with null for empty input", () => {
+		const cleared = fromDatetimeLocalInputValue("");
+		expect(cleared).toBeNull();
+		expect(toDatetimeLocalInputValue(cleared)).toBe("");
 	});
 
 	it("converts site-local input to a canonical UTC instant", () => {

@@ -105,7 +105,10 @@ export function RepeaterField({
 			newItem[sf.slug] =
 				sf.type === "boolean"
 					? false
-					: sf.type === "number" || sf.type === "integer" || sf.type === "image"
+					: sf.type === "number" ||
+						  sf.type === "integer" ||
+						  sf.type === "image" ||
+						  sf.type === "datetime"
 						? null
 						: "";
 		}

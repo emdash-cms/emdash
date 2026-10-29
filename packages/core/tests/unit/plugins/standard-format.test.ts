@@ -27,6 +27,7 @@ import { z } from "zod";
 
 import type { PluginDescriptor } from "../../../src/astro/integration/runtime.js";
 import { generatePluginsModule } from "../../../src/astro/integration/virtual-modules.js";
+import { getRuntimeHolder, shutdownRuntime } from "../../../src/astro/runtime-holder.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 
@@ -219,6 +220,7 @@ describe("generatePluginsModule() for a built standard plugin", () => {
 	});
 
 	afterEach(async () => {
+		await shutdownRuntime();
 		await rm(dir, { recursive: true, force: true });
 	});
 
@@ -290,14 +292,61 @@ export function createPlugin(options) {
 		await writeFile(
 			otherConfig,
 			generatePluginsModule([
+				{ id: "standard", version: "1.0.0", entrypoint: standard, format: "standard" },
 				{ id: "native", version: "1.0.0", entrypoint: native, options: { debug: false } },
-			]),
+			]).replace("emdash/internal/plugins/adapt-sandbox-entry", adapter),
 		);
 		const other = (await import(otherConfig)) as { plugins: () => ResolvedPlugin[] };
 		expect(other.plugins()).not.toBe(resolved);
-		expect(other.plugins()).toMatchObject([{ id: "native", options: { debug: false } }]);
+		expect(other.plugins()).toMatchObject([
+			{ id: "standard" },
+			{ id: "native", options: { debug: false } },
+		]);
 		expect(nativeModule.creations).toBe(2);
 	});
+
+	it.each([false, true])(
+		"creates fresh plugin instances after shutdown (runtime initialized: %s)",
+		async (initialized) => {
+			const entrypoint = join(dir, "native.mjs");
+			await writeFile(
+				entrypoint,
+				`export function createPlugin(options) {
+  return { id: "native", version: "1.0.0", hooks: {}, options };
+}`,
+			);
+			const load = async (debug: boolean) => {
+				const module = join(dir, `plugins-${debug}.mjs`);
+				await writeFile(
+					module,
+					generatePluginsModule([
+						{ id: "native", version: "1.0.0", entrypoint, options: { debug } },
+					]),
+				);
+				return (await import(module)) as { plugins: () => ResolvedPlugin[] };
+			};
+			const firstConfig = await load(true);
+			const secondConfig = await load(false);
+			const first = firstConfig.plugins();
+			const second = secondConfig.plugins();
+			const runtime = { shutdown: vi.fn(async () => {}) };
+			if (initialized) getRuntimeHolder().instance = runtime as never;
+
+			await shutdownRuntime();
+
+			for (const [provider, previous] of [
+				[firstConfig.plugins, first],
+				[secondConfig.plugins, second],
+			] as const) {
+				const refreshed = provider();
+				expect(refreshed).not.toBe(previous);
+				expect(refreshed[0]).not.toBe(previous[0]);
+				expect(refreshed).toEqual(previous);
+				expect(provider()).toBe(refreshed);
+			}
+			expect(runtime.shutdown).toHaveBeenCalledTimes(initialized ? 1 : 0);
+		},
+	);
 
 	it("registers the MCP tools its descriptor declares", async () => {
 		// `emdash-plugin build` drops `mcp` from the runtime module and ships

@@ -1357,6 +1357,23 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		},
 	);
 
+	it.each([
+		{ input: "- ", selector: "li p", hint: "List" },
+		{ input: "> ", selector: "blockquote p", hint: "Quote" },
+	])(
+		"shows $hint after typing $input into an empty paragraph",
+		async ({ input, selector, hint }) => {
+			const { editor, pm } = await renderAndGetEditor();
+
+			simulateTyping(editor, input);
+
+			const paragraph = pm.querySelector(selector)!;
+			expect(paragraph).toBeTruthy();
+			expect(paragraph.getAttribute("data-placeholder")).toBe(hint);
+			expect(getComputedStyle(paragraph, "::before").content).toContain(hint);
+		},
+	);
+
 	it("keeps the quote placeholder visible in an empty blockquote", async () => {
 		await render(<PortableTextEditor value={[textBlock("", { style: "blockquote" })]} />);
 		const pm = await waitForEditor();

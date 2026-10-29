@@ -525,6 +525,20 @@ export interface CachedQueryOptions<T> {
  * failing `set` is dropped.
  */
 export async function cachedQuery<T>(options: CachedQueryOptions<T>): Promise<T> {
+	return cachedQueryWithEpochs(options);
+}
+
+/**
+ * {@link cachedQuery} that also passes `onEpochs` the namespace epochs the read
+ * is checked against and stored under, in namespace order, before the cached
+ * value is returned or `load` runs. Not called when the cache is disabled or
+ * bypassed.
+ *
+ * @internal
+ */
+export async function cachedQueryWithEpochs<T>(
+	options: CachedQueryOptions<T> & { onEpochs?: (epochs: readonly number[]) => void },
+): Promise<T> {
 	const backend = await getBackend();
 	if (!backend || shouldBypass()) {
 		return options.load();
@@ -545,6 +559,7 @@ export async function cachedQuery<T>(options: CachedQueryOptions<T>): Promise<T>
 		() => null,
 	);
 	const currentEpochs = await epochsPromise;
+	options.onEpochs?.(currentEpochs);
 	const raw = await rawPromise;
 	if (raw !== null) {
 		const decoded = decode(raw);
