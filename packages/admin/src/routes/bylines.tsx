@@ -365,8 +365,11 @@ export function BylinesPage() {
 												<bdi dir="ltr">/{item.slug}</bdi>
 											</div>
 											{item.bio && (
-												<div className="max-w-lg truncate text-sm text-kumo-subtle">
-													<bdi>{item.bio}</bdi>
+												<div
+													dir="auto"
+													className="w-fit max-w-lg truncate text-sm text-kumo-subtle"
+												>
+													{item.bio}
 												</div>
 											)}
 										</div>
@@ -379,12 +382,13 @@ export function BylinesPage() {
 								</Table.Cell>
 								<Table.Cell className="hidden lg:table-cell">
 									{item.websiteUrl ? (
-										<div
-											className="max-w-44 truncate text-sm text-kumo-subtle"
+										<bdi
+											dir="ltr"
+											className="block w-fit max-w-44 truncate text-sm text-kumo-subtle"
 											title={item.websiteUrl}
 										>
-											<bdi dir="ltr">{item.websiteUrl}</bdi>
-										</div>
+											{item.websiteUrl}
+										</bdi>
 									) : (
 										<span className="text-kumo-subtle">—</span>
 									)}

@@ -186,6 +186,56 @@ describe("BylinesPage directory", () => {
 		});
 	});
 
+	it("cuts a long website and bio at their end on a right-to-left page", async () => {
+		const websiteUrl = "https://example.com/contributors/guest-contributor/profile";
+		const bio =
+			"A visiting writer who covers city hall, transit, housing, and the regional economy for partner newsrooms.";
+		fetchBylinesMock.mockResolvedValue({
+			items: [
+				{
+					id: "guest",
+					slug: "guest-contributor",
+					displayName: "Guest Contributor",
+					bio,
+					avatarMediaId: null,
+					websiteUrl,
+					userId: null,
+					isGuest: true,
+					locale: "en",
+					translationGroup: null,
+					createdAt: "2026-01-01",
+					updatedAt: "2026-01-01",
+				} satisfies BylineSummary,
+			],
+			nextCursor: undefined,
+		});
+		const screen = await render(
+			<div dir="rtl" style={{ width: 900 }}>
+				<QueryWrapper>
+					<Toast.Provider>
+						<BylinesPage />
+					</Toast.Provider>
+				</QueryWrapper>
+			</div>,
+		);
+
+		for (const text of [websiteUrl, bio]) {
+			await expect.element(screen.getByText(text, { exact: true })).toBeVisible();
+			const element = screen.getByText(text, { exact: true }).element();
+			let clip = element as HTMLElement;
+			while (getComputedStyle(clip).overflowX === "visible") clip = clip.parentElement!;
+			const firstCharacter = document.createRange();
+			firstCharacter.setStart(element.firstChild!, 0);
+			firstCharacter.setEnd(element.firstChild!, 1);
+			const shown = clip.getBoundingClientRect();
+			const first = firstCharacter.getBoundingClientRect();
+
+			expect(clip.scrollWidth).toBeGreaterThan(clip.clientWidth);
+			expect(first.left).toBeGreaterThanOrEqual(shown.left);
+			expect(first.right).toBeLessThanOrEqual(shown.right);
+		}
+	});
+
 	it("keeps the create dialog and its actions within a narrow viewport", async () => {
 		await page.viewport(320, 640);
 		const container = document.createElement("div");
