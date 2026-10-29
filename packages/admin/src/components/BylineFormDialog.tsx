@@ -15,6 +15,8 @@ import { listBylineFields, type BylineFieldDefinition } from "../lib/api/byline-
 import { isSafeUrl } from "../lib/url.js";
 import { BylineAvatarField } from "./BylineAvatarField.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { DialogSection } from "./DialogSection.js";
+import { HelpLabel } from "./FieldHelpLabel.js";
 import { OptionalLabel } from "./OptionalLabel.js";
 
 const BYLINE_SLUG_PATTERN = /^[a-z][a-z0-9-]*$/;
@@ -359,7 +361,7 @@ export function BylineFormDialog({
 				<LayerDialog.Title>{shownBylineId ? t`Edit byline` : t`New byline`}</LayerDialog.Title>
 				{description && <LayerDialog.Description>{description}</LayerDialog.Description>}
 				<LayerDialog.Body>
-					<form id={formId} noValidate onSubmit={submitForm}>
+					<form id={formId} noValidate onSubmit={submitForm} className="grid gap-5">
 						<fieldset disabled={!formLoaded} className="min-w-0 space-y-5">
 							<Input
 								ref={displayNameRef}
@@ -386,7 +388,18 @@ export function BylineFormDialog({
 							/>
 							<Input
 								ref={slugRef}
-								label={t`Slug`}
+								label={
+									<HelpLabel
+										help={
+											!shownBylineId && !slugEdited
+												? t`Filled in from the display name. Use lowercase letters, numbers, and hyphens.`
+												: t`Use lowercase letters, numbers, and hyphens.`
+										}
+									>
+										{t`Slug`}
+									</HelpLabel>
+								}
+								aria-label={t`Slug`}
 								dir="ltr"
 								value={form.slug}
 								onChange={(e) => {
@@ -395,11 +408,6 @@ export function BylineFormDialog({
 									setForm((prev) => ({ ...prev, slug }));
 									setFormErrors((prev) => ({ ...prev, slug: undefined }));
 								}}
-								description={
-									!shownBylineId && !slugEdited
-										? t`Filled in from the display name. Use lowercase letters, numbers, and hyphens.`
-										: t`Use lowercase letters, numbers, and hyphens.`
-								}
 								error={formErrors.slug}
 								aria-invalid={!!formErrors.slug || undefined}
 								required
@@ -429,13 +437,10 @@ export function BylineFormDialog({
 								value={form.avatarMediaId}
 								onChange={(mediaId) => setForm((prev) => ({ ...prev, avatarMediaId: mediaId }))}
 							/>
-							<div className="space-y-4 border-t border-kumo-line pt-5">
-								<div className="space-y-1">
-									<h3 className="text-sm font-semibold">{t`Attribution`}</h3>
-									<p className="text-sm text-kumo-subtle">
-										{t`Link this byline to a user or mark it as a guest profile.`}
-									</p>
-								</div>
+							<DialogSection
+								title={t`Attribution`}
+								help={t`Link this byline to a user or mark it as a guest profile.`}
+							>
 								<Select
 									label={<OptionalLabel>{t`Linked user`}</OptionalLabel>}
 									aria-label={t`Linked user`}
@@ -465,11 +470,10 @@ export function BylineFormDialog({
 										}))
 									}
 								/>
-							</div>
+							</DialogSection>
 
 							{customFieldDefs.length > 0 && (
-								<div className="space-y-4 border-t border-kumo-line pt-5">
-									<h3 className="text-sm font-semibold">{t`Additional details`}</h3>
+								<DialogSection title={t`Additional details`}>
 									{customFieldDefs.map((field) => (
 										<CustomFieldInput
 											key={field.id}
@@ -486,7 +490,7 @@ export function BylineFormDialog({
 											}
 										/>
 									))}
-								</div>
+								</DialogSection>
 							)}
 							{customFieldsError && (
 								<div className="rounded-md border border-kumo-danger/40 bg-kumo-danger/5 p-3 text-sm">
@@ -499,18 +503,23 @@ export function BylineFormDialog({
 
 							{source && renderExtra ? renderExtra(source) : null}
 						</fieldset>
-						<DialogError message={getMutationError(saveMutation.error ?? error)} className="mt-5" />
+						<DialogError message={getMutationError(saveMutation.error ?? error)} />
 						{source && onDelete && (
-							<div className="mt-6 border-t border-kumo-line pt-5">
-								<Button
-									type="button"
-									variant="secondary-destructive"
-									onClick={() => onDelete(source)}
-									disabled={isSaving}
-								>
-									{t`Delete`}
-								</Button>
-							</div>
+							<DialogSection
+								title={t`Delete byline`}
+								description={t`Content that credits this byline loses the credit.`}
+								action={
+									<Button
+										type="button"
+										variant="secondary-destructive"
+										aria-label={t`Delete byline`}
+										onClick={() => onDelete(source)}
+										disabled={isSaving}
+									>
+										{t`Delete`}
+									</Button>
+								}
+							/>
 						)}
 					</form>
 				</LayerDialog.Body>

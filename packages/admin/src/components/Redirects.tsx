@@ -1,4 +1,4 @@
-import { Badge, Button, Input, Label, LayerDialog, Select, Switch } from "@cloudflare/kumo";
+import { Badge, Button, Input, LayerDialog, Select, Switch } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -109,7 +109,7 @@ function RedirectFormDialog({
 						: t`Use [param] or [...rest] in paths for pattern matching.`}
 				</LayerDialog.Description>
 				<LayerDialog.Body>
-					<form id={formId} onSubmit={handleSubmit} className="space-y-4">
+					<form id={formId} onSubmit={handleSubmit} className="grid gap-5">
 						<Input
 							dir="ltr"
 							label={t`Source path`}
@@ -132,22 +132,21 @@ function RedirectFormDialog({
 							/>
 						)}
 
-						<div className="grid grid-cols-2 gap-4">
-							<div>
-								<Select
-									label={t`Status code`}
-									value={type}
-									onValueChange={(v) => setType(v ?? "301")}
-									items={{
-										"301": t`301 Permanent`,
-										"302": t`302 Temporary`,
-										"307": t`307 Temporary (Strict)`,
-										"308": t`308 Permanent (Strict)`,
-										"410": t`410 Content Deleted (Gone)`,
-										"451": t`451 Unavailable for legal reasons`,
-									}}
-								/>
-							</div>
+						<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
+							<Select
+								label={t`Status code`}
+								className="w-full"
+								value={type}
+								onValueChange={(v) => setType(v ?? "301")}
+								items={{
+									"301": t`301 Permanent`,
+									"302": t`302 Temporary`,
+									"307": t`307 Temporary (Strict)`,
+									"308": t`308 Permanent (Strict)`,
+									"410": t`410 Content Deleted (Gone)`,
+									"451": t`451 Unavailable for legal reasons`,
+								}}
+							/>
 
 							<Input
 								label={t`Group (optional)`}
@@ -157,10 +156,7 @@ function RedirectFormDialog({
 							/>
 						</div>
 
-						<div className="flex items-center gap-2">
-							<Switch checked={enabled} onCheckedChange={setEnabled} id="redirect-enabled" />
-							<Label htmlFor="redirect-enabled">{t`Enabled`}</Label>
-						</div>
+						<Switch label={t`Enabled`} checked={enabled} onCheckedChange={setEnabled} />
 
 						<DialogError message={getMutationError(mutation.error)} />
 					</form>

@@ -4,7 +4,7 @@
  * Shown to new users on their first login.
  */
 
-import { Badge, Button, LayerDialog } from "@cloudflare/kumo";
+import { Badge, LayerDialog } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -111,39 +111,45 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 	}
 
 	return (
-		<LayerDialog.Root open={open} onOpenChange={(isOpen: boolean) => !isOpen && handleGetStarted()}>
+		<LayerDialog.Root
+			open={open}
+			onOpenChange={(isOpen: boolean) => !isOpen && handleGetStarted()}
+			dismissDisabled={dismissMutation.isPending}
+		>
 			<LayerDialog.Content size="sm">
-				<LayerDialog.Title>{t(titleDescriptor)}</LayerDialog.Title>
+				<LayerDialog.Title>
+					<span className="grid justify-items-start gap-4">
+						<span aria-hidden="true">
+							<BrandIcon logoUrl={brandLogo} siteName={siteName} className="size-8" />
+						</span>
+						{t(titleDescriptor)}
+					</span>
+				</LayerDialog.Title>
 				<LayerDialog.Description>{t(MSG_ACCOUNT_CREATED)}</LayerDialog.Description>
 				<LayerDialog.Body>
-					<div className="space-y-3 text-start">
-						<BrandIcon logoUrl={brandLogo} siteName={siteName} className="h-8 w-8" />
-						<div className="flex items-center gap-2">
-							<span className="text-sm text-kumo-subtle">{t(MSG_YOUR_ROLE)}</span>
-							<Badge variant={roleBadgeVariant(userRole)} className="gap-1">
-								<UserCircleIcon weight="fill" aria-hidden="true" />
-								{roleLabel}
-							</Badge>
-						</div>
-						<p className="text-sm leading-5 text-pretty text-kumo-default">
-							{t(scopeDescriptor(isAdmin, userRole))}
-						</p>
-						{isAdmin && (
-							<p className="text-sm leading-5 text-pretty text-kumo-subtle">
-								{t(MSG_ADMIN_INVITE)}
+					<div className="grid gap-4">
+						<div className="grid gap-2">
+							<div className="flex items-center gap-2">
+								<span className="text-sm text-kumo-subtle">{t(MSG_YOUR_ROLE)}</span>
+								<Badge variant={roleBadgeVariant(userRole)} className="gap-1">
+									<UserCircleIcon weight="fill" aria-hidden="true" />
+									{roleLabel}
+								</Badge>
+							</div>
+							<p className="text-base text-pretty text-kumo-default">
+								{t(scopeDescriptor(isAdmin, userRole))}
 							</p>
+						</div>
+						{isAdmin && (
+							<p className="text-base text-pretty text-kumo-subtle">{t(MSG_ADMIN_INVITE)}</p>
 						)}
 					</div>
-					<Button
-						variant="primary"
-						size="lg"
-						className="mt-5 w-full justify-center"
-						onClick={handleGetStarted}
-						loading={dismissMutation.isPending}
-					>
-						{t`Get Started`}
-					</Button>
 				</LayerDialog.Body>
+				<LayerDialog.Actions>
+					<LayerDialog.Action onClick={handleGetStarted} loading={dismissMutation.isPending}>
+						{t`Get Started`}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
 			</LayerDialog.Content>
 		</LayerDialog.Root>
 	);

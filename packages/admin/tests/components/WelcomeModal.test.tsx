@@ -134,9 +134,12 @@ describe("WelcomeModal", () => {
 				</QueryWrapper>
 			</AdminBrandingProvider>,
 		);
-		const logo = screen.getByRole("img", { name: "Acme" });
+		const logo = screen.getByAltText("Acme");
 		await expect.element(logo).toBeInTheDocument();
 		await expect.element(logo).toHaveAttribute("src", "/brand.svg");
+		await expect
+			.element(screen.getByRole("heading", { name: "Welcome to Acme!", exact: true }))
+			.toBeInTheDocument();
 	});
 
 	it.each([

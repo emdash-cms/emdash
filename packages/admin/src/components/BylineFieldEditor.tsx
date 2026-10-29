@@ -34,6 +34,7 @@ import type {
 } from "../lib/api/byline-fields.js";
 import { slugifyIdentifier } from "../lib/utils";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { HelpLabel } from "./FieldHelpLabel.js";
 
 /**
  * The five v1 byline field types. Kept in lock-step with the server-side
@@ -199,79 +200,86 @@ export function BylineFieldEditor({
 			<LayerDialog.Content>
 				<LayerDialog.Title>{isEdit ? t`Edit byline field` : t`New byline field`}</LayerDialog.Title>
 				<LayerDialog.Body>
-					<div className="space-y-5">
+					<div className="grid gap-5">
 						{/* Label + slug */}
-						<div className="grid grid-cols-1 sm:grid-cols-2 items-start gap-4">
+						<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
 							<Input
 								label={t`Label`}
 								value={state.label}
 								onChange={(e) => handleLabelChange(e.target.value)}
 								placeholder={t`Job title`}
 							/>
-							<div>
-								<Input
-									dir="ltr"
-									label={t`Slug`}
-									value={state.slug}
-									onChange={(e) => setField("slug", e.target.value)}
-									// The literal slug is an example identifier, not natural-language
-									// copy — translators will typically leave it as-is, but the
-									// AGENTS.md "every user-facing string via Lingui" rule applies
-									// uniformly, so the catalog extractor sees it.
-									placeholder={t`job_title`}
-									disabled={isEdit}
-									error={slugError}
-								/>
-								{isEdit && (
-									<p className="text-xs text-kumo-subtle mt-2">
-										{t`Slugs cannot be changed after the field is created.`}
-									</p>
-								)}
-							</div>
+							<Input
+								dir="ltr"
+								label={
+									isEdit ? (
+										<HelpLabel help={t`Slugs cannot be changed after the field is created.`}>
+											{t`Slug`}
+										</HelpLabel>
+									) : (
+										t`Slug`
+									)
+								}
+								aria-label={t`Slug`}
+								value={state.slug}
+								onChange={(e) => setField("slug", e.target.value)}
+								// The literal slug is an example identifier, not natural-language
+								// copy — translators will typically leave it as-is, but the
+								// AGENTS.md "every user-facing string via Lingui" rule applies
+								// uniformly, so the catalog extractor sees it.
+								placeholder={t`job_title`}
+								disabled={isEdit}
+								error={slugError}
+							/>
 						</div>
 
 						{/* Type — disabled on edit because the storage column depends on it */}
-						<div>
-							<Select
-								label={t`Type`}
-								value={state.type}
-								onValueChange={(v) => setField("type", v ?? "string")}
-								items={Object.fromEntries(
-									TYPE_OPTIONS.map(({ value, label }) => [value, t(label)]),
-								)}
-								disabled={isEdit}
-							/>
-							{isEdit && (
-								<p className="text-xs text-kumo-subtle mt-2">
-									{t`Field type cannot be changed after creation.`}
-								</p>
-							)}
-						</div>
+						<Select
+							label={
+								isEdit ? (
+									<HelpLabel help={t`Field type cannot be changed after creation.`}>
+										{t`Type`}
+									</HelpLabel>
+								) : (
+									t`Type`
+								)
+							}
+							aria-label={t`Type`}
+							className="w-full"
+							value={state.type}
+							onValueChange={(v) => setField("type", v ?? "string")}
+							items={Object.fromEntries(TYPE_OPTIONS.map(({ value, label }) => [value, t(label)]))}
+							disabled={isEdit}
+						/>
 
 						{/* Toggles */}
-						<div className="flex flex-wrap items-start gap-6">
+						<div className="flex flex-wrap items-center gap-x-6 gap-y-3">
 							{/* TODO: enforce `required` on the write path — currently
 							 * descriptive only, see `BylineRepository.coerceFieldValue`. */}
 							<Switch
 								checked={state.required}
 								onCheckedChange={(checked) => setField("required", checked)}
-								label={<span className="text-sm">{t`Required`}</span>}
+								label={t`Required`}
 							/>
-							<div className="flex flex-col gap-1">
-								<Switch
-									checked={state.translatable}
-									onCheckedChange={(checked) => setField("translatable", checked)}
-									disabled={translatableLocked}
-									label={<span className="text-sm">{t`Translatable`}</span>}
-								/>
-								<p className="text-xs text-kumo-subtle max-w-xs">
-									{translatableLocked
-										? t`Locked because this field has stored values. Delete the values (or the field) to change this.`
-										: state.translatable
-											? t`Stored per locale — each translation of a byline gets its own value.`
-											: t`Shared across all translations of the same byline.`}
-								</p>
-							</div>
+							<Switch
+								checked={state.translatable}
+								onCheckedChange={(checked) => setField("translatable", checked)}
+								disabled={translatableLocked}
+								label={
+									<HelpLabel
+										help={
+											translatableLocked
+												? t`Locked because this field has stored values. Delete the values (or the field) to change this.`
+												: state.translatable
+													? t`Stored per locale — each translation of a byline gets its own value.`
+													: t`Shared across all translations of the same byline.`
+										}
+									>
+										{t`Translatable`}
+									</HelpLabel>
+								}
+								aria-label={t`Translatable`}
+							/>
 						</div>
 
 						{/* Select-type validation: options list */}
@@ -285,7 +293,7 @@ export function BylineFieldEditor({
 							/>
 						)}
 
-						<DialogError message={getMutationError(error)} className="mt-1" />
+						<DialogError message={getMutationError(error)} />
 					</div>
 				</LayerDialog.Body>
 				<LayerDialog.Actions dismissLabel={t`Cancel`}>

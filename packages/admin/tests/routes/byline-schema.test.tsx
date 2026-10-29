@@ -25,6 +25,7 @@ import { Toast } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { page } from "vitest/browser";
 
 import { BylineFieldEditor } from "../../src/components/BylineFieldEditor";
 import type { BylineFieldDefinition } from "../../src/lib/api/byline-fields";
@@ -169,7 +170,7 @@ describe("BylineFieldEditor", () => {
 
 		it("renders the label and slug inputs as enabled", async () => {
 			const screen = await render(<BylineFieldEditor {...defaultProps} />);
-			const slug = screen.getByLabelText("Slug");
+			const slug = screen.getByLabelText("Slug", { exact: true });
 			await expect.element(slug).toBeInTheDocument();
 			await expect.element(slug).not.toBeDisabled();
 		});
@@ -177,7 +178,7 @@ describe("BylineFieldEditor", () => {
 		it("renders the required + translatable switches", async () => {
 			const screen = await render(<BylineFieldEditor {...defaultProps} />);
 			await expect.element(screen.getByText("Required")).toBeInTheDocument();
-			await expect.element(screen.getByText("Translatable")).toBeInTheDocument();
+			await expect.element(screen.getByText("Translatable", { exact: true })).toBeInTheDocument();
 		});
 
 		it("does not render the select-options textarea for the default string type", async () => {
@@ -203,13 +204,13 @@ describe("BylineFieldEditor", () => {
 
 		it("disables the slug input — slugs are immutable post-create", async () => {
 			const screen = await render(<BylineFieldEditor {...defaultProps} field={stringField} />);
-			await expect.element(screen.getByLabelText("Slug")).toBeDisabled();
+			await expect.element(screen.getByLabelText("Slug", { exact: true })).toBeDisabled();
 		});
 
 		it("prefills the label and slug from the field prop", async () => {
 			const screen = await render(<BylineFieldEditor {...defaultProps} field={stringField} />);
 			await expect.element(screen.getByLabelText("Label")).toHaveValue("Job title");
-			await expect.element(screen.getByLabelText("Slug")).toHaveValue("job_title");
+			await expect.element(screen.getByLabelText("Slug", { exact: true })).toHaveValue("job_title");
 		});
 
 		it("does not render the select-options textarea", async () => {
@@ -266,9 +267,10 @@ describe("BylineFieldEditor", () => {
 			await expect.element(sw).toBeDisabled();
 			// Help text surfaces the reason — admins shouldn't have to
 			// trial-and-error the API to discover why the toggle won't move.
+			await screen.getByRole("button", { name: "More information about Translatable" }).hover();
 			await expect
-				.element(screen.getByText(/Locked because this field has stored values/))
-				.toBeInTheDocument();
+				.element(page.getByText(/Locked because this field has stored values/))
+				.toBeVisible();
 		});
 
 		it("leaves the translatable switch enabled when usageTotal is 0", async () => {

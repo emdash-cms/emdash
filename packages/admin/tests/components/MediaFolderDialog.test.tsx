@@ -134,10 +134,11 @@ describe("MediaFolderDialog", () => {
 		const deleteButton = screen.getByRole("button", { name: "Delete folder" });
 
 		deleteButton.element().click();
-		await expect.element(screen.getByText("Delete “Drafts”?")).toBeInTheDocument();
+		const confirmation = screen.getByRole("dialog", { name: "Delete “Drafts”?" });
+		await expect.element(confirmation).toBeInTheDocument();
 		await expect
 			.element(
-				screen.getByText(
+				confirmation.getByText(
 					"Media in this folder will return to Main library. No files will be deleted.",
 				),
 			)

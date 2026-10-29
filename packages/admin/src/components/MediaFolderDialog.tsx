@@ -6,6 +6,7 @@ import * as React from "react";
 import { ApiResponseError, type MediaFolder } from "../lib/api";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { DialogSection } from "./DialogSection.js";
 
 export interface MediaFolderDialogProps {
 	open: boolean;
@@ -125,7 +126,7 @@ export function MediaFolderDialog({
 				<LayerDialog.Content size="sm">
 					<LayerDialog.Title>{isEditing ? t`Edit folder` : t`Add new folder`}</LayerDialog.Title>
 					<LayerDialog.Body>
-						<form id={formId} onSubmit={submit} noValidate>
+						<form id={formId} onSubmit={submit} noValidate className="grid gap-5">
 							<Input
 								label={t`Name`}
 								value={name}
@@ -138,22 +139,27 @@ export function MediaFolderDialog({
 								autoFocus
 								disabled={isPending}
 							/>
-							<DialogError message={dialogError} className="mt-3" />
+							<DialogError message={dialogError} />
 							{folder && (
-								<div className="mt-6 border-t border-kumo-line pt-5">
-									<Button
-										ref={deleteButtonRef}
-										variant="secondary-destructive"
-										type="button"
-										onClick={() => {
-											deleteMutation.reset();
-											setDeleteOpen(true);
-										}}
-										disabled={isPending}
-									>
-										{t`Delete folder`}
-									</Button>
-								</div>
+								<DialogSection
+									title={t`Delete folder`}
+									description={t`Media in this folder will return to Main library. No files will be deleted.`}
+									action={
+										<Button
+											ref={deleteButtonRef}
+											variant="secondary-destructive"
+											type="button"
+											aria-label={t`Delete folder`}
+											onClick={() => {
+												deleteMutation.reset();
+												setDeleteOpen(true);
+											}}
+											disabled={isPending}
+										>
+											{t`Delete`}
+										</Button>
+									}
+								/>
 							)}
 						</form>
 					</LayerDialog.Body>
