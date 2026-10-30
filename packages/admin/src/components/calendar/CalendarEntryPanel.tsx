@@ -33,13 +33,13 @@ import {
 } from "../../lib/api/content.js";
 import type { CurrentUser } from "../../lib/api/current-user.js";
 import {
-	canPublishEntry,
 	formatTimeAgo,
 	formatTimeUntil,
 	type CalendarDisplay,
 	type CalendarItem,
 	type CalendarState,
 } from "../../lib/calendar.js";
+import { canPublishEntry } from "../../lib/content-permissions.js";
 import { contentUrl } from "../../lib/url.js";
 import { cn } from "../../lib/utils.js";
 import { getLocaleLabel } from "../../locales/index.js";
@@ -195,7 +195,7 @@ function CalendarEntryPanelContent({
 	});
 
 	const entry = details.data;
-	const canPublish = Boolean(entry && canPublishEntry(user, entry.authorId));
+	const canPublish = Boolean(entry && canPublishEntry(user, { authorId: entry.authorId ?? null }));
 	const scheduled = item.kind === "scheduled";
 	const title = item.title;
 	const editorLink = {

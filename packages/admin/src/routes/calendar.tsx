@@ -29,7 +29,6 @@ import { ApiResponseError, fetchManifest, type AdminManifest } from "../lib/api/
 import { scheduleContent } from "../lib/api/content.js";
 import { useCurrentUser } from "../lib/api/current-user.js";
 import {
-	canPublishEntry,
 	createCalendarDisplay,
 	dayKeyInZone,
 	dayKeyToUTC,
@@ -48,6 +47,7 @@ import {
 	type CalendarSearch,
 	type CalendarView,
 } from "../lib/calendar.js";
+import { canPublishEntry } from "../lib/content-permissions.js";
 import { cn } from "../lib/utils.js";
 import { useDateLocale } from "../locales/date-locale.js";
 
@@ -316,7 +316,8 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 
 	const toastManager = useKumoToastManager();
 	const canMove = React.useCallback(
-		(item: CalendarItem) => item.kind === "scheduled" && canPublishEntry(user, item.authorId),
+		(item: CalendarItem) =>
+			item.kind === "scheduled" && canPublishEntry(user, { authorId: item.authorId ?? null }),
 		[user],
 	);
 	const refreshContent = (collection: string) => {
