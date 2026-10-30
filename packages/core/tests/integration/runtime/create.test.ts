@@ -13,6 +13,8 @@ import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { Role } from "@emdash-cms/auth";
+import type { APIContext } from "astro";
 import type { DialectAdapter } from "kysely";
 import { Kysely, sql, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,6 +22,7 @@ import { z } from "zod";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
+import { GET as getEmailSettings } from "../../../src/astro/routes/api/settings/email.js";
 import { DEFAULT_COMMENT_MODERATOR_PLUGIN_ID } from "../../../src/comments/moderator.js";
 import { LockingSqliteAdapter } from "../../../src/database/migration-lock.js";
 import {
@@ -41,7 +44,12 @@ import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { getI18nConfig, setI18nConfig } from "../../../src/i18n/config.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
-import type { ContentBeforeSaveHandler } from "../../../src/plugins/types.js";
+import {
+	DEV_CONSOLE_EMAIL_PLUGIN_ID,
+	getDevEmails,
+	clearDevEmails,
+} from "../../../src/plugins/email-console.js";
+import type { ContentBeforeSaveHandler, EmailDeliverHandler } from "../../../src/plugins/types.js";
 import { runWithContext } from "../../../src/request-context.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 
@@ -49,6 +57,31 @@ class LockingSqliteDialect extends SqliteDialect {
 	override createAdapter(): DialectAdapter {
 		return new LockingSqliteAdapter();
 	}
+}
+
+function createEmailProvider(id: string, handler: EmailDeliverHandler) {
+	return definePlugin({
+		id,
+		version: "1.0.0",
+		capabilities: ["hooks.email-transport:register"],
+		hooks: {
+			"email:deliver": {
+				exclusive: true,
+				handler,
+			},
+		},
+	});
+}
+
+function createDepsWithDatabase(
+	sqlite: Database,
+	plugins: RuntimeDependencies["plugins"],
+): RuntimeDependencies {
+	return {
+		...createDeps(),
+		plugins,
+		createDialect: () => new SqliteDialect({ database: sqlite }),
+	};
 }
 
 function createDeps(): RuntimeDependencies {
@@ -174,6 +207,122 @@ describe("EmDashRuntime.create — cold boot", () => {
 				.executeTakeFirst();
 			expect(row).toBeDefined();
 			expect(JSON.parse(row!.value)).toBe("test-exclusive-provider");
+		} finally {
+			await runtime.stopCron();
+		}
+	});
+
+	it("keeps the dev console email selection in memory without persisting it", async () => {
+		const runtime = await EmDashRuntime.create(createDeps());
+		try {
+			expect(runtime.hooks.getExclusiveSelection("email:deliver")).toBe(
+				DEV_CONSOLE_EMAIL_PLUGIN_ID,
+			);
+			expect(
+				await new OptionsRepository(runtime.db).get("emdash:exclusive_hook:email:deliver"),
+			).toBeNull();
+			const response = await getEmailSettings({
+				locals: { emdash: runtime, user: { id: "admin", role: Role.ADMIN } },
+			} as unknown as APIContext);
+			expect(response.status).toBe(200);
+			expect(await response.json()).toMatchObject({
+				data: { available: true, selectedProviderId: DEV_CONSOLE_EMAIL_PLUGIN_ID },
+			});
+		} finally {
+			await runtime.stopCron();
+		}
+	});
+
+	it("replaces a legacy console selection with a real provider and delivers through it", async () => {
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		const options = new OptionsRepository(setupDb);
+		await options.set("emdash:setup_complete", true);
+		await options.set("emdash:exclusive_hook:email:deliver", DEV_CONSOLE_EMAIL_PLUGIN_ID);
+		clearDevEmails();
+		const deliver = vi.fn<EmailDeliverHandler>();
+		const runtime = await EmDashRuntime.create(
+			createDepsWithDatabase(sqlite, [createEmailProvider("real-email", deliver)]),
+		);
+
+		try {
+			expect(runtime.hooks.getExclusiveSelection("email:deliver")).toBe("real-email");
+			expect(
+				await new OptionsRepository(runtime.db).get("emdash:exclusive_hook:email:deliver"),
+			).toBe("real-email");
+			await runtime.email!.send(
+				{
+					to: "recipient@example.com",
+					subject: "Test",
+					text: "Test email",
+				},
+				"system",
+			);
+			expect(deliver).toHaveBeenCalledOnce();
+			expect(getDevEmails()).toHaveLength(0);
+
+			await runtime.setPluginStatus("real-email", "inactive");
+			expect(runtime.hooks.getExclusiveSelection("email:deliver")).toBe(
+				DEV_CONSOLE_EMAIL_PLUGIN_ID,
+			);
+			expect(
+				await new OptionsRepository(runtime.db).get("emdash:exclusive_hook:email:deliver"),
+			).toBeNull();
+			await runtime.setPluginStatus("real-email", "active");
+			expect(runtime.hooks.getExclusiveSelection("email:deliver")).toBe("real-email");
+			expect(
+				await new OptionsRepository(runtime.db).get("emdash:exclusive_hook:email:deliver"),
+			).toBe("real-email");
+		} finally {
+			await runtime.stopCron();
+		}
+	});
+
+	it("clears a legacy console selection when it is the only provider", async () => {
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		const options = new OptionsRepository(setupDb);
+		await options.set("emdash:setup_complete", true);
+		await options.set("emdash:exclusive_hook:email:deliver", DEV_CONSOLE_EMAIL_PLUGIN_ID);
+		const runtime = await EmDashRuntime.create(createDepsWithDatabase(sqlite, []));
+		try {
+			expect(runtime.hooks.getExclusiveSelection("email:deliver")).toBe(
+				DEV_CONSOLE_EMAIL_PLUGIN_ID,
+			);
+			expect(
+				await new OptionsRepository(runtime.db).get("emdash:exclusive_hook:email:deliver"),
+			).toBeNull();
+		} finally {
+			await runtime.stopCron();
+		}
+	});
+
+	it("clears a legacy console selection when multiple real providers are available", async () => {
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		const options = new OptionsRepository(setupDb);
+		await options.set("emdash:setup_complete", true);
+		await options.set("emdash:exclusive_hook:email:deliver", DEV_CONSOLE_EMAIL_PLUGIN_ID);
+		const runtime = await EmDashRuntime.create(
+			createDepsWithDatabase(sqlite, [
+				createEmailProvider("first-email", vi.fn<EmailDeliverHandler>()),
+				createEmailProvider("second-email", vi.fn<EmailDeliverHandler>()),
+			]),
+		);
+		try {
+			expect(runtime.hooks.getExclusiveSelection("email:deliver")).toBeUndefined();
+			expect(
+				await new OptionsRepository(runtime.db).get("emdash:exclusive_hook:email:deliver"),
+			).toBeNull();
 		} finally {
 			await runtime.stopCron();
 		}

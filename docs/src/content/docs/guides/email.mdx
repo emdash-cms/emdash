@@ -17,7 +17,9 @@ You can see the current state under **Settings → Email** in the admin: whether
 
 ## Development: Built-in Console Provider
 
-In development (`astro dev`), EmDash auto-activates a built-in console provider when no other provider is selected. It does not send anything — it logs each email to the terminal and keeps the last 100 messages in memory.
+In development (`astro dev`), EmDash auto-activates a built-in console provider when no real email provider is active. It does not send anything — it logs each email to the terminal and keeps the last 100 messages in memory.
+
+A single active real provider takes precedence over the console. To keep development emails out of a real provider, disable or omit that provider in development. Console selections made through the admin API last only until the next server restart or plugin enable/disable; they do not override real providers across those events. If multiple real providers are active, select one explicitly or configure a preferred provider; the console does not resolve that ambiguity.
 
 That means magic links and invites work out of the box in dev: request a magic link, then copy the URL from your terminal output. You can also list captured emails at the dev-only endpoint `GET /_emdash/api/dev/emails` (and clear them with `DELETE`).
 
