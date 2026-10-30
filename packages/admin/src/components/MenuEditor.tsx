@@ -194,10 +194,16 @@ export function MenuEditor() {
 		renameMutation.mutate(label);
 	};
 
-	// Sync local items with fetched data
+	// Sync local items with fetched data. An item whose parent is missing is
+	// edited as a top-level item, which is where the site renders it.
 	React.useEffect(() => {
 		if (menu?.items) {
-			setLocalItems(menu.items);
+			const ids = new Set(menu.items.map((item) => item.id));
+			setLocalItems(
+				menu.items.map((item) =>
+					item.parentId === null || ids.has(item.parentId) ? item : { ...item, parentId: null },
+				),
+			);
 		}
 	}, [menu]);
 
@@ -678,7 +684,11 @@ export function MenuEditor() {
 										deleteMutation.reset();
 									}}
 									title={t`Delete menu item?`}
-									description={t`"${item.label}" will be removed from this menu. This action cannot be undone.`}
+									description={
+										localItems.some((i) => i.parentId === item.id)
+											? t`"${item.label}" and its nested items will be removed from this menu. This action cannot be undone.`
+											: t`"${item.label}" will be removed from this menu. This action cannot be undone.`
+									}
 									confirmLabel={t`Delete`}
 									pendingLabel={t`Deleting...`}
 									isPending={deleteMutation.isPending}

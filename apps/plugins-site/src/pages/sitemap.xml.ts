@@ -1,19 +1,17 @@
 import type { APIRoute } from "astro";
-import { getLiveCollection } from "astro:content";
 
+import { searchCatalog } from "../lib/catalog.js";
 import { pluginPath, publisherPath } from "../lib/registry.js";
 
 export const GET: APIRoute = async ({ site }) => {
 	const origin = site ?? new URL("https://plugins.emdashcms.com");
-	const result = await getLiveCollection("plugins", { limit: 100 });
-	const plugins = (result.entries ?? []).map(({ data }) => {
-		const plugin = data.package;
-		return new URL(pluginPath(plugin), origin).href;
-	});
+	const result = await searchCatalog("");
+	if ("error" in result) {
+		return new Response(null, { status: 503, headers: { "retry-after": "30" } });
+	}
+	const plugins = result.packages.map((plugin) => new URL(pluginPath(plugin), origin).href);
 	const publishers = [
-		...new Set(
-			(result.entries ?? []).map(({ data }) => new URL(publisherPath(data.package), origin).href),
-		),
+		...new Set(result.packages.map((plugin) => new URL(publisherPath(plugin), origin).href)),
 	];
 	const urls = [...publishers, ...plugins];
 

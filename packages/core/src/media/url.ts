@@ -13,6 +13,7 @@ import { INTERNAL_MEDIA_PREFIX } from "./normalize.js";
 // Slashes, `?`, `#`, and `%` are rejected so attacker-controlled content in a
 // portable-text `asset.url` cannot traverse or reroute on the CDN origin.
 const SAFE_STORAGE_KEY = /^[A-Za-z0-9._-]+$/;
+const QUERY_OR_FRAGMENT = /[?#]/;
 
 /**
  * Build the internal file route URL for a storage key, encoding each path
@@ -27,6 +28,20 @@ export function localMediaFileUrl(key: string): string {
 		return `${INTERNAL_MEDIA_PREFIX}${encodeURIComponent(key)}`;
 	}
 	return `${INTERNAL_MEDIA_PREFIX}${segments.map(encodeURIComponent).join("/")}`;
+}
+
+/**
+ * The storage key named by a root-relative internal file route URL, the
+ * inverse of {@link localMediaFileUrl}. Returns `null` for any other URL.
+ */
+export function storageKeyFromLocalMediaFileUrl(url: string): string | null {
+	if (!url.startsWith(INTERNAL_MEDIA_PREFIX)) return null;
+	const path = url.slice(INTERNAL_MEDIA_PREFIX.length).split(QUERY_OR_FRAGMENT, 1)[0] ?? "";
+	try {
+		return decodeURIComponent(path) || null;
+	} catch {
+		return null;
+	}
 }
 
 /**
