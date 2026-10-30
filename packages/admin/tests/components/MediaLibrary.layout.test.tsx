@@ -1,16 +1,32 @@
 import { Sidebar, Toasty } from "@cloudflare/kumo";
 import * as React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
 import { MediaLibrary } from "../../src/components/MediaLibrary.js";
-import type { MediaItem } from "../../src/lib/api/media.js";
+import type { LocalMediaItem, MediaFolder, MediaItem } from "../../src/lib/api/media.js";
+import { formatFileSize } from "../../src/lib/media-utils.js";
 import { render } from "../utils/render.js";
 
 vi.mock("../../src/lib/api", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../../src/lib/api")>()),
 	fetchMediaProviders: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@tanstack/react-router")>()),
+	Link: ({
+		children,
+		to,
+		params: _params,
+		search: _search,
+		...props
+	}: React.ComponentProps<"a"> & { to?: string; params?: unknown; search?: unknown }) => (
+		<a href={typeof to === "string" ? to : "#"} {...props}>
+			{children}
+		</a>
+	),
 }));
 
 vi.mock("../../src/lib/api/current-user.js", () => ({
@@ -25,6 +41,88 @@ const items: MediaItem[] = Array.from({ length: 35 }, (_, index) => ({
 	size: 1024,
 	createdAt: "2026-01-01T00:00:00Z",
 }));
+
+function localItem(id: string, overrides: Partial<LocalMediaItem>): LocalMediaItem {
+	return {
+		id,
+		filename: `${id}.txt`,
+		mimeType: "text/plain",
+		url: `/media/${id}`,
+		size: 1024,
+		createdAt: "2026-01-01T00:00:00Z",
+		storageKey: id,
+		authorId: "user-1",
+		folderId: null,
+		...overrides,
+	};
+}
+
+const listItems = [
+	localItem("hero", {
+		filename: "campaign_hero_banner_final_approved_version_2026_q1_export_retina.png",
+		mimeType: "image/png",
+		size: 2_457_600,
+		alt: "A hero banner",
+	}),
+	localItem("report", {
+		filename: "quarterly-report.docx",
+		mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		size: 48_000,
+	}),
+	localItem("note", { filename: "a.txt", size: 12 }),
+];
+
+const folders: MediaFolder[] = [
+	{ id: "folder-1", name: "Campaign assets with a deliberately long folder name for spring" },
+	{ id: "folder-2", name: "ProductPhotographyForTheSpringCatalogueWithoutAnySpaces" },
+];
+
+function renderListView({ dir = "ltr", width }: { dir?: "ltr" | "rtl"; width: number }) {
+	return render(
+		<Toasty>
+			<div dir={dir} style={{ width }}>
+				<MediaLibrary
+					items={listItems}
+					folders={folders}
+					canManageFolders
+					onCreateFolder={vi.fn()}
+					onRenameFolder={vi.fn()}
+					onDeleteFolder={vi.fn()}
+					canMoveMedia={() => true}
+					onMoveMedia={vi.fn().mockResolvedValue(undefined)}
+				/>
+			</div>
+		</Toasty>,
+	);
+}
+
+function expectInside(element: Element, box: DOMRect) {
+	const bounds = element.getBoundingClientRect();
+	expect(bounds.left).toBeGreaterThanOrEqual(box.left);
+	expect(bounds.right).toBeLessThanOrEqual(box.right);
+}
+
+function pointer(type: string, target: EventTarget, { x, y }: { x: number; y: number }) {
+	target.dispatchEvent(
+		new PointerEvent(type, { bubbles: true, isPrimary: true, clientX: x, clientY: y }),
+	);
+}
+
+function center(element: Element) {
+	const bounds = element.getBoundingClientRect();
+	return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 };
+}
+
+function lineCount(element: Element) {
+	const text = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+	const range = document.createRange();
+	const tops = new Set<number>();
+	for (let node = text.nextNode(); node; node = text.nextNode()) {
+		range.selectNodeContents(node);
+		for (const rect of range.getClientRects()) tops.add(Math.round(rect.top));
+	}
+	return tops.size;
+}
 
 afterEach(async () => {
 	await page.viewport(1280, 800);
@@ -123,17 +221,18 @@ describe("Media Library pagination layout", () => {
 				await screen.getByRole("tab", { name: view }).click();
 				expect(main.scrollHeight).toBeGreaterThan(main.clientHeight);
 				expectPaginationInView();
-				if (view === "Grid view") {
-					const card = screen
-						.getByRole("button", { name: "document-12.txt" })
-						.element() as HTMLElement;
-					main.scrollTop +=
-						card.getBoundingClientRect().bottom - footer.getBoundingClientRect().top - 10;
-					card.focus();
-					expect(card.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-						footer.getBoundingClientRect().top,
-					);
-				}
+				const item = screen
+					.getByRole("button", { name: "document-12.txt", exact: true })
+					.element() as HTMLElement;
+				main.scrollTop +=
+					item.getBoundingClientRect().bottom - footer.getBoundingClientRect().top - 10;
+				expect(item.getBoundingClientRect().bottom).toBeGreaterThan(
+					footer.getBoundingClientRect().top,
+				);
+				item.focus();
+				expect(item.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+					footer.getBoundingClientRect().top,
+				);
 				main.scrollTop = (main.scrollHeight - main.clientHeight) / 2;
 				expect(main.scrollTop).toBeGreaterThan(0);
 				expectPaginationInView();
@@ -146,4 +245,156 @@ describe("Media Library pagination layout", () => {
 			}
 		},
 	);
+});
+
+describe("Media Library list view at phone width", () => {
+	it.each(["ltr", "rtl"] as const)(
+		"shows each file's name and details and each folder's controls in a 272px table in %s",
+		async (dir) => {
+			const screen = await renderListView({ dir, width: 272 });
+			await screen.getByRole("tab", { name: "List view" }).click();
+			const tray = screen.getByRole("table").element().parentElement!;
+			const box = tray.getBoundingClientRect();
+
+			expect(tray.scrollWidth).toBeLessThanOrEqual(tray.clientWidth);
+			for (const name of ["Type", "Size", "Alt text"]) {
+				expect(
+					screen.getByRole("columnheader", { name, includeHidden: true }).element(),
+				).not.toBeVisible();
+			}
+			for (const item of listItems) {
+				const filename = screen.getByRole("button", { name: item.filename, exact: true });
+				await expect.element(filename).toBeVisible();
+				expectInside(filename.element(), box);
+				const cell = page.elementLocator(filename.element().closest("td")!);
+				for (const detail of [
+					item.mimeType,
+					formatFileSize(item.size),
+					item.alt ? "Alt text set" : "No alt text",
+				]) {
+					const text = cell.getByText(detail, { exact: true });
+					await expect.element(text).toBeVisible();
+					expectInside(text.element(), box);
+				}
+			}
+			for (const folder of folders) {
+				for (const control of [
+					screen.getByRole("link", { name: `Open folder ${folder.name}` }),
+					screen.getByRole("button", { name: `Edit folder ${folder.name}` }),
+				]) {
+					await expect.element(control).toBeVisible();
+					expectInside(control.element(), box);
+				}
+			}
+		},
+	);
+});
+
+describe("Media Library list view at desktop width", () => {
+	it("keeps each file's size and alt text on one line beside a long filename in a 716px table", async () => {
+		const screen = await renderListView({ width: 716 });
+		await screen.getByRole("tab", { name: "List view" }).click();
+		const tray = screen.getByRole("table").element().parentElement!;
+
+		expect(tray.scrollWidth).toBeLessThanOrEqual(tray.clientWidth);
+		for (const item of listItems) {
+			const row = screen
+				.getByRole("button", { name: item.filename, exact: true })
+				.element()
+				.closest("tr")!;
+			for (const cell of [...row.cells].slice(3)) {
+				expect(cell.checkVisibility()).toBe(true);
+				expect(lineCount(cell)).toBe(1);
+			}
+		}
+	});
+});
+
+describe("Media Library list view drop target", () => {
+	it.each([
+		{ position: "first", dir: "ltr" },
+		{ position: "first", dir: "rtl" },
+		{ position: "second", dir: "ltr" },
+		{ position: "second", dir: "rtl" },
+	] as const)(
+		"outlines the $position folder row while a file is dragged over it in $dir",
+		async ({ position, dir }) => {
+			const screen = await renderListView({ dir, width: 900 });
+			await screen.getByRole("tab", { name: "List view" }).click();
+			const source = screen
+				.getByRole("button", { name: "a.txt", exact: true })
+				.element()
+				.closest("tr")!;
+			const folderRow = (folder: MediaFolder) =>
+				screen
+					.getByRole("link", { name: `Open folder ${folder.name}` })
+					.element()
+					.closest("tr")!;
+			const first = folderRow(folders[0]!);
+			const second = folderRow(folders[1]!);
+			const [target, other] = position === "first" ? [first, second] : [second, first];
+			expect(first.sectionRowIndex).toBe(0);
+			const cardCorner = getComputedStyle(first.cells[0]!).borderStartStartRadius;
+			expect(parseFloat(cardCorner)).toBeGreaterThan(0);
+			const brand = document.createElement("span");
+			brand.style.color = "var(--color-kumo-brand)";
+			screen.container.append(brand);
+
+			const start = center(source);
+			pointer("pointerdown", source, start);
+			pointer("pointermove", document, { x: start.x, y: start.y - 20 });
+			pointer("pointermove", document, center(target));
+			try {
+				await expect.poll(() => target.hasAttribute("data-drop-active")).toBe(true);
+				const outline = getComputedStyle(target);
+				expect(outline.outlineStyle).toBe("dashed");
+				expect(parseFloat(outline.outlineWidth)).toBeGreaterThanOrEqual(2);
+				expect(outline.outlineColor).toBe(getComputedStyle(brand).color);
+				const top = position === "first" ? cardCorner : "0px";
+				expect([
+					outline.borderTopLeftRadius,
+					outline.borderTopRightRadius,
+					outline.borderBottomRightRadius,
+					outline.borderBottomLeftRadius,
+				]).toEqual([top, top, "0px", "0px"]);
+				expect(target.cells).toHaveLength(other.cells.length);
+				for (const [index, cell] of [...target.cells].entries()) {
+					expect(getComputedStyle(cell).backgroundColor).not.toBe(
+						getComputedStyle(other.cells[index]!).backgroundColor,
+					);
+				}
+				expect(getComputedStyle(other).outlineStyle).toBe("none");
+			} finally {
+				pointer("pointercancel", document, center(target));
+				// dnd-kit keeps stopping clicks for 50ms after a drag ends.
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
+		},
+	);
+});
+
+describe("Media Library list view hover", () => {
+	it("tints a file row under the pointer but not a folder row", async () => {
+		const screen = await renderListView({ width: 900 });
+		await screen.getByRole("tab", { name: "List view" }).click();
+		const fileRow = (filename: string) =>
+			screen.getByRole("button", { name: filename, exact: true }).element().closest("tr")!;
+		const folderRow = screen
+			.getByRole("link", { name: `Open folder ${folders[0]!.name}` })
+			.element()
+			.closest("tr")!;
+		const backgrounds = (row: HTMLTableRowElement) =>
+			Array.from(row.cells, (cell) => getComputedStyle(cell).backgroundColor);
+		const hovered = fileRow("a.txt");
+		const resting = backgrounds(fileRow("quarterly-report.docx"));
+		const folderResting = backgrounds(folderRow);
+
+		await userEvent.hover(hovered.cells[2]!);
+		const tinted = backgrounds(hovered);
+		expect(new Set(tinted).size).toBe(1);
+		expect(tinted).not.toEqual(resting);
+
+		await userEvent.hover(folderRow.cells[2]!);
+		expect(backgrounds(folderRow)).toEqual(folderResting);
+	});
 });
