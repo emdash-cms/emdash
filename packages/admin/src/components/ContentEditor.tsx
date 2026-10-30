@@ -202,6 +202,8 @@ export interface FieldDescriptor {
 	options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 	widget?: string;
 	validation?: Record<string, unknown>;
+	blockType?: string;
+	blockVersion?: number;
 	unsupportedType?: { type: string; path: string };
 	blockTypes?: import("../lib/api/schema.js").BlockType[];
 	blockTypeFingerprint?: string;
@@ -1556,11 +1558,11 @@ export function ContentEditor({
 			editorGenerationRef.current++;
 			markDirty();
 			setFormData((prev) => ({ ...prev, [name]: value }));
-			if (name === "title" && !slugTouched && typeof value === "string" && value) {
+			if (name === (titleField ?? "title") && !slugTouched && typeof value === "string" && value) {
 				setSlug(slugify(value));
 			}
 		},
-		[slugTouched, markDirty],
+		[slugTouched, markDirty, titleField],
 	);
 
 	const handleSlugChange = React.useCallback(
@@ -2711,6 +2713,8 @@ function FieldRenderer({
 							: undefined
 					}
 					fieldId={field.id}
+					blockType={field.blockType}
+					blockVersion={field.blockVersion}
 					variant={name === "featured_image" ? "featured" : "default"}
 					darkVariant={!Array.isArray(field.options) && field.options?.darkVariant === true}
 				/>
@@ -2737,6 +2741,8 @@ function FieldRenderer({
 							: undefined
 					}
 					fieldId={field.id}
+					blockType={field.blockType}
+					blockVersion={field.blockVersion}
 				/>
 			);
 		}
@@ -2823,6 +2829,7 @@ function FieldRenderer({
 			return (
 				<BlocksField
 					id={id}
+					fieldId={field.id}
 					fieldPath={name}
 					label={label}
 					value={value}
@@ -3404,6 +3411,8 @@ interface FileFieldRendererProps {
 	required?: boolean;
 	allowedMimeTypes?: string[];
 	fieldId?: string;
+	blockType?: string;
+	blockVersion?: number;
 }
 
 /**
@@ -3420,6 +3429,8 @@ function FileFieldRenderer({
 	required,
 	allowedMimeTypes,
 	fieldId,
+	blockType,
+	blockVersion,
 }: FileFieldRendererProps) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
@@ -3537,6 +3548,8 @@ function FileFieldRenderer({
 				onSelect={handleSelect}
 				mimeTypeFilters={allowedMimeTypes ?? []}
 				fieldId={fieldId}
+				blockType={blockType}
+				blockVersion={blockVersion}
 				hideUrlInput
 				mediaKind="file"
 				title={normalized ? t`Replace ${label}` : t`Select ${label}`}

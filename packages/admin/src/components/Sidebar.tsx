@@ -342,9 +342,7 @@ export function NavIcon({
  * palette). Declared labels are translated only when the active catalog has
  * an entry for them; otherwise they are returned as declared. Plugins that
  * load their own catalog — with the English label as msgid — get localized
- * nav items, and common labels like "Settings" pick up the admin's own
- * translations even without a plugin catalog. Pages without a label prettify
- * the plugin id ("my-shop" → "My Shop").
+ * nav items. Pages without a label prettify the plugin id ("my-shop" → "My Shop").
  */
 export function resolvePluginPageLabel(
 	label: string | undefined,

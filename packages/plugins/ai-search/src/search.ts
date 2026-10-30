@@ -3,6 +3,7 @@ import { pluginResponse } from "emdash";
 
 import type { Config } from "./config.js";
 import { readMetadata } from "./documents.js";
+import type { AiSearchProvider, SearchChunk } from "./ports/ai-search.js";
 
 /** AI Search returns at most 50 chunks; several chunks can belong to one document. */
 const MAX_CHUNKS = 50;
@@ -38,7 +39,7 @@ interface SearchHit {
 
 export interface SearchSession {
 	config: Config;
-	instance: AiSearchInstance;
+	provider: Pick<AiSearchProvider, "search">;
 }
 
 export function parseSearchRequest(body: unknown): SearchInput | null {
@@ -76,7 +77,7 @@ export async function searchResponse(session: SearchSession | null, body: unknow
 	const enabled = (source: string) => session.config.sources[source]?.enabled === true;
 	let hits: SearchHit[];
 	try {
-		hits = await searchIndex(session.instance, input, enabled);
+		hits = await searchIndex(session.provider, input, enabled);
 	} catch (error) {
 		console.error("[ai-search] search failed:", error);
 		return json(503, {
@@ -113,46 +114,50 @@ function escapeHtml(text: string): string {
 	return text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 }
 
-function json(status: number, body: unknown) {
+/** The answer to a visitor who searched too often, without asking AI Search. */
+export function tooManySearches(retryAfterSeconds: number) {
+	return json(
+		429,
+		{
+			success: false,
+			error: { code: "RATE_LIMITED", message: "Too many searches. Try again soon." },
+		},
+		{ "retry-after": String(retryAfterSeconds) },
+	);
+}
+
+function json(status: number, body: unknown, headers: Record<string, string> = {}) {
 	return pluginResponse({
 		status,
-		headers: { "content-type": "application/json; charset=utf-8" },
+		headers: { "content-type": "application/json; charset=utf-8", ...headers },
 		body: { kind: "text", value: JSON.stringify(body) },
 	});
 }
 
 export async function searchIndex(
-	instance: AiSearchInstance,
+	provider: Pick<AiSearchProvider, "search">,
 	input: SearchInput,
 	includeSource: (source: string) => boolean,
 ): Promise<SearchHit[]> {
-	const response = await instance.search({
+	const chunks = await provider.search({
 		query: input.query,
-		ai_search_options: {
-			retrieval: {
-				max_num_results: MAX_CHUNKS,
-				// Results are built from item metadata alone, so chunk text is never needed.
-				metadata_only: true,
-				// Throw on failure so visitors see an error rather than a misleading empty result.
-				return_on_failure: false,
-				...(input.locale ? { filters: { locale: input.locale } } : {}),
-				boost_by: [{ field: "priority", direction: "desc" }],
-			},
-		},
+		maxResults: MAX_CHUNKS,
+		...(input.locale ? { filters: { locale: input.locale } } : {}),
+		boostBy: "priority",
 	});
-	return bestChunkPerDocument(response.chunks)
+	return bestChunkPerDocument(chunks)
 		.filter((hit) => includeSource(hit.source))
 		.slice(0, input.limit);
 }
 
 /** Chunks arrive ranked, priority boost included, so a document's first chunk is its best. */
-function bestChunkPerDocument(chunks: AiSearchSearchResponse["chunks"]): SearchHit[] {
+function bestChunkPerDocument(chunks: SearchChunk[]): SearchHit[] {
 	const byKey = new Map<string, SearchHit>();
 	for (const chunk of chunks) {
-		const metadata = byKey.has(chunk.item.key) ? null : readMetadata(chunk.item.metadata);
+		const metadata = byKey.has(chunk.key) ? null : readMetadata(chunk.metadata);
 		if (!metadata) continue;
 		const { source, title, url, excerpt, image } = metadata;
-		byKey.set(chunk.item.key, { source, title, url, excerpt, ...(image ? { image } : {}) });
+		byKey.set(chunk.key, { source, title, url, excerpt, ...(image ? { image } : {}) });
 	}
 	return [...byKey.values()];
 }

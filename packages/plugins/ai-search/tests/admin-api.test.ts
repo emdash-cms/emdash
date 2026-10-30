@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { withoutInvalidAddresses } from "../src/admin-api.js";
+import { statusPollInterval, withoutInvalidAddresses } from "../src/admin-api.js";
 import { type Config, configSchema } from "../src/config.js";
 import { config } from "./fakes.js";
 
@@ -40,5 +40,14 @@ describe("withoutInvalidAddresses", () => {
 		const draft = withAuthors(config(), { enabled: true, urlTemplate: "/people" });
 
 		expect(withoutInvalidAddresses(draft, config()).sources._authors?.urlTemplate).toBe("/people");
+	});
+});
+
+describe("statusPollInterval", () => {
+	it("keeps polling while Cloudflare limits requests, and stops once nothing will change", () => {
+		const idle = { build: null, totals: { processing: 0 }, retrying: false, recentBuild: false };
+
+		expect(statusPollInterval({ ...idle, rateLimited: true })).not.toBeNull();
+		expect(statusPollInterval({ ...idle, rateLimited: false })).toBeNull();
 	});
 });

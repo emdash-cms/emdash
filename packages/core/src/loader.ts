@@ -17,7 +17,10 @@ import { Kysely, type RawBuilder, sql, type Dialect } from "kysely";
 import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import { jsonTextValues } from "./database/json-recordset.js";
-import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
+import {
+	parseTaxonomyCollections,
+	selectTaxonomyDefs,
+} from "./database/repositories/taxonomy-def.js";
 import type { BylineSummary, ContentBylineCredit } from "./database/repositories/types.js";
 import { decodeCursor, encodeCursor, InvalidCursorError } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
@@ -37,6 +40,12 @@ import {
 	getMissingColumnIdentifier,
 	isMissingTableError,
 } from "./utils/db-errors.js";
+import {
+	createRevalidatingCache,
+	invalidateRevalidatingCache,
+	revalidatingCached,
+	type RevalidatingCache,
+} from "./utils/revalidating-cache.js";
 
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -433,87 +442,51 @@ function getTableName(type: string): string {
 	return `ec_${type}`;
 }
 
-/**
- * Cache for taxonomy names by collection (only used for the primary database).
- * Stored on globalThis so Vite SSR chunk duplication cannot create independent
- * caches. Skipped when a per-request DB override is active (e.g. preview mode)
- * because the override DB may have different taxonomies.
- */
-interface TaxonomyNamesHolder {
-	cache: Map<string, Set<string>> | null;
-}
+/** Taxonomy-to-collection mappings revalidated in the background after 30 seconds. */
+type TaxonomyNames = Map<string, Set<string>>;
 
-const TAXONOMY_NAMES_CACHE_KEY = Symbol.for("emdash:taxonomy-names");
+const TAXONOMY_NAMES_CACHE_KEY = Symbol.for("emdash:taxonomy-names:swr");
 const taxonomyNamesStore = globalThis as Record<symbol, unknown>;
-const taxonomyNamesHolder: TaxonomyNamesHolder =
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see taxonomies/index.ts)
-	(taxonomyNamesStore[TAXONOMY_NAMES_CACHE_KEY] as TaxonomyNamesHolder | undefined) ??
+const taxonomyNamesCache: RevalidatingCache<TaxonomyNames> =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
+	(taxonomyNamesStore[TAXONOMY_NAMES_CACHE_KEY] as RevalidatingCache<TaxonomyNames> | undefined) ??
 	(() => {
-		const holder: TaxonomyNamesHolder = { cache: null };
-		taxonomyNamesStore[TAXONOMY_NAMES_CACHE_KEY] = holder;
-		return holder;
+		const cache = createRevalidatingCache<TaxonomyNames>();
+		taxonomyNamesStore[TAXONOMY_NAMES_CACHE_KEY] = cache;
+		return cache;
 	})();
 
-function setTaxonomyNamesCache(cache: Map<string, Set<string>> | null): void {
-	taxonomyNamesHolder.cache = cache;
-}
-
-/**
- * Get taxonomy names attached to a collection (cached for the primary DB,
- * bypassed only when the per-request DB is an isolated instance — playground /
- * DO preview). Plain D1 Sessions routing shares schema with the singleton, so
- * the isolate-wide cache stays valid.
- */
-async function getTaxonomyNames(db: Kysely<Database>, collection: string): Promise<Set<string>> {
-	const hasIsolatedDb = getRequestContext()?.dbIsIsolated === true;
-
-	if (!hasIsolatedDb && taxonomyNamesHolder.cache) {
-		return taxonomyNamesHolder.cache.get(collection) ?? new Set();
-	}
-
+async function fetchTaxonomyNames(db: Kysely<Database>): Promise<TaxonomyNames> {
 	try {
 		const defs = await selectTaxonomyDefs(db).execute();
-		const namesByCollection = new Map<string, Set<string>>();
+		const namesByCollection: TaxonomyNames = new Map();
 		for (const def of defs) {
-			let collections: unknown;
-			try {
-				collections = JSON.parse(def.collections ?? "[]");
-			} catch {
-				continue;
-			}
-			if (!Array.isArray(collections)) continue;
-			for (const attachedCollection of collections) {
-				if (typeof attachedCollection !== "string") continue;
-				const names = namesByCollection.get(attachedCollection) ?? new Set<string>();
+			for (const collection of parseTaxonomyCollections(def.collections)) {
+				const names = namesByCollection.get(collection) ?? new Set<string>();
 				names.add(def.name);
-				namesByCollection.set(attachedCollection, names);
+				namesByCollection.set(collection, names);
 			}
 		}
-		if (!hasIsolatedDb) {
-			setTaxonomyNamesCache(namesByCollection);
-		}
-		return namesByCollection.get(collection) ?? new Set();
+		return namesByCollection;
 	} catch (error) {
 		if (!isMissingTableError(error) && !isMissingColumnError(error)) throw error;
-
-		const empty = new Set<string>();
-		if (!hasIsolatedDb) {
-			setTaxonomyNamesCache(new Map());
-		}
-		return empty;
+		return new Map();
 	}
 }
 
-/**
- * Reset the isolate-wide taxonomy-names cache.
- *
- * Called from `invalidateTaxonomyDefsCache()` so that creating or seeding a
- * taxonomy definition is reflected within the current isolate instead of
- * waiting for the isolate to recycle. Keeps this cache consistent with the
- * isolate-wide taxonomy-defs cache in `taxonomies/index.ts`.
- */
+async function getTaxonomyNames(db: Kysely<Database>, collection: string): Promise<Set<string>> {
+	const load = () => fetchTaxonomyNames(db);
+	const names = getRequestContext()?.dbIsIsolated
+		? await load()
+		: await revalidatingCached(taxonomyNamesCache, load, (error) => {
+				console.error("[emdash:loader] revalidating taxonomy names failed:", error);
+			});
+	return names.get(collection) ?? new Set();
+}
+
+/** Discard mappings after a local taxonomy-definition write. @internal */
 export function resetTaxonomyNamesCache(): void {
-	setTaxonomyNamesCache(null);
+	invalidateRevalidatingCache(taxonomyNamesCache);
 }
 
 /**
@@ -763,7 +736,6 @@ function revisionEntry(
 		data,
 		cacheHint: {
 			tags: [rowStr(row, "id")],
-			lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
 		},
 	};
 }
@@ -857,7 +829,6 @@ export async function loadEntriesByGroups(
 					data: mapRowToData(row, booleanFields),
 					cacheHint: {
 						tags: [rowStr(row, "id")],
-						lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
 					},
 				});
 			}
@@ -1729,8 +1700,8 @@ export async function getDb(): Promise<Kysely<Database>> {
 export async function loadPublishedDates(type: string, locale?: string) {
 	const tableName = getTableName(type);
 	const db = await getDb();
-	const result = await sql<{ published_at: string | null; updated_at: string | null }>`
-		SELECT published_at, updated_at FROM ${sql.ref(tableName)}
+	const result = await sql<{ published_at: string | null }>`
+		SELECT published_at FROM ${sql.ref(tableName)}
 		WHERE deleted_at IS NULL
 		AND ${buildStatusCondition(db, "published")}
 		${locale ? sql`AND ${localeMatches("locale", locale)}` : sql``}
@@ -2067,7 +2038,6 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 						data,
 						cacheHint: {
 							tags: [rowStr(row, "id")],
-							lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
 						},
 					};
 				});
@@ -2079,23 +2049,11 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					nextCursor = encodeSortCursor(sortColumn, lastRow[sortColumn], String(lastRow.id));
 				}
 
-				// Collection-level cache hint uses the most recent updated_at
-				let collectionLastModified: Date | undefined;
-				for (const row of rows) {
-					if (row.updated_at) {
-						const d = new Date(rowStr(row, "updated_at"));
-						if (!collectionLastModified || d > collectionLastModified) {
-							collectionLastModified = d;
-						}
-					}
-				}
-
 				return {
 					entries,
 					nextCursor,
 					cacheHint: {
 						tags: [type],
-						lastModified: collectionLastModified,
 					},
 				};
 			} catch (error) {
@@ -2261,7 +2219,6 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					data: entryData,
 					cacheHint: {
 						tags: [rowStr(row, "id")],
-						lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
 					},
 				};
 			} catch (error) {
