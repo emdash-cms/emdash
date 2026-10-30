@@ -89,7 +89,7 @@ function mcpUnauthorizedResponse(
  * API routes that skip auth — each handles its own access control.
  *
  * Prefix entries match any path starting with that prefix.
- * Entries in PUBLIC_API_EXACT match that path only.
+ * Entries in PUBLIC_API_EXACT match that path with or without a trailing slash.
  */
 const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/setup",
@@ -111,11 +111,8 @@ const PUBLIC_API_PREFIXES = [
 const PUBLIC_API_EXACT = new Set([
 	// Invite creation requires auth; only the token-based acceptance flow is public.
 	"/_emdash/api/auth/invite/accept",
-	"/_emdash/api/auth/invite/accept/",
 	"/_emdash/api/auth/invite/register-options",
-	"/_emdash/api/auth/invite/register-options/",
 	"/_emdash/api/auth/invite/complete",
-	"/_emdash/api/auth/invite/complete/",
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/auth/mode",
@@ -174,17 +171,22 @@ const CSRF_EXEMPT_PUBLIC_ROUTES = new Set([
 	"/_emdash/api/oauth/device/token",
 ]);
 
+function stripTrailingSlash(pathname: string): string {
+	return pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+}
+
 function isPublicEmDashRoute(pathname: string): boolean {
-	if (PUBLIC_API_EXACT.has(pathname)) return true;
+	const exactPathname = stripTrailingSlash(pathname);
+	if (PUBLIC_API_EXACT.has(exactPathname)) return true;
 	if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return true;
-	if (_providerExactRoutes.has(pathname)) return true;
+	if (_providerExactRoutes.has(exactPathname)) return true;
 	if (_providerPrefixRoutes.some((p) => pathname.startsWith(p))) return true;
-	if (import.meta.env.DEV && DEV_PUBLIC_API_EXACT.has(pathname)) return true;
+	if (import.meta.env.DEV && DEV_PUBLIC_API_EXACT.has(exactPathname)) return true;
 	return false;
 }
 
 function isCsrfExemptPublicRoute(pathname: string): boolean {
-	return CSRF_EXEMPT_PUBLIC_ROUTES.has(pathname);
+	return CSRF_EXEMPT_PUBLIC_ROUTES.has(stripTrailingSlash(pathname));
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -218,7 +220,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// one exists; anonymous callers skip the user DB lookup. Bearer tokens
 		// are not resolved on public routes; token callers continue to receive
 		// published results only.
-		if (url.pathname === "/_emdash/api/search") {
+		if (stripTrailingSlash(url.pathname) === "/_emdash/api/search") {
 			return handlePublicRouteAuth(context, next);
 		}
 		return next();

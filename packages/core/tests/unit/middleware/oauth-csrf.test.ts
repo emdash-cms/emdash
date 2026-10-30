@@ -1,7 +1,18 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("virtual:emdash/auth", () => ({ authenticate: vi.fn() }));
-vi.mock("virtual:emdash/config", () => ({ default: {} }));
+vi.mock("virtual:emdash/config", () => ({
+	default: {
+		authProviders: [
+			{
+				publicRoutes: [
+					"/_emdash/api/auth/test-provider/callback",
+					"/_emdash/api/auth/test-provider/public/",
+				],
+			},
+		],
+	},
+}));
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
 }));
@@ -71,19 +82,125 @@ async function runAuthMiddleware(opts: {
 	return { response, next };
 }
 
-describe("Public search API routes", () => {
-	it.each(["/_emdash/api/search", "/_emdash/api/search/suggest"])(
-		"allows anonymous GET to %s",
-		async (pathname) => {
-			const { response, next } = await runAuthMiddleware({
-				pathname,
-				method: "GET",
-			});
+describe("Public API routes", () => {
+	it.each([
+		"/_emdash/api/auth/mode",
+		"/_emdash/api/auth/mode/",
+		"/_emdash/api/health",
+		"/_emdash/api/health/",
+		"/_emdash/api/search",
+		"/_emdash/api/search/",
+		"/_emdash/api/search/suggest",
+		"/_emdash/api/search/suggest/",
+	])("allows anonymous GET to %s", async (pathname) => {
+		const { response, next } = await runAuthMiddleware({
+			pathname,
+			method: "GET",
+		});
 
-			expect(next).toHaveBeenCalledOnce();
-			expect(response.status).toBe(200);
-		},
-	);
+		expect(next).toHaveBeenCalledOnce();
+		expect(response.status).toBe(200);
+	});
+
+	it.each([
+		"/_emdash/api/auth/passkey/options",
+		"/_emdash/api/auth/passkey/options/",
+		"/_emdash/api/auth/passkey/verify",
+		"/_emdash/api/auth/passkey/verify/",
+		"/_emdash/api/auth/invite/accept",
+		"/_emdash/api/auth/invite/accept/",
+		"/_emdash/api/auth/invite/register-options",
+		"/_emdash/api/auth/invite/register-options/",
+		"/_emdash/api/auth/invite/complete",
+		"/_emdash/api/auth/invite/complete/",
+	])("allows same-origin public POST to %s", async (pathname) => {
+		const { response, next } = await runAuthMiddleware({
+			pathname,
+			origin: "https://site.example.com",
+			extraHeaders: { "X-EmDash-Request": "1" },
+		});
+
+		expect(next).toHaveBeenCalledOnce();
+		expect(response.status).toBe(200);
+	});
+
+	it.each([
+		"/_emdash/api/auth/test-provider/callback",
+		"/_emdash/api/auth/test-provider/callback/",
+	])("allows anonymous GET to exact provider public route %s", async (pathname) => {
+		const { response, next } = await runAuthMiddleware({
+			pathname,
+			method: "GET",
+		});
+
+		expect(next).toHaveBeenCalledOnce();
+		expect(response.status).toBe(200);
+	});
+
+	it.each([
+		"/_emdash/api/auth/test-provider/public/child",
+		"/_emdash/api/auth/test-provider/public/child/",
+	])("allows anonymous GET to provider public prefix %s", async (pathname) => {
+		const { response, next } = await runAuthMiddleware({
+			pathname,
+			method: "GET",
+		});
+
+		expect(next).toHaveBeenCalledOnce();
+		expect(response.status).toBe(200);
+	});
+
+	it.each([
+		"/_emdash/api/auth/test-provider/callback/child",
+		"/_emdash/api/auth/test-provider/callback/child/",
+	])("keeps exact provider callback children private: %s", async (pathname) => {
+		const { response, next } = await runAuthMiddleware({
+			pathname,
+			method: "GET",
+		});
+
+		expect(next).not.toHaveBeenCalled();
+		expect(response.status).toBe(401);
+	});
+
+	it.each([
+		"/_emdash/api/auth/passkey/options",
+		"/_emdash/api/auth/passkey/options/",
+		"/_emdash/api/auth/passkey/verify",
+		"/_emdash/api/auth/passkey/verify/",
+	])("rejects cross-origin passkey POST to %s", async (pathname) => {
+		const { response, next } = await runAuthMiddleware({
+			pathname,
+			origin: "https://evil.example.com",
+		});
+
+		expect(next).not.toHaveBeenCalled();
+		expect(response.status).toBe(403);
+		await expect(response.json()).resolves.toMatchObject({
+			error: { code: "CSRF_REJECTED", message: "Cross-origin request blocked" },
+		});
+	});
+
+	it.each([
+		"/_emdash/api/auth/passkey/options/child",
+		"/_emdash/api/auth/passkey/options/child/",
+		"/_emdash/api/auth/passkey/verify/child",
+		"/_emdash/api/auth/passkey/verify/child/",
+		"/_emdash/api/auth/passkey/register/options",
+		"/_emdash/api/auth/passkey/register/options/",
+		"/_emdash/api/auth/passkey/register/verify",
+		"/_emdash/api/auth/passkey/register/verify/",
+		"/_emdash/api/auth/invite",
+		"/_emdash/api/auth/invite/",
+	])("keeps protected auth paths private: %s", async (pathname) => {
+		const { response, next } = await runAuthMiddleware({
+			pathname,
+			extraHeaders: { "X-EmDash-Request": "1" },
+		});
+
+		expect(next).not.toHaveBeenCalled();
+		expect(response.status).toBe(401);
+	});
 
 	it("keeps search management endpoints private", async () => {
 		const { response, next } = await runAuthMiddleware({
@@ -94,6 +211,42 @@ describe("Public search API routes", () => {
 		expect(next).not.toHaveBeenCalled();
 		expect(response.status).toBe(401);
 	});
+
+	it.each(["/_emdash/api/typegen", "/_emdash/api/typegen/"])(
+		"allows anonymous GET to typegen in development: %s",
+		async (pathname) => {
+			vi.stubEnv("DEV", true);
+			try {
+				const { response, next } = await runAuthMiddleware({
+					pathname,
+					method: "GET",
+				});
+
+				expect(next).toHaveBeenCalledOnce();
+				expect(response.status).toBe(200);
+			} finally {
+				vi.unstubAllEnvs();
+			}
+		},
+	);
+
+	it.each(["/_emdash/api/typegen", "/_emdash/api/typegen/"])(
+		"keeps typegen private outside development: %s",
+		async (pathname) => {
+			vi.stubEnv("DEV", false);
+			try {
+				const { response, next } = await runAuthMiddleware({
+					pathname,
+					method: "GET",
+				});
+
+				expect(next).not.toHaveBeenCalled();
+				expect(response.status).toBe(401);
+			} finally {
+				vi.unstubAllEnvs();
+			}
+		},
+	);
 });
 
 /**
@@ -108,9 +261,13 @@ describe("Public search API routes", () => {
 describe("CSRF exemption for OAuth protocol endpoints", () => {
 	const EXEMPT_PATHS = [
 		"/_emdash/api/oauth/token",
+		"/_emdash/api/oauth/token/",
 		"/_emdash/api/oauth/register",
+		"/_emdash/api/oauth/register/",
 		"/_emdash/api/oauth/device/code",
+		"/_emdash/api/oauth/device/code/",
 		"/_emdash/api/oauth/device/token",
+		"/_emdash/api/oauth/device/token/",
 	] as const;
 
 	it.each(EXEMPT_PATHS)(
