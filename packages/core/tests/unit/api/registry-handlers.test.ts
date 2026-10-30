@@ -234,6 +234,53 @@ describe("Registry handlers", () => {
 			expect(await options.get("plugin:r_keepdata00000000:config")).toEqual({ keep: true });
 		});
 
+		it("preserves plugin data during install rollback, even with deleteData set", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("r_rollback00000000", "1.0.0", "active", {
+				source: "registry",
+				registryPublisherDid: "did:plc:abc",
+				registrySlug: "rollback",
+			});
+			const options = new OptionsRepository(db);
+			await options.set("plugin:r_rollback00000000:config", { name: "Acme" });
+			await options.set("plugin:r_rollback00000000:settings:organization", "Acme");
+			await options.set("plugin:other-plugin:config", "other");
+			await db
+				.insertInto("_plugin_storage")
+				.values({
+					plugin_id: "r_rollback00000000",
+					collection: "default",
+					id: "config",
+					data: JSON.stringify({ name: "Acme" }),
+				})
+				.execute();
+			await storage.upload({
+				key: "registry/r_rollback00000000/1.0.0/manifest.json",
+				body: new TextEncoder().encode("{}"),
+				contentType: "application/json",
+			});
+
+			const result = await handleRegistryUninstall(db, storage, "r_rollback00000000", {
+				deleteData: true,
+				rollbackInstall: true,
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.dataDeleted).toBe(false);
+			expect(await repo.get("r_rollback00000000")).toBeNull();
+			expect(await options.get("plugin:r_rollback00000000:config")).toEqual({ name: "Acme" });
+			expect(await options.get("plugin:r_rollback00000000:settings:organization")).toBe("Acme");
+			expect(await options.get("plugin:other-plugin:config")).toBe("other");
+			expect(
+				await db
+					.selectFrom("_plugin_storage")
+					.select("id")
+					.where("plugin_id", "=", "r_rollback00000000")
+					.execute(),
+			).toHaveLength(1);
+			expect(await storage.exists("registry/r_rollback00000000/1.0.0/manifest.json")).toBe(false);
+		});
+
 		it("tolerates a null storage (e.g. instance without R2 configured)", async () => {
 			const repo = new PluginStateRepository(db);
 			await repo.upsert("r_cccccccccccccccc", "0.0.1", "active", {

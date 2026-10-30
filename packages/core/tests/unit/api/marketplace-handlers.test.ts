@@ -1336,6 +1336,52 @@ describe("Marketplace handlers", () => {
 			expect(await options.get("plugin:test-seo:settings:organization")).toBeNull();
 			expect(await options.get("plugin:test-seo-other:config")).toBe("other");
 		});
+
+		it("preserves plugin data during install rollback", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("rollback-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+			});
+			const options = new OptionsRepository(db);
+			await options.set("plugin:rollback-seo:config", { name: "Acme" });
+			await options.set("plugin:rollback-seo:settings:organization", "Acme");
+			await options.set("plugin:other-plugin:config", "other");
+			await db
+				.insertInto("_plugin_storage")
+				.values({
+					plugin_id: "rollback-seo",
+					collection: "default",
+					id: "config",
+					data: JSON.stringify({ name: "Acme" }),
+				})
+				.execute();
+			await storage.upload({
+				key: "marketplace/rollback-seo/1.0.0/manifest.json",
+				body: new TextEncoder().encode("{}"),
+				contentType: "application/json",
+			});
+
+			const result = await handleMarketplaceUninstall(db, storage, "rollback-seo", {
+				deleteData: true,
+				rollbackInstall: true,
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.dataDeleted).toBe(false);
+			expect(await repo.get("rollback-seo")).toBeNull();
+			expect(await options.get("plugin:rollback-seo:config")).toEqual({ name: "Acme" });
+			expect(await options.get("plugin:rollback-seo:settings:organization")).toBe("Acme");
+			expect(await options.get("plugin:other-plugin:config")).toBe("other");
+			expect(
+				await db
+					.selectFrom("_plugin_storage")
+					.select("id")
+					.where("plugin_id", "=", "rollback-seo")
+					.execute(),
+			).toHaveLength(1);
+			expect(await storage.exists("marketplace/rollback-seo/1.0.0/manifest.json")).toBe(false);
+		});
 	});
 
 	// ── Update check ───────────────────────────────────────────────

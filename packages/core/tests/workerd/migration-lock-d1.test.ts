@@ -164,14 +164,29 @@ describe("plugin KV options row limit on D1", () => {
 	beforeEach(async () => {
 		await resetD1Schema(db);
 		await migrateThrough("091_redirect_artifacts");
+		const qualifyingIds = [
+			"one",
+			"two",
+			"SETTINGS:uppercase",
+			...Array.from({ length: 30 }, (_, index) => `padding-${index}`),
+		];
+		for (let offset = 0; offset < qualifyingIds.length; offset += 10) {
+			const values = qualifyingIds
+				.slice(offset, offset + 10)
+				.map(
+					(id, index) =>
+						sql`('plugin', '__kv', ${id}, ${JSON.stringify({ value: offset + index + 1 })}, ${`revision-${offset + index + 1}`})`,
+				);
+			await sql`
+				INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision)
+				VALUES ${sql.join(values)}
+			`.execute(db);
+		}
 		await sql`
 			INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision)
 			VALUES
-				('plugin', '__kv', 'one', '{"value":1}', 'revision-one'),
-				('plugin', '__kv', 'two', '{"value":2}', 'revision-two'),
-				('plugin', '__kv', 'SETTINGS:uppercase', '{"value":3}', 'revision-three'),
-				('plugin', '__kv', 'settings:ignored', '{"value":4}', 'revision-four'),
-				('plugin', 'other', 'ignored', '{"value":5}', 'revision-five')
+				('plugin', '__kv', 'settings:ignored', '{"value":34}', 'revision-34'),
+				('plugin', 'other', 'ignored', '{"value":35}', 'revision-35')
 		`.execute(db);
 		await sql`
 			INSERT INTO options (name, value, revision)
@@ -179,7 +194,27 @@ describe("plugin KV options row limit on D1", () => {
 		`.execute(db);
 	});
 
-	it("refuses before the lock or writes when KV rows exceed the limit", async () => {
+	it("accepts one batch at two statement units and skips excluded rows", async () => {
+		const { applied } = await runMigrations(db, { contentRowLimit: 2 });
+
+		expect(applied[0]).toBe("092_plugin_kv_options");
+		const migrated = await db
+			.selectFrom("options")
+			.select(["name", "value"])
+			.where("name", "like", "plugin:plugin:%")
+			.execute();
+		expect(migrated).toHaveLength(33);
+		expect(migrated).toContainEqual({
+			name: "plugin:plugin:SETTINGS:uppercase",
+			value: '{"value":3}',
+		});
+	});
+
+	it("refuses at the next batch boundary before the lock or writes", async () => {
+		await sql`
+			INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision)
+			VALUES ('plugin', '__kv', 'padding-30-extra', '{"value":36}', 'revision-36')
+		`.execute(db);
 		const heldSince = Date.now() - 10 * 60_000;
 		await holdLock(heldSince);
 
@@ -194,20 +229,19 @@ describe("plugin KV options row limit on D1", () => {
 	});
 
 	it("counts conflicts and migrates the qualifying KV rows at the limit", async () => {
-		const { applied } = await runMigrations(db, { contentRowLimit: 3 });
+		const { applied } = await runMigrations(db, { contentRowLimit: 2 });
 
 		expect(applied[0]).toBe("092_plugin_kv_options");
-		expect(
-			(await db.selectFrom("options").select(["name", "value"]).execute()).toSorted((a, b) =>
-				a.name.localeCompare(b.name),
-			),
-		).toEqual(
-			[
-				{ name: "byline_fields_version", value: "0" },
-				{ name: "plugin:plugin:SETTINGS:uppercase", value: '{"value":3}' },
-				{ name: "plugin:plugin:one", value: '{"old":true}' },
-				{ name: "plugin:plugin:two", value: '{"value":2}' },
-			].toSorted((a, b) => a.name.localeCompare(b.name)),
-		);
+		const migrated = await db
+			.selectFrom("options")
+			.select(["name", "value"])
+			.where("name", "like", "plugin:plugin:%")
+			.execute();
+		expect(migrated).toHaveLength(33);
+		expect(migrated).toContainEqual({
+			name: "plugin:plugin:SETTINGS:uppercase",
+			value: '{"value":3}',
+		});
+		expect(migrated).toContainEqual({ name: "plugin:plugin:one", value: '{"old":true}' });
 	});
 });

@@ -163,22 +163,42 @@ describeEachDialect("plugin KV options migration row limit", (dialect) => {
 		}).migrateTo("091_redirect_artifacts");
 		if (error) throw error;
 
+		const qualifyingIds = [
+			"one",
+			"two",
+			"SETTINGS:uppercase",
+			...Array.from({ length: 30 }, (_, index) => `padding-${index}`),
+		];
+		for (let offset = 0; offset < qualifyingIds.length; offset += 10) {
+			await ctx.db
+				.insertInto("_plugin_storage")
+				.values(
+					qualifyingIds.slice(offset, offset + 10).map((id, index) => ({
+						plugin_id: "plugin",
+						collection: "__kv",
+						id,
+						data: JSON.stringify({ value: offset + index + 1 }),
+						revision: `revision-${offset + index + 1}`,
+					})),
+				)
+				.execute();
+		}
 		await ctx.db
 			.insertInto("_plugin_storage")
 			.values([
-				...(["one", "two", "SETTINGS:uppercase", "settings:ignored"] as const).map((id, index) => ({
+				{
 					plugin_id: "plugin",
 					collection: "__kv",
-					id,
-					data: JSON.stringify({ value: index + 1 }),
-					revision: `revision-${index + 1}`,
-				})),
+					id: "settings:ignored",
+					data: '{"value":34}',
+					revision: "revision-34",
+				},
 				{
 					plugin_id: "plugin",
 					collection: "other",
 					id: "ignored",
-					data: '{"value":5}',
-					revision: "revision-five",
+					data: '{"value":35}',
+					revision: "revision-35",
 				},
 			])
 			.execute();
@@ -192,13 +212,62 @@ describeEachDialect("plugin KV options migration row limit", (dialect) => {
 		await teardownForDialect(ctx);
 	});
 
-	it("refuses before writes or the lock when KV rows exceed the limit", async () => {
-		const result = runMigrations(ctx.db, {
+	it("allows more than 5,000 KV rows under the runtime limit", async () => {
+		for (let offset = 33; offset < 5001; offset += 10) {
+			await ctx.db
+				.insertInto("_plugin_storage")
+				.values(
+					Array.from({ length: Math.min(10, 5001 - offset) }, (_, index) => ({
+						plugin_id: "plugin",
+						collection: "__kv",
+						id: `large-${offset + index}`,
+						data: JSON.stringify({ value: offset + index }),
+						revision: `large-revision-${offset + index}`,
+					})),
+				)
+				.execute();
+		}
+
+		const { applied } = await runMigrations(ctx.db, {
+			migrationTableSchema: ctx.pgCtx?.schemaName,
+			contentRowLimit: 5000,
+		});
+		expect(applied[0]).toBe("092_plugin_kv_options");
+	});
+
+	it("accepts one batch at two statement units and skips excluded rows", async () => {
+		const { applied } = await runMigrations(ctx.db, {
 			migrationTableSchema: ctx.pgCtx?.schemaName,
 			contentRowLimit: 2,
 		});
 
-		await expect(result).rejects.toBeInstanceOf(MigrationRowLimitError);
+		expect(applied[0]).toBe("092_plugin_kv_options");
+		const count = await ctx.db
+			.selectFrom("options")
+			.select(({ fn }) => fn.countAll<number>().as("count"))
+			.where("name", "like", "plugin:plugin:%")
+			.executeTakeFirstOrThrow();
+		expect(Number(count.count)).toBe(33);
+	});
+
+	it("refuses at the next batch boundary", async () => {
+		await ctx.db
+			.insertInto("_plugin_storage")
+			.values({
+				plugin_id: "plugin",
+				collection: "__kv",
+				id: "padding-30-extra",
+				data: '{"value":36}',
+				revision: "revision-36",
+			})
+			.execute();
+
+		await expect(
+			runMigrations(ctx.db, {
+				migrationTableSchema: ctx.pgCtx?.schemaName,
+				contentRowLimit: 2,
+			}),
+		).rejects.toBeInstanceOf(MigrationRowLimitError);
 		expect(
 			await ctx.db
 				.selectFrom("options")
@@ -206,30 +275,25 @@ describeEachDialect("plugin KV options migration row limit", (dialect) => {
 				.where("name", "like", "plugin:plugin:%")
 				.execute(),
 		).toEqual([{ name: "plugin:plugin:one", value: '{"old":true}', revision: "existing" }]);
-		const status = await getExactMigrationStatus(ctx.db, {
-			migrationTableSchema: ctx.pgCtx?.schemaName,
-		});
-		expect(status.pending[0]).toBe("092_plugin_kv_options");
 	});
 
 	it("counts rows with existing conflicts and migrates only the KV rows", async () => {
 		const { applied } = await runMigrations(ctx.db, {
 			migrationTableSchema: ctx.pgCtx?.schemaName,
-			contentRowLimit: 3,
+			contentRowLimit: 2,
 		});
 
 		expect(applied[0]).toBe("092_plugin_kv_options");
-		expect(
-			(await ctx.db.selectFrom("options").select(["name", "value"]).execute()).toSorted((a, b) =>
-				a.name.localeCompare(b.name),
-			),
-		).toEqual(
-			[
-				{ name: "byline_fields_version", value: "0" },
-				{ name: "plugin:plugin:SETTINGS:uppercase", value: '{"value":3}' },
-				{ name: "plugin:plugin:one", value: '{"old":true}' },
-				{ name: "plugin:plugin:two", value: '{"value":2}' },
-			].toSorted((a, b) => a.name.localeCompare(b.name)),
-		);
+		const migrated = await ctx.db
+			.selectFrom("options")
+			.select(["name", "value"])
+			.where("name", "like", "plugin:plugin:%")
+			.execute();
+		expect(migrated).toHaveLength(33);
+		expect(migrated).toContainEqual({
+			name: "plugin:plugin:SETTINGS:uppercase",
+			value: '{"value":3}',
+		});
+		expect(migrated).toContainEqual({ name: "plugin:plugin:one", value: '{"old":true}' });
 	});
 });

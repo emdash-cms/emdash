@@ -311,6 +311,31 @@ describe("Bridge Handler Conformance", () => {
 			expect(JSON.stringify(infoLog.mock.calls)).not.toContain("workerd-secret");
 		});
 
+		it("lists case-sensitive prefixes without bypassing secret observation", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("plugin:test-plugin:settings:apiKey", "list-only-secret");
+			await options.set("plugin:test-plugin:Stats", "upper");
+			await options.set("plugin:test-plugin:stats", "lower");
+			const handler = makeHandler({
+				settingsSchema: { apiKey: { type: "secret", label: "API key" } },
+			});
+
+			expect(await call(handler, "kv/list", { prefix: "S" })).toEqual({
+				result: [{ key: "Stats", value: "upper" }],
+			});
+			expect(await call(handler, "kv/list", { prefix: "Settings:" })).toEqual({ result: [] });
+			expect(await call(handler, "kv/list", { prefix: "s" })).toEqual({
+				result: [
+					{ key: "stats", value: "lower" },
+					{ key: "settings:apiKey", value: "list-only-secret" },
+				],
+			});
+			const infoLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+			await call(handler, "log", { level: "info", msg: "credential=list-only-secret" });
+			expect(JSON.stringify(infoLog.mock.calls)).not.toContain("list-only-secret");
+			expect(JSON.stringify(infoLog.mock.calls)).toContain("[REDACTED]");
+		});
+
 		it("fails closed without an encryption key and redacts the submitted secret", async () => {
 			vi.stubEnv("EMDASH_ENCRYPTION_KEY", "");
 			const handler = makeHandler({

@@ -107,6 +107,30 @@ describe("plugin KV migration on D1", () => {
 });
 
 describe("conditional plugin storage through Cloudflare RPC and D1", () => {
+	it("lists case-sensitive KV prefixes without exposing settings through ordinary KV rows", async () => {
+		const options = new OptionsRepository(db);
+		await options.set("plugin:owner:settings:apiKey", "private-token");
+		await options.set("plugin:owner:Stats", "upper");
+		await options.set("plugin:owner:stats", "lower");
+		const rpc = workerExports.PluginBridge({
+			props: {
+				pluginId: "owner",
+				pluginVersion: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storageCollections: [],
+				settingsSchema: { apiKey: { type: "secret", label: "API key" } },
+			},
+		});
+
+		expect(await rpc.kvList("S")).toEqual([{ key: "Stats", value: "upper" }]);
+		expect(await rpc.kvList("Settings:")).toEqual([]);
+		expect(await rpc.kvList("s")).toEqual([
+			{ key: "stats", value: "lower" },
+			{ key: "settings:apiKey", value: "private-token" },
+		]);
+	});
+
 	it("shares native and sandboxed KV values and revisions", async () => {
 		const native = createKVAccess(new OptionsRepository(db), "owner");
 		const rpc = bridge();
