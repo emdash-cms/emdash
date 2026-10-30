@@ -1,26 +1,13 @@
 import { Input, Popover } from "@cloudflare/kumo";
 import { describe, expect, it, vi } from "vitest";
-import { cdp, page, userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
 import { HelpLabel, HelpTooltip } from "../../src/components/FieldHelpLabel.js";
 import { render } from "../utils/render.tsx";
+import { tap } from "../utils/touch.ts";
 
 const HELP = "Slugs cannot be changed after the field is created.";
-
-async function tap(element: Element) {
-	const session = cdp();
-	// Touch input lands in the top-level page, which hosts this test's frame.
-	const frame = window.frameElement?.getBoundingClientRect() ?? new DOMRect();
-	const scale = frame.width ? frame.width / window.innerWidth : 1;
-	const box = element.getBoundingClientRect();
-	const x = frame.left + (box.left + box.width / 2) * scale;
-	const y = frame.top + (box.top + box.height / 2) * scale;
-	await session.send("Emulation.setTouchEmulationEnabled", { enabled: true });
-	await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
-	await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-	await session.send("Emulation.setTouchEmulationEnabled", { enabled: false });
-}
 
 describe("HelpTooltip", () => {
 	it("stays open after a tap, and the next tap closes it", async () => {

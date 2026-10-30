@@ -9,13 +9,11 @@ export function HelpTooltip({
 	ariaLabel,
 	side,
 	size = "xs",
-	openOnPress = true,
 }: {
 	help: ReactNode;
 	ariaLabel: string;
 	side?: ComponentProps<typeof Tooltip>["side"];
 	size?: ComponentProps<typeof Button>["size"];
-	openOnPress?: boolean;
 }) {
 	const nameId = useId();
 	const helpId = useId();
@@ -51,19 +49,15 @@ export function HelpTooltip({
 					</span>
 				}
 				side={side}
-				open={openOnPress ? open : undefined}
-				onOpenChange={
-					openOnPress
-						? (nextOpen, details) => {
-								// The button's click handler owns presses. Base UI's own close on a
-								// trigger press would run after it and undo the pin.
-								if (details.reason === "trigger-press") return;
-								if (!nextOpen && pinned && details.reason === "trigger-hover") return;
-								if (!nextOpen) setPinned(false);
-								setOpen(nextOpen);
-							}
-						: undefined
-				}
+				open={open}
+				onOpenChange={(nextOpen, details) => {
+					// The button's click handler owns presses. Base UI's own close on a
+					// trigger press would run after it and undo the pin.
+					if (details.reason === "trigger-press") return;
+					if (!nextOpen && pinned && details.reason === "trigger-hover") return;
+					if (!nextOpen) setPinned(false);
+					setOpen(nextOpen);
+				}}
 				delay={0}
 				closeDelay={0}
 				render={
@@ -77,14 +71,10 @@ export function HelpTooltip({
 						className="text-kumo-subtle hover:text-kumo-default"
 						aria-labelledby={nameId}
 						aria-describedby={helpId}
-						onClick={
-							openOnPress
-								? () => {
-										setPinned(!pinned);
-										setOpen(!pinned);
-									}
-								: undefined
-						}
+						onClick={() => {
+							setPinned(!pinned);
+							setOpen(!pinned);
+						}}
 					/>
 				}
 			/>
@@ -130,7 +120,6 @@ export function FieldHelpLabel({
 	labelClassName = "text-base font-medium text-kumo-default",
 	side,
 	buttonSize = "xs",
-	openOnPress = false,
 }: {
 	children: ReactNode;
 	help: ReactNode;
@@ -139,20 +128,13 @@ export function FieldHelpLabel({
 	labelClassName?: string;
 	side?: ComponentProps<typeof Tooltip>["side"];
 	buttonSize?: ComponentProps<typeof Button>["size"];
-	openOnPress?: boolean;
 }) {
 	return (
 		<div className="flex items-center gap-1.5">
 			<Label htmlFor={htmlFor} className={labelClassName}>
 				{children}
 			</Label>
-			<HelpTooltip
-				help={help}
-				ariaLabel={helpLabel}
-				side={side}
-				size={buttonSize}
-				openOnPress={openOnPress}
-			/>
+			<HelpTooltip help={help} ariaLabel={helpLabel} side={side} size={buttonSize} />
 		</div>
 	);
 }
