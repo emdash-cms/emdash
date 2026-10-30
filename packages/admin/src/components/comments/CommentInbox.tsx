@@ -59,13 +59,17 @@ export interface CommentInboxProps {
 	searchQuery: string;
 	onSearchChange: (query: string) => void;
 	onCommentStatusChange: (id: string, status: CommentStatus) => Promise<unknown>;
+	/** Rejects when the delete fails, so its dialog can stay open and show `deleteError`. */
 	onCommentDelete: (id: string) => Promise<unknown>;
+	/** Rejects when the action fails, so the selection survives for a retry. */
 	onBulkAction: (ids: string[], action: BulkAction) => Promise<unknown>;
 	onLoadMore: () => void;
 	isAdmin: boolean;
 	isStatusPending: boolean;
 	deleteError: unknown;
 	onDeleteErrorReset: () => void;
+	bulkError: unknown;
+	onBulkErrorReset: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +107,8 @@ export function CommentInbox({
 	isStatusPending,
 	deleteError,
 	onDeleteErrorReset,
+	bulkError,
+	onBulkErrorReset,
 }: CommentInboxProps) {
 	const { t } = useLingui();
 
@@ -170,7 +176,8 @@ export function CommentInbox({
 
 	const handleBulk = (action: BulkAction) => {
 		if (selected.size === 0) return;
-		void runBulk([...selected], action);
+		// The page reports a failure in a toast.
+		runBulk([...selected], action).catch(() => {});
 	};
 
 	// Collection filter items
@@ -322,6 +329,7 @@ export function CommentInbox({
 							icon={<Trash aria-hidden="true" />}
 							disabled={isStatusPending}
 							onClick={() => {
+								onBulkErrorReset();
 								setBulkDeleteIds([...selected]);
 								setBulkDeleteOpen(true);
 							}}
@@ -458,14 +466,21 @@ export function CommentInbox({
 				error={deleteError}
 				onConfirm={() => {
 					if (deleteId) {
-						void onCommentDelete(deleteId).then(() => setDeleteId(null));
+						// On failure the dialog stays open and shows the error.
+						void onCommentDelete(deleteId).then(
+							() => setDeleteId(null),
+							() => {},
+						);
 					}
 				}}
 			/>
 
 			<ConfirmDialog
 				open={bulkDeleteOpen}
-				onClose={() => setBulkDeleteOpen(false)}
+				onClose={() => {
+					setBulkDeleteOpen(false);
+					onBulkErrorReset();
+				}}
 				title={t`Delete Permanently?`}
 				description={plural(bulkDeleteIds.length, {
 					one: "Permanently delete # comment? This cannot be undone.",
@@ -475,9 +490,12 @@ export function CommentInbox({
 				pendingLabel={t`Deleting...`}
 				isPending={isStatusPending}
 				preventCloseWhilePending
-				error={null}
+				error={bulkError}
 				onConfirm={() => {
-					void runBulk(bulkDeleteIds, "delete").then(() => setBulkDeleteOpen(false));
+					void runBulk(bulkDeleteIds, "delete").then(
+						() => setBulkDeleteOpen(false),
+						() => {},
+					);
 				}}
 			/>
 		</div>

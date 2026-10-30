@@ -80,6 +80,8 @@ function renderInbox({ dir = "ltr", width = 272 }: { dir?: "ltr" | "rtl"; width?
 				isStatusPending={false}
 				deleteError={null}
 				onDeleteErrorReset={vi.fn()}
+				bulkError={null}
+				onBulkErrorReset={vi.fn()}
 			/>
 		</div>,
 	);
