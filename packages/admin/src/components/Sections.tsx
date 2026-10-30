@@ -38,10 +38,13 @@ import {
 	fetchSections,
 	createSection,
 	deleteSection,
+	type CreateSectionInput,
 	type Section,
 	type SectionSource,
 } from "../lib/api";
-import { slugify } from "../lib/utils";
+import { ApiResponseError } from "../lib/api/client.js";
+import { guardUnsavedInput, revealErrors, useSingleFlight } from "../lib/dialog-form.js";
+import { slugify, slugifyIdentifier } from "../lib/utils";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -60,6 +63,44 @@ const sourceLabels: Record<SectionSource, MessageDescriptor> = {
 	import: msg`Imported`,
 };
 
+const SECTION_SLUG_PATTERN = /^[a-z0-9-]+$/;
+const LETTER_PATTERN = /\p{Letter}/gu;
+const COMBINING_MARK_PATTERN = /\p{M}/gu;
+const ASCII_ALPHANUMERIC_PATTERN = /[a-z0-9]/;
+
+/** The slug a title suggests, or "" when the title has nothing the slug field accepts. */
+function toSectionSlug(title: string): string {
+	// slugifyIdentifier spells each letter in ASCII (ß → ss, ø → oe, é → e); a letter
+	// it can't spell becomes a word break.
+	const latin = title
+		.normalize("NFKC")
+		.replace(LETTER_PATTERN, (letter) => slugifyIdentifier(letter) || " ")
+		.replace(COMBINING_MARK_PATTERN, "");
+	// With nothing usable left, slugify would invent an untitled-… slug.
+	if (!ASCII_ALPHANUMERIC_PATTERN.test(latin)) return "";
+	const slug = slugify(latin);
+	return SECTION_SLUG_PATTERN.test(slug) ? slug : "";
+}
+
+type CreateSectionField = "title" | "slug";
+
+function createSectionProblems(
+	title: string,
+	slug: string,
+): Partial<Record<CreateSectionField, MessageDescriptor>> {
+	const problems: Partial<Record<CreateSectionField, MessageDescriptor>> = {};
+	if (!title.trim()) problems.title = msg`Enter a title.`;
+	if (!slug) problems.slug = msg`Enter a slug.`;
+	else if (!SECTION_SLUG_PATTERN.test(slug)) {
+		problems.slug = msg`Use lowercase letters, numbers, and hyphens.`;
+	}
+	return problems;
+}
+
+function isConflict(error: unknown): boolean {
+	return error instanceof ApiResponseError && error.code === "CONFLICT";
+}
+
 export function Sections() {
 	const { t } = useLingui();
 	const navigate = useNavigate();
@@ -67,6 +108,7 @@ export function Sections() {
 	const toastManager = Toast.useToastManager();
 	const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 	const createFormId = React.useId();
+	const createFormRef = React.useRef<HTMLFormElement>(null);
 	const [deleteSlug, setDeleteSlug] = React.useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [selectedSource, setSelectedSource] = React.useState<SectionSource | null>(null);
@@ -75,17 +117,8 @@ export function Sections() {
 	const [createSlug, setCreateSlug] = React.useState("");
 	const [createDescription, setCreateDescription] = React.useState("");
 	const [slugTouched, setSlugTouched] = React.useState(false);
-	const [createError, setCreateError] = React.useState<string | null>(null);
-
-	React.useEffect(() => {
-		if (!isCreateOpen) {
-			setCreateTitle("");
-			setCreateSlug("");
-			setCreateDescription("");
-			setSlugTouched(false);
-			setCreateError(null);
-		}
-	}, [isCreateOpen]);
+	const [createSubmitted, setCreateSubmitted] = React.useState(false);
+	const [takenSlug, setTakenSlug] = React.useState<string | null>(null);
 
 	const {
 		data: sectionsData,
@@ -110,10 +143,17 @@ export function Sections() {
 			toastManager.add({ title: t`Section created` });
 			void navigate({ to: "/sections/$slug", params: { slug: section.slug } });
 		},
-		onError: (error: Error) => {
-			setCreateError(error.message);
+		onError: (error, input) => {
+			if (!isConflict(error)) return;
+			revealErrors(createFormRef.current, () => {
+				setCreateSubmitted(true);
+				setTakenSlug(input.slug);
+			});
 		},
 	});
+	const submitCreate = useSingleFlight((input: CreateSectionInput) =>
+		createMutation.mutateAsync(input),
+	);
 
 	const deleteMutation = useMutation({
 		mutationFn: deleteSection,
@@ -124,10 +164,32 @@ export function Sections() {
 		},
 	});
 
+	const handleCreateOpenChange = (open: boolean) => {
+		setIsCreateOpen(open);
+		if (!open) return;
+		setCreateTitle("");
+		setCreateSlug("");
+		setCreateDescription("");
+		setSlugTouched(false);
+		setCreateSubmitted(false);
+		setTakenSlug(null);
+		createMutation.reset();
+	};
+
+	const createProblems = createSectionProblems(createTitle, createSlug);
+	if (takenSlug !== null && createSlug === takenSlug) {
+		createProblems.slug = msg`Another section already uses this slug. Enter a different one.`;
+	}
+	const createErrors = createSubmitted ? createProblems : {};
+
 	const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		setCreateError(null);
-		createMutation.mutate({
+		if (createMutation.isPending) return;
+		if (Object.keys(createProblems).length > 0) {
+			revealErrors(e.currentTarget, () => setCreateSubmitted(true));
+			return;
+		}
+		submitCreate({
 			slug: createSlug,
 			title: createTitle,
 			description: createDescription || undefined,
@@ -153,7 +215,14 @@ export function Sections() {
 							{t`Reusable content blocks you can insert into any content`}
 						</p>
 					</div>
-					<LayerDialog.Root open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+					<LayerDialog.Root
+						open={isCreateOpen}
+						{...guardUnsavedInput(
+							createTitle !== "" || createSlug !== "" || createDescription !== "",
+							handleCreateOpenChange,
+						)}
+						dismissDisabled={createMutation.isPending}
+					>
 						<LayerDialog.Trigger
 							render={(props) => (
 								<Button {...props} variant="primary" icon={<Plus aria-hidden="true" />}>
@@ -173,17 +242,25 @@ export function Sections() {
 								</span>
 							</LayerDialog.Description>
 							<LayerDialog.Body>
-								<form id={createFormId} onSubmit={handleCreate} className="grid gap-5">
+								<form
+									ref={createFormRef}
+									id={createFormId}
+									noValidate
+									onSubmit={handleCreate}
+									className="grid gap-5"
+								>
 									<Input
 										label={t`Title`}
 										value={createTitle}
 										onChange={(e) => {
 											const title = e.target.value;
 											setCreateTitle(title);
-											if (!slugTouched) setCreateSlug(title.trim() ? slugify(title) : "");
+											if (!slugTouched) setCreateSlug(toSectionSlug(title));
 										}}
 										required
 										placeholder={t`Hero Banner`}
+										error={createErrors.title && t(createErrors.title)}
+										aria-invalid={createErrors.title ? true : undefined}
 									/>
 									<Input
 										label={
@@ -200,8 +277,8 @@ export function Sections() {
 										}}
 										required
 										placeholder="hero-banner"
-										pattern="[a-z0-9\-]+"
-										title={t`Lowercase letters, numbers, and hyphens only`}
+										error={createErrors.slug && t(createErrors.slug)}
+										aria-invalid={createErrors.slug ? true : undefined}
 									/>
 									<InputArea
 										label={t`Description`}
@@ -210,7 +287,13 @@ export function Sections() {
 										placeholder={t`A full-width hero banner with heading, text, and CTA button`}
 										rows={3}
 									/>
-									<DialogError message={createError || getMutationError(createMutation.error)} />
+									<DialogError
+										message={
+											isConflict(createMutation.error)
+												? null
+												: getMutationError(createMutation.error)
+										}
+									/>
 								</form>
 							</LayerDialog.Body>
 							<LayerDialog.Actions dismissLabel={t`Cancel`}>
@@ -295,7 +378,10 @@ export function Sections() {
 							<p className="text-sm text-kumo-subtle">
 								{t`Create your first reusable content section to get started.`}
 							</p>
-							<Button icon={<Plus aria-hidden="true" />} onClick={() => setIsCreateOpen(true)}>
+							<Button
+								icon={<Plus aria-hidden="true" />}
+								onClick={() => handleCreateOpenChange(true)}
+							>
 								{t`Create section`}
 							</Button>
 						</>

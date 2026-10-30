@@ -58,9 +58,12 @@ import {
 	type WidgetArea,
 	type Widget,
 	type WidgetComponent,
+	type CreateWidgetAreaInput,
 	type CreateWidgetInput,
 	type UpdateWidgetInput,
 } from "../lib/api";
+import { ApiResponseError } from "../lib/api/client.js";
+import { guardUnsavedInput, revealErrors, useSingleFlight } from "../lib/dialog-form.js";
 import { getPluginBlocks } from "../lib/pluginBlocks";
 import { CaretNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
@@ -175,13 +178,40 @@ const CORE_WIDGET_META: Record<string, CoreWidgetMeta> = {
 	},
 };
 
+const WIDGET_AREA_NAME_PATTERN = /^[a-z0-9-]+$/;
+
+type CreateAreaField = "name" | "label";
+
+function createAreaProblems(
+	name: string,
+	label: string,
+): Partial<Record<CreateAreaField, MessageDescriptor>> {
+	const problems: Partial<Record<CreateAreaField, MessageDescriptor>> = {};
+	const trimmedName = name.trim();
+	if (!trimmedName) problems.name = msg`Enter a name.`;
+	else if (!WIDGET_AREA_NAME_PATTERN.test(trimmedName)) {
+		problems.name = msg`Use lowercase letters, numbers, and hyphens.`;
+	}
+	if (!label.trim()) problems.label = msg`Enter a label.`;
+	return problems;
+}
+
+function isConflict(error: unknown): boolean {
+	return error instanceof ApiResponseError && error.code === "CONFLICT";
+}
+
 export function Widgets() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = useKumoToastManager();
 	const [isCreateAreaOpen, setIsCreateAreaOpen] = React.useState(false);
 	const createAreaFormId = React.useId();
-	const [createAreaError, setCreateAreaError] = React.useState<string | null>(null);
+	const createAreaFormRef = React.useRef<HTMLFormElement>(null);
+	const [newAreaName, setNewAreaName] = React.useState("");
+	const [newAreaLabel, setNewAreaLabel] = React.useState("");
+	const [newAreaDescription, setNewAreaDescription] = React.useState("");
+	const [createAreaSubmitted, setCreateAreaSubmitted] = React.useState(false);
+	const [takenAreaName, setTakenAreaName] = React.useState<string | null>(null);
 	const [activeId, setActiveId] = React.useState<string | null>(null);
 	const [activeDragData, setActiveDragData] = React.useState<DragItemData | null>(null);
 	const [expandedWidgets, setExpandedWidgets] = React.useState<Set<string>>(new Set());
@@ -228,10 +258,17 @@ export function Widgets() {
 			setIsCreateAreaOpen(false);
 			toastManager.add({ title: t`Widget area created` });
 		},
-		onError: (error: Error) => {
-			setCreateAreaError(error.message);
+		onError: (error, input) => {
+			if (!isConflict(error)) return;
+			revealErrors(createAreaFormRef.current, () => {
+				setCreateAreaSubmitted(true);
+				setTakenAreaName(input.name);
+			});
 		},
 	});
+	const submitCreateArea = useSingleFlight((input: CreateWidgetAreaInput) =>
+		createAreaMutation.mutateAsync(input),
+	);
 
 	const createWidgetMutation = useMutation({
 		mutationFn: ({ areaName, input }: { areaName: string; input: CreateWidgetInput }) =>
@@ -249,17 +286,34 @@ export function Widgets() {
 		},
 	});
 
+	const handleCreateAreaOpenChange = (open: boolean) => {
+		setIsCreateAreaOpen(open);
+		if (!open) return;
+		setNewAreaName("");
+		setNewAreaLabel("");
+		setNewAreaDescription("");
+		setCreateAreaSubmitted(false);
+		setTakenAreaName(null);
+		createAreaMutation.reset();
+	};
+
+	const areaProblems = createAreaProblems(newAreaName, newAreaLabel);
+	if (takenAreaName !== null && newAreaName.trim() === takenAreaName) {
+		areaProblems.name = msg`Another widget area already uses this name. Enter a different one.`;
+	}
+	const areaErrors = createAreaSubmitted ? areaProblems : {};
+
 	const handleCreateArea = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		setCreateAreaError(null);
-		const formData = new FormData(e.currentTarget);
-		const nameVal = formData.get("name");
-		const labelVal = formData.get("label");
-		const descVal = formData.get("description");
-		createAreaMutation.mutate({
-			name: typeof nameVal === "string" ? nameVal : "",
-			label: typeof labelVal === "string" ? labelVal : "",
-			description: typeof descVal === "string" ? descVal : "",
+		if (createAreaMutation.isPending) return;
+		if (Object.keys(areaProblems).length > 0) {
+			revealErrors(e.currentTarget, () => setCreateAreaSubmitted(true));
+			return;
+		}
+		submitCreateArea({
+			name: newAreaName.trim(),
+			label: newAreaLabel.trim(),
+			description: newAreaDescription,
 		});
 	};
 
@@ -401,10 +455,11 @@ export function Widgets() {
 						</div>
 						<LayerDialog.Root
 							open={isCreateAreaOpen}
-							onOpenChange={(open) => {
-								setIsCreateAreaOpen(open);
-								if (!open) setCreateAreaError(null);
-							}}
+							{...guardUnsavedInput(
+								newAreaName !== "" || newAreaLabel !== "" || newAreaDescription !== "",
+								handleCreateAreaOpenChange,
+							)}
+							dismissDisabled={createAreaMutation.isPending}
 						>
 							<LayerDialog.Trigger
 								render={(props) => (
@@ -416,23 +471,47 @@ export function Widgets() {
 							<LayerDialog.Content>
 								<LayerDialog.Title>{t`Create Widget Area`}</LayerDialog.Title>
 								<LayerDialog.Body>
-									<form id={createAreaFormId} onSubmit={handleCreateArea} className="grid gap-5">
+									<form
+										ref={createAreaFormRef}
+										id={createAreaFormId}
+										noValidate
+										onSubmit={handleCreateArea}
+										className="grid gap-5"
+									>
 										<Input
 											dir="ltr"
 											label={t`Name`}
 											name="name"
 											required
 											placeholder="sidebar"
-											pattern="[a-z0-9\-]+"
+											value={newAreaName}
+											onChange={(e) => setNewAreaName(e.target.value)}
+											error={areaErrors.name && t(areaErrors.name)}
+											aria-invalid={areaErrors.name ? true : undefined}
 										/>
-										<Input label={t`Label`} name="label" required placeholder={t`Main Sidebar`} />
+										<Input
+											label={t`Label`}
+											name="label"
+											required
+											placeholder={t`Main Sidebar`}
+											value={newAreaLabel}
+											onChange={(e) => setNewAreaLabel(e.target.value)}
+											error={areaErrors.label && t(areaErrors.label)}
+											aria-invalid={areaErrors.label ? true : undefined}
+										/>
 										<Input
 											label={t`Description`}
 											name="description"
 											placeholder={t`Appears on posts and pages`}
+											value={newAreaDescription}
+											onChange={(e) => setNewAreaDescription(e.target.value)}
 										/>
 										<DialogError
-											message={createAreaError || getMutationError(createAreaMutation.error)}
+											message={
+												isConflict(createAreaMutation.error)
+													? null
+													: getMutationError(createAreaMutation.error)
+											}
 										/>
 									</form>
 								</LayerDialog.Body>
@@ -442,7 +521,7 @@ export function Widgets() {
 										form={createAreaFormId}
 										disabled={createAreaMutation.isPending}
 									>
-										{t`Create`}
+										{createAreaMutation.isPending ? t`Creating...` : t`Create`}
 									</LayerDialog.Action>
 								</LayerDialog.Actions>
 							</LayerDialog.Content>
