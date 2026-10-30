@@ -1184,7 +1184,8 @@ export class EmDashRuntime {
 	): Promise<void> {
 		const stateRepo = new PluginStateRepository(this.db);
 		const failed: ResolvedPlugin[] = [];
-		let sandboxUnavailable = false;
+		let sandboxReadinessFailed = false;
+		let sandboxReadiness: Promise<void> | undefined;
 		const recordFailure = async (
 			plugin: ResolvedPlugin,
 			hook: string,
@@ -1195,7 +1196,7 @@ export class EmDashRuntime {
 				(error?.name === "SandboxUnavailableError" ||
 					(error instanceof HookTimeoutError && sandboxRunner && !sandboxRunner.isHealthy()))
 			) {
-				sandboxUnavailable = true;
+				sandboxReadiness = undefined;
 				await this.db
 					.deleteFrom("_plugin_state")
 					.where("plugin_id", "=", plugin.id)
@@ -1217,7 +1218,6 @@ export class EmDashRuntime {
 			failed.push(plugin);
 		};
 
-		let sandboxReadiness: Promise<void> | undefined;
 		for (const plugin of configPlugins) {
 			if (recordedStates.has(plugin.id)) continue;
 
@@ -1226,13 +1226,10 @@ export class EmDashRuntime {
 					this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
 					(plugin.hooks["plugin:install"] || plugin.hooks["plugin:activate"])
 				) {
-					if (sandboxUnavailable) continue;
+					if (sandboxReadinessFailed) continue;
 					try {
-						// Share startup (including failures) so one boot cannot restart the sidecar per plugin.
 						// Readiness has its own deadline, not the hook's execution budget.
-						await (sandboxReadiness ??= (async () => {
-							await sandboxRunner?.ensureRunning?.();
-						})());
+						await (sandboxReadiness ??= sandboxRunner?.ensureRunning?.() ?? Promise.resolve());
 						if (sandboxRunner && !sandboxRunner.isHealthy()) {
 							throw new SandboxUnavailableError(
 								plugin.id,
@@ -1240,7 +1237,7 @@ export class EmDashRuntime {
 							);
 						}
 					} catch (error) {
-						sandboxUnavailable = true;
+						sandboxReadinessFailed = true;
 						console.warn(
 							`EmDash: Sandbox not ready for config plugin "${plugin.id}"; retrying on next boot:`,
 							error,

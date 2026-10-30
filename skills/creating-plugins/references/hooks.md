@@ -54,17 +54,24 @@ The current isolated runtime dispatches these hooks to Cloudflare and Node/worke
 
 ### `plugin:install`
 
-Runs once on first install. Use to seed defaults.
+Runs during initial plugin setup. For config-declared sandboxed plugins, sandbox unavailability before activation completes can leave no saved installation state. The next boot runs install again, even if the earlier install hook succeeded. Make initialization idempotent so a retry preserves existing settings and data.
+
+This example initializes only missing values and assumes the manifest declares an `items` storage collection:
 
 ```typescript
 "plugin:install": async (_event, ctx) => {
-	await ctx.settings.set("enabled", true);
-	await ctx.storage.items!.put("default", { name: "Default" });
-}
+	ctx.log.info("Installing plugin...");
+	if ((await ctx.settings.get<boolean>("enabled")) === null) {
+		await ctx.settings.set("enabled", true);
+	}
+	if ((await ctx.storage.items.get("default")) === null) {
+		await ctx.storage.items.put("default", { name: "Default Item" });
+	}
+},
 ```
 
 Event: `{}`
-Returns: `void`
+Returns: `Promise<void>`
 
 ### `plugin:activate`
 
