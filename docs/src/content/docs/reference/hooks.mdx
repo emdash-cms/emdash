@@ -54,23 +54,23 @@ Runs before content is saved to the database. Use it to validate, transform, or 
 
 From the host process, throw `ContentSaveRejectedError` (exported from `emdash`) to reject a save. Any other exception from either execution mode fails the save with a generic response that does not expose the exception message.
 
+The following example trims the title whenever a save includes one:
+
 ```ts
 import { definePlugin } from "emdash";
 
 export default definePlugin({
 	id: "my-plugin",
 	version: "1.0.0",
+	capabilities: ["content:write"],
 	hooks: {
 		"content:beforeSave": async (event, ctx) => {
-			const { content, collection, isNew } = event;
+			const { content } = event;
 
-			// Add timestamps
-			if (isNew) {
-				content.createdBy = "system";
+			if (typeof content.title === "string") {
+				content.title = content.title.trim();
 			}
-			content.modifiedAt = new Date().toISOString();
 
-			// Return modified content
 			return content;
 		},
 	},
@@ -115,7 +115,7 @@ On an update, `content` holds only the submitted field values. Load the stored i
 
 #### Return value
 
-- Return modified content object to apply changes
+- Return modified content object to apply changes. EmDash validates it against the collection's fields, so use only field slugs as keys. A key the collection has no field for fails the save as an unknown field.
 - Return a sandbox hook error envelope to reject the save with a bounded plain-text reason
 - Return `void` to pass through unchanged
 

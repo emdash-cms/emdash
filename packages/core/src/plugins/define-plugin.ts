@@ -46,7 +46,7 @@ const MCP_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
  * export default definePlugin({
  *   id: "my-plugin",
  *   version: "1.0.0",
- *   capabilities: ["content:read"],
+ *   capabilities: ["content:write"],
  *   hooks: {
  *     "content:beforeSave": async (event, ctx) => {
  *       ctx.log.info("Saving content", { collection: event.collection });
