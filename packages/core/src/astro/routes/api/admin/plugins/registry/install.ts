@@ -122,7 +122,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			runLifecycle: () => emdash.runPluginInstallLifecycle(result.data.pluginId),
 			rollback: () =>
 				handleRegistryUninstall(emdash.db, emdash.storage, result.data.pluginId, {
-					deleteData: true,
+					rollbackInstall: true,
 				}),
 		});
 

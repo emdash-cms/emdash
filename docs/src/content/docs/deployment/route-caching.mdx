@@ -73,7 +73,9 @@ Menu tags cover menu edits only. Publishing, unpublishing, trashing, or restorin
 
 Creating, editing, or deleting a redirect invalidates the cached page at the redirect's source path, with and without a trailing slash, so the redirect applies on the next request.
 
-Restoring an older revision, and changes to bylines, the media library, and comments, invalidate nothing. Cached pages affected by them update once they expire or the entry that renders them is saved again. Scheduled publishing invalidates the published entries' tags on Cloudflare only; see [Provider differences](#provider-differences).
+The comment API routes invalidate `[collection, id]` for the commented entry when a submission is approved immediately, when admin moderation moves a comment into or out of approved status, or when deletion removes an approved comment or reply. Bulk moderation and deletion invalidate only the entries whose approved comments change. Pending submissions, moderation between non-approved statuses, and deletion of non-approved comments without approved replies leave the route cache unchanged. Comment moderation through the plugin API (`ctx.comments.moderate`) does not invalidate the route cache.
+
+Restoring an older revision, and changes to bylines and the media library, invalidate nothing. Cached pages affected by those changes or plugin comment moderation update once they expire or the entry that renders them is saved again. Scheduled publishing invalidates the published entries' tags on Cloudflare only; see [Provider differences](#provider-differences).
 
 This is also why the tag convention matters: EmDash invalidates collection names, entry ids, and the `emdash:*` chrome tags. If your route rules use other tag names, the built-in invalidation will not match them and stale entries survive until `maxAge` expires.
 
@@ -121,6 +123,8 @@ Set [`toolbar: "client"`](/reference/configuration/#toolbar) for sites that use 
 #### Purge rate limits
 
 The Cloudflare provider invalidates by purging the Workers Cache. Workers Cache purges always use Cloudflare's [Free plan purge limits](https://developers.cloudflare.com/cache/how-to/purge-cache/#availability-and-limits), whatever plan your account is on: 5 requests per minute with a burst of 25, per account (see [Purge rate limits](https://developers.cloudflare.com/workers/cache/purge/#rate-limits)). Most content writes cost one purge request each: saves that change live content (including autosaves in collections that save directly to the live entry), publishing, unpublishing, deleting, restoring, scheduling, and assigning taxonomy terms to an entry, plus every settings, menu, taxonomy, or widget edit. A redirect write costs one purge request per source path variant, so up to four when a redirect's source changes.
+
+Each comment approved on submission costs one purge request, even when submitted by a logged-out visitor. Each admin comment status change or deletion that changes the approved comments shown on a page costs one request. A bulk comment action that changes approved comments costs one or two purge requests, depending on how many entries it touches. Actions that leave approved comments unchanged cost none.
 
 A rate-limited purge fails without an error in the admin, and the affected pages keep their cached version until `maxAge` expires. During bulk edits, or with several editors working at once, choose a `maxAge` you can accept as the worst case for stale content.
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
-import * as migration092 from "../../../src/database/migrations/092_menu_item_orphans.js";
+import * as migration093 from "../../../src/database/migrations/093_menu_item_orphans.js";
 import { createMigrator } from "../../../src/database/migrations/runner.js";
 import {
 	createForDialect,
@@ -16,7 +16,7 @@ describeEachDialect("menu item orphans migration", (dialect) => {
 		ctx = await createForDialect(dialect);
 		const { error } = await createMigrator(ctx.db, {
 			migrationTableSchema: ctx.pgCtx?.schemaName,
-		}).migrateTo("091_redirect_artifacts");
+		}).migrateTo("092_plugin_kv_options");
 		if (error) throw error;
 		await ctx.db
 			.insertInto("_emdash_menus")
@@ -54,8 +54,8 @@ describeEachDialect("menu item orphans migration", (dialect) => {
 			])
 			.execute();
 
-		await migration092.up(ctx.db);
-		await migration092.up(ctx.db);
+		await migration093.up(ctx.db);
+		await migration093.up(ctx.db);
 
 		expect(await parents()).toEqual({ child: "root", "footer-child": null, root: null });
 	});
@@ -69,8 +69,8 @@ describeEachDialect("menu item orphans migration", (dialect) => {
 				.values([item("orphan", "primary", "deleted"), item("orphan-child", "primary", "orphan")])
 				.execute();
 
-			await migration092.up(ctx.db);
-			await migration092.up(ctx.db);
+			await migration093.up(ctx.db);
+			await migration093.up(ctx.db);
 
 			expect(await parents()).toEqual({ orphan: null, "orphan-child": "orphan" });
 		},

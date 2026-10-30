@@ -73,8 +73,7 @@ export const tweetBlockSchema = z.object({
 export type TweetBlock = z.infer<typeof tweetBlockSchema>;
 
 /**
- * Bluesky post embed block
- * @see https://astro-embed.netlify.app/components/bluesky/
+ * Bluesky post embed block, rendered from Bluesky's oEmbed endpoint
  */
 export const blueskyBlockSchema = z.object({
 	_type: z.literal("bluesky"),

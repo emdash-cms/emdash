@@ -47,6 +47,21 @@ const DATETIME_COLLECTIONS = sql`
  */
 const READ_ONLY_REVISIONS_PER_ROW = 16;
 
+// Migration 092 reads and inserts each batch of 33 rows in two statements.
+const PLUGIN_KV_ROWS_PER_BATCH = 33;
+const PLUGIN_KV_STATEMENTS_PER_BATCH = 2;
+
+async function countPluginKvOptionsRows(db: Kysely<Database>, cap: number): Promise<number> {
+	const rawRowCap = PLUGIN_KV_ROWS_PER_BATCH * Math.ceil(cap / PLUGIN_KV_STATEMENTS_PER_BATCH);
+	const rows = await countCapped(
+		db,
+		sql`SELECT 1 FROM _plugin_storage
+			WHERE collection = '__kv' AND substr(id, 1, 9) <> 'settings:'`,
+		rawRowCap,
+	);
+	return PLUGIN_KV_STATEMENTS_PER_BATCH * Math.ceil(rows / PLUGIN_KV_ROWS_PER_BATCH);
+}
+
 async function countDatetimeNormalizationRows(db: Kysely<Database>, cap: number): Promise<number> {
 	let slugs: string[];
 	try {
@@ -79,4 +94,5 @@ async function countDatetimeNormalizationRows(db: Kysely<Database>, cap: number)
 /** Keyed by migration name, since a published migration's module must not change. */
 export const CONTENT_SIZED_MIGRATIONS: ReadonlyMap<string, ContentSizedMigration> = new Map([
 	["079_datetime_normalization", { countRows: countDatetimeNormalizationRows }],
+	["092_plugin_kv_options", { countRows: countPluginKvOptionsRows }],
 ]);

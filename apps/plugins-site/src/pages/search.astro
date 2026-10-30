@@ -1,26 +1,38 @@
 ---
-import { getLiveCollection } from "astro:content";
-
 import PluginCard from "../components/PluginCard.astro";
 import SearchHead from "../components/search/SearchHead.astro";
-import { SEARCH_LIMIT, refineKeywords, resultSummary } from "../lib/search.js";
+import SearchPagination from "../components/search/SearchPagination.astro";
 import StatePanel from "../components/StatePanel.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { searchCatalog, withLatestReleases } from "../lib/catalog.js";
 import {
 	isRegistryRequestRejected,
 	REGISTRY_PAGE_CACHE,
 } from "../lib/registry.js";
+import {
+	PAGE_SIZE,
+	parsePage,
+	refineKeywords,
+	resultSummary,
+	searchHref,
+} from "../lib/search.js";
 
 const query = Astro.url.searchParams.get("q")?.trim() ?? "";
+const requestedPage = parsePage(Astro.url.searchParams.get("page"));
 
-const result = await getLiveCollection("plugins", {
-	...(query ? { q: query } : {}),
-	limit: SEARCH_LIMIT,
-	includeLatestRelease: true,
-});
-const entries = result.entries ?? [];
+const result = await searchCatalog(query);
 const hasError =
-	Boolean(result.error) && !(query && isRegistryRequestRejected(result.error));
+	"error" in result && !(query && isRegistryRequestRejected(result.error));
+const packages = "packages" in result ? result.packages : [];
+const pageCount = Math.max(1, Math.ceil(packages.length / PAGE_SIZE));
+const page = Math.min(requestedPage ?? 1, pageCount);
+if (!hasError && page !== requestedPage) {
+	return Astro.redirect(searchHref(query, page));
+}
+
+const entries = await withLatestReleases(
+	packages.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+);
 if (hasError) {
 	Astro.response.status = 503;
 	Astro.response.headers.set("Retry-After", "30");
@@ -28,20 +40,17 @@ if (hasError) {
 	Astro.cache.set({ ...REGISTRY_PAGE_CACHE, tags: ["registry"] });
 }
 
-const summary = hasError ? undefined : resultSummary(query, entries.length);
-const keywords = refineKeywords(
-	entries.map((entry) => entry.data.package),
-	query,
-);
-const capped = entries.length >= SEARCH_LIMIT;
+const summary = hasError ? undefined : resultSummary(query, packages.length);
+const keywords = refineKeywords(packages, query);
+const title = query ? `Search results for ${query}` : "All plugins";
 ---
 
 <BaseLayout
-	title={query ? `Search results for ${query}` : "All plugins"}
+	title={page > 1 ? `${title}, page ${page}` : title}
 	description={query
 		? `Search results for “${query}” in the EmDash plugin registry.`
 		: "Browse every plugin in the EmDash plugin registry."}
-	canonical={query ? `/search?q=${encodeURIComponent(query)}` : "/search"}
+	canonical={searchHref(query, page)}
 	noindex={Boolean(query)}
 >
 	<SearchHead query={query} summary={summary} keywords={keywords} />
@@ -91,27 +100,13 @@ const capped = entries.length >= SEARCH_LIMIT;
 					<ul class="plugin-grid">
 						{entries.map((entry) => (
 							<li>
-								<PluginCard entry={entry.data} headingLevel={2} />
+								<PluginCard entry={entry} headingLevel={2} />
 							</li>
 						))}
 					</ul>
-					{capped && (
-						<p class="search-capped">
-							Showing the first {SEARCH_LIMIT} plugins. Search to narrow the
-							list.
-						</p>
-					)}
+					<SearchPagination query={query} page={page} pageCount={pageCount} />
 				</>
 			)
 		}
 	</section>
 </BaseLayout>
-
-<style>
-	.search-capped {
-		margin: 2rem 0 0;
-		color: var(--muted);
-		font-size: 14px;
-		text-align: center;
-	}
-</style>

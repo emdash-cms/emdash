@@ -75,7 +75,7 @@ import type { PublishedRef } from "../scheduled-publish.js";
 import { parseCollectionSitemapName } from "../seo/sitemap-name.js";
 import { EmDashStorageError } from "../storage/types.js";
 import { isMissingTableError } from "../utils/db-errors.js";
-import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
+import { initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
 import {
 	ASTRO_COOKIES_SYMBOL,
@@ -89,6 +89,7 @@ import {
 	createPublicPluginApiRouteHandler,
 	getPublicPluginRouteMeta,
 } from "./public-plugin-api-routes.js";
+import { getRuntimeHolder } from "./runtime-holder.js";
 import { resolveSessionUser } from "./session-user.js";
 import type { EmDashHandlers } from "./types.js";
 
@@ -141,29 +142,6 @@ function markSetupVerified(): void {
 	setupFlagStore[SETUP_VERIFIED_KEY] = true;
 }
 
-/**
- * The runtime singleton and its init lock live on globalThis behind a
- * Symbol — same reasoning as SETUP_VERIFIED_KEY above: the bundler can
- * duplicate this module across SSR chunks, and a duplicated instance/lock
- * would mean multiple runtimes (each with its own cron scheduler) per
- * isolate, initializing and reclaiming independently.
- */
-const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
-interface RuntimeHolder {
-	instance: EmDashRuntime | null;
-	lock: InitLock;
-}
-
-function getRuntimeHolder(): RuntimeHolder {
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
-	let holder = setupFlagStore[RUNTIME_HOLDER_KEY] as RuntimeHolder | undefined;
-	if (!holder) {
-		holder = { instance: null, lock: createInitLock() };
-		setupFlagStore[RUNTIME_HOLDER_KEY] = holder;
-	}
-	return holder;
-}
-
 /** Whether i18n config has been initialized from the virtual module */
 let i18nInitialized = false;
 
@@ -201,7 +179,8 @@ function getConfig(): EmDashConfig | null {
  */
 function getPlugins(): ResolvedPlugin[] {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module import is untyped (@ts-ignore above)
-	return (virtualPlugins as ResolvedPlugin[]) || [];
+	const plugins = virtualPlugins as ResolvedPlugin[] | (() => ResolvedPlugin[]);
+	return (typeof plugins === "function" ? plugins() : plugins) || [];
 }
 
 /**
@@ -261,10 +240,19 @@ async function getRuntime(
 	const holder = getRuntimeHolder();
 	return initWithLock(
 		holder.lock,
-		() => holder.instance,
+		() => {
+			if (holder.closed) throw new Error("EmDash dev server has closed");
+			return holder.instance;
+		},
 		async (isCurrentClaim) => {
+			if (holder.closed) throw new Error("EmDash dev server has closed");
 			const deps = buildDependencies(config, migrationMode);
 			const runtime = await EmDashRuntime.create(deps, initTimings);
+			// A restart can close the server while the first request is initializing.
+			if (holder.closed) {
+				await runtime.shutdown();
+				throw new Error("EmDash dev server has closed");
+			}
 			if (isCurrentClaim()) {
 				holder.instance = runtime;
 			} else {
