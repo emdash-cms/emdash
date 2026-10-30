@@ -7,6 +7,8 @@
  * Created once per worker lifetime, cached and reused across requests.
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { getLocaleDir, resolveLocale } from "@emdash-cms/admin/locales";
 import { Permissions } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
@@ -816,6 +818,8 @@ export class EmDashRuntime {
 		PluginContentCacheInvalidator
 	>();
 	private pluginContentCacheInvalidator?: PluginContentCacheInvalidator;
+	private readonly scheduledContentCacheInvalidator =
+		new AsyncLocalStorage<PluginContentCacheInvalidator>();
 
 	/**
 	 * Isolate-lifetime guard so FTS indexes are verified at most once per
@@ -984,13 +988,10 @@ export class EmDashRuntime {
 			invalidateContentCache?: PluginContentCacheInvalidator;
 		} = {},
 	): Promise<{ processed: number; published: PublishedRef[] }> {
-		if (options.invalidateContentCache) {
-			this.pluginContentCacheInvalidator = options.invalidateContentCache;
-		}
 		let processed = 0;
 		if (this.cronExecutor) {
 			try {
-				processed = await this.cronExecutor.tick();
+				processed = await this.runPluginCronTick(options.invalidateContentCache);
 			} catch (error) {
 				console.error("[cron] Tick failed:", error);
 			}
@@ -1002,9 +1003,40 @@ export class EmDashRuntime {
 		}
 
 		const currentTime = this.runtimeDeps.now?.() ?? new Date();
-		const { published } = await this.runScheduledMaintenanceTick(options, currentTime);
+		const runMaintenance = () => this.runScheduledMaintenanceTick(options, currentTime);
+		const { published } = await (options.invalidateContentCache
+			? this.scheduledContentCacheInvalidator.run(options.invalidateContentCache, runMaintenance)
+			: runMaintenance());
 
 		return { processed, published };
+	}
+
+	private async runPluginCronTick(
+		invalidateContentCache = this.pluginContentCacheInvalidator,
+	): Promise<number> {
+		const executor = this.cronExecutor;
+		if (!executor) return 0;
+		if (!invalidateContentCache) return executor.tick();
+
+		const tags = new Set<string>();
+		let collecting = true;
+		const collect: PluginContentCacheInvalidator = async (actionTags) => {
+			if (!collecting) return invalidateContentCache(actionTags);
+			for (const tag of actionTags) tags.add(tag);
+		};
+		try {
+			return await this.scheduledContentCacheInvalidator.run(collect, () => executor.tick());
+		} finally {
+			// Deferred hooks can outlive the tick; their writes must still purge immediately.
+			collecting = false;
+			if (tags.size > 0) {
+				try {
+					await invalidateContentCache([...tags]);
+				} catch (error) {
+					console.error("[cron] Cache invalidation failed:", error);
+				}
+			}
+		}
 	}
 
 	/**
@@ -4364,7 +4396,10 @@ export class EmDashRuntime {
 			const result = await fn(resolvedId);
 			await recordWrite();
 			const invalidator =
-				invalidateContentCache ?? invocationInvalidator ?? this.pluginContentCacheInvalidator;
+				this.scheduledContentCacheInvalidator.getStore() ??
+				invalidateContentCache ??
+				invocationInvalidator ??
+				this.pluginContentCacheInvalidator;
 			if (invalidator) {
 				try {
 					await invalidator([collection, resolvedId]);
@@ -6387,6 +6422,8 @@ export class EmDashRuntime {
 		invalidateContentCache?: PluginContentCacheInvalidator,
 	): void {
 		const key = this.pluginInvocationKey(pluginId, invocationId);
+		invalidateContentCache =
+			this.scheduledContentCacheInvalidator.getStore() ?? invalidateContentCache;
 		this.pendingPluginAfterHooks.delete(key);
 		this.releasedPluginInvocations.delete(key);
 		if (invalidateContentCache)
