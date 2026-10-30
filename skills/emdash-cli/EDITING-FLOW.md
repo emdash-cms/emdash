@@ -16,7 +16,7 @@ The CLI detects which fields need conversion by fetching the collection's field 
 
 ### Supported Markdown Syntax
 
-Standard blocks (lossless round-trip):
+Standard blocks:
 
 | Markdown                     | PT block                                   |
 | ---------------------------- | ------------------------------------------ |
@@ -26,7 +26,12 @@ Standard blocks (lossless round-trip):
 | `- item` / `* item`          | bullet list (nesting via 2-space indent)   |
 | `1. item`                    | numbered list (nesting via 2-space indent) |
 | ` ``` ```lang``` `           | code block with language                   |
+| `~~~` fence                  | code block, like a backtick fence          |
 | `![alt](url)`                | image block                                |
+
+Lines inside a paragraph join with a space, so separate paragraphs with a blank line. To keep a line break, end the line with two spaces or a backslash. A backslash before a punctuation character, as in `\*` or `\#`, keeps that character as text.
+
+On read, the CLI ends each line inside a paragraph with a backslash and escapes characters that would otherwise read as Markdown, such as `*`, `_` or a `#` at the start of a line, so writing a paragraph back keeps its text and line breaks, except spaces and tabs at the start of its second and later lines, which Markdown drops. Bold italic text, italics inside a word right next to bold text, and inline code holding a backtick still come back with stray `*`, `_` or backtick characters in their text. A list item, heading or quote holds one line: the lines after the first come back as a paragraph below it.
 
 Inline marks:
 
@@ -34,6 +39,7 @@ Inline marks:
 | ------------- | --------------- |
 | `**bold**`    | `strong`        |
 | `_italic_`    | `em`            |
+| `*italic*`    | `em`            |
 | `` `code` ``  | `code`          |
 | `~~strike~~`  | `strikethrough` |
 | `[text](url)` | link annotation |
