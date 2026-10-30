@@ -363,7 +363,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 			toastManager.add({
 				title: t`Could not reschedule`,
 				description: getMutationError(moveError),
-				type: "error",
+				variant: "error",
 			});
 		},
 		onSuccess: (_changed, { item, scheduledAt, undo }) => {
@@ -393,7 +393,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 		toastManager.add({
 			title: t`That time has passed`,
 			description: t`Drop the entry on a later day.`,
-			type: "error",
+			variant: "error",
 		});
 	};
 

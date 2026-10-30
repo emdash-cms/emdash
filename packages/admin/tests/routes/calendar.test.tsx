@@ -232,7 +232,14 @@ describe("CalendarPage", () => {
 
 		it("puts the entry back when the server refuses the move", async () => {
 			refuse = true;
-			const screen = await renderPage();
+			const screen = await renderPage(({ children }) => (
+				<>
+					{children}
+					<span data-testid="danger-swatch" className="text-kumo-danger" />
+					<span data-testid="neutral-swatch" className="text-kumo-default" />
+				</>
+			));
+			const colorOf = (element: Element) => getComputedStyle(element).color;
 			const chip = screen.getByRole("link", { name: /Entry launch/ });
 			await expect.element(chip).toBeVisible();
 
@@ -246,6 +253,11 @@ describe("CalendarPage", () => {
 						.getByRole("link", { name: /Entry launch/ }),
 				)
 				.toBeVisible();
+			const toastTitle = page.getByText("Could not reschedule");
+			await expect.element(toastTitle).toBeInTheDocument();
+			const dangerColor = colorOf(screen.getByTestId("danger-swatch").element());
+			expect(dangerColor).not.toBe(colorOf(screen.getByTestId("neutral-swatch").element()));
+			expect(colorOf(toastTitle.element())).toBe(dangerColor);
 		});
 
 		it("moves it back when the move is undone", async () => {
