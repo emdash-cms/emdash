@@ -67,6 +67,8 @@ Give every public route an explicit rule. Rules match the request path, so list 
 
 EmDash's content API routes invalidate the route cache whenever live content changes: publishing, unpublishing, deleting, or restoring an entry from the trash, and saving changes that reach the live entry, invalidate the tags `[collection, id]`. Creating or duplicating an entry invalidates nothing, because the new entry is a draft. Any route rule tagged with the collection name (as above) is therefore usually refreshed within seconds of a publish, even with a long `maxAge`.
 
+Collections with `revisions` keep autosaves in a draft revision, so those autosaves do not purge the route cache. Without `revisions` (including collections with only `drafts`), autosaves update the live row and each save purges the collection and entry tags. Enable `revisions` when edits should stay private until publication. For collections that save directly to the live entry, choose a shorter `maxAge` with `swr` to limit stale content if purges fail.
+
 Site chrome is covered too: saving site settings invalidates `emdash:settings`, menu edits invalidate `emdash:menu:{name}`, and taxonomy and widget-area writes invalidate their matching `emdash:taxonomy:{name}` / `emdash:widget-area:{name}` tags. Pages pick these tags up automatically when they use the `cacheHint` from `getMenuWithCacheHint()`, `getSiteSettingsWithCacheHint()`, `getTaxonomyTermsWithCacheHint()`, or `getWidgetAreaWithCacheHint()`.
 
 Menu tags cover menu edits only. Publishing, unpublishing, trashing, or restoring an entry that a menu links to, or changing the slug of a linked entry or taxonomy term, doesn't invalidate the menu's tag. A page that shows the menu picks up such a change when its tags also name that entry, its collection, or that term's taxonomy, and otherwise when the page expires.
@@ -122,7 +124,9 @@ Set [`toolbar: "client"`](/reference/configuration/#toolbar) for sites that use 
 
 The Cloudflare provider invalidates by purging the Workers Cache. Workers Cache purges always use Cloudflare's [Free plan purge limits](https://developers.cloudflare.com/cache/how-to/purge-cache/#availability-and-limits), whatever plan your account is on: 5 requests per minute with a burst of 25, per account (see [Purge rate limits](https://developers.cloudflare.com/workers/cache/purge/#rate-limits)). Most content writes cost one purge request each: saves that change live content (including autosaves in collections that save directly to the live entry), publishing, unpublishing, deleting, restoring, scheduling, and assigning taxonomy terms to an entry, plus every settings, menu, taxonomy, or widget edit. A redirect write costs one purge request per source path variant, so up to four when a redirect's source changes.
 
-A rate-limited purge fails without an error in the admin, and the affected pages keep their cached version until `maxAge` expires. During bulk edits, or with several editors working at once, choose a `maxAge` you can accept as the worst case for stale content.
+A rate-limited purge fails without an error in the admin, and the affected pages keep their cached version until expiry. EmDash does not coalesce autosaves across requests or retry failed purges. Rejected tag purges are logged, but a refusal that the provider does not surface as a rejection cannot be detected through Astro's `cache.invalidate()` API.
+
+During bulk edits, or with several editors working at once, choose a shorter `maxAge` you can accept for stale content, with `swr` to revalidate in the background. For example, `maxAge: 3600` with `swr: 60` makes a page eligible for revalidation after an hour even if its purge failed; visitors can still receive stale content while revalidation runs.
 
 ## Browser caching is separate
 
