@@ -18,3 +18,16 @@ export function getEntryTitle(
 		item.id
 	);
 }
+
+/**
+ * The page title `getSeoMeta()` falls back to when an entry has no SEO title:
+ * the collection's `titleField` if set and non-empty, otherwise `title`.
+ */
+export function getSeoFallbackTitle(
+	data: Record<string, unknown>,
+	titleField?: string,
+): string | null {
+	const preferred = titleField ? data[titleField] : undefined;
+	if (typeof preferred === "string" && preferred) return preferred;
+	return typeof data.title === "string" ? data.title : null;
+}

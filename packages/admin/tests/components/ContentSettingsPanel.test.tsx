@@ -49,7 +49,11 @@ vi.mock("../../src/components/editor/ImageDetailPanel", () => ({
 }));
 
 vi.mock("../../src/components/SeoPanel", () => ({
-	SeoPanel: () => <div data-testid="seo-panel">SEO fields</div>,
+	SeoPanel: ({ defaultTitle }: { defaultTitle?: string | null }) => (
+		<div data-testid="seo-panel" data-default-title={defaultTitle ?? undefined}>
+			SEO fields
+		</div>
+	),
 }));
 
 vi.mock("@tanstack/react-router", async () => {
@@ -234,6 +238,34 @@ describe("ContentSettingsPanel", () => {
 		const taxonomySection = screen.getByTestId("taxonomy-sidebar").element().closest("section");
 		const seoSection = screen.getByRole("heading", { name: "SEO" }).element().closest("section");
 		expect(taxonomySection?.nextElementSibling).toBe(seoSection);
+	});
+
+	it("gives the SEO panel the collection's titleField value as its default title", async () => {
+		const manifest: AdminManifest = {
+			...TEST_MANIFEST,
+			collections: {
+				posts: {
+					label: "Posts",
+					labelSingular: "Post",
+					supports: ["seo"],
+					hasSeo: true,
+					titleField: "headline",
+					fields: {},
+				},
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					manifest,
+					item: makeItem({ data: { title: "Senior Engineer", headline: "Ada Lovelace" } }),
+				})}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByTestId("seo-panel"))
+			.toHaveAttribute("data-default-title", "Ada Lovelace");
 	});
 
 	it("keeps URL and language fields outside the Publish section", async () => {

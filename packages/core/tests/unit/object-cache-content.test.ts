@@ -26,6 +26,8 @@ import {
 import { peekSeoPanel } from "../../src/page/seo-panel.js";
 import { getEmDashCollection, getEmDashEntry } from "../../src/query.js";
 import { runWithContext } from "../../src/request-context.js";
+import { getSeoMeta } from "../../src/seo/index.js";
+import { setEntryTitleField } from "../../src/seo/title-field.js";
 import { createPostFixture } from "../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
 
@@ -165,6 +167,28 @@ describe("object cache: content read-through", () => {
 			});
 		});
 		expect(getLiveEntry).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps the getSeoMeta title-field fallback when an entry is served from the object cache", async () => {
+		const [entry] = mockEntries();
+		const data = entry!.data as Record<string, unknown>;
+		data.name = "Ada Lovelace";
+		setEntryTitleField(data, "name");
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			entry,
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		await runWithContext({ editMode: false, db }, () => getEmDashEntry("post", "hello"));
+		await flush();
+		const warm = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "hello"),
+		);
+
+		expect(getLiveEntry).toHaveBeenCalledTimes(1);
+		expect(getSeoMeta(warm.entry!).title).toBe("Ada Lovelace");
 	});
 
 	it("omits revision metadata from anonymous entry results", async () => {

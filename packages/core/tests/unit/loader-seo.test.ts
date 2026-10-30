@@ -1,10 +1,12 @@
 import { it, expect, beforeEach, afterEach } from "vitest";
 
 import { handleContentCreate } from "../../src/api/index.js";
+import { ContentRepository } from "../../src/database/repositories/content.js";
 import { SeoRepository } from "../../src/database/repositories/seo.js";
 import { emdashLoader } from "../../src/loader.js";
 import { peekSeoPanel } from "../../src/page/seo-panel.js";
 import { runWithContext } from "../../src/request-context.js";
+import { getSeoMeta } from "../../src/seo/index.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
@@ -155,6 +157,32 @@ describeEachDialect("Loader SEO hydration (#1270)", (dialect) => {
 			const panel = await peekSeoPanel("post", post.id);
 			expect(panel).toMatchObject({ title: "Panel Title", canonical: "/elsewhere" });
 		});
+	});
+
+	it("falls back to the collection's titleField for the getSeoMeta title", async () => {
+		const { SchemaRegistry } = await import("../../src/schema/registry.js");
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createField("post", { slug: "headline", label: "Headline", type: "string" });
+		await registry.updateCollection("post", { titleField: "headline" });
+		const created = await handleContentCreate(ctx.db, "post", {
+			data: { title: "Senior Engineer", headline: "Ada Lovelace" },
+			status: "published",
+		});
+		if (!created.success) throw new Error("create failed");
+		const post = created.data!.item;
+		const staged = await new ContentRepository(ctx.db).updateDraftAware("post", post.id, {
+			data: { headline: "Ada King" },
+		});
+		const revisionId = staged.draftRevisionId;
+		if (!revisionId) throw new Error("Expected a draft revision");
+
+		const published = await load(post.slug!);
+		const preview = await runWithContext({ db: ctx.db }, () =>
+			emdashLoader().loadEntry!({ filter: { type: "post", id: post.id, revisionId } }),
+		);
+
+		expect(getSeoMeta(published as { data: Record<string, unknown> }).title).toBe("Ada Lovelace");
+		expect(getSeoMeta(preview as { data: Record<string, unknown> }).title).toBe("Ada King");
 	});
 
 	it("primes nothing when the entry has no SEO row", async () => {

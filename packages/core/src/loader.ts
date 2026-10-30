@@ -34,6 +34,7 @@ import {
 import type { Database } from "./index.js";
 import { primeSeoPanel } from "./page/seo-panel.js";
 import { getRequestContext } from "./request-context.js";
+import { setEntryTitleField } from "./seo/title-field.js";
 import { chunks, SQL_BATCH_SIZE } from "./utils/chunks.js";
 import {
 	isMissingColumnError,
@@ -2124,12 +2125,16 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 				const booleanFieldsSelect = foldedBooleanFieldsSelect(db, type);
 				// Keep collection-wide metadata in one result column for wide D1 collections.
 				const jsonObject = isPostgres(db) ? sql`json_build_object` : sql`json_object`;
+				const titleFieldSelect = sql`(
+					SELECT title_field FROM ${sql.ref("_emdash_collections")} WHERE slug = ${type}
+				) AS _emdash_title_field`;
 				const metadataSelect = sql`(
 					SELECT ${jsonObject}(
 						'bylinesExist', _emdash_bylines_exist,
-						'booleanFields', _emdash_boolean_fields
+						'booleanFields', _emdash_boolean_fields,
+						'titleField', _emdash_title_field
 					)
-					FROM (SELECT ${bylinesExistSelect}, ${booleanFieldsSelect}) AS metadata
+					FROM (SELECT ${bylinesExistSelect}, ${booleanFieldsSelect}, ${titleFieldSelect}) AS metadata
 				) AS _emdash_entry_metadata`;
 				const slugVisibility = filter?.publishedOnly ? sql`AND c.status = ${"published"}` : sql``;
 				const result = locale
@@ -2158,9 +2163,11 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 				const metadata: unknown =
 					typeof rawMetadata === "string" ? JSON.parse(rawMetadata) : rawMetadata;
 				delete row._emdash_entry_metadata;
+				let titleField: string | undefined;
 				if (isPlainObject(metadata)) {
 					row._emdash_bylines_exist = metadata.bylinesExist;
 					row[BOOLEAN_FIELDS_FOLDED_COLUMN] = metadata.booleanFields;
+					if (typeof metadata.titleField === "string") titleField = metadata.titleField;
 				}
 
 				// Expand the folded SEO JSON column onto SEO_COLUMN_ALIASES so
@@ -2197,6 +2204,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 							primeSeoPanel(type, rowStr(row, "id"), revSeo);
 						}
 						stashFolded(revEntry.data, row);
+						if (titleField) setEntryTitleField(revEntry.data, titleField);
 						return revEntry;
 					}
 				}
@@ -2212,6 +2220,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					primeSeoPanel(type, rowStr(row, "id"), entrySeo);
 				}
 				stashFolded(entryData, row);
+				if (titleField) setEntryTitleField(entryData, titleField);
 				return {
 					id: entryId,
 					slug: rowStr(row, "slug"),
