@@ -36,6 +36,7 @@ import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 import { OptionalLabel } from "./OptionalLabel.js";
+import { RequiredFieldMessage, useShowRequiredError } from "./RequiredFieldError.js";
 
 /**
  * Image field value - matches emdash's MediaValue type
@@ -139,6 +140,7 @@ export function ImageFieldRenderer({
 }: ImageFieldRendererProps) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
+	const errorId = React.useId();
 	const [pickerTarget, setPickerTarget] = React.useState<"image" | "darkVariant">("image");
 	const [mobileActionsOpen, setMobileActionsOpen] = React.useState(false);
 	const [imageBroken, setImageBroken] = React.useState(false);
@@ -521,6 +523,11 @@ export function ImageFieldRenderer({
 		</LayerCard>
 	) : null;
 
+	const showRequiredError = useShowRequiredError(required, !displayUrl);
+	const requiredErrorProps = showRequiredError
+		? { "aria-invalid": true as const, "aria-describedby": errorId }
+		: undefined;
+
 	const labelContent = showOptional ? <OptionalLabel>{label}</OptionalLabel> : label;
 
 	return (
@@ -569,6 +576,7 @@ export function ImageFieldRenderer({
 					fieldId={fieldId}
 					blockType={blockType}
 					blockVersion={blockVersion}
+					buttonProps={requiredErrorProps}
 				/>
 			) : (
 				<Button
@@ -576,6 +584,7 @@ export function ImageFieldRenderer({
 					variant="outline"
 					className="h-32 w-full justify-center border-dashed bg-kumo-control"
 					onClick={() => openPicker("image")}
+					{...requiredErrorProps}
 				>
 					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
 						<ImageIcon className="h-8 w-8" />
@@ -619,8 +628,8 @@ export function ImageFieldRenderer({
 					{assetEditor.error}
 				</p>
 			)}
-			{required && !displayUrl && (
-				<p className="-mt-1 text-xs leading-4 text-kumo-danger">{t`This field is required`}</p>
+			{showRequiredError && (
+				<RequiredFieldMessage id={errorId}>{t`This field is required`}</RequiredFieldMessage>
 			)}
 		</div>
 	);
