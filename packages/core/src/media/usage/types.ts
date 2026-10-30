@@ -51,4 +51,9 @@ export interface ExtractedMediaUsageOccurrence {
 	providerAssetId: string;
 	mediaKind: MediaKind | null;
 	mimeType: string | null;
+	/**
+	 * Set when a local file is named by its URL rather than its media id. The
+	 * occurrence has no media id until the key is matched to a media item.
+	 */
+	storageKey?: string;
 }

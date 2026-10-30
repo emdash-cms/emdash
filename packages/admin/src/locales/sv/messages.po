@@ -10816,6 +10816,11 @@ msgstr "Publicera nu?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Publicera, avpublicera, schemalägga och avboka schemaläggning av innehåll"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "Publicerad"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:984
@@ -10826,11 +10831,6 @@ msgstr "Publicera, avpublicera, schemalägga och avboka schemaläggning av inneh
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1504
 msgid "Published"
-msgstr "Publicerad"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "Publicerad"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
