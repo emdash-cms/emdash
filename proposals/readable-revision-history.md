@@ -55,7 +55,7 @@ Clicking a version in the Revisions list shows that version in the editor, read-
 - The first version has nothing to compare with, so it reads "First version". If older revisions were pruned (EmDash keeps 50 per entry), the oldest one left reads "Earliest saved version" instead.
 - The list loads one revision more than it shows, so the oldest version in the list still has something to compare with.
 - The current version has no Restore button.
-- Fields the preview can't mark up inline, like references and custom blocks, show up in the change list as "Changed <field label>".
+- Fields the preview can't mark up inline, like references, show up in the change list as "Changed <field label>". Blocks and repeater fields are covered by [Changes inside blocks and repeater fields in revision history](revision-history-blocks-and-repeaters.md).
 - A version that exactly matches an older one reads "Restored the version from <date>".
 - Opening a version doesn't touch unsaved edits. Back to editing returns the editor as you left it.
 - If someone else saves while you restore, the restore fails with the existing conflict error and nothing changes.
