@@ -50,7 +50,7 @@ if (!post) {
 
 ```typescript
 interface ContentEntry<T> {
-	id: string; // The slug (used in URLs)
+	id: string; // The slug (used in URLs); `locale/slug` for non-default locales
 	data: T; // All fields, including system fields
 	edit: EditProxy; // Visual editing attributes (spread onto elements)
 }
@@ -58,7 +58,7 @@ interface ContentEntry<T> {
 // data includes system fields plus your custom fields:
 interface PostData {
 	id: string; // Database ULID (use for taxonomy lookups, etc.)
-	slug: string;
+	slug: string | null;
 	status: string;
 	title: string;
 	featured_image?: {
@@ -79,7 +79,32 @@ interface PostData {
 }
 ```
 
-**Important:** `entry.id` is the slug (for URLs), `entry.data.id` is the database ULID (for API calls like `getEntryTerms`).
+**Important:** `entry.id` is the slug (for URLs), `entry.data.id` is the database ULID (for API calls like `getEntryTerms`). With several locales configured, entries in a non-default locale (or every locale, with `prefixDefaultLocale`) have `entry.id` = `locale/slug`; `entry.data.slug` is the bare slug (or `null`).
+
+### Reference Fields
+
+A `reference` field's value is not in `data`. Ask for it by field slug through the `references` option, and read the page it returns:
+
+```typescript
+const { entry: post } = await getEmDashEntry("posts", slug, {
+	references: { author: true, related_posts: { limit: 6 } },
+});
+
+const author = post?.references?.author.entries[0];
+const related = post?.references?.related_posts.entries ?? [];
+```
+
+`true` is the first page at the default limit of 50; `{ limit, cursor }` takes at most 100 per page. `getEmDashReferences(collection, id, field, { cursor, limit })` fetches the next page of one field on its own.
+
+Each referenced entry is a full `ContentEntry` -- same `data` mapping, and an `edit` proxy scoped to the referenced entry. Bylines and taxonomy terms are **not** hydrated onto referenced entries; read those from the entry itself.
+
+Entries come back in the editor's order when the field sits on the parent end of its relation. A field on the child end lists whatever points at it, unordered.
+
+Ask only for the fields the page renders: a call with no `references` runs no extra queries, and each selected field costs one link query plus one entry query per distinct target collection.
+
+A public render sees published entries and the published selection. Preview and visual editing see the selection staged in the entry's draft.
+
+Generated types register a `{Collection}References` interface per collection with bound reference fields, so `post.references.author.entries[0].data` carries the target collection's interface and a field that was not selected is a type error.
 
 ### Caching
 
@@ -123,7 +148,7 @@ const customTypes = {
 <PortableText value={page.data.content} components={{ type: customTypes }} />
 ```
 
-Each custom component receives the block data as props.
+Each custom component receives the block as `Astro.props.node`.
 
 ## Rendering a blocks field
 
@@ -252,7 +277,11 @@ const seo = getSeoMeta(post, {
 
 const tags = post.data.terms?.tag ?? [];
 ---
-<Base title={seo.title} description={seo.description}>
+<Base
+	title={seo.title}
+	description={seo.description}
+	content={{ collection: "posts", id: post.data.id, slug }}
+>
 	<article>
 		{post.data.featured_image && (
 			<div {...post.edit.featured_image}>
@@ -274,12 +303,15 @@ const tags = post.data.terms?.tag ?? [];
 
 ```astro
 ---
-import { getTaxonomyTermsWithCacheHint, getEmDashCollection } from "emdash";
+import { getTaxonomyTermsWithCacheHint, getEmDashCollection, type TaxonomyTerm } from "emdash";
 import Base from "../../layouts/Base.astro";
 
 const { slug } = Astro.params;
 const termsResult = await getTaxonomyTermsWithCacheHint("category", { includeCounts: false });
-const term = slug ? termsResult.data.find((item) => item.slug === slug) : null;
+// Hierarchical taxonomies return a tree, so search child terms too.
+const findTerm = (terms: TaxonomyTerm[]): TaxonomyTerm | undefined =>
+	terms.find((item) => item.slug === slug) ?? terms.map((item) => findTerm(item.children)).find(Boolean);
+const term = slug ? findTerm(termsResult.data) : undefined;
 if (!term) return Astro.rewrite("/404");
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
@@ -401,7 +433,7 @@ const { entries, nextCursor, cacheHint } = await getEmDashCollection("posts", {
 	cursor,
 	orderBy: { published_at: "desc" },
 });
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 {entries.map(post => (
 	<a href={`/posts/${post.id}`}>{post.data.title}</a>
@@ -413,7 +445,7 @@ Astro.cache.set(cacheHint);
 
 ## Date Formatting
 
-Dates come as `Date` objects. Use `toLocaleDateString` or `Intl.DateTimeFormat`:
+The system dates `createdAt`, `updatedAt` and `publishedAt` are `Date` objects. Custom `datetime` fields are ISO 8601 strings, so wrap them in `new Date(...)` first. Use `toLocaleDateString` or `Intl.DateTimeFormat`:
 
 ```typescript
 const formatted = post.data.publishedAt?.toLocaleDateString("en-US", {

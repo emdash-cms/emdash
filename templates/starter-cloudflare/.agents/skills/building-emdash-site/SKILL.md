@@ -13,7 +13,7 @@ These are the things that silently break sites. Know them before you start.
 
 1. **Image fields are objects, not strings.** `post.data.featured_image` is `{ id, src, alt }`. Writing `<img src={post.data.featured_image} />` renders `[object Object]`. Use `<Image image={post.data.featured_image} />` from `"emdash/ui"`.
 
-2. **`entry.id` vs `entry.data.id` are different things.** `entry.id` is the slug (use in URLs). `entry.data.id` is the database ULID (use for `getEntryTerms`, `Comments`, and other API calls that need the real ID). Mixing them up causes silent empty results.
+2. **`entry.id` vs `entry.data.id` are different things.** `entry.id` is the slug, prefixed with the locale (`en/my-post`) for locales whose URLs are prefixed (use in URLs; `entry.data.slug` is the bare slug). `entry.data.id` is the database ULID (use for `getEntryTerms`, `Comments`, and other API calls that need the real ID). Mixing them up causes silent empty results.
 
 3. **Taxonomy names must match the seed exactly.** If your seed defines `"name": "category"`, you must query `getTerm("category", slug)` -- not `"categories"`. Wrong name = empty results, no error.
 
@@ -67,7 +67,7 @@ Write `seed/seed.json` with collections, fields, taxonomies, menus, widgets, and
 pnpm dev                # Start the Astro dev server
 ```
 
-The runtime runs pending migrations on the first request and applies the bundled seed when the database is empty and setup has not been completed. The Astro integration generates `emdash-env.d.ts` when the server starts. The admin UI is at `http://localhost:4321/_emdash/admin`.
+The runtime runs pending migrations on the first request and, before setup is completed, applies the seed's schema and structure once. Sample content needs an explicit step; see [Applying Seeds](references/schema-and-seed.md#applying-seeds). The Astro integration generates `emdash-env.d.ts` when the server starts. The admin UI is at `http://localhost:4321/_emdash/admin`.
 
 ## Quick API Cheat Sheet
 
@@ -79,7 +79,7 @@ const { entries, nextCursor, cacheHint } = await getEmDashCollection("posts", {
 	cursor,
 	orderBy: { published_at: "desc" },
 });
-const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+const { entry: post, cacheHint: entryCacheHint } = await getEmDashEntry("posts", slug);
 
 // Site features
 import {
