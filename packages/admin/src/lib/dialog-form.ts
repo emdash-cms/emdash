@@ -73,7 +73,9 @@ export function useConfirmedRequest(request: (() => Promise<unknown> | void) | u
 			onConfirm: () => {
 				setIsPending(true);
 				setError(null);
-				void Promise.resolve(request?.())
+				// The executor turns a request that throws before returning into a
+				// rejection; Promise.resolve(request()) would let it escape.
+				void new Promise((resolve) => resolve(request?.()))
 					.then(
 						() => setOpen(false),
 						(requestError: unknown) => setError(requestError),

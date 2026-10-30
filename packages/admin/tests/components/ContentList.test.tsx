@@ -679,6 +679,28 @@ describe("ContentList", () => {
 			expect(request).toHaveBeenCalledOnce();
 		});
 
+		it("shows a request that throws at once in Move to Trash?, and lets it close", async () => {
+			const request = vi.fn(() => {
+				throw new Error("Trash is unavailable");
+			});
+			const items = [makeItem({ id: "item_1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onDelete={request} />,
+			);
+
+			await screen.getByRole("button", { name: "Actions for Post" }).click();
+			await screen.getByRole("menuitem", { name: "Move to trash" }).click();
+			const dialog = screen.getByRole("dialog", { name: "Move to Trash?" });
+			await expect.element(dialog).toBeVisible();
+			dialog.getByRole("button", { name: "Move to Trash" }).element().click();
+
+			await expect.element(dialog.getByText("Trash is unavailable")).toBeVisible();
+			const cancel = dialog.getByRole("button", { name: "Cancel" });
+			await expect.element(cancel).toBeEnabled();
+			cancel.element().click();
+			await expect.element(dialog).not.toBeInTheDocument();
+		});
+
 		it("keeps Delete Permanently? open, showing progress, until the request lands", async () => {
 			const { request, finish } = heldRequest();
 			const trashed = [makeTrashedItem({ id: "t1", data: { title: "Old Post" } })];
