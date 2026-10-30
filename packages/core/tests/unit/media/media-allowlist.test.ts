@@ -19,6 +19,10 @@ describe("GLOBAL_UPLOAD_ALLOWLIST", () => {
 		expect(matchesMimeAllowlist("image/avif", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
 	});
 
+	it("allows image/bmp, a raster format with no active-content risk", () => {
+		expect(matchesMimeAllowlist("image/bmp", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
+	});
+
 	it("allows image/jxl (JPEG XL) for uploads", () => {
 		expect(matchesMimeAllowlist("image/jxl", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
 	});
