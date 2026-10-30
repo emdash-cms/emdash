@@ -93,7 +93,7 @@ const MAX_JSON_BIND_BYTES = 1_900_000;
 const MEDIA_USAGE_EVENT_QUERY_CEILING = 900;
 const MEDIA_USAGE_QUERY_RESERVE = 150;
 
-function chunkJsonRows<T>(rows: readonly T[]): T[][] {
+export function chunkJsonRows<T>(rows: readonly T[]): T[][] {
 	const batches: T[][] = [];
 	let batch: T[] = [];
 	let batchBytes = 2;
