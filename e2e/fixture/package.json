@@ -12,6 +12,7 @@
 		"astro": "catalog:",
 		"emdash": "workspace:*",
 		"react": "catalog:",
-		"react-dom": "catalog:"
+		"react-dom": "catalog:",
+		"sharp": "^0.35.4"
 	}
 }

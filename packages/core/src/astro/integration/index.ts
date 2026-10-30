@@ -632,9 +632,17 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				astroCommand = command;
 				usesCloudflareAdapter = astroConfig.adapter?.name === "@astrojs/cloudflare";
 				normalizeRegistryConfig(registry, {
-					allowLocalhost: command === "dev" || command === "sync",
+					allowLocalhost:
+						command === "dev" ||
+						command === "sync" ||
+						resolvedConfig.dangerouslyEnableTestHooks === true,
 				});
 				printBanner(logger);
+				if (resolvedConfig.dangerouslyEnableTestHooks && command === "build") {
+					logger.warn(
+						"dangerouslyEnableTestHooks is on: anyone who can reach this build can sign in as an administrator. Use it only for end-to-end tests, and never deploy it.",
+					);
+				}
 				if (command === "dev") {
 					// In Node `astro dev`, Vite loads `.env` into `import.meta.env`
 					// but not `process.env`. The plugin-secret encryption key
