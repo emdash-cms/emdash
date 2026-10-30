@@ -216,6 +216,10 @@ declare module "virtual:emdash/scheduler" {
 	export const createScheduler: CreateSchedulerFn | null;
 }
 
+declare module "virtual:emdash/admin-loader" {
+	export function loadPluginAdmins(): Promise<typeof import("virtual:emdash/admin-registry")>;
+}
+
 declare module "virtual:emdash/admin-registry" {
 	/**
 	 * Plugin admin module registry.

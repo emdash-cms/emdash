@@ -71,6 +71,10 @@ import {
 	generateBlockComponentsModule,
 } from "./virtual-modules.js";
 
+const VIRTUAL_ADMIN_LOADER_ID = "virtual:emdash/admin-loader";
+const RESOLVED_ADMIN_LOADER_ID = "\0" + VIRTUAL_ADMIN_LOADER_ID;
+const RESOLVED_ADMIN_ENTRY_ID = "\0virtual:emdash/admin-entry";
+
 const LOCALE_MESSAGES_RE = /[/\\]([a-z]{2}(?:-[A-Z]{2})?)[/\\]messages\.mjs$/;
 
 export function pathToImportUrl(path: string): string {
@@ -188,6 +192,7 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 	const { serializableConfig, resolvedConfig, pluginDescriptors, astroConfig } = options;
 
 	let viteCommand: "build" | "serve" | undefined;
+	let adminEntryReference: string | undefined;
 
 	// Captured once per plugin instance rather than inside load(): Vite may load
 	// the module more than once (client and server passes, dev reloads), and a
@@ -196,10 +201,34 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 
 	return {
 		name: "emdash-virtual-modules",
+		buildStart() {
+			adminEntryReference = undefined;
+		},
+		generateBundle(_options, bundle) {
+			if (!adminEntryReference) return;
+			const visited = new Set<string>();
+			const retainStyles = (file: string) => {
+				if (visited.has(file)) return;
+				visited.add(file);
+				const chunk = bundle[file];
+				if (chunk?.type !== "chunk") return;
+				// Astro removes CSS that belongs to no page unless a chunk also
+				// references it as an asset. Vite's preload helper loads these files.
+				for (const css of chunk.viteMetadata?.importedCss ?? []) {
+					chunk.viteMetadata?.importedAssets.add(css);
+				}
+				for (const dependency of [...chunk.imports, ...chunk.dynamicImports]) {
+					retainStyles(dependency);
+				}
+			};
+			retainStyles(this.getFileName(adminEntryReference));
+		},
 		configResolved(config) {
 			viteCommand = config.command;
 		},
 		resolveId(id: string) {
+			if (id === VIRTUAL_ADMIN_LOADER_ID) return RESOLVED_ADMIN_LOADER_ID;
+			if (id === RESOLVED_ADMIN_ENTRY_ID) return id;
 			if (id === VIRTUAL_CONFIG_ID) {
 				return RESOLVED_VIRTUAL_CONFIG_ID;
 			}
@@ -253,6 +282,33 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			}
 		},
 		load(id: string) {
+			if (id === RESOLVED_ADMIN_ENTRY_ID) {
+				return `export const load = () => import("${VIRTUAL_ADMIN_REGISTRY_ID}");`;
+			}
+			if (id === RESOLVED_ADMIN_LOADER_ID) {
+				const hasAdminEntries = [...pluginDescriptors, ...(resolvedConfig.sandboxed ?? [])].some(
+					(descriptor) => descriptor.adminEntry,
+				);
+				if (!hasAdminEntries) {
+					return `export const loadPluginAdmins = async () => ({ pluginAdmins: {} });`;
+				}
+				if (viteCommand !== "build") {
+					return `export const loadPluginAdmins = () => import("${VIRTUAL_ADMIN_REGISTRY_ID}");`;
+				}
+				// An emitted entry has no module-graph edge back to the island. Astro
+				// must not propagate plugin CSS through its shared server page graph.
+				// The entry's dynamic import lets Vite load CSS before resolving it.
+				const entry = this.emitFile({
+					type: "chunk",
+					id: RESOLVED_ADMIN_ENTRY_ID,
+					name: "emdash-admin",
+				});
+				adminEntryReference = entry;
+				return `export async function loadPluginAdmins() {
+					const { load } = await import(/* @vite-ignore */ import.meta.ROLLUP_FILE_URL_${entry});
+					return load();
+				}`;
+			}
 			if (id === RESOLVED_VIRTUAL_CONFIG_ID) {
 				return generateConfigModule(serializableConfig);
 			}
