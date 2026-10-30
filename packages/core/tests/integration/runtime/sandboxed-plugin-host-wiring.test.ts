@@ -92,8 +92,10 @@ function createDeps(
 	sandboxActive = false;
 	sandboxInvokeRoute = vi.fn(async () => ({ status: 200, body: { ok: true } }));
 	setSandboxActive = vi.fn();
-	ensureRunning = vi.fn(async () => undefined);
 	isHealthy = vi.fn(() => true);
+	ensureRunning = vi.fn(async () => {
+		isHealthy.mockReturnValue(true);
+	});
 	const database = new Database(":memory:");
 	const runner = {
 		isAvailable: () => true,
@@ -349,16 +351,23 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 			...(deps.sandboxedPluginEntries[0]!.hooks ?? []),
 		];
 
+		deps.sandboxedPluginEntries.push({ ...deps.sandboxedPluginEntries[0]!, id: "later-sandbox" });
+		const laterHook = vi.fn(async () => undefined);
+		sandboxHookHandlers.set("later-sandbox", laterHook);
 		runtime = await EmDashRuntime.create(deps);
 		expect(calls).toEqual(["plugin:install"]);
 		expect(
 			await new PluginStateRepository(runtime.db).get("sandbox-unhealthy-after-install"),
 		).toBeNull();
+		expect(await new PluginStateRepository(runtime.db).get("later-sandbox")).toMatchObject({
+			status: "active",
+		});
+		expect(isHealthy()).toBe(true);
+		expect(ensureRunning).toHaveBeenCalledTimes(2);
 
 		await runtime.shutdown();
 		runtime = undefined;
 		crash = false;
-		isHealthy.mockReturnValue(true);
 		runtime = await EmDashRuntime.create(deps);
 
 		expect(calls).toEqual(["plugin:install", "plugin:install", "plugin:activate"]);
@@ -413,6 +422,7 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 			const invokeHook = vi.fn(async (name: string) => {
 				calls.push(name);
 				if (unavailable && name === unavailableHook) {
+					isHealthy.mockReturnValue(false);
 					throw new SandboxUnavailableError("sandbox-unavailable-hook", "starting");
 				}
 			});
@@ -476,6 +486,7 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 				async (name) => {
 					firstCalls.push(name);
 					if (name === unavailableHook) {
+						isHealthy.mockReturnValue(false);
 						throw new SandboxUnavailableError("first-sandbox", "connection lost");
 					}
 				},
@@ -622,37 +633,44 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		}
 	});
 
-	it("defers remaining plugins when refreshed readiness fails after a hook loses the sandbox", async () => {
-		const firstCalls: string[] = [];
-		const deps = createDeps(
-			async (name) => {
-				firstCalls.push(name);
-				throw new SandboxUnavailableError("first-sandbox", "connection lost");
-			},
-			{},
-			"first-sandbox",
-		);
-		deps.sandboxedPluginEntries[0]!.hooks = ["plugin:install", "plugin:activate"];
-		for (const id of ["later-sandbox", "third-sandbox"]) {
-			deps.sandboxedPluginEntries.push({ ...deps.sandboxedPluginEntries[0]!, id });
-		}
-		const laterHook = vi.fn(async () => undefined);
-		sandboxHookHandlers.set("later-sandbox", laterHook);
-		sandboxHookHandlers.set("third-sandbox", laterHook);
-		ensureRunning
-			.mockResolvedValueOnce(undefined)
-			.mockRejectedValueOnce(new Error("restart failed"));
+	it.each(["rejects", "exhausts the crash budget"])(
+		"defers remaining plugins when refreshed readiness %s after a hook loses the sandbox",
+		async (failure) => {
+			const firstCalls: string[] = [];
+			const deps = createDeps(
+				async (name) => {
+					firstCalls.push(name);
+					isHealthy.mockReturnValue(false);
+					throw new SandboxUnavailableError("first-sandbox", "connection lost");
+				},
+				{},
+				"first-sandbox",
+			);
+			deps.sandboxedPluginEntries[0]!.hooks = ["plugin:install", "plugin:activate"];
+			for (const id of ["later-sandbox", "third-sandbox"]) {
+				deps.sandboxedPluginEntries.push({ ...deps.sandboxedPluginEntries[0]!, id });
+			}
+			const laterHook = vi.fn(async () => undefined);
+			sandboxHookHandlers.set("later-sandbox", laterHook);
+			sandboxHookHandlers.set("third-sandbox", laterHook);
+			ensureRunning.mockResolvedValueOnce(undefined);
+			if (failure === "rejects") {
+				ensureRunning.mockRejectedValueOnce(new Error("restart failed"));
+			} else {
+				ensureRunning.mockResolvedValueOnce(undefined);
+			}
 
-		runtime = await EmDashRuntime.create(deps);
-		const states = new PluginStateRepository(runtime.db);
-		for (const id of ["first-sandbox", "later-sandbox", "third-sandbox"]) {
-			expect(await states.get(id)).toBeNull();
-		}
-		expect(firstCalls).toEqual(["plugin:install"]);
-		expect(laterHook).not.toHaveBeenCalled();
-		expect(ensureRunning).toHaveBeenCalledTimes(2);
-		expect(setSandboxActive).not.toHaveBeenCalledWith(false);
-	});
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			for (const id of ["first-sandbox", "later-sandbox", "third-sandbox"]) {
+				expect(await states.get(id)).toBeNull();
+			}
+			expect(firstCalls).toEqual(["plugin:install"]);
+			expect(laterHook).not.toHaveBeenCalled();
+			expect(ensureRunning).toHaveBeenCalledTimes(2);
+			expect(setSandboxActive).not.toHaveBeenCalledWith(false);
+		},
+	);
 
 	it.each(["rejects", "stays unhealthy"])(
 		"retries on a later boot when sandbox readiness %s",
@@ -681,7 +699,9 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 			if (failure === "rejects") {
 				ensureRunning.mockRejectedValue(new Error("sandbox starting"));
 			} else {
-				isHealthy.mockReturnValue(false);
+				ensureRunning.mockImplementation(async () => {
+					isHealthy.mockReturnValue(false);
+				});
 			}
 
 			runtime = await EmDashRuntime.create(deps);

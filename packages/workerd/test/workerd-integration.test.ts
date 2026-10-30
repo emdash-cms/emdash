@@ -484,6 +484,71 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		sqlite.close();
 	});
 
+	it("waits for crash backoff and readiness when workerd dies during a hook", async () => {
+		const pluginId = "crash-recovery";
+		const plugin = await runner.load(
+			{
+				id: pluginId,
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				hooks: ["plugin:install", "plugin:activate"],
+			},
+			`export default {
+			hooks: {
+				"plugin:install": async (_event, ctx) => {
+					await ctx.kv.set("entered", true);
+					await new Promise(resolve => setTimeout(resolve, 60000));
+				},
+				"plugin:activate": async (_event, ctx) => { await ctx.kv.set("recovered", true); }
+			}
+		};`,
+		);
+		await runner.ensureRunning();
+		const child = runner["workerdProcess"];
+		if (!child) throw new Error("workerd did not start");
+		const epoch = runner.currentEpoch;
+		const hookFailure = expect(plugin.invokeHook("plugin:install", {})).rejects.toMatchObject({
+			name: "SandboxUnavailableError",
+		});
+		await vi.waitFor(
+			async () => {
+				const entered = await db
+					.selectFrom("_plugin_storage")
+					.select("data")
+					.where("plugin_id", "=", pluginId)
+					.where("collection", "=", "__kv")
+					.where("id", "=", "entered")
+					.executeTakeFirst();
+				expect(entered?.data).toBe("true");
+			},
+			{ timeout: 5000, interval: 10 },
+		);
+
+		const exited = new Promise<void>((resolve) => {
+			child.once("exit", () => resolve());
+		});
+		expect(child.kill("SIGKILL")).toBe(true);
+		await exited;
+		expect(runner.isHealthy()).toBe(false);
+		expect(runner["restartTimer"]).not.toBeNull();
+		expect(runner["needsRestart"]).toBe(false);
+
+		await Promise.all([runner.ensureRunning(), runner.ensureRunning(), hookFailure]);
+		expect(runner.isHealthy()).toBe(true);
+		expect(runner.currentEpoch).toBe(epoch + 1);
+		await plugin.invokeHook("plugin:activate", {});
+		const recovered = await db
+			.selectFrom("_plugin_storage")
+			.select("data")
+			.where("plugin_id", "=", pluginId)
+			.where("collection", "=", "__kv")
+			.where("id", "=", "recovered")
+			.executeTakeFirst();
+		expect(recovered?.data).toBe("true");
+	}, 30_000);
+
 	it("loads a plugin and invokes a route", async () => {
 		const plugin = await runner.load(
 			{

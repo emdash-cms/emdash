@@ -360,6 +360,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	private crashCount = 0;
 	private crashWindowStart = 0;
 	private restartTimer: ReturnType<typeof setTimeout> | null = null;
+	private restartWaiters = new Set<() => void>();
 	private shuttingDown = false;
 
 	/**
@@ -486,9 +487,17 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * then workerd starts once on the first hook/route call.
 	 */
 	async ensureRunning(): Promise<void> {
+		if (this.shuttingDown || this.plugins.size === 0) return;
 		// If a startup is already in progress, wait for it
 		if (this.startupPromise) {
 			await this.startupPromise;
+			return this.ensureRunning();
+		}
+		// A crashed process waits for backoff before needsRestart is set.
+		if (this.restartTimer && !this.gaveUp) {
+			await new Promise<void>((resolve) => {
+				this.restartWaiters.add(resolve);
+			});
 			return this.ensureRunning();
 		}
 		if (!this.needsRestart) return;
@@ -640,6 +649,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			clearTimeout(this.restartTimer);
 			this.restartTimer = null;
 		}
+		this.resolveRestartWaiters();
 		if (this.eagerStartTimer) {
 			clearTimeout(this.eagerStartTimer);
 			this.eagerStartTimer = null;
@@ -653,6 +663,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			await rm(this.configDir, { recursive: true, force: true }).catch(() => {});
 			this.configDir = null;
 		}
+	}
+
+	private resolveRestartWaiters(): void {
+		for (const resolve of this.restartWaiters) resolve();
+		this.restartWaiters.clear();
 	}
 
 	/**
@@ -675,6 +690,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 		if (this.crashCount > 5) {
 			this.gaveUp = true;
+			this.resolveRestartWaiters();
 			console.error(
 				"[emdash:workerd] workerd crashed 5 times in 60 seconds, giving up. " +
 					"Sandboxed plugin hooks and routes now fail with SandboxUnavailableError. " +
@@ -700,6 +716,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			// If no plugin invocations happen after a crash, there's nothing
 			// to recover for, so deferring restart until next use is fine.
 			this.needsRestart = true;
+			this.resolveRestartWaiters();
 		}, delayMs);
 	}
 
