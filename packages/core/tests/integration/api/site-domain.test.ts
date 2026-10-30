@@ -151,14 +151,35 @@ describe("changing the site domain", () => {
 				vi.stubGlobal("fetch", async () =>
 					Response.json({ data: { token: "another-sites-token" } }),
 				),
-			message: "https://new.example does not serve this site yet",
+			message: "Could not verify that https://new.example serves this site",
 			details: { reason: "NOT_SERVING", origin: "https://new.example" },
 		},
+		...[
+			{
+				case: "a Worker subrequest returning an error",
+				response: () => new Response(null, { status: 522 }),
+			},
+			{
+				case: "an unexpected HTML response",
+				response: () => new Response("<html>Not the proof endpoint</html>"),
+			},
+			{
+				case: "a proof endpoint without a pending check",
+				response: () => Response.json({ success: false, error: { code: "NOT_FOUND" } }),
+			},
+		].map(({ case: name, response }) => ({
+			case: name,
+			arrange: () => vi.stubGlobal("fetch", async () => response()),
+			message: "Could not verify that https://new.example serves this site",
+			details: { reason: "NOT_SERVING", origin: "https://new.example" },
+		})),
 	])("reports the reason and address for $case", async ({ arrange, message, details }) => {
 		arrange();
 
+		await setSiteSettings({ url: "https://old.example" }, db);
 		const result = await handleSiteDomainChange(db, "new.example");
 
+		expect((await getSiteSettingsWithDb(db)).url).toBe("https://old.example");
 		expect(result).toEqual({
 			success: false,
 			error: { code: "DOMAIN_CHECK_FAILED", message, details },
