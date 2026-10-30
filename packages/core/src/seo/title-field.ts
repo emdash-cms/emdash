@@ -3,7 +3,7 @@
  * `titleField`. The loader reads the setting in the entry query, so
  * `getSeoMeta()` can fall back to that field without a query of its own.
  */
-export const ENTRY_TITLE_FIELD = Symbol.for("emdash:entryTitleField");
+const ENTRY_TITLE_FIELD = Symbol.for("emdash:entryTitleField");
 
 export function setEntryTitleField(data: Record<string, unknown>, titleField: string): void {
 	Object.defineProperty(data, ENTRY_TITLE_FIELD, {
