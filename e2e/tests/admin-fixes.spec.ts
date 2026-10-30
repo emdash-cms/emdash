@@ -352,10 +352,7 @@ test.describe("Autosave after perf optimizations", () => {
 		// Autosave should succeed (200)
 		expect(response.status()).toBe(200);
 
-		// SaveButton live region should settle on "Saved" after autosave completes
-		await expect(page.getByRole("status").filter({ hasText: "Saved" }).first()).toBeVisible({
-			timeout: 5000,
-		});
+		await admin.waitForSaveComplete();
 
 		// Regression: autosave should not snap the input back to older cached server state.
 		await expect(titleInput).toHaveValue("Autosave Perf Test Edit");

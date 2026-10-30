@@ -201,7 +201,6 @@ test.describe("Schedule content", () => {
 		const headerBox = await distractionFreeHeader.boundingBox();
 		expect(headerBox).not.toBeNull();
 		for (const action of [
-			distractionFreeHeader.getByRole("button", { name: "Saved" }),
 			distractionFreeHeader.getByRole("button", { name: "Change schedule", exact: true }),
 			distractionFreeHeader.getByRole("button", { name: "Remove schedule", exact: true }),
 			distractionFreeHeader.getByRole("button", { name: "Publish now", exact: true }),
@@ -246,7 +245,12 @@ test.describe("Schedule content", () => {
 			const box = await element.boundingBox();
 			expect(box).not.toBeNull();
 			expect(box!.x).toBeGreaterThanOrEqual(0);
-			expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+			await expect
+				.poll(async () => {
+					const settledBox = await element.boundingBox();
+					return settledBox!.x + settledBox!.width;
+				})
+				.toBeLessThanOrEqual(320);
 		}
 		expect(
 			await settingsPanel.evaluate((element) => element.scrollWidth <= element.clientWidth),
@@ -447,7 +451,7 @@ test.describe("Schedule content", () => {
 		expect(headerBox).not.toBeNull();
 		const headerActions = distractionFreeHeader.locator("button, a");
 		const actionCount = await headerActions.count();
-		expect(actionCount).toBeGreaterThanOrEqual(7);
+		expect(actionCount).toBeGreaterThanOrEqual(6);
 		for (let index = 0; index < actionCount; index++) {
 			const actionBox = await headerActions.nth(index).boundingBox();
 			expect(actionBox).not.toBeNull();

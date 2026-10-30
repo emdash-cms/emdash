@@ -486,7 +486,9 @@ describe("ContentEditor", () => {
 			await expect.element(screen.getByRole("alert")).toHaveTextContent("future_blocks");
 			await expect.element(screen.getByLabelText("Title")).toBeDisabled();
 			expect(screen.getByLabelText("Layout").query()).toBeNull();
-			await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 
 			await vi.advanceTimersByTimeAsync(2500);
 			expect(onAutosave).not.toHaveBeenCalled();
@@ -1646,7 +1648,9 @@ describe("ContentEditor", () => {
 			await expect.element(screen.getByLabelText("Order", { exact: true })).toHaveValue(0);
 			await expect.element(screen.getByLabelText("Subtitle")).toHaveValue("");
 			await expect.element(screen.getByLabelText("Tagline")).toHaveValue("");
-			await expect.element(screen.getByRole("button", { name: "Saved" }).first()).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 		});
 
 		it("leaves the defaults out of an edit form whose entry did not load", async () => {
@@ -1657,7 +1661,9 @@ describe("ContentEditor", () => {
 			});
 
 			await expect.element(screen.getByRole("switch")).not.toBeChecked();
-			await expect.element(screen.getByRole("button", { name: "Saved" }).first()).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 		});
 	});
 
@@ -1812,12 +1818,12 @@ describe("ContentEditor", () => {
 			await expect.element(saveBtn).toBeEnabled();
 		});
 
-		it("SaveButton is disabled for existing item with no changes", async () => {
+		it("hides the save control for an existing item with no changes", async () => {
 			const item = makeItem();
 			const screen = await renderEditor({ isNew: false, item });
-			const saveBtn = screen.getByRole("button", { name: "Saved" }).first();
-			await expect.element(saveBtn).toBeDisabled();
-			expect(saveBtn.getByRole("status").element().textContent).toBe("Saved");
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 		});
 
 		// Strict per-locale hydration (migration 040) can return
@@ -2225,7 +2231,9 @@ describe("ContentEditor", () => {
 				const screen = await renderEditor({ isNew: false, item, onPublish: vi.fn() });
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
-				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+				await expect
+					.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+					.toBeNull();
 				const publishButtons = screen
 					.getByRole("button", { name: "Publish now", exact: true })
 					.all();
@@ -2486,7 +2494,9 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("button", { name: "Preview" }).first())
 					.toBeInTheDocument();
-				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+				await expect
+					.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+					.toBeNull();
 
 				media.setMatches(false);
 				await expect
@@ -2632,7 +2642,6 @@ describe("ContentEditor", () => {
 			);
 
 			expect(actionNames).toEqual([
-				"Saved",
 				"Live View",
 				"Preview",
 				"Unpublish Post",
@@ -3417,7 +3426,9 @@ describe("ContentEditor", () => {
 			});
 
 			await expect.element(screen.getByLabelText("Title")).toBeDisabled();
-			await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 		});
 
 		it("stops autosaving as soon as the entry is taken away", async () => {
