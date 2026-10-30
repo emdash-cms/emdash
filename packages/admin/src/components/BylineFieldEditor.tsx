@@ -32,6 +32,13 @@ import type {
 	CreateBylineFieldInput,
 	UpdateBylineFieldInput,
 } from "../lib/api/byline-fields.js";
+import { ApiResponseError } from "../lib/api/client.js";
+import {
+	focusFirstInvalid,
+	guardUnsavedInput,
+	revealErrors,
+	useSingleFlight,
+} from "../lib/dialog-form.js";
 import { slugifyIdentifier } from "../lib/utils";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { HelpLabel } from "./FieldHelpLabel.js";
@@ -66,7 +73,8 @@ export interface BylineFieldEditorProps {
 	 * flip with `TRANSLATABLE_LOCKED`. Pass `0` (or omit) in create mode.
 	 */
 	usageTotal?: number;
-	onSave: (input: CreateBylineFieldInput | UpdateBylineFieldInput) => void;
+	/** Return the save's promise so a second submit waits for it. */
+	onSave: (input: CreateBylineFieldInput | UpdateBylineFieldInput) => void | Promise<unknown>;
 	isSaving?: boolean;
 	/** Mutation error to render inline. Pass the mutation's `error` directly. */
 	error?: unknown;
@@ -80,6 +88,78 @@ interface FormState {
 	translatable: boolean;
 	/** Newline-separated options for `select`-type fields. */
 	options: string;
+}
+
+// The server's limits, from `packages/core/src/api/schemas/byline-fields.ts`.
+const SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
+const MAX_SLUG_LENGTH = 63;
+const MAX_LABEL_LENGTH = 200;
+const MAX_SELECT_OPTIONS = 200;
+
+const FORM_INPUTS = ["label", "slug", "options"] as const;
+
+type FormInput = (typeof FORM_INPUTS)[number];
+
+/** The options a select offers: one per non-empty line, trimmed. */
+function parseOptions(options: string): string[] {
+	return options
+		.split("\n")
+		.map((o) => o.trim())
+		.filter(Boolean);
+}
+
+/** What keeps the form from saving, matching what the server would reject. */
+function formProblems(
+	state: FormState,
+	isEdit: boolean,
+): Partial<Record<FormInput, MessageDescriptor>> {
+	const problems: Partial<Record<FormInput, MessageDescriptor>> = {};
+	const label = state.label.trim();
+	if (!label) problems.label = msg`Enter a label.`;
+	else if (state.label.length > MAX_LABEL_LENGTH)
+		problems.label = msg`Use 200 characters or fewer.`;
+	if (!isEdit) {
+		if (!state.slug) {
+			// An empty slug with no label follows the label, which already carries the error.
+			if (label) {
+				problems.slug = slugifyIdentifier(state.label)
+					? msg`Enter a slug.`
+					: msg`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`;
+			}
+		} else if (!SLUG_PATTERN.test(state.slug)) {
+			problems.slug = msg`Use lowercase letters, numbers, and underscores, starting with a letter.`;
+		} else if (state.slug.length > MAX_SLUG_LENGTH) {
+			problems.slug = msg`Use 63 characters or fewer.`;
+		}
+	}
+	if (state.type === "select") {
+		const options = parseOptions(state.options);
+		if (options.length === 0) problems.options = msg`Add at least one option.`;
+		else if (options.length > MAX_SELECT_OPTIONS) problems.options = msg`Use 200 options or fewer.`;
+		else if (new Set(options).size !== options.length) {
+			problems.options = msg`List each option only once.`;
+		}
+	}
+	return problems;
+}
+
+/** The message for a slug the server turned down, when that was the reason. */
+function slugRejection(error: unknown): MessageDescriptor | undefined {
+	if (!(error instanceof ApiResponseError)) return undefined;
+	if (error.code === "FIELD_EXISTS") {
+		return msg`Another field already uses this slug. Enter a different one.`;
+	}
+	// The form checks the slug's format and length itself, which leaves being
+	// reserved as the server's one remaining reason to reject it.
+	const issues = error.details?.issues;
+	if (
+		error.code === "VALIDATION_ERROR" &&
+		Array.isArray(issues) &&
+		issues.some((issue) => typeof issue === "object" && issue !== null && issue.path === "slug")
+	) {
+		return msg`This slug is reserved. Enter a different one.`;
+	}
+	return undefined;
 }
 
 function initialFormState(field?: BylineFieldDefinition | null): FormState {
@@ -115,13 +195,35 @@ export function BylineFieldEditor({
 	const { t } = useLingui();
 	const isEdit = !!field;
 	const [state, setState] = React.useState<FormState>(() => initialFormState(field));
+	const formId = React.useId();
+	const formRef = React.useRef<HTMLFormElement>(null);
+	const [submitted, setSubmitted] = React.useState(false);
+	// The form as last sent, which a rejection of that save is about.
+	const [sent, setSent] = React.useState<FormState | null>(null);
 
 	// Reset state when the dialog opens or the target field changes.
 	// Without this, re-opening the dialog on a different field would show
 	// the previous field's form values.
 	React.useEffect(() => {
-		if (open) setState(initialFormState(field));
+		if (open) {
+			setState(initialFormState(field));
+			setSubmitted(false);
+			setSent(null);
+		}
 	}, [open, field]);
+
+	const translatableLocked = isEdit && usageTotal > 0;
+	// A flip made before the usage count arrived can no longer be sent or undone.
+	const translatable = translatableLocked && field ? field.translatable : state.translatable;
+
+	const initial = React.useMemo(() => initialFormState(field), [field]);
+	const unsaved =
+		state.slug !== initial.slug ||
+		state.label !== initial.label ||
+		state.type !== initial.type ||
+		state.required !== initial.required ||
+		translatable !== initial.translatable ||
+		state.options !== initial.options;
 
 	const setField = <K extends keyof FormState>(key: K, value: FormState[K]) =>
 		setState((prev) => ({ ...prev, [key]: value }));
@@ -136,27 +238,50 @@ export function BylineFieldEditor({
 		}
 	};
 
-	// Parsed once so `handleSave` and `canSave` agree on what counts as
-	// a valid select option set (no empty lines, trimmed).
-	const parsedSelectOptions =
-		state.type === "select"
-			? state.options
-					.split("\n")
-					.map((o) => o.trim())
-					.filter(Boolean)
-			: [];
+	const problems = formProblems(state, isEdit);
+	const slugRejected = isEdit ? undefined : slugRejection(error);
+	if (slugRejected && sent && state.slug === sent.slug) problems.slug = slugRejected;
+	const hasProblems = Object.keys(problems).length > 0;
 
-	const handleSave = () => {
-		// Validate locally before round-tripping. The server validates
-		// again at the zod + registry layers; this is purely UX so the
-		// save button can stay enabled-but-with-feedback rather than
-		// fire-and-fail.
-		if (!state.label.trim()) return;
-		if (!isEdit && !state.slug.trim()) return;
-		if (state.type === "select" && parsedSelectOptions.length === 0) return;
+	const errors: Partial<Record<FormInput, string>> = {};
+	if (submitted) {
+		for (const key of FORM_INPUTS) {
+			const message = problems[key];
+			if (message) errors[key] = t(message);
+		}
+	}
+
+	// Any change after a failed save may be the fix, so its message stops applying.
+	const bannerError =
+		slugRejected || (sent && state !== sent)
+			? null
+			: error instanceof ApiResponseError && error.code === "TRANSLATABLE_LOCKED"
+				? t`Locked because this field has stored values. Delete the values (or the field) to change this.`
+				: getMutationError(error);
+
+	// The action that started the save was disabled while it ran, so focus has
+	// to be put back on the field the server turned down.
+	React.useEffect(() => {
+		if (!isEdit && slugRejection(error)) focusFirstInvalid(formRef.current);
+	}, [error, isEdit]);
+
+	const submitSave = useSingleFlight((input: CreateBylineFieldInput | UpdateBylineFieldInput) =>
+		Promise.resolve(onSave(input)),
+	);
+
+	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		if (isSaving) return;
+		if (hasProblems) {
+			const form = event.currentTarget;
+			revealErrors(form, () => setSubmitted(true));
+			return;
+		}
+		setSubmitted(true);
+		setSent(state);
 
 		const validation: BylineFieldValidation | null =
-			state.type === "select" ? { options: parsedSelectOptions } : null;
+			state.type === "select" ? { options: parseOptions(state.options) } : null;
 
 		if (isEdit) {
 			const updateInput: UpdateBylineFieldInput = {
@@ -166,11 +291,10 @@ export function BylineFieldEditor({
 				// the existing value triggers the server's locked-flip check
 				// unnecessarily; sending `undefined` makes it a no-op for
 				// that key.
-				translatable:
-					field && state.translatable !== field.translatable ? state.translatable : undefined,
+				translatable: field && translatable !== field.translatable ? translatable : undefined,
 				validation,
 			};
-			onSave(updateInput);
+			submitSave(updateInput);
 		} else {
 			const createInput: CreateBylineFieldInput = {
 				slug: state.slug,
@@ -180,27 +304,23 @@ export function BylineFieldEditor({
 				translatable: state.translatable,
 				validation,
 			};
-			onSave(createInput);
+			submitSave(createInput);
 		}
 	};
 
-	const translatableLocked = isEdit && usageTotal > 0;
-	const canSave =
-		state.label.trim().length > 0 &&
-		(isEdit || state.slug.trim().length > 0) &&
-		(state.type !== "select" || parsedSelectOptions.length > 0);
-
-	const slugError =
-		!isEdit && !state.slug && state.label.trim().length > 0
-			? t`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`
-			: undefined;
+	const slugUnderivable =
+		!isEdit && !state.slug && state.label.trim().length > 0 && !slugifyIdentifier(state.label);
 
 	return (
-		<LayerDialog.Root open={open} onOpenChange={onOpenChange} dismissDisabled={isSaving}>
+		<LayerDialog.Root
+			open={open}
+			{...guardUnsavedInput(unsaved, onOpenChange)}
+			dismissDisabled={isSaving}
+		>
 			<LayerDialog.Content>
 				<LayerDialog.Title>{isEdit ? t`Edit byline field` : t`New byline field`}</LayerDialog.Title>
 				<LayerDialog.Body>
-					<div className="grid gap-5">
+					<form id={formId} ref={formRef} noValidate onSubmit={handleSubmit} className="grid gap-5">
 						{/* Label + slug */}
 						<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
 							<Input
@@ -208,6 +328,9 @@ export function BylineFieldEditor({
 								value={state.label}
 								onChange={(e) => handleLabelChange(e.target.value)}
 								placeholder={t`Job title`}
+								required
+								error={errors.label}
+								aria-invalid={errors.label ? true : undefined}
 							/>
 							<Input
 								dir="ltr"
@@ -229,7 +352,14 @@ export function BylineFieldEditor({
 								// uniformly, so the catalog extractor sees it.
 								placeholder={t`job_title`}
 								disabled={isEdit}
-								error={slugError}
+								required={!isEdit || undefined}
+								description={
+									slugUnderivable
+										? t`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`
+										: undefined
+								}
+								error={errors.slug}
+								aria-invalid={errors.slug ? true : undefined}
 							/>
 						</div>
 
@@ -262,7 +392,7 @@ export function BylineFieldEditor({
 								label={t`Required`}
 							/>
 							<Switch
-								checked={state.translatable}
+								checked={translatable}
 								onCheckedChange={(checked) => setField("translatable", checked)}
 								disabled={translatableLocked}
 								label={
@@ -270,7 +400,7 @@ export function BylineFieldEditor({
 										help={
 											translatableLocked
 												? t`Locked because this field has stored values. Delete the values (or the field) to change this.`
-												: state.translatable
+												: translatable
 													? t`Stored per locale — each translation of a byline gets its own value.`
 													: t`Shared across all translations of the same byline.`
 										}
@@ -290,14 +420,17 @@ export function BylineFieldEditor({
 								onChange={(e) => setField("options", e.target.value)}
 								placeholder={t`Editor\nReporter\nPhotographer`}
 								rows={5}
+								required
+								error={errors.options}
+								aria-invalid={errors.options ? true : undefined}
 							/>
 						)}
 
-						<DialogError message={getMutationError(error)} />
-					</div>
+						<DialogError message={bannerError} />
+					</form>
 				</LayerDialog.Body>
 				<LayerDialog.Actions dismissLabel={t`Cancel`}>
-					<LayerDialog.Action onClick={handleSave} disabled={!canSave || isSaving}>
+					<LayerDialog.Action type="submit" form={formId} disabled={isSaving}>
 						{isSaving ? t`Saving…` : isEdit ? t`Save changes` : t`Create field`}
 					</LayerDialog.Action>
 				</LayerDialog.Actions>

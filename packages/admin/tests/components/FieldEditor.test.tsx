@@ -53,6 +53,7 @@ const SHORT_TEXT_REGEX = /Short Text/;
 const LONG_TEXT_REGEX = /Long Text/;
 const BOOLEAN_REGEX = /Boolean/;
 const RICH_TEXT_REGEX = /Rich Text Rich text editor/;
+const DUPLICATE_SUB_FIELD_SLUG = "Another sub-field already uses this slug. Enter a different one.";
 
 function makeField(overrides: Partial<SchemaField> = {}): SchemaField {
 	return {
@@ -382,10 +383,21 @@ describe("FieldEditor", () => {
 	});
 
 	describe("button state", () => {
-		it("disables save button when label is empty", async () => {
+		it("keeps the save button enabled with an empty label, and says what is missing on save", async () => {
+			const onSave = vi.fn();
 			const field = makeField({ slug: "test", label: "" });
-			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={field} />);
-			await expect.element(screen.getByRole("button", { name: "Update Field" })).toBeDisabled();
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={field} onSave={onSave} />,
+			);
+			const button = screen.getByRole("button", { name: "Update Field" });
+			await expect.element(button).toBeEnabled();
+			expect(screen.getByText("Enter a label.").query()).toBeNull();
+
+			button.element().click();
+
+			await expect.element(screen.getByText("Enter a label.")).toBeVisible();
+			await expect.element(screen.getByLabelText("Label", { exact: true })).toHaveFocus();
+			expect(onSave).not.toHaveBeenCalled();
 		});
 
 		it("enables save button when label and slug are filled", async () => {
@@ -996,7 +1008,7 @@ describe("FieldEditor", () => {
 			]);
 		});
 
-		it.each(["generated", "manual"])("blocks %s key collisions until resolved", async (mode) => {
+		it.each(["generated", "manual"])("points at %s key collisions until resolved", async (mode) => {
 			const onSave = vi.fn();
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} onSave={onSave} />);
 			screen
@@ -1014,14 +1026,15 @@ describe("FieldEditor", () => {
 			if (mode === "manual") {
 				await screen.getByLabelText("Slug", { exact: true }).nth(2).fill("groesse");
 			}
-			await expect.element(screen.getByRole("button", { name: "Add Field" })).toBeDisabled();
-			await expect
-				.element(screen.getByText("Sub-field slugs must be unique.").first())
-				.toBeVisible();
+			const duplicate = screen.getByLabelText("Slug", { exact: true }).nth(2);
+			expect(screen.getByText(DUPLICATE_SUB_FIELD_SLUG).query()).toBeNull();
 			screen.getByRole("button", { name: "Add Field" }).element().click();
+			await expect.element(screen.getByText(DUPLICATE_SUB_FIELD_SLUG)).toBeVisible();
+			await expect.element(duplicate).toHaveAttribute("aria-invalid", "true");
+			await expect.element(duplicate).toHaveFocus();
 			expect(onSave).not.toHaveBeenCalled();
-			await screen.getByLabelText("Slug", { exact: true }).nth(2).fill("summary");
-			await expect.element(screen.getByRole("button", { name: "Add Field" })).toBeEnabled();
+			await duplicate.fill("summary");
+			await expect.element(screen.getByText(DUPLICATE_SUB_FIELD_SLUG)).not.toBeInTheDocument();
 			screen.getByRole("button", { name: "Add Field" }).element().click();
 			expect(
 				onSave.mock.calls[0]?.[0].validation.subFields.map((sf: { slug: string }) => sf.slug),

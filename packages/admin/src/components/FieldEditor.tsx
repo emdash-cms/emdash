@@ -8,6 +8,8 @@ import {
 	Select,
 	Switch,
 } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	TextT,
@@ -36,6 +38,7 @@ import * as React from "react";
 
 import { fetchCollections, fetchRelations } from "../lib/api";
 import type { FieldType, CreateFieldInput, SchemaField } from "../lib/api";
+import { ApiResponseError } from "../lib/api/client.js";
 import type {
 	CreateRelationInput,
 	RelationDef,
@@ -43,10 +46,16 @@ import type {
 	RelationWithUsage,
 } from "../lib/api/relations.js";
 import { fetchBlockTypes } from "../lib/api/schema.js";
+import {
+	focusFirstInvalid,
+	guardUnsavedInput,
+	revealErrors,
+	useSingleFlight,
+} from "../lib/dialog-form.js";
 import { singularize } from "../lib/singularize.js";
 import { cn, slugifyIdentifier } from "../lib/utils";
-import { AllowedTypesEditor } from "./AllowedTypesEditor";
-import { DialogError } from "./DialogError";
+import { AllowedTypesEditor, draftProblem, expandShorthand } from "./AllowedTypesEditor";
+import { DialogError, getMutationError } from "./DialogError";
 import { DialogSection } from "./DialogSection.js";
 import { HelpLabel, HelpTooltip } from "./FieldHelpLabel.js";
 import { RelationDialog } from "./RelationDialog.js";
@@ -129,11 +138,12 @@ export interface FieldEditorProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	field?: SchemaField;
-	onSave: (input: CreateFieldInput) => void;
+	/** Return the save's promise so a second submit waits for it. */
+	onSave: (input: CreateFieldInput) => void | Promise<unknown>;
 	isSaving?: boolean;
-	/** Message from a save that was rejected server-side, e.g. a change that
-	 * requires a manual content migration. */
-	saveError?: string | null;
+	/** The error a save was rejected with, as thrown. One the dialog can pin on
+	 * a field shows there; any other shows below the form. */
+	saveError?: unknown;
 	/** The collection the field belongs to. Reference fields need it to work out
 	 * which relations they can bind to, and from which end. */
 	collectionSlug?: string;
@@ -179,6 +189,8 @@ interface FieldFormState {
 	minItems: string;
 	maxItems: string;
 	allowedMimeTypes: string[];
+	/** A type typed into the allowed types but not added to them yet. */
+	mimeDraft: string;
 	targetCollection: string;
 	allowMultiple: boolean;
 	darkVariant: boolean;
@@ -217,6 +229,7 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 			minItems: (field.validation as Record<string, unknown>)?.minItems?.toString() ?? "",
 			maxItems: (field.validation as Record<string, unknown>)?.maxItems?.toString() ?? "",
 			allowedMimeTypes: field.validation?.allowedMimeTypes ?? [],
+			mimeDraft: "",
 			// A reference field created before relations existed named its target in
 			// `options.collection`. Showing it here is what lets the editor confirm
 			// it and turn the field into a picker.
@@ -253,6 +266,7 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 		minItems: "",
 		maxItems: "",
 		allowedMimeTypes: [],
+		mimeDraft: "",
 		targetCollection: "",
 		allowMultiple: false,
 		darkVariant: false,
@@ -262,6 +276,207 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 		allowedTypes: [],
 		retiredTypes: [],
 	};
+}
+
+/** The inputs that can keep a field from saving. */
+const FIELD_INPUTS = [
+	"relation",
+	"targetCollection",
+	"label",
+	"slug",
+	"minLength",
+	"maxLength",
+	"pattern",
+	"min",
+	"max",
+	"options",
+	"subFields",
+	"allowedTypes",
+	"minItems",
+	"maxItems",
+	"mimeDraft",
+] as const;
+
+type FieldInput = (typeof FIELD_INPUTS)[number];
+
+type SubFieldInput = "label" | "slug";
+
+interface FormProblems {
+	fields: Partial<Record<FieldInput, MessageDescriptor>>;
+	/** By the sub-field's position. */
+	subFields: Partial<Record<SubFieldInput, MessageDescriptor>>[];
+}
+
+interface ProblemContext {
+	isNew: boolean;
+	/** A new reference field still has to pick the relationship it views. */
+	relationMissing: boolean;
+	/** An unbound reference field still names no collection to point at. */
+	targetMissing: boolean;
+	/** Whether the label, slug and switches are on screen. */
+	detailsShown: boolean;
+	/** Whether a blocks field lists block types to choose from, or is still
+	 * fetching them. When there are none, the notice in their place explains. */
+	blockTypesOffered: boolean;
+}
+
+const SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
+const SLUG_MAX_LENGTH = 63;
+const MAX_BLOCKS_ITEMS = 100;
+
+const ENTER_SLUG = msg`Enter a slug.`;
+const ENTER_LABEL = msg`Enter a label.`;
+const AT_LEAST_ZERO = msg`Enter a number of 0 or more.`;
+const MAXIMUM_BELOW_MINIMUM = msg`Enter a maximum that is at least the minimum.`;
+const AT_MOST_BLOCKS = msg`Enter a number of 100 or less.`;
+
+function slugFormatProblem(slug: string): MessageDescriptor | undefined {
+	if (!SLUG_PATTERN.test(slug)) {
+		return msg`Use lowercase letters, numbers, and underscores, starting with a letter.`;
+	}
+	if (slug.length > SLUG_MAX_LENGTH) return msg`Use 63 characters or fewer.`;
+	return undefined;
+}
+
+function wholeNumber(value: string): number | undefined {
+	return value ? parseInt(value, 10) : undefined;
+}
+
+function isValidPattern(pattern: string): boolean {
+	try {
+		void new RegExp(pattern);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function optionList(options: string): string[] {
+	return options
+		.split("\n")
+		.map((o) => o.trim())
+		.filter(Boolean);
+}
+
+/**
+ * Checks item limits as the server does, which puts a clash between them on
+ * the maximum. A blocks field also caps both at `MAX_BLOCKS_ITEMS`.
+ */
+function checkItemLimits(fields: FormProblems["fields"], state: FieldFormState, capped: boolean) {
+	const minItems = wholeNumber(state.minItems);
+	const maxItems = wholeNumber(state.maxItems);
+	if (minItems !== undefined && minItems < 0) fields.minItems = AT_LEAST_ZERO;
+	else if (capped && minItems !== undefined && minItems > MAX_BLOCKS_ITEMS) {
+		fields.minItems = AT_MOST_BLOCKS;
+	}
+	if (maxItems !== undefined && maxItems < 1) fields.maxItems = msg`Enter a number of 1 or more.`;
+	else if (capped && maxItems !== undefined && maxItems > MAX_BLOCKS_ITEMS) {
+		fields.maxItems = AT_MOST_BLOCKS;
+	} else if (minItems !== undefined && maxItems !== undefined && minItems > maxItems) {
+		fields.maxItems = MAXIMUM_BELOW_MINIMUM;
+	}
+}
+
+/** What keeps the form from saving, matching what the server would reject. */
+function formProblems(state: FieldFormState, context: ProblemContext): FormProblems {
+	const fields: FormProblems["fields"] = {};
+	const type = state.selectedType;
+
+	if (context.relationMissing) fields.relation = msg`Choose a relationship.`;
+	if (context.targetMissing) fields.targetCollection = msg`Choose a collection.`;
+
+	if (context.detailsShown) {
+		const label = state.label.trim();
+		if (!label) fields.label = ENTER_LABEL;
+		if (context.isNew) {
+			const slug = state.slug
+				? slugFormatProblem(state.slug)
+				: !label
+					? // The slug follows the label, which already carries the error.
+						undefined
+					: slugifyIdentifier(state.label)
+						? ENTER_SLUG
+						: msg`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`;
+			if (slug) fields.slug = slug;
+		}
+	}
+
+	if (type === "string" || type === "text" || type === "slug") {
+		const minLength = wholeNumber(state.minLength);
+		const maxLength = wholeNumber(state.maxLength);
+		if (minLength !== undefined && minLength < 0) fields.minLength = AT_LEAST_ZERO;
+		if (maxLength !== undefined && maxLength < 0) fields.maxLength = AT_LEAST_ZERO;
+		else if (minLength !== undefined && maxLength !== undefined && minLength > maxLength) {
+			fields.maxLength = MAXIMUM_BELOW_MINIMUM;
+		}
+		if (type === "string" && state.pattern && !isValidPattern(state.pattern)) {
+			fields.pattern = msg`Enter a valid regular expression.`;
+		}
+	}
+
+	if (type === "number" || type === "integer") {
+		const min = state.min ? parseFloat(state.min) : undefined;
+		const max = state.max ? parseFloat(state.max) : undefined;
+		if (min !== undefined && max !== undefined && min > max) fields.max = MAXIMUM_BELOW_MINIMUM;
+	}
+
+	if (
+		context.isNew &&
+		(type === "select" || type === "multiSelect") &&
+		optionList(state.options).length === 0
+	) {
+		fields.options = msg`Add at least one option.`;
+	}
+
+	const subFields: FormProblems["subFields"] = [];
+	if (type === "repeater") {
+		if (state.subFields.length === 0) {
+			fields.subFields = msg`Add at least one sub-field to define the repeater structure.`;
+		}
+		state.subFields.forEach((sf, index) => {
+			const problems: FormProblems["subFields"][number] = {};
+			const label = sf.label.trim();
+			if (!label) problems.label = ENTER_LABEL;
+			if (!sf.slug) {
+				if (sf.slugEdited) problems.slug = ENTER_SLUG;
+				else if (label) {
+					problems.slug = msg`A slug cannot be generated from this label. Type one manually.`;
+				}
+			} else if (!sf.slugPersisted) {
+				const format = slugFormatProblem(sf.slug);
+				if (format) problems.slug = format;
+				else if (state.subFields.findIndex((other) => other.slug === sf.slug) !== index) {
+					problems.slug = msg`Another sub-field already uses this slug. Enter a different one.`;
+				}
+			}
+			subFields[index] = problems;
+		});
+		checkItemLimits(fields, state, false);
+	}
+
+	if (type === "blocks") {
+		if (context.isNew && context.blockTypesOffered && state.allowedTypes.length === 0) {
+			fields.allowedTypes = msg`Choose at least one block type.`;
+		}
+		checkItemLimits(fields, state, true);
+	}
+
+	if (type === "file" || type === "image") {
+		const unmapped = draftProblem(state.mimeDraft);
+		if (unmapped) fields.mimeDraft = unmapped;
+	}
+
+	return { fields, subFields };
+}
+
+/** The message for a slug the server turned down, when that was the reason. */
+function slugRejection(error: unknown): MessageDescriptor | undefined {
+	if (!(error instanceof ApiResponseError)) return undefined;
+	if (error.code === "FIELD_EXISTS") {
+		return msg`Another field already uses this slug. Enter a different one.`;
+	}
+	if (error.code === "RESERVED_SLUG") return msg`This slug is reserved. Enter a different one.`;
+	return undefined;
 }
 
 /**
@@ -279,7 +494,13 @@ export function FieldEditor({
 }: FieldEditorProps) {
 	const { t } = useLingui();
 	const [formState, setFormState] = React.useState(() => getInitialFormState(field));
-	const [refError, setRefError] = React.useState(false);
+	const formId = React.useId();
+	const subFieldsErrorId = React.useId();
+	const allowedTypesErrorId = React.useId();
+	const formRef = React.useRef<HTMLFormElement>(null);
+	const [submitted, setSubmitted] = React.useState(false);
+	// The form as last sent, which a rejection of that save is about.
+	const [sent, setSent] = React.useState<FieldFormState | null>(null);
 	// The relationship this dialog just made. The relations query refetches
 	// after it, but the picker names it before that answer arrives.
 	const [createdRelation, setCreatedRelation] = React.useState<RelationWithUsage | null>(null);
@@ -312,10 +533,14 @@ export function FieldEditor({
 	React.useEffect(() => {
 		if (open) {
 			setFormState(getInitialFormState(field));
-			setRefError(false);
+			setSubmitted(false);
+			setSent(null);
 			setCreatedRelation(null);
 		}
 	}, [open, field]);
+
+	const initialSnapshot = React.useMemo(() => JSON.stringify(getInitialFormState(field)), [field]);
+	const unsaved = JSON.stringify(formState) !== initialSnapshot;
 
 	// A close mid-save would hand the in-flight save's completion handler a
 	// dialog now showing a different field, discarding whatever it has typed.
@@ -500,6 +725,8 @@ export function FieldEditor({
 			...prev,
 			selectedType: type,
 			step: "config",
+			// Long text and slug fields send a pattern too, but have no input showing it.
+			...(type === "string" ? {} : { pattern: "" }),
 			...(type === "blocks"
 				? { required: false, unique: false, searchable: false, indexed: false }
 				: {}),
@@ -507,7 +734,6 @@ export function FieldEditor({
 	};
 
 	const handleRelationChange = (value: string) => {
-		setRefError(false);
 		setFormState((prev) => {
 			const candidate = bindableRelations.find((c) => c.relation.slug === value);
 			const side = candidate?.sides[0] ?? "parent";
@@ -538,23 +764,77 @@ export function FieldEditor({
 		);
 	};
 
-	const subFieldSlugs = formState.subFields.map((sf) => sf.slug);
-	const duplicateSubFieldSlugs = new Set(
-		subFieldSlugs.filter((value, index) => value && subFieldSlugs.indexOf(value) !== index),
-	);
-	const subFieldsValid =
-		selectedType !== "repeater" ||
-		(duplicateSubFieldSlugs.size === 0 &&
-			formState.subFields.every((sf) => sf.slug.trim().length > 0 && sf.label.trim().length > 0));
+	const problems = formProblems(formState, {
+		isNew: !field,
+		relationMissing: referenceNeedsRelation && !selectedRelation,
+		targetMissing:
+			selectedType === "reference" && Boolean(field) && !boundToRelation && !targetCollection,
+		detailsShown: showFieldDetails,
+		blockTypesOffered: !blockTypesError && (blockTypesLoading || blockTypes.length > 0),
+	});
+	const slugRejected = field ? undefined : slugRejection(saveError);
+	if (slugRejected && sent && slug === sent.slug) problems.fields.slug = slugRejected;
+	const hasProblems =
+		Object.keys(problems.fields).length > 0 ||
+		problems.subFields.some((subField) => subField.label || subField.slug);
 
-	const handleSave = () => {
-		if (!selectedType || !slug || !label) return;
-		if (!subFieldsValid) return;
+	const errors: Partial<Record<FieldInput, string>> = {};
+	const subFieldErrors: Partial<Record<SubFieldInput, string>>[] = [];
+	if (submitted) {
+		for (const key of FIELD_INPUTS) {
+			const message = problems.fields[key];
+			if (message) errors[key] = t(message);
+		}
+		problems.subFields.forEach((subField, index) => {
+			subFieldErrors[index] = {
+				label: subField.label && t(subField.label),
+				slug: subField.slug && t(subField.slug),
+			};
+		});
+	}
 
-		if (selectedType === "reference" && !boundToRelation && !targetCollection) {
-			setRefError(true);
+	// Any change after a failed save may be the fix, so its message stops applying.
+	const bannerError =
+		slugRejected || (sent && formState !== sent)
+			? null
+			: typeof saveError === "string"
+				? saveError
+				: getMutationError(saveError);
+
+	// The action that started the save was disabled while it ran, so focus has
+	// to be put back on the field the server turned down.
+	React.useEffect(() => {
+		if (!field && slugRejection(saveError)) focusFirstInvalid(formRef.current);
+	}, [saveError, field]);
+
+	const submitSave = useSingleFlight((input: CreateFieldInput) => Promise.resolve(onSave(input)));
+
+	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		if (isSaving || !selectedType) return;
+		if (hasProblems) {
+			const form = event.currentTarget;
+			revealErrors(form, () => setSubmitted(true));
 			return;
 		}
+		setSubmitted(true);
+		const typedMime =
+			selectedType === "file" || selectedType === "image"
+				? expandShorthand(formState.mimeDraft)
+				: null;
+		// A type left in the input counts as added, as it would be on Add.
+		const state =
+			typedMime === null
+				? formState
+				: {
+						...formState,
+						mimeDraft: "",
+						allowedMimeTypes: formState.allowedMimeTypes.includes(typedMime)
+							? formState.allowedMimeTypes
+							: [...formState.allowedMimeTypes, typedMime],
+					};
+		if (state !== formState) setFormState(state);
+		setSent(state);
 
 		const validation: CreateFieldInput["validation"] = {};
 
@@ -571,13 +851,7 @@ export function FieldEditor({
 		}
 
 		if (selectedType === "select" || selectedType === "multiSelect") {
-			const optionList = options
-				.split("\n")
-				.map((o) => o.trim())
-				.filter(Boolean);
-			if (optionList.length > 0) {
-				validation.options = optionList;
-			}
+			validation.options = optionList(options);
 		}
 
 		if (selectedType === "repeater") {
@@ -603,9 +877,9 @@ export function FieldEditor({
 
 		if (
 			(selectedType === "file" || selectedType === "image") &&
-			formState.allowedMimeTypes.length > 0
+			state.allowedMimeTypes.length > 0
 		) {
-			validation.allowedMimeTypes = formState.allowedMimeTypes;
+			validation.allowedMimeTypes = state.allowedMimeTypes;
 		}
 
 		if (selectedType === "reference") {
@@ -642,18 +916,19 @@ export function FieldEditor({
 			input.options = widgetOptions;
 		}
 
-		onSave(input);
+		submitSave(input);
 	};
 
 	const typeConfig = FIELD_TYPES.find((fieldType) => fieldType.type === selectedType);
 
-	const slugError =
-		!field && !slug && label.trim().length > 0
-			? t`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`
-			: undefined;
+	const slugUnderivable = !field && !slug && label.trim().length > 0 && !slugifyIdentifier(label);
 
 	return (
-		<LayerDialog.Root open={open} onOpenChange={handleOpenChange} dismissDisabled={isSaving}>
+		<LayerDialog.Root
+			open={open}
+			{...guardUnsavedInput(unsaved, handleOpenChange)}
+			dismissDisabled={isSaving}
+		>
 			<LayerDialog.Content size="lg">
 				<LayerDialog.Title>
 					{field ? t`Edit Field` : step === "type" ? t`Add Field` : t`Configure Field`}
@@ -684,7 +959,13 @@ export function FieldEditor({
 							})}
 						</div>
 					) : (
-						<div className="grid gap-5">
+						<form
+							id={formId}
+							ref={formRef}
+							noValidate
+							onSubmit={handleSubmit}
+							className="grid gap-5"
+						>
 							{/* Type indicator */}
 							{typeConfig && (
 								<div className="flex items-center space-x-3 p-3 bg-kumo-tint/50 rounded-lg">
@@ -711,23 +992,26 @@ export function FieldEditor({
 						    points at, and how many entries it holds. */}
 							{referenceNeedsRelation && (
 								<div className="grid gap-5">
-									<Select
-										label={t`Relationship`}
-										className="w-full"
-										value={relation}
-										onValueChange={(v) => handleRelationChange(v ?? "")}
-										items={[
-											...bindableRelations.map(({ relation: rel }) => ({
-												label: rel.slug,
-												value: rel.slug,
-											})),
-											...(onCreateRelation
-												? [{ label: t`Create relation`, value: CREATE_RELATION }]
-												: []),
-										]}
-										placeholder={t`Select a relationship`}
-										error={refError ? t`A relationship is required` : undefined}
-									/>
+									<div data-field-invalid={errors.relation ? true : undefined}>
+										<Select
+											label={t`Relationship`}
+											className="w-full"
+											value={relation}
+											onValueChange={(v) => handleRelationChange(v ?? "")}
+											items={[
+												...bindableRelations.map(({ relation: rel }) => ({
+													label: rel.slug,
+													value: rel.slug,
+												})),
+												...(onCreateRelation
+													? [{ label: t`Create relation`, value: CREATE_RELATION }]
+													: []),
+											]}
+											placeholder={t`Select a relationship`}
+											required
+											error={errors.relation}
+										/>
+									</div>
 
 									{selectedRelation && (
 										<>
@@ -786,6 +1070,9 @@ export function FieldEditor({
 											value={label}
 											onChange={(e) => handleLabelChange(e.target.value)}
 											placeholder={t`Field Label`}
+											required
+											error={errors.label}
+											aria-invalid={errors.label ? true : undefined}
 										/>
 										<Input
 											dir="ltr"
@@ -803,7 +1090,14 @@ export function FieldEditor({
 											onChange={(e) => setField("slug", e.target.value)}
 											placeholder="field_slug"
 											disabled={!!field}
-											error={slugError}
+											required={!field || undefined}
+											description={
+												slugUnderivable
+													? t`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`
+													: undefined
+											}
+											error={errors.slug}
+											aria-invalid={errors.slug ? true : undefined}
 										/>
 									</div>
 
@@ -846,13 +1140,15 @@ export function FieldEditor({
 								selectedType === "text" ||
 								selectedType === "slug") && (
 								<DialogSection title={t`Validation`}>
-									<div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4">
+									<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
 										<Input
 											label={t`Min Length`}
 											type="number"
 											value={minLength}
 											onChange={(e) => setField("minLength", e.target.value)}
 											placeholder={t`No minimum`}
+											error={errors.minLength}
+											aria-invalid={errors.minLength ? true : undefined}
 										/>
 										<Input
 											label={t`Max Length`}
@@ -860,6 +1156,8 @@ export function FieldEditor({
 											value={maxLength}
 											onChange={(e) => setField("maxLength", e.target.value)}
 											placeholder={t`No maximum`}
+											error={errors.maxLength}
+											aria-invalid={errors.maxLength ? true : undefined}
 										/>
 									</div>
 									{selectedType === "string" && (
@@ -869,6 +1167,8 @@ export function FieldEditor({
 											value={pattern}
 											onChange={(e) => setField("pattern", e.target.value)}
 											placeholder="^[a-z]+$"
+											error={errors.pattern}
+											aria-invalid={errors.pattern ? true : undefined}
 										/>
 									)}
 								</DialogSection>
@@ -876,7 +1176,7 @@ export function FieldEditor({
 
 							{(selectedType === "number" || selectedType === "integer") && (
 								<DialogSection title={t`Validation`}>
-									<div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4">
+									<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
 										<Input
 											label={t`Min Value`}
 											type="number"
@@ -890,6 +1190,8 @@ export function FieldEditor({
 											value={max}
 											onChange={(e) => setField("max", e.target.value)}
 											placeholder={t`No maximum`}
+											error={errors.max}
+											aria-invalid={errors.max ? true : undefined}
 										/>
 									</div>
 								</DialogSection>
@@ -902,6 +1204,9 @@ export function FieldEditor({
 									onChange={(e) => setField("options", e.target.value)}
 									placeholder={t`Option 1\nOption 2\nOption 3`}
 									rows={5}
+									required={!field || undefined}
+									error={errors.options}
+									aria-invalid={errors.options ? true : undefined}
 								/>
 							)}
 
@@ -996,18 +1301,18 @@ export function FieldEditor({
 												</>
 											) : (
 												<>
-													<Select
-														label={t`Referenced collection`}
-														className="w-full"
-														value={targetCollection}
-														onValueChange={(v) => {
-															setField("targetCollection", v ?? "");
-															setRefError(false);
-														}}
-														items={collections.map((c) => ({ label: c.label, value: c.slug }))}
-														placeholder={t`Select a collection`}
-														error={refError ? t`Referenced collection is required` : undefined}
-													/>
+													<div data-field-invalid={errors.targetCollection ? true : undefined}>
+														<Select
+															label={t`Referenced collection`}
+															className="w-full"
+															value={targetCollection}
+															onValueChange={(v) => setField("targetCollection", v ?? "")}
+															items={collections.map((c) => ({ label: c.label, value: c.slug }))}
+															placeholder={t`Select a collection`}
+															required
+															error={errors.targetCollection}
+														/>
+													</div>
 													{field && (
 														<p className="text-xs text-kumo-subtle">
 															{t`Saving a collection here turns this field into an entry picker. Its stored entry IDs move to the relationship, and the field can no longer be searched or filtered on.`}
@@ -1057,7 +1362,13 @@ export function FieldEditor({
 											{t`Create a block type before adding a blocks field.`}
 										</p>
 									) : (
-										<div className="space-y-2">
+										<div
+											className="space-y-2"
+											role="group"
+											aria-label={t`Allowed block types`}
+											aria-describedby={errors.allowedTypes ? allowedTypesErrorId : undefined}
+											data-field-invalid={errors.allowedTypes ? true : undefined}
+										>
 											{blockTypes.map((blockType) => {
 												const selectedIndex = formState.allowedTypes.indexOf(blockType.slug);
 												const selected = selectedIndex !== -1;
@@ -1141,7 +1452,12 @@ export function FieldEditor({
 											})}
 										</div>
 									)}
-									<div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4">
+									{errors.allowedTypes && (
+										<p id={allowedTypesErrorId} className="text-sm leading-snug text-kumo-danger">
+											{errors.allowedTypes}
+										</p>
+									)}
+									<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
 										<Input
 											label={t`Minimum blocks`}
 											type="number"
@@ -1149,6 +1465,8 @@ export function FieldEditor({
 											value={formState.minItems}
 											onChange={(event) => setField("minItems", event.target.value)}
 											placeholder="0"
+											error={errors.minItems}
+											aria-invalid={errors.minItems ? true : undefined}
 										/>
 										<Input
 											label={t`Maximum blocks`}
@@ -1158,6 +1476,8 @@ export function FieldEditor({
 											value={formState.maxItems}
 											onChange={(event) => setField("maxItems", event.target.value)}
 											placeholder="100"
+											error={errors.maxItems}
+											aria-invalid={errors.maxItems ? true : undefined}
 										/>
 									</div>
 								</DialogSection>
@@ -1167,43 +1487,50 @@ export function FieldEditor({
 								<DialogSection
 									title={t`Sub-Fields`}
 									action={
-										<Button
-											variant="outline"
-											size="sm"
-											icon={<Plus />}
-											onClick={() =>
-												setFormState((prev) => ({
-													...prev,
-													subFields: [
-														...prev.subFields,
-														{
-															slug: "",
-															slugEdited: false,
-															slugPersisted: false,
-															type: "string",
-															label: "",
-															required: false,
-														},
-													],
-												}))
-											}
-										>
-											{t`Add Sub-Field`}
-										</Button>
+										<div data-field-invalid={errors.subFields ? true : undefined}>
+											<Button
+												variant="outline"
+												size="sm"
+												icon={<Plus />}
+												aria-describedby={errors.subFields ? subFieldsErrorId : undefined}
+												onClick={() =>
+													setFormState((prev) => ({
+														...prev,
+														subFields: [
+															...prev.subFields,
+															{
+																slug: "",
+																slugEdited: false,
+																slugPersisted: false,
+																type: "string",
+																label: "",
+																required: false,
+															},
+														],
+													}))
+												}
+											>
+												{t`Add Sub-Field`}
+											</Button>
+										</div>
 									}
 								>
 									{formState.subFields.length === 0 && (
-										<p className="text-sm text-kumo-subtle text-center py-4">
+										<p
+											id={subFieldsErrorId}
+											className={cn(
+												"text-sm text-center py-4",
+												errors.subFields ? "text-kumo-danger" : "text-kumo-subtle",
+											)}
+										>
 											{t`Add at least one sub-field to define the repeater structure.`}
 										</p>
 									)}
 
 									{formState.subFields.map((sf, i) => {
-										const subFieldSlugError = duplicateSubFieldSlugs.has(sf.slug)
-											? t`Sub-field slugs must be unique.`
-											: sf.label.trim().length > 0 && !sf.slug
-												? t`A slug cannot be generated from this label. Type one manually.`
-												: undefined;
+										const subFieldErrorsAt = subFieldErrors[i] ?? {};
+										const slugUnderivableAt =
+											!sf.slug && !sf.slugEdited && sf.label.trim().length > 0;
 										return (
 											<div key={i} className="flex gap-2 items-start border rounded-lg p-3">
 												<div className="flex-1 space-y-2">
@@ -1224,6 +1551,9 @@ export function FieldEditor({
 																setFormState((prev) => ({ ...prev, subFields: updated }));
 															}}
 															placeholder={t`Field label`}
+															required
+															error={subFieldErrorsAt.label}
+															aria-invalid={subFieldErrorsAt.label ? true : undefined}
 														/>
 														<Input
 															dir="ltr"
@@ -1252,7 +1582,14 @@ export function FieldEditor({
 																setFormState((prev) => ({ ...prev, subFields: updated }));
 															}}
 															placeholder={t`field_slug`}
-															error={subFieldSlugError}
+															required={!sf.slugPersisted || undefined}
+															description={
+																slugUnderivableAt
+																	? t`A slug cannot be generated from this label. Type one manually.`
+																	: undefined
+															}
+															error={subFieldErrorsAt.slug}
+															aria-invalid={subFieldErrorsAt.slug ? true : undefined}
 														/>
 														<Select
 															label={t`Type`}
@@ -1302,13 +1639,15 @@ export function FieldEditor({
 										);
 									})}
 
-									<div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4">
+									<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
 										<Input
 											label={t`Min Items`}
 											type="number"
 											value={formState.minItems}
 											onChange={(e) => setField("minItems", e.target.value)}
 											placeholder="0"
+											error={errors.minItems}
+											aria-invalid={errors.minItems ? true : undefined}
 										/>
 										<Input
 											label={t`Max Items`}
@@ -1316,6 +1655,8 @@ export function FieldEditor({
 											value={formState.maxItems}
 											onChange={(e) => setField("maxItems", e.target.value)}
 											placeholder={t`No limit`}
+											error={errors.maxItems}
+											aria-invalid={errors.maxItems ? true : undefined}
 										/>
 									</div>
 								</DialogSection>
@@ -1325,6 +1666,9 @@ export function FieldEditor({
 								<AllowedTypesEditor
 									value={formState.allowedMimeTypes}
 									onChange={(next) => setField("allowedMimeTypes", next)}
+									draft={formState.mimeDraft}
+									onDraftChange={(next) => setField("mimeDraft", next)}
+									error={errors.mimeDraft}
 								/>
 							)}
 
@@ -1342,10 +1686,10 @@ export function FieldEditor({
 									aria-label={t`Dark mode variant`}
 								/>
 							)}
-						</div>
+						</form>
 					)}
 
-					{step !== "type" && <DialogError message={saveError} className="mt-6" />}
+					{step !== "type" && <DialogError message={bannerError} className="mt-6" />}
 					{onCreateRelation && (
 						<RelationDialog
 							open={open && isRelationStep}
@@ -1369,16 +1713,7 @@ export function FieldEditor({
 								{t`Next`}
 							</LayerDialog.Action>
 						) : (
-							<LayerDialog.Action
-								onClick={handleSave}
-								disabled={
-									!slug ||
-									!label ||
-									isSaving ||
-									(selectedType === "repeater" && formState.subFields.length === 0) ||
-									!subFieldsValid
-								}
-							>
+							<LayerDialog.Action type="submit" form={formId} disabled={isSaving}>
 								{isSaving ? t`Saving...` : field ? t`Update Field` : t`Add Field`}
 							</LayerDialog.Action>
 						)}

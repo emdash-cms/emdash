@@ -21,7 +21,7 @@
  * click event.
  */
 
-import { Toast } from "@cloudflare/kumo";
+import { Toast, Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -29,6 +29,7 @@ import { page } from "vitest/browser";
 
 import { BylineFieldEditor } from "../../src/components/BylineFieldEditor";
 import type { BylineFieldDefinition } from "../../src/lib/api/byline-fields";
+import { ApiResponseError } from "../../src/lib/api/client";
 import { render } from "../utils/render.tsx";
 
 // `useCurrentUser` is the gate for the page-permission tests below.
@@ -62,7 +63,8 @@ vi.mock("../../src/lib/api/byline-fields", async () => {
 	};
 });
 
-const { listBylineFields } = await import("../../src/lib/api/byline-fields");
+const { createBylineField, deleteBylineField, getBylineFieldUsage, listBylineFields } =
+	await import("../../src/lib/api/byline-fields");
 const { BylineSchemaPage } = await import("../../src/routes/byline-schema");
 
 function makeField(overrides: Partial<BylineFieldDefinition> = {}): BylineFieldDefinition {
@@ -151,6 +153,81 @@ describe("BylineSchemaPage — permission gate", () => {
 			.toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "New field" })).toBeInTheDocument();
 		expect(screen.getByText("Access denied").query()).toBeNull();
+	});
+});
+
+describe("BylineSchemaPage — saving a field", () => {
+	it("reports a slug another field uses inside the dialog, not in a toast", async () => {
+		vi.mocked(useCurrentUser).mockReturnValue({
+			data: { id: "u1", email: "a@a", role: ROLE_ADMIN },
+			isLoading: false,
+			// eslint-disable-next-line typescript/no-explicit-any -- mock object satisfies the consumed shape
+		} as any);
+		vi.mocked(listBylineFields).mockResolvedValue({ items: [] });
+		vi.mocked(createBylineField).mockRejectedValue(
+			new ApiResponseError(409, "FIELD_EXISTS", 'Byline field "job_title" already exists', {
+				slug: "job_title",
+			}),
+		);
+
+		// `Toasty` draws the toasts the page raises, which `PageWrapper` leaves out.
+		const screen = await render(
+			<QueryClientProvider client={new QueryClient()}>
+				<Toasty>
+					<BylineSchemaPage />
+				</Toasty>
+			</QueryClientProvider>,
+		);
+		await screen.getByRole("button", { name: "New field" }).click();
+		const dialog = screen.getByRole("dialog", { name: "New byline field" });
+		await dialog.getByLabelText("Label", { exact: true }).fill("Job title");
+		// Direct DOM click to bypass Base UI inert overlay
+		dialog.getByRole("button", { name: "Create field" }).element().click();
+
+		await expect
+			.element(dialog.getByText("Another field already uses this slug. Enter a different one."))
+			.toBeVisible();
+		expect(vi.mocked(createBylineField)).toHaveBeenCalledTimes(1);
+		expect(page.getByText("Failed to create field").query()).toBeNull();
+		expect(page.getByText(/already exists/).query()).toBeNull();
+	});
+});
+
+describe("BylineSchemaPage — deleting a field", () => {
+	it("reports a failed delete inside the confirmation, not in a toast", async () => {
+		vi.mocked(useCurrentUser).mockReturnValue({
+			data: { id: "u1", email: "a@a", role: ROLE_ADMIN },
+			isLoading: false,
+			// eslint-disable-next-line typescript/no-explicit-any -- mock object satisfies the consumed shape
+		} as any);
+		vi.mocked(listBylineFields).mockResolvedValue({ items: [makeField()] });
+		vi.mocked(getBylineFieldUsage).mockResolvedValue({
+			translatableValueCount: 0,
+			groupValueCount: 0,
+			totalAffectedRows: 0,
+		});
+		vi.mocked(deleteBylineField).mockRejectedValue(
+			new ApiResponseError(500, "FIELD_DELETE_ERROR", "Byline field could not be deleted"),
+		);
+
+		// `Toasty` draws the toasts the page raises, which `PageWrapper` leaves out.
+		const screen = await render(
+			<QueryClientProvider client={new QueryClient()}>
+				<Toasty>
+					<BylineSchemaPage />
+				</Toasty>
+			</QueryClientProvider>,
+		);
+		await screen.getByRole("button", { name: "Delete Job title" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Delete byline field?" });
+		// Direct DOM click to bypass Base UI inert overlay
+		dialog.getByRole("button", { name: "Delete" }).element().click();
+
+		await expect
+			.element(dialog.getByRole("alert"))
+			.toHaveTextContent("Byline field could not be deleted");
+		expect(vi.mocked(deleteBylineField)).toHaveBeenCalledTimes(1);
+		expect(page.getByText("Failed to delete field").query()).toBeNull();
 	});
 });
 
