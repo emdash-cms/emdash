@@ -161,8 +161,13 @@ vi.mock("../../src/components/TaxonomySidebar", () => ({
 	useHasApplicableTaxonomies: () => true,
 }));
 
+const mediaPickerProps = vi.hoisted(() => ({ current: null as Record<string, unknown> | null }));
+
 vi.mock("../../src/components/MediaPickerModal", () => ({
-	MediaPickerModal: () => null,
+	MediaPickerModal: (props: Record<string, unknown>) => {
+		mediaPickerProps.current = props;
+		return props.open ? <div data-testid="media-picker" /> : null;
+	},
 }));
 
 const outlineClicks = vi.hoisted(() => ({ editorVisible: [] as boolean[] }));
@@ -347,6 +352,63 @@ describe("ContentEditor", () => {
 		portableTextMountCount = 0;
 		onEditorReadyCalls = [];
 		portableTextProps.current = null;
+		mediaPickerProps.current = null;
+	});
+
+	it("passes the database field identity through a block file picker", async () => {
+		const blockType = {
+			id: "attachment-type",
+			slug: "attachment",
+			label: "Attachment",
+			currentVersion: 1,
+			source: "user" as const,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+			versions: [
+				{
+					id: "attachment-v1",
+					blockTypeId: "attachment-type",
+					version: 1,
+					fields: [
+						{
+							slug: "file",
+							label: "File",
+							type: "file",
+							validation: { allowedMimeTypes: ["application/msword"] },
+						},
+					],
+					fingerprint: "attachment-v1",
+					active: true,
+					createdAt: "2026-01-01T00:00:00.000Z",
+					updatedAt: "2026-01-01T00:00:00.000Z",
+				},
+			],
+		};
+		const screen = await renderEditor({
+			isNew: false,
+			item: makeItem({
+				data: {
+					attachments: [{ _type: "attachment", _version: 1, _key: "block-key" }],
+				},
+			}),
+			fields: {
+				attachments: {
+					id: "database-field",
+					kind: "blocks",
+					label: "Attachments",
+					validation: { allowedTypes: ["attachment"] },
+					blockTypes: [blockType],
+				},
+			},
+		});
+
+		await screen.getByRole("button", { name: "Select File" }).click();
+		expect(mediaPickerProps.current).toMatchObject({
+			fieldId: "database-field:block-key:file",
+			blockType: "attachment",
+			blockVersion: 1,
+			mimeTypeFilters: ["application/msword"],
+		});
 	});
 
 	it("uses a task-oriented placeholder for portable text fields", async () => {

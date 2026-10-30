@@ -257,7 +257,11 @@ export function MediaLibrary({
 		id: number;
 		files: readonly File[];
 	} | null>(null);
-	const [uploadTarget, setUploadTarget] = React.useState<{ id: string; name: string } | null>(null);
+	const [uploadTarget, setUploadTarget] = React.useState<{
+		id: string;
+		name: string;
+		folderId: string | null;
+	} | null>(null);
 	const [isFileDragActive, setIsFileDragActive] = React.useState(false);
 	const enqueueIdRef = React.useRef(0);
 	const dragDepthRef = React.useRef(0);
@@ -348,17 +352,25 @@ export function MediaLibrary({
 		(files: readonly File[], returnFocus?: HTMLElement | null) => {
 			if (!canUploadHere || !activeProviderInfo || files.length === 0) return;
 			if (returnFocus) returnFocusRef.current = returnFocus;
-			setUploadTarget({ id: activeProviderInfo.id, name: activeProviderInfo.name });
+			setUploadTarget({
+				id: activeProviderInfo.id,
+				name: activeProviderInfo.name,
+				folderId: folderId ?? null,
+			});
 			setEnqueueRequest({ id: (enqueueIdRef.current += 1), files });
 			setUploadDialogOpen(true);
 		},
-		[activeProviderInfo, canUploadHere],
+		[activeProviderInfo, canUploadHere, folderId],
 	);
 
 	const openUploadDialog = (event: React.MouseEvent<HTMLButtonElement>) => {
 		if (!canUploadHere || !activeProviderInfo) return;
 		returnFocusRef.current = event.currentTarget;
-		setUploadTarget({ id: activeProviderInfo.id, name: activeProviderInfo.name });
+		setUploadTarget({
+			id: activeProviderInfo.id,
+			name: activeProviderInfo.name,
+			folderId: folderId ?? null,
+		});
 		setEnqueueRequest(null);
 		setUploadDialogOpen(true);
 	};
@@ -623,12 +635,16 @@ export function MediaLibrary({
 			if (!uploadTarget) throw new Error("Upload target unavailable");
 			if (uploadTarget.id === "local") {
 				if (!onUpload) throw new Error("Upload callback unavailable");
-				await onUpload(file, { ...options, folderId: folderId ?? null });
+				await onUpload(file, {
+					...options,
+					folderId: uploadTarget.folderId,
+					...(uploadTarget.folderId ? { deduplicate: false } : {}),
+				});
 				return;
 			}
 			await uploadToProvider(uploadTarget.id, file, undefined, options);
 		},
-		[folderId, onUpload, uploadTarget],
+		[onUpload, uploadTarget],
 	);
 	const handleUploadDialogClosed = React.useCallback(() => {
 		setEnqueueRequest(null);
@@ -1025,11 +1041,16 @@ export function MediaLibrary({
 					<MediaEmptyState
 						hero={Folder}
 						title={t`This folder is empty`}
-						description={t`Move media here from Media Details.`}
+						description={t`Upload files here or move media here from Media Details.`}
 						action={
-							<Button variant="outline" onClick={backToMain}>
-								{t`Back to Main library`}
-							</Button>
+							<div className="flex flex-wrap justify-center gap-2">
+								<Button onClick={openUploadDialog} icon={<Upload />}>
+									{t`Upload Files`}
+								</Button>
+								<Button variant="outline" onClick={backToMain}>
+									{t`Back to Main library`}
+								</Button>
+							</div>
 						}
 					/>
 				) : (
