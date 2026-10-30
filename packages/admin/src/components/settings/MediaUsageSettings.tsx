@@ -583,7 +583,7 @@ function ConfirmationDialog({
 			error={null}
 			onConfirm={confirm}
 		>
-			<div className="mt-4 grid gap-4 text-sm">
+			<div className="grid gap-4 text-sm">
 				<div className="grid gap-1.5">
 					<p className="font-medium">{t`Before you continue:`}</p>
 					<ul className="list-disc space-y-1 ps-5 leading-5 text-kumo-subtle">

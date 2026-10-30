@@ -525,7 +525,7 @@ export function PlanReview({
 				error={executeMutation.error}
 				onConfirm={() => executeMutation.mutate()}
 			>
-				<p className="mt-3 text-sm leading-5 text-kumo-subtle">
+				<p className="text-sm leading-5 text-kumo-subtle">
 					{t`Editing on this site is paused until the import finishes.`}
 				</p>
 			</ConfirmDialog>

@@ -1953,7 +1953,7 @@ export function MediaDetailPanel({
 								{t`Content using this media item may show a broken reference.`}
 							</span>
 						}
-						className="mt-4 text-[14px]"
+						className="text-[14px]"
 						role="note"
 					/>
 				) : null}
@@ -1985,7 +1985,7 @@ export function MediaDetailPanel({
 							{t`EmDash does not keep the previous image.`}
 						</span>
 					}
-					className="mt-4 text-[14px]"
+					className="text-[14px]"
 					role="note"
 				/>
 			</ConfirmDialog>
@@ -2015,7 +2015,7 @@ export function MediaDetailPanel({
 							{t`EmDash does not keep the uncropped image.`}
 						</span>
 					}
-					className="mt-4 text-[14px]"
+					className="text-[14px]"
 					role="note"
 				/>
 				<p role="status" className="sr-only">

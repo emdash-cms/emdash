@@ -1,3 +1,4 @@
+import { Checkbox } from "@cloudflare/kumo";
 import { describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
@@ -85,6 +86,24 @@ describe("ConfirmDialog", () => {
 		await screen.rerender(<ConfirmDialog {...props({ error: new Error("Widget is in use") })} />);
 		await expect.element(screen.getByText("Widget is in use")).toBeVisible();
 	});
+
+	it.each(["dialog", "alertdialog"] as const)(
+		"describes the %s by its message alone",
+		async (role) => {
+			const extra = <Checkbox label="Also delete its data" />;
+			const screen = await render(<ConfirmDialog {...props({ role })}>{extra}</ConfirmDialog>);
+			await screen.rerender(
+				<ConfirmDialog {...props({ role, error: new Error("Widget is in use") })}>
+					{extra}
+				</ConfirmDialog>,
+			);
+			await expect.element(screen.getByText("Widget is in use")).toBeVisible();
+
+			await expect
+				.element(page.getByRole(role, { name: "Delete widget?" }))
+				.toHaveAccessibleDescription("This cannot be undone.");
+		},
+	);
 
 	it("brings focus back into the dialog when a failed request had dropped it", async () => {
 		const screen = await render(<ConfirmDialog {...props()} />);

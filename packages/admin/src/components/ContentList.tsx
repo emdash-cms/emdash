@@ -9,7 +9,6 @@ import {
 	Popover,
 	Select,
 	Tabs,
-	Text,
 } from "@cloudflare/kumo";
 import type { DateRange } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
@@ -662,14 +661,13 @@ export function ContentList({
 										/>
 										<LayerDialog.Content size="sm">
 											<LayerDialog.Title>{t`Move to Trash?`}</LayerDialog.Title>
-											<LayerDialog.Body>
-												<Text variant="secondary">
-													{plural(selectedCount, {
-														one: "Move # item to trash? You can restore it later.",
-														other: "Move # items to trash? You can restore them later.",
-													})}
-												</Text>
-											</LayerDialog.Body>
+											<LayerDialog.Description>
+												{plural(selectedCount, {
+													one: "Move # item to trash? You can restore it later.",
+													other: "Move # items to trash? You can restore them later.",
+												})}
+											</LayerDialog.Description>
+											<LayerDialog.Body>{null}</LayerDialog.Body>
 											<LayerDialog.Actions dismissLabel={t`Cancel`}>
 												<LayerDialog.Action
 													variant="destructive"

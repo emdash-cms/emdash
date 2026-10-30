@@ -273,7 +273,7 @@ export function ContentTypeList({
 				}}
 			>
 				{affectedRelations.length > 0 && (
-					<div className="mt-4 rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3">
+					<div className="space-y-3 rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3">
 						<p className="text-sm font-medium">
 							{t`Every relationship this content type takes part in goes too:`}
 						</p>

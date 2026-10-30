@@ -131,6 +131,11 @@ describe("EntryLockNotice taking over", () => {
 			.element(dialog.getByRole("alert"))
 			.toHaveTextContent("Couldn’t take over this entry. Try again.");
 		await expect.element(dialog.getByRole("button", { name: "Take over" })).toBeEnabled();
+		await expect
+			.element(dialog)
+			.toHaveAccessibleDescription(
+				"Ada is editing this entry. Open it read-only, or take over; they will be told the entry moved on.",
+			);
 	});
 
 	it("can't be dismissed while the take-over runs", async () => {

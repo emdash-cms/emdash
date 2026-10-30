@@ -5,7 +5,7 @@
  * cancel/confirm buttons with pending state. Dialog stays open on error.
  */
 
-import { LayerDialog, Text } from "@cloudflare/kumo";
+import { LayerDialog } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
@@ -90,15 +90,16 @@ export function ConfirmDialog({
 						{title}
 					</span>
 				</LayerDialog.Title>
-				<LayerDialog.Body>
-					<Text variant="secondary" dir="auto">
+				<LayerDialog.Description>
+					<span dir="auto" className="block">
 						{description}
-					</Text>
-					{children}
-					<DialogError
-						message={error === staleError ? null : getMutationError(error)}
-						className="mt-3"
-					/>
+					</span>
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<div className="grid gap-3">
+						{children}
+						<DialogError message={error === staleError ? null : getMutationError(error)} />
+					</div>
 				</LayerDialog.Body>
 				<LayerDialog.Actions dismissLabel={cancelLabel ?? t`Cancel`}>
 					<LayerDialog.Action

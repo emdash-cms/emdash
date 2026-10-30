@@ -118,6 +118,7 @@ vi.mock("@cloudflare/kumo", () => ({
 			) : null,
 		Content: ({ children }: any) => <div data-testid="dialog">{children}</div>,
 		Title: ({ children }: any) => <h2>{children}</h2>,
+		Description: ({ children }: any) => <p>{children}</p>,
 		Body: ({ children }: any) => <div>{children}</div>,
 		Actions: ({ children, dismissLabel }: any) => {
 			const onOpenChange = React.useContext(DialogContext);

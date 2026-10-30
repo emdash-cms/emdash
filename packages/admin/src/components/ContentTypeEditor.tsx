@@ -881,7 +881,7 @@ export function ContentTypeEditor({
 				pendingLabel={t`Deleting...`}
 			>
 				{targetRelation && (
-					<div className="mt-4 space-y-3">
+					<div className="space-y-3">
 						<Checkbox
 							checked={deleteFieldRelation}
 							onCheckedChange={(checked) => setDeleteFieldRelation(checked === true)}
@@ -889,7 +889,7 @@ export function ContentTypeEditor({
 							label={t`Also delete the relationship this field uses`}
 						/>
 						{deleteFieldRelation && collection && (
-							<div className="rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3">
+							<div className="space-y-3 rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3">
 								<p className="text-sm font-medium">{t`This also removes:`}</p>
 								<RelationImpact
 									relations={[targetRelation]}

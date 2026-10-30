@@ -1,4 +1,4 @@
-import { Button, LayerDialog, Text } from "@cloudflare/kumo";
+import { Button, LayerDialog } from "@cloudflare/kumo";
 import { Trans, useLingui } from "@lingui/react/macro";
 
 import type { EntryLockHolder } from "../lib/api/entry-lock.js";
@@ -46,14 +46,16 @@ export function EntryLockNotice({
 							{t`This entry is open somewhere else`}
 						</span>
 					</LayerDialog.Title>
-					<LayerDialog.Body>
-						<Text variant="secondary" dir="auto">
+					<LayerDialog.Description>
+						<span dir="auto" className="block">
 							<Trans>
 								<strong dir="auto">{name}</strong> is editing this entry. Open it read-only, or take
 								over; they will be told the entry moved on.
 							</Trans>
-						</Text>
-						<DialogError message={takeOverError} className="mt-3" />
+						</span>
+					</LayerDialog.Description>
+					<LayerDialog.Body>
+						<DialogError message={takeOverError} />
 					</LayerDialog.Body>
 					<LayerDialog.Actions dismissLabel={t`Open read-only`}>
 						<LayerDialog.Action disabled={isTakingOver} onClick={onTakeOver}>

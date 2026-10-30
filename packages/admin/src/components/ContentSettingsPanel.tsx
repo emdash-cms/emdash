@@ -526,9 +526,8 @@ export function PublishActions({
 			</LayerDialog.Trigger>
 			<LayerDialog.Content size="sm">
 				<LayerDialog.Title>{confirmationTitle}</LayerDialog.Title>
-				<LayerDialog.Body>
-					<Text variant="secondary">{confirmationDescription}</Text>
-				</LayerDialog.Body>
+				<LayerDialog.Description>{confirmationDescription}</LayerDialog.Description>
+				<LayerDialog.Body>{null}</LayerDialog.Body>
 				<LayerDialog.Actions dismissLabel={t`Cancel`}>
 					<LayerDialog.Action
 						loading={isPending}

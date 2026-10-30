@@ -34,7 +34,7 @@ export function RelationImpact({
 	if (relations.length === 0) return null;
 
 	return (
-		<ul className="mt-3 space-y-3 text-sm">
+		<ul className="space-y-3 text-sm">
 			{relations.map((relation) => {
 				const fields = relation.boundFields.filter(
 					(bound) =>

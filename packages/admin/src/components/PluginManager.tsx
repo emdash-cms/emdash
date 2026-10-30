@@ -13,7 +13,6 @@ import {
 	LayerDialog,
 	Link as KumoLink,
 	Switch,
-	Text,
 	useKumoToastManager,
 } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
@@ -805,11 +804,11 @@ export function UninstallConfirmDialog({
 		>
 			<LayerDialog.Content size="sm">
 				<LayerDialog.Title>{t`Uninstall ${pluginName}?`}</LayerDialog.Title>
+				<LayerDialog.Description>
+					{t`This will remove the plugin and its bundle from your site.`}
+				</LayerDialog.Description>
 				<LayerDialog.Body>
 					<div className="space-y-4">
-						<Text variant="secondary">
-							{t`This will remove the plugin and its bundle from your site.`}
-						</Text>
 						<Checkbox
 							checked={deleteData}
 							onCheckedChange={(checked) => setDeleteData(checked)}

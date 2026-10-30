@@ -1,4 +1,4 @@
-import { Button, LayerDialog, Text } from "@cloudflare/kumo";
+import { Button, LayerDialog } from "@cloudflare/kumo";
 import { useCallback, useState } from "react";
 
 import type { BlockInteraction, ButtonElement } from "../types.js";
@@ -49,9 +49,8 @@ export function ButtonElementComponent({
 				<LayerDialog.Root open={confirmOpen} onOpenChange={setConfirmOpen}>
 					<LayerDialog.Content size="sm">
 						<LayerDialog.Title>{element.confirm.title}</LayerDialog.Title>
-						<LayerDialog.Body>
-							<Text variant="secondary">{element.confirm.text}</Text>
-						</LayerDialog.Body>
+						<LayerDialog.Description>{element.confirm.text}</LayerDialog.Description>
+						<LayerDialog.Body>{null}</LayerDialog.Body>
 						<LayerDialog.Actions dismissLabel={element.confirm.deny}>
 							<LayerDialog.Action
 								variant={element.confirm.style === "danger" ? "destructive" : "primary"}
