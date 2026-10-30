@@ -221,9 +221,13 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		lastSubmissionAt: new Date().toISOString(),
 	});
 
-	// The submitter's address, from the form's first email field (already validated): the recipient
-	// of the autoresponder.
-	const emailField = allFields.find((f) => f.type === "email");
+	const filledEmailFields = allFields.filter(
+		(field) =>
+			field.type === "email" &&
+			typeof result.data[field.name] === "string" &&
+			result.data[field.name],
+	);
+	const emailField = filledEmailFields.find((field) => field.required) ?? filledEmailFields[0];
 	const emailValue = emailField ? result.data[emailField.name] : undefined;
 	const submitterEmail = typeof emailValue === "string" && emailValue ? emailValue : undefined;
 	// The reply address of the notifications, only when it's a plain address. The field's own check

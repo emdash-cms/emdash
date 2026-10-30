@@ -123,6 +123,93 @@ describe("notification emails", () => {
 	});
 });
 
+describe("submitter email selection", () => {
+	it.each([
+		{ businessEmail: "", required: true },
+		{ businessEmail: "business@example.org", required: true },
+		{ businessEmail: "   ", required: false },
+		{ businessEmail: undefined, required: false },
+	])(
+		"uses the later email for notifications and autoresponder: %j",
+		async ({ businessEmail, required }) => {
+			const definition = form(true, true);
+			definition.pages[0]!.fields.push({
+				id: "business",
+				name: "business_email",
+				label: "Business email",
+				type: "email",
+				required: false,
+				width: "full",
+			});
+			const email = definition.pages[0]!.fields.splice(1, 1)[0]!;
+			definition.pages.push({ fields: [{ ...email, required }] });
+			const { ctx, send } = context(definition, {
+				name: "Jane",
+				business_email: businessEmail,
+				email: " jane@example.org ",
+			});
+
+			expect(await submitHandler(ctx as never)).toMatchObject({ success: true });
+
+			expect(send).toHaveBeenCalledTimes(3);
+			for (const [message] of send.mock.calls.slice(0, 2) as unknown as [
+				Record<string, unknown>,
+			][]) {
+				expect(message).toMatchObject({ replyTo: "jane@example.org" });
+			}
+			expect(send.mock.calls[2]![0]).toMatchObject({ to: "jane@example.org" });
+		},
+	);
+
+	it.each([true, false])(
+		"uses the first filled email at the same priority (required: %s)",
+		async (required) => {
+			const definition = form(true, true);
+			definition.pages[0]!.fields[1]!.required = required;
+			definition.pages[0]!.fields.push({
+				...definition.pages[0]!.fields[1]!,
+				id: "second",
+				name: "second_email",
+			});
+			const { ctx, send } = context(definition, {
+				name: "Jane",
+				email: "jane@example.org",
+				second_email: "other@example.org",
+			});
+
+			expect(await submitHandler(ctx as never)).toMatchObject({ success: true });
+
+			expect(send).toHaveBeenCalledTimes(3);
+			expect(send.mock.calls[0]![0]).toMatchObject({ replyTo: "jane@example.org" });
+			expect(send.mock.calls[2]![0]).toMatchObject({ to: "jane@example.org" });
+		},
+	);
+
+	it("ignores a hidden required email even when submitted", async () => {
+		const definition = form(true, true);
+		definition.pages[0]!.fields.unshift({
+			id: "hidden",
+			name: "hidden_email",
+			label: "Hidden email",
+			type: "email",
+			required: true,
+			width: "full",
+			condition: { field: "name", op: "eq", value: "Business" },
+		});
+		const { ctx, send } = context(definition, {
+			name: "Jane",
+			hidden_email: "hidden@example.org",
+			email: "jane@example.org",
+		});
+
+		expect(await submitHandler(ctx as never)).toMatchObject({ success: true });
+
+		expect(send).toHaveBeenCalledTimes(3);
+		expect(send.mock.calls[0]![0]).toMatchObject({ replyTo: "jane@example.org" });
+		expect(send.mock.calls[2]![0]).toMatchObject({ to: "jane@example.org" });
+	});
+});
+
 describe("autoresponder", () => {
 	it("is sent to the submitter, without a Reply-To", async () => {
 		const { ctx, send } = context(form(true, true), { name: "Jane", email: "jane@example.org" });
