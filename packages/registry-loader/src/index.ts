@@ -16,7 +16,7 @@ export interface RegistryLoaderOptions extends Omit<DiscoveryClientOptions, "agg
 }
 
 export interface RegistryCollectionFilter {
-	/** Free-text query over names, descriptions, keywords, and authors. */
+	/** Free-text query over package text, slugs, and publisher handles. */
 	q?: string;
 	/** Return packages whose latest release declares this access category. */
 	capability?: string;
