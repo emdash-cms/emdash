@@ -10,6 +10,8 @@ created: 2026-10-12
 
 # Readable revision history
 
+Amended by [Real-time co-editing](real-time-co-editing.md), for versions that several people edited and for entries that people edit together in a co-editing room. See [Co-editing](#co-editing).
+
 ## Problem and user case
 
 Editors open the Revisions panel to answer one question: what changed? They ask it before publishing, after someone else edits a post, and before rolling back.
@@ -61,6 +63,29 @@ Clicking a version in the Revisions list shows that version in the editor, read-
 - If someone else saves while you restore, the restore fails with the existing conflict error and nothing changes.
 - Revisions whose author was deleted show "Unknown author".
 - Very large blocks are marked as changed as a whole instead of word by word, so the diff stays fast.
+
+## Co-editing
+
+This plan doesn't change when revisions are created. The co-editing RFC does:
+
+- In every collection with revisions, an autosave replaces the previous revision only if that one was an autosave too, so a version saved with **Save** is kept. An autosave keeps the names of the version it replaces, so a version names everyone who edited it since the version before it.
+- In a co-editing room, the room autosaves the shared document as [checkpoints](real-time-co-editing.md#how-the-parts-fit). Before a person publishes, schedules, unpublishes or unschedules the entry, restores a version, discards the draft or moves the entry to Trash, the room also keeps the current draft as a version.
+
+In every collection with revisions:
+
+- **Who edited a version.** This replaces "in the color of the person who saved that version".
+  - A version names everyone in its `editedBy`, for example "Ana, Ben and 1 other person", or its author when it has no `editedBy`.
+  - It marks its changes in the color of the one person it names, or in a neutral color when it names several.
+  - The revisions list returns `editedBy`, with each person's ID and name, and shows it in place of the author when it is set.
+
+In collections that use co-editing:
+
+- **Recovery versions.** Edits that couldn't rejoin the shared document, or that the room couldn't save, are saved as a version that is neither the draft nor the live one. It appears by its author, or by everyone in its `editedBy` when the room saved it, and is compared with its neighbor like any other version. Restoring it runs the same validation and hooks as a save, so a version from before a field change can fail to restore.
+- **Viewing a version.** This replaces "Back to editing returns the editor as you left it".
+  - Opening a version changes only your own editor. Everyone else keeps editing, and the list doesn't reorder while you browse it.
+  - **Back to editing** returns to the shared document as it is now.
+  - If an autosave replaces the version you're viewing, Restore reports that the version is gone, and the list refreshes.
+- **Restore.** This replaces "Restore works like it does today" and the restore-conflict case. Restore applies the version for everyone. The room first keeps the current draft as a version, the version is restored, and then the room copies the restored fields into the shared document. While someone co-edits the entry, Restore refuses a version whose rich text has marks the editor can't represent.
 
 ## Verification
 
