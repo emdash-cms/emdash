@@ -390,11 +390,11 @@ describe("Media Library list view hover", () => {
 		const folderResting = backgrounds(folderRow);
 
 		await userEvent.hover(hovered.cells[2]!);
-		const tinted = backgrounds(hovered);
-		expect(new Set(tinted).size).toBe(1);
-		expect(tinted).not.toEqual(resting);
+		await expect.poll(() => backgrounds(hovered)).not.toEqual(resting);
+		expect(new Set(backgrounds(hovered)).size).toBe(1);
 
 		await userEvent.hover(folderRow.cells[2]!);
+		await expect.poll(() => backgrounds(hovered)).toEqual(resting);
 		expect(backgrounds(folderRow)).toEqual(folderResting);
 	});
 });
