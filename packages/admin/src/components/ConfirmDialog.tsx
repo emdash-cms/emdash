@@ -11,6 +11,9 @@ import * as React from "react";
 
 import { DialogError, getMutationError } from "./DialogError.js";
 
+/** Both clicks of a double click can land before `isPending` renders. */
+const DOUBLE_PRESS_MS = 500;
+
 export interface ConfirmDialogProps {
 	open: boolean;
 	onClose: () => void;
@@ -27,12 +30,11 @@ export interface ConfirmDialogProps {
 	pendingLabel: string;
 	/** Button variant — defaults to "destructive" */
 	variant?: "destructive" | "primary";
-	/** Prevent dismissing an irreversible request after it has started. */
-	preventCloseWhilePending?: boolean;
 	/** Disable confirmation until required input in the dialog is complete. */
 	confirmDisabled?: boolean;
 	isPending: boolean;
-	/** Error from a mutation — pass mutation.error directly */
+	/** Error from a mutation — pass mutation.error directly. An error already
+	 * there when the dialog opens came from an earlier request and is not shown. */
 	error: unknown;
 	onConfirm: () => void;
 	/** Extra content rendered between description and buttons (e.g. a checkbox) */
@@ -49,7 +51,6 @@ export function ConfirmDialog({
 	cancelLabel,
 	pendingLabel,
 	variant = "destructive",
-	preventCloseWhilePending = false,
 	confirmDisabled = false,
 	isPending,
 	error,
@@ -57,13 +58,30 @@ export function ConfirmDialog({
 	children,
 }: ConfirmDialogProps) {
 	const { t } = useLingui();
-	const closeLocked = preventCloseWhilePending && isPending;
+	const lastPressRef = React.useRef(Number.NEGATIVE_INFINITY);
+	// A failure can be retried at once.
+	React.useEffect(() => {
+		if (error) lastPressRef.current = Number.NEGATIVE_INFINITY;
+	}, [error]);
+	const confirm = () => {
+		const now = performance.now();
+		if (isPending || now - lastPressRef.current < DOUBLE_PRESS_MS) return;
+		lastPressRef.current = now;
+		onConfirm();
+	};
+	// A mutation shared by several items still holds the last item's failure.
+	const [staleError, setStaleError] = React.useState(() => (open ? error : null));
+	const [wasOpen, setWasOpen] = React.useState(open);
+	if (open !== wasOpen) {
+		setWasOpen(open);
+		if (open) setStaleError(error);
+	}
 	const Root = role === "alertdialog" ? LayerDialog.Alert : LayerDialog.Root;
 	return (
 		<Root
 			open={open}
-			onOpenChange={(nextOpen) => !nextOpen && !closeLocked && onClose()}
-			dismissDisabled={closeLocked}
+			onOpenChange={(nextOpen) => !nextOpen && !isPending && onClose()}
+			dismissDisabled={isPending}
 			disablePointerDismissal
 		>
 			<LayerDialog.Content size="sm">
@@ -77,13 +95,16 @@ export function ConfirmDialog({
 						{description}
 					</Text>
 					{children}
-					<DialogError message={getMutationError(error)} className="mt-3" />
+					<DialogError
+						message={error === staleError ? null : getMutationError(error)}
+						className="mt-3"
+					/>
 				</LayerDialog.Body>
 				<LayerDialog.Actions dismissLabel={cancelLabel ?? t`Cancel`}>
 					<LayerDialog.Action
 						variant={variant}
 						disabled={isPending || confirmDisabled}
-						onClick={onConfirm}
+						onClick={confirm}
 					>
 						{isPending ? pendingLabel : confirmLabel}
 					</LayerDialog.Action>

@@ -128,7 +128,6 @@ export function RevisionRestoreDialog({
 			confirmLabel={t`Restore`}
 			pendingLabel={t`Restoring…`}
 			isPending={restore.isPending || restorePending}
-			preventCloseWhilePending
 			error={restore.error}
 			onConfirm={() => restore.mutate(revision.id)}
 		/>

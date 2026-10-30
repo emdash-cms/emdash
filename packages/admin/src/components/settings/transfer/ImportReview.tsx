@@ -521,7 +521,6 @@ export function PlanReview({
 				confirmLabel={t`Start import`}
 				pendingLabel={t`Starting…`}
 				variant="primary"
-				preventCloseWhilePending
 				isPending={executeMutation.isPending}
 				error={executeMutation.error}
 				onConfirm={() => executeMutation.mutate()}

@@ -27,7 +27,13 @@ export function DialogError({
 	// The banner sits at the end of a dialog's scrolling body, which the
 	// pinned actions that raised it can leave scrolled out of view.
 	React.useEffect(() => {
-		if (message) ref.current?.scrollIntoView({ block: "nearest" });
+		if (!message) return;
+		ref.current?.scrollIntoView({ block: "nearest" });
+		// The control that started the request was disabled while it ran, which
+		// drops focus out of the dialog. Bring it back to the dialog.
+		if (document.activeElement === document.body) {
+			ref.current?.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]')?.focus();
+		}
 	}, [message]);
 
 	if (!message) return null;

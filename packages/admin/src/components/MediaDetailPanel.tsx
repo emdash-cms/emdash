@@ -1963,7 +1963,6 @@ export function MediaDetailPanel({
 				pendingLabel={t`Replacing image...`}
 				isPending={isReplacing}
 				confirmDisabled={!replacementImage || replaceActionDisabled}
-				preventCloseWhilePending
 				error={replaceMutation.error}
 				onConfirm={startReplacement}
 			>
@@ -1994,7 +1993,6 @@ export function MediaDetailPanel({
 				confirmLabel={t`Replace original`}
 				pendingLabel={t`Replacing original...`}
 				isPending={isCropping && cropMutation.variables === "replace"}
-				preventCloseWhilePending
 				error={null}
 				onConfirm={() => startCrop("replace")}
 			>
