@@ -16,107 +16,107 @@ msgstr ""
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:588
 msgid "Autoresponder subject and body are required"
-msgstr ""
+msgstr "Betreff und Text der automatischen Antwort sind erforderlich"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:762
 msgid "Daily digest"
-msgstr ""
+msgstr "Tägliche Zusammenfassung"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:768
 msgid "Digest hour (UTC)"
-msgstr ""
+msgstr "Uhrzeit der Zusammenfassung (UTC)"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:779
 msgid "Send a daily summary to the notification recipients instead of an email for each submission. Email must be configured."
-msgstr ""
+msgstr "Sendet den Benachrichtigungsempfängern eine tägliche Zusammenfassung statt einer E-Mail pro Einsendung. Dafür muss ein E-Mail-Anbieter konfiguriert sein."
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:785
 msgid "Send an autoresponder"
-msgstr ""
+msgstr "Automatische Antwort senden"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:790
 msgid "Send a reply to the first email field in the form. Email must be configured."
-msgstr ""
+msgstr "Sendet eine Antwort an die Adresse aus dem ersten E-Mail-Feld des Formulars. Dafür muss ein E-Mail-Anbieter konfiguriert sein."
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:797
 msgid "Autoresponder subject"
-msgstr ""
+msgstr "Betreff der automatischen Antwort"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:804
 msgid "Autoresponder body"
-msgstr ""
+msgstr "Text der automatischen Antwort"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:815
 msgid "Webhook URL (optional)"
-msgstr ""
+msgstr "Webhook-URL (optional)"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:875
 msgid "Always visible"
-msgstr ""
+msgstr "Immer sichtbar"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:877
 msgid "Unnamed field"
-msgstr ""
+msgstr "Unbenanntes Feld"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:975
 msgid "Placeholder"
-msgstr ""
+msgstr "Platzhalter"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:982
 msgid "Help text"
-msgstr ""
+msgstr "Hilfetext"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:989
 msgid "Default value"
-msgstr ""
+msgstr "Standardwert"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:997
 msgid "Show when field"
-msgstr ""
+msgstr "Anzeigen, wenn Feld"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:1021
 msgid "Condition operator"
-msgstr ""
+msgstr "Bedingung"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:1025
 msgid "Equals"
-msgstr ""
+msgstr "Ist gleich"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:1026
 msgid "Does not equal"
-msgstr ""
+msgstr "Ist nicht gleich"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:1027
 msgid "Is filled"
-msgstr ""
+msgstr "Ist ausgefüllt"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:1028
 msgid "Is empty"
-msgstr ""
+msgstr "Ist leer"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:1038
 msgid "Condition value"
-msgstr ""
+msgstr "Vergleichswert"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:75
 #: packages/admin/src/components/TranslationsPanel.tsx:81
@@ -139,7 +139,7 @@ msgstr ", "
 #. placeholder {0}: item.label
 #: packages/admin/src/components/MenuEditor.tsx:689
 msgid "\"{0}\" and its nested items will be removed from this menu. This action cannot be undone."
-msgstr ""
+msgstr "„{0}“ wird mit allen untergeordneten Menüpunkten aus diesem Menü entfernt. Diese Aktion kann nicht rückgängig gemacht werden."
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:1926
@@ -159,12 +159,12 @@ msgstr "„{0}“ wird endgültig gelöscht."
 #. placeholder {0}: item.label
 #: packages/admin/src/components/MenuEditor.tsx:690
 msgid "\"{0}\" will be removed from this menu. This action cannot be undone."
-msgstr ""
+msgstr "„{0}“ wird aus diesem Menü entfernt. Diese Aktion kann nicht rückgängig gemacht werden."
 
 #. placeholder {0}: widget.title || t`Untitled Widget`
 #: packages/admin/src/components/Widgets.tsx:849
 msgid "\"{0}\" will be removed from this widget area. This action cannot be undone."
-msgstr ""
+msgstr "„{0}“ wird aus diesem Widget-Bereich entfernt. Diese Aktion kann nicht rückgängig gemacht werden."
 
 #: packages/admin/src/components/OptionalLabel.tsx:13
 msgid "(optional)"
@@ -314,7 +314,7 @@ msgstr "{0, plural, one {# Berechtigung} other {# Berechtigungen}}"
 #. placeholder {0}: plugins?.length ?? 0
 #: packages/admin/src/components/PluginManager.tsx:221
 msgid "{0, plural, one {# plugin} other {# plugins}}"
-msgstr ""
+msgstr "{0, plural, one {# Plugin} other {# Plugins}}"
 
 #. placeholder {0}: mapping.postCount
 #: packages/admin/src/components/WordPressImport.tsx:2545
@@ -1336,7 +1336,7 @@ msgstr "Aktionen"
 #: packages/admin/src/components/ContentList.tsx:1439
 #: packages/admin/src/components/ContentList.tsx:1645
 msgid "Actions for {title}"
-msgstr ""
+msgstr "Aktionen für {title}"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
@@ -3303,7 +3303,7 @@ msgstr "Sammlung „{0}“ wurde auf dieser Website erstellt"
 #: packages/admin/src/router.tsx:991
 #: packages/admin/src/router.tsx:1979
 msgid "Collection \"{collection}\" not found"
-msgstr ""
+msgstr "Sammlung „{collection}“ nicht gefunden"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:109
 msgid "Collection:"
@@ -4411,7 +4411,7 @@ msgstr "Menü löschen"
 
 #: packages/admin/src/components/MenuEditor.tsx:686
 msgid "Delete menu item?"
-msgstr ""
+msgstr "Menüpunkt löschen?"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:550
 #: packages/admin/src/components/ContentList.tsx:1658
@@ -4488,7 +4488,7 @@ msgstr "Widget-Bereich löschen?"
 
 #: packages/admin/src/components/Widgets.tsx:848
 msgid "Delete widget?"
-msgstr ""
+msgstr "Widget löschen?"
 
 #: packages/admin/src/components/ContentList.tsx:890
 msgid "Deleted"
@@ -5610,7 +5610,7 @@ msgstr "Alle Beziehungen, an denen dieser Inhaltstyp beteiligt ist, werden ebenf
 
 #: packages/admin/src/components/Redirects.tsx:407
 msgid "Exact group name..."
-msgstr ""
+msgstr "Exakter Gruppenname..."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:502
 msgid "Example: {pattern} → {preview}"
@@ -6944,7 +6944,7 @@ msgstr "Nach Zeitraum filtern: {rangeLabel}"
 
 #: packages/admin/src/components/Redirects.tsx:406
 msgid "Filter by group"
-msgstr ""
+msgstr "Nach Gruppe filtern"
 
 #: packages/admin/src/components/users/UserList.tsx:75
 msgid "Filter by role"
@@ -9577,7 +9577,7 @@ msgstr "Keine Domains konfiguriert. Benutzer müssen einzeln eingeladen werden."
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:310
 msgid "No editor is available for this block type. Its content is preserved."
-msgstr ""
+msgstr "Für diesen Blocktyp ist kein Editor verfügbar. Der Inhalt des Blocks bleibt erhalten."
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:332
 msgid "No email address"
@@ -9626,7 +9626,7 @@ msgstr "Keine Ordner gefunden"
 
 #: packages/admin/src/components/Redirects.tsx:553
 msgid "No group"
-msgstr ""
+msgstr "Keine Gruppe"
 
 #: packages/admin/src/components/editor/DocumentOutline.tsx:269
 msgid "No headings in document"
@@ -9791,7 +9791,7 @@ msgstr "Keine aktuellen Aktivitäten"
 
 #: packages/admin/src/components/Redirects.tsx:505
 msgid "No redirects match these filters"
-msgstr ""
+msgstr "Keine Weiterleitungen entsprechen diesen Filtern"
 
 #: packages/admin/src/components/Redirects.tsx:505
 msgid "No redirects yet"
@@ -11398,7 +11398,7 @@ msgstr "Entfernt:"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:595
 msgid "Removes the sidebar entry, command palette link, dashboard quick action, and dashboard Content card row; entries stay reachable by URL, API, and plugins"
-msgstr ""
+msgstr "Entfernt den Eintrag in der Seitenleiste, den Link in der Befehlspalette, die Schnellaktion im Dashboard und die Zeile in der Dashboard-Karte „Inhalt“; die Einträge dieses Inhaltstyps bleiben über URL, API und Plugins erreichbar"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:57
 msgid "Removing starter content"
@@ -12287,7 +12287,7 @@ msgstr "Suchmaschinenoptimierung und Verifizierung"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:240
 msgid "Search Engine Verification"
-msgstr ""
+msgstr "Suchmaschinenverifizierung"
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
 msgid "Search failed"
@@ -12349,7 +12349,7 @@ msgstr "Abschnitte durchsuchen..."
 
 #: packages/admin/src/components/Redirects.tsx:379
 msgid "Search source or destination..."
-msgstr "Nach Quelle oder Ziel suchen..."
+msgstr "Nach Quelle/Ziel suchen..."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1389
 msgid "Search tags"
@@ -14718,7 +14718,7 @@ msgstr "Versuche es mit einer anderen URL"
 
 #: packages/admin/src/components/Redirects.tsx:509
 msgid "Try changing or clearing your filters."
-msgstr ""
+msgstr "Ändere deine Filter oder setze sie zurück."
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
@@ -15096,7 +15096,7 @@ msgstr "Dateien hochladen"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1044
 msgid "Upload files here or move media here from Media Details."
-msgstr ""
+msgstr "Lade Dateien in diesen Ordner hoch oder verschiebe Medien über die Mediendetails hierher."
 
 #: packages/admin/src/components/MediaLibrary.tsx:1060
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
@@ -15461,7 +15461,7 @@ msgstr "Ansichtsmodus"
 
 #: packages/admin/src/components/ContentList.tsx:1466
 msgid "View published"
-msgstr ""
+msgstr "Veröffentlichte Version ansehen"
 
 #: packages/admin/src/components/MediaLibrary.tsx:841
 msgid "View setup"
@@ -15572,11 +15572,11 @@ msgstr "Website-URL"
 
 #: packages/admin/src/components/WelcomeModal.tsx:107
 msgid "Welcome to {siteName}, {firstName}!"
-msgstr ""
+msgstr "Willkommen bei {siteName}, {firstName}!"
 
 #: packages/admin/src/components/WelcomeModal.tsx:108
 msgid "Welcome to {siteName}!"
-msgstr ""
+msgstr "Willkommen bei {siteName}!"
 
 #: packages/admin/src/components/WelcomeModal.tsx:111
 msgid "Welcome to EmDash, {firstName}!"
