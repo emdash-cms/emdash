@@ -96,20 +96,12 @@ function termProblems(state: {
 	label: string;
 	slug: string;
 	autoSlug: boolean;
-	savedSlug?: string;
 }): Partial<Record<TermField, MessageDescriptor>> {
 	const problems: Partial<Record<TermField, MessageDescriptor>> = {};
 	const labelGiven = Boolean(state.label.trim());
 	if (!labelGiven) problems.label = msg`Enter a name.`;
-	if (!state.slug) {
-		// An untouched slug fills in from the name, and the missing name already carries the error.
-		if (!state.autoSlug || labelGiven) problems.slug = msg`Enter a slug.`;
-	} else if (
-		state.slug !== state.savedSlug &&
-		slugify(state.slug, Number.POSITIVE_INFINITY) !== state.slug
-	) {
-		problems.slug = msg`Use lowercase letters, numbers, and hyphens.`;
-	}
+	// An untouched slug fills in from the name, and the missing name already carries the error.
+	if (!state.slug && (!state.autoSlug || labelGiven)) problems.slug = msg`Enter a slug.`;
 	return problems;
 }
 
@@ -795,7 +787,7 @@ function TermFormDialog({
 			description !== (term.description || "")
 		: label !== "" || slug !== "" || parentId !== "" || description !== "";
 
-	const problems = termProblems({ label, slug, autoSlug, savedSlug: term?.slug });
+	const problems = termProblems({ label, slug, autoSlug });
 	if (takenSlug !== null && slug === takenSlug) {
 		problems.slug = msg`Another term already uses this slug. Enter a different one.`;
 	}

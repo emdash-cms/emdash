@@ -928,7 +928,7 @@ describe("TaxonomyManager", () => {
 		await expect.element(dialog.getByText("Enter a name.")).not.toBeInTheDocument();
 	});
 
-	it("points at a cleared or malformed slug when editing a term, and sends nothing", async () => {
+	it("points at a cleared slug when editing a term, and sends nothing", async () => {
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
 			wrapper: Wrapper,
 		});
@@ -941,14 +941,24 @@ describe("TaxonomyManager", () => {
 		await expect.element(dialog.getByText("Enter a slug.")).toBeVisible();
 		await expect.element(slug).toHaveAttribute("aria-invalid", "true");
 		await expect.element(slug).toHaveFocus();
-
-		await slug.fill("Bad Slug!");
-		await expect
-			.element(dialog.getByText("Use lowercase letters, numbers, and hyphens."))
-			.toBeVisible();
-		await dialog.getByRole("button", { name: "Update" }).click();
-		await expect.element(slug).toHaveFocus();
 		expect(requestsWith("PUT", "/terms/")).toHaveLength(0);
+	});
+
+	it("sends a typed slug as typed, even one the form would not generate", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Archive");
+		await dialog.getByRole("textbox", { name: "Slug", exact: true }).fill("Archive_2024");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+
+		await vi.waitFor(() => {
+			const call = requestsWith("POST", "/terms")[0];
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ label: "Archive", slug: "Archive_2024" });
+		});
 	});
 
 	it("still saves a term whose stored slug the form would not generate", async () => {
