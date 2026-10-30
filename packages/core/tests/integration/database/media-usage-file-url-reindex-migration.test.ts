@@ -1,7 +1,7 @@
 import { sql, type Kysely } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
-import { up } from "../../../src/database/migrations/093_media_usage_file_url_reindex.js";
+import { up } from "../../../src/database/migrations/094_media_usage_file_url_reindex.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import type { Database } from "../../../src/database/types.js";
@@ -15,7 +15,7 @@ import {
 	type DialectTestContext,
 } from "../../utils/test-db.js";
 
-describeEachDialect("093_media_usage_file_url_reindex migration", (dialect) => {
+describeEachDialect("094_media_usage_file_url_reindex migration", (dialect) => {
 	let ctx: DialectTestContext;
 	let db: Kysely<Database>;
 

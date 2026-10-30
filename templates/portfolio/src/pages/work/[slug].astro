@@ -7,7 +7,7 @@ import {
 } from "emdash";
 import { Image, PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
-import ProjectCard from "../../components/ProjectCard.astro";
+import { absoluteImageUrl } from "../../utils/media";
 
 const slug = decodeSlug(Astro.params.slug);
 
@@ -26,26 +26,32 @@ if (!project) {
 	return Astro.rewrite("/404");
 }
 
-// Related projects: order by date in the DB and request a small lookahead
-// so we can drop the current entry without re-querying. Avoids loading
-// every project just to slice off two.
-const relatedResult = await getEmDashCollection("projects", {
+// The next project is the next older one, so the links walk the whole
+// archive. The range includes this project and any that share its publish
+// date, so the next one is whichever entry follows this project in the same
+// order; the oldest project gets none. Without a date (a draft in preview)
+// the next is the newest project.
+const publishedAt = project.data.publishedAt;
+const olderResult = await getEmDashCollection("projects", {
 	orderBy: { published_at: "desc" },
-	limit: 3,
+	limit: 4,
+	...(publishedAt
+		? { where: { published_at: { lte: publishedAt.toISOString() } } }
+		: {}),
 });
-if (relatedResult.error) {
+if (olderResult.error) {
 	return new Response("Could not load related projects", { status: 500 });
 }
-const { entries: relatedProjects, cacheHint: relatedCacheHint } = relatedResult;
-const otherProjects = relatedProjects
-	.filter((p) => p.id !== project.id)
-	.slice(0, 2);
+const { entries: olderProjects, cacheHint: olderCacheHint } = olderResult;
+const currentIndex = olderProjects.findIndex((p) => p.id === project.id);
+const nextProject =
+	currentIndex >= 0
+		? olderProjects[currentIndex + 1]
+		: olderProjects.find((p) => p.id !== project.id);
 if (Astro.cache?.enabled) {
 	Astro.cache.set(projectCacheHint);
-	Astro.cache.set(relatedCacheHint);
+	Astro.cache.set(olderCacheHint);
 }
-
-const gallery = project.data.gallery;
 
 function safeExternalUrl(value: string | undefined): string | undefined {
 	if (!value) return undefined;
@@ -64,8 +70,34 @@ const seo = getSeoMeta(project, {
 	siteUrl: Astro.url.origin,
 	path: `/work/${slug}`,
 	defaultDescription: project.data.summary,
-	defaultOgImage: project.data.featured_image?.src,
+	defaultOgImage: project.data.featured_image
+		? absoluteImageUrl(project.data.featured_image, Astro.url.origin)
+		: undefined,
 });
+
+const { client, year, summary } = project.data;
+const disciplines = project.data.terms?.tag ?? [];
+const websiteLabel = projectUrl
+	? new URL(projectUrl).host.replace(/^www\./, "")
+	: undefined;
+const hasMeta = Boolean(
+	client || year || disciplines.length > 0 || projectUrl,
+);
+
+const figures = (project.data.gallery ?? []).filter((item) => item.image);
+
+// Figures run full, half, half. A half with no partner goes full width.
+function isHalf(index: number): boolean {
+	const position = index % 3;
+	return position === 2 || (position === 1 && index < figures.length - 1);
+}
+
+function pad(n: number): string {
+	return String(n).padStart(2, "0");
+}
+
+const fullSizes = "(min-width: 1680px) 1600px, (min-width: 768px) 96vw, 150vw";
+const halfSizes = "(min-width: 1680px) 1200px, (min-width: 768px) 72vw, 150vw";
 ---
 
 <Base
@@ -78,73 +110,135 @@ const seo = getSeoMeta(project, {
 	type="article"
 	content={{ collection: "projects", id: project.data.id, slug }}
 >
-	<article class="project">
-		<header class="project-header">
-			<div class="project-meta">
-				{
-					project.data.client && (
-						<span class="project-client" {...project.edit.client}>
-							{project.data.client}
-						</span>
-					)
-				}
-				{
-					project.data.client && project.data.year && (
-						<span class="meta-separator">·</span>
-					)
-				}
-				{
-					project.data.year && (
-						<span class="project-year" {...project.edit.year}>
-							{project.data.year}
-						</span>
-					)
-				}
-			</div>
-			<h1 class="project-title" {...project.edit.title}>
-				{project.data.title}
+	<article class="case">
+		<header class="case-head frame">
+			<a href="/work" class="case-back label arrow-link arrow-link--back">
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M4 12h16M13 5l7 7-7 7" />
+				</svg>
+				Index
+			</a>
+			<h1 class="case-title" {...project.edit.title}>
+				{project.data.title || "Untitled"}
 			</h1>
-			{
-				project.data.summary && (
-					<p class="project-summary" {...project.edit.summary}>
-						{project.data.summary}
-					</p>
-				)
-			}
-			{
-				projectUrl && (
-					<a
-						href={projectUrl}
-						class="project-link"
-						target="_blank"
-						rel="noopener noreferrer"
-						{...project.edit.url}
-					>
-						View Live Project →
-					</a>
-				)
-			}
 		</header>
 
 		{
-			project.data.featured_image && (
-				<div class="featured-image" {...project.edit.featured_image}>
-					<Image image={project.data.featured_image} />
+			(summary || hasMeta) && (
+				<div class="case-intro frame">
+					{summary && (
+						<p class="case-lead" {...project.edit.summary}>
+							{summary}
+						</p>
+					)}
+					{hasMeta && (
+						<dl class="case-meta">
+							{client && (
+								<div class="case-meta__row">
+									<dt class="label">Client</dt>
+									<dd {...project.edit.client}>{client}</dd>
+								</div>
+							)}
+							{year && (
+								<div class="case-meta__row">
+									<dt class="label">Year</dt>
+									<dd class="case-meta__year" {...project.edit.year}>
+										{year}
+									</dd>
+								</div>
+							)}
+							{disciplines.length > 0 && (
+								<div class="case-meta__row">
+									<dt class="label">
+										{disciplines.length === 1 ? "Discipline" : "Disciplines"}
+									</dt>
+									<dd>
+										<ul class="case-meta__tags" role="list">
+											{disciplines.map((term) => (
+												<li>
+													<a href={`/work?tag=${encodeURIComponent(term.slug)}`}>
+														{term.label}
+													</a>
+												</li>
+											))}
+										</ul>
+									</dd>
+								</div>
+							)}
+							{projectUrl && (
+								<div class="case-meta__row">
+									<dt class="label">Website</dt>
+									<dd>
+										<a
+											href={projectUrl}
+											class="case-meta__site"
+											target="_blank"
+											rel="noopener noreferrer"
+											{...project.edit.url}
+										>
+											{websiteLabel}
+											<svg
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="1.5"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												aria-hidden="true"
+											>
+												<path d="M7 17 17 7M8 7h9v9" />
+											</svg>
+											<span class="sr-only">(opens in a new tab)</span>
+										</a>
+									</dd>
+								</div>
+							)}
+						</dl>
+					)}
 				</div>
 			)
 		}
 
-		<div class="project-content" {...project.edit.content}>
-			<PortableText value={project.data.content} />
+		{
+			project.data.featured_image && (
+				<div class="case-cover frame">
+					<div class="case-cover__media media" {...project.edit.featured_image}>
+						<Image
+							image={project.data.featured_image}
+							sizes="(min-width: 1680px) 1600px, (min-width: 768px) 100vw, 150vw"
+							priority
+						/>
+					</div>
+				</div>
+			)
+		}
+
+		<div class="case-body frame">
+			<div class="prose prose-hang" {...project.edit.content}>
+				<PortableText value={project.data.content} />
+			</div>
 		</div>
 
 		{
-			gallery && gallery.length > 0 && (
-				<div class="project-gallery" {...project.edit.gallery}>
-					{gallery.map((item) => (
-						<figure class="gallery-item">
-							<Image image={item.image} />
-							{item.caption && <figcaption>{item.caption}</figcaption>}
+			figures.length > 0 && (
+				<div class="case-gallery frame" {...project.edit.gallery}>
+					{figures.map((item, i) => (
+						<figure class:list={["case-figure", { "case-figure--half": isHalf(i) }]}>
+							<div class="case-figure__media media">
+								<Image image={item.image} sizes={isHalf(i) ? halfSizes : fullSizes} />
+							</div>
+							<figcaption class="label">
+								<span class="case-figure__number">Fig. {pad(i + 1)}</span>
+								{item.caption && ` — ${item.caption}`}
+							</figcaption>
 						</figure>
 					))}
 				</div>
@@ -153,23 +247,44 @@ const seo = getSeoMeta(project, {
 	</article>
 
 	{
-		otherProjects.length > 0 && (
-			<section class="more-projects">
-				<div class="more-inner">
-					<h2 class="more-title">More Work</h2>
-					<div class="more-grid">
-						{otherProjects.map((p) => (
-							<ProjectCard
-								title={p.data.title}
-								summary={p.data.summary}
-								featuredImage={p.data.featured_image}
-								href={`/work/${p.id}`}
-								client={p.data.client}
-								year={p.data.year}
-								edit={p.edit}
-							/>
-						))}
-					</div>
+		nextProject && (
+			<section class="case-next frame" aria-labelledby="case-next-heading">
+				<h2 class="label case-next__heading" id="case-next-heading">
+					Next project
+				</h2>
+				<div class="case-next__body media-group">
+					<a href={`/work/${nextProject.id}`} class="case-next__link">
+						<span class="case-next__title" {...nextProject.edit.title}>
+							{nextProject.data.title || "Untitled"}
+						</span>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<path d="M4 12h16M13 5l7 7-7 7" />
+						</svg>
+					</a>
+					{nextProject.data.featured_image && (
+						<a
+							href={`/work/${nextProject.id}`}
+							class="case-next__media"
+							tabindex="-1"
+							aria-hidden="true"
+						>
+							<div class="case-next__image media" {...nextProject.edit.featured_image}>
+								<Image
+									image={nextProject.data.featured_image}
+									alt=""
+									sizes="(min-width: 1680px) 1600px, 100vw"
+								/>
+							</div>
+						</a>
+					)}
 				</div>
 			</section>
 		)
@@ -177,170 +292,275 @@ const seo = getSeoMeta(project, {
 </Base>
 
 <style>
-	.project {
-		max-width: var(--max-width);
-		margin: 0 auto;
-		padding: 0 var(--spacing-lg) var(--spacing-4xl);
+	/* Head */
+	.case-head {
+		padding-block-start: var(--page-head-space);
 	}
 
-	.project-header {
-		margin-bottom: var(--spacing-2xl);
-	}
-
-	.project-meta {
-		font-size: var(--font-size-sm);
+	.case-back {
+		padding-block: 0.375rem;
+		font-weight: 400;
 		color: var(--color-muted);
-		margin-bottom: var(--spacing-sm);
-		text-transform: uppercase;
-		letter-spacing: var(--tracking-wide);
+		transition:
+			color var(--transition-fast),
+			text-decoration-color var(--transition-base);
 	}
 
-	.meta-separator {
-		margin: 0 var(--spacing-sm);
-	}
-
-	.project-title {
-		font-family: var(--font-heading);
-		font-size: var(--font-size-4xl);
-		font-weight: var(--font-weight-display);
-		line-height: var(--leading-tight);
-		margin-bottom: var(--spacing-lg);
-	}
-
-	.project-summary {
-		font-size: var(--font-size-lg);
-		color: var(--color-muted);
-		line-height: var(--leading-normal);
-		margin-bottom: var(--spacing-lg);
-	}
-
-	.project-link {
-		display: inline-block;
-		font-size: var(--font-size-sm);
-		color: var(--color-brand);
-		text-decoration: none;
-		transition: color var(--transition-fast);
-	}
-
-	.project-link:hover {
+	.case-back:is(:hover, :focus-visible) {
 		color: var(--color-text);
 	}
 
-	.featured-image {
-		margin-bottom: var(--spacing-3xl);
+	.case-title {
+		margin-block-start: var(--spacing-lg);
+		font-size: var(--font-size-title);
+		line-height: var(--leading-none);
+		overflow-wrap: anywhere;
 	}
 
-	.featured-image img {
-		width: 100%;
-		height: auto;
-		border-radius: var(--radius);
-	}
-
-	.project-content {
-		font-size: var(--font-size-base);
-		line-height: var(--leading-relaxed);
-	}
-
-	.project-content :global(p) {
-		margin-bottom: 1.5em;
-	}
-
-	.project-content :global(h2) {
-		font-family: var(--font-heading);
-		font-size: var(--font-size-2xl);
-		font-weight: var(--font-weight-heading);
-		margin-top: 2.5em;
-		margin-bottom: 0.75em;
-	}
-
-	.project-content :global(h3) {
-		font-family: var(--font-heading);
-		font-size: var(--font-size-xl);
-		font-weight: var(--font-weight-heading);
-		margin-top: 2em;
-		margin-bottom: 0.5em;
-	}
-
-	.project-content :global(blockquote) {
-		margin: 2em 0;
-		padding-inline-start: var(--spacing-xl);
-		border-inline-start: 2px solid var(--color-brand);
-		color: var(--color-muted);
-		font-family: var(--font-heading);
-		font-style: italic;
-		font-size: var(--font-size-lg);
-	}
-
-	.project-content :global(ul),
-	.project-content :global(ol) {
-		margin-bottom: 1.5em;
-		padding-inline-start: 1.25em;
-	}
-
-	.project-content :global(li) {
-		margin-bottom: 0.5em;
-	}
-
-	.project-content :global(img) {
-		margin: 2em 0;
-		border-radius: var(--radius);
-	}
-
-	.project-gallery {
-		margin-top: var(--spacing-3xl);
+	/* Intro: summary and facts */
+	.case-intro {
 		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: var(--spacing-lg);
+		gap: var(--spacing-2xl) var(--gutter);
+		margin-block-start: clamp(2.5rem, 1.5rem + 3vw, 4.5rem);
 	}
 
-	.gallery-item img {
-		width: 100%;
-		height: auto;
-		border-radius: var(--radius);
-	}
-
-	.gallery-item figcaption {
-		margin-top: var(--spacing-sm);
-		font-size: var(--font-size-sm);
-		color: var(--color-muted);
-	}
-
-	.more-projects {
-		background: var(--color-surface);
-		padding: var(--spacing-4xl) 0;
-		margin-top: var(--spacing-2xl);
-	}
-
-	.more-inner {
-		max-width: var(--wide-width);
-		margin: 0 auto;
-		padding: 0 var(--spacing-lg);
-	}
-
-	.more-title {
-		font-family: var(--font-heading);
+	.case-lead {
+		max-width: 34ch;
 		font-size: var(--font-size-2xl);
-		font-weight: var(--font-weight-heading);
-		margin-bottom: var(--spacing-2xl);
+		line-height: var(--leading-snug);
+		letter-spacing: var(--tracking-tight);
+		color: var(--color-text);
+		white-space: pre-line;
 	}
 
-	.more-grid {
+	.case-meta {
+		min-width: 0;
+		border-block-end: 1px solid var(--color-border);
+	}
+
+	.case-meta__row {
 		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: var(--spacing-2xl);
+		grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+		align-items: baseline;
+		gap: var(--gutter);
+		padding-block: 0.75rem;
+		border-block-start: 1px solid var(--color-border);
 	}
 
-	@media (max-width: 768px) {
-		.project-title {
-			font-size: var(--font-size-3xl);
+	.case-meta dd {
+		min-width: 0;
+		color: var(--color-text);
+		overflow-wrap: anywhere;
+	}
+
+	.case-meta__year {
+		font-variant-numeric: tabular-nums;
+	}
+
+	.case-meta a {
+		display: inline-block;
+		padding-block: 0.125rem;
+		color: inherit;
+		text-decoration-line: underline;
+		text-decoration-color: var(--color-border-strong);
+		text-underline-offset: 0.25em;
+		transition: text-decoration-color var(--transition-fast);
+	}
+
+	.case-meta a:is(:hover, :focus-visible) {
+		text-decoration-color: currentColor;
+	}
+
+	.case-meta__tags {
+		display: flex;
+		flex-wrap: wrap;
+		list-style: none;
+	}
+
+	.case-meta__tags li:not(:last-child)::after {
+		content: ",";
+		content: "," / "";
+		margin-inline-end: 0.3em;
+	}
+
+	.case-meta__site svg {
+		display: inline-block;
+		width: 0.875em;
+		height: 0.875em;
+		margin-inline-start: 0.2em;
+		vertical-align: -0.05em;
+		transition: translate var(--transition-base);
+	}
+
+	.case-meta__site:is(:hover, :focus-visible) svg {
+		translate: 2px -2px;
+	}
+
+	.case-meta__site svg:dir(rtl) {
+		scale: -1 1;
+	}
+
+	.case-meta__site:is(:hover, :focus-visible) svg:dir(rtl) {
+		translate: -2px -2px;
+	}
+
+	/* Cover */
+	.case-cover {
+		margin-block-start: clamp(2.5rem, 1.5rem + 3vw, 4.5rem);
+	}
+
+	.case-cover__media {
+		aspect-ratio: 4 / 5;
+	}
+
+	/* Body */
+	.case-body {
+		margin-block-start: var(--section-gap);
+	}
+
+	.case-body:has(> .prose:empty) {
+		display: none;
+	}
+
+	/* Gallery */
+	.case-gallery {
+		display: grid;
+		gap: var(--spacing-2xl) var(--gutter);
+		margin-block-start: var(--section-gap);
+	}
+
+	.case-figure {
+		min-width: 0;
+	}
+
+	.case-figure__media {
+		aspect-ratio: 4 / 3;
+	}
+
+	.case-figure--half .case-figure__media {
+		aspect-ratio: 4 / 5;
+	}
+
+	.case-figure figcaption {
+		margin-block-start: 0.75rem;
+		overflow-wrap: anywhere;
+	}
+
+	.case-figure__number {
+		color: var(--color-text);
+	}
+
+	/* Next project */
+	.case-next {
+		margin-block-start: var(--section-gap);
+	}
+
+	.case-next__heading {
+		padding-block-start: var(--spacing-md);
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	.case-next__link {
+		display: block;
+		font-size: var(--font-size-4xl);
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-tight);
+		letter-spacing: var(--tracking-display);
+		color: var(--color-text);
+		text-decoration-line: none;
+		overflow-wrap: anywhere;
+	}
+
+	.case-next__title {
+		text-decoration-thickness: max(1px, 0.03em);
+		text-underline-offset: 0.12em;
+	}
+
+	.case-next__body {
+		margin-block-start: var(--spacing-sm);
+	}
+
+	.case-next__link svg {
+		display: inline-block;
+		width: 0.6em;
+		height: 0.6em;
+		margin-inline-start: 0.12em;
+		vertical-align: 0.02em;
+		transition: translate var(--transition-base);
+	}
+
+	.case-next__body:is(:hover, :has(a:focus-visible)) .case-next__title {
+		text-decoration-line: underline;
+	}
+
+	.case-next__body:is(:hover, :has(a:focus-visible)) .case-next__link svg {
+		translate: 0.08em 0;
+	}
+
+	.case-next__link svg:dir(rtl) {
+		scale: -1 1;
+	}
+
+	.case-next__body:is(:hover, :has(a:focus-visible)) .case-next__link svg:dir(rtl) {
+		translate: -0.08em 0;
+	}
+
+	/* Padding rather than margin, so the gap above the image is part of the link */
+	.case-next__media {
+		display: block;
+		padding-block-start: var(--spacing-xl);
+	}
+
+	.case-next__image {
+		aspect-ratio: 16 / 9;
+	}
+
+	@media (min-width: 768px) {
+		.case-cover__media {
+			aspect-ratio: 16 / 9;
 		}
 
-		.project-gallery {
-			grid-template-columns: 1fr;
+		.case-gallery {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			row-gap: var(--spacing-3xl);
 		}
 
-		.more-grid {
-			grid-template-columns: 1fr;
+		.case-figure {
+			grid-column: 1 / -1;
+		}
+
+		.case-figure--half {
+			grid-column: auto;
+		}
+
+		.case-figure__media {
+			aspect-ratio: 16 / 9;
+		}
+
+		.case-next__image {
+			aspect-ratio: 21 / 9;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.case-intro {
+			grid-template-columns: repeat(12, minmax(0, 1fr));
+			align-items: start;
+		}
+
+		.case-lead {
+			grid-column: 1 / span 7;
+		}
+
+		.case-meta {
+			grid-column: 9 / span 4;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.case-meta__site svg,
+		.case-next__link svg {
+			transition: none;
 		}
 	}
 </style>
