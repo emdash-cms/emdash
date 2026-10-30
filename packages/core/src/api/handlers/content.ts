@@ -1722,11 +1722,11 @@ export async function handleContentUpdate(
 				updated.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
 
-			// Create auto-redirect when slug changes. Date tokens in the URL
-			// pattern resolve from the publish date, so the old URL uses the
-			// pre-update date (the URL that was actually live) and the new URL
-			// the post-update one.
-			if (oldSlug && body.slug) {
+			// Create auto-redirect when a published entry's slug changes. Date
+			// tokens in the URL pattern resolve from the publish date, so the old
+			// URL uses the pre-update date (the URL that was actually live) and the
+			// new URL the post-update one.
+			if (oldSlug && body.slug && existing?.status === "published") {
 				redirectChanged = await createSlugChangeRedirect(
 					trx,
 					collection,
