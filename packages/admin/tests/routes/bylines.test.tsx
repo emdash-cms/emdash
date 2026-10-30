@@ -519,4 +519,27 @@ describe("BylinesPage directory", () => {
 		await expect.element(confirm).not.toBeInTheDocument();
 		expect(deleteBylineMock).toHaveBeenCalledTimes(1);
 	});
+
+	it("keeps the edit dialog behind the delete confirmation, and closes both once deleted", async () => {
+		deleteBylineMock.mockResolvedValue(undefined);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "Edit Guest Contributor" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Edit byline" });
+		await dialog.getByRole("button", { name: "Delete byline" }).click();
+		const confirm = screen.getByRole("alertdialog", { name: "Delete Guest Contributor?" });
+		await expect.element(confirm).toBeVisible();
+
+		await userEvent.keyboard("{Escape}");
+		await expect.element(confirm).not.toBeInTheDocument();
+		await expect.element(dialog).toBeVisible();
+
+		await dialog.getByRole("button", { name: "Delete byline" }).click();
+		await confirm.getByRole("button", { name: "Delete byline" }).click();
+		await expect.element(confirm).not.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("textbox", { name: "Display name" }))
+			.not.toBeInTheDocument();
+		expect(deleteBylineMock).toHaveBeenCalledWith("guest");
+	});
 });
