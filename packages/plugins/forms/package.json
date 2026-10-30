@@ -30,7 +30,7 @@
 		"@lingui/react": "catalog:",
 		"@phosphor-icons/react": "^2.1.10",
 		"astro": ">=6.0.0-beta.0",
-		"emdash": "workspace:>=0.11.0",
+		"emdash": "workspace:>=0.38.0",
 		"react": "^18.0.0 || ^19.0.0"
 	},
 	"devDependencies": {
@@ -40,6 +40,7 @@
 		"@types/react": "catalog:",
 		"astro": "catalog:",
 		"jsdom": "^26.1.0",
+		"kysely": "catalog:",
 		"react": "catalog:",
 		"react-dom": "catalog:",
 		"vitest": "catalog:"
