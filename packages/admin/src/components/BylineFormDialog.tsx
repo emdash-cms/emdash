@@ -5,6 +5,7 @@ import * as React from "react";
 import { flushSync } from "react-dom";
 
 import {
+	ApiResponseError,
 	fetchByline,
 	fetchUsers,
 	type BylineInput,
@@ -12,6 +13,7 @@ import {
 	type UserListItem,
 } from "../lib/api";
 import { listBylineFields, type BylineFieldDefinition } from "../lib/api/byline-fields.js";
+import { useSingleFlight } from "../lib/dialog-form.js";
 import { isSafeUrl } from "../lib/url.js";
 import { BylineAvatarField } from "./BylineAvatarField.js";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -150,6 +152,17 @@ function isHttpUrl(value: string): boolean {
 	return isSafeUrl(value) && URL.canParse(value);
 }
 
+/**
+ * The server answers CONFLICT both for a slug another byline has and for a user
+ * already linked to another byline, so only a save without a linked user can
+ * tell which one it was.
+ */
+function isTakenSlug(error: unknown, values: BylineFormValues | undefined): boolean {
+	return (
+		error instanceof ApiResponseError && error.code === "CONFLICT" && !!values && !values.userId
+	);
+}
+
 function getUserLabel(user: UserListItem): string {
 	if (user.name) return `${user.name} (${user.email})`;
 	return user.email;
@@ -261,6 +274,23 @@ export function BylineFormDialog({
 		if (open) resetSave();
 	}, [open, resetSave]);
 	const isSaving = saveMutation.isPending;
+	const save = useSingleFlight((values: BylineFormValues) =>
+		saveMutation.mutateAsync(values, {
+			onSuccess: onSaved,
+			onError: (saveError) => {
+				// A slug changed while the save ran isn't the one the server refused.
+				if (!isTakenSlug(saveError, values) || slugRef.current?.value !== values.slug) return;
+				flushSync(() =>
+					setFormErrors((prev) => ({
+						...prev,
+						slug: t`Another byline already uses this slug. Enter a different one.`,
+					})),
+				);
+				slugRef.current?.focus();
+			},
+		}),
+	);
+	const slugTaken = isTakenSlug(saveMutation.error, saveMutation.variables);
 
 	React.useEffect(() => {
 		if (!open || !source || source === formSource) return;
@@ -332,7 +362,7 @@ export function BylineFormDialog({
 		) {
 			values.customFields = form.customFields;
 		}
-		saveMutation.mutate(values, { onSuccess: onSaved });
+		save(values);
 	};
 
 	const description = source
@@ -503,7 +533,9 @@ export function BylineFormDialog({
 
 							{source && renderExtra ? renderExtra(source) : null}
 						</fieldset>
-						<DialogError message={getMutationError(saveMutation.error ?? error)} />
+						<DialogError
+							message={getMutationError(slugTaken ? error : (saveMutation.error ?? error))}
+						/>
 						{source && onDelete && (
 							<DialogSection
 								title={t`Delete byline`}

@@ -12,17 +12,25 @@
  */
 
 import { LayerDialog } from "@cloudflare/kumo";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
 import type { SchemaCollection } from "../lib/api";
+import { ApiResponseError } from "../lib/api/client.js";
 import type {
 	CreateRelationInput,
 	RelationWithUsage,
 	UpdateRelationInput,
 } from "../lib/api/relations.js";
+import { revealErrors } from "../lib/dialog-form.js";
 import { DialogError, getMutationError } from "./DialogError";
-import { RelationFormFields, useRelationForm } from "./RelationForm.js";
+import {
+	type RelationField,
+	type RelationFormErrors,
+	RelationFormFields,
+	useRelationForm,
+} from "./RelationForm.js";
 
 export interface RelationFormPanelProps {
 	collections: SchemaCollection[];
@@ -38,6 +46,8 @@ export interface RelationFormPanelProps {
 	dismissLabel: string;
 	/** Reports a save in flight, so the dialog can refuse to close under it. */
 	onSavingChange: (saving: boolean) => void;
+	/** Reports whether the form holds changes a stray press must not discard. */
+	onDirtyChange: (dirty: boolean) => void;
 }
 
 export function RelationFormPanel({
@@ -47,6 +57,7 @@ export function RelationFormPanel({
 	onSubmit,
 	dismissLabel,
 	onSavingChange,
+	onDirtyChange,
 }: RelationFormPanelProps) {
 	const { t } = useLingui();
 	const isNew = !relation;
@@ -54,21 +65,55 @@ export function RelationFormPanel({
 	const formId = React.useId();
 	const [isSaving, setIsSaving] = React.useState(false);
 	const [error, setError] = React.useState<string | null>(null);
+	const [submitted, setSubmitted] = React.useState(false);
+	const [takenSlug, setTakenSlug] = React.useState<string | null>(null);
+
+	React.useEffect(() => onDirtyChange(form.isDirty), [form.isDirty, onDirtyChange]);
+
+	const problems =
+		takenSlug !== null && form.state.slug === takenSlug
+			? {
+					...form.problems,
+					slug: msg`Another relation already uses this slug. Enter a different one.`,
+				}
+			: form.problems;
+	const errors: RelationFormErrors = {};
+	if (submitted) {
+		for (const [field, message] of Object.entries(problems)) {
+			errors[field as RelationField] = t(message);
+		}
+	}
 
 	const setSaving = (saving: boolean) => {
 		setIsSaving(saving);
 		onSavingChange(saving);
 	};
 
-	const handleSubmit = async (event: React.FormEvent) => {
+	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		if (!form.canSave || isSaving) return;
+		if (isSaving) return;
+		const formElement = event.currentTarget;
+		const showErrors = (update?: () => void) => {
+			revealErrors(formElement, () => {
+				setSubmitted(true);
+				update?.();
+			});
+		};
+		if (Object.keys(problems).length > 0) {
+			showErrors();
+			return;
+		}
+		const { slug } = form.state;
 		setSaving(true);
 		setError(null);
 		try {
 			await onSubmit(form.toInput() as CreateRelationInput & UpdateRelationInput);
 		} catch (err) {
-			setError(getMutationError(err));
+			if (isNew && err instanceof ApiResponseError && err.code === "CONFLICT") {
+				showErrors(() => setTakenSlug(slug));
+			} else {
+				setError(getMutationError(err));
+			}
 		} finally {
 			setSaving(false);
 		}
@@ -83,8 +128,8 @@ export function RelationFormPanel({
 					: t`The content types and the slug are fixed. What each side is called and how many entries it holds are not.`}
 			</LayerDialog.Description>
 			<LayerDialog.Body>
-				<form id={formId} onSubmit={handleSubmit}>
-					<RelationFormFields form={form} collections={collections} isNew={isNew} />
+				<form id={formId} noValidate onSubmit={handleSubmit}>
+					<RelationFormFields form={form} collections={collections} isNew={isNew} errors={errors} />
 					<DialogError message={error} className="mt-4" />
 				</form>
 			</LayerDialog.Body>
@@ -92,7 +137,7 @@ export function RelationFormPanel({
 				<LayerDialog.Action
 					type="submit"
 					form={formId}
-					disabled={!form.canSave || (!isNew && !form.isDirty) || isSaving}
+					disabled={(!isNew && !form.isDirty) || isSaving}
 				>
 					{isNew
 						? isSaving

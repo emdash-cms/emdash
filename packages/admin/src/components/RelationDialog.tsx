@@ -15,6 +15,7 @@ import type {
 	RelationWithUsage,
 	UpdateRelationInput,
 } from "../lib/api/relations.js";
+import { guardUnsavedInput } from "../lib/dialog-form.js";
 import { RelationFormPanel } from "./RelationFormPanel.js";
 
 export interface RelationDialogProps {
@@ -42,6 +43,7 @@ export function RelationDialog({
 }: RelationDialogProps) {
 	const { t } = useLingui();
 	const [saving, setSaving] = React.useState(false);
+	const [dirty, setDirty] = React.useState(false);
 	// Each opening starts a new form from the props it opens with. The panel
 	// renders the popup, so it is replaced as the dialog opens, never while it
 	// closes: replacing it mid-transition keeps the dialog from unmounting.
@@ -53,7 +55,11 @@ export function RelationDialog({
 	}
 
 	return (
-		<LayerDialog.Root open={open} onOpenChange={onOpenChange} dismissDisabled={saving}>
+		<LayerDialog.Root
+			open={open}
+			{...guardUnsavedInput(dirty, onOpenChange)}
+			dismissDisabled={saving}
+		>
 			<RelationFormPanel
 				key={visit}
 				collections={collections}
@@ -65,6 +71,7 @@ export function RelationDialog({
 				}}
 				dismissLabel={dismissLabel ?? t`Cancel`}
 				onSavingChange={setSaving}
+				onDirtyChange={setDirty}
 			/>
 		</LayerDialog.Root>
 	);

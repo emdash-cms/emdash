@@ -4,7 +4,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
-import { createByline, fetchBylines } from "../../src/lib/api";
+import {
+	ApiResponseError,
+	createByline,
+	deleteByline,
+	fetchBylines,
+	fetchUsers,
+} from "../../src/lib/api";
 import type { BylineSummary } from "../../src/lib/api/bylines";
 import { BylinesPage } from "../../src/routes/bylines";
 import { render } from "../utils/render.tsx";
@@ -37,6 +43,7 @@ vi.mock("../../src/lib/api", async () => {
 		...actual,
 		fetchBylines: vi.fn(),
 		createByline: vi.fn(),
+		deleteByline: vi.fn(),
 		fetchUsers: vi.fn().mockResolvedValue({ items: [] }),
 		fetchByline: vi.fn().mockResolvedValue(null),
 		fetchBylineTranslations: vi.fn().mockResolvedValue({ items: [] }),
@@ -50,6 +57,27 @@ vi.mock("../../src/lib/api/byline-fields.js", async () => {
 
 const fetchBylinesMock = vi.mocked(fetchBylines);
 const createBylineMock = vi.mocked(createByline);
+const deleteBylineMock = vi.mocked(deleteByline);
+
+const TAKEN_SLUG = "Another byline already uses this slug. Enter a different one.";
+
+function deferred<T>() {
+	let resolve: (value: T) => void = () => {};
+	const promise = new Promise<T>((settle) => {
+		resolve = settle;
+	});
+	return { promise, resolve };
+}
+
+async function renderPage() {
+	return render(
+		<QueryWrapper>
+			<Toast.Provider>
+				<BylinesPage />
+			</Toast.Provider>
+		</QueryWrapper>,
+	);
+}
 
 afterEach(async () => {
 	await page.viewport(1280, 800);
@@ -410,5 +438,85 @@ describe("BylinesPage directory", () => {
 					.getByRole("combobox", { name: "Linked user" }),
 			)
 			.toBeInTheDocument();
+	});
+
+	it("shows a slug another byline uses on the slug field", async () => {
+		createBylineMock.mockRejectedValue(
+			new ApiResponseError(409, "CONFLICT", 'Byline "laurel-wamsley" already exists'),
+		);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		const dialog = screen.getByRole("dialog", { name: "New byline" });
+		const slug = dialog.getByRole("textbox", { name: "Slug" });
+		await dialog.getByRole("textbox", { name: "Display name" }).fill("Laurel Wamsley");
+		await dialog.getByRole("button", { name: "Create" }).click();
+
+		await expect.element(dialog.getByText(TAKEN_SLUG)).toBeVisible();
+		await expect.element(slug).toHaveAttribute("aria-invalid", "true");
+		await expect.element(slug).toHaveFocus();
+		expect(dialog.getByText('Byline "laurel-wamsley" already exists').query()).toBeNull();
+
+		await slug.fill("laurel");
+		await expect.element(dialog.getByText(TAKEN_SLUG)).not.toBeInTheDocument();
+	});
+
+	it("leaves a conflict in the banner when the linked user could be its cause", async () => {
+		vi.mocked(fetchUsers).mockResolvedValue({
+			items: [{ id: "user-1", name: "Ann", email: "ann@example.com" }],
+		} as Awaited<ReturnType<typeof fetchUsers>>);
+		createBylineMock.mockRejectedValue(
+			new ApiResponseError(409, "CONFLICT", 'This user is already linked to byline "ann"'),
+		);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		const dialog = screen.getByRole("dialog", { name: "New byline" });
+		await dialog.getByRole("textbox", { name: "Display name" }).fill("Ann Writer");
+		await dialog.getByRole("combobox", { name: "Linked user" }).click();
+		await page.getByRole("option", { name: "Ann (ann@example.com)" }).click();
+		await dialog.getByRole("button", { name: "Create" }).click();
+
+		await expect
+			.element(dialog.getByText('This user is already linked to byline "ann"'))
+			.toBeVisible();
+		expect(dialog.getByText(TAKEN_SLUG).query()).toBeNull();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Slug" }))
+			.not.toHaveAttribute("aria-invalid");
+	});
+
+	it("creates once on a double click, and closes when the byline is saved", async () => {
+		const created = deferred<BylineSummary>();
+		createBylineMock.mockReturnValue(created.promise);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		const dialog = screen.getByRole("dialog", { name: "New byline" });
+		await dialog.getByRole("textbox", { name: "Display name" }).fill("Laurel Wamsley");
+		await dialog.getByRole("button", { name: "Create" }).dblClick();
+		await expect.element(dialog.getByRole("button", { name: "Saving..." })).toBeVisible();
+		expect(createBylineMock).toHaveBeenCalledTimes(1);
+
+		created.resolve({ id: "new", slug: "laurel-wamsley" } as BylineSummary);
+		await expect.element(dialog).not.toBeInTheDocument();
+		expect(createBylineMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("deletes once on a double click", async () => {
+		const deleted = deferred<void>();
+		deleteBylineMock.mockReturnValue(deleted.promise);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "More actions for Guest Contributor" }).click();
+		await screen.getByRole("menuitem", { name: "Delete byline Guest Contributor" }).click();
+		const confirm = screen.getByRole("alertdialog", { name: "Delete Guest Contributor?" });
+		await confirm.getByRole("button", { name: "Delete byline" }).dblClick();
+		await expect.element(confirm.getByRole("button", { name: "Deleting..." })).toBeVisible();
+		expect(deleteBylineMock).toHaveBeenCalledTimes(1);
+
+		deleted.resolve();
+		await expect.element(confirm).not.toBeInTheDocument();
+		expect(deleteBylineMock).toHaveBeenCalledTimes(1);
 	});
 });

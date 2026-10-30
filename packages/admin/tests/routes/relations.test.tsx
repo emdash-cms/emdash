@@ -15,6 +15,7 @@ import {
 	createRoute,
 	createRouter,
 } from "@tanstack/react-router";
+import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 
@@ -206,11 +207,47 @@ describe("RelationList", () => {
 
 		// Blank means the editor has not said how many yet. Saving it as "any
 		// number" is the opposite of what they picked.
-		await expect.element(screen.getByLabelText("Maximum")).toHaveValue(null);
-		await expect.element(screen.getByRole("button", { name: "Save Relation" })).toBeDisabled();
+		const maximum = screen.getByLabelText("Maximum");
+		await expect.element(maximum).toHaveValue(null);
+		screen.getByRole("button", { name: "Save Relation" }).element().click();
+		await expect.element(screen.getByText("Enter a number of 2 or more.")).toBeVisible();
+		await expect.element(maximum).toHaveAttribute("aria-invalid", "true");
+		await expect.element(maximum).toHaveFocus();
+		expect(onUpdateRelation).not.toHaveBeenCalled();
 
-		await screen.getByLabelText("Maximum").fill("3");
-		await expect.element(screen.getByRole("button", { name: "Save Relation" })).toBeEnabled();
+		await maximum.fill("3");
+		await expect.element(screen.getByText("Enter a number of 2 or more.")).not.toBeInTheDocument();
+		screen.getByRole("button", { name: "Save Relation" }).element().click();
+		await vi.waitFor(() =>
+			expect(onUpdateRelation).toHaveBeenCalledWith(
+				"rel-1",
+				expect.objectContaining({ maxChildrenPerParent: 3 }),
+			),
+		);
+	});
+
+	it("counts a switch from 'Any number' to 'At most…' as a change, so Save can say what's missing", async () => {
+		const onUpdateRelation = vi.fn(async () => ({}));
+		const { screen } = await renderWithRoutes(
+			<RelationList {...listProps({ onUpdateRelation })} />,
+		);
+
+		await screen.getByRole("button", { name: "Edit posts_authors" }).click();
+		const trigger = screen.getByRole("combobox", {
+			name: "Each Author is linked from",
+			exact: true,
+		});
+		await expect.element(trigger).toBeInTheDocument();
+		trigger.element().click();
+		await vi.waitFor(() => {
+			screen.getByRole("option", { name: "At most…", exact: true }).element().click();
+		});
+
+		const save = screen.getByRole("button", { name: "Save Relation" });
+		await expect.element(save).toBeEnabled();
+		save.element().click();
+		await expect.element(screen.getByText("Enter a number of 2 or more.")).toBeVisible();
+		expect(onUpdateRelation).not.toHaveBeenCalled();
 	});
 
 	// The delete cascades to the fields on both ends, so the dialog says so
@@ -232,12 +269,25 @@ describe("RelationList", () => {
 	});
 
 	it("keeps the dialog up when the delete fails, with the error and a retry", async () => {
-		const onDeleteRelation = vi.fn(() => Promise.reject(new Error("Relation is in use")));
-		const { screen } = await renderWithRoutes(
-			<RelationList
-				{...listProps({ onDeleteRelation, deleteError: new Error("Relation is in use") })}
-			/>,
-		);
+		const onDeleteRelation = vi.fn();
+		// The router hands the list its delete mutation's error once the delete fails.
+		function FailingDelete() {
+			const [deleteError, setDeleteError] = React.useState<unknown>(null);
+			return (
+				<RelationList
+					{...listProps({
+						deleteError,
+						onDeleteRelation: (id: string) => {
+							onDeleteRelation(id);
+							const error = new Error("Relation is in use");
+							setDeleteError(error);
+							return Promise.reject(error);
+						},
+					})}
+				/>
+			);
+		}
+		const { screen } = await renderWithRoutes(<FailingDelete />);
 
 		await screen.getByRole("button", { name: "Delete posts_authors" }).click();
 		screen.getByRole("button", { name: "Delete", exact: true }).element().click();

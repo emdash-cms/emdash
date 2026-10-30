@@ -6,6 +6,8 @@ import "../../dist/styles.css";
 import { BylineFormDialog } from "../../src/components/BylineFormDialog.js";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog.js";
 import { EditorDraftPatchPreview } from "../../src/components/EditorDraftPatchPreview.js";
+import { RelationDialog } from "../../src/components/RelationDialog.js";
+import type { SchemaCollection } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
 vi.mock("../../src/lib/api/users", async () => {
@@ -117,5 +119,43 @@ describe("swiping a phone sheet down", () => {
 
 		await new Promise((resolve) => setTimeout(resolve, 500));
 		expect(onClose).not.toHaveBeenCalled();
+	});
+
+	it("leaves a form with typed input open", async () => {
+		await page.viewport(390, 700);
+		const onOpenChange = vi.fn();
+		const screen = await render(
+			<RelationDialog
+				open
+				onOpenChange={onOpenChange}
+				collections={[{ slug: "posts", label: "Posts" }] as SchemaCollection[]}
+				onSubmit={vi.fn()}
+			/>,
+		);
+		await openSheet("New Relation");
+		await screen.getByLabelText("Linked side (plural)").fill("Writers");
+
+		await swipeDown(screen.getByRole("heading", { name: "New Relation" }).element());
+
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		expect(onOpenChange).not.toHaveBeenCalled();
+	});
+
+	it("dismisses an untouched form", async () => {
+		await page.viewport(390, 700);
+		const onOpenChange = vi.fn();
+		const screen = await render(
+			<RelationDialog
+				open
+				onOpenChange={onOpenChange}
+				collections={[{ slug: "posts", label: "Posts" }] as SchemaCollection[]}
+				onSubmit={vi.fn()}
+			/>,
+		);
+		await openSheet("New Relation");
+
+		await swipeDown(screen.getByRole("heading", { name: "New Relation" }).element());
+
+		await vi.waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
 	});
 });

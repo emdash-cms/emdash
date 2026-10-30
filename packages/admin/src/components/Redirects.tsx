@@ -1,5 +1,14 @@
-import { Badge, Button, Input, LayerDialog, Select, Switch } from "@cloudflare/kumo";
-import { plural } from "@lingui/core/macro";
+import {
+	Badge,
+	Button,
+	Input,
+	LayerDialog,
+	Select,
+	Switch,
+	useKumoToastManager,
+} from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
@@ -10,8 +19,9 @@ import {
 	WarningCircle,
 } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
+import { ApiResponseError } from "../lib/api/client.js";
 import {
 	createRedirect,
 	deleteRedirect,
@@ -25,6 +35,7 @@ import type {
 	Redirect,
 	UpdateRedirectInput,
 } from "../lib/api/redirects.js";
+import { guardUnsavedInput, revealErrors, useSingleFlight } from "../lib/dialog-form.js";
 import { cn, formatDate } from "../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ArrowNext } from "./ArrowIcons.js";
@@ -36,6 +47,43 @@ import { TableToolbarSearch } from "./TableToolbar.js";
 // ---------------------------------------------------------------------------
 // Redirect form dialog (create + edit)
 // ---------------------------------------------------------------------------
+
+type RedirectField = "source" | "destination";
+
+/** Why the server would refuse a path that isn't empty. */
+function pathProblem(path: string): MessageDescriptor | undefined {
+	if (!path.startsWith("/") || path.startsWith("//")) {
+		return msg`Enter a path that starts with a single /.`;
+	}
+	let decoded: string;
+	try {
+		decoded = decodeURIComponent(path);
+	} catch {
+		return msg`Fix the percent-encoding in the path.`;
+	}
+	if (decoded.split("/").includes("..")) return msg`Remove the .. segments from the path.`;
+	return undefined;
+}
+
+function redirectProblems(
+	source: string,
+	destination: string,
+	terminal: boolean,
+): Partial<Record<RedirectField, MessageDescriptor>> {
+	const problems: Partial<Record<RedirectField, MessageDescriptor>> = {};
+	const sourceProblem = source ? pathProblem(source) : msg`Enter a source path.`;
+	if (sourceProblem) problems.source = sourceProblem;
+	if (terminal) return problems;
+	const destinationProblem = destination
+		? pathProblem(destination)
+		: msg`Enter a destination path.`;
+	if (destinationProblem) {
+		problems.destination = destinationProblem;
+	} else if (destination === source) {
+		problems.destination = msg`Enter a destination different from the source.`;
+	}
+	return problems;
+}
 
 function RedirectFormDialog({
 	open,
@@ -54,15 +102,31 @@ function RedirectFormDialog({
 	const queryClient = useQueryClient();
 	const isEdit = !!redirect;
 	const formId = useId();
+	const formRef = useRef<HTMLFormElement>(null);
 
-	const [source, setSource] = useState(redirect?.source ?? defaultSource ?? "");
-	const [destination, setDestination] = useState(redirect?.destination ?? "");
-	const [type, setType] = useState(String(redirect?.type ?? 301));
-	const [enabled, setEnabled] = useState(redirect?.enabled ?? true);
-	const [groupName, setGroupName] = useState(redirect?.groupName ?? "");
+	const [initial] = useState(() => ({
+		source: redirect?.source ?? defaultSource ?? "",
+		destination: redirect?.destination ?? "",
+		type: String(redirect?.type ?? 301),
+		enabled: redirect?.enabled ?? true,
+		groupName: redirect?.groupName ?? "",
+	}));
+	const [source, setSource] = useState(initial.source);
+	const [destination, setDestination] = useState(initial.destination);
+	const [type, setType] = useState(initial.type);
+	const [enabled, setEnabled] = useState(initial.enabled);
+	const [groupName, setGroupName] = useState(initial.groupName);
+	const [submitted, setSubmitted] = useState(false);
+	const [takenSource, setTakenSource] = useState<string | null>(null);
 
 	// Terminal statuses (410 Gone / 451) serve a status directly — no destination.
 	const isTerminal = type === "410" || type === "451";
+	const unsaved =
+		source !== initial.source ||
+		destination !== initial.destination ||
+		type !== initial.type ||
+		enabled !== initial.enabled ||
+		groupName !== initial.groupName;
 
 	const createMutation = useMutation({
 		mutationFn: (input: CreateRedirectInput) => createRedirect(input),
@@ -82,25 +146,66 @@ function RedirectFormDialog({
 
 	const mutation = isEdit ? updateMutation : createMutation;
 
+	const trimmedSource = source.trim();
+	const trimmedDestination = destination.trim();
+	const problems = redirectProblems(trimmedSource, trimmedDestination, isTerminal);
+	if (takenSource !== null && trimmedSource === takenSource) {
+		problems.source = msg`Another redirect already uses this source path. Enter a different one.`;
+	}
+	const errors: Partial<Record<RedirectField, string>> = {};
+	if (submitted) {
+		for (const [field, message] of Object.entries(problems)) {
+			errors[field as RedirectField] = t(message);
+		}
+	}
+	const saveError = mutation.error;
+	const bannerError =
+		saveError instanceof ApiResponseError && saveError.code === "CONFLICT"
+			? null
+			: getMutationError(saveError);
+
+	const showErrors = (update?: () => void) => {
+		revealErrors(formRef.current, () => {
+			setSubmitted(true);
+			update?.();
+		});
+	};
+
+	const save = useSingleFlight((input: CreateRedirectInput) => {
+		const onError = (error: Error) => {
+			if (error instanceof ApiResponseError && error.code === "CONFLICT") {
+				showErrors(() => setTakenSource(input.source));
+			}
+		};
+		return isEdit
+			? updateMutation.mutateAsync(input, { onError })
+			: createMutation.mutateAsync(input, { onError });
+	});
+
 	function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
-		const input = {
-			source: source.trim(),
-			destination: isTerminal ? "" : destination.trim(),
+		if (mutation.isPending) return;
+		if (Object.keys(problems).length > 0) {
+			showErrors();
+			return;
+		}
+		save({
+			source: trimmedSource,
+			destination: isTerminal ? "" : trimmedDestination,
 			type: Number(type),
 			enabled,
 			groupName: groupName.trim() || null,
-		};
-
-		if (isEdit) {
-			updateMutation.mutate(input);
-		} else {
-			createMutation.mutate(input);
-		}
+		});
 	}
 
 	return (
-		<LayerDialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
+		<LayerDialog.Root
+			open={open}
+			{...guardUnsavedInput(unsaved, (nextOpen) => {
+				if (!nextOpen && !mutation.isPending) onClose();
+			})}
+			dismissDisabled={mutation.isPending}
+		>
 			<LayerDialog.Content>
 				<LayerDialog.Title>{isEdit ? t`Edit Redirect` : t`New Redirect`}</LayerDialog.Title>
 				<LayerDialog.Description>
@@ -109,7 +214,7 @@ function RedirectFormDialog({
 						: t`Use [param] or [...rest] in paths for pattern matching.`}
 				</LayerDialog.Description>
 				<LayerDialog.Body>
-					<form id={formId} onSubmit={handleSubmit} className="grid gap-5">
+					<form ref={formRef} id={formId} noValidate onSubmit={handleSubmit} className="grid gap-5">
 						<Input
 							dir="ltr"
 							label={t`Source path`}
@@ -117,6 +222,8 @@ function RedirectFormDialog({
 							value={source}
 							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSource(e.target.value)}
 							required
+							error={errors.source}
+							aria-invalid={errors.source ? true : undefined}
 						/>
 
 						{!isTerminal && (
@@ -129,6 +236,8 @@ function RedirectFormDialog({
 									setDestination(e.target.value)
 								}
 								required
+								error={errors.destination}
+								aria-invalid={errors.destination ? true : undefined}
 							/>
 						)}
 
@@ -158,7 +267,7 @@ function RedirectFormDialog({
 
 						<Switch label={t`Enabled`} checked={enabled} onCheckedChange={setEnabled} />
 
-						<DialogError message={getMutationError(mutation.error)} />
+						<DialogError message={bannerError} />
 					</form>
 				</LayerDialog.Body>
 				<LayerDialog.Actions dismissLabel={t`Cancel`}>
@@ -255,9 +364,18 @@ function NotFoundPanel({
 
 type TabKey = "redirects" | "404s";
 
+interface RedirectFormTarget {
+	/** Counts openings, so each one starts a new form. */
+	visit: number;
+	open: boolean;
+	redirect?: Redirect;
+	defaultSource?: string;
+}
+
 export function Redirects() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const toastManager = useKumoToastManager();
 	const [tab, setTab] = useState<TabKey>("redirects");
 	const [search, setSearch] = useState("");
 	const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -270,11 +388,11 @@ export function Redirects() {
 		return () => clearTimeout(timer);
 	}, [search]);
 
-	// Dialog state
-	const [showCreate, setShowCreate] = useState(false);
-	const [editRedirect, setEditRedirect] = useState<Redirect | null>(null);
+	// Dialog state. The form keeps what it shows while it closes.
+	const [form, setForm] = useState<RedirectFormTarget>({ visit: 0, open: false });
 	const [deleteId, setDeleteId] = useState<string | null>(null);
-	const [prefillSource, setPrefillSource] = useState("");
+	const openForm = (target: Pick<RedirectFormTarget, "redirect" | "defaultSource"> = {}) =>
+		setForm((current) => ({ ...target, visit: current.visit + 1, open: true }));
 
 	// Queries
 	const enabledFilter = filterEnabled === "all" ? undefined : filterEnabled === "true";
@@ -300,12 +418,23 @@ export function Redirects() {
 		enabled: tab === "404s",
 	});
 
-	// Delete mutation
+	// Delete mutation. A redirect that is already gone counts as deleted.
 	const deleteMutation = useMutation({
-		mutationFn: (id: string) => deleteRedirect(id),
-		onSuccess: () => {
+		mutationFn: async (id: string) => {
+			try {
+				await deleteRedirect(id);
+				return true;
+			} catch (error) {
+				if (error instanceof ApiResponseError && error.code === "NOT_FOUND") return false;
+				throw error;
+			}
+		},
+		onSuccess: (deleted) => {
 			void queryClient.resetQueries({ queryKey: ["redirects"] });
 			setDeleteId(null);
+			if (!deleted) {
+				toastManager.add({ title: t`This redirect was already deleted.`, timeout: 3000 });
+			}
 		},
 	});
 
@@ -331,8 +460,7 @@ export function Redirects() {
 	});
 
 	function handleCreateFrom404(path: string) {
-		setPrefillSource(path);
-		setShowCreate(true);
+		openForm({ defaultSource: path });
 		setTab("redirects");
 	}
 
@@ -352,7 +480,7 @@ export function Redirects() {
 					if (value === "redirects" || value === "404s") setTab(value);
 				}}
 				actions={
-					<Button variant="primary" icon={<Plus />} onClick={() => setShowCreate(true)}>
+					<Button variant="primary" icon={<Plus />} onClick={() => openForm()}>
 						{t`New Redirect`}
 					</Button>
 				}
@@ -523,7 +651,7 @@ export function Redirects() {
 												</Badge>
 											)}
 											<button
-												onClick={() => setEditRedirect(r)}
+												onClick={() => openForm({ redirect: r })}
 												className="p-1 text-kumo-subtle hover:text-kumo-default"
 												title={t`Edit redirect`}
 												aria-label={t`Edit redirect ${r.source}`}
@@ -566,22 +694,14 @@ export function Redirects() {
 				/>
 			)}
 
-			{/* Create dialog */}
-			{showCreate && (
-				<RedirectFormDialog
-					open
-					onClose={() => {
-						setShowCreate(false);
-						setPrefillSource("");
-					}}
-					defaultSource={prefillSource || undefined}
-				/>
-			)}
-
-			{/* Edit dialog */}
-			{editRedirect && (
-				<RedirectFormDialog open onClose={() => setEditRedirect(null)} redirect={editRedirect} />
-			)}
+			{/* Create and edit dialog */}
+			<RedirectFormDialog
+				key={form.visit}
+				open={form.open}
+				onClose={() => setForm((current) => ({ ...current, open: false }))}
+				redirect={form.redirect}
+				defaultSource={form.defaultSource}
+			/>
 
 			{/* Delete confirmation */}
 			<ConfirmDialog
