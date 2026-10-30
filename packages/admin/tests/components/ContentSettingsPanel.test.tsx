@@ -981,7 +981,9 @@ describe("ContentSettingsPanel", () => {
 		await setPublishingTime(screen, "08:45");
 		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
 
-		await expect.element(screen.getByRole("alert")).toHaveTextContent("Date update failed");
+		await expect
+			.element(screen.getByRole("alert").filter({ hasText: "Date update failed" }))
+			.toBeVisible();
 		await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("08");
 		await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("45");
 		expect(onPublishedAtChange).toHaveBeenCalledOnce();

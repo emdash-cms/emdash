@@ -6,6 +6,12 @@ import { useMutation } from "@tanstack/react-query";
 import * as React from "react";
 
 import { ApiResponseError, changeSiteDomain, updateSettings } from "../../lib/api";
+import {
+	focusFirstInvalid,
+	guardUnsavedInput,
+	revealErrors,
+	useSingleFlight,
+} from "../../lib/dialog-form.js";
 import { DialogError, getMutationError } from "../DialogError.js";
 
 export interface ChangeDomainDialogProps {
@@ -61,7 +67,9 @@ export function ChangeDomainDialog({
 }: ChangeDomainDialogProps) {
 	const { t } = useLingui();
 	const [domain, setDomain] = React.useState("");
+	const [submitted, setSubmitted] = React.useState(false);
 	const formId = React.useId();
+	const formRef = React.useRef<HTMLFormElement>(null);
 
 	const checkMutation = useMutation({
 		mutationFn: (value: string) => changeSiteDomain(value),
@@ -78,6 +86,7 @@ export function ChangeDomainDialog({
 	React.useEffect(() => {
 		if (!open) return;
 		setDomain("");
+		setSubmitted(false);
 		checkMutation.reset();
 		uncheckedMutation.reset();
 	}, [open]);
@@ -85,24 +94,47 @@ export function ChangeDomainDialog({
 	const isPending = checkMutation.isPending || uncheckedMutation.isPending;
 	const fallbackUrl = checkMutation.isError ? uncheckedSiteUrl(domain) : undefined;
 	const checkError = checkMutation.error;
-	const errorMessage =
-		checkError instanceof ApiResponseError && checkError.code === "VALIDATION_ERROR"
-			? t`Enter a domain such as example.com, without a path or port`
-			: (domainCheckFailure(checkError) ?? getMutationError(checkError ?? uncheckedMutation.error));
+	const domainRejected =
+		checkError instanceof ApiResponseError &&
+		(checkError.code === "VALIDATION_ERROR" || checkError.code === "DOMAIN_CHECK_FAILED");
+	const formatHint = t`Enter a domain such as example.com, without a path or port`;
+	const fieldError = domainRejected
+		? checkError.code === "VALIDATION_ERROR"
+			? formatHint
+			: (domainCheckFailure(checkError) ?? checkError.message)
+		: submitted && !domain.trim()
+			? formatHint
+			: undefined;
+	const errorMessage = domainRejected
+		? getMutationError(uncheckedMutation.error)
+		: getMutationError(checkError ?? uncheckedMutation.error);
 
-	const submit = (event: React.FormEvent) => {
+	// The input is disabled while the check runs, so focus has left it by the time the check fails.
+	React.useEffect(() => {
+		if (domainRejected) focusFirstInvalid(formRef.current);
+	}, [checkError, domainRejected]);
+
+	const runCheck = useSingleFlight((value: string) => checkMutation.mutateAsync(value));
+	const saveUnchecked = useSingleFlight((url: string) => uncheckedMutation.mutateAsync(url));
+
+	const submit = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		if (isPending || !domain.trim()) return;
+		if (isPending) return;
+		if (!domain.trim()) {
+			const form = event.currentTarget;
+			revealErrors(form, () => setSubmitted(true));
+			return;
+		}
 		uncheckedMutation.reset();
-		checkMutation.mutate(domain.trim());
+		runCheck(domain.trim());
 	};
 
 	return (
 		<LayerDialog.Root
 			open={open}
-			onOpenChange={(nextOpen) => {
+			{...guardUnsavedInput(domain.trim() !== "", (nextOpen) => {
 				if (!nextOpen && !isPending) onClose();
-			}}
+			})}
 			dismissDisabled={isPending}
 		>
 			<LayerDialog.Content>
@@ -114,7 +146,7 @@ export function ChangeDomainDialog({
 						: t`Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain.`}
 				</LayerDialog.Description>
 				<LayerDialog.Body>
-					<form id={formId} onSubmit={submit} noValidate className="grid gap-5">
+					<form ref={formRef} id={formId} onSubmit={submit} noValidate className="grid gap-5">
 						<ol className="grid list-decimal gap-2 ps-5 text-sm">
 							<li>
 								{t`Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain.`}
@@ -136,6 +168,9 @@ export function ChangeDomainDialog({
 							dir="ltr"
 							autoComplete="off"
 							spellCheck={false}
+							required
+							error={fieldError}
+							aria-invalid={fieldError ? true : undefined}
 						/>
 
 						<p className="text-sm text-kumo-subtle">
@@ -154,7 +189,8 @@ export function ChangeDomainDialog({
 										variant="secondary"
 										size="sm"
 										disabled={isPending}
-										onClick={() => uncheckedMutation.mutate(fallbackUrl)}
+										loading={uncheckedMutation.isPending}
+										onClick={() => saveUnchecked(fallbackUrl)}
 									>
 										{t`Use ${fallbackUrl} anyway`}
 									</Button>
@@ -164,7 +200,7 @@ export function ChangeDomainDialog({
 					</form>
 				</LayerDialog.Body>
 				<LayerDialog.Actions dismissLabel={t`Cancel`}>
-					<LayerDialog.Action type="submit" form={formId} disabled={isPending || !domain.trim()}>
+					<LayerDialog.Action type="submit" form={formId} disabled={isPending}>
 						{checkMutation.isPending ? t`Checking…` : t`Check and switch`}
 					</LayerDialog.Action>
 				</LayerDialog.Actions>
