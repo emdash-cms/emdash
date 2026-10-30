@@ -319,6 +319,7 @@ export function RelationFormFields({ form, collections, isNew }: RelationFormFie
 
 			<div>
 				<Input
+					dir="ltr"
 					label={t`Slug`}
 					value={state.slug}
 					onChange={(e) => {

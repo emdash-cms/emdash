@@ -6,7 +6,14 @@
  * update/uninstall for marketplace-installed plugins.
  */
 
-import { Badge, Button, Checkbox, Link as KumoLink, Switch, Toast } from "@cloudflare/kumo";
+import {
+	Badge,
+	Button,
+	Checkbox,
+	Link as KumoLink,
+	Switch,
+	useKumoToastManager,
+} from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -97,7 +104,7 @@ export interface PluginManagerProps {
 export function PluginManager({ manifest }: PluginManagerProps) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const hasRegistry = !!manifest?.registry;
 	const canInstallFromRegistry = hasRegistry && manifest?.sandboxEnabled === true;
 
@@ -134,7 +141,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 			toastManager.add({
 				title: t`Failed to enable plugin`,
 				description: err instanceof Error ? err.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -153,7 +160,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 			toastManager.add({
 				title: t`Failed to disable plugin`,
 				description: err instanceof Error ? err.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -210,7 +217,9 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 							{t`Registry`}
 						</RouterLinkButton>
 					)}
-					<span className="text-sm text-kumo-subtle">{t`${plugins?.length ?? 0} plugins`}</span>
+					<span className="text-sm text-kumo-subtle">
+						{plural(plugins?.length ?? 0, { one: "# plugin", other: "# plugins" })}
+					</span>
 				</div>
 			</div>
 
@@ -264,7 +273,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 	const [registryVerification, setRegistryVerification] =
 		React.useState<RegistryRecordVerificationSummary | null>(null);
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 
 	const isMarketplace = plugin.source === "marketplace";
 	const isRegistry = plugin.source === "registry";
@@ -287,7 +296,13 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 			setRegistryVerification(null);
 			setMcpUpdateTools([]);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
-			void queryClient.invalidateQueries({ queryKey: ["plugin-updates"] });
+			// The update check query is disabled, and invalidation never refetches a disabled query.
+			// staleTime 0 overrides the client's one-minute default so the check runs again.
+			void queryClient.prefetchQuery({
+				queryKey: ["plugin-updates"],
+				queryFn: checkPluginUpdates,
+				staleTime: 0,
+			});
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			toastManager.add({
 				title: t`Plugin updated`,
@@ -325,7 +340,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 				toastManager.add({
 					title: t`Failed to update plugin`,
 					description: err instanceof Error ? err.message : t`An error occurred`,
-					type: "error",
+					variant: "error",
 				});
 			}
 		},
@@ -616,7 +631,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 									{mcpTools.map((tool) => (
 										<li key={tool.name} className="rounded-md bg-kumo-tint p-2 text-xs">
 											<div className="flex flex-wrap items-center gap-2">
-												<code>{tool.mcpName ?? `${plugin.id}__${tool.name}`}</code>
+												<code dir="ltr">{tool.mcpName ?? `${plugin.id}__${tool.name}`}</code>
 												{tool.destructive && <Badge variant="destructive">{t`Destructive`}</Badge>}
 											</div>
 											<p className="mt-1 text-kumo-subtle">{tool.description}</p>
@@ -647,7 +662,9 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 								<h4 className="text-xs font-medium text-kumo-subtle uppercase tracking-wider mb-1">
 									{t`Package`}
 								</h4>
-								<code className="text-xs bg-kumo-tint px-2 py-0.5 rounded">{plugin.package}</code>
+								<code dir="ltr" className="text-xs bg-kumo-tint px-2 py-0.5 rounded">
+									{plugin.package}
+								</code>
 							</div>
 						)}
 

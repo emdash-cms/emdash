@@ -1,0 +1,248 @@
+---
+import { getSiteSettings } from "emdash";
+import type { BlockComponentProps } from "emdash/ui";
+import type { PageLayoutBlock } from "../../../emdash-env";
+import { getSocialLinks } from "../../utils/social";
+
+type ContactBlock = Extract<PageLayoutBlock, { _type: "portfolio_contact" }>;
+type Props = BlockComponentProps<ContactBlock>;
+
+const { value, index } = Astro.props;
+const Heading = index === 0 ? "h1" : "h2";
+const label = value.label?.trim();
+const intro = value.intro?.trim();
+const email = value.email.trim();
+const emailLabel = value.email_label?.trim();
+const details = value.details ?? [];
+
+const settings = await getSiteSettings();
+const socialLinks = getSocialLinks(settings?.social);
+const hasDetails =
+	Boolean(emailLabel) || details.length > 0 || socialLinks.length > 0;
+
+// Wrap opportunities after the @ and before each dot. The last part stays
+// joined to the arrow so the arrow never wraps onto a line of its own.
+const emailParts = email.split(/(?<=@)|(?=\.)/);
+const emailEnd = emailParts.pop();
+---
+
+<section class="frame contact">
+	<header class="contact__head">
+		{label && <p class="label">{label}</p>}
+		<Heading class="contact__title">{value.heading}</Heading>
+		{intro && <p class="contact__intro">{intro}</p>}
+	</header>
+
+	<p class="contact__cta">
+		<a class="contact__email" href={`mailto:${email}`}
+			>{
+				emailParts.map((part) => (
+					<Fragment>
+						{part}
+						<wbr />
+					</Fragment>
+				))
+			}<span class="contact__email-end"
+				>{emailEnd}<svg
+					class="contact__arrow"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+					><path d="M4 12h16"></path><path d="m13 5 7 7-7 7"></path></svg
+				></span
+			></a
+		>
+	</p>
+
+	{
+		hasDetails && (
+			<dl class="contact__details">
+				{emailLabel && (
+					<div class="contact__detail">
+						<dt class="label">{emailLabel}</dt>
+						<dd>
+							<a class="contact__link" href={`mailto:${email}`}>
+								{email}
+							</a>
+						</dd>
+					</div>
+				)}
+				{details.map((detail) => (
+					<div class="contact__detail">
+						<dt class="label">{detail.label}</dt>
+						<dd>{detail.text}</dd>
+						{detail.note && <dd class="contact__note">{detail.note}</dd>}
+					</div>
+				))}
+				{socialLinks.length > 0 && (
+					<div class="contact__detail">
+						<dt class="label">Elsewhere</dt>
+						<dd>
+							<ul class="contact__social">
+								{socialLinks.map(({ label, href }) => (
+									<li>
+										<a class="contact__link" href={href} rel="me">
+											{label}
+										</a>
+									</li>
+								))}
+							</ul>
+						</dd>
+					</div>
+				)}
+			</dl>
+		)
+	}
+</section>
+
+<style>
+	.contact__head {
+		display: grid;
+		gap: var(--spacing-lg);
+		justify-items: start;
+	}
+
+	.contact__title {
+		max-width: 16ch;
+		font-size: var(--font-size-4xl);
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-tight);
+		letter-spacing: var(--tracking-display);
+		text-wrap: balance;
+		overflow-wrap: anywhere;
+	}
+
+	.contact__intro {
+		max-width: 52ch;
+		color: var(--color-text-secondary);
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-normal);
+		text-wrap: pretty;
+	}
+
+	.contact__cta {
+		margin-block-start: clamp(3rem, 2rem + 4vw, 6rem);
+		font-size: var(--font-size-3xl);
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-tight);
+		letter-spacing: var(--tracking-tight);
+	}
+
+	/* The end padding keeps the nudged arrow inside the focus outline. */
+	.contact__email {
+		display: inline-block;
+		max-width: 100%;
+		padding-inline-end: 0.08em;
+		color: var(--color-text);
+		text-decoration-line: underline;
+		text-decoration-color: transparent;
+		text-decoration-thickness: max(1px, 0.04em);
+		text-underline-offset: 0.12em;
+		overflow-wrap: anywhere;
+		transition: text-decoration-color var(--transition-base);
+	}
+
+	.contact__email-end {
+		white-space: nowrap;
+	}
+
+	.contact__arrow {
+		display: inline-block;
+		inline-size: 0.75em;
+		block-size: 0.75em;
+		margin-inline-start: 0.2em;
+		vertical-align: -0.04em;
+		transition: translate var(--transition-base);
+	}
+
+	.contact__email:is(:hover, :focus-visible) {
+		text-decoration-color: currentColor;
+	}
+
+	.contact__email:is(:hover, :focus-visible) .contact__arrow {
+		translate: 0.08em 0;
+	}
+
+	.contact__email:dir(rtl) .contact__arrow {
+		scale: -1 1;
+	}
+
+	.contact__email:dir(rtl):is(:hover, :focus-visible) .contact__arrow {
+		translate: -0.08em 0;
+	}
+
+	.contact__details {
+		display: grid;
+		margin-block-start: clamp(3.5rem, 2rem + 5vw, 7rem);
+	}
+
+	.contact__detail {
+		display: grid;
+		gap: var(--spacing-sm);
+		align-content: start;
+		padding-block: var(--spacing-lg);
+		border-block-start: 1px solid var(--color-border);
+		font-size: var(--font-size-md);
+		line-height: var(--leading-normal);
+	}
+
+	.contact__detail dt {
+		margin-block-end: var(--spacing-xs);
+	}
+
+	.contact__detail dd {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	.contact__note {
+		color: var(--color-muted);
+	}
+
+	.contact__social {
+		display: grid;
+		gap: var(--spacing-xs);
+		list-style: none;
+	}
+
+	.contact__link {
+		display: inline-block;
+		max-width: 100%;
+		color: var(--color-text);
+		text-decoration-line: underline;
+		text-decoration-color: var(--color-border-strong);
+		text-decoration-thickness: 1px;
+		text-underline-offset: 0.2em;
+		transition: text-decoration-color var(--transition-fast);
+	}
+
+	.contact__link:is(:hover, :focus-visible) {
+		text-decoration-color: currentColor;
+	}
+
+	@media (min-width: 768px) {
+		.contact__details {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			column-gap: var(--gutter);
+			border-block-start: 1px solid var(--color-border);
+		}
+
+		.contact__detail {
+			border-block-start: 0;
+		}
+
+		.contact__detail:nth-child(n + 4) {
+			border-block-start: 1px solid var(--color-border);
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.contact__cta {
+			font-size: var(--font-size-4xl);
+		}
+	}
+</style>

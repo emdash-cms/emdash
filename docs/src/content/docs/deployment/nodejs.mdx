@@ -5,12 +5,21 @@ description: Deploy EmDash to a long-running Node.js server with persistent data
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash runs on Node.js 22.16 or later. This guide uses SQLite and local storage for one server. Use PostgreSQL or libSQL when several instances need one database, and S3-compatible storage when media must survive independently of the server disk.
+This guide uses SQLite and local storage for one server. Use PostgreSQL or libSQL when several instances need one database, and S3-compatible storage when media must survive independently of the server disk.
 
 ## Prerequisites
 
-- Node.js v22.16.0 or higher
+- Node.js v22.23.4 or higher (v22.16.0 is enough on Astro 7.3 or earlier)
 - A Node.js hosting provider or VPS
+- SQLite FTS5 support in the Node.js build when using the built-in SQLite adapter
+
+Search requires FTS5. Its availability depends on how Node.js was compiled, not just the Node.js or SQLite version. Check the exact Node binary used by your server:
+
+```sh
+node --input-type=module -e 'import { DatabaseSync } from "node:sqlite"; const db = new DatabaseSync(":memory:"); db.exec("CREATE VIRTUAL TABLE probe USING fts5(x)"); db.close(); console.log("FTS5 available");'
+```
+
+If the command reports `no such module: fts5`, switch to a Node.js build with FTS5 support. Search requests return `503 SEARCH_UNAVAILABLE` until FTS5 is available. After switching builds, [enable search](/reference/rest-api/#search) for collections whose search setup failed.
 
 <Aside>
 	Node.js 22 prints `ExperimentalWarning: SQLite is an experimental feature` when a site uses the

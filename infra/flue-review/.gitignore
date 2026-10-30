@@ -7,3 +7,5 @@ dist/
 .env
 .env.*
 !.env.example
+eval/results/
+eval/.work/

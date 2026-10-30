@@ -30,8 +30,10 @@ export interface RecentItem {
 
 export interface DashboardStats {
 	collections: CollectionStats[];
-	mediaCount: number;
-	userCount: number;
+	/** Absent when the user lacks `media:read`. */
+	mediaCount?: number;
+	/** Absent when the user lacks `users:read`. */
+	userCount?: number;
 	recentItems: RecentItem[];
 	schedulerHealth?: {
 		status: "healthy" | "stale" | "unknown";

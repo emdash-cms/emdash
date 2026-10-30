@@ -19,6 +19,7 @@ import { after } from "../after.js";
 import { RedirectRepository } from "../database/repositories/redirect.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
+import { normalizeSiteSettingsVersion, siteSettingsVersionQuery } from "../settings/version.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import {
@@ -296,12 +297,29 @@ function parseEntries(payload: string): ArtifactEntry[] | null {
 	}
 }
 
+function observeSiteSettingsVersion(
+	callback: ((version: string | null) => void) | undefined,
+	raw: string | null | undefined,
+): void {
+	if (!callback) return;
+	let version: string | null = null;
+	try {
+		if (raw) version = normalizeSiteSettingsVersion(raw);
+	} catch {
+		// A failed settings check must not prevent valid redirects from loading.
+	}
+	callback(version);
+}
+
 /**
  * Loads and verifies the active generation. Returns null when nothing is
  * published, the generation is stale, or any artifact is missing, altered, or
  * out of place.
  */
-async function loadPublishedRedirects(db: Kysely<Database>): Promise<RedirectRuleSet | null> {
+async function loadPublishedRedirects(
+	db: Kysely<Database>,
+	onSiteSettingsVersion?: (version: string | null) => void,
+): Promise<RedirectRuleSet | null> {
 	const rows = await db
 		.selectFrom("_emdash_redirect_state as state")
 		.leftJoin(
@@ -314,6 +332,7 @@ async function loadPublishedRedirects(db: Kysely<Database>): Promise<RedirectRul
 			"state.revision",
 			"state.generation",
 			"state.generation_revision",
+			...(onSiteSettingsVersion ? [siteSettingsVersionQuery(db).as("site_settings_version")] : []),
 			"link.position",
 			"link.digest",
 			"artifact.kind",
@@ -324,6 +343,7 @@ async function loadPublishedRedirects(db: Kysely<Database>): Promise<RedirectRul
 		.execute();
 
 	const state = rows[0];
+	observeSiteSettingsVersion(onSiteSettingsVersion, state?.site_settings_version);
 	if (!state?.generation) return null;
 	if (Number(state.revision) > Number(state.generation_revision)) return null;
 
@@ -432,14 +452,20 @@ function scheduleRedirectRepair(db: Kysely<Database>): void {
  * current and verifies, otherwise the rules table. Before the artifact tables exist the
  * rules table is read directly.
  */
-export function createRedirectSource(db: Kysely<Database>): RedirectSource {
+export function createRedirectSource(
+	db: Kysely<Database>,
+	onSiteSettingsVersion?: (version: string | null) => void,
+): RedirectSource {
 	return {
 		async load() {
 			let published: RedirectRuleSet | null;
 			try {
-				published = await loadPublishedRedirects(db);
+				published = await loadPublishedRedirects(db, onSiteSettingsVersion);
 			} catch (error) {
-				if (isMissingTableError(error)) return loadRulesTable(db);
+				if (isMissingTableError(error)) {
+					onSiteSettingsVersion?.(null);
+					return loadRulesTable(db);
+				}
 				throw error;
 			}
 			if (published) return published;
@@ -449,9 +475,17 @@ export function createRedirectSource(db: Kysely<Database>): RedirectSource {
 		async isCurrent(version) {
 			const state = await db
 				.selectFrom("_emdash_redirect_state")
-				.select(["revision", "generation", "generation_revision"])
+				.select([
+					"revision",
+					"generation",
+					"generation_revision",
+					...(onSiteSettingsVersion
+						? [siteSettingsVersionQuery(db).as("site_settings_version")]
+						: []),
+				])
 				.where("id", "=", 1)
 				.executeTakeFirst();
+			observeSiteSettingsVersion(onSiteSettingsVersion, state?.site_settings_version);
 			return (
 				state?.generation === version && Number(state.revision) <= Number(state.generation_revision)
 			);

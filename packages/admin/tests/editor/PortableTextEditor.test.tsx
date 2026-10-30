@@ -347,6 +347,28 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(roundTripped).toEqual(blocks);
 	});
 
+	it("opens consecutive quote blocks as one quote and saves them unchanged", () => {
+		const blocks = [
+			textBlock("Before"),
+			textBlock("First quoted line", { style: "blockquote" }),
+			textBlock("Second quoted line", {
+				style: "blockquote",
+				marks: ["em", "link-1"],
+				markDefs: [{ _type: "link", _key: "link-1", href: "https://example.com" }],
+			}),
+			textBlock("After"),
+		];
+
+		const doc = _portableTextToProsemirror(blocks);
+
+		expect(doc.content.map((node) => (node as { type: string }).type)).toEqual([
+			"paragraph",
+			"blockquote",
+			"paragraph",
+		]);
+		expect(_prosemirrorToPortableText(doc)).toEqual(blocks);
+	});
+
 	it("keeps a no-op editor update lossless", async () => {
 		const onChange = vi.fn();
 		const blocks = [
@@ -1117,7 +1139,8 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(span?.text).toBe("API");
 		expect(span?.marks).toContain("code");
 		const linkDef = blocks[0]?.markDefs?.find((d) => d._type === "link");
-		expect(linkDef?.href).toBe("https://api.example.com");
+		expect(linkDef).toMatchObject({ _type: "link", href: "https://api.example.com" });
+		expect(linkDef).not.toMatchObject({ blank: true });
 		expect(span?.marks).toContain(linkDef?._key);
 	});
 
@@ -1331,6 +1354,23 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 			for (const pseudo of ["::before", "::after"]) {
 				expect(["none", "normal"]).toContain(getComputedStyle(paragraph, pseudo).content);
 			}
+		},
+	);
+
+	it.each([
+		{ input: "- ", selector: "li p", hint: "List" },
+		{ input: "> ", selector: "blockquote p", hint: "Quote" },
+	])(
+		"shows $hint after typing $input into an empty paragraph",
+		async ({ input, selector, hint }) => {
+			const { editor, pm } = await renderAndGetEditor();
+
+			simulateTyping(editor, input);
+
+			const paragraph = pm.querySelector(selector)!;
+			expect(paragraph).toBeTruthy();
+			expect(paragraph.getAttribute("data-placeholder")).toBe(hint);
+			expect(getComputedStyle(paragraph, "::before").content).toContain(hint);
 		},
 	);
 

@@ -1,5 +1,43 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.12
+
+### Patch Changes
+
+- [#4377](https://github.com/emdash-cms/emdash/pull/4377) [`e6f6cd3`](https://github.com/emdash-cms/emdash/commit/e6f6cd3231cc5e61f25af4cd30569fbfe9f3d584) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes embedded forms resetting custom submit button labels to "Submit" after successful or failed submissions.
+
+- [#3373](https://github.com/emdash-cms/emdash/pull/3373) [`88c2fa3`](https://github.com/emdash-cms/emdash/commit/88c2fa38556f7efae5d2d7e28ff9fff3644b9063) Thanks [@marks-zyz](https://github.com/marks-zyz)! - Editors can now view forms and all their submissions instead of seeing "Failed to load forms" or "No forms yet". The webhook URL stays hidden from them, and changing or deleting forms and submissions, and the export, stay admin-only. When a role still cannot read forms, the pages and the Recent Submissions widget now say so, and a write action that returns 403 shows a permission message instead of doing nothing.
+
+- [#4294](https://github.com/emdash-cms/emdash/pull/4294) [`d5cde58`](https://github.com/emdash-cms/emdash/commit/d5cde58a8ca3a13ba8057182c0d6a9a99de0ffaf) Thanks [@danielmlr](https://github.com/danielmlr)! - Hides submitters' IP addresses, user agents and referers from Editors. The `submissions/list` and `submissions/get` routes now return them to Admins only; the admin UI never showed them.
+
+- [#4144](https://github.com/emdash-cms/emdash/pull/4144) [`e5d9241`](https://github.com/emdash-cms/emdash/commit/e5d9241382e7f811433c7212a4619a7d3036f8db) Thanks [@marccardinal](https://github.com/marccardinal)! - Fixes form notification emails so that replying to one reaches the person who submitted the form. Instant notifications now set Reply-To to the address entered in the form's email field; before, a reply went to the site's sender address. The daily digest is unchanged. Reply-To is only set when the address is a plain, valid email: forms without an email field, submissions that leave it empty, or addresses like `"Name"<someone@example.com>` send notifications without a Reply-To, as before. On sites that set `replyTo` on the Cloudflare email provider, replies to these notifications now go to the visitor instead of that address. The site's email provider plugin must deliver `replyTo` (see the `email:deliver` hook).
+
+- [#4345](https://github.com/emdash-cms/emdash/pull/4345) [`fbf933d`](https://github.com/emdash-cms/emdash/commit/fbf933d6028109cbaf190c15d26c3601850a7ab5) Thanks [@Chiji1108](https://github.com/Chiji1108)! - Fixes required select fields without a default value preselecting their first option, so visitors must now pick an option before the form submits. The empty first option shows the field's `placeholder` when one is set.
+
+- [#4295](https://github.com/emdash-cms/emdash/pull/4295) [`bef030b`](https://github.com/emdash-cms/emdash/commit/bef030ba6c4e7ab7b07ccbd18f466483bab49acc) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the Submissions page sometimes showing the submissions or load error of an earlier selection after switching forms or the status filter while the list was still loading. The Recent Submissions widget now says "Failed to load submissions" when the submissions request fails with a network error.
+
+- [#4078](https://github.com/emdash-cms/emdash/pull/4078) [`b0268a5`](https://github.com/emdash-cms/emdash/commit/b0268a5645283230630483133a37347cb98f5840) Thanks [@Cloud-Xero](https://github.com/Cloud-Xero)! - Fixes the `FormEmbed` textarea so it starts empty instead of containing indentation from the component source. Previously the caret began on a second line, an untouched `required` textarea passed the browser's validation, and the stray whitespace also surrounded a configured default value and returned after a successful submit reset the form.
+
+## 0.2.11
+
+### Patch Changes
+
+- [#4249](https://github.com/emdash-cms/emdash/pull/4249) [`05c06a3`](https://github.com/emdash-cms/emdash/commit/05c06a31cc87f1b38916eff596efaeb378f4e4f9) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes conditional form fields remaining visible when their condition is false on sites using the forms plugin's default stylesheet.
+
+- [#4247](https://github.com/emdash-cms/emdash/pull/4247) [`1d9bc72`](https://github.com/emdash-cms/emdash/commit/1d9bc72126ef86b0553f9ef7548a12496a17fc96) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes single `checkbox` fields so the input keeps its intrinsic width and sits next to its label, instead of stretching to full width and pushing the label away.
+
+- [#4248](https://github.com/emdash-cms/emdash/pull/4248) [`29c43c3`](https://github.com/emdash-cms/emdash/commit/29c43c38e2d9698740485cc1fb17b86168eb922d) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes single checkbox fields so a checked box is stored as `true` when the default submitted value is `"1"`. Required checkbox fields that are not checked are still rejected during validation.
+
+## 0.2.10
+
+### Patch Changes
+
+- [#3979](https://github.com/emdash-cms/emdash/pull/3979) [`65aa1f4`](https://github.com/emdash-cms/emdash/commit/65aa1f4608116c668b9e04f81dcf468a15b3a1b8) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes the daily digest. Creating a form with the digest on, or turning it on for an existing form, failed with an "Invalid task name" error, and a form created that way was saved with the digest on but never sent one. The digest is now scheduled, including for a duplicated form, and is rescheduled or cancelled when the form's digest settings change.
+
+- [#3031](https://github.com/emdash-cms/emdash/pull/3031) [`cc40400`](https://github.com/emdash-cms/emdash/commit/cc40400341760dbf5fce53b54205dfb6bbee5dbd) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes duplicate element IDs when the same form is embedded more than once on a page. Field IDs were built from the form ID and the field name alone, so a form appearing in, say, a sidebar and a pop-up produced several elements sharing an ID: clicking a label focused the first copy rather than the one beside it, and anything resolving an ID — `aria-describedby`, a password manager, a test selector — reached the wrong instance. Each rendering now suffixes its IDs with a per-instance value, so labels, inputs and the honeypot stay paired within their own copy. Element IDs are not part of the plugin's API and nothing else references them; the client script scopes its lookups to the form element.
+
+- [#3032](https://github.com/emdash-cms/emdash/pull/3032) [`b709d72`](https://github.com/emdash-cms/emdash/commit/b709d720e801ce48e5fcae28e25df57f1b34aae6) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes embedded forms showing only the browser's validation bubble instead of the plugin's inline field errors. Native validation is turned off by the client script once it loads, so readers without JavaScript keep it.
+
 ## 0.2.9
 
 No changes in this release.

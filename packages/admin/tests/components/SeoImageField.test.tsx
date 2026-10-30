@@ -1,5 +1,5 @@
 import * as React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RenderResult } from "vitest-browser-react";
 import { cdp, userEvent, type Locator } from "vitest/browser";
 
@@ -73,8 +73,34 @@ const PICKED_URL = "/_emdash/api/media/file/picked.png";
 const REPLACE = "Replace OG Image";
 const REMOVE = "Remove OG Image";
 const DROP_TARGET = "Drop an image here or browse for OG Image";
+const SAVE_IMAGE_URL = "Save image URL";
+const SHARING_URL_TITLE = "Sharing image needs a URL";
+const SHARING_URL_DESCRIPTION =
+	"The saved media ID may not work in shared links. Save the image URL to use this file for sharing.";
 
 let pendingSave: (() => void) | undefined;
+let mediaInterception: {
+	session: ReturnType<typeof cdp>;
+	handler: (event: { requestId: string }) => Promise<void>;
+} | null = null;
+
+async function serveMediaFiles() {
+	const session = cdp();
+	const body = WIDE_IMAGE.slice(WIDE_IMAGE.indexOf(",") + 1);
+	const handler = async ({ requestId }: { requestId: string }) => {
+		await session.send("Fetch.fulfillRequest", {
+			requestId,
+			responseCode: 200,
+			responseHeaders: [{ name: "Content-Type", value: "image/png" }],
+			body,
+		});
+	};
+	await session.send("Fetch.enable", {
+		patterns: [{ urlPattern: "*/_emdash/api/media/file/*", requestStage: "Request" }],
+	});
+	session.on("Fetch.requestPaused", handler);
+	mediaInterception = { session, handler };
+}
 
 function completeSave() {
 	const save = pendingSave;
@@ -201,7 +227,210 @@ beforeEach(() => {
 	pendingSave = undefined;
 });
 
+afterEach(async () => {
+	if (mediaInterception) {
+		const { session, handler } = mediaInterception;
+		session.off("Fetch.requestPaused", handler);
+		await session.send("Fetch.disable");
+		mediaInterception = null;
+	}
+	vi.restoreAllMocks();
+});
+
 describe("SeoImageField", () => {
+	it("resolves a bare media ID before requesting its storage key", async () => {
+		const id = "01J00000000000000000000000";
+		const filename = "photo [summer] #?.jpg";
+		const storageKey = "objects/seo-image-2026-10-09.webp";
+		const publicFileUrl = `/_emdash/api/media/file/${storageKey}`;
+		const metadata = {
+			id,
+			filename,
+			mimeType: "image/jpeg",
+			url: `/_emdash/api/media/asset/${encodeURIComponent(id)}/${encodeURIComponent(filename)}`,
+			storageKey,
+			size: 1024,
+			createdAt: "2026-10-09T00:00:00Z",
+			status: "ready",
+		};
+		let resolveMetadata!: (response: Response) => void;
+		const fetchSpy = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(() => new Promise((resolve) => (resolveMetadata = resolve)));
+		performance.clearResourceTimings();
+		const onChange = vi.fn();
+		await serveMediaFiles();
+		const screen = await render(<Field image={id} onChange={onChange} />);
+		const idFileUrl = `/_emdash/api/media/file/${id}`;
+
+		await vi.waitFor(() =>
+			expect(fetchSpy).toHaveBeenCalledWith(
+				`/_emdash/api/media/${encodeURIComponent(id)}`,
+				expect.objectContaining({ signal: expect.any(AbortSignal) }),
+			),
+		);
+		expect(screen.container.querySelector("img")).toBeNull();
+		expect(onChange).not.toHaveBeenCalled();
+		expect(
+			performance.getEntriesByName(new URL(idFileUrl, window.location.origin).href),
+		).toHaveLength(0);
+
+		resolveMetadata(Response.json({ success: true, data: { item: metadata } }));
+		await loadedPreview(screen);
+		await vi.waitFor(() => {
+			expect(
+				performance.getEntriesByName(new URL(publicFileUrl, window.location.origin).href).length,
+			).toBeGreaterThan(0);
+		});
+		expect(screen.getByRole("note")).toHaveTextContent(SHARING_URL_TITLE);
+		expect(screen.getByRole("note")).toHaveTextContent(SHARING_URL_DESCRIPTION);
+		await expect.element(button(screen, SAVE_IMAGE_URL)).toBeVisible();
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it.each([false, true])(
+		"saves the resolved storage URL explicitly and removes the warning (%s deferred)",
+		async (deferSave) => {
+			const id = "01J00000000000000000000003";
+			const storageKey = "objects/seo-image-ready.jpg";
+			const onChange = vi.fn();
+			vi.spyOn(globalThis, "fetch").mockResolvedValue(
+				Response.json({
+					success: true,
+					data: {
+						item: {
+							id,
+							filename: "ready.jpg",
+							mimeType: "image/jpeg",
+							url: "/_emdash/api/media/asset/ready.jpg",
+							storageKey,
+							size: 1024,
+							createdAt: "2026-10-09T00:00:00Z",
+							status: "ready",
+						},
+					},
+				}),
+			);
+			await serveMediaFiles();
+			const screen = await render(<Field image={id} deferSave={deferSave} onChange={onChange} />);
+			await loadedPreview(screen);
+			const savedUrl = `/_emdash/api/media/file/${storageKey}`;
+
+			await expect.element(button(screen, SAVE_IMAGE_URL)).toBeVisible();
+			await userEvent.click(button(screen, SAVE_IMAGE_URL));
+			expect(onChange).toHaveBeenCalledTimes(1);
+			expect(onChange).toHaveBeenCalledWith({ image: savedUrl });
+			if (deferSave) {
+				await expect.element(button(screen, SAVE_IMAGE_URL)).toBeVisible();
+				completeSave();
+			}
+			await expect.element(screen.getByRole("note")).not.toBeInTheDocument();
+			expect(onChange).toHaveBeenCalledTimes(1);
+			await expectFocusToStayOn(button(screen, REPLACE));
+		},
+	);
+
+	it("does not steal focus when the user moves to an input before saving the URL", async () => {
+		const id = "01J00000000000000000000004";
+		const storageKey = "objects/seo-image-ready-input.jpg";
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			Response.json({
+				success: true,
+				data: { item: { id, storageKey, status: "ready" } },
+			}),
+		);
+		await serveMediaFiles();
+		const screen = await render(<Field image={id} deferSave />);
+		await loadedPreview(screen);
+		await expect.element(button(screen, SAVE_IMAGE_URL)).toBeVisible();
+		await userEvent.click(button(screen, SAVE_IMAGE_URL));
+		const input = screen.getByRole("textbox", { name: "SEO Title", exact: true });
+		input.element().focus();
+		completeSave();
+		await expect.element(screen.getByRole("note")).not.toBeInTheDocument();
+		await expectFocusToStayOn(input);
+	});
+
+	it("shows the existing error state when bare media metadata fails", async () => {
+		const id = "01J00000000000000000000001";
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			Response.json({ success: false }, { status: 500 }),
+		);
+		const onChange = vi.fn();
+		const screen = await render(<Field image={id} onChange={onChange} />);
+
+		await expect.element(screen.getByText("Image not found", { exact: true })).toBeVisible();
+		await expect.element(button(screen, SAVE_IMAGE_URL)).not.toBeInTheDocument();
+		await removeImage(screen);
+		expect(onChange).toHaveBeenCalledWith({ image: null });
+	});
+
+	it("falls back to the bare ID as an extensionless storage key after a 404", async () => {
+		const id = "01j00000000000000000000002";
+		const fileUrl = `/_emdash/api/media/file/${id}`;
+		const fetchSpy = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(Response.json({ success: false }, { status: 404 }));
+		performance.clearResourceTimings();
+		const onChange = vi.fn();
+		const screen = await render(<Field image={id} onChange={onChange} />);
+
+		await vi.waitFor(() =>
+			expect(fetchSpy).toHaveBeenCalledWith(
+				`/_emdash/api/media/${id}`,
+				expect.objectContaining({ signal: expect.any(AbortSignal) }),
+			),
+		);
+		await vi.waitFor(() => {
+			expect(
+				performance.getEntriesByName(new URL(fileUrl, window.location.origin).href).length,
+			).toBeGreaterThan(0);
+		});
+		await expect.element(screen.getByText("Image not found", { exact: true })).toBeVisible();
+		await expect.element(button(screen, SAVE_IMAGE_URL)).not.toBeInTheDocument();
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it("shows an error for ready metadata when its storage object is unavailable", async () => {
+		const id = "01J00000000000000000000006";
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			Response.json({
+				success: true,
+				data: { item: { id, storageKey: "objects/unserved.jpg", status: "ready" } },
+			}),
+		);
+		const onChange = vi.fn();
+		const screen = await render(<Field image={id} onChange={onChange} />);
+
+		await expect.element(screen.getByText("Image not found", { exact: true })).toBeVisible();
+		await expect.element(button(screen, SAVE_IMAGE_URL)).not.toBeInTheDocument();
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it("does not offer to save a media URL while media is not ready", async () => {
+		const id = "01J00000000000000000000005";
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			Response.json({
+				success: true,
+				data: { item: { id, storageKey: "objects/pending.jpg", status: "pending" } },
+			}),
+		);
+		const screen = await render(<Field image={id} />);
+		await expect.element(screen.getByText("Image not found", { exact: true })).toBeVisible();
+		await expect.element(button(screen, SAVE_IMAGE_URL)).not.toBeInTheDocument();
+	});
+
+	it.each([
+		["uploads/og.png", "/_emdash/api/media/file/uploads/og.png"],
+		["/images/og.png", "/images/og.png"],
+		["https://cdn.example.com/og.png", "https://cdn.example.com/og.png"],
+		["data:image/png;base64,AAAA", "data:image/png;base64,AAAA"],
+	])("preserves or normalizes a non-ID image reference (%s)", async (image, expected) => {
+		const screen = await render(<Field image={image} />);
+		expect(screen.container.querySelector("img")?.getAttribute("src")).toBe(expected);
+		await expect.element(button(screen, SAVE_IMAGE_URL)).not.toBeInTheDocument();
+	});
+
 	it.each([
 		["wide", 1600, 840],
 		["tall", 400, 1200],

@@ -14,17 +14,26 @@ export default defineConfig({
 	integrations: [
 		react(),
 		emdash({
-			database: d1({ binding: "DB", session: "auto" }),
+			database: d1({ binding: "DB", session: "auto", coalesce: true }),
 			storage: r2({ binding: "MEDIA" }),
 		}),
 	],
 	fonts: [
 		{
 			provider: fontProviders.google(),
-			name: "Playfair Display",
-			cssVariable: "--font-heading",
-			weights: [400, 500, 600, 700],
-			fallbacks: ["serif"],
+			name: "Host Grotesk",
+			cssVariable: "--font-sans",
+			weights: [400, 500, 600],
+			styles: ["normal", "italic"],
+			fallbacks: ["sans-serif"],
+		},
+		{
+			provider: fontProviders.google(),
+			name: "Fragment Mono",
+			cssVariable: "--font-mono",
+			weights: [400],
+			styles: ["normal"],
+			fallbacks: ["monospace"],
 		},
 	],
 	devToolbar: { enabled: false },

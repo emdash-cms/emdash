@@ -1,0 +1,139 @@
+---
+import SearchField from "../SearchField.astro";
+import HeroExhibit from "./HeroExhibit.astro";
+
+interface Props {
+	keywords: string[];
+}
+
+const { keywords } = Astro.props;
+---
+
+<section class="hero" aria-labelledby="hero-title">
+	<div class="hero-copy shell">
+		<h1 id="hero-title" class="hero-title rise">
+			Make EmDash <span class="tone">your own.</span>
+		</h1>
+		<p class="hero-lead lead rise">
+			Find sandboxed plugins for SEO, forms, email, and more. See what each one
+			can access before you install it.
+		</p>
+		<div class="hero-search rise">
+			<SearchField id="hero-search" size="lg" />
+		</div>
+		{
+			keywords.length > 0 && (
+				<div class="hero-popular rise">
+					<span class="hero-popular-label" id="hero-popular-label">
+						Popular
+					</span>
+					<ul
+						class="chip-list hero-popular-list"
+						aria-labelledby="hero-popular-label"
+					>
+						{keywords.map((keyword) => (
+							<li>
+								<a
+									class="chip"
+									href={`/search?q=${encodeURIComponent(keyword)}`}
+									dir="auto"
+								>
+									<span class="chip-label">{keyword}</span>
+								</a>
+							</li>
+						))}
+					</ul>
+				</div>
+			)
+		}
+	</div>
+	<HeroExhibit />
+</section>
+
+<style>
+	.hero {
+		position: relative;
+		padding-block-start: clamp(3.5rem, 2rem + 6vw, 7rem);
+	}
+
+	.hero-copy {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+	}
+
+	.hero-title {
+		max-width: 14ch;
+		margin: 0;
+		color: var(--ink-strong);
+		font-size: clamp(2.75rem, 1.4rem + 4.6vw, 4.75rem);
+		font-weight: 600;
+		line-height: 1.02;
+		letter-spacing: -0.045em;
+		text-wrap: balance;
+	}
+
+	.hero-title .tone {
+		display: block;
+		color: var(--subtle);
+	}
+
+	.hero-lead {
+		max-width: 34rem;
+		margin-block: 1.25rem 0;
+		margin-inline: auto;
+	}
+
+	.hero-search {
+		display: flex;
+		justify-content: center;
+		width: 100%;
+		margin-block-start: 2.25rem;
+	}
+
+	.hero-popular {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		gap: 8px 12px;
+		max-width: 640px;
+		margin-block-start: 1.25rem;
+	}
+
+	.hero-popular-label {
+		color: var(--muted);
+		font-size: 13px;
+		font-weight: 500;
+	}
+
+	.hero-popular-list {
+		justify-content: center;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.rise {
+			animation: hero-rise 600ms var(--ease-out) both;
+		}
+
+		.rise:nth-child(2) {
+			animation-delay: 50ms;
+		}
+
+		.rise:nth-child(3) {
+			animation-delay: 100ms;
+		}
+
+		.rise:nth-child(4) {
+			animation-delay: 150ms;
+		}
+	}
+
+	@keyframes hero-rise {
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+	}
+</style>

@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-cli",
-	"version": "0.13.3",
+	"version": "0.13.5",
 	"description": "CLI for authoring, building, and publishing EmDash plugins. Covers init / build / dev / bundle / publish plus registry search and identity. Atproto OAuth, FAIR-shaped records, sandboxed-plugin-only.",
 	"type": "module",
 	"main": "dist/api.mjs",
@@ -51,8 +51,10 @@
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",
 		"@types/node": "catalog:",
+		"@types/semver": "catalog:",
 		"image-size": "catalog:",
 		"publint": "catalog:",
+		"semver": "catalog:",
 		"tsdown": "catalog:",
 		"vitest": "catalog:"
 	},

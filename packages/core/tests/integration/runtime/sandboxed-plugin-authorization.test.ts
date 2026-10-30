@@ -78,11 +78,18 @@ describe("sandboxed plugin authorization across admin status changes", () => {
 			createDialect: () => new SqliteDialect({ database: sqlite }),
 			createStorage: null,
 			sandboxEnabled: true,
-			sandboxedPluginEntries: ["policy-plugin", "dormant-plugin", "a", "a:b"].map((id) => ({
+			sandboxedPluginEntries: [
+				"policy-plugin",
+				"dormant-plugin",
+				"a",
+				"a:b",
+				"unavailable-plugin",
+			].map((id) => ({
 				id,
 				version: "1.0.0",
 				options: {},
 				code: "export default {};",
+				hooks: id === "unavailable-plugin" ? ["plugin:activate"] : [],
 				capabilities: [],
 				allowedHosts: [],
 				storage: {},
@@ -156,6 +163,44 @@ describe("sandboxed plugin authorization across admin status changes", () => {
 
 		expect((await enablePlugin(context())).status).toBe(200);
 		expect(token()).toBe(reenabledToken);
+	});
+
+	it("keeps host access revoked when activation cannot reach workerd", async () => {
+		const pluginId = "unavailable-plugin";
+		const originalToken = token(pluginId);
+		expect(await bridgeStatus(originalToken)).toBe(200);
+		expect(runtime.getPluginRouteMeta(pluginId, "/ping")).toEqual({ public: false });
+		expect((await disablePlugin(context(pluginId))).status).toBe(200);
+
+		const errorSpy = vi.spyOn(console, "error");
+		try {
+			const response = await enablePlugin(context(pluginId));
+
+			expect(response.status).toBe(500);
+			expect(await response.json()).toEqual({
+				success: false,
+				error: { code: "PLUGIN_ENABLE_ERROR", message: "Failed to enable plugin" },
+			});
+			expect(errorSpy).toHaveBeenCalledWith(
+				'EmDash: Failed to activate plugin "unavailable-plugin":',
+				expect.objectContaining({
+					message:
+						"Plugin sandbox unavailable for unavailable-plugin:1.0.0: workerd is not running",
+				}),
+			);
+		} finally {
+			errorSpy.mockRestore();
+		}
+		expect(await bridgeStatus(originalToken)).toBe(401);
+		expect(await bridgeStatus(token(pluginId))).toBe(401);
+		expect(runtime.getPluginRouteMeta(pluginId, "/ping")).toBeNull();
+		expect(
+			await runtime.db
+				.selectFrom("_plugin_state")
+				.select("status")
+				.where("plugin_id", "=", pluginId)
+				.executeTakeFirstOrThrow(),
+		).toEqual({ status: "inactive" });
 	});
 
 	it("revokes credentials even when the deactivate lifecycle hook rejects", async () => {

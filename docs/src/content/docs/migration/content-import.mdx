@@ -37,7 +37,7 @@ The XML contains attachment metadata and source URLs, not the media bytes. Keep 
 
 ### Connect the EmDash Exporter
 
-Use the exporter when you control the WordPress site and need authenticated data such as drafts, comments, menus, or supported settings. Generate a migration key under **Tools → EmDash Migration**, or connect with a WordPress username and application password. The exporter sends data through its `emdash/v1` API endpoints; it does not grant EmDash direct database access.
+Use the exporter when you control the WordPress site and need authenticated data such as drafts or supported settings. Comments, menus, the logo, the favicon, and the **Tools → EmDash Migration** page that generates a migration key need exporter 1.2.0 or later. Any exporter version can connect with a WordPress username and application password. The exporter sends data through its `emdash/v1` API endpoints; it does not grant EmDash direct database access.
 
 ## Admin import flow
 
@@ -50,7 +50,7 @@ The admin performs these stages:
 5. **Import.** Convert and create content. The exporter path uses bounded content, comment, and finalization requests.
 6. **Copy media.** Download selected WXR attachments into EmDash storage and rewrite matching URLs.
 
-The WXR path can import posts, pages, custom post types, taxonomies, reusable blocks, authors or guest bylines, and media listed in the export. The exporter path can additionally fetch comments, menus, selected site settings, and supported SEO values from the live WordPress API.
+The WXR path can import posts, pages, custom post types, taxonomies, reusable blocks, authors or guest bylines, and media listed in the export. The exporter path can additionally fetch selected site settings and supported SEO values from the live WordPress API, and with exporter 1.2.0 or later also comments, menus, the logo, and the favicon.
 
 ### Understand the analysis
 

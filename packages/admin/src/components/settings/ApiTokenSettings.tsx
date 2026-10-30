@@ -283,7 +283,10 @@ export function ApiTokenSettings() {
 									</Button>
 								</div>
 								<div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:ps-8">
-									<code className="flex min-h-10 min-w-0 flex-1 select-all items-center overflow-hidden break-all rounded border border-kumo-line bg-kumo-base px-3 py-2 font-mono text-[0.9em] leading-5">
+									<code
+										dir="ltr"
+										className="flex min-h-10 min-w-0 flex-1 select-all items-center overflow-hidden break-all rounded border border-kumo-line bg-kumo-base px-3 py-2 font-mono text-[0.9em] leading-5"
+									>
 										{tokenVisible ? newToken.token : "••••••••••••••••••••••••••••"}
 									</code>
 									<div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
@@ -357,7 +360,10 @@ export function ApiTokenSettings() {
 									<div className="min-w-0 flex-1">
 										<div className="flex min-w-0 flex-wrap items-center gap-2">
 											<span className="truncate text-sm font-medium">{token.name}</span>
-											<code className="rounded bg-kumo-tint px-1.5 py-0.5 font-mono text-[0.9em] text-kumo-subtle">
+											<code
+												dir="ltr"
+												className="rounded bg-kumo-tint px-1.5 py-0.5 font-mono text-[0.9em] text-kumo-subtle"
+											>
 												{token.prefix}...
 											</code>
 										</div>

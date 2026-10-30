@@ -1,3 +1,4 @@
+import type { APIContext } from "astro";
 import { sql, type Kysely } from "kysely";
 
 import { after } from "../after.js";
@@ -8,6 +9,7 @@ import { createCommentBody } from "../api/schemas/comments.js";
 import { getSiteBaseUrl } from "../api/site-url.js";
 import type { EmDashConfig } from "../astro/integration/runtime.js";
 import { checkRateLimit } from "../auth/rate-limit.js";
+import { invalidateRouteCache } from "../cache/route-cache.js";
 import { resolveSecretsCached } from "../config/secrets.js";
 import { CommentRepository } from "../database/repositories/comment.js";
 import type { Database } from "../database/types.js";
@@ -52,6 +54,7 @@ export async function submitPublicComment(
 	contentId: string,
 	request: Request,
 	user?: UserInfo,
+	cache?: Pick<APIContext["cache"], "enabled" | "invalidate">,
 ): Promise<Response> {
 	try {
 		const body = await parseBody(request, createCommentBody);
@@ -226,6 +229,10 @@ export async function submitPublicComment(
 		);
 
 		if (!result) return apiError("COMMENT_REJECTED", "Comment was rejected", 403);
+
+		if (result.comment.status === "approved") {
+			await invalidateRouteCache(cache, [result.comment.collection, result.comment.contentId]);
+		}
 
 		if (result.comment.status === "approved" && runtime.email && contentAuthor) {
 			try {

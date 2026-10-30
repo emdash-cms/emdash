@@ -10,51 +10,70 @@
   both modes at once; use light-dark(<light>, <dark>) in an override to
   keep them distinct.
 
-  --font-heading (the serif display face) is defined by the font
-  pipeline in astro.config.mjs, not here. To swap it, edit the fonts
-  entry there. --font-body is the deliberately quiet system sans stack
-  below.
+  --font-sans and --font-mono are defined by the font pipeline in
+  astro.config.mjs, not here. The heading, body and label faces below
+  point at them, so swap a loaded font there, or override
+  --font-heading, --font-body or --font-label in theme.css to use a
+  different face for one role.
 */
+
+/* Rank Astro's responsive image styles below these defaults */
+@layer astro.images, base;
 
 @layer base {
 	:root {
 		color-scheme: light dark;
 
 		/* Colors */
-		--color-bg: light-dark(#fafafa, #0a0a0a);
-		--color-text: light-dark(#1a1a1a, #f5f5f5);
-		--color-muted: light-dark(#6b7280, #a1a1aa);
-		--color-border: light-dark(#e5e7eb, #27272a);
-		--color-surface: light-dark(#ffffff, #18181b);
-		--color-brand: light-dark(#7c3aed, #a78bfa); /* the single accent, used sparingly */
-		--color-on-brand: white; /* text on brand-colored surfaces */
-		--color-brand-ring: color-mix(in srgb, var(--color-brand) 10%, transparent);
+		--color-bg: light-dark(#f3f2ee, #0e0e0d); /* paper */
+		--color-surface: light-dark(#faf9f6, #161615);
+		--color-fill: light-dark(#e8e6e0, #1f1e1c); /* hover fills, image placeholders */
+		--color-text: light-dark(#121212, #edebe6); /* ink */
+		--color-text-secondary: light-dark(#3b3a37, #c9c6bf);
+		--color-muted: light-dark(#6a6761, #9a968e); /* labels and meta; AA on bg and fill */
+		--color-border: light-dark(#d9d7d1, #2b2a27); /* hairline rules */
+		--color-border-strong: light-dark(#b9b6af, #45433f);
+		--color-brand: light-dark(#121212, #edebe6); /* buttons and focus rings */
+		--color-on-brand: light-dark(#f3f2ee, #0e0e0d); /* text on brand-colored surfaces */
+		--color-brand-ring: color-mix(in srgb, var(--color-brand) 20%, transparent);
 		--color-danger: light-dark(#dc2626, #f87171);
+		--color-image-outline: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.08));
 
 		/* Typography */
-		--font-body: system-ui, -apple-system, sans-serif;
-		--font-weight-heading: 500; /* serif headings and titles */
-		--font-weight-display: 500; /* hero and page titles */
+		--font-heading: var(--font-sans, system-ui, sans-serif);
+		--font-body: var(--font-sans, system-ui, sans-serif);
+		--font-label: var(--font-mono, ui-monospace, monospace);
+		--font-weight-heading: 500; /* headings, card and row titles */
+		--font-weight-display: 500; /* page titles and the home statement */
+		--font-weight-wordmark: 600; /* site title in the header and footer */
+		--wordmark-fit: 0.54; /* footer wordmark: average letter width in em; raise it if a wider font overflows */
 
 		/* Type scale */
+		--font-size-label: 0.75rem; /* mono uppercase labels */
 		--font-size-xs: 0.75rem;
 		--font-size-sm: 0.875rem;
-		--font-size-base: 1.0625rem;
+		--font-size-base: 1rem;
+		--font-size-md: 1.125rem;
 		--font-size-lg: 1.25rem;
-		--font-size-xl: 1.5rem;
-		--font-size-2xl: 2rem;
-		--font-size-3xl: 2.75rem;
-		--font-size-4xl: 3.5rem;
+		--font-size-xl: clamp(1.375rem, 1.2rem + 0.6vw, 1.75rem);
+		--font-size-2xl: clamp(1.75rem, 1.4rem + 1.3vw, 2.5rem);
+		--font-size-3xl: clamp(2.25rem, 1.6rem + 2.6vw, 3.75rem);
+		--font-size-4xl: clamp(2.75rem, 1.7rem + 4.4vw, 5.5rem);
+		--font-size-display: clamp(2.25rem, 1rem + 4.2vw, 4.75rem); /* home statement */
+		--font-size-title: clamp(3rem, 1.2rem + 7.5vw, 9.5rem); /* page and project titles */
 
 		/* Line heights */
-		--leading-tight: 1.1; /* hero and project titles */
+		--leading-none: 0.9; /* poster-size titles */
+		--leading-tight: 1.02; /* display type */
 		--leading-snug: 1.2; /* headings */
-		--leading-normal: 1.6; /* body copy */
-		--leading-relaxed: 1.7; /* long-form content */
+		--leading-normal: 1.5; /* body copy */
+		--leading-relaxed: 1.65; /* long-form content */
 
 		/* Letter spacing */
-		--tracking-tight: -0.02em; /* site title, hero title */
-		--tracking-wide: 0.05em; /* uppercase meta lines, tag chips */
+		--tracking-display: -0.045em; /* poster-size titles */
+		--tracking-tight: -0.025em; /* headings, site title */
+		--tracking-label: 0.04em; /* mono uppercase labels */
+		--tracking-wide: 0.05em;
 
 		/* Spacing */
 		--spacing-xs: 0.25rem;
@@ -65,13 +84,24 @@
 		--spacing-2xl: 3rem;
 		--spacing-3xl: 4rem;
 		--spacing-4xl: 6rem;
+		--spacing-5xl: 8rem;
+		--spacing-6xl: 12rem;
 
 		/* Layout */
+		--page-margin: clamp(1rem, 0.4rem + 2.4vw, 2.5rem); /* viewport edge to content */
+		--gutter: clamp(1rem, 0.6rem + 1vw, 1.5rem); /* gap between grid columns */
+		--section-gap: clamp(4rem, 2rem + 6vw, 9rem); /* space between page sections */
+		--page-head-space: clamp(3rem, 1.5rem + 5vw, 7rem); /* header rule to a page's first line */
+		--frame-width: 1680px; /* widest the content frame grows, margins included */
+		--measure: 62ch; /* longest comfortable line of body text */
 		--max-width: 720px;
 		--wide-width: 1200px;
-		--radius: 4px;
+		--radius: 2px;
+		--radius-full: 999px; /* pills */
 
-		/* Transitions */
+		/* Motion */
+		--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+		--duration-media: 700ms; /* image zoom on hover */
 		--transition-fast: 150ms ease;
 		--transition-base: 200ms ease;
 		--transition-slow: 300ms ease;
@@ -84,13 +114,18 @@
 	@supports not (color: light-dark(#000, #fff)) {
 		:root {
 			color-scheme: light;
-			--color-bg: #fafafa;
-			--color-text: #1a1a1a;
-			--color-muted: #6b7280;
-			--color-border: #e5e7eb;
-			--color-surface: #ffffff;
-			--color-brand: #7c3aed;
+			--color-bg: #f3f2ee;
+			--color-surface: #faf9f6;
+			--color-fill: #e8e6e0;
+			--color-text: #121212;
+			--color-text-secondary: #3b3a37;
+			--color-muted: #6a6761;
+			--color-border: #d9d7d1;
+			--color-border-strong: #b9b6af;
+			--color-brand: #121212;
+			--color-on-brand: #f3f2ee;
 			--color-danger: #dc2626;
+			--color-image-outline: rgb(0 0 0 / 0.08);
 		}
 	}
 }

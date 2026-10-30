@@ -37,14 +37,18 @@ or deletion.
 5. Select **Done** when the queue has no unfinished uploads.
 </Steps>
 
-Uploads begin as soon as files are added. New local files enter the Main library, even when another
-folder was open before the upload.
+Uploads begin as soon as files are added. New local files go into the folder you are browsing, or
+into the Main library if no folder is open. Empty folders also offer **Upload Files**. Each upload
+into a folder creates a new media item, even if the same file already exists in that folder or
+elsewhere, so existing files are not moved. Failed uploads keep their original destination when you
+retry them.
 
 ### Upload while editing content
 
 Image, file, gallery, and Portable Text image fields use a media picker. Open the field, select
 **Upload files**, and choose or drop files. A completed upload becomes part of the current selection;
-failed uploads stay visible so you can retry or remove them.
+failed uploads stay visible so you can retry or remove them. Local uploads go into the folder you
+are browsing, just as they do in the Media Library.
 
 For a gallery, review **Selected media** and use the move controls to set the order before selecting
 **Add images**. For a single image or file, select **Select** or **Insert image** after the upload
@@ -100,6 +104,17 @@ the selection. A field's MIME-type rules limit which library items and media sou
 
 The blog template's `featured_image` field stores the selected media value with the post. Saving the
 entry saves that reference to the draft; publishing makes it available to public content queries.
+
+When a selected image has a caption, the image field's media value includes it as `caption`, alongside
+`alt`. Templates should read the top-level `caption`. An empty string means this use has no caption.
+The legacy `meta.caption` alias, when present, is kept in step with `caption` when the value is selected
+or normalized on save. Normalization also promotes legacy values that only have `meta.caption`.
+
+Captions are saved with the content reference. **Edit asset** preserves a caption already stored for
+that use, including an empty string, when updating the image or its focal point. Explicitly changing
+**Caption** and saving applies the new caption to that use as well as the library item. Select the
+image again with **Replace** to copy its current library caption. Changing library metadata does not
+rewrite other entries.
 
 ### Gallery fields
 
@@ -287,6 +302,14 @@ if (!post) return Astro.rewrite("/404");
 Use `priority` only for the main image visible at the top of the page. It requests eager loading and
 gives the browser a high fetch-priority hint. Other images should retain the component's lazy-loading
 default.
+
+Set `quality={70}` to control optimized image output, or use an Astro preset: `"low"`, `"mid"`,
+`"high"`, or `"max"`. The setting applies to both light and dark variants. External media providers
+must support the quality option; unoptimized images retain their original quality. The built-in
+Cloudflare Images media provider does not currently apply this option. For internally stored media
+on Cloudflare, presets map to 25, 50, 80, and 100, and finite numeric values are rounded and clamped
+to 1–100. Other preset strings are not recognized by that endpoint and fall back to the original
+upload without optimization.
 
 If the field has a dark-mode counterpart, `Image` renders both sources and selects one from the
 visitor's color scheme. See [Dark mode images](/guides/dark-mode/#dark-image-variants) for the field and

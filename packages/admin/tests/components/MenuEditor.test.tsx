@@ -45,6 +45,7 @@ vi.mock("../../src/lib/api", async () => {
 import * as api from "../../src/lib/api";
 
 const ADD_CUSTOM_LINK_REGEX = /Add Custom Link/;
+const ABOUT_DELETE_MSG_REGEX = /"About" will be removed from this menu/;
 
 const defaultMenu = {
 	id: "menu1",
@@ -148,18 +149,35 @@ describe("MenuEditor", () => {
 			.toBeInTheDocument();
 	});
 
-	it("delete item fires immediately without confirmation dialog", async () => {
+	it("asks for confirmation before deleting a menu item", async () => {
 		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
 
-		await expect.element(screen.getByText("Home")).toBeInTheDocument();
+		await expect.element(screen.getByText("About", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Delete" }).nth(1).click();
 
-		// Delete buttons have aria-label="Delete"
-		const deleteBtn = screen.getByRole("button", { name: "Delete" });
-		await deleteBtn.first().click();
+		const dialog = screen.getByRole("dialog", { name: "Delete menu item?" });
+		await expect.element(dialog.getByText(ABOUT_DELETE_MSG_REGEX)).toBeInTheDocument();
+		expect(api.deleteMenuItem).not.toHaveBeenCalled();
 
-		// No confirmation dialog should appear
-		expect(screen.getByText("Are you sure").query()).toBeNull();
-		expect(screen.getByText("Confirm").query()).toBeNull();
+		dialog.getByRole("button", { name: "Delete" }).element().click();
+
+		await vi.waitFor(() =>
+			expect(api.deleteMenuItem).toHaveBeenCalledWith("main-menu", "2", { locale: "en" }),
+		);
+		await expect.element(dialog).not.toBeInTheDocument();
+	});
+
+	it("keeps the confirmation open with the error when deleting a menu item fails", async () => {
+		vi.mocked(api.deleteMenuItem).mockRejectedValueOnce(new Error("Menu item not found"));
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await expect.element(screen.getByText("About", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Delete" }).nth(1).click();
+		const dialog = screen.getByRole("dialog", { name: "Delete menu item?" });
+		await expect.element(dialog).toBeInTheDocument();
+		dialog.getByRole("button", { name: "Delete" }).element().click();
+
+		await expect.element(dialog.getByRole("alert")).toHaveTextContent("Menu item not found");
 	});
 
 	it("up/down reorder buttons — first item up disabled, last item down disabled", async () => {

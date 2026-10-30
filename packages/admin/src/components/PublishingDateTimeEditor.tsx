@@ -1,10 +1,13 @@
 import { Button, DatePicker, Dialog, Input, Select, Text } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Globe, PencilSimple, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import {
 	getPublishingTimeZone,
+	nextPublishingScheduleSlot,
 	publishingFieldsMatchInstant,
 	publishingInstantToLocalFields,
 	resolvePublishingLocalDateTime,
@@ -14,7 +17,7 @@ import {
 import { isolate } from "../lib/utils.js";
 import { getLocaleDir } from "../locales/config.js";
 import { useDateLocale } from "../locales/date-locale.js";
-import { DialogError, getMutationError } from "./DialogError.js";
+import { getMutationError } from "./DialogError.js";
 
 interface PublishingDateTimeFieldsProps {
 	date: Date | undefined;
@@ -22,9 +25,21 @@ interface PublishingDateTimeFieldsProps {
 	disabled?: boolean;
 	restrictToFuture?: boolean;
 	dateAriaLabel: string;
+	/** A new object on every failed save, so focus returns to the field even when the reason repeats. */
+	invalid?: { reason: PublishingDateTimeError } | null;
+	errorMessage?: string | null;
 	onDateChange: (date: Date | undefined) => void;
 	onTimeChange: (time: string) => void;
 }
+
+const VALIDATION_MESSAGES: Record<PublishingDateTimeError, MessageDescriptor> = {
+	"missing-date": msg`Choose a date`,
+	"invalid-date": msg`Choose a valid date`,
+	"missing-time": msg`Enter a time`,
+	"invalid-time": msg`Enter a valid time`,
+	past: msg`Choose a time in the future`,
+	"nonexistent-time": msg`That time does not exist in your time zone`,
+};
 
 function getLocalToday(): Date {
 	const now = new Date();
@@ -81,12 +96,12 @@ function timePartsFromValue(value: string, use12HourClock: boolean): TimeParts {
 }
 
 function timeValueFromParts(parts: TimeParts, use12HourClock: boolean): string {
-	if (parts.hour.length !== 2 || parts.minute.length !== 2) return "";
+	if (!parts.hour || !parts.minute) return "";
 	const hour = Number(parts.hour);
 	const minute = Number(parts.minute);
 	if (minute > 59 || (use12HourClock ? hour < 1 || hour > 12 : hour > 23)) return "";
 	const hour24 = use12HourClock ? (hour % 12) + (parts.period === "pm" ? 12 : 0) : hour;
-	return `${String(hour24).padStart(2, "0")}:${parts.minute}`;
+	return `${String(hour24).padStart(2, "0")}:${parts.minute.padStart(2, "0")}`;
 }
 
 export function PublishingDateTimeFields({
@@ -95,6 +110,8 @@ export function PublishingDateTimeFields({
 	disabled,
 	restrictToFuture,
 	dateAriaLabel,
+	invalid,
+	errorMessage,
 	onDateChange,
 	onTimeChange,
 }: PublishingDateTimeFieldsProps) {
@@ -121,6 +138,8 @@ export function PublishingDateTimeFields({
 	const [timeParts, setTimeParts] = React.useState(() => timePartsFromValue(time, use12HourClock));
 	const minuteInputRef = React.useRef<HTMLInputElement>(null);
 	const lastEmittedValueRef = React.useRef<string | null>(null);
+	const lastCompleteTimeRef = React.useRef(time);
+	if (time) lastCompleteTimeRef.current = time;
 	const previousHourCycleRef = React.useRef(use12HourClock);
 	React.useEffect(() => {
 		const hourCycleChanged = previousHourCycleRef.current !== use12HourClock;
@@ -137,6 +156,10 @@ export function PublishingDateTimeFields({
 		const nextValue = timeValueFromParts(nextParts, use12HourClock);
 		lastEmittedValueRef.current = nextValue;
 		onTimeChange(nextValue);
+	};
+	const restoreTimePart = (part: "hour" | "minute") => {
+		const restored = timePartsFromValue(lastCompleteTimeRef.current, use12HourClock)[part];
+		if (restored) updateTimeParts({ ...timeParts, [part]: restored });
 	};
 	const updateHour = (value: string) => {
 		let hour = numericTimePart(value);
@@ -158,11 +181,24 @@ export function PublishingDateTimeFields({
 		if (minute.length === 2 && Number(minute) > 59) return;
 		updateTimeParts({ ...timeParts, minute });
 	};
+	const errorId = React.useId();
+	const timeGroupRef = React.useRef<HTMLDivElement>(null);
+	const timeInvalid = invalid ? !invalid.reason.endsWith("-date") : false;
+	const flagBothParts = Boolean(timeParts.hour && timeParts.minute);
+	const hourInvalid = timeInvalid && (flagBothParts || !timeParts.hour);
+	const minuteInvalid = timeInvalid && (flagBothParts || !timeParts.minute);
+	React.useEffect(() => {
+		if (!invalid) return;
+		timeGroupRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus();
+	}, [invalid]);
 
+	const errorText = errorMessage || (invalid ? t(VALIDATION_MESSAGES[invalid.reason]) : null);
 	return (
 		<div className="space-y-4">
 			<DatePicker
 				mode="single"
+				required
+				fixedWeeks
 				selected={date}
 				month={month}
 				onMonthChange={setMonth}
@@ -184,14 +220,19 @@ export function PublishingDateTimeFields({
 					{t`Time`}
 				</Text>
 				<div
+					ref={timeGroupRef}
+					dir="ltr"
 					className={
 						use12HourClock
-							? "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2"
+							? "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 rtl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_minmax(0,1fr)]"
 							: "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2"
 					}
 				>
 					<Input
 						aria-label={t`Hour`}
+						variant={hourInvalid ? "error" : "default"}
+						aria-invalid={hourInvalid || undefined}
+						aria-describedby={hourInvalid ? errorId : undefined}
 						placeholder="--"
 						value={timeParts.hour}
 						type="text"
@@ -204,6 +245,7 @@ export function PublishingDateTimeFields({
 						onBlur={(event) => {
 							const hour = numericTimePart(event.currentTarget.value);
 							if (hour.length === 1) updateHour(hour.padStart(2, "0"));
+							if (!hour) restoreTimePart("hour");
 						}}
 						disabled={disabled}
 						className="w-full tabular-nums"
@@ -214,6 +256,9 @@ export function PublishingDateTimeFields({
 					<Input
 						ref={minuteInputRef}
 						aria-label={t`Minute`}
+						variant={minuteInvalid ? "error" : "default"}
+						aria-invalid={minuteInvalid || undefined}
+						aria-describedby={minuteInvalid ? errorId : undefined}
 						placeholder="--"
 						value={timeParts.minute}
 						type="text"
@@ -226,35 +271,48 @@ export function PublishingDateTimeFields({
 						onBlur={(event) => {
 							const minute = numericTimePart(event.currentTarget.value);
 							if (minute.length === 1) updateMinute(minute.padStart(2, "0"));
+							if (!minute) restoreTimePart("minute");
 						}}
 						disabled={disabled}
 						className="w-full tabular-nums"
 					/>
 					{use12HourClock ? (
-						<Select
-							aria-label={t`Period`}
-							value={timeParts.period}
-							onValueChange={(period) => {
-								if (period === "am" || period === "pm") {
-									updateTimeParts({ ...timeParts, period });
-								}
-							}}
-							items={periodItems}
-							disabled={disabled}
-							className="w-full"
-						/>
+						<div dir={getLocaleDir(i18n.locale)} className="rtl:order-first">
+							<Select
+								aria-label={t`Period`}
+								value={timeParts.period}
+								onValueChange={(period) => {
+									if (period === "am" || period === "pm") {
+										updateTimeParts({ ...timeParts, period });
+									}
+								}}
+								items={periodItems}
+								disabled={disabled}
+								className="w-full"
+							/>
+						</div>
 					) : null}
 				</div>
-			</fieldset>
-			<div className="flex items-start gap-2 text-kumo-subtle">
-				<span className="flex h-lh items-center" aria-hidden="true">
-					<Globe className="size-4" />
-				</span>
-				<Text as="p" variant="secondary" DANGEROUS_className="min-w-0">
-					<span className="sr-only">{t`Timezone`}: </span>
-					<bdi>{zoneValue}</bdi>
+				<Text
+					as="p"
+					id={errorId}
+					role="alert"
+					variant="error"
+					size="sm"
+					DANGEROUS_className="mt-1.5 min-h-lh whitespace-pre-line"
+				>
+					{errorText}
 				</Text>
-			</div>
+				<div className="mt-2 flex items-start gap-2 text-kumo-subtle">
+					<span className="flex h-lh shrink-0 items-center" aria-hidden="true">
+						<Globe className="size-4" />
+					</span>
+					<Text as="p" variant="secondary" DANGEROUS_className="min-w-0">
+						<span className="sr-only">{t`Timezone`}: </span>
+						<bdi>{zoneValue}</bdi>
+					</Text>
+				</div>
+			</fieldset>
 		</div>
 	);
 }
@@ -269,30 +327,14 @@ export interface PublishingScheduleDialogProps {
 	onSchedule?: (scheduledAt: string) => void | Promise<void>;
 }
 
-function validationMessage(error: PublishingDateTimeError, t: ReturnType<typeof useLingui>["t"]) {
-	switch (error) {
-		case "missing-date":
-			return t`Choose a date`;
-		case "missing-time":
-			return t`Choose a time`;
-		case "past":
-			return t`Choose a time in the future`;
-		case "nonexistent-time":
-			return t`That time does not exist in your time zone`;
-		case "invalid-date":
-		case "invalid-time":
-			return t`Choose a valid date and time`;
-	}
-}
-
 interface PublishingDateTimeDialogContentProps {
 	title: string;
-	description?: string;
 	date: Date | undefined;
 	time: string;
 	pending: boolean;
 	restrictToFuture?: boolean;
 	dateAriaLabel: string;
+	invalid: { reason: PublishingDateTimeError } | null;
 	errorMessage: string | null;
 	submitLabel: string;
 	submitDisabled: boolean;
@@ -303,12 +345,12 @@ interface PublishingDateTimeDialogContentProps {
 
 function PublishingDateTimeDialogContent({
 	title,
-	description,
 	date,
 	time,
 	pending,
 	restrictToFuture,
 	dateAriaLabel,
+	invalid,
 	errorMessage,
 	submitLabel,
 	submitDisabled,
@@ -325,20 +367,15 @@ function PublishingDateTimeDialogContent({
 
 	return (
 		<Dialog
-			className="max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto px-6 py-4 sm:px-7 sm:py-5"
+			className="flex max-h-[calc(100dvh-2rem)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0"
 			size="sm"
 			style={{ width: "22rem" }}
 		>
-			<form onSubmit={handleSubmit} noValidate>
-				<div className="flex items-center justify-between gap-2">
-					<div className="min-w-0 grid gap-1.5">
-						<Dialog.Title className="text-lg font-semibold leading-6">{title}</Dialog.Title>
-						{description ? (
-							<Dialog.Description className="text-base leading-5 text-pretty text-kumo-subtle">
-								{description}
-							</Dialog.Description>
-						) : null}
-					</div>
+			<form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
+				<div className="flex shrink-0 items-center justify-between gap-4 border-b border-kumo-line px-5 py-4 sm:px-6">
+					<Dialog.Title className="min-w-0 text-lg font-semibold leading-6 text-pretty">
+						{title}
+					</Dialog.Title>
 					<Dialog.Close
 						render={
 							<Button
@@ -347,24 +384,25 @@ function PublishingDateTimeDialogContent({
 								shape="square"
 								icon={<X aria-hidden="true" />}
 								aria-label={t`Close`}
+								className="-my-2 -me-2 shrink-0"
 							/>
 						}
 					/>
 				</div>
-
-				<div className="mt-4">
+				<div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
 					<PublishingDateTimeFields
 						date={date}
 						time={time}
 						disabled={pending}
 						restrictToFuture={restrictToFuture}
 						dateAriaLabel={dateAriaLabel}
+						invalid={invalid}
+						errorMessage={errorMessage}
 						onDateChange={onDateChange}
 						onTimeChange={onTimeChange}
 					/>
 				</div>
-				<DialogError message={errorMessage} className="mt-3" />
-				<div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+				<div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-kumo-line px-5 py-4 sm:px-6">
 					<Dialog.Close render={<Button type="button" variant="secondary" />}>
 						{t`Cancel`}
 					</Dialog.Close>
@@ -386,6 +424,10 @@ function PublishingDateTimeDialogContent({
 	);
 }
 
+function scheduleFields(scheduledAt: string | null) {
+	return scheduledAt ? publishingInstantToLocalFields(scheduledAt) : nextPublishingScheduleSlot();
+}
+
 export function PublishingScheduleDialog({
 	open,
 	entryKey,
@@ -396,10 +438,10 @@ export function PublishingScheduleDialog({
 	onSchedule,
 }: PublishingScheduleDialogProps) {
 	const { t } = useLingui();
-	const initial = React.useMemo(() => publishingInstantToLocalFields(scheduledAt), [scheduledAt]);
+	const [initial] = React.useState(() => scheduleFields(scheduledAt));
 	const [date, setDate] = React.useState(initial.date);
 	const [time, setTime] = React.useState(initial.time);
-	const [validationError, setValidationError] = React.useState<string | null>(null);
+	const [invalid, setInvalid] = React.useState<{ reason: PublishingDateTimeError } | null>(null);
 	const [mutationError, setMutationError] = React.useState<unknown>(null);
 	const [submitting, setSubmitting] = React.useState(false);
 	const generationRef = React.useRef(0);
@@ -410,10 +452,10 @@ export function PublishingScheduleDialog({
 	const isEditing = Boolean(scheduledAt);
 
 	const reset = React.useCallback(() => {
-		const next = publishingInstantToLocalFields(scheduledAt);
+		const next = scheduleFields(scheduledAt);
 		setDate(next.date);
 		setTime(next.time);
-		setValidationError(null);
+		setInvalid(null);
 		setMutationError(null);
 	}, [scheduledAt]);
 
@@ -424,8 +466,14 @@ export function PublishingScheduleDialog({
 		reset();
 	}, [entryKey, reset]);
 
+	// Resetting on open rather than only on close also recomputes the suggested slot, which is
+	// relative to now, and discards edits that a blur fires while the dialog is closing.
+	React.useLayoutEffect(() => {
+		if (open) reset();
+	}, [open, reset]);
+
 	const clearError = () => {
-		setValidationError(null);
+		setInvalid(null);
 		setMutationError(null);
 	};
 
@@ -438,7 +486,8 @@ export function PublishingScheduleDialog({
 		if (!onSchedule || pending || activeSubmissionRef.current?.entryKey === entryKey) return;
 		const result = serializeFuturePublishingDateTime(date, time);
 		if (!result.success) {
-			setValidationError(validationMessage(result.error, t));
+			setMutationError(null);
+			setInvalid({ reason: result.error });
 			return;
 		}
 		if (isEditing && publishingFieldsMatchInstant(scheduledAt, date, time)) return;
@@ -470,24 +519,19 @@ export function PublishingScheduleDialog({
 		: isLive
 			? t`Schedule changes`
 			: t`Schedule publication`;
-	const description = isLive
-		? t`Choose when these changes replace the live version.`
-		: isEditing
-			? t`Choose a new publication time for this draft.`
-			: t`Choose when this draft becomes public.`;
 	const submitLabel = isEditing ? t`Save schedule` : isLive ? t`Schedule changes` : t`Schedule`;
 
 	return (
 		<Dialog.Root open={open} onOpenChange={handleOpenChange}>
 			<PublishingDateTimeDialogContent
 				title={title}
-				description={description}
 				date={date}
 				time={time}
 				pending={pending}
 				restrictToFuture
 				dateAriaLabel={t`Schedule date`}
-				errorMessage={validationError ?? getMutationError(mutationError)}
+				invalid={invalid}
+				errorMessage={getMutationError(mutationError)}
 				submitLabel={submitLabel}
 				submitDisabled={isEditing && publishingFieldsMatchInstant(scheduledAt, date, time)}
 				onDateChange={(nextDate) => {
@@ -526,7 +570,7 @@ export function PublicationDateDialog({
 	const [open, setOpen] = React.useState(false);
 	const [date, setDate] = React.useState(initial.date);
 	const [time, setTime] = React.useState(initial.time);
-	const [validationError, setValidationError] = React.useState<string | null>(null);
+	const [invalid, setInvalid] = React.useState<{ reason: PublishingDateTimeError } | null>(null);
 	const [mutationError, setMutationError] = React.useState<unknown>(null);
 	const [submitting, setSubmitting] = React.useState(false);
 	const generationRef = React.useRef(0);
@@ -540,7 +584,7 @@ export function PublicationDateDialog({
 		const next = publishingInstantToLocalFields(publishedAt);
 		setDate(next.date);
 		setTime(next.time);
-		setValidationError(null);
+		setInvalid(null);
 		setMutationError(null);
 	}, [publishedAt]);
 
@@ -553,12 +597,12 @@ export function PublicationDateDialog({
 	}, [contextKey, reset]);
 
 	const clearError = () => {
-		setValidationError(null);
+		setInvalid(null);
 		setMutationError(null);
 	};
 
 	const handleOpenChange = (nextOpen: boolean) => {
-		if (!nextOpen && !pending) reset();
+		if (nextOpen || !pending) reset();
 		setOpen(nextOpen);
 	};
 
@@ -566,7 +610,8 @@ export function PublicationDateDialog({
 		if (pending || activeSubmissionRef.current?.contextKey === contextKey) return;
 		const result = resolvePublishingLocalDateTime(date, time);
 		if (!result.success) {
-			setValidationError(validationMessage(result.error, t));
+			setMutationError(null);
+			setInvalid({ reason: result.error });
 			return;
 		}
 		if (publishingFieldsMatchInstant(publishedAt, date, time)) return;
@@ -631,7 +676,8 @@ export function PublicationDateDialog({
 				time={time}
 				pending={pending}
 				dateAriaLabel={t`Publication date`}
-				errorMessage={validationError ?? getMutationError(mutationError)}
+				invalid={invalid}
+				errorMessage={getMutationError(mutationError)}
 				submitLabel={t`Save date`}
 				submitDisabled={publishingFieldsMatchInstant(publishedAt, date, time)}
 				onDateChange={(nextDate) => {

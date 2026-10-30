@@ -147,6 +147,23 @@ describe("SeoSettings", () => {
 		for (const button of saveButtons) await expect.element(button).toBeDisabled();
 	});
 
+	it("lets the title separator be cleared and replaced without a fallback", async () => {
+		mockFetchSettings.mockResolvedValue({
+			...defaultSettings,
+			seo: { ...defaultSettings.seo, titleSeparator: "|" },
+		});
+		const screen = await renderSeoSettings();
+		const separator = screen.getByLabelText("Title Separator");
+		await expect.element(separator).toHaveValue("|");
+
+		await separator.fill("");
+		await userEvent.type(separator, "-");
+		await expect.element(separator).toHaveValue("-");
+		for (const button of screen.getByRole("button", { name: "Save", exact: true }).all()) {
+			await expect.element(button).toBeEnabled();
+		}
+	});
+
 	it("submits the bottom save action and returns both actions to pristine", async () => {
 		const screen = await renderSeoSettings();
 		await screen
@@ -172,6 +189,28 @@ describe("SeoSettings", () => {
 		const savedButtons = screen.getByRole("button", { name: "Saved", exact: true }).all();
 		expect(savedButtons).toHaveLength(2);
 		for (const button of savedButtons) await expect.element(button).toBeDisabled();
+	});
+
+	it("saves the AI training opt-out", async () => {
+		const screen = await renderSeoSettings();
+		const toggle = screen.getByRole("switch", { name: "Disallow AI training" });
+		await expect.element(toggle).not.toBeChecked();
+		await expect
+			.element(toggle)
+			.toHaveAccessibleDescription(
+				"Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it.",
+			);
+
+		await userEvent.click(toggle);
+		await expect.element(toggle).toBeChecked();
+		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).all()[0]);
+
+		await vi.waitFor(() => {
+			expect(mockUpdateSettings).toHaveBeenCalledWith({
+				...defaultSettings,
+				seo: { ...defaultSettings.seo, disallowAiTraining: true },
+			});
+		});
 	});
 
 	it("keeps cached SEO settings visible when the post-save refetch fails", async () => {
