@@ -315,9 +315,11 @@ export interface SandboxRunner {
 	/**
 	 * Start a deferred sandbox runtime and wait for readiness.
 	 * Hosts can call this before starting a plugin hook's timeout.
+	 * Pass `waitForPendingRestart` to wait for a crash restart's backoff timer.
+	 * Without the opt-in, a pending backoff does not delay the caller.
 	 * Optional for runners that are ready as soon as load() completes.
 	 */
-	ensureRunning?(): Promise<void>;
+	ensureRunning?(options?: { waitForPendingRestart?: boolean }): Promise<void>;
 
 	/**
 	 * Why the runner cannot run plugins, once isAvailable() or isHealthy()

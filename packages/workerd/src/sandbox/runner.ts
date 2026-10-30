@@ -486,19 +486,20 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * Batches plugin loading: all plugins are registered via load(),
 	 * then workerd starts once on the first hook/route call.
 	 */
-	async ensureRunning(): Promise<void> {
+	async ensureRunning(options?: { waitForPendingRestart?: boolean }): Promise<void> {
 		if (this.shuttingDown || this.plugins.size === 0) return;
-		// If a startup is already in progress, wait for it
-		if (this.startupPromise) {
-			await this.startupPromise;
-			return this.ensureRunning();
-		}
 		// A crashed process waits for backoff before needsRestart is set.
 		if (this.restartTimer && !this.gaveUp) {
+			if (!options?.waitForPendingRestart) return;
 			await new Promise<void>((resolve) => {
 				this.restartWaiters.add(resolve);
 			});
-			return this.ensureRunning();
+			return this.ensureRunning(options);
+		}
+		// If a startup is already in progress, wait for it
+		if (this.startupPromise) {
+			await this.startupPromise;
+			return this.ensureRunning(options);
 		}
 		if (!this.needsRestart) return;
 
@@ -527,7 +528,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 				this.needsRestart = false;
 				await this.stopWorkerd();
 			} else {
-				await this.ensureRunning();
+				await this.ensureRunning(options);
 			}
 		}
 	}

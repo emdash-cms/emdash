@@ -484,7 +484,7 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		sqlite.close();
 	});
 
-	it("waits for crash backoff and readiness when workerd dies during a hook", async () => {
+	it("waits for setup readiness through crash backoff when workerd dies during a hook", async () => {
 		const pluginId = "crash-recovery";
 		const plugin = await runner.load(
 			{
@@ -535,7 +535,11 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		expect(runner["restartTimer"]).not.toBeNull();
 		expect(runner["needsRestart"]).toBe(false);
 
-		await Promise.all([runner.ensureRunning(), runner.ensureRunning(), hookFailure]);
+		await Promise.all([
+			runner.ensureRunning({ waitForPendingRestart: true }),
+			runner.ensureRunning({ waitForPendingRestart: true }),
+			hookFailure,
+		]);
 		expect(runner.isHealthy()).toBe(true);
 		expect(runner.currentEpoch).toBe(epoch + 1);
 		await plugin.invokeHook("plugin:activate", {});

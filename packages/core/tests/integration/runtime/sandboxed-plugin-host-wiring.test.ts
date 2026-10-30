@@ -14,6 +14,7 @@ import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import {
 	SandboxUnavailableError,
 	type SandboxedPluginInstance,
+	type SandboxRunner,
 } from "../../../src/plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../../src/plugins/state.js";
 import { PLUGIN_CAPABILITY_IMPLICATIONS } from "../../../src/plugins/types.js";
@@ -78,7 +79,7 @@ const sandboxHookHandlers = new Map<string, SandboxedPluginInstance["invokeHook"
 let sandboxActive = false;
 let sandboxInvokeRoute: ReturnType<typeof vi.fn> = vi.fn();
 let setSandboxActive = vi.fn<(active: boolean) => void>();
-let ensureRunning = vi.fn<() => Promise<void>>(async () => undefined);
+let ensureRunning = vi.fn<NonNullable<SandboxRunner["ensureRunning"]>>(async () => undefined);
 let isHealthy = vi.fn(() => true);
 
 function createDeps(
@@ -93,8 +94,8 @@ function createDeps(
 	sandboxInvokeRoute = vi.fn(async () => ({ status: 200, body: { ok: true } }));
 	setSandboxActive = vi.fn();
 	isHealthy = vi.fn(() => true);
-	ensureRunning = vi.fn(async () => {
-		isHealthy.mockReturnValue(true);
+	ensureRunning = vi.fn<NonNullable<SandboxRunner["ensureRunning"]>>(async (options) => {
+		if (options?.waitForPendingRestart) isHealthy.mockReturnValue(true);
 	});
 	const database = new Database(":memory:");
 	const runner = {
@@ -546,8 +547,8 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		deps.sandboxedPluginEntries.push({ ...deps.sandboxedPluginEntries[0]!, id: "later-sandbox" });
 		const laterHook = vi.fn(async () => undefined);
 		sandboxHookHandlers.set("later-sandbox", laterHook);
-		ensureRunning.mockImplementation(async () => {
-			if (!isHealthy()) {
+		ensureRunning.mockImplementation(async (options) => {
+			if (!isHealthy() && options?.waitForPendingRestart) {
 				await recovery;
 				isHealthy.mockReturnValue(true);
 			}

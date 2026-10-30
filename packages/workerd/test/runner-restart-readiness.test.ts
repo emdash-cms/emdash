@@ -39,6 +39,45 @@ describe("workerd crash restart readiness", () => {
 		return runner;
 	}
 
+	it("fails ordinary hooks and routes immediately during crash backoff", async () => {
+		await makeRunner();
+		const plugin = await runner.load(MANIFEST, "export default {};");
+		const restart = vi.fn(async () => undefined);
+		runner["restart"] = restart;
+		runner["needsRestart"] = false;
+		runner["scheduleRestart"]();
+		let setupSettled = false;
+		const setup = runner.ensureRunning({ waitForPendingRestart: true }).finally(() => {
+			setupSettled = true;
+		});
+		let settled = false;
+		const results = Promise.all(
+			[
+				plugin.invokeHook("plugin:activate", {}),
+				plugin.invokeRoute("ping", {}, { method: "GET", url: "/ping", headers: {} }),
+			].map(async (invocation) => {
+				try {
+					await invocation;
+					return undefined;
+				} catch (error) {
+					return error;
+				}
+			}),
+		).finally(() => {
+			settled = true;
+		});
+
+		await vi.advanceTimersByTimeAsync(0);
+		expect(settled).toBe(true);
+		for (const error of await results) {
+			expect(error).toMatchObject({ name: "SandboxUnavailableError" });
+		}
+		expect(restart).not.toHaveBeenCalled();
+		expect(setupSettled).toBe(false);
+		await runner.terminateAll();
+		await setup;
+	});
+
 	it("waits for pending crash backoff and readiness, sharing the restart", async () => {
 		await makeRunner();
 		let resolveRestart!: () => void;
@@ -58,7 +97,10 @@ describe("workerd crash restart readiness", () => {
 		runner["scheduleRestart"]();
 
 		let settled = false;
-		const running = Promise.all([runner.ensureRunning(), runner.ensureRunning()]).finally(() => {
+		const running = Promise.all([
+			runner.ensureRunning({ waitForPendingRestart: true }),
+			runner.ensureRunning({ waitForPendingRestart: true }),
+		]).finally(() => {
 			settled = true;
 		});
 		await vi.advanceTimersByTimeAsync(999);
@@ -85,7 +127,10 @@ describe("workerd crash restart readiness", () => {
 		runner["scheduleRestart"]();
 
 		let settled = false;
-		const running = Promise.all([runner.ensureRunning(), runner.ensureRunning()]).finally(() => {
+		const running = Promise.all([
+			runner.ensureRunning({ waitForPendingRestart: true }),
+			runner.ensureRunning({ waitForPendingRestart: true }),
+		]).finally(() => {
 			settled = true;
 		});
 		await vi.advanceTimersByTimeAsync(999);
@@ -103,7 +148,7 @@ describe("workerd crash restart readiness", () => {
 		runner["restart"] = restart;
 		runner["needsRestart"] = false;
 		runner["scheduleRestart"]();
-		const running = runner.ensureRunning();
+		const running = runner.ensureRunning({ waitForPendingRestart: true });
 		runner.unloadPlugin(`${MANIFEST.id}:${MANIFEST.version}`);
 
 		await vi.advanceTimersByTimeAsync(1000);
@@ -126,7 +171,7 @@ describe("workerd crash restart readiness", () => {
 			runner["workerdProcess"] = null;
 			runner["needsRestart"] = false;
 			runner["scheduleRestart"]();
-			const running = runner.ensureRunning();
+			const running = runner.ensureRunning({ waitForPendingRestart: true });
 
 			await vi.advanceTimersByTimeAsync(delay - 1);
 			expect(restart).toHaveBeenCalledTimes(attempt);
@@ -139,7 +184,7 @@ describe("workerd crash restart readiness", () => {
 		runner["workerdProcess"] = null;
 		runner["needsRestart"] = false;
 		runner["scheduleRestart"]();
-		const gaveUp = runner.ensureRunning();
+		const gaveUp = runner.ensureRunning({ waitForPendingRestart: true });
 		await gaveUp;
 		expect(restart).toHaveBeenCalledTimes(5);
 		expect(runner.isHealthy()).toBe(false);

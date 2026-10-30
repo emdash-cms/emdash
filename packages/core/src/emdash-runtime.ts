@@ -1229,7 +1229,8 @@ export class EmDashRuntime {
 					if (sandboxReadinessFailed) continue;
 					try {
 						// Readiness has its own deadline, not the hook's execution budget.
-						await (sandboxReadiness ??= sandboxRunner?.ensureRunning?.() ?? Promise.resolve());
+						await (sandboxReadiness ??=
+							sandboxRunner?.ensureRunning?.({ waitForPendingRestart: true }) ?? Promise.resolve());
 						if (sandboxRunner && !sandboxRunner.isHealthy()) {
 							throw new SandboxUnavailableError(
 								plugin.id,
