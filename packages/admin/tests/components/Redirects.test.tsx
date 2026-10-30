@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import type { NotFoundSummary, Redirect } from "../../src/lib/api/redirects.js";
 import { render } from "../utils/render.tsx";
@@ -57,6 +57,7 @@ describe("Redirects", () => {
 		vi.clearAllMocks();
 		vi.mocked(fetch404Summary).mockResolvedValue([]);
 		vi.mocked(updateRedirect).mockResolvedValue(makeRedirect(1));
+		vi.mocked(deleteRedirect).mockResolvedValue(undefined);
 		vi.mocked(fetchRedirects).mockImplementation(async ({ cursor } = {}) => {
 			if (cursor === "page-2") {
 				return { items: [makeRedirect(101)] };
@@ -93,6 +94,43 @@ describe("Redirects", () => {
 
 		await expect.element(screen.getByRole("button", { name: "Load more" })).toBeInTheDocument();
 		expect(screen.getByText("/source-101").query()).toBeNull();
+	});
+
+	it("loads the next page after the reload when Load more is pressed while the list reloads", async () => {
+		let redirects = Array.from({ length: 102 }, (_, index) => makeRedirect(index + 1));
+		let reloaded: Promise<void> = Promise.resolve();
+		let finishReload: () => void = () => {};
+		vi.mocked(fetchRedirects).mockImplementation(async ({ cursor } = {}) => {
+			await reloaded;
+			const start = cursor === "page-2" ? 100 : 0;
+			return {
+				items: redirects.slice(start, start + 100),
+				nextCursor: start === 0 && redirects.length > 100 ? "page-2" : undefined,
+			};
+		});
+		vi.mocked(deleteRedirect).mockImplementation(async (id) => {
+			redirects = redirects.filter((redirect) => redirect.id !== id);
+			reloaded = new Promise((resolve) => {
+				finishReload = () => resolve();
+			});
+		});
+		const screen = await render(<Redirects />);
+		const loadMore = screen.getByRole("button", { name: "Load more" });
+		await loadMore.click();
+		await expect.element(screen.getByText("/source-101")).toBeInTheDocument();
+		await screen
+			.getByRole("button", { name: "Actions for redirect /source-2", exact: true })
+			.click();
+		await screen.getByRole("menuitem", { name: "Delete redirect /source-2", exact: true }).click();
+		const dialog = screen.getByRole("dialog", { name: "Delete Redirect?" });
+		dialog.getByRole("button", { name: "Delete", exact: true }).element().click();
+		await expect.element(dialog).not.toBeInTheDocument();
+
+		loadMore.element().click();
+		finishReload();
+
+		await expect.element(screen.getByText("/source-102")).toBeInTheDocument();
+		expect(screen.getByText("/source-2", { exact: true }).query()).toBeNull();
 	});
 
 	it("edits a redirect from its source", async () => {
@@ -133,6 +171,73 @@ describe("Redirects", () => {
 
 		await expect.element(dialog).not.toBeInTheDocument();
 		expect(deleteRedirect).toHaveBeenCalledExactlyOnceWith("redirect-2");
+	});
+
+	it("moves focus to the next redirect's menu once a redirect deleted from the keyboard leaves", async () => {
+		let redirects = [makeRedirect(1), makeRedirect(2), makeRedirect(3)];
+		vi.mocked(fetchRedirects).mockImplementation(async () => ({ items: redirects }));
+		vi.mocked(deleteRedirect).mockImplementation(async (id) => {
+			redirects = redirects.filter((redirect) => redirect.id !== id);
+		});
+		const screen = await render(<Redirects />);
+		const actions = (source: string) =>
+			screen.getByRole("button", { name: `Actions for redirect ${source}`, exact: true });
+		await userEvent.hover(document.body);
+		await expect.element(actions("/source-2")).toBeInTheDocument();
+		actions("/source-2").element().focus();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(screen.getByRole("menuitem").first()).toHaveFocus();
+		await userEvent.keyboard("{End}{Enter}");
+		const dialog = screen.getByRole("dialog", { name: "Delete Redirect?" });
+		await expect.element(dialog).toBeVisible();
+		dialog.getByRole("button", { name: "Delete", exact: true }).element().focus();
+
+		await userEvent.keyboard("{Enter}");
+
+		await expect.element(actions("/source-2")).not.toBeInTheDocument();
+		await expect.element(actions("/source-3")).toHaveFocus();
+	});
+
+	it("keeps focus on a redirect's switch while the list reloads after a toggle", async () => {
+		let enabled = true;
+		vi.mocked(fetchRedirects).mockImplementation(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			return { items: [{ ...makeRedirect(1), enabled }, makeRedirect(2)] };
+		});
+		vi.mocked(updateRedirect).mockImplementation(async (_id, input) => {
+			enabled = input.enabled ?? enabled;
+			return { ...makeRedirect(1), enabled };
+		});
+		const screen = await render(<Redirects />);
+		const toggle = screen.getByRole("switch", { name: "Disable redirect" }).first();
+		await expect.element(toggle).toBeInTheDocument();
+		toggle.element().focus();
+
+		await userEvent.keyboard(" ");
+
+		await expect.element(screen.getByRole("switch", { name: "Enable redirect" })).toHaveFocus();
+		expect(fetchRedirects).toHaveBeenCalledTimes(2);
+	});
+
+	it("moves focus to the last redirect's menu when a toggled redirect leaves with its page", async () => {
+		const screen = await render(<Redirects />);
+		await expect.element(screen.getByText("/source-100")).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Load more" }).click();
+		const toggle = screen.getByRole("switch", {
+			name: "Disable redirect /source-101",
+			exact: true,
+		});
+		await expect.element(toggle).toBeInTheDocument();
+		toggle.element().focus();
+
+		await userEvent.keyboard(" ");
+
+		await expect.element(toggle).not.toBeInTheDocument();
+		await expect
+			.element(
+				screen.getByRole("button", { name: "Actions for redirect /source-100", exact: true }),
+			)
+			.toHaveFocus();
 	});
 
 	it("shows a redirect's loop warning, automatic badge, and disabled state on its own row", async () => {

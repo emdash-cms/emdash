@@ -2,7 +2,7 @@ import { Button, DropdownMenu, Table } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { DotsThree, X } from "@phosphor-icons/react";
-import type * as React from "react";
+import * as React from "react";
 
 import { cn } from "../lib/utils.js";
 
@@ -27,6 +27,199 @@ export type ColumnPriority = (typeof secondaryColumn | typeof tertiaryColumn)["d
  */
 export const handleColumn = { "data-column": "handle" } as const;
 
+const POPUP_SELECTOR = "[role=dialog], [role=alertdialog], [role=menu]";
+const CONTROL_SELECTOR = "a[href], button, input, select, textarea, [tabindex]";
+
+function isControl(element: HTMLElement) {
+	return (
+		element.tabIndex >= 0 &&
+		!element.matches(":disabled") &&
+		!element.closest("[inert]") &&
+		element.getClientRects().length > 0
+	);
+}
+
+function rowControls(row: HTMLTableRowElement) {
+	return [...row.querySelectorAll<HTMLElement>(CONTROL_SELECTOR)].filter(isControl);
+}
+
+function controlRows(tray: HTMLElement) {
+	return [...tray.querySelectorAll<HTMLTableRowElement>("tbody > tr")].filter((row) =>
+		[...row.querySelectorAll<HTMLElement>(CONTROL_SELECTOR)].some(isControl),
+	);
+}
+
+const isMenuTrigger = (control: HTMLElement) => control.getAttribute("aria-haspopup") === "menu";
+
+/** Where focus sat in the table: its row's place among rows with controls, and its place in the row. */
+interface RowFocus {
+	element: Element;
+	row: HTMLTableRowElement;
+	rowIndex: number;
+	controlIndex: number;
+	menuButton: boolean;
+}
+
+/** A row focus whose element has left, with the nodes on either side of its row as the row left. */
+interface LostFocus extends RowFocus {
+	next?: Node | null;
+	previous?: Node | null;
+}
+
+function describeRowFocus(tray: HTMLElement, element: Element): RowFocus | null {
+	const row = element.closest("tr");
+	if (!row || row.parentElement?.localName !== "tbody" || !tray.contains(row)) return null;
+	const controls = rowControls(row);
+	const controlIndex = controls.findIndex((control) => control.contains(element));
+	const control = controls[controlIndex];
+	if (!control) return null;
+	return {
+		element,
+		row,
+		rowIndex: controlRows(tray).indexOf(row),
+		controlIndex,
+		menuButton: isMenuTrigger(control),
+	};
+}
+
+/**
+ * The lost row if it stayed, the row that took its place, or else the row before it. Without a
+ * record of the row leaving, such as when the whole body is replaced, its old place decides.
+ */
+function replacementRow(rows: HTMLTableRowElement[], lost: LostFocus) {
+	const find = (node: Node | null | undefined) => rows.find((row) => row === node);
+	const inPlace = find(lost.row) ?? find(lost.next);
+	if (inPlace) return { row: inPlace, inPlace: true };
+	const before = find(lost.previous);
+	if (before) return { row: before, inPlace: false };
+	const index = Math.min(lost.rowIndex, rows.length - 1);
+	return { row: rows[index], inPlace: index === lost.rowIndex };
+}
+
+function focusReplacement(tray: HTMLElement, lost: LostFocus) {
+	const { row, inPlace } = replacementRow(controlRows(tray), lost);
+	if (!row) return;
+	const controls = rowControls(row);
+	const menuButton = controls.find(isMenuTrigger);
+	// With no row in the lost row's place, a second press on the same control would act on a
+	// row the user didn't pick, while the "…" button only opens a menu.
+	const target = inPlace
+		? (lost.menuButton && menuButton) || controls[Math.min(lost.controlIndex, controls.length - 1)]
+		: (menuButton ?? controls[0]);
+	target?.focus();
+}
+
+/** Watches the table for the row holding focus leaving it, and returns a cleanup. */
+function keepRowFocus(tray: HTMLElement) {
+	const doc = tray.ownerDocument;
+	let focused: RowFocus | null = null;
+	let lost: LostFocus | null = null;
+	let popup: Element | null = null;
+	let popupObserver: MutationObserver | null = null;
+
+	function stopWaiting() {
+		popupObserver?.disconnect();
+		popupObserver = null;
+		popup = null;
+	}
+
+	function forget() {
+		focused = null;
+		lost = null;
+		stopWaiting();
+	}
+
+	function restore(from: LostFocus) {
+		forget();
+		focusReplacement(tray, from);
+		const active = doc.activeElement;
+		if (active && tray.contains(active)) focused = describeRowFocus(tray, active);
+	}
+
+	// A row added or dropped above the focused row in the same update shifts every row's place,
+	// so the rows beside it as it left decide which row takes its place. A neighbour that left in
+	// the same update passes the question on to its own neighbour.
+	function noteRemovals(records: MutationRecord[]) {
+		if (!focused || focused.element.isConnected) return;
+		const removedWith = (node: Node | null | undefined) =>
+			node && records.find((record) => [...record.removedNodes].includes(node));
+		const removal = removedWith(focused.row);
+		let next = removal?.nextSibling;
+		while (next && !next.isConnected) next = removedWith(next)?.nextSibling;
+		let previous = removal?.previousSibling;
+		while (previous && !previous.isConnected) previous = removedWith(previous)?.previousSibling;
+		lost = { ...focused, next, previous };
+		focused = null;
+		queueMicrotask(settle);
+	}
+
+	// Runs after Base UI hands focus back from a closing popup, which it does in a microtask.
+	function settle() {
+		if (!lost) return;
+		const active = doc.activeElement;
+		const holder = active?.closest(POPUP_SELECTOR);
+		if (!active || active === doc.body) restore(lost);
+		else if (holder) waitForPopup(holder);
+		else lost = null;
+	}
+
+	// A menu or dialog opened from the row still has focus. Once it closes, Base UI can't hand
+	// focus back to the row, so focus lands on the page body or on an older control. Settling
+	// in a later task first lets a page that moves focus itself once a dialog closes do so.
+	function waitForPopup(holder: Element) {
+		if (holder === popup) return;
+		stopWaiting();
+		popup = holder;
+		popupObserver = new MutationObserver(() => {
+			if (holder.isConnected) return;
+			popupObserver?.disconnect();
+			// Base UI queues its hand-back as the popup unmounts, so it runs before this clears
+			// `popup`, and a focus move in between is that hand-back.
+			queueMicrotask(() => {
+				if (popup === holder) popup = null;
+			});
+			setTimeout(settle, 0);
+		});
+		popupObserver.observe(doc.body, { childList: true, subtree: true });
+	}
+
+	const observer = new MutationObserver(noteRemovals);
+
+	const onFocusIn = (event: FocusEvent) => {
+		const target = event.target;
+		// Another table's listener may already have moved focus on from this event's target.
+		if (!(target instanceof Element) || target !== doc.activeElement) return;
+		// The focused row can leave in the same task that moves focus, before the observer runs.
+		noteRemovals(observer.takeRecords());
+		const inTable = tray.contains(target);
+		if (!inTable && target.closest(POPUP_SELECTOR)) return;
+		// Base UI hands focus back from a closing popup to another row or to a control outside
+		// the table.
+		if (lost && (inTable || (popup && !popup.isConnected))) restore(lost);
+		else if (inTable) focused = describeRowFocus(tray, target);
+		else forget();
+	};
+
+	// Resumes tracking after a pointer press that left focus in a row, such as dragging a scrollbar.
+	const onKeyDown = () => {
+		const active = doc.activeElement;
+		if (!focused && active && tray.contains(active)) focused = describeRowFocus(tray, active);
+	};
+
+	observer.observe(tray, { childList: true, subtree: true });
+	doc.addEventListener("focusin", onFocusIn, true);
+	doc.addEventListener("keydown", onKeyDown, true);
+	// A pointer press puts focus where the user wants it, even on the page body.
+	doc.addEventListener("pointerdown", forget, true);
+	return () => {
+		observer.disconnect();
+		forget();
+		doc.removeEventListener("focusin", onFocusIn, true);
+		doc.removeEventListener("keydown", onKeyDown, true);
+		doc.removeEventListener("pointerdown", forget, true);
+	};
+}
+
 /**
  * A Kumo table laid out like a LayerCard: the header row sits on the tinted
  * outer layer and the rows on a raised card inside it. Cell padding, background
@@ -35,12 +228,31 @@ export const handleColumn = { "data-column": "handle" } as const;
  * dragged item can be dropped on it, and `data-clickable` on a row that opens when
  * clicked anywhere, so it tints under the pointer.
  *
+ * When the body row holding keyboard focus leaves, focus moves to the same control in the
+ * row that takes its place: the "…" button if that had focus, otherwise the control in the
+ * same place. When no row takes its place, focus moves to the "…" button of the row before
+ * it, or to its first control if it has none. A control that leaves a row that stays hands
+ * focus to the row's control in its place. A row's dialog usually closes, and hands focus
+ * back to the row, before the refetch that removes the row lands. If the row leaves first,
+ * focus moves once the dialog or menu opened from it closes, wherever Base UI then puts
+ * focus. Otherwise focus that has moved anywhere but the page body stays put. A pointer
+ * press cancels a move that is waiting, and focus stays where you put it by clicking
+ * elsewhere.
+ *
  * Breakpoints follow the table's own width, not the viewport's, because the
  * sidebar takes part of the screen from 768px up.
  */
 export function DataTable({ className, children, ...props }: React.ComponentProps<typeof Table>) {
+	const trayRef = React.useRef<HTMLDivElement>(null);
+	React.useEffect(() => {
+		const tray = trayRef.current;
+		return tray ? keepRowFocus(tray) : undefined;
+	}, []);
 	return (
-		<div className="@container overflow-x-auto rounded-xl bg-kumo-elevated ring ring-kumo-line">
+		<div
+			ref={trayRef}
+			className="@container overflow-x-auto rounded-xl bg-kumo-elevated ring ring-kumo-line"
+		>
 			<Table
 				{...props}
 				className={cn(
