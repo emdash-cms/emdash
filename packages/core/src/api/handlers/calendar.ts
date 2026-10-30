@@ -26,6 +26,8 @@ export interface CalendarEntry {
 	status: string;
 	kind: CalendarEntryKind;
 	at: string;
+	/** Who owns the entry, so the admin can offer what that user may do with it. */
+	authorId: string | null;
 }
 
 export interface CalendarEntriesResponse {
@@ -64,6 +66,7 @@ interface StreamRow {
 	status: string;
 	title: string;
 	event_at: string;
+	author_id: string | null;
 }
 
 function compareText(a: string, b: string): number {
@@ -175,7 +178,7 @@ async function queryStream(
 	const column = sql.ref(KIND_COLUMN[stream.kind]);
 	const lower = cursor && cursor.at > params.from ? cursor.at : params.from;
 	const result = await sql<StreamRow>`
-		SELECT id, locale, status, ${stream.title} AS title, ${column} AS event_at
+		SELECT id, locale, status, author_id, ${stream.title} AS title, ${column} AS event_at
 		FROM ${sql.ref(`ec_${stream.collection}`)}
 		WHERE deleted_at IS NULL
 			AND ${column} IS NOT NULL
@@ -226,6 +229,7 @@ export async function handleCalendarEntries(
 				status: row.status,
 				kind: stream.kind,
 				at: row.event_at,
+				authorId: row.author_id,
 			}),
 		);
 		const last = items.at(-1);
