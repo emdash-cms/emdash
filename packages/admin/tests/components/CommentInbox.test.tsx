@@ -51,6 +51,8 @@ const noopProps = {
 	isStatusPending: false,
 	deleteError: null,
 	onDeleteErrorReset: vi.fn(),
+	bulkError: null,
+	onBulkErrorReset: vi.fn(),
 };
 
 describe("CommentInbox", () => {
