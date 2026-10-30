@@ -10,11 +10,9 @@ import {
 import { pressOutside } from "../utils/mouse.ts";
 import { render } from "../utils/render.tsx";
 
-/**
- * Presses the bottom corner of the page, outside the dialog, with real mouse input. The
- * top corner holds the harness's Open button, which the release would press once the dialog
- * has closed.
- */
+// Both dialogs open from a button in the top corner of the page, so the tests press
+// outside them in the bottom corner. A release over the button would open the dialog
+// again once it had closed.
 function ScheduleHarness({ onSchedule }: { onSchedule: (scheduledAt: string) => Promise<void> }) {
 	const [open, setOpen] = React.useState(false);
 	return (
