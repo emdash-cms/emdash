@@ -1,6 +1,6 @@
 ---
 title: Render Math with KaTeX
-description: Render LaTeX math in EmDash Portable Text content with KaTeX on Astro 7.
+description: Render LaTeX math in EmDash Portable Text content with KaTeX.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -28,7 +28,8 @@ pnpm add katex
 
 If you also render formulas in Astro Markdown or MDX files, configure Markdown
 math separately using the Markdown processor supported by your Astro version.
-See Astro's Markdown configuration reference for the current processor API.
+See [Astro's Markdown configuration reference](https://docs.astro.build/en/reference/configuration-reference/#markdown-options)
+for the current processor API.
 
 ## Add KaTeX CSS
 
@@ -194,26 +195,33 @@ type in your own editor setup.
 
 ## Wrap PortableText
 
-Pass the normalized content to EmDash's renderer and register the math
-components:
+Preserve the original content when EmDash attaches inline-editing metadata.
+Normalize content only for static rendering and register the math components:
 
 ```astro title="src/components/MathPortableText.astro"
 ---
+import { getEditMeta } from "emdash";
 import { PortableText } from "emdash/ui";
 import MathBlock from "./MathBlock.astro";
 import MathInline from "./MathInline.astro";
 import { normalizeMathPortableText } from "./math-portable-text";
 
 const { value } = Astro.props;
+const renderValue = getEditMeta(value) ? value : normalizeMathPortableText(value);
 ---
 
 <PortableText
-	value={normalizeMathPortableText(value)}
+	value={renderValue}
 	components={{
 		type: { mathBlock: MathBlock, mathInline: MathInline },
 	}}
 />
 ```
+
+The inline editor receives the original delimiter-based content, including its
+edit metadata. Keep this array unchanged; copying its metadata onto normalized
+math objects would send synthetic nodes to the editor. KaTeX rendering applies
+to the static view; in the inline editor, authors edit the formula delimiters.
 
 Use the wrapper anywhere you render rich text content:
 
