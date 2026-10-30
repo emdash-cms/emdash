@@ -16,6 +16,7 @@ interface PeopleHandle {
 	remove: (...names: string[]) => void;
 	approve: (name: string) => void;
 	prepend: (name: string) => void;
+	replace: (...names: string[]) => void;
 }
 
 const PEOPLE: Person[] = [
@@ -44,6 +45,7 @@ function PeopleTable({
 		approve: (name) =>
 			setPeople((current) => current.map((person) => (person.name === name ? { name } : person))),
 		prepend: (name) => setPeople((current) => [{ name }, ...current]),
+		replace: (...names) => setPeople(names.map((name) => ({ name }))),
 	}));
 	const shown = people.filter((person) => person.name.startsWith(search));
 
@@ -206,6 +208,30 @@ describe("DataTable row focus", () => {
 
 		await expect.element(actions("Mary")).toBeInTheDocument();
 		await expect.element(actions("Hedy")).toHaveFocus();
+	});
+
+	it("moves focus to the same control in the row now in its place when every row is replaced", async () => {
+		const handle = React.createRef<PeopleHandle>();
+		const screen = await render(<PeopleTable handle={handle} />);
+		screen.getByRole("button", { name: "Grace", exact: true }).element().focus();
+
+		handle.current!.replace("Barbara", "Frances", "Joan");
+
+		await expect.element(actions("Grace")).not.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Frances", exact: true }))
+			.toHaveFocus();
+	});
+
+	it("moves focus to the last row's actions button when fewer rows replace every row", async () => {
+		const handle = React.createRef<PeopleHandle>();
+		const screen = await render(<PeopleTable handle={handle} />);
+		screen.getByRole("button", { name: "Katherine", exact: true }).element().focus();
+
+		handle.current!.replace("Barbara", "Frances");
+
+		await expect.element(actions("Katherine")).not.toBeInTheDocument();
+		await expect.element(actions("Frances")).toHaveFocus();
 	});
 
 	it("moves focus within a row when its focused control leaves and the row stays", async () => {

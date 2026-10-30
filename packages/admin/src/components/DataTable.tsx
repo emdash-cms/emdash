@@ -51,7 +51,7 @@ function controlRows(tray: HTMLElement) {
 
 const isMenuTrigger = (control: HTMLElement) => control.getAttribute("aria-haspopup") === "menu";
 
-/** Where focus sat in the table: its row's place among rows with controls, and its place in the row. */
+/** Where focus sat in the table: its row's place in the table body, and its place in the row. */
 interface RowFocus {
 	element: Element;
 	row: HTMLTableRowElement;
@@ -76,7 +76,7 @@ function describeRowFocus(tray: HTMLElement, element: Element): RowFocus | null 
 	return {
 		element,
 		row,
-		rowIndex: controlRows(tray).indexOf(row),
+		rowIndex: row.sectionRowIndex,
 		controlIndex,
 		menuButton: isMenuTrigger(control),
 	};
@@ -92,8 +92,8 @@ function replacementRow(rows: HTMLTableRowElement[], lost: LostFocus) {
 	if (inPlace) return { row: inPlace, inPlace: true };
 	const before = find(lost.previous);
 	if (before) return { row: before, inPlace: false };
-	const index = Math.min(lost.rowIndex, rows.length - 1);
-	return { row: rows[index], inPlace: index === lost.rowIndex };
+	const after = rows.find((row) => row.sectionRowIndex >= lost.rowIndex);
+	return after ? { row: after, inPlace: true } : { row: rows.at(-1), inPlace: false };
 }
 
 function focusReplacement(tray: HTMLElement, lost: LostFocus) {
