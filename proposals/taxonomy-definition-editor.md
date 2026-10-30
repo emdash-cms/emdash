@@ -46,6 +46,8 @@ Keep one Label field, matching creation, and preserve any stored `labelSingular`
 
 Use the existing `GET` and `PUT /_emdash/api/taxonomies/{name}` contract. Add an internal admin update helper using `apiFetch`. The public API, permissions, configuration and database schema stay as they are. Existing identifiers and singular labels are preserved.
 
+The EmDash 1.4.0 prototype preserves the creation dialog's upstream `dir="ltr"` on the Identifier input and the taxonomy manager's `useKumoToastManager()` hook. Its patch targets the official 1.4.0 source; these compatibility adjustments preserve the proposed editing behavior. The compiled preview still uses a separate disabled-input style workaround because EmDash 1.4.0 pins Kumo 2.6.0. Kumo's upstream fix is merged in [#880](https://github.com/cloudflare/kumo/pull/880).
+
 Every new visible string, error fallback and accessible label is wrapped in Lingui. English is the source language. The prototype's built English catalog contains all eleven new messages and ten reused messages. Czech preview translations are supplied separately; after the feature merges, the existing catalog extraction workflow can create the keys and a translation-only PR can fill their Czech `msgstr` values.
 
 ## Errors and edge cases
@@ -61,9 +63,11 @@ Every new visible string, error fallback and accessible label is wrapped in Ling
 
 Cover saved values on reopen, label persistence and sidebar refresh, preservation of the singular form, `false` hierarchy, empty collections, locale fallback, read-only roles, failure states and Arabic RTL. Manually verify term actions, keyboard use and a scrollable dialog at a narrow viewport.
 
-The current preview passed root formatting, build, typecheck and both lint modes; nine dialog browser tests; Astro check; deployment dry-run; a successful DEV build; and manual disabled-state verification. Earlier preview testing also covered 49 admin tests, 33 core taxonomy integration tests, six site localization tests, eight performance tests and a real label save/reload/restore on DEV. Those earlier full-suite results are distinct from the nine tests rerun for the current preview.
+The 1.4.0 compatibility preview passed 56 browser tests across TaxonomySettingsDialog and TaxonomyManager, the admin package build, 60 site tests, Astro check (93 files, zero diagnostics), the site build, Cloudflare deployment dry-run and DEV deployment. Its feature patch plus the separate local style workaround reproduce the tested source exactly. Whole-workspace build, typecheck and lint remain required before submitting an implementation PR; the earlier 1.2.0 prototype's full-workspace results do not establish those checks for 1.4.0.
 
-The prototype and evidence are available in the [review preview release](https://github.com/onvarga/emdash/releases/tag/taxonomy-edit-prototype-1.2.0-20261010). Its ZIP separates the feature patch, local Kumo workaround, already-merged term-description fix, source, English catalog verification and Czech preview translations. The prototype source targets official EmDash 1.2.0; implementation will be rebased onto current main after design acceptance.
+The [EmDash 1.4.0 review archive](https://github.com/onvarga/emdash/releases/download/taxonomy-edit-prototype-1.2.0-20261010/emdash-taxonomy-editor-preview-1.4.0.zip) contains the compiled admin package, updated feature patch, separate local Kumo workaround, source, English catalog verification, Czech preview translations and validation evidence. It supplements the [original 1.2.0 preview release](https://github.com/onvarga/emdash/releases/tag/taxonomy-edit-prototype-1.2.0-20261010), whose existing assets are unchanged. The term-description fix is already in official EmDash and is omitted from the 1.4.0 archive. Implementation will be rebased onto current main after design acceptance.
+
+The screenshots below show the 1.2.0 prototype. The compatibility update preserves its proposed dialog behavior.
 
 ![Existing taxonomy actions expose deletion but no definition editing.](https://github.com/onvarga/emdash/releases/download/taxonomy-edit-prototype-1.2.0-20261010/taxonomy-actions.png)
 
