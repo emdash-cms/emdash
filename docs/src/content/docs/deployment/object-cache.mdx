@@ -76,7 +76,7 @@ The command prints a namespace `id`. Add it under the binding name used in `kvCa
 | `binding`    | `string` | —        | KV binding name from your Wrangler configuration. Required.                       |
 | `defaultTtl` | `number` | `3600`   | Time-to-live for cached entries, in seconds. KV enforces a 60-second minimum.     |
 | `revalidate` | `number` | `1000`   | Isolate-local epoch-reuse window, in milliseconds. See [Freshness](#freshness).   |
-| `timeout`    | `number` | `2000`   | Maximum time, in milliseconds, to wait for a KV operation before treating it as a cache miss. Guards against a stalled KV read hanging the request. Set to `0` to disable. |
+| `timeout`    | `number` | `2000`   | Maximum time, in milliseconds, to wait for a KV read or epoch write. A timed-out read is treated as a cache miss or uses the last known epoch; a timed-out epoch write is logged without failing the mutation. Also bounds how long widget API mutations wait for epoch persistence. Set to `0` to disable. |
 | `keyPrefix`  | `string` | `"em"`   | Prefix for every cache key. Set a unique value when several sites share one namespace. |
 
 ## Node.js (memory)
