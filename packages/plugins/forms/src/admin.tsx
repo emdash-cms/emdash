@@ -442,6 +442,9 @@ const FIELD_TYPES = [
 
 const FIELD_TYPE_ITEMS = FIELD_TYPES.map((t) => ({ label: t, value: t }));
 
+/** Field types whose rendered control shows `placeholder`. Date inputs ignore it. */
+const PLACEHOLDER_TYPES = new Set(["text", "email", "textarea", "number", "tel", "url", "select"]);
+
 const SPAM_ITEMS = [
 	{ label: "None", value: "none" },
 	{ label: "Honeypot", value: "honeypot" },
@@ -936,6 +939,13 @@ function FieldRow({
 							onCheckedChange={(checked) => onChange({ required: checked })}
 						/>
 					</div>
+					{PLACEHOLDER_TYPES.has(field.type) && (
+						<Input
+							label="Placeholder"
+							value={field.placeholder ?? ""}
+							onChange={(e) => onChange({ placeholder: e.target.value || undefined })}
+						/>
+					)}
 				</div>
 				<div className="flex items-center gap-0.5 pt-6">
 					<Button
