@@ -191,7 +191,7 @@ declare module "emdash" {
 }
 ```
 
-The dev server regenerates this file automatically when schema changes. You can also generate it manually:
+The dev server regenerates this file automatically when schema changes.
 
 ## Type Generation
 

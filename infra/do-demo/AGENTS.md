@@ -4,7 +4,7 @@ This is an EmDash site -- a CMS built on Astro with a full admin UI.
 
 ```bash
 pnpm dev              # Start the Astro dev server
-npx emdash types      # Regenerate TypeScript types from a running site
+npx emdash types      # Write standalone types to .emdash/types.ts from a running site
 npx emdash seed seed/seed.json --validate  # Validate seed file
 ```
 
