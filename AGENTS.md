@@ -430,7 +430,7 @@ Passkey auth can't be automated in browser tests. Two dev-only endpoints (`impor
 - `GET /_emdash/api/setup/dev-bypass?redirect=/_emdash/admin` -- runs migrations, creates a dev admin user (`dev@emdash.local`), establishes a session, redirects.
 - `GET /_emdash/api/auth/dev-bypass?redirect=/_emdash/admin` -- assumes setup is complete, just creates a session.
 
-In a Playwright test (the `agent-browser` skill has the CLI equivalent):
+With Playwright (the `agent-browser` skill has the CLI equivalent):
 
 ```typescript
 await page.goto("http://localhost:4321/_emdash/api/setup/dev-bypass?redirect=/_emdash/admin");
