@@ -30,6 +30,7 @@ import {
 } from "./api/handlers/media-upload.js";
 import { resolveReferenceSelection } from "./api/handlers/relations.js";
 import {
+	liveReferenceData,
 	liveReferenceSelection,
 	mergeStagedReferenceBaselines,
 	mergeStagedReferences,
@@ -4058,6 +4059,10 @@ export class EmDashRuntime {
 						);
 					}
 
+					const entryGroup = existing.translationGroup;
+					await repo.keepStartingRevision(revisionRepo, collection, existing, () =>
+						liveReferenceData(this.db, collection, entryGroup),
+					);
 					const revision = await revisionRepo.create({
 						collection,
 						entryId: resolvedId,
