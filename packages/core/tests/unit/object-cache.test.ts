@@ -543,6 +543,138 @@ describe("coalesceObjectCacheWrites", () => {
 		__setObjectCacheBackendForTests(null);
 	});
 
+	it("persists an explicitly waited invalidation before a coalescing scope ends", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+
+		await withTestDeadline(
+			coalesceObjectCacheWrites(async () => {
+				invalidateObjectCache("posts");
+				await invalidateObjectCache("posts", { waitForPersist: true });
+				expect(backend.store.has("em:epoch:posts")).toBe(true);
+			}),
+		);
+		await flush();
+		expect(
+			vi.mocked(backend.set).mock.calls.filter(([key]) => key === "em:epoch:posts"),
+		).toHaveLength(1);
+	});
+
+	it("waits for an invalidation when the object cache is disabled", async () => {
+		__setObjectCacheBackendForTests(null);
+
+		await expect(
+			withTestDeadline(invalidateObjectCache("posts", { waitForPersist: true })),
+		).resolves.toBeUndefined();
+	});
+
+	it("shares same-tick waited writes while preserving the latest cache epoch", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		let value = "before";
+		const load = vi.fn(() => Promise.resolve(value));
+
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		const first = invalidateObjectCache("posts", { waitForPersist: true });
+		const second = invalidateObjectCache("posts", { waitForPersist: true });
+		await Promise.all([first, second]);
+
+		value = "after";
+		const epochs: (readonly number[])[] = [];
+		expect(
+			await cachedQueryWithEpochs({
+				namespace: "posts",
+				key: "k",
+				load,
+				onEpochs: (read) => epochs.push(read),
+			}),
+		).toBe("after");
+
+		const epochWrites = vi
+			.mocked(backend.set)
+			.mock.calls.filter(([key]) => key === "em:epoch:posts");
+		expect(epochWrites).toHaveLength(1);
+		expect(epochWrites[0]?.[1]).toBe(String(epochs.at(-1)?.[0]));
+		await flush();
+
+		// A fresh isolate must use the persisted epoch and hit the snapshot written
+		// under it, rather than invoking the loader again.
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		const readerLoad = vi.fn(() => Promise.resolve("reader load"));
+		expect(await cachedQuery({ namespace: "posts", key: "k", load: readerLoad })).toBe("after");
+		expect(readerLoad).not.toHaveBeenCalled();
+	});
+
+	it("does not wait for marker persistence when waiting for an epoch", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend);
+		let releaseMarker!: () => void;
+		const gate = new Promise<void>((resolve) => (releaseMarker = resolve));
+		let markerStarted!: () => void;
+		const markerReady = new Promise<void>((resolve) => (markerStarted = resolve));
+		const set = backend.set;
+		backend.set = vi.fn(async (key: string, value: string) => {
+			if (key === "em:epochs-changed") {
+				markerStarted();
+				await gate;
+			}
+			await set(key, value);
+		});
+
+		try {
+			const waited = invalidateObjectCache("widgets", { waitForPersist: true });
+			await withTestDeadline(markerReady);
+			await withTestDeadline(waited);
+		} finally {
+			releaseMarker();
+			await flush();
+		}
+	});
+
+	it("does not block a waited epoch on another namespace's write", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend);
+		let releaseMenus!: () => void;
+		const gate = new Promise<void>((resolve) => (releaseMenus = resolve));
+		const set = backend.set;
+		backend.set = vi.fn(async (key: string, value: string) => {
+			if (key === "em:epoch:menus") await gate;
+			await set(key, value);
+		});
+
+		try {
+			invalidateObjectCache("menus");
+			await flush();
+			await withTestDeadline(invalidateObjectCache("widgets", { waitForPersist: true }));
+			expect(backend.store.has("em:epoch:widgets")).toBe(true);
+			expect(backend.store.has("em:epochs-changed")).toBe(false);
+		} finally {
+			releaseMenus();
+			await flush();
+		}
+		expect(backend.store.has("em:epochs-changed")).toBe(true);
+	});
+
+	it("settles a stalled waited epoch write after the configured timeout", async () => {
+		const backend = spyBackend();
+		backend.set = vi.fn((key: string) => {
+			if (key === "em:epoch:comments") return new Promise<void>(() => {});
+			return Promise.resolve();
+		});
+		__setObjectCacheBackendForTests(backend, { timeout: 20 });
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(
+			withTestDeadline(invalidateObjectCache("comments", { waitForPersist: true })),
+		).resolves.toBeUndefined();
+		expect(errorSpy).toHaveBeenCalledWith(
+			"[object-cache] epoch bump failed for",
+			"comments",
+			expect.any(Error),
+		);
+	});
+
 	it("writes the latest held epoch once when the work throws", async () => {
 		const backend = spyBackend();
 		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });

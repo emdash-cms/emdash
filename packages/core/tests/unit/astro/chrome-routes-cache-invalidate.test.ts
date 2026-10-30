@@ -601,5 +601,134 @@ describe("Chrome write routes — edge cache invalidation", () => {
 			expect(response.status).toBe(200);
 			expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:widget-area:sidebar"] });
 		});
+
+		it.each([
+			{
+				operation: "area create",
+				handler: postWidgetAreas,
+				method: "POST",
+				body: () => ({ name: "sidebar", label: "Sidebar" }),
+				status: 201,
+			},
+			{
+				operation: "area delete",
+				handler: deleteWidgetArea,
+				method: "DELETE",
+				body: () => ({}),
+				status: 200,
+			},
+			{
+				operation: "widget create",
+				handler: postWidgets,
+				method: "POST",
+				body: () => ({ type: "content", title: "Hello" }),
+				status: 201,
+			},
+			{
+				operation: "widget update",
+				handler: putWidget,
+				method: "PUT",
+				body: () => ({ title: "Updated" }),
+				status: 200,
+			},
+			{
+				operation: "widget delete",
+				handler: deleteWidget,
+				method: "DELETE",
+				body: () => ({}),
+				status: 200,
+			},
+			{
+				operation: "widget reorder",
+				handler: reorderWidgets,
+				method: "POST",
+				body: (id: string) => ({ widgetIds: [id] }),
+				status: 200,
+			},
+		])(
+			"waits for the widgets epoch write before $operation purges routes",
+			async ({ operation, handler, method, body, status }) => {
+				let release!: () => void;
+				let signalWriteStarted!: () => void;
+				const gate = new Promise<void>((resolve) => (release = resolve));
+				const writeStarted = new Promise<void>((resolve) => (signalWriteStarted = resolve));
+				const store = new Map<string, string>();
+				__setObjectCacheBackendForTests(
+					{
+						get: (key) => Promise.resolve(store.get(key) ?? null),
+						set: async (key, value) => {
+							if (key === "em:epoch:widgets") {
+								signalWriteStarted();
+								await gate;
+							}
+							store.set(key, value);
+						},
+						delete: (key) => {
+							store.delete(key);
+							return Promise.resolve();
+						},
+					},
+					{ revalidate: 60_000, defaultTtl: 3600 },
+				);
+
+				const widgetId = operation === "area create" ? "" : (await widgetAreaFixture()).widgetId;
+				const { cache, invalidate } = makeContext({ name: "sidebar", id: widgetId });
+				const request = await makeRequest(method, body(widgetId));
+				const responsePromise = Promise.resolve(
+					handler({
+						request,
+						params: { name: "sidebar", id: widgetId },
+						url: new URL(request.url),
+						locals: { emdash: { db, storage: null }, user: admin },
+						cache,
+					} as Parameters<typeof handler>[0]),
+				);
+
+				let responseSettled = false;
+				void responsePromise.then(
+					() => (responseSettled = true),
+					() => (responseSettled = true),
+				);
+				try {
+					await writeStarted;
+					await new Promise((resolve) => setTimeout(resolve, 0));
+					expect(invalidate).not.toHaveBeenCalled();
+					expect(responseSettled).toBe(false);
+				} finally {
+					release();
+				}
+
+				const response = await responsePromise;
+				expect(response.status).toBe(status);
+				expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:widget-area:sidebar"] });
+			},
+		);
+
+		it("returns success and purges when the widgets epoch write is rejected", async () => {
+			const { widgetId } = await widgetAreaFixture();
+			const { cache, invalidate } = makeContext({ name: "sidebar" });
+			const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+			__setObjectCacheBackendForTests({
+				get: () => Promise.resolve(null),
+				set: (key) =>
+					key === "em:epoch:widgets"
+						? Promise.reject(new Error("epoch write failed"))
+						: Promise.resolve(),
+				delete: () => Promise.resolve(),
+			});
+			const request = await makeRequest("POST", { widgetIds: [widgetId] });
+			const response = await reorderWidgets({
+				request,
+				params: { name: "sidebar" },
+				url: new URL(request.url),
+				locals: { emdash: { db, storage: null }, user: admin },
+				cache,
+			} as Parameters<typeof reorderWidgets>[0]);
+
+			await waitForDeferredTasks();
+			expect(response.status).toBe(200);
+			expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:widget-area:sidebar"] });
+			expect(consoleError).toHaveBeenCalled();
+		});
 	});
 });

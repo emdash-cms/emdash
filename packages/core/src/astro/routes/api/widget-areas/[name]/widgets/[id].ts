@@ -73,7 +73,7 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 		}
 
 		await db.updateTable("_emdash_widgets").set(updates).where("id", "=", id).execute();
-		invalidateWidgetObjectCache();
+		await invalidateWidgetObjectCache({ waitForPersist: true });
 
 		const widget = await db
 			.selectFrom("_emdash_widgets")
@@ -127,7 +127,7 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 
 		await db.deleteFrom("_emdash_widgets").where("id", "=", id).execute();
 
-		invalidateWidgetObjectCache();
+		await invalidateWidgetObjectCache({ waitForPersist: true });
 		await invalidateRouteCache(cache, [widgetAreaTag(name)]);
 		return apiSuccess({ deleted: true });
 	} catch (error) {

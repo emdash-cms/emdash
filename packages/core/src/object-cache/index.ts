@@ -232,14 +232,16 @@ const epochCache: Map<string, EpochEntry> =
 		return m;
 	})();
 
+type PendingBumps = Map<string, Promise<void>>;
+
 /** Namespaces with a backend epoch write already scheduled this tick. */
-const pendingBumps: Set<string> =
+const pendingBumps: PendingBumps =
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
-	(g[PENDING_KEY] as Set<string> | undefined) ??
+	(g[PENDING_KEY] as PendingBumps | undefined) ??
 	(() => {
-		const s = new Set<string>();
-		g[PENDING_KEY] = s;
-		return s;
+		const m: PendingBumps = new Map();
+		g[PENDING_KEY] = m;
+		return m;
 	})();
 
 /**
@@ -936,9 +938,22 @@ export async function getLastContentWriteAt(): Promise<number> {
  * within their `revalidate` window after that write. No-ops when the cache is
  * disabled.
  *
+ * With `waitForPersist: true`, returns a promise that settles after the backend
+ * write attempt, bypassing any coalescing scope. Await it before purging routes.
+ * Backend failures are logged, not thrown; backend propagation delays and other
+ * isolates' `revalidate` windows still apply.
+ *
  * Content namespaces (`content:*`) also stamp {@link getLastContentWriteAt}.
  */
-export function invalidateObjectCache(namespace: string): void {
+export function invalidateObjectCache(namespace: string): void;
+export function invalidateObjectCache(
+	namespace: string,
+	options: { waitForPersist: true },
+): Promise<void>;
+export function invalidateObjectCache(
+	namespace: string,
+	options?: { waitForPersist: true },
+): void | Promise<void> {
 	// Monotonic so two writes in the same millisecond still produce distinct
 	// epochs — otherwise the second write reuses the first's stamp and its
 	// stale entries survive.
@@ -951,48 +966,64 @@ export function invalidateObjectCache(namespace: string): void {
 		stampLastContentWrite();
 	}
 
-	scheduleBackendWrite(`epoch:${namespace}`, () => persistEpoch(namespace, stamp));
+	if (options?.waitForPersist) {
+		writeScopes.getStore()?.held.delete(`epoch:${namespace}`);
+		return persistEpoch(namespace, stamp);
+	}
+	scheduleBackendWrite(`epoch:${namespace}`, () => {
+		void persistEpoch(namespace, stamp);
+	});
 }
 
-function persistEpoch(namespace: string, stamp: number): void {
+function persistEpoch(namespace: string, stamp: number): Promise<void> {
 	// Coalesce repeated bumps of the same namespace within a tick into a single
 	// backend write that persists the latest epoch.
-	if (pendingBumps.has(namespace)) return;
-	pendingBumps.add(namespace);
+	const pending = pendingBumps.get(namespace);
+	if (pending) return pending;
 	const covered = isCoveredByMarker(namespace);
 	if (covered && markerWrite.epochWritesInFlight++ === 0) markerWrite.busySince = Date.now();
-	after(async () => {
+	let backend: ObjectCacheBackend | null = null;
+	const write = async () => {
 		pendingBumps.delete(namespace);
-		let backend: ObjectCacheBackend | null = null;
 		try {
 			backend = await getBackend();
 			if (!backend) return;
 			const latest = epochCache.get(namespace)?.value ?? stamp;
 			// Epoch anchors are persistent (no TTL) — they must outlive the
 			// value keys they invalidate.
-			await backend.set(epochKey(namespace), String(latest));
+			await withTimeout(
+				backend.set(epochKey(namespace), String(latest)),
+				holder.config.timeout,
+				"epoch write",
+			);
 		} catch (error) {
 			console.error("[object-cache] epoch bump failed for", namespace, error);
-		} finally {
-			if (covered) {
-				markerWrite.epochWritesInFlight--;
-				// A failed or timed-out write still needs a marker: the backend may
-				// stop waiting on a write that then lands anyway.
-				if (backend) markerWrite.writtenSinceMarker = true;
-				// The last write in flight rewrites the marker. Under a steady stream
-				// of overlapping writes that may never come, so a long busy period
-				// also rewrites it about once per KV write window.
-				const sinceMarker = Date.now() - Math.max(markerWrite.busySince, markerWrite.lastWriteAt);
-				if (
-					backend &&
-					markerWrite.writtenSinceMarker &&
-					(markerWrite.epochWritesInFlight === 0 || sinceMarker >= MARKER_RETRY_MS)
-				) {
-					await writeChangeMarker(backend);
-				}
+		}
+	};
+	const task = Promise.resolve().then(write);
+	pendingBumps.set(namespace, task);
+	// Marker retries must not delay a caller waiting for the epoch write.
+	after(async () => {
+		await task;
+		if (covered) {
+			markerWrite.epochWritesInFlight--;
+			// A failed or timed-out write still needs a marker: the backend may
+			// stop waiting on a write that then lands anyway.
+			if (backend) markerWrite.writtenSinceMarker = true;
+			// The last write in flight rewrites the marker. Under a steady stream
+			// of overlapping writes that may never come, so a long busy period
+			// also rewrites it about once per KV write window.
+			const sinceMarker = Date.now() - Math.max(markerWrite.busySince, markerWrite.lastWriteAt);
+			if (
+				backend &&
+				markerWrite.writtenSinceMarker &&
+				(markerWrite.epochWritesInFlight === 0 || sinceMarker >= MARKER_RETRY_MS)
+			) {
+				await writeChangeMarker(backend);
 			}
 		}
 	});
+	return task;
 }
 
 /**
@@ -1128,8 +1159,15 @@ export function invalidateMenuObjectCache(): void {
 	invalidateObjectCache(CacheNamespace.MENUS);
 }
 
-/** Invalidate cached widget areas. */
-export function invalidateWidgetObjectCache(): void {
+/** Invalidate cached widget areas; optionally await persistence before purging routes. */
+export function invalidateWidgetObjectCache(): void;
+export function invalidateWidgetObjectCache(options: { waitForPersist: true }): Promise<void>;
+export function invalidateWidgetObjectCache(options?: {
+	waitForPersist: true;
+}): void | Promise<void> {
+	if (options?.waitForPersist) {
+		return invalidateObjectCache(CacheNamespace.WIDGETS, options);
+	}
 	invalidateObjectCache(CacheNamespace.WIDGETS);
 }
 
