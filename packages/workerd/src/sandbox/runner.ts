@@ -489,7 +489,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	async ensureRunning(options?: { waitForPendingRestart?: boolean }): Promise<void> {
 		if (this.shuttingDown || this.plugins.size === 0) return;
 		// A crashed process waits for backoff before needsRestart is set.
-		if (this.restartTimer && !this.gaveUp) {
+		if (this.restartTimer && !this.gaveUp && !this.needsRestart) {
 			if (!options?.waitForPendingRestart) return;
 			await new Promise<void>((resolve) => {
 				this.restartWaiters.add(resolve);

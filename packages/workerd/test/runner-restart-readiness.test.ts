@@ -78,6 +78,32 @@ describe("workerd crash restart readiness", () => {
 		await setup;
 	});
 
+	it.each([false, true])(
+		"restarts immediately after re-enabling during backoff (setup wait: %s)",
+		async (waitForPendingRestart) => {
+			await makeRunner();
+			const restart = vi.fn(async () => {
+				runner["healthy"] = true;
+				runner["workerdProcess"] = makeRunningProcess();
+			});
+			runner["restart"] = restart;
+			runner["needsRestart"] = false;
+			runner["scheduleRestart"]();
+			const pluginId = `${MANIFEST.id}:${MANIFEST.version}`;
+			runner.setPluginActive(pluginId, false);
+			runner.setPluginActive(pluginId, true);
+
+			const running = runner.ensureRunning(
+				waitForPendingRestart ? { waitForPendingRestart: true } : undefined,
+			);
+			await vi.advanceTimersByTimeAsync(0);
+			expect(restart).toHaveBeenCalledOnce();
+			await running;
+			expect(runner.isHealthy()).toBe(true);
+			expect(restart).toHaveBeenCalledOnce();
+		},
+	);
+
 	it("waits for pending crash backoff and readiness, sharing the restart", async () => {
 		await makeRunner();
 		let resolveRestart!: () => void;
