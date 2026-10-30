@@ -75,9 +75,9 @@ describe("BylineFilter", () => {
 		await inferredHelp.hover();
 		await expect
 			.element(
-				screen.getByText(
-					"Also match the byline linked to an entry's author when it has none assigned.",
-				),
+				screen.getByRole("tooltip", {
+					name: "Also match the byline linked to an entry's author when it has none assigned.",
+				}),
 			)
 			.toBeVisible();
 	});

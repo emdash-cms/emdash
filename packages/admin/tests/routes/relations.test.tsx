@@ -169,7 +169,9 @@ describe("RelationList", () => {
 		await screen.getByRole("button", { name: "More information about Slug" }).hover();
 		await expect
 			.element(
-				page.getByText("The content types and slug cannot be changed after a relation is created."),
+				page.getByRole("tooltip", {
+					name: "The content types and slug cannot be changed after a relation is created.",
+				}),
 			)
 			.toBeVisible();
 		await screen.getByLabelText("Linked side (plural)").fill("Writers");

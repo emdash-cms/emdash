@@ -525,10 +525,13 @@ describe("TaxonomyManager", () => {
 		const slugInput = screen.getByRole("textbox", { name: "Slug" });
 		await expect.element(nameInput).toBeInTheDocument();
 		await expect.element(slugInput).toBeInTheDocument();
-		expect(screen.getByText("Auto-generated from name (you can edit)").query()).toBeNull();
+		const slugHelp = screen.getByRole("tooltip", {
+			name: "Auto-generated from name (you can edit)",
+		});
+		expect(slugHelp.query()).toBeNull();
 
 		await screen.getByRole("button", { name: "How is the slug generated?" }).hover();
-		await expect.element(screen.getByText("Auto-generated from name (you can edit)")).toBeVisible();
+		await expect.element(slugHelp).toBeVisible();
 		await screen.getByText("Slug", { exact: true }).click();
 		await expect.element(slugInput).toHaveFocus();
 	});

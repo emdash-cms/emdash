@@ -31,10 +31,10 @@ describe("HelpTooltip", () => {
 
 		await tap(button.element());
 		await new Promise((resolve) => setTimeout(resolve, 300));
-		await expect.element(page.getByText(HELP)).toBeVisible();
+		await expect.element(page.getByRole("tooltip", { name: HELP })).toBeVisible();
 
 		await tap(button.element());
-		await expect.element(page.getByText(HELP)).not.toBeInTheDocument();
+		await expect.element(page.getByRole("tooltip", { name: HELP })).not.toBeInTheDocument();
 	});
 
 	it("stays open after a click until the next click", async () => {
@@ -48,10 +48,10 @@ describe("HelpTooltip", () => {
 
 		await button.click();
 		await screen.getByText("Elsewhere").hover();
-		await expect.element(page.getByText(HELP)).toBeVisible();
+		await expect.element(page.getByRole("tooltip", { name: HELP })).toBeVisible();
 
 		await button.click();
-		await expect.element(page.getByText(HELP)).not.toBeInTheDocument();
+		await expect.element(page.getByRole("tooltip", { name: HELP })).not.toBeInTheDocument();
 	});
 
 	it("closes when focus moves on after Enter pins it", async () => {
@@ -64,10 +64,10 @@ describe("HelpTooltip", () => {
 
 		await userEvent.keyboard("{Tab}");
 		await userEvent.keyboard("{Enter}");
-		await expect.element(page.getByText(HELP)).toBeVisible();
+		await expect.element(page.getByRole("tooltip", { name: HELP })).toBeVisible();
 
 		await userEvent.keyboard("{Tab}");
-		await expect.element(page.getByText(HELP)).not.toBeInTheDocument();
+		await expect.element(page.getByRole("tooltip", { name: HELP })).not.toBeInTheDocument();
 	});
 
 	it("stays open on a tap on the tooltip, which doesn't reach what it covers", async () => {
@@ -85,7 +85,7 @@ describe("HelpTooltip", () => {
 			</div>,
 		);
 		await tap(screen.getByRole("button", { name: "More information about Slug" }).element());
-		const help = page.getByText(HELP);
+		const help = page.getByRole("tooltip", { name: HELP });
 		await expect.element(help).toBeVisible();
 		const helpBox = help.element().getBoundingClientRect();
 		const helpCenter = {
@@ -122,7 +122,7 @@ describe("HelpTooltip", () => {
 		);
 		const helpButton = screen.getByRole("button", { name: "More information about Slug" });
 		await expect.element(helpButton).toBeVisible();
-		const help = page.getByText(HELP);
+		const help = page.getByRole("tooltip", { name: HELP });
 		// Like Safari, don't focus the tapped button, so focus leaving it can't close the help.
 		const keepFocus = (event: MouseEvent) => {
 			if (event.target instanceof Node && helpButton.element().contains(event.target)) {
@@ -149,7 +149,7 @@ describe("HelpTooltip", () => {
 
 		await screen.getByRole("button", { name: "More information about Slug" }).hover();
 
-		await expect.element(page.getByText(HELP)).toBeVisible();
+		await expect.element(page.getByRole("tooltip", { name: HELP })).toBeVisible();
 	});
 
 	it("opens when it takes keyboard focus", async () => {
@@ -157,7 +157,17 @@ describe("HelpTooltip", () => {
 
 		await userEvent.keyboard("{Tab}");
 
-		await expect.element(page.getByText(HELP)).toBeVisible();
+		await expect.element(page.getByRole("tooltip", { name: HELP })).toBeVisible();
+	});
+
+	it("describes its button with the help", async () => {
+		const screen = await render(
+			<HelpTooltip help={HELP} ariaLabel="More information about Slug" />,
+		);
+
+		await expect
+			.element(screen.getByRole("button", { name: "More information about Slug", exact: true }))
+			.toHaveAccessibleDescription(HELP);
 	});
 
 	it("stays out of the name and label text of the field whose label holds it", async () => {

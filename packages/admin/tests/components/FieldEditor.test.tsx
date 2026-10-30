@@ -295,7 +295,9 @@ describe("FieldEditor", () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={existingField} />);
 			await screen.getByRole("button", { name: "More information about Slug" }).hover();
 			await expect
-				.element(page.getByText("Field slugs cannot be changed after creation"))
+				.element(
+					page.getByRole("tooltip", { name: "Field slugs cannot be changed after creation" }),
+				)
 				.toBeVisible();
 		});
 
@@ -497,7 +499,11 @@ describe("FieldEditor", () => {
 				.toBeDisabled();
 			await screen.getByRole("button", { name: "More information about Relationship" }).hover();
 			await expect
-				.element(page.getByText(/The relationship and the referenced collection cannot be changed/))
+				.element(
+					page.getByRole("tooltip", {
+						name: /The relationship and the referenced collection cannot be changed/,
+					}),
+				)
 				.toBeVisible();
 		});
 

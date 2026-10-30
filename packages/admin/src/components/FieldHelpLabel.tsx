@@ -18,6 +18,7 @@ export function HelpTooltip({
 	openOnPress?: boolean;
 }) {
 	const nameId = useId();
+	const helpId = useId();
 	const [open, setOpen] = useState(false);
 	// A press pins the tooltip open. On a touch screen the hover that the tap
 	// emulates ends at once and would close it again.
@@ -45,7 +46,7 @@ export function HelpTooltip({
 		<>
 			<Tooltip
 				content={
-					<span ref={helpRef} dir="auto" className="block max-w-64 text-pretty">
+					<span ref={helpRef} role="tooltip" dir="auto" className="block max-w-64 text-pretty">
 						{help}
 					</span>
 				}
@@ -75,6 +76,7 @@ export function HelpTooltip({
 						icon={<Info aria-hidden="true" />}
 						className="text-kumo-subtle hover:text-kumo-default"
 						aria-labelledby={nameId}
+						aria-describedby={helpId}
 						onClick={
 							openOnPress
 								? () => {
@@ -88,11 +90,17 @@ export function HelpTooltip({
 			/>
 			{/* Inside a field's label, a name from aria-label would also join the
 			    field's name, and hidden text in the label would join its label text,
-			    so the name lives outside the label. */}
+			    so the name lives outside the label. Base UI does not tie the tooltip
+			    to its button, so the help is repeated as the button's description. */}
 			{createPortal(
-				<span id={nameId} hidden>
-					{ariaLabel}
-				</span>,
+				<>
+					<span id={nameId} hidden>
+						{ariaLabel}
+					</span>
+					<span id={helpId} hidden>
+						{help}
+					</span>
+				</>,
 				document.body,
 			)}
 		</>

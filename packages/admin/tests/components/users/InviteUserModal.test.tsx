@@ -61,7 +61,9 @@ describe("InviteUserModal", () => {
 		await screen.getByRole("button", { name: "More information about Role" }).hover();
 		await expect
 			.element(
-				page.getByText("The invited user will have this role once they complete registration."),
+				page.getByRole("tooltip", {
+					name: "The invited user will have this role once they complete registration.",
+				}),
 			)
 			.toBeVisible();
 	});

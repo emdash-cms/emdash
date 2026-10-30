@@ -346,7 +346,7 @@ describe("BylineFieldEditor", () => {
 			// trial-and-error the API to discover why the toggle won't move.
 			await screen.getByRole("button", { name: "More information about Translatable" }).hover();
 			await expect
-				.element(page.getByText(/Locked because this field has stored values/))
+				.element(page.getByRole("tooltip", { name: /Locked because this field has stored values/ }))
 				.toBeVisible();
 		});
 
