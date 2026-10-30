@@ -6,7 +6,8 @@
  * If a custom robots.txt is configured in SEO settings, that is returned.
  * Otherwise generates a default that allows all crawlers and references
  * the sitemap. When `seo.disallowAiTraining` is set, either version gets
- * rules asking AI training crawlers to stay away.
+ * rules asking AI training crawlers to stay away. While the site is in
+ * staging, returns an uncached disallow-all instead.
  */
 
 import type { APIRoute } from "astro";
@@ -62,6 +63,13 @@ export const GET: APIRoute = async ({ locals, url }) => {
 		);
 		const sitemapUrl = `${siteUrl}/sitemap.xml`;
 		const disallowAiTraining = settings.seo?.disallowAiTraining === true;
+
+		if (settings.staging) {
+			return new Response("User-agent: *\nDisallow: /\n", {
+				status: 200,
+				headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+			});
+		}
 
 		// Use custom robots.txt if configured
 		if (settings.seo?.robotsTxt) {
