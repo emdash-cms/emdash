@@ -57,7 +57,10 @@ export interface ContentTypeListProps {
 	collections: SchemaCollection[];
 	orphanedTables?: OrphanedTable[];
 	isLoading?: boolean;
-	onDelete?: (slug: string) => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDelete?: (slug: string) => Promise<unknown> | void;
+	isDeleting?: boolean;
+	deleteError?: unknown;
 	onRegisterOrphan?: (slug: string) => void;
 	/** Persist a new sidebar order. Omit to render the list without reordering. */
 	onReorder?: (slugs: string[]) => void;
@@ -71,6 +74,8 @@ export function ContentTypeList({
 	orphanedTables,
 	isLoading,
 	onDelete,
+	isDeleting = false,
+	deleteError,
 	onRegisterOrphan,
 	onReorder,
 }: ContentTypeListProps) {
@@ -257,13 +262,14 @@ export function ContentTypeList({
 				}
 				confirmLabel={t`Delete`}
 				pendingLabel={t`Deleting...`}
-				isPending={false}
-				error={null}
+				isPending={isDeleting}
+				error={deleteError}
 				onConfirm={() => {
-					if (deleteTarget) {
-						onDelete?.(deleteTarget.slug);
-						setDeleteTarget(null);
-					}
+					if (!deleteTarget) return;
+					void Promise.resolve(onDelete?.(deleteTarget.slug)).then(
+						() => setDeleteTarget(null),
+						() => {},
+					);
 				}}
 			>
 				{affectedRelations.length > 0 && (

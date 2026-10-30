@@ -273,6 +273,7 @@ describe("MarketplacePluginDetail", () => {
 
 		await expect.element(screen.getByText("Public routes")).toBeInTheDocument();
 		await expect.element(screen.getByText("webhook", { exact: true })).toBeInTheDocument();
+		expect(screen.getByText("Plugin installation requires explicit consent").query()).toBeNull();
 		await expect.element(accept).toBeEnabled();
 		accept.element().click();
 		await vi.waitFor(() =>

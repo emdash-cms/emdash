@@ -338,7 +338,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 			} else if (err instanceof PluginMcpConsentRequiredError) {
 				setMcpUpdateTools(err.tools);
 				setShowUpdateConsent(true);
-			} else {
+			} else if (!showUpdateConsent) {
 				toastManager.add({
 					title: t`Failed to update plugin`,
 					description: err instanceof Error ? err.message : t`An error occurred`,

@@ -3,6 +3,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 
 import type { EntryLockHolder } from "../lib/api/entry-lock.js";
 import type { EntryLockState } from "../lib/useEntryLock.js";
+import { DialogError } from "./DialogError.js";
 
 function holderName(holder: EntryLockHolder, fallback: string): string {
 	return holder.userName?.trim() ? holder.userName : fallback;
@@ -17,14 +18,17 @@ export function EntryLockNotice({
 	onTakeOver,
 	onReadInstead,
 	isTakingOver,
+	takeOverFailed = false,
 }: {
 	state: EntryLockState;
 	onTakeOver: () => void;
 	onReadInstead: () => void;
 	isTakingOver: boolean;
+	takeOverFailed?: boolean;
 }) {
 	const { t } = useLingui();
 	const anotherEditor = t`Another editor`;
+	const takeOverError = takeOverFailed ? t`Couldn’t take over this entry. Try again.` : null;
 
 	if (state.status === "blocked") {
 		const name = holderName(state.holder, anotherEditor);
@@ -34,6 +38,7 @@ export function EntryLockNotice({
 				onOpenChange={(next) => {
 					if (!next) onReadInstead();
 				}}
+				dismissDisabled={isTakingOver}
 			>
 				<LayerDialog.Content size="sm">
 					<LayerDialog.Title>
@@ -48,6 +53,7 @@ export function EntryLockNotice({
 								over; they will be told the entry moved on.
 							</Trans>
 						</Text>
+						<DialogError message={takeOverError} className="mt-3" />
 					</LayerDialog.Body>
 					<LayerDialog.Actions dismissLabel={t`Open read-only`}>
 						<LayerDialog.Action disabled={isTakingOver} onClick={onTakeOver}>
@@ -82,6 +88,11 @@ export function EntryLockNotice({
 						</Trans>
 					)}
 				</p>
+				{takeOverError && (
+					<p role="alert" dir="auto" className="mt-2 text-sm text-kumo-danger">
+						{takeOverError}
+					</p>
+				)}
 				<Button
 					className="mt-3"
 					size="sm"

@@ -435,7 +435,10 @@ export function CommentInbox({
 				error={deleteError}
 				onConfirm={() => {
 					if (deleteId) {
-						void onCommentDelete(deleteId).then(() => setDeleteId(null));
+						void onCommentDelete(deleteId).then(
+							() => setDeleteId(null),
+							() => {},
+						);
 					}
 				}}
 			/>

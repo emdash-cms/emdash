@@ -787,8 +787,10 @@ export function MediaDetailPanel({
 		},
 		onError: (error, action) => {
 			setCropStatus("");
-			if (action === "replace") setShowCropConfirm(false);
-			if (error instanceof ApiResponseError && error.code === "NOT_FOUND") recoverMediaItem();
+			if (error instanceof ApiResponseError && error.code === "NOT_FOUND") {
+				if (action === "replace") setShowCropConfirm(false);
+				recoverMediaItem();
+			}
 		},
 		onSettled: () => {
 			cropPendingRef.current = false;
@@ -832,6 +834,12 @@ export function MediaDetailPanel({
 		cropMutation.error instanceof CropFileCreationError
 			? t`The cropped image could not be created.`
 			: getMutationError(cropMutation.error);
+	// One object per failure, so the confirmation can tell a new failure from an old one.
+	const cropReplaceError = React.useMemo(
+		() =>
+			cropMutation.variables === "replace" && cropErrorMessage ? new Error(cropErrorMessage) : null,
+		[cropMutation.variables, cropErrorMessage],
+	);
 
 	const requestClose = React.useCallback(() => {
 		if (isBusy) return;
@@ -1762,7 +1770,9 @@ export function MediaDetailPanel({
 											{cropSourceFailed ? (
 												<DialogError message={t`This image could not be loaded for cropping.`} />
 											) : null}
-											{cropErrorMessage ? <DialogError message={cropErrorMessage} /> : null}
+											{cropErrorMessage && !showCropConfirm ? (
+												<DialogError message={cropErrorMessage} />
+											) : null}
 											{hasChanges ? (
 												<p className="text-sm text-kumo-warning">
 													{t`Save or discard the other changes before cropping.`}
@@ -1993,7 +2003,7 @@ export function MediaDetailPanel({
 				confirmLabel={t`Replace original`}
 				pendingLabel={t`Replacing original...`}
 				isPending={isCropping && cropMutation.variables === "replace"}
-				error={null}
+				error={cropReplaceError}
 				onConfirm={() => startCrop("replace")}
 			>
 				<Banner

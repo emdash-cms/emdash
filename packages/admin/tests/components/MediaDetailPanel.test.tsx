@@ -1106,7 +1106,7 @@ describe("MediaDetailPanel", () => {
 		expect(createCroppedImageFile).toHaveBeenCalledTimes(2);
 	});
 
-	it("returns replacement failures to the crop panel with the draft intact", async () => {
+	it("keeps a failed replacement in its confirmation, with the draft intact", async () => {
 		vi.mocked(replaceMediaImage).mockRejectedValueOnce(new Error("Replace failed"));
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL }),
@@ -1121,8 +1121,12 @@ describe("MediaDetailPanel", () => {
 		await expect.element(confirmation).toBeVisible();
 		confirmation.getByRole("button", { name: "Replace original" }).element().click();
 
-		await expect.element(screen.getByText("Replace failed")).toBeVisible();
+		await expect.element(confirmation.getByText("Replace failed")).toBeVisible();
+		expect(screen.getByText("Replace failed").elements()).toHaveLength(1);
+
+		confirmation.getByRole("button", { name: "Cancel" }).element().click();
 		await expect.element(confirmation).not.toBeInTheDocument();
+		await expect.element(screen.getByText("Replace failed")).toBeVisible();
 		expect(cropSelectionStyle(screen)).toBe(draftStyle);
 	});
 

@@ -641,13 +641,6 @@ function ContentListPage() {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
 		},
-		onError: (mutationError) => {
-			toastManager.add({
-				title: t`Failed to delete`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				variant: "error",
-			});
-		},
 	});
 
 	const restoreMutation = useMutation({
@@ -669,13 +662,6 @@ function ContentListPage() {
 		mutationFn: (id: string) => permanentDeleteContent(collection, id),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
-		},
-		onError: (mutationError) => {
-			toastManager.add({
-				title: t`Failed to delete`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				variant: "error",
-			});
 		},
 	});
 
@@ -818,9 +804,9 @@ function ContentListPage() {
 			isLoading={contentList.query.isLoading}
 			isTrashedLoading={trash.query.isLoading}
 			trashedCount={trash.pagination.totalCount}
-			onDelete={(id) => deleteMutation.mutate(id)}
+			onDelete={(id) => deleteMutation.mutateAsync(id)}
 			onRestore={(id) => restoreMutation.mutate(id)}
-			onPermanentDelete={(id) => permanentDeleteMutation.mutate(id)}
+			onPermanentDelete={(id) => permanentDeleteMutation.mutateAsync(id)}
 			onDuplicate={(id) => duplicateMutation.mutate(id)}
 			canDuplicate={(item) => !currentUser || canDuplicateEntry(currentUser, item)}
 			i18n={i18n}
@@ -1397,9 +1383,9 @@ function ContentEditPage() {
 			setConflictedEntryId((current) => (current === id ? "" : current));
 			void handleContentUpdateSuccess(id);
 		},
+		// The publication-date dialog shows the failure.
 		onError: async (error) => {
-			if (isSaveConflict(error) && (await recoverFromSaveConflict(id))) return;
-			handleContentUpdateError(error, id);
+			if (isSaveConflict(error)) await recoverFromSaveConflict(id);
 		},
 	});
 
@@ -1536,14 +1522,6 @@ function ContentEditPage() {
 				description: t`Reverted to published version`,
 			});
 		},
-		onError: (error) => {
-			if (entryLock.reportWriteError(error, id)) return;
-			toastManager.add({
-				title: t`Failed to discard changes`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
-				variant: "error",
-			});
-		},
 	});
 	const applyScheduleChange = React.useCallback(
 		async (
@@ -1590,14 +1568,6 @@ function ContentEditPage() {
 			toastManager.add({
 				title: t`Scheduled`,
 				description: t`Content has been scheduled for publishing`,
-			});
-		},
-		onError: (error) => {
-			if (entryLock.reportWriteError(error, id)) return;
-			toastManager.add({
-				title: t`Failed to schedule`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
-				variant: "error",
 			});
 		},
 	});
@@ -1664,14 +1634,6 @@ function ContentEditPage() {
 				params: { collection },
 				search: { locale: activeLocale },
 				ignoreBlocker: true,
-			});
-		},
-		onError: (error) => {
-			if (entryLock.reportWriteError(error, id)) return;
-			toastManager.add({
-				title: t`Failed to delete`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
-				variant: "error",
 			});
 		},
 	});
@@ -1754,10 +1716,13 @@ function ContentEditPage() {
 				},
 				{ allowConflict: !payload },
 			);
-			await publishedAtMutation.mutateAsync(publishedAt);
+			await publishedAtMutation.mutateAsync(publishedAt).catch((error: unknown) => {
+				if (!entryLock.reportWriteError(error, id)) throw error;
+			});
 		},
 		[
 			activeLocale,
+			entryLock.reportWriteError,
 			id,
 			publishedAtMutation.mutateAsync,
 			rawItem?.locale,
@@ -1856,9 +1821,14 @@ function ContentEditPage() {
 			updateMutation.mutateAsync,
 		],
 	);
+	// The confirmation shows a failure, except a refusal the lock explains:
+	// that resolves, so the confirmation closes and the lock notice takes over.
 	const handleDiscardDraft = React.useCallback(
-		() => discardDraftMutation.mutate(),
-		[discardDraftMutation.mutate],
+		() =>
+			discardDraftMutation.mutateAsync().catch((error: unknown) => {
+				if (!entryLock.reportWriteError(error, id)) throw error;
+			}),
+		[discardDraftMutation.mutateAsync, entryLock.reportWriteError, id],
 	);
 	const handleSchedule = React.useCallback(
 		async (
@@ -1879,12 +1849,20 @@ function ContentEditPage() {
 					changes: payload,
 				});
 			});
-			const scheduledItem = await scheduleMutation.mutateAsync(scheduledAt);
+			// The schedule dialog shows the failure, unless the lock explains it.
+			const scheduledItem = await scheduleMutation
+				.mutateAsync(scheduledAt)
+				.catch((error: unknown) => {
+					if (entryLock.reportWriteError(error, id)) return null;
+					throw error;
+				});
+			if (!scheduledItem) return;
 			await applyScheduleChange(scheduledItem, savedItem, payload);
 		},
 		[
 			activeLocale,
 			applyScheduleChange,
+			entryLock.reportWriteError,
 			id,
 			rawItem?.locale,
 			scheduleMutation.mutateAsync,
@@ -1921,7 +1899,14 @@ function ContentEditPage() {
 			updateMutation.mutateAsync,
 		],
 	);
-	const handleDelete = React.useCallback(() => deleteMutation.mutate(), [deleteMutation.mutate]);
+	// As with discarding, a refusal the lock explains closes the confirmation.
+	const handleDelete = React.useCallback(
+		() =>
+			deleteMutation.mutateAsync().catch((error: unknown) => {
+				if (!entryLock.reportWriteError(error, id)) throw error;
+			}),
+		[deleteMutation.mutateAsync, entryLock.reportWriteError, id],
+	);
 	const handleTranslate = React.useCallback(
 		(locale: string) => translateMutation.mutate(locale),
 		[translateMutation.mutate],
@@ -2051,6 +2036,7 @@ function ContentEditPage() {
 						onTakeOver={entryLock.takeOver}
 						onReadInstead={entryLock.readInstead}
 						isTakingOver={entryLock.isTakingOver}
+						takeOverFailed={entryLock.takeOverFailed}
 					/>
 				)
 			}
@@ -2447,13 +2433,6 @@ function CommentsPage() {
 			void queryClient.invalidateQueries({ queryKey: ["comments"] });
 			void queryClient.invalidateQueries({ queryKey: ["commentCounts"] });
 		},
-		onError: (error) => {
-			toastManager.add({
-				title: t`Failed to delete comment`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
-				variant: "error",
-			});
-		},
 	});
 
 	// Bulk action mutation
@@ -2512,7 +2491,7 @@ function CommentsPage() {
 			onCommentStatusChange={(id, status) =>
 				statusMutation.mutateAsync({ id, status }).catch(() => {})
 			}
-			onCommentDelete={(id) => deleteMutation.mutateAsync(id).catch(() => {})}
+			onCommentDelete={(id) => deleteMutation.mutateAsync(id)}
 			onBulkAction={(ids, action) => bulkMutation.mutateAsync({ ids, action }).catch(() => {})}
 			onLoadMore={() => {
 				if (hasNextPage) void fetchNextPage();
@@ -2928,7 +2907,9 @@ function ContentTypesListPage() {
 				collections={collections ?? []}
 				orphanedTables={orphanedTables}
 				isLoading={collectionsLoading || orphansLoading}
-				onDelete={(slug) => deleteMutation.mutate(slug)}
+				onDelete={(slug) => deleteMutation.mutateAsync(slug)}
+				isDeleting={deleteMutation.isPending}
+				deleteError={deleteMutation.error}
 				onRegisterOrphan={(slug) => registerOrphanMutation.mutate(slug)}
 				onReorder={(slugs) => reorderMutation.mutate(slugs)}
 			/>
@@ -3196,7 +3177,7 @@ function ContentTypesEditPage() {
 			onAddField={(input) => addFieldMutation.mutateAsync(input)}
 			onUpdateField={(fieldSlug, input) => updateFieldMutation.mutateAsync({ fieldSlug, input })}
 			onDeleteField={(fieldSlug, options) =>
-				deleteFieldMutation.mutate({ fieldSlug, alsoDeleteRelation: options?.deleteRelation })
+				deleteFieldMutation.mutateAsync({ fieldSlug, alsoDeleteRelation: options?.deleteRelation })
 			}
 			onReorderFields={(fieldSlugs) => reorderFieldsMutation.mutate(fieldSlugs)}
 			onCreateRelation={(input) => createRelationMutation.mutateAsync(input)}

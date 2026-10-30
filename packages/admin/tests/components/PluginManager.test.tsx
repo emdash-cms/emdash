@@ -723,6 +723,42 @@ describe("PluginManager", () => {
 		await expect.element(screen.getByText("Marketplace unavailable")).toBeInTheDocument();
 	});
 
+	it("reports a failed Accept & Update once, inside the consent dialog", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({ id: "mp-plugin", name: "MP Plugin", source: "marketplace" }),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{
+				pluginId: "mp-plugin",
+				installed: "1.0.0",
+				latest: "2.0.0",
+				hasCapabilityChanges: true,
+			},
+		]);
+		mockUpdateMarketplacePlugin
+			.mockRejectedValueOnce(
+				new MarketplaceUpdateEscalationError("CAPABILITY_ESCALATION", "Review the update", {
+					added: ["network:request"],
+					removed: [],
+				}),
+			)
+			.mockRejectedValueOnce(new Error("Marketplace unavailable"));
+
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await screen.getByText("Check for updates").click();
+		await screen.getByText("Update to v2.0.0").click();
+		const dialog = screen.getByRole("dialog", { name: "Review New Permissions" });
+		await expect.element(dialog).toBeVisible();
+		dialog.getByRole("button", { name: "Accept & Update" }).element().click();
+
+		await expect.element(dialog.getByRole("alert")).toHaveTextContent("Marketplace unavailable");
+		expect(screen.getByText("Failed to update plugin").query()).toBeNull();
+	});
+
 	it("hides 'Check for updates' button when no marketplace plugins", async () => {
 		mockFetchPlugins.mockResolvedValue([
 			makePlugin({ id: "config-plugin", name: "Config Plugin", source: "config" }),

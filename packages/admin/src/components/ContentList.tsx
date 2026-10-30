@@ -46,6 +46,7 @@ import {
 	resolveContentListColumns,
 	type ResolvedContentListColumn,
 } from "../lib/content-list-columns.js";
+import { useConfirmedRequest } from "../lib/dialog-form.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { inlineLabel } from "../lib/inline-label.js";
@@ -62,6 +63,7 @@ import {
 	isBylineFilterActive,
 	type BylineFilterState,
 } from "./BylineFilter.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 import {
 	ContentStatusBadge,
 	ContentStatusLabel,
@@ -109,6 +111,8 @@ export interface ContentDateFilter {
 /** An empty (inactive) date filter, defaulting to the created-at column. */
 export const EMPTY_DATE_FILTER: ContentDateFilter = { field: "createdAt", from: "", to: "" };
 
+type RowRequest = (id: string) => Promise<unknown> | void;
+
 export interface ContentListProps {
 	collection: string;
 	collectionLabel: string;
@@ -118,12 +122,14 @@ export interface ContentListProps {
 	trashedItems?: TrashedContentItem[];
 	isLoading?: boolean;
 	isTrashedLoading?: boolean;
-	onDelete?: (id: string) => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDelete?: RowRequest;
 	onDuplicate?: (id: string) => void;
 	/** Whether to offer Duplicate on an entry's row. Offered on every row when omitted. */
 	canDuplicate?: (item: ContentItem) => boolean;
 	onRestore?: (id: string) => void;
-	onPermanentDelete?: (id: string) => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onPermanentDelete?: RowRequest;
 	onLoadMore?: () => void;
 	onLoadMoreTrashed?: () => void;
 	hasMore?: boolean;
@@ -445,15 +451,15 @@ export function ContentList({
 		});
 	};
 	const deleteRow = onDelete
-		? (id: string) => {
-				setSelectedIds((prev) => {
-					if (!prev.has(id)) return prev;
-					const next = new Set(prev);
-					next.delete(id);
-					return next;
-				});
-				onDelete(id);
-			}
+		? (id: string) =>
+				Promise.resolve(onDelete(id)).then(() =>
+					setSelectedIds((prev) => {
+						if (!prev.has(id)) return prev;
+						const next = new Set(prev);
+						next.delete(id);
+						return next;
+					}),
+				)
 		: undefined;
 	const selectedCount = selectedIds.size;
 	const extensionColumns = React.useMemo(
@@ -1336,7 +1342,7 @@ interface ContentListItemProps {
 	item: ContentItem;
 	visibleItems: readonly ContentItem[];
 	collection: string;
-	onDelete?: (id: string) => void;
+	onDelete?: RowRequest;
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
 	i18n?: { defaultLocale: string; locales: string[]; prefixDefaultLocale?: boolean };
@@ -1373,7 +1379,7 @@ function ContentListItem({
 	// last-updated / created date when it's unset, empty, or unparseable.
 	const customDate = dateField ? parseListDate(item.data[dateField]) : null;
 	const date = customDate ?? parseTimestamp(item.updatedAt || item.createdAt);
-	const [trashOpen, setTrashOpen] = React.useState(false);
+	const trash = useConfirmedRequest(onDelete && (() => onDelete(item.id)));
 
 	return (
 		<tr data-selected={selected || undefined}>
@@ -1481,30 +1487,18 @@ function ContentListItem({
 					<DropdownMenu.Item
 						variant="danger"
 						icon={<Trash className="size-4" aria-hidden="true" />}
-						onClick={() => setTrashOpen(true)}
+						onClick={trash.show}
 					>
 						{t`Move to trash`}
 					</DropdownMenu.Item>
 				</RowActionsMenu>
-				<LayerDialog.Root open={trashOpen} onOpenChange={setTrashOpen} disablePointerDismissal>
-					<LayerDialog.Content size="sm">
-						<LayerDialog.Title>{t`Move to Trash?`}</LayerDialog.Title>
-						<LayerDialog.Body>
-							<Text variant="secondary">{t`Move "${title}" to trash? You can restore it later.`}</Text>
-						</LayerDialog.Body>
-						<LayerDialog.Actions dismissLabel={t`Cancel`}>
-							<LayerDialog.Action
-								variant="destructive"
-								onClick={() => {
-									setTrashOpen(false);
-									onDelete?.(item.id);
-								}}
-							>
-								{t`Move to Trash`}
-							</LayerDialog.Action>
-						</LayerDialog.Actions>
-					</LayerDialog.Content>
-				</LayerDialog.Root>
+				<ConfirmDialog
+					{...trash.dialog}
+					title={t`Move to Trash?`}
+					description={t`Move "${title}" to trash? You can restore it later.`}
+					confirmLabel={t`Move to Trash`}
+					pendingLabel={t`Moving to trash...`}
+				/>
 			</td>
 		</tr>
 	);
@@ -1611,7 +1605,7 @@ interface TrashedListItemProps {
 	titleField?: string;
 	showLocale?: boolean;
 	onRestore?: (id: string) => void;
-	onPermanentDelete?: (id: string) => void;
+	onPermanentDelete?: RowRequest;
 }
 
 function TrashedListItem({
@@ -1624,7 +1618,9 @@ function TrashedListItem({
 	const { t, i18n } = useLingui();
 	const title = getEntryTitle(item, titleField);
 	const deletedDate = parseTimestamp(item.deletedAt);
-	const [deleteOpen, setDeleteOpen] = React.useState(false);
+	const permanentDelete = useConfirmedRequest(
+		onPermanentDelete && (() => onPermanentDelete(item.id)),
+	);
 
 	return (
 		<tr>
@@ -1653,30 +1649,18 @@ function TrashedListItem({
 					<DropdownMenu.Item
 						variant="danger"
 						icon={<Trash className="size-4" aria-hidden="true" />}
-						onClick={() => setDeleteOpen(true)}
+						onClick={permanentDelete.show}
 					>
 						{t`Delete permanently`}
 					</DropdownMenu.Item>
 				</RowActionsMenu>
-				<LayerDialog.Root open={deleteOpen} onOpenChange={setDeleteOpen} disablePointerDismissal>
-					<LayerDialog.Content size="sm">
-						<LayerDialog.Title>{t`Delete Permanently?`}</LayerDialog.Title>
-						<LayerDialog.Body>
-							<Text variant="secondary">{t`Permanently delete "${title}"? This cannot be undone.`}</Text>
-						</LayerDialog.Body>
-						<LayerDialog.Actions dismissLabel={t`Cancel`}>
-							<LayerDialog.Action
-								variant="destructive"
-								onClick={() => {
-									setDeleteOpen(false);
-									onPermanentDelete?.(item.id);
-								}}
-							>
-								{t`Delete Permanently`}
-							</LayerDialog.Action>
-						</LayerDialog.Actions>
-					</LayerDialog.Content>
-				</LayerDialog.Root>
+				<ConfirmDialog
+					{...permanentDelete.dialog}
+					title={t`Delete Permanently?`}
+					description={t`Permanently delete "${title}"? This cannot be undone.`}
+					confirmLabel={t`Delete Permanently`}
+					pendingLabel={t`Deleting...`}
+				/>
 			</td>
 		</tr>
 	);
