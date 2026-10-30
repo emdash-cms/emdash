@@ -6,13 +6,14 @@ import { pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
 import { build, createServer } from "vite";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
 	createViteConfig,
 	linguiMacroPlugin,
 	pathToImportUrl,
 } from "../../../src/astro/integration/vite-config.js";
+import { getRuntimeHolder } from "../../../src/astro/runtime-holder.js";
 
 // Vite/Rollup type hook fields as `T | { handler: T; order?: ... }`. This
 // plugin always uses the plain-function form, so unwrap that shape to get a
@@ -459,5 +460,117 @@ describe("createViteConfig Astro logger optimization", () => {
 		const config = buildConfig(projectWithoutConsoleLoggerRoot);
 
 		expect(config.ssr?.optimizeDeps?.include).not.toContain("astro/logger/console");
+	});
+});
+
+describe("createViteConfig runtime shutdown plugin", () => {
+	const projectRoot = new URL("../../../../../demos/simple/", import.meta.url);
+
+	function buildConfig(adapter: string, command: "dev" | "build" = "dev") {
+		return createViteConfig(
+			{
+				serializableConfig: {},
+				resolvedConfig: {} as never,
+				pluginDescriptors: [],
+				astroConfig: {
+					root: projectRoot,
+					adapter: { name: adapter },
+				} as AstroConfig,
+			},
+			command,
+		);
+	}
+
+	async function createViteTestServer(config: ReturnType<typeof createViteConfig>) {
+		return createServer({
+			configFile: false,
+			logLevel: "silent",
+			plugins: config.plugins,
+			optimizeDeps: { disabled: true },
+		});
+	}
+
+	it("shuts down and detaches the runtime before close resolves", async () => {
+		const shutdown = vi.fn<() => Promise<void>>();
+		let resolveShutdown!: () => void;
+		shutdown.mockImplementation(
+			() =>
+				new Promise<void>((finish) => {
+					resolveShutdown = finish;
+				}),
+		);
+		const holder = getRuntimeHolder();
+		holder.instance = { shutdown } as never;
+		const server = await createViteTestServer(buildConfig("@astrojs/node"));
+
+		try {
+			const close = server.close();
+			await vi.waitFor(() => expect(shutdown).toHaveBeenCalledTimes(1));
+			expect(getRuntimeHolder()).not.toBe(holder);
+			expect(holder.instance).toBeNull();
+			let closed = false;
+			void close.then(() => {
+				closed = true;
+				return undefined;
+			});
+			await Promise.resolve();
+			expect(closed).toBe(false);
+
+			resolveShutdown();
+			await close;
+		} finally {
+			resolveShutdown?.();
+			await server.close().catch(() => undefined);
+		}
+		expect(shutdown).toHaveBeenCalledOnce();
+	});
+
+	it("does nothing when no runtime is held", async () => {
+		const holder = getRuntimeHolder();
+		holder.instance = null;
+		const server = await createViteTestServer(buildConfig("@astrojs/node"));
+
+		await expect(server.close()).resolves.toBeUndefined();
+		expect(getRuntimeHolder()).not.toBe(holder);
+	});
+
+	it("detaches the runtime even when shutdown fails", async () => {
+		const error = new Error("shutdown failed");
+		const shutdown = vi.fn<() => Promise<void>>().mockRejectedValue(error);
+		const holder = getRuntimeHolder();
+		holder.instance = { shutdown } as never;
+		const server = await createViteTestServer(buildConfig("@astrojs/node"));
+		const logError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			// Vite settles close hooks even when a plugin rejects.
+			await server.close();
+			expect(shutdown).toHaveBeenCalledTimes(1);
+			expect(getRuntimeHolder()).not.toBe(holder);
+			expect(holder.instance).toBeNull();
+			expect(logError).toHaveBeenCalledWith("[emdash] runtime shutdown failed:", error);
+		} finally {
+			logError.mockRestore();
+		}
+	});
+
+	it.each([
+		["build", "@astrojs/node"],
+		["dev on Cloudflare", "@astrojs/cloudflare"],
+	] as const)("does not execute the shutdown plugin for %s", async (command, adapter) => {
+		const shutdown = vi.fn<() => Promise<void>>();
+		const holder = getRuntimeHolder();
+		holder.instance = { shutdown } as never;
+		const server = await createViteTestServer(
+			buildConfig(adapter, command === "build" ? "build" : "dev"),
+		);
+
+		try {
+			await server.close();
+			expect(shutdown).not.toHaveBeenCalled();
+			expect(getRuntimeHolder()).toBe(holder);
+		} finally {
+			holder.instance = null;
+		}
 	});
 });

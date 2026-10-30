@@ -47,13 +47,11 @@ function bridge(pluginId = "owner") {
 	});
 }
 
-type WriteMethod = "kvSet" | "storagePut" | "storagePutMany";
+type WriteMethod = "storagePut" | "storagePutMany";
 
 async function put(method: WriteMethod, id: string, data: unknown): Promise<void> {
 	const rpc = bridge();
-	if (method === "kvSet") {
-		await rpc.kvSet(id, data);
-	} else if (method === "storagePut") {
+	if (method === "storagePut") {
 		await rpc.storagePut("records", id, data);
 	} else {
 		await rpc.storagePutMany("records", [{ id, data }]);
@@ -87,7 +85,7 @@ async function addUniqueValueIndex(): Promise<void> {
 }
 
 describe("plugin storage upserts through Cloudflare RPC and D1", () => {
-	for (const method of ["kvSet", "storagePut", "storagePutMany"] as const) {
+	for (const method of ["storagePut", "storagePutMany"] as const) {
 		it(`${method} preserves created_at and changes the revision when overwriting a row`, async () => {
 			await put(method, "record", { value: "initial" });
 			await sql`
@@ -125,14 +123,58 @@ describe("plugin storage upserts through Cloudflare RPC and D1", () => {
 
 			const rpc = bridge();
 			for (const row of before) {
-				const result =
-					method === "kvSet"
-						? await rpc.kvCompareAndSet(row.id, row.revision, JSON.parse(row.data))
-						: await rpc.storageCompareAndSet("records", row.id, row.revision, JSON.parse(row.data));
+				const result = await rpc.storageCompareAndSet(
+					"records",
+					row.id,
+					row.revision,
+					JSON.parse(row.data),
+				);
 				expect(result.applied).toBe(true);
 			}
 		});
 	}
+
+	it("kvSet overwrites values and invalidates the previous revision", async () => {
+		const rpc = bridge();
+		await rpc.kvSet("record", { value: "initial" });
+		const before = await rpc.kvGetVersioned("record");
+		if (!before) throw new Error("Missing initial KV value");
+
+		await rpc.kvSet("record", { value: "updated" });
+
+		const after = await rpc.kvGetVersioned("record");
+		expect(after).toEqual({ value: { value: "updated" }, revision: expect.any(String) });
+		expect(after?.revision).not.toBe(before.revision);
+		expect(await rpc.kvCompareAndSet("record", before.revision, "stale")).toEqual({
+			applied: false,
+		});
+		expect(await rpc.kvCompareAndDelete("record", before.revision)).toEqual({ applied: false });
+		expect(await rpc.kvGetVersioned("record")).toEqual(after);
+	});
+
+	it("kvSet rejects unique collisions without changing values or revisions", async () => {
+		await sql`CREATE UNIQUE INDEX unique_plugin_kv_value ON options (value)`.execute(db);
+		const rpc = bridge();
+		await rpc.kvSet("first", "unique");
+		await rpc.kvSet("second", "other");
+		const first = await rpc.kvGetVersioned("first");
+		const second = await rpc.kvGetVersioned("second");
+		if (!first || !second) throw new Error("Missing initial KV values");
+		const before = await rpc.kvList();
+
+		async function set(id: string): Promise<void> {
+			await rpc.kvSet(id, "unique");
+		}
+		for (const id of ["third", "second"]) {
+			await expect(set(id)).rejects.toThrow();
+			expect(await rpc.kvList()).toEqual(before);
+			expect(await rpc.kvGetVersioned("first")).toEqual(first);
+			expect(await rpc.kvGetVersioned("second")).toEqual(second);
+		}
+		expect(await rpc.kvGetVersioned("third")).toBeNull();
+		expect((await rpc.kvCompareAndSet("first", first.revision, first.value)).applied).toBe(true);
+		expect((await rpc.kvCompareAndSet("second", second.revision, second.value)).applied).toBe(true);
+	});
 
 	it("storagePutMany inserts and overwrites items in order", async () => {
 		const rpc = bridge();

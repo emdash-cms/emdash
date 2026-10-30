@@ -1,7 +1,7 @@
 ---
 export const prerender = false;
 
-import { search } from "emdash";
+import { search, SearchUnavailableError, type SearchResponse } from "emdash";
 import Base from "../layouts/Base.astro";
 
 const query = Astro.url.searchParams.get("q")?.trim() || "";
@@ -10,9 +10,17 @@ const query = Astro.url.searchParams.get("q")?.trim() || "";
 // filtering in JS. FTS scales as the post count grows, returns ranked
 // results, and handles tokenization/stemming. Templates that grep all
 // post bodies in JS quickly become unusable past a few hundred posts.
-const { items: results, nextCursor } = query
-	? await search(query, { collections: ["posts"], limit: 30 })
-	: { items: [], nextCursor: undefined };
+let searchResponse: SearchResponse = { items: [] };
+let searchUnavailable = false;
+if (query) {
+	try {
+		searchResponse = await search(query, { collections: ["posts"], limit: 30 });
+	} catch (error) {
+		if (!(error instanceof SearchUnavailableError)) throw error;
+		searchUnavailable = true;
+	}
+}
+const { items: results, nextCursor } = searchResponse;
 
 function escapeHtml(text: string) {
 	return text
@@ -100,7 +108,12 @@ const countLabel = nextCursor
 		query && (
 			<section class="band section">
 				<div class="frame">
-					{rows.length > 0 ? (
+					{searchUnavailable ? (
+						<div class="empty-state">
+							<h2 class="empty-state__title">Search isn't available right now</h2>
+							<p class="empty-state__text">Please try again later.</p>
+						</div>
+					) : rows.length > 0 ? (
 						<>
 							<div class="section-head">
 								<p class="search-summary">

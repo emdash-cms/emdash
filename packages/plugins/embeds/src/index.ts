@@ -10,7 +10,8 @@
  * - Link previews (Open Graph)
  * - GitHub Gists
  *
- * Uses astro-embed components for high-performance, privacy-respecting embeds.
+ * Uses astro-embed components, except for Bluesky posts, which use Bluesky's
+ * own embed script.
  *
  * @example
  * ```typescript
