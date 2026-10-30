@@ -475,3 +475,68 @@ describeEachDialect("MenuRepository createItem() default sortOrder", (dialect) =
 		expect(child2.sortOrder).toBe(1);
 	});
 });
+
+describeEachDialect("MenuRepository.deleteItem() with nested items", (dialect) => {
+	let ctx: DialectTestContext;
+	let repo: MenuRepository;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		repo = new MenuRepository(ctx.db);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	async function addItem(menuId: string, label: string, parentId?: string) {
+		return repo.createItem(menuId, "en", { type: "custom", label, customUrl: "/", parentId });
+	}
+
+	it("deletes every nested item with the item", async () => {
+		const menu = await repo.create({ name: "primary", label: "Primary" });
+		const parent = await addItem(menu.id, "Parent");
+		const child = await addItem(menu.id, "Child", parent.id);
+		await addItem(menu.id, "Grandchild", child.id);
+		await addItem(menu.id, "Sibling");
+
+		expect(await repo.deleteItem(menu.id, parent.id)).toBe(true);
+
+		expect((await repo.findItems(menu.id)).map((item) => item.label)).toEqual(["Sibling"]);
+	});
+
+	it("deletes items in a legacy parent cycle", async () => {
+		const menu = await repo.create({ name: "primary", label: "Primary" });
+		const a = await addItem(menu.id, "A");
+		const b = await addItem(menu.id, "B", a.id);
+		await ctx.db
+			.updateTable("_emdash_menu_items")
+			.set({ parent_id: b.id })
+			.where("id", "=", a.id)
+			.execute();
+
+		expect(await repo.deleteItem(menu.id, a.id)).toBe(true);
+
+		expect(await repo.findItems(menu.id)).toEqual([]);
+	});
+
+	// PostgreSQL's parent foreign key still cascades into other menus.
+	it.skipIf(dialect === "postgres")(
+		"keeps items in other menus that point at the deleted item",
+		async () => {
+			const primary = await repo.create({ name: "primary", label: "Primary" });
+			const footer = await repo.create({ name: "footer", label: "Footer" });
+			const parent = await addItem(primary.id, "Parent");
+			const footerItem = await addItem(footer.id, "Footer item");
+			await ctx.db
+				.updateTable("_emdash_menu_items")
+				.set({ parent_id: parent.id })
+				.where("id", "=", footerItem.id)
+				.execute();
+
+			expect(await repo.deleteItem(primary.id, parent.id)).toBe(true);
+
+			expect((await repo.findItems(footer.id)).map((item) => item.label)).toEqual(["Footer item"]);
+		},
+	);
+});

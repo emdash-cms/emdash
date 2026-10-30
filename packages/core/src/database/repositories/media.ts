@@ -9,7 +9,9 @@ import { ulid } from "ulidx";
 
 import { normalizeFocalPoint, type FocalPointUpdate } from "../../media/focal-point.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { jsonTextValues } from "../json-recordset.js";
 import type { Database, MediaRow } from "../types.js";
+import { chunkJsonRows } from "./media-usage.js";
 import type { FindManyResult } from "./types.js";
 import { encodeCursor, decodeCursor } from "./types.js";
 
@@ -419,6 +421,27 @@ export class MediaRepository {
 			.executeTakeFirst();
 
 		return row ? this.rowToItem(row) : null;
+	}
+
+	/**
+	 * Map each storage key to the id of its media item, in one query per JSON
+	 * bind's worth of keys. Unknown keys are left out.
+	 */
+	async findIdsByStorageKeys(storageKeys: readonly string[]): Promise<Map<string, string>> {
+		const ids = new Map<string, string>();
+		for (const batch of chunkJsonRows(storageKeys)) {
+			const result = await sql<{ id: string; storage_key: string }>`
+				WITH requested AS (${jsonTextValues(this.db, batch)})
+				SELECT media.id, media.storage_key
+				FROM media
+				INNER JOIN requested ON requested.value = media.storage_key
+				ORDER BY media.id
+			`.execute(this.db);
+			for (const row of result.rows) {
+				if (!ids.has(row.storage_key)) ids.set(row.storage_key, row.id);
+			}
+		}
+		return ids;
 	}
 
 	/**

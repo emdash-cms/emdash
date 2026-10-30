@@ -1,0 +1,311 @@
+/*
+  prose.css -- reading typography for Portable Text bodies. Wrap rendered
+  content in an element with class="prose". Add "prose-hang" for the
+  editorial layout: from 1024px wide, h2 and h3 hang in the first three
+  columns of a 12-column grid and the text runs beside them. Below that
+  width it is a single column.
+
+  The hang columns are variables, so a page can move them without
+  rewriting the grid, for example full-width images:
+
+  .my-page .prose-hang {
+    --prose-media-column: 1 / -1;
+  }
+
+  These rules sit in @layer base, so overrides in theme.css or in a
+  page's own <style> win without specificity tricks. The variables at
+  the top theme EmDash's built-in blocks. The exception is the short
+  unlayered block at the end, which restyles EmDash's own block markup.
+*/
+
+@layer base {
+	.prose {
+		--prose-flow: 1.375rem; /* between blocks */
+		--prose-section: clamp(2.75rem, 1.75rem + 2.5vw, 4.5rem); /* before h2 */
+		--prose-subsection: clamp(2rem, 1.5rem + 1.25vw, 3rem); /* before h3 */
+		--prose-media: clamp(2rem, 1.25rem + 2vw, 3.5rem); /* around figures and quotes */
+
+		--emdash-caption-color: var(--color-muted);
+		--emdash-break-color: var(--color-border);
+		--emdash-break-dots-color: var(--color-muted);
+		--emdash-pullquote-border: var(--color-border);
+		--emdash-pullquote-color: var(--color-text);
+		--emdash-pullquote-citation-color: var(--color-muted);
+		--emdash-button-bg: var(--color-brand);
+		--emdash-button-bg-hover: color-mix(in srgb, var(--color-brand) 80%, var(--color-bg));
+		--emdash-button-color: var(--color-on-brand);
+		--emdash-file-bg: var(--color-surface);
+		--emdash-file-border: var(--color-border);
+		--emdash-file-color: var(--color-text);
+		--emdash-file-icon-color: var(--color-muted);
+
+		font-size: var(--font-size-md);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+		overflow-wrap: break-word;
+	}
+
+	/* Vertical rhythm. Spacing is in rem so a heading and the block beside it can share an offset. */
+	.prose > * {
+		margin-block: 0;
+		margin-inline: 0;
+	}
+
+	.prose > * + * {
+		margin-block-start: var(--prose-flow);
+	}
+
+	/* :where() keeps these below the heading rules, which set their own offset */
+	.prose > :where(figure, blockquote, .emdash-gallery, .emdash-iframe, .emdash-table-wrapper),
+	.prose > :where(figure, blockquote, .emdash-gallery, .emdash-iframe, .emdash-table-wrapper) + * {
+		margin-block-start: var(--prose-media);
+	}
+
+	.prose > h2 {
+		margin-block-start: var(--prose-section);
+	}
+
+	.prose > :is(h3, h4, h5, h6) {
+		margin-block-start: var(--prose-subsection);
+	}
+
+	.prose > :is(h2, h3, h4, h5, h6) + * {
+		margin-block-start: 0.875rem;
+	}
+
+	.prose > :first-child {
+		margin-block-start: 0;
+	}
+
+	.prose > :is(p, ul, ol, h4, h5, h6) {
+		max-width: var(--measure);
+	}
+
+	/* Headings */
+	.prose :is(h2, h3, h4, h5, h6) {
+		font-weight: var(--font-weight-heading);
+		line-height: var(--leading-snug);
+		letter-spacing: var(--tracking-tight);
+		color: var(--color-text);
+	}
+
+	.prose h2 {
+		font-size: var(--font-size-xl);
+	}
+
+	.prose h3 {
+		font-size: var(--font-size-lg);
+	}
+
+	.prose :is(h4, h5, h6) {
+		font-size: var(--font-size-md);
+	}
+
+	/* Inline text */
+	.prose a:where(:not([class*="emdash"])) {
+		color: var(--color-text);
+		text-decoration-line: underline;
+		text-decoration-thickness: 1px;
+		text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+		text-underline-offset: 0.2em;
+		transition: text-decoration-color var(--transition-fast);
+	}
+
+	.prose a:where(:not([class*="emdash"])):is(:hover, :focus-visible) {
+		text-decoration-color: currentColor;
+	}
+
+	.prose :is(strong, b) {
+		font-weight: 600;
+		color: var(--color-text);
+	}
+
+	.prose :is(sub, sup) {
+		font-size: 0.75em;
+		line-height: 0;
+	}
+
+	.prose :not(pre) > code {
+		padding: 0.1em 0.3em;
+		border-radius: var(--radius);
+		background: var(--color-fill);
+		color: var(--color-text);
+		font-family: var(--font-label);
+		font-size: 0.85em;
+		box-decoration-break: clone;
+		-webkit-box-decoration-break: clone;
+	}
+
+	/* Lists */
+	.prose :is(ul, ol) {
+		padding-inline-start: 1.5em;
+	}
+
+	.prose ul {
+		list-style-type: "–";
+	}
+
+	.prose ol {
+		list-style-type: decimal-leading-zero;
+	}
+
+	.prose li {
+		padding-inline-start: 0.5em;
+	}
+
+	.prose li + li,
+	.prose li > :is(ul, ol) {
+		margin-block-start: 0.375em;
+	}
+
+	.prose li::marker {
+		color: var(--color-muted);
+	}
+
+	.prose ol > li::marker {
+		font-family: var(--font-label);
+		font-size: 0.8em;
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* Pull quote */
+	.prose blockquote:where(:not([class*="emdash"])) {
+		font-size: var(--font-size-2xl);
+		font-weight: 500;
+		font-style: normal;
+		line-height: var(--leading-snug);
+		letter-spacing: var(--tracking-tight);
+		color: var(--color-text);
+		text-wrap: balance;
+	}
+
+	.prose blockquote > * + * {
+		margin-block-start: 0.5em;
+	}
+
+	.prose blockquote + p {
+		margin-block-start: var(--prose-flow);
+	}
+
+	/* Rules */
+	.prose hr {
+		border: 0;
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	/* Media fills its column; captions are mono labels */
+	.prose figure img,
+	.prose figure video,
+	.prose .emdash-iframe {
+		width: 100%;
+	}
+
+	.prose figure img {
+		outline: 1px solid var(--color-image-outline);
+		outline-offset: -1px;
+	}
+
+	.prose figcaption {
+		margin-block-start: 0.75rem;
+		font-family: var(--font-label);
+		font-size: var(--font-size-label);
+		line-height: 1.4;
+		letter-spacing: var(--tracking-label);
+		text-align: start;
+		text-transform: uppercase;
+		color: var(--color-muted);
+	}
+
+	.prose :is(.emdash-embed-video, .emdash-iframe),
+	.prose .emdash-video video {
+		background: var(--color-fill);
+	}
+
+	/* EmDash's table block reads these for its header row and stripes */
+	.prose .emdash-table-wrapper {
+		--color-surface: var(--color-fill);
+		--color-bg-subtle: color-mix(in srgb, var(--color-fill) 50%, transparent);
+	}
+
+	/*
+	 * Hanging heads. The grid's auto-placement puts the block after a
+	 * heading in the heading's row, so the two start on the same line;
+	 * that block takes the heading's offset to keep the tops level.
+	 */
+	@media (min-width: 1024px) {
+		.prose-hang {
+			--prose-head-column: 1 / 4;
+			--prose-text-column: 5 / 12;
+			--prose-media-column: 5 / -1;
+			--prose-quote-column: 3 / 12;
+
+			display: grid;
+			grid-template-columns: repeat(12, minmax(0, 1fr));
+			column-gap: var(--gutter);
+			align-items: start;
+		}
+
+		/*
+		 * An astro-island (the visual editor, or a client-rendered block) is
+		 * display: contents, so its child is the grid item.
+		 */
+		.prose-hang > *,
+		.prose-hang > astro-island > * {
+			grid-column: var(--prose-text-column);
+		}
+
+		.prose-hang > :is(h2, h3) {
+			grid-column: var(--prose-head-column);
+		}
+
+		.prose-hang > :is(figure, .emdash-gallery, .emdash-iframe, .emdash-columns, .emdash-cover) {
+			grid-column: var(--prose-media-column);
+		}
+
+		.prose-hang > :is(.emdash-image--align-wide, .emdash-image--align-full) {
+			grid-column: 1 / -1;
+		}
+
+		.prose-hang > :is(blockquote, .emdash-pullquote) {
+			grid-column: var(--prose-quote-column);
+		}
+
+		/* A quote straight after a heading would collide with it in column 3 */
+		.prose-hang > :is(h2, h3) + :is(blockquote, .emdash-pullquote) {
+			grid-column: var(--prose-text-column);
+		}
+
+		.prose-hang > h2 + * {
+			margin-block-start: var(--prose-section);
+		}
+
+		.prose-hang > h3 + * {
+			margin-block-start: var(--prose-subsection);
+		}
+
+		.prose-hang > :is(h2, h3):first-child + * {
+			margin-block-start: 0;
+		}
+	}
+}
+
+/*
+  EmDash's block components ship scoped, unlayered styles, which beat
+  everything in @layer base. revert-layer hands their margins back to the
+  rhythm above. Caption type needs !important; override those properties
+  with !important too.
+*/
+.prose
+	> :is(figure, div, hr)[class*="emdash-"]:not(
+		.emdash-image--align-left,
+		.emdash-image--align-right,
+		.emdash-image--align-center
+	) {
+	margin: revert-layer;
+}
+
+.prose :is(.emdash-image, .emdash-video, .emdash-embed, .emdash-gallery-item) figcaption {
+	margin-block-start: 0.75rem !important;
+	font-size: var(--font-size-label) !important;
+	text-align: start !important;
+}

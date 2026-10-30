@@ -7,16 +7,17 @@ import { Aside } from "@astrojs/starlight/components";
 
 This page covers the public API used by Astro pages, layouts, and components to read and present an EmDash site. It does not inventory every export from the `emdash` package root: database repositories, API handlers, migration utilities, plugin-authoring APIs, and other server internals have separate references or are intended for framework integration code.
 
-The **site-template API contract** in this reference lists every function imported from `emdash` by EmDash's maintained site templates. Type-only imports such as `MediaValue` belong to the relevant data-model documentation. Related functions are documented in the same sections when they help a site author, but the page does not cover unrelated root exports.
+The **site-template API contract** in this reference lists every runtime export imported from `emdash` by EmDash's maintained site templates. Type-only imports such as `MediaValue` belong to the relevant data-model documentation. Related functions are documented in the same sections when they help a site author, but the page does not cover unrelated root exports.
 
 ## Site-template API contract
 
-The maintained templates call these runtime helpers:
+The maintained templates use these runtime exports:
 
-| Function | Used for |
-| -------- | -------- |
+| Export | Used for |
+| ------ | -------- |
 | `decodeSlug` | Decoding a dynamic route parameter before lookup |
 | `getContentSeo` | Reading an entry's SEO panel values without template fallbacks |
+| `getEditMeta` | Detecting an empty field that still renders its inline editor in edit mode |
 | `getEmDashCollection` | Reading and filtering entries in a collection |
 | `getEmDashEntry` | Reading one entry by ID or slug |
 | `getMenuWithCacheHint` | Rendering a navigation menu with cache invalidation |
@@ -27,6 +28,7 @@ The maintained templates call these runtime helpers:
 | `getTermsForEntries` | Batch-loading one taxonomy for a list of entries |
 | `sanitizeHref` | Rejecting unsafe URL schemes before rendering stored links |
 | `search` | Searching published content across collections |
+| `SearchUnavailableError` | Showing a search-unavailable message when SQLite lacks FTS5 |
 
 ## Content queries
 
