@@ -183,7 +183,7 @@ Test representative upgrades from existing data, retry after partial completion,
 
 ## Indexes
 
-`SchemaRegistry.createContentTable()` in `schema/registry.ts` defines the indexes every content table gets: single-column indexes on `slug`, `locale`, `author_id`, `primary_byline_id`, `live_revision_id`, and `draft_revision_id`; composites led by `deleted_at` for status filters and list ordering; indexes on `(translation_group, locale)`, one of them unique among non-deleted rows; and the partial `(deleted_at, scheduled_at)` index (`WHERE scheduled_at IS NOT NULL`). When a migration adds an index to existing content tables, `createContentTable()` creates it under the same name. Foreign key columns always get an index.
+`SchemaRegistry.createContentTable()` in `schema/registry.ts` defines the indexes every content table gets: single-column indexes on `slug`, `locale`, `author_id`, `primary_byline_id`, `live_revision_id`, and `draft_revision_id`; composites led by `deleted_at` for status filters and list ordering; `(translation_group, locale)` and `(deleted_at, translation_group, locale)`; a partial unique index on `(translation_group, lower(locale))` (`WHERE deleted_at IS NULL AND translation_group IS NOT NULL`), so a translation group has at most one non-deleted row per locale, ignoring case; and the partial `(deleted_at, scheduled_at)` index (`WHERE scheduled_at IS NOT NULL`). When a migration adds an index to existing content tables, `createContentTable()` creates it under the same name. Foreign key columns always get an index.
 
 Naming: `idx_{table}_{column}` for single-column, `idx_{table}_{purpose}` for multi-column.
 
