@@ -31,7 +31,7 @@ None imposed. Define your own.
 This template ships without:
 
 - `src/styles/theme.css` -- create one and import it from `Base.astro` if you want CSS-variable theming.
-- Fonts in `astro.config.mjs` -- the `fonts:` array is empty. Add Google Fonts entries with `cssVariable` bindings if you want web fonts.
+- Fonts in `astro.config.mjs` -- there is no `fonts:` array yet. Add one with Google Fonts entries and `cssVariable` bindings if you want web fonts.
 - A `components/` directory with styled cards / tag lists / etc. -- build them as needed.
 
 ## What to do here

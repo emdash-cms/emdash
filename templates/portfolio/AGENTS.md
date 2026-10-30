@@ -20,6 +20,8 @@ The admin UI is at `http://localhost:4321/_emdash/admin`.
 | `src/layouts/Base.astro` | Base layout with EmDash wiring (menus, search, page contributions)                 |
 | `src/pages/`             | Astro pages -- all server-rendered                                                 |
 
+Not every template ships `seed/seed.json` or `src/layouts/Base.astro`; "This Template" below says what this one includes.
+
 ## Skills
 
 Agent skills are in `.agents/skills/`. Load them when working on specific tasks:

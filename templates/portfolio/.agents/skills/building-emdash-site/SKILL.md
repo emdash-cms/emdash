@@ -35,7 +35,7 @@ my-site/
 │   └── components/            # Reusable components
 ├── seed/
 │   └── seed.json              # Schema + demo content
-├── emdash-env.d.ts          # Generated types (from `emdash types`)
+├── emdash-env.d.ts          # Generated types (written by the dev server)
 └── package.json
 ```
 
