@@ -4,7 +4,7 @@ This is an EmDash site -- a CMS built on Astro with a full admin UI.
 
 ```bash
 pnpm dev              # Start the Astro dev server
-npx emdash types      # Regenerate TypeScript types from a running site
+npx emdash types      # Write standalone types to .emdash/types.ts from a running site
 npx emdash seed seed/seed.json --validate  # Validate seed file
 ```
 
@@ -34,5 +34,5 @@ Agent skills are in `.agents/skills/`. Load them when working on specific tasks:
 - All content pages must be server-rendered (`output: "server"`). No `getStaticPaths()` for CMS content.
 - Image fields are objects (`{ src, alt }`), not strings. Use `<Image image={...} />` from `"emdash/ui"`.
 - `entry.id` is the slug (for URLs). `entry.data.id` is the database ULID (for API calls like `getEntryTerms`).
-- Always call `Astro.cache.set(cacheHint)` on pages that query content.
+- When Astro's cache is enabled, pass content-query hints to `Astro.cache.set(cacheHint)`. Use the `WithCacheHint` variants for site settings, menus, taxonomies, and widget areas rendered by cached routes.
 - Taxonomy names in queries must match the seed's `"name"` field exactly (e.g., `"category"` not `"categories"`).

@@ -20,7 +20,7 @@ const { data: cachedSettings, cacheHint } = await getSiteSettingsWithCacheHint()
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ```
 
-Available keys: `title`, `tagline`, `logo`, `favicon`, `social`, `timezone`, `dateFormat`.
+Available keys: `title`, `tagline`, `logo`, `favicon`, `url`, `postsPerPage`, `dateFormat`, `timezone`, `social`, `seo`.
 
 Use these instead of hard-coding site name, logo, etc.
 
@@ -284,8 +284,10 @@ Search requires per-collection enablement:
 ## SEO Meta
 
 > [!IMPORTANT]
-> On server-rendered content pages that fetch the entry with `getEmDashEntry()`
-> and render `<EmDashHead>`, EmDash automatically applies the SEO panel's
+> On server-rendered content pages that fetch the entry with `getEmDashEntry()`,
+> pass it to `createPublicPageContext()` as
+> `content: { collection, id: entry.data.id }`, and render `<EmDashHead>`,
+> EmDash automatically applies the SEO panel's
 > description, image, canonical URL, and noindex setting. The panel title
 > supplies the social and JSON-LD title contributions. The panel data uses the
 > entry query the page already runs, so it adds no additional query.
@@ -482,13 +484,14 @@ A typical base layout:
 
 ```astro
 ---
-import { getMenu, getEmDashCollection } from "emdash";
+import { getMenu } from "emdash";
 import { WidgetArea, EmDashHead, EmDashBodyStart, EmDashBodyEnd } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import LiveSearch from "emdash/ui/search";
 
 interface Props {
 	title: string;
+	pageTitle?: string;
 	description?: string | null;
 	image?: string | null;
 	content?: { collection: string; id: string; slug?: string | null };
