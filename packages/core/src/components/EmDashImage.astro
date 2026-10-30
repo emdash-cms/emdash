@@ -30,6 +30,7 @@ import { normalizeLegacyExternalMediaValue } from "../media/normalize.js";
 import { buildRenderMediaUrl } from "../media/url.js";
 import {
 	buildResponsiveImage,
+	canOptimizeImage,
 	toAbsoluteMediaUrl,
 	responsiveWidths,
 } from "../media/responsive.js";
@@ -146,7 +147,14 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 		const publicOrigin = getPublicOrigin(Astro.url, Astro.locals.emdash?.config);
 		const absoluteSrc = toAbsoluteMediaUrl(src, publicOrigin);
 		if (finalWidth && finalHeight && absoluteSrc.startsWith(`${publicOrigin}/`)) {
-			astroImageSrc = absoluteSrc;
+			if (await canOptimizeImage(getImage, {
+				src: absoluteSrc,
+				width: finalWidth,
+				height: finalHeight,
+				...(quality !== undefined ? { quality } : {}),
+			})) {
+				astroImageSrc = absoluteSrc;
+			}
 		} else {
 			const optimized = await buildResponsiveImage(getImage, {
 				src: absoluteSrc,

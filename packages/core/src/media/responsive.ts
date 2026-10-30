@@ -105,6 +105,20 @@ export type GetImage = (options: {
 	quality?: EmbedOptions["quality"];
 }) => Promise<{ src: string; srcSet?: { attribute?: string } | undefined }>;
 
+/** Check this source, not just the service: unauthorized hosts also pass through. */
+export async function canOptimizeImage(
+	getImage: GetImage,
+	opts: { src: string; width: number; height: number; quality?: EmbedOptions["quality"] },
+): Promise<boolean> {
+	if (!ABSOLUTE_HTTP_URL.test(opts.src)) return false;
+	try {
+		const result = await getImage(opts);
+		return Boolean(result.src && result.src !== opts.src);
+	} catch {
+		return false;
+	}
+}
+
 export interface ResponsiveImage {
 	src: string;
 	srcset?: string;

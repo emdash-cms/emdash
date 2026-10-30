@@ -7,11 +7,12 @@
  * Image.astro), falling back to Astro's Image component when dimensions are
  * available for locally-stored media.
  */
-import { Image as AstroImage } from "astro:assets";
+import { Image as AstroImage, getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
 import {
+	canOptimizeImage,
 	toAbsoluteMediaUrl,
 	gallerySizes,
 	GALLERY_DEFAULT_COLUMNS,
@@ -136,10 +137,13 @@ const resolvedImages = await Promise.all(
 				id: asset._ref,
 			});
 			if (width && height) {
-				astroImageSrc = toAbsoluteMediaUrl(
+				const absoluteSrc = toAbsoluteMediaUrl(
 					src,
 					getPublicOrigin(Astro.url, Astro.locals.emdash?.config),
 				);
+				if (await canOptimizeImage(getImage, { src: absoluteSrc, width, height })) {
+					astroImageSrc = absoluteSrc;
+				}
 			}
 		}
 

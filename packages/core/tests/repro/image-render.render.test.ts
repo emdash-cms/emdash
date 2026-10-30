@@ -63,17 +63,23 @@ async function renderImage(
 	renderNode: Record<string, unknown>,
 	renderLocals: typeof locals | undefined = locals,
 	placeholder = true,
+	request?: Request,
 ) {
 	const c = await AstroContainer.create();
 	return c.renderToString(Image, {
 		props: { node: renderNode, placeholder },
 		...(renderLocals ? { locals: renderLocals } : {}),
+		...(request ? { request } : {}),
 	});
 }
 
-async function renderEmDashImage(props: Record<string, unknown>) {
+async function renderEmDashImage(props: Record<string, unknown>, request?: Request) {
 	const c = await AstroContainer.create();
-	return c.renderToString(EmDashImage, { props, locals });
+	return c.renderToString(EmDashImage, {
+		props,
+		locals,
+		...(request ? { request } : {}),
+	});
 }
 
 async function renderEmDashMedia(props: Record<string, unknown>) {
@@ -111,21 +117,28 @@ describe("faithful render of migrated image node", () => {
 	});
 
 	test("local image keeps wrapper, dimensions, alt, caption and alignment", async () => {
-		const html = await renderImage({
-			...node,
-			alt: "Migrated image",
-			caption: "A caption",
-			title: "Image details",
-			alignment: "center",
-			width: 1200,
-			height: 800,
-			displayWidth: 600,
-			displayHeight: undefined,
-		});
+		const html = await renderImage(
+			{
+				...node,
+				alt: "Migrated image",
+				caption: "A caption",
+				title: "Image details",
+				alignment: "center",
+				width: 1200,
+				height: 800,
+				displayWidth: 600,
+				displayHeight: undefined,
+			},
+			locals,
+			true,
+			new Request("https://quality.example.com/"),
+		);
 		const tag = imgTag(html);
 
 		expect(compact(html)).toContain('<figure class="emdash-image emdash-image--align-center"');
-		expect(attr(tag, "src")).toContain("/_emdash/api/media/file/01KTRTJ55S65SADEH9P9TSY89H.png");
+		expect(decodeURIComponent(attr(tag, "src") ?? "")).toContain(
+			"/_emdash/api/media/file/01KTRTJ55S65SADEH9P9TSY89H.png",
+		);
 		expect(attr(tag, "alt")).toBe("Migrated image");
 		expect(attr(tag, "title")).toBe("Image details");
 		expect(attr(tag, "width")).toBe("600");
@@ -335,18 +348,21 @@ describe("faithful render of migrated image node", () => {
 	});
 
 	test("public EmDashImage uses Astro Image for same-origin local media", async () => {
-		const html = await renderEmDashImage({
-			image: {
-				id: "01CUSTOM",
-				src: "/media/custom.jpg",
-				alt: "Custom local media",
-				width: 640,
-				height: 360,
+		const html = await renderEmDashImage(
+			{
+				image: {
+					id: "01CUSTOM",
+					src: "/media/custom.jpg",
+					alt: "Custom local media",
+					width: 640,
+					height: 360,
+				},
 			},
-		});
+			new Request("https://quality.example.com/"),
+		);
 		const tag = imgTag(html);
 
-		expect(attr(tag, "src")).toContain("/media/custom.jpg");
+		expect(decodeURIComponent(attr(tag, "src") ?? "")).toContain("/media/custom.jpg");
 		expect(attr(tag, "data-astro-image")).toBe("constrained");
 		expect(attr(tag, "srcset")).toBeTruthy();
 		expect(attr(tag, "loading")).toBe("lazy");
@@ -397,7 +413,9 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "src")).toContain("/_emdash/api/media/file/01MEDIA.jpg");
 		expect(attr(tag, "loading")).toBe("eager");
 		expect(attr(tag, "fetchpriority")).toBe("high");
-		expect(attr(tag, "class")).toBe("hero-image");
+		expect(attr(tag, "class")).toContain("hero-image");
+		expect(attr(tag, "srcset")).toBeUndefined();
+		expect(attr(tag, "sizes")).toBeUndefined();
 		expect(attr(tag, "data-testid")).toBe("hero");
 	});
 });
