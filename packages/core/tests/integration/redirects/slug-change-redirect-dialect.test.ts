@@ -102,6 +102,31 @@ describeEachDialect("published slug-change redirects", (dialect) => {
 		]);
 	});
 
+	it.each([null, ""])(
+		"does not create a redirect when the collection has no url pattern (%s)",
+		async (urlPattern) => {
+			await db
+				.updateTable("_emdash_collections")
+				.set({ url_pattern: urlPattern })
+				.where("slug", "=", "posts")
+				.execute();
+			const entry = await new ContentRepository(db).create({
+				type: "posts",
+				slug: "old-title",
+				status: "published",
+				data: { title: "Old title" },
+			});
+
+			await expect(
+				handleContentUpdate(db, "posts", entry.id, { slug: "new-title" }),
+			).resolves.toMatchObject({ success: true });
+			await expect(new ContentRepository(db).findById("posts", entry.id)).resolves.toMatchObject({
+				slug: "new-title",
+			});
+			await expect(db.selectFrom("_emdash_redirects").selectAll().execute()).resolves.toEqual([]);
+		},
+	);
+
 	it("removes a redirect from the new URL before collapsing chains", async () => {
 		const entry = await new ContentRepository(db).create({
 			type: "posts",

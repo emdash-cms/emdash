@@ -202,6 +202,8 @@ Manage rules in **Redirects** in the EmDash admin. A rule either redirects a sou
 
 When the slug of a published entry changes, EmDash creates a `301` redirect from the old URL to the new one, based on the collection's URL pattern. It collapses existing redirect chains that pointed to the old URL. It creates no redirect while another entry, such as a translation, still uses the old slug.
 
+If the collection's URL pattern is unset or empty, EmDash skips automatic redirect creation. Set a URL pattern that matches your site's routes to enable automatic redirects, or add redirects for the actual public URLs manually. For a `posts` collection served at `/posts/{slug}`, set that pattern explicitly; automatic redirects do not use the `/{collection}/{slug}` fallback used by sitemaps and menu links.
+
 EmDash logs requests that end in a 404 response. The **404 Errors** tab on the **Redirects** page shows the most frequently missed paths. For each one, you can add a redirect or mark it as gone (`410`), which tells search engines the page was deleted. The log keeps up to 10,000 paths and drops the ones not seen for the longest time.
 
 Seed files can also define redirects. See [Redirects](/themes/seed-files/#redirects) in the seed file reference.
