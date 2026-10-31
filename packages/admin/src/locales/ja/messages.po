@@ -41,7 +41,7 @@ msgstr "自動返信メールを送信"
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:790
 msgid "Send a reply to the first email field in the form. Email must be configured."
-msgstr "フォームの最初のメールアドレスフィールドに入力されたアドレスに返信します。メールの設定が必要です。"
+msgstr "フォーム内で最初にあるメールアドレスフィールドに入力されたアドレスに返信します。メールの設定が必要です。"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:797
