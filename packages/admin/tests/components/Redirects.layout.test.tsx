@@ -40,8 +40,17 @@ function redirect(id: string, overrides: Partial<Redirect>): Redirect {
 }
 
 const redirects = [
-	redirect("long", { source: longPath, destination: `${longPath}-moved`, hits: 12_345 }),
-	redirect("unbroken", { source: `/${"a".repeat(80)}`, destination: `/${"b".repeat(80)}` }),
+	redirect("long", {
+		source: longPath,
+		destination: `${longPath}-moved`,
+		hits: 12_345,
+		groupName: "Spring launch 2026 landing pages moved over from the old campaign site",
+	}),
+	redirect("unbroken", {
+		source: `/${"a".repeat(80)}`,
+		destination: `/${"b".repeat(80)}`,
+		groupName: "g".repeat(80),
+	}),
 	redirect("auto", { source: "/blog/[slug]", destination: "/articles/[slug]", auto: true }),
 	redirect("loop", { source: "/loop-a", destination: "/loop-b", type: 302 }),
 	redirect("disabled", { source: "/old-pricing", destination: "/pricing", enabled: false }),
@@ -113,7 +122,7 @@ function expectLinesFromStart(element: Element, dir: "ltr" | "rtl") {
 
 describe("Redirects at phone width", () => {
 	it.each(["ltr", "rtl"] as const)(
-		"shows each redirect's source, destination, details, and controls in a 272px table in %s",
+		"shows each redirect's source, destination, group, details, and controls in a 272px table in %s",
 		async (dir) => {
 			const screen = await renderAtPhoneWidth(dir);
 			const box = await phoneTable(screen);
@@ -132,14 +141,17 @@ describe("Redirects at phone width", () => {
 				expectInside(source.element(), box);
 				expectLinesFromStart(source.element(), dir);
 				const cell = page.elementLocator(source.element().closest("td")!);
-				const details = [String(item.type), hitsText(item.hits)];
-				for (const text of item.destination ? [item.destination, ...details] : details) {
+				const lines = [item.destination, item.groupName].filter((text): text is string => !!text);
+				for (const text of [...lines, String(item.type), hitsText(item.hits)]) {
 					const detail = cell.getByText(text, { exact: true });
 					await expect.element(detail).toBeVisible();
 					expectInside(detail.element(), box);
 				}
-				if (item.destination) {
-					expectLinesFromStart(cell.getByText(item.destination, { exact: true }).element(), dir);
+				for (const text of lines) {
+					expectLinesFromStart(cell.getByText(text, { exact: true }).element(), dir);
+				}
+				if (item.groupName) {
+					expect(screen.getByText(item.groupName, { exact: true }).elements()).toHaveLength(1);
 				}
 			}
 
