@@ -14,6 +14,7 @@ import {
 	Plus,
 	ArrowsLeftRight,
 	FileX,
+	FolderSimple,
 	Trash,
 	Pencil,
 	WarningCircle,
@@ -377,6 +378,17 @@ function RedirectRow({
 						</span>
 					</div>
 				)}
+				{redirect.groupName ? (
+					<div className="mt-1 flex gap-1.5 text-xs text-kumo-subtle">
+						<FolderSimple className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+						<span className="min-w-0 wrap-anywhere">
+							<span className="sr-only">{t`Group`} </span>
+							<bdi>{redirect.groupName}</bdi>
+						</span>
+					</div>
+				) : (
+					<span className="sr-only">{t`No group`}</span>
+				)}
 				<RowMeta priority="tertiary">
 					{code}
 					<span className="tabular-nums">
@@ -665,6 +677,10 @@ export function Redirects() {
 												<span className="flex items-center gap-1.5">
 													<ArrowNext className="size-3.5" aria-hidden="true" />
 													{t`Destination`}
+												</span>
+												<span className="flex items-center gap-1.5">
+													<FolderSimple className="size-3.5" aria-hidden="true" />
+													{t`Group`}
 												</span>
 											</span>
 										</th>
