@@ -171,6 +171,32 @@ describe("RelationDialog", () => {
 		await expect.element(dialog.getByText(TAKEN_SLUG)).not.toBeInTheDocument();
 	});
 
+	it("reports a refused slug in the banner when the slug changed during the save", async () => {
+		let rejectSubmit!: (error: unknown) => void;
+		const onSubmit = vi.fn(
+			() =>
+				new Promise<void>((_, reject) => {
+					rejectSubmit = reject;
+				}),
+		);
+		const screen = await render(<Harness onSubmit={onSubmit} />);
+
+		await screen.getByRole("button", { name: "Define relation" }).click();
+		const dialog = screen.getByRole("dialog", { name: "New Relation" });
+		await dialog.getByRole("combobox", { name: "Links to", exact: true }).click();
+		await page.getByRole("option", { name: "Authors" }).click();
+		await dialog.getByRole("button", { name: "Create Relation" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Creating..." })).toBeVisible();
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+		await slug.fill("posts_writers");
+		rejectSubmit(new ApiResponseError(409, "CONFLICT", "A relation with this slug already exists"));
+
+		await expect
+			.element(dialog.getByText("A relation with this slug already exists"))
+			.toBeVisible();
+		await expect.element(slug).not.toHaveAttribute("aria-invalid");
+	});
+
 	it("keeps typed input through a press outside, and still closes on Cancel", async () => {
 		const screen = await render(<Harness />);
 

@@ -5,7 +5,12 @@ import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
 import { ApiResponseError } from "../../lib/api/client.js";
-import { focusFirstInvalid, guardUnsavedInput, revealErrors } from "../../lib/dialog-form.js";
+import {
+	focusFirstInvalid,
+	guardUnsavedInput,
+	revealErrors,
+	useValueAtFailure,
+} from "../../lib/dialog-form.js";
 import { DialogError, getMutationError } from "../DialogError.js";
 import { HelpLabel } from "../FieldHelpLabel.js";
 import { useRolesConfig } from "./useRolesConfig.js";
@@ -76,12 +81,15 @@ export function InviteUserModal({
 	}, [open]);
 
 	const trimmedEmail = email.trim();
-	const emailTaken = isUserExists(error) && sentEmail === trimmedEmail;
+	const emailAtFailure = useValueAtFailure(error, trimmedEmail);
+	// An address edited while the request ran isn't the one refused, so its refusal stays in the banner.
+	const refusedOnField = isUserExists(error) && emailAtFailure === sentEmail;
+	const emailTaken = refusedOnField && sentEmail === trimmedEmail;
 	const problem = emailTaken
 		? msg`Another user already uses this email address. Enter a different one.`
 		: emailProblem(trimmedEmail);
 	const emailError = submitted && problem ? t(problem) : undefined;
-	const requestError = isUserExists(error) ? null : getMutationError(error);
+	const requestError = refusedOnField ? null : getMutationError(error);
 
 	// Sending disables the action, so focus has left the form by the time the address is refused.
 	React.useEffect(() => {

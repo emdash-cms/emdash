@@ -492,4 +492,52 @@ describe("FieldEditor errors from the server", () => {
 		await dialog.getByLabelText("Label", { exact: true }).fill("Headline");
 		await expect.element(dialog.getByRole("alert")).not.toBeInTheDocument();
 	});
+
+	it("reports a refused slug below the form when the slug changed during the save", async () => {
+		let refuse!: () => void;
+		const onAddField = vi.fn(
+			() =>
+				new Promise((_, reject) => {
+					refuse = () =>
+						reject(
+							new ApiResponseError(
+								409,
+								"FIELD_EXISTS",
+								'Field "title" already exists in collection "posts"',
+							),
+						);
+				}),
+		);
+		const dialog = await addField(onAddField);
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+
+		await dialog.getByRole("button", { name: "Add Field" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Saving..." })).toBeVisible();
+		await slug.fill("title_2");
+		refuse();
+
+		await expect
+			.element(dialog.getByRole("alert"))
+			.toHaveTextContent('Field "title" already exists in collection "posts"');
+		await expect.element(slug).not.toHaveAttribute("aria-invalid");
+	});
+
+	it("shows a failure that comes back after an edit made during the save", async () => {
+		let refuse!: () => void;
+		const onAddField = vi.fn(
+			() =>
+				new Promise((_, reject) => {
+					refuse = () =>
+						reject(new ApiResponseError(500, "CREATE_FAILED", "Failed to create field"));
+				}),
+		);
+		const dialog = await addField(onAddField);
+
+		await dialog.getByRole("button", { name: "Add Field" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Saving..." })).toBeVisible();
+		await dialog.getByLabelText("Label", { exact: true }).fill("Headline");
+		refuse();
+
+		await expect.element(dialog.getByRole("alert")).toHaveTextContent("Failed to create field");
+	});
 });

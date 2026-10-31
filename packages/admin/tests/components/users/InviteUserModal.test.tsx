@@ -141,6 +141,43 @@ describe("InviteUserModal", () => {
 		expect(dialog.getByText(taken).query()).toBeNull();
 	});
 
+	it("reports a refused address in the banner when the address changed during the request", async () => {
+		let refuse!: () => void;
+		function SlowHarness() {
+			const [sending, setSending] = React.useState(false);
+			const [error, setError] = React.useState<unknown>(null);
+			return (
+				<InviteUserModal
+					open
+					isSending={sending}
+					error={error}
+					onOpenChange={noop}
+					onInvite={() => {
+						setSending(true);
+						setError(null);
+						refuse = () => {
+							setSending(false);
+							setError(
+								new ApiResponseError(409, "USER_EXISTS", "A user with this email already exists"),
+							);
+						};
+					}}
+				/>
+			);
+		}
+		const screen = await render(<SlowHarness />);
+		const dialog = screen.getByRole("dialog", { name: "Invite User" });
+		const email = dialog.getByRole("textbox", { name: "Email address" });
+		await email.fill("dev@example.com");
+		await dialog.getByRole("button", { name: "Send Invite" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Sending..." })).toBeVisible();
+		await email.fill("other@example.com");
+		refuse();
+
+		await expect.element(dialog.getByText("A user with this email already exists")).toBeVisible();
+		await expect.element(email).not.toHaveAttribute("aria-invalid");
+	});
+
 	it("keeps a typed email through a press outside, and closes when nothing was typed", async () => {
 		const screen = await render(<Harness />);
 		await screen.getByRole("button", { name: "Open" }).click();

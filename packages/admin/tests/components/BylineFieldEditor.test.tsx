@@ -184,6 +184,58 @@ describe("BylineFieldEditor", () => {
 		expect(dialog.getByRole("alert").query()).toBeNull();
 	});
 
+	it("reports a refused slug below the form when the slug changed during the save", async () => {
+		let refuse!: () => void;
+		const onSave = vi.fn(
+			() =>
+				new Promise((_, reject) => {
+					refuse = () =>
+						reject(
+							new ApiResponseError(409, "FIELD_EXISTS", 'Byline field "job_title" already exists', {
+								slug: "job_title",
+							}),
+						);
+				}),
+		);
+		const dialog = await openEditor({ onSave });
+		await dialog.getByLabelText("Label", { exact: true }).fill("Job title");
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+
+		await dialog.getByRole("button", { name: "Create field" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Saving…" })).toBeVisible();
+		await slug.fill("role");
+		refuse();
+
+		await expect
+			.element(dialog.getByRole("alert"))
+			.toHaveTextContent('Byline field "job_title" already exists');
+		await expect.element(slug).not.toHaveAttribute("aria-invalid");
+	});
+
+	it("shows a failure that comes back after an edit made during the save", async () => {
+		let refuse!: () => void;
+		const onSave = vi.fn(
+			() =>
+				new Promise((_, reject) => {
+					refuse = () =>
+						reject(
+							new ApiResponseError(500, "FIELD_CREATE_ERROR", "Byline field could not be created"),
+						);
+				}),
+		);
+		const dialog = await openEditor({ onSave });
+		await dialog.getByLabelText("Label", { exact: true }).fill("Job title");
+
+		await dialog.getByRole("button", { name: "Create field" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Saving…" })).toBeVisible();
+		await dialog.getByLabelText("Label", { exact: true }).fill("Role");
+		refuse();
+
+		await expect
+			.element(dialog.getByRole("alert"))
+			.toHaveTextContent("Byline field could not be created");
+	});
+
 	it("shows a reserved slug on the slug field", async () => {
 		const onSave = vi.fn(async () => {
 			throw new ApiResponseError(400, "VALIDATION_ERROR", "slug: Byline field slug is reserved", {

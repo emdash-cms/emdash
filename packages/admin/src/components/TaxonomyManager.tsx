@@ -53,7 +53,12 @@ import {
 	deleteTaxonomy,
 	deleteTerm,
 } from "../lib/api/taxonomies.js";
-import { guardUnsavedInput, revealErrors, useSingleFlight } from "../lib/dialog-form.js";
+import {
+	guardUnsavedInput,
+	revealErrors,
+	useSingleFlight,
+	useTakenValue,
+} from "../lib/dialog-form.js";
 import { inlineLabel } from "../lib/inline-label.js";
 import { slugify, slugifyIdentifier } from "../lib/utils";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
@@ -561,7 +566,7 @@ function TermFormDialog({
 	const [description, setDescription] = React.useState(term?.description || "");
 	const [autoSlug, setAutoSlug] = React.useState(!term);
 	const [submitted, setSubmitted] = React.useState(false);
-	const [takenSlug, setTakenSlug] = React.useState<string | null>(null);
+	const takenSlug = useTakenValue(slug);
 
 	// Auto-generate slug from label
 	const generatedSlug = label.trim() ? freeTermSlug(label, allTerms) : "";
@@ -570,10 +575,10 @@ function TermFormDialog({
 	}, [generatedSlug, autoSlug]);
 
 	const showTakenSlug = (error: unknown, sentSlug: string | undefined) => {
-		if (!isConflict(error) || sentSlug === undefined) return;
+		if (!isConflict(error) || sentSlug === undefined || !takenSlug.stillHolds(sentSlug)) return;
 		revealErrors(formRef.current, () => {
 			setSubmitted(true);
-			setTakenSlug(sentSlug);
+			takenSlug.take(sentSlug, error);
 		});
 	};
 
@@ -646,11 +651,18 @@ function TermFormDialog({
 		setDescription(term?.description || "");
 		setAutoSlug(!term);
 		setSubmitted(false);
-		setTakenSlug(null);
+		takenSlug.reset();
 		createMutation.reset();
 		updateMutation.reset();
 		translateMutation.reset();
-	}, [open, term, createMutation.reset, updateMutation.reset, translateMutation.reset]);
+	}, [
+		open,
+		term,
+		takenSlug.reset,
+		createMutation.reset,
+		updateMutation.reset,
+		translateMutation.reset,
+	]);
 
 	const saving = createMutation.isPending || updateMutation.isPending;
 	const busy = saving || translateMutation.isPending;
@@ -662,7 +674,7 @@ function TermFormDialog({
 		: label !== "" || slug !== "" || parentId !== "" || description !== "";
 
 	const problems = termProblems({ label, slug, autoSlug });
-	if (takenSlug !== null && slug === takenSlug) {
+	if (takenSlug.isTaken) {
 		problems.slug = msg`Another term already uses this slug. Enter a different one.`;
 	}
 	const errors = submitted ? problems : {};
@@ -784,8 +796,8 @@ function TermFormDialog({
 
 						<DialogError
 							message={
-								getMutationError(isConflict(createMutation.error) ? null : createMutation.error) ||
-								getMutationError(isConflict(updateMutation.error) ? null : updateMutation.error) ||
+								getMutationError(takenSlug.unlessTaken(createMutation.error)) ||
+								getMutationError(takenSlug.unlessTaken(updateMutation.error)) ||
 								getMutationError(translateMutation.error)
 							}
 						/>
@@ -842,7 +854,7 @@ function CreateTaxonomyDialog({
 	const [selectedCollections, setSelectedCollections] = React.useState<string[]>([]);
 	const [autoName, setAutoName] = React.useState(true);
 	const [submitted, setSubmitted] = React.useState(false);
-	const [takenName, setTakenName] = React.useState<string | null>(null);
+	const takenName = useTakenValue(name);
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -873,10 +885,10 @@ function CreateTaxonomyDialog({
 			resetForm();
 		},
 		onError: (error, input) => {
-			if (!isConflict(error)) return;
+			if (!isConflict(error) || !takenName.stillHolds(input.name)) return;
 			revealErrors(formRef.current, () => {
 				setSubmitted(true);
-				setTakenName(input.name);
+				takenName.take(input.name, error);
 			});
 		},
 	});
@@ -891,12 +903,12 @@ function CreateTaxonomyDialog({
 		setSelectedCollections([]);
 		setAutoName(true);
 		setSubmitted(false);
-		setTakenName(null);
+		takenName.reset();
 		createMutation.reset();
 	};
 
 	const problems = taxonomyProblems({ label, name, autoName });
-	if (takenName !== null && name === takenName) {
+	if (takenName.isTaken) {
 		problems.name = msg`Another taxonomy already uses this name. Enter a different one.`;
 	}
 	const errors = submitted ? problems : {};
@@ -1003,11 +1015,7 @@ function CreateTaxonomyDialog({
 							</DialogSection>
 						)}
 
-						<DialogError
-							message={
-								isConflict(createMutation.error) ? null : getMutationError(createMutation.error)
-							}
-						/>
+						<DialogError message={getMutationError(takenName.unlessTaken(createMutation.error))} />
 					</form>
 				</LayerDialog.Body>
 				<LayerDialog.Actions dismissLabel={t`Cancel`}>

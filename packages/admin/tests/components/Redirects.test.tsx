@@ -35,10 +35,12 @@ function render(ui: React.ReactElement) {
 
 function deferred<T>() {
 	let resolve: (value: T) => void = () => {};
-	const promise = new Promise<T>((settle) => {
+	let reject: (reason: unknown) => void = () => {};
+	const promise = new Promise<T>((settle, fail) => {
 		resolve = settle;
+		reject = fail;
 	});
-	return { promise, resolve };
+	return { promise, resolve, reject };
 }
 
 async function openNewRedirect(screen: Awaited<ReturnType<typeof render>>) {
@@ -198,6 +200,28 @@ describe("Redirects", () => {
 
 		await source.fill("/source-1b");
 		await expect.element(dialog.getByText(TAKEN_SOURCE)).not.toBeInTheDocument();
+	});
+
+	it("reports a refused source in the banner when the source changed during the save", async () => {
+		const created = deferred<Redirect>();
+		vi.mocked(createRedirect).mockReturnValue(created.promise);
+		const screen = await render(<Redirects />);
+		const dialog = await openNewRedirect(screen);
+		const source = dialog.getByRole("textbox", { name: "Source path" });
+
+		await source.fill("/source-1");
+		await dialog.getByRole("textbox", { name: "Destination path" }).fill("/elsewhere");
+		await dialog.getByRole("button", { name: "Create" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Creating..." })).toBeVisible();
+		await source.fill("/source-2");
+		created.reject(
+			new ApiResponseError(409, "CONFLICT", 'A redirect from "/source-1" already exists'),
+		);
+
+		await expect
+			.element(dialog.getByText('A redirect from "/source-1" already exists'))
+			.toBeVisible();
+		await expect.element(source).not.toHaveAttribute("aria-invalid");
 	});
 
 	it("saves once on a double click, and refuses to close while saving", async () => {

@@ -35,7 +35,12 @@ import type {
 	Redirect,
 	UpdateRedirectInput,
 } from "../lib/api/redirects.js";
-import { guardUnsavedInput, revealErrors, useSingleFlight } from "../lib/dialog-form.js";
+import {
+	guardUnsavedInput,
+	revealErrors,
+	useSingleFlight,
+	useTakenValue,
+} from "../lib/dialog-form.js";
 import { cn, formatDate } from "../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ArrowNext } from "./ArrowIcons.js";
@@ -117,7 +122,6 @@ function RedirectFormDialog({
 	const [enabled, setEnabled] = useState(initial.enabled);
 	const [groupName, setGroupName] = useState(initial.groupName);
 	const [submitted, setSubmitted] = useState(false);
-	const [takenSource, setTakenSource] = useState<string | null>(null);
 
 	// Terminal statuses (410 Gone / 451) serve a status directly — no destination.
 	const isTerminal = type === "410" || type === "451";
@@ -148,8 +152,9 @@ function RedirectFormDialog({
 
 	const trimmedSource = source.trim();
 	const trimmedDestination = destination.trim();
+	const takenSource = useTakenValue(trimmedSource);
 	const problems = redirectProblems(trimmedSource, trimmedDestination, isTerminal);
-	if (takenSource !== null && trimmedSource === takenSource) {
+	if (takenSource.isTaken) {
 		problems.source = msg`Another redirect already uses this source path. Enter a different one.`;
 	}
 	const errors: Partial<Record<RedirectField, string>> = {};
@@ -159,10 +164,7 @@ function RedirectFormDialog({
 		}
 	}
 	const saveError = mutation.error;
-	const bannerError =
-		saveError instanceof ApiResponseError && saveError.code === "CONFLICT"
-			? null
-			: getMutationError(saveError);
+	const bannerError = getMutationError(takenSource.unlessTaken(saveError));
 
 	const showErrors = (update?: () => void) => {
 		revealErrors(formRef.current, () => {
@@ -173,8 +175,12 @@ function RedirectFormDialog({
 
 	const save = useSingleFlight((input: CreateRedirectInput) => {
 		const onError = (error: Error) => {
-			if (error instanceof ApiResponseError && error.code === "CONFLICT") {
-				showErrors(() => setTakenSource(input.source));
+			if (
+				error instanceof ApiResponseError &&
+				error.code === "CONFLICT" &&
+				takenSource.stillHolds(input.source)
+			) {
+				showErrors(() => takenSource.take(input.source, error));
 			}
 		};
 		return isEdit

@@ -32,7 +32,12 @@ import {
 	type AllowedDomain,
 	type CreateAllowedDomainInput,
 } from "../../lib/api";
-import { guardUnsavedInput, revealErrors, useSingleFlight } from "../../lib/dialog-form.js";
+import {
+	guardUnsavedInput,
+	revealErrors,
+	useSingleFlight,
+	useTakenValue,
+} from "../../lib/dialog-form.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { DialogError, getMutationError } from "../DialogError.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
@@ -66,7 +71,6 @@ export function AllowedDomainsSettings() {
 	const [newDomain, setNewDomain] = React.useState("");
 	const [newRole, setNewRole] = React.useState<number>(30);
 	const [addSubmitted, setAddSubmitted] = React.useState(false);
-	const [takenDomain, setTakenDomain] = React.useState<string | null>(null);
 	const [editRole, setEditRole] = React.useState<number>(30);
 	const editFormId = React.useId();
 
@@ -95,7 +99,7 @@ export function AllowedDomainsSettings() {
 			setNewDomain("");
 			setNewRole(30);
 			setAddSubmitted(false);
-			setTakenDomain(null);
+			takenDomain.reset();
 			toastManager.add({ title: t`Domain added successfully`, variant: "success", timeout: 3000 });
 		},
 	});
@@ -125,25 +129,29 @@ export function AllowedDomainsSettings() {
 	});
 
 	const normalizedNewDomain = newDomain.trim().toLowerCase();
-	const newDomainProblem =
-		takenDomain !== null && normalizedNewDomain === takenDomain
-			? msg`This domain is already in the list. Enter a different one.`
-			: domainProblem(normalizedNewDomain);
+	const takenDomain = useTakenValue(normalizedNewDomain);
+	const newDomainProblem = takenDomain.isTaken
+		? msg`This domain is already in the list. Enter a different one.`
+		: domainProblem(normalizedNewDomain);
 	const newDomainError = addSubmitted && newDomainProblem ? t(newDomainProblem) : undefined;
 
 	const resetAddForm = () => {
 		setNewDomain("");
 		setAddSubmitted(false);
-		setTakenDomain(null);
+		takenDomain.reset();
 	};
 
 	const addDomain = useSingleFlight((input: CreateAllowedDomainInput, form: HTMLFormElement) =>
 		createMutation.mutateAsync(input, {
 			onError: (mutationError) => {
-				if (mutationError instanceof ApiResponseError && mutationError.code === "CONFLICT") {
+				if (
+					mutationError instanceof ApiResponseError &&
+					mutationError.code === "CONFLICT" &&
+					takenDomain.stillHolds(input.domain)
+				) {
 					revealErrors(form, () => {
 						setAddSubmitted(true);
-						setTakenDomain(input.domain);
+						takenDomain.take(input.domain, mutationError);
 					});
 					return;
 				}

@@ -1005,6 +1005,34 @@ describe("TaxonomyManager", () => {
 		await expect.element(dialog.getByText(TAKEN_TERM_SLUG)).not.toBeInTheDocument();
 	});
 
+	it("reports a refused slug in the banner when the slug changed during the save", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Tech");
+		await slug.fill("tech");
+		let refuse!: () => void;
+		vi.mocked(apiFetch).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					refuse = () =>
+						resolve(conflictResponse("Term 'tech' already exists in 'categories' (en)"));
+				}),
+		);
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+		await expect.element(dialog.getByRole("button", { name: "Saving..." })).toBeVisible();
+		await slug.fill("tech-news");
+		refuse();
+
+		await expect
+			.element(dialog.getByText("Term 'tech' already exists in 'categories' (en)"))
+			.toBeVisible();
+		await expect.element(slug).not.toHaveAttribute("aria-invalid");
+	});
+
 	it("keeps a typed term through a press outside, and closes an untouched form", async () => {
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
 			wrapper: Wrapper,
@@ -1092,6 +1120,34 @@ describe("TaxonomyManager", () => {
 
 		await name.fill("genres");
 		await expect.element(dialog.getByText(TAKEN_TAXONOMY_NAME)).not.toBeInTheDocument();
+	});
+
+	it("reports a refused name in the banner when the name changed during the save", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "New Taxonomy" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create Taxonomy" });
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("Categories");
+		await expect.element(name).toHaveValue("categories");
+		let refuse!: () => void;
+		vi.mocked(apiFetch).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					refuse = () =>
+						resolve(conflictResponse("Taxonomy 'categories' already exists in locale 'en'"));
+				}),
+		);
+		await dialog.getByRole("button", { name: "Create Taxonomy" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Creating..." })).toBeVisible();
+		await name.fill("genres");
+		refuse();
+
+		await expect
+			.element(dialog.getByText("Taxonomy 'categories' already exists in locale 'en'"))
+			.toBeVisible();
+		await expect.element(name).not.toHaveAttribute("aria-invalid");
 	});
 
 	it("keeps a typed taxonomy through a press outside, and closes an untouched form", async () => {

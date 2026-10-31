@@ -38,6 +38,7 @@ import {
 	guardUnsavedInput,
 	revealErrors,
 	useSingleFlight,
+	useValueAtFailure,
 } from "../lib/dialog-form.js";
 import { slugifyIdentifier } from "../lib/utils";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -239,8 +240,12 @@ export function BylineFieldEditor({
 	};
 
 	const problems = formProblems(state, isEdit);
-	const slugRejected = isEdit ? undefined : slugRejection(error);
-	if (slugRejected && sent && state.slug === sent.slug) problems.slug = slugRejected;
+	// The form as it stood when the failed save came back.
+	const failedState = useValueAtFailure(error, state);
+	// A slug edited while the save ran isn't the one refused, so its refusal stays in the banner.
+	const slugRefusal =
+		sent && failedState?.slug === sent.slug && !isEdit ? slugRejection(error) : undefined;
+	if (slugRefusal && state.slug === sent?.slug) problems.slug = slugRefusal;
 	const hasProblems = Object.keys(problems).length > 0;
 
 	const errors: Partial<Record<FormInput, string>> = {};
@@ -251,9 +256,9 @@ export function BylineFieldEditor({
 		}
 	}
 
-	// Any change after a failed save may be the fix, so its message stops applying.
+	// Any change after a failed save came back may be the fix, so its message stops applying.
 	const bannerError =
-		slugRejected || (sent && state !== sent)
+		slugRefusal || (failedState && state !== failedState)
 			? null
 			: error instanceof ApiResponseError && error.code === "TRANSLATABLE_LOCKED"
 				? t`Locked because this field has stored values. Delete the values (or the field) to change this.`

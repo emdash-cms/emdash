@@ -152,6 +152,34 @@ describe("Widgets", () => {
 		await expect.element(dialog.getByText(TAKEN_NAME)).not.toBeInTheDocument();
 	});
 
+	it("reports a refused name in the banner when the name changed during the save", async () => {
+		let rejectCreate!: (error: unknown) => void;
+		vi.mocked(api.createWidgetArea).mockImplementationOnce(
+			() =>
+				new Promise((_, reject) => {
+					rejectCreate = reject;
+				}),
+		);
+		const screen = await render(<Widgets />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: ADD_WIDGET_AREA_REGEX }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create Widget Area" });
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+		await name.fill("sidebar");
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("Sidebar");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+		await expect.element(dialog.getByRole("button", { name: "Creating..." })).toBeVisible();
+		await name.fill("footer");
+		rejectCreate(
+			new ApiResponseError(409, "CONFLICT", 'Widget area with name "sidebar" already exists'),
+		);
+
+		await expect
+			.element(dialog.getByText('Widget area with name "sidebar" already exists'))
+			.toBeVisible();
+		await expect.element(name).not.toHaveAttribute("aria-invalid");
+	});
+
 	it("shows progress and refuses to close while the area is being created", async () => {
 		let resolveCreate!: (area: Awaited<ReturnType<typeof api.createWidgetArea>>) => void;
 		vi.mocked(api.createWidgetArea).mockImplementationOnce(

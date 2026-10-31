@@ -52,6 +52,45 @@ export function guardUnsavedInput(
 }
 
 /**
+ * A value the server refused because something else already uses it, such as
+ * a slug. The field shows the refusal while it holds that value, and the
+ * dialog's banner leaves that one error out.
+ *
+ * Pass the field's current value, normalized the way the form sends it. Take a
+ * refusal only while the field still holds the value that was sent: a value
+ * edited during the request isn't the one refused, so its error stays in the
+ * banner.
+ */
+export function useTakenValue(current: string) {
+	const [taken, setTaken] = React.useState<{ value: string; error: unknown } | null>(null);
+	const currentValue = useStableCallback(() => current);
+	const reset = React.useCallback(() => setTaken(null), []);
+	return {
+		stillHolds: (sent: string) => currentValue() === sent,
+		/** Call inside `revealErrors`, so the field shows the refusal before it takes focus. */
+		take: (sent: string, error: unknown) => setTaken({ value: sent, error }),
+		reset,
+		isTaken: taken !== null && current === taken.value,
+		/** `error`, or null when the field shows it. */
+		unlessTaken: (error: unknown) => (taken !== null && error === taken.error ? null : error),
+	};
+}
+
+/**
+ * `value` as it was when `error` arrived, or null while there is no error. A
+ * dialog that gets a request's failure through props can tell from it what the
+ * form held when the answer came back, which may differ from what was sent.
+ */
+export function useValueAtFailure<T>(error: unknown, value: T): T | null {
+	const [failure, setFailure] = React.useState<{ error: unknown; value: T } | null>(null);
+	const latest = error || null;
+	// Set while rendering rather than in an effect, so the render that first
+	// shows the error already knows the value.
+	if (latest !== (failure?.error ?? null)) setFailure(latest ? { error: latest, value } : null);
+	return latest && failure?.error === latest ? failure.value : null;
+}
+
+/**
  * State for a `ConfirmDialog` whose request can fail: the dialog stays open
  * while the request runs, shows its failure, and closes once it resolves.
  * Spread `dialog` onto the `ConfirmDialog` and call `show` to open it.

@@ -51,6 +51,7 @@ import {
 	guardUnsavedInput,
 	revealErrors,
 	useSingleFlight,
+	useValueAtFailure,
 } from "../lib/dialog-form.js";
 import { singularize } from "../lib/singularize.js";
 import { cn, slugifyIdentifier } from "../lib/utils";
@@ -772,8 +773,12 @@ export function FieldEditor({
 		detailsShown: showFieldDetails,
 		blockTypesOffered: !blockTypesError && (blockTypesLoading || blockTypes.length > 0),
 	});
-	const slugRejected = field ? undefined : slugRejection(saveError);
-	if (slugRejected && sent && slug === sent.slug) problems.fields.slug = slugRejected;
+	// The form as it stood when the failed save came back.
+	const failedState = useValueAtFailure(saveError, formState);
+	// A slug edited while the save ran isn't the one refused, so its refusal stays in the banner.
+	const slugRefusal =
+		sent && failedState?.slug === sent.slug && !field ? slugRejection(saveError) : undefined;
+	if (slugRefusal && slug === sent?.slug) problems.fields.slug = slugRefusal;
 	const hasProblems =
 		Object.keys(problems.fields).length > 0 ||
 		problems.subFields.some((subField) => subField.label || subField.slug);
@@ -793,9 +798,9 @@ export function FieldEditor({
 		});
 	}
 
-	// Any change after a failed save may be the fix, so its message stops applying.
+	// Any change after a failed save came back may be the fix, so its message stops applying.
 	const bannerError =
-		slugRejected || (sent && formState !== sent)
+		slugRefusal || (failedState && formState !== failedState)
 			? null
 			: typeof saveError === "string"
 				? saveError

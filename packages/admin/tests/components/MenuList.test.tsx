@@ -228,6 +228,30 @@ describe("MenuList", () => {
 		await expect.element(dialog.getByText(TAKEN_NAME)).not.toBeInTheDocument();
 	});
 
+	it("reports a refused name in the banner when the name changed during the save", async () => {
+		let rejectCreate!: (error: unknown) => void;
+		vi.mocked(api.createMenu).mockImplementationOnce(
+			() =>
+				new Promise((_, reject) => {
+					rejectCreate = reject;
+				}),
+		);
+		const screen = await render(<MenuList />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create menu" });
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("Main again");
+		await name.fill("main");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+		await expect.element(dialog.getByRole("button", { name: "Creating..." })).toBeVisible();
+		await name.fill("main-2");
+		rejectCreate(new ApiResponseError(409, "CONFLICT", 'Menu "main" already exists'));
+
+		await expect.element(dialog.getByText('Menu "main" already exists')).toBeVisible();
+		await expect.element(name).not.toHaveAttribute("aria-invalid");
+	});
+
 	it("keeps typed input through a press outside, and still closes on Cancel", async () => {
 		const screen = await render(<MenuList />, { wrapper: Wrapper });
 

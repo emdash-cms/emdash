@@ -63,7 +63,12 @@ import {
 	type UpdateWidgetInput,
 } from "../lib/api";
 import { ApiResponseError } from "../lib/api/client.js";
-import { guardUnsavedInput, revealErrors, useSingleFlight } from "../lib/dialog-form.js";
+import {
+	guardUnsavedInput,
+	revealErrors,
+	useSingleFlight,
+	useTakenValue,
+} from "../lib/dialog-form.js";
 import { getPluginBlocks } from "../lib/pluginBlocks";
 import { CaretNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
@@ -211,7 +216,7 @@ export function Widgets() {
 	const [newAreaLabel, setNewAreaLabel] = React.useState("");
 	const [newAreaDescription, setNewAreaDescription] = React.useState("");
 	const [createAreaSubmitted, setCreateAreaSubmitted] = React.useState(false);
-	const [takenAreaName, setTakenAreaName] = React.useState<string | null>(null);
+	const takenAreaName = useTakenValue(newAreaName.trim());
 	const [activeId, setActiveId] = React.useState<string | null>(null);
 	const [activeDragData, setActiveDragData] = React.useState<DragItemData | null>(null);
 	const [expandedWidgets, setExpandedWidgets] = React.useState<Set<string>>(new Set());
@@ -259,10 +264,10 @@ export function Widgets() {
 			toastManager.add({ title: t`Widget area created` });
 		},
 		onError: (error, input) => {
-			if (!isConflict(error)) return;
+			if (!isConflict(error) || !takenAreaName.stillHolds(input.name)) return;
 			revealErrors(createAreaFormRef.current, () => {
 				setCreateAreaSubmitted(true);
-				setTakenAreaName(input.name);
+				takenAreaName.take(input.name, error);
 			});
 		},
 	});
@@ -293,12 +298,12 @@ export function Widgets() {
 		setNewAreaLabel("");
 		setNewAreaDescription("");
 		setCreateAreaSubmitted(false);
-		setTakenAreaName(null);
+		takenAreaName.reset();
 		createAreaMutation.reset();
 	};
 
 	const areaProblems = createAreaProblems(newAreaName, newAreaLabel);
-	if (takenAreaName !== null && newAreaName.trim() === takenAreaName) {
+	if (takenAreaName.isTaken) {
 		areaProblems.name = msg`Another widget area already uses this name. Enter a different one.`;
 	}
 	const areaErrors = createAreaSubmitted ? areaProblems : {};
@@ -507,11 +512,9 @@ export function Widgets() {
 											onChange={(e) => setNewAreaDescription(e.target.value)}
 										/>
 										<DialogError
-											message={
-												isConflict(createAreaMutation.error)
-													? null
-													: getMutationError(createAreaMutation.error)
-											}
+											message={getMutationError(
+												takenAreaName.unlessTaken(createAreaMutation.error),
+											)}
 										/>
 									</form>
 								</LayerDialog.Body>

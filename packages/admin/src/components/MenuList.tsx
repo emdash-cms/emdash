@@ -15,7 +15,12 @@ import * as React from "react";
 
 import { fetchMenus, createMenu, deleteMenu, type CreateMenuInput } from "../lib/api";
 import { ApiResponseError, fetchManifest } from "../lib/api/client.js";
-import { guardUnsavedInput, revealErrors, useSingleFlight } from "../lib/dialog-form.js";
+import {
+	guardUnsavedInput,
+	revealErrors,
+	useSingleFlight,
+	useTakenValue,
+} from "../lib/dialog-form.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -57,7 +62,7 @@ export function MenuList() {
 	const [createLabel, setCreateLabel] = React.useState("");
 	const [createName, setCreateName] = React.useState("");
 	const [createSubmitted, setCreateSubmitted] = React.useState(false);
-	const [takenName, setTakenName] = React.useState<string | null>(null);
+	const takenName = useTakenValue(createName.trim());
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -90,10 +95,10 @@ export function MenuList() {
 			});
 		},
 		onError: (error, input) => {
-			if (!isConflict(error)) return;
+			if (!isConflict(error) || !takenName.stillHolds(input.name)) return;
 			revealErrors(createFormRef.current, () => {
 				setCreateSubmitted(true);
-				setTakenName(input.name);
+				takenName.take(input.name, error);
 			});
 		},
 	});
@@ -119,12 +124,12 @@ export function MenuList() {
 		setCreateLabel("");
 		setCreateName("");
 		setCreateSubmitted(false);
-		setTakenName(null);
+		takenName.reset();
 		createMutation.reset();
 	};
 
 	const createProblems = createMenuProblems(createLabel, createName);
-	if (takenName !== null && createName.trim() === takenName) {
+	if (takenName.isTaken) {
 		createProblems.name = msg`Another menu already uses this name. Enter a different one.`;
 	}
 	const createErrors = createSubmitted ? createProblems : {};
@@ -226,11 +231,7 @@ export function MenuList() {
 										aria-invalid={createErrors.name ? true : undefined}
 									/>
 									<DialogError
-										message={
-											isConflict(createMutation.error)
-												? null
-												: getMutationError(createMutation.error)
-										}
+										message={getMutationError(takenName.unlessTaken(createMutation.error))}
 									/>
 								</form>
 							</LayerDialog.Body>

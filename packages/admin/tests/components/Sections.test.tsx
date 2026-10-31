@@ -307,6 +307,33 @@ describe("Sections", () => {
 		await expect.element(dialog.getByText(TAKEN_SLUG)).not.toBeInTheDocument();
 	});
 
+	it("reports a refused slug in the banner when the slug changed during the save", async () => {
+		let rejectCreate!: (error: unknown) => void;
+		mockCreateSection.mockImplementationOnce(
+			() =>
+				new Promise((_, reject) => {
+					rejectCreate = reject;
+				}),
+		);
+		const screen = await render(
+			<Wrapper>
+				<Sections />
+			</Wrapper>,
+		);
+
+		await screen.getByText("New section").click();
+		const dialog = screen.getByRole("dialog", { name: "Create section" });
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+		await dialog.getByRole("textbox", { name: "Title", exact: true }).fill("CTA");
+		await dialog.getByRole("button", { name: "Create section" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Creating..." })).toBeVisible();
+		await slug.fill("cta-2");
+		rejectCreate(new ApiResponseError(409, "CONFLICT", 'Section with slug "cta" already exists'));
+
+		await expect.element(dialog.getByText('Section with slug "cta" already exists')).toBeVisible();
+		await expect.element(slug).not.toHaveAttribute("aria-invalid");
+	});
+
 	it("keeps typed input through a press outside, and still closes on Cancel", async () => {
 		const screen = await render(
 			<Wrapper>

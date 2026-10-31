@@ -196,6 +196,28 @@ describe("AllowedDomainsSettings", () => {
 		await expect.element(domain).not.toHaveAccessibleDescription(taken);
 	});
 
+	it("reports a refused domain when the domain changed during the request", async () => {
+		let rejectCreate!: (error: unknown) => void;
+		mockCreateAllowedDomain.mockImplementation(
+			() =>
+				new Promise((_, reject) => {
+					rejectCreate = reject;
+				}),
+		);
+		const screen = await renderAllowedDomainsSettings();
+		await userEvent.click(screen.getByRole("button", { name: "Add Domain" }));
+		const domain = screen.getByRole("textbox", { name: "Domain", exact: true });
+		await domain.fill("example.com");
+		await userEvent.click(screen.getByRole("button", { name: "Add Domain" }));
+		await expect.element(screen.getByRole("button", { name: "Adding..." })).toBeVisible();
+		await domain.fill("example.org");
+		rejectCreate(new ApiResponseError(409, "CONFLICT", "Domain already exists"));
+
+		await expect.element(screen.getByText("Failed to add domain")).toBeInTheDocument();
+		await expect.element(screen.getByText("Domain already exists")).toBeInTheDocument();
+		await expect.element(domain).not.toHaveAttribute("aria-invalid");
+	});
+
 	it("reports a failed domain addition", async () => {
 		mockCreateAllowedDomain.mockRejectedValue(new Error("Domain is already allowed"));
 		const screen = await renderAllowedDomainsSettings();

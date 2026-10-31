@@ -43,7 +43,12 @@ import {
 	type SectionSource,
 } from "../lib/api";
 import { ApiResponseError } from "../lib/api/client.js";
-import { guardUnsavedInput, revealErrors, useSingleFlight } from "../lib/dialog-form.js";
+import {
+	guardUnsavedInput,
+	revealErrors,
+	useSingleFlight,
+	useTakenValue,
+} from "../lib/dialog-form.js";
 import { slugify, slugifyIdentifier } from "../lib/utils";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
@@ -118,7 +123,7 @@ export function Sections() {
 	const [createDescription, setCreateDescription] = React.useState("");
 	const [slugTouched, setSlugTouched] = React.useState(false);
 	const [createSubmitted, setCreateSubmitted] = React.useState(false);
-	const [takenSlug, setTakenSlug] = React.useState<string | null>(null);
+	const takenSlug = useTakenValue(createSlug);
 
 	const {
 		data: sectionsData,
@@ -144,10 +149,10 @@ export function Sections() {
 			void navigate({ to: "/sections/$slug", params: { slug: section.slug } });
 		},
 		onError: (error, input) => {
-			if (!isConflict(error)) return;
+			if (!isConflict(error) || !takenSlug.stillHolds(input.slug)) return;
 			revealErrors(createFormRef.current, () => {
 				setCreateSubmitted(true);
-				setTakenSlug(input.slug);
+				takenSlug.take(input.slug, error);
 			});
 		},
 	});
@@ -172,12 +177,12 @@ export function Sections() {
 		setCreateDescription("");
 		setSlugTouched(false);
 		setCreateSubmitted(false);
-		setTakenSlug(null);
+		takenSlug.reset();
 		createMutation.reset();
 	};
 
 	const createProblems = createSectionProblems(createTitle, createSlug);
-	if (takenSlug !== null && createSlug === takenSlug) {
+	if (takenSlug.isTaken) {
 		createProblems.slug = msg`Another section already uses this slug. Enter a different one.`;
 	}
 	const createErrors = createSubmitted ? createProblems : {};
@@ -288,11 +293,7 @@ export function Sections() {
 										rows={3}
 									/>
 									<DialogError
-										message={
-											isConflict(createMutation.error)
-												? null
-												: getMutationError(createMutation.error)
-										}
+										message={getMutationError(takenSlug.unlessTaken(createMutation.error))}
 									/>
 								</form>
 							</LayerDialog.Body>

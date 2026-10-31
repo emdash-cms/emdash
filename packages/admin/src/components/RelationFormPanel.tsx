@@ -23,7 +23,7 @@ import type {
 	RelationWithUsage,
 	UpdateRelationInput,
 } from "../lib/api/relations.js";
-import { revealErrors } from "../lib/dialog-form.js";
+import { revealErrors, useTakenValue } from "../lib/dialog-form.js";
 import { DialogError, getMutationError } from "./DialogError";
 import {
 	type RelationField,
@@ -66,17 +66,16 @@ export function RelationFormPanel({
 	const [isSaving, setIsSaving] = React.useState(false);
 	const [error, setError] = React.useState<string | null>(null);
 	const [submitted, setSubmitted] = React.useState(false);
-	const [takenSlug, setTakenSlug] = React.useState<string | null>(null);
+	const takenSlug = useTakenValue(form.state.slug);
 
 	React.useEffect(() => onDirtyChange(form.isDirty), [form.isDirty, onDirtyChange]);
 
-	const problems =
-		takenSlug !== null && form.state.slug === takenSlug
-			? {
-					...form.problems,
-					slug: msg`Another relation already uses this slug. Enter a different one.`,
-				}
-			: form.problems;
+	const problems = takenSlug.isTaken
+		? {
+				...form.problems,
+				slug: msg`Another relation already uses this slug. Enter a different one.`,
+			}
+		: form.problems;
 	const errors: RelationFormErrors = {};
 	if (submitted) {
 		for (const [field, message] of Object.entries(problems)) {
@@ -109,8 +108,13 @@ export function RelationFormPanel({
 		try {
 			await onSubmit(form.toInput() as CreateRelationInput & UpdateRelationInput);
 		} catch (err) {
-			if (isNew && err instanceof ApiResponseError && err.code === "CONFLICT") {
-				showErrors(() => setTakenSlug(slug));
+			if (
+				isNew &&
+				err instanceof ApiResponseError &&
+				err.code === "CONFLICT" &&
+				takenSlug.stillHolds(slug)
+			) {
+				showErrors(() => takenSlug.take(slug, err));
 			} else {
 				setError(getMutationError(err));
 			}
