@@ -238,6 +238,18 @@ export function BlocksField({
 		[closeToast],
 	);
 
+	React.useEffect(() => {
+		if (!(readOnly || atMax) || !undoToastRef.current) return;
+		closeToast(undoToastRef.current);
+		undoToastRef.current = null;
+	}, [readOnly, atMax, closeToast]);
+
+	const dismissUndo = () => {
+		if (!undoToastRef.current) return;
+		closeToast(undoToastRef.current);
+		undoToastRef.current = null;
+	};
+
 	const openPicker = (target: PickerTarget) => {
 		setPicker(target);
 		setPickerOpen(true);
@@ -291,6 +303,7 @@ export function BlocksField({
 	};
 
 	const restoreBlock = useStableCallback((block: StoredBlockValue, index: number) => {
+		if (blocks.some((candidate) => candidate._key === block._key)) return;
 		onChange(insertBlockValue(blocks, block, index));
 		focusRequestRef.current = { key: block._key, target: "toggle" };
 	});
@@ -315,7 +328,7 @@ export function BlocksField({
 		}
 		const index = removeBlock(block._key);
 		if (index < 0) return;
-		if (undoToastRef.current) closeToast(undoToastRef.current);
+		dismissUndo();
 		const name = blockLabel(block);
 		const toastId: string = toastManager.add({
 			title: t`Deleted ${name}`,
@@ -326,8 +339,8 @@ export function BlocksField({
 					variant: "secondary",
 					size: "sm",
 					onClick: () => {
-						closeToast(toastId);
-						undoToastRef.current = null;
+						if (undoToastRef.current !== toastId) return;
+						dismissUndo();
 						restoreBlock(block, index);
 					},
 				},
@@ -502,7 +515,7 @@ export function BlocksField({
 				isPending={false}
 				error={null}
 				onConfirm={() => {
-					if (confirmBlock) removeBlock(confirmBlock._key);
+					if (confirmBlock && removeBlock(confirmBlock._key) >= 0) dismissUndo();
 					setConfirmDelete((current) => current && { ...current, open: false });
 				}}
 			/>

@@ -487,6 +487,84 @@ describe("BlocksField", () => {
 		expect(rowKeys()).toEqual(["two"]);
 	});
 
+	it("restores a deleted block once when Undo is clicked twice", async () => {
+		const onValue = vi.fn();
+		const screen = await renderField({
+			initial: [heroBlock("one"), heroBlock("middle"), heroBlock("three")],
+			onValue,
+		});
+
+		await openMenu("middle");
+		await screen.getByRole("menuitem", { name: "Delete" }).click();
+		const undo = screen.getByRole("button", { name: "Undo" }).element() as HTMLElement;
+		undo.click();
+		await Promise.resolve();
+		expect(rowKeys()).toEqual(["one", "middle", "three"]);
+		// The closing toast stays clickable until its exit animation ends.
+		expect(undo.isConnected).toBe(true);
+		undo.click();
+
+		await expect.poll(rowKeys).toEqual(["one", "middle", "three"]);
+		const keys = onValue.mock.calls.at(-1)?.[0].map((block: StoredBlockValue) => block._key);
+		expect(keys).toEqual(["one", "middle", "three"]);
+	});
+
+	it("closes the Undo toast when the field turns read-only", async () => {
+		const initial = [heroBlock("one"), heroBlock("two")];
+		const screen = await renderField({ initial });
+
+		await openMenu("one");
+		await screen.getByRole("menuitem", { name: "Delete" }).click();
+		await expect.element(screen.getByText("Deleted Hero")).toBeVisible();
+
+		await screen.rerender(<Harness initial={initial} readOnly />);
+		await expect.element(page.getByText("Deleted Hero"), { timeout: 2000 }).not.toBeInTheDocument();
+		expect(rowKeys()).toEqual(["two"]);
+	});
+
+	it("closes the Undo toast when the field fills up again", async () => {
+		const screen = await renderField({
+			initial: [heroBlock("one"), heroBlock("two"), heroBlock("three")],
+			maxItems: 3,
+		});
+
+		await openMenu("two");
+		await screen.getByRole("menuitem", { name: "Delete" }).click();
+		await expect.element(screen.getByText("Deleted Hero")).toBeVisible();
+		await screen.getByRole("button", { name: "Add block", exact: true }).click();
+		await pick(screen, "Hero");
+
+		await expect.poll(rowKeys).toHaveLength(3);
+		await expect.element(page.getByText("Deleted Hero"), { timeout: 2000 }).not.toBeInTheDocument();
+	});
+
+	it("closes the earlier Undo toast when a confirmed deletion goes ahead", async () => {
+		const screen = await renderField({
+			initial: [
+				heroBlock("one"),
+				{ _type: "hero", _version: 1, _key: "old", heading: "Old" },
+				heroBlock("three"),
+			],
+		});
+
+		await openMenu("one");
+		await screen.getByRole("menuitem", { name: "Delete" }).click();
+		await expect.element(screen.getByText("Deleted Hero")).toBeVisible();
+
+		await openMenu("old");
+		await screen.getByRole("menuitem", { name: "Delete" }).click();
+		const dialog = screen.getByRole("alertdialog", { name: "Delete Hero?" });
+		(dialog.getByRole("button", { name: "Cancel" }).element() as HTMLElement).click();
+		await expect.element(dialog).not.toBeInTheDocument();
+		await expect.element(screen.getByText("Deleted Hero")).toBeVisible();
+
+		await openMenu("old");
+		await screen.getByRole("menuitem", { name: "Delete" }).click();
+		(dialog.getByRole("button", { name: "Delete" }).element() as HTMLElement).click();
+		await expect.poll(rowKeys).toEqual(["three"]);
+		await expect.element(page.getByText("Deleted Hero"), { timeout: 2000 }).not.toBeInTheDocument();
+	});
+
 	it("closes the Undo toast when the field goes away", async () => {
 		const screen = await renderField({ initial: [heroBlock("one"), heroBlock("two")] });
 
