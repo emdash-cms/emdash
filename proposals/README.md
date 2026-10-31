@@ -18,6 +18,8 @@ Open an implementation pull request directly for changes that do not introduce a
 
 A refactor or performance change that alters observable behavior uses a feature plan or RFC.
 
+A tooling evaluation with no effect on the application or required checks can proceed as a non-blocking experiment. Use a feature plan or RFC before adopting a tool when adoption would change required CI behavior, dependency or supply-chain policy, or contributor tooling.
+
 ### Feature plan
 
 Use a feature plan for bounded, additive functionality that fits the current architecture. A feature plan normally assumes that its author intends to implement the work.
@@ -86,7 +88,7 @@ Ideas Discussions labelled `Approved for PR` under the previous process now carr
 
 ## Proposal index
 
-Add a row for each accepted proposal in its design pull request, keeping the rows sorted by proposal filename. The implementation pull request that completes a proposal adds itself under "Implemented in". A proposal's status stays in its front matter.
+Add a row for each accepted proposal in its design pull request, keeping the rows sorted by proposal filename. Proposed evaluations and plans are not indexed until accepted. The implementation pull request that completes the proposal adds itself under "Implemented in". A proposal's status stays in its front matter.
 
 | Proposal                                                  | Type         | Design PR                                               | Implemented in                                          |
 | --------------------------------------------------------- | ------------ | ------------------------------------------------------- | ------------------------------------------------------- |
