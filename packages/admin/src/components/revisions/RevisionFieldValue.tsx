@@ -6,9 +6,12 @@ import * as React from "react";
 import { toDatetimeLocalInputValue } from "../../lib/datetime-local.js";
 import { formatFileSize, getFileIcon, getMediaObjectPosition } from "../../lib/media-utils.js";
 import { isRecord } from "../../lib/revision-diff/normalize.js";
-import type { ChangeStatus, FieldDiff } from "../../lib/revision-diff/types.js";
+import type {
+	ChangeStatus,
+	DiffFieldDescriptor,
+	FieldDiff,
+} from "../../lib/revision-diff/types.js";
 import { cn, formatDate } from "../../lib/utils.js";
-import type { FieldDescriptor } from "../ContentEditor";
 import { type ImageFieldValue, mediaDisplayUrl } from "../ImageFieldRenderer.js";
 import { markAttributes } from "./revision-blocks.js";
 import { ChangePrefix, DiffText, EmptyValue, visibleText } from "./RevisionSegments.js";
@@ -118,7 +121,7 @@ export function BooleanFieldValue({
 	);
 }
 
-function selectOptions(descriptor: FieldDescriptor | undefined) {
+function selectOptions(descriptor: DiffFieldDescriptor | undefined) {
 	return Array.isArray(descriptor?.options) ? descriptor.options : [];
 }
 
@@ -147,7 +150,7 @@ function formatDateTimeValue(value: string, locale: string, timezone: string): s
 function formatScalar(
 	value: unknown,
 	kind: string,
-	descriptor: FieldDescriptor | undefined,
+	descriptor: DiffFieldDescriptor | undefined,
 	locale: string,
 	timezone: string,
 ): string | null {
@@ -208,7 +211,7 @@ function ScalarFieldValue({
 	timezone,
 }: {
 	field: ValueFieldDiff;
-	descriptor: FieldDescriptor | undefined;
+	descriptor: DiffFieldDescriptor | undefined;
 	marked: boolean;
 	timezone: string;
 }) {
@@ -234,7 +237,7 @@ function MultiSelectFieldValue({
 	marked,
 }: {
 	field: ValueFieldDiff;
-	descriptor: FieldDescriptor | undefined;
+	descriptor: DiffFieldDescriptor | undefined;
 	marked: boolean;
 }) {
 	const { t } = useLingui();
@@ -466,7 +469,7 @@ export function ValueFieldValue({
 	timezone,
 }: {
 	field: ValueFieldDiff;
-	descriptor: FieldDescriptor | undefined;
+	descriptor: DiffFieldDescriptor | undefined;
 	marked: boolean;
 	/** The site's time zone, which the editor shows stored times in. */
 	timezone: string;
