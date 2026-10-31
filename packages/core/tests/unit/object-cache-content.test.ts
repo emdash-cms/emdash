@@ -10,11 +10,12 @@ vi.mock("astro:content", () => ({
 
 import { getLiveCollection, getLiveEntry } from "astro:content";
 
+import { handleContentCreate } from "../../src/api/index.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import { ScheduledNotDueError } from "../../src/database/repositories/types.js";
 import type { Database } from "../../src/database/types.js";
-import { CURSOR_RAW_VALUES } from "../../src/loader.js";
+import { CURSOR_RAW_VALUES, emdashLoader } from "../../src/loader.js";
 import { encode } from "../../src/object-cache/codec.js";
 import {
 	__setObjectCacheBackendForTests,
@@ -189,6 +190,49 @@ describe("object cache: content read-through", () => {
 
 		expect(getLiveEntry).toHaveBeenCalledTimes(1);
 		expect(getSeoMeta(warm.entry!).title).toBe("Ada Lovelace");
+	});
+
+	it("reloads a cached entry's getSeoMeta title when the collection's titleField changes", async () => {
+		const { handleSchemaCollectionUpdate, handleSchemaFieldCreate } =
+			await import("../../src/api/handlers/schema.js");
+		const field = await handleSchemaFieldCreate(db, "post", {
+			slug: "name",
+			label: "Name",
+			type: "string",
+		});
+		expect(field.success).toBe(true);
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Senior Engineer", name: "Ada Lovelace" },
+			status: "published",
+		});
+		if (!created.success) throw new Error("create failed");
+		const id = created.data!.item.id;
+		vi.mocked(getLiveEntry).mockImplementation(async (_collection, filter) => {
+			const entry = await emdashLoader().loadEntry!({ filter } as never);
+			// eslint-disable-next-line typescript/no-explicit-any -- loader result in the live entry shape
+			return { entry, error: undefined, cacheHint: {} } as any;
+		});
+		async function seoTitle() {
+			const { entry } = await runWithContext({ editMode: false, db }, () =>
+				getEmDashEntry("post", id),
+			);
+			await flush();
+			return getSeoMeta(entry!).title;
+		}
+
+		expect(await seoTitle()).toBe("Senior Engineer");
+		expect(await seoTitle()).toBe("Senior Engineer");
+		expect(getLiveEntry).toHaveBeenCalledTimes(1);
+
+		expect((await handleSchemaCollectionUpdate(db, "post", { titleField: "name" })).success).toBe(
+			true,
+		);
+		expect(await seoTitle()).toBe("Ada Lovelace");
+
+		expect((await handleSchemaCollectionUpdate(db, "post", { titleField: null })).success).toBe(
+			true,
+		);
+		expect(await seoTitle()).toBe("Senior Engineer");
 	});
 
 	it("omits revision metadata from anonymous entry results", async () => {
