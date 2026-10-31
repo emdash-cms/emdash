@@ -1,0 +1,25 @@
+packages/admin/src/components/ContentTypeList.tsx
+  s_f567737122c9e5::t_faa58ea691adf1 1,39-48,88,140-144,149,203-208,211-249,303-308,310,312,318,324-325,338,345-348,352-353,356,368-372,374-377,379-389,391
+packages/admin/src/components/RelationList.tsx
+  s_f567737122c9e5::t_d02be6139cba21 10,22,24-33,69,96-130,178-190,192-206,208-209,213,215-219,232-233,235-238,240-246,248-252
+packages/admin/src/components/comments/CommentInbox.tsx
+  s_f567737122c9e5::t_53932532025a23 8,27,31-40,62,64,71-72,110-111,119-125,140,170-176,179-180,291-340,344,347-373,390-393,469-473,477-500,531,533-534,537-538,545-553,556,558,562-565,567-569,571,582,585-617
+packages/admin/src/routes/byline-schema.tsx
+  s_f567737122c9e5::t_2c73ffda8d765c 9-11,18,27-36,49,154-159,227-228,240-314,392,404,414-420,422-430,432-434,437-443,446-469,473-475
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1730fa206c71958495ba5cada010ffb41e331f76",
+  "prompts": {},
+  "sessions": {
+    "s_f567737122c9e5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "80025384-f6c6-4da6-b0ac-2c0fede0a738",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
