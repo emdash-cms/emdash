@@ -117,7 +117,8 @@ describe("confirmations report their own failures", () => {
 			.on("DELETE", url, FAILURE, 500);
 		const screen = await renderAt((router) => router.navigate({ to: "/content-types" }));
 
-		await screen.getByRole("button", { name: "Delete Posts" }).click();
+		await screen.getByRole("button", { name: "Actions for Posts" }).click();
+		await screen.getByRole("menuitem", { name: "Delete Posts" }).click();
 		const dialog = screen.getByRole("dialog", { name: "Delete Content Type?" });
 		await expect.element(dialog).toBeVisible();
 		dialog.getByRole("button", { name: "Delete", exact: true }).element().click();
@@ -159,7 +160,8 @@ describe("confirmations report their own failures", () => {
 			.on("DELETE", "/_emdash/api/admin/comments/comment_1", FAILURE, 500);
 		const screen = await renderAt((router) => router.navigate({ to: "/comments" }));
 
-		await screen.getByRole("button", { name: "Delete permanently" }).click();
+		await screen.getByRole("button", { name: "Actions for comment by Jordan Reader" }).click();
+		await screen.getByRole("menuitem", { name: "Delete permanently" }).click();
 		const dialog = screen.getByRole("dialog", { name: "Delete Comment?" });
 		await expect.element(dialog).toBeVisible();
 		dialog.getByRole("button", { name: "Delete", exact: true }).element().click();

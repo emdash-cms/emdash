@@ -1557,6 +1557,17 @@ describe("ContentEditor", () => {
 			const textarea = screen.getByLabelText("Metadata");
 			await expect.element(textarea).toHaveValue(JSON.stringify(jsonData, null, 2));
 		});
+
+		it("sizes text field textareas from the rows option", async () => {
+			const screen = await renderEditor({
+				fields: {
+					excerpt: { kind: "richText", label: "Excerpt", options: { rows: 4 } },
+					notes: { kind: "richText", label: "Notes" },
+				},
+			});
+			await expect.element(screen.getByLabelText("Excerpt")).toHaveAttribute("rows", "4");
+			await expect.element(screen.getByLabelText("Notes")).toHaveAttribute("rows", "10");
+		});
 	});
 
 	describe("field defaults", () => {

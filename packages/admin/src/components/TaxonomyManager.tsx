@@ -11,10 +11,8 @@ import {
 	DropdownMenu,
 	Input,
 	InputArea,
-	LayerCard,
 	LayerDialog,
 	Select,
-	Table,
 	useKumoToastManager,
 } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
@@ -23,8 +21,6 @@ import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowDown,
 	ArrowUp,
-	CaretDown,
-	CaretUp,
 	DotsThree,
 	MagnifyingGlass,
 	Plus,
@@ -63,6 +59,7 @@ import { slugify, slugifyIdentifier } from "../lib/utils";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { BulkTagDialog } from "./BulkTagDialog.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
+import { DataTable, DataTableMessage, RowActionsMenu, RowTitleButton } from "./DataTable.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { DialogSection } from "./DialogSection.js";
 import { HelpLabel, HelpTooltip } from "./FieldHelpLabel.js";
@@ -288,14 +285,13 @@ interface TermRowCallbacks {
  * One sibling group's rows, in display order.
  *
  * The movable subset is worked out once for the whole group: each row needs it
- * to know whether its carets are live, and a move needs the same list to build
- * the order it sends.
+ * to know whether its Move items show and are live, and a move needs the same
+ * list to build the order it sends.
  */
 function TermGroup({
 	siblings,
 	parentId,
 	level = 0,
-	table = false,
 	searchActive = false,
 	visibleIds,
 	...callbacks
@@ -303,7 +299,6 @@ function TermGroup({
 	siblings: TaxonomyTerm[];
 	parentId: string | null;
 	level?: number;
-	table?: boolean;
 	searchActive?: boolean;
 	visibleIds?: Set<string>;
 } & TermRowCallbacks) {
@@ -313,38 +308,44 @@ function TermGroup({
 		<>
 			{siblings
 				.filter((term) => !visibleIds || visibleIds.has(term.id))
-				.map((term) => {
-					const props = {
-						term,
-						siblings,
-						movable,
-						place: places.get(term) ?? -1,
-						parentId,
-						level,
-						...callbacks,
-					};
-					return table ? (
-						<TagTermRow
-							key={term.id}
-							{...props}
-							searchActive={searchActive}
-							visibleIds={visibleIds}
-						/>
-					) : (
-						<TermRow key={term.id} {...props} />
-					);
-				})}
+				.map((term) => (
+					<TermRow
+						key={term.id}
+						term={term}
+						siblings={siblings}
+						movable={movable}
+						place={places.get(term) ?? -1}
+						parentId={parentId}
+						level={level}
+						searchActive={searchActive}
+						visibleIds={visibleIds}
+						{...callbacks}
+					/>
+				))}
 		</>
 	);
 }
 
-function TagTermRow({
+/**
+ * A term's row, followed by its children's rows.
+ *
+ * `siblings` is the group the term is rendered from, in display order, and
+ * `parentId` is that group's parent. Moving a term reorders that group and
+ * never changes its parent.
+ *
+ * A term whose parent has no row in this locale is rendered at the top level so
+ * it isn't lost, but it belongs to its parent's group — a group this locale
+ * can't show. Its Move items are disabled rather than silently addressing the
+ * wrong group, and `place` is -1 because it holds no slot in the group it is
+ * drawn in.
+ */
+function TermRow({
 	term,
 	siblings,
 	movable,
 	place,
 	parentId,
-	level = 0,
+	level,
 	searchActive,
 	visibleIds,
 	onEdit,
@@ -358,225 +359,98 @@ function TagTermRow({
 	movable: TaxonomyTerm[];
 	place: number;
 	parentId: string | null;
-	level?: number;
+	level: number;
 	searchActive: boolean;
 	visibleIds?: Set<string>;
 } & TermRowCallbacks) {
 	const { t } = useLingui();
+	const strandedReasonId = React.useId();
 	const stranded = isStranded(term, parentId);
+	const showMoves = !searchActive && (stranded || movable.length > 1);
 	return (
 		<>
-			<Table.Row className="even:bg-transparent hover:bg-kumo-tint/25">
-				<Table.Cell>
-					<div className="min-w-0" style={{ paddingInlineStart: `${level * 1.5}rem` }}>
-						<span className="block break-words font-medium">{term.label}</span>
-						<bdi dir="ltr" className="inline-block text-xs text-kumo-subtle">
-							/{term.slug}
-						</bdi>
-					</div>
-				</Table.Cell>
-				<Table.Cell className="w-20 text-sm tabular-nums">{term.count ?? 0}</Table.Cell>
-				<Table.Cell className="w-24">
-					<div className="flex justify-end gap-1">
-						<Button
-							variant="ghost"
-							size="sm"
-							shape="square"
-							icon={<Pencil aria-hidden="true" />}
+			<tr>
+				<td>
+					{/* Deeper levels step in less, so a deep tree keeps its actions menu inside a narrow table. */}
+					<div
+						className="ps-[calc(min(var(--depth),6)*1.5rem+max(var(--depth)-6,0)*0.5rem)] @max-md:ps-[calc(min(var(--depth),4)*0.75rem+max(var(--depth)-4,0)*0.25rem)]"
+						style={{ "--depth": level } as React.CSSProperties}
+					>
+						<RowTitleButton
+							dir="auto"
 							aria-label={t`Edit ${term.label}`}
 							onClick={() => onEdit(term)}
-						/>
-						<DropdownMenu>
-							<DropdownMenu.Trigger
-								render={
-									<Button
-										type="button"
-										variant="ghost"
-										size="sm"
-										shape="square"
-										icon={<DotsThree aria-hidden="true" />}
-										aria-label={t`More actions for ${term.label}`}
-									/>
-								}
-							/>
-							<DropdownMenu.Content
-								align="end"
-								className="origin-(--transform-origin) transition-[scale,opacity] duration-150 data-ending-style:scale-95 data-ending-style:opacity-0 data-instant:duration-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none"
-							>
-								{!searchActive && (
-									<>
-										<DropdownMenu.Item
-											icon={<ArrowUp className="size-4" aria-hidden="true" />}
-											aria-label={t`Move up ${term.label}`}
-											disabled={stranded || place <= 0}
-											onClick={() => onMove(parentId, siblings, movable, term, -1)}
-										>
-											{t`Move up`}
-										</DropdownMenu.Item>
-										<DropdownMenu.Item
-											icon={<ArrowDown className="size-4" aria-hidden="true" />}
-											aria-label={t`Move down ${term.label}`}
-											disabled={stranded || place >= movable.length - 1}
-											onClick={() => onMove(parentId, siblings, movable, term, 1)}
-										>
-											{t`Move down`}
-										</DropdownMenu.Item>
-										<DropdownMenu.Separator />
-									</>
-								)}
-								{canTranslate && onTranslate && (
-									<DropdownMenu.Item
-										icon={<Translate className="size-4" aria-hidden="true" />}
-										onClick={() => onTranslate(term)}
+						>
+							{term.label}
+						</RowTitleButton>
+						<div className="text-xs text-kumo-subtle wrap-anywhere">
+							<bdi dir="ltr">/{term.slug}</bdi>
+						</div>
+					</div>
+				</td>
+				<td className="text-end text-sm tabular-nums">{term.count ?? 0}</td>
+				<td className="text-end">
+					<RowActionsMenu label={t`Actions for ${term.label}`}>
+						<DropdownMenu.Item
+							icon={<Pencil className="size-4" aria-hidden="true" />}
+							onClick={() => onEdit(term)}
+						>
+							{t`Edit`}
+						</DropdownMenu.Item>
+						{showMoves && (
+							<DropdownMenu.Group>
+								{stranded && (
+									<DropdownMenu.Label
+										id={strandedReasonId}
+										className="max-w-60 px-2! text-sm font-normal text-pretty text-kumo-subtle"
 									>
-										{t`Translate`}
-									</DropdownMenu.Item>
+										{t`${term.label} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to.`}
+									</DropdownMenu.Label>
 								)}
 								<DropdownMenu.Item
-									variant="danger"
-									icon={<Trash className="size-4" aria-hidden="true" />}
-									aria-label={t`Delete tag ${term.label}`}
-									onClick={() => onDelete(term)}
+									icon={<ArrowUp className="size-4" aria-hidden="true" />}
+									aria-describedby={stranded ? strandedReasonId : undefined}
+									disabled={stranded || place <= 0}
+									onClick={() => onMove(parentId, siblings, movable, term, -1)}
 								>
-									{t`Delete tag`}
+									{t`Move up`}
 								</DropdownMenu.Item>
-							</DropdownMenu.Content>
-						</DropdownMenu>
-					</div>
-				</Table.Cell>
-			</Table.Row>
+								<DropdownMenu.Item
+									icon={<ArrowDown className="size-4" aria-hidden="true" />}
+									aria-describedby={stranded ? strandedReasonId : undefined}
+									disabled={stranded || place >= movable.length - 1}
+									onClick={() => onMove(parentId, siblings, movable, term, 1)}
+								>
+									{t`Move down`}
+								</DropdownMenu.Item>
+							</DropdownMenu.Group>
+						)}
+						{canTranslate && onTranslate && (
+							<DropdownMenu.Item
+								icon={<Translate className="size-4" aria-hidden="true" />}
+								onClick={() => onTranslate(term)}
+							>
+								{t`Translate`}
+							</DropdownMenu.Item>
+						)}
+						<DropdownMenu.Separator />
+						<DropdownMenu.Item
+							variant="danger"
+							icon={<Trash className="size-4" aria-hidden="true" />}
+							aria-label={t`Delete ${term.label}`}
+							onClick={() => onDelete(term)}
+						>
+							{t`Delete`}
+						</DropdownMenu.Item>
+					</RowActionsMenu>
+				</td>
+			</tr>
 			<TermGroup
 				siblings={term.children}
 				parentId={termGroup(term)}
 				level={level + 1}
-				table
 				searchActive={searchActive}
 				visibleIds={visibleIds}
-				onEdit={onEdit}
-				onDelete={onDelete}
-				onMove={onMove}
-				onTranslate={onTranslate}
-				canTranslate={canTranslate}
-			/>
-		</>
-	);
-}
-
-/**
- * Term row component (recursive for hierarchy)
- *
- * `siblings` is the group the term is rendered from, in display order, and
- * `parentId` is that group's parent. Moving a term reorders that group and
- * never changes its parent.
- *
- * A term whose parent has no row in this locale is rendered at the top level so
- * it isn't lost, but it belongs to its parent's group — a group this locale
- * can't show. Its move buttons are disabled rather than silently addressing the
- * wrong group, and `place` is -1 because it holds no slot in the group it is
- * drawn in.
- */
-function TermRow({
-	term,
-	siblings,
-	movable,
-	place,
-	parentId,
-	level = 0,
-	onEdit,
-	onDelete,
-	onMove,
-	onTranslate,
-	canTranslate,
-}: {
-	term: TaxonomyTerm;
-	siblings: TaxonomyTerm[];
-	movable: TaxonomyTerm[];
-	place: number;
-	parentId: string | null;
-	level?: number;
-} & TermRowCallbacks) {
-	const { t } = useLingui();
-	const stranded = isStranded(term, parentId);
-	return (
-		<>
-			<div className="flex items-center gap-4 py-2 px-4 hover:bg-kumo-tint/50">
-				<div style={{ marginInlineStart: `${level * 1.5}rem` }} className="flex-1">
-					<span className="font-medium">{term.label}</span>
-					<span className="text-sm text-kumo-subtle ms-2">
-						(<bdi dir="ltr">{term.slug}</bdi>)
-					</span>
-				</div>
-				<div className="text-sm text-kumo-subtle">{term.count || 0}</div>
-				<div className="flex gap-2">
-					{/* The buttons inside are disabled and take no pointer events, so the
-					    explanation has to hang off something that still receives hover. */}
-					<span
-						className="flex gap-2"
-						title={
-							stranded
-								? t`${term.label} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to.`
-								: undefined
-						}
-					>
-						<Button
-							variant="ghost"
-							size="sm"
-							aria-label={
-								stranded
-									? t`Move ${term.label} up — unavailable, its parent has no translation in this locale`
-									: t`Move ${term.label} up`
-							}
-							disabled={stranded || place <= 0}
-							onClick={() => onMove(parentId, siblings, movable, term, -1)}
-						>
-							<CaretUp className="w-4 h-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							aria-label={
-								stranded
-									? t`Move ${term.label} down — unavailable, its parent has no translation in this locale`
-									: t`Move ${term.label} down`
-							}
-							disabled={stranded || place >= movable.length - 1}
-							onClick={() => onMove(parentId, siblings, movable, term, 1)}
-						>
-							<CaretDown className="w-4 h-4" />
-						</Button>
-					</span>
-					{canTranslate && onTranslate ? (
-						<Button
-							variant="ghost"
-							size="sm"
-							aria-label={t`Translate ${term.label}`}
-							onClick={() => onTranslate(term)}
-						>
-							{t`Translate`}
-						</Button>
-					) : null}
-					<Button
-						variant="ghost"
-						size="sm"
-						aria-label={t`Edit ${term.label}`}
-						onClick={() => onEdit(term)}
-					>
-						<Pencil className="w-4 h-4" />
-					</Button>
-					<Button
-						variant="ghost"
-						size="sm"
-						aria-label={t`Delete ${term.label}`}
-						onClick={() => onDelete(term)}
-					>
-						<Trash className="w-4 h-4" />
-					</Button>
-				</div>
-			</div>
-			<TermGroup
-				siblings={term.children}
-				parentId={termGroup(term)}
-				level={level + 1}
 				onEdit={onEdit}
 				onDelete={onDelete}
 				onMove={onMove}
@@ -1326,17 +1200,13 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center justify-between gap-4 flex-wrap">
-				<div>
+				<div className="min-w-0">
 					<h1 className="text-2xl font-semibold leading-tight">{taxonomyDef.label}</h1>
 					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
 						{t`Manage ${inlineLabel(taxonomyDef.label, lingui.locale)} for ${taxonomyDef.collections.join(", ")}`}
 					</p>
 				</div>
-				<div
-					className={
-						taxonomyName === "tag" ? "flex flex-wrap items-center gap-2" : "flex items-center gap-2"
-					}
-				>
+				<div className="flex flex-wrap items-center gap-2">
 					{i18n && activeLocale ? (
 						<LocaleSwitcher
 							locales={i18n.locales}
@@ -1384,7 +1254,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 							render={
 								<Button
 									type="button"
-									variant={taxonomyName === "tag" ? "secondary" : "ghost"}
+									variant={taxonomyName === "tag" ? "secondary" : "outline"}
 									shape="square"
 									icon={<DotsThree aria-hidden="true" />}
 									aria-label={t`More actions for ${taxonomyDef.label}`}
@@ -1415,118 +1285,78 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 				</div>
 			</div>
 
-			{taxonomyName === "tag" ? (
-				<div className="flex flex-col gap-3">
-					<TableToolbarSearch
-						size="base"
-						inputRef={tagSearchRef}
-						placeholder={t`Search tags…`}
-						aria-label={t`Search tags`}
-						value={tagSearch}
-						onChange={(event) => setTagSearch(event.target.value)}
-					/>
-					<span role="status" className="sr-only">
-						{rawSearch
-							? plural(tagMatches?.matchCount ?? 0, {
-									one: "# matching tag",
-									other: "# matching tags",
-								})
-							: ""}
-					</span>
-					{termsLoading ? (
-						<div className="p-8 text-center text-kumo-subtle">{t`Loading terms...`}</div>
-					) : terms.length === 0 ? (
-						<div className="p-8 text-center text-kumo-subtle">
-							{t`No ${inlineLabel(taxonomyDef.label, lingui.locale)} yet. Create one to get started.`}
-						</div>
-					) : (
-						<LayerCard className="p-0">
-							<div className="overflow-x-auto">
-								<Table className="text-start [&_td]:border-b [&_td]:border-kumo-fill [&_tr:last-child_td]:border-b-0">
-									<Table.Header variant="compact">
-										<Table.Row>
-											<Table.Head className="text-start">{t`Name`}</Table.Head>
-											<Table.Head className="w-20 text-start">{t`Count`}</Table.Head>
-											<Table.Head className="w-24 text-end">
-												<span className="sr-only">{t`Actions`}</span>
-											</Table.Head>
-										</Table.Row>
-									</Table.Header>
-									<Table.Body>
-										{tagMatches?.visibleIds.size === 0 ? (
-											<Table.Row>
-												<Table.Cell colSpan={3}>
-													<div className="flex flex-col items-center gap-2 py-8 text-center">
-														<MagnifyingGlass
-															size={32}
-															className="text-kumo-subtle opacity-60"
-															aria-hidden="true"
-														/>
-														<p className="text-base font-medium">{t`No matching tags`}</p>
-														<Button
-															variant="outline"
-															size="sm"
-															onClick={() => {
-																setTagSearch("");
-																tagSearchRef.current?.focus();
-															}}
-														>
-															{t`Clear search`}
-														</Button>
-													</div>
-												</Table.Cell>
-											</Table.Row>
-										) : (
-											<TermGroup
-												siblings={terms}
-												parentId={null}
-												table
-												searchActive={!!rawSearch}
-												visibleIds={tagMatches?.visibleIds}
-												onEdit={handleEdit}
-												onDelete={handleDelete}
-												onMove={handleMove}
-												onTranslate={setTranslateTarget}
-												canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
-											/>
-										)}
-									</Table.Body>
-								</Table>
-							</div>
-						</LayerCard>
-					)}
-				</div>
-			) : (
-				<div className="border rounded-lg overflow-x-auto">
-					<div className="min-w-[560px]">
-						<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 font-medium">
-							<div className="flex-1">{t`Name`}</div>
-							<div className="w-16 text-center">{t`Count`}</div>
-							<div className="w-24 text-center">{t`Actions`}</div>
-						</div>
-
+			<div className="flex flex-col gap-3">
+				{taxonomyName === "tag" && (
+					<>
+						<TableToolbarSearch
+							size="base"
+							inputRef={tagSearchRef}
+							placeholder={t`Search tags…`}
+							aria-label={t`Search tags`}
+							value={tagSearch}
+							onChange={(event) => setTagSearch(event.target.value)}
+						/>
+						<span role="status" className="sr-only">
+							{rawSearch
+								? plural(tagMatches?.matchCount ?? 0, {
+										one: "# matching tag",
+										other: "# matching tags",
+									})
+								: ""}
+						</span>
+					</>
+				)}
+				<DataTable>
+					<thead>
+						<tr>
+							<th scope="col">{t`Name`}</th>
+							<th scope="col" className="w-0 text-end">
+								{t`Count`}
+							</th>
+							<th scope="col" className="w-0">
+								<span className="sr-only">{t`Actions`}</span>
+							</th>
+						</tr>
+					</thead>
+					<tbody>
 						{termsLoading ? (
-							<div className="p-8 text-center text-kumo-subtle">{t`Loading terms...`}</div>
+							<DataTableMessage colSpan={3}>{t`Loading terms...`}</DataTableMessage>
 						) : terms.length === 0 ? (
-							<div className="p-8 text-center text-kumo-subtle">
+							<DataTableMessage colSpan={3}>
 								{t`No ${inlineLabel(taxonomyDef.label, lingui.locale)} yet. Create one to get started.`}
-							</div>
+							</DataTableMessage>
+						) : tagMatches?.visibleIds.size === 0 ? (
+							<DataTableMessage colSpan={3}>
+								<MagnifyingGlass size={32} className="mx-auto mb-2 opacity-60" aria-hidden="true" />
+								<p className="font-medium text-kumo-default">{t`No matching tags`}</p>
+								<Button
+									variant="outline"
+									size="sm"
+									className="mx-auto mt-3"
+									onClick={() => {
+										setTagSearch("");
+										tagSearchRef.current?.focus();
+									}}
+								>
+									{t`Clear search`}
+								</Button>
+							</DataTableMessage>
 						) : (
-							<div className="divide-y divide-kumo-line">
-								<TermGroup
-									siblings={terms}
-									parentId={null}
-									onEdit={handleEdit}
-									onDelete={handleDelete}
-									onMove={handleMove}
-									onTranslate={setTranslateTarget}
-									canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
-								/>
-							</div>
+							<TermGroup
+								siblings={terms}
+								parentId={null}
+								searchActive={!!tagMatches}
+								visibleIds={tagMatches?.visibleIds}
+								onEdit={handleEdit}
+								onDelete={handleDelete}
+								onMove={handleMove}
+								onTranslate={setTranslateTarget}
+								canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
+							/>
 						)}
-					</div>
-				</div>
-			)}
+					</tbody>
+				</DataTable>
+			</div>
 
 			<TermFormDialog
 				open={formOpen}

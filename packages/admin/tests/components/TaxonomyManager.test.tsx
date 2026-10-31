@@ -4,7 +4,7 @@ import { msg } from "@lingui/core/macro";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import {
 	getAvailableParentTerms,
@@ -128,6 +128,22 @@ const termsResponse = JSON.stringify({
 				parentId: null,
 				children: [],
 				count: 3,
+			},
+		],
+	},
+});
+
+const singleTermResponse = JSON.stringify({
+	data: {
+		terms: [
+			{
+				id: "1",
+				name: "tech",
+				slug: "tech",
+				label: "Technology",
+				parentId: null,
+				children: [],
+				count: 5,
 			},
 		],
 	},
@@ -447,6 +463,7 @@ function requestsWith(method: string, path: string) {
 			([url, init]) => typeof url === "string" && url.includes(path) && init?.method === method,
 		);
 }
+const EDIT_TERM_REGEX = /^Edit /;
 
 describe("TaxonomyManager", () => {
 	beforeEach(() => {
@@ -461,19 +478,6 @@ describe("TaxonomyManager", () => {
 		});
 
 		await expect.element(screen.getByRole("heading", { name: "Categories" })).toBeInTheDocument();
-	});
-
-	it("wraps the hierarchical term list in a horizontally scrollable container", async () => {
-		mockApiFetch(hierarchicalTermsResponse);
-		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
-			wrapper: Wrapper,
-		});
-
-		await expect.element(screen.getByRole("heading", { name: "Categories" })).toBeInTheDocument();
-
-		const container = document.querySelector(".border.rounded-lg.overflow-x-auto");
-		expect(container).not.toBeNull();
-		expect(container!.firstElementChild).toHaveClass("min-w-[560px]");
 	});
 
 	it("keeps the two tag actions together and moves taxonomy creation into More", async () => {
@@ -658,22 +662,18 @@ describe("TaxonomyManager", () => {
 		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
 		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
 		const search = screen.getByRole("searchbox", { name: "Search tags" });
-		const visibleOrder = () =>
-			Array.from(
-				document.querySelectorAll("tbody tr"),
-				(row) => row.querySelector("td span")?.textContent,
-			);
 
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 		await expect.element(screen.getByText("Count", { exact: true })).toBeInTheDocument();
-		expect(visibleOrder()).toEqual(["Technology", "Science"]);
+		expect(renderedOrder()).toEqual(["Technology", "Science"]);
 		expect(screen.getByText("2 tags").query()).toBeNull();
 		await search.fill("sci");
 		await expect.element(screen.getByText("Science", { exact: true })).toBeInTheDocument();
 		expect(screen.getByText("Technology", { exact: true }).query()).toBeNull();
 		expect(screen.getByText("1 of 2 tags").query()).toBeNull();
-		await screen.getByRole("button", { name: "More actions for Science" }).click();
-		expect(screen.getByRole("menuitem", { name: "Move up Science" }).query()).toBeNull();
+		const menu = await openRowMenu("Science");
+		expect(menu.getByRole("menuitem", { name: "Move up" }).query()).toBeNull();
+		expect(menu.getByRole("menuitem", { name: "Move down" }).query()).toBeNull();
 		await userEvent.keyboard("{Escape}");
 		await search.fill("tech");
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
@@ -686,7 +686,7 @@ describe("TaxonomyManager", () => {
 		await userEvent.keyboard("{Enter}");
 		await expect.element(search).toHaveFocus();
 		await expect.element(screen.getByText("Science", { exact: true })).toBeInTheDocument();
-		expect(visibleOrder()).toEqual(["Technology", "Science"]);
+		expect(renderedOrder()).toEqual(["Technology", "Science"]);
 		expect(screen.getByText("2 tags").query()).toBeNull();
 	});
 
@@ -756,13 +756,11 @@ describe("TaxonomyManager", () => {
 		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
 		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
 		await expect
-			.element(screen.getByRole("button", { name: "Edit Technology" }))
-			.toBeInTheDocument();
-		await screen.getByRole("button", { name: "More actions for Technology" }).click();
-		await expect
-			.element(screen.getByRole("menuitem", { name: "Move up Technology" }))
-			.toBeDisabled();
-		await screen.getByRole("menuitem", { name: "Move down Technology" }).click();
+			.element(screen.getByRole("button", { name: "Edit Technology", exact: true }))
+			.toHaveTextContent("Technology");
+		const menu = await openRowMenu("Technology");
+		await expect.element(menu.getByRole("menuitem", { name: "Move up" })).toBeDisabled();
+		await menu.getByRole("menuitem", { name: "Move down" }).click();
 		expect(reorderRequestBody()).toEqual({ parentId: null, ids: ["2", "1"] });
 	});
 
@@ -771,8 +769,7 @@ describe("TaxonomyManager", () => {
 		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 
-		await screen.getByRole("button", { name: "More actions for Technology" }).click();
-		await screen.getByRole("menuitem", { name: "Delete tag Technology" }).click();
+		await deleteFromRowMenu("Technology");
 		await expect.element(screen.getByText(DELETE_TECHNOLOGY_DESC_REGEX)).toBeInTheDocument();
 	});
 
@@ -781,19 +778,26 @@ describe("TaxonomyManager", () => {
 			wrapper: Wrapper,
 		});
 
-		// Use locators that target the specific label spans (font-medium class)
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
-		// "Science" also appears in "(science)" slug, so target the font-medium span
-		await expect.element(screen.getByText("(science)")).toBeInTheDocument();
+		await expect.element(screen.getByText("Science", { exact: true })).toBeInTheDocument();
 	});
 
-	it("shows term slugs in parentheses", async () => {
+	it("shows each term's slug under its name", async () => {
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
 			wrapper: Wrapper,
 		});
 
-		await expect.element(screen.getByText("(tech)")).toBeInTheDocument();
-		await expect.element(screen.getByText("(science)")).toBeInTheDocument();
+		for (const [label, slug] of [
+			["Technology", "/tech"],
+			["Science", "/science"],
+		] as const) {
+			const slugText = screen.getByText(slug, { exact: true });
+			await expect.element(slugText).toBeVisible();
+			const name = screen.getByRole("button", { name: `Edit ${label}`, exact: true }).element();
+			expect(slugText.element().getBoundingClientRect().top).toBeGreaterThanOrEqual(
+				name.getBoundingClientRect().bottom,
+			);
+		}
 	});
 
 	it("add button opens create dialog", async () => {
@@ -1162,6 +1166,35 @@ describe("TaxonomyManager", () => {
 			.toBeInTheDocument();
 	});
 
+	it("opens the term editor from the row menu's Edit item", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+
+		const menu = await openRowMenu("Technology");
+		await menu.getByRole("menuitem", { name: "Edit", exact: true }).click();
+
+		await expect
+			.element(screen.getByRole("heading", { name: EDIT_CATEGORY_HEADING_REGEX }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Technology");
+	});
+
+	it("opens the translate dialog from the row menu on a site with two locales", async () => {
+		manifestI18n = { defaultLocale: "en", locales: ["en", "de"] };
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await expect.element(screen.getByRole("combobox", { name: "Locale" })).toBeVisible();
+
+		const menu = await openRowMenu("Technology");
+		await menu.getByRole("menuitem", { name: "Translate", exact: true }).click();
+
+		await expect
+			.element(screen.getByRole("heading", { name: 'Translate "Technology"', exact: true }))
+			.toBeInTheDocument();
+	});
+
 	it('sends description: "" when the description field is cleared in the edit dialog', async () => {
 		mockApiFetch(termsWithDescriptionResponse);
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
@@ -1192,7 +1225,7 @@ describe("TaxonomyManager", () => {
 
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 
-		await screen.getByRole("button", { name: "Delete Technology" }).click();
+		await deleteFromRowMenu("Technology");
 
 		// Should open a ConfirmDialog (not window.confirm)
 		await expect
@@ -1233,15 +1266,40 @@ describe("TaxonomyManager", () => {
 			).length;
 	}
 
-	/**
-	 * Labels of the rendered rows, top to bottom, read off each row's move
-	 * button rather than the markup around it.
-	 */
+	/** Labels of the rendered rows, top to bottom, read off each term's name button. */
 	function renderedOrder(): string[] {
-		const buttons = document.querySelectorAll<HTMLElement>('button[aria-label$=" up"]');
-		return Array.from(buttons, (button) =>
-			(button.getAttribute("aria-label") ?? "").slice("Move ".length, -" up".length),
-		);
+		return page
+			.getByRole("button", { name: EDIT_TERM_REGEX })
+			.elements()
+			.map((button) => button.textContent ?? "");
+	}
+
+	async function openRowMenu(label: string) {
+		await page.getByRole("button", { name: `Actions for ${label}`, exact: true }).click();
+		const menu = page.getByRole("menu");
+		await expect.element(menu).toBeVisible();
+		return menu;
+	}
+
+	/** Moves a term from the keyboard, which should leave focus on the moved row's menu button. */
+	async function moveFromRowMenu(label: string, item: "Move up" | "Move down") {
+		// A pointer left resting over the menu stops Base UI returning focus to the trigger.
+		await page.getByRole("heading", { level: 1 }).hover();
+		const trigger = page.getByRole("button", { name: `Actions for ${label}`, exact: true });
+		trigger.element().focus();
+		await userEvent.keyboard("{Enter}");
+		const menu = page.getByRole("menu");
+		await expect.element(menu.getByRole("menuitem", { name: "Edit", exact: true })).toHaveFocus();
+		await userEvent.keyboard(item === "Move up" ? "{ArrowDown}" : "{ArrowDown}{ArrowDown}");
+		await expect.element(menu.getByRole("menuitem", { name: item })).toHaveFocus();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(menu).not.toBeInTheDocument();
+		await expect.element(trigger).toHaveFocus();
+	}
+
+	async function deleteFromRowMenu(label: string) {
+		const menu = await openRowMenu(label);
+		await menu.getByRole("menuitem", { name: `Delete ${label}`, exact: true }).click();
 	}
 
 	it("moving a term sends the whole sibling group in its new order", async () => {
@@ -1251,7 +1309,7 @@ describe("TaxonomyManager", () => {
 
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 
-		await screen.getByRole("button", { name: "Move Technology down" }).click();
+		await moveFromRowMenu("Technology", "Move down");
 
 		expect(reorderRequestBody()).toEqual({ parentId: null, ids: ["2", "1"] });
 	});
@@ -1266,7 +1324,7 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 		expect(renderedOrder()).toEqual(["Technology", "Science"]);
 
-		await screen.getByRole("button", { name: "Move Technology down" }).click();
+		await moveFromRowMenu("Technology", "Move down");
 
 		// Still in flight, and the list has already moved.
 		expect(defer.inFlight).toBe(1);
@@ -1285,18 +1343,18 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 		const fetchesBefore = termFetchCount();
 
-		// Two clicks before either response lands: down, then back up. The list
+		// Two moves before either response lands: down, then back up. The list
 		// tracks both without waiting for the round trip.
-		await screen.getByRole("button", { name: "Move Technology down" }).click();
+		await moveFromRowMenu("Technology", "Move down");
 		expect(renderedOrder()).toEqual(["Science", "Technology"]);
-		await screen.getByRole("button", { name: "Move Technology up" }).click();
+		await moveFromRowMenu("Technology", "Move up");
 		expect(renderedOrder()).toEqual(["Technology", "Science"]);
 
 		defer.release();
 		await vi.waitFor(() => expect(reorderRequestBodies()).toHaveLength(2));
 
-		// Each body is an absolute order taken from the list at click time, so
-		// applying them in click order is what makes the last one win.
+		// Each body is an absolute order taken from the list at move time, so
+		// applying them in move order is what makes the last one win.
 		expect(reorderRequestBodies()).toEqual([
 			{ parentId: null, ids: ["2", "1"] },
 			{ parentId: null, ids: ["1", "2"] },
@@ -1314,11 +1372,15 @@ describe("TaxonomyManager", () => {
 
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 
-		await expect.element(screen.getByRole("button", { name: "Move Technology up" })).toBeDisabled();
-		await expect.element(screen.getByRole("button", { name: "Move Science down" })).toBeDisabled();
-		await expect
-			.element(screen.getByRole("button", { name: "Move Technology down" }))
-			.toBeEnabled();
+		const first = await openRowMenu("Technology");
+		await expect.element(first.getByRole("menuitem", { name: "Move up" })).toBeDisabled();
+		await expect.element(first.getByRole("menuitem", { name: "Move down" })).toBeEnabled();
+		await userEvent.keyboard("{Escape}");
+		await expect.element(first).not.toBeInTheDocument();
+
+		const last = await openRowMenu("Science");
+		await expect.element(last.getByRole("menuitem", { name: "Move up" })).toBeEnabled();
+		await expect.element(last.getByRole("menuitem", { name: "Move down" })).toBeDisabled();
 	});
 
 	it("reorders the top level while nested rows are on screen", async () => {
@@ -1329,7 +1391,7 @@ describe("TaxonomyManager", () => {
 
 		await expect.element(screen.getByText("Test", { exact: true })).toBeInTheDocument();
 
-		await screen.getByRole("button", { name: "Move Design down" }).click();
+		await moveFromRowMenu("Design", "Move down");
 
 		expect(reorderRequestBody()).toEqual({
 			parentId: null,
@@ -1345,12 +1407,25 @@ describe("TaxonomyManager", () => {
 
 		await expect.element(screen.getByText("Fonts", { exact: true })).toBeInTheDocument();
 
-		await screen.getByRole("button", { name: "Move Fonts down" }).click();
+		await moveFromRowMenu("Fonts", "Move down");
 
 		expect(reorderRequestBody()).toEqual({
 			parentId: "design-group",
 			ids: ["colour-group", "fonts-group"],
 		});
+	});
+
+	it.each([
+		["an only child", hierarchicalTermsResponse, "Test"],
+		["the only root", singleTermResponse, "Technology"],
+	])("leaves Move out of the menu for %s", async (_case, response, label) => {
+		mockApiFetch(response);
+		await render(<TaxonomyManager taxonomyName="categories" />, { wrapper: Wrapper });
+
+		const menu = await openRowMenu(label);
+		await expect.element(menu.getByRole("menuitem", { name: "Edit", exact: true })).toBeVisible();
+		expect(menu.getByRole("menuitem", { name: "Move up" }).query()).toBeNull();
+		expect(menu.getByRole("menuitem", { name: "Move down" }).query()).toBeNull();
 	});
 
 	it("cannot move a term whose parent is untranslated", async () => {
@@ -1361,16 +1436,16 @@ describe("TaxonomyManager", () => {
 
 		await expect.element(screen.getByText("Nino", { exact: true })).toBeInTheDocument();
 
-		// The label carries the reason: a disabled caret with no explanation is
-		// two dead buttons on an arbitrary row.
-		const up = screen.getByRole("button", {
-			name: "Move Nino up — unavailable, its parent has no translation in this locale",
-		});
-		const down = screen.getByRole("button", {
-			name: "Move Nino down — unavailable, its parent has no translation in this locale",
-		});
-		await expect.element(up).toBeDisabled();
-		await expect.element(down).toBeDisabled();
+		const reason =
+			"Nino can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to.";
+		const menu = await openRowMenu("Nino");
+		await expect.element(menu.getByText(reason, { exact: true })).toBeVisible();
+		const moves = menu.getByRole("group", { name: reason });
+		for (const name of ["Move up", "Move down"]) {
+			const item = moves.getByRole("menuitem", { name });
+			await expect.element(item).toBeDisabled();
+			await expect.element(item).toHaveAccessibleDescription(reason);
+		}
 	});
 
 	it("leaves an untranslated-parent term out of the group it is drawn in", async () => {
@@ -1383,7 +1458,7 @@ describe("TaxonomyManager", () => {
 
 		// Beta and Gamma are the only real roots, so Beta's "down" is enabled even
 		// though Nino sits between them, and Nino is not named in the request.
-		await screen.getByRole("button", { name: "Move Beta down" }).click();
+		await moveFromRowMenu("Beta", "Move down");
 
 		expect(reorderRequestBody()).toEqual({
 			parentId: null,
@@ -1468,7 +1543,7 @@ describe("TaxonomyManager", () => {
 			const screen = await render(<TaxonomyManager taxonomyName="topics" />, { wrapper: Wrapper });
 			await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 
-			await screen.getByRole("button", { name: "Delete Technology", exact: true }).click();
+			await deleteFromRowMenu("Technology");
 			await expect
 				.element(screen.getByRole("heading", { name: "Delete Begriff?", exact: true }))
 				.toBeInTheDocument();

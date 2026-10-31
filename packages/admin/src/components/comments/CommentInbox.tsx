@@ -5,7 +5,7 @@
  * table with row actions, bulk selection, and detail slide-over.
  */
 
-import { Badge, Button, Checkbox, Select } from "@cloudflare/kumo";
+import { Badge, Button, Checkbox, DropdownMenu, Select } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -24,10 +24,20 @@ import type {
 	CommentStatus,
 	BulkAction,
 } from "../../lib/api/comments.js";
-import { cn, formatDate } from "../../lib/utils.js";
+import { formatDate } from "../../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "../admin-navigation-icons.js";
 import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
+import {
+	DataTable,
+	DataTableBulkBar,
+	DataTableMessage,
+	RowActionsMenu,
+	RowMeta,
+	RowTitleButton,
+	cellCodeClassName,
+	tertiaryColumn,
+} from "../DataTable.js";
 import { PageHeader } from "../PageHeader.js";
 import { TableToolbarSearch } from "../TableToolbar.js";
 import { CommentDetail } from "./CommentDetail.js";
@@ -49,13 +59,17 @@ export interface CommentInboxProps {
 	searchQuery: string;
 	onSearchChange: (query: string) => void;
 	onCommentStatusChange: (id: string, status: CommentStatus) => Promise<unknown>;
+	/** Rejects when the delete fails, so its dialog can stay open and show `deleteError`. */
 	onCommentDelete: (id: string) => Promise<unknown>;
+	/** Rejects when the action fails, so the selection survives for a retry. */
 	onBulkAction: (ids: string[], action: BulkAction) => Promise<unknown>;
 	onLoadMore: () => void;
 	isAdmin: boolean;
 	isStatusPending: boolean;
 	deleteError: unknown;
 	onDeleteErrorReset: () => void;
+	bulkError: unknown;
+	onBulkErrorReset: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +107,8 @@ export function CommentInbox({
 	isStatusPending,
 	deleteError,
 	onDeleteErrorReset,
+	bulkError,
+	onBulkErrorReset,
 }: CommentInboxProps) {
 	const { t } = useLingui();
 
@@ -100,6 +116,13 @@ export function CommentInbox({
 	const [selected, setSelected] = React.useState<Set<string>>(new Set());
 	const [detailComment, setDetailComment] = React.useState<AdminComment | null>(null);
 	const [deleteId, setDeleteId] = React.useState<string | null>(null);
+	const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+	// The comments the dialog asks to delete. Not read from the selection, which
+	// clears while the dialog is still on screen.
+	const [bulkDeleteIds, setBulkDeleteIds] = React.useState<string[]>([]);
+	// Set only while a bulk action runs. `isStatusPending` also covers a single row's
+	// action, which isn't working on the selection.
+	const [bulkRunning, setBulkRunning] = React.useState(false);
 
 	// Pagination (client-side within loaded data)
 	const [page, setPage] = React.useState(0);
@@ -114,6 +137,7 @@ export function CommentInbox({
 
 	const totalPages = Math.max(1, Math.ceil(comments.length / PAGE_SIZE));
 	const paginatedComments = comments.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+	const showLoading = isLoading && comments.length === 0;
 
 	// Bulk select
 	const allOnPageSelected =
@@ -143,9 +167,17 @@ export function CommentInbox({
 		});
 	};
 
+	const runBulk = (ids: string[], action: BulkAction) => {
+		setBulkRunning(true);
+		return onBulkAction(ids, action)
+			.then(clearSelection)
+			.finally(() => setBulkRunning(false));
+	};
+
 	const handleBulk = (action: BulkAction) => {
 		if (selected.size === 0) return;
-		void onBulkAction([...selected], action).then(clearSelection);
+		// The page reports a failure in a toast.
+		runBulk([...selected], action).catch(() => {});
 	};
 
 	// Collection filter items
@@ -256,90 +288,89 @@ export function CommentInbox({
 
 			{/* Bulk action bar */}
 			{selected.size > 0 && (
-				<div className="flex items-center gap-3 rounded-lg border bg-kumo-tint/50 px-4 py-2">
-					<span className="text-sm font-medium">
-						{plural(selected.size, { one: "# selected", other: "# selected" })}
-					</span>
-					<div className="flex gap-2 ms-auto">
-						{activeStatus !== "approved" && (
-							<Button
-								size="sm"
-								icon={<Check className="h-3.5 w-3.5" />}
-								onClick={() => handleBulk("approve")}
-							>
-								{t`Approve`}
-							</Button>
-						)}
-						{activeStatus !== "spam" && (
-							<Button
-								size="sm"
-								variant="outline"
-								icon={<Warning className="h-3.5 w-3.5" />}
-								onClick={() => handleBulk("spam")}
-							>
-								{t`Spam`}
-							</Button>
-						)}
-						{activeStatus !== "trash" && (
-							<Button
-								size="sm"
-								variant="outline"
-								icon={<Trash className="h-3.5 w-3.5" />}
-								onClick={() => handleBulk("trash")}
-							>
-								{t`Trash`}
-							</Button>
-						)}
-						{isAdmin && (
-							<Button
-								size="sm"
-								variant="destructive"
-								icon={<Trash className="h-3.5 w-3.5" />}
-								onClick={() => handleBulk("delete")}
-							>
-								{t`Delete`}
-							</Button>
-						)}
-					</div>
-				</div>
+				<DataTableBulkBar selectedCount={selected.size} busy={bulkRunning} onClear={clearSelection}>
+					{activeStatus !== "approved" && (
+						<Button
+							size="sm"
+							variant="secondary"
+							icon={<Check aria-hidden="true" />}
+							disabled={isStatusPending}
+							onClick={() => handleBulk("approve")}
+						>
+							{t`Approve`}
+						</Button>
+					)}
+					{activeStatus !== "spam" && (
+						<Button
+							size="sm"
+							variant="secondary"
+							icon={<Warning aria-hidden="true" />}
+							disabled={isStatusPending}
+							onClick={() => handleBulk("spam")}
+						>
+							{t`Spam`}
+						</Button>
+					)}
+					{activeStatus !== "trash" && (
+						<Button
+							size="sm"
+							variant="secondary"
+							icon={<Trash aria-hidden="true" />}
+							disabled={isStatusPending}
+							onClick={() => handleBulk("trash")}
+						>
+							{t`Trash`}
+						</Button>
+					)}
+					{isAdmin && (
+						<Button
+							size="sm"
+							variant="destructive"
+							icon={<Trash aria-hidden="true" />}
+							disabled={isStatusPending}
+							onClick={() => {
+								onBulkErrorReset();
+								setBulkDeleteIds([...selected]);
+								setBulkDeleteOpen(true);
+							}}
+						>
+							{t`Delete`}
+						</Button>
+					)}
+				</DataTableBulkBar>
 			)}
 
 			{/* Table */}
-			{isLoading && comments.length === 0 ? (
-				<div className="py-12 text-center text-kumo-subtle">{t`Loading comments...`}</div>
-			) : paginatedComments.length === 0 ? (
+			{!showLoading && paginatedComments.length === 0 ? (
 				<EmptyState status={activeStatus} hasFilters={Boolean(searchQuery || collectionFilter)} />
 			) : (
-				<div className="overflow-x-auto rounded-lg border bg-kumo-base">
-					<table className="w-full">
-						<thead>
-							<tr className="border-b bg-kumo-tint/50">
-								<th scope="col" className="w-10 px-3 py-3">
-									<Checkbox
-										checked={allOnPageSelected}
-										onCheckedChange={toggleAll}
-										aria-label={t`Select all`}
-									/>
-								</th>
-								<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-									{t`Author`}
-								</th>
-								<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-									{t`Comment`}
-								</th>
-								<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-									{t`Content`}
-								</th>
-								<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-									{t`Date`}
-								</th>
-								<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
-									{t`Actions`}
-								</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-kumo-line">
-							{paginatedComments.map((comment) => (
+				<DataTable>
+					<thead>
+						<tr>
+							<th scope="col" className="w-10">
+								<Checkbox
+									checked={allOnPageSelected}
+									onCheckedChange={toggleAll}
+									aria-label={t`Select all on this page`}
+								/>
+							</th>
+							<th scope="col">{t`Comment`}</th>
+							<th scope="col" {...tertiaryColumn}>
+								{t`Content`}
+							</th>
+							<th scope="col" {...tertiaryColumn}>
+								{t`Date`}
+							</th>
+							<th scope="col" className="w-0">
+								<span className="sr-only">{t`Actions`}</span>
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{showLoading ? (
+							<DataTableMessage colSpan={5}>{t`Loading comments...`}</DataTableMessage>
+						) : (
+							paginatedComments.map((comment) => (
 								<CommentRow
 									key={comment.id}
 									comment={comment}
@@ -356,10 +387,10 @@ export function CommentInbox({
 									isAdmin={isAdmin}
 									isStatusPending={isStatusPending}
 								/>
-							))}
-						</tbody>
-					</table>
-				</div>
+							))
+						)}
+					</tbody>
+				</DataTable>
 			)}
 
 			{/* Pagination */}
@@ -435,11 +466,35 @@ export function CommentInbox({
 				error={deleteError}
 				onConfirm={() => {
 					if (deleteId) {
+						// On failure the dialog stays open and shows the error.
 						void onCommentDelete(deleteId).then(
 							() => setDeleteId(null),
 							() => {},
 						);
 					}
+				}}
+			/>
+
+			<ConfirmDialog
+				open={bulkDeleteOpen}
+				onClose={() => {
+					setBulkDeleteOpen(false);
+					onBulkErrorReset();
+				}}
+				title={t`Delete Permanently?`}
+				description={plural(bulkDeleteIds.length, {
+					one: "Permanently delete # comment? This cannot be undone.",
+					other: "Permanently delete # comments? This cannot be undone.",
+				})}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
+				isPending={isStatusPending}
+				error={bulkError}
+				onConfirm={() => {
+					void runBulk(bulkDeleteIds, "delete").then(
+						() => setBulkDeleteOpen(false),
+						() => {},
+					);
 				}}
 			/>
 		</div>
@@ -472,42 +527,47 @@ function CommentRow({
 	isStatusPending,
 }: CommentRowProps) {
 	const { t, i18n } = useLingui();
-	const date = new Date(comment.createdAt);
+	const author = comment.authorName;
 	const excerpt = comment.body.length > 120 ? comment.body.slice(0, 120) + "..." : comment.body;
+	const formattedDate = <bdi>{formatDate(new Date(comment.createdAt), i18n.locale)}</bdi>;
+	const collection = <span className={cellCodeClassName}>{comment.collection}</span>;
 
 	return (
-		<tr className={cn("hover:bg-kumo-tint/25", isSelected && "bg-kumo-tint/40")}>
-			<td className="w-10 px-3 py-3">
+		<tr data-selected={isSelected || undefined}>
+			<td>
 				<Checkbox
 					checked={isSelected}
 					onCheckedChange={onToggle}
 					aria-label={t`Select comment by ${comment.authorName}`}
 				/>
 			</td>
-			<td className="px-4 py-3">
-				<button type="button" onClick={onRowClick} className="text-start">
-					<div className="font-medium text-sm">{comment.authorName}</div>
-					<div className="text-xs text-kumo-subtle">{comment.authorEmail}</div>
-				</button>
-			</td>
-			<td className="px-4 py-3 max-w-xs">
+			<td>
+				<div className="flex flex-wrap items-baseline gap-x-2">
+					<RowTitleButton dir="auto" className="wrap-anywhere" onClick={onRowClick}>
+						{author}
+					</RowTitleButton>
+					<span className="text-sm text-kumo-subtle wrap-anywhere @max-md:hidden">
+						<bdi dir="ltr">{comment.authorEmail}</bdi>
+					</span>
+				</div>
 				<button
 					type="button"
+					dir="auto"
 					onClick={onRowClick}
-					className="text-start text-sm text-kumo-subtle hover:text-kumo-default line-clamp-2"
+					className="mt-0.5 line-clamp-2 cursor-pointer text-start text-kumo-subtle wrap-anywhere hover:text-kumo-default"
 				>
 					{excerpt}
 				</button>
+				<RowMeta priority="tertiary">
+					{collection}
+					{formattedDate}
+				</RowMeta>
 			</td>
-			<td className="px-4 py-3">
-				<div className="text-xs">
-					<span className="font-medium">{comment.collection}</span>
-				</div>
+			<td {...tertiaryColumn}>{collection}</td>
+			<td className="whitespace-nowrap text-kumo-subtle" {...tertiaryColumn}>
+				{formattedDate}
 			</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle whitespace-nowrap">
-				<bdi>{formatDate(date, i18n.locale)}</bdi>
-			</td>
-			<td className="px-4 py-3 text-end">
+			<td>
 				<div className="flex items-center justify-end gap-1">
 					{comment.status !== "approved" && (
 						<Button
@@ -518,45 +578,42 @@ function CommentRow({
 							onClick={() => onStatusChange(comment.id, "approved")}
 							disabled={isStatusPending}
 						>
-							<Check className="h-4 w-4 text-kumo-success" />
+							<Check className="h-4 w-4 text-kumo-success" aria-hidden="true" />
 						</Button>
 					)}
-					{comment.status !== "spam" && (
-						<Button
-							variant="ghost"
-							shape="square"
-							size="sm"
-							aria-label={t`Mark as spam`}
-							onClick={() => onStatusChange(comment.id, "spam")}
-							disabled={isStatusPending}
-						>
-							<Warning className="h-4 w-4 text-kumo-warning" />
-						</Button>
-					)}
-					{comment.status !== "trash" && (
-						<Button
-							variant="ghost"
-							shape="square"
-							size="sm"
-							aria-label={t`Trash`}
-							onClick={() => onStatusChange(comment.id, "trash")}
-							disabled={isStatusPending}
-						>
-							<Trash className="h-4 w-4 text-kumo-subtle" />
-						</Button>
-					)}
-					{isAdmin && (
-						<Button
-							variant="ghost"
-							shape="square"
-							size="sm"
-							aria-label={t`Delete permanently`}
-							onClick={() => onDelete(comment.id)}
-							disabled={isStatusPending}
-						>
-							<Trash className="h-4 w-4 text-kumo-danger" />
-						</Button>
-					)}
+					<RowActionsMenu label={t`Actions for comment by ${author}`}>
+						{comment.status !== "spam" && (
+							<DropdownMenu.Item
+								icon={<Warning className="size-4" aria-hidden="true" />}
+								disabled={isStatusPending}
+								onClick={() => onStatusChange(comment.id, "spam")}
+							>
+								{t`Mark as spam`}
+							</DropdownMenu.Item>
+						)}
+						{comment.status !== "trash" && (
+							<DropdownMenu.Item
+								icon={<Trash className="size-4" aria-hidden="true" />}
+								disabled={isStatusPending}
+								onClick={() => onStatusChange(comment.id, "trash")}
+							>
+								{t`Trash`}
+							</DropdownMenu.Item>
+						)}
+						{isAdmin && (
+							<>
+								<DropdownMenu.Separator />
+								<DropdownMenu.Item
+									variant="danger"
+									icon={<Trash className="size-4" aria-hidden="true" />}
+									disabled={isStatusPending}
+									onClick={() => onDelete(comment.id)}
+								>
+									{t`Delete permanently`}
+								</DropdownMenu.Item>
+							</>
+						)}
+					</RowActionsMenu>
 				</div>
 			</td>
 		</tr>

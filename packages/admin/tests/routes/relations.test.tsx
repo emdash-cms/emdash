@@ -125,7 +125,9 @@ describe("RelationList", () => {
 		await expect.element(screen.getByText("posts_authors")).toBeInTheDocument();
 		await expect.element(screen.getByText("posts.author")).toBeInTheDocument();
 		await expect.element(screen.getByText("picks Authors")).toBeInTheDocument();
-		await expect.element(screen.getByText("12 links")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("cell", { name: "12 links", exact: true }))
+			.toBeInTheDocument();
 	});
 
 	it("says which end a child-side field picks from", async () => {
@@ -152,7 +154,32 @@ describe("RelationList", () => {
 		);
 
 		await expect.element(screen.getByText("posts_authors")).toBeInTheDocument();
-		await expect.element(screen.getByText("No fields")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("cell", { name: "No fields", exact: true }))
+			.toBeInTheDocument();
+	});
+
+	it("opens a relation's edit dialog from its slug", async () => {
+		const { screen } = await renderWithRoutes(<RelationList {...listProps()} />);
+
+		await screen.getByText("posts_authors", { exact: true }).click();
+
+		await expect.element(screen.getByRole("dialog")).toBeVisible();
+		await expect
+			.element(screen.getByLabelText("Slug", { exact: true }))
+			.toHaveValue("posts_authors");
+	});
+
+	it("opens a relation's edit dialog from its row's menu", async () => {
+		const { screen } = await renderWithRoutes(<RelationList {...listProps()} />);
+
+		await screen.getByRole("button", { name: "Actions for posts_authors" }).click();
+		await screen.getByRole("menuitem", { name: "Edit", exact: true }).click();
+
+		await expect.element(screen.getByRole("dialog")).toBeVisible();
+		await expect
+			.element(screen.getByLabelText("Slug", { exact: true }))
+			.toHaveValue("posts_authors");
 	});
 
 	// Editing a relation is a dialog over the list, not a page of its own: the
@@ -260,7 +287,8 @@ describe("RelationList", () => {
 			<RelationList {...listProps({ onDeleteRelation })} />,
 		);
 
-		await screen.getByRole("button", { name: "Delete posts_authors" }).click();
+		await screen.getByRole("button", { name: "Actions for posts_authors" }).click();
+		await screen.getByRole("menuitem", { name: "Delete posts_authors" }).click();
 
 		await expect
 			.element(screen.getByText(/the author field on posts, which picks entries it links to/))
@@ -291,7 +319,8 @@ describe("RelationList", () => {
 		}
 		const { screen } = await renderWithRoutes(<FailingDelete />);
 
-		await screen.getByRole("button", { name: "Delete posts_authors" }).click();
+		await screen.getByRole("button", { name: "Actions for posts_authors" }).click();
+		await screen.getByRole("menuitem", { name: "Delete posts_authors" }).click();
 		screen.getByRole("button", { name: "Delete", exact: true }).element().click();
 		await expect.element(screen.getByText("Relation is in use")).toBeInTheDocument();
 

@@ -19,6 +19,7 @@ import {
 	Trash,
 	ArrowCounterClockwise,
 	ArrowSquareOut,
+	ArrowsDownUp,
 	Calendar,
 	Copy,
 	CaretUp,
@@ -68,7 +69,15 @@ import {
 	ContentStatusLabel,
 	isContentStatusState,
 } from "./ContentStatusBadge.js";
-import { DataTable, DataTableMessage, RowActionsMenu } from "./DataTable.js";
+import {
+	DataTable,
+	DataTableBulkBar,
+	DataTableMessage,
+	RowActionsMenu,
+	RowMeta,
+	rowTitleClassName,
+	tertiaryColumn,
+} from "./DataTable.js";
 import { ListPaginationFooter, type ListPagination } from "./ListPaginationFooter.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
@@ -489,6 +498,14 @@ export function ContentList({
 	const colSpan =
 		(i18n ? 5 : 4) + listColumns.length + extensionColumns.length + (bulkEnabled ? 1 : 0);
 	const trashColSpan = i18n ? 4 : 3;
+	const titleSortField = titleField ?? "title";
+	const dateSortField = dateField ?? "updatedAt";
+	const sortFields: SortFieldOption[] = [
+		{ field: titleSortField, label: t`Title` },
+		{ field: "status", label: t`Status` },
+		...(i18n ? [{ field: "locale", label: t`Locale` }] : []),
+		{ field: dateSortField, label: t`Date` },
+	];
 	const tabPagination = activeTab === "all" ? pagination : trashPagination;
 	const showPaginationFooter = !!tabPagination && tabPagination.totalCount > 0;
 
@@ -501,8 +518,8 @@ export function ContentList({
 			}
 		>
 			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-4">
+			<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+				<div className="flex min-w-0 items-center gap-4">
 					<h1 className="text-2xl font-semibold leading-tight">{collectionLabel}</h1>
 					{i18n && activeLocale && onLocaleChange && (
 						<LocaleSwitcher
@@ -578,121 +595,109 @@ export function ContentList({
 
 					{/* Bulk action toolbar — appears once one or more rows are selected */}
 					{bulkEnabled && selectedCount > 0 && (
-						<div className="flex flex-wrap items-center gap-3 rounded-xl bg-kumo-elevated px-4 py-2 ring ring-kumo-line">
-							<span className="text-sm font-medium">
-								{bulkBusy
-									? t`Working on ${selectedCount} items…`
-									: plural(selectedCount, { one: "# selected", other: "# selected" })}
-							</span>
-							<div className="flex flex-wrap items-center gap-2">
-								{onBulkPublish && (
-									<Button
-										size="sm"
-										variant="secondary"
-										disabled={bulkBusy}
-										onClick={() => runBulk(onBulkPublish)}
-										icon={<Upload />}
-									>
-										{t`Publish`}
-									</Button>
-								)}
-								{onBulkUnpublish && (
-									<Button
-										size="sm"
-										variant="secondary"
-										disabled={bulkBusy}
-										onClick={() => runBulk(onBulkUnpublish)}
-										icon={<CircleDashed aria-hidden="true" />}
-									>
-										{t`Set to draft`}
-									</Button>
-								)}
-								{bulkTagEnabled && (
-									<Button
-										size="sm"
-										variant="secondary"
-										disabled={bulkBusy || selectedCount > 50}
-										icon={<Tag aria-hidden="true" />}
-										onClick={() => {
-											setBulkTagSelection(
-												Array.from(selectedIds, (id) => {
-													const item =
-														items.find((candidate) => candidate.id === id) ??
-														selectedRowsRef.current.get(id);
-													return {
-														collection,
-														id,
-														title: item ? getEntryTitle(item, titleField) : id,
-														locale: item?.locale,
-													};
-												}),
-											);
-											setBulkTagOpen(true);
-										}}
-									>
-										{soleBulkTagTaxonomy
-											? t`Add ${inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)}`
-											: t`Add term`}
-									</Button>
-								)}
-								{bulkTagEnabled && selectedCount > 50 && (
-									<span role="status" className="text-sm text-kumo-danger">
-										{t`Select up to 50 posts at a time.`}
-									</span>
-								)}
-								{onBulkDelete && (
-									<LayerDialog.Root
-										open={bulkTrashOpen}
-										onOpenChange={setBulkTrashOpen}
-										disablePointerDismissal
-									>
-										<LayerDialog.Trigger
-											render={(p) => (
-												<Button
-													{...p}
-													size="sm"
-													variant="destructive"
-													icon={<Trash />}
-													disabled={bulkBusy}
-												>
-													{t`Move to trash`}
-												</Button>
-											)}
-										/>
-										<LayerDialog.Content size="sm">
-											<LayerDialog.Title>{t`Move to Trash?`}</LayerDialog.Title>
-											<LayerDialog.Description>
-												{plural(selectedCount, {
-													one: "Move # item to trash? You can restore it later.",
-													other: "Move # items to trash? You can restore them later.",
-												})}
-											</LayerDialog.Description>
-											<LayerDialog.Body>{null}</LayerDialog.Body>
-											<LayerDialog.Actions dismissLabel={t`Cancel`}>
-												<LayerDialog.Action
-													variant="destructive"
-													onClick={() => {
-														setBulkTrashOpen(false);
-														runBulk(onBulkDelete);
-													}}
-												>
-													{t`Move to Trash`}
-												</LayerDialog.Action>
-											</LayerDialog.Actions>
-										</LayerDialog.Content>
-									</LayerDialog.Root>
-								)}
+						<DataTableBulkBar
+							selectedCount={selectedCount}
+							busy={bulkBusy}
+							onClear={clearSelection}
+						>
+							{onBulkPublish && (
 								<Button
 									size="sm"
-									variant="ghost"
-									icon={<X />}
+									variant="secondary"
 									disabled={bulkBusy}
-									onClick={clearSelection}
+									onClick={() => runBulk(onBulkPublish)}
+									icon={<Upload />}
 								>
-									{t`Clear`}
+									{t`Publish`}
 								</Button>
-							</div>
-						</div>
+							)}
+							{onBulkUnpublish && (
+								<Button
+									size="sm"
+									variant="secondary"
+									disabled={bulkBusy}
+									onClick={() => runBulk(onBulkUnpublish)}
+									icon={<CircleDashed aria-hidden="true" />}
+								>
+									{t`Set to draft`}
+								</Button>
+							)}
+							{bulkTagEnabled && (
+								<Button
+									size="sm"
+									variant="secondary"
+									disabled={bulkBusy || selectedCount > 50}
+									icon={<Tag aria-hidden="true" />}
+									onClick={() => {
+										setBulkTagSelection(
+											Array.from(selectedIds, (id) => {
+												const item =
+													items.find((candidate) => candidate.id === id) ??
+													selectedRowsRef.current.get(id);
+												return {
+													collection,
+													id,
+													title: item ? getEntryTitle(item, titleField) : id,
+													locale: item?.locale,
+												};
+											}),
+										);
+										setBulkTagOpen(true);
+									}}
+								>
+									{soleBulkTagTaxonomy
+										? t`Add ${inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)}`
+										: t`Add term`}
+								</Button>
+							)}
+							{bulkTagEnabled && selectedCount > 50 && (
+								<span role="status" className="text-sm text-kumo-danger">
+									{t`Select up to 50 posts at a time.`}
+								</span>
+							)}
+							{onBulkDelete && (
+								<LayerDialog.Root
+									open={bulkTrashOpen}
+									onOpenChange={setBulkTrashOpen}
+									disablePointerDismissal
+								>
+									<LayerDialog.Trigger
+										render={(p) => (
+											<Button
+												{...p}
+												size="sm"
+												variant="destructive"
+												icon={<Trash />}
+												disabled={bulkBusy}
+											>
+												{t`Move to trash`}
+											</Button>
+										)}
+									/>
+									<LayerDialog.Content size="sm">
+										<LayerDialog.Title>{t`Move to Trash?`}</LayerDialog.Title>
+										<LayerDialog.Description>
+											{plural(selectedCount, {
+												one: "Move # item to trash? You can restore it later.",
+												other: "Move # items to trash? You can restore them later.",
+											})}
+										</LayerDialog.Description>
+										<LayerDialog.Body>{null}</LayerDialog.Body>
+										<LayerDialog.Actions dismissLabel={t`Cancel`}>
+											<LayerDialog.Action
+												variant="destructive"
+												onClick={() => {
+													setBulkTrashOpen(false);
+													runBulk(onBulkDelete);
+												}}
+											>
+												{t`Move to Trash`}
+											</LayerDialog.Action>
+										</LayerDialog.Actions>
+									</LayerDialog.Content>
+								</LayerDialog.Root>
+							)}
+						</DataTableBulkBar>
 					)}
 					<BulkTagDialog
 						taxonomies={bulkTagTaxonomies}
@@ -732,13 +737,13 @@ export function ContentList({
 								{/* The Title/Date columns sort by the collection's configured
 								    titleField/dateField when set */}
 								<SortableTh
-									field={titleField ?? "title"}
+									field={titleSortField}
 									sort={sort}
 									onSortChange={onSortChange}
 									label={t`Title`}
 								/>
 								{listColumns.map((column) => (
-									<th key={column.slug} scope="col">
+									<th key={column.slug} scope="col" {...tertiaryColumn}>
 										{column.label}
 									</th>
 								))}
@@ -747,6 +752,7 @@ export function ContentList({
 									sort={sort}
 									onSortChange={onSortChange}
 									label={t`Status`}
+									{...tertiaryColumn}
 								/>
 								{i18n && (
 									<SortableTh
@@ -754,13 +760,15 @@ export function ContentList({
 										sort={sort}
 										onSortChange={onSortChange}
 										label={t`Locale`}
+										{...tertiaryColumn}
 									/>
 								)}
 								<SortableTh
-									field={dateField ?? "updatedAt"}
+									field={dateSortField}
 									sort={sort}
 									onSortChange={onSortChange}
 									label={t`Date`}
+									{...tertiaryColumn}
 								/>
 								{extensionColumns.map((column) => (
 									<ExtensionColumnHeader
@@ -768,10 +776,21 @@ export function ContentList({
 										column={column}
 										collection={collection}
 										locale={activeLocale}
+										{...tertiaryColumn}
 									/>
 								))}
-								<th scope="col" className="w-0">
-									<span className="sr-only">{t`Actions`}</span>
+								<th scope="col" className="w-0" aria-label={t`Actions`}>
+									{onSortChange && (
+										// The negative margin keeps the header row as tall as a line of header text.
+										<div className="-my-0.75 @2xl:hidden">
+											<SortMenu
+												fields={sortFields}
+												sort={sort}
+												onSortChange={onSortChange}
+												defaultField={dateSortField}
+											/>
+										</div>
+									)}
 								</th>
 							</tr>
 						</thead>
@@ -893,8 +912,14 @@ export function ContentList({
 						<thead>
 							<tr>
 								<th scope="col">{t`Title`}</th>
-								{i18n && <th scope="col">{t`Locale`}</th>}
-								<th scope="col">{t`Deleted`}</th>
+								{i18n && (
+									<th scope="col" {...tertiaryColumn}>
+										{t`Locale`}
+									</th>
+								)}
+								<th scope="col" {...tertiaryColumn}>
+									{t`Deleted`}
+								</th>
 								<th scope="col" className="w-0">
 									<span className="sr-only">{t`Actions`}</span>
 								</th>
@@ -1203,7 +1228,7 @@ function DateRangeFilter({
 	);
 }
 
-interface SortableThProps {
+interface SortableThProps extends React.ComponentProps<"th"> {
 	field: ContentListSortField;
 	sort: ContentListSort | undefined;
 	onSortChange: ((sort: ContentListSort) => void) | undefined;
@@ -1221,12 +1246,16 @@ interface SortableThProps {
  * automatically. Adding a verbose aria-label would make each header re-read
  * the sort instruction on every focus, which is noisy.
  */
-function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
+function SortableTh({ field, sort, onSortChange, label, ...props }: SortableThProps) {
 	const isActive = sort?.field === field;
 	const direction = isActive ? sort?.direction : undefined;
 
 	if (!onSortChange) {
-		return <th scope="col">{label}</th>;
+		return (
+			<th scope="col" {...props}>
+				{label}
+			</th>
+		);
 	}
 
 	const ariaSort: "ascending" | "descending" | "none" = isActive
@@ -1248,7 +1277,7 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 	const Icon = isActive ? (direction === "asc" ? CaretUp : CaretDown) : CaretUpDown;
 
 	return (
-		<th scope="col" aria-sort={ariaSort}>
+		<th scope="col" aria-sort={ariaSort} {...props}>
 			<button
 				type="button"
 				onClick={handleClick}
@@ -1264,13 +1293,103 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 	);
 }
 
-interface ExtensionColumnHeaderProps {
+interface SortFieldOption {
+	field: ContentListSortField;
+	label: string;
+}
+
+/** Offers the sort headers' choices while the table is too narrow to show those headers. */
+function SortMenu({
+	fields,
+	sort,
+	onSortChange,
+	defaultField,
+}: {
+	fields: SortFieldOption[];
+	sort: ContentListSort | undefined;
+	onSortChange: (sort: ContentListSort) => void;
+	defaultField: ContentListSortField;
+}) {
+	const { t } = useLingui();
+	const label = fields.find((option) => option.field === sort?.field)?.label;
+	const triggerLabel =
+		!sort || label === undefined
+			? t`Sort`
+			: sort.direction === "asc"
+				? t`Sort by ${label}, ascending`
+				: t`Sort by ${label}, descending`;
+
+	return (
+		<DropdownMenu>
+			<DropdownMenu.Trigger
+				render={
+					<Button variant="ghost" size="sm" shape="square" aria-label={triggerLabel}>
+						<ArrowsDownUp size={16} aria-hidden="true" />
+					</Button>
+				}
+			/>
+			<DropdownMenu.Content align="end">
+				<DropdownMenu.RadioGroup
+					value={sort?.field ?? null}
+					onValueChange={(field: ContentListSortField) => {
+						if (field !== sort?.field) onSortChange({ field, direction: "desc" });
+					}}
+				>
+					<DropdownMenu.Label className="text-xs text-kumo-subtle">{t`Sort by`}</DropdownMenu.Label>
+					{fields.map((option) => (
+						<DropdownMenu.RadioItem key={option.field} value={option.field}>
+							{option.label}
+							<SortMenuIndicator />
+						</DropdownMenu.RadioItem>
+					))}
+				</DropdownMenu.RadioGroup>
+				<DropdownMenu.Separator />
+				<DropdownMenu.RadioGroup
+					value={sort?.direction ?? null}
+					onValueChange={(direction: ContentListSort["direction"]) => {
+						if (direction !== sort?.direction) {
+							onSortChange({ field: sort?.field ?? defaultField, direction });
+						}
+					}}
+				>
+					<DropdownMenu.Label className="text-xs text-kumo-subtle">{t`Order`}</DropdownMenu.Label>
+					<DropdownMenu.RadioItem value="asc">
+						{t`Ascending`}
+						<SortMenuIndicator />
+					</DropdownMenu.RadioItem>
+					<DropdownMenu.RadioItem value="desc">
+						{t`Descending`}
+						<SortMenuIndicator />
+					</DropdownMenu.RadioItem>
+				</DropdownMenu.RadioGroup>
+			</DropdownMenu.Content>
+		</DropdownMenu>
+	);
+}
+
+function SortMenuIndicator() {
+	// m-0 drops Kumo's physical ml-auto, which would leave the check beside the label in
+	// right-to-left locales. Staying mounted keeps the open menu's width as the choice moves.
+	return (
+		<DropdownMenu.RadioItemIndicator
+			keepMounted
+			className="m-0 ms-auto ps-4 data-unchecked:invisible"
+		/>
+	);
+}
+
+interface ExtensionColumnHeaderProps extends React.ComponentProps<"th"> {
 	column: ResolvedContentListColumn;
 	collection: string;
 	locale?: string;
 }
 
-function ExtensionColumnHeader({ column, collection, locale }: ExtensionColumnHeaderProps) {
+function ExtensionColumnHeader({
+	column,
+	collection,
+	locale,
+	...props
+}: ExtensionColumnHeaderProps) {
 	const { i18n } = useLingui();
 	const { pluginId, extension } = column;
 	const Header = extension.header;
@@ -1281,6 +1400,7 @@ function ExtensionColumnHeader({ column, collection, locale }: ExtensionColumnHe
 			scope="col"
 			aria-label={label}
 			className={extension.align === "end" ? "text-end" : "text-start"}
+			{...props}
 		>
 			<ContentListColumnBoundary
 				key={`${collection}:${locale ?? ""}:${pluginId}:${extension.id}`}
@@ -1378,6 +1498,14 @@ function ContentListItem({
 	const customDate = dateField ? parseListDate(item.data[dateField]) : null;
 	const date = customDate ?? parseTimestamp(item.updatedAt || item.createdAt);
 	const trash = useConfirmedRequest(onDelete && (() => onDelete(item.id)));
+	const statusBadge = (
+		<StatusBadge
+			status={item.status}
+			hasPendingChanges={getDraftStatus(item) === "published_with_changes"}
+		/>
+	);
+	const localeChip = showLocale && <LocaleChip locale={item.locale} />;
+	const formattedDate = <bdi>{formatDate(date, lingui.locale)}</bdi>;
 
 	return (
 		<tr data-selected={selected || undefined}>
@@ -1395,29 +1523,27 @@ function ContentListItem({
 					to="/content/$collection/$id"
 					params={{ collection, id: item.id }}
 					search={{ locale: item.locale }}
-					className="font-medium hover:text-kumo-link"
+					className={rowTitleClassName}
 				>
 					{title}
 				</Link>
+				<RowMeta priority="tertiary">
+					{statusBadge}
+					{localeChip}
+					{formattedDate}
+				</RowMeta>
 			</td>
 			{listColumns.map((column) => (
 				<ContentListCustomCell key={column.slug} column={column} value={item.data[column.slug]} />
 			))}
-			<td>
-				<StatusBadge
-					status={item.status}
-					hasPendingChanges={getDraftStatus(item) === "published_with_changes"}
-				/>
-			</td>
-			{showLocale && (
-				<td>
-					<span className="bg-kumo-tint rounded px-1.5 py-0.5 text-xs font-semibold uppercase">
-						{item.locale}
-					</span>
-				</td>
-			)}
-			<td data-testid="content-updated" className="whitespace-nowrap text-kumo-subtle">
-				<bdi>{formatDate(date, lingui.locale)}</bdi>
+			<td {...tertiaryColumn}>{statusBadge}</td>
+			{showLocale && <td {...tertiaryColumn}>{localeChip}</td>}
+			<td
+				data-testid="content-updated"
+				className="whitespace-nowrap text-kumo-subtle"
+				{...tertiaryColumn}
+			>
+				{formattedDate}
 			</td>
 			{extensionColumns?.map(({ pluginId, extension }) => {
 				const Cell = extension.cell;
@@ -1425,6 +1551,7 @@ function ContentListItem({
 					<td
 						key={`${pluginId}:${extension.id}`}
 						className={extension.align === "end" ? "text-end" : "text-start"}
+						{...tertiaryColumn}
 					>
 						<ContentListColumnBoundary
 							key={`${collection}:${item.locale}:${item.id}:${pluginId}:${extension.id}`}
@@ -1517,7 +1644,7 @@ function ContentListCustomCell({
 		trueLabel: t`Yes`,
 	});
 	return (
-		<td className="max-w-48">
+		<td className="max-w-48" {...tertiaryColumn}>
 			<span className="block truncate" title={text}>
 				{text}
 			</span>
@@ -1619,21 +1746,21 @@ function TrashedListItem({
 	const permanentDelete = useConfirmedRequest(
 		onPermanentDelete && (() => onPermanentDelete(item.id)),
 	);
+	const localeChip = showLocale && <LocaleChip locale={item.locale} />;
+	const formattedDeletedDate = <bdi>{formatDate(deletedDate, i18n.locale)}</bdi>;
 
 	return (
 		<tr>
 			<td>
-				<span className="font-medium text-kumo-subtle">{title}</span>
+				<span className="font-medium text-kumo-subtle @max-2xl:wrap-anywhere">{title}</span>
+				<RowMeta priority="tertiary">
+					{localeChip}
+					{formattedDeletedDate}
+				</RowMeta>
 			</td>
-			{showLocale && (
-				<td>
-					<span className="bg-kumo-tint rounded px-1.5 py-0.5 text-xs font-semibold uppercase">
-						{item.locale}
-					</span>
-				</td>
-			)}
-			<td className="whitespace-nowrap text-kumo-subtle">
-				<bdi>{formatDate(deletedDate, i18n.locale)}</bdi>
+			{showLocale && <td {...tertiaryColumn}>{localeChip}</td>}
+			<td className="whitespace-nowrap text-kumo-subtle" {...tertiaryColumn}>
+				{formattedDeletedDate}
 			</td>
 			<td className="text-end">
 				<RowActionsMenu label={t`Actions for ${title}`}>
@@ -1664,6 +1791,14 @@ function TrashedListItem({
 	);
 }
 
+function LocaleChip({ locale }: { locale: string }) {
+	return (
+		<span className="bg-kumo-tint rounded px-1.5 py-0.5 text-xs font-semibold uppercase">
+			{locale}
+		</span>
+	);
+}
+
 function StatusBadge({
 	status,
 	hasPendingChanges,
@@ -1674,7 +1809,7 @@ function StatusBadge({
 	const state = isContentStatusState(status) ? status : undefined;
 
 	return (
-		<span className="inline-flex items-center gap-1.5">
+		<span className="inline-flex flex-wrap items-center gap-1.5">
 			{state ? <ContentStatusBadge state={state} /> : <Badge variant="neutral">{status}</Badge>}
 			{hasPendingChanges && <ContentStatusBadge state="pendingChanges" />}
 		</span>

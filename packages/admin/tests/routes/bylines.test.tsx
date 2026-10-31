@@ -192,18 +192,79 @@ describe("BylinesPage search", () => {
 	});
 });
 
+const guestByline: BylineSummary = {
+	id: "guest",
+	slug: "guest-contributor",
+	displayName: "Guest Contributor",
+	bio: "A visiting writer",
+	avatarMediaId: null,
+	websiteUrl: null,
+	userId: null,
+	isGuest: true,
+	locale: "en",
+	translationGroup: null,
+	createdAt: "2026-01-01",
+	updatedAt: "2026-01-01",
+};
+
 describe("BylinesPage directory", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		fetchBylinesMock.mockResolvedValue({ items: [guestByline], nextCursor: undefined });
+	});
+
+	it("fits a byline with a long bio and slug in a phone-width table", async () => {
+		fetchBylinesMock.mockResolvedValue({
+			items: [
+				{
+					...guestByline,
+					slug: "regionalnewsroompartnership",
+					bio: "A visiting writer who covers city hall, transit, housing, and the regional economy for partner newsrooms.",
+				},
+			],
+			nextCursor: undefined,
+		});
+		const screen = await render(
+			<div style={{ width: 272 }}>
+				<QueryWrapper>
+					<Toast.Provider>
+						<BylinesPage />
+					</Toast.Provider>
+				</QueryWrapper>
+			</div>,
+		);
+
+		const actions = screen.getByRole("button", { name: "Actions for Guest Contributor" });
+		await expect.element(actions).toBeVisible();
+		const tray = screen.getByRole("table").element().parentElement!;
+		const trayBounds = tray.getBoundingClientRect();
+		const actionsBounds = actions.element().getBoundingClientRect();
+		const bylineCell = screen
+			.getByRole("button", { name: "Edit Guest Contributor" })
+			.element()
+			.closest("td")!;
+
+		expect(tray.scrollWidth).toBeLessThanOrEqual(tray.clientWidth);
+		expect(actionsBounds.left).toBeGreaterThanOrEqual(trayBounds.left);
+		expect(actionsBounds.right).toBeLessThanOrEqual(trayBounds.right);
+		await expect
+			.element(page.elementLocator(bylineCell).getByText("Guest", { exact: true }))
+			.toBeVisible();
+	});
+
+	it("cuts a long website and bio at their end on a right-to-left page", async () => {
+		const websiteUrl = "https://example.com/contributors/guest-contributor/profile";
+		const bio =
+			"A visiting writer who covers city hall, transit, housing, and the regional economy for partner newsrooms.";
 		fetchBylinesMock.mockResolvedValue({
 			items: [
 				{
 					id: "guest",
 					slug: "guest-contributor",
 					displayName: "Guest Contributor",
-					bio: "A visiting writer",
+					bio,
 					avatarMediaId: null,
-					websiteUrl: null,
+					websiteUrl,
 					userId: null,
 					isGuest: true,
 					locale: "en",
@@ -214,6 +275,31 @@ describe("BylinesPage directory", () => {
 			],
 			nextCursor: undefined,
 		});
+		const screen = await render(
+			<div dir="rtl" style={{ width: 900 }}>
+				<QueryWrapper>
+					<Toast.Provider>
+						<BylinesPage />
+					</Toast.Provider>
+				</QueryWrapper>
+			</div>,
+		);
+
+		for (const text of [websiteUrl, bio]) {
+			await expect.element(screen.getByText(text, { exact: true })).toBeVisible();
+			const element = screen.getByText(text, { exact: true }).element();
+			let clip = element as HTMLElement;
+			while (getComputedStyle(clip).overflowX === "visible") clip = clip.parentElement!;
+			const firstCharacter = document.createRange();
+			firstCharacter.setStart(element.firstChild!, 0);
+			firstCharacter.setEnd(element.firstChild!, 1);
+			const shown = clip.getBoundingClientRect();
+			const first = firstCharacter.getBoundingClientRect();
+
+			expect(clip.scrollWidth).toBeGreaterThan(clip.clientWidth);
+			expect(first.left).toBeGreaterThanOrEqual(shown.left);
+			expect(first.right).toBeLessThanOrEqual(shown.right);
+		}
 	});
 
 	it("keeps the create dialog and its actions within a narrow viewport", async () => {
@@ -272,10 +358,24 @@ describe("BylinesPage directory", () => {
 			</QueryWrapper>,
 		);
 
-		await screen.getByRole("button", { name: "More actions for Guest Contributor" }).click();
+		await screen.getByRole("button", { name: "Actions for Guest Contributor" }).click();
 		await expect
 			.element(screen.getByRole("menuitem", { name: "Delete byline Guest Contributor" }))
 			.toBeVisible();
+	});
+
+	it("opens the edit dialog from the row's menu", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<Toast.Provider>
+					<BylinesPage />
+				</Toast.Provider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByRole("button", { name: "Actions for Guest Contributor" }).click();
+		await screen.getByRole("menuitem", { name: "Edit", exact: true }).click();
+		await expect.element(screen.getByRole("dialog", { name: "Edit byline" })).toBeVisible();
 	});
 
 	it("shows byline identities and discards edits when the profile dialog is cancelled", async () => {
@@ -289,7 +389,9 @@ describe("BylinesPage directory", () => {
 
 		await expect.element(screen.getByText("Guest Contributor")).toBeInTheDocument();
 		await expect.element(screen.getByText("A visiting writer")).toBeInTheDocument();
-		await expect.element(screen.getByText("Guest", { exact: true })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("cell", { name: "Guest", exact: true }))
+			.toBeInTheDocument();
 		await expect
 			.element(screen.getByRole("textbox", { name: "Display name" }))
 			.not.toBeInTheDocument();
@@ -528,7 +630,7 @@ describe("BylinesPage directory", () => {
 		deleteBylineMock.mockReturnValue(deleted.promise);
 		const screen = await renderPage();
 
-		await screen.getByRole("button", { name: "More actions for Guest Contributor" }).click();
+		await screen.getByRole("button", { name: "Actions for Guest Contributor" }).click();
 		await screen.getByRole("menuitem", { name: "Delete byline Guest Contributor" }).click();
 		const confirm = screen.getByRole("alertdialog", { name: "Delete Guest Contributor?" });
 		await confirm.getByRole("button", { name: "Delete byline" }).dblClick();
