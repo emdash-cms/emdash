@@ -75,7 +75,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			syncRuntime: () => emdash.syncMarketplacePlugins(),
 			runLifecycle: () => emdash.runPluginInstallLifecycle(id),
 			rollback: () =>
-				handleMarketplaceUninstall(emdash.db, emdash.storage, id, { deleteData: true }),
+				handleMarketplaceUninstall(emdash.db, emdash.storage, id, { rollbackInstall: true }),
 		});
 
 		return unwrapResult(result, 201);

@@ -161,8 +161,13 @@ vi.mock("../../src/components/TaxonomySidebar", () => ({
 	useHasApplicableTaxonomies: () => true,
 }));
 
+const mediaPickerProps = vi.hoisted(() => ({ current: null as Record<string, unknown> | null }));
+
 vi.mock("../../src/components/MediaPickerModal", () => ({
-	MediaPickerModal: () => null,
+	MediaPickerModal: (props: Record<string, unknown>) => {
+		mediaPickerProps.current = props;
+		return props.open ? <div data-testid="media-picker" /> : null;
+	},
 }));
 
 const outlineClicks = vi.hoisted(() => ({ editorVisible: [] as boolean[] }));
@@ -347,6 +352,63 @@ describe("ContentEditor", () => {
 		portableTextMountCount = 0;
 		onEditorReadyCalls = [];
 		portableTextProps.current = null;
+		mediaPickerProps.current = null;
+	});
+
+	it("passes the database field identity through a block file picker", async () => {
+		const blockType = {
+			id: "attachment-type",
+			slug: "attachment",
+			label: "Attachment",
+			currentVersion: 1,
+			source: "user" as const,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+			versions: [
+				{
+					id: "attachment-v1",
+					blockTypeId: "attachment-type",
+					version: 1,
+					fields: [
+						{
+							slug: "file",
+							label: "File",
+							type: "file",
+							validation: { allowedMimeTypes: ["application/msword"] },
+						},
+					],
+					fingerprint: "attachment-v1",
+					active: true,
+					createdAt: "2026-01-01T00:00:00.000Z",
+					updatedAt: "2026-01-01T00:00:00.000Z",
+				},
+			],
+		};
+		const screen = await renderEditor({
+			isNew: false,
+			item: makeItem({
+				data: {
+					attachments: [{ _type: "attachment", _version: 1, _key: "block-key" }],
+				},
+			}),
+			fields: {
+				attachments: {
+					id: "database-field",
+					kind: "blocks",
+					label: "Attachments",
+					validation: { allowedTypes: ["attachment"] },
+					blockTypes: [blockType],
+				},
+			},
+		});
+
+		await screen.getByRole("button", { name: "Select File" }).click();
+		expect(mediaPickerProps.current).toMatchObject({
+			fieldId: "database-field:block-key:file",
+			blockType: "attachment",
+			blockVersion: 1,
+			mimeTypeFilters: ["application/msword"],
+		});
 	});
 
 	it("uses a task-oriented placeholder for portable text fields", async () => {
@@ -576,6 +638,32 @@ describe("ContentEditor", () => {
 			} finally {
 				media.restore();
 			}
+		});
+
+		it("closes the block panel when a read replaces the body", async () => {
+			const props: ContentEditorProps = {
+				collection: "posts",
+				collectionLabel: "Post",
+				fields: ptFields,
+				isNew: false,
+				onSave: vi.fn(),
+			};
+			const body = (text: string) => [
+				{ _type: "block", _key: "b1", children: [{ _type: "span", _key: "s1", text }] },
+			];
+			const screen = await render(
+				<ContentEditor {...props} item={makeItem({ data: { content: body("Old body") } })} />,
+			);
+			getPanelHooks().open(makeBlockPanel());
+			await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+
+			await screen.rerender(
+				<ContentEditor {...props} item={makeItem({ data: { content: body("Newer body") } })} />,
+			);
+			await expect
+				.element(screen.getByTestId("portable-text-editor"))
+				.toHaveAttribute("data-content", "Newer body");
+			await expect.element(screen.getByRole("button", { name: "Remove" })).not.toBeInTheDocument();
 		});
 
 		it("closes the sheet but keeps the block panel when crossing to desktop", async () => {
@@ -1409,6 +1497,44 @@ describe("ContentEditor", () => {
 					}),
 				}),
 			);
+		});
+
+		it("saves null when an optional datetime field is cleared", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				onSave,
+				item: makeItem({ data: { title: "Recall", recall_date: "2026-02-26T09:30:00.000Z" } }),
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					recall_date: { kind: "datetime", label: "Recall date" },
+				},
+			});
+
+			await screen.getByLabelText("Recall date").fill("");
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({ data: expect.objectContaining({ recall_date: null }) }),
+			);
+		});
+
+		it("does not save when a required datetime field is cleared", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				onSave,
+				item: makeItem({ data: { title: "Recall", recall_date: "2026-02-26T09:30:00.000Z" } }),
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					recall_date: { kind: "datetime", label: "Recall date", required: true },
+				},
+			});
+
+			await screen.getByLabelText("Recall date").fill("");
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			expect(onSave).not.toHaveBeenCalled();
 		});
 
 		it("renders json fields as a textarea", async () => {
@@ -4093,7 +4219,7 @@ describe("ContentEditor revision view", () => {
 		await expect.element(screen.getByText("Current version", { exact: true })).toBeVisible();
 	});
 
-	it("keeps the body editor mounted when a save reloads the entry", async () => {
+	it("keeps the body editor mounted when a save reloads the entry behind newer typing", async () => {
 		const props = revisionEditorProps();
 		const screen = await render(<ContentEditor {...props} itemResetToken={0} />, {
 			wrapper: Toasty,
@@ -4101,6 +4227,9 @@ describe("ContentEditor revision view", () => {
 		await expect
 			.element(screen.getByTestId("portable-text-editor"))
 			.toHaveAttribute("data-content", "Draft body");
+		const onChange = portableTextProps.current?.onChange as (value: unknown) => void;
+		onChange(textBlocks("Saved body, and more"));
+		await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
 
 		await screen.rerender(
 			<ContentEditor

@@ -29,6 +29,7 @@ import * as api from "../../src/lib/api";
 
 const DELETE_WIDGET_AREA_MSG_REGEX = /This will delete the widget area and all its widgets/;
 const ADD_WIDGET_AREA_REGEX = /Add Widget Area/;
+const QUICK_LINKS_DELETE_MSG_REGEX = /"Quick Links" will be removed from this widget area/;
 
 function mockDefaults() {
 	vi.mocked(api.fetchWidgetAreas).mockResolvedValue([
@@ -122,6 +123,33 @@ describe("Widgets", () => {
 			.element(screen.getByRole("heading", { name: "Delete Widget Area?" }))
 			.toBeInTheDocument();
 		await expect.element(screen.getByText(DELETE_WIDGET_AREA_MSG_REGEX)).toBeInTheDocument();
+	});
+
+	it("asks for confirmation before deleting a widget", async () => {
+		const screen = await render(<Widgets />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: "Delete Quick Links" }).click();
+
+		const dialog = screen.getByRole("dialog", { name: "Delete widget?" });
+		await expect.element(dialog.getByText(QUICK_LINKS_DELETE_MSG_REGEX)).toBeInTheDocument();
+		expect(api.deleteWidget).not.toHaveBeenCalled();
+
+		dialog.getByRole("button", { name: "Delete" }).element().click();
+
+		await vi.waitFor(() => expect(api.deleteWidget).toHaveBeenCalledWith("sidebar", "w2"));
+		await expect.element(dialog).not.toBeInTheDocument();
+	});
+
+	it("keeps the confirmation open with the error when deleting a widget fails", async () => {
+		vi.mocked(api.deleteWidget).mockRejectedValueOnce(new Error("Widget not found"));
+		const screen = await render(<Widgets />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: "Delete Quick Links" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Delete widget?" });
+		await expect.element(dialog).toBeInTheDocument();
+		dialog.getByRole("button", { name: "Delete" }).element().click();
+
+		await expect.element(dialog.getByRole("alert")).toHaveTextContent("Widget not found");
 	});
 
 	it("widget expand/collapse toggles editor form", async () => {

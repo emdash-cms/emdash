@@ -757,6 +757,7 @@ function WidgetItem({
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = useKumoToastManager();
+	const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
 		id: widget.id,
 		data: {
@@ -774,14 +775,8 @@ function WidgetItem({
 		mutationFn: () => deleteWidget(areaName, widget.id),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["widget-areas"] });
+			setIsDeleteOpen(false);
 			toastManager.add({ title: t`Widget deleted` });
-		},
-		onError: (error: Error) => {
-			toastManager.add({
-				title: t`Error`,
-				description: error.message,
-				variant: "error",
-			});
 		},
 	});
 
@@ -825,7 +820,7 @@ function WidgetItem({
 				<Button
 					variant="ghost"
 					size="sm"
-					onClick={() => deleteMutation.mutate()}
+					onClick={() => setIsDeleteOpen(true)}
 					aria-label={t`Delete ${widget.title ?? t`widget`}`}
 				>
 					<Trash className="h-4 w-4" />
@@ -843,6 +838,21 @@ function WidgetItem({
 					onBlockSidebarClose={onBlockSidebarClose}
 				/>
 			)}
+
+			<ConfirmDialog
+				open={isDeleteOpen}
+				onClose={() => {
+					setIsDeleteOpen(false);
+					deleteMutation.reset();
+				}}
+				title={t`Delete widget?`}
+				description={t`"${widget.title || t`Untitled Widget`}" will be removed from this widget area. This action cannot be undone.`}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
+				isPending={deleteMutation.isPending}
+				error={deleteMutation.error}
+				onConfirm={() => deleteMutation.mutate()}
+			/>
 		</div>
 	);
 }

@@ -3,7 +3,7 @@ title: Upgrading plugins on your site
 description: Breaking changes for sites that install EmDash plugins, and how to adapt your project.
 ---
 
-import { Aside } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
 This guide is for **site operators**: people who install plugins into a site. If you write plugins, see [Migrating to the plugin CLI](/plugins/creating-plugins/migrating-to-the-cli/) instead.
 
@@ -19,6 +19,67 @@ pnpm build
 After upgrading, your site may build and run without further changes. If the build fails or a plugin stops loading, work through the breaking changes below. Each one tells you exactly what to change.
 
 For the full list of changes in each package, see its entry on the [releases page](https://github.com/emdash-cms/emdash/releases).
+
+## Plugin KV storage when changing execution mode
+
+`ctx.kv` data is shared between in-process (`plugins: []`) and sandboxed (`sandboxed: []`) execution for the same plugin ID.
+
+Earlier releases stored non-`settings:` KV keys separately in each mode. Upgrading copies existing sandbox KV values into the shared store through a database migration. If a key already has an in-process value, that value takes precedence. The migration logs the plugin ID and key when the stored values differ, but does not log their contents. The original sandbox rows remain in `_plugin_storage` under the `__kv` collection for recovery; they are not read by the upgraded runtime. `settings:` keys keep their existing behavior.
+
+The default runtime migration mode, `auto`, applies pending migrations and then starts plugins in the same startup. For this upgrade, apply migrations through the CLI **before starting the upgraded application**, so you can review conflicts before plugins write again.
+
+<Steps>
+
+1. Back up your database and stop all application instances and plugin jobs that write to it.
+
+2. Upgrade `emdash` together with `@emdash-cms/cloudflare` or `@emdash-cms/sandbox-workerd`, whichever your site uses. Build the upgraded site, but do not start its server or deploy it yet.
+
+3. Inspect the database target and apply migrations using the CLI from that build. Follow the [database migration guide](/deployment/core-migrations/#build-migrate-deploy-check) for target selection and credentials.
+
+   ```sh
+   pnpm emdash migrate --status
+   pnpm emdash migrate
+   ```
+
+4. Resolve conflicting copies as described below, then deploy or start the upgraded site.
+
+</Steps>
+
+Mixed core/runner versions are not automatically rejected. Upgrading core alone copies a snapshot that an older runner can subsequently make stale; upgrading the runner alone can read the shared store before the backfill has run. Updating the other package later does not rerun a completed migration. Keep the packages together and all writers stopped throughout this procedure. Large KV backfills can exceed the runtime migration row limit, so they also require the CLI.
+
+### Resolve conflicting KV values
+
+If a plugin previously moved from in-process to sandboxed execution and saved new values there, its sandbox values may be newer than the in-process values. The database does not record enough information to determine which copy is current. Review conflicts before letting the upgraded plugin run, even if you missed the migration warnings. After plugins have resumed writing, differences can also be legitimate new shared values, not migration conflicts. Do not use the recovery UPDATE blindly on a running or previously restarted site: compare against the pre-upgrade backup and migration logs first.
+
+The following query finds differing copies and shows both values. Run it in a private database console because plugin data may contain sensitive information.
+
+```sql
+SELECT s.plugin_id, s.id AS key,
+       o.value AS shared_value, s.data AS sandbox_value
+FROM _plugin_storage AS s
+JOIN options AS o ON o.name = 'plugin:' || s.plugin_id || ':' || s.id
+WHERE s.collection = '__kv'
+  AND substr(s.id, 1, 9) <> 'settings:'
+  AND o.value <> s.data;
+```
+
+If the sandbox copy is the one you want, restore that key while plugin writes remain stopped. The following query restores `config` for the `seo` plugin; replace those two identifiers with the plugin ID and key you reviewed. Do not restore every sandbox row blindly: the shared value may be the newer copy.
+
+```sql
+UPDATE options
+SET value = s.data, revision = s.revision
+FROM _plugin_storage AS s
+WHERE s.collection = '__kv'
+  AND s.plugin_id = 'seo'
+  AND s.id = 'config'
+  AND options.name = 'plugin:' || s.plugin_id || ':' || s.id;
+```
+
+### Roll back this upgrade
+
+Older sandbox runners read the retained `__kv` rows, not the shared store. Downgrading packages alone hides writes made after the upgrade and can make deleted values reappear.
+
+To roll back, stop the application and plugin jobs, save a separate backup of the upgraded database, and restore the pre-upgrade database backup together with the older application packages. Restoring that backup discards **all site changes** since the backup, not just plugin KV changes. If those later changes must be preserved, keep the upgraded runtime until you have prepared and verified a data migration back to the older storage layout.
 
 ## Breaking changes
 

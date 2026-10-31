@@ -33,6 +33,7 @@ import {
 } from "../lib/api";
 import { fetchManifest } from "../lib/api/client.js";
 import { ArrowPrev } from "./ArrowIcons.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 import { ContentPickerModal } from "./ContentPickerModal";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { useI18nConfig } from "./LocaleSwitcher.js";
@@ -104,6 +105,7 @@ export function MenuEditor() {
 	const [isRenameOpen, setIsRenameOpen] = React.useState(false);
 	const [isContentPickerOpen, setIsContentPickerOpen] = React.useState(false);
 	const [editingItem, setEditingItem] = React.useState<MenuItem | null>(null);
+	const [deleteItemId, setDeleteItemId] = React.useState<string | null>(null);
 	const [localItems, setLocalItems] = React.useState<MenuItem[]>([]);
 	const [addError, setAddError] = React.useState<string | null>(null);
 	const [editError, setEditError] = React.useState<string | null>(null);
@@ -192,10 +194,16 @@ export function MenuEditor() {
 		renameMutation.mutate(label);
 	};
 
-	// Sync local items with fetched data
+	// Sync local items with fetched data. An item whose parent is missing is
+	// edited as a top-level item, which is where the site renders it.
 	React.useEffect(() => {
 		if (menu?.items) {
-			setLocalItems(menu.items);
+			const ids = new Set(menu.items.map((item) => item.id));
+			setLocalItems(
+				menu.items.map((item) =>
+					item.parentId === null || ids.has(item.parentId) ? item : { ...item, parentId: null },
+				),
+			);
 		}
 	}, [menu]);
 
@@ -216,16 +224,10 @@ export function MenuEditor() {
 		mutationFn: (itemId: string) => deleteMenuItem(name, itemId, { locale: menuLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
+			setDeleteItemId(null);
 			toastManager.add({
 				title: t`Item deleted`,
 				description: t`Menu item has been deleted.`,
-			});
-		},
-		onError: (error: Error) => {
-			toastManager.add({
-				title: t`Error`,
-				description: error.message,
-				variant: "error",
 			});
 		},
 	});
@@ -670,11 +672,29 @@ export function MenuEditor() {
 										variant="outline"
 										size="sm"
 										aria-label={t`Delete`}
-										onClick={() => deleteMutation.mutate(item.id)}
+										onClick={() => setDeleteItemId(item.id)}
 									>
 										<Trash className="h-4 w-4" />
 									</Button>
 								</div>
+								<ConfirmDialog
+									open={deleteItemId === item.id}
+									onClose={() => {
+										setDeleteItemId(null);
+										deleteMutation.reset();
+									}}
+									title={t`Delete menu item?`}
+									description={
+										localItems.some((i) => i.parentId === item.id)
+											? t`"${item.label}" and its nested items will be removed from this menu. This action cannot be undone.`
+											: t`"${item.label}" will be removed from this menu. This action cannot be undone.`
+									}
+									confirmLabel={t`Delete`}
+									pendingLabel={t`Deleting...`}
+									isPending={deleteMutation.isPending}
+									error={deleteMutation.error}
+									onConfirm={() => deleteMutation.mutate(item.id)}
+								/>
 							</div>
 						);
 					})}

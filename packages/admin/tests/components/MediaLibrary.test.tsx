@@ -776,7 +776,7 @@ describe("MediaLibrary", () => {
 			);
 			expect(screen.getByRole("button", { name: "Add new folder" }).query()).toBeNull();
 			await expect
-				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }))
+				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).first())
 				.toBeInTheDocument();
 		});
 
@@ -878,7 +878,7 @@ describe("MediaLibrary", () => {
 			});
 
 			await expect
-				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }))
+				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).first())
 				.toBeInTheDocument();
 
 			dropFiles(window, [new File(["image"], "dropped.jpg", { type: "image/jpeg" })]);
@@ -891,6 +891,30 @@ describe("MediaLibrary", () => {
 			await expect
 				.element(screen.getByRole("heading", { name: "Upload to Library" }))
 				.toBeInTheDocument();
+		});
+
+		it("offers upload alongside Back in an empty folder", async () => {
+			const onUpload = vi.fn().mockResolvedValue(undefined);
+			const screen = await renderLibrary({
+				folderId: "folder-1",
+				currentFolder: makeFolder(),
+				onUpload,
+			});
+			await expect
+				.element(screen.getByRole("heading", { name: "This folder is empty" }))
+				.toBeVisible();
+			const uploadButtons = screen.getByRole("button", { name: "Upload Files", exact: true });
+			await vi.waitFor(() => expect(uploadButtons.all()).toHaveLength(2));
+			await uploadButtons.nth(1).click();
+			setInputFiles(screen.getByLabelText("Browse files to upload").element() as HTMLInputElement, [
+				new File(["folder"], "folder.jpg", { type: "image/jpeg" }),
+			]);
+			await vi.waitFor(() =>
+				expect(onUpload).toHaveBeenCalledWith(
+					expect.objectContaining({ name: "folder.jpg" }),
+					expect.objectContaining({ folderId: "folder-1" }),
+				),
+			);
 		});
 
 		it("keeps media usable when folders fail and offers retry", async () => {
@@ -1033,6 +1057,38 @@ describe("MediaLibrary", () => {
 				.toBeInTheDocument();
 		});
 
+		it("keeps the folder destination captured when the parent changes while uploading", async () => {
+			const onUpload = vi.fn().mockResolvedValue(undefined);
+			const screen = await renderLibrary({
+				folderId: "folder-original",
+				currentFolder: makeFolder({ id: "folder-original", name: "Original" }),
+				onUpload,
+			});
+
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).first().element().click();
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+			await screen.rerender(
+				<QueryWrapper>
+					<MediaLibrary
+						folderId="folder-new"
+						currentFolder={makeFolder({ id: "folder-new", name: "New" })}
+						onUpload={onUpload}
+					/>
+				</QueryWrapper>,
+			);
+			setInputFiles(screen.getByLabelText("Browse files to upload").element() as HTMLInputElement, [
+				new File(["queued"], "queued.jpg", { type: "image/jpeg" }),
+			]);
+
+			await vi.waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1));
+			expect(onUpload).toHaveBeenCalledWith(
+				expect.objectContaining({ name: "queued.jpg" }),
+				expect.objectContaining({ folderId: "folder-original", deduplicate: false }),
+			);
+		});
+
 		it("opens the upload dialog and caps parallel uploads at three", async () => {
 			const pending: Array<{ file: File; resolve: () => void }> = [];
 			const onUpload = vi.fn(
@@ -1078,6 +1134,38 @@ describe("MediaLibrary", () => {
 			window.dispatchEvent(new DragEvent("dragleave", { relatedTarget: null, bubbles: true }));
 
 			await vi.waitFor(() => expect(screen.getByText("Drop files to upload").query()).toBeNull());
+		});
+
+		it("cancels external-provider file drops without invoking upload callbacks", async () => {
+			const api = await import("../../src/lib/api");
+			vi.mocked(api.fetchMediaProviders).mockResolvedValueOnce([
+				{
+					id: "external",
+					name: "External files",
+					capabilities: { browse: true, search: false, upload: false, delete: false },
+				},
+			]);
+			const onUpload = vi.fn();
+			const screen = await renderLibrary({ onUpload });
+			await screen.getByRole("tab", { name: "External files" }).click();
+			const transfer = new DataTransfer();
+			transfer.items.add(new File(["blocked"], "blocked.jpg", { type: "image/jpeg" }));
+			const dragOver = new DragEvent("dragover", {
+				bubbles: true,
+				cancelable: true,
+				dataTransfer: transfer,
+			});
+			const drop = new DragEvent("drop", {
+				bubbles: true,
+				cancelable: true,
+				dataTransfer: transfer,
+			});
+			window.dispatchEvent(dragOver);
+			window.dispatchEvent(drop);
+			expect(dragOver.defaultPrevented).toBe(true);
+			expect(drop.defaultPrevented).toBe(true);
+			expect(onUpload).not.toHaveBeenCalled();
+			expect(api.uploadToProvider).not.toHaveBeenCalled();
 		});
 
 		it("opens the same direct-upload dialog for files dropped on the page", async () => {
