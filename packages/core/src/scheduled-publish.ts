@@ -13,7 +13,7 @@
 import type { Kysely } from "kysely";
 
 import { handleContentPublish } from "./api/handlers/content.js";
-import { ContentRepository } from "./database/repositories/content.js";
+import { ContentRepository, findTypesWithDueContent } from "./database/repositories/content.js";
 import { OptionsRepository } from "./database/repositories/options.js";
 import type { Database } from "./database/types.js";
 import { SchemaRegistry } from "./schema/registry.js";
@@ -97,10 +97,11 @@ export interface PublishDueContentOptions {
 /**
  * Publish every content item whose `scheduled_at` is in the past.
  *
- * Iterates all collections, finds due items (`findReadyToPublish` returns both
- * scheduled drafts and published entries with pending scheduled changes), and
- * publishes each. `publish()` clears `scheduled_at`, so a second sweep is a
- * no-op — safe to run on every tick.
+ * Finds the collections with due content (`findTypesWithDueContent`), then, in
+ * each of them, the due items (`findReadyToPublish` returns both scheduled
+ * drafts and published entries with pending scheduled changes), and publishes
+ * each. `publish()` clears `scheduled_at`, so a second sweep is a no-op — safe
+ * to run on every tick.
  *
  * Bounded per collection by `limit` (default `SCHEDULED_PUBLISH_BATCH_LIMIT`):
  * a large backlog drains across successive ticks rather than in one unbounded
@@ -137,7 +138,19 @@ export async function publishDueContent(
 	// 0 / negative means unbounded; findReadyToPublish treats that as "no LIMIT".
 	const batchLimit = limit > 0 ? limit : undefined;
 
+	let dueCollections: Set<string> | undefined;
+	try {
+		dueCollections = await findTypesWithDueContent(
+			db,
+			collections.map((collection) => collection.slug),
+			currentTime,
+		);
+	} catch (error) {
+		console.error("[scheduled-publish] Failed to find collections with due content:", error);
+	}
+
 	for (const collection of collections) {
+		if (dueCollections && !dueCollections.has(collection.slug)) continue;
 		try {
 			let cursor: ScheduledPublishCursor | undefined;
 			let cursorRevision: string | null = null;
