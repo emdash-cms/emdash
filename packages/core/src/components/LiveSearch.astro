@@ -225,6 +225,9 @@ const config = {
 			// Event listeners
 			this.input.addEventListener("input", this.handleInput.bind(this));
 			this.input.addEventListener("keydown", this.handleKeydown.bind(this));
+			// Arrow keys move focus onto a result link, so key presses then come
+			// from the result instead of the input.
+			this.resultsList?.addEventListener("keydown", this.handleResultKeydown.bind(this));
 
 			// Close on click outside
 			document.addEventListener("click", (e) => {
@@ -322,6 +325,20 @@ const config = {
 					url.searchParams.set("q", query);
 					window.location.href = url.toString();
 				}
+			}
+		}
+
+		private handleResultKeydown(e: KeyboardEvent) {
+			if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+			if (!(e.target instanceof Element) || !e.target.closest(".emdash-live-search-result")) return;
+			if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+				e.preventDefault();
+				this.navigateResults(e.key === "ArrowDown" ? 1 : -1);
+			} else if (e.key === "Escape") {
+				e.preventDefault();
+				// Focusing the input reopens the results, so close them afterwards.
+				this.input?.focus();
+				this.hideResults();
 			}
 		}
 
