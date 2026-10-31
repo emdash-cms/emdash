@@ -78,8 +78,8 @@ export interface AccessIdentity {
 	name?: string;
 	/** User's email address */
 	email: string;
-	/** Groups from IdP */
-	groups: AccessGroup[];
+	/** Groups from IdP (omitted by providers without group support) */
+	groups?: AccessGroup[];
 	/** Identity provider info */
 	idp: {
 		id: string;
@@ -218,7 +218,10 @@ export async function getAccessIdentity(jwt: string, teamDomain: string): Promis
  * @param config Access configuration
  * @returns Role level (e.g., 50 for Admin, 40 for Editor, 30 for Author)
  */
-export function resolveRoleFromGroups(groups: AccessGroup[], config: AccessConfig): number {
+export function resolveRoleFromGroups(
+	groups: AccessGroup[] | undefined,
+	config: AccessConfig,
+): number {
 	const defaultRole = config.defaultRole ?? 30; // Author
 
 	if (!config.roleMapping) {
@@ -226,7 +229,7 @@ export function resolveRoleFromGroups(groups: AccessGroup[], config: AccessConfi
 	}
 
 	// Check each group against mapping (first match wins)
-	for (const group of groups) {
+	for (const group of groups ?? []) {
 		const role = config.roleMapping[group.name];
 		if (role !== undefined) {
 			return role;
