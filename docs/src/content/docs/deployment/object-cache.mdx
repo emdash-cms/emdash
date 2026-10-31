@@ -76,7 +76,7 @@ The command prints a namespace `id`. Add it under the binding name used in `kvCa
 | `binding`    | `string` | —        | KV binding name from your Wrangler configuration. Required.                       |
 | `defaultTtl` | `number` | `3600`   | Time-to-live for cached entries, in seconds. KV enforces a 60-second minimum.     |
 | `revalidate` | `number` | `1000`   | Isolate-local epoch-reuse window, in milliseconds. See [Freshness](#freshness).   |
-| `timeout`    | `number` | `2000`   | Maximum time, in milliseconds, to wait for a KV operation before treating it as a cache miss. Guards against a stalled KV read hanging the request. Set to `0` to disable. |
+| `timeout`    | `number` | `2000`   | Maximum time, in milliseconds, to wait for a KV read or epoch write. A timed-out read is treated as a cache miss or uses the last known epoch; a timed-out epoch write is logged without failing the mutation. Also bounds how long widget API mutations wait for epoch persistence. Set to `0` to disable. |
 | `keyPrefix`  | `string` | `"em"`   | Prefix for every cache key. Set a unique value when several sites share one namespace. |
 
 ## Node.js (memory)
@@ -121,7 +121,9 @@ The object cache and an HTML edge cache solve different problems. A hit in the H
 
 Editing content through the admin panel or the REST API invalidates the affected cache entries automatically. Creating, updating, publishing, or deleting an entry clears the cached queries for its collection, including navigation menus that link to entries in it; changing a byline or taxonomy term clears the entries and menus that display it.
 
-Widget changes made in the admin, by seeding, or by a site transfer clear the cached widget areas. Code that writes the widget tables directly must call `invalidateWidgetObjectCache()` from `emdash` afterwards.
+Widget changes made in the admin, by seeding, or by a site transfer clear the cached widget areas. Widget API mutations wait for the backend epoch write attempt before purging routes and returning a response. Code that writes the widget tables directly must call `invalidateWidgetObjectCache()` from `emdash` afterwards.
+
+By default, `invalidateObjectCache(namespace)` and `invalidateWidgetObjectCache()` stamp the local epoch immediately and schedule the backend write without waiting for it. If your code also purges cached routes, await `invalidateObjectCache(namespace, { waitForPersist: true })` or `invalidateWidgetObjectCache({ waitForPersist: true })` before the purge. This option bypasses held writes inside `coalesceObjectCacheWrites()`. Epoch writes use the configured `timeout` (default two seconds); failures and timeouts are logged rather than thrown, so a successful mutation is not reported as failed. Waiting orders the epoch write attempt before the purge, but the shared change marker and its retries remain background work. It does not guarantee immediate freshness in other isolates: marker updates, KV propagation delays, and isolate-local epoch reuse can still delay visibility. Tests that read widgets immediately after an API mutation should poll for the updated data.
 
 <Aside type="note">
 Preview links and visual editing bypass the object cache, so editors previewing see the current content immediately. Other requests — including authenticated browsing outside edit mode — are served from the cache, which only ever stores published content.

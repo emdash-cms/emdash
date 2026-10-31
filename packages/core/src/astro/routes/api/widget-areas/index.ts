@@ -90,7 +90,7 @@ export const POST: APIRoute = async ({ request, locals, cache }) => {
 				description: body.description ?? null,
 			})
 			.execute();
-		invalidateWidgetObjectCache();
+		await invalidateWidgetObjectCache({ waitForPersist: true });
 
 		const area = await db
 			.selectFrom("_emdash_widget_areas")
