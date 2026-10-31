@@ -221,11 +221,18 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		lastSubmissionAt: new Date().toISOString(),
 	});
 
-	// The submitter's address, from the form's first email field (already validated): the recipient
-	// of the autoresponder.
-	const emailField = allFields.find((f) => f.type === "email");
-	const emailValue = emailField ? result.data[emailField.name] : undefined;
-	const submitterEmail = typeof emailValue === "string" && emailValue ? emailValue : undefined;
+	// The submitter's address (already validated): the recipient of the autoresponder. A required
+	// email field wins over an optional one before it, such as a business's public address, and an
+	// email field left empty is skipped rather than ending the search.
+	const filledEmail = (f: (typeof allFields)[number]) => {
+		const value = result.data[f.name];
+		return f.type === "email" && typeof value === "string" && value ? value : undefined;
+	};
+	const submitterEmail =
+		allFields
+			.filter((f) => f.required)
+			.map(filledEmail)
+			.find(Boolean) ?? allFields.map(filledEmail).find(Boolean);
 	// The reply address of the notifications, only when it's a plain address. The field's own check
 	// lets through values like `"IT-Support"<someone@example.com>` or `jane@example.com,`, which
 	// would show the team a made-up name or get the notification rejected.

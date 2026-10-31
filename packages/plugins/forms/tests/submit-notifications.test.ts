@@ -45,6 +45,31 @@ function form(emailField: boolean, autoresponder = false): FormDefinition {
 	} as unknown as FormDefinition;
 }
 
+/** A business form: an optional business address first, then the submitter's own. */
+function twoEmailForm(secondRequired: boolean): FormDefinition {
+	const definition = form(true, true);
+	definition.pages[0]!.fields = [
+		{ id: "f1", name: "name", label: "Name", type: "text", required: true, width: "full" },
+		{
+			id: "f2",
+			name: "business_email",
+			label: "Business email",
+			type: "email",
+			required: false,
+			width: "full",
+		},
+		{
+			id: "f3",
+			name: "email",
+			label: "Your email",
+			type: "email",
+			required: secondRequired,
+			width: "full",
+		},
+	] as FormDefinition["pages"][number]["fields"];
+	return definition;
+}
+
 /** Parses the body as the route does, so the handler sees the schema's output. */
 function context(definition: FormDefinition, data: Record<string, unknown>) {
 	const send = vi.fn(async () => {});
@@ -144,5 +169,37 @@ describe("autoresponder", () => {
 
 		expect(send).toHaveBeenCalledTimes(2);
 		expect(send.mock.calls.map(([message]) => (message as { to: string }).to)).not.toContain("");
+	});
+});
+
+describe("submitter address on a form with two email fields", () => {
+	it("is the required field, not an optional one before it", async () => {
+		const { ctx, send } = context(twoEmailForm(true), {
+			name: "Jane",
+			business_email: "info@stable.example",
+			email: "jane@example.org",
+		});
+
+		await submitHandler(ctx as never);
+
+		expect(send).toHaveBeenCalledTimes(3);
+		for (const [message] of send.mock.calls.slice(0, 2) as unknown as [Record<string, unknown>][]) {
+			expect(message).toMatchObject({ replyTo: "jane@example.org" });
+		}
+		expect(send.mock.calls[2]![0]).toMatchObject({ to: "jane@example.org" });
+	});
+
+	it("is the next filled field when an optional one before it is left empty", async () => {
+		const { ctx, send } = context(twoEmailForm(false), {
+			name: "Jane",
+			business_email: "",
+			email: "jane@example.org",
+		});
+
+		await submitHandler(ctx as never);
+
+		expect(send).toHaveBeenCalledTimes(3);
+		expect(send.mock.calls[0]![0]).toMatchObject({ replyTo: "jane@example.org" });
+		expect(send.mock.calls[2]![0]).toMatchObject({ to: "jane@example.org" });
 	});
 });
