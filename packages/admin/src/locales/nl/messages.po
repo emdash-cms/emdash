@@ -184,7 +184,7 @@ msgstr "(te nieuw)"
 
 #. placeholder {0}: items.length
 #. placeholder {0}: orphan.rowCount
-#: packages/admin/src/components/ContentTypeList.tsx:169
+#: packages/admin/src/components/ContentTypeList.tsx:182
 #: packages/admin/src/components/RepeaterField.tsx:157
 msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# item)} other {(# items)}}"
@@ -222,7 +222,7 @@ msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# reactie bijgewerkt} other {# reacties bijgewerkt}}"
 
 #. placeholder {0}: comments.length
-#: packages/admin/src/components/comments/CommentInbox.tsx:369
+#: packages/admin/src/components/comments/CommentInbox.tsx:400
 msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# reactie} other {# reacties}}"
 
@@ -240,6 +240,11 @@ msgstr "{0, plural, one {# content-item geïmporteerd} other {# content-items ge
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:455
 msgid "{0, plural, one {# entry} other {# entries}}"
 msgstr "{0, plural, one {# item} other {# items}}"
+
+#. placeholder {0}: relation.boundFields.length
+#: packages/admin/src/components/RelationList.tsx:189
+msgid "{0, plural, one {# field} other {# fields}}"
+msgstr ""
 
 #. placeholder {0}: uploadQueue.jobs.filter( (job) => job.status === "queued" || job.status === "uploading", ).length
 #: packages/admin/src/components/MediaPickerModal.tsx:1660
@@ -265,13 +270,13 @@ msgstr "{0, plural, one {# item} other {# items}}"
 
 #. placeholder {0}: relation.linkCount
 #: packages/admin/src/components/RelationImpact.tsx:53
-#: packages/admin/src/components/RelationList.tsx:217
+#: packages/admin/src/components/RelationList.tsx:185
 #: packages/admin/src/components/RelationsPanel.tsx:197
 msgid "{0, plural, one {# link} other {# links}}"
 msgstr "{0, plural, one {# koppeling} other {# koppelingen}}"
 
 #. placeholder {0}: tagMatches?.matchCount ?? 0
-#: packages/admin/src/components/TaxonomyManager.tsx:1395
+#: packages/admin/src/components/TaxonomyManager.tsx:1266
 msgid "{0, plural, one {# matching tag} other {# matching tags}}"
 msgstr "{0, plural, one {# overeenkomende tag} other {# overeenkomende tags}}"
 
@@ -346,11 +351,6 @@ msgstr "{0, plural, one {# relatie waaraan dit contenttype deelneemt} other {# r
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {# rij} other {# rijen}} × {1, plural, one {# kolom} other {# kolommen}} geselecteerd"
 
-#. placeholder {0}: selected.size
-#: packages/admin/src/components/comments/CommentInbox.tsx:261
-msgid "{0, plural, one {# selected} other {# selected}}"
-msgstr "{0, plural, one {# geselecteerd} other {# geselecteerd}}"
-
 #. placeholder {0}: result.skipped
 #: packages/admin/src/components/WordPressImport.tsx:2280
 msgid "{0, plural, one {# skipped (already exists)} other {# skipped (already exist)}}"
@@ -370,6 +370,11 @@ msgstr "{0, plural, one {# taxonomie aangemaakt} other {# taxonomieën aangemaak
 #: packages/admin/src/components/MediaPickerModal.tsx:1667
 msgid "{0, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{0, plural, one {# upload mislukt} other {# uploads mislukt}}"
+
+#. placeholder {0}: blockType.versions.length
+#: packages/admin/src/components/BlockTypeList.tsx:72
+msgid "{0, plural, one {# version} other {# versions}}"
+msgstr ""
 
 #. placeholder {0}: section.keywords.length - 3
 #: packages/admin/src/components/Sections.tsx:424
@@ -416,6 +421,11 @@ msgstr "{0, plural, one {Mediabestand} other {Mediabestanden}}"
 msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
 msgstr "{0, plural, one {Nog één geblokkeerd item wordt niet weergegeven.} other {Nog # geblokkeerde items worden niet weergegeven.}}"
 
+#. placeholder {0}: bulkDeleteIds.length
+#: packages/admin/src/components/comments/CommentInbox.tsx:485
+msgid "{0, plural, one {Permanently delete # comment? This cannot be undone.} other {Permanently delete # comments? This cannot be undone.}}"
+msgstr ""
+
 #. placeholder {0}: state.rows
 #: packages/admin/src/components/editor/TableControls.tsx:228
 msgid "{0, plural, one {Row deleted} other {# rows deleted}}"
@@ -449,7 +459,7 @@ msgid "{0} banner"
 msgstr "Banner van {0}"
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:440
+#: packages/admin/src/components/TaxonomyManager.tsx:330
 msgid "{0} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to."
 msgstr "{0} kan hier niet worden verplaatst: de bovenliggende term heeft geen vertaling in deze taal, waardoor dit niet de juiste lijst is."
 
@@ -612,7 +622,7 @@ msgstr "{base} naar: {0}"
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {# teken} other {# tekens}}"
 
-#: packages/admin/src/components/ContentList.tsx:878
+#: packages/admin/src/components/ContentList.tsx:897
 msgid "{collectionLabel} pagination"
 msgstr "Paginering voor {collectionLabel}"
 
@@ -677,7 +687,7 @@ msgstr "{filesMissing, plural, one {# bestand moet nog worden geüpload. Kies he
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:1326
+#: packages/admin/src/components/ContentList.tsx:1446
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 
@@ -736,7 +746,7 @@ msgstr "{label}, {restored}"
 msgid "{lateness} late"
 msgstr "{lateness} te laat"
 
-#: packages/admin/src/components/ContentList.tsx:1315
+#: packages/admin/src/components/ContentList.tsx:1435
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# item dat overeenkomt met \"{searchQuery}\"} other {# items die overeenkomen met \"{searchQuery}\"}}"
 
@@ -900,11 +910,11 @@ msgstr "{rows, plural, one {Rij verwijderd} other {# rijen verwijderd}}"
 msgid "{rows} × {columns} table pasted"
 msgstr "Tabel van {rows} × {columns} geplakt"
 
-#: packages/admin/src/components/ContentList.tsx:578
+#: packages/admin/src/components/DataTable.tsx:137
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {# geselecteerd} other {# geselecteerd}}"
 
-#: packages/admin/src/components/ContentList.tsx:654
+#: packages/admin/src/components/ContentList.tsx:669
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {# item naar de prullenbak verplaatsen? Je kunt het later terugzetten.} other {# items naar de prullenbak verplaatsen? Je kunt ze later terugzetten.}}"
 
@@ -948,7 +958,7 @@ msgstr "{title} staat nu online."
 msgid "{title} now goes live {when}."
 msgstr "{title} wordt nu op {when} gepubliceerd."
 
-#: packages/admin/src/components/ContentList.tsx:1321
+#: packages/admin/src/components/ContentList.tsx:1441
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# item} other {# items}}"
 
@@ -1179,7 +1189,7 @@ msgstr "Een mediabestand ontbreekt in het pakket"
 msgid "A media folder with this name already exists"
 msgstr "Er bestaat al een mediamap met deze naam"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:968
+#: packages/admin/src/components/TaxonomyManager.tsx:842
 msgid "A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr "Er kan geen naam worden gegenereerd op basis van dit label. Voer handmatig een naam in met kleine letters, cijfers en onderstrepingstekens."
 
@@ -1288,7 +1298,7 @@ msgstr "Uitnodiging accepteren"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:305
 #: packages/admin/src/components/settings/TransferSettings.tsx:69
-#: packages/admin/src/routes/byline-schema.tsx:174
+#: packages/admin/src/routes/byline-schema.tsx:185
 msgid "Access denied"
 msgstr "Toegang geweigerd"
 
@@ -1321,21 +1331,35 @@ msgstr "Accountgegevens"
 msgid "ACF Fields"
 msgstr "ACF-velden"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:337
-#: packages/admin/src/components/ContentList.tsx:767
-#: packages/admin/src/components/ContentList.tsx:892
-#: packages/admin/src/components/ContentTypeList.tsx:212
-#: packages/admin/src/components/RelationList.tsx:102
-#: packages/admin/src/components/TaxonomyManager.tsx:1416
-#: packages/admin/src/components/TaxonomyManager.tsx:1470
-#: packages/admin/src/routes/byline-schema.tsx:249
-#: packages/admin/src/routes/bylines.tsx:348
+#: packages/admin/src/components/comments/CommentInbox.tsx:365
+#: packages/admin/src/components/ContentList.tsx:775
+#: packages/admin/src/components/ContentList.tsx:917
+#: packages/admin/src/components/ContentTypeList.tsx:222
+#: packages/admin/src/components/RelationList.tsx:110
+#: packages/admin/src/components/TaxonomyManager.tsx:1282
+#: packages/admin/src/routes/byline-schema.tsx:257
+#: packages/admin/src/routes/bylines.tsx:365
 msgid "Actions"
 msgstr "Acties"
 
-#: packages/admin/src/components/ContentList.tsx:1439
-#: packages/admin/src/components/ContentList.tsx:1645
+#. placeholder {0}: collection.label
+#. placeholder {0}: field.label
+#. placeholder {0}: item.displayName
+#: packages/admin/src/components/ContentTypeList.tsx:369
+#: packages/admin/src/components/RelationList.tsx:236
+#: packages/admin/src/components/TaxonomyManager.tsx:316
+#: packages/admin/src/routes/byline-schema.tsx:441
+#: packages/admin/src/routes/bylines.tsx:422
+msgid "Actions for {0}"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1566
+#: packages/admin/src/components/ContentList.tsx:1772
 msgid "Actions for {title}"
+msgstr ""
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:585
+msgid "Actions for comment by {author}"
 msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
@@ -1343,13 +1367,13 @@ msgid "Activation cannot be confirmed. Keep editing paused and refresh the statu
 msgstr "Activering kan niet worden bevestigd. Houd het bewerken gepauzeerd en vernieuw de status."
 
 #: packages/admin/src/components/users/UserDetail.tsx:219
-#: packages/admin/src/components/users/UserList.tsx:214
+#: packages/admin/src/components/users/UserList.tsx:221
 msgid "Active"
 msgstr "Actief"
 
 #. placeholder {0}: blockType.currentVersion
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlockTypeList.tsx:34
+#: packages/admin/src/components/BlockTypeList.tsx:81
 #: packages/admin/src/components/FieldEditor.tsx:1174
 msgid "Active v{0}"
 msgstr "Actief v{0}"
@@ -1364,10 +1388,10 @@ msgstr "Toevoegen"
 #. placeholder {0}: inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
-#: packages/admin/src/components/ContentList.tsx:627
+#: packages/admin/src/components/ContentList.tsx:642
 #: packages/admin/src/components/PortableTextEditor.tsx:2936
-#: packages/admin/src/components/TaxonomyManager.tsx:759
-#: packages/admin/src/components/TaxonomyManager.tsx:1336
+#: packages/admin/src/components/TaxonomyManager.tsx:633
+#: packages/admin/src/components/TaxonomyManager.tsx:1206
 msgid "Add {0}"
 msgstr "{0} toevoegen"
 
@@ -1461,7 +1485,7 @@ msgstr "Veld toevoegen"
 msgid "Add fields"
 msgstr "Velden toevoegen"
 
-#: packages/admin/src/routes/byline-schema.tsx:293
+#: packages/admin/src/routes/byline-schema.tsx:294
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
 msgstr "Voeg velden zoals \"Functietitel\" of \"Voornaamwoorden\" toe om elke auteursvermelding te verrijken."
 
@@ -1507,7 +1531,7 @@ msgstr "Voeg links toe om je navigatiemenu op te bouwen"
 msgid "Add MIME type or extension"
 msgstr "MIME-type of extensie toevoegen"
 
-#: packages/admin/src/components/ContentList.tsx:516
+#: packages/admin/src/components/ContentList.tsx:533
 msgid "Add New"
 msgstr "Nieuwe toevoegen"
 
@@ -1560,16 +1584,16 @@ msgstr "SEO-metadatavelden toevoegen (titel, beschrijving, afbeelding) en opneme
 msgid "Add Sub-Field"
 msgstr "Subveld toevoegen"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1320
+#: packages/admin/src/components/TaxonomyManager.tsx:1190
 msgid "Add tag"
 msgstr "Tag toevoegen"
 
-#: packages/admin/src/components/ContentList.tsx:628
+#: packages/admin/src/components/ContentList.tsx:643
 msgid "Add term"
 msgstr "Term toevoegen"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1327
-#: packages/admin/src/components/TaxonomyManager.tsx:1343
+#: packages/admin/src/components/TaxonomyManager.tsx:1197
+#: packages/admin/src/components/TaxonomyManager.tsx:1213
 msgid "Add to posts"
 msgstr "Aan berichten toevoegen"
 
@@ -1751,17 +1775,17 @@ msgstr "Rechts uitlijnen"
 msgid "Alignment"
 msgstr "Uitlijning"
 
-#: packages/admin/src/components/ContentList.tsx:528
+#: packages/admin/src/components/ContentList.tsx:545
 msgid "All"
 msgstr "Alle"
 
-#: packages/admin/src/components/ContentList.tsx:1044
-#: packages/admin/src/components/ContentList.tsx:1048
+#: packages/admin/src/components/ContentList.tsx:1069
+#: packages/admin/src/components/ContentList.tsx:1073
 msgid "All authors"
 msgstr "Alle auteurs"
 
 #: packages/admin/src/components/BylineFilter.tsx:103
-#: packages/admin/src/routes/bylines.tsx:328
+#: packages/admin/src/routes/bylines.tsx:345
 msgid "All bylines"
 msgstr "Alle auteursvermeldingen"
 
@@ -1769,7 +1793,7 @@ msgstr "Alle auteursvermeldingen"
 msgid "All capabilities"
 msgstr "Alle mogelijkheden"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:152
+#: packages/admin/src/components/comments/CommentInbox.tsx:184
 msgid "All collections"
 msgstr "Alle collecties"
 
@@ -1785,8 +1809,8 @@ msgstr "Alle geïmporteerde content krijgt geen auteur toegewezen. Je kunt auteu
 msgid "All locales"
 msgstr "Alle talen"
 
-#: packages/admin/src/components/users/UserList.tsx:43
-#: packages/admin/src/components/users/UserList.tsx:47
+#: packages/admin/src/components/users/UserList.tsx:51
+#: packages/admin/src/components/users/UserList.tsx:55
 msgid "All roles"
 msgstr "Alle rollen"
 
@@ -1794,7 +1818,7 @@ msgstr "Alle rollen"
 msgid "All sources"
 msgstr "Alle bronnen"
 
-#: packages/admin/src/components/ContentList.tsx:983
+#: packages/admin/src/components/ContentList.tsx:1008
 #: packages/admin/src/components/Redirects.tsx:418
 msgid "All statuses"
 msgstr "Alle statussen"
@@ -1957,12 +1981,12 @@ msgstr "Een versleutelde digitale sleutel die je ontgrendelt met je vingerafdruk
 #: packages/admin/src/router.tsx:2454
 #: packages/admin/src/router.tsx:2470
 #: packages/admin/src/router.tsx:2495
-#: packages/admin/src/router.tsx:2921
-#: packages/admin/src/router.tsx:3106
-#: packages/admin/src/routes/byline-schema.tsx:103
-#: packages/admin/src/routes/byline-schema.tsx:123
-#: packages/admin/src/routes/byline-schema.tsx:139
-#: packages/admin/src/routes/byline-schema.tsx:153
+#: packages/admin/src/router.tsx:2923
+#: packages/admin/src/router.tsx:3108
+#: packages/admin/src/routes/byline-schema.tsx:110
+#: packages/admin/src/routes/byline-schema.tsx:130
+#: packages/admin/src/routes/byline-schema.tsx:146
+#: packages/admin/src/routes/byline-schema.tsx:164
 msgid "An error occurred"
 msgstr "Er is een fout opgetreden"
 
@@ -1970,7 +1994,7 @@ msgstr "Er is een fout opgetreden"
 msgid "An import replaces a new site’s starter content, so it only runs on a site with no content of its own. To move content here, set up a new EmDash site and import into that. These are what this site already has:"
 msgstr "Een import vervangt de startcontent van een nieuwe site en kan daarom alleen worden uitgevoerd op een site zonder eigen content. Als je hier content wilt overbrengen, stel dan een nieuwe EmDash-site in en importeer daarin. Dit staat al op deze site:"
 
-#: packages/admin/src/routes/byline-schema.tsx:272
+#: packages/admin/src/routes/byline-schema.tsx:275
 msgid "An unexpected error occurred."
 msgstr "Er is een onverwachte fout opgetreden."
 
@@ -2041,8 +2065,8 @@ msgid "Approval requests"
 msgstr "Goedkeuringsverzoeken"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:151
-#: packages/admin/src/components/comments/CommentInbox.tsx:270
-#: packages/admin/src/components/comments/CommentInbox.tsx:514
+#: packages/admin/src/components/comments/CommentInbox.tsx:300
+#: packages/admin/src/components/comments/CommentInbox.tsx:578
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:118
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:161
 msgid "Approve"
@@ -2068,7 +2092,7 @@ msgstr "Bevestig met de gezichtsherkenning, vingerafdruk, pincode of toegangscod
 msgid "approved"
 msgstr "goedgekeurd"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:218
+#: packages/admin/src/components/comments/CommentInbox.tsx:250
 msgid "Approved"
 msgstr "Goedgekeurd"
 
@@ -2080,7 +2104,7 @@ msgstr "Goedkeuren…"
 msgid "Arbitrary JSON data"
 msgstr "Willekeurige JSON-data"
 
-#: packages/admin/src/components/ContentList.tsx:987
+#: packages/admin/src/components/ContentList.tsx:1012
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr "Gearchiveerd"
@@ -2096,7 +2120,7 @@ msgid "Are you sure you want to delete \"{0}\"? No stored values reference this 
 msgstr "Weet je zeker dat je \"{0}\" wilt verwijderen? Er zijn geen opgeslagen waarden die naar dit veld verwijzen."
 
 #. placeholder {0}: deleteTarget.label
-#: packages/admin/src/components/ContentTypeList.tsx:255
+#: packages/admin/src/components/ContentTypeList.tsx:258
 msgid "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
 msgstr "Weet je zeker dat je \"{0}\" wilt verwijderen? Hiermee wordt ook alle content in deze collectie verwijderd."
 
@@ -2112,6 +2136,10 @@ msgstr "Weet je zeker dat je dit menu wilt verwijderen? Hiermee worden ook alle 
 #: packages/admin/src/components/WelcomeModal.tsx:60
 msgid "As an administrator, you can invite other users from the Users section."
 msgstr "Als beheerder kun je andere gebruikers uitnodigen via de sectie Gebruikers."
+
+#: packages/admin/src/components/ContentList.tsx:1350
+msgid "Ascending"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:307
 msgid "Ask an administrator to complete this setup."
@@ -2179,7 +2207,6 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "Authenticatie is geannuleerd of verlopen. Probeer het opnieuw."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/comments/CommentInbox.tsx:325
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1418
 #: packages/admin/src/components/RelationForm.tsx:315
 #: packages/admin/src/components/users/roleDefinitions.ts:30
@@ -2238,7 +2265,7 @@ msgstr "Automatisch (wijziging van slug)"
 msgid "Auto-approve authenticated users"
 msgstr "Geauthenticeerde gebruikers automatisch goedkeuren"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:795
+#: packages/admin/src/components/TaxonomyManager.tsx:669
 msgid "Auto-generated from name (you can edit)"
 msgstr "Automatisch gegenereerd uit de naam (je kunt dit bewerken)"
 
@@ -2310,7 +2337,7 @@ msgid "Back to {collectionLabel} list"
 msgstr "Terug naar de lijst met {collectionLabel}"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:420
-#: packages/admin/src/components/RelationList.tsx:62
+#: packages/admin/src/components/RelationList.tsx:73
 msgid "Back to Content Types"
 msgstr "Terug naar contenttypes"
 
@@ -2447,11 +2474,12 @@ msgstr "Blokacties - sleep om te herschikken, klik voor het menu"
 msgid "Block type “{0}” was created on this site"
 msgstr "Bloktype “{0}” is op deze site aangemaakt"
 
+#: packages/admin/src/components/BlockTypeList.tsx:45
 #: packages/admin/src/components/settings/transfer/labels.ts:10
 msgid "Block type versions"
 msgstr "Versies van bloktypen"
 
-#: packages/admin/src/components/BlockTypeList.tsx:16
+#: packages/admin/src/components/BlockTypeList.tsx:28
 #: packages/admin/src/components/settings/transfer/labels.ts:9
 msgid "Block types"
 msgstr "Bloktypen"
@@ -2534,16 +2562,16 @@ msgstr "Herkomstbewijs van de build geverifieerd"
 msgid "Bullet List"
 msgstr "Opsommingslijst"
 
-#: packages/admin/src/routes/bylines.tsx:532
+#: packages/admin/src/routes/bylines.tsx:537
 msgid "byline"
 msgstr "auteursvermelding"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:239
-#: packages/admin/src/routes/bylines.tsx:342
+#: packages/admin/src/routes/bylines.tsx:357
 msgid "Byline"
 msgstr "Auteursvermelding"
 
-#: packages/admin/src/routes/bylines.tsx:278
+#: packages/admin/src/routes/bylines.tsx:295
 msgid "Byline created"
 msgstr "Auteursvermelding aangemaakt"
 
@@ -2552,7 +2580,7 @@ msgstr "Auteursvermelding aangemaakt"
 msgid "Byline credits"
 msgstr "Auteursvermeldingen bij content"
 
-#: packages/admin/src/routes/bylines.tsx:204
+#: packages/admin/src/routes/bylines.tsx:221
 msgid "Byline deleted"
 msgstr "Auteursvermelding verwijderd"
 
@@ -2571,8 +2599,8 @@ msgstr "Veldwaarden voor auteursvermeldingen"
 msgid "Byline fields"
 msgstr "Auteursvermeldingsvelden"
 
-#: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:305
+#: packages/admin/src/routes/byline-schema.tsx:229
+#: packages/admin/src/routes/bylines.tsx:322
 msgid "Byline schema"
 msgstr "Schema voor auteursvermeldingen"
 
@@ -2580,7 +2608,7 @@ msgstr "Schema voor auteursvermeldingen"
 msgid "Byline Schema"
 msgstr "Schema voor auteursvermeldingen"
 
-#: packages/admin/src/routes/bylines.tsx:278
+#: packages/admin/src/routes/bylines.tsx:295
 msgid "Byline updated"
 msgstr "Auteursvermelding bijgewerkt"
 
@@ -2591,7 +2619,7 @@ msgstr "Auteursvermelding bijgewerkt"
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:502
-#: packages/admin/src/routes/bylines.tsx:285
+#: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "Auteursvermeldingen"
 
@@ -2636,9 +2664,9 @@ msgstr "Kan content bekijken"
 #: packages/admin/src/components/BylineFormDialog.tsx:546
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:350
 #: packages/admin/src/components/ConfirmDialog.tsx:102
-#: packages/admin/src/components/ContentList.tsx:663
-#: packages/admin/src/components/ContentList.tsx:1496
-#: packages/admin/src/components/ContentList.tsx:1671
+#: packages/admin/src/components/ContentList.tsx:678
+#: packages/admin/src/components/ContentList.tsx:1623
+#: packages/admin/src/components/ContentList.tsx:1798
 #: packages/admin/src/components/ContentPickerModal.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:359
 #: packages/admin/src/components/ContentSettingsPanel.tsx:550
@@ -2668,9 +2696,9 @@ msgstr "Kan content bekijken"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:174
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
-#: packages/admin/src/components/TaxonomyManager.tsx:581
-#: packages/admin/src/components/TaxonomyManager.tsx:885
-#: packages/admin/src/components/TaxonomyManager.tsx:1105
+#: packages/admin/src/components/TaxonomyManager.tsx:455
+#: packages/admin/src/components/TaxonomyManager.tsx:759
+#: packages/admin/src/components/TaxonomyManager.tsx:979
 #: packages/admin/src/components/users/InviteUserModal.tsx:202
 #: packages/admin/src/components/Widgets.tsx:461
 #: packages/admin/src/components/WordPressImport.tsx:1974
@@ -3013,8 +3041,8 @@ msgstr "Kies een beheerder voor inloggegevens op dit apparaat, een ander apparaa
 msgid "Choose a date"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1170
-#: packages/admin/src/components/ContentList.tsx:1176
+#: packages/admin/src/components/ContentList.tsx:1195
+#: packages/admin/src/components/ContentList.tsx:1201
 msgid "Choose a date range"
 msgstr "Kies een datumbereik"
 
@@ -3097,8 +3125,8 @@ msgstr "Kiezen…"
 msgid "Choosing a byline replaces this automatic credit."
 msgstr "Als je een auteursvermelding kiest, vervangt die de automatische vermelding."
 
-#: packages/admin/src/components/ContentList.tsx:685
-#: packages/admin/src/components/ContentList.tsx:1184
+#: packages/admin/src/components/ContentList.tsx:1209
+#: packages/admin/src/components/DataTable.tsx:142
 msgid "Clear"
 msgstr "Wissen"
 
@@ -3109,11 +3137,11 @@ msgstr "Voltooide uploads uit de lijst halen"
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:79
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:186
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:103
-#: packages/admin/src/components/ContentList.tsx:1089
+#: packages/admin/src/components/ContentList.tsx:1114
 #: packages/admin/src/components/MediaLibrary.tsx:1036
 #: packages/admin/src/components/Sections.tsx:298
-#: packages/admin/src/components/users/UserList.tsx:122
-#: packages/admin/src/routes/bylines.tsx:467
+#: packages/admin/src/components/users/UserList.tsx:125
+#: packages/admin/src/routes/bylines.tsx:472
 msgid "Clear filters"
 msgstr "Filters wissen"
 
@@ -3123,7 +3151,7 @@ msgstr "Opmaak wissen"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1036
 #: packages/admin/src/components/MediaLibrary.tsx:1076
-#: packages/admin/src/components/TaxonomyManager.tsx:1439
+#: packages/admin/src/components/TaxonomyManager.tsx:1306
 msgid "Clear search"
 msgstr "Zoekopdracht wissen"
 
@@ -3210,11 +3238,11 @@ msgstr "Klik op deze link om in te loggen op {siteName}:"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:338
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:348
-#: packages/admin/src/components/TaxonomyManager.tsx:558
-#: packages/admin/src/components/TaxonomyManager.tsx:768
-#: packages/admin/src/components/TaxonomyManager.tsx:776
-#: packages/admin/src/components/TaxonomyManager.tsx:1024
-#: packages/admin/src/components/TaxonomyManager.tsx:1032
+#: packages/admin/src/components/TaxonomyManager.tsx:432
+#: packages/admin/src/components/TaxonomyManager.tsx:642
+#: packages/admin/src/components/TaxonomyManager.tsx:650
+#: packages/admin/src/components/TaxonomyManager.tsx:898
+#: packages/admin/src/components/TaxonomyManager.tsx:906
 #: packages/admin/src/components/TaxonomySidebar.tsx:606
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
@@ -3255,7 +3283,7 @@ msgstr "Instellingen sluiten"
 msgid "Cloudflare's bot protection answered with a challenge page, so EmDash can't reach the EmDash Exporter API. Allow requests to /wp-json/emdash/v1/ (and ?rest_route=/emdash/v1/ on sites without pretty permalinks), for example with a WAF custom rule that skips bot protection, or pause bot protection during the migration, then try again."
 msgstr "De botbescherming van Cloudflare antwoordde met een verificatiepagina, waardoor EmDash de EmDash Exporter-API niet kan bereiken. Sta verzoeken toe naar /wp-json/emdash/v1/ (en ?rest_route=/emdash/v1/ op sites zonder mooie permalinks), bijvoorbeeld met een aangepaste WAF-regel die de botbescherming overslaat, of pauzeer de botbescherming tijdens de migratie. Probeer het daarna opnieuw."
 
-#: packages/admin/src/components/ContentTypeList.tsx:392
+#: packages/admin/src/components/ContentTypeList.tsx:400
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
 #: packages/admin/src/components/Redirects.tsx:522
 msgid "Code"
@@ -3310,7 +3338,7 @@ msgid "Collection:"
 msgstr "Collectie:"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:11
-#: packages/admin/src/components/TaxonomyManager.tsx:1075
+#: packages/admin/src/components/TaxonomyManager.tsx:949
 msgid "Collections"
 msgstr "Collecties"
 
@@ -3362,7 +3390,7 @@ msgid "Comma-separated keywords for search."
 msgstr "Door komma's gescheiden trefwoorden voor zoeken."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:98
-#: packages/admin/src/components/comments/CommentInbox.tsx:328
+#: packages/admin/src/components/comments/CommentInbox.tsx:357
 msgid "Comment"
 msgstr "Reactie"
 
@@ -3375,7 +3403,7 @@ msgstr "Reactiedetails"
 msgid "Comment reactions"
 msgstr "Likes en emoji bij reacties"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:162
+#: packages/admin/src/components/comments/CommentInbox.tsx:194
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
@@ -3387,7 +3415,7 @@ msgstr "Reacties"
 msgid "Comments from logged-in CMS users are approved automatically"
 msgstr "Reacties van ingelogde CMS-gebruikers worden automatisch goedgekeurd"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:582
+#: packages/admin/src/components/comments/CommentInbox.tsx:643
 msgid "Comments with this status will appear here."
 msgstr "Reacties met deze status verschijnen hier."
 
@@ -3456,7 +3484,7 @@ msgstr "Verbinden met WordPress"
 msgid "Connected {0}"
 msgstr "Verbonden op {0}"
 
-#: packages/admin/src/components/RelationList.tsx:93
+#: packages/admin/src/components/RelationList.tsx:101
 msgid "Connects"
 msgstr "Verbindt"
 
@@ -3466,7 +3494,7 @@ msgstr "content"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:407
 #: packages/admin/src/components/comments/CommentDetail.tsx:106
-#: packages/admin/src/components/comments/CommentInbox.tsx:331
+#: packages/admin/src/components/comments/CommentInbox.tsx:359
 #: packages/admin/src/components/Dashboard.tsx:499
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:690
@@ -3545,7 +3573,7 @@ msgid "Content types"
 msgstr "Contenttypes"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
-#: packages/admin/src/components/ContentTypeList.tsx:131
+#: packages/admin/src/components/ContentTypeList.tsx:143
 #: packages/admin/src/components/Sidebar.tsx:532
 msgid "Content Types"
 msgstr "Contenttypes"
@@ -3756,7 +3784,7 @@ msgstr "Kan niet alle referenties laden."
 msgid "Couldn’t load approval requests"
 msgstr "Kan goedkeuringsverzoeken niet laden"
 
-#: packages/admin/src/routes/byline-schema.tsx:268
+#: packages/admin/src/routes/byline-schema.tsx:271
 msgid "Couldn't load byline fields."
 msgstr "Kan auteursvermeldingsvelden niet laden."
 
@@ -3833,8 +3861,7 @@ msgstr "Kan het verzoek niet bijwerken"
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
 msgstr "Het aantal waarden dat naar \"{0}\" verwijst, kon niet worden gecontroleerd. Bij het verwijderen worden alle opgeslagen waarden voor dit veld toch verwijderd."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1414
-#: packages/admin/src/components/TaxonomyManager.tsx:1469
+#: packages/admin/src/components/TaxonomyManager.tsx:1279
 msgid "Count"
 msgstr "Aantal"
 
@@ -3843,7 +3870,7 @@ msgstr "Aantal"
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuList.tsx:187
 #: packages/admin/src/components/Redirects.tsx:196
-#: packages/admin/src/components/TaxonomyManager.tsx:896
+#: packages/admin/src/components/TaxonomyManager.tsx:770
 #: packages/admin/src/components/Widgets.tsx:464
 msgid "Create"
 msgstr "Aanmaken"
@@ -3880,7 +3907,7 @@ msgid "Create a bullet list"
 msgstr "Een opsommingslijst maken"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:764
+#: packages/admin/src/components/TaxonomyManager.tsx:638
 msgid "Create a new {0}"
 msgstr "Een nieuwe {0} aanmaken"
 
@@ -3892,7 +3919,7 @@ msgstr "Een nieuwe {singularLabel} aanmaken"
 msgid "Create a numbered list"
 msgstr "Een genummerde lijst maken"
 
-#: packages/admin/src/routes/bylines.tsx:452
+#: packages/admin/src/routes/bylines.tsx:457
 msgid "Create a profile for someone credited on your content."
 msgstr "Maak een profiel aan voor iemand die bij je content wordt vermeld."
 
@@ -3987,8 +4014,8 @@ msgstr "Sectie aanmaken"
 msgid "Create sections in the Sections library to use them here"
 msgstr "Maak secties aan in de sectiebibliotheek om ze hier te gebruiken"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1018
-#: packages/admin/src/components/TaxonomyManager.tsx:1108
+#: packages/admin/src/components/TaxonomyManager.tsx:892
+#: packages/admin/src/components/TaxonomyManager.tsx:982
 msgid "Create Taxonomy"
 msgstr "Taxonomie aanmaken"
 
@@ -4009,7 +4036,7 @@ msgstr "Widgetgebied aanmaken"
 msgid "Create your account"
 msgstr "Maak je account aan"
 
-#: packages/admin/src/components/ContentTypeList.tsx:228
+#: packages/admin/src/components/ContentTypeList.tsx:233
 msgid "Create your first content type"
 msgstr "Maak je eerste contenttype aan"
 
@@ -4017,7 +4044,7 @@ msgstr "Maak je eerste contenttype aan"
 msgid "Create your first navigation menu to get started"
 msgstr "Maak je eerste navigatiemenu aan om te beginnen"
 
-#: packages/admin/src/components/ContentList.tsx:792
+#: packages/admin/src/components/ContentList.tsx:811
 msgid "Create your first one"
 msgstr "Maak je eerste aan"
 
@@ -4042,7 +4069,7 @@ msgstr "Taxonomietermen aanmaken, bijwerken en verwijderen"
 msgid "Create, update, delete content"
 msgstr "Content aanmaken, bijwerken, verwijderen"
 
-#: packages/admin/src/components/ContentList.tsx:993
+#: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1046
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
@@ -4050,7 +4077,7 @@ msgid "Created"
 msgstr "Aangemaakt"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/routes/byline-schema.tsx:96
+#: packages/admin/src/routes/byline-schema.tsx:103
 msgid "Created \"{0}\"."
 msgstr "\"{0}\" aangemaakt."
 
@@ -4089,7 +4116,7 @@ msgstr "Bijgesneden kopie maken..."
 #: packages/admin/src/components/RelationFormPanel.tsx:109
 #: packages/admin/src/components/Sections.tsx:234
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:561
-#: packages/admin/src/components/TaxonomyManager.tsx:1108
+#: packages/admin/src/components/TaxonomyManager.tsx:982
 msgid "Creating..."
 msgstr "Aanmaken..."
 
@@ -4181,19 +4208,20 @@ msgid "Dark mode variant"
 msgstr "Variant voor donkere modus"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:140
-#: packages/admin/src/components/ContentTypeList.tsx:394
+#: packages/admin/src/components/ContentTypeList.tsx:402
 #: packages/admin/src/components/Dashboard.tsx:75
 #: packages/admin/src/components/Sidebar.tsx:436
 #: packages/admin/src/components/Sidebar.tsx:675
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: packages/admin/src/components/BlockTypeList.tsx:18
+#: packages/admin/src/components/BlockTypeList.tsx:31
 msgid "Database-owned definitions available to blocks fields."
 msgstr "Definities uit de database die beschikbaar zijn voor blokkenvelden."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:334
-#: packages/admin/src/components/ContentList.tsx:756
+#: packages/admin/src/components/comments/CommentInbox.tsx:362
+#: packages/admin/src/components/ContentList.tsx:500
+#: packages/admin/src/components/ContentList.tsx:763
 msgid "Date"
 msgstr "Datum"
 
@@ -4206,7 +4234,7 @@ msgstr "Datum & tijd"
 msgid "Date and time picker"
 msgstr "Datum- en tijdkiezer"
 
-#: packages/admin/src/components/ContentList.tsx:1066
+#: packages/admin/src/components/ContentList.tsx:1091
 msgid "Date field to filter on"
 msgstr "Datumveld om op te filteren"
 
@@ -4214,7 +4242,7 @@ msgstr "Datumveld om op te filteren"
 msgid "Date Format"
 msgstr "Datumnotatie"
 
-#: packages/admin/src/components/ContentList.tsx:1116
+#: packages/admin/src/components/ContentList.tsx:1141
 msgid "Date range"
 msgstr "Datumbereik"
 
@@ -4248,19 +4276,19 @@ msgstr "Standaardafbeelding voor social media"
 msgid "Default Social Image"
 msgstr "Standaardafbeelding voor social media"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1020
+#: packages/admin/src/components/TaxonomyManager.tsx:894
 msgid "Define a new taxonomy for classifying content"
 msgstr "Definieer een nieuwe taxonomie om content te classificeren"
 
-#: packages/admin/src/routes/byline-schema.tsx:220
+#: packages/admin/src/routes/byline-schema.tsx:231
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
 msgstr "Definieer aangepaste velden voor elke auteursvermelding, zoals functietitel, voornaamwoorden en gebruikersnamen op sociale media."
 
-#: packages/admin/src/components/RelationList.tsx:70
+#: packages/admin/src/components/RelationList.tsx:81
 msgid "Define how content types link to each other"
 msgstr "Bepaal hoe contenttypes met elkaar verbonden zijn"
 
-#: packages/admin/src/components/ContentTypeList.tsx:133
+#: packages/admin/src/components/ContentTypeList.tsx:146
 msgid "Define the structure of your content"
 msgstr "Definieer de structuur van je content"
 
@@ -4269,10 +4297,12 @@ msgid "Defined in code"
 msgstr "Gedefinieerd in code"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:536
-#: packages/admin/src/components/comments/CommentInbox.tsx:300
-#: packages/admin/src/components/comments/CommentInbox.tsx:432
+#: packages/admin/src/components/comments/CommentInbox.tsx:337
+#: packages/admin/src/components/comments/CommentInbox.tsx:463
+#: packages/admin/src/components/comments/CommentInbox.tsx:489
 #: packages/admin/src/components/ContentTypeEditor.tsx:868
-#: packages/admin/src/components/ContentTypeList.tsx:258
+#: packages/admin/src/components/ContentTypeList.tsx:261
+#: packages/admin/src/components/ContentTypeList.tsx:387
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:392
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
@@ -4282,13 +4312,16 @@ msgstr "Gedefinieerd in code"
 #: packages/admin/src/components/MenuList.tsx:235
 #: packages/admin/src/components/Redirects.tsx:661
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
+#: packages/admin/src/components/RelationList.tsx:250
 #: packages/admin/src/components/Sections.tsx:349
 #: packages/admin/src/components/settings/BackupSettings.tsx:369
-#: packages/admin/src/components/TaxonomyManager.tsx:1541
-#: packages/admin/src/components/TaxonomyManager.tsx:1557
+#: packages/admin/src/components/TaxonomyManager.tsx:366
+#: packages/admin/src/components/TaxonomyManager.tsx:1371
+#: packages/admin/src/components/TaxonomyManager.tsx:1387
 #: packages/admin/src/components/Widgets.tsx:728
 #: packages/admin/src/components/Widgets.tsx:850
 #: packages/admin/src/routes/byline-schema.tsx:378
+#: packages/admin/src/routes/byline-schema.tsx:473
 msgid "Delete"
 msgstr "Verwijderen"
 
@@ -4305,15 +4338,15 @@ msgstr "“{0}” verwijderen?"
 #. placeholder {0}: archive.name
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
-#: packages/admin/src/components/ContentTypeList.tsx:377
-#: packages/admin/src/components/RelationList.tsx:230
+#: packages/admin/src/components/ContentTypeList.tsx:384
+#: packages/admin/src/components/RelationList.tsx:247
 #: packages/admin/src/components/RelationsPanel.tsx:212
 #: packages/admin/src/components/Sections.tsx:465
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:275
 #: packages/admin/src/components/settings/BackupSettings.tsx:329
-#: packages/admin/src/components/TaxonomyManager.tsx:492
+#: packages/admin/src/components/TaxonomyManager.tsx:363
 #: packages/admin/src/components/Widgets.tsx:824
-#: packages/admin/src/routes/byline-schema.tsx:460
+#: packages/admin/src/routes/byline-schema.tsx:470
 msgid "Delete {0}"
 msgstr "{0} verwijderen"
 
@@ -4334,8 +4367,8 @@ msgstr "Widgetgebied {0} verwijderen"
 
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/TaxonomyManager.tsx:1537
-#: packages/admin/src/routes/bylines.tsx:532
+#: packages/admin/src/components/TaxonomyManager.tsx:1367
+#: packages/admin/src/routes/bylines.tsx:537
 msgid "Delete {0}?"
 msgstr "{0} verwijderen?"
 
@@ -4348,13 +4381,13 @@ msgstr "Back-up verwijderen?"
 msgid "Delete block"
 msgstr "Blok verwijderen"
 
-#: packages/admin/src/routes/bylines.tsx:427
-#: packages/admin/src/routes/bylines.tsx:534
+#: packages/admin/src/routes/bylines.tsx:436
+#: packages/admin/src/routes/bylines.tsx:539
 msgid "Delete byline"
 msgstr "Auteursvermelding verwijderen"
 
 #. placeholder {0}: item.displayName
-#: packages/admin/src/routes/bylines.tsx:424
+#: packages/admin/src/routes/bylines.tsx:433
 msgid "Delete byline {0}"
 msgstr "Auteursvermelding {0} verwijderen"
 
@@ -4370,11 +4403,11 @@ msgstr "Kolom verwijderen"
 msgid "Delete columns"
 msgstr "Kolommen verwijderen"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:430
+#: packages/admin/src/components/comments/CommentInbox.tsx:461
 msgid "Delete Comment?"
 msgstr "Reactie verwijderen?"
 
-#: packages/admin/src/components/ContentTypeList.tsx:252
+#: packages/admin/src/components/ContentTypeList.tsx:255
 msgid "Delete Content Type?"
 msgstr "Contenttype verwijderen?"
 
@@ -4413,17 +4446,18 @@ msgstr "Menu verwijderen"
 msgid "Delete menu item?"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:550
-#: packages/admin/src/components/ContentList.tsx:1658
+#: packages/admin/src/components/comments/CommentInbox.tsx:613
+#: packages/admin/src/components/ContentList.tsx:1785
 msgid "Delete permanently"
 msgstr "Definitief verwijderen"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:185
-#: packages/admin/src/components/ContentList.tsx:1680
+#: packages/admin/src/components/ContentList.tsx:1807
 msgid "Delete Permanently"
 msgstr "Definitief verwijderen"
 
-#: packages/admin/src/components/ContentList.tsx:1663
+#: packages/admin/src/components/comments/CommentInbox.tsx:484
+#: packages/admin/src/components/ContentList.tsx:1790
 msgid "Delete Permanently?"
 msgstr "Definitief verwijderen?"
 
@@ -4460,20 +4494,11 @@ msgstr "Sectie verwijderen?"
 msgid "Delete table"
 msgstr "Tabel verwijderen"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:364
-msgid "Delete tag"
-msgstr "Tag verwijderen"
-
-#. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:361
-msgid "Delete tag {0}"
-msgstr "Tag {0} verwijderen"
-
-#: packages/admin/src/components/TaxonomyManager.tsx:1376
+#: packages/admin/src/components/TaxonomyManager.tsx:1246
 msgid "Delete taxonomy"
 msgstr "Taxonomie verwijderen"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1555
+#: packages/admin/src/components/TaxonomyManager.tsx:1385
 msgid "Delete Taxonomy"
 msgstr "Taxonomie verwijderen"
 
@@ -4490,12 +4515,12 @@ msgstr "Widgetgebied verwijderen?"
 msgid "Delete widget?"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:890
+#: packages/admin/src/components/ContentList.tsx:914
 msgid "Deleted"
 msgstr "Verwijderd"
 
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1556
+#: packages/admin/src/components/TaxonomyManager.tsx:1386
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
 msgstr "Als je \"{0}\" verwijdert, worden ook alle termen in alle talen verwijderd en verdwijnen die termen uit de content die ermee is ingedeeld. De items zelf blijven bewaard. Dit kan niet ongedaan worden gemaakt."
 
@@ -4505,9 +4530,10 @@ msgstr "Als je \"{0}\" verwijdert, worden ook alle termen in alle talen verwijde
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "Het verwijderen van \"{0}\" verwijdert ook {1, plural, one {# opgeslagen waarde} other {# opgeslagen waarden}} in alle auteursvermeldingen. Dit kan niet ongedaan worden gemaakt."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:433
+#: packages/admin/src/components/comments/CommentInbox.tsx:464
+#: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentTypeEditor.tsx:869
-#: packages/admin/src/components/ContentTypeList.tsx:259
+#: packages/admin/src/components/ContentTypeList.tsx:262
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaDetailPanel.tsx:1933
 #: packages/admin/src/components/MediaFolderDialog.tsx:185
@@ -4517,11 +4543,11 @@ msgstr "Het verwijderen van \"{0}\" verwijdert ook {1, plural, one {# opgeslagen
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:350
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
-#: packages/admin/src/components/TaxonomyManager.tsx:1542
-#: packages/admin/src/components/TaxonomyManager.tsx:1558
+#: packages/admin/src/components/TaxonomyManager.tsx:1372
+#: packages/admin/src/components/TaxonomyManager.tsx:1388
 #: packages/admin/src/components/Widgets.tsx:729
 #: packages/admin/src/components/Widgets.tsx:851
-#: packages/admin/src/routes/bylines.tsx:535
+#: packages/admin/src/routes/bylines.tsx:540
 msgid "Deleting..."
 msgstr "Verwijderen..."
 
@@ -4555,6 +4581,10 @@ msgstr "Degraderen..."
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:108
 msgid "Deny"
 msgstr "Weigeren"
+
+#: packages/admin/src/components/ContentList.tsx:1354
+msgid "Descending"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:66
@@ -4591,7 +4621,7 @@ msgstr "Beschrijf waar deze sectie voor is..."
 msgid "Description"
 msgstr "Beschrijving"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:847
+#: packages/admin/src/components/TaxonomyManager.tsx:721
 msgid "Description (optional)"
 msgstr "Beschrijving (optioneel)"
 
@@ -4672,7 +4702,7 @@ msgstr "Gebruiker uitschakelen?"
 #: packages/admin/src/components/PluginManager.tsx:460
 #: packages/admin/src/components/Redirects.tsx:418
 #: packages/admin/src/components/users/UserDetail.tsx:214
-#: packages/admin/src/components/users/UserList.tsx:209
+#: packages/admin/src/components/users/UserList.tsx:178
 msgid "Disabled"
 msgstr "Uitgeschakeld"
 
@@ -4829,7 +4859,7 @@ msgstr "Niet toewijzen"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
-#: packages/admin/src/components/ContentList.tsx:1192
+#: packages/admin/src/components/ContentList.tsx:1217
 #: packages/admin/src/components/MediaUploadDialog.tsx:335
 #: packages/admin/src/components/users/InviteUserModal.tsx:145
 #: packages/admin/src/components/WordPressImport.tsx:2185
@@ -4904,7 +4934,7 @@ msgid "visualEditing.draft"
 msgstr "Concept"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
-#: packages/admin/src/components/ContentList.tsx:985
+#: packages/admin/src/components/ContentList.tsx:1010
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "Concept"
@@ -4991,7 +5021,7 @@ msgstr "Laat los om widget toe te voegen"
 msgid "Drop your WordPress export file here"
 msgstr "Sleep je WordPress-exportbestand hierheen"
 
-#: packages/admin/src/components/ContentList.tsx:1474
+#: packages/admin/src/components/ContentList.tsx:1601
 #: packages/admin/src/components/editor/BlockMenu.tsx:201
 msgid "Duplicate"
 msgstr "Dupliceren"
@@ -5037,32 +5067,36 @@ msgstr "Elk padsegment mag maximaal één plaatsaanduiding bevatten, bijvoorbeel
 msgid "Earliest saved version"
 msgstr "Vroegste opgeslagen versie"
 
-#: packages/admin/src/components/ContentList.tsx:1451
+#: packages/admin/src/components/ContentList.tsx:1578
+#: packages/admin/src/components/ContentTypeList.tsx:376
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:669
+#: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:439
 #: packages/admin/src/components/Shell.tsx:87
+#: packages/admin/src/components/TaxonomyManager.tsx:321
 #: packages/admin/src/components/TranslationsPanel.tsx:95
+#: packages/admin/src/routes/byline-schema.tsx:446
+#: packages/admin/src/routes/bylines.tsx:427
 msgid "Edit"
 msgstr "Bewerken"
 
 #. placeholder {0}: block?.label || ""
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
-#: packages/admin/src/components/ContentTypeList.tsx:368
+#: packages/admin/src/components/ContentTypeList.tsx:373
 #: packages/admin/src/components/PortableTextEditor.tsx:2694
 #: packages/admin/src/components/RelationFormPanel.tsx:83
-#: packages/admin/src/components/RelationList.tsx:223
+#: packages/admin/src/components/RelationList.tsx:194
 #: packages/admin/src/components/RelationsPanel.tsx:203
 #: packages/admin/src/components/Sections.tsx:437
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:263
-#: packages/admin/src/components/TaxonomyManager.tsx:309
-#: packages/admin/src/components/TaxonomyManager.tsx:484
-#: packages/admin/src/components/TaxonomyManager.tsx:758
-#: packages/admin/src/routes/byline-schema.tsx:451
-#: packages/admin/src/routes/bylines.tsx:401
+#: packages/admin/src/components/TaxonomyManager.tsx:304
+#: packages/admin/src/components/TaxonomyManager.tsx:632
+#: packages/admin/src/routes/byline-schema.tsx:424
+#: packages/admin/src/routes/bylines.tsx:379
 msgid "Edit {0}"
 msgstr "{0} bewerken"
 
@@ -5555,8 +5589,8 @@ msgstr "item aan de verwijzende kant"
 #: packages/admin/src/components/MenuEditor.tsx:160
 #: packages/admin/src/components/MenuEditor.tsx:268
 #: packages/admin/src/components/SetupWizard.tsx:603
-#: packages/admin/src/components/TaxonomyManager.tsx:1213
-#: packages/admin/src/router.tsx:3381
+#: packages/admin/src/components/TaxonomyManager.tsx:1087
+#: packages/admin/src/router.tsx:3383
 msgid "Error"
 msgstr "Fout"
 
@@ -5604,7 +5638,7 @@ msgstr "Elke plek waar deze afbeelding wordt gebruikt, wordt bijgewerkt naar de 
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr "Elke gepubliceerde release van deze plugin is ingetrokken of kon niet worden geverifieerd. Kom later terug of neem contact op met de uitgever."
 
-#: packages/admin/src/components/ContentTypeList.tsx:272
+#: packages/admin/src/components/ContentTypeList.tsx:275
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "Alle relaties waaraan dit contenttype deelneemt, worden ook verwijderd:"
 
@@ -5847,7 +5881,7 @@ msgid "Failed to create content"
 msgstr "Aanmaken van content mislukt"
 
 #: packages/admin/src/lib/api/schema.ts:432
-#: packages/admin/src/routes/byline-schema.tsx:102
+#: packages/admin/src/routes/byline-schema.tsx:109
 msgid "Failed to create field"
 msgstr "Aanmaken van veld mislukt"
 
@@ -5946,7 +5980,7 @@ msgid "Failed to delete content"
 msgstr "Verwijderen van content mislukt"
 
 #: packages/admin/src/lib/api/schema.ts:473
-#: packages/admin/src/routes/byline-schema.tsx:138
+#: packages/admin/src/routes/byline-schema.tsx:145
 msgid "Failed to delete field"
 msgstr "Verwijderen van veld mislukt"
 
@@ -6393,7 +6427,7 @@ msgid "Failed to load backup settings"
 msgstr "Laden van back-upinstellingen mislukt"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:249
+#: packages/admin/src/routes/bylines.tsx:266
 msgid "Failed to load bylines: {0}"
 msgstr "Laden van auteursvermeldingen mislukt: {0}"
 
@@ -6521,7 +6555,7 @@ msgstr "Publiceren van content mislukt"
 msgid "Failed to read byline field usage"
 msgstr "Ophalen van gebruik van auteursvermeldingsveld mislukt"
 
-#: packages/admin/src/router.tsx:2920
+#: packages/admin/src/router.tsx:2922
 msgid "Failed to register {slug}"
 msgstr "Registreren van {slug} mislukt"
 
@@ -6560,7 +6594,7 @@ msgid "Failed to reorder content types"
 msgstr "Herschikken van contenttypen mislukt"
 
 #: packages/admin/src/lib/api/schema.ts:488
-#: packages/admin/src/routes/byline-schema.tsx:152
+#: packages/admin/src/routes/byline-schema.tsx:163
 msgid "Failed to reorder fields"
 msgstr "Herschikken van velden mislukt"
 
@@ -6604,7 +6638,7 @@ msgstr "Herschrijven van URL's mislukt"
 
 #: packages/admin/src/router.tsx:919
 #: packages/admin/src/router.tsx:1350
-#: packages/admin/src/router.tsx:3105
+#: packages/admin/src/router.tsx:3107
 msgid "Failed to save"
 msgstr "Opslaan mislukt"
 
@@ -6612,7 +6646,7 @@ msgstr "Opslaan mislukt"
 msgid "Failed to save backup settings"
 msgstr "Opslaan van back-upinstellingen mislukt"
 
-#: packages/admin/src/routes/byline-schema.tsx:122
+#: packages/admin/src/routes/byline-schema.tsx:129
 msgid "Failed to save field"
 msgstr "Opslaan van veld mislukt"
 
@@ -6837,7 +6871,7 @@ msgid "Featured Images"
 msgstr "Uitgelichte afbeeldingen"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:616
-#: packages/admin/src/components/ContentTypeList.tsx:209
+#: packages/admin/src/components/ContentTypeList.tsx:219
 msgid "Features"
 msgstr "Functies"
 
@@ -6845,11 +6879,11 @@ msgstr "Functies"
 msgid "Fetching content from the EmDash Exporter API."
 msgstr "Content wordt opgehaald via de EmDash Exporter API."
 
-#: packages/admin/src/routes/byline-schema.tsx:95
+#: packages/admin/src/routes/byline-schema.tsx:102
 msgid "Field created"
 msgstr "Veld aangemaakt"
 
-#: packages/admin/src/routes/byline-schema.tsx:133
+#: packages/admin/src/routes/byline-schema.tsx:140
 msgid "Field deleted"
 msgstr "Veld verwijderd"
 
@@ -6869,7 +6903,7 @@ msgstr "Slugs van velden kunnen na het aanmaken niet meer worden gewijzigd"
 msgid "Field type cannot be changed after creation."
 msgstr "Veldtype kan na het aanmaken niet meer worden gewijzigd."
 
-#: packages/admin/src/routes/byline-schema.tsx:115
+#: packages/admin/src/routes/byline-schema.tsx:122
 msgid "Field updated"
 msgstr "Veld bijgewerkt"
 
@@ -6878,7 +6912,7 @@ msgid "field_slug"
 msgstr "veld_slug"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:757
-#: packages/admin/src/components/RelationList.tsx:96
+#: packages/admin/src/components/RelationList.tsx:104
 #: packages/admin/src/components/settings/transfer/labels.ts:12
 msgid "Fields"
 msgstr "Velden"
@@ -6922,7 +6956,7 @@ msgstr "Ingevuld op basis van de weergavenaam. Gebruik kleine letters, cijfers e
 msgid "Filter"
 msgstr "Filter"
 
-#: packages/admin/src/components/ContentList.tsx:1040
+#: packages/admin/src/components/ContentList.tsx:1065
 msgid "Filter by author"
 msgstr "Filteren op auteur"
 
@@ -6934,11 +6968,11 @@ msgstr "Filteren op auteursvermelding"
 msgid "Filter by capability"
 msgstr "Filteren op mogelijkheid"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:185
+#: packages/admin/src/components/comments/CommentInbox.tsx:217
 msgid "Filter by collection"
 msgstr "Filteren op collectie"
 
-#: packages/admin/src/components/ContentList.tsx:1162
+#: packages/admin/src/components/ContentList.tsx:1187
 msgid "Filter by date range: {rangeLabel}"
 msgstr "Filteren op datumbereik: {rangeLabel}"
 
@@ -6946,7 +6980,7 @@ msgstr "Filteren op datumbereik: {rangeLabel}"
 msgid "Filter by group"
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:75
+#: packages/admin/src/components/users/UserList.tsx:83
 msgid "Filter by role"
 msgstr "Filteren op rol"
 
@@ -6954,7 +6988,7 @@ msgstr "Filteren op rol"
 msgid "Filter by source"
 msgstr "Filteren op bron"
 
-#: packages/admin/src/components/ContentList.tsx:1022
+#: packages/admin/src/components/ContentList.tsx:1047
 #: packages/admin/src/components/Redirects.tsx:419
 msgid "Filter by status"
 msgstr "Filteren op status"
@@ -6965,7 +6999,7 @@ msgstr "Filteren op status"
 msgid "Filter by type"
 msgstr "Filteren op type"
 
-#: packages/admin/src/routes/bylines.tsx:324
+#: packages/admin/src/routes/bylines.tsx:341
 msgid "Filter byline type"
 msgstr "Filteren op type auteursvermelding"
 
@@ -7085,7 +7119,7 @@ msgid "Freeform"
 msgstr "Vrije vorm"
 
 #. placeholder {0}: formatter.format(from)
-#: packages/admin/src/components/ContentList.tsx:1113
+#: packages/admin/src/components/ContentList.tsx:1138
 msgid "From {0}"
 msgstr "Vanaf {0}"
 
@@ -7138,7 +7172,7 @@ msgstr "Algemeen"
 msgid "General Settings"
 msgstr "Algemene instellingen"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1043
+#: packages/admin/src/components/TaxonomyManager.tsx:917
 msgid "Genres"
 msgstr "Genres"
 
@@ -7171,7 +7205,7 @@ msgid "Go live {countdown}"
 msgstr "Worden gepubliceerd {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3401
+#: packages/admin/src/router.tsx:3403
 msgid "Go to Dashboard"
 msgstr "Ga naar dashboard"
 
@@ -7213,7 +7247,7 @@ msgstr "Groep (optioneel)"
 msgid "Group by"
 msgstr "Groeperen op"
 
-#: packages/admin/src/routes/bylines.tsx:378
+#: packages/admin/src/routes/bylines.tsx:93
 msgid "Guest"
 msgstr "Gast"
 
@@ -7221,7 +7255,7 @@ msgstr "Gast"
 msgid "Guest byline"
 msgstr "Auteursvermelding voor gast"
 
-#: packages/admin/src/routes/bylines.tsx:329
+#: packages/admin/src/routes/bylines.tsx:346
 msgid "Guest only"
 msgstr "Alleen gasten"
 
@@ -7334,7 +7368,7 @@ msgstr "Werkbalk verbergen"
 msgid "Hide toolbar"
 msgstr "Werkbalk verbergen"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1068
+#: packages/admin/src/components/TaxonomyManager.tsx:942
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "Hiërarchisch (zoals categorieën, met bovenliggende/onderliggende relaties)"
 
@@ -7377,7 +7411,7 @@ msgstr "Uur"
 msgid "How do you want to start?"
 msgstr "Hoe wil je beginnen?"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:797
+#: packages/admin/src/components/TaxonomyManager.tsx:671
 msgid "How is the slug generated?"
 msgstr "Hoe wordt de slug gegenereerd?"
 
@@ -7933,7 +7967,7 @@ msgid "Invite Link Created"
 msgstr "Uitnodigingslink aangemaakt"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:79
-#: packages/admin/src/components/users/UserList.tsx:57
+#: packages/admin/src/components/users/UserList.tsx:65
 msgid "Invite User"
 msgstr "Gebruiker uitnodigen"
 
@@ -7941,7 +7975,7 @@ msgstr "Gebruiker uitnodigen"
 msgid "Invite validation failed"
 msgstr "Validatie van uitnodiging mislukt"
 
-#: packages/admin/src/components/users/UserList.tsx:133
+#: packages/admin/src/components/users/UserList.tsx:132
 msgid "Invite your first team member"
 msgstr "Nodig je eerste teamlid uit"
 
@@ -8097,9 +8131,9 @@ msgstr "Kotlin"
 #: packages/admin/src/components/MenuEditor.tsx:521
 #: packages/admin/src/components/MenuEditor.tsx:736
 #: packages/admin/src/components/MenuList.tsx:153
-#: packages/admin/src/components/TaxonomyManager.tsx:1040
+#: packages/admin/src/components/TaxonomyManager.tsx:914
 #: packages/admin/src/components/Widgets.tsx:446
-#: packages/admin/src/routes/byline-schema.tsx:234
+#: packages/admin/src/routes/byline-schema.tsx:243
 msgid "Label"
 msgstr "Label"
 
@@ -8139,7 +8173,7 @@ msgstr "Laatst ingeschakeld:"
 msgid "Last login"
 msgstr "Laatst ingelogd"
 
-#: packages/admin/src/components/users/UserList.tsx:100
+#: packages/admin/src/components/users/UserList.tsx:104
 msgid "Last Login"
 msgstr "Laatst ingelogd"
 
@@ -8260,7 +8294,7 @@ msgstr "Kant waarnaar wordt verwezen (enkelvoud)"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:460
 #: packages/admin/src/components/BylineFormDialog.tsx:461
-#: packages/admin/src/routes/bylines.tsx:378
+#: packages/admin/src/routes/bylines.tsx:93
 msgid "Linked user"
 msgstr "Gekoppelde gebruiker"
 
@@ -8280,7 +8314,7 @@ msgstr "Verwijzende kant (meervoud)"
 msgid "Linking side (singular)"
 msgstr "Verwijzende kant (enkelvoud)"
 
-#: packages/admin/src/components/RelationList.tsx:99
+#: packages/admin/src/components/RelationList.tsx:107
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:210
 msgid "Links"
 msgstr "Links"
@@ -8335,14 +8369,14 @@ msgstr "Live weergave"
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:486
+#: packages/admin/src/routes/bylines.tsx:491
 msgid "Load more"
 msgstr "Meer laden"
 
-#: packages/admin/src/components/ContentList.tsx:868
-#: packages/admin/src/components/ContentList.tsx:925
+#: packages/admin/src/components/ContentList.tsx:887
+#: packages/admin/src/components/ContentList.tsx:950
 #: packages/admin/src/components/MediaLibrary.tsx:1269
-#: packages/admin/src/components/users/UserList.tsx:162
+#: packages/admin/src/components/users/UserList.tsx:157
 msgid "Load More"
 msgstr "Meer laden"
 
@@ -8358,7 +8392,7 @@ msgid "Load preview"
 msgstr "Voorbeeld laden"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3356
+#: packages/admin/src/router.tsx:3358
 msgid "Loading"
 msgstr "Laden"
 
@@ -8370,25 +8404,25 @@ msgstr "Laden van {pluralLower}…"
 msgid "Loading approval requests…"
 msgstr "Goedkeuringsverzoeken laden…"
 
-#: packages/admin/src/components/BlockTypeList.tsx:22
+#: packages/admin/src/components/BlockTypeList.tsx:51
 #: packages/admin/src/components/FieldEditor.tsx:1091
 msgid "Loading block types…"
 msgstr "Bloktypen laden…"
 
-#: packages/admin/src/routes/byline-schema.tsx:257
+#: packages/admin/src/routes/byline-schema.tsx:263
 msgid "Loading byline fields…"
 msgstr "Auteursvermeldingsvelden laden…"
 
-#: packages/admin/src/components/ContentTypeList.tsx:220
+#: packages/admin/src/components/ContentTypeList.tsx:228
 msgid "Loading collections..."
 msgstr "Collecties laden..."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:309
+#: packages/admin/src/components/comments/CommentInbox.tsx:371
 msgid "Loading comments..."
 msgstr "Reacties laden..."
 
-#: packages/admin/src/router.tsx:3358
-#: packages/admin/src/router.tsx:3370
+#: packages/admin/src/router.tsx:3360
+#: packages/admin/src/router.tsx:3372
 msgid "Loading configuration..."
 msgstr "Configuratie laden..."
 
@@ -8450,7 +8484,7 @@ msgstr "Omleidingen laden..."
 msgid "Loading references..."
 msgstr "Referenties laden..."
 
-#: packages/admin/src/components/RelationList.tsx:110
+#: packages/admin/src/components/RelationList.tsx:116
 #: packages/admin/src/components/RelationsPanel.tsx:68
 msgid "Loading relations..."
 msgstr "Relaties laden..."
@@ -8471,8 +8505,7 @@ msgstr "Instellingen laden..."
 msgid "Loading setup..."
 msgstr "Installatie laden..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1402
-#: packages/admin/src/components/TaxonomyManager.tsx:1474
+#: packages/admin/src/components/TaxonomyManager.tsx:1288
 msgid "Loading terms..."
 msgstr "Termen laden..."
 
@@ -8488,10 +8521,10 @@ msgstr "Gebruiksgegevens laden"
 msgid "Loading widgets..."
 msgstr "Widgets laden..."
 
-#: packages/admin/src/components/ContentList.tsx:776
-#: packages/admin/src/components/ContentList.tsx:868
-#: packages/admin/src/components/ContentList.tsx:901
-#: packages/admin/src/components/ContentList.tsx:925
+#: packages/admin/src/components/ContentList.tsx:795
+#: packages/admin/src/components/ContentList.tsx:887
+#: packages/admin/src/components/ContentList.tsx:926
+#: packages/admin/src/components/ContentList.tsx:950
 #: packages/admin/src/components/ContentPickerModal.tsx:371
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:606
@@ -8510,12 +8543,12 @@ msgstr "Widgets laden..."
 #: packages/admin/src/components/settings/EmailSettings.tsx:69
 #: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/settings/TransferSettings.tsx:57
-#: packages/admin/src/components/TaxonomyManager.tsx:1280
+#: packages/admin/src/components/TaxonomyManager.tsx:1154
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
-#: packages/admin/src/components/users/UserList.tsx:149
-#: packages/admin/src/routes/bylines.tsx:486
+#: packages/admin/src/components/users/UserList.tsx:146
+#: packages/admin/src/routes/bylines.tsx:491
 msgid "Loading..."
 msgstr "Laden..."
 
@@ -8535,8 +8568,9 @@ msgstr "Lokale tijd"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:320
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
-#: packages/admin/src/components/ContentList.tsx:749
-#: packages/admin/src/components/ContentList.tsx:889
+#: packages/admin/src/components/ContentList.tsx:499
+#: packages/admin/src/components/ContentList.tsx:755
+#: packages/admin/src/components/ContentList.tsx:910
 #: packages/admin/src/components/LocaleSwitcher.tsx:61
 msgid "Locale"
 msgstr "Taal"
@@ -8597,7 +8631,7 @@ msgstr "Kleine letters, cijfers en onderstrepingstekens. Referentievelden slaan 
 msgid "Lowercase letters, numbers, and hyphens only"
 msgstr "Alleen kleine letters, cijfers en koppeltekens"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1059
+#: packages/admin/src/components/TaxonomyManager.tsx:933
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "Alleen kleine letters, cijfers en underscores, beginnend met een letter"
 
@@ -8620,7 +8654,7 @@ msgstr "Beheren"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
 #. placeholder {1}: taxonomyDef.collections.join(", ")
-#: packages/admin/src/components/TaxonomyManager.tsx:1297
+#: packages/admin/src/components/TaxonomyManager.tsx:1171
 msgid "Manage {0} for {1}"
 msgstr "Beheer {0} voor {1}"
 
@@ -8640,7 +8674,7 @@ msgstr "Beheer geïnstalleerde plugins. Schakel plugins in of uit om hun functio
 msgid "Manage navigation menus for your site"
 msgstr "Beheer navigatiemenu's voor je site"
 
-#: packages/admin/src/routes/bylines.tsx:287
+#: packages/admin/src/routes/bylines.tsx:304
 msgid "Manage the people and teams credited on your content."
 msgstr "Beheer de personen en teams die bij je content worden vermeld."
 
@@ -8687,7 +8721,7 @@ msgstr "{0} markeren als Gone (410)"
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
 msgstr "Markeren als Gone (410): laat zoekmachines weten dat de pagina permanent is verwijderd"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:526
+#: packages/admin/src/components/comments/CommentInbox.tsx:592
 msgid "Mark as spam"
 msgstr "Markeren als spam"
 
@@ -8700,11 +8734,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Marketplace"
 
-#: packages/admin/src/router.tsx:2757
+#: packages/admin/src/router.tsx:2759
 msgid "Marketplace browsing is no longer available."
 msgstr "Bladeren door de marketplace is niet meer beschikbaar."
 
-#: packages/admin/src/router.tsx:2732
+#: packages/admin/src/router.tsx:2734
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Bladeren door de marketplace is niet meer beschikbaar. Beheer geïnstalleerde plugins via Plugins."
 
@@ -9002,13 +9036,11 @@ msgid "Monthly/yearly archives"
 msgstr "Maandelijkse/jaarlijkse archieven"
 
 #. placeholder {0}: byline.displayName
-#. placeholder {0}: item.displayName
 #. placeholder {0}: section.title
+#. placeholder {0}: taxonomyDef.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:716
 #: packages/admin/src/components/Sections.tsx:450
-#: packages/admin/src/components/TaxonomyManager.tsx:321
-#: packages/admin/src/components/TaxonomyManager.tsx:1355
-#: packages/admin/src/routes/bylines.tsx:413
+#: packages/admin/src/components/TaxonomyManager.tsx:1225
 msgid "More actions for {0}"
 msgstr "Meer acties voor {0}"
 
@@ -9044,33 +9076,16 @@ msgstr "Meer dan één bericht komt overeen met deze link"
 msgid "Most Popular"
 msgstr "Meest populair"
 
-#. placeholder {0}: field.label
-#: packages/admin/src/routes/byline-schema.tsx:441
-msgid "Move \"{0}\" down"
-msgstr "\"{0}\" omlaag verplaatsen"
-
-#. placeholder {0}: field.label
-#: packages/admin/src/routes/byline-schema.tsx:431
-msgid "Move \"{0}\" up"
-msgstr "\"{0}\" omhoog verplaatsen"
-
-#: packages/admin/src/components/ContentList.tsx:1490
+#: packages/admin/src/components/ContentList.tsx:1617
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "\"{title}\" naar de prullenbak verplaatsen? Je kunt het later terugzetten."
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#. placeholder {0}: term.label
 #: packages/admin/src/components/ContentEditor.tsx:3144
 #: packages/admin/src/components/FieldEditor.tsx:1163
-#: packages/admin/src/components/TaxonomyManager.tsx:463
 msgid "Move {0} down"
 msgstr "{0} omlaag verplaatsen"
-
-#. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:462
-msgid "Move {0} down — unavailable, its parent has no translation in this locale"
-msgstr "{0} omlaag verplaatsen: niet beschikbaar omdat de bovenliggende term geen vertaling in deze taal heeft"
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:312
@@ -9084,28 +9099,17 @@ msgstr "{0} naar achteren verplaatsen"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#. placeholder {0}: term.label
 #: packages/admin/src/components/ContentEditor.tsx:3133
 #: packages/admin/src/components/FieldEditor.tsx:1146
-#: packages/admin/src/components/TaxonomyManager.tsx:450
 msgid "Move {0} up"
 msgstr "{0} omhoog verplaatsen"
 
-#. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:449
-msgid "Move {0} up — unavailable, its parent has no translation in this locale"
-msgstr "{0} omhoog verplaatsen: niet beschikbaar omdat de bovenliggende term geen vertaling in deze taal heeft"
-
 #: packages/admin/src/components/editor/BlockMenu.tsx:212
 #: packages/admin/src/components/MenuEditor.tsx:662
-#: packages/admin/src/components/TaxonomyManager.tsx:345
+#: packages/admin/src/components/TaxonomyManager.tsx:347
+#: packages/admin/src/routes/byline-schema.tsx:462
 msgid "Move down"
 msgstr "Omlaag verplaatsen"
-
-#. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:341
-msgid "Move down {0}"
-msgstr "{0} omlaag verplaatsen"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:534
 msgid "Move the focal point to choose what stays visible in cropped images."
@@ -9119,34 +9123,30 @@ msgstr "Verplaats deze site naar een andere EmDash-installatie of importeer een 
 msgid "Move this site to another EmDash installation, or import a site package into this one."
 msgstr "Verplaats deze site naar een andere EmDash-installatie of importeer een sitepakket in deze site."
 
-#: packages/admin/src/components/ContentList.tsx:647
-#: packages/admin/src/components/ContentList.tsx:1483
+#: packages/admin/src/components/ContentList.tsx:662
+#: packages/admin/src/components/ContentList.tsx:1610
 msgid "Move to trash"
 msgstr "Naar prullenbak verplaatsen"
 
-#: packages/admin/src/components/ContentList.tsx:672
-#: packages/admin/src/components/ContentList.tsx:1503
+#: packages/admin/src/components/ContentList.tsx:687
+#: packages/admin/src/components/ContentList.tsx:1630
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1367
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1387
 msgid "Move to Trash"
 msgstr "Naar prullenbak verplaatsen"
 
-#: packages/admin/src/components/ContentList.tsx:652
-#: packages/admin/src/components/ContentList.tsx:1488
+#: packages/admin/src/components/ContentList.tsx:667
+#: packages/admin/src/components/ContentList.tsx:1615
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1372
 msgid "Move to Trash?"
 msgstr "Naar prullenbak verplaatsen?"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:206
 #: packages/admin/src/components/MenuEditor.tsx:653
-#: packages/admin/src/components/TaxonomyManager.tsx:337
+#: packages/admin/src/components/TaxonomyManager.tsx:339
+#: packages/admin/src/routes/byline-schema.tsx:455
 msgid "Move up"
 msgstr "Omhoog verplaatsen"
-
-#. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:333
-msgid "Move up {0}"
-msgstr "{0} omhoog verplaatsen"
 
 #: packages/admin/src/components/revisions/change-labels.ts:141
 msgid "Moved “{snippet}”"
@@ -9257,14 +9257,14 @@ msgstr "Meerdere keuzes uit opties"
 msgid "My Awesome Blog"
 msgstr "Mijn geweldige blog"
 
-#: packages/admin/src/components/ContentTypeList.tsx:200
+#: packages/admin/src/components/BlockTypeList.tsx:37
+#: packages/admin/src/components/ContentTypeList.tsx:211
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MediaFolderDialog.tsx:131
 #: packages/admin/src/components/MenuList.tsx:164
-#: packages/admin/src/components/TaxonomyManager.tsx:784
-#: packages/admin/src/components/TaxonomyManager.tsx:1050
-#: packages/admin/src/components/TaxonomyManager.tsx:1413
-#: packages/admin/src/components/TaxonomyManager.tsx:1468
+#: packages/admin/src/components/TaxonomyManager.tsx:658
+#: packages/admin/src/components/TaxonomyManager.tsx:924
+#: packages/admin/src/components/TaxonomyManager.tsx:1277
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:152
 #: packages/admin/src/components/users/UserDetail.tsx:159
@@ -9272,11 +9272,11 @@ msgstr "Mijn geweldige blog"
 msgid "Name"
 msgstr "Naam"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:976
+#: packages/admin/src/components/TaxonomyManager.tsx:850
 msgid "Name and label are required"
 msgstr "Naam en label zijn verplicht"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:982
+#: packages/admin/src/components/TaxonomyManager.tsx:856
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "Naam moet beginnen met een letter en mag alleen kleine letters, cijfers en underscores bevatten"
 
@@ -9305,7 +9305,7 @@ msgid "Needs attention"
 msgstr "Vereist aandacht"
 
 #: packages/admin/src/components/users/UserDetail.tsx:249
-#: packages/admin/src/components/users/UserList.tsx:178
+#: packages/admin/src/components/users/UserList.tsx:173
 msgid "Never"
 msgstr "Nooit"
 
@@ -9326,8 +9326,8 @@ msgid "New {singularLower} name"
 msgstr "Naam van nieuwe {singularLower}"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:360
-#: packages/admin/src/routes/bylines.tsx:309
-#: packages/admin/src/routes/bylines.tsx:467
+#: packages/admin/src/routes/bylines.tsx:326
+#: packages/admin/src/routes/bylines.tsx:472
 msgid "New byline"
 msgstr "Nieuwe auteursvermelding"
 
@@ -9340,7 +9340,7 @@ msgid "New collection"
 msgstr "Nieuwe collectie"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:439
-#: packages/admin/src/components/ContentTypeList.tsx:141
+#: packages/admin/src/components/ContentTypeList.tsx:154
 msgid "New Content Type"
 msgstr "Nieuw contenttype"
 
@@ -9348,7 +9348,7 @@ msgstr "Nieuw contenttype"
 msgid "New domain"
 msgstr "Nieuw domein"
 
-#: packages/admin/src/routes/byline-schema.tsx:224
+#: packages/admin/src/routes/byline-schema.tsx:235
 msgid "New field"
 msgstr "Nieuw veld"
 
@@ -9370,7 +9370,7 @@ msgid "New Redirect"
 msgstr "Nieuwe omleiding"
 
 #: packages/admin/src/components/RelationFormPanel.tsx:83
-#: packages/admin/src/components/RelationList.tsx:75
+#: packages/admin/src/components/RelationList.tsx:86
 #: packages/admin/src/components/RelationsPanel.tsx:77
 msgid "New Relation"
 msgstr "Nieuwe relatie"
@@ -9387,11 +9387,11 @@ msgstr "Nieuwe sectie"
 msgid "new tab"
 msgstr "nieuw tabblad"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1366
+#: packages/admin/src/components/TaxonomyManager.tsx:1236
 msgid "New taxonomy"
 msgstr "Nieuwe taxonomie"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1333
+#: packages/admin/src/components/TaxonomyManager.tsx:1203
 msgid "New Taxonomy"
 msgstr "Nieuwe taxonomie"
 
@@ -9411,7 +9411,7 @@ msgstr "Nieuwere versie"
 msgid "Newest"
 msgstr "Nieuwste"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:787
+#: packages/admin/src/components/TaxonomyManager.tsx:661
 msgid "News"
 msgstr "Nieuws"
 
@@ -9424,8 +9424,8 @@ msgstr "Volgende"
 msgid "Next month"
 msgstr "Volgende maand"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:396
-#: packages/admin/src/components/ContentList.tsx:856
+#: packages/admin/src/components/comments/CommentInbox.tsx:427
+#: packages/admin/src/components/ContentList.tsx:875
 #: packages/admin/src/components/ListPaginationFooter.tsx:111
 #: packages/admin/src/components/MediaPickerModal.tsx:1599
 msgid "Next page"
@@ -9445,24 +9445,23 @@ msgstr "Hierna wordt {0} geopend"
 msgid "Next, the browser's passkey window will open"
 msgstr "Hierna wordt het passkeyvenster van je browser geopend"
 
-#: packages/admin/src/components/ContentList.tsx:1523
+#: packages/admin/src/components/ContentList.tsx:1650
 #: packages/admin/src/components/users/UserDetail.tsx:255
-#: packages/admin/src/routes/byline-schema.tsx:424
+#: packages/admin/src/routes/byline-schema.tsx:438
 msgid "No"
 msgstr "Nee"
 
-#: packages/admin/src/routes/byline-schema.tsx:422
+#: packages/admin/src/routes/byline-schema.tsx:435
 msgid "No (shared across translations)"
 msgstr "Nee (gedeeld tussen vertalingen)"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:785
+#: packages/admin/src/components/ContentList.tsx:804
 msgid "No {0} yet."
 msgstr "Nog geen {0}."
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:1405
-#: packages/admin/src/components/TaxonomyManager.tsx:1477
+#: packages/admin/src/components/TaxonomyManager.tsx:1291
 msgid "No {0} yet. Create one to get started."
 msgstr "Nog geen {0}. Maak er een aan om te beginnen."
 
@@ -9483,11 +9482,11 @@ msgstr "Geen alt-tekst"
 msgid "No API tokens yet. Create one to get started."
 msgstr "Nog geen API-tokens. Maak er een aan om te beginnen."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:568
+#: packages/admin/src/components/comments/CommentInbox.tsx:629
 msgid "No approved comments yet."
 msgstr "Nog geen goedgekeurde reacties."
 
-#: packages/admin/src/components/BlockTypeList.tsx:24
+#: packages/admin/src/components/BlockTypeList.tsx:53
 msgid "No block types defined"
 msgstr "Geen bloktypen gedefinieerd"
 
@@ -9507,7 +9506,7 @@ msgstr "Geen vermelding"
 msgid "No byline assigned"
 msgstr "Geen auteursvermelding toegewezen"
 
-#: packages/admin/src/routes/byline-schema.tsx:291
+#: packages/admin/src/routes/byline-schema.tsx:292
 msgid "No byline fields yet."
 msgstr "Nog geen auteursvermeldingsvelden."
 
@@ -9523,7 +9522,7 @@ msgstr "Geen auteursvermeldingen beschikbaar."
 msgid "No bylines found"
 msgstr "Geen auteursvermeldingen gevonden"
 
-#: packages/admin/src/routes/bylines.tsx:447
+#: packages/admin/src/routes/bylines.tsx:452
 msgid "No bylines yet"
 msgstr "Nog geen auteursvermeldingen"
 
@@ -9535,11 +9534,11 @@ msgstr "Geen wijzigingen"
 msgid "No collections configured"
 msgstr "Geen collecties geconfigureerd"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:567
+#: packages/admin/src/components/comments/CommentInbox.tsx:628
 msgid "No comments awaiting moderation."
 msgstr "Geen reacties in afwachting van moderatie."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:577
+#: packages/admin/src/components/comments/CommentInbox.tsx:638
 msgid "No comments match your filters."
 msgstr "Geen reacties komen overeen met je filters."
 
@@ -9555,7 +9554,7 @@ msgstr "Geen content gevonden"
 msgid "No content in this collection"
 msgstr "Geen content in deze collectie"
 
-#: packages/admin/src/components/ContentTypeList.tsx:226
+#: packages/admin/src/components/ContentTypeList.tsx:231
 msgid "No content types yet."
 msgstr "Nog geen contenttypes."
 
@@ -9612,7 +9611,8 @@ msgstr "Geen vervaldatum"
 msgid "No field on this content type uses it yet"
 msgstr "Nog geen veld van dit contenttype gebruikt deze relatie"
 
-#: packages/admin/src/components/RelationList.tsx:198
+#: packages/admin/src/components/RelationList.tsx:188
+#: packages/admin/src/components/RelationList.tsx:211
 msgid "No fields"
 msgstr "Geen velden"
 
@@ -9689,7 +9689,7 @@ msgstr "Geen overeenkomsten. Druk op Enter om “{freeFormLanguage}” te gebrui
 msgid "No matching block types"
 msgstr "Geen overeenkomende bloktypen"
 
-#: packages/admin/src/routes/bylines.tsx:447
+#: packages/admin/src/routes/bylines.tsx:452
 msgid "No matching bylines"
 msgstr "Geen overeenkomende auteursvermeldingen"
 
@@ -9710,7 +9710,7 @@ msgstr "Geen overeenkomende media"
 msgid "No matching passkey found for this account."
 msgstr "Geen overeenkomende passkey gevonden voor dit account."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1430
+#: packages/admin/src/components/TaxonomyManager.tsx:1296
 msgid "No matching tags"
 msgstr "Geen overeenkomende tags"
 
@@ -9805,7 +9805,7 @@ msgstr "Geen referenties geselecteerd."
 msgid "No relations yet"
 msgstr "Nog geen relaties"
 
-#: packages/admin/src/components/RelationList.tsx:116
+#: packages/admin/src/components/RelationList.tsx:118
 msgid "No relations yet."
 msgstr "Nog geen relaties."
 
@@ -9814,8 +9814,8 @@ msgstr "Nog geen relaties."
 msgid "No results"
 msgstr "Geen resultaten"
 
-#: packages/admin/src/components/ContentList.tsx:782
-#: packages/admin/src/components/ContentList.tsx:799
+#: packages/admin/src/components/ContentList.tsx:801
+#: packages/admin/src/components/ContentList.tsx:818
 msgid "No results for \"{activeSearch}\""
 msgstr "Geen resultaten voor \"{activeSearch}\""
 
@@ -9842,7 +9842,7 @@ msgstr "Geen secties gevonden"
 msgid "No sections yet"
 msgstr "Nog geen secties"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:569
+#: packages/admin/src/components/comments/CommentInbox.tsx:630
 msgid "No spam comments."
 msgstr "Geen spamreacties."
 
@@ -9858,11 +9858,11 @@ msgstr "Geen bijgehouden verwijzingen gevonden"
 msgid "No usage to show yet"
 msgstr "Nog geen gebruik om te tonen"
 
-#: packages/admin/src/components/users/UserList.tsx:113
+#: packages/admin/src/components/users/UserList.tsx:116
 msgid "No users found matching your filters."
 msgstr "Geen gebruikers gevonden die voldoen aan je filters."
 
-#: packages/admin/src/components/users/UserList.tsx:127
+#: packages/admin/src/components/users/UserList.tsx:130
 msgid "No users yet."
 msgstr "Nog geen gebruikers."
 
@@ -9878,7 +9878,7 @@ msgstr "Nog geen widgetgebieden. Maak er een aan om te beginnen."
 msgid "No Windows Hello authenticator found"
 msgstr "Geen Windows Hello-authenticator gevonden"
 
-#: packages/admin/src/routes/bylines.tsx:330
+#: packages/admin/src/routes/bylines.tsx:347
 msgid "Non-guest"
 msgstr "Geen gastprofielen"
 
@@ -9887,8 +9887,8 @@ msgstr "Geen gastprofielen"
 msgid "None"
 msgstr "Geen"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:825
-#: packages/admin/src/components/TaxonomyManager.tsx:834
+#: packages/admin/src/components/TaxonomyManager.tsx:699
+#: packages/admin/src/components/TaxonomyManager.tsx:708
 msgid "None (top level)"
 msgstr "Geen (hoogste niveau)"
 
@@ -9908,7 +9908,7 @@ msgstr "Geen overeenkomst"
 msgid "Not recorded in this version"
 msgstr "Niet vastgelegd in deze versie"
 
-#: packages/admin/src/components/ContentList.tsx:1522
+#: packages/admin/src/components/ContentList.tsx:1649
 #: packages/admin/src/components/PluginSettings.tsx:342
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Not set"
@@ -10115,7 +10115,7 @@ msgstr "Optioneel bijschrift dat onder de afbeelding wordt weergegeven"
 msgid "Optional caption for display"
 msgstr "Optioneel bijschrift voor weergave"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:850
+#: packages/admin/src/components/TaxonomyManager.tsx:724
 msgid "Optional description"
 msgstr "Optionele beschrijving"
 
@@ -10157,6 +10157,10 @@ msgstr "Of upload een exportbestand"
 #: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "or upload directly"
 msgstr "of upload direct"
+
+#: packages/admin/src/components/ContentList.tsx:1348
+msgid "Order"
+msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:262
 msgid "Order saved"
@@ -10224,7 +10228,7 @@ msgstr "Hashwaarde van het pakket"
 msgid "Package downloaded"
 msgstr "Pakket gedownload"
 
-#: packages/admin/src/router.tsx:3396
+#: packages/admin/src/router.tsx:3398
 msgid "Page Not Found"
 msgstr "Pagina niet gevonden"
 
@@ -10257,7 +10261,7 @@ msgid "Paragraph inserted before table"
 msgstr "Alinea vóór tabel ingevoegd"
 
 #: packages/admin/src/components/MenuEditor.tsx:766
-#: packages/admin/src/components/TaxonomyManager.tsx:821
+#: packages/admin/src/components/TaxonomyManager.tsx:695
 msgid "Parent"
 msgstr "Bovenliggend item"
 
@@ -10304,7 +10308,7 @@ msgid "Passkey renamed"
 msgstr "Passkey hernoemd"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:140
-#: packages/admin/src/components/users/UserList.tsx:103
+#: packages/admin/src/components/users/UserList.tsx:107
 msgid "Passkeys"
 msgstr "Passkeys"
 
@@ -10397,7 +10401,7 @@ msgstr "PDF"
 msgid "pending"
 msgstr "in afwachting"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:202
+#: packages/admin/src/components/comments/CommentInbox.tsx:234
 msgid "Pending"
 msgstr "In afwachting"
 
@@ -10417,7 +10421,7 @@ msgstr "Per pagina"
 msgid "Period"
 msgstr "Dagdeel"
 
-#: packages/admin/src/components/ContentList.tsx:1665
+#: packages/admin/src/components/ContentList.tsx:1792
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "\"{title}\" permanent verwijderen? Dit kan niet ongedaan worden gemaakt."
 
@@ -10443,8 +10447,8 @@ msgstr "Als dit veld items kiest waarnaar het item verwijst, kunnen bewerkers ze
 
 #. placeholder {0}: relation.childLabel
 #. placeholder {0}: relation.parentLabel
-#: packages/admin/src/components/RelationList.tsx:208
-#: packages/admin/src/components/RelationList.tsx:209
+#: packages/admin/src/components/RelationList.tsx:224
+#: packages/admin/src/components/RelationList.tsx:225
 msgid "picks {0}"
 msgstr "selecteert {0}"
 
@@ -10575,8 +10579,8 @@ msgstr "Plugin Registry"
 msgid "Plugin registry configuration error"
 msgstr "Configuratiefout in pluginregistry"
 
-#: packages/admin/src/router.tsx:2692
-#: packages/admin/src/router.tsx:2723
+#: packages/admin/src/router.tsx:2694
+#: packages/admin/src/router.tsx:2725
 msgid "Plugin registry is not configured."
 msgstr "De pluginregistry is niet geconfigureerd."
 
@@ -10728,8 +10732,8 @@ msgstr "Vorige"
 msgid "Previous month"
 msgstr "Vorige maand"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:377
-#: packages/admin/src/components/ContentList.tsx:844
+#: packages/admin/src/components/comments/CommentInbox.tsx:408
+#: packages/admin/src/components/ContentList.tsx:863
 #: packages/admin/src/components/ListPaginationFooter.tsx:110
 #: packages/admin/src/components/MediaPickerModal.tsx:1598
 msgid "Previous page"
@@ -10800,7 +10804,7 @@ msgstr "Publicatiebeleid heeft ingeplande content geblokkeerd"
 msgid "visualEditing.publish"
 msgstr "Publiceren"
 
-#: packages/admin/src/components/ContentList.tsx:589
+#: packages/admin/src/components/ContentList.tsx:604
 #: packages/admin/src/components/ContentSettingsPanel.tsx:537
 #: packages/admin/src/components/ContentSettingsPanel.tsx:955
 #: packages/admin/src/components/ContentSettingsPanel.tsx:958
@@ -10833,21 +10837,21 @@ msgstr "Nu publiceren?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Content publiceren, depubliceren, inplannen en de planning ervan annuleren"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "Gepubliceerd"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
-#: packages/admin/src/components/ContentList.tsx:984
-#: packages/admin/src/components/ContentList.tsx:995
+#: packages/admin/src/components/ContentList.tsx:1009
+#: packages/admin/src/components/ContentList.tsx:1020
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1504
 msgid "Published"
+msgstr "Gepubliceerd"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "Gepubliceerd"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11143,7 +11147,7 @@ msgstr "Vernieuw de status voordat je doorgaat."
 msgid "Refresh the page or try again."
 msgstr "Vernieuw de pagina of probeer het opnieuw."
 
-#: packages/admin/src/components/ContentTypeList.tsx:178
+#: packages/admin/src/components/ContentTypeList.tsx:191
 msgid "Register"
 msgstr "Registreren"
 
@@ -11170,8 +11174,8 @@ msgstr "Registratie is geannuleerd of verlopen. Probeer het opnieuw."
 msgid "Registry"
 msgstr "Registry"
 
-#: packages/admin/src/components/ContentTypeList.tsx:138
-#: packages/admin/src/components/RelationList.tsx:68
+#: packages/admin/src/components/ContentTypeList.tsx:151
+#: packages/admin/src/components/RelationList.tsx:79
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
@@ -11428,7 +11432,7 @@ msgstr "Naam van menu wijzigen"
 msgid "Rename passkey"
 msgstr "Naam van passkey wijzigen"
 
-#: packages/admin/src/components/ContentTypeList.tsx:196
+#: packages/admin/src/components/ContentTypeList.tsx:208
 msgid "Reorder"
 msgstr "Herschikken"
 
@@ -11437,7 +11441,7 @@ msgstr "Herschikken"
 #. placeholder {0}: collection.label
 #: packages/admin/src/components/BlocksField.tsx:348
 #: packages/admin/src/components/BylineCreditsEditor.tsx:690
-#: packages/admin/src/components/ContentTypeList.tsx:312
+#: packages/admin/src/components/ContentTypeList.tsx:317
 msgid "Reorder {0}"
 msgstr "{0} herschikken"
 
@@ -11567,7 +11571,7 @@ msgstr "Vereis een slug voordat content kan worden gepubliceerd"
 #: packages/admin/src/components/ContentTypeEditor.tsx:954
 #: packages/admin/src/components/FieldEditor.tsx:867
 #: packages/admin/src/components/FieldEditor.tsx:1314
-#: packages/admin/src/routes/byline-schema.tsx:246
+#: packages/admin/src/routes/byline-schema.tsx:254
 msgid "Required"
 msgstr "Verplicht"
 
@@ -11667,7 +11671,7 @@ msgstr "Handle van uitgever opzoeken..."
 msgid "Restart numbering"
 msgstr "Nummering opnieuw beginnen"
 
-#: packages/admin/src/components/ContentList.tsx:1650
+#: packages/admin/src/components/ContentList.tsx:1777
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:129
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:237
 msgid "Restore"
@@ -11723,8 +11727,8 @@ msgstr "Buiten gebruik"
 #: packages/admin/src/components/Sections.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3384
-#: packages/admin/src/routes/byline-schema.tsx:280
+#: packages/admin/src/router.tsx:3386
+#: packages/admin/src/routes/byline-schema.tsx:283
 #: packages/admin/src/routes/calendar.tsx:345
 msgid "Retry"
 msgstr "Opnieuw proberen"
@@ -11786,7 +11790,7 @@ msgstr "Controleren"
 msgid "Review and block publishing, scheduling, and unpublishing content"
 msgstr "Publiceren, inplannen en depubliceren van content beoordelen en blokkeren"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:163
+#: packages/admin/src/components/comments/CommentInbox.tsx:195
 msgid "Review and moderate comments across your content."
 msgstr "Beoordeel en modereer reacties bij al je content."
 
@@ -11882,7 +11886,7 @@ msgstr "robots.txt"
 #: packages/admin/src/components/users/InviteUserModal.tsx:168
 #: packages/admin/src/components/users/UserDetail.tsx:182
 #: packages/admin/src/components/users/UserDetail.tsx:194
-#: packages/admin/src/components/users/UserList.tsx:94
+#: packages/admin/src/components/users/UserList.tsx:98
 msgid "Role"
 msgstr "Rol"
 
@@ -12046,7 +12050,7 @@ msgid "Saved"
 msgstr "Opgeslagen"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/routes/byline-schema.tsx:116
+#: packages/admin/src/routes/byline-schema.tsx:123
 msgid "Saved \"{0}\"."
 msgstr "\"{0}\" opgeslagen."
 
@@ -12069,7 +12073,7 @@ msgstr "Als je hier een collectie opslaat, wordt dit veld een itemkiezer. De opg
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/RelationFormPanel.tsx:112
 #: packages/admin/src/components/SaveButton.tsx:36
-#: packages/admin/src/components/TaxonomyManager.tsx:893
+#: packages/admin/src/components/TaxonomyManager.tsx:767
 #: packages/admin/src/components/users/UserDetail.tsx:330
 #: packages/admin/src/components/Widgets.tsx:1005
 msgid "Saving..."
@@ -12121,7 +12125,7 @@ msgstr "Planning verwijderd"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
-#: packages/admin/src/components/ContentList.tsx:986
+#: packages/admin/src/components/ContentList.tsx:1011
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
 #: packages/admin/src/router.tsx:1607
 msgid "Scheduled"
@@ -12215,12 +12219,12 @@ msgid "Search"
 msgstr "Zoeken"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:550
+#: packages/admin/src/components/ContentList.tsx:567
 msgid "Search {0}"
 msgstr "Zoeken in {0}"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:549
+#: packages/admin/src/components/ContentList.tsx:566
 msgid "Search {0}..."
 msgstr "Zoeken in {0}..."
 
@@ -12245,14 +12249,14 @@ msgstr "Blokken zoeken"
 msgid "Search by filename..."
 msgstr "Zoeken op bestandsnaam..."
 
-#: packages/admin/src/components/users/UserList.tsx:63
+#: packages/admin/src/components/users/UserList.tsx:71
 msgid "Search by name or email..."
 msgstr "Zoeken op naam of e-mailadres..."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:335
 #: packages/admin/src/components/BylineFilter.tsx:128
-#: packages/admin/src/routes/bylines.tsx:317
-#: packages/admin/src/routes/bylines.tsx:318
+#: packages/admin/src/routes/bylines.tsx:334
+#: packages/admin/src/routes/bylines.tsx:335
 msgid "Search bylines"
 msgstr "Auteursvermeldingen zoeken"
 
@@ -12264,11 +12268,11 @@ msgstr "Zoek auteursvermeldingen om toe te voegen…"
 msgid "Search bylines…"
 msgstr "Auteursvermeldingen zoeken…"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:175
+#: packages/admin/src/components/comments/CommentInbox.tsx:207
 msgid "Search comments"
 msgstr "Reacties zoeken"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:157
+#: packages/admin/src/components/comments/CommentInbox.tsx:189
 msgid "Search comments..."
 msgstr "Reacties zoeken..."
 
@@ -12351,11 +12355,11 @@ msgstr "Secties zoeken..."
 msgid "Search source or destination..."
 msgstr "Zoeken op bron of bestemming..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1389
+#: packages/admin/src/components/TaxonomyManager.tsx:1260
 msgid "Search tags"
 msgstr "Tags zoeken"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1388
+#: packages/admin/src/components/TaxonomyManager.tsx:1259
 msgid "Search tags…"
 msgstr "Tags zoeken…"
 
@@ -12375,7 +12379,7 @@ msgstr "Tijdzones zoeken…"
 msgid "Search to narrow the list"
 msgstr "Zoek om de lijst te beperken"
 
-#: packages/admin/src/components/users/UserList.tsx:66
+#: packages/admin/src/components/users/UserList.tsx:74
 msgid "Search users"
 msgstr "Gebruikers zoeken"
 
@@ -12508,7 +12512,7 @@ msgstr "Selecteren"
 msgid "Select {label}"
 msgstr "{label} selecteren"
 
-#: packages/admin/src/components/ContentList.tsx:1382
+#: packages/admin/src/components/ContentList.tsx:1510
 msgid "Select {title}"
 msgstr "{title} selecteren"
 
@@ -12541,11 +12545,8 @@ msgstr "Selecteer een relatie"
 msgid "Select a release before verifying it"
 msgstr "Selecteer een release voordat je deze verifieert"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:321
-msgid "Select all"
-msgstr "Alles selecteren"
-
-#: packages/admin/src/components/ContentList.tsx:721
+#: packages/admin/src/components/comments/CommentInbox.tsx:354
+#: packages/admin/src/components/ContentList.tsx:726
 msgid "Select all on this page"
 msgstr "Alles op deze pagina selecteren"
 
@@ -12558,7 +12559,7 @@ msgid "Select column"
 msgstr "Kolom selecteren"
 
 #. placeholder {0}: comment.authorName
-#: packages/admin/src/components/comments/CommentInbox.tsx:481
+#: packages/admin/src/components/comments/CommentInbox.tsx:542
 msgid "Select comment by {0}"
 msgstr "Reactie van {0} selecteren"
 
@@ -12621,7 +12622,7 @@ msgstr "Rij selecteren"
 msgid "Select table"
 msgstr "Tabel selecteren"
 
-#: packages/admin/src/components/ContentList.tsx:633
+#: packages/admin/src/components/ContentList.tsx:648
 msgid "Select up to 50 posts at a time."
 msgstr "Selecteer maximaal 50 berichten tegelijk."
 
@@ -12776,7 +12777,7 @@ msgstr "Rol instellen"
 msgid "Set to 0 to never close comments automatically."
 msgstr "Stel in op 0 om reacties nooit automatisch te sluiten."
 
-#: packages/admin/src/components/ContentList.tsx:600
+#: packages/admin/src/components/ContentList.tsx:615
 msgid "Set to draft"
 msgstr "Instellen als concept"
 
@@ -13092,22 +13093,23 @@ msgstr "Import van media overslaan"
 msgid "Skipped"
 msgstr "Overgeslagen"
 
+#: packages/admin/src/components/BlockTypeList.tsx:39
 #: packages/admin/src/components/BylineFieldEditor.tsx:234
 #: packages/admin/src/components/BylineFormDialog.tsx:409
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1087
 #: packages/admin/src/components/ContentTypeEditor.tsx:131
 #: packages/admin/src/components/ContentTypeEditor.tsx:489
-#: packages/admin/src/components/ContentTypeList.tsx:203
+#: packages/admin/src/components/ContentTypeList.tsx:213
 #: packages/admin/src/components/FieldEditor.tsx:468
 #: packages/admin/src/components/FieldEditor.tsx:845
 #: packages/admin/src/components/FieldEditor.tsx:1271
 #: packages/admin/src/components/RelationForm.tsx:323
-#: packages/admin/src/components/RelationList.tsx:90
+#: packages/admin/src/components/RelationList.tsx:99
 #: packages/admin/src/components/SectionEditor.tsx:281
 #: packages/admin/src/components/Sections.tsx:204
-#: packages/admin/src/components/TaxonomyManager.tsx:802
-#: packages/admin/src/components/TaxonomyManager.tsx:807
-#: packages/admin/src/routes/byline-schema.tsx:237
+#: packages/admin/src/components/TaxonomyManager.tsx:676
+#: packages/admin/src/components/TaxonomyManager.tsx:681
+#: packages/admin/src/routes/byline-schema.tsx:245
 msgid "Slug"
 msgstr "Slug"
 
@@ -13195,6 +13197,22 @@ msgstr "Sommige verwijzingen wijzen naar content die niet in het pakket staat"
 msgid "Something went wrong"
 msgstr "Er is iets misgegaan"
 
+#: packages/admin/src/components/ContentList.tsx:1310
+msgid "Sort"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1331
+msgid "Sort by"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1312
+msgid "Sort by {label}, ascending"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1313
+msgid "Sort by {label}, descending"
+msgstr ""
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:125
 msgid "Sort plugins"
 msgstr "Plugins sorteren"
@@ -13203,7 +13221,7 @@ msgstr "Plugins sorteren"
 msgid "Sort themes"
 msgstr "Thema's sorteren"
 
-#: packages/admin/src/components/ContentTypeList.tsx:206
+#: packages/admin/src/components/ContentTypeList.tsx:216
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:563
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:568
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:790
@@ -13227,8 +13245,8 @@ msgid "spam"
 msgstr "spam"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:162
-#: packages/admin/src/components/comments/CommentInbox.tsx:233
-#: packages/admin/src/components/comments/CommentInbox.tsx:280
+#: packages/admin/src/components/comments/CommentInbox.tsx:265
+#: packages/admin/src/components/comments/CommentInbox.tsx:311
 msgid "Spam"
 msgstr "Spam"
 
@@ -13308,13 +13326,14 @@ msgstr "Bezig met starten…"
 msgid "State"
 msgstr "Status"
 
-#: packages/admin/src/components/ContentList.tsx:742
+#: packages/admin/src/components/ContentList.tsx:498
+#: packages/admin/src/components/ContentList.tsx:747
 #: packages/admin/src/components/ContentTypeEditor.tsx:137
 #: packages/admin/src/components/Redirects.tsx:524
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:615
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:641
-#: packages/admin/src/components/users/UserList.tsx:97
+#: packages/admin/src/components/users/UserList.tsx:101
 msgid "Status"
 msgstr "Status"
 
@@ -13490,7 +13509,7 @@ msgstr "Overnemen..."
 msgid "Target"
 msgstr "Doel"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:566
+#: packages/admin/src/components/TaxonomyManager.tsx:440
 msgid "Target locale"
 msgstr "Doeltaal"
 
@@ -13513,15 +13532,15 @@ msgstr "Taxonomie"
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr "Taxonomie “{0}” wordt gebruikt door content op deze site"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1569
+#: packages/admin/src/components/TaxonomyManager.tsx:1399
 msgid "Taxonomy created"
 msgstr "Taxonomie aangemaakt"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1200
+#: packages/admin/src/components/TaxonomyManager.tsx:1074
 msgid "Taxonomy deleted"
 msgstr "Taxonomie verwijderd"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:67
+#: packages/admin/src/components/TaxonomyManager.tsx:64
 msgid "Taxonomy not found: {taxonomyName}"
 msgstr "Taxonomie niet gevonden: {taxonomyName}"
 
@@ -13529,7 +13548,7 @@ msgstr "Taxonomie niet gevonden: {taxonomyName}"
 msgid "Taxonomy terms"
 msgstr "Taxonomietermen"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:553
+#: packages/admin/src/components/TaxonomyManager.tsx:427
 msgid "Taxonomy: {taxonomyName}"
 msgstr "Taxonomie: {taxonomyName}"
 
@@ -13550,18 +13569,18 @@ msgid "Template:"
 msgstr "Sjabloon:"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:110
-#: packages/admin/src/components/TaxonomyManager.tsx:758
-#: packages/admin/src/components/TaxonomyManager.tsx:759
-#: packages/admin/src/components/TaxonomyManager.tsx:763
-#: packages/admin/src/components/TaxonomyManager.tsx:764
-#: packages/admin/src/components/TaxonomyManager.tsx:1336
-#: packages/admin/src/components/TaxonomyManager.tsx:1537
+#: packages/admin/src/components/TaxonomyManager.tsx:632
+#: packages/admin/src/components/TaxonomyManager.tsx:633
+#: packages/admin/src/components/TaxonomyManager.tsx:637
+#: packages/admin/src/components/TaxonomyManager.tsx:638
+#: packages/admin/src/components/TaxonomyManager.tsx:1206
+#: packages/admin/src/components/TaxonomyManager.tsx:1367
 msgid "Term"
 msgstr "Term"
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:1260
+#: packages/admin/src/components/TaxonomyManager.tsx:1134
 msgid "Term \"{0}\" created in {1}."
 msgstr "Term \"{0}\" aangemaakt in {1}."
 
@@ -13570,7 +13589,7 @@ msgstr "Term \"{0}\" aangemaakt in {1}."
 msgid "Term assignments"
 msgstr "Termtoewijzingen"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1178
+#: packages/admin/src/components/TaxonomyManager.tsx:1052
 msgid "Term deleted"
 msgstr "Term verwijderd"
 
@@ -13695,7 +13714,7 @@ msgstr "Het bestand is geen geldig EmDash-sitepakket."
 msgid "The file or folder no longer exists."
 msgstr "Het bestand of de map bestaat niet meer."
 
-#: packages/admin/src/components/ContentTypeList.tsx:156
+#: packages/admin/src/components/ContentTypeList.tsx:169
 msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
 msgstr "De volgende tabellen bevatten content maar zijn niet geregistreerd als collecties. Registreer ze om deze content in de admin te beheren."
 
@@ -13874,7 +13893,7 @@ msgstr "De content uit het pakket wordt naar deze site geschreven. Zodra de impo
 msgid "The package’s file index is not valid."
 msgstr "De bestandsindex van het pakket is ongeldig."
 
-#: packages/admin/src/router.tsx:3398
+#: packages/admin/src/router.tsx:3400
 msgid "The page you're looking for doesn't exist."
 msgstr "De pagina die je zoekt bestaat niet."
 
@@ -14333,7 +14352,7 @@ msgstr "Deze omleidingsregel wordt permanent verwijderd."
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "Deze release vereist een nieuwere omgeving dan waar je site momenteel op draait. Voer eerst een upgrade uit voordat je installeert."
 
-#: packages/admin/src/routes/bylines.tsx:533
+#: packages/admin/src/routes/bylines.tsx:538
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "Dit verwijdert het profiel van de auteursvermelding. Auteursvermeldingskoppelingen in content worden verwijderd en leadverwijzingen worden gewist."
 
@@ -14444,7 +14463,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "Dit verplaatst het item naar de prullenbak. Je kunt het later vanuit de prullenbak herstellen."
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1539
+#: packages/admin/src/components/TaxonomyManager.tsx:1369
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "Dit verwijdert \"{0}\" permanent en haalt het uit alle content."
 
@@ -14453,7 +14472,7 @@ msgstr "Dit verwijdert \"{0}\" permanent en haalt het uit alle content."
 msgid "This will permanently delete \"{0}\". This action cannot be undone."
 msgstr "Dit verwijdert \"{0}\" permanent. Deze actie kan niet ongedaan worden gemaakt."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:431
+#: packages/admin/src/components/comments/CommentInbox.tsx:462
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Dit verwijdert deze reactie permanent. Deze actie kan niet ongedaan worden gemaakt."
 
@@ -14486,8 +14505,9 @@ msgstr "Tijden worden weergegeven in {zoneName}. Je browser gebruikt {viewerZone
 msgid "Timezone"
 msgstr "Tijdzone"
 
-#: packages/admin/src/components/ContentList.tsx:731
-#: packages/admin/src/components/ContentList.tsx:888
+#: packages/admin/src/components/ContentList.tsx:497
+#: packages/admin/src/components/ContentList.tsx:736
+#: packages/admin/src/components/ContentList.tsx:907
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
 #: packages/admin/src/components/Widgets.tsx:913
@@ -14582,34 +14602,28 @@ msgid "Transfer"
 msgstr "Overdracht"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:283
-#: packages/admin/src/routes/byline-schema.tsx:243
+#: packages/admin/src/routes/byline-schema.tsx:251
 msgid "Translatable"
 msgstr "Vertaalbaar"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:355
-#: packages/admin/src/components/TaxonomyManager.tsx:478
-#: packages/admin/src/components/TaxonomyManager.tsx:588
+#: packages/admin/src/components/TaxonomyManager.tsx:356
+#: packages/admin/src/components/TaxonomyManager.tsx:462
 #: packages/admin/src/components/TranslationsPanel.tsx:106
 msgid "Translate"
 msgstr "Vertalen"
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:550
+#: packages/admin/src/components/TaxonomyManager.tsx:424
 msgid "Translate \"{0}\""
 msgstr "\"{0}\" vertalen"
 
-#. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:475
-msgid "Translate {0}"
-msgstr "{0} vertalen"
-
-#: packages/admin/src/components/TaxonomyManager.tsx:588
+#: packages/admin/src/components/TaxonomyManager.tsx:462
 #: packages/admin/src/components/TranslationsPanel.tsx:106
 msgid "Translating..."
 msgstr "Vertalen..."
 
 #: packages/admin/src/components/MenuEditor.tsx:148
-#: packages/admin/src/components/TaxonomyManager.tsx:1259
+#: packages/admin/src/components/TaxonomyManager.tsx:1133
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
 #: packages/admin/src/router.tsx:1658
 msgid "Translation created"
@@ -14629,22 +14643,22 @@ msgid "trash"
 msgstr "prullenbak"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:173
-#: packages/admin/src/components/comments/CommentInbox.tsx:249
-#: packages/admin/src/components/comments/CommentInbox.tsx:290
-#: packages/admin/src/components/comments/CommentInbox.tsx:538
-#: packages/admin/src/components/ContentList.tsx:534
+#: packages/admin/src/components/comments/CommentInbox.tsx:281
+#: packages/admin/src/components/comments/CommentInbox.tsx:322
+#: packages/admin/src/components/comments/CommentInbox.tsx:601
+#: packages/admin/src/components/ContentList.tsx:551
 msgid "Trash"
 msgstr "Prullenbak"
 
-#: packages/admin/src/components/ContentList.tsx:905
+#: packages/admin/src/components/ContentList.tsx:930
 msgid "Trash is empty"
 msgstr "Prullenbak is leeg"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:570
+#: packages/admin/src/components/comments/CommentInbox.tsx:631
 msgid "Trash is empty."
 msgstr "Prullenbak is leeg."
 
-#: packages/admin/src/components/ContentList.tsx:935
+#: packages/admin/src/components/ContentList.tsx:960
 msgid "Trash pagination"
 msgstr "Paginering van de prullenbak"
 
@@ -14656,11 +14670,11 @@ msgstr "Waar/onwaar-schakelaar"
 msgid "Try a broader media type or clear your filters."
 msgstr "Probeer een breder mediatype of wis je filters."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:581
+#: packages/admin/src/components/comments/CommentInbox.tsx:642
 msgid "Try a different search or collection filter."
 msgstr "Probeer een andere zoekopdracht of collectiefilter."
 
-#: packages/admin/src/routes/bylines.tsx:451
+#: packages/admin/src/routes/bylines.tsx:456
 msgid "Try a different search or filter."
 msgstr "Probeer een andere zoekopdracht of filter."
 
@@ -14771,8 +14785,8 @@ msgstr "Twee records hebben dezelfde waarde terwijl die uniek moet zijn"
 #: packages/admin/src/components/BylineFieldEditor.tsx:256
 #: packages/admin/src/components/FieldEditor.tsx:1288
 #: packages/admin/src/components/MediaLibrary.tsx:1163
-#: packages/admin/src/routes/byline-schema.tsx:240
-#: packages/admin/src/routes/bylines.tsx:343
+#: packages/admin/src/routes/byline-schema.tsx:248
+#: packages/admin/src/routes/bylines.tsx:359
 msgid "Type"
 msgstr "Type"
 
@@ -14868,7 +14882,7 @@ msgstr "Onbekende auteur"
 msgid "Unknown role"
 msgstr "Onbekende rol"
 
-#: packages/admin/src/routes/bylines.tsx:378
+#: packages/admin/src/routes/bylines.tsx:93
 msgid "Unlinked"
 msgstr "Niet gekoppeld"
 
@@ -14899,7 +14913,7 @@ msgstr "Gedepubliceerd"
 msgid "visualEditing.unpublishedChanges"
 msgstr "Niet-gepubliceerde wijzigingen"
 
-#: packages/admin/src/components/ContentTypeList.tsx:153
+#: packages/admin/src/components/ContentTypeList.tsx:166
 msgid "Unregistered Content Tables Found"
 msgstr "Niet-geregistreerde contenttabellen gevonden"
 
@@ -14931,7 +14945,7 @@ msgid "Unsupported widget element type: {0}"
 msgstr "Niet-ondersteund elementtype voor widget: {0}"
 
 #. placeholder {0}: formatter.format(to)
-#: packages/admin/src/components/ContentList.tsx:1115
+#: packages/admin/src/components/ContentList.tsx:1140
 msgid "Until {0}"
 msgstr "Tot {0}"
 
@@ -14959,7 +14973,7 @@ msgstr "Ongebruikte verwijzingen zijn weggelaten"
 msgid "Up to {MAX_SELECTED} bylines can be selected"
 msgstr "Je kunt maximaal {MAX_SELECTED} auteursvermeldingen selecteren"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:895
+#: packages/admin/src/components/TaxonomyManager.tsx:769
 msgid "Update"
 msgstr "Bijwerken"
 
@@ -14986,7 +15000,7 @@ msgid "Update site settings"
 msgstr "Site-instellingen bijwerken"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:763
+#: packages/admin/src/components/TaxonomyManager.tsx:637
 msgid "Update the {0} details"
 msgstr "Werk de gegevens van de {0} bij"
 
@@ -15008,7 +15022,7 @@ msgstr "Werk deze omleidingsregel bij."
 msgid "Update to v{0}"
 msgstr "Bijwerken naar v{0}"
 
-#: packages/admin/src/components/ContentList.tsx:994
+#: packages/admin/src/components/ContentList.tsx:1019
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1053
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
@@ -15250,7 +15264,7 @@ msgstr "Gebruik een URL die eindigt op een herkende afbeeldingsextensie, zoals .
 msgid "Use another device"
 msgstr "Een ander apparaat gebruiken"
 
-#: packages/admin/src/components/ContentList.tsx:1189
+#: packages/admin/src/components/ContentList.tsx:1214
 msgid "Use as end date"
 msgstr "Als einddatum gebruiken"
 
@@ -15278,7 +15292,7 @@ msgstr "Gebruik je geregistreerde passkey om veilig in te loggen."
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "Wordt gebruikt als fallback Open Graph-afbeelding wanneer een pagina er geen heeft. Aanbevolen formaat: 1200×630."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1063
+#: packages/admin/src/components/TaxonomyManager.tsx:937
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Wordt gebruikt als identifier. Alleen kleine letters, cijfers en underscores."
 
@@ -15307,7 +15321,7 @@ msgstr "Wordt gebruikt om deze sectie te identificeren. Alleen kleine letters, c
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:255
 #: packages/admin/src/components/Header.tsx:44
 #: packages/admin/src/components/Header.tsx:84
-#: packages/admin/src/components/users/UserList.tsx:91
+#: packages/admin/src/components/users/UserList.tsx:96
 msgid "User"
 msgstr "Gebruiker"
 
@@ -15335,7 +15349,7 @@ msgstr "Gebruiker niet gevonden"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:537
-#: packages/admin/src/components/users/UserList.tsx:55
+#: packages/admin/src/components/users/UserList.tsx:63
 msgid "Users"
 msgstr "Gebruikers"
 
@@ -15400,6 +15414,7 @@ msgstr "Je link wordt geverifieerd..."
 msgid "Verifying..."
 msgstr "Verifiëren..."
 
+#: packages/admin/src/components/BlockTypeList.tsx:42
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:120
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:342
 #: packages/admin/src/components/RegistryPluginDetail.tsx:599
@@ -15410,13 +15425,13 @@ msgstr "Versie"
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlocksField.tsx:371
-#: packages/admin/src/components/BlockTypeList.tsx:44
+#: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
 msgstr "Versie {0}"
 
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlockTypeList.tsx:43
+#: packages/admin/src/components/BlockTypeList.tsx:88
 msgid "Version {0} (active)"
 msgstr "Versie {0} (actief)"
 
@@ -15459,7 +15474,7 @@ msgstr "Gepubliceerde versie bekijken"
 msgid "View mode"
 msgstr "Weergavemodus"
 
-#: packages/admin/src/components/ContentList.tsx:1466
+#: packages/admin/src/components/ContentList.tsx:1593
 msgid "View published"
 msgstr ""
 
@@ -15562,7 +15577,7 @@ msgstr "WebAuthn wordt niet ondersteund in deze browser"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:247
 #: packages/admin/src/components/RegistryPluginDetail.tsx:785
-#: packages/admin/src/routes/bylines.tsx:345
+#: packages/admin/src/routes/bylines.tsx:362
 msgid "Website"
 msgstr "Website"
 
@@ -15651,7 +15666,7 @@ msgstr "Wanneer het item is gepubliceerd"
 msgid "Where is it saved?"
 msgstr "Waar wordt die opgeslagen?"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1077
+#: packages/admin/src/components/TaxonomyManager.tsx:951
 msgid "Which content types can use this taxonomy"
 msgstr "Welke contenttypes deze taxonomie kunnen gebruiken"
 
@@ -15783,7 +15798,7 @@ msgstr "WordPress-autorisatie is geweigerd"
 msgid "WordPress Username"
 msgstr "WordPress-gebruikersnaam"
 
-#: packages/admin/src/components/ContentList.tsx:577
+#: packages/admin/src/components/DataTable.tsx:136
 msgid "Working on {selectedCount} items…"
 msgstr "Bezig met {selectedCount} items…"
 
@@ -15835,10 +15850,10 @@ msgstr "YAML"
 msgid "Yearly"
 msgstr "Jaarlijks"
 
-#: packages/admin/src/components/ContentList.tsx:1525
+#: packages/admin/src/components/ContentList.tsx:1652
 #: packages/admin/src/components/users/UserDetail.tsx:255
-#: packages/admin/src/routes/byline-schema.tsx:422
-#: packages/admin/src/routes/byline-schema.tsx:424
+#: packages/admin/src/routes/byline-schema.tsx:435
+#: packages/admin/src/routes/byline-schema.tsx:438
 msgid "Yes"
 msgstr "Ja"
 
@@ -15895,7 +15910,7 @@ msgstr "Je hebt geen rechten om de kalender te bekijken."
 msgid "You have full access to manage this site, including users, settings, and all content."
 msgstr "Je hebt volledige toegang om deze site te beheren, inclusief gebruikers, instellingen en alle content."
 
-#: packages/admin/src/routes/byline-schema.tsx:175
+#: packages/admin/src/routes/byline-schema.tsx:186
 msgid "You need admin permissions to manage byline schema."
 msgstr "Je hebt admin-rechten nodig om het schema voor auteursvermeldingen te beheren."
 

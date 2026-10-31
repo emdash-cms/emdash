@@ -184,7 +184,7 @@ msgstr "(ძალიან ახალი)"
 
 #. placeholder {0}: items.length
 #. placeholder {0}: orphan.rowCount
-#: packages/admin/src/components/ContentTypeList.tsx:169
+#: packages/admin/src/components/ContentTypeList.tsx:182
 #: packages/admin/src/components/RepeaterField.tsx:157
 msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# ელემენტი)} other {(# ელემენტი)}}"
@@ -222,7 +222,7 @@ msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# კომენტარი განახლდა} other {# კომენტარი განახლდა}}"
 
 #. placeholder {0}: comments.length
-#: packages/admin/src/components/comments/CommentInbox.tsx:369
+#: packages/admin/src/components/comments/CommentInbox.tsx:400
 msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# კომენტარი} other {# კომენტარი}}"
 
@@ -239,6 +239,11 @@ msgstr "{0, plural, one {# შიგთავსის ელემენტი 
 #. placeholder {0}: states.length
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:455
 msgid "{0, plural, one {# entry} other {# entries}}"
+msgstr ""
+
+#. placeholder {0}: relation.boundFields.length
+#: packages/admin/src/components/RelationList.tsx:189
+msgid "{0, plural, one {# field} other {# fields}}"
 msgstr ""
 
 #. placeholder {0}: uploadQueue.jobs.filter( (job) => job.status === "queued" || job.status === "uploading", ).length
@@ -265,13 +270,13 @@ msgstr "{0, plural, one {# ელემენტი} other {# ელემენ
 
 #. placeholder {0}: relation.linkCount
 #: packages/admin/src/components/RelationImpact.tsx:53
-#: packages/admin/src/components/RelationList.tsx:217
+#: packages/admin/src/components/RelationList.tsx:185
 #: packages/admin/src/components/RelationsPanel.tsx:197
 msgid "{0, plural, one {# link} other {# links}}"
 msgstr ""
 
 #. placeholder {0}: tagMatches?.matchCount ?? 0
-#: packages/admin/src/components/TaxonomyManager.tsx:1395
+#: packages/admin/src/components/TaxonomyManager.tsx:1266
 msgid "{0, plural, one {# matching tag} other {# matching tags}}"
 msgstr ""
 
@@ -346,11 +351,6 @@ msgstr ""
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {# მწკრივი} other {# მწკრივი}} × {1, plural, one {# სვეტი} other {# სვეტი}} არჩეულია"
 
-#. placeholder {0}: selected.size
-#: packages/admin/src/components/comments/CommentInbox.tsx:261
-msgid "{0, plural, one {# selected} other {# selected}}"
-msgstr "{0, plural, one {# არჩეულია} other {# არჩეულია}}"
-
 #. placeholder {0}: result.skipped
 #: packages/admin/src/components/WordPressImport.tsx:2280
 msgid "{0, plural, one {# skipped (already exists)} other {# skipped (already exist)}}"
@@ -370,6 +370,11 @@ msgstr "{0, plural, one {# ტაქსონომია შეიქმნა}
 #: packages/admin/src/components/MediaPickerModal.tsx:1667
 msgid "{0, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{0, plural, one {# ატვირთვა ვერ მოხერხდა} other {# ატვირთვა ვერ მოხერხდა}}"
+
+#. placeholder {0}: blockType.versions.length
+#: packages/admin/src/components/BlockTypeList.tsx:72
+msgid "{0, plural, one {# version} other {# versions}}"
+msgstr ""
 
 #. placeholder {0}: section.keywords.length - 3
 #: packages/admin/src/components/Sections.tsx:424
@@ -416,6 +421,11 @@ msgstr "{0, plural, one {მედია ფაილი} other {მედია
 msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
 msgstr "{0, plural, one {კიდევ ერთი დაბლოკილი ჩანაწერი არ ჩანს.} other {კიდევ # დაბლოკილი ჩანაწერი არ ჩანს.}}"
 
+#. placeholder {0}: bulkDeleteIds.length
+#: packages/admin/src/components/comments/CommentInbox.tsx:485
+msgid "{0, plural, one {Permanently delete # comment? This cannot be undone.} other {Permanently delete # comments? This cannot be undone.}}"
+msgstr ""
+
 #. placeholder {0}: state.rows
 #: packages/admin/src/components/editor/TableControls.tsx:228
 msgid "{0, plural, one {Row deleted} other {# rows deleted}}"
@@ -449,7 +459,7 @@ msgid "{0} banner"
 msgstr "{0} ბანერი"
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:440
+#: packages/admin/src/components/TaxonomyManager.tsx:330
 msgid "{0} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to."
 msgstr "{0} ვერ გადმოიტანება აქ — მის მშობელს ამ ლოკალში თარგმანი არ აქვს, ამიტომ ეს სია მისი ჯგუფი არ არის."
 
@@ -612,7 +622,7 @@ msgstr "{base} → {0}"
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {# სიმბოლო} other {# სიმბოლო}}"
 
-#: packages/admin/src/components/ContentList.tsx:878
+#: packages/admin/src/components/ContentList.tsx:897
 msgid "{collectionLabel} pagination"
 msgstr ""
 
@@ -677,7 +687,7 @@ msgstr ""
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:1326
+#: packages/admin/src/components/ContentList.tsx:1446
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} ელემენტი} other {#{1} ელემენტი}}"
 
@@ -736,7 +746,7 @@ msgstr ""
 msgid "{lateness} late"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1315
+#: packages/admin/src/components/ContentList.tsx:1435
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# ელემენტი ემთხვევა „{searchQuery}“-ს} other {# ელემენტი ემთხვევა „{searchQuery}“-ს}}"
 
@@ -900,11 +910,11 @@ msgstr "{rows, plural, one {მწკრივი წაიშალა} other {
 msgid "{rows} × {columns} table pasted"
 msgstr "{rows} × {columns} ცხრილი ჩაისვა"
 
-#: packages/admin/src/components/ContentList.tsx:578
+#: packages/admin/src/components/DataTable.tsx:137
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {# არჩეულია} other {# არჩეულია}}"
 
-#: packages/admin/src/components/ContentList.tsx:654
+#: packages/admin/src/components/ContentList.tsx:669
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {გადავიტანოთ # ელემენტი ნაგავში? მოგვიანებით აღდგენა შესაძლებელი იქნება.} other {გადავიტანოთ # ელემენტი ნაგავში? მოგვიანებით აღდგენა შესაძლებელი იქნება.}}"
 
@@ -948,7 +958,7 @@ msgstr ""
 msgid "{title} now goes live {when}."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1321
+#: packages/admin/src/components/ContentList.tsx:1441
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# ელემენტი} other {# ელემენტი}}"
 
@@ -1179,7 +1189,7 @@ msgstr ""
 msgid "A media folder with this name already exists"
 msgstr "ამ სახელით მედია საქაღალდე უკვე არსებობს"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:968
+#: packages/admin/src/components/TaxonomyManager.tsx:842
 msgid "A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr ""
 
@@ -1288,7 +1298,7 @@ msgstr "მოწვევის მიღება"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:305
 #: packages/admin/src/components/settings/TransferSettings.tsx:69
-#: packages/admin/src/routes/byline-schema.tsx:174
+#: packages/admin/src/routes/byline-schema.tsx:185
 msgid "Access denied"
 msgstr "წვდომა აკრძალულია"
 
@@ -1321,21 +1331,35 @@ msgstr "ანგარიშის ინფორმაცია"
 msgid "ACF Fields"
 msgstr "ACF ველები"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:337
-#: packages/admin/src/components/ContentList.tsx:767
-#: packages/admin/src/components/ContentList.tsx:892
-#: packages/admin/src/components/ContentTypeList.tsx:212
-#: packages/admin/src/components/RelationList.tsx:102
-#: packages/admin/src/components/TaxonomyManager.tsx:1416
-#: packages/admin/src/components/TaxonomyManager.tsx:1470
-#: packages/admin/src/routes/byline-schema.tsx:249
-#: packages/admin/src/routes/bylines.tsx:348
+#: packages/admin/src/components/comments/CommentInbox.tsx:365
+#: packages/admin/src/components/ContentList.tsx:775
+#: packages/admin/src/components/ContentList.tsx:917
+#: packages/admin/src/components/ContentTypeList.tsx:222
+#: packages/admin/src/components/RelationList.tsx:110
+#: packages/admin/src/components/TaxonomyManager.tsx:1282
+#: packages/admin/src/routes/byline-schema.tsx:257
+#: packages/admin/src/routes/bylines.tsx:365
 msgid "Actions"
 msgstr "ქმედებები"
 
-#: packages/admin/src/components/ContentList.tsx:1439
-#: packages/admin/src/components/ContentList.tsx:1645
+#. placeholder {0}: collection.label
+#. placeholder {0}: field.label
+#. placeholder {0}: item.displayName
+#: packages/admin/src/components/ContentTypeList.tsx:369
+#: packages/admin/src/components/RelationList.tsx:236
+#: packages/admin/src/components/TaxonomyManager.tsx:316
+#: packages/admin/src/routes/byline-schema.tsx:441
+#: packages/admin/src/routes/bylines.tsx:422
+msgid "Actions for {0}"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1566
+#: packages/admin/src/components/ContentList.tsx:1772
 msgid "Actions for {title}"
+msgstr ""
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:585
+msgid "Actions for comment by {author}"
 msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
@@ -1343,13 +1367,13 @@ msgid "Activation cannot be confirmed. Keep editing paused and refresh the statu
 msgstr "გააქტიურება ვერ დადასტურდა. რედაქტირება შეჩერებული დატოვეთ და განაახლეთ სტატუსი."
 
 #: packages/admin/src/components/users/UserDetail.tsx:219
-#: packages/admin/src/components/users/UserList.tsx:214
+#: packages/admin/src/components/users/UserList.tsx:221
 msgid "Active"
 msgstr "აქტიური"
 
 #. placeholder {0}: blockType.currentVersion
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlockTypeList.tsx:34
+#: packages/admin/src/components/BlockTypeList.tsx:81
 #: packages/admin/src/components/FieldEditor.tsx:1174
 msgid "Active v{0}"
 msgstr ""
@@ -1364,10 +1388,10 @@ msgstr "დამატება"
 #. placeholder {0}: inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
-#: packages/admin/src/components/ContentList.tsx:627
+#: packages/admin/src/components/ContentList.tsx:642
 #: packages/admin/src/components/PortableTextEditor.tsx:2936
-#: packages/admin/src/components/TaxonomyManager.tsx:759
-#: packages/admin/src/components/TaxonomyManager.tsx:1336
+#: packages/admin/src/components/TaxonomyManager.tsx:633
+#: packages/admin/src/components/TaxonomyManager.tsx:1206
 msgid "Add {0}"
 msgstr "{0}-ის დამატება"
 
@@ -1461,7 +1485,7 @@ msgstr "ველის დამატება"
 msgid "Add fields"
 msgstr "ველების დამატება"
 
-#: packages/admin/src/routes/byline-schema.tsx:293
+#: packages/admin/src/routes/byline-schema.tsx:294
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
 msgstr "დაამატეთ ველები, როგორიცაა „თანამდებობა“ ან „ნაცვალსახელები“, ყველა ბაილაინის გასამდიდრებლად."
 
@@ -1507,7 +1531,7 @@ msgstr "დაამატეთ ბმულები ნავიგაცი�
 msgid "Add MIME type or extension"
 msgstr "MIME ტიპის ან გაფართოების დამატება"
 
-#: packages/admin/src/components/ContentList.tsx:516
+#: packages/admin/src/components/ContentList.tsx:533
 msgid "Add New"
 msgstr "ახლის დამატება"
 
@@ -1560,16 +1584,16 @@ msgstr "SEO მეტამონაცემების ველების 
 msgid "Add Sub-Field"
 msgstr "ქვეველის დამატება"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1320
+#: packages/admin/src/components/TaxonomyManager.tsx:1190
 msgid "Add tag"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:628
+#: packages/admin/src/components/ContentList.tsx:643
 msgid "Add term"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1327
-#: packages/admin/src/components/TaxonomyManager.tsx:1343
+#: packages/admin/src/components/TaxonomyManager.tsx:1197
+#: packages/admin/src/components/TaxonomyManager.tsx:1213
 msgid "Add to posts"
 msgstr ""
 
@@ -1751,17 +1775,17 @@ msgstr ""
 msgid "Alignment"
 msgstr "გასწორება"
 
-#: packages/admin/src/components/ContentList.tsx:528
+#: packages/admin/src/components/ContentList.tsx:545
 msgid "All"
 msgstr "ყველა"
 
-#: packages/admin/src/components/ContentList.tsx:1044
-#: packages/admin/src/components/ContentList.tsx:1048
+#: packages/admin/src/components/ContentList.tsx:1069
+#: packages/admin/src/components/ContentList.tsx:1073
 msgid "All authors"
 msgstr "ყველა ავტორი"
 
 #: packages/admin/src/components/BylineFilter.tsx:103
-#: packages/admin/src/routes/bylines.tsx:328
+#: packages/admin/src/routes/bylines.tsx:345
 msgid "All bylines"
 msgstr "ყველა ბაილაინი"
 
@@ -1769,7 +1793,7 @@ msgstr "ყველა ბაილაინი"
 msgid "All capabilities"
 msgstr "ყველა შესაძლებლობა"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:152
+#: packages/admin/src/components/comments/CommentInbox.tsx:184
 msgid "All collections"
 msgstr "ყველა კოლექცია"
 
@@ -1785,8 +1809,8 @@ msgstr "მთელი იმპორტირებული შიგთა�
 msgid "All locales"
 msgstr "ყველა ლოკალი"
 
-#: packages/admin/src/components/users/UserList.tsx:43
-#: packages/admin/src/components/users/UserList.tsx:47
+#: packages/admin/src/components/users/UserList.tsx:51
+#: packages/admin/src/components/users/UserList.tsx:55
 msgid "All roles"
 msgstr "ყველა როლი"
 
@@ -1794,7 +1818,7 @@ msgstr "ყველა როლი"
 msgid "All sources"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:983
+#: packages/admin/src/components/ContentList.tsx:1008
 #: packages/admin/src/components/Redirects.tsx:418
 msgid "All statuses"
 msgstr "ყველა სტატუსი"
@@ -1957,12 +1981,12 @@ msgstr "დაშიფრული ციფრული გასაღებ�
 #: packages/admin/src/router.tsx:2454
 #: packages/admin/src/router.tsx:2470
 #: packages/admin/src/router.tsx:2495
-#: packages/admin/src/router.tsx:2921
-#: packages/admin/src/router.tsx:3106
-#: packages/admin/src/routes/byline-schema.tsx:103
-#: packages/admin/src/routes/byline-schema.tsx:123
-#: packages/admin/src/routes/byline-schema.tsx:139
-#: packages/admin/src/routes/byline-schema.tsx:153
+#: packages/admin/src/router.tsx:2923
+#: packages/admin/src/router.tsx:3108
+#: packages/admin/src/routes/byline-schema.tsx:110
+#: packages/admin/src/routes/byline-schema.tsx:130
+#: packages/admin/src/routes/byline-schema.tsx:146
+#: packages/admin/src/routes/byline-schema.tsx:164
 msgid "An error occurred"
 msgstr "დაფიქსირდა შეცდომა"
 
@@ -1970,7 +1994,7 @@ msgstr "დაფიქსირდა შეცდომა"
 msgid "An import replaces a new site’s starter content, so it only runs on a site with no content of its own. To move content here, set up a new EmDash site and import into that. These are what this site already has:"
 msgstr ""
 
-#: packages/admin/src/routes/byline-schema.tsx:272
+#: packages/admin/src/routes/byline-schema.tsx:275
 msgid "An unexpected error occurred."
 msgstr "დაფიქსირდა მოულოდნელი შეცდომა."
 
@@ -2041,8 +2065,8 @@ msgid "Approval requests"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:151
-#: packages/admin/src/components/comments/CommentInbox.tsx:270
-#: packages/admin/src/components/comments/CommentInbox.tsx:514
+#: packages/admin/src/components/comments/CommentInbox.tsx:300
+#: packages/admin/src/components/comments/CommentInbox.tsx:578
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:118
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:161
 msgid "Approve"
@@ -2068,7 +2092,7 @@ msgstr "დაადასტურეთ იმ მოწყობილობ�
 msgid "approved"
 msgstr "დამტკიცებული"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:218
+#: packages/admin/src/components/comments/CommentInbox.tsx:250
 msgid "Approved"
 msgstr "დამტკიცებული"
 
@@ -2080,7 +2104,7 @@ msgstr ""
 msgid "Arbitrary JSON data"
 msgstr "თვითნებური JSON მონაცემები"
 
-#: packages/admin/src/components/ContentList.tsx:987
+#: packages/admin/src/components/ContentList.tsx:1012
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr "დაარქივებული"
@@ -2096,7 +2120,7 @@ msgid "Are you sure you want to delete \"{0}\"? No stored values reference this 
 msgstr "დარწმუნებული ხართ, რომ გსურთ „{0}“-ის წაშლა? არცერთი შენახული მნიშვნელობა ამ ველზე არ მიუთითებს."
 
 #. placeholder {0}: deleteTarget.label
-#: packages/admin/src/components/ContentTypeList.tsx:255
+#: packages/admin/src/components/ContentTypeList.tsx:258
 msgid "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
 msgstr "დარწმუნებული ხართ, რომ გსურთ „{0}“-ის წაშლა? ამით ასევე წაიშლება მთელი შიგთავსი ამ კოლექციაში."
 
@@ -2112,6 +2136,10 @@ msgstr "დარწმუნებული ხართ, რომ გსუ�
 #: packages/admin/src/components/WelcomeModal.tsx:60
 msgid "As an administrator, you can invite other users from the Users section."
 msgstr "როგორც ადმინისტრატორს, შეგიძლიათ სხვა მომხმარებლები მოიწვიოთ მომხმარებლების სექციიდან."
+
+#: packages/admin/src/components/ContentList.tsx:1350
+msgid "Ascending"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:307
 msgid "Ask an administrator to complete this setup."
@@ -2179,7 +2207,6 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "ავთენტიფიკაცია გაუქმდა ან დრო ამოიწურა. სცადეთ ხელახლა."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/comments/CommentInbox.tsx:325
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1418
 #: packages/admin/src/components/RelationForm.tsx:315
 #: packages/admin/src/components/users/roleDefinitions.ts:30
@@ -2238,7 +2265,7 @@ msgstr "ავტო (სლაგის ცვლილება)"
 msgid "Auto-approve authenticated users"
 msgstr "ავტორიზებული მომხმარებლების კომენტარების ავტომატური დამტკიცება"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:795
+#: packages/admin/src/components/TaxonomyManager.tsx:669
 msgid "Auto-generated from name (you can edit)"
 msgstr "ავტომატურად გენერირდება სახელიდან (შეგიძლიათ შეცვალოთ)"
 
@@ -2310,7 +2337,7 @@ msgid "Back to {collectionLabel} list"
 msgstr "დაბრუნება {collectionLabel}-ის სიაში"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:420
-#: packages/admin/src/components/RelationList.tsx:62
+#: packages/admin/src/components/RelationList.tsx:73
 msgid "Back to Content Types"
 msgstr "დაბრუნება შიგთავსის ტიპებზე"
 
@@ -2447,11 +2474,12 @@ msgstr "ბლოკის ქმედებები — გადალაგ
 msgid "Block type “{0}” was created on this site"
 msgstr ""
 
+#: packages/admin/src/components/BlockTypeList.tsx:45
 #: packages/admin/src/components/settings/transfer/labels.ts:10
 msgid "Block type versions"
 msgstr ""
 
-#: packages/admin/src/components/BlockTypeList.tsx:16
+#: packages/admin/src/components/BlockTypeList.tsx:28
 #: packages/admin/src/components/settings/transfer/labels.ts:9
 msgid "Block types"
 msgstr ""
@@ -2534,16 +2562,16 @@ msgstr ""
 msgid "Bullet List"
 msgstr "მარკირებული სია"
 
-#: packages/admin/src/routes/bylines.tsx:532
+#: packages/admin/src/routes/bylines.tsx:537
 msgid "byline"
 msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:239
-#: packages/admin/src/routes/bylines.tsx:342
+#: packages/admin/src/routes/bylines.tsx:357
 msgid "Byline"
 msgstr "ბაილაინი"
 
-#: packages/admin/src/routes/bylines.tsx:278
+#: packages/admin/src/routes/bylines.tsx:295
 msgid "Byline created"
 msgstr ""
 
@@ -2552,7 +2580,7 @@ msgstr ""
 msgid "Byline credits"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:204
+#: packages/admin/src/routes/bylines.tsx:221
 msgid "Byline deleted"
 msgstr ""
 
@@ -2571,8 +2599,8 @@ msgstr ""
 msgid "Byline fields"
 msgstr ""
 
-#: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:305
+#: packages/admin/src/routes/byline-schema.tsx:229
+#: packages/admin/src/routes/bylines.tsx:322
 msgid "Byline schema"
 msgstr "ბაილაინის სქემა"
 
@@ -2580,7 +2608,7 @@ msgstr "ბაილაინის სქემა"
 msgid "Byline Schema"
 msgstr "ბაილაინის სქემა"
 
-#: packages/admin/src/routes/bylines.tsx:278
+#: packages/admin/src/routes/bylines.tsx:295
 msgid "Byline updated"
 msgstr ""
 
@@ -2591,7 +2619,7 @@ msgstr ""
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:502
-#: packages/admin/src/routes/bylines.tsx:285
+#: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "ბაილაინები"
 
@@ -2636,9 +2664,9 @@ msgstr "შეუძლია შიგთავსის ნახვა"
 #: packages/admin/src/components/BylineFormDialog.tsx:546
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:350
 #: packages/admin/src/components/ConfirmDialog.tsx:102
-#: packages/admin/src/components/ContentList.tsx:663
-#: packages/admin/src/components/ContentList.tsx:1496
-#: packages/admin/src/components/ContentList.tsx:1671
+#: packages/admin/src/components/ContentList.tsx:678
+#: packages/admin/src/components/ContentList.tsx:1623
+#: packages/admin/src/components/ContentList.tsx:1798
 #: packages/admin/src/components/ContentPickerModal.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:359
 #: packages/admin/src/components/ContentSettingsPanel.tsx:550
@@ -2668,9 +2696,9 @@ msgstr "შეუძლია შიგთავსის ნახვა"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:174
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
-#: packages/admin/src/components/TaxonomyManager.tsx:581
-#: packages/admin/src/components/TaxonomyManager.tsx:885
-#: packages/admin/src/components/TaxonomyManager.tsx:1105
+#: packages/admin/src/components/TaxonomyManager.tsx:455
+#: packages/admin/src/components/TaxonomyManager.tsx:759
+#: packages/admin/src/components/TaxonomyManager.tsx:979
 #: packages/admin/src/components/users/InviteUserModal.tsx:202
 #: packages/admin/src/components/Widgets.tsx:461
 #: packages/admin/src/components/WordPressImport.tsx:1974
@@ -3013,8 +3041,8 @@ msgstr "აირჩიეთ ამ მოწყობილობაზე ა
 msgid "Choose a date"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1170
-#: packages/admin/src/components/ContentList.tsx:1176
+#: packages/admin/src/components/ContentList.tsx:1195
+#: packages/admin/src/components/ContentList.tsx:1201
 msgid "Choose a date range"
 msgstr "აირჩიეთ თარიღების დიაპაზონი"
 
@@ -3097,8 +3125,8 @@ msgstr ""
 msgid "Choosing a byline replaces this automatic credit."
 msgstr "ბაილაინის არჩევა ცვლის ამ ავტომატურ მინიჭებას."
 
-#: packages/admin/src/components/ContentList.tsx:685
-#: packages/admin/src/components/ContentList.tsx:1184
+#: packages/admin/src/components/ContentList.tsx:1209
+#: packages/admin/src/components/DataTable.tsx:142
 msgid "Clear"
 msgstr "გასუფთავება"
 
@@ -3109,11 +3137,11 @@ msgstr "დასრულებულების გასუფთავე�
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:79
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:186
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:103
-#: packages/admin/src/components/ContentList.tsx:1089
+#: packages/admin/src/components/ContentList.tsx:1114
 #: packages/admin/src/components/MediaLibrary.tsx:1036
 #: packages/admin/src/components/Sections.tsx:298
-#: packages/admin/src/components/users/UserList.tsx:122
-#: packages/admin/src/routes/bylines.tsx:467
+#: packages/admin/src/components/users/UserList.tsx:125
+#: packages/admin/src/routes/bylines.tsx:472
 msgid "Clear filters"
 msgstr "ფილტრების გასუფთავება"
 
@@ -3123,7 +3151,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:1036
 #: packages/admin/src/components/MediaLibrary.tsx:1076
-#: packages/admin/src/components/TaxonomyManager.tsx:1439
+#: packages/admin/src/components/TaxonomyManager.tsx:1306
 msgid "Clear search"
 msgstr "ძებნის გასუფთავება"
 
@@ -3210,11 +3238,11 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:338
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:348
-#: packages/admin/src/components/TaxonomyManager.tsx:558
-#: packages/admin/src/components/TaxonomyManager.tsx:768
-#: packages/admin/src/components/TaxonomyManager.tsx:776
-#: packages/admin/src/components/TaxonomyManager.tsx:1024
-#: packages/admin/src/components/TaxonomyManager.tsx:1032
+#: packages/admin/src/components/TaxonomyManager.tsx:432
+#: packages/admin/src/components/TaxonomyManager.tsx:642
+#: packages/admin/src/components/TaxonomyManager.tsx:650
+#: packages/admin/src/components/TaxonomyManager.tsx:898
+#: packages/admin/src/components/TaxonomyManager.tsx:906
 #: packages/admin/src/components/TaxonomySidebar.tsx:606
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
@@ -3255,7 +3283,7 @@ msgstr "პარამეტრების დახურვა"
 msgid "Cloudflare's bot protection answered with a challenge page, so EmDash can't reach the EmDash Exporter API. Allow requests to /wp-json/emdash/v1/ (and ?rest_route=/emdash/v1/ on sites without pretty permalinks), for example with a WAF custom rule that skips bot protection, or pause bot protection during the migration, then try again."
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeList.tsx:392
+#: packages/admin/src/components/ContentTypeList.tsx:400
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
 #: packages/admin/src/components/Redirects.tsx:522
 msgid "Code"
@@ -3310,7 +3338,7 @@ msgid "Collection:"
 msgstr "კოლექცია:"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:11
-#: packages/admin/src/components/TaxonomyManager.tsx:1075
+#: packages/admin/src/components/TaxonomyManager.tsx:949
 msgid "Collections"
 msgstr "კოლექციები"
 
@@ -3362,7 +3390,7 @@ msgid "Comma-separated keywords for search."
 msgstr "ძებნისთვის მძიმით გამოყოფილი საკვანძო სიტყვები."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:98
-#: packages/admin/src/components/comments/CommentInbox.tsx:328
+#: packages/admin/src/components/comments/CommentInbox.tsx:357
 msgid "Comment"
 msgstr "კომენტარი"
 
@@ -3375,7 +3403,7 @@ msgstr "კომენტარის დეტალები"
 msgid "Comment reactions"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:162
+#: packages/admin/src/components/comments/CommentInbox.tsx:194
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
@@ -3387,7 +3415,7 @@ msgstr "კომენტარები"
 msgid "Comments from logged-in CMS users are approved automatically"
 msgstr "CMS-ში ავტორიზებული მომხმარებლების კომენტარები ავტომატურად მტკიცდება"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:582
+#: packages/admin/src/components/comments/CommentInbox.tsx:643
 msgid "Comments with this status will appear here."
 msgstr ""
 
@@ -3456,7 +3484,7 @@ msgstr "WordPress-თან დაკავშირება"
 msgid "Connected {0}"
 msgstr "დაკავშირებულია {0}"
 
-#: packages/admin/src/components/RelationList.tsx:93
+#: packages/admin/src/components/RelationList.tsx:101
 msgid "Connects"
 msgstr ""
 
@@ -3466,7 +3494,7 @@ msgstr "შიგთავსი"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:407
 #: packages/admin/src/components/comments/CommentDetail.tsx:106
-#: packages/admin/src/components/comments/CommentInbox.tsx:331
+#: packages/admin/src/components/comments/CommentInbox.tsx:359
 #: packages/admin/src/components/Dashboard.tsx:499
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:690
@@ -3545,7 +3573,7 @@ msgid "Content types"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
-#: packages/admin/src/components/ContentTypeList.tsx:131
+#: packages/admin/src/components/ContentTypeList.tsx:143
 #: packages/admin/src/components/Sidebar.tsx:532
 msgid "Content Types"
 msgstr "შიგთავსის ტიპები"
@@ -3756,7 +3784,7 @@ msgstr ""
 msgid "Couldn’t load approval requests"
 msgstr ""
 
-#: packages/admin/src/routes/byline-schema.tsx:268
+#: packages/admin/src/routes/byline-schema.tsx:271
 msgid "Couldn't load byline fields."
 msgstr "ბაილაინის ველების ჩატვირთვა ვერ მოხერხდა."
 
@@ -3833,8 +3861,7 @@ msgstr ""
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
 msgstr "ვერ დადგინდა, რამდენი მნიშვნელობა მიუთითებს „{0}“-ზე. წაშლა მაინც მოხსნის ამ ველის ყველა შენახულ მნიშვნელობას — თუმცა ზემოთ მოცემული რაოდენობა ვერ შემოწმდა."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1414
-#: packages/admin/src/components/TaxonomyManager.tsx:1469
+#: packages/admin/src/components/TaxonomyManager.tsx:1279
 msgid "Count"
 msgstr "რაოდენობა"
 
@@ -3843,7 +3870,7 @@ msgstr "რაოდენობა"
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuList.tsx:187
 #: packages/admin/src/components/Redirects.tsx:196
-#: packages/admin/src/components/TaxonomyManager.tsx:896
+#: packages/admin/src/components/TaxonomyManager.tsx:770
 #: packages/admin/src/components/Widgets.tsx:464
 msgid "Create"
 msgstr "შექმნა"
@@ -3880,7 +3907,7 @@ msgid "Create a bullet list"
 msgstr "მარკირებული სიის შექმნა"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:764
+#: packages/admin/src/components/TaxonomyManager.tsx:638
 msgid "Create a new {0}"
 msgstr "ახალი {0}-ის შექმნა"
 
@@ -3892,7 +3919,7 @@ msgstr ""
 msgid "Create a numbered list"
 msgstr "დანომრილი სიის შექმნა"
 
-#: packages/admin/src/routes/bylines.tsx:452
+#: packages/admin/src/routes/bylines.tsx:457
 msgid "Create a profile for someone credited on your content."
 msgstr ""
 
@@ -3987,8 +4014,8 @@ msgstr ""
 msgid "Create sections in the Sections library to use them here"
 msgstr "შექმენით სექციები სექციების ბიბლიოთეკაში, რომ აქ გამოიყენოთ"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1018
-#: packages/admin/src/components/TaxonomyManager.tsx:1108
+#: packages/admin/src/components/TaxonomyManager.tsx:892
+#: packages/admin/src/components/TaxonomyManager.tsx:982
 msgid "Create Taxonomy"
 msgstr "ტაქსონომიის შექმნა"
 
@@ -4009,7 +4036,7 @@ msgstr "ვიჯეტის ზონის შექმნა"
 msgid "Create your account"
 msgstr "შექმენით ანგარიში"
 
-#: packages/admin/src/components/ContentTypeList.tsx:228
+#: packages/admin/src/components/ContentTypeList.tsx:233
 msgid "Create your first content type"
 msgstr "შექმენით პირველი შიგთავსის ტიპი"
 
@@ -4017,7 +4044,7 @@ msgstr "შექმენით პირველი შიგთავსი�
 msgid "Create your first navigation menu to get started"
 msgstr "დასაწყებად შექმენით პირველი ნავიგაციის მენიუ"
 
-#: packages/admin/src/components/ContentList.tsx:792
+#: packages/admin/src/components/ContentList.tsx:811
 msgid "Create your first one"
 msgstr "შექმენით პირველი"
 
@@ -4042,7 +4069,7 @@ msgstr "ტაქსონომიის ტერმინების შე�
 msgid "Create, update, delete content"
 msgstr "შიგთავსის შექმნა, განახლება, წაშლა"
 
-#: packages/admin/src/components/ContentList.tsx:993
+#: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1046
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
@@ -4050,7 +4077,7 @@ msgid "Created"
 msgstr "შექმნილია"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/routes/byline-schema.tsx:96
+#: packages/admin/src/routes/byline-schema.tsx:103
 msgid "Created \"{0}\"."
 msgstr "შეიქმნა „{0}“."
 
@@ -4089,7 +4116,7 @@ msgstr "იქმნება მოჭრილი ასლი..."
 #: packages/admin/src/components/RelationFormPanel.tsx:109
 #: packages/admin/src/components/Sections.tsx:234
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:561
-#: packages/admin/src/components/TaxonomyManager.tsx:1108
+#: packages/admin/src/components/TaxonomyManager.tsx:982
 msgid "Creating..."
 msgstr "იქმნება..."
 
@@ -4181,19 +4208,20 @@ msgid "Dark mode variant"
 msgstr "მუქი რეჟიმის ვარიანტი"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:140
-#: packages/admin/src/components/ContentTypeList.tsx:394
+#: packages/admin/src/components/ContentTypeList.tsx:402
 #: packages/admin/src/components/Dashboard.tsx:75
 #: packages/admin/src/components/Sidebar.tsx:436
 #: packages/admin/src/components/Sidebar.tsx:675
 msgid "Dashboard"
 msgstr "დაფა"
 
-#: packages/admin/src/components/BlockTypeList.tsx:18
+#: packages/admin/src/components/BlockTypeList.tsx:31
 msgid "Database-owned definitions available to blocks fields."
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:334
-#: packages/admin/src/components/ContentList.tsx:756
+#: packages/admin/src/components/comments/CommentInbox.tsx:362
+#: packages/admin/src/components/ContentList.tsx:500
+#: packages/admin/src/components/ContentList.tsx:763
 msgid "Date"
 msgstr "თარიღი"
 
@@ -4206,7 +4234,7 @@ msgstr "თარიღი და დრო"
 msgid "Date and time picker"
 msgstr "თარიღისა და დროის ამრჩევი"
 
-#: packages/admin/src/components/ContentList.tsx:1066
+#: packages/admin/src/components/ContentList.tsx:1091
 msgid "Date field to filter on"
 msgstr "ფილტრაციის თარიღის ველი"
 
@@ -4214,7 +4242,7 @@ msgstr "ფილტრაციის თარიღის ველი"
 msgid "Date Format"
 msgstr "თარიღის ფორმატი"
 
-#: packages/admin/src/components/ContentList.tsx:1116
+#: packages/admin/src/components/ContentList.tsx:1141
 msgid "Date range"
 msgstr "თარიღის დიაპაზონი"
 
@@ -4248,19 +4276,19 @@ msgstr "ნაგულისხმევი სოციალური სუ�
 msgid "Default Social Image"
 msgstr "ნაგულისხმევი სოციალური სურათი"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1020
+#: packages/admin/src/components/TaxonomyManager.tsx:894
 msgid "Define a new taxonomy for classifying content"
 msgstr "შიგთავსის კლასიფიკაციისთვის ახალი ტაქსონომიის განსაზღვრა"
 
-#: packages/admin/src/routes/byline-schema.tsx:220
+#: packages/admin/src/routes/byline-schema.tsx:231
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
 msgstr "განსაზღვრეთ ყოველ ბაილაინზე შენახული მორგებული ველები — თანამდებობა, ნაცვალსახელები, სოციალური ჰენდლები და სხვა."
 
-#: packages/admin/src/components/RelationList.tsx:70
+#: packages/admin/src/components/RelationList.tsx:81
 msgid "Define how content types link to each other"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeList.tsx:133
+#: packages/admin/src/components/ContentTypeList.tsx:146
 msgid "Define the structure of your content"
 msgstr "შიგთავსის სტრუქტურის განსაზღვრა"
 
@@ -4269,10 +4297,12 @@ msgid "Defined in code"
 msgstr "კოდში განსაზღვრული"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:536
-#: packages/admin/src/components/comments/CommentInbox.tsx:300
-#: packages/admin/src/components/comments/CommentInbox.tsx:432
+#: packages/admin/src/components/comments/CommentInbox.tsx:337
+#: packages/admin/src/components/comments/CommentInbox.tsx:463
+#: packages/admin/src/components/comments/CommentInbox.tsx:489
 #: packages/admin/src/components/ContentTypeEditor.tsx:868
-#: packages/admin/src/components/ContentTypeList.tsx:258
+#: packages/admin/src/components/ContentTypeList.tsx:261
+#: packages/admin/src/components/ContentTypeList.tsx:387
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:392
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
@@ -4282,13 +4312,16 @@ msgstr "კოდში განსაზღვრული"
 #: packages/admin/src/components/MenuList.tsx:235
 #: packages/admin/src/components/Redirects.tsx:661
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
+#: packages/admin/src/components/RelationList.tsx:250
 #: packages/admin/src/components/Sections.tsx:349
 #: packages/admin/src/components/settings/BackupSettings.tsx:369
-#: packages/admin/src/components/TaxonomyManager.tsx:1541
-#: packages/admin/src/components/TaxonomyManager.tsx:1557
+#: packages/admin/src/components/TaxonomyManager.tsx:366
+#: packages/admin/src/components/TaxonomyManager.tsx:1371
+#: packages/admin/src/components/TaxonomyManager.tsx:1387
 #: packages/admin/src/components/Widgets.tsx:728
 #: packages/admin/src/components/Widgets.tsx:850
 #: packages/admin/src/routes/byline-schema.tsx:378
+#: packages/admin/src/routes/byline-schema.tsx:473
 msgid "Delete"
 msgstr "წაშლა"
 
@@ -4305,15 +4338,15 @@ msgstr "წავშალოთ „{0}“?"
 #. placeholder {0}: archive.name
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
-#: packages/admin/src/components/ContentTypeList.tsx:377
-#: packages/admin/src/components/RelationList.tsx:230
+#: packages/admin/src/components/ContentTypeList.tsx:384
+#: packages/admin/src/components/RelationList.tsx:247
 #: packages/admin/src/components/RelationsPanel.tsx:212
 #: packages/admin/src/components/Sections.tsx:465
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:275
 #: packages/admin/src/components/settings/BackupSettings.tsx:329
-#: packages/admin/src/components/TaxonomyManager.tsx:492
+#: packages/admin/src/components/TaxonomyManager.tsx:363
 #: packages/admin/src/components/Widgets.tsx:824
-#: packages/admin/src/routes/byline-schema.tsx:460
+#: packages/admin/src/routes/byline-schema.tsx:470
 msgid "Delete {0}"
 msgstr "{0}-ის წაშლა"
 
@@ -4334,8 +4367,8 @@ msgstr "{0} ვიჯეტის ზონის წაშლა"
 
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/TaxonomyManager.tsx:1537
-#: packages/admin/src/routes/bylines.tsx:532
+#: packages/admin/src/components/TaxonomyManager.tsx:1367
+#: packages/admin/src/routes/bylines.tsx:537
 msgid "Delete {0}?"
 msgstr "წავშალოთ {0}?"
 
@@ -4348,13 +4381,13 @@ msgstr "წავშალოთ სარეზერვო ასლი?"
 msgid "Delete block"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:427
-#: packages/admin/src/routes/bylines.tsx:534
+#: packages/admin/src/routes/bylines.tsx:436
+#: packages/admin/src/routes/bylines.tsx:539
 msgid "Delete byline"
 msgstr ""
 
 #. placeholder {0}: item.displayName
-#: packages/admin/src/routes/bylines.tsx:424
+#: packages/admin/src/routes/bylines.tsx:433
 msgid "Delete byline {0}"
 msgstr ""
 
@@ -4370,11 +4403,11 @@ msgstr "სვეტის წაშლა"
 msgid "Delete columns"
 msgstr "სვეტების წაშლა"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:430
+#: packages/admin/src/components/comments/CommentInbox.tsx:461
 msgid "Delete Comment?"
 msgstr "წავშალოთ კომენტარი?"
 
-#: packages/admin/src/components/ContentTypeList.tsx:252
+#: packages/admin/src/components/ContentTypeList.tsx:255
 msgid "Delete Content Type?"
 msgstr "წავშალოთ შიგთავსის ტიპი?"
 
@@ -4413,17 +4446,18 @@ msgstr ""
 msgid "Delete menu item?"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:550
-#: packages/admin/src/components/ContentList.tsx:1658
+#: packages/admin/src/components/comments/CommentInbox.tsx:613
+#: packages/admin/src/components/ContentList.tsx:1785
 msgid "Delete permanently"
 msgstr "სამუდამოდ წაშლა"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:185
-#: packages/admin/src/components/ContentList.tsx:1680
+#: packages/admin/src/components/ContentList.tsx:1807
 msgid "Delete Permanently"
 msgstr "სამუდამოდ წაშლა"
 
-#: packages/admin/src/components/ContentList.tsx:1663
+#: packages/admin/src/components/comments/CommentInbox.tsx:484
+#: packages/admin/src/components/ContentList.tsx:1790
 msgid "Delete Permanently?"
 msgstr "სამუდამოდ წავშალოთ?"
 
@@ -4460,20 +4494,11 @@ msgstr "წავშალოთ სექცია?"
 msgid "Delete table"
 msgstr "ცხრილის წაშლა"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:364
-msgid "Delete tag"
-msgstr ""
-
-#. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:361
-msgid "Delete tag {0}"
-msgstr ""
-
-#: packages/admin/src/components/TaxonomyManager.tsx:1376
+#: packages/admin/src/components/TaxonomyManager.tsx:1246
 msgid "Delete taxonomy"
 msgstr "ტაქსონომიის წაშლა"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1555
+#: packages/admin/src/components/TaxonomyManager.tsx:1385
 msgid "Delete Taxonomy"
 msgstr "ტაქსონომიის წაშლა"
 
@@ -4490,12 +4515,12 @@ msgstr "წავშალოთ ვიჯეტის ზონა?"
 msgid "Delete widget?"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:890
+#: packages/admin/src/components/ContentList.tsx:914
 msgid "Deleted"
 msgstr "წაშლილია"
 
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1556
+#: packages/admin/src/components/TaxonomyManager.tsx:1386
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
 msgstr "„{0}“-ის წაშლა ასევე წაშლის მასში არსებულ ყველა ტერმინს, ყველა ენაზე, და მოხსნის ამ ტერმინებს მათ ქვეშ მოქცეული შიგთავსიდან. თავად ჩანაწერები შენარჩუნდება. ვერ დაბრუნდება."
 
@@ -4505,9 +4530,10 @@ msgstr "„{0}“-ის წაშლა ასევე წაშლის მ�
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "„{0}“-ის წაშლა ასევე მოხსნის {1, plural, one {# შენახულ მნიშვნელობას} other {# შენახულ მნიშვნელობას}} ყველა ბაილაინზე. ვერ დაბრუნდება."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:433
+#: packages/admin/src/components/comments/CommentInbox.tsx:464
+#: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentTypeEditor.tsx:869
-#: packages/admin/src/components/ContentTypeList.tsx:259
+#: packages/admin/src/components/ContentTypeList.tsx:262
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaDetailPanel.tsx:1933
 #: packages/admin/src/components/MediaFolderDialog.tsx:185
@@ -4517,11 +4543,11 @@ msgstr "„{0}“-ის წაშლა ასევე მოხსნის {
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:350
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
-#: packages/admin/src/components/TaxonomyManager.tsx:1542
-#: packages/admin/src/components/TaxonomyManager.tsx:1558
+#: packages/admin/src/components/TaxonomyManager.tsx:1372
+#: packages/admin/src/components/TaxonomyManager.tsx:1388
 #: packages/admin/src/components/Widgets.tsx:729
 #: packages/admin/src/components/Widgets.tsx:851
-#: packages/admin/src/routes/bylines.tsx:535
+#: packages/admin/src/routes/bylines.tsx:540
 msgid "Deleting..."
 msgstr "იშლება..."
 
@@ -4555,6 +4581,10 @@ msgstr "მიმდინარეობს დაქვეითება..."
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:108
 msgid "Deny"
 msgstr "უარყოფა"
+
+#: packages/admin/src/components/ContentList.tsx:1354
+msgid "Descending"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:66
@@ -4591,7 +4621,7 @@ msgstr "აღწერეთ, რისთვისაა ეს სექც�
 msgid "Description"
 msgstr "აღწერა"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:847
+#: packages/admin/src/components/TaxonomyManager.tsx:721
 msgid "Description (optional)"
 msgstr "აღწერა (არასავალდებულო)"
 
@@ -4672,7 +4702,7 @@ msgstr "გამოვრთოთ მომხმარებელი?"
 #: packages/admin/src/components/PluginManager.tsx:460
 #: packages/admin/src/components/Redirects.tsx:418
 #: packages/admin/src/components/users/UserDetail.tsx:214
-#: packages/admin/src/components/users/UserList.tsx:209
+#: packages/admin/src/components/users/UserList.tsx:178
 msgid "Disabled"
 msgstr "გამორთული"
 
@@ -4829,7 +4859,7 @@ msgstr ""
 
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
-#: packages/admin/src/components/ContentList.tsx:1192
+#: packages/admin/src/components/ContentList.tsx:1217
 #: packages/admin/src/components/MediaUploadDialog.tsx:335
 #: packages/admin/src/components/users/InviteUserModal.tsx:145
 #: packages/admin/src/components/WordPressImport.tsx:2185
@@ -4904,7 +4934,7 @@ msgid "visualEditing.draft"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
-#: packages/admin/src/components/ContentList.tsx:985
+#: packages/admin/src/components/ContentList.tsx:1010
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "მონახაზი"
@@ -4991,7 +5021,7 @@ msgstr "ჩააგდეთ ვიჯეტის დასამატებ�
 msgid "Drop your WordPress export file here"
 msgstr "WordPress-ის ექსპორტის ფაილი აქ ჩააგდეთ"
 
-#: packages/admin/src/components/ContentList.tsx:1474
+#: packages/admin/src/components/ContentList.tsx:1601
 #: packages/admin/src/components/editor/BlockMenu.tsx:201
 msgid "Duplicate"
 msgstr "დუბლირება"
@@ -5037,32 +5067,36 @@ msgstr ""
 msgid "Earliest saved version"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1451
+#: packages/admin/src/components/ContentList.tsx:1578
+#: packages/admin/src/components/ContentTypeList.tsx:376
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:669
+#: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:439
 #: packages/admin/src/components/Shell.tsx:87
+#: packages/admin/src/components/TaxonomyManager.tsx:321
 #: packages/admin/src/components/TranslationsPanel.tsx:95
+#: packages/admin/src/routes/byline-schema.tsx:446
+#: packages/admin/src/routes/bylines.tsx:427
 msgid "Edit"
 msgstr "რედაქტირება"
 
 #. placeholder {0}: block?.label || ""
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
-#: packages/admin/src/components/ContentTypeList.tsx:368
+#: packages/admin/src/components/ContentTypeList.tsx:373
 #: packages/admin/src/components/PortableTextEditor.tsx:2694
 #: packages/admin/src/components/RelationFormPanel.tsx:83
-#: packages/admin/src/components/RelationList.tsx:223
+#: packages/admin/src/components/RelationList.tsx:194
 #: packages/admin/src/components/RelationsPanel.tsx:203
 #: packages/admin/src/components/Sections.tsx:437
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:263
-#: packages/admin/src/components/TaxonomyManager.tsx:309
-#: packages/admin/src/components/TaxonomyManager.tsx:484
-#: packages/admin/src/components/TaxonomyManager.tsx:758
-#: packages/admin/src/routes/byline-schema.tsx:451
-#: packages/admin/src/routes/bylines.tsx:401
+#: packages/admin/src/components/TaxonomyManager.tsx:304
+#: packages/admin/src/components/TaxonomyManager.tsx:632
+#: packages/admin/src/routes/byline-schema.tsx:424
+#: packages/admin/src/routes/bylines.tsx:379
 msgid "Edit {0}"
 msgstr "{0}-ის რედაქტირება"
 
@@ -5555,8 +5589,8 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:160
 #: packages/admin/src/components/MenuEditor.tsx:268
 #: packages/admin/src/components/SetupWizard.tsx:603
-#: packages/admin/src/components/TaxonomyManager.tsx:1213
-#: packages/admin/src/router.tsx:3381
+#: packages/admin/src/components/TaxonomyManager.tsx:1087
+#: packages/admin/src/router.tsx:3383
 msgid "Error"
 msgstr "შეცდომა"
 
@@ -5604,7 +5638,7 @@ msgstr "ყველგან, სადაც ეს სურათი გა�
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr "ამ პლაგინის ყველა გამოქვეყნებული გამოშვება გაწვეულია ან ვერ დადასტურდა. შეამოწმეთ მოგვიანებით ან დაუკავშირდით გამომცემელს."
 
-#: packages/admin/src/components/ContentTypeList.tsx:272
+#: packages/admin/src/components/ContentTypeList.tsx:275
 msgid "Every relationship this content type takes part in goes too:"
 msgstr ""
 
@@ -5847,7 +5881,7 @@ msgid "Failed to create content"
 msgstr ""
 
 #: packages/admin/src/lib/api/schema.ts:432
-#: packages/admin/src/routes/byline-schema.tsx:102
+#: packages/admin/src/routes/byline-schema.tsx:109
 msgid "Failed to create field"
 msgstr "ველის შექმნა ვერ მოხერხდა"
 
@@ -5946,7 +5980,7 @@ msgid "Failed to delete content"
 msgstr "შიგთავსის წაშლა ვერ მოხერხდა"
 
 #: packages/admin/src/lib/api/schema.ts:473
-#: packages/admin/src/routes/byline-schema.tsx:138
+#: packages/admin/src/routes/byline-schema.tsx:145
 msgid "Failed to delete field"
 msgstr "ველის წაშლა ვერ მოხერხდა"
 
@@ -6393,7 +6427,7 @@ msgid "Failed to load backup settings"
 msgstr "სარეზერვო ასლის პარამეტრების ჩატვირთვა ვერ მოხერხდა"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:249
+#: packages/admin/src/routes/bylines.tsx:266
 msgid "Failed to load bylines: {0}"
 msgstr "ბაილაინების ჩატვირთვა ვერ მოხერხდა: {0}"
 
@@ -6521,7 +6555,7 @@ msgstr ""
 msgid "Failed to read byline field usage"
 msgstr "ბაილაინის ველის გამოყენების წაკითხვა ვერ მოხერხდა"
 
-#: packages/admin/src/router.tsx:2920
+#: packages/admin/src/router.tsx:2922
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -6560,7 +6594,7 @@ msgid "Failed to reorder content types"
 msgstr "შიგთავსის ტიპების გადალაგება ვერ მოხერხდა"
 
 #: packages/admin/src/lib/api/schema.ts:488
-#: packages/admin/src/routes/byline-schema.tsx:152
+#: packages/admin/src/routes/byline-schema.tsx:163
 msgid "Failed to reorder fields"
 msgstr "ველების გადალაგება ვერ მოხერხდა"
 
@@ -6604,7 +6638,7 @@ msgstr "URL-ების გადაწერა ვერ მოხერხ�
 
 #: packages/admin/src/router.tsx:919
 #: packages/admin/src/router.tsx:1350
-#: packages/admin/src/router.tsx:3105
+#: packages/admin/src/router.tsx:3107
 msgid "Failed to save"
 msgstr "შენახვა ვერ მოხერხდა"
 
@@ -6612,7 +6646,7 @@ msgstr "შენახვა ვერ მოხერხდა"
 msgid "Failed to save backup settings"
 msgstr "სარეზერვო ასლის პარამეტრების შენახვა ვერ მოხერხდა"
 
-#: packages/admin/src/routes/byline-schema.tsx:122
+#: packages/admin/src/routes/byline-schema.tsx:129
 msgid "Failed to save field"
 msgstr "ველის შენახვა ვერ მოხერხდა"
 
@@ -6837,7 +6871,7 @@ msgid "Featured Images"
 msgstr "რჩეული სურათები"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:616
-#: packages/admin/src/components/ContentTypeList.tsx:209
+#: packages/admin/src/components/ContentTypeList.tsx:219
 msgid "Features"
 msgstr "ფუნქციები"
 
@@ -6845,11 +6879,11 @@ msgstr "ფუნქციები"
 msgid "Fetching content from the EmDash Exporter API."
 msgstr "შიგთავსი იტვირთება EmDash Exporter API-დან."
 
-#: packages/admin/src/routes/byline-schema.tsx:95
+#: packages/admin/src/routes/byline-schema.tsx:102
 msgid "Field created"
 msgstr "ველი შეიქმნა"
 
-#: packages/admin/src/routes/byline-schema.tsx:133
+#: packages/admin/src/routes/byline-schema.tsx:140
 msgid "Field deleted"
 msgstr "ველი წაიშალა"
 
@@ -6869,7 +6903,7 @@ msgstr "ველის სლაგები შექმნის შემდ
 msgid "Field type cannot be changed after creation."
 msgstr "ველის ტიპი შექმნის შემდეგ ვერ შეიცვლება."
 
-#: packages/admin/src/routes/byline-schema.tsx:115
+#: packages/admin/src/routes/byline-schema.tsx:122
 msgid "Field updated"
 msgstr "ველი განახლდა"
 
@@ -6878,7 +6912,7 @@ msgid "field_slug"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:757
-#: packages/admin/src/components/RelationList.tsx:96
+#: packages/admin/src/components/RelationList.tsx:104
 #: packages/admin/src/components/settings/transfer/labels.ts:12
 msgid "Fields"
 msgstr "ველები"
@@ -6922,7 +6956,7 @@ msgstr ""
 msgid "Filter"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1040
+#: packages/admin/src/components/ContentList.tsx:1065
 msgid "Filter by author"
 msgstr "ავტორის მიხედვით ფილტრი"
 
@@ -6934,11 +6968,11 @@ msgstr "ბაილაინის მიხედვით ფილტრი"
 msgid "Filter by capability"
 msgstr "შესაძლებლობის მიხედვით ფილტრი"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:185
+#: packages/admin/src/components/comments/CommentInbox.tsx:217
 msgid "Filter by collection"
 msgstr "კოლექციის მიხედვით ფილტრი"
 
-#: packages/admin/src/components/ContentList.tsx:1162
+#: packages/admin/src/components/ContentList.tsx:1187
 msgid "Filter by date range: {rangeLabel}"
 msgstr "ფილტრი თარიღის დიაპაზონით: {rangeLabel}"
 
@@ -6946,7 +6980,7 @@ msgstr "ფილტრი თარიღის დიაპაზონით:
 msgid "Filter by group"
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:75
+#: packages/admin/src/components/users/UserList.tsx:83
 msgid "Filter by role"
 msgstr "როლის მიხედვით ფილტრი"
 
@@ -6954,7 +6988,7 @@ msgstr "როლის მიხედვით ფილტრი"
 msgid "Filter by source"
 msgstr "წყაროს მიხედვით ფილტრი"
 
-#: packages/admin/src/components/ContentList.tsx:1022
+#: packages/admin/src/components/ContentList.tsx:1047
 #: packages/admin/src/components/Redirects.tsx:419
 msgid "Filter by status"
 msgstr "სტატუსის მიხედვით ფილტრი"
@@ -6965,7 +6999,7 @@ msgstr "სტატუსის მიხედვით ფილტრი"
 msgid "Filter by type"
 msgstr "ტიპის მიხედვით ფილტრი"
 
-#: packages/admin/src/routes/bylines.tsx:324
+#: packages/admin/src/routes/bylines.tsx:341
 msgid "Filter byline type"
 msgstr "ბაილაინის ტიპის ფილტრი"
 
@@ -7085,7 +7119,7 @@ msgid "Freeform"
 msgstr "თავისუფალი ფორმა"
 
 #. placeholder {0}: formatter.format(from)
-#: packages/admin/src/components/ContentList.tsx:1113
+#: packages/admin/src/components/ContentList.tsx:1138
 msgid "From {0}"
 msgstr "{0}-დან"
 
@@ -7138,7 +7172,7 @@ msgstr "ზოგადი"
 msgid "General Settings"
 msgstr "ზოგადი პარამეტრები"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1043
+#: packages/admin/src/components/TaxonomyManager.tsx:917
 msgid "Genres"
 msgstr "ჟანრები"
 
@@ -7171,7 +7205,7 @@ msgid "Go live {countdown}"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3401
+#: packages/admin/src/router.tsx:3403
 msgid "Go to Dashboard"
 msgstr "დაფაზე გადასვლა"
 
@@ -7213,7 +7247,7 @@ msgstr "ჯგუფი (სურვილისამებრ)"
 msgid "Group by"
 msgstr "დაჯგუფება"
 
-#: packages/admin/src/routes/bylines.tsx:378
+#: packages/admin/src/routes/bylines.tsx:93
 msgid "Guest"
 msgstr ""
 
@@ -7221,7 +7255,7 @@ msgstr ""
 msgid "Guest byline"
 msgstr "სტუმრის ბაილაინი"
 
-#: packages/admin/src/routes/bylines.tsx:329
+#: packages/admin/src/routes/bylines.tsx:346
 msgid "Guest only"
 msgstr "მხოლოდ სტუმრები"
 
@@ -7334,7 +7368,7 @@ msgstr "ხელსაწყოთა ზოლის დამალვა"
 msgid "Hide toolbar"
 msgstr "ხელსაწყოთა ზოლის დამალვა"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1068
+#: packages/admin/src/components/TaxonomyManager.tsx:942
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "იერარქიული (კატეგორიების მსგავსად, მშობელი/შვილი ურთიერთობებით)"
 
@@ -7377,7 +7411,7 @@ msgstr "საათი"
 msgid "How do you want to start?"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:797
+#: packages/admin/src/components/TaxonomyManager.tsx:671
 msgid "How is the slug generated?"
 msgstr ""
 
@@ -7933,7 +7967,7 @@ msgid "Invite Link Created"
 msgstr "მოწვევის ბმული შეიქმნა"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:79
-#: packages/admin/src/components/users/UserList.tsx:57
+#: packages/admin/src/components/users/UserList.tsx:65
 msgid "Invite User"
 msgstr "მომხმარებლის მოწვევა"
 
@@ -7941,7 +7975,7 @@ msgstr "მომხმარებლის მოწვევა"
 msgid "Invite validation failed"
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:133
+#: packages/admin/src/components/users/UserList.tsx:132
 msgid "Invite your first team member"
 msgstr "მოიწვიეთ გუნდის პირველი წევრი"
 
@@ -8097,9 +8131,9 @@ msgstr "Kotlin"
 #: packages/admin/src/components/MenuEditor.tsx:521
 #: packages/admin/src/components/MenuEditor.tsx:736
 #: packages/admin/src/components/MenuList.tsx:153
-#: packages/admin/src/components/TaxonomyManager.tsx:1040
+#: packages/admin/src/components/TaxonomyManager.tsx:914
 #: packages/admin/src/components/Widgets.tsx:446
-#: packages/admin/src/routes/byline-schema.tsx:234
+#: packages/admin/src/routes/byline-schema.tsx:243
 msgid "Label"
 msgstr "იარლიყი"
 
@@ -8139,7 +8173,7 @@ msgstr "ბოლოს ჩართულია:"
 msgid "Last login"
 msgstr "ბოლო შესვლა"
 
-#: packages/admin/src/components/users/UserList.tsx:100
+#: packages/admin/src/components/users/UserList.tsx:104
 msgid "Last Login"
 msgstr "ბოლო შესვლა"
 
@@ -8260,7 +8294,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:460
 #: packages/admin/src/components/BylineFormDialog.tsx:461
-#: packages/admin/src/routes/bylines.tsx:378
+#: packages/admin/src/routes/bylines.tsx:93
 msgid "Linked user"
 msgstr "დაკავშირებული მომხმარებელი"
 
@@ -8280,7 +8314,7 @@ msgstr ""
 msgid "Linking side (singular)"
 msgstr ""
 
-#: packages/admin/src/components/RelationList.tsx:99
+#: packages/admin/src/components/RelationList.tsx:107
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:210
 msgid "Links"
 msgstr "ბმულები"
@@ -8335,14 +8369,14 @@ msgstr "ცოცხალი გადახედვა"
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:486
+#: packages/admin/src/routes/bylines.tsx:491
 msgid "Load more"
 msgstr "მეტის ჩატვირთვა"
 
-#: packages/admin/src/components/ContentList.tsx:868
-#: packages/admin/src/components/ContentList.tsx:925
+#: packages/admin/src/components/ContentList.tsx:887
+#: packages/admin/src/components/ContentList.tsx:950
 #: packages/admin/src/components/MediaLibrary.tsx:1269
-#: packages/admin/src/components/users/UserList.tsx:162
+#: packages/admin/src/components/users/UserList.tsx:157
 msgid "Load More"
 msgstr "მეტის ჩატვირთვა"
 
@@ -8358,7 +8392,7 @@ msgid "Load preview"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3356
+#: packages/admin/src/router.tsx:3358
 msgid "Loading"
 msgstr "იტვირთება"
 
@@ -8370,25 +8404,25 @@ msgstr ""
 msgid "Loading approval requests…"
 msgstr ""
 
-#: packages/admin/src/components/BlockTypeList.tsx:22
+#: packages/admin/src/components/BlockTypeList.tsx:51
 #: packages/admin/src/components/FieldEditor.tsx:1091
 msgid "Loading block types…"
 msgstr ""
 
-#: packages/admin/src/routes/byline-schema.tsx:257
+#: packages/admin/src/routes/byline-schema.tsx:263
 msgid "Loading byline fields…"
 msgstr "ბაილაინის ველები იტვირთება…"
 
-#: packages/admin/src/components/ContentTypeList.tsx:220
+#: packages/admin/src/components/ContentTypeList.tsx:228
 msgid "Loading collections..."
 msgstr "კოლექციები იტვირთება..."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:309
+#: packages/admin/src/components/comments/CommentInbox.tsx:371
 msgid "Loading comments..."
 msgstr "კომენტარები იტვირთება..."
 
-#: packages/admin/src/router.tsx:3358
-#: packages/admin/src/router.tsx:3370
+#: packages/admin/src/router.tsx:3360
+#: packages/admin/src/router.tsx:3372
 msgid "Loading configuration..."
 msgstr "კონფიგურაცია იტვირთება..."
 
@@ -8450,7 +8484,7 @@ msgstr "გადამისამართებები იტვირთ�
 msgid "Loading references..."
 msgstr ""
 
-#: packages/admin/src/components/RelationList.tsx:110
+#: packages/admin/src/components/RelationList.tsx:116
 #: packages/admin/src/components/RelationsPanel.tsx:68
 msgid "Loading relations..."
 msgstr ""
@@ -8471,8 +8505,7 @@ msgstr "პარამეტრები იტვირთება..."
 msgid "Loading setup..."
 msgstr "დაყენება იტვირთება..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1402
-#: packages/admin/src/components/TaxonomyManager.tsx:1474
+#: packages/admin/src/components/TaxonomyManager.tsx:1288
 msgid "Loading terms..."
 msgstr "ტერმინები იტვირთება..."
 
@@ -8488,10 +8521,10 @@ msgstr "გამოყენება იტვირთება"
 msgid "Loading widgets..."
 msgstr "ვიჯეტები იტვირთება..."
 
-#: packages/admin/src/components/ContentList.tsx:776
-#: packages/admin/src/components/ContentList.tsx:868
-#: packages/admin/src/components/ContentList.tsx:901
-#: packages/admin/src/components/ContentList.tsx:925
+#: packages/admin/src/components/ContentList.tsx:795
+#: packages/admin/src/components/ContentList.tsx:887
+#: packages/admin/src/components/ContentList.tsx:926
+#: packages/admin/src/components/ContentList.tsx:950
 #: packages/admin/src/components/ContentPickerModal.tsx:371
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:606
@@ -8510,12 +8543,12 @@ msgstr "ვიჯეტები იტვირთება..."
 #: packages/admin/src/components/settings/EmailSettings.tsx:69
 #: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/settings/TransferSettings.tsx:57
-#: packages/admin/src/components/TaxonomyManager.tsx:1280
+#: packages/admin/src/components/TaxonomyManager.tsx:1154
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
-#: packages/admin/src/components/users/UserList.tsx:149
-#: packages/admin/src/routes/bylines.tsx:486
+#: packages/admin/src/components/users/UserList.tsx:146
+#: packages/admin/src/routes/bylines.tsx:491
 msgid "Loading..."
 msgstr "იტვირთება..."
 
@@ -8535,8 +8568,9 @@ msgstr "ადგილობრივი დრო"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:320
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
-#: packages/admin/src/components/ContentList.tsx:749
-#: packages/admin/src/components/ContentList.tsx:889
+#: packages/admin/src/components/ContentList.tsx:499
+#: packages/admin/src/components/ContentList.tsx:755
+#: packages/admin/src/components/ContentList.tsx:910
 #: packages/admin/src/components/LocaleSwitcher.tsx:61
 msgid "Locale"
 msgstr "ლოკალი"
@@ -8597,7 +8631,7 @@ msgstr ""
 msgid "Lowercase letters, numbers, and hyphens only"
 msgstr "მხოლოდ პატარა ასოები, ციფრები და დეფისები"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1059
+#: packages/admin/src/components/TaxonomyManager.tsx:933
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "მხოლოდ პატარა ასოები, ციფრები და ქვედა ტირეები, დაწყებული ასოთი"
 
@@ -8620,7 +8654,7 @@ msgstr "მართვა"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
 #. placeholder {1}: taxonomyDef.collections.join(", ")
-#: packages/admin/src/components/TaxonomyManager.tsx:1297
+#: packages/admin/src/components/TaxonomyManager.tsx:1171
 msgid "Manage {0} for {1}"
 msgstr "მართვა: {0} ({1})"
 
@@ -8640,7 +8674,7 @@ msgstr "დაყენებული პლაგინების მარ�
 msgid "Manage navigation menus for your site"
 msgstr "საიტის ნავიგაციის მენიუების მართვა"
 
-#: packages/admin/src/routes/bylines.tsx:287
+#: packages/admin/src/routes/bylines.tsx:304
 msgid "Manage the people and teams credited on your content."
 msgstr ""
 
@@ -8687,7 +8721,7 @@ msgstr "{0}-ის მონიშვნა როგორც Gone (410)"
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
 msgstr "მონიშვნა როგორც Gone (410) — საძიებო სისტემებს ატყობინებს, რომ გვერდი სამუდამოდ წაშლილია"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:526
+#: packages/admin/src/components/comments/CommentInbox.tsx:592
 msgid "Mark as spam"
 msgstr "სპამად მონიშვნა"
 
@@ -8700,11 +8734,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "მარკეტპლეისი"
 
-#: packages/admin/src/router.tsx:2757
+#: packages/admin/src/router.tsx:2759
 msgid "Marketplace browsing is no longer available."
 msgstr "მარკეტპლეისში დათვალიერება აღარ არის ხელმისაწვდომი."
 
-#: packages/admin/src/router.tsx:2732
+#: packages/admin/src/router.tsx:2734
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "მარკეტპლეისში დათვალიერება აღარ არის ხელმისაწვდომი. დაყენებული პლაგინები მართეთ პლაგინების განყოფილებიდან."
 
@@ -9002,13 +9036,11 @@ msgid "Monthly/yearly archives"
 msgstr "ყოველთვიური/წლიური არქივები"
 
 #. placeholder {0}: byline.displayName
-#. placeholder {0}: item.displayName
 #. placeholder {0}: section.title
+#. placeholder {0}: taxonomyDef.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:716
 #: packages/admin/src/components/Sections.tsx:450
-#: packages/admin/src/components/TaxonomyManager.tsx:321
-#: packages/admin/src/components/TaxonomyManager.tsx:1355
-#: packages/admin/src/routes/bylines.tsx:413
+#: packages/admin/src/components/TaxonomyManager.tsx:1225
 msgid "More actions for {0}"
 msgstr "მეტი მოქმედება: {0}"
 
@@ -9044,33 +9076,16 @@ msgstr ""
 msgid "Most Popular"
 msgstr "ყველაზე პოპულარული"
 
-#. placeholder {0}: field.label
-#: packages/admin/src/routes/byline-schema.tsx:441
-msgid "Move \"{0}\" down"
-msgstr "„{0}“-ის ქვემოთ გადატანა"
-
-#. placeholder {0}: field.label
-#: packages/admin/src/routes/byline-schema.tsx:431
-msgid "Move \"{0}\" up"
-msgstr "„{0}“-ის ზემოთ გადატანა"
-
-#: packages/admin/src/components/ContentList.tsx:1490
+#: packages/admin/src/components/ContentList.tsx:1617
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "გადავიტანოთ „{title}“ ნაგავში? მოგვიანებით აღდგენა შესაძლებელი იქნება."
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#. placeholder {0}: term.label
 #: packages/admin/src/components/ContentEditor.tsx:3144
 #: packages/admin/src/components/FieldEditor.tsx:1163
-#: packages/admin/src/components/TaxonomyManager.tsx:463
 msgid "Move {0} down"
 msgstr "{0}-ის ქვემოთ გადატანა"
-
-#. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:462
-msgid "Move {0} down — unavailable, its parent has no translation in this locale"
-msgstr "{0}-ის ქვემოთ გადატანა — მიუწვდომელია, მის მშობელს ამ ლოკალში თარგმანი არ აქვს"
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:312
@@ -9084,28 +9099,17 @@ msgstr "{0}-ის უკან გადატანა"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#. placeholder {0}: term.label
 #: packages/admin/src/components/ContentEditor.tsx:3133
 #: packages/admin/src/components/FieldEditor.tsx:1146
-#: packages/admin/src/components/TaxonomyManager.tsx:450
 msgid "Move {0} up"
 msgstr "{0}-ის ზემოთ გადატანა"
 
-#. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:449
-msgid "Move {0} up — unavailable, its parent has no translation in this locale"
-msgstr "{0}-ის ზემოთ გადატანა — მიუწვდომელია, მის მშობელს ამ ლოკალში თარგმანი არ აქვს"
-
 #: packages/admin/src/components/editor/BlockMenu.tsx:212
 #: packages/admin/src/components/MenuEditor.tsx:662
-#: packages/admin/src/components/TaxonomyManager.tsx:345
+#: packages/admin/src/components/TaxonomyManager.tsx:347
+#: packages/admin/src/routes/byline-schema.tsx:462
 msgid "Move down"
 msgstr "ქვემოთ გადატანა"
-
-#. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:341
-msgid "Move down {0}"
-msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:534
 msgid "Move the focal point to choose what stays visible in cropped images."
@@ -9119,34 +9123,30 @@ msgstr ""
 msgid "Move this site to another EmDash installation, or import a site package into this one."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:647
-#: packages/admin/src/components/ContentList.tsx:1483
+#: packages/admin/src/components/ContentList.tsx:662
+#: packages/admin/src/components/ContentList.tsx:1610
 msgid "Move to trash"
 msgstr "ნაგავში გადატანა"
 
-#: packages/admin/src/components/ContentList.tsx:672
-#: packages/admin/src/components/ContentList.tsx:1503
+#: packages/admin/src/components/ContentList.tsx:687
+#: packages/admin/src/components/ContentList.tsx:1630
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1367
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1387
 msgid "Move to Trash"
 msgstr "ნაგავში გადატანა"
 
-#: packages/admin/src/components/ContentList.tsx:652
-#: packages/admin/src/components/ContentList.tsx:1488
+#: packages/admin/src/components/ContentList.tsx:667
+#: packages/admin/src/components/ContentList.tsx:1615
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1372
 msgid "Move to Trash?"
 msgstr "გადავიტანოთ ნაგავში?"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:206
 #: packages/admin/src/components/MenuEditor.tsx:653
-#: packages/admin/src/components/TaxonomyManager.tsx:337
+#: packages/admin/src/components/TaxonomyManager.tsx:339
+#: packages/admin/src/routes/byline-schema.tsx:455
 msgid "Move up"
 msgstr "ზემოთ გადატანა"
-
-#. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:333
-msgid "Move up {0}"
-msgstr ""
 
 #: packages/admin/src/components/revisions/change-labels.ts:141
 msgid "Moved “{snippet}”"
@@ -9257,14 +9257,14 @@ msgstr "რამდენიმე ვარიანტის არჩევ�
 msgid "My Awesome Blog"
 msgstr "ჩემი საოცარი ბლოგი"
 
-#: packages/admin/src/components/ContentTypeList.tsx:200
+#: packages/admin/src/components/BlockTypeList.tsx:37
+#: packages/admin/src/components/ContentTypeList.tsx:211
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MediaFolderDialog.tsx:131
 #: packages/admin/src/components/MenuList.tsx:164
-#: packages/admin/src/components/TaxonomyManager.tsx:784
-#: packages/admin/src/components/TaxonomyManager.tsx:1050
-#: packages/admin/src/components/TaxonomyManager.tsx:1413
-#: packages/admin/src/components/TaxonomyManager.tsx:1468
+#: packages/admin/src/components/TaxonomyManager.tsx:658
+#: packages/admin/src/components/TaxonomyManager.tsx:924
+#: packages/admin/src/components/TaxonomyManager.tsx:1277
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:152
 #: packages/admin/src/components/users/UserDetail.tsx:159
@@ -9272,11 +9272,11 @@ msgstr "ჩემი საოცარი ბლოგი"
 msgid "Name"
 msgstr "სახელი"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:976
+#: packages/admin/src/components/TaxonomyManager.tsx:850
 msgid "Name and label are required"
 msgstr "სახელი და იარლიყი სავალდებულოა"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:982
+#: packages/admin/src/components/TaxonomyManager.tsx:856
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "სახელი უნდა იწყებოდეს ასოთი და შეიცავდეს მხოლოდ პატარა ასოებს, რიცხვებსა და ქვედა ტირეს"
 
@@ -9305,7 +9305,7 @@ msgid "Needs attention"
 msgstr "საჭიროებს ყურადღებას"
 
 #: packages/admin/src/components/users/UserDetail.tsx:249
-#: packages/admin/src/components/users/UserList.tsx:178
+#: packages/admin/src/components/users/UserList.tsx:173
 msgid "Never"
 msgstr "არასდროს"
 
@@ -9326,8 +9326,8 @@ msgid "New {singularLower} name"
 msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:360
-#: packages/admin/src/routes/bylines.tsx:309
-#: packages/admin/src/routes/bylines.tsx:467
+#: packages/admin/src/routes/bylines.tsx:326
+#: packages/admin/src/routes/bylines.tsx:472
 msgid "New byline"
 msgstr ""
 
@@ -9340,7 +9340,7 @@ msgid "New collection"
 msgstr "ახალი კოლექცია"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:439
-#: packages/admin/src/components/ContentTypeList.tsx:141
+#: packages/admin/src/components/ContentTypeList.tsx:154
 msgid "New Content Type"
 msgstr "ახალი შიგთავსის ტიპი"
 
@@ -9348,7 +9348,7 @@ msgstr "ახალი შიგთავსის ტიპი"
 msgid "New domain"
 msgstr ""
 
-#: packages/admin/src/routes/byline-schema.tsx:224
+#: packages/admin/src/routes/byline-schema.tsx:235
 msgid "New field"
 msgstr "ახალი ველი"
 
@@ -9370,7 +9370,7 @@ msgid "New Redirect"
 msgstr "ახალი გადამისამართება"
 
 #: packages/admin/src/components/RelationFormPanel.tsx:83
-#: packages/admin/src/components/RelationList.tsx:75
+#: packages/admin/src/components/RelationList.tsx:86
 #: packages/admin/src/components/RelationsPanel.tsx:77
 msgid "New Relation"
 msgstr ""
@@ -9387,11 +9387,11 @@ msgstr ""
 msgid "new tab"
 msgstr "ახალი ჩანართი"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1366
+#: packages/admin/src/components/TaxonomyManager.tsx:1236
 msgid "New taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1333
+#: packages/admin/src/components/TaxonomyManager.tsx:1203
 msgid "New Taxonomy"
 msgstr "ახალი ტაქსონომია"
 
@@ -9411,7 +9411,7 @@ msgstr ""
 msgid "Newest"
 msgstr "უახლესი"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:787
+#: packages/admin/src/components/TaxonomyManager.tsx:661
 msgid "News"
 msgstr "სიახლეები"
 
@@ -9424,8 +9424,8 @@ msgstr "შემდეგი"
 msgid "Next month"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:396
-#: packages/admin/src/components/ContentList.tsx:856
+#: packages/admin/src/components/comments/CommentInbox.tsx:427
+#: packages/admin/src/components/ContentList.tsx:875
 #: packages/admin/src/components/ListPaginationFooter.tsx:111
 #: packages/admin/src/components/MediaPickerModal.tsx:1599
 msgid "Next page"
@@ -9445,24 +9445,23 @@ msgstr "შემდეგ გაიხსნება {0}"
 msgid "Next, the browser's passkey window will open"
 msgstr "შემდეგ გაიხსნება ბრაუზერის პასკის ფანჯარა"
 
-#: packages/admin/src/components/ContentList.tsx:1523
+#: packages/admin/src/components/ContentList.tsx:1650
 #: packages/admin/src/components/users/UserDetail.tsx:255
-#: packages/admin/src/routes/byline-schema.tsx:424
+#: packages/admin/src/routes/byline-schema.tsx:438
 msgid "No"
 msgstr "არა"
 
-#: packages/admin/src/routes/byline-schema.tsx:422
+#: packages/admin/src/routes/byline-schema.tsx:435
 msgid "No (shared across translations)"
 msgstr "არა (საერთო თარგმანებისთვის)"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:785
+#: packages/admin/src/components/ContentList.tsx:804
 msgid "No {0} yet."
 msgstr "{0} ჯერ არ არის."
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:1405
-#: packages/admin/src/components/TaxonomyManager.tsx:1477
+#: packages/admin/src/components/TaxonomyManager.tsx:1291
 msgid "No {0} yet. Create one to get started."
 msgstr "{0} ჯერ არ არის. დასაწყებად შექმენით ერთი."
 
@@ -9483,11 +9482,11 @@ msgstr "ალტ-ტექსტი არ არის"
 msgid "No API tokens yet. Create one to get started."
 msgstr "API ტოკენები ჯერ არ არის. დასაწყებად შექმენით ერთი."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:568
+#: packages/admin/src/components/comments/CommentInbox.tsx:629
 msgid "No approved comments yet."
 msgstr "დამტკიცებული კომენტარები ჯერ არ არის."
 
-#: packages/admin/src/components/BlockTypeList.tsx:24
+#: packages/admin/src/components/BlockTypeList.tsx:53
 msgid "No block types defined"
 msgstr ""
 
@@ -9507,7 +9506,7 @@ msgstr "ბაილაინის გარეშე"
 msgid "No byline assigned"
 msgstr "ბაილაინი მინიჭებული არ არის"
 
-#: packages/admin/src/routes/byline-schema.tsx:291
+#: packages/admin/src/routes/byline-schema.tsx:292
 msgid "No byline fields yet."
 msgstr "ბაილაინის ველები ჯერ არ არის."
 
@@ -9523,7 +9522,7 @@ msgstr "ბაილაინები მიუწვდომელია."
 msgid "No bylines found"
 msgstr "ბაილაინები ვერ მოიძებნა"
 
-#: packages/admin/src/routes/bylines.tsx:447
+#: packages/admin/src/routes/bylines.tsx:452
 msgid "No bylines yet"
 msgstr ""
 
@@ -9535,11 +9534,11 @@ msgstr ""
 msgid "No collections configured"
 msgstr "კოლექციები კონფიგურირებული არ არის"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:567
+#: packages/admin/src/components/comments/CommentInbox.tsx:628
 msgid "No comments awaiting moderation."
 msgstr "მოდერაციის მოლოდინში კომენტარები არ არის."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:577
+#: packages/admin/src/components/comments/CommentInbox.tsx:638
 msgid "No comments match your filters."
 msgstr ""
 
@@ -9555,7 +9554,7 @@ msgstr "შიგთავსი ვერ მოიძებნა"
 msgid "No content in this collection"
 msgstr "ამ კოლექციაში შიგთავსი არ არის"
 
-#: packages/admin/src/components/ContentTypeList.tsx:226
+#: packages/admin/src/components/ContentTypeList.tsx:231
 msgid "No content types yet."
 msgstr "შიგთავსის ტიპები ჯერ არ არის."
 
@@ -9612,7 +9611,8 @@ msgstr "ვადის გარეშე"
 msgid "No field on this content type uses it yet"
 msgstr ""
 
-#: packages/admin/src/components/RelationList.tsx:198
+#: packages/admin/src/components/RelationList.tsx:188
+#: packages/admin/src/components/RelationList.tsx:211
 msgid "No fields"
 msgstr ""
 
@@ -9689,7 +9689,7 @@ msgstr ""
 msgid "No matching block types"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:447
+#: packages/admin/src/routes/bylines.tsx:452
 msgid "No matching bylines"
 msgstr ""
 
@@ -9710,7 +9710,7 @@ msgstr "შესაბამისი მედია ვერ მოიძე
 msgid "No matching passkey found for this account."
 msgstr "ამ ანგარიშისთვის შესაბამისი პასკი ვერ მოიძებნა."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1430
+#: packages/admin/src/components/TaxonomyManager.tsx:1296
 msgid "No matching tags"
 msgstr ""
 
@@ -9805,7 +9805,7 @@ msgstr ""
 msgid "No relations yet"
 msgstr ""
 
-#: packages/admin/src/components/RelationList.tsx:116
+#: packages/admin/src/components/RelationList.tsx:118
 msgid "No relations yet."
 msgstr ""
 
@@ -9814,8 +9814,8 @@ msgstr ""
 msgid "No results"
 msgstr "შედეგები ვერ მოიძებნა"
 
-#: packages/admin/src/components/ContentList.tsx:782
-#: packages/admin/src/components/ContentList.tsx:799
+#: packages/admin/src/components/ContentList.tsx:801
+#: packages/admin/src/components/ContentList.tsx:818
 msgid "No results for \"{activeSearch}\""
 msgstr "„{activeSearch}“-ის შედეგები ვერ მოიძებნა"
 
@@ -9842,7 +9842,7 @@ msgstr "სექციები ვერ მოიძებნა"
 msgid "No sections yet"
 msgstr "სექციები ჯერ არ არის"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:569
+#: packages/admin/src/components/comments/CommentInbox.tsx:630
 msgid "No spam comments."
 msgstr "სპამ კომენტარები არ არის."
 
@@ -9858,11 +9858,11 @@ msgstr ""
 msgid "No usage to show yet"
 msgstr "საჩვენებელი გამოყენება ჯერ არ არის"
 
-#: packages/admin/src/components/users/UserList.tsx:113
+#: packages/admin/src/components/users/UserList.tsx:116
 msgid "No users found matching your filters."
 msgstr "ფილტრების შესაბამისი მომხმარებლები ვერ მოიძებნა."
 
-#: packages/admin/src/components/users/UserList.tsx:127
+#: packages/admin/src/components/users/UserList.tsx:130
 msgid "No users yet."
 msgstr "მომხმარებლები ჯერ არ არის."
 
@@ -9878,7 +9878,7 @@ msgstr "ვიჯეტის არეალები ჯერ არ არ�
 msgid "No Windows Hello authenticator found"
 msgstr "Windows Hello-ს ავთენტიფიკატორი ვერ მოიძებნა"
 
-#: packages/admin/src/routes/bylines.tsx:330
+#: packages/admin/src/routes/bylines.tsx:347
 msgid "Non-guest"
 msgstr ""
 
@@ -9887,8 +9887,8 @@ msgstr ""
 msgid "None"
 msgstr "არცერთი"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:825
-#: packages/admin/src/components/TaxonomyManager.tsx:834
+#: packages/admin/src/components/TaxonomyManager.tsx:699
+#: packages/admin/src/components/TaxonomyManager.tsx:708
 msgid "None (top level)"
 msgstr "არცერთი (ზედა დონე)"
 
@@ -9908,7 +9908,7 @@ msgstr ""
 msgid "Not recorded in this version"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1522
+#: packages/admin/src/components/ContentList.tsx:1649
 #: packages/admin/src/components/PluginSettings.tsx:342
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Not set"
@@ -10115,7 +10115,7 @@ msgstr "სურათის ქვემოთ გამოსაჩენი 
 msgid "Optional caption for display"
 msgstr "სურვილისამებრ წარწერა ჩვენებისთვის"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:850
+#: packages/admin/src/components/TaxonomyManager.tsx:724
 msgid "Optional description"
 msgstr "სურვილისამებრ აღწერა"
 
@@ -10157,6 +10157,10 @@ msgstr "ან ექსპორტის ფაილის ატვირთ
 #: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "or upload directly"
 msgstr "ან პირდაპირ ატვირთვა"
+
+#: packages/admin/src/components/ContentList.tsx:1348
+msgid "Order"
+msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:262
 msgid "Order saved"
@@ -10224,7 +10228,7 @@ msgstr ""
 msgid "Package downloaded"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3396
+#: packages/admin/src/router.tsx:3398
 msgid "Page Not Found"
 msgstr "გვერდი ვერ მოიძებნა"
 
@@ -10257,7 +10261,7 @@ msgid "Paragraph inserted before table"
 msgstr "აბზაცი ჩასმულია ცხრილის წინ"
 
 #: packages/admin/src/components/MenuEditor.tsx:766
-#: packages/admin/src/components/TaxonomyManager.tsx:821
+#: packages/admin/src/components/TaxonomyManager.tsx:695
 msgid "Parent"
 msgstr "მშობელი"
 
@@ -10304,7 +10308,7 @@ msgid "Passkey renamed"
 msgstr "პასკის სახელი შეიცვალა"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:140
-#: packages/admin/src/components/users/UserList.tsx:103
+#: packages/admin/src/components/users/UserList.tsx:107
 msgid "Passkeys"
 msgstr "პასკები"
 
@@ -10397,7 +10401,7 @@ msgstr "PDF"
 msgid "pending"
 msgstr "მოლოდინში"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:202
+#: packages/admin/src/components/comments/CommentInbox.tsx:234
 msgid "Pending"
 msgstr "მოლოდინში"
 
@@ -10417,7 +10421,7 @@ msgstr "გვერდზე"
 msgid "Period"
 msgstr "დღის პერიოდი"
 
-#: packages/admin/src/components/ContentList.tsx:1665
+#: packages/admin/src/components/ContentList.tsx:1792
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "სამუდამოდ წავშალოთ „{title}“? ვერ დაბრუნდება."
 
@@ -10443,8 +10447,8 @@ msgstr ""
 
 #. placeholder {0}: relation.childLabel
 #. placeholder {0}: relation.parentLabel
-#: packages/admin/src/components/RelationList.tsx:208
-#: packages/admin/src/components/RelationList.tsx:209
+#: packages/admin/src/components/RelationList.tsx:224
+#: packages/admin/src/components/RelationList.tsx:225
 msgid "picks {0}"
 msgstr ""
 
@@ -10575,8 +10579,8 @@ msgstr "პლაგინების რეესტრი"
 msgid "Plugin registry configuration error"
 msgstr "პლაგინების რეესტრის კონფიგურაციის შეცდომა"
 
-#: packages/admin/src/router.tsx:2692
-#: packages/admin/src/router.tsx:2723
+#: packages/admin/src/router.tsx:2694
+#: packages/admin/src/router.tsx:2725
 msgid "Plugin registry is not configured."
 msgstr "პლაგინების რეესტრი კონფიგურირებული არ არის."
 
@@ -10728,8 +10732,8 @@ msgstr "წინა"
 msgid "Previous month"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:377
-#: packages/admin/src/components/ContentList.tsx:844
+#: packages/admin/src/components/comments/CommentInbox.tsx:408
+#: packages/admin/src/components/ContentList.tsx:863
 #: packages/admin/src/components/ListPaginationFooter.tsx:110
 #: packages/admin/src/components/MediaPickerModal.tsx:1598
 msgid "Previous page"
@@ -10800,7 +10804,7 @@ msgstr "გამოქვეყნების პოლიტიკამ დ�
 msgid "visualEditing.publish"
 msgstr "გამოქვეყნება"
 
-#: packages/admin/src/components/ContentList.tsx:589
+#: packages/admin/src/components/ContentList.tsx:604
 #: packages/admin/src/components/ContentSettingsPanel.tsx:537
 #: packages/admin/src/components/ContentSettingsPanel.tsx:955
 #: packages/admin/src/components/ContentSettingsPanel.tsx:958
@@ -10833,15 +10837,10 @@ msgstr "გამოვაქვეყნოთ ახლავე?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "შიგთავსის გამოქვეყნება, გამოქვეყნების გაუქმება, დაგეგმვა და დაგეგმვის გაუქმება"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr ""
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
-#: packages/admin/src/components/ContentList.tsx:984
-#: packages/admin/src/components/ContentList.tsx:995
+#: packages/admin/src/components/ContentList.tsx:1009
+#: packages/admin/src/components/ContentList.tsx:1020
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
@@ -10849,6 +10848,11 @@ msgstr ""
 #: packages/admin/src/router.tsx:1504
 msgid "Published"
 msgstr "გამოქვეყნებული"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr ""
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:348
@@ -11143,7 +11147,7 @@ msgstr "გაგრძელებამდე განაახლეთ ს�
 msgid "Refresh the page or try again."
 msgstr "განაახლეთ გვერდი ან სცადეთ ხელახლა."
 
-#: packages/admin/src/components/ContentTypeList.tsx:178
+#: packages/admin/src/components/ContentTypeList.tsx:191
 msgid "Register"
 msgstr "რეგისტრაცია"
 
@@ -11170,8 +11174,8 @@ msgstr "რეგისტრაცია გაუქმდა ან დრო
 msgid "Registry"
 msgstr "რეესტრი"
 
-#: packages/admin/src/components/ContentTypeList.tsx:138
-#: packages/admin/src/components/RelationList.tsx:68
+#: packages/admin/src/components/ContentTypeList.tsx:151
+#: packages/admin/src/components/RelationList.tsx:79
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
@@ -11428,7 +11432,7 @@ msgstr ""
 msgid "Rename passkey"
 msgstr "პასკის გადარქმევა"
 
-#: packages/admin/src/components/ContentTypeList.tsx:196
+#: packages/admin/src/components/ContentTypeList.tsx:208
 msgid "Reorder"
 msgstr "გადალაგება"
 
@@ -11437,7 +11441,7 @@ msgstr "გადალაგება"
 #. placeholder {0}: collection.label
 #: packages/admin/src/components/BlocksField.tsx:348
 #: packages/admin/src/components/BylineCreditsEditor.tsx:690
-#: packages/admin/src/components/ContentTypeList.tsx:312
+#: packages/admin/src/components/ContentTypeList.tsx:317
 msgid "Reorder {0}"
 msgstr "{0}-ის გადალაგება"
 
@@ -11567,7 +11571,7 @@ msgstr "სლაგი სავალდებულოა გამოქვ�
 #: packages/admin/src/components/ContentTypeEditor.tsx:954
 #: packages/admin/src/components/FieldEditor.tsx:867
 #: packages/admin/src/components/FieldEditor.tsx:1314
-#: packages/admin/src/routes/byline-schema.tsx:246
+#: packages/admin/src/routes/byline-schema.tsx:254
 msgid "Required"
 msgstr "სავალდებულო"
 
@@ -11667,7 +11671,7 @@ msgstr "გამომცემლის სახელის დადგე�
 msgid "Restart numbering"
 msgstr "ნუმერაციის თავიდან დაწყება"
 
-#: packages/admin/src/components/ContentList.tsx:1650
+#: packages/admin/src/components/ContentList.tsx:1777
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:129
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:237
 msgid "Restore"
@@ -11723,8 +11727,8 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3384
-#: packages/admin/src/routes/byline-schema.tsx:280
+#: packages/admin/src/router.tsx:3386
+#: packages/admin/src/routes/byline-schema.tsx:283
 #: packages/admin/src/routes/calendar.tsx:345
 msgid "Retry"
 msgstr "ხელახლა ცდა"
@@ -11786,7 +11790,7 @@ msgstr "გადახედვა"
 msgid "Review and block publishing, scheduling, and unpublishing content"
 msgstr "შიგთავსის გამოქვეყნების, დაგეგმვისა და გამოქვეყნების გაუქმების გადახედვა და დაბლოკვა"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:163
+#: packages/admin/src/components/comments/CommentInbox.tsx:195
 msgid "Review and moderate comments across your content."
 msgstr ""
 
@@ -11882,7 +11886,7 @@ msgstr "robots.txt"
 #: packages/admin/src/components/users/InviteUserModal.tsx:168
 #: packages/admin/src/components/users/UserDetail.tsx:182
 #: packages/admin/src/components/users/UserDetail.tsx:194
-#: packages/admin/src/components/users/UserList.tsx:94
+#: packages/admin/src/components/users/UserList.tsx:98
 msgid "Role"
 msgstr "როლი"
 
@@ -12046,7 +12050,7 @@ msgid "Saved"
 msgstr "შენახულია"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/routes/byline-schema.tsx:116
+#: packages/admin/src/routes/byline-schema.tsx:123
 msgid "Saved \"{0}\"."
 msgstr "შენახულია „{0}“."
 
@@ -12069,7 +12073,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/RelationFormPanel.tsx:112
 #: packages/admin/src/components/SaveButton.tsx:36
-#: packages/admin/src/components/TaxonomyManager.tsx:893
+#: packages/admin/src/components/TaxonomyManager.tsx:767
 #: packages/admin/src/components/users/UserDetail.tsx:330
 #: packages/admin/src/components/Widgets.tsx:1005
 msgid "Saving..."
@@ -12121,7 +12125,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
-#: packages/admin/src/components/ContentList.tsx:986
+#: packages/admin/src/components/ContentList.tsx:1011
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
 #: packages/admin/src/router.tsx:1607
 msgid "Scheduled"
@@ -12215,12 +12219,12 @@ msgid "Search"
 msgstr "ძებნა"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:550
+#: packages/admin/src/components/ContentList.tsx:567
 msgid "Search {0}"
 msgstr "{0}-ის ძებნა"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:549
+#: packages/admin/src/components/ContentList.tsx:566
 msgid "Search {0}..."
 msgstr "{0}-ის ძებნა..."
 
@@ -12245,14 +12249,14 @@ msgstr ""
 msgid "Search by filename..."
 msgstr "ძებნა ფაილის სახელით..."
 
-#: packages/admin/src/components/users/UserList.tsx:63
+#: packages/admin/src/components/users/UserList.tsx:71
 msgid "Search by name or email..."
 msgstr "ძებნა სახელით ან ელფოსტით..."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:335
 #: packages/admin/src/components/BylineFilter.tsx:128
-#: packages/admin/src/routes/bylines.tsx:317
-#: packages/admin/src/routes/bylines.tsx:318
+#: packages/admin/src/routes/bylines.tsx:334
+#: packages/admin/src/routes/bylines.tsx:335
 msgid "Search bylines"
 msgstr "ბაილაინების ძებნა"
 
@@ -12264,11 +12268,11 @@ msgstr "ბაილაინების ძებნა დასამატ�
 msgid "Search bylines…"
 msgstr "ბაილაინების ძებნა…"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:175
+#: packages/admin/src/components/comments/CommentInbox.tsx:207
 msgid "Search comments"
 msgstr "კომენტარების ძებნა"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:157
+#: packages/admin/src/components/comments/CommentInbox.tsx:189
 msgid "Search comments..."
 msgstr "კომენტარების ძებნა..."
 
@@ -12351,11 +12355,11 @@ msgstr "სექციების ძებნა..."
 msgid "Search source or destination..."
 msgstr "წყაროს ან დანიშნულების ძებნა..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1389
+#: packages/admin/src/components/TaxonomyManager.tsx:1260
 msgid "Search tags"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1388
+#: packages/admin/src/components/TaxonomyManager.tsx:1259
 msgid "Search tags…"
 msgstr ""
 
@@ -12375,7 +12379,7 @@ msgstr ""
 msgid "Search to narrow the list"
 msgstr "ძებნა სიის შესავიწროებლად"
 
-#: packages/admin/src/components/users/UserList.tsx:66
+#: packages/admin/src/components/users/UserList.tsx:74
 msgid "Search users"
 msgstr "მომხმარებლების ძებნა"
 
@@ -12508,7 +12512,7 @@ msgstr "არჩევა"
 msgid "Select {label}"
 msgstr "{label}-ის არჩევა"
 
-#: packages/admin/src/components/ContentList.tsx:1382
+#: packages/admin/src/components/ContentList.tsx:1510
 msgid "Select {title}"
 msgstr "აირჩიეთ {title}"
 
@@ -12541,11 +12545,8 @@ msgstr ""
 msgid "Select a release before verifying it"
 msgstr "გადამოწმებამდე აირჩიეთ რელიზი"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:321
-msgid "Select all"
-msgstr "ყველას არჩევა"
-
-#: packages/admin/src/components/ContentList.tsx:721
+#: packages/admin/src/components/comments/CommentInbox.tsx:354
+#: packages/admin/src/components/ContentList.tsx:726
 msgid "Select all on this page"
 msgstr "ამ გვერდზე ყველას არჩევა"
 
@@ -12558,7 +12559,7 @@ msgid "Select column"
 msgstr "სვეტის არჩევა"
 
 #. placeholder {0}: comment.authorName
-#: packages/admin/src/components/comments/CommentInbox.tsx:481
+#: packages/admin/src/components/comments/CommentInbox.tsx:542
 msgid "Select comment by {0}"
 msgstr "{0}-ის კომენტარის არჩევა"
 
@@ -12621,7 +12622,7 @@ msgstr "მწკრივის არჩევა"
 msgid "Select table"
 msgstr "ცხრილის არჩევა"
 
-#: packages/admin/src/components/ContentList.tsx:633
+#: packages/admin/src/components/ContentList.tsx:648
 msgid "Select up to 50 posts at a time."
 msgstr ""
 
@@ -12776,7 +12777,7 @@ msgstr "როლის დაყენება"
 msgid "Set to 0 to never close comments automatically."
 msgstr "დააყენეთ 0, რომ კომენტარები ავტომატურად არასოდეს დაიხუროს."
 
-#: packages/admin/src/components/ContentList.tsx:600
+#: packages/admin/src/components/ContentList.tsx:615
 msgid "Set to draft"
 msgstr "მონახაზად დაყენება"
 
@@ -13092,22 +13093,23 @@ msgstr "მედიის იმპორტის გამოტოვებ�
 msgid "Skipped"
 msgstr "გამოტოვებული"
 
+#: packages/admin/src/components/BlockTypeList.tsx:39
 #: packages/admin/src/components/BylineFieldEditor.tsx:234
 #: packages/admin/src/components/BylineFormDialog.tsx:409
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1087
 #: packages/admin/src/components/ContentTypeEditor.tsx:131
 #: packages/admin/src/components/ContentTypeEditor.tsx:489
-#: packages/admin/src/components/ContentTypeList.tsx:203
+#: packages/admin/src/components/ContentTypeList.tsx:213
 #: packages/admin/src/components/FieldEditor.tsx:468
 #: packages/admin/src/components/FieldEditor.tsx:845
 #: packages/admin/src/components/FieldEditor.tsx:1271
 #: packages/admin/src/components/RelationForm.tsx:323
-#: packages/admin/src/components/RelationList.tsx:90
+#: packages/admin/src/components/RelationList.tsx:99
 #: packages/admin/src/components/SectionEditor.tsx:281
 #: packages/admin/src/components/Sections.tsx:204
-#: packages/admin/src/components/TaxonomyManager.tsx:802
-#: packages/admin/src/components/TaxonomyManager.tsx:807
-#: packages/admin/src/routes/byline-schema.tsx:237
+#: packages/admin/src/components/TaxonomyManager.tsx:676
+#: packages/admin/src/components/TaxonomyManager.tsx:681
+#: packages/admin/src/routes/byline-schema.tsx:245
 msgid "Slug"
 msgstr "სლაგი"
 
@@ -13195,6 +13197,22 @@ msgstr ""
 msgid "Something went wrong"
 msgstr "რაღაც შეცდომა მოხდა"
 
+#: packages/admin/src/components/ContentList.tsx:1310
+msgid "Sort"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1331
+msgid "Sort by"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1312
+msgid "Sort by {label}, ascending"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1313
+msgid "Sort by {label}, descending"
+msgstr ""
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:125
 msgid "Sort plugins"
 msgstr "პლაგინების დალაგება"
@@ -13203,7 +13221,7 @@ msgstr "პლაგინების დალაგება"
 msgid "Sort themes"
 msgstr "თემების დალაგება"
 
-#: packages/admin/src/components/ContentTypeList.tsx:206
+#: packages/admin/src/components/ContentTypeList.tsx:216
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:563
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:568
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:790
@@ -13227,8 +13245,8 @@ msgid "spam"
 msgstr "სპამი"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:162
-#: packages/admin/src/components/comments/CommentInbox.tsx:233
-#: packages/admin/src/components/comments/CommentInbox.tsx:280
+#: packages/admin/src/components/comments/CommentInbox.tsx:265
+#: packages/admin/src/components/comments/CommentInbox.tsx:311
 msgid "Spam"
 msgstr "სპამი"
 
@@ -13308,13 +13326,14 @@ msgstr ""
 msgid "State"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:742
+#: packages/admin/src/components/ContentList.tsx:498
+#: packages/admin/src/components/ContentList.tsx:747
 #: packages/admin/src/components/ContentTypeEditor.tsx:137
 #: packages/admin/src/components/Redirects.tsx:524
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:615
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:641
-#: packages/admin/src/components/users/UserList.tsx:97
+#: packages/admin/src/components/users/UserList.tsx:101
 msgid "Status"
 msgstr "სტატუსი"
 
@@ -13490,7 +13509,7 @@ msgstr "მიმდინარეობს გადაბარება..."
 msgid "Target"
 msgstr "სამიზნე"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:566
+#: packages/admin/src/components/TaxonomyManager.tsx:440
 msgid "Target locale"
 msgstr "სამიზნე ლოკალი"
 
@@ -13513,15 +13532,15 @@ msgstr ""
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1569
+#: packages/admin/src/components/TaxonomyManager.tsx:1399
 msgid "Taxonomy created"
 msgstr "ტაქსონომია შეიქმნა"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1200
+#: packages/admin/src/components/TaxonomyManager.tsx:1074
 msgid "Taxonomy deleted"
 msgstr "ტაქსონომია წაიშალა"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:67
+#: packages/admin/src/components/TaxonomyManager.tsx:64
 msgid "Taxonomy not found: {taxonomyName}"
 msgstr "ტაქსონომია ვერ მოიძებნა: {taxonomyName}"
 
@@ -13529,7 +13548,7 @@ msgstr "ტაქსონომია ვერ მოიძებნა: {taxo
 msgid "Taxonomy terms"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:553
+#: packages/admin/src/components/TaxonomyManager.tsx:427
 msgid "Taxonomy: {taxonomyName}"
 msgstr "ტაქსონომია: {taxonomyName}"
 
@@ -13550,18 +13569,18 @@ msgid "Template:"
 msgstr "შაბლონი:"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:110
-#: packages/admin/src/components/TaxonomyManager.tsx:758
-#: packages/admin/src/components/TaxonomyManager.tsx:759
-#: packages/admin/src/components/TaxonomyManager.tsx:763
-#: packages/admin/src/components/TaxonomyManager.tsx:764
-#: packages/admin/src/components/TaxonomyManager.tsx:1336
-#: packages/admin/src/components/TaxonomyManager.tsx:1537
+#: packages/admin/src/components/TaxonomyManager.tsx:632
+#: packages/admin/src/components/TaxonomyManager.tsx:633
+#: packages/admin/src/components/TaxonomyManager.tsx:637
+#: packages/admin/src/components/TaxonomyManager.tsx:638
+#: packages/admin/src/components/TaxonomyManager.tsx:1206
+#: packages/admin/src/components/TaxonomyManager.tsx:1367
 msgid "Term"
 msgstr "ტერმინი"
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:1260
+#: packages/admin/src/components/TaxonomyManager.tsx:1134
 msgid "Term \"{0}\" created in {1}."
 msgstr "ტერმინი „{0}“ შეიქმნა {1}-ში."
 
@@ -13570,7 +13589,7 @@ msgstr "ტერმინი „{0}“ შეიქმნა {1}-ში."
 msgid "Term assignments"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1178
+#: packages/admin/src/components/TaxonomyManager.tsx:1052
 msgid "Term deleted"
 msgstr "ტერმინი წაიშალა"
 
@@ -13695,7 +13714,7 @@ msgstr ""
 msgid "The file or folder no longer exists."
 msgstr "ფაილი ან საქაღალდე აღარ არსებობს."
 
-#: packages/admin/src/components/ContentTypeList.tsx:156
+#: packages/admin/src/components/ContentTypeList.tsx:169
 msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
 msgstr "შემდეგი ცხრილები შეიცავს შიგთავსს, მაგრამ კოლექციებად არ არის რეგისტრირებული. დაარეგისტრირეთ ისინი, რომ ეს შიგთავსი ადმინისტრირების პანელიდან მართოთ."
 
@@ -13874,7 +13893,7 @@ msgstr ""
 msgid "The package’s file index is not valid."
 msgstr ""
 
-#: packages/admin/src/router.tsx:3398
+#: packages/admin/src/router.tsx:3400
 msgid "The page you're looking for doesn't exist."
 msgstr "გვერდი, რომელსაც ეძებთ, არ არსებობს."
 
@@ -14333,7 +14352,7 @@ msgstr "ეს გადამისამართების წესი ს
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "ეს რელიზი ითხოვს უფრო ახალ გარემოს, ვიდრე საიტი ამჟამად იყენებს. დაყენებამდე განაახლეთ."
 
-#: packages/admin/src/routes/bylines.tsx:533
+#: packages/admin/src/routes/bylines.tsx:538
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "ეს წაშლის ბაილაინის პროფილს. შიგთავსის ბაილაინის ბმულები მოიხსნება, ხოლო წამყვანი ბაილაინის მითითებები გასუფთავდება."
 
@@ -14444,7 +14463,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "ეს ელემენტს სანაგვეში გადაიტანს. მის აღდგენას მოგვიანებით შეძლებთ სანაგვიდან."
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1539
+#: packages/admin/src/components/TaxonomyManager.tsx:1369
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "ეს სამუდამოდ წაშლის „{0}“-ს და მოხსნის მას ყველა შიგთავსიდან."
 
@@ -14453,7 +14472,7 @@ msgstr "ეს სამუდამოდ წაშლის „{0}“-ს დ�
 msgid "This will permanently delete \"{0}\". This action cannot be undone."
 msgstr "ეს სამუდამოდ წაშლის „{0}“-ს. ეს მოქმედება ვერ დაბრუნდება."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:431
+#: packages/admin/src/components/comments/CommentInbox.tsx:462
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "ეს კომენტარს სამუდამოდ წაშლის. ეს მოქმედება ვერ დაბრუნდება."
 
@@ -14486,8 +14505,9 @@ msgstr ""
 msgid "Timezone"
 msgstr "დროის სარტყელი"
 
-#: packages/admin/src/components/ContentList.tsx:731
-#: packages/admin/src/components/ContentList.tsx:888
+#: packages/admin/src/components/ContentList.tsx:497
+#: packages/admin/src/components/ContentList.tsx:736
+#: packages/admin/src/components/ContentList.tsx:907
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
 #: packages/admin/src/components/Widgets.tsx:913
@@ -14582,34 +14602,28 @@ msgid "Transfer"
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:283
-#: packages/admin/src/routes/byline-schema.tsx:243
+#: packages/admin/src/routes/byline-schema.tsx:251
 msgid "Translatable"
 msgstr "თარგმნადი"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:355
-#: packages/admin/src/components/TaxonomyManager.tsx:478
-#: packages/admin/src/components/TaxonomyManager.tsx:588
+#: packages/admin/src/components/TaxonomyManager.tsx:356
+#: packages/admin/src/components/TaxonomyManager.tsx:462
 #: packages/admin/src/components/TranslationsPanel.tsx:106
 msgid "Translate"
 msgstr "თარგმნა"
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:550
+#: packages/admin/src/components/TaxonomyManager.tsx:424
 msgid "Translate \"{0}\""
 msgstr "„{0}“-ის თარგმნა"
 
-#. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:475
-msgid "Translate {0}"
-msgstr "{0}-ის თარგმნა"
-
-#: packages/admin/src/components/TaxonomyManager.tsx:588
+#: packages/admin/src/components/TaxonomyManager.tsx:462
 #: packages/admin/src/components/TranslationsPanel.tsx:106
 msgid "Translating..."
 msgstr "ითარგმნება..."
 
 #: packages/admin/src/components/MenuEditor.tsx:148
-#: packages/admin/src/components/TaxonomyManager.tsx:1259
+#: packages/admin/src/components/TaxonomyManager.tsx:1133
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
 #: packages/admin/src/router.tsx:1658
 msgid "Translation created"
@@ -14629,22 +14643,22 @@ msgid "trash"
 msgstr "ნაგავი"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:173
-#: packages/admin/src/components/comments/CommentInbox.tsx:249
-#: packages/admin/src/components/comments/CommentInbox.tsx:290
-#: packages/admin/src/components/comments/CommentInbox.tsx:538
-#: packages/admin/src/components/ContentList.tsx:534
+#: packages/admin/src/components/comments/CommentInbox.tsx:281
+#: packages/admin/src/components/comments/CommentInbox.tsx:322
+#: packages/admin/src/components/comments/CommentInbox.tsx:601
+#: packages/admin/src/components/ContentList.tsx:551
 msgid "Trash"
 msgstr "ნაგავი"
 
-#: packages/admin/src/components/ContentList.tsx:905
+#: packages/admin/src/components/ContentList.tsx:930
 msgid "Trash is empty"
 msgstr "ნაგავი ცარიელია"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:570
+#: packages/admin/src/components/comments/CommentInbox.tsx:631
 msgid "Trash is empty."
 msgstr "ნაგავი ცარიელია."
 
-#: packages/admin/src/components/ContentList.tsx:935
+#: packages/admin/src/components/ContentList.tsx:960
 msgid "Trash pagination"
 msgstr ""
 
@@ -14656,11 +14670,11 @@ msgstr "true/false გადამრთველი"
 msgid "Try a broader media type or clear your filters."
 msgstr "სცადეთ მედიის უფრო ფართო ტიპი ან გაასუფთავეთ ფილტრები."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:581
+#: packages/admin/src/components/comments/CommentInbox.tsx:642
 msgid "Try a different search or collection filter."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:451
+#: packages/admin/src/routes/bylines.tsx:456
 msgid "Try a different search or filter."
 msgstr ""
 
@@ -14771,8 +14785,8 @@ msgstr ""
 #: packages/admin/src/components/BylineFieldEditor.tsx:256
 #: packages/admin/src/components/FieldEditor.tsx:1288
 #: packages/admin/src/components/MediaLibrary.tsx:1163
-#: packages/admin/src/routes/byline-schema.tsx:240
-#: packages/admin/src/routes/bylines.tsx:343
+#: packages/admin/src/routes/byline-schema.tsx:248
+#: packages/admin/src/routes/bylines.tsx:359
 msgid "Type"
 msgstr "ტიპი"
 
@@ -14868,7 +14882,7 @@ msgstr ""
 msgid "Unknown role"
 msgstr "უცნობი როლი"
 
-#: packages/admin/src/routes/bylines.tsx:378
+#: packages/admin/src/routes/bylines.tsx:93
 msgid "Unlinked"
 msgstr ""
 
@@ -14899,7 +14913,7 @@ msgstr "გამოუქვეყნებელი"
 msgid "visualEditing.unpublishedChanges"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeList.tsx:153
+#: packages/admin/src/components/ContentTypeList.tsx:166
 msgid "Unregistered Content Tables Found"
 msgstr "აღმოჩენილია დაურეგისტრირებელი შიგთავსის ცხრილები"
 
@@ -14931,7 +14945,7 @@ msgid "Unsupported widget element type: {0}"
 msgstr "მხარდაუჭერელი ვიჯეტის ელემენტის ტიპი: {0}"
 
 #. placeholder {0}: formatter.format(to)
-#: packages/admin/src/components/ContentList.tsx:1115
+#: packages/admin/src/components/ContentList.tsx:1140
 msgid "Until {0}"
 msgstr "{0}-მდე"
 
@@ -14959,7 +14973,7 @@ msgstr ""
 msgid "Up to {MAX_SELECTED} bylines can be selected"
 msgstr "შეიძლება აირჩეს {MAX_SELECTED}-მდე ბაილაინი"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:895
+#: packages/admin/src/components/TaxonomyManager.tsx:769
 msgid "Update"
 msgstr "განახლება"
 
@@ -14986,7 +15000,7 @@ msgid "Update site settings"
 msgstr "საიტის პარამეტრების განახლება"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)
-#: packages/admin/src/components/TaxonomyManager.tsx:763
+#: packages/admin/src/components/TaxonomyManager.tsx:637
 msgid "Update the {0} details"
 msgstr "{0}-ის დეტალების განახლება"
 
@@ -15008,7 +15022,7 @@ msgstr "განაახლეთ ეს გადამისამართ�
 msgid "Update to v{0}"
 msgstr "v{0}-ზე განახლება"
 
-#: packages/admin/src/components/ContentList.tsx:994
+#: packages/admin/src/components/ContentList.tsx:1019
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1053
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
@@ -15250,7 +15264,7 @@ msgstr "გამოიყენეთ URL, რომელიც მთავ�
 msgid "Use another device"
 msgstr "გამოიყენეთ სხვა მოწყობილობა"
 
-#: packages/admin/src/components/ContentList.tsx:1189
+#: packages/admin/src/components/ContentList.tsx:1214
 msgid "Use as end date"
 msgstr "დასასრულის თარიღად გამოყენება"
 
@@ -15278,7 +15292,7 @@ msgstr "უსაფრთხოდ შესასვლელად გამ�
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "გამოიყენება Open Graph-ის სარეზერვო სურათად, როცა გვერდს საკუთარი არ აქვს. რეკომენდებული ზომა: 1200×630."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1063
+#: packages/admin/src/components/TaxonomyManager.tsx:937
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "გამოიყენება იდენტიფიკატორად. მხოლოდ პატარა ასოები, ციფრები და ქვედა ტირეები."
 
@@ -15307,7 +15321,7 @@ msgstr "გამოიყენება ამ სექციის იდე
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:255
 #: packages/admin/src/components/Header.tsx:44
 #: packages/admin/src/components/Header.tsx:84
-#: packages/admin/src/components/users/UserList.tsx:91
+#: packages/admin/src/components/users/UserList.tsx:96
 msgid "User"
 msgstr "მომხმარებელი"
 
@@ -15335,7 +15349,7 @@ msgstr "მომხმარებელი ვერ მოიძებნა"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:537
-#: packages/admin/src/components/users/UserList.tsx:55
+#: packages/admin/src/components/users/UserList.tsx:63
 msgid "Users"
 msgstr "მომხმარებლები"
 
@@ -15400,6 +15414,7 @@ msgstr "მიმდინარეობს ბმულის შემოწ�
 msgid "Verifying..."
 msgstr "მოწმდება..."
 
+#: packages/admin/src/components/BlockTypeList.tsx:42
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:120
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:342
 #: packages/admin/src/components/RegistryPluginDetail.tsx:599
@@ -15410,13 +15425,13 @@ msgstr "ვერსია"
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlocksField.tsx:371
-#: packages/admin/src/components/BlockTypeList.tsx:44
+#: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
 msgstr "ვერსია {0}"
 
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlockTypeList.tsx:43
+#: packages/admin/src/components/BlockTypeList.tsx:88
 msgid "Version {0} (active)"
 msgstr ""
 
@@ -15459,7 +15474,7 @@ msgstr ""
 msgid "View mode"
 msgstr "ნახვის რეჟიმი"
 
-#: packages/admin/src/components/ContentList.tsx:1466
+#: packages/admin/src/components/ContentList.tsx:1593
 msgid "View published"
 msgstr ""
 
@@ -15562,7 +15577,7 @@ msgstr "WebAuthn ამ ბრაუზერში მხარდაჭერ�
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:247
 #: packages/admin/src/components/RegistryPluginDetail.tsx:785
-#: packages/admin/src/routes/bylines.tsx:345
+#: packages/admin/src/routes/bylines.tsx:362
 msgid "Website"
 msgstr "ვებსაიტი"
 
@@ -15651,7 +15666,7 @@ msgstr "როდის გამოქვეყნდა ჩანაწერ�
 msgid "Where is it saved?"
 msgstr "სად ინახება?"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1077
+#: packages/admin/src/components/TaxonomyManager.tsx:951
 msgid "Which content types can use this taxonomy"
 msgstr "რომელ შიგთავსის ტიპებს შეუძლიათ ამ ტაქსონომიის გამოყენება"
 
@@ -15783,7 +15798,7 @@ msgstr "WordPress-ის ავტორიზაცია უარყოფი
 msgid "WordPress Username"
 msgstr "WordPress-ის მომხმარებლის სახელი"
 
-#: packages/admin/src/components/ContentList.tsx:577
+#: packages/admin/src/components/DataTable.tsx:136
 msgid "Working on {selectedCount} items…"
 msgstr "მუშავდება {selectedCount} ელემენტი…"
 
@@ -15835,10 +15850,10 @@ msgstr "YAML"
 msgid "Yearly"
 msgstr "ყოველწლიური"
 
-#: packages/admin/src/components/ContentList.tsx:1525
+#: packages/admin/src/components/ContentList.tsx:1652
 #: packages/admin/src/components/users/UserDetail.tsx:255
-#: packages/admin/src/routes/byline-schema.tsx:422
-#: packages/admin/src/routes/byline-schema.tsx:424
+#: packages/admin/src/routes/byline-schema.tsx:435
+#: packages/admin/src/routes/byline-schema.tsx:438
 msgid "Yes"
 msgstr "კი"
 
@@ -15895,7 +15910,7 @@ msgstr ""
 msgid "You have full access to manage this site, including users, settings, and all content."
 msgstr "გაქვთ სრული წვდომა ამ საიტის სამართავად, მომხმარებლების, პარამეტრებისა და მთელი შიგთავსის ჩათვლით."
 
-#: packages/admin/src/routes/byline-schema.tsx:175
+#: packages/admin/src/routes/byline-schema.tsx:186
 msgid "You need admin permissions to manage byline schema."
 msgstr "ბაილაინის სქემის სამართავად ადმინისტრატორის ნებართვები გჭირდებათ."
 
