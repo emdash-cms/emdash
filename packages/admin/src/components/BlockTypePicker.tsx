@@ -98,8 +98,10 @@ function PickerList({ blockTypes, onPick }: Pick<BlockTypePickerProps, "blockTyp
 		if (options.length === 0) return;
 		if (event.key === "ArrowDown") moveTo((activeIndex + 1) % options.length);
 		else if (event.key === "ArrowUp") moveTo((activeIndex - 1 + options.length) % options.length);
-		else if (event.key === "Enter") onPick(options[activeIndex]!);
-		else return;
+		else if (event.key === "Enter") {
+			if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+			onPick(options[activeIndex]!);
+		} else return;
 		event.preventDefault();
 	};
 
