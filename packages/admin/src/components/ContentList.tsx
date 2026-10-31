@@ -69,6 +69,7 @@ import {
 } from "./ContentStatusBadge.js";
 import {
 	DataTable,
+	DataTableBulkBar,
 	DataTableMessage,
 	RowActionsMenu,
 	RowMeta,
@@ -587,121 +588,109 @@ export function ContentList({
 
 					{/* Bulk action toolbar — appears once one or more rows are selected */}
 					{bulkEnabled && selectedCount > 0 && (
-						<div className="flex flex-wrap items-center gap-3 rounded-xl bg-kumo-elevated px-4 py-2 ring ring-kumo-line">
-							<span className="text-sm font-medium">
-								{bulkBusy
-									? t`Working on ${selectedCount} items…`
-									: plural(selectedCount, { one: "# selected", other: "# selected" })}
-							</span>
-							<div className="flex flex-wrap items-center gap-2">
-								{onBulkPublish && (
-									<Button
-										size="sm"
-										variant="secondary"
-										disabled={bulkBusy}
-										onClick={() => runBulk(onBulkPublish)}
-										icon={<Upload />}
-									>
-										{t`Publish`}
-									</Button>
-								)}
-								{onBulkUnpublish && (
-									<Button
-										size="sm"
-										variant="secondary"
-										disabled={bulkBusy}
-										onClick={() => runBulk(onBulkUnpublish)}
-										icon={<CircleDashed aria-hidden="true" />}
-									>
-										{t`Set to draft`}
-									</Button>
-								)}
-								{bulkTagEnabled && (
-									<Button
-										size="sm"
-										variant="secondary"
-										disabled={bulkBusy || selectedCount > 50}
-										icon={<Tag aria-hidden="true" />}
-										onClick={() => {
-											setBulkTagSelection(
-												Array.from(selectedIds, (id) => {
-													const item =
-														items.find((candidate) => candidate.id === id) ??
-														selectedRowsRef.current.get(id);
-													return {
-														collection,
-														id,
-														title: item ? getEntryTitle(item, titleField) : id,
-														locale: item?.locale,
-													};
-												}),
-											);
-											setBulkTagOpen(true);
-										}}
-									>
-										{soleBulkTagTaxonomy
-											? t`Add ${inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)}`
-											: t`Add term`}
-									</Button>
-								)}
-								{bulkTagEnabled && selectedCount > 50 && (
-									<span role="status" className="text-sm text-kumo-danger">
-										{t`Select up to 50 posts at a time.`}
-									</span>
-								)}
-								{onBulkDelete && (
-									<Dialog.Root disablePointerDismissal>
-										<Dialog.Trigger
-											render={(p) => (
-												<Button
-													{...p}
-													size="sm"
-													variant="destructive"
-													icon={<Trash />}
-													disabled={bulkBusy}
-												>
-													{t`Move to trash`}
-												</Button>
-											)}
-										/>
-										<Dialog className="p-6" size="sm">
-											<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-											<Dialog.Description className="text-kumo-subtle">
-												{plural(selectedCount, {
-													one: "Move # item to trash? You can restore it later.",
-													other: "Move # items to trash? You can restore them later.",
-												})}
-											</Dialog.Description>
-											<div className="mt-6 flex justify-end gap-2">
-												<Dialog.Close
-													render={(p) => (
-														<Button {...p} variant="secondary">
-															{t`Cancel`}
-														</Button>
-													)}
-												/>
-												<Dialog.Close
-													render={
-														<Button variant="destructive" onClick={() => runBulk(onBulkDelete)} />
-													}
-												>
-													{t`Move to Trash`}
-												</Dialog.Close>
-											</div>
-										</Dialog>
-									</Dialog.Root>
-								)}
+						<DataTableBulkBar
+							selectedCount={selectedCount}
+							busy={bulkBusy}
+							onClear={clearSelection}
+						>
+							{onBulkPublish && (
 								<Button
 									size="sm"
-									variant="ghost"
-									icon={<X />}
+									variant="secondary"
 									disabled={bulkBusy}
-									onClick={clearSelection}
+									onClick={() => runBulk(onBulkPublish)}
+									icon={<Upload />}
 								>
-									{t`Clear`}
+									{t`Publish`}
 								</Button>
-							</div>
-						</div>
+							)}
+							{onBulkUnpublish && (
+								<Button
+									size="sm"
+									variant="secondary"
+									disabled={bulkBusy}
+									onClick={() => runBulk(onBulkUnpublish)}
+									icon={<CircleDashed aria-hidden="true" />}
+								>
+									{t`Set to draft`}
+								</Button>
+							)}
+							{bulkTagEnabled && (
+								<Button
+									size="sm"
+									variant="secondary"
+									disabled={bulkBusy || selectedCount > 50}
+									icon={<Tag aria-hidden="true" />}
+									onClick={() => {
+										setBulkTagSelection(
+											Array.from(selectedIds, (id) => {
+												const item =
+													items.find((candidate) => candidate.id === id) ??
+													selectedRowsRef.current.get(id);
+												return {
+													collection,
+													id,
+													title: item ? getEntryTitle(item, titleField) : id,
+													locale: item?.locale,
+												};
+											}),
+										);
+										setBulkTagOpen(true);
+									}}
+								>
+									{soleBulkTagTaxonomy
+										? t`Add ${inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)}`
+										: t`Add term`}
+								</Button>
+							)}
+							{bulkTagEnabled && selectedCount > 50 && (
+								<span role="status" className="text-sm text-kumo-danger">
+									{t`Select up to 50 posts at a time.`}
+								</span>
+							)}
+							{onBulkDelete && (
+								<Dialog.Root disablePointerDismissal>
+									<Dialog.Trigger
+										render={(p) => (
+											<Button
+												{...p}
+												size="sm"
+												variant="destructive"
+												icon={<Trash />}
+												disabled={bulkBusy}
+											>
+												{t`Move to trash`}
+											</Button>
+										)}
+									/>
+									<Dialog className="p-6" size="sm">
+										<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
+										<Dialog.Description className="text-kumo-subtle">
+											{plural(selectedCount, {
+												one: "Move # item to trash? You can restore it later.",
+												other: "Move # items to trash? You can restore them later.",
+											})}
+										</Dialog.Description>
+										<div className="mt-6 flex justify-end gap-2">
+											<Dialog.Close
+												render={(p) => (
+													<Button {...p} variant="secondary">
+														{t`Cancel`}
+													</Button>
+												)}
+											/>
+											<Dialog.Close
+												render={
+													<Button variant="destructive" onClick={() => runBulk(onBulkDelete)} />
+												}
+											>
+												{t`Move to Trash`}
+											</Dialog.Close>
+										</div>
+									</Dialog>
+								</Dialog.Root>
+							)}
+						</DataTableBulkBar>
 					)}
 					<BulkTagDialog
 						taxonomies={bulkTagTaxonomies}
