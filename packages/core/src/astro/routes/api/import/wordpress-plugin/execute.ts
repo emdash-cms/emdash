@@ -291,6 +291,7 @@ async function importMenusInto(
 			const menuResult = await importMenusFromPlugin(menus, emdash.db, contentIdMap);
 			result.menus = {
 				created: menuResult.menusCreated,
+				skipped: menuResult.menusSkipped,
 				items: menuResult.itemsCreated,
 			};
 			for (const menuError of menuResult.errors) {
