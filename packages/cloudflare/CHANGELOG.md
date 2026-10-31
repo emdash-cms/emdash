@@ -1,5 +1,26 @@
 # @emdash-cms/cloudflare
 
+## 1.4.1
+
+### Patch Changes
+
+- [#4277](https://github.com/emdash-cms/emdash/pull/4277) [`26528bb`](https://github.com/emdash-cms/emdash/commit/26528bb0fd018472f9a2ccff880a0317ebca874a) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes `ctx.kv` values disappearing when a plugin with the same ID moves between `plugins: []` and `sandboxed: []`. **This storage migration requires a coordinated upgrade; it cannot be deployed as a rolling upgrade.**
+  
+  Both sandbox runners share the in-process KV store. A database migration copies existing non-`settings:` sandbox values and revisions without overwriting in-process values, warns about conflicting plugin IDs and keys, and retains the original sandbox rows for recovery. Uninstalling a marketplace or registry plugin with data deletion removes its shared KV values and settings; failed-install rollback preserves existing data, including partial writes made by an installation hook before it fails. Plugin-test KV fixtures and inspection use the shared store; use the settings inspection API for `settings:` keys.
+  
+  #### What should I do?
+  
+  1. Back up the database.
+  2. Stop all application instances and plugin jobs that write to it.
+  3. Upgrade `emdash` and your sandbox runner together, then build the site without starting it.
+  4. Run `pnpm emdash migrate` against the reviewed database target.
+  5. Resolve conflicting KV copies before plugins can write again.
+  6. Start or deploy the upgraded site.
+  
+  Do not rely on default `auto` migrations for this upgrade: they start plugins immediately after migrating, leaving no conflict-review window. Mixed package versions are not automatically rejected. See the [plugin upgrade guide](https://docs.emdashcms.com/plugins/upgrading-sites/#plugin-kv-storage-when-changing-execution-mode) for target selection, recovery queries, and rollback instructions. Downgrading packages alone hides post-upgrade KV writes; restoring the pre-upgrade database backup discards all site changes made since it was taken.
+- Updated dependencies [[`5137be5`](https://github.com/emdash-cms/emdash/commit/5137be5b4e678c6e71e1daa83001e81009571692), [`679ad6c`](https://github.com/emdash-cms/emdash/commit/679ad6c4301047e5f99844ba357d3ef15dd87925), [`b331cf3`](https://github.com/emdash-cms/emdash/commit/b331cf3bfd67c3af03222e09b54b22de688c6bd0), [`235a11a`](https://github.com/emdash-cms/emdash/commit/235a11af21e801ec9f0195cdfc3d46f51341d526), [`e30df1e`](https://github.com/emdash-cms/emdash/commit/e30df1ed488bbbae21669ecf169da3376989a69e), [`9699645`](https://github.com/emdash-cms/emdash/commit/9699645f8062794bf50183d5208dc61c4be33a6f), [`e25d2ee`](https://github.com/emdash-cms/emdash/commit/e25d2ee7bf2da9a972923e2ee82fb5aa77265a89), [`5a9f1bd`](https://github.com/emdash-cms/emdash/commit/5a9f1bdef6ab92a2c286264aba98eab94bc19b36), [`6331f6b`](https://github.com/emdash-cms/emdash/commit/6331f6b4ba2c9f9d6eac778c2ee311e9cbd79768), [`fc44f40`](https://github.com/emdash-cms/emdash/commit/fc44f406c32e2997e9e7e96ace12f70b65293a13), [`b436669`](https://github.com/emdash-cms/emdash/commit/b436669627e29784019e1e0a4b23b09b532003cd), [`56c801c`](https://github.com/emdash-cms/emdash/commit/56c801cbe995d9a55368a53d541aab12901ac150), [`0008289`](https://github.com/emdash-cms/emdash/commit/0008289cca28c2618e4de40a6eb3159552321ef8), [`a7cf38f`](https://github.com/emdash-cms/emdash/commit/a7cf38fb8babfea53f9c10bf6b7eac53e40609b7), [`76c1936`](https://github.com/emdash-cms/emdash/commit/76c1936cd88fb2cd18b4c10d69c6d74d63eca233), [`26528bb`](https://github.com/emdash-cms/emdash/commit/26528bb0fd018472f9a2ccff880a0317ebca874a)]:
+  - emdash@1.4.1
+
 <!-- emdash-changelog-archive: ./changelog/0.28.1-to-0.30.0.md -->
 
 ## 1.4.0
