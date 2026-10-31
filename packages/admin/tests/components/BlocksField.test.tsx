@@ -188,11 +188,16 @@ describe("BlocksField", () => {
 		await heading.fill("After");
 		await expect.element(heading).toHaveValue("After");
 
+		for (const key of ["hero-key", "quote-key"]) {
+			await openMenu(key);
+			await expect
+				.element(screen.getByRole("menuitem", { name: "Duplicate" }))
+				.toHaveAttribute("aria-disabled", "true");
+			await userEvent.keyboard("{Escape}");
+			await expect.element(screen.getByRole("menu")).not.toBeInTheDocument();
+		}
 		await openMenu("quote-key");
 		await expect.element(screen.getByText("Quote · version 1")).toBeVisible();
-		await expect
-			.element(screen.getByRole("menuitem", { name: "Duplicate" }))
-			.toHaveAttribute("aria-disabled", "true");
 	});
 
 	it("passes retained block type and version to nested field rendering", async () => {
