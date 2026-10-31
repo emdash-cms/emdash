@@ -63,10 +63,12 @@ const TAKEN_SLUG = "Another byline already uses this slug. Enter a different one
 
 function deferred<T>() {
 	let resolve: (value: T) => void = () => {};
-	const promise = new Promise<T>((settle) => {
+	let reject: (reason: unknown) => void = () => {};
+	const promise = new Promise<T>((settle, fail) => {
 		resolve = settle;
+		reject = fail;
 	});
-	return { promise, resolve };
+	return { promise, resolve, reject };
 }
 
 async function renderPage() {
@@ -459,6 +461,24 @@ describe("BylinesPage directory", () => {
 
 		await slug.fill("laurel");
 		await expect.element(dialog.getByText(TAKEN_SLUG)).not.toBeInTheDocument();
+	});
+
+	it("reports a refused slug in the banner when the slug changed during the save", async () => {
+		const created = deferred<BylineSummary>();
+		createBylineMock.mockReturnValue(created.promise);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		const dialog = screen.getByRole("dialog", { name: "New byline" });
+		const slug = dialog.getByRole("textbox", { name: "Slug" });
+		await dialog.getByRole("textbox", { name: "Display name" }).fill("Laurel Wamsley");
+		await dialog.getByRole("button", { name: "Create" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Saving..." })).toBeVisible();
+		await slug.fill("laurel");
+		created.reject(new ApiResponseError(409, "CONFLICT", 'Byline "laurel-wamsley" already exists'));
+
+		await expect.element(dialog.getByText('Byline "laurel-wamsley" already exists')).toBeVisible();
+		await expect.element(slug).not.toHaveAttribute("aria-invalid");
 	});
 
 	it("leaves a conflict in the banner when the linked user could be its cause", async () => {

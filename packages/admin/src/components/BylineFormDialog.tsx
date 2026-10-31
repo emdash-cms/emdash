@@ -221,6 +221,8 @@ export function BylineFormDialog({
 	// resolve after typing starts, and the caller's copy can be stale.
 	const [formSource, setFormSource] = React.useState<BylineSummary | null>(null);
 	const [formErrors, setFormErrors] = React.useState<BylineFormErrors>({});
+	// The save error the slug field shows, which the banner leaves out.
+	const [slugFieldError, setSlugFieldError] = React.useState<unknown>(null);
 	// A new byline's slug follows its display name until the slug is edited.
 	const [slugEdited, setSlugEdited] = React.useState(false);
 	const displayNameRef = React.useRef<HTMLInputElement>(null);
@@ -280,17 +282,17 @@ export function BylineFormDialog({
 			onError: (saveError) => {
 				// A slug changed while the save ran isn't the one the server refused.
 				if (!isTakenSlug(saveError, values) || slugRef.current?.value !== values.slug) return;
-				flushSync(() =>
+				flushSync(() => {
+					setSlugFieldError(saveError);
 					setFormErrors((prev) => ({
 						...prev,
 						slug: t`Another byline already uses this slug. Enter a different one.`,
-					})),
-				);
+					}));
+				});
 				slugRef.current?.focus();
 			},
 		}),
 	);
-	const slugTaken = isTakenSlug(saveMutation.error, saveMutation.variables);
 
 	React.useEffect(() => {
 		if (!open || !source || source === formSource) return;
@@ -534,7 +536,9 @@ export function BylineFormDialog({
 							{source && renderExtra ? renderExtra(source) : null}
 						</fieldset>
 						<DialogError
-							message={getMutationError(slugTaken ? error : (saveMutation.error ?? error))}
+							message={getMutationError(
+								saveMutation.error === slugFieldError ? error : (saveMutation.error ?? error),
+							)}
 						/>
 						{source && onDelete && (
 							<DialogSection
