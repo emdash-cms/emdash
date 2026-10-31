@@ -121,6 +121,9 @@ export default defineConfig({
 		defaultLocale: "en",
 		locales: ["en", "fr", "es"],
 		fallback: { fr: "en", es: "en" },
+		// The fixture serves locales from its own `[locale]` routes. Automatic
+		// routing makes production builds add fallback routes that shadow them.
+		routing: "manual",
 	},
 	devToolbar: { enabled: false },
 	vite: {
