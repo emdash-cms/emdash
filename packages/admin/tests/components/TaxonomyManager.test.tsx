@@ -15,6 +15,7 @@ import {
 import type { TaxonomyTerm } from "../../src/lib/api/taxonomies.js";
 
 import "../../dist/styles.css";
+import { pressOutside } from "../utils/mouse.ts";
 import { render } from "../utils/render.tsx";
 
 const taxonomyResponse = JSON.stringify({
@@ -298,6 +299,44 @@ const untranslatedParentTermsResponse = JSON.stringify({
 	},
 });
 
+const clothingTermsResponse = JSON.stringify({
+	data: {
+		terms: [
+			{
+				id: "men",
+				name: "categories",
+				slug: "men",
+				label: "Men",
+				parentId: null,
+				translationGroup: "men-group",
+				children: [
+					{
+						id: "men-accessories",
+						name: "categories",
+						slug: "accessories",
+						label: "Accessories",
+						parentId: "men-group",
+						translationGroup: "men-accessories-group",
+						children: [],
+						count: 0,
+					},
+				],
+				count: 0,
+			},
+			{
+				id: "women",
+				name: "categories",
+				slug: "women",
+				label: "Women",
+				parentId: null,
+				translationGroup: "women-group",
+				children: [],
+				count: 0,
+			},
+		],
+	},
+});
+
 vi.mock("../../src/lib/api/client.js", async () => {
 	const actual = await vi.importActual("../../src/lib/api/client.js");
 	return {
@@ -389,6 +428,25 @@ const PARENT_SELECTOR_REGEX = /Parent/;
 const NO_CATEGORIES_REGEX = /No categories yet/;
 const DELETE_CATEGORY_HEADING_REGEX = /Delete Category/i;
 const DELETE_TECHNOLOGY_DESC_REGEX = /permanently delete "Technology"/;
+const TAKEN_TERM_SLUG = "Another term already uses this slug. Enter a different one.";
+const TAKEN_TAXONOMY_NAME = "Another taxonomy already uses this name. Enter a different one.";
+const NAME_NOT_GENERATED =
+	"A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.";
+
+function conflictResponse(message: string) {
+	return new Response(JSON.stringify({ error: { code: "CONFLICT", message } }), {
+		status: 409,
+		headers: { "Content-Type": "application/json" },
+	});
+}
+
+function requestsWith(method: string, path: string) {
+	return vi
+		.mocked(apiFetch)
+		.mock.calls.filter(
+			([url, init]) => typeof url === "string" && url.includes(path) && init?.method === method,
+		);
+}
 
 describe("TaxonomyManager", () => {
 	beforeEach(() => {
@@ -467,10 +525,13 @@ describe("TaxonomyManager", () => {
 		const slugInput = screen.getByRole("textbox", { name: "Slug" });
 		await expect.element(nameInput).toBeInTheDocument();
 		await expect.element(slugInput).toBeInTheDocument();
-		expect(screen.getByText("Auto-generated from name (you can edit)").query()).toBeNull();
+		const slugHelp = screen.getByRole("tooltip", {
+			name: "Auto-generated from name (you can edit)",
+		});
+		expect(slugHelp.query()).toBeNull();
 
 		await screen.getByRole("button", { name: "How is the slug generated?" }).hover();
-		await expect.element(screen.getByText("Auto-generated from name (you can edit)")).toBeVisible();
+		await expect.element(slugHelp).toBeVisible();
 		await screen.getByText("Slug", { exact: true }).click();
 		await expect.element(slugInput).toHaveFocus();
 	});
@@ -493,9 +554,12 @@ describe("TaxonomyManager", () => {
 				);
 			expect(call).toBeDefined();
 			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
-			expect(body).toMatchObject({ label: "Internship Experience" });
-			expect(body).not.toHaveProperty("slug");
+			expect(body).toMatchObject({
+				label: "Internship Experience",
+				slug: "internship-experience",
+			});
 		});
+		await expect.element(screen.getByText("Term created")).toBeVisible();
 	});
 
 	it("opens an empty form after creating a tag without leaving the page", async () => {
@@ -514,38 +578,35 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("");
 	});
 
-	it.each(["Create", "Cancel", "Close", "Escape"])(
-		"resets every create field after %s",
-		async (action) => {
-			const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
-				wrapper: Wrapper,
-			});
-			await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
-			await screen.getByRole("textbox", { name: "Name" }).fill("Music");
-			await screen.getByRole("textbox", { name: "Slug" }).fill("custom-music");
-			await screen.getByRole("textbox", { name: "Description (optional)" }).fill("Music news");
-			await screen.getByRole("combobox", { name: "Parent" }).click();
-			await screen.getByRole("option", { name: "Technology" }).click();
-			if (action === "Escape") {
-				await userEvent.keyboard("{Escape}");
-			} else {
-				await screen.getByRole("dialog").getByRole("button", { name: action, exact: true }).click();
-			}
-			await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+	it.each(["Create", "Cancel", "Escape"])("resets every create field after %s", async (action) => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		await screen.getByRole("textbox", { name: "Name" }).fill("Music");
+		await screen.getByRole("textbox", { name: "Slug" }).fill("custom-music");
+		await screen.getByRole("textbox", { name: "Description (optional)" }).fill("Music news");
+		await screen.getByRole("combobox", { name: "Parent" }).click();
+		await screen.getByRole("option", { name: "Technology" }).click();
+		if (action === "Escape") {
+			await userEvent.keyboard("{Escape}");
+		} else {
+			await screen.getByRole("dialog").getByRole("button", { name: action, exact: true }).click();
+		}
+		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 
-			await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
-			await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
-			await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("");
-			await expect
-				.element(screen.getByRole("textbox", { name: "Description (optional)" }))
-				.toHaveValue("");
-			await expect
-				.element(screen.getByRole("combobox", { name: "Parent" }))
-				.toHaveTextContent("None (top level)");
-			await screen.getByRole("textbox", { name: "Name" }).fill("New term");
-			await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("new-term");
-		},
-	);
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
+		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("");
+		await expect
+			.element(screen.getByRole("textbox", { name: "Description (optional)" }))
+			.toHaveValue("");
+		await expect
+			.element(screen.getByRole("combobox", { name: "Parent" }))
+			.toHaveTextContent("None (top level)");
+		await screen.getByRole("textbox", { name: "Name" }).fill("New term");
+		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("new-term");
+	});
 
 	it("preserves a failed create for retry but clears its values and error on reopening", async () => {
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
@@ -766,7 +827,7 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByText("Description (optional)")).toBeInTheDocument();
 	});
 
-	it("lets the server derive an auto-generated term slug", async () => {
+	it("sends the auto-generated term slug the form shows", async () => {
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
 			wrapper: Wrapper,
 		});
@@ -780,8 +841,7 @@ describe("TaxonomyManager", () => {
 			const call = vi.mocked(apiFetch).mock.calls.find(([, init]) => init?.method === "POST");
 			expect(call).toBeDefined();
 			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
-			expect(body).toMatchObject({ label: "音楽" });
-			expect(body).not.toHaveProperty("slug");
+			expect(body).toMatchObject({ label: "音楽", slug: "音楽" });
 		});
 	});
 
@@ -800,6 +860,253 @@ describe("TaxonomyManager", () => {
 			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
 			expect(body).toMatchObject({ label: "Music", slug: "custom-music" });
 		});
+	});
+
+	it("shows and sends a free slug when a name repeats under another parent", async () => {
+		mockApiFetch(clothingTermsResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Accessories");
+		await dialog.getByRole("combobox", { name: "Parent" }).click();
+		await screen.getByRole("option", { name: "Women", exact: true }).click();
+
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Slug", exact: true }))
+			.toHaveValue("accessories-1");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+
+		await vi.waitFor(() => {
+			const call = requestsWith("POST", "/terms")[0];
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({
+				label: "Accessories",
+				slug: "accessories-1",
+				parentId: "women-group",
+			});
+		});
+	});
+
+	it("sends a typed slug longer than a generated one", async () => {
+		const longSlug = `${"long-".repeat(17)}slug`;
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Long");
+		await dialog.getByRole("textbox", { name: "Slug", exact: true }).fill(longSlug);
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+
+		await vi.waitFor(() => {
+			const call = requestsWith("POST", "/terms")[0];
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ label: "Long", slug: longSlug });
+		});
+	});
+
+	it("points at a missing term name when submitted, and sends nothing", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+
+		await expect.element(dialog.getByText("Enter a name.")).toBeVisible();
+		await expect.element(name).toHaveAttribute("aria-invalid", "true");
+		await expect.element(name).toHaveFocus();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Slug", exact: true }))
+			.not.toHaveAttribute("aria-invalid");
+		expect(requestsWith("POST", "/terms")).toHaveLength(0);
+
+		await name.fill("Music");
+		await expect.element(dialog.getByText("Enter a name.")).not.toBeInTheDocument();
+	});
+
+	it("points at a cleared slug when editing a term, and sends nothing", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "Edit Technology", exact: true }).click();
+		const dialog = screen.getByRole("dialog");
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+		await slug.fill("");
+		await dialog.getByRole("button", { name: "Update" }).click();
+
+		await expect.element(dialog.getByText("Enter a slug.")).toBeVisible();
+		await expect.element(slug).toHaveAttribute("aria-invalid", "true");
+		await expect.element(slug).toHaveFocus();
+		expect(requestsWith("PUT", "/terms/")).toHaveLength(0);
+	});
+
+	it("sends a typed slug as typed, even one the form would not generate", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Archive");
+		await dialog.getByRole("textbox", { name: "Slug", exact: true }).fill("Archive_2024");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+
+		await vi.waitFor(() => {
+			const call = requestsWith("POST", "/terms")[0];
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ label: "Archive", slug: "Archive_2024" });
+		});
+	});
+
+	it("still saves a term whose stored slug the form would not generate", async () => {
+		mockApiFetch(turkishTermsResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "Edit Music", exact: true }).click();
+		const dialog = screen.getByRole("dialog");
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Indie music");
+		await dialog.getByRole("button", { name: "Update" }).click();
+
+		await vi.waitFor(() => {
+			const call = requestsWith("PUT", "/terms/INDIE")[0];
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ slug: "INDIE", label: "Indie music" });
+		});
+	});
+
+	it("shows a slug another term uses on the Slug field", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Tech");
+		await slug.fill("tech");
+		vi.mocked(apiFetch).mockResolvedValueOnce(
+			conflictResponse("Term 'tech' already exists in 'categories' (en)"),
+		);
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+
+		await expect.element(dialog.getByText(TAKEN_TERM_SLUG)).toBeVisible();
+		await expect.element(slug).toHaveFocus();
+		await expect.element(slug).toHaveAttribute("aria-invalid", "true");
+		expect(dialog.getByText("Term 'tech' already exists in 'categories' (en)").query()).toBeNull();
+
+		await slug.fill("tech-news");
+		await expect.element(dialog.getByText(TAKEN_TERM_SLUG)).not.toBeInTheDocument();
+	});
+
+	it("keeps a typed term through a press outside, and closes an untouched form", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		await expect.element(dialog).toBeVisible();
+		await pressOutside();
+		await expect.element(dialog).not.toBeInTheDocument();
+
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Music");
+		await pressOutside();
+		await expect.element(dialog).toBeVisible();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Name", exact: true }))
+			.toHaveValue("Music");
+	});
+
+	it("points at a missing taxonomy label when submitted, and sends nothing", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "New Taxonomy" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create Taxonomy" });
+		const label = dialog.getByRole("textbox", { name: "Label", exact: true });
+		await dialog.getByRole("button", { name: "Create Taxonomy" }).click();
+
+		await expect.element(dialog.getByText("Enter a label.")).toBeVisible();
+		await expect.element(label).toHaveAttribute("aria-invalid", "true");
+		await expect.element(label).toHaveFocus();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Name", exact: true }))
+			.not.toHaveAttribute("aria-invalid");
+		expect(requestsWith("POST", "/taxonomies")).toHaveLength(0);
+	});
+
+	it("explains a taxonomy name it cannot generate, then points at it on submit", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "New Taxonomy" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create Taxonomy" });
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("أنواع");
+
+		await expect.element(dialog.getByText(NAME_NOT_GENERATED)).toBeVisible();
+		await expect.element(name).not.toHaveAttribute("aria-invalid");
+
+		await dialog.getByRole("button", { name: "Create Taxonomy" }).click();
+		await expect.element(name).toHaveAttribute("aria-invalid", "true");
+		await expect.element(name).toHaveFocus();
+		await expect.element(dialog.getByText(NAME_NOT_GENERATED)).toBeVisible();
+
+		await name.fill("Kinds");
+		await expect
+			.element(
+				dialog.getByText(
+					"Use lowercase letters, numbers, and underscores, starting with a letter.",
+				),
+			)
+			.toBeVisible();
+		expect(requestsWith("POST", "/taxonomies")).toHaveLength(0);
+	});
+
+	it("shows a name another taxonomy uses on the Name field", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "New Taxonomy" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create Taxonomy" });
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("Categories");
+		await expect.element(name).toHaveValue("categories");
+		vi.mocked(apiFetch).mockResolvedValueOnce(
+			conflictResponse("Taxonomy 'categories' already exists in locale 'en'"),
+		);
+		await dialog.getByRole("button", { name: "Create Taxonomy" }).click();
+
+		await expect.element(dialog.getByText(TAKEN_TAXONOMY_NAME)).toBeVisible();
+		await expect.element(name).toHaveFocus();
+		expect(
+			dialog.getByText("Taxonomy 'categories' already exists in locale 'en'").query(),
+		).toBeNull();
+
+		await name.fill("genres");
+		await expect.element(dialog.getByText(TAKEN_TAXONOMY_NAME)).not.toBeInTheDocument();
+	});
+
+	it("keeps a typed taxonomy through a press outside, and closes an untouched form", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "New Taxonomy" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create Taxonomy" });
+		await expect.element(dialog).toBeVisible();
+		await pressOutside();
+		await expect.element(dialog).not.toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "New Taxonomy" }).click();
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("Genres");
+		await pressOutside();
+		await expect.element(dialog).toBeVisible();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Label", exact: true }))
+			.toHaveValue("Genres");
 	});
 
 	it("shows parent selector for hierarchical taxonomies", async () => {

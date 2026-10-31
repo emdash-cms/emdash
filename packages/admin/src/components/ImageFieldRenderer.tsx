@@ -117,7 +117,7 @@ export interface ImageFieldRendererProps {
 	fieldId?: string;
 	blockType?: string;
 	blockVersion?: number;
-	variant?: "default" | "featured";
+	variant?: "default" | "featured" | "avatar";
 	/** Offer a second slot for the image shown in a dark color scheme */
 	darkVariant?: boolean;
 }
@@ -265,6 +265,7 @@ export function ImageFieldRenderer({
 	};
 
 	const isFeatured = variant === "featured";
+	const isAvatar = variant === "avatar";
 	const selectedFilename =
 		typeof value === "object" && value.filename ? value.filename : t`Selected image`;
 	const currentWidth = currentMedia?.width ?? (typeof value === "object" ? value.width : undefined);
@@ -474,6 +475,44 @@ export function ImageFieldRenderer({
 			</div>
 		) : null;
 
+	const avatarField = (
+		<div className="flex items-center gap-4">
+			<div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-kumo-tint text-kumo-subtle ring ring-kumo-line">
+				{displayUrl && !imageBroken ? (
+					<img
+						src={displayUrl}
+						alt=""
+						className="size-full object-cover"
+						style={{ objectPosition }}
+						onError={() => setImageBroken(true)}
+					/>
+				) : displayUrl ? (
+					<>
+						<ImageBroken className="size-5" aria-hidden="true" />
+						<span className="sr-only">{t`Image not found`}</span>
+					</>
+				) : (
+					<ImageIcon className="size-6" aria-hidden="true" />
+				)}
+			</div>
+			<div className="min-w-0 flex-1">
+				{displayUrl ? (
+					primaryActions
+				) : (
+					<Button
+						type="button"
+						size="sm"
+						variant="secondary"
+						icon={<ImageSquare aria-hidden="true" />}
+						onClick={() => openPicker("image")}
+					>
+						{t`Select image`}
+					</Button>
+				)}
+			</div>
+		</div>
+	);
+
 	const featuredCard = displayUrl ? (
 		<LayerCard className="grid w-full grid-cols-[5rem_minmax(0,1fr)_auto] items-center rounded-xl p-0 @lg/featured:grid-cols-[12rem_minmax(0,1fr)] @lg/featured:items-stretch">
 			<div
@@ -537,7 +576,9 @@ export function ImageFieldRenderer({
 			) : (
 				<Label>{labelContent}</Label>
 			)}
-			{isFeatured && displayUrl ? (
+			{isAvatar ? (
+				avatarField
+			) : isFeatured && displayUrl ? (
 				featuredCard
 			) : displayUrl ? (
 				imageBroken ? (

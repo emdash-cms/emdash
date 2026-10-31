@@ -1,0 +1,12 @@
+---
+"@emdash-cms/admin": patch
+"@emdash-cms/blocks": patch
+---
+
+Updates the admin's confirmation, form and notice dialogs to Kumo's `LayerDialog` design. Each dialog keeps its title in a fixed header, scrolls its content in a card, and puts Cancel and the main action in a tray along the bottom. On phones, dialogs open as bottom sheets, and most can be swiped down to dismiss. Block Kit button confirmations on plugin admin pages use the same design.
+
+Inside dialogs, groups of fields share one section heading style, selects fill the width of their column, and paired fields stack on phones. Explanations that used to sit under fields, such as "Slugs cannot be changed after the field is created.", are behind an info button beside the label, which opens on hover, keyboard focus or a tap. Errors, warnings about what an action will do, and format rules the dialog does not check stay visible. Screen readers read an info button's note as the button's description, without opening it.
+
+Dialogs with Cancel and an action no longer show a separate close (×) button; Cancel and Escape behave as before. In the byline and media folder dialogs, Delete moves from the bottom bar to a row at the end of the dialog that says what deleting does, and the byline avatar shows as a small circle with its actions beside it. Creating a relationship from the field dialog opens it in a second dialog on top, whose Back button returns to the field, and the relation form no longer says it cannot generate a slug before both side names are filled in. A confirmation's message sits under its title and is the dialog's description for screen readers. The media picker, media details, media upload, bulk tagging, content picker and section picker dialogs keep their previous layout.
+
+Browser tests that clicked a dialog's "Close" button should click "Cancel" or press Escape instead. A dialog now takes focus itself when it opens, unless one of its fields takes focus, so press Tab to reach its first control. The plugin permissions and uninstall dialogs are now named by their titles, such as "Plugin Permissions" and "Uninstall Gallery?", instead of "Capability consent" and "Uninstall confirmation". A label locator such as `getByLabel("Slug")` can also match the new "More information about Slug" button, so pass `{ exact: true }` or locate the field by its role. An info button's note is also in the page as the button's hidden description, so locate the open note with `getByRole("tooltip")` rather than by its text.

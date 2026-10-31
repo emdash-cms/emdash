@@ -3,7 +3,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import "../../dist/styles.css";
 import type { Section, SectionsResult } from "../../src/lib/api";
+import { ApiResponseError } from "../../src/lib/api/client.js";
+import { pressOutside } from "../utils/mouse.ts";
 import { render } from "../utils/render.tsx";
 
 // Mock router
@@ -42,6 +45,7 @@ const { Sections } = await import("../../src/components/Sections");
 // ---------------------------------------------------------------------------
 
 const DELETE_SECTION_MSG_REGEX = /This will permanently delete/;
+const TAKEN_SLUG = "Another section already uses this slug. Enter a different one.";
 
 function makeSection(overrides: Partial<Section> = {}): Section {
 	return {
@@ -187,7 +191,7 @@ describe("Sections", () => {
 			.toBeInTheDocument();
 		// Check form fields exist — InputArea uses label prop but may not be associated via aria
 		await expect.element(screen.getByLabelText("Title")).toBeInTheDocument();
-		await expect.element(screen.getByLabelText("Slug")).toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Slug", { exact: true })).toBeInTheDocument();
 	});
 
 	it("auto-generates slug from title in create dialog", async () => {
@@ -200,7 +204,9 @@ describe("Sections", () => {
 		const titleInput = screen.getByLabelText("Title");
 		await titleInput.fill("My Great Section");
 		// Slug should be auto-generated
-		await expect.element(screen.getByLabelText("Slug")).toHaveValue("my-great-section");
+		await expect
+			.element(screen.getByLabelText("Slug", { exact: true }))
+			.toHaveValue("my-great-section");
 	});
 
 	it("keeps the generated slug empty for blank titles", async () => {
@@ -211,7 +217,7 @@ describe("Sections", () => {
 		);
 		await screen.getByText("New section").click();
 		const titleInput = screen.getByLabelText("Title");
-		const slugInput = screen.getByLabelText("Slug");
+		const slugInput = screen.getByLabelText("Slug", { exact: true });
 		await titleInput.fill("Draft");
 		await expect.element(slugInput).toHaveValue("draft");
 		await titleInput.fill("");
@@ -220,6 +226,121 @@ describe("Sections", () => {
 		await expect.element(slugInput).toHaveValue("");
 		await titleInput.fill("Ready");
 		await expect.element(slugInput).toHaveValue("ready");
+	});
+
+	it("points at each missing field when submitted, and sends nothing", async () => {
+		const screen = await render(
+			<Wrapper>
+				<Sections />
+			</Wrapper>,
+		);
+
+		await screen.getByText("New section").click();
+		const dialog = screen.getByRole("dialog", { name: "Create section" });
+		const title = dialog.getByRole("textbox", { name: "Title", exact: true });
+		expect(dialog.getByText("Enter a title.").query()).toBeNull();
+		await dialog.getByRole("button", { name: "Create section" }).click();
+
+		await expect.element(dialog.getByText("Enter a title.")).toBeVisible();
+		await expect.element(dialog.getByText("Enter a slug.")).toBeVisible();
+		await expect.element(title).toHaveAttribute("aria-invalid", "true");
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Slug", exact: true }))
+			.toHaveAttribute("aria-invalid", "true");
+		await expect.element(title).toHaveFocus();
+		expect(mockCreateSection).not.toHaveBeenCalled();
+
+		await title.fill("Hero");
+		await expect.element(dialog.getByText("Enter a title.")).not.toBeInTheDocument();
+		await expect.element(dialog.getByText("Enter a slug.")).not.toBeInTheDocument();
+	});
+
+	it("leaves the slug for the user to type when the title has no letters it accepts", async () => {
+		const screen = await render(
+			<Wrapper>
+				<Sections />
+			</Wrapper>,
+		);
+
+		await screen.getByText("New section").click();
+		const dialog = screen.getByRole("dialog", { name: "Create section" });
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+		await dialog.getByRole("textbox", { name: "Title", exact: true }).fill("Café Hero");
+		await expect.element(slug).toHaveValue("cafe-hero");
+		await dialog.getByRole("textbox", { name: "Title", exact: true }).fill("Straße Hero");
+		await expect.element(slug).toHaveValue("strasse-hero");
+		await dialog.getByRole("textbox", { name: "Title", exact: true }).fill("بطاقة البطل");
+		await expect.element(slug).toHaveValue("");
+
+		await dialog.getByRole("button", { name: "Create section" }).click();
+		await expect.element(dialog.getByText("Enter a slug.")).toBeVisible();
+		await expect.element(slug).toHaveFocus();
+
+		await slug.fill("Hero Card");
+		await expect
+			.element(dialog.getByText("Use lowercase letters, numbers, and hyphens."))
+			.toBeVisible();
+		expect(mockCreateSection).not.toHaveBeenCalled();
+	});
+
+	it("shows a slug another section uses on the Slug field", async () => {
+		mockCreateSection.mockRejectedValueOnce(
+			new ApiResponseError(409, "CONFLICT", 'Section with slug "cta" already exists'),
+		);
+		const screen = await render(
+			<Wrapper>
+				<Sections />
+			</Wrapper>,
+		);
+
+		await screen.getByText("New section").click();
+		const dialog = screen.getByRole("dialog", { name: "Create section" });
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+		await dialog.getByRole("textbox", { name: "Title", exact: true }).fill("CTA");
+		await dialog.getByRole("button", { name: "Create section" }).click();
+
+		await expect.element(dialog.getByText(TAKEN_SLUG)).toBeVisible();
+		await expect.element(slug).toHaveFocus();
+		expect(dialog.getByText('Section with slug "cta" already exists').query()).toBeNull();
+
+		await slug.fill("cta-2");
+		await expect.element(dialog.getByText(TAKEN_SLUG)).not.toBeInTheDocument();
+	});
+
+	it("keeps typed input through a press outside, and still closes on Cancel", async () => {
+		const screen = await render(
+			<Wrapper>
+				<Sections />
+			</Wrapper>,
+		);
+
+		await screen.getByText("New section").click();
+		const dialog = screen.getByRole("dialog", { name: "Create section" });
+		await dialog.getByRole("textbox", { name: "Title", exact: true }).fill("Hero");
+
+		await pressOutside();
+		await expect.element(dialog).toBeVisible();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Title", exact: true }))
+			.toHaveValue("Hero");
+
+		await dialog.getByRole("button", { name: "Cancel" }).click();
+		await expect.element(dialog).not.toBeInTheDocument();
+	});
+
+	it("closes on a press outside when nothing was typed", async () => {
+		const screen = await render(
+			<Wrapper>
+				<Sections />
+			</Wrapper>,
+		);
+
+		await screen.getByText("New section").click();
+		const dialog = screen.getByRole("dialog", { name: "Create section" });
+		await expect.element(dialog).toBeVisible();
+
+		await pressOutside();
+		await expect.element(dialog).not.toBeInTheDocument();
 	});
 
 	it("search input filters sections", async () => {

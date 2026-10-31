@@ -4,20 +4,46 @@
  * Displays all menus with ability to create, edit, and delete.
  */
 
-import { Button, Dialog, Input, LayerCard, Toast } from "@cloudflare/kumo";
+import { Button, Input, LayerCard, LayerDialog, Toast } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, X } from "@phosphor-icons/react";
+import { Plus } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
-import { fetchMenus, createMenu, deleteMenu } from "../lib/api";
-import { fetchManifest } from "../lib/api/client.js";
+import { fetchMenus, createMenu, deleteMenu, type CreateMenuInput } from "../lib/api";
+import { ApiResponseError, fetchManifest } from "../lib/api/client.js";
+import { guardUnsavedInput, revealErrors, useSingleFlight } from "../lib/dialog-form.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { HelpLabel } from "./FieldHelpLabel.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
 import { MenuCard } from "./MenuCard.js";
+
+const MENU_NAME_PATTERN = /^[a-z0-9-]+$/;
+
+type CreateMenuField = "label" | "name";
+
+function createMenuProblems(
+	label: string,
+	name: string,
+): Partial<Record<CreateMenuField, MessageDescriptor>> {
+	const problems: Partial<Record<CreateMenuField, MessageDescriptor>> = {};
+	if (!label.trim()) problems.label = msg`Enter a label.`;
+	const trimmedName = name.trim();
+	if (!trimmedName) problems.name = msg`Enter a name.`;
+	else if (!MENU_NAME_PATTERN.test(trimmedName)) {
+		problems.name = msg`Use lowercase letters, numbers, and hyphens.`;
+	}
+	return problems;
+}
+
+function isConflict(error: unknown): boolean {
+	return error instanceof ApiResponseError && error.code === "CONFLICT";
+}
 
 export function MenuList() {
 	const { t } = useLingui();
@@ -26,6 +52,12 @@ export function MenuList() {
 	const toastManager = Toast.useToastManager();
 	const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 	const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null);
+	const createFormId = React.useId();
+	const createFormRef = React.useRef<HTMLFormElement>(null);
+	const [createLabel, setCreateLabel] = React.useState("");
+	const [createName, setCreateName] = React.useState("");
+	const [createSubmitted, setCreateSubmitted] = React.useState(false);
+	const [takenName, setTakenName] = React.useState<string | null>(null);
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -57,7 +89,17 @@ export function MenuList() {
 				search: { locale: menu.locale },
 			});
 		},
+		onError: (error, input) => {
+			if (!isConflict(error)) return;
+			revealErrors(createFormRef.current, () => {
+				setCreateSubmitted(true);
+				setTakenName(input.name);
+			});
+		},
 	});
+	const submitCreate = useSingleFlight((input: CreateMenuInput) =>
+		createMutation.mutateAsync(input),
+	);
 
 	const deleteMutation = useMutation({
 		mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }),
@@ -73,17 +115,28 @@ export function MenuList() {
 
 	const handleCreateOpenChange = (open: boolean) => {
 		setIsCreateOpen(open);
-		if (!createMutation.isPending) createMutation.reset();
+		if (!open) return;
+		setCreateLabel("");
+		setCreateName("");
+		setCreateSubmitted(false);
+		setTakenName(null);
+		createMutation.reset();
 	};
+
+	const createProblems = createMenuProblems(createLabel, createName);
+	if (takenName !== null && createName.trim() === takenName) {
+		createProblems.name = msg`Another menu already uses this name. Enter a different one.`;
+	}
+	const createErrors = createSubmitted ? createProblems : {};
 
 	const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		const formData = new FormData(e.currentTarget);
-		const nameVal = formData.get("name");
-		const name = typeof nameVal === "string" ? nameVal : "";
-		const labelVal = formData.get("label");
-		const label = typeof labelVal === "string" ? labelVal : "";
-		createMutation.mutate({ name, label, locale: activeLocale });
+		if (createMutation.isPending) return;
+		if (Object.keys(createProblems).length > 0) {
+			revealErrors(e.currentTarget, () => setCreateSubmitted(true));
+			return;
+		}
+		submitCreate({ name: createName.trim(), label: createLabel.trim(), locale: activeLocale });
 	};
 
 	if (isLoading) {
@@ -112,84 +165,86 @@ export function MenuList() {
 							onChange={setActiveLocale}
 						/>
 					) : null}
-					<Dialog.Root open={isCreateOpen} onOpenChange={handleCreateOpenChange}>
-						<Dialog.Trigger
+					<LayerDialog.Root
+						open={isCreateOpen}
+						{...guardUnsavedInput(createLabel !== "" || createName !== "", handleCreateOpenChange)}
+						dismissDisabled={createMutation.isPending}
+					>
+						<LayerDialog.Trigger
 							render={(props) => (
 								<Button {...props} icon={<Plus aria-hidden="true" />}>
 									{t`Create Menu`}
 								</Button>
 							)}
 						/>
-						<Dialog
-							className="flex max-h-[calc(100dvh-2rem)] min-w-0 w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-lg"
-							size="lg"
-						>
-							<form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col">
-								<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
-									<div className="min-w-0">
-										<Dialog.Title className="text-lg font-semibold leading-6">
-											{t`Create menu`}
-										</Dialog.Title>
-										<Dialog.Description className="mt-1 text-sm leading-5 text-kumo-subtle">
-											{t`Give this navigation a label and a site identifier.`}
-										</Dialog.Description>
-									</div>
-									<Dialog.Close
-										render={(props) => (
-											<Button
-												{...props}
-												type="button"
-												variant="ghost"
-												shape="square"
-												icon={<X className="size-4" aria-hidden="true" />}
-												aria-label={t`Close`}
-											/>
-										)}
+						<LayerDialog.Content>
+							<LayerDialog.Title>{t`Create menu`}</LayerDialog.Title>
+							<LayerDialog.Description>
+								{t`Give this navigation a label and a site identifier.`}
+							</LayerDialog.Description>
+							<LayerDialog.Body>
+								<form
+									ref={createFormRef}
+									id={createFormId}
+									noValidate
+									onSubmit={handleCreate}
+									className="grid gap-5"
+								>
+									<Input
+										label={
+											<HelpLabel
+												help={t`Shown in the admin. Some themes also show it on the site.`}
+											>
+												{t`Label`}
+											</HelpLabel>
+										}
+										aria-label={t`Label`}
+										name="label"
+										required
+										placeholder={t`Primary navigation`}
+										value={createLabel}
+										onChange={(e) => setCreateLabel(e.target.value)}
+										error={createErrors.label && t(createErrors.label)}
+										aria-invalid={createErrors.label ? true : undefined}
 									/>
-								</div>
-								<div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
-									<div>
-										<Input
-											label={t`Label`}
-											name="label"
-											required
-											placeholder={t`Primary navigation`}
-										/>
-										<p className="mt-1 text-sm text-kumo-subtle">
-											{t`Shown in the admin. Some themes also show it on the site.`}
-										</p>
-									</div>
-									<div>
-										<Input
-											label={t`Name`}
-											name="name"
-											dir="ltr"
-											required
-											placeholder={t`primary`}
-											pattern="[a-z0-9\-]+"
-											title={t`Only lowercase letters, numbers, and hyphens`}
-										/>
-										<p className="mt-1 text-sm text-kumo-subtle">
-											{t`Stable identifier for your site, such as primary or footer.`}
-										</p>
-									</div>
-									<DialogError message={getMutationError(createMutation.error)} />
-								</div>
-								<div className="flex shrink-0 justify-end gap-2 border-t border-kumo-line px-6 py-4">
-									<Button
-										type="button"
-										variant="secondary"
-										onClick={() => handleCreateOpenChange(false)}
-									>
-										{t`Cancel`}
-									</Button>
-									<Button type="submit" variant="primary" disabled={createMutation.isPending}>
-										{createMutation.isPending ? t`Creating...` : t`Create`}
-									</Button>
-								</div>
-							</form>
-						</Dialog>
-					</Dialog.Root>
+									<Input
+										label={
+											<HelpLabel
+												help={t`Stable identifier for your site, such as primary or footer.`}
+											>
+												{t`Name`}
+											</HelpLabel>
+										}
+										aria-label={t`Name`}
+										name="name"
+										dir="ltr"
+										required
+										placeholder={t`primary`}
+										value={createName}
+										onChange={(e) => setCreateName(e.target.value)}
+										error={createErrors.name && t(createErrors.name)}
+										aria-invalid={createErrors.name ? true : undefined}
+									/>
+									<DialogError
+										message={
+											isConflict(createMutation.error)
+												? null
+												: getMutationError(createMutation.error)
+										}
+									/>
+								</form>
+							</LayerDialog.Body>
+							<LayerDialog.Actions dismissLabel={t`Cancel`}>
+								<LayerDialog.Action
+									type="submit"
+									form={createFormId}
+									disabled={createMutation.isPending}
+								>
+									{createMutation.isPending ? t`Creating...` : t`Create`}
+								</LayerDialog.Action>
+							</LayerDialog.Actions>
+						</LayerDialog.Content>
+					</LayerDialog.Root>
 				</div>
 			</header>
 

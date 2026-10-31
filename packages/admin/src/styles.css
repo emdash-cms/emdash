@@ -1436,10 +1436,11 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 
 /**
  * Prevent dialogs from overflowing the viewport on small screens, where a
- * dialog's own min-width would override max-width.
+ * dialog's own min-width would override max-width. LayerDialog popups carry
+ * data-swipe-direction and are full-width bottom sheets there.
  */
 @media (max-width: 639px) {
-	body:has(> #admin-root) [role="dialog"] {
+	body:has(> #admin-root) [role="dialog"]:not([data-swipe-direction]) {
 		min-width: 0 !important;
 		max-width: calc(100vw - 2rem);
 	}

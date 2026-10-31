@@ -4,9 +4,14 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import "../../dist/styles.css";
 import { MediaFolderDialog } from "../../src/components/MediaFolderDialog";
 import { ApiResponseError } from "../../src/lib/api";
+import { pressOutside } from "../utils/mouse.ts";
 import { render } from "../utils/render.tsx";
+
+const EMPTY_NAME = "Enter a folder name.";
+const TAKEN_NAME = "Another folder already uses this name. Enter a different one.";
 
 async function renderDialog(props: Partial<React.ComponentProps<typeof MediaFolderDialog>> = {}) {
 	const defaults: React.ComponentProps<typeof MediaFolderDialog> = {
@@ -67,28 +72,78 @@ describe("MediaFolderDialog", () => {
 		);
 	});
 
-	it("keeps validation and conflict errors inline", async () => {
+	it("points at a missing or overlong name when submitted, and sends nothing", async () => {
+		const onCreate = vi.fn().mockResolvedValue({ id: "folder-1", name: "Created" });
+		const { screen } = await renderDialog({ onCreate });
+		const name = screen.getByLabelText("Name", { exact: true });
+		const create = screen.getByRole("button", { name: "Create" });
+		expect(screen.getByText(EMPTY_NAME).query()).toBeNull();
+
+		await name.fill("   ");
+		await create.click();
+		await expect.element(screen.getByText(EMPTY_NAME)).toBeVisible();
+		await expect.element(name).toHaveAttribute("aria-invalid", "true");
+		await expect.element(name).toHaveFocus();
+
+		await name.fill("A");
+		await expect.element(screen.getByText(EMPTY_NAME)).not.toBeInTheDocument();
+		await expect.element(name).not.toHaveAttribute("aria-invalid");
+
+		await name.fill("x".repeat(201));
+		await create.click();
+		await expect.element(screen.getByText("Use 200 characters or fewer.")).toBeVisible();
+		await expect.element(name).toHaveFocus();
+		expect(onCreate).not.toHaveBeenCalled();
+	});
+
+	it("shows a name another folder uses on the name field", async () => {
 		const onCreate = vi
 			.fn()
 			.mockRejectedValue(
-				new ApiResponseError(409, "CONFLICT", "Database unique constraint failed"),
+				new ApiResponseError(409, "CONFLICT", "A media folder with this name already exists"),
 			);
 		const { screen } = await renderDialog({ onCreate });
+		const name = screen.getByLabelText("Name", { exact: true });
 
-		screen.getByRole("button", { name: "Create" }).element().click();
-		await expect
-			.element(screen.getByText("Folder name must be between 1 and 200 characters"))
-			.toBeInTheDocument();
+		await name.fill("Duplicate");
+		await screen.getByRole("button", { name: "Create" }).click();
 
-		await screen.getByLabelText("Name").fill("Duplicate");
-		screen.getByRole("button", { name: "Create" }).element().click();
-		await expect
-			.element(screen.getByText("A media folder with this name already exists"))
-			.toBeInTheDocument();
-		screen.getByRole("button", { name: "Cancel" }).element().click();
-		await vi.waitFor(() =>
-			expect(screen.getByRole("heading", { name: "Add new folder" }).query()).toBeNull(),
-		);
+		await expect.element(screen.getByText(TAKEN_NAME)).toBeVisible();
+		await expect.element(name).toHaveAttribute("aria-invalid", "true");
+		await expect.element(name).toHaveFocus();
+		await expect.element(name).toHaveValue("Duplicate");
+		expect(screen.getByText("A media folder with this name already exists").query()).toBeNull();
+
+		await name.fill(" DUPLICATE ");
+		await expect.element(screen.getByText(TAKEN_NAME)).toBeVisible();
+
+		await name.fill("Duplicates");
+		await expect.element(screen.getByText(TAKEN_NAME)).not.toBeInTheDocument();
+	});
+
+	it("keeps a typed name through a press outside, and still closes on Cancel", async () => {
+		const onClose = vi.fn();
+		const { screen } = await renderDialog({ onClose });
+		const dialog = screen.getByRole("dialog", { name: "Add new folder" });
+		await expect.element(dialog).toBeVisible();
+		await screen.getByLabelText("Name", { exact: true }).fill("Drafts");
+
+		await pressOutside();
+		await expect.element(dialog).toBeVisible();
+		await expect.element(screen.getByLabelText("Name", { exact: true })).toHaveValue("Drafts");
+		expect(onClose).not.toHaveBeenCalled();
+
+		await dialog.getByRole("button", { name: "Cancel" }).click();
+		await vi.waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+	});
+
+	it("closes on a press outside when nothing was typed", async () => {
+		const onClose = vi.fn();
+		const { screen } = await renderDialog({ onClose });
+		await expect.element(screen.getByRole("dialog", { name: "Add new folder" })).toBeVisible();
+
+		await pressOutside();
+		await vi.waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
 	});
 
 	it("ignores duplicate submits while a folder save is pending", async () => {
@@ -134,10 +189,11 @@ describe("MediaFolderDialog", () => {
 		const deleteButton = screen.getByRole("button", { name: "Delete folder" });
 
 		deleteButton.element().click();
-		await expect.element(screen.getByText("Delete “Drafts”?")).toBeInTheDocument();
+		const confirmation = screen.getByRole("dialog", { name: "Delete “Drafts”?" });
+		await expect.element(confirmation).toBeInTheDocument();
 		await expect
 			.element(
-				screen.getByText(
+				confirmation.getByText(
 					"Media in this folder will return to Main library. No files will be deleted.",
 				),
 			)

@@ -12,6 +12,8 @@
  */
 
 import { Input, Select } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
@@ -23,6 +25,8 @@ import type {
 } from "../lib/api/relations.js";
 import { singularize } from "../lib/singularize.js";
 import { slugifyIdentifier } from "../lib/utils.js";
+import { DialogSection } from "./DialogSection.js";
+import { HelpLabel } from "./FieldHelpLabel.js";
 
 /** How a limit is expressed in the form. `limit` reveals a number input. */
 type LimitMode = "one" | "many" | "limit";
@@ -54,6 +58,28 @@ function limitComplete(mode: LimitMode, custom: string): boolean {
 function customLimit(value: number | null | undefined): string {
 	return value && value !== 1 ? String(value) : "";
 }
+
+/** The fields that can keep a relation from saving. */
+export type RelationField =
+	| "parentCollection"
+	| "childCollection"
+	| "parentLabel"
+	| "parentLabelSingular"
+	| "childLabel"
+	| "childLabelSingular"
+	| "childrenLimit"
+	| "parentsLimit"
+	| "slug";
+
+/** The message each field shows, once a submit has found it wrong. */
+export type RelationFormErrors = Partial<Record<RelationField, string>>;
+
+const SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
+const SLUG_MAX_LENGTH = 63;
+const LABEL_MAX_LENGTH = 200;
+
+const SLUG_UNDERIVABLE = msg`A slug cannot be generated from these role names. Type one manually using lowercase letters, numbers, and underscores.`;
+const LABEL_TOO_LONG = msg`Use 200 characters or fewer.`;
 
 /** The plural and singular names a collection lends to the end it sits on. */
 function collectionLabels(
@@ -100,7 +126,9 @@ export interface RelationForm {
 	setLabel: (key: LabelKey, value: string) => void;
 	/** Back to the values the form opened with. */
 	reset: () => void;
-	canSave: boolean;
+	/** What keeps the form from saving, by field. Empty when it can save. */
+	problems: Partial<Record<RelationField, MessageDescriptor>>;
+	/** Whether the user has changed anything since the form opened. */
 	isDirty: boolean;
 	toInput: () => CreateRelationInput | UpdateRelationInput;
 }
@@ -136,12 +164,57 @@ function withDerivedSlug(state: RelationFormState, isNew?: boolean): RelationFor
 	return { ...state, slug: slugifyIdentifier(`${state.parentLabel}_${state.childLabel}`) };
 }
 
+function slugProblem(state: RelationFormState): MessageDescriptor | undefined {
+	const namesGiven = Boolean(state.parentLabel && state.childLabel);
+	if (!state.slug) {
+		// An untouched slug fills in once both sides are named, and the missing
+		// name already carries the error.
+		if (!state.slugEdited && !namesGiven) return undefined;
+		return namesGiven && !state.slugEdited ? SLUG_UNDERIVABLE : msg`Enter a slug.`;
+	}
+	if (!SLUG_PATTERN.test(state.slug)) {
+		return msg`Use lowercase letters, numbers, and underscores, starting with a letter.`;
+	}
+	if (state.slug.length > SLUG_MAX_LENGTH) return msg`Use 63 characters or fewer.`;
+	return undefined;
+}
+
+function formProblems(
+	state: RelationFormState,
+	isNew?: boolean,
+): Partial<Record<RelationField, MessageDescriptor>> {
+	const problems: Partial<Record<RelationField, MessageDescriptor>> = {};
+	if (isNew && !state.parentCollection) problems.parentCollection = msg`Choose a content type.`;
+	if (isNew && !state.childCollection) problems.childCollection = msg`Choose a content type.`;
+	if (!state.parentLabel.trim()) problems.parentLabel = msg`Enter a name.`;
+	else if (state.parentLabel.length > LABEL_MAX_LENGTH) problems.parentLabel = LABEL_TOO_LONG;
+	if (state.parentLabelSingular.length > LABEL_MAX_LENGTH) {
+		problems.parentLabelSingular = LABEL_TOO_LONG;
+	}
+	if (!state.childLabel.trim()) problems.childLabel = msg`Enter a name.`;
+	else if (state.childLabel.length > LABEL_MAX_LENGTH) problems.childLabel = LABEL_TOO_LONG;
+	if (state.childLabelSingular.length > LABEL_MAX_LENGTH) {
+		problems.childLabelSingular = LABEL_TOO_LONG;
+	}
+	if (!limitComplete(state.childrenMode, state.childrenLimit)) {
+		problems.childrenLimit = msg`Enter a number of 2 or more.`;
+	}
+	if (!limitComplete(state.parentsMode, state.parentsLimit)) {
+		problems.parentsLimit = msg`Enter a number of 2 or more.`;
+	}
+	const slug = isNew ? slugProblem(state) : undefined;
+	if (slug) problems.slug = slug;
+	return problems;
+}
+
 export function useRelationForm(options: UseRelationFormOptions): RelationForm {
 	const { relation, isNew, collections = [] } = options;
 	const [state, setState] = React.useState<RelationFormState>(() => initialState(options));
+	const [edited, setEdited] = React.useState(false);
 
 	const set = React.useCallback(
 		<K extends keyof RelationFormState>(key: K, value: RelationFormState[K]) => {
+			setEdited(true);
 			setState((current) => ({ ...current, [key]: value }));
 		},
 		[],
@@ -149,6 +222,7 @@ export function useRelationForm(options: UseRelationFormOptions): RelationForm {
 
 	const setLabel = React.useCallback(
 		(key: LabelKey, value: string) => {
+			setEdited(true);
 			setState((current) =>
 				withDerivedSlug(
 					{ ...current, [key]: value, labelsEdited: { ...current.labelsEdited, [key]: true } },
@@ -165,6 +239,7 @@ export function useRelationForm(options: UseRelationFormOptions): RelationForm {
 	collectionsRef.current = collections;
 	const setEnd = React.useCallback(
 		(end: "parent" | "child", value: string) => {
+			setEdited(true);
 			setState((current) => {
 				const names = collectionLabels(collectionsRef.current, value);
 				const pluralKey = end === "parent" ? "parentLabel" : "childLabel";
@@ -183,32 +258,24 @@ export function useRelationForm(options: UseRelationFormOptions): RelationForm {
 
 	const optionsRef = React.useRef(options);
 	optionsRef.current = options;
-	const reset = React.useCallback(() => setState(initialState(optionsRef.current)), []);
+	const reset = React.useCallback(() => {
+		setState(initialState(optionsRef.current));
+		setEdited(false);
+	}, []);
 
-	const limitsComplete =
-		limitComplete(state.childrenMode, state.childrenLimit) &&
-		limitComplete(state.parentsMode, state.parentsLimit);
-
-	const canSave = isNew
-		? Boolean(
-				state.slug &&
-				state.parentCollection &&
-				state.childCollection &&
-				state.parentLabel &&
-				state.childLabel &&
-				limitsComplete,
-			)
-		: Boolean(state.parentLabel && state.childLabel && limitsComplete);
+	const problems = React.useMemo(() => formProblems(state, isNew), [state, isNew]);
 
 	const isDirty =
-		isNew ||
-		!relation ||
-		state.parentLabel !== relation.parentLabel ||
-		state.parentLabelSingular !== (relation.parentLabelSingular ?? "") ||
-		state.childLabel !== relation.childLabel ||
-		state.childLabelSingular !== (relation.childLabelSingular ?? "") ||
-		limitValue(state.childrenMode, state.childrenLimit) !== relation.maxChildrenPerParent ||
-		limitValue(state.parentsMode, state.parentsLimit) !== relation.maxParentsPerChild;
+		isNew || !relation
+			? edited
+			: state.parentLabel !== relation.parentLabel ||
+				state.parentLabelSingular !== (relation.parentLabelSingular ?? "") ||
+				state.childLabel !== relation.childLabel ||
+				state.childLabelSingular !== (relation.childLabelSingular ?? "") ||
+				state.childrenMode !== limitMode(relation.maxChildrenPerParent) ||
+				state.parentsMode !== limitMode(relation.maxParentsPerChild) ||
+				limitValue(state.childrenMode, state.childrenLimit) !== relation.maxChildrenPerParent ||
+				limitValue(state.parentsMode, state.parentsLimit) !== relation.maxParentsPerChild;
 
 	const toInput = React.useCallback((): CreateRelationInput | UpdateRelationInput => {
 		const roles = {
@@ -229,25 +296,28 @@ export function useRelationForm(options: UseRelationFormOptions): RelationForm {
 			: roles;
 	}, [state, isNew]);
 
-	return { state, set, setEnd, setLabel, reset, canSave, isDirty, toInput };
+	return { state, set, setEnd, setLabel, reset, problems, isDirty, toInput };
 }
 
 export interface RelationFormFieldsProps {
 	form: RelationForm;
 	collections: SchemaCollection[];
 	isNew?: boolean;
+	errors?: RelationFormErrors;
 }
 
-export function RelationFormFields({ form, collections, isNew }: RelationFormFieldsProps) {
+export function RelationFormFields({
+	form,
+	collections,
+	isNew,
+	errors = {},
+}: RelationFormFieldsProps) {
 	const { t } = useLingui();
 	const { state, set, setEnd, setLabel } = form;
 
 	const collectionItems = collections.map((c) => ({ label: c.label, value: c.slug }));
-
-	const slugError =
-		isNew && !state.slug && (state.parentLabel || state.childLabel)
-			? t`A slug cannot be generated from these role names. Type one manually using lowercase letters, numbers, and underscores.`
-			: undefined;
+	const slugUnderivable =
+		isNew && !state.slug && !state.slugEdited && Boolean(state.parentLabel && state.childLabel);
 
 	// Named here rather than inside the label template: a `t` call nested in
 	// another `t` template is not something the macro can extract.
@@ -255,97 +325,85 @@ export function RelationFormFields({ form, collections, isNew }: RelationFormFie
 	const linkedSideName = state.childLabelSingular || t`entry on the linked side`;
 
 	return (
-		<div className="space-y-6">
-			<div className="space-y-4">
-				<h3 className="text-xs font-medium uppercase tracking-wider text-kumo-subtle">
-					{t`Content types`}
-				</h3>
-
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-					<Select
-						label={t`Links from`}
-						className="w-full"
-						value={state.parentCollection}
-						onValueChange={(v) => setEnd("parent", v ?? "")}
-						items={collectionItems}
-						placeholder={t`Select a content type`}
-						disabled={!isNew}
-					/>
-					<Select
-						label={t`Links to`}
-						className="w-full"
-						value={state.childCollection}
-						onValueChange={(v) => setEnd("child", v ?? "")}
-						items={collectionItems}
-						placeholder={t`Select a content type`}
-						disabled={!isNew}
-					/>
+		<div className="grid gap-5">
+			<DialogSection title={t`Content types`}>
+				<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
+					<div data-field-invalid={errors.parentCollection ? true : undefined}>
+						<Select
+							label={t`Links from`}
+							className="w-full"
+							value={state.parentCollection}
+							onValueChange={(v) => setEnd("parent", v ?? "")}
+							items={collectionItems}
+							placeholder={t`Select a content type`}
+							disabled={!isNew}
+							required
+							error={errors.parentCollection}
+						/>
+					</div>
+					<div data-field-invalid={errors.childCollection ? true : undefined}>
+						<Select
+							label={t`Links to`}
+							className="w-full"
+							value={state.childCollection}
+							onValueChange={(v) => setEnd("child", v ?? "")}
+							items={collectionItems}
+							placeholder={t`Select a content type`}
+							disabled={!isNew}
+							required
+							error={errors.childCollection}
+						/>
+					</div>
 				</div>
-			</div>
+			</DialogSection>
 
-			<div className="space-y-4">
-				<h3 className="text-xs font-medium uppercase tracking-wider text-kumo-subtle">{t`Roles`}</h3>
-				<p className="text-sm text-kumo-subtle">
-					{t`What each side is called. These name the fields bound to this relationship.`}
-				</p>
-
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+			<DialogSection
+				title={t`Roles`}
+				help={t`What each side is called. These name the fields bound to this relationship.`}
+			>
+				<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-x-4">
 					<Input
 						label={t`Linking side (plural)`}
 						value={state.parentLabel}
 						onChange={(e) => setLabel("parentLabel", e.target.value)}
 						placeholder={t`Posts`}
+						required
+						error={errors.parentLabel}
+						aria-invalid={errors.parentLabel ? true : undefined}
 					/>
 					<Input
 						label={t`Linking side (singular)`}
 						value={state.parentLabelSingular}
 						onChange={(e) => setLabel("parentLabelSingular", e.target.value)}
 						placeholder={t`Post`}
+						error={errors.parentLabelSingular}
+						aria-invalid={errors.parentLabelSingular ? true : undefined}
 					/>
 					<Input
 						label={t`Linked side (plural)`}
 						value={state.childLabel}
 						onChange={(e) => setLabel("childLabel", e.target.value)}
 						placeholder={t`Authors`}
+						required
+						error={errors.childLabel}
+						aria-invalid={errors.childLabel ? true : undefined}
 					/>
 					<Input
 						label={t`Linked side (singular)`}
 						value={state.childLabelSingular}
 						onChange={(e) => setLabel("childLabelSingular", e.target.value)}
 						placeholder={t`Author`}
+						error={errors.childLabelSingular}
+						aria-invalid={errors.childLabelSingular ? true : undefined}
 					/>
 				</div>
-			</div>
+			</DialogSection>
 
-			<div>
-				<Input
-					dir="ltr"
-					label={t`Slug`}
-					value={state.slug}
-					onChange={(e) => {
-						set("slugEdited", true);
-						set("slug", e.target.value);
-					}}
-					placeholder="posts_authors"
-					disabled={!isNew}
-					error={slugError}
-				/>
-				<p className="text-xs text-kumo-subtle mt-2">
-					{isNew
-						? t`Lowercase letters, numbers and underscores. Reference fields store this.`
-						: t`The content types and slug cannot be changed after a relation is created.`}
-				</p>
-			</div>
-
-			<div className="space-y-4">
-				<h3 className="text-xs font-medium uppercase tracking-wider text-kumo-subtle">
-					{t`How many`}
-				</h3>
-				<p className="text-sm text-kumo-subtle">
-					{t`Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links.`}
-				</p>
-
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:grid-rows-[auto_auto] sm:gap-y-2">
+			<DialogSection
+				title={t`How many`}
+				help={t`Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links.`}
+			>
+				<div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:grid-rows-[auto_auto] sm:gap-x-4 sm:gap-y-2">
 					<LimitControl
 						label={t`Each ${linkingSideName} links to`}
 						oneLabel={t`One`}
@@ -354,6 +412,7 @@ export function RelationFormFields({ form, collections, isNew }: RelationFormFie
 						onModeChange={(mode) => set("childrenMode", mode)}
 						limit={state.childrenLimit}
 						onLimitChange={(value) => set("childrenLimit", value)}
+						error={errors.childrenLimit}
 					/>
 					<LimitControl
 						label={t`Each ${linkedSideName} is linked from`}
@@ -363,8 +422,44 @@ export function RelationFormFields({ form, collections, isNew }: RelationFormFie
 						onModeChange={(mode) => set("parentsMode", mode)}
 						limit={state.parentsLimit}
 						onLimitChange={(value) => set("parentsLimit", value)}
+						error={errors.parentsLimit}
 					/>
 				</div>
+			</DialogSection>
+
+			<div className="border-t border-kumo-line pt-5">
+				<Input
+					dir="ltr"
+					label={
+						isNew ? (
+							t`Slug`
+						) : (
+							<HelpLabel
+								help={t`The content types and slug cannot be changed after a relation is created.`}
+							>
+								{t`Slug`}
+							</HelpLabel>
+						)
+					}
+					aria-label={t`Slug`}
+					description={
+						isNew
+							? slugUnderivable
+								? t(SLUG_UNDERIVABLE)
+								: t`Lowercase letters, numbers and underscores. Reference fields store this.`
+							: undefined
+					}
+					value={state.slug}
+					onChange={(e) => {
+						set("slugEdited", true);
+						set("slug", e.target.value);
+					}}
+					placeholder="posts_authors"
+					disabled={!isNew}
+					required={isNew || undefined}
+					error={errors.slug}
+					aria-invalid={errors.slug ? true : undefined}
+				/>
 			</div>
 		</div>
 	);
@@ -378,6 +473,7 @@ interface LimitControlProps {
 	onModeChange: (mode: LimitMode) => void;
 	limit: string;
 	onLimitChange: (limit: string) => void;
+	error?: string;
 }
 
 function LimitControl({
@@ -388,6 +484,7 @@ function LimitControl({
 	onModeChange,
 	limit,
 	onLimitChange,
+	error,
 }: LimitControlProps) {
 	const { t } = useLingui();
 	const labelId = React.useId();
@@ -415,6 +512,9 @@ function LimitControl({
 						value={limit}
 						onChange={(e) => onLimitChange(e.target.value)}
 						placeholder="5"
+						required
+						error={error}
+						aria-invalid={error ? true : undefined}
 					/>
 				)}
 			</div>

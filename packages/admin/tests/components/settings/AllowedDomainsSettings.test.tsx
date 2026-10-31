@@ -4,8 +4,10 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import "../../../dist/styles.css";
 import { AllowedDomainsSettings } from "../../../src/components/settings/AllowedDomainsSettings";
-import type { AllowedDomain } from "../../../src/lib/api";
+import { ApiResponseError, type AllowedDomain } from "../../../src/lib/api";
+import { pressOutside } from "../../utils/mouse.ts";
 import { render } from "../../utils/render";
 
 const mockFetchManifest = vi.fn();
@@ -146,6 +148,54 @@ describe("AllowedDomainsSettings", () => {
 		await expect.element(screen.getByText("Domain added successfully")).toBeInTheDocument();
 	});
 
+	it("points at a missing or malformed domain when adding, and sends nothing", async () => {
+		const screen = await renderAllowedDomainsSettings();
+		await userEvent.click(screen.getByRole("button", { name: "Add Domain" }));
+		const domain = screen.getByRole("textbox", { name: "Domain", exact: true });
+		await expect.element(domain).toBeInTheDocument();
+		expect(screen.getByText("Enter a domain.").query()).toBeNull();
+
+		await userEvent.click(screen.getByRole("button", { name: "Add Domain" }));
+		await expect.element(domain).toHaveAccessibleDescription("Enter a domain.");
+		await expect.element(domain).toHaveAttribute("aria-invalid", "true");
+		await expect.element(domain).toHaveFocus();
+
+		await domain.fill("https://example.com");
+		await userEvent.keyboard("{Enter}");
+		await expect.element(domain).toHaveAccessibleDescription("Enter a domain such as example.com.");
+		expect(mockCreateAllowedDomain).not.toHaveBeenCalled();
+
+		await domain.fill("example.com");
+		await expect.element(domain).not.toHaveAttribute("aria-invalid");
+		await userEvent.keyboard("{Enter}");
+		await vi.waitFor(() =>
+			expect(mockCreateAllowedDomain.mock.calls[0]?.[0]).toEqual({
+				domain: "example.com",
+				defaultRole: 30,
+			}),
+		);
+	});
+
+	it("shows a domain already in the list on the domain field", async () => {
+		mockCreateAllowedDomain.mockRejectedValue(
+			new ApiResponseError(409, "CONFLICT", "Domain already exists"),
+		);
+		const screen = await renderAllowedDomainsSettings();
+		await userEvent.click(screen.getByRole("button", { name: "Add Domain" }));
+		const domain = screen.getByRole("textbox", { name: "Domain", exact: true });
+		await domain.fill("example.com");
+		await userEvent.click(screen.getByRole("button", { name: "Add Domain" }));
+
+		const taken = "This domain is already in the list. Enter a different one.";
+		await expect.element(domain).toHaveAccessibleDescription(taken);
+		await expect.element(domain).toHaveFocus();
+		expect(screen.getByText("Domain already exists").query()).toBeNull();
+		expect(screen.getByText("Failed to add domain").query()).toBeNull();
+
+		await domain.fill("example.org");
+		await expect.element(domain).not.toHaveAccessibleDescription(taken);
+	});
+
 	it("reports a failed domain addition", async () => {
 		mockCreateAllowedDomain.mockRejectedValue(new Error("Domain is already allowed"));
 		const screen = await renderAllowedDomainsSettings();
@@ -172,15 +222,65 @@ describe("AllowedDomainsSettings", () => {
 		await expect.element(screen.getByText("example.com")).toBeInTheDocument();
 
 		await userEvent.click(screen.getByRole("button", { name: "Edit example.com" }));
-		await expect.element(screen.getByRole("heading", { name: "Edit Domain" })).toBeInTheDocument();
-		const roleSelect = screen.getByLabelText("Default Role").element() as HTMLButtonElement;
-		roleSelect.click();
-		await expect.element(screen.getByRole("option", { name: "Editor" })).toBeVisible();
-		(screen.getByRole("option", { name: "Editor" }).element() as HTMLElement).click();
+		const dialog = screen.getByRole("dialog", { name: "Edit Domain" });
+		await expect.element(dialog).toBeVisible();
+		const save = dialog.getByRole("button", { name: "Save", exact: true });
+		await expect.element(save).toBeDisabled();
+		await chooseRole(screen, "Editor");
+		expect(mockUpdateAllowedDomain).not.toHaveBeenCalled();
 
+		await save.click();
 		await vi.waitFor(() => {
 			expect(mockUpdateAllowedDomain).toHaveBeenCalledWith("example.com", { defaultRole: 40 });
 		});
+		await expect.element(dialog).not.toBeInTheDocument();
+		await expect.element(screen.getByText("Domain updated")).toBeInTheDocument();
+	});
+
+	it("reports a failed role change inside the edit dialog only, and holds it open while saving", async () => {
+		mockFetchAllowedDomains.mockResolvedValue(domains);
+		let reject: (error: Error) => void = () => {};
+		mockUpdateAllowedDomain.mockImplementation(
+			() =>
+				new Promise((_resolve, rejectUpdate) => {
+					reject = rejectUpdate;
+				}),
+		);
+		const screen = await renderAllowedDomainsSettings();
+		await userEvent.click(screen.getByRole("button", { name: "Edit example.com" }));
+		const dialog = screen.getByRole("dialog", { name: "Edit Domain" });
+		await chooseRole(screen, "Editor");
+		await dialog.getByRole("button", { name: "Save", exact: true }).click();
+		await expect.element(dialog.getByRole("button", { name: "Saving..." })).toBeDisabled();
+
+		await userEvent.keyboard("{Escape}");
+		await expect.element(dialog).toBeVisible();
+
+		reject(new Error("Role service unavailable"));
+		await expect.element(dialog.getByRole("alert")).toHaveTextContent("Role service unavailable");
+		expect(screen.getByText("Failed to update domain").query()).toBeNull();
+	});
+
+	it("keeps a changed role through a press outside, and closes untouched", async () => {
+		mockFetchAllowedDomains.mockResolvedValue(domains);
+		const screen = await renderAllowedDomainsSettings();
+		await userEvent.click(screen.getByRole("button", { name: "Edit example.com" }));
+		const dialog = screen.getByRole("dialog", { name: "Edit Domain" });
+		await expect.element(dialog).toBeVisible();
+
+		await pressOutside();
+		await expect.element(dialog).not.toBeInTheDocument();
+
+		await userEvent.click(screen.getByRole("button", { name: "Edit example.com" }));
+		await expect.element(dialog).toBeVisible();
+		await chooseRole(screen, "Editor");
+		await pressOutside();
+		await expect.element(dialog).toBeVisible();
+		await expect.element(dialog.getByRole("combobox")).toHaveTextContent("Editor");
+
+		await dialog.getByRole("button", { name: "Cancel" }).click();
+		await expect.element(dialog).not.toBeInTheDocument();
+		expect(mockUpdateAllowedDomain).not.toHaveBeenCalled();
 	});
 
 	it("requires confirmation before deleting a domain", async () => {
@@ -219,5 +319,13 @@ describe("AllowedDomainsSettings", () => {
 		await expect
 			.element(screen.getByRole("heading", { name: "Remove Domain?" }))
 			.toBeInTheDocument();
+		expect(screen.getByText("Failed to remove domain").query()).toBeNull();
 	});
 });
+
+async function chooseRole(screen: Awaited<ReturnType<typeof render>>, role: string) {
+	(screen.getByLabelText("Default Role").element() as HTMLButtonElement).click();
+	await expect.element(screen.getByRole("option", { name: role })).toBeVisible();
+	(screen.getByRole("option", { name: role }).element() as HTMLElement).click();
+	await expect.element(screen.getByRole("option", { name: role })).not.toBeInTheDocument();
+}

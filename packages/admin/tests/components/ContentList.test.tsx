@@ -645,6 +645,91 @@ describe("ContentList", () => {
 		});
 	});
 
+	describe("confirmations wait for their request", () => {
+		function heldRequest() {
+			let finish = () => {};
+			const request = vi.fn(
+				() =>
+					new Promise<void>((resolve) => {
+						finish = resolve;
+					}),
+			);
+			return { request, finish: () => finish() };
+		}
+
+		it("keeps Move to Trash? open, showing progress, until the request lands", async () => {
+			const { request, finish } = heldRequest();
+			const items = [makeItem({ id: "item_1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onDelete={request} />,
+			);
+
+			await screen.getByRole("button", { name: "Actions for Post" }).click();
+			await screen.getByRole("menuitem", { name: "Move to trash" }).click();
+			const dialog = screen.getByRole("dialog", { name: "Move to Trash?" });
+			await expect.element(dialog).toBeVisible();
+			dialog.getByRole("button", { name: "Move to Trash" }).element().click();
+
+			await expect
+				.element(dialog.getByRole("button", { name: "Moving to trash..." }))
+				.toBeDisabled();
+			await expect.element(dialog.getByRole("button", { name: "Cancel" })).toBeDisabled();
+			finish();
+			await expect.element(dialog).not.toBeInTheDocument();
+			expect(request).toHaveBeenCalledOnce();
+		});
+
+		it("shows a request that throws at once in Move to Trash?, and lets it close", async () => {
+			const request = vi.fn(() => {
+				throw new Error("Trash is unavailable");
+			});
+			const items = [makeItem({ id: "item_1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onDelete={request} />,
+			);
+
+			await screen.getByRole("button", { name: "Actions for Post" }).click();
+			await screen.getByRole("menuitem", { name: "Move to trash" }).click();
+			const dialog = screen.getByRole("dialog", { name: "Move to Trash?" });
+			await expect.element(dialog).toBeVisible();
+			dialog.getByRole("button", { name: "Move to Trash" }).element().click();
+
+			await expect.element(dialog.getByText("Trash is unavailable")).toBeVisible();
+			const cancel = dialog.getByRole("button", { name: "Cancel" });
+			await expect.element(cancel).toBeEnabled();
+			cancel.element().click();
+			await expect.element(dialog).not.toBeInTheDocument();
+		});
+
+		it("keeps Delete Permanently? open, showing progress, until the request lands", async () => {
+			const { request, finish } = heldRequest();
+			const trashed = [makeTrashedItem({ id: "t1", data: { title: "Old Post" } })];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[]}
+					trashedItems={trashed}
+					onPermanentDelete={request}
+				/>,
+			);
+
+			await screen.getByText("Trash").click();
+			await screen.getByRole("button", { name: "Actions for Old Post" }).click();
+			await screen.getByRole("menuitem", { name: "Delete permanently" }).click();
+			const dialog = screen.getByRole("dialog", { name: "Delete Permanently?" });
+			await expect.element(dialog).toBeVisible();
+			dialog.getByRole("button", { name: "Delete Permanently" }).element().click();
+
+			await expect.element(dialog.getByRole("button", { name: "Deleting..." })).toBeDisabled();
+			await expect.element(dialog.getByRole("button", { name: "Cancel" })).toBeDisabled();
+			await userEvent.keyboard("{Escape}");
+			await expect.element(dialog).toBeVisible();
+			finish();
+			await expect.element(dialog).not.toBeInTheDocument();
+			expect(request).toHaveBeenCalledOnce();
+		});
+	});
+
 	describe("restore", () => {
 		it("calls onRestore when Restore is chosen from the row menu", async () => {
 			const onRestore = vi.fn();

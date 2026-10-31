@@ -34,7 +34,7 @@ test.describe("Bylines", () => {
 
 		await page.getByRole("button", { name: "New" }).click();
 		await page.getByLabel("Display name").fill(initialName);
-		await page.getByLabel("Slug").fill(`guest-byline-${unique}`);
+		await page.getByLabel("Slug", { exact: true }).fill(`guest-byline-${unique}`);
 		await page.getByRole("switch", { name: "Guest byline" }).click();
 		await page.getByRole("button", { name: "Create" }).click();
 

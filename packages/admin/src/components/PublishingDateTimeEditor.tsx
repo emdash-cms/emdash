@@ -1,10 +1,11 @@
-import { Button, DatePicker, Dialog, Input, Select, Text } from "@cloudflare/kumo";
+import { Button, DatePicker, Input, LayerDialog, Select, Text } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Globe, PencilSimple, X } from "@phosphor-icons/react";
+import { Globe, PencilSimple } from "@phosphor-icons/react";
 import * as React from "react";
 
+import { guardUnsavedInput } from "../lib/dialog-form.js";
 import {
 	getPublishingTimeZone,
 	nextPublishingScheduleSlot,
@@ -13,11 +14,12 @@ import {
 	resolvePublishingLocalDateTime,
 	serializeFuturePublishingDateTime,
 	type PublishingDateTimeError,
+	type PublishingDateTimeFields as PublishingDateTimeValues,
 } from "../lib/publishing-datetime.js";
 import { isolate } from "../lib/utils.js";
 import { getLocaleDir } from "../locales/config.js";
 import { useDateLocale } from "../locales/date-locale.js";
-import { getMutationError } from "./DialogError.js";
+import { DialogError, getMutationError } from "./DialogError.js";
 
 interface PublishingDateTimeFieldsProps {
 	date: Date | undefined;
@@ -27,7 +29,6 @@ interface PublishingDateTimeFieldsProps {
 	dateAriaLabel: string;
 	/** A new object on every failed save, so focus returns to the field even when the reason repeats. */
 	invalid?: { reason: PublishingDateTimeError } | null;
-	errorMessage?: string | null;
 	onDateChange: (date: Date | undefined) => void;
 	onTimeChange: (time: string) => void;
 }
@@ -111,7 +112,6 @@ export function PublishingDateTimeFields({
 	restrictToFuture,
 	dateAriaLabel,
 	invalid,
-	errorMessage,
 	onDateChange,
 	onTimeChange,
 }: PublishingDateTimeFieldsProps) {
@@ -192,9 +192,9 @@ export function PublishingDateTimeFields({
 		timeGroupRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus();
 	}, [invalid]);
 
-	const errorText = errorMessage || (invalid ? t(VALIDATION_MESSAGES[invalid.reason]) : null);
+	const errorText = invalid ? t(VALIDATION_MESSAGES[invalid.reason]) : null;
 	return (
-		<div className="space-y-4">
+		<div className="grid gap-5">
 			<DatePicker
 				mode="single"
 				required
@@ -359,6 +359,7 @@ function PublishingDateTimeDialogContent({
 	onSubmit,
 }: PublishingDateTimeDialogContentProps) {
 	const { t } = useLingui();
+	const formId = React.useId();
 	const handleSubmit = (event: React.FormEvent) => {
 		event.preventDefault();
 		event.stopPropagation();
@@ -366,30 +367,10 @@ function PublishingDateTimeDialogContent({
 	};
 
 	return (
-		<Dialog
-			className="flex max-h-[calc(100dvh-2rem)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0"
-			size="sm"
-			style={{ width: "22rem" }}
-		>
-			<form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
-				<div className="flex shrink-0 items-center justify-between gap-4 border-b border-kumo-line px-5 py-4 sm:px-6">
-					<Dialog.Title className="min-w-0 text-lg font-semibold leading-6 text-pretty">
-						{title}
-					</Dialog.Title>
-					<Dialog.Close
-						render={
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								icon={<X aria-hidden="true" />}
-								aria-label={t`Close`}
-								className="-my-2 -me-2 shrink-0"
-							/>
-						}
-					/>
-				</div>
-				<div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+		<LayerDialog.Content size="sm">
+			<LayerDialog.Title>{title}</LayerDialog.Title>
+			<LayerDialog.Body>
+				<form id={formId} onSubmit={handleSubmit} noValidate>
 					<PublishingDateTimeFields
 						date={date}
 						time={time}
@@ -397,35 +378,45 @@ function PublishingDateTimeDialogContent({
 						restrictToFuture={restrictToFuture}
 						dateAriaLabel={dateAriaLabel}
 						invalid={invalid}
-						errorMessage={errorMessage}
 						onDateChange={onDateChange}
 						onTimeChange={onTimeChange}
 					/>
-				</div>
-				<div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-kumo-line px-5 py-4 sm:px-6">
-					<Dialog.Close render={<Button type="button" variant="secondary" />}>
-						{t`Cancel`}
-					</Dialog.Close>
-					<Button
-						type="submit"
-						variant="primary"
-						loading={pending}
-						onClick={(event) => {
-							event.preventDefault();
-							onSubmit();
-						}}
-						disabled={pending || submitDisabled}
-					>
-						{submitLabel}
-					</Button>
-				</div>
-			</form>
-		</Dialog>
+					<DialogError message={errorMessage} className="mt-4" />
+				</form>
+			</LayerDialog.Body>
+			<LayerDialog.Actions dismissLabel={t`Cancel`}>
+				<LayerDialog.Action
+					type="submit"
+					form={formId}
+					loading={pending}
+					onClick={(event) => {
+						event.preventDefault();
+						onSubmit();
+					}}
+					disabled={pending || submitDisabled}
+				>
+					{submitLabel}
+				</LayerDialog.Action>
+			</LayerDialog.Actions>
+		</LayerDialog.Content>
 	);
 }
 
 function scheduleFields(scheduledAt: string | null) {
 	return scheduledAt ? publishingInstantToLocalFields(scheduledAt) : nextPublishingScheduleSlot();
+}
+
+function sameFields(
+	fields: PublishingDateTimeValues,
+	date: Date | undefined,
+	time: string,
+): boolean {
+	return (
+		fields.time === time &&
+		fields.date?.getFullYear() === date?.getFullYear() &&
+		fields.date?.getMonth() === date?.getMonth() &&
+		fields.date?.getDate() === date?.getDate()
+	);
 }
 
 export function PublishingScheduleDialog({
@@ -438,9 +429,9 @@ export function PublishingScheduleDialog({
 	onSchedule,
 }: PublishingScheduleDialogProps) {
 	const { t } = useLingui();
-	const [initial] = React.useState(() => scheduleFields(scheduledAt));
-	const [date, setDate] = React.useState(initial.date);
-	const [time, setTime] = React.useState(initial.time);
+	const [openedWith, setOpenedWith] = React.useState(() => scheduleFields(scheduledAt));
+	const [date, setDate] = React.useState(openedWith.date);
+	const [time, setTime] = React.useState(openedWith.time);
 	const [invalid, setInvalid] = React.useState<{ reason: PublishingDateTimeError } | null>(null);
 	const [mutationError, setMutationError] = React.useState<unknown>(null);
 	const [submitting, setSubmitting] = React.useState(false);
@@ -453,6 +444,7 @@ export function PublishingScheduleDialog({
 
 	const reset = React.useCallback(() => {
 		const next = scheduleFields(scheduledAt);
+		setOpenedWith(next);
 		setDate(next.date);
 		setTime(next.time);
 		setInvalid(null);
@@ -478,7 +470,8 @@ export function PublishingScheduleDialog({
 	};
 
 	const handleOpenChange = (nextOpen: boolean) => {
-		if (!nextOpen && !pending) reset();
+		if (!nextOpen && pending) return;
+		if (!nextOpen) reset();
 		onOpenChange(nextOpen);
 	};
 
@@ -522,7 +515,11 @@ export function PublishingScheduleDialog({
 	const submitLabel = isEditing ? t`Save schedule` : isLive ? t`Schedule changes` : t`Schedule`;
 
 	return (
-		<Dialog.Root open={open} onOpenChange={handleOpenChange}>
+		<LayerDialog.Root
+			open={open}
+			{...guardUnsavedInput(!sameFields(openedWith, date, time), handleOpenChange)}
+			dismissDisabled={pending}
+		>
 			<PublishingDateTimeDialogContent
 				title={title}
 				date={date}
@@ -544,7 +541,7 @@ export function PublishingScheduleDialog({
 				}}
 				onSubmit={() => void submit()}
 			/>
-		</Dialog.Root>
+		</LayerDialog.Root>
 	);
 }
 
@@ -602,7 +599,8 @@ export function PublicationDateDialog({
 	};
 
 	const handleOpenChange = (nextOpen: boolean) => {
-		if (nextOpen || !pending) reset();
+		if (!nextOpen && pending) return;
+		reset();
 		setOpen(nextOpen);
 	};
 
@@ -639,8 +637,15 @@ export function PublicationDateDialog({
 		}
 	};
 	return (
-		<Dialog.Root open={open} onOpenChange={handleOpenChange}>
-			<Dialog.Trigger
+		<LayerDialog.Root
+			open={open}
+			{...guardUnsavedInput(
+				!publishingFieldsMatchInstant(publishedAt, date, time),
+				handleOpenChange,
+			)}
+			dismissDisabled={pending}
+		>
+			<LayerDialog.Trigger
 				render={
 					<Button
 						type="button"
@@ -669,7 +674,7 @@ export function PublicationDateDialog({
 						<PencilSimple className="size-3 shrink-0" aria-hidden="true" />
 					</span>
 				</span>
-			</Dialog.Trigger>
+			</LayerDialog.Trigger>
 			<PublishingDateTimeDialogContent
 				title={t`Change publication date`}
 				date={date}
@@ -690,6 +695,6 @@ export function PublicationDateDialog({
 				}}
 				onSubmit={() => void submit()}
 			/>
-		</Dialog.Root>
+		</LayerDialog.Root>
 	);
 }

@@ -21,13 +21,15 @@
  * click event.
  */
 
-import { Toast } from "@cloudflare/kumo";
+import { Toast, Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { page } from "vitest/browser";
 
 import { BylineFieldEditor } from "../../src/components/BylineFieldEditor";
 import type { BylineFieldDefinition } from "../../src/lib/api/byline-fields";
+import { ApiResponseError } from "../../src/lib/api/client";
 import { render } from "../utils/render.tsx";
 
 // `useCurrentUser` is the gate for the page-permission tests below.
@@ -61,7 +63,8 @@ vi.mock("../../src/lib/api/byline-fields", async () => {
 	};
 });
 
-const { listBylineFields } = await import("../../src/lib/api/byline-fields");
+const { createBylineField, deleteBylineField, getBylineFieldUsage, listBylineFields } =
+	await import("../../src/lib/api/byline-fields");
 const { BylineSchemaPage } = await import("../../src/routes/byline-schema");
 
 function makeField(overrides: Partial<BylineFieldDefinition> = {}): BylineFieldDefinition {
@@ -153,6 +156,81 @@ describe("BylineSchemaPage — permission gate", () => {
 	});
 });
 
+describe("BylineSchemaPage — saving a field", () => {
+	it("reports a slug another field uses inside the dialog, not in a toast", async () => {
+		vi.mocked(useCurrentUser).mockReturnValue({
+			data: { id: "u1", email: "a@a", role: ROLE_ADMIN },
+			isLoading: false,
+			// eslint-disable-next-line typescript/no-explicit-any -- mock object satisfies the consumed shape
+		} as any);
+		vi.mocked(listBylineFields).mockResolvedValue({ items: [] });
+		vi.mocked(createBylineField).mockRejectedValue(
+			new ApiResponseError(409, "FIELD_EXISTS", 'Byline field "job_title" already exists', {
+				slug: "job_title",
+			}),
+		);
+
+		// `Toasty` draws the toasts the page raises, which `PageWrapper` leaves out.
+		const screen = await render(
+			<QueryClientProvider client={new QueryClient()}>
+				<Toasty>
+					<BylineSchemaPage />
+				</Toasty>
+			</QueryClientProvider>,
+		);
+		await screen.getByRole("button", { name: "New field" }).click();
+		const dialog = screen.getByRole("dialog", { name: "New byline field" });
+		await dialog.getByLabelText("Label", { exact: true }).fill("Job title");
+		// Direct DOM click to bypass Base UI inert overlay
+		dialog.getByRole("button", { name: "Create field" }).element().click();
+
+		await expect
+			.element(dialog.getByText("Another field already uses this slug. Enter a different one."))
+			.toBeVisible();
+		expect(vi.mocked(createBylineField)).toHaveBeenCalledTimes(1);
+		expect(page.getByText("Failed to create field").query()).toBeNull();
+		expect(page.getByText(/already exists/).query()).toBeNull();
+	});
+});
+
+describe("BylineSchemaPage — deleting a field", () => {
+	it("reports a failed delete inside the confirmation, not in a toast", async () => {
+		vi.mocked(useCurrentUser).mockReturnValue({
+			data: { id: "u1", email: "a@a", role: ROLE_ADMIN },
+			isLoading: false,
+			// eslint-disable-next-line typescript/no-explicit-any -- mock object satisfies the consumed shape
+		} as any);
+		vi.mocked(listBylineFields).mockResolvedValue({ items: [makeField()] });
+		vi.mocked(getBylineFieldUsage).mockResolvedValue({
+			translatableValueCount: 0,
+			groupValueCount: 0,
+			totalAffectedRows: 0,
+		});
+		vi.mocked(deleteBylineField).mockRejectedValue(
+			new ApiResponseError(500, "FIELD_DELETE_ERROR", "Byline field could not be deleted"),
+		);
+
+		// `Toasty` draws the toasts the page raises, which `PageWrapper` leaves out.
+		const screen = await render(
+			<QueryClientProvider client={new QueryClient()}>
+				<Toasty>
+					<BylineSchemaPage />
+				</Toasty>
+			</QueryClientProvider>,
+		);
+		await screen.getByRole("button", { name: "Delete Job title" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Delete byline field?" });
+		// Direct DOM click to bypass Base UI inert overlay
+		dialog.getByRole("button", { name: "Delete" }).element().click();
+
+		await expect
+			.element(dialog.getByRole("alert"))
+			.toHaveTextContent("Byline field could not be deleted");
+		expect(vi.mocked(deleteBylineField)).toHaveBeenCalledTimes(1);
+		expect(page.getByText("Failed to delete field").query()).toBeNull();
+	});
+});
+
 describe("BylineFieldEditor", () => {
 	describe("create mode", () => {
 		it("renders the create-mode title", async () => {
@@ -169,7 +247,7 @@ describe("BylineFieldEditor", () => {
 
 		it("renders the label and slug inputs as enabled", async () => {
 			const screen = await render(<BylineFieldEditor {...defaultProps} />);
-			const slug = screen.getByLabelText("Slug");
+			const slug = screen.getByLabelText("Slug", { exact: true });
 			await expect.element(slug).toBeInTheDocument();
 			await expect.element(slug).not.toBeDisabled();
 		});
@@ -177,7 +255,7 @@ describe("BylineFieldEditor", () => {
 		it("renders the required + translatable switches", async () => {
 			const screen = await render(<BylineFieldEditor {...defaultProps} />);
 			await expect.element(screen.getByText("Required")).toBeInTheDocument();
-			await expect.element(screen.getByText("Translatable")).toBeInTheDocument();
+			await expect.element(screen.getByText("Translatable", { exact: true })).toBeInTheDocument();
 		});
 
 		it("does not render the select-options textarea for the default string type", async () => {
@@ -203,13 +281,13 @@ describe("BylineFieldEditor", () => {
 
 		it("disables the slug input — slugs are immutable post-create", async () => {
 			const screen = await render(<BylineFieldEditor {...defaultProps} field={stringField} />);
-			await expect.element(screen.getByLabelText("Slug")).toBeDisabled();
+			await expect.element(screen.getByLabelText("Slug", { exact: true })).toBeDisabled();
 		});
 
 		it("prefills the label and slug from the field prop", async () => {
 			const screen = await render(<BylineFieldEditor {...defaultProps} field={stringField} />);
 			await expect.element(screen.getByLabelText("Label")).toHaveValue("Job title");
-			await expect.element(screen.getByLabelText("Slug")).toHaveValue("job_title");
+			await expect.element(screen.getByLabelText("Slug", { exact: true })).toHaveValue("job_title");
 		});
 
 		it("does not render the select-options textarea", async () => {
@@ -266,9 +344,10 @@ describe("BylineFieldEditor", () => {
 			await expect.element(sw).toBeDisabled();
 			// Help text surfaces the reason — admins shouldn't have to
 			// trial-and-error the API to discover why the toggle won't move.
+			await screen.getByRole("button", { name: "More information about Translatable" }).hover();
 			await expect
-				.element(screen.getByText(/Locked because this field has stored values/))
-				.toBeInTheDocument();
+				.element(page.getByRole("tooltip", { name: /Locked because this field has stored values/ }))
+				.toBeVisible();
 		});
 
 		it("leaves the translatable switch enabled when usageTotal is 0", async () => {
