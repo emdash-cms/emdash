@@ -848,7 +848,7 @@ function BlockRow({
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item
 								icon={<Copy className={MENU_ICON} aria-hidden="true" />}
-								disabled={retired || unsupported || atMax}
+								disabled={retired || unsupported || inactive || atMax}
 								onClick={onDuplicate}
 							>
 								{t`Duplicate`}
