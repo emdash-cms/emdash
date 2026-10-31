@@ -173,10 +173,7 @@ describe("Block row layout", () => {
 		);
 
 		const labelBox = screen.getByText(label).element().getBoundingClientRect();
-		const actions = screen
-			.getByRole("button", { name: `${label} actions` })
-			.last()
-			.element();
+		const actions = screen.getByRole("button", { name: `${label} actions` }).element();
 		expect(labelBox.right).toBeLessThanOrEqual(actions.getBoundingClientRect().left);
 	});
 
@@ -194,7 +191,7 @@ describe("Block row layout", () => {
 			[
 				screen.getByText("Statement").element(),
 				screen.getByText("Hello").element(),
-				screen.getByRole("button", { name: "Statement actions" }).last().element(),
+				screen.getByRole("button", { name: "Statement actions" }).element(),
 			].map((element) => {
 				const { left, top, width, height } = element.getBoundingClientRect();
 				return { left, top, width, height };
@@ -258,8 +255,7 @@ describe("Block row layout", () => {
 				.element()
 				.getBoundingClientRect();
 			const handle = screen
-				.getByRole("button", { name: "Statement actions" })
-				.first()
+				.getByRole("button", { name: "Block actions - drag to reorder, click for menu" })
 				.element()
 				.getBoundingClientRect();
 			const caret = screen
@@ -331,7 +327,7 @@ describe("Block row layout", () => {
 			expect(scroller.scrollWidth).toBeLessThanOrEqual(scroller.clientWidth);
 			for (const control of [
 				screen.getByRole("button", { name: "Add block", exact: true }),
-				screen.getByRole("button", { name: "Testimonials actions" }).last(),
+				screen.getByRole("button", { name: "Testimonials actions" }),
 				screen.getByRole("button", { name: "Add Item" }),
 				screen.getByRole("button", { name: "Remove item 1" }),
 			]) {

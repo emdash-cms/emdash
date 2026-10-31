@@ -137,8 +137,7 @@ function row(key: string) {
 
 async function openMenu(key: string) {
 	await row(key)
-		.getByRole("button", { name: /actions$/ })
-		.last()
+		.getByRole("button", { name: / actions$/ })
 		.click();
 	await expect.element(page.getByRole("menu")).toBeVisible();
 }
@@ -182,7 +181,6 @@ describe("BlocksField", () => {
 
 		await expect.element(screen.getByText("Inactive version")).toBeVisible();
 		await expect.element(screen.getByText("Retired")).toBeVisible();
-		expect(screen.getByText("Version 1").query()).toBeNull();
 
 		await screen.getByRole("button", { name: "Hero", exact: true }).click();
 		const heading = screen.getByLabelText("Heading");
@@ -427,7 +425,9 @@ describe("BlocksField", () => {
 
 	it("opens the block menu from the drag handle with Enter or Space", async () => {
 		const screen = await renderField({ initial: [heroBlock("one")] });
-		const handle = row("one").getByRole("button", { name: "Hero actions" }).first();
+		const handle = row("one").getByRole("button", {
+			name: "Block actions - drag to reorder, click for menu",
+		});
 
 		for (const key of ["{Enter}", " "]) {
 			(handle.element() as HTMLElement).focus();
@@ -438,6 +438,22 @@ describe("BlocksField", () => {
 			await expect.element(screen.getByRole("menu")).not.toBeInTheDocument();
 			await expect.element(handle).toHaveFocus();
 		}
+
+		await openMenu("one");
+		await expect.element(handle).toHaveAttribute("aria-expanded", "false");
+	});
+
+	it("describes each block's actions button with its version", async () => {
+		await renderField({
+			initial: [heroBlock("current"), { _type: "hero", _version: 1, _key: "old", heading: "Old" }],
+		});
+
+		await expect
+			.element(row("current").getByRole("button", { name: "Hero actions" }))
+			.toHaveAccessibleDescription("Version 2");
+		await expect
+			.element(row("old").getByRole("button", { name: "Hero actions" }))
+			.toHaveAccessibleDescription("Version 1");
 	});
 
 	it("moves blocks with the menu, keeping their keys and values", async () => {
