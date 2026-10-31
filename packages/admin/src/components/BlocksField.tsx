@@ -602,6 +602,7 @@ function BlockRow({
 	const labelId = `${rowId}-label`;
 	const summaryId = `${rowId}-summary`;
 	const bodyId = `${rowId}-body`;
+	const versionId = `${rowId}-version`;
 
 	const addFromMenu = (side: InsertSide) => {
 		const invoker = menuFromHandle ? handleRef.current : triggerRef.current;
@@ -693,9 +694,9 @@ function BlockRow({
 								shape="square"
 								size="sm"
 								className="h-6 w-[1.125rem] touch-none text-kumo-subtle"
-								aria-label={t`${label} actions`}
+								aria-label={t`Block actions - drag to reorder, click for menu`}
 								aria-haspopup="menu"
-								aria-expanded={menuOpen}
+								aria-expanded={menuOpen && menuFromHandle}
 								{...listeners}
 								onClick={() => {
 									setMenuFromHandle(true);
@@ -819,6 +820,7 @@ function BlockRow({
 									size="sm"
 									className="shrink-0 text-kumo-subtle blocks-gutter:opacity-0 blocks-gutter:group-hover/block:opacity-100 blocks-gutter:group-focus-within/block:opacity-100 blocks-gutter:group-data-[menu-open]/block:opacity-100"
 									aria-label={t`${label} actions`}
+									aria-describedby={versionId}
 								>
 									<DotsThree className="size-4" weight="bold" aria-hidden="true" />
 								</Button>
@@ -881,6 +883,11 @@ function BlockRow({
 							</div>
 						</DropdownMenu.Content>
 					</DropdownMenu>
+				)}
+				{!readOnly && (
+					<span id={versionId} className="sr-only">
+						{t`Version ${block._version}`}
+					</span>
 				)}
 			</div>
 
