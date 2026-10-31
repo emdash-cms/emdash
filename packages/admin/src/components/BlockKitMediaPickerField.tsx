@@ -1,9 +1,10 @@
-import { Button } from "@cloudflare/kumo";
+import { Button, LayerCard, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Image as ImageIcon, ImageBroken, X } from "@phosphor-icons/react";
+import { Image as ImageIcon, ImageBroken, ImageSquare, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
+import { localMediaFileUrl } from "../lib/media-utils.js";
 import { isSafeUrl } from "../lib/url";
 import { MediaPickerModal } from "./MediaPickerModal";
 
@@ -14,6 +15,94 @@ export interface BlockKitMediaPickerFieldProps {
 	mimeTypeFilter?: string;
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
+}
+
+interface SelectedMediaCardProps {
+	broken: boolean;
+	label: string;
+	url: string;
+	onError: () => void;
+	onRemove: () => void;
+	onReplace: () => void;
+}
+
+function mediaFilename(url: string): string {
+	try {
+		const pathname = new URL(url, "https://emdash.local").pathname;
+		const encodedFilename = pathname.split("/").findLast(Boolean);
+		if (!encodedFilename) return url;
+		try {
+			return decodeURIComponent(encodedFilename);
+		} catch {
+			return encodedFilename;
+		}
+	} catch {
+		return url;
+	}
+}
+
+function SelectedMediaCard({
+	broken,
+	label,
+	url,
+	onError,
+	onRemove,
+	onReplace,
+}: SelectedMediaCardProps) {
+	const { t } = useLingui();
+
+	return (
+		<LayerCard className="grid w-full grid-cols-[5rem_minmax(0,1fr)] items-center rounded-xl p-0">
+			<div className="m-2 h-16 overflow-hidden rounded-lg bg-kumo-tint ring ring-kumo-line">
+				{broken ? (
+					<div className="flex h-full items-center justify-center text-kumo-subtle">
+						<ImageBroken className="size-5" aria-hidden="true" />
+					</div>
+				) : (
+					<img
+						src={url}
+						alt=""
+						className="emdash-media-transparency-grid size-full object-contain"
+						referrerPolicy="no-referrer"
+						loading="lazy"
+						onError={onError}
+					/>
+				)}
+			</div>
+			<div className="flex min-w-0 flex-col gap-2 px-2 py-2 pe-3">
+				<Text as="p" bold truncate>
+					<bdi dir="auto">{mediaFilename(url)}</bdi>
+				</Text>
+				{broken && (
+					<Text as="p" variant="secondary" size="xs">
+						{t`Image not found`}
+					</Text>
+				)}
+				<div className="flex flex-wrap items-center gap-2">
+					<Button
+						type="button"
+						size="sm"
+						variant="secondary"
+						icon={<ImageSquare aria-hidden="true" />}
+						onClick={onReplace}
+						aria-label={t`Replace ${label}`}
+					>
+						{t`Replace`}
+					</Button>
+					<Button
+						type="button"
+						size="sm"
+						variant="secondary-destructive"
+						icon={<X aria-hidden="true" />}
+						onClick={onRemove}
+						aria-label={t`Remove ${label}`}
+					>
+						{t`Remove`}
+					</Button>
+				</div>
+			</div>
+		</LayerCard>
+	);
 }
 
 /**
@@ -52,86 +141,35 @@ export function BlockKitMediaPickerField({
 		// `/_emdash/api/media/file/` path. Detect local explicitly.
 		const isLocalMedia = item.provider === "local" || !!item.storageKey;
 		const localKey = item.storageKey || item.id;
-		const nextUrl = isLocalMedia && localKey ? `/_emdash/api/media/file/${localKey}` : item.url;
+		const nextUrl = isLocalMedia && localKey ? localMediaFileUrl(localKey) : item.url;
 		if (!nextUrl) return;
 		onChange(actionId, nextUrl);
 	};
 
 	return (
 		<div role="group" aria-labelledby={labelId}>
-			<span id={labelId} className="mb-1.5 block text-base font-medium text-kumo-default">
+			<span id={labelId} className="mb-1.5 block text-sm font-medium text-kumo-default">
 				{label}
 			</span>
 			{canPreview ? (
-				imageBroken ? (
-					<div className="relative group min-h-20">
-						<div className="flex min-h-20 w-full items-center justify-center gap-2 rounded-md border border-kumo-line bg-kumo-tint text-kumo-subtle">
-							<ImageBroken className="h-5 w-5" />
-							<span className="text-xs leading-4">{t`Image not found`}</span>
-						</div>
-						<div className="absolute top-2 end-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity flex gap-1">
-							<Button
-								type="button"
-								size="sm"
-								variant="secondary"
-								onClick={() => setPickerOpen(true)}
-							>
-								{t`Change`}
-							</Button>
-							<Button
-								type="button"
-								shape="square"
-								variant="destructive"
-								className="h-8 w-8"
-								onClick={() => onChange(actionId, "")}
-								aria-label={t`Remove`}
-							>
-								<X className="h-4 w-4" />
-							</Button>
-						</div>
-					</div>
-				) : (
-					<div className="relative group">
-						<img
-							src={url}
-							alt=""
-							className="emdash-media-transparency-grid max-h-40 min-h-20 w-full rounded-md border border-kumo-line object-contain"
-							referrerPolicy="no-referrer"
-							loading="lazy"
-							onError={() => setImageBroken(true)}
-						/>
-						<div className="absolute top-2 end-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity flex gap-1">
-							<Button
-								type="button"
-								size="sm"
-								variant="secondary"
-								onClick={() => setPickerOpen(true)}
-							>
-								{t`Change`}
-							</Button>
-							<Button
-								type="button"
-								shape="square"
-								variant="destructive"
-								className="h-8 w-8"
-								onClick={() => onChange(actionId, "")}
-								aria-label={t`Remove`}
-							>
-								<X className="h-4 w-4" />
-							</Button>
-						</div>
-					</div>
-				)
+				<SelectedMediaCard
+					broken={imageBroken}
+					label={label}
+					url={url}
+					onError={() => setImageBroken(true)}
+					onReplace={() => setPickerOpen(true)}
+					onRemove={() => onChange(actionId, "")}
+				/>
 			) : (
 				<Button
 					type="button"
 					variant="outline"
-					className="w-full h-24 justify-center border-dashed"
+					className="h-24 w-full justify-center rounded-xl border-dashed bg-kumo-control"
 					onClick={() => setPickerOpen(true)}
 				>
 					<div className="flex flex-col items-center gap-1.5 text-kumo-subtle">
-						<ImageIcon className="h-6 w-6" />
-						<span className="text-base">{placeholder ?? t`Select media`}</span>
+						<ImageIcon className="size-6" aria-hidden="true" />
+						<span className="text-sm">{placeholder ?? t`Select media`}</span>
 					</div>
 				</Button>
 			)}
@@ -140,7 +178,8 @@ export function BlockKitMediaPickerField({
 				onOpenChange={setPickerOpen}
 				onSelect={handleSelect}
 				mimeTypeFilter={filter}
-				title={t`Select ${label}`}
+				title={canPreview ? t`Replace ${label}` : t`Select ${label}`}
+				confirmLabel={canPreview ? t`Replace` : undefined}
 			/>
 		</div>
 	);
