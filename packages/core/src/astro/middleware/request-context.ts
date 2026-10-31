@@ -17,11 +17,13 @@
 import { loadVisualEditingToolbarLabels } from "@emdash-cms/admin/locales/server";
 import type { APIContext } from "astro";
 import { defineMiddleware } from "astro:middleware";
+import type { Kysely } from "kysely";
 // @ts-ignore - virtual module
 import virtualConfig from "virtual:emdash/config";
 
 import { resolveSecretsCached } from "#config/secrets.js";
 
+import type { Database } from "../../database/types.js";
 import { verifyPreviewToken, parseContentId } from "../../preview/tokens.js";
 import { getRequestContext, runWithContext } from "../../request-context.js";
 import { generateVisualEditingActionToken } from "../../visual-editing/action-token.js";
@@ -62,6 +64,43 @@ async function renderEditorToolbar(
  */
 function optOutOfRouteCache(cache: RouteCache): void {
 	cache?.set(false);
+}
+
+/**
+ * The content a valid `_preview` token grants draft access to. The preview
+ * secret is resolved via `resolveSecretsCached`: env wins, otherwise a
+ * DB-stored value is read (or generated on first need).
+ */
+async function verifyPreview(
+	db: Kysely<Database>,
+	url: URL,
+): Promise<{ collection: string; id: string } | undefined> {
+	const { previewSecret } = await resolveSecretsCached(db);
+	const result = await verifyPreviewToken({ url, secret: previewSecret });
+	return result.valid ? parseContentId(result.payload.cid) : undefined;
+}
+
+/**
+ * Preview responses must not be cached -- draft content could leak past token
+ * expiry. `Cache-Control` only governs browsers/downstream proxies; the shared
+ * edge cache follows the route-cache options, so opt out of those too --
+ * otherwise the draft response is stored in the shared cache and served on
+ * cache hits without token verification until TTL/purge. Opt out for any
+ * request carrying a `_preview` param (valid or not): those URLs are
+ * per-token, so cached copies are useless at best and drafts at worst.
+ */
+function keepPreviewUncached(
+	response: Response,
+	opts: { hasPreviewToken: boolean; isPreview: boolean; routeCache: RouteCache },
+): Response {
+	if (opts.hasPreviewToken) {
+		optOutOfRouteCache(opts.routeCache);
+	}
+	if (!opts.isPreview) return response;
+	// Clone before modifying headers -- the original may be immutable.
+	const uncached = new Response(response.body, response);
+	uncached.headers.set("Cache-Control", "private, no-store");
+	return uncached;
 }
 
 function isHtmlResponse(response: Response): boolean {
@@ -199,10 +238,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (playgroundDb) {
 		// Check if playground user has toggled edit mode on
 		const hasEditCookie = cookies.get("emdash-edit-mode")?.value === "true";
+		const hasPreviewToken = url.searchParams.has("_preview");
+		let preview: { collection: string; id: string } | undefined;
+		if (hasPreviewToken) {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the playground middleware stores a Kysely instance for the session database
+			preview = await verifyPreview(playgroundDb as Kysely<Database>, url);
+		}
 		return runWithContext(
-			{ editMode: hasEditCookie, db: playgroundDb, dbIsIsolated: true },
+			{ editMode: hasEditCookie, preview, db: playgroundDb, dbIsIsolated: true },
 			async () => {
-				const response = await next();
+				const response = keepPreviewUncached(await next(), {
+					hasPreviewToken,
+					isPreview: !!preview,
+					routeCache: context.cache,
+				});
 				if (!hasEditCookie || toolbarMode === false) return response;
 				// The Playground shows its own bar, so the editor toolbar is hidden and
 				// only provides inline editing.
@@ -268,8 +317,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const routeCache = context.cache;
 
 	// Verify preview token if present.
-	// The preview secret is resolved via `resolveSecretsCached`: env wins,
-	// otherwise a DB-stored value is read (or generated on first need).
 	// `emdash.db` is set by the runtime middleware which runs first; it is
 	// missing after a runtime-init failure and on signed-out requests to the
 	// image endpoint EmDash installs, which skip runtime init.
@@ -277,12 +324,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (hasPreviewToken) {
 		const db = context.locals.emdash?.db;
 		if (db) {
-			const { previewSecret } = await resolveSecretsCached(db);
-			const result = await verifyPreviewToken({ url, secret: previewSecret });
-			if (result.valid) {
-				const { collection, id } = parseContentId(result.payload.cid);
-				preview = { collection, id };
-			}
+			preview = await verifyPreview(db, url);
 		} else {
 			console.warn(
 				"[emdash] Preview token present but EmDash runtime not initialized; preview disabled.",
@@ -300,23 +342,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// loaders would fall back to the singleton non-session dialect.
 		const parent = getRequestContext();
 		return runWithContext({ ...parent, editMode, preview, locale }, async () => {
-			let response = await next();
-
-			// Preview responses must not be cached -- draft content could leak past token expiry.
-			// Clone the response before modifying headers — the original may be immutable.
-			// `Cache-Control` only governs browsers/downstream proxies; the shared
-			// edge cache follows the route-cache options, so opt out of those too —
-			// otherwise the draft response is stored in the shared cache and served
-			// on cache hits without token verification until TTL/purge. Opt out for
-			// any request carrying a `_preview` param (valid or not): those URLs are
-			// per-token, so cached copies are useless at best and drafts at worst.
-			if (hasPreviewToken) {
-				optOutOfRouteCache(routeCache);
-			}
-			if (preview) {
-				response = new Response(response.body, response);
-				response.headers.set("Cache-Control", "private, no-store");
-			}
+			const response = keepPreviewUncached(await next(), {
+				hasPreviewToken,
+				isPreview: !!preview,
+				routeCache,
+			});
 
 			// Inject toolbar for authenticated editors. Preview and edit-mode
 			// responses are session-specific (`private, no-store` + route-cache
