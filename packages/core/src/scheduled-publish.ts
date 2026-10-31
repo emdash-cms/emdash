@@ -13,7 +13,7 @@
 import type { Kysely } from "kysely";
 
 import { handleContentPublish } from "./api/handlers/content.js";
-import { ContentRepository } from "./database/repositories/content.js";
+import { ContentRepository, findTypesWithDueContent } from "./database/repositories/content.js";
 import { OptionsRepository } from "./database/repositories/options.js";
 import type { Database } from "./database/types.js";
 import { SchemaRegistry } from "./schema/registry.js";
@@ -137,7 +137,19 @@ export async function publishDueContent(
 	// 0 / negative means unbounded; findReadyToPublish treats that as "no LIMIT".
 	const batchLimit = limit > 0 ? limit : undefined;
 
+	let dueCollections: Set<string> | undefined;
+	try {
+		dueCollections = await findTypesWithDueContent(
+			db,
+			collections.map((collection) => collection.slug),
+			currentTime,
+		);
+	} catch (error) {
+		console.error("[scheduled-publish] Failed to find collections with due content:", error);
+	}
+
 	for (const collection of collections) {
+		if (dueCollections && !dueCollections.has(collection.slug)) continue;
 		try {
 			let cursor: ScheduledPublishCursor | undefined;
 			let cursorRevision: string | null = null;

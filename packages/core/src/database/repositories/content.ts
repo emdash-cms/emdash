@@ -49,6 +49,10 @@ const MAX_INDEXED_FIELD_FILTERS = 20;
 const MAX_IN_FILTER_VALUES = SQL_BATCH_SIZE;
 const MAX_FILTER_STRING_LENGTH = 2048;
 
+function readyToPublishCondition(now: string): RawBuilder<unknown> {
+	return sql`scheduled_at IS NOT NULL AND scheduled_at <= ${now} AND deleted_at IS NULL`;
+}
+
 type NormalizedFilterScalar = string | number;
 export type ContentRevisionPrecondition = Pick<ContentItem, "version" | "updatedAt">;
 
@@ -300,6 +304,39 @@ const SYSTEM_COLUMNS = new Set([
 function getTableName(type: string): string {
 	validateIdentifier(type, "collection type");
 	return `ec_${type}`;
+}
+
+/**
+ * Which of `types` have at least one entry `findReadyToPublish` would return
+ * at `currentTime`, ignoring its cursor and limit.
+ *
+ * One statement per `SQL_BATCH_SIZE` collections, one column each: every column
+ * binds `now` once, and D1 caps both bound parameters and result columns at 100.
+ */
+export async function findTypesWithDueContent(
+	db: Kysely<Database>,
+	types: string[],
+	currentTime: Date,
+): Promise<Set<string>> {
+	const now = currentTime.toISOString();
+	const due = new Set<string>();
+
+	for (const chunk of chunks(types, SQL_BATCH_SIZE)) {
+		const columns = chunk.map(
+			(type, index) => sql`CASE WHEN EXISTS (
+				SELECT 1 FROM ${sql.ref(getTableName(type))}
+				WHERE ${readyToPublishCondition(now)}
+			) THEN 1 ELSE 0 END AS ${sql.ref(`due_${index}`)}`,
+		);
+		const result = await sql<Record<string, unknown>>`SELECT ${sql.join(columns)}`.execute(db);
+		const row = result.rows[0];
+		if (!row) throw new Error("Due-content check returned no row");
+		for (const [index, type] of chunk.entries()) {
+			if (Number(row[`due_${index}`]) === 1) due.add(type);
+		}
+	}
+
+	return due;
 }
 
 function assertPageOffset(offset: number | undefined, cursor: string | undefined): void {
@@ -2302,9 +2339,7 @@ export class ContentRepository {
 
 		const result = await sql<Record<string, unknown>>`
 			SELECT * FROM ${sql.ref(tableName)}
-			WHERE scheduled_at IS NOT NULL
-			AND scheduled_at <= ${now}
-			AND deleted_at IS NULL
+			WHERE ${readyToPublishCondition(now)}
 			${afterClause}
 			ORDER BY scheduled_at ASC, id ASC
 			${limitClause}
