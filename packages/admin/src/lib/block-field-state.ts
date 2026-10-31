@@ -24,6 +24,7 @@ export function createBlockValue(blockType: BlockType, key: string): StoredBlock
 	};
 	for (const field of version?.fields ?? []) {
 		if (field.defaultValue !== undefined) value[field.slug] = cloneValue(field.defaultValue);
+		else if (field.type === "boolean") value[field.slug] = false;
 	}
 	return value;
 }

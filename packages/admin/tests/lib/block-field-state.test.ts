@@ -51,6 +51,30 @@ describe("block field state", () => {
 		});
 	});
 
+	it("starts a new block's switches off unless they have a default", () => {
+		const withSwitches: BlockType = {
+			...type,
+			versions: [
+				{
+					...type.versions[1]!,
+					fields: [
+						{ slug: "centered", label: "Center the layout", type: "boolean", required: true },
+						{ slug: "dark", label: "Dark", type: "boolean", defaultValue: true },
+						{ slug: "title", label: "Title", type: "string" },
+					],
+				},
+			],
+		};
+
+		expect(createBlockValue(withSwitches, "new-key")).toEqual({
+			_type: "hero",
+			_version: 2,
+			_key: "new-key",
+			centered: false,
+			dark: true,
+		});
+	});
+
 	it("duplicates content while preserving type and version and replacing only the key", () => {
 		const original = { _type: "hero", _version: 1, _key: "old-key", nested: { value: 1 } };
 		const duplicate = duplicateBlockValue(original, "new-key");
