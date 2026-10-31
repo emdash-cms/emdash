@@ -1,3 +1,5 @@
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import {
 	RouterProvider,
 	createMemoryHistory,
@@ -53,6 +55,7 @@ const SHORT_TEXT_REGEX = /Short Text/;
 const LONG_TEXT_REGEX = /Long Text/;
 const BOOLEAN_REGEX = /Boolean/;
 const RICH_TEXT_REGEX = /Rich Text Rich text editor/;
+const TRANSLATED_SELECT_FIELD_TYPE_REGEX = /^Lista wyboru/;
 
 function makeField(overrides: Partial<SchemaField> = {}): SchemaField {
 	return {
@@ -119,6 +122,23 @@ describe("FieldEditor", () => {
 			// Each type renders as a button with label and description
 			for (const name of FIELD_TYPE_REGEXES) {
 				await expect.element(screen.getByRole("button", { name })).toBeInTheDocument();
+			}
+		});
+
+		it("translates the Select field type separately from the Select action", async () => {
+			const selectAction = msg`Select`;
+			const selectFieldType = msg({ message: "Select", context: "field type" });
+			i18n.loadAndActivate({
+				locale: "pl",
+				messages: { [selectAction.id]: "Wybierz", [selectFieldType.id]: "Lista wyboru" },
+			});
+			try {
+				const screen = await renderInRouter(<FieldEditor {...defaultProps} />);
+				await expect
+					.element(screen.getByRole("button", { name: TRANSLATED_SELECT_FIELD_TYPE_REGEX }))
+					.toBeInTheDocument();
+			} finally {
+				i18n.loadAndActivate({ locale: "en", messages: {} });
 			}
 		});
 
