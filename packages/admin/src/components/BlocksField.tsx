@@ -38,6 +38,8 @@ interface NestedFieldDescriptor {
 	required?: boolean;
 	options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 	validation?: Record<string, unknown>;
+	blockType?: string;
+	blockVersion?: number;
 	/** Set on `integer` fields, which share the `number` kind. */
 	integer?: boolean;
 }
@@ -51,6 +53,7 @@ interface NestedFieldRenderInput {
 
 export interface BlocksFieldProps {
 	id: string;
+	fieldId?: string;
 	fieldPath: string;
 	label: string;
 	value: unknown;
@@ -83,6 +86,8 @@ const NESTED_KIND: Record<string, string> = {
 function nestedDescriptor(
 	outerId: string,
 	blockKey: string,
+	blockType: string,
+	blockVersion: number,
 	field: BlockFieldDefinition,
 ): NestedFieldDescriptor {
 	const options = Array.isArray(field.validation?.options)
@@ -96,6 +101,8 @@ function nestedDescriptor(
 		label: field.label,
 		required: field.required,
 		validation: field.validation,
+		blockType,
+		blockVersion,
 		options,
 		...(field.type === "integer" ? { integer: true } : {}),
 	};
@@ -111,6 +118,7 @@ function summary(block: StoredBlockValue, fields: readonly BlockFieldDefinition[
 
 export function BlocksField({
 	id,
+	fieldId,
 	fieldPath,
 	label,
 	value,
@@ -238,7 +246,7 @@ export function BlocksField({
 							{blocks.map((block, index) => (
 								<BlockCard
 									key={block._key}
-									outerId={id}
+									outerId={fieldId ?? id}
 									fieldPath={fieldPath}
 									block={block}
 									index={index}
@@ -406,7 +414,7 @@ function BlockCard({
 						version?.fields.map((field) =>
 							renderField({
 								name: `${fieldPath}.${block._key}.${field.slug}`,
-								field: nestedDescriptor(outerId, block._key, field),
+								field: nestedDescriptor(outerId, block._key, block._type, block._version, field),
 								value: block[field.slug],
 								onChange: (nextValue) => onChange(field.slug, nextValue),
 							}),

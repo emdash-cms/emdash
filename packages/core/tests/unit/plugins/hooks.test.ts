@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import type { Database as DbSchema } from "../../../src/database/types.js";
-import { HookPipeline, createHookPipeline } from "../../../src/plugins/hooks.js";
+import { HookPipeline, HookTimeoutError, createHookPipeline } from "../../../src/plugins/hooks.js";
 import type {
 	ContentHookEvent,
 	ContentPolicyEvent,
@@ -367,6 +367,30 @@ describe("HookPipeline", () => {
 	});
 
 	describe("lifecycle hooks", () => {
+		it("returns a typed deadline error with the existing error name and message", async () => {
+			vi.useFakeTimers();
+			try {
+				const plugin = createTestPlugin({
+					id: "test",
+					hooks: {
+						"plugin:install": createTestHook("test", () => new Promise<void>(() => {}), {
+							timeout: 25,
+						}),
+					},
+				});
+				const pipeline = createHookPipeline([plugin], { db });
+				const pending = pipeline.runPluginInstall("test");
+				await vi.advanceTimersByTimeAsync(25);
+				const [result] = await pending;
+
+				expect(result?.success).toBe(false);
+				expect(result?.error).toBeInstanceOf(HookTimeoutError);
+				expect(result?.error).toMatchObject({ name: "Error", message: "Hook timeout after 25ms" });
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
 		it("registers plugin:install hook", () => {
 			const handler = vi.fn();
 

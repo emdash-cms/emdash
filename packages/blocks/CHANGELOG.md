@@ -1,5 +1,11 @@
 # @emdash-cms/blocks
 
+## 1.4.0
+
+### Patch Changes
+
+- [#4183](https://github.com/emdash-cms/emdash/pull/4183) [`190022c`](https://github.com/emdash-cms/emdash/commit/190022cbd71a20d06c856cf5673acb0b2d2d9f1f) Thanks [@masonjames](https://github.com/masonjames)! - Fixes nested HTML forms in the content editor by rendering Block Kit form blocks as groups of fields instead of native `<form>` elements. This also applies to form blocks on plugin pages.
+
 ## 1.3.1
 
 ### Patch Changes

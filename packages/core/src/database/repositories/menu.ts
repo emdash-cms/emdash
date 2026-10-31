@@ -651,12 +651,39 @@ export class MenuRepository {
 		return rowToMenuItem(row);
 	}
 
-	/** Delete an item scoped to its menu. Returns false if nothing was deleted. */
+	/**
+	 * Delete an item scoped to its menu, together with every item nested under
+	 * it. Returns false if nothing was deleted.
+	 *
+	 * SQLite and D1 have no `parent_id` cascade since migration 036, so the
+	 * nested items are deleted explicitly. The recursion stays inside the menu:
+	 * an item whose parent is in another menu is top level in its own menu.
+	 * `union` (not `unionAll`) keeps the recursion finite when legacy data has
+	 * a parent cycle. The CTE stays inside the subquery so the statement starts
+	 * with DELETE: the playground database (`EmDashPreviewDB`) counts statements
+	 * that start with WITH as reads and reports no deleted rows for them.
+	 */
 	async deleteItem(menuId: string, itemId: string): Promise<boolean> {
+		const subtree = this.db
+			.withRecursive("subtree(id)", (db) =>
+				db
+					.selectFrom("_emdash_menu_items")
+					.select("id")
+					.where("id", "=", itemId)
+					.where("menu_id", "=", menuId)
+					.union(
+						db
+							.selectFrom("_emdash_menu_items as child")
+							.innerJoin("subtree", "subtree.id", "child.parent_id")
+							.select("child.id")
+							.where("child.menu_id", "=", menuId),
+					),
+			)
+			.selectFrom("subtree")
+			.select("subtree.id");
 		const result = await this.db
 			.deleteFrom("_emdash_menu_items")
-			.where("id", "=", itemId)
-			.where("menu_id", "=", menuId)
+			.where("id", "in", subtree)
 			.execute();
 		const deleted = result[0]?.numDeletedRows !== 0n;
 		if (deleted) invalidateMenuObjectCache();

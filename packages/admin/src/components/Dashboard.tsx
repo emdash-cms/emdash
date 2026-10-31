@@ -492,6 +492,7 @@ function CollectionList({
 	loading: boolean;
 }) {
 	const { t } = useLingui();
+	const visibleCollections = collections.filter((col) => !manifest.collections[col.slug]?.hidden);
 
 	return (
 		<LayerCard className="h-full">
@@ -499,13 +500,13 @@ function CollectionList({
 			<LayerCard.Primary className="flex-1">
 				{loading ? (
 					<SkeletonRows count={3} />
-				) : collections.length === 0 ? (
+				) : visibleCollections.length === 0 ? (
 					<p className="px-3 text-sm leading-6 text-pretty text-kumo-subtle">
 						{t`No collections configured`}
 					</p>
 				) : (
 					<div className="space-y-1">
-						{collections.map((col) => {
+						{visibleCollections.map((col) => {
 							const config = manifest.collections[col.slug];
 							return (
 								<Link

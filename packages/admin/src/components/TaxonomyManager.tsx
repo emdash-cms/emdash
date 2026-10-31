@@ -627,16 +627,6 @@ function TermFormDialog({
 	const [autoSlug, setAutoSlug] = React.useState(!term);
 	const [error, setError] = React.useState<string | null>(null);
 
-	// Sync form state when term prop changes (for edit mode)
-	React.useEffect(() => {
-		setLabel(term?.label || "");
-		setSlug(term?.slug || "");
-		setParentId(term?.parentId || "");
-		setDescription(term?.description || "");
-		setAutoSlug(!term);
-		setError(null);
-	}, [term]);
-
 	// Auto-generate slug from label
 	React.useEffect(() => {
 		if (autoSlug && label) {
@@ -720,6 +710,19 @@ function TermFormDialog({
 			setError(err.message);
 		},
 	});
+
+	React.useEffect(() => {
+		if (!open) return;
+		setLabel(term?.label || "");
+		setSlug(term?.slug || "");
+		setParentId(term?.parentId || "");
+		setDescription(term?.description || "");
+		setAutoSlug(!term);
+		setError(null);
+		createMutation.reset();
+		updateMutation.reset();
+		translateMutation.reset();
+	}, [open, term, createMutation.reset, updateMutation.reset, translateMutation.reset]);
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();

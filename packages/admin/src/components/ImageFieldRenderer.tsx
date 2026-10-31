@@ -115,6 +115,8 @@ export interface ImageFieldRendererProps {
 	showOptional?: boolean;
 	allowedMimeTypes?: string[];
 	fieldId?: string;
+	blockType?: string;
+	blockVersion?: number;
 	variant?: "default" | "featured";
 	/** Offer a second slot for the image shown in a dark color scheme */
 	darkVariant?: boolean;
@@ -130,6 +132,8 @@ export function ImageFieldRenderer({
 	showOptional,
 	allowedMimeTypes,
 	fieldId,
+	blockType,
+	blockVersion,
 	variant = "default",
 	darkVariant = false,
 }: ImageFieldRendererProps) {
@@ -563,6 +567,8 @@ export function ImageFieldRenderer({
 					onUploaded={handlePrimarySelect}
 					allowedMimeTypes={allowedMimeTypes}
 					fieldId={fieldId}
+					blockType={blockType}
+					blockVersion={blockVersion}
 				/>
 			) : (
 				<Button
@@ -586,6 +592,8 @@ export function ImageFieldRenderer({
 					allowedMimeTypes && allowedMimeTypes.length > 0 ? allowedMimeTypes : ["image/"]
 				}
 				fieldId={fieldId}
+				blockType={blockType}
+				blockVersion={blockVersion}
 				title={
 					pickerTarget === "darkVariant"
 						? darkDisplayUrl

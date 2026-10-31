@@ -108,6 +108,37 @@ describe("BlocksField", () => {
 		expect(screen.getByRole("button", { name: "Duplicate block" }).all()[1]).toBeDisabled();
 	});
 
+	it("passes retained block type and version to nested field rendering", async () => {
+		let renderedField:
+			| { field: { id?: string; blockType?: string; blockVersion?: number } }
+			| undefined;
+		const screen = await render(
+			<BlocksField
+				id="field-layout"
+				fieldId="database-field"
+				fieldPath="layout"
+				label="Layout"
+				value={[{ _type: "hero", _version: 1, _key: "retained", heading: "Before" }]}
+				onChange={vi.fn()}
+				blockTypes={blockTypes}
+				allowedTypes={["hero"]}
+				retiredTypes={[]}
+				renderField={(input) => {
+					renderedField = input;
+					return <input aria-label={input.field.label} />;
+				}}
+			/>,
+		);
+
+		await expect.element(screen.getByLabelText("Heading")).toBeInTheDocument();
+		expect(renderedField?.field).toMatchObject({
+			blockType: "hero",
+			blockVersion: 1,
+			id: "database-field:retained:heading",
+		});
+		expect(renderedField?.field.id).not.toContain("field-layout");
+	});
+
 	it("adds, duplicates, collapses, and deletes without losing identity", async () => {
 		vi.spyOn(globalThis.crypto, "randomUUID")
 			.mockReturnValueOnce("00000000-0000-4000-8000-000000000001")

@@ -10,6 +10,8 @@ import type { APIRoute } from "astro";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, requireDb, unwrapResult } from "#api/error.js";
 import { handleCommentGet, handleCommentDelete } from "#api/handlers/comments.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
+import { getCommentRouteCacheTags } from "#comments/route-cache.js";
 
 export const prerender = false;
 
@@ -41,7 +43,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 /**
  * Hard delete a comment (ADMIN only)
  */
-export const DELETE: APIRoute = async ({ params, locals }) => {
+export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 	const { emdash, user } = locals;
 	const { id } = params;
 
@@ -56,8 +58,13 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 	if (denied) return denied;
 
 	try {
-		const result = await handleCommentDelete(emdash.db, id);
-		return unwrapResult(result);
+		const tags = cache?.enabled ? await getCommentRouteCacheTags(emdash.db, [id], "delete") : [];
+
+		try {
+			return unwrapResult(await handleCommentDelete(emdash.db, id));
+		} finally {
+			if (tags.length > 0) await invalidateRouteCache(cache, tags);
+		}
 	} catch (error) {
 		return handleError(error, "Failed to delete comment", "COMMENT_DELETE_ERROR");
 	}
