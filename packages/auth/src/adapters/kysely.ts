@@ -15,6 +15,7 @@ import {
 	type NewUser,
 	type UpdateUser,
 	type Credential,
+	type CredentialBackupState,
 	type NewCredential,
 	type AuthToken,
 	type NewAuthToken,
@@ -389,12 +390,22 @@ export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAd
 			};
 		},
 
-		async updateCredentialCounter(id: string, counter: number): Promise<void> {
+		async updateCredentialCounter(
+			id: string,
+			counter: number,
+			backupState?: CredentialBackupState,
+		): Promise<void> {
 			await kdb
 				.updateTable("credentials")
 				.set({
 					counter,
 					last_used_at: new Date().toISOString(),
+					...(backupState
+						? {
+								device_type: backupState.deviceType,
+								backed_up: backupState.backedUp ? 1 : 0,
+							}
+						: {}),
 				})
 				.where("id", "=", id)
 				.execute();

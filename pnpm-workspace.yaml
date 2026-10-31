@@ -121,6 +121,7 @@ catalog:
   "@lingui/macro": ^5.9.4
   "@lingui/message-utils": ^5.9.4
   "@lingui/react": ^5.9.4
+  "@oslojs/cbor": ^1.0.0
   "@oslojs/crypto": ^1.0.1
   "@oslojs/encoding": ^1.1.0
   "@oslojs/webauthn": ^1.0.0
