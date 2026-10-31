@@ -494,6 +494,12 @@ describe("BlocksField", () => {
 		});
 
 		await openMenu("middle");
+		expect(
+			screen
+				.getByRole("menu")
+				.getByText(/^This field holds/)
+				.query(),
+		).toBeNull();
 		await screen.getByRole("menuitem", { name: "Delete" }).click();
 		expect(rowKeys()).toEqual(["one", "three"]);
 		await expect
@@ -651,6 +657,9 @@ describe("BlocksField", () => {
 				.element(screen.getByRole("menuitem", { name }))
 				.toHaveAttribute("aria-disabled", "true");
 		}
+		await expect
+			.element(screen.getByRole("menu").getByText("This field holds up to 2 blocks."))
+			.toBeVisible();
 	});
 
 	it("shows each block type's icon, or the generic icon", async () => {
