@@ -3,7 +3,7 @@ import { Cube, Images, Sparkle } from "@phosphor-icons/react";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { cdp, page, userEvent } from "vitest/browser";
 
 import { BlocksField, type BlocksFieldProps } from "../../src/components/BlocksField.js";
 import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
@@ -314,6 +314,23 @@ describe("BlocksField", () => {
 		expect(screen.getByRole("option").all()).toHaveLength(1);
 		await userEvent.keyboard("{Enter}");
 		expect(document.querySelectorAll("[data-block-key]")).toHaveLength(2);
+		await expect.element(screen.getByLabelText("Caption")).toHaveFocus();
+	});
+
+	it("leaves Enter to the input method while a search is being composed", async () => {
+		const screen = await renderField({ initial: [heroBlock("one")] });
+
+		await screen.getByRole("button", { name: "Add block", exact: true }).click();
+		const search = screen.getByRole("combobox", { name: "Search block types" });
+		await expect.element(search).toHaveFocus();
+		await cdp().send("Input.imeSetComposition", { text: "m", selectionStart: 1, selectionEnd: 1 });
+		await userEvent.keyboard("{Enter}");
+		await cdp().send("Input.insertText", { text: "m" });
+
+		expect(rowKeys()).toEqual(["one"]);
+		await expect.element(search).toHaveValue("m");
+		await userEvent.keyboard("{Enter}");
+		await expect.poll(rowKeys).toHaveLength(2);
 		await expect.element(screen.getByLabelText("Caption")).toHaveFocus();
 	});
 
