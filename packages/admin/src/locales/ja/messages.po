@@ -7158,7 +7158,7 @@ msgstr "期間で絞り込む：{rangeLabel}"
 
 #: packages/admin/src/components/Redirects.tsx:694
 msgid "Filter by group"
-msgstr "グループで絞り込み"
+msgstr "グループで絞り込む"
 
 #: packages/admin/src/components/users/UserList.tsx:83
 msgid "Filter by role"
