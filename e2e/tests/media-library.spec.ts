@@ -146,24 +146,33 @@ async function createFolder(page: Page, name: string) {
 	await expect(dialog).not.toBeVisible();
 }
 
+async function boxCenter(locator: Locator) {
+	const box = await locator.boundingBox();
+	if (!box) throw new Error("Drag source or target is not visible");
+	return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
 async function pointerDrag(page: Page, source: Locator, target: Locator) {
-	const sourceBox = await source.boundingBox();
-	const targetBox = await target.boundingBox();
-	if (!sourceBox || !targetBox) throw new Error("Drag source or target is not visible");
-	const sourcePoint = {
-		x: sourceBox.x + sourceBox.width / 2,
-		y: sourceBox.y + sourceBox.height / 2,
-	};
-	const targetPoint = {
-		x: targetBox.x + targetBox.width / 2,
-		y: targetBox.y + targetBox.height / 2,
-	};
+	// Starting a drag near the viewport edge triggers the drag library's
+	// auto-scroll, which moves the target away from coordinates measured earlier.
+	await source.evaluate((element) => element.scrollIntoView({ block: "center" }));
+	const sourcePoint = await boxCenter(source);
+	let targetPoint = await boxCenter(target);
 	await page.mouse.move(sourcePoint.x, sourcePoint.y);
 	await page.mouse.down();
 	await page.mouse.move(sourcePoint.x + 12, sourcePoint.y, { steps: 2 });
 	await page.mouse.move(targetPoint.x, targetPoint.y, { steps: 8 });
 	const overlayCard = page.locator("[data-media-drag-overlay] > *");
 	await overlayCard.waitFor();
+	await expect
+		.poll(async () => {
+			const current = await boxCenter(target);
+			const moved = Math.hypot(current.x - targetPoint.x, current.y - targetPoint.y) > 1;
+			targetPoint = current;
+			if (moved) await page.mouse.move(current.x, current.y, { steps: 2 });
+			return moved;
+		})
+		.toBe(false);
 	const overlayBox = await overlayCard.boundingBox();
 	if (!overlayBox) throw new Error("Drag overlay is not visible");
 	expect(Math.abs(overlayBox.x + overlayBox.width / 2 - targetPoint.x)).toBeLessThanOrEqual(4);
