@@ -765,6 +765,7 @@ async function applySiteSettings(
 			emdash.db,
 			emdash.storage,
 			() => {},
+			emdash.config?.imagePlaceholders ?? true,
 		);
 		for (const item of mediaResult.imported) {
 			if (item.originalUrl === parsed.logo?.url) {

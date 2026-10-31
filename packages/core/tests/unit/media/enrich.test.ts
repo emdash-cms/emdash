@@ -86,4 +86,54 @@ describe("enrichImageMetadata", () => {
 		expect(result.width).toBe(1);
 		expect(result.height).toBe(1);
 	});
+
+	it("returns dimensions but skips placeholder decoding when placeholders is false", async () => {
+		const result = await enrichImageMetadata(JPEG_4x4, "image/jpeg", {
+			placeholders: false,
+		});
+		expect(result.width).toBe(4);
+		expect(result.height).toBe(4);
+		expect(result.blurhash).toBeUndefined();
+		expect(result.dominantColor).toBeUndefined();
+	});
+
+	it("honours knownDimensions and skips decoding when placeholders are disabled", async () => {
+		const result = await enrichImageMetadata(JPEG_4x4, "image/jpeg", {
+			knownDimensions: { width: 5, height: 9 },
+			placeholders: false,
+		});
+		expect(result.width).toBe(5);
+		expect(result.height).toBe(9);
+		expect(result.blurhash).toBeUndefined();
+		expect(result.dominantColor).toBeUndefined();
+	});
+
+	it("ignores a thumbnail override when placeholders are disabled", async () => {
+		const result = await enrichImageMetadata(JPEG_4x4, "image/jpeg", {
+			placeholder: { bytes: PNG_4x4, contentType: "image/png" },
+			placeholders: false,
+		});
+		expect(result.width).toBe(4);
+		expect(result.height).toBe(4);
+		expect(result.blurhash).toBeUndefined();
+		expect(result.dominantColor).toBeUndefined();
+	});
+
+	it("decodes a small thumbnail override even when the main image exceeds the memory guard", async () => {
+		// The original exceeds the memory guard; only the thumbnail can be decoded.
+		const { encode } = await import("jpeg-js");
+		const width = 3000;
+		const height = 3000;
+		const raw = { data: Buffer.alloc(width * height * 4, 0xff), width, height };
+		const bigJpeg = new Uint8Array(encode(raw, 50).data);
+
+		const result = await enrichImageMetadata(bigJpeg, "image/jpeg", {
+			placeholder: { bytes: PNG_4x4, contentType: "image/png" },
+		});
+
+		expect(result.blurhash).toBeTruthy();
+		expect(result.dominantColor).toBeTruthy();
+		expect(result.width).toBe(width);
+		expect(result.height).toBe(height);
+	});
 });
