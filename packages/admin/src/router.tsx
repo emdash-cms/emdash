@@ -2468,7 +2468,9 @@ function CommentsPage() {
 				title: plural(result.affected, { one: "# comment updated", other: "# comments updated" }),
 			});
 		},
-		onError: (error) => {
+		onError: (error, { action }) => {
+			// A failed delete shows in its confirmation.
+			if (action === "delete") return;
 			toastManager.add({
 				title: t`Failed to perform bulk action`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
