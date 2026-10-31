@@ -385,16 +385,25 @@ describe("Media Library list view hover", () => {
 			.closest("tr")!;
 		const backgrounds = (row: HTMLTableRowElement) =>
 			Array.from(row.cells, (cell) => getComputedStyle(cell).backgroundColor);
+		// Hovers again until the row matches :hover, so the tint checks never run while the
+		// pointer is somewhere else.
+		const hoverRow = (row: HTMLTableRowElement) =>
+			expect
+				.poll(async () => {
+					await userEvent.hover(row.cells[2]!);
+					return row.matches(":hover");
+				})
+				.toBe(true);
 		const hovered = fileRow("a.txt");
 		const resting = backgrounds(fileRow("quarterly-report.docx"));
 		const folderResting = backgrounds(folderRow);
 
-		await userEvent.hover(hovered.cells[2]!);
-		await expect.poll(() => backgrounds(hovered)).not.toEqual(resting);
+		await hoverRow(hovered);
+		expect(backgrounds(hovered)).not.toEqual(resting);
 		expect(new Set(backgrounds(hovered)).size).toBe(1);
 
-		await userEvent.hover(folderRow.cells[2]!);
-		await expect.poll(() => backgrounds(hovered)).toEqual(resting);
+		await hoverRow(folderRow);
+		expect(backgrounds(hovered)).toEqual(resting);
 		expect(backgrounds(folderRow)).toEqual(folderResting);
 	});
 });
