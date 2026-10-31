@@ -297,7 +297,12 @@ import { isContentSaveRejection } from "./plugins/save-rejection.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository, rowToPluginState } from "./plugins/state.js";
 import type { PluginState } from "./plugins/state.js";
-import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
+import {
+	generateIndexName,
+	normalizeIndexes,
+	syncDeclaredStorageIndexes,
+	type StorageIndexSyncResult,
+} from "./plugins/storage-indexes.js";
 import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
@@ -834,8 +839,17 @@ export class EmDashRuntime {
 	/** All plugins eligible for the hook pipeline (includes built-in plugins).
 	 *  Stored so we can rebuild the pipeline when plugins are enabled/disabled. */
 	private allPipelinePlugins: ResolvedPlugin[];
-	/** Guards the once-per-process plugin storage-index sync. */
-	private storageIndexesSynced = false;
+	/**
+	 * Plugin IDs whose declared storage indexes have been materialized without
+	 * errors. Per-plugin tracking lets retries target only the plugins that
+	 * failed a previous synchronization, and it keeps newly-installed plugins
+	 * from being treated as ready before their own indexes exist.
+	 */
+	private storageIndexesReady = new Set<string>();
+	private storageIndexesSyncPromises = new Map<
+		string,
+		{ declaration: object; promise: Promise<StorageIndexSyncResult> }
+	>();
 	/** Factory options for the hook pipeline context factory */
 	private pipelineFactoryOptions: {
 		db: Kysely<Database>;
@@ -988,6 +1002,16 @@ export class EmDashRuntime {
 		if (options.invalidateContentCache) {
 			this.pluginContentCacheInvalidator = options.invalidateContentCache;
 		}
+
+		// Try to materialize plugin-declared indexes before any scheduled plugin
+		// work runs. A partial result leaves failed plugins unmarked so the next
+		// tick retries them.
+		try {
+			await this.ensureStorageIndexesSynced();
+		} catch (error) {
+			console.error("[plugins] Storage index sync failed:", error);
+		}
+
 		let processed = 0;
 		if (this.cronExecutor) {
 			try {
@@ -1031,8 +1055,10 @@ export class EmDashRuntime {
 
 		await this.runSystemCleanupIfDue(currentTime);
 
+		// Retry any plugin storage-index sync that did not complete earlier in
+		// this tick or in a previous tick.
 		try {
-			await this.syncPluginStorageIndexesOnce();
+			await this.ensureStorageIndexesSynced();
 		} catch (error) {
 			console.error("[plugins] Storage index sync failed:", error);
 		}
@@ -1061,21 +1087,144 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Materialize plugin-declared storage indexes, once per process.
-	 *
-	 * Called from the scheduler path, not from request handlers — configured
-	 * plugins have no install handler, so the tick is their only sync moment.
+	 * Build the deduplicated set of plugins that may declare storage indexes.
+	 * Includes configured/trusted plugins, adapted sandboxed plugins, and cached
+	 * marketplace/registry manifests for plugins that may not have been loaded
+	 * into the pipeline yet.
 	 */
-	async syncPluginStorageIndexesOnce(): Promise<void> {
-		if (this.storageIndexesSynced) return;
-		this.storageIndexesSynced = true;
-		// Sandboxed marketplace/registry plugins never join allPipelinePlugins;
-		// their manifests are cached at bundle load. Without them, plugins
-		// installed before this feature shipped would never get their indexes.
-		await syncDeclaredStorageIndexes(this.db, [
-			...this.allPipelinePlugins,
-			...marketplaceManifestCache.values(),
-		]);
+	private getStorageIndexPlugins(): Map<
+		string,
+		{
+			id: string;
+			storage?: Record<
+				string,
+				{ indexes: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+			>;
+		}
+	> {
+		const map = new Map<
+			string,
+			{
+				id: string;
+				storage?: Record<
+					string,
+					{ indexes: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+				>;
+			}
+		>();
+		for (const plugin of this.allPipelinePlugins) {
+			map.set(plugin.id, plugin);
+		}
+		for (const manifest of marketplaceManifestCache.values()) {
+			if (!map.has(manifest.id)) {
+				map.set(manifest.id, manifest);
+			}
+		}
+		return map;
+	}
+
+	private async runStorageIndexSync(pluginId: string): Promise<StorageIndexSyncResult> {
+		const candidates = [...this.getStorageIndexPlugins().values()].filter(
+			(plugin) => !this.storageIndexesReady.has(plugin.id) && plugin.id === pluginId,
+		);
+		const errors: StorageIndexSyncResult["errors"] = [];
+
+		for (const plugin of candidates) {
+			try {
+				const stored = await this.db
+					.selectFrom("_plugin_indexes")
+					.select(["collection", "index_name"])
+					.where("plugin_id", "=", plugin.id)
+					.execute();
+				const storage = { ...plugin.storage };
+				const expected = new Map<string, Set<string>>();
+				for (const [collection, config] of Object.entries(storage)) {
+					const unique = normalizeIndexes(config.uniqueIndexes ?? []);
+					const uniqueFields = new Set(unique.map((fields) => JSON.stringify(fields)));
+					expected.set(
+						collection,
+						new Set([
+							...normalizeIndexes(config.indexes)
+								.filter((fields) => !uniqueFields.has(JSON.stringify(fields)))
+								.map((fields) => generateIndexName(plugin.id, collection, fields)),
+							...unique.map((fields) =>
+								generateIndexName(plugin.id, collection, fields, { unique: true }),
+							),
+						]),
+					);
+				}
+				let hasExtra = false;
+				for (const row of stored) {
+					if (!expected.get(row.collection)?.delete(row.index_name)) hasExtra = true;
+					// Removed collections still need their old indexes dropped.
+					if (!Object.hasOwn(storage, row.collection)) storage[row.collection] = { indexes: [] };
+				}
+				const hasMissing = [...expected.values()].some((names) => names.size > 0);
+				if (hasExtra || hasMissing) {
+					const result = await syncDeclaredStorageIndexes(this.db, [{ id: plugin.id, storage }]);
+					errors.push(...result.errors);
+					if (!result.ok) continue;
+				}
+
+				// A version change can invalidate a pass while its database work is in flight.
+				if (this.getStorageIndexPlugins().get(plugin.id) === plugin) {
+					this.storageIndexesReady.add(plugin.id);
+				}
+			} catch (error) {
+				console.error(`[plugins] Failed to check storage indexes for ${plugin.id}:`, error);
+				errors.push({
+					pluginId: plugin.id,
+					collection: "(sync)",
+					index: "(sync)",
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
+
+		return { ok: errors.length === 0, errors };
+	}
+
+	private invalidateStorageIndexReadiness(pluginId: string): void {
+		// Keep the flight: its DDL must finish before a replacement version can sync.
+		this.storageIndexesReady.delete(pluginId);
+	}
+
+	/**
+	 * Ensure declared storage indexes are ready before state-changing plugin
+	 * work runs. Returns `true` only when the requested plugin (or all plugins,
+	 * when no ID is given) has been successfully synchronized. Uses a single
+	 * in-flight sync per plugin, shared by targeted and all-plugin callers.
+	 */
+	async ensureStorageIndexesSynced(pluginId?: string): Promise<boolean> {
+		if (!pluginId) {
+			const results = await Promise.all(
+				Array.from(this.getStorageIndexPlugins().keys(), (id) =>
+					this.ensureStorageIndexesSynced(id),
+				),
+			);
+			return results.every(Boolean);
+		}
+		if (this.storageIndexesReady.has(pluginId)) return true;
+
+		const declaration = this.getStorageIndexPlugins().get(pluginId);
+		if (!declaration) return false;
+		let flight = this.storageIndexesSyncPromises.get(pluginId);
+		if (!flight) {
+			const promise = this.runStorageIndexSync(pluginId).finally(() => {
+				if (this.storageIndexesSyncPromises.get(pluginId)?.promise === promise) {
+					this.storageIndexesSyncPromises.delete(pluginId);
+				}
+			});
+			flight = { declaration, promise };
+			this.storageIndexesSyncPromises.set(pluginId, flight);
+		}
+
+		await flight.promise;
+		if (this.getStorageIndexPlugins().get(pluginId) !== declaration) return false;
+		if (flight.declaration !== declaration) {
+			return this.ensureStorageIndexesSynced(pluginId);
+		}
+		return this.storageIndexesReady.has(pluginId);
 	}
 
 	/**
@@ -1481,6 +1630,7 @@ export class EmDashRuntime {
 				}
 
 				const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
+				this.invalidateStorageIndexReadiness(pluginId);
 				sandboxedPluginCache.set(key, loaded);
 				sandboxedManifestCache.set(key, bundle.manifest);
 				this.sandboxedPlugins.set(key, loaded);
@@ -1525,6 +1675,7 @@ export class EmDashRuntime {
 	 * Mutates allPipelinePlugins and configuredPlugins in place.
 	 */
 	private removePluginFromLists(pluginId: string): void {
+		this.invalidateStorageIndexReadiness(pluginId);
 		const allIdx = this.allPipelinePlugins.findIndex((p) => p.id === pluginId);
 		if (allIdx !== -1) this.allPipelinePlugins.splice(allIdx, 1);
 		const configIdx = this.configuredPlugins.findIndex((p) => p.id === pluginId);
@@ -1635,6 +1786,7 @@ export class EmDashRuntime {
 				const existing = this.allPipelinePlugins.find((p) => p.id === pluginId);
 				if (existing && existing.version === bundle.manifest.version) continue;
 
+				this.invalidateStorageIndexReadiness(pluginId);
 				// Remove any older version
 				if (existing) {
 					this.removePluginFromLists(pluginId);
@@ -5806,6 +5958,24 @@ export class EmDashRuntime {
 				status: 405,
 				error: { code: "METHOD_NOT_ALLOWED", message: "Method not allowed" },
 			};
+		}
+
+		// State-changing plugin routes may rely on declared unique indexes and
+		// other constraints. Block them until those indexes are materialized.
+		// Read-only routes skip this check so ordinary logged-out GET requests
+		// don't pay for index DDL.
+		if (normalizedMethod !== "GET" && normalizedMethod !== "HEAD") {
+			const indexesReady = await this.ensureStorageIndexesSynced(pluginId);
+			if (!indexesReady) {
+				return {
+					success: false,
+					status: 503,
+					error: {
+						code: "STORAGE_INDEXES_NOT_READY",
+						message: "Plugin storage indexes are not ready",
+					},
+				};
+			}
 		}
 
 		// Authenticated caller for `ctx.user`. Undefined for public routes
