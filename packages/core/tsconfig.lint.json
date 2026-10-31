@@ -1,0 +1,21 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"rootDir": ".",
+		"jsx": "react-jsx",
+		"lib": ["es2023", "esnext.typedarrays", "DOM", "DOM.Iterable"],
+		"types": ["node", "astro/client"]
+	},
+	"include": [
+		"*.ts",
+		"src/**/*.d.ts",
+		"tests/**/*",
+		"src/astro/**/*",
+		"src/components/**/*",
+		"src/preview/**/*",
+		"src/ui.ts",
+		"src/ui-comments.ts",
+		"src/auth/providers/*-admin.tsx"
+	],
+	"exclude": ["**/node_modules", "**/dist", "**/.astro", "**/.emdash"]
+}
