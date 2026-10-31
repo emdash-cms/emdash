@@ -878,8 +878,9 @@ function BlockRow({
 								{t`Delete`}
 							</DropdownMenu.Item>
 							<DropdownMenu.Separator />
-							<div className="px-2 py-1 text-xs text-kumo-subtle">
-								{t`${label} · version ${versionNumber}`}
+							<div className="grid gap-0.5 px-2 py-1 text-xs text-kumo-subtle">
+								<span>{t`${label} · version ${versionNumber}`}</span>
+								{atMax && <span>{maxHint}</span>}
 							</div>
 						</DropdownMenu.Content>
 					</DropdownMenu>
