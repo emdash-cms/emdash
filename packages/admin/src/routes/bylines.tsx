@@ -336,7 +336,7 @@ export function BylinesPage() {
 			{items.length > 0 ? (
 				<LayerCard className="p-0">
 					<div className="overflow-x-auto">
-						<Table className="text-start">
+						<Table className="text-start [&_td]:border-b [&_td]:border-kumo-fill [&_tr:last-child_td]:border-b-0">
 							<Table.Header variant="compact">
 								<Table.Row>
 									<Table.Head className="text-start">{t`Byline`}</Table.Head>
@@ -351,7 +351,7 @@ export function BylinesPage() {
 							</Table.Header>
 							<Table.Body>
 								{items.map((item) => (
-									<Table.Row key={item.id} className="hover:bg-kumo-tint/25">
+									<Table.Row key={item.id} className="even:bg-transparent hover:bg-kumo-tint/25">
 										<Table.Cell>
 											<div className="flex min-w-0 items-center gap-3 py-1">
 												<BylineMonogram name={item.displayName} />
@@ -420,7 +420,7 @@ export function BylinesPage() {
 													>
 														<DropdownMenu.Item
 															variant="danger"
-															icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+															icon={<Trash className="size-4" aria-hidden="true" />}
 															aria-label={t`Delete byline ${item.displayName}`}
 															onClick={() => setDeleteTarget(item)}
 														>

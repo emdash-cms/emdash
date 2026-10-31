@@ -362,14 +362,14 @@ export function ImageFieldRenderer({
 			/>
 			<DropdownMenu.Content align="end" className="min-w-40">
 				<DropdownMenu.Item
-					icon={<ImageSquare className="me-1.5 size-4" aria-hidden="true" />}
+					icon={<ImageSquare className="size-4" aria-hidden="true" />}
 					onClick={() => openPicker("image")}
 				>
 					{t`Replace`}
 				</DropdownMenu.Item>
 				{canEditPrimaryAsset && (
 					<DropdownMenu.Item
-						icon={<PencilSimple className="me-1.5 size-4" aria-hidden="true" />}
+						icon={<PencilSimple className="size-4" aria-hidden="true" />}
 						onClick={() => {
 							setPickerTarget("image");
 							void assetEditor.openAssetEditor(objectValue!.id, mobileImageActionsRef.current);
@@ -381,7 +381,7 @@ export function ImageFieldRenderer({
 				<DropdownMenu.Separator />
 				<DropdownMenu.Item
 					variant="danger"
-					icon={<X className="me-1.5 size-4" aria-hidden="true" />}
+					icon={<X className="size-4" aria-hidden="true" />}
 					onClick={handleRemove}
 				>
 					{t`Remove`}
