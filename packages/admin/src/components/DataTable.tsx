@@ -50,6 +50,20 @@ export function DataTableMessage({
 	);
 }
 
+/** Styles the name that opens a row's record, as a link or a button. */
+export const rowTitleClassName = "font-medium hover:text-kumo-link";
+
+/** A row's name as a button, for rows whose record opens in place rather than at a URL. */
+export function RowTitleButton({ className, ...props }: React.ComponentProps<"button">) {
+	return (
+		<button
+			type="button"
+			{...props}
+			className={cn(rowTitleClassName, "cursor-pointer text-start", className)}
+		/>
+	);
+}
+
 /** The "…" button that opens a row's actions. Pass `DropdownMenu` items as children. */
 export function RowActionsMenu({ label, children }: { label: string; children: React.ReactNode }) {
 	return (

@@ -66,7 +66,7 @@ import {
 	ContentStatusLabel,
 	isContentStatusState,
 } from "./ContentStatusBadge.js";
-import { DataTable, DataTableMessage, RowActionsMenu } from "./DataTable.js";
+import { DataTable, DataTableMessage, RowActionsMenu, rowTitleClassName } from "./DataTable.js";
 import { ListPaginationFooter, type ListPagination } from "./ListPaginationFooter.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
@@ -1388,7 +1388,7 @@ function ContentListItem({
 					to="/content/$collection/$id"
 					params={{ collection, id: item.id }}
 					search={{ locale: item.locale }}
-					className="font-medium hover:text-kumo-link"
+					className={rowTitleClassName}
 				>
 					{title}
 				</Link>
