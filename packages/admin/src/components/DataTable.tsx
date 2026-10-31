@@ -19,6 +19,13 @@ export const tertiaryColumn = { "data-priority": "tertiary" } as const;
 export type ColumnPriority = (typeof secondaryColumn | typeof tertiaryColumn)["data-priority"];
 
 /**
+ * Spread on a drag-handle column's header and on each of its cells. The column hugs
+ * the handle, so a 32px handle's icon sits 16px from the table's edge. Set
+ * `data-dragging` on the row being dragged to raise it above the others.
+ */
+export const handleColumn = { "data-column": "handle" } as const;
+
+/**
  * A Kumo table laid out like a LayerCard: the header row sits on the tinted
  * outer layer and the rows on a raised card inside it. Cell padding, background
  * and borders come from the table, so a class on a single cell can't change them.
@@ -42,6 +49,8 @@ export function DataTable({ className, children, ...props }: React.ComponentProp
 					"[&_tbody_tr:first-child_td]:border-t",
 					"[&_tbody_tr:first-child_td:first-child]:rounded-ss-xl [&_tbody_tr:first-child_td:last-child]:rounded-se-xl",
 					"@max-md:[&_th]:px-3 @max-md:[&_td]:px-3",
+					"[&_:is(th,td)[data-column=handle]]:w-0 [&_:is(th,td)[data-column=handle]]:ps-2 [&_:is(th,td)[data-column=handle]]:pe-0",
+					"[&_tr[data-dragging]]:relative [&_tr[data-dragging]]:z-10 [&_tr[data-dragging]]:shadow-lg",
 					"@max-md:[&_:is(th,td)[data-priority=secondary]]:hidden @max-2xl:[&_:is(th,td)[data-priority=tertiary]]:hidden",
 					// The card's top-end corner belongs to the last cell still shown.
 					"@max-md:[&_tbody_tr:first-child_td:nth-last-child(1_of_:not([data-priority]))]:rounded-se-xl",
@@ -100,6 +109,14 @@ export function DataTableMessage({
 		</tr>
 	);
 }
+
+/**
+ * Sizes a slug or other unbroken code. In a table at least 42rem wide, long text in
+ * another column can't squeeze a short slug onto two lines, and a long one wraps at
+ * 10rem instead of widening its column. In a narrower table it wraps anywhere, like
+ * a row's name.
+ */
+export const cellCodeClassName = "wrap-anywhere @2xl:inline-block @2xl:w-max @2xl:max-w-40";
 
 /** Styles the name that opens a row's record, as a link or a button. */
 export const rowTitleClassName = "font-medium @max-2xl:wrap-anywhere hover:text-kumo-link";
