@@ -236,8 +236,8 @@ test.describe("Taxonomy ConfirmDialog", () => {
 			await dialog.dismiss();
 		});
 
-		// Click the delete button for the term
-		await page.getByRole("button", { name: "Delete E2E Delete Test Term" }).click();
+		await page.getByRole("button", { name: "Actions for E2E Delete Test Term" }).click();
+		await page.getByRole("menuitem", { name: "Delete E2E Delete Test Term" }).click();
 
 		// A ConfirmDialog (React dialog) should appear — NOT a browser confirm()
 		// The dialog title is "Delete {labelSingular}?" e.g. "Delete Category?"

@@ -17,19 +17,37 @@ import type {
 } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
+import type { ResolvedPlugin } from "../../../src/plugins/types.js";
+
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
 }));
 
-const { MOCK_RUNTIME, mockGetLastContentWriteAt } = vi.hoisted(() => ({
-	MOCK_RUNTIME: {
+const {
+	MOCK_RUNTIME,
+	mockCreateRuntime,
+	mockGetLastContentWriteAt,
+	mockPluginProvider,
+	pluginSource,
+} = vi.hoisted(() => {
+	const provider = vi.fn<() => ResolvedPlugin[]>(() => []);
+	const runtime = {
 		_marker: "runtime",
 		shutdown: vi.fn(async () => {}),
 		handlePluginApiRoute: vi.fn(async () => ({ success: true, data: { done: true } })),
 		runScheduledTasks: vi.fn(async () => ({ published: [] })),
-	},
-	mockGetLastContentWriteAt: vi.fn(async () => 123_456),
-}));
+	};
+	return {
+		MOCK_RUNTIME: runtime,
+		mockCreateRuntime: vi.fn(async (_deps: RuntimeDependencies) => runtime),
+		mockGetLastContentWriteAt: vi.fn(async () => 123_456),
+		mockPluginProvider: provider,
+		pluginSource: {
+			current: provider as ResolvedPlugin[] | (() => ResolvedPlugin[]),
+		},
+	};
+});
 
 vi.mock(
 	"virtual:emdash/config",
@@ -53,7 +71,15 @@ vi.mock(
 );
 
 vi.mock("virtual:emdash/media-providers", () => ({ mediaProviders: [] }), { virtual: true });
-vi.mock("virtual:emdash/plugins", () => ({ plugins: [] }), { virtual: true });
+vi.mock(
+	"virtual:emdash/plugins",
+	() => ({
+		get plugins() {
+			return pluginSource.current;
+		},
+	}),
+	{ virtual: true },
+);
 vi.mock(
 	"virtual:emdash/sandbox-runner",
 	() => ({ createSandboxRunner: null, sandboxBypassed: false, sandboxEnabled: false }),
@@ -67,7 +93,7 @@ vi.mock("virtual:emdash/scheduler", () => ({ createScheduler: null }), { virtual
 vi.mock("../../../src/emdash-runtime.js", () => ({
 	DB_INIT_DEADLINE_MS: 30_000,
 	EmDashRuntime: {
-		create: vi.fn(async () => MOCK_RUNTIME),
+		create: mockCreateRuntime,
 	},
 }));
 
@@ -126,6 +152,8 @@ describe("withEmDashRuntime (#1887)", () => {
 		delete (globalThis as Record<symbol, unknown>)[RUNTIME_HOLDER_KEY];
 		vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);
 		mockGetLastContentWriteAt.mockClear();
+		mockPluginProvider.mockReset().mockReturnValue([]);
+		pluginSource.current = mockPluginProvider;
 		vi.mocked(EmDashRuntime.create)
 			.mockReset()
 			.mockResolvedValue(MOCK_RUNTIME as never);
@@ -169,6 +197,32 @@ describe("withEmDashRuntime (#1887)", () => {
 		expect(await withEmDashRuntime((runtime) => runtime)).toBe(nextRuntime);
 		expect(EmDashRuntime.create).toHaveBeenCalledTimes(2);
 		await shutdownRuntime();
+	});
+
+	it("resolves a lazy plugin provider before creating the runtime", async () => {
+		const resolvedPlugins = [{ id: "test-plugin" } as ResolvedPlugin];
+		mockPluginProvider.mockReturnValue(resolvedPlugins);
+		pluginSource.current = mockPluginProvider;
+
+		await withEmDashRuntime(() => "ok");
+
+		const deps = mockCreateRuntime.mock.calls[0]?.[0];
+		expect(mockPluginProvider).toHaveBeenCalledOnce();
+		expect(deps?.plugins).toBe(resolvedPlugins);
+		expect(Array.isArray(deps?.plugins)).toBe(true);
+		expect(typeof deps?.plugins).not.toBe("function");
+	});
+
+	it("passes legacy array-form plugins to the runtime", async () => {
+		const legacyPlugins = [{ id: "legacy-plugin" } as ResolvedPlugin];
+		pluginSource.current = legacyPlugins;
+
+		await withEmDashRuntime(() => "ok");
+
+		const deps = mockCreateRuntime.mock.calls[0]?.[0];
+		expect(deps?.plugins).toBe(legacyPlugins);
+		expect(Array.isArray(deps?.plugins)).toBe(true);
+		expect(typeof deps?.plugins).not.toBe("function");
 	});
 
 	it("does not read the content-write marker for write workloads", async () => {

@@ -103,4 +103,24 @@ describe("crash budget diagnostics", () => {
 
 		expect(runner.unavailableReason()).toBe("workerd is not running");
 	});
+
+	it("classifies a rejected hook transport as sandbox unavailable", async () => {
+		vi.spyOn(runner, "isHealthy").mockReturnValue(true);
+		vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("connection lost"));
+		const plugin = await runner.load(MANIFEST, "export default {};");
+
+		await expect(plugin.invokeHook("content:afterSave", {})).rejects.toMatchObject({
+			name: "SandboxUnavailableError",
+		});
+	});
+
+	it("classifies a non-OK hook response as a plugin error", async () => {
+		vi.spyOn(runner, "isHealthy").mockReturnValue(true);
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("hook failed", { status: 500 }));
+		const plugin = await runner.load(MANIFEST, "export default {};");
+
+		await expect(plugin.invokeHook("content:afterSave", {})).rejects.toMatchObject({
+			name: "Error",
+		});
+	});
 });

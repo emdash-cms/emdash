@@ -3,7 +3,7 @@ import { declaredAccessToCapabilities, describeCapability } from "@emdash-cms/pl
 import type { CapabilityDescription } from "@emdash-cms/plugin-types";
 import { RECORD_SCOPED_BLOB_CACHE_TYPE } from "@emdash-cms/registry-lexicons";
 import { PackageReleaseExtension } from "@emdash-cms/registry-lexicons";
-import type { RegistryEntryData } from "@emdash-cms/registry-loader";
+import { DEFAULT_REGISTRY_URL, type RegistryEntryData } from "@emdash-cms/registry-loader";
 import {
 	recordScopedImageCacheUrl,
 	type RecordScopedImagePreset,
@@ -14,6 +14,9 @@ import sanitizeHtml from "sanitize-html";
 const RELEASE_COLLECTION = "com.emdashcms.experimental.package.release";
 const OFFICIAL_PUBLISHER_DID = "did:plc:xyraubanwc5fwemkduw3upi6";
 const COMMENT_OR_HEADING_TAG = /<!--[\s\S]*?-->|<h([1-6])[\s>]/gi;
+
+/** Shared by the live collections and the catalog search, so both read the same registry. */
+export const REGISTRY_CLIENT_OPTIONS = { aggregatorUrl: DEFAULT_REGISTRY_URL };
 
 export const REGISTRY_PAGE_CACHE = {
 	maxAge: 60,

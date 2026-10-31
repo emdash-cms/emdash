@@ -487,7 +487,7 @@ export class AdminPage {
 	 * Returns empty array if locale column is not shown.
 	 */
 	async getLocaleColumnValues(): Promise<string[]> {
-		const cells = this.page.locator("table tbody tr td span.rounded.bg-kumo-tint");
+		const cells = this.page.locator("table tbody tr td span.rounded.bg-kumo-tint:visible");
 		return cells.allTextContents();
 	}
 
