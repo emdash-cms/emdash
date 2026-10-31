@@ -6,20 +6,16 @@
  * purpose-built `BylineFieldEditor` (5-type subset + `translatable`
  * toggle).
  *
- * Reorder uses ↑/↓ buttons per row rather than drag-and-drop — the v1
- * registry caps the field set at a small number (admins typically
- * register 2–5 custom fields per site), accessibility is better without
- * pulling in a DnD dependency, and screen-reader users get usable
- * keyboard semantics for free. The reorder API takes the full slug list
- * in the desired order; clicking ↑ swaps the row with its neighbour and
- * fires the mutation.
+ * Reorder uses Move up / Move down in each row's actions menu. The reorder
+ * API takes the full slug list in the desired order; a move swaps the row
+ * with its neighbour and sends the whole list.
  *
  * Permission gate: `ROLE_ADMIN`. The route is also gated at the sidebar
  * level (`minRole: ROLE_ADMIN`), but a manually-typed URL still hits
  * this page — so the in-component check is the source of truth.
  */
 
-import { Button, Loader, useKumoToastManager } from "@cloudflare/kumo";
+import { Button, DropdownMenu, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown, ArrowUp, IdentificationCard, Pencil, Plus, Trash } from "@phosphor-icons/react";
@@ -28,6 +24,16 @@ import * as React from "react";
 
 import { BylineFieldEditor } from "../components/BylineFieldEditor.js";
 import { ConfirmDialog } from "../components/ConfirmDialog.js";
+import {
+	DataTable,
+	DataTableMessage,
+	RowActionsMenu,
+	RowMeta,
+	RowTitleButton,
+	cellCodeClassName,
+	secondaryColumn,
+	tertiaryColumn,
+} from "../components/DataTable.js";
 import {
 	createBylineField,
 	deleteBylineField,
@@ -40,6 +46,7 @@ import {
 	type UpdateBylineFieldInput,
 } from "../lib/api/byline-fields.js";
 import { useCurrentUser } from "../lib/api/current-user.js";
+import { cn } from "../lib/utils.js";
 
 // Mirror of `packages/auth/src/rbac.ts:Role.ADMIN`. Inline here for the
 // same reason the existing routes inline `ROLE_EDITOR` / `ROLE_ADMIN`:
@@ -144,8 +151,12 @@ export function BylineSchemaPage() {
 
 	const reorderMutation = useMutation({
 		mutationFn: (slugs: string[]) => reorderBylineFields(slugs),
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+		// The response is the reordered list. Caching it before the mutation settles
+		// keeps a quick second move from reading the old positions. A list refresh
+		// already in flight could still land the old order on top, so cancel it first.
+		onSuccess: async (result) => {
+			await queryClient.cancelQueries({ queryKey: QUERY_KEY });
+			queryClient.setQueryData(QUERY_KEY, result);
 		},
 		onError: (mutationError) => {
 			toastManager.add({
@@ -213,8 +224,8 @@ export function BylineSchemaPage() {
 	return (
 		<div className="space-y-4">
 			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div>
+			<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+				<div className="min-w-0">
 					<h1 className="text-2xl font-semibold leading-tight">{t`Byline schema`}</h1>
 					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
 						{t`Define custom fields stored on every byline — job title, pronouns, social handles, and more.`}
@@ -226,92 +237,81 @@ export function BylineSchemaPage() {
 			</div>
 
 			{/* Table */}
-			<div className="rounded-md border bg-kumo-base overflow-x-auto">
-				<table className="w-full">
-					<thead>
-						<tr className="border-b bg-kumo-tint/50">
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Label`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Slug`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Type`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Translatable`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Required`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
-								{t`Actions`}
-							</th>
-						</tr>
-					</thead>
-					<tbody className="divide-y divide-kumo-line">
-						{fieldsQuery.isLoading ? (
-							<tr>
-								<td colSpan={6} className="px-4 py-8 text-center text-kumo-subtle">
-									{t`Loading byline fields…`}
-								</td>
-							</tr>
-						) : fieldsQuery.isError ? (
-							// Distinguish "couldn't load" from "empty list" — falling
-							// through to the empty-state copy would tell the admin "no
-							// fields exist" when the list fetch actually failed (network
-							// error, 5xx, auth glitch). Surface the error message
-							// directly and a Retry action.
-							<tr>
-								<td colSpan={6} className="px-4 py-8 text-center">
-									<p className="text-kumo-danger font-medium">{t`Couldn't load byline fields.`}</p>
-									<p className="text-sm text-kumo-subtle mt-1">
-										{fieldsQuery.error instanceof Error
-											? fieldsQuery.error.message
-											: t`An unexpected error occurred.`}
-									</p>
-									<Button
-										variant="outline"
-										size="sm"
-										className="mt-3"
-										onClick={() => void fieldsQuery.refetch()}
-									>
-										{t`Retry`}
-									</Button>
-								</td>
-							</tr>
-						) : fields.length === 0 ? (
-							<tr>
-								<td colSpan={6} className="px-4 py-12 text-center text-kumo-subtle">
-									<IdentificationCard
-										className="mx-auto h-8 w-8 mb-3 text-kumo-subtle"
-										aria-hidden="true"
-									/>
-									<p>{t`No byline fields yet.`}</p>
-									<p className="text-xs mt-1">
-										{t`Add fields like "Job title" or "Pronouns" to enrich every byline.`}
-									</p>
-								</td>
-							</tr>
-						) : (
-							fields.map((field, index) => (
-								<FieldRow
-									key={field.id}
-									field={field}
-									isFirst={index === 0}
-									isLast={index === fields.length - 1}
-									onMoveUp={() => handleMove(index, -1)}
-									onMoveDown={() => handleMove(index, 1)}
-									onEdit={() => setEditingField(field)}
-									onDelete={() => setDeletingField(field)}
-									reorderPending={reorderMutation.isPending}
-								/>
-							))
-						)}
-					</tbody>
-				</table>
-			</div>
+			<DataTable>
+				<thead>
+					<tr>
+						<th scope="col">{t`Label`}</th>
+						<th scope="col" {...secondaryColumn}>
+							{t`Slug`}
+						</th>
+						<th scope="col" {...secondaryColumn}>
+							{t`Type`}
+						</th>
+						<th scope="col" {...tertiaryColumn}>
+							{t`Translatable`}
+						</th>
+						<th scope="col" {...tertiaryColumn}>
+							{t`Required`}
+						</th>
+						<th scope="col" className="w-0">
+							<span className="sr-only">{t`Actions`}</span>
+						</th>
+					</tr>
+				</thead>
+				<tbody>
+					{fieldsQuery.isLoading ? (
+						<DataTableMessage colSpan={6}>{t`Loading byline fields…`}</DataTableMessage>
+					) : fieldsQuery.isError ? (
+						// Distinguish "couldn't load" from "empty list" — falling
+						// through to the empty-state copy would tell the admin "no
+						// fields exist" when the list fetch actually failed (network
+						// error, 5xx, auth glitch). Surface the error message
+						// directly and a Retry action.
+						<DataTableMessage colSpan={6}>
+							<p className="text-kumo-danger font-medium">{t`Couldn't load byline fields.`}</p>
+							<p className="text-sm text-kumo-subtle mt-1">
+								{fieldsQuery.error instanceof Error
+									? fieldsQuery.error.message
+									: t`An unexpected error occurred.`}
+							</p>
+							<Button
+								variant="outline"
+								size="sm"
+								className="mx-auto mt-3"
+								onClick={() => void fieldsQuery.refetch()}
+							>
+								{t`Retry`}
+							</Button>
+						</DataTableMessage>
+					) : fields.length === 0 ? (
+						<DataTableMessage colSpan={6}>
+							<IdentificationCard
+								className="mx-auto h-8 w-8 mb-3 text-kumo-subtle"
+								aria-hidden="true"
+							/>
+							<p>{t`No byline fields yet.`}</p>
+							<p className="text-xs mt-1">
+								{t`Add fields like "Job title" or "Pronouns" to enrich every byline.`}
+							</p>
+						</DataTableMessage>
+					) : (
+						fields.map((field, index) => (
+							<FieldRow
+								key={field.id}
+								field={field}
+								canMove={fields.length > 1}
+								isFirst={index === 0}
+								isLast={index === fields.length - 1}
+								onMoveUp={() => handleMove(index, -1)}
+								onMoveDown={() => handleMove(index, 1)}
+								onEdit={() => setEditingField(field)}
+								onDelete={() => setDeletingField(field)}
+								reorderPending={reorderMutation.isPending}
+							/>
+						))
+					)}
+				</tbody>
+			</DataTable>
 
 			{/* Create dialog */}
 			<BylineFieldEditor
@@ -389,6 +389,7 @@ export function BylineSchemaPage() {
 
 interface FieldRowProps {
 	field: BylineFieldDefinition;
+	canMove: boolean;
 	isFirst: boolean;
 	isLast: boolean;
 	onMoveUp: () => void;
@@ -400,6 +401,7 @@ interface FieldRowProps {
 
 function FieldRow({
 	field,
+	canMove,
 	isFirst,
 	isLast,
 	onMoveUp,
@@ -409,60 +411,68 @@ function FieldRow({
 	reorderPending,
 }: FieldRowProps) {
 	const { t } = useLingui();
+	const slug = (
+		<code dir="ltr" className={cn(cellCodeClassName, "rounded bg-kumo-tint px-1.5 py-0.5 text-sm")}>
+			{field.slug}
+		</code>
+	);
+	const type = <span className="text-sm">{field.type}</span>;
+
 	return (
-		<tr className="hover:bg-kumo-tint/25">
-			<td className="px-4 py-3 font-medium">{field.label}</td>
-			<td className="px-4 py-3">
-				<code dir="ltr" className="text-sm bg-kumo-tint px-1.5 py-0.5 rounded">
-					{field.slug}
-				</code>
+		<tr>
+			<td>
+				<RowTitleButton dir="auto" aria-label={t`Edit ${field.label}`} onClick={onEdit}>
+					{field.label}
+				</RowTitleButton>
+				<RowMeta>
+					{slug}
+					{type}
+				</RowMeta>
 			</td>
-			<td className="px-4 py-3 text-sm">{field.type}</td>
-			<td className="px-4 py-3 text-sm">
+			<td {...secondaryColumn}>{slug}</td>
+			<td {...secondaryColumn}>{type}</td>
+			<td className="text-sm" {...tertiaryColumn}>
 				{field.translatable ? t`Yes` : t`No (shared across translations)`}
 			</td>
-			<td className="px-4 py-3 text-sm">{field.required ? t`Yes` : t`No`}</td>
-			<td className="px-4 py-3 text-end">
-				<div className="flex items-center justify-end gap-1">
-					<Button
-						variant="ghost"
-						shape="square"
-						size="sm"
-						aria-label={t`Move "${field.label}" up`}
-						disabled={isFirst || reorderPending}
-						onClick={onMoveUp}
-					>
-						<ArrowUp className="h-4 w-4" aria-hidden="true" />
-					</Button>
-					<Button
-						variant="ghost"
-						shape="square"
-						size="sm"
-						aria-label={t`Move "${field.label}" down`}
-						disabled={isLast || reorderPending}
-						onClick={onMoveDown}
-					>
-						<ArrowDown className="h-4 w-4" aria-hidden="true" />
-					</Button>
-					<Button
-						variant="ghost"
-						shape="square"
-						size="sm"
-						aria-label={t`Edit ${field.label}`}
+			<td className="text-sm" {...tertiaryColumn}>
+				{field.required ? t`Yes` : t`No`}
+			</td>
+			<td className="text-end">
+				<RowActionsMenu label={t`Actions for ${field.label}`}>
+					<DropdownMenu.Item
+						icon={<Pencil className="size-4" aria-hidden="true" />}
 						onClick={onEdit}
 					>
-						<Pencil className="h-4 w-4" aria-hidden="true" />
-					</Button>
-					<Button
-						variant="ghost"
-						shape="square"
-						size="sm"
+						{t`Edit`}
+					</DropdownMenu.Item>
+					{canMove && (
+						<>
+							<DropdownMenu.Item
+								icon={<ArrowUp className="size-4" aria-hidden="true" />}
+								disabled={isFirst || reorderPending}
+								onClick={onMoveUp}
+							>
+								{t`Move up`}
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								icon={<ArrowDown className="size-4" aria-hidden="true" />}
+								disabled={isLast || reorderPending}
+								onClick={onMoveDown}
+							>
+								{t`Move down`}
+							</DropdownMenu.Item>
+						</>
+					)}
+					<DropdownMenu.Separator />
+					<DropdownMenu.Item
+						variant="danger"
+						icon={<Trash className="size-4" aria-hidden="true" />}
 						aria-label={t`Delete ${field.label}`}
 						onClick={onDelete}
 					>
-						<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-					</Button>
-				</div>
+						{t`Delete`}
+					</DropdownMenu.Item>
+				</RowActionsMenu>
 			</td>
 		</tr>
 	);
