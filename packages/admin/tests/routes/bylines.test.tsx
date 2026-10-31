@@ -162,28 +162,64 @@ describe("BylinesPage search", () => {
 	});
 });
 
+const guestByline: BylineSummary = {
+	id: "guest",
+	slug: "guest-contributor",
+	displayName: "Guest Contributor",
+	bio: "A visiting writer",
+	avatarMediaId: null,
+	websiteUrl: null,
+	userId: null,
+	isGuest: true,
+	locale: "en",
+	translationGroup: null,
+	createdAt: "2026-01-01",
+	updatedAt: "2026-01-01",
+};
+
 describe("BylinesPage directory", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		fetchBylinesMock.mockResolvedValue({ items: [guestByline], nextCursor: undefined });
+	});
+
+	it("fits a byline with a long bio and slug in a phone-width table", async () => {
 		fetchBylinesMock.mockResolvedValue({
 			items: [
 				{
-					id: "guest",
-					slug: "guest-contributor",
-					displayName: "Guest Contributor",
-					bio: "A visiting writer",
-					avatarMediaId: null,
-					websiteUrl: null,
-					userId: null,
-					isGuest: true,
-					locale: "en",
-					translationGroup: null,
-					createdAt: "2026-01-01",
-					updatedAt: "2026-01-01",
-				} satisfies BylineSummary,
+					...guestByline,
+					slug: "regionalnewsroompartnership",
+					bio: "A visiting writer who covers city hall, transit, housing, and the regional economy for partner newsrooms.",
+				},
 			],
 			nextCursor: undefined,
 		});
+		const screen = await render(
+			<div style={{ width: 272 }}>
+				<QueryWrapper>
+					<Toast.Provider>
+						<BylinesPage />
+					</Toast.Provider>
+				</QueryWrapper>
+			</div>,
+		);
+
+		const actions = screen.getByRole("button", { name: "Actions for Guest Contributor" });
+		await expect.element(actions).toBeVisible();
+		const tray = screen.getByRole("table").element().parentElement!;
+		const trayBounds = tray.getBoundingClientRect();
+		const actionsBounds = actions.element().getBoundingClientRect();
+		const bylineCell = screen
+			.getByRole("button", { name: "Edit Guest Contributor" })
+			.element()
+			.closest("td")!;
+
+		expect(tray.scrollWidth).toBeLessThanOrEqual(tray.clientWidth);
+		expect(actionsBounds.left).toBeGreaterThanOrEqual(trayBounds.left);
+		expect(actionsBounds.right).toBeLessThanOrEqual(trayBounds.right);
+		await expect
+			.element(page.elementLocator(bylineCell).getByText("Guest", { exact: true }))
+			.toBeVisible();
 	});
 
 	it("cuts a long website and bio at their end on a right-to-left page", async () => {
@@ -323,7 +359,9 @@ describe("BylinesPage directory", () => {
 
 		await expect.element(screen.getByText("Guest Contributor")).toBeInTheDocument();
 		await expect.element(screen.getByText("A visiting writer")).toBeInTheDocument();
-		await expect.element(screen.getByText("Guest", { exact: true })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("cell", { name: "Guest", exact: true }))
+			.toBeInTheDocument();
 		await expect
 			.element(screen.getByRole("textbox", { name: "Display name" }))
 			.not.toBeInTheDocument();
