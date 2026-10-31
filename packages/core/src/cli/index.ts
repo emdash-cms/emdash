@@ -2,9 +2,11 @@
 
 import { defineCommand, runMain } from "citty";
 
+import { VERSION } from "../version.js";
 import { contentCommand } from "./commands/content.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { exportSeedCommand } from "./commands/export-seed.js";
+import { importCommand } from "./commands/import.js";
 import { initCommand } from "./commands/init.js";
 import { loginCommand, logoutCommand, whoamiCommand } from "./commands/login.js";
 import { mediaCommand } from "./commands/media.js";
@@ -21,7 +23,7 @@ import { typesCommand } from "./commands/types.js";
 const main = defineCommand({
 	meta: {
 		name: "emdash",
-		version: "0.0.0",
+		version: VERSION,
 		description: "CLI for EmDash CMS",
 	},
 	subCommands: {
@@ -31,6 +33,7 @@ const main = defineCommand({
 		seed: seedCommand,
 		migrate: migrateCommand,
 		"export-seed": exportSeedCommand,
+		import: importCommand,
 		secrets: secretsCommand,
 		login: loginCommand,
 		logout: logoutCommand,
