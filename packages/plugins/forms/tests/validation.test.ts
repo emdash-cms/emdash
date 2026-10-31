@@ -100,6 +100,37 @@ describe("validateSubmission checkbox-group", () => {
 	});
 });
 
+describe("validateSubmission tel", () => {
+	const phoneField = {
+		id: "phone",
+		type: "tel" as const,
+		label: "Phone",
+		name: "phone",
+		required: true,
+		width: "full" as const,
+	};
+
+	it.each(["(555) 123-4567", "(11) 90000-0000", "+1 (555) 123-4567", "555 123-4567"])(
+		"accepts %s without changing its formatting",
+		(phone) => {
+			const result = validateSubmission([phoneField], { phone });
+			expect(result).toEqual({ valid: true, errors: [], data: { phone } });
+		},
+	);
+
+	it.each(["not a phone", "(555) 123-ABCD", "(555) 123/4567", "-555 123-4567", ")555 123-4567"])(
+		"rejects %s",
+		(phone) => {
+			const result = validateSubmission([phoneField], { phone });
+			expect(result).toEqual({
+				valid: false,
+				errors: [{ field: "phone", message: "Phone must be a valid phone number" }],
+				data: {},
+			});
+		},
+	);
+});
+
 describe("validateSubmission file fields", () => {
 	const fileField = {
 		id: "f2",
