@@ -330,6 +330,61 @@ describe("EmDashClient", () => {
 		});
 	});
 
+	describe("content dates", () => {
+		function captureBodies() {
+			const bodies: Array<{ path: string; body: unknown }> = [];
+			const backend: Interceptor = async (req) => {
+				const path = new URL(req.url).pathname;
+				const text = await req.text();
+				bodies.push({ path, body: text ? JSON.parse(text) : undefined });
+				return jsonResponse({ item: { id: "abc" } });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+			return { client, bodies };
+		}
+
+		it("sends publishedAt when updating, including null to clear it", async () => {
+			const { client, bodies } = captureBodies();
+
+			await client.update("posts", "abc", { publishedAt: "2019-04-01T00:00:00.000Z" });
+			await client.update("posts", "abc", { publishedAt: null });
+			await client.update("posts", "abc", { slug: "renamed" });
+
+			expect(bodies.map(({ body }) => body)).toEqual([
+				{ publishedAt: "2019-04-01T00:00:00.000Z" },
+				{ publishedAt: null },
+				{ slug: "renamed" },
+			]);
+		});
+
+		it("sends publishedAt when publishing", async () => {
+			const { client, bodies } = captureBodies();
+
+			await client.publish("posts", "abc", { publishedAt: "2019-04-01T00:00:00.000Z" });
+			await client.publish("posts", "abc", {
+				publishedAt: "2019-04-01T00:00:00.000Z",
+				overrideLock: true,
+			});
+			await client.publish("posts", "abc");
+
+			expect(bodies).toEqual([
+				{
+					path: "/_emdash/api/content/posts/abc/publish",
+					body: { publishedAt: "2019-04-01T00:00:00.000Z" },
+				},
+				{
+					path: "/_emdash/api/content/posts/abc/publish",
+					body: { publishedAt: "2019-04-01T00:00:00.000Z", overrideLock: true },
+				},
+				{ path: "/_emdash/api/content/posts/abc/publish", body: undefined },
+			]);
+		});
+	});
+
 	describe("API error handling", () => {
 		it("throws EmDashApiError on 4xx responses", async () => {
 			const backend = createMockBackend([
