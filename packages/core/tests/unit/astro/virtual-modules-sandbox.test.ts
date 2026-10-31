@@ -76,6 +76,23 @@ describe("generateSandboxedPluginsModule", () => {
 		expect(result).toContain("export default { hooks: {} };");
 	});
 
+	it("embeds plugin display metadata", async () => {
+		await setupFakeProject("dist/sandbox-entry.mjs", "export default { hooks: {} };");
+
+		const result = generateSandboxedPluginsModule(
+			[
+				descriptor({
+					displayName: "Test Plugin",
+					description: "Tests sandbox behavior",
+				}),
+			],
+			tmpDir,
+		);
+
+		expect(result).toContain('displayName: "Test Plugin"');
+		expect(result).toContain('description: "Tests sandbox behavior"');
+	});
+
 	it("throws for .ts source files", async () => {
 		await setupFakeProject("src/sandbox-entry.ts", "export default {};");
 
