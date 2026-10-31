@@ -339,6 +339,10 @@ const config = {
 				// Focusing the input reopens the results, so close them afterwards.
 				this.input?.focus();
 				this.hideResults();
+				// Clear the highlight, or Enter in the input would open the hidden result.
+				this.resultsList
+					?.querySelectorAll(".emdash-live-search-result.focused")
+					.forEach((r) => r.classList.remove("focused"));
 			}
 		}
 

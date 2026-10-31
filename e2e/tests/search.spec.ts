@@ -20,6 +20,7 @@ import { test, expect } from "../fixtures";
 // Regex patterns (module scope per lint rules)
 const MEDIA_URL_PATTERN = /\/media/;
 const CONTENT_POSTS_URL_PATTERN = /\/content\/posts\//;
+const LIVE_SEARCH_URL_PATTERN = /\/live-search$/;
 
 // Keyboard modifier for Cmd (Mac) / Ctrl (Linux/Windows)
 const MOD_KEY = process.platform === "darwin" ? "Meta" : "Control";
@@ -412,6 +413,11 @@ test.describe("Search", () => {
 
 			await page.keyboard.press("Escape");
 			await expect(search.locator(".emdash-live-search-results")).toBeHidden();
+			await expect(input).toBeFocused();
+			// No result stays highlighted, so Enter in the input doesn't open the hidden result.
+			await expect(search.locator(".emdash-live-search-result.focused")).toHaveCount(0);
+			await input.press("Enter");
+			await expect(page).toHaveURL(LIVE_SEARCH_URL_PATTERN);
 			await expect(input).toBeFocused();
 		});
 	});
