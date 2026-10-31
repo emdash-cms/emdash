@@ -908,6 +908,9 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	}
 }
 
+/* The blocks field's add and drag controls sit in the editor page's gutter, which needs room and a hovering pointer. */
+@custom-variant blocks-gutter (@media (min-width: 40rem) and (hover: hover) and (pointer: fine));
+
 [data-emdash-editor-variant="document"] .emdash-document {
 	margin-inline: calc(var(--emdash-editor-gutter, 0rem) * -1);
 	padding-inline: var(--emdash-editor-gutter, 0rem);

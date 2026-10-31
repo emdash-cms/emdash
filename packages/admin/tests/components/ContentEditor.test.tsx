@@ -251,7 +251,7 @@ function renderEditor(props: Partial<ContentEditorProps> = {}) {
 		onSave: vi.fn(),
 		...props,
 	};
-	return render(<ContentEditor {...defaultProps} />);
+	return render(<ContentEditor {...defaultProps} />, { wrapper: Toasty });
 }
 
 type SavedBylineCredit = NonNullable<ContentItem["bylines"]>[number];
@@ -402,6 +402,7 @@ describe("ContentEditor", () => {
 			},
 		});
 
+		await screen.getByRole("button", { name: "Attachment", exact: true }).click();
 		await screen.getByRole("button", { name: "Select File" }).click();
 		expect(mediaPickerProps.current).toMatchObject({
 			fieldId: "database-field:block-key:file",
@@ -1069,6 +1070,7 @@ describe("ContentEditor", () => {
 				},
 			});
 
+			await screen.getByRole("button", { name: "Event", exact: true }).click();
 			const seats = screen.getByLabelText("Seats", { exact: true });
 			await seats.fill("44.5");
 			await expect.element(seats).not.toBeValid();
@@ -3758,13 +3760,11 @@ describe("ContentEditor", () => {
 				supportsDrafts: true,
 			});
 
+			await screen.getByRole("button", { name: "Expand all" }).click();
 			const headings = screen.getByRole("textbox", { name: "Heading" }).all();
 			await headings[0]!.fill("First, edited again");
-			const firstHandle = screen.getByRole("button", { name: "Reorder Hero" }).first().element();
-			firstHandle.focus();
-			await userEvent.keyboard("{Space}");
-			await userEvent.keyboard("{ArrowDown}");
-			await userEvent.keyboard("{Space}");
+			await screen.getByRole("button", { name: "Hero actions" }).first().click();
+			await screen.getByRole("menuitem", { name: "Move down" }).click();
 
 			await screen.rerender(
 				<ContentEditor
@@ -3786,7 +3786,7 @@ describe("ContentEditor", () => {
 			expect(
 				Array.from(document.querySelectorAll<HTMLElement>("[data-block-key]"), (element) => [
 					element.dataset.blockKey,
-					element.textContent?.includes("Version 2") ? 2 : 1,
+					element.textContent?.includes("Inactive version") ? 1 : 2,
 				]),
 			).toEqual([
 				["second", 2],

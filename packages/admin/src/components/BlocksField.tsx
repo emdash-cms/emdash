@@ -1,35 +1,49 @@
-import { Badge, Button, Input, Label } from "@cloudflare/kumo";
+import { Badge, Button, DropdownMenu, Label, Tooltip, useKumoToastManager } from "@cloudflare/kumo";
 import {
 	closestCenter,
 	DndContext,
-	KeyboardSensor,
 	PointerSensor,
 	type DragEndEvent,
 	useSensor,
 	useSensors,
 } from "@dnd-kit/core";
-import {
-	SortableContext,
-	sortableKeyboardCoordinates,
-	useSortable,
-	verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useLingui } from "@lingui/react/macro";
-import { CaretDown, CaretRight, Copy, DotsSixVertical, Plus, Trash } from "@phosphor-icons/react";
+import { plural } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
+import {
+	ArrowDown,
+	ArrowsInSimple,
+	ArrowsOutSimple,
+	ArrowUp,
+	CaretRight,
+	Copy,
+	DotsSixVertical,
+	DotsThree,
+	Plus,
+	RowsPlusBottom,
+	RowsPlusTop,
+	Trash,
+} from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { BlockFieldDefinition, BlockType } from "../lib/api/schema.js";
+import { blockSummary } from "../lib/block-field-layout.js";
 import {
 	createBlockKey,
 	createBlockValue,
 	duplicateBlockValue,
+	insertBlockValue,
 	isStoredBlockValue,
 	moveBlockValue,
 	type StoredBlockValue,
 	updateBlockFieldValue,
 } from "../lib/block-field-state.js";
+import { useStableCallback } from "../lib/hooks.js";
 import { cn } from "../lib/utils.js";
+import { BlockTypeIcon, BlockTypePicker } from "./BlockTypePicker.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
+import { type ImageFieldValue, mediaDisplayUrl } from "./ImageFieldRenderer.js";
 
 interface NestedFieldDescriptor {
 	id?: string;
@@ -83,6 +97,24 @@ const NESTED_KIND: Record<string, string> = {
 	repeater: "repeater",
 };
 
+const UNDO_TIMEOUT_MS = 6000;
+const FOCUSABLE =
+	'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
+const SHEET_INNER_TOP = "rounded-t-[calc(var(--radius-lg)-1px)]";
+const SHEET_INNER_BOTTOM = "rounded-b-[calc(var(--radius-lg)-1px)]";
+const MENU_ICON = "me-2 size-4";
+
+type InsertSide = "top" | "bottom";
+
+interface PickerTarget {
+	index: number;
+	anchor: Element | null;
+	side: InsertSide;
+	invoker: HTMLElement | null;
+}
+
+type FocusRequest = { key: string; target: "first-control" | "toggle" } | { target: "add" };
+
 function nestedDescriptor(
 	outerId: string,
 	blockKey: string,
@@ -108,12 +140,24 @@ function nestedDescriptor(
 	};
 }
 
-function summary(block: StoredBlockValue, fields: readonly BlockFieldDefinition[]): string | null {
+function isImageValue(value: unknown): value is ImageFieldValue {
+	return (
+		typeof value === "object" && value !== null && "id" in value && typeof value.id === "string"
+	);
+}
+
+function blockThumbnail(
+	block: StoredBlockValue,
+	fields: readonly BlockFieldDefinition[],
+): string | undefined {
 	for (const field of fields) {
+		if (field.type !== "image") continue;
 		const value = block[field.slug];
-		if (typeof value === "string" && value.trim()) return value.trim();
+		const url =
+			typeof value === "string" || isImageValue(value) ? mediaDisplayUrl(value) : undefined;
+		if (url) return url;
 	}
-	return null;
+	return undefined;
 }
 
 export function BlocksField({
@@ -132,35 +176,165 @@ export function BlocksField({
 	renderField,
 }: BlocksFieldProps) {
 	const { t } = useLingui();
+	const toastManager = useKumoToastManager();
+	const { close: closeToast } = toastManager;
 	const blocks = Array.isArray(value) ? value.filter(isStoredBlockValue) : [];
+	const rootRef = React.useRef<HTMLDivElement>(null);
+	const addButtonRef = React.useRef<HTMLButtonElement>(null);
+	const focusRequestRef = React.useRef<FocusRequest | null>(null);
+	const undoToastRef = React.useRef<string | null>(null);
+	const maxHintId = React.useId();
+	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
+	const [picker, setPicker] = React.useState<PickerTarget | null>(null);
 	const [pickerOpen, setPickerOpen] = React.useState(false);
-	const [query, setQuery] = React.useState("");
-	const [collapsed, setCollapsed] = React.useState<Set<string>>(() => new Set());
+	const [confirmDelete, setConfirmDelete] = React.useState<{
+		block: StoredBlockValue;
+		open: boolean;
+	} | null>(null);
+	const [announcement, setAnnouncement] = React.useState("");
+
 	const typeBySlug = React.useMemo(
 		() => new Map(blockTypes.map((blockType) => [blockType.slug, blockType])),
 		[blockTypes],
 	);
-	const allowed = allowedTypes
+	const insertable = allowedTypes
 		.map((slug) => typeBySlug.get(slug))
-		.filter((blockType): blockType is BlockType => blockType !== undefined)
-		.filter((blockType) => {
-			const needle = query.trim().toLocaleLowerCase();
-			return (
-				!needle ||
-				blockType.label.toLocaleLowerCase().includes(needle) ||
-				blockType.slug.toLocaleLowerCase().includes(needle) ||
-				blockType.category?.toLocaleLowerCase().includes(needle)
-			);
-		});
-	const grouped = new Map<string, BlockType[]>();
-	for (const blockType of allowed) {
-		const category = blockType.category || t`Other`;
-		grouped.set(category, [...(grouped.get(category) ?? []), blockType]);
-	}
-	const sensors = useSensors(
-		useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+		.filter((blockType): blockType is BlockType => blockType !== undefined);
+	const atMax = blocks.length >= maxItems;
+	const canAdd = !readOnly && !atMax && insertable.length > 0;
+	const maxHint = plural(maxItems, {
+		one: "This field holds up to # block.",
+		other: "This field holds up to # blocks.",
+	});
+	const anyOpen = blocks.some((block) => openKeys.has(block._key));
+	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+	const blockLabel = (block: StoredBlockValue) => typeBySlug.get(block._type)?.label ?? block._type;
+
+	React.useEffect(() => {
+		const request = focusRequestRef.current;
+		const root = rootRef.current;
+		if (!request || !root) return;
+		if (request.target === "add") {
+			focusRequestRef.current = null;
+			addButtonRef.current?.focus();
+			return;
+		}
+		const row = [...root.querySelectorAll<HTMLElement>("[data-block-key]")].find(
+			(element) => element.dataset.blockKey === request.key,
+		);
+		if (!row) return;
+		focusRequestRef.current = null;
+		const control =
+			request.target === "first-control"
+				? row.querySelector<HTMLElement>(`[data-block-body] :is(${FOCUSABLE})`)
+				: null;
+		(control ?? row.querySelector<HTMLElement>("[data-block-toggle]"))?.focus();
+	});
+
+	React.useEffect(
+		() => () => {
+			if (undoToastRef.current) closeToast(undoToastRef.current);
+		},
+		[closeToast],
 	);
+
+	const openPicker = (target: PickerTarget) => {
+		setPicker(target);
+		setPickerOpen(true);
+	};
+
+	const insertBlock = (blockType: BlockType) => {
+		if (!picker) return;
+		const block = createBlockValue(blockType, createBlockKey());
+		onChange(insertBlockValue(blocks, block, picker.index));
+		setOpenKeys((current) => new Set(current).add(block._key));
+		setPickerOpen(false);
+		focusRequestRef.current = { key: block._key, target: "first-control" };
+	};
+
+	const toggleBlock = (key: string) =>
+		setOpenKeys((current) => {
+			const next = new Set(current);
+			if (next.has(key)) next.delete(key);
+			else next.add(key);
+			return next;
+		});
+
+	const duplicateBlock = (index: number) => {
+		const block = blocks[index];
+		if (!block) return;
+		const copy = duplicateBlockValue(block, createBlockKey());
+		onChange(insertBlockValue(blocks, copy, index + 1));
+		setOpenKeys((current) => new Set(current).add(copy._key));
+	};
+
+	const moveBlock = (from: number, to: number) => {
+		const block = blocks[from];
+		if (!block || to < 0 || to >= blocks.length) return;
+		onChange(moveBlockValue(blocks, from, to));
+		const name = blockLabel(block);
+		const position = to + 1;
+		const total = blocks.length;
+		setAnnouncement(t`Moved ${name} to position ${position} of ${total}`);
+	};
+
+	const removeBlock = (key: string): number => {
+		const index = blocks.findIndex((block) => block._key === key);
+		if (index < 0) return index;
+		const next = blocks.filter((block) => block._key !== key);
+		onChange(next);
+		const neighbour = next[index] ?? next[index - 1];
+		focusRequestRef.current = neighbour
+			? { key: neighbour._key, target: "toggle" }
+			: { target: "add" };
+		return index;
+	};
+
+	const restoreBlock = useStableCallback((block: StoredBlockValue, index: number) => {
+		onChange(insertBlockValue(blocks, block, index));
+		focusRequestRef.current = { key: block._key, target: "toggle" };
+	});
+
+	const canRestore = (block: StoredBlockValue) => {
+		const blockType = typeBySlug.get(block._type);
+		const version = blockType?.versions.find((candidate) => candidate.version === block._version);
+		return Boolean(
+			blockType &&
+			version &&
+			!version.unsupportedTypes?.length &&
+			block._version === blockType.currentVersion &&
+			allowedTypes.includes(block._type) &&
+			!retiredTypes.includes(block._type),
+		);
+	};
+
+	const deleteBlock = (block: StoredBlockValue) => {
+		if (!canRestore(block)) {
+			setConfirmDelete({ block, open: true });
+			return;
+		}
+		const index = removeBlock(block._key);
+		if (index < 0) return;
+		if (undoToastRef.current) closeToast(undoToastRef.current);
+		const name = blockLabel(block);
+		const toastId: string = toastManager.add({
+			title: t`Deleted ${name}`,
+			timeout: UNDO_TIMEOUT_MS,
+			actions: [
+				{
+					children: t`Undo`,
+					variant: "secondary",
+					size: "sm",
+					onClick: () => {
+						closeToast(toastId);
+						undoToastRef.current = null;
+						restoreBlock(block, index);
+					},
+				},
+			],
+		});
+		undoToastRef.current = toastId;
+	};
 
 	const handleDragEnd = (event: DragEndEvent) => {
 		if (!event.over || event.active.id === event.over.id) return;
@@ -169,243 +343,531 @@ export function BlocksField({
 		onChange(moveBlockValue(blocks, from, to));
 	};
 
+	const confirmBlock = confirmDelete?.block;
+	const confirmName = confirmBlock ? blockLabel(confirmBlock) : "";
+	const confirmType = confirmBlock ? typeBySlug.get(confirmBlock._type) : undefined;
+	const confirmVersion = confirmType?.versions.find(
+		(candidate) => candidate.version === confirmBlock?._version,
+	);
+	let confirmReason = t`This block uses an older version of its type, so it can't be restored after you delete it.`;
+	if (!confirmVersion || confirmVersion.unsupportedTypes?.length) {
+		confirmReason = t`This block's stored definition is unavailable, so it can't be restored after you delete it.`;
+	} else if (
+		confirmBlock &&
+		(retiredTypes.includes(confirmBlock._type) || !allowedTypes.includes(confirmBlock._type))
+	) {
+		confirmReason = t`This block type can no longer be added to this field, so the block can't be restored after you delete it.`;
+	}
+
+	const addButton = (
+		<Button
+			ref={addButtonRef}
+			variant="ghost"
+			icon={<Plus className="size-4" aria-hidden="true" />}
+			aria-haspopup="dialog"
+			aria-disabled={!canAdd || undefined}
+			aria-describedby={atMax ? maxHintId : undefined}
+			className={cn(
+				"h-10 w-full justify-start gap-2 rounded-none px-2.5 font-normal text-kumo-subtle shadow-none hover:text-kumo-default aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
+				SHEET_INNER_BOTTOM,
+				blocks.length > 0 && "border-t border-kumo-hairline",
+			)}
+			onClick={(event) => {
+				if (!canAdd) return;
+				openPicker({
+					index: blocks.length,
+					anchor: event.currentTarget,
+					side: "bottom",
+					invoker: event.currentTarget,
+				});
+			}}
+		>
+			{t`Add block`}
+		</Button>
+	);
+
 	return (
-		<div id={id} className="grid grid-cols-[minmax(0,1fr)] gap-3">
-			<div className="flex items-center justify-between gap-3">
+		<div id={id} ref={rootRef} className="grid grid-cols-[minmax(0,1fr)] gap-2">
+			<div className="flex min-h-7 items-center justify-between gap-3">
 				<Label>{label}</Label>
-				{!readOnly && (
+				{blocks.length > 0 && (
 					<Button
-						variant="outline"
+						variant="ghost"
 						size="sm"
-						icon={<Plus />}
-						disabled={blocks.length >= maxItems || allowed.length === 0}
-						onClick={() => setPickerOpen((open) => !open)}
+						className="text-kumo-subtle"
+						icon={
+							anyOpen ? (
+								<ArrowsInSimple className="size-3.5" aria-hidden="true" />
+							) : (
+								<ArrowsOutSimple className="size-3.5" aria-hidden="true" />
+							)
+						}
+						onClick={() =>
+							setOpenKeys(anyOpen ? new Set() : new Set(blocks.map((block) => block._key)))
+						}
 					>
-						{t`Add block`}
+						{anyOpen ? t`Collapse all` : t`Expand all`}
 					</Button>
 				)}
 			</div>
 
-			{pickerOpen && !readOnly && (
-				<div className="rounded-lg border border-kumo-line bg-kumo-control p-3 space-y-3">
-					<Input
-						aria-label={t`Search block types`}
-						value={query}
-						onChange={(event) => setQuery(event.target.value)}
-						placeholder={t`Search blocks`}
-					/>
-					<div className="max-h-64 overflow-y-auto space-y-3">
-						{Array.from(grouped, ([category, types]) => (
-							<div key={category}>
-								<p className="mb-1 text-xs font-medium text-kumo-subtle">{category}</p>
-								<div className="grid gap-1 sm:grid-cols-2">
-									{types.map((blockType) => (
-										<Button
-											key={blockType.slug}
-											variant="ghost"
-											className="h-auto w-full justify-start text-start"
-											onClick={() => {
-												onChange([...blocks, createBlockValue(blockType, createBlockKey())]);
-												setPickerOpen(false);
-												setQuery("");
-											}}
-										>
-											<span>
-												<span className="block font-medium">{blockType.label}</span>
-												{blockType.description && (
-													<span className="block text-xs text-kumo-subtle">
-														{blockType.description}
-													</span>
-												)}
-											</span>
-										</Button>
-									))}
-								</div>
-							</div>
-						))}
-						{allowed.length === 0 && (
-							<p className="py-4 text-center text-sm text-kumo-subtle">
-								{t`No matching block types`}
-							</p>
-						)}
-					</div>
-				</div>
-			)}
-
-			{blocks.length === 0 ? (
-				<p className="rounded-lg border border-dashed border-kumo-line p-6 text-center text-sm text-kumo-subtle">
-					{t`No blocks yet`}
-				</p>
-			) : (
-				<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-					<SortableContext
-						items={blocks.map((block) => block._key)}
-						strategy={verticalListSortingStrategy}
+			<div className="relative rounded-lg border border-kumo-line bg-kumo-base">
+				{blocks.length > 0 ? (
+					<DndContext
+						sensors={sensors}
+						collisionDetection={closestCenter}
+						onDragEnd={handleDragEnd}
 					>
-						<div className="space-y-3">
-							{blocks.map((block, index) => (
-								<BlockCard
-									key={block._key}
-									outerId={fieldId ?? id}
-									fieldPath={fieldPath}
-									block={block}
-									index={index}
-									blockType={typeBySlug.get(block._type)}
-									retired={retiredTypes.includes(block._type)}
-									collapsed={collapsed.has(block._key)}
-									readOnly={readOnly}
-									onToggle={() =>
-										setCollapsed((current) => {
-											const next = new Set(current);
-											if (next.has(block._key)) next.delete(block._key);
-											else next.add(block._key);
-											return next;
-										})
-									}
-									onChange={(field, nextValue) =>
-										onChange(updateBlockFieldValue(blocks, block._key, field, nextValue))
-									}
-									onDuplicate={() => {
-										const next = [...blocks];
-										next.splice(index + 1, 0, duplicateBlockValue(block, createBlockKey()));
-										onChange(next);
-									}}
-									onDelete={() => onChange(blocks.filter((item) => item._key !== block._key))}
-									renderField={renderField}
-								/>
-							))}
-						</div>
-					</SortableContext>
-				</DndContext>
-			)}
+						<SortableContext
+							items={blocks.map((block) => block._key)}
+							strategy={verticalListSortingStrategy}
+						>
+							<div role="list" aria-label={label}>
+								{blocks.map((block, index) => (
+									<BlockRow
+										key={block._key}
+										outerId={fieldId ?? id}
+										fieldPath={fieldPath}
+										block={block}
+										index={index}
+										count={blocks.length}
+										blockType={typeBySlug.get(block._type)}
+										retired={retiredTypes.includes(block._type)}
+										open={openKeys.has(block._key)}
+										readOnly={readOnly}
+										canAdd={canAdd}
+										atMax={atMax}
+										maxHint={maxHint}
+										maxHintId={maxHintId}
+										roundBottom={readOnly && index === blocks.length - 1}
+										onToggle={() => toggleBlock(block._key)}
+										onChange={(field, nextValue) =>
+											onChange(updateBlockFieldValue(blocks, block._key, field, nextValue))
+										}
+										onAdd={openPicker}
+										onDuplicate={() => duplicateBlock(index)}
+										onMove={(to) => moveBlock(index, to)}
+										onDelete={() => deleteBlock(block)}
+										renderField={renderField}
+									/>
+								))}
+							</div>
+						</SortableContext>
+					</DndContext>
+				) : (
+					<p
+						className={cn(
+							"px-4 pt-6 text-center text-sm text-kumo-subtle",
+							readOnly ? "pb-6" : "pb-2",
+						)}
+					>
+						{t`No blocks yet`}
+					</p>
+				)}
+				{!readOnly && (atMax ? <Tooltip content={maxHint} render={addButton} /> : addButton)}
+			</div>
 
 			{blocks.length < minItems && (
 				<p className="text-sm text-kumo-danger">{t`Add at least ${minItems} blocks.`}</p>
 			)}
+			{atMax && !readOnly && (
+				<span id={maxHintId} className="sr-only">
+					{maxHint}
+				</span>
+			)}
+			<p className="sr-only" aria-live="polite">
+				{announcement}
+			</p>
+
+			{!readOnly && (
+				<BlockTypePicker
+					open={pickerOpen}
+					anchor={picker?.anchor ?? null}
+					side={picker?.side ?? "bottom"}
+					invoker={picker?.invoker ?? null}
+					blockTypes={insertable}
+					onPick={insertBlock}
+					onClose={() => setPickerOpen(false)}
+				/>
+			)}
+			<ConfirmDialog
+				open={confirmDelete?.open ?? false}
+				onClose={() => setConfirmDelete((current) => current && { ...current, open: false })}
+				role="alertdialog"
+				compact
+				title={t`Delete ${confirmName}?`}
+				description={confirmReason}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
+				isPending={false}
+				error={null}
+				onConfirm={() => {
+					if (confirmBlock) removeBlock(confirmBlock._key);
+					setConfirmDelete((current) => current && { ...current, open: false });
+				}}
+			/>
 		</div>
 	);
 }
 
-interface BlockCardProps {
+interface BlockRowProps {
 	outerId: string;
 	fieldPath: string;
 	block: StoredBlockValue;
 	index: number;
+	count: number;
 	blockType?: BlockType;
 	retired: boolean;
-	collapsed: boolean;
+	open: boolean;
 	readOnly: boolean;
+	canAdd: boolean;
+	atMax: boolean;
+	maxHint: string;
+	maxHintId: string;
+	roundBottom: boolean;
 	onToggle: () => void;
 	onChange: (field: string, value: unknown) => void;
+	onAdd: (target: PickerTarget) => void;
 	onDuplicate: () => void;
+	onMove: (to: number) => void;
 	onDelete: () => void;
 	renderField: BlocksFieldProps["renderField"];
 }
 
-function BlockCard({
+function BlockRow({
 	outerId,
 	fieldPath,
 	block,
 	index,
+	count,
 	blockType,
 	retired,
-	collapsed,
+	open,
 	readOnly,
+	canAdd,
+	atMax,
+	maxHint,
+	maxHintId,
+	roundBottom,
 	onToggle,
 	onChange,
+	onAdd,
 	onDuplicate,
+	onMove,
 	onDelete,
 	renderField,
-}: BlockCardProps) {
-	const { t } = useLingui();
-	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+}: BlockRowProps) {
+	const { t, i18n } = useLingui();
+	const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
 		id: block._key,
 		disabled: readOnly,
 	});
-	const style = { transform: CSS.Transform.toString(transform), transition };
+	const rowId = React.useId();
+	const headRef = React.useRef<HTMLDivElement>(null);
+	const handleRef = React.useRef<HTMLButtonElement>(null);
+	const triggerRef = React.useRef<HTMLButtonElement>(null);
+	const afterMenuCloseRef = React.useRef<(() => void) | null>(null);
+	const [menuOpen, setMenuOpen] = React.useState(false);
+	const [menuFromHandle, setMenuFromHandle] = React.useState(false);
+
+	const label = blockType?.label ?? block._type;
 	const version = blockType?.versions.find((candidate) => candidate.version === block._version);
 	const unsupported = !blockType || !version || Boolean(version.unsupportedTypes?.length);
 	const inactive = Boolean(blockType && block._version !== blockType.currentVersion);
-	const blockSummary = version ? summary(block, version.fields) : null;
+	const summary = version
+		? blockSummary(block, label, version.fields, {
+				locale: i18n.locale,
+				withMore: (list, more) => t`${list} +${more}`,
+			})
+		: null;
+	const thumbnail = version ? blockThumbnail(block, version.fields) : undefined;
+	const versionNumber = block._version;
+	const labelId = `${rowId}-label`;
+	const summaryId = `${rowId}-summary`;
+	const bodyId = `${rowId}-body`;
+
+	const menuOpener = () => (menuFromHandle ? handleRef.current : triggerRef.current);
+	const addFromMenu = (side: InsertSide) => {
+		const invoker = menuOpener();
+		afterMenuCloseRef.current = () =>
+			onAdd({ index: side === "top" ? index : index + 1, anchor: headRef.current, side, invoker });
+	};
 
 	return (
-		<section
+		<div
 			ref={setNodeRef}
-			style={style}
+			style={{ transform: CSS.Transform.toString(transform), transition }}
+			role="listitem"
+			data-block-key={block._key}
+			data-menu-open={menuOpen || undefined}
 			className={cn(
-				"rounded-lg border border-kumo-line bg-kumo-control",
+				"group/block relative [--emdash-blocks-sticky-top:var(--emdash-editor-sticky-top,0px)]",
+				index > 0 && "border-t border-kumo-hairline",
 				isDragging && "opacity-50",
 			)}
-			data-block-key={block._key}
 		>
-			<div className="flex items-center gap-2 p-3">
-				{!readOnly && (
-					<button
-						{...attributes}
-						{...listeners}
-						type="button"
-						className="cursor-grab touch-none active:cursor-grabbing"
-						aria-label={t`Reorder ${blockType?.label ?? block._type}`}
-					>
-						<DotsSixVertical className="h-5 w-5 text-kumo-subtle" />
-					</button>
+			{!readOnly && (
+				<div className="absolute end-full top-2.5 hidden items-center pe-1 opacity-0 transition-opacity blocks-gutter:flex group-hover/block:opacity-100 group-focus-within/block:opacity-100 group-data-[menu-open]/block:opacity-100">
+					<Tooltip
+						side="bottom"
+						content={
+							atMax ? (
+								maxHint
+							) : (
+								<span className="block text-center">
+									{t`Add block below`}
+									<br />
+									<Trans>
+										<strong className="font-medium">Alt-click</strong> to add above
+									</Trans>
+								</span>
+							)
+						}
+						render={
+							<Button
+								variant="ghost"
+								shape="square"
+								size="sm"
+								className="size-6 text-kumo-subtle aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+								aria-label={t`Add block below`}
+								aria-haspopup="dialog"
+								aria-disabled={!canAdd || undefined}
+								aria-describedby={atMax ? maxHintId : undefined}
+								onClick={(event) => {
+									if (!canAdd) return;
+									const above = event.altKey;
+									onAdd({
+										index: above ? index : index + 1,
+										anchor: event.currentTarget,
+										side: above ? "top" : "bottom",
+										invoker: event.currentTarget,
+									});
+								}}
+							>
+								<Plus className="size-4" aria-hidden="true" />
+							</Button>
+						}
+					/>
+					<Tooltip
+						side="bottom"
+						className="cursor-grab active:cursor-grabbing"
+						content={
+							<span className="block text-center">
+								<Trans>
+									<strong className="font-medium">Drag</strong> to move
+								</Trans>
+								<br />
+								<Trans>
+									<strong className="font-medium">Click</strong> to open menu
+								</Trans>
+							</span>
+						}
+						render={
+							<Button
+								ref={handleRef}
+								variant="ghost"
+								shape="square"
+								size="sm"
+								className="h-6 w-[1.125rem] touch-none text-kumo-subtle"
+								aria-label={t`${label} actions`}
+								aria-haspopup="menu"
+								aria-expanded={menuOpen}
+								{...listeners}
+								onClick={() => {
+									setMenuFromHandle(true);
+									setMenuOpen(true);
+								}}
+							>
+								<DotsSixVertical className="size-4" weight="bold" aria-hidden="true" />
+							</Button>
+						}
+					/>
+				</div>
+			)}
+
+			<div
+				ref={headRef}
+				className={cn(
+					"flex min-h-11 items-center gap-2 py-1.5 ps-2.5 pe-2 hover:bg-kumo-tint",
+					index === 0 && SHEET_INNER_TOP,
+					roundBottom && !open && SHEET_INNER_BOTTOM,
+					open && "sticky top-(--emdash-blocks-sticky-top) z-30 bg-kumo-base",
 				)}
-				<Button
-					variant="ghost"
-					shape="square"
-					size="sm"
+			>
+				<button
+					type="button"
+					data-block-toggle
+					aria-expanded={open}
+					aria-controls={bodyId}
+					aria-labelledby={labelId}
+					aria-describedby={summary ? summaryId : undefined}
 					onClick={onToggle}
-					aria-label={collapsed ? t`Expand block` : t`Collapse block`}
+					className="flex min-w-0 flex-1 items-center gap-2 self-stretch rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand"
 				>
-					{collapsed ? (
-						<CaretRight className="h-4 w-4 rtl:-scale-x-100" />
-					) : (
-						<CaretDown className="h-4 w-4" />
-					)}
-				</Button>
-				<div className="min-w-0 flex-1">
-					<div className="flex flex-wrap items-center gap-2">
-						<span className="min-w-0 wrap-break-word font-medium">
-							{blockType?.label ?? block._type}
+					<CaretRight
+						weight="bold"
+						aria-hidden="true"
+						className={cn(
+							"size-3 shrink-0 text-kumo-subtle transition-transform rtl:-scale-x-100",
+							open && "rotate-90 rtl:-rotate-90",
+						)}
+					/>
+					<BlockTypeIcon
+						name={blockType?.icon}
+						className="size-[1.125rem] shrink-0 text-kumo-subtle"
+					/>
+					<span
+						id={labelId}
+						dir="auto"
+						className="max-w-[60%] min-w-0 font-medium text-kumo-default wrap-anywhere"
+					>
+						{label}
+					</span>
+					{summary && (
+						<span
+							className={cn(
+								"min-w-0 flex-1 overflow-hidden text-kumo-subtle transition-opacity",
+								open && "opacity-0",
+							)}
+						>
+							<span
+								id={summaryId}
+								dir="auto"
+								className="inline-block max-w-full truncate align-top"
+							>
+								{summary}
+							</span>
 						</span>
-						<Badge variant="secondary">{t`Version ${block._version}`}</Badge>
+					)}
+				</button>
+				{thumbnail && (
+					<img
+						key={thumbnail}
+						src={thumbnail}
+						alt=""
+						loading="lazy"
+						className={cn(
+							"size-7 shrink-0 rounded-md object-cover ring-1 ring-kumo-line transition-opacity",
+							open && "opacity-0",
+						)}
+						onError={(event) => {
+							event.currentTarget.hidden = true;
+						}}
+					/>
+				)}
+				{(inactive || retired || unsupported) && (
+					<span className="flex flex-wrap justify-end gap-1">
 						{inactive && <Badge variant="secondary">{t`Inactive version`}</Badge>}
 						{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
 						{unsupported && <Badge variant="secondary">{t`Unsupported`}</Badge>}
-					</div>
-					{blockSummary && (
-						<p dir="auto" className="w-fit max-w-full truncate text-xs text-kumo-subtle">
-							{blockSummary}
-						</p>
-					)}
-				</div>
+					</span>
+				)}
 				{!readOnly && (
-					<div className="flex items-center gap-1">
-						<Button
-							variant="ghost"
-							shape="square"
-							size="sm"
-							disabled={retired || unsupported}
-							onClick={onDuplicate}
-							aria-label={t`Duplicate block`}
+					<DropdownMenu
+						open={menuOpen}
+						onOpenChange={(next) => {
+							if (next) setMenuFromHandle(false);
+							setMenuOpen(next);
+						}}
+						onOpenChangeComplete={(isOpen) => {
+							if (isOpen) return;
+							const after = afterMenuCloseRef.current;
+							afterMenuCloseRef.current = null;
+							if (after) after();
+							else if (menuFromHandle) {
+								// The menu returns focus to its trigger after this callback.
+								setTimeout(() => {
+									const active = document.activeElement;
+									if (active === triggerRef.current || active === document.body) {
+										handleRef.current?.focus();
+									}
+								});
+							}
+							setMenuFromHandle(false);
+						}}
+					>
+						<DropdownMenu.Trigger
+							render={
+								<Button
+									ref={triggerRef}
+									variant="ghost"
+									shape="square"
+									size="sm"
+									className="shrink-0 text-kumo-subtle blocks-gutter:opacity-0 blocks-gutter:group-hover/block:opacity-100 blocks-gutter:group-focus-within/block:opacity-100 blocks-gutter:group-data-[menu-open]/block:opacity-100"
+									aria-label={t`${label} actions`}
+								>
+									<DotsThree className="size-4" weight="bold" aria-hidden="true" />
+								</Button>
+							}
+						/>
+						<DropdownMenu.Content
+							anchor={menuFromHandle ? handleRef : undefined}
+							align={menuFromHandle ? "start" : "end"}
+							className="min-w-56"
 						>
-							<Copy className="h-4 w-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							shape="square"
-							size="sm"
-							onClick={onDelete}
-							aria-label={t`Delete block`}
-						>
-							<Trash className="h-4 w-4 text-kumo-danger" />
-						</Button>
-					</div>
+							<DropdownMenu.Item
+								icon={<RowsPlusTop className={MENU_ICON} aria-hidden="true" />}
+								disabled={!canAdd}
+								onClick={() => addFromMenu("top")}
+							>
+								{t`Add block above`}
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								icon={<RowsPlusBottom className={MENU_ICON} aria-hidden="true" />}
+								disabled={!canAdd}
+								onClick={() => addFromMenu("bottom")}
+							>
+								{t`Add block below`}
+							</DropdownMenu.Item>
+							<DropdownMenu.Separator />
+							<DropdownMenu.Item
+								icon={<Copy className={MENU_ICON} aria-hidden="true" />}
+								disabled={retired || unsupported || atMax}
+								onClick={onDuplicate}
+							>
+								{t`Duplicate`}
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								icon={<ArrowUp className={MENU_ICON} aria-hidden="true" />}
+								disabled={index === 0}
+								onClick={() => onMove(index - 1)}
+							>
+								{t`Move up`}
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								icon={<ArrowDown className={MENU_ICON} aria-hidden="true" />}
+								disabled={index === count - 1}
+								onClick={() => onMove(index + 1)}
+							>
+								{t`Move down`}
+							</DropdownMenu.Item>
+							<DropdownMenu.Separator />
+							<DropdownMenu.Item
+								variant="danger"
+								icon={<Trash className={MENU_ICON} aria-hidden="true" />}
+								onClick={() => {
+									afterMenuCloseRef.current = onDelete;
+								}}
+							>
+								{t`Delete`}
+							</DropdownMenu.Item>
+							<DropdownMenu.Separator />
+							<div className="px-2 py-1 text-xs text-kumo-subtle">
+								{t`${label} · version ${versionNumber}`}
+							</div>
+						</DropdownMenu.Content>
+					</DropdownMenu>
 				)}
 			</div>
 
-			{!collapsed && (
-				<div className="space-y-4 border-t border-kumo-line p-4">
+			{open && (
+				<div
+					id={bodyId}
+					data-block-body
+					role="group"
+					aria-labelledby={labelId}
+					className="space-y-4 px-4 pt-2 pb-4 [--emdash-editor-sticky-top:calc(var(--emdash-blocks-sticky-top)+2.75rem)]"
+				>
 					{unsupported ? (
 						<p className="text-sm text-kumo-subtle">
 							{t`This block cannot be edited because its stored definition is unavailable.`}
@@ -423,6 +885,6 @@ function BlockCard({
 					<span className="sr-only">{t`Block ${index + 1}`}</span>
 				</div>
 			)}
-		</section>
+		</div>
 	);
 }
