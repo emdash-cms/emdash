@@ -1897,7 +1897,7 @@ function ReviewStep({
 								onCheckedChange={(checked) => onImportSeoChange(checked)}
 								label={
 									<div>
-										<p className="font-medium">{t`SEO settings (Yoast)`}</p>
+										<p className="font-medium">{t`SEO settings`}</p>
 										<p className="text-sm text-kumo-subtle">
 											{t`Meta titles, descriptions, and social images`}
 										</p>
