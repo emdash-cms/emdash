@@ -97,10 +97,11 @@ export interface PublishDueContentOptions {
 /**
  * Publish every content item whose `scheduled_at` is in the past.
  *
- * Iterates all collections, finds due items (`findReadyToPublish` returns both
- * scheduled drafts and published entries with pending scheduled changes), and
- * publishes each. `publish()` clears `scheduled_at`, so a second sweep is a
- * no-op — safe to run on every tick.
+ * Finds the collections with due content (`findTypesWithDueContent`), then, in
+ * each of them, the due items (`findReadyToPublish` returns both scheduled
+ * drafts and published entries with pending scheduled changes), and publishes
+ * each. `publish()` clears `scheduled_at`, so a second sweep is a no-op — safe
+ * to run on every tick.
  *
  * Bounded per collection by `limit` (default `SCHEDULED_PUBLISH_BATCH_LIMIT`):
  * a large backlog drains across successive ticks rather than in one unbounded
