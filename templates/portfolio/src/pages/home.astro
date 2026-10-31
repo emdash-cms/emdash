@@ -1,0 +1,6 @@
+---
+// The pages collection's "/{slug}" pattern gives the Home page this URL, but it
+// renders at "/". Keep the query string so signed preview links still work.
+const target = Astro.url.search ? `/?${Astro.url.search.slice(1)}` : "/";
+return Astro.redirect(target, 301);
+---

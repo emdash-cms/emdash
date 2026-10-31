@@ -22,6 +22,7 @@ export function getRuntimeHolder(): RuntimeHolder {
 }
 
 export async function shutdownRuntime(): Promise<void> {
+	delete store[Symbol.for("emdash:plugins")];
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- private globalThis symbol slot
 	const holder = store[RUNTIME_HOLDER_KEY] as RuntimeHolder | undefined;
 	if (!holder) return;

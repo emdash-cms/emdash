@@ -16,7 +16,47 @@ import {
 	loadCachedRedirects,
 	type RedirectSource,
 } from "../../../src/redirects/cache.js";
-import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import {
+	type DialectTestContext,
+	describeEachDialect,
+	setupForDialect,
+	setupTestDatabase,
+	teardownForDialect,
+	teardownTestDatabase,
+} from "../../utils/test-db.js";
+
+describeEachDialect("redirect write lock recovery", (dialect) => {
+	let ctx: DialectTestContext;
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		db = ctx.db;
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("creates redirects when the write lock row is missing without changing existing rules", async () => {
+		const existing = await handleRedirectCreate(db, { source: "/old", destination: "/new" });
+		expect(existing.success).toBe(true);
+		await db.deleteFrom("_emdash_redirect_write_lock").where("id", "=", 1).execute();
+
+		for (const source of ["/first", "/second"]) {
+			await expect(
+				handleRedirectCreate(db, { source, destination: "/target" }),
+			).resolves.toMatchObject({ success: true, data: { source, destination: "/target" } });
+		}
+		await expect(new RedirectRepository(db).findAllEnabled()).resolves.toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ source: "/old", destination: "/new" }),
+				expect.objectContaining({ source: "/first", destination: "/target" }),
+				expect.objectContaining({ source: "/second", destination: "/target" }),
+			]),
+		);
+	});
+});
 
 describe("redirect handlers — loop detection", () => {
 	let db: Kysely<Database>;

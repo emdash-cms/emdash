@@ -11,7 +11,11 @@ import { POST as enablePlugin } from "../../../src/astro/routes/api/admin/plugin
 import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { CronAccessImpl } from "../../../src/plugins/cron.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
-import type { SandboxedPluginInstance } from "../../../src/plugins/sandbox/types.js";
+import {
+	SandboxUnavailableError,
+	type SandboxedPluginInstance,
+	type SandboxRunner,
+} from "../../../src/plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../../src/plugins/state.js";
 import { PLUGIN_CAPABILITY_IMPLICATIONS } from "../../../src/plugins/types.js";
 import type { Storage } from "../../../src/storage/types.js";
@@ -71,8 +75,12 @@ class MemoryStorage implements Storage {
 
 let currentInvokeHook: SandboxedPluginInstance["invokeHook"] = async () => undefined;
 let loadedSandboxCapabilities: string[] = [];
+const sandboxHookHandlers = new Map<string, SandboxedPluginInstance["invokeHook"]>();
 let sandboxActive = false;
 let sandboxInvokeRoute: ReturnType<typeof vi.fn> = vi.fn();
+let setSandboxActive = vi.fn<(active: boolean) => void>();
+let ensureRunning = vi.fn<NonNullable<SandboxRunner["ensureRunning"]>>(async () => undefined);
+let isHealthy = vi.fn(() => true);
 
 function createDeps(
 	invokeHook: SandboxedPluginInstance["invokeHook"],
@@ -81,20 +89,29 @@ function createDeps(
 ): RuntimeDependencies {
 	currentInvokeHook = invokeHook;
 	loadedSandboxCapabilities = [];
+	sandboxHookHandlers.clear();
 	sandboxActive = false;
 	sandboxInvokeRoute = vi.fn(async () => ({ status: 200, body: { ok: true } }));
+	setSandboxActive = vi.fn();
+	isHealthy = vi.fn(() => true);
+	ensureRunning = vi.fn<NonNullable<SandboxRunner["ensureRunning"]>>(async (options) => {
+		if (options?.waitForPendingRestart) isHealthy.mockReturnValue(true);
+	});
+	const database = new Database(":memory:");
 	const runner = {
 		isAvailable: () => true,
-		isHealthy: () => true,
+		isHealthy,
+		ensureRunning,
 		load: vi.fn(async (manifest: { id: string; version: string; capabilities: string[] }) => {
 			loadedSandboxCapabilities = [...manifest.capabilities];
 			return {
 				id: `${manifest.id}:${manifest.version}`,
 				invokeHook: (...args: Parameters<SandboxedPluginInstance["invokeHook"]>) =>
-					currentInvokeHook(...args),
+					(sandboxHookHandlers.get(manifest.id) ?? currentInvokeHook)(...args),
 				invokeRoute: sandboxInvokeRoute,
 				setActive: (active: boolean) => {
 					sandboxActive = active;
+					setSandboxActive(active);
 				},
 				terminate: vi.fn(),
 			};
@@ -112,7 +129,7 @@ function createDeps(
 			},
 		},
 		plugins: [],
-		createDialect: () => new SqliteDialect({ database: new Database(":memory:") }),
+		createDialect: () => new SqliteDialect({ database }),
 		createStorage: null,
 		createScheduler: null,
 		sandboxEnabled: true,
@@ -155,7 +172,7 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 	let runtime: EmDashRuntime | undefined;
 
 	afterEach(async () => {
-		await runtime?.stopCron();
+		await runtime?.shutdown();
 		runtime = undefined;
 	});
 
@@ -192,6 +209,7 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		const metadata = await runtime.collectPageMetadata({ kind: "generic", url: "https://test/" });
 
 		expect(calls).toEqual([
+			"plugin:activate",
 			"content:afterSave",
 			"media:afterUpload",
 			"cron",
@@ -291,7 +309,7 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		]);
 	});
 
-	it("runs first-install lifecycle exactly once when requested by an install flow", async () => {
+	it("runs the first-install lifecycle automatically on boot and only once", async () => {
 		const calls: string[] = [];
 		const invokeHook = vi.fn(async (name: string) => calls.push(name));
 		const deps = createDeps(invokeHook, {}, "sandbox-install-lifecycle");
@@ -301,9 +319,469 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		];
 		runtime = await EmDashRuntime.create(deps);
 
-		await runtime.runPluginInstallLifecycle("sandbox-install-lifecycle");
-
 		expect(calls).toEqual(["plugin:install", "plugin:activate"]);
+		expect(
+			await new PluginStateRepository(runtime.db).get("sandbox-install-lifecycle"),
+		).toMatchObject({
+			status: "active",
+			version: "1.0.0",
+		});
+
+		await runtime.shutdown();
+		runtime = await EmDashRuntime.create(deps);
+		await expect(
+			new PluginStateRepository(runtime.db).get("sandbox-install-lifecycle"),
+		).resolves.toMatchObject({
+			status: "active",
+		});
+		expect(calls).toEqual(["plugin:install", "plugin:activate"]);
+	});
+
+	it("does not activate when the runner becomes unhealthy during install and retries next boot", async () => {
+		const calls: string[] = [];
+		let crash = true;
+		const invokeHook = vi.fn(async (name: string) => {
+			calls.push(name);
+			if (name === "plugin:install" && crash) {
+				isHealthy.mockReturnValue(false);
+			}
+		});
+		const deps = createDeps(invokeHook, {}, "sandbox-unhealthy-after-install");
+		deps.sandboxedPluginEntries[0]!.hooks = [
+			"plugin:install",
+			...(deps.sandboxedPluginEntries[0]!.hooks ?? []),
+		];
+
+		deps.sandboxedPluginEntries.push({ ...deps.sandboxedPluginEntries[0]!, id: "later-sandbox" });
+		const laterHook = vi.fn(async () => undefined);
+		sandboxHookHandlers.set("later-sandbox", laterHook);
+		runtime = await EmDashRuntime.create(deps);
+		expect(calls).toEqual(["plugin:install"]);
+		expect(
+			await new PluginStateRepository(runtime.db).get("sandbox-unhealthy-after-install"),
+		).toBeNull();
+		expect(await new PluginStateRepository(runtime.db).get("later-sandbox")).toMatchObject({
+			status: "active",
+		});
+		expect(isHealthy()).toBe(true);
+		expect(ensureRunning).toHaveBeenCalledTimes(2);
+
+		await runtime.shutdown();
+		runtime = undefined;
+		crash = false;
+		runtime = await EmDashRuntime.create(deps);
+
+		expect(calls).toEqual(["plugin:install", "plugin:install", "plugin:activate"]);
+		expect(
+			await new PluginStateRepository(runtime.db).get("sandbox-unhealthy-after-install"),
+		).toMatchObject({ status: "active" });
+	});
+
+	it.each(["plugin:install", "plugin:activate"])(
+		"revokes sandbox access after %s fails and does not retry on boot",
+		async (failingHook) => {
+			const calls: string[] = [];
+			const invokeHook = vi.fn(async (name: string) => {
+				calls.push(name);
+				if (name === failingHook) throw new Error("lifecycle failed");
+			});
+			const deps = createDeps(invokeHook, {}, "sandbox-failed-install");
+			deps.sandboxedPluginEntries[0]!.hooks = [
+				"plugin:install",
+				...(deps.sandboxedPluginEntries[0]!.hooks ?? []),
+			];
+			const expectedCalls =
+				failingHook === "plugin:install"
+					? ["plugin:install"]
+					: ["plugin:install", "plugin:activate"];
+			runtime = await EmDashRuntime.create(deps);
+
+			expect(calls).toEqual(expectedCalls);
+			expect(setSandboxActive).toHaveBeenLastCalledWith(false);
+			expect(
+				await new PluginStateRepository(runtime.db).get("sandbox-failed-install"),
+			).toMatchObject({
+				status: "inactive",
+			});
+			await runtime.shutdown();
+			runtime = await EmDashRuntime.create(deps);
+			expect(calls).toEqual(expectedCalls);
+			expect(setSandboxActive).toHaveBeenLastCalledWith(false);
+			expect(
+				await new PluginStateRepository(runtime.db).get("sandbox-failed-install"),
+			).toMatchObject({
+				status: "inactive",
+			});
+		},
+	);
+
+	it.each(["plugin:install", "plugin:activate"])(
+		"retries %s after the sandbox reports it is unavailable",
+		async (unavailableHook) => {
+			const calls: string[] = [];
+			let unavailable = true;
+			const invokeHook = vi.fn(async (name: string) => {
+				calls.push(name);
+				if (unavailable && name === unavailableHook) {
+					isHealthy.mockReturnValue(false);
+					throw new SandboxUnavailableError("sandbox-unavailable-hook", "starting");
+				}
+			});
+			const database = new Database(":memory:");
+			const dialect = new SqliteDialect({ database });
+			const entrypoint = `test-unavailable-hook-${randomUUID()}`;
+			const deps = createDeps(
+				invokeHook,
+				{
+					config: { database: { entrypoint, config: {}, type: "sqlite" } },
+					createDialect: () => dialect,
+				},
+				"sandbox-unavailable-hook",
+			);
+			deps.sandboxedPluginEntries[0]!.hooks = [
+				"plugin:install",
+				...(deps.sandboxedPluginEntries[0]!.hooks ?? []),
+			];
+			deps.sandboxedPluginEntries.push({ ...deps.sandboxedPluginEntries[0]!, id: "later-sandbox" });
+			const laterHook = vi.fn(async () => undefined);
+			sandboxHookHandlers.set("later-sandbox", laterHook);
+
+			runtime = await EmDashRuntime.create(deps);
+			expect(calls).toEqual(
+				unavailableHook === "plugin:install"
+					? ["plugin:install"]
+					: ["plugin:install", "plugin:activate"],
+			);
+			expect(
+				await new PluginStateRepository(runtime.db).get("sandbox-unavailable-hook"),
+			).toBeNull();
+			expect(await new PluginStateRepository(runtime.db).get("later-sandbox")).toMatchObject({
+				status: "active",
+			});
+			expect(ensureRunning).toHaveBeenCalledTimes(2);
+			expect(runtime.hooks.getHookCount("cron")).toBeGreaterThan(0);
+			expect(setSandboxActive).not.toHaveBeenCalledWith(false);
+			await runtime.shutdown();
+
+			unavailable = false;
+			calls.length = 0;
+			runtime = await EmDashRuntime.create(deps);
+			expect(calls).toEqual(["plugin:install", "plugin:activate"]);
+			expect(laterHook).toHaveBeenCalledTimes(2);
+			expect(await new PluginStateRepository(runtime.db).get("later-sandbox")).toMatchObject({
+				status: "active",
+			});
+			expect(
+				await new PluginStateRepository(runtime.db).get("sandbox-unavailable-hook"),
+			).toMatchObject({
+				status: "active",
+			});
+		},
+	);
+
+	it.each(["plugin:install", "plugin:activate"])(
+		"keeps later-sandbox active when the first plugin reports %s unavailable on two boots",
+		async (unavailableHook) => {
+			const firstCalls: string[] = [];
+			const deps = createDeps(
+				async (name) => {
+					firstCalls.push(name);
+					if (name === unavailableHook) {
+						isHealthy.mockReturnValue(false);
+						throw new SandboxUnavailableError("first-sandbox", "connection lost");
+					}
+				},
+				{},
+				"first-sandbox",
+			);
+			deps.sandboxedPluginEntries[0]!.hooks = ["plugin:install", "plugin:activate"];
+			deps.sandboxedPluginEntries.push({ ...deps.sandboxedPluginEntries[0]!, id: "later-sandbox" });
+			const laterCalls: string[] = [];
+			sandboxHookHandlers.set("later-sandbox", async (name) => {
+				laterCalls.push(name);
+			});
+
+			for (let boot = 0; boot < 2; boot++) {
+				ensureRunning.mockClear();
+				runtime = await EmDashRuntime.create(deps);
+				const states = new PluginStateRepository(runtime.db);
+				expect(await states.get("first-sandbox")).toBeNull();
+				expect(await states.get("later-sandbox")).toMatchObject({ status: "active" });
+				expect(ensureRunning).toHaveBeenCalledTimes(boot === 0 ? 2 : 1);
+				await runtime.shutdown();
+			}
+			const attempted =
+				unavailableHook === "plugin:install"
+					? ["plugin:install"]
+					: ["plugin:install", "plugin:activate"];
+			expect(firstCalls).toEqual([...attempted, ...attempted]);
+			expect(laterCalls).toEqual(["plugin:install", "plugin:activate"]);
+		},
+	);
+
+	it("retries after a hook timeout while the runner is restarting", async () => {
+		vi.useFakeTimers();
+		let resolveRecovery!: () => void;
+		const recovery = new Promise<void>((resolve) => {
+			resolveRecovery = resolve;
+		});
+		let signalInvoked!: () => void;
+		const invoked = new Promise<void>((resolve) => {
+			signalInvoked = resolve;
+		});
+		const calls: string[] = [];
+		let crash = true;
+		const invokeHook = vi.fn(async (name: string) => {
+			calls.push(name);
+			if (name === "plugin:install" && crash) {
+				isHealthy.mockReturnValue(false);
+				signalInvoked();
+				await recovery;
+			}
+		});
+		const deps = createDeps(invokeHook, {}, "sandbox-hook-timeout-restart");
+		deps.sandboxedPluginEntries[0]!.hooks = [
+			"plugin:install",
+			...(deps.sandboxedPluginEntries[0]!.hooks ?? []),
+		];
+		deps.sandboxedPluginEntries.push({ ...deps.sandboxedPluginEntries[0]!, id: "later-sandbox" });
+		const laterHook = vi.fn(async () => undefined);
+		sandboxHookHandlers.set("later-sandbox", laterHook);
+		ensureRunning.mockImplementation(async (options) => {
+			if (!isHealthy() && options?.waitForPendingRestart) {
+				await recovery;
+				isHealthy.mockReturnValue(true);
+			}
+		});
+		const boot = EmDashRuntime.create(deps);
+
+		try {
+			await invoked;
+			await vi.advanceTimersByTimeAsync(6000);
+			expect(ensureRunning).toHaveBeenCalledTimes(2);
+			expect(laterHook).not.toHaveBeenCalled();
+			resolveRecovery();
+			runtime = await boot;
+			expect(await new PluginStateRepository(runtime.db).get("later-sandbox")).toMatchObject({
+				status: "active",
+			});
+			expect(calls).toEqual(["plugin:install"]);
+			expect(
+				await new PluginStateRepository(runtime.db).get("sandbox-hook-timeout-restart"),
+			).toBeNull();
+
+			await runtime.shutdown();
+			runtime = undefined;
+			crash = false;
+			isHealthy.mockReturnValue(true);
+			runtime = await EmDashRuntime.create(deps);
+			expect(calls).toEqual(["plugin:install", "plugin:install", "plugin:activate"]);
+			expect(
+				await new PluginStateRepository(runtime.db).get("sandbox-hook-timeout-restart"),
+			).toMatchObject({ status: "active" });
+		} finally {
+			resolveRecovery();
+			try {
+				runtime ??= await boot;
+			} finally {
+				vi.useRealTimers();
+			}
+		}
+	});
+
+	it("does not start the lifecycle timeout until sandbox readiness completes", async () => {
+		vi.useFakeTimers();
+		let resolveReadiness!: () => void;
+		const readiness = new Promise<void>((resolve) => {
+			resolveReadiness = resolve;
+		});
+		const calls: string[] = [];
+		const invokeHook = vi.fn(async (name: string) => calls.push(name));
+		const deps = createDeps(invokeHook, {}, "sandbox-slow-readiness");
+		deps.sandboxedPluginEntries[0]!.hooks = [
+			"plugin:install",
+			...(deps.sandboxedPluginEntries[0]!.hooks ?? []),
+		];
+		let markStarting!: () => void;
+		const starting = new Promise<void>((resolve) => {
+			markStarting = resolve;
+		});
+		ensureRunning.mockImplementation(async () => {
+			markStarting();
+			await readiness;
+		});
+		const boot = EmDashRuntime.create(deps);
+
+		try {
+			await starting;
+			await vi.advanceTimersByTimeAsync(6000);
+			expect(calls).toEqual([]);
+			resolveReadiness();
+			runtime = await boot;
+			expect(calls).toEqual(["plugin:install", "plugin:activate"]);
+			expect(
+				await new PluginStateRepository(runtime.db).get("sandbox-slow-readiness"),
+			).toMatchObject({
+				status: "active",
+			});
+		} finally {
+			resolveReadiness();
+			try {
+				runtime = await boot;
+			} finally {
+				vi.useRealTimers();
+			}
+		}
+	});
+
+	it.each(["rejects", "exhausts the crash budget"])(
+		"defers remaining plugins when refreshed readiness %s after a hook loses the sandbox",
+		async (failure) => {
+			const firstCalls: string[] = [];
+			const deps = createDeps(
+				async (name) => {
+					firstCalls.push(name);
+					isHealthy.mockReturnValue(false);
+					throw new SandboxUnavailableError("first-sandbox", "connection lost");
+				},
+				{},
+				"first-sandbox",
+			);
+			deps.sandboxedPluginEntries[0]!.hooks = ["plugin:install", "plugin:activate"];
+			for (const id of ["later-sandbox", "third-sandbox"]) {
+				deps.sandboxedPluginEntries.push({ ...deps.sandboxedPluginEntries[0]!, id });
+			}
+			const laterHook = vi.fn(async () => undefined);
+			sandboxHookHandlers.set("later-sandbox", laterHook);
+			sandboxHookHandlers.set("third-sandbox", laterHook);
+			ensureRunning.mockResolvedValueOnce(undefined);
+			if (failure === "rejects") {
+				ensureRunning.mockRejectedValueOnce(new Error("restart failed"));
+			} else {
+				ensureRunning.mockResolvedValueOnce(undefined);
+			}
+
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			for (const id of ["first-sandbox", "later-sandbox", "third-sandbox"]) {
+				expect(await states.get(id)).toBeNull();
+			}
+			expect(firstCalls).toEqual(["plugin:install"]);
+			expect(laterHook).not.toHaveBeenCalled();
+			expect(ensureRunning).toHaveBeenCalledTimes(2);
+			expect(setSandboxActive).not.toHaveBeenCalledWith(false);
+		},
+	);
+
+	it.each(["rejects", "stays unhealthy"])(
+		"retries on a later boot when sandbox readiness %s",
+		async (failure) => {
+			const calls: string[] = [];
+			const invokeHook = vi.fn(async (name: string) => calls.push(name));
+			const database = new Database(":memory:");
+			const dialect = new SqliteDialect({ database });
+			const entrypoint = `test-readiness-rejection-${randomUUID()}`;
+			const deps = createDeps(
+				invokeHook,
+				{
+					config: { database: { entrypoint, config: {}, type: "sqlite" } },
+					createDialect: () => dialect,
+				},
+				"sandbox-readiness-rejection",
+			);
+			deps.sandboxedPluginEntries[0]!.hooks = [
+				"plugin:install",
+				...(deps.sandboxedPluginEntries[0]!.hooks ?? []),
+			];
+			deps.sandboxedPluginEntries.push({
+				...deps.sandboxedPluginEntries[0]!,
+				id: "second-sandbox",
+			});
+			if (failure === "rejects") {
+				ensureRunning.mockRejectedValue(new Error("sandbox starting"));
+			} else {
+				ensureRunning.mockImplementation(async () => {
+					isHealthy.mockReturnValue(false);
+				});
+			}
+
+			runtime = await EmDashRuntime.create(deps);
+			expect(calls).toEqual([]);
+			expect(
+				await new PluginStateRepository(runtime.db).get("sandbox-readiness-rejection"),
+			).toBeNull();
+			expect(await new PluginStateRepository(runtime.db).get("second-sandbox")).toBeNull();
+			expect(ensureRunning).toHaveBeenCalledTimes(1);
+			expect(setSandboxActive).not.toHaveBeenCalledWith(false);
+			await runtime.shutdown();
+
+			const retryDeps = createDeps(
+				invokeHook,
+				{
+					config: { database: { entrypoint, config: {}, type: "sqlite" } },
+					createDialect: () => dialect,
+				},
+				"sandbox-readiness-rejection",
+			);
+			retryDeps.sandboxedPluginEntries[0]!.hooks = [
+				"plugin:install",
+				...(retryDeps.sandboxedPluginEntries[0]!.hooks ?? []),
+			];
+			retryDeps.sandboxedPluginEntries.push({
+				...retryDeps.sandboxedPluginEntries[0]!,
+				id: "second-sandbox",
+			});
+			runtime = await EmDashRuntime.create(retryDeps);
+			expect(calls).toEqual([
+				"plugin:install",
+				"plugin:activate",
+				"plugin:install",
+				"plugin:activate",
+			]);
+			expect(ensureRunning).toHaveBeenCalledTimes(1);
+			expect(await new PluginStateRepository(runtime.db).get("second-sandbox")).toMatchObject({
+				status: "active",
+			});
+			expect(
+				await new PluginStateRepository(runtime.db).get("sandbox-readiness-rejection"),
+			).toMatchObject({
+				status: "active",
+			});
+		},
+	);
+
+	it("does not record a state when the sandbox runner is unavailable", async () => {
+		const calls: string[] = [];
+		const database = new Database(":memory:");
+		const dialect = new SqliteDialect({ database });
+		const entrypoint = `test-unavailable-${randomUUID()}`;
+		const invokeHook = vi.fn(async (name: string) => calls.push(name));
+		const unavailable = createDeps(
+			invokeHook,
+			{
+				config: { database: { entrypoint, config: {}, type: "sqlite" } },
+				createDialect: () => dialect,
+				createSandboxRunner: () => null,
+			},
+			"sandbox-unavailable",
+		);
+		runtime = await EmDashRuntime.create(unavailable);
+		expect(await new PluginStateRepository(runtime.db).get("sandbox-unavailable")).toBeNull();
+		await runtime.shutdown();
+
+		const available = createDeps(
+			invokeHook,
+			{
+				config: { database: { entrypoint, config: {}, type: "sqlite" } },
+				createDialect: () => dialect,
+			},
+			"sandbox-unavailable",
+		);
+		runtime = await EmDashRuntime.create(available);
+		expect(calls).toEqual(["plugin:activate"]);
+		expect(await new PluginStateRepository(runtime.db).get("sandbox-unavailable")).toMatchObject({
+			status: "active",
+		});
 	});
 
 	it("orders sandboxed and trusted hooks by shared pipeline priority", async () => {
@@ -527,11 +1005,10 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 	});
 
 	it("tolerates a missing cron task table during failed activation rollback", async () => {
-		runtime = await EmDashRuntime.create(
-			createDeps(async (name) => {
-				if (name === "plugin:activate") throw new Error("activation failed");
-			}),
-		);
+		runtime = await EmDashRuntime.create(createDeps(async () => undefined));
+		currentInvokeHook = async (name) => {
+			if (name === "plugin:activate") throw new Error("activation failed");
+		};
 		await runtime.handlePluginDisable("sandbox-host");
 		await sql`DROP TABLE _emdash_cron_tasks`.execute(runtime.db);
 
@@ -568,7 +1045,8 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 				throw new Error("activation failed");
 			}
 		};
-		runtime = await EmDashRuntime.create(createDeps(invokeHook));
+		runtime = await EmDashRuntime.create(createDeps(async () => undefined));
+		currentInvokeHook = invokeHook;
 		const cron = new CronAccessImpl(runtime.db, "sandbox-host", () => undefined);
 		await cron.schedule("before-disable", { schedule: "*/5 * * * *" });
 		await runtime.handlePluginDisable("sandbox-host");

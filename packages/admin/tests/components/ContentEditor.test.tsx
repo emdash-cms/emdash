@@ -640,6 +640,32 @@ describe("ContentEditor", () => {
 			}
 		});
 
+		it("closes the block panel when a read replaces the body", async () => {
+			const props: ContentEditorProps = {
+				collection: "posts",
+				collectionLabel: "Post",
+				fields: ptFields,
+				isNew: false,
+				onSave: vi.fn(),
+			};
+			const body = (text: string) => [
+				{ _type: "block", _key: "b1", children: [{ _type: "span", _key: "s1", text }] },
+			];
+			const screen = await render(
+				<ContentEditor {...props} item={makeItem({ data: { content: body("Old body") } })} />,
+			);
+			getPanelHooks().open(makeBlockPanel());
+			await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+
+			await screen.rerender(
+				<ContentEditor {...props} item={makeItem({ data: { content: body("Newer body") } })} />,
+			);
+			await expect
+				.element(screen.getByTestId("portable-text-editor"))
+				.toHaveAttribute("data-content", "Newer body");
+			await expect.element(screen.getByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+		});
+
 		it("closes the sheet but keeps the block panel when crossing to desktop", async () => {
 			const media = installMatchMedia(true);
 			try {
@@ -4193,7 +4219,7 @@ describe("ContentEditor revision view", () => {
 		await expect.element(screen.getByText("Current version", { exact: true })).toBeVisible();
 	});
 
-	it("keeps the body editor mounted when a save reloads the entry", async () => {
+	it("keeps the body editor mounted when a save reloads the entry behind newer typing", async () => {
 		const props = revisionEditorProps();
 		const screen = await render(<ContentEditor {...props} itemResetToken={0} />, {
 			wrapper: Toasty,
@@ -4201,6 +4227,9 @@ describe("ContentEditor revision view", () => {
 		await expect
 			.element(screen.getByTestId("portable-text-editor"))
 			.toHaveAttribute("data-content", "Draft body");
+		const onChange = portableTextProps.current?.onChange as (value: unknown) => void;
+		onChange(textBlocks("Saved body, and more"));
+		await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
 
 		await screen.rerender(
 			<ContentEditor
