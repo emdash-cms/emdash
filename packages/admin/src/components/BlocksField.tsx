@@ -716,7 +716,8 @@ function BlockRow({
 					"flex min-h-11 items-center gap-2 py-1.5 ps-2.5 pe-2 hover:bg-kumo-tint",
 					index === 0 && SHEET_INNER_TOP,
 					roundBottom && !open && SHEET_INNER_BOTTOM,
-					open && "sticky top-(--emdash-blocks-sticky-top) z-30 bg-kumo-base",
+					open &&
+						"sticky top-(--emdash-blocks-sticky-top) z-30 bg-kumo-base shadow-[inset_0_-1px_0_var(--color-kumo-hairline)]",
 				)}
 			>
 				<button
