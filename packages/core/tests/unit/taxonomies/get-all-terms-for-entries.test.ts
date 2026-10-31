@@ -18,6 +18,7 @@ import {
 	getEntryTerms,
 	getTermsForEntries,
 	invalidateTermCache,
+	primeFoldedEntryTerms,
 } from "../../../src/taxonomies/index.js";
 
 describe("getAllTermsForEntries", () => {
@@ -293,6 +294,99 @@ describe("getAllTermsForEntries", () => {
 					.map((t) => t.slug)
 					.toSorted(),
 			).toEqual(["a", "b"]);
+		});
+	});
+});
+
+describe("terms primed from the content-query fold (#3904)", () => {
+	let db: Kysely<Database>;
+	let taxRepo: TaxonomyRepository;
+	let contentRepo: ContentRepository;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+		taxRepo = new TaxonomyRepository(db);
+		contentRepo = new ContentRepository(db);
+		vi.mocked(getDb).mockResolvedValue(db);
+		invalidateTermCache();
+	});
+
+	afterEach(async () => {
+		invalidateTermCache();
+		await teardownTestDatabase(db);
+		vi.restoreAllMocks();
+	});
+
+	// The fold primes the wildcard key and a key per taxonomy present on the
+	// entry, but nothing for taxonomies the entry has no terms in.
+	async function foldTwoPosts() {
+		const tag = await taxRepo.create({ name: "tag", slug: "web", label: "Web" });
+		const cat = await taxRepo.create({ name: "category", slug: "news", label: "News" });
+		const tagged = await contentRepo.create({ type: "post", slug: "p1", data: { title: "P1" } });
+		const untagged = await contentRepo.create({ type: "post", slug: "p2", data: { title: "P2" } });
+		await taxRepo.attachToEntry("post", tagged.id, tag.id);
+		await taxRepo.attachToEntry("post", untagged.id, cat.id);
+		invalidateTermCache();
+
+		const [taggedTerms, untaggedTerms] = await Promise.all([
+			getAllTermsForEntries("post", [tagged.id]).then((m) => m.get(tagged.id)!),
+			getAllTermsForEntries("post", [untagged.id]).then((m) => m.get(untagged.id)!),
+		]);
+		return { tagged, untagged, taggedTerms, untaggedTerms };
+	}
+
+	it("getTermsForEntries answers an absent taxonomy without querying", async () => {
+		const { tagged, untagged, taggedTerms, untaggedTerms } = await foldTwoPosts();
+		const getDbSpy = vi.mocked(getDb);
+
+		await runWithContext({ editMode: false }, async () => {
+			primeFoldedEntryTerms("post", [
+				{ entryId: tagged.id, byTaxonomy: taggedTerms },
+				{ entryId: untagged.id, byTaxonomy: untaggedTerms },
+			]);
+			const callsAfterFold = getDbSpy.mock.calls.length;
+
+			const tags = await getTermsForEntries("post", [tagged.id, untagged.id], "tag");
+			const categories = await getTermsForEntries("post", [tagged.id, untagged.id], "category");
+
+			expect(getDbSpy.mock.calls.length).toBe(callsAfterFold);
+			expect(tags.get(tagged.id)!.map((t) => t.slug)).toEqual(["web"]);
+			expect(tags.get(untagged.id)).toEqual([]);
+			expect(categories.get(tagged.id)).toEqual([]);
+			expect(categories.get(untagged.id)!.map((t) => t.slug)).toEqual(["news"]);
+		});
+	});
+
+	it("getEntryTerms answers an absent taxonomy without querying", async () => {
+		const { untagged, untaggedTerms } = await foldTwoPosts();
+		const getDbSpy = vi.mocked(getDb);
+
+		await runWithContext({ editMode: false }, async () => {
+			primeFoldedEntryTerms("post", [{ entryId: untagged.id, byTaxonomy: untaggedTerms }]);
+			const callsAfterFold = getDbSpy.mock.calls.length;
+
+			const tags = await getEntryTerms("post", untagged.id, "tag");
+			const categories = await getEntryTerms("post", untagged.id, "category");
+
+			expect(getDbSpy.mock.calls.length).toBe(callsAfterFold);
+			expect(tags).toEqual([]);
+			expect(categories.map((t) => t.slug)).toEqual(["news"]);
+		});
+	});
+
+	it("still queries entries whose wildcard key isn't primed", async () => {
+		const { tagged, untagged, taggedTerms } = await foldTwoPosts();
+		const getDbSpy = vi.mocked(getDb);
+
+		await runWithContext({ editMode: false }, async () => {
+			primeFoldedEntryTerms("post", [{ entryId: tagged.id, byTaxonomy: taggedTerms }]);
+			const callsAfterFold = getDbSpy.mock.calls.length;
+
+			const tags = await getTermsForEntries("post", [tagged.id, untagged.id], "tag");
+
+			expect(getDbSpy.mock.calls.length).toBe(callsAfterFold + 1);
+			expect(tags.get(tagged.id)!.map((t) => t.slug)).toEqual(["web"]);
+			expect(tags.get(untagged.id)).toEqual([]);
 		});
 	});
 });
