@@ -733,6 +733,9 @@ importers:
         specifier: ^2.4.1
         version: 2.4.1
     devDependencies:
+      '@atcute/cid':
+        specifier: 'catalog:'
+        version: 2.4.1
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
         version: 1.36.3(vite@8.3.1(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1))(workerd@1.20260911.1)(wrangler@4.125.0(@cloudflare/workers-types@5.20260820.1))
