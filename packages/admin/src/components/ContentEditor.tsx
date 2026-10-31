@@ -119,6 +119,29 @@ function serializeEditorState(input: {
 	});
 }
 
+/** Field kinds whose editors read their value once, as rich text does, also inside blocks. */
+const READ_ONCE_FIELD_KINDS = new Set(["portableText", "blocks"]);
+
+/** A stored list value as its field's editor loads it, where anything but a list is empty. */
+function listValue(value: unknown): unknown[] {
+	return Array.isArray(value) ? value : [];
+}
+
+/** The fields with editors that read their value once, where `next` holds a different value than `current`. */
+function changedReadOnceFields(
+	fields: Record<string, FieldDescriptor>,
+	current: Record<string, unknown>,
+	next: Record<string, unknown>,
+): string[] {
+	return Object.entries(fields)
+		.filter(
+			([name, field]) =>
+				READ_ONCE_FIELD_KINDS.has(field.kind) &&
+				JSON.stringify(listValue(current[name])) !== JSON.stringify(listValue(next[name])),
+		)
+		.map(([name]) => name);
+}
+
 function defaultFieldValues(fields: Record<string, FieldDescriptor>): Record<string, unknown> {
 	const data: Record<string, unknown> = {};
 	for (const [name, field] of Object.entries(fields)) {
@@ -364,6 +387,8 @@ export interface ContentEditorProps {
 	onDirtyChange?: (isDirty: boolean) => void;
 	/** Advanced after an explicit save, discard, or restore has refreshed the item. */
 	itemResetToken?: number;
+	/** Whether the latest item reset follows a discard, which replaces unsaved edits too. */
+	itemResetDiscards?: boolean;
 	onPublish?: (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
@@ -490,6 +515,7 @@ export function ContentEditor({
 	hasSaveConflict,
 	onDirtyChange,
 	itemResetToken = 0,
+	itemResetDiscards = false,
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
@@ -659,6 +685,8 @@ export function ContentEditor({
 	isViewingRef.current = isViewing;
 	/** Advanced to remount the field editors after a restore, since the rich text editor reads its value once. */
 	const [fieldsGeneration, setFieldsGeneration] = React.useState(0);
+	/** Advanced per field to remount an editor that reads its value once when the form takes a new value for it. */
+	const [fieldGenerations, setFieldGenerations] = React.useState<Record<string, number>>({});
 
 	const handleBlockSidebarDelete = React.useCallback(() => {
 		blockSidebarPanel?.onDelete();
@@ -757,6 +785,7 @@ export function ContentEditor({
 			autosaveCompletionTokenRef.current = autosaveCompletionToken ?? 0;
 			const itemReset = itemResetToken > 0 && itemResetToken !== itemResetTokenRef.current;
 			itemResetTokenRef.current = itemResetToken;
+			const discarded = itemReset && itemResetDiscards;
 			// A restore replaces the form whatever it holds, once the item carries the restored draft.
 			const restored = revisionView.isRestoreArrival(item.draftRevisionId, itemReset);
 			setStatus(item.status);
@@ -776,7 +805,41 @@ export function ContentEditor({
 				restored ||
 				(!isPublishingRef.current && !autosaveJustCompleted && !hasSaveConflictRef.current)
 			) {
-				setFormData(item.data);
+				const saved =
+					itemReset && !discarded && !restored
+						? (JSON.parse(lastSavedData) as { data: Record<string, unknown> }).data
+						: undefined;
+				// A save's reload can arrive behind edits made after the save went out. Where the
+				// editor reads its value once, they stay in the editor and in the form, so the next
+				// save sends them under the revision they were made on.
+				const keepEdits = (current: Record<string, unknown>) => {
+					let next = item.data;
+					if (!saved) return next;
+					for (const name of changedReadOnceFields(fields, saved, current)) {
+						next = { ...next, [name]: current[name] };
+					}
+					return next;
+				};
+				const replaced = changedReadOnceFields(
+					fields,
+					formDataRef.current,
+					keepEdits(formDataRef.current),
+				);
+				if (restored || replaced.length > 0) {
+					// An open block panel acts on an editor this replaces.
+					handleBlockSidebarClose();
+				}
+				if (restored) {
+					setFieldsGeneration((generation) => generation + 1);
+				} else if (replaced.length > 0) {
+					setFieldGenerations((generations) => {
+						const next = { ...generations };
+						for (const name of replaced) next[name] = (next[name] ?? 0) + 1;
+						return next;
+					});
+				}
+				// An edit can still be waiting to render, so the kept edits come from the latest form.
+				setFormData(keepEdits);
 				setSlug(item.slug || "");
 				setSlugTouched(!!item.slug);
 				setInternalBylines(nextBylines);
@@ -803,10 +866,7 @@ export function ContentEditor({
 				setReferenceState(seedReferenceState(item));
 				pendingAutosaveReferencesRef.current = null;
 			}
-			if (restored) {
-				setFieldsGeneration((generation) => generation + 1);
-				revisionView.completeRestore();
-			}
+			if (restored) revisionView.completeRestore();
 		}
 	}, [
 		item?.updatedAt,
@@ -1878,7 +1938,7 @@ export function ContentEditor({
 										// mount; without this key, navigating between translations leaves
 										// the previous locale's body in the editor and silently overwrites
 										// the new translation on the next edit.
-										const fieldKey = `${name}:${item?.id ?? "new"}:${fieldsGeneration}`;
+										const fieldKey = `${name}:${item?.id ?? "new"}:${fieldsGeneration}:${fieldGenerations[name] ?? 0}`;
 										const isDocumentBody = field.kind === "portableText" && name === "content";
 										const fieldEl = (
 											<FieldRenderer

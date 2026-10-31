@@ -5,6 +5,7 @@ export {
 	createCommentAccess,
 	createContentAccess,
 	createSettingsAccess,
+	createKVAccess,
 	createMediaAccess,
 	createRedirectAccess,
 	createSchemaAccess,

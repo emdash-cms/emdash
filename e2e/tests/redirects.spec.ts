@@ -128,6 +128,92 @@ test.describe("Redirects", () => {
 		});
 	});
 
+	test.describe("Group filtering", () => {
+		test("shows groups and filters by an exact group name", async ({ admin, page, serverInfo }) => {
+			const { baseUrl, token } = serverInfo;
+			const headers = {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+				"X-EmDash-Request": "1",
+				Origin: baseUrl,
+			};
+			const redirects = [
+				{
+					source: "/issue-2287-legacy",
+					destination: "/issue-2287-legacy-destination",
+					groupName: "legacy-import-2024",
+				},
+				{
+					source: "/issue-2287-legacy-extra",
+					destination: "/issue-2287-legacy-extra-destination",
+					groupName: "legacy-import-2024-extra",
+				},
+				{
+					source: "/issue-2287-other",
+					destination: "/issue-2287-other-destination",
+					groupName: "other-group",
+				},
+				{
+					source: "/issue-2287-ungrouped",
+					destination: "/issue-2287-ungrouped-destination",
+					groupName: null,
+				},
+			];
+			const ids: string[] = [];
+
+			try {
+				for (const redirect of redirects) {
+					const response = await page.request.post(`${baseUrl}/_emdash/api/redirects`, {
+						headers,
+						data: redirect,
+					});
+					expect(response.ok()).toBe(true);
+					const body = await response.json();
+					ids.push(body.data.id);
+				}
+
+				await admin.goto("/redirects");
+				await admin.waitForShell();
+				await admin.waitForLoading();
+
+				for (const redirect of redirects) {
+					await expect(page.getByText(redirect.source, { exact: true })).toBeVisible();
+				}
+				await expect(page.getByText("legacy-import-2024", { exact: true })).toBeVisible();
+				await expect(page.getByText("legacy-import-2024-extra", { exact: true })).toBeVisible();
+				await expect(page.getByText("other-group", { exact: true })).toBeVisible();
+				await expect(page.getByText("No group", { exact: true }).first()).toBeAttached();
+
+				const groupFilter = page.getByRole("textbox", { name: "Filter by group" });
+				await groupFilter.fill("  legacy-import-2024  ");
+
+				await expect(page.getByText("/issue-2287-legacy", { exact: true })).toBeVisible();
+				await expect(page.getByText("/issue-2287-legacy-extra", { exact: true })).not.toBeVisible();
+				await expect(page.getByText("/issue-2287-other", { exact: true })).not.toBeVisible();
+				await expect(page.getByText("/issue-2287-ungrouped", { exact: true })).not.toBeVisible();
+
+				const search = page.getByRole("searchbox", { name: "Search source or destination..." });
+				await search.fill("issue-2287-other");
+				await expect(page.getByText("No redirects match these filters")).toBeVisible();
+				await search.fill("");
+				await expect(page.getByText("/issue-2287-legacy", { exact: true })).toBeVisible();
+
+				await groupFilter.fill("group-that-does-not-exist");
+				await expect(page.getByText("No redirects match these filters")).toBeVisible();
+
+				await groupFilter.fill("  ");
+				await expect(page.getByText("/issue-2287-ungrouped", { exact: true })).toBeVisible();
+				await groupFilter.fill("");
+				await expect(page.getByText("/issue-2287-legacy", { exact: true })).toBeVisible();
+				await expect(page.getByText("/issue-2287-ungrouped", { exact: true })).toBeVisible();
+			} finally {
+				for (const id of ids) {
+					await page.request.delete(`${baseUrl}/_emdash/api/redirects/${id}`, { headers });
+				}
+			}
+		});
+	});
+
 	test.describe("404 Tracking", () => {
 		test("renders the 404 errors tab", async ({ admin, page }) => {
 			await admin.goto("/redirects");

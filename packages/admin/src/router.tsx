@@ -340,11 +340,20 @@ function patchAutosaveQueries(
 	// The save response carries no `references` (only the editor GET hydrates
 	// them), and an entry reopened from this cache would show its reference
 	// fields empty, so the cached pages are carried over.
-	queryClient.setQueriesData<ContentItem>({ queryKey: ["content", collection, id] }, (cached) => ({
+	const contentKey = ["content", collection, id];
+	const contentRead = queryClient.isFetching({ queryKey: contentKey }) > 0;
+	queryClient.setQueriesData<ContentItem>({ queryKey: contentKey }, (cached) => ({
 		...savedItem,
 		references:
 			savedItem.references ?? withAutosavedReferences(cached?.references, referenceRows, fields),
 	}));
+	if (contentRead) {
+		// A read already in flight may predate this write and would land over the patch,
+		// so it is dropped and made again.
+		void queryClient
+			.cancelQueries({ queryKey: contentKey })
+			.then(() => queryClient.invalidateQueries({ queryKey: contentKey }));
+	}
 }
 
 /**
@@ -1024,10 +1033,17 @@ function ContentEditPage() {
 	const toastManager = useKumoToastManager();
 	const isEditorDirtyRef = React.useRef(false);
 	const [isEditorDirty, setIsEditorDirty] = React.useState(false);
-	const [editorItemReset, setEditorItemReset] = React.useState({ entryId: "", token: 0 });
-	const resetEditorItem = React.useCallback((entryId: string) => {
-		setEditorItemReset((previous) => ({ entryId, token: previous.token + 1 }));
-	}, []);
+	const [editorItemReset, setEditorItemReset] = React.useState({
+		entryId: "",
+		token: 0,
+		discarded: false,
+	});
+	const resetEditorItem = React.useCallback(
+		(entryId: string, { discarded = false }: { discarded?: boolean } = {}) => {
+			setEditorItemReset((previous) => ({ entryId, token: previous.token + 1, discarded }));
+		},
+		[],
+	);
 	const handleEditorDirtyChange = React.useCallback((isDirty: boolean) => {
 		isEditorDirtyRef.current = isDirty;
 		setIsEditorDirty(isDirty);
@@ -1516,7 +1532,7 @@ function ContentEditPage() {
 				queryKey: ["content", collection, id],
 			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
-			resetEditorItem(id);
+			resetEditorItem(id, { discarded: true });
 			toastManager.add({
 				title: t`Changes discarded`,
 				description: t`Reverted to published version`,
@@ -1977,6 +1993,7 @@ function ContentEditPage() {
 			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
 			onDirtyChange={handleEditorDirtyChange}
 			itemResetToken={editorItemReset.entryId === id ? editorItemReset.token : 0}
+			itemResetDiscards={editorItemReset.entryId === id && editorItemReset.discarded}
 			onSave={handleSave}
 			onAutosave={handleAutosave}
 			isAutosaving={autosaveMutation.isPending}
