@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# 個項目)} other {(# 個項目)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3268
+#: packages/admin/src/components/ContentEditor.tsx:3273
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {已輸入 {counted} 個字元，上限 # 個，至少 {min} 個} other {已輸入 {counted} 個字元，上限 # 個，至少 {min} 個}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3273
+#: packages/admin/src/components/ContentEditor.tsx:3278
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {已輸入 {counted} 個字元，上限 # 個} other {已輸入 {counted} 個字元，上限 # 個}}"
 
@@ -397,7 +397,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3278
+#: packages/admin/src/components/ContentEditor.tsx:3283
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {至少 # 個字元} other {至少 # 個字元}}"
 
@@ -2161,11 +2161,11 @@ msgstr "透過 MCP 連線的助理需要管理員核准才能開始匯出或匯�
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3301
+#: packages/admin/src/components/ContentEditor.tsx:3306
 msgid "At least {min}"
 msgstr "至少 {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3298
+#: packages/admin/src/components/ContentEditor.tsx:3303
 msgid "At most {max}"
 msgstr "最多 {max}"
 
@@ -2440,7 +2440,7 @@ msgstr "傳送前:"
 msgid "Before you continue:"
 msgstr "繼續之前："
 
-#: packages/admin/src/components/ContentEditor.tsx:3295
+#: packages/admin/src/components/ContentEditor.tsx:3300
 msgid "Between {min} and {max}"
 msgstr "介於 {min} 與 {max} 之間"
 
@@ -5514,7 +5514,7 @@ msgstr "輸入 URL (https://…) 或相對路徑 (/…)"
 msgid "Enter a valid time"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3345
+#: packages/admin/src/components/ContentEditor.tsx:3350
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "輸入有效的網址 (例如 https://example.com)"
 
@@ -7946,7 +7946,7 @@ msgstr "帳號代稱無效"
 msgid "Invalid invite link"
 msgstr "無效的邀請連結"
 
-#: packages/admin/src/components/ContentEditor.tsx:3421
+#: packages/admin/src/components/ContentEditor.tsx:3426
 msgid "Invalid JSON"
 msgstr "無效的 JSON"
 
@@ -10837,6 +10837,11 @@ msgstr "要立即發佈嗎？"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "發佈、取消發佈、排程及取消排程內容"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "已發佈"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1009
@@ -10847,11 +10852,6 @@ msgstr "發佈、取消發佈、排程及取消排程內容"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1504
 msgid "Published"
-msgstr "已發佈"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "已發佈"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11219,7 +11219,7 @@ msgstr "移除"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:3587
+#: packages/admin/src/components/ContentEditor.tsx:3592
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11256,7 +11256,7 @@ msgstr "從選取項目中移除 {0}"
 msgid "Remove {entry}"
 msgstr "移除 {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3585
+#: packages/admin/src/components/ContentEditor.tsx:3590
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
 msgid "Remove {label}"
@@ -11458,8 +11458,8 @@ msgstr "重複欄位群組"
 msgid "visualEditing.replaceImage"
 msgstr "取代"
 
-#: packages/admin/src/components/ContentEditor.tsx:3577
-#: packages/admin/src/components/ContentEditor.tsx:3616
+#: packages/admin/src/components/ContentEditor.tsx:3582
+#: packages/admin/src/components/ContentEditor.tsx:3621
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -11477,7 +11477,7 @@ msgstr "取代"
 msgid "Replace"
 msgstr "取代"
 
-#: packages/admin/src/components/ContentEditor.tsx:3615
+#: packages/admin/src/components/ContentEditor.tsx:3620
 #: packages/admin/src/components/ImageFieldRenderer.tsx:603
 #: packages/admin/src/components/SeoImageField.tsx:191
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -12505,8 +12505,8 @@ msgid "Select"
 msgstr "選取"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:3597
-#: packages/admin/src/components/ContentEditor.tsx:3615
+#: packages/admin/src/components/ContentEditor.tsx:3602
+#: packages/admin/src/components/ContentEditor.tsx:3620
 #: packages/admin/src/components/ImageFieldRenderer.tsx:604
 #: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Select {label}"
@@ -12583,7 +12583,7 @@ msgstr "選取網站圖示"
 msgid "Select Favicon"
 msgstr "選取網站圖示"
 
-#: packages/admin/src/components/ContentEditor.tsx:3601
+#: packages/admin/src/components/ContentEditor.tsx:3606
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "選取檔案"
@@ -14183,7 +14183,7 @@ msgstr "這個欄位不接受 {mimeType} 檔案。"
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "這個欄位需要清單。儲存的值會保持不變，直到你用空白清單取代它，這會刪除原本的值。請先複製需要保留的內容。"
 
-#: packages/admin/src/components/ContentEditor.tsx:3619
+#: packages/admin/src/components/ContentEditor.tsx:3624
 #: packages/admin/src/components/ImageFieldRenderer.tsx:623
 msgid "This field is required"
 msgstr "此欄位為必填"
@@ -14954,7 +14954,7 @@ msgstr "截至 {0}"
 msgid "Untitled"
 msgstr "未命名"
 
-#: packages/admin/src/components/ContentEditor.tsx:3519
+#: packages/admin/src/components/ContentEditor.tsx:3524
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "未命名檔案"

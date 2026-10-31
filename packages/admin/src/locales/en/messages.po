@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# item)} other {(# items)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3268
+#: packages/admin/src/components/ContentEditor.tsx:3273
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3273
+#: packages/admin/src/components/ContentEditor.tsx:3278
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 
@@ -397,7 +397,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {Add # video} other {Add # videos}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3278
+#: packages/admin/src/components/ContentEditor.tsx:3283
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {At least # character} other {At least # characters}}"
 
@@ -2161,11 +2161,11 @@ msgstr "Assistants connected through MCP need an admin’s approval to start an 
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3301
+#: packages/admin/src/components/ContentEditor.tsx:3306
 msgid "At least {min}"
 msgstr "At least {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3298
+#: packages/admin/src/components/ContentEditor.tsx:3303
 msgid "At most {max}"
 msgstr "At most {max}"
 
@@ -2440,7 +2440,7 @@ msgstr "Before send:"
 msgid "Before you continue:"
 msgstr "Before you continue:"
 
-#: packages/admin/src/components/ContentEditor.tsx:3295
+#: packages/admin/src/components/ContentEditor.tsx:3300
 msgid "Between {min} and {max}"
 msgstr "Between {min} and {max}"
 
@@ -5514,7 +5514,7 @@ msgstr "Enter a URL (https://…) or a relative path (/…)"
 msgid "Enter a valid time"
 msgstr "Enter a valid time"
 
-#: packages/admin/src/components/ContentEditor.tsx:3345
+#: packages/admin/src/components/ContentEditor.tsx:3350
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Enter a valid URL (e.g. https://example.com)"
 
@@ -7946,7 +7946,7 @@ msgstr "INVALID HANDLE"
 msgid "Invalid invite link"
 msgstr "Invalid invite link"
 
-#: packages/admin/src/components/ContentEditor.tsx:3421
+#: packages/admin/src/components/ContentEditor.tsx:3426
 msgid "Invalid JSON"
 msgstr "Invalid JSON"
 
@@ -10837,6 +10837,11 @@ msgstr "Publish now?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Publish, unpublish, schedule, and unschedule content"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "Published"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1009
@@ -10847,11 +10852,6 @@ msgstr "Publish, unpublish, schedule, and unschedule content"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1504
 msgid "Published"
-msgstr "Published"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "Published"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11219,7 +11219,7 @@ msgstr "Remove"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:3587
+#: packages/admin/src/components/ContentEditor.tsx:3592
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11256,7 +11256,7 @@ msgstr "Remove {0} from selection"
 msgid "Remove {entry}"
 msgstr "Remove {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3585
+#: packages/admin/src/components/ContentEditor.tsx:3590
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
 msgid "Remove {label}"
@@ -11458,8 +11458,8 @@ msgstr "Repeating group of fields"
 msgid "visualEditing.replaceImage"
 msgstr "Replace"
 
-#: packages/admin/src/components/ContentEditor.tsx:3577
-#: packages/admin/src/components/ContentEditor.tsx:3616
+#: packages/admin/src/components/ContentEditor.tsx:3582
+#: packages/admin/src/components/ContentEditor.tsx:3621
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -11477,7 +11477,7 @@ msgstr "Replace"
 msgid "Replace"
 msgstr "Replace"
 
-#: packages/admin/src/components/ContentEditor.tsx:3615
+#: packages/admin/src/components/ContentEditor.tsx:3620
 #: packages/admin/src/components/ImageFieldRenderer.tsx:603
 #: packages/admin/src/components/SeoImageField.tsx:191
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -12505,8 +12505,8 @@ msgid "Select"
 msgstr "Select"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:3597
-#: packages/admin/src/components/ContentEditor.tsx:3615
+#: packages/admin/src/components/ContentEditor.tsx:3602
+#: packages/admin/src/components/ContentEditor.tsx:3620
 #: packages/admin/src/components/ImageFieldRenderer.tsx:604
 #: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Select {label}"
@@ -12583,7 +12583,7 @@ msgstr "Select favicon"
 msgid "Select Favicon"
 msgstr "Select Favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:3601
+#: packages/admin/src/components/ContentEditor.tsx:3606
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "Select file"
@@ -14183,7 +14183,7 @@ msgstr "This field does not accept {mimeType} files."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 
-#: packages/admin/src/components/ContentEditor.tsx:3619
+#: packages/admin/src/components/ContentEditor.tsx:3624
 #: packages/admin/src/components/ImageFieldRenderer.tsx:623
 msgid "This field is required"
 msgstr "This field is required"
@@ -14954,7 +14954,7 @@ msgstr "Until {0}"
 msgid "Untitled"
 msgstr "Untitled"
 
-#: packages/admin/src/components/ContentEditor.tsx:3519
+#: packages/admin/src/components/ContentEditor.tsx:3524
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Untitled file"

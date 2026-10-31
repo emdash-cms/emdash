@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# element)} other {(# elements)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3268
+#: packages/admin/src/components/ContentEditor.tsx:3273
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} de # caràcter, com a mínim {min}} other {{counted} de # caràcters, com a mínim {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3273
+#: packages/admin/src/components/ContentEditor.tsx:3278
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} de # caràcter} other {{counted} de # caràcters}}"
 
@@ -397,7 +397,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3278
+#: packages/admin/src/components/ContentEditor.tsx:3283
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {Com a mínim # caràcter} other {Com a mínim # caràcters}}"
 
@@ -2161,11 +2161,11 @@ msgstr "Els assistents connectats mitjançant MCP necessiten l'aprovació d'un a
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3301
+#: packages/admin/src/components/ContentEditor.tsx:3306
 msgid "At least {min}"
 msgstr "Com a mínim {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3298
+#: packages/admin/src/components/ContentEditor.tsx:3303
 msgid "At most {max}"
 msgstr "Com a màxim {max}"
 
@@ -2440,7 +2440,7 @@ msgstr "Abans d'enviar:"
 msgid "Before you continue:"
 msgstr "Abans de continuar:"
 
-#: packages/admin/src/components/ContentEditor.tsx:3295
+#: packages/admin/src/components/ContentEditor.tsx:3300
 msgid "Between {min} and {max}"
 msgstr "Entre {min} i {max}"
 
@@ -5514,7 +5514,7 @@ msgstr "Introdueix un URL (https://…) o una ruta relativa (/…)"
 msgid "Enter a valid time"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3345
+#: packages/admin/src/components/ContentEditor.tsx:3350
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Introdueix un URL vàlid (p. ex. https://exemple.com)"
 
@@ -7946,7 +7946,7 @@ msgstr "IDENTIFICADOR NO VÀLID"
 msgid "Invalid invite link"
 msgstr "Enllaç d'invitació no vàlid"
 
-#: packages/admin/src/components/ContentEditor.tsx:3421
+#: packages/admin/src/components/ContentEditor.tsx:3426
 msgid "Invalid JSON"
 msgstr "JSON no vàlid"
 
@@ -10837,6 +10837,11 @@ msgstr "Vols publicar ara?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Publica, despublica, programa i desprograma contingut"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "visualEditing.published"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1009
@@ -10848,11 +10853,6 @@ msgstr "Publica, despublica, programa i desprograma contingut"
 #: packages/admin/src/router.tsx:1504
 msgid "Published"
 msgstr "Publicat"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "visualEditing.published"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:348
@@ -11219,7 +11219,7 @@ msgstr "visualEditing.removeImage"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:3587
+#: packages/admin/src/components/ContentEditor.tsx:3592
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11256,7 +11256,7 @@ msgstr "Treu {0} de la selecció"
 msgid "Remove {entry}"
 msgstr "Treu {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3585
+#: packages/admin/src/components/ContentEditor.tsx:3590
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
 msgid "Remove {label}"
@@ -11458,8 +11458,8 @@ msgstr "Grup de camps repetible"
 msgid "visualEditing.replaceImage"
 msgstr "visualEditing.replaceImage"
 
-#: packages/admin/src/components/ContentEditor.tsx:3577
-#: packages/admin/src/components/ContentEditor.tsx:3616
+#: packages/admin/src/components/ContentEditor.tsx:3582
+#: packages/admin/src/components/ContentEditor.tsx:3621
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -11477,7 +11477,7 @@ msgstr "visualEditing.replaceImage"
 msgid "Replace"
 msgstr "Substitueix"
 
-#: packages/admin/src/components/ContentEditor.tsx:3615
+#: packages/admin/src/components/ContentEditor.tsx:3620
 #: packages/admin/src/components/ImageFieldRenderer.tsx:603
 #: packages/admin/src/components/SeoImageField.tsx:191
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -12505,8 +12505,8 @@ msgid "Select"
 msgstr "Selecciona"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:3597
-#: packages/admin/src/components/ContentEditor.tsx:3615
+#: packages/admin/src/components/ContentEditor.tsx:3602
+#: packages/admin/src/components/ContentEditor.tsx:3620
 #: packages/admin/src/components/ImageFieldRenderer.tsx:604
 #: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Select {label}"
@@ -12583,7 +12583,7 @@ msgstr "Selecciona el favicon"
 msgid "Select Favicon"
 msgstr "Selecciona la icona del lloc"
 
-#: packages/admin/src/components/ContentEditor.tsx:3601
+#: packages/admin/src/components/ContentEditor.tsx:3606
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "Selecciona un fitxer"
@@ -14183,7 +14183,7 @@ msgstr "Aquest camp no accepta fitxers {mimeType}."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "Aquest camp espera una llista. El valor emmagatzemat es manté sense canvis fins que el substitueixis per una llista buida, cosa que l'elimina. Copia primer tot el que necessitis."
 
-#: packages/admin/src/components/ContentEditor.tsx:3619
+#: packages/admin/src/components/ContentEditor.tsx:3624
 #: packages/admin/src/components/ImageFieldRenderer.tsx:623
 msgid "This field is required"
 msgstr "Aquest camp és obligatori"
@@ -14954,7 +14954,7 @@ msgstr "Fins a {0}"
 msgid "Untitled"
 msgstr "Sense títol"
 
-#: packages/admin/src/components/ContentEditor.tsx:3519
+#: packages/admin/src/components/ContentEditor.tsx:3524
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Fitxer sense títol"

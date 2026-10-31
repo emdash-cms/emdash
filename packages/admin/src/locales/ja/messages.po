@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {（#件）} other {（#件）}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3268
+#: packages/admin/src/components/ContentEditor.tsx:3273
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted}／#文字（{min}文字以上）} other {{counted}／#文字（{min}文字以上）}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3273
+#: packages/admin/src/components/ContentEditor.tsx:3278
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted}／#文字} other {{counted}／#文字}}"
 
@@ -397,7 +397,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {#件の動画を追加} other {#件の動画を追加}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3278
+#: packages/admin/src/components/ContentEditor.tsx:3283
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {#文字以上} other {#文字以上}}"
 
@@ -2161,11 +2161,11 @@ msgstr "MCPで接続するアシスタントがエクスポートやインポー
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3301
+#: packages/admin/src/components/ContentEditor.tsx:3306
 msgid "At least {min}"
 msgstr "{min}以上"
 
-#: packages/admin/src/components/ContentEditor.tsx:3298
+#: packages/admin/src/components/ContentEditor.tsx:3303
 msgid "At most {max}"
 msgstr "{max}以下"
 
@@ -2440,7 +2440,7 @@ msgstr "送信前："
 msgid "Before you continue:"
 msgstr "続行する前に、次の点を確認してください。"
 
-#: packages/admin/src/components/ContentEditor.tsx:3295
+#: packages/admin/src/components/ContentEditor.tsx:3300
 msgid "Between {min} and {max}"
 msgstr "{min}～{max}"
 
@@ -5514,7 +5514,7 @@ msgstr "URL（https://…）または相対パス（/…）を入力"
 msgid "Enter a valid time"
 msgstr "有効な時刻を入力してください"
 
-#: packages/admin/src/components/ContentEditor.tsx:3345
+#: packages/admin/src/components/ContentEditor.tsx:3350
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "有効なURL（例：https://example.com）を入力"
 
@@ -7946,7 +7946,7 @@ msgstr "無効なハンドル"
 msgid "Invalid invite link"
 msgstr "無効な招待リンク"
 
-#: packages/admin/src/components/ContentEditor.tsx:3421
+#: packages/admin/src/components/ContentEditor.tsx:3426
 msgid "Invalid JSON"
 msgstr "無効なJSON"
 
@@ -10837,6 +10837,11 @@ msgstr "今すぐ公開しますか？"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "コンテンツの公開、非公開化、公開予約、予約取り消し"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "公開済み"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1009
@@ -10847,11 +10852,6 @@ msgstr "コンテンツの公開、非公開化、公開予約、予約取り消
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1504
 msgid "Published"
-msgstr "公開済み"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "公開済み"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11219,7 +11219,7 @@ msgstr "削除"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:3587
+#: packages/admin/src/components/ContentEditor.tsx:3592
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11256,7 +11256,7 @@ msgstr "{0}を選択から外す"
 msgid "Remove {entry}"
 msgstr "{entry}を削除"
 
-#: packages/admin/src/components/ContentEditor.tsx:3585
+#: packages/admin/src/components/ContentEditor.tsx:3590
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
 msgid "Remove {label}"
@@ -11458,8 +11458,8 @@ msgstr "繰り返しフィールドグループ"
 msgid "visualEditing.replaceImage"
 msgstr "置き換え"
 
-#: packages/admin/src/components/ContentEditor.tsx:3577
-#: packages/admin/src/components/ContentEditor.tsx:3616
+#: packages/admin/src/components/ContentEditor.tsx:3582
+#: packages/admin/src/components/ContentEditor.tsx:3621
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -11477,7 +11477,7 @@ msgstr "置き換え"
 msgid "Replace"
 msgstr "置き換え"
 
-#: packages/admin/src/components/ContentEditor.tsx:3615
+#: packages/admin/src/components/ContentEditor.tsx:3620
 #: packages/admin/src/components/ImageFieldRenderer.tsx:603
 #: packages/admin/src/components/SeoImageField.tsx:191
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -12505,8 +12505,8 @@ msgid "Select"
 msgstr "選択"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:3597
-#: packages/admin/src/components/ContentEditor.tsx:3615
+#: packages/admin/src/components/ContentEditor.tsx:3602
+#: packages/admin/src/components/ContentEditor.tsx:3620
 #: packages/admin/src/components/ImageFieldRenderer.tsx:604
 #: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Select {label}"
@@ -12583,7 +12583,7 @@ msgstr "ファビコンを選択"
 msgid "Select Favicon"
 msgstr "ファビコンを選択"
 
-#: packages/admin/src/components/ContentEditor.tsx:3601
+#: packages/admin/src/components/ContentEditor.tsx:3606
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "ファイルを選択"
@@ -14183,7 +14183,7 @@ msgstr "このフィールドには{mimeType}ファイルを設定できませ�
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "このフィールドにはリストが必要です。保存されている値は、空のリストに置き換えるまで変更されません。置き換えると元の値は削除されるため、必要な内容を先にコピーしてください。"
 
-#: packages/admin/src/components/ContentEditor.tsx:3619
+#: packages/admin/src/components/ContentEditor.tsx:3624
 #: packages/admin/src/components/ImageFieldRenderer.tsx:623
 msgid "This field is required"
 msgstr "この項目は必須です"
@@ -14954,7 +14954,7 @@ msgstr "{0}以前"
 msgid "Untitled"
 msgstr "無題"
 
-#: packages/admin/src/components/ContentEditor.tsx:3519
+#: packages/admin/src/components/ContentEditor.tsx:3524
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "無題のファイル"

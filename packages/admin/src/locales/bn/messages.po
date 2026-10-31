@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# আইটেম)} other {(# আইটেম)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3268
+#: packages/admin/src/components/ContentEditor.tsx:3273
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {# অক্ষরের মধ্যে {counted}, কমপক্ষে {min}} other {# অক্ষরের মধ্যে {counted}, কমপক্ষে {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3273
+#: packages/admin/src/components/ContentEditor.tsx:3278
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {# অক্ষরের মধ্যে {counted}} other {# অক্ষরের মধ্যে {counted}}}"
 
@@ -397,7 +397,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3278
+#: packages/admin/src/components/ContentEditor.tsx:3283
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {কমপক্ষে # অক্ষর} other {কমপক্ষে # অক্ষর}}"
 
@@ -2161,11 +2161,11 @@ msgstr "MCP-এর মাধ্যমে সংযুক্ত অ্যাস�
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3301
+#: packages/admin/src/components/ContentEditor.tsx:3306
 msgid "At least {min}"
 msgstr "কমপক্ষে {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3298
+#: packages/admin/src/components/ContentEditor.tsx:3303
 msgid "At most {max}"
 msgstr "সর্বোচ্চ {max}"
 
@@ -2440,7 +2440,7 @@ msgstr "পাঠানোর আগে:"
 msgid "Before you continue:"
 msgstr "চালিয়ে যাওয়ার আগে:"
 
-#: packages/admin/src/components/ContentEditor.tsx:3295
+#: packages/admin/src/components/ContentEditor.tsx:3300
 msgid "Between {min} and {max}"
 msgstr "{min} থেকে {max}-এর মধ্যে"
 
@@ -5514,7 +5514,7 @@ msgstr "একটি URL (https://…) বা একটি রিলেটিভ
 msgid "Enter a valid time"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3345
+#: packages/admin/src/components/ContentEditor.tsx:3350
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "একটি বৈধ URL লিখুন (যেমন https://example.com)"
 
@@ -7946,7 +7946,7 @@ msgstr "অবৈধ হ্যান্ডেল"
 msgid "Invalid invite link"
 msgstr "অবৈধ আমন্ত্রণ লিঙ্ক"
 
-#: packages/admin/src/components/ContentEditor.tsx:3421
+#: packages/admin/src/components/ContentEditor.tsx:3426
 msgid "Invalid JSON"
 msgstr "অবৈধ JSON"
 
@@ -10837,6 +10837,11 @@ msgstr "এখনই প্রকাশ করবেন?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "কনটেন্ট প্রকাশ, অপ্রকাশিত, সময় নির্ধারণ এবং নির্ধারিত সময় বাতিল করা"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1009
@@ -10848,11 +10853,6 @@ msgstr "কনটেন্ট প্রকাশ, অপ্রকাশিত, �
 #: packages/admin/src/router.tsx:1504
 msgid "Published"
 msgstr "প্রকাশিত"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr ""
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:348
@@ -11219,7 +11219,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:3587
+#: packages/admin/src/components/ContentEditor.tsx:3592
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11256,7 +11256,7 @@ msgstr "নির্বাচন থেকে {0} সরান"
 msgid "Remove {entry}"
 msgstr "{entry} সরান"
 
-#: packages/admin/src/components/ContentEditor.tsx:3585
+#: packages/admin/src/components/ContentEditor.tsx:3590
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
 msgid "Remove {label}"
@@ -11458,8 +11458,8 @@ msgstr "পুনরাবৃত্ত ফিল্ডের গ্রুপ"
 msgid "visualEditing.replaceImage"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3577
-#: packages/admin/src/components/ContentEditor.tsx:3616
+#: packages/admin/src/components/ContentEditor.tsx:3582
+#: packages/admin/src/components/ContentEditor.tsx:3621
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -11477,7 +11477,7 @@ msgstr ""
 msgid "Replace"
 msgstr "প্রতিস্থাপন করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:3615
+#: packages/admin/src/components/ContentEditor.tsx:3620
 #: packages/admin/src/components/ImageFieldRenderer.tsx:603
 #: packages/admin/src/components/SeoImageField.tsx:191
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -12505,8 +12505,8 @@ msgid "Select"
 msgstr "নির্বাচন করুন"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:3597
-#: packages/admin/src/components/ContentEditor.tsx:3615
+#: packages/admin/src/components/ContentEditor.tsx:3602
+#: packages/admin/src/components/ContentEditor.tsx:3620
 #: packages/admin/src/components/ImageFieldRenderer.tsx:604
 #: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Select {label}"
@@ -12583,7 +12583,7 @@ msgstr "ফেভিকন নির্বাচন করুন"
 msgid "Select Favicon"
 msgstr "ফেভিকন নির্বাচন করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:3601
+#: packages/admin/src/components/ContentEditor.tsx:3606
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "ফাইল নির্বাচন করুন"
@@ -14183,7 +14183,7 @@ msgstr "এই ফিল্ড {mimeType} ফাইল গ্রহণ করে
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "এই ফিল্ডে একটি তালিকা প্রত্যাশিত। আপনি এটিকে একটি খালি তালিকা দিয়ে প্রতিস্থাপন না করা পর্যন্ত সংরক্ষিত মান অপরিবর্তিত থাকবে, আর প্রতিস্থাপন করলে এটি মুছে যাবে। প্রয়োজনীয় কিছু থাকলে আগে কপি করে নিন।"
 
-#: packages/admin/src/components/ContentEditor.tsx:3619
+#: packages/admin/src/components/ContentEditor.tsx:3624
 #: packages/admin/src/components/ImageFieldRenderer.tsx:623
 msgid "This field is required"
 msgstr "এই ফিল্ডটি আবশ্যক"
@@ -14954,7 +14954,7 @@ msgstr "{0} পর্যন্ত"
 msgid "Untitled"
 msgstr "শিরোনামহীন"
 
-#: packages/admin/src/components/ContentEditor.tsx:3519
+#: packages/admin/src/components/ContentEditor.tsx:3524
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "শিরোনামহীন ফাইল"
