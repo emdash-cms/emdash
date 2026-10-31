@@ -827,6 +827,13 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string | readon
 	["/_emdash/api/admin", "*", "admin"],
 	["/_emdash/api/plugins", "*", "admin"],
 
+	// Redirects. The 404 log holds visitor IP addresses, so it must precede the
+	// generic redirects rules and reading it takes settings:read.
+	["/_emdash/api/redirects/404s", "GET", "settings:read"],
+	["/_emdash/api/redirects/404s", "WRITE", "settings:manage"],
+	["/_emdash/api/redirects", "GET", "content:read"],
+	["/_emdash/api/redirects", "WRITE", "settings:manage"],
+
 	// Backups are a full-site content export and must precede the generic
 	// settings rules, which would otherwise let a settings:read token through.
 	["/_emdash/api/settings/backups", "*", "admin"],
