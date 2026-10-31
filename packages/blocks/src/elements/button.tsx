@@ -48,8 +48,12 @@ export function ButtonElementComponent({
 			{element.confirm && (
 				<DialogRoot open={confirmOpen} onOpenChange={setConfirmOpen}>
 					<Dialog className="p-6" size="sm">
-						<h3 className="text-lg font-semibold text-kumo-default">{element.confirm.title}</h3>
-						<p className="mt-1 text-sm text-kumo-subtle">{element.confirm.text}</p>
+						<Dialog.Title dir="auto" className="text-lg font-semibold text-kumo-default">
+							{element.confirm.title}
+						</Dialog.Title>
+						<Dialog.Description dir="auto" className="mt-1 text-sm text-kumo-subtle">
+							{element.confirm.text}
+						</Dialog.Description>
 						<div className="flex justify-end gap-2 pt-4">
 							<Button variant="secondary" onClick={() => setConfirmOpen(false)}>
 								{element.confirm.deny}
