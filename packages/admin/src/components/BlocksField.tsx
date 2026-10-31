@@ -115,6 +115,10 @@ interface PickerTarget {
 
 type FocusRequest = { key: string; target: "first-control" | "toggle" } | { target: "add" };
 
+type MenuAction =
+	| { kind: "delete" }
+	| { kind: "add"; side: InsertSide; invoker: HTMLElement | null };
+
 function nestedDescriptor(
 	outerId: string,
 	blockKey: string,
@@ -579,7 +583,7 @@ function BlockRow({
 	const headRef = React.useRef<HTMLDivElement>(null);
 	const handleRef = React.useRef<HTMLButtonElement>(null);
 	const triggerRef = React.useRef<HTMLButtonElement>(null);
-	const afterMenuCloseRef = React.useRef<(() => void) | null>(null);
+	const afterMenuCloseRef = React.useRef<MenuAction | null>(null);
 	const [menuOpen, setMenuOpen] = React.useState(false);
 	const [menuFromHandle, setMenuFromHandle] = React.useState(false);
 
@@ -599,12 +603,19 @@ function BlockRow({
 	const summaryId = `${rowId}-summary`;
 	const bodyId = `${rowId}-body`;
 
-	const menuOpener = () => (menuFromHandle ? handleRef.current : triggerRef.current);
 	const addFromMenu = (side: InsertSide) => {
-		const invoker = menuOpener();
-		afterMenuCloseRef.current = () =>
-			onAdd({ index: side === "top" ? index : index + 1, anchor: headRef.current, side, invoker });
+		const invoker = menuFromHandle ? handleRef.current : triggerRef.current;
+		afterMenuCloseRef.current = { kind: "add", side, invoker };
 	};
+	const runMenuAction = useStableCallback((action: MenuAction) => {
+		if (action.kind === "delete") {
+			onDelete();
+			return;
+		}
+		if (!canAdd) return;
+		const { side, invoker } = action;
+		onAdd({ index: side === "top" ? index : index + 1, anchor: headRef.current, side, invoker });
+	});
 
 	return (
 		<div
@@ -786,7 +797,7 @@ function BlockRow({
 							if (isOpen) return;
 							const after = afterMenuCloseRef.current;
 							afterMenuCloseRef.current = null;
-							if (after) after();
+							if (after) runMenuAction(after);
 							else if (menuFromHandle) {
 								// The menu returns focus to its trigger after this callback.
 								setTimeout(() => {
@@ -859,7 +870,7 @@ function BlockRow({
 								variant="danger"
 								icon={<Trash className={MENU_ICON} aria-hidden="true" />}
 								onClick={() => {
-									afterMenuCloseRef.current = onDelete;
+									afterMenuCloseRef.current = { kind: "delete" };
 								}}
 							>
 								{t`Delete`}
