@@ -27,6 +27,7 @@
   "devDependencies": {
     "@astrojs/check": "catalog:",
     "@cloudflare/workers-types": "catalog:",
+    "lightningcss": "catalog:",
     "wrangler": "catalog:"
   }
 }
