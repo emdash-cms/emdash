@@ -267,6 +267,27 @@ describe("Type-in lists inside a block", () => {
 		await expect.element(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
 	});
 
+	it("counts only saved lines, and keeps the last saved line at minItems", async () => {
+		const tags = blockType("tags", "Tags", [
+			list("tags", "Tags", [{ slug: "name", label: "Name", type: "string" }], { minItems: 1 }),
+		]);
+		await renderHarness({
+			initial: [{ _type: "tags", _version: 1, _key: "tags-1", tags: [{ name: "Hotel Wilde" }] }],
+			blockTypes: [tags],
+			allowedTypes: ["tags"],
+		});
+		await openBlock("Tags");
+
+		await line(1).click();
+		await userEvent.keyboard("{Enter}");
+		expect(lineValues()).toEqual(["Hotel Wilde", ""]);
+		expect(document.querySelector("[data-block-body] bdi")?.textContent).toBe("1");
+		await page.getByRole("button", { name: "Hotel Wilde actions" }).click();
+		await expect
+			.element(page.getByRole("menuitem", { name: "Delete" }))
+			.toHaveAttribute("aria-disabled", "true");
+	});
+
 	it("turns a pasted block of lines into one item per line, up to maxItems", async () => {
 		const onValue = vi.fn();
 		await renderHarness({ initial: [clientsBlock(["Hotel Wilde", "Norma"])], onValue });

@@ -280,7 +280,8 @@ export function BlockListField({
 	}
 
 	const atMax = current.length >= maxItems;
-	const canDelete = current.length > minItems;
+	const savedCount = current.filter((row) => !isBlank(row)).length;
+	const canDelete = (row: Row) => isBlank(row) || savedCount > minItems;
 	const { label: listLabel, hint } = splitLabelHint(label);
 	const describedBy = [hint && hintId, error && errorId].filter(Boolean).join(" ") || undefined;
 
@@ -375,7 +376,7 @@ export function BlockListField({
 	const deleteRow = (key: string) => {
 		const index = current.findIndex((row) => row.key === key);
 		const row = current[index];
-		if (!row || !canDelete) return;
+		if (!row || !canDelete(row)) return;
 		const next = current.filter((candidate) => candidate.key !== key);
 		const neighbour = next[index] ?? next[index - 1];
 		focusRef.current = neighbour ? { key: neighbour.key, target: "item" } : { target: "add" };
@@ -460,7 +461,7 @@ export function BlockListField({
 		count: current.length,
 		name: name(row, index),
 		readOnly,
-		canDelete,
+		canDelete: canDelete(row),
 		onMove: (to) => moveRow(index, to),
 		onDelete: () => deleteRow(row.key),
 	});
@@ -626,9 +627,9 @@ export function BlockListField({
 				<span id={labelId} className="text-sm font-medium text-kumo-default wrap-anywhere">
 					{listLabel}
 				</span>
-				{current.length > 0 && (
+				{savedCount > 0 && (
 					<bdi className="text-sm text-kumo-placeholder tabular-nums">
-						{i18n.number(current.length)}
+						{i18n.number(savedCount)}
 					</bdi>
 				)}
 			</div>
