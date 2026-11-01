@@ -7,6 +7,8 @@
 
 import { test, expect } from "../fixtures";
 
+const REDIRECT_ACTIONS_PATTERN = /^Actions for redirect /;
+
 test.describe("Redirects", () => {
 	test.beforeEach(async ({ admin }) => {
 		await admin.devBypassAuth();
@@ -73,10 +75,10 @@ test.describe("Redirects", () => {
 			// Wait for the redirect to appear
 			await expect(page.locator("text=/edit-source").first()).toBeVisible();
 
-			// Click the edit button on that row (use .first() to avoid ancestor div ambiguity).
-			// Kumo 2.x renders <Button title> as a Tooltip popup rather than a DOM
-			// title attribute; aria-label is on the button itself.
-			await page.locator('button[aria-label^="Edit redirect"]').first().click();
+			// The source path is the button that opens the editor
+			const source = page.getByRole("button", { name: "Edit redirect /edit-source", exact: true });
+			await expect(source).toHaveText("/edit-source");
+			await source.click();
 
 			// Edit dialog should open
 			await expect(page.locator('[role="dialog"]')).toBeVisible();
@@ -112,19 +114,166 @@ test.describe("Redirects", () => {
 			// Wait for it to appear
 			await expect(page.locator("text=/to-delete").first()).toBeVisible();
 
-			// Click the delete button on that row (use .first() to avoid ancestor div ambiguity).
-			// See note above re: Kumo 2.x Button title -> Tooltip.
-			await page.locator('button[aria-label^="Delete redirect"]').first().click();
+			// Delete is in the row's actions menu
+			await page
+				.getByRole("button", { name: "Actions for redirect /to-delete", exact: true })
+				.click();
+			await page.getByRole("menuitem", { name: "Delete redirect /to-delete", exact: true }).click();
 
 			// Confirm deletion in the ConfirmDialog
-			await expect(page.locator('[role="dialog"]')).toBeVisible();
-			await page.getByRole("button", { name: "Delete" }).click();
+			const confirm = page.getByRole("dialog", { name: "Delete Redirect?" });
+			await expect(confirm).toBeVisible();
+			await confirm.getByRole("button", { name: "Delete", exact: true }).click();
 
 			// Dialog should close
 			await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 10000 });
 
 			// Redirect should be gone
 			await expect(page.locator("text=/to-delete")).not.toBeVisible();
+		});
+
+		test("moves keyboard focus to the next redirect after deleting one", async ({
+			admin,
+			page,
+			serverInfo,
+		}) => {
+			const headers = {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${serverInfo.token}`,
+				"X-EmDash-Request": "1",
+				Origin: serverInfo.baseUrl,
+			};
+			const ids: string[] = [];
+			for (const n of [1, 2, 3]) {
+				const res = await page.request.post(`${serverInfo.baseUrl}/_emdash/api/redirects`, {
+					headers,
+					data: { source: `/focus-${n}`, destination: "/focus-target" },
+				});
+				expect(res.ok()).toBe(true);
+				const body: { data: { id: string } } = await res.json();
+				ids.push(body.data.id);
+			}
+
+			try {
+				await admin.goto("/redirects");
+				await admin.waitForShell();
+				await admin.waitForLoading();
+				const actions = (source: string) =>
+					page.getByRole("button", { name: `Actions for redirect ${source}`, exact: true });
+				await expect(actions("/focus-2")).toBeVisible();
+				const menus = await page
+					.getByRole("button", { name: REDIRECT_ACTIONS_PATTERN })
+					.evaluateAll((buttons) =>
+						buttons.map((button) => button.getAttribute("aria-label") ?? ""),
+					);
+				const index = menus.indexOf("Actions for redirect /focus-2");
+				const next = menus[index + 1] ?? menus[index - 1] ?? "";
+
+				await page.locator("h1").first().hover();
+				await actions("/focus-2").focus();
+				await page.keyboard.press("Enter");
+				await expect(page.getByRole("menuitem").first()).toBeFocused();
+				await page.keyboard.press("End");
+				await page.keyboard.press("Enter");
+				const confirm = page.getByRole("dialog", { name: "Delete Redirect?" });
+				await confirm.getByRole("button", { name: "Delete", exact: true }).focus();
+				await page.keyboard.press("Enter");
+
+				await expect(actions("/focus-2")).toHaveCount(0);
+				await expect(page.getByRole("button", { name: next, exact: true })).toBeFocused();
+			} finally {
+				for (const id of ids) {
+					await page.request.delete(`${serverInfo.baseUrl}/_emdash/api/redirects/${id}`, {
+						headers,
+					});
+				}
+			}
+		});
+	});
+
+	test.describe("Group filtering", () => {
+		test("shows groups and filters by an exact group name", async ({ admin, page, serverInfo }) => {
+			const { baseUrl, token } = serverInfo;
+			const headers = {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+				"X-EmDash-Request": "1",
+				Origin: baseUrl,
+			};
+			const redirects = [
+				{
+					source: "/issue-2287-legacy",
+					destination: "/issue-2287-legacy-destination",
+					groupName: "legacy-import-2024",
+				},
+				{
+					source: "/issue-2287-legacy-extra",
+					destination: "/issue-2287-legacy-extra-destination",
+					groupName: "legacy-import-2024-extra",
+				},
+				{
+					source: "/issue-2287-other",
+					destination: "/issue-2287-other-destination",
+					groupName: "other-group",
+				},
+				{
+					source: "/issue-2287-ungrouped",
+					destination: "/issue-2287-ungrouped-destination",
+					groupName: null,
+				},
+			];
+			const ids: string[] = [];
+
+			try {
+				for (const redirect of redirects) {
+					const response = await page.request.post(`${baseUrl}/_emdash/api/redirects`, {
+						headers,
+						data: redirect,
+					});
+					expect(response.ok()).toBe(true);
+					const body = await response.json();
+					ids.push(body.data.id);
+				}
+
+				await admin.goto("/redirects");
+				await admin.waitForShell();
+				await admin.waitForLoading();
+
+				for (const redirect of redirects) {
+					await expect(page.getByText(redirect.source, { exact: true })).toBeVisible();
+				}
+				await expect(page.getByText("legacy-import-2024", { exact: true })).toBeVisible();
+				await expect(page.getByText("legacy-import-2024-extra", { exact: true })).toBeVisible();
+				await expect(page.getByText("other-group", { exact: true })).toBeVisible();
+				await expect(page.getByText("No group", { exact: true }).first()).toBeAttached();
+
+				const groupFilter = page.getByRole("textbox", { name: "Filter by group" });
+				await groupFilter.fill("  legacy-import-2024  ");
+
+				await expect(page.getByText("/issue-2287-legacy", { exact: true })).toBeVisible();
+				await expect(page.getByText("/issue-2287-legacy-extra", { exact: true })).not.toBeVisible();
+				await expect(page.getByText("/issue-2287-other", { exact: true })).not.toBeVisible();
+				await expect(page.getByText("/issue-2287-ungrouped", { exact: true })).not.toBeVisible();
+
+				const search = page.getByRole("searchbox", { name: "Search source or destination..." });
+				await search.fill("issue-2287-other");
+				await expect(page.getByText("No redirects match these filters")).toBeVisible();
+				await search.fill("");
+				await expect(page.getByText("/issue-2287-legacy", { exact: true })).toBeVisible();
+
+				await groupFilter.fill("group-that-does-not-exist");
+				await expect(page.getByText("No redirects match these filters")).toBeVisible();
+
+				await groupFilter.fill("  ");
+				await expect(page.getByText("/issue-2287-ungrouped", { exact: true })).toBeVisible();
+				await groupFilter.fill("");
+				await expect(page.getByText("/issue-2287-legacy", { exact: true })).toBeVisible();
+				await expect(page.getByText("/issue-2287-ungrouped", { exact: true })).toBeVisible();
+			} finally {
+				for (const id of ids) {
+					await page.request.delete(`${baseUrl}/_emdash/api/redirects/${id}`, { headers });
+				}
+			}
 		});
 	});
 

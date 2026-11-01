@@ -209,18 +209,26 @@ const enabled = (await ctx.settings.get<boolean>("enabled")) ?? true;
 const maxItems = (await ctx.settings.get<number>("maxItems")) ?? 100;
 ```
 
-You can persist initial values during installation:
+You can persist initial values during installation. Initialize only missing keys so an install hook does not overwrite settings or other data on an existing site:
 
 ```typescript
 hooks: {
 	"plugin:install": async (_event, ctx) => {
-		await ctx.settings.set("enabled", true);
-		await ctx.settings.set("maxItems", 100);
+		if ((await ctx.settings.get<boolean>("enabled")) === null) {
+			await ctx.settings.set("enabled", true);
+		}
+		if ((await ctx.settings.get<number>("maxItems")) === null) {
+			await ctx.settings.set("maxItems", 100);
+		}
 	},
 },
 ```
 
-`plugin:install` runs only for a new installation. When a later release adds a setting, existing sites do not run it again. Keep the read-time fallback, or initialize the missing key idempotently during `plugin:activate`.
+EmDash runs `plugin:install` for a plugin with no recorded installation state. Successful initialization is recorded, and a new plugin version does not rerun the hook.
+
+For config-declared sandboxed plugins, missing state can also cause install to run on an existing site after an upgrade. If the sandbox becomes unavailable before activation completes, the next boot runs install again, even if it previously succeeded. Before upgrading, check that install hooks are idempotent and preserve existing settings and data by initializing only missing keys, as in the example above.
+
+Keep the read-time fallback for new settings, or initialize missing keys idempotently during `plugin:activate`.
 
 ## Choose KV or storage
 

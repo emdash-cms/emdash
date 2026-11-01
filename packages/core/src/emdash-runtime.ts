@@ -106,7 +106,7 @@ import {
 	getSandboxSaveRejectionDetails,
 } from "./plugins/sandbox/proxy.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
-import { getSandboxRouteErrorDetails } from "./plugins/sandbox/types.js";
+import { getSandboxRouteErrorDetails, SandboxUnavailableError } from "./plugins/sandbox/types.js";
 import type {
 	SandboxedPluginInstance,
 	SandboxRunner,
@@ -276,6 +276,7 @@ import {
 	createHookPipeline,
 	EXCLUSIVE_HOOK_KEY_PREFIX,
 	getActiveContentSaveHookName,
+	HookTimeoutError,
 	resolveExclusiveHooks as resolveExclusiveHooksShared,
 	type HookPipeline,
 } from "./plugins/hooks.js";
@@ -1183,12 +1184,13 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Run install → activate once for each native plugin registered in the
+	 * Run install → activate once for each loaded plugin registered in the
 	 * integration config that has no `_plugin_state` row.
 	 *
 	 * Only the isolate whose insert creates the row runs the hooks. A plugin
-	 * whose hooks fail is recorded as inactive rather than retried on later
-	 * boots; re-enabling it from the admin runs `plugin:activate`.
+	 * whose own hooks fail is recorded as inactive rather than retried on later
+	 * boots; re-enabling it from the admin runs `plugin:activate`. Sandbox
+	 * unavailability leaves no state so the next boot can retry.
 	 */
 	private async installUnrecordedConfigPlugins(
 		configPlugins: ResolvedPlugin[],
@@ -1196,7 +1198,33 @@ export class EmDashRuntime {
 	): Promise<void> {
 		const stateRepo = new PluginStateRepository(this.db);
 		const failed: ResolvedPlugin[] = [];
-		const recordFailure = (plugin: ResolvedPlugin, hook: string, error: Error | undefined) => {
+		let sandboxReadinessFailed = false;
+		let sandboxReadiness: Promise<void> | undefined;
+		const recordFailure = async (
+			plugin: ResolvedPlugin,
+			hook: string,
+			error: Error | undefined,
+		) => {
+			if (
+				this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
+				(error?.name === "SandboxUnavailableError" ||
+					(error instanceof HookTimeoutError && sandboxRunner && !sandboxRunner.isHealthy()))
+			) {
+				sandboxReadiness = undefined;
+				await this.db
+					.deleteFrom("_plugin_state")
+					.where("plugin_id", "=", plugin.id)
+					.where("version", "=", plugin.version)
+					.where("source", "=", "config")
+					.where("status", "=", "active")
+					.execute();
+				this.pluginStates.delete(plugin.id);
+				console.warn(
+					`EmDash: Sandbox unavailable for config plugin "${plugin.id}"; retrying on next boot:`,
+					error,
+				);
+				return;
+			}
 			console.error(
 				`EmDash: ${hook} failed for config plugin "${plugin.id}"; disabling it:`,
 				error,
@@ -1208,20 +1236,60 @@ export class EmDashRuntime {
 			if (recordedStates.has(plugin.id)) continue;
 
 			try {
+				if (
+					this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
+					(plugin.hooks["plugin:install"] || plugin.hooks["plugin:activate"])
+				) {
+					if (sandboxReadinessFailed) continue;
+					try {
+						// Readiness has its own deadline, not the hook's execution budget.
+						await (sandboxReadiness ??=
+							sandboxRunner?.ensureRunning?.({ waitForPendingRestart: true }) ?? Promise.resolve());
+						if (sandboxRunner && !sandboxRunner.isHealthy()) {
+							throw new SandboxUnavailableError(
+								plugin.id,
+								sandboxRunner.unavailableReason?.() ?? "not ready",
+							);
+						}
+					} catch (error) {
+						sandboxReadinessFailed = true;
+						console.warn(
+							`EmDash: Sandbox not ready for config plugin "${plugin.id}"; retrying on next boot:`,
+							error,
+						);
+						continue;
+					}
+				}
 				if (!(await stateRepo.createActiveIfAbsent(plugin.id, plugin.version, "config"))) continue;
 				this.pluginStates.set(plugin.id, "active");
 
 				const install = await this._hooks.runPluginInstall(plugin.id);
 				const installFailure = install.find((result) => !result.success);
 				if (installFailure) {
-					recordFailure(plugin, "plugin:install", installFailure.error);
+					await recordFailure(plugin, "plugin:install", installFailure.error);
 					continue;
 				}
 
+				if (
+					this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
+					plugin.hooks["plugin:activate"] &&
+					sandboxRunner &&
+					!sandboxRunner.isHealthy()
+				) {
+					await recordFailure(
+						plugin,
+						"plugin:activate",
+						new SandboxUnavailableError(
+							plugin.id,
+							sandboxRunner.unavailableReason?.() ?? "not ready",
+						),
+					);
+					continue;
+				}
 				const activate = await this._hooks.runPluginActivate(plugin.id);
 				const activateFailure = activate.find((result) => !result.success);
 				if (activateFailure) {
-					recordFailure(plugin, "plugin:activate", activateFailure.error);
+					await recordFailure(plugin, "plugin:activate", activateFailure.error);
 				}
 			} catch (error) {
 				console.error(`EmDash: Config plugin "${plugin.id}" install/activate failed:`, error);
@@ -1237,6 +1305,7 @@ export class EmDashRuntime {
 				console.error(`EmDash: Failed to record config plugin "${plugin.id}" as disabled:`, error);
 			}
 			this.pluginStates.set(plugin.id, "inactive");
+			this.setSandboxedPluginActive(plugin.id, false);
 			this.enabledPlugins.delete(plugin.id);
 		}
 		await this.rebuildHookPipeline();
@@ -2436,8 +2505,13 @@ export class EmDashRuntime {
 		sandboxRunner?.setContentActions?.(contentActions);
 
 		if (ownsConfiguredDb && pluginStatesRead) {
+			// A sandbox that failed to load must not consume its first-install guard.
+			const configPlugins = [
+				...deps.plugins,
+				...allPipelinePlugins.filter((plugin) => configuredSandboxIds.has(plugin.id)),
+			];
 			await phase("rt.lifecycle", "Config plugin install/activate", () =>
-				runtime.installUnrecordedConfigPlugins(deps.plugins, new Map(pluginStates)),
+				runtime.installUnrecordedConfigPlugins(configPlugins, new Map(pluginStates)),
 			);
 		}
 
