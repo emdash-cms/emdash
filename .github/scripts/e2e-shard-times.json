@@ -1,0 +1,226 @@
+{
+	"accessibility.spec.ts": {
+		"node": 103,
+		"cloudflare": 125
+	},
+	"admin-css-isolation.spec.ts": {
+		"node": 1,
+		"cloudflare": 1
+	},
+	"admin-fixes.spec.ts": {
+		"node": 41,
+		"cloudflare": 56
+	},
+	"allowed-domains.spec.ts": {
+		"node": 33,
+		"cloudflare": 44
+	},
+	"api-route-injection.spec.ts": {
+		"node": 3,
+		"cloudflare": 5
+	},
+	"api-tokens.spec.ts": {
+		"node": 43,
+		"cloudflare": 50
+	},
+	"auth.spec.ts": {
+		"node": 67,
+		"cloudflare": 83
+	},
+	"autosave.spec.ts": {
+		"node": 35,
+		"cloudflare": 52
+	},
+	"byline-fields.spec.ts": {
+		"node": 15,
+		"cloudflare": 20
+	},
+	"bylines.spec.ts": {
+		"node": 41,
+		"cloudflare": 53
+	},
+	"code-block-highlighting.spec.ts": {
+		"node": 65,
+		"cloudflare": 79
+	},
+	"comments.spec.ts": {
+		"node": 28,
+		"cloudflare": 40
+	},
+	"content-actions.spec.ts": {
+		"node": 73,
+		"cloudflare": 105
+	},
+	"content-crud.spec.ts": {
+		"node": 63,
+		"cloudflare": 81
+	},
+	"content-types.spec.ts": {
+		"node": 69,
+		"cloudflare": 90
+	},
+	"device-auth.spec.ts": {
+		"node": 27,
+		"cloudflare": 32
+	},
+	"editor-html-block.spec.ts": {
+		"node": 5,
+		"cloudflare": 8
+	},
+	"editor-image-drop.spec.ts": {
+		"node": 9,
+		"cloudflare": 12
+	},
+	"editor-image-panel.spec.ts": {
+		"node": 10,
+		"cloudflare": 12
+	},
+	"editor-image-toolbar.spec.ts": {
+		"node": 10,
+		"cloudflare": 11
+	},
+	"entry-lock.spec.ts": {
+		"node": 13,
+		"cloudflare": 22
+	},
+	"field-widgets.spec.ts": {
+		"node": 42,
+		"cloudflare": 55
+	},
+	"form-data-loss.spec.ts": {
+		"node": 22,
+		"cloudflare": 27
+	},
+	"i18n.spec.ts": {
+		"node": 56,
+		"cloudflare": 74
+	},
+	"image-dark-variant.spec.ts": {
+		"node": 2,
+		"cloudflare": 3
+	},
+	"image-optimization.spec.ts": {
+		"node": 1,
+		"cloudflare": 1
+	},
+	"invite-flow.spec.ts": {
+		"node": 13,
+		"cloudflare": 16
+	},
+	"keyboard-shortcuts.spec.ts": {
+		"node": 19,
+		"cloudflare": 24
+	},
+	"marketplace.spec.ts": {
+		"node": 40,
+		"cloudflare": 48
+	},
+	"media-library.spec.ts": {
+		"node": 110,
+		"cloudflare": 143
+	},
+	"menus.spec.ts": {
+		"node": 97,
+		"cloudflare": 119
+	},
+	"outer-middleware.spec.ts": {
+		"node": 1,
+		"cloudflare": 1
+	},
+	"passkey-full-setup-virtual-auth.spec.ts": {
+		"node": 6,
+		"cloudflare": 9
+	},
+	"plugin-editor-extensions.spec.ts": {
+		"node": 38,
+		"cloudflare": 1
+	},
+	"plugin-fixture-image.spec.ts": {
+		"node": 1,
+		"cloudflare": 1
+	},
+	"plugins.spec.ts": {
+		"node": 31,
+		"cloudflare": 38
+	},
+	"portable-text-alignment.spec.ts": {
+		"node": 1,
+		"cloudflare": 1
+	},
+	"portable-text-image-upload.spec.ts": {
+		"node": 28,
+		"cloudflare": 37
+	},
+	"public-page-encoding.spec.ts": {
+		"node": 1,
+		"cloudflare": 1
+	},
+	"public-page-styles.spec.ts": {
+		"node": 1,
+		"cloudflare": 1
+	},
+	"redirect-loop-detection.spec.ts": {
+		"node": 43,
+		"cloudflare": 77
+	},
+	"redirects.spec.ts": {
+		"node": 27,
+		"cloudflare": 36
+	},
+	"registry-fixture-block-kit.spec.ts": {
+		"node": 21,
+		"cloudflare": 27
+	},
+	"revisions.spec.ts": {
+		"node": 32,
+		"cloudflare": 66
+	},
+	"sandbox-plugin-admin-surfaces.spec.ts": {
+		"node": 41,
+		"cloudflare": 1
+	},
+	"sandbox-plugin-boundaries.spec.ts": {
+		"node": 17,
+		"cloudflare": 33
+	},
+	"search.spec.ts": {
+		"node": 72,
+		"cloudflare": 99
+	},
+	"settings-pages.spec.ts": {
+		"node": 55,
+		"cloudflare": 66
+	},
+	"setup-wizard.spec.ts": {
+		"node": 19,
+		"cloudflare": 24
+	},
+	"site-transfer.spec.ts": {
+		"node": 27,
+		"cloudflare": 36
+	},
+	"theme-marketplace.spec.ts": {
+		"node": 11,
+		"cloudflare": 13
+	},
+	"visual-editing.spec.ts": {
+		"node": 87,
+		"cloudflare": 104
+	},
+	"visual-regression.spec.ts": {
+		"node": 1,
+		"cloudflare": 1
+	},
+	"welcome-modal.spec.ts": {
+		"node": 3,
+		"cloudflare": 4
+	},
+	"widgets.spec.ts": {
+		"node": 50,
+		"cloudflare": 64
+	},
+	"wordpress-import.spec.ts": {
+		"node": 27,
+		"cloudflare": 33
+	}
+}
