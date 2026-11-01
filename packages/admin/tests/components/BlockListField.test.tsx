@@ -316,6 +316,73 @@ describe("Type-in lists inside a block", () => {
 			.toHaveAttribute("aria-disabled", "true");
 	});
 
+	it("keeps an empty item already saved, and counts it toward minItems", async () => {
+		const tags = blockType("tags", "Tags", [
+			{ slug: "heading", label: "Heading", type: "string" },
+			list("tags", "Tags", [{ slug: "name", label: "Name", type: "string" }], { minItems: 3 }),
+		]);
+		const onValue = vi.fn();
+		await renderHarness({
+			initial: [
+				{
+					_type: "tags",
+					_version: 1,
+					_key: "tags-1",
+					tags: [{ name: "Hotel Wilde" }, { name: "" }, { name: "Norma" }],
+				},
+			],
+			blockTypes: [tags],
+			allowedTypes: ["tags"],
+			onValue,
+		});
+		await openBlock("Tags");
+
+		await line(1).click();
+		await page.getByRole("textbox", { name: "Heading" }).click();
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(lineValues()).toEqual(["Hotel Wilde", "", "Norma"]);
+		expect(onValue).not.toHaveBeenCalled();
+		expect(document.querySelector("[data-block-body] bdi")?.textContent).toBe("3");
+
+		await line(3).click();
+		await userEvent.keyboard("!");
+		const blocks = onValue.mock.lastCall?.[0] as StoredBlockValue[];
+		expect(blocks[0]?.tags).toEqual([{ name: "Hotel Wilde" }, { name: "" }, { name: "Norma!" }]);
+	});
+
+	it("deletes an empty item already saved on Backspace with Undo, but not below minItems", async () => {
+		const tags = blockType("tags", "Tags", [
+			list("tags", "Tags", [{ slug: "name", label: "Name", type: "string" }], { minItems: 3 }),
+		]);
+		const onValue = vi.fn();
+		await renderHarness({
+			initial: [
+				{
+					_type: "tags",
+					_version: 1,
+					_key: "tags-1",
+					tags: [{ name: "Hotel Wilde" }, { name: "" }, { name: "Norma" }, { name: "" }],
+				},
+			],
+			blockTypes: [tags],
+			allowedTypes: ["tags"],
+			onValue,
+		});
+		await openBlock("Tags");
+
+		await line(2).click();
+		await userEvent.keyboard("{Backspace}");
+		await expect.element(page.getByText("Deleted Untitled")).toBeVisible();
+		await expect.element(line(1)).toHaveFocus();
+		expect(lineValues()).toEqual(["Hotel Wilde", "Norma", ""]);
+
+		await line(3).click();
+		await userEvent.keyboard("{Backspace}");
+		expect(lineValues()).toEqual(["Hotel Wilde", "Norma", ""]);
+		const blocks = onValue.mock.lastCall?.[0] as StoredBlockValue[];
+		expect(blocks[0]?.tags).toEqual([{ name: "Hotel Wilde" }, { name: "Norma" }, { name: "" }]);
+	});
+
 	it("turns a pasted block of lines into one item per line, up to maxItems", async () => {
 		const onValue = vi.fn();
 		await renderHarness({ initial: [clientsBlock(["Hotel Wilde", "Norma"])], onValue });

@@ -264,11 +264,11 @@ export function BlockListField({
 	const errorId = React.useId();
 	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
-	const isBlank = (row: Row) => lineField !== undefined && isBlankLine(row.item[lineField.slug]);
 	let current = rows;
 	if (value !== source) {
+		const wasSaved = new Set(Array.isArray(source) ? source : []);
 		current = syncRows(
-			rows.filter((row) => !isBlank(row)),
+			rows.filter((row) => wasSaved.has(row.item)),
 			items,
 			knownKeys,
 		);
@@ -276,6 +276,9 @@ export function BlockListField({
 		setRows(current);
 	}
 	const savedIndex = new Map(items.map((item, index) => [item, index]));
+	// Only a line that isn't in the saved list is blank, so an empty item already saved stays.
+	const isBlank = (row: Row) =>
+		lineField !== undefined && !savedIndex.has(row.item) && isBlankLine(row.item[lineField.slug]);
 	// Problems and reveals point into the saved list, where a line typed but not yet saved has no place.
 	const positions = current.map((row) => savedIndex.get(row.item));
 	const at = (index: number) => {
@@ -428,7 +431,12 @@ export function BlockListField({
 			const above = current[index - 1];
 			if (!above || input.value !== "") return;
 			event.preventDefault();
-			emit(current.filter((candidate) => candidate.key !== row.key));
+			if (positions[index] === undefined) {
+				emit(current.filter((candidate) => candidate.key !== row.key));
+			} else {
+				if (!canDelete(row)) return;
+				deleteRow(row.key);
+			}
 			focusRef.current = { key: above.key, target: "control" };
 			return;
 		}
