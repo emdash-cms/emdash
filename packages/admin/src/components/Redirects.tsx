@@ -492,7 +492,7 @@ function RedirectRow({
 			<td className="text-end">
 				<RowActionsMenu label={t`Actions for redirect ${redirect.source}`}>
 					<DropdownMenu.Item
-						icon={<Pencil className="me-2 size-4" aria-hidden="true" />}
+						icon={<Pencil className="size-4" aria-hidden="true" />}
 						onClick={onEdit}
 					>
 						{t`Edit`}
@@ -500,7 +500,7 @@ function RedirectRow({
 					<DropdownMenu.Separator />
 					<DropdownMenu.Item
 						variant="danger"
-						icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+						icon={<Trash className="size-4" aria-hidden="true" />}
 						aria-label={t`Delete redirect ${redirect.source}`}
 						onClick={onDelete}
 					>
