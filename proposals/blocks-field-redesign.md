@@ -1,7 +1,7 @@
 ---
 title: "Blocks field redesign"
 type: feature-plan
-status: proposed
+status: implemented
 authors:
   - Noah Pham (@khoinguyenpham04)
 discussion: null
