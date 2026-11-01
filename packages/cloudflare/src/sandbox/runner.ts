@@ -45,6 +45,7 @@ import {
 	setTaxonomyWriteCallback,
 	setHttpFetchCallback,
 } from "./bridge.js";
+import { PluginRuntimeBridge } from "./runtime-bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
@@ -136,6 +137,9 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	private plugins = new Map<string, CloudflareSandboxedPlugin>();
 	private options: SandboxOptions;
 	private resolvedLimits: ResolvedLimits;
+	private contentCreate: SandboxContentCreateCallback | null = null;
+	private contentActions: ContentActionCallbacks | null;
+	private commentModerate: SandboxCommentModerateCallback | null;
 	private readonly contentCreateRuntimeId = crypto.randomUUID();
 	private readonly contentActionsRuntimeId = crypto.randomUUID();
 	private readonly taxonomyWriteRuntimeId = crypto.randomUUID();
@@ -150,6 +154,8 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 
 	constructor(options: SandboxOptions) {
 		this.options = options;
+		this.contentActions = options.contentActions ?? null;
+		this.commentModerate = options.commentModerate ?? null;
 		this.resolvedLimits = resolveLimits(options.limits);
 		this.siteInfo = options.siteInfo;
 		if (options.httpFetch) {
@@ -179,14 +185,17 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	}
 
 	setCommentModerate(callback: SandboxCommentModerateCallback | null): void {
+		this.commentModerate = callback;
 		setCommentModerateCallback(callback);
 	}
 
 	setContentCreate(callback: SandboxContentCreateCallback | null): void {
+		this.contentCreate = callback;
 		setContentCreateCallback(this.contentCreateRuntimeId, callback);
 	}
 
 	setContentActions(callback: ContentActionCallbacks | null): void {
+		this.contentActions = callback;
 		setContentActionsCallback(this.contentActionsRuntimeId, callback);
 	}
 
@@ -262,6 +271,21 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 			this.taxonomyWriteRuntimeId,
 			this.httpFetchKey,
 			this.mediaStorageKey,
+			// RPC parameters retain the originating isolate; loopback props only carry data.
+			(invocationId) =>
+				new PluginRuntimeBridge(
+					manifest.id,
+					normalizePluginCapabilities(manifest.capabilities || []),
+					invocationId,
+					{
+						contentCreate: this.contentCreate,
+						beforeContentWrite: this.options.beforeContentWrite,
+						contentActions: this.contentActions,
+						taxonomyWrite: this.options.taxonomyWrite,
+						commentModerate: this.commentModerate,
+						i18nConfig: getI18nConfig(),
+					},
+				),
 		);
 
 		this.plugins.set(pluginId, plugin);
@@ -325,6 +349,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		private taxonomyWriteRuntimeId?: string,
 		private readonly httpFetchKey?: string,
 		private readonly mediaStorageKey?: string,
+		private readonly createRuntimeBridge?: (invocationId: string) => PluginRuntimeBridge,
 	) {
 		this.id = `${manifest.id}:${manifest.version}`;
 		this.workerName = isolateKey ? `${this.id}:${isolateKey}` : this.id;
@@ -472,7 +497,12 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		const invocation = Promise.resolve().then(() => {
 			const worker = this.createWorker();
 			const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
-			return entrypoint.invokeHook(hookName, event, invocationId);
+			return entrypoint.invokeHook(
+				hookName,
+				event,
+				invocationId,
+				this.createRuntimeBridge?.(invocationId),
+			);
 		});
 		return this.withWallTimeLimit(`hook:${hookName}`, invocationId, invocation);
 	}
@@ -499,7 +529,13 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		const invocation = (async () => {
 			const worker = this.createWorker();
 			const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
-			const routeResult = await entrypoint.invokeRoute(routeName, input, request, invocationId);
+			const routeResult = await entrypoint.invokeRoute(
+				routeName,
+				input,
+				request,
+				invocationId,
+				this.createRuntimeBridge?.(invocationId),
+			);
 			const envelope = getSandboxRouteErrorEnvelope(routeResult);
 			if (envelope) throw createSandboxRouteError(envelope.error.code);
 			return routeResult;
@@ -520,12 +556,18 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
  * The RPC interface exposed by the plugin wrapper.
  */
 interface PluginEntrypoint {
-	invokeHook(hookName: string, event: unknown, invocationId: string): Promise<unknown>;
+	invokeHook(
+		hookName: string,
+		event: unknown,
+		invocationId: string,
+		runtimeBridge?: PluginRuntimeBridge,
+	): Promise<unknown>;
 	invokeRoute(
 		routeName: string,
 		input: unknown,
 		request: SerializedRequest,
 		invocationId: string,
+		runtimeBridge?: PluginRuntimeBridge,
 	): Promise<unknown>;
 }
 

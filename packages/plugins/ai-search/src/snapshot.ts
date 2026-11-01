@@ -2,6 +2,7 @@ import type { StorageCollection } from "emdash";
 
 import { readMetadata } from "./documents.js";
 import { itemState, type ItemState } from "./ingestion.js";
+import type { Item } from "./ports/ai-search.js";
 
 /** Name of the plugin storage collection holding the snapshot. */
 export const SNAPSHOT = "snapshot";
@@ -34,7 +35,7 @@ export type SnapshotStore = Pick<
 	"getMany" | "putMany" | "query" | "deleteMany"
 >;
 
-export function toIndexedItem(item: AiSearchItemInfo): IndexedItem {
+export function toIndexedItem(item: Item): IndexedItem {
 	return {
 		itemId: item.id,
 		hash: readMetadata(item.metadata)?.hash ?? null,
@@ -56,7 +57,7 @@ export async function clearSnapshot(store: SnapshotStore, source: string): Promi
 export async function saveSnapshot(
 	store: SnapshotStore,
 	source: string,
-	items: AiSearchItemInfo[],
+	items: Item[],
 ): Promise<void> {
 	await store.putMany(
 		items.map((item) => ({ id: item.key, data: { source, ...toIndexedItem(item) } })),

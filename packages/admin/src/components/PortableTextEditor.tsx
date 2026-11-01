@@ -13,11 +13,12 @@
 
 import {
 	Button,
-	Dialog,
 	Input,
+	LayerDialog,
 	Popover,
 	Select,
 	Switch,
+	Text,
 	Tooltip,
 	TooltipProvider,
 } from "@cloudflare/kumo";
@@ -106,7 +107,6 @@ import { Extension, InputRule, Mark, type EditorEvents, type Range } from "@tipt
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
 import { isAllowedUri } from "@tiptap/extension-link";
-import Placeholder from "@tiptap/extension-placeholder";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import TextAlign from "@tiptap/extension-text-align";
@@ -133,6 +133,7 @@ import { htmlBlockFields } from "../html-block";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { fetchMediaItem, uploadMedia } from "../lib/api/media.js";
+import { guardUnsavedInput, revealErrors } from "../lib/dialog-form.js";
 import {
 	canonicalMediaProviderId,
 	dropsDisplayHeight,
@@ -154,6 +155,7 @@ import {
 } from "../portable-text-table.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
+import { DialogError } from "./DialogError.js";
 import {
 	BlockSelectAll,
 	BlockSelection,
@@ -203,6 +205,7 @@ import {
 	registerPluginBlocks,
 	resolveIcon,
 } from "./editor/PluginBlockNode";
+import { PORTABLE_TEXT_BLOCK_ATTR } from "./editor/portableTextIdentity.js";
 import { runTableAction } from "./editor/TableActions.js";
 import { createTableCellSafety, type TablePasteRejection } from "./editor/TableCellSafety.js";
 import { createTableClipboard } from "./editor/TableClipboard.js";
@@ -224,6 +227,7 @@ import {
 	selectionTouchesTable,
 } from "./editor/TableExtensions.js";
 import { createTableResize } from "./editor/TableResize.js";
+import { createTextBlockPlaceholder } from "./editor/TextBlockPlaceholder.js";
 import {
 	VideoExtension,
 	isVideoBlock,
@@ -407,7 +411,6 @@ const attrStr = (v: unknown): string | undefined => (typeof v === "string" && v 
 const attrNum = (v: unknown): number | undefined =>
 	typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined;
 
-const PORTABLE_TEXT_BLOCK_ATTR = "emdashPortableTextBlock";
 const PORTABLE_TEXT_KEY_ATTR = "emdashPortableTextKey";
 const PORTABLE_TEXT_SPAN_MARK = "emdashPortableTextSpan";
 
@@ -2628,6 +2631,59 @@ function hasPluginBlockFormData(values: Record<string, unknown>): boolean {
 	);
 }
 
+interface PluginBlockProblems {
+	url?: MessageDescriptor;
+	/** Top-level fields by `action_id`. */
+	fields: Record<string, MessageDescriptor>;
+	form?: MessageDescriptor;
+}
+
+const ABSOLUTE_URI_PATTERN = /^([a-z][a-z0-9+.-]*):\S+$/i;
+const UNSAFE_URI_SCHEMES = new Set(["javascript", "data", "vbscript"]);
+
+/**
+ * Any absolute URI a block can embed. URL parsing alone would refuse some,
+ * such as Bluesky's `at://did:plc:…` post URIs.
+ */
+function isEmbeddableUrl(url: string): boolean {
+	const scheme = ABSOLUTE_URI_PATTERN.exec(url)?.[1]?.toLowerCase();
+	if (!scheme || UNSAFE_URI_SCHEMES.has(scheme)) return false;
+	return scheme === "http" || scheme === "https" ? URL.canParse(url) : true;
+}
+
+function numberRangeProblem(field: Element, value: unknown): MessageDescriptor | undefined {
+	if (field.type !== "number_input" || typeof value !== "number") return undefined;
+	const min = typeof field.min === "number" ? field.min : undefined;
+	const max = typeof field.max === "number" ? field.max : undefined;
+	if ((min === undefined || value >= min) && (max === undefined || value <= max)) return undefined;
+	if (min !== undefined && max !== undefined) return msg`Enter a number between ${min} and ${max}.`;
+	if (min !== undefined) return msg`Enter a number of ${min} or more.`;
+	if (max !== undefined) return msg`Enter a number of ${max} or less.`;
+	return undefined;
+}
+
+function pluginBlockProblems(
+	block: PluginBlockDef | null,
+	values: Record<string, unknown>,
+): PluginBlockProblems {
+	const fields = block?.fields ?? [];
+	if (fields.length === 0) {
+		const url = typeof values.id === "string" ? values.id.trim() : "";
+		return isEmbeddableUrl(url)
+			? { fields: {} }
+			: { fields: {}, url: msg`Enter a full URL, such as https://example.com.` };
+	}
+	if (!hasPluginBlockFormData(values)) {
+		return { fields: {}, form: msg`Fill in at least one field.` };
+	}
+	const fieldProblems: Record<string, MessageDescriptor> = {};
+	for (const field of fields) {
+		const problem = numberRangeProblem(field, values[field.action_id]);
+		if (problem) fieldProblems[field.action_id] = problem;
+	}
+	return { fields: fieldProblems };
+}
+
 /**
  * Plugin block insertion/editing modal.
  * When the block has `fields`, renders Block Kit elements.
@@ -2646,104 +2702,126 @@ function PluginBlockModal({
 	onInsert: (values: Record<string, unknown>) => void;
 }) {
 	const [formValues, setFormValues] = React.useState<Record<string, unknown>>({});
+	const [touched, setTouched] = React.useState(false);
+	const [submitted, setSubmitted] = React.useState(false);
 	const inputRef = React.useRef<HTMLInputElement>(null);
+	const formId = React.useId();
 	const { t } = useLingui();
 
 	React.useEffect(() => {
 		if (block) {
 			setFormValues(buildPluginBlockFormValues(block, initialValues));
+			setTouched(false);
+			setSubmitted(false);
 			if (!block.fields || block.fields.length === 0) {
 				setTimeout(() => inputRef.current?.focus(), 0);
 			}
 		}
 	}, [block, initialValues]);
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const problems = pluginBlockProblems(block, formValues);
+	const urlError = submitted && problems.url ? t(problems.url) : undefined;
+	const formError = submitted && problems.form ? t(problems.form) : null;
+	const fieldErrors = submitted ? problems.fields : {};
+
+	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		e.stopPropagation();
+		const form = e.currentTarget;
+		if (problems.url || problems.form || Object.keys(problems.fields).length > 0) {
+			revealErrors(form, () => setSubmitted(true));
+			return;
+		}
+		// The form is noValidate, so the browser's own checks on fields inside repeater items run here.
+		if (!form.reportValidity()) return;
 		if (block?.fields && block.fields.length > 0) {
 			onInsert(formValues);
 		} else {
 			const url = typeof formValues.id === "string" ? formValues.id.trim() : "";
-			if (url) {
-				onInsert({ id: url });
-			}
+			onInsert({ id: url });
 		}
 	};
 
 	const handleFieldChange = (actionId: string, value: unknown) => {
+		setTouched(true);
 		setFormValues((prev) => ({ ...prev, [actionId]: value }));
 	};
 
 	const isEditing = !!initialValues;
 	const hasFields = block?.fields && block.fields.length > 0;
 
-	// For simple URL mode, check if the URL is non-empty
-	// For Block Kit fields, require at least one field to have a value
-	const canSubmit = hasFields
-		? hasPluginBlockFormData(formValues)
-		: typeof formValues.id === "string" && formValues.id.trim().length > 0;
-
 	const dialogSize = hasFields ? "xl" : "sm";
 
 	return (
-		<Dialog.Root open={!!block} onOpenChange={(open: boolean) => !open && onClose()}>
-			<Dialog className="p-6" size={dialogSize}>
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{isEditing ? t`Edit ${block?.label || ""}` : t`Insert ${block?.label || ""}`}
-					</Dialog.Title>
-					<Dialog.Close
-						aria-label={t`Close`}
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								aria-label={t`Close`}
-								className="absolute end-4 top-4"
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">{t`Close`}</span>
-							</Button>
-						)}
-					/>
-				</div>
-				<form onSubmit={handleSubmit}>
-					<div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto -mx-1 px-1">
-						{hasFields ? (
-							block.fields!.map((field) => (
-								<BlockKitField
-									key={field.action_id}
-									field={field}
-									pluginId={block.pluginId}
-									value={formValues[field.action_id]}
-									onChange={handleFieldChange}
+		<LayerDialog.Root
+			open={!!block}
+			{...guardUnsavedInput(touched, (open: boolean) => !open && onClose())}
+		>
+			<LayerDialog.Content size={dialogSize}>
+				<LayerDialog.Title>
+					{isEditing ? t`Edit ${block?.label || ""}` : t`Insert ${block?.label || ""}`}
+				</LayerDialog.Title>
+				<LayerDialog.Description>
+					{hasFields ? t`Fill in what this block shows.` : t`Paste the address of what to embed.`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<form id={formId} noValidate onSubmit={handleSubmit}>
+						<div className="grid gap-5" data-field-invalid={formError ? true : undefined}>
+							{hasFields ? (
+								block.fields!.map((field) => {
+									const fieldError = fieldErrors[field.action_id];
+									const errorId = fieldError ? `${formId}-${field.action_id}-error` : undefined;
+									return (
+										<div key={field.action_id} data-field-invalid={fieldError ? true : undefined}>
+											<BlockKitField
+												field={field}
+												pluginId={block.pluginId}
+												value={formValues[field.action_id]}
+												onChange={handleFieldChange}
+												errorId={errorId}
+											/>
+											{fieldError && (
+												<Text
+													as="p"
+													id={errorId}
+													role="alert"
+													variant="error"
+													size="sm"
+													DANGEROUS_className="mt-2"
+												>
+													{t(fieldError)}
+												</Text>
+											)}
+										</div>
+									);
+								})
+							) : (
+								<Input
+									dir="ltr"
+									ref={inputRef}
+									type="text"
+									inputMode="url"
+									className="w-full"
+									label={t`URL`}
+									placeholder={block?.placeholder || t`Enter URL...`}
+									value={typeof formValues.id === "string" ? formValues.id : ""}
+									onChange={(e) => handleFieldChange("id", e.target.value)}
+									required
+									error={urlError}
+									aria-invalid={urlError ? true : undefined}
 								/>
-							))
-						) : (
-							<Input
-								dir="ltr"
-								ref={inputRef}
-								type="url"
-								className="w-full"
-								placeholder={block?.placeholder || "Enter URL..."}
-								value={typeof formValues.id === "string" ? formValues.id : ""}
-								onChange={(e) => handleFieldChange("id", e.target.value)}
-							/>
-						)}
-					</div>
-					<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-						<Button type="button" variant="ghost" onClick={onClose}>
-							Cancel
-						</Button>
-						<Button type="submit" disabled={!canSubmit}>
-							{isEditing ? "Save" : "Insert"}
-						</Button>
-					</div>
-				</form>
-			</Dialog>
-		</Dialog.Root>
+							)}
+						</div>
+						<DialogError message={formError} className="mt-4" />
+					</form>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action type="submit" form={formId}>
+						{isEditing ? t`Save` : t`Insert`}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
@@ -2756,11 +2834,14 @@ function BlockKitField({
 	pluginId,
 	value,
 	onChange,
+	errorId,
 }: {
 	field: Element;
 	pluginId?: string;
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
+	/** The element describing this field's error, when it has one. */
+	errorId?: string;
 }) {
 	const id = React.useId();
 	switch (field.type) {
@@ -2807,6 +2888,8 @@ function BlockKitField({
 					<Input
 						id={id}
 						aria-labelledby={`${id}-label`}
+						aria-invalid={errorId ? true : undefined}
+						aria-describedby={errorId}
 						type="number"
 						className="w-full"
 						min={min}
@@ -3229,6 +3312,7 @@ function DynamicSelect({
 			) : (
 				<Select
 					aria-labelledby={labelId}
+					className="w-full"
 					value={typeof value === "string" ? value : ""}
 					onValueChange={(v) => onChange(field.action_id, v ?? "")}
 					items={{
@@ -3467,6 +3551,8 @@ function mediaItemToImageAttrs(item: MediaItem) {
 	};
 }
 
+const EMPTY_PLUGIN_BLOCKS: PluginBlockDef[] = [];
+
 /**
  * Portable Text Editor Component
  */
@@ -3477,7 +3563,7 @@ export function PortableTextEditor({
 	className,
 	editable = true,
 	"aria-labelledby": ariaLabelledby,
-	pluginBlocks = [],
+	pluginBlocks = EMPTY_PLUGIN_BLOCKS,
 	focusMode: controlledFocusMode,
 	onEditorReady,
 	minimal = false,
@@ -3491,20 +3577,18 @@ export function PortableTextEditor({
 	onArrowUpAtStartRef.current = onArrowUpAtStart;
 	const isDocument = variant === "document";
 	const documentPlaceholder = placeholder ?? t`Start writing, or type '/' for commands`;
-	const placeholderRef = React.useRef(
-		(_props: { node: ProseMirrorNode; pos: number; editor: Editor; hasAnchor: boolean }) =>
-			documentPlaceholder,
+	const placeholderRef = React.useRef<Parameters<typeof createTextBlockPlaceholder>[0]>(
+		() => documentPlaceholder,
 	);
 	// An empty heading always names its level; other blocks hint only where the caret is.
-	placeholderRef.current = ({ node, pos, editor: placeholderEditor, hasAnchor }) => {
+	placeholderRef.current = ({ node, parent, hasAnchor }) => {
 		if (node.type.name === "heading") {
 			const headingType = textBlockTypes.find((type) => type.id === `heading${node.attrs.level}`);
 			return headingType ? t(headingType.label) : documentPlaceholder;
 		}
 		if (node.type.name !== "paragraph" || !hasAnchor) return "";
-		const parent = placeholderEditor.state.doc.resolve(pos).parent.type.name;
-		if (parent === "listItem") return t`List`;
-		if (parent === "blockquote") return t`Quote`;
+		if (parent?.type.name === "listItem") return t`List`;
+		if (parent?.type.name === "blockquote") return t`Quote`;
 		return documentPlaceholder;
 	};
 	const toolbarRef = React.useRef<HTMLDivElement>(null);
@@ -3949,11 +4033,7 @@ export function PortableTextEditor({
 			createTableClipboard(rejectTablePaste, (rows, columns) =>
 				extensionAnnouncementRef.current(rows, columns),
 			),
-			Placeholder.configure({
-				includeChildren: true,
-				showOnlyCurrent: false,
-				placeholder: (props) => placeholderRef.current(props),
-			}),
+			createTextBlockPlaceholder((props) => placeholderRef.current(props)),
 			TextAlign.configure({
 				types: ["heading", "paragraph"],
 			}),
@@ -4809,8 +4889,7 @@ const FORMATTING_MARKS = [
 	"superscript",
 ] as const;
 
-function playBubbleEntrance(element: HTMLElement | null) {
-	const surface = element?.firstElementChild;
+function playBubbleEntrance(surface: HTMLElement | null) {
 	if (!(surface instanceof HTMLElement) || typeof surface.animate !== "function") return;
 	const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 	surface.animate(
@@ -4845,6 +4924,7 @@ function EditorBubbleMenu({
 	const toggleMenu = (menu: "turnInto" | "more", open: boolean) =>
 		setOpenMenu((current) => (open ? menu : current === menu ? null : current));
 	const menuRef = React.useRef<HTMLDivElement>(null);
+	const surfaceRef = React.useRef<HTMLDivElement>(null);
 	const { t } = useLingui();
 	const state = useEditorState({
 		editor,
@@ -4933,7 +5013,7 @@ function EditorBubbleMenu({
 				}) => {
 					elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
 					// The surface scrolls itself, so no wrapper clips its rounded ring.
-					const surface = elements.floating.firstElementChild;
+					const surface = surfaceRef.current;
 					if (surface instanceof HTMLElement) {
 						surface.style.maxWidth = "100%";
 						surface.style.overflowX = "auto";
@@ -4941,7 +5021,7 @@ function EditorBubbleMenu({
 				},
 			}),
 			onShow: () => {
-				playBubbleEntrance(menuRef.current);
+				playBubbleEntrance(surfaceRef.current);
 				// Edit link opens the field while this menu is still hidden, too early to focus it.
 				if (showLinkInputRef.current) menuRef.current?.querySelector("input")?.focus();
 			},
@@ -4988,82 +5068,86 @@ function EditorBubbleMenu({
 						(view.hasFocus() || hasMenuFocus)
 					);
 				}}
-				data-emdash-inline-bubble-menu
-				role="toolbar"
-				aria-label={t`Format selection`}
-				className={bubbleMenuClassName}
-				onKeyDown={(event) => moveToolbarFocus(event, false)}
 			>
-				<TooltipProvider delay={400}>
-					{showLinkInput ? (
-						<div className="flex min-w-0 items-start gap-1">
-							<LinkDestinationInput
-								className="w-72 min-w-0 shrink"
-								value={linkUrl}
-								onValueChange={(value) => {
-									setLinkUrl(value);
-									setLinkInvalid(false);
-								}}
-								invalid={linkInvalid}
-								onSubmit={handleSetLink}
-								onPick={applyLinkHref}
-								onEscape={() => {
-									closeLinkInput();
-									editor.commands.focus();
-								}}
-							/>
-							<BubbleButton onClick={handleSetLink} title={t`Apply link`}>
-								<Check className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-							{state.link && (
-								<BubbleButton onClick={handleRemoveLink} title={t`Remove link`}>
-									<LinkBreak className="h-4 w-4" aria-hidden="true" />
+				<div
+					ref={surfaceRef}
+					data-emdash-inline-bubble-menu
+					role="toolbar"
+					aria-label={t`Format selection`}
+					className={bubbleMenuClassName}
+					onKeyDown={(event) => moveToolbarFocus(event, false)}
+				>
+					<TooltipProvider delay={400}>
+						{showLinkInput ? (
+							<div className="flex min-w-0 items-start gap-1">
+								<LinkDestinationInput
+									className="w-72 min-w-0 shrink"
+									value={linkUrl}
+									onValueChange={(value) => {
+										setLinkUrl(value);
+										setLinkInvalid(false);
+									}}
+									invalid={linkInvalid}
+									onSubmit={handleSetLink}
+									onPick={applyLinkHref}
+									onEscape={() => {
+										closeLinkInput();
+										editor.commands.focus();
+									}}
+								/>
+								<BubbleButton onClick={handleSetLink} title={t`Apply link`}>
+									<Check className="h-4 w-4" aria-hidden="true" />
 								</BubbleButton>
-							)}
-						</div>
-					) : (
-						// Scrolls with the fixed toolbar's edge fade when a narrow screen cuts it off.
-						<div className="emdash-editor-toolbar -m-1 flex min-w-0 scroll-px-1 items-center gap-0.5 overflow-x-auto rounded-[inherit] p-1">
-							{state.canTurnInto && (
-								<>
-									<TurnIntoMenu
-										editor={editor}
-										activeId={state.blockType}
-										open={openMenu === "turnInto"}
-										onOpenChange={(open) => toggleMenu("turnInto", open)}
-									/>
-									<BubbleSeparator />
-								</>
-							)}
-							<BubbleButton
-								onClick={() => setShowLinkInput(true)}
-								active={state.link}
-								title={state.link ? t`Edit link` : t`Add link`}
-							>
-								<LinkIcon className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-							<BubbleSeparator />
-							{INLINE_MARKS.map(({ mark, label, icon: MarkIcon }) => (
+								{state.link && (
+									<BubbleButton onClick={handleRemoveLink} title={t`Remove link`}>
+										<LinkBreak className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								)}
+							</div>
+						) : (
+							// Scrolls with the fixed toolbar's edge fade when a narrow screen cuts it off.
+							<div className="emdash-editor-toolbar -m-1 flex min-w-0 scroll-px-1 items-center gap-0.5 overflow-x-auto rounded-[inherit] p-1">
+								{state.canTurnInto && (
+									<>
+										<TurnIntoMenu
+											editor={editor}
+											activeId={state.blockType}
+											open={openMenu === "turnInto"}
+											onOpenChange={(open) => toggleMenu("turnInto", open)}
+										/>
+										<BubbleSeparator />
+									</>
+								)}
 								<BubbleButton
-									key={mark}
-									onClick={() => editor.chain().focus().toggleMark(mark).run()}
-									active={state[mark]}
-									title={t(label)}
+									onClick={() => setShowLinkInput(true)}
+									active={state.link}
+									title={state.link ? t`Edit link` : t`Add link`}
 								>
-									<MarkIcon className="h-4 w-4" aria-hidden="true" />
+									<LinkIcon className="h-4 w-4" aria-hidden="true" />
 								</BubbleButton>
-							))}
-							<BubbleSeparator />
-							<MoreFormattingMenu
-								editor={editor}
-								subscript={state.subscript}
-								superscript={state.superscript}
-								open={openMenu === "more"}
-								onOpenChange={(open) => toggleMenu("more", open)}
-							/>
-						</div>
-					)}
-				</TooltipProvider>
+								<BubbleSeparator />
+								{INLINE_MARKS.map(({ mark, label, icon: MarkIcon }) => (
+									<BubbleButton
+										key={mark}
+										onClick={() => editor.chain().focus().toggleMark(mark).run()}
+										active={state[mark]}
+										title={t(label)}
+									>
+										<MarkIcon className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								))}
+								<BubbleSeparator />
+								<MoreFormattingMenu
+									editor={editor}
+									subscript={state.subscript}
+									superscript={state.superscript}
+									open={openMenu === "more"}
+									onOpenChange={(open) => toggleMenu("more", open)}
+								/>
+							</div>
+						)}
+					</TooltipProvider>
+				</div>
 			</BubbleMenu>
 		</>
 	);
@@ -5120,47 +5204,50 @@ function LinkBubbleMenu({
 				(activeEditor.isActive("link") || !oldState || oldState.doc.eq(editorState.doc)) &&
 				(view.hasFocus() || element.contains(document.activeElement))
 			}
-			data-emdash-link-bubble-menu
-			role="toolbar"
-			aria-label={t`Link options`}
-			className={cn(bubbleMenuClassName, "max-w-[min(28rem,calc(100vw-1rem))]")}
-			onKeyDown={(event) => moveToolbarFocus(event, false)}
 		>
-			<TooltipProvider delay={400}>
-				<Globe className="ms-1.5 size-4 flex-none text-kumo-subtle" aria-hidden="true" />
-				{openable ? (
-					<a
-						href={href}
-						target="_blank"
-						rel="noopener noreferrer"
-						dir="auto"
-						className="min-w-0 truncate px-1.5 text-base text-kumo-link hover:underline"
+			<div
+				data-emdash-link-bubble-menu
+				role="toolbar"
+				aria-label={t`Link options`}
+				className={cn(bubbleMenuClassName, "max-w-[min(28rem,calc(100vw-1rem))]")}
+				onKeyDown={(event) => moveToolbarFocus(event, false)}
+			>
+				<TooltipProvider delay={400}>
+					<Globe className="ms-1.5 size-4 flex-none text-kumo-subtle" aria-hidden="true" />
+					{openable ? (
+						<a
+							href={href}
+							target="_blank"
+							rel="noopener noreferrer"
+							dir="auto"
+							className="min-w-0 truncate px-1.5 text-base text-kumo-link hover:underline"
+						>
+							{href.replace(LINK_DISPLAY_PREFIX_REGEX, "")}
+						</a>
+					) : (
+						<span dir="auto" className="min-w-0 truncate px-1.5 text-base text-kumo-subtle">
+							{href}
+						</span>
+					)}
+					<BubbleSeparator />
+					<BubbleButton onClick={onEdit} title={t`Edit link`}>
+						<PencilSimple className="h-4 w-4" aria-hidden="true" />
+					</BubbleButton>
+					<BubbleButton
+						onClick={() =>
+							editor
+								.chain()
+								.focus()
+								.extendMarkRange("link", linkAtCaret(editor.state)?.attrs)
+								.unsetLink()
+								.run()
+						}
+						title={t`Remove link`}
 					>
-						{href.replace(LINK_DISPLAY_PREFIX_REGEX, "")}
-					</a>
-				) : (
-					<span dir="auto" className="min-w-0 truncate px-1.5 text-base text-kumo-subtle">
-						{href}
-					</span>
-				)}
-				<BubbleSeparator />
-				<BubbleButton onClick={onEdit} title={t`Edit link`}>
-					<PencilSimple className="h-4 w-4" aria-hidden="true" />
-				</BubbleButton>
-				<BubbleButton
-					onClick={() =>
-						editor
-							.chain()
-							.focus()
-							.extendMarkRange("link", linkAtCaret(editor.state)?.attrs)
-							.unsetLink()
-							.run()
-					}
-					title={t`Remove link`}
-				>
-					<LinkBreak className="h-4 w-4" aria-hidden="true" />
-				</BubbleButton>
-			</TooltipProvider>
+						<LinkBreak className="h-4 w-4" aria-hidden="true" />
+					</BubbleButton>
+				</TooltipProvider>
+			</div>
 		</BubbleMenu>
 	);
 }
@@ -5387,32 +5474,35 @@ function TableBubbleMenu({
 						state.selection instanceof CellSelection)
 				);
 			}}
-			data-emdash-table-bubble-menu
-			role="toolbar"
-			aria-label={t`Table controls`}
-			className={bubbleMenuClassName}
-			onKeyDown={(event) => moveToolbarFocus(event, false)}
 		>
-			{controls && (controls.rows > 1 || controls.columns > 1) && (
-				<span className="px-2 text-xs text-kumo-subtle">
-					{t`${plural(controls.rows, { one: "# row", other: "# rows" })} × ${plural(controls.columns, { one: "# column", other: "# columns" })} selected`}
-				</span>
-			)}
-			<BubbleButton
-				onClick={() => run("add-row-after", t`Row added below`)}
-				disabled={!controls?.can["add-row-after"]}
-				title={t`Add row below`}
+			<div
+				data-emdash-table-bubble-menu
+				role="toolbar"
+				aria-label={t`Table controls`}
+				className={bubbleMenuClassName}
+				onKeyDown={(event) => moveToolbarFocus(event, false)}
 			>
-				<RowsPlusBottom className="h-4 w-4" aria-hidden="true" />
-			</BubbleButton>
-			<BubbleButton
-				onClick={() => run("add-column-after", t`Column added after`)}
-				disabled={!controls?.can["add-column-after"]}
-				title={t`Add column after`}
-			>
-				<ColumnsPlusRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
-			</BubbleButton>
-			<TableMoreMenu editor={editor} editable={editable} onRun={onRun} />
+				{controls && (controls.rows > 1 || controls.columns > 1) && (
+					<span className="px-2 text-xs text-kumo-subtle">
+						{t`${plural(controls.rows, { one: "# row", other: "# rows" })} × ${plural(controls.columns, { one: "# column", other: "# columns" })} selected`}
+					</span>
+				)}
+				<BubbleButton
+					onClick={() => run("add-row-after", t`Row added below`)}
+					disabled={!controls?.can["add-row-after"]}
+					title={t`Add row below`}
+				>
+					<RowsPlusBottom className="h-4 w-4" aria-hidden="true" />
+				</BubbleButton>
+				<BubbleButton
+					onClick={() => run("add-column-after", t`Column added after`)}
+					disabled={!controls?.can["add-column-after"]}
+					title={t`Add column after`}
+				>
+					<ColumnsPlusRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+				</BubbleButton>
+				<TableMoreMenu editor={editor} editable={editable} onRun={onRun} />
+			</div>
 		</BubbleMenu>
 	);
 }
@@ -5448,6 +5538,7 @@ function ImageBubbleMenu({
 }) {
 	const { t } = useLingui();
 	const menuRef = React.useRef<HTMLDivElement>(null);
+	const surfaceRef = React.useRef<HTMLDivElement>(null);
 	const altInputRef = React.useRef<HTMLInputElement>(null);
 	const [mode, setMode] = React.useState<"controls" | "alt" | "link">("controls");
 	const [draft, setDraft] = React.useState("");
@@ -5508,7 +5599,7 @@ function ImageBubbleMenu({
 	// A quick fade and scale in, played when the toolbar appears or moves to another image.
 	const playEntrance = React.useCallback(() => {
 		const menu = menuRef.current;
-		const toolbar = menu?.firstElementChild;
+		const toolbar = surfaceRef.current;
 		if (!menu?.isConnected || menu.hidden || !(toolbar instanceof HTMLElement)) return;
 		const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 		for (const animation of toolbar.getAnimations()) animation.cancel();
@@ -5623,7 +5714,7 @@ function ImageBubbleMenu({
 		if (editingPosRef.current === null) return;
 		// Hold focus in the toolbar while the focused button unmounts, or the focus gate hides it.
 		if (menuRef.current?.contains(document.activeElement)) {
-			menuRef.current.focus({ preventScroll: true });
+			surfaceRef.current?.focus({ preventScroll: true });
 		}
 		editSessionRef.current += 1;
 		setDraft(next === "alt" ? image.alt : image.link);
@@ -5711,156 +5802,161 @@ function ImageBubbleMenu({
 							Boolean(view.nodeDOM(selection.from)?.contains(document.activeElement)))
 					);
 				}}
-				data-emdash-image-bubble-menu
-				role="toolbar"
-				aria-label={t`Image controls`}
-				className={cn(
-					bubbleMenuClassName,
-					"origin-[var(--transform-origin)]",
-					mode === "controls" && "flex-wrap justify-center",
-				)}
-				onMouseDown={(event) => {
-					if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
-				}}
-				// Capture, so an open hint can't stop Escape before the toolbar sees it.
-				onKeyDownCapture={(event) => {
-					if (event.key !== "Escape" || event.nativeEvent.isComposing) return;
-					event.stopPropagation();
-					returnToEditor();
-				}}
-				onKeyDown={(event) => {
-					if (event.nativeEvent.isComposing) return;
-					if (
-						event.key === "Tab" &&
-						event.shiftKey &&
-						event.target === menuRef.current?.querySelector("button, input")
-					) {
-						event.preventDefault();
-						(getSelectedCaption() ?? editor.view).focus();
-						return;
-					}
-					moveToolbarFocus(event, false);
-				}}
 			>
-				<TooltipProvider key={controlsKey} delay={200}>
-					{mode === "alt" ? (
-						<>
-							<Input
-								ref={altInputRef}
-								aria-label={t`Alt text`}
-								placeholder={t`Describe the image`}
-								value={draft}
-								onChange={(event) => setDraft(event.target.value)}
-								onKeyDown={(event) => {
-									if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-									if (event.keyCode === 229) return;
-									event.preventDefault();
-									saveAlt();
-								}}
-								className="h-8 w-72 min-w-0 text-sm"
-							/>
-							<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
-								<X className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-							<BubbleButton onClick={saveAlt} title={t`Save alt text`}>
-								<Check className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-						</>
-					) : mode === "link" ? (
-						<div className="flex min-w-0 items-start gap-0.5">
-							<LinkDestinationInput
-								className="w-72 min-w-0"
-								value={draft}
-								onValueChange={(value) => {
-									setDraft(value);
-									setLinkInvalid(false);
-								}}
-								invalid={linkInvalid}
-								onSubmit={() => applyLink(draft)}
-								onPick={(href) => applyLink(href, editSession)}
-								onEscape={returnToEditor}
-							/>
-							{image.link && (
-								<BubbleButton onClick={() => applyLink(null)} title={t`Remove link`}>
-									<LinkBreak className="h-4 w-4" aria-hidden="true" />
-								</BubbleButton>
-							)}
-							<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
-								<X className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-							<BubbleButton onClick={() => applyLink(draft)} title={t`Apply link`}>
-								<Check className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-						</div>
-					) : (
-						<>
-							<Button
-								variant="ghost"
-								className={textButtonClass}
-								icon={<ImageSquare className="h-4 w-4" aria-hidden="true" />}
-								onClick={() => {
-									pickerRef.current = "open";
-									setPickerOpen(true);
-								}}
-							>
-								<span className="max-sm:sr-only">{t`Replace`}</span>
-							</Button>
-							<Button
-								variant="ghost"
-								className={cn(textButtonClass, described && "bg-kumo-tint text-kumo-link")}
-								icon={<TextAa className="h-4 w-4" aria-hidden="true" />}
-								title={described ? image.alt : t`No description yet`}
-								aria-pressed={described}
-								onClick={() => startEditing("alt")}
-							>
-								<span className="max-sm:sr-only">{t`Alt text`}</span>
-							</Button>
-							{separator}
-							<div role="group" aria-label={t`Alignment`} className="flex items-center gap-0.5">
-								{IMAGE_ALIGNMENTS.map(({ value, label, Icon }) => (
-									<BubbleButton
-										key={value ?? "none"}
-										active={image.alignment === value}
-										title={t(label)}
-										onClick={() => {
-											if (image.alignment === value) return;
-											editor.chain().updateAttributes("image", { alignment: value }).run();
-										}}
-									>
-										<Icon className="h-4 w-4" aria-hidden="true" />
-									</BubbleButton>
-								))}
-							</div>
-							{rowBreak}
-							<BubbleButton
-								onClick={() => startEditing("link")}
-								active={Boolean(image.link)}
-								title={image.link ? t`Edit link` : t`Add link`}
-							>
-								<LinkIcon className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-							<BubbleButton
-								onClick={() => getSelectedCaption()?.focus()}
-								active={Boolean(image.caption)}
-								title={image.caption ? t`Edit caption` : t`Add caption`}
-							>
-								<Subtitles className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-							{canOpenSettings && (
-								<BubbleButton onClick={toggleSettings} title={t`Image settings`}>
-									<SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-								</BubbleButton>
-							)}
-							{separator}
-							<BubbleButton
-								onClick={() => editor.chain().focus().deleteSelection().run()}
-								title={t`Delete image`}
-							>
-								<Trash className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-						</>
+				<div
+					ref={surfaceRef}
+					tabIndex={-1}
+					data-emdash-image-bubble-menu
+					role="toolbar"
+					aria-label={t`Image controls`}
+					className={cn(
+						bubbleMenuClassName,
+						"origin-[var(--transform-origin)]",
+						mode === "controls" && "flex-wrap justify-center",
 					)}
-				</TooltipProvider>
+					onMouseDown={(event) => {
+						if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
+					}}
+					// Capture, so an open hint can't stop Escape before the toolbar sees it.
+					onKeyDownCapture={(event) => {
+						if (event.key !== "Escape" || event.nativeEvent.isComposing) return;
+						event.stopPropagation();
+						returnToEditor();
+					}}
+					onKeyDown={(event) => {
+						if (event.nativeEvent.isComposing) return;
+						if (
+							event.key === "Tab" &&
+							event.shiftKey &&
+							event.target === menuRef.current?.querySelector("button, input")
+						) {
+							event.preventDefault();
+							(getSelectedCaption() ?? editor.view).focus();
+							return;
+						}
+						moveToolbarFocus(event, false);
+					}}
+				>
+					<TooltipProvider key={controlsKey} delay={200}>
+						{mode === "alt" ? (
+							<>
+								<Input
+									ref={altInputRef}
+									aria-label={t`Alt text`}
+									placeholder={t`Describe the image`}
+									value={draft}
+									onChange={(event) => setDraft(event.target.value)}
+									onKeyDown={(event) => {
+										if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+										if (event.keyCode === 229) return;
+										event.preventDefault();
+										saveAlt();
+									}}
+									className="h-8 w-72 min-w-0 text-sm"
+								/>
+								<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
+									<X className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+								<BubbleButton onClick={saveAlt} title={t`Save alt text`}>
+									<Check className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+							</>
+						) : mode === "link" ? (
+							<div className="flex min-w-0 items-start gap-0.5">
+								<LinkDestinationInput
+									className="w-72 min-w-0"
+									value={draft}
+									onValueChange={(value) => {
+										setDraft(value);
+										setLinkInvalid(false);
+									}}
+									invalid={linkInvalid}
+									onSubmit={() => applyLink(draft)}
+									onPick={(href) => applyLink(href, editSession)}
+									onEscape={returnToEditor}
+								/>
+								{image.link && (
+									<BubbleButton onClick={() => applyLink(null)} title={t`Remove link`}>
+										<LinkBreak className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								)}
+								<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
+									<X className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+								<BubbleButton onClick={() => applyLink(draft)} title={t`Apply link`}>
+									<Check className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+							</div>
+						) : (
+							<>
+								<Button
+									variant="ghost"
+									className={textButtonClass}
+									icon={<ImageSquare className="h-4 w-4" aria-hidden="true" />}
+									onClick={() => {
+										pickerRef.current = "open";
+										setPickerOpen(true);
+									}}
+								>
+									<span className="max-sm:sr-only">{t`Replace`}</span>
+								</Button>
+								<Button
+									variant="ghost"
+									className={cn(textButtonClass, described && "bg-kumo-tint text-kumo-link")}
+									icon={<TextAa className="h-4 w-4" aria-hidden="true" />}
+									title={described ? image.alt : t`No description yet`}
+									aria-pressed={described}
+									onClick={() => startEditing("alt")}
+								>
+									<span className="max-sm:sr-only">{t`Alt text`}</span>
+								</Button>
+								{separator}
+								<div role="group" aria-label={t`Alignment`} className="flex items-center gap-0.5">
+									{IMAGE_ALIGNMENTS.map(({ value, label, Icon }) => (
+										<BubbleButton
+											key={value ?? "none"}
+											active={image.alignment === value}
+											title={t(label)}
+											onClick={() => {
+												if (image.alignment === value) return;
+												editor.chain().updateAttributes("image", { alignment: value }).run();
+											}}
+										>
+											<Icon className="h-4 w-4" aria-hidden="true" />
+										</BubbleButton>
+									))}
+								</div>
+								{rowBreak}
+								<BubbleButton
+									onClick={() => startEditing("link")}
+									active={Boolean(image.link)}
+									title={image.link ? t`Edit link` : t`Add link`}
+								>
+									<LinkIcon className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+								<BubbleButton
+									onClick={() => getSelectedCaption()?.focus()}
+									active={Boolean(image.caption)}
+									title={image.caption ? t`Edit caption` : t`Add caption`}
+								>
+									<Subtitles className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+								{canOpenSettings && (
+									<BubbleButton onClick={toggleSettings} title={t`Image settings`}>
+										<SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								)}
+								{separator}
+								<BubbleButton
+									onClick={() => editor.chain().focus().deleteSelection().run()}
+									title={t`Delete image`}
+								>
+									<Trash className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+							</>
+						)}
+					</TooltipProvider>
+				</div>
 			</BubbleMenu>
 			<MediaPickerModal
 				open={pickerOpen}

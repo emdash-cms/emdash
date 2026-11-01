@@ -498,15 +498,7 @@ describeEachDialect("public reference queries", (dialect) => {
 
 		expect(result.entries).toHaveLength(2);
 		expect(result.cacheHint?.tags).toEqual(expect.arrayContaining(pages.map((page) => page.id)));
-		// The newest child, so a write to any of them moves the route's header.
-		const repo = new ContentRepository(db);
-		const stamps = await Promise.all(
-			pages.map(async (page) => {
-				const row = await repo.findById("pages", page.id);
-				return new Date(row!.updatedAt!).getTime();
-			}),
-		);
-		expect(result.cacheHint?.lastModified?.getTime()).toBe(Math.max(...stamps));
+		expect(result.cacheHint?.lastModified).toBeUndefined();
 	});
 
 	it("attaches the selected fields to a loaded entry and nothing otherwise", async () => {

@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
 import { parseAllowedMimeTypes } from "../../media/mime.js";
+import { BlockTypeRegistry } from "../../schema/block-type-registry.js";
 
 /**
  * MIME types allowed for upload by default (when no field-specific list
@@ -35,13 +36,67 @@ export const GLOBAL_UPLOAD_ALLOWLIST: readonly string[] = [
  * type "file" or "image", and has a non-empty list configured. Returns null
  * in all other cases — callers should fall back to GLOBAL_UPLOAD_ALLOWLIST.
  *
+ * Composite IDs (`outerFieldId:blockKey:slug`) also require the block type
+ * slug and retained version number. Only types configured on the outer blocks
+ * field can supply an allowlist.
+ *
  * Authentication is the caller's responsibility (the upload routes already
  * gate on `media:upload`).
  */
 export async function resolveFieldAllowlist(
 	db: Kysely<Database>,
 	fieldId: string,
+	blockType?: string,
+	blockVersion?: number,
 ): Promise<string[] | null> {
+	if (fieldId.includes(":")) {
+		const parts = fieldId.split(":");
+		const outerId = parts.shift();
+		const slug = parts.pop();
+		const blockKey = parts.join(":");
+		if (
+			!outerId ||
+			!blockKey ||
+			!slug ||
+			!blockType ||
+			!Number.isSafeInteger(blockVersion) ||
+			!blockVersion ||
+			blockVersion < 1
+		)
+			return null;
+
+		const outer = await db
+			.selectFrom("_emdash_fields")
+			.select("validation")
+			.where("id", "=", outerId)
+			.where("type", "=", "blocks")
+			.executeTakeFirst();
+		if (!outer?.validation) return null;
+		let validation: unknown;
+		try {
+			validation = JSON.parse(outer.validation);
+		} catch {
+			return null;
+		}
+		if (!validation || typeof validation !== "object" || Array.isArray(validation)) return null;
+		const allowed =
+			"allowedTypes" in validation && Array.isArray(validation.allowedTypes)
+				? validation.allowedTypes
+				: [];
+		const retired =
+			"retiredTypes" in validation && Array.isArray(validation.retiredTypes)
+				? validation.retiredTypes
+				: [];
+		if (!allowed.includes(blockType) && !retired.includes(blockType)) return null;
+
+		const type = await new BlockTypeRegistry(db).getBlockType(blockType);
+		const version = type?.versions.find((candidate) => candidate.version === blockVersion);
+		if (!version || version.unsupportedTypes?.length) return null;
+		const field = version.fields.find((candidate) => candidate.slug === slug);
+		if (!field || (field.type !== "file" && field.type !== "image")) return null;
+		return parseAllowedMimeTypes(JSON.stringify(field.validation));
+	}
+
 	const row = await db
 		.selectFrom("_emdash_fields")
 		.select(["type", "validation"])

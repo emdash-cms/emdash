@@ -2,13 +2,13 @@ import type { CollectionSchemaInfo } from "emdash";
 import { describe, expect, it } from "vitest";
 
 import { failureOf, Indexer } from "../src/indexer.js";
-import { FakeItems } from "./fake-ai-search.js";
+import { FakeAiSearch } from "./fake-ai-search.js";
 import { byline, config, entry, fakeEmDash, taxonomy, term } from "./fakes.js";
 
 function setup(records: Parameters<typeof fakeEmDash>[0], overrides = {}, warmingUp = false) {
-	const items = new FakeItems();
+	const items = new FakeAiSearch();
 	const indexer = new Indexer(
-		{ ...fakeEmDash(records), items, warmingUp: async () => warmingUp },
+		{ ...fakeEmDash(records), provider: items, warmingUp: async () => warmingUp },
 		config(overrides),
 	);
 	return { items, indexer };
@@ -65,8 +65,8 @@ describe("Indexer", () => {
 	it("removes an entry unpublished while its upload was in flight", async () => {
 		const post = entry();
 		const { items, indexer } = setup({ entries: [post] });
-		const upload = items.upload.bind(items);
-		items.upload = async (...args) => {
+		const upload = items.uploadItem.bind(items);
+		items.uploadItem = async (...args) => {
 			const item = await upload(...args);
 			post.status = "draft";
 			return item;
@@ -80,9 +80,9 @@ describe("Indexer", () => {
 	it("removes an entry unpublished while its newer version was uploaded", async () => {
 		const post = entry();
 		const { items, indexer } = setup({ entries: [post] });
-		const upload = items.upload.bind(items);
+		const upload = items.uploadItem.bind(items);
 		let uploads = 0;
-		items.upload = async (...args) => {
+		items.uploadItem = async (...args) => {
 			const item = await upload(...args);
 			if (++uploads === 1) post.data = { ...post.data, title: "Hello again" };
 			else post.status = "draft";
@@ -98,9 +98,9 @@ describe("Indexer", () => {
 	it("leaves an entry that keeps changing while it syncs to a retry", async () => {
 		const post = entry();
 		const { items, indexer } = setup({ entries: [post] });
-		const upload = items.upload.bind(items);
+		const upload = items.uploadItem.bind(items);
 		let uploads = 0;
-		items.upload = async (...args) => {
+		items.uploadItem = async (...args) => {
 			const item = await upload(...args);
 			post.data = { ...post.data, title: `Edit ${++uploads}` };
 			return item;
@@ -115,9 +115,9 @@ describe("Indexer", () => {
 	it("uploads the newer version of an entry edited while a build uploaded it", async () => {
 		const post = entry();
 		const { items, indexer } = setup({ entries: [post] });
-		const upload = items.upload.bind(items);
+		const upload = items.uploadItem.bind(items);
 		let edited = false;
-		items.upload = async (...args) => {
+		items.uploadItem = async (...args) => {
 			const item = await upload(...args);
 			if (!edited) {
 				edited = true;
@@ -191,10 +191,10 @@ describe("Indexer", () => {
 	});
 
 	it("removes a collection's items once it is disabled", async () => {
-		const items = new FakeItems();
+		const items = new FakeAiSearch();
 		const deps = {
 			...fakeEmDash({ entries: [entry(), entry({ id: "entry-2", slug: "b" })] }),
-			items,
+			provider: items,
 		};
 		await buildSource(new Indexer(deps, config()), "posts");
 
@@ -359,8 +359,8 @@ describe("Indexer", () => {
 	});
 
 	it("removes the items of a collection that no longer exists", async () => {
-		const items = new FakeItems();
-		const deps = { ...fakeEmDash({ entries: [entry()] }), items };
+		const items = new FakeAiSearch();
+		const deps = { ...fakeEmDash({ entries: [entry()] }), provider: items };
 		await buildSource(new Indexer(deps, config()), "posts");
 
 		const withoutPosts = { ...deps, schema: { getCollection: async () => null } };
@@ -386,15 +386,15 @@ describe("Indexer", () => {
 		const { items, indexer } = setup({ entries: [post] });
 		await buildSource(indexer, "posts");
 		post.status = "draft";
-		const remove = items.delete.bind(items);
-		items.delete = async () => {
+		const remove = items.deleteItem.bind(items);
+		items.deleteItem = async () => {
 			throw new Error("AiSearchError: internal_error");
 		};
 		await indexer.snapshotPage("posts", 1);
 		await indexer.syncPage("posts", undefined);
 
 		const failed = await indexer.sweepPage("posts");
-		items.delete = remove;
+		items.deleteItem = remove;
 		const resumed = await indexer.sweepPage("posts");
 
 		expect(failed.failures).toMatchObject([{ id: post.id }]);

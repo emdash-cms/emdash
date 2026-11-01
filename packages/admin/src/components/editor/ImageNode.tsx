@@ -18,7 +18,7 @@ import { useStableCallback } from "../../lib/hooks";
 import { canonicalMediaProviderId, getMediaPreviewUrl } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
 import type { ImageAttributes, ImagePanelAttributes } from "./ImageDetailPanel";
-import { useCaptionField } from "./useCaptionField.js";
+import { useCaptionField, useCaptionText } from "./useCaptionField.js";
 
 // Extend the Commands interface to include setImage
 declare module "@tiptap/react" {
@@ -116,6 +116,9 @@ function ImageNodeView({
 	const caption = typeof node.attrs.caption === "string" ? node.attrs.caption : "";
 	const captionRef = React.useRef<HTMLTextAreaElement>(null);
 	const captionField = useCaptionField(caption);
+	const captionText = useCaptionText(caption, (value) => {
+		if (editor.isEditable) updateAttributes({ caption: value });
+	});
 	// ProseMirror would take text dragged over or dropped on the caption into the document.
 	React.useEffect(() => {
 		const textarea = captionRef.current;
@@ -310,10 +313,8 @@ function ImageNodeView({
 							rows={1}
 							tabIndex={-1}
 							dir="auto"
-							value={caption}
-							onChange={(event) => {
-								if (editor.isEditable) updateAttributes({ caption: event.target.value });
-							}}
+							value={captionText.value}
+							onChange={captionText.onChange}
 							onFocus={() => {
 								captionField.onFocus();
 								selectImage();

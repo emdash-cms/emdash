@@ -19,6 +19,7 @@ import { encode } from "../../src/object-cache/codec.js";
 import {
 	__setObjectCacheBackendForTests,
 	cachedQuery,
+	contentNamespaces,
 	invalidateCollectionCache,
 	type ObjectCacheBackend,
 } from "../../src/object-cache/index.js";
@@ -183,6 +184,35 @@ describe("object cache: content read-through", () => {
 		expect(result.entry!.data).not.toHaveProperty("draftRevisionId");
 	});
 
+	it("does not reuse a legacy collection snapshot with an automatic validator", async () => {
+		const [stale] = mockEntries();
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: [{ ...stale!, data: { ...stale!.data, title: "Current title" } }],
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		await cachedQuery({
+			namespace: contentNamespaces("post"),
+			key: "collection:collection:post:|loc=",
+			load: async () => ({
+				ok: true,
+				value: {
+					entries: [{ ...stale!, data: { ...stale!.data, title: "Legacy title" } }],
+					cacheHint: { lastModified: new Date("2020-01-01T00:00:00.000Z") },
+				},
+			}),
+		});
+
+		await flush();
+		const result = await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+
+		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+		expect(result.entries[0]!.data.title).toBe("Current title");
+		expect(result.cacheHint.lastModified).toBeUndefined();
+	});
+
 	it("sanitizes anonymous collection snapshots written by earlier releases", async () => {
 		const [entry] = mockEntries();
 		__setObjectCacheBackendForTests(
@@ -200,6 +230,38 @@ describe("object cache: content read-through", () => {
 		expect(getLiveCollection).not.toHaveBeenCalled();
 		expect(result.entries[0]!.data).not.toHaveProperty("liveRevisionId");
 		expect(result.entries[0]!.data).not.toHaveProperty("draftRevisionId");
+	});
+
+	it("does not reuse a legacy entry snapshot with an automatic validator", async () => {
+		const [entry] = mockEntries();
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			entry: { ...entry!, data: { ...entry!.data, title: "Current title" } },
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		await cachedQuery({
+			namespace: contentNamespaces("post"),
+			key: "entry:hello|loc=",
+			load: async () => ({
+				ok: true,
+				value: {
+					entry: { ...entry!, data: { ...entry!.data, title: "Legacy title" } },
+					isPreview: false,
+					cacheHint: { lastModified: new Date("2020-01-01T00:00:00.000Z") },
+				},
+			}),
+		});
+
+		await flush();
+		const result = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "hello"),
+		);
+
+		expect(getLiveEntry).toHaveBeenCalledTimes(1);
+		expect(result.entry!.data.title).toBe("Current title");
+		expect(result.cacheHint.lastModified).toBeUndefined();
 	});
 
 	it("sanitizes anonymous entry snapshots written by earlier releases", async () => {

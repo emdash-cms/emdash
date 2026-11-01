@@ -68,8 +68,8 @@ async function ensureBuilt(): Promise<void> {
 
 /**
  * Ensure all e2e fixture dependencies are built.
- * Some CI jobs build only `emdash...`, which leaves out the fixture's built
- * dependencies such as @emdash-cms/plugin-marketplace-test.
+ * Building only `emdash...` leaves out the fixture's built dependencies such
+ * as @emdash-cms/plugin-marketplace-test.
  * Source-only packages such as @emdash-cms/plugin-color have no dist to check.
  */
 async function ensureFixtureDepsBuilt(): Promise<void> {

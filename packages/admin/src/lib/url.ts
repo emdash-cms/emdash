@@ -96,6 +96,22 @@ export function contentUrl(
 	return shouldPrefix ? `/${locale}/${path.replace(LEADING_SLASHES, "")}` : path;
 }
 
+const SAFE_HREF_SCHEME_RE = /^(https?:|mailto:|tel:)/i;
+const SITE_RELATIVE_HREF_RE = /^(\/(?![/\\])|#)/;
+const HREF_BASE = new URL("https://emdash.invalid/");
+
+/** Mirrors the API's rule for menu links, so a form refuses exactly what the server refuses. */
+export function isSafeHref(url: string): boolean {
+	if (CONTROL_CHARACTERS.test(url)) return false;
+	if (SAFE_HREF_SCHEME_RE.test(url)) return URL.canParse(url);
+	if (!SITE_RELATIVE_HREF_RE.test(url)) return false;
+	try {
+		return new URL(url, HREF_BASE).origin === HREF_BASE.origin;
+	} catch {
+		return false;
+	}
+}
+
 /** Matches http:// or https:// URLs */
 export const SAFE_URL_RE = /^https?:\/\//i;
 

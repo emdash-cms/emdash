@@ -3,6 +3,7 @@ import type { PluginContext } from "emdash";
 import { isSavedConfig } from "./config.js";
 import type { Indexer, SyncResult } from "./indexer.js";
 import { updateKv } from "./kv.js";
+import type { AiSearchProvider } from "./ports/ai-search.js";
 import { clearSynced, queueRetries } from "./retry.js";
 
 /** Key of the build state in `ctx.kv`, and name of the cron task that advances it. */
@@ -16,6 +17,16 @@ const LEASE_MS = 60_000;
 
 /** How long to stop uploading after AI Search rate-limits the build. */
 const RATE_LIMIT_PAUSE_MS = 10_000;
+
+/** How long to stop after a rate limit when Cloudflare also rejects the token, until someone replaces it. */
+const REJECTED_TOKEN_PAUSE_MS = 5 * 60_000;
+
+/**
+ * Cloudflare API requests a build may make per window through the REST API:
+ * half of each token's 1,200 per 5 minutes, leaving the rest to search and the admin.
+ */
+const REST_REQUESTS_PER_WINDOW = 600;
+const REST_WINDOW_MS = 5 * 60_000;
 
 /**
  * A resumable pass over every record in a set of sources. Each source reads
@@ -39,6 +50,8 @@ export interface BuildState {
 	lease?: { id: string; until: number };
 	/** No runner starts before this time. Set when AI Search rate-limits uploads. */
 	pausedUntil?: number;
+	/** Cloudflare API requests made since `since`, counted for a build through the REST API. */
+	requests?: { since: number; count: number };
 }
 
 export type BuildStep =
@@ -107,13 +120,16 @@ const scheduleBuild = (ctx: BuildContext) => ctx.cron?.schedule(BUILD, { schedul
  * Advances the build page by page until `budgetMs` has passed. Returns the
  * remaining build, or null once it has finished. Does nothing while another
  * runner holds the lease or the build is paused, and stops once the settings
- * the indexer was made with are no longer the saved ones.
+ * the indexer was made with are no longer the saved ones. Through the REST
+ * API, pauses once the build has made its share of the token's requests.
  */
 export async function runBuild(
 	ctx: BuildContext,
 	indexer: BuildIndexer,
 	budgetMs: number,
+	provider?: Pick<AiSearchProvider, "kind" | "tokenRejected" | "requests" | "limitRequests">,
 ): Promise<BuildState | null> {
+	const paced = provider?.kind === "rest";
 	const deadline = Date.now() + budgetMs;
 	const id = crypto.randomUUID();
 	const claimed = await updateBuild(ctx, (build) => {
@@ -128,9 +144,18 @@ export async function runBuild(
 
 	const holds = (build: BuildState | null): build is BuildState => build?.lease?.id === id;
 	let build = claimed;
+	let accountedRequests = provider?.requests ?? 0;
 	try {
 		while (build.sources[0] && Date.now() < deadline) {
 			if (!(await isSavedConfig(ctx, indexer.config))) break;
+			const window = requestWindow(build.requests);
+			if (paced && window.count >= REST_REQUESTS_PER_WINDOW) {
+				await updateBuild(ctx, (current) =>
+					holds(current) ? { ...current, pausedUntil: window.since + REST_WINDOW_MS } : undefined,
+				);
+				break;
+			}
+			if (paced) provider.limitRequests?.(REST_REQUESTS_PER_WINDOW - window.count);
 			const source = build.sources[0];
 			const pageStartedAt = Date.now();
 			const { page, next } = await advance(indexer, source, build.step);
@@ -150,21 +175,35 @@ export async function runBuild(
 					page.failures.map((failure) => failure.id),
 				);
 			}
+			const exhausted = () =>
+				paced &&
+				window.count + (provider.requests ?? 0) - accountedRequests >= REST_REQUESTS_PER_WINDOW;
+			const pause =
+				page.backOff && !exhausted() && (await provider?.tokenRejected?.())
+					? REJECTED_TOKEN_PAUSE_MS
+					: RATE_LIMIT_PAUSE_MS;
+			const pausedUntil = exhausted() ? window.since + REST_WINDOW_MS : Date.now() + pause;
+			const spent = (provider?.requests ?? 0) - accountedRequests;
 			const advanced = await updateBuild(ctx, (current) => {
 				if (!holds(current)) return undefined;
-				if (page.backOff) return { ...current, pausedUntil: Date.now() + RATE_LIMIT_PAUSE_MS };
+				const { since, count } = requestWindow(current.requests);
+				const requests = paced ? { since, count: count + spent } : undefined;
+				if (page.backOff) return { ...current, requests, pausedUntil };
 				return {
 					...current,
+					requests,
 					...(next ? { step: next } : { sources: current.sources.slice(1), step: FIRST_STEP }),
 					processed: current.processed + page.synced.length,
 					uploaded: current.uploaded + page.uploaded,
 					failed: current.failed + page.failures.length,
 				};
 			});
+			accountedRequests = provider?.requests ?? 0;
 			if (!advanced || page.backOff) break;
 			build = advanced;
 		}
 	} finally {
+		if (paced) provider.limitRequests?.(Infinity);
 		let finished: BuildState | undefined;
 		const released = await updateBuild(ctx, (current) => {
 			if (!holds(current)) return undefined;
@@ -173,7 +212,9 @@ export async function runBuild(
 				return null;
 			}
 			const { lease: _lease, ...rest } = current;
-			return rest;
+			const spent = (provider?.requests ?? 0) - accountedRequests;
+			const { since, count } = requestWindow(current.requests);
+			return paced && spent > 0 ? { ...rest, requests: { since, count: count + spent } } : rest;
 		});
 		if (released === null) {
 			await ctx.kv.set(LAST_BUILD, {
@@ -186,6 +227,12 @@ export async function runBuild(
 		}
 	}
 	return getBuild(ctx);
+}
+
+/** The current window of REST requests, starting a new one once the last has passed. */
+function requestWindow(requests: BuildState["requests"]): { since: number; count: number } {
+	const now = Date.now();
+	return requests && now - requests.since < REST_WINDOW_MS ? requests : { since: now, count: 0 };
 }
 
 const NOTHING_SYNCED: SyncResult = { synced: [], uploaded: 0, failures: [], backOff: false };

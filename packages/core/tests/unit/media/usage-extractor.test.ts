@@ -507,13 +507,58 @@ describe("extractMediaUsageOccurrences", () => {
 				pt: [
 					{
 						_type: "image",
-						asset: { _ref: "/_emdash/api/media/file/uploads/photo.jpg" },
+						asset: { _ref: "https://example.com/photo.jpg" },
 					},
 				],
 			},
 		});
 
 		expect(occurrences).toEqual([]);
+	});
+
+	it("keeps the storage key of rich text media named by a local file URL", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [field("body", "portableText")],
+			data: {
+				body: [
+					{ _type: "image", asset: { url: "/_emdash/api/media/file/01ABC.png" } },
+					{
+						_type: "image",
+						asset: {
+							_ref: "/_emdash/api/media/file/uploads/my%20photo.jpg?v=2",
+							url: "/_emdash/api/media/file/uploads/my%20photo.jpg?v=2",
+						},
+					},
+					{
+						_type: "image",
+						asset: { url: "/_emdash/api/media/file/01ABC.png", provider: "cloudflare-images" },
+					},
+					{
+						_type: "image",
+						asset: { url: "https://example.com/_emdash/api/media/file/01ABC.png" },
+					},
+				],
+			},
+		});
+
+		expect(occurrences).toEqual([
+			{
+				fieldSlug: "body",
+				fieldPath: "body[0].asset.url",
+				occurrenceIndex: 0,
+				referenceType: "portable_text_image",
+				mediaId: null,
+				provider: "local",
+				providerAssetId: "01ABC.png",
+				mediaKind: "image",
+				mimeType: null,
+				storageKey: "01ABC.png",
+			},
+			expect.objectContaining({
+				fieldPath: "body[1].asset._ref",
+				storageKey: "uploads/my photo.jpg",
+			}),
+		]);
 	});
 
 	it("dedupes exact duplicate occurrence identities without collapsing repeated media uses", () => {

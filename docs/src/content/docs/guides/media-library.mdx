@@ -37,14 +37,18 @@ or deletion.
 5. Select **Done** when the queue has no unfinished uploads.
 </Steps>
 
-Uploads begin as soon as files are added. New local files enter the Main library, even when another
-folder was open before the upload.
+Uploads begin as soon as files are added. New local files go into the folder you are browsing, or
+into the Main library if no folder is open. Empty folders also offer **Upload Files**. Each upload
+into a folder creates a new media item, even if the same file already exists in that folder or
+elsewhere, so existing files are not moved. Failed uploads keep their original destination when you
+retry them.
 
 ### Upload while editing content
 
 Image, file, gallery, and Portable Text image fields use a media picker. Open the field, select
 **Upload files**, and choose or drop files. A completed upload becomes part of the current selection;
-failed uploads stay visible so you can retry or remove them.
+failed uploads stay visible so you can retry or remove them. Local uploads go into the folder you
+are browsing, just as they do in the Media Library.
 
 For a gallery, review **Selected media** and use the move controls to set the order before selecting
 **Add images**. For a single image or file, select **Select** or **Insert image** after the upload
@@ -232,7 +236,9 @@ settings that select the file: **Logo**, **Favicon**, or **Default Social Image*
 - image and file fields
 - image fields inside repeaters
 - image, file, and Portable Text fields inside `blocks` fields
-- image, gallery, and video blocks in Portable Text fields
+- image, gallery, and video blocks in Portable Text fields, including blocks that refer to the file by
+  its `/_emdash/api/media/file/` URL instead of its media ID, as Markdown images written through MCP
+  or the CLI do
 - the site logo, favicon, and default social image
 
 When usage coverage is complete and the file has none of these references, the list shows **No

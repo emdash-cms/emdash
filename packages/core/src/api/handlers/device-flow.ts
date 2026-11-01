@@ -15,6 +15,7 @@ import { generateCodeVerifier } from "arctic";
 import type { Kysely, Selectable } from "kysely";
 
 import {
+	ACCESS_TOKEN_TTL_SECONDS,
 	generatePrefixedToken,
 	hashApiToken,
 	isValidScope,
@@ -41,9 +42,6 @@ const SLOW_DOWN_INCREMENT = 5;
 
 /** Maximum slow_down interval cap (seconds) */
 const MAX_SLOW_DOWN_INTERVAL = 60;
-
-/** Access token TTL: 1 hour */
-const ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
 
 /** Refresh token TTL: 90 days */
 const REFRESH_TOKEN_TTL_SECONDS = 90 * 24 * 60 * 60;

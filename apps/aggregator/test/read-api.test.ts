@@ -686,6 +686,44 @@ describe("searchPackages", () => {
 		expect(overlap).toEqual([]);
 	});
 
+	it("matches a partly typed last word as a prefix", async () => {
+		await seedPackage({ slug: "bulletin", name: "Bulletin", description: "Email newsletters" });
+		await seedPackage({ slug: "gallery", name: "Gallery", description: "Image gallery" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=${encodeURIComponent("email newslet")}`,
+		);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+
+		expect(body.packages.map((p) => p.slug)).toEqual(["bulletin"]);
+	});
+
+	it.each(["newslet", "newslet*", "newslet**"])(
+		"matches a single partly typed word as a prefix: %s",
+		async (query) => {
+			await seedPackage({ slug: "bulletin", name: "Bulletin", description: "Email newsletters" });
+
+			const res = await SELF.fetch(
+				`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=${encodeURIComponent(query)}`,
+			);
+
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as { packages: Array<{ slug: string }> };
+			expect(body.packages.map((p) => p.slug)).toEqual(["bulletin"]);
+		},
+	);
+
+	it("returns no matches for a query with no word characters", async () => {
+		await seedPackage({ slug: "demo", name: "Demo" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=${encodeURIComponent('( * "')}`,
+		);
+
+		expect(res.status).toBe(200);
+		await expect(res.json()).resolves.toEqual({ packages: [] });
+	});
+
 	it("doesn't blow up on FTS-unsafe query chars (defensive quoting)", async () => {
 		await seedPackage({ slug: "demo", name: "Demo" });
 		const res = await SELF.fetch(
@@ -699,10 +737,10 @@ describe("searchPackages", () => {
 		await seedPackage({ slug: "alpha", name: "Alpha" });
 		await seedPackage({ slug: "beta", name: "Beta" });
 		// `alpha OR beta` would match both packages if `OR` were interpreted
-		// as the FTS5 operator. With proper escaping the whole string is one
-		// literal phrase that can't possibly appear in either record's
-		// indexed text → zero matches. A buggy escape that stripped the
-		// quotes would return *both* packages.
+		// as the FTS5 operator. With proper escaping every term is a literal
+		// that must appear, and neither record contains all three → zero
+		// matches. A buggy escape that stripped the quotes would return
+		// *both* packages.
 		const res = await SELF.fetch(
 			`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=${encodeURIComponent("alpha OR beta")}`,
 		);

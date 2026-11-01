@@ -33,7 +33,7 @@ export interface FormSettings {
 	notifyEmails: string[];
 	/** Enable daily digest instead of per-submission notifications */
 	digestEnabled: boolean;
-	/** Hour (0-23) to send digest, in site timezone */
+	/** Hour (0-23) to send digest, in UTC */
 	digestHour: number;
 	/** Autoresponder email sent to the submitter */
 	autoresponder?: {
