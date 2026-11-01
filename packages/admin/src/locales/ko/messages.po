@@ -11044,6 +11044,11 @@ msgstr "지금 게시하시겠습니까?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "콘텐츠 게시, 게시 취소, 예약 및 예약 취소"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11055,11 +11060,6 @@ msgstr "콘텐츠 게시, 게시 취소, 예약 및 예약 취소"
 #: packages/admin/src/router.tsx:1490
 msgid "Published"
 msgstr "게시됨"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr ""
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:348
