@@ -12,6 +12,7 @@ import {
 } from "@emdash-cms/registry-client/release-service";
 import { NSID } from "@emdash-cms/registry-lexicons";
 
+import { ReleaseMediaPreparationError, type PreparedReleaseImage } from "./media.js";
 import {
 	prepareReleaseFiles as defaultPrepareReleaseFiles,
 	ReleasePreparationError,
@@ -19,6 +20,13 @@ import {
 	type PrepareReleaseFilesOptions,
 } from "./prepare.js";
 import type { ActionRuntime } from "./runtime.js";
+
+type UploadedReleaseImage = Omit<PreparedReleaseImage, "bytes"> & { url: string };
+interface UploadedReleaseMedia {
+	icon?: UploadedReleaseImage;
+	banner?: UploadedReleaseImage;
+	screenshots?: UploadedReleaseImage[];
+}
 
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
 const MAX_RELEASE_FILE_BYTES = 128 * 1024;
@@ -103,12 +111,14 @@ function sourceReleaseFromPrepared(
 	prepared: PreparedReleaseFiles,
 	packageUrl: string,
 	provenanceUrl: string,
+	media: UploadedReleaseMedia,
 ): DelegatedReleaseSourceRecord {
 	const release = parseDelegatedReleaseSourceRecord({
 		$type: NSID.packageRelease,
 		package: prepared.packageSlug,
 		version: prepared.version,
 		artifacts: {
+			...media,
 			package: {
 				url: packageUrl,
 				checksum: prepared.packageChecksum,
@@ -265,10 +275,41 @@ export async function runAction(
 			},
 			{ idempotencyKey: `github-upload-${runId}-${packageSlug}-provenance` },
 		);
+		const media: UploadedReleaseMedia = {};
+		const uploadImage = async (
+			slot: "icon" | "banner" | `screenshots[${number}]`,
+			image: PreparedReleaseImage,
+		): Promise<UploadedReleaseImage> => {
+			const { bytes, ...descriptor } = image;
+			const uploaded = await client.uploadReleaseArtifact(
+				{
+					publisherDid,
+					packageSlug,
+					version,
+					slot,
+					checksum: image.checksum,
+					contentType: image.contentType,
+					bytes,
+				},
+				{
+					idempotencyKey: `github-upload-${runId}-${packageSlug}-${slot.replaceAll("[", "-").replaceAll("]", "")}`,
+				},
+			);
+			return { ...descriptor, url: uploaded.artifact.sourceUrl };
+		};
+		if (prepared.media?.icon) media.icon = await uploadImage("icon", prepared.media.icon);
+		if (prepared.media?.banner) media.banner = await uploadImage("banner", prepared.media.banner);
+		if (prepared.media?.screenshots) {
+			media.screenshots = [];
+			for (const [index, image] of prepared.media.screenshots.entries()) {
+				media.screenshots.push(await uploadImage(`screenshots[${index}]`, image));
+			}
+		}
 		release = sourceReleaseFromPrepared(
 			prepared,
 			packageUpload.artifact.sourceUrl,
 			provenanceUpload.artifact.sourceUrl,
+			media,
 		);
 	}
 	if (!release) throw new ActionConfigurationError("Release input is unavailable");
@@ -328,7 +369,8 @@ export async function executeAction(
 		if (
 			error instanceof ReleaseServiceError ||
 			error instanceof ActionConfigurationError ||
-			error instanceof ReleasePreparationError
+			error instanceof ReleasePreparationError ||
+			error instanceof ReleaseMediaPreparationError
 		) {
 			runtime.setFailed(
 				error instanceof ReleaseServiceError ? `${error.code}: ${error.message}` : error.message,

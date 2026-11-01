@@ -76,6 +76,7 @@ describe("setupReleaseWorkflow", () => {
 		expect(workflow).not.toContain("connection-invitation:");
 		expect(workflow).not.toContain("EMDASH_CONNECTION_INVITATION");
 		expect(workflow).toContain("bundle-file: ${{ steps.prepare.outputs.bundle-file }}");
+		expect(workflow).toContain("plugin-directory: ${{ steps.prepare.outputs.plugin-directory }}");
 		expect(workflow).toContain("provenance-file: ${{ steps.attest.outputs.bundle-path }}");
 		expect(workflow).not.toMatch(/git push|gh pr|gh repo/i);
 	});

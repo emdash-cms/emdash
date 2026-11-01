@@ -659,6 +659,12 @@ importers:
       '@emdash-cms/registry-verification':
         specifier: workspace:*
         version: link:../../packages/registry-verification
+      image-size:
+        specifier: 'catalog:'
+        version: 2.0.2(patch_hash=77c12533e3a635c4066c55da8952f4912e8210416539dc1249550fa639271595)
+      jsonc-parser:
+        specifier: 'catalog:'
+        version: 3.3.1
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
