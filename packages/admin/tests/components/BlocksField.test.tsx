@@ -6,6 +6,10 @@ import { describe, expect, it, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 
 import { BlocksField, type BlocksFieldProps } from "../../src/components/BlocksField.js";
+import {
+	PortableTextEditor,
+	type PortableTextEditorProps,
+} from "../../src/components/PortableTextEditor.js";
 import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
 import type { StoredBlockValue } from "../../src/lib/block-field-state.js";
 import { render } from "../utils/render.js";
@@ -252,6 +256,38 @@ describe("BlocksField", () => {
 			.toHaveAttribute("aria-expanded", "true");
 		await expect.element(added.getByLabelText("Title")).toHaveFocus();
 		expect(screen.getByLabelText("Title").all()).toHaveLength(1);
+	});
+
+	it("focuses the text of an added block whose first field is rich text", async () => {
+		const onValue = vi.fn();
+		const story = blockType("story", "Story", [
+			{ slug: "body", label: "Body", type: "portableText" },
+			{ slug: "credit", label: "Credit", type: "string" },
+		]);
+		const screen = await renderField({
+			initial: [],
+			onValue,
+			blockTypes: [story],
+			allowedTypes: ["story"],
+			renderField: ({ name, field, value, onChange }) =>
+				field.kind === "portableText" ? (
+					<PortableTextEditor
+						key={name}
+						value={Array.isArray(value) ? (value as PortableTextEditorProps["value"]) : []}
+						onChange={onChange}
+					/>
+				) : (
+					<input key={name} aria-label={field.label} />
+				),
+		});
+
+		await screen.getByRole("button", { name: "Add block", exact: true }).click();
+		await pick(screen, "Story");
+
+		const text = document.querySelector('[data-block-body] [contenteditable="true"]');
+		await expect.element(page.elementLocator(text!)).toHaveFocus();
+		await userEvent.keyboard("Hello");
+		expect(onValue.mock.lastCall?.[0][0].body).toMatchObject([{ children: [{ text: "Hello" }] }]);
 	});
 
 	it("adds above and below a block from its menu and the gutter", async () => {
