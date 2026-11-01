@@ -294,6 +294,38 @@ describe("Fields inside a block", () => {
 		await expect.poll(shownHint).toBeUndefined();
 	});
 
+	it("stacks a floating hint under the field's character count", async () => {
+		const quote = blockType("quote", "Quote", [
+			{
+				slug: "tagline",
+				label: "Tagline (shown above the quote)",
+				type: "string",
+				validation: { maxLength: 60 },
+			},
+		]);
+		await renderEditor(
+			[{ _type: "quote", _version: 1, _key: "quote-1", tagline: "Hello" }],
+			[quote],
+		);
+		await openBlock("Quote");
+
+		await control("Tagline").click();
+		const visible = (text: string) =>
+			page
+				.getByText(text, { exact: true })
+				.elements()
+				.find(
+					(element) =>
+						!element.classList.contains("sr-only") &&
+						element.checkVisibility({ opacityProperty: true, visibilityProperty: true }),
+				);
+		await expect.poll(() => visible("Shown above the quote")).toBeDefined();
+		await expect.poll(() => visible("5 of 60 characters")).toBeDefined();
+		const hint = visible("Shown above the quote")!.getBoundingClientRect();
+		const count = visible("5 of 60 characters")!.getBoundingClientRect();
+		expect(hint.top).toBeGreaterThanOrEqual(count.bottom);
+	});
+
 	it("keeps the Text and Link placeholders in a button row", async () => {
 		await renderEditor([{ ...heroBlock, eyebrow: "New: reports" }]);
 		await openBlock();

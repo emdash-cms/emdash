@@ -1426,7 +1426,7 @@ function FieldControl({
 					dir="auto"
 					className={cn(
 						FLOATING_NOTE,
-						"start-0 group-focus-within/control:visible group-focus-within/control:translate-y-0 group-focus-within/control:opacity-100",
+						"start-0 group-focus-within/control:visible group-focus-within/control:translate-y-0 group-focus-within/control:opacity-100 group-has-data-quiet-count/control:mt-8",
 					)}
 				>
 					{hint}
