@@ -887,8 +887,10 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					verification={activeVerification.verification}
 					isPending={installMutation.isPending}
 					error={
-						registryVerificationErrorMessage(installMutation.error) ??
-						getMutationError(installMutation.error)
+						installMutation.error instanceof PluginMcpConsentRequiredError
+							? null
+							: (registryVerificationErrorMessage(installMutation.error) ??
+								getMutationError(installMutation.error))
 					}
 					onConfirm={() => installMutation.mutate()}
 					onCancel={() => {

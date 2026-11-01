@@ -317,7 +317,9 @@ describe("ContentSettingsPanel", () => {
 		trigger.element().scrollIntoView();
 		await userEvent.keyboard("{Tab}");
 		trigger.element().focus();
-		await expect.element(screen.getByText("Shown to readers in this order.")).toBeVisible();
+		await expect
+			.element(screen.getByRole("tooltip", { name: "Shown to readers in this order." }))
+			.toBeVisible();
 	});
 
 	it("omits the redundant lifecycle badge and distinguishes live and draft versions", async () => {
@@ -437,12 +439,14 @@ describe("ContentSettingsPanel", () => {
 				{...makePanelProps({ item: null, isNew: true, i18n: undefined, manifest })}
 			/>,
 		);
-		expect(screen.getByText(/stored with the entry and is separate/).query()).toBeNull();
+		expect(
+			screen.getByRole("tooltip", { name: /stored with the entry and is separate/ }).query(),
+		).toBeNull();
 		const trigger = screen.getByRole("button", { name: "Why English is used" });
 		await expect.element(screen.getByText("EN", { exact: true })).toBeInTheDocument();
 		const explanation =
 			"English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.";
-		const help = screen.getByText(explanation);
+		const help = screen.getByRole("tooltip", { name: explanation });
 		trigger.element().scrollIntoView();
 		await userEvent.hover(trigger.element());
 		await expect.element(help).toBeVisible();
@@ -1005,7 +1009,9 @@ describe("ContentSettingsPanel", () => {
 		await setPublishingTime(screen, "08:45");
 		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
 
-		await expect.element(screen.getByRole("alert")).toHaveTextContent("Date update failed");
+		await expect
+			.element(screen.getByRole("alert").filter({ hasText: "Date update failed" }))
+			.toBeVisible();
 		await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("08");
 		await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("45");
 		expect(onPublishedAtChange).toHaveBeenCalledOnce();

@@ -13,6 +13,8 @@ const CollapsibleContext = React.createContext<{
 	open?: boolean;
 	onOpenChange?: (next: boolean) => void;
 }>({});
+// Lets the LayerDialog.Actions mock close its root the way Kumo's dismiss button does.
+const DialogContext = React.createContext<((open: boolean) => void) | undefined>(undefined);
 
 vi.mock("@cloudflare/kumo", () => ({
 	Button: ({ children, onClick, variant, type }: any) => (
@@ -107,9 +109,35 @@ vi.mock("@cloudflare/kumo", () => ({
 			/>
 		</div>
 	),
-	Dialog: ({ children }: any) => <div data-testid="dialog">{children}</div>,
-	DialogRoot: ({ children, open }: any) =>
-		open ? <div data-testid="dialog-root">{children}</div> : null,
+	LayerDialog: {
+		Root: ({ children, open, onOpenChange }: any) =>
+			open ? (
+				<DialogContext.Provider value={onOpenChange}>
+					<div data-testid="dialog-root">{children}</div>
+				</DialogContext.Provider>
+			) : null,
+		Content: ({ children }: any) => <div data-testid="dialog">{children}</div>,
+		Title: ({ children }: any) => <h2>{children}</h2>,
+		Description: ({ children }: any) => <p>{children}</p>,
+		Body: ({ children }: any) => <div>{children}</div>,
+		Actions: ({ children, dismissLabel }: any) => {
+			const onOpenChange = React.useContext(DialogContext);
+			return (
+				<div>
+					<button type="button" onClick={() => onOpenChange?.(false)}>
+						{dismissLabel}
+					</button>
+					{children}
+				</div>
+			);
+		},
+		Action: ({ children, onClick, variant }: any) => (
+			<button type="button" onClick={onClick} data-variant={variant}>
+				{children}
+			</button>
+		),
+	},
+	Text: ({ children }: any) => <p>{children}</p>,
 	Banner: ({ title, description, variant, icon }: any) => (
 		<div data-testid="banner" data-variant={variant}>
 			{icon}

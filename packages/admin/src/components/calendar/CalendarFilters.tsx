@@ -139,14 +139,13 @@ export function CalendarFilters({
 			/>
 			<DropdownMenu.Content
 				align="end"
-				// Kumo's menu animates on Radix's data-state, which Base UI never sets, so this uses its popover transition.
 				className="max-h-[min(32rem,var(--available-height))] w-[max(15rem,var(--anchor-width))] origin-(--transform-origin) overflow-y-auto transition-[transform,scale,opacity] duration-150 data-ending-style:scale-90 data-ending-style:opacity-0 data-instant:duration-0 data-starting-style:scale-90 data-starting-style:opacity-0 motion-reduce:transition-none"
 			>
 				{groups.map((group, index) => {
 					const selected: readonly string[] = value[group.key];
 					return (
 						<DropdownMenu.Group key={group.key} className={index > 0 ? "mt-1" : undefined}>
-							<DropdownMenu.Label className="pt-2 pb-1 text-xs text-kumo-subtle">
+							<DropdownMenu.Label className="px-2! pt-2 pb-1 text-xs text-kumo-subtle">
 								{group.label}
 							</DropdownMenu.Label>
 							{group.options.map((option) => (
@@ -155,7 +154,7 @@ export function CalendarFilters({
 									checked={selected.includes(option.value)}
 									closeOnClick={false}
 									// Kumo's own check mark is hidden in favor of the drawn checkbox.
-									className="group gap-2.5 px-2 [&>[data-checked]]:hidden"
+									className="group gap-2.5 px-2! [&>[data-checked]]:hidden"
 									onCheckedChange={(checked) => {
 										const next = checked
 											? [...selected, option.value]

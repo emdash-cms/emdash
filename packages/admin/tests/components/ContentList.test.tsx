@@ -2,7 +2,7 @@ import { i18n, setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { ContentList } from "../../src/components/ContentList";
 import type { ListPagination } from "../../src/components/ListPaginationFooter";
@@ -72,6 +72,15 @@ function makeTrashedItem(overrides: Partial<TrashedContentItem> = {}): TrashedCo
 		deletedAt: "2025-01-03T00:00:00Z",
 		...overrides,
 	};
+}
+
+/** The first row's cell in the column with this header. */
+function firstRowCell(column: string) {
+	const header = page
+		.getByRole("columnheader", { name: column, exact: true })
+		.element() as HTMLTableCellElement;
+	const row = header.closest("table")!.tBodies[0]!.rows[0]!;
+	return page.elementLocator(row.cells[header.cellIndex]!);
 }
 
 const defaultProps = {
@@ -302,7 +311,9 @@ describe("ContentList", () => {
 			await expect
 				.element(screen.getByRole("columnheader", { name: "Locale" }))
 				.toBeInTheDocument();
-			await expect.element(screen.getByRole("cell", { name: "fr" })).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("cell", { name: "fr", exact: true }))
+				.toBeInTheDocument();
 		});
 
 		it("omits the trash locale column on a single-locale site", async () => {
@@ -326,8 +337,8 @@ describe("ContentList", () => {
 			["archived", "Archived"],
 		] as const)("shows the normalized %s status with its icon", async (status, label) => {
 			const items = [makeItem({ id: "1", status })];
-			const screen = await render(<ContentList {...defaultProps} items={items} />);
-			const badge = screen.getByText(label).element();
+			await render(<ContentList {...defaultProps} items={items} />);
+			const badge = firstRowCell("Status").getByText(label).element();
 
 			expect(badge.querySelector("svg")).not.toBeNull();
 		});
@@ -340,8 +351,8 @@ describe("ContentList", () => {
 
 			try {
 				const items = [makeItem({ id: "1", status: "draft" })];
-				const screen = await render(<ContentList {...defaultProps} items={items} />);
-				const badge = screen.getByText("Draft").element();
+				await render(<ContentList {...defaultProps} items={items} />);
+				const badge = firstRowCell("Status").getByText("Draft").element();
 				const icon = badge.querySelector("svg");
 				const textNode = [...badge.childNodes].find(
 					(node) => node.nodeType === Node.TEXT_NODE && node.textContent?.includes("Draft"),
@@ -369,8 +380,8 @@ describe("ContentList", () => {
 					liveRevisionId: "rev_live",
 				}),
 			];
-			const screen = await render(<ContentList {...defaultProps} items={items} />);
-			const badge = screen.getByText("Pending changes").element();
+			await render(<ContentList {...defaultProps} items={items} />);
+			const badge = firstRowCell("Status").getByText("Pending changes").element();
 			expect(badge.querySelector("svg")).not.toBeNull();
 		});
 
@@ -402,9 +413,11 @@ describe("ContentList", () => {
 
 		it("renders unknown status names without treating object properties as lifecycle states", async () => {
 			const items = [makeItem({ id: "1", status: "toString" })];
-			const screen = await render(<ContentList {...defaultProps} items={items} />);
+			await render(<ContentList {...defaultProps} items={items} />);
 
-			await expect.element(screen.getByText("toString", { exact: true })).toBeInTheDocument();
+			await expect
+				.element(firstRowCell("Status").getByText("toString", { exact: true }))
+				.toBeInTheDocument();
 		});
 	});
 
@@ -642,6 +655,91 @@ describe("ContentList", () => {
 			await expect
 				.element(screen.getByRole("dialog", { name: "Delete Permanently?" }))
 				.not.toBeInTheDocument();
+		});
+	});
+
+	describe("confirmations wait for their request", () => {
+		function heldRequest() {
+			let finish = () => {};
+			const request = vi.fn(
+				() =>
+					new Promise<void>((resolve) => {
+						finish = resolve;
+					}),
+			);
+			return { request, finish: () => finish() };
+		}
+
+		it("keeps Move to Trash? open, showing progress, until the request lands", async () => {
+			const { request, finish } = heldRequest();
+			const items = [makeItem({ id: "item_1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onDelete={request} />,
+			);
+
+			await screen.getByRole("button", { name: "Actions for Post" }).click();
+			await screen.getByRole("menuitem", { name: "Move to trash" }).click();
+			const dialog = screen.getByRole("dialog", { name: "Move to Trash?" });
+			await expect.element(dialog).toBeVisible();
+			dialog.getByRole("button", { name: "Move to Trash" }).element().click();
+
+			await expect
+				.element(dialog.getByRole("button", { name: "Moving to trash..." }))
+				.toBeDisabled();
+			await expect.element(dialog.getByRole("button", { name: "Cancel" })).toBeDisabled();
+			finish();
+			await expect.element(dialog).not.toBeInTheDocument();
+			expect(request).toHaveBeenCalledOnce();
+		});
+
+		it("shows a request that throws at once in Move to Trash?, and lets it close", async () => {
+			const request = vi.fn(() => {
+				throw new Error("Trash is unavailable");
+			});
+			const items = [makeItem({ id: "item_1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onDelete={request} />,
+			);
+
+			await screen.getByRole("button", { name: "Actions for Post" }).click();
+			await screen.getByRole("menuitem", { name: "Move to trash" }).click();
+			const dialog = screen.getByRole("dialog", { name: "Move to Trash?" });
+			await expect.element(dialog).toBeVisible();
+			dialog.getByRole("button", { name: "Move to Trash" }).element().click();
+
+			await expect.element(dialog.getByText("Trash is unavailable")).toBeVisible();
+			const cancel = dialog.getByRole("button", { name: "Cancel" });
+			await expect.element(cancel).toBeEnabled();
+			cancel.element().click();
+			await expect.element(dialog).not.toBeInTheDocument();
+		});
+
+		it("keeps Delete Permanently? open, showing progress, until the request lands", async () => {
+			const { request, finish } = heldRequest();
+			const trashed = [makeTrashedItem({ id: "t1", data: { title: "Old Post" } })];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[]}
+					trashedItems={trashed}
+					onPermanentDelete={request}
+				/>,
+			);
+
+			await screen.getByText("Trash").click();
+			await screen.getByRole("button", { name: "Actions for Old Post" }).click();
+			await screen.getByRole("menuitem", { name: "Delete permanently" }).click();
+			const dialog = screen.getByRole("dialog", { name: "Delete Permanently?" });
+			await expect.element(dialog).toBeVisible();
+			dialog.getByRole("button", { name: "Delete Permanently" }).element().click();
+
+			await expect.element(dialog.getByRole("button", { name: "Deleting..." })).toBeDisabled();
+			await expect.element(dialog.getByRole("button", { name: "Cancel" })).toBeDisabled();
+			await userEvent.keyboard("{Escape}");
+			await expect.element(dialog).toBeVisible();
+			finish();
+			await expect.element(dialog).not.toBeInTheDocument();
+			expect(request).toHaveBeenCalledOnce();
 		});
 	});
 
@@ -1221,7 +1319,7 @@ describe("ContentList", () => {
 				/>,
 			);
 
-			await screen.getByRole("button", { name: "Title" }).click();
+			await screen.getByRole("button", { name: "Title", exact: true }).click();
 
 			expect(onSortChange).toHaveBeenCalledWith({ field: "title", direction: "asc" });
 		});
@@ -1237,8 +1335,8 @@ describe("ContentList", () => {
 				/>,
 			);
 
-			const titleHeader = screen.getByRole("columnheader", { name: "Title" });
-			const statusHeader = screen.getByRole("columnheader", { name: "Status" });
+			const titleHeader = screen.getByRole("columnheader", { name: "Title", exact: true });
+			const statusHeader = screen.getByRole("columnheader", { name: "Status", exact: true });
 			await expect.element(titleHeader).toHaveAttribute("aria-sort", "ascending");
 			// Inactive columns explicitly advertise "none" so the header still
 			// announces as sortable.
@@ -1622,7 +1720,7 @@ describe("ContentList", () => {
 
 			await screen.getByText("Trash").click();
 			await expect
-				.element(screen.getByRole("cell", { name: "Deleted", exact: true }))
+				.element(firstRowCell("Title").getByText("Deleted", { exact: true }))
 				.toBeVisible();
 			expect(screen.getByRole("columnheader", { name: "Review status" }).query()).toBeNull();
 			expect(screen.getByText("Plugin value").query()).toBeNull();

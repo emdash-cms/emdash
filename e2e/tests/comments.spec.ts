@@ -270,17 +270,18 @@ test.describe("Comments Moderation", () => {
 
 		expect(commentVisible).toBe(true);
 
-		// The admin user should see the "Delete permanently" button
+		// The admin user should see "Delete permanently" in the row's menu
 		const row = page.locator("tr", { hasText: "Delete Tester" });
-		const deleteBtn = row.locator('button[aria-label="Delete permanently"]');
+		await row.getByRole("button", { name: "Actions for comment by Delete Tester" }).click();
+		const menu = page.getByRole("menu");
+		await expect(menu).toBeVisible();
+		const deleteItem = menu.getByRole("menuitem", { name: "Delete permanently" });
 
-		const hasDeleteBtn = await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false);
+		const hasDeleteItem = await deleteItem.isVisible().catch(() => false);
 
-		if (!hasDeleteBtn) {
-			// Fallback: try the "Trash" button instead (non-admin role)
-			const trashBtn = row.locator('button[aria-label="Trash"]');
-			await expect(trashBtn).toBeVisible({ timeout: 3000 });
-			await trashBtn.click();
+		if (!hasDeleteItem) {
+			// Fallback: use "Trash" instead (non-admin role)
+			await menu.getByRole("menuitem", { name: "Trash" }).click();
 			await admin.waitForLoading();
 
 			// Comment should disappear from the current tab
@@ -289,7 +290,7 @@ test.describe("Comments Moderation", () => {
 		}
 
 		// Click "Delete permanently" -- this opens a ConfirmDialog
-		await deleteBtn.click();
+		await deleteItem.click();
 
 		// Confirm deletion in the dialog
 		const dialog = page.locator('[role="dialog"]');
