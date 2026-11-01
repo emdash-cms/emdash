@@ -397,7 +397,7 @@ test.describe("Search", () => {
 				.toBe(true);
 
 			// Three published seed posts have "Post" in their title.
-			await input.pressSequentially("Post");
+			await input.fill("Post");
 			await expect.poll(() => results.count(), { timeout: 10000 }).toBeGreaterThanOrEqual(3);
 			const count = await results.count();
 
@@ -415,6 +415,11 @@ test.describe("Search", () => {
 			await expect(search.locator(".emdash-live-search-results")).toBeHidden();
 			await expect(input).toBeFocused();
 			// No result stays highlighted, so Enter in the input doesn't open the hidden result.
+			await expect(search.locator(".emdash-live-search-result.focused")).toHaveCount(0);
+			// Arrow keys don't move into the closed results.
+			await input.press("ArrowDown");
+			await expect(search.locator(".emdash-live-search-results")).toBeHidden();
+			await expect(input).toBeFocused();
 			await expect(search.locator(".emdash-live-search-result.focused")).toHaveCount(0);
 			await input.press("Enter");
 			await expect(page).toHaveURL(LIVE_SEARCH_URL_PATTERN);

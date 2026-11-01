@@ -351,7 +351,8 @@ const config = {
 		}
 
 		private navigateResults(direction: number) {
-			if (!this.resultsList) return;
+			// Closed results can't be browsed; arrowing into them would focus a hidden link.
+			if (!this.resultsList || this.resultsContainer?.hidden || this.resultsList.hidden) return;
 
 			const results = [
 				...this.resultsList.querySelectorAll(".emdash-live-search-result"),
