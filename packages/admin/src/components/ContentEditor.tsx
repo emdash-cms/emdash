@@ -11,6 +11,7 @@ import {
 	Select,
 	Sidebar,
 	Switch,
+	useKumoToastManager,
 	useSidebar,
 } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
@@ -46,6 +47,12 @@ import {
 	getPreviewUrl,
 	getDraftStatus,
 } from "../lib/api";
+import { splitLabelHint } from "../lib/block-field-layout.js";
+import {
+	blockIssueElementId,
+	type BlockValueIssue,
+	validateBlocks,
+} from "../lib/block-validation.js";
 import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
@@ -63,7 +70,7 @@ import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
-import { BlocksField } from "./BlocksField.js";
+import { type BlockReveal, BlocksField, type FieldChrome } from "./BlocksField.js";
 import type { BylineFormValues } from "./BylineFormDialog.js";
 import { ContentPickerModal, type PickedContentEntry } from "./ContentPickerModal.js";
 import {
@@ -106,6 +113,68 @@ const EDITOR_SETTINGS_DEFAULT_WIDTH_PX = 368;
 const EDITOR_SETTINGS_MAX_WIDTH_PX = 480;
 const EDITOR_SETTINGS_KEYBOARD_STEP_PX = 10;
 const LIST_FIELD_KINDS = new Set(["repeater", "portableText", "multiSelect", "blocks"]);
+
+/** A problem in the blocks field named `name`. */
+interface FieldBlockIssue {
+	name: string;
+	issue: BlockValueIssue;
+}
+
+/** Names a problem by its block field rather than its list item, which moves as items are deleted. */
+function blockIssueKey({ name, issue }: FieldBlockIssue): string {
+	return `${name}:${issue.blockKey}:${issue.field}:${issue.code}`;
+}
+
+/** Says autosave is paused while `heldBy` holds it, once per problem, with a way to reach the field. */
+function AutosavePausedNotice({
+	heldBy,
+	onShow,
+}: {
+	heldBy: FieldBlockIssue | null;
+	onShow: () => void;
+}) {
+	const { t } = useLingui();
+	const { add, close } = useKumoToastManager();
+	const shownRef = React.useRef<{ key: string; toastId: string } | null>(null);
+	const key = heldBy ? blockIssueKey(heldBy) : null;
+
+	React.useEffect(() => {
+		const shown = shownRef.current;
+		if (shown?.key === key) return;
+		if (shown) close(shown.toastId);
+		shownRef.current = null;
+		if (!heldBy || !key) return;
+		const block = heldBy.issue.blockLabel;
+		const field = splitLabelHint(heldBy.issue.fieldLabel).label;
+		const toastId: string = add({
+			title: t`Autosave paused`,
+			description: t`Fix ${field} in the ${block} block to resume saving.`,
+			variant: "warning",
+			timeout: 0,
+			actions: [
+				{
+					children: t`Show`,
+					variant: "secondary",
+					size: "sm",
+					onClick: () => {
+						close(toastId);
+						onShow();
+					},
+				},
+			],
+		});
+		shownRef.current = { key, toastId };
+	}, [add, close, heldBy, key, onShow, t]);
+
+	React.useEffect(
+		() => () => {
+			if (shownRef.current) close(shownRef.current.toastId);
+		},
+		[close],
+	);
+
+	return null;
+}
 
 function serializeEditorState(input: {
 	data: Record<string, unknown>;
@@ -554,6 +623,10 @@ export function ContentEditor({
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
+	const [blockReveal, setBlockReveal] = React.useState<BlockReveal>({ token: 0 });
+	/** The block field problem that last held back an autosave, until every problem is fixed. */
+	const [autosaveHeldBy, setAutosaveHeldBy] = React.useState<FieldBlockIssue | null>(null);
+	const hasBlocksField = Object.values(fields).some((field) => field.kind === "blocks");
 	const unsupportedFields = Object.entries(fields).filter(([, field]) => field.unsupportedType);
 	const readOnly = readOnlyProp || unsupportedFields.length > 0;
 	const itemLabel = collectionLabel;
@@ -1260,6 +1333,35 @@ export function ContentEditor({
 		},
 		[fields],
 	);
+	const firstBlockIssue = React.useCallback(
+		(data: Record<string, unknown>): FieldBlockIssue | null => {
+			for (const [name, field] of Object.entries(fields)) {
+				if (field.kind !== "blocks") continue;
+				const [issue] = validateBlocks(data[name], field.blockTypes ?? []);
+				if (issue) return { name, issue };
+			}
+			return null;
+		},
+		[fields],
+	);
+	const revealBlockIssue = React.useCallback((found: FieldBlockIssue) => {
+		setBlockReveal((current) => ({
+			token: current.token + 1,
+			focusId: blockIssueElementId(found.name, found.issue),
+		}));
+	}, []);
+	const showFirstBlockIssue = React.useCallback(() => {
+		const found = firstBlockIssue(formDataRef.current);
+		if (found) revealBlockIssue(found);
+	}, [firstBlockIssue, revealBlockIssue]);
+	const holdAutosaveFor = React.useCallback((found: FieldBlockIssue) => {
+		setAutosaveHeldBy((current) =>
+			current && blockIssueKey(current) === blockIssueKey(found) ? current : found,
+		);
+	}, []);
+	React.useEffect(() => {
+		if (autosaveHeldBy && !firstBlockIssue(formData)) setAutosaveHeldBy(null);
+	}, [autosaveHeldBy, firstBlockIssue, formData]);
 	const createSavePayload = React.useCallback(() => {
 		const payload: {
 			data: Record<string, unknown>;
@@ -1345,6 +1447,11 @@ export function ContentEditor({
 			autosaveTimeoutRef.current = null;
 			runAutosaveRef.current = null;
 			if (hasInvalidUrls(formDataRef.current)) return;
+			const blockIssue = firstBlockIssue(formDataRef.current);
+			if (blockIssue) {
+				holdAutosaveFor(blockIssue);
+				return;
+			}
 			const payload = createSavePayload();
 			const { state, referenceRows, key, switches } = beginSave(payload);
 			pendingAutosaveStateRef.current = state;
@@ -1378,6 +1485,8 @@ export function ContentEditor({
 		createSavePayload,
 		beginSave,
 		hasInvalidUrls,
+		firstBlockIssue,
+		holdAutosaveFor,
 		referenceState,
 		hasUnsupportedPortableTextMarks,
 		isPublishing,
@@ -1397,6 +1506,11 @@ export function ContentEditor({
 			hasUnsupportedPortableTextMarks
 		)
 			return;
+		const blockIssue = firstBlockIssue(formData);
+		if (blockIssue) {
+			revealBlockIssue(blockIssue);
+			return;
+		}
 		cancelPendingAutosave();
 		const payload = createSavePayload();
 		const saved = beginSave(payload);
@@ -1424,6 +1538,11 @@ export function ContentEditor({
 			hasSaveConflictRef.current
 		)
 			return;
+		const blockIssue = firstBlockIssue(formDataRef.current);
+		if (blockIssue) {
+			revealBlockIssue(blockIssue);
+			return;
+		}
 		cancelPendingAutosave();
 		const payload = createSavePayload();
 		const saved = beginSave(payload);
@@ -1454,6 +1573,8 @@ export function ContentEditor({
 		beginSave,
 		markSaved,
 		hasInvalidUrls,
+		firstBlockIssue,
+		revealBlockIssue,
 		hasUnsupportedPortableTextMarks,
 		onPublish,
 	]);
@@ -1474,7 +1595,9 @@ export function ContentEditor({
 			if (isViewingRef.current) {
 				return Promise.reject(new Error(t`Go back to editing first.`));
 			}
-			if (hasInvalidUrls(formDataRef.current) || hasUnsupportedPortableTextMarks) {
+			const blockIssue = firstBlockIssue(formDataRef.current);
+			if (hasInvalidUrls(formDataRef.current) || blockIssue || hasUnsupportedPortableTextMarks) {
+				if (blockIssue) revealBlockIssue(blockIssue);
 				return Promise.reject(
 					new Error(invalidFieldsMessage ?? t`Fix invalid fields before changing the schedule`),
 				);
@@ -1523,6 +1646,8 @@ export function ContentEditor({
 			beginSave,
 			markSaved,
 			hasInvalidUrls,
+			firstBlockIssue,
+			revealBlockIssue,
 			hasUnsupportedPortableTextMarks,
 			t,
 		],
@@ -1849,6 +1974,12 @@ export function ContentEditor({
 				isDistractionFree && "fixed inset-0 z-50",
 			)}
 		>
+			{hasBlocksField && (
+				<AutosavePausedNotice
+					heldBy={readOnly || isViewing ? null : autosaveHeldBy}
+					onShow={showFirstBlockIssue}
+				/>
+			)}
 			{/* Wraps the whole layout so the bar's Settings button and the
 			    block-panel sync can reach the sidebar context. Below lg Kumo
 			    renders the panel as an inline (not portaled) sheet. */}
@@ -1965,6 +2096,7 @@ export function ContentEditor({
 												manifest={manifest}
 												readOnly={readOnly}
 												timezone={timezone}
+												blockReveal={field.kind === "blocks" ? blockReveal : undefined}
 												referenceState={referenceState}
 												onReferenceChange={handleReferenceCurrentChange}
 												onLoadMoreReferences={handleLoadMoreReferences}
@@ -2427,6 +2559,96 @@ interface FieldRendererProps {
 	isDocumentBody?: boolean;
 	/** ArrowUp from the body's first line, to move back to the title. */
 	onArrowUpAtStart?: () => void;
+	/** Draws a field that a blocks field lays out: no label of its own, and quiet until reached for. */
+	chrome?: FieldChrome;
+	/** For a blocks field: shows its problems and focuses one, as Save does. */
+	blockReveal?: BlockReveal;
+}
+
+// A `dir="auto"` value aligns to the start of its own text. Quiet values line up with their labels
+// instead, so a value whose direction differs from its container's aligns to its own end.
+// Kumo's placeholder color is unlayered, so only an important utility recolors it.
+const QUIET_CONTROL =
+	"w-full bg-transparent px-2 shadow-none ring-transparent [:dir(ltr)>&:dir(rtl)]:text-end [:dir(rtl)>&:dir(ltr)]:text-end enabled:hover:bg-kumo-tint focus:bg-kumo-control aria-invalid:ring-kumo-danger aria-invalid:placeholder:text-kumo-danger! aria-invalid:focus:ring-kumo-danger/50";
+const QUIET_INPUT = `${QUIET_CONTROL} h-8 text-ellipsis`;
+const QUIET_TEXTAREA = `${QUIET_CONTROL} min-h-8 resize-none overflow-hidden py-1.5`;
+// The editor's field column sets input text to text-base and font-normal, which only `!` outranks.
+const QUIET_HEADING = "h-10 text-lg! leading-7 font-semibold!";
+const QUIET_SELECT =
+	"h-8 w-full bg-transparent px-2 font-normal shadow-none ring-transparent data-[popup-open]:bg-kumo-control";
+
+function quietControlProps(chrome: FieldChrome, required: boolean | undefined) {
+	return {
+		"aria-labelledby": chrome.labelledBy,
+		"aria-describedby": chrome.describedBy,
+		"aria-invalid": chrome.invalid || undefined,
+		// Native `required` would let the browser stop the editor's form before its own messages show.
+		"aria-required": required || undefined,
+		placeholder: chrome.placeholder,
+	};
+}
+
+/** Kumo's Select keeps `aria-describedby` and `aria-invalid` off its trigger, so they are set on it here. */
+function DescribedSelect({ chrome, children }: { chrome: FieldChrome; children: React.ReactNode }) {
+	const ref = React.useRef<HTMLDivElement>(null);
+	const { describedBy, invalid } = chrome;
+	React.useLayoutEffect(() => {
+		const trigger = ref.current?.querySelector('[role="combobox"]');
+		if (!trigger) return;
+		if (describedBy) trigger.setAttribute("aria-describedby", describedBy);
+		else trigger.removeAttribute("aria-describedby");
+		if (invalid) trigger.setAttribute("aria-invalid", "true");
+		else trigger.removeAttribute("aria-invalid");
+	});
+	return (
+		<div ref={ref} className="contents">
+			{children}
+		</div>
+	);
+}
+
+/** Shows `meta`, such as a character count, under a quiet control while it has focus. */
+function QuietControl({ meta, children }: { meta?: React.ReactNode; children: React.ReactNode }) {
+	if (!meta) return children;
+	return (
+		<div className="group/quiet">
+			{children}
+			<div className="hidden px-2 pt-0.5 text-end text-xs leading-4 text-kumo-subtle group-focus-within/quiet:block">
+				{meta}
+			</div>
+		</div>
+	);
+}
+
+/** A text area that starts one line tall and grows with its content. */
+function GrowingTextArea({
+	value,
+	...props
+}: React.ComponentProps<typeof InputArea> & { value: string }) {
+	const ref = React.useRef<HTMLTextAreaElement>(null);
+	const fit = React.useCallback(() => {
+		const element = ref.current;
+		if (!element) return;
+		element.style.height = "auto";
+		element.style.height = `${element.scrollHeight}px`;
+	}, []);
+
+	React.useLayoutEffect(fit, [fit, value]);
+
+	React.useEffect(() => {
+		const element = ref.current;
+		if (!element || typeof ResizeObserver === "undefined") return;
+		let width = element.offsetWidth;
+		const observer = new ResizeObserver(() => {
+			if (element.offsetWidth === width) return;
+			width = element.offsetWidth;
+			fit();
+		});
+		observer.observe(element);
+		return () => observer.disconnect();
+	}, [fit]);
+
+	return <InputArea ref={ref} rows={1} value={value} {...props} />;
 }
 
 /**
@@ -2455,15 +2677,29 @@ function FieldRenderer({
 	onDocumentTitleExit,
 	isDocumentBody = false,
 	onArrowUpAtStart,
+	chrome,
+	blockReveal,
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
 	const label = getFieldLabel(name, field);
 	const id = `field-${name}`;
 	const labelClass = minimal ? "text-kumo-subtle/50 text-xs font-normal" : undefined;
+	const quiet = chrome ? quietControlProps(chrome, field.required) : undefined;
 
 	const handleChange = React.useCallback((v: unknown) => onChange(name, v), [onChange, name]);
 	if (field.kind === "unsupported") {
+		if (chrome) {
+			return (
+				<p
+					id={id}
+					aria-describedby={chrome.describedBy}
+					className="px-2 text-xs leading-4 text-kumo-subtle"
+				>
+					{t`This field cannot be edited by this version of EmDash.`}
+				</p>
+			);
+		}
 		return (
 			<div className="grid gap-2">
 				<p className="text-base font-medium">{label}</p>
@@ -2549,6 +2785,21 @@ function FieldRenderer({
 			const hint = hasBounds(length) ? (
 				<LengthHint count={text.length} bounds={length} />
 			) : undefined;
+			if (quiet) {
+				return (
+					<QuietControl meta={hint}>
+						<Input
+							id={id}
+							value={text}
+							onChange={(e) => handleChange(e.target.value)}
+							maxLength={length.max}
+							dir="auto"
+							{...quiet}
+							className={cn(QUIET_INPUT, chrome?.heading && QUIET_HEADING)}
+						/>
+					</QuietControl>
+				);
+			}
 			if (isDocumentTitle && !minimal) {
 				return (
 					<Input
@@ -2605,6 +2856,23 @@ function FieldRenderer({
 			const range = rangeConstraints(field.validation);
 			const outOfRange = typeof value === "number" && isOutOfBounds(value, range, true);
 			const hint = hasBounds(range) ? <RangeHint bounds={range} /> : undefined;
+			if (quiet) {
+				return (
+					<QuietControl meta={hint}>
+						<Input
+							id={id}
+							type="number"
+							step={field.integer ? "1" : "any"}
+							value={typeof value === "number" ? value : ""}
+							onChange={(e) => handleChange(e.target.value ? Number(e.target.value) : null)}
+							min={range.min}
+							max={range.max}
+							{...quiet}
+							className={QUIET_INPUT}
+						/>
+					</QuietControl>
+				);
+			}
 			return (
 				<Input
 					label={<span className={labelClass}>{label}</span>}
@@ -2624,11 +2892,47 @@ function FieldRenderer({
 		}
 
 		case "boolean":
+			if (chrome) {
+				return (
+					<div className="flex min-h-8 items-center px-2">
+						<Switch
+							id={id}
+							checked={Boolean(value)}
+							onCheckedChange={handleChange}
+							aria-labelledby={chrome.labelledBy}
+							aria-describedby={chrome.describedBy}
+						/>
+					</div>
+				);
+			}
 			return (
 				<Switch id={id} label={label} checked={Boolean(value)} onCheckedChange={handleChange} />
 			);
 
 		case "portableText": {
+			if (chrome) {
+				return (
+					<div
+						id={id}
+						role="group"
+						aria-labelledby={chrome.labelledBy}
+						aria-describedby={chrome.describedBy}
+					>
+						<PortableTextEditor
+							value={Array.isArray(value) ? value : []}
+							onChange={handleChange}
+							placeholder={t`Start writing, or type '/' for commands`}
+							aria-labelledby={chrome.labelledBy}
+							className="bg-kumo-control [--emdash-editor-surface:var(--color-kumo-control)] focus-within:ring-kumo-focus/50 focus-within:ring-[1.5px]"
+							pluginBlocks={pluginBlocks}
+							onEditorReady={onEditorReady}
+							onBlockSidebarOpen={onBlockSidebarOpen}
+							onBlockSidebarClose={onBlockSidebarClose}
+							editable={!readOnly}
+						/>
+					</div>
+				);
+			}
 			const labelId = `${id}-label`;
 			return (
 				<div id={id} className={cn(!minimal && "grid gap-2")}>
@@ -2667,6 +2971,21 @@ function FieldRenderer({
 			const hint = hasBounds(length) ? (
 				<LengthHint count={text.length} bounds={length} />
 			) : undefined;
+			if (quiet) {
+				return (
+					<QuietControl meta={hint}>
+						<GrowingTextArea
+							id={id}
+							value={text}
+							onChange={(e) => handleChange(e.target.value)}
+							maxLength={length.max}
+							dir="auto"
+							{...quiet}
+							className={cn(QUIET_TEXTAREA, chrome?.heading && QUIET_HEADING)}
+						/>
+					</QuietControl>
+				);
+			}
 			return (
 				<InputArea
 					label={label}
@@ -2690,6 +3009,30 @@ function FieldRenderer({
 			for (const opt of selectOptions) {
 				selectItems[opt.value] = opt.label;
 			}
+			if (chrome) {
+				return (
+					<DescribedSelect chrome={chrome}>
+						<Select
+							id={id}
+							aria-labelledby={chrome.labelledBy}
+							placeholder={chrome.placeholder}
+							value={typeof value === "string" && value ? value : null}
+							onValueChange={(v) => handleChange(v ?? "")}
+							items={selectItems}
+							className={cn(
+								QUIET_SELECT,
+								chrome.invalid && "ring-kumo-danger [&_[data-placeholder]]:text-kumo-danger!",
+							)}
+						>
+							{selectOptions.map((opt) => (
+								<Select.Option key={opt.value} value={opt.value}>
+									{opt.label}
+								</Select.Option>
+							))}
+						</Select>
+					</DescribedSelect>
+				);
+			}
 			return (
 				<Select
 					id={id}
@@ -2710,27 +3053,38 @@ function FieldRenderer({
 		case "multiSelect": {
 			const multiSelectOptions = Array.isArray(field.options) ? field.options : [];
 			const selected: string[] = Array.isArray(value) ? (value as string[]) : [];
+			const checkboxes = multiSelectOptions.map((opt) => {
+				const isChecked = selected.includes(opt.value);
+				return (
+					<Checkbox
+						key={opt.value}
+						label={opt.label}
+						checked={isChecked}
+						onCheckedChange={(checked) => {
+							const next = checked
+								? [...selected, opt.value]
+								: selected.filter((v) => v !== opt.value);
+							handleChange(next);
+						}}
+					/>
+				);
+			});
+			if (chrome) {
+				return (
+					<fieldset
+						id={id}
+						aria-labelledby={chrome.labelledBy}
+						aria-describedby={chrome.describedBy}
+						className="flex min-h-8 flex-wrap items-center gap-x-4 gap-y-2 px-2 py-1.5"
+					>
+						{checkboxes}
+					</fieldset>
+				);
+			}
 			return (
 				<fieldset>
 					<Label className={labelClass}>{label}</Label>
-					<div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-						{multiSelectOptions.map((opt) => {
-							const isChecked = selected.includes(opt.value);
-							return (
-								<Checkbox
-									key={opt.value}
-									label={opt.label}
-									checked={isChecked}
-									onCheckedChange={(checked) => {
-										const next = checked
-											? [...selected, opt.value]
-											: selected.filter((v) => v !== opt.value);
-										handleChange(next);
-									}}
-								/>
-							);
-						})}
-					</div>
+					<div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">{checkboxes}</div>
 				</fieldset>
 			);
 		}
@@ -2738,7 +3092,7 @@ function FieldRenderer({
 		case "datetime":
 			return (
 				<Input
-					label={label}
+					label={quiet ? undefined : label}
 					id={id}
 					type="datetime-local"
 					value={toDatetimeLocalInputValue(value, timezone)}
@@ -2749,7 +3103,9 @@ function FieldRenderer({
 							handleChange(e.target.value);
 						}
 					}}
-					required={field.required}
+					required={quiet ? undefined : field.required}
+					{...quiet}
+					className={quiet ? QUIET_INPUT : undefined}
 				/>
 			);
 
@@ -2779,6 +3135,10 @@ function FieldRenderer({
 					blockVersion={field.blockVersion}
 					variant={name === "featured_image" ? "featured" : "default"}
 					darkVariant={!Array.isArray(field.options) && field.options?.darkVariant === true}
+					labelledBy={chrome?.labelledBy}
+					describedBy={chrome?.describedBy}
+					invalid={chrome?.invalid}
+					thumbnail={chrome?.thumbnail}
 				/>
 			);
 		}
@@ -2805,6 +3165,9 @@ function FieldRenderer({
 					fieldId={field.id}
 					blockType={field.blockType}
 					blockVersion={field.blockVersion}
+					labelledBy={chrome?.labelledBy}
+					describedBy={chrome?.describedBy}
+					invalid={chrome?.invalid}
 				/>
 			);
 		}
@@ -2906,11 +3269,13 @@ function FieldRenderer({
 						typeof field.validation?.maxItems === "number" ? field.validation.maxItems : undefined
 					}
 					readOnly={readOnly}
+					reveal={blockReveal}
 					renderField={({
 						name: nestedName,
 						field: nestedField,
 						value: nestedValue,
 						onChange: onNestedChange,
+						chrome: nestedChrome,
 					}) => (
 						<FieldRenderer
 							name={nestedName}
@@ -2924,6 +3289,7 @@ function FieldRenderer({
 							manifest={manifest}
 							readOnly={readOnly}
 							timezone={timezone}
+							chrome={nestedChrome}
 						/>
 					)}
 				/>
@@ -2954,6 +3320,7 @@ function FieldRenderer({
 					onChange={handleChange}
 					required={field.required}
 					placeholder="https://"
+					chrome={chrome}
 				/>
 			);
 
@@ -3327,6 +3694,7 @@ function UrlFieldEditor({
 	onChange,
 	required,
 	placeholder,
+	chrome,
 }: {
 	label: string;
 	labelClass?: string;
@@ -3335,6 +3703,8 @@ function UrlFieldEditor({
 	onChange: (value: unknown) => void;
 	required?: boolean;
 	placeholder?: string;
+	/** The blocks field checks the value itself, so this editor shows no error of its own. */
+	chrome?: FieldChrome;
 }) {
 	const { t } = useLingui();
 	const [error, setError] = React.useState<string | null>(null);
@@ -3348,12 +3718,38 @@ function UrlFieldEditor({
 			return;
 		}
 		if (val !== raw && val !== value) onChange(val);
+		if (chrome) return;
 		if (!isValidUrl(val)) {
 			setError(t`Enter a valid URL (e.g. https://example.com)`);
 		} else {
 			setError(null);
 		}
 	};
+	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		if (error) setError(null);
+		const next = e.target.value;
+		if (next === "") {
+			if (value != null) onChange(null);
+		} else if (next !== value) {
+			onChange(next);
+		}
+	};
+
+	if (chrome) {
+		return (
+			<Input
+				id={id}
+				type="text"
+				inputMode="url"
+				dir="ltr"
+				value={value ?? ""}
+				onChange={handleChange}
+				onBlur={handleBlur}
+				{...quietControlProps(chrome, required)}
+				className={QUIET_INPUT}
+			/>
+		);
+	}
 
 	return (
 		<div>
@@ -3364,15 +3760,7 @@ function UrlFieldEditor({
 				inputMode="url"
 				dir="ltr"
 				value={value ?? ""}
-				onChange={(e) => {
-					if (error) setError(null);
-					const next = e.target.value;
-					if (next === "") {
-						if (value != null) onChange(null);
-					} else if (next !== value) {
-						onChange(next);
-					}
-				}}
+				onChange={handleChange}
 				onBlur={handleBlur}
 				required={required}
 				placeholder={placeholder}
@@ -3480,6 +3868,10 @@ interface FileFieldRendererProps {
 	fieldId?: string;
 	blockType?: string;
 	blockVersion?: number;
+	/** Leaves the label to the caller, which names the control with this element id. */
+	labelledBy?: string;
+	describedBy?: string;
+	invalid?: boolean;
 }
 
 /**
@@ -3498,9 +3890,13 @@ function FileFieldRenderer({
 	fieldId,
 	blockType,
 	blockVersion,
+	labelledBy,
+	describedBy,
+	invalid,
 }: FileFieldRendererProps) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
+	const labelled = labelledBy !== undefined;
 
 	// Local snapshots may only reuse internal paths. External providers may link
 	// to HTTP(S) URLs, while unsafe schemes remain plain text.
@@ -3549,6 +3945,77 @@ function FileFieldRenderer({
 	const hasMime = !!normalized?.mimeType;
 	const size = typeof normalized?.size === "number" ? normalized.size : undefined;
 	const hasSize = size !== undefined;
+
+	const picker = (
+		<MediaPickerModal
+			open={pickerOpen}
+			onOpenChange={setPickerOpen}
+			onSelect={handleSelect}
+			mimeTypeFilters={allowedMimeTypes ?? []}
+			fieldId={fieldId}
+			blockType={blockType}
+			blockVersion={blockVersion}
+			hideUrlInput
+			mediaKind="file"
+			title={normalized ? t`Replace ${label}` : t`Select ${label}`}
+			confirmLabel={normalized ? t`Replace` : undefined}
+		/>
+	);
+
+	if (labelled) {
+		return (
+			<div
+				id={id}
+				role="group"
+				aria-labelledby={labelledBy}
+				aria-describedby={describedBy}
+				className="flex min-h-8 min-w-0 flex-wrap items-center gap-1 px-2"
+			>
+				{normalized ? (
+					<>
+						<span aria-hidden="true">{getFileIcon(normalized.mimeType)}</span>
+						{normalized.displayUrl ? (
+							<a
+								href={normalized.displayUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="min-w-0 flex-1 truncate hover:underline"
+							>
+								{normalized.filename}
+							</a>
+						) : (
+							<span className="min-w-0 flex-1 truncate">{normalized.filename}</span>
+						)}
+						<Button type="button" size="sm" variant="ghost" onClick={() => setPickerOpen(true)}>
+							{t`Replace`}
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							variant="ghost"
+							onClick={handleRemove}
+							aria-label={t`Remove ${label}`}
+						>
+							{t`Remove`}
+						</Button>
+					</>
+				) : (
+					<Button
+						type="button"
+						size="sm"
+						variant="ghost"
+						icon={<Paperclip aria-hidden="true" />}
+						className={cn("-ms-2 text-kumo-subtle", invalid && "text-kumo-danger")}
+						onClick={() => setPickerOpen(true)}
+						aria-label={t`Select ${label}`}
+					>
+						{t`Select file`}
+					</Button>
+				)}
+				{picker}
+			</div>
+		);
+	}
 
 	return (
 		<div id={id} className="grid gap-2">
@@ -3609,19 +4076,7 @@ function FileFieldRenderer({
 					</div>
 				</Button>
 			)}
-			<MediaPickerModal
-				open={pickerOpen}
-				onOpenChange={setPickerOpen}
-				onSelect={handleSelect}
-				mimeTypeFilters={allowedMimeTypes ?? []}
-				fieldId={fieldId}
-				blockType={blockType}
-				blockVersion={blockVersion}
-				hideUrlInput
-				mediaKind="file"
-				title={normalized ? t`Replace ${label}` : t`Select ${label}`}
-				confirmLabel={normalized ? t`Replace` : undefined}
-			/>
+			{picker}
 			{required && !normalized && (
 				<p className="-mt-1 text-xs leading-4 text-kumo-danger">{t`This field is required`}</p>
 			)}

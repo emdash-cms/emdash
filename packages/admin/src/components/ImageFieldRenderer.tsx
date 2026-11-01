@@ -31,6 +31,7 @@ import {
 	metaString,
 	syncMediaCaption,
 } from "../lib/media-utils.js";
+import { cn } from "../lib/utils.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
@@ -120,6 +121,18 @@ export interface ImageFieldRendererProps {
 	variant?: "default" | "featured" | "avatar";
 	/** Offer a second slot for the image shown in a dark color scheme */
 	darkVariant?: boolean;
+	/**
+	 * Leaves the label to the caller, which names the field with this element id.
+	 * The photo then spans the field, with its actions over it.
+	 */
+	labelledBy?: string;
+	describedBy?: string;
+	invalid?: boolean;
+	/**
+	 * With `labelledBy`, draws the photo as a thumbnail: in a settings row with Replace and
+	 * Remove beside it, or in a table cell as a button that opens the picker.
+	 */
+	thumbnail?: "row" | "cell";
 }
 
 export function ImageFieldRenderer({
@@ -136,8 +149,13 @@ export function ImageFieldRenderer({
 	blockVersion,
 	variant = "default",
 	darkVariant = false,
+	labelledBy,
+	describedBy,
+	invalid = false,
+	thumbnail,
 }: ImageFieldRendererProps) {
 	const { t } = useLingui();
+	const labelled = labelledBy !== undefined;
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const [pickerTarget, setPickerTarget] = React.useState<"image" | "darkVariant">("image");
 	const [mobileActionsOpen, setMobileActionsOpen] = React.useState(false);
@@ -562,10 +580,143 @@ export function ImageFieldRenderer({
 
 	const labelContent = showOptional ? <OptionalLabel>{label}</OptionalLabel> : label;
 
+	const picker = (
+		<MediaPickerModal
+			open={pickerOpen}
+			onOpenChange={setPickerOpen}
+			onSelect={handleSelect}
+			mimeTypeFilters={
+				allowedMimeTypes && allowedMimeTypes.length > 0 ? allowedMimeTypes : ["image/"]
+			}
+			fieldId={fieldId}
+			blockType={blockType}
+			blockVersion={blockVersion}
+			title={
+				pickerTarget === "darkVariant"
+					? darkDisplayUrl
+						? t`Replace dark mode variant for ${label}`
+						: t`Select dark mode variant for ${label}`
+					: displayUrl
+						? t`Replace ${label}`
+						: t`Select ${label}`
+			}
+			confirmLabel={
+				pickerTarget === "darkVariant"
+					? darkDisplayUrl
+						? t`Replace`
+						: undefined
+					: displayUrl
+						? t`Replace`
+						: undefined
+			}
+		/>
+	);
+
+	if (labelled && thumbnail) {
+		const cell = thumbnail === "cell";
+		const preview =
+			displayUrl && !imageBroken ? (
+				<img
+					src={displayUrl}
+					alt=""
+					className="size-full object-cover"
+					style={{ objectPosition }}
+					onError={() => setImageBroken(true)}
+				/>
+			) : displayUrl ? (
+				<ImageBroken className="size-4" aria-hidden="true" />
+			) : (
+				<ImageSquare className="size-4" aria-hidden="true" />
+			);
+		const frame = cn(
+			"grid shrink-0 place-items-center overflow-hidden rounded-md",
+			cell ? "h-7 w-9" : "size-10",
+			displayUrl
+				? "ring ring-kumo-line"
+				: cn(
+						"border-[1.5px] border-dashed",
+						invalid
+							? "border-kumo-danger text-kumo-danger"
+							: "border-kumo-line text-kumo-placeholder",
+					),
+		);
+		return (
+			<div
+				id={id}
+				role="group"
+				aria-labelledby={labelledBy}
+				aria-describedby={describedBy}
+				className={cn(
+					"group/thumb flex min-h-8 min-w-0 items-center gap-1",
+					cell ? "justify-center" : "px-2",
+				)}
+			>
+				{cell ? (
+					<Button
+						type="button"
+						variant="ghost"
+						shape="square"
+						className={cn(frame, "p-0")}
+						aria-label={displayUrl ? t`Replace ${label}` : t`Select ${label}`}
+						aria-describedby={describedBy}
+						onClick={() => openPicker("image")}
+					>
+						{preview}
+					</Button>
+				) : (
+					<>
+						<span className={cn(frame, "me-1")}>{preview}</span>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							className="text-kumo-subtle"
+							aria-describedby={describedBy}
+							onClick={() => openPicker("image")}
+						>
+							{displayUrl ? t`Replace` : t`Select image`}
+						</Button>
+					</>
+				)}
+				{displayUrl &&
+					(cell ? (
+						<Button
+							type="button"
+							variant="ghost"
+							shape="square"
+							size="sm"
+							className="size-6 text-kumo-subtle opacity-0 group-hover/thumb:opacity-100 group-focus-within/thumb:opacity-100 pointer-coarse:opacity-100"
+							aria-label={t`Remove ${label}`}
+							onClick={handleRemove}
+						>
+							<X className="size-3.5" aria-hidden="true" />
+						</Button>
+					) : (
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							className="text-kumo-subtle"
+							onClick={handleRemove}
+						>
+							{t`Remove`}
+						</Button>
+					))}
+				{picker}
+			</div>
+		);
+	}
+
 	return (
 		// The featured card lays out by its own width, which the editor's column keeps well below the viewport's.
-		<div id={id} className={isFeatured ? "grid gap-2 @container/featured" : "grid gap-2"}>
-			{description ? (
+		<div
+			id={id}
+			role={labelled ? "group" : undefined}
+			aria-labelledby={labelledBy}
+			aria-describedby={labelled ? describedBy : undefined}
+			className={isFeatured ? "grid gap-2 @container/featured" : "grid gap-2"}
+		>
+			{labelled ? null : description ? (
 				<FieldHelpLabel
 					help={description}
 					helpLabel={t`More information about ${label}`}
@@ -580,6 +731,19 @@ export function ImageFieldRenderer({
 				avatarField
 			) : isFeatured && displayUrl ? (
 				featuredCard
+			) : displayUrl && labelled && !imageBroken ? (
+				<div className="group/photo relative">
+					<img
+						src={displayUrl}
+						alt=""
+						className="emdash-media-transparency-grid max-h-80 min-h-20 w-full rounded-lg object-cover ring ring-kumo-line"
+						style={{ objectPosition }}
+						onError={() => setImageBroken(true)}
+					/>
+					<div className="absolute end-2 top-2 opacity-0 transition-opacity group-hover/photo:opacity-100 group-focus-within/photo:opacity-100 pointer-coarse:opacity-100">
+						{primaryActions}
+					</div>
+				</div>
 			) : displayUrl ? (
 				imageBroken ? (
 					<div className="grid gap-2">
@@ -615,52 +779,34 @@ export function ImageFieldRenderer({
 				<Button
 					type="button"
 					variant="outline"
-					className="h-32 w-full justify-center border-dashed bg-kumo-control"
+					className={cn(
+						"w-full justify-center border-dashed bg-kumo-control",
+						labelled ? "h-24" : "h-32",
+						invalid && "ring-kumo-danger",
+					)}
 					onClick={() => openPicker("image")}
+					aria-describedby={labelled ? describedBy : undefined}
 				>
-					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
-						<ImageIcon className="h-8 w-8" />
+					<div
+						className={cn(
+							"flex flex-col items-center gap-2",
+							invalid ? "text-kumo-danger" : "text-kumo-subtle",
+						)}
+					>
+						<ImageIcon className={labelled ? "size-6" : "h-8 w-8"} />
 						<span>{t`Select image`}</span>
 					</div>
 				</Button>
 			)}
 			{darkVariantSlot}
-			<MediaPickerModal
-				open={pickerOpen}
-				onOpenChange={setPickerOpen}
-				onSelect={handleSelect}
-				mimeTypeFilters={
-					allowedMimeTypes && allowedMimeTypes.length > 0 ? allowedMimeTypes : ["image/"]
-				}
-				fieldId={fieldId}
-				blockType={blockType}
-				blockVersion={blockVersion}
-				title={
-					pickerTarget === "darkVariant"
-						? darkDisplayUrl
-							? t`Replace dark mode variant for ${label}`
-							: t`Select dark mode variant for ${label}`
-						: displayUrl
-							? t`Replace ${label}`
-							: t`Select ${label}`
-				}
-				confirmLabel={
-					pickerTarget === "darkVariant"
-						? darkDisplayUrl
-							? t`Replace`
-							: undefined
-						: displayUrl
-							? t`Replace`
-							: undefined
-				}
-			/>
+			{picker}
 			{assetEditor.dialog}
 			{assetEditor.error && (
 				<p role="alert" className="text-xs leading-4 text-kumo-danger">
 					{assetEditor.error}
 				</p>
 			)}
-			{required && !displayUrl && (
+			{required && !displayUrl && !labelled && (
 				<p className="-mt-1 text-xs leading-4 text-kumo-danger">{t`This field is required`}</p>
 			)}
 		</div>

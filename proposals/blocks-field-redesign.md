@@ -1,7 +1,7 @@
 ---
 title: "Blocks field redesign"
 type: feature-plan
-status: proposed
+status: implemented
 authors:
   - Noah Pham (@khoinguyenpham04)
 discussion: null
@@ -239,15 +239,16 @@ The marketing template has no list with a single sub-field, so the mockup shows 
 - **Half-filled button row:** the empty half shows its placeholder, "Text" or "Link".
 - **Long values in settings rows:** cut off with an ellipsis until focused.
 - **Unsupported field types:** keep the existing unsupported message.
+- **No fields:** an open block whose type has no fields says "This block has no fields."
 - **Narrow fields:** below 440 px, settings rows stack their labels above their values, and side-by-side `string` fields stack too.
 - **Read-only:** the same layout with controls disabled, and no validation markers.
 
 ### Lists inside blocks
 
-- **Read-only:** the same presentation with nothing editable: no menus, drag handles or Add item, no Enter or Backspace handling, and no blank-line removal.
+- **Read-only:** the same presentation with nothing editable: no menus, drag handles or Add item, no Enter or Backspace handling, and no blank-line removal. Expandable items all show open, as blocks do, because a closed item couldn't be opened.
 - **At `maxItems`:** Add item is hidden, as it is today. Enter in a type-in list adds nothing, and Duplicate is disabled.
 - **At `minItems`:** Delete is disabled. Today the trash icon is hidden instead. Blank lines that would leave a type-in list short of `minItems` still aren't saved, and validation reports the missing items.
-- **No `string` sub-field that can be the title:** the title is the item's first `text` sub-field, shown as the start of its text in the closed row. The row has no editable title, and every sub-field is edited in the item's body.
+- **No `string` sub-field that can be the title:** the title is the item's first `text` sub-field, shown as the start of its text in the closed row. The row has no editable title, and every sub-field is edited in the item's body. An item with no `text` sub-field either reads "Item 1", "Item 2" and so on when closed.
 - **Empty title:** a closed item reads "Untitled", and the editable title shows the sub-field's label as its placeholder.
 - **Required sub-fields:** an invalid sub-field turns red where it is, in a table cell or an open item, and a closed item gets a red dot.
 - **Narrow fields:** tables keep their columns down to phone width. Expandable items stack their side-by-side fields.
@@ -300,7 +301,7 @@ Browser tests for lists inside a block, using a test block type with a one-sub-f
 - An open item's title edits its title sub-field and updates the closed summary.
 - Move up, Move down, Duplicate and Delete with Undo keep item values and order.
 - `maxItems` and `minItems` disable the right actions.
-- Read-only lists ignore Enter and Backspace and offer no menus.
+- Read-only lists show every expandable item open, ignore Enter and Backspace, and offer no menus.
 
 ### Manual checks
 

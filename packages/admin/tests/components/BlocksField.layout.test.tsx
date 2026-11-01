@@ -4,7 +4,6 @@ import { page, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
 import { BlocksField, type BlocksFieldProps } from "../../src/components/BlocksField.js";
-import { RepeaterField } from "../../src/components/RepeaterField.js";
 import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
 import { render } from "../utils/render.js";
 
@@ -300,7 +299,7 @@ describe("Block row layout", () => {
 	});
 
 	it.each(["ltr", "rtl"] as const)(
-		"keeps a long repeater item title from widening the field (%s)",
+		"keeps a long list item title from widening the field (%s)",
 		async (dir) => {
 			const quoteFields = [{ slug: "quote", label: "Quote", type: "text" }];
 			const quote =
@@ -319,14 +318,12 @@ describe("Block row layout", () => {
 								},
 							]),
 						]}
-						renderField={({ name, field, value, onChange }) => (
-							<RepeaterField
-								key={name}
-								id={name}
-								label={field.label ?? name}
-								value={value}
-								onChange={onChange}
-								subFields={quoteFields}
+						renderField={({ name, value, onChange, chrome }) => (
+							<textarea
+								id={`field-${name}`}
+								aria-labelledby={chrome.labelledBy}
+								value={typeof value === "string" ? value : ""}
+								onChange={(event) => onChange(event.target.value)}
 							/>
 						)}
 					/>
@@ -340,8 +337,8 @@ describe("Block row layout", () => {
 			for (const control of [
 				screen.getByRole("button", { name: "Add block", exact: true }),
 				screen.getByRole("button", { name: "Testimonials actions" }),
-				screen.getByRole("button", { name: "Add Item" }),
-				screen.getByRole("button", { name: "Remove item 1" }),
+				screen.getByRole("button", { name: "Add item" }),
+				screen.getByRole("button", { name: `${quote} actions` }),
 			]) {
 				const box = control.element().getBoundingClientRect();
 				expect(box.left).toBeGreaterThanOrEqual(bounds.left);
