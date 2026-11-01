@@ -183,4 +183,4 @@ catalog:
   wrangler: ^4.125.0
   "y-protocols": ^1.0.7
   yjs: ^13.6.0
-  zod: 4.5.4
+  zod: 4.6.7
