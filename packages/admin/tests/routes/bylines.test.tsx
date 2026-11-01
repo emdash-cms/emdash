@@ -642,6 +642,31 @@ describe("BylinesPage directory", () => {
 		expect(deleteBylineMock).toHaveBeenCalledTimes(1);
 	});
 
+	it("keeps the edit form when Escape is pressed while its delete runs", async () => {
+		const deleted = deferred<void>();
+		deleteBylineMock.mockReturnValue(deleted.promise);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "Edit Guest Contributor" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Edit byline" });
+		const displayName = dialog.getByRole("textbox", { name: "Display name" });
+		await expect.element(displayName).toHaveValue("Guest Contributor");
+		await displayName.fill("Guest Writer");
+		await dialog.getByRole("button", { name: "Delete byline" }).click();
+		const confirm = screen.getByRole("alertdialog", { name: "Delete Guest Contributor?" });
+		await confirm.getByRole("button", { name: "Delete byline" }).click();
+		await expect.element(confirm.getByRole("button", { name: "Deleting..." })).toBeVisible();
+
+		await userEvent.keyboard("{Escape}");
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		deleted.reject(new ApiResponseError(500, "BYLINE_DELETE_ERROR", "Byline could not be deleted"));
+		await expect.element(confirm.getByText("Byline could not be deleted")).toBeVisible();
+		await confirm.getByRole("button", { name: "Cancel" }).click();
+
+		await expect.element(confirm).not.toBeInTheDocument();
+		await expect.element(displayName).toHaveValue("Guest Writer");
+	});
+
 	it("keeps the edit dialog behind the delete confirmation, and closes both once deleted", async () => {
 		deleteBylineMock.mockResolvedValue(undefined);
 		const screen = await renderPage();
