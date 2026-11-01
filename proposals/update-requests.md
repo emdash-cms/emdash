@@ -253,6 +253,8 @@ Both options keys are read in one `getMany` query, and the user lookup runs only
 
 Both write routes require the new permission `updates:request`, added to `rbac.ts` with the minimum role Admin. A token caller also needs the new token scope `updates:request`. The `admin` scope includes it, as it includes the transfer scopes. The scope rule for `/_emdash/api/admin/core-update/request` comes before the generic `/_emdash/api/admin` rule in the auth middleware, as the transfer rule does. The CSRF header rule applies as it does to every state-changing route.
 
+The site write fence refuses both write routes and the `site_update_request` MCP tool while a site import runs, as it refuses other admin writes. A request doesn't count as a site write, so it never restarts a running export. Like an entry edit lock, the record holds nothing a site package carries.
+
 New error codes, mapped in `mapErrorStatus`:
 
 | Code                            | Status | Meaning                                                                                                    |
@@ -275,7 +277,7 @@ The banner stays on the dashboard, for admins only, and stays dismissible per ve
 - **Trigger not ready:** Start update is disabled, with a note that the deployment's secret is missing.
 - **Sent:** "Update to 1.5.0 requested on <date> by <name>", with View run when there is a link. Start update is offered again after 15 minutes. A `sending` record shows the same text without the link.
 - **Failed:** the error in words, such as "GitHub rejected the token. It may have expired.", with Try again.
-- **Awaiting approval:** "An agent asked to update to 1.5.0 for <name>", with Start update and Dismiss. Start update sends the request with `source: "mcp"` and the admin as `approvedBy`.
+- **Awaiting approval:** "An agent asked to update to 1.5.0 for <name>", with Start update and Dismiss. Start update sends the request with `source: "mcp"` and the admin as `approvedBy`. This state shows even when the admin dismissed the banner for that version, because the agent is waiting for an answer.
 
 The dialog uses `ConfirmDialog`, and every string, including the error texts mapped from the codes above, goes through Lingui. Dates use the admin locale's formatting, and the layout uses logical classes. The dismiss state stays in `localStorage`, per version as today.
 
@@ -292,7 +294,7 @@ The names say "update" and sit under `emdash site`, so they can't be mistaken fo
 
 Two tools join the core MCP server:
 
-- `site_update_status` returns what `update-status` prints. It requires the `updates:read` permission.
+- `site_update_status` returns what `update-status` prints. It requires the `updates:read` permission and, like the REST status route, the `admin` token scope.
 - `site_update_request` takes an optional `version`, which must match the reported version when given. It requires the `updates:request` permission. With the `updates:request` scope (or `admin`), it sends the request with `source: "mcp"`. Without the scope, it runs the handler's first three steps with `awaiting_approval` in place of `sending`, so it can't replace a request that was just sent or is being sent. It answers `{ status: "awaiting_approval" }` with a message that an admin has to approve the request in the admin dashboard.
 
 An admin approves a request on the banner, from a signed-in session. Approving sends the request, so the agent doesn't call the tool again. A second call while a request awaits approval returns the same answer and doesn't create another record. The approval is single-use because sending replaces the record.
@@ -307,7 +309,7 @@ Every change is additive:
 - No database migration. Older code ignores the `emdash:core_update_request` key, so a rollback leaves an unused option behind.
 - Templates gain one workflow file. Existing sites copy it from the update guide, since template changes don't reach existing projects.
 
-If [the configuration validation plan (#4328)](https://github.com/emdash-cms/emdash/pull/4328) lands first, the trigger gets an entry in its schema. If [custom roles (#4156)](https://github.com/emdash-cms/emdash/pull/4156) land, a custom role can hold `updates:request`, as it can hold `updates:read`.
+If [the configuration validation plan (#4328)](https://github.com/emdash-cms/emdash/pull/4328) lands first, the trigger gets an entry in its schema. If [custom roles (#4156)](https://github.com/emdash-cms/emdash/pull/4156) land, a custom role can hold `updates:request`, as it can hold `updates:read`. If [read-only mode (#4461)](https://github.com/emdash-cms/emdash/pull/4461) lands, it refuses update requests while the site is frozen, as it refuses other fenced writes.
 
 ## Security and privacy
 
@@ -329,6 +331,7 @@ The admin status route reads one more options key in the query it already runs, 
 
 - **The trigger rejects the request or can't be reached:** the record stores `failed` with the code, the banner shows the reason, and the admin can retry at once. A 401 or 403 from GitHub points to an expired or wrong token. A 404 points to a wrong repository or workflow, or a token without access. A 422 points to a missing ref or inputs that the workflow doesn't define.
 - **The response is lost after GitHub started the run:** the record says `failed` although a run started. A retry starts a second run. That run either finds the branch it would create, where it updates the pull request, or waits behind the first one in the `concurrency` group. The result is still one pull request.
+- **A site import is running:** the fence refuses the request with its import error, and the admin sends it again once the import ends.
 - **Two admins send at the same moment:** only one claim applies. The other admin gets `UPDATE_ALREADY_REQUESTED` and sees the first request on the banner.
 - **The site stops in the middle of a send:** the `sending` record stays behind. After one minute it no longer blocks a new request, and the banner offers Start update again.
 - **The workflow fails** (installation fails, the project isn't supported, or the branch has someone else's commits): the run fails visibly in GitHub, and the admin shows the request as sent with a link to the run. The admin doesn't learn about the failure. See [Open questions](#open-questions).
@@ -340,9 +343,9 @@ The admin status route reads one more options key in the query it already runs, 
 - `upgrade-emdash` unit tests with packument fixtures: the release group gets the exact version and plugins resolve `latest`. They also cover the release-age selection with and without `--release`, rejecting prereleases and too-young versions, the up-to-date exit, the summary fields, and `actionRequired` from a `#### What should I do?` heading.
 - Handler tests on a real SQLite database with an injected `fetch`: GitHub 200 with run details, 204, 422 followed by the retry, 401, 404, a timeout, and webhook 2xx with and without a `url`. Also a version mismatch, the 15-minute limit and a missing secret.
 - Route tests: an Editor is refused, a token without the scope is refused, a token with `admin` passes, a DELETE from a token is refused, and the CSRF header is enforced.
-- MCP tests: with the scope the tool sends, without it the tool stores one `awaiting_approval` record, a second call doesn't create another, and approval from a session sends the request.
+- MCP tests: with the scope the tool sends, without it the tool stores one `awaiting_approval` record, a second call doesn't create another, approval from a session sends the request, and the status tool refuses a token without `admin`. Route and MCP tests also cover a running import refusing a request and a running export that doesn't restart after one.
 - Configuration tests: wrong trigger shapes fail the build with their path, and `http:` URLs are refused outside `localhost`.
-- Admin component tests for each banner state, plus a manual check of the banner and dialog in Arabic.
+- Admin component tests for each banner state, including a request awaiting approval for a dismissed version, plus a manual check of the banner and dialog in Arabic.
 - The query-count snapshot shows no change on logged-out routes.
 - A manual end-to-end run on a fork: a template site on Workers with Workers Builds starts the workflow from the banner, the pull request appears with the right labels, and after the merge and deploy the banner disappears. The same run is repeated with a scheduled trigger and a webhook receiver.
 
