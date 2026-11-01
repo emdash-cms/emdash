@@ -457,7 +457,7 @@ curl --request POST \
 
 `curl` adds the multipart boundary. Do not set the `Content-Type` header manually. The OpenAPI `MediaDirectUploadBody` schema lists the optional metadata fields and the response schemas distinguish a new upload from a deduplicated existing item.
 
-The multipart body can also include `alt` text and a `caption` for the new media item, image `width` and `height`, a `fieldId` whose MIME-type allowlist should be applied, and a downscaled `thumbnail` used to create a low-quality placeholder. An omitted or empty `alt` or `caption` field is stored as `null`. A new file returns `201 Created` and is ready immediately. Identical bytes return the existing media item with `200 OK` and `deduplicated: true`; the `alt` and `caption` sent with the upload are not applied to it.
+The multipart body can also include `alt` text and a `caption` for the new media item, image `width` and `height`, a `fieldId` whose MIME-type allowlist should be applied, and a downscaled `thumbnail` used to create a low-quality image placeholder. The admin and visual-editing toolbar create a small browser thumbnail for every image. An omitted or empty `alt` or `caption` field is stored as `null`. A new file returns `201 Created` and is ready immediately. Identical bytes return the existing media item with `200 OK` and `deduplicated: true`; the `alt` and `caption` sent with the upload are not applied to it.
 
 For an image or file field inside a block, send `fieldId` as `<outerFieldId>:<blockKey>:<fieldSlug>`, where `outerFieldId` is the database ID of the collection's blocks field. Also send `blockType` (the block type slug) and `blockVersion` (the block's retained version number). Use a string for `blockVersion` in multipart requests and a number in upload-target JSON requests. EmDash applies the nested field's `allowedMimeTypes` only when the block type is allowed or retired on the outer field and the version contains that image or file field. Missing or unresolvable context falls back to the default upload allowlist.
 
@@ -497,11 +497,17 @@ Use the upload-target flow when the client can upload directly to S3-compatible 
 	{
 		"size": 102400,
 		"width": 1920,
-		"height": 1080
+		"height": 1080,
+		"thumbnail": {
+			"contentType": "image/jpeg",
+			"data": "<base64-encoded-thumbnail>"
+		}
 	}
 	```
 
 	Confirmation verifies the stored object and changes the item from `pending` to `ready`. Supplied size and dimensions must match the uploaded file.
+
+	When [`imagePlaceholders`](/reference/configuration/#imageplaceholders) is enabled (the default), the optional `thumbnail` is used for low-quality image placeholder (LQIP) generation. Its `contentType` must be `image/jpeg` or `image/png`, and `data` must contain at most 32,768 base64 characters. A thumbnail with an unsupported content type or over-length data rejects the entire confirmation with `400 Bad Request`, leaving the media item pending. The decoded thumbnail must be no larger than 4,096 pixels; a thumbnail that fits within a 64-pixel bounding box is recommended. If supplied thumbnail bytes are malformed or otherwise unusable, EmDash omits the placeholder and does not decode the full original as a fallback. A supplied thumbnail is used even when the original file exceeds the 8 MiB download cap. The supplied `width` and `height` take precedence; otherwise dimensions come from the original image's header, not from the thumbnail. If the original exceeds the download cap, send `width` and `height` to record its dimensions. With `imagePlaceholders: false`, thumbnail bytes are not read.
 
 </Steps>
 

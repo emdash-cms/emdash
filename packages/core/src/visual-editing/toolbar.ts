@@ -1463,12 +1463,11 @@ export function renderToolbar(config: ToolbarConfig): string {
     });
 
     dimPromise.then(function(dims) {
-      // Generate a thumbnail for large images to avoid OOM in server-side
-      // blurhash generation on memory-constrained runtimes (Workers).
-      // Thumbnail fits within a 64x64 box (scale by max dimension) so that
-      // extreme aspect ratios don't explode into a huge canvas client-side.
+      // Generate a small thumbnail for server-side blurhash generation.
+      // Thumbnail fits within a 64x64 box so extreme aspect ratios do not
+      // create a large canvas client-side.
       var thumbPromise;
-      if (dims.width && dims.height && dims.width * dims.height * 4 > 32 * 1024 * 1024) {
+      if (dims.width && dims.height) {
         thumbPromise = new Promise(function(resolve) {
           try {
             var maxDim = Math.max(dims.width, dims.height);

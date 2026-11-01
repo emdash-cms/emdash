@@ -69,6 +69,8 @@ export interface PluginManagerOptions {
 	 * resolution in plugin route handlers. Thread through from the runtime.
 	 */
 	trustedProxyHeaders?: string[];
+	/** Whether media uploads should generate server-side image placeholders. */
+	imagePlaceholders?: boolean;
 }
 
 /**
@@ -89,6 +91,7 @@ export class PluginManager {
 			storage: options.storage,
 			getUploadUrl: options.getUploadUrl,
 			trustedProxyHeaders: options.trustedProxyHeaders,
+			imagePlaceholders: options.imagePlaceholders,
 		};
 	}
 

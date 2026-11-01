@@ -438,6 +438,14 @@ export interface EmDashConfig {
 	maxUploadSize?: number;
 
 	/**
+	 * Generate blurhash and dominant-color placeholders during image upload.
+	 *
+	 * Defaults to `true`. Set to `false` to skip server-side LQIP generation
+	 * while preserving dimensions, validation, and content hashing.
+	 */
+	imagePlaceholders?: boolean;
+
+	/**
 	 * Public browser-facing origin for the site.
 	 *
 	 * Use when `Astro.url` / `request.url` do not match what users open — common with a
