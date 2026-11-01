@@ -23,12 +23,18 @@ import {
 	Plus,
 	RowsPlusBottom,
 	RowsPlusTop,
+	SlidersHorizontal,
 	Trash,
 } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { BlockFieldDefinition, BlockType } from "../lib/api/schema.js";
-import { blockSummary } from "../lib/block-field-layout.js";
+import {
+	blockSummary,
+	type BlockFieldPart,
+	planBlockFields,
+	splitLabelHint,
+} from "../lib/block-field-layout.js";
 import {
 	createBlockKey,
 	createBlockValue,
@@ -58,11 +64,25 @@ interface NestedFieldDescriptor {
 	integer?: boolean;
 }
 
+/** How a block draws a nested field's control: the block draws the label, hint and errors. */
+export interface FieldChrome {
+	/** Id of the element that names the control. */
+	labelledBy: string;
+	describedBy?: string;
+	placeholder?: string;
+	invalid?: boolean;
+	/** The block's headline, drawn larger. */
+	heading?: boolean;
+	/** Shown under the label of a control that draws its own label, such as a list. */
+	error?: React.ReactNode;
+}
+
 interface NestedFieldRenderInput {
 	name: string;
 	field: NestedFieldDescriptor;
 	value: unknown;
 	onChange: (value: unknown) => void;
+	chrome: FieldChrome;
 }
 
 export interface BlocksFieldProps {
@@ -103,6 +123,11 @@ const FOCUSABLE =
 const SHEET_INNER_TOP = "rounded-t-[calc(var(--radius-lg)-1px)]";
 const SHEET_INNER_BOTTOM = "rounded-b-[calc(var(--radius-lg)-1px)]";
 const MENU_ICON = "size-4";
+const FIELD_LABEL = "ps-2 text-xs leading-4 font-medium text-kumo-subtle wrap-anywhere";
+const SETTING_ROW =
+	"grid min-w-0 items-start gap-x-2 @min-[440px]/blocks:grid-cols-[11rem_minmax(0,1fr)]";
+const SETTING_LABEL =
+	"flex items-center ps-2 pt-2 pb-0.5 text-sm text-kumo-subtle wrap-anywhere @min-[440px]/blocks:min-h-8 @min-[440px]/blocks:py-1";
 
 type InsertSide = "top" | "bottom";
 
@@ -134,7 +159,8 @@ function nestedDescriptor(
 	return {
 		id: `${outerId}:${blockKey}:${field.slug}`,
 		kind: NESTED_KIND[field.type] ?? "unsupported",
-		label: field.label,
+		// A list still draws its own label, hint included.
+		label: field.type === "repeater" ? field.label : splitLabelHint(field.label).label,
 		required: field.required,
 		validation: field.validation,
 		blockType,
@@ -142,6 +168,13 @@ function nestedDescriptor(
 		options,
 		...(field.type === "integer" ? { integer: true } : {}),
 	};
+}
+
+function toggled(keys: ReadonlySet<string>, key: string): ReadonlySet<string> {
+	const next = new Set(keys);
+	if (next.has(key)) next.delete(key);
+	else next.add(key);
+	return next;
 }
 
 function isImageValue(value: unknown): value is ImageFieldValue {
@@ -189,6 +222,7 @@ export function BlocksField({
 	const undoToastRef = React.useRef<string | null>(null);
 	const maxHintId = React.useId();
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
+	const [advancedKeys, setAdvancedKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	const [picker, setPicker] = React.useState<PickerTarget | null>(null);
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const [confirmDelete, setConfirmDelete] = React.useState<{
@@ -268,13 +302,8 @@ export function BlocksField({
 		focusRequestRef.current = { key: block._key, target: "first-control" };
 	};
 
-	const toggleBlock = (key: string) =>
-		setOpenKeys((current) => {
-			const next = new Set(current);
-			if (next.has(key)) next.delete(key);
-			else next.add(key);
-			return next;
-		});
+	const toggleBlock = (key: string) => setOpenKeys((current) => toggled(current, key));
+	const toggleAdvanced = (key: string) => setAdvancedKeys((current) => toggled(current, key));
 
 	const duplicateBlock = (index: number) => {
 		const block = blocks[index];
@@ -404,7 +433,7 @@ export function BlocksField({
 	);
 
 	return (
-		<div id={id} ref={rootRef} className="grid grid-cols-[minmax(0,1fr)] gap-2">
+		<div id={id} ref={rootRef} className="@container/blocks grid grid-cols-[minmax(0,1fr)] gap-2">
 			<div className="flex min-h-7 items-center justify-between gap-3">
 				<Label>{label}</Label>
 				{blocks.length > 0 && !readOnly && (
@@ -451,6 +480,7 @@ export function BlocksField({
 										blockType={typeBySlug.get(block._type)}
 										retired={retiredTypes.includes(block._type)}
 										open={readOnly || openKeys.has(block._key)}
+										advancedOpen={readOnly || advancedKeys.has(block._key)}
 										readOnly={readOnly}
 										canAdd={canAdd}
 										atMax={atMax}
@@ -458,6 +488,7 @@ export function BlocksField({
 										maxHintId={maxHintId}
 										roundBottom={readOnly && index === blocks.length - 1}
 										onToggle={() => toggleBlock(block._key)}
+										onAdvancedToggle={() => toggleAdvanced(block._key)}
 										onChange={(field, nextValue) =>
 											onChange(updateBlockFieldValue(blocks, block._key, field, nextValue))
 										}
@@ -535,6 +566,7 @@ interface BlockRowProps {
 	blockType?: BlockType;
 	retired: boolean;
 	open: boolean;
+	advancedOpen: boolean;
 	readOnly: boolean;
 	canAdd: boolean;
 	atMax: boolean;
@@ -542,6 +574,7 @@ interface BlockRowProps {
 	maxHintId: string;
 	roundBottom: boolean;
 	onToggle: () => void;
+	onAdvancedToggle: () => void;
 	onChange: (field: string, value: unknown) => void;
 	onAdd: (target: PickerTarget) => void;
 	onDuplicate: () => void;
@@ -559,6 +592,7 @@ function BlockRow({
 	blockType,
 	retired,
 	open,
+	advancedOpen,
 	readOnly,
 	canAdd,
 	atMax,
@@ -566,6 +600,7 @@ function BlockRow({
 	maxHintId,
 	roundBottom,
 	onToggle,
+	onAdvancedToggle,
 	onChange,
 	onAdd,
 	onDuplicate,
@@ -915,25 +950,255 @@ function BlockRow({
 					data-block-body
 					role="group"
 					aria-labelledby={labelId}
-					className="space-y-4 px-4 pt-2 pb-4 [--emdash-editor-sticky-top:calc(var(--emdash-blocks-sticky-top)+2.75rem)]"
+					className="px-2 pt-1 pb-4 [--emdash-editor-sticky-top:calc(var(--emdash-blocks-sticky-top)+2.75rem)] @min-[440px]/blocks:ps-9 @min-[440px]/blocks:pe-4"
 				>
-					{unsupported ? (
-						<p className="text-sm text-kumo-subtle">
+					{unsupported || !version ? (
+						<p className="ps-2 text-sm text-kumo-subtle">
 							{t`This block cannot be edited because its stored definition is unavailable.`}
 						</p>
 					) : (
-						version?.fields.map((field) =>
-							renderField({
-								name: `${fieldPath}.${block._key}.${field.slug}`,
-								field: nestedDescriptor(outerId, block._key, block._type, block._version, field),
-								value: block[field.slug],
-								onChange: (nextValue) => onChange(field.slug, nextValue),
-							}),
-						)
+						<BlockFields
+							outerId={outerId}
+							fieldPath={fieldPath}
+							block={block}
+							fields={version.fields}
+							advancedOpen={advancedOpen}
+							onAdvancedToggle={onAdvancedToggle}
+							onChange={onChange}
+							renderField={renderField}
+						/>
 					)}
 					<span className="sr-only">{t`Block ${index + 1}`}</span>
 				</div>
 			)}
 		</div>
+	);
+}
+
+interface BlockFieldsProps {
+	outerId: string;
+	fieldPath: string;
+	block: StoredBlockValue;
+	fields: readonly BlockFieldDefinition[];
+	advancedOpen: boolean;
+	onAdvancedToggle: () => void;
+	onChange: (field: string, value: unknown) => void;
+	renderField: BlocksFieldProps["renderField"];
+}
+
+interface ControlOptions {
+	/** Replaces every other placeholder, as the two halves of a button row do. */
+	placeholder?: string;
+	/** Shown in an empty optional field that has no hint. */
+	emptyPlaceholder?: string;
+	heading?: boolean;
+}
+
+function isEmptyValue(value: unknown): boolean {
+	return value === undefined || value === null || value === "";
+}
+
+function labelText(field: BlockFieldDefinition): string {
+	return splitLabelHint(field.label).label;
+}
+
+function BlockFields({
+	outerId,
+	fieldPath,
+	block,
+	fields,
+	advancedOpen,
+	onAdvancedToggle,
+	onChange,
+	renderField,
+}: BlockFieldsProps) {
+	const { t } = useLingui();
+	const plan = React.useMemo(() => planBlockFields(fields, "block"), [fields]);
+	const advancedId = React.useId();
+
+	if (fields.length === 0) {
+		return <p className="ps-2 text-sm text-kumo-subtle">{t`This block has no fields.`}</p>;
+	}
+
+	const controlId = (field: BlockFieldDefinition) =>
+		`field-${fieldPath}.${block._key}.${field.slug}`;
+	const labelId = (field: BlockFieldDefinition) => `${controlId(field)}-label`;
+
+	const control = (
+		field: BlockFieldDefinition,
+		labelledBy: string,
+		options: ControlOptions = {},
+	) => {
+		const id = controlId(field);
+		const { hint } = splitLabelHint(field.label);
+		const value = block[field.slug];
+		const placeholder =
+			options.placeholder ??
+			(field.required ? t`Required` : (hint ?? options.emptyPlaceholder ?? t`Empty`));
+		const hintId = `${id}-hint`;
+		const showHintOnFocus = Boolean(hint) && !(placeholder === hint && isEmptyValue(value));
+		return (
+			<div key={field.slug} data-field={field.slug} className="group/control min-w-0">
+				{renderField({
+					name: `${fieldPath}.${block._key}.${field.slug}`,
+					field: nestedDescriptor(outerId, block._key, block._type, block._version, field),
+					value,
+					onChange: (nextValue) => onChange(field.slug, nextValue),
+					chrome: {
+						labelledBy,
+						describedBy: hint ? hintId : undefined,
+						placeholder,
+						heading: options.heading,
+					},
+				})}
+				{hint && field.type !== "repeater" && (
+					<p
+						id={hintId}
+						className={cn("sr-only", showHintOnFocus && "group-focus-within/control:not-sr-only")}
+					>
+						<span className="block px-2 pt-1 text-xs leading-4 text-kumo-subtle">{hint}</span>
+					</p>
+				)}
+			</div>
+		);
+	};
+
+	const stacked = (field: BlockFieldDefinition, heading?: boolean) => {
+		if (field.type === "repeater") return control(field, labelId(field));
+		return (
+			<div key={field.slug} className="grid min-w-0 gap-1">
+				<label id={labelId(field)} htmlFor={controlId(field)} className={FIELD_LABEL}>
+					{labelText(field)}
+				</label>
+				{control(field, labelId(field), { heading })}
+			</div>
+		);
+	};
+
+	const settingRow = (field: BlockFieldDefinition) => (
+		<div key={field.slug} className={SETTING_ROW}>
+			<label id={labelId(field)} htmlFor={controlId(field)} className={SETTING_LABEL}>
+				{labelText(field)}
+			</label>
+			{control(field, labelId(field))}
+		</div>
+	);
+
+	const contentPart = (part: BlockFieldPart<BlockFieldDefinition>) => {
+		switch (part.kind) {
+			case "field":
+				return stacked(part.field, part.heading);
+			case "columns":
+				return (
+					<div
+						key={part.fields.map((field) => field.slug).join(":")}
+						className={cn(
+							"grid min-w-0 gap-x-1 gap-y-4",
+							part.fields.length === 3
+								? "@min-[440px]/blocks:grid-cols-3"
+								: "@min-[440px]/blocks:grid-cols-2",
+						)}
+					>
+						{part.fields.map((field) => stacked(field))}
+					</div>
+				);
+			case "image": {
+				const caption = part.caption;
+				return (
+					<div key={part.field.slug} className="grid min-w-0 gap-1">
+						<span id={labelId(part.field)} className={FIELD_LABEL}>
+							{labelText(part.field)}
+						</span>
+						{control(part.field, labelId(part.field))}
+						{caption && (
+							<>
+								<span id={labelId(caption)} hidden>
+									{labelText(caption)}
+								</span>
+								{control(caption, labelId(caption), { emptyPlaceholder: t`Add a caption` })}
+							</>
+						)}
+					</div>
+				);
+			}
+			case "button":
+				return null;
+		}
+	};
+
+	const settingPart = (part: BlockFieldPart<BlockFieldDefinition>) => {
+		if (part.kind === "field") return settingRow(part.field);
+		if (part.kind !== "button") return null;
+		const rowLabelId = `${controlId(part.text)}-row`;
+		return (
+			<div key={part.text.slug} role="group" aria-labelledby={rowLabelId} className={SETTING_ROW}>
+				<label id={rowLabelId} htmlFor={controlId(part.text)} className={SETTING_LABEL}>
+					{part.label}
+				</label>
+				<div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(5.5rem,11em)] items-start gap-1">
+					<span id={labelId(part.text)} hidden>
+						{labelText(part.text)}
+					</span>
+					{control(part.text, labelId(part.text), { placeholder: t`Text` })}
+					<span id={labelId(part.link)} hidden>
+						{labelText(part.link)}
+					</span>
+					{control(part.link, labelId(part.link), { placeholder: t`Link` })}
+				</div>
+			</div>
+		);
+	};
+
+	const advancedSummary = plan.advanced
+		.map((field) => block[field.slug])
+		.filter((value): value is string => typeof value === "string" && value.trim() !== "")
+		.join(" · ");
+
+	return (
+		<>
+			{plan.content.length > 0 && <div className="grid gap-4">{plan.content.map(contentPart)}</div>}
+			{plan.settings.length > 0 && (
+				<div
+					className={cn(
+						"grid gap-0.5",
+						plan.content.length > 0 && "mt-4 border-t border-kumo-hairline pt-3",
+					)}
+				>
+					{plan.settings.map(settingPart)}
+				</div>
+			)}
+			{plan.advanced.length > 0 && (
+				<div className={cn(plan.content.length + plan.settings.length > 0 && "mt-2")}>
+					<button
+						type="button"
+						aria-expanded={advancedOpen}
+						aria-controls={advancedId}
+						onClick={onAdvancedToggle}
+						className="flex min-h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-start text-sm text-kumo-subtle outline-none hover:text-kumo-default focus-visible:ring-2 focus-visible:ring-kumo-brand"
+					>
+						<CaretRight
+							weight="bold"
+							aria-hidden="true"
+							className={cn(
+								"size-2.5 shrink-0 transition-transform rtl:-scale-x-100",
+								advancedOpen && "rotate-90 rtl:-rotate-90",
+							)}
+						/>
+						<SlidersHorizontal className="size-3.5 shrink-0" aria-hidden="true" />
+						<span className="shrink-0">{t`Advanced`}</span>
+						{!advancedOpen && advancedSummary && (
+							<span dir="auto" className="min-w-0 truncate text-kumo-placeholder">
+								{advancedSummary}
+							</span>
+						)}
+					</button>
+					{advancedOpen && (
+						<div id={advancedId} className="grid gap-0.5">
+							{plan.advanced.map(settingRow)}
+						</div>
+					)}
+				</div>
+			)}
+		</>
 	);
 }

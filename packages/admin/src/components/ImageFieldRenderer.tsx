@@ -31,6 +31,7 @@ import {
 	metaString,
 	syncMediaCaption,
 } from "../lib/media-utils.js";
+import { cn } from "../lib/utils.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
@@ -120,6 +121,13 @@ export interface ImageFieldRendererProps {
 	variant?: "default" | "featured" | "avatar";
 	/** Offer a second slot for the image shown in a dark color scheme */
 	darkVariant?: boolean;
+	/**
+	 * Leaves the label to the caller, which names the field with this element id.
+	 * The photo then spans the field, with its actions over it.
+	 */
+	labelledBy?: string;
+	describedBy?: string;
+	invalid?: boolean;
 }
 
 export function ImageFieldRenderer({
@@ -136,8 +144,12 @@ export function ImageFieldRenderer({
 	blockVersion,
 	variant = "default",
 	darkVariant = false,
+	labelledBy,
+	describedBy,
+	invalid = false,
 }: ImageFieldRendererProps) {
 	const { t } = useLingui();
+	const labelled = labelledBy !== undefined;
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const [pickerTarget, setPickerTarget] = React.useState<"image" | "darkVariant">("image");
 	const [mobileActionsOpen, setMobileActionsOpen] = React.useState(false);
@@ -564,8 +576,14 @@ export function ImageFieldRenderer({
 
 	return (
 		// The featured card lays out by its own width, which the editor's column keeps well below the viewport's.
-		<div id={id} className={isFeatured ? "grid gap-2 @container/featured" : "grid gap-2"}>
-			{description ? (
+		<div
+			id={id}
+			role={labelled ? "group" : undefined}
+			aria-labelledby={labelledBy}
+			aria-describedby={labelled ? describedBy : undefined}
+			className={isFeatured ? "grid gap-2 @container/featured" : "grid gap-2"}
+		>
+			{labelled ? null : description ? (
 				<FieldHelpLabel
 					help={description}
 					helpLabel={t`More information about ${label}`}
@@ -580,6 +598,19 @@ export function ImageFieldRenderer({
 				avatarField
 			) : isFeatured && displayUrl ? (
 				featuredCard
+			) : displayUrl && labelled && !imageBroken ? (
+				<div className="group/photo relative">
+					<img
+						src={displayUrl}
+						alt=""
+						className="emdash-media-transparency-grid max-h-80 min-h-20 w-full rounded-lg object-cover ring ring-kumo-line"
+						style={{ objectPosition }}
+						onError={() => setImageBroken(true)}
+					/>
+					<div className="absolute end-2 top-2 opacity-0 transition-opacity group-hover/photo:opacity-100 group-focus-within/photo:opacity-100 pointer-coarse:opacity-100">
+						{primaryActions}
+					</div>
+				</div>
 			) : displayUrl ? (
 				imageBroken ? (
 					<div className="grid gap-2">
@@ -615,11 +646,21 @@ export function ImageFieldRenderer({
 				<Button
 					type="button"
 					variant="outline"
-					className="h-32 w-full justify-center border-dashed bg-kumo-control"
+					className={cn(
+						"w-full justify-center border-dashed bg-kumo-control",
+						labelled ? "h-24" : "h-32",
+						invalid && "ring-kumo-danger",
+					)}
 					onClick={() => openPicker("image")}
+					aria-describedby={labelled ? describedBy : undefined}
 				>
-					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
-						<ImageIcon className="h-8 w-8" />
+					<div
+						className={cn(
+							"flex flex-col items-center gap-2",
+							invalid ? "text-kumo-danger" : "text-kumo-subtle",
+						)}
+					>
+						<ImageIcon className={labelled ? "size-6" : "h-8 w-8"} />
 						<span>{t`Select image`}</span>
 					</div>
 				</Button>
@@ -660,7 +701,7 @@ export function ImageFieldRenderer({
 					{assetEditor.error}
 				</p>
 			)}
-			{required && !displayUrl && (
+			{required && !displayUrl && !labelled && (
 				<p className="-mt-1 text-xs leading-4 text-kumo-danger">{t`This field is required`}</p>
 			)}
 		</div>
