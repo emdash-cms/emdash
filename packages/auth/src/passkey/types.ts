@@ -2,7 +2,7 @@
  * WebAuthn types for passkey authentication
  */
 
-import type { AuthenticatorTransport, DeviceType } from "../types.js";
+import type { AuthenticatorTransport, CredentialBackupState, DeviceType } from "../types.js";
 
 // ============================================================================
 // Registration (Creating a new passkey)
@@ -96,6 +96,7 @@ export interface AuthenticationResponse {
 export interface VerifiedAuthentication {
 	credentialId: string;
 	newCounter: number;
+	backupState: CredentialBackupState;
 }
 
 export type VerifiedAuthenticationWithContext<Context> = VerifiedAuthentication & {

@@ -1,7 +1,8 @@
 /**
  * GET /_emdash/api/auth/passkey
  *
- * List all passkeys for the authenticated user
+ * List all passkeys for the authenticated user, with the relying party ID and
+ * WebAuthn user handle the admin needs to report the list to the browser.
  */
 
 import type { APIRoute } from "astro";
@@ -9,8 +10,11 @@ import type { APIRoute } from "astro";
 export const prerender = false;
 
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
+import { encodeBase64urlNoPadding } from "@oslojs/encoding";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { getPublicOrigin } from "#api/public-url.js";
+import { getPasskeyConfig } from "#auth/passkey-config.js";
 
 interface PasskeyResponse {
 	id: string;
@@ -21,7 +25,7 @@ interface PasskeyResponse {
 	lastUsedAt: string;
 }
 
-export const GET: APIRoute = async ({ locals }) => {
+export const GET: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
 
 	if (!emdash?.db) {
@@ -47,7 +51,11 @@ export const GET: APIRoute = async ({ locals }) => {
 			lastUsedAt: cred.lastUsedAt.toISOString(),
 		}));
 
-		return apiSuccess({ items: passkeys });
+		const url = new URL(request.url);
+		const { rpId } = getPasskeyConfig(url, undefined, getPublicOrigin(url, emdash.config));
+		const userHandle = encodeBase64urlNoPadding(new TextEncoder().encode(user.id));
+
+		return apiSuccess({ items: passkeys, rpId, userHandle });
 	} catch (error) {
 		return handleError(error, "Failed to list passkeys", "PASSKEY_LIST_ERROR");
 	}

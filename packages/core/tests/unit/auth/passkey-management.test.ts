@@ -276,5 +276,37 @@ describe("Passkey Management", () => {
 			expect(updated?.counter).toBe(1);
 			expect(updated?.lastUsedAt.getTime()).toBeGreaterThan(originalLastUsed.getTime());
 		});
+
+		it("should store the backup state reported with the counter", async () => {
+			const credential = await adapter.createCredential({
+				id: "cred-recorded-as-device-bound",
+				userId: testUser.id,
+				publicKey: new Uint8Array([1, 2, 3, 4]),
+				algorithm: -7,
+				counter: 0,
+				deviceType: "singleDevice",
+				backedUp: false,
+				transports: ["internal"],
+			});
+
+			await adapter.updateCredentialCounter(credential.id, 1, {
+				deviceType: "multiDevice",
+				backedUp: true,
+			});
+
+			const updated = await adapter.getCredentialById(credential.id);
+			expect(updated?.deviceType).toBe("multiDevice");
+			expect(updated?.backedUp).toBe(true);
+		});
+
+		it("should keep the stored backup state when none is reported", async () => {
+			const credential = await createTestCredential(testUser.id);
+
+			await adapter.updateCredentialCounter(credential.id, 1);
+
+			const updated = await adapter.getCredentialById(credential.id);
+			expect(updated?.deviceType).toBe("multiDevice");
+			expect(updated?.backedUp).toBe(true);
+		});
 	});
 });
