@@ -104,13 +104,6 @@ export function BylineSchemaPage() {
 			});
 			setCreating(false);
 		},
-		onError: (mutationError) => {
-			toastManager.add({
-				title: t`Failed to create field`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				variant: "error",
-			});
-		},
 	});
 
 	const updateMutation = useMutation({
@@ -124,13 +117,6 @@ export function BylineSchemaPage() {
 			});
 			setEditingField(null);
 		},
-		onError: (mutationError) => {
-			toastManager.add({
-				title: t`Failed to save field`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				variant: "error",
-			});
-		},
 	});
 
 	const deleteMutation = useMutation({
@@ -139,13 +125,6 @@ export function BylineSchemaPage() {
 			void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 			toastManager.add({ title: t`Field deleted` });
 			setDeletingField(null);
-		},
-		onError: (mutationError) => {
-			toastManager.add({
-				title: t`Failed to delete field`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				variant: "error",
-			});
 		},
 	});
 
@@ -208,8 +187,9 @@ export function BylineSchemaPage() {
 		// type guard documents that contract rather than relying on the
 		// caller threading the right variant.
 		if ("slug" in input && "type" in input) {
-			createMutation.mutate(input);
+			return createMutation.mutateAsync(input);
 		}
+		return undefined;
 	};
 
 	const handleEdit = (input: CreateBylineFieldInput | UpdateBylineFieldInput) => {
@@ -217,8 +197,9 @@ export function BylineSchemaPage() {
 		// The editor sends Update shapes from edit mode — no `slug`/`type`
 		// keys present. Narrow defensively before forwarding.
 		if (!("slug" in input) && !("type" in input)) {
-			updateMutation.mutate({ slug: editingField.slug, input });
+			return updateMutation.mutateAsync({ slug: editingField.slug, input });
 		}
+		return undefined;
 	};
 
 	return (
@@ -440,7 +421,7 @@ function FieldRow({
 			<td className="text-end">
 				<RowActionsMenu label={t`Actions for ${field.label}`}>
 					<DropdownMenu.Item
-						icon={<Pencil className="me-2 size-4" aria-hidden="true" />}
+						icon={<Pencil className="size-4" aria-hidden="true" />}
 						onClick={onEdit}
 					>
 						{t`Edit`}
@@ -448,14 +429,14 @@ function FieldRow({
 					{canMove && (
 						<>
 							<DropdownMenu.Item
-								icon={<ArrowUp className="me-2 size-4" aria-hidden="true" />}
+								icon={<ArrowUp className="size-4" aria-hidden="true" />}
 								disabled={isFirst || reorderPending}
 								onClick={onMoveUp}
 							>
 								{t`Move up`}
 							</DropdownMenu.Item>
 							<DropdownMenu.Item
-								icon={<ArrowDown className="me-2 size-4" aria-hidden="true" />}
+								icon={<ArrowDown className="size-4" aria-hidden="true" />}
 								disabled={isLast || reorderPending}
 								onClick={onMoveDown}
 							>
@@ -466,7 +447,7 @@ function FieldRow({
 					<DropdownMenu.Separator />
 					<DropdownMenu.Item
 						variant="danger"
-						icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+						icon={<Trash className="size-4" aria-hidden="true" />}
 						aria-label={t`Delete ${field.label}`}
 						onClick={onDelete}
 					>

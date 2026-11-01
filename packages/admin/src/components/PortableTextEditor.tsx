@@ -13,11 +13,12 @@
 
 import {
 	Button,
-	Dialog,
 	Input,
+	LayerDialog,
 	Popover,
 	Select,
 	Switch,
+	Text,
 	Tooltip,
 	TooltipProvider,
 } from "@cloudflare/kumo";
@@ -132,6 +133,7 @@ import { htmlBlockFields } from "../html-block";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { fetchMediaItem, uploadMedia } from "../lib/api/media.js";
+import { guardUnsavedInput, revealErrors } from "../lib/dialog-form.js";
 import {
 	canonicalMediaProviderId,
 	dropsDisplayHeight,
@@ -153,6 +155,7 @@ import {
 } from "../portable-text-table.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
+import { DialogError } from "./DialogError.js";
 import {
 	BlockSelectAll,
 	BlockSelection,
@@ -2628,6 +2631,59 @@ function hasPluginBlockFormData(values: Record<string, unknown>): boolean {
 	);
 }
 
+interface PluginBlockProblems {
+	url?: MessageDescriptor;
+	/** Top-level fields by `action_id`. */
+	fields: Record<string, MessageDescriptor>;
+	form?: MessageDescriptor;
+}
+
+const ABSOLUTE_URI_PATTERN = /^([a-z][a-z0-9+.-]*):\S+$/i;
+const UNSAFE_URI_SCHEMES = new Set(["javascript", "data", "vbscript"]);
+
+/**
+ * Any absolute URI a block can embed. URL parsing alone would refuse some,
+ * such as Bluesky's `at://did:plc:…` post URIs.
+ */
+function isEmbeddableUrl(url: string): boolean {
+	const scheme = ABSOLUTE_URI_PATTERN.exec(url)?.[1]?.toLowerCase();
+	if (!scheme || UNSAFE_URI_SCHEMES.has(scheme)) return false;
+	return scheme === "http" || scheme === "https" ? URL.canParse(url) : true;
+}
+
+function numberRangeProblem(field: Element, value: unknown): MessageDescriptor | undefined {
+	if (field.type !== "number_input" || typeof value !== "number") return undefined;
+	const min = typeof field.min === "number" ? field.min : undefined;
+	const max = typeof field.max === "number" ? field.max : undefined;
+	if ((min === undefined || value >= min) && (max === undefined || value <= max)) return undefined;
+	if (min !== undefined && max !== undefined) return msg`Enter a number between ${min} and ${max}.`;
+	if (min !== undefined) return msg`Enter a number of ${min} or more.`;
+	if (max !== undefined) return msg`Enter a number of ${max} or less.`;
+	return undefined;
+}
+
+function pluginBlockProblems(
+	block: PluginBlockDef | null,
+	values: Record<string, unknown>,
+): PluginBlockProblems {
+	const fields = block?.fields ?? [];
+	if (fields.length === 0) {
+		const url = typeof values.id === "string" ? values.id.trim() : "";
+		return isEmbeddableUrl(url)
+			? { fields: {} }
+			: { fields: {}, url: msg`Enter a full URL, such as https://example.com.` };
+	}
+	if (!hasPluginBlockFormData(values)) {
+		return { fields: {}, form: msg`Fill in at least one field.` };
+	}
+	const fieldProblems: Record<string, MessageDescriptor> = {};
+	for (const field of fields) {
+		const problem = numberRangeProblem(field, values[field.action_id]);
+		if (problem) fieldProblems[field.action_id] = problem;
+	}
+	return { fields: fieldProblems };
+}
+
 /**
  * Plugin block insertion/editing modal.
  * When the block has `fields`, renders Block Kit elements.
@@ -2646,104 +2702,126 @@ function PluginBlockModal({
 	onInsert: (values: Record<string, unknown>) => void;
 }) {
 	const [formValues, setFormValues] = React.useState<Record<string, unknown>>({});
+	const [touched, setTouched] = React.useState(false);
+	const [submitted, setSubmitted] = React.useState(false);
 	const inputRef = React.useRef<HTMLInputElement>(null);
+	const formId = React.useId();
 	const { t } = useLingui();
 
 	React.useEffect(() => {
 		if (block) {
 			setFormValues(buildPluginBlockFormValues(block, initialValues));
+			setTouched(false);
+			setSubmitted(false);
 			if (!block.fields || block.fields.length === 0) {
 				setTimeout(() => inputRef.current?.focus(), 0);
 			}
 		}
 	}, [block, initialValues]);
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const problems = pluginBlockProblems(block, formValues);
+	const urlError = submitted && problems.url ? t(problems.url) : undefined;
+	const formError = submitted && problems.form ? t(problems.form) : null;
+	const fieldErrors = submitted ? problems.fields : {};
+
+	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		e.stopPropagation();
+		const form = e.currentTarget;
+		if (problems.url || problems.form || Object.keys(problems.fields).length > 0) {
+			revealErrors(form, () => setSubmitted(true));
+			return;
+		}
+		// The form is noValidate, so the browser's own checks on fields inside repeater items run here.
+		if (!form.reportValidity()) return;
 		if (block?.fields && block.fields.length > 0) {
 			onInsert(formValues);
 		} else {
 			const url = typeof formValues.id === "string" ? formValues.id.trim() : "";
-			if (url) {
-				onInsert({ id: url });
-			}
+			onInsert({ id: url });
 		}
 	};
 
 	const handleFieldChange = (actionId: string, value: unknown) => {
+		setTouched(true);
 		setFormValues((prev) => ({ ...prev, [actionId]: value }));
 	};
 
 	const isEditing = !!initialValues;
 	const hasFields = block?.fields && block.fields.length > 0;
 
-	// For simple URL mode, check if the URL is non-empty
-	// For Block Kit fields, require at least one field to have a value
-	const canSubmit = hasFields
-		? hasPluginBlockFormData(formValues)
-		: typeof formValues.id === "string" && formValues.id.trim().length > 0;
-
 	const dialogSize = hasFields ? "xl" : "sm";
 
 	return (
-		<Dialog.Root open={!!block} onOpenChange={(open: boolean) => !open && onClose()}>
-			<Dialog className="p-6" size={dialogSize}>
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{isEditing ? t`Edit ${block?.label || ""}` : t`Insert ${block?.label || ""}`}
-					</Dialog.Title>
-					<Dialog.Close
-						aria-label={t`Close`}
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								aria-label={t`Close`}
-								className="absolute end-4 top-4"
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">{t`Close`}</span>
-							</Button>
-						)}
-					/>
-				</div>
-				<form onSubmit={handleSubmit}>
-					<div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto -mx-1 px-1">
-						{hasFields ? (
-							block.fields!.map((field) => (
-								<BlockKitField
-									key={field.action_id}
-									field={field}
-									pluginId={block.pluginId}
-									value={formValues[field.action_id]}
-									onChange={handleFieldChange}
+		<LayerDialog.Root
+			open={!!block}
+			{...guardUnsavedInput(touched, (open: boolean) => !open && onClose())}
+		>
+			<LayerDialog.Content size={dialogSize}>
+				<LayerDialog.Title>
+					{isEditing ? t`Edit ${block?.label || ""}` : t`Insert ${block?.label || ""}`}
+				</LayerDialog.Title>
+				<LayerDialog.Description>
+					{hasFields ? t`Fill in what this block shows.` : t`Paste the address of what to embed.`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<form id={formId} noValidate onSubmit={handleSubmit}>
+						<div className="grid gap-5" data-field-invalid={formError ? true : undefined}>
+							{hasFields ? (
+								block.fields!.map((field) => {
+									const fieldError = fieldErrors[field.action_id];
+									const errorId = fieldError ? `${formId}-${field.action_id}-error` : undefined;
+									return (
+										<div key={field.action_id} data-field-invalid={fieldError ? true : undefined}>
+											<BlockKitField
+												field={field}
+												pluginId={block.pluginId}
+												value={formValues[field.action_id]}
+												onChange={handleFieldChange}
+												errorId={errorId}
+											/>
+											{fieldError && (
+												<Text
+													as="p"
+													id={errorId}
+													role="alert"
+													variant="error"
+													size="sm"
+													DANGEROUS_className="mt-2"
+												>
+													{t(fieldError)}
+												</Text>
+											)}
+										</div>
+									);
+								})
+							) : (
+								<Input
+									dir="ltr"
+									ref={inputRef}
+									type="text"
+									inputMode="url"
+									className="w-full"
+									label={t`URL`}
+									placeholder={block?.placeholder || t`Enter URL...`}
+									value={typeof formValues.id === "string" ? formValues.id : ""}
+									onChange={(e) => handleFieldChange("id", e.target.value)}
+									required
+									error={urlError}
+									aria-invalid={urlError ? true : undefined}
 								/>
-							))
-						) : (
-							<Input
-								dir="ltr"
-								ref={inputRef}
-								type="url"
-								className="w-full"
-								placeholder={block?.placeholder || "Enter URL..."}
-								value={typeof formValues.id === "string" ? formValues.id : ""}
-								onChange={(e) => handleFieldChange("id", e.target.value)}
-							/>
-						)}
-					</div>
-					<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-						<Button type="button" variant="ghost" onClick={onClose}>
-							Cancel
-						</Button>
-						<Button type="submit" disabled={!canSubmit}>
-							{isEditing ? "Save" : "Insert"}
-						</Button>
-					</div>
-				</form>
-			</Dialog>
-		</Dialog.Root>
+							)}
+						</div>
+						<DialogError message={formError} className="mt-4" />
+					</form>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action type="submit" form={formId}>
+						{isEditing ? t`Save` : t`Insert`}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
@@ -2756,11 +2834,14 @@ function BlockKitField({
 	pluginId,
 	value,
 	onChange,
+	errorId,
 }: {
 	field: Element;
 	pluginId?: string;
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
+	/** The element describing this field's error, when it has one. */
+	errorId?: string;
 }) {
 	const id = React.useId();
 	switch (field.type) {
@@ -2807,6 +2888,8 @@ function BlockKitField({
 					<Input
 						id={id}
 						aria-labelledby={`${id}-label`}
+						aria-invalid={errorId ? true : undefined}
+						aria-describedby={errorId}
 						type="number"
 						className="w-full"
 						min={min}
@@ -3229,6 +3312,7 @@ function DynamicSelect({
 			) : (
 				<Select
 					aria-labelledby={labelId}
+					className="w-full"
 					value={typeof value === "string" ? value : ""}
 					onValueChange={(v) => onChange(field.action_id, v ?? "")}
 					items={{

@@ -91,7 +91,7 @@ test.describe("Byline custom fields", () => {
 
 		await page.getByRole("button", { name: "New" }).click();
 		await page.getByLabel("Display name").fill(bylineDisplayName);
-		await page.getByLabel("Slug").fill(bylineSlug);
+		await page.getByLabel("Slug", { exact: true }).fill(bylineSlug);
 		// Guest byline keeps the form simple — no user-link side quest.
 		await page.getByRole("switch", { name: "Guest byline" }).click();
 		await page.getByRole("button", { name: "Create" }).click();

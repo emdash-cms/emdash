@@ -141,6 +141,7 @@ describe("comment deletes that fail", () => {
 		dialog.getByRole("button", { name: "Delete", exact: true }).element().click();
 
 		await expect.element(dialog.getByText("Database unavailable")).toBeVisible();
+		expect(screen.getByText("Failed to perform bulk action").query()).toBeNull();
 		dialog.getByRole("button", { name: "Cancel" }).element().click();
 		await expect.element(dialog).not.toBeInTheDocument();
 		await expect.element(screen.getByText("1 selected")).toBeVisible();

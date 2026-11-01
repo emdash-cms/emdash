@@ -67,7 +67,10 @@ export interface ContentTypeListProps {
 	collections: SchemaCollection[];
 	orphanedTables?: OrphanedTable[];
 	isLoading?: boolean;
-	onDelete?: (slug: string) => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDelete?: (slug: string) => Promise<unknown> | void;
+	isDeleting?: boolean;
+	deleteError?: unknown;
 	onRegisterOrphan?: (slug: string) => void;
 	/** Persist a new sidebar order. Omit to render the list without reordering. */
 	onReorder?: (slugs: string[]) => void;
@@ -81,6 +84,8 @@ export function ContentTypeList({
 	orphanedTables,
 	isLoading,
 	onDelete,
+	isDeleting = false,
+	deleteError,
 	onRegisterOrphan,
 	onReorder,
 }: ContentTypeListProps) {
@@ -260,17 +265,18 @@ export function ContentTypeList({
 				}
 				confirmLabel={t`Delete`}
 				pendingLabel={t`Deleting...`}
-				isPending={false}
-				error={null}
+				isPending={isDeleting}
+				error={deleteError}
 				onConfirm={() => {
-					if (deleteTarget) {
-						onDelete?.(deleteTarget.slug);
-						setDeleteTarget(null);
-					}
+					if (!deleteTarget) return;
+					void Promise.resolve(onDelete?.(deleteTarget.slug)).then(
+						() => setDeleteTarget(null),
+						() => {},
+					);
 				}}
 			>
 				{affectedRelations.length > 0 && (
-					<div className="mt-4 rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3">
+					<div className="space-y-3 rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3">
 						<p className="text-sm font-medium">
 							{t`Every relationship this content type takes part in goes too:`}
 						</p>
@@ -369,7 +375,7 @@ function ContentTypeRow({ collection, canReorder, onRequestDelete }: ContentType
 				<RowActionsMenu label={t`Actions for ${collection.label}`}>
 					<DropdownMenu.LinkItem
 						closeOnClick
-						icon={<Pencil className="me-2 size-4" aria-hidden="true" />}
+						icon={<Pencil className="size-4" aria-hidden="true" />}
 						aria-label={t`Edit ${collection.label}`}
 						render={<Link to="/content-types/$slug" params={{ slug: collection.slug }} />}
 					>
@@ -380,7 +386,7 @@ function ContentTypeRow({ collection, canReorder, onRequestDelete }: ContentType
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item
 								variant="danger"
-								icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+								icon={<Trash className="size-4" aria-hidden="true" />}
 								aria-label={t`Delete ${collection.label}`}
 								onClick={() => onRequestDelete?.(collection)}
 							>

@@ -489,7 +489,6 @@ export function CommentInbox({
 				confirmLabel={t`Delete`}
 				pendingLabel={t`Deleting...`}
 				isPending={isStatusPending}
-				preventCloseWhilePending
 				error={bulkError}
 				onConfirm={() => {
 					void runBulk(bulkDeleteIds, "delete").then(
@@ -585,7 +584,7 @@ function CommentRow({
 					<RowActionsMenu label={t`Actions for comment by ${author}`}>
 						{comment.status !== "spam" && (
 							<DropdownMenu.Item
-								icon={<Warning className="me-2 size-4" aria-hidden="true" />}
+								icon={<Warning className="size-4" aria-hidden="true" />}
 								disabled={isStatusPending}
 								onClick={() => onStatusChange(comment.id, "spam")}
 							>
@@ -594,7 +593,7 @@ function CommentRow({
 						)}
 						{comment.status !== "trash" && (
 							<DropdownMenu.Item
-								icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+								icon={<Trash className="size-4" aria-hidden="true" />}
 								disabled={isStatusPending}
 								onClick={() => onStatusChange(comment.id, "trash")}
 							>
@@ -606,7 +605,7 @@ function CommentRow({
 								<DropdownMenu.Separator />
 								<DropdownMenu.Item
 									variant="danger"
-									icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+									icon={<Trash className="size-4" aria-hidden="true" />}
 									disabled={isStatusPending}
 									onClick={() => onDelete(comment.id)}
 								>

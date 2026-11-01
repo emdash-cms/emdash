@@ -1,3 +1,4 @@
+import { Toasty } from "@cloudflare/kumo";
 import { describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 
@@ -68,9 +69,11 @@ vi.mocked(fetch404Summary).mockResolvedValue(notFound);
 
 function renderAtPhoneWidth(dir: "ltr" | "rtl") {
 	return render(
-		<div dir={dir} style={{ width: 272 }}>
-			<Redirects />
-		</div>,
+		<Toasty>
+			<div dir={dir} style={{ width: 272 }}>
+				<Redirects />
+			</div>
+		</Toasty>,
 	);
 }
 
@@ -200,9 +203,11 @@ describe("Redirects at phone width", () => {
 describe("Disabled redirects", () => {
 	it.each([272, 1024])("fade their contents but not their cells in a %ipx table", async (width) => {
 		const screen = await render(
-			<div style={{ width }}>
-				<Redirects />
-			</div>,
+			<Toasty>
+				<div style={{ width }}>
+					<Redirects />
+				</div>
+			</Toasty>,
 		);
 		const source = (path: string) =>
 			screen.getByRole("button", { name: `Edit redirect ${path}`, exact: true });

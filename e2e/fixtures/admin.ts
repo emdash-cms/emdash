@@ -422,8 +422,8 @@ export class AdminPage {
 		await this.page.getByRole("button", { name: "Create Menu" }).first().click();
 
 		// Fill form
-		await this.page.getByLabel("Name").fill(name);
-		await this.page.getByLabel("Label").fill(label);
+		await this.page.getByLabel("Name", { exact: true }).fill(name);
+		await this.page.getByLabel("Label", { exact: true }).fill(label);
 
 		// Submit and wait for navigation
 		await Promise.all([

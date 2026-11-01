@@ -421,7 +421,7 @@ export function BylinesPage() {
 								<Table.Cell className="text-end">
 									<RowActionsMenu label={t`Actions for ${item.displayName}`}>
 										<DropdownMenu.Item
-											icon={<Pencil className="me-2 size-4" aria-hidden="true" />}
+											icon={<Pencil className="size-4" aria-hidden="true" />}
 											onClick={() => openEdit(item)}
 										>
 											{t`Edit`}
@@ -429,7 +429,7 @@ export function BylinesPage() {
 										<DropdownMenu.Separator />
 										<DropdownMenu.Item
 											variant="danger"
-											icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+											icon={<Trash className="size-4" aria-hidden="true" />}
 											aria-label={t`Delete byline ${item.displayName}`}
 											onClick={() => setDeleteTarget(item)}
 										>
