@@ -589,4 +589,33 @@ describe("Checking fields inside a block", () => {
 			vi.useRealTimers();
 		}
 	});
+
+	it("closes the Autosave paused notice while the entry is read-only", async () => {
+		vi.useFakeTimers();
+		try {
+			const item = makeItem([{ ...heroBlock, headline: "" }]);
+			const editor = (readOnly: boolean) => (
+				<ContentEditor
+					collection="pages"
+					collectionLabel="Page"
+					fields={fieldsFor([hero])}
+					isNew={false}
+					item={item}
+					onSave={vi.fn()}
+					onAutosave={vi.fn()}
+					readOnly={readOnly}
+				/>
+			);
+			const screen = await render(editor(false), { wrapper: Toasty });
+
+			await page.getByRole("textbox", { name: "Title" }).fill("Home page");
+			await vi.advanceTimersByTimeAsync(2500);
+			await expect.element(page.getByText("Autosave paused")).toBeVisible();
+
+			await screen.rerender(editor(true));
+			await expect.element(page.getByText("Autosave paused")).not.toBeInTheDocument();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
 });

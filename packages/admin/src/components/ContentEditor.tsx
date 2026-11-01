@@ -1969,7 +1969,12 @@ export function ContentEditor({
 				isDistractionFree && "fixed inset-0 z-50",
 			)}
 		>
-			{hasBlocksField && <AutosavePausedNotice heldBy={autosaveHeldBy} onShow={revealBlockIssue} />}
+			{hasBlocksField && (
+				<AutosavePausedNotice
+					heldBy={readOnly || isViewing ? null : autosaveHeldBy}
+					onShow={revealBlockIssue}
+				/>
+			)}
 			{/* Wraps the whole layout so the bar's Settings button and the
 			    block-panel sync can reach the sidebar context. Below lg Kumo
 			    renders the panel as an inline (not portaled) sheet. */}
