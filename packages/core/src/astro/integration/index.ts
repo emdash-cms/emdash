@@ -79,9 +79,9 @@ function resolveAstroVersion(): string | undefined {
 }
 
 /**
- * `@emdash-cms/cloudflare` depends on the exact `emdash` version it was
- * released with. A site that upgrades only one of the two installs a second
- * copy of `emdash` for the adapter, so warn when the installed adapter's
+ * `@emdash-cms/cloudflare` requires the exact `emdash` version it was
+ * released with. npm refuses a mismatched install, but pnpm and Yarn only
+ * print a peer dependency warning, so warn when the installed adapter's
  * version differs from this one.
  *
  * @internal Exported for unit testing.
@@ -102,8 +102,8 @@ export function adapterVersionMismatchWarning(
 		}
 		if (typeof pkg.version !== "string" || pkg.version === version) return undefined;
 		return (
-			`@emdash-cms/cloudflare ${pkg.version} does not match emdash ${version}, ` +
-			`so the adapter runs against its own copy of emdash ${pkg.version}. ` +
+			`@emdash-cms/cloudflare ${pkg.version} requires emdash ${pkg.version}, ` +
+			`but emdash ${version} is installed. ` +
 			`Install the same version of both packages, for example:\n\n` +
 			`  npm install emdash@${version} @emdash-cms/cloudflare@${version}`
 		);
