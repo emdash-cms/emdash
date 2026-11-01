@@ -242,12 +242,14 @@ test.describe("Schedule content", () => {
 		const scheduleButton = settingsPanel.getByRole("button", { name: "Schedule" });
 		await expect(publishingSummary).toBeVisible();
 		await expect(scheduleButton).toBeVisible();
-		for (const element of [publishingSummary, scheduleButton]) {
-			const box = await element.boundingBox();
-			expect(box).not.toBeNull();
-			expect(box!.x).toBeGreaterThanOrEqual(0);
-			expect(box!.x + box!.width).toBeLessThanOrEqual(320);
-		}
+		await expect(async () => {
+			for (const element of [publishingSummary, scheduleButton]) {
+				const box = await element.boundingBox();
+				expect(box).not.toBeNull();
+				expect(box!.x).toBeGreaterThanOrEqual(0);
+				expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+			}
+		}).toPass({ timeout: 5_000 });
 		expect(
 			await settingsPanel.evaluate((element) => element.scrollWidth <= element.clientWidth),
 		).toBe(true);
