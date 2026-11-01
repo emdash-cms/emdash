@@ -726,16 +726,22 @@ describe("BlocksField", () => {
 		expect(screen.getByLabelText("Must not render").query()).toBeNull();
 	});
 
-	it("hides the gutter, the menu and Add block when read-only", async () => {
-		const screen = await renderField({ initial: [heroBlock("one")], readOnly: true });
+	it("shows every block open, with no gutter, menu or Add block, when read-only", async () => {
+		const screen = await renderField({
+			initial: [heroBlock("one"), heroBlock("two")],
+			readOnly: true,
+		});
 
 		expect(screen.getByRole("button", { name: "Add block", exact: true }).query()).toBeNull();
 		expect(screen.getByRole("button", { name: "Add block below" }).query()).toBeNull();
 		expect(screen.getByRole("button", { name: "Hero actions" }).query()).toBeNull();
-
-		await screen.getByRole("button", { name: "Hero", exact: true }).click();
-		await expect.element(screen.getByLabelText("Title")).toHaveValue("one");
-		await screen.getByRole("button", { name: "Hero", exact: true }).click();
-		expect(screen.getByLabelText("Title").query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Expand all" }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Hero", exact: true }).query()).toBeNull();
+		expect(
+			screen
+				.getByLabelText("Title")
+				.all()
+				.map((input) => (input.element() as HTMLInputElement).value),
+		).toEqual(["one", "two"]);
 	});
 });
