@@ -1296,8 +1296,12 @@ interface ControlOptions {
 	/** Shown in an empty optional field that has no hint. */
 	emptyPlaceholder?: string;
 	heading?: boolean;
-	thumbnail?: FieldChrome["thumbnail"];
-	/** Keeps the hint and error for assistive technology only, as in a table cell, which has no room under it. */
+	/** Draws a photo as a thumbnail in a settings row. */
+	thumbnail?: "row";
+	/**
+	 * A table cell, which has no room under it: keeps the hint and error for assistive technology
+	 * only, and draws a photo as a thumbnail.
+	 */
 	cell?: boolean;
 }
 
@@ -1377,7 +1381,7 @@ function FieldControl({
 					placeholder,
 					invalid: issue !== undefined,
 					heading,
-					thumbnail,
+					thumbnail: cell ? "cell" : thumbnail,
 				},
 			})}
 			{hint && error !== hint && (

@@ -62,8 +62,10 @@ export interface ListControlInput {
 	onChange: (value: unknown) => void;
 	labelledBy: string;
 	placeholder?: string;
-	thumbnail?: "cell";
-	/** A table cell, with no room under the control for a hint or an error. */
+	/**
+	 * A table cell, where a photo draws as a thumbnail and there is no room under the control
+	 * for a hint or an error.
+	 */
 	cell?: boolean;
 }
 
@@ -475,7 +477,7 @@ export function BlockListField({
 		row: Row,
 		index: number,
 		subField: ListSubField,
-		input: Pick<ListControlInput, "labelledBy" | "placeholder" | "thumbnail" | "cell">,
+		input: Pick<ListControlInput, "labelledBy" | "placeholder" | "cell">,
 	) =>
 		renderControl({
 			subField,
@@ -556,13 +558,7 @@ export function BlockListField({
 								position={index + 1}
 								first={column === 0}
 							>
-								{(labelledBy) =>
-									control(row, index, subField, {
-										labelledBy,
-										cell: true,
-										...(subField.type === "image" ? { thumbnail: "cell" as const } : {}),
-									})
-								}
+								{(labelledBy) => control(row, index, subField, { labelledBy, cell: true })}
 							</LabelledCell>
 						))}
 					</TableRow>
