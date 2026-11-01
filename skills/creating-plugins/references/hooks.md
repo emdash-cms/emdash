@@ -123,7 +123,9 @@ Runs before save. Return modified content, or void to keep it unchanged. To reje
 
 ```typescript
 "content:beforeSave": async (event, ctx) => {
-	const { content } = event;
+	const { content, isNew } = event;
+	if (!isNew && !("title" in content)) return;
+
 	if (!content.title) {
 		return {
 			__emdashSandboxHookResult: true,
@@ -141,7 +143,7 @@ Runs before save. Return modified content, or void to keep it unchanged. To reje
 }
 ```
 
-Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean, id?: string, actor?: { id: string, role: number } }`. Authenticated REST, visual editing, and MCP saves include a read-only actor snapshot; internal writes may omit it. On updates, `id` identifies the existing item. `content` holds field values only: the entry's slug is not part of it, and a `slug` key returned from the hook fails validation as an unknown field. The actor snapshot does not identify the request origin, so a hook cannot distinguish REST, visual editing, MCP, or another authenticated path from this field alone.
+Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean, id?: string, actor?: { id: string, role: number } }`. Authenticated REST, visual editing, and MCP saves include a read-only actor snapshot; internal writes may omit it. On updates, `id` identifies the existing item and `content` holds only the submitted field values. The entry's slug is not part of `content`, and a `slug` key returned from the hook fails validation as an unknown field. The actor snapshot does not identify the request origin, so a hook cannot distinguish REST, visual editing, MCP, or another authenticated path from this field alone.
 Returns: `Record<string, unknown> | SandboxHookErrorEnvelope | void`
 
 ### `content:afterSave`

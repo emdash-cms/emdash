@@ -166,9 +166,13 @@ Runs before content is saved. Return modified content, a sandbox hook error resu
 
 To reject a save from the sandbox, return a versioned hook result with a `SAVE_REJECTED` error. Set `reason` to plain text between 1 and 500 characters. EmDash identifies the plugin and shows the reason to the editor. Empty, overlong, malformed, and unknown error results fail the save with a generic hook error.
 
+The following example requires a title on new entries. On an update, `content` holds only the fields the request sends, so the hook checks the title only when an update includes one:
+
 ```typescript
 "content:beforeSave": async (event, ctx) => {
-	const { content } = event;
+	const { content, isNew } = event;
+	if (!isNew && !("title" in content)) return;
+
 	if (typeof content.title !== "string" || content.title.trim() === "") {
 		return {
 			__emdashSandboxHookResult: true,
