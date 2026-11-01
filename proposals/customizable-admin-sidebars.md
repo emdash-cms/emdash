@@ -22,13 +22,13 @@ The admin navigation has no personal customization. A site can hide some built-i
 
 Each user arranges both sidebars on one page, **Settings → Personal → Sidebars** (`/settings/sidebars`). The [interactive mockup](https://emdash-customize-sidebars-mockup.gifted-market-6ca.workers.dev/) shows the page with made-up content and people.
 
-- The page has two lists, **Navigation** and **Editor sidebar**. Each row has a drag handle and a checkbox. Unchecking a row hides it, and dragging it or moving it with the keyboard changes its position. Each list has a Reset button.
-- Navigation entries move within their group: the unlabeled group with Dashboard and Calendar, Content, Manage, Admin, or Plugins. An entry inside a folder moves within that folder. A folder row moves as one entry and has no checkbox; hiding all of its entries hides the folder. Dashboard always stays first and visible.
+- The page has two tabs, **Navigation** and **Editor sidebar**, each with one list. A switch at the end of each row shows or hides it. Users reorder rows by dragging them or with the keyboard, and Alt+Up and Alt+Down move the focused row one place. Reset restores the current tab's default and offers Undo.
+- Navigation entries move within their group: the unlabeled group with Dashboard and Calendar, Content, Manage, Admin, or Plugins. An entry inside a folder moves within that folder. A folder row moves as one entry and has no switch; hiding all of its entries hides the folder. Dashboard always stays first and visible.
 - The editor sidebar order applies to every collection and to new entries. Sections that a collection doesn't use, such as Translations on a site without translations, are skipped. Publish can move but can't be hidden.
 - Changes apply as soon as the user makes them, and the navigation updates live.
 - The layout belongs to the signed-in user and is saved to their account, so it applies in every browser. Nobody else's sidebars change.
 - Every role can open the page. A new **Personal** group at the end of the Settings page holds it, together with the existing Language setting, which stays a per-browser setting. Users below Admin reach Settings from the user menu, because the navigation shows its Settings entry only to admins.
-- The editor sidebar loses its drag handles. A **Customize sidebar** link in a footer pinned to the bottom of the editor sidebar, matching the navigation's footer, opens the page at the Editor sidebar list. A pencil link in the navigation footer also opens the page; it's hidden while the navigation is collapsed to icons.
+- The editor sidebar loses its drag handles. A **Customize sidebar** link in a footer pinned to the bottom of the editor sidebar, matching the navigation's footer, opens the page on the Editor sidebar tab. A pencil link in the navigation footer also opens the page; it's hidden while the navigation is collapsed to icons.
 - The command palette ignores the personal layout.
 
 Linear ([Personalized sidebar](https://linear.app/changelog/2024-12-18-personalized-sidebar)) and Atlassian's Confluence ([Customize sidebar](https://support.atlassian.com/confluence-cloud/docs/what-is-the-new-navigation-in-confluence/)) also give each person a dedicated view for hiding and reordering sidebar items.
@@ -71,7 +71,7 @@ Linear ([Personalized sidebar](https://linear.app/changelog/2024-12-18-personali
   3. Drop the IDs listed in `hidden`, except `/` (Dashboard) and `publish`.
 
 - **Writing a layout.** Only the Settings page writes. It reloads the current user when it opens and enables its controls once the reload finishes.
-  - Checking or unchecking a row adds or removes that one ID in `hidden`. IDs the page can't match stay in `hidden`, so an entry hidden before its plugin was disabled stays hidden when the plugin comes back.
+  - Turning a row's switch off or on adds or removes that one ID in `hidden`. IDs the page can't match stay in `hidden`, so an entry hidden before its plugin was disabled stays hidden when the plugin comes back.
   - A list's `order` changes only when the user moves an entry in that list. The page then writes the order of every entry the list shows, which drops IDs it can't match.
   - The page sends one save at a time. While a save is in flight, it queues only the latest layout. When a save fails, the page drops the queued layout, restores the last layout the server accepted, and shows the server's error.
 
@@ -97,10 +97,10 @@ Linear ([Personalized sidebar](https://linear.app/changelog/2024-12-18-personali
 ## Verification
 
 - Unit tests for resolving a layout: saved order, new and unknown IDs, duplicates, folders, and entries that can't be hidden.
-- Unit tests for writing a layout: toggling a row keeps unmatched IDs in `hidden`, a move writes the displayed order, and a checkbox change leaves `order` alone.
+- Unit tests for writing a layout: toggling a row keeps unmatched IDs in `hidden`, a move writes the displayed order, and a switch change leaves `order` alone.
 - Unit tests for reading a stored layout: missing, malformed, and wrong-version values.
 - API tests on SQLite and PostgreSQL: a layout round-trips through `POST` and `GET`, `null` clears it, invalid and oversized layouts get `VALIDATION_ERROR`, and other keys in `data`, such as `welcomeDismissed`, survive a save.
-- Browser tests: hiding and reordering on the Settings page update the navigation at once, the editor sidebar follows the saved order, keyboard reordering announces positions, Reset restores the default, and a failed save restores the last accepted layout.
+- Browser tests: hiding and reordering on the Settings page update the navigation at once, the editor sidebar follows the saved order, keyboard reordering announces positions and Alt+Up and Alt+Down keep focus on the moved row, Reset restores the default and Undo brings the previous layout back, and a failed save restores the last accepted layout.
 - A manual pass at phone width, in Arabic, and in dark mode.
 
 ## Open questions
