@@ -230,8 +230,12 @@ export function BlocksField({
 		focusRequestRef.current = null;
 		const control =
 			request.target === "first-control"
-				? row.querySelector<HTMLElement>(`[data-block-body] :is(${FOCUSABLE})`)
-				: null;
+				? [...row.querySelectorAll<HTMLElement>(`[data-block-body] :is(${FOCUSABLE})`)].find(
+						// A rich text field's toolbar comes before its text, and a hidden control can't take focus.
+						(element) =>
+							!element.closest('[role="toolbar"]') && element.getClientRects().length > 0,
+					)
+				: undefined;
 		(control ?? row.querySelector<HTMLElement>("[data-block-toggle]"))?.focus();
 	});
 
