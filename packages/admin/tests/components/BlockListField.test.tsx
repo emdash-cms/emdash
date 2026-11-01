@@ -450,6 +450,13 @@ const logos = blockType("logos", "Logo wall", [
 	]),
 ]);
 
+const scores = blockType("scores", "Scores", [
+	list("scores", "Scores", [
+		{ slug: "score", label: "Score", type: "number" },
+		{ slug: "label", label: "Label", type: "string" },
+	]),
+]);
+
 const events = blockType("events", "Events", [
 	list("events", "Events", [
 		{ slug: "title", label: "Title", type: "string" },
@@ -561,6 +568,14 @@ describe("Tables inside a block", () => {
 			{ name: "Arc", logo: { id: "media-1", src: PHOTO } },
 			{ name: "Norma Studio" },
 		]);
+	});
+
+	it("focuses a new row's number input when its first column is a number", async () => {
+		await renderEditor([{ _type: "scores", _version: 1, _key: "scores-1", scores: [] }], [scores]);
+		await page.getByRole("button", { name: "Scores", exact: true }).click();
+
+		await page.getByRole("button", { name: "Add item" }).click();
+		await expect.element(page.getByRole("spinbutton", { name: "Score 1" })).toHaveFocus();
 	});
 
 	it("keeps the columns side by side at phone width", async () => {
