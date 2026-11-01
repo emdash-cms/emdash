@@ -687,6 +687,31 @@ describe("Lists inside a block in the editor", () => {
 		expect(error.element().getBoundingClientRect().width).toBeGreaterThan(20);
 	});
 
+	it("keeps one Autosave paused notice when the failing item moves up, and Show finds it", async () => {
+		const onAutosave = vi.fn();
+		await renderEditor(
+			[testimonialsBlock([maya, jonas, { ...ines, author: "" }])],
+			[testimonials],
+			{ onAutosave },
+		);
+		await page.getByRole("textbox", { name: "Title" }).fill("Home page");
+		const notice = page.getByText("Autosave paused");
+		await expect.element(notice, { timeout: 5000 }).toBeVisible();
+		const shown = notice.element();
+
+		await page.getByRole("button", { name: "Testimonials", exact: true }).click();
+		await itemMenu("Maya Okafor", "Delete");
+		await expect.element(page.getByText("Deleted Maya Okafor")).toBeVisible();
+		await new Promise((resolve) => setTimeout(resolve, 2500));
+		expect(onAutosave).not.toHaveBeenCalled();
+		expect(notice.element()).toBe(shown);
+
+		await page.getByRole("button", { name: "Show" }).click();
+		const title = page.getByRole("textbox", { name: "Author name", exact: true });
+		await expect.element(title).toHaveFocus();
+		await expect.element(title).toHaveAttribute("aria-invalid", "true");
+	});
+
 	it("shows every item open with its fields disabled in a read-only entry", async () => {
 		await renderEditor([testimonialsBlock([maya, jonas])], [testimonials], { readOnly: true });
 

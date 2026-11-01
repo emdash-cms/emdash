@@ -120,8 +120,9 @@ interface FieldBlockIssue {
 	issue: BlockValueIssue;
 }
 
+/** Names a problem by its block field rather than its list item, which moves as items are deleted. */
 function blockIssueKey({ name, issue }: FieldBlockIssue): string {
-	return `${name}:${issue.blockKey}:${issue.path}:${issue.code}`;
+	return `${name}:${issue.blockKey}:${issue.field}:${issue.code}`;
 }
 
 /** Says autosave is paused while `heldBy` holds it, once per problem, with a way to reach the field. */
@@ -130,7 +131,7 @@ function AutosavePausedNotice({
 	onShow,
 }: {
 	heldBy: FieldBlockIssue | null;
-	onShow: (found: FieldBlockIssue) => void;
+	onShow: () => void;
 }) {
 	const { t } = useLingui();
 	const { add, close } = useKumoToastManager();
@@ -157,7 +158,7 @@ function AutosavePausedNotice({
 					size: "sm",
 					onClick: () => {
 						close(toastId);
-						onShow(heldBy);
+						onShow();
 					},
 				},
 			],
@@ -1349,6 +1350,10 @@ export function ContentEditor({
 			focusId: blockIssueElementId(found.name, found.issue),
 		}));
 	}, []);
+	const showFirstBlockIssue = React.useCallback(() => {
+		const found = firstBlockIssue(formDataRef.current);
+		if (found) revealBlockIssue(found);
+	}, [firstBlockIssue, revealBlockIssue]);
 	const holdAutosaveFor = React.useCallback((found: FieldBlockIssue) => {
 		setAutosaveHeldBy((current) =>
 			current && blockIssueKey(current) === blockIssueKey(found) ? current : found,
@@ -1972,7 +1977,7 @@ export function ContentEditor({
 			{hasBlocksField && (
 				<AutosavePausedNotice
 					heldBy={readOnly || isViewing ? null : autosaveHeldBy}
-					onShow={revealBlockIssue}
+					onShow={showFirstBlockIssue}
 				/>
 			)}
 			{/* Wraps the whole layout so the bar's Settings button and the
