@@ -1,5 +1,6 @@
 import { Toasty } from "@cloudflare/kumo";
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page, type Locator } from "vitest/browser";
 
@@ -38,7 +39,16 @@ vi.mock("../../src/components/TaxonomySidebar", () => ({
 
 vi.mock("../../src/components/MediaPickerModal", () => ({
 	MediaPickerModal: (props: { open: boolean }) =>
-		props.open ? <div data-testid="media-picker" /> : null,
+		props.open
+			? createPortal(
+					<div role="dialog" aria-label="Media library">
+						<button type="button" autoFocus>
+							Upload
+						</button>
+					</div>,
+					document.body,
+				)
+			: null,
 }));
 
 const LINK_PATTERN = "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$";
@@ -445,6 +455,24 @@ describe("Checking fields inside a block", () => {
 		await expect.element(headline).toHaveAccessibleDescription("Required");
 		expect(placeholderColor()).not.toBe(quietColor);
 		expect(added().querySelectorAll("[aria-invalid='true']")).toHaveLength(1);
+	});
+
+	it("keeps a new block's empty required photo quiet while its media picker is open", async () => {
+		vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValueOnce(
+			"00000000-0000-4000-8000-000000000004",
+		);
+		await renderEditor([heroBlock], [hero, logoWall]);
+
+		await page.getByRole("button", { name: "Add block", exact: true }).click();
+		await page.getByRole("option", { name: /^Logo wall/ }).click();
+		const added = blockRow("00000000-0000-4000-8000-000000000004");
+		const selectImage = added.getByRole("button", { name: "Select image" });
+		await selectImage.click();
+		await expect
+			.element(page.getByRole("dialog", { name: "Media library" }).getByRole("button"))
+			.toHaveFocus();
+		await expect.element(selectImage).not.toHaveAccessibleDescription("Required");
+		expect(added.element().querySelectorAll("[aria-invalid='true']")).toHaveLength(0);
 	});
 
 	it("opens the closed block that fails on Save, focuses the field and marks other failing blocks", async () => {

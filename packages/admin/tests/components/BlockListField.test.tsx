@@ -255,6 +255,18 @@ describe("Type-in lists inside a block", () => {
 		}
 	});
 
+	it("keeps a blank line while its menu is open", async () => {
+		await renderHarness({ initial: [clientsBlock(["Hotel Wilde", "Norma"])] });
+		await openBlock("Clients");
+
+		await line(2).click();
+		await userEvent.keyboard("{Enter}");
+		await page.getByRole("button", { name: "Untitled actions" }).click();
+		await expect.poll(() => document.activeElement?.closest("[role='menu']")).toBeTruthy();
+		expect(lineValues()).toEqual(["Hotel Wilde", "Norma", ""]);
+		await expect.element(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
+	});
+
 	it("turns a pasted block of lines into one item per line, up to maxItems", async () => {
 		const onValue = vi.fn();
 		await renderHarness({ initial: [clientsBlock(["Hotel Wilde", "Norma"])], onValue });

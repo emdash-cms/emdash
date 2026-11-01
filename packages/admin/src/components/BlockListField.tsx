@@ -106,6 +106,7 @@ const MENU_ICON = "me-2 size-4";
 const LINE_BREAK = /[\r\n]/;
 // Other input types, such as number and email, throw when a script sets their selection.
 const SELECTABLE_INPUT_TYPES = new Set(["text", "search", "url", "tel", "password"]);
+const POPUP = '[role="dialog"], [role="menu"], [role="listbox"]';
 const IMAGE_COLUMN = "4.5rem";
 const MENU_COLUMN = "2rem";
 // Touch and narrow screens have no hover, so their menus always show.
@@ -124,6 +125,15 @@ export function focusableIn(element: Element | null | undefined): HTMLElement | 
 				!candidate.closest("[aria-hidden='true']"),
 		) ?? null
 	);
+}
+
+/**
+ * Whether focus left `event.currentTarget`. Focus that moves into a popup the control opened,
+ * such as a menu or the media picker, or out of the window, has not left it.
+ */
+export function focusLeft(event: React.FocusEvent<HTMLElement>): boolean {
+	const next = event.relatedTarget;
+	return next instanceof Element && !event.currentTarget.contains(next) && !next.closest(POPUP);
 }
 
 export function ErrorDot({ id }: { id?: string }) {
@@ -607,10 +617,7 @@ export function BlockListField({
 			onBlur={
 				lineField && !readOnly
 					? (event) => {
-							const next = event.relatedTarget;
-							if (next instanceof Node && event.currentTarget.contains(next)) return;
-							// When the window loses focus, the line keeps it, so its blank lines stay.
-							queueMicrotask(removeBlankLines);
+							if (focusLeft(event)) queueMicrotask(removeBlankLines);
 						}
 					: undefined
 			}

@@ -57,6 +57,7 @@ import {
 	FOCUSABLE,
 	firstPhotoUrl,
 	focusableIn,
+	focusLeft,
 	toggled,
 } from "./BlockListField.js";
 import { BlockTypeIcon, BlockTypePicker } from "./BlockTypePicker.js";
@@ -286,9 +287,7 @@ function listLimit(field: LayoutFieldDefinition, key: "minItems" | "maxItems") {
 /** Calls `callback` when focus leaves the element, rather than moving within it. */
 function onFocusLeave(callback: () => void) {
 	return (event: React.FocusEvent<HTMLElement>) => {
-		const next = event.relatedTarget;
-		if (next instanceof Node && event.currentTarget.contains(next)) return;
-		callback();
+		if (focusLeft(event)) callback();
 	};
 }
 
