@@ -3102,6 +3102,7 @@ function FieldRenderer({
 					labelledBy={chrome?.labelledBy}
 					describedBy={chrome?.describedBy}
 					invalid={chrome?.invalid}
+					thumbnail={chrome?.thumbnail}
 				/>
 			);
 		}
@@ -3155,7 +3156,6 @@ function FieldRenderer({
 					timezone={timezone}
 					minItems={typeof validation?.minItems === "number" ? validation.minItems : undefined}
 					maxItems={typeof validation?.maxItems === "number" ? validation.maxItems : undefined}
-					error={chrome?.error}
 				/>
 			);
 		}

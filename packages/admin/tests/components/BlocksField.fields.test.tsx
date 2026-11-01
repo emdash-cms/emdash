@@ -491,7 +491,7 @@ describe("Checking fields inside a block", () => {
 		);
 	});
 
-	it("names a required list sub-field under the list's label", async () => {
+	it("marks a required list sub-field where it is and focuses it", async () => {
 		await renderEditor(
 			[
 				{
@@ -507,8 +507,12 @@ describe("Checking fields inside a block", () => {
 
 		await page.getByRole("textbox", { name: "Title" }).fill("Home page");
 		await saveButton().click();
-		await expect.element(page.getByText("Item 2: Company name is required")).toBeVisible();
-		await expect.element(page.getByRole("textbox", { name: "Company name" }).nth(1)).toHaveFocus();
+		const second = page.getByRole("textbox", { name: "Company name 2" });
+		await expect.element(second).toHaveFocus();
+		await expect.element(second).toHaveAttribute("aria-invalid", "true");
+		await expect
+			.element(page.getByRole("textbox", { name: "Company name 1" }))
+			.not.toHaveAttribute("aria-invalid");
 	});
 
 	it("holds autosave while a block field fails, names it in a notice, and resumes once it is fixed", async () => {

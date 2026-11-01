@@ -32,7 +32,9 @@ import type { BlockFieldDefinition, BlockType } from "../lib/api/schema.js";
 import {
 	blockSummary,
 	type BlockFieldPart,
+	type ListSubField,
 	planBlockFields,
+	repeaterSubFields,
 	splitLabelHint,
 } from "../lib/block-field-layout.js";
 import {
@@ -48,9 +50,17 @@ import {
 import { type BlockValueIssue, validateBlocks } from "../lib/block-validation.js";
 import { useStableCallback } from "../lib/hooks.js";
 import { cn } from "../lib/utils.js";
+import {
+	BlockListField,
+	type DeletedListItem,
+	ErrorDot,
+	FOCUSABLE,
+	firstPhotoUrl,
+	focusableIn,
+	toggled,
+} from "./BlockListField.js";
 import { BlockTypeIcon, BlockTypePicker } from "./BlockTypePicker.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
-import { type ImageFieldValue, mediaDisplayUrl } from "./ImageFieldRenderer.js";
 
 interface NestedFieldDescriptor {
 	id?: string;
@@ -74,9 +84,15 @@ export interface FieldChrome {
 	invalid?: boolean;
 	/** The block's headline, drawn larger. */
 	heading?: boolean;
-	/** Shown under the label of a control that draws its own label, such as a list. */
-	error?: React.ReactNode;
+	/** Draws a photo as a thumbnail: in a list item's settings row, or in a table cell. */
+	thumbnail?: "row" | "cell";
 }
+
+/** A block field, or a list's sub-field, as an open block lays it out. */
+type LayoutFieldDefinition = Pick<
+	BlockFieldDefinition,
+	"slug" | "label" | "required" | "validation" | "options"
+> & { type: string };
 
 interface NestedFieldRenderInput {
 	name: string;
@@ -125,12 +141,9 @@ const NESTED_KIND: Record<string, string> = {
 	portableText: "portableText",
 	image: "image",
 	file: "file",
-	repeater: "repeater",
 };
 
 const UNDO_TIMEOUT_MS = 6000;
-const FOCUSABLE =
-	'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
 const SHEET_INNER_TOP = "rounded-t-[calc(var(--radius-lg)-1px)]";
 const SHEET_INNER_BOTTOM = "rounded-b-[calc(var(--radius-lg)-1px)]";
 const MENU_ICON = "size-4";
@@ -152,7 +165,17 @@ interface PickerTarget {
 type FocusRequest =
 	| { key: string; target: "first-control" | "toggle" }
 	| { key: string; target: "field"; elementId: string; field: string }
+	| { key: string; target: "item"; field: string; index: number }
 	| { target: "add" };
+
+type UndoOwner = { kind: "block" } | { kind: "item"; blockKey: string; field: string };
+
+interface ItemReveal {
+	blockKey: string;
+	field: string;
+	index: number;
+	token: number;
+}
 
 const NO_ISSUES: readonly BlockValueIssue[] = [];
 
@@ -171,31 +194,10 @@ function touchKey(blockKey: string, field: string): string {
 	return `${blockKey}:${field}`;
 }
 
-function focusableIn(element: Element | null | undefined): HTMLElement | null {
-	if (!element) return null;
-	const candidates = [element, ...element.querySelectorAll(FOCUSABLE)];
-	return (
-		candidates.find(
-			(candidate): candidate is HTMLElement =>
-				candidate instanceof HTMLElement &&
-				candidate.matches(FOCUSABLE) &&
-				candidate.tabIndex >= 0 &&
-				!candidate.closest("[aria-hidden='true']"),
-		) ?? null
-	);
-}
-
 function useIssueMessage() {
 	const { t, i18n } = useLingui();
 	return React.useCallback(
 		(issue: BlockValueIssue, hint?: string): string => {
-			if (issue.item !== undefined) {
-				const position = issue.item + 1;
-				const field = splitLabelHint(issue.label).label;
-				return issue.code === "required"
-					? t`Item ${position}: ${field} is required`
-					: t`Item ${position}: check ${field}`;
-			}
 			switch (issue.code) {
 				case "required":
 					return t`Required`;
@@ -247,11 +249,9 @@ type MenuAction =
 	| { kind: "add"; side: InsertSide; invoker: HTMLElement | null };
 
 function nestedDescriptor(
-	outerId: string,
-	blockKey: string,
-	blockType: string,
-	blockVersion: number,
-	field: BlockFieldDefinition,
+	field: LayoutFieldDefinition,
+	block: StoredBlockValue,
+	id?: string,
 ): NestedFieldDescriptor {
 	const options = Array.isArray(field.validation?.options)
 		? field.validation.options
@@ -259,44 +259,82 @@ function nestedDescriptor(
 				.map((option) => ({ value: option, label: option }))
 		: field.options;
 	return {
-		id: `${outerId}:${blockKey}:${field.slug}`,
+		...(id ? { id } : {}),
 		kind: NESTED_KIND[field.type] ?? "unsupported",
-		// A list still draws its own label, hint included.
-		label: field.type === "repeater" ? field.label : splitLabelHint(field.label).label,
+		label: splitLabelHint(field.label).label,
 		required: field.required,
 		validation: field.validation,
-		blockType,
-		blockVersion,
+		blockType: block._type,
+		blockVersion: block._version,
 		options,
 		...(field.type === "integer" ? { integer: true } : {}),
 	};
 }
 
-function toggled(keys: ReadonlySet<string>, key: string): ReadonlySet<string> {
-	const next = new Set(keys);
-	if (next.has(key)) next.delete(key);
-	else next.add(key);
-	return next;
+function listFieldDefinition({ options, ...subField }: ListSubField): LayoutFieldDefinition {
+	return options ? { ...subField, validation: { options } } : subField;
 }
 
-function isImageValue(value: unknown): value is ImageFieldValue {
-	return (
-		typeof value === "object" && value !== null && "id" in value && typeof value.id === "string"
+function listLimit(field: LayoutFieldDefinition, key: "minItems" | "maxItems") {
+	const value = field.validation?.[key];
+	return typeof value === "number" ? value : undefined;
+}
+
+/** Calls `callback` when focus leaves the element, rather than moving within it. */
+function onFocusLeave(callback: () => void) {
+	return (event: React.FocusEvent<HTMLElement>) => {
+		const next = event.relatedTarget;
+		if (next instanceof Node && event.currentTarget.contains(next)) return;
+		callback();
+	};
+}
+
+/**
+ * One Undo toast for a blocks field, offered for its latest deletion: of a block or of a
+ * list item inside one. Offering another, or dismissing, closes the toast before its Undo can act.
+ */
+function useUndoToast() {
+	const { t } = useLingui();
+	const toastManager = useKumoToastManager();
+	const { close } = toastManager;
+	const currentRef = React.useRef<{ id: string; owner: UndoOwner } | null>(null);
+
+	const dismiss = React.useCallback(() => {
+		const current = currentRef.current;
+		if (!current) return;
+		currentRef.current = null;
+		close(current.id);
+	}, [close]);
+
+	React.useEffect(
+		() => () => {
+			if (currentRef.current) close(currentRef.current.id);
+		},
+		[close],
 	);
-}
 
-function blockThumbnail(
-	block: StoredBlockValue,
-	fields: readonly BlockFieldDefinition[],
-): string | undefined {
-	for (const field of fields) {
-		if (field.type !== "image") continue;
-		const value = block[field.slug];
-		const url =
-			typeof value === "string" || isImageValue(value) ? mediaDisplayUrl(value) : undefined;
-		if (url) return url;
-	}
-	return undefined;
+	const offer = (title: string, owner: UndoOwner, restore: () => void) => {
+		dismiss();
+		const id: string = toastManager.add({
+			title,
+			timeout: UNDO_TIMEOUT_MS,
+			actions: [
+				{
+					children: t`Undo`,
+					variant: "secondary",
+					size: "sm",
+					onClick: () => {
+						if (currentRef.current?.id !== id) return;
+						dismiss();
+						restore();
+					},
+				},
+			],
+		});
+		currentRef.current = { id, owner };
+	};
+
+	return { offer, dismiss, owner: () => currentRef.current?.owner };
 }
 
 export function BlocksField({
@@ -316,13 +354,11 @@ export function BlocksField({
 	reveal,
 }: BlocksFieldProps) {
 	const { t } = useLingui();
-	const toastManager = useKumoToastManager();
-	const { close: closeToast } = toastManager;
+	const undo = useUndoToast();
 	const blocks = Array.isArray(value) ? value.filter(isStoredBlockValue) : [];
 	const rootRef = React.useRef<HTMLDivElement>(null);
 	const addButtonRef = React.useRef<HTMLButtonElement>(null);
 	const focusRequestRef = React.useRef<FocusRequest | null>(null);
-	const undoToastRef = React.useRef<string | null>(null);
 	const maxHintId = React.useId();
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	const [advancedKeys, setAdvancedKeys] = React.useState<ReadonlySet<string>>(() => new Set());
@@ -330,6 +366,7 @@ export function BlocksField({
 	const [revealedKeys, setRevealedKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	const revealTokenRef = React.useRef(reveal?.token ?? 0);
 	const [revealFocus, setRevealFocus] = React.useState<FocusRequest | null>(null);
+	const [itemReveal, setItemReveal] = React.useState<ItemReveal | null>(null);
 	const [picker, setPicker] = React.useState<PickerTarget | null>(null);
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const [confirmDelete, setConfirmDelete] = React.useState<{
@@ -359,7 +396,8 @@ export function BlocksField({
 		for (const issue of validateBlocks(blocks, blockTypes)) {
 			if (
 				!revealedKeys.has(issue.blockKey) &&
-				!touched.has(touchKey(issue.blockKey, issue.field))
+				!touched.has(touchKey(issue.blockKey, issue.field)) &&
+				!touched.has(touchKey(issue.blockKey, issue.path))
 			) {
 				continue;
 			}
@@ -367,12 +405,12 @@ export function BlocksField({
 		}
 	}
 
-	const touchField = (blockKey: string, field: string) => {
-		const key = touchKey(blockKey, field);
+	const touchField = (blockKey: string, path: string) => {
+		const key = touchKey(blockKey, path);
 		setTouched((current) => (current.has(key) ? current : new Set(current).add(key)));
 	};
 
-	const revealIssues = useStableCallback((focusId: string | undefined) => {
+	const revealIssues = useStableCallback((token: number, focusId: string | undefined) => {
 		if (readOnly) return;
 		setRevealedKeys(new Set(blocks.map((block) => block._key)));
 		const block = focusId
@@ -380,7 +418,13 @@ export function BlocksField({
 			: undefined;
 		if (!block || !focusId) return;
 		const path = focusId.slice(`field-${fieldPath}.${block._key}.`.length);
-		const field = path.split(".")[0] ?? path;
+		const [field = path, item] = path.split(".");
+		const index = Number(item);
+		setItemReveal(
+			item !== undefined && Number.isInteger(index)
+				? { blockKey: block._key, field, index, token }
+				: null,
+		);
 		const version = typeBySlug
 			.get(block._type)
 			?.versions.find((candidate) => candidate.version === block._version);
@@ -397,14 +441,15 @@ export function BlocksField({
 	React.useEffect(() => {
 		if (revealToken === revealTokenRef.current) return;
 		revealTokenRef.current = revealToken;
-		revealIssues(revealFocusId);
+		revealIssues(revealToken, revealFocusId);
 	}, [revealToken, revealFocusId, revealIssues]);
 
-	// Hands the focus over a render later, once the block and its Advanced row have opened.
+	// Hands the focus over a render later, once the block, its Advanced row and any list item have opened.
 	React.useEffect(() => {
 		if (!revealFocus) return;
 		focusRequestRef.current = revealFocus;
 		setRevealFocus(null);
+		setItemReveal(null);
 	}, [revealFocus]);
 
 	React.useEffect(() => {
@@ -422,6 +467,18 @@ export function BlocksField({
 		if (!row) return;
 		focusRequestRef.current = null;
 		const toggle = row.querySelector<HTMLElement>("[data-block-toggle]");
+		if (request.target === "item") {
+			const list = [...row.querySelectorAll<HTMLElement>("[data-block-body] [data-field]")].find(
+				(element) => element.dataset.field === request.field,
+			);
+			const item = list?.querySelectorAll<HTMLElement>("[data-list-item]")[request.index];
+			(
+				focusableIn(item?.querySelector("[data-item-focus]")) ??
+				focusableIn(item) ??
+				toggle
+			)?.focus();
+			return;
+		}
 		if (request.target === "field") {
 			const { elementId } = request;
 			const focusField = () => {
@@ -442,24 +499,32 @@ export function BlocksField({
 		(control ?? toggle)?.focus();
 	});
 
-	React.useEffect(
-		() => () => {
-			if (undoToastRef.current) closeToast(undoToastRef.current);
-		},
-		[closeToast],
-	);
-
-	React.useEffect(() => {
-		if (!(readOnly || atMax) || !undoToastRef.current) return;
-		closeToast(undoToastRef.current);
-		undoToastRef.current = null;
-	}, [readOnly, atMax, closeToast]);
-
-	const dismissUndo = () => {
-		if (!undoToastRef.current) return;
-		closeToast(undoToastRef.current);
-		undoToastRef.current = null;
+	const listMaxItems = (block: StoredBlockValue, field: string) => {
+		const definition = typeBySlug
+			.get(block._type)
+			?.versions.find((candidate) => candidate.version === block._version)
+			?.fields.find((candidate) => candidate.slug === field);
+		return (definition && listLimit(definition, "maxItems")) ?? Infinity;
 	};
+
+	// Undo can't put back what no longer fits, or anything once the field is read-only.
+	React.useEffect(() => {
+		const owner = undo.owner();
+		if (!owner) return;
+		if (readOnly) {
+			undo.dismiss();
+			return;
+		}
+		if (owner.kind === "block") {
+			if (atMax) undo.dismiss();
+			return;
+		}
+		const block = blocks.find((candidate) => candidate._key === owner.blockKey);
+		const items = block?.[owner.field];
+		if (!block || (Array.isArray(items) && items.length >= listMaxItems(block, owner.field))) {
+			undo.dismiss();
+		}
+	});
 
 	const openPicker = (target: PickerTarget) => {
 		setPicker(target);
@@ -534,25 +599,28 @@ export function BlocksField({
 		}
 		const index = removeBlock(block._key);
 		if (index < 0) return;
-		dismissUndo();
 		const name = blockLabel(block);
-		const toastId: string = toastManager.add({
-			title: t`Deleted ${name}`,
-			timeout: UNDO_TIMEOUT_MS,
-			actions: [
-				{
-					children: t`Undo`,
-					variant: "secondary",
-					size: "sm",
-					onClick: () => {
-						if (undoToastRef.current !== toastId) return;
-						dismissUndo();
-						restoreBlock(block, index);
-					},
-				},
-			],
-		});
-		undoToastRef.current = toastId;
+		undo.offer(t`Deleted ${name}`, { kind: "block" }, () => restoreBlock(block, index));
+	};
+
+	const restoreListItem = useStableCallback(
+		(blockKey: string, field: string, { item, index }: DeletedListItem) => {
+			const block = blocks.find((candidate) => candidate._key === blockKey);
+			if (!block) return;
+			const current = block[field];
+			const items = Array.isArray(current) ? [...current] : [];
+			const at = Math.min(index, items.length);
+			items.splice(at, 0, item);
+			onChange(updateBlockFieldValue(blocks, blockKey, field, items));
+			focusRequestRef.current = { key: blockKey, target: "item", field, index: at };
+		},
+	);
+
+	const offerItemUndo = (blockKey: string, field: string, deleted: DeletedListItem) => {
+		const name = deleted.name;
+		undo.offer(t`Deleted ${name}`, { kind: "item", blockKey, field }, () =>
+			restoreListItem(blockKey, field, deleted),
+		);
 	};
 
 	const handleDragEnd = (event: DragEndEvent) => {
@@ -655,6 +723,7 @@ export function BlocksField({
 										open={readOnly || openKeys.has(block._key)}
 										advancedOpen={readOnly || advancedKeys.has(block._key)}
 										issues={shownIssues.get(block._key) ?? NO_ISSUES}
+										itemReveal={itemReveal?.blockKey === block._key ? itemReveal : undefined}
 										readOnly={readOnly}
 										canAdd={canAdd}
 										atMax={atMax}
@@ -663,7 +732,8 @@ export function BlocksField({
 										roundBottom={readOnly && index === blocks.length - 1}
 										onToggle={() => toggleBlock(block._key)}
 										onAdvancedToggle={() => toggleAdvanced(block._key)}
-										onTouch={(field) => touchField(block._key, field)}
+										onTouch={(path) => touchField(block._key, path)}
+										onItemDeleted={(field, deleted) => offerItemUndo(block._key, field, deleted)}
 										onChange={(field, nextValue) =>
 											onChange(updateBlockFieldValue(blocks, block._key, field, nextValue))
 										}
@@ -724,7 +794,7 @@ export function BlocksField({
 				isPending={false}
 				error={null}
 				onConfirm={() => {
-					if (confirmBlock && removeBlock(confirmBlock._key) >= 0) dismissUndo();
+					if (confirmBlock && removeBlock(confirmBlock._key) >= 0) undo.dismiss();
 					setConfirmDelete((current) => current && { ...current, open: false });
 				}}
 			/>
@@ -744,6 +814,8 @@ interface BlockRowProps {
 	advancedOpen: boolean;
 	/** Problems to show in this block. */
 	issues: readonly BlockValueIssue[];
+	/** Opens a closed item in one of the block's lists for a reveal. */
+	itemReveal?: ItemReveal;
 	readOnly: boolean;
 	canAdd: boolean;
 	atMax: boolean;
@@ -752,9 +824,10 @@ interface BlockRowProps {
 	roundBottom: boolean;
 	onToggle: () => void;
 	onAdvancedToggle: () => void;
-	/** Called when focus leaves the control of the field with this slug. */
-	onTouch: (field: string) => void;
+	/** Called when focus leaves the control at this path inside the block, or a list. */
+	onTouch: (path: string) => void;
 	onChange: (field: string, value: unknown) => void;
+	onItemDeleted: (field: string, deleted: DeletedListItem) => void;
 	onAdd: (target: PickerTarget) => void;
 	onDuplicate: () => void;
 	onMove: (to: number) => void;
@@ -773,6 +846,7 @@ function BlockRow({
 	open,
 	advancedOpen,
 	issues,
+	itemReveal,
 	readOnly,
 	canAdd,
 	atMax,
@@ -783,6 +857,7 @@ function BlockRow({
 	onAdvancedToggle,
 	onTouch,
 	onChange,
+	onItemDeleted,
 	onAdd,
 	onDuplicate,
 	onMove,
@@ -812,7 +887,7 @@ function BlockRow({
 				withMore: (list, more) => t`${list} +${more}`,
 			})
 		: null;
-	const thumbnail = version ? blockThumbnail(block, version.fields) : undefined;
+	const thumbnail = version ? firstPhotoUrl(block, version.fields) : undefined;
 	const versionNumber = block._version;
 	const labelId = `${rowId}-label`;
 	const summaryId = `${rowId}-summary`;
@@ -837,6 +912,63 @@ function BlockRow({
 		const { side, invoker } = action;
 		onAdd({ index: side === "top" ? index : index + 1, anchor: headRef.current, side, invoker });
 	});
+
+	const issueMessage = useIssueMessage();
+	const blockPath = `${fieldPath}.${block._key}`;
+	const issueAt = (path: string) => issues.find((issue) => issue.path === path);
+	const renderList = (field: LayoutFieldDefinition, labelledBy: string) => {
+		const listIssue = issueAt(field.slug);
+		const invalidItems = new Set(
+			issues.flatMap((issue) =>
+				issue.field === field.slug && issue.item !== undefined ? [issue.item] : [],
+			),
+		);
+		return (
+			<BlockListField
+				labelId={labelledBy}
+				label={field.label}
+				value={block[field.slug]}
+				onChange={(items) => onChange(field.slug, items)}
+				subFields={repeaterSubFields(field)}
+				minItems={listLimit(field, "minItems")}
+				maxItems={listLimit(field, "maxItems")}
+				readOnly={readOnly}
+				error={listIssue && issueMessage(listIssue)}
+				invalidItems={invalidItems}
+				reveal={itemReveal?.field === field.slug ? itemReveal : undefined}
+				onItemDeleted={(deleted) => onItemDeleted(field.slug, deleted)}
+				renderControl={({ subField, at, onChange: onControlChange, ...control }) => {
+					const definition = listFieldDefinition(subField);
+					const path = `${field.slug}.${at}.${subField.slug}`;
+					return (
+						<FieldControl
+							field={definition}
+							name={`${blockPath}.${path}`}
+							descriptor={nestedDescriptor(definition, block)}
+							issue={issueAt(path)}
+							{...control}
+							onChange={onControlChange}
+							onTouch={() => onTouch(path)}
+							renderField={renderField}
+						/>
+					);
+				}}
+				renderItemFields={({ at, item, subFields, onChange: onItemChange }) => (
+					<BlockFields
+						scope="item"
+						fields={subFields.map(listFieldDefinition)}
+						values={item}
+						namePrefix={`${blockPath}.${field.slug}.${at}`}
+						describe={(definition) => nestedDescriptor(definition, block)}
+						issueAt={(slug) => issueAt(`${field.slug}.${at}.${slug}`)}
+						onTouch={(slug) => onTouch(`${field.slug}.${at}.${slug}`)}
+						onChange={onItemChange}
+						renderField={renderField}
+					/>
+				)}
+			/>
+		);
+	};
 
 	return (
 		<div
@@ -1145,16 +1277,20 @@ function BlockRow({
 						</p>
 					) : (
 						<BlockFields
-							outerId={outerId}
-							fieldPath={fieldPath}
-							block={block}
+							scope="block"
 							fields={version.fields}
+							values={block}
+							namePrefix={blockPath}
+							describe={(field) =>
+								nestedDescriptor(field, block, `${outerId}:${block._key}:${field.slug}`)
+							}
+							issueAt={issueAt}
 							advancedOpen={advancedOpen}
-							issues={issues}
 							onAdvancedToggle={onAdvancedToggle}
 							onTouch={onTouch}
 							onChange={onChange}
 							renderField={renderField}
+							renderList={renderList}
 						/>
 					)}
 					<span className="sr-only">{t`Block ${index + 1}`}</span>
@@ -1164,151 +1300,194 @@ function BlockRow({
 	);
 }
 
-interface BlockFieldsProps {
-	outerId: string;
-	fieldPath: string;
-	block: StoredBlockValue;
-	fields: readonly BlockFieldDefinition[];
-	advancedOpen: boolean;
-	issues: readonly BlockValueIssue[];
-	onAdvancedToggle: () => void;
-	onTouch: (field: string) => void;
-	onChange: (field: string, value: unknown) => void;
-	renderField: BlocksFieldProps["renderField"];
-}
-
-function ErrorDot({ id }: { id?: string }) {
-	const { t } = useLingui();
-	return (
-		<span
-			id={id}
-			role="img"
-			aria-label={t`Has fields to fix`}
-			className="size-2 shrink-0 rounded-full bg-kumo-danger"
-		/>
-	);
-}
-
 interface ControlOptions {
 	/** Replaces every other placeholder, as the two halves of a button row do. */
 	placeholder?: string;
 	/** Shown in an empty optional field that has no hint. */
 	emptyPlaceholder?: string;
 	heading?: boolean;
+	thumbnail?: FieldChrome["thumbnail"];
+	/** Keeps the hint and error for assistive technology only, as in a table cell, which has no room under it. */
+	cell?: boolean;
+}
+
+interface FieldControlProps extends ControlOptions {
+	field: LayoutFieldDefinition;
+	/** The blocks field's path, then the path to this field inside it. */
+	name: string;
+	descriptor: NestedFieldDescriptor;
+	value: unknown;
+	issue?: BlockValueIssue;
+	labelledBy: string;
+	/** Where a reveal looks for the field when its control has no id to focus. */
+	dataField?: string;
+	onChange: (value: unknown) => void;
+	/** Called when focus leaves the control. */
+	onTouch: () => void;
+	renderField: BlocksFieldProps["renderField"];
 }
 
 function isEmptyValue(value: unknown): boolean {
 	return value === undefined || value === null || value === "";
 }
 
-function labelText(field: BlockFieldDefinition): string {
+function labelText(field: LayoutFieldDefinition): string {
 	return splitLabelHint(field.label).label;
 }
 
+/** A field's quiet control, with its hint while focused and its error under it. */
+function FieldControl({
+	field,
+	name,
+	descriptor,
+	value,
+	issue,
+	labelledBy,
+	placeholder: placeholderOverride,
+	emptyPlaceholder,
+	heading,
+	thumbnail,
+	cell = false,
+	dataField,
+	onChange,
+	onTouch,
+	renderField,
+}: FieldControlProps) {
+	const { t } = useLingui();
+	const issueMessage = useIssueMessage();
+	const id = `field-${name}`;
+	const { hint } = splitLabelHint(field.label);
+	const placeholder =
+		placeholderOverride ?? (field.required ? t`Required` : (hint ?? emptyPlaceholder ?? t`Empty`));
+	const hintId = `${id}-hint`;
+	const errorId = `${id}-error`;
+	const error = issue ? issueMessage(issue, hint) : undefined;
+	const errorShown =
+		!cell &&
+		issue !== undefined &&
+		!(issue.code === "required" && REQUIRED_SHOWN_BY_CONTROL.has(field.type));
+	const describedBy =
+		[hint && error !== hint && hintId, error && errorId].filter(Boolean).join(" ") || undefined;
+	const showHintOnFocus =
+		!cell && Boolean(hint) && !errorShown && !(placeholder === hint && isEmptyValue(value));
+	return (
+		<div data-field={dataField} className="group/control min-w-0" onBlur={onFocusLeave(onTouch)}>
+			{renderField({
+				name,
+				field: descriptor,
+				value,
+				onChange,
+				chrome: {
+					labelledBy,
+					describedBy,
+					placeholder,
+					invalid: issue !== undefined,
+					heading,
+					thumbnail,
+				},
+			})}
+			{hint && error !== hint && (
+				<p
+					id={hintId}
+					className={cn("sr-only", showHintOnFocus && "group-focus-within/control:not-sr-only")}
+				>
+					<span className="block px-2 pt-1 text-xs leading-4 text-kumo-subtle">{hint}</span>
+				</p>
+			)}
+			{error && (
+				<p
+					id={errorId}
+					className={errorShown ? "px-2 pt-1 text-xs leading-4 text-kumo-danger" : "sr-only"}
+				>
+					{error}
+				</p>
+			)}
+		</div>
+	);
+}
+
+interface BlockFieldsProps {
+	/** An open block's fields, or an open list item's sub-fields. */
+	scope: "block" | "item";
+	fields: readonly LayoutFieldDefinition[];
+	values: Record<string, unknown>;
+	/** The blocks field's path, then the path to these fields inside it. */
+	namePrefix: string;
+	describe: (field: LayoutFieldDefinition) => NestedFieldDescriptor;
+	/** The problem to show at the field with this slug. */
+	issueAt: (slug: string) => BlockValueIssue | undefined;
+	advancedOpen?: boolean;
+	onAdvancedToggle?: () => void;
+	/** Called when focus leaves the control of the field with this slug. */
+	onTouch: (slug: string) => void;
+	onChange: (slug: string, value: unknown) => void;
+	renderField: BlocksFieldProps["renderField"];
+	renderList?: (field: LayoutFieldDefinition, labelId: string) => React.ReactNode;
+}
+
 function BlockFields({
-	outerId,
-	fieldPath,
-	block,
+	scope,
 	fields,
-	advancedOpen,
-	issues,
+	values,
+	namePrefix,
+	describe,
+	issueAt,
+	advancedOpen = false,
 	onAdvancedToggle,
 	onTouch,
 	onChange,
 	renderField,
+	renderList,
 }: BlockFieldsProps) {
 	const { t } = useLingui();
-	const issueMessage = useIssueMessage();
-	const plan = React.useMemo(() => planBlockFields(fields, "block"), [fields]);
+	const plan = React.useMemo(() => planBlockFields(fields, scope), [fields, scope]);
 	const advancedId = React.useId();
 
 	if (fields.length === 0) {
-		return <p className="ps-2 text-sm text-kumo-subtle">{t`This block has no fields.`}</p>;
+		return scope === "block" ? (
+			<p className="ps-2 text-sm text-kumo-subtle">{t`This block has no fields.`}</p>
+		) : null;
 	}
 
-	const controlId = (field: BlockFieldDefinition) =>
-		`field-${fieldPath}.${block._key}.${field.slug}`;
-	const labelId = (field: BlockFieldDefinition) => `${controlId(field)}-label`;
+	const controlId = (field: LayoutFieldDefinition) => `field-${namePrefix}.${field.slug}`;
+	const labelId = (field: LayoutFieldDefinition) => `${controlId(field)}-label`;
 
 	const control = (
-		field: BlockFieldDefinition,
+		field: LayoutFieldDefinition,
 		labelledBy: string,
 		options: ControlOptions = {},
 	) => {
-		const id = controlId(field);
-		const { hint } = splitLabelHint(field.label);
-		const value = block[field.slug];
-		const isList = field.type === "repeater";
-		const fieldIssues = issues.filter((candidate) => candidate.field === field.slug);
-		const issue = fieldIssues.find((candidate) => candidate.path === field.slug);
-		const placeholder =
-			options.placeholder ??
-			(field.required ? t`Required` : (hint ?? options.emptyPlaceholder ?? t`Empty`));
-		const hintId = `${id}-hint`;
-		const errorId = `${id}-error`;
-		const error = issue ? issueMessage(issue, hint) : undefined;
-		const errorShown =
-			issue !== undefined &&
-			!(issue.code === "required" && REQUIRED_SHOWN_BY_CONTROL.has(field.type));
-		const describedBy = isList
-			? undefined
-			: [hint && error !== hint && hintId, error && errorId].filter(Boolean).join(" ") || undefined;
-		const showHintOnFocus =
-			Boolean(hint) && !errorShown && !(placeholder === hint && isEmptyValue(value));
-		const listErrors =
-			isList && fieldIssues.length > 0 ? (
-				<ul className="grid gap-0.5 text-sm text-kumo-danger">
-					{fieldIssues.map((listIssue) => (
-						<li key={`${listIssue.path}:${listIssue.code}`}>{issueMessage(listIssue)}</li>
-					))}
-				</ul>
-			) : undefined;
+		if (field.type === "repeater" && renderList) {
+			return (
+				<div
+					key={field.slug}
+					data-field={field.slug}
+					className="min-w-0"
+					onBlur={onFocusLeave(() => onTouch(field.slug))}
+				>
+					{renderList(field, labelledBy)}
+				</div>
+			);
+		}
 		return (
-			<div
+			<FieldControl
 				key={field.slug}
-				data-field={field.slug}
-				className="group/control min-w-0"
-				onBlur={(event) => {
-					const next = event.relatedTarget;
-					if (next instanceof Node && event.currentTarget.contains(next)) return;
-					onTouch(field.slug);
-				}}
-			>
-				{renderField({
-					name: `${fieldPath}.${block._key}.${field.slug}`,
-					field: nestedDescriptor(outerId, block._key, block._type, block._version, field),
-					value,
-					onChange: (nextValue) => onChange(field.slug, nextValue),
-					chrome: {
-						labelledBy,
-						describedBy,
-						placeholder,
-						invalid: issue !== undefined,
-						heading: options.heading,
-						error: listErrors,
-					},
-				})}
-				{hint && !isList && error !== hint && (
-					<p
-						id={hintId}
-						className={cn("sr-only", showHintOnFocus && "group-focus-within/control:not-sr-only")}
-					>
-						<span className="block px-2 pt-1 text-xs leading-4 text-kumo-subtle">{hint}</span>
-					</p>
-				)}
-				{error && !isList && (
-					<p
-						id={errorId}
-						className={errorShown ? "px-2 pt-1 text-xs leading-4 text-kumo-danger" : "sr-only"}
-					>
-						{error}
-					</p>
-				)}
-			</div>
+				field={field}
+				name={`${namePrefix}.${field.slug}`}
+				descriptor={describe(field)}
+				value={values[field.slug]}
+				issue={issueAt(field.slug)}
+				labelledBy={labelledBy}
+				{...options}
+				dataField={scope === "block" ? field.slug : undefined}
+				onChange={(nextValue) => onChange(field.slug, nextValue)}
+				onTouch={() => onTouch(field.slug)}
+				renderField={renderField}
+			/>
 		);
 	};
 
-	const stacked = (field: BlockFieldDefinition, heading?: boolean) => {
+	const stacked = (field: LayoutFieldDefinition, heading?: boolean) => {
 		if (field.type === "repeater") return control(field, labelId(field));
 		return (
 			<div key={field.slug} className="grid min-w-0 gap-1">
@@ -1320,16 +1499,22 @@ function BlockFields({
 		);
 	};
 
-	const settingRow = (field: BlockFieldDefinition) => (
+	const settingRow = (field: LayoutFieldDefinition) => (
 		<div key={field.slug} className={SETTING_ROW}>
-			<label id={labelId(field)} htmlFor={controlId(field)} className={SETTING_LABEL}>
-				{labelText(field)}
-			</label>
-			{control(field, labelId(field))}
+			{field.type === "image" ? (
+				<span id={labelId(field)} className={SETTING_LABEL}>
+					{labelText(field)}
+				</span>
+			) : (
+				<label id={labelId(field)} htmlFor={controlId(field)} className={SETTING_LABEL}>
+					{labelText(field)}
+				</label>
+			)}
+			{control(field, labelId(field), field.type === "image" ? { thumbnail: "row" } : {})}
 		</div>
 	);
 
-	const contentPart = (part: BlockFieldPart<BlockFieldDefinition>) => {
+	const contentPart = (part: BlockFieldPart<LayoutFieldDefinition>) => {
 		switch (part.kind) {
 			case "field":
 				return stacked(part.field, part.heading);
@@ -1371,8 +1556,8 @@ function BlockFields({
 		}
 	};
 
-	const settingPart = (part: BlockFieldPart<BlockFieldDefinition>) => {
-		if (part.kind === "field") return settingRow(part.field);
+	const settingPart = (part: BlockFieldPart<LayoutFieldDefinition>) => {
+		if (part.kind === "field" || part.kind === "image") return settingRow(part.field);
 		if (part.kind !== "button") return null;
 		const rowLabelId = `${controlId(part.text)}-row`;
 		return (
@@ -1395,7 +1580,7 @@ function BlockFields({
 	};
 
 	const advancedSummary = plan.advanced
-		.map((field) => block[field.slug])
+		.map((field) => values[field.slug])
 		.filter((value): value is string => typeof value === "string" && value.trim() !== "")
 		.join(" · ");
 
@@ -1436,10 +1621,7 @@ function BlockFields({
 								{advancedSummary}
 							</span>
 						)}
-						{!advancedOpen &&
-							issues.some((issue) => plan.advanced.some((field) => field.slug === issue.field)) && (
-								<ErrorDot />
-							)}
+						{!advancedOpen && plan.advanced.some((field) => issueAt(field.slug)) && <ErrorDot />}
 					</button>
 					{advancedOpen && (
 						<div id={advancedId} className="grid gap-0.5">

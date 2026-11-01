@@ -43,8 +43,6 @@ export interface RepeaterFieldProps {
 	minItems?: number;
 	maxItems?: number;
 	timezone?: string;
-	/** Shown under the label, such as a list size the server would reject. */
-	error?: React.ReactNode;
 }
 
 type RepeaterItem = Record<string, unknown> & { _key: string };
@@ -69,7 +67,6 @@ export function RepeaterField({
 	minItems = 0,
 	maxItems,
 	timezone = "UTC",
-	error,
 }: RepeaterFieldProps) {
 	const { t } = useLingui();
 	const rawItems = Array.isArray(value) ? value : [];
@@ -167,7 +164,6 @@ export function RepeaterField({
 					</Button>
 				)}
 			</div>
-			{error}
 
 			{items.length === 0 ? (
 				<div className="border-2 border-dashed rounded-lg p-6 text-center text-kumo-subtle">
