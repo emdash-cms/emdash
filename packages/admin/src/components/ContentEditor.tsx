@@ -2925,7 +2925,7 @@ function FieldRenderer({
 							onChange={handleChange}
 							placeholder={t`Start writing, or type '/' for commands`}
 							aria-labelledby={chrome.labelledBy}
-							className="bg-kumo-control [--emdash-editor-surface:var(--color-kumo-control)] focus-within:border-kumo-interact"
+							className="bg-kumo-control [--emdash-editor-surface:var(--color-kumo-control)] focus-within:border-kumo-focus/50"
 							pluginBlocks={pluginBlocks}
 							onEditorReady={onEditorReady}
 							onBlockSidebarOpen={onBlockSidebarOpen}
@@ -3023,7 +3023,8 @@ function FieldRenderer({
 							items={selectItems}
 							className={cn(
 								QUIET_SELECT,
-								chrome.invalid && "ring-kumo-danger [&_[data-placeholder]]:text-kumo-danger!",
+								chrome.invalid &&
+									"ring-kumo-danger focus-visible:ring-kumo-danger data-[popup-open]:ring-kumo-danger [&_[data-placeholder]]:text-kumo-danger!",
 							)}
 						>
 							{selectOptions.map((opt) => (
@@ -3994,13 +3995,20 @@ function FileFieldRenderer({
 						) : (
 							<span className="min-w-0 flex-1 truncate">{normalized.filename}</span>
 						)}
-						<Button type="button" size="sm" variant="ghost" onClick={() => setPickerOpen(true)}>
+						<Button
+							type="button"
+							size="sm"
+							variant="ghost"
+							className={cn("h-8 px-2 text-base font-normal text-kumo-subtle", ROW_BUTTON)}
+							onClick={() => setPickerOpen(true)}
+						>
 							{t`Replace`}
 						</Button>
 						<Button
 							type="button"
 							size="sm"
 							variant="ghost"
+							className={cn("h-8 px-2 text-base font-normal text-kumo-subtle", ROW_BUTTON)}
 							onClick={handleRemove}
 							aria-label={t`Remove ${label}`}
 						>
@@ -4014,7 +4022,7 @@ function FileFieldRenderer({
 						variant="ghost"
 						icon={<Paperclip className="size-4" aria-hidden="true" />}
 						className={cn(
-							"-ms-2 h-8 px-2 text-base font-normal text-kumo-placeholder",
+							"-ms-2 h-8 px-2 text-base font-normal text-kumo-subtle",
 							ROW_BUTTON,
 							invalid && "text-kumo-danger",
 						)}

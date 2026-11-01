@@ -671,11 +671,7 @@ export function ImageFieldRenderer({
 							type="button"
 							variant="ghost"
 							size="sm"
-							className={cn(
-								"h-8 px-2 text-base font-normal",
-								ROW_BUTTON,
-								displayUrl ? "text-kumo-subtle" : "text-kumo-placeholder",
-							)}
+							className={cn("h-8 px-2 text-base font-normal text-kumo-subtle", ROW_BUTTON)}
 							aria-describedby={describedBy}
 							onClick={() => openPicker("image")}
 						>

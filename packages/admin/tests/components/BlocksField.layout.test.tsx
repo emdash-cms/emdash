@@ -232,7 +232,8 @@ describe("Block row layout", () => {
 		const toggle = screen.getByRole("button", { name: "Long", exact: true });
 		await toggle.click();
 		// The fields grow open before there is anything to scroll past.
-		await expect.poll(() => document.getAnimations().length).toBe(0);
+		const row = document.querySelector("[data-block-key]")!;
+		await expect.poll(() => row.getAnimations({ subtree: true }).length).toBe(0);
 		const scroller = screen.getByTestId("scroller").element();
 		scroller.scrollTop = 400;
 		await expect

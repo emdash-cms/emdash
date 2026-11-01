@@ -7,7 +7,7 @@ export const ROW_TITLE = "text-base font-medium text-kumo-default";
 /** A closed row's one-line summary, after its name. */
 export const ROW_SUMMARY = "text-base text-kumo-subtle";
 
-/** A field's label, a list's, a table column's, and the Advanced row. */
+/** A field's label, a list's, and the Advanced row. */
 export const LABEL = "text-xs leading-4 font-medium text-kumo-subtle";
 
 /**
@@ -15,13 +15,13 @@ export const LABEL = "text-xs leading-4 font-medium text-kumo-subtle";
  * control moves nothing. Its parent is `relative` and names the group that shows it.
  */
 export const FLOATING_NOTE =
-	"pointer-events-none invisible absolute top-full z-20 mt-1 max-w-full rounded-md bg-kumo-overlay px-2 py-1 text-xs leading-4 text-kumo-subtle opacity-0 shadow-sm ring ring-kumo-line transition-[opacity,translate,visibility] duration-150 ease-emdash -translate-y-0.5 motion-reduce:transition-none";
+	"pointer-events-none invisible absolute top-full z-40 mt-1 max-w-full rounded-md bg-kumo-overlay px-2 py-1 text-xs leading-4 text-kumo-subtle opacity-0 shadow-sm ring ring-kumo-line transition-[opacity,translate,visibility] duration-150 ease-emdash -translate-y-0.5 motion-reduce:transition-none";
 
 // A `dir="auto"` value aligns to the start of its own text. Quiet values line up with their labels
 // instead, so a value whose direction differs from its container's aligns to its own end.
 // Kumo's placeholder color is unlayered, so only an important utility recolors it.
 const QUIET_CONTROL =
-	"w-full rounded-md bg-transparent px-2 shadow-none ring-transparent [:dir(ltr)>&:dir(rtl)]:text-end [:dir(rtl)>&:dir(ltr)]:text-end enabled:hover:bg-emdash-hover focus:bg-kumo-control focus:ring-1 focus:ring-kumo-line aria-invalid:ring-kumo-danger aria-invalid:placeholder:text-kumo-danger! aria-invalid:focus:ring-kumo-danger";
+	"w-full rounded-md bg-transparent px-2 shadow-none ring-transparent [:dir(ltr)>&:dir(rtl)]:text-end [:dir(rtl)>&:dir(ltr)]:text-end enabled:hover:bg-emdash-hover focus:bg-kumo-control focus:ring-1 focus:ring-kumo-focus/50 aria-invalid:ring-kumo-danger aria-invalid:placeholder:text-kumo-danger! aria-invalid:focus:ring-kumo-danger";
 
 /** A one-line control with no box until it's hovered or focused. Its text sits on the field's text edge. */
 export const QUIET_INPUT = `${QUIET_CONTROL} h-8 text-ellipsis`;
@@ -35,9 +35,13 @@ export const QUIET_HEADING = "h-9 text-lg! leading-6 font-semibold!";
 
 // Its chevron follows the value, and like the date's calendar shows only when the control is reached for.
 export const QUIET_SELECT =
-	"h-8 w-full justify-start gap-1.5 rounded-md bg-transparent px-2 font-normal shadow-none ring-transparent hover:bg-emdash-hover focus-visible:bg-kumo-control focus-visible:ring-1 focus-visible:ring-kumo-line data-[popup-open]:bg-kumo-control data-[popup-open]:ring-1 data-[popup-open]:ring-kumo-line [&>span:last-child]:opacity-0 hover:[&>span:last-child]:opacity-100 focus-visible:[&>span:last-child]:opacity-100 data-[popup-open]:[&>span:last-child]:opacity-100";
+	"h-8 w-full justify-start gap-1.5 rounded-md bg-transparent px-2 font-normal shadow-none ring-transparent hover:bg-emdash-hover focus-visible:bg-kumo-control focus-visible:ring-1 focus-visible:ring-kumo-focus/50 data-[popup-open]:bg-kumo-control data-[popup-open]:ring-1 data-[popup-open]:ring-kumo-focus/50 [&>span:last-child]:opacity-0 hover:[&>span:last-child]:opacity-100 focus-visible:[&>span:last-child]:opacity-100 data-[popup-open]:[&>span:last-child]:opacity-100 pointer-coarse:[&>span:last-child]:opacity-100";
 
-export const QUIET_DATE = `${QUIET_INPUT} [&::-webkit-calendar-picker-indicator]:opacity-0 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 focus:[&::-webkit-calendar-picker-indicator]:opacity-100`;
+export const QUIET_DATE = `${QUIET_INPUT} [&::-webkit-calendar-picker-indicator]:opacity-0 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 focus:[&::-webkit-calendar-picker-indicator]:opacity-100 pointer-coarse:[&::-webkit-calendar-picker-indicator]:opacity-100`;
+
+/** A row's hover wash, painted over its background so a pinned header or a lifted row stays opaque. */
+export const ROW_HOVER =
+	"hover:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]";
 
 /** A block or list item being dragged lifts off the list. */
 export const DRAGGING = "relative z-30 rounded-md bg-kumo-base shadow-lg ring ring-kumo-line";

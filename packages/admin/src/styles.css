@@ -962,10 +962,10 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	}
 }
 
-/* Rich text inside a block reads at the block's value size and starts near its text edge. */
+/* Rich text inside a block reads at the block's value size. */
 [data-block-body] [data-emdash-editor-variant="boxed"] .ProseMirror {
 	min-height: 6rem;
-	padding: 0.75rem 0.5rem;
+	padding-block: 0.75rem;
 	font-size: 0.875rem;
 }
 
@@ -1371,6 +1371,11 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 @container (max-width: 30rem) {
 	[data-emdash-editor-variant="boxed"] :is(.ProseMirror, [data-emdash-static-document]) {
 		padding-inline: 1rem;
+	}
+
+	/* With no handles beside it, rich text inside a block starts on the block's text edge. */
+	[data-block-body] [data-emdash-editor-variant="boxed"] .ProseMirror {
+		padding-inline: 0.5rem;
 	}
 
 	/* The narrow padding leaves block handles no room beside the text. */

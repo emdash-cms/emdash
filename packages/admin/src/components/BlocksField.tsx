@@ -53,6 +53,7 @@ import {
 	FLOATING_NOTE,
 	LABEL,
 	ROW_BUTTON,
+	ROW_HOVER,
 	ROW_SUMMARY,
 	ROW_TITLE,
 	SORT_TRANSITION,
@@ -1094,7 +1095,7 @@ function BlockRow({
 				ref={headRef}
 				className={cn(
 					"flex min-h-11 items-center gap-2 py-1.5 ps-2 pe-2",
-					!readOnly && "hover:bg-emdash-hover",
+					!readOnly && ROW_HOVER,
 					index === 0 && SHEET_INNER_TOP,
 					roundBottom && !open && SHEET_INNER_BOTTOM,
 					open &&
@@ -1422,6 +1423,7 @@ function FieldControl({
 			{showHintOnFocus && (
 				<span
 					aria-hidden="true"
+					dir="auto"
 					className={cn(
 						FLOATING_NOTE,
 						"start-0 group-focus-within/control:visible group-focus-within/control:translate-y-0 group-focus-within/control:opacity-100",
@@ -1631,7 +1633,7 @@ function BlockFields({
 				<div className="grid gap-y-3 @min-[440px]/blocks:gap-y-0.5">
 					{plan.settings.map(settingPart)}
 					{plan.advanced.length > 0 && (
-						<>
+						<div>
 							<button
 								type="button"
 								aria-expanded={advancedOpen}
@@ -1639,7 +1641,8 @@ function BlockFields({
 								onClick={onAdvancedToggle}
 								className={cn(
 									SETTING_ROW,
-									"w-full rounded-md text-start outline-none hover:bg-emdash-hover focus-visible:ring-2 focus-visible:ring-kumo-brand",
+									ROW_HOVER,
+									"w-full rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand",
 								)}
 							>
 								<span className={cn(SETTING_LABEL, "min-h-8 gap-1")}>
@@ -1658,11 +1661,11 @@ function BlockFields({
 								</span>
 							</button>
 							<DisclosurePanel open={advancedOpen} id={advancedId}>
-								<div className="grid gap-y-3 @min-[440px]/blocks:gap-y-0.5">
+								<div className="grid gap-y-3 pt-3 @min-[440px]/blocks:gap-y-0.5 @min-[440px]/blocks:pt-0.5">
 									{plan.advanced.map(settingRow)}
 								</div>
 							</DisclosurePanel>
-						</>
+						</div>
 					)}
 				</div>
 			)}

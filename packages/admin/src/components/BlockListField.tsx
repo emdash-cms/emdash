@@ -41,6 +41,7 @@ import {
 	DRAGGING,
 	LABEL,
 	ROW_BUTTON,
+	ROW_HOVER,
 	ROW_SUMMARY,
 	ROW_TITLE,
 	SORT_TRANSITION,
@@ -988,7 +989,7 @@ function TableRow({
 			style={{ ...sortable.style, gridTemplateColumns: columns }}
 			className={cn(
 				"group/item relative grid items-center rounded-md",
-				!readOnly && "hover:bg-emdash-hover",
+				!readOnly && ROW_HOVER,
 				sortable.isDragging && DRAGGING,
 			)}
 		>
@@ -1081,14 +1082,14 @@ function ItemRow({
 			className={cn(
 				"group/item relative rounded-lg transition-[background-color] duration-200 ease-emdash motion-reduce:transition-none",
 				open && "bg-kumo-elevated",
-				sortable.isDragging && DRAGGING,
+				sortable.isDragging && cn(DRAGGING, "rounded-lg"),
 			)}
 		>
 			{!readOnly && <DragHandle listeners={sortable.listeners} className="top-1" />}
 			<div
 				className={cn(
 					"flex min-h-8 min-w-0 items-center gap-2 rounded-md ps-2 pe-0.5",
-					!open && !readOnly && "hover:bg-emdash-hover",
+					!open && !readOnly && ROW_HOVER,
 				)}
 			>
 				{readOnly ? (
