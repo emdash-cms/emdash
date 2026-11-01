@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema";
-import { blockIssueElementId, isSafeHref, validateBlocks } from "../../src/lib/block-validation";
+import { blockIssueElementId, validateBlocks } from "../../src/lib/block-validation";
+import { isSafeHref } from "../../src/lib/url";
 
 function blockType(fields: BlockFieldDefinition[]): BlockType {
 	return {

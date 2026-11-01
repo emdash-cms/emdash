@@ -1,5 +1,6 @@
 import type { BlockFieldDefinition, BlockType } from "./api/schema.js";
 import { isStoredBlockValue } from "./block-field-state.js";
+import { isSafeHref } from "./url.js";
 
 /**
  * A value inside a block that the server would reject. Only rules the server
@@ -51,9 +52,6 @@ interface SubFieldDefinition {
 
 const STRING_FIELD_TYPES = new Set(["string", "text", "url"]);
 const NUMBER_FIELD_TYPES = new Set(["number", "integer"]);
-const SAFE_ABSOLUTE_URL = /^(https?:|mailto:|tel:)/i;
-const SITE_RELATIVE_HREF = /^(\/(?![/\\])|#)/;
-const URL_BASE = new URL("https://emdash.invalid/");
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -84,29 +82,6 @@ function matchesPattern(pattern: string, value: string): boolean {
 	} catch {
 		return true;
 	}
-}
-
-function containsHrefControl(value: string): boolean {
-	for (const character of value) {
-		const codePoint = character.codePointAt(0);
-		if (codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f)) return true;
-	}
-	return false;
-}
-
-function resolvesOnSite(value: string): boolean {
-	try {
-		return new URL(value, URL_BASE).origin === URL_BASE.origin;
-	} catch {
-		return false;
-	}
-}
-
-/** The server's `isSafeHref`, which every `url` field value must pass. */
-export function isSafeHref(url: string): boolean {
-	if (containsHrefControl(url)) return false;
-	if (SAFE_ABSOLUTE_URL.test(url)) return URL.canParse(url);
-	return SITE_RELATIVE_HREF.test(url) && resolvesOnSite(url);
 }
 
 function stringIssues(
