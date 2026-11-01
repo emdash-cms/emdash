@@ -167,7 +167,15 @@ export function useSingleFlight<Args extends unknown[]>(
 		(...args: Args) => {
 			if (inFlight.current) return;
 			inFlight.current = true;
-			void run(...args)
+			let running: Promise<unknown>;
+			try {
+				running = run(...args);
+			} catch (error) {
+				// A submit that throws before returning must not lock out the next one.
+				inFlight.current = false;
+				throw error;
+			}
+			void running
 				.catch(() => {})
 				.finally(() => {
 					inFlight.current = false;
