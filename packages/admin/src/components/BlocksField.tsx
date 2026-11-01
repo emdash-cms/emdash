@@ -102,7 +102,7 @@ const FOCUSABLE =
 	'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
 const SHEET_INNER_TOP = "rounded-t-[calc(var(--radius-lg)-1px)]";
 const SHEET_INNER_BOTTOM = "rounded-b-[calc(var(--radius-lg)-1px)]";
-const MENU_ICON = "me-2 size-4";
+const MENU_ICON = "size-4";
 
 type InsertSide = "top" | "bottom";
 
@@ -511,7 +511,6 @@ export function BlocksField({
 				open={confirmDelete?.open ?? false}
 				onClose={() => setConfirmDelete((current) => current && { ...current, open: false })}
 				role="alertdialog"
-				compact
 				title={t`Delete ${confirmName}?`}
 				description={confirmReason}
 				confirmLabel={t`Delete`}

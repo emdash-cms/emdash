@@ -444,6 +444,8 @@ describe("BlocksField", () => {
 			await expect.element(handle).toHaveFocus();
 		}
 
+		// Keyboard focus opens the handle's tooltip, which covers the actions button in this unstyled render.
+		await userEvent.tab();
 		await openMenu("one");
 		await expect.element(handle).toHaveAttribute("aria-expanded", "false");
 	});
