@@ -298,6 +298,15 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 		--ec-form-color: #f9fafb;
 	}
 
+	@media (prefers-color-scheme: dark) {
+		.ec-comment-form-field input,
+		.ec-comment-form-field textarea {
+			--ec-form-bg: #1f2937;
+			--ec-form-border: #4b5563;
+			--ec-form-color: #f9fafb;
+		}
+	}
+
 	.ec-comment-user-info {
 		display: flex;
 		align-items: center;
@@ -311,6 +320,14 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 
 	:global(.dark) .ec-comment-user-info {
 		background: var(--ec-form-user-bg-dark, #374151);
+		border-color: var(--ec-form-user-border-dark, #4b5563);
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.ec-comment-user-info {
+			background: var(--ec-form-user-bg-dark, #374151);
+			border-color: var(--ec-form-user-border-dark, #4b5563);
+		}
 	}
 
 	.ec-comment-user-name {
@@ -336,6 +353,18 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 		cursor: pointer;
 		background: var(--ec-form-submit-bg, #1f2937);
 		color: var(--ec-form-submit-color, #fff);
+	}
+
+	:global(.dark) .ec-comment-form-submit {
+		--ec-form-submit-bg: #f3f4f6;
+		--ec-form-submit-color: #111827;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.ec-comment-form-submit {
+			--ec-form-submit-bg: #f3f4f6;
+			--ec-form-submit-color: #111827;
+		}
 	}
 
 	.ec-comment-form-submit:disabled {
