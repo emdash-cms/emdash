@@ -41,7 +41,7 @@ The package stores JSON values, such as JSON fields and Portable Text, with thei
 
 Only these settings are exported: `site:title`, `site:tagline`, `site:logo`, `site:favicon`, `site:postsPerPage`, `site:dateFormat`, `site:timezone`, `site:social`, `site:seo`, `emdash:site_title`, `emdash:site_tagline`, and `emdash:locale`.
 
-The target site keeps its own site URL (`site:url` and `emdash:site_url`), site ID, setup state, and backup settings. An import never overwrites them.
+The target site keeps its own site URL (`site:url` and `emdash:site_url`), staging status (`site:staging`), site ID, setup state, and backup settings. An import never overwrites them.
 
 The import plan asks whether to keep the target's title and tagline, which the setup wizard wrote, or use the package's values. The default uses the package's values.
 
