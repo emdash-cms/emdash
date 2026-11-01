@@ -1,5 +1,5 @@
 import { Badge, Button, Input, Surface } from "@cloudflare/kumo";
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import {
 	beginApprovalDecision,
@@ -113,6 +113,11 @@ export function ApproverPage({ embedded = false }: { embedded?: boolean }) {
 	const [error, setError] = useState<unknown>(null);
 	const [busy, setBusy] = useState(false);
 	const [completedDecision, setCompletedDecision] = useState<"approve" | "reject" | null>(null);
+	const recordedDecision = useRef<{
+		decision: "approve" | "reject";
+		idempotencyKey: string;
+		response: unknown;
+	} | null>(null);
 
 	const refresh = useCallback(async () => {
 		setError(null);
@@ -182,21 +187,38 @@ export function ApproverPage({ embedded = false }: { embedded?: boolean }) {
 	async function decide(decision: "approve" | "reject") {
 		setBusy(true);
 		setError(null);
+		let completion =
+			recordedDecision.current?.decision === decision ? recordedDecision.current : null;
 		try {
-			if (!navigator.credentials) throw new Error("Passkeys are unavailable");
-			const options = requestOptions(await beginApprovalDecision(publisherDid, intentId, decision));
-			const assertion = await navigator.credentials.get({ publicKey: options });
-			if (!(assertion instanceof PublicKeyCredential))
-				throw new Error("Passkey request was cancelled");
+			if (!completion) {
+				if (!navigator.credentials) throw new Error("Passkeys are unavailable");
+				const options = requestOptions(
+					await beginApprovalDecision(publisherDid, intentId, decision),
+				);
+				const assertion = await navigator.credentials.get({ publicKey: options });
+				if (!(assertion instanceof PublicKeyCredential))
+					throw new Error("Passkey request was cancelled");
+				completion = {
+					decision,
+					idempotencyKey: `approval-${crypto.randomUUID()}`,
+					response: authenticationResponse(assertion),
+				};
+			}
 			await completeApprovalDecision(
 				publisherDid,
 				intentId,
 				decision,
-				authenticationResponse(assertion),
+				completion.idempotencyKey,
+				completion.response,
 			);
+			recordedDecision.current = null;
 			setCompletedDecision(decision);
 			await refresh();
 		} catch (cause) {
+			// The service already stored this decision and refuses a new one, so a retry must resend this exact request.
+			if (cause instanceof UiApiError && cause.code === "WORKFLOW_UNAVAILABLE") {
+				recordedDecision.current = completion;
+			}
 			setError(cause);
 		} finally {
 			setBusy(false);
