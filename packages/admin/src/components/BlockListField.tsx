@@ -129,13 +129,28 @@ export function focusableIn(element: Element | null | undefined): HTMLElement | 
 	);
 }
 
+function leftFor(container: Element, next: Element | null): boolean {
+	return next !== null && !container.contains(next) && !next.closest(POPUP);
+}
+
 /**
- * Whether focus left `event.currentTarget`. Focus that moves into a popup the control opened,
- * such as a menu or the media picker, or out of the window, has not left it.
+ * Calls `callback` when focus leaves `event.currentTarget`. Focus that moves into a popup the
+ * control opened, such as a menu or the media picker, or out of the window, has not left it.
  */
-export function focusLeft(event: React.FocusEvent<HTMLElement>): boolean {
+export function whenFocusLeaves(event: React.FocusEvent<HTMLElement>, callback: () => void) {
+	const container = event.currentTarget;
 	const next = event.relatedTarget;
-	return next instanceof Element && !event.currentTarget.contains(next) && !next.closest(POPUP);
+	if (next instanceof Element) {
+		if (leftFor(container, next)) callback();
+		return;
+	}
+	// Clicking something that can't take focus blurs with no relatedTarget, and so does leaving
+	// the window; only the first moves focus to the page.
+	queueMicrotask(() => {
+		if (document.hasFocus() && leftFor(container, document.activeElement ?? document.body)) {
+			callback();
+		}
+	});
 }
 
 export function ErrorDot({ id }: { id?: string }) {
@@ -609,7 +624,7 @@ export function BlockListField({
 			onBlur={
 				lineField && !readOnly
 					? (event) => {
-							if (focusLeft(event)) queueMicrotask(removeBlankLines);
+							whenFocusLeaves(event, () => queueMicrotask(removeBlankLines));
 						}
 					: undefined
 			}

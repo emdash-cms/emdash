@@ -2,7 +2,7 @@ import { Toasty } from "@cloudflare/kumo";
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { page, type Locator } from "vitest/browser";
+import { page, userEvent, type Locator } from "vitest/browser";
 
 import "../../dist/styles.css";
 import {
@@ -455,6 +455,26 @@ describe("Checking fields inside a block", () => {
 		await expect.element(headline).toHaveAccessibleDescription("Required");
 		expect(placeholderColor()).not.toBe(quietColor);
 		expect(added().querySelectorAll("[aria-invalid='true']")).toHaveLength(1);
+	});
+
+	it("marks a new block's empty required field when a click on empty space leaves it", async () => {
+		vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValueOnce(
+			"00000000-0000-4000-8000-000000000004",
+		);
+		await renderEditor([heroBlock]);
+
+		await page.getByRole("button", { name: "Add block", exact: true }).click();
+		await page.getByRole("option", { name: /^Hero/ }).click();
+		const headline = control("Headline");
+		await expect.element(headline).toHaveFocus();
+		await expect.element(headline).not.toHaveAttribute("aria-invalid");
+
+		const emptySpace = document.createElement("div");
+		emptySpace.style.height = "40px";
+		document.body.append(emptySpace);
+		await userEvent.click(emptySpace);
+		await expect.element(headline).toHaveAttribute("aria-invalid", "true");
+		emptySpace.remove();
 	});
 
 	it("keeps a new block's empty required photo quiet while its media picker is open", async () => {

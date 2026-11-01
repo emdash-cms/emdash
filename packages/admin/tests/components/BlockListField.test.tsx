@@ -255,6 +255,22 @@ describe("Type-in lists inside a block", () => {
 		}
 	});
 
+	it("drops blank lines when a click on empty space leaves the list", async () => {
+		await renderHarness({ initial: [clientsBlock(["Hotel Wilde"])] });
+		await openBlock("Clients");
+
+		await line(1).click();
+		await userEvent.keyboard("{Enter}");
+		expect(lineValues()).toEqual(["Hotel Wilde", ""]);
+
+		const emptySpace = document.createElement("div");
+		emptySpace.style.height = "40px";
+		document.body.append(emptySpace);
+		await userEvent.click(emptySpace);
+		await expect.poll(lineValues).toEqual(["Hotel Wilde"]);
+		emptySpace.remove();
+	});
+
 	it("keeps a blank line while its menu is open", async () => {
 		await renderHarness({ initial: [clientsBlock(["Hotel Wilde", "Norma"])] });
 		await openBlock("Clients");
