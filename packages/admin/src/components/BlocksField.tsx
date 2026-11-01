@@ -1004,7 +1004,7 @@ function BlockRow({
 			data-block-key={block._key}
 			data-menu-open={menuOpen || undefined}
 			className={cn(
-				"group/block relative [--emdash-blocks-sticky-top:var(--emdash-editor-sticky-top,0px)]",
+				"group/block relative [--emdash-blocks-sticky-top:var(--emdash-editor-sticky-top,0px)] focus-within:z-40",
 				index > 0 && "border-t border-kumo-hairline",
 				isDragging && cn(DRAGGING, "z-40 rounded-lg"),
 			)}
@@ -1287,7 +1287,7 @@ function BlockRow({
 				aria-labelledby={labelId}
 				className="[--emdash-editor-sticky-top:calc(var(--emdash-blocks-sticky-top)+2.75rem)]"
 			>
-				<div className="px-2 pt-3 pb-4 @min-[440px]/blocks:ps-12 @min-[440px]/blocks:pe-4">
+				<div className="px-2 pt-3 pb-4 @min-[440px]/blocks:ps-12">
 					{unsupported || !version ? (
 						<p className="ps-2 text-base text-kumo-subtle">
 							{t`This block cannot be edited because its stored definition is unavailable.`}

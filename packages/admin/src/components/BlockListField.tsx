@@ -186,7 +186,7 @@ export function DisclosurePanel({
 }: { open: boolean } & React.ComponentPropsWithoutRef<"div">) {
 	return (
 		<Collapsible.Root open={open} className="contents">
-			<Collapsible.Panel className={cn("emdash-disclosure", className)} {...props} />
+			<Collapsible.Panel inert={!open} className={cn("emdash-disclosure", className)} {...props} />
 		</Collapsible.Root>
 	);
 }
@@ -1088,7 +1088,7 @@ function ItemRow({
 			{!readOnly && <DragHandle listeners={sortable.listeners} className="top-1" />}
 			<div
 				className={cn(
-					"flex min-h-8 min-w-0 items-center gap-2 rounded-md ps-2 pe-0.5",
+					"flex min-h-8 min-w-0 items-center gap-2 rounded-lg ps-2 pe-0.5",
 					!open && !readOnly && ROW_HOVER,
 				)}
 			>

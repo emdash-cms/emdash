@@ -15,7 +15,7 @@ export const LABEL = "text-xs leading-4 font-medium text-kumo-subtle";
  * control moves nothing. Its parent is `relative` and names the group that shows it.
  */
 export const FLOATING_NOTE =
-	"pointer-events-none invisible absolute top-full z-40 mt-1 max-w-full rounded-md bg-kumo-overlay px-2 py-1 text-xs leading-4 text-kumo-subtle opacity-0 shadow-sm ring ring-kumo-line transition-[opacity,translate,visibility] duration-150 ease-emdash -translate-y-0.5 motion-reduce:transition-none";
+	"pointer-events-none invisible absolute top-full z-20 mt-1 max-w-full rounded-md bg-kumo-overlay px-2 py-1 text-xs leading-4 text-kumo-subtle opacity-0 shadow-sm ring ring-kumo-line transition-[opacity,translate,visibility] duration-150 ease-emdash -translate-y-0.5 motion-reduce:transition-none";
 
 // A `dir="auto"` value aligns to the start of its own text. Quiet values line up with their labels
 // instead, so a value whose direction differs from its container's aligns to its own end.

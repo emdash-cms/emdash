@@ -2614,7 +2614,7 @@ function QuietControl({ meta, children }: { meta?: React.ReactNode; children: Re
 				data-quiet-count
 				className={cn(
 					FLOATING_NOTE,
-					"end-0 tabular-nums group-focus-within/quiet:visible group-focus-within/quiet:translate-y-0 group-focus-within/quiet:opacity-100",
+					"end-0 whitespace-nowrap tabular-nums group-focus-within/quiet:visible group-focus-within/quiet:translate-y-0 group-focus-within/quiet:opacity-100",
 				)}
 			>
 				{meta}

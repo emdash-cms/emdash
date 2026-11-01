@@ -715,7 +715,7 @@ export function ImageFieldRenderer({
 			role={labelled ? "group" : undefined}
 			aria-labelledby={labelledBy}
 			aria-describedby={labelled ? describedBy : undefined}
-			className={cn("grid gap-2", isFeatured && "@container/featured", labelled && "px-2")}
+			className={cn("grid gap-2", isFeatured && "@container/featured")}
 		>
 			{labelled ? null : description ? (
 				<FieldHelpLabel
@@ -734,11 +734,16 @@ export function ImageFieldRenderer({
 				featuredCard
 			) : displayUrl && labelled && !imageBroken ? (
 				<div className="group/photo relative">
+					{/* Its size is known before it loads, so a block opening around it animates to its full height. */}
 					<img
 						src={displayUrl}
 						alt=""
-						className="emdash-media-transparency-grid max-h-80 min-h-20 w-full rounded-lg object-cover ring ring-kumo-line"
-						style={{ objectPosition }}
+						className="emdash-media-transparency-grid max-h-80 w-full rounded-lg object-cover ring ring-kumo-line"
+						style={{
+							objectPosition,
+							aspectRatio:
+								currentWidth && currentHeight ? `${currentWidth} / ${currentHeight}` : "16 / 9",
+						}}
 						onError={() => setImageBroken(true)}
 					/>
 					<div className="absolute end-2 top-2 opacity-0 transition-opacity group-hover/photo:opacity-100 group-focus-within/photo:opacity-100 pointer-coarse:opacity-100">
