@@ -32,7 +32,8 @@ async function swipeDown(title: Element) {
 	const box = title.getBoundingClientRect();
 	const x = frame.left + (box.left + 20) * scale;
 	const y = frame.top + (box.top + 6) * scale;
-	await session.send("Emulation.setTouchEmulationEnabled", { enabled: true });
+	// Leave touch emulation off: turning it off resets the page's hover and pointer
+	// for every later test file on the page.
 	await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
 	for (let step = 1; step <= 20; step++) {
 		await session.send("Input.dispatchTouchEvent", {
@@ -42,7 +43,6 @@ async function swipeDown(title: Element) {
 		await new Promise((resolve) => setTimeout(resolve, 16));
 	}
 	await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-	await session.send("Emulation.setTouchEmulationEnabled", { enabled: false });
 }
 
 async function openSheet(name: string) {
