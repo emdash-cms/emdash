@@ -20,6 +20,7 @@
 import mime from "mime/lite";
 
 import type { ContentFieldFilters } from "../content-list-query.js";
+import type { MediaItem as StoredMediaItem } from "../database/repositories/media.js";
 import type {
 	BlockType,
 	CreateBlockTypeInput,
@@ -226,22 +227,13 @@ export interface MediaUsageDetailsResponse {
 }
 
 /** Media item */
-export interface MediaItem {
-	id: string;
-	filename: string;
-	key: string;
-	mimeType: string;
-	size: number;
-	width?: number;
-	height?: number;
-	focalX?: number | null;
-	focalY?: number | null;
-	alt?: string;
-	caption?: string;
-	createdAt: string;
-	updatedAt: string;
-	folderId?: string | null;
+export interface MediaItem extends StoredMediaItem {
 	usage?: MediaUsageSummary;
+}
+
+/** Media item with the URL that serves its file, as returned by list and upload */
+export interface MediaItemWithUrl extends MediaItem {
+	url: string;
 }
 
 /** Result of assigning local media to a folder or the Main library */
@@ -1069,7 +1061,7 @@ export class EmDashClient {
 		page?: number;
 		includeUsage?: boolean;
 		folderId?: string | null;
-	}): Promise<ListResult<MediaItem> & { totalCount?: number }> {
+	}): Promise<ListResult<MediaItemWithUrl> & { totalCount?: number }> {
 		const params = new URLSearchParams();
 		if (options?.mimeType) params.set("mimeType", options.mimeType);
 		if (options?.limit) params.set("limit", String(options.limit));
@@ -1083,7 +1075,7 @@ export class EmDashClient {
 		}
 
 		const qs = params.toString();
-		return this.request<ListResult<MediaItem> & { totalCount?: number }>(
+		return this.request<ListResult<MediaItemWithUrl> & { totalCount?: number }>(
 			"GET",
 			`/media${qs ? `?${qs}` : ""}`,
 		);
@@ -1175,7 +1167,7 @@ export class EmDashClient {
 		file: Uint8Array | Blob,
 		filename: string,
 		options?: { alt?: string; caption?: string; contentType?: string },
-	): Promise<MediaItem> {
+	): Promise<MediaItemWithUrl> {
 		const formData = new FormData();
 
 		// Handle different file types
@@ -1198,7 +1190,7 @@ export class EmDashClient {
 		const response = await this.transport.fetch(request);
 		await this.assertOk(response);
 
-		const raw = (await response.json()) as { data: { item: MediaItem } };
+		const raw = (await response.json()) as { data: { item: MediaItemWithUrl } };
 		return raw.data.item;
 	}
 
