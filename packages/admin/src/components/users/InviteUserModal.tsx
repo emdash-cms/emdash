@@ -81,10 +81,12 @@ export function InviteUserModal({
 	}, [open]);
 
 	const trimmedEmail = email.trim();
-	const emailAtFailure = useValueAtFailure(error, trimmedEmail);
+	// The address typed and the one sent, as they stood when the answer came back. A new
+	// submit replaces `sentEmail` a moment before the old error clears, so both are kept.
+	const failure = useValueAtFailure(error, { email: trimmedEmail, sent: sentEmail });
 	// An address edited while the request ran isn't the one refused, so its refusal stays in the banner.
-	const refusedOnField = isUserExists(error) && emailAtFailure === sentEmail;
-	const emailTaken = refusedOnField && sentEmail === trimmedEmail;
+	const refusedOnField = isUserExists(error) && !!failure && failure.email === failure.sent;
+	const emailTaken = refusedOnField && failure?.sent === trimmedEmail;
 	const problem = emailTaken
 		? msg`Another user already uses this email address. Enter a different one.`
 		: emailProblem(trimmedEmail);

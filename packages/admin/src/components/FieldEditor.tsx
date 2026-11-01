@@ -797,12 +797,15 @@ export function FieldEditor({
 		detailsShown: showFieldDetails,
 		blockTypesOffered: !blockTypesError && (blockTypesLoading || blockTypes.length > 0),
 	});
-	// The form as it stood when the failed save came back.
-	const failedState = useValueAtFailure(saveError, formState);
+	// The form and the save it answers, as they stood when the failure came back. A new
+	// submit replaces `sent` a moment before the old failure clears, so both are kept.
+	const failure = useValueAtFailure(saveError, { state: formState, sent });
 	// A slug edited while the save ran isn't the one refused, so its refusal stays in the banner.
 	const slugRefusal =
-		sent && failedState?.slug === sent.slug && !field ? slugRejection(saveError) : undefined;
-	if (slugRefusal && slug === sent?.slug) problems.fields.slug = slugRefusal;
+		!field && failure?.sent && failure.state.slug === failure.sent.slug
+			? slugRejection(saveError)
+			: undefined;
+	if (slugRefusal && slug === failure?.sent?.slug) problems.fields.slug = slugRefusal;
 	const hasProblems =
 		Object.keys(problems.fields).length > 0 ||
 		problems.subFields.some((subField) => subField.label || subField.slug);
@@ -824,7 +827,7 @@ export function FieldEditor({
 
 	// Any change after a failed save came back may be the fix, so its message stops applying.
 	const bannerError =
-		slugRefusal || (failedState && formState !== failedState)
+		slugRefusal || (failure && formState !== failure.state)
 			? null
 			: typeof saveError === "string"
 				? saveError

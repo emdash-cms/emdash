@@ -411,6 +411,62 @@ describe("BylineSchemaPage — saving a field", () => {
 	});
 });
 
+describe("BylineSchemaPage — saving again after a refusal", () => {
+	it("leaves the slug alone when Create field is pressed again after its refusal went to the banner", async () => {
+		vi.mocked(useCurrentUser).mockReturnValue({
+			data: { id: "u1", email: "a@a", role: ROLE_ADMIN },
+			isLoading: false,
+			// eslint-disable-next-line typescript/no-explicit-any -- mock object satisfies the consumed shape
+		} as any);
+		vi.mocked(listBylineFields).mockResolvedValue({ items: [] });
+		let refuse!: () => void;
+		vi.mocked(createBylineField)
+			.mockImplementationOnce(
+				() =>
+					new Promise((_, reject) => {
+						refuse = () =>
+							reject(
+								new ApiResponseError(
+									409,
+									"FIELD_EXISTS",
+									'Byline field "job_title" already exists',
+									{
+										slug: "job_title",
+									},
+								),
+							);
+					}),
+			)
+			.mockImplementationOnce(() => new Promise(() => {}));
+
+		const screen = await render(
+			<QueryClientProvider client={new QueryClient()}>
+				<Toasty>
+					<BylineSchemaPage />
+				</Toasty>
+			</QueryClientProvider>,
+		);
+		await screen.getByRole("button", { name: "New field" }).click();
+		const dialog = screen.getByRole("dialog", { name: "New byline field" });
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+		await dialog.getByLabelText("Label", { exact: true }).fill("Job title");
+		// Direct DOM click to bypass Base UI inert overlay
+		dialog.getByRole("button", { name: "Create field" }).element().click();
+		await expect.element(dialog.getByRole("button", { name: "Saving…" })).toBeVisible();
+		await slug.fill("role");
+		refuse();
+		await expect
+			.element(dialog.getByRole("alert"))
+			.toHaveTextContent('Byline field "job_title" already exists');
+
+		const label = dialog.getByLabelText("Label", { exact: true });
+		label.element().focus();
+		dialog.getByRole("button", { name: "Create field" }).element().click();
+		await expect.element(dialog.getByRole("button", { name: "Saving…" })).toBeVisible();
+		await expect.element(label).toHaveFocus();
+	});
+});
+
 describe("BylineSchemaPage — deleting a field", () => {
 	it("reports a failed delete inside the confirmation, not in a toast", async () => {
 		vi.mocked(useCurrentUser).mockReturnValue({

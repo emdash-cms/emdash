@@ -3,6 +3,7 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import "../../dist/styles.css";
+import { ApiResponseError } from "../../src/lib/api/client";
 import { UsersPage } from "../../src/routes/users";
 import { render } from "../utils/render";
 
@@ -44,6 +45,32 @@ describe("UsersPage invitations", () => {
 		await expect.element(dialog).not.toBeInTheDocument();
 		await expect.element(screen.getByText("Invitation sent to new@example.com")).toBeVisible();
 		expect(mockInviteUser).toHaveBeenCalledWith("new@example.com", 30);
+	});
+
+	it("leaves the address alone when Send Invite is pressed again after its refusal went to the banner", async () => {
+		let refuse!: () => void;
+		mockInviteUser
+			.mockImplementationOnce(
+				() =>
+					new Promise((_, reject) => {
+						refuse = () =>
+							reject(
+								new ApiResponseError(409, "USER_EXISTS", "A user with this email already exists"),
+							);
+					}),
+			)
+			.mockImplementationOnce(() => new Promise(() => {}));
+		const { dialog, email } = await openInvite();
+		await email.fill("dev@example.com");
+		await dialog.getByRole("button", { name: "Send Invite" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Sending..." })).toBeVisible();
+		await email.fill("other@example.com");
+		refuse();
+		await expect.element(dialog.getByText("A user with this email already exists")).toBeVisible();
+
+		await dialog.getByRole("button", { name: "Send Invite" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Sending..." })).toBeVisible();
+		await expect.element(email).not.toHaveFocus();
 	});
 
 	it("opens again without the last invite's failure", async () => {
