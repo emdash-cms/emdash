@@ -104,7 +104,7 @@ type ListFocus =
 
 export const FOCUSABLE =
 	'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
-const MENU_ICON = "me-2 size-4";
+const MENU_ICON = "size-4";
 const LINE_BREAK = /[\r\n]/;
 // Other input types, such as number and email, throw when a script sets their selection.
 const SELECTABLE_INPUT_TYPES = new Set(["text", "search", "url", "tel", "password"]);
