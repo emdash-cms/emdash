@@ -405,6 +405,27 @@ export function BlocksField({
 		setTouched((current) => (current.has(key) ? current : new Set(current).add(key)));
 	};
 
+	/**
+	 * Moves the touched paths of a list's items to the items' new positions. `moveTo` gives an
+	 * item's new position by its old one, or -1 for an item removed.
+	 */
+	const moveListTouches = (blockKey: string, field: string, moveTo: (index: number) => number) => {
+		const prefix = `${touchKey(blockKey, field)}.`;
+		setTouched((current) => {
+			const next = new Set<string>();
+			for (const key of current) {
+				if (!key.startsWith(prefix)) {
+					next.add(key);
+					continue;
+				}
+				const [index = "", ...rest] = key.slice(prefix.length).split(".");
+				const to = moveTo(Number(index));
+				if (to >= 0) next.add([`${prefix}${to}`, ...rest].join("."));
+			}
+			return next;
+		});
+	};
+
 	const revealIssues = useStableCallback((token: number, focusId: string | undefined) => {
 		if (readOnly) return;
 		setRevealed({ token, keys: new Set(blocks.map((block) => block._key)) });
@@ -600,6 +621,7 @@ export function BlocksField({
 			const at = Math.min(index, items.length);
 			items.splice(at, 0, item);
 			onChange(updateBlockFieldValue(blocks, blockKey, field, items));
+			moveListTouches(blockKey, field, (position) => (position < at ? position : position + 1));
 			focusRequestRef.current = { key: blockKey, target: "item", field, index: at };
 		},
 	);
@@ -722,6 +744,9 @@ export function BlocksField({
 										onAdvancedToggle={() => toggleAdvanced(block._key)}
 										onTouch={(path) => touchField(block._key, path)}
 										onItemDeleted={(field, deleted) => offerItemUndo(block._key, field, deleted)}
+										onItemsShift={(field, moves) =>
+											moveListTouches(block._key, field, (position) => moves[position] ?? -1)
+										}
 										onChange={(field, nextValue) =>
 											onChange(updateBlockFieldValue(blocks, block._key, field, nextValue))
 										}
@@ -816,6 +841,7 @@ interface BlockRowProps {
 	onTouch: (path: string) => void;
 	onChange: (field: string, value: unknown) => void;
 	onItemDeleted: (field: string, deleted: DeletedListItem) => void;
+	onItemsShift: (field: string, moves: readonly number[]) => void;
 	onAdd: (target: PickerTarget) => void;
 	onDuplicate: () => void;
 	onMove: (to: number) => void;
@@ -846,6 +872,7 @@ function BlockRow({
 	onTouch,
 	onChange,
 	onItemDeleted,
+	onItemsShift,
 	onAdd,
 	onDuplicate,
 	onMove,
@@ -925,6 +952,7 @@ function BlockRow({
 				invalidItems={invalidItems}
 				revealToken={revealToken}
 				onItemDeleted={(deleted) => onItemDeleted(field.slug, deleted)}
+				onItemsShift={(moves) => onItemsShift(field.slug, moves)}
 				renderControl={({ subField, at, onChange: onControlChange, ...control }) => {
 					const definition = listFieldDefinition(subField);
 					const path = `${field.slug}.${at}.${subField.slug}`;

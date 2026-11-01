@@ -93,6 +93,11 @@ export interface BlockListFieldProps {
 	/** A new token opens the items in `invalidItems`. */
 	revealToken: number;
 	onItemDeleted: (deleted: DeletedListItem) => void;
+	/**
+	 * Called when saved items change position, with each item's new position by its old one,
+	 * or -1 for an item removed.
+	 */
+	onItemsShift: (moves: readonly number[]) => void;
 	renderControl: (input: ListControlInput) => React.ReactNode;
 	renderItemFields: (input: ListItemFieldsInput) => React.ReactNode;
 }
@@ -240,6 +245,7 @@ export function BlockListField({
 	invalidItems,
 	revealToken,
 	onItemDeleted,
+	onItemsShift,
 	renderControl,
 	renderItemFields,
 }: BlockListFieldProps) {
@@ -306,12 +312,16 @@ export function BlockListField({
 	const describedBy = [hint && hintId, error && errorId].filter(Boolean).join(" ") || undefined;
 
 	const emit = (next: Row[]) => {
-		const nextItems = next.filter((row) => !isBlank(row)).map((row) => row.item);
+		const kept = next.filter((row) => !isBlank(row));
+		const nextItems = kept.map((row) => row.item);
 		for (const row of next) knownKeys.set(row.item, row.key);
 		setRows(next);
 		if (sameItems(nextItems, items)) return;
 		setSource(nextItems);
 		onChange(nextItems);
+		const keptKeys = kept.map((row) => row.key);
+		const moves = current.filter((row) => !isBlank(row)).map((row) => keptKeys.indexOf(row.key));
+		if (moves.some((to, from) => to !== from)) onItemsShift(moves);
 	};
 
 	const focusRow = (request: ListFocus) => {

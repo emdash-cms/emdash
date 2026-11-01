@@ -383,6 +383,34 @@ describe("Type-in lists inside a block", () => {
 		expect(blocks[0]?.tags).toEqual([{ name: "Hotel Wilde" }, { name: "Norma" }, { name: "" }]);
 	});
 
+	it("shows no problem in a line added mid-list until you leave it", async () => {
+		const links = blockType("links", "Links", [
+			list("links", "Links", [{ slug: "url", label: "Link", type: "url" }]),
+		]);
+		await renderHarness({
+			initial: [
+				{
+					_type: "links",
+					_version: 1,
+					_key: "links-1",
+					links: [{ url: "https://a.example" }, { url: "https://b.example" }],
+				},
+			],
+			blockTypes: [links],
+			allowedTypes: ["links"],
+		});
+		await openBlock("Links");
+
+		await page.getByRole("textbox", { name: "Link 1", exact: true }).click();
+		await userEvent.keyboard("{Enter}h");
+		const added = page.getByRole("textbox", { name: "Link 2", exact: true });
+		await expect.element(added).toHaveValue("h");
+		await expect.element(added).not.toHaveAttribute("aria-invalid");
+
+		await userEvent.keyboard("{ArrowUp}");
+		await expect.element(added).toHaveAttribute("aria-invalid", "true");
+	});
+
 	it("turns a pasted block of lines into one item per line, up to maxItems", async () => {
 		const onValue = vi.fn();
 		await renderHarness({ initial: [clientsBlock(["Hotel Wilde", "Norma"])], onValue });
@@ -503,6 +531,22 @@ describe("Expandable items inside a block", () => {
 		const blocks = onValue.mock.lastCall?.[0] as StoredBlockValue[];
 		expect(blocks.map((block) => block._key)).toEqual(["quotes-1"]);
 		expect(quotesOf(onValue)).toEqual([maya, jonas]);
+	});
+
+	it("keeps a problem shown on its item after an item above it is deleted", async () => {
+		const unsigned = { quote: "Every building, every month.", author: "" };
+		await renderHarness({ initial: [testimonialsBlock([maya, jonas, unsigned])] });
+		await openBlock("Testimonials");
+
+		await page.getByRole("button", { name: "Untitled", exact: true }).click();
+		const author = page.getByRole("textbox", { name: "Author name", exact: true });
+		await author.click();
+		await page.getByRole("textbox", { name: "Quote", exact: true }).click();
+		await expect.element(author).toHaveAttribute("aria-invalid", "true");
+
+		await itemMenu("Maya Okafor", "Delete");
+		await expect.element(page.getByText("Deleted Maya Okafor")).toBeVisible();
+		await expect.element(author).toHaveAttribute("aria-invalid", "true");
 	});
 
 	it("disables Delete at minItems, and hides Add item and disables Duplicate at maxItems", async () => {
