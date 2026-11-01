@@ -9,10 +9,8 @@ import { LayerDialog } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
+import { useConfirmPress } from "../lib/dialog-form.js";
 import { DialogError, getMutationError } from "./DialogError.js";
-
-/** Both clicks of a double click can land before `isPending` renders. */
-const DOUBLE_PRESS_MS = 500;
 
 export interface ConfirmDialogProps {
 	open: boolean;
@@ -58,17 +56,7 @@ export function ConfirmDialog({
 	children,
 }: ConfirmDialogProps) {
 	const { t } = useLingui();
-	const lastPressRef = React.useRef(Number.NEGATIVE_INFINITY);
-	// A failure can be retried at once.
-	React.useEffect(() => {
-		if (error) lastPressRef.current = Number.NEGATIVE_INFINITY;
-	}, [error]);
-	const confirm = () => {
-		const now = performance.now();
-		if (isPending || now - lastPressRef.current < DOUBLE_PRESS_MS) return;
-		lastPressRef.current = now;
-		onConfirm();
-	};
+	const confirm = useConfirmPress(onConfirm, isPending, error);
 	// A mutation shared by several items still holds the last item's failure.
 	const [staleError, setStaleError] = React.useState(() => (open ? error : null));
 	const [wasOpen, setWasOpen] = React.useState(open);
@@ -105,7 +93,7 @@ export function ConfirmDialog({
 					<LayerDialog.Action
 						variant={variant}
 						disabled={isPending || confirmDisabled}
-						onClick={confirm}
+						onClick={() => confirm()}
 					>
 						{isPending ? pendingLabel : confirmLabel}
 					</LayerDialog.Action>

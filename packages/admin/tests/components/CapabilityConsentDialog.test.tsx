@@ -142,6 +142,23 @@ describe("CapabilityConsentDialog", () => {
 		expect(onConfirm).toHaveBeenCalledOnce();
 	});
 
+	it("confirms once on a double press", async () => {
+		const screen = await render(
+			<CapabilityConsentDialog
+				pluginName="Test"
+				capabilities={["read:content"]}
+				onConfirm={onConfirm}
+				onCancel={onCancel}
+			/>,
+		);
+
+		const accept = screen.getByRole("button", { name: "Accept & Install" });
+		await expect.element(accept).toBeEnabled();
+		accept.element().click();
+		accept.element().click();
+		expect(onConfirm).toHaveBeenCalledOnce();
+	});
+
 	it("calls onCancel when cancel button is clicked", async () => {
 		const screen = await render(
 			<CapabilityConsentDialog

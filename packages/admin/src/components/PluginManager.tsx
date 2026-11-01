@@ -61,6 +61,7 @@ import {
 	type RegistryUpdateOpts,
 	type RegistryRecordVerificationSummary,
 } from "../lib/api/registry.js";
+import { useConfirmPress } from "../lib/dialog-form.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn, formatDate } from "../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
@@ -793,6 +794,7 @@ export function UninstallConfirmDialog({
 }: UninstallConfirmDialogProps) {
 	const { t } = useLingui();
 	const [deleteData, setDeleteData] = React.useState(false);
+	const confirm = useConfirmPress(onConfirm, isPending, error);
 
 	return (
 		<LayerDialog.Root
@@ -820,7 +822,7 @@ export function UninstallConfirmDialog({
 				<LayerDialog.Actions dismissLabel={t`Cancel`}>
 					<LayerDialog.Action
 						variant="destructive"
-						onClick={() => onConfirm(deleteData)}
+						onClick={() => confirm(deleteData)}
 						disabled={isPending}
 					>
 						{isPending ? t`Uninstalling...` : t`Uninstall`}

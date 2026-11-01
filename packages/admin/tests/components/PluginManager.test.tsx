@@ -87,7 +87,8 @@ vi.mock("../../src/lib/api/registry", async () => {
 });
 
 // Import after mocks
-const { PluginManager } = await import("../../src/components/PluginManager");
+const { PluginManager, UninstallConfirmDialog } =
+	await import("../../src/components/PluginManager");
 
 function makePlugin(overrides: Partial<PluginInfo> = {}): PluginInfo {
 	return {
@@ -870,5 +871,26 @@ describe("PluginManager", () => {
 		);
 		await expect.element(screen.getByRole("link", { name: /documentation/ })).toBeInTheDocument();
 		await expect.element(screen.getByText("registry", { exact: true })).not.toBeInTheDocument();
+	});
+});
+
+describe("UninstallConfirmDialog", () => {
+	it("uninstalls once on a double press", async () => {
+		const onConfirm = vi.fn();
+		const screen = await render(
+			<UninstallConfirmDialog
+				pluginName="Gallery"
+				isPending={false}
+				onConfirm={onConfirm}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		const uninstall = screen.getByRole("button", { name: "Uninstall", exact: true });
+		await expect.element(uninstall).toBeEnabled();
+		uninstall.element().click();
+		uninstall.element().click();
+		expect(onConfirm).toHaveBeenCalledTimes(1);
+		expect(onConfirm).toHaveBeenCalledWith(false);
 	});
 });

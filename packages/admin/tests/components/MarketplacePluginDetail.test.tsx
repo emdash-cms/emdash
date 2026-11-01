@@ -275,6 +275,8 @@ describe("MarketplacePluginDetail", () => {
 		await expect.element(screen.getByText("webhook", { exact: true })).toBeInTheDocument();
 		expect(screen.getByText("Plugin installation requires explicit consent").query()).toBeNull();
 		await expect.element(accept).toBeEnabled();
+		// A press this soon after the first would count as the same double click.
+		await new Promise((resolve) => setTimeout(resolve, 500));
 		accept.element().click();
 		await vi.waitFor(() =>
 			expect(mockInstallMarketplacePlugin).toHaveBeenLastCalledWith(

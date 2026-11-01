@@ -22,6 +22,7 @@ import * as React from "react";
 import { describeCapability } from "../lib/api/marketplace.js";
 import type { PluginMcpConsentTool } from "../lib/api/marketplace.js";
 import type { RegistryRecordVerificationSummary } from "../lib/api/registry.js";
+import { useConfirmPress } from "../lib/dialog-form.js";
 import { cn } from "../lib/utils.js";
 import { DialogError } from "./DialogError.js";
 
@@ -73,6 +74,7 @@ export function CapabilityConsentDialog({
 	onCancel,
 }: CapabilityConsentDialogProps) {
 	const { t } = useLingui();
+	const confirm = useConfirmPress(onConfirm, isPending, error);
 	const [technicalDetailsOpen, setTechnicalDetailsOpen] = React.useState(false);
 	const permissionsHeadingId = React.useId();
 	const newSet = new Set(newCapabilities);
@@ -339,7 +341,7 @@ export function CapabilityConsentDialog({
 					<DialogError message={error} className="mt-3" />
 				</LayerDialog.Body>
 				<LayerDialog.Actions dismissLabel={t`Cancel`}>
-					<LayerDialog.Action onClick={onConfirm} disabled={isPending}>
+					<LayerDialog.Action onClick={() => confirm()} disabled={isPending}>
 						{isPending
 							? isUpdate
 								? t`Updating...`

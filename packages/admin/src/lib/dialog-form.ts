@@ -125,6 +125,31 @@ export function useConfirmedRequest(request: (() => Promise<unknown> | void) | u
 	};
 }
 
+/** Both clicks of a double click can land before `isPending` renders. */
+const DOUBLE_PRESS_MS = 500;
+
+/**
+ * Wraps a dialog's confirm action so that a double press runs it once: a
+ * press while `isPending`, or within a moment of the last one, does nothing.
+ * A new `error` lets the next press retry at once.
+ */
+export function useConfirmPress<Args extends unknown[]>(
+	onConfirm: (...args: Args) => void,
+	isPending: boolean,
+	error: unknown,
+): (...args: Args) => void {
+	const lastPressRef = React.useRef(Number.NEGATIVE_INFINITY);
+	React.useEffect(() => {
+		if (error) lastPressRef.current = Number.NEGATIVE_INFINITY;
+	}, [error]);
+	return (...args: Args) => {
+		const now = performance.now();
+		if (isPending || now - lastPressRef.current < DOUBLE_PRESS_MS) return;
+		lastPressRef.current = now;
+		onConfirm(...args);
+	};
+}
+
 /**
  * Wraps a submit so that calling it again while its last run is in flight does
  * nothing. Both clicks of a double click can land before a mutation's pending
