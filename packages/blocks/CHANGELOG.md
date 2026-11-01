@@ -1,5 +1,21 @@
 # @emdash-cms/blocks
 
+## 1.4.1
+
+### Patch Changes
+
+- [#4495](https://github.com/emdash-cms/emdash/pull/4495) [`76f0f53`](https://github.com/emdash-cms/emdash/commit/76f0f53221c380cc77b73da5e455408dca720902) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the admin's confirmation, form and notice dialogs to Kumo's `LayerDialog` design. Each dialog keeps its title in a fixed header, scrolls its content in a card, and puts Cancel and the main action in a tray along the bottom. On phones, dialogs open as bottom sheets, and most can be swiped down to dismiss. Block Kit button confirmations on plugin admin pages use the same design.
+  
+  Inside dialogs, groups of fields share one section heading style, selects fill the width of their column, and paired fields stack on phones. Explanations that used to sit under fields, such as "Slugs cannot be changed after the field is created.", are behind an info button beside the label, which opens on hover, keyboard focus or a tap. Errors, warnings about what an action will do, and format rules the dialog does not check stay visible. Screen readers read an info button's note as the button's description, without opening it.
+  
+  Dialogs with Cancel and an action no longer show a separate close (×) button; Cancel and Escape behave as before. In the byline and media folder dialogs, Delete moves from the bottom bar to a row at the end of the dialog that says what deleting does, and the byline avatar shows as a small circle with its actions beside it. Creating a relationship from the field dialog opens it in a second dialog on top, whose Back button returns to the field, and the relation form no longer says it cannot generate a slug before both side names are filled in. A confirmation's message sits under its title and is the dialog's description for screen readers. Form dialogs, such as the field, menu item and schedule dialogs, now also say what they are for under the title, and screen readers read that sentence instead of the whole form. The media picker, media details, media upload, bulk tagging, content picker and section picker dialogs keep their previous layout.
+  
+  Browser tests that clicked a dialog's "Close" button should click "Cancel" or press Escape instead. A dialog now takes focus itself when it opens, unless one of its fields takes focus, so press Tab to reach its first control. The plugin permissions and uninstall dialogs are now named by their titles, such as "Plugin Permissions" and "Uninstall Gallery?", instead of "Capability consent" and "Uninstall confirmation". A label locator such as `getByLabel("Slug")` can also match the new "More information about Slug" button, so pass `{ exact: true }` or locate the field by its role. An info button's note is also in the page as the button's hidden description, so locate the open note with `getByRole("tooltip")` rather than by its text.
+
+- [#4308](https://github.com/emdash-cms/emdash/pull/4308) [`4df65eb`](https://github.com/emdash-cms/emdash/commit/4df65eba3e4dd2f990c92f65a4748117182949d5) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates `@cloudflare/kumo` to 2.15.0. These packages now require exactly `@cloudflare/kumo@2.15.0`, so sites and plugins that install Kumo themselves should upgrade to that version to match the admin's prebuilt styles. Update `emdash` and the Forms, Field Kit, AI Moderation and AI Search plugins together: their earlier releases require Kumo 2.6.0, and these plugin releases need an `emdash` release with this change. Updating only one side leaves Kumo 2.15 next to an admin built for 2.6.
+  
+  In the admin, Select menus now open below their field instead of over it, and text sized `text-base` or `text-lg` has a taller line (1.5), so labels and headings take slightly more height. Kumo's `DropdownMenu` now spaces item icons itself, so plugin admin pages should remove any margin classes such as `me-2` from the elements they pass as an item's `icon`.
+
 ## 1.4.0
 
 ### Patch Changes

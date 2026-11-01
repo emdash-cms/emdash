@@ -1,5 +1,19 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.13
+
+### Patch Changes
+
+- [#4466](https://github.com/emdash-cms/emdash/pull/4466) [`239e9d2`](https://github.com/emdash-cms/emdash/commit/239e9d2763a48a7acb4bfe1cd92890a894d49cd8) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Adds the missing form editor controls for daily digests, autoresponder emails, webhooks, field conditions, placeholders, help text, and default values. These existing options can now be viewed and changed in the admin instead of through the API. To disable a saved autoresponder through the update API, send `settings.autoresponder: null`.
+  
+  The editor now uses `@lingui/react` as a peer dependency for translations. On older EmDash hosts that do not share the admin's Lingui context, the new controls fall back to English.
+  
+  Fixes public form conditions controlled by a single checkbox or radio so unchecked controls count as empty. Dependents using "Is empty" now appear when the controller is unchecked, allowing required fields to be completed before submission. Placeholder and default-value inputs are only shown for field types that support them; file fields and checkbox groups are not offered as new condition controllers.
+
+- [#4308](https://github.com/emdash-cms/emdash/pull/4308) [`4df65eb`](https://github.com/emdash-cms/emdash/commit/4df65eba3e4dd2f990c92f65a4748117182949d5) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates `@cloudflare/kumo` to 2.15.0. These packages now require exactly `@cloudflare/kumo@2.15.0`, so sites and plugins that install Kumo themselves should upgrade to that version to match the admin's prebuilt styles. Update `emdash` and the Forms, Field Kit, AI Moderation and AI Search plugins together: their earlier releases require Kumo 2.6.0, and these plugin releases need an `emdash` release with this change. Updating only one side leaves Kumo 2.15 next to an admin built for 2.6.
+  
+  In the admin, Select menus now open below their field instead of over it, and text sized `text-base` or `text-lg` has a taller line (1.5), so labels and headings take slightly more height. Kumo's `DropdownMenu` now spaces item icons itself, so plugin admin pages should remove any margin classes such as `me-2` from the elements they pass as an item's `icon`.
+
 ## 0.2.12
 
 ### Patch Changes
