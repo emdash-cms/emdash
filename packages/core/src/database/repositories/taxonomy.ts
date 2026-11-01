@@ -135,6 +135,36 @@ export interface TaxonomyAssignmentResolution {
 	translations: TaxonomyAssignmentTranslation[];
 }
 
+function toAssignmentResolutions(
+	byGroup: Map<string, Taxonomy[]>,
+	locale: string,
+	defaultLocale: string,
+): TaxonomyAssignmentResolution[] {
+	const chain = [locale, ...(defaultLocale !== locale ? [defaultLocale] : [])];
+	const chainLimit =
+		getLocaleChainRank(defaultLocale, chain) + getLocaleCandidates(defaultLocale).length;
+	return Array.from(byGroup, ([translationGroup, variants]) => {
+		const candidates = variants
+			.filter((variant) => getLocaleChainRank(variant.locale, chain) < chainLimit)
+			.toSorted(
+				(a, b) =>
+					getLocaleChainRank(a.locale, chain) - getLocaleChainRank(b.locale, chain) ||
+					a.id.localeCompare(b.id),
+			);
+		const term = candidates[0] ?? null;
+		return {
+			translationGroup,
+			term,
+			availableLocales: variants.map((variant) => variant.locale),
+			translations: variants.map((variant) => ({
+				id: variant.id,
+				slug: variant.slug,
+				locale: variant.locale,
+			})),
+		};
+	});
+}
+
 /**
  * Taxonomy repository for categories, tags, and other classification.
  *
@@ -803,29 +833,38 @@ export class TaxonomyRepository {
 			byGroup.set(row.assignment_group, variants);
 		}
 
-		const chain = [locale, ...(defaultLocale !== locale ? [defaultLocale] : [])];
-		const chainLimit =
-			getLocaleChainRank(defaultLocale, chain) + getLocaleCandidates(defaultLocale).length;
-		return Array.from(byGroup, ([translationGroup, variants]) => {
-			const candidates = variants
-				.filter((variant) => getLocaleChainRank(variant.locale, chain) < chainLimit)
-				.toSorted(
-					(a, b) =>
-						getLocaleChainRank(a.locale, chain) - getLocaleChainRank(b.locale, chain) ||
-						a.id.localeCompare(b.id),
-				);
-			const term = candidates[0] ?? null;
-			return {
-				translationGroup,
-				term,
-				availableLocales: variants.map((variant) => variant.locale),
-				translations: variants.map((variant) => ({
-					id: variant.id,
-					slug: variant.slug,
-					locale: variant.locale,
-				})),
-			};
-		});
+		return toAssignmentResolutions(byGroup, locale, defaultLocale);
+	}
+
+	/**
+	 * Resolve term translation groups the way `getTermAssignmentsForEntry`
+	 * resolves an entry's stored assignments, in the order given. A group with
+	 * no term in `taxonomyName` is left out.
+	 */
+	async resolveAssignmentGroups(
+		taxonomyName: string,
+		groups: string[],
+		locale: string,
+		defaultLocale: string,
+	): Promise<TaxonomyAssignmentResolution[]> {
+		const byGroup = new Map<string, Taxonomy[]>(groups.map((group) => [group, []]));
+		for (const chunk of chunks([...byGroup.keys()], SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("taxonomies")
+				.selectAll()
+				.where("name", "=", taxonomyName)
+				.where("translation_group", "in", chunk)
+				.orderBy("locale", "asc")
+				.execute();
+			for (const row of rows) {
+				if (row.translation_group)
+					byGroup.get(row.translation_group)?.push(this.rowToTaxonomy(row));
+			}
+		}
+		for (const [group, variants] of byGroup) {
+			if (variants.length === 0) byGroup.delete(group);
+		}
+		return toAssignmentResolutions(byGroup, locale, defaultLocale);
 	}
 
 	/**
