@@ -1109,7 +1109,7 @@ function ItemRow({
 						}
 						onClick={onToggle}
 						className={cn(
-							"flex min-h-8 items-center gap-2 self-stretch rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand",
+							"-ms-1 flex min-h-8 items-center gap-2 self-stretch rounded-md ps-1 text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand",
 							editingTitle ? "shrink-0" : "min-w-0 flex-1",
 						)}
 					>

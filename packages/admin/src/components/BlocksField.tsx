@@ -1117,7 +1117,7 @@ function BlockRow({
 						aria-labelledby={labelId}
 						aria-describedby={toggleDescription || undefined}
 						onClick={onToggle}
-						className="flex min-w-0 flex-1 items-center gap-2 self-stretch rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand"
+						className="-ms-1 flex min-w-0 flex-1 items-center gap-2 self-stretch rounded-md ps-1 text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand"
 					>
 						<DisclosureCaret open={open} />
 						<BlockTypeIcon name={blockType?.icon} className="size-4 shrink-0 text-kumo-subtle" />
