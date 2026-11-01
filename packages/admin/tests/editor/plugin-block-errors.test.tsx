@@ -110,6 +110,7 @@ describe("plugin block modal errors", () => {
 		const url = dialog.getByRole("textbox", { name: "URL", exact: true });
 		const insert = dialog.getByRole("button", { name: "Insert", exact: true });
 
+		await expect.element(dialog).toHaveAccessibleDescription("Paste the address of what to embed.");
 		await expect.element(insert).toBeEnabled();
 		await insert.click();
 		await expect.element(url).toHaveAccessibleDescription(URL_ERROR);

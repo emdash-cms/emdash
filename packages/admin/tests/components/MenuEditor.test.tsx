@@ -155,6 +155,9 @@ describe("MenuEditor", () => {
 		await expect.element(screen.getByRole("heading", { name: "Main Menu" })).toBeInTheDocument();
 		await screen.getByRole("button", { name: ADD_CUSTOM_LINK_REGEX }).click();
 
+		await expect
+			.element(screen.getByRole("dialog", { name: "Add Custom Link" }))
+			.toHaveAccessibleDescription("Link to any page by its address, on this site or another.");
 		await expect.element(screen.getByLabelText("Label")).toBeInTheDocument();
 		await expect.element(screen.getByLabelText("URL")).toBeInTheDocument();
 	});
@@ -170,6 +173,9 @@ describe("MenuEditor", () => {
 		await expect
 			.element(screen.getByRole("heading", { name: "Edit Menu Item" }))
 			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("dialog", { name: "Edit Menu Item" }))
+			.toHaveAccessibleDescription("Change this item's label, link and place in the menu.");
 	});
 
 	it("asks for confirmation before deleting a menu item", async () => {
@@ -280,6 +286,9 @@ describe("MenuEditor", () => {
 		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
 
 		await screen.getByRole("button", { name: "Rename menu" }).click();
+		await expect
+			.element(screen.getByRole("dialog", { name: "Rename menu" }))
+			.toHaveAccessibleDescription("Give this menu a new label.");
 		const labelInput = screen.getByLabelText("Label", { exact: true });
 		await expect.element(labelInput).toHaveValue("Main Menu");
 		await labelInput.fill("Footer links");

@@ -329,6 +329,7 @@ export interface PublishingScheduleDialogProps {
 
 interface PublishingDateTimeDialogContentProps {
 	title: string;
+	description: string;
 	date: Date | undefined;
 	time: string;
 	pending: boolean;
@@ -345,6 +346,7 @@ interface PublishingDateTimeDialogContentProps {
 
 function PublishingDateTimeDialogContent({
 	title,
+	description,
 	date,
 	time,
 	pending,
@@ -369,6 +371,7 @@ function PublishingDateTimeDialogContent({
 	return (
 		<LayerDialog.Content size="sm">
 			<LayerDialog.Title>{title}</LayerDialog.Title>
+			<LayerDialog.Description>{description}</LayerDialog.Description>
 			<LayerDialog.Body>
 				<form id={formId} onSubmit={handleSubmit} noValidate>
 					<PublishingDateTimeFields
@@ -522,6 +525,11 @@ export function PublishingScheduleDialog({
 		>
 			<PublishingDateTimeDialogContent
 				title={title}
+				description={
+					isLive
+						? t`Choose when the unpublished changes go live.`
+						: t`Choose when this entry is published.`
+				}
 				date={date}
 				time={time}
 				pending={pending}
@@ -677,6 +685,7 @@ export function PublicationDateDialog({
 			</LayerDialog.Trigger>
 			<PublishingDateTimeDialogContent
 				title={t`Change publication date`}
+				description={t`Choose the date this entry shows as published.`}
 				date={date}
 				time={time}
 				pending={pending}

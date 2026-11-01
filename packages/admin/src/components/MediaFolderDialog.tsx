@@ -158,6 +158,11 @@ export function MediaFolderDialog({
 			>
 				<LayerDialog.Content size="sm">
 					<LayerDialog.Title>{isEditing ? t`Edit folder` : t`Add new folder`}</LayerDialog.Title>
+					<LayerDialog.Description>
+						{isEditing
+							? t`Rename this folder, or delete it.`
+							: t`Group media into a folder in the library.`}
+					</LayerDialog.Description>
 					<LayerDialog.Body>
 						<form ref={formRef} id={formId} onSubmit={submit} noValidate className="grid gap-5">
 							<Input

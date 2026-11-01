@@ -324,6 +324,11 @@ export function BylineFieldEditor({
 		>
 			<LayerDialog.Content>
 				<LayerDialog.Title>{isEdit ? t`Edit byline field` : t`New byline field`}</LayerDialog.Title>
+				<LayerDialog.Description>
+					{isEdit
+						? t`Change how bylines fill in this detail.`
+						: t`Add a detail every byline can fill in, such as a job title.`}
+				</LayerDialog.Description>
 				<LayerDialog.Body>
 					<form id={formId} ref={formRef} noValidate onSubmit={handleSubmit} className="grid gap-5">
 						{/* Label + slug */}

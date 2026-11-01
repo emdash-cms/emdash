@@ -104,6 +104,9 @@ describe("FieldEditor", () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} />);
 			await expect.element(screen.getByText("Add Field")).toBeInTheDocument();
 			await expect
+				.element(screen.getByRole("dialog", { name: "Add Field" }))
+				.toHaveAccessibleDescription("Choose what kind of content the field holds.");
+			await expect
 				.element(screen.getByRole("button", { name: SHORT_TEXT_REGEX }))
 				.toBeInTheDocument();
 			await expect

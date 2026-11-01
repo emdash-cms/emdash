@@ -102,6 +102,11 @@ describe("Widgets", () => {
 		await expect
 			.element(screen.getByRole("heading", { name: "Create Widget Area" }))
 			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("dialog", { name: "Create Widget Area" }))
+			.toHaveAccessibleDescription(
+				"A widget area is a place in your theme, such as a sidebar, that holds widgets.",
+			);
 		await expect.element(screen.getByLabelText("Name")).toBeInTheDocument();
 		await expect.element(screen.getByLabelText("Label")).toBeInTheDocument();
 		await expect.element(screen.getByLabelText("Description")).toBeInTheDocument();

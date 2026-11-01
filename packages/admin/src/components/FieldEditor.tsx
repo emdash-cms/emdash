@@ -977,6 +977,13 @@ export function FieldEditor({
 				<LayerDialog.Title>
 					{field ? t`Edit Field` : step === "type" ? t`Add Field` : t`Configure Field`}
 				</LayerDialog.Title>
+				<LayerDialog.Description>
+					{field
+						? t`Change the field's label and what it accepts.`
+						: step === "type"
+							? t`Choose what kind of content the field holds.`
+							: t`Name the field and choose what it accepts.`}
+				</LayerDialog.Description>
 				<LayerDialog.Body>
 					{step === "type" ? (
 						<div className="grid grid-cols-2 gap-3">

@@ -475,6 +475,9 @@ export function Widgets() {
 							/>
 							<LayerDialog.Content>
 								<LayerDialog.Title>{t`Create Widget Area`}</LayerDialog.Title>
+								<LayerDialog.Description>
+									{t`A widget area is a place in your theme, such as a sidebar, that holds widgets.`}
+								</LayerDialog.Description>
 								<LayerDialog.Body>
 									<form
 										ref={createAreaFormRef}

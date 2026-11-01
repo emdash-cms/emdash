@@ -36,6 +36,7 @@ async function openSchedule(onSchedule: (scheduledAt: string) => Promise<void> =
 	await screen.getByRole("button", { name: "Open" }).click();
 	const dialog = screen.getByRole("dialog", { name: "Schedule publication" });
 	await expect.element(dialog).toBeVisible();
+	await expect.element(dialog).toHaveAccessibleDescription("Choose when this entry is published.");
 	return { screen, dialog };
 }
 
@@ -54,6 +55,9 @@ async function openPublicationDate(
 	await screen.getByRole("button", { name: /Change publication date/ }).click();
 	const dialog = screen.getByRole("dialog", { name: "Change publication date" });
 	await expect.element(dialog).toBeVisible();
+	await expect
+		.element(dialog)
+		.toHaveAccessibleDescription("Choose the date this entry shows as published.");
 	return { screen, dialog };
 }
 

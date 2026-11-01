@@ -90,6 +90,9 @@ describe("BylineFieldEditor", () => {
 	it("points at each missing field when submitted, and sends nothing until they are filled", async () => {
 		const onSave = vi.fn(async () => {});
 		const dialog = await openEditor({ onSave });
+		await expect
+			.element(dialog)
+			.toHaveAccessibleDescription("Add a detail every byline can fill in, such as a job title.");
 		const action = dialog.getByRole("button", { name: "Create field" });
 		await expect.element(action).toBeEnabled();
 		expect(dialog.getByText("Enter a label.").query()).toBeNull();

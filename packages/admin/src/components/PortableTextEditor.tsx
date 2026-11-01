@@ -2761,6 +2761,9 @@ function PluginBlockModal({
 				<LayerDialog.Title>
 					{isEditing ? t`Edit ${block?.label || ""}` : t`Insert ${block?.label || ""}`}
 				</LayerDialog.Title>
+				<LayerDialog.Description>
+					{hasFields ? t`Fill in what this block shows.` : t`Paste the address of what to embed.`}
+				</LayerDialog.Description>
 				<LayerDialog.Body>
 					<form id={formId} noValidate onSubmit={handleSubmit}>
 						<div className="grid gap-5" data-field-invalid={formError ? true : undefined}>

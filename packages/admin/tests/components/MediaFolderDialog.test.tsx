@@ -59,7 +59,9 @@ describe("MediaFolderDialog", () => {
 		const name = screen.getByLabelText("Name");
 
 		await expect.element(name).toHaveFocus();
-		expect(screen.getByText("Create a folder in the Main library.").query()).toBeNull();
+		await expect
+			.element(screen.getByRole("dialog", { name: "Add new folder" }))
+			.toHaveAccessibleDescription("Group media into a folder in the library.");
 		await name.fill("  Created  ");
 		await userEvent.keyboard("{Enter}");
 

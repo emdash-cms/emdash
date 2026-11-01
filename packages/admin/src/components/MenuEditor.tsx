@@ -544,6 +544,7 @@ export function MenuEditor() {
 								/>
 								<LayerDialog.Content>
 									<LayerDialog.Title>{t`Rename menu`}</LayerDialog.Title>
+									<LayerDialog.Description>{t`Give this menu a new label.`}</LayerDialog.Description>
 									<LayerDialog.Body>
 										<form
 											id={renameFormId}
@@ -610,6 +611,9 @@ export function MenuEditor() {
 							/>
 							<LayerDialog.Content>
 								<LayerDialog.Title>{t`Add Custom Link`}</LayerDialog.Title>
+								<LayerDialog.Description>
+									{t`Link to any page by its address, on this site or another.`}
+								</LayerDialog.Description>
 								<LayerDialog.Body>
 									<form
 										id={addFormId}
@@ -832,6 +836,9 @@ export function MenuEditor() {
 			>
 				<LayerDialog.Content>
 					<LayerDialog.Title>{t`Edit Menu Item`}</LayerDialog.Title>
+					<LayerDialog.Description>
+						{t`Change this item's label, link and place in the menu.`}
+					</LayerDialog.Description>
 					<LayerDialog.Body>
 						{editingItem && (
 							<form id={editFormId} noValidate onSubmit={handleUpdateItem} className="grid gap-5">
