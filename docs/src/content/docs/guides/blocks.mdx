@@ -104,6 +104,14 @@ An open block in the content editor shows its content first: text, rich text, ph
 
 The editor recognizes ", for example" and the headline words in English only.
 
+A `repeater` field inside a block takes its shape from its sub-fields:
+
+- **Type-in list.** A list with exactly one sub-field, of type `string` or `url`, shows each item as a bulleted line. Enter adds a line, and pasting several lines adds one item per line. A list of client names fits this shape.
+- **Table.** A list with up to three sub-fields, each of type `string`, `url`, `number`, `integer`, `select` or `image`, and at most one `image`, shows a row per item and a column per sub-field. A list of stats with a value and a label fits this shape.
+- **Expandable items.** Every other list shows each item as a row that opens to edit its sub-fields. An open item lays out its sub-fields with the rules above, except that no sub-field is drawn as a headline or goes in an Advanced row, a photo gets a settings row, and `{image}_caption` is an ordinary text field.
+
+An item's title is its first `string` sub-field that is neither a link field nor a button's text, or else its first `text` sub-field. A closed item shows its title, followed by up to two of its other `string` values. In the Feature grid above, `items` shows as expandable items titled by `title`. Adding a fourth sub-field, or a `text` sub-field, to a table's block type turns the list into expandable items.
+
 These rules are best-effort layout hints and can change in a later release. They affect only how the editor arranges the form, and a field that matches none of them gets a row of its own.
 
 ## Create the Astro components
