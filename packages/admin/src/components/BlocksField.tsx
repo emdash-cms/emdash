@@ -407,7 +407,7 @@ export function BlocksField({
 		<div id={id} ref={rootRef} className="grid grid-cols-[minmax(0,1fr)] gap-2">
 			<div className="flex min-h-7 items-center justify-between gap-3">
 				<Label>{label}</Label>
-				{blocks.length > 0 && (
+				{blocks.length > 0 && !readOnly && (
 					<Button
 						variant="ghost"
 						size="sm"
@@ -450,7 +450,7 @@ export function BlocksField({
 										count={blocks.length}
 										blockType={typeBySlug.get(block._type)}
 										retired={retiredTypes.includes(block._type)}
-										open={openKeys.has(block._key)}
+										open={readOnly || openKeys.has(block._key)}
 										readOnly={readOnly}
 										canAdd={canAdd}
 										atMax={atMax}
@@ -713,59 +713,76 @@ function BlockRow({
 			<div
 				ref={headRef}
 				className={cn(
-					"flex min-h-11 items-center gap-2 py-1.5 ps-2.5 pe-2 hover:bg-kumo-tint",
+					"flex min-h-11 items-center gap-2 py-1.5 ps-2.5 pe-2",
+					!readOnly && "hover:bg-kumo-tint",
 					index === 0 && SHEET_INNER_TOP,
 					roundBottom && !open && SHEET_INNER_BOTTOM,
 					open &&
 						"sticky top-(--emdash-blocks-sticky-top) z-30 bg-kumo-base shadow-[inset_0_-1px_0_var(--color-kumo-hairline)]",
 				)}
 			>
-				<button
-					type="button"
-					data-block-toggle
-					aria-expanded={open}
-					aria-controls={bodyId}
-					aria-labelledby={labelId}
-					aria-describedby={summary ? summaryId : undefined}
-					onClick={onToggle}
-					className="flex min-w-0 flex-1 items-center gap-2 self-stretch rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand"
-				>
-					<CaretRight
-						weight="bold"
-						aria-hidden="true"
-						className={cn(
-							"size-3 shrink-0 text-kumo-subtle transition-transform rtl:-scale-x-100",
-							open && "rotate-90 rtl:-rotate-90",
-						)}
-					/>
-					<BlockTypeIcon
-						name={blockType?.icon}
-						className="size-[1.125rem] shrink-0 text-kumo-subtle"
-					/>
-					<span
-						id={labelId}
-						dir="auto"
-						className="max-w-[60%] min-w-0 font-medium text-kumo-default wrap-anywhere"
-					>
-						{label}
-					</span>
-					{summary && (
+				{readOnly ? (
+					<div className="flex min-w-0 flex-1 items-center gap-2 self-stretch">
+						<BlockTypeIcon
+							name={blockType?.icon}
+							className="size-[1.125rem] shrink-0 text-kumo-subtle"
+						/>
 						<span
-							className={cn(
-								"min-w-0 flex-1 overflow-hidden text-kumo-subtle transition-opacity",
-								open && "opacity-0",
-							)}
+							id={labelId}
+							dir="auto"
+							className="min-w-0 font-medium text-kumo-default wrap-anywhere"
 						>
-							<span
-								id={summaryId}
-								dir="auto"
-								className="inline-block max-w-full truncate align-top"
-							>
-								{summary}
-							</span>
+							{label}
 						</span>
-					)}
-				</button>
+					</div>
+				) : (
+					<button
+						type="button"
+						data-block-toggle
+						aria-expanded={open}
+						aria-controls={bodyId}
+						aria-labelledby={labelId}
+						aria-describedby={summary ? summaryId : undefined}
+						onClick={onToggle}
+						className="flex min-w-0 flex-1 items-center gap-2 self-stretch rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand"
+					>
+						<CaretRight
+							weight="bold"
+							aria-hidden="true"
+							className={cn(
+								"size-3 shrink-0 text-kumo-subtle transition-transform rtl:-scale-x-100",
+								open && "rotate-90 rtl:-rotate-90",
+							)}
+						/>
+						<BlockTypeIcon
+							name={blockType?.icon}
+							className="size-[1.125rem] shrink-0 text-kumo-subtle"
+						/>
+						<span
+							id={labelId}
+							dir="auto"
+							className="max-w-[60%] min-w-0 font-medium text-kumo-default wrap-anywhere"
+						>
+							{label}
+						</span>
+						{summary && (
+							<span
+								className={cn(
+									"min-w-0 flex-1 overflow-hidden text-kumo-subtle transition-opacity",
+									open && "opacity-0",
+								)}
+							>
+								<span
+									id={summaryId}
+									dir="auto"
+									className="inline-block max-w-full truncate align-top"
+								>
+									{summary}
+								</span>
+							</span>
+						)}
+					</button>
+				)}
 				{thumbnail && (
 					<img
 						key={thumbnail}
