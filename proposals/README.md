@@ -88,8 +88,9 @@ Ideas Discussions labelled `Approved for PR` under the previous process now carr
 
 Add a row for each accepted proposal in its design pull request, keeping the rows sorted by proposal filename. The implementation pull request that completes a proposal adds itself under "Implemented in". A proposal's status stays in its front matter.
 
-| Proposal                                                  | Type         | Design PR                                               | Implemented in                                          |
-| --------------------------------------------------------- | ------------ | ------------------------------------------------------- | ------------------------------------------------------- |
-| [Readable revision history](readable-revision-history.md) | Feature plan | [#4127](https://github.com/emdash-cms/emdash/pull/4127) | [#4136](https://github.com/emdash-cms/emdash/pull/4136) |
+| Proposal                                                    | Type         | Design PR                                               | Implemented in                                          |
+| ----------------------------------------------------------- | ------------ | ------------------------------------------------------- | ------------------------------------------------------- |
+| [Unpublish a plugin from the registry](plugin-unpublish.md) | Feature plan | [#4231](https://github.com/emdash-cms/emdash/pull/4231) |                                                         |
+| [Readable revision history](readable-revision-history.md)   | Feature plan | [#4127](https://github.com/emdash-cms/emdash/pull/4127) | [#4136](https://github.com/emdash-cms/emdash/pull/4136) |
 
 The numbered RFCs under [`rfcs/`](../rfcs/) predate this process and keep their existing paths as historical records.
