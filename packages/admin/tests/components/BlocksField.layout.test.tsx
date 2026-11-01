@@ -58,6 +58,17 @@ function renderField(ui: React.ReactElement) {
 	return render(ui, { wrapper: Toasty });
 }
 
+/**
+ * Shows each row's gutter, which the stylesheet shows only with a hover-capable fine pointer.
+ * Chromium on Linux loses both once an earlier test file in the same page ends touch emulation,
+ * and can't emulate them.
+ */
+function showGutters() {
+	for (const add of document.querySelectorAll<HTMLElement>('[aria-label="Add block below"]')) {
+		add.parentElement!.style.display = "flex";
+	}
+}
+
 afterEach(async () => {
 	document.documentElement.dir = "ltr";
 	await page.viewport(1280, 800);
@@ -249,6 +260,7 @@ describe("Block row layout", () => {
 				</div>,
 			);
 
+			showGutters();
 			const rowBox = document.querySelector("[data-block-key]")!.getBoundingClientRect();
 			const add = screen
 				.getByRole("button", { name: "Add block below" })
@@ -353,6 +365,7 @@ describe("Block picker position", () => {
 			</div>,
 		);
 
+		showGutters();
 		const add = screen.getByRole("button", { name: "Add block below" }).first();
 		await add.click();
 		const addBox = add.element().getBoundingClientRect();
