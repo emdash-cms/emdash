@@ -104,7 +104,6 @@ export function RevisionRestoreDialog({
 		<ConfirmDialog
 			open={open}
 			onClose={onClose}
-			compact
 			variant="primary"
 			title={t`Restore this version?`}
 			description={
@@ -129,7 +128,6 @@ export function RevisionRestoreDialog({
 			confirmLabel={t`Restore`}
 			pendingLabel={t`Restoring…`}
 			isPending={restore.isPending || restorePending}
-			preventCloseWhilePending
 			error={restore.error}
 			onConfirm={() => restore.mutate(revision.id)}
 		/>

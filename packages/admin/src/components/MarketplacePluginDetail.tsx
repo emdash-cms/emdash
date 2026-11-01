@@ -363,7 +363,11 @@ export function MarketplacePluginDetail({
 					newlyPublicRoutes={publicRouteConsent}
 					auditVerdict={latest?.audit?.verdict}
 					isPending={installMutation.isPending}
-					error={getMutationError(installMutation.error)}
+					error={
+						installMutation.error instanceof PluginMcpConsentRequiredError
+							? null
+							: getMutationError(installMutation.error)
+					}
 					onConfirm={() => installMutation.mutate()}
 					onCancel={() => {
 						setShowConsent(false);

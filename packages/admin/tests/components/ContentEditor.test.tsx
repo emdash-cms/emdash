@@ -541,9 +541,9 @@ describe("ContentEditor", () => {
 		await userEvent.hover(helpTrigger.element());
 		await expect
 			.element(
-				screen.getByText(
-					"Used as the main visual for this post on listing pages and at the top of the post",
-				),
+				screen.getByRole("tooltip", {
+					name: "Used as the main visual for this post on listing pages and at the top of the post",
+				}),
 			)
 			.toBeVisible();
 	});
@@ -2422,7 +2422,9 @@ describe("ContentEditor", () => {
 						.element(),
 				);
 
-				const tooltip = screen.getByText("Overrides the page title in search engine results");
+				const tooltip = screen.getByRole("tooltip", {
+					name: "Overrides the page title in search engine results",
+				});
 				await expect.element(tooltip).toBeVisible();
 				expect(tooltip.element().closest<HTMLElement>("[data-base-ui-portal]")?.style.zIndex).toBe(
 					"60",

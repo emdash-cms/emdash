@@ -49,7 +49,8 @@ export function DataTable({ className, children, ...props }: React.ComponentProp
 					// th's own alignment class, such as text-end.
 					"[:where(&)_th]:text-start",
 					"[&_th]:border-b-0 [&_th]:bg-transparent [&_th]:px-4 [&_th]:py-3.5 [&_th]:font-normal [&_th]:whitespace-nowrap [&_th]:text-kumo-subtle",
-					"[&_td]:border-kumo-line [&_td]:bg-kumo-base [&_td]:px-4 [&_td]:py-3.5",
+					"[&_td]:border-b [&_td]:border-kumo-line [&_td]:bg-kumo-base [&_td]:px-4 [&_td]:py-3.5",
+					"[&_tbody_tr:last-child_td]:border-b-0",
 					"[&_tr[data-selected]_td]:bg-kumo-tint",
 					// A translucent tint would let the darker tray show through, so it's mixed into the cell's color.
 					"[@media(hover:hover)]:[&_tr[data-clickable]:not([data-selected],[data-drop-active]):hover_td]:bg-[color-mix(in_srgb,var(--color-kumo-tint)_25%,var(--color-kumo-base))]",

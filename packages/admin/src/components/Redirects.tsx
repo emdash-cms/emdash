@@ -1,14 +1,15 @@
 import {
 	Badge,
 	Button,
-	Dialog,
 	DropdownMenu,
 	Input,
-	Label,
+	LayerDialog,
 	Select,
 	Switch,
+	useKumoToastManager,
 } from "@cloudflare/kumo";
-import { plural } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
@@ -18,11 +19,11 @@ import {
 	Trash,
 	Pencil,
 	WarningCircle,
-	X,
 } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
+import { ApiResponseError } from "../lib/api/client.js";
 import {
 	createRedirect,
 	deleteRedirect,
@@ -36,6 +37,12 @@ import type {
 	Redirect,
 	UpdateRedirectInput,
 } from "../lib/api/redirects.js";
+import {
+	guardUnsavedInput,
+	revealErrors,
+	useSingleFlight,
+	useTakenValue,
+} from "../lib/dialog-form.js";
 import { cn, formatDate } from "../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ArrowNext } from "./ArrowIcons.js";
@@ -56,6 +63,43 @@ import { TableToolbarSearch } from "./TableToolbar.js";
 // Redirect form dialog (create + edit)
 // ---------------------------------------------------------------------------
 
+type RedirectField = "source" | "destination";
+
+/** Why the server would refuse a path that isn't empty. */
+function pathProblem(path: string): MessageDescriptor | undefined {
+	if (!path.startsWith("/") || path.startsWith("//")) {
+		return msg`Enter a path that starts with a single /.`;
+	}
+	let decoded: string;
+	try {
+		decoded = decodeURIComponent(path);
+	} catch {
+		return msg`Fix the percent-encoding in the path.`;
+	}
+	if (decoded.split("/").includes("..")) return msg`Remove the .. segments from the path.`;
+	return undefined;
+}
+
+function redirectProblems(
+	source: string,
+	destination: string,
+	terminal: boolean,
+): Partial<Record<RedirectField, MessageDescriptor>> {
+	const problems: Partial<Record<RedirectField, MessageDescriptor>> = {};
+	const sourceProblem = source ? pathProblem(source) : msg`Enter a source path.`;
+	if (sourceProblem) problems.source = sourceProblem;
+	if (terminal) return problems;
+	const destinationProblem = destination
+		? pathProblem(destination)
+		: msg`Enter a destination path.`;
+	if (destinationProblem) {
+		problems.destination = destinationProblem;
+	} else if (destination === source) {
+		problems.destination = msg`Enter a destination different from the source.`;
+	}
+	return problems;
+}
+
 function RedirectFormDialog({
 	open,
 	onClose,
@@ -72,15 +116,31 @@ function RedirectFormDialog({
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const isEdit = !!redirect;
+	const formId = useId();
+	const formRef = useRef<HTMLFormElement>(null);
 
-	const [source, setSource] = useState(redirect?.source ?? defaultSource ?? "");
-	const [destination, setDestination] = useState(redirect?.destination ?? "");
-	const [type, setType] = useState(String(redirect?.type ?? 301));
-	const [enabled, setEnabled] = useState(redirect?.enabled ?? true);
-	const [groupName, setGroupName] = useState(redirect?.groupName ?? "");
+	const [initial] = useState(() => ({
+		source: redirect?.source ?? defaultSource ?? "",
+		destination: redirect?.destination ?? "",
+		type: String(redirect?.type ?? 301),
+		enabled: redirect?.enabled ?? true,
+		groupName: redirect?.groupName ?? "",
+	}));
+	const [source, setSource] = useState(initial.source);
+	const [destination, setDestination] = useState(initial.destination);
+	const [type, setType] = useState(initial.type);
+	const [enabled, setEnabled] = useState(initial.enabled);
+	const [groupName, setGroupName] = useState(initial.groupName);
+	const [submitted, setSubmitted] = useState(false);
 
 	// Terminal statuses (410 Gone / 451) serve a status directly — no destination.
 	const isTerminal = type === "410" || type === "451";
+	const unsaved =
+		source !== initial.source ||
+		destination !== initial.destination ||
+		type !== initial.type ||
+		enabled !== initial.enabled ||
+		groupName !== initial.groupName;
 
 	const createMutation = useMutation({
 		mutationFn: (input: CreateRedirectInput) => createRedirect(input),
@@ -100,78 +160,107 @@ function RedirectFormDialog({
 
 	const mutation = isEdit ? updateMutation : createMutation;
 
+	const trimmedSource = source.trim();
+	const trimmedDestination = destination.trim();
+	const takenSource = useTakenValue(trimmedSource);
+	const problems = redirectProblems(trimmedSource, trimmedDestination, isTerminal);
+	if (takenSource.isTaken) {
+		problems.source = msg`Another redirect already uses this source path. Enter a different one.`;
+	}
+	const errors: Partial<Record<RedirectField, string>> = {};
+	if (submitted) {
+		for (const [field, message] of Object.entries(problems)) {
+			errors[field as RedirectField] = t(message);
+		}
+	}
+	const saveError = mutation.error;
+	const bannerError = getMutationError(takenSource.unlessTaken(saveError));
+
+	const showErrors = (update?: () => void) => {
+		revealErrors(formRef.current, () => {
+			setSubmitted(true);
+			update?.();
+		});
+	};
+
+	const save = useSingleFlight((input: CreateRedirectInput) => {
+		const onError = (error: Error) => {
+			if (
+				error instanceof ApiResponseError &&
+				error.code === "CONFLICT" &&
+				takenSource.stillHolds(input.source)
+			) {
+				showErrors(() => takenSource.take(input.source, error));
+			}
+		};
+		return isEdit
+			? updateMutation.mutateAsync(input, { onError })
+			: createMutation.mutateAsync(input, { onError });
+	});
+
 	function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
-		const input = {
-			source: source.trim(),
-			destination: isTerminal ? "" : destination.trim(),
+		if (mutation.isPending) return;
+		if (Object.keys(problems).length > 0) {
+			showErrors();
+			return;
+		}
+		save({
+			source: trimmedSource,
+			destination: isTerminal ? "" : trimmedDestination,
 			type: Number(type),
 			enabled,
 			groupName: groupName.trim() || null,
-		};
-
-		if (isEdit) {
-			updateMutation.mutate(input);
-		} else {
-			createMutation.mutate(input);
-		}
+		});
 	}
 
 	return (
-		<Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
-			<Dialog className="p-6" size="lg">
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<div>
-						<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-							{isEdit ? t`Edit Redirect` : t`New Redirect`}
-						</Dialog.Title>
-						<p className="text-sm text-kumo-subtle mt-1">
-							{isEdit
-								? t`Update this redirect rule.`
-								: t`Use [param] or [...rest] in paths for pattern matching.`}
-						</p>
-					</div>
-					<Dialog.Close
-						aria-label={t`Close`}
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								aria-label={t`Close`}
-								className="absolute end-4 top-4"
-							>
-								<X className="h-4 w-4" />
-							</Button>
-						)}
-					/>
-				</div>
-
-				<form onSubmit={handleSubmit} className="space-y-4">
-					<Input
-						dir="ltr"
-						label={t`Source path`}
-						placeholder={t`/old-page or /blog/[slug]`}
-						value={source}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSource(e.target.value)}
-						required
-					/>
-
-					{!isTerminal && (
+		<LayerDialog.Root
+			open={open}
+			{...guardUnsavedInput(unsaved, (nextOpen) => {
+				if (!nextOpen && !mutation.isPending) onClose();
+			})}
+			dismissDisabled={mutation.isPending}
+		>
+			<LayerDialog.Content>
+				<LayerDialog.Title>{isEdit ? t`Edit Redirect` : t`New Redirect`}</LayerDialog.Title>
+				<LayerDialog.Description>
+					{isEdit
+						? t`Update this redirect rule.`
+						: t`Use [param] or [...rest] in paths for pattern matching.`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<form ref={formRef} id={formId} noValidate onSubmit={handleSubmit} className="grid gap-5">
 						<Input
 							dir="ltr"
-							label={t`Destination path`}
-							placeholder={t`/new-page or /articles/[slug]`}
-							value={destination}
-							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDestination(e.target.value)}
+							label={t`Source path`}
+							placeholder={t`/old-page or /blog/[slug]`}
+							value={source}
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSource(e.target.value)}
 							required
+							error={errors.source}
+							aria-invalid={errors.source ? true : undefined}
 						/>
-					)}
 
-					<div className="grid grid-cols-2 gap-4">
-						<div>
+						{!isTerminal && (
+							<Input
+								dir="ltr"
+								label={t`Destination path`}
+								placeholder={t`/new-page or /articles/[slug]`}
+								value={destination}
+								onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+									setDestination(e.target.value)
+								}
+								required
+								error={errors.destination}
+								aria-invalid={errors.destination ? true : undefined}
+							/>
+						)}
+
+						<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
 							<Select
 								label={t`Status code`}
+								className="w-full"
 								value={type}
 								onValueChange={(v) => setType(v ?? "301")}
 								items={{
@@ -183,40 +272,33 @@ function RedirectFormDialog({
 									"451": t`451 Unavailable for legal reasons`,
 								}}
 							/>
+
+							<Input
+								label={t`Group (optional)`}
+								placeholder={t`e.g. import, blog`}
+								value={groupName}
+								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGroupName(e.target.value)}
+							/>
 						</div>
 
-						<Input
-							label={t`Group (optional)`}
-							placeholder={t`e.g. import, blog`}
-							value={groupName}
-							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGroupName(e.target.value)}
-						/>
-					</div>
+						<Switch label={t`Enabled`} checked={enabled} onCheckedChange={setEnabled} />
 
-					<div className="flex items-center gap-2">
-						<Switch checked={enabled} onCheckedChange={setEnabled} id="redirect-enabled" />
-						<Label htmlFor="redirect-enabled">{t`Enabled`}</Label>
-					</div>
-
-					<DialogError message={getMutationError(mutation.error)} />
-
-					<div className="flex justify-end gap-2">
-						<Button type="button" variant="outline" onClick={onClose}>
-							{t`Cancel`}
-						</Button>
-						<Button type="submit" disabled={mutation.isPending}>
-							{mutation.isPending
-								? isEdit
-									? t`Saving...`
-									: t`Creating...`
-								: isEdit
-									? t`Save`
-									: t`Create`}
-						</Button>
-					</div>
-				</form>
-			</Dialog>
-		</Dialog.Root>
+						<DialogError message={bannerError} />
+					</form>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action type="submit" form={formId} disabled={mutation.isPending}>
+						{mutation.isPending
+							? isEdit
+								? t`Saving...`
+								: t`Creating...`
+							: isEdit
+								? t`Save`
+								: t`Create`}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
@@ -436,9 +518,18 @@ function RedirectRow({
 
 type TabKey = "redirects" | "404s";
 
+interface RedirectFormTarget {
+	/** Counts openings, so each one starts a new form. */
+	visit: number;
+	open: boolean;
+	redirect?: Redirect;
+	defaultSource?: string;
+}
+
 export function Redirects() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const toastManager = useKumoToastManager();
 	const [tab, setTab] = useState<TabKey>("redirects");
 	const [search, setSearch] = useState("");
 	const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -458,11 +549,11 @@ export function Redirects() {
 		return () => clearTimeout(timer);
 	}, [filterGroup]);
 
-	// Dialog state
-	const [showCreate, setShowCreate] = useState(false);
-	const [editRedirect, setEditRedirect] = useState<Redirect | null>(null);
+	// Dialog state. The form keeps what it shows while it closes.
+	const [form, setForm] = useState<RedirectFormTarget>({ visit: 0, open: false });
 	const [deleteId, setDeleteId] = useState<string | null>(null);
-	const [prefillSource, setPrefillSource] = useState("");
+	const openForm = (target: Pick<RedirectFormTarget, "redirect" | "defaultSource"> = {}) =>
+		setForm((current) => ({ ...target, visit: current.visit + 1, open: true }));
 
 	// Queries
 	const enabledFilter = filterEnabled === "all" ? undefined : filterEnabled === "true";
@@ -492,12 +583,23 @@ export function Redirects() {
 		enabled: tab === "404s",
 	});
 
-	// Delete mutation
+	// Delete mutation. A redirect that is already gone counts as deleted.
 	const deleteMutation = useMutation({
-		mutationFn: (id: string) => deleteRedirect(id),
-		onSuccess: () => {
+		mutationFn: async (id: string) => {
+			try {
+				await deleteRedirect(id);
+				return true;
+			} catch (error) {
+				if (error instanceof ApiResponseError && error.code === "NOT_FOUND") return false;
+				throw error;
+			}
+		},
+		onSuccess: (deleted) => {
 			void queryClient.resetQueries({ queryKey: ["redirects"] });
 			setDeleteId(null);
+			if (!deleted) {
+				toastManager.add({ title: t`This redirect was already deleted.`, timeout: 3000 });
+			}
 		},
 	});
 
@@ -523,8 +625,7 @@ export function Redirects() {
 	});
 
 	function handleCreateFrom404(path: string) {
-		setPrefillSource(path);
-		setShowCreate(true);
+		openForm({ defaultSource: path });
 		setTab("redirects");
 	}
 
@@ -544,7 +645,7 @@ export function Redirects() {
 					if (value === "redirects" || value === "404s") setTab(value);
 				}}
 				actions={
-					<Button variant="primary" icon={<Plus />} onClick={() => setShowCreate(true)}>
+					<Button variant="primary" icon={<Plus />} onClick={() => openForm()}>
 						{t`New Redirect`}
 					</Button>
 				}
@@ -703,7 +804,7 @@ export function Redirects() {
 											redirect={redirect}
 											inLoop={loopRedirectIds.has(redirect.id)}
 											onToggle={(enabled) => toggleMutation.mutate({ id: redirect.id, enabled })}
-											onEdit={() => setEditRedirect(redirect)}
+											onEdit={() => openForm({ redirect })}
 											onDelete={() => setDeleteId(redirect.id)}
 										/>
 									))}
@@ -733,22 +834,14 @@ export function Redirects() {
 				/>
 			)}
 
-			{/* Create dialog */}
-			{showCreate && (
-				<RedirectFormDialog
-					open
-					onClose={() => {
-						setShowCreate(false);
-						setPrefillSource("");
-					}}
-					defaultSource={prefillSource || undefined}
-				/>
-			)}
-
-			{/* Edit dialog */}
-			{editRedirect && (
-				<RedirectFormDialog open onClose={() => setEditRedirect(null)} redirect={editRedirect} />
-			)}
+			{/* Create and edit dialog */}
+			<RedirectFormDialog
+				key={form.visit}
+				open={form.open}
+				onClose={() => setForm((current) => ({ ...current, open: false }))}
+				redirect={form.redirect}
+				defaultSource={form.defaultSource}
+			/>
 
 			{/* Delete confirmation */}
 			<ConfirmDialog

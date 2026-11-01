@@ -1,8 +1,9 @@
-import { Button, Dialog } from "@cloudflare/kumo";
+import { Button, LayerDialog } from "@cloudflare/kumo";
 import { Trans, useLingui } from "@lingui/react/macro";
 
 import type { EntryLockHolder } from "../lib/api/entry-lock.js";
 import type { EntryLockState } from "../lib/useEntryLock.js";
+import { DialogError } from "./DialogError.js";
 
 function holderName(holder: EntryLockHolder, fallback: string): string {
 	return holder.userName?.trim() ? holder.userName : fallback;
@@ -17,45 +18,52 @@ export function EntryLockNotice({
 	onTakeOver,
 	onReadInstead,
 	isTakingOver,
+	takeOverFailed = false,
 }: {
 	state: EntryLockState;
 	onTakeOver: () => void;
 	onReadInstead: () => void;
 	isTakingOver: boolean;
+	takeOverFailed?: boolean;
 }) {
 	const { t } = useLingui();
 	const anotherEditor = t`Another editor`;
+	const takeOverError = takeOverFailed ? t`Couldn’t take over this entry. Try again.` : null;
 
 	if (state.status === "blocked") {
 		const name = holderName(state.holder, anotherEditor);
 		return (
-			<Dialog.Root
-				role="alertdialog"
+			<LayerDialog.Alert
 				open
 				onOpenChange={(next) => {
 					if (!next) onReadInstead();
 				}}
+				dismissDisabled={isTakingOver}
 			>
-				<Dialog className="p-6" size="sm">
-					<Dialog.Title dir="auto" className="text-lg font-semibold">
-						{t`This entry is open somewhere else`}
-					</Dialog.Title>
-					<Dialog.Description dir="auto" className="text-kumo-subtle">
-						<Trans>
-							<strong dir="auto">{name}</strong> is editing this entry. Open it read-only, or take
-							over; they will be told the entry moved on.
-						</Trans>
-					</Dialog.Description>
-					<div className="mt-6 flex justify-end gap-2">
-						<Button variant="secondary" onClick={onReadInstead}>
-							{t`Open read-only`}
-						</Button>
-						<Button variant="primary" disabled={isTakingOver} onClick={onTakeOver}>
+				<LayerDialog.Content size="sm">
+					<LayerDialog.Title>
+						<span dir="auto" className="block">
+							{t`This entry is open somewhere else`}
+						</span>
+					</LayerDialog.Title>
+					<LayerDialog.Description>
+						<span dir="auto" className="block">
+							<Trans>
+								<strong dir="auto">{name}</strong> is editing this entry. Open it read-only, or take
+								over; they will be told the entry moved on.
+							</Trans>
+						</span>
+					</LayerDialog.Description>
+					<LayerDialog.Body>
+						<DialogError message={takeOverError} />
+					</LayerDialog.Body>
+					<LayerDialog.Actions dismissLabel={t`Open read-only`}>
+						<LayerDialog.Action disabled={isTakingOver} onClick={onTakeOver}>
 							{isTakingOver ? t`Taking over...` : t`Take over`}
-						</Button>
-					</div>
-				</Dialog>
-			</Dialog.Root>
+						</LayerDialog.Action>
+					</LayerDialog.Actions>
+				</LayerDialog.Content>
+			</LayerDialog.Alert>
 		);
 	}
 
@@ -82,6 +90,11 @@ export function EntryLockNotice({
 						</Trans>
 					)}
 				</p>
+				{takeOverError && (
+					<p role="alert" dir="auto" className="mt-2 text-sm text-kumo-danger">
+						{takeOverError}
+					</p>
+				)}
 				<Button
 					className="mt-3"
 					size="sm"

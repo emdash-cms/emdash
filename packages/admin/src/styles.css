@@ -1395,12 +1395,52 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 }
 
 /**
- * Prevent dialogs from overflowing the viewport on small screens.
- * Kumo's size variants set min-width (e.g. min-w-[32rem] for "lg")
- * which overrides max-width in CSS. We need to cap min-width too.
+ * Keep Kumo dialogs centred and sized to their content, with each size as a
+ * minimum width. Kumo pins them near the top at a fixed width per size.
+ * The rules match only while Kumo's classes are still on the dialog. `top` and
+ * `width` override those classes; the translate and minimum widths are in
+ * `:where()`, so a dialog's own classes for them still win. A dialog that needs
+ * one of these widths exactly must use another class for it, such as `sm:w-lg`.
+ */
+@layer utilities {
+	:where([role="dialog"], [role="alertdialog"]).top-8:where(.sm\:top-16) {
+		top: 50%;
+	}
+	:where([role="dialog"].top-8.sm\:top-16, [role="alertdialog"].top-8.sm\:top-16) {
+		--tw-translate-y: -50%;
+	}
+
+	@media (width >= 40rem) {
+		:where([role="dialog"], [role="alertdialog"]):is(
+			.sm\:w-72,
+			.sm\:w-96,
+			.sm\:w-\[32rem\],
+			.sm\:w-\[48rem\]
+		) {
+			width: auto;
+		}
+		:where([role="dialog"].sm\:w-72, [role="alertdialog"].sm\:w-72) {
+			min-width: 18rem;
+		}
+		:where([role="dialog"].sm\:w-96, [role="alertdialog"].sm\:w-96) {
+			min-width: 24rem;
+		}
+		:where([role="dialog"].sm\:w-\[32rem\], [role="alertdialog"].sm\:w-\[32rem\]) {
+			min-width: 32rem;
+		}
+		:where([role="dialog"].sm\:w-\[48rem\], [role="alertdialog"].sm\:w-\[48rem\]) {
+			min-width: 48rem;
+		}
+	}
+}
+
+/**
+ * Prevent dialogs from overflowing the viewport on small screens, where a
+ * dialog's own min-width would override max-width. LayerDialog popups carry
+ * data-swipe-direction and are full-width bottom sheets there.
  */
 @media (max-width: 639px) {
-	body:has(> #admin-root) [role="dialog"] {
+	body:has(> #admin-root) [role="dialog"]:not([data-swipe-direction]) {
 		min-width: 0 !important;
 		max-width: calc(100vw - 2rem);
 	}

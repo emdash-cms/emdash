@@ -1,8 +1,13 @@
+import { Toasty } from "@cloudflare/kumo";
+import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
+import "../../dist/styles.css";
+import { ApiResponseError } from "../../src/lib/api/client.js";
 import type { NotFoundSummary, Redirect } from "../../src/lib/api/redirects.js";
-import { render } from "../utils/render.tsx";
+import { pressOutside } from "../utils/mouse.ts";
+import { render as renderWithProviders } from "../utils/render.tsx";
 
 vi.mock("../../src/lib/api/redirects.js", () => ({
 	createRedirect: vi.fn(),
@@ -20,6 +25,32 @@ import {
 	fetchRedirects,
 	updateRedirect,
 } from "../../src/lib/api/redirects.js";
+
+const TAKEN_SOURCE = "Another redirect already uses this source path. Enter a different one.";
+
+function render(ui: React.ReactElement) {
+	return renderWithProviders(ui, {
+		wrapper: ({ children }: { children: React.ReactNode }) => <Toasty>{children}</Toasty>,
+	});
+}
+
+function deferred<T>() {
+	let resolve: (value: T) => void = () => {};
+	let reject: (reason: unknown) => void = () => {};
+	const promise = new Promise<T>((settle, fail) => {
+		resolve = settle;
+		reject = fail;
+	});
+	return { promise, resolve, reject };
+}
+
+async function openNewRedirect(screen: Awaited<ReturnType<typeof render>>) {
+	await expect.element(screen.getByText("/source-1", { exact: true })).toBeInTheDocument();
+	await screen.getByRole("button", { name: "New Redirect" }).click();
+	const dialog = screen.getByRole("dialog", { name: "New Redirect" });
+	await expect.element(dialog).toBeVisible();
+	return dialog;
+}
 
 function makeRedirect(index: number): Redirect {
 	return {
@@ -236,5 +267,172 @@ describe("Redirects", () => {
 		);
 		await expect.element(screen.getByText("No 404 errors recorded yet.")).toBeInTheDocument();
 		expect(search.query()).toBeNull();
+	});
+
+	it("points at each missing or invalid path when submitted, and sends nothing", async () => {
+		vi.mocked(createRedirect).mockResolvedValue(makeRedirect(200));
+		const screen = await render(<Redirects />);
+		const dialog = await openNewRedirect(screen);
+		const source = dialog.getByRole("textbox", { name: "Source path" });
+		const destination = dialog.getByRole("textbox", { name: "Destination path" });
+		const create = dialog.getByRole("button", { name: "Create" });
+		expect(dialog.getByText("Enter a source path.").query()).toBeNull();
+
+		await create.click();
+		await expect.element(dialog.getByText("Enter a source path.")).toBeVisible();
+		await expect.element(dialog.getByText("Enter a destination path.")).toBeVisible();
+		await expect.element(source).toHaveAttribute("aria-invalid", "true");
+		await expect.element(destination).toHaveAttribute("aria-invalid", "true");
+		await expect.element(source).toHaveFocus();
+
+		await source.fill("old-page");
+		await destination.fill("/new-page");
+		await expect.element(dialog.getByText("Enter a destination path.")).not.toBeInTheDocument();
+		await create.click();
+		await expect
+			.element(dialog.getByText("Enter a path that starts with a single /."))
+			.toBeVisible();
+		await expect.element(source).toHaveFocus();
+
+		await source.fill("/new-page");
+		await create.click();
+		await expect
+			.element(dialog.getByText("Enter a destination different from the source."))
+			.toBeVisible();
+		await expect.element(source).not.toHaveAttribute("aria-invalid");
+		await expect.element(destination).toHaveFocus();
+		expect(createRedirect).not.toHaveBeenCalled();
+
+		await source.fill("/old-page");
+		await create.click();
+		await vi.waitFor(() =>
+			expect(createRedirect).toHaveBeenCalledWith(
+				expect.objectContaining({ source: "/old-page", destination: "/new-page" }),
+			),
+		);
+	});
+
+	it("shows a source another redirect uses on the source field", async () => {
+		vi.mocked(createRedirect).mockRejectedValue(
+			new ApiResponseError(409, "CONFLICT", 'A redirect from "/source-1" already exists'),
+		);
+		const screen = await render(<Redirects />);
+		const dialog = await openNewRedirect(screen);
+		const source = dialog.getByRole("textbox", { name: "Source path" });
+
+		await source.fill("/source-1");
+		await dialog.getByRole("textbox", { name: "Destination path" }).fill("/elsewhere");
+		await dialog.getByRole("button", { name: "Create" }).click();
+
+		await expect.element(dialog.getByText(TAKEN_SOURCE)).toBeVisible();
+		await expect.element(source).toHaveAttribute("aria-invalid", "true");
+		await expect.element(source).toHaveFocus();
+		expect(dialog.getByText('A redirect from "/source-1" already exists').query()).toBeNull();
+
+		await source.fill("/source-1b");
+		await expect.element(dialog.getByText(TAKEN_SOURCE)).not.toBeInTheDocument();
+	});
+
+	it("reports a refused source in the banner when the source changed during the save", async () => {
+		const created = deferred<Redirect>();
+		vi.mocked(createRedirect).mockReturnValue(created.promise);
+		const screen = await render(<Redirects />);
+		const dialog = await openNewRedirect(screen);
+		const source = dialog.getByRole("textbox", { name: "Source path" });
+
+		await source.fill("/source-1");
+		await dialog.getByRole("textbox", { name: "Destination path" }).fill("/elsewhere");
+		await dialog.getByRole("button", { name: "Create" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Creating..." })).toBeVisible();
+		await source.fill("/source-2");
+		created.reject(
+			new ApiResponseError(409, "CONFLICT", 'A redirect from "/source-1" already exists'),
+		);
+
+		await expect
+			.element(dialog.getByText('A redirect from "/source-1" already exists'))
+			.toBeVisible();
+		await expect.element(source).not.toHaveAttribute("aria-invalid");
+	});
+
+	it("saves once on a double click, and refuses to close while saving", async () => {
+		const created = deferred<Redirect>();
+		vi.mocked(createRedirect).mockReturnValue(created.promise);
+		const screen = await render(<Redirects />);
+		const dialog = await openNewRedirect(screen);
+		await dialog.getByRole("textbox", { name: "Source path" }).fill("/old-page");
+		await dialog.getByRole("textbox", { name: "Destination path" }).fill("/new-page");
+
+		await dialog.getByRole("button", { name: "Create" }).dblClick();
+		await expect.element(dialog.getByRole("button", { name: "Creating..." })).toBeVisible();
+		await userEvent.keyboard("{Escape}");
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		await expect.element(dialog).toBeVisible();
+		expect(createRedirect).toHaveBeenCalledTimes(1);
+
+		created.resolve(makeRedirect(200));
+		await expect.element(dialog).not.toBeInTheDocument();
+		expect(createRedirect).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps typed paths through a press outside, and still closes on Cancel", async () => {
+		const screen = await render(<Redirects />);
+		const dialog = await openNewRedirect(screen);
+		await dialog.getByRole("textbox", { name: "Source path" }).fill("/old-page");
+
+		await pressOutside();
+		await expect.element(dialog).toBeVisible();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Source path" }))
+			.toHaveValue("/old-page");
+
+		await dialog.getByRole("button", { name: "Cancel" }).click();
+		await expect.element(dialog).not.toBeInTheDocument();
+	});
+
+	it("closes on a press outside when nothing was typed", async () => {
+		const screen = await render(<Redirects />);
+		const dialog = await openNewRedirect(screen);
+
+		await pressOutside();
+		await expect.element(dialog).not.toBeInTheDocument();
+	});
+
+	it("starts each opening of the form from the redirect it opens with", async () => {
+		const screen = await render(<Redirects />);
+		await expect.element(screen.getByText("/source-1", { exact: true })).toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "Edit redirect /source-1", exact: true }).click();
+		const edit = screen.getByRole("dialog", { name: "Edit Redirect" });
+		await expect
+			.element(edit.getByRole("textbox", { name: "Source path" }))
+			.toHaveValue("/source-1");
+		await edit.getByRole("textbox", { name: "Destination path" }).fill("/moved");
+		await edit.getByRole("button", { name: "Save" }).click();
+		await vi.waitFor(() =>
+			expect(updateRedirect).toHaveBeenCalledWith(
+				"redirect-1",
+				expect.objectContaining({ source: "/source-1", destination: "/moved" }),
+			),
+		);
+		await expect.element(edit).not.toBeInTheDocument();
+
+		const dialog = await openNewRedirect(screen);
+		await expect.element(dialog.getByRole("textbox", { name: "Source path" })).toHaveValue("");
+		await expect.element(dialog.getByRole("textbox", { name: "Destination path" })).toHaveValue("");
+	});
+
+	it("treats a redirect that is already gone as deleted", async () => {
+		vi.mocked(deleteRedirect).mockRejectedValue(
+			new ApiResponseError(404, "NOT_FOUND", 'Redirect "redirect-1" not found'),
+		);
+		const screen = await render(<Redirects />);
+		await screen.getByRole("button", { name: "Delete redirect /source-1", exact: true }).click();
+		const confirm = screen.getByRole("dialog", { name: "Delete Redirect?" });
+		await confirm.getByRole("button", { name: "Delete" }).click();
+
+		await expect.element(confirm).not.toBeInTheDocument();
+		await expect.element(screen.getByText("This redirect was already deleted.")).toBeVisible();
+		expect(screen.getByText('Redirect "redirect-1" not found').query()).toBeNull();
 	});
 });
