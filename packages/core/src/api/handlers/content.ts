@@ -187,10 +187,20 @@ async function assertPublishWillNotBeRefused(
 			throw new EmDashValidationError(
 				`Cannot publish: slug '${options.stagedSlug}' is already used by another entry` +
 					` in this collection (id: ${conflict.id}). Choose a different slug.`,
-				{ code: "SLUG_CONFLICT" },
+				{ code: "SLUG_CONFLICT", slug: options.stagedSlug },
 			);
 		}
 	}
+}
+
+/**
+ * `details.slug` for a SLUG_CONFLICT error, so a client can name the slug
+ * without parsing the message. Omitted when the request sent no slug.
+ */
+function slugConflictDetails(slug: string | null | undefined): {
+	details?: { slug: string };
+} {
+	return slug ? { details: { slug } } : {};
 }
 
 function isTranslationLocaleConflict(error: unknown, collection: string): boolean {
@@ -1496,6 +1506,7 @@ export async function handleContentCreate(
 				error: {
 					code: "SLUG_CONFLICT",
 					message: `Slug '${body.slug ?? "(auto-generated)"}' already exists in collection '${collection}'`,
+					...slugConflictDetails(body.slug),
 				},
 			};
 		}
@@ -1538,6 +1549,7 @@ export async function handleContentCreate(
 					error: {
 						code: "SLUG_CONFLICT",
 						message: `Slug '${body.slug ?? "(auto-generated)"}' already exists in collection '${collection}'`,
+						...slugConflictDetails(body.slug),
 					},
 				};
 			}
@@ -1835,6 +1847,7 @@ export async function handleContentUpdate(
 				error: {
 					code: "SLUG_CONFLICT",
 					message: `Slug '${body.slug ?? id}' already exists in collection '${collection}'`,
+					...slugConflictDetails(body.slug),
 				},
 			};
 		}
@@ -1846,6 +1859,7 @@ export async function handleContentUpdate(
 					error: {
 						code: "SLUG_CONFLICT",
 						message: `Slug '${body.slug ?? id}' already exists in collection '${collection}'`,
+						...slugConflictDetails(body.slug),
 					},
 				};
 			}
@@ -2655,17 +2669,21 @@ export async function handleContentPublish(
 			// The staged-slug pre-check tags its error so it maps to the same
 			// 409 SLUG_CONFLICT as direct slug edits in create/update.
 			const details: unknown = error.details;
-			const isSlugConflict =
+			if (
 				typeof details === "object" &&
 				details !== null &&
 				"code" in details &&
-				details.code === "SLUG_CONFLICT";
+				details.code === "SLUG_CONFLICT"
+			) {
+				const slug = "slug" in details && typeof details.slug === "string" ? details.slug : null;
+				return {
+					success: false,
+					error: { code: "SLUG_CONFLICT", message: error.message, ...slugConflictDetails(slug) },
+				};
+			}
 			return {
 				success: false,
-				error: {
-					code: isSlugConflict ? "SLUG_CONFLICT" : "VALIDATION_ERROR",
-					message: error.message,
-				},
+				error: { code: "VALIDATION_ERROR", message: error.message },
 			};
 		}
 		// Backstop for the pre-check inside repo.publish(): a concurrent write

@@ -2684,7 +2684,7 @@ export class ContentRepository {
 					throw new EmDashValidationError(
 						`Cannot publish: slug '${stagedSlug}' is already used by another entry` +
 							` in this collection (id: ${conflict.id}). Choose a different slug.`,
-						{ code: "SLUG_CONFLICT" },
+						{ code: "SLUG_CONFLICT", slug: stagedSlug },
 					);
 				}
 			}

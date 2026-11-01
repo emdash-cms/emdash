@@ -469,6 +469,38 @@ describe("Content Handlers — auto-slug generation", () => {
 		});
 	});
 
+	describe("slug conflicts", () => {
+		it("names the requested slug in details on create and update", async () => {
+			const taken = await handleContentCreate(db, "post", {
+				data: { title: "Owner" },
+				slug: "taken",
+			});
+			expect(taken.success).toBe(true);
+
+			const created = await handleContentCreate(db, "post", {
+				data: { title: "Second" },
+				slug: "taken",
+			});
+			expect(created.success).toBe(false);
+			if (created.success) return;
+			expect(created.error.code).toBe("SLUG_CONFLICT");
+			expect(created.error.details).toEqual({ slug: "taken" });
+
+			const other = await handleContentCreate(db, "post", {
+				data: { title: "Other" },
+				slug: "other",
+			});
+			expect(other.success).toBe(true);
+			const updated = await handleContentUpdate(db, "post", other.data!.item.id, {
+				slug: "taken",
+			});
+			expect(updated.success).toBe(false);
+			if (updated.success) return;
+			expect(updated.error.code).toBe("SLUG_CONFLICT");
+			expect(updated.error.details).toEqual({ slug: "taken" });
+		});
+	});
+
 	describe("byline hydration and assignment", () => {
 		it("should assign and return bylines on create", async () => {
 			const bylineRepo = new BylineRepository(db);
@@ -1151,6 +1183,7 @@ describe("Content Handlers — slug-change auto-redirect on publish", () => {
 		expect(published.error.code).toBe("SLUG_CONFLICT");
 		expect(published.error.message).toContain("eleven");
 		expect(published.error.message).toContain(taken.data!.item.id);
+		expect(published.error.details).toEqual({ slug: "eleven" });
 	});
 });
 
