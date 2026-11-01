@@ -28,7 +28,7 @@ Each user arranges both sidebars on one page, **Settings → Personal → Sideba
 - Changes apply as soon as the user makes them, and the navigation updates live.
 - The layout belongs to the signed-in user and is saved to their account, so it applies in every browser. Nobody else's sidebars change.
 - Every role can open the page. A new **Personal** group at the end of the Settings page holds it, together with the existing Language setting, which stays a per-browser setting. Users below Admin reach Settings from the user menu, because the navigation shows its Settings entry only to admins.
-- The editor sidebar loses its drag handles. A **Customize sidebar** link at the bottom of the editor sidebar opens the page at the Editor sidebar list. A pencil link in the navigation footer also opens the page; it's hidden while the navigation is collapsed to icons.
+- The editor sidebar loses its drag handles. A **Customize sidebar** link in a footer pinned to the bottom of the editor sidebar, matching the navigation's footer, opens the page at the Editor sidebar list. A pencil link in the navigation footer also opens the page; it's hidden while the navigation is collapsed to icons.
 - The command palette ignores the personal layout.
 
 Linear ([Personalized sidebar](https://linear.app/changelog/2024-12-18-personalized-sidebar)) and Atlassian's Confluence ([Customize sidebar](https://support.atlassian.com/confluence-cloud/docs/what-is-the-new-navigation-in-confluence/)) also give each person a dedicated view for hiding and reordering sidebar items.
