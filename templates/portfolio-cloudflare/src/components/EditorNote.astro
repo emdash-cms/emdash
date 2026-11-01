@@ -1,0 +1,60 @@
+---
+interface Props {
+	/** Where the action link goes, usually a screen in the admin */
+	href: string;
+	action: string;
+}
+
+const { href, action } = Astro.props;
+---
+
+{
+	Astro.locals.user && (
+		<div
+			class="frame editor-note"
+			role="note"
+			aria-labelledby="editor-note-label"
+		>
+			<p class="label" id="editor-note-label">
+				Shown only to signed-in users
+			</p>
+			<p class="editor-note__text">
+				<slot />
+			</p>
+			<a class="arrow-link editor-note__link" href={href}>
+				{action}
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M4 12h16M13 5l7 7-7 7" />
+				</svg>
+			</a>
+		</div>
+	)
+}
+
+<style>
+	.editor-note {
+		display: grid;
+		justify-items: start;
+		gap: var(--spacing-sm);
+		margin-block-start: var(--page-head-space);
+		padding-block-start: var(--spacing-md);
+		border-block-start: 1px dashed var(--color-border-strong);
+	}
+
+	.editor-note__text {
+		max-width: 52ch;
+		color: var(--color-text-secondary);
+	}
+
+	.editor-note__link {
+		font-size: var(--font-size-sm);
+	}
+</style>

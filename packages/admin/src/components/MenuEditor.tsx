@@ -4,7 +4,9 @@
  * Edit menu items with basic reordering (simplified version without drag-and-drop)
  */
 
-import { Button, Dialog, Input, Select, useKumoToastManager } from "@cloudflare/kumo";
+import { Button, Input, LayerDialog, Select, useKumoToastManager } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
@@ -12,7 +14,6 @@ import {
 	CaretUp,
 	CaretDown,
 	Link as LinkIcon,
-	X,
 	File as FileIcon,
 	Pencil,
 } from "@phosphor-icons/react";
@@ -29,13 +30,18 @@ import {
 	reorderMenuItems,
 	fetchMenuTranslations,
 	createMenuTranslation,
+	type CreateMenuItemInput,
 	type MenuItem,
+	type UpdateMenuItemInput,
 } from "../lib/api";
 import { fetchManifest } from "../lib/api/client.js";
+import { guardUnsavedInput, revealErrors, useSingleFlight } from "../lib/dialog-form.js";
+import { isSafeHref } from "../lib/url.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { ContentPickerModal } from "./ContentPickerModal";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { HelpLabel } from "./FieldHelpLabel.js";
 import { useI18nConfig } from "./LocaleSwitcher.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { TranslationsPanel } from "./TranslationsPanel.js";
@@ -93,6 +99,56 @@ function getSelfAndDescendantIds(items: MenuItem[], rootId: string): Set<string>
 	return ids;
 }
 
+interface MenuItemFormValues {
+	label: string;
+	url: string;
+	target: string;
+	cssClasses: string;
+	parentId: string;
+}
+
+type MenuItemField = "label" | "url";
+
+function toMenuItemFormValues(item: MenuItem | null): MenuItemFormValues {
+	return {
+		label: item?.label ?? "",
+		url: item?.customUrl || "",
+		target: item?.target || "",
+		cssClasses: item?.cssClasses ?? "",
+		parentId: item?.parentId ?? "",
+	};
+}
+
+function sameMenuItemValues(a: MenuItemFormValues, b: MenuItemFormValues): boolean {
+	return (
+		a.label === b.label &&
+		a.url === b.url &&
+		a.target === b.target &&
+		a.cssClasses === b.cssClasses &&
+		a.parentId === b.parentId
+	);
+}
+
+function menuItemProblems(
+	values: MenuItemFormValues,
+	hasUrl: boolean,
+): Partial<Record<MenuItemField, MessageDescriptor>> {
+	const problems: Partial<Record<MenuItemField, MessageDescriptor>> = {};
+	if (!values.label.trim()) problems.label = msg`Enter a label.`;
+	if (hasUrl) {
+		const url = values.url.trim();
+		if (!url) problems.url = msg`Enter a URL.`;
+		else if (url.startsWith("//") || url.startsWith("/\\")) {
+			problems.url = msg`Enter a path that starts with a single /.`;
+		} else if (!isSafeHref(url)) {
+			problems.url = msg`Enter a URL that starts with https://, http://, mailto:, tel:, /, or #.`;
+		}
+	}
+	return problems;
+}
+
+const EMPTY_MENU_ITEM = toMenuItemFormValues(null);
+
 export function MenuEditor() {
 	const { t } = useLingui();
 	const { name } = useParams({ from: "/_admin/menus/$name" });
@@ -107,8 +163,15 @@ export function MenuEditor() {
 	const [editingItem, setEditingItem] = React.useState<MenuItem | null>(null);
 	const [deleteItemId, setDeleteItemId] = React.useState<string | null>(null);
 	const [localItems, setLocalItems] = React.useState<MenuItem[]>([]);
-	const [addError, setAddError] = React.useState<string | null>(null);
-	const [editError, setEditError] = React.useState<string | null>(null);
+	const [renameLabel, setRenameLabel] = React.useState("");
+	const [renameSubmitted, setRenameSubmitted] = React.useState(false);
+	const [addValues, setAddValues] = React.useState(EMPTY_MENU_ITEM);
+	const [addSubmitted, setAddSubmitted] = React.useState(false);
+	const [editValues, setEditValues] = React.useState(EMPTY_MENU_ITEM);
+	const [editSubmitted, setEditSubmitted] = React.useState(false);
+	const renameFormId = React.useId();
+	const addFormId = React.useId();
+	const editFormId = React.useId();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -178,39 +241,72 @@ export function MenuEditor() {
 		},
 	});
 
+	const submitRename = useSingleFlight((label: string) => renameMutation.mutateAsync(label));
+
 	const handleRenameOpenChange = (open: boolean) => {
 		setIsRenameOpen(open);
-		if (!renameMutation.isPending) renameMutation.reset();
+		if (!open) return;
+		setRenameLabel(menu?.label ?? "");
+		setRenameSubmitted(false);
+		renameMutation.reset();
 	};
+
+	const renameError = renameSubmitted && !renameLabel.trim() ? t`Enter a label.` : undefined;
 
 	const handleRename = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		const labelVal = new FormData(e.currentTarget).get("label");
-		const label = typeof labelVal === "string" ? labelVal.trim() : "";
-		if (label === menu?.label) {
-			handleRenameOpenChange(false);
+		if (renameMutation.isPending) return;
+		const label = renameLabel.trim();
+		if (!label) {
+			revealErrors(e.currentTarget, () => setRenameSubmitted(true));
 			return;
 		}
-		renameMutation.mutate(label);
+		if (label === menu?.label) {
+			setIsRenameOpen(false);
+			return;
+		}
+		submitRename(label);
 	};
 
-	// Sync local items with fetched data
+	// Sync local items with fetched data. An item whose parent is missing is
+	// edited as a top-level item, which is where the site renders it.
 	React.useEffect(() => {
 		if (menu?.items) {
-			setLocalItems(menu.items);
+			const ids = new Set(menu.items.map((item) => item.id));
+			setLocalItems(
+				menu.items.map((item) =>
+					item.parentId === null || ids.has(item.parentId) ? item : { ...item, parentId: null },
+				),
+			);
 		}
 	}, [menu]);
 
 	const createMutation = useMutation({
-		mutationFn: (input: Parameters<typeof createMenuItem>[1]) =>
-			createMenuItem(name, input, { locale: menuLocale }),
+		mutationFn: (input: CreateMenuItemInput) => createMenuItem(name, input, { locale: menuLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
 			setIsAddOpen(false);
 			toastManager.add({ title: t`Item added`, description: t`Menu item has been added.` });
 		},
-		onError: (error: Error) => {
-			setAddError(error.message);
+	});
+	const submitAdd = useSingleFlight((input: CreateMenuItemInput) =>
+		createMutation.mutateAsync(input),
+	);
+
+	// The content picker has closed by the time this request settles, so it
+	// reports by toast instead of in a dialog.
+	const addContentMutation = useMutation({
+		mutationFn: (input: CreateMenuItemInput) => createMenuItem(name, input, { locale: menuLocale }),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
+			toastManager.add({ title: t`Item added`, description: t`Menu item has been added.` });
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Couldn’t add the menu item`,
+				description: getMutationError(error),
+				variant: "error",
+			});
 		},
 	});
 
@@ -242,10 +338,10 @@ export function MenuEditor() {
 				description: t`Menu item has been updated.`,
 			});
 		},
-		onError: (error: Error) => {
-			setEditError(error.message);
-		},
 	});
+	const submitUpdate = useSingleFlight((args: { itemId: string; input: UpdateMenuItemInput }) =>
+		updateMutation.mutateAsync(args),
+	);
 
 	const reorderMutation = useMutation({
 		mutationFn: (input: Parameters<typeof reorderMenuItems>[1]) =>
@@ -266,20 +362,35 @@ export function MenuEditor() {
 		},
 	});
 
+	const setAddField = (field: keyof MenuItemFormValues, value: string) =>
+		setAddValues((values) => ({ ...values, [field]: value }));
+	const setEditField = (field: keyof MenuItemFormValues, value: string) =>
+		setEditValues((values) => ({ ...values, [field]: value }));
+
+	const handleAddOpenChange = (open: boolean) => {
+		setIsAddOpen(open);
+		if (!open) return;
+		setAddValues(EMPTY_MENU_ITEM);
+		setAddSubmitted(false);
+		createMutation.reset();
+	};
+
+	const addProblems = menuItemProblems(addValues, true);
+	const addErrors = addSubmitted ? addProblems : {};
+
 	const handleAddCustomLink = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		setAddError(null);
-		const formData = new FormData(e.currentTarget);
-		const labelVal = formData.get("label");
-		const urlVal = formData.get("url");
-		const targetVal = formData.get("target");
-		const classesVal = formData.get("cssClasses");
-		createMutation.mutate({
+		if (createMutation.isPending) return;
+		if (Object.keys(addProblems).length > 0) {
+			revealErrors(e.currentTarget, () => setAddSubmitted(true));
+			return;
+		}
+		submitAdd({
 			type: "custom",
-			label: typeof labelVal === "string" ? labelVal : "",
-			customUrl: typeof urlVal === "string" ? urlVal : "",
-			target: (typeof targetVal === "string" ? targetVal : "") || undefined,
-			cssClasses: (typeof classesVal === "string" ? classesVal.trim() : "") || undefined,
+			label: addValues.label,
+			customUrl: addValues.url.trim(),
+			target: addValues.target || undefined,
+			cssClasses: addValues.cssClasses.trim() || undefined,
 		});
 	};
 
@@ -292,7 +403,7 @@ export function MenuEditor() {
 		// referenceCollection + referenceId.
 		const type =
 			item.collection === "pages" ? "page" : item.collection === "posts" ? "post" : "collection";
-		createMutation.mutate({
+		addContentMutation.mutate({
 			type,
 			label: item.title,
 			referenceCollection: item.collection,
@@ -300,26 +411,34 @@ export function MenuEditor() {
 		});
 	};
 
+	const openEditItem = (item: MenuItem) => {
+		setEditingItem(item);
+		setEditValues(toMenuItemFormValues(item));
+		setEditSubmitted(false);
+		updateMutation.reset();
+	};
+
+	const editProblems = menuItemProblems(editValues, editingItem?.type === "custom");
+	const editErrors = editSubmitted ? editProblems : {};
+	const editDirty =
+		editingItem !== null && !sameMenuItemValues(editValues, toMenuItemFormValues(editingItem));
+
 	const handleUpdateItem = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		setEditError(null);
-		if (!editingItem) return;
-		const formData = new FormData(e.currentTarget);
-		const uLabelVal = formData.get("label");
-		const uUrlVal = formData.get("url");
-		const uTargetVal = formData.get("target");
-		const uParentIdVal = formData.get("parentId");
-		const uClassesVal = formData.get("cssClasses");
-		const cssClasses = typeof uClassesVal === "string" ? uClassesVal.trim() : "";
-		updateMutation.mutate({
+		if (!editingItem || updateMutation.isPending) return;
+		if (Object.keys(editProblems).length > 0) {
+			revealErrors(e.currentTarget, () => setEditSubmitted(true));
+			return;
+		}
+		const cssClasses = editValues.cssClasses.trim();
+		submitUpdate({
 			itemId: editingItem.id,
 			input: {
-				label: typeof uLabelVal === "string" ? uLabelVal : "",
-				customUrl:
-					editingItem.type === "custom" ? (typeof uUrlVal === "string" ? uUrlVal : "") : undefined,
-				target: (typeof uTargetVal === "string" ? uTargetVal : "") || undefined,
+				label: editValues.label,
+				customUrl: editingItem.type === "custom" ? editValues.url.trim() : undefined,
+				target: editValues.target || undefined,
 				cssClasses: cssClasses === (editingItem.cssClasses ?? "") ? undefined : cssClasses,
-				parentId: typeof uParentIdVal === "string" && uParentIdVal !== "" ? uParentIdVal : null,
+				parentId: editValues.parentId || null,
 			},
 		});
 	};
@@ -405,8 +524,12 @@ export function MenuEditor() {
 							<h1 className="min-w-0 break-words text-2xl font-semibold leading-tight">
 								{menu.label}
 							</h1>
-							<Dialog.Root open={isRenameOpen} onOpenChange={handleRenameOpenChange}>
-								<Dialog.Trigger
+							<LayerDialog.Root
+								open={isRenameOpen}
+								{...guardUnsavedInput(renameLabel !== menu.label, handleRenameOpenChange)}
+								dismissDisabled={renameMutation.isPending}
+							>
+								<LayerDialog.Trigger
 									render={(props) => (
 										<Button
 											{...props}
@@ -419,52 +542,47 @@ export function MenuEditor() {
 										/>
 									)}
 								/>
-								<Dialog className="p-6" size="lg">
-									<div className="flex items-start justify-between gap-4 mb-4">
-										<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-											{t`Rename menu`}
-										</Dialog.Title>
-										<Dialog.Close
-											aria-label={t`Close`}
-											render={(props) => (
-												<Button
-													{...props}
-													variant="ghost"
-													shape="square"
-													aria-label={t`Close`}
-													className="absolute end-4 top-4"
-												>
-													<X className="h-4 w-4" />
-													<span className="sr-only">{t`Close`}</span>
-												</Button>
-											)}
-										/>
-									</div>
-									<form onSubmit={handleRename} className="space-y-4">
-										<Input
-											label={t`Label`}
-											name="label"
-											required
-											autoFocus
-											defaultValue={menu.label}
-											description={t`Shown in the admin. Some themes also show it on the site.`}
-										/>
-										<DialogError message={getMutationError(renameMutation.error)} />
-										<div className="flex justify-end gap-2">
-											<Button
-												type="button"
-												variant="outline"
-												onClick={() => handleRenameOpenChange(false)}
-											>
-												{t`Cancel`}
-											</Button>
-											<Button type="submit" disabled={renameMutation.isPending}>
-												{renameMutation.isPending ? t`Saving...` : t`Save`}
-											</Button>
-										</div>
-									</form>
-								</Dialog>
-							</Dialog.Root>
+								<LayerDialog.Content>
+									<LayerDialog.Title>{t`Rename menu`}</LayerDialog.Title>
+									<LayerDialog.Description>{t`Give this menu a new label.`}</LayerDialog.Description>
+									<LayerDialog.Body>
+										<form
+											id={renameFormId}
+											noValidate
+											onSubmit={handleRename}
+											className="grid gap-5"
+										>
+											<Input
+												label={
+													<HelpLabel
+														help={t`Shown in the admin. Some themes also show it on the site.`}
+													>
+														{t`Label`}
+													</HelpLabel>
+												}
+												aria-label={t`Label`}
+												name="label"
+												required
+												autoFocus
+												value={renameLabel}
+												onChange={(e) => setRenameLabel(e.target.value)}
+												error={renameError}
+												aria-invalid={renameError ? true : undefined}
+											/>
+											<DialogError message={getMutationError(renameMutation.error)} />
+										</form>
+									</LayerDialog.Body>
+									<LayerDialog.Actions dismissLabel={t`Cancel`}>
+										<LayerDialog.Action
+											type="submit"
+											form={renameFormId}
+											disabled={renameMutation.isPending}
+										>
+											{renameMutation.isPending ? t`Saving...` : t`Save`}
+										</LayerDialog.Action>
+									</LayerDialog.Actions>
+								</LayerDialog.Content>
+							</LayerDialog.Root>
 						</div>
 						<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">{t`Edit menu items`}</p>
 					</div>
@@ -476,80 +594,94 @@ export function MenuEditor() {
 						>
 							{t`Add Content`}
 						</Button>
-						<Dialog.Root
+						<LayerDialog.Root
 							open={isAddOpen}
-							onOpenChange={(open) => {
-								setIsAddOpen(open);
-								if (!open) setAddError(null);
-							}}
+							{...guardUnsavedInput(
+								!sameMenuItemValues(addValues, EMPTY_MENU_ITEM),
+								handleAddOpenChange,
+							)}
+							dismissDisabled={createMutation.isPending}
 						>
-							<Dialog.Trigger
+							<LayerDialog.Trigger
 								render={(props) => (
 									<Button {...props} variant="secondary" icon={<Plus />}>
 										{t`Add Custom Link`}
 									</Button>
 								)}
 							/>
-							<Dialog className="p-6" size="lg">
-								<div className="flex items-start justify-between gap-4 mb-4">
-									<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-										{t`Add Custom Link`}
-									</Dialog.Title>
-									<Dialog.Close
-										aria-label={t`Close`}
-										render={(props) => (
-											<Button
-												{...props}
-												variant="ghost"
-												shape="square"
-												aria-label={t`Close`}
-												className="absolute end-4 top-4"
-											>
-												<X className="h-4 w-4" />
-												<span className="sr-only">{t`Close`}</span>
-											</Button>
-										)}
-									/>
-								</div>
-								<form onSubmit={handleAddCustomLink} className="space-y-4">
-									<Input label={t`Label`} name="label" required placeholder={t`Home`} />
-									<Input
-										dir="ltr"
-										label={t`URL`}
-										name="url"
-										type="text"
-										required
-										pattern="(https?://.+|/.*)"
-										title={t`Enter a URL (https://…) or a relative path (/…)`}
-										placeholder={t`https://example.com or /about`}
-									/>
-									<Select
-										label={t`Target`}
-										name="target"
-										defaultValue=""
-										items={{ "": t`Same window`, _blank: t`New window` }}
+							<LayerDialog.Content>
+								<LayerDialog.Title>{t`Add Custom Link`}</LayerDialog.Title>
+								<LayerDialog.Description>
+									{t`Link to any page by its address, on this site or another.`}
+								</LayerDialog.Description>
+								<LayerDialog.Body>
+									<form
+										id={addFormId}
+										noValidate
+										onSubmit={handleAddCustomLink}
+										className="grid gap-5"
 									>
-										<Select.Option value="">{t`Same window`}</Select.Option>
-										<Select.Option value="_blank">{t`New window`}</Select.Option>
-									</Select>
-									<Input
-										label={t`CSS classes`}
-										name="cssClasses"
-										dir="ltr"
-										description={t`Separate class names with spaces. Themes can use them to style the link.`}
-									/>
-									<DialogError message={addError || getMutationError(createMutation.error)} />
-									<div className="flex justify-end gap-2">
-										<Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
-											{t`Cancel`}
-										</Button>
-										<Button type="submit" disabled={createMutation.isPending}>
-											{createMutation.isPending ? t`Adding...` : t`Add`}
-										</Button>
-									</div>
-								</form>
-							</Dialog>
-						</Dialog.Root>
+										<Input
+											label={t`Label`}
+											name="label"
+											required
+											placeholder={t`Home`}
+											value={addValues.label}
+											onChange={(e) => setAddField("label", e.target.value)}
+											error={addErrors.label && t(addErrors.label)}
+											aria-invalid={addErrors.label ? true : undefined}
+										/>
+										<Input
+											dir="ltr"
+											label={t`URL`}
+											name="url"
+											type="text"
+											required
+											placeholder={t`https://example.com or /about`}
+											value={addValues.url}
+											onChange={(e) => setAddField("url", e.target.value)}
+											error={addErrors.url && t(addErrors.url)}
+											aria-invalid={addErrors.url ? true : undefined}
+										/>
+										<Select
+											label={t`Target`}
+											className="w-full"
+											name="target"
+											value={addValues.target}
+											onValueChange={(v) => setAddField("target", v ?? "")}
+											items={{ "": t`Same window`, _blank: t`New window` }}
+										>
+											<Select.Option value="">{t`Same window`}</Select.Option>
+											<Select.Option value="_blank">{t`New window`}</Select.Option>
+										</Select>
+										<Input
+											label={
+												<HelpLabel
+													help={t`Separate class names with spaces. Themes can use them to style the link.`}
+												>
+													{t`CSS classes`}
+												</HelpLabel>
+											}
+											aria-label={t`CSS classes`}
+											name="cssClasses"
+											dir="ltr"
+											value={addValues.cssClasses}
+											onChange={(e) => setAddField("cssClasses", e.target.value)}
+										/>
+										<DialogError message={getMutationError(createMutation.error)} />
+									</form>
+								</LayerDialog.Body>
+								<LayerDialog.Actions dismissLabel={t`Cancel`}>
+									<LayerDialog.Action
+										type="submit"
+										form={addFormId}
+										disabled={createMutation.isPending}
+									>
+										{createMutation.isPending ? t`Adding...` : t`Add`}
+									</LayerDialog.Action>
+								</LayerDialog.Actions>
+							</LayerDialog.Content>
+						</LayerDialog.Root>
 					</div>
 				</div>
 			</header>
@@ -602,7 +734,7 @@ export function MenuEditor() {
 						>
 							{t`Add Content`}
 						</Button>
-						<Button variant="secondary" icon={<Plus />} onClick={() => setIsAddOpen(true)}>
+						<Button variant="secondary" icon={<Plus />} onClick={() => handleAddOpenChange(true)}>
 							{t`Add Custom Link`}
 						</Button>
 					</div>
@@ -659,7 +791,7 @@ export function MenuEditor() {
 									>
 										<CaretDown className="h-4 w-4" />
 									</Button>
-									<Button variant="outline" size="sm" onClick={() => setEditingItem(item)}>
+									<Button variant="outline" size="sm" onClick={() => openEditItem(item)}>
 										{t`Edit`}
 									</Button>
 									<Button
@@ -678,7 +810,11 @@ export function MenuEditor() {
 										deleteMutation.reset();
 									}}
 									title={t`Delete menu item?`}
-									description={t`"${item.label}" will be removed from this menu. This action cannot be undone.`}
+									description={
+										localItems.some((i) => i.parentId === item.id)
+											? t`"${item.label}" and its nested items will be removed from this menu. This action cannot be undone.`
+											: t`"${item.label}" will be removed from this menu. This action cannot be undone.`
+									}
 									confirmLabel={t`Delete`}
 									pendingLabel={t`Deleting...`}
 									isPending={deleteMutation.isPending}
@@ -691,86 +827,87 @@ export function MenuEditor() {
 				</div>
 			)}
 
-			<Dialog.Root
+			<LayerDialog.Root
 				open={editingItem !== null}
-				onOpenChange={(open: boolean) => {
-					if (!open) {
-						setEditingItem(null);
-						setEditError(null);
-					}
-				}}
+				{...guardUnsavedInput(editDirty, (open) => {
+					if (!open) setEditingItem(null);
+				})}
+				dismissDisabled={updateMutation.isPending}
 			>
-				<Dialog className="p-6" size="lg">
-					<div className="flex items-start justify-between gap-4 mb-4">
-						<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-							{t`Edit Menu Item`}
-						</Dialog.Title>
-						<Dialog.Close
-							aria-label={t`Close`}
-							render={(props) => (
-								<Button
-									{...props}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Close`}
-									className="absolute end-4 top-4"
-								>
-									<X className="h-4 w-4" />
-									<span className="sr-only">{t`Close`}</span>
-								</Button>
-							)}
-						/>
-					</div>
-					{editingItem && (
-						<form onSubmit={handleUpdateItem} className="space-y-4">
-							<Input label={t`Label`} name="label" required defaultValue={editingItem.label} />
-							{editingItem.type === "custom" && (
+				<LayerDialog.Content>
+					<LayerDialog.Title>{t`Edit Menu Item`}</LayerDialog.Title>
+					<LayerDialog.Description>
+						{t`Change this item's label, link and place in the menu.`}
+					</LayerDialog.Description>
+					<LayerDialog.Body>
+						{editingItem && (
+							<form id={editFormId} noValidate onSubmit={handleUpdateItem} className="grid gap-5">
 								<Input
-									dir="ltr"
-									label={t`URL`}
-									name="url"
-									type="text"
+									label={t`Label`}
+									name="label"
 									required
-									pattern="(https?://.+|/.*)"
-									title={t`Enter a URL (https://…) or a relative path (/…)`}
-									defaultValue={editingItem.customUrl || ""}
+									value={editValues.label}
+									onChange={(e) => setEditField("label", e.target.value)}
+									error={editErrors.label && t(editErrors.label)}
+									aria-invalid={editErrors.label ? true : undefined}
 								/>
-							)}
-							<Select
-								label={t`Target`}
-								name="target"
-								defaultValue={editingItem.target || ""}
-								items={{ "": t`Same window`, _blank: t`New window` }}
-							>
-								<Select.Option value="">{t`Same window`}</Select.Option>
-								<Select.Option value="_blank">{t`New window`}</Select.Option>
-							</Select>
-							<Input
-								label={t`CSS classes`}
-								name="cssClasses"
-								dir="ltr"
-								defaultValue={editingItem.cssClasses ?? ""}
-								description={t`Separate class names with spaces. Themes can use them to style the link.`}
-							/>
-							<Select
-								label={t`Parent`}
-								name="parentId"
-								defaultValue={editingItem.parentId ?? ""}
-								items={parentOptions}
-							/>
-							<DialogError message={editError || getMutationError(updateMutation.error)} />
-							<div className="flex justify-end gap-2">
-								<Button type="button" variant="outline" onClick={() => setEditingItem(null)}>
-									{t`Cancel`}
-								</Button>
-								<Button type="submit" disabled={updateMutation.isPending}>
-									{updateMutation.isPending ? t`Saving...` : t`Save`}
-								</Button>
-							</div>
-						</form>
-					)}
-				</Dialog>
-			</Dialog.Root>
+								{editingItem.type === "custom" && (
+									<Input
+										dir="ltr"
+										label={t`URL`}
+										name="url"
+										type="text"
+										required
+										value={editValues.url}
+										onChange={(e) => setEditField("url", e.target.value)}
+										error={editErrors.url && t(editErrors.url)}
+										aria-invalid={editErrors.url ? true : undefined}
+									/>
+								)}
+								<Select
+									label={t`Target`}
+									className="w-full"
+									name="target"
+									value={editValues.target}
+									onValueChange={(v) => setEditField("target", v ?? "")}
+									items={{ "": t`Same window`, _blank: t`New window` }}
+								>
+									<Select.Option value="">{t`Same window`}</Select.Option>
+									<Select.Option value="_blank">{t`New window`}</Select.Option>
+								</Select>
+								<Input
+									label={
+										<HelpLabel
+											help={t`Separate class names with spaces. Themes can use them to style the link.`}
+										>
+											{t`CSS classes`}
+										</HelpLabel>
+									}
+									aria-label={t`CSS classes`}
+									name="cssClasses"
+									dir="ltr"
+									value={editValues.cssClasses}
+									onChange={(e) => setEditField("cssClasses", e.target.value)}
+								/>
+								<Select
+									label={t`Parent`}
+									className="w-full"
+									name="parentId"
+									value={editValues.parentId}
+									onValueChange={(v) => setEditField("parentId", v ?? "")}
+									items={parentOptions}
+								/>
+								<DialogError message={getMutationError(updateMutation.error)} />
+							</form>
+						)}
+					</LayerDialog.Body>
+					<LayerDialog.Actions dismissLabel={t`Cancel`}>
+						<LayerDialog.Action type="submit" form={editFormId} disabled={updateMutation.isPending}>
+							{updateMutation.isPending ? t`Saving...` : t`Save`}
+						</LayerDialog.Action>
+					</LayerDialog.Actions>
+				</LayerDialog.Content>
+			</LayerDialog.Root>
 		</div>
 	);
 }

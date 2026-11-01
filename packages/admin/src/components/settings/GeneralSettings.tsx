@@ -582,7 +582,6 @@ export function GeneralSettings() {
 					description={t`Every other user with an active account gets an email saying the site is now at ${siteHost}, with a link to sign in there. Passkeys from another address don't work at ${siteHost}, so users sign in with an email link and add a new passkey.`}
 					confirmLabel={t`Send emails`}
 					pendingLabel={t`Sending...`}
-					preventCloseWhilePending
 					isPending={notifyMutation.isPending}
 					error={notifyMutation.error}
 					onConfirm={() => notifyMutation.mutate()}

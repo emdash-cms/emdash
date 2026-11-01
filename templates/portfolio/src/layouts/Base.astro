@@ -3,7 +3,9 @@ import { getMenuWithCacheHint, getSiteSettingsWithCacheHint } from "emdash";
 import { EmDashBodyEnd, EmDashBodyStart, EmDashHead } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import { Font } from "astro:assets";
+import { getSocialLinks } from "../utils/social";
 import "../styles/tokens.css";
+import "../styles/prose.css";
 import "../styles/theme.css";
 
 interface Props {
@@ -27,27 +29,30 @@ const {
 	type = "website",
 	content,
 } = Astro.props;
-const [settingsResult, menuResult] = await Promise.all([
+const [settingsResult, menuResult, footerMenuResult] = await Promise.all([
 	getSiteSettingsWithCacheHint(),
 	getMenuWithCacheHint("primary"),
+	getMenuWithCacheHint("footer"),
 ]);
 const settings = settingsResult.data;
 const menu = menuResult.data;
+const footerMenu = footerMenuResult.data;
 if (Astro.cache?.enabled) {
 	Astro.cache.set(settingsResult.cacheHint);
 	Astro.cache.set(menuResult.cacheHint);
+	Astro.cache.set(footerMenuResult.cacheHint);
 }
 
 const siteTitle = settings?.title || "Studio";
-const separator = settings?.seo?.titleSeparator || " — ";
+const separator = settings?.seo?.titleSeparator?.trim() || "—";
 const fullTitle = !title
 	? siteTitle
 	: title === siteTitle ||
 		  title.endsWith(` — ${siteTitle}`) ||
-		  title.endsWith(` | ${siteTitle}`)
+		  title.endsWith(` | ${siteTitle}`) ||
+		  title.endsWith(` ${separator} ${siteTitle}`)
 		? title
-		: `${title}${separator}${siteTitle}`;
-const siteDescription = settings?.tagline || "Design & Development";
+		: `${title} ${separator} ${siteTitle}`;
 const siteLogo = settings?.logo?.url ? settings.logo : null;
 const canonicalUrl =
 	canonical ?? new URL(Astro.url.pathname, Astro.url.origin).href;
@@ -58,7 +63,7 @@ const pageCtx = createPublicPageContext({
 	pageType: type,
 	title: fullTitle,
 	pageTitle: pageTitle ?? title ?? siteTitle,
-	description: description || siteDescription,
+	description: description || settings?.tagline || undefined,
 	canonical: canonicalUrl,
 	image,
 	content,
@@ -67,6 +72,63 @@ const pageCtx = createPublicPageContext({
 });
 
 const isLoggedIn = Boolean(Astro.locals.user);
+
+const menuItems = (menu?.items ?? []).filter((item) => item.label.trim());
+
+const TRAILING_SLASHES = /\/+$/;
+const currentPath = Astro.url.pathname.replace(TRAILING_SLASHES, "") || "/";
+
+/** True for the page itself and for pages nested under it (/work/x is in /work). */
+function isCurrent(url: string): boolean {
+	let target: URL;
+	try {
+		target = new URL(url, Astro.url);
+	} catch {
+		return false;
+	}
+	if (target.origin !== Astro.url.origin || target.hash) return false;
+	const path = target.pathname.replace(TRAILING_SLASHES, "") || "/";
+	return (
+		path === currentPath || (path !== "/" && currentPath.startsWith(`${path}/`))
+	);
+}
+
+const socialLinks = getSocialLinks(settings?.social);
+
+/** Widths relative to an average lowercase letter; anything else counts as 1. */
+const LETTER_WIDTHS: ReadonlyArray<[RegExp, number]> = [
+	[/[iljI.,:;'’!|]/, 0.3],
+	[/[frtJ ()/-]/, 0.6],
+	[/W/, 1.9],
+	[/[mwM]/, 1.6],
+	[/[\p{Lu}\p{Nd}&]/u, 1.2],
+	[/[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Hangul}]/u, 2],
+];
+const COMBINING_MARK = /\p{M}/u;
+
+/**
+ * The title's width in average lowercase letters. Weighting narrow and
+ * wide letters lets the footer wordmark fill the frame for any title,
+ * all-caps ones included.
+ */
+function letterCount(text: string): number {
+	let count = 0;
+	for (const char of text.normalize("NFD")) {
+		if (COMBINING_MARK.test(char)) continue;
+		count += LETTER_WIDTHS.find(([pattern]) => pattern.test(char))?.[1] ?? 1;
+	}
+	return Math.round(count * 100) / 100;
+}
+
+const tagline = settings?.tagline?.trim();
+// The footer menu is the call to action: its name is the heading and its
+// items are the links. It isn't repeated on the pages it links to.
+const ctaHeading = footerMenu?.label.trim();
+const ctaLinks = (footerMenu?.items ?? []).filter((item) => item.label.trim());
+const showCta =
+	ctaLinks.length > 0 && !ctaLinks.some((item) => isCurrent(item.url));
+const wordmarkChars = letterCount(siteTitle);
+const year = new Date().getFullYear();
 ---
 
 <!doctype html>
@@ -76,7 +138,8 @@ const isLoggedIn = Boolean(Astro.locals.user);
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>{fullTitle}</title>
 		<EmDashHead page={pageCtx} />
-		<Font cssVariable="--font-heading" preload />
+		<Font cssVariable="--font-sans" preload={[{ style: "normal" }]} />
+		<Font cssVariable="--font-mono" />
 		<link
 			rel="alternate"
 			type="application/rss+xml"
@@ -98,97 +161,188 @@ const isLoggedIn = Boolean(Astro.locals.user);
 	</head>
 	<body>
 		<EmDashBodyStart page={pageCtx} />
+		<a href="#main" class="skip-link">Skip to content</a>
 		<header class="site-header">
-			<nav class="nav">
-				<a href="/" class="site-title">
-					{
-						siteLogo ? (
-							<img
-								src={siteLogo.url}
-								alt={siteLogo.alt || siteTitle}
-								class="site-logo-img"
-							/>
-						) : (
-							siteTitle
-						)
-					}
-				</a>
-				<div class="nav-links">
-					{
-						menu?.items.map((item) => (
-							<a
-								href={item.url}
-								target={item.target}
-								rel={
-									item.target === "_blank" ? "noopener noreferrer" : undefined
-								}
-							>
-								{item.label}
-							</a>
-						))
-					}
-					{
-						isLoggedIn && (
-							<a href="/_emdash/admin" class="nav-admin">
-								Admin
-							</a>
-						)
-					}
-				</div>
-			</nav>
-		</header>
-
-		<main>
-			<slot />
-		</main>
-
-		<footer class="site-footer">
-			<div class="footer-content">
-				<div class="footer-brand">
-					<span class="footer-logo">
+			<div class="frame">
+				<div
+					class:list={["site-header__bar", siteLogo && "site-header__bar--logo"]}
+				>
+					<a
+						href="/"
+						class="site-brand"
+						aria-current={currentPath === "/" ? "page" : undefined}
+					>
 						{
 							siteLogo ? (
 								<img
 									src={siteLogo.url}
 									alt={siteLogo.alt || siteTitle}
-									class="footer-logo-img"
+									width={siteLogo.width}
+									height={siteLogo.height}
+									class="site-brand__logo"
 								/>
 							) : (
 								siteTitle
 							)
 						}
-					</span>
-					<p class="footer-tagline">
-						{settings?.tagline || "Design & Development"}
-					</p>
+					</a>
+					{
+						(menuItems.length > 0 || isLoggedIn) && (
+							<nav class="site-nav" aria-label="Main">
+								<ul>
+									{menuItems.map((item) => (
+										<li>
+											<a
+												href={item.url}
+												target={item.target}
+												rel={
+													item.target === "_blank"
+														? "noopener noreferrer"
+														: undefined
+												}
+												aria-current={isCurrent(item.url) ? "page" : undefined}
+											>
+												{item.label}
+											</a>
+										</li>
+									))}
+									{isLoggedIn && (
+										<li>
+											<a href="/_emdash/admin" class="site-nav__admin">
+												Admin
+											</a>
+										</li>
+									)}
+								</ul>
+							</nav>
+						)
+					}
 				</div>
-				<div class="footer-right">
-					<div class="theme-switcher">
-						<button
-							type="button"
-							class="theme-btn"
-							data-theme="light"
-							aria-pressed="false"
-							aria-label="Light mode">Light</button
-						>
-						<button
-							type="button"
-							class="theme-btn"
-							data-theme="dark"
-							aria-pressed="false"
-							aria-label="Dark mode">Dark</button
-						>
-						<button
-							type="button"
-							class="theme-btn"
-							data-theme="system"
-							aria-pressed="false"
-							aria-label="System theme">System</button
-						>
+			</div>
+		</header>
+
+		<main id="main" tabindex="-1">
+			<slot />
+		</main>
+
+		<footer class="site-footer">
+			<div class="frame">
+				{
+					showCta && (
+						<div class="site-footer__cta">
+							{ctaHeading && (
+								<h2 class="site-footer__cta-title">{ctaHeading}</h2>
+							)}
+							<div class="site-footer__cta-links">
+								{ctaLinks.map((item) => (
+									<a
+										href={item.url}
+										target={item.target}
+										rel={
+											item.target === "_blank"
+												? "noopener noreferrer"
+												: undefined
+										}
+										class="arrow-link site-footer__cta-link"
+									>
+										{item.label}
+										<svg
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="1.5"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											aria-hidden="true"
+										>
+											<path d="M4 12h16M13 5l7 7-7 7" />
+										</svg>
+									</a>
+								))}
+							</div>
+						</div>
+					)
+				}
+				<div class="site-footer__grid">
+					{tagline && <p class="site-footer__tagline">{tagline}</p>}
+					<div class="site-footer__cols">
+						{
+							menuItems.length > 0 && (
+								<nav class="site-footer__col" aria-labelledby="footer-index">
+									<h2 id="footer-index" class="label">
+										Index
+									</h2>
+									<ul class="site-footer__links">
+										{menuItems.map((item) => (
+											<li>
+												<a
+													href={item.url}
+													target={item.target}
+													rel={
+														item.target === "_blank"
+															? "noopener noreferrer"
+															: undefined
+													}
+												>
+													{item.label}
+												</a>
+											</li>
+										))}
+									</ul>
+								</nav>
+							)
+						}
+						{
+							socialLinks.length > 0 && (
+								<div class="site-footer__col">
+									<h2 class="label">Follow</h2>
+									<ul class="site-footer__links">
+										{socialLinks.map((link) => (
+											<li>
+												<a href={link.href} rel="me">
+													{link.label}
+												</a>
+											</li>
+										))}
+									</ul>
+								</div>
+							)
+						}
+						<div class="site-footer__col">
+							<h2 id="footer-theme" class="label">Theme</h2>
+							<div
+								class="theme-switcher"
+								role="group"
+								aria-labelledby="footer-theme"
+							>
+								<button
+									type="button"
+									class="theme-btn"
+									data-theme="light"
+									aria-pressed="false">Light</button
+								>
+								<button
+									type="button"
+									class="theme-btn"
+									data-theme="dark"
+									aria-pressed="false">Dark</button
+								>
+								<button
+									type="button"
+									class="theme-btn"
+									data-theme="system"
+									aria-pressed="false">System</button
+								>
+							</div>
+						</div>
 					</div>
-					<p class="footer-powered">
-						Powered by <a href="https://emdashcms.com">EmDash</a>
-					</p>
+				</div>
+				<div class="site-footer__wordmark" aria-hidden="true">
+					<span style={`--chars: ${wordmarkChars}`}>{siteTitle}</span>
+				</div>
+				<div class="site-footer__bottom label">
+					<p>© {year} {siteTitle}</p>
+					<p>Powered by <a href="https://emdashcms.com">EmDash</a></p>
 				</div>
 			</div>
 		</footer>
@@ -250,9 +404,9 @@ const isLoggedIn = Boolean(Astro.locals.user);
 			@layer base;
 
 			@layer base {
-				*,
-				*::before,
-				*::after {
+				*:where(:not([class*="emdash"]):not([class*="ec-"])),
+				*:where(:not([class*="emdash"]):not([class*="ec-"]))::before,
+				*:where(:not([class*="emdash"]):not([class*="ec-"]))::after {
 					box-sizing: border-box;
 					margin: 0;
 					padding: 0;
@@ -278,39 +432,73 @@ const isLoggedIn = Boolean(Astro.locals.user);
 
 				html {
 					scroll-behavior: smooth;
+					-webkit-text-size-adjust: 100%;
+					text-size-adjust: 100%;
 				}
 
 				body {
+					display: flex;
+					flex-direction: column;
+					min-height: 100vh;
 					font-family: var(--font-body);
 					font-size: var(--font-size-base);
 					line-height: var(--leading-normal);
 					color: var(--color-text);
 					background: var(--color-bg);
 					-webkit-font-smoothing: antialiased;
-					min-height: 100vh;
+					-moz-osx-font-smoothing: grayscale;
+				}
+
+				main {
+					flex: 1;
+				}
+
+				main:focus {
+					outline: none;
 				}
 
 				a {
 					color: currentColor;
+					text-decoration-thickness: 1px;
+					text-underline-offset: 0.2em;
 				}
 
-				img {
+				:where(:not([class*="emdash"]):not([class*="ec-"])):focus-visible {
+					outline: 2px solid var(--color-brand);
+					outline-offset: 3px;
+				}
+
+				img,
+				video {
 					max-width: 100%;
 					height: auto;
 					display: block;
 				}
 
+				button {
+					font: inherit;
+					color: inherit;
+				}
+
 				h1,
 				h2,
 				h3,
-				h4 {
+				h4,
+				h5,
+				h6 {
 					font-family: var(--font-heading);
 					font-weight: var(--font-weight-heading);
 					line-height: var(--leading-snug);
+					letter-spacing: var(--tracking-tight);
+					text-wrap: balance;
+					overflow-wrap: break-word;
 				}
 
 				h1 {
 					font-size: var(--font-size-4xl);
+					font-weight: var(--font-weight-display);
+					line-height: var(--leading-tight);
+					letter-spacing: var(--tracking-display);
 				}
 
 				h2 {
@@ -320,185 +508,494 @@ const isLoggedIn = Boolean(Astro.locals.user);
 				h3 {
 					font-size: var(--font-size-xl);
 				}
+
+				h4 {
+					font-size: var(--font-size-lg);
+				}
+
+				p {
+					text-wrap: pretty;
+					overflow-wrap: break-word;
+				}
+
+				::selection {
+					background: var(--color-text);
+					color: var(--color-bg);
+				}
+
+				@media (prefers-reduced-motion: reduce) {
+					html {
+						scroll-behavior: auto;
+					}
+
+					*,
+					*::before,
+					*::after {
+						animation-duration: 0.01ms !important;
+						animation-iteration-count: 1 !important;
+						transition-duration: 0.01ms !important;
+					}
+				}
+
+				/* Shared building blocks used by every page */
+
+				/* Content frame: page margins at the edges, capped on wide screens */
+				.frame {
+					width: 100%;
+					max-width: var(--frame-width);
+					margin-inline: auto;
+					padding-inline: var(--page-margin);
+				}
+
+				/* Mono uppercase micro-label */
+				.label {
+					font-family: var(--font-label);
+					font-size: var(--font-size-label);
+					font-weight: 400;
+					font-variant-numeric: tabular-nums;
+					line-height: 1.4;
+					letter-spacing: var(--tracking-label);
+					text-transform: uppercase;
+					color: var(--color-muted);
+				}
+
+				/*
+				 * Image frame. Set the aspect ratio on the frame; the image
+				 * fills it. Inside a link, or an element with .media-group
+				 * (a card with separate image and title links), the image
+				 * zooms slightly on hover and keyboard focus.
+				 */
+				.media {
+					position: relative;
+					overflow: hidden;
+					background: var(--color-fill);
+				}
+
+				.media :is(img, picture, video) {
+					display: block;
+					width: 100%;
+					height: 100%;
+					object-fit: cover;
+				}
+
+				.media img {
+					transition: scale var(--duration-media) var(--ease-out);
+				}
+
+				.media::after {
+					content: "";
+					position: absolute;
+					inset: 0;
+					box-shadow: inset 0 0 0 1px var(--color-image-outline);
+					pointer-events: none;
+				}
+
+				:is(a:hover, a:focus-visible) .media img,
+				.media-group:is(:hover, :has(a:focus-visible)) .media img {
+					scale: 1.03;
+				}
+
+				/* Text link with a trailing arrow */
+				.arrow-link {
+					display: inline-flex;
+					align-items: center;
+					gap: 0.4em;
+					max-width: 100%;
+					font-weight: 500;
+					color: var(--color-text);
+					text-decoration-line: underline;
+					text-decoration-color: transparent;
+					transition: text-decoration-color var(--transition-base);
+				}
+
+				.arrow-link:is(:hover, :focus-visible) {
+					text-decoration-color: currentColor;
+				}
+
+				.arrow-link svg {
+					flex: none;
+					width: 1em;
+					height: 1em;
+					transition: translate var(--transition-base);
+				}
+
+				.arrow-link:is(:hover, :focus-visible) svg {
+					translate: 3px 0;
+				}
+
+				.arrow-link svg:dir(rtl) {
+					scale: -1 1;
+				}
+
+				.arrow-link:is(:hover, :focus-visible) svg:dir(rtl) {
+					translate: -3px 0;
+				}
+
+				/* Leading arrow that points back, as in "← Index" */
+				.arrow-link--back svg {
+					scale: -1 1;
+				}
+
+				.arrow-link--back:is(:hover, :focus-visible) svg {
+					translate: -3px 0;
+				}
+
+				.arrow-link--back svg:dir(rtl) {
+					scale: 1 1;
+				}
+
+				.arrow-link--back:is(:hover, :focus-visible) svg:dir(rtl) {
+					translate: 3px 0;
+				}
+
+				/* Pill buttons, for empty states and other calls to action */
+				.btn {
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					gap: 0.5em;
+					min-height: 44px;
+					padding: 0.625rem 1.375rem;
+					border: 1px solid var(--color-brand);
+					border-radius: var(--radius-full);
+					background: var(--color-brand);
+					color: var(--color-on-brand);
+					font-size: var(--font-size-sm);
+					font-weight: 500;
+					line-height: 1.25;
+					text-align: center;
+					text-decoration: none;
+					cursor: pointer;
+					transition:
+						background-color var(--transition-fast),
+						border-color var(--transition-fast),
+						color var(--transition-fast);
+				}
+
+				.btn:is(:hover, :focus-visible) {
+					border-color: color-mix(in srgb, var(--color-brand) 80%, var(--color-bg));
+					background: color-mix(in srgb, var(--color-brand) 80%, var(--color-bg));
+				}
+
+				.btn--ghost {
+					border-color: var(--color-border-strong);
+					background: transparent;
+					color: var(--color-text);
+				}
+
+				.btn--ghost:is(:hover, :focus-visible) {
+					border-color: var(--color-text);
+					background: transparent;
+				}
+
+				.sr-only {
+					position: absolute;
+					width: 1px;
+					height: 1px;
+					padding: 0;
+					margin: -1px;
+					overflow: hidden;
+					clip-path: inset(50%);
+					white-space: nowrap;
+					border: 0;
+				}
+
+				.skip-link {
+					position: fixed;
+					inset-block-start: var(--spacing-sm);
+					inset-inline-start: var(--spacing-sm);
+					z-index: 100;
+					padding: var(--spacing-sm) var(--spacing-md);
+					border-radius: var(--radius-full);
+					background: var(--color-brand);
+					color: var(--color-on-brand);
+					font-size: var(--font-size-sm);
+					font-weight: 500;
+					text-decoration: none;
+					translate: 0 calc(-100% - var(--spacing-md));
+					transition: translate var(--transition-fast);
+				}
+
+				.skip-link:focus-visible {
+					translate: 0 0;
+				}
+
+				@media (prefers-reduced-motion: reduce) {
+					.media img,
+					.arrow-link svg {
+						transition: none;
+					}
+
+					:is(a:hover, a:focus-visible) .media img,
+					.media-group:is(:hover, :has(a:focus-visible)) .media img {
+						scale: none;
+					}
+				}
+			}
+
+			/* EmDash's image component gives its plain <img> fallback an unlayered height */
+			.media img.emdash-image-media {
+				height: 100%;
 			}
 		</style>
 
 		<style>
-			.site-header {
-				max-width: var(--wide-width);
-				margin: 0 auto;
-				padding: var(--spacing-xl) var(--spacing-lg);
+			/* Header */
+			.site-header__bar {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: baseline;
+				justify-content: space-between;
+				gap: var(--spacing-sm) var(--spacing-xl);
+				padding-block: 1.25rem;
+				border-block-end: 1px solid var(--color-border);
 			}
 
-			.nav {
-				display: flex;
-				justify-content: space-between;
+			.site-header__bar--logo {
 				align-items: center;
 			}
 
-			.site-title {
+			.site-brand {
+				min-width: 0;
 				font-family: var(--font-heading);
 				font-size: var(--font-size-lg);
-				font-weight: 600;
-				text-decoration: none;
+				font-weight: var(--font-weight-wordmark);
+				line-height: var(--leading-snug);
 				letter-spacing: var(--tracking-tight);
-			}
-
-			.site-logo-img {
-				height: 48px;
-				width: auto;
-				display: block;
-				margin: -8px 0;
-			}
-
-			.nav-links {
-				display: flex;
-				gap: var(--spacing-xl);
-				font-size: var(--font-size-sm);
-			}
-
-			.nav-links a {
-				text-decoration: none;
-				color: var(--color-muted);
-				transition: color var(--transition-fast);
-			}
-
-			.nav-links a:hover {
 				color: var(--color-text);
+				text-decoration: none;
+				overflow-wrap: anywhere;
 			}
 
-			.nav-links a:empty {
-				display: none;
-			}
-
-			.nav-admin {
-				opacity: 0.5;
-			}
-
-			main {
-				min-height: calc(100vh - 200px);
-			}
-
-			.site-footer {
-				max-width: var(--wide-width);
-				margin: 0 auto;
-				padding: var(--spacing-3xl) var(--spacing-lg);
-				border-top: 1px solid var(--color-border);
-			}
-
-			.footer-content {
-				display: flex;
-				justify-content: space-between;
-				align-items: flex-start;
-			}
-
-			.footer-logo {
-				font-family: var(--font-heading);
-				font-size: var(--font-size-lg);
-				font-weight: 600;
-			}
-
-			.footer-logo-img {
-				height: 24px;
+			.site-brand__logo {
 				width: auto;
+				height: 2rem;
+				max-width: 11rem;
+				object-fit: contain;
 			}
 
-			.footer-tagline {
-				font-family: var(--font-heading);
-				font-style: italic;
-				font-size: var(--font-size-sm);
-				color: var(--color-muted);
-				margin-top: var(--spacing-xs);
-			}
-
-			.footer-right {
+			.site-nav ul {
 				display: flex;
-				flex-direction: column;
-				align-items: flex-end;
-				gap: var(--spacing-md);
+				flex-wrap: wrap;
+				gap: var(--spacing-xs) clamp(1rem, 3vw, 3rem);
+				list-style: none;
+			}
+
+			.site-nav a {
+				display: inline-block;
+				padding-block: 0.25rem;
+				overflow-wrap: anywhere;
+				font-size: 0.9375rem;
+				font-weight: 500;
+				color: var(--color-text);
+				text-decoration: none;
+				text-decoration-thickness: 1px;
+				text-underline-offset: 0.35em;
+			}
+
+			.site-nav a:is(:hover, :focus-visible) {
+				text-decoration-line: underline;
+				text-decoration-color: var(--color-border-strong);
+			}
+
+			.site-nav a[aria-current="page"] {
+				text-decoration-line: underline;
+				text-decoration-color: currentColor;
+			}
+
+			.site-nav .site-nav__admin {
+				color: var(--color-muted);
+			}
+
+			/* Footer. Clipped so an unusually wide wordmark can't widen the page. */
+			.site-footer {
+				margin-block-start: var(--section-gap);
+				overflow-x: clip;
+			}
+
+			.site-footer__cta {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: baseline;
+				justify-content: space-between;
+				gap: var(--spacing-md) var(--spacing-xl);
+				padding-block: var(--spacing-xl) clamp(3rem, 1.5rem + 4vw, 6rem);
+				border-block-start: 1px solid var(--color-border);
+			}
+
+			.site-footer__cta-title {
+				font-size: var(--font-size-3xl);
+				font-weight: var(--font-weight-display);
+				line-height: var(--leading-tight);
+				letter-spacing: var(--tracking-display);
+			}
+
+			.site-footer__cta-links {
+				display: flex;
+				flex-wrap: wrap;
+				gap: var(--spacing-sm) var(--spacing-xl);
+			}
+
+			.site-footer__cta-link {
+				font-size: var(--font-size-lg);
+			}
+
+			.site-footer__grid {
+				display: grid;
+				grid-template-columns: repeat(12, minmax(0, 1fr));
+				gap: var(--spacing-2xl) var(--gutter);
+				padding-block: var(--spacing-xl) clamp(3rem, 1.5rem + 4vw, 6rem);
+				border-block-start: 1px solid var(--color-border);
+			}
+
+			.site-footer__tagline {
+				grid-column: 1 / 6;
+				max-width: 32ch;
+				font-size: var(--font-size-md);
+				line-height: var(--leading-snug);
+				color: var(--color-muted);
+			}
+
+			/* Each column is two grid columns wide, packed against the end */
+			.site-footer__cols {
+				grid-column: 7 / -1;
+				display: flex;
+				justify-content: flex-end;
+				gap: var(--spacing-2xl) var(--gutter);
+			}
+
+			.site-footer__col {
+				flex: 0 0 calc((100% - 2 * var(--gutter)) / 3);
+				min-width: 0;
+			}
+
+			.site-footer__links {
+				display: grid;
+				gap: var(--spacing-xs);
+				margin-block-start: var(--spacing-md);
+				list-style: none;
+			}
+
+			.site-footer__links a {
+				display: inline-block;
+				padding-block: 0.125rem;
+				font-size: 0.9375rem;
+				color: var(--color-text);
+				text-decoration: none;
+				text-decoration-thickness: 1px;
+				text-underline-offset: 0.3em;
+				overflow-wrap: anywhere;
+			}
+
+			.site-footer__links a:is(:hover, :focus-visible) {
+				text-decoration-line: underline;
 			}
 
 			.theme-switcher {
 				display: flex;
-				gap: var(--spacing-xs);
+				flex-wrap: wrap;
+				gap: var(--spacing-xs) var(--spacing-md);
+				margin-block-start: var(--spacing-md);
 			}
 
 			.theme-btn {
-				background: transparent;
-				border: 1px solid var(--color-border);
+				min-height: 1.75rem;
+				border: 0;
+				background: none;
+				font-family: var(--font-label);
+				font-size: var(--font-size-label);
+				letter-spacing: var(--tracking-label);
+				text-transform: uppercase;
 				color: var(--color-muted);
-				font-family: var(--font-body);
-				font-size: var(--font-size-sm);
-				padding: var(--spacing-xs) var(--spacing-sm);
-				border-radius: var(--radius);
+				text-decoration-thickness: 1px;
+				text-underline-offset: 0.4em;
 				cursor: pointer;
-				transition: all var(--transition-fast);
+				transition: color var(--transition-fast);
 			}
 
-			.theme-btn:hover {
+			.theme-btn:is(:hover, :focus-visible) {
 				color: var(--color-text);
-				border-color: var(--color-text);
 			}
 
 			.theme-btn.active {
-				background: var(--color-surface);
 				color: var(--color-text);
-				border-color: var(--color-brand);
+				text-decoration-line: underline;
 			}
 
-			.footer-powered {
-				font-size: var(--font-size-sm);
-				color: var(--color-muted);
+			/*
+			 * Sized from the title's letter count to fill the frame. At this
+			 * line height the text's hit area reaches up over the links above.
+			 */
+			.site-footer__wordmark {
+				container-type: inline-size;
+				pointer-events: none;
 			}
 
-			.footer-powered a {
+			/* The negative margin lines the first letter's stem up with the frame edge */
+			.site-footer__wordmark span {
+				display: block;
+				margin-inline-start: -0.04em;
+				padding-block-end: calc(0.2em + var(--spacing-sm));
+				font-family: var(--font-heading);
+				font-size: calc(100cqi / (max(var(--chars), 5) * var(--wordmark-fit)));
+				font-weight: var(--font-weight-wordmark);
+				line-height: 0.8;
+				letter-spacing: -0.045em;
+				white-space: nowrap;
 				color: var(--color-text);
-				text-decoration: none;
 			}
 
-			.footer-powered a:hover {
-				text-decoration: underline;
+			.site-footer__bottom {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: baseline;
+				justify-content: space-between;
+				gap: var(--spacing-xs) var(--spacing-xl);
+				padding-block: var(--spacing-md) var(--spacing-xl);
+				border-block-start: 1px solid var(--color-border);
 			}
 
-			@media (max-width: 640px) {
-				.nav {
-					flex-direction: column;
-					gap: var(--spacing-md);
-					align-items: center;
-				}
+			.site-footer__bottom a {
+				display: inline-block;
+				padding-block: 0.25rem;
+				color: var(--color-text);
+				text-decoration-color: var(--color-border-strong);
+			}
 
-				.nav-links {
-					flex-wrap: wrap;
-					justify-content: center;
-				}
+			.site-footer__bottom a:is(:hover, :focus-visible) {
+				text-decoration-color: currentColor;
+			}
 
-				.footer-content {
-					flex-direction: column;
-					gap: var(--spacing-xl);
-					align-items: center;
-					text-align: center;
-				}
-
-				.footer-right {
-					align-items: center;
-				}
-
-				h1 {
-					font-size: var(--font-size-3xl);
+			@media (forced-colors: active) {
+				.site-nav a[aria-current="page"],
+				.theme-btn.active {
+					text-decoration-thickness: 2px;
 				}
 			}
 
-			@media (prefers-reduced-motion: reduce) {
-				html {
-					scroll-behavior: auto;
+			@media (max-width: 1023px) {
+				.site-footer__grid {
+					grid-template-columns: repeat(2, minmax(0, 1fr));
 				}
 
-				*,
-				*::before,
-				*::after {
-					animation-duration: 0.01ms !important;
-					animation-iteration-count: 1 !important;
-					transition-duration: 0.01ms !important;
+				.site-footer__tagline,
+				.site-footer__cols {
+					grid-column: 1 / -1;
+				}
+
+				.site-footer__cols {
+					display: grid;
+					grid-template-columns: subgrid;
+				}
+
+				.site-footer__col:nth-child(3) {
+					grid-column: 1 / -1;
+				}
+			}
+
+			@media (max-width: 359px) {
+				.site-footer__grid {
+					grid-template-columns: minmax(0, 1fr);
 				}
 			}
 		</style>

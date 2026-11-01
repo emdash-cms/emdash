@@ -49,7 +49,7 @@ function ensureTestAssets(): string {
 async function uploadTestImage(page: Page, filename?: string) {
 	const testImagePath = ensureTestAssets();
 	await page.getByRole("button", { name: UPLOAD_BUTTON_REGEX }).first().click();
-	const dialog = page.getByRole("dialog");
+	const dialog = page.getByRole("dialog", { name: "Upload to Library" });
 	await expect(dialog).toBeVisible();
 
 	const uploadResponse = page.waitForResponse(
@@ -929,6 +929,59 @@ test.describe("Media Library", () => {
 		await page
 			.context()
 			.addCookies([{ name: "emdash-locale", value: "en", domain: "localhost", path: "/_emdash" }]);
+	});
+
+	test("uploads duplicate files into the browsed folder without moving the Main original", async ({
+		admin,
+		page,
+		serverInfo,
+	}) => {
+		test.setTimeout(90_000);
+		const marker = Date.now();
+		const filename = `folder-upload-${marker}.png`;
+		const folderName = `Upload destination ${marker}`;
+		const buffer = Buffer.concat([readFileSync(ensureTestAssets()), Buffer.from(filename)]);
+		await admin.goToMedia();
+		await admin.waitForLoading();
+		await uploadTestImage(page, filename);
+		const original = await findMediaByFilename(serverInfo, filename);
+		await createFolder(page, folderName);
+		await page.getByRole("link", { name: `Open folder ${folderName}` }).click();
+		await expect(page.getByRole("heading", { name: "This folder is empty" })).toBeVisible();
+		const folderId = new URL(page.url()).searchParams.get("folder")!;
+		await uploadTestImage(page, filename);
+		const list = (destination: string) =>
+			apiJson<{ items: Array<{ id: string; folderId: string | null }> }>(
+				serverInfo,
+				`/_emdash/api/media?folderId=${destination}&q=${filename}&limit=100`,
+			);
+		const folderAfterLibrary = await list(folderId);
+		expect(folderAfterLibrary.items).toHaveLength(1);
+		expect(folderAfterLibrary.items[0]).toMatchObject({ folderId });
+		expect(folderAfterLibrary.items[0]!.id).not.toBe(original.id);
+
+		await admin.goto("/content/posts/new");
+		await admin.waitForShell();
+		await admin.waitForLoading();
+		await page.getByRole("button", { name: /browse for Featured Image/i }).click();
+		const picker = page.getByRole("dialog", { name: "Select Featured Image" });
+		await picker.getByRole("button", { name: `Open folder ${folderName}` }).click();
+		await picker.getByLabel("Choose files to upload").setInputFiles({
+			name: filename,
+			mimeType: "image/png",
+			buffer,
+		});
+		await expect(
+			picker.locator('button[aria-pressed="true"]').filter({ hasText: filename }),
+		).toBeVisible();
+		await expect(picker.getByRole("button", { name: "Select", exact: true })).toBeEnabled();
+		const folderAfterPicker = await list(folderId);
+		expect(folderAfterPicker.items).toHaveLength(2);
+		expect(new Set(folderAfterPicker.items.map((item) => item.id)).size).toBe(2);
+		expect(folderAfterPicker.items.every((item) => item.folderId === folderId)).toBe(true);
+		const main = await list("unfiled");
+		expect(main.items).toHaveLength(1);
+		expect(main.items[0]).toMatchObject({ id: original.id, folderId: null });
 	});
 
 	test("keeps media intact while organizing it in folders", async ({ admin, page }) => {

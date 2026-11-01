@@ -120,6 +120,8 @@ describe("runtime plugin test host", () => {
 			isolateId: string;
 		};
 		await runtimeHost.fixtures.plugin.kv("restart-proof", { persisted: true });
+		await runtimeHost.fixtures.plugin.kv("null-value", null);
+		await runtimeHost.fixtures.plugin.setting("apiKey", "setting-value");
 		const uploaded = await runtimeHost.actions.media.upload({
 			filename: "restart.png",
 			contentType: "image/png",
@@ -136,6 +138,12 @@ describe("runtime plugin test host", () => {
 			id: contentId,
 		});
 		await expect(runtimeHost.inspect.kv.get("restart-proof")).resolves.toEqual({ persisted: true });
+		await expect(runtimeHost.inspect.kv.list()).resolves.toContainEqual({
+			id: "null-value",
+			data: null,
+		});
+		await expect(runtimeHost.inspect.kv.get("settings:apiKey")).resolves.toBeNull();
+		await expect(runtimeHost.inspect.settings.raw("apiKey")).resolves.toBe("setting-value");
 		await expect(runtimeHost.inspect.media(uploaded.data.item.id)).resolves.toMatchObject({
 			success: true,
 			data: { item: { filename: "checked-restart.png" } },
@@ -688,7 +696,7 @@ describe("runtime plugin test host", () => {
 			runtimeHost.inspect.storage
 				.list<{ type: string }>("lifecycle")
 				.then((entries) => entries.map((entry) => entry.data.type)),
-		).resolves.toEqual(["deactivate", "activate"]);
+		).resolves.toEqual(["install", "activate", "deactivate", "activate"]);
 
 		const media = await runtimeHost.actions.media.upload({
 			filename: "pixel.png",

@@ -128,14 +128,39 @@ describeEachDialect("content validation issues", (dialect) => {
 			}),
 			expect.objectContaining({ path: "website", code: "invalid_format", format: "url" }),
 			expect.objectContaining({ path: "body.0._type", code: "invalid_type" }),
-			expect.objectContaining({ path: "stops.0.name", code: "required" }),
-			expect.objectContaining({ path: "stops.1", code: "invalid_type" }),
 			expect.objectContaining({ path: "stops", code: "too_big", origin: "array", maximum: 1 }),
 			{
 				path: "related",
 				code: "reference_not_found",
 				message: "target 'missing' not found in collection 'posts'",
 			},
+		]);
+	});
+
+	it.each([
+		{ stops: [{ name: "" }], path: "stops.0.name", code: "required" },
+		{ stops: [null], path: "stops.0", code: "invalid_type" },
+	])("reports $code at $path within the repeater row limit", async ({ stops, path, code }) => {
+		const result = await runtime.handleContentCreate("posts", {
+			data: { ...VALID, stops },
+		});
+
+		expect(result.success).toBe(false);
+		if (result.success) return;
+		expect(result.error.code).toBe("VALIDATION_ERROR");
+		expect(issuesOf(result.error)).toEqual([expect.objectContaining({ path, code })]);
+	});
+
+	it("rejects an oversized repeater without reporting errors for its rows", async () => {
+		const result = await runtime.handleContentCreate("posts", {
+			data: { ...VALID, stops: [{ name: "" }, null] },
+		});
+
+		expect(result.success).toBe(false);
+		if (result.success) return;
+		expect(result.error.code).toBe("VALIDATION_ERROR");
+		expect(issuesOf(result.error)).toEqual([
+			expect.objectContaining({ path: "stops", code: "too_big", origin: "array", maximum: 1 }),
 		]);
 	});
 

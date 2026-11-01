@@ -1,0 +1,86 @@
+---
+import type { BlockComponentProps } from "emdash/ui";
+import type { PageLayoutBlock } from "../../../emdash-env";
+
+type ClientsBlock = Extract<PageLayoutBlock, { _type: "portfolio_clients" }>;
+type Props = BlockComponentProps<ClientsBlock>;
+
+const { value, blockKey } = Astro.props;
+const headingId = `${encodeURIComponent(blockKey)}-heading`;
+const clients = [
+	...new Set(value.clients.map((client) => client.name.trim()).filter(Boolean)),
+];
+---
+
+{
+	clients.length > 0 && (
+		<section class="frame" aria-labelledby={headingId}>
+			<div class="clients">
+				<h2 class="label clients__heading" id={headingId}>
+					{value.heading}
+				</h2>
+				<ul class="clients__list" role="list">
+					{clients.map((client) => (
+						<li>{client}</li>
+					))}
+				</ul>
+			</div>
+		</section>
+	)
+}
+
+<style>
+	.clients {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		row-gap: var(--spacing-md);
+		padding-block-start: var(--spacing-md);
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	.clients__list {
+		list-style: none;
+		font-size: var(--font-size-2xl);
+		font-weight: var(--font-weight-heading);
+		line-height: var(--leading-snug);
+		letter-spacing: var(--tracking-tight);
+		overflow-wrap: anywhere;
+	}
+
+	/* Inline blocks keep each name, and the slash after it, on one line */
+	.clients__list li {
+		display: inline-block;
+		max-width: 100%;
+		margin-inline-end: 0.25em;
+	}
+
+	.clients__list li:not(:last-child)::after {
+		content: "\00a0/";
+		content: "\00a0/" / "";
+		color: var(--color-muted);
+	}
+
+	@media (min-width: 768px) {
+		.clients {
+			grid-template-columns: repeat(12, minmax(0, 1fr));
+			column-gap: var(--gutter);
+			align-items: baseline;
+		}
+
+		/*
+		 * The heading shares the first baseline of the large text beside it;
+		 * lifting it by the difference in cap heights lines up their tops.
+		 */
+		.clients__heading {
+			grid-column: 1 / span 3;
+			position: relative;
+			inset-block-start: calc(
+				(var(--font-size-label) - var(--font-size-2xl)) * 0.7
+			);
+		}
+
+		.clients__list {
+			grid-column: 4 / -1;
+		}
+	}
+</style>

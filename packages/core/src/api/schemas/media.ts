@@ -130,6 +130,14 @@ export function mediaUploadUrlBody(maxSize: number) {
 				.max(maxSize, `File size must not exceed ${formatFileSize(maxSize)}`),
 			contentHash: z.string().optional(),
 			fieldId: z.string().optional(),
+			blockType: z.string().optional().describe("Block type slug for a composite block fieldId"),
+			blockVersion: z
+				.number()
+				.int()
+				.positive()
+				.max(Number.MAX_SAFE_INTEGER)
+				.optional()
+				.describe("Retained block version containing the nested media field"),
 			deduplicate: z.boolean().optional(),
 			ensureUniqueFilename: z.boolean().optional(),
 			folderId: mediaFolderIdSchema.nullable().optional(),
@@ -173,6 +181,8 @@ export const mediaDirectUploadBody = z
 		height: z.string().optional(),
 		thumbnail: binaryFileSchema.optional(),
 		fieldId: z.string().optional(),
+		blockType: z.string().optional().describe("Block type slug for a composite block fieldId"),
+		blockVersion: z.string().optional().describe("Retained block version number as a string"),
 		deduplicate: z.enum(["true", "false"]).optional(),
 		ensureUniqueFilename: z.enum(["true", "false"]).optional(),
 		folderId: z.union([mediaFolderIdSchema, z.literal("unfiled")]).optional(),

@@ -3,8 +3,8 @@ import {
 	Button,
 	Checkbox,
 	DatePicker,
-	Dialog,
-	LinkButton,
+	DropdownMenu,
+	LayerDialog,
 	Loader,
 	Popover,
 	Select,
@@ -19,6 +19,7 @@ import {
 	Trash,
 	ArrowCounterClockwise,
 	ArrowSquareOut,
+	ArrowsDownUp,
 	Calendar,
 	Copy,
 	CaretUp,
@@ -45,6 +46,7 @@ import {
 	resolveContentListColumns,
 	type ResolvedContentListColumn,
 } from "../lib/content-list-columns.js";
+import { useConfirmedRequest } from "../lib/dialog-form.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { inlineLabel } from "../lib/inline-label.js";
@@ -61,11 +63,21 @@ import {
 	isBylineFilterActive,
 	type BylineFilterState,
 } from "./BylineFilter.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 import {
 	ContentStatusBadge,
 	ContentStatusLabel,
 	isContentStatusState,
 } from "./ContentStatusBadge.js";
+import {
+	DataTable,
+	DataTableBulkBar,
+	DataTableMessage,
+	RowActionsMenu,
+	RowMeta,
+	rowTitleClassName,
+	tertiaryColumn,
+} from "./DataTable.js";
 import { ListPaginationFooter, type ListPagination } from "./ListPaginationFooter.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
@@ -107,6 +119,8 @@ export interface ContentDateFilter {
 /** An empty (inactive) date filter, defaulting to the created-at column. */
 export const EMPTY_DATE_FILTER: ContentDateFilter = { field: "createdAt", from: "", to: "" };
 
+type RowRequest = (id: string) => Promise<unknown> | void;
+
 export interface ContentListProps {
 	collection: string;
 	collectionLabel: string;
@@ -116,12 +130,14 @@ export interface ContentListProps {
 	trashedItems?: TrashedContentItem[];
 	isLoading?: boolean;
 	isTrashedLoading?: boolean;
-	onDelete?: (id: string) => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDelete?: RowRequest;
 	onDuplicate?: (id: string) => void;
 	/** Whether to offer Duplicate on an entry's row. Offered on every row when omitted. */
 	canDuplicate?: (item: ContentItem) => boolean;
 	onRestore?: (id: string) => void;
-	onPermanentDelete?: (id: string) => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onPermanentDelete?: RowRequest;
 	onLoadMore?: () => void;
 	onLoadMoreTrashed?: () => void;
 	hasMore?: boolean;
@@ -443,15 +459,15 @@ export function ContentList({
 		});
 	};
 	const deleteRow = onDelete
-		? (id: string) => {
-				setSelectedIds((prev) => {
-					if (!prev.has(id)) return prev;
-					const next = new Set(prev);
-					next.delete(id);
-					return next;
-				});
-				onDelete(id);
-			}
+		? (id: string) =>
+				Promise.resolve(onDelete(id)).then(() =>
+					setSelectedIds((prev) => {
+						if (!prev.has(id)) return prev;
+						const next = new Set(prev);
+						next.delete(id);
+						return next;
+					}),
+				)
 		: undefined;
 	const selectedCount = selectedIds.size;
 	const extensionColumns = React.useMemo(
@@ -459,6 +475,7 @@ export function ContentList({
 		[collection, pluginAdmins, pluginStates, userRole],
 	);
 	const [bulkBusy, setBulkBusy] = React.useState(false);
+	const [bulkTrashOpen, setBulkTrashOpen] = React.useState(false);
 	const runBulk = (fn?: BulkActionHandler) => {
 		if (!fn || selectedCount === 0 || bulkBusy) return;
 		const ids = [...selectedIds];
@@ -481,6 +498,14 @@ export function ContentList({
 	const colSpan =
 		(i18n ? 5 : 4) + listColumns.length + extensionColumns.length + (bulkEnabled ? 1 : 0);
 	const trashColSpan = i18n ? 4 : 3;
+	const titleSortField = titleField ?? "title";
+	const dateSortField = dateField ?? "updatedAt";
+	const sortFields: SortFieldOption[] = [
+		{ field: titleSortField, label: t`Title` },
+		{ field: "status", label: t`Status` },
+		...(i18n ? [{ field: "locale", label: t`Locale` }] : []),
+		{ field: dateSortField, label: t`Date` },
+	];
 	const tabPagination = activeTab === "all" ? pagination : trashPagination;
 	const showPaginationFooter = !!tabPagination && tabPagination.totalCount > 0;
 
@@ -493,8 +518,8 @@ export function ContentList({
 			}
 		>
 			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-4">
+			<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+				<div className="flex min-w-0 items-center gap-4">
 					<h1 className="text-2xl font-semibold leading-tight">{collectionLabel}</h1>
 					{i18n && activeLocale && onLocaleChange && (
 						<LocaleSwitcher
@@ -570,125 +595,109 @@ export function ContentList({
 
 					{/* Bulk action toolbar — appears once one or more rows are selected */}
 					{bulkEnabled && selectedCount > 0 && (
-						<div className="flex flex-wrap items-center gap-3 rounded-md border bg-kumo-tint/40 px-4 py-2">
-							<span className="text-sm font-medium">
-								{bulkBusy
-									? t`Working on ${selectedCount} items…`
-									: plural(selectedCount, { one: "# selected", other: "# selected" })}
-							</span>
-							<div className="flex flex-wrap items-center gap-2">
-								{onBulkPublish && (
-									<Button
-										size="sm"
-										variant="secondary"
-										disabled={bulkBusy}
-										onClick={() => runBulk(onBulkPublish)}
-										icon={<Upload />}
-									>
-										{t`Publish`}
-									</Button>
-								)}
-								{onBulkUnpublish && (
-									<Button
-										size="sm"
-										variant="secondary"
-										disabled={bulkBusy}
-										onClick={() => runBulk(onBulkUnpublish)}
-										icon={<CircleDashed aria-hidden="true" />}
-									>
-										{t`Set to draft`}
-									</Button>
-								)}
-								{bulkTagEnabled && (
-									<Button
-										size="sm"
-										variant="secondary"
-										disabled={bulkBusy || selectedCount > 50}
-										icon={<Tag aria-hidden="true" />}
-										onClick={() => {
-											setBulkTagSelection(
-												Array.from(selectedIds, (id) => {
-													const item =
-														items.find((candidate) => candidate.id === id) ??
-														selectedRowsRef.current.get(id);
-													return {
-														collection,
-														id,
-														title: item ? getEntryTitle(item, titleField) : id,
-														locale: item?.locale,
-													};
-												}),
-											);
-											setBulkTagOpen(true);
-										}}
-									>
-										{soleBulkTagTaxonomy
-											? t`Add ${inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)}`
-											: t`Add term`}
-									</Button>
-								)}
-								{bulkTagEnabled && selectedCount > 50 && (
-									<span role="status" className="text-sm text-kumo-danger">
-										{t`Select up to 50 posts at a time.`}
-									</span>
-								)}
-								{onBulkDelete && (
-									<Dialog.Root disablePointerDismissal>
-										<Dialog.Trigger
-											render={(p) => (
-												<Button
-													{...p}
-													size="sm"
-													variant="destructive"
-													icon={<Trash />}
-													disabled={bulkBusy}
-												>
-													{t`Move to trash`}
-												</Button>
-											)}
-										/>
-										<Dialog className="p-6" size="sm">
-											<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-											<Dialog.Description className="text-kumo-subtle">
-												{plural(selectedCount, {
-													one: "Move # item to trash? You can restore it later.",
-													other: "Move # items to trash? You can restore them later.",
-												})}
-											</Dialog.Description>
-											<div className="mt-6 flex justify-end gap-2">
-												<Dialog.Close
-													render={(p) => (
-														<Button {...p} variant="secondary">
-															{t`Cancel`}
-														</Button>
-													)}
-												/>
-												<Dialog.Close
-													render={(p) => (
-														<Button
-															{...p}
-															variant="destructive"
-															onClick={() => runBulk(onBulkDelete)}
-														>
-															{t`Move to Trash`}
-														</Button>
-													)}
-												/>
-											</div>
-										</Dialog>
-									</Dialog.Root>
-								)}
+						<DataTableBulkBar
+							selectedCount={selectedCount}
+							busy={bulkBusy}
+							onClear={clearSelection}
+						>
+							{onBulkPublish && (
 								<Button
 									size="sm"
-									variant="ghost"
-									icon={<X />}
+									variant="secondary"
 									disabled={bulkBusy}
-									onClick={clearSelection}
+									onClick={() => runBulk(onBulkPublish)}
+									icon={<Upload />}
 								>
-									{t`Clear`}
+									{t`Publish`}
 								</Button>
-							</div>
-						</div>
+							)}
+							{onBulkUnpublish && (
+								<Button
+									size="sm"
+									variant="secondary"
+									disabled={bulkBusy}
+									onClick={() => runBulk(onBulkUnpublish)}
+									icon={<CircleDashed aria-hidden="true" />}
+								>
+									{t`Set to draft`}
+								</Button>
+							)}
+							{bulkTagEnabled && (
+								<Button
+									size="sm"
+									variant="secondary"
+									disabled={bulkBusy || selectedCount > 50}
+									icon={<Tag aria-hidden="true" />}
+									onClick={() => {
+										setBulkTagSelection(
+											Array.from(selectedIds, (id) => {
+												const item =
+													items.find((candidate) => candidate.id === id) ??
+													selectedRowsRef.current.get(id);
+												return {
+													collection,
+													id,
+													title: item ? getEntryTitle(item, titleField) : id,
+													locale: item?.locale,
+												};
+											}),
+										);
+										setBulkTagOpen(true);
+									}}
+								>
+									{soleBulkTagTaxonomy
+										? t`Add ${inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)}`
+										: t`Add term`}
+								</Button>
+							)}
+							{bulkTagEnabled && selectedCount > 50 && (
+								<span role="status" className="text-sm text-kumo-danger">
+									{t`Select up to 50 posts at a time.`}
+								</span>
+							)}
+							{onBulkDelete && (
+								<LayerDialog.Root
+									open={bulkTrashOpen}
+									onOpenChange={setBulkTrashOpen}
+									disablePointerDismissal
+								>
+									<LayerDialog.Trigger
+										render={(p) => (
+											<Button
+												{...p}
+												size="sm"
+												variant="destructive"
+												icon={<Trash />}
+												disabled={bulkBusy}
+											>
+												{t`Move to trash`}
+											</Button>
+										)}
+									/>
+									<LayerDialog.Content size="sm">
+										<LayerDialog.Title>{t`Move to Trash?`}</LayerDialog.Title>
+										<LayerDialog.Description>
+											{plural(selectedCount, {
+												one: "Move # item to trash? You can restore it later.",
+												other: "Move # items to trash? You can restore them later.",
+											})}
+										</LayerDialog.Description>
+										<LayerDialog.Body>{null}</LayerDialog.Body>
+										<LayerDialog.Actions dismissLabel={t`Cancel`}>
+											<LayerDialog.Action
+												variant="destructive"
+												onClick={() => {
+													setBulkTrashOpen(false);
+													runBulk(onBulkDelete);
+												}}
+											>
+												{t`Move to Trash`}
+											</LayerDialog.Action>
+										</LayerDialog.Actions>
+									</LayerDialog.Content>
+								</LayerDialog.Root>
+							)}
+						</DataTableBulkBar>
 					)}
 					<BulkTagDialog
 						taxonomies={bulkTagTaxonomies}
@@ -713,137 +722,132 @@ export function ContentList({
 					/>
 
 					{/* Table */}
-					<div className="rounded-md border bg-kumo-base overflow-x-auto">
-						<table className="w-full" aria-busy={pagination?.isPending || undefined}>
-							<thead>
-								<tr className="border-b bg-kumo-tint/50">
-									{bulkEnabled && (
-										<th
-											scope="col"
-											className="w-10 px-4 py-3"
-											inert={pagination?.isPending || undefined}
-										>
-											<Checkbox
-												checked={allPageSelected}
-												onCheckedChange={togglePage}
-												aria-label={t`Select all on this page`}
-											/>
-										</th>
-									)}
-									{/* The Title/Date columns sort by the collection's configured
-									    titleField/dateField when set */}
-									<SortableTh
-										field={titleField ?? "title"}
-										sort={sort}
-										onSortChange={onSortChange}
-										label={t`Title`}
-									/>
-									{listColumns.map((column) => (
-										<th
-											key={column.slug}
-											scope="col"
-											className="px-4 py-3 text-start text-sm font-medium"
-										>
-											{column.label}
-										</th>
-									))}
-									<SortableTh
-										field="status"
-										sort={sort}
-										onSortChange={onSortChange}
-										label={t`Status`}
-									/>
-									{i18n && (
-										<SortableTh
-											field="locale"
-											sort={sort}
-											onSortChange={onSortChange}
-											label={t`Locale`}
+					<DataTable aria-busy={pagination?.isPending || undefined}>
+						<thead>
+							<tr>
+								{bulkEnabled && (
+									<th scope="col" className="w-10" inert={pagination?.isPending || undefined}>
+										<Checkbox
+											checked={allPageSelected}
+											onCheckedChange={togglePage}
+											aria-label={t`Select all on this page`}
 										/>
-									)}
-									<SortableTh
-										field={dateField ?? "updatedAt"}
-										sort={sort}
-										onSortChange={onSortChange}
-										label={t`Date`}
-									/>
-									{extensionColumns.map((column) => (
-										<ExtensionColumnHeader
-											key={`${column.pluginId}:${column.extension.id}`}
-											column={column}
-											collection={collection}
-											locale={activeLocale}
-										/>
-									))}
-									<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
-										{t`Actions`}
 									</th>
-								</tr>
-							</thead>
-							<tbody
-								className="divide-y divide-kumo-line"
-								inert={pagination?.isPending || undefined}
-							>
-								{items.length === 0 && (isLoading || pagination?.isPending) ? (
-									<tr>
-										<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
-											<span className="inline-flex items-center gap-2">
-												<Loader size="sm" />
-												{t`Loading...`}
-											</span>
-										</td>
-									</tr>
-								) : items.length === 0 ? (
-									<tr>
-										<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
-											{activeSearch ? (
-												t`No results for "${activeSearch}"`
-											) : (
-												<>
-													{t`No ${inlineLabel(collectionLabel, lingui.locale)} yet.`}{" "}
-													<Link
-														to="/content/$collection/new"
-														params={{ collection }}
-														search={{ locale: activeLocale }}
-														className="text-kumo-link underline"
-													>
-														{t`Create your first one`}
-													</Link>
-												</>
-											)}
-										</td>
-									</tr>
-								) : paginatedItems.length === 0 ? (
-									<tr>
-										<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`No results for "${activeSearch}"`}
-										</td>
-									</tr>
-								) : (
-									paginatedItems.map((item) => (
-										<ContentListItem
-											key={item.id}
-											item={item}
-											visibleItems={paginatedItems}
-											collection={collection}
-											onDelete={deleteRow}
-											onDuplicate={!canDuplicate || canDuplicate(item) ? onDuplicate : undefined}
-											showLocale={!!i18n}
-											i18n={i18n}
-											urlPattern={urlPattern}
-											titleField={titleField}
-											dateField={dateField}
-											listColumns={listColumns}
-											selectable={bulkEnabled}
-											selected={selectedIds.has(item.id)}
-											onToggleSelect={toggleOne}
-											extensionColumns={extensionColumns}
-										/>
-									))
 								)}
-							</tbody>
-						</table>
-					</div>
+								{/* The Title/Date columns sort by the collection's configured
+								    titleField/dateField when set */}
+								<SortableTh
+									field={titleSortField}
+									sort={sort}
+									onSortChange={onSortChange}
+									label={t`Title`}
+								/>
+								{listColumns.map((column) => (
+									<th key={column.slug} scope="col" {...tertiaryColumn}>
+										{column.label}
+									</th>
+								))}
+								<SortableTh
+									field="status"
+									sort={sort}
+									onSortChange={onSortChange}
+									label={t`Status`}
+									{...tertiaryColumn}
+								/>
+								{i18n && (
+									<SortableTh
+										field="locale"
+										sort={sort}
+										onSortChange={onSortChange}
+										label={t`Locale`}
+										{...tertiaryColumn}
+									/>
+								)}
+								<SortableTh
+									field={dateSortField}
+									sort={sort}
+									onSortChange={onSortChange}
+									label={t`Date`}
+									{...tertiaryColumn}
+								/>
+								{extensionColumns.map((column) => (
+									<ExtensionColumnHeader
+										key={`${column.pluginId}:${column.extension.id}`}
+										column={column}
+										collection={collection}
+										locale={activeLocale}
+										{...tertiaryColumn}
+									/>
+								))}
+								<th scope="col" className="w-0" aria-label={t`Actions`}>
+									{onSortChange && (
+										// The negative margin keeps the header row as tall as a line of header text.
+										<div className="-my-0.75 @2xl:hidden">
+											<SortMenu
+												fields={sortFields}
+												sort={sort}
+												onSortChange={onSortChange}
+												defaultField={dateSortField}
+											/>
+										</div>
+									)}
+								</th>
+							</tr>
+						</thead>
+						<tbody inert={pagination?.isPending || undefined}>
+							{items.length === 0 && (isLoading || pagination?.isPending) ? (
+								<DataTableMessage colSpan={colSpan}>
+									<span className="inline-flex items-center gap-2">
+										<Loader size="sm" />
+										{t`Loading...`}
+									</span>
+								</DataTableMessage>
+							) : items.length === 0 ? (
+								<DataTableMessage colSpan={colSpan}>
+									{activeSearch ? (
+										t`No results for "${activeSearch}"`
+									) : (
+										<>
+											{t`No ${inlineLabel(collectionLabel, lingui.locale)} yet.`}{" "}
+											<Link
+												to="/content/$collection/new"
+												params={{ collection }}
+												search={{ locale: activeLocale }}
+												className="text-kumo-link underline"
+											>
+												{t`Create your first one`}
+											</Link>
+										</>
+									)}
+								</DataTableMessage>
+							) : paginatedItems.length === 0 ? (
+								<DataTableMessage colSpan={colSpan}>
+									{t`No results for "${activeSearch}"`}
+								</DataTableMessage>
+							) : (
+								paginatedItems.map((item) => (
+									<ContentListItem
+										key={item.id}
+										item={item}
+										visibleItems={paginatedItems}
+										collection={collection}
+										onDelete={deleteRow}
+										onDuplicate={!canDuplicate || canDuplicate(item) ? onDuplicate : undefined}
+										showLocale={!!i18n}
+										i18n={i18n}
+										urlPattern={urlPattern}
+										titleField={titleField}
+										dateField={dateField}
+										listColumns={listColumns}
+										selectable={bulkEnabled}
+										selected={selectedIds.has(item.id)}
+										onToggleSelect={toggleOne}
+										extensionColumns={extensionColumns}
+									/>
+								))
+							)}
+						</tbody>
+					</DataTable>
 
 					{/* Pagination */}
 					{!pagination && totalPages > 1 && (
@@ -904,60 +908,47 @@ export function ContentList({
 			) : (
 				<>
 					{/* Trash Table */}
-					<div className="rounded-md border bg-kumo-base overflow-x-auto">
-						<table className="w-full" aria-busy={trashPagination?.isPending || undefined}>
-							<thead>
-								<tr className="border-b bg-kumo-tint/50">
-									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-										{t`Title`}
+					<DataTable aria-busy={trashPagination?.isPending || undefined}>
+						<thead>
+							<tr>
+								<th scope="col">{t`Title`}</th>
+								{i18n && (
+									<th scope="col" {...tertiaryColumn}>
+										{t`Locale`}
 									</th>
-									{i18n && (
-										<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-											{t`Locale`}
-										</th>
-									)}
-									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-										{t`Deleted`}
-									</th>
-									<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
-										{t`Actions`}
-									</th>
-								</tr>
-							</thead>
-							<tbody
-								className="divide-y divide-kumo-line"
-								inert={trashPagination?.isPending || undefined}
-							>
-								{trashedItems.length === 0 && (isTrashedLoading || trashPagination?.isPending) ? (
-									<tr>
-										<td colSpan={trashColSpan} className="px-4 py-8 text-center text-kumo-subtle">
-											<span className="inline-flex items-center gap-2">
-												<Loader size="sm" />
-												{t`Loading...`}
-											</span>
-										</td>
-									</tr>
-								) : trashedItems.length === 0 ? (
-									<tr>
-										<td colSpan={trashColSpan} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`Trash is empty`}
-										</td>
-									</tr>
-								) : (
-									trashedItems.map((item) => (
-										<TrashedListItem
-											key={item.id}
-											item={item}
-											titleField={titleField}
-											showLocale={!!i18n}
-											onRestore={onRestore}
-											onPermanentDelete={onPermanentDelete}
-										/>
-									))
 								)}
-							</tbody>
-						</table>
-					</div>
+								<th scope="col" {...tertiaryColumn}>
+									{t`Deleted`}
+								</th>
+								<th scope="col" className="w-0">
+									<span className="sr-only">{t`Actions`}</span>
+								</th>
+							</tr>
+						</thead>
+						<tbody inert={trashPagination?.isPending || undefined}>
+							{trashedItems.length === 0 && (isTrashedLoading || trashPagination?.isPending) ? (
+								<DataTableMessage colSpan={trashColSpan}>
+									<span className="inline-flex items-center gap-2">
+										<Loader size="sm" />
+										{t`Loading...`}
+									</span>
+								</DataTableMessage>
+							) : trashedItems.length === 0 ? (
+								<DataTableMessage colSpan={trashColSpan}>{t`Trash is empty`}</DataTableMessage>
+							) : (
+								trashedItems.map((item) => (
+									<TrashedListItem
+										key={item.id}
+										item={item}
+										titleField={titleField}
+										showLocale={!!i18n}
+										onRestore={onRestore}
+										onPermanentDelete={onPermanentDelete}
+									/>
+								))
+							)}
+						</tbody>
+					</DataTable>
 
 					{/* Load more trashed */}
 					{!trashPagination && hasMoreTrashed && (
@@ -1237,7 +1228,7 @@ function DateRangeFilter({
 	);
 }
 
-interface SortableThProps {
+interface SortableThProps extends React.ComponentProps<"th"> {
 	field: ContentListSortField;
 	sort: ContentListSort | undefined;
 	onSortChange: ((sort: ContentListSort) => void) | undefined;
@@ -1255,13 +1246,13 @@ interface SortableThProps {
  * automatically. Adding a verbose aria-label would make each header re-read
  * the sort instruction on every focus, which is noisy.
  */
-function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
+function SortableTh({ field, sort, onSortChange, label, ...props }: SortableThProps) {
 	const isActive = sort?.field === field;
 	const direction = isActive ? sort?.direction : undefined;
 
 	if (!onSortChange) {
 		return (
-			<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
+			<th scope="col" {...props}>
 				{label}
 			</th>
 		);
@@ -1286,29 +1277,119 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 	const Icon = isActive ? (direction === "asc" ? CaretUp : CaretDown) : CaretUpDown;
 
 	return (
-		<th scope="col" aria-sort={ariaSort} className="px-4 py-3 text-start text-sm font-medium">
+		<th scope="col" aria-sort={ariaSort} {...props}>
 			<button
 				type="button"
 				onClick={handleClick}
 				className={cn(
-					"inline-flex items-center gap-1 rounded text-kumo-default hover:text-kumo-link",
+					"inline-flex items-center gap-1.5 rounded hover:text-kumo-default",
 					"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand",
 				)}
 			>
 				<span>{label}</span>
-				<Icon className="h-3 w-3" aria-hidden="true" />
+				<Icon className={cn("size-3.5", !isActive && "opacity-50")} aria-hidden="true" />
 			</button>
 		</th>
 	);
 }
 
-interface ExtensionColumnHeaderProps {
+interface SortFieldOption {
+	field: ContentListSortField;
+	label: string;
+}
+
+/** Offers the sort headers' choices while the table is too narrow to show those headers. */
+function SortMenu({
+	fields,
+	sort,
+	onSortChange,
+	defaultField,
+}: {
+	fields: SortFieldOption[];
+	sort: ContentListSort | undefined;
+	onSortChange: (sort: ContentListSort) => void;
+	defaultField: ContentListSortField;
+}) {
+	const { t } = useLingui();
+	const label = fields.find((option) => option.field === sort?.field)?.label;
+	const triggerLabel =
+		!sort || label === undefined
+			? t`Sort`
+			: sort.direction === "asc"
+				? t`Sort by ${label}, ascending`
+				: t`Sort by ${label}, descending`;
+
+	return (
+		<DropdownMenu>
+			<DropdownMenu.Trigger
+				render={
+					<Button variant="ghost" size="sm" shape="square" aria-label={triggerLabel}>
+						<ArrowsDownUp size={16} aria-hidden="true" />
+					</Button>
+				}
+			/>
+			<DropdownMenu.Content align="end">
+				<DropdownMenu.RadioGroup
+					value={sort?.field ?? null}
+					onValueChange={(field: ContentListSortField) => {
+						if (field !== sort?.field) onSortChange({ field, direction: "desc" });
+					}}
+				>
+					<DropdownMenu.Label className="text-xs text-kumo-subtle">{t`Sort by`}</DropdownMenu.Label>
+					{fields.map((option) => (
+						<DropdownMenu.RadioItem key={option.field} value={option.field}>
+							{option.label}
+							<SortMenuIndicator />
+						</DropdownMenu.RadioItem>
+					))}
+				</DropdownMenu.RadioGroup>
+				<DropdownMenu.Separator />
+				<DropdownMenu.RadioGroup
+					value={sort?.direction ?? null}
+					onValueChange={(direction: ContentListSort["direction"]) => {
+						if (direction !== sort?.direction) {
+							onSortChange({ field: sort?.field ?? defaultField, direction });
+						}
+					}}
+				>
+					<DropdownMenu.Label className="text-xs text-kumo-subtle">{t`Order`}</DropdownMenu.Label>
+					<DropdownMenu.RadioItem value="asc">
+						{t`Ascending`}
+						<SortMenuIndicator />
+					</DropdownMenu.RadioItem>
+					<DropdownMenu.RadioItem value="desc">
+						{t`Descending`}
+						<SortMenuIndicator />
+					</DropdownMenu.RadioItem>
+				</DropdownMenu.RadioGroup>
+			</DropdownMenu.Content>
+		</DropdownMenu>
+	);
+}
+
+function SortMenuIndicator() {
+	// m-0 drops Kumo's physical ml-auto, which would leave the check beside the label in
+	// right-to-left locales. Staying mounted keeps the open menu's width as the choice moves.
+	return (
+		<DropdownMenu.RadioItemIndicator
+			keepMounted
+			className="m-0 ms-auto ps-4 data-unchecked:invisible"
+		/>
+	);
+}
+
+interface ExtensionColumnHeaderProps extends React.ComponentProps<"th"> {
 	column: ResolvedContentListColumn;
 	collection: string;
 	locale?: string;
 }
 
-function ExtensionColumnHeader({ column, collection, locale }: ExtensionColumnHeaderProps) {
+function ExtensionColumnHeader({
+	column,
+	collection,
+	locale,
+	...props
+}: ExtensionColumnHeaderProps) {
 	const { i18n } = useLingui();
 	const { pluginId, extension } = column;
 	const Header = extension.header;
@@ -1318,10 +1399,8 @@ function ExtensionColumnHeader({ column, collection, locale }: ExtensionColumnHe
 		<th
 			scope="col"
 			aria-label={label}
-			className={cn(
-				"px-4 py-3 text-sm font-medium",
-				extension.align === "end" ? "text-end" : "text-start",
-			)}
+			className={extension.align === "end" ? "text-end" : "text-start"}
+			{...props}
 		>
 			<ContentListColumnBoundary
 				key={`${collection}:${locale ?? ""}:${pluginId}:${extension.id}`}
@@ -1381,7 +1460,7 @@ interface ContentListItemProps {
 	item: ContentItem;
 	visibleItems: readonly ContentItem[];
 	collection: string;
-	onDelete?: (id: string) => void;
+	onDelete?: RowRequest;
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
 	i18n?: { defaultLocale: string; locales: string[]; prefixDefaultLocale?: boolean };
@@ -1418,11 +1497,20 @@ function ContentListItem({
 	// last-updated / created date when it's unset, empty, or unparseable.
 	const customDate = dateField ? parseListDate(item.data[dateField]) : null;
 	const date = customDate ?? parseTimestamp(item.updatedAt || item.createdAt);
+	const trash = useConfirmedRequest(onDelete && (() => onDelete(item.id)));
+	const statusBadge = (
+		<StatusBadge
+			status={item.status}
+			hasPendingChanges={getDraftStatus(item) === "published_with_changes"}
+		/>
+	);
+	const localeChip = showLocale && <LocaleChip locale={item.locale} />;
+	const formattedDate = <bdi>{formatDate(date, lingui.locale)}</bdi>;
 
 	return (
-		<tr className={cn("hover:bg-kumo-tint/25", selected && "bg-kumo-tint/40")}>
+		<tr data-selected={selected || undefined}>
 			{selectable && (
-				<td className="px-4 py-3">
+				<td>
 					<Checkbox
 						checked={!!selected}
 						onCheckedChange={() => onToggleSelect?.(item.id)}
@@ -1430,44 +1518,40 @@ function ContentListItem({
 					/>
 				</td>
 			)}
-			<td className="px-4 py-3">
+			<td>
 				<Link
 					to="/content/$collection/$id"
 					params={{ collection, id: item.id }}
 					search={{ locale: item.locale }}
-					className="font-medium hover:text-kumo-link"
+					className={rowTitleClassName}
 				>
 					{title}
 				</Link>
+				<RowMeta priority="tertiary">
+					{statusBadge}
+					{localeChip}
+					{formattedDate}
+				</RowMeta>
 			</td>
 			{listColumns.map((column) => (
 				<ContentListCustomCell key={column.slug} column={column} value={item.data[column.slug]} />
 			))}
-			<td className="px-4 py-3">
-				<StatusBadge
-					status={item.status}
-					hasPendingChanges={getDraftStatus(item) === "published_with_changes"}
-				/>
-			</td>
-			{showLocale && (
-				<td className="px-4 py-3">
-					<span className="bg-kumo-tint rounded px-1.5 py-0.5 text-xs font-semibold uppercase">
-						{item.locale}
-					</span>
-				</td>
-			)}
-			<td data-testid="content-updated" className="px-4 py-3 text-sm text-kumo-subtle">
-				<bdi>{formatDate(date, lingui.locale)}</bdi>
+			<td {...tertiaryColumn}>{statusBadge}</td>
+			{showLocale && <td {...tertiaryColumn}>{localeChip}</td>}
+			<td
+				data-testid="content-updated"
+				className="whitespace-nowrap text-kumo-subtle"
+				{...tertiaryColumn}
+			>
+				{formattedDate}
 			</td>
 			{extensionColumns?.map(({ pluginId, extension }) => {
 				const Cell = extension.cell;
 				return (
 					<td
 						key={`${pluginId}:${extension.id}`}
-						className={cn(
-							"px-4 py-3 text-sm",
-							extension.align === "end" ? "text-end" : "text-start",
-						)}
+						className={extension.align === "end" ? "text-end" : "text-start"}
+						{...tertiaryColumn}
 					>
 						<ContentListColumnBoundary
 							key={`${collection}:${item.locale}:${item.id}:${pluginId}:${extension.id}`}
@@ -1485,79 +1569,61 @@ function ContentListItem({
 					</td>
 				);
 			})}
-			<td className="px-4 py-3 text-end">
-				<div className="flex items-center justify-end space-x-1">
+			<td className="text-end">
+				<RowActionsMenu label={t`Actions for ${title}`}>
+					<DropdownMenu.LinkItem
+						closeOnClick
+						icon={<Pencil className="size-4" aria-hidden="true" />}
+						render={
+							<Link
+								to="/content/$collection/$id"
+								params={{ collection, id: item.id }}
+								search={{ locale: item.locale }}
+							/>
+						}
+					>
+						{t`Edit`}
+					</DropdownMenu.LinkItem>
 					{item.status === "published" && item.slug && (
-						<LinkButton
+						<DropdownMenu.LinkItem
+							closeOnClick
+							icon={<ArrowSquareOut className="size-4" aria-hidden="true" />}
 							href={contentUrl(collection, item.slug, urlPattern, {
 								locale: item.locale,
 								i18n,
 								id: item.id,
 								date: item.publishedAt,
 							})}
-							external
-							variant="ghost"
-							shape="square"
-							aria-label={t`View published ${title}`}
-							icon={<ArrowSquareOut />}
-						/>
+							target="_blank"
+							rel="noreferrer"
+						>
+							{t`View published`}
+						</DropdownMenu.LinkItem>
 					)}
-					<RouterLinkButton
-						to="/content/$collection/$id"
-						params={{ collection, id: item.id }}
-						search={{ locale: item.locale }}
-						aria-label={t`Edit ${title}`}
-						variant="ghost"
-						shape="square"
-						icon={<Pencil />}
-					/>
 					{onDuplicate && (
-						<Button
-							variant="ghost"
-							shape="square"
-							aria-label={t`Duplicate ${title}`}
+						<DropdownMenu.Item
+							icon={<Copy className="size-4" aria-hidden="true" />}
 							onClick={() => onDuplicate(item.id)}
 						>
-							<Copy className="h-4 w-4" aria-hidden="true" />
-						</Button>
+							{t`Duplicate`}
+						</DropdownMenu.Item>
 					)}
-					<Dialog.Root disablePointerDismissal>
-						<Dialog.Trigger
-							render={(p) => (
-								<Button
-									{...p}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Move ${title} to trash`}
-								>
-									<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-							<Dialog.Description className="text-kumo-subtle">
-								{t`Move "${title}" to trash? You can restore it later.`}
-							</Dialog.Description>
-							<div className="mt-6 flex justify-end gap-2">
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="secondary">
-											{t`Cancel`}
-										</Button>
-									)}
-								/>
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="destructive" onClick={() => onDelete?.(item.id)}>
-											{t`Move to Trash`}
-										</Button>
-									)}
-								/>
-							</div>
-						</Dialog>
-					</Dialog.Root>
-				</div>
+					<DropdownMenu.Separator />
+					<DropdownMenu.Item
+						variant="danger"
+						icon={<Trash className="size-4" aria-hidden="true" />}
+						onClick={trash.show}
+					>
+						{t`Move to trash`}
+					</DropdownMenu.Item>
+				</RowActionsMenu>
+				<ConfirmDialog
+					{...trash.dialog}
+					title={t`Move to Trash?`}
+					description={t`Move "${title}" to trash? You can restore it later.`}
+					confirmLabel={t`Move to Trash`}
+					pendingLabel={t`Moving to trash...`}
+				/>
 			</td>
 		</tr>
 	);
@@ -1578,7 +1644,7 @@ function ContentListCustomCell({
 		trueLabel: t`Yes`,
 	});
 	return (
-		<td className="max-w-48 px-4 py-3 text-sm">
+		<td className="max-w-48" {...tertiaryColumn}>
 			<span className="block truncate" title={text}>
 				{text}
 			</span>
@@ -1664,7 +1730,7 @@ interface TrashedListItemProps {
 	titleField?: string;
 	showLocale?: boolean;
 	onRestore?: (id: string) => void;
-	onPermanentDelete?: (id: string) => void;
+	onPermanentDelete?: RowRequest;
 }
 
 function TrashedListItem({
@@ -1677,77 +1743,59 @@ function TrashedListItem({
 	const { t, i18n } = useLingui();
 	const title = getEntryTitle(item, titleField);
 	const deletedDate = parseTimestamp(item.deletedAt);
+	const permanentDelete = useConfirmedRequest(
+		onPermanentDelete && (() => onPermanentDelete(item.id)),
+	);
+	const localeChip = showLocale && <LocaleChip locale={item.locale} />;
+	const formattedDeletedDate = <bdi>{formatDate(deletedDate, i18n.locale)}</bdi>;
 
 	return (
-		<tr className="hover:bg-kumo-tint/25">
-			<td className="px-4 py-3">
-				<span className="font-medium text-kumo-subtle">{title}</span>
+		<tr>
+			<td>
+				<span className="font-medium text-kumo-subtle @max-2xl:wrap-anywhere">{title}</span>
+				<RowMeta priority="tertiary">
+					{localeChip}
+					{formattedDeletedDate}
+				</RowMeta>
 			</td>
-			{showLocale && (
-				<td className="px-4 py-3">
-					<span className="bg-kumo-tint rounded px-1.5 py-0.5 text-xs font-semibold uppercase">
-						{item.locale}
-					</span>
-				</td>
-			)}
-			<td className="px-4 py-3 text-sm text-kumo-subtle">
-				<bdi>{formatDate(deletedDate, i18n.locale)}</bdi>
+			{showLocale && <td {...tertiaryColumn}>{localeChip}</td>}
+			<td className="whitespace-nowrap text-kumo-subtle" {...tertiaryColumn}>
+				{formattedDeletedDate}
 			</td>
-			<td className="px-4 py-3 text-end">
-				<div className="flex items-center justify-end space-x-1">
-					<Button
-						variant="ghost"
-						shape="square"
-						aria-label={t`Restore ${title}`}
+			<td className="text-end">
+				<RowActionsMenu label={t`Actions for ${title}`}>
+					<DropdownMenu.Item
+						icon={<ArrowCounterClockwise className="size-4" aria-hidden="true" />}
 						onClick={() => onRestore?.(item.id)}
 					>
-						<ArrowCounterClockwise className="h-4 w-4 text-kumo-link" aria-hidden="true" />
-					</Button>
-					<Dialog.Root disablePointerDismissal>
-						<Dialog.Trigger
-							render={(p) => (
-								<Button
-									{...p}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Permanently delete ${title}`}
-								>
-									<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">
-								{t`Delete Permanently?`}
-							</Dialog.Title>
-							<Dialog.Description className="text-kumo-subtle">
-								{t`Permanently delete "${title}"? This cannot be undone.`}
-							</Dialog.Description>
-							<div className="mt-6 flex justify-end gap-2">
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="secondary">
-											{t`Cancel`}
-										</Button>
-									)}
-								/>
-								<Dialog.Close
-									render={(p) => (
-										<Button
-											{...p}
-											variant="destructive"
-											onClick={() => onPermanentDelete?.(item.id)}
-										>
-											{t`Delete Permanently`}
-										</Button>
-									)}
-								/>
-							</div>
-						</Dialog>
-					</Dialog.Root>
-				</div>
+						{t`Restore`}
+					</DropdownMenu.Item>
+					<DropdownMenu.Separator />
+					<DropdownMenu.Item
+						variant="danger"
+						icon={<Trash className="size-4" aria-hidden="true" />}
+						onClick={permanentDelete.show}
+					>
+						{t`Delete permanently`}
+					</DropdownMenu.Item>
+				</RowActionsMenu>
+				<ConfirmDialog
+					{...permanentDelete.dialog}
+					title={t`Delete Permanently?`}
+					description={t`Permanently delete "${title}"? This cannot be undone.`}
+					confirmLabel={t`Delete Permanently`}
+					pendingLabel={t`Deleting...`}
+				/>
 			</td>
 		</tr>
+	);
+}
+
+function LocaleChip({ locale }: { locale: string }) {
+	return (
+		<span className="bg-kumo-tint rounded px-1.5 py-0.5 text-xs font-semibold uppercase">
+			{locale}
+		</span>
 	);
 }
 
@@ -1761,7 +1809,7 @@ function StatusBadge({
 	const state = isContentStatusState(status) ? status : undefined;
 
 	return (
-		<span className="inline-flex items-center gap-1.5">
+		<span className="inline-flex flex-wrap items-center gap-1.5">
 			{state ? <ContentStatusBadge state={state} /> : <Badge variant="neutral">{status}</Badge>}
 			{hasPendingChanges && <ContentStatusBadge state="pendingChanges" />}
 		</span>
