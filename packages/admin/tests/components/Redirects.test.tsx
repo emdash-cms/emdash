@@ -427,7 +427,10 @@ describe("Redirects", () => {
 			new ApiResponseError(404, "NOT_FOUND", 'Redirect "redirect-1" not found'),
 		);
 		const screen = await render(<Redirects />);
-		await screen.getByRole("button", { name: "Delete redirect /source-1", exact: true }).click();
+		await screen
+			.getByRole("button", { name: "Actions for redirect /source-1", exact: true })
+			.click();
+		await screen.getByRole("menuitem", { name: "Delete redirect /source-1", exact: true }).click();
 		const confirm = screen.getByRole("dialog", { name: "Delete Redirect?" });
 		await confirm.getByRole("button", { name: "Delete" }).click();
 
