@@ -1,6 +1,7 @@
 import {
 	Badge,
 	Button,
+	DropdownMenu,
 	Input,
 	LayerDialog,
 	Select,
@@ -14,8 +15,9 @@ import {
 	Plus,
 	ArrowsLeftRight,
 	FileX,
+	FolderSimple,
 	Trash,
-	PencilSimple,
+	Pencil,
 	WarningCircle,
 } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -45,6 +47,14 @@ import { cn, formatDate } from "../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ArrowNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
+import {
+	DataTable,
+	RowActionsMenu,
+	RowMeta,
+	RowTitleButton,
+	secondaryColumn,
+	tertiaryColumn,
+} from "./DataTable.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { PageHeader } from "./PageHeader.js";
 import { TableToolbarSearch } from "./TableToolbar.js";
@@ -306,6 +316,7 @@ function NotFoundPanel({
 	onMarkGone: (path: string) => void;
 }) {
 	const { t, i18n } = useLingui();
+	const goneDescriptionId = useId();
 
 	if (items.length === 0) {
 		return (
@@ -313,54 +324,191 @@ function NotFoundPanel({
 		);
 	}
 
+	const goneDescription = t`Mark as Gone (410) — tells search engines it was permanently deleted`;
+
 	return (
-		<div className="border rounded-lg">
-			<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 text-sm font-medium text-kumo-subtle">
-				<div className="flex-1">{t`Path`}</div>
-				<div className="w-16 text-end">{t`Hits`}</div>
-				<div className="w-32">{t`Last seen`}</div>
-				<div className="w-20" />
-			</div>
-			{items.map((item) => (
-				<div
-					key={item.path}
-					className="flex items-center gap-4 py-2 px-4 border-b last:border-0 text-sm"
-				>
-					<div className="flex-1 font-mono text-xs truncate">
-						<bdi dir="ltr">{item.path}</bdi>
-					</div>
-					<div className="w-16 text-end tabular-nums">{item.count}</div>
-					<div className="w-32 text-kumo-subtle text-xs">
-						{(() => {
-							const d = new Date(item.lastSeen);
-							return Number.isNaN(d.getTime()) ? (
-								item.lastSeen
-							) : (
-								<bdi>{formatDate(d, i18n.locale)}</bdi>
-							);
-						})()}
-					</div>
-					<div className="w-20 flex items-center justify-end gap-3">
-						<button
-							onClick={() => onCreateRedirect(item.path)}
-							className="text-kumo-subtle hover:text-kumo-default"
-							title={t`Create redirect for this path`}
-							aria-label={t`Create redirect for ${item.path}`}
-						>
-							<ArrowsLeftRight size={14} />
-						</button>
-						<button
-							onClick={() => onMarkGone(item.path)}
-							className="text-kumo-subtle hover:text-kumo-danger text-xs font-semibold tabular-nums"
-							title={t`Mark as Gone (410) — tells search engines it was permanently deleted`}
-							aria-label={t`Mark ${item.path} as Gone (410)`}
-						>
-							410
-						</button>
-					</div>
+		<>
+			<span id={goneDescriptionId} hidden>
+				{goneDescription}
+			</span>
+			<DataTable>
+				<thead>
+					<tr>
+						<th scope="col">{t`Path`}</th>
+						<th scope="col" className="text-end" {...secondaryColumn}>
+							{t`Hits`}
+						</th>
+						<th scope="col" {...tertiaryColumn}>
+							{t`Last seen`}
+						</th>
+						<th scope="col" className="w-0">
+							<span className="sr-only">{t`Actions`}</span>
+						</th>
+					</tr>
+				</thead>
+				<tbody>
+					{items.map((item) => {
+						const date = new Date(item.lastSeen);
+						const lastSeen = Number.isNaN(date.getTime()) ? (
+							item.lastSeen
+						) : (
+							<bdi>{formatDate(date, i18n.locale)}</bdi>
+						);
+						return (
+							<tr key={item.path}>
+								<td className="text-sm">
+									<code dir="ltr" className="wrap-anywhere">
+										{item.path}
+									</code>
+									<RowMeta>
+										<span className="tabular-nums">
+											{plural(item.count, { one: "# hit", other: "# hits" })}
+										</span>
+									</RowMeta>
+									<RowMeta priority="tertiary">{lastSeen}</RowMeta>
+								</td>
+								<td className="text-end text-sm tabular-nums" {...secondaryColumn}>
+									{i18n.number(item.count)}
+								</td>
+								<td className="text-sm whitespace-nowrap text-kumo-subtle" {...tertiaryColumn}>
+									{lastSeen}
+								</td>
+								<td>
+									<div className="flex items-center justify-end gap-1">
+										<Button
+											variant="ghost"
+											size="sm"
+											shape="square"
+											title={t`Create redirect for this path`}
+											aria-label={t`Create redirect for ${item.path}`}
+											onClick={() => onCreateRedirect(item.path)}
+										>
+											<ArrowsLeftRight size={16} aria-hidden="true" />
+										</Button>
+										<Button
+											variant="ghost"
+											size="sm"
+											title={goneDescription}
+											aria-label={t`Mark ${item.path} as Gone (410)`}
+											aria-describedby={goneDescriptionId}
+											onClick={() => onMarkGone(item.path)}
+										>
+											410
+										</Button>
+									</div>
+								</td>
+							</tr>
+						);
+					})}
+				</tbody>
+			</DataTable>
+		</>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Redirect row
+// ---------------------------------------------------------------------------
+
+function RedirectRow({
+	redirect,
+	inLoop,
+	onToggle,
+	onEdit,
+	onDelete,
+}: {
+	redirect: Redirect;
+	inLoop: boolean;
+	onToggle: (enabled: boolean) => void;
+	onEdit: () => void;
+	onDelete: () => void;
+}) {
+	const { t, i18n } = useLingui();
+	const code = <Badge variant="secondary">{redirect.type}</Badge>;
+
+	return (
+		// Fading the row would also fade its cells' background, letting the darker tray show through.
+		<tr className={cn(!redirect.enabled && "[&>td>*]:opacity-50")}>
+			<td className="text-sm">
+				<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+					<RowTitleButton aria-label={t`Edit redirect ${redirect.source}`} onClick={onEdit}>
+						<code dir="ltr" className="wrap-anywhere">
+							{redirect.source}
+						</code>
+					</RowTitleButton>
+					{inLoop && (
+						<span title={t`Part of a redirect loop`} className="inline-flex">
+							<WarningCircle
+								size={16}
+								weight="fill"
+								className="text-kumo-warning"
+								role="img"
+								aria-label={t`Part of a redirect loop`}
+							/>
+						</span>
+					)}
+					{redirect.auto && <Badge variant="outline">{t`auto`}</Badge>}
 				</div>
-			))}
-		</div>
+				{redirect.destination && (
+					<div className="mt-1 flex gap-1.5 text-xs text-kumo-subtle">
+						<ArrowNext className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+						{/* As a flex item, the LTR path would align its wrapped lines left on RTL pages. */}
+						<span className="min-w-0">
+							<code dir="ltr" className="wrap-anywhere">
+								{redirect.destination}
+							</code>
+						</span>
+					</div>
+				)}
+				{redirect.groupName ? (
+					<div className="mt-1 flex gap-1.5 text-xs text-kumo-subtle">
+						<FolderSimple className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+						<span className="min-w-0 wrap-anywhere">
+							<span className="sr-only">{t`Group`} </span>
+							<bdi>{redirect.groupName}</bdi>
+						</span>
+					</div>
+				) : (
+					<span className="sr-only">{t`No group`}</span>
+				)}
+				<RowMeta priority="tertiary">
+					{code}
+					<span className="tabular-nums">
+						{plural(redirect.hits, { one: "# hit", other: "# hits" })}
+					</span>
+				</RowMeta>
+			</td>
+			<td {...tertiaryColumn}>{code}</td>
+			<td className="text-end text-sm tabular-nums text-kumo-subtle" {...tertiaryColumn}>
+				<span>{i18n.number(redirect.hits)}</span>
+			</td>
+			<td>
+				<Switch
+					checked={redirect.enabled}
+					onCheckedChange={onToggle}
+					aria-label={redirect.enabled ? t`Disable redirect` : t`Enable redirect`}
+				/>
+			</td>
+			<td className="text-end">
+				<RowActionsMenu label={t`Actions for redirect ${redirect.source}`}>
+					<DropdownMenu.Item
+						icon={<Pencil className="size-4" aria-hidden="true" />}
+						onClick={onEdit}
+					>
+						{t`Edit`}
+					</DropdownMenu.Item>
+					<DropdownMenu.Separator />
+					<DropdownMenu.Item
+						variant="danger"
+						icon={<Trash className="size-4" aria-hidden="true" />}
+						aria-label={t`Delete redirect ${redirect.source}`}
+						onClick={onDelete}
+					>
+						{t`Delete`}
+					</DropdownMenu.Item>
+				</RowActionsMenu>
+			</td>
+		</tr>
 	);
 }
 
@@ -621,102 +769,47 @@ export function Redirects() {
 						</div>
 					) : (
 						<>
-							<div className="border rounded-lg overflow-x-auto">
-								<div className="min-w-[800px]">
-									<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 text-sm font-medium text-kumo-subtle">
-										<div className="flex-1">{t`Source`}</div>
-										<div className="w-8 text-center" />
-										<div className="flex-1">{t`Destination`}</div>
-										<div className="w-36 shrink-0">{t`Group`}</div>
-										<div className="w-14 text-center">{t`Code`}</div>
-										<div className="w-16 text-end">{t`Hits`}</div>
-										<div className="w-20 text-center">{t`Status`}</div>
-										<div className="w-20" />
-									</div>
-									{redirects.map((r) => (
-										<div
-											key={r.id}
-											className={cn(
-												"flex items-center gap-4 py-2 px-4 border-b last:border-0 text-sm",
-												!r.enabled && "opacity-50",
-											)}
-										>
-											<div className="flex-1 font-mono text-xs truncate" title={r.source}>
-												<bdi dir="ltr">{r.source}</bdi>
-											</div>
-											<div className="w-8 text-center text-kumo-subtle">
-												<ArrowNext size={14} />
-											</div>
-											<div className="flex-1 font-mono text-xs truncate" title={r.destination}>
-												<bdi dir="ltr">{r.destination}</bdi>
-											</div>
-											<div
-												className="w-36 shrink-0 truncate text-kumo-subtle"
-												title={r.groupName ?? undefined}
-											>
-												{r.groupName ? (
-													<bdi>{r.groupName}</bdi>
-												) : (
-													<>
-														<span aria-hidden="true">—</span>
-														<span className="sr-only">{t`No group`}</span>
-													</>
-												)}
-											</div>
-											<div className="w-14 text-center">
-												<Badge variant="secondary">{r.type}</Badge>
-											</div>
-											<div className="w-16 text-end tabular-nums text-kumo-subtle">{r.hits}</div>
-											<div className="w-20 text-center">
-												<Switch
-													checked={r.enabled}
-													onCheckedChange={(checked) =>
-														toggleMutation.mutate({
-															id: r.id,
-															enabled: checked,
-														})
-													}
-													aria-label={r.enabled ? t`Disable redirect` : t`Enable redirect`}
-												/>
-											</div>
-											<div className="w-20 flex items-center justify-end gap-1">
-												{loopRedirectIds.has(r.id) && (
-													<span title={t`Part of a redirect loop`} className="me-1 inline-flex">
-														<WarningCircle
-															size={14}
-															weight="fill"
-															className="text-kumo-warning"
-															role="img"
-															aria-label={t`Part of a redirect loop`}
-														/>
-													</span>
-												)}
-												{r.auto && (
-													<Badge variant="outline" className="me-1 text-xs">
-														{t`auto`}
-													</Badge>
-												)}
-												<button
-													onClick={() => openForm({ redirect: r })}
-													className="p-1 text-kumo-subtle hover:text-kumo-default"
-													title={t`Edit redirect`}
-													aria-label={t`Edit redirect ${r.source}`}
-												>
-													<PencilSimple size={14} />
-												</button>
-												<button
-													onClick={() => setDeleteId(r.id)}
-													className="p-1 text-kumo-subtle hover:text-kumo-danger"
-													title={t`Delete redirect`}
-													aria-label={t`Delete redirect ${r.source}`}
-												>
-													<Trash size={14} />
-												</button>
-											</div>
-										</div>
+							<DataTable>
+								<thead>
+									<tr>
+										<th scope="col">
+											<span className="flex flex-wrap items-center gap-x-1.5">
+												{t`Source`}
+												<span className="flex items-center gap-1.5">
+													<ArrowNext className="size-3.5" aria-hidden="true" />
+													{t`Destination`}
+												</span>
+												<span className="flex items-center gap-1.5">
+													<FolderSimple className="size-3.5" aria-hidden="true" />
+													{t`Group`}
+												</span>
+											</span>
+										</th>
+										<th scope="col" {...tertiaryColumn}>
+											{t`Code`}
+										</th>
+										<th scope="col" className="text-end" {...tertiaryColumn}>
+											{t`Hits`}
+										</th>
+										<th scope="col">{t`Status`}</th>
+										<th scope="col" className="w-0">
+											<span className="sr-only">{t`Actions`}</span>
+										</th>
+									</tr>
+								</thead>
+								<tbody>
+									{redirects.map((redirect) => (
+										<RedirectRow
+											key={redirect.id}
+											redirect={redirect}
+											inLoop={loopRedirectIds.has(redirect.id)}
+											onToggle={(enabled) => toggleMutation.mutate({ id: redirect.id, enabled })}
+											onEdit={() => openForm({ redirect })}
+											onDelete={() => setDeleteId(redirect.id)}
+										/>
 									))}
-								</div>
-							</div>
+								</tbody>
+							</DataTable>
 							{redirectsQuery.hasNextPage && (
 								<div className="flex justify-center">
 									<Button
