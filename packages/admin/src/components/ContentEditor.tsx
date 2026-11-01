@@ -2578,6 +2578,25 @@ function quietControlProps(chrome: FieldChrome, required: boolean | undefined) {
 	};
 }
 
+/** Kumo's Select keeps `aria-describedby` and `aria-invalid` off its trigger, so they are set on it here. */
+function DescribedSelect({ chrome, children }: { chrome: FieldChrome; children: React.ReactNode }) {
+	const ref = React.useRef<HTMLDivElement>(null);
+	const { describedBy, invalid } = chrome;
+	React.useLayoutEffect(() => {
+		const trigger = ref.current?.querySelector('[role="combobox"]');
+		if (!trigger) return;
+		if (describedBy) trigger.setAttribute("aria-describedby", describedBy);
+		else trigger.removeAttribute("aria-describedby");
+		if (invalid) trigger.setAttribute("aria-invalid", "true");
+		else trigger.removeAttribute("aria-invalid");
+	});
+	return (
+		<div ref={ref} className="contents">
+			{children}
+		</div>
+	);
+}
+
 /** Shows `meta`, such as a character count, under a quiet control while it has focus. */
 function QuietControl({ meta, children }: { meta?: React.ReactNode; children: React.ReactNode }) {
 	if (!meta) return children;
@@ -2883,7 +2902,12 @@ function FieldRenderer({
 		case "portableText": {
 			if (chrome) {
 				return (
-					<div id={id}>
+					<div
+						id={id}
+						role="group"
+						aria-labelledby={chrome.labelledBy}
+						aria-describedby={chrome.describedBy}
+					>
 						<PortableTextEditor
 							value={Array.isArray(value) ? value : []}
 							onChange={handleChange}
@@ -2977,24 +3001,26 @@ function FieldRenderer({
 			}
 			if (chrome) {
 				return (
-					<Select
-						id={id}
-						aria-labelledby={chrome.labelledBy}
-						placeholder={chrome.placeholder}
-						value={typeof value === "string" && value ? value : null}
-						onValueChange={(v) => handleChange(v ?? "")}
-						items={selectItems}
-						className={cn(
-							QUIET_SELECT,
-							chrome.invalid && "ring-kumo-danger [&_[data-placeholder]]:text-kumo-danger!",
-						)}
-					>
-						{selectOptions.map((opt) => (
-							<Select.Option key={opt.value} value={opt.value}>
-								{opt.label}
-							</Select.Option>
-						))}
-					</Select>
+					<DescribedSelect chrome={chrome}>
+						<Select
+							id={id}
+							aria-labelledby={chrome.labelledBy}
+							placeholder={chrome.placeholder}
+							value={typeof value === "string" && value ? value : null}
+							onValueChange={(v) => handleChange(v ?? "")}
+							items={selectItems}
+							className={cn(
+								QUIET_SELECT,
+								chrome.invalid && "ring-kumo-danger [&_[data-placeholder]]:text-kumo-danger!",
+							)}
+						>
+							{selectOptions.map((opt) => (
+								<Select.Option key={opt.value} value={opt.value}>
+									{opt.label}
+								</Select.Option>
+							))}
+						</Select>
+					</DescribedSelect>
 				);
 			}
 			return (

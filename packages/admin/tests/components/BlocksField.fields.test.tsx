@@ -515,6 +515,29 @@ describe("Checking fields inside a block", () => {
 			.not.toHaveAttribute("aria-invalid");
 	});
 
+	it("describes an empty required choice as Required and marks it invalid on Save", async () => {
+		const banner = blockType("banner", "Banner", [
+			{ slug: "headline", label: "Headline", type: "string" },
+			{
+				slug: "tone",
+				label: "Tone",
+				type: "select",
+				required: true,
+				validation: { options: ["Calm", "Loud"] },
+			},
+		]);
+		await renderEditor(
+			[{ _type: "banner", _version: 1, _key: "banner-1", headline: "Hi" }],
+			[banner],
+		);
+
+		await page.getByRole("textbox", { name: "Title" }).fill("Home page");
+		await saveButton().click();
+		const tone = page.getByRole("combobox", { name: "Tone" });
+		await expect.element(tone).toHaveAttribute("aria-invalid", "true");
+		await expect.element(tone).toHaveAccessibleDescription("Required");
+	});
+
 	it("holds autosave while a block field fails, names it in a notice, and resumes once it is fixed", async () => {
 		vi.useFakeTimers();
 		try {
