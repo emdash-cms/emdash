@@ -108,7 +108,7 @@ function PickerList({ blockTypes, onPick }: Pick<BlockTypePickerProps, "blockTyp
 	let optionIndex = 0;
 	return (
 		<div className="flex min-h-0 flex-col">
-			<div className="border-b border-kumo-hairline p-2">
+			<div className="border-b border-kumo-hairline">
 				<Input
 					role="combobox"
 					aria-label={t`Search block types`}
@@ -124,7 +124,7 @@ function PickerList({ blockTypes, onPick }: Pick<BlockTypePickerProps, "blockTyp
 						setActive(0);
 					}}
 					onKeyDown={handleKeyDown}
-					className="w-full"
+					className="h-11 w-full rounded-none bg-transparent px-3 shadow-none ring-0 focus:ring-0"
 				/>
 			</div>
 			<div

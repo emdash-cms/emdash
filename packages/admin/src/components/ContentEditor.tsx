@@ -69,6 +69,13 @@ import { cn, slugify } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
+import {
+	FLOATING_NOTE,
+	QUIET_HEADING,
+	QUIET_INPUT,
+	QUIET_SELECT,
+	QUIET_TEXTAREA,
+} from "./block-field-styles.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { type BlockReveal, BlocksField, type FieldChrome } from "./BlocksField.js";
 import type { BylineFormValues } from "./BylineFormDialog.js";
@@ -2565,18 +2572,6 @@ interface FieldRendererProps {
 	blockReveal?: BlockReveal;
 }
 
-// A `dir="auto"` value aligns to the start of its own text. Quiet values line up with their labels
-// instead, so a value whose direction differs from its container's aligns to its own end.
-// Kumo's placeholder color is unlayered, so only an important utility recolors it.
-const QUIET_CONTROL =
-	"w-full bg-transparent px-2 shadow-none ring-transparent [:dir(ltr)>&:dir(rtl)]:text-end [:dir(rtl)>&:dir(ltr)]:text-end enabled:hover:bg-kumo-tint focus:bg-kumo-control aria-invalid:ring-kumo-danger aria-invalid:placeholder:text-kumo-danger! aria-invalid:focus:ring-kumo-danger/50";
-const QUIET_INPUT = `${QUIET_CONTROL} h-8 text-ellipsis`;
-const QUIET_TEXTAREA = `${QUIET_CONTROL} min-h-8 resize-none overflow-hidden py-1.5`;
-// The editor's field column sets input text to text-base and font-normal, which only `!` outranks.
-const QUIET_HEADING = "h-10 text-lg! leading-7 font-semibold!";
-const QUIET_SELECT =
-	"h-8 w-full bg-transparent px-2 font-normal shadow-none ring-transparent data-[popup-open]:bg-kumo-control";
-
 function quietControlProps(chrome: FieldChrome, required: boolean | undefined) {
 	return {
 		"aria-labelledby": chrome.labelledBy,
@@ -2611,9 +2606,14 @@ function DescribedSelect({ chrome, children }: { chrome: FieldChrome; children: 
 function QuietControl({ meta, children }: { meta?: React.ReactNode; children: React.ReactNode }) {
 	if (!meta) return children;
 	return (
-		<div className="group/quiet">
+		<div className="group/quiet relative">
 			{children}
-			<div className="hidden px-2 pt-0.5 text-end text-xs leading-4 text-kumo-subtle group-focus-within/quiet:block">
+			<div
+				className={cn(
+					FLOATING_NOTE,
+					"end-0 tabular-nums group-focus-within/quiet:visible group-focus-within/quiet:translate-y-0 group-focus-within/quiet:opacity-100",
+				)}
+			>
 				{meta}
 			</div>
 		</div>

@@ -1,4 +1,4 @@
-import { Button, DropdownMenu } from "@cloudflare/kumo";
+import { Button, Collapsible, DropdownMenu } from "@cloudflare/kumo";
 import {
 	closestCenter,
 	DndContext,
@@ -37,6 +37,14 @@ import {
 import { cloneValue, createBlockKey, isBlankLine, pastedLines } from "../lib/block-field-state.js";
 import { useStableCallback } from "../lib/hooks.js";
 import { cn } from "../lib/utils.js";
+import {
+	DRAGGING,
+	LABEL,
+	ROW_BUTTON,
+	ROW_SUMMARY,
+	ROW_TITLE,
+	SORT_TRANSITION,
+} from "./block-field-styles.js";
 import { type ImageFieldValue, mediaDisplayUrl } from "./ImageFieldRenderer.js";
 
 type ListItem = Record<string, unknown>;
@@ -164,6 +172,37 @@ export function whenFocusLeaves(event: React.FocusEvent<HTMLElement>, callback: 
 			callback();
 		}
 	});
+}
+
+/**
+ * The body of a block, a list item or the Advanced rows: grows open and shrinks closed, then
+ * unmounts. Padding belongs on a child, since the panel's own height runs down to zero.
+ */
+export function DisclosurePanel({
+	open,
+	className,
+	...props
+}: { open: boolean } & React.ComponentPropsWithoutRef<"div">) {
+	return (
+		<Collapsible.Root open={open} className="contents">
+			<Collapsible.Panel className={cn("emdash-disclosure", className)} {...props} />
+		</Collapsible.Root>
+	);
+}
+
+/** The caret of a disclosure row, which turns to point at the open body. */
+export function DisclosureCaret({ open }: { open: boolean }) {
+	return (
+		<span aria-hidden="true" className="grid size-4 shrink-0 place-items-center">
+			<CaretRight
+				weight="bold"
+				className={cn(
+					"size-3 text-kumo-subtle transition-transform duration-200 ease-emdash motion-reduce:transition-none rtl:-scale-x-100",
+					open && "rotate-90 rtl:-rotate-90",
+				)}
+			/>
+		</span>
+	);
 }
 
 export function ErrorDot({ id }: { id?: string }) {
@@ -567,7 +606,7 @@ export function BlockListField({
 							key={subField.slug}
 							role="columnheader"
 							className={cn(
-								"min-w-0 px-2 pb-1 text-xs leading-4 font-medium text-kumo-subtle wrap-anywhere",
+								"min-w-0 px-2 pt-1.5 pb-1 text-xs leading-4 text-kumo-subtle wrap-anywhere",
 								subField.type === "image" && "text-center",
 							)}
 						>
@@ -646,7 +685,7 @@ export function BlockListField({
 	return (
 		<div
 			ref={rootRef}
-			className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1"
+			className="grid min-w-0 grid-cols-[minmax(0,1fr)]"
 			onBlur={
 				lineField && !readOnly
 					? (event) => {
@@ -655,23 +694,23 @@ export function BlockListField({
 					: undefined
 			}
 		>
-			<div className="flex min-h-6 min-w-0 items-baseline gap-1.5 ps-2">
-				<span id={labelId} className="text-sm font-medium text-kumo-default wrap-anywhere">
+			<div className="flex min-w-0 items-baseline gap-1.5 ps-2">
+				<span id={labelId} className={cn(LABEL, "wrap-anywhere")}>
 					{listLabel}
 				</span>
 				{savedCount > 0 && (
-					<bdi className="text-sm text-kumo-placeholder tabular-nums">
+					<bdi className="text-xs leading-4 text-kumo-placeholder tabular-nums">
 						{i18n.number(savedCount)}
 					</bdi>
 				)}
 			</div>
 			{hint && (
-				<p id={hintId} className="ps-2 text-xs leading-4 text-kumo-subtle">
+				<p id={hintId} className="ps-2 pt-0.5 text-xs leading-4 text-kumo-subtle">
 					{hint}
 				</p>
 			)}
 			{error && (
-				<p id={errorId} className="ps-2 text-xs leading-4 text-kumo-danger">
+				<p id={errorId} className="ps-2 pt-0.5 text-xs leading-4 text-kumo-danger">
 					{error}
 				</p>
 			)}
@@ -685,7 +724,7 @@ export function BlockListField({
 					</SortableContext>
 				</DndContext>
 			) : (
-				readOnly && <p className="ps-2 text-sm text-kumo-subtle">{t`No items yet`}</p>
+				readOnly && <p className="ps-2 text-base text-kumo-subtle">{t`No items yet`}</p>
 			)}
 			{!readOnly && !atMax && (
 				<Button
@@ -693,8 +732,8 @@ export function BlockListField({
 					variant="ghost"
 					icon={<Plus className="size-4" aria-hidden="true" />}
 					className={cn(
-						"h-8 w-full justify-start px-2 font-normal text-kumo-subtle shadow-none hover:text-kumo-default",
-						presentation === "lines" ? "gap-2.5 ps-0.5" : "gap-2",
+						ROW_BUTTON,
+						"h-8 w-full justify-start gap-2 px-2 font-normal text-kumo-subtle shadow-none hover:text-kumo-default",
 					)}
 					onClick={addRow}
 				>
@@ -723,6 +762,7 @@ function useSortableRow(key: string, readOnly: boolean) {
 	const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
 		id: key,
 		disabled: readOnly,
+		transition: SORT_TRANSITION,
 	});
 	const [menuOpen, setMenuOpen] = React.useState(false);
 	return {
@@ -747,7 +787,7 @@ function DragHandle({
 			aria-hidden="true"
 			{...listeners}
 			className={cn(
-				"absolute end-full me-0.5 hidden h-6 w-[1.125rem] cursor-grab touch-none place-items-center rounded-md text-kumo-placeholder opacity-0 transition-opacity hover:bg-kumo-tint hover:text-kumo-subtle active:cursor-grabbing blocks-gutter:@min-[440px]/blocks:grid group-hover/item:opacity-100 group-data-[menu-open]/item:opacity-100",
+				"absolute end-full me-0.5 hidden h-6 w-[1.125rem] cursor-grab touch-none place-items-center rounded-md text-kumo-placeholder opacity-0 transition-opacity hover:bg-emdash-hover hover:text-kumo-subtle active:cursor-grabbing blocks-gutter:@min-[440px]/blocks:grid group-hover/item:opacity-100 group-data-[menu-open]/item:opacity-100",
 				className,
 			)}
 		>
@@ -795,7 +835,7 @@ function RowMenu({
 						variant="ghost"
 						shape="square"
 						size="sm"
-						className={cn("size-7 shrink-0 text-kumo-subtle", SHOW_ON_HOVER)}
+						className={cn(ROW_BUTTON, "size-7 shrink-0 text-kumo-subtle", SHOW_ON_HOVER)}
 						aria-label={t`${label} actions`}
 					>
 						<DotsThree className="size-4" weight="bold" aria-hidden="true" />
@@ -871,11 +911,11 @@ function LineRow({
 			data-menu-open={sortable.menuOpen || undefined}
 			className={cn(
 				"group/item relative flex min-h-8 items-center",
-				sortable.isDragging && "opacity-50",
+				sortable.isDragging && DRAGGING,
 			)}
 		>
 			{!readOnly && <DragHandle listeners={sortable.listeners} className="top-1" />}
-			<span aria-hidden="true" className="grid w-5 shrink-0 place-items-center self-stretch">
+			<span aria-hidden="true" className="ms-2 grid w-4 shrink-0 place-items-center self-stretch">
 				<span className="size-[5px] rounded-full bg-current text-kumo-subtle" />
 			</span>
 			<span id={labelId} hidden>
@@ -948,8 +988,8 @@ function TableRow({
 			style={{ ...sortable.style, gridTemplateColumns: columns }}
 			className={cn(
 				"group/item relative grid items-center rounded-md",
-				!readOnly && "hover:bg-kumo-tint",
-				sortable.isDragging && "opacity-50",
+				!readOnly && "hover:bg-emdash-hover",
+				sortable.isDragging && DRAGGING,
 			)}
 		>
 			{children}
@@ -1023,7 +1063,7 @@ function ItemRow({
 					: cn(
 							"min-w-0 truncate",
 							summary && "@min-[440px]/blocks:max-w-[55%]",
-							text.title ? "font-medium text-kumo-default" : "text-kumo-placeholder",
+							text.title ? ROW_TITLE : "text-base text-kumo-placeholder",
 						)
 			}
 		>
@@ -1041,14 +1081,14 @@ function ItemRow({
 			className={cn(
 				"group/item relative rounded-lg",
 				open && "bg-kumo-elevated",
-				sortable.isDragging && "opacity-50",
+				sortable.isDragging && DRAGGING,
 			)}
 		>
-			{!readOnly && <DragHandle listeners={sortable.listeners} className="top-1.5" />}
+			{!readOnly && <DragHandle listeners={sortable.listeners} className="top-1" />}
 			<div
 				className={cn(
-					"flex min-h-9 min-w-0 items-center gap-2 rounded-lg py-0.5 ps-1 pe-1",
-					!open && !readOnly && "hover:bg-kumo-tint",
+					"flex min-h-8 min-w-0 items-center gap-2 rounded-md ps-2 pe-0.5",
+					!open && !readOnly && "hover:bg-emdash-hover",
 				)}
 			>
 				{readOnly ? (
@@ -1070,17 +1110,10 @@ function ItemRow({
 						onClick={onToggle}
 						className={cn(
 							"flex min-h-8 items-center gap-2 self-stretch rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand",
-							editingTitle ? "shrink-0 px-1" : "min-w-0 flex-1 ps-1",
+							editingTitle ? "shrink-0" : "min-w-0 flex-1",
 						)}
 					>
-						<CaretRight
-							weight="bold"
-							aria-hidden="true"
-							className={cn(
-								"size-3 shrink-0 text-kumo-subtle transition-transform rtl:-scale-x-100",
-								open && "rotate-90 rtl:-rotate-90",
-							)}
-						/>
+						<DisclosureCaret open={open} />
 						{thumbnail && !open && (
 							<img
 								key={thumbnail}
@@ -1095,7 +1128,7 @@ function ItemRow({
 						)}
 						{nameText}
 						{summary && (
-							<span className="min-w-0 flex-1 overflow-hidden text-kumo-subtle">
+							<span className={cn(ROW_SUMMARY, "min-w-0 flex-1 overflow-hidden")}>
 								<span
 									id={summaryId}
 									dir="auto"
@@ -1109,10 +1142,14 @@ function ItemRow({
 				)}
 				{editingTitle && (
 					// The title keeps its closed weight. The editor's field column sets input text to
-					// font-normal, which only `!` outranks.
+					// font-normal, which only `!` outranks. A box shorter than the row keeps the focused
+					// title off the card's edge without moving its text.
 					<div
 						data-item-control
-						className={cn("min-w-0 flex-1 [&_input]:font-medium!", readOnly ? "ms-4" : "-ms-3")}
+						className={cn(
+							"min-w-0 flex-1 [&_input]:h-7 [&_input]:font-medium!",
+							readOnly ? "ms-4" : "-ms-2",
+						)}
 					>
 						<span id={titleLabelId} hidden>
 							{titleLabel}
@@ -1134,17 +1171,15 @@ function ItemRow({
 					/>
 				)}
 			</div>
-			{open && (
-				<div
-					id={bodyId}
-					role="group"
-					aria-labelledby={nameId}
-					data-item-control={title === undefined || undefined}
-					className="pe-2 pb-3 ps-5"
-				>
-					{children}
-				</div>
-			)}
+			<DisclosurePanel
+				open={open}
+				id={bodyId}
+				role="group"
+				aria-labelledby={nameId}
+				data-item-control={title === undefined || undefined}
+			>
+				<div className="pe-2 pt-1 pb-1.5 ps-6">{children}</div>
+			</DisclosurePanel>
 		</div>
 	);
 }

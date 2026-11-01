@@ -714,7 +714,7 @@ export function ImageFieldRenderer({
 			role={labelled ? "group" : undefined}
 			aria-labelledby={labelledBy}
 			aria-describedby={labelled ? describedBy : undefined}
-			className={isFeatured ? "grid gap-2 @container/featured" : "grid gap-2"}
+			className={cn("grid gap-2", isFeatured && "@container/featured", labelled && "px-2")}
 		>
 			{labelled ? null : description ? (
 				<FieldHelpLabel
@@ -781,7 +781,7 @@ export function ImageFieldRenderer({
 					variant="outline"
 					className={cn(
 						"w-full justify-center border-dashed bg-kumo-control",
-						labelled ? "h-24" : "h-32",
+						labelled ? "h-14" : "h-32",
 						invalid && "ring-kumo-danger",
 					)}
 					onClick={() => openPicker("image")}
@@ -789,11 +789,12 @@ export function ImageFieldRenderer({
 				>
 					<div
 						className={cn(
-							"flex flex-col items-center gap-2",
+							"flex items-center gap-2",
+							!labelled && "flex-col",
 							invalid ? "text-kumo-danger" : "text-kumo-subtle",
 						)}
 					>
-						<ImageIcon className={labelled ? "size-6" : "h-8 w-8"} />
+						<ImageIcon className={labelled ? "size-5" : "h-8 w-8"} />
 						<span>{t`Select image`}</span>
 					</div>
 				</Button>

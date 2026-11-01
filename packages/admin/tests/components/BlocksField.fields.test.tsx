@@ -265,24 +265,33 @@ describe("Fields inside a block", () => {
 		expect(box(control("Destination")).top).toBeGreaterThan(box(control("Section")).bottom);
 	});
 
-	it("shows a label's hint in the empty field, under the field while typing, and to screen readers", async () => {
+	it("shows a label's hint in the empty field, over the rows under the field while typing, and to screen readers", async () => {
 		await renderEditor([heroBlock]);
 		await openBlock();
 
 		const caption = control("Image caption");
 		await expect.element(caption).toHaveAttribute("placeholder", "Shown on the photo");
 		await expect.element(caption).toHaveAccessibleDescription("Shown on the photo");
-		const hint = page.getByText("Shown on the photo", { exact: true });
-		const hintBox = () => hint.element().parentElement!.getBoundingClientRect();
+		const shownHint = () =>
+			page
+				.getByText("Shown on the photo", { exact: true })
+				.elements()
+				.find(
+					(element) =>
+						element.getAttribute("aria-hidden") === "true" &&
+						element.checkVisibility({ opacityProperty: true, visibilityProperty: true }),
+				);
 		await caption.click();
-		expect(hintBox().width).toBeLessThanOrEqual(1);
+		expect(shownHint()).toBeUndefined();
 
+		const nextRowTop = box(control("Primary button text")).top;
 		await caption.fill("Riverside Tower");
-		expect(hintBox().width).toBeGreaterThan(20);
-		expect(hintBox().top).toBeGreaterThanOrEqual(box(caption).bottom);
+		await expect.poll(shownHint).toBeDefined();
+		expect(shownHint()!.getBoundingClientRect().top).toBeGreaterThanOrEqual(box(caption).bottom);
+		expect(box(control("Primary button text")).top).toBe(nextRowTop);
 
 		await control("Headline").click();
-		expect(hintBox().width).toBeLessThanOrEqual(1);
+		await expect.poll(shownHint).toBeUndefined();
 	});
 
 	it("keeps the Text and Link placeholders in a button row", async () => {

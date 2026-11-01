@@ -16,14 +16,12 @@ import {
 	ArrowsInSimple,
 	ArrowsOutSimple,
 	ArrowUp,
-	CaretRight,
 	Copy,
 	DotsSixVertical,
 	DotsThree,
 	Plus,
 	RowsPlusBottom,
 	RowsPlusTop,
-	SlidersHorizontal,
 	Trash,
 } from "@phosphor-icons/react";
 import * as React from "react";
@@ -51,8 +49,19 @@ import { type BlockValueIssue, validateBlocks } from "../lib/block-validation.js
 import { useStableCallback } from "../lib/hooks.js";
 import { cn } from "../lib/utils.js";
 import {
+	DRAGGING,
+	FLOATING_NOTE,
+	LABEL,
+	ROW_BUTTON,
+	ROW_SUMMARY,
+	ROW_TITLE,
+	SORT_TRANSITION,
+} from "./block-field-styles.js";
+import {
 	BlockListField,
 	type DeletedListItem,
+	DisclosureCaret,
+	DisclosurePanel,
 	ErrorDot,
 	firstPhotoUrl,
 	focusableIn,
@@ -147,11 +156,10 @@ const UNDO_TIMEOUT_MS = 6000;
 const SHEET_INNER_TOP = "rounded-t-[calc(var(--radius-lg)-1px)]";
 const SHEET_INNER_BOTTOM = "rounded-b-[calc(var(--radius-lg)-1px)]";
 const MENU_ICON = "size-4";
-const FIELD_LABEL = "ps-2 text-xs leading-4 font-medium text-kumo-subtle wrap-anywhere";
+const FIELD_LABEL = `${LABEL} ps-2 wrap-anywhere`;
 const SETTING_ROW =
 	"grid min-w-0 items-start gap-x-2 @min-[440px]/blocks:grid-cols-[11rem_minmax(0,1fr)]";
-const SETTING_LABEL =
-	"flex items-center ps-2 pt-2 pb-0.5 text-sm text-kumo-subtle wrap-anywhere @min-[440px]/blocks:min-h-8 @min-[440px]/blocks:py-1";
+const SETTING_LABEL = `${LABEL} flex items-center ps-2 wrap-anywhere @min-[440px]/blocks:min-h-8`;
 
 type InsertSide = "top" | "bottom";
 
@@ -664,7 +672,8 @@ export function BlocksField({
 			aria-disabled={!canAdd || undefined}
 			aria-describedby={atMax ? maxHintId : undefined}
 			className={cn(
-				"h-10 w-full justify-start gap-2 rounded-none px-2.5 font-normal text-kumo-subtle shadow-none hover:text-kumo-default aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
+				ROW_BUTTON,
+				"h-10 w-full justify-start gap-2 rounded-none px-2 font-normal text-kumo-subtle shadow-none hover:text-kumo-default aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
 				SHEET_INNER_BOTTOM,
 				blocks.length > 0 && "border-t border-kumo-hairline",
 			)}
@@ -762,7 +771,7 @@ export function BlocksField({
 				) : (
 					<p
 						className={cn(
-							"px-4 pt-6 text-center text-sm text-kumo-subtle",
+							"px-4 pt-6 text-center text-base text-kumo-subtle",
 							readOnly ? "pb-6" : "pb-2",
 						)}
 					>
@@ -882,6 +891,7 @@ function BlockRow({
 	const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
 		id: block._key,
 		disabled: readOnly,
+		transition: SORT_TRANSITION,
 	});
 	const rowId = React.useId();
 	const headRef = React.useRef<HTMLDivElement>(null);
@@ -995,7 +1005,7 @@ function BlockRow({
 			className={cn(
 				"group/block relative [--emdash-blocks-sticky-top:var(--emdash-editor-sticky-top,0px)]",
 				index > 0 && "border-t border-kumo-hairline",
-				isDragging && "opacity-50",
+				isDragging && cn(DRAGGING, "z-40 rounded-lg"),
 			)}
 		>
 			{!readOnly && (
@@ -1020,7 +1030,10 @@ function BlockRow({
 								variant="ghost"
 								shape="square"
 								size="sm"
-								className="size-6 text-kumo-subtle aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+								className={cn(
+									ROW_BUTTON,
+									"size-6 text-kumo-subtle aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
+								)}
 								aria-label={t`Add block below`}
 								aria-haspopup="dialog"
 								aria-disabled={!canAdd || undefined}
@@ -1060,7 +1073,7 @@ function BlockRow({
 								variant="ghost"
 								shape="square"
 								size="sm"
-								className="h-6 w-[1.125rem] touch-none text-kumo-subtle"
+								className={cn(ROW_BUTTON, "h-6 w-[1.125rem] touch-none text-kumo-subtle")}
 								aria-label={t`Block actions - drag to reorder, click for menu`}
 								aria-haspopup="menu"
 								aria-expanded={menuOpen && menuFromHandle}
@@ -1080,8 +1093,8 @@ function BlockRow({
 			<div
 				ref={headRef}
 				className={cn(
-					"flex min-h-11 items-center gap-2 py-1.5 ps-2.5 pe-2",
-					!readOnly && "hover:bg-kumo-tint",
+					"flex min-h-11 items-center gap-2 py-1.5 ps-2 pe-2",
+					!readOnly && "hover:bg-emdash-hover",
 					index === 0 && SHEET_INNER_TOP,
 					roundBottom && !open && SHEET_INNER_BOTTOM,
 					open &&
@@ -1089,16 +1102,9 @@ function BlockRow({
 				)}
 			>
 				{readOnly ? (
-					<div className="flex min-w-0 flex-1 items-center gap-2 self-stretch">
-						<BlockTypeIcon
-							name={blockType?.icon}
-							className="size-[1.125rem] shrink-0 text-kumo-subtle"
-						/>
-						<span
-							id={labelId}
-							dir="auto"
-							className="min-w-0 font-medium text-kumo-default wrap-anywhere"
-						>
+					<div className="flex min-w-0 flex-1 items-center gap-2 self-stretch ps-6">
+						<BlockTypeIcon name={blockType?.icon} className="size-4 shrink-0 text-kumo-subtle" />
+						<span id={labelId} dir="auto" className={cn(ROW_TITLE, "min-w-0 wrap-anywhere")}>
 							{label}
 						</span>
 					</div>
@@ -1113,29 +1119,20 @@ function BlockRow({
 						onClick={onToggle}
 						className="flex min-w-0 flex-1 items-center gap-2 self-stretch rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand"
 					>
-						<CaretRight
-							weight="bold"
-							aria-hidden="true"
-							className={cn(
-								"size-3 shrink-0 text-kumo-subtle transition-transform rtl:-scale-x-100",
-								open && "rotate-90 rtl:-rotate-90",
-							)}
-						/>
-						<BlockTypeIcon
-							name={blockType?.icon}
-							className="size-[1.125rem] shrink-0 text-kumo-subtle"
-						/>
+						<DisclosureCaret open={open} />
+						<BlockTypeIcon name={blockType?.icon} className="size-4 shrink-0 text-kumo-subtle" />
 						<span
 							id={labelId}
 							dir="auto"
-							className="max-w-[60%] min-w-0 font-medium text-kumo-default wrap-anywhere"
+							className={cn(ROW_TITLE, "max-w-[60%] min-w-0 wrap-anywhere")}
 						>
 							{label}
 						</span>
 						{summary && (
 							<span
 								className={cn(
-									"min-w-0 flex-1 overflow-hidden text-kumo-subtle transition-opacity",
+									ROW_SUMMARY,
+									"min-w-0 flex-1 overflow-hidden transition-opacity duration-200 ease-emdash motion-reduce:transition-none",
 									open && "opacity-0",
 								)}
 							>
@@ -1157,7 +1154,7 @@ function BlockRow({
 						alt=""
 						loading="lazy"
 						className={cn(
-							"size-7 shrink-0 rounded-md object-cover ring-1 ring-kumo-line transition-opacity",
+							"size-7 shrink-0 rounded-md object-cover ring-1 ring-kumo-line transition-opacity duration-200 ease-emdash motion-reduce:transition-none",
 							open && "opacity-0",
 						)}
 						onError={(event) => {
@@ -1204,7 +1201,10 @@ function BlockRow({
 									variant="ghost"
 									shape="square"
 									size="sm"
-									className="shrink-0 text-kumo-subtle blocks-gutter:opacity-0 blocks-gutter:group-hover/block:opacity-100 blocks-gutter:group-focus-within/block:opacity-100 blocks-gutter:group-data-[menu-open]/block:opacity-100"
+									className={cn(
+										ROW_BUTTON,
+										"shrink-0 text-kumo-subtle blocks-gutter:opacity-0 blocks-gutter:group-hover/block:opacity-100 blocks-gutter:group-focus-within/block:opacity-100 blocks-gutter:group-data-[menu-open]/block:opacity-100",
+									)}
 									aria-label={t`${label} actions`}
 									aria-describedby={versionId}
 								>
@@ -1278,16 +1278,17 @@ function BlockRow({
 				)}
 			</div>
 
-			{open && (
-				<div
-					id={bodyId}
-					data-block-body
-					role="group"
-					aria-labelledby={labelId}
-					className="px-2 pt-1 pb-4 [--emdash-editor-sticky-top:calc(var(--emdash-blocks-sticky-top)+2.75rem)] @min-[440px]/blocks:ps-9 @min-[440px]/blocks:pe-4"
-				>
+			<DisclosurePanel
+				open={open}
+				id={bodyId}
+				data-block-body
+				role="group"
+				aria-labelledby={labelId}
+				className="[--emdash-editor-sticky-top:calc(var(--emdash-blocks-sticky-top)+2.75rem)]"
+			>
+				<div className="px-2 pt-3 pb-4 @min-[440px]/blocks:ps-12 @min-[440px]/blocks:pe-4">
 					{unsupported || !version ? (
-						<p className="ps-2 text-sm text-kumo-subtle">
+						<p className="ps-2 text-base text-kumo-subtle">
 							{t`This block cannot be edited because its stored definition is unavailable.`}
 						</p>
 					) : (
@@ -1310,7 +1311,7 @@ function BlockRow({
 					)}
 					<span className="sr-only">{t`Block ${index + 1}`}</span>
 				</div>
-			)}
+			</DisclosurePanel>
 		</div>
 	);
 }
@@ -1394,7 +1395,11 @@ function FieldControl({
 	const showHintOnFocus =
 		!cell && Boolean(hint) && !errorShown && !(placeholder === hint && isEmptyValue(value));
 	return (
-		<div data-field={dataField} className="group/control min-w-0" onBlur={onFocusLeave(onTouch)}>
+		<div
+			data-field={dataField}
+			className="group/control relative min-w-0"
+			onBlur={onFocusLeave(onTouch)}
+		>
 			{renderField({
 				name,
 				field: descriptor,
@@ -1410,12 +1415,20 @@ function FieldControl({
 				},
 			})}
 			{hint && error !== hint && (
-				<p
-					id={hintId}
-					className={cn("sr-only", showHintOnFocus && "group-focus-within/control:not-sr-only")}
+				<span id={hintId} className="sr-only">
+					{hint}
+				</span>
+			)}
+			{showHintOnFocus && (
+				<span
+					aria-hidden="true"
+					className={cn(
+						FLOATING_NOTE,
+						"start-0 group-focus-within/control:visible group-focus-within/control:translate-y-0 group-focus-within/control:opacity-100",
+					)}
 				>
-					<span className="block px-2 pt-1 text-xs leading-4 text-kumo-subtle">{hint}</span>
-				</p>
+					{hint}
+				</span>
 			)}
 			{error && (
 				<p
@@ -1468,7 +1481,7 @@ function BlockFields({
 
 	if (fields.length === 0) {
 		return scope === "block" ? (
-			<p className="ps-2 text-sm text-kumo-subtle">{t`This block has no fields.`}</p>
+			<p className="ps-2 text-base text-kumo-subtle">{t`This block has no fields.`}</p>
 		) : null;
 	}
 
@@ -1513,7 +1526,7 @@ function BlockFields({
 	const stacked = (field: LayoutFieldDefinition, heading?: boolean) => {
 		if (field.type === "repeater") return control(field, labelId(field));
 		return (
-			<div key={field.slug} className="grid min-w-0 gap-1">
+			<div key={field.slug} className="grid min-w-0">
 				<label id={labelId(field)} htmlFor={controlId(field)} className={FIELD_LABEL}>
 					{labelText(field)}
 				</label>
@@ -1546,7 +1559,7 @@ function BlockFields({
 					<div
 						key={part.fields.map((field) => field.slug).join(":")}
 						className={cn(
-							"grid min-w-0 gap-x-1 gap-y-4",
+							"grid min-w-0 gap-x-2 gap-y-3",
 							part.fields.length === 3
 								? "@min-[440px]/blocks:grid-cols-3"
 								: "@min-[440px]/blocks:grid-cols-2",
@@ -1558,8 +1571,8 @@ function BlockFields({
 			case "image": {
 				const caption = part.caption;
 				return (
-					<div key={part.field.slug} className="grid min-w-0 gap-1">
-						<span id={labelId(part.field)} className={FIELD_LABEL}>
+					<div key={part.field.slug} className="grid min-w-0">
+						<span id={labelId(part.field)} className={cn(FIELD_LABEL, "pb-1.5")}>
 							{labelText(part.field)}
 						</span>
 						{control(part.field, labelId(part.field))}
@@ -1588,7 +1601,7 @@ function BlockFields({
 				<label id={rowLabelId} htmlFor={controlId(part.text)} className={SETTING_LABEL}>
 					{part.label}
 				</label>
-				<div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(5.5rem,11em)] items-start gap-1">
+				<div className="grid min-w-0 grid-cols-2 items-start gap-x-2">
 					<span id={labelId(part.text)} hidden>
 						{labelText(part.text)}
 					</span>
@@ -1607,49 +1620,49 @@ function BlockFields({
 		.filter((value): value is string => typeof value === "string" && value.trim() !== "")
 		.join(" · ");
 
+	const hasSettings = plan.settings.length + plan.advanced.length > 0;
 	return (
 		<>
-			{plan.content.length > 0 && <div className="grid gap-4">{plan.content.map(contentPart)}</div>}
-			{plan.settings.length > 0 && (
-				<div
-					className={cn(
-						"grid gap-0.5",
-						plan.content.length > 0 && "mt-4 border-t border-kumo-hairline pt-3",
-					)}
-				>
-					{plan.settings.map(settingPart)}
-				</div>
+			{plan.content.length > 0 && <div className="grid gap-3">{plan.content.map(contentPart)}</div>}
+			{plan.content.length > 0 && hasSettings && (
+				<div className="mx-2 my-3 border-t border-kumo-hairline" />
 			)}
-			{plan.advanced.length > 0 && (
-				<div className={cn(plan.content.length + plan.settings.length > 0 && "mt-2")}>
-					<button
-						type="button"
-						aria-expanded={advancedOpen}
-						aria-controls={advancedId}
-						onClick={onAdvancedToggle}
-						className="flex min-h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-start text-sm text-kumo-subtle outline-none hover:text-kumo-default focus-visible:ring-2 focus-visible:ring-kumo-brand"
-					>
-						<CaretRight
-							weight="bold"
-							aria-hidden="true"
-							className={cn(
-								"size-2.5 shrink-0 transition-transform rtl:-scale-x-100",
-								advancedOpen && "rotate-90 rtl:-rotate-90",
-							)}
-						/>
-						<SlidersHorizontal className="size-3.5 shrink-0" aria-hidden="true" />
-						<span className="shrink-0">{t`Advanced`}</span>
-						{!advancedOpen && advancedSummary && (
-							<span dir="auto" className="min-w-0 truncate text-kumo-placeholder">
-								{advancedSummary}
-							</span>
-						)}
-						{!advancedOpen && plan.advanced.some((field) => issueAt(field.slug)) && <ErrorDot />}
-					</button>
-					{advancedOpen && (
-						<div id={advancedId} className="grid gap-0.5">
-							{plan.advanced.map(settingRow)}
-						</div>
+			{hasSettings && (
+				<div className="grid gap-y-3 @min-[440px]/blocks:gap-y-0.5">
+					{plan.settings.map(settingPart)}
+					{plan.advanced.length > 0 && (
+						<>
+							<button
+								type="button"
+								aria-expanded={advancedOpen}
+								aria-controls={advancedId}
+								onClick={onAdvancedToggle}
+								className={cn(
+									SETTING_ROW,
+									"w-full rounded-md text-start outline-none hover:bg-emdash-hover focus-visible:ring-2 focus-visible:ring-kumo-brand",
+								)}
+							>
+								<span className={cn(SETTING_LABEL, "min-h-8 gap-1")}>
+									{t`Advanced`}
+									<DisclosureCaret open={advancedOpen} />
+								</span>
+								<span className="flex min-w-0 items-center gap-2 px-2 @min-[440px]/blocks:min-h-8">
+									{!advancedOpen && advancedSummary && (
+										<span dir="auto" className="min-w-0 truncate text-kumo-placeholder">
+											{advancedSummary}
+										</span>
+									)}
+									{!advancedOpen && plan.advanced.some((field) => issueAt(field.slug)) && (
+										<ErrorDot />
+									)}
+								</span>
+							</button>
+							<DisclosurePanel open={advancedOpen} id={advancedId}>
+								<div className="grid gap-y-3 @min-[440px]/blocks:gap-y-0.5">
+									{plan.advanced.map(settingRow)}
+								</div>
+							</DisclosurePanel>
+						</>
 					)}
 				</div>
 			)}
