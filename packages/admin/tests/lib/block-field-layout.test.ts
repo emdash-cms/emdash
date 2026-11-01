@@ -6,6 +6,7 @@ import {
 	blockSummary,
 	isLinkField,
 	itemTitleField,
+	listItemText,
 	type LayoutField,
 	listPresentation,
 	type PlanField,
@@ -386,6 +387,82 @@ describe("itemTitleField", () => {
 			])?.slug,
 		).toBe("answer");
 		expect(itemTitleField([{ slug: "logo", type: "image" }])).toBeUndefined();
+	});
+});
+
+describe("listItemText", () => {
+	const testimonial = [
+		{ slug: "quote", type: "text" },
+		{ slug: "author", type: "string" },
+		{ slug: "role", type: "string" },
+		{ slug: "company", type: "string" },
+		{ slug: "team", type: "string" },
+		{ slug: "avatar", type: "image" },
+	];
+
+	it("shows the title, then up to two other plain strings", () => {
+		expect(
+			listItemText(
+				{
+					quote: "We found more savings in the first month.",
+					author: "Maya Okafor",
+					role: "Director of Facilities",
+					company: "Calder University",
+					team: "Estates",
+				},
+				testimonial,
+			),
+		).toEqual({ title: "Maya Okafor", summary: "Director of Facilities · Calder University" });
+	});
+
+	it("skips empty strings, link fields and button text in the summary", () => {
+		const plan = [
+			{ slug: "name", type: "string" },
+			{ slug: "price", type: "string" },
+			{ slug: "cta_label", type: "string" },
+			{ slug: "cta_url", type: "string" },
+			{ slug: "website", type: "url" },
+			{ slug: "period", type: "string" },
+		];
+		expect(
+			listItemText(
+				{
+					name: "Pro",
+					price: "  ",
+					cta_label: "Start",
+					cta_url: "/start",
+					website: "https://example.com",
+					period: "per month",
+				},
+				plan,
+			),
+		).toEqual({ title: "Pro", summary: "per month" });
+	});
+
+	it("falls back to the start of the first other text, on one line", () => {
+		const feature = [
+			{ slug: "icon", type: "select" },
+			{ slug: "title", type: "string" },
+			{ slug: "description", type: "text" },
+		];
+		expect(
+			listItemText({ title: "", description: "  Find the waste.\n\nThen fix it.  " }, feature),
+		).toEqual({ title: "", summary: "Find the waste. Then fix it." });
+	});
+
+	it("uses the text as the title when there is no string to title the item", () => {
+		const faq = [
+			{ slug: "link", type: "url" },
+			{ slug: "answer", type: "text" },
+		];
+		expect(listItemText({ link: "/faq", answer: "Yes,\nalways." }, faq)).toEqual({
+			title: "Yes, always.",
+			summary: "",
+		});
+		expect(listItemText({ logo: { id: "m" } }, [{ slug: "logo", type: "image" }])).toEqual({
+			title: "",
+			summary: "",
+		});
 	});
 });
 

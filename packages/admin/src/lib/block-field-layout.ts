@@ -24,6 +24,16 @@ export interface BlockFieldPlan<T extends PlanField = PlanField> {
 
 export type ListPresentation = "lines" | "table" | "items";
 
+export interface ListSubField extends PlanField {
+	options?: string[];
+}
+
+export interface ListItemText {
+	/** Empty when the item has no title field or its title is empty. */
+	title: string;
+	summary: string;
+}
+
 export interface BlockSummaryFormat {
 	locale: string;
 	/** Appends the count of titles left out of `list`, such as "+3". */
@@ -52,6 +62,8 @@ const HINT_IN_PARENTHESES = /^(.*?)\s*\(([^()]*\s[^()]*)\)\s*$/;
 const HINT_FOR_EXAMPLE = /^(.*?),\s*(for example\b.+)$/i;
 const LABEL_WORD_SEPARATOR = /[^\p{L}\p{N}]+/u;
 const TRAILING_TEXT_WORD = /\s+text$/i;
+const WHITESPACE_RUN = /\s+/g;
+const ITEM_SUMMARY_VALUES = 2;
 
 export function isLinkField(field: LayoutField): boolean {
 	return field.type === "url" || (field.type === "string" && LINK_SLUG.test(field.slug));
@@ -237,13 +249,60 @@ export function planBlockFields<T extends PlanField>(
 	return { content, settings: parts.filter(isSetting), advanced };
 }
 
-export function repeaterSubFields(field: BlockFieldDefinition): LayoutField[] {
+export function repeaterSubFields(field: Pick<BlockFieldDefinition, "validation">): ListSubField[] {
 	const subFields = field.validation?.subFields;
 	if (!Array.isArray(subFields)) return [];
-	return subFields.filter(
-		(subField): subField is LayoutField =>
-			isRecord(subField) && typeof subField.slug === "string" && typeof subField.type === "string",
-	);
+	return subFields.flatMap((subField): ListSubField[] => {
+		if (!isRecord(subField)) return [];
+		const { slug, type, label, required, options } = subField;
+		if (typeof slug !== "string" || typeof type !== "string") return [];
+		return [
+			{
+				slug,
+				type,
+				label: typeof label === "string" && label ? label : slug,
+				...(required === true ? { required } : {}),
+				...(Array.isArray(options)
+					? { options: options.filter((option): option is string => typeof option === "string") }
+					: {}),
+			},
+		];
+	});
+}
+
+/**
+ * What a closed list item shows: its title, then up to two of its other plain `string`
+ * values, or else the start of its first other `text` value.
+ */
+export function listItemText(
+	item: Record<string, unknown>,
+	subFields: readonly LayoutField[],
+): ListItemText {
+	const titleField = itemTitleField(subFields);
+	const pairs = buttonPairs(subFields);
+	const values = (type: string) =>
+		subFields
+			.filter(
+				(field) =>
+					field !== titleField &&
+					field.type === type &&
+					!isLinkField(field) &&
+					!pairs.has(field.slug),
+			)
+			.map((field) => oneLine(item[field.slug]))
+			.filter(Boolean);
+	const strings = values("string");
+	return {
+		title: titleField ? oneLine(item[titleField.slug]) : "",
+		summary:
+			strings.length > 0
+				? strings.slice(0, ITEM_SUMMARY_VALUES).join(" · ")
+				: (values("text")[0] ?? ""),
+	};
+}
+
+function oneLine(value: unknown): string {
+	return typeof value === "string" ? value.trim().replace(WHITESPACE_RUN, " ") : "";
 }
 
 export function blockSummary(
