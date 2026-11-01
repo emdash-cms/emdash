@@ -1,0 +1,38 @@
+{
+	"name": "@emdash-cms/plugin-google-tag-manager",
+	"version": "0.1.0",
+	"description": "Google Tag Manager plugin for EmDash CMS",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./sandbox": "./src/sandbox-entry.ts"
+	},
+	"files": [
+		"src"
+	],
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"gtm",
+		"google tag manager",
+		"analytics"
+	],
+	"author": "Your Name",
+	"license": "MIT",
+	"dependencies": {},
+	"peerDependencies": {
+		"emdash": "workspace:*"
+	},
+	"devDependencies": {},
+	"scripts": {
+		"typecheck": "tsgo --noEmit"
+	},
+	"optionalDependencies": {},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugins/google-tag-manager"
+	}
+}
