@@ -76,7 +76,7 @@ The Pages collection's `/{slug}` URL pattern gives the `home` entry the URL `/ho
 To add a page section, add a block type:
 
 1. Add its definition to `blockTypes` in `seed/seed.json` and its slug to the `layout` field's `validation.allowedTypes`. New sites get both at setup.
-2. Add it to your database. Editing the seed doesn't change a site that is already set up, so create the block type through the schema API or MCP (`schema_create_block_type`), then allow it on the Layout field in the admin (**Content Types** → Pages) or through the same API. The dev server then regenerates `emdash-env.d.ts` with the new type in `PageLayoutBlock`; `npx emdash types` does the same.
+2. Add it to your database. Editing the seed doesn't change a site that is already set up, so create the block type through the schema API or MCP (`schema_create_block_type`), then allow it on the Layout field in the admin (**Content Types** → Pages) or through the same API. The dev server then regenerates `emdash-env.d.ts` with the new type in `PageLayoutBlock`.
 3. Add a component in `src/components/blocks/`. The existing components show the `BlockComponentProps` typing. Don't give its outer element a block margin: the `.home-layout` and `.page-blocks` wrappers space every section the same way, whatever the order.
 4. Map the type to the component in `PageBlocks.astro`. `defineBlockComponents()` reports a type error until every type in `PageLayoutBlock` has a component.
 

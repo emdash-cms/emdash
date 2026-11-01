@@ -60,6 +60,7 @@ Declare every host API in `emdash-plugin.jsonc`. Adding authority, exposing a ro
 | `hooks.content-policy:register`  | Pre-publish, pre-schedule, and pre-unpublish policy hooks                  |
 | `taxonomies:read`                | Taxonomy definitions, terms, and entry assignments                         |
 | `taxonomies:write`               | Term creation and assignment deltas; implies read                          |
+| `bylines:read`                   | Public byline profiles and single or batched entry credits                 |
 | `redirects:read`                 | Versioned redirect inspection                                              |
 | `redirects:write`                | Versioned redirect creation, update, and deletion; implies read            |
 | `comments:read`                  | Stored non-trashed comments and their personal data                        |

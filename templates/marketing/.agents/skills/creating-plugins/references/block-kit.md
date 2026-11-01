@@ -80,21 +80,22 @@ routes: {
 
 ## Element Types
 
-| Type           | Description                                               |
-| -------------- | --------------------------------------------------------- |
-| `button`       | Action button with optional confirmation dialog           |
-| `link`         | Host-resolved navigation that does not dispatch an action |
-| `text_input`   | Single-line or multiline text input                       |
-| `number_input` | Numeric input with min/max                                |
-| `select`       | Dropdown select                                           |
-| `toggle`       | On/off switch                                             |
-| `secret_input` | Masked input for API keys and tokens                      |
-| `checkbox`     | Multi-select checkboxes                                   |
-| `radio`        | Single-select radio buttons                               |
-| `date_input`   | Date picker                                               |
-| `combobox`     | Searchable dropdown select                                |
-| `repeater`     | Array of records with scalar sub-fields                   |
-| `media_picker` | Media-library picker that stores the asset URL            |
+| Type           | Description                                                                              |
+| -------------- | ---------------------------------------------------------------------------------------- |
+| `button`       | Action button with optional confirmation dialog                                          |
+| `link`         | Host-resolved navigation that does not dispatch an action                                |
+| `menu`         | Button that opens a list of choices; each choice dispatches `action_id` with its `value` |
+| `text_input`   | Single-line or multiline text input                                                      |
+| `number_input` | Numeric input with min/max                                                               |
+| `select`       | Dropdown select                                                                          |
+| `toggle`       | On/off switch                                                                            |
+| `secret_input` | Masked input for API keys and tokens                                                     |
+| `checkbox`     | Multi-select checkboxes                                                                  |
+| `radio`        | Single-select radio buttons                                                              |
+| `date_input`   | Date picker                                                                              |
+| `combobox`     | Searchable dropdown select                                                               |
+| `repeater`     | Array of records with scalar sub-fields                                                  |
+| `media_picker` | Media-library picker that stores the asset URL                                           |
 
 ## Block Syntax
 
@@ -167,6 +168,34 @@ routes: {
 - `page_action_id` — required. The admin sends it as the `block_action` id when the user sorts a column or pages through results.
 - `empty_text` — shown in place of the table when `rows` is empty
 - `next_cursor` — set it to render a "Load more" control
+- `format` — per column: `text` (default), `badge`, `relative_time`, `number`, `code`, or `element`
+
+An `element` column holds a `button`, `link`, or `menu` per row, for row actions. A row without a value leaves the cell empty. Choosing a menu item sends a `block_action` with the menu's `action_id` and the item's `value`:
+
+```json
+{
+	"type": "table",
+	"columns": [
+		{ "key": "title", "label": "Entry" },
+		{ "key": "action", "label": "Actions", "format": "element" }
+	],
+	"rows": [
+		{
+			"title": "Hello world",
+			"action": {
+				"type": "menu",
+				"action_id": "translate",
+				"label": "Translate",
+				"items": [
+					{ "label": "French", "value": "fr:01K5POSTEXAMPLE" },
+					{ "label": "Italian", "value": "it:01K5POSTEXAMPLE" }
+				]
+			}
+		}
+	],
+	"page_action_id": "missing_page"
+}
+```
 
 ### Actions
 
@@ -405,6 +434,32 @@ Use `tab` to group related blocks into labelled panels:
 }
 ```
 
+## Dynamic select options (`optionsRoute`)
+
+A `select` in a Portable Text block's `fields` can set `optionsRoute` to fill its dropdown from one of the plugin's own routes. It also works for a `select` nested in a `repeater` in those fields.
+
+```typescript
+// storage
+cards: { indexes: ["title"] },
+
+// routes
+"cards/list": {
+	handler: async (ctx) => {
+		const result = await ctx.storage.cards.query({ limit: 100 });
+		return { items: result.items.map((card) => ({ id: card.id, name: card.data.title })) };
+	},
+},
+
+// admin.portableTextBlocks[].fields
+{ type: "select", action_id: "cardId", label: "Card", options: [], optionsRoute: "cards/list" }
+```
+
+- Each `select` with `optionsRoute` calls `POST /_emdash/api/plugins/<pluginId>/<optionsRoute>` when it renders, so every field instance and repeater item sends its own request. The request has `X-EmDash-Request: 1` and a `{}` body.
+- It is an ordinary plugin route: it needs `plugins:manage` unless the route declares another `permission`.
+- The handler returns `{ items: Array<{ id: string; name: string }> }`. The route responds with the standard EmDash envelope (`{ success: true, data: { items: [...] } }`), and the editor reads `data.items`. `id` becomes the stored value and `name` the label. Other item properties are ignored.
+- The field shows a loading state while the request runs. A failed request, a non-OK response, or a response without an `items` array falls back to the static `options`.
+- `optionsRoute` only takes effect in the Portable Text block editor. Admin pages, widgets, saved-entry panels, and declarative field widgets ignore it and read only the static `options`. Block Kit responses must give a `select` at least one static option.
+
 ## Declarative field widgets
 
 The admin field editor can render a plugin field widget from Block Kit elements. A schema field refers to `pluginId:widgetName`; a config-declared standard descriptor supplies `name`, `label`, compatible `fieldTypes`, and `elements`.
@@ -508,6 +563,8 @@ return {
 	],
 };
 ```
+
+`elements.menu(actionId, label, items, { style })` builds a `menu` element for `actions` blocks, section accessories, empty-state actions, and table `element` columns.
 
 ## Button Confirmations
 
