@@ -256,13 +256,12 @@ export function DocumentOutline({
 			</Collapsible.Trigger>
 
 			<Collapsible.Panel
-				className="overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+				className="overflow-hidden transition-[height] duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
 				style={({ transitionStatus }) => ({
 					height:
 						transitionStatus === "starting" || transitionStatus === "ending"
 							? 0
 							: "var(--collapsible-panel-height)",
-					transitionProperty: "height",
 				})}
 			>
 				{headings.length === 0 ? (
