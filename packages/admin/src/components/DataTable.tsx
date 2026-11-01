@@ -31,6 +31,9 @@ export const handleColumn = { "data-column": "handle" } as const;
  * A Kumo table laid out like a LayerCard: the header row sits on the tinted
  * outer layer and the rows on a raised card inside it. Cell padding, background
  * and borders come from the table, so a class on a single cell can't change them.
+ * Set `data-selected` on a selected row, `data-drop-active` on a row while a
+ * dragged item can be dropped on it, and `data-clickable` on a row that opens when
+ * clicked anywhere, so it tints under the pointer.
  *
  * Breakpoints follow the table's own width, not the viewport's, because the
  * sidebar takes part of the screen from 768px up.
@@ -49,6 +52,13 @@ export function DataTable({ className, children, ...props }: React.ComponentProp
 					"[&_td]:border-b [&_td]:border-kumo-line [&_td]:bg-kumo-base [&_td]:px-4 [&_td]:py-3.5",
 					"[&_tbody_tr:last-child_td]:border-b-0",
 					"[&_tr[data-selected]_td]:bg-kumo-tint",
+					// A translucent tint would let the darker tray show through, so it's mixed into the cell's color.
+					"[@media(hover:hover)]:[&_tr[data-clickable]:not([data-selected],[data-drop-active]):hover_td]:bg-[color-mix(in_srgb,var(--color-kumo-tint)_25%,var(--color-kumo-base))]",
+					// Cells cover a row's background but not its outline, so the tint goes on the cells.
+					// Rounding the first and last rows keeps the outline inside the card's corners.
+					"[&_tr[data-drop-active]_td]:bg-kumo-tint",
+					"[&_tr[data-drop-active]]:outline-2 [&_tr[data-drop-active]]:-outline-offset-2 [&_tr[data-drop-active]]:outline-kumo-brand [&_tr[data-drop-active]]:outline-dashed",
+					"[&_tbody_tr[data-drop-active]:first-child]:rounded-t-xl [&_tbody_tr[data-drop-active]:last-child]:rounded-b-xl",
 					"[&_tbody_tr:first-child_td]:border-t",
 					"[&_tbody_tr:first-child_td:first-child]:rounded-ss-xl [&_tbody_tr:first-child_td:last-child]:rounded-se-xl",
 					"@max-md:[&_th]:px-3 @max-md:[&_td]:px-3",
