@@ -489,7 +489,6 @@ export function CommentInbox({
 				confirmLabel={t`Delete`}
 				pendingLabel={t`Deleting...`}
 				isPending={isStatusPending}
-				preventCloseWhilePending
 				error={bulkError}
 				onConfirm={() => {
 					void runBulk(bulkDeleteIds, "delete").then(

@@ -104,13 +104,6 @@ export function BylineSchemaPage() {
 			});
 			setCreating(false);
 		},
-		onError: (mutationError) => {
-			toastManager.add({
-				title: t`Failed to create field`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				variant: "error",
-			});
-		},
 	});
 
 	const updateMutation = useMutation({
@@ -124,13 +117,6 @@ export function BylineSchemaPage() {
 			});
 			setEditingField(null);
 		},
-		onError: (mutationError) => {
-			toastManager.add({
-				title: t`Failed to save field`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				variant: "error",
-			});
-		},
 	});
 
 	const deleteMutation = useMutation({
@@ -139,13 +125,6 @@ export function BylineSchemaPage() {
 			void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 			toastManager.add({ title: t`Field deleted` });
 			setDeletingField(null);
-		},
-		onError: (mutationError) => {
-			toastManager.add({
-				title: t`Failed to delete field`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				variant: "error",
-			});
 		},
 	});
 
@@ -208,8 +187,9 @@ export function BylineSchemaPage() {
 		// type guard documents that contract rather than relying on the
 		// caller threading the right variant.
 		if ("slug" in input && "type" in input) {
-			createMutation.mutate(input);
+			return createMutation.mutateAsync(input);
 		}
+		return undefined;
 	};
 
 	const handleEdit = (input: CreateBylineFieldInput | UpdateBylineFieldInput) => {
@@ -217,8 +197,9 @@ export function BylineSchemaPage() {
 		// The editor sends Update shapes from edit mode — no `slug`/`type`
 		// keys present. Narrow defensively before forwarding.
 		if (!("slug" in input) && !("type" in input)) {
-			updateMutation.mutate({ slug: editingField.slug, input });
+			return updateMutation.mutateAsync({ slug: editingField.slug, input });
 		}
+		return undefined;
 	};
 
 	return (

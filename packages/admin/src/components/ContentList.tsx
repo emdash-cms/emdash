@@ -3,8 +3,8 @@ import {
 	Button,
 	Checkbox,
 	DatePicker,
-	Dialog,
 	DropdownMenu,
+	LayerDialog,
 	Loader,
 	Popover,
 	Select,
@@ -46,6 +46,7 @@ import {
 	resolveContentListColumns,
 	type ResolvedContentListColumn,
 } from "../lib/content-list-columns.js";
+import { useConfirmedRequest } from "../lib/dialog-form.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { inlineLabel } from "../lib/inline-label.js";
@@ -62,6 +63,7 @@ import {
 	isBylineFilterActive,
 	type BylineFilterState,
 } from "./BylineFilter.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 import {
 	ContentStatusBadge,
 	ContentStatusLabel,
@@ -117,6 +119,8 @@ export interface ContentDateFilter {
 /** An empty (inactive) date filter, defaulting to the created-at column. */
 export const EMPTY_DATE_FILTER: ContentDateFilter = { field: "createdAt", from: "", to: "" };
 
+type RowRequest = (id: string) => Promise<unknown> | void;
+
 export interface ContentListProps {
 	collection: string;
 	collectionLabel: string;
@@ -126,12 +130,14 @@ export interface ContentListProps {
 	trashedItems?: TrashedContentItem[];
 	isLoading?: boolean;
 	isTrashedLoading?: boolean;
-	onDelete?: (id: string) => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDelete?: RowRequest;
 	onDuplicate?: (id: string) => void;
 	/** Whether to offer Duplicate on an entry's row. Offered on every row when omitted. */
 	canDuplicate?: (item: ContentItem) => boolean;
 	onRestore?: (id: string) => void;
-	onPermanentDelete?: (id: string) => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onPermanentDelete?: RowRequest;
 	onLoadMore?: () => void;
 	onLoadMoreTrashed?: () => void;
 	hasMore?: boolean;
@@ -453,15 +459,15 @@ export function ContentList({
 		});
 	};
 	const deleteRow = onDelete
-		? (id: string) => {
-				setSelectedIds((prev) => {
-					if (!prev.has(id)) return prev;
-					const next = new Set(prev);
-					next.delete(id);
-					return next;
-				});
-				onDelete(id);
-			}
+		? (id: string) =>
+				Promise.resolve(onDelete(id)).then(() =>
+					setSelectedIds((prev) => {
+						if (!prev.has(id)) return prev;
+						const next = new Set(prev);
+						next.delete(id);
+						return next;
+					}),
+				)
 		: undefined;
 	const selectedCount = selectedIds.size;
 	const extensionColumns = React.useMemo(
@@ -469,6 +475,7 @@ export function ContentList({
 		[collection, pluginAdmins, pluginStates, userRole],
 	);
 	const [bulkBusy, setBulkBusy] = React.useState(false);
+	const [bulkTrashOpen, setBulkTrashOpen] = React.useState(false);
 	const runBulk = (fn?: BulkActionHandler) => {
 		if (!fn || selectedCount === 0 || bulkBusy) return;
 		const ids = [...selectedIds];
@@ -649,8 +656,12 @@ export function ContentList({
 								</span>
 							)}
 							{onBulkDelete && (
-								<Dialog.Root disablePointerDismissal>
-									<Dialog.Trigger
+								<LayerDialog.Root
+									open={bulkTrashOpen}
+									onOpenChange={setBulkTrashOpen}
+									disablePointerDismissal
+								>
+									<LayerDialog.Trigger
 										render={(p) => (
 											<Button
 												{...p}
@@ -663,32 +674,28 @@ export function ContentList({
 											</Button>
 										)}
 									/>
-									<Dialog className="p-6" size="sm">
-										<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-										<Dialog.Description className="text-kumo-subtle">
+									<LayerDialog.Content size="sm">
+										<LayerDialog.Title>{t`Move to Trash?`}</LayerDialog.Title>
+										<LayerDialog.Description>
 											{plural(selectedCount, {
 												one: "Move # item to trash? You can restore it later.",
 												other: "Move # items to trash? You can restore them later.",
 											})}
-										</Dialog.Description>
-										<div className="mt-6 flex justify-end gap-2">
-											<Dialog.Close
-												render={(p) => (
-													<Button {...p} variant="secondary">
-														{t`Cancel`}
-													</Button>
-												)}
-											/>
-											<Dialog.Close
-												render={
-													<Button variant="destructive" onClick={() => runBulk(onBulkDelete)} />
-												}
+										</LayerDialog.Description>
+										<LayerDialog.Body>{null}</LayerDialog.Body>
+										<LayerDialog.Actions dismissLabel={t`Cancel`}>
+											<LayerDialog.Action
+												variant="destructive"
+												onClick={() => {
+													setBulkTrashOpen(false);
+													runBulk(onBulkDelete);
+												}}
 											>
 												{t`Move to Trash`}
-											</Dialog.Close>
-										</div>
-									</Dialog>
-								</Dialog.Root>
+											</LayerDialog.Action>
+										</LayerDialog.Actions>
+									</LayerDialog.Content>
+								</LayerDialog.Root>
 							)}
 						</DataTableBulkBar>
 					)}
@@ -1453,7 +1460,7 @@ interface ContentListItemProps {
 	item: ContentItem;
 	visibleItems: readonly ContentItem[];
 	collection: string;
-	onDelete?: (id: string) => void;
+	onDelete?: RowRequest;
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
 	i18n?: { defaultLocale: string; locales: string[]; prefixDefaultLocale?: boolean };
@@ -1490,7 +1497,7 @@ function ContentListItem({
 	// last-updated / created date when it's unset, empty, or unparseable.
 	const customDate = dateField ? parseListDate(item.data[dateField]) : null;
 	const date = customDate ?? parseTimestamp(item.updatedAt || item.createdAt);
-	const [trashOpen, setTrashOpen] = React.useState(false);
+	const trash = useConfirmedRequest(onDelete && (() => onDelete(item.id)));
 	const statusBadge = (
 		<StatusBadge
 			status={item.status}
@@ -1605,33 +1612,18 @@ function ContentListItem({
 					<DropdownMenu.Item
 						variant="danger"
 						icon={<Trash className="size-4" aria-hidden="true" />}
-						onClick={() => setTrashOpen(true)}
+						onClick={trash.show}
 					>
 						{t`Move to trash`}
 					</DropdownMenu.Item>
 				</RowActionsMenu>
-				<Dialog.Root open={trashOpen} onOpenChange={setTrashOpen} disablePointerDismissal>
-					<Dialog className="p-6" size="sm">
-						<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-						<Dialog.Description className="text-kumo-subtle">
-							{t`Move "${title}" to trash? You can restore it later.`}
-						</Dialog.Description>
-						<div className="mt-6 flex justify-end gap-2">
-							<Dialog.Close
-								render={(p) => (
-									<Button {...p} variant="secondary">
-										{t`Cancel`}
-									</Button>
-								)}
-							/>
-							<Dialog.Close
-								render={<Button variant="destructive" onClick={() => onDelete?.(item.id)} />}
-							>
-								{t`Move to Trash`}
-							</Dialog.Close>
-						</div>
-					</Dialog>
-				</Dialog.Root>
+				<ConfirmDialog
+					{...trash.dialog}
+					title={t`Move to Trash?`}
+					description={t`Move "${title}" to trash? You can restore it later.`}
+					confirmLabel={t`Move to Trash`}
+					pendingLabel={t`Moving to trash...`}
+				/>
 			</td>
 		</tr>
 	);
@@ -1738,7 +1730,7 @@ interface TrashedListItemProps {
 	titleField?: string;
 	showLocale?: boolean;
 	onRestore?: (id: string) => void;
-	onPermanentDelete?: (id: string) => void;
+	onPermanentDelete?: RowRequest;
 }
 
 function TrashedListItem({
@@ -1751,7 +1743,9 @@ function TrashedListItem({
 	const { t, i18n } = useLingui();
 	const title = getEntryTitle(item, titleField);
 	const deletedDate = parseTimestamp(item.deletedAt);
-	const [deleteOpen, setDeleteOpen] = React.useState(false);
+	const permanentDelete = useConfirmedRequest(
+		onPermanentDelete && (() => onPermanentDelete(item.id)),
+	);
 	const localeChip = showLocale && <LocaleChip locale={item.locale} />;
 	const formattedDeletedDate = <bdi>{formatDate(deletedDate, i18n.locale)}</bdi>;
 
@@ -1780,35 +1774,18 @@ function TrashedListItem({
 					<DropdownMenu.Item
 						variant="danger"
 						icon={<Trash className="size-4" aria-hidden="true" />}
-						onClick={() => setDeleteOpen(true)}
+						onClick={permanentDelete.show}
 					>
 						{t`Delete permanently`}
 					</DropdownMenu.Item>
 				</RowActionsMenu>
-				<Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen} disablePointerDismissal>
-					<Dialog className="p-6" size="sm">
-						<Dialog.Title className="text-lg font-semibold">{t`Delete Permanently?`}</Dialog.Title>
-						<Dialog.Description className="text-kumo-subtle">
-							{t`Permanently delete "${title}"? This cannot be undone.`}
-						</Dialog.Description>
-						<div className="mt-6 flex justify-end gap-2">
-							<Dialog.Close
-								render={(p) => (
-									<Button {...p} variant="secondary">
-										{t`Cancel`}
-									</Button>
-								)}
-							/>
-							<Dialog.Close
-								render={
-									<Button variant="destructive" onClick={() => onPermanentDelete?.(item.id)} />
-								}
-							>
-								{t`Delete Permanently`}
-							</Dialog.Close>
-						</div>
-					</Dialog>
-				</Dialog.Root>
+				<ConfirmDialog
+					{...permanentDelete.dialog}
+					title={t`Delete Permanently?`}
+					description={t`Permanently delete "${title}"? This cannot be undone.`}
+					confirmLabel={t`Delete Permanently`}
+					pendingLabel={t`Deleting...`}
+				/>
 			</td>
 		</tr>
 	);
