@@ -3,6 +3,8 @@ import type { EditorDraftPatchOperation } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
+import { guardUnsavedInput } from "../lib/dialog-form.js";
+
 interface EditorDraftPatchPreviewProps {
 	operations: EditorDraftPatchOperation[];
 	fields: Record<string, { label?: string }>;
@@ -48,15 +50,9 @@ export function EditorDraftPatchPreview({
 	return (
 		<LayerDialog.Root
 			open
-			onOpenChange={(open, details) => {
-				// Like a press outside, a swipe down on the phone sheet must not discard the changes.
-				if (!open && details.reason === "swipe") {
-					details.cancel();
-					return;
-				}
+			{...guardUnsavedInput(true, (open) => {
 				if (!open) onClose();
-			}}
-			disablePointerDismissal
+			})}
 		>
 			<LayerDialog.Content size="lg">
 				<LayerDialog.Title>{t`Review proposed changes`}</LayerDialog.Title>

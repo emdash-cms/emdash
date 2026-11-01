@@ -13,7 +13,7 @@ import {
 	type UserListItem,
 } from "../lib/api";
 import { listBylineFields, type BylineFieldDefinition } from "../lib/api/byline-fields.js";
-import { useSingleFlight } from "../lib/dialog-form.js";
+import { guardUnsavedInput, useSingleFlight } from "../lib/dialog-form.js";
 import { isSafeUrl } from "../lib/url.js";
 import { BylineAvatarField } from "./BylineAvatarField.js";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -376,18 +376,12 @@ export function BylineFormDialog({
 	return (
 		<LayerDialog.Root
 			open={open}
-			onOpenChange={(next, details) => {
-				// Like a press outside, a swipe down on the phone sheet must not discard the form.
-				if (!next && details.reason === "swipe") {
-					details.cancel();
-					return;
-				}
+			{...guardUnsavedInput(true, (next) => {
 				if (!next && isSaving) return;
 				onOpenChange(next);
-			}}
+			})}
 			onOpenChangeComplete={onOpenChangeComplete}
 			dismissDisabled={isSaving}
-			disablePointerDismissal
 		>
 			<LayerDialog.Content>
 				<LayerDialog.Title>{shownBylineId ? t`Edit byline` : t`New byline`}</LayerDialog.Title>
