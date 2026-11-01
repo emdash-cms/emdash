@@ -27,6 +27,7 @@ import {
 } from "@emdash-cms/registry-verification/artifact";
 import type { Kysely } from "kysely";
 
+import { OptionsRepository } from "../../database/repositories/options.js";
 import type { Database } from "../../database/types.js";
 import { withUnavailableReason } from "../../plugins/sandbox/types.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
@@ -1171,7 +1172,11 @@ export async function handleRegistryUninstall(
 	db: Kysely<Database>,
 	storage: Storage | null,
 	pluginId: string,
-	opts?: { deleteData?: boolean; beforeDelete?: () => Promise<void> },
+	opts?: {
+		deleteData?: boolean;
+		rollbackInstall?: boolean;
+		beforeDelete?: () => Promise<void>;
+	},
 ): Promise<ApiResult<RegistryUninstallResult>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -1197,8 +1202,9 @@ export async function handleRegistryUninstall(
 		// idempotent bundle delete, leaving the state row and bundle intact if a
 		// transient database error makes the uninstall retryable.
 		let dataDeleted = false;
-		if (opts?.deleteData) {
+		if (opts?.deleteData && !opts.rollbackInstall) {
 			await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
+			await new OptionsRepository(db).deleteByPrefix(`plugin:${pluginId}:`);
 			dataDeleted = true;
 		}
 

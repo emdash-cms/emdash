@@ -2,7 +2,8 @@
  * Submission management route handlers.
  *
  * Listing and viewing submissions is open to editors (`plugins:read`), who can see every
- * submission. Updating, exporting and deleting stay admin-only (`plugins:manage`).
+ * submission but not the submitter's IP, user agent or referer. Updating, exporting and
+ * deleting stay admin-only (`plugins:manage`).
  */
 
 import type { RouteContext, StorageCollection } from "emdash";
@@ -17,6 +18,7 @@ import type {
 	SubmissionUpdateInput,
 } from "../schemas.js";
 import type { FormDefinition, Submission } from "../types.js";
+import { ADMIN_ROLE } from "./forms.js";
 
 /** Typed access to plugin storage collections */
 function forms(ctx: RouteContext): StorageCollection<FormDefinition> {
@@ -25,6 +27,12 @@ function forms(ctx: RouteContext): StorageCollection<FormDefinition> {
 
 function submissions(ctx: RouteContext): StorageCollection<Submission> {
 	return ctx.storage.submissions as StorageCollection<Submission>;
+}
+
+/** Of the submitter details, non-admins get only the country, the one the admin UI shows. */
+function visibleTo(ctx: RouteContext, sub: Submission) {
+	if ((ctx.user?.role ?? 0) >= ADMIN_ROLE) return sub;
+	return { ...sub, meta: { country: sub.meta.country } };
 }
 
 // ─── List Submissions ────────────────────────────────────────────
@@ -44,7 +52,7 @@ export async function submissionsListHandler(ctx: RouteContext<SubmissionsListIn
 	});
 
 	return {
-		items: result.items.map((item) => ({ id: item.id, ...item.data })),
+		items: result.items.map((item) => ({ id: item.id, ...visibleTo(ctx, item.data) })),
 		hasMore: result.hasMore,
 		cursor: result.cursor,
 	};
@@ -58,7 +66,7 @@ export async function submissionGetHandler(ctx: RouteContext<SubmissionGetInput>
 		throw PluginRouteError.notFound("Submission not found");
 	}
 
-	return { id: ctx.input.id, ...sub };
+	return { id: ctx.input.id, ...visibleTo(ctx, sub) };
 }
 
 // ─── Update Submission ───────────────────────────────────────────

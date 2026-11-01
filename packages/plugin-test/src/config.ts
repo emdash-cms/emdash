@@ -1,5 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { cloudflareTest } from "@cloudflare/vitest-plugin";
@@ -44,11 +45,19 @@ export function emdashPluginTest(options: EmDashPluginTestOptions = {}): PluginO
 	);
 
 	const workerPlugin = cloudflareTest(async () => {
-		const build = await buildPlugin({ dir: pluginDir });
-		const [code, manifest] = await Promise.all([
-			readFile(build.files.runtime, "utf8"),
-			readFile(build.files.manifestJson, "utf8"),
-		]);
+		// Pool workers can start concurrently, so each build needs its own artifacts.
+		const outDir = await mkdtemp(join(tmpdir(), "emdash-plugin-test-"));
+		let code: string;
+		let manifest: string;
+		try {
+			const build = await buildPlugin({ dir: pluginDir, outDir });
+			[code, manifest] = await Promise.all([
+				readFile(build.files.runtime, "utf8"),
+				readFile(build.files.manifestJson, "utf8"),
+			]);
+		} finally {
+			await rm(outDir, { recursive: true, force: true });
+		}
 
 		return {
 			main: workerEntry,

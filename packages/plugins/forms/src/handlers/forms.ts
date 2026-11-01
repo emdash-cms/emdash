@@ -30,7 +30,7 @@ function submissions(ctx: RouteContext): StorageCollection {
 // ─── List Forms ──────────────────────────────────────────────────
 
 /** `Role.ADMIN` from @emdash-cms/auth; plugins do not depend on that package. */
-const ADMIN_ROLE = 50;
+export const ADMIN_ROLE = 50;
 
 /** The webhook URL is a credential (for Slack or Discord it is all anyone needs to post). */
 function withoutWebhookUrl(form: FormDefinition): FormDefinition {
@@ -144,7 +144,16 @@ export async function formsUpdateHandler(ctx: RouteContext<FormUpdateInput>) {
 		name: input.name ?? existing.name,
 		slug: input.slug ?? existing.slug,
 		pages: input.pages ?? existing.pages,
-		settings: input.settings ? { ...existing.settings, ...input.settings } : existing.settings,
+		settings: input.settings
+			? {
+					...existing.settings,
+					...input.settings,
+					autoresponder:
+						input.settings.autoresponder === null
+							? undefined
+							: (input.settings.autoresponder ?? existing.settings.autoresponder),
+				}
+			: existing.settings,
 		status: input.status ?? existing.status,
 		updatedAt: new Date().toISOString(),
 	};

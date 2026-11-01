@@ -395,6 +395,7 @@ export function InlineImageToolbar({
 	const [shown, setShown] = React.useState(false);
 	const [draft, setDraft] = React.useState("");
 	const menuRef = React.useRef<HTMLDivElement>(null);
+	const surfaceRef = React.useRef<HTMLDivElement>(null);
 	const replaceRef = React.useRef<HTMLButtonElement>(null);
 	const hiddenAtRef = React.useRef(Number.NEGATIVE_INFINITY);
 	const image = useEditorState({
@@ -449,7 +450,7 @@ export function InlineImageToolbar({
 			onShow: () => {
 				setShown(true);
 				if (performance.now() - hiddenAtRef.current > RESHOW_WITHOUT_ENTRANCE_MS) {
-					playToolbarEntrance(menuRef.current?.firstElementChild);
+					playToolbarEntrance(surfaceRef.current);
 				}
 			},
 			onHide: () => {
@@ -517,7 +518,7 @@ export function InlineImageToolbar({
 			menuRef.current?.contains(activeElement) ||
 			activeElement?.closest(`[${TOOLBAR_POPUP_ATTR}]`)
 		) {
-			menuRef.current?.focus({ preventScroll: true });
+			surfaceRef.current?.focus({ preventScroll: true });
 		}
 		setReplacing(false);
 		setDraft(image.alt);
@@ -562,54 +563,59 @@ export function InlineImageToolbar({
 				updateDelay={0}
 				options={options}
 				shouldShow={shouldShow}
-				role="toolbar"
-				aria-label="Image controls"
-				className="emdash-inline-ui-bar emdash-image-bubble-menu"
-				onMouseDown={() => {
-					// TipTap skips the editor's next blur after a press on its toolbar. With
-					// focus in the caption or the toolbar, no such blur comes to use that up,
-					// and the one that hides the toolbar later would be skipped instead.
-					if (!editor.view.hasFocus()) {
-						editor.view.dispatch(
-							editor.state.tr.setMeta("blur", { event: { relatedTarget: menuRef.current } }),
-						);
-					}
-				}}
-				onKeyDown={onKeyDown}
 			>
-				<ToolbarShownContext.Provider value={shown}>
-					<ToolbarTooltipGroup>
-						{mode === "alt" ? (
-							<AltTextField
-								value={draft}
-								onChange={setDraft}
-								onSave={saveAlt}
-								onCancel={backToEditor}
-							/>
-						) : (
-							<>
-								<ToolbarTextButton
-									label="Replace"
-									icon={<ImageSquare aria-hidden="true" />}
-									expanded={replacing}
-									buttonRef={replaceRef}
-									onClick={() => (replacing ? closeReplace() : setReplacing(true))}
+				<div
+					ref={surfaceRef}
+					tabIndex={-1}
+					role="toolbar"
+					aria-label="Image controls"
+					className="emdash-inline-ui-bar emdash-image-bubble-menu"
+					onMouseDown={() => {
+						// TipTap skips the editor's next blur after a press on its toolbar. With
+						// focus in the caption or the toolbar, no such blur comes to use that up,
+						// and the one that hides the toolbar later would be skipped instead.
+						if (!editor.view.hasFocus()) {
+							editor.view.dispatch(
+								editor.state.tr.setMeta("blur", { event: { relatedTarget: surfaceRef.current } }),
+							);
+						}
+					}}
+					onKeyDown={onKeyDown}
+				>
+					<ToolbarShownContext.Provider value={shown}>
+						<ToolbarTooltipGroup>
+							{mode === "alt" ? (
+								<AltTextField
+									value={draft}
+									onChange={setDraft}
+									onSave={saveAlt}
+									onCancel={backToEditor}
 								/>
-								<ToolbarTextButton
-									label="Alt text"
-									icon={<TextAa aria-hidden="true" />}
-									pressed={described}
-									tooltip={described ? image.alt.trim() : "No description yet"}
-									onClick={editAlt}
-								/>
-								<ToolbarSeparator />
-								<ToolbarButton label="Delete image" onClick={remove}>
-									<Trash />
-								</ToolbarButton>
-							</>
-						)}
-					</ToolbarTooltipGroup>
-				</ToolbarShownContext.Provider>
+							) : (
+								<>
+									<ToolbarTextButton
+										label="Replace"
+										icon={<ImageSquare aria-hidden="true" />}
+										expanded={replacing}
+										buttonRef={replaceRef}
+										onClick={() => (replacing ? closeReplace() : setReplacing(true))}
+									/>
+									<ToolbarTextButton
+										label="Alt text"
+										icon={<TextAa aria-hidden="true" />}
+										pressed={described}
+										tooltip={described ? image.alt.trim() : "No description yet"}
+										onClick={editAlt}
+									/>
+									<ToolbarSeparator />
+									<ToolbarButton label="Delete image" onClick={remove}>
+										<Trash />
+									</ToolbarButton>
+								</>
+							)}
+						</ToolbarTooltipGroup>
+					</ToolbarShownContext.Provider>
+				</div>
 			</BubbleMenu>
 			{replacing && image.position !== null && (
 				<InlineMediaPicker

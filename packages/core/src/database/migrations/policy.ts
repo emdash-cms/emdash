@@ -76,6 +76,8 @@ export function isMigrationRequiredError(error: unknown): boolean {
 export interface RuntimeMigrationPolicyOptions {
 	/** In auto mode, see `MigrationOptions.contentRowLimit`. */
 	contentRowLimit?: number;
+	/** In auto mode, see `MigrationOptions.appliedCount`. */
+	appliedCount?: number | null;
 }
 
 export async function enforceRuntimeMigrationPolicy(
@@ -85,7 +87,10 @@ export async function enforceRuntimeMigrationPolicy(
 ): Promise<void> {
 	if (mode === "manual") return;
 	if (mode === "auto") {
-		await runMigrations(db, { contentRowLimit: options.contentRowLimit });
+		await runMigrations(db, {
+			contentRowLimit: options.contentRowLimit,
+			appliedCount: options.appliedCount,
+		});
 		return;
 	}
 

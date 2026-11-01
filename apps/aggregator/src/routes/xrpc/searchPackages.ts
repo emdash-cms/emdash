@@ -347,15 +347,21 @@ const CAPABILITY_FILTER_SQL = `
 `;
 
 /** Quote a user-supplied search string for FTS5 MATCH. FTS5 treats `"`,
- * `*`, `(`, `)`, `.`, `:`, `^`, `+`, `-` as syntax. The simplest robust
- * escape is to wrap the whole query as a single phrase string and double
- * any embedded quotes. This loses prefix-search functionality
- * (`"foo*"` is treated literally) but is safe and sufficient for v1; if
- * advanced query syntax becomes a product feature we'll layer a parsed
- * mode on top. */
+ * `*`, `(`, `)`, `.`, `:`, `^`, `+`, `-` as syntax, so each whitespace-separated
+ * term becomes its own quoted phrase with embedded quotes doubled, and user
+ * input can never form an operator. The last term gets a `*` so a partly typed
+ * word still matches (`newslet` finds `newsletter`). Terms with no letters or
+ * digits are dropped: the tokenizer would turn them into empty phrases. */
 const FTS_QUOTE_RE = /"/g;
+const WHITESPACE_RE = /\s+/;
+const WORD_CHAR_RE = /[\p{L}\p{N}]/u;
 function quoteFtsQuery(raw: string): string {
-	return `"${raw.replace(FTS_QUOTE_RE, '""')}"`;
+	const terms = raw
+		.split(WHITESPACE_RE)
+		.filter((term) => WORD_CHAR_RE.test(term))
+		.map((term) => `"${term.replace(FTS_QUOTE_RE, '""')}"`);
+	if (terms.length === 0) return '""';
+	return `${terms.join(" ")}*`;
 }
 
 function clampLimit(raw: number | undefined): number {

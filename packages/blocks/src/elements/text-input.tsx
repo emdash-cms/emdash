@@ -1,6 +1,7 @@
 import { Input, InputArea } from "@cloudflare/kumo";
-import { useCallback } from "react";
+import { useCallback, useContext } from "react";
 
+import { FormOwnerContext } from "../form-context.js";
 import type { BlockInteraction, TextInputElement } from "../types.js";
 
 export function TextInputElementComponent({
@@ -12,6 +13,7 @@ export function TextInputElementComponent({
 	onAction: (interaction: BlockInteraction) => void;
 	onChange?: (actionId: string, value: unknown) => void;
 }) {
+	const form = useContext(FormOwnerContext);
 	const handleChange = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
 			if (onChange) {
@@ -37,6 +39,7 @@ export function TextInputElementComponent({
 	if (element.multiline) {
 		return (
 			<InputArea
+				form={form}
 				label={element.label}
 				placeholder={element.placeholder}
 				defaultValue={element.initial_value}
@@ -48,6 +51,7 @@ export function TextInputElementComponent({
 
 	return (
 		<Input
+			form={form}
 			label={element.label}
 			placeholder={element.placeholder}
 			defaultValue={element.initial_value}

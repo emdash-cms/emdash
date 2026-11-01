@@ -44,7 +44,11 @@ import { getI18nConfig, getLocaleRank, resolveConfiguredLocale } from "../i18n/c
 import { localeMatches, localeOrder } from "../i18n/query.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
-import { coalesceObjectCacheWrites, invalidateMenuObjectCache } from "../object-cache/index.js";
+import {
+	coalesceObjectCacheWrites,
+	invalidateMenuObjectCache,
+	invalidateWidgetObjectCache,
+} from "../object-cache/index.js";
 import { BlockTypeRegistry } from "../schema/block-type-registry.js";
 import { normalizeBlocksData, resolveBlockTypes } from "../schema/block-values.js";
 import { SchemaError, SchemaRegistry } from "../schema/registry.js";
@@ -848,6 +852,7 @@ async function applySeedWrites(
 		try {
 			// Create content entries
 			for (const [collectionSlug, entries] of Object.entries(seed.content)) {
+				const clearedTaxonomyGroups = new Set<string>();
 				const collectionInfo = await schemaRegistry.getCollectionWithFields(collectionSlug);
 				const collectionRoutable = collectionInfo?.routable !== false;
 				const referenceFields = referenceFieldsOf(collectionInfo);
@@ -950,7 +955,15 @@ async function applySeedWrites(
 										seedBylineIdMap,
 										true,
 									);
-									await applyContentTaxonomies(trx, collectionSlug, existing.id, entry, true);
+									await applyContentTaxonomies(
+										trx,
+										collectionSlug,
+										existing.id,
+										entry,
+										existing.locale ?? entryLocale,
+										existing.translationGroup ?? existing.id,
+										clearedTaxonomyGroups,
+									);
 									await applyContentReferences(trx, collectionSlug, existing.id, edges);
 
 									// Seed is declarative — when status is "published", promote to a live
@@ -1080,7 +1093,15 @@ async function applySeedWrites(
 								entry,
 								seedBylineIdMap,
 							);
-							await applyContentTaxonomies(trx, collectionSlug, item.id, entry, false);
+							await applyContentTaxonomies(
+								trx,
+								collectionSlug,
+								item.id,
+								entry,
+								entryLocale,
+								undefined,
+								clearedTaxonomyGroups,
+							);
 							await applyContentReferences(trx, collectionSlug, item.id, edges);
 
 							// Seed is declarative — when status is "published", promote to a live
@@ -1259,54 +1280,58 @@ async function applySeedWrites(
 
 	// 10. Widget Areas and Widgets
 	if (seed.widgetAreas) {
-		const areaIds: string[] = [];
-		const widgetRows: Insertable<WidgetTable>[] = [];
-		for (const area of seed.widgetAreas) {
-			// Check if area exists
-			const lookup = db
-				.selectFrom("_emdash_widget_areas")
-				.selectAll()
-				.where("name", "=", area.name);
-			const existingArea = await lookup.executeTakeFirst();
+		try {
+			const areaIds: string[] = [];
+			const widgetRows: Insertable<WidgetTable>[] = [];
+			for (const area of seed.widgetAreas) {
+				// Check if area exists
+				const lookup = db
+					.selectFrom("_emdash_widget_areas")
+					.selectAll()
+					.where("name", "=", area.name);
+				const existingArea = await lookup.executeTakeFirst();
 
-			let areaId: string;
+				let areaId: string;
 
-			if (existingArea) {
-				areaId = existingArea.id;
-			} else {
-				// Create area
-				areaId = ulid();
-				const inserted = await db
-					.insertInto("_emdash_widget_areas")
-					.values({
-						id: areaId,
-						name: area.name,
-						label: area.label,
-						description: area.description ?? null,
-					})
-					.onConflict((conflict) => conflict.column("name").doNothing())
-					.returning("id")
-					.executeTakeFirst();
-				if (inserted) {
-					result.widgetAreas.created++;
+				if (existingArea) {
+					areaId = existingArea.id;
 				} else {
-					areaId = (await lookup.executeTakeFirstOrThrow()).id;
+					// Create area
+					areaId = ulid();
+					const inserted = await db
+						.insertInto("_emdash_widget_areas")
+						.values({
+							id: areaId,
+							name: area.name,
+							label: area.label,
+							description: area.description ?? null,
+						})
+						.onConflict((conflict) => conflict.column("name").doNothing())
+						.returning("id")
+						.executeTakeFirst();
+					if (inserted) {
+						result.widgetAreas.created++;
+					} else {
+						areaId = (await lookup.executeTakeFirstOrThrow()).id;
+					}
+				}
+
+				areaIds.push(areaId);
+				for (let i = 0; i < area.widgets.length; i++) {
+					const widget = area.widgets[i];
+					widgetRows.push(createSeedWidgetRow(areaId, widget, i));
+					result.widgetAreas.widgets++;
 				}
 			}
-
-			areaIds.push(areaId);
-			for (let i = 0; i < area.widgets.length; i++) {
-				const widget = area.widgets[i];
-				widgetRows.push(createSeedWidgetRow(areaId, widget, i));
-				result.widgetAreas.widgets++;
-			}
+			await replaceSeedChildren(db, "_emdash_widget_areas", areaIds, (target) => [
+				...areaIds.map((id) => target.deleteFrom("_emdash_widgets").where("area_id", "=", id)),
+				...chunks(widgetRows, SEED_WIDGET_INSERT_BATCH_SIZE).map((rows) =>
+					target.insertInto("_emdash_widgets").values(rows),
+				),
+			]);
+		} finally {
+			invalidateWidgetObjectCache();
 		}
-		await replaceSeedChildren(db, "_emdash_widget_areas", areaIds, (target) => [
-			...areaIds.map((id) => target.deleteFrom("_emdash_widgets").where("area_id", "=", id)),
-			...chunks(widgetRows, SEED_WIDGET_INSERT_BATCH_SIZE).map((rows) =>
-				target.insertInto("_emdash_widgets").values(rows),
-			),
-		]);
 	}
 
 	// 11. Sections
@@ -2087,18 +2112,22 @@ async function applyContentTaxonomies(
 	collectionSlug: string,
 	contentId: string,
 	entry: { taxonomies?: Record<string, string[]> },
-	isUpdate: boolean,
+	locale: string,
+	updateGroup: string | undefined,
+	clearedGroups: Set<string>,
 ): Promise<void> {
 	const termRepo = new TaxonomyRepository(db);
-	// In update mode, clear existing taxonomy assignments first
-	if (isUpdate) {
+	// Assignments are shared by all translations; later translations add to the same set.
+	const shouldClear = updateGroup !== undefined && !clearedGroups.has(updateGroup);
+	if (shouldClear) {
 		await termRepo.clearEntryTerms(collectionSlug, contentId);
+		clearedGroups.add(updateGroup);
 	}
 
 	if (!entry.taxonomies) {
 		// In update mode we may have just deleted rows above; invalidate so
 		// hydration doesn't serve stale "has terms" cached value.
-		if (isUpdate) {
+		if (shouldClear) {
 			const { invalidateTermCache } = await import("../taxonomies/index.js");
 			invalidateTermCache();
 		}
@@ -2107,10 +2136,14 @@ async function applyContentTaxonomies(
 
 	for (const [taxonomyName, termSlugs] of Object.entries(entry.taxonomies)) {
 		for (const termSlug of termSlugs) {
-			const term = await termRepo.findBySlug(taxonomyName, termSlug);
-			if (term) {
-				await termRepo.attachToEntry(collectionSlug, contentId, term.id);
+			const term = await termRepo.findBySlug(taxonomyName, termSlug, locale);
+			if (!term) {
+				console.warn(
+					`content.${collectionSlug}: taxonomy term "${taxonomyName}/${termSlug}" not found in locale "${locale}". Skipping assignment.`,
+				);
+				continue;
 			}
+			await termRepo.attachToEntry(collectionSlug, contentId, term.id);
 		}
 	}
 

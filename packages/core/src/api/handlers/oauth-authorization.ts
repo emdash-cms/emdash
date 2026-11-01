@@ -14,6 +14,7 @@ import { generateCodeVerifier } from "arctic";
 import type { Kysely } from "kysely";
 
 import {
+	ACCESS_TOKEN_TTL_SECONDS,
 	generatePrefixedToken,
 	hashApiToken,
 	isValidScope,
@@ -32,9 +33,6 @@ import { lookupUserRoleAndStatus } from "./oauth-user-lookup.js";
 
 /** Authorization codes expire after 10 minutes (RFC 6749 §4.1.2 recommends short-lived) */
 const AUTH_CODE_TTL_SECONDS = 10 * 60;
-
-/** Access token TTL: 1 hour */
-const ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
 
 /** Refresh token TTL: 90 days */
 const REFRESH_TOKEN_TTL_SECONDS = 90 * 24 * 60 * 60;

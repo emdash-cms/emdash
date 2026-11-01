@@ -146,6 +146,14 @@ describe("inline Portable Text editor toolbars and slash menu", () => {
 		});
 	}
 
+	function makeToolbarControlsVisible(toolbar: HTMLElement) {
+		for (const control of toolbar.querySelectorAll<HTMLElement>(
+			"button:not([disabled]), a[href]",
+		)) {
+			Object.defineProperty(control, "getClientRects", { value: () => [new DOMRect()] });
+		}
+	}
+
 	async function turnInto(toolbar: HTMLElement, label: string) {
 		await click(toolbar.querySelector('[aria-label="Turn into"]')!);
 		const item = await vi.waitFor(() => {
@@ -224,6 +232,51 @@ describe("inline Portable Text editor toolbars and slash menu", () => {
 		await act(async () => more.focus());
 		await act(async () => press(more, "Tab"));
 		expect(document.activeElement).toBe(nextOnPage);
+	});
+
+	it("moves between format toolbar buttons with the arrow keys", async () => {
+		const editable = await mount([block("a", "Some text to format.")]);
+		const toolbar = await selectAndShowToolbar(editable, 1, 5);
+		makeToolbarControlsVisible(toolbar);
+		const bold = toolbar.querySelector<HTMLElement>('[aria-label="Bold"]')!;
+		const italic = toolbar.querySelector<HTMLElement>('[aria-label="Italic"]')!;
+
+		await act(async () => bold.focus());
+		await act(async () => press(bold, "ArrowRight"));
+		expect(document.activeElement).toBe(italic);
+		await act(async () => press(italic, "ArrowLeft"));
+		expect(document.activeElement).toBe(bold);
+	});
+
+	it("moves between link toolbar controls with the arrow keys", async () => {
+		const linked = {
+			...block("a", "Some linked text."),
+			markDefs: [{ _type: "link", _key: "link-1", href: "https://example.com" }],
+			children: [
+				{ _type: "span" as const, _key: "a-1", text: "Some linked text.", marks: ["link-1"] },
+			],
+		};
+		const editable = await mount([linked]);
+		await act(async () => {
+			editorOf(editable).commands.focus();
+			editorOf(editable).commands.setTextSelection(4);
+		});
+		const toolbar = await vi.waitFor(() => {
+			const menu = document.querySelector<HTMLElement>(
+				'[role="toolbar"][aria-label="Link options"]',
+			);
+			expect(menu?.isConnected).toBe(true);
+			return menu!;
+		});
+		makeToolbarControlsVisible(toolbar);
+		const edit = toolbar.querySelector<HTMLElement>('[aria-label="Edit link"]')!;
+		const remove = toolbar.querySelector<HTMLElement>('[aria-label="Remove link"]')!;
+
+		await act(async () => edit.focus());
+		await act(async () => press(edit, "ArrowRight"));
+		expect(document.activeElement).toBe(remove);
+		await act(async () => press(remove, "ArrowLeft"));
+		expect(document.activeElement).toBe(edit);
 	});
 
 	it("hides the toolbar once focus leaves the editor after a toolbar button", async () => {

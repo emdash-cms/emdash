@@ -1,14 +1,14 @@
 /**
  * Welcome Modal
  *
- * Shown to new users on their first login to welcome them to EmDash.
+ * Shown to new users on their first login.
  */
 
-import { Badge, Button, Dialog } from "@cloudflare/kumo";
+import { Badge, LayerDialog } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { UserCircleIcon, X } from "@phosphor-icons/react";
+import { UserCircleIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -58,7 +58,6 @@ function scopeDescriptor(isAdmin: boolean, userRole: number): MessageDescriptor 
 }
 
 const MSG_ADMIN_INVITE = msg`As an administrator, you can invite other users from the Users section.`;
-const MSG_CLOSE = msg`Close`;
 
 async function dismissWelcome(fallbackMessage: string): Promise<void> {
 	const response = await apiFetch("/_emdash/api/auth/me", {
@@ -71,7 +70,7 @@ async function dismissWelcome(fallbackMessage: string): Promise<void> {
 
 export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModalProps) {
 	const { t } = useLingui();
-	const { logo: brandLogo, siteName: brandSiteName } = useAdminBranding();
+	const { logo: brandLogo, siteName } = useAdminBranding();
 	const queryClient = useQueryClient();
 
 	const dismissMutation = useMutation({
@@ -100,63 +99,58 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 	const isAdmin = userRole >= 50;
 
 	const firstName = userName?.split(" ")?.[0]?.trim() ?? "";
-	const titleDescriptor =
-		firstName.length > 0 ? msg`Welcome to EmDash, ${firstName}!` : msg`Welcome to EmDash!`;
+	let titleDescriptor: MessageDescriptor;
+	if (siteName) {
+		titleDescriptor =
+			firstName.length > 0
+				? msg`Welcome to ${siteName}, ${firstName}!`
+				: msg`Welcome to ${siteName}!`;
+	} else {
+		titleDescriptor =
+			firstName.length > 0 ? msg`Welcome to EmDash, ${firstName}!` : msg`Welcome to EmDash!`;
+	}
 
 	return (
-		<Dialog.Root open={open} onOpenChange={(isOpen: boolean) => !isOpen && handleGetStarted()}>
-			<Dialog className="p-6 sm:max-w-md">
-				<div className="mb-5 flex items-center justify-between gap-4">
-					<BrandIcon logoUrl={brandLogo} siteName={brandSiteName} className="h-8 w-8" />
-					<Dialog.Close
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								size="sm"
-								icon={<X />}
-								aria-label={t(MSG_CLOSE)}
-							/>
+		<LayerDialog.Root
+			open={open}
+			onOpenChange={(isOpen: boolean) => !isOpen && handleGetStarted()}
+			dismissDisabled={dismissMutation.isPending}
+		>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>
+					<span className="grid justify-items-start gap-4">
+						<span aria-hidden="true">
+							<BrandIcon logoUrl={brandLogo} siteName={siteName} className="size-8" />
+						</span>
+						{t(titleDescriptor)}
+					</span>
+				</LayerDialog.Title>
+				<LayerDialog.Description>{t(MSG_ACCOUNT_CREATED)}</LayerDialog.Description>
+				<LayerDialog.Body>
+					<div className="grid gap-4">
+						<div className="grid gap-2">
+							<div className="flex items-center gap-2">
+								<span className="text-sm text-kumo-subtle">{t(MSG_YOUR_ROLE)}</span>
+								<Badge variant={roleBadgeVariant(userRole)} className="gap-1">
+									<UserCircleIcon weight="fill" aria-hidden="true" />
+									{roleLabel}
+								</Badge>
+							</div>
+							<p className="text-base text-pretty text-kumo-default">
+								{t(scopeDescriptor(isAdmin, userRole))}
+							</p>
+						</div>
+						{isAdmin && (
+							<p className="text-base text-pretty text-kumo-subtle">{t(MSG_ADMIN_INVITE)}</p>
 						)}
-					/>
-				</div>
-
-				<Dialog.Title className="text-start text-xl font-semibold leading-tight">
-					{t(titleDescriptor)}
-				</Dialog.Title>
-				<Dialog.Description className="mt-1 text-start text-sm leading-5 text-pretty text-kumo-subtle">
-					{t(MSG_ACCOUNT_CREATED)}
-				</Dialog.Description>
-
-				<div className="mt-5 space-y-3 border-t border-kumo-line pt-5 text-start">
-					<div className="flex items-center gap-2">
-						<span className="text-sm text-kumo-subtle">{t(MSG_YOUR_ROLE)}</span>
-						<Badge variant={roleBadgeVariant(userRole)} className="gap-1">
-							<UserCircleIcon weight="fill" aria-hidden="true" />
-							{roleLabel}
-						</Badge>
 					</div>
-					<p className="text-sm leading-5 text-pretty text-kumo-default">
-						{t(scopeDescriptor(isAdmin, userRole))}
-					</p>
-					{isAdmin && (
-						<p className="text-sm leading-5 text-pretty text-kumo-subtle">{t(MSG_ADMIN_INVITE)}</p>
-					)}
-				</div>
-
-				<div className="mt-5 border-t border-kumo-line pt-5">
-					<Button
-						variant="primary"
-						size="lg"
-						className="w-full justify-center"
-						onClick={handleGetStarted}
-						loading={dismissMutation.isPending}
-					>
+				</LayerDialog.Body>
+				<LayerDialog.Actions>
+					<LayerDialog.Action onClick={handleGetStarted} loading={dismissMutation.isPending}>
 						{t`Get Started`}
-					</Button>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }

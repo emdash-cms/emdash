@@ -1,4 +1,5 @@
 export { EmDashRuntime } from "./emdash-runtime.js";
+export { waitForDeferredTasks } from "./deferred-tasks.js";
 export type { RuntimeDependencies } from "./emdash-runtime.js";
 export {
 	dispatchPluginApiRequest,

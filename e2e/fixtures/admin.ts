@@ -422,8 +422,8 @@ export class AdminPage {
 		await this.page.getByRole("button", { name: "Create Menu" }).first().click();
 
 		// Fill form
-		await this.page.getByLabel("Name").fill(name);
-		await this.page.getByLabel("Label").fill(label);
+		await this.page.getByLabel("Name", { exact: true }).fill(name);
+		await this.page.getByLabel("Label", { exact: true }).fill(label);
 
 		// Submit and wait for navigation
 		await Promise.all([
@@ -487,7 +487,7 @@ export class AdminPage {
 	 * Returns empty array if locale column is not shown.
 	 */
 	async getLocaleColumnValues(): Promise<string[]> {
-		const cells = this.page.locator("table tbody tr td span.rounded.bg-kumo-tint");
+		const cells = this.page.locator("table tbody tr td span.rounded.bg-kumo-tint:visible");
 		return cells.allTextContents();
 	}
 

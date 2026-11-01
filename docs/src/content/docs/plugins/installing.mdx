@@ -33,7 +33,7 @@ export default defineConfig({
 
 The Cloudflare runner uses Worker Loader to create a separate Worker for each plugin. It requires the Workers Paid plan and a `worker_loaders` binding named `LOADER`. Sandboxed plugins reach content, media, storage, network, and email APIs through `PluginBridge`, so the site's Worker entry point must export that class.
 
-The `*-cloudflare` templates export `PluginBridge` but leave the Worker Loader binding commented out, so new projects can deploy on the Workers free plan. Enable sandboxed plugins during scaffolding or follow the [Cloudflare sandbox setup](/deployment/plugin-sandbox/#cloudflare-workers) to add the binding later. The `sandbox()` helper reads the effective Wrangler config at build time. Without `LOADER`, registry browsing remains available, but config-managed sandboxed plugins do not load and install or update requests return `SANDBOX_NOT_AVAILABLE`.
+The `*-cloudflare` templates export `PluginBridge` but leave the Worker Loader binding commented out, so new projects can deploy on the Workers free plan. Enable sandboxed plugins during scaffolding or follow the [Cloudflare sandbox setup](/deployment/plugin-sandbox/#cloudflare-workers) to add the binding later. The `sandbox()` helper reads the effective Wrangler config at build time, or selects the runner without a check when the project has a `cloudflare.config.ts`. Without `LOADER`, registry browsing remains available, but config-managed sandboxed plugins do not load and install or update requests return `SANDBOX_NOT_AVAILABLE`.
 
 On Node.js, install the runner and its `workerd` peer dependency:
 

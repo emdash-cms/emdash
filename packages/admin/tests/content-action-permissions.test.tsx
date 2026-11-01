@@ -4,6 +4,7 @@ import { I18nProvider } from "@lingui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { ThemeProvider } from "../src/components/ThemeProvider";
 import type { AdminManifest } from "../src/lib/api";
@@ -135,34 +136,36 @@ describe("content list Duplicate offer", () => {
 		{ id: "unowned", title: "Unowned post", status: "draft", authorId: null },
 	];
 
-	async function duplicateOffers() {
+	async function duplicateOffers(served: Entry[]) {
 		const screen = await renderAt({ to: "/content/$collection", params: { collection: "posts" } });
-		await expect.element(screen.getByRole("link", { name: "Edit Own post" })).toBeVisible();
-		return entries
-			.map((entry) => entry.title)
-			.filter((title) =>
-				[...document.querySelectorAll("button")].some(
-					(button) => button.getAttribute("aria-label") === `Duplicate ${title}`,
-				),
-			);
+		const offers: string[] = [];
+		for (const { title } of served) {
+			await screen.getByRole("button", { name: `Actions for ${title}` }).click();
+			await expect.element(screen.getByRole("menuitem", { name: "Edit" })).toBeVisible();
+			if (screen.getByRole("menuitem", { name: "Duplicate" }).query()) offers.push(title);
+			await userEvent.keyboard("{Escape}");
+			await expect.element(screen.getByRole("menu")).not.toBeInTheDocument();
+		}
+		return offers;
 	}
 
 	it("offers a Contributor no Duplicate, not even on their own drafts", async () => {
-		serve(CONTRIBUTOR, [
+		const served: Entry[] = [
 			...entries,
 			{ id: "contributor", title: "Contributor post", status: "draft", authorId: CONTRIBUTOR.id },
-		]);
-		expect(await duplicateOffers()).toEqual([]);
+		];
+		serve(CONTRIBUTOR, served);
+		expect(await duplicateOffers(served)).toEqual([]);
 	});
 
 	it("offers an Author Duplicate only on their own entries", async () => {
 		serve(AUTHOR, entries);
-		expect(await duplicateOffers()).toEqual(["Own post"]);
+		expect(await duplicateOffers(entries)).toEqual(["Own post"]);
 	});
 
 	it("offers an Editor Duplicate on every entry", async () => {
 		serve(EDITOR, entries);
-		expect(await duplicateOffers()).toEqual(["Own post", "Other post", "Unowned post"]);
+		expect(await duplicateOffers(entries)).toEqual(["Own post", "Other post", "Unowned post"]);
 	});
 });
 

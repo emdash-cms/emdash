@@ -6,6 +6,7 @@
  */
 
 import { InvalidCursorError } from "../database/repositories/types.js";
+import { SearchUnavailableError } from "../search/errors.js";
 import { mapErrorStatus } from "./errors.js";
 import type { ApiResult } from "./types.js";
 
@@ -69,6 +70,9 @@ export function handleError(
 	// generic 500.
 	if (error instanceof InvalidCursorError) {
 		return apiError("INVALID_CURSOR", error.message, 400);
+	}
+	if (error instanceof SearchUnavailableError) {
+		return apiError("SEARCH_UNAVAILABLE", error.message, 503);
 	}
 	console.error(`[${fallbackCode}]`, error);
 	return apiError(fallbackCode, fallbackMessage, 500);

@@ -19,8 +19,16 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { POST as postMedia } from "../../../src/astro/routes/api/media.js";
 import { POST as postUploadUrl } from "../../../src/astro/routes/api/media/upload-url.js";
 import type { Database } from "../../../src/database/types.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
-import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import {
+	describeEachDialect,
+	setupForDialect,
+	setupTestDatabase,
+	teardownForDialect,
+	teardownTestDatabase,
+	type DialectTestContext,
+} from "../../utils/test-db.js";
 
 // ---------------------------------------------------------------------------
 // Minimal in-memory storage stub
@@ -129,12 +137,19 @@ function buildContext(opts: {
 	} as unknown as APIContext;
 }
 
-function buildUploadRequest(opts: { file: File; fieldId?: string }): Request {
+function buildUploadRequest(opts: {
+	file: File;
+	fieldId?: string;
+	blockType?: string;
+	blockVersion?: number;
+}): Request {
 	const formData = new FormData();
 	formData.append("file", opts.file);
 	if (opts.fieldId) {
 		formData.append("fieldId", opts.fieldId);
 	}
+	if (opts.blockType) formData.append("blockType", opts.blockType);
+	if (opts.blockVersion !== undefined) formData.append("blockVersion", String(opts.blockVersion));
 	return new Request("http://localhost/_emdash/api/media", {
 		method: "POST",
 		headers: {
@@ -365,15 +380,17 @@ function buildUploadUrlRequest(opts: {
 	filename: string;
 	size: number;
 	fieldId?: string;
+	blockType?: string;
+	blockVersion?: number;
 }): Request {
 	const body: Record<string, unknown> = {
 		filename: opts.filename,
 		contentType: opts.contentType,
 		size: opts.size,
 	};
-	if (opts.fieldId) {
-		body.fieldId = opts.fieldId;
-	}
+	if (opts.fieldId) body.fieldId = opts.fieldId;
+	if (opts.blockType) body.blockType = opts.blockType;
+	if (opts.blockVersion !== undefined) body.blockVersion = opts.blockVersion;
 	return new Request("http://localhost/_emdash/api/media/upload-url", {
 		method: "POST",
 		headers: {
@@ -475,5 +492,224 @@ describe("POST /media/upload-url — upload widening via fieldId", () => {
 		expect(res.status).toBe(400);
 		const body = (await res.json()) as { error?: { code: string } };
 		expect(body.error?.code).toBe("INVALID_TYPE");
+	});
+});
+
+describeEachDialect("nested block field upload allowlists", (dialect) => {
+	let ctx: DialectTestContext;
+	let outerFieldId: string;
+	let imageFieldId: string;
+	const composite = () => `${outerFieldId}:k1:file`;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		const schema = new SchemaRegistry(ctx.db);
+		const blocks = new BlockTypeRegistry(ctx.db);
+		await schema.createCollection({ slug: "article", label: "Articles", labelSingular: "Article" });
+		const image = await schema.createField("article", {
+			slug: "thumbnail",
+			label: "Thumbnail",
+			type: "image",
+			validation: { allowedMimeTypes: ["image/"] },
+		});
+		imageFieldId = image.id;
+		await blocks.createBlockType({
+			slug: "attachment",
+			label: "Attachment",
+			fields: [
+				{ slug: "label", label: "Label", type: "string" },
+				{
+					slug: "file",
+					label: "File",
+					type: "file",
+					validation: { allowedMimeTypes: ["application/msword"] },
+				},
+			],
+		});
+		const outer = await schema.createField("article", {
+			slug: "attachments",
+			label: "Attachments",
+			type: "blocks",
+			validation: { allowedTypes: ["attachment"] },
+		});
+		outerFieldId = outer.id;
+		await blocks.createBlockType({
+			slug: "other_attachment",
+			label: "Other attachment",
+			fields: [
+				{
+					slug: "file",
+					label: "File",
+					type: "file",
+					validation: { allowedMimeTypes: ["application/msword"] },
+				},
+			],
+		});
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	const cases = [
+		{
+			name: "valid block context",
+			fieldId: () => composite(),
+			blockType: "attachment",
+			blockVersion: 1,
+			type: "application/msword",
+			ok: true,
+		},
+		{
+			name: "block key containing colons",
+			fieldId: () => `${outerFieldId}:imported:key:file`,
+			blockType: "attachment",
+			blockVersion: 1,
+			type: "application/msword",
+			ok: true,
+		},
+		{
+			name: "mismatched MIME type",
+			fieldId: () => composite(),
+			blockType: "attachment",
+			blockVersion: 1,
+			type: "application/pdf",
+			ok: false,
+		},
+		{
+			name: "unknown block version",
+			fieldId: () => composite(),
+			blockType: "attachment",
+			blockVersion: 99,
+			type: "application/msword",
+			ok: false,
+		},
+		{
+			name: "missing block context",
+			fieldId: () => composite(),
+			blockType: undefined,
+			blockVersion: undefined,
+			type: "application/msword",
+			ok: false,
+		},
+		{
+			name: "non-media nested slug",
+			fieldId: () => `${outerFieldId}:k1:label`,
+			blockType: "attachment",
+			blockVersion: 1,
+			type: "application/msword",
+			ok: false,
+		},
+		{
+			name: "unknown outer field",
+			fieldId: () => "missing:k1:file",
+			blockType: "attachment",
+			blockVersion: 1,
+			type: "application/msword",
+			ok: false,
+		},
+		{
+			name: "wrong outer field type",
+			fieldId: () => `${imageFieldId}:k1:file`,
+			blockType: "attachment",
+			blockVersion: 1,
+			type: "application/msword",
+			ok: false,
+		},
+		{
+			name: "block type not allowed by outer field",
+			fieldId: () => composite(),
+			blockType: "other_attachment",
+			blockVersion: 1,
+			type: "application/msword",
+			ok: false,
+		},
+	] as const;
+
+	for (const route of ["media", "upload-url"] as const) {
+		describe(`POST /${route}`, () => {
+			for (const testCase of cases) {
+				it(testCase.name, async () => {
+					const type = testCase.type;
+					const storage =
+						route === "media" ? createMemoryStorage() : { storage: createSignedUrlStorage() };
+					const request =
+						route === "media"
+							? buildUploadRequest({
+									file: new File(["word"], "form.doc", { type }),
+									fieldId: testCase.fieldId(),
+									blockType: testCase.blockType,
+									blockVersion: testCase.blockVersion,
+								})
+							: buildUploadUrlRequest({
+									filename: "form.doc",
+									contentType: type,
+									size: 4,
+									fieldId: testCase.fieldId(),
+									blockType: testCase.blockType,
+									blockVersion: testCase.blockVersion,
+								});
+					const response =
+						route === "media"
+							? await postMedia(buildContext({ db: ctx.db, request, storage: storage.storage }))
+							: await postUploadUrl(
+									buildUploadUrlContext({ db: ctx.db, request, storage: storage.storage }),
+								);
+					expect(response.status).toBe(testCase.ok ? (route === "media" ? 201 : 200) : 400);
+					if (!testCase.ok) {
+						expect(await response.json()).toMatchObject({ error: { code: "INVALID_TYPE" } });
+					}
+				});
+			}
+		});
+	}
+
+	it("uses retained block types after they are retired from the outer field", async () => {
+		await new SchemaRegistry(ctx.db).updateField("article", "attachments", {
+			validation: { allowedTypes: [], retiredTypes: [] },
+		});
+		const request = buildUploadUrlRequest({
+			filename: "form.doc",
+			contentType: "application/msword",
+			size: 4,
+			fieldId: composite(),
+			blockType: "attachment",
+			blockVersion: 1,
+		});
+		const response = await postUploadUrl(
+			buildUploadUrlContext({
+				db: ctx.db,
+				request,
+				storage: createSignedUrlStorage(),
+			}),
+		);
+		expect(response.status).toBe(200);
+	});
+
+	it("retains version 1's allowlist after a version 2 change", async () => {
+		const blocks = new BlockTypeRegistry(ctx.db);
+		const current = await blocks.getBlockType("attachment");
+		expect(current).not.toBeNull();
+		await blocks.updateBlockType("attachment", {
+			expectedFingerprint: current!.versions[0]!.fingerprint,
+			fields: [
+				{
+					slug: "file",
+					label: "File",
+					type: "file",
+					validation: { allowedMimeTypes: ["application/pdf"] },
+				},
+			],
+			breaking: true,
+		});
+		const { storage } = createMemoryStorage();
+		const request = buildUploadRequest({
+			file: new File(["word"], "form.doc", { type: "application/msword" }),
+			fieldId: composite(),
+			blockType: "attachment",
+			blockVersion: 1,
+		});
+		const response = await postMedia(buildContext({ db: ctx.db, request, storage }));
+		expect(response.status).toBe(201);
 	});
 });

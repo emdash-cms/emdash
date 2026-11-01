@@ -1,5 +1,23 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.12
+
+### Patch Changes
+
+- [#4377](https://github.com/emdash-cms/emdash/pull/4377) [`e6f6cd3`](https://github.com/emdash-cms/emdash/commit/e6f6cd3231cc5e61f25af4cd30569fbfe9f3d584) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes embedded forms resetting custom submit button labels to "Submit" after successful or failed submissions.
+
+- [#3373](https://github.com/emdash-cms/emdash/pull/3373) [`88c2fa3`](https://github.com/emdash-cms/emdash/commit/88c2fa38556f7efae5d2d7e28ff9fff3644b9063) Thanks [@marks-zyz](https://github.com/marks-zyz)! - Editors can now view forms and all their submissions instead of seeing "Failed to load forms" or "No forms yet". The webhook URL stays hidden from them, and changing or deleting forms and submissions, and the export, stay admin-only. When a role still cannot read forms, the pages and the Recent Submissions widget now say so, and a write action that returns 403 shows a permission message instead of doing nothing.
+
+- [#4294](https://github.com/emdash-cms/emdash/pull/4294) [`d5cde58`](https://github.com/emdash-cms/emdash/commit/d5cde58a8ca3a13ba8057182c0d6a9a99de0ffaf) Thanks [@danielmlr](https://github.com/danielmlr)! - Hides submitters' IP addresses, user agents and referers from Editors. The `submissions/list` and `submissions/get` routes now return them to Admins only; the admin UI never showed them.
+
+- [#4144](https://github.com/emdash-cms/emdash/pull/4144) [`e5d9241`](https://github.com/emdash-cms/emdash/commit/e5d9241382e7f811433c7212a4619a7d3036f8db) Thanks [@marccardinal](https://github.com/marccardinal)! - Fixes form notification emails so that replying to one reaches the person who submitted the form. Instant notifications now set Reply-To to the address entered in the form's email field; before, a reply went to the site's sender address. The daily digest is unchanged. Reply-To is only set when the address is a plain, valid email: forms without an email field, submissions that leave it empty, or addresses like `"Name"<someone@example.com>` send notifications without a Reply-To, as before. On sites that set `replyTo` on the Cloudflare email provider, replies to these notifications now go to the visitor instead of that address. The site's email provider plugin must deliver `replyTo` (see the `email:deliver` hook).
+
+- [#4345](https://github.com/emdash-cms/emdash/pull/4345) [`fbf933d`](https://github.com/emdash-cms/emdash/commit/fbf933d6028109cbaf190c15d26c3601850a7ab5) Thanks [@Chiji1108](https://github.com/Chiji1108)! - Fixes required select fields without a default value preselecting their first option, so visitors must now pick an option before the form submits. The empty first option shows the field's `placeholder` when one is set.
+
+- [#4295](https://github.com/emdash-cms/emdash/pull/4295) [`bef030b`](https://github.com/emdash-cms/emdash/commit/bef030ba6c4e7ab7b07ccbd18f466483bab49acc) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the Submissions page sometimes showing the submissions or load error of an earlier selection after switching forms or the status filter while the list was still loading. The Recent Submissions widget now says "Failed to load submissions" when the submissions request fails with a network error.
+
+- [#4078](https://github.com/emdash-cms/emdash/pull/4078) [`b0268a5`](https://github.com/emdash-cms/emdash/commit/b0268a5645283230630483133a37347cb98f5840) Thanks [@Cloud-Xero](https://github.com/Cloud-Xero)! - Fixes the `FormEmbed` textarea so it starts empty instead of containing indentation from the component source. Previously the caret began on a second line, an untouched `required` textarea passed the browser's validation, and the stray whitespace also surrounded a configured default value and returned after a successful submit reset the form.
+
 ## 0.2.11
 
 ### Patch Changes

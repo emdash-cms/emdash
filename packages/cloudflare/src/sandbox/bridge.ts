@@ -103,15 +103,8 @@ function invalidCommentStatus(value: string, name: string): string | null {
 	return COMMENT_STATUSES.has(value) ? null : `${name} must be one of: approved, pending, spam`;
 }
 
-/**
- * Module-level email send callback.
- *
- * The bridge runs in the host process (same worker), so we can use a
- * module-level callback that the runner sets before creating bridge bindings.
- * This avoids the need to pass non-serializable functions through props.
- *
- * @see runner.ts setEmailSendCallback()
- */
+// The bridge can run in a different isolate than the one that set this callback.
+// emailSend starts EmDash locally when the callback is missing.
 let emailSendCallback: SandboxEmailSendCallback | null = null;
 const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
 const TAXONOMY_WRITE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-taxonomy-write-callbacks");
@@ -462,6 +455,11 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		);
 	}
 
+	private async getKVAccess() {
+		const { createKVAccess } = await loadBridgeRuntime();
+		return createKVAccess(await this.getOptionsRepo(), this.ctx.props.pluginId);
+	}
+
 	private async getSettingsAccess() {
 		const { createSettingsAccess, resolvePluginEncryptionKeys } = await loadBridgeRuntime();
 		const keys =
@@ -576,18 +574,13 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	// KV Operations - scoped to plugin namespace
 	// =========================================================================
 
-	/**
-	 * KV operations use _plugin_storage with a special "__kv" collection.
-	 * This provides consistent storage across sandboxed and non-sandboxed modes.
-	 */
 	async kvGet(key: string): Promise<unknown> {
+		if (!key.startsWith(SETTINGS_KEY_PREFIX)) return (await this.getKVAccess()).get(key);
 		const { pluginId } = this.ctx.props;
-		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
-			const value = await (
-				await this.getSettingsAccess()
-			).get(key.slice(SETTINGS_KEY_PREFIX.length));
-			if (value !== null) return value;
-		}
+		const settingValue = await (
+			await this.getSettingsAccess()
+		).get(key.slice(SETTINGS_KEY_PREFIX.length));
+		if (settingValue !== null) return settingValue;
 		const result = await this.env.DB.prepare(
 			"SELECT data FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id = ?",
 		)
@@ -596,37 +589,31 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!result) return null;
 		try {
 			const value: unknown = JSON.parse(result.data);
-			if (key.startsWith(SETTINGS_KEY_PREFIX)) this.observeSecretSetting(key, value);
+			this.observeSecretSetting(key, value);
 			return value;
 		} catch {
-			if (key.startsWith(SETTINGS_KEY_PREFIX)) this.observeSecretSetting(key, result.data);
+			this.observeSecretSetting(key, result.data);
 			return result.data;
 		}
 	}
 
 	async kvSet(key: string, value: unknown): Promise<void> {
-		const { pluginId } = this.ctx.props;
 		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
 			await (await this.getSettingsAccess()).set(key.slice(SETTINGS_KEY_PREFIX.length), value);
 			await this.deleteLegacyKV(key);
 			return;
 		}
-		await this.env.DB.prepare(
-			"INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, '__kv', ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, revision = excluded.revision, updated_at = excluded.updated_at",
-		)
-			.bind(pluginId, key, JSON.stringify(value), crypto.randomUUID())
-			.run();
+		await (await this.getKVAccess()).set(key, value);
 	}
 
 	async kvGetVersioned(key: string): Promise<VersionedValue | null> {
-		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
-			const value = await (
-				await this.getSettingsAccess()
-			).getVersioned(key.slice(SETTINGS_KEY_PREFIX.length));
-			if (value !== null) return value;
-		}
+		if (!key.startsWith(SETTINGS_KEY_PREFIX)) return (await this.getKVAccess()).getVersioned(key);
+		const value = await (
+			await this.getSettingsAccess()
+		).getVersioned(key.slice(SETTINGS_KEY_PREFIX.length));
+		if (value !== null) return value;
 		const legacy = await (await this.getStorageRepo("__kv")).getVersioned(key);
-		if (legacy && key.startsWith(SETTINGS_KEY_PREFIX)) {
+		if (legacy) {
 			this.observeSecretSetting(key, legacy.value);
 		}
 		return legacy;
@@ -644,7 +631,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			if (result.applied) await this.deleteLegacyKV(key);
 			return result;
 		}
-		return (await this.getStorageRepo("__kv")).compareAndSet(key, expectedRevision, value);
+		return (await this.getKVAccess()).compareAndSet(key, expectedRevision, value);
 	}
 
 	async kvCompareAndDelete(
@@ -658,11 +645,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			if (result.applied) await this.deleteLegacyKV(key);
 			return result;
 		}
-		return (await this.getStorageRepo("__kv")).compareAndDelete(key, expectedRevision);
+		return (await this.getKVAccess()).compareAndDelete(key, expectedRevision);
 	}
 
 	async kvDelete(key: string): Promise<boolean> {
-		const { pluginId } = this.ctx.props;
 		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
 			const optionDeleted = await (
 				await this.getSettingsAccess()
@@ -670,36 +656,32 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			const legacyDeleted = await this.deleteLegacyKV(key);
 			return optionDeleted || legacyDeleted;
 		}
-		const result = await this.env.DB.prepare(
-			"DELETE FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id = ?",
-		)
-			.bind(pluginId, key)
-			.run();
-		return (result.meta?.changes ?? 0) > 0;
+		return (await this.getKVAccess()).delete(key);
 	}
 
 	async kvList(prefix: string = ""): Promise<Array<{ key: string; value: unknown }>> {
+		const includesSettings =
+			SETTINGS_KEY_PREFIX.startsWith(prefix) || prefix.startsWith(SETTINGS_KEY_PREFIX);
+		if (!includesSettings) return (await this.getKVAccess()).list(prefix);
 		const { pluginId } = this.ctx.props;
 		const results = await this.env.DB.prepare(
-			"SELECT id, data FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id LIKE ?",
+			"SELECT id, data FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id LIKE 'settings:%'",
 		)
-			.bind(pluginId, prefix + "%")
+			.bind(pluginId)
 			.all<{ id: string; data: string }>();
 
 		const entries = new Map(
-			(results.results ?? []).map((row) => [row.id, JSON.parse(row.data) as unknown]),
+			(results.results ?? [])
+				.filter((row) => row.id.startsWith(SETTINGS_KEY_PREFIX) && row.id.startsWith(prefix))
+				.map((row) => [row.id, JSON.parse(row.data) as unknown]),
 		);
-		const includesSettings =
-			SETTINGS_KEY_PREFIX.startsWith(prefix) || prefix.startsWith(SETTINGS_KEY_PREFIX);
-		if (includesSettings) {
-			const settingPrefix = prefix.startsWith(SETTINGS_KEY_PREFIX)
-				? prefix.slice(SETTINGS_KEY_PREFIX.length)
-				: "";
-			for (const { key, value } of await (await this.getSettingsAccess()).list(settingPrefix)) {
-				const fullKey = `${SETTINGS_KEY_PREFIX}${key}`;
-				if (fullKey.startsWith(prefix)) entries.set(fullKey, value);
-			}
-		}
+		const { createKVAccess } = await loadBridgeRuntime();
+		const kv = createKVAccess(
+			await this.getOptionsRepo(),
+			pluginId,
+			await this.getSettingsAccess(),
+		);
+		for (const { key, value } of await kv.list(prefix)) entries.set(key, value);
 		for (const [key, value] of entries) {
 			if (key.startsWith(SETTINGS_KEY_PREFIX)) this.observeSecretSetting(key, value);
 		}
@@ -1942,10 +1924,18 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!capabilities.includes("email:send")) {
 			throw new Error("Missing capability: email:send");
 		}
-		if (!emailSendCallback) {
-			throw new Error("Email is not configured. No email provider is available.");
+		if (emailSendCallback) {
+			await emailSendCallback(message, pluginId);
+			return;
 		}
-		await emailSendCallback(message, pluginId);
+
+		const { withEmDashRuntime } = await import("emdash/middleware");
+		await withEmDashRuntime(async () => {
+			if (!emailSendCallback) {
+				throw new Error("Email is not configured. No email provider is available.");
+			}
+			await emailSendCallback(message, pluginId);
+		});
 	}
 
 	async cronSchedule(

@@ -2,15 +2,14 @@ import {
 	Badge,
 	Button,
 	Collapsible,
-	Dialog,
 	Input,
 	Label,
 	LayerCard,
+	LayerDialog,
 	LinkButton,
 	Loader,
 	Select,
 	Text,
-	Tooltip,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -21,7 +20,6 @@ import {
 	CaretDown,
 	Eye,
 	EyeSlash,
-	Info,
 	Trash,
 	Upload,
 	X,
@@ -48,6 +46,7 @@ import {
 	getContentPublishingState,
 	type ContentPublishingState,
 } from "../lib/content-publishing-state.js";
+import { useConfirmedRequest } from "../lib/dialog-form.js";
 import { usePluginAdmins } from "../lib/plugin-context";
 import {
 	formatPublishingInstant,
@@ -58,6 +57,7 @@ import { cn, isolate } from "../lib/utils.js";
 import { getLocaleLabel } from "../locales/config.js";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { BylineFormValues } from "./BylineFormDialog.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { ContentStatusIcon } from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
@@ -65,6 +65,7 @@ import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
+import { HelpTooltip } from "./FieldHelpLabel.js";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
 import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
@@ -76,6 +77,7 @@ import type {
 } from "./SandboxedContentEditorPanel.js";
 import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
+import { declaredLabelTranslator } from "./Sidebar.js";
 import {
 	SortableContentSettingsSection,
 	SortableContentSettingsSections,
@@ -134,7 +136,7 @@ function PublishingVersionRelationship({
 	supportsDrafts: boolean;
 	scheduledAt?: string | null;
 	locale: string;
-	onDiscardDraft?: () => void;
+	onDiscardDraft?: () => Promise<unknown> | void;
 	discardDisabled?: boolean;
 }) {
 	const { t } = useLingui();
@@ -318,7 +320,8 @@ export function DiscardDraftDialog({
 	compact,
 	disabled,
 }: {
-	onDiscard?: () => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDiscard?: () => Promise<unknown> | void;
 	triggerVariant?: "ghost" | "outline";
 	triggerSize?: "sm";
 	/** Shows only the icon on small screens, for the editor bar. */
@@ -326,49 +329,30 @@ export function DiscardDraftDialog({
 	disabled?: boolean;
 }) {
 	const { t } = useLingui();
+	const discard = useConfirmedRequest(onDiscard);
 	return (
-		<Dialog.Root>
-			<Dialog.Trigger
+		<>
+			<Button
+				type="button"
+				variant={triggerVariant}
+				size={triggerSize}
 				disabled={disabled}
-				render={(p) => (
-					<Button
-						{...p}
-						type="button"
-						variant={triggerVariant}
-						size={triggerSize}
-						disabled={disabled}
-						className={compact ? compactBarExtraButtonClassName : undefined}
-						icon={<X />}
-					>
-						<span className={compact ? compactBarExtraLabelClassName : undefined}>
-							{t`Discard changes`}
-						</span>
-					</Button>
-				)}
+				className={compact ? compactBarExtraButtonClassName : undefined}
+				icon={<X />}
+				onClick={discard.show}
+			>
+				<span className={compact ? compactBarExtraLabelClassName : undefined}>
+					{t`Discard changes`}
+				</span>
+			</Button>
+			<ConfirmDialog
+				{...discard.dialog}
+				title={t`Discard draft changes?`}
+				description={t`This will revert to the published version. Your draft changes will be lost.`}
+				confirmLabel={t`Discard changes`}
+				pendingLabel={t`Discarding...`}
 			/>
-			<Dialog className="p-6" size="sm">
-				<Dialog.Title className="text-lg font-semibold">{t`Discard draft changes?`}</Dialog.Title>
-				<Dialog.Description className="text-kumo-subtle">
-					{t`This will revert to the published version. Your draft changes will be lost.`}
-				</Dialog.Description>
-				<div className="mt-6 flex justify-end gap-2">
-					<Dialog.Close
-						render={(p) => (
-							<Button {...p} variant="secondary">
-								{t`Cancel`}
-							</Button>
-						)}
-					/>
-					<Dialog.Close
-						render={(p) => (
-							<Button {...p} variant="destructive" onClick={onDiscard}>
-								{t`Discard changes`}
-							</Button>
-						)}
-					/>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+		</>
 	);
 }
 
@@ -515,8 +499,8 @@ export function PublishActions({
 			: t`This content will be visible on the site immediately.`;
 
 	return (
-		<Dialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
-			<Dialog.Trigger
+		<LayerDialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
+			<LayerDialog.Trigger
 				disabled={disabled}
 				render={
 					<Button
@@ -538,18 +522,13 @@ export function PublishActions({
 				) : (
 					publishLabel
 				)}
-			</Dialog.Trigger>
-			<Dialog className="p-6" size="sm">
-				<Dialog.Title className="text-lg font-semibold">{confirmationTitle}</Dialog.Title>
-				<Dialog.Description className="text-kumo-subtle">
-					{confirmationDescription}
-				</Dialog.Description>
-				<div className="mt-6 flex justify-end gap-2">
-					<Dialog.Close render={(props) => <Button {...props} variant="secondary" />}>
-						{t`Cancel`}
-					</Dialog.Close>
-					<Button
-						variant="primary"
+			</LayerDialog.Trigger>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>{confirmationTitle}</LayerDialog.Title>
+				<LayerDialog.Description>{confirmationDescription}</LayerDialog.Description>
+				<LayerDialog.Body>{null}</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action
 						loading={isPending}
 						disabled={disabled}
 						aria-label={publishLabel}
@@ -559,10 +538,10 @@ export function PublishActions({
 						}}
 					>
 						{publishLabel}
-					</Button>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
@@ -759,8 +738,10 @@ export interface ContentSettingsPanelProps {
 	supportsRevisions: boolean;
 	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 	isUpdatingPublishedAt?: boolean;
-	onDiscardDraft?: () => void;
-	onDelete?: () => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDiscardDraft?: () => Promise<unknown> | void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDelete?: () => Promise<unknown> | void;
 	isDeleting?: boolean;
 	currentUser?: CurrentUserInfo;
 	users?: UserListItem[];
@@ -895,6 +876,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
 	const [datesOpen, setDatesOpen] = React.useState(false);
+	const trash = useConfirmedRequest(onDelete);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
 	const activeEntryLocale = item?.locale ?? entryLocale ?? undefined;
 	const resolvedPublishingState =
@@ -1093,25 +1075,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									<div className="flex items-center gap-1.5">
 										<Label>{t`Content language`}</Label>
 										{usesImplicitEnglish ? (
-											<Tooltip
-												content={
-													<span className="block max-w-64 text-pretty">
-														{t`English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.`}
-													</span>
-												}
-												delay={0}
-												closeDelay={0}
-												render={
-													<Button
-														type="button"
-														variant="ghost"
-														shape="square"
-														size="xs"
-														icon={<Info aria-hidden="true" />}
-														className="text-kumo-subtle hover:text-kumo-default"
-														aria-label={t`Why English is used`}
-													/>
-												}
+											<HelpTooltip
+												help={t`English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.`}
+												ariaLabel={t`Why English is used`}
 											/>
 										) : null}
 									</div>
@@ -1147,25 +1113,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								<Text as="h3" DANGEROUS_className="font-semibold">
 									{t`Bylines`}
 								</Text>
-								<Tooltip
-									content={
-										<span className="block max-w-64 text-pretty">
-											{t`Shown to readers in this order.`}
-										</span>
-									}
-									delay={0}
-									closeDelay={0}
-									render={
-										<Button
-											type="button"
-											variant="ghost"
-											shape="square"
-											size="xs"
-											icon={<Info aria-hidden="true" />}
-											className="text-kumo-subtle hover:text-kumo-default"
-											aria-label={t`Why are bylines shown in this order?`}
-										/>
-									}
+								<HelpTooltip
+									help={t`Shown to readers in this order.`}
+									ariaLabel={t`Why are bylines shown in this order?`}
 								/>
 							</div>
 							<BylineCreditsEditor
@@ -1246,10 +1196,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{item &&
 					extensionPanels.map(({ kind, pluginId, panel }) => {
 						const sectionId = `${kind === "trusted" ? "plugin" : "sandbox-plugin"}:${pluginId}:${panel.extension.id}`;
-						const title = lingui._({
-							id: panel.extension.title,
-							message: panel.extension.title,
-						});
+						const title = declaredLabelTranslator(lingui, (id) => lingui._(id))(
+							panel.extension.title,
+						);
 						if (kind === "sandboxed") {
 							const extension = panel.extension;
 							return (
@@ -1353,44 +1302,23 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						isReorderingSections && "invisible pointer-events-none",
 					)}
 				>
-					<Dialog.Root disablePointerDismissal>
-						<Dialog.Trigger
-							render={(p) => (
-								<Button
-									{...p}
-									type="button"
-									variant="ghost"
-									className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
-									disabled={isDeleting}
-									icon={isDeleting ? <Loader size="sm" /> : <Trash />}
-								>
-									{t`Move to Trash`}
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-							<Dialog.Description className="text-kumo-subtle">
-								{t`This will move the item to trash. You can restore it later from the trash.`}
-							</Dialog.Description>
-							<div className="mt-6 flex justify-end gap-2">
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="secondary">
-											{t`Cancel`}
-										</Button>
-									)}
-								/>
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="destructive" onClick={onDelete}>
-											{t`Move to Trash`}
-										</Button>
-									)}
-								/>
-							</div>
-						</Dialog>
-					</Dialog.Root>
+					<Button
+						type="button"
+						variant="ghost"
+						className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
+						disabled={isDeleting}
+						icon={isDeleting ? <Loader size="sm" /> : <Trash />}
+						onClick={trash.show}
+					>
+						{t`Move to Trash`}
+					</Button>
+					<ConfirmDialog
+						{...trash.dialog}
+						title={t`Move to Trash?`}
+						description={t`This will move the item to trash. You can restore it later from the trash.`}
+						confirmLabel={t`Move to Trash`}
+						pendingLabel={t`Moving to trash...`}
+					/>
 				</div>
 			)}
 		</div>

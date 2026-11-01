@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 
+import { FormOwnerContext } from "../form-context.js";
 import type { BlockInteraction, DateInputElement } from "../types.js";
 
 export function DateInputElementComponent({
@@ -11,6 +12,7 @@ export function DateInputElementComponent({
 	onAction: (interaction: BlockInteraction) => void;
 	onChange?: (actionId: string, value: unknown) => void;
 }) {
+	const form = useContext(FormOwnerContext);
 	const [value, setValue] = useState(element.initial_value ?? "");
 
 	useEffect(() => {
@@ -45,6 +47,7 @@ export function DateInputElementComponent({
 		<div className="flex flex-col gap-1">
 			<label className="text-sm font-medium text-kumo-text">{element.label}</label>
 			<input
+				form={form}
 				type="date"
 				value={value}
 				onChange={handleChange}

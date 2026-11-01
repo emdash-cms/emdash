@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import "../../dist/styles.css";
 import type { PluginInfo, PluginSettingsResponse } from "../../src/lib/api/plugins";
 import { render } from "../utils/render.tsx";
 
@@ -214,6 +215,27 @@ describe("PluginSettings", () => {
 		});
 		const [, values] = mockUpdatePluginSettings.mock.calls[0]!;
 		expect(values.secretKey).toBe("new-secret");
+	});
+
+	it("shows a failed save as an error toast", async () => {
+		mockUpdatePluginSettings.mockRejectedValue(new Error("Storage unavailable"));
+		const screen = await render(
+			<Wrapper>
+				<PluginSettings pluginId="emdash-forms" />
+				<span data-testid="danger-swatch" className="text-kumo-danger" />
+				<span data-testid="neutral-swatch" className="text-kumo-default" />
+			</Wrapper>,
+		);
+		const colorOf = (element: Element) => getComputedStyle(element).color;
+
+		await expect.element(screen.getByLabelText("Turnstile Site Key")).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Save Settings" }).first().click();
+
+		const title = screen.getByText("Failed to save settings");
+		await expect.element(title).toBeInTheDocument();
+		const dangerColor = colorOf(screen.getByTestId("danger-swatch").element());
+		expect(dangerColor).not.toBe(colorOf(screen.getByTestId("neutral-swatch").element()));
+		expect(colorOf(title.element())).toBe(dangerColor);
 	});
 
 	it("shows an empty state for a plugin without settings", async () => {

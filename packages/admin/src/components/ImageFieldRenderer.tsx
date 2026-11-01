@@ -115,7 +115,9 @@ export interface ImageFieldRendererProps {
 	showOptional?: boolean;
 	allowedMimeTypes?: string[];
 	fieldId?: string;
-	variant?: "default" | "featured";
+	blockType?: string;
+	blockVersion?: number;
+	variant?: "default" | "featured" | "avatar";
 	/** Offer a second slot for the image shown in a dark color scheme */
 	darkVariant?: boolean;
 }
@@ -130,6 +132,8 @@ export function ImageFieldRenderer({
 	showOptional,
 	allowedMimeTypes,
 	fieldId,
+	blockType,
+	blockVersion,
 	variant = "default",
 	darkVariant = false,
 }: ImageFieldRendererProps) {
@@ -261,6 +265,7 @@ export function ImageFieldRenderer({
 	};
 
 	const isFeatured = variant === "featured";
+	const isAvatar = variant === "avatar";
 	const selectedFilename =
 		typeof value === "object" && value.filename ? value.filename : t`Selected image`;
 	const currentWidth = currentMedia?.width ?? (typeof value === "object" ? value.width : undefined);
@@ -358,14 +363,14 @@ export function ImageFieldRenderer({
 			/>
 			<DropdownMenu.Content align="end" className="min-w-40">
 				<DropdownMenu.Item
-					icon={<ImageSquare className="me-1.5 size-4" aria-hidden="true" />}
+					icon={<ImageSquare className="size-4" aria-hidden="true" />}
 					onClick={() => openPicker("image")}
 				>
 					{t`Replace`}
 				</DropdownMenu.Item>
 				{canEditPrimaryAsset && (
 					<DropdownMenu.Item
-						icon={<PencilSimple className="me-1.5 size-4" aria-hidden="true" />}
+						icon={<PencilSimple className="size-4" aria-hidden="true" />}
 						onClick={() => {
 							setPickerTarget("image");
 							void assetEditor.openAssetEditor(objectValue!.id, mobileImageActionsRef.current);
@@ -377,7 +382,7 @@ export function ImageFieldRenderer({
 				<DropdownMenu.Separator />
 				<DropdownMenu.Item
 					variant="danger"
-					icon={<X className="me-1.5 size-4" aria-hidden="true" />}
+					icon={<X className="size-4" aria-hidden="true" />}
 					onClick={handleRemove}
 				>
 					{t`Remove`}
@@ -470,6 +475,44 @@ export function ImageFieldRenderer({
 			</div>
 		) : null;
 
+	const avatarField = (
+		<div className="flex items-center gap-4">
+			<div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-kumo-tint text-kumo-subtle ring ring-kumo-line">
+				{displayUrl && !imageBroken ? (
+					<img
+						src={displayUrl}
+						alt=""
+						className="size-full object-cover"
+						style={{ objectPosition }}
+						onError={() => setImageBroken(true)}
+					/>
+				) : displayUrl ? (
+					<>
+						<ImageBroken className="size-5" aria-hidden="true" />
+						<span className="sr-only">{t`Image not found`}</span>
+					</>
+				) : (
+					<ImageIcon className="size-6" aria-hidden="true" />
+				)}
+			</div>
+			<div className="min-w-0 flex-1">
+				{displayUrl ? (
+					primaryActions
+				) : (
+					<Button
+						type="button"
+						size="sm"
+						variant="secondary"
+						icon={<ImageSquare aria-hidden="true" />}
+						onClick={() => openPicker("image")}
+					>
+						{t`Select image`}
+					</Button>
+				)}
+			</div>
+		</div>
+	);
+
 	const featuredCard = displayUrl ? (
 		<LayerCard className="grid w-full grid-cols-[5rem_minmax(0,1fr)_auto] items-center rounded-xl p-0 @lg/featured:grid-cols-[12rem_minmax(0,1fr)] @lg/featured:items-stretch">
 			<div
@@ -533,7 +576,9 @@ export function ImageFieldRenderer({
 			) : (
 				<Label>{labelContent}</Label>
 			)}
-			{isFeatured && displayUrl ? (
+			{isAvatar ? (
+				avatarField
+			) : isFeatured && displayUrl ? (
 				featuredCard
 			) : displayUrl ? (
 				imageBroken ? (
@@ -563,6 +608,8 @@ export function ImageFieldRenderer({
 					onUploaded={handlePrimarySelect}
 					allowedMimeTypes={allowedMimeTypes}
 					fieldId={fieldId}
+					blockType={blockType}
+					blockVersion={blockVersion}
 				/>
 			) : (
 				<Button
@@ -586,6 +633,8 @@ export function ImageFieldRenderer({
 					allowedMimeTypes && allowedMimeTypes.length > 0 ? allowedMimeTypes : ["image/"]
 				}
 				fieldId={fieldId}
+				blockType={blockType}
+				blockVersion={blockVersion}
 				title={
 					pickerTarget === "darkVariant"
 						? darkDisplayUrl

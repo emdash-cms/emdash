@@ -1,4 +1,6 @@
-import { i18n } from "@lingui/core";
+import { Toasty } from "@cloudflare/kumo";
+import { i18n, setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
@@ -20,6 +22,7 @@ import {
 	publishingInstantToLocalFields,
 	resolvePublishingLocalDateTime,
 } from "../../src/lib/publishing-datetime.js";
+import { messages as enMessages } from "../../src/locales/en/messages.mjs";
 import { render } from "../utils/render.tsx";
 
 // Mock child components with their own data fetching so the panel tests
@@ -290,7 +293,9 @@ describe("ContentSettingsPanel", () => {
 		trigger.element().scrollIntoView();
 		await userEvent.keyboard("{Tab}");
 		trigger.element().focus();
-		await expect.element(screen.getByText("Shown to readers in this order.")).toBeVisible();
+		await expect
+			.element(screen.getByRole("tooltip", { name: "Shown to readers in this order." }))
+			.toBeVisible();
 	});
 
 	it("omits the redundant lifecycle badge and distinguishes live and draft versions", async () => {
@@ -410,12 +415,14 @@ describe("ContentSettingsPanel", () => {
 				{...makePanelProps({ item: null, isNew: true, i18n: undefined, manifest })}
 			/>,
 		);
-		expect(screen.getByText(/stored with the entry and is separate/).query()).toBeNull();
+		expect(
+			screen.getByRole("tooltip", { name: /stored with the entry and is separate/ }).query(),
+		).toBeNull();
 		const trigger = screen.getByRole("button", { name: "Why English is used" });
 		await expect.element(screen.getByText("EN", { exact: true })).toBeInTheDocument();
 		const explanation =
 			"English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.";
-		const help = screen.getByText(explanation);
+		const help = screen.getByRole("tooltip", { name: explanation });
 		trigger.element().scrollIntoView();
 		await userEvent.hover(trigger.element());
 		await expect.element(help).toBeVisible();
@@ -586,6 +593,97 @@ describe("ContentSettingsPanel", () => {
 		} finally {
 			i18n.activate(previousLocale);
 		}
+	});
+
+	it("renders trusted and sandboxed panel titles without invoking Lingui's compiler", async () => {
+		const localI18n = setupI18n({ locale: "en", messages: { en: enMessages } });
+		localI18n.setMessagesCompiler(undefined as never);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const pluginAdmins: PluginAdmins = {
+			"trusted-insights": {
+				contentEditorPanels: [
+					{ id: "trusted", title: "Content insights", component: InsightsPanel },
+				],
+			},
+		};
+		const manifest: AdminManifest = {
+			...TEST_MANIFEST,
+			plugins: {
+				"trusted-insights": { enabled: true },
+				"sandbox-insights": {
+					enabled: true,
+					adminMode: "blocks",
+					editorPanels: [{ id: "sandboxed", title: "Sandbox insights", route: "/insights" }],
+				},
+			},
+		};
+
+		try {
+			const screen = await render(<ContentSettingsPanel {...makePanelProps({ manifest })} />, {
+				wrapper: ({ children }) => (
+					<I18nProvider i18n={localI18n}>
+						<Toasty>{pluginWrapper(pluginAdmins)({ children })}</Toasty>
+					</I18nProvider>
+				),
+			});
+
+			await expect
+				.element(screen.getByRole("heading", { name: "Content insights" }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Sandbox insights", exact: true }))
+				.toBeInTheDocument();
+			expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Content insights"));
+			expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Sandbox insights"));
+		} finally {
+			warn.mockRestore();
+		}
+	});
+
+	it("translates trusted and sandboxed panel titles found in the active catalog", async () => {
+		const localI18n = setupI18n({
+			locale: "en",
+			messages: {
+				en: {
+					...enMessages,
+					"Content insights": ["Inhaltsansicht"],
+					"Sandbox insights": ["Sandboxansicht"],
+				},
+			},
+		});
+		localI18n.setMessagesCompiler(undefined as never);
+		const pluginAdmins: PluginAdmins = {
+			"trusted-insights": {
+				contentEditorPanels: [
+					{ id: "trusted", title: "Content insights", component: InsightsPanel },
+				],
+			},
+		};
+		const manifest: AdminManifest = {
+			...TEST_MANIFEST,
+			plugins: {
+				"trusted-insights": { enabled: true },
+				"sandbox-insights": {
+					enabled: true,
+					adminMode: "blocks",
+					editorPanels: [{ id: "sandboxed", title: "Sandbox insights", route: "/insights" }],
+				},
+			},
+		};
+		const screen = await render(<ContentSettingsPanel {...makePanelProps({ manifest })} />, {
+			wrapper: ({ children }) => (
+				<I18nProvider i18n={localI18n}>
+					<Toasty>{pluginWrapper(pluginAdmins)({ children })}</Toasty>
+				</I18nProvider>
+			),
+		});
+
+		await expect
+			.element(screen.getByRole("heading", { name: "Inhaltsansicht" }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Sandboxansicht", exact: true }))
+			.toBeInTheDocument();
 	});
 
 	it("omits panels when their plugin is disabled or the entry is new", async () => {
@@ -887,7 +985,9 @@ describe("ContentSettingsPanel", () => {
 		await setPublishingTime(screen, "08:45");
 		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
 
-		await expect.element(screen.getByRole("alert")).toHaveTextContent("Date update failed");
+		await expect
+			.element(screen.getByRole("alert").filter({ hasText: "Date update failed" }))
+			.toBeVisible();
 		await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("08");
 		await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("45");
 		expect(onPublishedAtChange).toHaveBeenCalledOnce();

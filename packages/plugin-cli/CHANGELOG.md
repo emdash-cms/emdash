@@ -1,5 +1,13 @@
 # @emdash-cms/registry-cli
 
+## 0.13.5
+
+### Patch Changes
+
+- [#4182](https://github.com/emdash-cms/emdash/pull/4182) [`b145faf`](https://github.com/emdash-cms/emdash/commit/b145faf1bd7e1069025baa2b43c2ad98d7ce8dc0) Thanks [@masonjames](https://github.com/masonjames)! - Fixes plugin builds that import helpers such as `portableTextToMarkdown` from `emdash/client`. The probe and runtime bundles include those helpers so the plugin can load without an installed EmDash package in its sandbox.
+
+- [#4290](https://github.com/emdash-cms/emdash/pull/4290) [`c16941e`](https://github.com/emdash-cms/emdash/commit/c16941e1e9ba1c91177a2877a6a07d8521dcf5de) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes `emdash-plugin init` so a new plugin installs EmDash 1.x for local development and tests. Plugins scaffolded by earlier versions installed EmDash 0.x; to move one to 1.x, set `emdash` to `^1.0.0` and `@emdash-cms/plugin-test` to `^0.2.6` in its `devDependencies`.
+
 ## 0.13.4
 
 ### Patch Changes

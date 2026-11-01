@@ -2,21 +2,76 @@
 /**
  * Bluesky post embed component for Portable Text
  *
- * Wraps astro-embed's BlueskyPost component, extracting props from the PT block node.
+ * Renders the post quote returned by Bluesky's oEmbed endpoint, reduced to the
+ * markup Bluesky's embed script reads, and loads that script itself.
  * astro-portabletext passes `node` (not `value`) for custom type components.
- * 
  * Accepts either `id` or `url` field for compatibility with different content sources.
  */
-import { BlueskyPost } from "astro-embed";
+import sanitizeHtml from "sanitize-html";
+
 import type { BlueskyBlock } from "../schemas.js";
+import { resolveBlueskyPostUrl } from "./bluesky-url.js";
 
 interface Props {
 	node: BlueskyBlock & { url?: string };
 }
 
 const { node } = Astro.props;
-// Support both 'id' (schema) and 'url' (admin editor) field names
-const postId = node.id || node.url;
+const postId = typeof node.id === "string" && node.id ? node.id : node.url;
+const postUrl = typeof postId === "string" ? resolveBlueskyPostUrl(postId) : null;
+
+let html: string | null = null;
+if (postUrl) {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 5000);
+	let warning: string | null = null;
+	try {
+		const response = await fetch(
+			`https://embed.bsky.app/oembed?url=${encodeURIComponent(postUrl)}&format=json`,
+			{ signal: controller.signal },
+		);
+		if (!response.ok) {
+			warning = `Bluesky oEmbed returned HTTP ${response.status}`;
+		} else {
+			const data: unknown = await response.json();
+			if (data && typeof data === "object" && "html" in data && typeof data.html === "string") {
+				html =
+					sanitizeHtml(data.html, {
+						allowedTags: ["blockquote", "p", "a", "br"],
+						allowedAttributes: {
+							blockquote: [
+								"class",
+								"data-bluesky-uri",
+								"data-bluesky-cid",
+								"data-bluesky-embed-color-mode",
+							],
+							p: ["lang"],
+							a: ["href"],
+						},
+						allowedSchemes: ["https"],
+						allowProtocolRelative: false,
+					}).trim() || null;
+			} else {
+				warning = "Bluesky oEmbed response did not include HTML";
+			}
+		}
+	} catch {
+		html = null;
+		warning = "Bluesky oEmbed request failed";
+	} finally {
+		clearTimeout(timeout);
+	}
+	if (warning) console.warn(`[plugin-embeds] ${warning}`);
+}
 ---
 
-{postId && <BlueskyPost id={postId} />}
+{
+	html ? (
+		<>
+			<Fragment set:html={html} />
+			<script is:inline async src="https://embed.bsky.app/static/embed.js" charset="utf-8"></script>
+		</>
+	) : (
+		postUrl && <a href={postUrl}>{postUrl}</a>
+	)
+}

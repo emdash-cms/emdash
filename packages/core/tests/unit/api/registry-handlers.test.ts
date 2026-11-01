@@ -23,6 +23,7 @@ import {
 	handleRegistryUpdate,
 } from "../../../src/api/handlers/registry.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
 import type { SandboxRunner } from "../../../src/plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../../src/plugins/state.js";
@@ -175,6 +176,11 @@ describe("Registry handlers", () => {
 					data: JSON.stringify({ a: 1 }),
 				})
 				.execute();
+			const options = new OptionsRepository(db);
+			await options.set("plugin:r_bbbbbbbbbbbbbbbb:config", { name: "Acme" });
+			await options.set("plugin:r_bbbbbbbbbbbbbbbb:settings:organization", "Acme");
+			await options.set("plugin:rXbbbbbbbbbbbbbbb:config", "other");
+			await options.set("plugin:other-plugin:config", "other");
 
 			const encoder = new TextEncoder();
 			await storage.upload({
@@ -207,6 +213,72 @@ describe("Registry handlers", () => {
 				.where("plugin_id", "=", "r_bbbbbbbbbbbbbbbb")
 				.execute();
 			expect(rows).toHaveLength(0);
+			expect(await options.get("plugin:r_bbbbbbbbbbbbbbbb:config")).toBeNull();
+			expect(await options.get("plugin:r_bbbbbbbbbbbbbbbb:settings:organization")).toBeNull();
+			expect(await options.get("plugin:rXbbbbbbbbbbbbbbb:config")).toBe("other");
+			expect(await options.get("plugin:other-plugin:config")).toBe("other");
+		});
+
+		it("keeps options data when deleteData is not requested", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("r_keepdata00000000", "0.0.1", "active", {
+				source: "registry",
+				registryPublisherDid: "did:plc:abc",
+				registrySlug: "keepdata",
+			});
+			const options = new OptionsRepository(db);
+			await options.set("plugin:r_keepdata00000000:config", { keep: true });
+
+			const result = await handleRegistryUninstall(db, null, "r_keepdata00000000");
+			expect(result.success).toBe(true);
+			expect(await options.get("plugin:r_keepdata00000000:config")).toEqual({ keep: true });
+		});
+
+		it("preserves plugin data during install rollback, even with deleteData set", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("r_rollback00000000", "1.0.0", "active", {
+				source: "registry",
+				registryPublisherDid: "did:plc:abc",
+				registrySlug: "rollback",
+			});
+			const options = new OptionsRepository(db);
+			await options.set("plugin:r_rollback00000000:config", { name: "Acme" });
+			await options.set("plugin:r_rollback00000000:settings:organization", "Acme");
+			await options.set("plugin:other-plugin:config", "other");
+			await db
+				.insertInto("_plugin_storage")
+				.values({
+					plugin_id: "r_rollback00000000",
+					collection: "default",
+					id: "config",
+					data: JSON.stringify({ name: "Acme" }),
+				})
+				.execute();
+			await storage.upload({
+				key: "registry/r_rollback00000000/1.0.0/manifest.json",
+				body: new TextEncoder().encode("{}"),
+				contentType: "application/json",
+			});
+
+			const result = await handleRegistryUninstall(db, storage, "r_rollback00000000", {
+				deleteData: true,
+				rollbackInstall: true,
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.dataDeleted).toBe(false);
+			expect(await repo.get("r_rollback00000000")).toBeNull();
+			expect(await options.get("plugin:r_rollback00000000:config")).toEqual({ name: "Acme" });
+			expect(await options.get("plugin:r_rollback00000000:settings:organization")).toBe("Acme");
+			expect(await options.get("plugin:other-plugin:config")).toBe("other");
+			expect(
+				await db
+					.selectFrom("_plugin_storage")
+					.select("id")
+					.where("plugin_id", "=", "r_rollback00000000")
+					.execute(),
+			).toHaveLength(1);
+			expect(await storage.exists("registry/r_rollback00000000/1.0.0/manifest.json")).toBe(false);
 		});
 
 		it("tolerates a null storage (e.g. instance without R2 configured)", async () => {

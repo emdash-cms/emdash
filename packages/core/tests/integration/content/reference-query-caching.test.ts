@@ -250,15 +250,7 @@ describe("reference pages in the entry cache", () => {
 		const result = await read(post.slug, { related_pages: true });
 
 		expect(result.cacheHint.tags).toEqual(expect.arrayContaining([post.id, first.id, second.id]));
-		// The newest of parent and children, so a child write moves the header.
-		const repo = new ContentRepository(db);
-		const stamps = await Promise.all(
-			[first.id, second.id].map(async (id) => {
-				const row = await repo.findById("pages", id);
-				return new Date(row!.updatedAt!).getTime();
-			}),
-		);
-		expect(result.cacheHint.lastModified?.getTime()).toBe(Math.max(...stamps));
+		expect(result.cacheHint.lastModified).toBeUndefined();
 	});
 
 	it("stops serving a deleted reference field from the cached field map", async () => {

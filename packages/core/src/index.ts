@@ -256,6 +256,7 @@ export {
 	invalidateTaxonomyObjectCache,
 	invalidateBylineObjectCache,
 	invalidateMenuObjectCache,
+	invalidateWidgetObjectCache,
 	invalidateSchemaObjectCache,
 	invalidateCommentObjectCache,
 	contentNamespace,
@@ -714,6 +715,7 @@ export type {
 
 // Search
 export {
+	SearchUnavailableError,
 	SEARCH_TOKENIZERS,
 	FTSManager,
 	search,

@@ -3,17 +3,17 @@ import { describe, expect, it } from "vitest";
 import { loadActivity } from "../src/activity.js";
 import { Indexer } from "../src/indexer.js";
 import { queueRetries, type RetryQueue } from "../src/retry.js";
-import { FakeItems } from "./fake-ai-search.js";
+import { FakeAiSearch } from "./fake-ai-search.js";
 import { config, entry, fakeEmDash, memoryKv } from "./fakes.js";
 
 function setup(entries = [entry()]) {
-	const items = new FakeItems();
-	const indexer = new Indexer({ ...fakeEmDash({ entries }), items }, config());
+	const items = new FakeAiSearch();
+	const indexer = new Indexer({ ...fakeEmDash({ entries }), provider: items }, config());
 	return { items, indexer, ctx: { kv: memoryKv() } };
 }
 
 async function failProcessing(
-	items: FakeItems,
+	items: FakeAiSearch,
 	indexer: Indexer,
 	id: string,
 	error: string | undefined,

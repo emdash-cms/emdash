@@ -45,7 +45,12 @@ import { TransferStage } from "../staging/stage.js";
 import { ImportContext } from "./context.js";
 import { runRebuild } from "./rebuild.js";
 import { clearScaffold, declaredScaffold } from "./scaffold.js";
-import { firstPosition, ImportCancelledSignal, runRecordStage } from "./stages.js";
+import {
+	firstPosition,
+	ImportCancelledSignal,
+	ImportCollectionDeletionSignal,
+	runRecordStage,
+} from "./stages.js";
 
 /** Delay the caller should wait before advancing again after a retry-later step. */
 export const IMPORT_RETRY_MS = 2000;
@@ -211,6 +216,12 @@ async function advanceClaimed(
 	} catch (error) {
 		if (error instanceof ImportCancelledSignal) {
 			return result(await ops.finishCancelled(operation.id, leaseToken), 0);
+		}
+		if (error instanceof ImportCollectionDeletionSignal) {
+			return result(
+				await ops.releaseUnlessCancelled(operation.id, leaseToken, "running"),
+				error.waiting ? IMPORT_RETRY_MS : 0,
+			);
 		}
 		if (isTransferError(error) && LEASE_CODES.has(error.code)) throw error;
 		const code: TransferErrorCode = isTransferError(error) ? error.code : "TRANSFER_IMPORT_ERROR";

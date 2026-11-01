@@ -1,6 +1,7 @@
 import { Input } from "@cloudflare/kumo";
-import { useCallback } from "react";
+import { useCallback, useContext } from "react";
 
+import { FormOwnerContext } from "../form-context.js";
 import type { BlockInteraction, NumberInputElement } from "../types.js";
 
 export function NumberInputElementComponent({
@@ -12,6 +13,7 @@ export function NumberInputElementComponent({
 	onAction: (interaction: BlockInteraction) => void;
 	onChange?: (actionId: string, value: unknown) => void;
 }) {
+	const form = useContext(FormOwnerContext);
 	const handleChange = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
 			const val = e.target.value === "" ? undefined : Number(e.target.value);
@@ -38,6 +40,7 @@ export function NumberInputElementComponent({
 
 	return (
 		<Input
+			form={form}
 			label={element.label}
 			type="number"
 			min={element.min}

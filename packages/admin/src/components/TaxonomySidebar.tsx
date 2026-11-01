@@ -11,7 +11,7 @@ import { Checkbox } from "@cloudflare/kumo/components/checkbox";
 import { InputGroup } from "@cloudflare/kumo/components/input-group";
 import { LayerCard } from "@cloudflare/kumo/components/layer-card";
 import { Text } from "@cloudflare/kumo/components/text";
-import { Toast } from "@cloudflare/kumo/components/toast";
+import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Popover as PopoverPrimitive } from "@cloudflare/kumo/primitives/popover";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
@@ -640,7 +640,7 @@ function TaxonomySection({
 }) {
 	const { t, i18n: lingui } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 
 	// The count mode belongs in the key: the Taxonomies settings page reads the
 	// same endpoint with counts and must not be served this count-free list.
@@ -685,7 +685,7 @@ function TaxonomySection({
 			toastManager.add({
 				title: t`Failed to update ${inlineLabel(taxonomy.label, lingui.locale)}`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -781,7 +781,7 @@ function TaxonomySection({
 			toastManager.add({
 				title: t`Failed to create translation`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});

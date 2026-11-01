@@ -3,6 +3,7 @@ import type { PluginContext, StorageCollection } from "emdash";
 import type { Config } from "./config.js";
 import { documentKey, type SearchDocument } from "./documents.js";
 import type { ItemState } from "./ingestion.js";
+import { type AiSearchProvider, isProviderError, type Item } from "./ports/ai-search.js";
 import {
 	clearSnapshot,
 	type IndexedItem,
@@ -32,7 +33,7 @@ const CONCURRENCY = 10;
 const MAX_RECHECKS = 3;
 
 export interface IndexerDeps extends SourceDeps {
-	items: Pick<AiSearchItems, "list" | "upload" | "delete">;
+	provider: Pick<AiSearchProvider, "listItems" | "uploadItem" | "deleteItem">;
 	snapshot: SnapshotStore;
 	/** Whether the instance was created recently enough that AI Search may not serve it yet. */
 	warmingUp?: () => Promise<boolean>;
@@ -79,10 +80,10 @@ export class Indexer {
 		this.cache = new SourceCache(deps);
 	}
 
-	static fromContext(ctx: PluginContext, instance: AiSearchInstance, config: Config): Indexer {
+	static fromContext(ctx: PluginContext, provider: AiSearchProvider, config: Config): Indexer {
 		const snapshot = ctx.storage[SNAPSHOT] as StorageCollection<SnapshotRow>;
 		return new Indexer(
-			{ ...emdashAccess(ctx), items: instance.items, snapshot, warmingUp: () => isWarmingUp(ctx) },
+			{ ...emdashAccess(ctx), provider, snapshot, warmingUp: () => isWarmingUp(ctx) },
 			config,
 		);
 	}
@@ -94,13 +95,13 @@ export class Indexer {
 	 */
 	async snapshotPage(source: string, page: number): Promise<{ next?: number; backOff: boolean }> {
 		if (page === 1) await clearSnapshot(this.deps.snapshot, source);
-		let result: AiSearchItemInfo[];
+		let result: Item[];
 		try {
-			({ result } = await this.aiSearch(() =>
-				this.deps.items.list({
-					metadata_filter: JSON.stringify({ folder: `${source}/` }),
-					sort_by: "modified_at",
-					per_page: PAGE_SIZE,
+			({ items: result } = await this.aiSearch(() =>
+				this.deps.provider.listItems({
+					metadata: { folder: `${source}/` },
+					newestFirst: true,
+					perPage: PAGE_SIZE,
 					page,
 				}),
 			));
@@ -177,7 +178,7 @@ export class Indexer {
 	}
 
 	/** The AI Search item holding a record, if any. */
-	async indexedItem(source: string, id: string): Promise<AiSearchItemInfo | null> {
+	async indexedItem(source: string, id: string): Promise<Item | null> {
 		return this.find(documentKey(source, id));
 	}
 
@@ -239,7 +240,7 @@ export class Indexer {
 				console.warn(`[ai-search] ${source}/${id} has no public URL; not indexed`);
 			const item = await this.existing(documentKey(source, id), snapshot);
 			if (!item) return "unchanged";
-			await this.write(item, () => this.deps.items.delete(item.itemId));
+			await this.write(item, () => this.deps.provider.deleteItem(item.itemId));
 			await this.recheck(source, id, null);
 			return "removed";
 		}
@@ -264,7 +265,7 @@ export class Indexer {
 	private async recheck(
 		source: string,
 		id: string,
-		written: { document: SearchDocument; item: AiSearchItemInfo } | null,
+		written: { document: SearchDocument; item: Item } | null,
 	): Promise<void> {
 		for (let rewrites = 0; ; rewrites++) {
 			// oxlint-disable-next-line no-await-in-loop -- each check follows the previous write
@@ -287,22 +288,19 @@ export class Indexer {
 			} else if (written) {
 				const { item } = written;
 				// oxlint-disable-next-line no-await-in-loop -- each write follows the previous check
-				await this.write(current, () => this.deps.items.delete(item.id));
+				await this.write(current, () => this.deps.provider.deleteItem(item.id));
 				written = null;
 			}
 		}
 	}
 
-	private async upload(
-		document: SearchDocument,
-		existing: IndexedItem | null,
-	): Promise<AiSearchItemInfo> {
+	private async upload(document: SearchDocument, existing: IndexedItem | null): Promise<Item> {
 		// AI Search rejects non-string values, even for fields declared as number or datetime.
 		const metadata = Object.fromEntries(
 			Object.entries(document.metadata).map(([name, value]) => [name, String(value)]),
 		);
 		return this.write(existing, () =>
-			this.deps.items.upload(document.key, document.body, { metadata }),
+			this.deps.provider.uploadItem(document.key, document.body, metadata),
 		);
 	}
 
@@ -330,16 +328,16 @@ export class Indexer {
 		try {
 			return await call();
 		} catch (error) {
-			if (isInstanceNotFound(error) && (await this.deps.warmingUp?.())) {
+			if (isProviderError(error, "not-found") && (await this.deps.warmingUp?.())) {
 				throw new InstanceStartingError();
 			}
 			throw error;
 		}
 	}
 
-	private async find(key: string): Promise<AiSearchItemInfo | null> {
-		const { result } = await this.aiSearch(() => this.deps.items.list({ key }));
-		return result[0] ?? null;
+	private async find(key: string): Promise<Item | null> {
+		const { items } = await this.aiSearch(() => this.deps.provider.listItems({ key }));
+		return items[0] ?? null;
 	}
 }
 
@@ -387,9 +385,6 @@ async function settle<T>(
 	return result;
 }
 
-const RATE_LIMIT_MESSAGE = /rate limit/i;
-const NOT_FOUND_MESSAGE = /ai_search_not_found/;
-
 /** AI Search does not serve a newly created instance for its first few seconds. */
 class InstanceStartingError extends Error {
 	constructor() {
@@ -413,16 +408,9 @@ export function failureOf(error: unknown): Omit<Failure, "id"> {
 	return { error: errorText(error), ...(leftover ? { leftover } : {}) };
 }
 
-function isInstanceNotFound(error: unknown): boolean {
-	return error instanceof Error && NOT_FOUND_MESSAGE.test(error.message);
-}
-
 /** AI Search refused the call for now: it is rate-limiting, or still starting the instance. */
 export function shouldBackOff(error: unknown): boolean {
-	return (
-		error instanceof InstanceStartingError ||
-		(error instanceof Error && RATE_LIMIT_MESSAGE.test(error.message))
-	);
+	return error instanceof InstanceStartingError || isProviderError(error, "rate-limited");
 }
 
 export function errorText(error: unknown): string {

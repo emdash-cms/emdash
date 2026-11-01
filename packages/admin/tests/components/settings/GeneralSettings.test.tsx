@@ -414,8 +414,8 @@ describe("GeneralSettings", () => {
 			await screen.getByLabelText("New domain").fill("example.com/path");
 			await userEvent.keyboard("{Enter}");
 			await expect
-				.element(screen.getByRole("alert"))
-				.toHaveTextContent("Gib eine Domain wie example.com ohne Pfad oder Port ein.");
+				.element(screen.getByLabelText("New domain"))
+				.toHaveAccessibleDescription("Gib eine Domain wie example.com ohne Pfad oder Port ein.");
 		} finally {
 			i18n.activate(previousLocale);
 		}
@@ -476,7 +476,9 @@ describe("GeneralSettings", () => {
 				await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
 				await screen.getByLabelText("New domain").fill("new.example");
 				await userEvent.keyboard("{Enter}");
-				await expect.element(screen.getByRole("alert")).toHaveTextContent(shown);
+				await expect
+					.element(screen.getByLabelText("New domain"))
+					.toHaveAccessibleDescription(shown);
 			} finally {
 				i18n.activate(previousLocale);
 			}
@@ -493,8 +495,8 @@ describe("GeneralSettings", () => {
 		await screen.getByLabelText("New domain").fill("example.com");
 		await userEvent.keyboard("{Enter}");
 		await expect
-			.element(screen.getByRole("alert"))
-			.toHaveTextContent("Could not reach https://example.com");
+			.element(screen.getByLabelText("New domain"))
+			.toHaveAccessibleDescription("Could not reach https://example.com");
 	});
 
 	it("offers to use an address without the check when the check fails", async () => {

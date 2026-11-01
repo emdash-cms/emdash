@@ -73,4 +73,21 @@ describe("sandbox", () => {
 
 		expect(sandbox()).toBe("@emdash-cms/cloudflare/sandbox");
 	});
+
+	it("returns the runner for projects configured with cloudflare.config.ts", () => {
+		const dir = mkdtempSync(join(tmpdir(), "emdash-sandbox-test-"));
+		tempDirs.push(dir);
+		writeFileSync(join(dir, "cloudflare.config.ts"), "export default {};\n");
+		process.chdir(dir);
+
+		expect(sandbox()).toBe("@emdash-cms/cloudflare/sandbox");
+	});
+
+	it("prefers cloudflare.config.ts over a Wrangler config without LOADER", () => {
+		const dir = makeFixture(JSON.stringify({ name: "test" }));
+		writeFileSync(join(dir, "cloudflare.config.ts"), "export default {};\n");
+		process.chdir(dir);
+
+		expect(sandbox()).toBe("@emdash-cms/cloudflare/sandbox");
+	});
 });

@@ -8,7 +8,10 @@
 import { sql } from "kysely";
 
 import { processDueMediaUsageCollectionDeletions } from "../../media/usage/collection-deletion-processor.js";
-import { invalidateMenuObjectCache } from "../../object-cache/index.js";
+import {
+	invalidateMenuObjectCache,
+	invalidateWidgetObjectCache,
+} from "../../object-cache/index.js";
 import { SchemaError, SchemaRegistry } from "../../schema/registry.js";
 import { TransferError } from "../errors.js";
 import type { ImportTransformation } from "../format/transformations.js";
@@ -46,6 +49,7 @@ export async function clearScaffold(
 	const items = declaredScaffold(context);
 	let next = step;
 	let removedMenus = false;
+	let removedWidgets = false;
 	try {
 		while (next < items.length) {
 			const item = items[next];
@@ -56,11 +60,13 @@ export async function clearScaffold(
 			context.budget.start();
 			await removeItem(context, item);
 			if (item.type === "menu" || item.type === "menu_item") removedMenus = true;
+			if (item.type === "widget" || item.type === "widget_area") removedWidgets = true;
 			next++;
 			await checkpoint(next);
 		}
 	} finally {
 		if (removedMenus) invalidateMenuObjectCache();
+		if (removedWidgets) invalidateWidgetObjectCache();
 	}
 
 	const collectionIds = items.flatMap((item) => (item.type === "collection" ? [item.id] : []));
