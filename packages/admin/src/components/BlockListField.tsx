@@ -88,8 +88,8 @@ export interface BlockListFieldProps {
 	error?: string;
 	/** Indexes, in the saved list, of the items that hold a problem to show. */
 	invalidItems: ReadonlySet<number>;
-	/** Opens the item at `index` for each new `token`. */
-	reveal?: { index: number; token: number };
+	/** A new token opens the items in `invalidItems`. */
+	revealToken: number;
 	onItemDeleted: (deleted: DeletedListItem) => void;
 	renderControl: (input: ListControlInput) => React.ReactNode;
 	renderItemFields: (input: ListItemFieldsInput) => React.ReactNode;
@@ -229,7 +229,7 @@ export function BlockListField({
 	readOnly,
 	error,
 	invalidItems,
-	reveal,
+	revealToken,
 	onItemDeleted,
 	renderControl,
 	renderItemFields,
@@ -246,7 +246,7 @@ export function BlockListField({
 	const [rows, setRows] = React.useState<Row[]>(() => syncRows([], items, knownKeys));
 	const [source, setSource] = React.useState(value);
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
-	const [seenReveal, setSeenReveal] = React.useState<number>();
+	const [seenReveal, setSeenReveal] = React.useState(0);
 	const [announcement, setAnnouncement] = React.useState("");
 	const rootRef = React.useRef<HTMLDivElement>(null);
 	const addRef = React.useRef<HTMLButtonElement>(null);
@@ -271,11 +271,16 @@ export function BlockListField({
 		return position === undefined ? `new-${current[index]?.key}` : String(position);
 	};
 
-	if (reveal && reveal.token !== seenReveal) {
-		setSeenReveal(reveal.token);
-		const row = current[positions.indexOf(reveal.index)];
-		if (presentation === "items" && row && !openKeys.has(row.key)) {
-			setOpenKeys(new Set(openKeys).add(row.key));
+	if (revealToken !== seenReveal) {
+		setSeenReveal(revealToken);
+		const revealedKeys = current
+			.filter((row, index) => {
+				const position = positions[index];
+				return position !== undefined && invalidItems.has(position) && !openKeys.has(row.key);
+			})
+			.map((row) => row.key);
+		if (presentation === "items" && revealedKeys.length > 0) {
+			setOpenKeys(new Set([...openKeys, ...revealedKeys]));
 		}
 	}
 

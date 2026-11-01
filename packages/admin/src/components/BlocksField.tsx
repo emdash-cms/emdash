@@ -171,13 +171,6 @@ type FocusRequest =
 
 type UndoOwner = { kind: "block" } | { kind: "item"; blockKey: string; field: string };
 
-interface ItemReveal {
-	blockKey: string;
-	field: string;
-	index: number;
-	token: number;
-}
-
 const NO_ISSUES: readonly BlockValueIssue[] = [];
 
 /**
@@ -365,10 +358,12 @@ export function BlocksField({
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	const [advancedKeys, setAdvancedKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	const [touched, setTouched] = React.useState<ReadonlySet<string>>(() => new Set());
-	const [revealedKeys, setRevealedKeys] = React.useState<ReadonlySet<string>>(() => new Set());
+	/** The latest reveal, and the blocks whose problems it shows. */
+	const [revealed, setRevealed] = React.useState<{ token: number; keys: ReadonlySet<string> }>(
+		() => ({ token: 0, keys: new Set() }),
+	);
 	const revealTokenRef = React.useRef(reveal?.token ?? 0);
 	const [revealFocus, setRevealFocus] = React.useState<FocusRequest | null>(null);
-	const [itemReveal, setItemReveal] = React.useState<ItemReveal | null>(null);
 	const [picker, setPicker] = React.useState<PickerTarget | null>(null);
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const [confirmDelete, setConfirmDelete] = React.useState<{
@@ -397,7 +392,7 @@ export function BlocksField({
 	if (!readOnly) {
 		for (const issue of validateBlocks(blocks, blockTypes)) {
 			if (
-				!revealedKeys.has(issue.blockKey) &&
+				!revealed.keys.has(issue.blockKey) &&
 				!touched.has(touchKey(issue.blockKey, issue.field)) &&
 				!touched.has(touchKey(issue.blockKey, issue.path))
 			) {
@@ -414,19 +409,13 @@ export function BlocksField({
 
 	const revealIssues = useStableCallback((token: number, focusId: string | undefined) => {
 		if (readOnly) return;
-		setRevealedKeys(new Set(blocks.map((block) => block._key)));
+		setRevealed({ token, keys: new Set(blocks.map((block) => block._key)) });
 		const block = focusId
 			? blocks.find((candidate) => focusId.startsWith(`field-${fieldPath}.${candidate._key}.`))
 			: undefined;
 		if (!block || !focusId) return;
 		const path = focusId.slice(`field-${fieldPath}.${block._key}.`.length);
-		const [field = path, item] = path.split(".");
-		const index = Number(item);
-		setItemReveal(
-			item !== undefined && Number.isInteger(index)
-				? { blockKey: block._key, field, index, token }
-				: null,
-		);
+		const [field = path] = path.split(".");
 		const version = typeBySlug
 			.get(block._type)
 			?.versions.find((candidate) => candidate.version === block._version);
@@ -451,7 +440,6 @@ export function BlocksField({
 		if (!revealFocus) return;
 		focusRequestRef.current = revealFocus;
 		setRevealFocus(null);
-		setItemReveal(null);
 	}, [revealFocus]);
 
 	React.useEffect(() => {
@@ -725,7 +713,7 @@ export function BlocksField({
 										open={readOnly || openKeys.has(block._key)}
 										advancedOpen={readOnly || advancedKeys.has(block._key)}
 										issues={shownIssues.get(block._key) ?? NO_ISSUES}
-										itemReveal={itemReveal?.blockKey === block._key ? itemReveal : undefined}
+										revealToken={revealed.token}
 										readOnly={readOnly}
 										canAdd={canAdd}
 										atMax={atMax}
@@ -816,8 +804,8 @@ interface BlockRowProps {
 	advancedOpen: boolean;
 	/** Problems to show in this block. */
 	issues: readonly BlockValueIssue[];
-	/** Opens a closed item in one of the block's lists for a reveal. */
-	itemReveal?: ItemReveal;
+	/** A new token opens the list items that hold a problem to show. */
+	revealToken: number;
 	readOnly: boolean;
 	canAdd: boolean;
 	atMax: boolean;
@@ -848,7 +836,7 @@ function BlockRow({
 	open,
 	advancedOpen,
 	issues,
-	itemReveal,
+	revealToken,
 	readOnly,
 	canAdd,
 	atMax,
@@ -937,7 +925,7 @@ function BlockRow({
 				readOnly={readOnly}
 				error={listIssue && issueMessage(listIssue)}
 				invalidItems={invalidItems}
-				reveal={itemReveal?.field === field.slug ? itemReveal : undefined}
+				revealToken={revealToken}
 				onItemDeleted={(deleted) => onItemDeleted(field.slug, deleted)}
 				renderControl={({ subField, at, onChange: onControlChange, ...control }) => {
 					const definition = listFieldDefinition(subField);
