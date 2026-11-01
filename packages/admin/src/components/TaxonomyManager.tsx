@@ -315,7 +315,7 @@ function TermRow({
 				<td className="text-end">
 					<RowActionsMenu label={t`Actions for ${term.label}`}>
 						<DropdownMenu.Item
-							icon={<Pencil className="me-2 size-4" aria-hidden="true" />}
+							icon={<Pencil className="size-4" aria-hidden="true" />}
 							onClick={() => onEdit(term)}
 						>
 							{t`Edit`}
@@ -325,13 +325,13 @@ function TermRow({
 								{stranded && (
 									<DropdownMenu.Label
 										id={strandedReasonId}
-										className="max-w-60 text-sm font-normal text-pretty text-kumo-subtle"
+										className="max-w-60 px-2! text-sm font-normal text-pretty text-kumo-subtle"
 									>
 										{t`${term.label} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to.`}
 									</DropdownMenu.Label>
 								)}
 								<DropdownMenu.Item
-									icon={<ArrowUp className="me-2 size-4" aria-hidden="true" />}
+									icon={<ArrowUp className="size-4" aria-hidden="true" />}
 									aria-describedby={stranded ? strandedReasonId : undefined}
 									disabled={stranded || place <= 0}
 									onClick={() => onMove(parentId, siblings, movable, term, -1)}
@@ -339,7 +339,7 @@ function TermRow({
 									{t`Move up`}
 								</DropdownMenu.Item>
 								<DropdownMenu.Item
-									icon={<ArrowDown className="me-2 size-4" aria-hidden="true" />}
+									icon={<ArrowDown className="size-4" aria-hidden="true" />}
 									aria-describedby={stranded ? strandedReasonId : undefined}
 									disabled={stranded || place >= movable.length - 1}
 									onClick={() => onMove(parentId, siblings, movable, term, 1)}
@@ -350,7 +350,7 @@ function TermRow({
 						)}
 						{canTranslate && onTranslate && (
 							<DropdownMenu.Item
-								icon={<Translate className="me-2 size-4" aria-hidden="true" />}
+								icon={<Translate className="size-4" aria-hidden="true" />}
 								onClick={() => onTranslate(term)}
 							>
 								{t`Translate`}
@@ -359,7 +359,7 @@ function TermRow({
 						<DropdownMenu.Separator />
 						<DropdownMenu.Item
 							variant="danger"
-							icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+							icon={<Trash className="size-4" aria-hidden="true" />}
 							aria-label={t`Delete ${term.label}`}
 							onClick={() => onDelete(term)}
 						>
@@ -1230,7 +1230,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 							{taxonomyName === "tag" && (
 								<>
 									<DropdownMenu.Item
-										icon={<StackSimple className="me-2 size-4" aria-hidden="true" />}
+										icon={<StackSimple className="size-4" aria-hidden="true" />}
 										onClick={() => setCreateTaxonomyOpen(true)}
 									>
 										{t`New taxonomy`}
@@ -1240,7 +1240,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 							)}
 							<DropdownMenu.Item
 								variant="danger"
-								icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+								icon={<Trash className="size-4" aria-hidden="true" />}
 								onClick={() => setDeleteTaxonomyOpen(true)}
 							>
 								{t`Delete taxonomy`}

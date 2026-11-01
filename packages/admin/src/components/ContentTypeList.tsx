@@ -369,7 +369,7 @@ function ContentTypeRow({ collection, canReorder, onRequestDelete }: ContentType
 				<RowActionsMenu label={t`Actions for ${collection.label}`}>
 					<DropdownMenu.LinkItem
 						closeOnClick
-						icon={<Pencil className="me-2 size-4" aria-hidden="true" />}
+						icon={<Pencil className="size-4" aria-hidden="true" />}
 						aria-label={t`Edit ${collection.label}`}
 						render={<Link to="/content-types/$slug" params={{ slug: collection.slug }} />}
 					>
@@ -380,7 +380,7 @@ function ContentTypeRow({ collection, canReorder, onRequestDelete }: ContentType
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item
 								variant="danger"
-								icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+								icon={<Trash className="size-4" aria-hidden="true" />}
 								aria-label={t`Delete ${collection.label}`}
 								onClick={() => onRequestDelete?.(collection)}
 							>

@@ -121,7 +121,7 @@ export function MenuList() {
 							)}
 						/>
 						<Dialog
-							className="flex max-h-[calc(100dvh-2rem)] min-w-0 w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-[32rem]"
+							className="flex max-h-[calc(100dvh-2rem)] min-w-0 w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-lg"
 							size="lg"
 						>
 							<form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col">

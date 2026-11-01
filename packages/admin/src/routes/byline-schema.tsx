@@ -440,7 +440,7 @@ function FieldRow({
 			<td className="text-end">
 				<RowActionsMenu label={t`Actions for ${field.label}`}>
 					<DropdownMenu.Item
-						icon={<Pencil className="me-2 size-4" aria-hidden="true" />}
+						icon={<Pencil className="size-4" aria-hidden="true" />}
 						onClick={onEdit}
 					>
 						{t`Edit`}
@@ -448,14 +448,14 @@ function FieldRow({
 					{canMove && (
 						<>
 							<DropdownMenu.Item
-								icon={<ArrowUp className="me-2 size-4" aria-hidden="true" />}
+								icon={<ArrowUp className="size-4" aria-hidden="true" />}
 								disabled={isFirst || reorderPending}
 								onClick={onMoveUp}
 							>
 								{t`Move up`}
 							</DropdownMenu.Item>
 							<DropdownMenu.Item
-								icon={<ArrowDown className="me-2 size-4" aria-hidden="true" />}
+								icon={<ArrowDown className="size-4" aria-hidden="true" />}
 								disabled={isLast || reorderPending}
 								onClick={onMoveDown}
 							>
@@ -466,7 +466,7 @@ function FieldRow({
 					<DropdownMenu.Separator />
 					<DropdownMenu.Item
 						variant="danger"
-						icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+						icon={<Trash className="size-4" aria-hidden="true" />}
 						aria-label={t`Delete ${field.label}`}
 						onClick={onDelete}
 					>

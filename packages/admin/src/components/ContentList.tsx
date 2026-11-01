@@ -1566,7 +1566,7 @@ function ContentListItem({
 				<RowActionsMenu label={t`Actions for ${title}`}>
 					<DropdownMenu.LinkItem
 						closeOnClick
-						icon={<Pencil className="me-2 size-4" aria-hidden="true" />}
+						icon={<Pencil className="size-4" aria-hidden="true" />}
 						render={
 							<Link
 								to="/content/$collection/$id"
@@ -1580,7 +1580,7 @@ function ContentListItem({
 					{item.status === "published" && item.slug && (
 						<DropdownMenu.LinkItem
 							closeOnClick
-							icon={<ArrowSquareOut className="me-2 size-4" aria-hidden="true" />}
+							icon={<ArrowSquareOut className="size-4" aria-hidden="true" />}
 							href={contentUrl(collection, item.slug, urlPattern, {
 								locale: item.locale,
 								i18n,
@@ -1595,7 +1595,7 @@ function ContentListItem({
 					)}
 					{onDuplicate && (
 						<DropdownMenu.Item
-							icon={<Copy className="me-2 size-4" aria-hidden="true" />}
+							icon={<Copy className="size-4" aria-hidden="true" />}
 							onClick={() => onDuplicate(item.id)}
 						>
 							{t`Duplicate`}
@@ -1604,7 +1604,7 @@ function ContentListItem({
 					<DropdownMenu.Separator />
 					<DropdownMenu.Item
 						variant="danger"
-						icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+						icon={<Trash className="size-4" aria-hidden="true" />}
 						onClick={() => setTrashOpen(true)}
 					>
 						{t`Move to trash`}
@@ -1771,7 +1771,7 @@ function TrashedListItem({
 			<td className="text-end">
 				<RowActionsMenu label={t`Actions for ${title}`}>
 					<DropdownMenu.Item
-						icon={<ArrowCounterClockwise className="me-2 size-4" aria-hidden="true" />}
+						icon={<ArrowCounterClockwise className="size-4" aria-hidden="true" />}
 						onClick={() => onRestore?.(item.id)}
 					>
 						{t`Restore`}
@@ -1779,7 +1779,7 @@ function TrashedListItem({
 					<DropdownMenu.Separator />
 					<DropdownMenu.Item
 						variant="danger"
-						icon={<Trash className="me-2 size-4" aria-hidden="true" />}
+						icon={<Trash className="size-4" aria-hidden="true" />}
 						onClick={() => setDeleteOpen(true)}
 					>
 						{t`Delete permanently`}

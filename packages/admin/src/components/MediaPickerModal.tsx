@@ -1092,7 +1092,7 @@ export function MediaPickerModal({
 										onValueChange={changeSource}
 										tabs={sourceTabs.map((source) => ({
 											value: source.id,
-											className: "my-px h-[34px] rounded-[7px] px-3",
+											className: `my-px h-[34px] rounded-[7px] ${source.id === "local" || source.id === URL_SOURCE || source.icon ? "ps-2.5 pe-3" : "px-3"}`,
 											render: (props) => <button {...props} disabled={uploadQueue.hasUnfinished} />,
 											label: (
 												<span className="flex items-center gap-2">

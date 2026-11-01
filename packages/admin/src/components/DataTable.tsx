@@ -46,7 +46,8 @@ export function DataTable({ className, children, ...props }: React.ComponentProp
 					// th's own alignment class, such as text-end.
 					"[:where(&)_th]:text-start",
 					"[&_th]:border-b-0 [&_th]:bg-transparent [&_th]:px-4 [&_th]:py-3.5 [&_th]:font-normal [&_th]:whitespace-nowrap [&_th]:text-kumo-subtle",
-					"[&_td]:border-kumo-line [&_td]:bg-kumo-base [&_td]:px-4 [&_td]:py-3.5",
+					"[&_td]:border-b [&_td]:border-kumo-line [&_td]:bg-kumo-base [&_td]:px-4 [&_td]:py-3.5",
+					"[&_tbody_tr:last-child_td]:border-b-0",
 					"[&_tr[data-selected]_td]:bg-kumo-tint",
 					"[&_tbody_tr:first-child_td]:border-t",
 					"[&_tbody_tr:first-child_td:first-child]:rounded-ss-xl [&_tbody_tr:first-child_td:last-child]:rounded-se-xl",
