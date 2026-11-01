@@ -1000,6 +1000,16 @@ function ContentNewPage() {
 			entryLocale={pickerLocale}
 			i18n={manifest?.i18n}
 			isSaving={createMutation.isPending}
+			saveError={
+				createMutation.isError
+					? {
+							message:
+								describeContentValidationError(createMutation.error, collectionConfig.fields) ??
+								createMutation.error.message,
+							token: createMutation.submittedAt,
+						}
+					: undefined
+			}
 			onSave={handleSave}
 			pluginBlocks={pluginBlocks}
 			availableBylines={bylinesData?.items}
@@ -1343,16 +1353,41 @@ function ContentEditPage() {
 			editorShows(entryId),
 		[editorShows, recoverFromSaveConflict],
 	);
+	const [editorSaveError, setEditorSaveError] = React.useState<
+		| {
+				entryId: string;
+				message: string;
+				title: string;
+				token: number;
+		  }
+		| undefined
+	>();
+	React.useEffect(() => {
+		setEditorSaveError(undefined);
+	}, [id]);
+	const clearEditorSaveError = (entryId: string) => {
+		setEditorSaveError((current) => (current?.entryId === entryId ? undefined : current));
+	};
 	const handleContentUpdateError = React.useCallback(
-		(error: unknown, targetId: string) => {
+		(
+			error: unknown,
+			targetId: string,
+			source: "editor" | "autosave" | "auxiliary",
+			toastTitle = t`Failed to save`,
+		) => {
 			if (editorShows(targetId) && entryLock.reportWriteError(error, targetId)) return;
-			toastManager.add({
-				title: t`Failed to save`,
-				description:
-					describeContentValidationError(error, collectionFields) ??
-					(error instanceof Error ? error.message : t`An error occurred`),
-				variant: "error",
-			});
+			const message =
+				describeContentValidationError(error, collectionFields) ??
+				(error instanceof Error ? error.message : t`An error occurred`);
+			if (source !== "auxiliary" && editorShows(targetId)) {
+				setEditorSaveError((current) => ({
+					entryId: targetId,
+					message,
+					title: toastTitle,
+					token: (current?.token ?? 0) + 1,
+				}));
+			}
+			toastManager.add({ title: toastTitle, description: message, variant: "error" });
 		},
 		[collectionFields, editorShows, entryLock.reportWriteError, t, toastManager],
 	);
@@ -1378,6 +1413,7 @@ function ContentEditPage() {
 			// write carries the recovered token too, and clearing the notice for one
 			// would hand the editor's stale copy a token the server accepts.
 			if (variables.source === "editor") {
+				clearEditorSaveError(variables.targetId);
 				setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
 				// The editor holds back autosave on leaving while the last one counts as failed.
 				if (autosaveMutation.isError && autosaveMutation.variables?.targetId === variables.targetId)
@@ -1390,7 +1426,7 @@ function ContentEditPage() {
 		},
 		onError: async (error, variables) => {
 			if (await recoverInEditor(error, variables.targetId)) return;
-			handleContentUpdateError(error, variables.targetId);
+			handleContentUpdateError(error, variables.targetId, variables.source);
 		},
 		onSettled: (_, __, variables) => {
 			if (variables.source === "editor") {
@@ -1415,7 +1451,7 @@ function ContentEditPage() {
 		},
 		onError: async (error) => {
 			if (isSaveConflict(error) && (await recoverFromSaveConflict(id))) return;
-			handleContentUpdateError(error, id);
+			handleContentUpdateError(error, id, "auxiliary");
 		},
 	});
 
@@ -1447,6 +1483,7 @@ function ContentEditPage() {
 			return savedItem;
 		},
 		onSuccess: (savedItem, variables, started) => {
+			clearEditorSaveError(variables.targetId);
 			setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
 			recordAutosaveCompletion(variables.targetId);
 			patchAutosaveQueries(queryClient, {
@@ -1467,15 +1504,7 @@ function ContentEditPage() {
 		onError: async (err, variables) => {
 			if (await recoverInEditor(err, variables.targetId)) return;
 			if (isTerminalRequestError(err)) recordAutosaveRejection(variables.targetId);
-			if (editorShows(variables.targetId) && entryLock.reportWriteError(err, variables.targetId))
-				return;
-			toastManager.add({
-				title: t`Autosave failed`,
-				description:
-					describeContentValidationError(err, collectionFields) ??
-					(err instanceof Error ? err.message : t`An error occurred`),
-				variant: "error",
-			});
+			handleContentUpdateError(err, variables.targetId, "autosave", t`Autosave failed`);
 		},
 	});
 
@@ -2019,6 +2048,7 @@ function ContentEditPage() {
 			autosaveRejectionToken={autosaveRejection.entryId === id ? autosaveRejection.token : 0}
 			hasAutosaveError={autosaveMutation.isError && autosaveMutation.variables?.targetId === id}
 			hasSaveConflict={conflictedEntryId === id}
+			saveError={editorSaveError?.entryId === id ? editorSaveError : undefined}
 			onPublish={canPublish ? handlePublish : undefined}
 			onUnpublish={canPublish ? handleUnpublish : undefined}
 			onDiscardDraft={handleDiscardDraft}

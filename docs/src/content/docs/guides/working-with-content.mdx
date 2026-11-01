@@ -146,14 +146,22 @@ an [HTML block](#add-html-css-and-javascript).
 
 ## Save draft changes
 
-After the first save, the editor autosaves changes two seconds after you stop typing. The **Save**
-button changes through **Saving...** to **Saved** so you can confirm that the server accepted the
-draft. Autosave replaces the current autosave revision instead of filling revision history with a
-checkpoint for every pause.
+After the first save, the editor autosaves changes two seconds after you stop typing. On tablet and
+desktop, the toolbar's **Save** control appears while changes are unsaved, shows **Saving...** while
+the request is in progress, and disappears after a successful save. There is no persistent **Saved**
+label. A screen-reader-only status announces **Saving...** and **Saved**. Autosave replaces the
+current draft revision instead of filling revision history with a checkpoint for every pause.
 
-Select **Save** when you want a point in the editing sequence to remain in revision history. If a
-save fails, the editor keeps the unsaved fields in place and shows the error. Do not leave the page
-until the button returns to **Saved** or you have copied the unsaved work elsewhere.
+For an entry with drafts and revision history enabled, you can retain an autosaved version in history
+by waiting for autosave to finish and then making an explicit save. On a phone, open **Settings** and
+select **Save draft**. An explicit save retains the preceding draft revision; later autosaves can
+still replace the current draft. The same revision handling applies to the toolbar's **Save** action.
+
+If a save fails, the editor keeps the unsaved fields in place, shows a dismissible error banner below
+the editor header, and displays an error toast. Dismissing the banner does not save the data. Retry
+with the toolbar's **Save** control when it appears, or on a phone use **Settings** > **Save draft**
+when available. Keep the page open until a successful retry clears the banner and the saving control
+settles. If you must leave first, copy the unsaved work elsewhere.
 
 For a published entry, saving changes updates its draft only. Visitors continue to receive the
 previous live revision. Use **Preview draft** to check the pending version, **Live View** to check
