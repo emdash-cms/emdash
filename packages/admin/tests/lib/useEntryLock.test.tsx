@@ -27,6 +27,11 @@ const ADA = {
 
 const GRANTED: EntryLockStatus = { enabled: true, heldByCaller: true, holder: ADA };
 const HELD_BY_ADA: EntryLockStatus = { enabled: true, heldByCaller: false, holder: ADA };
+const HELD_BY_BOB: EntryLockStatus = {
+	enabled: true,
+	heldByCaller: false,
+	holder: { ...ADA, userId: "user-bob", userName: "Bob" },
+};
 
 /** Renders the hook's state so assertions read it out of the DOM. */
 function Probe() {
@@ -207,6 +212,22 @@ describe("useEntryLock", () => {
 		acquireEntryLock.mockResolvedValue(GRANTED);
 		await vi.advanceTimersByTimeAsync(ENTRY_LOCK_HEARTBEAT_MS + 100);
 		await expect.element(screen.getByTestId("status")).toHaveTextContent("holding");
+		await expect.element(screen.getByTestId("take-over-failed")).toHaveTextContent("false");
+	});
+
+	it("drops a failed take-over once someone else holds the lock", async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		acquireEntryLock.mockResolvedValueOnce(HELD_BY_ADA).mockRejectedValueOnce(new Error("offline"));
+
+		const screen = await render(<Probe />);
+		await expect.element(screen.getByTestId("status")).toHaveTextContent("blocked");
+		await screen.getByRole("button", { name: "take over" }).click();
+		await expect.element(screen.getByTestId("take-over-failed")).toHaveTextContent("true");
+
+		acquireEntryLock.mockResolvedValue(HELD_BY_BOB);
+		await vi.advanceTimersByTimeAsync(ENTRY_LOCK_HEARTBEAT_MS + 100);
+		await vi.waitFor(() => expect(acquireEntryLock).toHaveBeenCalledTimes(3));
+		await expect.element(screen.getByTestId("status")).toHaveTextContent("blocked");
 		await expect.element(screen.getByTestId("take-over-failed")).toHaveTextContent("false");
 	});
 

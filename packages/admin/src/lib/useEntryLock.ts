@@ -59,6 +59,10 @@ function sessionToken(): string {
 	);
 }
 
+function holderId(state: EntryLockState): string | undefined {
+	return "holder" in state ? state.holder.userId : undefined;
+}
+
 export function useEntryLock(input: {
 	collection: string;
 	entryId: string;
@@ -85,8 +89,11 @@ export function useEntryLock(input: {
 	const scheduleHeartbeatRef = React.useRef<() => void>(() => {});
 
 	const commit = React.useCallback((next: EntryLockState) => {
-		// A failed take-over is about the state it was tried from.
-		if (next.status !== stateRef.current.status) setTakeOverFailed(false);
+		// A failed take-over is about the state, and the holder, it was tried from.
+		const previous = stateRef.current;
+		if (next.status !== previous.status || holderId(next) !== holderId(previous)) {
+			setTakeOverFailed(false);
+		}
 		stateRef.current = next;
 		setState(next);
 	}, []);
