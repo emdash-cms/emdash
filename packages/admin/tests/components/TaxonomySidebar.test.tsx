@@ -255,9 +255,16 @@ describe("TaxonomySidebar", () => {
 
 			it("waits for Enter after composition before creating and assigning a term", async () => {
 				const term = makeTerm("term_japanese", "日本語");
-				const createTermRequest = vi.fn(() => dataResponse({ term }));
+				const createTermRequests = () =>
+					vi
+						.mocked(apiFetch)
+						.mock.calls.filter(
+							([url, init]) =>
+								requestUrl(url).endsWith(`/taxonomies/${taxonomy.name}/terms`) &&
+								init?.method === "POST",
+						);
 				const saveEntryTerms = vi.fn(() => dataResponse({}));
-				mockApiFetch({ taxonomies: [taxonomy], terms: [], createTermRequest, saveEntryTerms });
+				mockApiFetch({ taxonomies: [taxonomy], terms: [], createdTerm: term, saveEntryTerms });
 				const screen = await render(
 					<TaxonomySidebar collection="products" entryId="entry_1" canManageTaxonomies />,
 					{ wrapper: Wrapper },
@@ -266,7 +273,7 @@ describe("TaxonomySidebar", () => {
 				await input.fill(term.label);
 
 				const event = await composeKey(input.element(), "Enter");
-				expect(createTermRequest).not.toHaveBeenCalled();
+				expect(createTermRequests()).toHaveLength(0);
 				expect(saveEntryTerms).not.toHaveBeenCalled();
 				expect(event.defaultPrevented).toBe(false);
 				await expect.element(input).toHaveValue(term.label);
@@ -274,7 +281,12 @@ describe("TaxonomySidebar", () => {
 
 				await userEvent.keyboard("{Enter}");
 				await vi.waitFor(() => {
-					expect(createTermRequest).toHaveBeenCalledExactlyOnceWith(term.label);
+					expect(createTermRequests()).toEqual([
+						[
+							expect.anything(),
+							expect.objectContaining({ body: JSON.stringify({ label: term.label }) }),
+						],
+					]);
 					expect(saveEntryTerms).toHaveBeenCalledExactlyOnceWith(
 						expect.objectContaining({ body: JSON.stringify({ termIds: [term.id] }) }),
 					);
