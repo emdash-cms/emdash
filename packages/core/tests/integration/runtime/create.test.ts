@@ -535,8 +535,13 @@ describe("EmDashRuntime.create — cold boot", () => {
 
 			const runtime = await EmDashRuntime.create(deps);
 			try {
-				expect(download.mock.calls.map(([key]) => key)).toEqual(expect.arrayContaining(manifests));
-				expect(download).toHaveBeenCalledTimes(manifests.length);
+				// One bundle read per active installed plugin. Each bundle's files are
+				// requested together, so count the manifests rather than every download.
+				const manifestReads = download.mock.calls
+					.map(([key]) => key)
+					.filter((key) => key.endsWith("/manifest.json"));
+				expect(manifestReads).toEqual(expect.arrayContaining(manifests));
+				expect(manifestReads).toHaveLength(manifests.length);
 				expect(pluginStateStatements.filter((s) => s.startsWith("select"))).toHaveLength(1);
 			} finally {
 				await runtime.stopCron();
