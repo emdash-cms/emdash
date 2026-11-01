@@ -91,6 +91,21 @@ The block picker lists block types in `allowedTypes` order, grouped by `category
 
 If you remove an allowed type later, EmDash moves it to the server-managed `retiredTypes` list. Existing blocks remain editable, but editors cannot add or duplicate that type.
 
+## Name fields for the editor layout
+
+An open block in the content editor shows its content first: text, rich text, photos and lists, each under its label. Settings follow as rows with the label beside the value, then an Advanced row. The editor places each field by its type, slug and label, and these names change where a field goes:
+
+- **Link fields.** A `url` field, or a `string` field whose slug ends in `_url`, `_link` or `_href`, gets a settings row.
+- **Buttons.** A `string` field named `{base}_label`, `{base}_text` or `{base}` shares one row with a link field named `{base}_url`, `{base}_link` or `{base}_href`. The row takes the text field's label without a trailing "text", so "Primary button text" and its link share a row labelled "Primary button". In the Hero above, `link_label` and `link_url` share a row.
+- **Captions.** A `string` field named `{image}_caption` sits under the `image` field named `{image}`, such as `photo_caption` under `photo`.
+- **Section ID.** A field named `anchor_id` goes in the Advanced row.
+- **Headline.** The first `string` or `text` field with the word headline, heading, title or statement in its slug or label is drawn larger, as the block's headline. A field with the word label, eyebrow, kicker or tag is never the headline. Words match whole, so `subheadline` and "Subtitle" don't count. When no field matches, the block's first `string` or `text` field is the headline unless it has one of those excluded words.
+- **Hints.** A label that ends in parentheses containing a space, or in ", for example …", splits into a label and a hint. "Button link (starts with / or https://)" shows the label "Button link" and the hint "Starts with / or https://". The hint fills the empty field, shows under the field while it has focus, and is the error when the value doesn't match the field's `pattern`. Parentheses without a space stay in the label, so "Price (USD)" keeps its unit.
+
+The editor recognizes ", for example" and the headline words in English only.
+
+These rules are best-effort layout hints and can change in a later release. They affect only how the editor arranges the form, and a field that matches none of them gets a row of its own.
+
 ## Create the Astro components
 
 Each component receives `value`, `index`, and `blockKey`. The value includes `_type`, `_version`, and `_key`, so a component can narrow retained versions when its block schema evolves.
