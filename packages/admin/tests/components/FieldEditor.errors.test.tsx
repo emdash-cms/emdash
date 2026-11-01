@@ -124,6 +124,48 @@ describe("FieldEditor errors", () => {
 		);
 	});
 
+	it("asks for a whole number as a length limit, and sends the number it checked", async () => {
+		const onSave = vi.fn();
+		const screen = await openHarness({ onSave });
+		const dialog = await chooseType(screen, SHORT_TEXT);
+		await dialog.getByLabelText("Label", { exact: true }).fill("Title");
+		const maxLength = dialog.getByLabelText("Max Length");
+		await maxLength.fill("2.5");
+		await dialog.getByRole("button", { name: "Add Field" }).click();
+
+		await expect.element(dialog.getByText("Enter a whole number of 0 or more.")).toBeVisible();
+		await expect.element(maxLength).toHaveFocus();
+		expect(onSave).not.toHaveBeenCalled();
+
+		await maxLength.fill("1e3");
+		await dialog.getByRole("button", { name: "Add Field" }).click();
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ validation: { maxLength: 1000 } }),
+		);
+	});
+
+	it("points at a limit that isn't a number instead of dropping it", async () => {
+		const onSave = vi.fn();
+		const screen = await openHarness({ onSave });
+		const dialog = await chooseType(screen, SHORT_TEXT);
+		await dialog.getByLabelText("Label", { exact: true }).fill("Title");
+		const maxLength = dialog.getByLabelText("Max Length");
+		await userEvent.type(maxLength, "1e");
+		await dialog.getByRole("button", { name: "Add Field" }).click();
+
+		await expect.element(dialog.getByText("Enter a number.")).toBeVisible();
+		await expect.element(maxLength).toHaveAttribute("aria-invalid", "true");
+		await expect.element(maxLength).toHaveFocus();
+		expect(onSave).not.toHaveBeenCalled();
+
+		await userEvent.type(maxLength, "2");
+		await expect.element(dialog.getByText("Enter a number.")).not.toBeInTheDocument();
+		await dialog.getByRole("button", { name: "Add Field" }).click();
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ validation: { maxLength: 100 } }),
+		);
+	});
+
 	it("explains a pattern that is not a regular expression", async () => {
 		const onSave = vi.fn();
 		const screen = await openHarness({ onSave });

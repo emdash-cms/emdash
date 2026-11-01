@@ -42,8 +42,8 @@ function limitMode(value: number | null): LimitMode {
 function limitValue(mode: LimitMode, custom: string): number | null {
 	if (mode === "many") return null;
 	if (mode === "one") return 1;
-	const parsed = parseInt(custom, 10);
-	return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+	const parsed = custom.trim() ? Number(custom) : Number.NaN;
+	return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 /**
@@ -197,10 +197,10 @@ function formProblems(
 		problems.childLabelSingular = LABEL_TOO_LONG;
 	}
 	if (!limitComplete(state.childrenMode, state.childrenLimit)) {
-		problems.childrenLimit = msg`Enter a number of 2 or more.`;
+		problems.childrenLimit = msg`Enter a whole number of 2 or more.`;
 	}
 	if (!limitComplete(state.parentsMode, state.parentsLimit)) {
-		problems.parentsLimit = msg`Enter a number of 2 or more.`;
+		problems.parentsLimit = msg`Enter a whole number of 2 or more.`;
 	}
 	const slug = isNew ? slugProblem(state) : undefined;
 	if (slug) problems.slug = slug;

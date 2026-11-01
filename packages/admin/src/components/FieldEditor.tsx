@@ -327,7 +327,8 @@ const MAX_BLOCKS_ITEMS = 100;
 
 const ENTER_SLUG = msg`Enter a slug.`;
 const ENTER_LABEL = msg`Enter a label.`;
-const AT_LEAST_ZERO = msg`Enter a number of 0 or more.`;
+const AT_LEAST_ZERO = msg`Enter a whole number of 0 or more.`;
+const NOT_A_NUMBER = msg`Enter a number.`;
 const MAXIMUM_BELOW_MINIMUM = msg`Enter a maximum that is at least the minimum.`;
 const AT_MOST_BLOCKS = msg`Enter a number of 100 or less.`;
 
@@ -339,8 +340,27 @@ function slugFormatProblem(slug: string): MessageDescriptor | undefined {
 	return undefined;
 }
 
+/** A limit as typed: `undefined` when empty, and `NaN` when it isn't a whole number. */
 function wholeNumber(value: string): number | undefined {
-	return value ? parseInt(value, 10) : undefined;
+	if (!value.trim()) return undefined;
+	const parsed = Number(value);
+	return Number.isSafeInteger(parsed) ? parsed : Number.NaN;
+}
+
+function belowOrNaN(value: number | undefined, min: number): boolean {
+	return value !== undefined && (Number.isNaN(value) || value < min);
+}
+
+/**
+ * The names of the number inputs in `form` that show text that isn't a number.
+ * Such an input reads as empty, so the limit typed into it would be dropped.
+ */
+function unreadableNumbers(form: HTMLFormElement): Set<string> {
+	const names = new Set<string>();
+	for (const input of form.querySelectorAll<HTMLInputElement>('input[type="number"]')) {
+		if (input.validity.badInput) names.add(input.name);
+	}
+	return names;
 }
 
 function isValidPattern(pattern: string): boolean {
@@ -366,11 +386,11 @@ function optionList(options: string): string[] {
 function checkItemLimits(fields: FormProblems["fields"], state: FieldFormState, capped: boolean) {
 	const minItems = wholeNumber(state.minItems);
 	const maxItems = wholeNumber(state.maxItems);
-	if (minItems !== undefined && minItems < 0) fields.minItems = AT_LEAST_ZERO;
+	if (belowOrNaN(minItems, 0)) fields.minItems = AT_LEAST_ZERO;
 	else if (capped && minItems !== undefined && minItems > MAX_BLOCKS_ITEMS) {
 		fields.minItems = AT_MOST_BLOCKS;
 	}
-	if (maxItems !== undefined && maxItems < 1) fields.maxItems = msg`Enter a number of 1 or more.`;
+	if (belowOrNaN(maxItems, 1)) fields.maxItems = msg`Enter a whole number of 1 or more.`;
 	else if (capped && maxItems !== undefined && maxItems > MAX_BLOCKS_ITEMS) {
 		fields.maxItems = AT_MOST_BLOCKS;
 	} else if (minItems !== undefined && maxItems !== undefined && minItems > maxItems) {
@@ -405,8 +425,8 @@ function formProblems(state: FieldFormState, context: ProblemContext): FormProbl
 	if (type === "string" || type === "text" || type === "slug") {
 		const minLength = wholeNumber(state.minLength);
 		const maxLength = wholeNumber(state.maxLength);
-		if (minLength !== undefined && minLength < 0) fields.minLength = AT_LEAST_ZERO;
-		if (maxLength !== undefined && maxLength < 0) fields.maxLength = AT_LEAST_ZERO;
+		if (belowOrNaN(minLength, 0)) fields.minLength = AT_LEAST_ZERO;
+		if (belowOrNaN(maxLength, 0)) fields.maxLength = AT_LEAST_ZERO;
 		else if (minLength !== undefined && maxLength !== undefined && minLength > maxLength) {
 			fields.maxLength = MAXIMUM_BELOW_MINIMUM;
 		}
@@ -502,6 +522,8 @@ export function FieldEditor({
 	const [submitted, setSubmitted] = React.useState(false);
 	// The form as last sent, which a rejection of that save is about.
 	const [sent, setSent] = React.useState<FieldFormState | null>(null);
+	// Number inputs that showed text that isn't a number at the last submit.
+	const [unreadable, setUnreadable] = React.useState<ReadonlySet<string>>(() => new Set());
 	// The relationship this dialog just made. The relations query refetches
 	// after it, but the picker names it before that answer arrives.
 	const [createdRelation, setCreatedRelation] = React.useState<RelationWithUsage | null>(null);
@@ -536,6 +558,7 @@ export function FieldEditor({
 			setFormState(getInitialFormState(field));
 			setSubmitted(false);
 			setSent(null);
+			setUnreadable(new Set());
 			setCreatedRelation(null);
 		}
 	}, [open, field]);
@@ -722,6 +745,7 @@ export function FieldEditor({
 	};
 
 	const handleTypeSelect = (type: FieldType) => {
+		setUnreadable(new Set());
 		setFormState((prev) => ({
 			...prev,
 			selectedType: type,
@@ -787,7 +811,7 @@ export function FieldEditor({
 	const subFieldErrors: Partial<Record<SubFieldInput, string>>[] = [];
 	if (submitted) {
 		for (const key of FIELD_INPUTS) {
-			const message = problems.fields[key];
+			const message = unreadable.has(key) ? NOT_A_NUMBER : problems.fields[key];
 			if (message) errors[key] = t(message);
 		}
 		problems.subFields.forEach((subField, index) => {
@@ -814,12 +838,27 @@ export function FieldEditor({
 
 	const submitSave = useSingleFlight((input: CreateFieldInput) => Promise.resolve(onSave(input)));
 
+	const handleNumberInput = (event: React.FormEvent<HTMLFormElement>) => {
+		const input = event.target;
+		if (!(input instanceof HTMLInputElement) || !unreadable.has(input.name)) return;
+		if (input.validity.badInput) return;
+		setUnreadable((prev) => {
+			const next = new Set(prev);
+			next.delete(input.name);
+			return next;
+		});
+	};
+
 	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (isSaving || !selectedType) return;
-		if (hasProblems) {
-			const form = event.currentTarget;
-			revealErrors(form, () => setSubmitted(true));
+		const form = event.currentTarget;
+		const unreadableNow = unreadableNumbers(form);
+		if (hasProblems || unreadableNow.size > 0) {
+			revealErrors(form, () => {
+				setSubmitted(true);
+				setUnreadable(unreadableNow);
+			});
 			return;
 		}
 		setSubmitted(true);
@@ -845,8 +884,8 @@ export function FieldEditor({
 
 		// Build validation based on field type
 		if (selectedType === "string" || selectedType === "text" || selectedType === "slug") {
-			if (minLength) validation.minLength = parseInt(minLength, 10);
-			if (maxLength) validation.maxLength = parseInt(maxLength, 10);
+			if (minLength) validation.minLength = wholeNumber(minLength);
+			if (maxLength) validation.maxLength = wholeNumber(maxLength);
 			if (pattern) validation.pattern = pattern;
 		}
 
@@ -869,15 +908,15 @@ export function FieldEditor({
 				}));
 			}
 			if (formState.minItems)
-				(validation as Record<string, unknown>).minItems = parseInt(formState.minItems, 10);
+				(validation as Record<string, unknown>).minItems = wholeNumber(formState.minItems);
 			if (formState.maxItems)
-				(validation as Record<string, unknown>).maxItems = parseInt(formState.maxItems, 10);
+				(validation as Record<string, unknown>).maxItems = wholeNumber(formState.maxItems);
 		}
 
 		if (selectedType === "blocks") {
 			validation.allowedTypes = formState.allowedTypes;
-			if (formState.minItems) validation.minItems = parseInt(formState.minItems, 10);
-			if (formState.maxItems) validation.maxItems = parseInt(formState.maxItems, 10);
+			if (formState.minItems) validation.minItems = wholeNumber(formState.minItems);
+			if (formState.maxItems) validation.maxItems = wholeNumber(formState.maxItems);
 		}
 
 		if (
@@ -969,6 +1008,7 @@ export function FieldEditor({
 							ref={formRef}
 							noValidate
 							onSubmit={handleSubmit}
+							onInput={handleNumberInput}
 							className="grid gap-5"
 						>
 							{/* Type indicator */}
@@ -1148,6 +1188,7 @@ export function FieldEditor({
 									<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
 										<Input
 											label={t`Min Length`}
+											name="minLength"
 											type="number"
 											value={minLength}
 											onChange={(e) => setField("minLength", e.target.value)}
@@ -1157,6 +1198,7 @@ export function FieldEditor({
 										/>
 										<Input
 											label={t`Max Length`}
+											name="maxLength"
 											type="number"
 											value={maxLength}
 											onChange={(e) => setField("maxLength", e.target.value)}
@@ -1184,13 +1226,17 @@ export function FieldEditor({
 									<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
 										<Input
 											label={t`Min Value`}
+											name="min"
 											type="number"
 											value={min}
 											onChange={(e) => setField("min", e.target.value)}
 											placeholder={t`No minimum`}
+											error={errors.min}
+											aria-invalid={errors.min ? true : undefined}
 										/>
 										<Input
 											label={t`Max Value`}
+											name="max"
 											type="number"
 											value={max}
 											onChange={(e) => setField("max", e.target.value)}
@@ -1465,6 +1511,7 @@ export function FieldEditor({
 									<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
 										<Input
 											label={t`Minimum blocks`}
+											name="minItems"
 											type="number"
 											min={0}
 											value={formState.minItems}
@@ -1475,6 +1522,7 @@ export function FieldEditor({
 										/>
 										<Input
 											label={t`Maximum blocks`}
+											name="maxItems"
 											type="number"
 											min={1}
 											max={100}
@@ -1647,6 +1695,7 @@ export function FieldEditor({
 									<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
 										<Input
 											label={t`Min Items`}
+											name="minItems"
 											type="number"
 											value={formState.minItems}
 											onChange={(e) => setField("minItems", e.target.value)}
@@ -1656,6 +1705,7 @@ export function FieldEditor({
 										/>
 										<Input
 											label={t`Max Items`}
+											name="maxItems"
 											type="number"
 											value={formState.maxItems}
 											onChange={(e) => setField("maxItems", e.target.value)}
