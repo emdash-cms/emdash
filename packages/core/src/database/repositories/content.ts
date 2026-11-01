@@ -580,17 +580,18 @@ export class ContentRepository {
 			return baseSlug;
 		}
 
-		// Find all slugs matching the pattern `baseSlug` or `baseSlug-N`
-		const pattern = `${baseSlug}-%`;
+		// Find all slugs that are `baseSlug` or start with `baseSlug-`. A prefix
+		// comparison rather than LIKE: D1 rejects LIKE patterns over 50 bytes.
+		const prefix = `${baseSlug}-`;
 		const candidates = locale
 			? await sql<{ slug: string }>`
 					SELECT slug FROM ${sql.ref(tableName)}
-					WHERE (slug = ${baseSlug} OR slug LIKE ${pattern})
+					WHERE (slug = ${baseSlug} OR substr(slug, 1, length(${prefix})) = ${prefix})
 					AND ${localeMatches("locale", locale)}
 				`.execute(this.db)
 			: await sql<{ slug: string }>`
 					SELECT slug FROM ${sql.ref(tableName)}
-					WHERE slug = ${baseSlug} OR slug LIKE ${pattern}
+					WHERE slug = ${baseSlug} OR substr(slug, 1, length(${prefix})) = ${prefix}
 				`.execute(this.db);
 
 		// Find the highest numeric suffix in use
