@@ -13,7 +13,10 @@ import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import * as migration074 from "../../../src/database/migrations/074_content_deleted_scheduled_index.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
-import { ContentRepository } from "../../../src/database/repositories/content.js";
+import {
+	ContentRepository,
+	findTypesWithDueContent,
+} from "../../../src/database/repositories/content.js";
 import type { Database as DatabaseSchema } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 
@@ -62,6 +65,16 @@ it("seeks due content through the scheduled index instead of scanning live rows"
 	);
 	expect(plan).not.toContain("SCAN ec_post");
 	expect(plan).not.toContain("USE TEMP B-TREE FOR ORDER BY");
+});
+
+it("checks collections for due content through the scheduled index", async () => {
+	expect(await findTypesWithDueContent(db, ["post"], new Date())).toEqual(new Set());
+
+	const plan = explain(scheduledQuery());
+	expect(contentAccess(plan)).toMatch(
+		/SEARCH ec_post USING (?:COVERING )?INDEX idx_ec_post_del_sched \(deleted_at=\? AND scheduled_at/,
+	);
+	expect(plan).not.toContain("SCAN ec_post");
 });
 
 it("still returns due content oldest-first, skipping soft-deleted rows", async () => {
