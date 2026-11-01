@@ -93,8 +93,8 @@ export function InviteUserModal({
 
 	// Sending disables the action, so focus has left the form by the time the address is refused.
 	React.useEffect(() => {
-		if (isUserExists(error)) focusFirstInvalid(formRef.current);
-	}, [error]);
+		if (refusedOnField) focusFirstInvalid(formRef.current);
+	}, [error, refusedOnField]);
 
 	// Clean up timeout on unmount
 	React.useEffect(() => {

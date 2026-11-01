@@ -832,9 +832,10 @@ export function FieldEditor({
 
 	// The action that started the save was disabled while it ran, so focus has
 	// to be put back on the field the server turned down.
+	const slugRefused = Boolean(slugRefusal);
 	React.useEffect(() => {
-		if (!field && slugRejection(saveError)) focusFirstInvalid(formRef.current);
-	}, [saveError, field]);
+		if (slugRefused) focusFirstInvalid(formRef.current);
+	}, [saveError, slugRefused]);
 
 	const submitSave = useSingleFlight((input: CreateFieldInput) => Promise.resolve(onSave(input)));
 

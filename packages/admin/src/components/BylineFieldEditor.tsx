@@ -266,9 +266,10 @@ export function BylineFieldEditor({
 
 	// The action that started the save was disabled while it ran, so focus has
 	// to be put back on the field the server turned down.
+	const slugRefused = Boolean(slugRefusal);
 	React.useEffect(() => {
-		if (!isEdit && slugRejection(error)) focusFirstInvalid(formRef.current);
-	}, [error, isEdit]);
+		if (slugRefused) focusFirstInvalid(formRef.current);
+	}, [error, slugRefused]);
 
 	const submitSave = useSingleFlight((input: CreateBylineFieldInput | UpdateBylineFieldInput) =>
 		Promise.resolve(onSave(input)),

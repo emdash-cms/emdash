@@ -555,6 +555,7 @@ describe("FieldEditor errors from the server", () => {
 
 		await dialog.getByRole("button", { name: "Add Field" }).click();
 		await expect.element(dialog.getByRole("button", { name: "Saving..." })).toBeVisible();
+		await dialog.getByLabelText("Label", { exact: true }).clear();
 		await slug.fill("title_2");
 		refuse();
 
@@ -562,6 +563,7 @@ describe("FieldEditor errors from the server", () => {
 			.element(dialog.getByRole("alert"))
 			.toHaveTextContent('Field "title" already exists in collection "posts"');
 		await expect.element(slug).not.toHaveAttribute("aria-invalid");
+		await expect.element(slug).toHaveFocus();
 	});
 
 	it("shows a failure that comes back after an edit made during the save", async () => {

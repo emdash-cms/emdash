@@ -206,6 +206,7 @@ describe("BylineFieldEditor", () => {
 
 		await dialog.getByRole("button", { name: "Create field" }).click();
 		await expect.element(dialog.getByRole("button", { name: "Saving…" })).toBeVisible();
+		await dialog.getByLabelText("Label", { exact: true }).clear();
 		await slug.fill("role");
 		refuse();
 
@@ -213,6 +214,7 @@ describe("BylineFieldEditor", () => {
 			.element(dialog.getByRole("alert"))
 			.toHaveTextContent('Byline field "job_title" already exists');
 		await expect.element(slug).not.toHaveAttribute("aria-invalid");
+		await expect.element(slug).toHaveFocus();
 	});
 
 	it("shows a failure that comes back after an edit made during the save", async () => {
