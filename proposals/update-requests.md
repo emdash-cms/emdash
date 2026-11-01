@@ -28,7 +28,7 @@ The RFC covers four pieces:
 
 Since [#1939](https://github.com/emdash-cms/emdash/pull/1939), the admin dashboard shows a banner when a newer EmDash release is out. The banner tells the admin to update the `emdash` package and redeploy. On Workers or in a container, the running site is a fixed build. It can't install packages, build itself or deploy. [Discussion #1889](https://github.com/emdash-cms/emdash/discussions/1889), which proposed the banner, left out an update button for that reason. For a site owner who isn't the developer, the banner is a dead end.
 
-The update itself is documented in [Update EmDash](https://docs.emdashcms.com/deployment/updating/): run `upgrade-emdash`, complete the work order in `.emdash/UPGRADE.md`, build, back up when the update adds migrations, and deploy. Every site wires this into its own pipeline by hand, usually with Renovate, Dependabot or a custom bot. None of those runs the work order or tells the reviewer whether the update changes the database.
+The update itself is documented in [Update EmDash](https://docs.emdashcms.com/deployment/updating/): run `upgrade-emdash`, complete the work order in `.emdash/UPGRADE.md`, build, back up when the update adds migrations, and deploy. A site that automates this wires it into its own pipeline by hand, for example with Renovate, Dependabot or a custom bot. Renovate and Dependabot don't run the work order or tell the reviewer whether the update changes the database.
 
 [Discussion #4540](https://github.com/emdash-cms/emdash/discussions/4540) describes the demand. Someone who had just moved their first site from WordPress to EmDash on Workers asked on Discord how others keep their sites updated. Their plan was a bot that opens an update pull request a few days after each release, deploys small fixes on its own and leaves bigger ones for a person. An agency with many sites would want to start the same update from a script.
 
@@ -56,7 +56,7 @@ They create a fine-grained personal access token for that one repository with th
 pnpm wrangler secret put EMDASH_UPDATE_TOKEN
 ```
 
-Three days after EmDash 1.5.0 is published, the banner on the dashboard reads "EmDash 1.5.0 is available (you're running 1.4.0)" and offers Start update. The admin confirms a dialog that names `acme/marketing-site`. EmDash asks GitHub to run the workflow with `version: 1.5.0`, and the banner changes to "Update to 1.5.0 requested on 2026-11-04 09:12" with a View run link.
+Three days after EmDash 1.5.0 is published, the banner on the dashboard reads "EmDash 1.5.0 is available (you're running 1.4.0)" and offers Start update. The admin confirms a dialog that names `acme/marketing-site`. EmDash asks GitHub to run the workflow with `version: 1.5.0`, and the banner changes to "Update to 1.5.0 requested on 2026-11-04 09:12 by Jane Doe" with a View run link.
 
 The workflow installs 1.5.0 with `upgrade-emdash` and commits the result, including `.emdash/UPGRADE.md`. It opens the pull request "Update EmDash to 1.5.0" with the label `emdash: migrations` because the release adds a core migration. The site's own rules take over from there. Here, a person reviews pull requests with that label, and Workers Builds deploys `main` after the merge. Once 1.5.0 is running, the banner disappears.
 
@@ -71,7 +71,7 @@ An agent connected over MCP calls `site_update_request`. Its token doesn't hold 
 ## Goals
 
 - An admin can start an update from the banner without access to the repository or a terminal.
-- The CLI and an MCP client send the same request, with the same authorization and the same rules for which version can be requested.
+- The CLI and an MCP client send the same request, with the same permission and the same rules for which version can be requested.
 - An update requested from EmDash installs the version the update check reported, which has already waited out `updateCheck.minimumReleaseAge`.
 - EmDash ships a workflow that turns a request into a pull request that tells the reviewer whether the update adds core migrations and whether a release entry asks for changes to the project.
 - The same workflow can run on a schedule without EmDash, with the same release-age rule.
@@ -103,7 +103,7 @@ An agent connected over MCP calls `site_update_request`. Its token doesn't hold 
 
 `--release <x.y.z>` installs one stable release. Every direct dependency in the release group gets exactly that version. Every other direct `@emdash-cms/*` dependency, such as a plugin package, resolves the `latest` dist-tag as it does today. `upgrade-emdash` carries the release group as a list generated from `.changeset/config.json` at build time. `--release` and `--to` can't be combined. A version that isn't a stable `major.minor.patch` release fails before anything is installed. A version older than the installed one fails as it does for a dist-tag today. When every dependency already has its target version, the command reports that the project is up to date and exits with code 0 without changing files.
 
-`--minimum-release-age <duration>` takes a duration string (`"72h"`, `"3d"`) or a number of seconds, the format of `updateCheck.minimumReleaseAge`. Without `--release`, the release group gets the newest stable `emdash` version that was published at least that long ago and isn't deprecated, the rule the update check uses. Other `@emdash-cms/*` dependencies get the newest stable version, no newer than `latest`, that is at least that old. With `--release`, the option rejects a version younger than the age. It can't be combined with `--to`.
+`--minimum-release-age <duration>` takes a duration string (`"72h"`, `"3d"`) or a number of seconds, the format of `updateCheck.minimumReleaseAge`. Without `--release`, the release group gets the newest stable `emdash` version, no newer than `latest`, that was published at least that long ago and isn't deprecated, the rule the update check uses. Other `@emdash-cms/*` dependencies get the newest stable version, no newer than `latest`, that is at least that old. With `--release`, the option rejects a version younger than the age. It can't be combined with `--to`.
 
 `--summary <file>` writes a JSON summary after a successful run, including a run that changes nothing:
 
@@ -186,7 +186,7 @@ interface CoreUpdateRequest {
 	fromVersion: string;
 	source: "admin" | "cli" | "mcp";
 	status: "awaiting_approval" | "sending" | "sent" | "failed";
-	/** User ID of the admin who sent it, or of the MCP caller while it awaits approval. */
+	/** User ID of the admin who sent it, or of the MCP caller for a request made over MCP. */
 	requestedBy: string;
 	requestedAt: string;
 	/** User ID of the admin who approved an MCP request. */
@@ -205,7 +205,7 @@ The record only counts while its version is newer than the running version and i
 
 A new handler, `handleCoreUpdateRequest(db, { version, source, user, approvedBy? })`, sends a request:
 
-1. It reads the update status with `handleCoreUpdateStatus` and the same `minimumReleaseAge`. The requested version must equal the reported `latest`, and `updateAvailable` must be true. Otherwise it fails with `UPDATE_NOT_AVAILABLE`. A request can never name an arbitrary version.
+1. It fails with `UPDATE_TRIGGER_NOT_CONFIGURED` when no trigger is configured, and with `UPDATE_TRIGGER_NOT_READY` when the trigger's secret is missing. It reads the update status with `handleCoreUpdateStatus` and the same `minimumReleaseAge`. The requested version must equal the reported `latest`, and `updateAvailable` must be true. Otherwise it fails with `UPDATE_NOT_AVAILABLE`. A request can never name an arbitrary version.
 2. A `sent` record for the same version that is less than 15 minutes old fails the request with `UPDATE_ALREADY_REQUESTED` and the time it can be retried. So does a `sending` record less than one minute old. A `failed` record never blocks a retry.
 3. It claims the send by writing a `sending` record with `OptionsRepository.compareAndSet`, against the revision it read in step 2. When the claim doesn't apply, another send got there first, and the request fails with `UPDATE_ALREADY_REQUESTED`.
 4. It sends the request to the trigger with a 10-second timeout and replaces the `sending` record with the outcome.
@@ -277,7 +277,7 @@ The banner stays on the dashboard, for admins only, and stays dismissible per ve
 - **Failed:** the error in words, such as "GitHub rejected the token. It may have expired.", with Try again.
 - **Awaiting approval:** "An agent asked to update to 1.5.0 for <name>", with Start update and Dismiss. Start update sends the request with `source: "mcp"` and the admin as `approvedBy`.
 
-The dialog uses `ConfirmDialog`, and every string, including the error texts mapped from the codes above, goes through Lingui. Dates use the admin locale's formatting, and the layout uses logical classes. The dismiss state stays in `localStorage`, keyed by version as today.
+The dialog uses `ConfirmDialog`, and every string, including the error texts mapped from the codes above, goes through Lingui. Dates use the admin locale's formatting, and the layout uses logical classes. The dismiss state stays in `localStorage`, per version as today.
 
 ### CLI
 
