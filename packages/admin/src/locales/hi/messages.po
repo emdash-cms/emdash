@@ -259,9 +259,16 @@ msgstr "{0, plural, one {# फ़ाइल नहीं जोड़ी गई �
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
 #: packages/admin/src/components/MediaDetailPanel.tsx:1514
-#: packages/admin/src/components/MediaLibrary.tsx:954
+#: packages/admin/src/components/MediaLibrary.tsx:962
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {# फ़ोल्डर लोड हुआ} other {# फ़ोल्डर लोड हुए}}"
+
+#. placeholder {0}: item.count
+#. placeholder {0}: redirect.hits
+#: packages/admin/src/components/Redirects.tsx:382
+#: packages/admin/src/components/Redirects.tsx:494
+msgid "{0, plural, one {# hit} other {# hits}}"
+msgstr ""
 
 #. placeholder {0}: menu.itemCount ?? 0
 #: packages/admin/src/components/MenuCard.tsx:46
@@ -327,7 +334,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# पोस्ट} other {# पोस्ट}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:597
+#: packages/admin/src/components/Redirects.tsx:776
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {# पुनर्निर्देश एक लूप का हिस्सा है।} other {# पुनर्निर्देश एक लूप का हिस्सा हैं।}}"
 
@@ -910,7 +917,7 @@ msgstr "{rows, plural, one {पंक्ति हटा दी गई} other {#
 msgid "{rows} × {columns} table pasted"
 msgstr "{rows} × {columns} टेबल पेस्ट की गई"
 
-#: packages/admin/src/components/DataTable.tsx:138
+#: packages/admin/src/components/DataTable.tsx:360
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {# चयनित} other {# चयनित}}"
 
@@ -995,11 +1002,11 @@ msgstr "{areaName} में {widgetType}"
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr "{words, plural, one {# शब्द} other {# शब्द}}"
 
-#: packages/admin/src/components/Redirects.tsx:239
+#: packages/admin/src/components/Redirects.tsx:266
 msgid "/new-page or /articles/[slug]"
 msgstr "/नया पृष्ठ या /लेख/[स्लग]"
 
-#: packages/admin/src/components/Redirects.tsx:227
+#: packages/admin/src/components/Redirects.tsx:254
 msgid "/old-page or /blog/[slug]"
 msgstr "/पुराना पृष्ठ या /ब्लॉग/[स्लग]"
 
@@ -1097,19 +1104,19 @@ msgstr "3. \"सभी सामग्री\" चुनें"
 msgid "30 days"
 msgstr "30 दिन"
 
-#: packages/admin/src/components/Redirects.tsx:257
+#: packages/admin/src/components/Redirects.tsx:284
 msgid "301 Permanent"
 msgstr "301 स्थायी"
 
-#: packages/admin/src/components/Redirects.tsx:258
+#: packages/admin/src/components/Redirects.tsx:285
 msgid "302 Temporary"
 msgstr "302 अस्थायी"
 
-#: packages/admin/src/components/Redirects.tsx:259
+#: packages/admin/src/components/Redirects.tsx:286
 msgid "307 Temporary (Strict)"
 msgstr "307 अस्थायी (सख्त)"
 
-#: packages/admin/src/components/Redirects.tsx:260
+#: packages/admin/src/components/Redirects.tsx:287
 msgid "308 Permanent (Strict)"
 msgstr "308 स्थायी (सख्त)"
 
@@ -1125,15 +1132,15 @@ msgstr "4. \"डाउनलोड निर्यात फ़ाइल\" प�
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. \"EmDash\" दर्ज करें और \"नया जोड़ें\" पर क्लिक करें"
 
-#: packages/admin/src/components/Redirects.tsx:572
+#: packages/admin/src/components/Redirects.tsx:751
 msgid "404 Errors"
 msgstr "404 एरर्स"
 
-#: packages/admin/src/components/Redirects.tsx:261
+#: packages/admin/src/components/Redirects.tsx:288
 msgid "410 Content Deleted (Gone)"
 msgstr "410 सामग्री हटाई गई (चली गई)"
 
-#: packages/admin/src/components/Redirects.tsx:262
+#: packages/admin/src/components/Redirects.tsx:289
 msgid "451 Unavailable for legal reasons"
 msgstr "451 कानूनी कारणों से अनुपलब्ध है"
 
@@ -1335,6 +1342,8 @@ msgstr "एसीएफ फील्ड्स"
 #: packages/admin/src/components/ContentList.tsx:782
 #: packages/admin/src/components/ContentList.tsx:924
 #: packages/admin/src/components/ContentTypeList.tsx:227
+#: packages/admin/src/components/Redirects.tsx:362
+#: packages/admin/src/components/Redirects.tsx:827
 #: packages/admin/src/components/RelationList.tsx:110
 #: packages/admin/src/components/TaxonomyManager.tsx:1325
 #: packages/admin/src/routes/byline-schema.tsx:238
@@ -1360,6 +1369,11 @@ msgstr "{title} के लिए एक्शन"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:584
 msgid "Actions for comment by {author}"
+msgstr ""
+
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:514
+msgid "Actions for redirect {0}"
 msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
@@ -1546,8 +1560,8 @@ msgid "Add New"
 msgstr "नया जोड़ो"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:160
-#: packages/admin/src/components/MediaLibrary.tsx:804
-#: packages/admin/src/components/MediaLibrary.tsx:809
+#: packages/admin/src/components/MediaLibrary.tsx:812
+#: packages/admin/src/components/MediaLibrary.tsx:817
 msgid "Add new folder"
 msgstr "नया फ़ोल्डर जोड़ें"
 
@@ -1829,13 +1843,13 @@ msgid "All sources"
 msgstr "सभी सोर्स"
 
 #: packages/admin/src/components/ContentList.tsx:1015
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:706
 msgid "All statuses"
 msgstr "सभी स्थितियाँ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:936
+#: packages/admin/src/components/MediaLibrary.tsx:944
 #: packages/admin/src/components/MediaPickerModal.tsx:404
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "All types"
 msgstr "सभी प्रकार के"
 
@@ -1905,7 +1919,7 @@ msgstr "ऑल्ट टेक्स्ट"
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
-#: packages/admin/src/components/MediaLibrary.tsx:1165
+#: packages/admin/src/components/MediaLibrary.tsx:1176
 #: packages/admin/src/components/PortableTextEditor.tsx:5845
 #: packages/admin/src/components/PortableTextEditor.tsx:5911
 msgid "Alt text"
@@ -1917,12 +1931,11 @@ msgstr "ऑल्ट टेक्स्ट"
 msgid "Alt Text"
 msgstr "ऑल्ट टेक्स्ट"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1476
+#: packages/admin/src/components/MediaLibrary.tsx:1480
 msgid "Alt text is not applicable to folders"
 msgstr "ऑल्ट टेक्स्ट फ़ोल्डरों पर लागू नहीं होता"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1704
-#: packages/admin/src/components/MediaLibrary.tsx:1761
+#: packages/admin/src/components/MediaLibrary.tsx:1779
 msgid "Alt text set"
 msgstr "ऑल्ट टेक्स्ट सेट"
 
@@ -2040,7 +2053,7 @@ msgstr "कोई अन्य आयात पहले से इस पैक
 msgid "Another menu already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:158
+#: packages/admin/src/components/Redirects.tsx:185
 msgid "Another redirect already uses this source path. Enter a different one."
 msgstr ""
 
@@ -2228,7 +2241,7 @@ msgid "Attribution"
 msgstr "श्रेय"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:90
-#: packages/admin/src/components/MediaLibrary.tsx:939
+#: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
 msgstr "ऑडियो"
@@ -2303,11 +2316,11 @@ msgstr "लेखक"
 msgid "Authors will be assigned to users on this site"
 msgstr "लेखकों को इस साइट के उपयोगकर्ताओं से असाइन किया जाएगा"
 
-#: packages/admin/src/components/Redirects.tsx:696
+#: packages/admin/src/components/Redirects.tsx:467
 msgid "auto"
 msgstr "ऑटो"
 
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "Auto (slug change)"
 msgstr "ऑटो (स्लग परिवर्तन)"
 
@@ -2375,7 +2388,7 @@ msgstr "वापस"
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:1771
 #: packages/admin/src/components/MediaDetailPanel.tsx:1786
-#: packages/admin/src/components/MediaLibrary.tsx:763
+#: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/WordPressImport.tsx:1565
 #: packages/admin/src/components/WordPressImport.tsx:2586
@@ -2412,7 +2425,7 @@ msgstr "एडिटिंग पर वापस आ गए।"
 msgid "Back to login"
 msgstr "लॉगिन पर वापस जाएं"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1051
+#: packages/admin/src/components/MediaLibrary.tsx:1059
 msgid "Back to Main library"
 msgstr "मुख्य लाइब्रेरी पर वापस जाएँ"
 
@@ -2735,7 +2748,7 @@ msgstr "सामग्री देख सकते हैं"
 #: packages/admin/src/components/PortableTextEditor.tsx:5883
 #: packages/admin/src/components/PortableTextEditor.tsx:6631
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:390
-#: packages/admin/src/components/Redirects.tsx:279
+#: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:300
@@ -3216,7 +3229,7 @@ msgid "Choosing a byline replaces this automatic credit."
 msgstr "बायलाइन चुनने पर यह स्वचालित श्रेय बदल जाएगा।"
 
 #: packages/admin/src/components/ContentList.tsx:1216
-#: packages/admin/src/components/DataTable.tsx:143
+#: packages/admin/src/components/DataTable.tsx:365
 msgid "Clear"
 msgstr "स्पष्ट"
 
@@ -3228,7 +3241,7 @@ msgstr "पूर्ण हुए साफ़ करें"
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:185
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:103
 #: packages/admin/src/components/ContentList.tsx:1121
-#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
 #: packages/admin/src/components/users/UserList.tsx:125
 #: packages/admin/src/routes/bylines.tsx:472
@@ -3239,8 +3252,8 @@ msgstr "फ़िल्टर साफ़ करें"
 msgid "Clear formatting"
 msgstr "फ़ॉर्मेटिंग साफ़ करें"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1036
-#: packages/admin/src/components/MediaLibrary.tsx:1076
+#: packages/admin/src/components/MediaLibrary.tsx:1044
+#: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/TaxonomyManager.tsx:1349
 msgid "Clear search"
 msgstr "स्पष्ट खोज"
@@ -3334,7 +3347,7 @@ msgstr "Cloudflare के बॉट प्रोटेक्शन ने चै
 
 #: packages/admin/src/components/ContentTypeList.tsx:406
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
-#: packages/admin/src/components/Redirects.tsx:631
+#: packages/admin/src/components/Redirects.tsx:820
 msgid "Code"
 msgstr "कोड"
 
@@ -3889,7 +3902,7 @@ msgstr "वर्शन लोड नहीं हो पाए"
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "\"{draft}\" को MIME प्रकार में मैप नहीं किया जा सका। सीधे MIME टाइप करें."
 
-#: packages/admin/src/components/MediaLibrary.tsx:587
+#: packages/admin/src/components/MediaLibrary.tsx:595
 msgid "Couldn’t move file"
 msgstr "फ़ाइल नहीं ले जाई जा सकी"
 
@@ -3930,7 +3943,7 @@ msgstr "गिनती करना"
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuList.tsx:244
-#: packages/admin/src/components/Redirects.tsx:287
+#: packages/admin/src/components/Redirects.tsx:314
 #: packages/admin/src/components/TaxonomyManager.tsx:827
 #: packages/admin/src/components/Widgets.tsx:530
 msgid "Create"
@@ -4041,15 +4054,15 @@ msgid "Create personal access tokens for programmatic API access"
 msgstr "प्रोग्रामेटिक एपीआई एक्सेस के लिए व्यक्तिगत एक्सेस टोकन बनाएं"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:348
+#: packages/admin/src/components/Redirects.tsx:400
 msgid "Create redirect for {0}"
 msgstr "{0} के लिए पुनर्निर्देश बनाएं"
 
-#: packages/admin/src/components/Redirects.tsx:347
+#: packages/admin/src/components/Redirects.tsx:399
 msgid "Create redirect for this path"
 msgstr "इस पथ के लिए पुनर्निर्देश बनाएं"
 
-#: packages/admin/src/components/Redirects.tsx:619
+#: packages/admin/src/components/Redirects.tsx:798
 msgid "Create redirect rules to manage URL changes."
 msgstr "URL परिवर्तनों को प्रबंधित करने के लिए पुनर्निर्देश नियम बनाएं।"
 
@@ -4173,7 +4186,7 @@ msgid "Creating cropped copy..."
 msgstr "क्रॉप की गई कॉपी बनाई जा रही है..."
 
 #: packages/admin/src/components/MenuList.tsx:244
-#: packages/admin/src/components/Redirects.tsx:284
+#: packages/admin/src/components/Redirects.tsx:311
 #: packages/admin/src/components/RelationFormPanel.tsx:148
 #: packages/admin/src/components/Sections.tsx:306
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:561
@@ -4201,7 +4214,7 @@ msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "क्रॉप चयन। इसे ले जाने के लिए Arrow का उपयोग करें।"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:771
-#: packages/admin/src/components/MediaLibrary.tsx:1310
+#: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Cropped copy created."
 msgstr "क्रॉप की गई कॉपी बनाई गई।"
 
@@ -4376,7 +4389,8 @@ msgstr "कोड में परिभाषित"
 #: packages/admin/src/components/MenuEditor.tsx:800
 #: packages/admin/src/components/MenuEditor.tsx:818
 #: packages/admin/src/components/MenuList.tsx:291
-#: packages/admin/src/components/Redirects.tsx:762
+#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:886
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/RelationList.tsx:250
 #: packages/admin/src/components/Sections.tsx:423
@@ -4530,16 +4544,12 @@ msgstr "स्थायी रूप से हटाएँ"
 msgid "Delete Permanently?"
 msgstr "स्थायी रूप से हटाएँ?"
 
-#: packages/admin/src/components/Redirects.tsx:710
-msgid "Delete redirect"
-msgstr "पुनर्निर्देश हटाएं"
-
-#. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:711
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:525
 msgid "Delete redirect {0}"
 msgstr "पुनर्निर्देश हटाएं {0}"
 
-#: packages/admin/src/components/Redirects.tsx:760
+#: packages/admin/src/components/Redirects.tsx:884
 msgid "Delete Redirect?"
 msgstr "पुनर्निर्देश हटाएं?"
 
@@ -4609,7 +4619,7 @@ msgstr "Deleting \"{0}\" will also remove {1, plural, one {# संग्रह�
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:819
 #: packages/admin/src/components/MenuList.tsx:292
-#: packages/admin/src/components/Redirects.tsx:763
+#: packages/admin/src/components/Redirects.tsx:887
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:424
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
@@ -4695,11 +4705,11 @@ msgstr "विवरण"
 msgid "Description (optional)"
 msgstr "विवरण (वैकल्पिक)"
 
-#: packages/admin/src/components/Redirects.tsx:629
+#: packages/admin/src/components/Redirects.tsx:811
 msgid "Destination"
 msgstr "गंतव्य"
 
-#: packages/admin/src/components/Redirects.tsx:238
+#: packages/admin/src/components/Redirects.tsx:265
 msgid "Destination path"
 msgstr "गंतव्य पथ"
 
@@ -4757,9 +4767,10 @@ msgstr "प्लगइन अक्षम करें"
 msgid "Disable plugin MCP tools"
 msgstr "प्लगइन एमसीपी उपकरण अक्षम करें"
 
-#: packages/admin/src/components/Redirects.tsx:679
-msgid "Disable redirect"
-msgstr "पुनर्निर्देशन अक्षम करें"
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:508
+msgid "Disable redirect {0}"
+msgstr ""
 
 #: packages/admin/src/routes/users.tsx:289
 msgid "Disable User"
@@ -4770,7 +4781,7 @@ msgid "Disable User?"
 msgstr "उपयोगकर्ता को अक्षम करें?"
 
 #: packages/admin/src/components/PluginManager.tsx:462
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:706
 #: packages/admin/src/components/users/UserDetail.tsx:214
 #: packages/admin/src/components/users/UserList.tsx:178
 msgid "Disabled"
@@ -4895,7 +4906,7 @@ msgid "Document"
 msgstr "दस्तावेज़"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:87
-#: packages/admin/src/components/MediaLibrary.tsx:940
+#: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
 msgstr "दस्तावेज़"
@@ -5076,7 +5087,7 @@ msgstr "छवि यहाँ छोड़ें या <0>ब्राउज�
 msgid "Drop an image here or browse for {label}"
 msgstr "छवि यहाँ छोड़ें या {label} के लिए ब्राउज़ करें"
 
-#: packages/admin/src/components/MediaLibrary.tsx:743
+#: packages/admin/src/components/MediaLibrary.tsx:751
 msgid "Drop files to upload"
 msgstr "अपलोड करने के लिए फ़ाइलें छोड़ें"
 
@@ -5109,7 +5120,7 @@ msgstr "डुप्लिकेट रीडायरेक्ट्स छो�
 msgid "e.g. application/zip or .pdf"
 msgstr "जैसे एप्लिकेशन/ज़िप या .pdf"
 
-#: packages/admin/src/components/Redirects.tsx:268
+#: packages/admin/src/components/Redirects.tsx:295
 msgid "e.g. import, blog"
 msgstr "जैसे आयात, ब्लॉग"
 
@@ -5144,6 +5155,7 @@ msgstr "सबसे पहले सेव किया गया वर्श�
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:795
+#: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:513
 #: packages/admin/src/components/Shell.tsx:87
@@ -5226,8 +5238,8 @@ msgid "Edit folder"
 msgstr "फ़ोल्डर संपादित करें"
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:1391
-#: packages/admin/src/components/MediaLibrary.tsx:1458
+#: packages/admin/src/components/MediaLibrary.tsx:1399
+#: packages/admin/src/components/MediaLibrary.tsx:1462
 msgid "Edit folder {0}"
 msgstr "फ़ोल्डर {0} संपादित करें"
 
@@ -5269,16 +5281,12 @@ msgstr "मेनू आइटम संपादित करें"
 msgid "visualEditing.editMode"
 msgstr "संपादन मोड"
 
-#: packages/admin/src/components/Redirects.tsx:702
-msgid "Edit redirect"
-msgstr "पुनर्निर्देश संपादित करें"
-
-#: packages/admin/src/components/Redirects.tsx:216
+#: packages/admin/src/components/Redirects.tsx:243
 msgid "Edit Redirect"
 msgstr "पुनर्निर्देशन संपादित करें"
 
-#. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:703
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:451
 msgid "Edit redirect {0}"
 msgstr "पुनर्निर्देश संपादित करें {0}"
 
@@ -5531,9 +5539,10 @@ msgstr "प्लगइन सक्षम करें"
 msgid "Enable plugin MCP tools"
 msgstr "प्लगइन एमसीपी टूल सक्षम करें"
 
-#: packages/admin/src/components/Redirects.tsx:679
-msgid "Enable redirect"
-msgstr "पुनर्निर्देश सक्षम करें"
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:509
+msgid "Enable redirect {0}"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
 msgid "Enable tracking"
@@ -5543,8 +5552,8 @@ msgstr "ट्रैकिंग सक्षम करें"
 msgid "Enable tracking to index existing content and keep references up to date."
 msgstr "मौजूदा कंटेंट को इंडेक्स करने और रेफ़रेंस अपडेट रखने के लिए ट्रैकिंग चालू करें।"
 
-#: packages/admin/src/components/Redirects.tsx:274
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:301
+#: packages/admin/src/components/Redirects.tsx:706
 msgid "Enabled"
 msgstr "सक्रिय"
 
@@ -5552,11 +5561,11 @@ msgstr "सक्रिय"
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "कंटेंट की कोई भाषा सेट नहीं है, इसलिए अंग्रेज़ी इस्तेमाल हो रही है। कंटेंट की भाषा एंट्री के साथ सेव होती है और एडमिन में आपकी चुनी हुई भाषा से अलग होती है।"
 
-#: packages/admin/src/components/Redirects.tsx:88
+#: packages/admin/src/components/Redirects.tsx:115
 msgid "Enter a destination different from the source."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:84
+#: packages/admin/src/components/Redirects.tsx:111
 msgid "Enter a destination path."
 msgstr ""
 
@@ -5632,7 +5641,7 @@ msgid "Enter a number."
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:142
-#: packages/admin/src/components/Redirects.tsx:61
+#: packages/admin/src/components/Redirects.tsx:88
 msgid "Enter a path that starts with a single /."
 msgstr ""
 
@@ -5649,7 +5658,7 @@ msgstr "सेव करने के लिए ऐसा टाइमज़ो�
 msgid "Enter a slug."
 msgstr "स्लग दर्ज करें।"
 
-#: packages/admin/src/components/Redirects.tsx:79
+#: packages/admin/src/components/Redirects.tsx:106
 msgid "Enter a source path."
 msgstr ""
 
@@ -5827,7 +5836,7 @@ msgstr "इस प्लगइन की प्रत्येक प्रक�
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "यह सामग्री प्रकार जिन संबंधों में शामिल है, वे सभी भी हट जाएँगे:"
 
-#: packages/admin/src/components/Redirects.tsx:516
+#: packages/admin/src/components/Redirects.tsx:695
 msgid "Exact group name..."
 msgstr ""
 
@@ -7099,7 +7108,7 @@ msgstr "मीडिया लाइब्रेरी से फ़ाइल"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1433
 #: packages/admin/src/components/MediaDetailPanel.tsx:1438
-#: packages/admin/src/components/MediaLibrary.tsx:1162
+#: packages/admin/src/components/MediaLibrary.tsx:1168
 msgid "Filename"
 msgstr "फ़ाइलनाम"
 
@@ -7147,7 +7156,7 @@ msgstr "संग्रह के अनुसार फ़िल्टर क�
 msgid "Filter by date range: {rangeLabel}"
 msgstr "तारीख़ की रेंज के अनुसार फ़िल्टर करें: {rangeLabel}"
 
-#: packages/admin/src/components/Redirects.tsx:515
+#: packages/admin/src/components/Redirects.tsx:694
 msgid "Filter by group"
 msgstr ""
 
@@ -7160,13 +7169,13 @@ msgid "Filter by source"
 msgstr "सोर्स के अनुसार फ़िल्टर करें"
 
 #: packages/admin/src/components/ContentList.tsx:1054
-#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:707
 msgid "Filter by status"
 msgstr "स्थिति के अनुसार फ़िल्टर करें"
 
-#: packages/admin/src/components/MediaLibrary.tsx:942
+#: packages/admin/src/components/MediaLibrary.tsx:950
 #: packages/admin/src/components/MediaPickerModal.tsx:1327
-#: packages/admin/src/components/Redirects.tsx:535
+#: packages/admin/src/components/Redirects.tsx:714
 msgid "Filter by type"
 msgstr "प्रकार के अनुसार फ़िल्टर करें"
 
@@ -7207,7 +7216,7 @@ msgstr "प्रकाशन की तारीख़ बदलने से �
 msgid "Fix invalid fields before changing the schedule"
 msgstr "शेड्यूल बदलने से पहले अमान्य फ़ील्ड ठीक करें"
 
-#: packages/admin/src/components/Redirects.tsx:67
+#: packages/admin/src/components/Redirects.tsx:94
 msgid "Fix the percent-encoding in the path."
 msgstr ""
 
@@ -7248,19 +7257,19 @@ msgstr "फ़ोल्डर में बदलाव सफलतापूर
 msgid "Folder unavailable"
 msgstr "फ़ोल्डर उपलब्ध नहीं है"
 
-#: packages/admin/src/components/MediaLibrary.tsx:969
+#: packages/admin/src/components/MediaLibrary.tsx:977
 #: packages/admin/src/components/MediaPickerModal.tsx:1365
 msgid "Folders"
 msgstr "फ़ोल्डर"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1541
-#: packages/admin/src/components/MediaLibrary.tsx:979
-#: packages/admin/src/components/MediaLibrary.tsx:1488
+#: packages/admin/src/components/MediaLibrary.tsx:987
+#: packages/admin/src/components/MediaLibrary.tsx:1492
 #: packages/admin/src/components/MediaPickerModal.tsx:1370
 msgid "Folders could not be loaded."
 msgstr "फ़ोल्डर लोड नहीं किए जा सके।"
 
-#: packages/admin/src/components/MediaLibrary.tsx:774
+#: packages/admin/src/components/MediaLibrary.tsx:782
 msgid "Folders navigation"
 msgstr "फ़ोल्डर नेविगेशन"
 
@@ -7403,17 +7412,18 @@ msgstr "गूगल सत्यापन"
 msgid "GraphQL"
 msgstr "ग्राफक्यूएल"
 
-#: packages/admin/src/components/MediaLibrary.tsx:897
+#: packages/admin/src/components/MediaLibrary.tsx:905
 #: packages/admin/src/components/MediaPickerModal.tsx:1283
 msgid "Grid view"
 msgstr "जालक दृश्य"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:578
-#: packages/admin/src/components/Redirects.tsx:630
+#: packages/admin/src/components/Redirects.tsx:484
+#: packages/admin/src/components/Redirects.tsx:815
 msgid "Group"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:267
+#: packages/admin/src/components/Redirects.tsx:294
 msgid "Group (optional)"
 msgstr "समूह (वैकल्पिक)"
 
@@ -7550,8 +7560,8 @@ msgstr ""
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "पदानुक्रमित (श्रेणियों की तरह, माता-पिता/बच्चे के संबंधों के साथ)"
 
-#: packages/admin/src/components/Redirects.tsx:320
-#: packages/admin/src/components/Redirects.tsx:632
+#: packages/admin/src/components/Redirects.tsx:356
+#: packages/admin/src/components/Redirects.tsx:823
 msgid "Hits"
 msgstr "हिट्स"
 
@@ -7775,7 +7785,7 @@ msgstr "छवि URL"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:85
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
-#: packages/admin/src/components/MediaLibrary.tsx:937
+#: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
 msgid "Images"
 msgstr "इमेजिस"
@@ -7949,7 +7959,7 @@ msgstr "असंगत"
 msgid "Increase column width"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:838
+#: packages/admin/src/components/MediaLibrary.tsx:846
 msgid "Index existing content and keep Used in results up to date."
 msgstr ""
 
@@ -8372,7 +8382,7 @@ msgstr "आखरी लॉगइन"
 msgid "Last page"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:321
+#: packages/admin/src/components/Redirects.tsx:359
 msgid "Last seen"
 msgstr "अंतिम बार देखा गया"
 
@@ -8422,10 +8432,10 @@ msgstr ""
 msgid "Left"
 msgstr "बाएं"
 
-#: packages/admin/src/components/MediaLibrary.tsx:308
-#: packages/admin/src/components/MediaLibrary.tsx:426
-#: packages/admin/src/components/MediaLibrary.tsx:703
-#: packages/admin/src/components/MediaLibrary.tsx:1276
+#: packages/admin/src/components/MediaLibrary.tsx:316
+#: packages/admin/src/components/MediaLibrary.tsx:434
+#: packages/admin/src/components/MediaLibrary.tsx:711
+#: packages/admin/src/components/MediaLibrary.tsx:1284
 #: packages/admin/src/components/MediaPickerModal.tsx:381
 #: packages/admin/src/components/MediaPickerModal.tsx:398
 msgid "Library"
@@ -8543,7 +8553,7 @@ msgstr ""
 msgid "List each option only once."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:906
+#: packages/admin/src/components/MediaLibrary.tsx:914
 #: packages/admin/src/components/MediaPickerModal.tsx:1293
 msgid "List view"
 msgstr "लिस्ट व्यू"
@@ -8563,7 +8573,7 @@ msgstr "लाइव देखें"
 #: packages/admin/src/components/ContentPickerModal.tsx:374
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:248
-#: packages/admin/src/components/Redirects.tsx:727
+#: packages/admin/src/components/Redirects.tsx:851
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -8573,14 +8583,14 @@ msgstr "और लोड करें"
 
 #: packages/admin/src/components/ContentList.tsx:894
 #: packages/admin/src/components/ContentList.tsx:957
-#: packages/admin/src/components/MediaLibrary.tsx:1269
+#: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/users/UserList.tsx:157
 msgid "Load More"
 msgstr "और लोड करें"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1560
-#: packages/admin/src/components/MediaLibrary.tsx:1009
-#: packages/admin/src/components/MediaLibrary.tsx:1206
+#: packages/admin/src/components/MediaLibrary.tsx:1017
+#: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1419
 msgid "Load more folders"
 msgstr ""
@@ -8636,8 +8646,8 @@ msgstr "संपादक लोड हो रहा है..."
 msgid "Loading exports…"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:953
-#: packages/admin/src/components/MediaLibrary.tsx:1174
+#: packages/admin/src/components/MediaLibrary.tsx:961
+#: packages/admin/src/components/MediaLibrary.tsx:1185
 #: packages/admin/src/components/MediaPickerModal.tsx:1388
 msgid "Loading folders"
 msgstr ""
@@ -8674,7 +8684,7 @@ msgstr ""
 msgid "Loading plugins..."
 msgstr "प्लगइन लोड हो रहा है..."
 
-#: packages/admin/src/components/Redirects.tsx:609
+#: packages/admin/src/components/Redirects.tsx:788
 msgid "Loading redirects..."
 msgstr "पुनर्निर्देश लोड हो रहे हैं..."
 
@@ -8729,10 +8739,10 @@ msgstr "विजेट लोड हो रहे हैं..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:621
 #: packages/admin/src/components/MediaDetailPanel.tsx:623
 #: packages/admin/src/components/MediaDetailPanel.tsx:1720
-#: packages/admin/src/components/MediaLibrary.tsx:1269
+#: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3311
-#: packages/admin/src/components/Redirects.tsx:727
+#: packages/admin/src/components/Redirects.tsx:851
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:230
@@ -8869,7 +8879,7 @@ msgstr "अपनी साइट के लिए नेविगेशन म�
 msgid "Manage the people and teams credited on your content."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:494
+#: packages/admin/src/components/Redirects.tsx:673
 msgid "Manage URL redirects and view 404 errors."
 msgstr "URL पुनर्निर्देश प्रबंधित करें और 404 एरर्स देखें।"
 
@@ -8890,7 +8900,7 @@ msgstr "एक बाहरी मीडिया प्रदाता द्�
 msgid "Managed by your identity provider. Change the name there."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "Manual"
 msgstr "नियमावली"
 
@@ -8904,11 +8914,11 @@ msgid "Map WordPress user {0} to EmDash user"
 msgstr "वर्डप्रेस उपयोगकर्ता {0} को EmDash उपयोगकर्ता में मैप करें"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:356
+#: packages/admin/src/components/Redirects.tsx:409
 msgid "Mark {0} as Gone (410)"
 msgstr "{0} को चला गया के रूप में चिह्नित करें (410)"
 
-#: packages/admin/src/components/Redirects.tsx:355
+#: packages/admin/src/components/Redirects.tsx:344
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
 msgstr "चला गया के रूप में चिह्नित करें (410) - खोज इंजन को बताता है कि इसे स्थायी रूप से हटा दिया गया था"
 
@@ -9021,8 +9031,8 @@ msgid "visualEditing.mediaLibrary"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:171
-#: packages/admin/src/components/MediaLibrary.tsx:771
-#: packages/admin/src/components/MediaLibrary.tsx:786
+#: packages/admin/src/components/MediaLibrary.tsx:779
+#: packages/admin/src/components/MediaLibrary.tsx:794
 msgid "Media Library"
 msgstr "मीडिया लाइब्रेरी"
 
@@ -9030,7 +9040,7 @@ msgstr "मीडिया लाइब्रेरी"
 msgid "Media links were made relative"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1262
+#: packages/admin/src/components/MediaLibrary.tsx:1270
 #: packages/admin/src/components/MediaPickerModal.tsx:1596
 msgid "Media pagination"
 msgstr ""
@@ -9048,7 +9058,7 @@ msgstr ""
 msgid "Media usage tracking"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:835
+#: packages/admin/src/components/MediaLibrary.tsx:843
 msgid "Media usage tracking is indexing existing content"
 msgstr ""
 
@@ -9060,11 +9070,11 @@ msgstr ""
 msgid "Media usage tracking is ready"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:836
+#: packages/admin/src/components/MediaLibrary.tsx:844
 msgid "Media usage tracking is setting up"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:833
+#: packages/admin/src/components/MediaLibrary.tsx:841
 msgid "Media usage tracking needs attention"
 msgstr ""
 
@@ -9409,7 +9419,7 @@ msgid "Moved an image"
 msgstr ""
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:580
+#: packages/admin/src/components/MediaLibrary.tsx:588
 msgid "Moved to {0}"
 msgstr ""
 
@@ -9550,7 +9560,7 @@ msgstr "नया डोमेन"
 msgid "New field"
 msgstr "नया क्षेत्र"
 
-#: packages/admin/src/components/MediaLibrary.tsx:808
+#: packages/admin/src/components/MediaLibrary.tsx:816
 msgid "New folder"
 msgstr ""
 
@@ -9562,8 +9572,8 @@ msgstr ""
 msgid "New public routes"
 msgstr "नये सार्वजनिक मार्ग"
 
-#: packages/admin/src/components/Redirects.tsx:216
-#: packages/admin/src/components/Redirects.tsx:501
+#: packages/admin/src/components/Redirects.tsx:243
+#: packages/admin/src/components/Redirects.tsx:680
 msgid "New Redirect"
 msgstr "नया पुनर्निर्देश"
 
@@ -9667,12 +9677,11 @@ msgstr "अभी तक कोई {0} नहीं। आरंभ करने
 msgid "No {label} found."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:312
+#: packages/admin/src/components/Redirects.tsx:340
 msgid "No 404 errors recorded yet."
 msgstr "अभी तक कोई 404 एरर दर्ज नहीं हुआ है।"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1704
-#: packages/admin/src/components/MediaLibrary.tsx:1761
+#: packages/admin/src/components/MediaLibrary.tsx:1779
 msgid "No alt text"
 msgstr "कोई वैकल्पिक पाठ नहीं"
 
@@ -9822,7 +9831,7 @@ msgstr ""
 msgid "No folders found"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:662
+#: packages/admin/src/components/Redirects.tsx:489
 msgid "No group"
 msgstr ""
 
@@ -9899,8 +9908,8 @@ msgstr "कोई मेल खाती बायलाइन नहीं."
 msgid "No matching content found."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1028
-#: packages/admin/src/components/MediaLibrary.tsx:1072
+#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1080
 msgid "No matching media"
 msgstr "कोई मेल खाता मीडिया नहीं"
 
@@ -9921,11 +9930,11 @@ msgstr ""
 msgid "No maximum"
 msgstr "कोई अधिकतम नहीं"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1095
+#: packages/admin/src/components/MediaLibrary.tsx:1103
 msgid "No media available from this provider."
 msgstr "इस प्रदाता से कोई मीडिया उपलब्ध नहीं है."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1094
+#: packages/admin/src/components/MediaLibrary.tsx:1102
 #: packages/admin/src/components/MediaPickerModal.tsx:1457
 msgid "No media found"
 msgstr "कोई मीडिया नहीं मिला"
@@ -9987,11 +9996,11 @@ msgstr "कोई सार्वजनिक URL उपलब्ध नही�
 msgid "No recent activity"
 msgstr "कोई हालिया गतिविधि नहीं"
 
-#: packages/admin/src/components/Redirects.tsx:614
+#: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects match these filters"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:614
+#: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects yet"
 msgstr "अभी तक कोई पुनर्निर्देश नहीं"
 
@@ -10235,8 +10244,8 @@ msgstr ""
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:182
-#: packages/admin/src/components/MediaLibrary.tsx:1375
-#: packages/admin/src/components/MediaLibrary.tsx:1446
+#: packages/admin/src/components/MediaLibrary.tsx:1383
+#: packages/admin/src/components/MediaLibrary.tsx:1449
 msgid "Open folder {0}"
 msgstr ""
 
@@ -10264,7 +10273,7 @@ msgstr "वेब टेब में खोलें"
 msgid "Open read-only"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:841
+#: packages/admin/src/components/MediaLibrary.tsx:849
 msgid "Open setup"
 msgstr ""
 
@@ -10459,8 +10468,8 @@ msgstr ""
 msgid "Parent"
 msgstr "माता-पिता"
 
-#: packages/admin/src/components/Redirects.tsx:684
-#: packages/admin/src/components/Redirects.tsx:690
+#: packages/admin/src/components/Redirects.tsx:457
+#: packages/admin/src/components/Redirects.tsx:463
 msgid "Part of a redirect loop"
 msgstr "पुनर्निर्देश लूप का हिस्सा"
 
@@ -10560,7 +10569,7 @@ msgstr ""
 msgid "Paste your migration key"
 msgstr "अपनी माइग्रेशन कुंजी चिपकाएँ"
 
-#: packages/admin/src/components/Redirects.tsx:319
+#: packages/admin/src/components/Redirects.tsx:354
 msgid "Path"
 msgstr "पथ"
 
@@ -10897,7 +10906,7 @@ msgstr ""
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
 #: packages/admin/src/components/MediaDetailPanel.tsx:1667
-#: packages/admin/src/components/MediaLibrary.tsx:1161
+#: packages/admin/src/components/MediaLibrary.tsx:1166
 msgid "Preview"
 msgstr "पूर्व दर्शन"
 
@@ -11283,7 +11292,7 @@ msgstr ""
 msgid "Recovery link sent to {0}"
 msgstr "पुनर्प्राप्ति लिंक {0} पर भेजा गया"
 
-#: packages/admin/src/components/Redirects.tsx:595
+#: packages/admin/src/components/Redirects.tsx:774
 msgid "Redirect loop detected"
 msgstr "पुनर्निर्देश लूप का पता चला"
 
@@ -11291,8 +11300,8 @@ msgstr "पुनर्निर्देश लूप का पता चल�
 msgid "Redirecting to login..."
 msgstr "लॉगिन करने के लिए पुनः निर्देशित किया जा रहा है..."
 
-#: packages/admin/src/components/Redirects.tsx:493
-#: packages/admin/src/components/Redirects.tsx:552
+#: packages/admin/src/components/Redirects.tsx:672
+#: packages/admin/src/components/Redirects.tsx:731
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:481
@@ -11521,7 +11530,7 @@ msgstr ""
 msgid "Remove sub-field"
 msgstr "उप-फ़ील्ड हटाएँ"
 
-#: packages/admin/src/components/Redirects.tsx:69
+#: packages/admin/src/components/Redirects.tsx:96
 msgid "Remove the .. segments from the path."
 msgstr ""
 
@@ -11920,8 +11929,8 @@ msgstr ""
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
-#: packages/admin/src/components/MediaLibrary.tsx:973
-#: packages/admin/src/components/MediaLibrary.tsx:1491
+#: packages/admin/src/components/MediaLibrary.tsx:981
+#: packages/admin/src/components/MediaLibrary.tsx:1495
 #: packages/admin/src/components/MediaPickerModal.tsx:1259
 #: packages/admin/src/components/MediaPickerModal.tsx:1355
 #: packages/admin/src/components/MediaPickerModal.tsx:1377
@@ -12177,7 +12186,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
 #: packages/admin/src/components/PortableTextEditor.tsx:2820
-#: packages/admin/src/components/Redirects.tsx:286
+#: packages/admin/src/components/Redirects.tsx:313
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/Widgets.tsx:1070
@@ -12277,7 +12286,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:906
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
-#: packages/admin/src/components/Redirects.tsx:283
+#: packages/admin/src/components/Redirects.tsx:310
 #: packages/admin/src/components/RelationFormPanel.tsx:151
 #: packages/admin/src/components/SaveButton.tsx:36
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
@@ -12452,7 +12461,7 @@ msgstr ""
 msgid "Search blocks"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaLibrary.tsx:926
 #: packages/admin/src/components/MediaPickerModal.tsx:1306
 msgid "Search by filename..."
 msgstr "फ़ाइल नाम से खोजें..."
@@ -12526,7 +12535,7 @@ msgstr ""
 msgid "Search form"
 msgstr "खोज फ़ॉर्म"
 
-#: packages/admin/src/components/MediaLibrary.tsx:919
+#: packages/admin/src/components/MediaLibrary.tsx:927
 #: packages/admin/src/components/MediaPickerModal.tsx:1308
 msgid "Search media"
 msgstr "मीडिया खोजें"
@@ -12559,7 +12568,7 @@ msgstr ""
 msgid "Search sections..."
 msgstr "अनुभाग खोजें..."
 
-#: packages/admin/src/components/Redirects.tsx:488
+#: packages/admin/src/components/Redirects.tsx:667
 msgid "Search source or destination..."
 msgstr "सोर्स या गंतव्य खोजें..."
 
@@ -12595,7 +12604,7 @@ msgstr "उपयोगकर्ता खोजें"
 msgid "Search will be turned off for some collections"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaLibrary.tsx:926
 #: packages/admin/src/components/MediaPickerModal.tsx:1306
 msgid "Search..."
 msgstr "खोज..."
@@ -12994,7 +13003,7 @@ msgstr "ड्राफ्ट पर सेट करें"
 msgid "Set up an email provider in Email settings to email users."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:831
+#: packages/admin/src/components/MediaLibrary.tsx:839
 msgid "Set up media usage tracking"
 msgstr ""
 
@@ -13281,12 +13290,12 @@ msgstr "साइटमैप और सर्च व सोशल मेटा�
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr "Cloudflare D1 पर साइटें D1 टाइम ट्रैवल का उपयोग करके पिछले 30 दिनों के भीतर किसी भी मिनट में डेटाबेस को पुनर्स्थापित कर सकती हैं - हमेशा चालू, किसी सेटअप की आवश्यकता नहीं।"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1164
+#: packages/admin/src/components/MediaLibrary.tsx:1173
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:280
 msgid "Size"
 msgstr "आकार"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1472
+#: packages/admin/src/components/MediaLibrary.tsx:1476
 msgid "Size is not applicable to folders"
 msgstr ""
 
@@ -13446,12 +13455,12 @@ msgstr "विषयों को क्रमबद्ध करें"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:790
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
 #: packages/admin/src/components/PluginManager.tsx:653
-#: packages/admin/src/components/Redirects.tsx:627
+#: packages/admin/src/components/Redirects.tsx:808
 #: packages/admin/src/components/SectionEditor.tsx:316
 msgid "Source"
 msgstr "सोर्स"
 
-#: packages/admin/src/components/Redirects.tsx:226
+#: packages/admin/src/components/Redirects.tsx:253
 msgid "Source path"
 msgstr "सोर्स पथ"
 
@@ -13548,7 +13557,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:505
 #: packages/admin/src/components/ContentList.tsx:754
 #: packages/admin/src/components/ContentTypeEditor.tsx:141
-#: packages/admin/src/components/Redirects.tsx:633
+#: packages/admin/src/components/Redirects.tsx:825
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
@@ -13556,7 +13565,7 @@ msgstr ""
 msgid "Status"
 msgstr "स्थिति"
 
-#: packages/admin/src/components/Redirects.tsx:252
+#: packages/admin/src/components/Redirects.tsx:279
 msgid "Status code"
 msgstr "स्थिति कोड"
 
@@ -13933,7 +13942,7 @@ msgstr ""
 msgid "The file is not a valid EmDash site package."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:590
+#: packages/admin/src/components/MediaLibrary.tsx:598
 msgid "The file or folder no longer exists."
 msgstr ""
 
@@ -14445,7 +14454,7 @@ msgstr ""
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1043
+#: packages/admin/src/components/MediaLibrary.tsx:1051
 msgid "This folder is empty"
 msgstr ""
 
@@ -14571,11 +14580,11 @@ msgstr ""
 msgid "This range has more than {maxEntries} entries"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:761
+#: packages/admin/src/components/Redirects.tsx:885
 msgid "This redirect rule will be permanently removed."
 msgstr "यह पुनर्निर्देशन नियम स्थायी रूप से हटा दिया जाएगा."
 
-#: packages/admin/src/components/Redirects.tsx:453
+#: packages/admin/src/components/Redirects.tsx:632
 msgid "This redirect was already deleted."
 msgstr ""
 
@@ -14903,7 +14912,7 @@ msgstr ""
 msgid "True/false toggle"
 msgstr "सही/गलत टॉगल करें"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1032
+#: packages/admin/src/components/MediaLibrary.tsx:1040
 msgid "Try a broader media type or clear your filters."
 msgstr "व्यापक मीडिया प्रकार आज़माएँ या अपने फ़िल्टर साफ़ करें।"
 
@@ -14941,7 +14950,7 @@ msgstr "पुनः प्रयास करें"
 msgid "Try Again"
 msgstr "पुनः प्रयास करें"
 
-#: packages/admin/src/components/MediaLibrary.tsx:597
+#: packages/admin/src/components/MediaLibrary.tsx:605
 msgid "Try again."
 msgstr ""
 
@@ -14953,12 +14962,12 @@ msgstr ""
 msgid "Try another code"
 msgstr "कोई अन्य कोड आज़माएँ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1073
+#: packages/admin/src/components/MediaLibrary.tsx:1081
 #: packages/admin/src/components/MediaPickerModal.tsx:1460
 msgid "Try another filename or clear your search."
 msgstr "कोई अन्य फ़ाइल नाम आज़माएँ या अपनी खोज साफ़ करें।"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1031
+#: packages/admin/src/components/MediaLibrary.tsx:1039
 msgid "Try another filename, or clear your search and filters."
 msgstr "कोई अन्य फ़ाइल नाम आज़माएँ, या अपनी खोज और फ़िल्टर साफ़ करें।"
 
@@ -14967,7 +14976,7 @@ msgstr "कोई अन्य फ़ाइल नाम आज़माएँ, 
 msgid "Try Another URL"
 msgstr "कोई अन्य URL आज़माएँ"
 
-#: packages/admin/src/components/Redirects.tsx:618
+#: packages/admin/src/components/Redirects.tsx:797
 msgid "Try changing or clearing your filters."
 msgstr ""
 
@@ -15023,7 +15032,7 @@ msgstr ""
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
 #: packages/admin/src/components/FieldEditor.tsx:1659
-#: packages/admin/src/components/MediaLibrary.tsx:1163
+#: packages/admin/src/components/MediaLibrary.tsx:1170
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
 msgid "Type"
@@ -15050,7 +15059,7 @@ msgstr ""
 msgid "Type to search"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1468
+#: packages/admin/src/components/MediaLibrary.tsx:1472
 msgid "Type: Folder"
 msgstr ""
 
@@ -15248,7 +15257,7 @@ msgstr ""
 msgid "Update the profile for {0}."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:219
+#: packages/admin/src/components/Redirects.tsx:246
 msgid "Update this redirect rule."
 msgstr "इस पुनर्निर्देशन नियम को अद्यतन करें."
 
@@ -15293,7 +15302,7 @@ msgstr "अद्यतन किया जा रहा है..."
 msgid "visualEditing.uploadImage"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:820
+#: packages/admin/src/components/MediaLibrary.tsx:828
 msgid "Upload"
 msgstr "अपलोड करें"
 
@@ -15336,18 +15345,18 @@ msgstr ""
 msgid "Upload files"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:702
-#: packages/admin/src/components/MediaLibrary.tsx:1048
-#: packages/admin/src/components/MediaLibrary.tsx:1063
-#: packages/admin/src/components/MediaLibrary.tsx:1087
+#: packages/admin/src/components/MediaLibrary.tsx:710
+#: packages/admin/src/components/MediaLibrary.tsx:1056
+#: packages/admin/src/components/MediaLibrary.tsx:1071
+#: packages/admin/src/components/MediaLibrary.tsx:1095
 msgid "Upload Files"
 msgstr "फाइलें अपलोड करें"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1044
+#: packages/admin/src/components/MediaLibrary.tsx:1052
 msgid "Upload files here or move media here from Media Details."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1060
+#: packages/admin/src/components/MediaLibrary.tsx:1068
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "पुन: प्रयोज्य संपत्तियों को एक ही स्थान पर रखने के लिए चित्र, वीडियो और दस्तावेज़ अपलोड करें।"
 
@@ -15355,7 +15364,7 @@ msgstr "पुन: प्रयोज्य संपत्तियों क�
 msgid "Upload Media"
 msgstr "मीडिया अपलोड करें"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1084
+#: packages/admin/src/components/MediaLibrary.tsx:1092
 msgid "Upload media to keep reusable assets in one place."
 msgstr "पुन: प्रयोज्य परिसंपत्तियों को एक स्थान पर रखने के लिए मीडिया अपलोड करें।"
 
@@ -15372,7 +15381,7 @@ msgid "Upload site packages and check whether they can be imported. Admin includ
 msgstr ""
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:703
+#: packages/admin/src/components/MediaLibrary.tsx:711
 msgid "Upload to {0}"
 msgstr "{0} पर अपलोड करें"
 
@@ -15480,7 +15489,7 @@ msgstr ""
 msgid "Usage may be out of date."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:220
+#: packages/admin/src/components/Redirects.tsx:247
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "पैटर्न मिलान के लिए पथों में [param] या [...rest] का उपयोग करें।"
 
@@ -15709,7 +15718,7 @@ msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
-#: packages/admin/src/components/MediaLibrary.tsx:938
+#: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407
 #: packages/admin/src/components/PortableTextEditor.tsx:3799
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:485
@@ -15733,7 +15742,7 @@ msgstr "ईमेल प्रदाता स्थिति देखें �
 msgid "View live"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:884
+#: packages/admin/src/components/MediaLibrary.tsx:892
 #: packages/admin/src/components/MediaPickerModal.tsx:1266
 msgid "View mode"
 msgstr "दृश्य मोड"
@@ -15742,7 +15751,7 @@ msgstr "दृश्य मोड"
 msgid "View published"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:841
+#: packages/admin/src/components/MediaLibrary.tsx:849
 msgid "View setup"
 msgstr ""
 
@@ -15762,7 +15771,7 @@ msgstr "spdx.org पर {license} लाइसेंस देखें"
 msgid "Viewing the version from {when} by {name}."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:601
+#: packages/admin/src/components/Redirects.tsx:780
 msgid "Visitors hitting these paths will see an error."
 msgstr "इन रास्तों पर जाने वाले आगंतुकों को एक एरर दिखाई देगा।"
 
@@ -16062,7 +16071,7 @@ msgstr "वर्डप्रेस प्राधिकरण अस्वी�
 msgid "WordPress Username"
 msgstr "वर्डप्रेस उपयोगकर्ता नाम"
 
-#: packages/admin/src/components/DataTable.tsx:137
+#: packages/admin/src/components/DataTable.tsx:359
 msgid "Working on {selectedCount} items…"
 msgstr "{selectedCount} आइटम पर कार्य करना..."
 
@@ -16162,7 +16171,7 @@ msgstr "आप अपनी भूमिका नहीं बदल सकत�
 msgid "You do not have permission to edit this asset."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:595
+#: packages/admin/src/components/MediaLibrary.tsx:603
 msgid "You don’t have permission to move this file."
 msgstr ""
 
@@ -16309,8 +16318,8 @@ msgstr "आपका इंस्टाग्राम उपयोगकर्�
 msgid "Your LinkedIn profile username"
 msgstr "आपका लिंक्डइन प्रोफ़ाइल उपयोगकर्ता नाम"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1059
-#: packages/admin/src/components/MediaLibrary.tsx:1083
+#: packages/admin/src/components/MediaLibrary.tsx:1067
+#: packages/admin/src/components/MediaLibrary.tsx:1091
 msgid "Your media library is empty"
 msgstr "आपकी मीडिया लाइब्रेरी खाली है"
 

@@ -259,9 +259,16 @@ msgstr "{0, plural, one {업로드 목록이 가득 차 파일 #개를 추가하
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
 #: packages/admin/src/components/MediaDetailPanel.tsx:1514
-#: packages/admin/src/components/MediaLibrary.tsx:954
+#: packages/admin/src/components/MediaLibrary.tsx:962
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {폴더 #개 로드됨} other {폴더 #개 로드됨}}"
+
+#. placeholder {0}: item.count
+#. placeholder {0}: redirect.hits
+#: packages/admin/src/components/Redirects.tsx:382
+#: packages/admin/src/components/Redirects.tsx:494
+msgid "{0, plural, one {# hit} other {# hits}}"
+msgstr ""
 
 #. placeholder {0}: menu.itemCount ?? 0
 #: packages/admin/src/components/MenuCard.tsx:46
@@ -327,7 +334,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {#개 글} other {#개 글}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:597
+#: packages/admin/src/components/Redirects.tsx:776
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {리디렉션 #개가 루프에 포함되어 있습니다.} other {리디렉션 #개가 루프에 포함되어 있습니다.}}"
 
@@ -910,7 +917,7 @@ msgstr "{rows, plural, one {행 삭제됨} other {#개 행 삭제됨}}"
 msgid "{rows} × {columns} table pasted"
 msgstr "{rows} × {columns} 표 붙여넣기 완료"
 
-#: packages/admin/src/components/DataTable.tsx:138
+#: packages/admin/src/components/DataTable.tsx:360
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {#개 선택됨} other {#개 선택됨}}"
 
@@ -995,11 +1002,11 @@ msgstr "{areaName}의 {widgetType}"
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr "{words, plural, one {#단어} other {#단어}}"
 
-#: packages/admin/src/components/Redirects.tsx:239
+#: packages/admin/src/components/Redirects.tsx:266
 msgid "/new-page or /articles/[slug]"
 msgstr "/new-page 또는 /articles/[slug]"
 
-#: packages/admin/src/components/Redirects.tsx:227
+#: packages/admin/src/components/Redirects.tsx:254
 msgid "/old-page or /blog/[slug]"
 msgstr "/old-page 또는 /blog/[slug]"
 
@@ -1097,19 +1104,19 @@ msgstr "3. \"모든 콘텐츠\"를 선택하세요."
 msgid "30 days"
 msgstr "30일"
 
-#: packages/admin/src/components/Redirects.tsx:257
+#: packages/admin/src/components/Redirects.tsx:284
 msgid "301 Permanent"
 msgstr "301 영구 이동"
 
-#: packages/admin/src/components/Redirects.tsx:258
+#: packages/admin/src/components/Redirects.tsx:285
 msgid "302 Temporary"
 msgstr "302 임시 이동"
 
-#: packages/admin/src/components/Redirects.tsx:259
+#: packages/admin/src/components/Redirects.tsx:286
 msgid "307 Temporary (Strict)"
 msgstr "307 임시 이동(엄격)"
 
-#: packages/admin/src/components/Redirects.tsx:260
+#: packages/admin/src/components/Redirects.tsx:287
 msgid "308 Permanent (Strict)"
 msgstr "308 영구 이동(엄격)"
 
@@ -1125,15 +1132,15 @@ msgstr "4. \"내보내기 파일 다운로드\"를 클릭하세요."
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. \"EmDash\"를 입력하고 \"새로 추가\"를 클릭하세요."
 
-#: packages/admin/src/components/Redirects.tsx:572
+#: packages/admin/src/components/Redirects.tsx:751
 msgid "404 Errors"
 msgstr "404 오류"
 
-#: packages/admin/src/components/Redirects.tsx:261
+#: packages/admin/src/components/Redirects.tsx:288
 msgid "410 Content Deleted (Gone)"
 msgstr "410 콘텐츠 삭제됨(Gone)"
 
-#: packages/admin/src/components/Redirects.tsx:262
+#: packages/admin/src/components/Redirects.tsx:289
 msgid "451 Unavailable for legal reasons"
 msgstr "451 법적 사유로 이용 불가"
 
@@ -1335,6 +1342,8 @@ msgstr "ACF 필드"
 #: packages/admin/src/components/ContentList.tsx:782
 #: packages/admin/src/components/ContentList.tsx:924
 #: packages/admin/src/components/ContentTypeList.tsx:227
+#: packages/admin/src/components/Redirects.tsx:362
+#: packages/admin/src/components/Redirects.tsx:827
 #: packages/admin/src/components/RelationList.tsx:110
 #: packages/admin/src/components/TaxonomyManager.tsx:1325
 #: packages/admin/src/routes/byline-schema.tsx:238
@@ -1360,6 +1369,11 @@ msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:584
 msgid "Actions for comment by {author}"
+msgstr ""
+
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:514
+msgid "Actions for redirect {0}"
 msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
@@ -1546,8 +1560,8 @@ msgid "Add New"
 msgstr "추가"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:160
-#: packages/admin/src/components/MediaLibrary.tsx:804
-#: packages/admin/src/components/MediaLibrary.tsx:809
+#: packages/admin/src/components/MediaLibrary.tsx:812
+#: packages/admin/src/components/MediaLibrary.tsx:817
 msgid "Add new folder"
 msgstr "새 폴더 추가"
 
@@ -1829,13 +1843,13 @@ msgid "All sources"
 msgstr "모든 소스"
 
 #: packages/admin/src/components/ContentList.tsx:1015
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:706
 msgid "All statuses"
 msgstr "모든 상태"
 
-#: packages/admin/src/components/MediaLibrary.tsx:936
+#: packages/admin/src/components/MediaLibrary.tsx:944
 #: packages/admin/src/components/MediaPickerModal.tsx:404
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "All types"
 msgstr "모든 유형"
 
@@ -1905,7 +1919,7 @@ msgstr ""
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
-#: packages/admin/src/components/MediaLibrary.tsx:1165
+#: packages/admin/src/components/MediaLibrary.tsx:1176
 #: packages/admin/src/components/PortableTextEditor.tsx:5845
 #: packages/admin/src/components/PortableTextEditor.tsx:5911
 msgid "Alt text"
@@ -1917,12 +1931,11 @@ msgstr "대체 텍스트"
 msgid "Alt Text"
 msgstr "대체 텍스트"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1476
+#: packages/admin/src/components/MediaLibrary.tsx:1480
 msgid "Alt text is not applicable to folders"
 msgstr "폴더에는 대체 텍스트가 적용되지 않습니다"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1704
-#: packages/admin/src/components/MediaLibrary.tsx:1761
+#: packages/admin/src/components/MediaLibrary.tsx:1779
 msgid "Alt text set"
 msgstr "대체 텍스트 설정됨"
 
@@ -2040,7 +2053,7 @@ msgstr "다른 가져오기가 이미 이 패키지를 사용하고 있습니다
 msgid "Another menu already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:158
+#: packages/admin/src/components/Redirects.tsx:185
 msgid "Another redirect already uses this source path. Enter a different one."
 msgstr ""
 
@@ -2228,7 +2241,7 @@ msgid "Attribution"
 msgstr "사용자 연결"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:90
-#: packages/admin/src/components/MediaLibrary.tsx:939
+#: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
 msgstr "오디오"
@@ -2303,11 +2316,11 @@ msgstr "작성자"
 msgid "Authors will be assigned to users on this site"
 msgstr "이 사이트의 사용자에게 작성자가 할당됩니다"
 
-#: packages/admin/src/components/Redirects.tsx:696
+#: packages/admin/src/components/Redirects.tsx:467
 msgid "auto"
 msgstr "자동"
 
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "Auto (slug change)"
 msgstr "자동(슬러그 변경)"
 
@@ -2375,7 +2388,7 @@ msgstr ""
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:1771
 #: packages/admin/src/components/MediaDetailPanel.tsx:1786
-#: packages/admin/src/components/MediaLibrary.tsx:763
+#: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/WordPressImport.tsx:1565
 #: packages/admin/src/components/WordPressImport.tsx:2586
@@ -2412,7 +2425,7 @@ msgstr ""
 msgid "Back to login"
 msgstr "로그인으로 돌아가기"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1051
+#: packages/admin/src/components/MediaLibrary.tsx:1059
 msgid "Back to Main library"
 msgstr "메인 라이브러리로 돌아가기"
 
@@ -2735,7 +2748,7 @@ msgstr "콘텐츠 조회 가능"
 #: packages/admin/src/components/PortableTextEditor.tsx:5883
 #: packages/admin/src/components/PortableTextEditor.tsx:6631
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:390
-#: packages/admin/src/components/Redirects.tsx:279
+#: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:300
@@ -3216,7 +3229,7 @@ msgid "Choosing a byline replaces this automatic credit."
 msgstr "저자 정보를 선택하면 자동으로 표시되던 저자 정보가 대체됩니다."
 
 #: packages/admin/src/components/ContentList.tsx:1216
-#: packages/admin/src/components/DataTable.tsx:143
+#: packages/admin/src/components/DataTable.tsx:365
 msgid "Clear"
 msgstr "초기화"
 
@@ -3228,7 +3241,7 @@ msgstr "완료한 항목 지우기"
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:185
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:103
 #: packages/admin/src/components/ContentList.tsx:1121
-#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
 #: packages/admin/src/components/users/UserList.tsx:125
 #: packages/admin/src/routes/bylines.tsx:472
@@ -3239,8 +3252,8 @@ msgstr "필터 초기화"
 msgid "Clear formatting"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1036
-#: packages/admin/src/components/MediaLibrary.tsx:1076
+#: packages/admin/src/components/MediaLibrary.tsx:1044
+#: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/TaxonomyManager.tsx:1349
 msgid "Clear search"
 msgstr "검색 초기화"
@@ -3334,7 +3347,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:406
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
-#: packages/admin/src/components/Redirects.tsx:631
+#: packages/admin/src/components/Redirects.tsx:820
 msgid "Code"
 msgstr "코드"
 
@@ -3889,7 +3902,7 @@ msgstr ""
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "\"{draft}\"에 해당하는 MIME 유형을 찾을 수 없습니다. MIME 유형을 직접 입력하세요."
 
-#: packages/admin/src/components/MediaLibrary.tsx:587
+#: packages/admin/src/components/MediaLibrary.tsx:595
 msgid "Couldn’t move file"
 msgstr "파일을 이동하지 못했습니다"
 
@@ -3930,7 +3943,7 @@ msgstr "개수"
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuList.tsx:244
-#: packages/admin/src/components/Redirects.tsx:287
+#: packages/admin/src/components/Redirects.tsx:314
 #: packages/admin/src/components/TaxonomyManager.tsx:827
 #: packages/admin/src/components/Widgets.tsx:530
 msgid "Create"
@@ -4041,15 +4054,15 @@ msgid "Create personal access tokens for programmatic API access"
 msgstr "프로그래밍 방식의 API 액세스를 위한 개인 액세스 토큰 만들기"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:348
+#: packages/admin/src/components/Redirects.tsx:400
 msgid "Create redirect for {0}"
 msgstr "{0}에 대한 리디렉션 생성"
 
-#: packages/admin/src/components/Redirects.tsx:347
+#: packages/admin/src/components/Redirects.tsx:399
 msgid "Create redirect for this path"
 msgstr "이 경로에 대한 리디렉션 만들기"
 
-#: packages/admin/src/components/Redirects.tsx:619
+#: packages/admin/src/components/Redirects.tsx:798
 msgid "Create redirect rules to manage URL changes."
 msgstr "URL 변경을 관리하기 위한 리디렉션 규칙을 만듭니다."
 
@@ -4173,7 +4186,7 @@ msgid "Creating cropped copy..."
 msgstr "잘린 복사본 생성 중..."
 
 #: packages/admin/src/components/MenuList.tsx:244
-#: packages/admin/src/components/Redirects.tsx:284
+#: packages/admin/src/components/Redirects.tsx:311
 #: packages/admin/src/components/RelationFormPanel.tsx:148
 #: packages/admin/src/components/Sections.tsx:306
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:561
@@ -4201,7 +4214,7 @@ msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "자르기 선택 영역. 방향키로 이동하세요."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:771
-#: packages/admin/src/components/MediaLibrary.tsx:1310
+#: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Cropped copy created."
 msgstr "잘린 복사본이 생성되었습니다."
 
@@ -4376,7 +4389,8 @@ msgstr "코드에 정의됨"
 #: packages/admin/src/components/MenuEditor.tsx:800
 #: packages/admin/src/components/MenuEditor.tsx:818
 #: packages/admin/src/components/MenuList.tsx:291
-#: packages/admin/src/components/Redirects.tsx:762
+#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:886
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/RelationList.tsx:250
 #: packages/admin/src/components/Sections.tsx:423
@@ -4530,16 +4544,12 @@ msgstr "완전히 삭제"
 msgid "Delete Permanently?"
 msgstr "완전히 삭제하시겠습니까?"
 
-#: packages/admin/src/components/Redirects.tsx:710
-msgid "Delete redirect"
-msgstr "리디렉션 삭제"
-
-#. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:711
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:525
 msgid "Delete redirect {0}"
 msgstr "리디렉션 삭제 {0}"
 
-#: packages/admin/src/components/Redirects.tsx:760
+#: packages/admin/src/components/Redirects.tsx:884
 msgid "Delete Redirect?"
 msgstr "리디렉션을 삭제하시겠습니까?"
 
@@ -4609,7 +4619,7 @@ msgstr "\"{0}\"을(를) 삭제하면 모든 저자 정보에서 {1, plural, one 
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:819
 #: packages/admin/src/components/MenuList.tsx:292
-#: packages/admin/src/components/Redirects.tsx:763
+#: packages/admin/src/components/Redirects.tsx:887
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:424
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
@@ -4695,11 +4705,11 @@ msgstr "설명"
 msgid "Description (optional)"
 msgstr "설명(선택사항)"
 
-#: packages/admin/src/components/Redirects.tsx:629
+#: packages/admin/src/components/Redirects.tsx:811
 msgid "Destination"
 msgstr "대상"
 
-#: packages/admin/src/components/Redirects.tsx:238
+#: packages/admin/src/components/Redirects.tsx:265
 msgid "Destination path"
 msgstr "대상 경로"
 
@@ -4757,9 +4767,10 @@ msgstr "플러그인 비활성화"
 msgid "Disable plugin MCP tools"
 msgstr "플러그인 MCP 도구 비활성화"
 
-#: packages/admin/src/components/Redirects.tsx:679
-msgid "Disable redirect"
-msgstr "리디렉션 비활성화"
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:508
+msgid "Disable redirect {0}"
+msgstr ""
 
 #: packages/admin/src/routes/users.tsx:289
 msgid "Disable User"
@@ -4770,7 +4781,7 @@ msgid "Disable User?"
 msgstr "사용자를 비활성화하시겠습니까?"
 
 #: packages/admin/src/components/PluginManager.tsx:462
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:706
 #: packages/admin/src/components/users/UserDetail.tsx:214
 #: packages/admin/src/components/users/UserList.tsx:178
 msgid "Disabled"
@@ -4895,7 +4906,7 @@ msgid "Document"
 msgstr "문서"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:87
-#: packages/admin/src/components/MediaLibrary.tsx:940
+#: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
 msgstr "문서"
@@ -5076,7 +5087,7 @@ msgstr "이미지를 여기로 끌어다 놓거나 <0>선택하세요</0>"
 msgid "Drop an image here or browse for {label}"
 msgstr "이미지를 여기로 끌어다 놓거나 {label} 이미지를 선택하세요"
 
-#: packages/admin/src/components/MediaLibrary.tsx:743
+#: packages/admin/src/components/MediaLibrary.tsx:751
 msgid "Drop files to upload"
 msgstr "파일을 끌어다 놓아 업로드하세요"
 
@@ -5109,7 +5120,7 @@ msgstr "중복 리디렉션이 제외되었습니다"
 msgid "e.g. application/zip or .pdf"
 msgstr "예: application/zip 또는 .pdf"
 
-#: packages/admin/src/components/Redirects.tsx:268
+#: packages/admin/src/components/Redirects.tsx:295
 msgid "e.g. import, blog"
 msgstr "예: import, blog"
 
@@ -5144,6 +5155,7 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:795
+#: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:513
 #: packages/admin/src/components/Shell.tsx:87
@@ -5226,8 +5238,8 @@ msgid "Edit folder"
 msgstr "폴더 편집"
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:1391
-#: packages/admin/src/components/MediaLibrary.tsx:1458
+#: packages/admin/src/components/MediaLibrary.tsx:1399
+#: packages/admin/src/components/MediaLibrary.tsx:1462
 msgid "Edit folder {0}"
 msgstr "“{0}” 폴더 편집"
 
@@ -5269,16 +5281,12 @@ msgstr "메뉴 항목 편집"
 msgid "visualEditing.editMode"
 msgstr "편집 모드"
 
-#: packages/admin/src/components/Redirects.tsx:702
-msgid "Edit redirect"
-msgstr "리디렉션 편집"
-
-#: packages/admin/src/components/Redirects.tsx:216
+#: packages/admin/src/components/Redirects.tsx:243
 msgid "Edit Redirect"
 msgstr "리디렉션 수정"
 
-#. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:703
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:451
 msgid "Edit redirect {0}"
 msgstr "리디렉션 {0} 편집"
 
@@ -5531,9 +5539,10 @@ msgstr "플러그인 활성화"
 msgid "Enable plugin MCP tools"
 msgstr "플러그인 MCP 도구 활성화"
 
-#: packages/admin/src/components/Redirects.tsx:679
-msgid "Enable redirect"
-msgstr "리디렉션 활성화"
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:509
+msgid "Enable redirect {0}"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
 msgid "Enable tracking"
@@ -5543,8 +5552,8 @@ msgstr "추적 활성화"
 msgid "Enable tracking to index existing content and keep references up to date."
 msgstr "추적을 활성화하면 기존 콘텐츠를 색인하고 참조를 최신 상태로 유지합니다."
 
-#: packages/admin/src/components/Redirects.tsx:274
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:301
+#: packages/admin/src/components/Redirects.tsx:706
 msgid "Enabled"
 msgstr "활성화됨"
 
@@ -5552,11 +5561,11 @@ msgstr "활성화됨"
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "콘텐츠 언어가 설정되지 않아 영어가 사용됩니다. 콘텐츠 언어는 항목에 저장되며 관리자 화면의 언어와는 별개입니다."
 
-#: packages/admin/src/components/Redirects.tsx:88
+#: packages/admin/src/components/Redirects.tsx:115
 msgid "Enter a destination different from the source."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:84
+#: packages/admin/src/components/Redirects.tsx:111
 msgid "Enter a destination path."
 msgstr ""
 
@@ -5632,7 +5641,7 @@ msgid "Enter a number."
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:142
-#: packages/admin/src/components/Redirects.tsx:61
+#: packages/admin/src/components/Redirects.tsx:88
 msgid "Enter a path that starts with a single /."
 msgstr ""
 
@@ -5649,7 +5658,7 @@ msgstr "저장하려면 인식 가능한 시간대를 입력하세요."
 msgid "Enter a slug."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:79
+#: packages/admin/src/components/Redirects.tsx:106
 msgid "Enter a source path."
 msgstr ""
 
@@ -5827,7 +5836,7 @@ msgstr "이 플러그인의 공개된 릴리스가 모두 철회되었거나 검
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "이 콘텐츠 유형에 연결된 모든 관계도 함께 삭제됩니다:"
 
-#: packages/admin/src/components/Redirects.tsx:516
+#: packages/admin/src/components/Redirects.tsx:695
 msgid "Exact group name..."
 msgstr ""
 
@@ -7099,7 +7108,7 @@ msgstr "미디어 라이브러리의 파일"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1433
 #: packages/admin/src/components/MediaDetailPanel.tsx:1438
-#: packages/admin/src/components/MediaLibrary.tsx:1162
+#: packages/admin/src/components/MediaLibrary.tsx:1168
 msgid "Filename"
 msgstr "파일 이름"
 
@@ -7147,7 +7156,7 @@ msgstr "컬렉션으로 필터링"
 msgid "Filter by date range: {rangeLabel}"
 msgstr "날짜 범위로 필터링: {rangeLabel}"
 
-#: packages/admin/src/components/Redirects.tsx:515
+#: packages/admin/src/components/Redirects.tsx:694
 msgid "Filter by group"
 msgstr ""
 
@@ -7160,13 +7169,13 @@ msgid "Filter by source"
 msgstr "소스로 필터링"
 
 #: packages/admin/src/components/ContentList.tsx:1054
-#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:707
 msgid "Filter by status"
 msgstr "상태로 필터링"
 
-#: packages/admin/src/components/MediaLibrary.tsx:942
+#: packages/admin/src/components/MediaLibrary.tsx:950
 #: packages/admin/src/components/MediaPickerModal.tsx:1327
-#: packages/admin/src/components/Redirects.tsx:535
+#: packages/admin/src/components/Redirects.tsx:714
 msgid "Filter by type"
 msgstr "유형으로 필터링"
 
@@ -7207,7 +7216,7 @@ msgstr "게시 일시를 변경하기 전에 유효하지 않은 필드를 수�
 msgid "Fix invalid fields before changing the schedule"
 msgstr "게시 예약을 변경하기 전에 유효하지 않은 필드를 수정해 주세요"
 
-#: packages/admin/src/components/Redirects.tsx:67
+#: packages/admin/src/components/Redirects.tsx:94
 msgid "Fix the percent-encoding in the path."
 msgstr ""
 
@@ -7248,19 +7257,19 @@ msgstr "폴더를 수정했습니다"
 msgid "Folder unavailable"
 msgstr "폴더를 사용할 수 없습니다"
 
-#: packages/admin/src/components/MediaLibrary.tsx:969
+#: packages/admin/src/components/MediaLibrary.tsx:977
 #: packages/admin/src/components/MediaPickerModal.tsx:1365
 msgid "Folders"
 msgstr "폴더"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1541
-#: packages/admin/src/components/MediaLibrary.tsx:979
-#: packages/admin/src/components/MediaLibrary.tsx:1488
+#: packages/admin/src/components/MediaLibrary.tsx:987
+#: packages/admin/src/components/MediaLibrary.tsx:1492
 #: packages/admin/src/components/MediaPickerModal.tsx:1370
 msgid "Folders could not be loaded."
 msgstr "폴더를 로드할 수 없습니다."
 
-#: packages/admin/src/components/MediaLibrary.tsx:774
+#: packages/admin/src/components/MediaLibrary.tsx:782
 msgid "Folders navigation"
 msgstr "폴더 탐색"
 
@@ -7403,17 +7412,18 @@ msgstr "Google 인증"
 msgid "GraphQL"
 msgstr "GraphQL"
 
-#: packages/admin/src/components/MediaLibrary.tsx:897
+#: packages/admin/src/components/MediaLibrary.tsx:905
 #: packages/admin/src/components/MediaPickerModal.tsx:1283
 msgid "Grid view"
 msgstr "그리드 보기"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:578
-#: packages/admin/src/components/Redirects.tsx:630
+#: packages/admin/src/components/Redirects.tsx:484
+#: packages/admin/src/components/Redirects.tsx:815
 msgid "Group"
 msgstr "그룹"
 
-#: packages/admin/src/components/Redirects.tsx:267
+#: packages/admin/src/components/Redirects.tsx:294
 msgid "Group (optional)"
 msgstr "그룹(선택 사항)"
 
@@ -7550,8 +7560,8 @@ msgstr "도구 모음 숨기기"
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "계층형(카테고리처럼 상위/하위 관계 지원)"
 
-#: packages/admin/src/components/Redirects.tsx:320
-#: packages/admin/src/components/Redirects.tsx:632
+#: packages/admin/src/components/Redirects.tsx:356
+#: packages/admin/src/components/Redirects.tsx:823
 msgid "Hits"
 msgstr "접근 수"
 
@@ -7775,7 +7785,7 @@ msgstr "이미지 URL"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:85
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
-#: packages/admin/src/components/MediaLibrary.tsx:937
+#: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
 msgid "Images"
 msgstr "이미지"
@@ -7949,7 +7959,7 @@ msgstr "호환되지 않음"
 msgid "Increase column width"
 msgstr "열 너비 늘리기"
 
-#: packages/admin/src/components/MediaLibrary.tsx:838
+#: packages/admin/src/components/MediaLibrary.tsx:846
 msgid "Index existing content and keep Used in results up to date."
 msgstr "기존 콘텐츠를 색인하고 사용처 정보를 최신 상태로 유지하세요."
 
@@ -8372,7 +8382,7 @@ msgstr "마지막 로그인"
 msgid "Last page"
 msgstr "마지막 페이지"
 
-#: packages/admin/src/components/Redirects.tsx:321
+#: packages/admin/src/components/Redirects.tsx:359
 msgid "Last seen"
 msgstr "마지막 접근"
 
@@ -8422,10 +8432,10 @@ msgstr ""
 msgid "Left"
 msgstr "왼쪽"
 
-#: packages/admin/src/components/MediaLibrary.tsx:308
-#: packages/admin/src/components/MediaLibrary.tsx:426
-#: packages/admin/src/components/MediaLibrary.tsx:703
-#: packages/admin/src/components/MediaLibrary.tsx:1276
+#: packages/admin/src/components/MediaLibrary.tsx:316
+#: packages/admin/src/components/MediaLibrary.tsx:434
+#: packages/admin/src/components/MediaLibrary.tsx:711
+#: packages/admin/src/components/MediaLibrary.tsx:1284
 #: packages/admin/src/components/MediaPickerModal.tsx:381
 #: packages/admin/src/components/MediaPickerModal.tsx:398
 msgid "Library"
@@ -8543,7 +8553,7 @@ msgstr ""
 msgid "List each option only once."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:906
+#: packages/admin/src/components/MediaLibrary.tsx:914
 #: packages/admin/src/components/MediaPickerModal.tsx:1293
 msgid "List view"
 msgstr "목록 보기"
@@ -8563,7 +8573,7 @@ msgstr "실시간 미리보기"
 #: packages/admin/src/components/ContentPickerModal.tsx:374
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:248
-#: packages/admin/src/components/Redirects.tsx:727
+#: packages/admin/src/components/Redirects.tsx:851
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -8573,14 +8583,14 @@ msgstr "더 보기"
 
 #: packages/admin/src/components/ContentList.tsx:894
 #: packages/admin/src/components/ContentList.tsx:957
-#: packages/admin/src/components/MediaLibrary.tsx:1269
+#: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/users/UserList.tsx:157
 msgid "Load More"
 msgstr "더 보기"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1560
-#: packages/admin/src/components/MediaLibrary.tsx:1009
-#: packages/admin/src/components/MediaLibrary.tsx:1206
+#: packages/admin/src/components/MediaLibrary.tsx:1017
+#: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1419
 msgid "Load more folders"
 msgstr "폴더 더 보기"
@@ -8636,8 +8646,8 @@ msgstr "편집기 로드 중..."
 msgid "Loading exports…"
 msgstr "내보내기 목록 불러오는 중…"
 
-#: packages/admin/src/components/MediaLibrary.tsx:953
-#: packages/admin/src/components/MediaLibrary.tsx:1174
+#: packages/admin/src/components/MediaLibrary.tsx:961
+#: packages/admin/src/components/MediaLibrary.tsx:1185
 #: packages/admin/src/components/MediaPickerModal.tsx:1388
 msgid "Loading folders"
 msgstr "폴더 로드 중"
@@ -8674,7 +8684,7 @@ msgstr "플러그인 패널 로드 중"
 msgid "Loading plugins..."
 msgstr "플러그인 로드 중..."
 
-#: packages/admin/src/components/Redirects.tsx:609
+#: packages/admin/src/components/Redirects.tsx:788
 msgid "Loading redirects..."
 msgstr "리디렉션 로드 중..."
 
@@ -8729,10 +8739,10 @@ msgstr "위젯 로드 중..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:621
 #: packages/admin/src/components/MediaDetailPanel.tsx:623
 #: packages/admin/src/components/MediaDetailPanel.tsx:1720
-#: packages/admin/src/components/MediaLibrary.tsx:1269
+#: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3311
-#: packages/admin/src/components/Redirects.tsx:727
+#: packages/admin/src/components/Redirects.tsx:851
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:230
@@ -8869,7 +8879,7 @@ msgstr "사이트의 탐색 메뉴를 관리합니다"
 msgid "Manage the people and teams credited on your content."
 msgstr "콘텐츠에 이름이 표시되는 사람과 팀을 관리하세요."
 
-#: packages/admin/src/components/Redirects.tsx:494
+#: packages/admin/src/components/Redirects.tsx:673
 msgid "Manage URL redirects and view 404 errors."
 msgstr "URL 리디렉션을 관리하고 404 오류를 확인하세요."
 
@@ -8890,7 +8900,7 @@ msgstr "외부 미디어 제공자에서 관리"
 msgid "Managed by your identity provider. Change the name there."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "Manual"
 msgstr "수동"
 
@@ -8904,11 +8914,11 @@ msgid "Map WordPress user {0} to EmDash user"
 msgstr "WordPress 사용자 {0}을(를) EmDash 사용자에게 매핑"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:356
+#: packages/admin/src/components/Redirects.tsx:409
 msgid "Mark {0} as Gone (410)"
 msgstr "{0}을(를) 삭제됨(Gone, 410)으로 표시"
 
-#: packages/admin/src/components/Redirects.tsx:355
+#: packages/admin/src/components/Redirects.tsx:344
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
 msgstr "삭제됨(Gone, 410)으로 표시: 영구적으로 삭제되었음을 검색 엔진에 알립니다."
 
@@ -9021,8 +9031,8 @@ msgid "visualEditing.mediaLibrary"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:171
-#: packages/admin/src/components/MediaLibrary.tsx:771
-#: packages/admin/src/components/MediaLibrary.tsx:786
+#: packages/admin/src/components/MediaLibrary.tsx:779
+#: packages/admin/src/components/MediaLibrary.tsx:794
 msgid "Media Library"
 msgstr "미디어 라이브러리"
 
@@ -9030,7 +9040,7 @@ msgstr "미디어 라이브러리"
 msgid "Media links were made relative"
 msgstr "미디어 링크가 상대 경로로 변경되었습니다"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1262
+#: packages/admin/src/components/MediaLibrary.tsx:1270
 #: packages/admin/src/components/MediaPickerModal.tsx:1596
 msgid "Media pagination"
 msgstr "미디어 페이지 탐색"
@@ -9048,7 +9058,7 @@ msgstr "미디어 결과"
 msgid "Media usage tracking"
 msgstr "미디어 사용 현황 추적"
 
-#: packages/admin/src/components/MediaLibrary.tsx:835
+#: packages/admin/src/components/MediaLibrary.tsx:843
 msgid "Media usage tracking is indexing existing content"
 msgstr "미디어 사용 현황 추적을 위해 기존 콘텐츠를 색인 중입니다"
 
@@ -9060,11 +9070,11 @@ msgstr "미디어 사용 현황 추적이 꺼져 있습니다"
 msgid "Media usage tracking is ready"
 msgstr "미디어 사용 현황 추적 준비가 완료되었습니다"
 
-#: packages/admin/src/components/MediaLibrary.tsx:836
+#: packages/admin/src/components/MediaLibrary.tsx:844
 msgid "Media usage tracking is setting up"
 msgstr "미디어 사용 현황 추적 설정 중입니다"
 
-#: packages/admin/src/components/MediaLibrary.tsx:833
+#: packages/admin/src/components/MediaLibrary.tsx:841
 msgid "Media usage tracking needs attention"
 msgstr "미디어 사용 현황 추적 상태를 확인하세요"
 
@@ -9409,7 +9419,7 @@ msgid "Moved an image"
 msgstr ""
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:580
+#: packages/admin/src/components/MediaLibrary.tsx:588
 msgid "Moved to {0}"
 msgstr "“{0}” 폴더로 이동했습니다"
 
@@ -9550,7 +9560,7 @@ msgstr ""
 msgid "New field"
 msgstr "새 필드"
 
-#: packages/admin/src/components/MediaLibrary.tsx:808
+#: packages/admin/src/components/MediaLibrary.tsx:816
 msgid "New folder"
 msgstr "새 폴더"
 
@@ -9562,8 +9572,8 @@ msgstr "새 플러그인을 찾을 때는 레지스트리를 사용합니다. �
 msgid "New public routes"
 msgstr "새 공개 라우트"
 
-#: packages/admin/src/components/Redirects.tsx:216
-#: packages/admin/src/components/Redirects.tsx:501
+#: packages/admin/src/components/Redirects.tsx:243
+#: packages/admin/src/components/Redirects.tsx:680
 msgid "New Redirect"
 msgstr "새 리디렉션"
 
@@ -9667,12 +9677,11 @@ msgstr "아직 {0}이(가) 없습니다. 하나를 생성하여 시작하세요.
 msgid "No {label} found."
 msgstr "{label}을(를) 찾을 수 없습니다."
 
-#: packages/admin/src/components/Redirects.tsx:312
+#: packages/admin/src/components/Redirects.tsx:340
 msgid "No 404 errors recorded yet."
 msgstr "아직 404 오류가 기록되지 않았습니다."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1704
-#: packages/admin/src/components/MediaLibrary.tsx:1761
+#: packages/admin/src/components/MediaLibrary.tsx:1779
 msgid "No alt text"
 msgstr "대체 텍스트 없음"
 
@@ -9822,7 +9831,7 @@ msgstr "추가한 파일 없음"
 msgid "No folders found"
 msgstr "폴더를 찾을 수 없습니다"
 
-#: packages/admin/src/components/Redirects.tsx:662
+#: packages/admin/src/components/Redirects.tsx:489
 msgid "No group"
 msgstr ""
 
@@ -9899,8 +9908,8 @@ msgstr "일치하는 저자 정보가 없습니다."
 msgid "No matching content found."
 msgstr "일치하는 콘텐츠가 없습니다."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1028
-#: packages/admin/src/components/MediaLibrary.tsx:1072
+#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1080
 msgid "No matching media"
 msgstr "조건에 맞는 미디어가 없습니다"
 
@@ -9921,11 +9930,11 @@ msgstr "일치하는 시간대가 없습니다."
 msgid "No maximum"
 msgstr "최대값 없음"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1095
+#: packages/admin/src/components/MediaLibrary.tsx:1103
 msgid "No media available from this provider."
 msgstr "이 미디어 제공자에서 사용할 수 있는 미디어가 없습니다."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1094
+#: packages/admin/src/components/MediaLibrary.tsx:1102
 #: packages/admin/src/components/MediaPickerModal.tsx:1457
 msgid "No media found"
 msgstr "미디어를 찾을 수 없습니다."
@@ -9987,11 +9996,11 @@ msgstr "사용 가능한 공개 URL이 없습니다"
 msgid "No recent activity"
 msgstr "최근 활동 없음"
 
-#: packages/admin/src/components/Redirects.tsx:614
+#: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects match these filters"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:614
+#: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects yet"
 msgstr "아직 리디렉션이 없습니다."
 
@@ -10235,8 +10244,8 @@ msgstr "{0} 새 탭에서 열기"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:182
-#: packages/admin/src/components/MediaLibrary.tsx:1375
-#: packages/admin/src/components/MediaLibrary.tsx:1446
+#: packages/admin/src/components/MediaLibrary.tsx:1383
+#: packages/admin/src/components/MediaLibrary.tsx:1449
 msgid "Open folder {0}"
 msgstr "“{0}” 폴더 열기"
 
@@ -10264,7 +10273,7 @@ msgstr "새 탭에서 열기"
 msgid "Open read-only"
 msgstr "읽기 전용으로 열기"
 
-#: packages/admin/src/components/MediaLibrary.tsx:841
+#: packages/admin/src/components/MediaLibrary.tsx:849
 msgid "Open setup"
 msgstr "설정 열기"
 
@@ -10459,8 +10468,8 @@ msgstr "표 앞에 문단 삽입됨"
 msgid "Parent"
 msgstr "상위 항목"
 
-#: packages/admin/src/components/Redirects.tsx:684
-#: packages/admin/src/components/Redirects.tsx:690
+#: packages/admin/src/components/Redirects.tsx:457
+#: packages/admin/src/components/Redirects.tsx:463
 msgid "Part of a redirect loop"
 msgstr "리디렉션 루프의 일부"
 
@@ -10560,7 +10569,7 @@ msgstr ""
 msgid "Paste your migration key"
 msgstr "마이그레이션 키를 붙여넣으세요"
 
-#: packages/admin/src/components/Redirects.tsx:319
+#: packages/admin/src/components/Redirects.tsx:354
 msgid "Path"
 msgstr "경로"
 
@@ -10897,7 +10906,7 @@ msgstr "Space 키를 눌러 이미지를 집으세요. 방향키로 이동한 �
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
 #: packages/admin/src/components/MediaDetailPanel.tsx:1667
-#: packages/admin/src/components/MediaLibrary.tsx:1161
+#: packages/admin/src/components/MediaLibrary.tsx:1166
 msgid "Preview"
 msgstr "미리보기"
 
@@ -11283,7 +11292,7 @@ msgstr "상위 항목이 없는 레코드가 제외되었습니다"
 msgid "Recovery link sent to {0}"
 msgstr "복구 링크가 {0}(으)로 전송되었습니다."
 
-#: packages/admin/src/components/Redirects.tsx:595
+#: packages/admin/src/components/Redirects.tsx:774
 msgid "Redirect loop detected"
 msgstr "리디렉션 루프가 감지되었습니다."
 
@@ -11291,8 +11300,8 @@ msgstr "리디렉션 루프가 감지되었습니다."
 msgid "Redirecting to login..."
 msgstr "로그인으로 리디렉션 중..."
 
-#: packages/admin/src/components/Redirects.tsx:493
-#: packages/admin/src/components/Redirects.tsx:552
+#: packages/admin/src/components/Redirects.tsx:672
+#: packages/admin/src/components/Redirects.tsx:731
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:481
@@ -11521,7 +11530,7 @@ msgstr "예약 취소"
 msgid "Remove sub-field"
 msgstr "하위 필드 제거"
 
-#: packages/admin/src/components/Redirects.tsx:69
+#: packages/admin/src/components/Redirects.tsx:96
 msgid "Remove the .. segments from the path."
 msgstr ""
 
@@ -11920,8 +11929,8 @@ msgstr "사용 중단됨"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
-#: packages/admin/src/components/MediaLibrary.tsx:973
-#: packages/admin/src/components/MediaLibrary.tsx:1491
+#: packages/admin/src/components/MediaLibrary.tsx:981
+#: packages/admin/src/components/MediaLibrary.tsx:1495
 #: packages/admin/src/components/MediaPickerModal.tsx:1259
 #: packages/admin/src/components/MediaPickerModal.tsx:1355
 #: packages/admin/src/components/MediaPickerModal.tsx:1377
@@ -12177,7 +12186,7 @@ msgstr "샘플 콘텐츠"
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
 #: packages/admin/src/components/PortableTextEditor.tsx:2820
-#: packages/admin/src/components/Redirects.tsx:286
+#: packages/admin/src/components/Redirects.tsx:313
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/Widgets.tsx:1070
@@ -12277,7 +12286,7 @@ msgstr "여기서 컬렉션을 선택하고 저장하면 이 필드가 항목 �
 #: packages/admin/src/components/MenuEditor.tsx:906
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
-#: packages/admin/src/components/Redirects.tsx:283
+#: packages/admin/src/components/Redirects.tsx:310
 #: packages/admin/src/components/RelationFormPanel.tsx:151
 #: packages/admin/src/components/SaveButton.tsx:36
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
@@ -12452,7 +12461,7 @@ msgstr "블록 유형 검색"
 msgid "Search blocks"
 msgstr "블록 검색"
 
-#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaLibrary.tsx:926
 #: packages/admin/src/components/MediaPickerModal.tsx:1306
 msgid "Search by filename..."
 msgstr "파일 이름으로 검색..."
@@ -12526,7 +12535,7 @@ msgstr "IANA 시간대를 검색하세요(예: Europe/London)"
 msgid "Search form"
 msgstr "검색 폼"
 
-#: packages/admin/src/components/MediaLibrary.tsx:919
+#: packages/admin/src/components/MediaLibrary.tsx:927
 #: packages/admin/src/components/MediaPickerModal.tsx:1308
 msgid "Search media"
 msgstr "미디어 검색"
@@ -12559,7 +12568,7 @@ msgstr "재사용할 수 있는 공개 프로필을 검색하세요."
 msgid "Search sections..."
 msgstr "섹션 검색..."
 
-#: packages/admin/src/components/Redirects.tsx:488
+#: packages/admin/src/components/Redirects.tsx:667
 msgid "Search source or destination..."
 msgstr "소스 또는 대상 검색..."
 
@@ -12595,7 +12604,7 @@ msgstr "사용자 검색"
 msgid "Search will be turned off for some collections"
 msgstr "일부 컬렉션의 검색이 비활성화됩니다"
 
-#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaLibrary.tsx:926
 #: packages/admin/src/components/MediaPickerModal.tsx:1306
 msgid "Search..."
 msgstr "검색..."
@@ -12994,7 +13003,7 @@ msgstr "초안으로 변경"
 msgid "Set up an email provider in Email settings to email users."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:831
+#: packages/admin/src/components/MediaLibrary.tsx:839
 msgid "Set up media usage tracking"
 msgstr "미디어 사용 현황 추적 설정"
 
@@ -13281,12 +13290,12 @@ msgstr ""
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr "Cloudflare D1을 사용하는 사이트는 D1 Time Travel로 최근 30일 이내의 어느 시점으로든 데이터베이스를 분 단위로 복원할 수도 있습니다. 이 기능은 항상 켜져 있으며 별도 설정이 필요하지 않습니다."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1164
+#: packages/admin/src/components/MediaLibrary.tsx:1173
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:280
 msgid "Size"
 msgstr "크기"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1472
+#: packages/admin/src/components/MediaLibrary.tsx:1476
 msgid "Size is not applicable to folders"
 msgstr "폴더에는 파일 크기가 적용되지 않습니다"
 
@@ -13446,12 +13455,12 @@ msgstr "테마 정렬"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:790
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
 #: packages/admin/src/components/PluginManager.tsx:653
-#: packages/admin/src/components/Redirects.tsx:627
+#: packages/admin/src/components/Redirects.tsx:808
 #: packages/admin/src/components/SectionEditor.tsx:316
 msgid "Source"
 msgstr "소스"
 
-#: packages/admin/src/components/Redirects.tsx:226
+#: packages/admin/src/components/Redirects.tsx:253
 msgid "Source path"
 msgstr "소스 경로"
 
@@ -13548,7 +13557,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:505
 #: packages/admin/src/components/ContentList.tsx:754
 #: packages/admin/src/components/ContentTypeEditor.tsx:141
-#: packages/admin/src/components/Redirects.tsx:633
+#: packages/admin/src/components/Redirects.tsx:825
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
@@ -13556,7 +13565,7 @@ msgstr ""
 msgid "Status"
 msgstr "상태"
 
-#: packages/admin/src/components/Redirects.tsx:252
+#: packages/admin/src/components/Redirects.tsx:279
 msgid "Status code"
 msgstr "상태 코드"
 
@@ -13933,7 +13942,7 @@ msgstr "내보낸 패키지와 이번 가져오기는 콘텐츠를 다음과 같
 msgid "The file is not a valid EmDash site package."
 msgstr "유효한 EmDash 사이트 패키지 파일이 아닙니다."
 
-#: packages/admin/src/components/MediaLibrary.tsx:590
+#: packages/admin/src/components/MediaLibrary.tsx:598
 msgid "The file or folder no longer exists."
 msgstr "파일 또는 폴더가 더 이상 존재하지 않습니다."
 
@@ -14445,7 +14454,7 @@ msgstr "이 파일은 읽을 수 있는 EmDash 사이트 패키지가 아닙니�
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr "이 파일은 EmDash 사이트 패키지가 아닙니다. manifest.json으로 시작해야 합니다."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1043
+#: packages/admin/src/components/MediaLibrary.tsx:1051
 msgid "This folder is empty"
 msgstr "이 폴더는 비어 있습니다"
 
@@ -14571,11 +14580,11 @@ msgstr "이 게시자의 핸들이 해당 신원과 연결되지 않습니다. �
 msgid "This range has more than {maxEntries} entries"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:761
+#: packages/admin/src/components/Redirects.tsx:885
 msgid "This redirect rule will be permanently removed."
 msgstr "이 리디렉션 규칙은 영구적으로 삭제됩니다."
 
-#: packages/admin/src/components/Redirects.tsx:453
+#: packages/admin/src/components/Redirects.tsx:632
 msgid "This redirect was already deleted."
 msgstr ""
 
@@ -14903,7 +14912,7 @@ msgstr ""
 msgid "True/false toggle"
 msgstr "참/거짓 토글"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1032
+#: packages/admin/src/components/MediaLibrary.tsx:1040
 msgid "Try a broader media type or clear your filters."
 msgstr "더 넓은 범위의 미디어 유형을 선택하거나 필터를 초기화하세요."
 
@@ -14941,7 +14950,7 @@ msgstr "다시 시도"
 msgid "Try Again"
 msgstr "다시 시도"
 
-#: packages/admin/src/components/MediaLibrary.tsx:597
+#: packages/admin/src/components/MediaLibrary.tsx:605
 msgid "Try again."
 msgstr "다시 시도하세요."
 
@@ -14953,12 +14962,12 @@ msgstr "다시 시도하세요. 계속 실패하면 서버 로그를 확인하�
 msgid "Try another code"
 msgstr "다른 코드 입력"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1073
+#: packages/admin/src/components/MediaLibrary.tsx:1081
 #: packages/admin/src/components/MediaPickerModal.tsx:1460
 msgid "Try another filename or clear your search."
 msgstr "다른 파일 이름으로 검색하거나 검색을 초기화하세요."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1031
+#: packages/admin/src/components/MediaLibrary.tsx:1039
 msgid "Try another filename, or clear your search and filters."
 msgstr "다른 파일 이름으로 검색하거나 검색과 필터를 초기화하세요."
 
@@ -14967,7 +14976,7 @@ msgstr "다른 파일 이름으로 검색하거나 검색과 필터를 초기화
 msgid "Try Another URL"
 msgstr "다른 URL 입력"
 
-#: packages/admin/src/components/Redirects.tsx:618
+#: packages/admin/src/components/Redirects.tsx:797
 msgid "Try changing or clearing your filters."
 msgstr ""
 
@@ -15023,7 +15032,7 @@ msgstr "고유해야 하는 값이 두 레코드에서 같습니다"
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
 #: packages/admin/src/components/FieldEditor.tsx:1659
-#: packages/admin/src/components/MediaLibrary.tsx:1163
+#: packages/admin/src/components/MediaLibrary.tsx:1170
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
 msgid "Type"
@@ -15050,7 +15059,7 @@ msgstr ""
 msgid "Type to search"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1468
+#: packages/admin/src/components/MediaLibrary.tsx:1472
 msgid "Type: Folder"
 msgstr "유형: 폴더"
 
@@ -15248,7 +15257,7 @@ msgstr "프로젝트의 emdash 패키지를 업데이트하고 다시 배포하�
 msgid "Update the profile for {0}."
 msgstr "{0}의 프로필을 업데이트하세요."
 
-#: packages/admin/src/components/Redirects.tsx:219
+#: packages/admin/src/components/Redirects.tsx:246
 msgid "Update this redirect rule."
 msgstr "이 리디렉션 규칙을 업데이트하세요."
 
@@ -15293,7 +15302,7 @@ msgstr "업데이트 중..."
 msgid "visualEditing.uploadImage"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:820
+#: packages/admin/src/components/MediaLibrary.tsx:828
 msgid "Upload"
 msgstr "업로드"
 
@@ -15336,18 +15345,18 @@ msgstr "업로드 실패"
 msgid "Upload files"
 msgstr "파일 업로드"
 
-#: packages/admin/src/components/MediaLibrary.tsx:702
-#: packages/admin/src/components/MediaLibrary.tsx:1048
-#: packages/admin/src/components/MediaLibrary.tsx:1063
-#: packages/admin/src/components/MediaLibrary.tsx:1087
+#: packages/admin/src/components/MediaLibrary.tsx:710
+#: packages/admin/src/components/MediaLibrary.tsx:1056
+#: packages/admin/src/components/MediaLibrary.tsx:1071
+#: packages/admin/src/components/MediaLibrary.tsx:1095
 msgid "Upload Files"
 msgstr "파일 업로드"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1044
+#: packages/admin/src/components/MediaLibrary.tsx:1052
 msgid "Upload files here or move media here from Media Details."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1060
+#: packages/admin/src/components/MediaLibrary.tsx:1068
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "이미지, 동영상, 문서를 업로드해 재사용할 자료를 한곳에서 관리하세요."
 
@@ -15355,7 +15364,7 @@ msgstr "이미지, 동영상, 문서를 업로드해 재사용할 자료를 한�
 msgid "Upload Media"
 msgstr "미디어 업로드"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1084
+#: packages/admin/src/components/MediaLibrary.tsx:1092
 msgid "Upload media to keep reusable assets in one place."
 msgstr "미디어를 업로드해 재사용할 자료를 한곳에서 관리하세요."
 
@@ -15372,7 +15381,7 @@ msgid "Upload site packages and check whether they can be imported. Admin includ
 msgstr "사이트 패키지를 업로드하고 가져올 수 있는지 확인합니다. 관리자 권한 범위에도 이 권한이 포함됩니다. 에이전트에 더 제한된 접근 권한을 부여하려면 관리자 대신 이 권한 범위를 선택하세요."
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:703
+#: packages/admin/src/components/MediaLibrary.tsx:711
 msgid "Upload to {0}"
 msgstr "{0}에 업로드"
 
@@ -15480,7 +15489,7 @@ msgstr "사용 현황을 불러왔습니다"
 msgid "Usage may be out of date."
 msgstr "사용 현황이 최신 상태가 아닐 수 있습니다."
 
-#: packages/admin/src/components/Redirects.tsx:220
+#: packages/admin/src/components/Redirects.tsx:247
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "패턴 일치를 위해 경로에 [param] 또는 [...rest]를 사용하세요."
 
@@ -15709,7 +15718,7 @@ msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
-#: packages/admin/src/components/MediaLibrary.tsx:938
+#: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407
 #: packages/admin/src/components/PortableTextEditor.tsx:3799
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:485
@@ -15733,7 +15742,7 @@ msgstr "이메일 제공업체 상태 확인 및 테스트 이메일 전송"
 msgid "View live"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:884
+#: packages/admin/src/components/MediaLibrary.tsx:892
 #: packages/admin/src/components/MediaPickerModal.tsx:1266
 msgid "View mode"
 msgstr "보기 모드"
@@ -15742,7 +15751,7 @@ msgstr "보기 모드"
 msgid "View published"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:841
+#: packages/admin/src/components/MediaLibrary.tsx:849
 msgid "View setup"
 msgstr "설정 보기"
 
@@ -15762,7 +15771,7 @@ msgstr "spdx.org에서 {license} 라이선스 보기"
 msgid "Viewing the version from {when} by {name}."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:601
+#: packages/admin/src/components/Redirects.tsx:780
 msgid "Visitors hitting these paths will see an error."
 msgstr "이 경로를 방문하는 방문자에게는 오류가 표시됩니다."
 
@@ -16062,7 +16071,7 @@ msgstr "WordPress에서 승인이 거부되었습니다"
 msgid "WordPress Username"
 msgstr "WordPress 사용자 이름"
 
-#: packages/admin/src/components/DataTable.tsx:137
+#: packages/admin/src/components/DataTable.tsx:359
 msgid "Working on {selectedCount} items…"
 msgstr "항목 {selectedCount}개 처리 중…"
 
@@ -16162,7 +16171,7 @@ msgstr "자신의 역할을 변경할 수 없습니다."
 msgid "You do not have permission to edit this asset."
 msgstr "이 미디어를 편집할 권한이 없습니다."
 
-#: packages/admin/src/components/MediaLibrary.tsx:595
+#: packages/admin/src/components/MediaLibrary.tsx:603
 msgid "You don’t have permission to move this file."
 msgstr "이 파일을 이동할 권한이 없습니다."
 
@@ -16309,8 +16318,8 @@ msgstr "Instagram 사용자 이름"
 msgid "Your LinkedIn profile username"
 msgstr "LinkedIn 프로필 사용자 이름"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1059
-#: packages/admin/src/components/MediaLibrary.tsx:1083
+#: packages/admin/src/components/MediaLibrary.tsx:1067
+#: packages/admin/src/components/MediaLibrary.tsx:1091
 msgid "Your media library is empty"
 msgstr "미디어 라이브러리가 비어 있습니다"
 

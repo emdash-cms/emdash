@@ -259,9 +259,16 @@ msgstr "{0, plural, one {No s'ha afegit # fitxer perquè la llista de pujades é
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
 #: packages/admin/src/components/MediaDetailPanel.tsx:1514
-#: packages/admin/src/components/MediaLibrary.tsx:954
+#: packages/admin/src/components/MediaLibrary.tsx:962
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {# carpeta carregada} other {# carpetes carregades}}"
+
+#. placeholder {0}: item.count
+#. placeholder {0}: redirect.hits
+#: packages/admin/src/components/Redirects.tsx:382
+#: packages/admin/src/components/Redirects.tsx:494
+msgid "{0, plural, one {# hit} other {# hits}}"
+msgstr ""
 
 #. placeholder {0}: menu.itemCount ?? 0
 #: packages/admin/src/components/MenuCard.tsx:46
@@ -327,7 +334,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# entrada} other {# entrades}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:597
+#: packages/admin/src/components/Redirects.tsx:776
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {# redirecció forma part d'un bucle.} other {# redireccions formen part d'un bucle.}}"
 
@@ -910,7 +917,7 @@ msgstr "{rows, plural, one {Fila eliminada} other {# files eliminades}}"
 msgid "{rows} × {columns} table pasted"
 msgstr "taula de {rows} × {columns} enganxada"
 
-#: packages/admin/src/components/DataTable.tsx:138
+#: packages/admin/src/components/DataTable.tsx:360
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {# seleccionat} other {# seleccionats}}"
 
@@ -995,11 +1002,11 @@ msgstr "{widgetType} a {areaName}"
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr "{words, plural, one {# paraula} other {# paraules}}"
 
-#: packages/admin/src/components/Redirects.tsx:239
+#: packages/admin/src/components/Redirects.tsx:266
 msgid "/new-page or /articles/[slug]"
 msgstr "/pagina-nova o /articles/[slug]"
 
-#: packages/admin/src/components/Redirects.tsx:227
+#: packages/admin/src/components/Redirects.tsx:254
 msgid "/old-page or /blog/[slug]"
 msgstr "/pagina-antiga o /blog/[slug]"
 
@@ -1097,19 +1104,19 @@ msgstr "3. Selecciona \"Tot el contingut\""
 msgid "30 days"
 msgstr "30 dies"
 
-#: packages/admin/src/components/Redirects.tsx:257
+#: packages/admin/src/components/Redirects.tsx:284
 msgid "301 Permanent"
 msgstr "301 Permanent"
 
-#: packages/admin/src/components/Redirects.tsx:258
+#: packages/admin/src/components/Redirects.tsx:285
 msgid "302 Temporary"
 msgstr "302 Temporal"
 
-#: packages/admin/src/components/Redirects.tsx:259
+#: packages/admin/src/components/Redirects.tsx:286
 msgid "307 Temporary (Strict)"
 msgstr "307 Temporal (estricte)"
 
-#: packages/admin/src/components/Redirects.tsx:260
+#: packages/admin/src/components/Redirects.tsx:287
 msgid "308 Permanent (Strict)"
 msgstr "308 Permanent (estricte)"
 
@@ -1125,15 +1132,15 @@ msgstr "4. Fes clic a \"Baixa el fitxer d'exportació\""
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Introdueix \"EmDash\" i fes clic a \"Afegeix-ne un de nou\""
 
-#: packages/admin/src/components/Redirects.tsx:572
+#: packages/admin/src/components/Redirects.tsx:751
 msgid "404 Errors"
 msgstr "Errors 404"
 
-#: packages/admin/src/components/Redirects.tsx:261
+#: packages/admin/src/components/Redirects.tsx:288
 msgid "410 Content Deleted (Gone)"
 msgstr "410 Contingut suprimit (Gone)"
 
-#: packages/admin/src/components/Redirects.tsx:262
+#: packages/admin/src/components/Redirects.tsx:289
 msgid "451 Unavailable for legal reasons"
 msgstr "451 No disponible per motius legals"
 
@@ -1335,6 +1342,8 @@ msgstr "Camps ACF"
 #: packages/admin/src/components/ContentList.tsx:782
 #: packages/admin/src/components/ContentList.tsx:924
 #: packages/admin/src/components/ContentTypeList.tsx:227
+#: packages/admin/src/components/Redirects.tsx:362
+#: packages/admin/src/components/Redirects.tsx:827
 #: packages/admin/src/components/RelationList.tsx:110
 #: packages/admin/src/components/TaxonomyManager.tsx:1325
 #: packages/admin/src/routes/byline-schema.tsx:238
@@ -1360,6 +1369,11 @@ msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:584
 msgid "Actions for comment by {author}"
+msgstr ""
+
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:514
+msgid "Actions for redirect {0}"
 msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
@@ -1546,8 +1560,8 @@ msgid "Add New"
 msgstr "Afegeix-ne un de nou"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:160
-#: packages/admin/src/components/MediaLibrary.tsx:804
-#: packages/admin/src/components/MediaLibrary.tsx:809
+#: packages/admin/src/components/MediaLibrary.tsx:812
+#: packages/admin/src/components/MediaLibrary.tsx:817
 msgid "Add new folder"
 msgstr "Afegeix una carpeta nova"
 
@@ -1829,13 +1843,13 @@ msgid "All sources"
 msgstr "Totes les fonts"
 
 #: packages/admin/src/components/ContentList.tsx:1015
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:706
 msgid "All statuses"
 msgstr "Tots els estats"
 
-#: packages/admin/src/components/MediaLibrary.tsx:936
+#: packages/admin/src/components/MediaLibrary.tsx:944
 #: packages/admin/src/components/MediaPickerModal.tsx:404
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "All types"
 msgstr "Tots els tipus"
 
@@ -1905,7 +1919,7 @@ msgstr "visualEditing.altText"
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
-#: packages/admin/src/components/MediaLibrary.tsx:1165
+#: packages/admin/src/components/MediaLibrary.tsx:1176
 #: packages/admin/src/components/PortableTextEditor.tsx:5845
 #: packages/admin/src/components/PortableTextEditor.tsx:5911
 msgid "Alt text"
@@ -1917,12 +1931,11 @@ msgstr "Text alternatiu"
 msgid "Alt Text"
 msgstr "Text alternatiu"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1476
+#: packages/admin/src/components/MediaLibrary.tsx:1480
 msgid "Alt text is not applicable to folders"
 msgstr "El text alternatiu no s'aplica a les carpetes"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1704
-#: packages/admin/src/components/MediaLibrary.tsx:1761
+#: packages/admin/src/components/MediaLibrary.tsx:1779
 msgid "Alt text set"
 msgstr "Text alternatiu definit"
 
@@ -2040,7 +2053,7 @@ msgstr "Ja hi ha una altra importació fent servir aquest paquet."
 msgid "Another menu already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:158
+#: packages/admin/src/components/Redirects.tsx:185
 msgid "Another redirect already uses this source path. Enter a different one."
 msgstr ""
 
@@ -2228,7 +2241,7 @@ msgid "Attribution"
 msgstr "Atribució"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:90
-#: packages/admin/src/components/MediaLibrary.tsx:939
+#: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
 msgstr "Àudio"
@@ -2303,11 +2316,11 @@ msgstr "Autors"
 msgid "Authors will be assigned to users on this site"
 msgstr "Els autors s'assignaran a usuaris d'aquest lloc"
 
-#: packages/admin/src/components/Redirects.tsx:696
+#: packages/admin/src/components/Redirects.tsx:467
 msgid "auto"
 msgstr "automàtic"
 
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "Auto (slug change)"
 msgstr "Automàtic (canvi de slug)"
 
@@ -2375,7 +2388,7 @@ msgstr "visualEditing.back"
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:1771
 #: packages/admin/src/components/MediaDetailPanel.tsx:1786
-#: packages/admin/src/components/MediaLibrary.tsx:763
+#: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/WordPressImport.tsx:1565
 #: packages/admin/src/components/WordPressImport.tsx:2586
@@ -2412,7 +2425,7 @@ msgstr ""
 msgid "Back to login"
 msgstr "Torna a l'inici de sessió"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1051
+#: packages/admin/src/components/MediaLibrary.tsx:1059
 msgid "Back to Main library"
 msgstr "Torna a la biblioteca principal"
 
@@ -2735,7 +2748,7 @@ msgstr "Pot veure el contingut"
 #: packages/admin/src/components/PortableTextEditor.tsx:5883
 #: packages/admin/src/components/PortableTextEditor.tsx:6631
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:390
-#: packages/admin/src/components/Redirects.tsx:279
+#: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:300
@@ -3216,7 +3229,7 @@ msgid "Choosing a byline replaces this automatic credit."
 msgstr "Triar una signatura substitueix aquest crèdit automàtic."
 
 #: packages/admin/src/components/ContentList.tsx:1216
-#: packages/admin/src/components/DataTable.tsx:143
+#: packages/admin/src/components/DataTable.tsx:365
 msgid "Clear"
 msgstr "Esborra"
 
@@ -3228,7 +3241,7 @@ msgstr "Esborra les completades"
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:185
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:103
 #: packages/admin/src/components/ContentList.tsx:1121
-#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
 #: packages/admin/src/components/users/UserList.tsx:125
 #: packages/admin/src/routes/bylines.tsx:472
@@ -3239,8 +3252,8 @@ msgstr "Neteja els filtres"
 msgid "Clear formatting"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1036
-#: packages/admin/src/components/MediaLibrary.tsx:1076
+#: packages/admin/src/components/MediaLibrary.tsx:1044
+#: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/TaxonomyManager.tsx:1349
 msgid "Clear search"
 msgstr "Neteja la cerca"
@@ -3334,7 +3347,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:406
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
-#: packages/admin/src/components/Redirects.tsx:631
+#: packages/admin/src/components/Redirects.tsx:820
 msgid "Code"
 msgstr "Codi"
 
@@ -3889,7 +3902,7 @@ msgstr ""
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "No s'ha pogut associar \"{draft}\" a cap tipus MIME. Escriu el MIME directament."
 
-#: packages/admin/src/components/MediaLibrary.tsx:587
+#: packages/admin/src/components/MediaLibrary.tsx:595
 msgid "Couldn’t move file"
 msgstr "No s'ha pogut moure el fitxer"
 
@@ -3930,7 +3943,7 @@ msgstr "Recompte"
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuList.tsx:244
-#: packages/admin/src/components/Redirects.tsx:287
+#: packages/admin/src/components/Redirects.tsx:314
 #: packages/admin/src/components/TaxonomyManager.tsx:827
 #: packages/admin/src/components/Widgets.tsx:530
 msgid "Create"
@@ -4041,15 +4054,15 @@ msgid "Create personal access tokens for programmatic API access"
 msgstr "Crea tokens d'accés personals per a l'accés programàtic a l'API"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:348
+#: packages/admin/src/components/Redirects.tsx:400
 msgid "Create redirect for {0}"
 msgstr "Crea una redirecció per a {0}"
 
-#: packages/admin/src/components/Redirects.tsx:347
+#: packages/admin/src/components/Redirects.tsx:399
 msgid "Create redirect for this path"
 msgstr "Crea una redirecció per a aquesta ruta"
 
-#: packages/admin/src/components/Redirects.tsx:619
+#: packages/admin/src/components/Redirects.tsx:798
 msgid "Create redirect rules to manage URL changes."
 msgstr "Crea regles de redirecció per gestionar els canvis d'URL."
 
@@ -4173,7 +4186,7 @@ msgid "Creating cropped copy..."
 msgstr "S'està creant la còpia retallada..."
 
 #: packages/admin/src/components/MenuList.tsx:244
-#: packages/admin/src/components/Redirects.tsx:284
+#: packages/admin/src/components/Redirects.tsx:311
 #: packages/admin/src/components/RelationFormPanel.tsx:148
 #: packages/admin/src/components/Sections.tsx:306
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:561
@@ -4201,7 +4214,7 @@ msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "Selecció del retall. Fes servir les tecles de fletxa per moure-la."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:771
-#: packages/admin/src/components/MediaLibrary.tsx:1310
+#: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Cropped copy created."
 msgstr "Còpia retallada creada."
 
@@ -4376,7 +4389,8 @@ msgstr "Definit al codi"
 #: packages/admin/src/components/MenuEditor.tsx:800
 #: packages/admin/src/components/MenuEditor.tsx:818
 #: packages/admin/src/components/MenuList.tsx:291
-#: packages/admin/src/components/Redirects.tsx:762
+#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:886
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/RelationList.tsx:250
 #: packages/admin/src/components/Sections.tsx:423
@@ -4530,16 +4544,12 @@ msgstr "Elimina permanentment"
 msgid "Delete Permanently?"
 msgstr "Vols eliminar-ho permanentment?"
 
-#: packages/admin/src/components/Redirects.tsx:710
-msgid "Delete redirect"
-msgstr "Elimina la redirecció"
-
-#. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:711
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:525
 msgid "Delete redirect {0}"
 msgstr "Elimina la redirecció {0}"
 
-#: packages/admin/src/components/Redirects.tsx:760
+#: packages/admin/src/components/Redirects.tsx:884
 msgid "Delete Redirect?"
 msgstr "Vols eliminar la redirecció?"
 
@@ -4609,7 +4619,7 @@ msgstr "En eliminar \"{0}\" també se suprimirà {1, plural, one {# valor emmaga
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:819
 #: packages/admin/src/components/MenuList.tsx:292
-#: packages/admin/src/components/Redirects.tsx:763
+#: packages/admin/src/components/Redirects.tsx:887
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:424
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
@@ -4695,11 +4705,11 @@ msgstr "Descripció"
 msgid "Description (optional)"
 msgstr "Descripció (opcional)"
 
-#: packages/admin/src/components/Redirects.tsx:629
+#: packages/admin/src/components/Redirects.tsx:811
 msgid "Destination"
 msgstr "Destinació"
 
-#: packages/admin/src/components/Redirects.tsx:238
+#: packages/admin/src/components/Redirects.tsx:265
 msgid "Destination path"
 msgstr "Ruta de destinació"
 
@@ -4757,9 +4767,10 @@ msgstr "Desactiva el connector"
 msgid "Disable plugin MCP tools"
 msgstr "Desactiva les eines MCP del connector"
 
-#: packages/admin/src/components/Redirects.tsx:679
-msgid "Disable redirect"
-msgstr "Desactiva la redirecció"
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:508
+msgid "Disable redirect {0}"
+msgstr ""
 
 #: packages/admin/src/routes/users.tsx:289
 msgid "Disable User"
@@ -4770,7 +4781,7 @@ msgid "Disable User?"
 msgstr "Vols desactivar l'usuari?"
 
 #: packages/admin/src/components/PluginManager.tsx:462
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:706
 #: packages/admin/src/components/users/UserDetail.tsx:214
 #: packages/admin/src/components/users/UserList.tsx:178
 msgid "Disabled"
@@ -4895,7 +4906,7 @@ msgid "Document"
 msgstr "Document"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:87
-#: packages/admin/src/components/MediaLibrary.tsx:940
+#: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
 msgstr "Documents"
@@ -5076,7 +5087,7 @@ msgstr "Deixa anar una imatge aquí o <0>explora</0>"
 msgid "Drop an image here or browse for {label}"
 msgstr "Deixa anar una imatge aquí o explora per {label}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:743
+#: packages/admin/src/components/MediaLibrary.tsx:751
 msgid "Drop files to upload"
 msgstr "Deixa anar fitxers per pujar"
 
@@ -5109,7 +5120,7 @@ msgstr "S'han omès les redireccions duplicades"
 msgid "e.g. application/zip or .pdf"
 msgstr "p. ex. application/zip o .pdf"
 
-#: packages/admin/src/components/Redirects.tsx:268
+#: packages/admin/src/components/Redirects.tsx:295
 msgid "e.g. import, blog"
 msgstr "p. ex. import, blog"
 
@@ -5144,6 +5155,7 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:795
+#: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:513
 #: packages/admin/src/components/Shell.tsx:87
@@ -5226,8 +5238,8 @@ msgid "Edit folder"
 msgstr "Edita la carpeta"
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:1391
-#: packages/admin/src/components/MediaLibrary.tsx:1458
+#: packages/admin/src/components/MediaLibrary.tsx:1399
+#: packages/admin/src/components/MediaLibrary.tsx:1462
 msgid "Edit folder {0}"
 msgstr "Edita la carpeta {0}"
 
@@ -5269,16 +5281,12 @@ msgstr "Edita els elements del menú"
 msgid "visualEditing.editMode"
 msgstr "visualEditing.editMode"
 
-#: packages/admin/src/components/Redirects.tsx:702
-msgid "Edit redirect"
-msgstr "Edita la redirecció"
-
-#: packages/admin/src/components/Redirects.tsx:216
+#: packages/admin/src/components/Redirects.tsx:243
 msgid "Edit Redirect"
 msgstr "Edita la redirecció"
 
-#. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:703
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:451
 msgid "Edit redirect {0}"
 msgstr "Edita la redirecció {0}"
 
@@ -5531,9 +5539,10 @@ msgstr "Activa el connector"
 msgid "Enable plugin MCP tools"
 msgstr "Activa les eines MCP del connector"
 
-#: packages/admin/src/components/Redirects.tsx:679
-msgid "Enable redirect"
-msgstr "Activa la redirecció"
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:509
+msgid "Enable redirect {0}"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
 msgid "Enable tracking"
@@ -5543,8 +5552,8 @@ msgstr "Activa el seguiment"
 msgid "Enable tracking to index existing content and keep references up to date."
 msgstr "Activa el seguiment per indexar el contingut existent i mantenir les referències al dia."
 
-#: packages/admin/src/components/Redirects.tsx:274
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:301
+#: packages/admin/src/components/Redirects.tsx:706
 msgid "Enabled"
 msgstr "Activat"
 
@@ -5552,11 +5561,11 @@ msgstr "Activat"
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "S'utilitza l'anglès perquè no hi ha cap idioma de contingut configurat. L'idioma del contingut es desa amb l'entrada i és independent del teu idioma d'administració."
 
-#: packages/admin/src/components/Redirects.tsx:88
+#: packages/admin/src/components/Redirects.tsx:115
 msgid "Enter a destination different from the source."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:84
+#: packages/admin/src/components/Redirects.tsx:111
 msgid "Enter a destination path."
 msgstr ""
 
@@ -5632,7 +5641,7 @@ msgid "Enter a number."
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:142
-#: packages/admin/src/components/Redirects.tsx:61
+#: packages/admin/src/components/Redirects.tsx:88
 msgid "Enter a path that starts with a single /."
 msgstr ""
 
@@ -5649,7 +5658,7 @@ msgstr "Introdueix un fus horari reconegut per desar"
 msgid "Enter a slug."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:79
+#: packages/admin/src/components/Redirects.tsx:106
 msgid "Enter a source path."
 msgstr ""
 
@@ -5827,7 +5836,7 @@ msgstr "Totes les versions publicades d'aquest connector s'han retirat o no s'ha
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "Totes les relacions en què participa aquest tipus de contingut també se'n van:"
 
-#: packages/admin/src/components/Redirects.tsx:516
+#: packages/admin/src/components/Redirects.tsx:695
 msgid "Exact group name..."
 msgstr ""
 
@@ -7099,7 +7108,7 @@ msgstr "Fitxer de la biblioteca multimèdia"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1433
 #: packages/admin/src/components/MediaDetailPanel.tsx:1438
-#: packages/admin/src/components/MediaLibrary.tsx:1162
+#: packages/admin/src/components/MediaLibrary.tsx:1168
 msgid "Filename"
 msgstr "Nom del fitxer"
 
@@ -7147,7 +7156,7 @@ msgstr "Filtra per col·lecció"
 msgid "Filter by date range: {rangeLabel}"
 msgstr "Filtra per interval de dates: {rangeLabel}"
 
-#: packages/admin/src/components/Redirects.tsx:515
+#: packages/admin/src/components/Redirects.tsx:694
 msgid "Filter by group"
 msgstr ""
 
@@ -7160,13 +7169,13 @@ msgid "Filter by source"
 msgstr "Filtra per font"
 
 #: packages/admin/src/components/ContentList.tsx:1054
-#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:707
 msgid "Filter by status"
 msgstr "Filtra per estat"
 
-#: packages/admin/src/components/MediaLibrary.tsx:942
+#: packages/admin/src/components/MediaLibrary.tsx:950
 #: packages/admin/src/components/MediaPickerModal.tsx:1327
-#: packages/admin/src/components/Redirects.tsx:535
+#: packages/admin/src/components/Redirects.tsx:714
 msgid "Filter by type"
 msgstr "Filtra per tipus"
 
@@ -7207,7 +7216,7 @@ msgstr "Corregeix els camps no vàlids abans de canviar la data de publicació"
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Corregeix els camps no vàlids abans de canviar la programació"
 
-#: packages/admin/src/components/Redirects.tsx:67
+#: packages/admin/src/components/Redirects.tsx:94
 msgid "Fix the percent-encoding in the path."
 msgstr ""
 
@@ -7248,19 +7257,19 @@ msgstr "Carpeta editada correctament"
 msgid "Folder unavailable"
 msgstr "Carpeta no disponible"
 
-#: packages/admin/src/components/MediaLibrary.tsx:969
+#: packages/admin/src/components/MediaLibrary.tsx:977
 #: packages/admin/src/components/MediaPickerModal.tsx:1365
 msgid "Folders"
 msgstr "Carpetes"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1541
-#: packages/admin/src/components/MediaLibrary.tsx:979
-#: packages/admin/src/components/MediaLibrary.tsx:1488
+#: packages/admin/src/components/MediaLibrary.tsx:987
+#: packages/admin/src/components/MediaLibrary.tsx:1492
 #: packages/admin/src/components/MediaPickerModal.tsx:1370
 msgid "Folders could not be loaded."
 msgstr "No s'han pogut carregar les carpetes."
 
-#: packages/admin/src/components/MediaLibrary.tsx:774
+#: packages/admin/src/components/MediaLibrary.tsx:782
 msgid "Folders navigation"
 msgstr "Navegació de carpetes"
 
@@ -7403,17 +7412,18 @@ msgstr "Verificació de Google"
 msgid "GraphQL"
 msgstr "GraphQL"
 
-#: packages/admin/src/components/MediaLibrary.tsx:897
+#: packages/admin/src/components/MediaLibrary.tsx:905
 #: packages/admin/src/components/MediaPickerModal.tsx:1283
 msgid "Grid view"
 msgstr "Vista de graella"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:578
-#: packages/admin/src/components/Redirects.tsx:630
+#: packages/admin/src/components/Redirects.tsx:484
+#: packages/admin/src/components/Redirects.tsx:815
 msgid "Group"
 msgstr "Grup"
 
-#: packages/admin/src/components/Redirects.tsx:267
+#: packages/admin/src/components/Redirects.tsx:294
 msgid "Group (optional)"
 msgstr "Grup (opcional)"
 
@@ -7550,8 +7560,8 @@ msgstr "Amaga la barra d'eines"
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "Jeràrquic (com les categories, amb relacions pare/fill)"
 
-#: packages/admin/src/components/Redirects.tsx:320
-#: packages/admin/src/components/Redirects.tsx:632
+#: packages/admin/src/components/Redirects.tsx:356
+#: packages/admin/src/components/Redirects.tsx:823
 msgid "Hits"
 msgstr "Coincidències"
 
@@ -7775,7 +7785,7 @@ msgstr "URL de la imatge"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:85
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
-#: packages/admin/src/components/MediaLibrary.tsx:937
+#: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
 msgid "Images"
 msgstr "Imatges"
@@ -7949,7 +7959,7 @@ msgstr "Incompatible"
 msgid "Increase column width"
 msgstr "Augmenta l'amplada de la columna"
 
-#: packages/admin/src/components/MediaLibrary.tsx:838
+#: packages/admin/src/components/MediaLibrary.tsx:846
 msgid "Index existing content and keep Used in results up to date."
 msgstr "Indexa el contingut existent i mantén al dia els resultats d'Utilitzat a."
 
@@ -8372,7 +8382,7 @@ msgstr "Últim inici de sessió"
 msgid "Last page"
 msgstr "Última pàgina"
 
-#: packages/admin/src/components/Redirects.tsx:321
+#: packages/admin/src/components/Redirects.tsx:359
 msgid "Last seen"
 msgstr "Vist per última vegada"
 
@@ -8422,10 +8432,10 @@ msgstr ""
 msgid "Left"
 msgstr "Esquerra"
 
-#: packages/admin/src/components/MediaLibrary.tsx:308
-#: packages/admin/src/components/MediaLibrary.tsx:426
-#: packages/admin/src/components/MediaLibrary.tsx:703
-#: packages/admin/src/components/MediaLibrary.tsx:1276
+#: packages/admin/src/components/MediaLibrary.tsx:316
+#: packages/admin/src/components/MediaLibrary.tsx:434
+#: packages/admin/src/components/MediaLibrary.tsx:711
+#: packages/admin/src/components/MediaLibrary.tsx:1284
 #: packages/admin/src/components/MediaPickerModal.tsx:381
 #: packages/admin/src/components/MediaPickerModal.tsx:398
 msgid "Library"
@@ -8543,7 +8553,7 @@ msgstr ""
 msgid "List each option only once."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:906
+#: packages/admin/src/components/MediaLibrary.tsx:914
 #: packages/admin/src/components/MediaPickerModal.tsx:1293
 msgid "List view"
 msgstr "Vista de llista"
@@ -8563,7 +8573,7 @@ msgstr "Vista en directe"
 #: packages/admin/src/components/ContentPickerModal.tsx:374
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:248
-#: packages/admin/src/components/Redirects.tsx:727
+#: packages/admin/src/components/Redirects.tsx:851
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -8573,14 +8583,14 @@ msgstr "Carrega'n més"
 
 #: packages/admin/src/components/ContentList.tsx:894
 #: packages/admin/src/components/ContentList.tsx:957
-#: packages/admin/src/components/MediaLibrary.tsx:1269
+#: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/users/UserList.tsx:157
 msgid "Load More"
 msgstr "Carrega'n més"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1560
-#: packages/admin/src/components/MediaLibrary.tsx:1009
-#: packages/admin/src/components/MediaLibrary.tsx:1206
+#: packages/admin/src/components/MediaLibrary.tsx:1017
+#: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1419
 msgid "Load more folders"
 msgstr "Carrega més carpetes"
@@ -8636,8 +8646,8 @@ msgstr "S'està carregant l'editor..."
 msgid "Loading exports…"
 msgstr "S'estan carregant les exportacions…"
 
-#: packages/admin/src/components/MediaLibrary.tsx:953
-#: packages/admin/src/components/MediaLibrary.tsx:1174
+#: packages/admin/src/components/MediaLibrary.tsx:961
+#: packages/admin/src/components/MediaLibrary.tsx:1185
 #: packages/admin/src/components/MediaPickerModal.tsx:1388
 msgid "Loading folders"
 msgstr "S'estan carregant les carpetes"
@@ -8674,7 +8684,7 @@ msgstr "S'està carregant el tauler del connector"
 msgid "Loading plugins..."
 msgstr "S'estan carregant els connectors..."
 
-#: packages/admin/src/components/Redirects.tsx:609
+#: packages/admin/src/components/Redirects.tsx:788
 msgid "Loading redirects..."
 msgstr "S'estan carregant les redireccions..."
 
@@ -8729,10 +8739,10 @@ msgstr "S'estan carregant els ginys..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:621
 #: packages/admin/src/components/MediaDetailPanel.tsx:623
 #: packages/admin/src/components/MediaDetailPanel.tsx:1720
-#: packages/admin/src/components/MediaLibrary.tsx:1269
+#: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3311
-#: packages/admin/src/components/Redirects.tsx:727
+#: packages/admin/src/components/Redirects.tsx:851
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:230
@@ -8869,7 +8879,7 @@ msgstr "Gestiona els menús de navegació del teu lloc"
 msgid "Manage the people and teams credited on your content."
 msgstr "Gestiona les persones i els equips a qui es dona crèdit al teu contingut."
 
-#: packages/admin/src/components/Redirects.tsx:494
+#: packages/admin/src/components/Redirects.tsx:673
 msgid "Manage URL redirects and view 404 errors."
 msgstr "Gestiona les redireccions d'URL i consulta els errors 404."
 
@@ -8890,7 +8900,7 @@ msgstr "Gestionat per un proveïdor multimèdia extern"
 msgid "Managed by your identity provider. Change the name there."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "Manual"
 msgstr "Manual"
 
@@ -8904,11 +8914,11 @@ msgid "Map WordPress user {0} to EmDash user"
 msgstr "Assigna l'usuari {0} de WordPress a un usuari d'EmDash"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:356
+#: packages/admin/src/components/Redirects.tsx:409
 msgid "Mark {0} as Gone (410)"
 msgstr "Marca {0} com a Gone (410)"
 
-#: packages/admin/src/components/Redirects.tsx:355
+#: packages/admin/src/components/Redirects.tsx:344
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
 msgstr "Marca com a Gone (410) — indica als motors de cerca que s'ha eliminat permanentment"
 
@@ -9021,8 +9031,8 @@ msgid "visualEditing.mediaLibrary"
 msgstr "visualEditing.mediaLibrary"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:171
-#: packages/admin/src/components/MediaLibrary.tsx:771
-#: packages/admin/src/components/MediaLibrary.tsx:786
+#: packages/admin/src/components/MediaLibrary.tsx:779
+#: packages/admin/src/components/MediaLibrary.tsx:794
 msgid "Media Library"
 msgstr "Biblioteca multimèdia"
 
@@ -9030,7 +9040,7 @@ msgstr "Biblioteca multimèdia"
 msgid "Media links were made relative"
 msgstr "Els enllaços de multimèdia s'han fet relatius"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1262
+#: packages/admin/src/components/MediaLibrary.tsx:1270
 #: packages/admin/src/components/MediaPickerModal.tsx:1596
 msgid "Media pagination"
 msgstr "Paginació del multimèdia"
@@ -9048,7 +9058,7 @@ msgstr "Resultats de multimèdia"
 msgid "Media usage tracking"
 msgstr "Seguiment de l'ús del multimèdia"
 
-#: packages/admin/src/components/MediaLibrary.tsx:835
+#: packages/admin/src/components/MediaLibrary.tsx:843
 msgid "Media usage tracking is indexing existing content"
 msgstr "El seguiment de l'ús del multimèdia està indexant el contingut existent"
 
@@ -9060,11 +9070,11 @@ msgstr "El seguiment de l'ús del multimèdia està desactivat"
 msgid "Media usage tracking is ready"
 msgstr "El seguiment de l'ús del multimèdia està a punt"
 
-#: packages/admin/src/components/MediaLibrary.tsx:836
+#: packages/admin/src/components/MediaLibrary.tsx:844
 msgid "Media usage tracking is setting up"
 msgstr "El seguiment de l'ús del multimèdia s'està configurant"
 
-#: packages/admin/src/components/MediaLibrary.tsx:833
+#: packages/admin/src/components/MediaLibrary.tsx:841
 msgid "Media usage tracking needs attention"
 msgstr "El seguiment de l'ús del multimèdia necessita atenció"
 
@@ -9409,7 +9419,7 @@ msgid "Moved an image"
 msgstr ""
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:580
+#: packages/admin/src/components/MediaLibrary.tsx:588
 msgid "Moved to {0}"
 msgstr "Mogut a {0}"
 
@@ -9550,7 +9560,7 @@ msgstr "Domini nou"
 msgid "New field"
 msgstr "Camp nou"
 
-#: packages/admin/src/components/MediaLibrary.tsx:808
+#: packages/admin/src/components/MediaLibrary.tsx:816
 msgid "New folder"
 msgstr "Carpeta nova"
 
@@ -9562,8 +9572,8 @@ msgstr "La descoberta de connectors nous utilitza el registre. Els connectors de
 msgid "New public routes"
 msgstr "Rutes públiques noves"
 
-#: packages/admin/src/components/Redirects.tsx:216
-#: packages/admin/src/components/Redirects.tsx:501
+#: packages/admin/src/components/Redirects.tsx:243
+#: packages/admin/src/components/Redirects.tsx:680
 msgid "New Redirect"
 msgstr "Redirecció nova"
 
@@ -9667,12 +9677,11 @@ msgstr "Encara no hi ha cap {0}. Crea'n un per començar."
 msgid "No {label} found."
 msgstr "No s'ha trobat cap {label}."
 
-#: packages/admin/src/components/Redirects.tsx:312
+#: packages/admin/src/components/Redirects.tsx:340
 msgid "No 404 errors recorded yet."
 msgstr "Encara no s'ha registrat cap error 404."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1704
-#: packages/admin/src/components/MediaLibrary.tsx:1761
+#: packages/admin/src/components/MediaLibrary.tsx:1779
 msgid "No alt text"
 msgstr "Sense text alternatiu"
 
@@ -9822,7 +9831,7 @@ msgstr "No s'ha afegit cap fitxer"
 msgid "No folders found"
 msgstr "No s'ha trobat cap carpeta"
 
-#: packages/admin/src/components/Redirects.tsx:662
+#: packages/admin/src/components/Redirects.tsx:489
 msgid "No group"
 msgstr ""
 
@@ -9899,8 +9908,8 @@ msgstr "Cap signatura coincident."
 msgid "No matching content found."
 msgstr "No s'ha trobat contingut coincident."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1028
-#: packages/admin/src/components/MediaLibrary.tsx:1072
+#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1080
 msgid "No matching media"
 msgstr "Cap fitxer multimèdia coincident"
 
@@ -9921,11 +9930,11 @@ msgstr "Cap fus horari coincident"
 msgid "No maximum"
 msgstr "Sense màxim"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1095
+#: packages/admin/src/components/MediaLibrary.tsx:1103
 msgid "No media available from this provider."
 msgstr "No hi ha cap fitxer multimèdia disponible d'aquest proveïdor."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1094
+#: packages/admin/src/components/MediaLibrary.tsx:1102
 #: packages/admin/src/components/MediaPickerModal.tsx:1457
 msgid "No media found"
 msgstr "No s'ha trobat cap fitxer multimèdia"
@@ -9987,11 +9996,11 @@ msgstr "No hi ha cap URL públic disponible"
 msgid "No recent activity"
 msgstr "No hi ha activitat recent"
 
-#: packages/admin/src/components/Redirects.tsx:614
+#: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects match these filters"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:614
+#: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects yet"
 msgstr "Encara no hi ha cap redirecció"
 
@@ -10235,8 +10244,8 @@ msgstr "Obre {0} en una pestanya nova"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:182
-#: packages/admin/src/components/MediaLibrary.tsx:1375
-#: packages/admin/src/components/MediaLibrary.tsx:1446
+#: packages/admin/src/components/MediaLibrary.tsx:1383
+#: packages/admin/src/components/MediaLibrary.tsx:1449
 msgid "Open folder {0}"
 msgstr "Obre la carpeta {0}"
 
@@ -10264,7 +10273,7 @@ msgstr "Obre en una pestanya nova"
 msgid "Open read-only"
 msgstr "Obre en només lectura"
 
-#: packages/admin/src/components/MediaLibrary.tsx:841
+#: packages/admin/src/components/MediaLibrary.tsx:849
 msgid "Open setup"
 msgstr "Obre la configuració"
 
@@ -10459,8 +10468,8 @@ msgstr "Paràgraf inserit abans de la taula"
 msgid "Parent"
 msgstr "Pare"
 
-#: packages/admin/src/components/Redirects.tsx:684
-#: packages/admin/src/components/Redirects.tsx:690
+#: packages/admin/src/components/Redirects.tsx:457
+#: packages/admin/src/components/Redirects.tsx:463
 msgid "Part of a redirect loop"
 msgstr "Forma part d'un bucle de redirecció"
 
@@ -10560,7 +10569,7 @@ msgstr ""
 msgid "Paste your migration key"
 msgstr "Enganxa la teva clau de migració"
 
-#: packages/admin/src/components/Redirects.tsx:319
+#: packages/admin/src/components/Redirects.tsx:354
 msgid "Path"
 msgstr "Ruta"
 
@@ -10897,7 +10906,7 @@ msgstr "Prem Space per agafar una imatge. Fes servir les tecles de fletxa per mo
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
 #: packages/admin/src/components/MediaDetailPanel.tsx:1667
-#: packages/admin/src/components/MediaLibrary.tsx:1161
+#: packages/admin/src/components/MediaLibrary.tsx:1166
 msgid "Preview"
 msgstr "Previsualitza"
 
@@ -11283,7 +11292,7 @@ msgstr "S'han omès els registres sense pare"
 msgid "Recovery link sent to {0}"
 msgstr "S'ha enviat l'enllaç de recuperació a {0}"
 
-#: packages/admin/src/components/Redirects.tsx:595
+#: packages/admin/src/components/Redirects.tsx:774
 msgid "Redirect loop detected"
 msgstr "S'ha detectat un bucle de redirecció"
 
@@ -11291,8 +11300,8 @@ msgstr "S'ha detectat un bucle de redirecció"
 msgid "Redirecting to login..."
 msgstr "S'està redirigint a l'inici de sessió..."
 
-#: packages/admin/src/components/Redirects.tsx:493
-#: packages/admin/src/components/Redirects.tsx:552
+#: packages/admin/src/components/Redirects.tsx:672
+#: packages/admin/src/components/Redirects.tsx:731
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:481
@@ -11521,7 +11530,7 @@ msgstr "Treu la programació"
 msgid "Remove sub-field"
 msgstr "Treu el subcamp"
 
-#: packages/admin/src/components/Redirects.tsx:69
+#: packages/admin/src/components/Redirects.tsx:96
 msgid "Remove the .. segments from the path."
 msgstr ""
 
@@ -11920,8 +11929,8 @@ msgstr "Retirat"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
-#: packages/admin/src/components/MediaLibrary.tsx:973
-#: packages/admin/src/components/MediaLibrary.tsx:1491
+#: packages/admin/src/components/MediaLibrary.tsx:981
+#: packages/admin/src/components/MediaLibrary.tsx:1495
 #: packages/admin/src/components/MediaPickerModal.tsx:1259
 #: packages/admin/src/components/MediaPickerModal.tsx:1355
 #: packages/admin/src/components/MediaPickerModal.tsx:1377
@@ -12177,7 +12186,7 @@ msgstr "Contingut d'exemple"
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
 #: packages/admin/src/components/PortableTextEditor.tsx:2820
-#: packages/admin/src/components/Redirects.tsx:286
+#: packages/admin/src/components/Redirects.tsx:313
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/Widgets.tsx:1070
@@ -12277,7 +12286,7 @@ msgstr "Desar una col·lecció aquí converteix aquest camp en un selector d'ent
 #: packages/admin/src/components/MenuEditor.tsx:906
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
-#: packages/admin/src/components/Redirects.tsx:283
+#: packages/admin/src/components/Redirects.tsx:310
 #: packages/admin/src/components/RelationFormPanel.tsx:151
 #: packages/admin/src/components/SaveButton.tsx:36
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
@@ -12452,7 +12461,7 @@ msgstr "Cerca tipus de bloc"
 msgid "Search blocks"
 msgstr "Cerca blocs"
 
-#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaLibrary.tsx:926
 #: packages/admin/src/components/MediaPickerModal.tsx:1306
 msgid "Search by filename..."
 msgstr "Cerca per nom de fitxer..."
@@ -12526,7 +12535,7 @@ msgstr "Cerca un fus horari IANA (p. ex., Europe/London)"
 msgid "Search form"
 msgstr "Formulari de cerca"
 
-#: packages/admin/src/components/MediaLibrary.tsx:919
+#: packages/admin/src/components/MediaLibrary.tsx:927
 #: packages/admin/src/components/MediaPickerModal.tsx:1308
 msgid "Search media"
 msgstr "Cerca fitxers multimèdia"
@@ -12559,7 +12568,7 @@ msgstr "Cerca perfils públics reutilitzables."
 msgid "Search sections..."
 msgstr "Cerca seccions..."
 
-#: packages/admin/src/components/Redirects.tsx:488
+#: packages/admin/src/components/Redirects.tsx:667
 msgid "Search source or destination..."
 msgstr "Cerca origen o destinació..."
 
@@ -12595,7 +12604,7 @@ msgstr "Cerca usuaris"
 msgid "Search will be turned off for some collections"
 msgstr "Es desactivarà la cerca en algunes col·leccions"
 
-#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaLibrary.tsx:926
 #: packages/admin/src/components/MediaPickerModal.tsx:1306
 msgid "Search..."
 msgstr "Cerca..."
@@ -12994,7 +13003,7 @@ msgstr "Posa com a esborrany"
 msgid "Set up an email provider in Email settings to email users."
 msgstr "Configura un proveïdor de correu a la configuració de Correu per enviar correus als usuaris."
 
-#: packages/admin/src/components/MediaLibrary.tsx:831
+#: packages/admin/src/components/MediaLibrary.tsx:839
 msgid "Set up media usage tracking"
 msgstr "Configura el seguiment de l'ús del multimèdia"
 
@@ -13281,12 +13290,12 @@ msgstr "Els mapes del lloc i les URL absolutes a les metadades de cerca i social
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr "Els llocs a Cloudflare D1 també poden restaurar la base de dades a qualsevol minut dels darrers 30 dies mitjançant D1 Time Travel — sempre actiu i sense configuració."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1164
+#: packages/admin/src/components/MediaLibrary.tsx:1173
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:280
 msgid "Size"
 msgstr "Mida"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1472
+#: packages/admin/src/components/MediaLibrary.tsx:1476
 msgid "Size is not applicable to folders"
 msgstr "La mida no s'aplica a les carpetes"
 
@@ -13446,12 +13455,12 @@ msgstr "Ordena els temes"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:790
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
 #: packages/admin/src/components/PluginManager.tsx:653
-#: packages/admin/src/components/Redirects.tsx:627
+#: packages/admin/src/components/Redirects.tsx:808
 #: packages/admin/src/components/SectionEditor.tsx:316
 msgid "Source"
 msgstr "Origen"
 
-#: packages/admin/src/components/Redirects.tsx:226
+#: packages/admin/src/components/Redirects.tsx:253
 msgid "Source path"
 msgstr "Ruta d'origen"
 
@@ -13548,7 +13557,7 @@ msgstr "Estat"
 #: packages/admin/src/components/ContentList.tsx:505
 #: packages/admin/src/components/ContentList.tsx:754
 #: packages/admin/src/components/ContentTypeEditor.tsx:141
-#: packages/admin/src/components/Redirects.tsx:633
+#: packages/admin/src/components/Redirects.tsx:825
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
@@ -13556,7 +13565,7 @@ msgstr "Estat"
 msgid "Status"
 msgstr "Estat"
 
-#: packages/admin/src/components/Redirects.tsx:252
+#: packages/admin/src/components/Redirects.tsx:279
 msgid "Status code"
 msgstr "Codi d'estat"
 
@@ -13933,7 +13942,7 @@ msgstr "El paquet exportat i aquesta importació canvien el contingut d'aquestes
 msgid "The file is not a valid EmDash site package."
 msgstr "El fitxer no és un paquet de lloc EmDash vàlid."
 
-#: packages/admin/src/components/MediaLibrary.tsx:590
+#: packages/admin/src/components/MediaLibrary.tsx:598
 msgid "The file or folder no longer exists."
 msgstr "El fitxer o la carpeta ja no existeix."
 
@@ -14445,7 +14454,7 @@ msgstr "Aquest fitxer no és un paquet de lloc EmDash llegible."
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr "Aquest fitxer no és un paquet de lloc EmDash: ha de començar per manifest.json."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1043
+#: packages/admin/src/components/MediaLibrary.tsx:1051
 msgid "This folder is empty"
 msgstr "Aquesta carpeta és buida"
 
@@ -14571,11 +14580,11 @@ msgstr "L'identificador d'aquest editor no es resol cap a la seva identitat. La 
 msgid "This range has more than {maxEntries} entries"
 msgstr "Aquest interval té més de {maxEntries} entrades"
 
-#: packages/admin/src/components/Redirects.tsx:761
+#: packages/admin/src/components/Redirects.tsx:885
 msgid "This redirect rule will be permanently removed."
 msgstr "Aquesta regla de redirecció s'eliminarà permanentment."
 
-#: packages/admin/src/components/Redirects.tsx:453
+#: packages/admin/src/components/Redirects.tsx:632
 msgid "This redirect was already deleted."
 msgstr ""
 
@@ -14903,7 +14912,7 @@ msgstr "Paginació de la paperera"
 msgid "True/false toggle"
 msgstr "Commutador cert/fals"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1032
+#: packages/admin/src/components/MediaLibrary.tsx:1040
 msgid "Try a broader media type or clear your filters."
 msgstr "Prova un tipus de fitxer més ampli o neteja els filtres."
 
@@ -14941,7 +14950,7 @@ msgstr "Torna-ho a provar"
 msgid "Try Again"
 msgstr "Torna-ho a provar"
 
-#: packages/admin/src/components/MediaLibrary.tsx:597
+#: packages/admin/src/components/MediaLibrary.tsx:605
 msgid "Try again."
 msgstr "Torna-ho a provar."
 
@@ -14953,12 +14962,12 @@ msgstr "Torna-ho a provar. Si segueix fallant, comprova els registres del servid
 msgid "Try another code"
 msgstr "Prova un altre codi"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1073
+#: packages/admin/src/components/MediaLibrary.tsx:1081
 #: packages/admin/src/components/MediaPickerModal.tsx:1460
 msgid "Try another filename or clear your search."
 msgstr "Prova un altre nom de fitxer o neteja la cerca."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1031
+#: packages/admin/src/components/MediaLibrary.tsx:1039
 msgid "Try another filename, or clear your search and filters."
 msgstr "Prova un altre nom de fitxer, o neteja la cerca i els filtres."
 
@@ -14967,7 +14976,7 @@ msgstr "Prova un altre nom de fitxer, o neteja la cerca i els filtres."
 msgid "Try Another URL"
 msgstr "Prova un altre URL"
 
-#: packages/admin/src/components/Redirects.tsx:618
+#: packages/admin/src/components/Redirects.tsx:797
 msgid "Try changing or clearing your filters."
 msgstr ""
 
@@ -15023,7 +15032,7 @@ msgstr "Dos registres tenen el mateix valor allà on ha de ser únic"
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
 #: packages/admin/src/components/FieldEditor.tsx:1659
-#: packages/admin/src/components/MediaLibrary.tsx:1163
+#: packages/admin/src/components/MediaLibrary.tsx:1170
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
 msgid "Type"
@@ -15050,7 +15059,7 @@ msgstr ""
 msgid "Type to search"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1468
+#: packages/admin/src/components/MediaLibrary.tsx:1472
 msgid "Type: Folder"
 msgstr "Tipus: Carpeta"
 
@@ -15248,7 +15257,7 @@ msgstr "Actualitza el paquet emdash del teu projecte i torna a desplegar per obt
 msgid "Update the profile for {0}."
 msgstr "Actualitza el perfil de {0}."
 
-#: packages/admin/src/components/Redirects.tsx:219
+#: packages/admin/src/components/Redirects.tsx:246
 msgid "Update this redirect rule."
 msgstr "Actualitza aquesta regla de redirecció."
 
@@ -15293,7 +15302,7 @@ msgstr "S'està actualitzant..."
 msgid "visualEditing.uploadImage"
 msgstr "visualEditing.uploadImage"
 
-#: packages/admin/src/components/MediaLibrary.tsx:820
+#: packages/admin/src/components/MediaLibrary.tsx:828
 msgid "Upload"
 msgstr "Puja"
 
@@ -15336,18 +15345,18 @@ msgstr "La pujada ha fallat"
 msgid "Upload files"
 msgstr "Puja fitxers"
 
-#: packages/admin/src/components/MediaLibrary.tsx:702
-#: packages/admin/src/components/MediaLibrary.tsx:1048
-#: packages/admin/src/components/MediaLibrary.tsx:1063
-#: packages/admin/src/components/MediaLibrary.tsx:1087
+#: packages/admin/src/components/MediaLibrary.tsx:710
+#: packages/admin/src/components/MediaLibrary.tsx:1056
+#: packages/admin/src/components/MediaLibrary.tsx:1071
+#: packages/admin/src/components/MediaLibrary.tsx:1095
 msgid "Upload Files"
 msgstr "Puja fitxers"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1044
+#: packages/admin/src/components/MediaLibrary.tsx:1052
 msgid "Upload files here or move media here from Media Details."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1060
+#: packages/admin/src/components/MediaLibrary.tsx:1068
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "Puja imatges, vídeos i documents per tenir els recursos reutilitzables en un sol lloc."
 
@@ -15355,7 +15364,7 @@ msgstr "Puja imatges, vídeos i documents per tenir els recursos reutilitzables 
 msgid "Upload Media"
 msgstr "Puja fitxers multimèdia"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1084
+#: packages/admin/src/components/MediaLibrary.tsx:1092
 msgid "Upload media to keep reusable assets in one place."
 msgstr "Puja fitxers multimèdia per tenir els recursos reutilitzables en un sol lloc."
 
@@ -15372,7 +15381,7 @@ msgid "Upload site packages and check whether they can be imported. Admin includ
 msgstr "Puja paquets de lloc i comprova si es poden importar. L'opció Administració ho inclou; tria-la en lloc d'Administració per donar a un agent un accés més restringit."
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:703
+#: packages/admin/src/components/MediaLibrary.tsx:711
 msgid "Upload to {0}"
 msgstr "Puja a {0}"
 
@@ -15480,7 +15489,7 @@ msgstr "Ús carregat"
 msgid "Usage may be out of date."
 msgstr "L'ús pot estar desactualitzat."
 
-#: packages/admin/src/components/Redirects.tsx:220
+#: packages/admin/src/components/Redirects.tsx:247
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "Utilitza [param] o [...rest] a les rutes per fer coincidència de patrons."
 
@@ -15709,7 +15718,7 @@ msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
-#: packages/admin/src/components/MediaLibrary.tsx:938
+#: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407
 #: packages/admin/src/components/PortableTextEditor.tsx:3799
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:485
@@ -15733,7 +15742,7 @@ msgstr "Consulta l'estat del proveïdor de correu i envia correus de prova"
 msgid "View live"
 msgstr "Mostra en directe"
 
-#: packages/admin/src/components/MediaLibrary.tsx:884
+#: packages/admin/src/components/MediaLibrary.tsx:892
 #: packages/admin/src/components/MediaPickerModal.tsx:1266
 msgid "View mode"
 msgstr "Mode de visualització"
@@ -15742,7 +15751,7 @@ msgstr "Mode de visualització"
 msgid "View published"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:841
+#: packages/admin/src/components/MediaLibrary.tsx:849
 msgid "View setup"
 msgstr "Mostra la configuració"
 
@@ -15762,7 +15771,7 @@ msgstr "Mostra la llicència {license} a spdx.org"
 msgid "Viewing the version from {when} by {name}."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:601
+#: packages/admin/src/components/Redirects.tsx:780
 msgid "Visitors hitting these paths will see an error."
 msgstr "Els visitants que accedeixin a aquestes rutes veuran un error."
 
@@ -16062,7 +16071,7 @@ msgstr "L'autorització de WordPress s'ha rebutjat"
 msgid "WordPress Username"
 msgstr "Nom d'usuari de WordPress"
 
-#: packages/admin/src/components/DataTable.tsx:137
+#: packages/admin/src/components/DataTable.tsx:359
 msgid "Working on {selectedCount} items…"
 msgstr "S'està treballant en {selectedCount} elements…"
 
@@ -16162,7 +16171,7 @@ msgstr "No pots canviar el teu propi rol"
 msgid "You do not have permission to edit this asset."
 msgstr "No tens permís per editar aquest recurs."
 
-#: packages/admin/src/components/MediaLibrary.tsx:595
+#: packages/admin/src/components/MediaLibrary.tsx:603
 msgid "You don’t have permission to move this file."
 msgstr "No tens permís per moure aquest fitxer."
 
@@ -16309,8 +16318,8 @@ msgstr "El teu nom d'usuari d'Instagram"
 msgid "Your LinkedIn profile username"
 msgstr "El nom d'usuari del teu perfil de LinkedIn"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1059
-#: packages/admin/src/components/MediaLibrary.tsx:1083
+#: packages/admin/src/components/MediaLibrary.tsx:1067
+#: packages/admin/src/components/MediaLibrary.tsx:1091
 msgid "Your media library is empty"
 msgstr "La teva biblioteca multimèdia és buida"
 

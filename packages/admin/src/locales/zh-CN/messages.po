@@ -259,9 +259,16 @@ msgstr "{0, plural, one {# 个文件未添加，因为上传列表已满。} oth
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
 #: packages/admin/src/components/MediaDetailPanel.tsx:1514
-#: packages/admin/src/components/MediaLibrary.tsx:954
+#: packages/admin/src/components/MediaLibrary.tsx:962
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {已加载 # 个文件夹} other {已加载 # 个文件夹}}"
+
+#. placeholder {0}: item.count
+#. placeholder {0}: redirect.hits
+#: packages/admin/src/components/Redirects.tsx:382
+#: packages/admin/src/components/Redirects.tsx:494
+msgid "{0, plural, one {# hit} other {# hits}}"
+msgstr ""
 
 #. placeholder {0}: menu.itemCount ?? 0
 #: packages/admin/src/components/MenuCard.tsx:46
@@ -327,7 +334,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# 篇文章} other {# 篇文章}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:597
+#: packages/admin/src/components/Redirects.tsx:776
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {# 个重定向是循环的一部分。} other {# 个重定向是循环的一部分。}}"
 
@@ -910,7 +917,7 @@ msgstr "{rows, plural, one {已删除行} other {已删除 # 行}}"
 msgid "{rows} × {columns} table pasted"
 msgstr "已粘贴 {rows} × {columns} 表格"
 
-#: packages/admin/src/components/DataTable.tsx:138
+#: packages/admin/src/components/DataTable.tsx:360
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {已选 # 项} other {已选 # 项}}"
 
@@ -995,11 +1002,11 @@ msgstr "{areaName} 中的 {widgetType}"
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr "{words, plural, one {# 个词} other {# 个词}}"
 
-#: packages/admin/src/components/Redirects.tsx:239
+#: packages/admin/src/components/Redirects.tsx:266
 msgid "/new-page or /articles/[slug]"
 msgstr "/new-page 或 /articles/[slug]"
 
-#: packages/admin/src/components/Redirects.tsx:227
+#: packages/admin/src/components/Redirects.tsx:254
 msgid "/old-page or /blog/[slug]"
 msgstr "/old-page 或 /blog/[slug]"
 
@@ -1097,19 +1104,19 @@ msgstr "3. 选择 \"所有内容\""
 msgid "30 days"
 msgstr "30 天"
 
-#: packages/admin/src/components/Redirects.tsx:257
+#: packages/admin/src/components/Redirects.tsx:284
 msgid "301 Permanent"
 msgstr "301 永久重定向"
 
-#: packages/admin/src/components/Redirects.tsx:258
+#: packages/admin/src/components/Redirects.tsx:285
 msgid "302 Temporary"
 msgstr "302 临时重定向"
 
-#: packages/admin/src/components/Redirects.tsx:259
+#: packages/admin/src/components/Redirects.tsx:286
 msgid "307 Temporary (Strict)"
 msgstr "307 临时（严格）"
 
-#: packages/admin/src/components/Redirects.tsx:260
+#: packages/admin/src/components/Redirects.tsx:287
 msgid "308 Permanent (Strict)"
 msgstr "308 永久（严格）"
 
@@ -1125,15 +1132,15 @@ msgstr "4. 点击 \"下载导出文件\""
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. 输入 \"EmDash\" 并点击 \"添加新密码\""
 
-#: packages/admin/src/components/Redirects.tsx:572
+#: packages/admin/src/components/Redirects.tsx:751
 msgid "404 Errors"
 msgstr "404 错误"
 
-#: packages/admin/src/components/Redirects.tsx:261
+#: packages/admin/src/components/Redirects.tsx:288
 msgid "410 Content Deleted (Gone)"
 msgstr "410 内容已删除（已移除）"
 
-#: packages/admin/src/components/Redirects.tsx:262
+#: packages/admin/src/components/Redirects.tsx:289
 msgid "451 Unavailable for legal reasons"
 msgstr "451 因法律原因不可用"
 
@@ -1335,6 +1342,8 @@ msgstr "ACF 字段"
 #: packages/admin/src/components/ContentList.tsx:782
 #: packages/admin/src/components/ContentList.tsx:924
 #: packages/admin/src/components/ContentTypeList.tsx:227
+#: packages/admin/src/components/Redirects.tsx:362
+#: packages/admin/src/components/Redirects.tsx:827
 #: packages/admin/src/components/RelationList.tsx:110
 #: packages/admin/src/components/TaxonomyManager.tsx:1325
 #: packages/admin/src/routes/byline-schema.tsx:238
@@ -1360,6 +1369,11 @@ msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:584
 msgid "Actions for comment by {author}"
+msgstr ""
+
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:514
+msgid "Actions for redirect {0}"
 msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
@@ -1546,8 +1560,8 @@ msgid "Add New"
 msgstr "添加新内容"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:160
-#: packages/admin/src/components/MediaLibrary.tsx:804
-#: packages/admin/src/components/MediaLibrary.tsx:809
+#: packages/admin/src/components/MediaLibrary.tsx:812
+#: packages/admin/src/components/MediaLibrary.tsx:817
 msgid "Add new folder"
 msgstr "新建文件夹"
 
@@ -1829,13 +1843,13 @@ msgid "All sources"
 msgstr "所有来源"
 
 #: packages/admin/src/components/ContentList.tsx:1015
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:706
 msgid "All statuses"
 msgstr "所有状态"
 
-#: packages/admin/src/components/MediaLibrary.tsx:936
+#: packages/admin/src/components/MediaLibrary.tsx:944
 #: packages/admin/src/components/MediaPickerModal.tsx:404
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "All types"
 msgstr "所有类型"
 
@@ -1905,7 +1919,7 @@ msgstr "替代文本"
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
-#: packages/admin/src/components/MediaLibrary.tsx:1165
+#: packages/admin/src/components/MediaLibrary.tsx:1176
 #: packages/admin/src/components/PortableTextEditor.tsx:5845
 #: packages/admin/src/components/PortableTextEditor.tsx:5911
 msgid "Alt text"
@@ -1917,12 +1931,11 @@ msgstr "替代文本"
 msgid "Alt Text"
 msgstr "替代文本"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1476
+#: packages/admin/src/components/MediaLibrary.tsx:1480
 msgid "Alt text is not applicable to folders"
 msgstr "替代文本不适用于文件夹"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1704
-#: packages/admin/src/components/MediaLibrary.tsx:1761
+#: packages/admin/src/components/MediaLibrary.tsx:1779
 msgid "Alt text set"
 msgstr "替代文本已设置"
 
@@ -2040,7 +2053,7 @@ msgstr "已有另一个导入正在使用此包。"
 msgid "Another menu already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:158
+#: packages/admin/src/components/Redirects.tsx:185
 msgid "Another redirect already uses this source path. Enter a different one."
 msgstr ""
 
@@ -2228,7 +2241,7 @@ msgid "Attribution"
 msgstr "署名"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:90
-#: packages/admin/src/components/MediaLibrary.tsx:939
+#: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
 msgstr "音频"
@@ -2303,11 +2316,11 @@ msgstr "作者"
 msgid "Authors will be assigned to users on this site"
 msgstr "作者将被分配给此站点的用户"
 
-#: packages/admin/src/components/Redirects.tsx:696
+#: packages/admin/src/components/Redirects.tsx:467
 msgid "auto"
 msgstr "自动"
 
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "Auto (slug change)"
 msgstr "自动（slug 变更）"
 
@@ -2375,7 +2388,7 @@ msgstr "返回"
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:1771
 #: packages/admin/src/components/MediaDetailPanel.tsx:1786
-#: packages/admin/src/components/MediaLibrary.tsx:763
+#: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/WordPressImport.tsx:1565
 #: packages/admin/src/components/WordPressImport.tsx:2586
@@ -2412,7 +2425,7 @@ msgstr "返回编辑。"
 msgid "Back to login"
 msgstr "返回登录"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1051
+#: packages/admin/src/components/MediaLibrary.tsx:1059
 msgid "Back to Main library"
 msgstr "返回主库"
 
@@ -2735,7 +2748,7 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/PortableTextEditor.tsx:5883
 #: packages/admin/src/components/PortableTextEditor.tsx:6631
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:390
-#: packages/admin/src/components/Redirects.tsx:279
+#: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:300
@@ -3216,7 +3229,7 @@ msgid "Choosing a byline replaces this automatic credit."
 msgstr "选择署名将替换此自动署名。"
 
 #: packages/admin/src/components/ContentList.tsx:1216
-#: packages/admin/src/components/DataTable.tsx:143
+#: packages/admin/src/components/DataTable.tsx:365
 msgid "Clear"
 msgstr "清除"
 
@@ -3228,7 +3241,7 @@ msgstr "清除已完成"
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:185
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:103
 #: packages/admin/src/components/ContentList.tsx:1121
-#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
 #: packages/admin/src/components/users/UserList.tsx:125
 #: packages/admin/src/routes/bylines.tsx:472
@@ -3239,8 +3252,8 @@ msgstr "清除筛选"
 msgid "Clear formatting"
 msgstr "清除格式"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1036
-#: packages/admin/src/components/MediaLibrary.tsx:1076
+#: packages/admin/src/components/MediaLibrary.tsx:1044
+#: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/TaxonomyManager.tsx:1349
 msgid "Clear search"
 msgstr "清除搜索"
@@ -3334,7 +3347,7 @@ msgstr "Cloudflare 的机器人防护返回了验证页面，因此 EmDash 无�
 
 #: packages/admin/src/components/ContentTypeList.tsx:406
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
-#: packages/admin/src/components/Redirects.tsx:631
+#: packages/admin/src/components/Redirects.tsx:820
 msgid "Code"
 msgstr "代码"
 
@@ -3889,7 +3902,7 @@ msgstr "无法加载版本"
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "无法将 \"{draft}\" 映射到 MIME 类型。请直接输入 MIME。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:587
+#: packages/admin/src/components/MediaLibrary.tsx:595
 msgid "Couldn’t move file"
 msgstr "无法移动文件"
 
@@ -3930,7 +3943,7 @@ msgstr "数量"
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuList.tsx:244
-#: packages/admin/src/components/Redirects.tsx:287
+#: packages/admin/src/components/Redirects.tsx:314
 #: packages/admin/src/components/TaxonomyManager.tsx:827
 #: packages/admin/src/components/Widgets.tsx:530
 msgid "Create"
@@ -4041,15 +4054,15 @@ msgid "Create personal access tokens for programmatic API access"
 msgstr "创建个人访问令牌以通过程序访问 API"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:348
+#: packages/admin/src/components/Redirects.tsx:400
 msgid "Create redirect for {0}"
 msgstr "为 {0} 创建重定向"
 
-#: packages/admin/src/components/Redirects.tsx:347
+#: packages/admin/src/components/Redirects.tsx:399
 msgid "Create redirect for this path"
 msgstr "为此路径创建重定向"
 
-#: packages/admin/src/components/Redirects.tsx:619
+#: packages/admin/src/components/Redirects.tsx:798
 msgid "Create redirect rules to manage URL changes."
 msgstr "创建重定向规则以管理 URL 更改。"
 
@@ -4173,7 +4186,7 @@ msgid "Creating cropped copy..."
 msgstr "正在创建裁剪副本…"
 
 #: packages/admin/src/components/MenuList.tsx:244
-#: packages/admin/src/components/Redirects.tsx:284
+#: packages/admin/src/components/Redirects.tsx:311
 #: packages/admin/src/components/RelationFormPanel.tsx:148
 #: packages/admin/src/components/Sections.tsx:306
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:561
@@ -4201,7 +4214,7 @@ msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "裁剪选区。使用方向键移动。"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:771
-#: packages/admin/src/components/MediaLibrary.tsx:1310
+#: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Cropped copy created."
 msgstr "裁剪副本已创建。"
 
@@ -4376,7 +4389,8 @@ msgstr "代码定义"
 #: packages/admin/src/components/MenuEditor.tsx:800
 #: packages/admin/src/components/MenuEditor.tsx:818
 #: packages/admin/src/components/MenuList.tsx:291
-#: packages/admin/src/components/Redirects.tsx:762
+#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:886
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/RelationList.tsx:250
 #: packages/admin/src/components/Sections.tsx:423
@@ -4530,16 +4544,12 @@ msgstr "永久删除"
 msgid "Delete Permanently?"
 msgstr "永久删除？"
 
-#: packages/admin/src/components/Redirects.tsx:710
-msgid "Delete redirect"
-msgstr "删除重定向"
-
-#. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:711
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:525
 msgid "Delete redirect {0}"
 msgstr "删除重定向 {0}"
 
-#: packages/admin/src/components/Redirects.tsx:760
+#: packages/admin/src/components/Redirects.tsx:884
 msgid "Delete Redirect?"
 msgstr "删除重定向？"
 
@@ -4609,7 +4619,7 @@ msgstr "删除 \"{0}\" 将同时移除所有署名中的 {1, plural, one {# 个�
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:819
 #: packages/admin/src/components/MenuList.tsx:292
-#: packages/admin/src/components/Redirects.tsx:763
+#: packages/admin/src/components/Redirects.tsx:887
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:424
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
@@ -4695,11 +4705,11 @@ msgstr "描述"
 msgid "Description (optional)"
 msgstr "描述（可选）"
 
-#: packages/admin/src/components/Redirects.tsx:629
+#: packages/admin/src/components/Redirects.tsx:811
 msgid "Destination"
 msgstr "目标"
 
-#: packages/admin/src/components/Redirects.tsx:238
+#: packages/admin/src/components/Redirects.tsx:265
 msgid "Destination path"
 msgstr "目标路径"
 
@@ -4757,9 +4767,10 @@ msgstr "禁用插件"
 msgid "Disable plugin MCP tools"
 msgstr "禁用插件 MCP 工具"
 
-#: packages/admin/src/components/Redirects.tsx:679
-msgid "Disable redirect"
-msgstr "禁用重定向"
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:508
+msgid "Disable redirect {0}"
+msgstr ""
 
 #: packages/admin/src/routes/users.tsx:289
 msgid "Disable User"
@@ -4770,7 +4781,7 @@ msgid "Disable User?"
 msgstr "禁用用户？"
 
 #: packages/admin/src/components/PluginManager.tsx:462
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:706
 #: packages/admin/src/components/users/UserDetail.tsx:214
 #: packages/admin/src/components/users/UserList.tsx:178
 msgid "Disabled"
@@ -4895,7 +4906,7 @@ msgid "Document"
 msgstr "文档"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:87
-#: packages/admin/src/components/MediaLibrary.tsx:940
+#: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
 msgstr "文档"
@@ -5076,7 +5087,7 @@ msgstr "将图片拖放到此处或<0>浏览</0>"
 msgid "Drop an image here or browse for {label}"
 msgstr "将图片拖放到此处或浏览{label}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:743
+#: packages/admin/src/components/MediaLibrary.tsx:751
 msgid "Drop files to upload"
 msgstr "拖放文件以上传"
 
@@ -5109,7 +5120,7 @@ msgstr "重复的重定向已被排除"
 msgid "e.g. application/zip or .pdf"
 msgstr "例如 application/zip 或 .pdf"
 
-#: packages/admin/src/components/Redirects.tsx:268
+#: packages/admin/src/components/Redirects.tsx:295
 msgid "e.g. import, blog"
 msgstr "例如 import、blog"
 
@@ -5144,6 +5155,7 @@ msgstr "最早保存的版本"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:795
+#: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:513
 #: packages/admin/src/components/Shell.tsx:87
@@ -5226,8 +5238,8 @@ msgid "Edit folder"
 msgstr "编辑文件夹"
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:1391
-#: packages/admin/src/components/MediaLibrary.tsx:1458
+#: packages/admin/src/components/MediaLibrary.tsx:1399
+#: packages/admin/src/components/MediaLibrary.tsx:1462
 msgid "Edit folder {0}"
 msgstr "编辑文件夹 {0}"
 
@@ -5269,16 +5281,12 @@ msgstr "编辑菜单项"
 msgid "visualEditing.editMode"
 msgstr "编辑模式"
 
-#: packages/admin/src/components/Redirects.tsx:702
-msgid "Edit redirect"
-msgstr "编辑重定向"
-
-#: packages/admin/src/components/Redirects.tsx:216
+#: packages/admin/src/components/Redirects.tsx:243
 msgid "Edit Redirect"
 msgstr "编辑重定向"
 
-#. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:703
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:451
 msgid "Edit redirect {0}"
 msgstr "编辑重定向 {0}"
 
@@ -5531,9 +5539,10 @@ msgstr "启用插件"
 msgid "Enable plugin MCP tools"
 msgstr "启用插件 MCP 工具"
 
-#: packages/admin/src/components/Redirects.tsx:679
-msgid "Enable redirect"
-msgstr "启用重定向"
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:509
+msgid "Enable redirect {0}"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
 msgid "Enable tracking"
@@ -5543,8 +5552,8 @@ msgstr "启用跟踪"
 msgid "Enable tracking to index existing content and keep references up to date."
 msgstr "启用跟踪以索引现有内容并保持引用为最新。"
 
-#: packages/admin/src/components/Redirects.tsx:274
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:301
+#: packages/admin/src/components/Redirects.tsx:706
 msgid "Enabled"
 msgstr "已启用"
 
@@ -5552,11 +5561,11 @@ msgstr "已启用"
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "由于未配置内容语言，将使用英文。内容语言随条目存储，与您的管理语言相互独立。"
 
-#: packages/admin/src/components/Redirects.tsx:88
+#: packages/admin/src/components/Redirects.tsx:115
 msgid "Enter a destination different from the source."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:84
+#: packages/admin/src/components/Redirects.tsx:111
 msgid "Enter a destination path."
 msgstr ""
 
@@ -5632,7 +5641,7 @@ msgid "Enter a number."
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:142
-#: packages/admin/src/components/Redirects.tsx:61
+#: packages/admin/src/components/Redirects.tsx:88
 msgid "Enter a path that starts with a single /."
 msgstr ""
 
@@ -5649,7 +5658,7 @@ msgstr "输入一个可识别的时区以保存"
 msgid "Enter a slug."
 msgstr "请输入别名。"
 
-#: packages/admin/src/components/Redirects.tsx:79
+#: packages/admin/src/components/Redirects.tsx:106
 msgid "Enter a source path."
 msgstr ""
 
@@ -5827,7 +5836,7 @@ msgstr "此插件的每个已发布版本均已撤回或无法验证。请稍后
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "此内容类型参与的所有关联也将被删除："
 
-#: packages/admin/src/components/Redirects.tsx:516
+#: packages/admin/src/components/Redirects.tsx:695
 msgid "Exact group name..."
 msgstr ""
 
@@ -7099,7 +7108,7 @@ msgstr "来自媒体库的文件"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1433
 #: packages/admin/src/components/MediaDetailPanel.tsx:1438
-#: packages/admin/src/components/MediaLibrary.tsx:1162
+#: packages/admin/src/components/MediaLibrary.tsx:1168
 msgid "Filename"
 msgstr "文件名"
 
@@ -7147,7 +7156,7 @@ msgstr "按合集筛选"
 msgid "Filter by date range: {rangeLabel}"
 msgstr "按日期范围筛选：{rangeLabel}"
 
-#: packages/admin/src/components/Redirects.tsx:515
+#: packages/admin/src/components/Redirects.tsx:694
 msgid "Filter by group"
 msgstr ""
 
@@ -7160,13 +7169,13 @@ msgid "Filter by source"
 msgstr "按来源筛选"
 
 #: packages/admin/src/components/ContentList.tsx:1054
-#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:707
 msgid "Filter by status"
 msgstr "按状态筛选"
 
-#: packages/admin/src/components/MediaLibrary.tsx:942
+#: packages/admin/src/components/MediaLibrary.tsx:950
 #: packages/admin/src/components/MediaPickerModal.tsx:1327
-#: packages/admin/src/components/Redirects.tsx:535
+#: packages/admin/src/components/Redirects.tsx:714
 msgid "Filter by type"
 msgstr "按类型筛选"
 
@@ -7207,7 +7216,7 @@ msgstr "请先修正无效字段，再更改发布日期。"
 msgid "Fix invalid fields before changing the schedule"
 msgstr "请先修正无效字段，再更改定时发布。"
 
-#: packages/admin/src/components/Redirects.tsx:67
+#: packages/admin/src/components/Redirects.tsx:94
 msgid "Fix the percent-encoding in the path."
 msgstr ""
 
@@ -7248,19 +7257,19 @@ msgstr "文件夹编辑成功"
 msgid "Folder unavailable"
 msgstr "文件夹不可用"
 
-#: packages/admin/src/components/MediaLibrary.tsx:969
+#: packages/admin/src/components/MediaLibrary.tsx:977
 #: packages/admin/src/components/MediaPickerModal.tsx:1365
 msgid "Folders"
 msgstr "文件夹"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1541
-#: packages/admin/src/components/MediaLibrary.tsx:979
-#: packages/admin/src/components/MediaLibrary.tsx:1488
+#: packages/admin/src/components/MediaLibrary.tsx:987
+#: packages/admin/src/components/MediaLibrary.tsx:1492
 #: packages/admin/src/components/MediaPickerModal.tsx:1370
 msgid "Folders could not be loaded."
 msgstr "无法加载文件夹。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:774
+#: packages/admin/src/components/MediaLibrary.tsx:782
 msgid "Folders navigation"
 msgstr "文件夹导航"
 
@@ -7403,17 +7412,18 @@ msgstr "Google 验证"
 msgid "GraphQL"
 msgstr "GraphQL"
 
-#: packages/admin/src/components/MediaLibrary.tsx:897
+#: packages/admin/src/components/MediaLibrary.tsx:905
 #: packages/admin/src/components/MediaPickerModal.tsx:1283
 msgid "Grid view"
 msgstr "网格视图"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:578
-#: packages/admin/src/components/Redirects.tsx:630
+#: packages/admin/src/components/Redirects.tsx:484
+#: packages/admin/src/components/Redirects.tsx:815
 msgid "Group"
 msgstr "组"
 
-#: packages/admin/src/components/Redirects.tsx:267
+#: packages/admin/src/components/Redirects.tsx:294
 msgid "Group (optional)"
 msgstr "组（可选）"
 
@@ -7550,8 +7560,8 @@ msgstr "隐藏工具栏"
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "层级式（类似分类，具有父子关系）"
 
-#: packages/admin/src/components/Redirects.tsx:320
-#: packages/admin/src/components/Redirects.tsx:632
+#: packages/admin/src/components/Redirects.tsx:356
+#: packages/admin/src/components/Redirects.tsx:823
 msgid "Hits"
 msgstr "点击量"
 
@@ -7775,7 +7785,7 @@ msgstr "图片 URL"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:85
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
-#: packages/admin/src/components/MediaLibrary.tsx:937
+#: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
 msgid "Images"
 msgstr "图片"
@@ -7949,7 +7959,7 @@ msgstr "不兼容"
 msgid "Increase column width"
 msgstr "增加列宽"
 
-#: packages/admin/src/components/MediaLibrary.tsx:838
+#: packages/admin/src/components/MediaLibrary.tsx:846
 msgid "Index existing content and keep Used in results up to date."
 msgstr "为现有内容建立索引，并使结果中的「使用位置」保持最新。"
 
@@ -8372,7 +8382,7 @@ msgstr "上次登录"
 msgid "Last page"
 msgstr "最后一页"
 
-#: packages/admin/src/components/Redirects.tsx:321
+#: packages/admin/src/components/Redirects.tsx:359
 msgid "Last seen"
 msgstr "最后访问"
 
@@ -8422,10 +8432,10 @@ msgstr "不保存直接离开？"
 msgid "Left"
 msgstr "左侧"
 
-#: packages/admin/src/components/MediaLibrary.tsx:308
-#: packages/admin/src/components/MediaLibrary.tsx:426
-#: packages/admin/src/components/MediaLibrary.tsx:703
-#: packages/admin/src/components/MediaLibrary.tsx:1276
+#: packages/admin/src/components/MediaLibrary.tsx:316
+#: packages/admin/src/components/MediaLibrary.tsx:434
+#: packages/admin/src/components/MediaLibrary.tsx:711
+#: packages/admin/src/components/MediaLibrary.tsx:1284
 #: packages/admin/src/components/MediaPickerModal.tsx:381
 #: packages/admin/src/components/MediaPickerModal.tsx:398
 msgid "Library"
@@ -8543,7 +8553,7 @@ msgstr "列表"
 msgid "List each option only once."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:906
+#: packages/admin/src/components/MediaLibrary.tsx:914
 #: packages/admin/src/components/MediaPickerModal.tsx:1293
 msgid "List view"
 msgstr "列表视图"
@@ -8563,7 +8573,7 @@ msgstr "实时预览"
 #: packages/admin/src/components/ContentPickerModal.tsx:374
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:248
-#: packages/admin/src/components/Redirects.tsx:727
+#: packages/admin/src/components/Redirects.tsx:851
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -8573,14 +8583,14 @@ msgstr "加载更多"
 
 #: packages/admin/src/components/ContentList.tsx:894
 #: packages/admin/src/components/ContentList.tsx:957
-#: packages/admin/src/components/MediaLibrary.tsx:1269
+#: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/users/UserList.tsx:157
 msgid "Load More"
 msgstr "加载更多"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1560
-#: packages/admin/src/components/MediaLibrary.tsx:1009
-#: packages/admin/src/components/MediaLibrary.tsx:1206
+#: packages/admin/src/components/MediaLibrary.tsx:1017
+#: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1419
 msgid "Load more folders"
 msgstr "加载更多文件夹"
@@ -8636,8 +8646,8 @@ msgstr "正在加载编辑器..."
 msgid "Loading exports…"
 msgstr "正在加载导出…"
 
-#: packages/admin/src/components/MediaLibrary.tsx:953
-#: packages/admin/src/components/MediaLibrary.tsx:1174
+#: packages/admin/src/components/MediaLibrary.tsx:961
+#: packages/admin/src/components/MediaLibrary.tsx:1185
 #: packages/admin/src/components/MediaPickerModal.tsx:1388
 msgid "Loading folders"
 msgstr "正在加载文件夹"
@@ -8674,7 +8684,7 @@ msgstr "正在加载插件面板"
 msgid "Loading plugins..."
 msgstr "正在加载插件..."
 
-#: packages/admin/src/components/Redirects.tsx:609
+#: packages/admin/src/components/Redirects.tsx:788
 msgid "Loading redirects..."
 msgstr "正在加载重定向..."
 
@@ -8729,10 +8739,10 @@ msgstr "正在加载小部件..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:621
 #: packages/admin/src/components/MediaDetailPanel.tsx:623
 #: packages/admin/src/components/MediaDetailPanel.tsx:1720
-#: packages/admin/src/components/MediaLibrary.tsx:1269
+#: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3311
-#: packages/admin/src/components/Redirects.tsx:727
+#: packages/admin/src/components/Redirects.tsx:851
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:230
@@ -8869,7 +8879,7 @@ msgstr "管理您站点的导航菜单"
 msgid "Manage the people and teams credited on your content."
 msgstr "管理在您的内容中署名的人员和团队。"
 
-#: packages/admin/src/components/Redirects.tsx:494
+#: packages/admin/src/components/Redirects.tsx:673
 msgid "Manage URL redirects and view 404 errors."
 msgstr "管理 URL 重定向并查看 404 错误。"
 
@@ -8890,7 +8900,7 @@ msgstr "由外部媒体服务商管理"
 msgid "Managed by your identity provider. Change the name there."
 msgstr "由您的身份提供商管理。请在该处修改名称。"
 
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "Manual"
 msgstr "手动"
 
@@ -8904,11 +8914,11 @@ msgid "Map WordPress user {0} to EmDash user"
 msgstr "将 WordPress 用户 {0} 映射到 EmDash 用户"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:356
+#: packages/admin/src/components/Redirects.tsx:409
 msgid "Mark {0} as Gone (410)"
 msgstr "标记 {0} 已删除（410）"
 
-#: packages/admin/src/components/Redirects.tsx:355
+#: packages/admin/src/components/Redirects.tsx:344
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
 msgstr "标记为已删除（410）— 告知搜索引擎该内容已被永久删除"
 
@@ -9021,8 +9031,8 @@ msgid "visualEditing.mediaLibrary"
 msgstr "媒体库"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:171
-#: packages/admin/src/components/MediaLibrary.tsx:771
-#: packages/admin/src/components/MediaLibrary.tsx:786
+#: packages/admin/src/components/MediaLibrary.tsx:779
+#: packages/admin/src/components/MediaLibrary.tsx:794
 msgid "Media Library"
 msgstr "媒体库"
 
@@ -9030,7 +9040,7 @@ msgstr "媒体库"
 msgid "Media links were made relative"
 msgstr "媒体链接已改为相对路径"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1262
+#: packages/admin/src/components/MediaLibrary.tsx:1270
 #: packages/admin/src/components/MediaPickerModal.tsx:1596
 msgid "Media pagination"
 msgstr "媒体分页"
@@ -9048,7 +9058,7 @@ msgstr "媒体结果"
 msgid "Media usage tracking"
 msgstr "媒体用量跟踪"
 
-#: packages/admin/src/components/MediaLibrary.tsx:835
+#: packages/admin/src/components/MediaLibrary.tsx:843
 msgid "Media usage tracking is indexing existing content"
 msgstr "媒体用量跟踪正在索引已有内容"
 
@@ -9060,11 +9070,11 @@ msgstr "媒体用量跟踪已关闭"
 msgid "Media usage tracking is ready"
 msgstr "媒体用量跟踪已就绪"
 
-#: packages/admin/src/components/MediaLibrary.tsx:836
+#: packages/admin/src/components/MediaLibrary.tsx:844
 msgid "Media usage tracking is setting up"
 msgstr "媒体用量跟踪正在初始化"
 
-#: packages/admin/src/components/MediaLibrary.tsx:833
+#: packages/admin/src/components/MediaLibrary.tsx:841
 msgid "Media usage tracking needs attention"
 msgstr "媒体用量跟踪需要注意"
 
@@ -9409,7 +9419,7 @@ msgid "Moved an image"
 msgstr "移动了图片"
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:580
+#: packages/admin/src/components/MediaLibrary.tsx:588
 msgid "Moved to {0}"
 msgstr "已移到 {0}"
 
@@ -9550,7 +9560,7 @@ msgstr "新域名"
 msgid "New field"
 msgstr "新建字段"
 
-#: packages/admin/src/components/MediaLibrary.tsx:808
+#: packages/admin/src/components/MediaLibrary.tsx:816
 msgid "New folder"
 msgstr "新建文件夹"
 
@@ -9562,8 +9572,8 @@ msgstr "新的插件发现机制使用插件库。切换期间，已安装的市
 msgid "New public routes"
 msgstr "新增公共路由"
 
-#: packages/admin/src/components/Redirects.tsx:216
-#: packages/admin/src/components/Redirects.tsx:501
+#: packages/admin/src/components/Redirects.tsx:243
+#: packages/admin/src/components/Redirects.tsx:680
 msgid "New Redirect"
 msgstr "新重定向"
 
@@ -9667,12 +9677,11 @@ msgstr "暂无{0}。创建一个以开始使用。"
 msgid "No {label} found."
 msgstr "未找到{label}。"
 
-#: packages/admin/src/components/Redirects.tsx:312
+#: packages/admin/src/components/Redirects.tsx:340
 msgid "No 404 errors recorded yet."
 msgstr "暂无 404 错误记录。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1704
-#: packages/admin/src/components/MediaLibrary.tsx:1761
+#: packages/admin/src/components/MediaLibrary.tsx:1779
 msgid "No alt text"
 msgstr "无替代文本"
 
@@ -9822,7 +9831,7 @@ msgstr "未添加文件"
 msgid "No folders found"
 msgstr "未找到文件夹"
 
-#: packages/admin/src/components/Redirects.tsx:662
+#: packages/admin/src/components/Redirects.tsx:489
 msgid "No group"
 msgstr ""
 
@@ -9899,8 +9908,8 @@ msgstr "没有匹配的署名。"
 msgid "No matching content found."
 msgstr "未找到匹配的内容。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1028
-#: packages/admin/src/components/MediaLibrary.tsx:1072
+#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1080
 msgid "No matching media"
 msgstr "无匹配的媒体"
 
@@ -9921,11 +9930,11 @@ msgstr "无匹配的时区"
 msgid "No maximum"
 msgstr "无最大值"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1095
+#: packages/admin/src/components/MediaLibrary.tsx:1103
 msgid "No media available from this provider."
 msgstr "此服务商没有可用媒体。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1094
+#: packages/admin/src/components/MediaLibrary.tsx:1102
 #: packages/admin/src/components/MediaPickerModal.tsx:1457
 msgid "No media found"
 msgstr "未找到媒体"
@@ -9987,11 +9996,11 @@ msgstr "无可用的公开 URL"
 msgid "No recent activity"
 msgstr "暂无最近活动"
 
-#: packages/admin/src/components/Redirects.tsx:614
+#: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects match these filters"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:614
+#: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects yet"
 msgstr "暂无重定向"
 
@@ -10235,8 +10244,8 @@ msgstr "在新标签页中打开 {0}"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:182
-#: packages/admin/src/components/MediaLibrary.tsx:1375
-#: packages/admin/src/components/MediaLibrary.tsx:1446
+#: packages/admin/src/components/MediaLibrary.tsx:1383
+#: packages/admin/src/components/MediaLibrary.tsx:1449
 msgid "Open folder {0}"
 msgstr "打开文件夹 {0}"
 
@@ -10264,7 +10273,7 @@ msgstr "在新标签页中打开"
 msgid "Open read-only"
 msgstr "以只读方式打开"
 
-#: packages/admin/src/components/MediaLibrary.tsx:841
+#: packages/admin/src/components/MediaLibrary.tsx:849
 msgid "Open setup"
 msgstr "打开设置"
 
@@ -10459,8 +10468,8 @@ msgstr "已在表格前插入段落"
 msgid "Parent"
 msgstr "父级"
 
-#: packages/admin/src/components/Redirects.tsx:684
-#: packages/admin/src/components/Redirects.tsx:690
+#: packages/admin/src/components/Redirects.tsx:457
+#: packages/admin/src/components/Redirects.tsx:463
 msgid "Part of a redirect loop"
 msgstr "重定向循环的一部分"
 
@@ -10560,7 +10569,7 @@ msgstr ""
 msgid "Paste your migration key"
 msgstr "粘贴您的迁移密钥"
 
-#: packages/admin/src/components/Redirects.tsx:319
+#: packages/admin/src/components/Redirects.tsx:354
 msgid "Path"
 msgstr "路径"
 
@@ -10897,7 +10906,7 @@ msgstr "按空格拾取图片。使用方向键移动，然后按空格放下。
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
 #: packages/admin/src/components/MediaDetailPanel.tsx:1667
-#: packages/admin/src/components/MediaLibrary.tsx:1161
+#: packages/admin/src/components/MediaLibrary.tsx:1166
 msgid "Preview"
 msgstr "预览"
 
@@ -11283,7 +11292,7 @@ msgstr "未包含无父级的记录"
 msgid "Recovery link sent to {0}"
 msgstr "恢复链接已发送至 {0}"
 
-#: packages/admin/src/components/Redirects.tsx:595
+#: packages/admin/src/components/Redirects.tsx:774
 msgid "Redirect loop detected"
 msgstr "检测到重定向循环"
 
@@ -11291,8 +11300,8 @@ msgstr "检测到重定向循环"
 msgid "Redirecting to login..."
 msgstr "正在重定向到登录..."
 
-#: packages/admin/src/components/Redirects.tsx:493
-#: packages/admin/src/components/Redirects.tsx:552
+#: packages/admin/src/components/Redirects.tsx:672
+#: packages/admin/src/components/Redirects.tsx:731
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:481
@@ -11521,7 +11530,7 @@ msgstr "移除定时发布"
 msgid "Remove sub-field"
 msgstr "移除子字段"
 
-#: packages/admin/src/components/Redirects.tsx:69
+#: packages/admin/src/components/Redirects.tsx:96
 msgid "Remove the .. segments from the path."
 msgstr ""
 
@@ -11920,8 +11929,8 @@ msgstr "已退役"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
-#: packages/admin/src/components/MediaLibrary.tsx:973
-#: packages/admin/src/components/MediaLibrary.tsx:1491
+#: packages/admin/src/components/MediaLibrary.tsx:981
+#: packages/admin/src/components/MediaLibrary.tsx:1495
 #: packages/admin/src/components/MediaPickerModal.tsx:1259
 #: packages/admin/src/components/MediaPickerModal.tsx:1355
 #: packages/admin/src/components/MediaPickerModal.tsx:1377
@@ -12177,7 +12186,7 @@ msgstr "示例内容"
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
 #: packages/admin/src/components/PortableTextEditor.tsx:2820
-#: packages/admin/src/components/Redirects.tsx:286
+#: packages/admin/src/components/Redirects.tsx:313
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/Widgets.tsx:1070
@@ -12277,7 +12286,7 @@ msgstr "在此保存集合会将此字段变为条目选择器。其存储的条
 #: packages/admin/src/components/MenuEditor.tsx:906
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
-#: packages/admin/src/components/Redirects.tsx:283
+#: packages/admin/src/components/Redirects.tsx:310
 #: packages/admin/src/components/RelationFormPanel.tsx:151
 #: packages/admin/src/components/SaveButton.tsx:36
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
@@ -12452,7 +12461,7 @@ msgstr "搜索区块类型"
 msgid "Search blocks"
 msgstr "搜索区块"
 
-#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaLibrary.tsx:926
 #: packages/admin/src/components/MediaPickerModal.tsx:1306
 msgid "Search by filename..."
 msgstr "按文件名搜索..."
@@ -12526,7 +12535,7 @@ msgstr "搜索 IANA 时区（例如 Europe/London）"
 msgid "Search form"
 msgstr "搜索表单"
 
-#: packages/admin/src/components/MediaLibrary.tsx:919
+#: packages/admin/src/components/MediaLibrary.tsx:927
 #: packages/admin/src/components/MediaPickerModal.tsx:1308
 msgid "Search media"
 msgstr "搜索媒体"
@@ -12559,7 +12568,7 @@ msgstr "搜索可复用的公开资料。"
 msgid "Search sections..."
 msgstr "搜索区块..."
 
-#: packages/admin/src/components/Redirects.tsx:488
+#: packages/admin/src/components/Redirects.tsx:667
 msgid "Search source or destination..."
 msgstr "搜索源或目标..."
 
@@ -12595,7 +12604,7 @@ msgstr "搜索用户"
 msgid "Search will be turned off for some collections"
 msgstr "部分集合的搜索将被关闭"
 
-#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaLibrary.tsx:926
 #: packages/admin/src/components/MediaPickerModal.tsx:1306
 msgid "Search..."
 msgstr "搜索..."
@@ -12994,7 +13003,7 @@ msgstr "设为草稿"
 msgid "Set up an email provider in Email settings to email users."
 msgstr "在邮件设置中设置邮件服务商，以便给用户发送邮件。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:831
+#: packages/admin/src/components/MediaLibrary.tsx:839
 msgid "Set up media usage tracking"
 msgstr "设置媒体使用情况跟踪"
 
@@ -13281,12 +13290,12 @@ msgstr "搜索和社交元数据中的站点地图和绝对 URL 将使用新域�
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr "使用 Cloudflare D1 的站点还可通过 D1 Time Travel 将数据库恢复到过去 30 天内的任意分钟——始终开启，无需设置。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1164
+#: packages/admin/src/components/MediaLibrary.tsx:1173
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:280
 msgid "Size"
 msgstr "大小"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1472
+#: packages/admin/src/components/MediaLibrary.tsx:1476
 msgid "Size is not applicable to folders"
 msgstr "大小不适用于文件夹"
 
@@ -13446,12 +13455,12 @@ msgstr "排序主题"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:790
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
 #: packages/admin/src/components/PluginManager.tsx:653
-#: packages/admin/src/components/Redirects.tsx:627
+#: packages/admin/src/components/Redirects.tsx:808
 #: packages/admin/src/components/SectionEditor.tsx:316
 msgid "Source"
 msgstr "来源"
 
-#: packages/admin/src/components/Redirects.tsx:226
+#: packages/admin/src/components/Redirects.tsx:253
 msgid "Source path"
 msgstr "源路径"
 
@@ -13548,7 +13557,7 @@ msgstr "状态"
 #: packages/admin/src/components/ContentList.tsx:505
 #: packages/admin/src/components/ContentList.tsx:754
 #: packages/admin/src/components/ContentTypeEditor.tsx:141
-#: packages/admin/src/components/Redirects.tsx:633
+#: packages/admin/src/components/Redirects.tsx:825
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
@@ -13556,7 +13565,7 @@ msgstr "状态"
 msgid "Status"
 msgstr "状态"
 
-#: packages/admin/src/components/Redirects.tsx:252
+#: packages/admin/src/components/Redirects.tsx:279
 msgid "Status code"
 msgstr "状态码"
 
@@ -13933,7 +13942,7 @@ msgstr "导出的软件包和本次导入将以以下方式更改内容。"
 msgid "The file is not a valid EmDash site package."
 msgstr "此文件不是有效的 EmDash 站点软件包。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:590
+#: packages/admin/src/components/MediaLibrary.tsx:598
 msgid "The file or folder no longer exists."
 msgstr "文件或文件夹已不存在。"
 
@@ -14445,7 +14454,7 @@ msgstr "此文件不是可读的 EmDash 站点包。"
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr "此文件不是 EmDash 站点包：它必须以 manifest.json 开头。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1043
+#: packages/admin/src/components/MediaLibrary.tsx:1051
 msgid "This folder is empty"
 msgstr "此文件夹为空"
 
@@ -14571,11 +14580,11 @@ msgstr "此发布者的 handle 无法解析回其身份。在发布者修复其 
 msgid "This range has more than {maxEntries} entries"
 msgstr "此范围包含的条目超过 {maxEntries} 个"
 
-#: packages/admin/src/components/Redirects.tsx:761
+#: packages/admin/src/components/Redirects.tsx:885
 msgid "This redirect rule will be permanently removed."
 msgstr "此重定向规则将被永久移除。"
 
-#: packages/admin/src/components/Redirects.tsx:453
+#: packages/admin/src/components/Redirects.tsx:632
 msgid "This redirect was already deleted."
 msgstr ""
 
@@ -14903,7 +14912,7 @@ msgstr "回收站分页"
 msgid "True/false toggle"
 msgstr "真/假切换"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1032
+#: packages/admin/src/components/MediaLibrary.tsx:1040
 msgid "Try a broader media type or clear your filters."
 msgstr "尝试更广泛的媒体类型或清除筛选条件。"
 
@@ -14941,7 +14950,7 @@ msgstr "重试"
 msgid "Try Again"
 msgstr "重试"
 
-#: packages/admin/src/components/MediaLibrary.tsx:597
+#: packages/admin/src/components/MediaLibrary.tsx:605
 msgid "Try again."
 msgstr "重试。"
 
@@ -14953,12 +14962,12 @@ msgstr "重试。如果仍然失败，请检查服务器日志。"
 msgid "Try another code"
 msgstr "尝试其他代码"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1073
+#: packages/admin/src/components/MediaLibrary.tsx:1081
 #: packages/admin/src/components/MediaPickerModal.tsx:1460
 msgid "Try another filename or clear your search."
 msgstr "尝试其他文件名或清除搜索。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1031
+#: packages/admin/src/components/MediaLibrary.tsx:1039
 msgid "Try another filename, or clear your search and filters."
 msgstr "尝试其他文件名，或清除搜索和筛选条件。"
 
@@ -14967,7 +14976,7 @@ msgstr "尝试其他文件名，或清除搜索和筛选条件。"
 msgid "Try Another URL"
 msgstr "尝试其他 URL"
 
-#: packages/admin/src/components/Redirects.tsx:618
+#: packages/admin/src/components/Redirects.tsx:797
 msgid "Try changing or clearing your filters."
 msgstr ""
 
@@ -15023,7 +15032,7 @@ msgstr "两条记录在必须唯一的位置具有相同的值"
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
 #: packages/admin/src/components/FieldEditor.tsx:1659
-#: packages/admin/src/components/MediaLibrary.tsx:1163
+#: packages/admin/src/components/MediaLibrary.tsx:1170
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
 msgid "Type"
@@ -15050,7 +15059,7 @@ msgstr "输入以筛选"
 msgid "Type to search"
 msgstr "输入以搜索"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1468
+#: packages/admin/src/components/MediaLibrary.tsx:1472
 msgid "Type: Folder"
 msgstr "类型：文件夹"
 
@@ -15248,7 +15257,7 @@ msgstr "更新项目中的 emdash 包并重新部署以获取最新修复。"
 msgid "Update the profile for {0}."
 msgstr "更新 {0} 的资料。"
 
-#: packages/admin/src/components/Redirects.tsx:219
+#: packages/admin/src/components/Redirects.tsx:246
 msgid "Update this redirect rule."
 msgstr "更新此重定向规则。"
 
@@ -15293,7 +15302,7 @@ msgstr "更新中..."
 msgid "visualEditing.uploadImage"
 msgstr "上传"
 
-#: packages/admin/src/components/MediaLibrary.tsx:820
+#: packages/admin/src/components/MediaLibrary.tsx:828
 msgid "Upload"
 msgstr "上传"
 
@@ -15336,18 +15345,18 @@ msgstr "上传失败"
 msgid "Upload files"
 msgstr "上传文件"
 
-#: packages/admin/src/components/MediaLibrary.tsx:702
-#: packages/admin/src/components/MediaLibrary.tsx:1048
-#: packages/admin/src/components/MediaLibrary.tsx:1063
-#: packages/admin/src/components/MediaLibrary.tsx:1087
+#: packages/admin/src/components/MediaLibrary.tsx:710
+#: packages/admin/src/components/MediaLibrary.tsx:1056
+#: packages/admin/src/components/MediaLibrary.tsx:1071
+#: packages/admin/src/components/MediaLibrary.tsx:1095
 msgid "Upload Files"
 msgstr "上传文件"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1044
+#: packages/admin/src/components/MediaLibrary.tsx:1052
 msgid "Upload files here or move media here from Media Details."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1060
+#: packages/admin/src/components/MediaLibrary.tsx:1068
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "上传图片、视频和文档，将可复用的素材集中存放。"
 
@@ -15355,7 +15364,7 @@ msgstr "上传图片、视频和文档，将可复用的素材集中存放。"
 msgid "Upload Media"
 msgstr "上传媒体"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1084
+#: packages/admin/src/components/MediaLibrary.tsx:1092
 msgid "Upload media to keep reusable assets in one place."
 msgstr "上传媒体，将可复用的素材集中存放。"
 
@@ -15372,7 +15381,7 @@ msgid "Upload site packages and check whether they can be imported. Admin includ
 msgstr "上传站点包并检查是否可以导入。管理员权限包含此项；选择它而非管理员权限，可为代理授予更窄的访问权限。"
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:703
+#: packages/admin/src/components/MediaLibrary.tsx:711
 msgid "Upload to {0}"
 msgstr "上传至 {0}"
 
@@ -15480,7 +15489,7 @@ msgstr "用量已加载"
 msgid "Usage may be out of date."
 msgstr "用量可能已过期。"
 
-#: packages/admin/src/components/Redirects.tsx:220
+#: packages/admin/src/components/Redirects.tsx:247
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "在路径中使用 [param] 或 [...rest] 进行模式匹配。"
 
@@ -15709,7 +15718,7 @@ msgstr "版本已恢复"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
-#: packages/admin/src/components/MediaLibrary.tsx:938
+#: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407
 #: packages/admin/src/components/PortableTextEditor.tsx:3799
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:485
@@ -15733,7 +15742,7 @@ msgstr "查看邮件提供商状态并发送测试邮件"
 msgid "View live"
 msgstr "查看线上"
 
-#: packages/admin/src/components/MediaLibrary.tsx:884
+#: packages/admin/src/components/MediaLibrary.tsx:892
 #: packages/admin/src/components/MediaPickerModal.tsx:1266
 msgid "View mode"
 msgstr "查看模式"
@@ -15742,7 +15751,7 @@ msgstr "查看模式"
 msgid "View published"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:841
+#: packages/admin/src/components/MediaLibrary.tsx:849
 msgid "View setup"
 msgstr "查看设置"
 
@@ -15762,7 +15771,7 @@ msgstr "在 spdx.org 上查看 {license} 许可证"
 msgid "Viewing the version from {when} by {name}."
 msgstr "正在查看 {name} 在 {when} 的版本。"
 
-#: packages/admin/src/components/Redirects.tsx:601
+#: packages/admin/src/components/Redirects.tsx:780
 msgid "Visitors hitting these paths will see an error."
 msgstr "访问这些路径的用户将看到错误。"
 
@@ -16062,7 +16071,7 @@ msgstr "WordPress 授权被拒绝"
 msgid "WordPress Username"
 msgstr "WordPress 用户名"
 
-#: packages/admin/src/components/DataTable.tsx:137
+#: packages/admin/src/components/DataTable.tsx:359
 msgid "Working on {selectedCount} items…"
 msgstr "正在处理 {selectedCount} 个项目…"
 
@@ -16162,7 +16171,7 @@ msgstr "您无法更改自己的角色"
 msgid "You do not have permission to edit this asset."
 msgstr "您没有编辑此素材的权限。"
 
-#: packages/admin/src/components/MediaLibrary.tsx:595
+#: packages/admin/src/components/MediaLibrary.tsx:603
 msgid "You don’t have permission to move this file."
 msgstr "您没有移动此文件的权限。"
 
@@ -16309,8 +16318,8 @@ msgstr "您的 Instagram 用户名"
 msgid "Your LinkedIn profile username"
 msgstr "您的 LinkedIn 个人资料用户名"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1059
-#: packages/admin/src/components/MediaLibrary.tsx:1083
+#: packages/admin/src/components/MediaLibrary.tsx:1067
+#: packages/admin/src/components/MediaLibrary.tsx:1091
 msgid "Your media library is empty"
 msgstr "您的媒体库为空"
 
