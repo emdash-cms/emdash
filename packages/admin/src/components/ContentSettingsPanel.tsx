@@ -47,6 +47,7 @@ import {
 	type ContentPublishingState,
 } from "../lib/content-publishing-state.js";
 import { useConfirmedRequest } from "../lib/dialog-form.js";
+import { getSeoFallbackTitle } from "../lib/entryTitle.js";
 import { usePluginAdmins } from "../lib/plugin-context";
 import {
 	formatPublishingInstant,
@@ -1184,7 +1185,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								contentKey={item?.id ?? `new:${collection}`}
 								seo={item?.seo}
 								onChange={onSeoChange}
-								defaultTitle={typeof item?.data?.title === "string" ? item.data.title : null}
+								defaultTitle={
+									item
+										? getSeoFallbackTitle(item.data, manifest?.collections[collection]?.titleField)
+										: null
+								}
 								defaultDescription={
 									typeof item?.data?.excerpt === "string" ? item.data.excerpt : null
 								}

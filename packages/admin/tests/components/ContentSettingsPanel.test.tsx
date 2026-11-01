@@ -48,10 +48,6 @@ vi.mock("../../src/components/editor/ImageDetailPanel", () => ({
 	ImageDetailPanel: () => <div data-testid="image-detail-panel">Image details</div>,
 }));
 
-vi.mock("../../src/components/SeoPanel", () => ({
-	SeoPanel: () => <div data-testid="seo-panel">SEO fields</div>,
-}));
-
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
 	return {
@@ -234,6 +230,34 @@ describe("ContentSettingsPanel", () => {
 		const taxonomySection = screen.getByTestId("taxonomy-sidebar").element().closest("section");
 		const seoSection = screen.getByRole("heading", { name: "SEO" }).element().closest("section");
 		expect(taxonomySection?.nextElementSibling).toBe(seoSection);
+	});
+
+	it("shows the collection's titleField value as the SEO Title placeholder", async () => {
+		const manifest: AdminManifest = {
+			...TEST_MANIFEST,
+			collections: {
+				posts: {
+					label: "Posts",
+					labelSingular: "Post",
+					supports: ["seo"],
+					hasSeo: true,
+					titleField: "headline",
+					fields: {},
+				},
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					manifest,
+					item: makeItem({ data: { title: "Senior Engineer", headline: "Ada Lovelace" } }),
+				})}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByLabelText("SEO Title"))
+			.toHaveAttribute("placeholder", "Ada Lovelace");
 	});
 
 	it("keeps URL and language fields outside the Publish section", async () => {
@@ -1105,7 +1129,7 @@ describe("ContentSettingsPanel", () => {
 		);
 
 		await expect.element(screen.getByRole("heading", { name: "Publish" })).toBeInTheDocument();
-		expect(screen.container.querySelector('[data-testid="seo-panel"]')).toBeNull();
+		expect(screen.getByLabelText("SEO Title").query()).toBeNull();
 		expect(screen.container.querySelector('[data-testid="revision-history"]')).toBeNull();
 		expect(screen.container.querySelector('[data-testid="doc-outline"]')).toBeNull();
 		expect(screen.container.textContent).not.toContain("Translations");
@@ -1123,7 +1147,7 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.container.textContent).not.toContain("Move to Trash");
 		expect(screen.container.textContent).not.toContain("Translations");
 		expect(screen.container.querySelector('[data-testid="taxonomy-sidebar"]')).toBeNull();
-		expect(screen.container.querySelector('[data-testid="seo-panel"]')).toBeNull();
+		expect(screen.getByLabelText("SEO Title").query()).toBeNull();
 		expect(screen.container.querySelector('[data-testid="revision-history"]')).toBeNull();
 	});
 
