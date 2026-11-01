@@ -4,6 +4,7 @@ import type { BlockType } from "../../src/lib/api/schema.js";
 import {
 	createBlockValue,
 	duplicateBlockValue,
+	insertBlockValue,
 	moveBlockValue,
 	updateBlockFieldValue,
 } from "../../src/lib/block-field-state.js";
@@ -84,5 +85,30 @@ describe("block field state", () => {
 			{ _type: "hero", _version: 1, _key: "one", heading: "After" },
 			blocks[1],
 		]);
+	});
+
+	it("inserts a block at a position clamped to the list", () => {
+		const blocks = [
+			{ _type: "hero", _version: 1, _key: "one" },
+			{ _type: "hero", _version: 1, _key: "two" },
+		];
+		const block = { _type: "hero", _version: 2, _key: "new" };
+
+		expect(insertBlockValue(blocks, block, 1).map(({ _key }) => _key)).toEqual([
+			"one",
+			"new",
+			"two",
+		]);
+		expect(insertBlockValue(blocks, block, 5).map(({ _key }) => _key)).toEqual([
+			"one",
+			"two",
+			"new",
+		]);
+		expect(insertBlockValue(blocks, block, -1).map(({ _key }) => _key)).toEqual([
+			"new",
+			"one",
+			"two",
+		]);
+		expect(blocks).toHaveLength(2);
 	});
 });

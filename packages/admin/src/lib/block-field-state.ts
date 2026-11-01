@@ -32,6 +32,16 @@ export function duplicateBlockValue(block: StoredBlockValue, key: string): Store
 	return { ...cloneValue(block), _key: key };
 }
 
+export function insertBlockValue(
+	blocks: readonly StoredBlockValue[],
+	block: StoredBlockValue,
+	index: number,
+): StoredBlockValue[] {
+	const next = [...blocks];
+	next.splice(Math.max(0, Math.min(index, next.length)), 0, block);
+	return next;
+}
+
 export function moveBlockValue(
 	blocks: readonly StoredBlockValue[],
 	from: number,

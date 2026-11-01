@@ -21,6 +21,8 @@ The following seed defines Hero and Feature grid blocks, then makes them availab
     {
       "slug": "hero",
       "label": "Hero",
+      "description": "A heading, body text and an image",
+      "icon": "sparkle",
       "category": "Layout",
       "currentVersion": 1,
       "versions": [
@@ -39,6 +41,8 @@ The following seed defines Hero and Feature grid blocks, then makes them availab
     {
       "slug": "feature_grid",
       "label": "Feature grid",
+      "description": "A heading and a grid of features",
+      "icon": "squares-four",
       "category": "Layout",
       "currentVersion": 1,
       "versions": [
@@ -83,7 +87,9 @@ The following seed defines Hero and Feature grid blocks, then makes them availab
 }
 ```
 
-The order of `allowedTypes` controls the block picker. If you remove an allowed type later, EmDash moves it to the server-managed `retiredTypes` list. Existing blocks remain editable, but editors cannot add or duplicate that type.
+The block picker lists block types in `allowedTypes` order, grouped by `category`, and shows each type's `description` and `icon`. Set `icon` to a [Phosphor icon](https://phosphoricons.com/) name, such as `sparkle` or `chart-bar`; editors also see it on each block in the content editor. A block type without an icon, or with a name that doesn't match a Phosphor icon, shows a generic block icon.
+
+If you remove an allowed type later, EmDash moves it to the server-managed `retiredTypes` list. Existing blocks remain editable, but editors cannot add or duplicate that type.
 
 ## Create the Astro components
 
