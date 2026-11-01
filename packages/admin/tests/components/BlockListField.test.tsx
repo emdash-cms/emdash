@@ -438,6 +438,8 @@ function quotesOf(onValue: ReturnType<typeof vi.fn>): unknown {
 async function itemMenu(name: string, action: string) {
 	await page.getByRole("button", { name: `${name} actions`, exact: true }).click();
 	await page.getByRole("menuitem", { name: action }).click();
+	// Wait out the close animation: a closing menu still holds its items, and Delete runs only after it.
+	await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
 }
 
 describe("Expandable items inside a block", () => {
