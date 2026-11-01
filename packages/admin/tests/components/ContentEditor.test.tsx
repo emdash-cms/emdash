@@ -3526,6 +3526,52 @@ describe("ContentEditor", () => {
 			expect(portableTextProps.current?.editable).toBe(false);
 		});
 
+		it("shows the fields of every block in a read-only entry", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({
+					data: {
+						title: "Test",
+						layout: [{ _type: "event", _version: 1, _key: "first", seats: 40 }],
+					},
+				}),
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					layout: {
+						kind: "blocks",
+						label: "Layout",
+						validation: { allowedTypes: ["event"], retiredTypes: [] },
+						blockTypes: [
+							{
+								id: "event-type",
+								slug: "event",
+								label: "Event",
+								currentVersion: 1,
+								source: "user",
+								createdAt: "2026-01-01T00:00:00.000Z",
+								updatedAt: "2026-01-01T00:00:00.000Z",
+								versions: [
+									{
+										id: "event-v1",
+										blockTypeId: "event-type",
+										version: 1,
+										fields: [{ slug: "seats", label: "Seats", type: "integer" }],
+										fingerprint: "one",
+										active: true,
+										createdAt: "2026-01-01T00:00:00.000Z",
+										updatedAt: "2026-01-01T00:00:00.000Z",
+									},
+								],
+							},
+						],
+					},
+				},
+				readOnly: true,
+			});
+
+			await expect.element(screen.getByLabelText("Seats", { exact: true })).toHaveValue(40);
+		});
+
 		it("can still leave distraction-free mode while the entry is read-only", async () => {
 			const screen = await renderEditor({ isNew: false, item: makeItem(), readOnly: true });
 
