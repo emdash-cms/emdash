@@ -145,9 +145,14 @@ export function whenFocusLeaves(event: React.FocusEvent<HTMLElement>, callback: 
 		return;
 	}
 	// Clicking something that can't take focus blurs with no relatedTarget, and so does leaving
-	// the window; only the first moves focus to the page.
+	// the window; only the first moves focus to the page. Safari doesn't focus a clicked button
+	// either, so a click that lands inside the element, still under the pointer, stays in it.
 	queueMicrotask(() => {
-		if (document.hasFocus() && leftFor(container, document.activeElement ?? document.body)) {
+		if (
+			document.hasFocus() &&
+			!container.matches(":hover") &&
+			leftFor(container, document.activeElement ?? document.body)
+		) {
 			callback();
 		}
 	});

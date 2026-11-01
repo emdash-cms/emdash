@@ -271,6 +271,18 @@ describe("Type-in lists inside a block", () => {
 		emptySpace.remove();
 	});
 
+	it("keeps blank lines when focus drops to the page from a click inside the list", async () => {
+		await renderHarness({ initial: [clientsBlock(["Hotel Wilde"])] });
+		await openBlock("Clients");
+
+		await line(1).click();
+		await userEvent.keyboard("{Enter}");
+		await userEvent.hover(page.getByRole("list", { name: "Clients" }));
+		(document.activeElement as HTMLElement).blur();
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(lineValues()).toEqual(["Hotel Wilde", ""]);
+	});
+
 	it("keeps a blank line while its menu is open", async () => {
 		await renderHarness({ initial: [clientsBlock(["Hotel Wilde", "Norma"])] });
 		await openBlock("Clients");
