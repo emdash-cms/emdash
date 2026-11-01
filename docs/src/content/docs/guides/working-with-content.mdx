@@ -214,9 +214,9 @@ scheduled, the dashboard's **Scheduled** count also links to it.
 
 The calendar has two views:
 
-- **Month** shows a grid of days. Published entries appear as plain lines and scheduled entries as
-  cards. Hover over or focus an entry to see its full title, state, time, and collection. When a day
-  has more entries than fit, select **+N more** to list them all.
+- **Month** shows the month's weeks at the height of the window. Each entry is one line with its
+  title and, when there is room, its time. Hover over or focus an entry to see its full title, state,
+  time, and collection. When a day has more entries than fit, select **+N more** to list them all.
 - **Agenda** lists the month by day, with each entry's time. In the current month, days before today
   start collapsed unless one of them has an overdue entry, and a red line marks the present.
 
@@ -228,16 +228,32 @@ in the editor in a new tab. The panel shows the entry's state, time, collection,
 translations, bylines, and when it was last edited. From the panel you can open the entry in the
 editor, preview scheduled changes, or view a published entry on the site. If you can publish the
 entry (Authors for their own entries, and Editors and higher roles for any entry), you can also
-reschedule it, remove its schedule, or publish an overdue entry now. On a phone, the panel opens as a
-sheet at the bottom of the screen.
+reschedule it, remove its schedule, or publish an overdue entry now. On a wide screen the panel sits
+beside the calendar; select another entry to switch to it, or select empty space to close it. On a
+phone, the panel opens as a sheet at the bottom of the screen; swipe it down to close it.
+
+### Reschedule by dragging
+
+If you can publish a scheduled entry, drag it to another day in **Month** to move it there at the
+same time. The confirmation offers **Undo**. On a touch screen, press and hold the entry before
+dragging it. Days and times that have already passed can't be scheduled, so the calendar refuses
+those drops.
+
+### Filter and navigate
 
 Use **Filter** to narrow both views by collection and state, and by locale on multilingual sites. The
 filters, the view, the month, and the open entry are kept in the page URL, so you can bookmark or
 share it.
 
+The calendar responds to these keys when focus isn't in a text field or menu:
+
+- <kbd>T</kbd> goes to today.
+- <kbd>J</kbd> and <kbd>K</kbd> go to the next and previous month.
+- <kbd>M</kbd> and <kbd>A</kbd> switch to **Month** and **Agenda**.
+
 Entries are placed on days in the site's time zone, which the calendar names beside the month. If
-your browser uses a different time zone, the calendar says so, and entry times also appear in your
-own time zone.
+your browser uses a different time zone, the calendar says so, and the side panel and entry tooltips
+also show each time in your own time zone.
 
 The calendar shows:
 

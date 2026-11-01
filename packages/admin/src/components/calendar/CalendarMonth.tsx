@@ -22,15 +22,15 @@ import {
 import { cn } from "../../lib/utils.js";
 import { useDateLocale } from "../../locales/date-locale.js";
 import { getLocaleDir } from "../../locales/index.js";
-import {
-	CalendarDayList,
-	CalendarEntryChip,
-	CalendarNowLine,
-	type CalendarSelectHandler,
-} from "./CalendarEntry.js";
+import { useCalendarDrop } from "./CalendarDrag.js";
+import { CalendarDayList, CalendarEntryChip, type CalendarSelectHandler } from "./CalendarEntry.js";
 
-/** A cell shows every entry up to this many; past it, one fewer plus "+N more". */
-const MAX_CHIPS = 4;
+/** Month cells are never shorter than this, so short windows scroll the grid instead. */
+const MIN_ROW_HEIGHT = 92;
+/** A cell's padding, its day number, and the gap below it. */
+const CELL_CHROME = 30;
+/** One chip and the gap after it; see `CalendarEntryChip`. */
+const CHIP_STEP = 24;
 const MAX_DOTS = 3;
 
 const DOT_COLORS: Record<CalendarState, string> = {
@@ -45,10 +45,7 @@ interface CalendarMonthProps {
 	/** Every day the grid shows, whole weeks from the locale's first weekday. */
 	gridDays: readonly string[];
 	days: ReadonlyMap<string, CalendarItem[]>;
-	/**
-	 * Every loaded entry by day, before filters. Cells keep room for any of
-	 * these a filter could show, so filtering doesn't move the grid.
-	 */
+	/** Every loaded entry by day, before filters; the phone picker opens on the first of these. */
 	unfilteredDays?: ReadonlyMap<string, CalendarItem[]>;
 	today: string;
 	now: number;
@@ -60,6 +57,8 @@ interface CalendarMonthProps {
 	compact?: boolean;
 	selectedKey?: string;
 	onSelect?: CalendarSelectHandler;
+	/** Whether the user may drag the entry to another day. */
+	canMove?: (item: CalendarItem) => boolean;
 	onMonthChange: (month: string) => void;
 	/** Filters are on; when they hide every entry, a notice offers to clear them. */
 	onClearFilters?: () => void;
@@ -67,17 +66,6 @@ interface CalendarMonthProps {
 
 export function CalendarMonth(props: CalendarMonthProps) {
 	return props.compact ? <CalendarMonthPicker {...props} /> : <CalendarMonthGrid {...props} />;
-}
-
-/**
- * The entries whose chips take the most room any filter could show at once:
- * raised cards before flat ones, as many as a cell shows unfolded. A folded
- * cell never needs more, since "+N more" is no taller than a flat chip.
- */
-function roomiestEntries(items: readonly CalendarItem[]): CalendarItem[] {
-	return items
-		.toSorted((a, b) => Number(a.state === "published") - Number(b.state === "published"))
-		.slice(0, MAX_CHIPS);
 }
 
 function nowIndex(items: readonly CalendarItem[], now: number): number {
@@ -106,11 +94,39 @@ function CalendarFilteredNotice({
 	);
 }
 
+/**
+ * Splits the space below the weekday row evenly between the weeks, and works
+ * out how many chips fit in a cell.
+ */
+function useRowLayout(ref: React.RefObject<HTMLElement | null>, weeks: number) {
+	const [layout, setLayout] = React.useState({ height: MIN_ROW_HEIGHT, chips: 2 });
+	React.useLayoutEffect(() => {
+		const element = ref.current;
+		if (!element) return;
+		const measure = () => {
+			const head = element.querySelector("thead")?.getBoundingClientRect().height ?? 0;
+			// The grid's border takes 2px.
+			const height = Math.max(
+				MIN_ROW_HEIGHT,
+				Math.floor((element.clientHeight - head - 2) / weeks),
+			);
+			const chips = Math.max(1, Math.floor((height - CELL_CHROME + 2) / CHIP_STEP));
+			setLayout((previous) =>
+				previous.height === height && previous.chips === chips ? previous : { height, chips },
+			);
+		};
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(element);
+		return () => observer.disconnect();
+	}, [ref, weeks]);
+	return layout;
+}
+
 function CalendarMonthGrid({
 	month,
 	gridDays,
 	days,
-	unfilteredDays,
 	today,
 	now,
 	display,
@@ -118,6 +134,7 @@ function CalendarMonthGrid({
 	loadedThrough,
 	selectedKey,
 	onSelect,
+	canMove,
 	onClearFilters,
 }: CalendarMonthProps) {
 	const weeks = React.useMemo(
@@ -127,53 +144,60 @@ function CalendarMonthGrid({
 			),
 		[gridDays],
 	);
+	const containerRef = React.useRef<HTMLDivElement>(null);
+	const { height, chips } = useRowLayout(containerRef, weeks.length);
 	const filteredEmpty =
 		Boolean(onClearFilters) && !loading && !gridDays.some((day) => days.has(day));
 
 	return (
 		<TooltipProvider delay={400}>
-			<div className="relative overflow-hidden rounded-lg border border-kumo-line bg-kumo-base">
-				<table className="w-full table-fixed border-collapse">
-					<thead>
-						<tr>
-							{weeks[0]?.map((day) => (
-								<th
-									key={day}
-									scope="col"
-									aria-label={display.weekday(day)}
-									className="px-2 pt-2 pb-1.5 text-end text-xs font-normal text-kumo-subtle"
-								>
-									{display.weekdayShort(day)}
-								</th>
-							))}
-						</tr>
-					</thead>
-					<tbody>
-						{weeks.map((week) => (
-							<tr key={week[0]}>
-								{week.map((day) => (
-									<CalendarMonthCell
+			{/* The grid scrolls inside a box sized by the page alone, so the rows it is measured
+			    for can't grow the box. */}
+			<div ref={containerRef} className="relative min-h-[30rem] flex-1">
+				<div className="absolute inset-0 overflow-y-auto rounded-lg border border-kumo-line bg-kumo-base">
+					<table className="w-full table-fixed border-collapse">
+						<thead>
+							<tr>
+								{weeks[0]?.map((day) => (
+									<th
 										key={day}
-										day={day}
-										items={days.get(day) ?? []}
-										reservedItems={unfilteredDays?.get(day)}
-										inMonth={day.startsWith(month)}
-										loaded={loadedThrough === undefined || day < loadedThrough}
-										today={today}
-										now={now}
-										display={display}
-										selectedKey={selectedKey}
-										onSelect={onSelect}
-									/>
+										scope="col"
+										aria-label={display.weekday(day)}
+										className="px-2 pt-2 pb-1.5 text-end text-xs font-normal text-kumo-subtle"
+									>
+										{display.weekdayShort(day)}
+									</th>
 								))}
 							</tr>
-						))}
-					</tbody>
-				</table>
+						</thead>
+						<tbody>
+							{weeks.map((week) => (
+								<tr key={week[0]} style={{ height }}>
+									{week.map((day) => (
+										<CalendarMonthCell
+											key={day}
+											day={day}
+											items={days.get(day) ?? []}
+											chips={chips}
+											inMonth={day.startsWith(month)}
+											loaded={loadedThrough === undefined || day < loadedThrough}
+											today={today}
+											now={now}
+											display={display}
+											selectedKey={selectedKey}
+											onSelect={onSelect}
+											canMove={canMove}
+										/>
+									))}
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
 				{filteredEmpty &&
 					onClearFilters && (
 						// An overlay, so showing it doesn't resize the grid.
-						<div className="absolute inset-0 flex items-center justify-center bg-radial from-kumo-base/90 via-kumo-base/60 to-kumo-base/30 p-4 backdrop-blur-xs transition-opacity duration-200 starting:opacity-0 motion-reduce:transition-none">
+						<div className="absolute inset-0 flex items-center justify-center rounded-lg bg-radial from-kumo-base/90 via-kumo-base/60 to-kumo-base/30 p-4 backdrop-blur-xs transition-opacity duration-200 starting:opacity-0 motion-reduce:transition-none">
 							<CalendarFilteredNotice
 								cutOff={loadedThrough !== undefined}
 								onClearFilters={onClearFilters}
@@ -188,8 +212,8 @@ function CalendarMonthGrid({
 interface CalendarMonthCellProps {
 	day: string;
 	items: readonly CalendarItem[];
-	/** The day's entries before filters; the cell keeps room for any of them a filter could show. */
-	reservedItems?: readonly CalendarItem[];
+	/** How many chips fit; past that, one fewer plus "+N more". */
+	chips: number;
 	inMonth: boolean;
 	/** False from the day the entry cap cut the range off, which may be only partly loaded. */
 	loaded: boolean;
@@ -198,12 +222,13 @@ interface CalendarMonthCellProps {
 	display: CalendarDisplay;
 	selectedKey?: string;
 	onSelect?: CalendarSelectHandler;
+	canMove?: (item: CalendarItem) => boolean;
 }
 
 function CalendarMonthCell({
 	day,
 	items,
-	reservedItems,
+	chips,
 	inMonth,
 	loaded,
 	today,
@@ -211,33 +236,34 @@ function CalendarMonthCell({
 	display,
 	selectedKey,
 	onSelect,
+	canMove,
 }: CalendarMonthCellProps) {
 	const { t } = useLingui();
+	const drop = useCalendarDrop(day, today);
 	const isToday = day === today;
-	// Unfiltered, a cell showing every entry already takes that room.
-	const reserveRoom =
-		reservedItems !== undefined &&
-		(reservedItems.length > MAX_CHIPS || items.length < reservedItems.length);
 	const label = day.endsWith("-01") ? display.monthDayShort(day) : display.dayNumber(day);
+	const visible = items.length > chips ? items.slice(0, chips - 1) : items;
 
 	return (
 		<td
+			ref={drop.ref}
 			aria-current={isToday ? "date" : undefined}
 			className={cn(
 				"border-s border-t border-kumo-line p-1 align-top first:border-s-0",
 				(!inMonth || display.isWeekend(day)) && "bg-kumo-elevated",
+				drop.highlighted && "bg-kumo-tint",
 			)}
 		>
-			<div className="flex min-h-28 min-w-0 flex-col gap-1">
-				<div className="flex justify-end">
+			<div className="flex min-w-0 flex-col gap-0.5">
+				<div className="flex h-5 justify-end">
 					{isToday ? (
-						<Badge variant="red" className="h-6 min-w-6 justify-center px-1.5 tabular-nums">
+						<Badge variant="red" className="h-5 min-w-5 justify-center px-1.5 tabular-nums">
 							{label}
 						</Badge>
 					) : (
 						<span
 							className={cn(
-								"inline-flex h-6 min-w-6 items-center justify-center px-1.5 text-xs tabular-nums",
+								"inline-flex h-5 min-w-5 items-center justify-center px-1.5 text-xs tabular-nums",
 								!inMonth
 									? "text-kumo-inactive"
 									: day < today
@@ -249,111 +275,49 @@ function CalendarMonthCell({
 						</span>
 					)}
 				</div>
-				<div className="grid min-w-0">
-					{reserveRoom && (
-						<div className="invisible col-start-1 row-start-1 min-w-0">
-							<CalendarCellEntries
-								day={day}
-								items={roomiestEntries(reservedItems)}
-								today={today}
-								now={now}
-								display={display}
-							/>
-						</div>
-					)}
-					<div className="col-start-1 row-start-1 min-w-0">
-						{items.length > 0 && (
-							<CalendarCellEntries
-								day={day}
-								items={items}
-								today={today}
-								now={now}
-								display={display}
-								selectedKey={selectedKey}
-								onSelect={onSelect}
-							/>
+				{items.length > 0 && (
+					<ul aria-label={display.fullDate(day)} className="grid min-w-0 gap-0.5">
+						{visible.map((item) => (
+							<li key={item.key} className="grid min-w-0">
+								<CalendarEntryChip
+									item={item}
+									display={display}
+									now={now}
+									selected={item.key === selectedKey}
+									onSelect={onSelect}
+									movable={canMove?.(item)}
+								/>
+							</li>
+						))}
+						{visible.length < items.length && (
+							<li>
+								<CalendarMorePopover
+									day={day}
+									items={items}
+									hidden={items.length - visible.length}
+									display={display}
+									now={now}
+									nowAt={isToday ? nowIndex(items, now) : undefined}
+									selectedKey={selectedKey}
+									onSelect={onSelect}
+								/>
+							</li>
 						)}
-						{items.length === 0 && !loaded && (
-							<p className="px-1 text-xs text-kumo-inactive">{t`Not loaded`}</p>
-						)}
-					</div>
-				</div>
+					</ul>
+				)}
+				{items.length === 0 && !loaded && (
+					<p className="px-1 text-xs text-kumo-inactive">{t`Not loaded`}</p>
+				)}
 			</div>
 		</td>
-	);
-}
-
-function CalendarCellEntries({
-	day,
-	items,
-	today,
-	now,
-	display,
-	selectedKey,
-	onSelect,
-}: {
-	day: string;
-	items: readonly CalendarItem[];
-	today: string;
-	now: number;
-	display: CalendarDisplay;
-	selectedKey?: string;
-	onSelect?: CalendarSelectHandler;
-}) {
-	const visible = items.length > MAX_CHIPS ? items.slice(0, MAX_CHIPS - 1) : items;
-	const nowAt = day === today ? nowIndex(items, now) : undefined;
-	// The line goes among the chips, or after "+N more" once every entry is past;
-	// when the present falls among the folded entries, only the popover shows it.
-	const lineAt =
-		nowAt === undefined || nowAt <= visible.length
-			? nowAt
-			: nowAt === items.length
-				? items.length
-				: undefined;
-	const nowLine = (
-		<li key="now" aria-hidden="true" className="px-0.5">
-			<CalendarNowLine />
-		</li>
-	);
-
-	return (
-		<ul aria-label={display.fullDate(day)} className="@container grid min-w-0 gap-1">
-			{visible.map((item, index) => (
-				<React.Fragment key={item.key}>
-					{index === lineAt && nowLine}
-					<li className="grid min-w-0">
-						<CalendarEntryChip
-							item={item}
-							display={display}
-							now={now}
-							selected={item.key === selectedKey}
-							onSelect={onSelect}
-						/>
-					</li>
-				</React.Fragment>
-			))}
-			{lineAt === visible.length && nowLine}
-			{visible.length < items.length && (
-				<li>
-					<CalendarMorePopover
-						day={day}
-						items={items}
-						display={display}
-						now={now}
-						nowAt={nowAt}
-						selectedKey={selectedKey}
-						onSelect={onSelect}
-					/>
-				</li>
-			)}
-			{visible.length < items.length && lineAt === items.length && nowLine}
-		</ul>
 	);
 }
 
 interface CalendarMorePopoverProps {
 	day: string;
 	items: readonly CalendarItem[];
+	/** How many of the day's entries the cell leaves out. */
+	hidden: number;
 	display: CalendarDisplay;
 	now: number;
 	nowAt?: number;
@@ -364,6 +328,7 @@ interface CalendarMorePopoverProps {
 function CalendarMorePopover({
 	day,
 	items,
+	hidden,
 	display,
 	now,
 	nowAt,
@@ -372,7 +337,6 @@ function CalendarMorePopover({
 }: CalendarMorePopoverProps) {
 	const [open, setOpen] = React.useState(false);
 	const triggerRef = React.useRef<HTMLButtonElement>(null);
-	const hidden = items.length - (MAX_CHIPS - 1);
 	const date = display.fullDate(day);
 
 	return (
@@ -420,11 +384,12 @@ function CalendarMorePopover({
 /** Each day's entry states, read by the picker's day buttons. */
 const DayStatesContext = React.createContext<ReadonlyMap<string, CalendarState[]>>(new Map());
 
-/** Day buttons sized for touch, with today in the grid's red. */
+/** Round day buttons sized for touch, with today in the grid's red. */
 const PICKER_STYLE = {
 	"--rdp-day-height": "2.75rem",
 	"--rdp-day_button-height": "2.5rem",
-	"--rdp-day_button-width": "min(2.5rem, 100%)",
+	"--rdp-day_button-width": "2.5rem",
+	"--rdp-day_button-border-radius": "9999px",
 	"--rdp-today-color": "var(--color-kumo-danger)",
 } as React.CSSProperties;
 

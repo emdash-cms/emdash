@@ -27,13 +27,14 @@ describeEachDialect("calendar handler", (dialect) => {
 		await teardownForDialect(ctx);
 	});
 
-	async function published(type: string, title: string, publishedAt: string) {
+	async function published(type: string, title: string, publishedAt: string, authorId?: string) {
 		return repo.create({
 			type,
 			slug: title.toLowerCase().replaceAll(" ", "-"),
 			data: { title },
 			status: "published",
 			publishedAt,
+			authorId,
 		});
 	}
 
@@ -53,7 +54,7 @@ describeEachDialect("calendar handler", (dialect) => {
 	}
 
 	it("places published entries, schedules, and scheduled updates", async () => {
-		const pricing = await published("post", "Pricing", "2030-03-02T09:00:00.000Z");
+		const pricing = await published("post", "Pricing", "2030-03-02T09:00:00.000Z", "author-1");
 		await repo.schedule("post", pricing.id, "2030-03-10T12:00:00.000Z", BEFORE_FIXTURES);
 		await published("post", "Launch", "2030-03-05T10:00:00.000Z");
 		await published("page", "About", "2030-03-05T10:00:00.000Z");
@@ -84,7 +85,9 @@ describeEachDialect("calendar handler", (dialect) => {
 			status: "published",
 			kind: "published",
 			at: "2030-03-02T09:00:00.000Z",
+			authorId: "author-1",
 		});
+		expect(result[1]?.authorId).toBeNull();
 	});
 
 	it("walks every event exactly once across pages", async () => {

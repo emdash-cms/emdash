@@ -1,5 +1,5 @@
 import { Button, LinkButton, SkeletonLine, useKumoToastManager } from "@cloudflare/kumo";
-import { Dialog } from "@cloudflare/kumo/primitives";
+import { Dialog, Drawer } from "@cloudflare/kumo/primitives";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowsClockwise,
@@ -39,6 +39,7 @@ import {
 	type CalendarItem,
 	type CalendarState,
 } from "../../lib/calendar.js";
+import { canPublishEntry } from "../../lib/content-permissions.js";
 import { contentUrl } from "../../lib/url.js";
 import { cn } from "../../lib/utils.js";
 import { getLocaleLabel } from "../../locales/index.js";
@@ -51,16 +52,21 @@ import {
 	CalendarStateIcon,
 } from "./CalendarEntry.js";
 
-// Role levels (matching @emdash-cms/auth)
-const ROLE_AUTHOR = 30;
-const ROLE_EDITOR = 40;
-
 const STATE_TEXT: Record<CalendarState, string> = {
 	published: "text-kumo-success",
 	scheduled: "text-kumo-info",
 	update: "text-kumo-info",
 	overdue: "text-kumo-warning",
 };
+
+/**
+ * Presses outside the panel that land in one of these do their own thing
+ * (open another entry, change the month, open a menu) instead of closing it.
+ * Closing goes back in history, which would undo a navigation made by the
+ * same press.
+ */
+const KEEPS_PANEL_OPEN =
+	"a[href], button, input, select, textarea, label, [role=button], [role=tab], [role=dialog], [role=menu], [role=listbox]";
 
 export interface CalendarEntryPanelProps {
 	/** The open entry; undefined closes the panel. */
@@ -69,6 +75,8 @@ export interface CalendarEntryPanelProps {
 	now: number;
 	/** Narrow layouts show the panel as a bottom sheet over the page. */
 	compact: boolean;
+	/** On wide layouts, the element beside the calendar that the panel fills. */
+	dock?: HTMLElement | null;
 	i18n: AdminManifest["i18n"];
 	/** Each collection's public URL pattern, for View live. */
 	urlPatterns: Readonly<Record<string, string | undefined>>;
@@ -82,38 +90,73 @@ export interface CalendarEntryPanelProps {
 
 /**
  * An entry's details and publishing actions beside the calendar. On wide
- * layouts the calendar stays usable behind it, so picking another entry
- * switches the panel; on phones it is a modal bottom sheet.
+ * layouts the calendar stays usable beside it, so picking another entry
+ * switches the panel and pressing empty space closes it; on phones it is a
+ * bottom sheet that swipes down to close.
  */
 export function CalendarEntryPanel(props: CalendarEntryPanelProps) {
-	const { item, compact, returnFocus, onClose } = props;
+	const { item, compact, dock, returnFocus, onClose } = props;
 	// The panel keeps its content while it slides out.
 	const [shown, setShown] = React.useState(item);
 	if (item && item !== shown) setShown(item);
+	const content = shown && <CalendarEntryPanelContent key={shown.key} {...props} item={shown} />;
+	const finalFocus = () => (returnFocus?.current?.isConnected ? returnFocus.current : true);
+
+	if (compact) {
+		return (
+			<Drawer.Root
+				open={Boolean(item)}
+				onOpenChange={(open) => {
+					if (!open) onClose();
+				}}
+			>
+				<Drawer.Portal>
+					<Drawer.Backdrop className="fixed inset-0 bg-kumo-recessed opacity-80 transition-opacity duration-300 data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none" />
+					<Drawer.Viewport className="fixed inset-0 flex items-end">
+						<Drawer.Popup
+							finalFocus={finalFocus}
+							className="flex max-h-[85dvh] w-full max-w-none! translate-y-(--drawer-swipe-movement-y) flex-col rounded-t-xl bg-kumo-base text-kumo-default shadow-xl outline-none transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] data-ending-style:translate-y-full data-starting-style:translate-y-full data-swiping:duration-0 motion-reduce:transition-none"
+						>
+							{content}
+						</Drawer.Popup>
+					</Drawer.Viewport>
+				</Drawer.Portal>
+			</Drawer.Root>
+		);
+	}
 
 	return (
 		<Dialog.Root
 			open={Boolean(item)}
-			modal={compact}
-			disablePointerDismissal={!compact}
-			onOpenChange={(open) => {
-				if (!open) onClose();
+			modal={false}
+			onOpenChange={(open, eventDetails) => {
+				if (open) return;
+				const { reason, event } = eventDetails;
+				// Focus may leave the panel, so keyboard users can move on to another entry.
+				if (
+					reason === "focus-out" ||
+					(reason === "outside-press" &&
+						event.target instanceof Element &&
+						event.target.closest(KEEPS_PANEL_OPEN))
+				) {
+					eventDetails.cancel();
+					return;
+				}
+				onClose();
 			}}
 		>
-			<Dialog.Portal>
-				{compact && (
-					<Dialog.Backdrop className="fixed inset-0 bg-kumo-recessed opacity-80 transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none" />
-				)}
+			<Dialog.Portal container={dock ?? undefined} className={dock ? "h-full" : undefined}>
 				<Dialog.Popup
-					finalFocus={() => (returnFocus?.current?.isConnected ? returnFocus.current : true)}
+					finalFocus={finalFocus}
 					className={cn(
-						"fixed flex flex-col bg-kumo-base text-kumo-default shadow-xl outline-none transition-transform duration-200 ease-out motion-reduce:transition-none",
-						compact
-							? "inset-x-0 bottom-0 max-h-[85dvh] max-w-none! rounded-t-xl data-ending-style:translate-y-full data-starting-style:translate-y-full"
-							: "end-0 top-0 h-full w-full max-w-md border-s border-kumo-line data-ending-style:ltr:translate-x-full data-ending-style:rtl:-translate-x-full data-starting-style:ltr:translate-x-full data-starting-style:rtl:-translate-x-full",
+						"flex flex-col bg-kumo-base text-kumo-default outline-none motion-reduce:transition-none",
+						dock
+							? // The dock animates its width, so the panel keeps its own.
+								"h-full w-96 transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0"
+							: "fixed end-0 top-0 h-full w-full max-w-md border-s border-kumo-line shadow-xl transition-transform duration-200 ease-out data-ending-style:ltr:translate-x-full data-ending-style:rtl:-translate-x-full data-starting-style:ltr:translate-x-full data-starting-style:rtl:-translate-x-full",
 					)}
 				>
-					{shown && <CalendarEntryPanelContent key={shown.key} {...props} item={shown} />}
+					{content}
 				</Dialog.Popup>
 			</Dialog.Portal>
 		</Dialog.Root>
@@ -135,6 +178,8 @@ function CalendarEntryPanelContent({
 	const queryClient = useQueryClient();
 	const toastManager = useKumoToastManager();
 	const [scheduleOpen, setScheduleOpen] = React.useState(false);
+	// In the sheet, the body is where a mouse drag selects text instead of swiping the sheet away.
+	const Body = compact ? Drawer.Content : "div";
 	const [previewing, setPreviewing] = React.useState(false);
 
 	const locale = i18n ? item.locale : undefined;
@@ -150,11 +195,7 @@ function CalendarEntryPanelContent({
 	});
 
 	const entry = details.data;
-	const canPublish = Boolean(
-		user &&
-		entry &&
-		(user.role >= ROLE_EDITOR || (user.role >= ROLE_AUTHOR && entry.authorId === user.id)),
-	);
+	const canPublish = Boolean(entry && canPublishEntry(user, { authorId: entry.authorId ?? null }));
 	const scheduled = item.kind === "scheduled";
 	const title = item.title;
 	const editorLink = {
@@ -282,7 +323,7 @@ function CalendarEntryPanelContent({
 				/>
 			</div>
 
-			<div className="flex-1 overflow-y-auto px-5 pt-3 pb-6 sm:px-6">
+			<Body className="flex-1 overflow-y-auto px-5 pt-3 pb-6 sm:px-6">
 				<Dialog.Title
 					dir="auto"
 					className="text-2xl leading-tight font-semibold tracking-tight break-words"
@@ -428,7 +469,7 @@ function CalendarEntryPanelContent({
 						)}
 					</>
 				)}
-			</div>
+			</Body>
 
 			<div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-kumo-line px-5 py-3 sm:px-6">
 				<RouterLinkButton
