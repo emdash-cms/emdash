@@ -135,7 +135,7 @@ On each run, the workflow:
 6. Opens or updates the pull request "Update EmDash to `<toVersion>`" with `gh`. The body lists the package changes, the added migrations and the release entries that ask for project changes, and links `.emdash/UPGRADE.md`. It says whether the run came from the admin, the CLI, MCP or the schedule. It never names a person.
 7. Adds the label `emdash: migrations` when `migrationsAdded` isn't empty, and `emdash: project changes` when `actionRequired` is true. It creates either label first if the repository doesn't have it.
 
-The job requests `contents: write` and `pull-requests: write`. A `concurrency` group keeps two runs from working at the same time, and later runs wait instead of cancelling a running one. Open pull requests for older versions stay open. The new pull request links them.
+The job requests `contents: write` and `pull-requests: write`. A `concurrency` group keeps two runs from working at the same time. A later run waits instead of cancelling the running one. GitHub keeps one waiting run per group, so a newer run replaces a waiting one, which ends as cancelled. Open pull requests for older versions stay open. The new pull request links them.
 
 A pull request opened with the default `GITHUB_TOKEN` doesn't start other workflows, so checks that run on GitHub Actions don't run on it. Integrations that are GitHub Apps, such as Workers Builds, still run. The workflow uses the secret `EMDASH_UPDATE_PR_TOKEN` to open the pull request when it exists. The update guide explains both choices, and that the repository setting "Allow GitHub Actions to create and approve pull requests" must be on for `GITHUB_TOKEN`.
 
@@ -253,7 +253,7 @@ Both options keys are read in one `getMany` query, and the user lookup runs only
 
 Both write routes require the new permission `updates:request`, added to `rbac.ts` with the minimum role Admin. A token caller also needs the new token scope `updates:request`. The `admin` scope includes it, as it includes the transfer scopes. The scope rule for `/_emdash/api/admin/core-update/request` comes before the generic `/_emdash/api/admin` rule in the auth middleware, as the transfer rule does. The CSRF header rule applies as it does to every state-changing route.
 
-The site write fence refuses both write routes and the `site_update_request` MCP tool while a site import runs, as it refuses other admin writes. A request doesn't count as a site write, so it never restarts a running export. Like an entry edit lock, the record holds nothing a site package carries.
+The site write fence refuses both write routes and the `site_update_request` MCP tool while a site import is in progress or incomplete, as it refuses other admin writes. A request doesn't count as a site write, so it never restarts a running export. Like an entry edit lock, the record holds nothing a site package carries.
 
 New error codes, mapped in `mapErrorStatus`:
 
@@ -316,7 +316,7 @@ If [the configuration validation plan (#4328)](https://github.com/emdash-cms/emd
 - **Who can send:** only users with `updates:request` (Admin), through a session with the CSRF header, a token with the `updates:request` or `admin` scope, or an admin's approval of an MCP request. Approval and dismissal require a session, so an agent can't approve its own request.
 - **What can be requested:** only the version the update check reports. The request has no free-form fields that reach the trigger.
 - **Where it goes:** the trigger comes from the build configuration. No admin input sets a URL or repository, so the endpoint can't be used to send requests to arbitrary hosts.
-- **Secrets:** the GitHub token and the webhook secret live in the deployment's secrets, read from `process.env` at send time. They are never stored in the database, returned by the API or logged. The GitHub token needs only Actions: write on one repository. That permission can start, cancel and re-run workflows and delete their logs, but can't read or write repository contents.
+- **Secrets:** the GitHub token and the webhook secret live in the deployment's secrets, read from `process.env` at send time. They are never stored in the database, returned by the API or logged. The GitHub token needs only Actions: write on one repository. That permission can't read or write repository contents. It does control the repository's Actions: a leaked token can start any workflow that runs on `workflow_dispatch`, re-run, cancel or delete runs, approve runs from forks, turn workflows off and on, read and delete logs and artifacts, delete caches, and change the repository's OIDC subject claim format.
 - **The workflow:** inputs reach scripts only through environment variables, and `upgrade-emdash` rejects anything that isn't a stable version. The job can push branches and open pull requests. Branch protection on the default branch is the site's control over what reaches production. The workflow runs `upgrade-emdash@latest`, as the update guide already does. A site that wants a fixed updater version can pin it in its copy.
 - **Abuse:** sending the same version is limited to once per 15 minutes. Repeated requests start at most one workflow run at a time per repository because of the `concurrency` group.
 - **Privacy:** the request carries no personal data. The record stores user IDs, which the admin resolves to names, and the pull request never names a person.
@@ -331,7 +331,7 @@ The admin status route reads one more options key in the query it already runs, 
 
 - **The trigger rejects the request or can't be reached:** the record stores `failed` with the code, the banner shows the reason, and the admin can retry at once. A 401 or 403 from GitHub points to an expired or wrong token. A 404 points to a wrong repository or workflow, or a token without access. A 422 points to a missing ref or inputs that the workflow doesn't define.
 - **The response is lost after GitHub started the run:** the record says `failed` although a run started. A retry starts a second run. That run either finds the branch it would create, where it updates the pull request, or waits behind the first one in the `concurrency` group. The result is still one pull request.
-- **A site import is running:** the fence refuses the request with its import error, and the admin sends it again once the import ends.
+- **A site import is in progress or incomplete:** the fence refuses the request with its import error, and the admin sends it again once the import finishes or is abandoned.
 - **Two admins send at the same moment:** only one claim applies. The other admin gets `UPDATE_ALREADY_REQUESTED` and sees the first request on the banner.
 - **The site stops in the middle of a send:** the `sending` record stays behind. After one minute it no longer blocks a new request, and the banner offers Start update again.
 - **The workflow fails** (installation fails, the project isn't supported, or the branch has someone else's commits): the run fails visibly in GitHub, and the admin shows the request as sent with a link to the run. The admin doesn't learn about the failure. See [Open questions](#open-questions).
