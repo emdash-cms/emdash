@@ -330,26 +330,53 @@ export class RedirectRepository {
 		const now = new Date().toISOString();
 		const patternFlag = input.isPattern ?? isPattern(input.source);
 
-		await this.db
+		const result = await this.db
 			.insertInto("_emdash_redirects")
-			.values({
-				id,
-				source: input.source,
-				destination: input.destination,
-				type: input.type ?? 301,
-				is_pattern: patternFlag ? 1 : 0,
-				enabled: input.enabled !== false ? 1 : 0,
-				hits: 0,
-				last_hit_at: null,
-				group_name: input.groupName ?? null,
-				auto: input.auto ? 1 : 0,
-				config_revision: ulid(),
-				source_guard: 1,
-				write_generation: fence?.generation ?? 0,
-				created_at: now,
-				updated_at: now,
-			})
-			.execute();
+			.columns([
+				"id",
+				"source",
+				"destination",
+				"type",
+				"is_pattern",
+				"enabled",
+				"hits",
+				"last_hit_at",
+				"group_name",
+				"auto",
+				"config_revision",
+				"source_guard",
+				"write_generation",
+				"created_at",
+				"updated_at",
+			])
+			.expression((eb) =>
+				eb
+					.selectFrom("_emdash_redirect_write_lock")
+					.select((select) => [
+						select.val(id).as("id"),
+						select.val(input.source).as("source"),
+						select.val(input.destination).as("destination"),
+						select.val(input.type ?? 301).as("type"),
+						select.val(patternFlag ? 1 : 0).as("is_pattern"),
+						select.val(input.enabled !== false ? 1 : 0).as("enabled"),
+						select.val(0).as("hits"),
+						select.val(null).as("last_hit_at"),
+						select.val(input.groupName ?? null).as("group_name"),
+						select.val(input.auto ? 1 : 0).as("auto"),
+						select.val(ulid()).as("config_revision"),
+						select.val(1).as("source_guard"),
+						select.val(fence.generation).as("write_generation"),
+						select.val(now).as("created_at"),
+						select.val(now).as("updated_at"),
+					])
+					.where("id", "=", REDIRECT_WRITE_LOCK_ID)
+					.where("token", "=", fence.token)
+					.where("generation", "=", fence.generation),
+			)
+			.executeTakeFirst();
+		if ((result.numInsertedOrUpdatedRows ?? 0n) === 0n) {
+			throw new Error("redirect write lease expired");
+		}
 
 		return (await this.findById(id))!;
 	}
