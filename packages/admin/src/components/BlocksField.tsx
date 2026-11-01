@@ -1137,7 +1137,7 @@ function BlockRow({
 						)}
 					</button>
 				)}
-				{thumbnail && (
+				{thumbnail && !readOnly && (
 					<img
 						key={thumbnail}
 						src={thumbnail}
