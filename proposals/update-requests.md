@@ -127,17 +127,17 @@ The workflow is a single file, `emdash-update.yml`. The update guide documents i
 
 On each run, the workflow:
 
-1. Checks out the default branch, detects the package manager from the lockfile, and installs the current dependencies from the lockfile. `upgrade-emdash` reads the installed versions from `node_modules`.
-2. Passes the inputs to the steps through environment variables, never through `${{ }}` expressions inside a script.
+1. Checks out the ref the run was dispatched on, which is `trigger.ref` for a request and the default branch for a scheduled run, detects the package manager from the lockfile, and installs the current dependencies from the lockfile. `upgrade-emdash` reads the installed versions from `node_modules`.
+2. Passes the inputs to the steps through environment variables, never through `${{ }}` expressions inside a script. It maps `source` to `admin`, `cli`, `mcp` or `schedule`, and anything else to `unknown`, and drops a `request_id` that isn't a ULID, so no input reaches the pull request as text.
 3. Runs `npx upgrade-emdash@latest --yes --summary "$RUNNER_TEMP/emdash-update.json"`, adding `--release "$VERSION"` when the request carries a version, and on a scheduled run `--minimum-release-age` with an age set at the top of the workflow file.
 4. Ends without a pull request when the summary reports `updated: false`.
 5. Commits the changed manifests, lockfile, synced skills and `.emdash/UPGRADE.md` to the branch `emdash-update/<toVersion>` and pushes it. If that branch already exists with commits the workflow didn't make, the run stops without pushing, so work done on the pull request is never overwritten.
-6. Opens or updates the pull request "Update EmDash to `<toVersion>`" with `gh`. The body lists the package changes, the added migrations and the release entries that ask for project changes, and links `.emdash/UPGRADE.md`. It says whether the run came from the admin, the CLI, MCP or the schedule. It never names a person.
+6. Opens or updates the pull request "Update EmDash to `<toVersion>`" against the checked-out ref with `gh`. The body lists the package changes, the added migrations and the release entries that ask for project changes, and links `.emdash/UPGRADE.md`. It says whether the run came from the admin, the CLI, MCP or the schedule. It never names a person.
 7. Adds the label `emdash: migrations` when `migrationsAdded` isn't empty, and `emdash: project changes` when `actionRequired` is true. It creates either label first if the repository doesn't have it.
 
 The job requests `contents: write` and `pull-requests: write`. A `concurrency` group keeps two runs from working at the same time. A later run waits instead of cancelling the running one. GitHub keeps one waiting run per group, so a newer run replaces a waiting one, which ends as cancelled. Open pull requests for older versions stay open. The new pull request links them.
 
-A pull request opened with the default `GITHUB_TOKEN` doesn't start other workflows, so checks that run on GitHub Actions don't run on it. Integrations that are GitHub Apps, such as Workers Builds, still run. The workflow uses the secret `EMDASH_UPDATE_PR_TOKEN` to open the pull request when it exists. The update guide explains both choices, and that the repository setting "Allow GitHub Actions to create and approve pull requests" must be on for `GITHUB_TOKEN`.
+A pull request opened with the default `GITHUB_TOKEN` doesn't start other workflows, so checks that run on GitHub Actions don't run on it. Integrations that are GitHub Apps, such as Workers Builds, still run. When the secret `EMDASH_UPDATE_PR_TOKEN` exists, the workflow pushes the branch and opens the pull request with it, so checks run when the pull request opens and on every later push to it. The update guide explains both choices, and that the repository setting "Allow GitHub Actions to create and approve pull requests" must be on for `GITHUB_TOKEN`.
 
 ### Trigger configuration
 
@@ -151,7 +151,7 @@ type UpdateTrigger =
 			repository: string;
 			/** Workflow file name, such as `emdash-update.yml`, or its numeric ID. */
 			workflow: string | number;
-			/** Branch or tag the workflow runs on. */
+			/** Branch the workflow runs on and the pull request targets. */
 			ref: string;
 			/** API origin for GitHub Enterprise Server. @default "https://api.github.com" */
 			apiUrl?: string;
@@ -165,7 +165,7 @@ type UpdateTrigger =
 updateCheck?: boolean | { minimumReleaseAge?: string | number; trigger?: UpdateTrigger };
 ```
 
-`emdash()` validates the trigger when Astro loads the configuration and fails the build with the option path on a wrong shape. `repository` must match `owner/name`. `url` and `apiUrl` must use `https:`, except on `localhost` in development. The trigger holds no secret, so it can sit in the configuration and the virtual config module.
+`emdash()` validates the trigger when Astro loads the configuration and fails the build with the option path on a wrong shape. `repository` must match `owner/name`. `workflow` must be a file name that ends in `.yml` or `.yaml` and holds no path separator, or a number; both are URL-encoded into the dispatch path. `url` and `apiUrl` must use `https:`, except on `localhost` in development. The trigger holds no secret, so it can sit in the configuration and the virtual config module.
 
 The secret is read from `process.env` when a request is sent, never from `import.meta.env`, so it is never inlined into the build:
 
@@ -199,14 +199,14 @@ interface CoreUpdateRequest {
 }
 ```
 
-The record only counts while its version is newer than the running version and is still the version the update check reports. Otherwise the API and the banner ignore it. A `sending` record older than one minute counts as `failed`.
+The record only counts while its version is newer than the running version and is still the version the update check reports. Otherwise the API and the banner ignore it. A `sending` record older than one minute counts as `failed`. An `awaiting_approval` record older than 24 hours no longer counts, so an agent whose session has ended doesn't leave its question on the banner until the next release.
 
 ### Sending a request
 
 A new handler, `handleCoreUpdateRequest(db, { version, source, user, approvedBy? })`, sends a request:
 
 1. It fails with `UPDATE_TRIGGER_NOT_CONFIGURED` when no trigger is configured, and with `UPDATE_TRIGGER_NOT_READY` when the trigger's secret is missing. It reads the update status with `handleCoreUpdateStatus` and the same `minimumReleaseAge`. The requested version must equal the reported `latest`, and `updateAvailable` must be true. Otherwise it fails with `UPDATE_NOT_AVAILABLE`. A request can never name an arbitrary version.
-2. A `sent` record for the same version that is less than 15 minutes old fails the request with `UPDATE_ALREADY_REQUESTED` and the time it can be retried. So does a `sending` record less than one minute old. A `failed` record never blocks a retry.
+2. A `sent` record for the same version that is less than 15 minutes old fails the request with `UPDATE_ALREADY_REQUESTED` and the time it can be retried. So does a `sending` record less than one minute old, and a `failed` record less than one minute old, so a wrong token or an unreachable receiver can't be hammered from a script.
 3. It claims the send by writing a `sending` record with `OptionsRepository.compareAndSet`, against the revision it read in step 2. When the claim doesn't apply, another send got there first, and the request fails with `UPDATE_ALREADY_REQUESTED`.
 4. It sends the request to the trigger with a 10-second timeout and replaces the `sending` record with the outcome.
 
@@ -236,7 +236,7 @@ For a webhook trigger it sends `POST {url}` with `Authorization: Bearer <secret>
 }
 ```
 
-Any 2xx response counts as sent. When the response is JSON with a `url` string that uses `https:`, that link becomes `runUrl`. The handler reads at most 16 KB of the response and ignores everything else in it. The header names follow the webhook notifier plugin.
+Any 2xx response counts as sent. The request doesn't follow redirects (`redirect: "error"`), so the secret reaches only the configured URL. When the response is JSON with a `url` string that uses `https:`, that link becomes `runUrl`. The handler reads at most 16 KB of the response and ignores everything else in it. The header names follow the webhook notifier plugin. The receiver treats the body as a notice, not a command: before it installs anything it checks that `version` is a stable release newer than the one it runs, as the shipped workflow does through `upgrade-emdash`, and it uses `siteUrl` for display only.
 
 ### REST API
 
@@ -251,33 +251,33 @@ Both options keys are read in one `getMany` query, and the user lookup runs only
 
 `DELETE /_emdash/api/admin/core-update/request` dismisses a request that awaits approval. It is accepted only from a signed-in session.
 
-Both write routes require the new permission `updates:request`, added to `rbac.ts` with the minimum role Admin. A token caller also needs the new token scope `updates:request`. The `admin` scope includes it, as it includes the transfer scopes. The scope rule for `/_emdash/api/admin/core-update/request` comes before the generic `/_emdash/api/admin` rule in the auth middleware, as the transfer rule does. The CSRF header rule applies as it does to every state-changing route.
+Both write routes require the new permission `updates:request`, added to `rbac.ts` with the minimum role Admin. A token caller also needs the new token scope `updates:request`. The `admin` scope includes it, as it includes the transfer scopes. The status route `GET /_emdash/api/admin/core-update` accepts the `updates:request` scope as well as `admin`, so a token that can request an update can read the version it would request, which `emdash site request-update` needs. The scope rules for both `core-update` paths come before the generic `/_emdash/api/admin` rule in the auth middleware, as the transfer rule does. The CSRF header rule applies as it does to every state-changing route.
 
 The site write fence refuses both write routes and the `site_update_request` MCP tool while a site import is in progress or incomplete, as it refuses other admin writes. A request doesn't count as a site write, so it never restarts a running export. Like an entry edit lock, the record holds nothing a site package carries.
 
 New error codes, mapped in `mapErrorStatus`:
 
-| Code                            | Status | Meaning                                                                                                    |
-| ------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
-| `UPDATE_TRIGGER_NOT_CONFIGURED` | 409    | No trigger is configured                                                                                   |
-| `UPDATE_TRIGGER_NOT_READY`      | 409    | The trigger's secret is missing                                                                            |
-| `UPDATE_NOT_AVAILABLE`          | 409    | The version isn't the newest reported release, or the site already runs it                                 |
-| `UPDATE_ALREADY_REQUESTED`      | 409    | The same version was sent less than 15 minutes ago, or another send is in progress                         |
-| `UPDATE_TRIGGER_REJECTED`       | 502    | The trigger answered with an error. `details.reason` is `unauthorized`, `not_found`, `invalid` or `failed` |
-| `UPDATE_TRIGGER_UNREACHABLE`    | 502    | The request timed out or couldn't connect                                                                  |
+| Code                            | Status | Meaning                                                                                                           |
+| ------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
+| `UPDATE_TRIGGER_NOT_CONFIGURED` | 409    | No trigger is configured                                                                                          |
+| `UPDATE_TRIGGER_NOT_READY`      | 409    | The trigger's secret is missing                                                                                   |
+| `UPDATE_NOT_AVAILABLE`          | 409    | The version isn't the newest reported release, or the site already runs it                                        |
+| `UPDATE_ALREADY_REQUESTED`      | 409    | The same version was sent less than 15 minutes ago, failed less than a minute ago, or another send is in progress |
+| `UPDATE_TRIGGER_REJECTED`       | 502    | The trigger answered with an error. `details.reason` is `unauthorized`, `not_found`, `invalid` or `failed`        |
+| `UPDATE_TRIGGER_UNREACHABLE`    | 502    | The request timed out or couldn't connect                                                                         |
 
 The response never includes the trigger's response body. The server log records the status code and, for GitHub, the response's `message` field, never the token.
 
 ### Admin banner
 
-The banner stays on the dashboard, for admins only, and stays dismissible per version.
+The banner stays on the dashboard for users with `updates:read`, which is Admin today, and stays dismissible per version.
 
 - **No trigger:** the banner adds an Update guide link to the documentation page.
 - **Trigger ready:** the banner offers Start update. A confirmation dialog names the target ("This runs the update workflow in acme/marketing-site. Your pipeline decides how the update is deployed.") and sends the request.
 - **Trigger not ready:** Start update is disabled, with a note that the deployment's secret is missing.
 - **Sent:** "Update to 1.5.0 requested on <date> by <name>", with View run when there is a link. Start update is offered again after 15 minutes. A `sending` record shows the same text without the link.
-- **Failed:** the error in words, such as "GitHub rejected the token. It may have expired.", with Try again.
-- **Awaiting approval:** "An agent asked to update to 1.5.0 for <name>", with Start update and Dismiss. Start update sends the request with `source: "mcp"` and the admin as `approvedBy`. This state shows even when the admin dismissed the banner for that version, because the agent is waiting for an answer.
+- **Failed:** the error in words, such as "GitHub rejected the token. It may have expired.", with Try again, which is enabled one minute after the failure.
+- **Awaiting approval:** "An agent asked to update to 1.5.0 for <name>", with Start update and Dismiss. Start update sends the request with `source: "mcp"` and the admin as `approvedBy`. This state shows even when the admin dismissed the banner for that version, because the agent is waiting for an answer. It expires after 24 hours.
 
 The dialog uses `ConfirmDialog`, and every string, including the error texts mapped from the codes above, goes through Lingui. Dates use the admin locale's formatting, and the layout uses logical classes. The dismiss state stays in `localStorage`, per version as today.
 
@@ -294,8 +294,8 @@ The names say "update" and sit under `emdash site`, so they can't be mistaken fo
 
 Two tools join the core MCP server:
 
-- `site_update_status` returns what `update-status` prints. It requires the `updates:read` permission and, like the REST status route, the `admin` token scope.
-- `site_update_request` takes an optional `version`, which must match the reported version when given. It requires the `updates:request` permission. With the `updates:request` scope (or `admin`), it sends the request with `source: "mcp"`. Without the scope, it runs the handler's first three steps with `awaiting_approval` in place of `sending`, so it can't replace a request that was just sent or is being sent. It answers `{ status: "awaiting_approval" }` with a message that an admin has to approve the request in the admin dashboard.
+- `site_update_status` returns what `update-status` prints. It requires the `updates:read` permission and, like the REST status route, the `admin` or `updates:request` token scope. It is marked read-only (`readOnlyHint`), so the site write fence lets it run during an import.
+- `site_update_request` takes an optional `version`, which must match the reported version when given. It requires the `updates:request` permission. With the `updates:request` scope (or `admin`), it sends the request with `source: "mcp"`. Without the scope, it runs the handler's first three steps with `awaiting_approval` in place of `sending`, with one stricter rule: a `sent` record that still counts refuses it however old, with `UPDATE_ALREADY_REQUESTED` and the run link, so an agent's question never replaces a request that is already in flight. It answers `{ status: "awaiting_approval" }` with a message that an admin has to approve the request in the admin dashboard.
 
 An admin approves a request on the banner, from a signed-in session. Approving sends the request, so the agent doesn't call the tool again. A second call while a request awaits approval returns the same answer and doesn't create another record. The approval is single-use because sending replaces the record.
 
@@ -313,12 +313,12 @@ If [the configuration validation plan (#4328)](https://github.com/emdash-cms/emd
 
 ## Security and privacy
 
-- **Who can send:** only users with `updates:request` (Admin), through a session with the CSRF header, a token with the `updates:request` or `admin` scope, or an admin's approval of an MCP request. Approval and dismissal require a session, so an agent can't approve its own request.
+- **Who can send:** only users with `updates:request` (Admin), through a session with the CSRF header, a token with the `updates:request` or `admin` scope, or an admin's approval of an MCP request. Approval and dismissal require a session, so an agent can't approve its own request. Any token of a user with `updates:request`, whatever its scopes, can store an approval request over MCP. Its worst case is a question on the banner that an admin dismisses; nothing is sent without the admin.
 - **What can be requested:** only the version the update check reports. The request has no free-form fields that reach the trigger.
 - **Where it goes:** the trigger comes from the build configuration. No admin input sets a URL or repository, so the endpoint can't be used to send requests to arbitrary hosts.
-- **Secrets:** the GitHub token and the webhook secret live in the deployment's secrets, read from `process.env` at send time. They are never stored in the database, returned by the API or logged. The GitHub token needs only Actions: write on one repository. That permission can't read or write repository contents. It does control the repository's Actions: a leaked token can start any workflow that runs on `workflow_dispatch`, re-run, cancel or delete runs, approve runs from forks, turn workflows off and on, read and delete logs and artifacts, delete caches, and change the repository's OIDC subject claim format.
+- **Secrets:** the GitHub token and the webhook secret live in the deployment's secrets, read from `process.env` at send time. They are never stored in the database, returned by the API or logged. The GitHub token needs only Actions: write on one repository. That permission can't read or write repository contents. It does control the repository's Actions: a leaked token can start any workflow that runs on `workflow_dispatch`, re-run, cancel or delete runs, approve runs from forks, turn workflows off and on, read and delete logs and artifacts, delete caches, and change the repository's OIDC subject claim format. A leaked webhook secret lets its holder send a forged request to the receiver, with any version and site URL, which is why the receiver validates them. `EMDASH_UPDATE_PR_TOKEN`, where a site adds it, is a fine-grained token with Contents: write and Pull requests: write on the one repository. It lives in the repository's Actions secrets, where every workflow in the repository can read it, and it can push to any branch that branch protection doesn't cover. The update guide says to give it an expiry.
 - **The workflow:** inputs reach scripts only through environment variables, and `upgrade-emdash` rejects anything that isn't a stable version. The job can push branches and open pull requests. Branch protection on the default branch is the site's control over what reaches production. The workflow runs `upgrade-emdash@latest`, as the update guide already does. A site that wants a fixed updater version can pin it in its copy.
-- **Abuse:** sending the same version is limited to once per 15 minutes. Repeated requests start at most one workflow run at a time per repository because of the `concurrency` group.
+- **Abuse:** sending the same version is limited to once per 15 minutes, and a retry after a failure to once per minute. Repeated requests start at most one workflow run at a time per repository because of the `concurrency` group.
 - **Privacy:** the request carries no personal data. The record stores user IDs, which the admin resolves to names, and the pull request never names a person.
 
 ## Performance
@@ -329,7 +329,7 @@ The admin status route reads one more options key in the query it already runs, 
 
 ## Failure handling
 
-- **The trigger rejects the request or can't be reached:** the record stores `failed` with the code, the banner shows the reason, and the admin can retry at once. A 401 or 403 from GitHub points to an expired or wrong token. A 404 points to a wrong repository or workflow, or a token without access. A 422 points to a missing ref or inputs that the workflow doesn't define.
+- **The trigger rejects the request or can't be reached:** the record stores `failed` with the code, the banner shows the reason, and the admin can retry after a minute. A 401 or 403 from GitHub points to an expired or wrong token. A 404 points to a wrong repository or workflow, or a token without access. A 422 points to a missing ref or inputs that the workflow doesn't define.
 - **The response is lost after GitHub started the run:** the record says `failed` although a run started. A retry starts a second run. That run either finds the branch it would create, where it updates the pull request, or waits behind the first one in the `concurrency` group. The result is still one pull request.
 - **A site import is in progress or incomplete:** the fence refuses the request with its import error, and the admin sends it again once the import finishes or is abandoned.
 - **Two admins send at the same moment:** only one claim applies. The other admin gets `UPDATE_ALREADY_REQUESTED` and sees the first request on the banner.
@@ -341,9 +341,9 @@ The admin status route reads one more options key in the query it already runs, 
 ## Verification
 
 - `upgrade-emdash` unit tests with packument fixtures: the release group gets the exact version and plugins resolve `latest`. They also cover the release-age selection with and without `--release`, rejecting prereleases and too-young versions, the up-to-date exit, the summary fields, and `actionRequired` from a `#### What should I do?` heading.
-- Handler tests on a real SQLite database with an injected `fetch`: GitHub 200 with run details, 204, 422 followed by the retry, 401, 404, a timeout, and webhook 2xx with and without a `url`. Also a version mismatch, the 15-minute limit and a missing secret.
-- Route tests: an Editor is refused, a token without the scope is refused, a token with `admin` passes, a DELETE from a token is refused, and the CSRF header is enforced.
-- MCP tests: with the scope the tool sends, without it the tool stores one `awaiting_approval` record, a second call doesn't create another, approval from a session sends the request, and the status tool refuses a token without `admin`. Route and MCP tests also cover a running import refusing a request and a running export that doesn't restart after one.
+- Handler tests on a real SQLite database with an injected `fetch`: GitHub 200 with run details, 204, 422 followed by the retry, 401, 404, a timeout, and webhook 2xx with and without a `url`. Also a version mismatch, the 15-minute limit, the one-minute limit after a failure, a redirect answer, and a missing secret.
+- Route tests: an Editor is refused, a token without the scope is refused, a token with `admin` passes, a token with only `updates:request` reads the status and sends, a DELETE from a token is refused, and the CSRF header is enforced.
+- MCP tests: with the scope the tool sends, without it the tool stores one `awaiting_approval` record, a second call doesn't create another, a call while a request is sent answers with the run link, a record older than 24 hours no longer counts, approval from a session sends the request, and the status tool refuses a token without `admin` or `updates:request`. Route and MCP tests also cover a running import refusing a request and a running export that doesn't restart after one.
 - Configuration tests: wrong trigger shapes fail the build with their path, and `http:` URLs are refused outside `localhost`.
 - Admin component tests for each banner state, including a request awaiting approval for a dismissed version, plus a manual check of the banner and dialog in Arabic.
 - The query-count snapshot shows no change on logged-out routes.
@@ -355,9 +355,9 @@ Each slice is usable without the next one:
 
 1. **`upgrade-emdash` options:** `--release`, `--minimum-release-age` and `--summary`.
 2. **The workflow:** the file, an "Update from GitHub Actions" section in the update guide, and the template copies. With slices 1 and 2, a site can run scheduled updates without any core change.
-3. **Core request:** the `trigger` option, the record, the handler, the routes, the permission and scope, and the banner states.
+3. **Core request:** the `trigger` option, the record, the handler, the POST route, the permission and scope, and the banner states other than awaiting approval.
 4. **CLI:** `emdash site update-status` and `emdash site request-update`.
-5. **MCP:** both tools and the approval state on the banner.
+5. **MCP:** both tools, the `awaiting_approval` status, approval through the POST route, the `DELETE` route, and the awaiting state on the banner.
 
 No feature flag is needed. The feature is off until a site configures a trigger.
 
