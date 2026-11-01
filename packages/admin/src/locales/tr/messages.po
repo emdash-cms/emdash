@@ -11044,11 +11044,6 @@ msgstr "Şimdi yayınlansın mı?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "İçeriği yayınlayın, yayından kaldırın, zamanlayın ve zamanlamasını kaldırın"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "Yayınlandı"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11059,6 +11054,11 @@ msgstr "Yayınlandı"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1490
 msgid "Published"
+msgstr "Yayınlandı"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "Yayınlandı"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
