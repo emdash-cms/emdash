@@ -159,32 +159,19 @@ function sameItems(a: readonly ListItem[], b: readonly ListItem[]): boolean {
 }
 
 /**
- * Keys for `items`: an item keeps the key it had, even after a move or an Undo, and an
- * item replaced in place takes over the key at its position.
+ * Rows for `items`, which replace the `saved` rows: an item keeps the key it had, even after
+ * a move or an Undo, and an item replaced in place takes over the key at its position.
  */
 function syncRows(
-	previous: readonly Row[],
+	saved: readonly Row[],
 	items: readonly ListItem[],
 	known: WeakMap<ListItem, string>,
 ): Row[] {
 	const incoming = new Set(items);
-	const taken = new Set<string>();
-	const keys = items.map((item) => {
-		const key = known.get(item);
-		if (key === undefined || taken.has(key)) return undefined;
-		taken.add(key);
-		return key;
-	});
 	return items.map((item, index) => {
-		let key = keys[index];
-		if (key === undefined) {
-			const atPosition = previous[index];
-			key =
-				atPosition && !taken.has(atPosition.key) && !incoming.has(atPosition.item)
-					? atPosition.key
-					: createBlockKey();
-			taken.add(key);
-		}
+		const atPosition = saved[index];
+		const replaced = atPosition && !incoming.has(atPosition.item) ? atPosition.key : undefined;
+		const key = known.get(item) ?? replaced ?? createBlockKey();
 		known.set(item, key);
 		return { key, item };
 	});
@@ -257,14 +244,17 @@ export function BlockListField({
 	const errorId = React.useId();
 	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
+	const isBlank = (row: Row) => lineField !== undefined && isBlankLine(row.item[lineField.slug]);
 	let current = rows;
 	if (value !== source) {
-		current = syncRows(rows, items, knownKeys);
+		current = syncRows(
+			rows.filter((row) => !isBlank(row)),
+			items,
+			knownKeys,
+		);
 		setSource(value);
 		setRows(current);
 	}
-
-	const isBlank = (row: Row) => lineField !== undefined && isBlankLine(row.item[lineField.slug]);
 	const savedIndex = new Map(items.map((item, index) => [item, index]));
 	// Problems and reveals point into the saved list, where a line typed but not yet saved has no place.
 	const positions = current.map((row) => savedIndex.get(row.item));
