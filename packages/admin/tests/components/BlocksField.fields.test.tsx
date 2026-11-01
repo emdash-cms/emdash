@@ -367,3 +367,179 @@ describe("Fields inside a block", () => {
 		await expect.element(page.getByText("This block has no fields.")).toBeVisible();
 	});
 });
+
+const logoWall = blockType("logos", "Logo wall", [
+	{ slug: "headline", label: "Section label", type: "string" },
+	{ slug: "logo", label: "Featured logo", type: "image", required: true },
+	{ slug: "code", label: "Code", type: "string", validation: { pattern: "^[a-z]+$" } },
+	{
+		slug: "logos",
+		label: "Logos",
+		type: "repeater",
+		validation: {
+			minItems: 2,
+			subFields: [{ slug: "name", label: "Company name", type: "string", required: true }],
+		},
+	},
+]);
+
+function saveButton(): Locator {
+	return page.getByRole("button", { name: "Save" }).first();
+}
+
+function blockRow(key: string): Locator {
+	return page.elementLocator(document.querySelector(`[data-block-key="${key}"]`)!);
+}
+
+describe("Checking fields inside a block", () => {
+	it("shows a failed pattern as the field's hint, or as Check the format", async () => {
+		await renderEditor(
+			[heroBlock, { _type: "logos", _version: 1, _key: "logos-1", logos: [{}, {}] }],
+			[hero, logoWall],
+		);
+		await openBlock();
+		await page.getByRole("button", { name: /^Advanced/ }).click();
+
+		const sectionId = control("Section ID");
+		await sectionId.fill("Pricing!");
+		await control("Headline").click();
+		await expect.element(sectionId).toHaveAttribute("aria-invalid", "true");
+		await expect
+			.element(sectionId)
+			.toHaveAccessibleDescription("Lowercase, for links like /#pricing");
+		const error = page.getByText("Lowercase, for links like /#pricing", { exact: true });
+		expect(box(error).top).toBeGreaterThanOrEqual(box(sectionId).bottom);
+		expect(box(error).width).toBeGreaterThan(20);
+
+		await sectionId.fill("pricing");
+		await expect.element(sectionId).not.toHaveAttribute("aria-invalid");
+
+		await openBlock("Logo wall");
+		const code = control("Code");
+		await code.fill("ABC");
+		await control("Section label").click();
+		await expect.element(code).toHaveAccessibleDescription("Check the format");
+		await expect.element(page.getByText("Check the format", { exact: true })).toBeVisible();
+	});
+
+	it("shows nothing on a new block until you leave one of its empty required fields", async () => {
+		vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValueOnce(
+			"00000000-0000-4000-8000-000000000003",
+		);
+		await renderEditor([heroBlock]);
+
+		await page.getByRole("button", { name: "Add block", exact: true }).click();
+		await page.getByRole("option", { name: /^Hero/ }).click();
+		const added = () =>
+			document.querySelector('[data-block-key="00000000-0000-4000-8000-000000000003"]')!;
+		const headline = control("Headline");
+		await expect.element(headline).toHaveFocus();
+		expect(added().contains(headline.element())).toBe(true);
+		await expect.element(headline).toHaveAttribute("placeholder", "Required");
+		expect(added().querySelectorAll("[aria-invalid='true']")).toHaveLength(0);
+		const placeholderColor = () => getComputedStyle(headline.element(), "::placeholder").color;
+		const quietColor = placeholderColor();
+
+		await control("Subheadline").click();
+		await expect.element(headline).toHaveAttribute("aria-invalid", "true");
+		await expect.element(headline).toHaveAccessibleDescription("Required");
+		expect(placeholderColor()).not.toBe(quietColor);
+		expect(added().querySelectorAll("[aria-invalid='true']")).toHaveLength(1);
+	});
+
+	it("opens the closed block that fails on Save, focuses the field and marks other failing blocks", async () => {
+		const onSave = vi.fn();
+		await renderEditor(
+			[
+				heroBlock,
+				{ ...heroBlock, _key: "hero-2", headline: "" },
+				{ _type: "logos", _version: 1, _key: "logos-1", logos: [{ name: "Arc" }] },
+			],
+			[hero, logoWall],
+			{ onSave },
+		);
+
+		await page.getByRole("textbox", { name: "Title" }).fill("Home page");
+		await saveButton().click();
+
+		expect(onSave).not.toHaveBeenCalled();
+		await expect
+			.element(blockRow("hero-2").getByRole("button", { name: "Hero", exact: true }))
+			.toHaveAttribute("aria-expanded", "true");
+		const headline = blockRow("hero-2").getByRole("textbox", { name: "Headline", exact: true });
+		await expect.element(headline).toHaveFocus();
+		await expect.element(headline).toHaveAttribute("aria-invalid", "true");
+		await expect
+			.element(blockRow("hero-1").getByRole("button", { name: "Hero", exact: true }))
+			.toHaveAttribute("aria-expanded", "false");
+		expect(blockRow("hero-1").getByRole("img", { name: "Has fields to fix" }).query()).toBeNull();
+		const logos = blockRow("logos-1").getByRole("button", { name: "Logo wall", exact: true });
+		await expect.element(logos).toHaveAttribute("aria-expanded", "false");
+		await expect
+			.element(blockRow("logos-1").getByRole("img", { name: "Has fields to fix" }))
+			.toBeVisible();
+		await expect.element(logos).toHaveAccessibleDescription("Has fields to fix Arc");
+
+		await logos.click();
+		await expect.element(page.getByRole("group", { name: "Featured logo" })).toBeVisible();
+		await expect
+			.element(page.getByRole("button", { name: "Select image" }))
+			.toHaveAccessibleDescription("Required");
+		await expect.element(page.getByText("Add at least 2 items")).toBeVisible();
+		expect(box(page.getByText("Add at least 2 items")).top).toBeLessThan(
+			box(page.getByRole("textbox", { name: "Company name" })).top,
+		);
+	});
+
+	it("names a required list sub-field under the list's label", async () => {
+		await renderEditor(
+			[
+				{
+					_type: "logos",
+					_version: 1,
+					_key: "logos-1",
+					logo: { id: "m", src: PHOTO },
+					logos: [{ name: "Arc" }, { name: "" }],
+				},
+			],
+			[logoWall],
+		);
+
+		await page.getByRole("textbox", { name: "Title" }).fill("Home page");
+		await saveButton().click();
+		await expect.element(page.getByText("Item 2: Company name is required")).toBeVisible();
+		await expect.element(page.getByRole("textbox", { name: "Company name" }).nth(1)).toHaveFocus();
+	});
+
+	it("holds autosave while a block field fails, names it in a notice, and resumes once it is fixed", async () => {
+		vi.useFakeTimers();
+		try {
+			const onAutosave = vi.fn();
+			await renderEditor([{ ...heroBlock, headline: "" }], [hero], { onAutosave });
+
+			await page.getByRole("textbox", { name: "Title" }).fill("Home page");
+			await vi.advanceTimersByTimeAsync(2500);
+			expect(onAutosave).not.toHaveBeenCalled();
+			await expect.element(page.getByText("Autosave paused")).toBeVisible();
+			await expect
+				.element(page.getByText("Fix Headline in the Hero block to resume saving."))
+				.toBeVisible();
+
+			await page.getByRole("button", { name: "Show" }).click();
+			await expect
+				.element(page.getByRole("button", { name: "Hero", exact: true }))
+				.toHaveAttribute("aria-expanded", "true");
+			const headline = control("Headline");
+			await expect.element(headline).toHaveFocus();
+			await expect.element(headline).toHaveAttribute("aria-invalid", "true");
+
+			await headline.fill("Every building");
+			await vi.advanceTimersByTimeAsync(2500);
+			expect(onAutosave).toHaveBeenCalledTimes(1);
+			expect(onAutosave.mock.lastCall?.[0].data.content[0].headline).toBe("Every building");
+			await expect.element(page.getByText("Autosave paused")).not.toBeInTheDocument();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+});

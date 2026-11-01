@@ -728,6 +728,54 @@ describe("BlocksField", () => {
 		expect(screen.getByLabelText("Must not render").query()).toBeNull();
 	});
 
+	it.each([false, true])(
+		"reveals problems on request unless read-only (read-only: %s)",
+		async (readOnly) => {
+			const note = blockType("note", "Note", [
+				{ slug: "title", label: "Title", type: "string", required: true },
+			]);
+			const props = {
+				id: "field-layout",
+				fieldPath: "layout",
+				label: "Layout",
+				value: [{ _type: "note", _version: 1, _key: "note-1", title: "" }],
+				onChange: vi.fn(),
+				blockTypes: [note],
+				allowedTypes: ["note"],
+				retiredTypes: [],
+				readOnly,
+				renderField: ({ name, field, chrome }: Parameters<BlocksFieldProps["renderField"]>[0]) => (
+					<input
+						key={name}
+						id={`field-${name}`}
+						aria-label={field.label}
+						aria-invalid={chrome.invalid || undefined}
+					/>
+				),
+			};
+			const screen = await render(<BlocksField {...props} reveal={{ token: 0 }} />, {
+				wrapper: Toasty,
+			});
+			await screen.rerender(
+				<BlocksField {...props} reveal={{ token: 1, focusId: "field-layout.note-1.title" }} />,
+			);
+
+			if (readOnly) {
+				await expect.element(screen.getByLabelText("Title")).not.toHaveAttribute("aria-invalid");
+				expect(screen.getByRole("img", { name: "Has fields to fix" }).query()).toBeNull();
+			} else {
+				await expect.element(screen.getByLabelText("Title")).toHaveFocus();
+				await expect
+					.element(screen.getByLabelText("Title"))
+					.toHaveAttribute("aria-invalid", "true");
+				await screen.getByRole("button", { name: "Note", exact: true }).click();
+				await expect
+					.element(screen.getByRole("img", { name: "Has fields to fix" }))
+					.toBeInTheDocument();
+			}
+		},
+	);
+
 	it("shows every block open, with no gutter, menu or Add block, when read-only", async () => {
 		const screen = await renderField({
 			initial: [heroBlock("one"), heroBlock("two")],

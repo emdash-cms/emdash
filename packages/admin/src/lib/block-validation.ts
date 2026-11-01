@@ -10,10 +10,14 @@ export interface BlockValueIssue {
 	blockKey: string;
 	/** Position of the block in the field's value. */
 	blockIndex: number;
+	/** Label of the block's type. */
+	blockLabel: string;
 	/** The field slug inside the block, followed by a repeater item index and sub-field slug. */
 	path: string;
 	/** Slug of the block field that holds `path`. */
 	field: string;
+	/** Label of the block field that holds `path`. */
+	fieldLabel: string;
 	/** Label of the field or repeater sub-field at `path`. */
 	label: string;
 	code: "required" | "too_small" | "too_big" | "invalid_format" | "invalid_value" | "not_integer";
@@ -241,13 +245,19 @@ export function validateBlocks(
 	const issues: BlockValueIssue[] = [];
 	for (const [blockIndex, block] of value.entries()) {
 		if (!isStoredBlockValue(block)) continue;
-		const definition = blockTypes
-			.find((blockType) => blockType.slug === block._type)
-			?.versions.find((version) => version.version === block._version);
-		if (!definition || definition.unsupportedTypes?.length) continue;
+		const blockType = blockTypes.find((candidate) => candidate.slug === block._type);
+		const definition = blockType?.versions.find((version) => version.version === block._version);
+		if (!blockType || !definition || definition.unsupportedTypes?.length) continue;
 		for (const field of definition.fields) {
 			for (const issue of fieldIssues(field, block[field.slug])) {
-				issues.push({ ...issue, field: field.slug, blockKey: block._key, blockIndex });
+				issues.push({
+					...issue,
+					field: field.slug,
+					fieldLabel: field.label,
+					blockKey: block._key,
+					blockIndex,
+					blockLabel: blockType.label,
+				});
 			}
 		}
 	}

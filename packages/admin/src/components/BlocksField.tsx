@@ -45,6 +45,7 @@ import {
 	type StoredBlockValue,
 	updateBlockFieldValue,
 } from "../lib/block-field-state.js";
+import { type BlockValueIssue, validateBlocks } from "../lib/block-validation.js";
 import { useStableCallback } from "../lib/hooks.js";
 import { cn } from "../lib/utils.js";
 import { BlockTypeIcon, BlockTypePicker } from "./BlockTypePicker.js";
@@ -99,6 +100,16 @@ export interface BlocksFieldProps {
 	maxItems?: number;
 	readOnly?: boolean;
 	renderField: (input: NestedFieldRenderInput) => React.ReactNode;
+	/**
+	 * A new token shows every problem in the field's blocks, opens the block that holds
+	 * the control with id `focusId`, and focuses it.
+	 */
+	reveal?: BlockReveal;
+}
+
+export interface BlockReveal {
+	token: number;
+	focusId?: string;
 }
 
 const NESTED_KIND: Record<string, string> = {
@@ -138,7 +149,98 @@ interface PickerTarget {
 	invoker: HTMLElement | null;
 }
 
-type FocusRequest = { key: string; target: "first-control" | "toggle" } | { target: "add" };
+type FocusRequest =
+	| { key: string; target: "first-control" | "toggle" }
+	| { key: string; target: "field"; elementId: string; field: string }
+	| { target: "add" };
+
+const NO_ISSUES: readonly BlockValueIssue[] = [];
+
+/** Field types whose empty control says "Required" itself: in red placeholder text, or a red photo slot. */
+const REQUIRED_SHOWN_BY_CONTROL = new Set([
+	"string",
+	"text",
+	"url",
+	"number",
+	"integer",
+	"select",
+	"image",
+]);
+
+function touchKey(blockKey: string, field: string): string {
+	return `${blockKey}:${field}`;
+}
+
+function focusableIn(element: Element | null | undefined): HTMLElement | null {
+	if (!element) return null;
+	const candidates = [element, ...element.querySelectorAll(FOCUSABLE)];
+	return (
+		candidates.find(
+			(candidate): candidate is HTMLElement =>
+				candidate instanceof HTMLElement &&
+				candidate.matches(FOCUSABLE) &&
+				candidate.tabIndex >= 0 &&
+				!candidate.closest("[aria-hidden='true']"),
+		) ?? null
+	);
+}
+
+function useIssueMessage() {
+	const { t, i18n } = useLingui();
+	return React.useCallback(
+		(issue: BlockValueIssue, hint?: string): string => {
+			if (issue.item !== undefined) {
+				const position = issue.item + 1;
+				const field = splitLabelHint(issue.label).label;
+				return issue.code === "required"
+					? t`Item ${position}: ${field} is required`
+					: t`Item ${position}: check ${field}`;
+			}
+			switch (issue.code) {
+				case "required":
+					return t`Required`;
+				case "invalid_format":
+					if (hint) return hint;
+					return issue.format === "url"
+						? t`Enter a valid URL (e.g. https://example.com)`
+						: t`Check the format`;
+				case "invalid_value":
+					return t`Choose one of the options`;
+				case "not_integer":
+					return t`Enter a whole number`;
+				case "too_small": {
+					const minimum = issue.minimum ?? 0;
+					if (issue.origin === "array") {
+						return plural(minimum, { one: "Add at least # item", other: "Add at least # items" });
+					}
+					if (issue.origin === "string") {
+						return plural(minimum, {
+							one: "Use at least # character",
+							other: "Use at least # characters",
+						});
+					}
+					const formatted = i18n.number(minimum);
+					return t`Enter ${formatted} or more`;
+				}
+				case "too_big": {
+					const maximum = issue.maximum ?? 0;
+					if (issue.origin === "array") {
+						return plural(maximum, { one: "Keep to # item", other: "Keep to # items" });
+					}
+					if (issue.origin === "string") {
+						return plural(maximum, {
+							one: "Use at most # character",
+							other: "Use at most # characters",
+						});
+					}
+					const formatted = i18n.number(maximum);
+					return t`Enter ${formatted} or less`;
+				}
+			}
+		},
+		[t, i18n],
+	);
+}
 
 type MenuAction =
 	| { kind: "delete" }
@@ -211,6 +313,7 @@ export function BlocksField({
 	maxItems = 100,
 	readOnly = false,
 	renderField,
+	reveal,
 }: BlocksFieldProps) {
 	const { t } = useLingui();
 	const toastManager = useKumoToastManager();
@@ -223,6 +326,10 @@ export function BlocksField({
 	const maxHintId = React.useId();
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	const [advancedKeys, setAdvancedKeys] = React.useState<ReadonlySet<string>>(() => new Set());
+	const [touched, setTouched] = React.useState<ReadonlySet<string>>(() => new Set());
+	const [revealedKeys, setRevealedKeys] = React.useState<ReadonlySet<string>>(() => new Set());
+	const revealTokenRef = React.useRef(reveal?.token ?? 0);
+	const [revealFocus, setRevealFocus] = React.useState<FocusRequest | null>(null);
 	const [picker, setPicker] = React.useState<PickerTarget | null>(null);
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const [confirmDelete, setConfirmDelete] = React.useState<{
@@ -247,6 +354,58 @@ export function BlocksField({
 	const anyOpen = blocks.some((block) => openKeys.has(block._key));
 	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 	const blockLabel = (block: StoredBlockValue) => typeBySlug.get(block._type)?.label ?? block._type;
+	const shownIssues = new Map<string, BlockValueIssue[]>();
+	if (!readOnly) {
+		for (const issue of validateBlocks(blocks, blockTypes)) {
+			if (
+				!revealedKeys.has(issue.blockKey) &&
+				!touched.has(touchKey(issue.blockKey, issue.field))
+			) {
+				continue;
+			}
+			shownIssues.set(issue.blockKey, [...(shownIssues.get(issue.blockKey) ?? []), issue]);
+		}
+	}
+
+	const touchField = (blockKey: string, field: string) => {
+		const key = touchKey(blockKey, field);
+		setTouched((current) => (current.has(key) ? current : new Set(current).add(key)));
+	};
+
+	const revealIssues = useStableCallback((focusId: string | undefined) => {
+		if (readOnly) return;
+		setRevealedKeys(new Set(blocks.map((block) => block._key)));
+		const block = focusId
+			? blocks.find((candidate) => focusId.startsWith(`field-${fieldPath}.${candidate._key}.`))
+			: undefined;
+		if (!block || !focusId) return;
+		const path = focusId.slice(`field-${fieldPath}.${block._key}.`.length);
+		const field = path.split(".")[0] ?? path;
+		const version = typeBySlug
+			.get(block._type)
+			?.versions.find((candidate) => candidate.version === block._version);
+		const advanced = version ? planBlockFields(version.fields, "block").advanced : [];
+		if (advanced.some((candidate) => candidate.slug === field)) {
+			setAdvancedKeys((current) => new Set(current).add(block._key));
+		}
+		setOpenKeys((current) => new Set(current).add(block._key));
+		setRevealFocus({ key: block._key, target: "field", elementId: focusId, field });
+	});
+
+	const revealToken = reveal?.token ?? 0;
+	const revealFocusId = reveal?.focusId;
+	React.useEffect(() => {
+		if (revealToken === revealTokenRef.current) return;
+		revealTokenRef.current = revealToken;
+		revealIssues(revealFocusId);
+	}, [revealToken, revealFocusId, revealIssues]);
+
+	// Hands the focus over a render later, once the block and its Advanced row have opened.
+	React.useEffect(() => {
+		if (!revealFocus) return;
+		focusRequestRef.current = revealFocus;
+		setRevealFocus(null);
+	}, [revealFocus]);
 
 	React.useEffect(() => {
 		const request = focusRequestRef.current;
@@ -262,11 +421,25 @@ export function BlocksField({
 		);
 		if (!row) return;
 		focusRequestRef.current = null;
+		const toggle = row.querySelector<HTMLElement>("[data-block-toggle]");
+		if (request.target === "field") {
+			const { elementId } = request;
+			const focusField = () => {
+				const field = [...row.querySelectorAll<HTMLElement>("[data-block-body] [data-field]")].find(
+					(element) => element.dataset.field === request.field,
+				);
+				(focusableIn(document.getElementById(elementId)) ?? focusableIn(field) ?? toggle)?.focus();
+			};
+			// A labelled Kumo input inside a list takes the id it was given only after its first render.
+			if (focusableIn(document.getElementById(elementId))) focusField();
+			else requestAnimationFrame(focusField);
+			return;
+		}
 		const control =
 			request.target === "first-control"
 				? row.querySelector<HTMLElement>(`[data-block-body] :is(${FOCUSABLE})`)
 				: null;
-		(control ?? row.querySelector<HTMLElement>("[data-block-toggle]"))?.focus();
+		(control ?? toggle)?.focus();
 	});
 
 	React.useEffect(
@@ -481,6 +654,7 @@ export function BlocksField({
 										retired={retiredTypes.includes(block._type)}
 										open={readOnly || openKeys.has(block._key)}
 										advancedOpen={readOnly || advancedKeys.has(block._key)}
+										issues={shownIssues.get(block._key) ?? NO_ISSUES}
 										readOnly={readOnly}
 										canAdd={canAdd}
 										atMax={atMax}
@@ -489,6 +663,7 @@ export function BlocksField({
 										roundBottom={readOnly && index === blocks.length - 1}
 										onToggle={() => toggleBlock(block._key)}
 										onAdvancedToggle={() => toggleAdvanced(block._key)}
+										onTouch={(field) => touchField(block._key, field)}
 										onChange={(field, nextValue) =>
 											onChange(updateBlockFieldValue(blocks, block._key, field, nextValue))
 										}
@@ -567,6 +742,8 @@ interface BlockRowProps {
 	retired: boolean;
 	open: boolean;
 	advancedOpen: boolean;
+	/** Problems to show in this block. */
+	issues: readonly BlockValueIssue[];
 	readOnly: boolean;
 	canAdd: boolean;
 	atMax: boolean;
@@ -575,6 +752,8 @@ interface BlockRowProps {
 	roundBottom: boolean;
 	onToggle: () => void;
 	onAdvancedToggle: () => void;
+	/** Called when focus leaves the control of the field with this slug. */
+	onTouch: (field: string) => void;
 	onChange: (field: string, value: unknown) => void;
 	onAdd: (target: PickerTarget) => void;
 	onDuplicate: () => void;
@@ -593,6 +772,7 @@ function BlockRow({
 	retired,
 	open,
 	advancedOpen,
+	issues,
 	readOnly,
 	canAdd,
 	atMax,
@@ -601,6 +781,7 @@ function BlockRow({
 	roundBottom,
 	onToggle,
 	onAdvancedToggle,
+	onTouch,
 	onChange,
 	onAdd,
 	onDuplicate,
@@ -637,6 +818,11 @@ function BlockRow({
 	const summaryId = `${rowId}-summary`;
 	const bodyId = `${rowId}-body`;
 	const versionId = `${rowId}-version`;
+	const errorDotId = `${rowId}-errors`;
+	const showErrorDot = !open && issues.length > 0;
+	const toggleDescription = [showErrorDot && errorDotId, summary && summaryId]
+		.filter(Boolean)
+		.join(" ");
 
 	const addFromMenu = (side: InsertSide) => {
 		const invoker = menuFromHandle ? handleRef.current : triggerRef.current;
@@ -776,7 +962,7 @@ function BlockRow({
 						aria-expanded={open}
 						aria-controls={bodyId}
 						aria-labelledby={labelId}
-						aria-describedby={summary ? summaryId : undefined}
+						aria-describedby={toggleDescription || undefined}
 						onClick={onToggle}
 						className="flex min-w-0 flex-1 items-center gap-2 self-stretch rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand"
 					>
@@ -832,6 +1018,7 @@ function BlockRow({
 						}}
 					/>
 				)}
+				{showErrorDot && <ErrorDot id={errorDotId} />}
 				{(inactive || retired || unsupported) && (
 					<span className="flex flex-wrap justify-end gap-1">
 						{inactive && <Badge variant="secondary">{t`Inactive version`}</Badge>}
@@ -963,7 +1150,9 @@ function BlockRow({
 							block={block}
 							fields={version.fields}
 							advancedOpen={advancedOpen}
+							issues={issues}
 							onAdvancedToggle={onAdvancedToggle}
+							onTouch={onTouch}
 							onChange={onChange}
 							renderField={renderField}
 						/>
@@ -981,9 +1170,23 @@ interface BlockFieldsProps {
 	block: StoredBlockValue;
 	fields: readonly BlockFieldDefinition[];
 	advancedOpen: boolean;
+	issues: readonly BlockValueIssue[];
 	onAdvancedToggle: () => void;
+	onTouch: (field: string) => void;
 	onChange: (field: string, value: unknown) => void;
 	renderField: BlocksFieldProps["renderField"];
+}
+
+function ErrorDot({ id }: { id?: string }) {
+	const { t } = useLingui();
+	return (
+		<span
+			id={id}
+			role="img"
+			aria-label={t`Has fields to fix`}
+			className="size-2 shrink-0 rounded-full bg-kumo-danger"
+		/>
+	);
 }
 
 interface ControlOptions {
@@ -1008,11 +1211,14 @@ function BlockFields({
 	block,
 	fields,
 	advancedOpen,
+	issues,
 	onAdvancedToggle,
+	onTouch,
 	onChange,
 	renderField,
 }: BlockFieldsProps) {
 	const { t } = useLingui();
+	const issueMessage = useIssueMessage();
 	const plan = React.useMemo(() => planBlockFields(fields, "block"), [fields]);
 	const advancedId = React.useId();
 
@@ -1032,13 +1238,42 @@ function BlockFields({
 		const id = controlId(field);
 		const { hint } = splitLabelHint(field.label);
 		const value = block[field.slug];
+		const isList = field.type === "repeater";
+		const fieldIssues = issues.filter((candidate) => candidate.field === field.slug);
+		const issue = fieldIssues.find((candidate) => candidate.path === field.slug);
 		const placeholder =
 			options.placeholder ??
 			(field.required ? t`Required` : (hint ?? options.emptyPlaceholder ?? t`Empty`));
 		const hintId = `${id}-hint`;
-		const showHintOnFocus = Boolean(hint) && !(placeholder === hint && isEmptyValue(value));
+		const errorId = `${id}-error`;
+		const error = issue ? issueMessage(issue, hint) : undefined;
+		const errorShown =
+			issue !== undefined &&
+			!(issue.code === "required" && REQUIRED_SHOWN_BY_CONTROL.has(field.type));
+		const describedBy = isList
+			? undefined
+			: [hint && error !== hint && hintId, error && errorId].filter(Boolean).join(" ") || undefined;
+		const showHintOnFocus =
+			Boolean(hint) && !errorShown && !(placeholder === hint && isEmptyValue(value));
+		const listErrors =
+			isList && fieldIssues.length > 0 ? (
+				<ul className="grid gap-0.5 text-sm text-kumo-danger">
+					{fieldIssues.map((listIssue) => (
+						<li key={`${listIssue.path}:${listIssue.code}`}>{issueMessage(listIssue)}</li>
+					))}
+				</ul>
+			) : undefined;
 		return (
-			<div key={field.slug} data-field={field.slug} className="group/control min-w-0">
+			<div
+				key={field.slug}
+				data-field={field.slug}
+				className="group/control min-w-0"
+				onBlur={(event) => {
+					const next = event.relatedTarget;
+					if (next instanceof Node && event.currentTarget.contains(next)) return;
+					onTouch(field.slug);
+				}}
+			>
 				{renderField({
 					name: `${fieldPath}.${block._key}.${field.slug}`,
 					field: nestedDescriptor(outerId, block._key, block._type, block._version, field),
@@ -1046,17 +1281,27 @@ function BlockFields({
 					onChange: (nextValue) => onChange(field.slug, nextValue),
 					chrome: {
 						labelledBy,
-						describedBy: hint ? hintId : undefined,
+						describedBy,
 						placeholder,
+						invalid: issue !== undefined,
 						heading: options.heading,
+						error: listErrors,
 					},
 				})}
-				{hint && field.type !== "repeater" && (
+				{hint && !isList && error !== hint && (
 					<p
 						id={hintId}
 						className={cn("sr-only", showHintOnFocus && "group-focus-within/control:not-sr-only")}
 					>
 						<span className="block px-2 pt-1 text-xs leading-4 text-kumo-subtle">{hint}</span>
+					</p>
+				)}
+				{error && !isList && (
+					<p
+						id={errorId}
+						className={errorShown ? "px-2 pt-1 text-xs leading-4 text-kumo-danger" : "sr-only"}
+					>
+						{error}
 					</p>
 				)}
 			</div>
@@ -1191,6 +1436,10 @@ function BlockFields({
 								{advancedSummary}
 							</span>
 						)}
+						{!advancedOpen &&
+							issues.some((issue) => plan.advanced.some((field) => field.slug === issue.field)) && (
+								<ErrorDot />
+							)}
 					</button>
 					{advancedOpen && (
 						<div id={advancedId} className="grid gap-0.5">

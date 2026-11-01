@@ -11,6 +11,7 @@ import {
 	Select,
 	Sidebar,
 	Switch,
+	useKumoToastManager,
 	useSidebar,
 } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
@@ -46,6 +47,12 @@ import {
 	getPreviewUrl,
 	getDraftStatus,
 } from "../lib/api";
+import { splitLabelHint } from "../lib/block-field-layout.js";
+import {
+	blockIssueElementId,
+	type BlockValueIssue,
+	validateBlocks,
+} from "../lib/block-validation.js";
 import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
@@ -63,7 +70,7 @@ import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
-import { BlocksField, type FieldChrome } from "./BlocksField.js";
+import { type BlockReveal, BlocksField, type FieldChrome } from "./BlocksField.js";
 import type { BylineFormValues } from "./BylineFormDialog.js";
 import { ContentPickerModal, type PickedContentEntry } from "./ContentPickerModal.js";
 import {
@@ -106,6 +113,67 @@ const EDITOR_SETTINGS_DEFAULT_WIDTH_PX = 368;
 const EDITOR_SETTINGS_MAX_WIDTH_PX = 480;
 const EDITOR_SETTINGS_KEYBOARD_STEP_PX = 10;
 const LIST_FIELD_KINDS = new Set(["repeater", "portableText", "multiSelect", "blocks"]);
+
+/** A problem in the blocks field named `name`. */
+interface FieldBlockIssue {
+	name: string;
+	issue: BlockValueIssue;
+}
+
+function blockIssueKey({ name, issue }: FieldBlockIssue): string {
+	return `${name}:${issue.blockKey}:${issue.path}:${issue.code}`;
+}
+
+/** Says autosave is paused while `heldBy` holds it, once per problem, with a way to reach the field. */
+function AutosavePausedNotice({
+	heldBy,
+	onShow,
+}: {
+	heldBy: FieldBlockIssue | null;
+	onShow: (found: FieldBlockIssue) => void;
+}) {
+	const { t } = useLingui();
+	const { add, close } = useKumoToastManager();
+	const shownRef = React.useRef<{ key: string; toastId: string } | null>(null);
+	const key = heldBy ? blockIssueKey(heldBy) : null;
+
+	React.useEffect(() => {
+		const shown = shownRef.current;
+		if (shown?.key === key) return;
+		if (shown) close(shown.toastId);
+		shownRef.current = null;
+		if (!heldBy || !key) return;
+		const block = heldBy.issue.blockLabel;
+		const field = splitLabelHint(heldBy.issue.fieldLabel).label;
+		const toastId: string = add({
+			title: t`Autosave paused`,
+			description: t`Fix ${field} in the ${block} block to resume saving.`,
+			variant: "warning",
+			timeout: 0,
+			actions: [
+				{
+					children: t`Show`,
+					variant: "secondary",
+					size: "sm",
+					onClick: () => {
+						close(toastId);
+						onShow(heldBy);
+					},
+				},
+			],
+		});
+		shownRef.current = { key, toastId };
+	}, [add, close, heldBy, key, onShow, t]);
+
+	React.useEffect(
+		() => () => {
+			if (shownRef.current) close(shownRef.current.toastId);
+		},
+		[close],
+	);
+
+	return null;
+}
 
 function serializeEditorState(input: {
 	data: Record<string, unknown>;
@@ -554,6 +622,10 @@ export function ContentEditor({
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
+	const [blockReveal, setBlockReveal] = React.useState<BlockReveal>({ token: 0 });
+	/** The block field problem that last held back an autosave, until every problem is fixed. */
+	const [autosaveHeldBy, setAutosaveHeldBy] = React.useState<FieldBlockIssue | null>(null);
+	const hasBlocksField = Object.values(fields).some((field) => field.kind === "blocks");
 	const unsupportedFields = Object.entries(fields).filter(([, field]) => field.unsupportedType);
 	const readOnly = readOnlyProp || unsupportedFields.length > 0;
 	const itemLabel = collectionLabel;
@@ -1260,6 +1332,31 @@ export function ContentEditor({
 		},
 		[fields],
 	);
+	const firstBlockIssue = React.useCallback(
+		(data: Record<string, unknown>): FieldBlockIssue | null => {
+			for (const [name, field] of Object.entries(fields)) {
+				if (field.kind !== "blocks") continue;
+				const [issue] = validateBlocks(data[name], field.blockTypes ?? []);
+				if (issue) return { name, issue };
+			}
+			return null;
+		},
+		[fields],
+	);
+	const revealBlockIssue = React.useCallback((found: FieldBlockIssue) => {
+		setBlockReveal((current) => ({
+			token: current.token + 1,
+			focusId: blockIssueElementId(found.name, found.issue),
+		}));
+	}, []);
+	const holdAutosaveFor = React.useCallback((found: FieldBlockIssue) => {
+		setAutosaveHeldBy((current) =>
+			current && blockIssueKey(current) === blockIssueKey(found) ? current : found,
+		);
+	}, []);
+	React.useEffect(() => {
+		if (autosaveHeldBy && !firstBlockIssue(formData)) setAutosaveHeldBy(null);
+	}, [autosaveHeldBy, firstBlockIssue, formData]);
 	const createSavePayload = React.useCallback(() => {
 		const payload: {
 			data: Record<string, unknown>;
@@ -1345,6 +1442,11 @@ export function ContentEditor({
 			autosaveTimeoutRef.current = null;
 			runAutosaveRef.current = null;
 			if (hasInvalidUrls(formDataRef.current)) return;
+			const blockIssue = firstBlockIssue(formDataRef.current);
+			if (blockIssue) {
+				holdAutosaveFor(blockIssue);
+				return;
+			}
 			const payload = createSavePayload();
 			const { state, referenceRows, key, switches } = beginSave(payload);
 			pendingAutosaveStateRef.current = state;
@@ -1378,6 +1480,8 @@ export function ContentEditor({
 		createSavePayload,
 		beginSave,
 		hasInvalidUrls,
+		firstBlockIssue,
+		holdAutosaveFor,
 		referenceState,
 		hasUnsupportedPortableTextMarks,
 		isPublishing,
@@ -1397,6 +1501,11 @@ export function ContentEditor({
 			hasUnsupportedPortableTextMarks
 		)
 			return;
+		const blockIssue = firstBlockIssue(formData);
+		if (blockIssue) {
+			revealBlockIssue(blockIssue);
+			return;
+		}
 		cancelPendingAutosave();
 		const payload = createSavePayload();
 		const saved = beginSave(payload);
@@ -1424,6 +1533,11 @@ export function ContentEditor({
 			hasSaveConflictRef.current
 		)
 			return;
+		const blockIssue = firstBlockIssue(formDataRef.current);
+		if (blockIssue) {
+			revealBlockIssue(blockIssue);
+			return;
+		}
 		cancelPendingAutosave();
 		const payload = createSavePayload();
 		const saved = beginSave(payload);
@@ -1454,6 +1568,8 @@ export function ContentEditor({
 		beginSave,
 		markSaved,
 		hasInvalidUrls,
+		firstBlockIssue,
+		revealBlockIssue,
 		hasUnsupportedPortableTextMarks,
 		onPublish,
 	]);
@@ -1474,7 +1590,9 @@ export function ContentEditor({
 			if (isViewingRef.current) {
 				return Promise.reject(new Error(t`Go back to editing first.`));
 			}
-			if (hasInvalidUrls(formDataRef.current) || hasUnsupportedPortableTextMarks) {
+			const blockIssue = firstBlockIssue(formDataRef.current);
+			if (hasInvalidUrls(formDataRef.current) || blockIssue || hasUnsupportedPortableTextMarks) {
+				if (blockIssue) revealBlockIssue(blockIssue);
 				return Promise.reject(
 					new Error(invalidFieldsMessage ?? t`Fix invalid fields before changing the schedule`),
 				);
@@ -1523,6 +1641,8 @@ export function ContentEditor({
 			beginSave,
 			markSaved,
 			hasInvalidUrls,
+			firstBlockIssue,
+			revealBlockIssue,
 			hasUnsupportedPortableTextMarks,
 			t,
 		],
@@ -1849,6 +1969,7 @@ export function ContentEditor({
 				isDistractionFree && "fixed inset-0 z-50",
 			)}
 		>
+			{hasBlocksField && <AutosavePausedNotice heldBy={autosaveHeldBy} onShow={revealBlockIssue} />}
 			{/* Wraps the whole layout so the bar's Settings button and the
 			    block-panel sync can reach the sidebar context. Below lg Kumo
 			    renders the panel as an inline (not portaled) sheet. */}
@@ -1965,6 +2086,7 @@ export function ContentEditor({
 												manifest={manifest}
 												readOnly={readOnly}
 												timezone={timezone}
+												blockReveal={field.kind === "blocks" ? blockReveal : undefined}
 												referenceState={referenceState}
 												onReferenceChange={handleReferenceCurrentChange}
 												onLoadMoreReferences={handleLoadMoreReferences}
@@ -2429,12 +2551,15 @@ interface FieldRendererProps {
 	onArrowUpAtStart?: () => void;
 	/** Draws a field that a blocks field lays out: no label of its own, and quiet until reached for. */
 	chrome?: FieldChrome;
+	/** For a blocks field: shows its problems and focuses one, as Save does. */
+	blockReveal?: BlockReveal;
 }
 
 // A `dir="auto"` value aligns to the start of its own text. Quiet values line up with their labels
 // instead, so a value whose direction differs from its container's aligns to its own end.
+// Kumo's placeholder color is unlayered, so only an important utility recolors it.
 const QUIET_CONTROL =
-	"w-full bg-transparent px-2 shadow-none ring-transparent [:dir(ltr)>&:dir(rtl)]:text-end [:dir(rtl)>&:dir(ltr)]:text-end enabled:hover:bg-kumo-tint focus:bg-kumo-control aria-invalid:ring-kumo-danger aria-invalid:placeholder:text-kumo-danger aria-invalid:focus:ring-kumo-danger/50";
+	"w-full bg-transparent px-2 shadow-none ring-transparent [:dir(ltr)>&:dir(rtl)]:text-end [:dir(rtl)>&:dir(ltr)]:text-end enabled:hover:bg-kumo-tint focus:bg-kumo-control aria-invalid:ring-kumo-danger aria-invalid:placeholder:text-kumo-danger! aria-invalid:focus:ring-kumo-danger/50";
 const QUIET_INPUT = `${QUIET_CONTROL} h-8 text-ellipsis`;
 const QUIET_TEXTAREA = `${QUIET_CONTROL} min-h-8 resize-none overflow-hidden py-1.5`;
 // The editor's field column sets input text to text-base and font-normal, which only `!` outranks.
@@ -2524,6 +2649,7 @@ function FieldRenderer({
 	isDocumentBody = false,
 	onArrowUpAtStart,
 	chrome,
+	blockReveal,
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
@@ -3107,6 +3233,7 @@ function FieldRenderer({
 						typeof field.validation?.maxItems === "number" ? field.validation.maxItems : undefined
 					}
 					readOnly={readOnly}
+					reveal={blockReveal}
 					renderField={({
 						name: nestedName,
 						field: nestedField,
