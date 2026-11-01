@@ -41,8 +41,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Test Maintainer review status
-        run: node --test .github/scripts/approval.test.mjs
+      - name: Test the workflow scripts
+        run: node --test .github/scripts/approval.test.mjs .github/scripts/vitest-shard.test.mjs
       - name: Select tests for this change
         id: plan
         env:
@@ -125,8 +125,8 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        shardIndex: [1, 2, 3, 4]
-        shardTotal: [4]
+        shardIndex: [1, 2, 3, 4, 5, 6]
+        shardTotal: [6]
     services:
       postgres:
         image: postgres:17
@@ -151,9 +151,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run --filter emdash... build
-      - run: pnpm --filter emdash exec vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+      - id: unit
+        run: pnpm --filter emdash exec vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           EMDASH_TEST_PG: postgres://postgres:test@localhost:5432/emdash_test
+      # The durations behind packages/core/tests/shard-times.json; see .github/scripts/vitest-shard.mjs --record.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() && steps.unit.outcome != 'skipped' }}
+        with:
+          name: vitest-timings-${{ matrix.shardIndex }}
+          path: packages/core/vitest-timings/
+          retention-days: 14
       # Render tests use the Astro Vite plugin (vitest.repro.config.ts);
       # they can't run under the plain-node config in test:unit.
       - if: matrix.shardIndex == 1
