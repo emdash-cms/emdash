@@ -99,11 +99,11 @@ An agent connected over MCP calls `site_update_request`. Its token doesn't hold 
 
 ### `upgrade-emdash` options
 
-`upgrade-emdash` resolves an npm dist-tag for every direct `emdash` and `@emdash-cms/*` dependency today, and `--to` rejects an exact version. Three options are added. `--to` keeps its behavior.
+`upgrade-emdash` resolves an npm dist-tag for every direct `emdash` and `@emdash-cms/*` dependency today, and `--to` rejects an exact version. Three options are added. `--to` keeps its behavior, and so does `--version`, which prints the updater's own version.
 
-`--version <x.y.z>` installs one stable release. Every direct dependency in the release group gets exactly that version. Every other direct `@emdash-cms/*` dependency, such as a plugin package, resolves the `latest` dist-tag as it does today. `upgrade-emdash` carries the release group as a list generated from `.changeset/config.json` at build time. `--version` and `--to` can't be combined. A version that isn't a stable `major.minor.patch` release fails before anything is installed. A version older than the installed one fails as it does for a dist-tag today. When every dependency already has its target version, the command reports that the project is up to date and exits with code 0 without changing files.
+`--release <x.y.z>` installs one stable release. Every direct dependency in the release group gets exactly that version. Every other direct `@emdash-cms/*` dependency, such as a plugin package, resolves the `latest` dist-tag as it does today. `upgrade-emdash` carries the release group as a list generated from `.changeset/config.json` at build time. `--release` and `--to` can't be combined. A version that isn't a stable `major.minor.patch` release fails before anything is installed. A version older than the installed one fails as it does for a dist-tag today. When every dependency already has its target version, the command reports that the project is up to date and exits with code 0 without changing files.
 
-`--minimum-release-age <duration>` takes a duration string (`"72h"`, `"3d"`) or a number of seconds, the format of `updateCheck.minimumReleaseAge`. Without `--version`, the release group gets the newest stable `emdash` version that was published at least that long ago and isn't deprecated, the rule the update check uses. Other `@emdash-cms/*` dependencies get the newest stable version, no newer than `latest`, that is at least that old. With `--version`, the option rejects a version younger than the age. It can't be combined with `--to`.
+`--minimum-release-age <duration>` takes a duration string (`"72h"`, `"3d"`) or a number of seconds, the format of `updateCheck.minimumReleaseAge`. Without `--release`, the release group gets the newest stable `emdash` version that was published at least that long ago and isn't deprecated, the rule the update check uses. Other `@emdash-cms/*` dependencies get the newest stable version, no newer than `latest`, that is at least that old. With `--release`, the option rejects a version younger than the age. It can't be combined with `--to`.
 
 `--summary <file>` writes a JSON summary after a successful run, including a run that changes nothing:
 
@@ -127,9 +127,9 @@ The workflow is a single file, `emdash-update.yml`. The update guide documents i
 
 On each run, the workflow:
 
-1. Checks out the default branch and detects the package manager from the lockfile.
+1. Checks out the default branch, detects the package manager from the lockfile, and installs the current dependencies from the lockfile. `upgrade-emdash` reads the installed versions from `node_modules`.
 2. Passes the inputs to the steps through environment variables, never through `${{ }}` expressions inside a script.
-3. Runs `npx upgrade-emdash@latest --yes --summary "$RUNNER_TEMP/emdash-update.json"`, adding `--version "$VERSION"` when the request carries a version and `--minimum-release-age` on a scheduled run.
+3. Runs `npx upgrade-emdash@latest --yes --summary "$RUNNER_TEMP/emdash-update.json"`, adding `--release "$VERSION"` when the request carries a version, and on a scheduled run `--minimum-release-age` with an age set at the top of the workflow file.
 4. Ends without a pull request when the summary reports `updated: false`.
 5. Commits the changed manifests, lockfile, synced skills and `.emdash/UPGRADE.md` to the branch `emdash-update/<toVersion>` and pushes it. If that branch already exists with commits the workflow didn't make, the run stops without pushing, so work done on the pull request is never overwritten.
 6. Opens or updates the pull request "Update EmDash to `<toVersion>`" with `gh`. The body lists the package changes, the added migrations and the release entries that ask for project changes, and links `.emdash/UPGRADE.md`. It says whether the run came from the admin, the CLI, MCP or the schedule. It never names a person.
@@ -247,7 +247,7 @@ Any 2xx response counts as sent. When the response is JSON with a `url` string t
 
 Both options keys are read in one `getMany` query, and the user lookup runs only when a record exists.
 
-`POST /_emdash/api/admin/core-update/request` takes `{ version }` and sends a request with `source: "admin"`, or `"cli"` when the caller is authenticated with a token. It answers with the stored record.
+`POST /_emdash/api/admin/core-update/request` takes `{ version }` and sends a request with `source: "admin"`, or `"cli"` when the caller is authenticated with a token. From a signed-in session, while a request for that version awaits approval, it approves that request: it is sent with `source: "mcp"` and the admin as `approvedBy`. It answers with the stored record.
 
 `DELETE /_emdash/api/admin/core-update/request` dismisses a request that awaits approval. It is accepted only from a signed-in session.
 
@@ -286,14 +286,14 @@ Two subcommands join `emdash site`, which already holds the commands that act on
 - `emdash site update-status` prints the running and newest versions, the trigger and the current request. `--json` prints the API response.
 - `emdash site request-update` shows the same status, asks for confirmation, and sends a request for the reported version. `--yes` skips the confirmation and is required without a TTY. It exits with a non-zero code when nothing can be requested or the trigger rejects the request.
 
-The names include "update" with a site verb, so they can't be mistaken for `upgrade-emdash`, which runs in the project.
+The names say "update" and sit under `emdash site`, so they can't be mistaken for `upgrade-emdash`, which runs in the project.
 
 ### MCP
 
 Two tools join the core MCP server:
 
 - `site_update_status` returns what `update-status` prints. It requires the `updates:read` permission.
-- `site_update_request` takes an optional `version`, which must match the reported version when given. It requires the `updates:request` permission. With the `updates:request` scope (or `admin`), it sends the request with `source: "mcp"`. Without the scope, it stores an `awaiting_approval` record and answers `{ status: "awaiting_approval" }` with a message that an admin has to approve the request in the admin dashboard.
+- `site_update_request` takes an optional `version`, which must match the reported version when given. It requires the `updates:request` permission. With the `updates:request` scope (or `admin`), it sends the request with `source: "mcp"`. Without the scope, it runs the handler's first three steps with `awaiting_approval` in place of `sending`, so it can't replace a request that was just sent or is being sent. It answers `{ status: "awaiting_approval" }` with a message that an admin has to approve the request in the admin dashboard.
 
 An admin approves a request on the banner, from a signed-in session. Approving sends the request, so the agent doesn't call the tool again. A second call while a request awaits approval returns the same answer and doesn't create another record. The approval is single-use because sending replaces the record.
 
@@ -337,7 +337,7 @@ The admin status route reads one more options key in the query it already runs, 
 
 ## Verification
 
-- `upgrade-emdash` unit tests with packument fixtures: the release group gets the exact version and plugins resolve `latest`. They also cover the release-age selection with and without `--version`, rejecting prereleases and too-young versions, the up-to-date exit, the summary fields, and `actionRequired` from a `#### What should I do?` heading.
+- `upgrade-emdash` unit tests with packument fixtures: the release group gets the exact version and plugins resolve `latest`. They also cover the release-age selection with and without `--release`, rejecting prereleases and too-young versions, the up-to-date exit, the summary fields, and `actionRequired` from a `#### What should I do?` heading.
 - Handler tests on a real SQLite database with an injected `fetch`: GitHub 200 with run details, 204, 422 followed by the retry, 401, 404, a timeout, and webhook 2xx with and without a `url`. Also a version mismatch, the 15-minute limit and a missing secret.
 - Route tests: an Editor is refused, a token without the scope is refused, a token with `admin` passes, a DELETE from a token is refused, and the CSRF header is enforced.
 - MCP tests: with the scope the tool sends, without it the tool stores one `awaiting_approval` record, a second call doesn't create another, and approval from a session sends the request.
@@ -350,8 +350,8 @@ The admin status route reads one more options key in the query it already runs, 
 
 Each slice is usable without the next one:
 
-1. **`upgrade-emdash` options:** `--version`, `--minimum-release-age` and `--summary`.
-2. **The workflow:** the file, a "Update from GitHub Actions" section in the update guide, and the template copies. With slices 1 and 2, a site can run scheduled updates without any core change.
+1. **`upgrade-emdash` options:** `--release`, `--minimum-release-age` and `--summary`.
+2. **The workflow:** the file, an "Update from GitHub Actions" section in the update guide, and the template copies. With slices 1 and 2, a site can run scheduled updates without any core change.
 3. **Core request:** the `trigger` option, the record, the handler, the routes, the permission and scope, and the banner states.
 4. **CLI:** `emdash site update-status` and `emdash site request-update`.
 5. **MCP:** both tools and the approval state on the banner.
