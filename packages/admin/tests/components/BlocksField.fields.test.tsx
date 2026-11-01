@@ -586,6 +586,22 @@ describe("Checking fields inside a block", () => {
 		await expect.element(tone).toHaveAccessibleDescription("Required");
 	});
 
+	it("focuses the text of a required rich text field that fails on Save", async () => {
+		const story = blockType("story", "Story", [
+			{ slug: "headline", label: "Headline", type: "string" },
+			{ slug: "body", label: "Body", type: "portableText", required: true },
+		]);
+		await renderEditor([{ _type: "story", _version: 1, _key: "story-1", headline: "Hi" }], [story]);
+
+		await page.getByRole("textbox", { name: "Title" }).fill("Home page");
+		await saveButton().click();
+		await expect
+			.element(blockRow("story-1").getByRole("button", { name: "Story", exact: true }))
+			.toHaveAttribute("aria-expanded", "true");
+		const text = blockRow("story-1").element().querySelector('[contenteditable="true"]');
+		await expect.element(page.elementLocator(text!)).toHaveFocus();
+	});
+
 	it("shows Required under an empty required button text, whose placeholder says Text", async () => {
 		const strictHero = blockType(
 			"hero",

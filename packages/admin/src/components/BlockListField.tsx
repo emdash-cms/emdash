@@ -107,7 +107,7 @@ type ListFocus =
 	| { key: string; target: "item" }
 	| { target: "add" };
 
-export const FOCUSABLE =
+const FOCUSABLE =
 	'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
 const MENU_ICON = "size-4";
 const LINE_BREAK = /[\r\n]/;
@@ -129,7 +129,10 @@ export function focusableIn(element: Element | null | undefined): HTMLElement | 
 				candidate instanceof HTMLElement &&
 				candidate.matches(FOCUSABLE) &&
 				candidate.tabIndex >= 0 &&
-				!candidate.closest("[aria-hidden='true']"),
+				!candidate.closest("[aria-hidden='true']") &&
+				// A rich text field's toolbar comes before its text, and a hidden control can't take focus.
+				!candidate.closest('[role="toolbar"]') &&
+				candidate.getClientRects().length > 0,
 		) ?? null
 	);
 }

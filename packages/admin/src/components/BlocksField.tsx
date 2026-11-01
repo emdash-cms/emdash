@@ -54,7 +54,6 @@ import {
 	BlockListField,
 	type DeletedListItem,
 	ErrorDot,
-	FOCUSABLE,
 	firstPhotoUrl,
 	focusableIn,
 	whenFocusLeaves,
@@ -503,12 +502,8 @@ export function BlocksField({
 		}
 		const control =
 			request.target === "first-control"
-				? [...row.querySelectorAll<HTMLElement>(`[data-block-body] :is(${FOCUSABLE})`)].find(
-						// A rich text field's toolbar comes before its text, and a hidden control can't take focus.
-						(element) =>
-							!element.closest('[role="toolbar"]') && element.getClientRects().length > 0,
-					)
-				: undefined;
+				? focusableIn(row.querySelector("[data-block-body]"))
+				: null;
 		(control ?? toggle)?.focus();
 	});
 
