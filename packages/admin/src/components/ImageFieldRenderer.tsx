@@ -32,6 +32,7 @@ import {
 	syncMediaCaption,
 } from "../lib/media-utils.js";
 import { cn } from "../lib/utils.js";
+import { ROW_BUTTON } from "./block-field-styles.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
@@ -670,7 +671,11 @@ export function ImageFieldRenderer({
 							type="button"
 							variant="ghost"
 							size="sm"
-							className="text-kumo-subtle"
+							className={cn(
+								"h-8 px-2 text-base font-normal",
+								ROW_BUTTON,
+								displayUrl ? "text-kumo-subtle" : "text-kumo-placeholder",
+							)}
 							aria-describedby={describedBy}
 							onClick={() => openPicker("image")}
 						>
@@ -696,7 +701,7 @@ export function ImageFieldRenderer({
 							type="button"
 							variant="ghost"
 							size="sm"
-							className="text-kumo-subtle"
+							className={cn("h-8 px-2 text-base font-normal text-kumo-subtle", ROW_BUTTON)}
 							onClick={handleRemove}
 						>
 							{t`Remove`}

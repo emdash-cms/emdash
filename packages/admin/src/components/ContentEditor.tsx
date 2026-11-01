@@ -71,10 +71,12 @@ import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import {
 	FLOATING_NOTE,
+	QUIET_DATE,
 	QUIET_HEADING,
 	QUIET_INPUT,
 	QUIET_SELECT,
 	QUIET_TEXTAREA,
+	ROW_BUTTON,
 } from "./block-field-styles.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { type BlockReveal, BlocksField, type FieldChrome } from "./BlocksField.js";
@@ -2923,7 +2925,7 @@ function FieldRenderer({
 							onChange={handleChange}
 							placeholder={t`Start writing, or type '/' for commands`}
 							aria-labelledby={chrome.labelledBy}
-							className="bg-kumo-control [--emdash-editor-surface:var(--color-kumo-control)] focus-within:ring-kumo-focus/50 focus-within:ring-[1.5px]"
+							className="bg-kumo-control [--emdash-editor-surface:var(--color-kumo-control)] focus-within:border-kumo-interact"
 							pluginBlocks={pluginBlocks}
 							onEditorReady={onEditorReady}
 							onBlockSidebarOpen={onBlockSidebarOpen}
@@ -3089,13 +3091,14 @@ function FieldRenderer({
 			);
 		}
 
-		case "datetime":
+		case "datetime": {
+			const dateValue = toDatetimeLocalInputValue(value, timezone);
 			return (
 				<Input
 					label={quiet ? undefined : label}
 					id={id}
 					type="datetime-local"
-					value={toDatetimeLocalInputValue(value, timezone)}
+					value={dateValue}
 					onChange={(e) => {
 						try {
 							handleChange(fromDatetimeLocalInputValue(e.target.value, timezone));
@@ -3105,9 +3108,14 @@ function FieldRenderer({
 					}}
 					required={quiet ? undefined : field.required}
 					{...quiet}
-					className={quiet ? QUIET_INPUT : undefined}
+					className={
+						quiet
+							? cn(QUIET_DATE, !dateValue && "text-kumo-placeholder focus:text-kumo-default")
+							: undefined
+					}
 				/>
 			);
+		}
 
 		case "image": {
 			// value is either an ImageFieldValue object, a legacy string URL, or undefined
@@ -4004,8 +4012,12 @@ function FileFieldRenderer({
 						type="button"
 						size="sm"
 						variant="ghost"
-						icon={<Paperclip aria-hidden="true" />}
-						className={cn("-ms-2 text-kumo-subtle", invalid && "text-kumo-danger")}
+						icon={<Paperclip className="size-4" aria-hidden="true" />}
+						className={cn(
+							"-ms-2 h-8 px-2 text-base font-normal text-kumo-placeholder",
+							ROW_BUTTON,
+							invalid && "text-kumo-danger",
+						)}
 						onClick={() => setPickerOpen(true)}
 						aria-label={t`Select ${label}`}
 					>

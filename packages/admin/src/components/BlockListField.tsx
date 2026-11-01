@@ -1079,7 +1079,7 @@ function ItemRow({
 			data-item-key={row.key}
 			data-menu-open={sortable.menuOpen || undefined}
 			className={cn(
-				"group/item relative rounded-lg",
+				"group/item relative rounded-lg transition-[background-color] duration-200 ease-emdash motion-reduce:transition-none",
 				open && "bg-kumo-elevated",
 				sortable.isDragging && DRAGGING,
 			)}

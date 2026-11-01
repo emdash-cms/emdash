@@ -33,8 +33,11 @@ export const QUIET_TEXTAREA = `${QUIET_CONTROL} min-h-8 resize-none overflow-hid
 /** The block's headline: the one larger size inside a block. */
 export const QUIET_HEADING = "h-9 text-lg! leading-6 font-semibold!";
 
+// Its chevron follows the value, and like the date's calendar shows only when the control is reached for.
 export const QUIET_SELECT =
-	"h-8 w-full rounded-md bg-transparent px-2 font-normal shadow-none ring-transparent hover:bg-emdash-hover focus-visible:bg-kumo-control focus-visible:ring-1 focus-visible:ring-kumo-line data-[popup-open]:bg-kumo-control data-[popup-open]:ring-1 data-[popup-open]:ring-kumo-line";
+	"h-8 w-full justify-start gap-1.5 rounded-md bg-transparent px-2 font-normal shadow-none ring-transparent hover:bg-emdash-hover focus-visible:bg-kumo-control focus-visible:ring-1 focus-visible:ring-kumo-line data-[popup-open]:bg-kumo-control data-[popup-open]:ring-1 data-[popup-open]:ring-kumo-line [&>span:last-child]:opacity-0 hover:[&>span:last-child]:opacity-100 focus-visible:[&>span:last-child]:opacity-100 data-[popup-open]:[&>span:last-child]:opacity-100";
+
+export const QUIET_DATE = `${QUIET_INPUT} [&::-webkit-calendar-picker-indicator]:opacity-0 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 focus:[&::-webkit-calendar-picker-indicator]:opacity-100`;
 
 /** A block or list item being dragged lifts off the list. */
 export const DRAGGING = "relative z-30 rounded-md bg-kumo-base shadow-lg ring ring-kumo-line";
