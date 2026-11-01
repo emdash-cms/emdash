@@ -185,7 +185,7 @@ interface CoreUpdateRequest {
 	version: string;
 	fromVersion: string;
 	source: "admin" | "cli" | "mcp";
-	status: "awaiting_approval" | "sending" | "sent" | "failed";
+	status: "awaiting_approval" | "sending" | "sent" | "failed" | "dismissed";
 	/** User ID of the admin who sent it, or of the MCP caller for a request made over MCP. */
 	requestedBy: string;
 	requestedAt: string;
@@ -199,14 +199,14 @@ interface CoreUpdateRequest {
 }
 ```
 
-The record only counts while its version is newer than the running version and is still the version the update check reports. Otherwise the API and the banner ignore it. A `sending` record older than one minute counts as `failed`. An `awaiting_approval` record older than 24 hours no longer counts, so an agent whose session has ended doesn't leave its question on the banner until the next release.
+The record only counts while its version is newer than the running version and is still the version the update check reports. Otherwise the API and the banner ignore it. A `sending` record older than one minute counts as `failed`. An `awaiting_approval` record older than 24 hours no longer counts, so an agent whose session has ended doesn't leave its question on the banner until the next release. A `dismissed` record has no age limit and stops counting when the update check reports a newer release.
 
 ### Sending a request
 
 A new handler, `handleCoreUpdateRequest(db, { version, source, user, approvedBy? })`, sends a request:
 
 1. It fails with `UPDATE_TRIGGER_NOT_CONFIGURED` when no trigger is configured, and with `UPDATE_TRIGGER_NOT_READY` when the trigger's secret is missing. It reads the update status with `handleCoreUpdateStatus` and the same `minimumReleaseAge`. The requested version must equal the reported `latest`, and `updateAvailable` must be true. Otherwise it fails with `UPDATE_NOT_AVAILABLE`. A request can never name an arbitrary version.
-2. A `sent` record for the same version that is less than 15 minutes old fails the request with `UPDATE_ALREADY_REQUESTED` and the time it can be retried. So does a `sending` record less than one minute old, and a `failed` record less than one minute old, so a wrong token or an unreachable receiver can't be hammered from a script.
+2. A `sent` record for the same version that is less than 15 minutes old fails the request with `UPDATE_ALREADY_REQUESTED` and the time it can be retried. So does a `sending` record less than one minute old, and a `failed` record less than one minute old, so a wrong token or an unreachable receiver can't be hammered from a script. A `dismissed` record doesn't block a send.
 3. It claims the send by writing a `sending` record with `OptionsRepository.compareAndSet`, against the revision it read in step 2. When the claim doesn't apply, another send got there first, and the request fails with `UPDATE_ALREADY_REQUESTED`.
 4. It sends the request to the trigger with a 10-second timeout and replaces the `sending` record with the outcome.
 
@@ -249,7 +249,7 @@ Both options keys are read in one `getMany` query, and the user lookup runs only
 
 `POST /_emdash/api/admin/core-update/request` takes `{ version }` and sends a request with `source: "admin"`, or `"cli"` when the caller is authenticated with a token. From a signed-in session, while a request for that version awaits approval, it approves that request: it is sent with `source: "mcp"` and the admin as `approvedBy`. It answers with the stored record.
 
-`DELETE /_emdash/api/admin/core-update/request` dismisses a request that awaits approval. It is accepted only from a signed-in session.
+`DELETE /_emdash/api/admin/core-update/request` dismisses a request that awaits approval. It replaces the record with a `dismissed` record for the same version, so an agent can't ask again for that version. It is accepted only from a signed-in session.
 
 Both write routes require the new permission `updates:request`, added to `rbac.ts` with the minimum role Admin. A token caller also needs the new token scope `updates:request`. The `admin` scope includes it, as it includes the transfer scopes. The API token settings list it with the other scopes, so an admin can create a token limited to update requests. The status route `GET /_emdash/api/admin/core-update` accepts the `updates:request` scope as well as `admin`, so a token that can request an update can read the version it would request, which `emdash site request-update` needs. The scope rules for both `core-update` paths come before the generic `/_emdash/api/admin` rule in the auth middleware, as the transfer rule does. The CSRF header rule applies as it does to every state-changing route.
 
@@ -263,6 +263,7 @@ New error codes, mapped in `mapErrorStatus`:
 | `UPDATE_TRIGGER_NOT_READY`      | 409    | The trigger's secret is missing                                                                                          |
 | `UPDATE_NOT_AVAILABLE`          | 409    | The version isn't the newest reported release, or the site already runs it                                               |
 | `UPDATE_ALREADY_REQUESTED`      | 409    | The same version was sent less than 15 minutes ago, failed less than a minute ago, or another send is in progress        |
+| `UPDATE_REQUEST_DISMISSED`      | 409    | An admin dismissed an agent's request for this version                                                                   |
 | `UPDATE_TRIGGER_REJECTED`       | 502    | The trigger answered with an error or a redirect. `details.reason` is `unauthorized`, `not_found`, `invalid` or `failed` |
 | `UPDATE_TRIGGER_UNREACHABLE`    | 502    | The request timed out or couldn't connect                                                                                |
 
@@ -277,7 +278,8 @@ The banner stays on the dashboard for users with `updates:read`, which is Admin 
 - **Trigger not ready:** Start update is disabled, with a note that the deployment's secret is missing.
 - **Sent:** "Update to 1.5.0 requested on <date> by <name>", with View run when there is a link. Start update is offered again after 15 minutes. A `sending` record shows the same text without the link.
 - **Failed:** the error in words, such as "GitHub rejected the token. It may have expired.", with Try again, which is enabled one minute after the failure.
-- **Awaiting approval:** "An agent asked to update to 1.5.0 for <name>", with Start update and Dismiss. Start update sends the request with `source: "mcp"` and the admin as `approvedBy`. This state shows even when the admin dismissed the banner for that version, because the agent is waiting for an answer. It expires after 24 hours.
+- **Awaiting approval:** "An agent asked to update to 1.5.0 for <name>", with Start update and Dismiss. Start update sends the request with `source: "mcp"` and the admin as `approvedBy`. This state shows even when the admin dismissed the banner for that version, because the agent is waiting for an answer. It expires after 24 hours. Dismiss refuses further agent requests for that version.
+- **Dismissed:** the banner behaves as if there were no request, so an admin can still start the update.
 
 The dialog uses `ConfirmDialog`, and every string, including the error texts mapped from the codes above, goes through Lingui. Dates use the admin locale's formatting, and the layout uses logical classes. The dismiss state stays in `localStorage`, per version as today.
 
@@ -295,7 +297,7 @@ The names say "update" and sit under `emdash site`, so they can't be mistaken fo
 Two tools join the core MCP server:
 
 - `site_update_status` returns what `update-status` prints. It requires the `updates:read` permission and, like the REST status route, the `admin` or `updates:request` token scope. It is marked read-only (`readOnlyHint`), so the site write fence lets it run during an import.
-- `site_update_request` takes an optional `version`, which must match the reported version when given. It requires the `updates:request` permission. With the `updates:request` scope (or `admin`), it sends the request with `source: "mcp"`. Without the scope, it runs the handler's first three steps with `awaiting_approval` in place of `sending`, with one stricter rule: a `sent` record that still counts refuses it however old, with `UPDATE_ALREADY_REQUESTED` and the run link, so an agent's question never replaces a request that is already in flight. It answers `{ status: "awaiting_approval" }` with a message that an admin has to approve the request in the admin dashboard.
+- `site_update_request` takes an optional `version`, which must match the reported version when given. It requires the `updates:request` permission. With the `updates:request` scope (or `admin`), it sends the request with `source: "mcp"`. Without the scope, it runs the handler's first three steps with `awaiting_approval` in place of `sending`, with two stricter rules. A `sent` record that still counts refuses it however old, with `UPDATE_ALREADY_REQUESTED` and the run link, so an agent's question never replaces a request that is already in flight. A `dismissed` record refuses it with `UPDATE_REQUEST_DISMISSED` until the update check reports a newer release. It answers `{ status: "awaiting_approval" }` with a message that an admin has to approve the request in the admin dashboard.
 
 An admin approves a request on the banner, from a signed-in session. Approving sends the request, so the agent doesn't call the tool again. A second call while a request awaits approval returns the same answer and doesn't create another record. The approval is single-use because sending replaces the record.
 
@@ -313,7 +315,7 @@ If [the configuration validation plan (#4328)](https://github.com/emdash-cms/emd
 
 ## Security and privacy
 
-- **Who can send:** only users with `updates:request` (Admin), through a session with the CSRF header, a token with the `updates:request` or `admin` scope, or an admin's approval of an MCP request. Approval and dismissal require a session, so an agent can't approve its own request. Any token of a user with `updates:request`, whatever its scopes, can store an approval request over MCP. Its worst case is a question on the banner that an admin dismisses; nothing is sent without the admin.
+- **Who can send:** only users with `updates:request` (Admin), through a session with the CSRF header, a token with the `updates:request` or `admin` scope, or an admin's approval of an MCP request. Approval and dismissal require a session, so an agent can't approve its own request. Any token of a user with `updates:request`, whatever its scopes, can store an approval request over MCP. Its worst case is a question on the banner. Once an admin dismisses it, the tool refuses that version until a newer release is reported, and nothing is sent without the admin.
 - **What can be requested:** only the version the update check reports. The request has no free-form fields that reach the trigger.
 - **Where it goes:** the trigger comes from the build configuration. No admin input sets a URL or repository, so the endpoint can't be used to send requests to arbitrary hosts.
 - **Secrets:** the GitHub token and the webhook secret live in the deployment's secrets, read from `process.env` at send time. They are never stored in the database, returned by the API or logged. The GitHub token needs only Actions: write on one repository. That permission can't read or write repository contents. It does control the repository's Actions: a leaked token can start any workflow that runs on `workflow_dispatch`, re-run, cancel or delete runs, approve runs from forks, turn workflows off and on, read and delete logs and artifacts, delete caches, and change the repository's OIDC subject claim format. A leaked webhook secret lets its holder send a forged request to the receiver, with any version and site URL, which is why the receiver checks the version and uses the site URL for display only. `EMDASH_UPDATE_PR_TOKEN`, where a site adds it, is a fine-grained token with Contents: write and Pull requests: write on the one repository. It lives in the repository's Actions secrets, where every workflow in the repository can read it, and it can push to any branch that branch protection doesn't cover. The update guide says to give it an expiry.
@@ -343,9 +345,9 @@ The admin status route reads one more options key in the query it already runs, 
 - `upgrade-emdash` unit tests with packument fixtures: the release group gets the exact version and plugins resolve `latest`. They also cover the release-age selection with and without `--release`, rejecting prereleases and too-young versions, the up-to-date exit, the summary fields, and `actionRequired` from a `#### What should I do?` heading.
 - Handler tests on a real SQLite database with an injected `fetch`: GitHub 200 with run details, 204, 422 followed by the retry, 401, 404, a timeout, and webhook 2xx with and without a `url`. Also a version mismatch, the 15-minute limit, the one-minute limit after a failure, a redirect answer, and a missing secret.
 - Route tests: an Editor is refused, a token without the scope is refused, a token with `admin` passes, a token with only `updates:request` reads the status and sends, a DELETE from a token is refused, and the CSRF header is enforced.
-- MCP tests: with the scope the tool sends, without it the tool stores one `awaiting_approval` record, a second call doesn't create another, a call while a request is sent answers with the run link, a record older than 24 hours no longer counts, approval from a session sends the request, and the status tool refuses a token without `admin` or `updates:request`. Route and MCP tests also cover a running import refusing a request and a running export that doesn't restart after one.
+- MCP tests: with the scope the tool sends, without it the tool stores one `awaiting_approval` record, a second call doesn't create another, a call while a request is sent answers with the run link, a record older than 24 hours no longer counts, approval from a session sends the request, a dismissed request refuses the tool with `UPDATE_REQUEST_DISMISSED` while a session can still send that version, a newer reported release lets the tool ask again, and the status tool refuses a token without `admin` or `updates:request`. Route and MCP tests also cover a running import refusing a request and a running export that doesn't restart after one.
 - Configuration tests: wrong trigger shapes fail the build with their path, and `http:` URLs are refused outside `localhost`.
-- Admin component tests for each banner state, including a request awaiting approval for a dismissed version, plus a manual check of the banner and dialog in Arabic.
+- Admin component tests for each banner state, including a request awaiting approval for a dismissed version and a dismissed request, plus a manual check of the banner and dialog in Arabic.
 - The query-count snapshot shows no change on logged-out routes.
 - A manual end-to-end run on a fork: a template site on Workers with Workers Builds starts the workflow from the banner, the pull request appears with the right labels, and after the merge and deploy the banner disappears. The same run is repeated with a scheduled trigger and a webhook receiver.
 
@@ -355,9 +357,9 @@ Each slice is usable without the next one:
 
 1. **`upgrade-emdash` options:** `--release`, `--minimum-release-age` and `--summary`.
 2. **The workflow:** the file, an "Update from GitHub Actions" section in the update guide, and the template copies. With slices 1 and 2, a site can run scheduled updates without any core change.
-3. **Core request:** the `trigger` option, the record, the handler, the POST route, the permission and scope, and the banner states other than awaiting approval.
+3. **Core request:** the `trigger` option, the record, the handler, the POST route, the permission and scope, and the banner states other than awaiting approval and dismissed.
 4. **CLI:** `emdash site update-status` and `emdash site request-update`.
-5. **MCP:** both tools, the `awaiting_approval` status, approval through the POST route, the `DELETE` route, and the awaiting state on the banner.
+5. **MCP:** both tools, the `awaiting_approval` and `dismissed` statuses, approval through the POST route, the `DELETE` route, and the awaiting and dismissed states on the banner.
 
 No feature flag is needed. The feature is off until a site configures a trigger.
 
