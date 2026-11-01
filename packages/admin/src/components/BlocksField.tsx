@@ -179,7 +179,10 @@ interface ItemReveal {
 
 const NO_ISSUES: readonly BlockValueIssue[] = [];
 
-/** Field types whose empty control says "Required" itself: in red placeholder text, or a red photo slot. */
+/**
+ * Field types whose empty control says "Required" itself: in red placeholder text, or a red
+ * photo slot. A placeholder passed to the control replaces "Required", so the error shows under it.
+ */
 const REQUIRED_SHOWN_BY_CONTROL = new Set([
 	"string",
 	"text",
@@ -1365,7 +1368,11 @@ function FieldControl({
 	const errorShown =
 		!cell &&
 		issue !== undefined &&
-		!(issue.code === "required" && REQUIRED_SHOWN_BY_CONTROL.has(field.type));
+		!(
+			issue.code === "required" &&
+			placeholderOverride === undefined &&
+			REQUIRED_SHOWN_BY_CONTROL.has(field.type)
+		);
 	const describedBy =
 		[hint && error !== hint && hintId, error && errorId].filter(Boolean).join(" ") || undefined;
 	const showHintOnFocus =

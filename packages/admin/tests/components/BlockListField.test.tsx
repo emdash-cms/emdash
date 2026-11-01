@@ -675,6 +675,18 @@ describe("Lists inside a block in the editor", () => {
 		await expect.element(item).toHaveAccessibleDescription(/^Has fields to fix/);
 	});
 
+	it("shows Required under an empty required item title, whose placeholder is its label", async () => {
+		await renderEditor([testimonialsBlock([maya, { ...jonas, author: "" }])], [testimonials]);
+
+		await page.getByRole("textbox", { name: "Title" }).fill("Home page");
+		await save();
+		const title = page.getByRole("textbox", { name: "Author name", exact: true });
+		await expect.element(title).toHaveFocus();
+		await expect.element(title).toHaveAttribute("placeholder", "Author name");
+		const error = page.getByText("Required", { exact: true });
+		expect(error.element().getBoundingClientRect().width).toBeGreaterThan(20);
+	});
+
 	it("shows every item open with its fields disabled in a read-only entry", async () => {
 		await renderEditor([testimonialsBlock([maya, jonas])], [testimonials], { readOnly: true });
 

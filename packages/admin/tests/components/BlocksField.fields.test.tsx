@@ -538,6 +538,26 @@ describe("Checking fields inside a block", () => {
 		await expect.element(tone).toHaveAccessibleDescription("Required");
 	});
 
+	it("shows Required under an empty required button text, whose placeholder says Text", async () => {
+		const strictHero = blockType(
+			"hero",
+			"Hero",
+			heroFields.map((field) =>
+				field.slug === "primary_cta_label" ? { ...field, required: true } : field,
+			),
+		);
+		await renderEditor([{ ...heroBlock, primary_cta_label: "" }], [strictHero]);
+
+		await page.getByRole("textbox", { name: "Title" }).fill("Home page");
+		await saveButton().click();
+		const text = control("Primary button text");
+		await expect.element(text).toHaveFocus();
+		await expect.element(text).toHaveAttribute("placeholder", "Text");
+		const error = page.getByText("Required", { exact: true });
+		expect(box(error).width).toBeGreaterThan(20);
+		expect(box(error).top).toBeGreaterThanOrEqual(box(text).bottom);
+	});
+
 	it("holds autosave while a block field fails, names it in a notice, and resumes once it is fixed", async () => {
 		vi.useFakeTimers();
 		try {
