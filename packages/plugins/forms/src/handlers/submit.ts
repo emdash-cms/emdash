@@ -85,7 +85,14 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 			throw PluginRouteError.forbidden("Spam verification required");
 		}
 
-		const secretKey = await ctx.kv.get<string>("settings:turnstileSecretKey");
+		// Fall back to the TURNSTILE_SECRET environment variable when no per-form
+		// secret is saved in settings. This lets a platform operator supply one
+		// Turnstile secret via the deployment environment (e.g. a Worker secret)
+		// instead of pasting it into every form's admin settings — useful for
+		// multi-tenant hosts where the secret must not live in tenant-readable storage.
+		const secretKey =
+			(await ctx.kv.get<string>("settings:turnstileSecretKey")) ||
+			(typeof process !== "undefined" ? process.env?.TURNSTILE_SECRET : undefined);
 		if (!secretKey || !ctx.http) {
 			throw PluginRouteError.internal("Turnstile is not configured");
 		}
@@ -338,10 +345,14 @@ export async function definitionHandler(
 		throw new PluginRouteError("FORM_PAUSED", "This form is not currently available", 410);
 	}
 
-	// Include Turnstile site key if configured
+	// Include Turnstile site key if configured. Mirror the secret above: fall back
+	// to the TURNSTILE_SITE_KEY environment variable when no per-form site key is
+	// saved, so an operator can configure Turnstile once via the environment.
 	const turnstileSiteKey =
 		form.settings.spamProtection === "turnstile"
-			? await ctx.kv.get<string>("settings:turnstileSiteKey")
+			? (await ctx.kv.get<string>("settings:turnstileSiteKey")) ||
+				(typeof process !== "undefined" ? process.env?.TURNSTILE_SITE_KEY : undefined) ||
+				null
 			: null;
 
 	// Return only the settings needed for client rendering — never expose
