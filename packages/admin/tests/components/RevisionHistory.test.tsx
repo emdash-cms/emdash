@@ -106,6 +106,31 @@ beforeEach(() => {
 });
 
 describe("RevisionHistory", () => {
+	it.each(["", "not a date", "0000-00-00 00:00:00", undefined])(
+		"keeps revisions usable when a timestamp is %s",
+		async (createdAt) => {
+			mockFetchRevisions.mockResolvedValue({
+				items: [makeRevision({ id: "rev-bad", createdAt }), ...threeVersions.items],
+				total: 4,
+			});
+			const view = makeView();
+			const screen = await renderExpanded(view);
+
+			await expect.element(screen.getByRole("button", { name: MAYA_ROW })).toBeVisible();
+			const row = document.querySelector<HTMLElement>('[data-revision-id="rev-bad"]')!;
+			expect(row).not.toBeNull();
+			const time = row.querySelector("time")!;
+			expect(time.textContent).toBe("");
+			expect(time.hasAttribute("datetime")).toBe(false);
+			expect(row.querySelector(".sr-only")?.textContent).not.toContain(", ,");
+			expect(
+				document.querySelector('[data-revision-id="rev-3"] time')?.getAttribute("datetime"),
+			).toBe(new Date(threeVersions.items[0]!.createdAt.replace(" ", "T") + "Z").toISOString());
+			row.click();
+			expect(view.view).toHaveBeenCalledWith("rev-bad", { opener: row });
+		},
+	);
+
 	it("does not fetch until expanded", async () => {
 		const screen = await render(
 			<RevisionViewProvider value={makeView()}>
