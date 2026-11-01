@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { BlockRenderer } from "../src/renderer.js";
 import type { Block, BlockInteraction } from "../src/types.js";
@@ -280,7 +280,13 @@ vi.mock("@cloudflare/kumo/components/chart", () => ({
 	TimeseriesChart: (props: any) => (
 		<div data-testid="timeseries-chart" data-height={props.height} />
 	),
-	Chart: (props: any) => <div data-testid="custom-chart" data-height={props.height} />,
+	Chart: (props: any) => (
+		<div
+			data-testid="custom-chart"
+			data-height={props.height}
+			data-options={JSON.stringify(props.options)}
+		/>
+	),
 	ChartPalette: { color: (i: number) => `#color${i}` },
 }));
 
@@ -299,7 +305,9 @@ vi.mock("echarts/charts", () => ({
 vi.mock("echarts/components", () => ({
 	AriaComponent: {},
 	AxisPointerComponent: {},
+	BrushComponent: {},
 	GridComponent: {},
+	ToolboxComponent: {},
 	TooltipComponent: {},
 }));
 
@@ -662,6 +670,40 @@ describe("BlockRenderer", () => {
 		]);
 		const img = screen.getByAltText("A photo") as HTMLImageElement;
 		expect(img.src).toBe("https://example.com/photo.jpg");
+	});
+
+	it("chart block leaves toolbox, brush and dataZoom out of custom chart options", () => {
+		vi.stubGlobal("matchMedia", () => ({
+			matches: false,
+			addEventListener: () => {},
+			removeEventListener: () => {},
+		}));
+		onTestFinished(() => {
+			vi.unstubAllGlobals();
+		});
+		renderBlocks([
+			{
+				type: "chart",
+				config: {
+					chart_type: "custom",
+					options: {
+						toolbox: { show: true, feature: { restore: {} } },
+						brush: { xAxisIndex: 0 },
+						dataZoom: [{ type: "select", start: 50, end: 100 }],
+						baseOption: {
+							toolbox: { show: true },
+							series: [{ type: "pie", data: [{ name: "A", value: 1 }] }],
+						},
+					},
+				},
+			},
+		]);
+		const options = JSON.parse(screen.getByTestId("custom-chart").dataset.options!);
+		expect(options).not.toHaveProperty("toolbox");
+		expect(options).not.toHaveProperty("brush");
+		expect(options).not.toHaveProperty("dataZoom");
+		expect(options.baseOption).not.toHaveProperty("toolbox");
+		expect(options.baseOption.series).toEqual([{ type: "pie", data: [{ name: "A", value: 1 }] }]);
 	});
 
 	it("context block renders small muted text", () => {
