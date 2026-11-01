@@ -119,6 +119,9 @@ function UploadFileRow({
 					<span aria-hidden="true">·</span>
 					<span className="tabular-nums">{formatFileSize(row.file.size)}</span>
 				</div>
+				{row.status === "failed" && row.error && (
+					<p className="mt-0.5 text-sm wrap-break-word text-kumo-danger">{row.error}</p>
+				)}
 			</div>
 			<div className="flex items-center gap-1">
 				{row.status === "failed" && (
