@@ -11044,11 +11044,6 @@ msgstr "Vols publicar ara?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Publica, despublica, programa i desprograma contingut"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "visualEditing.published"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11060,6 +11055,11 @@ msgstr "visualEditing.published"
 #: packages/admin/src/router.tsx:1490
 msgid "Published"
 msgstr "Publicat"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "visualEditing.published"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:348
