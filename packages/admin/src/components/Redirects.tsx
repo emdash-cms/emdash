@@ -21,6 +21,7 @@ import {
 	WarningCircle,
 } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { InfiniteData, QueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { ApiResponseError } from "../lib/api/client.js";
@@ -35,6 +36,7 @@ import type {
 	CreateRedirectInput,
 	NotFoundSummary,
 	Redirect,
+	RedirectListResult,
 	UpdateRedirectInput,
 } from "../lib/api/redirects.js";
 import {
@@ -58,6 +60,21 @@ import {
 import { DialogError, getMutationError } from "./DialogError.js";
 import { PageHeader } from "./PageHeader.js";
 import { TableToolbarSearch } from "./TableToolbar.js";
+
+const REDIRECT_LIST_KEY = ["redirects", "list"] as const;
+
+/**
+ * Refetches the redirects after a change, with each list back on its first page. The page
+ * stays on screen while it reloads: an empty list would swap the table for the loading
+ * message and drop keyboard focus.
+ */
+function refreshRedirects(queryClient: QueryClient) {
+	queryClient.setQueriesData<InfiniteData<RedirectListResult>>(
+		{ queryKey: REDIRECT_LIST_KEY },
+		(data) => data && { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) },
+	);
+	return queryClient.invalidateQueries({ queryKey: ["redirects"] });
+}
 
 // ---------------------------------------------------------------------------
 // Redirect form dialog (create + edit)
@@ -145,7 +162,7 @@ function RedirectFormDialog({
 	const createMutation = useMutation({
 		mutationFn: (input: CreateRedirectInput) => createRedirect(input),
 		onSuccess: () => {
-			void queryClient.resetQueries({ queryKey: ["redirects"] });
+			void refreshRedirects(queryClient);
 			onClose();
 		},
 	});
@@ -153,7 +170,7 @@ function RedirectFormDialog({
 	const updateMutation = useMutation({
 		mutationFn: (input: UpdateRedirectInput) => updateRedirect(redirect!.id, input),
 		onSuccess: () => {
-			void queryClient.resetQueries({ queryKey: ["redirects"] });
+			void refreshRedirects(queryClient);
 			onClose();
 		},
 	});
@@ -486,7 +503,11 @@ function RedirectRow({
 				<Switch
 					checked={redirect.enabled}
 					onCheckedChange={onToggle}
-					aria-label={redirect.enabled ? t`Disable redirect` : t`Enable redirect`}
+					aria-label={
+						redirect.enabled
+							? t`Disable redirect ${redirect.source}`
+							: t`Enable redirect ${redirect.source}`
+					}
 				/>
 			</td>
 			<td className="text-end">
@@ -563,7 +584,7 @@ export function Redirects() {
 		!!debouncedSearch || enabledFilter !== undefined || autoFilter !== undefined || !!groupFilter;
 
 	const redirectsQuery = useInfiniteQuery({
-		queryKey: ["redirects", debouncedSearch, enabledFilter, autoFilter, groupFilter],
+		queryKey: [...REDIRECT_LIST_KEY, debouncedSearch, enabledFilter, autoFilter, groupFilter],
 		queryFn: ({ pageParam }) =>
 			fetchRedirects({
 				search: debouncedSearch || undefined,
@@ -576,6 +597,16 @@ export function Redirects() {
 		initialPageParam: undefined as string | undefined,
 		getNextPageParam: (lastPage) => lastPage.nextCursor,
 	});
+
+	// Cancelling a refetch in flight would keep the stale first page on screen, so a press during
+	// one waits for it, then loads the next page.
+	const loadMoreRedirects = async () => {
+		const refetching = redirectsQuery.isRefetching;
+		const result = await redirectsQuery.fetchNextPage({ cancelRefetch: false });
+		if (refetching && result.hasNextPage) {
+			await redirectsQuery.fetchNextPage({ cancelRefetch: false });
+		}
+	};
 
 	const notFoundQuery = useQuery({
 		queryKey: ["redirects", "404-summary"],
@@ -595,7 +626,7 @@ export function Redirects() {
 			}
 		},
 		onSuccess: (deleted) => {
-			void queryClient.resetQueries({ queryKey: ["redirects"] });
+			void refreshRedirects(queryClient);
 			setDeleteId(null);
 			if (!deleted) {
 				toastManager.add({ title: t`This redirect was already deleted.`, timeout: 3000 });
@@ -608,10 +639,10 @@ export function Redirects() {
 		mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
 			updateRedirect(id, { enabled }),
 		onSuccess: () => {
-			void queryClient.resetQueries({ queryKey: ["redirects"] });
+			void refreshRedirects(queryClient);
 		},
 		onError: () => {
-			void queryClient.resetQueries({ queryKey: ["redirects"] });
+			void refreshRedirects(queryClient);
 		},
 	});
 
@@ -620,7 +651,7 @@ export function Redirects() {
 		mutationFn: (path: string) =>
 			createRedirect({ source: path, destination: "", type: 410, enabled: true }),
 		onSuccess: () => {
-			void queryClient.resetQueries({ queryKey: ["redirects"] });
+			void refreshRedirects(queryClient);
 		},
 	});
 
@@ -814,7 +845,7 @@ export function Redirects() {
 								<div className="flex justify-center">
 									<Button
 										variant="outline"
-										onClick={() => void redirectsQuery.fetchNextPage()}
+										onClick={() => void loadMoreRedirects()}
 										disabled={redirectsQuery.isFetchingNextPage}
 									>
 										{redirectsQuery.isFetchingNextPage ? t`Loading...` : t`Load more`}

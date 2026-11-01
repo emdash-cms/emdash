@@ -119,6 +119,45 @@ describe("CommentInbox", () => {
 		expect(noopProps.onCommentStatusChange).toHaveBeenCalledWith(sampleComment.id, "approved");
 	});
 
+	it("moves focus to the next comment's Approve button once an approved comment leaves", async () => {
+		const pending = [1, 2, 3].map((n) => ({
+			...sampleComment,
+			id: `comment-${n}`,
+			authorName: `Author ${n}`,
+		}));
+		function ModeratedInbox() {
+			const [comments, setComments] = React.useState(pending);
+			const [isStatusPending, setStatusPending] = React.useState(false);
+			return (
+				<CommentInbox
+					{...noopProps}
+					comments={comments}
+					isStatusPending={isStatusPending}
+					onCommentStatusChange={async (id) => {
+						setStatusPending(true);
+						await new Promise((resolve) => setTimeout(resolve, 20));
+						setStatusPending(false);
+						// The list refetch lands after the status change settles.
+						setTimeout(() => setComments((current) => current.filter((c) => c.id !== id)), 20);
+					}}
+				/>
+			);
+		}
+		const screen = await render(<ModeratedInbox />);
+		const approve = (author: string) =>
+			screen
+				.getByRole("row")
+				.filter({ hasText: author })
+				.getByRole("button", { name: "Approve", exact: true });
+		await expect.element(approve("Author 2")).toBeInTheDocument();
+		approve("Author 2").element().focus();
+
+		await userEvent.keyboard("{Enter}");
+
+		await expect.element(screen.getByText("Author 2")).not.toBeInTheDocument();
+		await expect.element(approve("Author 3")).toHaveFocus();
+	});
+
 	it("leaves Approve off the row of an approved comment", async () => {
 		const screen = await render(
 			<CommentInbox
