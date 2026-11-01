@@ -307,7 +307,7 @@ Every change is additive:
 - No database migration. Older code ignores the `emdash:core_update_request` key, so a rollback leaves an unused option behind.
 - Templates gain one workflow file. Existing sites copy it from the update guide, since template changes don't reach existing projects.
 
-If [the configuration validation plan (#4328)](https://github.com/emdash-cms/emdash/pull/4328) lands first, the trigger gets an entry in its schema.
+If [the configuration validation plan (#4328)](https://github.com/emdash-cms/emdash/pull/4328) lands first, the trigger gets an entry in its schema. If [custom roles (#4156)](https://github.com/emdash-cms/emdash/pull/4156) land, a custom role can hold `updates:request`, as it can hold `updates:read`.
 
 ## Security and privacy
 
