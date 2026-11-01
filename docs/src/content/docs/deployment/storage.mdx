@@ -76,7 +76,7 @@ storage: r2({
 });
 ```
 
-If the same bucket stores automatic JSON backups, a public bucket origin can expose objects under `backups/`. Use a private bucket and EmDash's media route, or restrict the public origin to media objects. See [Backups](/guides/backups/#automatic-backups-to-storage).
+If the same bucket stores automatic JSON backups, a public bucket origin can expose objects under `backups/`. Use a private bucket and EmDash's media route, or restrict the public origin to media objects. See [Backups](/guides/backups/#use-json-backups-for-inspection).
 
 <Aside type="note">
 	R2 bindings do not support signed upload URLs. If you need direct client uploads, use the S3
