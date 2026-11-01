@@ -1,5 +1,15 @@
 # @emdash-cms/plugin-embeds
 
+## 0.1.59
+
+### Patch Changes
+
+- [#4254](https://github.com/emdash-cms/emdash/pull/4254) [`c3e71b3`](https://github.com/emdash-cms/emdash/commit/c3e71b3e6bea7d20a500a3b7f1e537d23564f6ee) Thanks [@swissky](https://github.com/swissky)! - Fixes `astro dev` on the Cloudflare adapter crashing with `exports is not defined` on every page that renders Portable Text while the embeds plugin is installed.
+  
+  Bluesky posts now use Bluesky's own embed instead of a server-rendered card without client-side JavaScript. Visitors' browsers load Bluesky's embed script and iframe from `embed.bsky.app`, and the `--bluesky-*` CSS custom properties that styled the old card no longer have any effect. Sites with a Content Security Policy need to allow `embed.bsky.app` in `script-src` and `frame-src`; otherwise the post shows as a plain quote. If Bluesky can't be reached while the page renders, the post shows as a link.
+- Updated dependencies [[`76f0f53`](https://github.com/emdash-cms/emdash/commit/76f0f53221c380cc77b73da5e455408dca720902), [`4df65eb`](https://github.com/emdash-cms/emdash/commit/4df65eba3e4dd2f990c92f65a4748117182949d5)]:
+  - @emdash-cms/blocks@1.4.1
+
 ## 0.1.58
 
 ### Patch Changes

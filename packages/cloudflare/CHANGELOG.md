@@ -1,6 +1,31 @@
 # @emdash-cms/cloudflare
 
-<!-- emdash-changelog-archive: ./changelog/0.28.1-to-0.30.0.md -->
+<!-- emdash-changelog-archive: ./changelog/0.31.0-to-0.31.0.md -->
+
+## 1.4.1
+
+### Patch Changes
+
+- [#4308](https://github.com/emdash-cms/emdash/pull/4308) [`4df65eb`](https://github.com/emdash-cms/emdash/commit/4df65eba3e4dd2f990c92f65a4748117182949d5) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates `@cloudflare/kumo` to 2.15.0. These packages now require exactly `@cloudflare/kumo@2.15.0`, so sites and plugins that install Kumo themselves should upgrade to that version to match the admin's prebuilt styles. Update `emdash` and the Forms, Field Kit, AI Moderation and AI Search plugins together: their earlier releases require Kumo 2.6.0, and these plugin releases need an `emdash` release with this change. Updating only one side leaves Kumo 2.15 next to an admin built for 2.6.
+  
+  In the admin, Select menus now open below their field instead of over it, and text sized `text-base` or `text-lg` has a taller line (1.5), so labels and headings take slightly more height. Kumo's `DropdownMenu` now spaces item icons itself, so plugin admin pages should remove any margin classes such as `me-2` from the elements they pass as an item's `icon`.
+
+- [#4277](https://github.com/emdash-cms/emdash/pull/4277) [`26528bb`](https://github.com/emdash-cms/emdash/commit/26528bb0fd018472f9a2ccff880a0317ebca874a) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes `ctx.kv` values disappearing when a plugin with the same ID moves between `plugins: []` and `sandboxed: []`. **This storage migration requires a coordinated upgrade; it cannot be deployed as a rolling upgrade.**
+  
+  Both sandbox runners share the in-process KV store. A database migration copies existing non-`settings:` sandbox values and revisions without overwriting in-process values, warns about conflicting plugin IDs and keys, and retains the original sandbox rows for recovery. Uninstalling a marketplace or registry plugin with data deletion removes its shared KV values and settings; failed-install rollback preserves existing data, including partial writes made by an installation hook before it fails. Plugin-test KV fixtures and inspection use the shared store; use the settings inspection API for `settings:` keys.
+  
+  #### What should I do?
+  
+  1. Back up the database.
+  2. Stop all application instances and plugin jobs that write to it.
+  3. Upgrade `emdash` and your sandbox runner together, then build the site without starting it.
+  4. Run `pnpm emdash migrate` against the reviewed database target.
+  5. Resolve conflicting KV copies before plugins can write again.
+  6. Start or deploy the upgraded site.
+  
+  Do not rely on default `auto` migrations for this upgrade: they start plugins immediately after migrating, leaving no conflict-review window. Mixed package versions are not automatically rejected. See the [plugin upgrade guide](https://docs.emdashcms.com/plugins/upgrading-sites/#plugin-kv-storage-when-changing-execution-mode) for target selection, recovery queries, and rollback instructions. Downgrading packages alone hides post-upgrade KV writes; restoring the pre-upgrade database backup discards all site changes made since it was taken.
+- Updated dependencies [[`5137be5`](https://github.com/emdash-cms/emdash/commit/5137be5b4e678c6e71e1daa83001e81009571692), [`679ad6c`](https://github.com/emdash-cms/emdash/commit/679ad6c4301047e5f99844ba357d3ef15dd87925), [`b331cf3`](https://github.com/emdash-cms/emdash/commit/b331cf3bfd67c3af03222e09b54b22de688c6bd0), [`235a11a`](https://github.com/emdash-cms/emdash/commit/235a11af21e801ec9f0195cdfc3d46f51341d526), [`e30df1e`](https://github.com/emdash-cms/emdash/commit/e30df1ed488bbbae21669ecf169da3376989a69e), [`9699645`](https://github.com/emdash-cms/emdash/commit/9699645f8062794bf50183d5208dc61c4be33a6f), [`82eb778`](https://github.com/emdash-cms/emdash/commit/82eb778c8931ae6af16a85725617e4131d5a225e), [`e25d2ee`](https://github.com/emdash-cms/emdash/commit/e25d2ee7bf2da9a972923e2ee82fb5aa77265a89), [`5a9f1bd`](https://github.com/emdash-cms/emdash/commit/5a9f1bdef6ab92a2c286264aba98eab94bc19b36), [`6331f6b`](https://github.com/emdash-cms/emdash/commit/6331f6b4ba2c9f9d6eac778c2ee311e9cbd79768), [`fc44f40`](https://github.com/emdash-cms/emdash/commit/fc44f406c32e2997e9e7e96ace12f70b65293a13), [`b436669`](https://github.com/emdash-cms/emdash/commit/b436669627e29784019e1e0a4b23b09b532003cd), [`56c801c`](https://github.com/emdash-cms/emdash/commit/56c801cbe995d9a55368a53d541aab12901ac150), [`0008289`](https://github.com/emdash-cms/emdash/commit/0008289cca28c2618e4de40a6eb3159552321ef8), [`a7cf38f`](https://github.com/emdash-cms/emdash/commit/a7cf38fb8babfea53f9c10bf6b7eac53e40609b7), [`76c1936`](https://github.com/emdash-cms/emdash/commit/76c1936cd88fb2cd18b4c10d69c6d74d63eca233), [`26528bb`](https://github.com/emdash-cms/emdash/commit/26528bb0fd018472f9a2ccff880a0317ebca874a)]:
+  - emdash@1.4.1
 
 ## 1.4.0
 
@@ -635,10 +660,3 @@
 
 - Updated dependencies [[`f81aa68`](https://github.com/emdash-cms/emdash/commit/f81aa6842c659799eb8952f7f40869b537e340df)]:
   - emdash@0.31.1
-
-## 0.31.0
-
-### Patch Changes
-
-- Updated dependencies [[`15d5a45`](https://github.com/emdash-cms/emdash/commit/15d5a454c4bdde456819b04ef67fcd846f191ead), [`c568876`](https://github.com/emdash-cms/emdash/commit/c568876d78bfcb90d170e03212544a2bda81ddf2), [`f8e41cd`](https://github.com/emdash-cms/emdash/commit/f8e41cdddae07859b1854719fb15536533916f8b), [`c4d790e`](https://github.com/emdash-cms/emdash/commit/c4d790e9025b3fdba53953ec720e5e043fd153ab), [`0eb389f`](https://github.com/emdash-cms/emdash/commit/0eb389f7a297d197e4f537eae44bfdee87e39396), [`791c0eb`](https://github.com/emdash-cms/emdash/commit/791c0eb2836af9fbe3069c75dd1acfb901288592)]:
-  - emdash@0.31.0
