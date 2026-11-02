@@ -1,9 +1,12 @@
 import {
 	AtprotoWebDidDocumentResolver,
 	CompositeDidDocumentResolver,
+	CompositeHandleResolver,
+	DohJsonHandleResolver,
 	PlcDidDocumentResolver,
+	WellKnownHandleResolver,
 } from "@atcute/identity-resolver";
-import { isDid, type AtprotoDid } from "@atcute/lexicons/syntax";
+import { isDid, isHandle, type AtprotoDid } from "@atcute/lexicons/syntax";
 import { REGISTRY_CUMULUS_ORIGIN } from "@emdash-cms/registry-lexicons";
 import { INITIAL_LISTING_POLICY_FIXTURE } from "@emdash-cms/registry-moderation/fixtures";
 import { fetchVerifiedResource } from "@emdash-cms/registry-verification/fetch";
@@ -117,6 +120,27 @@ export async function resolveProductionPublisherHandle(
 	const document = await createProductionDidResolver(resolveHostname).resolve(publisherDid);
 	if (document.id !== publisherDid) return null;
 	return publisherHandleFromDidDocument(document);
+}
+
+export async function resolveProductionHandleDid(handle: string): Promise<string | null> {
+	const normalized = handle.toLowerCase();
+	if (!isHandle(normalized)) return null;
+	const resolveHostname = createDohHostnameResolver();
+	const guardedFetch = createGuardedIdentityFetch(resolveHostname);
+	const handleResolver = new CompositeHandleResolver({
+		methods: {
+			dns: new DohJsonHandleResolver({ dohUrl: "https://cloudflare-dns.com/dns-query" }),
+			http: new WellKnownHandleResolver({ fetch: guardedFetch }),
+		},
+	});
+	try {
+		const did = await handleResolver.resolve(normalized);
+		const document = await createProductionDidResolver(resolveHostname).resolve(did);
+		if (document.id !== did || publisherHandleFromDidDocument(document) !== normalized) return null;
+		return did;
+	} catch {
+		return null;
+	}
 }
 
 export async function createProductionListingLabelIssuer(
