@@ -2270,7 +2270,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "認証がキャンセルされたかタイムアウトしました。もう一度お試しください。"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1346
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1345
 #: packages/admin/src/components/RelationForm.tsx:395
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2677,8 +2677,8 @@ msgstr "執筆者を更新しました"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:339
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1110
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1114
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1109
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1113
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:502
@@ -3395,6 +3395,10 @@ msgstr "コンテンツタイプ「{0}」はこのサイトで作成されまし
 msgid "Collection \"{collection}\" not found"
 msgstr "コンテンツタイプ「{collection}」が見つかりません"
 
+#: packages/admin/src/lib/api/schema.ts:349
+msgid "Collection \"{slug}\" not found"
+msgstr ""
+
 #: packages/admin/src/components/comments/CommentDetail.tsx:109
 msgid "Collection:"
 msgstr "コンテンツタイプ："
@@ -3593,7 +3597,7 @@ msgstr "コンテンツID："
 msgid "Content is now live"
 msgstr "コンテンツを公開しました"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1076
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1075
 msgid "Content language"
 msgstr "コンテンツの言語"
 
@@ -3894,7 +3898,7 @@ msgstr "この版を読み込めませんでした。編集に戻ります。"
 msgid "Couldn’t load usage."
 msgstr "使用状況を読み込めませんでした。"
 
-#: packages/admin/src/components/RevisionHistory.tsx:91
+#: packages/admin/src/components/RevisionHistory.tsx:90
 msgid "Couldn't load versions"
 msgstr "変更履歴を読み込めませんでした"
 
@@ -4144,7 +4148,7 @@ msgid "Create, update, delete content"
 msgstr "コンテンツを作成・更新・削除する"
 
 #: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1027
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1026
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
 msgid "Created"
@@ -5557,7 +5561,7 @@ msgstr "有効にすると、既存コンテンツ内でのメディアの使用
 msgid "Enabled"
 msgstr "有効"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1079
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1078
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "コンテンツの言語が設定されていないため、英語になっています。コンテンツの言語はコンテンツごとに保存され、管理画面の表示言語とは別のものです。"
 
@@ -9335,14 +9339,14 @@ msgstr "ゴミ箱に移動"
 
 #: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/ContentList.tsx:1624
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1313
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1319
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1312
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1318
 msgid "Move to Trash"
 msgstr "ゴミ箱に移動"
 
 #: packages/admin/src/components/ContentList.tsx:678
 #: packages/admin/src/components/ContentList.tsx:1622
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1317
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1316
 msgid "Move to Trash?"
 msgstr "ゴミ箱に移動しますか？"
 
@@ -9447,7 +9451,7 @@ msgid "Moving from another EmDash site?"
 msgstr "ほかのEmDashサイトから移行しますか？"
 
 #: packages/admin/src/components/ContentList.tsx:1625
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1320
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1319
 msgid "Moving to trash..."
 msgstr ""
 
@@ -9835,7 +9839,7 @@ msgstr "フォルダーが見つかりません"
 msgid "No group"
 msgstr ""
 
-#: packages/admin/src/components/editor/DocumentOutline.tsx:269
+#: packages/admin/src/components/editor/DocumentOutline.tsx:268
 msgid "No headings in document"
 msgstr "ドキュメントに見出しがありません"
 
@@ -10073,7 +10077,7 @@ msgstr "指定した条件に一致するユーザーはいません。"
 msgid "No users yet."
 msgstr "ユーザーはまだいません。"
 
-#: packages/admin/src/components/RevisionHistory.tsx:84
+#: packages/admin/src/components/RevisionHistory.tsx:83
 msgid "No versions yet"
 msgstr "変更履歴はまだありません"
 
@@ -10391,7 +10395,7 @@ msgstr "元のサイズ："
 msgid "Other"
 msgstr "その他"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1264
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1263
 #: packages/admin/src/components/editor/DocumentOutline.tsx:248
 msgid "Outline"
 msgstr "アウトライン"
@@ -10412,8 +10416,8 @@ msgstr "公開予定時刻を超過 · {lateness}"
 msgid "Overrides the page title in search engine results"
 msgstr "検索エンジンの結果でページタイトルを上書き"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1095
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1098
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1094
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1097
 msgid "Ownership"
 msgstr "投稿者"
 
@@ -10691,6 +10695,10 @@ msgstr "有効なURLを入力してください"
 #: packages/admin/src/components/WordPressImport.tsx:1232
 msgid "Plugin"
 msgstr "プラグイン"
+
+#: packages/admin/src/lib/api/marketplace.ts:322
+msgid "Plugin \"{id}\" not found in marketplace"
+msgstr ""
 
 #: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
@@ -11044,11 +11052,6 @@ msgstr "今すぐ公開しますか？"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "コンテンツの公開、非公開化、公開予約、予約取り消し"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "公開済み"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11059,6 +11062,11 @@ msgstr "公開済み"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1490
 msgid "Published"
+msgstr "公開済み"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "公開済み"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -12040,7 +12048,12 @@ msgstr "検証済み更新を確認"
 msgid "Reviewing…"
 msgstr "確認中…"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1288
+#: packages/admin/src/lib/api/content.ts:650
+#: packages/admin/src/lib/api/content.ts:672
+msgid "Revision not found: {revisionId}"
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1287
 #: packages/admin/src/components/ContentTypeEditor.tsx:100
 #: packages/admin/src/components/RevisionHistory.tsx:57
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12937,8 +12950,8 @@ msgstr "テストメールを送信"
 msgid "Sending..."
 msgstr "送信中…"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1178
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1181
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1177
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1180
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
 #: packages/admin/src/components/Settings.tsx:66
 msgid "SEO"
@@ -13125,7 +13138,7 @@ msgstr "全{0}件中{pageShowingRange}件を表示"
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr "管理画面に表示されます。テーマによってはサイトにも表示されます。"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1117
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1116
 msgid "Shown to readers in this order."
 msgstr "この順番で読者に表示されます。"
 
@@ -13317,7 +13330,7 @@ msgstr "スキップ済み"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1068
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1067
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 #: packages/admin/src/components/ContentTypeEditor.tsx:502
 #: packages/admin/src/components/ContentTypeList.tsx:218
@@ -13737,7 +13750,7 @@ msgstr "リンクの開き方"
 msgid "Target locale"
 msgstr "翻訳先の言語"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1165
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1164
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:898
 msgid "Taxonomies"
@@ -14260,6 +14273,10 @@ msgstr "Windowsのパスキー画面"
 msgid "Theme"
 msgstr "テーマ"
 
+#: packages/admin/src/lib/api/theme-marketplace.ts:97
+msgid "Theme \"{id}\" not found"
+msgstr ""
+
 #. placeholder {0}: section.themeId
 #: packages/admin/src/components/SectionEditor.tsx:329
 msgid "Theme ID: {0}"
@@ -14703,7 +14720,7 @@ msgstr "この動画を再生できません。"
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "ウィジェットエリアとそのすべてのウィジェットを削除します。この操作は取り消せません。"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1318
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1317
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "このコンテンツをゴミ箱に移動します。後でゴミ箱から復元できます。"
 
@@ -14875,7 +14892,7 @@ msgstr "翻訳中…"
 msgid "Translation created"
 msgstr "翻訳を作成しました"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1143
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1142
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "翻訳"
@@ -14935,7 +14952,7 @@ msgstr "検索条件やフィルターを変更してみてください。"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:247
 #: packages/admin/src/components/MediaUsedIn.tsx:277
-#: packages/admin/src/components/RevisionHistory.tsx:93
+#: packages/admin/src/components/RevisionHistory.tsx:92
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:352
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:386
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:397
@@ -15072,8 +15089,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "マーケットプレイスに接続できません"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1338
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1355
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1337
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1354
 msgid "Unassigned"
 msgstr "未割り当て"
 
@@ -15267,7 +15284,7 @@ msgid "Update to v{0}"
 msgstr "v{0}に更新"
 
 #: packages/admin/src/components/ContentList.tsx:1026
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1034
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1033
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
 msgstr "更新日時"
@@ -15435,8 +15452,8 @@ msgstr "動画をアップロード中…"
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1060
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1063
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1059
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1062
 msgid "URL & language"
 msgstr "URLと言語"
 
@@ -15619,6 +15636,10 @@ msgstr "{0}に割り当てるユーザー"
 #: packages/admin/src/components/users/UserDetail.tsx:315
 msgid "User not found"
 msgstr "ユーザーが見つかりません"
+
+#: packages/admin/src/lib/api/users.ts:89
+msgid "User not found: {id}"
+msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:537
@@ -15947,7 +15968,7 @@ msgstr "この分類グループを使用するコンテンツタイプを選択
 msgid "Whole number"
 msgstr "整数"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1118
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1117
 msgid "Why are bylines shown in this order?"
 msgstr "執筆者がこの順番で表示される理由"
 
@@ -15955,7 +15976,7 @@ msgstr "執筆者がこの順番で表示される理由"
 msgid "Why can't this be changed?"
 msgstr "変更できない理由"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1080
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1079
 msgid "Why English is used"
 msgstr "英語が使用される理由"
 
