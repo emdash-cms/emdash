@@ -12,7 +12,7 @@
  */
 
 import type { LiveLoader } from "astro/loaders";
-import { Kysely, type RawBuilder, sql, type Dialect } from "kysely";
+import { Kysely, type RawBuilder, sql, type Dialect, type SqlBool } from "kysely";
 
 import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
@@ -1280,7 +1280,7 @@ async function resolveTermGroups(
 		.select("translation_group")
 		.distinct()
 		.where("name", "=", name)
-		.where("slug", "in", slugs)
+		.where(taxonomyValuesCondition(db, "slug", slugs))
 		.$if(probeCollection !== undefined, (qb) =>
 			qb.select((eb) =>
 				eb
@@ -1304,10 +1304,17 @@ async function resolveTermGroups(
 	return { groups: [...groups], large };
 }
 
-/** Equality (single) or `IN` (multiple) condition on a pivot group column. */
-function pivotGroupCondition(ref: string, groups: string[]): ReturnType<typeof sql> {
-	if (groups.length === 1) return sql`${sql.ref(ref)} = ${groups[0]}`;
-	return sql`${sql.ref(ref)} IN (${sql.join(groups.map((g) => sql`${g}`))})`;
+/** Single-term equality preserves the pivot index's early-LIMIT seek. */
+function taxonomyValuesCondition(
+	db: Kysely<Database>,
+	ref: string,
+	values: string[],
+	asJson = values.length > SQL_BATCH_SIZE,
+): RawBuilder<SqlBool> {
+	if (values.length === 1) return sql<SqlBool>`${sql.ref(ref)} = ${values[0]}`;
+	return asJson
+		? sql<SqlBool>`${sql.ref(ref)} IN (${jsonTextValues(db, values)})`
+		: sql<SqlBool>`${sql.ref(ref)} IN (${sql.join(values.map((value) => sql`${value}`))})`;
 }
 
 /** LIMIT/OFFSET fragment matching the loader's single-table variant. */
@@ -1415,6 +1422,7 @@ export function buildTaxonomyPivotQuery(
 	const firstGroups = groupSets[0] ?? [];
 	const restGroups = groupSets.slice(1);
 	const multiGroup = firstGroups.length > 1;
+	const groupsAsJson = groupSets.reduce((sum, groups) => sum + groups.length, 0) > SQL_BATCH_SIZE;
 
 	// Multi-term AND: one residual pivot-PK EXISTS per additional taxonomy.
 	const residual =
@@ -1425,7 +1433,7 @@ export function buildTaxonomyPivotQuery(
 						SELECT 1 FROM content_taxonomies ct2
 						WHERE ct2.collection = ${collection}
 							AND ct2.entry_id = ct.entry_id
-							AND ${pivotGroupCondition("ct2.taxonomy_id", g)}
+							AND ${taxonomyValuesCondition(db, "ct2.taxonomy_id", g, groupsAsJson)}
 					)`,
 					),
 					sql` `,
@@ -1442,7 +1450,7 @@ export function buildTaxonomyPivotQuery(
 			)`
 		: sql``;
 
-	const firstGroupCond = pivotGroupCondition("ct.taxonomy_id", firstGroups);
+	const firstGroupCond = taxonomyValuesCondition(db, "ct.taxonomy_id", firstGroups, groupsAsJson);
 	// `CROSS JOIN` keeps the pivot as the outer table. A plain `JOIN` lets the
 	// planner walk the `(deleted_at, <sort> DESC, id DESC)` index on `ec_*`
 	// whatever the term's size, which reads most of the collection for a
@@ -1935,6 +1943,13 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					const statusCondition = buildStatusCondition(db, status);
 					const localeFilter = locale ? sql`AND ${localeMatches("locale", locale)}` : sql``;
 					const cursorCond = cursorCondition ? sql`AND ${cursorCondition}` : sql``;
+					const taxonomySlugsAsJson =
+						taxonomyFilters.reduce((sum, taxFilter) => sum + taxFilter.slugs.length, 0) +
+							Object.values(fieldFilters).reduce<number>(
+								(sum, value) => sum + (Array.isArray(value) ? value.length : 0),
+								0,
+							) >
+						SQL_BATCH_SIZE;
 					const fieldConds = buildFieldConditions(db, fieldFilters);
 					const fieldCondsSQL =
 						fieldConds.length > 0 ? sql`${sql.join(fieldConds, sql` AND `)}` : null;
@@ -1953,7 +1968,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 							WHERE ct.collection = ${type}
 								AND ct.entry_id = ${sql.ref(tableName)}.translation_group
 								AND t.name = ${f.name}
-								AND t.slug IN (${sql.join(f.slugs.map((s) => sql`${s}`))})
+								AND ${taxonomyValuesCondition(db, "t.slug", f.slugs, taxonomySlugsAsJson)}
 							${locale ? sql`AND ${localeMatches("t.locale", locale)}` : sql``}
 						)`,
 									),

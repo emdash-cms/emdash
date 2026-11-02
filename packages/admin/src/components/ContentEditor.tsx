@@ -400,8 +400,9 @@ export interface ContentEditorProps {
 		slug?: string;
 		bylines?: BylineCreditInput[];
 	}) => void | Promise<void>;
-	/** Callback to discard draft changes (revert to published version) */
-	onDiscardDraft?: () => void;
+	/** Callback to discard draft changes (revert to published version). A returned promise keeps
+	 * the confirmation open until it settles, and its rejection is shown there. */
+	onDiscardDraft?: () => Promise<unknown> | void;
 	/**
 	 * Callback when a revision is restored. A returned promise keeps the restore pending until it
 	 * settles; the editor then loads the restored draft once `item` carries it.
@@ -463,8 +464,9 @@ export interface ContentEditorProps {
 	onQuickCreateByline?: (input: BylineFormValues) => Promise<BylineSummary>;
 	/** Callback for updating a byline inline from the editor */
 	onQuickEditByline?: (bylineId: string, input: BylineFormValues) => Promise<BylineSummary>;
-	/** Callback when item is deleted (moved to trash) */
-	onDelete?: () => void;
+	/** Callback when item is deleted (moved to trash). A returned promise keeps the confirmation
+	 * open until it settles, and its rejection is shown there. */
+	onDelete?: () => Promise<unknown> | void;
 	/** Whether delete is in progress */
 	isDeleting?: boolean;
 	/** i18n config — present when multiple locales are configured */
@@ -2671,7 +2673,7 @@ function FieldRenderer({
 					id={id}
 					value={text}
 					onChange={(e) => handleChange(e.target.value)}
-					rows={10}
+					rows={textareaRows(field.options)}
 					maxLength={length.max}
 					aria-invalid={tooLong || undefined}
 					description={hint}
@@ -3219,6 +3221,11 @@ function isValidUrl(val: string): boolean {
 	} catch {
 		return false;
 	}
+}
+
+function textareaRows(options: FieldDescriptor["options"]) {
+	const rows = Array.isArray(options) ? undefined : options?.rows;
+	return typeof rows === "number" && Number.isInteger(rows) && rows > 0 ? rows : 10;
 }
 
 interface Bounds {
