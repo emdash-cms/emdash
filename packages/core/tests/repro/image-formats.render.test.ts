@@ -22,6 +22,19 @@ async function render(props: Record<string, unknown>) {
 	return c.renderToString(EmDashImage, { props, locals });
 }
 
+// An allowed image domain, so the image service rewrites the URLs.
+async function renderOptimized(props: Record<string, unknown>) {
+	const c = await AstroContainer.create();
+	return c.renderToString(EmDashImage, {
+		props,
+		locals,
+		request: new Request("https://quality.example.com/"),
+	});
+}
+
+const format = (url: string | undefined) =>
+	new URL(url ?? "", "https://example.com").searchParams.get("f");
+
 const localImage = {
 	id: "01FORMATS",
 	src: "/media/formats-test.jpg",
@@ -48,7 +61,7 @@ describe("Image formats prop", () => {
 	});
 
 	test("fallbackFormat overrides the img format and keeps all formats as sources", async () => {
-		const html = await render({
+		const html = await renderOptimized({
 			image: localImage,
 			formats: ["avif", "webp"],
 			fallbackFormat: "jpeg",
@@ -56,15 +69,15 @@ describe("Image formats prop", () => {
 
 		const sources = sourceTags(html);
 		expect(sources.map((s) => attr(s, "type"))).toEqual(["image/avif", "image/webp"]);
-		expect(attr(imgTag(html), "src")).toBeTruthy();
+		expect(format(attr(imgTag(html), "src"))).toBe("jpeg");
 	});
 
 	test("a single-entry formats list renders one img in that format", async () => {
-		const html = await render({ image: localImage, formats: ["avif"] });
+		const html = await renderOptimized({ image: localImage, formats: ["avif"] });
 
 		expect(html).not.toContain("<picture");
 		expect(sourceTags(html)).toHaveLength(0);
-		expect(attr(imgTag(html), "src")).toBeTruthy();
+		expect(format(attr(imgTag(html), "src"))).toBe("avif");
 	});
 
 	test("without formats the markup is a single img, unchanged", async () => {
@@ -108,12 +121,10 @@ describe("Image formats prop", () => {
 	});
 
 	test("quality applies to the source and the img", async () => {
-		const c = await AstroContainer.create();
-		const html = await c.renderToString(EmDashImage, {
-			props: { image: localImage, formats: ["avif", "webp"], quality: 70 },
-			locals,
-			// An allowed image domain, so the image service rewrites the URLs.
-			request: new Request("https://quality.example.com/"),
+		const html = await renderOptimized({
+			image: localImage,
+			formats: ["avif", "webp"],
+			quality: 70,
 		});
 
 		const [source] = sourceTags(html);
@@ -137,10 +148,20 @@ describe("Image formats prop", () => {
 			formats: ["avif", "webp"],
 		});
 
-		expect(html.match(/<picture/g)).toHaveLength(2);
+		const pictures = html.match(/<picture\b[^>]*>/g) ?? [];
+		expect(pictures).toHaveLength(2);
+		expect(attr(pictures[0]!, "class")).toContain("emdash-image--light");
+		expect(attr(pictures[1]!, "class")).toContain("emdash-image--dark");
 		const imgs = html.match(/<img\b[^>]*>/g) ?? [];
 		expect(imgs).toHaveLength(2);
 		expect(attr(imgs[0]!, "class")).toContain("emdash-image--light");
 		expect(attr(imgs[1]!, "class")).toContain("emdash-image--dark");
+	});
+
+	test("a caller-supplied sizes reaches the source", async () => {
+		const html = await render({ image: localImage, formats: ["avif", "webp"], sizes: "140px" });
+
+		expect(attr(sourceTags(html)[0]!, "sizes")).toBe("140px");
+		expect(attr(imgTag(html), "sizes")).toBe("140px");
 	});
 });

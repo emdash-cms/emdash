@@ -104,4 +104,31 @@ describe("Image formats on the optimized (non-AstroPicture) path", () => {
 		expect(html).not.toContain("<picture");
 		expect(attr(imgTag(html), "src")).toContain("/_image?");
 	});
+
+	test("a caller-supplied sizes reaches the source", async () => {
+		const html = await render({ image: remoteImage, formats: ["avif", "webp"], sizes: "140px" });
+
+		expect(attr(sourceTags(html)[0]!, "sizes")).toBe("140px");
+		expect(attr(imgTag(html), "sizes")).toBe("140px");
+	});
+
+	test("dark variants put the color-scheme class on each <picture>", async () => {
+		const html = await render({
+			image: {
+				...remoteImage,
+				darkVariant: {
+					id: "01DARK",
+					src: "https://cdn.example.com/dark.jpg",
+					width: 1232,
+					height: 565,
+				},
+			},
+			formats: ["avif", "webp"],
+		});
+
+		const pictures = html.match(/<picture\b[^>]*>/g) ?? [];
+		expect(pictures).toHaveLength(2);
+		expect(attr(pictures[0]!, "class")).toBe("emdash-image--light");
+		expect(attr(pictures[1]!, "class")).toBe("emdash-image--dark");
+	});
 });

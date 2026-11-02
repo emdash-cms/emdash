@@ -203,7 +203,7 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 					sources.push({
 						type: formatContentType(sourceFormat),
 						srcset: alternate.srcset || alternate.src,
-						sizes: alternate.srcset ? alternate.sizes : undefined,
+						sizes: alternate.srcset ? (attrs.sizes ?? alternate.sizes) : undefined,
 					});
 				}
 			}
@@ -342,6 +342,7 @@ const astroClass = (variantClass: string | undefined) =>
 				layout="constrained"
 				formats={sourceFormats}
 				fallbackFormat={imgFormat}
+				pictureAttributes={{ class: lightClass }}
 				loading={priority ? "eager" : "lazy"}
 				decoding="async"
 				class={astroClass(lightClass)}
@@ -368,7 +369,7 @@ const astroClass = (variantClass: string | undefined) =>
 		)
 	) : resolved && resolved.src ? (
 		resolved.sources.length ? (
-			<picture>
+			<picture class={lightClass}>
 				{resolved.sources.map((source) => (
 					<source type={source.type} srcset={source.srcset} sizes={source.sizes} />
 				))}
@@ -394,6 +395,7 @@ const astroClass = (variantClass: string | undefined) =>
 				layout="constrained"
 				formats={sourceFormats}
 				fallbackFormat={imgFormat}
+				pictureAttributes={{ class: "emdash-image--dark" }}
 				loading={priority ? "eager" : "lazy"}
 				decoding="async"
 				class={astroClass("emdash-image--dark")}
@@ -420,7 +422,7 @@ const astroClass = (variantClass: string | undefined) =>
 		)
 	) : resolvedDark && resolvedDark.src ? (
 		resolvedDark.sources.length ? (
-			<picture>
+			<picture class="emdash-image--dark">
 				{resolvedDark.sources.map((source) => (
 					<source type={source.type} srcset={source.srcset} sizes={source.sizes} />
 				))}
