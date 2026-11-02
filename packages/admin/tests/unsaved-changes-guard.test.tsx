@@ -204,30 +204,28 @@ function recordEntryWrites() {
 	return writes;
 }
 
-/** Answers every publication date change with a conflict and collects the reads of the saved entry. */
+/** Answers every publication date change of the saved entry with a conflict, held until `release`. */
 function refuseDateChanges() {
-	const reads: string[] = [];
+	let release = () => {};
+	const released = new Promise<void>((resolve) => {
+		release = resolve;
+	});
 	const send = globalThis.fetch;
-	globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
-		const method = init?.method ?? "GET";
+	globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
 		if (
 			typeof input === "string" &&
-			method === "GET" &&
-			input.split("?")[0]?.endsWith(CREATED.id)
-		) {
-			reads.push(input);
-		}
-		if (
-			method === "PUT" &&
-			typeof init?.body === "string" &&
+			input.startsWith(ENTRY_PATH) &&
+			init?.method === "PUT" &&
+			typeof init.body === "string" &&
 			"publishedAt" in JSON.parse(init.body)
 		) {
+			await released;
 			const headers = { "Content-Type": "application/json" };
-			return Promise.resolve(new Response(JSON.stringify(CONFLICT), { status: 409, headers }));
+			return new Response(JSON.stringify(CONFLICT), { status: 409, headers });
 		}
 		return send(input, init);
 	}) as typeof fetch;
-	return reads;
+	return { release };
 }
 
 async function publishNow(screen: Screen) {
@@ -714,14 +712,19 @@ describe.each([
 		mockFetch.restore();
 	});
 
-	/** Opens `item` from `other` and edits it, then starts `act` and opens `other` before the save lands. */
-	async function actThenSwitch(item: object, act: (screen: Screen) => Promise<void> | void) {
+	/** Opens `item` from `other`, after `prepare` there, edits it, then starts `act` and opens `other` before the save lands. */
+	async function actThenSwitch(
+		item: object,
+		act: (screen: Screen) => Promise<void> | void,
+		prepare?: (screen: Screen) => Promise<void>,
+	) {
 		mockFetch.on("GET", ENTRY_PATH, { data: { item, _rev: "rev-1" } });
-		const writes = recordEntryWrites();
 		const { queryClient, router, screen, title } = await renderEditor((start, client) => {
 			client.setQueryDefaults(["content"], { gcTime: Infinity });
 			return openPost(start, other.id, other.type);
 		});
+		await prepare?.(screen);
+		const writes = recordEntryWrites();
 		await openPost(router, CREATED.id);
 		await expect.element(title).toHaveValue("Unsaved title");
 		await title.fill("Edited title");
@@ -779,10 +782,32 @@ describe.each([
 			.toMatchObject({ isInvalidated: true });
 	});
 
-	it("reads back the entry whose publication date change conflicted", async () => {
-		const reads = refuseDateChanges();
-		await actThenSwitch(PUBLISHED, changePublicationDate);
+	it("keeps the conflict notice of the entry now open when the previous entry's date change conflicts", async () => {
+		const otherPath = `/_emdash/api/content/${other.type}/${other.id}`;
+		const datedOther = { ...other, status: "published", publishedAt: PUBLISHED.publishedAt };
+		mockFetch
+			.on("GET", otherPath, { data: { item: datedOther, _rev: "rev-other" } })
+			.on("PUT", `${otherPath}?locale=en`, CONFLICT, 409);
+		const dateChange = refuseDateChanges();
+		const { queryClient, screen } = await actThenSwitch(
+			PUBLISHED,
+			changePublicationDate,
+			async (start) => {
+				await changePublicationDate(start);
+				const dialog = start.getByRole("dialog", { name: "Change publication date" });
+				await expect.element(dialog.getByText("This entry changed somewhere else.")).toBeVisible();
+				dialog.getByRole("button", { name: "Cancel", exact: true }).element().click();
+				await expect
+					.element(start.getByRole("button", { name: "Save anyway", exact: true }))
+					.toBeVisible();
+			},
+		);
+		const saveAnyway = screen.getByRole("button", { name: "Save anyway", exact: true });
+		await expect.element(saveAnyway).toBeVisible();
 
-		await expect.poll(() => reads).toContain(`${ENTRY_PATH}?locale=en`);
+		dateChange.release();
+		await expect.poll(() => queryClient.isMutating()).toBe(0);
+
+		await expect.element(saveAnyway).toBeVisible();
 	});
 });

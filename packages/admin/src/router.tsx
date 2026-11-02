@@ -1419,7 +1419,7 @@ function ContentEditPage() {
 		},
 		// The publication-date dialog shows the failure.
 		onError: async (error, { targetCollection, targetId, targetLocale }) => {
-			if (isSaveConflict(error))
+			if (isSaveConflict(error) && editorShows(targetId))
 				await recoverFromSaveConflict(targetId, targetCollection, targetLocale);
 		},
 	});
