@@ -174,11 +174,11 @@ void test("reports missing internal pages without fragments", (t) => {
 	]);
 });
 
-function builtDocsFixture(t, html) {
+function builtDocsFixture(t, html, filename = "guide/index.html") {
 	return fixture(t, {
 		".wrangler/deploy/config.json": JSON.stringify({ configPath: "../../output/worker.json" }),
 		"output/worker.json": JSON.stringify({ assets: { directory: "../rendered" } }),
-		"rendered/guide/index.html": html,
+		[`rendered/${filename}`]: html,
 	});
 }
 
@@ -203,16 +203,50 @@ void test("the CLI follows redirects emitted in the static build output", (t) =>
 	assert.ok(result.stderr.includes("missing #missing in /guide/"));
 });
 
-void test("the CLI follows redirects that add or remove a trailing slash", (t) => {
-	for (const [from, destination] of [
-		["/guide", "/guide/"],
-		["/guide/", "/guide"],
+void test("the CLI follows redirects to canonical directory and flat HTML URLs", (t) => {
+	for (const [from, destination, filename] of [
+		["/guide", "/guide/", "guide/index.html"],
+		["/guide/", "/guide", "guide.html"],
 	]) {
 		const directory = builtDocsFixture(
 			t,
 			`<h2 id="section">Section</h2><a href="${from}#section">Link</a>`,
+			filename,
 		);
 		writeFileSync(join(directory, "rendered/_redirects"), `${from} ${destination} 301\n`);
+		const result = spawnSync(process.execPath, [cliPath, directory], { encoding: "utf8" });
+		assert.equal(result.status, 0, result.stderr);
+	}
+});
+
+void test("the CLI reports loops through automatic HTML redirects", (t) => {
+	const directory = builtDocsFixture(
+		t,
+		'<h2 id="section">Section</h2><a href="/guide/#section">Link</a>',
+	);
+	writeFileSync(join(directory, "rendered/_redirects"), "/guide/ /guide 301\n");
+	const result = spawnSync(process.execPath, [cliPath, directory], { encoding: "utf8" });
+	assert.equal(result.status, 1);
+	assert.ok(result.stderr.includes("redirect loop at /guide/"));
+});
+
+void test("the CLI follows HTML file aliases directly to the canonical URL", (t) => {
+	const directory = builtDocsFixture(
+		t,
+		'<h2 id="section">Section</h2><a href="/guide/index.html#section">Link</a>',
+	);
+	writeFileSync(join(directory, "rendered/_redirects"), "/guide /missing/ 301\n");
+	const result = spawnSync(process.execPath, [cliPath, directory], { encoding: "utf8" });
+	assert.equal(result.status, 0, result.stderr);
+});
+
+void test("the CLI matches encoded redirect source paths", (t) => {
+	for (const from of ["/old%20guide", "/%E6%97%A7%E3%82%AC%E3%82%A4%E3%83%89"]) {
+		const directory = builtDocsFixture(
+			t,
+			`<h2 id="section">Section</h2><a href="${from}#section">Link</a>`,
+		);
+		writeFileSync(join(directory, "rendered/_redirects"), `${from} /guide/ 301\n`);
 		const result = spawnSync(process.execPath, [cliPath, directory], { encoding: "utf8" });
 		assert.equal(result.status, 0, result.stderr);
 	}
