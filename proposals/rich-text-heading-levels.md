@@ -12,7 +12,7 @@ created: 2026-10-22
 
 ## Problem and user case
 
-A site that shows the page title as its H1 wants post bodies to start at H2. The rich text editor offers Heading 1 to 6 in every field, so an editor can add a second H1 to a post without knowing it breaks the page outline. Someone asked on Discord whether they can remove H1 from the editor. EmDash 1.3 has no way to do that: plugins can add blocks but can't take built-in ones away, and the six levels are fixed in the admin's editor.
+A site that shows the page title as its H1 wants post bodies to start at H2. The rich text editor offers Heading 1 to 6 in every field, so an editor can add a second H1 to a post without knowing it breaks the page outline. Someone asked on Discord whether they can remove H1 from the editor. EmDash has no way to do that yet: plugins can add blocks but can't take built-in ones away, and the six levels are fixed in the admin's editor.
 
 Rendering H1 as H2 on the site hides the symptom, but the editor still shows a big Heading 1 that turns into something else after publishing. The editor itself should only offer the levels the site uses.
 
