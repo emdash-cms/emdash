@@ -24,6 +24,8 @@ The RFC covers four pieces:
 - An update request in core: a `trigger` setting under `updateCheck`, an admin-only endpoint, and a Start update button on the banner.
 - A CLI command and an MCP tool that send the same request. An MCP request without the right token scope waits for an admin to approve it on the banner.
 
+`updateCheck: false` turns all of it off, including the banner the admin shows today.
+
 ## Problem and user case
 
 Since [#1939](https://github.com/emdash-cms/emdash/pull/1939), the admin dashboard shows a banner when a newer EmDash release is out. The banner tells the admin to update the `emdash` package and redeploy. On Workers or in a container, the running site is a fixed build. It can't install packages, build itself or deploy. [Discussion #1889](https://github.com/emdash-cms/emdash/discussions/1889), which proposed the banner, left out an update button for that reason. For a site owner who isn't the developer, the banner is a dead end.
@@ -31,6 +33,8 @@ Since [#1939](https://github.com/emdash-cms/emdash/pull/1939), the admin dashboa
 The update itself is documented in [Update EmDash](https://docs.emdashcms.com/deployment/updating/): run `upgrade-emdash`, complete the work order in `.emdash/UPGRADE.md`, build, back up when the update adds migrations, and deploy. A site that automates this wires it into its own pipeline by hand, for example with Renovate, Dependabot or a custom bot. Renovate and Dependabot don't run the work order or tell the reviewer whether the update changes the database.
 
 [Discussion #4540](https://github.com/emdash-cms/emdash/discussions/4540) describes the demand. Someone who had just moved their first site from WordPress to EmDash on Workers asked on Discord how others keep their sites updated. Their plan was a bot that opens an update pull request a few days after each release, deploys small fixes on its own and leaves bigger ones for a person. An agency with many sites would want to start the same update from a script.
+
+The same discussion raised the opposite case. A developer who manages updates for a client's site wants the client's admin to show no update feature at all. The client's users are all Administrators, because the client wants full access to the CMS, so a permission limited to Administrators doesn't hide anything from them. A banner or a button they can't use makes them ask why they can't update the site themselves.
 
 ## Example
 
@@ -76,6 +80,7 @@ An agent connected over MCP calls `site_update_request`. Its token doesn't hold 
 - EmDash ships a workflow that turns a request into a pull request that tells the reviewer whether the update adds core migrations and whether a release entry asks for changes to the project.
 - The same workflow can run on a schedule without EmDash, with the same release-age rule.
 - Nothing changes for a site that doesn't configure a trigger, apart from a link to the update guide on the banner.
+- With `updateCheck: false`, no user of the site sees an update feature in the admin, whatever their role, and the REST API, the CLI and MCP offer none.
 
 ## Non-goals
 
@@ -174,6 +179,19 @@ The secret is read from `process.env` when a request is sent, never from `import
 
 A trigger without its secret is shown as not ready, and sending fails with `UPDATE_TRIGGER_NOT_READY`.
 
+### Turning updates off
+
+`updateCheck: false` stays the one switch. Today it stops the registry check, and the status route reports no newer version, so the banner never shows. A trigger can't be configured beside it. With this RFC, `false` also removes every surface the RFC adds:
+
+- **Admin:** no banner, so no Update guide link, no Start update and no request awaiting approval. The admin manifest gains an `updateCheck` boolean, and with `false` the API token settings leave out the `updates:request` scope.
+- **REST API:** `GET /_emdash/api/admin/core-update` answers with `enabled: false`, `trigger: null` and `request: null`. `POST` and `DELETE` on `/_emdash/api/admin/core-update/request` fail with `UPDATE_CHECK_DISABLED`.
+- **CLI:** `emdash site update-status` prints "Update checks are off for this site." and exits with code 0. `emdash site request-update` prints the same line and exits with a non-zero code.
+- **MCP:** `site_update_status` and `site_update_request` aren't registered, so an agent's tool list has no update tools. The core MCP server is built per request, and the configuration is available when it is.
+
+A stored request record is ignored while the check is off, as it is after removing `trigger`. The `updates:read` and `updates:request` permissions and the `updates:request` token scope still exist, and the `admin` scope still includes the scope, but with the check off they grant nothing.
+
+The switch applies to every user. Keeping the check for the developer while hiding it from the client's admins needs control per user or per role. See [Open questions](#open-questions).
+
 ### Update request record
 
 The current request is stored in the options table under `emdash:core_update_request`, next to the update check's `emdash:core_update_check`. A new request replaces it, so no migration is needed.
@@ -205,7 +223,7 @@ The record only counts while its version is newer than the running version and i
 
 A new handler, `handleCoreUpdateRequest(db, { version, source, user, approvedBy? })`, sends a request:
 
-1. It fails with `UPDATE_TRIGGER_NOT_CONFIGURED` when no trigger is configured, and with `UPDATE_TRIGGER_NOT_READY` when the trigger's secret is missing. It reads the update status with `handleCoreUpdateStatus` and the same `minimumReleaseAge`. The requested version must equal the reported `latest`, and `updateAvailable` must be true. Otherwise it fails with `UPDATE_NOT_AVAILABLE`. A request can never name an arbitrary version.
+1. It fails with `UPDATE_CHECK_DISABLED` when `updateCheck` is `false`, with `UPDATE_TRIGGER_NOT_CONFIGURED` when no trigger is configured, and with `UPDATE_TRIGGER_NOT_READY` when the trigger's secret is missing. It reads the update status with `handleCoreUpdateStatus` and the same `minimumReleaseAge`. The requested version must equal the reported `latest`, and `updateAvailable` must be true. Otherwise it fails with `UPDATE_NOT_AVAILABLE`. A request can never name an arbitrary version.
 2. A `sent` record for the same version that is less than 15 minutes old fails the request with `UPDATE_ALREADY_REQUESTED` and the time it can be retried. So does a `sending` record less than one minute old, and a `failed` record less than one minute old, so a wrong token or an unreachable receiver can't be hammered from a script. A `dismissed` record doesn't block a send.
 3. It claims the send by writing a `sending` record with `OptionsRepository.compareAndSet`, against the revision it read in step 2. When the claim doesn't apply, another send got there first, and the request fails with `UPDATE_ALREADY_REQUESTED`.
 4. It sends the request to the trigger with a 10-second timeout and replaces the `sending` record with the outcome.
@@ -240,8 +258,9 @@ Any 2xx response counts as sent. The request uses `redirect: "manual"` and treat
 
 ### REST API
 
-`GET /_emdash/api/admin/core-update` keeps its response and adds two fields:
+`GET /_emdash/api/admin/core-update` keeps its response and adds three fields:
 
+- `enabled`: `false` when `updateCheck` is `false`. Today that response can't be told apart from a site that hasn't checked yet.
 - `trigger`: `null`, or `{ type, target, ready }`, where `target` is `owner/name` for GitHub and the URL's host for a webhook.
 - `request`: the current record while it counts, with the requester's and approver's display names, or `null`.
 
@@ -259,6 +278,7 @@ New error codes, mapped in `mapErrorStatus`:
 
 | Code                            | Status | Meaning                                                                                                                  |
 | ------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `UPDATE_CHECK_DISABLED`         | 409    | `updateCheck` is `false`                                                                                                 |
 | `UPDATE_TRIGGER_NOT_CONFIGURED` | 409    | No trigger is configured                                                                                                 |
 | `UPDATE_TRIGGER_NOT_READY`      | 409    | The trigger's secret is missing                                                                                          |
 | `UPDATE_NOT_AVAILABLE`          | 409    | The version isn't the newest reported release, or the site already runs it                                               |
@@ -271,7 +291,7 @@ The response never includes the trigger's response body. The server log records 
 
 ### Admin banner
 
-The banner stays on the dashboard for users with `updates:read`, which is Admin today, and stays dismissible per version.
+The banner stays on the dashboard for users with `updates:read`, which is Admin today, and stays dismissible per version. With `updateCheck: false` it never shows, in any of the states below.
 
 - **No trigger:** the banner adds an Update guide link to the documentation page.
 - **Trigger ready:** the banner offers Start update. A confirmation dialog names the target ("This runs the update workflow in acme/marketing-site. Your pipeline decides how the update is deployed.") and sends the request.
@@ -306,7 +326,8 @@ An admin approves a request on the banner, from a signed-in session. Approving s
 Every change is additive:
 
 - `updateCheck` accepts a new optional key. Existing configurations behave as before.
-- `GET /_emdash/api/admin/core-update` adds two fields.
+- `GET /_emdash/api/admin/core-update` adds three fields, and the admin manifest adds one.
+- `updateCheck: false` keeps its meaning and now also covers the new surfaces. A site that turned the check off sees no new feature.
 - The new route, permission, token scope, error codes, CLI subcommands, MCP tools and `upgrade-emdash` options are new names. Existing tokens keep their scopes. A token with `admin` gains the new scope, as it gained the transfer scopes.
 - No database migration. Older code ignores the `emdash:core_update_request` key, so a rollback leaves an unused option behind.
 - Templates gain one workflow file. Existing sites copy it from the update guide, since template changes don't reach existing projects.
@@ -338,7 +359,7 @@ The admin status route reads one more options key in the query it already runs, 
 - **The site stops in the middle of a send:** the `sending` record stays behind. After one minute it no longer blocks a new request, and the banner offers Start update again.
 - **The workflow fails** (installation fails, the project isn't supported, or the branch has someone else's commits): the run fails visibly in GitHub, and the admin shows the request as sent with a link to the run. The admin doesn't learn about the failure. See [Open questions](#open-questions).
 - **A newer release appears while a pull request is open:** the banner offers the newer version. Its run opens a second pull request that links the first.
-- **Operator action:** fix the token, the trigger or the workflow, then send again. Disable the feature by removing `trigger`. The stored record is then ignored.
+- **Operator action:** fix the token, the trigger or the workflow, then send again. Disable requests by removing `trigger`, or every update surface with `updateCheck: false`. The stored record is then ignored.
 
 ## Verification
 
@@ -347,6 +368,7 @@ The admin status route reads one more options key in the query it already runs, 
 - Route tests: an Editor is refused, a token without the scope is refused, a token with `admin` passes, a token with only `updates:request` reads the status and sends, a DELETE from a token is refused, and the CSRF header is enforced.
 - MCP tests: with the scope the tool sends, without it the tool stores one `awaiting_approval` record, a second call doesn't create another, a call while a request is sent answers with the run link, a record older than 24 hours no longer counts, approval from a session sends the request, a dismissed request refuses the tool with `UPDATE_REQUEST_DISMISSED` while a session can still send that version, a newer reported release lets the tool ask again, and the status tool refuses a token without `admin` or `updates:request`. Route and MCP tests also cover a running import refusing a request and a running export that doesn't restart after one.
 - Configuration tests: wrong trigger shapes fail the build with their path, and `http:` URLs are refused outside `localhost`.
+- Tests with `updateCheck: false`: the status route answers `enabled: false`, both write routes answer `UPDATE_CHECK_DISABLED` even with a stored record, the MCP tool list has no update tools, both CLI subcommands print that the check is off with the documented exit codes, and the admin shows no banner and no `updates:request` scope in the token settings.
 - Admin component tests for each banner state, including a request awaiting approval for a dismissed version and a dismissed request, plus a manual check of the banner and dialog in Arabic.
 - The query-count snapshot shows no change on logged-out routes.
 - A manual end-to-end run on a fork: a template site on Workers with Workers Builds starts the workflow from the banner, the pull request appears with the right labels, and after the merge and deploy the banner disappears. The same run is repeated with a scheduled trigger and a webhook receiver.
@@ -361,7 +383,11 @@ Each slice is usable without the next one:
 4. **CLI:** `emdash site update-status` and `emdash site request-update`.
 5. **MCP:** both tools, the `awaiting_approval` and `dismissed` statuses, approval through the POST route, the `DELETE` route, and the awaiting and dismissed states on the banner.
 
-No feature flag is needed. The feature is off until a site configures a trigger.
+Each slice handles `updateCheck: false` for the surfaces it adds: slice 3 the `enabled` field, the manifest flag, the error code and the token settings; slice 4 the CLI output; slice 5 the MCP tools.
+
+Slice 3 also rewrites the `updateCheck` section of the configuration reference. It says today that the banner is informational and that updating is something "the admin can't (and shouldn't) trigger". The new text documents `trigger` and names `false` as the switch that turns off every update surface.
+
+No feature flag is needed. Requests are off until a site configures a trigger, and `updateCheck: false` turns the whole feature off.
 
 ## Alternatives
 
@@ -405,4 +431,5 @@ An HMAC signature over a timestamp and the body would let a receiver detect repl
 
 - **Status after sending:** should the admin show the pull request and deploy state? Options are a callback route the pipeline calls with a scoped token, or EmDash reading the run with an Actions: read token. Either overlaps with deploy status in Discussion #4216, and one shared piece could serve both.
 - **Migrations before installation:** the update check already downloads the full npm packument, which includes each version's `package.json`. A field written at publish time, such as the core migrations a release adds, would let the banner say "this update changes the database" before anything is installed. Is that worth a release-process change?
+- **Updates for some admins only:** a developer may want the banner and Start update for themselves while the client's Administrators see nothing. `updateCheck: false` can't do that, because it applies to every user. It needs control per user or per role, such as removing `updates:read` from a custom role ([#4156](https://github.com/emdash-cms/emdash/pull/4156)). Is that worth solving in this RFC, or does it wait for custom roles?
 - **Templates:** should all templates include the workflow, or only the ones that deploy from Git? A dispatch-only workflow does nothing until triggered, but it is one more file for sites that never use GitHub.
