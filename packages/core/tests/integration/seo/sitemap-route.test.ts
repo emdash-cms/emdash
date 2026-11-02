@@ -299,6 +299,48 @@ describe("sitemap-[collection].xml route", () => {
 		expect(xml).toContain(`<image:loc>${expected}</image:loc>`);
 	});
 
+	it.each([
+		["/", "https://example.com/legacy/", "https://example.com/legacy/blog/hello"],
+		[
+			"/field-notes/",
+			"https://example.com/legacy",
+			"https://example.com/legacy/field-notes/blog/hello",
+		],
+		[
+			"/field-notes",
+			"https://example.com/legacy/field-notes/",
+			"https://example.com/legacy/field-notes/blog/hello",
+		],
+	])(
+		"preserves the stored media path with base %s and site URL %s",
+		async (base, storedUrl, pageUrl) => {
+			vi.stubEnv("BASE_URL", base);
+			await setSiteSettings({ url: storedUrl }, db);
+			const post = await repo.create({
+				type: "post",
+				slug: "hello",
+				data: { title: "Hello" },
+				status: "published",
+			});
+			await db
+				.insertInto("_emdash_seo")
+				.values({
+					collection: "post",
+					content_id: post.id,
+					seo_image: "01ABCDEF.webp",
+					seo_no_index: 0,
+				})
+				.execute();
+			const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
+			expect(res.status).toBe(200);
+			const xml = await res.text();
+			expect(xml).toContain(`<loc>${pageUrl}</loc>`);
+			expect(xml).toContain(
+				"<image:loc>https://example.com/legacy/_emdash/api/media/file/01ABCDEF.webp</image:loc>",
+			);
+		},
+	);
+
 	it("omits <image:image> for rows without an SEO image", async () => {
 		setI18nConfig(null);
 		await repo.create({

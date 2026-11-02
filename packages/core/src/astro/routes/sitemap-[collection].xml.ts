@@ -31,6 +31,7 @@ import { parseCollectionSitemapName } from "../../seo/sitemap-name.js";
 
 export const prerender = false;
 
+const TRAILING_SLASH_RE = /\/$/;
 const AMP_RE = /&/g;
 const LT_RE = /</g;
 const GT_RE = />/g;
@@ -61,7 +62,8 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 	try {
 		const settings = await getSiteSettingsWithDb(emdash.db);
 		const siteUrl = getPublicSiteUrl(url, emdash.config, settings.url, import.meta.env.BASE_URL);
-		const mediaOrigin = new URL(siteUrl).origin;
+		const basePath = import.meta.env.BASE_URL.replace(TRAILING_SLASH_RE, "");
+		const mediaRoot = basePath ? siteUrl.slice(0, -basePath.length) : siteUrl;
 
 		const result = await handleSitemapData(emdash.db, collectionSlug, { page });
 
@@ -159,7 +161,7 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 			// image (the same "preferred image" used for og:image) so it
 			// can be discovered and indexed for Google Images.
 			if (entry.image) {
-				const imageLoc = buildSeoImageUrl(entry.image, mediaOrigin);
+				const imageLoc = buildSeoImageUrl(entry.image, mediaRoot);
 				lines.push("    <image:image>");
 				lines.push(`      <image:loc>${escapeXml(imageLoc)}</image:loc>`);
 				lines.push("    </image:image>");
