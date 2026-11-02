@@ -300,12 +300,10 @@ describe("CalendarPage", () => {
 				at: "2030-03-06T09:00:00.000Z",
 			};
 			let refuseLaunch: (() => void) | undefined;
-			let loads = 0;
 			globalThis.fetch = vi.fn(async (input: string | URL | Request) => {
 				const url = input instanceof Request ? input.url : input.toString();
-				// Reloads never finish, so only the moves themselves place the entries.
+				// The server keeps both entries where they were until a move is saved.
 				if (url.includes("/calendar?")) {
-					if (++loads > 1) return new Promise<Response>(() => {});
 					return Response.json({ data: { items: [launch, notes] } });
 				}
 				if (url.includes("/content/posts/launch/schedule")) {
@@ -334,6 +332,9 @@ describe("CalendarPage", () => {
 			);
 			await expect.poll(() => refuseLaunch).toBeTypeOf("function");
 			refuseLaunch?.();
+			await expect.element(page.getByText("Could not reschedule")).toBeInTheDocument();
+			// Room for a reload, which would carry the pending move's old day.
+			await new Promise((resolve) => setTimeout(resolve, 200));
 
 			await expect
 				.element(

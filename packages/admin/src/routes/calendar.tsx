@@ -66,6 +66,7 @@ const COMPACT_SLACK = 24;
  */
 const DOCK_WIDTH = COMPACT_WIDTH + 384 + 1 + 48 + COMPACT_SLACK;
 const NO_LOCALES: string[] = [];
+const MOVE_KEY = ["calendar-move"];
 
 /**
  * Whether the element is narrower than `width`. The sidebar takes part of the
@@ -227,7 +228,8 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 		staleTime: 0,
 		refetchInterval: (query) =>
 			rangeHasNow &&
-			query.state.status !== "error"
+			query.state.status !== "error" &&
+			queryClient.isMutating({ mutationKey: MOVE_KEY }) === 0
 				? REFRESH_MS
 				: false,
 	});
@@ -328,7 +330,10 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 		[user],
 	);
 	const refreshContent = (collection: string) => {
-		void queryClient.invalidateQueries({ queryKey: ["calendar"] });
+		// A reload while another move is pending would put that entry back where it was.
+		if (queryClient.isMutating({ mutationKey: MOVE_KEY }) === 1) {
+			void queryClient.invalidateQueries({ queryKey: ["calendar"] });
+		}
 		void queryClient.invalidateQueries({ queryKey: ["content", collection] });
 		void queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
 	};
@@ -348,6 +353,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 				: data,
 		);
 	const move = useMutation({
+		mutationKey: MOVE_KEY,
 		mutationFn: ({
 			item,
 			scheduledAt,
