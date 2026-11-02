@@ -188,11 +188,9 @@ export function createKVAccess(
 				: await optionsRepo.getByPrefix(fullPrefix);
 			const result: Array<{ key: string; value: unknown }> = [];
 			for (const [fullKey, value] of entriesMap) {
-				if (includesSettings && fullKey.startsWith(`${prefix}settings:`)) continue;
-				result.push({
-					key: fullKey.slice(prefix.length),
-					value,
-				});
+				const key = fullKey.slice(prefix.length);
+				if (!fullKey.startsWith(fullPrefix) || key.startsWith("settings:")) continue;
+				result.push({ key, value });
 			}
 			if (includesSettings) {
 				const settingPrefix = requestedPrefix.startsWith("settings:")

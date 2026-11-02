@@ -1269,6 +1269,50 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 				locale,
 			});
 
+			// A staged slug can be absent from the content table or still belong
+			// to another row. Prefer the token's draft only when its slug matches.
+			if (
+				isPreviewMode &&
+				(!baseEntry || entryDatabaseId(baseEntry) !== preview.id) &&
+				(!baseError || baseError.name === "LiveEntryNotFoundError") &&
+				preview.id !== id
+			) {
+				const { entry: tokenEntry, error: tokenError } = await getLiveEntry(COLLECTION_NAME, {
+					type,
+					id: preview.id,
+					locale,
+				});
+				const draftRevisionId = tokenEntry
+					? dataStr(entryData(tokenEntry), "draftRevisionId")
+					: undefined;
+				if (
+					!tokenError &&
+					tokenEntry &&
+					entryDatabaseId(tokenEntry) === preview.id &&
+					draftRevisionId &&
+					(!locale ||
+						getLocaleCandidates(locale).includes(dataStr(entryData(tokenEntry), "locale")))
+				) {
+					const {
+						entry: draftEntry,
+						error: draftError,
+						cacheHint: draftCacheHint,
+					} = await getLiveEntry(COLLECTION_NAME, {
+						type,
+						id: preview.id,
+						revisionId: draftRevisionId,
+						locale,
+					});
+					if (!draftError && draftEntry && dataStr(entryData(draftEntry), "slug") === id) {
+						return successResult(wrapEntry(draftEntry), {
+							isPreview: true,
+							fallbackLocale,
+							cacheHint: draftCacheHint ?? {},
+						});
+					}
+				}
+			}
+
 			if (baseError) {
 				// Astro reports a missing entry as an error; try the next locale.
 				if (baseError.name === "LiveEntryNotFoundError") continue;

@@ -233,9 +233,7 @@ it("shows why the server rejected the schedule", async () => {
 	await expect.element(schedule).toBeVisible();
 	schedule.element().click();
 
-	await expect
-		.element(screen.getByRole("alert"))
-		.toHaveTextContent("Scheduling is locked for this post");
+	await expect.element(screen.getByText("Scheduling is locked for this post")).toBeVisible();
 });
 
 it("replaces a server error with the reason a retry cannot be saved", async () => {
@@ -248,14 +246,13 @@ it("replaces a server error with the reason a retry cannot be saved", async () =
 	const schedule = screen.getByRole("button", { name: "Schedule", exact: true });
 	await expect.element(schedule).toBeVisible();
 	schedule.element().click();
-	await expect
-		.element(screen.getByRole("alert"))
-		.toHaveTextContent("Scheduling is locked for this post");
+	await expect.element(screen.getByText("Scheduling is locked for this post")).toBeVisible();
 
 	vi.setSystemTime(new Date(2035, 5, 15, 16, 30));
 	schedule.element().click();
 
 	await expect.element(screen.getByRole("alert")).toHaveTextContent("Choose a time in the future");
+	expect(screen.getByText("Scheduling is locked for this post").query()).toBeNull();
 });
 
 it("accepts a single-digit minute", async () => {

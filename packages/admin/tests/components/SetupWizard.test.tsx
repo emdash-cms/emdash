@@ -66,6 +66,7 @@ Object.defineProperty(window, "PublicKeyCredential", {
 // Import after mocks
 const { SetupWizard } = await import("../../src/components/SetupWizard");
 const { AuthProviderProvider } = await import("../../src/lib/auth-provider-context");
+const { AdminBrandingProvider } = await import("../../src/lib/admin-branding-context.js");
 
 function QueryWrapper({ children }: { children: React.ReactNode }) {
 	const qc = new QueryClient({
@@ -91,6 +92,19 @@ describe("SetupWizard", () => {
 		);
 		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
 		await expect.element(screen.getByPlaceholder("My Awesome Blog")).toBeInTheDocument();
+	});
+
+	it("shows the configured admin logo instead of the EmDash logo", async () => {
+		const screen = await render(
+			<AdminBrandingProvider adminBranding={{ logo: "/brand.svg", siteName: "Acme" }}>
+				<QueryWrapper>
+					<SetupWizard />
+				</QueryWrapper>
+			</AdminBrandingProvider>,
+		);
+		const logo = screen.getByRole("img", { name: "Acme" });
+		await expect.element(logo).toBeInTheDocument();
+		await expect.element(logo).toHaveAttribute("src", "/brand.svg");
 	});
 
 	it("empty title prevents advancing and shows validation error", async () => {

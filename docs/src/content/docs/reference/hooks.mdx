@@ -419,14 +419,19 @@ Lifecycle hooks require no registration capability.
 
 ### `plugin:install`
 
-Runs when a plugin is first installed. Use for initial setup, creating storage collections, or seeding data.
+Runs during initial plugin setup. A config-declared sandboxed plugin can rerun install if the sandbox becomes unavailable before activation completes. Make setup idempotent so a retry preserves existing values; see the [plugin installation guidance](/plugins/creating-plugins/hooks/#plugininstall).
+
+This example initializes only missing settings:
 
 ```ts
 hooks: {
   "plugin:install": async (event, ctx) => {
-    // Initialize default settings
-    await ctx.settings.set("enabled", true);
-    await ctx.settings.set("threshold", 100);
+    if ((await ctx.settings.get<boolean>("enabled")) === null) {
+      await ctx.settings.set("enabled", true);
+    }
+    if ((await ctx.settings.get<number>("threshold")) === null) {
+      await ctx.settings.set("threshold", 100);
+    }
 
     ctx.log.info("Plugin installed successfully");
   },

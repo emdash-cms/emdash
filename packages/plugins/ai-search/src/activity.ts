@@ -2,6 +2,7 @@ import type { PluginContext } from "emdash";
 
 import { readMetadata } from "./documents.js";
 import type { Indexer } from "./indexer.js";
+import type { AiSearchProvider, Item, ItemStatus } from "./ports/ai-search.js";
 import { getRetryQueue, type RetryItem } from "./retry.js";
 
 const RECENT_COUNT = 5;
@@ -16,7 +17,7 @@ export interface ActivityItem {
 	id: string;
 	title: string;
 	locale: string;
-	status: AiSearchItemInfo["status"];
+	status: ItemStatus;
 	error?: string;
 	updatedAt?: string;
 }
@@ -52,17 +53,17 @@ export interface Activity {
 
 export async function loadActivity(
 	ctx: Pick<PluginContext, "kv">,
-	items: Pick<AiSearchItems, "list">,
+	provider: Pick<AiSearchProvider, "listItems">,
 	indexer: Pick<Indexer, "describeRecord">,
 ): Promise<Activity> {
 	const [recent, errors, skipped, queue] = await Promise.all([
-		items.list({ per_page: RECENT_COUNT }),
-		items.list({ status: "error", per_page: FAILED_SAMPLE }),
-		items.list({ status: "skipped", per_page: FAILED_SAMPLE }),
+		provider.listItems({ perPage: RECENT_COUNT }),
+		provider.listItems({ status: "error", perPage: FAILED_SAMPLE }),
+		provider.listItems({ status: "skipped", perPage: FAILED_SAMPLE }),
 		getRetryQueue(ctx),
 	]);
 	const failed = [errors, skipped];
-	const processing = failed.flatMap((list) => list.result.flatMap(toActivityItem));
+	const processing = failed.flatMap((list) => list.items.flatMap(toActivityItem));
 	const groups = [
 		...groupBy(queue.items.toReversed(), "upload", (item) => item.error, {
 			retrying: (item) => item.nextAt !== null,
@@ -70,10 +71,7 @@ export async function loadActivity(
 		...groupBy(processing, "processing", (item) => item.error ?? ""),
 	].toSorted((a, b) => b.count - a.count);
 	const shown = groups.slice(0, MAX_GROUPS);
-	const failedTotal = failed.reduce(
-		(sum, list) => sum + (list.result_info?.total_count ?? list.result.length),
-		0,
-	);
+	const failedTotal = failed.reduce((sum, list) => sum + list.total, 0);
 	const grouped = shown.reduce((sum, group) => sum + group.count, 0);
 
 	const titleOf = async (record: RetryItem | ActivityItem) =>
@@ -91,7 +89,7 @@ export async function loadActivity(
 		})),
 	);
 	return {
-		recent: recent.result.flatMap(toActivityItem),
+		recent: recent.items.flatMap(toActivityItem),
 		attention,
 		unlisted: queue.items.length + queue.dropped + failedTotal - grouped,
 	};
@@ -117,22 +115,19 @@ function groupBy<T extends { source: string; id: string }>(
 
 /** Number of items per source, in any state. While an item is reprocessed, search still serves its previous version. */
 export async function countBySource(
-	items: Pick<AiSearchItems, "list">,
+	provider: Pick<AiSearchProvider, "listItems">,
 	sources: string[],
 ): Promise<Record<string, number>> {
 	const counts = await Promise.all(
 		sources.map(async (source) => {
-			const { result_info } = await items.list({
-				metadata_filter: JSON.stringify({ source }),
-				per_page: 1,
-			});
-			return [source, result_info?.total_count ?? 0] as const;
+			const { total } = await provider.listItems({ metadata: { source }, perPage: 1 });
+			return [source, total] as const;
 		}),
 	);
 	return Object.fromEntries(counts);
 }
 
-function toActivityItem(item: AiSearchItemInfo): ActivityItem[] {
+function toActivityItem(item: Item): ActivityItem[] {
 	const match = KEY.exec(item.key);
 	if (!match) return [];
 	const [, source = "", id = ""] = match;
@@ -145,12 +140,7 @@ function toActivityItem(item: AiSearchItemInfo): ActivityItem[] {
 			locale: metadata?.locale ?? "",
 			status: item.status,
 			...(item.error ? { error: item.error } : {}),
-			...(item.last_seen_at ? { updatedAt: toIsoTime(item.last_seen_at) } : {}),
+			updatedAt: item.updatedAt,
 		},
 	];
-}
-
-/** AI Search reports UTC times as `YYYY-MM-DD HH:MM:SS`, without a zone. */
-export function toIsoTime(time: string): string {
-	return `${time.replace(" ", "T")}Z`;
 }
