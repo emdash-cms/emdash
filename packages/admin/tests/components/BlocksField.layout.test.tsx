@@ -322,6 +322,36 @@ describe("Block row layout", () => {
 		await expect.poll(() => gutterShows("one")).toBe(true);
 	});
 
+	it("hides a block's gutter once the picker its + opened with the pointer closes, but shows it for the keyboard", async () => {
+		const screen = await renderField(
+			<div style={{ width: 480, marginInline: 80 }}>
+				<Field
+					value={[
+						{ _type: "statement", _version: 1, _key: "one", title: "One" },
+						{ _type: "statement", _version: 1, _key: "two", title: "Two" },
+					]}
+					blockTypes={[blockType("statement", "Statement")]}
+				/>
+			</div>,
+		);
+
+		showGutters();
+		const add = screen.getByRole("button", { name: "Add block below" }).first();
+		const gutterShows = () => add.element().checkVisibility({ opacityProperty: true });
+		await add.click();
+		await expect.element(screen.getByRole("dialog", { name: "Add block" })).toBeVisible();
+		await userEvent.keyboard("{Escape}");
+		await expect.element(add).toHaveFocus();
+		await userEvent.hover(screen.getByText("Layout", { exact: true }));
+		await expect.poll(gutterShows).toBe(false);
+
+		await userEvent.keyboard("{Tab}");
+		expect(document.activeElement?.getAttribute("aria-label")).toBe(
+			"Block actions - drag to reorder, click for menu",
+		);
+		await expect.poll(gutterShows).toBe(true);
+	});
+
 	it("leaves no gutter on a phone-width screen", async () => {
 		await page.viewport(375, 812);
 		const screen = await renderField(

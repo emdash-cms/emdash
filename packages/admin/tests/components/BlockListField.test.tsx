@@ -526,6 +526,24 @@ describe("Expandable items inside a block", () => {
 			.toBeVisible();
 	});
 
+	it("gives an open item's caret a target of at least 24 by 24 that its title doesn't cover", async () => {
+		await renderHarness({ initial: [testimonialsBlock()] });
+		await openBlock("Testimonials");
+		const toggle = page.getByRole("button", { name: "Maya Okafor", exact: true });
+		await toggle.click();
+		await expect.element(toggle).toHaveAttribute("aria-expanded", "true");
+		await expect.poll(() => document.getAnimations().length).toBe(0);
+
+		const target = toggle.element().getBoundingClientRect();
+		expect(target.width).toBeGreaterThanOrEqual(24);
+		expect(target.height).toBeGreaterThanOrEqual(24);
+		for (const x of [target.left + 0.5, target.right - 0.5]) {
+			for (const y of [target.top + 0.5, target.bottom - 0.5]) {
+				expect(toggle.element().contains(document.elementFromPoint(x, y))).toBe(true);
+			}
+		}
+	});
+
 	it("moves, duplicates and deletes items from their menu, and Undo puts a deleted item back", async () => {
 		const onValue = vi.fn();
 		await renderHarness({ initial: [testimonialsBlock()], onValue });

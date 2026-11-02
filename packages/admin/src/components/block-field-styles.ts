@@ -15,8 +15,7 @@ export const LIST_LABEL = "text-sm leading-4.5 font-medium text-kumo-default";
 
 /**
  * The space between stacked fields. An open block's gaps grow with the level they separate, so
- * the levels read at a glance: 2 between rows of one sheet, 6 inside a toggle's rows, 8 under a
- * block's head, 12 between an item's fields, 16 between a block's fields and 20 around its zones.
+ * the levels read at a glance.
  */
 export const FIELD_GAP = { block: "gap-y-4", item: "gap-y-3" } as const;
 
@@ -63,11 +62,12 @@ export const QUIET_SELECT =
 	"h-8 w-full justify-start gap-1.5 rounded-md bg-transparent px-2 font-normal shadow-none ring-transparent not-disabled:hover:bg-emdash-hover focus-visible:bg-kumo-control focus-visible:ring-1 focus-visible:ring-kumo-focus/50 data-[popup-open]:bg-emdash-hover data-[popup-open]:ring-0 [&>span:last-child]:opacity-0 hover:[&>span:last-child]:opacity-100 focus-visible:[&>span:last-child]:opacity-100 data-[popup-open]:[&>span:last-child]:opacity-100 pointer-coarse:[&>span:last-child]:opacity-100";
 
 /**
- * An option in a quiet select's popup: as tall as the trigger, highlighted with the hover wash
- * instead of a ring. `emdash-block-option` lets styles.css size the popup, which takes no class.
+ * An option in a quiet select's popup: as tall as the trigger, or taller for a label that wraps,
+ * highlighted with the hover wash instead of a ring. `emdash-block-option` lets styles.css size
+ * the popup, which takes no class.
  */
 export const QUIET_OPTION =
-	"emdash-block-option h-8 py-0 focus-visible:ring-0 data-highlighted:bg-emdash-hover";
+	"emdash-block-option min-h-8 py-[5.5px] focus-visible:ring-0 data-highlighted:bg-emdash-hover";
 
 /** Options are inset 6px in their popup, so it starts that far before the trigger to line their text up with its value. */
 export const QUIET_SELECT_ALIGN_OFFSET = -6;

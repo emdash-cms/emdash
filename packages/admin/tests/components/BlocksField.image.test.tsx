@@ -247,6 +247,27 @@ describe("An image inside a block", () => {
 		await expect.poll(() => opacityOf(replace)).toBe(1);
 	});
 
+	it("shows the actions to the keyboard after a picker opened with the pointer hands focus elsewhere", async () => {
+		await renderEditor([ctaBlock], [cta]);
+		await page.getByRole("button", { name: "Call to action", exact: true }).click();
+		const body = page.getByRole("textbox", { name: "Body" });
+		const replace = photo().getByRole("button", { name: "Replace", exact: true });
+
+		// As in Safari, the click doesn't focus the button, so the picker hands focus back to Body.
+		body.element().focus();
+		replace
+			.element()
+			.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+		await expect.element(page.getByRole("dialog", { name: "Media library" })).toBeVisible();
+		await userEvent.keyboard("{Escape}");
+		await expect.element(body).toHaveFocus();
+		await park();
+
+		await userEvent.keyboard("{Tab}");
+		await expect.element(replace).toHaveFocus();
+		await expect.poll(() => opacityOf(replace)).toBe(1);
+	});
+
 	it("outlines an empty logo cell only while its row is hovered", async () => {
 		await renderEditor(
 			[

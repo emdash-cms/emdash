@@ -459,6 +459,45 @@ describe("Fields inside a block", () => {
 		await expect.element(icon).toHaveFocus();
 	});
 
+	it("grows a choice's option to fit a label that wraps, so it never runs into the next", async () => {
+		const long = "A choice whose label is long enough to wrap onto a second line inside the popup";
+		const feature = blockType("feature", "Feature", [
+			{
+				slug: "icon",
+				label: "Icon",
+				type: "select",
+				validation: { options: [long, "star", "gauge"] },
+			},
+		]);
+		await renderEditor(
+			[{ _type: "feature", _version: 1, _key: "feature-1", icon: "gauge" }],
+			[feature],
+		);
+		await openBlock("Feature");
+
+		await page.getByRole("combobox", { name: "Icon" }).click();
+		const listbox = page.getByRole("listbox");
+		await expect.element(listbox).toBeVisible();
+		await expect.poll(() => listbox.element().parentElement!.getAnimations().length).toBe(0);
+		const options = page
+			.getByRole("option")
+			.elements()
+			.map((option) => option.getBoundingClientRect());
+		const text = document.createRange();
+		text.selectNodeContents(page.getByRole("option", { name: long }).element());
+		const textBox = text.getBoundingClientRect();
+
+		expect(textBox.height).toBeGreaterThan(30);
+		expect(textBox.top).toBeGreaterThanOrEqual(options[0]!.top);
+		expect(textBox.bottom).toBeLessThanOrEqual(options[0]!.bottom);
+		for (const [index, option] of options.entries()) {
+			const next = options[index + 1];
+			if (next) expect(option.bottom).toBeLessThanOrEqual(next.top + 0.5);
+		}
+		expect(options.slice(1).map((option) => option.height)).toEqual([32, 32]);
+		await userEvent.keyboard("{Escape}");
+	});
+
 	it("sets a settings row's label in its value's size, on its value's baseline", async () => {
 		const feature = blockType("feature", "Feature", [
 			{ slug: "icon", label: "Icon", type: "select", validation: { options: ["star", "gauge"] } },

@@ -38,6 +38,7 @@ import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 import { OptionalLabel } from "./OptionalLabel.js";
+import { useQuietReturnFocus } from "./useQuietReturnFocus.js";
 
 /**
  * Image field value - matches emdash's MediaValue type
@@ -147,33 +148,6 @@ const THUMB_REVEAL = cn(
 	"group-hover/thumb:opacity-100 group-hover/thumb:duration-100 group-[:not([data-quiet-focus]):has(:focus-visible)]/thumb:opacity-100",
 );
 const PHOTO_ACTION = "bg-kumo-base/85 shadow-sm backdrop-blur-sm not-disabled:hover:bg-kumo-base";
-
-/**
- * Hover controls show on keyboard focus with `:focus-visible`. A dialog that closes with
- * Escape hands focus back to its opener, and browsers count that as keyboard focus even when
- * a pointer opened it. This marks the group so that returned focus doesn't keep them shown.
- */
-function useQuietReturnFocus() {
-	const [quiet, setQuiet] = React.useState(false);
-	const openedByPointer = React.useRef(false);
-	return {
-		markOpener: (event: React.MouseEvent) => {
-			openedByPointer.current = event.detail > 0;
-		},
-		groupProps: {
-			"data-quiet-focus": quiet || undefined,
-			// Events from a dialog rendered inside the group bubble here through its portal.
-			onFocus: (event: React.FocusEvent<HTMLElement>) => {
-				if (!event.currentTarget.contains(event.target)) return;
-				setQuiet(openedByPointer.current);
-				openedByPointer.current = false;
-			},
-			onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
-				if (event.currentTarget.contains(event.target as Node)) setQuiet(false);
-			},
-		},
-	};
-}
 
 export function ImageFieldRenderer({
 	id,

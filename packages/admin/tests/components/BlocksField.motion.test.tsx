@@ -44,6 +44,23 @@ const LONG = blockType(
 	})),
 );
 const SHORT = blockType("short", "Short", [{ slug: "title", label: "Title", type: "string" }]);
+const LIST = blockType("list", "List", [
+	{
+		slug: "items",
+		label: "Items",
+		type: "repeater",
+		validation: {
+			subFields: [
+				{ slug: "title", label: "Title", type: "string" },
+				...Array.from({ length: 16 }, (_, index) => ({
+					slug: `detail_${index}`,
+					label: `Detail ${index}`,
+					type: "string",
+				})),
+			],
+		},
+	},
+]);
 
 function Field({ initial, types }: { initial: StoredBlockValue[]; types: BlockType[] }) {
 	const [value, setValue] = React.useState<unknown>(initial);
@@ -234,6 +251,172 @@ describe("Blocks field motion", () => {
 		expect(bodyOf("long")).toBeNull();
 	});
 
+	it.each(["auto", "none"])(
+		"keeps the block being read at the top across Collapse all, with nothing blank under it (overflow-anchor: %s)",
+		async (overflowAnchor) => {
+			await renderField(
+				<div
+					data-testid="scroller"
+					style={{ width: 480, height: 300, overflow: "auto", overflowAnchor }}
+				>
+					<Field
+						initial={["one", "two", "three", "four"].map((key) => ({
+							_type: "long",
+							_version: 1,
+							_key: key,
+						}))}
+						types={[LONG]}
+					/>
+					<div style={{ height: 600 }} />
+				</div>,
+			);
+			const scroller = page.getByTestId("scroller").element() as HTMLElement;
+			const height = scroller.getBoundingClientRect().height;
+			(page.getByRole("button", { name: "Expand all" }).element() as HTMLElement).click();
+			await settled();
+			scroller.scrollTop +=
+				row("three").getBoundingClientRect().top - scroller.getBoundingClientRect().top + 300;
+			const head = toggleOf("three");
+			const pinned = head.getBoundingClientRect().top;
+			expect(pinned - scroller.getBoundingClientRect().top).toBeLessThan(12);
+
+			(page.getByRole("button", { name: "Collapse all" }).element() as HTMLElement).click();
+			await frame();
+
+			expect(bodyOf("three")).toBeNull();
+			expect(scroller.getBoundingClientRect().height).toBe(height);
+			expect(Math.abs(head.getBoundingClientRect().top - pinned)).toBeLessThanOrEqual(1);
+			const view = scroller.getBoundingClientRect();
+			const bottom = document.elementFromPoint(view.left + 40, view.bottom - 20);
+			expect(bottom !== scroller && scroller.contains(bottom)).toBe(true);
+		},
+	);
+
+	it("reserves no more room while two blocks close at once than their closing needs", async () => {
+		await renderField(
+			<div data-testid="scroller" style={{ width: 480, height: 300, overflow: "auto" }}>
+				<div style={{ height: 600 }} />
+				<Field
+					initial={[
+						{ _type: "short", _version: 1, _key: "one" },
+						{ _type: "short", _version: 1, _key: "two" },
+					]}
+					types={[SHORT]}
+				/>
+			</div>,
+		);
+		const scroller = page.getByTestId("scroller").element() as HTMLElement;
+		const field = scroller.querySelector("#field-layout")!;
+		(page.getByRole("button", { name: "Expand all" }).element() as HTMLElement).click();
+		await settled();
+		scroller.scrollTop = scroller.scrollHeight;
+		// The space under the field, which is all room added to keep the view in place.
+		const blank = () =>
+			scroller.scrollHeight -
+			(field.getBoundingClientRect().bottom -
+				scroller.getBoundingClientRect().top +
+				scroller.scrollTop);
+		expect(blank()).toBeLessThanOrEqual(0.5);
+
+		toggleOf("one").click();
+		await frame();
+		await frame();
+		await frame();
+		toggleOf("two").click();
+		const blanks = [blank(), ...(await framesUntilSettled(blank, () => !bodyOf("two")))];
+
+		expect(bodyOf("one")).toBeNull();
+		const kept = blanks.at(-1)!;
+		expect(kept).toBeGreaterThan(0);
+		expect(Math.max(...blanks)).toBeLessThanOrEqual(kept + 2);
+	});
+
+	it("never grows its scroller to make room, even for an item closing out of view", async () => {
+		await renderField(
+			<div data-testid="scroller" style={{ width: 480, height: 300, overflow: "auto" }}>
+				<Field
+					initial={[
+						{
+							_type: "list",
+							_version: 1,
+							_key: "list",
+							items: [{ title: "First" }, { title: "Second" }],
+						},
+					]}
+					types={[LIST]}
+				/>
+				<div style={{ height: 250 }} />
+			</div>,
+		);
+		const scroller = page.getByTestId("scroller").element() as HTMLElement;
+		const height = scroller.getBoundingClientRect().height;
+		toggleOf("list").click();
+		await settled();
+		const item = page.getByRole("button", { name: "First", exact: true }).element() as HTMLElement;
+		item.click();
+		await settled();
+		scroller.scrollTop = scroller.scrollHeight;
+		expect(item.closest('[role="listitem"]')!.getBoundingClientRect().bottom).toBeLessThan(
+			scroller.getBoundingClientRect().top,
+		);
+
+		item.click();
+		const heights = await framesUntilSettled(
+			() => scroller.getBoundingClientRect().height,
+			() => item.getAttribute("aria-expanded") === "false",
+		);
+
+		for (const each of heights) expect(each).toBe(height);
+	});
+
+	it.each(["the field goes away", "the scroller's content is replaced"])(
+		"gives the room back once %s",
+		async (change) => {
+			function Page({ content }: { content: "field" | "other" }) {
+				return (
+					<div data-testid="scroller" style={{ width: 480, height: 300, overflow: "auto" }}>
+						{change === "the field goes away" ? (
+							<div>
+								<div style={{ height: 400 }} />
+								{content === "field" && (
+									<Field
+										initial={[{ _type: "short", _version: 1, _key: "short" }]}
+										types={[SHORT]}
+									/>
+								)}
+							</div>
+						) : (
+							<div key={content}>
+								<div style={{ height: 400 }} />
+								{content === "field" && (
+									<Field
+										initial={[{ _type: "short", _version: 1, _key: "short" }]}
+										types={[SHORT]}
+									/>
+								)}
+							</div>
+						)}
+					</div>
+				);
+			}
+			const screen = await renderField(<Page content="field" />);
+			const scroller = page.getByTestId("scroller").element() as HTMLElement;
+			toggleOf("short").click();
+			await settled();
+			scroller.scrollTop = scroller.scrollHeight;
+			toggleOf("short").click();
+			await settled();
+			await frame();
+			expect(scroller.scrollHeight).toBeGreaterThan(scroller.firstElementChild!.scrollHeight);
+
+			await screen.rerender(<Page content="other" />);
+
+			await expect
+				.poll(() => scroller.scrollHeight)
+				.toBe(scroller.firstElementChild!.getBoundingClientRect().height);
+		},
+	);
+
 	it("eases a dropped block from where it was let go into its slot", async () => {
 		await renderField(
 			<div style={{ width: 480, marginInline: 80 }}>
@@ -289,5 +472,62 @@ describe("Blocks field motion", () => {
 		const path = [letGo, ...tops];
 		const steps = tops.map((top, index) => Math.abs(top - path[index]!));
 		expect(Math.max(...steps)).toBeLessThan(distance * 0.75);
+	});
+
+	it("follows the pointer at once when a block is dragged again while it settles", async () => {
+		await renderField(
+			<div style={{ width: 480, marginInline: 80 }}>
+				<Field
+					initial={["one", "two", "three"].map((key) => ({
+						_type: "short",
+						_version: 1,
+						_key: key,
+					}))}
+					types={[SHORT]}
+				/>
+			</div>,
+		);
+		const handle = () =>
+			row("one").querySelector<HTMLElement>(
+				'[aria-label="Block actions - drag to reorder, click for menu"]',
+			)!;
+		const pointer = (type: string, clientX: number, clientY: number) =>
+			new PointerEvent(type, {
+				bubbles: true,
+				cancelable: true,
+				isPrimary: true,
+				pointerId: 1,
+				button: 0,
+				buttons: type === "pointerup" ? 0 : 1,
+				clientX,
+				clientY,
+			});
+		const start = row("one").getBoundingClientRect();
+		const x = start.left + 4;
+		const y = start.top + start.height / 2;
+		const end = row("three").getBoundingClientRect().bottom - 4;
+		handle().dispatchEvent(pointer("pointerdown", x, y));
+		for (let step = 1; step <= 12; step++) {
+			document.dispatchEvent(pointer("pointermove", x, y + ((end - y) * step) / 12));
+			await frame();
+		}
+		await new Promise((resolve) => setTimeout(resolve, 250));
+		document.dispatchEvent(pointer("pointerup", x, end));
+		await frame();
+
+		// Picked up again straight away, and drawn back up 10px a frame.
+		handle().dispatchEvent(pointer("pointerdown", x, end));
+		const tops: number[] = [];
+		for (let step = 1; step <= 5; step++) {
+			document.dispatchEvent(pointer("pointermove", x, end - step * 10));
+			await frame();
+			tops.push(row("one").getBoundingClientRect().top);
+		}
+		document.dispatchEvent(pointer("pointerup", x, end - 50));
+		await settled();
+
+		// The first move only starts the drag.
+		const steps = tops.slice(2).map((top, index) => top - tops[index + 1]!);
+		for (const step of steps) expect(step).toBeCloseTo(-10, 0);
 	});
 });

@@ -25,6 +25,7 @@ import {
 	Trash,
 } from "@phosphor-icons/react";
 import * as React from "react";
+import { flushSync } from "react-dom";
 
 import type { BlockFieldDefinition, BlockType } from "../lib/api/schema.js";
 import {
@@ -68,12 +69,14 @@ import {
 	ErrorDot,
 	firstPhotoUrl,
 	focusableIn,
+	keepRowInView,
 	whenFocusLeaves,
 	toggled,
 	useDropSettle,
 } from "./BlockListField.js";
 import { BlockTypeIcon, BlockTypePicker } from "./BlockTypePicker.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
+import { useQuietReturnFocus } from "./useQuietReturnFocus.js";
 
 interface NestedFieldDescriptor {
 	id?: string;
@@ -176,7 +179,7 @@ const INVALID_LABEL = "text-kumo-danger";
 // open, and keyboard focus on themselves, never for a row that only holds focus from a click. The
 // state being entered sets the duration, so they fade in and vanish at once.
 const REVEAL_GUTTER =
-	"opacity-0 transition-opacity duration-0 ease-out group-hover/block:opacity-100 group-hover/block:duration-100 group-data-[menu-open]/block:opacity-100 group-data-[menu-open]/block:duration-100 group-data-[picker-open]/block:opacity-100 group-data-[picker-open]/block:duration-100 has-[:focus-visible]:opacity-100 has-[:focus-visible]:duration-100";
+	"opacity-0 transition-opacity duration-0 ease-out group-hover/block:opacity-100 group-hover/block:duration-100 group-data-[menu-open]/block:opacity-100 group-data-[menu-open]/block:duration-100 group-data-[picker-open]/block:opacity-100 group-data-[picker-open]/block:duration-100 [&:not([data-quiet-focus]):has(:focus-visible)]:opacity-100 [&:not([data-quiet-focus]):has(:focus-visible)]:duration-100";
 // Touch and narrow screens have no hover, so their menus always show.
 const REVEAL_MENU =
 	"blocks-gutter:opacity-0 blocks-gutter:transition-opacity blocks-gutter:duration-0 blocks-gutter:ease-out blocks-gutter:group-hover/block:opacity-100 blocks-gutter:group-hover/block:duration-100 blocks-gutter:group-data-[menu-open]/block:opacity-100 blocks-gutter:group-data-[menu-open]/block:duration-100 blocks-gutter:focus-visible:opacity-100 blocks-gutter:focus-visible:duration-100";
@@ -751,8 +754,19 @@ export function BlocksField({
 						}
 						onClick={() => {
 							const next = new Set(anyOpen ? [] : blocks.map((block) => block._key));
-							setOpenKeys(next);
-							setAllToggled(next);
+							const rows = [
+								...(rootRef.current?.querySelectorAll<HTMLElement>("[data-block-key]") ?? []),
+							];
+							const restore = keepRowInView(
+								rows,
+								(row) => row.querySelector(":scope > [data-block-head]") ?? row,
+							);
+							// Every block opens or closes, and is laid out, before the one scroll back.
+							flushSync(() => {
+								setOpenKeys(next);
+								setAllToggled(next);
+							});
+							restore();
 						}}
 					>
 						{anyOpen ? t`Collapse all` : t`Expand all`}
@@ -963,6 +977,7 @@ function BlockRow({
 	const afterMenuCloseRef = React.useRef<MenuAction | null>(null);
 	const [menuOpen, setMenuOpen] = React.useState(false);
 	const [menuFromHandle, setMenuFromHandle] = React.useState(false);
+	const quietGutter = useQuietReturnFocus();
 
 	const label = blockType?.label ?? block._type;
 	const version = blockType?.versions.find((candidate) => candidate.version === block._version);
@@ -1080,6 +1095,7 @@ function BlockRow({
 						"absolute end-full top-2.5 hidden items-center pe-1 blocks-gutter:flex",
 						REVEAL_GUTTER,
 					)}
+					{...quietGutter.groupProps}
 				>
 					<Tooltip
 						side="bottom"
@@ -1111,6 +1127,7 @@ function BlockRow({
 								aria-describedby={atMax ? maxHintId : undefined}
 								onClick={(event) => {
 									if (!canAdd) return;
+									quietGutter.markOpener(event);
 									const above = event.altKey;
 									onAdd({
 										index: above ? index : index + 1,
@@ -1163,6 +1180,7 @@ function BlockRow({
 
 			<div
 				ref={headRef}
+				data-block-head
 				className={cn(
 					"flex min-h-11 items-center gap-2 py-1.5 ps-2 pe-2.5",
 					!readOnly && ROW_HOVER,

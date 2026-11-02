@@ -231,9 +231,10 @@ function travel(scroller: HTMLElement | null, top: number, height: number): numb
 interface ScrollRoom {
 	/** Space added under the content. */
 	room: number;
-	/** How far the panels closing now will still shrink the content. */
-	shrink: number;
-	holds: number;
+	/** The panels closing now, each by how far it still has to shrink. */
+	closing: Set<() => number>;
+	/** The rows whose panels made the room. */
+	owners: Set<Element>;
 	trim: () => void;
 	set: (room: number) => void;
 }
@@ -244,35 +245,60 @@ function scrollRoomOf(scroller: HTMLElement): ScrollRoom {
 	const existing = scrollRooms.get(scroller);
 	if (existing) return existing;
 	const events: HTMLElement | Window = scroller === document.scrollingElement ? window : scroller;
-	const padding = Number.parseFloat(getComputedStyle(scroller).paddingBlockEnd) || 0;
 	const resizes = new ResizeObserver(() => state.trim());
+	const swaps = new MutationObserver(() => {
+		for (const child of scroller.children) resizes.observe(child);
+		state.trim();
+	});
+	let base = { top: 0, end: 0, width: 0 };
 	const state: ScrollRoom = {
 		room: 0,
-		shrink: 0,
-		holds: 0,
+		closing: new Set(),
+		owners: new Set(),
 		set(room) {
-			const next = Math.max(0, room);
+			if (state.room === 0) {
+				const style = getComputedStyle(scroller);
+				base = {
+					top: Number.parseFloat(style.paddingBlockStart) || 0,
+					end: Number.parseFloat(style.paddingBlockEnd) || 0,
+					width: scroller.clientWidth,
+				};
+			}
+			// Padding past the scroller's own height would grow its box, not its content.
+			const next = Math.max(
+				0,
+				Math.min(Math.ceil(room), scroller.clientHeight - base.top - base.end),
+			);
 			if (next > 0 && state.room === 0) {
 				events.addEventListener("scroll", state.trim, { passive: true });
 				for (const child of scroller.children) resizes.observe(child);
+				swaps.observe(scroller, { childList: true });
 			}
 			state.room = next;
 			if (next > 0) {
-				scroller.style.setProperty("padding-block-end", `${padding + next}px`);
+				scroller.style.setProperty("padding-block-end", `${base.end + next}px`);
 				return;
 			}
 			scroller.style.removeProperty("padding-block-end");
 			events.removeEventListener("scroll", state.trim);
 			resizes.disconnect();
-			if (state.holds === 0) scrollRooms.delete(scroller);
+			swaps.disconnect();
+			if (state.closing.size === 0) scrollRooms.delete(scroller);
 		},
 		// As the reader scrolls back up, or the content grows, the room shrinks to what keeps the
-		// scroller where it is.
+		// scroller where it is. It goes once the rows that made it are gone, or the scroller's
+		// width changed, since its padding may then differ.
 		trim() {
-			if (state.holds > 0) return;
+			if (state.closing.size > 0) return;
+			if (
+				scroller.clientWidth !== base.width ||
+				![...state.owners].some((owner) => owner.isConnected)
+			) {
+				state.set(0);
+				return;
+			}
 			const content = scroller.scrollHeight - state.room;
-			const needed = Math.ceil(scroller.scrollTop + scroller.clientHeight - content);
-			state.set(Math.min(state.room, needed));
+			state.set(Math.min(state.room, scroller.scrollTop + scroller.clientHeight - content));
 		},
 	};
 	scrollRooms.set(scroller, state);
@@ -280,26 +306,58 @@ function scrollRoomOf(scroller: HTMLElement): ScrollRoom {
 }
 
 /**
- * Keeps `scroller` where it is while its content shrinks by `shrink`. When the content would end
- * above the scroller's bottom, room is added under it, so the row being closed stays under the
- * pointer instead of the page sliding down to meet the shorter content. Returns the function
- * that ends the hold, for once the content has shrunk.
+ * Keeps `scroller` where it is while `panel` shrinks away. When the content would end above the
+ * scroller's bottom, room is added under it, so the row being closed stays under the pointer
+ * instead of the page sliding down to meet the shorter content. Returns the function that ends
+ * the hold, for once the panel has shrunk.
  */
-function holdScroll(scroller: HTMLElement | null, shrink: number): () => void {
-	if (!scroller || shrink <= 0) return noop;
+function holdScroll(scroller: HTMLElement | null, panel: HTMLElement): () => void {
+	const left = () => (panel.isConnected ? panel.getBoundingClientRect().height : 0);
+	if (!scroller || left() <= 0) return noop;
 	const state = scrollRoomOf(scroller);
-	state.holds += 1;
-	state.shrink += shrink;
+	state.closing.add(left);
+	if (panel.parentElement) state.owners.add(panel.parentElement);
+	// The content already lacks whatever the other closing panels have shrunk so far.
+	let shrink = 0;
+	for (const remaining of state.closing) shrink += remaining();
 	const content = scroller.scrollHeight - state.room;
-	const needed = Math.ceil(scroller.scrollTop + scroller.clientHeight - (content - state.shrink));
+	const needed = scroller.scrollTop + scroller.clientHeight - (content - shrink);
 	if (needed > state.room) state.set(needed);
 	let held = true;
 	return () => {
 		if (!held) return;
 		held = false;
-		state.holds -= 1;
-		state.shrink -= shrink;
+		state.closing.delete(left);
 		state.trim();
+	};
+}
+
+/**
+ * Notes where the head of the first of `rows` still in view sits, and returns the function that
+ * scrolls it back there once the rows have all opened or closed at once, so the reader keeps their
+ * place. A head may be pinned, so afterwards it's found where an unpinned head sits: at the top
+ * of its row. With every row above the view, the end of the last one stays put instead.
+ */
+export function keepRowInView(
+	rows: readonly HTMLElement[],
+	headOf: (row: HTMLElement) => Element,
+): () => void {
+	const last = rows.at(-1);
+	const scroller = last ? scrollerOf(last) : null;
+	if (!last || !scroller) return noop;
+	const top =
+		scroller === document.scrollingElement
+			? 0
+			: scroller.getBoundingClientRect().top + scroller.clientTop;
+	const row = rows.find((candidate) => candidate.getBoundingClientRect().bottom > top);
+	const before = row
+		? headOf(row).getBoundingClientRect().top
+		: last.getBoundingClientRect().bottom;
+	return () => {
+		const after = row
+			? row.getBoundingClientRect().top + row.clientTop
+			: last.getBoundingClientRect().bottom;
+		if (Math.abs(after - before) >= 0.5) scrollInstantly(scroller, after - before);
 	};
 }
 
@@ -429,6 +487,12 @@ export function DisclosurePanel({
 			return;
 		}
 
+		// Expand all and Collapse all keep the reader's place themselves, once every panel has moved.
+		if (instant) {
+			held();
+			unmount();
+			return;
+		}
 		let shown = current;
 		const head = headRef?.current;
 		if (head && scroller) {
@@ -443,8 +507,8 @@ export function DisclosurePanel({
 				shown = Math.max(0, shown - pinned);
 			}
 		}
-		const { top, height: laidOut } = panel.getBoundingClientRect();
-		const release = holdScroll(scroller, laidOut);
+		const { top } = panel.getBoundingClientRect();
+		const release = holdScroll(scroller, panel);
 		held();
 		const from = travel(scroller, top, shown);
 		if (still || from < 1) {
@@ -503,6 +567,7 @@ export function useDropSettle(
 ) {
 	const nodeRef = React.useRef<HTMLElement | null>(null);
 	const letGoRef = React.useRef<DOMRect | null>(null);
+	const settleRef = React.useRef<Animation | null>(null);
 	const [settling, setSettling] = React.useState(false);
 	const setNodeRef = React.useCallback(
 		(node: HTMLElement | null) => {
@@ -526,7 +591,19 @@ export function useDropSettle(
 		const from = letGoRef.current;
 		letGoRef.current = null;
 		const node = nodeRef.current;
-		if (isDragging || !from || !node || prefersReducedMotion()) return;
+		const previous = settleRef.current;
+		// A row picked up again while it settles stays where it was caught: the settle holds still,
+		// added to the drag's own transform, until the row is let go again.
+		if (isDragging) {
+			previous?.pause();
+			return;
+		}
+		if (previous) {
+			settleRef.current = null;
+			previous.cancel();
+			setSettling(false);
+		}
+		if (!from || !node || prefersReducedMotion()) return;
 		const to = node.getBoundingClientRect();
 		const x = from.left - to.left;
 		const y = from.top - to.top;
@@ -534,9 +611,14 @@ export function useDropSettle(
 		setSettling(true);
 		const settle = node.animate(
 			{ transform: [`translate(${x}px, ${y}px)`, "none"] },
-			{ duration: DROP_MS, easing: DISCLOSURE_EASE },
+			{ duration: DROP_MS, easing: DISCLOSURE_EASE, composite: "add" },
 		);
-		const done = () => setSettling(false);
+		settleRef.current = settle;
+		const done = () => {
+			if (settleRef.current !== settle) return;
+			settleRef.current = null;
+			setSettling(false);
+		};
 		settle.addEventListener("finish", done);
 		settle.addEventListener("cancel", done);
 	}, [isDragging]);
@@ -1496,12 +1578,19 @@ function ItemRow({
 						onClick={onToggle}
 						className={cn(
 							"text-start outline-none",
+							// A 24px target around a 20px caret. It reaches under the title's box, so it sits above it.
 							editingTitle
-								? "-mx-0.5 grid size-5 shrink-0 place-items-center rounded-md hover:bg-emdash-hover focus-visible:ring-1 focus-visible:ring-kumo-focus/50"
+								? "group/caret relative z-1 -mx-1 grid size-6 shrink-0 place-items-center"
 								: "flex min-h-9 min-w-0 flex-1 items-center gap-2 self-stretch",
 						)}
 					>
-						<DisclosureCaret open={open} className={GLYPH_NUDGE} />
+						{editingTitle ? (
+							<span className="grid size-5 place-items-center rounded-md group-hover/caret:bg-emdash-hover group-focus-visible/caret:ring-1 group-focus-visible/caret:ring-kumo-focus/50">
+								<DisclosureCaret open={open} className={GLYPH_NUDGE} />
+							</span>
+						) : (
+							<DisclosureCaret open={open} className={GLYPH_NUDGE} />
+						)}
 						{!editingTitle && thumb}
 						{nameText}
 						{summary && (
