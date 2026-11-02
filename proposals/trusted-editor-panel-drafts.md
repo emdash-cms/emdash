@@ -15,15 +15,15 @@ created: 2026-10-29
 
 ## Summary
 
-Trusted content-editor panels receive an optional `editorDraft` object. `editorDraft.get()` returns the editor's unsaved field values, their definitions, a revision, and whether the editor accepts edits. `editorDraft.patch(operations, { expectedRevision })` sets or clears whole fields in the open form. The editor refuses the patch when its field values changed after that revision was read.
+Trusted content-editor panels receive an optional `editorDraft` object. `editorDraft.get()` returns the editor's unsaved field values, slug, SEO title and SEO description, their definitions, a revision, and whether the editor accepts edits. `editorDraft.patch(operations, { expectedRevision })` sets or clears them in the open form. The editor refuses the patch when any of them changed after that revision was read.
 
-A patch marks the form dirty and does not save it. Autosave, saving, publishing, permission checks and server validation then handle the patched values the same way they handle typed ones. In collections with revisions, the first save that sends a patch keeps the previously saved draft in the revision history. The patch operations and field definitions use the types that sandboxed editor panels already use, and both kinds of patch go through the same apply step in the editor.
+A patch marks the form dirty and does not save it. Autosave, saving, publishing, permission checks and server validation then handle the patched values the same way they handle typed ones. The SEO title and description are the exception: the SEO panel saves them itself, as it does typed SEO edits today. In collections with revisions, the first save that sends a patch keeps the previously saved draft in the revision history. The patch operations and field definitions use the types that sandboxed editor panels already use, and both kinds of patch go through the same apply step in the editor.
 
 ## Problem and user case
 
 A native plugin can add a React panel to the settings sidebar of the content editor. The panel receives `collection`, `locale` and `entry`, where `entry` is the entry as last saved. The panel can't see edits made since the last save, and it can't change the form.
 
-[Discussion #3005](https://github.com/emdash-cms/emdash/discussions/3005) describes a translation plugin that reads several current text fields, sends them to a translation provider, and puts the results back for the user to review and save. A tool that generates an excerpt from the body needs the same two operations: read the current values, then put new values into the form without saving.
+[Discussion #3005](https://github.com/emdash-cms/emdash/discussions/3005) describes a translation plugin that reads several current text fields, sends them to a translation provider, and puts the results back for the user to review and save. Each locale's entry has its own slug and SEO metadata, so the plugin also needs the slug and the SEO title and description. A tool that generates an excerpt from the body needs the same two operations: read the current values, then put new values into the form without saving.
 
 Today a trusted panel has two workarounds, and both fail:
 
@@ -63,15 +63,17 @@ export async function translateDraft(editorDraft: ContentEditorDraft, locale: st
 }
 ```
 
-The panel component calls `translateDraft(editorDraft, locale)` from a button's click handler and catches errors from `translate()` itself. `translateDraft()` returns `null` without translating when the editor doesn't accept edits or no field needs translating. If the user edited any draft field while the request ran, `patch()` returns `{ ok: false, code: "EDITOR_DRAFT_STALE" }`, nothing changes, and the panel can offer to translate again. Otherwise the translated values appear in the form, which shows unsaved changes and autosaves on its normal schedule.
+In a collection with SEO, the SEO title and description are `string` and `text` draft fields too, so `translateDraft()` translates them as well. The slug has the `slug` type and is left alone.
+
+The panel component calls `translateDraft(editorDraft, locale)` from a button's click handler and catches errors from `translate()` itself. `translateDraft()` returns `null` without translating when the editor doesn't accept edits or no field needs translating. If the user edited any draft field while the request ran, `patch()` returns `{ ok: false, code: "EDITOR_DRAFT_STALE" }`, nothing changes, and the panel can offer to translate again. If a translated SEO title or description is longer than the `validation.maxLength` in its definition, `patch()` returns `EDITOR_DRAFT_INVALID` and nothing changes. Otherwise the translated values appear in the form, which shows unsaved changes and autosaves on its normal schedule, and the SEO panel saves the SEO values itself.
 
 ## Goals
 
-- A trusted panel can read the current unsaved field values and their definitions when it chooses to, without subscribing to changes.
-- A trusted panel can set or clear whole fields without saving the entry.
-- The editor refuses a patch that was computed from field values that have since changed, or for a different entry.
+- A trusted panel can read the current unsaved field values, slug, SEO title and SEO description, and their definitions, when it chooses to, without subscribing to changes.
+- A trusted panel can set or clear them without saving the entry. SEO values are saved as typed SEO edits are.
+- The editor refuses a patch that was computed from values that have since changed, or for a different entry.
 - A patch can't put a value into the form that has the wrong shape for its field or that the rich text editor can't load.
-- In collections with revisions, the values saved before a patch stay recoverable after autosave.
+- In collections with revisions, the field values and slug saved before a patch stay recoverable after autosave.
 - Saving, autosave, publishing, permissions and server validation work as they do today.
 - Draft access adds no panel re-renders while the user types.
 - Sandboxed and trusted patches use one operation format and one apply step.
@@ -80,7 +82,8 @@ The panel component calls `translateDraft(editorDraft, locale)` from a button's 
 
 - Notifying panels when the form changes.
 - Saving, publishing or scheduling from a panel.
-- Reading or patching the slug, SEO fields, bylines, taxonomy terms, status, or reference fields bound to a relation.
+- Reading or patching bylines, taxonomy terms, status, reference fields bound to a relation, or the SEO image, canonical URL and no-index setting.
+- Changing when SEO edits are saved. SEO values are stored outside revisions, and a patch saves them the way typing in the SEO panel does today.
 - Edits inside a field, such as replacing one block of rich text.
 - Draft access for trusted field widgets, content-list columns, dashboard widgets or admin pages.
 - Changes to the sandboxed contract. Its capabilities, field selectors, server validation, preview and staleness rule stay as they are; only the apply step it shares with trusted patches changes.
@@ -102,18 +105,26 @@ The draft covers every field of the collection except:
 - fields whose type the editor doesn't support, which also make the whole editor read-only; and
 - reference fields bound to a relation, because the editor keeps their selections apart from the field values and sends them in the save request's separate `references` property.
 
-The slug, SEO fields, bylines and taxonomy terms aren't collection fields, so they are not part of the draft.
+It also covers three values that aren't collection fields, under keys that no field slug can take:
+
+| Key               | Value                                 | Present                 |
+| ----------------- | ------------------------------------- | ----------------------- |
+| `slug`            | The entry's slug                      | Always                  |
+| `seo.title`       | The SEO title in the SEO panel        | In collections with SEO |
+| `seo.description` | The meta description in the SEO panel | In collections with SEO |
+
+`slug` is a reserved field slug, and field slugs can't contain a dot. A panel that writes values back through the content API sends these keys as `slug` and `seo`, not in `data`. Bylines and taxonomy terms aren't part of the draft.
 
 ### `editorDraft.get()`
 
 `get()` returns a snapshot of the open form:
 
-| Property           | Contents                                                                                                                            |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `revision`         | An opaque string that identifies the field values the snapshot was taken from.                                                      |
-| `readOnly`         | `true` when the editor doesn't accept edits, as defined below, or the object is retired.                                            |
-| `fields`           | A copy of each draft field's current value, made with a JSON round trip, keyed by field slug. A field without a value is `null`.    |
-| `fieldDefinitions` | One `EditorDraftFieldDefinition` per draft field, with `slug`, `label`, schema `type`, `required`, `translatable` and `validation`. |
+| Property           | Contents                                                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `revision`         | An opaque string that identifies the draft values the snapshot was taken from.                                                                                          |
+| `readOnly`         | `true` when the editor doesn't accept edits, as defined below, or the object is retired.                                                                                |
+| `fields`           | A copy of each draft field's current value, made with a JSON round trip, keyed by field slug or key. A field without a value, or an empty slug or SEO value, is `null`. |
+| `fieldDefinitions` | One `EditorDraftFieldDefinition` per draft field, with `slug`, `label`, schema `type`, `required`, `translatable` and `validation`.                                     |
 
 The editor doesn't accept edits when it is read-only or a version of the entry is open in the revision view. The editor is read-only when another user holds the edit lock, the user can't edit the entry, or the collection has a field type the editor doesn't support.
 
@@ -121,7 +132,7 @@ The editor doesn't accept edits when it is read-only or a version of the entry i
 
 ### Revision
 
-A patch succeeds only when the editor shows the same entry and the same draft field values as when `get()` returned `expectedRevision`. An autosave completing never changes the revision, because autosave doesn't write the server's response back into the form. A manual save changes the revision only when the server returns values that differ from the ones the form sent, for example a boolean read back as `0` or `1`, or a value that a `content:beforeSave` hook changed. Edits to the slug, SEO fields or bylines don't change it.
+A patch succeeds only when the editor shows the same entry and the same draft values as when `get()` returned `expectedRevision`. An autosave completing never changes the revision, because autosave doesn't write the server's response back into the form. A manual save changes the revision only when the server returns values that differ from the ones the form sent, for example a boolean read back as `0` or `1`, or a value that a `content:beforeSave` hook changed. Edits to the bylines, taxonomy terms or other SEO settings don't change it.
 
 After a successful `patch()`, `get()` returns the patched values, even before the editor re-renders.
 
@@ -147,16 +158,18 @@ The editor checks the patch in this order and returns the first failure:
    - `operations` is not a non-empty array of `set` and `clear` operations;
    - two operations name the same field;
    - an operation names a field that isn't a draft field;
+   - an operation clears `slug` or sets it to anything but a non-empty string;
+   - a `seo.title` or `seo.description` value is longer than the `maxLength` in its definition;
    - a `set` value can't be serialized as JSON, or doesn't have the shape listed for its field type in [Appendix B](#appendix-b-value-shapes); or
    - the rich text editor can't load a Portable Text value, because the value uses marks it doesn't support or its conversion to the editor's document fails. Fields rendered by a plugin widget skip this check; a field whose widget isn't available is checked like any other rich text field.
 
 A patch applies completely or not at all. A refused patch changes nothing. `message` is English text for developers; a panel shows its own localized text based on `code`.
 
-Appendix B lists the top-level shapes that the server's schema accepts, except that `blocks` items must be objects. Other schema rules, such as required fields, length limits, patterns, select choices and reference targets, are checked when the form saves. A violation is reported in the save error that names the field, as it is for a typed value.
+Appendix B lists the top-level shapes that the server's schema accepts, except that `blocks` items must be objects. Other schema rules, such as required fields, length limits, patterns, select choices, reference targets and slug uniqueness, are checked when the value is saved and reported as they are for a typed value.
 
 ### Applying a patch
 
-Trusted and sandboxed patches use one apply step. It:
+Trusted and sandboxed patches use one apply step. For collection fields it:
 
 1. writes a JSON copy of each `set` value, or `null` for a `clear`, into the form in one state update, keeping any edit to another field that is waiting to render;
 2. marks the form dirty;
@@ -166,6 +179,10 @@ Trusted and sandboxed patches use one apply step. It:
 
 The form then autosaves on its normal schedule. The user sees the patched values in the form and can keep, edit or save them like typed changes.
 
+Only trusted patches can name the three extra keys, because sandboxed draft selectors name collection fields. A patch to `slug` goes through the same path as typing in the slug input: the form becomes dirty, a title edit no longer regenerates the slug, autosave sends it, and steps 3 and 5 apply. A patch to `seo.title` or `seo.description` goes into the SEO panel as typing there does. The panel saves it about half a second later in its own request, which doesn't make the form dirty and doesn't count for step 5. When the SEO panel isn't shown, for example while the block sidebar replaces the settings sections, the editor saves the SEO values at once, as the panel does when it closes. SEO values aren't stored in revisions, so that save changes the entry's SEO straight away, on a published entry too, and the revision history can't restore the values it replaced.
+
+A patch that changes both form values and SEO values applies to the form in one step, but is saved in two requests, and either can fail on its own.
+
 The rich text editor builds its document once, when it mounts, and ignores later changes to its value. Today's sandboxed apply step updates the form value but keeps the field's React key, so a patched rich text field goes on showing the old document, and the next keystroke there writes the old document back over the patch. Remounting each patched field fixes this for sandboxed patches as well. Fields the patch doesn't touch keep their editors, cursor position and undo history. The block sidebar edits a block through the rich text editor that opened it, which can be nested in a `blocks` item. A patch to a `portableText` or `blocks` field therefore closes the sidebar before replacing that editor. Other patches leave it open, so unsaved changes in it, such as alt text, stay.
 
 Autosave normally deletes the draft revision it replaces, and a manual save keeps it. The first save that sends a patch's values keeps it even when that save is an autosave. A save that was already in flight when the patch applied carries the earlier values and doesn't count. In collections with revisions, the user can then restore the values saved before the patch from the revision history. Unsaved edits that a patch replaced can't be restored.
@@ -174,13 +191,15 @@ Autosave normally deletes the draft revision it replaces, and a manual save keep
 
 The admin manifest reports each field's editor `kind`. The `slug` and `string` schema types share the `string` kind, so a panel can't tell them apart. Each manifest field descriptor gains the schema `type`, and `fieldDefinitions` uses it. The definitions have the same shape as the ones sandboxed panels receive.
 
+The three extra keys get definitions from the host, with the labels the editor shows for them, translated into the admin's language. `slug` has the `slug` type, `seo.title` the `string` type with a `maxLength` of 200, and `seo.description` the `text` type with a `maxLength` of 500. All three are `translatable` and not `required`.
+
 ### Co-editing
 
 The pending real-time co-editing RFC ([#4267](https://github.com/emdash-cms/emdash/pull/4267)) changes two rules while a co-editing room is open. The editor refuses an editor-draft patch only when a field it changes was edited after the values were read, and it applies a rich text patch as one undoable transaction instead of remounting the field. If both proposals are accepted, those room rules apply to trusted patches too. The revision is opaque, so the host can change the staleness rule without changing this API. Whichever proposal is accepted second updates the other proposal in its own design pull request.
 
 ## Compatibility and migration
 
-The change is additive: an optional property on `ContentEditorPanelContext`, new exported types, and an optional `type` on manifest field descriptors. It adds no routes, stored data or migrations.
+The change is additive: an optional property on `ContentEditorPanelContext`, new exported types, and an optional `type` on manifest field descriptors. It adds no routes, stored data or migrations. SEO edits are saved and stored as they are today.
 
 Existing panels keep working unchanged. A panel that uses `editorDraft` sees `undefined` on an older host. It can hide its draft actions in that case, or declare the minimum `emdash` version in its peer dependencies.
 
@@ -206,13 +225,18 @@ The change affects only the admin. It adds no queries, routes or work on logged-
 
 An error thrown while a panel renders stays inside the existing panel error boundary. Errors in a panel's event handlers and asynchronous work are the panel's to catch.
 
-A patched value that fails server validation is reported when the form saves, like a typed value.
+A patched value that fails server validation is reported when it is saved, like a typed value.
 
 ## Verification
 
 Admin component tests run `ContentEditor` with a trusted panel in a real browser (Vitest browser mode) and check that:
 
 - `get()` returns unsaved values, exact field definitions and `readOnly`, and excludes reference fields bound to a relation;
+- `get()` includes `slug`, and `seo.title` and `seo.description` only in a collection with SEO, including SEO text typed less than half a second earlier;
+- a `slug` patch shows in the slug input, makes the form dirty and is sent by the next autosave, and a later title edit leaves it unchanged; a `clear` of `slug` returns `EDITOR_DRAFT_INVALID`;
+- a `seo.title` patch shows in the SEO panel and is saved by the panel without making the form dirty, and a value over 200 characters returns `EDITOR_DRAFT_INVALID`;
+- a `seo.title` patch made while the block sidebar is open is saved, with and without an operation on a `portableText` field, and shows when the settings sections return;
+- a patch is stale after an edit to the slug or the SEO title or description;
 - `patch()` shows the new values in the form, including a rich text field, marks the form dirty, and doesn't save, and the next autosave sends the patched values and keeps the replaced draft revision;
 - a patch made while an autosave of the earlier values is in flight keeps the revision that autosave writes;
 - a patch is stale after an edit to any draft field, and a retired object refuses patches after an entry switch, after switching back to the same entry, and after the editor unmounts;
@@ -258,10 +282,13 @@ There is no feature flag.
 - An edit to any draft field while a long panel task runs makes its result stale, and the panel has to read again and redo the work.
 - A remounted rich text field starts a new undo history, so the user can't revert a patch with the editor's undo command; they restore the kept revision instead. Remounting also drops a slash-command line that is still open in that field.
 - In a collection without revisions, the values from before a patch can't be restored once it has been saved.
+- An SEO patch is saved within about half a second and, on a published entry, shows on the site without a publish, as typed SEO edits do today. A translation panel that patches a published entry's SEO changes the live page before the user reviews it.
+- SEO saves aren't queued behind the editor's saves, so an SEO patch made while an autosave is in flight can send an outdated entry revision and get the conflict notice, as a typed SEO edit can today. A translation patch makes simultaneous field and SEO saves common.
+- `fields` mixes collection fields with the `slug`, `seo.title` and `seo.description` keys, so a panel that sends `fields` to the content API as `data` has to take them out first.
 - Validation checks rich text only at the top level of a field. A malformed rich text value nested in a `blocks` item can make the editor throw while rendering. The route then shows its error screen and the pending autosave is cancelled, so the value is never saved, but edits not yet autosaved are lost.
 - Validation trusts the converted document. If the rich text editor's schema rejected one, the field would load as an empty document while the form kept the patched value, autosave would save that value, and later typing in the field wouldn't reach the form. Stored content that the schema rejects behaves the same way today.
 - The editor keeps two staleness rules: sandboxed results are checked against the generation counter and the saved revision, and trusted patches against the field values.
-- A schema violation other than a wrong shape is reported when the form saves, not when `patch()` runs.
+- A schema violation other than a wrong shape is reported when the value is saved, not when `patch()` runs.
 - A faulty trusted panel can overwrite fields without a confirmation step, and autosave saves the result, as with any other bug in trusted admin code.
 
 ## Open questions
@@ -307,7 +334,7 @@ export type ContentEditorDraftPatchResult =
 
 ## Appendix B: Value shapes
 
-A `set` value must have the shape listed for its field type. `null` is accepted for every type and has the same effect as `clear`.
+A `set` value must have the shape listed for its field type. `null` is accepted for every type and has the same effect as `clear`, except for the `slug` key, which takes only a non-empty string. The `seo.title` and `seo.description` keys have the `string` and `text` types.
 
 | Field type                                                         | `set` value                            |
 | ------------------------------------------------------------------ | -------------------------------------- |
@@ -324,10 +351,11 @@ A `set` value must have the shape listed for its field type. `null` is accepted 
 ## Appendix C: Implementation notes
 
 - **Draft object.** The editor creates the object with `useMemo` keyed by its entry identity (`collection`, entry ID and locale), from callbacks that read refs. The object records the editor's entry-switch count and a random ID. It is retired for good once the switch count changes, which happens on every switch, including a switch back to the same entry, or when the editor unmounts. The editor advances the switch count while rendering, so an old object never reads the new entry's values.
-- **Revision.** Each `get()` and `patch()` serializes the draft field values in field order and compares the result with the previous call on the same object. When they differ, a counter advances. The revision is the object's random ID followed by that counter. The comparison derives the revision from the values themselves, so no edit path has to remember to advance it.
-- **Synchronous reads after a patch.** The apply step writes the patched values into the editor's form reference before React re-renders, so a `get()` in the same task sees them.
+- **Revision.** Each `get()` and `patch()` serializes the draft field values in field order, then the slug and SEO values, and compares the result with the previous call on the same object. When they differ, a counter advances. The revision is the object's random ID followed by that counter. The comparison derives the revision from the values themselves, so no edit path has to remember to advance it.
+- **Synchronous reads after a patch.** The apply step writes the patched values into the editor's form, slug and SEO references before React re-renders, so a `get()` in the same task sees them.
 - **Remounting.** The field key gains a per-field counter that the apply step advances for each patched field.
-- **Kept revision.** The editor counts applied patches. Each save records the count when it is sent, and a successful save raises the kept count to the count it recorded. While the patch count is above the kept count, the autosave input asks the router to keep the replaced revision. The router then sends `skipRevision: false` instead of `true`, and `withAutosavedDraft()` in `lib/revision-list-cache.ts` leaves that revision in the cached revision lists instead of removing it. On an entry switch, the kept count is set to the patch count, so both counts only grow and a late save can't overtake a newer patch.
+- **Kept revision.** The editor counts applied patches that change a collection field or the slug. Each save records the count when it is sent, and a successful save raises the kept count to the count it recorded. While the patch count is above the kept count, the autosave input asks the router to keep the replaced revision. The router then sends `skipRevision: false` instead of `true`, and `withAutosavedDraft()` in `lib/revision-list-cache.ts` leaves that revision in the cached revision lists instead of removing it. On an entry switch, the kept count is set to the patch count, so both counts only grow and a late save can't overtake a newer patch.
+- **SEO values.** The editor keeps the SEO title and description for the shown entry in a ref, set from the saved entry on each entry switch. The SEO panel writes to that ref whenever its title or description changes, and starts from it when it mounts, treating the ref's values as already sent, so the ref outlives the panel. A patch writes the ref and, when the panel is mounted, updates the panel through the same function as typing; otherwise it sends the SEO save at once through the existing SEO change handler.
 - **Rich text check.** Validation calls `findUnsupportedPortableTextMarks()` and then `portableTextToProsemirror()` with the plugin block types the rich text editor uses when it mounts. The conversion function is exported today only for tests, as `_portableTextToProsemirror`, and becomes a named export. Any error from either function rejects the value.
 - **Bound reference fields.** A `reference` field is bound when its `validation` names both a `relation` and a `targetCollection`, the same condition the field renderer uses to show the relation picker.
 - **Manifest `type`.** The runtime builds every manifest field from the database, where the schema type is known. The exported `generateManifest()` also derives descriptors from Zod schemas, which have no schema type; those descriptors omit `type`, and the editor leaves such fields out of the draft.
