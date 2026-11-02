@@ -319,7 +319,7 @@ export async function searchMarketplace(
 export async function fetchMarketplacePlugin(id: string): Promise<MarketplacePluginDetail> {
 	const response = await apiFetch(`${MARKETPLACE_BASE}/${encodeURIComponent(id)}`);
 	if (response.status === 404) {
-		throw new Error(`Plugin "${id}" not found in marketplace`);
+		throw new Error(i18n._(msg`Plugin "${id}" not found in marketplace`));
 	}
 	return parseApiResponse<MarketplacePluginDetail>(response, i18n._(msg`Failed to fetch plugin`));
 }
