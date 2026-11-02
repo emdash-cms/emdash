@@ -308,7 +308,7 @@ const ACTIONS: Array<{
 		write: {
 			method: "PUT",
 			path: `${ENTRY_PATH}?locale=en`,
-			body: { publishedAt: expect.any(String) },
+			body: { publishedAt: expect.any(String), _rev: "rev-2" },
 		},
 	},
 ];
