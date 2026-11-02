@@ -13,7 +13,6 @@ This document explains our accessibility commitment, how contributors can help u
 - **Translations:** Languages declare which language they are in code so assistive tech can pronounce them correctly.
 
 ## Reporting accessibility issues
-<!-- Provide a direct, accessible way to report a barrier or request help. Invite useful context such as the affected task, URL, observed behavior, browser, operating system, and assistive technology. Make screenshots or recordings optional and do not require disability disclosure. -->
 
 If you run into an accessibility barrier, please let us know by [opening an issue](https://github.com/emdash-cms/emdash/issues/new/choose). We treat accessibility reports as expertise, not complaints.
 
