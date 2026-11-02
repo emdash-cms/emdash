@@ -1,4 +1,3 @@
-import Database from "better-sqlite3";
 import {
 	CompiledQuery,
 	Kysely,
@@ -12,6 +11,8 @@ import {
 	type UnknownRow,
 } from "kysely";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
@@ -32,7 +33,7 @@ const MAX_CLEANUP_STATEMENTS_PER_TICK = 16;
 const MAX_BIND_PARAMETERS_PER_CLEANUP_STATEMENT = 52;
 const MAX_CLEANUP_ADMISSION_TIME_MS = 5_000;
 
-let sqlite: Database.Database;
+let sqlite: Database;
 let db: Kysely<DatabaseSchema>;
 let repo: MediaUsageRepository;
 let captured: CapturedQuery[];

@@ -1,4 +1,4 @@
-import type { Block, Element, LinkElement } from "@emdash-cms/blocks/server";
+import type { ActionElement, Block } from "@emdash-cms/blocks/server";
 import {
 	CURRENT_PLUGIN_CAPABILITIES,
 	DEPRECATED_PLUGIN_CAPABILITIES,
@@ -25,6 +25,7 @@ type ContextApiRoutes = {
 	content: Record<MethodKeys<NonNullable<PluginContext["content"]>>, string | null>;
 	schema: Record<MethodKeys<NonNullable<PluginContext["schema"]>>, string | null>;
 	taxonomies: Record<MethodKeys<NonNullable<PluginContext["taxonomies"]>>, string | null>;
+	bylines: Record<MethodKeys<NonNullable<PluginContext["bylines"]>>, string | null>;
 	redirects: Record<MethodKeys<NonNullable<PluginContext["redirects"]>>, string | null>;
 	media: Record<MethodKeys<NonNullable<PluginContext["media"]>>, string | null>;
 	http: Record<MethodKeys<NonNullable<PluginContext["http"]>>, string | null>;
@@ -66,6 +67,7 @@ const CONTEXT_API_ROUTES = {
 		addEntryTerms: "taxonomy-add",
 		removeEntryTerms: "taxonomy-remove",
 	},
+	bylines: { get: "byline-read", list: "byline-read", getEntriesBylines: "byline-read" },
 	redirects: {
 		list: "redirects",
 		get: "redirects",
@@ -157,6 +159,7 @@ const BLOCK_DECISIONS = {
 const ELEMENT_DECISIONS = {
 	button: "components",
 	link: "components",
+	menu: "components",
 	text_input: "components",
 	number_input: "components",
 	select: "components",
@@ -169,7 +172,7 @@ const ELEMENT_DECISIONS = {
 	repeater: "authoring-only",
 	media_picker: "field-widget",
 } as const satisfies Record<
-	Element["type"] | LinkElement["type"],
+	ActionElement["type"],
 	"components" | "authoring-only" | "field-widget"
 >;
 
@@ -246,11 +249,15 @@ describe("registry fixture capability inventory", () => {
 			new Set(
 				Object.entries(ELEMENT_DECISIONS)
 					.filter(
-						([type, decision]) => decision === "components" && type !== "button" && type !== "link",
+						([type, decision]) =>
+							decision === "components" && !["button", "link", "menu"].includes(type),
 					)
 					.map(([type]) => type),
 			),
 		);
+		const table = response.blocks.find((block) => block.type === "table");
+		if (!table || table.type !== "table") throw new Error("Component table was not rendered");
+		expect(table.rows[0]?.action).toMatchObject({ type: "menu", action_id: "row-action" });
 		const fields = response.blocks.find((block) => block.type === "fields");
 		if (!fields || fields.type !== "fields") throw new Error("Context fields were not rendered");
 		expect(fields.fields).toEqual(
@@ -446,6 +453,25 @@ describe("registry fixture capability inventory", () => {
 		await expect(
 			invoke("taxonomy-remove", { entryId: createdContent.id, termIds: [createdTerm.id] }),
 		).resolves.toEqual([]);
+		const byline = await runtimeHost.fixtures.byline({
+			slug: "fixture-byline",
+			displayName: "Ada",
+		});
+		const credited = await runtimeHost.actions.content.create("posts", {
+			data: { title: "Credited" },
+			bylines: [{ bylineId: byline.id, roleLabel: "Writer" }],
+		});
+		if (!credited.success) throw new Error(credited.error.message);
+		await expect(invoke("byline-read", { entryId: credited.data.item.id })).resolves.toMatchObject({
+			page: { items: [expect.objectContaining({ id: byline.id })] },
+			byId: { id: byline.id, displayName: "Ada" },
+			credits: [
+				{
+					entryId: credited.data.item.id,
+					bylines: [{ byline: { id: byline.id }, roleLabel: "Writer", source: "explicit" }],
+				},
+			],
+		});
 		const upload = (await invoke("media-exercise", { operation: "upload" })) as {
 			mediaId: string;
 		};
@@ -496,6 +522,7 @@ describe("registry fixture capability inventory", () => {
 				content: true,
 				schema: true,
 				taxonomies: true,
+				bylines: true,
 				redirects: true,
 				media: true,
 				http: true,

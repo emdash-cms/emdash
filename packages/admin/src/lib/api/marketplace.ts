@@ -306,7 +306,10 @@ export async function searchMarketplace(
 	const qs = params.toString();
 	const url = `${MARKETPLACE_BASE}${qs ? `?${qs}` : ""}`;
 	const response = await apiFetch(url);
-	return parseApiResponse<MarketplaceSearchResult>(response, "Marketplace search failed");
+	return parseApiResponse<MarketplaceSearchResult>(
+		response,
+		i18n._(msg`Marketplace search failed`),
+	);
 }
 
 /**
@@ -318,7 +321,7 @@ export async function fetchMarketplacePlugin(id: string): Promise<MarketplacePlu
 	if (response.status === 404) {
 		throw new Error(`Plugin "${id}" not found in marketplace`);
 	}
-	return parseApiResponse<MarketplacePluginDetail>(response, "Failed to fetch plugin");
+	return parseApiResponse<MarketplacePluginDetail>(response, i18n._(msg`Failed to fetch plugin`));
 }
 
 /**
@@ -395,7 +398,7 @@ export async function checkPluginUpdates(): Promise<PluginUpdateInfo[]> {
 	const response = await apiFetch(`${API_BASE}/admin/plugins/updates`);
 	const result = await parseApiResponse<{ items: PluginUpdateInfo[] }>(
 		response,
-		"Failed to check for updates",
+		i18n._(msg`Failed to check for updates`),
 	);
 	return result.items;
 }
@@ -410,6 +413,7 @@ export async function checkPluginUpdates(): Promise<PluginUpdateInfo[]> {
  * Canonical names are the keys; legacy names alias to the same labels so
  * old manifests still render meaningful copy until they're republished.
  */
+import type { PluginCapability } from "@emdash-cms/plugin-types";
 import type { MessageDescriptor } from "@lingui/core";
 
 export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
@@ -427,6 +431,7 @@ export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
 	"hooks.content-policy:register": msg`Review and block publishing, scheduling, and unpublishing content`,
 	"taxonomies:read": msg`Read your taxonomies and terms`,
 	"taxonomies:write": msg`Create taxonomy terms and change content classifications`,
+	"bylines:read": msg`Read public byline profiles and content credits`,
 	"redirects:read": msg`Read redirect rules`,
 	"redirects:write": msg`Change where visitors are sent`,
 	"media:read": msg`Access your media library`,
@@ -436,6 +441,10 @@ export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
 	"users:read": msg`Read user accounts`,
 	"network:request": msg`Connect to network hosts and load external plugin admin images`,
 	"network:request:unrestricted": msg`Connect to any network host and load external plugin admin images (unrestricted)`,
+	"email:send": msg`Send email through your site`,
+	"hooks.email-events:register": msg`Read and change email your site sends`,
+	"hooks.email-transport:register": msg`Deliver all email your site sends`,
+	"hooks.page-fragments:register": msg`Add scripts and styles to your site's pages`,
 	// Legacy aliases (still emitted by older installed manifests)
 	"read:content": msg`Read your content`,
 	"write:content": msg`Create, update, and delete content`,
@@ -444,7 +453,10 @@ export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
 	"read:users": msg`Read user accounts`,
 	"network:fetch": msg`Connect to network hosts and load external plugin admin images`,
 	"network:fetch:any": msg`Connect to any network host and load external plugin admin images (unrestricted)`,
-};
+	"email:intercept": msg`Read and change email your site sends`,
+	"email:provide": msg`Deliver all email your site sends`,
+	"page:inject": msg`Add scripts and styles to your site's pages`,
+} satisfies Record<PluginCapability, MessageDescriptor>;
 
 /** Capability names that grant scoped network access (legacy + canonical). */
 const NETWORK_REQUEST_CAPABILITIES = new Set(["network:request", "network:fetch"]);

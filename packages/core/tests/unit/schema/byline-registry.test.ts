@@ -1,6 +1,7 @@
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
@@ -294,10 +295,8 @@ describe("BylineSchemaRegistry", () => {
 			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
 			const field = await registry.getField("job_title");
 
-			// Explicitly leave FK enforcement OFF (better-sqlite3 default in
-			// the test connection) to prove the cleanup is app-level, not
-			// FK-dependent. Production (`connection.ts:60`) and D1 keep FK
-			// ON; this test verifies the registry doesn't *rely* on that.
+			// Disable FK enforcement to prove the cleanup is app-level, not
+			// FK-dependent. Production and D1 keep it enabled.
 			await sql`PRAGMA foreign_keys = OFF`.execute(db);
 			await sql`
 				INSERT INTO _emdash_bylines (id, slug, display_name, locale, translation_group)

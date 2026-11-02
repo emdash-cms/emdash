@@ -6,14 +6,24 @@ import type { Kysely } from "kysely";
 
 import { after } from "../../after.js";
 import { ContentRepository } from "../../database/repositories/content.js";
-import { RevisionRepository, type Revision } from "../../database/repositories/revision.js";
+import {
+	RevisionRepository,
+	type Revision,
+	type RevisionWithAuthor,
+} from "../../database/repositories/revision.js";
 import { ContentMutationConflictError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { encodeRev } from "../rev.js";
 import type { ApiResult, ContentResponse } from "../types.js";
+import {
+	applyStagedReferences,
+	readStagedReferences,
+	STAGED_REFERENCES_BASELINE_KEY,
+	validateStagedReferences,
+} from "./staged-references.js";
 
 export interface RevisionListResponse {
-	items: Revision[];
+	items: RevisionWithAuthor[];
 	total: number;
 }
 
@@ -33,7 +43,9 @@ export async function handleRevisionList(
 	try {
 		const repo = new RevisionRepository(db);
 		const [items, total] = await Promise.all([
-			repo.findByEntry(collection, entryId, { limit: Math.min(params.limit || 50, 100) }),
+			repo.findByEntry(collection, entryId, {
+				limit: Math.max(1, Math.min(params.limit || 50, 100)),
+			}),
 			repo.countByEntry(collection, entryId),
 		]);
 
@@ -111,12 +123,42 @@ export async function handleRevisionRestore(
 			};
 		}
 
+		// A revision can outlive the cardinality it was written under, and another
+		// entry can have claimed what it selected. Restoring makes its selection
+		// live, so it answers to the relation's current limits exactly as a publish
+		// does — checked before the restore, which on D1 cannot be undone.
+		const stagedReferences = readStagedReferences(revision.data);
+		if (stagedReferences) {
+			const entry = await new ContentRepository(db).findById(revision.collection, revision.entryId);
+			if (entry?.translationGroup) {
+				const valid = await validateStagedReferences(
+					db,
+					revision.collection,
+					stagedReferences,
+					entry.translationGroup,
+				);
+				if (!valid.success) return valid;
+			}
+		}
+
+		const restoredData = { ...revision.data };
+		delete restoredData[STAGED_REFERENCES_BASELINE_KEY];
 		const { item, revisionId: queuedRevisionId } = await new ContentRepository(db).restoreRevision(
 			revision.collection,
 			revision.entryId,
-			revision.data,
+			restoredData,
 			callerUserId,
 		);
+
+		// Promoted only once the restore has landed, so a restore refused by its
+		// fence leaves the live links untouched. The restore's own revision carries
+		// the selection, so restoring it again retries a promotion that failed here.
+		if (stagedReferences && item.translationGroup) {
+			// Restoring a revision means replacing the current live selection with the
+			// revision's selection, not merging a diff. The queued restored revision
+			// also omits the old draft baseline so publishing it keeps this behavior.
+			await applyStagedReferences(db, revision.collection, item.translationGroup, stagedReferences);
+		}
 
 		const pruneRepo = new RevisionRepository(db);
 		after(async () => {

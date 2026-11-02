@@ -68,7 +68,7 @@ describe("PluginBridge content write fence", () => {
 						return this;
 					},
 					async first() {
-						return { state: "activating" };
+						return { media_state: "activating", import_id: null, export_id: null };
 					},
 					async run() {
 						return { meta: { changes: 1 } };
@@ -85,6 +85,84 @@ describe("PluginBridge content write fence", () => {
 		});
 		expect(queries).toHaveLength(1);
 		expect(queries[0]).toContain("_emdash_media_usage_activation");
+	});
+
+	it("rejects content mutations while a site import is in progress", async () => {
+		const queries: string[] = [];
+		const db = {
+			prepare(sql: string) {
+				queries.push(sql);
+				return {
+					bind() {
+						return this;
+					},
+					async first() {
+						return { media_state: "active", import_id: "01IMPORT", export_id: null };
+					},
+					async run() {
+						return { meta: { changes: 1 } };
+					},
+				};
+			},
+		};
+
+		await expect(makeBridge(db).contentCreate("posts", { slug: "blocked" })).rejects.toMatchObject({
+			code: "TRANSFER_IMPORT_IN_PROGRESS",
+			status: 503,
+		});
+		expect(queries).toHaveLength(1);
+		expect(queries[0]).toContain("_emdash_transfer_operations");
+	});
+
+	it("records a content write for a running export", async () => {
+		const queries: string[] = [];
+		const db = {
+			prepare(sql: string) {
+				queries.push(sql);
+				const statement = {
+					bind() {
+						return statement;
+					},
+					async first() {
+						return { media_state: "active", import_id: null, export_id: "01EXPORT" };
+					},
+					async run() {
+						return { meta: { changes: 1 } };
+					},
+				};
+				return statement;
+			},
+		};
+
+		await expect(makeBridge(db).contentDelete("posts", "post-id")).resolves.toBe(true);
+		expect(queries[1]).toContain("write_epoch = write_epoch + 1");
+		expect(queries[2]).toContain("UPDATE ec_posts SET deleted_at");
+	});
+
+	it("keeps the media usage fence before the transfer tables are migrated", async () => {
+		const queries: string[] = [];
+		const db = {
+			prepare(sql: string) {
+				queries.push(sql);
+				const statement = {
+					bind() {
+						return statement;
+					},
+					async first() {
+						if (sql.includes("_emdash_transfer_operations")) {
+							throw new Error("D1_ERROR: no such table: _emdash_transfer_operations");
+						}
+						return { state: "activating" };
+					},
+				};
+				return statement;
+			},
+		};
+
+		await expect(makeBridge(db).contentDelete("posts", "post-id")).rejects.toMatchObject({
+			code: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS",
+		});
+		expect(queries).toHaveLength(2);
 	});
 
 	it("preserves content writes before the activation table is migrated", async () => {
@@ -139,8 +217,8 @@ describe("PluginBridge content write fence", () => {
 			await expect(
 				makeBridge(db).contentCreate("posts", { slug: "blocked" }),
 			).rejects.toMatchObject({
-				code: "MEDIA_USAGE_ACTIVATION_CHECK_FAILED",
-				message: "Unable to verify media usage activation state",
+				code: "TRANSFER_FENCE_CHECK_FAILED",
+				message: "Unable to verify whether site writes are allowed",
 				status: 503,
 			});
 		} finally {

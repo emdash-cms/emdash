@@ -35,8 +35,8 @@ export async function reconcileAuthoritativeRegistry(input: {
 			versions: input.versions,
 			logicalTriggerId: await triggerId(subject.uri, subject.cid),
 		});
-		await input.lifecycle.observeRun({ params, observedAt: now, makeCurrent: true });
-		runs.push(params);
+		const run = await input.lifecycle.observeRun({ params, observedAt: now, makeCurrent: true });
+		if (run) runs.push(params);
 	}
 	const ensured = await ensureAssessmentWorkflowRuns({
 		workflow: input.workflow,

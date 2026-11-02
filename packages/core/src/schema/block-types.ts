@@ -79,6 +79,21 @@ export interface UpdateBlockTypeInput {
 	breaking?: boolean;
 }
 
+export interface SeedBlockTypeVersionInput {
+	version: number;
+	fields: BlockFieldDefinition[];
+}
+
+export interface ApplySeedBlockTypeInput {
+	slug: string;
+	label: string;
+	description?: string;
+	icon?: string;
+	category?: string;
+	currentVersion: number;
+	versions: SeedBlockTypeVersionInput[];
+}
+
 export type BlockTypeDifferenceCompatibility = "compatible" | "breaking";
 
 export interface BlockTypeDifference {

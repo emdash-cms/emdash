@@ -6,9 +6,10 @@
  * scheduled-publish suite.
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import * as migration074 from "../../../src/database/migrations/074_content_deleted_scheduled_index.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
@@ -21,7 +22,7 @@ interface CapturedQuery {
 	parameters: readonly unknown[];
 }
 
-let sqlite: Database.Database;
+let sqlite: Database;
 let db: Kysely<DatabaseSchema>;
 let repo: ContentRepository;
 let captured: CapturedQuery[];
@@ -136,7 +137,7 @@ function scheduledQuery(): CapturedQuery {
 	return queries[0]!;
 }
 
-/** better-sqlite3 only binds primitives; coerce values captured from Kysely. */
+/** Normalize application values captured from Kysely for direct driver binding. */
 function bindable(parameter: unknown): unknown {
 	if (typeof parameter === "boolean") return parameter ? 1 : 0;
 	if (parameter instanceof Date) return parameter.toISOString();

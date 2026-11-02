@@ -1,5 +1,50 @@
 # @emdash-cms/plugin-types
 
+## 0.6.0
+
+### Minor Changes
+
+- [#3732](https://github.com/emdash-cms/emdash/pull/3732) [`2210c2c`](https://github.com/emdash-cms/emdash/commit/2210c2c7688a8d407143dfe4d565898674470412) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `describeCapability()` and `CAPABILITY_DESCRIPTIONS`, which give an English label and description for every plugin capability so tools that list a plugin's permissions can show the same wording.
+  
+  ```ts
+  import { describeCapability } from "@emdash-cms/plugin-types";
+  
+  describeCapability("content:read");
+  // { label: "Read content", description: "Read entries from your site’s content collections." }
+  ```
+  
+  Deprecated capability names return the description of their replacement. A string that is not a known capability returns `undefined`.
+
+### Patch Changes
+
+- [#3546](https://github.com/emdash-cms/emdash/pull/3546) [`2c8c12a`](https://github.com/emdash-cms/emdash/commit/2c8c12a6b84d7c790944aebd5e7e090514fccfd6) Thanks [@swissky](https://github.com/swissky)! - Adds `group` to plugin admin pages, in native plugin descriptors and in `admin.pages` of `emdash-plugin.jsonc`, to place them in collapsible admin sidebar folders. A page whose group matches the group of a collection shown in the sidebar appears inside that folder, after its collections and taxonomies. Pages that share any other group, from one plugin or several, fold into one folder in the Plugins section. Pages without a group stay where they are.
+
+## 0.5.0
+
+### Minor Changes
+
+- [#3394](https://github.com/emdash-cms/emdash/pull/3394) [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811) Thanks [@ttmx](https://github.com/ttmx)! - Adds the `byline:afterSave` and `byline:afterDelete` plugin hooks, so plugins can keep external copies of author data, such as a search index, current when byline profiles change.
+  
+  Both hooks require the `bylines:read` capability and receive the same public byline profile that `ctx.bylines.get()` returns. `byline:afterSave` runs after a byline or one of its translations is created or updated, with `isNew` set on creation. `byline:afterDelete` receives the byline as it was before deletion. They run after changes made through the admin API or MCP tools, not seeds or imports, and hook errors are logged without undoing the change.
+  
+  Credit changes on an entry are still reported through `content:afterSave`. Relinking a byline to another user can change the credits inferred for that user's entries without a per-entry event.
+
+- [#3394](https://github.com/emdash-cms/emdash/pull/3394) [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811) Thanks [@ttmx](https://github.com/ttmx)! - Adds the `bylines:read` plugin capability, which lets plugins read public byline profiles and the bylines credited on content entries through `ctx.bylines`.
+  
+  `ctx.bylines` provides `get()` and cursor-paginated `list()` for profiles, plus `getEntriesBylines()` for credits. `getEntriesBylines()` resolves up to 100 entries of one collection in a single call, so a search indexer or feed plugin can attach author names to a page of `ctx.content.list()` results:
+  
+  ```ts
+  const page = await ctx.content.list("posts", { limit: 100 });
+  const credits = await ctx.bylines.getEntriesBylines(
+  	"posts",
+  	page.items.map((entry) => entry.id),
+  );
+  ```
+  
+  Credits match what the site renders: the credits assigned in the editor, or the author's linked byline, marked `source: "inferred"`, when an entry has none. They resolve at the entry's own locale. Profiles omit the linked user account, guest flag, and byline custom field values.
+  
+  The capability is independent of `content:read` and `users:read`. It is available to native plugins and to sandboxed plugins on Cloudflare Worker Loader and Node.js workerd. Installation and update consent list it as a new permission.
+
 ## 0.4.0
 
 ### Minor Changes

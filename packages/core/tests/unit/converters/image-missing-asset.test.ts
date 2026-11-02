@@ -89,4 +89,17 @@ describe("Image blocks without asset wrapper", () => {
 		expect(imageNode.attrs?.alt).toBe("A proper image");
 		expect(imageNode.attrs?.mediaId).toBe("media-123");
 	});
+
+	it("reads the caption from title-only legacy image blocks", () => {
+		const result = portableTextToProsemirror([
+			{
+				_type: "image",
+				_key: "img1",
+				url: "https://example.com/photo.jpg",
+				title: "Legacy caption",
+			} as unknown as PortableTextBlock,
+		]);
+
+		expect(result.content[0].attrs?.caption).toBe("Legacy caption");
+	});
 });

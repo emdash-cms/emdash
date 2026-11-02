@@ -1,7 +1,10 @@
 import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
+import { getLocaleCandidates, getLocaleChainRank, getLocaleRank } from "../../i18n/config.js";
+import { localeMatches, localeOrder } from "../../i18n/query.js";
 import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { slugify } from "../../utils/slugify.js";
 import { withTransaction } from "../transaction.js";
 import type { Database, TaxonomyTable } from "../types.js";
@@ -19,6 +22,8 @@ export interface SiblingPosition {
  * statement inside D1's 100-parameter ceiling.
  */
 const GROUPS_PER_UPDATE = 32;
+/** Rows per `content_taxonomies` insert. Each row binds three parameters. */
+const ASSIGNMENTS_PER_INSERT = 32;
 const NUMERIC_SUFFIX_PATTERN = /^\d+$/;
 
 /** Deal the listed groups back out over the slots they hold, in the order given. */
@@ -158,46 +163,60 @@ export class TaxonomyRepository {
 	async create(input: CreateTaxonomyInput): Promise<Taxonomy> {
 		const id = ulid();
 
-		// Empty-string parentId is coerced to null defensively. Higher layers
-		// also normalize this — see handleTermCreate / handleTermUpdate.
+		// Empty-string parentId counts as omitted. Higher layers also normalize
+		// this — see handleTermCreate / handleTermUpdate.
 		// `parent_id` stores the parent's locale-agnostic translation_group (not a
 		// row id), mirroring content_taxonomies.taxonomy_id, so a child stays
 		// nested in every locale's tree. resolveTranslationGroup accepts either a
 		// row id or an already-resolved group, so this is idempotent.
-		const parentInput =
-			input.parentId === undefined || input.parentId === "" ? null : input.parentId;
-		const parentId = parentInput ? await this.resolveParentRef(parentInput) : null;
+		const parentInput = input.parentId === "" ? undefined : input.parentId;
+		let parentId = parentInput ? await this.resolveParentRef(parentInput) : null;
 
 		let translationGroup = id;
 		let sortOrder: number | null = null;
+		let movesGroup = false;
 		if (input.translationOf) {
 			const source = await this.findById(input.translationOf);
 			if (source?.translationGroup) translationGroup = source.translationGroup;
 			// A translation is the same term in another locale, so it takes the
-			// group's position — but only while it stays in the group that position
-			// belongs to. Landing under a different parent makes it a new member of
-			// that sibling group, and the source's position means nothing there.
-			if (source && source.parentId === parentId) sortOrder = source.sortOrder;
+			// group's parent and position. Naming a different parent moves the whole
+			// group there, as an update through any locale does, and appends it to
+			// the siblings it lands among.
+			if (source && (parentInput === undefined || source.parentId === parentId)) {
+				parentId = source.parentId;
+				sortOrder = source.sortOrder;
+			} else if (source) {
+				movesGroup = true;
+			}
 		}
 		sortOrder ??= await this.nextSortOrder(input.name, parentId);
 
-		await this.db
-			.insertInto("taxonomies")
-			.values({
-				id,
-				name: input.name,
-				slug: input.slug,
-				label: input.label,
-				parent_id: parentId,
-				data: input.data ? JSON.stringify(input.data) : null,
-				sort_order: sortOrder,
-				// When omitted, the DB DEFAULT 'en' is used — keeps behaviour
-				// consistent with ContentRepository and lets higher layers
-				// supply an explicit locale from request context.
-				...(input.locale !== undefined ? { locale: input.locale } : {}),
-				translation_group: translationGroup,
-			})
-			.execute();
+		await withTransaction(this.db, async (trx) => {
+			await trx
+				.insertInto("taxonomies")
+				.values({
+					id,
+					name: input.name,
+					slug: input.slug,
+					label: input.label,
+					parent_id: parentId,
+					data: input.data ? JSON.stringify(input.data) : null,
+					sort_order: sortOrder,
+					// When omitted, the DB DEFAULT 'en' is used — keeps behaviour
+					// consistent with ContentRepository and lets higher layers
+					// supply an explicit locale from request context.
+					...(input.locale !== undefined ? { locale: input.locale } : {}),
+					translation_group: translationGroup,
+				})
+				.execute();
+			if (movesGroup) {
+				await trx
+					.updateTable("taxonomies")
+					.set({ parent_id: parentId, sort_order: sortOrder })
+					.where("translation_group", "=", translationGroup)
+					.execute();
+			}
+		});
 
 		invalidateTaxonomyObjectCache();
 
@@ -238,8 +257,11 @@ export class TaxonomyRepository {
 			.selectAll()
 			.where("name", "=", name)
 			.where("slug", "=", slug);
-		if (locale !== undefined) query = query.where("locale", "=", locale);
-		const row = await query.orderBy("locale", "asc").executeTakeFirst();
+		if (locale !== undefined) query = query.where(localeMatches("locale", locale));
+		const row = await query
+			.orderBy(locale !== undefined ? localeOrder("locale", locale) : "locale", "asc")
+			.orderBy("id", "asc")
+			.executeTakeFirst();
 		return row ? this.rowToTaxonomy(row) : null;
 	}
 
@@ -251,7 +273,7 @@ export class TaxonomyRepository {
 			.select("slug")
 			.where("name", "=", name)
 			.where((eb) => eb.or([eb("slug", "=", baseSlug), eb("slug", "like", `${baseSlug}-%`)]));
-		if (locale !== undefined) query = query.where("locale", "=", locale);
+		if (locale !== undefined) query = query.where(localeMatches("locale", locale));
 		const candidates = await query.execute();
 		if (!candidates.some((candidate) => candidate.slug === baseSlug)) return baseSlug;
 
@@ -283,7 +305,7 @@ export class TaxonomyRepository {
 			.orderBy("label", "asc")
 			.orderBy("id", "asc");
 
-		if (options.locale !== undefined) query = query.where("locale", "=", options.locale);
+		if (options.locale !== undefined) query = query.where(localeMatches("locale", options.locale));
 
 		if (options.parentId !== undefined) {
 			if (options.parentId === null) {
@@ -307,7 +329,7 @@ export class TaxonomyRepository {
 			.selectFrom("taxonomies")
 			.selectAll()
 			.where("name", "=", name)
-			.where("locale", "in", locales)
+			.where((eb) => eb.or(locales.map((candidate) => localeMatches("locale", candidate))))
 			.orderBy("sort_order", "asc")
 			.orderBy("label", "asc")
 			.orderBy("id", "asc")
@@ -318,7 +340,13 @@ export class TaxonomyRepository {
 			const term = this.rowToTaxonomy(row);
 			const group = term.translationGroup ?? term.id;
 			const current = selected.get(group);
-			if (!current || term.locale === locale) selected.set(group, term);
+			if (
+				!current ||
+				getLocaleChainRank(term.locale, [locale, defaultLocale]) <
+					getLocaleChainRank(current.locale, [locale, defaultLocale])
+			) {
+				selected.set(group, term);
+			}
 		}
 		return [...selected.values()].toSorted(
 			(a, b) =>
@@ -330,7 +358,7 @@ export class TaxonomyRepository {
 		const limit = Math.max(1, Math.min(options.limit ?? 50, 100));
 		let query = this.db.selectFrom("taxonomies").selectAll().where("name", "=", name);
 
-		if (options.locale !== undefined) query = query.where("locale", "=", options.locale);
+		if (options.locale !== undefined) query = query.where(localeMatches("locale", options.locale));
 
 		if (options.parentId !== undefined) {
 			query =
@@ -380,7 +408,7 @@ export class TaxonomyRepository {
 			.orderBy("sort_order", "asc")
 			.orderBy("label", "asc")
 			.orderBy("id", "asc");
-		if (locale !== undefined) query = query.where("locale", "=", locale);
+		if (locale !== undefined) query = query.where(localeMatches("locale", locale));
 
 		const rows = await query.execute();
 		return rows.map((row) => this.rowToTaxonomy(row));
@@ -426,6 +454,13 @@ export class TaxonomyRepository {
 				// A position only means anything within one sibling group, so a term
 				// that changes parent is appended to the group it lands in.
 				group.sort_order = await this.nextSortOrder(existing.name, parentId);
+			} else if (
+				await this.groupHasOtherParent(existing.translationGroup ?? existing.id, parentId)
+			) {
+				// Other locales of the term sit elsewhere; bring them to this row's
+				// parent and position.
+				group.parent_id = parentId;
+				group.sort_order = existing.sortOrder;
 			}
 		}
 
@@ -544,6 +579,24 @@ export class TaxonomyRepository {
 		return bounds.max + 1;
 	}
 
+	/** Whether any row of `translationGroup` has a parent other than `parentId`. */
+	private async groupHasOtherParent(
+		translationGroup: string,
+		parentId: string | null,
+	): Promise<boolean> {
+		const row = await this.db
+			.selectFrom("taxonomies")
+			.select("id")
+			.where("translation_group", "=", translationGroup)
+			.where((eb) =>
+				parentId === null
+					? eb("parent_id", "is not", null)
+					: eb.or([eb("parent_id", "is", null), eb("parent_id", "!=", parentId)]),
+			)
+			.executeTakeFirst();
+		return row !== undefined;
+	}
+
 	async delete(id: string): Promise<boolean> {
 		const term = await this.findById(id);
 		if (!term) return false;
@@ -579,8 +632,8 @@ export class TaxonomyRepository {
 	}
 
 	/**
-	 * Attach already-resolved term translation groups in one insert and return
-	 * the number of assignments that did not already exist.
+	 * Attach already-resolved term translation groups and return the number of
+	 * assignments that did not already exist.
 	 */
 	async attachGroupsToEntry(
 		collection: string,
@@ -592,20 +645,58 @@ export class TaxonomyRepository {
 		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
 		if (!entryGroup) return 0;
 
-		const result = await this.db
-			.insertInto("content_taxonomies")
-			.values(
-				uniqueGroups.map((taxonomy_id) => ({
-					collection,
-					entry_id: entryGroup,
-					taxonomy_id,
-				})),
-			)
-			.onConflict((oc) => oc.doNothing())
-			.executeTakeFirst();
-		const inserted = Number(result.numInsertedOrUpdatedRows ?? 0n);
+		const inserted = await this.insertAssignments(collection, entryGroup, uniqueGroups);
 		if (inserted > 0) invalidateTaxonomyObjectCache();
 		return inserted;
+	}
+
+	private async insertAssignments(
+		collection: string,
+		entryGroup: string,
+		taxonomyGroups: string[],
+	): Promise<number> {
+		let inserted = 0;
+		try {
+			for (const batch of chunks(taxonomyGroups, ASSIGNMENTS_PER_INSERT)) {
+				// oxlint-disable-next-line no-await-in-loop -- one statement per D1-safe batch
+				const result = await this.db
+					.insertInto("content_taxonomies")
+					.values(batch.map((taxonomy_id) => ({ collection, entry_id: entryGroup, taxonomy_id })))
+					.onConflict((oc) => oc.doNothing())
+					.executeTakeFirst();
+				inserted += Number(result.numInsertedOrUpdatedRows ?? 0n);
+			}
+		} catch (error) {
+			// Earlier batches are already written.
+			if (inserted > 0) invalidateTaxonomyObjectCache();
+			throw error;
+		}
+		return inserted;
+	}
+
+	private async deleteAssignments(
+		collection: string,
+		entryGroup: string,
+		taxonomyGroups: string[],
+	): Promise<number> {
+		let removed = 0;
+		try {
+			for (const batch of chunks(taxonomyGroups, SQL_BATCH_SIZE)) {
+				// oxlint-disable-next-line no-await-in-loop -- one statement per D1-safe batch
+				const result = await this.db
+					.deleteFrom("content_taxonomies")
+					.where("collection", "=", collection)
+					.where("entry_id", "=", entryGroup)
+					.where("taxonomy_id", "in", batch)
+					.executeTakeFirst();
+				removed += Number(result.numDeletedRows ?? 0n);
+			}
+		} catch (error) {
+			// Earlier batches are already deleted.
+			if (removed > 0) invalidateTaxonomyObjectCache();
+			throw error;
+		}
+		return removed;
 	}
 
 	async detachFromEntry(collection: string, entryId: string, taxonomyId: string): Promise<void> {
@@ -635,13 +726,7 @@ export class TaxonomyRepository {
 		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
 		if (!entryGroup) return 0;
 
-		const result = await this.db
-			.deleteFrom("content_taxonomies")
-			.where("collection", "=", collection)
-			.where("entry_id", "=", entryGroup)
-			.where("taxonomy_id", "in", uniqueGroups)
-			.executeTakeFirst();
-		const removed = Number(result.numDeletedRows ?? 0n);
+		const removed = await this.deleteAssignments(collection, entryGroup, uniqueGroups);
 		if (removed > 0) invalidateTaxonomyObjectCache();
 		return removed;
 	}
@@ -668,10 +753,25 @@ export class TaxonomyRepository {
 			.where("content_taxonomies.entry_id", "=", entryGroup);
 
 		if (taxonomyName) query = query.where("taxonomies.name", "=", taxonomyName);
-		if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
+		if (locale !== undefined) query = query.where(localeMatches("taxonomies.locale", locale));
 
 		const rows = await query.orderBy("taxonomies.locale", "asc").execute();
-		return rows.map((row) => this.rowToTaxonomy(row));
+		const terms = rows.map((row) => this.rowToTaxonomy(row));
+		if (locale === undefined) return terms;
+		const selected = new Map<string, Taxonomy>();
+		for (const term of terms) {
+			const group = term.translationGroup ?? term.id;
+			const current = selected.get(group);
+			if (
+				!current ||
+				getLocaleRank(term.locale, locale) < getLocaleRank(current.locale, locale) ||
+				(getLocaleRank(term.locale, locale) === getLocaleRank(current.locale, locale) &&
+					term.id < current.id)
+			) {
+				selected.set(group, term);
+			}
+		}
+		return [...selected.values()];
 	}
 
 	async getTermAssignmentsForEntry(
@@ -703,11 +803,18 @@ export class TaxonomyRepository {
 			byGroup.set(row.assignment_group, variants);
 		}
 
+		const chain = [locale, ...(defaultLocale !== locale ? [defaultLocale] : [])];
+		const chainLimit =
+			getLocaleChainRank(defaultLocale, chain) + getLocaleCandidates(defaultLocale).length;
 		return Array.from(byGroup, ([translationGroup, variants]) => {
-			const term =
-				variants.find((variant) => variant.locale === locale) ??
-				variants.find((variant) => variant.locale === defaultLocale) ??
-				null;
+			const candidates = variants
+				.filter((variant) => getLocaleChainRank(variant.locale, chain) < chainLimit)
+				.toSorted(
+					(a, b) =>
+						getLocaleChainRank(a.locale, chain) - getLocaleChainRank(b.locale, chain) ||
+						a.id.localeCompare(b.id),
+				);
+			const term = candidates[0] ?? null;
 			return {
 				translationGroup,
 				term,
@@ -753,31 +860,13 @@ export class TaxonomyRepository {
 		const currentGroups = new Set(current.map((r) => r.group));
 
 		const toRemove = [...currentGroups].filter((g) => !newGroups.has(g));
-		if (toRemove.length > 0) {
-			await this.db
-				.deleteFrom("content_taxonomies")
-				.where("collection", "=", collection)
-				.where("entry_id", "=", entryGroup)
-				.where("taxonomy_id", "in", toRemove)
-				.execute();
-		}
-
 		const toAdd = [...newGroups].filter((g) => !currentGroups.has(g));
-		if (toAdd.length > 0) {
-			await this.db
-				.insertInto("content_taxonomies")
-				.values(
-					toAdd.map((taxonomy_id) => ({
-						collection,
-						entry_id: entryGroup,
-						taxonomy_id,
-					})),
-				)
-				.onConflict((oc) => oc.doNothing())
-				.execute();
+		try {
+			if (toRemove.length > 0) await this.deleteAssignments(collection, entryGroup, toRemove);
+			if (toAdd.length > 0) await this.insertAssignments(collection, entryGroup, toAdd);
+		} finally {
+			if (toRemove.length > 0 || toAdd.length > 0) invalidateTaxonomyObjectCache();
 		}
-
-		if (toRemove.length > 0 || toAdd.length > 0) invalidateTaxonomyObjectCache();
 	}
 
 	async clearEntryTerms(collection: string, entryId: string): Promise<number> {
@@ -881,8 +970,6 @@ export class TaxonomyRepository {
 	 */
 	async countEntriesForTerms(translationGroups: string[]): Promise<Map<string, number>> {
 		if (translationGroups.length === 0) return new Map();
-
-		const { chunks, SQL_BATCH_SIZE } = await import("../../utils/chunks.js");
 
 		const counts = new Map<string, number>();
 		for (const chunk of chunks(translationGroups, SQL_BATCH_SIZE)) {

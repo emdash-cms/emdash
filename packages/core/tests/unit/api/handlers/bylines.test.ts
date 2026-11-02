@@ -20,6 +20,7 @@ describe("byline handlers", () => {
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		await teardownTestDatabase(db);
 	});
 
@@ -112,6 +113,36 @@ describe("byline handlers", () => {
 			expect(result.data.locale).toBe("fr");
 			expect(result.data.translationGroup).toBe(anchor.translationGroup);
 			expect(result.data.id).not.toBe(anchor.id);
+		});
+
+		it("treats a code-stamped sibling as the same configured locale", async () => {
+			setI18nConfig({
+				defaultLocale: "es-MX",
+				locales: ["es-MX", "en"],
+				localeAliases: { "en-US": "en" },
+			});
+			const anchor = await repo.create({
+				slug: "terms",
+				displayName: "Terms",
+				locale: "en",
+			});
+			await repo.create({
+				slug: "terms",
+				displayName: "Terms (code)",
+				locale: "en-US",
+				translationOf: anchor.id,
+			});
+
+			const result = await handleBylineCreate(db, {
+				slug: "terms",
+				displayName: "Terms again",
+				locale: "en",
+				translationOf: anchor.id,
+			});
+
+			expect(result.success).toBe(false);
+			if (result.success) return;
+			expect(result.error.code).toBe("CONFLICT");
 		});
 
 		it("returns NOT_FOUND when the source byline is missing", async () => {

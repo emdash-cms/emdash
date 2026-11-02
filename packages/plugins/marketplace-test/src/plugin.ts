@@ -26,7 +26,7 @@ const deleteRecordMcpOutput = z.object({ deleted: z.boolean() });
 const fixturePng = new Uint8Array([
 	137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4, 0, 0,
 	0, 181, 28, 12, 2, 0, 0, 0, 11, 73, 68, 65, 84, 120, 218, 99, 252, 255, 31, 0, 3, 3, 2, 0, 239,
-	191, 105, 69, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+	162, 167, 91, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
 ]);
 
 type RedirectCreateProbeInput = RedirectCreateInput & { auto?: unknown };
@@ -311,6 +311,10 @@ const plugin: SandboxedPlugin = {
 				}
 			}
 		},
+		"byline:afterSave": async (event, ctx) =>
+			record(ctx, "events", "byline-saved", { bylineId: event.byline.id, isNew: event.isNew }),
+		"byline:afterDelete": async (event, ctx) =>
+			record(ctx, "events", "byline-deleted", { bylineId: event.byline.id }),
 		cron: async (event, ctx) =>
 			record(ctx, "events", "cron", { name: event.name, scheduledAt: event.scheduledAt }),
 		"email:beforeSend": async (event, ctx) => {
@@ -366,6 +370,10 @@ const plugin: SandboxedPlugin = {
 						blocks: [{ type: "image", url: "http://tracker.example/pixel.gif", alt: "" }],
 					};
 				}
+				const submittedValues =
+					actionId === "submit-components" && isRecord(route.input) && isRecord(route.input.values)
+						? route.input.values
+						: undefined;
 				const page =
 					typeof route.input === "object" &&
 					route.input !== null &&
@@ -395,8 +403,23 @@ const plugin: SandboxedPlugin = {
 								columns: [
 									{ key: "surface", label: "Surface" },
 									{ key: "status", label: "Status" },
+									{ key: "action", label: "Actions", format: "element" },
 								],
-								rows: [{ surface: "sandbox", status: "ready" }],
+								rows: [
+									{
+										surface: "sandbox",
+										status: "ready",
+										action: {
+											type: "menu",
+											label: "Run",
+											action_id: "row-action",
+											items: [
+												{ label: "Check", value: "check" },
+												{ label: "Reset", value: "reset" },
+											],
+										},
+									},
+								],
 								page_action_id: "page-components",
 								empty_text: "No diagnostics",
 							},
@@ -405,12 +428,45 @@ const plugin: SandboxedPlugin = {
 								elements: [
 									{ type: "button", label: "Run", action_id: "run", style: "primary" },
 									{
+										type: "button",
+										label: "Return unsafe image",
+										action_id: "unsafe-image",
+									},
+									{
+										type: "button",
+										label: "Return oversized response",
+										action_id: "oversized-response",
+									},
+									{
 										type: "link",
 										label: "Diagnostics",
 										target: { kind: "plugin-page", path: "/overview" },
 									},
 								],
 							},
+							...(submittedValues
+								? [
+										{
+											type: "fields" as const,
+											fields: [
+												{
+													label: "Submitted text",
+													value:
+														typeof submittedValues.text === "string"
+															? submittedValues.text
+															: "missing",
+												},
+												{
+													label: "Submitted number",
+													value:
+														typeof submittedValues.number === "number"
+															? String(submittedValues.number)
+															: "missing",
+												},
+											],
+										},
+									]
+								: []),
 							{
 								type: "stats",
 								items: [
@@ -454,7 +510,11 @@ const plugin: SandboxedPlugin = {
 								],
 								submit: { action_id: "submit-components", label: "Submit" },
 							},
-							{ type: "image", url: "/plugin-assets/status.png", alt: "Fixture status" },
+							{
+								type: "image",
+								url: `/_emdash/api/plugins/${encodeURIComponent(ctx.plugin.id)}/fixture-image`,
+								alt: "Fixture status",
+							},
 							{ type: "context", text: "Rendered by the host" },
 							{
 								type: "columns",
@@ -503,6 +563,9 @@ const plugin: SandboxedPlugin = {
 								panels: [{ label: "Context", blocks: [{ type: "context", text: "Tab panel" }] }],
 							},
 						],
+						...(submittedValues && {
+							toast: { type: "success" as const, message: "Components submitted" },
+						}),
 					};
 				}
 				return {
@@ -1143,6 +1206,12 @@ const plugin: SandboxedPlugin = {
 				return { enabled };
 			},
 		},
+		"events-list": {
+			handler: async (_route, ctx) => ({
+				events: await ctx.storage.events.query({ limit: 100 }),
+				lifecycle: await ctx.storage.lifecycle.query({ limit: 100 }),
+			}),
+		},
 		"private-user": {
 			permission: "content:edit_any",
 			handler: async (route) => ({ userId: route.user?.id ?? null }),
@@ -1304,6 +1373,19 @@ const plugin: SandboxedPlugin = {
 				};
 			},
 		},
+		"byline-read": {
+			permission: "content:read",
+			handler: async (route, ctx) => {
+				const input = isRecord(route.input) ? route.input : {};
+				const entryId = typeof input.entryId === "string" ? input.entryId : "missing";
+				const page = await ctx.bylines.list({ limit: 2 });
+				return {
+					page,
+					byId: page.items[0] ? await ctx.bylines.get(page.items[0].id) : null,
+					credits: await ctx.bylines.getEntriesBylines("posts", [entryId]),
+				};
+			},
+		},
 		"content-crud": {
 			permission: "content:edit_any",
 			handler: async (route, ctx) => {
@@ -1373,6 +1455,7 @@ const plugin: SandboxedPlugin = {
 					content: ctx.content !== undefined,
 					schema: ctx.schema !== undefined,
 					taxonomies: ctx.taxonomies !== undefined,
+					bylines: ctx.bylines !== undefined,
 					redirects: ctx.redirects !== undefined,
 					media: ctx.media !== undefined,
 					http: ctx.http !== undefined,

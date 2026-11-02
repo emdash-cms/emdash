@@ -1,10 +1,12 @@
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DatabaseDescriptor } from "../../../src/db/adapters.js";
+import { resolveContentCreateLocale } from "../../../src/i18n/config.js";
 import {
 	buildMigrationManifestFromConfig,
 	findAstroConfigFile,
@@ -20,7 +22,7 @@ const sqliteDatabase: DatabaseDescriptor = {
 	entrypoint: "emdash/db/sqlite",
 	config: { secret: "runtime only" },
 	migrations: {
-		entrypoint: "emdash/db/sqlite-migrations",
+		entrypoint: "emdash/internal/db/sqlite-migrations",
 		manifestConfig: { url: "file:./data.db" },
 	},
 };
@@ -33,7 +35,7 @@ describe("migration integration metadata", () => {
 			database: {
 				type: "sqlite",
 				migrations: {
-					entrypoint: "emdash/db/sqlite-migrations",
+					entrypoint: "emdash/internal/db/sqlite-migrations",
 					manifestConfig: { url: "file:./data.db" },
 				},
 			},
@@ -47,7 +49,7 @@ describe("migration integration metadata", () => {
 			createMigrationIntegrationMetadata({
 				...sqliteDatabase,
 				migrations: {
-					entrypoint: "emdash/db/sqlite-migrations",
+					entrypoint: "emdash/internal/db/sqlite-migrations",
 					manifestConfig: { password: "do-not-attach" },
 				},
 			}),
@@ -120,12 +122,14 @@ describe("buildMigrationManifestFromConfig", () => {
 		expect(manifest.i18n).toEqual({
 			defaultLocale: "en",
 			locales: ["en", "fr"],
+			localeAliases: { "fr-FR": "fr" },
 			fallback: { fr: "en" },
 			prefixDefaultLocale: true,
 		});
+		expect(resolveContentCreateLocale("fr-FR", manifest.i18n)).toBe("fr");
 		expect(manifest.database).toEqual({
 			type: "sqlite",
-			executorEntrypoint: "emdash/db/sqlite-migrations",
+			executorEntrypoint: "emdash/internal/db/sqlite-migrations",
 			executorConfig: { url: "file:./data.db" },
 		});
 	});
@@ -214,7 +218,7 @@ describe("project-local package resolution", () => {
 						database: {
 							type: "sqlite",
 							migrations: {
-								entrypoint: "emdash/db/sqlite-migrations",
+								entrypoint: "emdash/internal/db/sqlite-migrations",
 								manifestConfig: { url: "file:./project.db" }
 							}
 						}
@@ -229,5 +233,65 @@ describe("project-local package resolution", () => {
 		expect(manifest.emdashVersion).toBe("9.8.7-project");
 		expect(manifest.migrationSet.names).toEqual(["001_project"]);
 		expect(manifest.database.executorConfig).toEqual({ url: "file:./project.db" });
+	});
+
+	it("loads config that imports a package publishing TypeScript source", async () => {
+		const root = await mkdtemp(join(tmpdir(), "emdash-project-ts-dependency-"));
+		tempDirectories.push(root);
+		const modules = join(root, "node_modules");
+		const pluginPackage = join(modules, "ts-source-plugin");
+		const emdashPackage = join(modules, "emdash");
+		const identity = await createCoreMigrationIdentity("9.8.7-project", ["001_project"]);
+		await writeFile(join(root, "package.json"), '{"type":"module"}');
+		await writeModule(
+			join(pluginPackage, "package.json"),
+			'{"name":"ts-source-plugin","type":"module","exports":"./src/index.ts"}',
+		);
+		await writeModule(
+			join(pluginPackage, "src", "index.ts"),
+			`import { label } from "./label.js";
+			export function tsSourcePlugin(name: string): { id: string } {
+				return { id: label(name) };
+			}`,
+		);
+		await writeModule(
+			join(pluginPackage, "src", "label.ts"),
+			"export const label = (name: string): string => `plugin-${name}`;\n",
+		);
+		await writeModule(
+			join(emdashPackage, "package.json"),
+			'{"name":"emdash","type":"module","exports":{"./migrations":"./migrations.js"}}',
+		);
+		await writeModule(
+			join(emdashPackage, "migrations.js"),
+			`export async function getCoreMigrationIdentity() { return ${JSON.stringify(identity)}; }`,
+		);
+		await symlink(
+			dirname(createRequire(import.meta.url).resolve("astro/package.json")),
+			join(modules, "astro"),
+			"dir",
+		);
+		await writeFile(
+			join(root, "astro.config.mjs"),
+			`import { tsSourcePlugin } from "ts-source-plugin";
+			const plugin = tsSourcePlugin("forms");
+			export default {
+				integrations: [{
+					[Symbol.for("emdash:migration-config")]: {
+						database: {
+							type: "sqlite",
+							migrations: {
+								entrypoint: "emdash/internal/db/sqlite-migrations",
+								manifestConfig: { url: \`file:./\${plugin.id}.db\` }
+							}
+						}
+					}
+				}]
+			};`,
+		);
+
+		const manifest = await buildMigrationManifestFromConfig({ projectRoot: root });
+
+		expect(manifest.database.executorConfig).toEqual({ url: "file:./plugin-forms.db" });
 	});
 });

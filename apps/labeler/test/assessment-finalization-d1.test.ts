@@ -1,3 +1,4 @@
+import { evaluateHydratedListingVisibility } from "@emdash-cms/registry-moderation";
 import { applyD1Migrations } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -6,8 +7,13 @@ import { createAssessmentFinalizationProposal } from "../src/assessment/finaliza
 import { createD1AssessmentLifecycleStore } from "../src/assessment/lifecycle.js";
 import type { AssessmentPolicyResolution } from "../src/assessment/policy.js";
 import { createAssessmentWorkflowParams } from "../src/assessment/run-key.js";
-import { ASSESSMENT_VERSIONS, PROFILE_CID, PROFILE_URI } from "./assessment-fixtures.js";
-import { createTestIssuer, decisionContext } from "./issuer-helpers.js";
+import {
+	ASSESSMENT_VERSIONS,
+	PROFILE_CID,
+	PROFILE_URI,
+	PUBLISHER_DID,
+} from "./assessment-fixtures.js";
+import { createTestIssuer, decisionContext, ISSUER_DID } from "./issuer-helpers.js";
 
 beforeAll(async () => {
 	await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
@@ -96,6 +102,88 @@ describe("atomic D1 assessment finalization", () => {
 				assessment_id: run.runKey,
 			}),
 		]);
+	});
+
+	it("retracts an earlier automated error when a rerun passes", async () => {
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+		const uri = `${PROFILE_URI}-rerun-transition`;
+		const issuer = await createTestIssuer(env.DB, {
+			automationPolicyVersions: [ASSESSMENT_VERSIONS.policyVersion],
+		});
+		const first = await createPreparedRun(lifecycle, "rerun-transition-error", uri, PROFILE_CID);
+		await issuer.commitAssessmentFinalization(
+			createAssessmentFinalizationProposal({
+				run: first.run,
+				moderationFingerprint: first.fingerprint,
+				resolution: terminalResolution("error"),
+			}),
+			new Date("2026-08-24T16:00:00.000Z"),
+		);
+
+		const rerun = await createPreparedRun(lifecycle, "rerun-transition-passed", uri, PROFILE_CID);
+		const proposal = createAssessmentFinalizationProposal({
+			run: rerun.run,
+			moderationFingerprint: rerun.fingerprint,
+			resolution: terminalResolution("pass"),
+		});
+		const committed = await issuer.commitAssessmentFinalization(
+			proposal,
+			new Date("2026-08-24T16:00:00.000Z"),
+		);
+		const retried = await issuer.commitAssessmentFinalization(
+			proposal,
+			new Date("2026-08-24T17:00:00.000Z"),
+		);
+
+		const stored = await env.DB.prepare(
+			`SELECT ver, src, uri, cid, val, neg, cts
+			 FROM issued_labels WHERE uri = ? ORDER BY sequence`,
+		)
+			.bind(uri)
+			.all<{
+				ver: 1;
+				src: string;
+				uri: string;
+				cid: string;
+				val: string;
+				neg: number;
+				cts: string;
+			}>();
+		const labels = stored.results.map(({ neg, ...label }) => ({
+			...label,
+			...(neg === 1 ? { neg: true } : {}),
+		}));
+		const visibility = evaluateHydratedListingVisibility({
+			subject: {
+				uri,
+				cid: PROFILE_CID,
+				kind: "profile",
+				publisherDid: PUBLISHER_DID,
+			},
+			policy: {
+				schemaVersion: 1,
+				policyVersion: ASSESSMENT_VERSIONS.policyVersion,
+				effectiveAt: "2026-08-24T00:00:00.000Z",
+				requiredPositiveSources: [ISSUER_DID],
+				acceptedStateSources: [],
+				redactionSources: [],
+				autoPass: "disabled",
+				prohibitedCategories: [],
+			},
+			labels,
+			evaluatedAt: "2026-08-24T16:00:01.000Z",
+		});
+
+		expect(retried).toEqual(committed);
+		expect(labels).toHaveLength(3);
+		expect(labels).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ val: "listing-error" }),
+				expect.objectContaining({ val: "listing-error", neg: true }),
+				expect.objectContaining({ val: "listing-passed" }),
+			]),
+		);
+		expect(visibility).toMatchObject({ visible: true, state: "passed" });
 	});
 
 	it("finalizes findings without automated labels after a manual decision wins", async () => {
@@ -199,6 +287,18 @@ function reviewResolution(): AssessmentPolicyResolution {
 			},
 		],
 		reasonCodes: ["policy-finding"],
+		imageIdentities: [],
+	};
+}
+
+function terminalResolution(outcome: "pass" | "error"): AssessmentPolicyResolution {
+	return {
+		policyEngineVersion: "listing-assessment-policy-v1",
+		policyVersion: ASSESSMENT_VERSIONS.policyVersion,
+		outcome,
+		coverage: { text: "complete", links: "complete", media: "complete" },
+		findings: [],
+		reasonCodes: [],
 		imageIdentities: [],
 	};
 }

@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
 
 import type { SqliteDialectConfig } from "kysely";
-import { Kysely, SqliteAdapter, SqliteDialect } from "kysely";
+import {
+	DummyDriver,
+	Kysely,
+	SqliteAdapter,
+	SqliteDialect,
+	SqliteIntrospector,
+	SqliteQueryCompiler,
+} from "kysely";
 import { Pool } from "pg";
 import { describe } from "vitest";
 
@@ -69,6 +76,38 @@ export function createTestDatabase(): Kysely<DatabaseSchema> {
 			database: sqlite,
 		}),
 	});
+}
+
+class StalledDriver extends DummyDriver {
+	#pending = new Set<(reason?: unknown) => void>();
+
+	override acquireConnection(): Promise<never> {
+		return new Promise((_, reject) => {
+			this.#pending.add(reject);
+		});
+	}
+
+	abort(): void {
+		const pending = [...this.#pending];
+		this.#pending.clear();
+		for (const reject of pending) {
+			reject(new Error("stalled database aborted"));
+		}
+	}
+}
+
+/** A database whose queries never settle, like a query whose request workerd cancelled. */
+export function createStalledDatabase(): { db: Kysely<DatabaseSchema>; abort(): void } {
+	const driver = new StalledDriver();
+	const db = new Kysely<DatabaseSchema>({
+		dialect: {
+			createAdapter: () => new SqliteAdapter(),
+			createDriver: () => driver,
+			createIntrospector: (kysely) => new SqliteIntrospector(kysely),
+			createQueryCompiler: () => new SqliteQueryCompiler(),
+		},
+	});
+	return { db, abort: () => driver.abort() };
 }
 
 /**
@@ -501,6 +540,26 @@ export async function setupForDialectWithCollections(
 	}
 	const db = await setupTestDatabaseWithCollections();
 	return { db, dialect };
+}
+
+/**
+ * A handle that `withTransaction` treats as an open transaction, so a handler
+ * given it runs its statements inline instead of opening one of its own — D1's
+ * boundary, where each statement that has run stays run.
+ *
+ * A real transaction can't stand in for that: Postgres aborts one on the first
+ * error, so the read that checks what survived the failure fails too.
+ */
+export function asInlineTransaction(db: Kysely<DatabaseSchema>): Kysely<DatabaseSchema> {
+	return new Proxy(db, {
+		get(target, prop) {
+			if (prop === "isTransaction") return true;
+			// Kysely reads private fields off `this`, which a proxy doesn't carry,
+			// so both getters and methods have to see the real instance.
+			const value = Reflect.get(target, prop);
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	});
 }
 
 /**

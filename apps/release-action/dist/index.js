@@ -1120,6 +1120,8 @@ var releaseExtension_exports = /* @__PURE__ */ __exportAll({
 	adminAccessSchema: () => adminAccessSchema,
 	adminEditorDraftPatchConstraintsSchema: () => adminEditorDraftPatchConstraintsSchema,
 	adminEditorDraftReadConstraintsSchema: () => adminEditorDraftReadConstraintsSchema,
+	bylinesAccessSchema: () => bylinesAccessSchema,
+	bylinesReadConstraintsSchema: () => bylinesReadConstraintsSchema,
 	commentsAccessSchema: () => commentsAccessSchema,
 	commentsModerateConstraintsSchema: () => commentsModerateConstraintsSchema,
 	commentsReadConstraintsSchema: () => commentsReadConstraintsSchema,
@@ -1168,6 +1170,13 @@ const _adminAccessSchema = /* @__PURE__ */ object$1({
 });
 const _adminEditorDraftPatchConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#adminEditorDraftPatchConstraints")) });
 const _adminEditorDraftReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#adminEditorDraftReadConstraints")) });
+const _bylinesAccessSchema = /* @__PURE__ */ object$1({
+	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#bylinesAccess")),
+	get read() {
+		return /* @__PURE__ */ optional$1(bylinesReadConstraintsSchema);
+	}
+});
+const _bylinesReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#bylinesReadConstraints")) });
 const _commentsAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#commentsAccess")),
 	get moderate() {
@@ -1210,6 +1219,9 @@ const _declaredAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#declaredAccess")),
 	get admin() {
 		return /* @__PURE__ */ optional$1(adminAccessSchema);
+	},
+	get bylines() {
+		return /* @__PURE__ */ optional$1(bylinesAccessSchema);
 	},
 	get comments() {
 		return /* @__PURE__ */ optional$1(commentsAccessSchema);
@@ -1349,6 +1361,8 @@ const _usersReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE
 const adminAccessSchema = _adminAccessSchema;
 const adminEditorDraftPatchConstraintsSchema = _adminEditorDraftPatchConstraintsSchema;
 const adminEditorDraftReadConstraintsSchema = _adminEditorDraftReadConstraintsSchema;
+const bylinesAccessSchema = _bylinesAccessSchema;
+const bylinesReadConstraintsSchema = _bylinesReadConstraintsSchema;
 const commentsAccessSchema = _commentsAccessSchema;
 const commentsModerateConstraintsSchema = _commentsModerateConstraintsSchema;
 const commentsReadConstraintsSchema = _commentsReadConstraintsSchema;
@@ -1788,13 +1802,14 @@ function parseIntent(value, serviceUrl) {
 	const state = value["state"];
 	const stateGeneration = safeInteger(value, "stateGeneration");
 	const reasonCode = nullableString(value, "reasonCode");
+	const reasonMessage = value["reasonMessage"] === void 0 ? null : nullableString(value, "reasonMessage");
 	const workflowId = nullableString(value, "workflowId");
 	const expiresAt = safeInteger(value, "expiresAt");
 	const createdAt = safeInteger(value, "createdAt");
 	const updatedAt = safeInteger(value, "updatedAt");
 	const result = parseIntentResult(value["result"]);
 	const approvalUrl = nullableString(value, "approvalUrl");
-	if (!id || !ULID_PATTERN.test(id) || !publisherDid || !DID_PATTERN.test(publisherDid) || !packageSlug || !PACKAGE_SLUG_PATTERN.test(packageSlug) || !version || !VERSION_PATTERN.test(version) || !isIntentState(state) || stateGeneration === null || stateGeneration < 1 || reasonCode === void 0 || workflowId === void 0 || expiresAt === null || createdAt === null || updatedAt === null || result === void 0 || approvalUrl === void 0 || workflowId !== null && !ULID_PATTERN.test(workflowId) || createdAt > updatedAt || result !== null && (result.uri !== `at://${publisherDid}/com.emdashcms.experimental.package.release/${packageSlug}:${version}` || !CID_PATTERN.test(result.cid))) throw invalidResponse();
+	if (!id || !ULID_PATTERN.test(id) || !publisherDid || !DID_PATTERN.test(publisherDid) || !packageSlug || !PACKAGE_SLUG_PATTERN.test(packageSlug) || !version || !VERSION_PATTERN.test(version) || !isIntentState(state) || stateGeneration === null || stateGeneration < 1 || reasonCode === void 0 || reasonMessage === void 0 || reasonMessage !== null && reasonMessage.length > 2048 || workflowId === void 0 || expiresAt === null || createdAt === null || updatedAt === null || result === void 0 || approvalUrl === void 0 || workflowId !== null && !ULID_PATTERN.test(workflowId) || createdAt > updatedAt || result !== null && (result.uri !== `at://${publisherDid}/com.emdashcms.experimental.package.release/${packageSlug}:${version}` || !CID_PATTERN.test(result.cid))) throw invalidResponse();
 	if (approvalUrl !== null && serviceUrl) {
 		let parsedApproval;
 		try {
@@ -1812,6 +1827,7 @@ function parseIntent(value, serviceUrl) {
 		state,
 		stateGeneration,
 		reasonCode,
+		...value["reasonMessage"] === void 0 ? {} : { reasonMessage },
 		workflowId,
 		expiresAt,
 		createdAt,
@@ -7965,10 +7981,9 @@ function isJsonPostRouteContract(route) {
 * Zod schema for PluginManifest validation
 *
 * Used to validate manifest.json from plugin bundles at every parse site:
-* - Client-side download (marketplace.ts extractBundle)
-* - R2 load (api/handlers/marketplace.ts loadBundleFromR2)
-* - CLI publish preview (cli/commands/publish.ts readManifestFromTarball)
-* - Marketplace ingest extends this with publishing-specific fields
+* - client-side bundle download
+* - registry and legacy marketplace ingestion
+* - `emdash-plugin` build and publish validation
 */
 /**
 * Current capability names — the ones authors should use going forward.
@@ -7990,6 +8005,7 @@ const CURRENT_PLUGIN_CAPABILITIES = [
 	"hooks.content-policy:register",
 	"taxonomies:read",
 	"taxonomies:write",
+	"bylines:read",
 	"redirects:read",
 	"redirects:write",
 	"media:read",
@@ -8073,6 +8089,8 @@ const HOOK_NAMES = [
 	"comment:moderate",
 	"comment:afterCreate",
 	"comment:afterModerate",
+	"byline:afterSave",
+	"byline:afterDelete",
 	"page:metadata",
 	"page:fragments"
 ];
@@ -8161,7 +8179,8 @@ const settingFieldSchema = discriminatedUnion("type", [
 const adminPageSchema = object({
 	path: string(),
 	label: string(),
-	icon: string().optional()
+	icon: string().optional(),
+	group: string().trim().min(1).max(100).optional()
 });
 const dashboardWidgetSchema = object({
 	id: string(),
@@ -8286,6 +8305,7 @@ const declaredAccessSchema = object({
 		read: accessConstraints.optional(),
 		write: accessConstraints.optional()
 	}).optional(),
+	bylines: object({ read: accessConstraints.optional() }).optional(),
 	redirects: object({
 		read: accessConstraints.optional(),
 		write: accessConstraints.optional()
@@ -8501,6 +8521,7 @@ function capabilitiesToDeclaredAccess(capabilities, allowedHosts) {
 		out.taxonomies = { read: {} };
 		if (caps.has("taxonomies:write")) out.taxonomies.write = {};
 	}
+	if (caps.has("bylines:read")) out.bylines = { read: {} };
 	if (caps.has("redirects:read") || caps.has("redirects:write")) {
 		out.redirects = { read: {} };
 		if (caps.has("redirects:write")) out.redirects.write = {};
@@ -8559,6 +8580,7 @@ function declaredAccessToCapabilities(declaredAccess) {
 		caps.add("taxonomies:write");
 		caps.add("taxonomies:read");
 	}
+	if (declaredAccess.bylines?.read) caps.add("bylines:read");
 	if (declaredAccess.redirects?.read) caps.add("redirects:read");
 	if (declaredAccess.redirects?.write) {
 		caps.add("redirects:write");
@@ -13086,7 +13108,7 @@ function encodeBase32(bytes) {
 //#region src/prepare.ts
 const MAX_PROVENANCE_BYTES = 5 * 1024 * 1024;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const WORKFLOW_REF_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9._/-]+$/;
+const WORKFLOW_REF_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9.@_/-]+$/;
 var ReleasePreparationError = class extends Error {
 	constructor(message) {
 		super(message);
@@ -13292,7 +13314,7 @@ async function runAction(runtime, dependencies = {}) {
 		const runnerTemp = runtime.getEnvironment("RUNNER_TEMP");
 		const repository = runtime.getEnvironment("GITHUB_REPOSITORY");
 		const workflowRef = runtime.getEnvironment("GITHUB_WORKFLOW_REF");
-		const repositoryVisibility = runtime.getEnvironment("GITHUB_REPOSITORY_VISIBILITY");
+		const repositoryVisibility = runtime.getInput("repository-visibility");
 		if (!runnerTemp || !repository || !workflowRef || !repositoryVisibility) throw new ActionConfigurationError("GitHub workflow identity is unavailable");
 		prepared = await (dependencies.prepareReleaseFiles ?? prepareReleaseFiles)({
 			workspace,
@@ -13393,7 +13415,7 @@ async function runAction(runtime, dependencies = {}) {
 		runtime.info(`Published ${intent.result.uri} (${intent.result.cid})`);
 		return intent;
 	}
-	if (FAILURE_STATES.has(intent.state)) throw new ActionConfigurationError(`Release intent ended in ${intent.state}${intent.reasonCode ? ` (${intent.reasonCode})` : ""}`);
+	if (FAILURE_STATES.has(intent.state)) throw new ActionConfigurationError(`Release intent ${intent.id} ended in ${intent.state}${intent.reasonCode ? ` (${intent.reasonCode})` : ""}${intent.reasonMessage ? `: ${intent.reasonMessage}` : ""}`);
 	throw new ActionConfigurationError(`Release intent stopped in unexpected state ${intent.state}`);
 }
 async function executeAction(runtime, dependencies = {}) {

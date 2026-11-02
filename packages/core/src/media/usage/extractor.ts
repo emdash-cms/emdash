@@ -1,5 +1,7 @@
+import { isPortableTextVideoBlock } from "../../content/converters/video.js";
 import { normalizeMime } from "../mime.js";
 import { INTERNAL_MEDIA_PREFIX } from "../normalize.js";
+import { storageKeyFromLocalMediaFileUrl } from "../url.js";
 import type {
 	ExtractedMediaUsageOccurrence,
 	ExtractMediaUsageOccurrencesInput,
@@ -16,6 +18,7 @@ interface MediaRef {
 	providerAssetId: string;
 	mediaKind: MediaKind | null;
 	mimeType: string | null;
+	storageKey?: string;
 }
 
 interface AddOccurrenceInput {
@@ -59,6 +62,11 @@ export function extractMediaUsageOccurrences({
 
 		if (field.type === "portableText") {
 			extractPortableTextOccurrences(occurrences, seen, field.slug, value);
+			continue;
+		}
+
+		if (field.type === "blocks") {
+			extractBlockOccurrences(occurrences, seen, field, value);
 		}
 	}
 
@@ -71,6 +79,7 @@ function extractRepeaterOccurrences(
 	fieldSlug: string,
 	value: unknown,
 	subFields: readonly MediaUsageExtractionSubField[] | undefined,
+	pathPrefix = fieldSlug,
 ): void {
 	if (!Array.isArray(value) || !Array.isArray(subFields)) return;
 
@@ -84,7 +93,7 @@ function extractRepeaterOccurrences(
 				occurrences,
 				seen,
 				fieldSlug,
-				`${fieldSlug}[${itemIndex}].${subField.slug}`,
+				`${pathPrefix}[${itemIndex}].${subField.slug}`,
 				item[subField.slug],
 			);
 		}
@@ -121,6 +130,7 @@ function extractPortableTextOccurrences(
 	seen: Set<string>,
 	fieldSlug: string,
 	value: unknown,
+	pathPrefix = fieldSlug,
 ): void {
 	if (!Array.isArray(value)) return;
 
@@ -132,8 +142,22 @@ function extractPortableTextOccurrences(
 				occurrences,
 				seen,
 				fieldSlug,
-				`${fieldSlug}[${blockIndex}]`,
+				`${pathPrefix}[${blockIndex}]`,
 				block.asset,
+				"image",
+			);
+			continue;
+		}
+
+		// A plugin's own `video` block may hold a reference that isn't media.
+		if (isPortableTextVideoBlock(block)) {
+			addPortableTextAssetOccurrence(
+				occurrences,
+				seen,
+				fieldSlug,
+				`${pathPrefix}[${blockIndex}]`,
+				block.asset,
+				"video",
 			);
 			continue;
 		}
@@ -146,8 +170,73 @@ function extractPortableTextOccurrences(
 					occurrences,
 					seen,
 					fieldSlug,
-					`${fieldSlug}[${blockIndex}].images[${imageIndex}]`,
+					`${pathPrefix}[${blockIndex}].images[${imageIndex}]`,
 					image.asset,
+					"image",
+				);
+			}
+		}
+	}
+}
+
+export class MediaUsageBlockResolutionError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "MediaUsageBlockResolutionError";
+	}
+}
+
+function extractBlockOccurrences(
+	occurrences: ExtractedMediaUsageOccurrence[],
+	seen: Set<string>,
+	field: ExtractMediaUsageOccurrencesInput["fields"][number],
+	value: unknown,
+): void {
+	if (!Array.isArray(value)) return;
+	const types = new Map((field.blockTypes ?? []).map((type) => [type.slug, type]));
+	for (const [index, block] of value.entries()) {
+		if (!isRecord(block)) continue;
+		if (
+			typeof block._type !== "string" ||
+			typeof block._version !== "number" ||
+			typeof block._key !== "string" ||
+			block._key.length === 0
+		) {
+			throw new MediaUsageBlockResolutionError(
+				`Block at ${field.slug}[${index}] has invalid identity metadata`,
+			);
+		}
+		const type = types.get(block._type);
+		const version = type?.versions.find((candidate) => candidate.version === block._version);
+		if (!type || !version || version.unsupportedTypes?.length) {
+			throw new MediaUsageBlockResolutionError(
+				`Block at ${field.slug}[${index}] has no retained definition`,
+			);
+		}
+		const pathPrefix = `${field.slug}.${block._key}`;
+		for (const nestedField of version.fields) {
+			const nestedValue = block[nestedField.slug];
+			const nestedPath = `${pathPrefix}.${nestedField.slug}`;
+			if (nestedField.type === "image") {
+				addImageOccurrences(occurrences, seen, field.slug, nestedPath, nestedValue);
+			} else if (nestedField.type === "file") {
+				addOccurrence(occurrences, seen, {
+					fieldSlug: field.slug,
+					fieldPath: nestedPath,
+					referenceType: "file_field",
+					value: nestedValue,
+					fallbackKind: null,
+				});
+			} else if (nestedField.type === "portableText") {
+				extractPortableTextOccurrences(occurrences, seen, field.slug, nestedValue, nestedPath);
+			} else if (nestedField.type === "repeater") {
+				extractRepeaterOccurrences(
+					occurrences,
+					seen,
+					field.slug,
+					nestedValue,
+					nestedField.validation?.subFields,
+					nestedPath,
 				);
 			}
 		}
@@ -160,23 +249,40 @@ function addPortableTextAssetOccurrence(
 	fieldSlug: string,
 	pathPrefix: string,
 	asset: unknown,
+	kind: "image" | "video",
 ): void {
 	if (!isRecord(asset)) return;
 
 	const provider = normalizeProvider(asset.provider);
+	const fieldPath = (key: string) => `${pathPrefix}.asset.${key}`;
+	const referenceType = kind === "video" ? "portable_text_video" : "portable_text_image";
+	const mimeType = normalizeMimeValue(asset.mimeType);
 	const ref = readPortableTextAssetRef(asset, provider);
-	if (!ref) return;
+	if (ref) {
+		addRefOccurrence(occurrences, seen, {
+			fieldSlug,
+			fieldPath: fieldPath(ref.key),
+			referenceType,
+			ref: buildMediaRef({ id: ref.id, provider, mimeType, fallbackKind: kind }),
+		});
+		return;
+	}
 
+	if (provider !== "local") return;
+	const fileUrl = readPortableTextAssetFileUrl(asset);
+	if (!fileUrl) return;
 	addRefOccurrence(occurrences, seen, {
 		fieldSlug,
-		fieldPath: `${pathPrefix}.asset.${ref.key}`,
-		referenceType: "portable_text_image",
-		ref: buildMediaRef({
-			id: ref.id,
+		fieldPath: fieldPath(fileUrl.key),
+		referenceType,
+		ref: {
+			mediaId: null,
 			provider,
-			mimeType: normalizeMimeValue(asset.mimeType),
-			fallbackKind: "image",
-		}),
+			providerAssetId: fileUrl.storageKey,
+			mediaKind: mediaKindFromMime(mimeType) ?? kind,
+			mimeType,
+			storageKey: fileUrl.storageKey,
+		},
 	});
 }
 
@@ -218,6 +324,7 @@ function addRefOccurrence(
 		providerAssetId: input.ref.providerAssetId,
 		mediaKind: input.ref.mediaKind,
 		mimeType: input.ref.mimeType,
+		...(input.ref.storageKey === undefined ? {} : { storageKey: input.ref.storageKey }),
 	};
 
 	const key = [
@@ -284,6 +391,21 @@ function readPortableTextAssetRef(
 	const id = normalizeId(asset.id);
 	if (id) return { key: "id", id };
 
+	return null;
+}
+
+/**
+ * The storage key of an asset that names a local file by its URL instead of
+ * its media id, as Markdown images and URL-only blocks do.
+ */
+function readPortableTextAssetFileUrl(
+	asset: Record<string, unknown>,
+): { key: "_ref" | "url"; storageKey: string } | null {
+	for (const key of ["_ref", "url"] as const) {
+		const value = asset[key];
+		const storageKey = typeof value === "string" ? storageKeyFromLocalMediaFileUrl(value) : null;
+		if (storageKey) return { key, storageKey };
+	}
 	return null;
 }
 

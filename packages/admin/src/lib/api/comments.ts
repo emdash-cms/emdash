@@ -63,7 +63,10 @@ export async function fetchComments(options?: {
 
 	const url = `${API_BASE}/admin/comments${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
-	return parseApiResponse<FindManyResult<AdminComment>>(response, "Failed to fetch comments");
+	return parseApiResponse<FindManyResult<AdminComment>>(
+		response,
+		i18n._(msg`Failed to fetch comments`),
+	);
 }
 
 /**
@@ -71,7 +74,7 @@ export async function fetchComments(options?: {
  */
 export async function fetchCommentCounts(): Promise<CommentCounts> {
 	const response = await apiFetch(`${API_BASE}/admin/comments/counts`);
-	return parseApiResponse<CommentCounts>(response, "Failed to fetch comment counts");
+	return parseApiResponse<CommentCounts>(response, i18n._(msg`Failed to fetch comment counts`));
 }
 
 /**
@@ -79,7 +82,7 @@ export async function fetchCommentCounts(): Promise<CommentCounts> {
  */
 export async function fetchComment(id: string): Promise<AdminComment> {
 	const response = await apiFetch(`${API_BASE}/admin/comments/${id}`);
-	return parseApiResponse<AdminComment>(response, "Failed to fetch comment");
+	return parseApiResponse<AdminComment>(response, i18n._(msg`Failed to fetch comment`));
 }
 
 // ---------------------------------------------------------------------------
@@ -98,7 +101,7 @@ export async function updateCommentStatus(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ status }),
 	});
-	return parseApiResponse<AdminComment>(response, "Failed to update comment status");
+	return parseApiResponse<AdminComment>(response, i18n._(msg`Failed to update comment status`));
 }
 
 /**
@@ -123,5 +126,8 @@ export async function bulkCommentAction(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ ids, action }),
 	});
-	return parseApiResponse<{ affected: number }>(response, "Failed to perform bulk action");
+	return parseApiResponse<{ affected: number }>(
+		response,
+		i18n._(msg`Failed to perform bulk action`),
+	);
 }

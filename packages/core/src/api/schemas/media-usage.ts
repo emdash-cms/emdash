@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { MEDIA_USAGE_SITE_SETTINGS } from "../../media/usage/site-settings.js";
 import { slugPattern } from "./common.js";
 
 export const mediaUsageCoverageStatusSchema = z
@@ -42,7 +43,13 @@ export const mediaUsageOccurrenceDetailSchema = z
 		fieldSlug: z.string(),
 		fieldPath: z.string(),
 		occurrenceIndex: z.number().int().min(0),
-		referenceType: z.enum(["image_field", "file_field", "portable_text_image", "unknown"]),
+		referenceType: z.enum([
+			"image_field",
+			"file_field",
+			"portable_text_image",
+			"portable_text_video",
+			"unknown",
+		]),
 	})
 	.meta({ id: "MediaUsageOccurrenceDetail" });
 
@@ -67,10 +74,19 @@ export const mediaUsageEntryDetailSchema = z
 	})
 	.meta({ id: "MediaUsageEntryDetail" });
 
+export const mediaUsageSiteSettingDetailSchema = z
+	.object({
+		setting: z.enum(MEDIA_USAGE_SITE_SETTINGS),
+	})
+	.meta({ id: "MediaUsageSiteSettingDetail" });
+
 export const mediaUsageDetailsResponseSchema = z
 	.object({
 		items: z.array(mediaUsageEntryDetailSchema),
 		nextCursor: z.string().optional(),
+		siteSettings: z.array(mediaUsageSiteSettingDetailSchema).meta({
+			description: "Site settings that select the media item, repeated on every page",
+		}),
 		coverage: mediaUsageCoverageSchema,
 	})
 	.meta({ id: "MediaUsageDetailsResponse" });
@@ -327,4 +343,5 @@ export type MediaUsageSummary = z.infer<typeof mediaUsageSummarySchema>;
 export type MediaUsageOccurrenceDetail = z.infer<typeof mediaUsageOccurrenceDetailSchema>;
 export type MediaUsageSourceDetail = z.infer<typeof mediaUsageSourceDetailSchema>;
 export type MediaUsageEntryDetail = z.infer<typeof mediaUsageEntryDetailSchema>;
+export type MediaUsageSiteSettingDetail = z.infer<typeof mediaUsageSiteSettingDetailSchema>;
 export type MediaUsageDetailsResponse = z.infer<typeof mediaUsageDetailsResponseSchema>;

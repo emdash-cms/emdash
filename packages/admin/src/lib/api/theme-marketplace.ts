@@ -6,6 +6,9 @@
  * is local (/_emdash/api/themes/preview).
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse } from "./client.js";
 
 // ---------------------------------------------------------------------------
@@ -81,7 +84,7 @@ export async function searchThemes(opts: ThemeSearchOpts = {}): Promise<ThemeSea
 	const qs = params.toString();
 	const url = `${THEME_MARKETPLACE_BASE}${qs ? `?${qs}` : ""}`;
 	const response = await apiFetch(url);
-	return parseApiResponse<ThemeSearchResult>(response, "Theme search failed");
+	return parseApiResponse<ThemeSearchResult>(response, i18n._(msg`Theme search failed`));
 }
 
 /**
@@ -93,7 +96,7 @@ export async function fetchTheme(id: string): Promise<ThemeDetail> {
 	if (response.status === 404) {
 		throw new Error(`Theme "${id}" not found`);
 	}
-	return parseApiResponse<ThemeDetail>(response, "Failed to fetch theme");
+	return parseApiResponse<ThemeDetail>(response, i18n._(msg`Failed to fetch theme`));
 }
 
 /**
@@ -108,7 +111,7 @@ export async function generatePreviewUrl(previewUrl: string): Promise<string> {
 	});
 	const result = await parseApiResponse<{ url: string }>(
 		response,
-		"Failed to generate preview URL",
+		i18n._(msg`Failed to generate preview URL`),
 	);
 	return result.url;
 }

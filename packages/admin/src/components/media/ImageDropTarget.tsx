@@ -15,6 +15,8 @@ interface ImageDropTargetProps {
 	onUploaded: (item: MediaItem) => void;
 	allowedMimeTypes?: string[];
 	fieldId?: string;
+	blockType?: string;
+	blockVersion?: number;
 	className?: string;
 }
 
@@ -24,6 +26,8 @@ export function ImageDropTarget({
 	onUploaded,
 	allowedMimeTypes,
 	fieldId,
+	blockType,
+	blockVersion,
 	className,
 }: ImageDropTargetProps) {
 	const { t } = useLingui();
@@ -50,7 +54,7 @@ export function ImageDropTarget({
 		}
 		const file = files[0]!;
 		if (!matchesMimeAllowlist(file.type, ["image/"])) {
-			setError(t`Only image files can be dropped here.`);
+			setError(t`Only image files can be uploaded here.`);
 			return;
 		}
 		if (allowedMimeTypes?.length && !matchesMimeAllowlist(file.type, allowedMimeTypes)) {
@@ -63,7 +67,12 @@ export function ImageDropTarget({
 		setUploading(true);
 		setError(null);
 		try {
-			const item = await uploadMedia(file, { fieldId, signal: controller.signal });
+			const item = await uploadMedia(file, {
+				fieldId,
+				blockType,
+				blockVersion,
+				signal: controller.signal,
+			});
 			if (controller.signal.aborted || activeUpload.current !== controller) return;
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 			onUploaded(item);
@@ -123,7 +132,9 @@ export function ImageDropTarget({
 					}}
 				>
 					{uploading ? (
-						<Loader size="sm" aria-hidden="true" />
+						<span aria-hidden="true" className="flex shrink-0">
+							<Loader size="sm" />
+						</span>
 					) : (
 						<UploadSimple className="h-8 w-8 shrink-0" aria-hidden="true" />
 					)}

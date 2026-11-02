@@ -110,7 +110,7 @@ test.describe("Sandboxed plugin editor extensions", () => {
 			throw new Error(await retry.text());
 		}
 		expect(patchResponse.status()).toBe(200);
-		const preview = admin.page.getByRole("dialog", { name: "Review proposed changes" });
+		const preview = admin.page.getByRole("dialog", { name: "مراجعة التغييرات المقترحة" });
 		await expect(preview).toBeVisible();
 		await expect(preview.getByText("Unsaved title", { exact: true })).toBeVisible();
 		await expect(preview.getByText("Unsaved title translated", { exact: true })).toBeVisible();
@@ -119,7 +119,7 @@ test.describe("Sandboxed plugin editor extensions", () => {
 			fullPage: true,
 		});
 		expect(extensionRequests).toHaveLength(2);
-		await preview.getByRole("button", { name: "Apply changes" }).click();
+		await preview.getByRole("button", { name: "تطبيق التغييرات" }).click();
 		await expect(title).toHaveValue("Unsaved title translated");
 		await expect(admin.page.locator('form button[type="submit"]').first()).toBeEnabled();
 	});
@@ -144,11 +144,9 @@ test.describe("Sandboxed plugin editor extensions", () => {
 		await title.fill("Typed while plugin worked");
 		const slowResponse = await slowResponsePromise;
 		expect(slowResponse.status()).toBe(200);
-		await expect(
-			admin.page.getByText("Plugin changes were not applied", { exact: true }),
-		).toBeVisible();
+		await expect(admin.page.getByText("لم تُطبَّق تغييرات الإضافة", { exact: true })).toBeVisible();
 		await expect(title).toHaveValue("Typed while plugin worked");
-		await expect(admin.page.getByRole("dialog", { name: "Review proposed changes" })).toHaveCount(
+		await expect(admin.page.getByRole("dialog", { name: "مراجعة التغييرات المقترحة" })).toHaveCount(
 			0,
 		);
 		await admin.page.screenshot({
@@ -165,4 +163,46 @@ test.describe("Sandboxed plugin editor extensions", () => {
 		).toHaveCount(0);
 		await expect(admin.page.getByRole("button", { name: "Recheck saved entry" })).toHaveCount(0);
 	});
+
+	for (const adminLocale of ["en", "ar"] as const) {
+		test(`keeps the reorder handle clear of the panel header and content (${adminLocale})`, async ({
+			admin,
+			serverInfo,
+		}) => {
+			const entryId = serverInfo.contentIds.posts[0]!;
+			if (adminLocale === "ar") {
+				await admin.page
+					.context()
+					.addCookies([{ name: "emdash-locale", value: "ar", domain: "localhost", path: "/" }]);
+			}
+			await admin.goto(`/content/posts/${entryId}?locale=en`);
+			await admin.waitForLoading();
+
+			const trigger = admin.page.getByRole("button", {
+				name: "Plugin content health",
+				exact: true,
+			});
+			const section = admin.page.locator("section", { has: trigger });
+			const handle = section.locator("[data-sortable-handle]");
+			await section.scrollIntoViewIfNeeded();
+			type Box = { x: number; y: number; width: number; height: number };
+			const overlaps = (a: Box, b: Box) =>
+				a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+			const collapsedSection = (await section.boundingBox())!;
+			const collapsedHandle = (await handle.boundingBox())!;
+			expect(collapsedHandle.y).toBeGreaterThanOrEqual(collapsedSection.y);
+			expect(collapsedHandle.y + collapsedHandle.height).toBeLessThanOrEqual(
+				collapsedSection.y + collapsedSection.height,
+			);
+			expect(overlaps(collapsedHandle, (await trigger.boundingBox())!)).toBe(false);
+
+			await trigger.click();
+			await expect(admin.page.getByRole("button", { name: "Translate draft" })).toBeVisible();
+			const panel = section.locator(`[id="${await trigger.getAttribute("aria-controls")}"]`);
+			const expandedHandle = (await handle.boundingBox())!;
+			expect(overlaps(expandedHandle, (await trigger.boundingBox())!)).toBe(false);
+			expect(overlaps(expandedHandle, (await panel.boundingBox())!)).toBe(false);
+		});
+	}
 });

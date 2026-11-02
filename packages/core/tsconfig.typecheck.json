@@ -1,0 +1,18 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"rootDir": "."
+	},
+	"include": ["src/**/*", "tests/types/**/*"],
+	"exclude": [
+		"node_modules",
+		"dist",
+		"src/astro/**",
+		"src/components/**",
+		"src/preview/**",
+		"src/ui.ts",
+		"src/ui-comments.ts",
+		"src/auth/providers/*-admin.tsx"
+	]
+}

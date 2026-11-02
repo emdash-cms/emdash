@@ -91,6 +91,25 @@ describe("MCP input schema validation", () => {
 		expect(result.isError).toBe(true);
 	});
 
+	it("content_list accepts every sort field its orderBy description names", async () => {
+		const { tools } = await harness.client.listTools();
+		const orderBy = tools.find((tool) => tool.name === "content_list")?.inputSchema.properties
+			?.orderBy as { description?: string } | undefined;
+		const fields = Array.from(
+			(orderBy?.description ?? "").matchAll(/'(\w+)'/g),
+			([, field]) => field,
+		);
+		expect(fields).not.toHaveLength(0);
+
+		for (const field of fields) {
+			const result = await harness.client.callTool({
+				name: "content_list",
+				arguments: { collection: "post", orderBy: field },
+			});
+			expect(result.isError, `${field}: ${extractText(result)}`).toBeFalsy();
+		}
+	});
+
 	it("schema_create_collection rejects supports value outside enum", async () => {
 		const result = await harness.client.callTool({
 			name: "schema_create_collection",

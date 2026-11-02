@@ -61,8 +61,7 @@ export interface DidDocCache {
 	upsert(did: string, doc: Omit<CachedDidDoc, "resolvedAt">, now: Date): Promise<void>;
 	/** Force the cached row to look stale without disturbing other timestamps
 	 * the cache tracks (e.g. `last_seen_at` in the D1 binding). Used by
-	 * `DidResolver.invalidate()` after a signature failure suggests a key
-	 * rotation. The implementation chooses what "stale" means; the
+	 * `DidResolver.invalidate()`. The implementation chooses what "stale" means; the
 	 * Map-backed test cache rewrites `resolvedAt` to epoch, the D1 binding
 	 * sets `pds_resolved_at` only. */
 	expire(did: string): Promise<void>;
@@ -131,6 +130,14 @@ export class DidResolver {
 		if (cached && now.getTime() - cached.resolvedAt.getTime() < this.ttlMs) {
 			return materialise(cached);
 		}
+		return this.resolveFresh(did_);
+	}
+
+	/** Skips the cache read; the cached row is only replaced once the lookup
+	 * succeeds, so a failed lookup leaves it usable. */
+	async resolveFresh(did: string): Promise<ResolvedDidDoc> {
+		const did_ = asDid(did);
+		const now = this.now();
 		const fresh = await this.resolveFreshDid(did_);
 		const resolved = await materialise({ ...fresh, resolvedAt: now });
 		await this.cache.upsert(did_, fresh, now);
@@ -193,9 +200,7 @@ export class DidResolver {
 		return { did, ...resolved };
 	}
 
-	/** Force a re-resolution next time. Used by the verification path on
-	 * signature failure (the cached signing key may be stale after a
-	 * publisher key rotation). Delegates to the cache's `expire` so other
+	/** Force a re-resolution next time. Delegates to the cache's `expire` so other
 	 * timestamps the cache tracks (e.g. `last_seen_at`) aren't disturbed —
 	 * we shouldn't pretend the publisher hasn't been seen since 1970 just
 	 * because we want to drop the cached crypto. */

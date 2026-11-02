@@ -105,7 +105,10 @@ export function RepeaterField({
 			newItem[sf.slug] =
 				sf.type === "boolean"
 					? false
-					: sf.type === "number" || sf.type === "integer" || sf.type === "image"
+					: sf.type === "number" ||
+						  sf.type === "integer" ||
+						  sf.type === "image" ||
+						  sf.type === "datetime"
 						? null
 						: "";
 		}
@@ -189,6 +192,7 @@ export function RepeaterField({
 									key={item._key}
 									item={item}
 									index={index}
+									pathPrefix={id}
 									subFields={subFields}
 									isCollapsed={collapsedItems.has(item._key)}
 									onToggleCollapse={() => toggleCollapse(item._key)}
@@ -210,6 +214,7 @@ export function RepeaterField({
 interface SortableRepeaterItemProps {
 	item: RepeaterItem;
 	index: number;
+	pathPrefix: string;
 	subFields: RepeaterSubFieldDef[];
 	isCollapsed: boolean;
 	onToggleCollapse: () => void;
@@ -221,6 +226,7 @@ interface SortableRepeaterItemProps {
 function SortableRepeaterItem({
 	item,
 	index,
+	pathPrefix,
 	subFields,
 	isCollapsed,
 	onToggleCollapse,
@@ -290,6 +296,7 @@ function SortableRepeaterItem({
 					{subFields.map((sf) => (
 						<SubFieldInput
 							key={sf.slug}
+							id={`${pathPrefix}.${index}.${sf.slug}`}
 							subField={sf}
 							value={item[sf.slug]}
 							onChange={(v) => onChange(sf.slug, v)}
@@ -303,18 +310,20 @@ function SortableRepeaterItem({
 }
 
 interface SubFieldInputProps {
+	id: string;
 	subField: RepeaterSubFieldDef;
 	value: unknown;
 	onChange: (value: unknown) => void;
 	timezone: string;
 }
 
-function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputProps) {
+function SubFieldInput({ id, subField, value, onChange, timezone }: SubFieldInputProps) {
 	const { t } = useLingui();
 	switch (subField.type) {
 		case "string":
 			return (
 				<Input
+					id={id}
 					label={subField.label}
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}
@@ -325,6 +334,7 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 		case "text":
 			return (
 				<InputArea
+					id={id}
 					label={subField.label}
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}
@@ -337,6 +347,7 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 		case "integer":
 			return (
 				<Input
+					id={id}
 					label={subField.label}
 					type="number"
 					value={typeof value === "number" ? String(value) : ""}
@@ -348,6 +359,7 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 		case "boolean":
 			return (
 				<Switch
+					id={id}
 					checked={Boolean(value)}
 					onCheckedChange={(checked) => onChange(checked)}
 					label={<span className="text-base">{subField.label}</span>}
@@ -356,6 +368,7 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 		case "datetime":
 			return (
 				<Input
+					id={id}
 					label={subField.label}
 					type="datetime-local"
 					value={toDatetimeLocalInputValue(value, timezone)}
@@ -376,6 +389,7 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 			const options = Array.isArray(subField.options) ? subField.options : [];
 			return (
 				<Combobox
+					id={id}
 					label={subField.label}
 					value={typeof value === "string" && value ? value : null}
 					onValueChange={(v) => onChange(typeof v === "string" ? v : "")}
@@ -399,6 +413,8 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 		case "image":
 			return (
 				<ImageFieldRenderer
+					id={id}
+					fieldId={id}
 					label={subField.label}
 					// Same backwards-compat contract as top-level image fields:
 					// objects are MediaValues, strings are legacy URLs.
@@ -416,6 +432,7 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 		default:
 			return (
 				<Input
+					id={id}
 					label={subField.label}
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}

@@ -32,6 +32,7 @@ describe("Workerd generated plugin context", () => {
 
 		expect(context.content).toBeUndefined();
 		expect(context.schema).toBeUndefined();
+		expect(context.bylines).toBeUndefined();
 	});
 
 	it("exposes schema discovery and separately gated revision methods", async () => {

@@ -1,5 +1,22 @@
 # @emdash-cms/registry-client
 
+## 0.7.1
+
+### Patch Changes
+
+- [#4003](https://github.com/emdash-cms/emdash/pull/4003) [`af92bf7`](https://github.com/emdash-cms/emdash/commit/af92bf731e33f7d2d1b81b3c75fdf840c99067c8) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds an optional `reasonMessage` to delegated release intents and shows it in `emdash-plugin release` output. Failed releases include the intent ID and guidance for resolving the failure, including when to start a fresh workflow dispatch. Clients remain compatible with release services that return only a reason code.
+
+## 0.7.0
+
+### Minor Changes
+
+- [#3418](https://github.com/emdash-cms/emdash/pull/3418) [`895fb69`](https://github.com/emdash-cms/emdash/commit/895fb699223f27a26a1556c9d009e71019cece13) Thanks [@swissky](https://github.com/swissky)! - Adds `compareVersions(a, b)` to `@emdash-cms/registry-client/env`. It returns the semver precedence of `a` relative to `b` as a negative number, zero, or a positive number, or `null` when either version is not valid semver.
+
+### Patch Changes
+
+- Updated dependencies [[`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811)]:
+  - @emdash-cms/registry-lexicons@0.7.0
+
 ## 0.6.1
 
 ### Patch Changes

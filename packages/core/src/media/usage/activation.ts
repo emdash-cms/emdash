@@ -102,10 +102,17 @@ export async function canResumeMediaUsageCollectionCapture(
 	db: Kysely<Database>,
 	identity: { collectionId: string; collectionSlug: string; creationFingerprint?: string },
 ): Promise<boolean> {
+	return (await findResumableMediaUsageCollectionCaptureId(db, identity)) === identity.collectionId;
+}
+
+export async function findResumableMediaUsageCollectionCaptureId(
+	db: Kysely<Database>,
+	identity: { collectionSlug: string; creationFingerprint?: string },
+): Promise<string | null> {
 	const activation = await findActivationIfAvailable(db);
-	if (!activation) return false;
+	if (!activation) return null;
 	assertRuntimeGeneration(activation);
-	if (activation.state !== "active") return false;
+	if (activation.state !== "active") return null;
 
 	const lifecycle = await db
 		.selectFrom("_emdash_media_usage_index_status")
@@ -113,15 +120,17 @@ export async function canResumeMediaUsageCollectionCapture(
 		.where("adapter_id", "=", "content-media")
 		.where("scope_type", "=", "collection")
 		.where("scope_key", "=", identity.collectionSlug)
-		.where("collection_id", "=", identity.collectionId)
 		.where("capture_state", "in", ["installing", "ready"])
 		.executeTakeFirst();
-	return (
-		lifecycle?.collection_id === identity.collectionId &&
-		(identity.creationFingerprint
-			? lifecycle.cursor === identity.creationFingerprint
-			: lifecycle.cursor === null)
-	);
+	if (!lifecycle?.collection_id) return null;
+	if (
+		identity.creationFingerprint
+			? lifecycle.cursor !== identity.creationFingerprint
+			: lifecycle.cursor !== null
+	) {
+		return null;
+	}
+	return lifecycle.collection_id;
 }
 
 export async function prepareMediaUsageCollectionCapture(

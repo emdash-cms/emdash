@@ -134,6 +134,27 @@ describe("Editor image drop targets", () => {
 		},
 	);
 
+	it("shows the brand border while a file is dragged over the target", async () => {
+		const screen = await render(
+			<>
+				<Target kind="featured" />
+				<span data-testid="brand-color" style={{ color: "var(--color-kumo-brand)" }} />
+			</>,
+		);
+		const target = screen
+			.getByRole("button", { name: "Drop an image here or browse for Featured image", exact: true })
+			.element().parentElement!;
+		const brand = getComputedStyle(screen.getByTestId("brand-color").element()).color;
+
+		const dataTransfer = new DataTransfer();
+		dataTransfer.items.add(imageFile());
+		target.dispatchEvent(
+			new DragEvent("dragenter", { dataTransfer, bubbles: true, cancelable: true }),
+		);
+
+		await vi.waitFor(() => expect(getComputedStyle(target).borderTopColor).toBe(brand));
+	});
+
 	it.each(["featured", "og"] as const)(
 		"uploads one file into %s and ignores another drop while busy",
 		async (kind) => {
@@ -178,7 +199,31 @@ describe("Editor image drop targets", () => {
 			});
 			if (kind === "featured")
 				await expect.element(screen.getByText("upload.png", { exact: true })).toBeVisible();
-			else await expect.element(screen.getByRole("button", { name: "Remove image" })).toBeVisible();
+			else
+				await expect.element(screen.getByRole("button", { name: "Remove OG Image" })).toBeVisible();
+		},
+	);
+
+	it.each(["featured", "og"] as const)(
+		"announces only the upload status while %s uploads",
+		async (kind) => {
+			vi.mocked(uploadMedia).mockImplementation(() => new Promise(() => {}));
+			const screen = await render(<Target kind={kind} />);
+			const button = screen.getByRole("button", {
+				name:
+					kind === "featured"
+						? "Drop an image here or browse for Featured image"
+						: "Drop an image here or browse for OG Image",
+				exact: true,
+			});
+
+			dropFiles(button.element(), [imageFile()]);
+
+			await expect.element(button).toBeDisabled();
+			const announced = [...document.querySelectorAll("[role='status']")].filter(
+				(element) => !element.closest("[aria-hidden='true']"),
+			);
+			expect(announced.map((element) => element.textContent)).toEqual(["Uploading image…"]);
 		},
 	);
 
@@ -186,7 +231,7 @@ describe("Editor image drop targets", () => {
 		{
 			files: [new File(["text"], "note.txt", { type: "text/plain" })],
 			allowed: undefined,
-			message: "Only image files can be dropped here.",
+			message: "Only image files can be uploaded here.",
 		},
 		{ files: [imageFile(), imageFile()], allowed: undefined, message: "Drop one image at a time." },
 		{

@@ -13,6 +13,7 @@ import { handleTermCreate, handleTermList } from "#api/handlers/taxonomies.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { createTermBody, termListQuery } from "#api/schemas.js";
 import { taxonomyTag } from "#cache/chrome-tags.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -65,7 +66,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 
 		const result = await handleTermCreate(emdash.db, name, body);
 		if (!result.success) return unwrapResult(result, 201);
-		if (cache?.enabled) await cache.invalidate({ tags: [taxonomyTag(name)] });
+		await invalidateRouteCache(cache, [taxonomyTag(name)]);
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create term", "TERM_CREATE_ERROR");

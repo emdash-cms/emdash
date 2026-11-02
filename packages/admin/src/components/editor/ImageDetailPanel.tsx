@@ -5,7 +5,16 @@
  * Shows preview and allows editing alt text, caption, and link settings.
  */
 
-import { Button, Input, InputArea, Label, LinkButton, Select, Text } from "@cloudflare/kumo";
+import {
+	Button,
+	Checkbox,
+	Input,
+	InputArea,
+	Label,
+	LinkButton,
+	Select,
+	Text,
+} from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	X,
@@ -21,7 +30,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
-import { canonicalMediaProviderId, metaString } from "../../lib/media-utils.js";
+import { canonicalMediaProviderId, dropsDisplayHeight, metaString } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils.js";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { FieldHelpLabel } from "../FieldHelpLabel.js";
@@ -49,6 +58,11 @@ export interface ImageAttributes {
 	displayHeight?: number;
 	/** Alignment for this image instance (e.g. from a WordPress import) */
 	alignment?: "left" | "center" | "right" | "wide" | "full";
+	/** When set, the image renders inside an `<a>` linking to `href`. */
+	link?: {
+		href: string;
+		blank?: boolean;
+	} | null;
 }
 
 export interface ImagePanelAttributes extends ImageAttributes {
@@ -66,6 +80,10 @@ export interface ImageDetailPanelProps {
 	stickyFooter?: boolean;
 	/** When true, renders inline within the sidebar column instead of as a fixed overlay */
 	inline?: boolean;
+}
+
+function imageDimension(value: number | undefined): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 /**
@@ -91,6 +109,8 @@ export function ImageDetailPanel({
 	const [alt, setAlt] = React.useState(attributes.alt ?? "");
 	const [caption, setCaption] = React.useState(attributes.caption ?? "");
 	const [title, setTitle] = React.useState(attributes.title ?? "");
+	const [linkHref, setLinkHref] = React.useState(attributes.link?.href ?? "");
+	const [linkBlank, setLinkBlank] = React.useState(Boolean(attributes.link?.blank));
 	const [showMediaPicker, setShowMediaPicker] = React.useState(false);
 	const [asset, setAsset] = React.useState(attributes);
 	const handleAssetItemChanged = React.useCallback(
@@ -120,13 +140,14 @@ export function ImageDetailPanel({
 	const assetEditor = useMediaAssetEditor(handleAssetItemChanged);
 
 	const [hasCustomSize, setHasCustomSize] = React.useState(
-		attributes.displayWidth != null || attributes.displayHeight != null,
+		imageDimension(attributes.displayWidth) != null ||
+			imageDimension(attributes.displayHeight) != null,
 	);
 	const [displayWidth, setDisplayWidth] = React.useState<number | undefined>(
-		attributes.displayWidth ?? undefined,
+		imageDimension(attributes.displayWidth),
 	);
 	const [displayHeight, setDisplayHeight] = React.useState<number | undefined>(
-		attributes.displayHeight ?? undefined,
+		imageDimension(attributes.displayHeight),
 	);
 	const [lockAspectRatio, setLockAspectRatio] = React.useState(true);
 	const [alignment, setAlignment] = React.useState<ImageAttributes["alignment"]>(
@@ -139,11 +160,16 @@ export function ImageDetailPanel({
 		setCaption(attributes.caption ?? "");
 		setTitle(attributes.title ?? "");
 		setAsset(attributes);
-		setHasCustomSize(attributes.displayWidth != null || attributes.displayHeight != null);
-		setDisplayWidth(attributes.displayWidth ?? undefined);
-		setDisplayHeight(attributes.displayHeight ?? undefined);
+		setHasCustomSize(
+			imageDimension(attributes.displayWidth) != null ||
+				imageDimension(attributes.displayHeight) != null,
+		);
+		setDisplayWidth(imageDimension(attributes.displayWidth));
+		setDisplayHeight(imageDimension(attributes.displayHeight));
 		setLockAspectRatio(true);
 		setAlignment(attributes.alignment);
+		setLinkHref(attributes.link?.href ?? "");
+		setLinkBlank(Boolean(attributes.link?.blank));
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- the node token identifies a new attribute snapshot
 	}, [nodeKey]);
 
@@ -151,22 +177,24 @@ export function ImageDetailPanel({
 	const aspectRatio = asset.width && asset.height ? asset.width / asset.height : undefined;
 
 	const handleWidthChange = (value: string) => {
+		const parsedWidth = value ? parseInt(value, 10) : undefined;
+		if (parsedWidth !== undefined && imageDimension(parsedWidth) === undefined) return;
 		setHasCustomSize(true);
-		const newWidth = value ? parseInt(value, 10) : undefined;
-		setDisplayWidth(newWidth);
-		if (lockAspectRatio && aspectRatio && newWidth) {
-			setDisplayHeight(Math.round(newWidth / aspectRatio));
+		setDisplayWidth(parsedWidth);
+		if (lockAspectRatio && aspectRatio && parsedWidth) {
+			setDisplayHeight(Math.round(parsedWidth / aspectRatio));
 		} else if (!hasCustomSize) {
 			setDisplayHeight(asset.height);
 		}
 	};
 
 	const handleHeightChange = (value: string) => {
+		const parsedHeight = value ? parseInt(value, 10) : undefined;
+		if (parsedHeight !== undefined && imageDimension(parsedHeight) === undefined) return;
 		setHasCustomSize(true);
-		const newHeight = value ? parseInt(value, 10) : undefined;
-		setDisplayHeight(newHeight);
-		if (lockAspectRatio && aspectRatio && newHeight) {
-			setDisplayWidth(Math.round(newHeight * aspectRatio));
+		setDisplayHeight(parsedHeight);
+		if (lockAspectRatio && aspectRatio && parsedHeight) {
+			setDisplayWidth(Math.round(parsedHeight * aspectRatio));
 		} else if (!hasCustomSize) {
 			setDisplayWidth(asset.width);
 		}
@@ -191,6 +219,7 @@ export function ImageDetailPanel({
 			// Clear caption/title since it's a new image
 			caption: undefined,
 			title: undefined,
+			...(dropsDisplayHeight(asset, item) ? { displayHeight: undefined } : {}),
 		});
 		setShowMediaPicker(false);
 		onClose();
@@ -206,18 +235,38 @@ export function ImageDetailPanel({
 			title !== (attributes.title ?? "") ||
 			displayWidth !== originalDisplayWidth ||
 			displayHeight !== originalDisplayHeight ||
-			alignment !== attributes.alignment
+			alignment !== attributes.alignment ||
+			linkHref !== (attributes.link?.href ?? "") ||
+			linkBlank !== Boolean(attributes.link?.blank)
 		);
-	}, [attributes, alt, caption, title, displayWidth, displayHeight, alignment]);
+	}, [
+		attributes,
+		alt,
+		caption,
+		title,
+		displayWidth,
+		displayHeight,
+		alignment,
+		linkHref,
+		linkBlank,
+	]);
 
 	const handleSave = () => {
+		const trimmedHref = linkHref.trim();
 		onUpdate({
 			alt: alt || undefined,
-			caption: caption || undefined,
+			caption,
 			title: title || undefined,
-			displayWidth,
-			displayHeight,
+			displayWidth: imageDimension(displayWidth),
+			displayHeight: imageDimension(displayHeight),
 			alignment,
+			// Only touch `link` when one is being set or an existing one cleared, so
+			// images without links keep their update payload unchanged.
+			...(trimmedHref || attributes.link
+				? {
+						link: trimmedHref ? { href: trimmedHref, ...(linkBlank ? { blank: true } : {}) } : null,
+					}
+				: {}),
 		});
 		onClose();
 	};
@@ -490,12 +539,31 @@ export function ImageDetailPanel({
 						placeholder={t`Optional hover text`}
 					/>
 
+					<div className="space-y-2">
+						<Input
+							dir="ltr"
+							label={t`Link URL`}
+							type="text"
+							value={linkHref}
+							onChange={(e) => setLinkHref(e.target.value)}
+							placeholder={t`https://example.com or /page`}
+							description={t`When set, the image becomes a clickable link to this URL.`}
+						/>
+						<Checkbox
+							checked={linkBlank}
+							onCheckedChange={(checked) => setLinkBlank(checked)}
+							disabled={!linkHref.trim()}
+							label={t`Open in new tab`}
+						/>
+					</div>
+
 					{/* Source URL - only show for external images (no mediaId) */}
 					{!asset.mediaId && asset.src && (
 						<div>
 							<Label htmlFor={sourceInputId}>{t`Source`}</Label>
 							<div className="mt-1.5 flex min-w-0 gap-2">
 								<Input
+									dir="ltr"
 									id={sourceInputId}
 									aria-label={t`Source`}
 									value={asset.src}
@@ -698,12 +766,35 @@ export function ImageDetailPanel({
 						description={t`Shown when hovering over the image.`}
 					/>
 
+					<div className="space-y-2">
+						<Input
+							dir="ltr"
+							label={t`Link URL`}
+							type="text"
+							value={linkHref}
+							onChange={(e) => setLinkHref(e.target.value)}
+							placeholder={t`https://example.com or /page`}
+							description={t`When set, the image becomes a clickable link to this URL.`}
+						/>
+						<Checkbox
+							checked={linkBlank}
+							onCheckedChange={(checked) => setLinkBlank(checked)}
+							disabled={!linkHref.trim()}
+							label={t`Open in new tab`}
+						/>
+					</div>
+
 					{/* Source URL - only show for external images (no mediaId) */}
 					{!asset.mediaId && asset.src && (
 						<div>
 							<Label>{t`Source`}</Label>
 							<div className="mt-1.5 flex min-w-0 gap-2">
-								<Input value={asset.src} readOnly className="min-w-0 flex-1 font-mono text-base" />
+								<Input
+									dir="ltr"
+									value={asset.src}
+									readOnly
+									className="min-w-0 flex-1 font-mono text-base"
+								/>
 								<LinkButton
 									variant="outline"
 									shape="square"

@@ -291,7 +291,7 @@ export function workflowConnectionPolicy(
 	if (refScope === "version_tags" && !request.claim.ref.startsWith("refs/tags/")) {
 		throw new WorkflowConnectionError();
 	}
-	const separator = request.claim.workflowRef.lastIndexOf("@");
+	const separator = request.claim.workflowRef.indexOf("@");
 	const workflowPath = request.claim.workflowRef.slice(0, separator);
 	const workflowRef = `${workflowPath}@refs/*`;
 	const requestedRefs = [refScope === "version_tags" ? "refs/tags/*" : request.claim.ref];
@@ -301,7 +301,7 @@ export function workflowConnectionPolicy(
 		current.repository === request.claim.repository &&
 		current.repositoryId === request.claim.repositoryId &&
 		current.repositoryOwnerId === request.claim.repositoryOwnerId &&
-		current.workflowRef.slice(0, current.workflowRef.lastIndexOf("@")) === workflowPath;
+		current.workflowRef.slice(0, current.workflowRef.indexOf("@")) === workflowPath;
 	const allowedRefs = [...(sameConnection ? current.allowedRefs : []), ...requestedRefs].toSorted();
 	const requestedEnvironments = request.claim.environment ? [request.claim.environment] : [];
 	const allowedEnvironments =

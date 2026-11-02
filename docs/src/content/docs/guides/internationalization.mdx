@@ -79,7 +79,8 @@ This design means:
 
 An entry has two identifiers with different purposes:
 
-- `entry.id` is the entry's slug. Use it when building the public URL.
+- `entry.id` is the slug, prefixed with the locale whenever the locale's URLs are prefixed (`en/my-post` for a non-default locale, `my-post` for the default locale unless `prefixDefaultLocale` is set). Use it as is when entries are routed at the site root, such as `/${entry.id}`.
+- `entry.data.slug` is the slug without a locale. Use it when the route already adds the locale segment, and when you pass a slug to `getEmDashEntry()`.
 - `entry.data.id` is the database ID. Use it for API operations and helpers that refer to a stored content row, including `getTranslations()` and `getEntryTerms()`.
 
 Translations have different database IDs because each locale is a separate row. Their shared `translation_group` records that the rows are translations of the same content. EmDash manages that group when you create a translation; templates normally only need the database ID of any row in the group.
@@ -99,7 +100,7 @@ const { entry: post, error } = await getEmDashEntry("posts", slug, {
   locale: Astro.currentLocale,
 });
 
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 ---
 
 <article>
@@ -155,8 +156,10 @@ content automatically.
 
 ### Taxonomies (categories, tags)
 
-Terms are per-locale. Definitions (`_emdash_taxonomy_defs`) are also per-locale,
-so `label` / `labelSingular` can be translated too. The pivot
+Terms are per-locale. Each locale can have its own definition, so `label` and
+`labelSingular` can be translated too, while `hierarchical` and `collections`
+are shared by every locale (see
+[Translate taxonomies and terms](/guides/taxonomies/#translate-taxonomies-and-terms)). The pivot
 `content_taxonomies.taxonomy_id` stores the term's `translation_group`, so a
 single assignment spans every locale of the content.
 
@@ -297,7 +300,7 @@ Open any content entry in the editor. The sidebar displays a **Translations** pa
 - **"Edit"** appears for locales with an existing translation — click to navigate to it
 - The current locale is marked with a checkmark
 
-When creating a translation, the new entry is pre-filled with data from the source locale and assigned a default slug of `{source-slug}-{locale}`. Adjust the slug and content as needed, then save.
+Selecting **Translate** creates the translation as a draft and opens it. The draft starts with the source entry's data and the same slug, which is allowed because slugs are unique within each locale. If the translation needs a localized slug, such as `mon-article` for `my-post`, edit the slug. Adjust the content, then save.
 
 ### Per-locale publishing
 
@@ -410,6 +413,8 @@ On a collection with revisions, publishing an entry copies the non-translatable 
 
 System fields like `status`, `published_at`, and `author_id` are always per-locale and never synced.
 
+A [reference field](/guides/relations/) is shared rather than synced: EmDash keys its links by the translation group, so every translation of an entry has one selection, and editing it from any locale changes it for all of them.
+
 <Aside>
   Non-translatable fields are useful for values that should stay consistent across locales, such as a product SKU or a sort order number.
 </Aside>
@@ -464,7 +469,7 @@ const { entry, error } = await getEmDashEntry("posts", Astro.params.slug, {
 	locale: Astro.currentLocale,
 });
 if (error) return new Response("Server error", { status: 500 });
-if (!entry) return Astro.redirect("/404");
+if (!entry) return Astro.rewrite("/404");
 
 const alternates = await getHreflangAlternates("posts", entry.data.id, {
 	siteUrl: Astro.url.origin,

@@ -1,6 +1,6 @@
 import handler from "@astrojs/cloudflare/entrypoints/server";
 import { PluginBridge } from "@emdash-cms/cloudflare/worker";
-import { installRegistryAuthoritativeFixture } from "emdash/testing/registry";
+import { installRegistryAuthoritativeFixture } from "emdash/internal/testing/registry";
 
 declare const __EMDASH_REGISTRY_FIXTURE__: unknown;
 

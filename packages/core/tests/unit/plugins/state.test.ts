@@ -7,17 +7,24 @@
  * - Timestamp tracking
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
 import { PluginStateRepository } from "../../../src/plugins/state.js";
+import {
+	describeEachDialect,
+	setupForDialect,
+	teardownForDialect,
+	type DialectTestContext,
+} from "../../utils/test-db.js";
 
 describe("PluginStateRepository", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 	let repo: PluginStateRepository;
 
 	beforeEach(async () => {
@@ -319,5 +326,44 @@ describe("PluginStateRepository", () => {
 			expect(stateA).toBeNull();
 			expect(stateB).not.toBeNull();
 		});
+	});
+});
+
+describeEachDialect("PluginStateRepository.createActiveIfAbsent", (dialect) => {
+	let ctx: DialectTestContext;
+	let repo: PluginStateRepository;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		repo = new PluginStateRepository(ctx.db);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("creates an active row and reports that it did", async () => {
+		expect(await repo.createActiveIfAbsent("test-plugin", "1.0.0", "config")).toBe(true);
+
+		const state = await repo.get("test-plugin");
+		expect(state).toMatchObject({ status: "active", version: "1.0.0", source: "config" });
+		expect(state?.activatedAt).toBeInstanceOf(Date);
+	});
+
+	it("leaves an existing row untouched and reports that it did not insert", async () => {
+		await repo.disable("test-plugin", "1.0.0");
+
+		expect(await repo.createActiveIfAbsent("test-plugin", "2.0.0", "config")).toBe(false);
+
+		const state = await repo.get("test-plugin");
+		expect(state).toMatchObject({ status: "inactive", version: "1.0.0" });
+	});
+
+	it("lets exactly one of several concurrent callers create the row", async () => {
+		const results = await Promise.all(
+			Array.from({ length: 5 }, () => repo.createActiveIfAbsent("test-plugin", "1.0.0", "config")),
+		);
+
+		expect(results.filter(Boolean)).toHaveLength(1);
 	});
 });

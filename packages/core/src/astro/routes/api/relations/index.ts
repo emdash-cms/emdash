@@ -1,7 +1,7 @@
 /**
  * Relation definitions endpoint
  *
- * GET  /_emdash/api/relations[?locale=xx] - List relation definitions
+ * GET  /_emdash/api/relations[?collection=xx] - List relation definitions
  * POST /_emdash/api/relations              - Create a relation definition
  */
 
@@ -11,7 +11,7 @@ import { requirePerm } from "#api/authorize.js";
 import { handleError, requireDb, unwrapResult } from "#api/error.js";
 import { handleRelationCreate, handleRelationList } from "#api/handlers/relations.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
-import { createRelationBody, localeFilterQuery } from "#api/schemas.js";
+import { createRelationBody, relationListQuery } from "#api/schemas.js";
 
 export const prerender = false;
 
@@ -24,11 +24,11 @@ export const GET: APIRoute = async ({ request, locals }) => {
 	const denied = requirePerm(user, "schema:read");
 	if (denied) return denied;
 
-	const query = parseQuery(new URL(request.url), localeFilterQuery);
+	const query = parseQuery(new URL(request.url), relationListQuery);
 	if (isParseError(query)) return query;
 
 	try {
-		const result = await handleRelationList(emdash.db, { locale: query.locale });
+		const result = await handleRelationList(emdash.db, { collection: query.collection });
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to list relations", "RELATION_LIST_ERROR");

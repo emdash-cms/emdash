@@ -45,51 +45,40 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		WHERE last_seen_at IS NULL
 	`.execute(db);
 
-	// 2. Deduplicate existing rows by path.
-	//    For each path, roll up hits and pick the freshest last_seen_at onto
-	//    a single keeper row, then delete the non-keepers. Uses window
-	//    functions (ROW_NUMBER) so the dedup SQL is valid on both SQLite
-	//    (3.25+, 2018) and Postgres. The previous GROUP BY approach was
-	//    accepted by SQLite but invalid on Postgres because `id` wasn't in
-	//    the GROUP BY or wrapped in an aggregate.
-	if (!hitsExists) {
-		await sql`
-			WITH ranked AS (
+	// 2. Deduplicate existing rows by path: copy each duplicated path's hit
+	//    count and latest timestamp onto all of its rows, then keep only the
+	//    freshest row. The totals come from a single GROUP BY join so the pass
+	//    stays linear. Both statements are safe to rerun after a partial run.
+	await sql`
+		UPDATE _emdash_404_log
+		SET
+			hits = agg.path_count,
+			last_seen_at = agg.latest_created_at
+		FROM (
+			SELECT path, COUNT(*) AS path_count, MAX(created_at) AS latest_created_at
+			FROM _emdash_404_log
+			GROUP BY path
+			HAVING COUNT(*) > 1
+		) AS agg
+		WHERE _emdash_404_log.path = agg.path
+	`.execute(db);
+
+	// Delete the non-keepers (every row except the freshest per path).
+	await sql`
+		DELETE FROM _emdash_404_log
+		WHERE id IN (
+			SELECT id FROM (
 				SELECT
 					id,
-					path,
 					ROW_NUMBER() OVER (
 						PARTITION BY path
 						ORDER BY created_at DESC, id DESC
-					) AS rn,
-					COUNT(*) OVER (PARTITION BY path) AS path_count,
-					MAX(created_at) OVER (PARTITION BY path) AS latest_created_at
+					) AS rn
 				FROM _emdash_404_log
-			)
-			UPDATE _emdash_404_log
-			SET
-				hits = (SELECT path_count FROM ranked WHERE ranked.id = _emdash_404_log.id),
-				last_seen_at = (SELECT latest_created_at FROM ranked WHERE ranked.id = _emdash_404_log.id)
-			WHERE id IN (SELECT id FROM ranked WHERE rn = 1)
-		`.execute(db);
-
-		// Delete the non-keepers (every row except the freshest per path).
-		await sql`
-			DELETE FROM _emdash_404_log
-			WHERE id IN (
-				SELECT id FROM (
-					SELECT
-						id,
-						ROW_NUMBER() OVER (
-							PARTITION BY path
-							ORDER BY created_at DESC, id DESC
-						) AS rn
-					FROM _emdash_404_log
-				) AS ranked
-				WHERE rn > 1
-			)
-		`.execute(db);
-	}
+			) AS ranked
+			WHERE rn > 1
+		)
+	`.execute(db);
 
 	// 3. Add unique index on path for upsert semantics.
 	await db.schema

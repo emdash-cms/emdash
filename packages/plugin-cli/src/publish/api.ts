@@ -718,7 +718,7 @@ function validateLocally(collection: string, value: unknown): void {
 	);
 }
 
-function formatValidationIssues(err: unknown): string {
+export function formatValidationIssues(err: unknown): string {
 	// JSON-serialise whatever the validator handed us (typically a result
 	// object with an `issues` array). Falls back to a JSON-stringification
 	// of the whole value if the expected fields aren't there. We never call

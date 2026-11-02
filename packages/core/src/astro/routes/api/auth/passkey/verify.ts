@@ -20,12 +20,15 @@ import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
+import { sessionUnavailableError } from "../../../../session-user.js";
+
 export const POST: APIRoute = async ({ request, locals, session }) => {
 	const { emdash } = locals;
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
+	if (!session) return sessionUnavailableError();
 
 	try {
 		const body = await parseBody(request, passkeyVerifyBody);
@@ -53,10 +56,7 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 			challengeStore,
 		);
 
-		// Create session
-		if (session) {
-			session.set("user", { id: user.id });
-		}
+		session.set("user", { id: user.id });
 
 		return apiSuccess({
 			success: true,

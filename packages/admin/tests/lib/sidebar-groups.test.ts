@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { groupNavItems, taxonomyGroup } from "../../src/lib/sidebar-groups";
+import { groupNavItems, joinsContentFolder, taxonomyGroup } from "../../src/lib/sidebar-groups";
 
 describe("groupNavItems", () => {
 	it("folds items sharing a group into one folder at the first member's position", () => {
@@ -50,6 +50,16 @@ describe("groupNavItems", () => {
 		expect(entries[0]?.kind === "folder" && entries[0].items.map((i) => i.id)).toEqual(["a", "b"]);
 		expect(entries[1]?.kind).toBe("item");
 	});
+
+	it("inherits the first declared member icon for the folder", () => {
+		const [folder] = groupNavItems([
+			{ id: "a", group: "Calendar" },
+			{ id: "b", group: "Calendar", iconName: "calendar" },
+			{ id: "c", group: "Calendar", iconName: "trophy" },
+		]);
+
+		expect(folder?.kind === "folder" && folder.iconName).toBe("calendar");
+	});
 });
 
 describe("taxonomyGroup", () => {
@@ -69,5 +79,20 @@ describe("taxonomyGroup", () => {
 		expect(taxonomyGroup(["events", "news"], groups)).toBeUndefined();
 		expect(taxonomyGroup(["events", "missing"], groups)).toBeUndefined();
 		expect(taxonomyGroup([], groups)).toBeUndefined();
+	});
+});
+
+describe("joinsContentFolder", () => {
+	const contentGroups = new Set(["Calendar"]);
+
+	it("sends a page whose group a visible collection uses into that folder", () => {
+		expect(joinsContentFolder("Calendar", contentGroups)).toBe(true);
+		expect(joinsContentFolder("  Calendar ", contentGroups)).toBe(true);
+	});
+
+	it("keeps other pages in the Plugins section", () => {
+		expect(joinsContentFolder("calendar", contentGroups)).toBe(false);
+		expect(joinsContentFolder("Sync", contentGroups)).toBe(false);
+		expect(joinsContentFolder(undefined, contentGroups)).toBe(false);
 	});
 });

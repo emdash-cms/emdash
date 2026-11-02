@@ -8,17 +8,18 @@
  * the workerd package installed).
  */
 
-import Database from "better-sqlite3";
 import {
 	ContentRepository,
 	createSandboxRouteError,
 	RevisionRepository,
 	SchemaRegistry,
 } from "emdash";
-import type { RuntimeDependencies } from "emdash/plugin-test-runtime";
+import { BylineRepository, type RuntimeDependencies } from "emdash/internal/plugin-test-runtime";
 import { Kysely, SqliteDialect, type QueryId } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import { NodeSqliteCompatDatabase as Database } from "../../core/src/db/node-sqlite-compat.js";
+import { MiniflareDevRunner } from "../src/sandbox/dev-runner.js";
 import { WorkerdSandboxRunner } from "../src/sandbox/runner.js";
 
 vi.mock("virtual:emdash/config", () => ({ default: null }), { virtual: true });
@@ -414,7 +415,8 @@ export default {
 				item: await ctx.content.get("posts", route.input.id),
 				translations: await ctx.content.getTranslations("posts", route.input.id),
 				publicUrl: await ctx.content.getPublicUrl("posts", route.input.id),
-				revisions: await ctx.content.listRevisions("posts", route.input.id)
+				revisions: await ctx.content.listRevisions("posts", route.input.id),
+				credits: await ctx.bylines.getEntriesBylines("posts", [route.input.id])
 			})
 		},
 		"revisions": {
@@ -464,7 +466,7 @@ export default {
 
 describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 	let db: Kysely<any>;
-	let sqlite: Database.Database;
+	let sqlite: Database;
 	let runner: WorkerdSandboxRunner;
 
 	beforeEach(async () => {
@@ -481,6 +483,75 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		await db.destroy();
 		sqlite.close();
 	});
+
+	it("waits for setup readiness through crash backoff when workerd dies during a hook", async () => {
+		const pluginId = "crash-recovery";
+		const plugin = await runner.load(
+			{
+				id: pluginId,
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				hooks: ["plugin:install", "plugin:activate"],
+			},
+			`export default {
+			hooks: {
+				"plugin:install": async (_event, ctx) => {
+					await ctx.kv.set("entered", true);
+					await new Promise(resolve => setTimeout(resolve, 60000));
+				},
+				"plugin:activate": async (_event, ctx) => { await ctx.kv.set("recovered", true); }
+			}
+		};`,
+		);
+		await runner.ensureRunning();
+		const child = runner["workerdProcess"];
+		if (!child) throw new Error("workerd did not start");
+		const epoch = runner.currentEpoch;
+		const hookFailure = expect(plugin.invokeHook("plugin:install", {})).rejects.toMatchObject({
+			name: "SandboxUnavailableError",
+		});
+		await vi.waitFor(
+			async () => {
+				const entered = await db
+					.selectFrom("_plugin_storage")
+					.select("data")
+					.where("plugin_id", "=", pluginId)
+					.where("collection", "=", "__kv")
+					.where("id", "=", "entered")
+					.executeTakeFirst();
+				expect(entered?.data).toBe("true");
+			},
+			{ timeout: 5000, interval: 10 },
+		);
+
+		const exited = new Promise<void>((resolve) => {
+			child.once("exit", () => resolve());
+		});
+		expect(child.kill("SIGKILL")).toBe(true);
+		await exited;
+		expect(runner.isHealthy()).toBe(false);
+		expect(runner["restartTimer"]).not.toBeNull();
+		expect(runner["needsRestart"]).toBe(false);
+
+		await Promise.all([
+			runner.ensureRunning({ waitForPendingRestart: true }),
+			runner.ensureRunning({ waitForPendingRestart: true }),
+			hookFailure,
+		]);
+		expect(runner.isHealthy()).toBe(true);
+		expect(runner.currentEpoch).toBe(epoch + 1);
+		await plugin.invokeHook("plugin:activate", {});
+		const recovered = await db
+			.selectFrom("_plugin_storage")
+			.select("data")
+			.where("plugin_id", "=", pluginId)
+			.where("collection", "=", "__kv")
+			.where("id", "=", "recovered")
+			.executeTakeFirst();
+		expect(recovered?.data).toBe("true");
+	}, 30_000);
 
 	it("loads a plugin and invokes a route", async () => {
 		const plugin = await runner.load(
@@ -808,8 +879,104 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		expect(httpFetch).toHaveBeenCalledOnce();
 	}, 30_000);
 
+	it.each(["workerd", "bypass", "miniflare"])(
+		"installs a config sandbox once and schedules cron during activation (%s)",
+		async (runnerKind) => {
+			const sandboxBypassed = runnerKind === "bypass";
+			const { EmDashRuntime } = await import("emdash/internal/plugin-test-runtime");
+			const runtimeSqlite = new Database(":memory:");
+			let now = new Date("2030-01-01T00:00:00.000Z");
+			const deps: RuntimeDependencies = {
+				config: {
+					database: {
+						entrypoint: `workerd-lifecycle-${crypto.randomUUID()}`,
+						type: "sqlite",
+						config: {},
+					},
+				},
+				plugins: [],
+				createDialect: () => new SqliteDialect({ database: runtimeSqlite }),
+				createStorage: null,
+				createScheduler: null,
+				sandboxEnabled: !sandboxBypassed,
+				sandboxBypassed,
+				now: () => now,
+				sandboxedPluginEntries: [
+					{
+						id: "config-lifecycle",
+						version: "1.0.0",
+						options: {},
+						code: `export default {
+					hooks: {
+						"plugin:install": async (_event, ctx) => {
+							await ctx.kv.set("installs", (await ctx.kv.get("installs") ?? 0) + 1);
+						},
+						"plugin:activate": async (_event, ctx) => {
+							if (await ctx.kv.get("installs") !== 1) throw new Error("install must run first");
+							await ctx.kv.set("activations", (await ctx.kv.get("activations") ?? 0) + 1);
+							await ctx.cron.schedule("tick", { schedule: "* * * * *" });
+						},
+						cron: async (_event, ctx) => { await ctx.kv.set("ticked", true); }
+					},
+					routes: {
+						state: { handler: async (_route, ctx) => ({
+							installs: await ctx.kv.get("installs"),
+							activations: await ctx.kv.get("activations"),
+							ticked: await ctx.kv.get("ticked")
+						}) }
+					}
+				}`,
+						capabilities: [],
+						allowedHosts: [],
+						storage: {},
+						hooks: ["plugin:install", "plugin:activate", "cron"],
+						routes: [{ name: "state", public: true }],
+					},
+				],
+				createSandboxRunner: (options) =>
+					runnerKind === "miniflare"
+						? new MiniflareDevRunner(options)
+						: new WorkerdSandboxRunner(options),
+			};
+			let runtime = await EmDashRuntime.create(deps);
+			try {
+				const state = await runtime.db
+					.selectFrom("_plugin_state")
+					.selectAll()
+					.where("plugin_id", "=", "config-lifecycle")
+					.executeTakeFirst();
+				expect(state).toMatchObject({ status: "active", source: "config", version: "1.0.0" });
+				const tasks = await runtime.db
+					.selectFrom("_emdash_cron_tasks")
+					.selectAll()
+					.where("plugin_id", "=", "config-lifecycle")
+					.execute();
+				expect(tasks).toEqual([expect.objectContaining({ task_name: "tick", enabled: 1 })]);
+				now = new Date("2030-01-01T00:01:00.000Z");
+				await expect(runtime.runScheduledTasksWithStats()).resolves.toMatchObject({ processed: 1 });
+				await runtime.shutdown();
+				runtime = await EmDashRuntime.create(deps);
+				const result = await runtime.handlePluginApiRoute(
+					"config-lifecycle",
+					"GET",
+					"/state",
+					new Request("https://test.local/state"),
+				);
+				expect(result).toMatchObject({
+					success: true,
+					data: { installs: 1, activations: 1, ticked: true },
+				});
+			} finally {
+				await runtime.shutdown();
+				await runtime.db.destroy();
+				runtimeSqlite.close();
+			}
+		},
+		30_000,
+	);
+
 	it("runs an equivalent runtime content and cold-restart journey through workerd", async () => {
-		const { EmDashRuntime } = await import("emdash/plugin-test-runtime");
+		const { EmDashRuntime } = await import("emdash/internal/plugin-test-runtime");
 		const runtimeSqlite = new Database(":memory:");
 		const deps: RuntimeDependencies = {
 			config: {
@@ -955,7 +1122,7 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 	}, 30_000);
 
 	it("discovers schema, content identity, public URLs, and revisions through real workerd", async () => {
-		const { EmDashRuntime } = await import("emdash/plugin-test-runtime");
+		const { EmDashRuntime } = await import("emdash/internal/plugin-test-runtime");
 		const runtimeSqlite = new Database(":memory:");
 		const deps: RuntimeDependencies = {
 			config: {
@@ -976,7 +1143,7 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 					version: "1.0.0",
 					options: {},
 					code: CONTENT_DISCOVERY_PLUGIN,
-					capabilities: ["schema:read", "content:read", "content:revisions:read"],
+					capabilities: ["schema:read", "content:read", "content:revisions:read", "bylines:read"],
 					allowedHosts: [],
 					storage: {},
 					hooks: [],
@@ -1013,6 +1180,13 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 				authorId: "author-1",
 				data: { title: "Hello" },
 			});
+			const byline = await new BylineRepository(runtime.db).create({
+				slug: "ada",
+				displayName: "Ada",
+			});
+			await new BylineRepository(runtime.db).setContentBylines("posts", post.id, [
+				{ bylineId: byline.id },
+			]);
 			const revision = await new RevisionRepository(runtime.db).create({
 				collection: "posts",
 				entryId: post.id,
@@ -1036,6 +1210,12 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 					item: { id: post.id, authorId: "author-1", version: 1 },
 					publicUrl: "https://example.test/journal/hello/",
 					revisions: [{ data: { title: "Retained" } }],
+					credits: [
+						{
+							entryId: post.id,
+							bylines: [{ byline: { id: byline.id, displayName: "Ada" }, source: "explicit" }],
+						},
+					],
 				},
 			});
 			await new ContentRepository(runtime.db).delete("posts", post.id);
@@ -1058,7 +1238,8 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 	}, 30_000);
 
 	it("runs runtime-owned taxonomy mutations through a real workerd isolate", async () => {
-		const { EmDashRuntime, TaxonomyRepository } = await import("emdash/plugin-test-runtime");
+		const { EmDashRuntime, TaxonomyRepository } =
+			await import("emdash/internal/plugin-test-runtime");
 		const runtimeSqlite = new Database(":memory:");
 		const deps: RuntimeDependencies = {
 			config: {
@@ -1267,6 +1448,38 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 
 		expect(result.stored).toBe("hello");
 	}, 30_000);
+
+	it("refreshes bridge credentials when a plugin is reactivated", async () => {
+		const plugin = await runner.load(
+			{
+				id: "test-reactivation",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				hooks: [],
+				routes: ["kv-test"],
+				admin: {},
+			},
+			ECHO_PLUGIN,
+		);
+		const request = { method: "POST", url: "/api/test", headers: {} };
+		const invoke = (value: string) => plugin.invokeRoute("kv-test", { value }, request);
+		const originalToken = runner["plugins"].get(plugin.id)?.token;
+		if (!originalToken || !plugin.setActive) {
+			throw new Error("Plugin must have active credentials and support status changes");
+		}
+
+		await expect(invoke("before disable")).resolves.toEqual({ stored: "before disable" });
+
+		plugin.setActive(false);
+		expect(runner.validateToken(originalToken)).toBeNull();
+		await expect(invoke("while disabled")).rejects.toThrow("Invalid auth token");
+
+		plugin.setActive(true);
+		expect(runner.validateToken(originalToken)).toBeNull();
+		await expect(invoke("after reactivation")).resolves.toEqual({ stored: "after reactivation" });
+	}, 60_000);
 
 	it("encrypts settings through the production workerd process", async () => {
 		vi.stubEnv(

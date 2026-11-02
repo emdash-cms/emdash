@@ -26,11 +26,12 @@ function toCapnpId(pluginId: string): string {
 		.join("");
 }
 
-interface LoadedPlugin {
+export interface LoadedPlugin {
 	manifest: PluginManifest;
 	code: string;
 	port: number;
 	token: string;
+	active: boolean;
 }
 
 interface CapnpOptions {

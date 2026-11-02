@@ -200,6 +200,50 @@ export class MarketplaceUnavailableError extends MarketplaceError {
 	}
 }
 
+const MAX_REDIRECTS = 5;
+
+/**
+ * Fetches a marketplace URL, following redirects only while they stay on
+ * that URL's origin. Throws a `MarketplaceError` coded
+ * `${codePrefix}_REDIRECT_UNTRUSTED` or `${codePrefix}_TOO_MANY_REDIRECTS`.
+ */
+export async function fetchWithinOrigin(
+	url: string,
+	label: string,
+	codePrefix: string,
+): Promise<Response> {
+	const origin = new URL(url).origin;
+	let currentUrl = url;
+	let response = await fetch(currentUrl, { redirect: "manual" });
+
+	for (let i = 0; i < MAX_REDIRECTS; i++) {
+		if (response.status < 300 || response.status >= 400) break;
+
+		const location = response.headers.get("location");
+		if (!location) break;
+
+		const target = new URL(location, currentUrl);
+		if (target.origin !== origin) {
+			throw new MarketplaceError(
+				`${label} redirected to untrusted host: ${target.origin}`,
+				response.status,
+				`${codePrefix}_REDIRECT_UNTRUSTED`,
+			);
+		}
+		currentUrl = target.href;
+		response = await fetch(currentUrl, { redirect: "manual" });
+	}
+
+	if (response.status >= 300 && response.status < 400) {
+		throw new MarketplaceError(
+			`${label} exceeded maximum redirects (${MAX_REDIRECTS})`,
+			response.status,
+			`${codePrefix}_TOO_MANY_REDIRECTS`,
+		);
+	}
+	return response;
+}
+
 // ── Implementation ─────────────────────────────────────────────────
 
 class MarketplaceClientImpl implements MarketplaceClient {
@@ -241,40 +285,9 @@ class MarketplaceClientImpl implements MarketplaceClient {
 	async downloadBundle(id: string, version: string): Promise<PluginBundle> {
 		const bundleUrl = `${this.baseUrl}/api/v1/plugins/${encodeURIComponent(id)}/versions/${encodeURIComponent(version)}/bundle`;
 
-		const marketplaceOrigin = new URL(this.baseUrl).origin;
-		const MAX_REDIRECTS = 5;
 		let response: Response;
 		try {
-			let currentUrl = bundleUrl;
-			response = await fetch(currentUrl, { redirect: "manual" });
-
-			// Follow redirects manually, validating each target stays on the marketplace host
-			for (let i = 0; i < MAX_REDIRECTS; i++) {
-				if (response.status < 300 || response.status >= 400) break;
-
-				const location = response.headers.get("location");
-				if (!location) break;
-
-				const target = new URL(location, currentUrl);
-				if (target.origin !== marketplaceOrigin) {
-					throw new MarketplaceError(
-						`Bundle download redirected to untrusted host: ${target.origin}`,
-						response.status,
-						"BUNDLE_REDIRECT_UNTRUSTED",
-					);
-				}
-				currentUrl = target.href;
-				response = await fetch(currentUrl, { redirect: "manual" });
-			}
-
-			// If still a redirect after MAX_REDIRECTS, fail explicitly
-			if (response.status >= 300 && response.status < 400) {
-				throw new MarketplaceError(
-					`Bundle download exceeded maximum redirects (${MAX_REDIRECTS})`,
-					response.status,
-					"BUNDLE_TOO_MANY_REDIRECTS",
-				);
-			}
+			response = await fetchWithinOrigin(bundleUrl, "Bundle download", "BUNDLE");
 		} catch (err) {
 			if (err instanceof MarketplaceError) throw err;
 			throw new MarketplaceUnavailableError(err);
@@ -383,10 +396,9 @@ class MarketplaceClientImpl implements MarketplaceClient {
  * over plugin bundle tarballs regardless of distribution channel.
  */
 // Aligns with RFC 0001 §"Bundle size limits" (256 KiB decompressed,
-// 20 files). Matches `MAX_BUNDLE_SIZE` in cli/commands/bundle-utils.ts
-// (the publish-side cap). We don't import that constant to keep this
-// runtime module independent of the CLI; the two values are
-// load-bearing identical and must stay in sync.
+// 20 files). Matches `MAX_BUNDLE_SIZE` in @emdash-cms/plugin-cli. We
+// don't import that constant to keep this runtime module independent
+// of the authoring CLI; the two values must stay in sync.
 //
 // Tar adds per-file headers (~512 bytes each) plus directory entries,
 // so the entry count cap is set comfortably above RFC's 20-file limit.

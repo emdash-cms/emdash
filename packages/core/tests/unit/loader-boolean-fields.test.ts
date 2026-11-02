@@ -76,6 +76,24 @@ describeEachDialect("Loader boolean field values", (dialect) => {
 		expect(enabled?.data.highlighted).toBeNull();
 	});
 
+	it("filters a collection by a boolean field", async () => {
+		await createFeature("Enabled", true, 1);
+		await createFeature("Disabled", false, 0);
+
+		const loader = emdashLoader();
+		const load = (enabled: boolean) =>
+			runWithContext({ db: ctx.db }, () =>
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- where values are declared as strings
+				loader.loadCollection!({ filter: { type: "feature", where: { enabled } } } as never),
+			);
+
+		const matched = await load(true);
+		const unmatched = await load(false);
+
+		expect(matched.entries.map((entry) => entry.data.title)).toEqual(["Enabled"]);
+		expect(unmatched.entries.map((entry) => entry.data.title)).toEqual(["Disabled"]);
+	});
+
 	it("returns booleans from single-entry loads", async () => {
 		const feature = await createFeature("Enabled", true, 1);
 

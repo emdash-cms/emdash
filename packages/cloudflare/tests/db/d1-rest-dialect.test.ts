@@ -199,6 +199,20 @@ describe("D1RestDialect", () => {
 		await db.destroy();
 	});
 
+	it("accepts a multi-megabyte response under the default bound", async () => {
+		// A batch of fifty content revisions with their bodies is several MiB on a
+		// real site; the default bound must not refuse the migration that reads them.
+		const padding = "x".repeat(3 * 1_048_576);
+		const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+			jsonResponse(queryEnvelope([{ data: padding }])),
+		);
+		const db = database(fetch);
+
+		const result = await sql<{ data: string }>`select 1`.execute(db);
+		expect(result.rows[0]?.data.length).toBe(padding.length);
+		await db.destroy();
+	});
+
 	it("rejects a streamed response larger than the bound", async () => {
 		const fetch = vi.fn<typeof globalThis.fetch>(
 			async () =>

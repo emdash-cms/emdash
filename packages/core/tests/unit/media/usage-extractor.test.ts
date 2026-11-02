@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { extractMediaUsageOccurrences } from "../../../src/media/usage/extractor.js";
+import {
+	extractMediaUsageOccurrences,
+	MediaUsageBlockResolutionError,
+} from "../../../src/media/usage/extractor.js";
 import type { MediaUsageExtractionField } from "../../../src/media/usage/types.js";
 
 function field(
@@ -12,6 +15,79 @@ function field(
 }
 
 describe("extractMediaUsageOccurrences", () => {
+	it("uses block keys and retained version definitions for nested media", () => {
+		const now = new Date().toISOString();
+		const layout: MediaUsageExtractionField = {
+			slug: "layout",
+			type: "blocks",
+			blockTypes: [
+				{
+					id: "hero",
+					slug: "hero",
+					label: "Hero",
+					currentVersion: 1,
+					source: "user",
+					createdAt: now,
+					updatedAt: now,
+					versions: [
+						{
+							id: "hero-v1",
+							blockTypeId: "hero",
+							version: 1,
+							fingerprint: "v1",
+							active: true,
+							createdAt: now,
+							updatedAt: now,
+							fields: [
+								{ slug: "image", label: "Image", type: "image" },
+								{ slug: "file", label: "File", type: "file" },
+								{ slug: "body", label: "Body", type: "portableText" },
+								{
+									slug: "items",
+									label: "Items",
+									type: "repeater",
+									validation: {
+										subFields: [{ slug: "photo", label: "Photo", type: "image" }],
+									},
+								},
+							],
+						},
+					],
+				},
+			],
+		};
+		const first = {
+			_type: "hero",
+			_version: 1,
+			_key: "first",
+			image: { id: "image-1", darkVariant: { id: "image-dark" } },
+			file: { id: "file-1", mimeType: "application/pdf" },
+			body: [{ _type: "image", asset: { _ref: "body-image" } }],
+			items: [{ photo: { id: "repeater-image" } }],
+		};
+		const second = { _type: "hero", _version: 1, _key: "second", image: { id: "image-2" } };
+		const extract = (blocks: unknown[]) =>
+			extractMediaUsageOccurrences({ fields: [layout], data: { layout: blocks } });
+
+		const paths = extract([first, second])
+			.map((occurrence) => occurrence.fieldPath)
+			.toSorted();
+		expect(paths).toEqual([
+			"layout.first.body[0].asset._ref",
+			"layout.first.file",
+			"layout.first.image",
+			"layout.first.image.darkVariant",
+			"layout.first.items[0].photo",
+			"layout.second.image",
+		]);
+		expect(
+			extract([second, first])
+				.map((occurrence) => occurrence.fieldPath)
+				.toSorted(),
+		).toEqual(paths);
+		expect(() => extract([{ ...first, _version: 99 }])).toThrow(MediaUsageBlockResolutionError);
+	});
+
 	it("extracts top-level image and file field references", () => {
 		const occurrences = extractMediaUsageOccurrences({
 			fields: [field("hero", "image"), field("attachment", "file"), field("title", "string")],
@@ -299,6 +375,48 @@ describe("extractMediaUsageOccurrences", () => {
 		]);
 	});
 
+	it("extracts Portable Text video block asset refs", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [field("body", "portableText")],
+			data: {
+				body: [
+					{
+						_type: "video",
+						_key: "vid1",
+						asset: { _ref: "local-video", url: "/_emdash/api/media/file/local-video.mp4" },
+					},
+					{ _type: "video", _key: "vid2", asset: { _ref: "uid42", provider: "cloudflare-stream" } },
+					{ _type: "video", _key: "vid3", asset: { _ref: "dQw4w9WgXcQ" }, source: "youtube" },
+				],
+			},
+		});
+
+		expect(occurrences).toEqual([
+			{
+				fieldSlug: "body",
+				fieldPath: "body[0].asset._ref",
+				occurrenceIndex: 0,
+				referenceType: "portable_text_video",
+				mediaId: "local-video",
+				provider: "local",
+				providerAssetId: "local-video",
+				mediaKind: "video",
+				mimeType: null,
+			},
+			{
+				fieldSlug: "body",
+				fieldPath: "body[1].asset._ref",
+				occurrenceIndex: 0,
+				referenceType: "portable_text_video",
+				mediaId: null,
+				provider: "cloudflare-stream",
+				providerAssetId: "uid42",
+				mediaKind: "video",
+				mimeType: null,
+			},
+		]);
+	});
+
 	it("extracts the images inside a Portable Text gallery block (#2872)", () => {
 		const occurrences = extractMediaUsageOccurrences({
 			fields: [field("body", "portableText")],
@@ -389,13 +507,58 @@ describe("extractMediaUsageOccurrences", () => {
 				pt: [
 					{
 						_type: "image",
-						asset: { _ref: "/_emdash/api/media/file/uploads/photo.jpg" },
+						asset: { _ref: "https://example.com/photo.jpg" },
 					},
 				],
 			},
 		});
 
 		expect(occurrences).toEqual([]);
+	});
+
+	it("keeps the storage key of rich text media named by a local file URL", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [field("body", "portableText")],
+			data: {
+				body: [
+					{ _type: "image", asset: { url: "/_emdash/api/media/file/01ABC.png" } },
+					{
+						_type: "image",
+						asset: {
+							_ref: "/_emdash/api/media/file/uploads/my%20photo.jpg?v=2",
+							url: "/_emdash/api/media/file/uploads/my%20photo.jpg?v=2",
+						},
+					},
+					{
+						_type: "image",
+						asset: { url: "/_emdash/api/media/file/01ABC.png", provider: "cloudflare-images" },
+					},
+					{
+						_type: "image",
+						asset: { url: "https://example.com/_emdash/api/media/file/01ABC.png" },
+					},
+				],
+			},
+		});
+
+		expect(occurrences).toEqual([
+			{
+				fieldSlug: "body",
+				fieldPath: "body[0].asset.url",
+				occurrenceIndex: 0,
+				referenceType: "portable_text_image",
+				mediaId: null,
+				provider: "local",
+				providerAssetId: "01ABC.png",
+				mediaKind: "image",
+				mimeType: null,
+				storageKey: "01ABC.png",
+			},
+			expect.objectContaining({
+				fieldPath: "body[1].asset._ref",
+				storageKey: "uploads/my photo.jpg",
+			}),
+		]);
 	});
 
 	it("dedupes exact duplicate occurrence identities without collapsing repeated media uses", () => {

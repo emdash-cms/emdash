@@ -225,6 +225,103 @@
 			"expected": { "categories": [], "outcome": "pass" }
 		},
 		{
+			"id": "benign-registry-plugin-listing",
+			"kind": "text",
+			"partition": "benign",
+			"input": {
+				"text": [
+					{
+						"ref": "profile.slug",
+						"value": "eventual",
+						"format": "plain"
+					},
+					{
+						"ref": "profile.name",
+						"value": "Eventual",
+						"format": "plain"
+					},
+					{
+						"ref": "profile.description",
+						"value": "Manage one-off and recurring events, saved venues, and public JSON/iCalendar feeds in EmDash.",
+						"format": "plain"
+					},
+					{
+						"ref": "profile.keywords[0]",
+						"value": "events",
+						"format": "plain"
+					},
+					{
+						"ref": "profile.keywords[1]",
+						"value": "calendar",
+						"format": "plain"
+					},
+					{
+						"ref": "profile.keywords[2]",
+						"value": "event management",
+						"format": "plain"
+					},
+					{
+						"ref": "profile.keywords[3]",
+						"value": "iCalendar",
+						"format": "plain"
+					},
+					{
+						"ref": "profile.keywords[4]",
+						"value": "venues",
+						"format": "plain"
+					},
+					{
+						"ref": "profile.license",
+						"value": "MIT",
+						"format": "plain"
+					},
+					{
+						"ref": "profile.sections.installation",
+						"value": "## Install Eventual\r\n\r\nInstall Eventual from the EmDash **Registry** after the site has a supported\r\nsandbox runner configured. The plugin adds **Events**, **Venues**, and\r\n**Settings** pages to the EmDash admin. Use the Events page to create and\r\npublish one-off or recurring events, and the Venues page to manage reusable\r\naddresses.\n\nRecurring events support an interval and multiple weekly days. Select **Manage\noccurrence dates** in the saved editor for Change, Cancel, and Restore actions. To let agents\ninspect those dates, enable `eventual__listOccurrences` in EmDash MCP settings\nafter updating to 0.7.0. Other enabled Eventual tools keep working.\n\r\nThe plugin exposes a public JSON events route and an iCalendar subscription\r\nroute. These provide event data; they do not render a calendar or add pages to\r\nthe site.\r\n\r\n## Show events to site visitors\r\n\r\nAn Astro site can render its own event list or month view by fetching the JSON\r\nroute. A site developer must add that visitor-facing UI to the site project;\r\nthe registry plugin does not install a theme component, page, or browser\r\nscript.\r\n\r\nThe iCalendar route can be added to calendar applications that support\r\nsubscriptions. Its fixed URL is `/_emdash/api/plugins/eventual/calendar`.\r\n\r\n## Permissions and data\r\n\r\nEventual requests `media:read` and `media:bytes:read` so event editors can\r\nselect images from the EmDash media library and published event images can be\r\nserved to visitors. Events, venues, and calendar cancellation records are kept\r\nin Eventual's plugin-owned storage. Uninstalling the plugin does not\r\nautomatically delete those records; EmDash offers storage deletion as a\r\nseparate uninstall choice.\r\n",
+						"format": "markdown"
+					},
+					{
+						"ref": "profile.authors[0].name",
+						"value": "Example Publisher",
+						"format": "plain"
+					},
+					{
+						"ref": "profile.authors[0].email",
+						"value": "events@example.com",
+						"format": "plain"
+					},
+					{
+						"ref": "profile.security[0].email",
+						"value": "events@example.com",
+						"format": "plain"
+					}
+				],
+				"links": []
+			},
+			"expected": { "categories": [], "outcome": "pass" }
+		},
+		{
+			"id": "benign-third-party-integration",
+			"kind": "text",
+			"partition": "benign",
+			"input": {
+				"text": [
+					{
+						"ref": "profile.name",
+						"value": "Checkout Bridge",
+						"format": "plain"
+					},
+					{
+						"ref": "profile.description",
+						"value": "Take payments with Stripe, sync customers to Mailchimp, and publish events to Google Calendar. Compatible with Shopify product imports.",
+						"format": "plain"
+					}
+				],
+				"links": []
+			},
+			"expected": { "categories": [], "outcome": "pass" }
+		},
+		{
 			"id": "benign-unsupported-marketing-claim",
 			"kind": "text",
 			"partition": "benign",

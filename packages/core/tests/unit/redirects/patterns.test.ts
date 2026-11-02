@@ -145,6 +145,26 @@ describe("redirect patterns", () => {
 			expect(compiled.regex.test("/blog.old/test")).toBe(true);
 			expect(compiled.regex.test("/blogXold/test")).toBe(false);
 		});
+
+		it("treats parentheses in literal parts as literal characters", () => {
+			const compiled = compilePattern("/(.*x)/[slug]");
+			expect(matchPattern(compiled, "/(.*x)/hello")).toEqual({ slug: "hello" });
+			expect(compiled.regex.test("/abcx/hello")).toBe(false);
+
+			const grouped = compilePattern("/foo(bar)/[slug]");
+			expect(matchPattern(grouped, "/foo(bar)/hello")).toEqual({ slug: "hello" });
+			expect(grouped.regex.test("/foobar/hello")).toBe(false);
+		});
+
+		it("assigns captures to the right names when a [param] precedes a [...splat]", () => {
+			const compiled = compilePattern("/[category]/[...rest]");
+			expect(matchPattern(compiled, "/tech/a/b")).toEqual({ category: "tech", rest: "a/b" });
+		});
+
+		it("compiles a source with unbalanced literal parentheses", () => {
+			const compiled = compilePattern("/a((b)/[slug]");
+			expect(matchPattern(compiled, "/a((b)/hello")).toEqual({ slug: "hello" });
+		});
 	});
 
 	describe("matchPattern", () => {
@@ -182,6 +202,25 @@ describe("redirect patterns", () => {
 		it("handles URL-encoded segments", () => {
 			const compiled = compilePattern("/blog/[slug]");
 			expect(matchPattern(compiled, "/blog/my%20post")).toEqual({ slug: "my%20post" });
+		});
+
+		it("matches [param] patterns with a trailing slash", () => {
+			const compiled = compilePattern("/category/[slug]/feed");
+			expect(matchPattern(compiled, "/category/arts/feed")).toEqual({ slug: "arts" });
+			expect(matchPattern(compiled, "/category/arts/feed/")).toEqual({ slug: "arts" });
+		});
+
+		it("matches [...rest] patterns with a trailing slash", () => {
+			const compiled = compilePattern("/old/[...path]");
+			expect(matchPattern(compiled, "/old/2024/01/post/")).toEqual({
+				path: "2024/01/post/",
+			});
+		});
+
+		it("matches a pattern whose source ends with a trailing slash when the request omits it", () => {
+			const compiled = compilePattern("/category/[slug]/feed/");
+			expect(matchPattern(compiled, "/category/arts/feed")).toEqual({ slug: "arts" });
+			expect(matchPattern(compiled, "/category/arts/feed/")).toEqual({ slug: "arts" });
 		});
 	});
 

@@ -1,0 +1,188 @@
+---
+import { pageLinks, searchHref } from "../../lib/search.js";
+import { detailIcons } from "../detail/icons.js";
+
+interface Props {
+	query: string;
+	page: number;
+	pageCount: number;
+}
+
+const { query, page, pageCount } = Astro.props;
+---
+
+{
+	pageCount > 1 && (
+		<nav class="pagination" aria-label="Pagination">
+			{page > 1 && (
+				<a
+					class="btn btn-secondary pagination-step pagination-step--prev"
+					href={searchHref(query, page - 1)}
+					rel="prev"
+					aria-label="Previous page"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						aria-hidden="true"
+						focusable="false"
+						set:html={detailIcons.chevronStart}
+					/>
+					<span class="pagination-step-label">Previous</span>
+				</a>
+			)}
+			<ol class="pagination-pages">
+				{pageLinks(page, pageCount).map((link) =>
+					link === "gap" ? (
+						<li class="pagination-gap" aria-hidden="true">
+							…
+						</li>
+					) : (
+						<li>
+							<a
+								class="pagination-page"
+								href={searchHref(query, link)}
+								aria-label={`Page ${link}`}
+								aria-current={link === page ? "page" : undefined}
+							>
+								{link}
+							</a>
+						</li>
+					),
+				)}
+			</ol>
+			<p class="pagination-status">
+				Page {page} of {pageCount}
+			</p>
+			{page < pageCount && (
+				<a
+					class="btn btn-secondary pagination-step pagination-step--next"
+					href={searchHref(query, page + 1)}
+					rel="next"
+					aria-label="Next page"
+				>
+					<span class="pagination-step-label">Next</span>
+					<svg
+						viewBox="0 0 24 24"
+						aria-hidden="true"
+						focusable="false"
+						set:html={detailIcons.chevronEnd}
+					/>
+				</a>
+			)}
+		</nav>
+	)
+}
+
+<style>
+	.pagination {
+		display: grid;
+		grid-template-areas: "prev pages next";
+		grid-template-columns: 1fr auto 1fr;
+		align-items: center;
+		gap: 1rem;
+		margin-block-start: clamp(2rem, 1.5rem + 1.5vw, 3rem);
+	}
+
+	.pagination-step svg {
+		width: 16px;
+		height: 16px;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 2;
+	}
+
+	.pagination-step:dir(rtl) svg {
+		transform: scaleX(-1);
+	}
+
+	.pagination-step--prev {
+		grid-area: prev;
+		justify-self: start;
+		padding-inline: 12px 16px;
+	}
+
+	.pagination-step--next {
+		grid-area: next;
+		justify-self: end;
+		padding-inline: 16px 12px;
+	}
+
+	.pagination-pages {
+		display: flex;
+		grid-area: pages;
+		gap: 4px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.pagination-page,
+	.pagination-gap {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 40px;
+		height: 40px;
+		font-size: 14px;
+		font-weight: 500;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.pagination-page {
+		padding-inline: 8px;
+		color: var(--muted);
+		text-decoration: none;
+		border-radius: var(--radius);
+		transition:
+			color 150ms ease,
+			background-color 150ms ease;
+	}
+
+	@media (hover: hover) {
+		.pagination-page:hover {
+			color: var(--ink);
+			background: var(--fill-hover);
+		}
+	}
+
+	.pagination-page[aria-current="page"] {
+		color: var(--ink-strong);
+		background: var(--fill-active);
+	}
+
+	.pagination-gap {
+		color: var(--subtle);
+	}
+
+	.pagination-status {
+		display: none;
+		grid-area: pages;
+		margin: 0;
+		color: var(--muted);
+		font-size: 14px;
+		font-variant-numeric: tabular-nums;
+	}
+
+	@media (max-width: 639.98px) {
+		.pagination-pages {
+			display: none;
+		}
+
+		.pagination-status {
+			display: block;
+		}
+	}
+
+	@media (max-width: 374.98px) {
+		.pagination-step {
+			width: 40px;
+			padding: 0;
+		}
+
+		.pagination-step-label {
+			display: none;
+		}
+	}
+</style>

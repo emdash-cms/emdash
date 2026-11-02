@@ -1,9 +1,11 @@
 export {
 	ContentRepository,
 	CronAccessImpl,
+	createBylineAccess,
 	createCommentAccess,
 	createContentAccess,
 	createSettingsAccess,
+	createKVAccess,
 	createMediaAccess,
 	createRedirectAccess,
 	createSchemaAccess,
@@ -19,6 +21,6 @@ export {
 	StorageSerializationError,
 	updatePluginMediaMetadata,
 	ulid,
-} from "emdash/plugins/host";
+} from "emdash/internal/plugins/host";
 export { Kysely } from "kysely";
 export { D1Dialect } from "kysely-d1";

@@ -7,6 +7,7 @@
 
 import type { PluginContext, StorageCollection } from "emdash";
 
+import { digestTaskName } from "../digest-task.js";
 import { formatDigestText } from "../format.js";
 import type { FormDefinition, Submission } from "../types.js";
 
@@ -93,14 +94,14 @@ export async function handleCleanup(ctx: PluginContext) {
 /**
  * Daily digest: send summary email for a specific form.
  *
- * The cron task name contains the form ID: "digest:{formId}"
+ * The cron task name contains the form ID (see `digestTaskName`).
  */
 export async function handleDigest(formId: string, ctx: PluginContext) {
 	const form = await forms(ctx).get(formId);
 	if (!form) {
 		ctx.log.warn("Digest: form not found, cancelling", { formId });
 		if (ctx.cron) {
-			await ctx.cron.cancel(`digest:${formId}`).catch(() => {});
+			await ctx.cron.cancel(digestTaskName(formId)).catch(() => {});
 		}
 		return;
 	}

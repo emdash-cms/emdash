@@ -20,9 +20,11 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
+import { fetchCollections, fetchRelations } from "../lib/api";
 import type {
 	SchemaCollectionWithFields,
 	SchemaField,
@@ -30,27 +32,49 @@ import type {
 	CreateCollectionInput,
 	UpdateCollectionInput,
 } from "../lib/api";
-import { cn } from "../lib/utils";
+import type {
+	CreateRelationInput,
+	RelationDef,
+	UpdateRelationInput,
+} from "../lib/api/relations.js";
+import { useConfirmedRequest } from "../lib/dialog-form.js";
+import { cn, slugifyIdentifier } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EditorHeader } from "./EditorHeader";
 import { FieldEditor } from "./FieldEditor";
+import { RelationImpact } from "./RelationImpact.js";
+import { RelationsPanel } from "./RelationsPanel.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton";
 
-// Regex patterns for slug generation
-const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g;
-const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g;
+const MULTIPLE_PLACEHOLDERS_IN_SEGMENT = /\{\w+\}[^/]*\{\w+\}/;
 
 export interface ContentTypeEditorProps {
 	collection?: SchemaCollectionWithFields;
 	isNew?: boolean;
 	isSaving?: boolean;
 	onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void;
-	onAddField?: (input: CreateFieldInput) => void;
-	onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void;
-	onDeleteField?: (fieldSlug: string) => void;
+	/** Resolves once the field is saved; rejects with the server's message. */
+	onAddField?: (input: CreateFieldInput) => Promise<unknown>;
+	/** Resolves once the field is saved; rejects with the server's message. */
+	onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => Promise<unknown>;
+	/** `deleteRelation` also removes the relationship a reference field views,
+	 * its links, and the field on the other end. Return the request's promise to
+	 * keep the confirmation open, showing its progress and any failure. */
+	onDeleteField?: (
+		fieldSlug: string,
+		options?: { deleteRelation?: boolean },
+	) => void | Promise<unknown>;
 	onReorderFields?: (fieldSlugs: string[]) => void;
+	/** Resolves with the new relation; rejects with the server's message. */
+	onCreateRelation?: (input: CreateRelationInput) => Promise<RelationDef>;
+	/** Resolves once the relation is saved; rejects with the server's message. */
+	onUpdateRelation?: (id: string, input: UpdateRelationInput) => Promise<unknown>;
+	/** Also removes the relation's links and the reference fields bound to it. */
+	onDeleteRelation?: (id: string) => Promise<unknown>;
+	isDeletingRelation?: boolean;
+	deleteRelationError?: unknown;
 }
 
 interface SupportOptionDef {
@@ -150,6 +174,11 @@ export function ContentTypeEditor({
 	onUpdateField,
 	onDeleteField,
 	onReorderFields,
+	onCreateRelation,
+	onUpdateRelation,
+	onDeleteRelation,
+	isDeletingRelation,
+	deleteRelationError,
 }: ContentTypeEditorProps) {
 	const { t } = useLingui();
 	const _navigate = useNavigate();
@@ -162,7 +191,10 @@ export function ContentTypeEditor({
 	const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? "");
 	const [routable, setRoutable] = React.useState(collection?.routable ?? true);
 	const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true);
+	const [icon, setIcon] = React.useState(collection?.icon ?? "");
 	const [group, setGroup] = React.useState(collection?.group ?? "");
+	const [hidden, setHidden] = React.useState(collection?.hidden ?? false);
+	const [quickCreate, setQuickCreate] = React.useState(collection?.admin?.quickCreate ?? true);
 	// SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry
 	// so it isn't sent back on save (the API enum rejects it).
 	const [supports, setSupports] = React.useState<string[]>(
@@ -190,9 +222,22 @@ export function ContentTypeEditor({
 	const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false);
 	const [editingField, setEditingField] = React.useState<SchemaField | undefined>();
 	const [fieldSaving, setFieldSaving] = React.useState(false);
+	const [fieldSaveError, setFieldSaveError] = React.useState<unknown>(null);
 	const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null);
+	// Checked by default: deleting a reference field almost always means the
+	// relationship it views is finished too.
+	const [deleteFieldRelation, setDeleteFieldRelation] = React.useState(true);
 
-	const urlPatternValid = !urlPattern || urlPattern.includes("{slug}");
+	const urlPatternChanged = urlPattern !== (collection?.urlPattern ?? "");
+	const urlPatternSharesSegment =
+		urlPatternChanged && MULTIPLE_PLACEHOLDERS_IN_SEGMENT.test(urlPattern);
+	const urlPatternValid =
+		!urlPattern || (urlPattern.includes("{slug}") && !urlPatternSharesSegment);
+
+	const slugError =
+		isNew && !slug && label.trim().length > 0
+			? t`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`
+			: undefined;
 
 	// Track whether form has unsaved changes
 	const hasChanges = React.useMemo(() => {
@@ -205,7 +250,10 @@ export function ContentTypeEditor({
 			urlPattern !== (collection.urlPattern ?? "") ||
 			routable !== (collection.routable ?? true) ||
 			editLocking !== (collection.editLocking ?? true) ||
+			icon !== (collection.icon ?? "") ||
 			group !== (collection.group ?? "") ||
+			hidden !== (collection.hidden ?? false) ||
+			quickCreate !== (collection.admin?.quickCreate ?? true) ||
 			JSON.stringify([...supports].toSorted()) !==
 				JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) ||
 			hasSeo !== collection.hasSeo ||
@@ -224,7 +272,10 @@ export function ContentTypeEditor({
 		urlPattern,
 		routable,
 		editLocking,
+		icon,
 		group,
+		hidden,
+		quickCreate,
 		supports,
 		hasSeo,
 		commentsEnabled,
@@ -237,12 +288,7 @@ export function ContentTypeEditor({
 	const handleLabelChange = (value: string) => {
 		setLabel(value);
 		if (isNew) {
-			setSlug(
-				value
-					.toLowerCase()
-					.replace(SLUG_INVALID_CHARS_PATTERN, "_")
-					.replace(SLUG_LEADING_TRAILING_PATTERN, ""),
-			);
+			setSlug(slugifyIdentifier(value));
 		}
 	};
 
@@ -272,7 +318,10 @@ export function ContentTypeEditor({
 				urlPattern: urlPattern || undefined,
 				routable,
 				editLocking,
+				icon: icon.trim() || undefined,
 				group: group.trim() || undefined,
+				hidden,
+				admin: quickCreate ? undefined : { quickCreate: false },
 				supports,
 				hasSeo,
 			});
@@ -284,7 +333,13 @@ export function ContentTypeEditor({
 				urlPattern: urlPattern || undefined,
 				routable,
 				editLocking,
+				icon: icon.trim(),
 				group: group.trim() || null,
+				hidden,
+				admin:
+					quickCreate !== (collection?.admin?.quickCreate ?? true)
+						? { ...collection?.admin, quickCreate: quickCreate ? undefined : false }
+						: undefined,
 				supports,
 				hasSeo,
 				commentsEnabled,
@@ -297,14 +352,17 @@ export function ContentTypeEditor({
 
 	const handleFieldSave = async (input: CreateFieldInput) => {
 		setFieldSaving(true);
+		setFieldSaveError(null);
 		try {
 			if (editingField) {
-				onUpdateField?.(editingField.slug, input);
+				await onUpdateField?.(editingField.slug, input);
 			} else {
-				onAddField?.(input);
+				await onAddField?.(input);
 			}
 			setFieldEditorOpen(false);
 			setEditingField(undefined);
+		} catch (err) {
+			setFieldSaveError(err);
 		} finally {
 			setFieldSaving(false);
 		}
@@ -313,16 +371,43 @@ export function ContentTypeEditor({
 	const handleEditField = (field: SchemaField) => {
 		if (field.unsupportedType) return;
 		setEditingField(field);
+		setFieldSaveError(null);
 		setFieldEditorOpen(true);
 	};
 
 	const handleAddField = () => {
 		setEditingField(undefined);
+		setFieldSaveError(null);
 		setFieldEditorOpen(true);
 	};
 
 	const isFromCode = collection?.source === "code";
 	const fields = collection?.fields ?? [];
+
+	const { data: relations = [], isLoading: relationsLoading } = useQuery({
+		queryKey: ["relations"],
+		queryFn: () => fetchRelations(),
+	});
+	const { data: allCollections = [] } = useQuery({
+		queryKey: ["schema", "collections"],
+		queryFn: fetchCollections,
+	});
+	const targetRelationSlug = deleteFieldTarget?.validation?.relation;
+	const targetRelation = relations.find((rel) => rel.slug === targetRelationSlug);
+	const deleteField = useConfirmedRequest(
+		deleteFieldTarget
+			? () =>
+					onDeleteField?.(
+						deleteFieldTarget.slug,
+						targetRelation ? { deleteRelation: deleteFieldRelation } : undefined,
+					)
+			: undefined,
+	);
+	const requestDeleteField = (field: SchemaField) => {
+		setDeleteFieldRelation(true);
+		setDeleteFieldTarget(field);
+		deleteField.show();
+	};
 
 	const sensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -368,7 +453,9 @@ export function ContentTypeEditor({
 				</h1>
 				{!isNew && (
 					<p className="text-kumo-subtle text-sm">
-						<code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code>
+						<code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded">
+							{collection?.slug}
+						</code>
 						{isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>}
 					</p>
 				)}
@@ -411,11 +498,13 @@ export function ContentTypeEditor({
 							{isNew && (
 								<div>
 									<Input
+										dir="ltr"
 										label={t`Slug`}
 										value={slug}
 										onChange={(e) => setSlug(e.target.value)}
 										placeholder="posts"
 										disabled={!isNew}
+										error={slugError}
 									/>
 									<p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p>
 								</div>
@@ -460,6 +549,7 @@ export function ContentTypeEditor({
 
 							<div>
 								<Input
+									dir="ltr"
 									label={t`URL Pattern`}
 									value={urlPattern}
 									onChange={(e) => setUrlPattern(e.target.value)}
@@ -469,6 +559,11 @@ export function ContentTypeEditor({
 								{urlPattern && !urlPattern.includes("{slug}") && (
 									<p className="text-xs text-kumo-danger mt-2">
 										{t`Pattern must include a ${"{slug}"} placeholder`}
+									</p>
+								)}
+								{urlPatternSharesSegment && (
+									<p className="text-xs text-kumo-danger mt-2">
+										{t`Each path segment can contain at most one placeholder, e.g. ${"/{year}/{slug}"}`}
 									</p>
 								)}
 								<p className="text-xs text-kumo-subtle mt-1">
@@ -490,6 +585,44 @@ export function ContentTypeEditor({
 										{t`Content types with the same group share a collapsible folder in the sidebar`}
 									</p>
 								</div>
+								<div>
+									<Input
+										dir="ltr"
+										label={t`Icon`}
+										value={icon}
+										onChange={(e) => setIcon(e.target.value)}
+										disabled={isFromCode}
+									/>
+									<p className="text-xs text-kumo-subtle mt-1">
+										{t`Phosphor icon name, e.g. calendar-blank or trophy`}
+									</p>
+								</div>
+								<Switch
+									checked={hidden}
+									onCheckedChange={setHidden}
+									disabled={isFromCode}
+									label={
+										<div>
+											<span className="text-sm font-medium">{t`Hide from navigation`}</span>
+											<p className="text-xs text-kumo-subtle">
+												{t`Removes the sidebar entry, command palette link, dashboard quick action, and dashboard Content card row; entries stay reachable by URL, API, and plugins`}
+											</p>
+										</div>
+									}
+								/>
+								<Switch
+									checked={quickCreate}
+									onCheckedChange={setQuickCreate}
+									disabled={isFromCode}
+									label={
+										<div>
+											<span className="text-sm font-medium">{t`Quick action on the dashboard`}</span>
+											<p className="text-xs text-kumo-subtle">
+												{t`Shows a button for creating a new entry`}
+											</p>
+										</div>
+									}
+								/>
 							</div>
 
 							<div className="space-y-3">
@@ -628,9 +761,9 @@ export function ContentTypeEditor({
 					</form>
 				</div>
 
-				{/* Fields section - only show for existing collections */}
+				{/* Fields and relations - only shown for existing collections */}
 				{!isNew && (
-					<div className="lg:col-span-2">
+					<div className="lg:col-span-2 space-y-6">
 						<div className="rounded-lg border bg-kumo-base">
 							<div className="flex items-center justify-between p-4 border-b">
 								<div>
@@ -694,7 +827,7 @@ export function ContentTypeEditor({
 														field={field}
 														isFromCode={isFromCode}
 														onEdit={() => handleEditField(field)}
-														onDelete={() => setDeleteFieldTarget(field)}
+														onDelete={() => requestDeleteField(field)}
 													/>
 												))}
 											</div>
@@ -703,6 +836,20 @@ export function ContentTypeEditor({
 								</>
 							)}
 						</div>
+
+						{collection && (
+							<RelationsPanel
+								collectionSlug={collection.slug}
+								relations={relations}
+								collections={allCollections}
+								isLoading={relationsLoading}
+								onCreateRelation={onCreateRelation}
+								onUpdateRelation={onUpdateRelation}
+								onDeleteRelation={onDeleteRelation}
+								isDeletingRelation={isDeletingRelation}
+								deleteRelationError={deleteRelationError}
+							/>
+						)}
 					</div>
 				)}
 			</div>
@@ -710,15 +857,20 @@ export function ContentTypeEditor({
 			{/* Field editor dialog */}
 			<FieldEditor
 				open={fieldEditorOpen}
-				onOpenChange={setFieldEditorOpen}
+				onOpenChange={(nextOpen) => {
+					setFieldEditorOpen(nextOpen);
+					if (!nextOpen) setFieldSaveError(null);
+				}}
 				field={editingField}
 				onSave={handleFieldSave}
 				isSaving={fieldSaving}
+				saveError={fieldSaveError}
+				collectionSlug={collection?.slug}
+				onCreateRelation={onCreateRelation}
 			/>
 
 			<ConfirmDialog
-				open={!!deleteFieldTarget}
-				onClose={() => setDeleteFieldTarget(null)}
+				{...deleteField.dialog}
 				title={t`Delete Field?`}
 				description={
 					deleteFieldTarget
@@ -727,15 +879,30 @@ export function ContentTypeEditor({
 				}
 				confirmLabel={t`Delete`}
 				pendingLabel={t`Deleting...`}
-				isPending={false}
-				error={null}
-				onConfirm={() => {
-					if (deleteFieldTarget) {
-						onDeleteField?.(deleteFieldTarget.slug);
-						setDeleteFieldTarget(null);
-					}
-				}}
-			/>
+			>
+				{targetRelation && (
+					<div className="space-y-3">
+						<Checkbox
+							checked={deleteFieldRelation}
+							onCheckedChange={(checked) => setDeleteFieldRelation(checked === true)}
+							disabled={deleteField.dialog.isPending}
+							label={t`Also delete the relationship this field uses`}
+						/>
+						{deleteFieldRelation && collection && (
+							<div className="space-y-3 rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3">
+								<p className="text-sm font-medium">{t`This also removes:`}</p>
+								<RelationImpact
+									relations={[targetRelation]}
+									excludeField={{
+										collectionSlug: collection.slug,
+										fieldSlug: deleteFieldTarget?.slug ?? "",
+									}}
+								/>
+							</div>
+						)}
+					</div>
+				)}
+			</ConfirmDialog>
 		</div>
 	);
 }
@@ -777,7 +944,7 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center space-x-2">
 					<span className="font-medium">{field.label}</span>
-					<code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle">
+					<code dir="ltr" className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle">
 						{field.slug}
 					</code>
 				</div>
@@ -831,7 +998,7 @@ function SystemFieldRow({ field }: { field: SystemFieldInfo }) {
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center space-x-2">
 					<span className="font-medium text-sm">{t(field.label)}</span>
-					<code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle">
+					<code dir="ltr" className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle">
 						{field.slug}
 					</code>
 					<Badge variant="secondary">{t`System`}</Badge>

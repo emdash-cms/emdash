@@ -365,6 +365,37 @@ describe("RedirectRepository", () => {
 			expect(match!.resolvedDestination).toBe("/special-page");
 		});
 
+		it("matches [param] pattern redirects with a trailing slash", async () => {
+			await repo.create({
+				source: "/category/[slug]/feed",
+				destination: "/tags/[slug]/feed",
+			});
+
+			const withSlash = await repo.matchPath("/category/arts/feed/");
+			expect(withSlash).not.toBeNull();
+			expect(withSlash!.resolvedDestination).toBe("/tags/arts/feed");
+
+			const withoutSlash = await repo.matchPath("/category/arts/feed");
+			expect(withoutSlash).not.toBeNull();
+			expect(withoutSlash!.resolvedDestination).toBe("/tags/arts/feed");
+		});
+
+		it("matches exact redirects with a trailing slash", async () => {
+			await repo.create({ source: "/old", destination: "/new" });
+
+			const match = await repo.matchPath("/old/");
+			expect(match).not.toBeNull();
+			expect(match!.resolvedDestination).toBe("/new");
+		});
+
+		it("matches exact redirects when the source has a trailing slash and the request omits it", async () => {
+			await repo.create({ source: "/old/", destination: "/new" });
+
+			const match = await repo.matchPath("/old");
+			expect(match).not.toBeNull();
+			expect(match!.resolvedDestination).toBe("/new");
+		});
+
 		it("matches [param] in single segment", async () => {
 			await repo.create({
 				source: "/category/[slug]",
@@ -375,6 +406,41 @@ describe("RedirectRepository", () => {
 
 			// Should not match multi-segment
 			expect(await repo.matchPath("/category/a/b")).toBeNull();
+		});
+
+		it("skips unsafe destinations written outside the repository", async () => {
+			const exact = await repo.create({ source: "/exact", destination: "/safe" });
+			const pattern = await repo.create({
+				source: "/old/[slug]",
+				destination: "/new/[slug]",
+			});
+			await db
+				.updateTable("_emdash_redirects")
+				.set({ destination: "/\\evil.example" })
+				.where("id", "=", exact.id)
+				.execute();
+			await db
+				.updateTable("_emdash_redirects")
+				.set({ destination: "/\t/[slug]" })
+				.where("id", "=", pattern.id)
+				.execute();
+
+			await expect(repo.matchPath("/exact")).resolves.toBeNull();
+			await expect(repo.matchPath("/old/post")).resolves.toBeNull();
+		});
+
+		it("skips malformed patterns written outside the repository", async () => {
+			const redirect = await repo.create({
+				source: "/old/[slug]",
+				destination: "/new/[slug]",
+			});
+			await db
+				.updateTable("_emdash_redirects")
+				.set({ source: "/old/([slug]" })
+				.where("id", "=", redirect.id)
+				.execute();
+
+			await expect(repo.matchPath("/old/post")).resolves.toBeNull();
 		});
 	});
 

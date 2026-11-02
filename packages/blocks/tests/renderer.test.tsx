@@ -13,6 +13,8 @@ const CollapsibleContext = React.createContext<{
 	open?: boolean;
 	onOpenChange?: (next: boolean) => void;
 }>({});
+// Lets the LayerDialog.Actions mock close its root the way Kumo's dismiss button does.
+const DialogContext = React.createContext<((open: boolean) => void) | undefined>(undefined);
 
 vi.mock("@cloudflare/kumo", () => ({
 	Button: ({ children, onClick, variant, type }: any) => (
@@ -107,9 +109,35 @@ vi.mock("@cloudflare/kumo", () => ({
 			/>
 		</div>
 	),
-	Dialog: ({ children }: any) => <div data-testid="dialog">{children}</div>,
-	DialogRoot: ({ children, open }: any) =>
-		open ? <div data-testid="dialog-root">{children}</div> : null,
+	LayerDialog: {
+		Root: ({ children, open, onOpenChange }: any) =>
+			open ? (
+				<DialogContext.Provider value={onOpenChange}>
+					<div data-testid="dialog-root">{children}</div>
+				</DialogContext.Provider>
+			) : null,
+		Content: ({ children }: any) => <div data-testid="dialog">{children}</div>,
+		Title: ({ children }: any) => <h2>{children}</h2>,
+		Description: ({ children }: any) => <p>{children}</p>,
+		Body: ({ children }: any) => <div>{children}</div>,
+		Actions: ({ children, dismissLabel }: any) => {
+			const onOpenChange = React.useContext(DialogContext);
+			return (
+				<div>
+					<button type="button" onClick={() => onOpenChange?.(false)}>
+						{dismissLabel}
+					</button>
+					{children}
+				</div>
+			);
+		},
+		Action: ({ children, onClick, variant }: any) => (
+			<button type="button" onClick={onClick} data-variant={variant}>
+				{children}
+			</button>
+		),
+	},
+	Text: ({ children }: any) => <p>{children}</p>,
 	Banner: ({ title, description, variant, icon }: any) => (
 		<div data-testid="banner" data-variant={variant}>
 			{icon}
@@ -179,6 +207,15 @@ vi.mock("@cloudflare/kumo", () => ({
 			</label>
 		),
 	},
+	DropdownMenu: Object.assign(({ children }: any) => <div>{children}</div>, {
+		Trigger: ({ render: trigger }: any) => trigger,
+		Content: ({ children }: any) => <div role="menu">{children}</div>,
+		Item: ({ children, onClick }: any) => (
+			<button type="button" role="menuitem" onClick={onClick}>
+				{children}
+			</button>
+		),
+	}),
 	Collapsible: Object.assign(
 		// `Collapsible` is also `Collapsible.Root` in Kumo 2.x.
 		({ children, open, onOpenChange, ...rest }: any) => (
@@ -273,6 +310,7 @@ vi.mock("echarts/renderers", () => ({
 vi.mock("@phosphor-icons/react", () => ({
 	ArrowUp: () => <span data-testid="arrow-up" />,
 	ArrowDown: () => <span data-testid="arrow-down" />,
+	CaretDown: () => <span data-testid="caret-down" />,
 	Minus: () => <span data-testid="minus" />,
 	Info: () => <span data-testid="icon-info" />,
 	Warning: () => <span data-testid="icon-warning" />,
@@ -434,6 +472,61 @@ describe("BlockRenderer", () => {
 		expect(screen.getByText("Role")).toBeTruthy();
 		expect(screen.getByText("Alice")).toBeTruthy();
 		expect(screen.getByText("Admin")).toBeTruthy();
+	});
+
+	it("table element cells render row actions that dispatch with the chosen value", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "table",
+					page_action_id: "page",
+					columns: [
+						{ key: "title", label: "Title" },
+						{ key: "action", label: "Actions", format: "element" },
+					],
+					rows: [
+						{
+							title: "Hello",
+							action: {
+								type: "menu",
+								action_id: "translate",
+								label: "Translate",
+								items: [
+									{ label: "French", value: "fr|post-1" },
+									{ label: "Italian", value: "it|post-1" },
+								],
+							},
+						},
+						{
+							title: "About",
+							action: {
+								type: "link",
+								label: "Open",
+								target: { kind: "content", collection: "pages", id: "page-1" },
+							},
+						},
+						{ title: "Empty" },
+					],
+				},
+			],
+			onAction,
+			(target) =>
+				target.kind === "content"
+					? `/_emdash/admin/content/${target.collection}/${target.id}`
+					: null,
+		);
+
+		fireEvent.click(screen.getByRole("menuitem", { name: "Italian" }));
+		expect(onAction).toHaveBeenCalledWith({
+			type: "block_action",
+			action_id: "translate",
+			value: "it|post-1",
+		});
+		expect(screen.getByRole("link", { name: "Open" }).getAttribute("href")).toBe(
+			"/_emdash/admin/content/pages/page-1",
+		);
+		expect(screen.getByText("Empty").closest("tr")?.lastElementChild?.textContent).toBe("");
 	});
 
 	it("table block shows empty_text when rows empty", () => {

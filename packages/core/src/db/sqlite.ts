@@ -18,7 +18,7 @@ export function createDialect(config: SqliteConfig): Dialect {
 	const url = config.url;
 	const filePath = url.startsWith("file:") ? url.slice(5) : url;
 
-	const database = openNodeSqliteDatabase(filePath);
+	const database = openNodeSqliteDatabase(filePath, { journalMode: "wal" });
 
 	return new SqliteDialect({ database });
 }

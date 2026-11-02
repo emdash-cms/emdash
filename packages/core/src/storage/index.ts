@@ -13,6 +13,8 @@ export type {
 	LocalStorageConfig,
 	UploadResult,
 	DownloadResult,
+	DownloadOptions,
+	ByteRange,
 	ListResult,
 	ListOptions,
 	FileInfo,

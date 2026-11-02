@@ -34,7 +34,7 @@ describe("EmDash health endpoint", () => {
 		const response = await GET({
 			locals: {
 				emdash: {
-					config: { experimental: { registry: "https://registry.example.com" } },
+					config: { registry: "https://registry.example.com" },
 				},
 			},
 		} as never);
@@ -48,14 +48,11 @@ describe("EmDash health endpoint", () => {
 		});
 	});
 
-	it("reports the registry as disabled when the top-level option is false", async () => {
+	it("reports the registry as disabled when the option is false", async () => {
 		const response = await GET({
 			locals: {
 				emdash: {
-					config: {
-						registry: false,
-						experimental: { registry: "https://registry.example.com" },
-					},
+					config: { registry: false },
 				},
 			},
 		} as never);
@@ -74,7 +71,7 @@ describe("EmDash health endpoint", () => {
 		const url = new URL("https://site.example/_emdash/api/health");
 		const next = vi.fn(() =>
 			GET({
-				locals: { emdash: { config: { experimental: {} } } },
+				locals: { emdash: { config: {} } },
 			} as never),
 		);
 		const sessionGet = vi.fn();
@@ -83,7 +80,7 @@ describe("EmDash health endpoint", () => {
 			{
 				url,
 				request: new Request(url),
-				locals: { emdash: { config: { experimental: {} } } },
+				locals: { emdash: { config: {} } },
 				session: { get: sessionGet },
 			} as never,
 			next,

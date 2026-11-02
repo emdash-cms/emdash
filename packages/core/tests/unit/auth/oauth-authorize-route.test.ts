@@ -6,6 +6,7 @@ import {
 	GET as getAuthorizationConsent,
 	POST as postAuthorizationConsent,
 } from "../../../src/astro/routes/api/oauth/authorize.js";
+import { VALID_SCOPES } from "../../../src/auth/api-tokens.js";
 import type { Database } from "../../../src/database/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -58,6 +59,28 @@ describe("OAuth authorization consent", () => {
 		expect(html).not.toContain('<input type="hidden" name="scope"');
 		const form = html.slice(html.indexOf("<form"), html.indexOf("</form>"));
 		expect(form).toContain('<input type="checkbox" name="scope" value="content:read"');
+	});
+
+	it("labels every built-in scope instead of showing its raw identifier", async () => {
+		const { response } = await renderConsent([...VALID_SCOPES]);
+		const html = await response.text();
+
+		for (const scope of VALID_SCOPES) {
+			expect(html).toContain(`value="${scope}" checked>`);
+			expect(html).not.toContain(`<span>${scope}</span>`);
+		}
+	});
+
+	it("grants transfer scopes only when the user consents to them", async () => {
+		const consent = await renderConsent(["admin", "transfer:export", "transfer:execute"]);
+		const response = await submitConsent(consent, ["admin", "transfer:export"]);
+
+		expect(response.status).toBe(302);
+		const authorizationCode = await db
+			.selectFrom("_emdash_authorization_codes")
+			.select("scopes")
+			.executeTakeFirstOrThrow();
+		expect(JSON.parse(authorizationCode.scopes)).toEqual(["admin", "transfer:export"]);
 	});
 
 	it("grants only selected scopes from the original request", async () => {

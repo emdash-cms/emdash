@@ -55,8 +55,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const body = await parseBody(request, wpPrepareBody);
 		if (isParseError(body)) return body;
 
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Zod schema output narrowed to PrepareRequest
-		const result = await prepareImport(emdash.db, body as PrepareRequest);
+		const result = await prepareImport(emdash.db, body);
 
 		// Invalidate the URL pattern cache when prepare adds new collections so
 		// public routing picks up their patterns immediately. The manifest

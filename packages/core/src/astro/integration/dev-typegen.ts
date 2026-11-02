@@ -1,12 +1,41 @@
 import type { AstroIntegrationLogger } from "astro";
 
+import { DEV_TYPEGEN_REFRESH_EVENT, DEV_TYPEGEN_REFRESH_GLOBAL } from "../dev-typegen.js";
+
+interface DevServerEnvironments {
+	environments: Record<
+		string,
+		{
+			config: { consumer: string };
+			hot: { on(event: string, listener: () => void): void };
+		}
+	>;
+}
+
+/**
+ * Call `refresh` whenever server-side code in any Vite environment reports a
+ * schema change. Schema mutations can run in a separate realm from the
+ * integration (workerd under the Cloudflare adapter), so the signal travels
+ * over each environment's hot channel. The global covers same-realm SSR when
+ * HMR is disabled and modules have no hot channel.
+ */
+export function listenForDevTypegenRefresh(
+	server: DevServerEnvironments,
+	refresh: () => void,
+): void {
+	for (const environment of Object.values(server.environments)) {
+		if (environment.config.consumer !== "server") continue;
+		environment.hot.on(DEV_TYPEGEN_REFRESH_EVENT, () => refresh());
+	}
+	Reflect.set(globalThis, DEV_TYPEGEN_REFRESH_GLOBAL, refresh);
+}
+
 /**
  * Create a debounced refresh function that fetches the generated types from
  * the dev server and writes them to `emdash-env.d.ts` in the project root.
  *
- * This runs in the Astro integration (Node) and is registered for schema
- * mutations to call back into. It never runs in production builds or in
- * workerd SSR isolates, because only the integration registers it.
+ * This runs in the Astro integration (Node), never in production builds or
+ * in workerd SSR isolates.
  */
 export function createDebouncedTypegenRefresh(
 	port: number,

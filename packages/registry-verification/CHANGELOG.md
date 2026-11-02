@@ -1,5 +1,23 @@
 # @emdash-cms/registry-verification
 
+## 0.3.4
+
+### Patch Changes
+
+- [#3941](https://github.com/emdash-cms/emdash/pull/3941) [`8450114`](https://github.com/emdash-cms/emdash/commit/845011455d8badcede71d4a2c994b1c492b197be) Thanks [@swissky](https://github.com/swissky)! - Fixes installing and updating registry plugins whose releases were attested with `actions/attest-build-provenance` v3, including releases from the workflow that `emdash-plugin release setup` generates. These installs previously failed with "release provenance could not be verified". Provenance in both GitHub formats is now accepted, and releases built on self-hosted runners are still rejected.
+
+- [#3943](https://github.com/emdash-cms/emdash/pull/3943) [`f223ecd`](https://github.com/emdash-cms/emdash/commit/f223ecdc060038ffb75363a4e10ef341d065e5ca) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes publishing and installing registry plugins attested by a GitHub Actions reusable workflow in the same repository and ref as its calling workflow. These releases previously failed with `PROVENANCE_UNVERIFIABLE` because the caller and signer were treated as the same workflow.
+- Updated dependencies [[`2c8c12a`](https://github.com/emdash-cms/emdash/commit/2c8c12a6b84d7c790944aebd5e7e090514fccfd6), [`2210c2c`](https://github.com/emdash-cms/emdash/commit/2210c2c7688a8d407143dfe4d565898674470412)]:
+  - @emdash-cms/plugin-types@0.6.0
+
+## 0.3.3
+
+### Patch Changes
+
+- Updated dependencies [[`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811), [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811)]:
+  - @emdash-cms/plugin-types@0.5.0
+  - @emdash-cms/registry-lexicons@0.7.0
+
 ## 0.3.2
 
 ### Patch Changes

@@ -6,6 +6,7 @@
  * so Vite can properly resolve and bundle them.
  */
 
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
@@ -250,10 +251,6 @@ ${entries.join("\n")}
  * between build time and runtime.
  */
 export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
-	if (descriptors.length === 0) {
-		return `export const plugins = [];`;
-	}
-
 	const imports: string[] = [];
 	const instantiations: string[] = [];
 
@@ -295,6 +292,7 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 					settingsSchema: descriptor.settingsSchema,
 					portableTextBlocks: descriptor.portableTextBlocks,
 					fieldWidgets: descriptor.fieldWidgets,
+					mcp: descriptor.mcp,
 				})})`,
 			);
 		} else {
@@ -306,19 +304,26 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 	});
 
 	const adapterImport = needsAdapter
-		? `import { adaptSandboxEntry } from "emdash/plugins/adapt-sandbox-entry";\n`
+		? `import { adaptSandboxEntry } from "emdash/internal/plugins/adapt-sandbox-entry";\n`
 		: "";
+
+	// Share instances across duplicated SSR chunks, but not across plugin configurations.
+	const cacheId = createHash("sha256")
+		.update(adapterImport + imports.join("\n") + instantiations.join(",\n"))
+		.digest("hex");
 
 	return `
 // Auto-generated plugins module
-// Imports and instantiates all configured plugins at runtime
-
 ${adapterImport}${imports.join("\n")}
 
-/** Resolved plugins array */
-export const plugins = [
-  ${instantiations.join(",\n  ")}
-];
+// Defer factories and adaptation until the runtime's module graph has initialized.
+export function plugins() {
+  const key = Symbol.for("emdash:plugins");
+  const cache = globalThis[key] ??= {};
+  return cache["${cacheId}"] ??= [
+    ${instantiations.join(",\n    ")}
+  ];
+}
 `;
 }
 
@@ -414,7 +419,7 @@ export function generateMediaProvidersModule(descriptors: MediaProviderDescripto
 	// Add local provider first if not disabled
 	if (!localDisabled) {
 		imports.push(
-			`import { createMediaProvider as createLocalProvider } from "emdash/media/local-runtime";`,
+			`import { createMediaProvider as createLocalProvider } from "emdash/internal/media/local-runtime";`,
 		);
 		entries.push(`{
 	id: "local",
@@ -527,30 +532,23 @@ export function generateBuildModule(buildTime: number): string {
  * Generates the scheduler virtual module.
  *
  * Decides — at build time, from the Astro adapter — whether the runtime gets a
- * long-lived timer heartbeat. A *production* Cloudflare build has no persistent
- * timers, so the Worker's `scheduled()` handler (a Cron Trigger) drives
- * `runScheduledTasks()` instead and this exports `null`. Every other case — any
- * other adapter (Node, Bun), and crucially local `astro dev` even under the
- * Cloudflare adapter (no Cron Trigger fires in dev) — gets a `NodeCronScheduler`
- * factory so plugin cron, scheduled publishing, and cleanup still run.
+ * long-lived timer heartbeat. Cloudflare Workers have no persistent timers, so
+ * the Worker's `scheduled()` handler drives `runScheduledTasks()` instead. In
+ * local dev the long-lived Vite host invokes an EmDash-owned route that runs
+ * the same maintenance inside workerd. Other adapters (Node, Bun) get a
+ * `NodeCronScheduler` factory.
  *
  * Keeping the adapter check here — rather than in core's runtime — means the
  * runtime has no Cloudflare-specific code path; it just calls `createScheduler`
  * if one was injected. Mirrors the wait-until module's approach.
  */
-export function generateSchedulerModule(
-	adapterName: string | undefined,
-	command: "build" | "serve" | undefined,
-): string {
-	// Only suppress the timer for an actual Cloudflare *build* — that artifact
-	// runs in workerd where a Cron Trigger drives scheduled work. In `serve`
-	// (local dev) nothing fires the Cron Trigger, so fall through to the timer.
-	if (adapterName === "@astrojs/cloudflare" && command !== "serve") {
-		return `// Serverless build: an external Cron Trigger drives scheduled work.
+export function generateSchedulerModule(adapterName: string | undefined): string {
+	if (adapterName === "@astrojs/cloudflare") {
+		return `// Cloudflare: an external platform event drives scheduled work.
 export const createScheduler = null;
 `;
 	}
-	return `// Long-lived runtime (or local dev): drive scheduled work from an in-process timer.
+	return `// Long-lived runtime: drive scheduled work from an in-process timer.
 import { NodeCronScheduler } from "emdash";
 
 export function createScheduler(executor) {

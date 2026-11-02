@@ -9,6 +9,7 @@ import {
 	generateEncryptionKey,
 	isDirNonEmpty,
 	parseTargetArg,
+	replacePackageManagerCommands,
 	sanitizePackageName,
 	setWorkerLoader,
 	writeEncryptionKey,
@@ -371,5 +372,26 @@ describe("setWorkerLoader", () => {
 
 		expect(read().match(/worker_loaders/g)).toHaveLength(1);
 		expect(read().endsWith("\n")).toBe(true);
+	});
+});
+
+describe("replacePackageManagerCommands", () => {
+	const scripts = ["dev", "build", "deploy"];
+
+	it.each([
+		["npm", "pnpm dev", "npm run dev"],
+		["npm", "pnpm install", "npm install"],
+		["yarn", "pnpm deploy", "yarn deploy"],
+		["bun", "pnpm dev", "bun dev"],
+		["bun", "`pnpm deploy`", "`bun run deploy`"],
+		["bun", "pnpm build", "bun run build"],
+		["bun", "pnpm run build", "bun run build"],
+		["npm", "pnpm wrangler login", "npx wrangler login"],
+		["bun", "pnpm wrangler login", "bun wrangler login"],
+		["npm", "npx emdash types", "npx emdash types"],
+		["bun", "`pnpm-workspace.yaml`", "`pnpm-workspace.yaml`"],
+		["pnpm", "pnpm dev", "pnpm dev"],
+	] as const)("%s: %s -> %s", (pm, input, expected) => {
+		expect(replacePackageManagerCommands(input, pm, scripts)).toBe(expected);
 	});
 });

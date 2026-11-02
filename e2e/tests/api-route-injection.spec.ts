@@ -18,7 +18,6 @@ test.describe("Injected API routes", () => {
 
 		for (const path of [
 			"/_emdash/api/relations/missing",
-			"/_emdash/api/relations/missing/translations",
 			"/_emdash/api/content/posts/missing/references/missing/children",
 			"/_emdash/api/content/posts/missing/references/missing/parents",
 		]) {

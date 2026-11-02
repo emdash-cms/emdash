@@ -90,8 +90,10 @@ export async function requestSignup(
 		expiresAt: new Date(Date.now() + TOKEN_EXPIRY_MS),
 	});
 
-	// Build verification URL
-	const url = new URL("/_emdash/api/auth/signup/verify", config.baseUrl);
+	// Build the verification URL pointing at the admin UI page, not the API
+	// endpoint: the page reads `?token=` and calls the API itself. Same shape
+	// as the invite link (see invite.ts).
+	const url = new URL(`${config.baseUrl}/admin/signup`);
 	url.searchParams.set("token", token);
 
 	// Send email
@@ -162,8 +164,7 @@ export async function completeSignup(
 ): Promise<User> {
 	const hash = hashToken(token);
 
-	// Validate token one more time
-	const authToken = await adapter.getToken(hash, "email_verify");
+	const authToken = await adapter.consumeToken(hash, "email_verify");
 	if (!authToken || authToken.expiresAt < new Date()) {
 		throw new SignupError("invalid_token", "Invalid or expired verification");
 	}
@@ -175,12 +176,8 @@ export async function completeSignup(
 	// Check user doesn't already exist
 	const existing = await adapter.getUserByEmail(authToken.email);
 	if (existing) {
-		await adapter.deleteToken(hash);
 		throw new SignupError("user_exists", "An account with this email already exists");
 	}
-
-	// Delete token (single-use)
-	await adapter.deleteToken(hash);
 
 	// Create user
 	const user = await adapter.createUser({

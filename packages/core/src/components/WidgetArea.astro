@@ -1,5 +1,5 @@
 ---
-import { getWidgetArea } from "../widgets/index.js";
+import { getWidgetAreaWithCacheHint } from "../widgets/index.js";
 import WidgetRenderer from "./WidgetRenderer.astro";
 
 interface Props {
@@ -8,7 +8,8 @@ interface Props {
 }
 
 const { name, class: className } = Astro.props;
-const area = await getWidgetArea(name);
+const { data: area, cacheHint } = await getWidgetAreaWithCacheHint(name);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 
 {

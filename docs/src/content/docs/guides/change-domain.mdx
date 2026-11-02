@@ -1,0 +1,96 @@
+---
+title: Move to a New Domain
+description: Switch a site's public address with the Change domain dialog, and keep signing in after the move.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+The **Site URL** in **Settings > General** is the public address of the site. Links in emails and plugins, sitemaps, `robots.txt`, hreflang links, social image URLs, and canonical links set in the SEO panel use it. Change it with the **Change domain** dialog, which checks that the new domain serves the site before it switches.
+
+Only administrators can change the domain.
+
+## Before you start
+
+Point the new domain at the site first. EmDash checks the domain while it switches, so the domain must already serve the site over `https://`.
+
+- **Cloudflare Workers:** in the Cloudflare dashboard, open your Worker in **Workers & Pages**, go to the **Domains** tab, and add the domain. See [Custom domains](/deployment/cloudflare/#custom-domains) for the Wrangler configuration.
+- **Node.js and other hosts:** create the DNS record and certificate for the domain, and route it to the same server that serves the current address.
+
+Open `https://<new domain>/_emdash/admin` in a browser. The EmDash sign-in page means the domain is ready.
+
+If the site sets [`siteUrl`](/reference/configuration/#siteurl), `EMDASH_SITE_URL`, or `SITE_URL`, links in emails and plugins use that address instead of the **Site URL**, and **Settings > General** names it. Change the configuration and deploy again to move those links as well.
+
+## Change the domain
+
+<Steps>
+
+1. Open **Settings > General** and select **Change domain** next to **Site URL**.
+
+2. Enter the new domain, for example `www.example.com`. A full origin such as `https://www.example.com` also works. Paths and ports are not accepted.
+
+3. Select **Check and switch**.
+
+   EmDash requests a one-time code from `https://www.example.com/_emdash/api/site/domain-proof`. When the code matches, it stores `https://www.example.com` as the **Site URL** and closes the dialog.
+
+</Steps>
+
+Unsaved changes in **Settings > General** stay in the form after the switch. Save them as usual.
+
+## When the new address takes effect
+
+- **Emails:** sign-in, invitation, self-signup, recovery, and comment notification emails link to the new address right away.
+- **Plugins:** `ctx.site.url` changes after the server restarts or, on Cloudflare Workers, as new isolates start.
+- **Sitemaps and `robots.txt`:** browsers and shared caches can keep the old versions for up to an hour (sitemaps) or a day (`robots.txt`).
+
+The old address keeps serving the site until you remove it from your host. To send visitors from the old address to the new one, add a redirect at your host or DNS provider.
+
+## Sign in after the move
+
+A passkey only works at the address where it was created. After the move, passkeys created at the old address do not work at the new one. Move your own sign-in to the new address while you are still signed in at the old one:
+
+<Steps>
+
+1. In **Settings > General**, select **Continue on www.example.com** below **Site URL**. The button appears when you are signed in at an address other than the **Site URL**. When `siteUrl` is configured, it compares against that address instead.
+
+2. Select **Continue** on the sign-in page that opens at the new address. The link works once and expires after 5 minutes.
+
+3. **Settings > Security** opens with the passkey form. Select **Register Passkey** to create a passkey for the new address.
+
+</Steps>
+
+This works without [email](/guides/email/). Other users can sign in at the new address with a [magic link](/guides/authentication/#log-in-with-a-magic-link) when email is set up, then [add a passkey](/guides/authentication/#manage-passkeys) there. Until then, they keep signing in at the old address while it still serves the site.
+
+### Tell other users
+
+When [email](/guides/email/) is set up and users sign in with passkeys, administrators can tell every other user where to sign in now:
+
+<Steps>
+
+1. In **Settings > General**, select **Email users** below **Site URL**.
+
+2. Select **Send emails**.
+
+</Steps>
+
+Every user whose account is not disabled, except you, gets an email that the site has moved to the configured `siteUrl`, or the **Site URL** when none is set, with a button to the sign-in page there. The email does not sign anyone in. It explains that passkeys from the old address don't work there and that users sign in with an email link first. A message then shows how many emails were sent, and how many the email provider rejected. The emails can be sent 3 times per hour per site.
+
+<Aside type="caution">
+	Before you remove the old address from your host, make sure every administrator can sign in at the new address, either with email or with a passkey created there.
+</Aside>
+
+## If the check fails
+
+The dialog shows why the check failed:
+
+- **`www.example.com does not resolve to a public address`:** the domain has no public DNS record yet, or it points to a private network. Finish the DNS setup and try again.
+- **`Could not reach https://www.example.com`:** the request timed out or the connection failed, for example because the certificate is not ready yet. Wait a few minutes and try again.
+- **`https://example.com redirects to https://www.example.com. Enter that address instead.`:** the domain redirects. Enter the address it redirects to.
+- **`https://www.example.com does not serve this site yet`:** the domain answers, but not with this site. It may still point to a previous host, or a login page such as Cloudflare Access may be in front of it. On Cloudflare, add the domain on the Worker's **Domains** tab as a Custom Domain. A route does not work for the check: Cloudflare does not run a Worker for requests that the Worker sends to its own route on the same zone.
+
+### Use an address without the check
+
+When the check fails, the dialog offers **Use … anyway**. It stores the address without checking it. Use it when the site cannot be reached from the internet, for example during local development at `http://localhost:4321` or on a staging domain behind a login.
+
+Sitemaps and search metadata use the stored address as entered, including a path such as `https://example.com/blog`. Emails and plugins use only its origin, and only when it uses `https://` or the host is `localhost`, `127.0.0.1`, or `[::1]`. Otherwise they keep using the address the site was set up on.
+
+Check the address carefully before you select it. Nothing confirms that it reaches the site.

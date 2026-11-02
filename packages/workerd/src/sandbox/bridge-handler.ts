@@ -19,6 +19,7 @@ import { Buffer } from "node:buffer";
 import {
 	ContentRepository,
 	CronAccessImpl,
+	createBylineAccess,
 	createCommentAccess,
 	createContentAccess,
 	createRedirectAccess,
@@ -60,6 +61,7 @@ import type {
 	SiteInfo,
 	TaxonomyAccessWithWrite,
 } from "emdash";
+import { createKVAccess } from "emdash/internal/plugins/host";
 import type { Kysely } from "kysely";
 
 const CONTENT_CREATE_ERROR_CODES = new Set([
@@ -181,7 +183,12 @@ export interface BridgeHandlerOptions {
 	i18nConfig?: I18nConfig | null;
 	siteInfo?: SiteInfo;
 	db: Kysely<Database>;
-	beforeContentWrite?: () => Promise<void>;
+	/**
+	 * Called immediately before a content write; it throws to refuse the
+	 * write. When it returns a function, that function is called once the
+	 * write has succeeded.
+	 */
+	beforeContentWrite?: () => Promise<void | (() => Promise<void>)>;
 	contentCreate?: SandboxContentCreateCallback;
 	contentCreateProvider?: () => SandboxContentCreateCallback | null;
 	taxonomyWrite?: TaxonomyAccessWithWrite;
@@ -351,7 +358,7 @@ async function dispatch(
 	const { db, pluginId } = opts;
 
 	switch (method) {
-		// ── KV (stored in _plugin_storage with collection='__kv') ────────
+		// ── KV ───────────────────────────────────────────────────────
 		case "kv/get":
 			return kvGet(
 				db,
@@ -522,47 +529,50 @@ async function dispatch(
 					code: "VALIDATION_ERROR",
 				});
 			}
-			await opts.beforeContentWrite?.();
-			const runtimeContentCreate = opts.contentCreateProvider?.() ?? opts.contentCreate;
-			if (runtimeContentCreate) {
-				const originHookValue = optionalString(body, "originHook");
-				const originHook =
-					originHookValue === "content:beforeSave" || originHookValue === "content:afterSave"
-						? originHookValue
-						: undefined;
-				return runtimeContentCreate(
-					pluginId,
+			return guardedContentWrite(opts, () => {
+				const runtimeContentCreate = opts.contentCreateProvider?.() ?? opts.contentCreate;
+				if (runtimeContentCreate) {
+					const originHookValue = optionalString(body, "originHook");
+					const originHook =
+						originHookValue === "content:beforeSave" || originHookValue === "content:afterSave"
+							? originHookValue
+							: undefined;
+					return runtimeContentCreate(
+						pluginId,
+						requireString(body, "collection"),
+						requireRecord(body, "data"),
+						{
+							locale,
+							translationOf: createOptions
+								? optionalString(createOptions, "translationOf")
+								: undefined,
+							originHook,
+							sandboxOrigin: true,
+						},
+					);
+				}
+				return contentCreate(
+					db,
 					requireString(body, "collection"),
 					requireRecord(body, "data"),
-					{
-						locale,
-						translationOf: createOptions
-							? optionalString(createOptions, "translationOf")
-							: undefined,
-						originHook,
-						sandboxOrigin: true,
-					},
+					locale,
 				);
-			}
-			return contentCreate(
-				db,
-				requireString(body, "collection"),
-				requireRecord(body, "data"),
-				locale,
-			);
+			});
 		case "content/update":
 			requireCapability(opts, "content:write");
-			await opts.beforeContentWrite?.();
-			return contentUpdate(
-				db,
-				requireString(body, "collection"),
-				requireString(body, "id"),
-				requireRecord(body, "data"),
+			return guardedContentWrite(opts, () =>
+				contentUpdate(
+					db,
+					requireString(body, "collection"),
+					requireString(body, "id"),
+					requireRecord(body, "data"),
+				),
 			);
 		case "content/delete":
 			requireCapability(opts, "content:write");
-			await opts.beforeContentWrite?.();
-			return contentDelete(db, requireString(body, "collection"), requireString(body, "id"));
+			return guardedContentWrite(opts, () =>
+				contentDelete(db, requireString(body, "collection"), requireString(body, "id")),
+			);
 		case "content/getVersioned":
 			requireCapability(opts, "content:publish");
 			return requireContentActions(opts).getVersioned(
@@ -628,28 +638,27 @@ async function dispatch(
 		case "content/createMany":
 			requireCapability(opts, "content:write");
 			const createManyLocale = resolveContentCreateLocale(undefined, opts.i18nConfig ?? null);
-			await opts.beforeContentWrite?.();
-			return contentCreateMany(
-				db,
-				requireString(body, "collection"),
-				requireRecordArray(body, "items"),
-				createManyLocale,
+			return guardedContentWrite(opts, () =>
+				contentCreateMany(
+					db,
+					requireString(body, "collection"),
+					requireRecordArray(body, "items"),
+					createManyLocale,
+				),
 			);
 		case "content/updateMany":
 			requireCapability(opts, "content:write");
-			await opts.beforeContentWrite?.();
-			return contentUpdateMany(
-				db,
-				requireString(body, "collection"),
-				requireUpdateManyItems(body, "items"),
+			return guardedContentWrite(opts, () =>
+				contentUpdateMany(
+					db,
+					requireString(body, "collection"),
+					requireUpdateManyItems(body, "items"),
+				),
 			);
 		case "content/deleteMany":
 			requireCapability(opts, "content:write");
-			await opts.beforeContentWrite?.();
-			return contentDeleteMany(
-				db,
-				requireString(body, "collection"),
-				requireStringArray(body, "ids"),
+			return guardedContentWrite(opts, () =>
+				contentDeleteMany(db, requireString(body, "collection"), requireStringArray(body, "ids")),
 			);
 
 		// ── Comments ────────────────────────────────────────────────────
@@ -691,6 +700,23 @@ async function dispatch(
 				requireString(body, "entryId"),
 				optionalString(body, "taxonomy"),
 				optionalString(body, "locale"),
+			);
+		// ── Bylines ─────────────────────────────────────────────────────
+		case "bylines/get":
+			requireCapability(opts, "bylines:read");
+			return createBylineAccess(db).get(requireString(body, "id"));
+		case "bylines/list":
+			requireCapability(opts, "bylines:read");
+			return createBylineAccess(db).list({
+				locale: optionalString(body, "locale"),
+				limit: optionalLimit(body),
+				cursor: optionalString(body, "cursor"),
+			});
+		case "bylines/entriesBylines":
+			requireCapability(opts, "bylines:read");
+			return createBylineAccess(db).getEntriesBylines(
+				requireString(body, "collection"),
+				requireStringArray(body, "entryIds"),
 			);
 		case "taxonomy/createTerm":
 			requireCapability(opts, "taxonomies:write");
@@ -941,7 +967,14 @@ async function dispatch(
 // value is typed via flow analysis rather than via a `as T` assertion. This
 // keeps the @typescript-eslint/no-unsafe-type-assertion rule clean.
 
-type EmailMessage = { to: string; subject: string; text: string; html?: string };
+type EmailMessage = {
+	to: string;
+	cc?: string[];
+	replyTo?: string;
+	subject: string;
+	text: string;
+	html?: string;
+};
 type LogLevel = "debug" | "info" | "warn" | "error";
 type UpdateManyItem = { id: string; data: Record<string, unknown> };
 type StorageItem = { id: string; data: unknown };
@@ -995,6 +1028,8 @@ function isEmailMessage(value: unknown): value is EmailMessage {
 	if (typeof value.subject !== "string") return false;
 	if (typeof value.text !== "string") return false;
 	if (value.html !== undefined && typeof value.html !== "string") return false;
+	if (value.cc !== undefined && !isStringArray(value.cc)) return false;
+	if (value.replyTo !== undefined && typeof value.replyTo !== "string") return false;
 	return true;
 }
 
@@ -1212,7 +1247,9 @@ function requireMediaBytes(body: Record<string, unknown>, key: string): string |
 function requireEmailMessage(body: Record<string, unknown>, key: string): EmailMessage {
 	const value = body[key];
 	if (!isEmailMessage(value)) {
-		throw new Error("email/send requires message with to, subject, and text");
+		throw new Error(
+			"email/send requires message with to, subject, and text; cc must be an array of strings and replyTo a string",
+		);
 	}
 	return value;
 }
@@ -1271,6 +1308,16 @@ function requireCapability(opts: BridgeHandlerOptions, capability: string): void
 		// Error message matches Cloudflare PluginBridge format
 		throw new Error(`Missing capability: ${capability}`);
 	}
+}
+
+async function guardedContentWrite<T>(
+	opts: BridgeHandlerOptions,
+	write: () => Promise<T>,
+): Promise<T> {
+	const recordWrite = await opts.beforeContentWrite?.();
+	const result = await write();
+	if (typeof recordWrite === "function") await recordWrite();
+	return result;
 }
 
 function requireContentActions(opts: BridgeHandlerOptions): ContentActionCallbacks {
@@ -1360,7 +1407,6 @@ function rowToContentItem(
 }
 
 // ── KV Operations ────────────────────────────────────────────────────────
-// Uses _plugin_storage with collection='__kv' (matching Cloudflare bridge)
 
 const SETTINGS_KEY_PREFIX = "settings:";
 
@@ -1387,16 +1433,15 @@ async function kvGet(
 	settingsSchema: Record<string, SettingField> = {},
 	secretRedactor?: PluginSecretRedactor,
 ): Promise<unknown> {
-	if (isSettingsKey(key)) {
-		const value = await createSettingsAccess(
-			new OptionsRepository(db),
-			pluginId,
-			settingsSchema,
-			undefined,
-			secretRedactor?.add,
-		).get(key.slice(SETTINGS_KEY_PREFIX.length));
-		if (value !== null) return value;
-	}
+	if (!isSettingsKey(key)) return createKVAccess(new OptionsRepository(db), pluginId).get(key);
+	const settingValue = await createSettingsAccess(
+		new OptionsRepository(db),
+		pluginId,
+		settingsSchema,
+		undefined,
+		secretRedactor?.add,
+	).get(key.slice(SETTINGS_KEY_PREFIX.length));
+	if (settingValue !== null) return settingValue;
 	const row = await db
 		.selectFrom("_plugin_storage")
 		.where("plugin_id", "=", pluginId)
@@ -1407,10 +1452,10 @@ async function kvGet(
 	if (!row) return null;
 	try {
 		const value: unknown = JSON.parse(row.data);
-		if (isSettingsKey(key)) observeSecretSetting(key, value, settingsSchema, secretRedactor);
+		observeSecretSetting(key, value, settingsSchema, secretRedactor);
 		return value;
 	} catch {
-		if (isSettingsKey(key)) observeSecretSetting(key, row.data, settingsSchema, secretRedactor);
+		observeSecretSetting(key, row.data, settingsSchema, secretRedactor);
 		return row.data;
 	}
 }
@@ -1434,7 +1479,7 @@ async function kvSet(
 		await kvDeleteLegacy(db, pluginId, key);
 		return;
 	}
-	await new PluginStorageRepository(db, pluginId, "__kv", []).put(key, value);
+	await createKVAccess(new OptionsRepository(db), pluginId).set(key, value);
 }
 
 async function kvGetVersioned(
@@ -1443,18 +1488,18 @@ async function kvGetVersioned(
 	key: string,
 	opts: BridgeHandlerOptions,
 ) {
-	if (isSettingsKey(key)) {
-		const value = await createSettingsAccess(
-			new OptionsRepository(db),
-			pluginId,
-			opts.settingsSchema,
-			undefined,
-			opts.secretRedactor?.add,
-		).getVersioned(key.slice(SETTINGS_KEY_PREFIX.length));
-		if (value !== null) return value;
-	}
+	if (!isSettingsKey(key))
+		return createKVAccess(new OptionsRepository(db), pluginId).getVersioned(key);
+	const value = await createSettingsAccess(
+		new OptionsRepository(db),
+		pluginId,
+		opts.settingsSchema,
+		undefined,
+		opts.secretRedactor?.add,
+	).getVersioned(key.slice(SETTINGS_KEY_PREFIX.length));
+	if (value !== null) return value;
 	const legacy = await getStorageRepo(opts, "__kv").getVersioned(key);
-	if (legacy && isSettingsKey(key)) {
+	if (legacy) {
 		observeSecretSetting(key, legacy.value, opts.settingsSchema ?? {}, opts.secretRedactor);
 	}
 	return legacy;
@@ -1469,7 +1514,11 @@ async function kvCompareAndSet(
 	opts: BridgeHandlerOptions,
 ) {
 	if (!isSettingsKey(key)) {
-		return getStorageRepo(opts, "__kv").compareAndSet(key, expectedRevision, value);
+		return createKVAccess(new OptionsRepository(db), pluginId).compareAndSet(
+			key,
+			expectedRevision,
+			value,
+		);
 	}
 	const result = await createSettingsAccess(
 		new OptionsRepository(db),
@@ -1490,7 +1539,10 @@ async function kvCompareAndDelete(
 	opts: BridgeHandlerOptions,
 ) {
 	if (!isSettingsKey(key)) {
-		return getStorageRepo(opts, "__kv").compareAndDelete(key, expectedRevision);
+		return createKVAccess(new OptionsRepository(db), pluginId).compareAndDelete(
+			key,
+			expectedRevision,
+		);
 	}
 	const result = await createSettingsAccess(
 		new OptionsRepository(db),
@@ -1531,7 +1583,7 @@ async function kvDelete(
 		]);
 		return optionDeleted || legacyDeleted;
 	}
-	return kvDeleteLegacy(db, pluginId, key);
+	return createKVAccess(new OptionsRepository(db), pluginId).delete(key);
 }
 
 async function kvList(
@@ -1541,31 +1593,32 @@ async function kvList(
 	settingsSchema: Record<string, SettingField> = {},
 	secretRedactor?: PluginSecretRedactor,
 ): Promise<Array<{ key: string; value: unknown }>> {
+	const includesSettings =
+		SETTINGS_KEY_PREFIX.startsWith(prefix) || prefix.startsWith(SETTINGS_KEY_PREFIX);
+	if (!includesSettings) return createKVAccess(new OptionsRepository(db), pluginId).list(prefix);
 	const rows = await db
 		.selectFrom("_plugin_storage")
 		.where("plugin_id", "=", pluginId)
 		.where("collection", "=", "__kv")
-		.where("id", "like", `${prefix}%`)
+		.where("id", "like", "settings:%")
 		.select(["id", "data"])
 		.execute();
 
-	const entries = new Map(rows.map((row) => [row.id, JSON.parse(row.data) as unknown]));
-	const includesSettings =
-		SETTINGS_KEY_PREFIX.startsWith(prefix) || prefix.startsWith(SETTINGS_KEY_PREFIX);
-	if (includesSettings) {
-		const settingPrefix = prefix.startsWith(SETTINGS_KEY_PREFIX)
-			? prefix.slice(SETTINGS_KEY_PREFIX.length)
-			: "";
-		for (const { key, value } of await createSettingsAccess(
-			new OptionsRepository(db),
-			pluginId,
-			settingsSchema,
-			undefined,
-			secretRedactor?.add,
-		).list(settingPrefix)) {
-			const fullKey = `${SETTINGS_KEY_PREFIX}${key}`;
-			if (fullKey.startsWith(prefix)) entries.set(fullKey, value);
-		}
+	const entries = new Map(
+		rows
+			.filter((row) => isSettingsKey(row.id) && row.id.startsWith(prefix))
+			.map((row) => [row.id, JSON.parse(row.data) as unknown]),
+	);
+	const options = new OptionsRepository(db);
+	const settings = createSettingsAccess(
+		options,
+		pluginId,
+		settingsSchema,
+		undefined,
+		secretRedactor?.add,
+	);
+	for (const { key, value } of await createKVAccess(options, pluginId, settings).list(prefix)) {
+		entries.set(key, value);
 	}
 	for (const [key, value] of entries) {
 		if (isSettingsKey(key)) observeSecretSetting(key, value, settingsSchema, secretRedactor);

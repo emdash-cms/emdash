@@ -37,6 +37,7 @@ describe("plugin build metadata round trip", () => {
 					"admin.editor-draft:patch",
 				],
 				admin: {
+					pages: [{ path: "/sync", label: "Sync", group: " Calendar " }],
 					editorPanels: [
 						{
 							id: "health",
@@ -120,6 +121,9 @@ describe("plugin build metadata round trip", () => {
 			name: "manageCalendar",
 			permission: "content:edit_any",
 		});
+		expect(persistedManifest.admin.pages).toEqual([
+			{ path: "/sync", label: "Sync", group: "Calendar" },
+		]);
 		expect(persistedManifest.admin.fieldWidgets[0].name).toBe("event-picker");
 		expect(persistedManifest.admin.settingsSchema.apiKey).toEqual({
 			type: "secret",
@@ -146,6 +150,7 @@ describe("plugin build metadata round trip", () => {
 			hooks: ["content:afterSave"],
 			routes: persistedManifest.routes,
 			mcp: persistedManifest.mcp,
+			adminPages: persistedManifest.admin.pages,
 			settingsSchema: persistedManifest.admin.settingsSchema,
 			fieldWidgets: persistedManifest.admin.fieldWidgets,
 			editorPanels: persistedManifest.admin.editorPanels,

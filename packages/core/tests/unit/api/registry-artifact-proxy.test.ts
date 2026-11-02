@@ -115,7 +115,7 @@ function makeContext(
 	return {
 		url: u,
 		locals: {
-			emdash: { db: {}, config: { experimental: { registry } } },
+			emdash: { db: {}, config: { registry } },
 			user,
 		},
 	} as unknown as APIContext;
@@ -273,7 +273,7 @@ describe("registry artifact proxy", () => {
 		for (const [key, value] of Object.entries(DEFAULT_PARAMS)) u.searchParams.set(key, value);
 		const ctx = {
 			url: u,
-			locals: { emdash: { db: {}, config: { experimental: {} } }, user: adminUser },
+			locals: { emdash: { db: {}, config: {} }, user: adminUser },
 		} as unknown as APIContext;
 		const res = await GET(ctx);
 		expect(res.status).toBe(400);
@@ -345,6 +345,32 @@ describe("registry artifact proxy", () => {
 		const fetched = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0];
 		expect(fetched).toBe(
 			`https://cdn.em-da.sh/img/avatar/r/did:plc:abc123/com.emdashcms.experimental.package.release/myplugin:1.0.0/${RELEASE_CID}/${blobCid}`,
+		);
+	});
+
+	it("uses the feed_fullsize preset for screenshot blobs", async () => {
+		mockArtifacts = {
+			screenshots: [
+				{
+					blob: {
+						$type: "blob",
+						ref: { $link: BLOB_CID },
+						mimeType: "image/png",
+						size: BLOB_BYTES.byteLength,
+					},
+					checksum: BLOB_CHECKSUM,
+				},
+			],
+		};
+		const fetchMock = vi.fn(async () => imageResponse(PNG_1x1)) as typeof globalThis.fetch;
+		globalThis.fetch = fetchMock;
+
+		const response = await GET(makeContext({ ...DEFAULT_PARAMS, kind: "screenshot", index: "0" }));
+
+		expect(response.status).toBe(200);
+		const fetched = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0];
+		expect(fetched).toBe(
+			`https://cdn.em-da.sh/img/feed_fullsize/r/did:plc:abc123/com.emdashcms.experimental.package.release/myplugin:1.0.0/${RELEASE_CID}/${BLOB_CID}`,
 		);
 	});
 

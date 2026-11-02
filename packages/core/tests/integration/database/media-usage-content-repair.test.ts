@@ -3,6 +3,7 @@ import { ulid } from "ulidx";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
+import { MediaRepository } from "../../../src/database/repositories/media.js";
 import { validateIdentifier } from "../../../src/database/validate.js";
 import { installMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
 import {
@@ -18,6 +19,7 @@ import {
 	buildContentMediaUsageSourceKey,
 	type MediaUsageContentSourceVariant,
 } from "../../../src/media/usage/source-key.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
@@ -123,6 +125,85 @@ describeEachDialect("content media usage repair", (dialect) => {
 				lastErrorCode: null,
 			}),
 		);
+	});
+
+	it("indexes rich text media named by its file URL", async () => {
+		await registry.createField("posts", { slug: "body", label: "Body", type: "portableText" });
+		const media = new MediaRepository(ctx.db);
+		const image = await media.create({
+			filename: "slash-menu.png",
+			mimeType: "image/png",
+			storageKey: "01K0MARKDOWNIMAGE.png",
+		});
+		const video = await media.create({
+			filename: "demo.mp4",
+			mimeType: "video/mp4",
+			storageKey: "01K0EDITORVIDEO.mp4",
+		});
+		const post = await insertPost(ctx, {
+			slug: "release-notes",
+			status: "published",
+			data: { title: "Release notes" },
+		});
+		await sql`
+			UPDATE ec_posts
+			SET body = ${JSON.stringify([
+				{
+					_type: "image",
+					_key: "markdown",
+					alt: "Slash menu",
+					asset: { url: "/_emdash/api/media/file/01K0MARKDOWNIMAGE.png" },
+				},
+				{
+					_type: "video",
+					_key: "editor",
+					asset: {
+						_ref: "/_emdash/api/media/file/01K0EDITORVIDEO.mp4",
+						url: "/_emdash/api/media/file/01K0EDITORVIDEO.mp4",
+					},
+				},
+				{
+					_type: "image",
+					_key: "missing",
+					asset: { url: "/_emdash/api/media/file/01K0DELETED.png" },
+				},
+			])}
+			WHERE id = ${post.id}
+		`.execute(ctx.db);
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result.status).toBe("complete");
+		expect(await usageRepo.findCurrentUsageByMediaId(image.id)).toEqual([
+			{
+				source: expect.objectContaining({ contentId: post.id }),
+				occurrence: expect.objectContaining({
+					fieldPath: "body[0].asset.url",
+					referenceType: "portable_text_image",
+					mediaId: image.id,
+					provider: "local",
+					providerAssetId: image.id,
+				}),
+			},
+		]);
+		expect(await usageRepo.findCurrentUsageByMediaId(video.id)).toEqual([
+			{
+				source: expect.objectContaining({ contentId: post.id }),
+				occurrence: expect.objectContaining({
+					fieldPath: "body[1].asset._ref",
+					referenceType: "portable_text_video",
+					mediaId: video.id,
+				}),
+			},
+		]);
+		const occurrences = await ctx.db
+			.selectFrom("_emdash_media_usage")
+			.select("field_path")
+			.execute();
+		expect(occurrences.map((row) => row.field_path).toSorted()).toEqual([
+			"body[0].asset.url",
+			"body[1].asset._ref",
+		]);
 	});
 
 	it("uses canonical identity and clears only proven work after activation", async () => {
@@ -355,6 +436,69 @@ describeEachDialect("content media usage repair", (dialect) => {
 				lastErrorCode: "INVALID_REPEATER_VALIDATION",
 			}),
 		);
+	});
+
+	it("reports invalid blocks validation without replacing trusted usage", async () => {
+		const blocks = new BlockTypeRegistry(ctx.db);
+		await blocks.createBlockType({
+			slug: "feature",
+			label: "Feature",
+			fields: [{ slug: "image", label: "Image", type: "image" }],
+		});
+		await registry.createField("posts", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["feature"] },
+		});
+		await ctx.db
+			.updateTable("_emdash_fields")
+			.set({ validation: "{" })
+			.where("slug", "=", "layout")
+			.execute();
+		await usageRepo.replaceSource(contentSource("existing", "columns"), [
+			occurrence("layout.feature.image", "media-protected"),
+		]);
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result).toEqual(
+			expect.objectContaining({ status: "failed", lastErrorCode: "INVALID_BLOCK_VALIDATION" }),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-protected")).toHaveLength(1);
+	});
+
+	it("reports unresolved block definitions without replacing trusted usage", async () => {
+		const blocks = new BlockTypeRegistry(ctx.db);
+		await blocks.createBlockType({
+			slug: "feature",
+			label: "Feature",
+			fields: [{ slug: "image", label: "Image", type: "image" }],
+		});
+		await registry.createField("posts", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["feature"] },
+		});
+		await ctx.db
+			.updateTable("_emdash_fields")
+			.set({ validation: JSON.stringify({ allowedTypes: ["missing"] }) })
+			.where("slug", "=", "layout")
+			.execute();
+		await usageRepo.replaceSource(contentSource("existing", "columns"), [
+			occurrence("layout.feature.image", "media-protected"),
+		]);
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "failed",
+				lastErrorCode: "UNSUPPORTED_BLOCK_DEFINITION",
+			}),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-protected")).toHaveLength(1);
 	});
 
 	it("treats repeater fields with non-array subfields as unsupported during repair", async () => {

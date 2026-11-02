@@ -14,6 +14,7 @@ import {
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { promisify, stripVTControlCharacters } from "node:util";
 
@@ -49,6 +50,7 @@ const STARTUP_TIMEOUT_MS = 180_000;
 const INSTALL_TIMEOUT_MS = 600_000;
 const INJECTED_ROUTE_TIMEOUT_MS = 30_000;
 const INJECTED_ROUTE_REQUEST_TIMEOUT_MS = 5_000;
+const PAGE_REQUEST_TIMEOUT_MS = 30_000;
 const PLATFORM_CASES: PlatformCase[] = [
 	{
 		id: "node",
@@ -325,12 +327,32 @@ async function waitForReady(
 	);
 }
 
+async function fetchWithServerOutput(url: string, readOutput: () => string): Promise<Response> {
+	try {
+		return await fetch(url, {
+			redirect: "manual",
+			signal: AbortSignal.timeout(PAGE_REQUEST_TIMEOUT_MS),
+		});
+	} catch (error) {
+		const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+		throw new Error(`Request to ${url} failed (${reason}):\n${readOutput()}`, { cause: error });
+	}
+}
+
 async function waitForInjectedRoute(
 	url: string,
 	readOutput: () => string,
-	timeoutMs = INJECTED_ROUTE_TIMEOUT_MS,
-	requestTimeoutMs = INJECTED_ROUTE_REQUEST_TIMEOUT_MS,
+	options: {
+		timeoutMs?: number;
+		requestTimeoutMs?: number;
+		retryRequestTimeouts?: boolean;
+	} = {},
 ): Promise<Response> {
+	const {
+		timeoutMs = INJECTED_ROUTE_TIMEOUT_MS,
+		requestTimeoutMs = INJECTED_ROUTE_REQUEST_TIMEOUT_MS,
+		retryRequestTimeouts = true,
+	} = options;
 	const deadline = Date.now() + timeoutMs;
 	let lastBody = "";
 	let lastError: unknown;
@@ -344,12 +366,13 @@ async function waitForInjectedRoute(
 			lastBody = await response.text();
 			lastError = undefined;
 		} catch (error) {
-			const isTransient =
-				error instanceof TypeError ||
-				(error instanceof DOMException &&
-					(error.name === "AbortError" || error.name === "TimeoutError"));
+			const requestTimedOut =
+				error instanceof DOMException &&
+				(error.name === "AbortError" || error.name === "TimeoutError");
+			const isTransient = error instanceof TypeError || requestTimedOut;
 			if (!isTransient) throw error;
 			lastError = error;
+			if (requestTimedOut && !retryRequestTimeouts) break;
 		}
 		await new Promise((resolveSleep) => setTimeout(resolveSleep, 250));
 	}
@@ -377,11 +400,37 @@ it("retries when an injected route request times out during startup", async () =
 		const response = await waitForInjectedRoute(
 			`http://127.0.0.1:${address.port}/`,
 			() => "test output",
-			1000,
-			25,
+			{ timeoutMs: 1000, requestTimeoutMs: 25 },
 		);
 		expect(response.status).toBe(302);
 		expect(requestCount).toBe(2);
+	} finally {
+		const closed = once(server, "close");
+		server.closeAllConnections();
+		server.close();
+		await closed;
+	}
+});
+
+it("does not retry a timed-out state-changing request", async () => {
+	let requestCount = 0;
+	const server = createServer(() => {
+		requestCount++;
+	});
+	server.listen(0, "127.0.0.1");
+	await once(server, "listening");
+	const address = server.address();
+	if (!address || typeof address === "string") throw new Error("Test server did not bind to TCP");
+
+	try {
+		await expect(
+			waitForInjectedRoute(`http://127.0.0.1:${address.port}/`, () => "test output", {
+				timeoutMs: 1000,
+				requestTimeoutMs: 25,
+				retryRequestTimeouts: false,
+			}),
+		).rejects.toThrow("Injected route was not ready");
+		expect(requestCount).toBe(1);
 	} finally {
 		const closed = once(server, "close");
 		server.closeAllConnections();
@@ -421,18 +470,12 @@ it("retries when an injected route returns a transient server error", async () =
 
 async function stopServer(serverProcess: ReturnType<typeof spawn>): Promise<void> {
 	if (serverProcess.exitCode !== null || serverProcess.signalCode !== null) return;
-	serverProcess.kill("SIGTERM");
-	await Promise.race([
-		once(serverProcess, "exit"),
-		new Promise<void>((resolveTimeout) => {
-			setTimeout(() => {
-				if (serverProcess.exitCode === null && serverProcess.signalCode === null) {
-					serverProcess.kill("SIGKILL");
-				}
-				resolveTimeout();
-			}, 5000);
-		}),
-	]);
+	const exited = once(serverProcess, "exit");
+	if (!serverProcess.kill("SIGTERM")) return;
+	const stopped = await Promise.race([exited.then(() => true), delay(5000, false, { ref: false })]);
+	if (stopped) return;
+	serverProcess.kill("SIGKILL");
+	await Promise.race([exited, delay(1000, undefined, { ref: false })]);
 }
 
 describe.sequential("Isolated template installs", () => {
@@ -538,23 +581,27 @@ describe.sequential("Isolated template installs", () => {
 						const setup = await waitForInjectedRoute(
 							`http://localhost:${platform.port}/_emdash/api/setup/dev-bypass?redirect=/`,
 							readOutput,
+							{
+								requestTimeoutMs: INJECTED_ROUTE_TIMEOUT_MS,
+								retryRequestTimeouts: false,
+							},
 						);
 						const setupBody = await setup.text();
 						expect([200, 302, 307, 308], `${readOutput()}\n${setupBody}`).toContain(setup.status);
 
-						const frontend = await fetch(`http://localhost:${platform.port}/`, {
-							redirect: "manual",
-							signal: AbortSignal.timeout(15_000),
-						});
+						const frontend = await fetchWithServerOutput(
+							`http://localhost:${platform.port}/`,
+							readOutput,
+						);
 						const frontendBody = await frontend.text();
 						expect([200, 302, 307, 308], `${readOutput()}\n${frontendBody}`).toContain(
 							frontend.status,
 						);
 
-						const admin = await fetch(`http://localhost:${platform.port}/_emdash/admin/`, {
-							redirect: "manual",
-							signal: AbortSignal.timeout(15_000),
-						});
+						const admin = await fetchWithServerOutput(
+							`http://localhost:${platform.port}/_emdash/admin/`,
+							readOutput,
+						);
 						const adminBody = await admin.text();
 						expect(admin.status, `${readOutput()}\n${adminBody}`).toBeLessThan(500);
 

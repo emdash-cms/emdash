@@ -7,7 +7,7 @@
  *
  */
 
-import type { D1Database } from "@cloudflare/workers-types";
+import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import type {
 	CommentCountOptions,
@@ -18,6 +18,7 @@ import type {
 	ContentCreateOptions,
 	CronTaskInfo,
 	Database,
+	DownloadResult,
 	I18nConfig,
 	PluginComment,
 	PluginCommentStatus,
@@ -35,7 +36,6 @@ import type {
 	VersionedRedirect,
 	VersionedValue,
 } from "emdash";
-import type { MediaBytes, MediaItem as PluginMediaItem, MediaMetadataPatch } from "emdash/plugin";
 import type {
 	ContentItem,
 	ContentListOptions,
@@ -43,7 +43,8 @@ import type {
 	PaginatedResult,
 	PluginStorageRepository,
 	SettingField,
-} from "emdash/plugins/host";
+} from "emdash/internal/plugins/host";
+import type { MediaBytes, MediaItem as PluginMediaItem, MediaMetadataPatch } from "emdash/plugin";
 import {
 	createPluginSecretRedactor,
 	type PluginSecretRedactor,
@@ -62,6 +63,17 @@ function loadBridgeRuntime(): Promise<typeof import("./bridge-runtime.js")> {
 /** Regex to validate collection names (prevent SQL injection) */
 const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_]*$/;
 const MISSING_MEDIA_USAGE_ACTIVATION_TABLE_REGEX = /no such table.*_emdash_media_usage_activation/i;
+const MISSING_TRANSFER_OPERATIONS_TABLE_REGEX = /no such table.*_emdash_transfer_operations/i;
+interface SiteWriteFence {
+	mediaState: string | null;
+	importId: string | null;
+	exportId: string | null;
+}
+
+const SITE_WRITE_FENCE_SQL = `SELECT
+	(SELECT state FROM _emdash_media_usage_activation WHERE task_key = 'incremental_capture') AS media_state,
+	(SELECT id FROM _emdash_transfer_operations WHERE kind = 'import' AND (state IN ('running', 'verifying') OR (state IN ('failed', 'cancelled') AND mutation_started_at IS NOT NULL)) LIMIT 1) AS import_id,
+	(SELECT id FROM _emdash_transfer_operations WHERE kind = 'export' AND state = 'running' LIMIT 1) AS export_id`;
 const SETTINGS_KEY_PREFIX = "settings:";
 
 const SYSTEM_COLUMNS = new Set([
@@ -91,15 +103,8 @@ function invalidCommentStatus(value: string, name: string): string | null {
 	return COMMENT_STATUSES.has(value) ? null : `${name} must be one of: approved, pending, spam`;
 }
 
-/**
- * Module-level email send callback.
- *
- * The bridge runs in the host process (same worker), so we can use a
- * module-level callback that the runner sets before creating bridge bindings.
- * This avoids the need to pass non-serializable functions through props.
- *
- * @see runner.ts setEmailSendCallback()
- */
+// The bridge can run in a different isolate than the one that set this callback.
+// emailSend starts EmDash locally when the callback is missing.
 let emailSendCallback: SandboxEmailSendCallback | null = null;
 const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
 const TAXONOMY_WRITE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-taxonomy-write-callbacks");
@@ -107,8 +112,8 @@ const CONTENT_ACTION_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-action-c
 let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
 let commentModerateCallback: SandboxCommentModerateCallback | null = null;
-let mediaStorageCallback: Pick<Storage, "download"> | null = null;
 const httpFetchCallbacks = new Map<string, typeof fetch>();
+const mediaStorageCallbacks = new Map<string, Pick<Storage, "download">>();
 
 function contentCreateCallbacks(): Map<string, SandboxContentCreateCallback> {
 	const store = globalThis as Record<symbol, unknown>;
@@ -203,8 +208,12 @@ export function setCommentModerateCallback(callback: SandboxCommentModerateCallb
 	commentModerateCallback = callback;
 }
 
-export function setMediaStorageCallback(storage: Pick<Storage, "download"> | null): void {
-	mediaStorageCallback = storage;
+export function setMediaStorageCallback(
+	key: string,
+	storage: Pick<Storage, "download"> | null,
+): void {
+	if (storage) mediaStorageCallbacks.set(key, storage);
+	else mediaStorageCallbacks.delete(key);
 }
 
 export function setTaxonomyWriteCallback(
@@ -385,6 +394,7 @@ export interface PluginBridgeProps {
 		trailingSlash?: "always" | "never" | "ignore";
 	};
 	httpFetchKey?: string;
+	mediaStorageKey?: string;
 	/** Per-collection storage config (matches manifest.storage entries) */
 	storageConfig?: Record<
 		string,
@@ -424,6 +434,12 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 	}
 
+	private getMediaStorageCallback(): Pick<Storage, "download"> | null {
+		const key = this.ctx.props.mediaStorageKey;
+		if (!key) return null;
+		return mediaStorageCallbacks.get(key) ?? null;
+	}
+
 	private async contentAccess() {
 		const { createContentAccess } = await loadBridgeRuntime();
 		return createContentAccess(await this.db(), {
@@ -437,6 +453,11 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return new OptionsRepository(
 			new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) }),
 		);
+	}
+
+	private async getKVAccess() {
+		const { createKVAccess } = await loadBridgeRuntime();
+		return createKVAccess(await this.getOptionsRepo(), this.ctx.props.pluginId);
 	}
 
 	private async getSettingsAccess() {
@@ -472,23 +493,58 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return (result.meta?.changes ?? 0) > 0;
 	}
 
-	private async assertMediaUsageActivationWriteAllowed(): Promise<void> {
-		const { createSandboxRouteError, getSandboxRouteErrorDetails } = await loadBridgeRuntime();
+	private async readSiteWriteFence(): Promise<SiteWriteFence> {
 		try {
+			const row = await this.env.DB.prepare(SITE_WRITE_FENCE_SQL).first<{
+				media_state: string | null;
+				import_id: string | null;
+				export_id: string | null;
+			}>();
+			return {
+				mediaState: row?.media_state ?? null,
+				importId: row?.import_id ?? null,
+				exportId: row?.export_id ?? null,
+			};
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			if (!MISSING_TRANSFER_OPERATIONS_TABLE_REGEX.test(message)) throw error;
 			const activation = await this.env.DB.prepare(
 				"SELECT state FROM _emdash_media_usage_activation WHERE task_key = ? LIMIT 1",
 			)
 				.bind("incremental_capture")
 				.first<{ state: string }>();
-			if (activation?.state === "activating") {
-				throw createSandboxRouteError("MEDIA_USAGE_ACTIVATION_IN_PROGRESS");
-			}
+			return { mediaState: activation?.state ?? null, importId: null, exportId: null };
+		}
+	}
+
+	/**
+	 * The unified site write fence (media usage activation and transfer
+	 * imports), read with one query. Records the write for running exports.
+	 */
+	private async assertSiteWriteAllowed(): Promise<void> {
+		const { createSandboxRouteError, getSandboxRouteErrorDetails } = await loadBridgeRuntime();
+		let fence: SiteWriteFence;
+		try {
+			fence = await this.readSiteWriteFence();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			if (MISSING_MEDIA_USAGE_ACTIVATION_TABLE_REGEX.test(message)) return;
 			if (getSandboxRouteErrorDetails(error)) throw error;
-			console.error("[media-usage] Failed to check the sandbox write fence:", error);
-			throw createSandboxRouteError("MEDIA_USAGE_ACTIVATION_CHECK_FAILED");
+			console.error("[transfer] Failed to check the sandbox write fence:", error);
+			throw createSandboxRouteError("TRANSFER_FENCE_CHECK_FAILED");
+		}
+		if (fence.importId) throw createSandboxRouteError("TRANSFER_IMPORT_IN_PROGRESS");
+		if (fence.mediaState === "activating") {
+			throw createSandboxRouteError("MEDIA_USAGE_ACTIVATION_IN_PROGRESS");
+		}
+		if (fence.exportId) {
+			try {
+				await this.env.DB.prepare(
+					"UPDATE _emdash_transfer_operations SET write_epoch = write_epoch + 1 WHERE kind = 'export' AND state = 'running'",
+				).run();
+			} catch (error) {
+				console.error("[transfer] Failed to record a write for running exports:", error);
+			}
 		}
 	}
 
@@ -518,18 +574,13 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	// KV Operations - scoped to plugin namespace
 	// =========================================================================
 
-	/**
-	 * KV operations use _plugin_storage with a special "__kv" collection.
-	 * This provides consistent storage across sandboxed and non-sandboxed modes.
-	 */
 	async kvGet(key: string): Promise<unknown> {
+		if (!key.startsWith(SETTINGS_KEY_PREFIX)) return (await this.getKVAccess()).get(key);
 		const { pluginId } = this.ctx.props;
-		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
-			const value = await (
-				await this.getSettingsAccess()
-			).get(key.slice(SETTINGS_KEY_PREFIX.length));
-			if (value !== null) return value;
-		}
+		const settingValue = await (
+			await this.getSettingsAccess()
+		).get(key.slice(SETTINGS_KEY_PREFIX.length));
+		if (settingValue !== null) return settingValue;
 		const result = await this.env.DB.prepare(
 			"SELECT data FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id = ?",
 		)
@@ -538,37 +589,31 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!result) return null;
 		try {
 			const value: unknown = JSON.parse(result.data);
-			if (key.startsWith(SETTINGS_KEY_PREFIX)) this.observeSecretSetting(key, value);
+			this.observeSecretSetting(key, value);
 			return value;
 		} catch {
-			if (key.startsWith(SETTINGS_KEY_PREFIX)) this.observeSecretSetting(key, result.data);
+			this.observeSecretSetting(key, result.data);
 			return result.data;
 		}
 	}
 
 	async kvSet(key: string, value: unknown): Promise<void> {
-		const { pluginId } = this.ctx.props;
 		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
 			await (await this.getSettingsAccess()).set(key.slice(SETTINGS_KEY_PREFIX.length), value);
 			await this.deleteLegacyKV(key);
 			return;
 		}
-		await this.env.DB.prepare(
-			"INSERT OR REPLACE INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, '__kv', ?, ?, ?, datetime('now'))",
-		)
-			.bind(pluginId, key, JSON.stringify(value), crypto.randomUUID())
-			.run();
+		await (await this.getKVAccess()).set(key, value);
 	}
 
 	async kvGetVersioned(key: string): Promise<VersionedValue | null> {
-		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
-			const value = await (
-				await this.getSettingsAccess()
-			).getVersioned(key.slice(SETTINGS_KEY_PREFIX.length));
-			if (value !== null) return value;
-		}
+		if (!key.startsWith(SETTINGS_KEY_PREFIX)) return (await this.getKVAccess()).getVersioned(key);
+		const value = await (
+			await this.getSettingsAccess()
+		).getVersioned(key.slice(SETTINGS_KEY_PREFIX.length));
+		if (value !== null) return value;
 		const legacy = await (await this.getStorageRepo("__kv")).getVersioned(key);
-		if (legacy && key.startsWith(SETTINGS_KEY_PREFIX)) {
+		if (legacy) {
 			this.observeSecretSetting(key, legacy.value);
 		}
 		return legacy;
@@ -586,7 +631,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			if (result.applied) await this.deleteLegacyKV(key);
 			return result;
 		}
-		return (await this.getStorageRepo("__kv")).compareAndSet(key, expectedRevision, value);
+		return (await this.getKVAccess()).compareAndSet(key, expectedRevision, value);
 	}
 
 	async kvCompareAndDelete(
@@ -600,11 +645,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			if (result.applied) await this.deleteLegacyKV(key);
 			return result;
 		}
-		return (await this.getStorageRepo("__kv")).compareAndDelete(key, expectedRevision);
+		return (await this.getKVAccess()).compareAndDelete(key, expectedRevision);
 	}
 
 	async kvDelete(key: string): Promise<boolean> {
-		const { pluginId } = this.ctx.props;
 		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
 			const optionDeleted = await (
 				await this.getSettingsAccess()
@@ -612,36 +656,32 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			const legacyDeleted = await this.deleteLegacyKV(key);
 			return optionDeleted || legacyDeleted;
 		}
-		const result = await this.env.DB.prepare(
-			"DELETE FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id = ?",
-		)
-			.bind(pluginId, key)
-			.run();
-		return (result.meta?.changes ?? 0) > 0;
+		return (await this.getKVAccess()).delete(key);
 	}
 
 	async kvList(prefix: string = ""): Promise<Array<{ key: string; value: unknown }>> {
+		const includesSettings =
+			SETTINGS_KEY_PREFIX.startsWith(prefix) || prefix.startsWith(SETTINGS_KEY_PREFIX);
+		if (!includesSettings) return (await this.getKVAccess()).list(prefix);
 		const { pluginId } = this.ctx.props;
 		const results = await this.env.DB.prepare(
-			"SELECT id, data FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id LIKE ?",
+			"SELECT id, data FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id LIKE 'settings:%'",
 		)
-			.bind(pluginId, prefix + "%")
+			.bind(pluginId)
 			.all<{ id: string; data: string }>();
 
 		const entries = new Map(
-			(results.results ?? []).map((row) => [row.id, JSON.parse(row.data) as unknown]),
+			(results.results ?? [])
+				.filter((row) => row.id.startsWith(SETTINGS_KEY_PREFIX) && row.id.startsWith(prefix))
+				.map((row) => [row.id, JSON.parse(row.data) as unknown]),
 		);
-		const includesSettings =
-			SETTINGS_KEY_PREFIX.startsWith(prefix) || prefix.startsWith(SETTINGS_KEY_PREFIX);
-		if (includesSettings) {
-			const settingPrefix = prefix.startsWith(SETTINGS_KEY_PREFIX)
-				? prefix.slice(SETTINGS_KEY_PREFIX.length)
-				: "";
-			for (const { key, value } of await (await this.getSettingsAccess()).list(settingPrefix)) {
-				const fullKey = `${SETTINGS_KEY_PREFIX}${key}`;
-				if (fullKey.startsWith(prefix)) entries.set(fullKey, value);
-			}
-		}
+		const { createKVAccess } = await loadBridgeRuntime();
+		const kv = createKVAccess(
+			await this.getOptionsRepo(),
+			pluginId,
+			await this.getSettingsAccess(),
+		);
+		for (const { key, value } of await kv.list(prefix)) entries.set(key, value);
 		for (const [key, value] of entries) {
 			if (key.startsWith(SETTINGS_KEY_PREFIX)) this.observeSecretSetting(key, value);
 		}
@@ -711,7 +751,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
 		await this.env.DB.prepare(
-			"INSERT OR REPLACE INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
+			"INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, revision = excluded.revision, updated_at = excluded.updated_at",
 		)
 			.bind(pluginId, collection, id, JSON.stringify(data), crypto.randomUUID())
 			.run();
@@ -832,24 +872,13 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	}
 
 	async storageGetMany(collection: string, ids: string[]): Promise<Map<string, unknown>> {
-		const { pluginId, storageCollections } = this.ctx.props;
+		const { storageCollections } = this.ctx.props;
 		if (!storageCollections.includes(collection)) {
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
 		if (ids.length === 0) return new Map();
 
-		const placeholders = ids.map(() => "?").join(",");
-		const results = await this.env.DB.prepare(
-			`SELECT id, data FROM _plugin_storage WHERE plugin_id = ? AND collection = ? AND id IN (${placeholders})`,
-		)
-			.bind(pluginId, collection, ...ids)
-			.all<{ id: string; data: string }>();
-
-		const map = new Map<string, unknown>();
-		for (const row of results.results ?? []) {
-			map.set(row.id, JSON.parse(row.data));
-		}
-		return map;
+		return (await this.getStorageRepo(collection)).getMany(ids);
 	}
 
 	async storagePutMany(
@@ -864,7 +893,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 		for (const item of items) {
 			await this.env.DB.prepare(
-				"INSERT OR REPLACE INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
+				"INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, revision = excluded.revision, updated_at = excluded.updated_at",
 			)
 				.bind(pluginId, collection, item.id, JSON.stringify(item.data), crypto.randomUUID())
 				.run();
@@ -872,22 +901,13 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	}
 
 	async storageDeleteMany(collection: string, ids: string[]): Promise<number> {
-		const { pluginId, storageCollections } = this.ctx.props;
+		const { storageCollections } = this.ctx.props;
 		if (!storageCollections.includes(collection)) {
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
 		if (ids.length === 0) return 0;
 
-		let deleted = 0;
-		for (const id of ids) {
-			const result = await this.env.DB.prepare(
-				"DELETE FROM _plugin_storage WHERE plugin_id = ? AND collection = ? AND id = ?",
-			)
-				.bind(pluginId, collection, id)
-				.run();
-			deleted += result.meta?.changes ?? 0;
-		}
-		return deleted;
+		return (await this.getStorageRepo(collection)).deleteMany(ids);
 	}
 
 	// =========================================================================
@@ -1010,7 +1030,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 				error: { code: "VALIDATION_ERROR", message },
 			};
 		}
-		await this.assertMediaUsageActivationWriteAllowed();
+		await this.assertSiteWriteAllowed();
 		const runtimeContentCreate = this.ctx.props.contentCreateRuntimeId
 			? contentCreateCallbacks().get(this.ctx.props.contentCreateRuntimeId)
 			: undefined;
@@ -1113,7 +1133,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		const db = new Kysely<Database>({
 			dialect: new D1Dialect({ database: this.env.DB }),
 		});
-		await this.assertMediaUsageActivationWriteAllowed();
+		await this.assertSiteWriteAllowed();
 		const updated = await new ContentRepository(db).updateDraftAware(collection, id, {
 			data,
 			status: typeof data.status === "string" ? data.status : undefined,
@@ -1140,7 +1160,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
-		await this.assertMediaUsageActivationWriteAllowed();
+		await this.assertSiteWriteAllowed();
 		const now = new Date().toISOString();
 		const result = await this.env.DB.prepare(
 			`UPDATE ec_${collection} SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
@@ -1442,6 +1462,33 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return (results.results ?? []).map(rowToTaxonomyTerm);
 	}
 
+	// =========================================================================
+	// Byline Operations - capability-gated
+	// =========================================================================
+
+	private async bylineAccess() {
+		this.requireCapability("bylines:read");
+		const { createBylineAccess } = await loadBridgeRuntime();
+		return createBylineAccess(await this.db());
+	}
+
+	async bylineGet(id: string) {
+		return (await this.bylineAccess()).get(id);
+	}
+
+	async bylineList(opts: { locale?: string; limit?: number; cursor?: string } = {}) {
+		return (await this.bylineAccess()).list(opts);
+	}
+
+	async bylineEntriesBylines(collection: string, entryIds: string[]) {
+		const access = await this.bylineAccess();
+		this.validateCollection(collection);
+		if (!Array.isArray(entryIds) || !entryIds.every((id) => typeof id === "string")) {
+			throw new Error("entryIds must be an array of strings");
+		}
+		return access.getEntriesBylines(collection, entryIds);
+	}
+
 	async taxonomyCreateTerm(
 		taxonomy: string,
 		input: Parameters<TaxonomyAccessWithWrite["createTerm"]>[1],
@@ -1574,9 +1621,31 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (maxBytes !== undefined && typeof maxBytes !== "number") {
 			throw new TypeError("media/readBytes: maxBytes must be a number");
 		}
+		// Worker Loader evaluates the bridge in a fresh isolate/context, so
+		// module-level callbacks registered by the runner are not always
+		// available. Read bytes directly from the R2 binding, matching
+		// mediaUpload and mediaDelete.
+		const bucket = this.env.MEDIA;
+		const storage: Pick<Storage, "download"> | undefined = bucket
+			? {
+					download: async (key: string): Promise<DownloadResult> => {
+						const object = await bucket.get(key);
+						if (!object || !object.body) {
+							throw new Error(`File not found: ${key}`);
+						}
+						return {
+							// @ts-expect-error -- R2Object.body is typed as ReadableStream<any> but the runtime value is ReadableStream<Uint8Array>
+							body: object.body,
+							contentType: object.httpMetadata?.contentType || "application/octet-stream",
+							size: object.size ?? 0,
+						};
+					},
+				}
+			: (this.getMediaStorageCallback() ?? undefined);
+		if (!storage) throw new Error("Media storage is not configured");
 		const { D1Dialect, Kysely, readPluginMediaBytes } = await loadBridgeRuntime();
 		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return readPluginMediaBytes(db, mediaStorageCallback ?? undefined, id, { maxBytes });
+		return readPluginMediaBytes(db, storage, id, { maxBytes });
 	}
 
 	async mediaUpdateMetadata(id: string, patch: unknown): Promise<PluginMediaItem> {
@@ -1845,6 +1914,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	async emailSend(message: {
 		to: string;
+		cc?: string[];
+		replyTo?: string;
 		subject: string;
 		text: string;
 		html?: string;
@@ -1853,10 +1924,18 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!capabilities.includes("email:send")) {
 			throw new Error("Missing capability: email:send");
 		}
-		if (!emailSendCallback) {
-			throw new Error("Email is not configured. No email provider is available.");
+		if (emailSendCallback) {
+			await emailSendCallback(message, pluginId);
+			return;
 		}
-		await emailSendCallback(message, pluginId);
+
+		const { withEmDashRuntime } = await import("emdash/middleware");
+		await withEmDashRuntime(async () => {
+			if (!emailSendCallback) {
+				throw new Error("Email is not configured. No email provider is available.");
+			}
+			await emailSendCallback(message, pluginId);
+		});
 	}
 
 	async cronSchedule(

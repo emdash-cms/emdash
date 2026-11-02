@@ -310,6 +310,32 @@ describe("settings_update", () => {
 		expect((data.seo as { titleSeparator?: string }).titleSeparator).toBe(" | ");
 	});
 
+	it("removes media references while preserving sibling SEO settings", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		await harness.client.callTool({
+			name: "settings_update",
+			arguments: {
+				logo: { mediaId: "med_logo" },
+				favicon: { mediaId: "med_favicon" },
+				seo: {
+					defaultOgImage: { mediaId: "med_og" },
+					titleSeparator: " | ",
+					googleVerification: "abc123",
+				},
+			},
+		});
+
+		const result = await harness.client.callTool({
+			name: "settings_update",
+			arguments: { logo: null, favicon: null, seo: { defaultOgImage: null } },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const data = extractJson<SiteSettingsResponse>(result);
+		expect(data.logo).toBeUndefined();
+		expect(data.favicon).toBeUndefined();
+		expect(data.seo).toEqual({ titleSeparator: " | ", googleVerification: "abc123" });
+	});
+
 	it("editor cannot update settings (INSUFFICIENT_PERMISSIONS — admin only)", async () => {
 		harness = await connectMcpHarness({ db, userId: EDITOR_ID, userRole: Role.EDITOR });
 		const result = await harness.client.callTool({

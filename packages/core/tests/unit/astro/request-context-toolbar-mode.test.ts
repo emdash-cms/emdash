@@ -34,6 +34,7 @@ function buildContext(opts: {
 	search?: string;
 	user?: { id: string; role: number } | null;
 	editCookie?: boolean;
+	playground?: boolean;
 }) {
 	const url = new URL(`https://example.com${opts.pathname ?? "/blog"}${opts.search ?? ""}`);
 	return {
@@ -46,7 +47,7 @@ function buildContext(opts: {
 			),
 			set: vi.fn(),
 		},
-		locals: { user: opts.user ?? null },
+		locals: { user: opts.user ?? null, __playgroundDb: opts.playground ? {} : undefined },
 	};
 }
 
@@ -56,6 +57,8 @@ const htmlResponse = () =>
 	});
 
 const EDITOR = { id: "u1", role: 30 };
+
+const HIDDEN_EDIT_TOOLBAR = /<div id="emdash-toolbar" data-edit-mode="true"[^>]* hidden>/;
 
 describe("toolbar: server (default)", () => {
 	it("injects the toolbar for editors and leaves anonymous HTML untouched", async () => {
@@ -148,6 +151,53 @@ describe("toolbar: client", () => {
 		expect(html).toContain("emdash-toolbar-bootstrap");
 		expect(html).not.toContain('id="emdash-toolbar"');
 	});
+});
+
+describe("toolbar placement", () => {
+	// Astro escapes only `&` and `"` in attribute values, so this alt text
+	// reaches the page as written.
+	const alt = "</body><img src=x onerror=alert(1)>";
+	const content = `<!doctype html><html><head><title>Post</title></head><body><img src="/photo.jpg" alt="${alt}"><p>Post</p>`;
+	// A script the page renders after its layout ends up after `</html>`.
+	const end = "</body></html><script>1</script>";
+
+	it.each([
+		{ toolbar: "server", user: EDITOR, marker: 'id="emdash-toolbar"' },
+		{ toolbar: "client", user: null, marker: "emdash-toolbar-bootstrap" },
+	])(
+		"$toolbar mode injects before the page's closing body tag, not into an attribute",
+		async ({ toolbar, user, marker }) => {
+			const onRequest = await loadMiddleware(toolbar);
+
+			const res = await onRequest(
+				buildContext({ user }),
+				async () => new Response(content + end, { headers: { "content-type": "text/html" } }),
+			);
+
+			const html = await res.text();
+			expect(html.slice(0, content.length)).toBe(content);
+			expect(html.slice(content.length)).toContain(marker);
+			expect(html.endsWith(end)).toBe(true);
+		},
+	);
+
+	it.each([
+		{ toolbar: "server", user: EDITOR },
+		{ toolbar: "client", user: null },
+	])(
+		"$toolbar mode leaves an HTML fragment, such as a server island, untouched",
+		async ({ toolbar, user }) => {
+			const onRequest = await loadMiddleware(toolbar);
+			const island = `<img src="/photo.jpg" alt="${alt}"><p>Island</p>`;
+
+			const res = await onRequest(
+				buildContext({ user }),
+				async () => new Response(island, { headers: { "content-type": "text/html" } }),
+			);
+
+			expect(await res.text()).toBe(island);
+		},
+	);
 });
 
 describe("toolbar bootstrap script", () => {
@@ -281,5 +331,70 @@ describe("toolbar: false", () => {
 			expect(html).not.toContain("emdash-toolbar");
 			expect(res.headers.get("Cache-Control")).toBeNull();
 		}
+	});
+
+	it("does not add the toolbar in the Playground either", async () => {
+		const onRequest = await loadMiddleware(false);
+		const context = buildContext({ user: EDITOR, playground: true, editCookie: true });
+
+		const res = await onRequest(context, async () => htmlResponse());
+
+		expect(await res.text()).not.toContain("emdash-toolbar");
+		expect(res.headers.get("Cache-Control")).toBeNull();
+	});
+});
+
+describe("toolbar: Playground", () => {
+	it("adds the toolbar hidden, for inline editing, while edit mode is on", async () => {
+		const onRequest = await loadMiddleware(undefined);
+		const context = buildContext({ user: EDITOR, playground: true, editCookie: true });
+
+		const res = await onRequest(context, async () => htmlResponse());
+
+		expect(await res.text()).toMatch(HIDDEN_EDIT_TOOLBAR);
+		expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+		expect(context.cache.set).toHaveBeenCalledWith(false);
+	});
+
+	it("leaves the page untouched while edit mode is off", async () => {
+		const onRequest = await loadMiddleware(undefined);
+		const context = buildContext({ user: EDITOR, playground: true });
+
+		const res = await onRequest(context, async () => htmlResponse());
+
+		expect(await res.text()).not.toContain("emdash-toolbar");
+		expect(res.headers.get("Cache-Control")).toBeNull();
+		expect(context.cache.set).not.toHaveBeenCalled();
+	});
+});
+
+describe("toolbar: rewritten pages", () => {
+	// Astro.rewrite() runs the middleware again for the target route inside the
+	// original request, so the outer pass receives HTML the inner pass already
+	// injected into.
+	const rewriteTo404 = (onRequest: Middleware, context: ReturnType<typeof buildContext>) => () =>
+		Promise.resolve(
+			onRequest({ ...context, url: new URL("https://example.com/404") }, async () =>
+				htmlResponse(),
+			),
+		);
+
+	it("injects the editor toolbar once and keeps the page uncacheable", async () => {
+		const onRequest = await loadMiddleware(undefined);
+		const context = buildContext({ pathname: "/posts/missing", user: EDITOR });
+
+		const res = await onRequest(context, rewriteTo404(onRequest, context));
+
+		expect((await res.text()).match(/id="emdash-toolbar"/g)).toHaveLength(1);
+		expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+	});
+
+	it("injects the client bootstrap once", async () => {
+		const onRequest = await loadMiddleware("client");
+		const context = buildContext({ pathname: "/posts/missing" });
+
+		const res = await onRequest(context, rewriteTo404(onRequest, context));
+
+		expect((await res.text()).match(/<!-- EmDash Toolbar Bootstrap -->/g)).toHaveLength(1);
 	});
 });

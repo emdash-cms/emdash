@@ -163,7 +163,7 @@ function authorityFetch(
 	} = {},
 ) {
 	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-		const url = new URL(input instanceof Request ? input.url : input.toString());
+		const url = new URL(new Request(input, init).url);
 		if (url.hostname === "cloudflare-dns.com") {
 			return Response.json({
 				Status: 0,
@@ -304,13 +304,87 @@ describe("approval authority", () => {
 		});
 	});
 
-	it("distinguishes a missing profile from a transient profile read failure", async () => {
+	it("does not retry a missing profile", async () => {
+		let proofRequests = 0;
+		const fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+			const url = new URL(input instanceof Request ? input.url : input.toString());
+			if (url.pathname === "/xrpc/com.atproto.sync.getRecord") {
+				proofRequests += 1;
+			}
+			return authorityFetch({ missing: true })(input, init);
+		};
 		await expect(
 			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
 				didDocumentResolver: proofResolver(),
-				fetch: authorityFetch({ missing: true }),
+				fetch,
+				retryDelaysMs: [0, 0],
 			}),
 		).rejects.toMatchObject({ code: "PROFILE_NOT_FOUND" });
+		expect(proofRequests).toBe(1);
+	});
+
+	it("retries transient profile status failures", async () => {
+		let proofRequests = 0;
+		const fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+			const url = new URL(input instanceof Request ? input.url : input.toString());
+			if (url.pathname === "/xrpc/com.atproto.sync.getRecord") {
+				proofRequests += 1;
+				if (proofRequests === 1) return new Response(null, { status: 503 });
+			}
+			return authorityFetch()(input, init);
+		};
+		await expect(
+			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
+				didDocumentResolver: proofResolver(),
+				fetch,
+				retryDelaysMs: [0, 0],
+			}),
+		).resolves.toMatchObject({ profileCid: PROFILE_CID });
+		expect(proofRequests).toBe(2);
+	});
+
+	it("retries transient profile network failures and remains fail-closed", async () => {
+		let proofRequests = 0;
+		const fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+			const url = new URL(input instanceof Request ? input.url : input.toString());
+			if (url.pathname === "/xrpc/com.atproto.sync.getRecord") {
+				proofRequests += 1;
+				throw new TypeError("upstream connection reset");
+			}
+			return authorityFetch()(input, init);
+		};
+		await expect(
+			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
+				didDocumentResolver: proofResolver(),
+				fetch,
+				retryDelaysMs: [0, 0],
+			}),
+		).rejects.toMatchObject({ code: "PROFILE_FETCH_FAILED" });
+		expect(proofRequests).toBe(3);
+	});
+
+	it("rejects DNS resolver redirects before fetching the record", async () => {
+		const requestedHosts: string[] = [];
+		const fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+			const url = new URL(new Request(input, init).url);
+			requestedHosts.push(url.hostname);
+			if (url.hostname === "cloudflare-dns.com") {
+				return Response.json(
+					{ Status: 0, Answer: [{ type: 1, data: "93.184.216.34" }] },
+					{ status: 302, headers: { location: "https://resolver.example/dns-query" } },
+				);
+			}
+			return authorityFetch()(input, init);
+		};
+		await expect(
+			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
+				didDocumentResolver: proofResolver(),
+				fetch,
+				retryDelaysMs: [0, 0],
+			}),
+		).rejects.toMatchObject({ code: "PROFILE_FETCH_FAILED" });
+		expect(requestedHosts).not.toContain("resolver.example");
+		expect(requestedHosts).not.toContain("pds.example.com");
 	});
 
 	it("rejects private PDS resolution before fetching the record", async () => {
@@ -324,8 +398,8 @@ describe("approval authority", () => {
 
 	it("rejects private DID-web resolution before fetching the DID document", async () => {
 		let didDocumentFetched = false;
-		const fetch = async (input: RequestInfo | URL): Promise<Response> => {
-			const url = new URL(input instanceof Request ? input.url : input.toString());
+		const fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+			const url = new URL(new Request(input, init).url);
 			if (url.hostname === "cloudflare-dns.com") {
 				return Response.json({
 					Status: 0,

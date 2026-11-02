@@ -28,8 +28,12 @@ import { getPublicOrigin } from "../../api/public-url.js";
 const MW_CACHE_HEADERS = {
 	"Cache-Control": "private, no-store",
 } as const;
-import { resolveApiToken, resolveOAuthToken } from "../../api/handlers/api-tokens.js";
-import { hasScope } from "../../auth/api-tokens.js";
+import {
+	resolveApiToken,
+	resolveOAuthToken,
+	type ResolvedBearerToken,
+} from "../../api/handlers/api-tokens.js";
+import { hasScope, TRANSFER_SCOPES } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
 import { getRegistryConfigInput } from "../../registry/config.js";
@@ -43,6 +47,8 @@ declare global {
 			user?: User;
 			/** Token scopes when authenticated via API token or OAuth token. Undefined for session auth. */
 			tokenScopes?: string[];
+			/** Id of the API or OAuth token the request authenticated with. Undefined for session auth. */
+			tokenId?: string;
 			emdash?: EmDashHandlers;
 		}
 		interface SessionData {
@@ -83,7 +89,7 @@ function mcpUnauthorizedResponse(
  * API routes that skip auth — each handles its own access control.
  *
  * Prefix entries match any path starting with that prefix.
- * Exact entries (no trailing slash or wildcard) match that path only.
+ * Entries in PUBLIC_API_EXACT match that path only.
  */
 const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/setup",
@@ -92,7 +98,6 @@ const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/auth/dev-bypass",
 	"/_emdash/api/auth/signup/",
 	"/_emdash/api/auth/magic-link/",
-	"/_emdash/api/auth/invite/",
 	"/_emdash/api/auth/oauth/",
 	"/_emdash/api/oauth/device/token",
 	"/_emdash/api/oauth/device/code",
@@ -104,10 +109,18 @@ const PUBLIC_API_PREFIXES = [
 ];
 
 const PUBLIC_API_EXACT = new Set([
+	// Invite creation requires auth; only the token-based acceptance flow is public.
+	"/_emdash/api/auth/invite/accept",
+	"/_emdash/api/auth/invite/accept/",
+	"/_emdash/api/auth/invite/register-options",
+	"/_emdash/api/auth/invite/register-options/",
+	"/_emdash/api/auth/invite/complete",
+	"/_emdash/api/auth/invite/complete/",
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/auth/mode",
 	"/_emdash/api/health",
+	"/_emdash/api/site/domain-proof",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
 	"/_emdash/api/visual-editing/toolbar-labels",
@@ -118,6 +131,8 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/search",
 	"/_emdash/api/search/suggest",
 ]);
+
+const DEV_PUBLIC_API_EXACT = new Set(["/_emdash/api/typegen", "/_emdash/api/dev/scheduled-tasks"]);
 
 // Build merged public routes at module load from auth provider descriptors.
 // Routes ending with "/" are treated as prefixes; all others are exact matches.
@@ -164,7 +179,7 @@ function isPublicEmDashRoute(pathname: string): boolean {
 	if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return true;
 	if (_providerExactRoutes.has(pathname)) return true;
 	if (_providerPrefixRoutes.some((p) => pathname.startsWith(p))) return true;
-	if (import.meta.env.DEV && pathname === "/_emdash/api/typegen") return true;
+	if (import.meta.env.DEV && DEV_PUBLIC_API_EXACT.has(pathname)) return true;
 	return false;
 }
 
@@ -233,7 +248,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				return apiError("CSRF_REJECTED", "Missing required header", 403);
 			}
 		}
-		return next();
+		const response = await next();
+		if (!import.meta.env.DEV) {
+			response.headers.set(
+				"Content-Security-Policy",
+				buildEmDashCsp(
+					getRegistryConfigInput(context.locals.emdash?.config.registry),
+					getConfiguredStorageEndpoint(
+						context.locals.emdash?.config.storage,
+						context.locals.emdash?.storage,
+					),
+				),
+			);
+		}
+		return response;
 	}
 
 	// For public routes: soft auth check (set locals.user if session exists, but never block)
@@ -301,10 +329,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			response.headers.set(
 				"Content-Security-Policy",
 				buildEmDashCsp(
-					getRegistryConfigInput(
-						context.locals.emdash?.config.registry,
-						context.locals.emdash?.config.experimental?.registry,
-					),
+					getRegistryConfigInput(context.locals.emdash?.config.registry),
 					getConfiguredStorageEndpoint(
 						context.locals.emdash?.config.storage,
 						context.locals.emdash?.storage,
@@ -322,10 +347,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		response.headers.set(
 			"Content-Security-Policy",
 			buildEmDashCsp(
-				getRegistryConfigInput(
-					context.locals.emdash?.config.registry,
-					context.locals.emdash?.config.experimental?.registry,
-				),
+				getRegistryConfigInput(context.locals.emdash?.config.registry),
 				getConfiguredStorageEndpoint(
 					context.locals.emdash?.config.storage,
 					context.locals.emdash?.storage,
@@ -348,8 +370,11 @@ async function handleEmDashAuth(
 	const { url, locals } = context;
 	const { emdash } = locals;
 
+	// Pages an anonymous visitor must be able to reach: login itself, and the
+	// two token-bearing pages that emails link to.
 	const isPublicAdminRoute =
 		url.pathname.startsWith("/_emdash/admin/login") ||
+		url.pathname.startsWith("/_emdash/admin/signup") ||
 		url.pathname.startsWith("/_emdash/admin/invite/accept");
 	const isApiRoute = url.pathname.startsWith("/_emdash/api");
 
@@ -566,8 +591,7 @@ async function handleExternalAuth(
 			let newName: string | undefined;
 			let newRole: RoleLevel | undefined;
 
-			// Sync name from provider if provider provides one and local differs
-			if (authResult.name && user.name !== authResult.name) {
+			if (externalConfig.syncName !== false && authResult.name && user.name !== authResult.name) {
 				newName = authResult.name;
 				updates.name = newName;
 			}
@@ -615,9 +639,16 @@ async function handleExternalAuth(
 		locals.user = user;
 
 		// Persist to session so public pages can identify the user
-		// (external auth headers are only verified on /_emdash routes)
+		// (external auth headers are only verified on /_emdash routes).
+		// Astro marks the session dirty on every set(), and a dirty session is
+		// written to the store at the end of the request. Skip the set when the
+		// stored id already matches, or each request costs a session-store write
+		// (a KV put on Cloudflare, which also rate-limits writes to one key).
 		const { session } = context;
-		session?.set("user", { id: user.id });
+		if (session) {
+			const sessionUser = await resolveSessionUser(session);
+			if (sessionUser?.id !== user.id) session.set("user", { id: user.id });
+		}
 
 		return next();
 	} catch (error) {
@@ -652,7 +683,7 @@ async function handleBearerAuth(
 	if (!emdash?.db) return "none";
 
 	// Resolve token based on prefix
-	let resolved: { userId: string; scopes: string[] } | null = null;
+	let resolved: ResolvedBearerToken | null = null;
 
 	if (token.startsWith("ec_pat_")) {
 		resolved = await resolveApiToken(emdash.db, token);
@@ -674,6 +705,7 @@ async function handleBearerAuth(
 	// Set user and scopes on locals
 	locals.user = user;
 	locals.tokenScopes = resolved.scopes;
+	locals.tokenId = resolved.tokenId;
 
 	return "authenticated";
 }
@@ -698,7 +730,9 @@ async function handlePasskeyAuth(
 				return apiError("NOT_AUTHENTICATED", "Not authenticated", 401);
 			}
 			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
-			loginUrl.searchParams.set("redirect", url.pathname);
+			// Keep the query string: a token-bearing link that lands here must
+			// still carry its token after login.
+			loginUrl.searchParams.set("redirect", url.pathname + url.search);
 			return context.redirect(loginUrl.toString());
 		}
 
@@ -745,10 +779,11 @@ async function handlePasskeyAuth(
 /**
  * Scope rules: ordered list of (pathPrefix, method, requiredScope) tuples.
  * First matching rule wins. Methods: "*" = any, "WRITE" = POST/PUT/PATCH/DELETE.
+ * A list of scopes is satisfied by holding any one of them.
  *
  * Routes not matched by any rule default to "admin" scope (fail-closed).
  */
-const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
+const SCOPE_RULES: Array<[prefix: string, method: string, scope: string | readonly string[]]> = [
 	// Content routes
 	["/_emdash/api/content", "GET", "content:read"],
 	["/_emdash/api/content", "WRITE", "content:write"],
@@ -768,6 +803,7 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	// menus:manage are not rejected. content:write implicitly grants these via
 	// IMPLICIT_SCOPE_GRANTS in @emdash-cms/auth.
 	["/_emdash/api/taxonomies", "GET", "content:read"],
+	["/_emdash/api/taxonomies/bulk-tag", "WRITE", "content:write"],
 	["/_emdash/api/taxonomies", "WRITE", "taxonomies:manage"],
 	["/_emdash/api/menus", "GET", "content:read"],
 	["/_emdash/api/menus", "WRITE", "menus:manage"],
@@ -781,6 +817,10 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	// Search
 	["/_emdash/api/search", "GET", "content:read"],
 	["/_emdash/api/search", "WRITE", "admin"],
+
+	// Site transfer — must precede the generic /admin rule so a token holding
+	// only a transfer scope reaches the route, which requires its specific one.
+	["/_emdash/api/admin/transfer", "*", TRANSFER_SCOPES],
 
 	// Import, admin, plugins — all require admin scope
 	["/_emdash/api/import", "*", "admin"],
@@ -826,9 +866,14 @@ function enforceTokenScope(
 
 		// Check method match
 		if (ruleMethod === "*" || (ruleMethod === "WRITE" && isWrite) || ruleMethod === method) {
-			if (hasScope(tokenScopes, scope)) return null;
+			const anyOf = typeof scope === "string" ? [scope] : scope;
+			if (anyOf.some((required) => hasScope(tokenScopes, required))) return null;
 
-			return apiError("INSUFFICIENT_SCOPE", `Token lacks required scope: ${scope}`, 403);
+			return apiError(
+				"INSUFFICIENT_SCOPE",
+				`Token lacks required scope: ${anyOf.join(" or ")}`,
+				403,
+			);
 		}
 	}
 

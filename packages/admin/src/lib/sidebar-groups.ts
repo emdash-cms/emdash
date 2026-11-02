@@ -6,6 +6,8 @@
 export interface GroupableNavItem {
 	/** Folder label shared by every member; unset keeps the item inline. */
 	group?: string;
+	/** Icon name a folder may inherit when it has no icon of its own. */
+	iconName?: string;
 	/** Members of one folder sort by rank first (stable), then input order. */
 	groupRank?: number;
 }
@@ -13,6 +15,7 @@ export interface GroupableNavItem {
 export interface NavFolder<T> {
 	kind: "folder";
 	label: string;
+	iconName?: string;
 	items: T[];
 }
 
@@ -41,6 +44,7 @@ export function groupNavItems<T extends GroupableNavItem>(items: readonly T[]): 
 			entries.push(folder);
 		}
 		folder.items.push(item);
+		if (!folder.iconName && item.iconName) folder.iconName = item.iconName;
 	}
 
 	for (const folder of folders.values()) {
@@ -67,4 +71,17 @@ export function taxonomyGroup(
 		shared = group;
 	}
 	return shared;
+}
+
+/**
+ * Decide where a plugin page renders: inside the content folder whose group
+ * it names, or in the Plugins section, where pages sharing any other group
+ * fold together via `groupNavItems`.
+ */
+export function joinsContentFolder(
+	group: string | null | undefined,
+	contentGroups: ReadonlySet<string>,
+): boolean {
+	const normalized = normalizeGroup(group);
+	return normalized !== undefined && contentGroups.has(normalized);
 }

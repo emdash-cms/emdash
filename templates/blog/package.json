@@ -16,7 +16,6 @@
   "dependencies": {
     "@astrojs/node": "catalog:",
     "@astrojs/react": "catalog:",
-    "@emdash-cms/plugin-audit-log": "workspace:*",
     "astro": "catalog:",
     "emdash": "workspace:*",
     "react": "catalog:",

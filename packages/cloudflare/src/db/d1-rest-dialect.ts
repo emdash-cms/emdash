@@ -13,7 +13,10 @@ import { D1BaseAdapter } from "./d1-dialect.js";
 import { D1Introspector } from "./d1-introspector.js";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
-const DEFAULT_MAX_RESPONSE_BYTES = 1_048_576;
+// One D1 row can be 1 MB, and a migration batch reads fifty rows with
+// their JSON, so the bound is sized for that rather than for a single
+// small result. It still stops an unbounded read.
+const DEFAULT_MAX_RESPONSE_BYTES = 64 * 1_048_576;
 const JSON_CONTENT_TYPE_PATTERN = /^application\/(?:[a-z0-9.+-]+\+)?json\b/i;
 const READ_STATEMENT_PATTERN = /^\s*(?:select|explain)\b/i;
 

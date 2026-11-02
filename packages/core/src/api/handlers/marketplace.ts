@@ -7,6 +7,7 @@
 
 import type { Kysely } from "kysely";
 
+import { OptionsRepository } from "../../database/repositories/options.js";
 import type { Database } from "../../database/types.js";
 import { validatePluginIdentifier } from "../../database/validate.js";
 import { pluginManifestSchema, reconcileManifestAccess } from "../../plugins/manifest-schema.js";
@@ -30,7 +31,7 @@ import {
 	removeAllPluginIndexes,
 	syncDeclaredStorageIndexes,
 } from "../../plugins/storage-indexes.js";
-import { normalizeCapabilities } from "../../plugins/types.js";
+import { normalizeCapabilities, warnDeprecatedPluginCapabilities } from "../../plugins/types.js";
 import type { PluginManifest } from "../../plugins/types.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
@@ -175,6 +176,23 @@ async function resolveVersionMetadata(
 	return versions.find((v) => v.version === version) ?? null;
 }
 
+/** A null verdict means no audit ran, which is allowed; "fail" and "warn" are not. */
+function checkAuditVerdict(versionMetadata: MarketplaceVersionSummary): ApiResult<never> | null {
+	if (versionMetadata.auditVerdict !== "fail" && versionMetadata.auditVerdict !== "warn") {
+		return null;
+	}
+	return {
+		success: false,
+		error: {
+			code: "AUDIT_FAILED",
+			message:
+				versionMetadata.auditVerdict === "fail"
+					? "Plugin failed security audit and cannot be installed or updated"
+					: "Plugin audit was inconclusive and cannot be installed or updated until reviewed",
+		},
+	};
+}
+
 function validateBundleIdentity(
 	bundle: PluginBundle,
 	pluginId: string,
@@ -283,6 +301,7 @@ export async function loadBundleFromR2(
 		const result = pluginManifestSchema.safeParse(parsed);
 		if (!result.success) return null;
 		const manifest = reconcileManifestAccess(result.data);
+		warnDeprecatedPluginCapabilities(manifest.id, manifest.capabilities);
 
 		// Try to load admin code (optional)
 		let adminCode: string | undefined;
@@ -479,22 +498,8 @@ export async function handleMarketplaceInstall(
 			};
 		}
 
-		// Block installation of plugins that haven't passed audit.
-		// Both "fail" (explicitly malicious) and "warn" (audit error or
-		// inconclusive) are non-installable — only "pass" or null (no audit
-		// ran) are allowed through.
-		if (versionMetadata.auditVerdict === "fail" || versionMetadata.auditVerdict === "warn") {
-			return {
-				success: false,
-				error: {
-					code: "AUDIT_FAILED",
-					message:
-						versionMetadata.auditVerdict === "fail"
-							? "Plugin failed security audit and cannot be installed"
-							: "Plugin audit was inconclusive and cannot be installed until reviewed",
-				},
-			};
-		}
+		const auditError = checkAuditVerdict(versionMetadata);
+		if (auditError) return auditError;
 
 		// Download and extract bundle
 		const bundle = await client.downloadBundle(pluginId, version);
@@ -720,6 +725,9 @@ export async function handleMarketplaceUpdate(
 			};
 		}
 
+		const auditError = checkAuditVerdict(versionMetadata);
+		if (auditError) return auditError;
+
 		// Download new bundle
 		const bundle = await client.downloadBundle(pluginId, newVersion);
 
@@ -851,7 +859,11 @@ export async function handleMarketplaceUninstall(
 	db: Kysely<Database>,
 	storage: Storage | null,
 	pluginId: string,
-	opts?: { deleteData?: boolean; beforeDelete?: () => Promise<void> },
+	opts?: {
+		deleteData?: boolean;
+		rollbackInstall?: boolean;
+		beforeDelete?: () => Promise<void>;
+	},
 ): Promise<ApiResult<MarketplaceUninstallResult>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -871,9 +883,10 @@ export async function handleMarketplaceUninstall(
 
 		// Optionally delete plugin storage data
 		let dataDeleted = false;
-		if (opts?.deleteData) {
+		if (opts?.deleteData && !opts.rollbackInstall) {
 			try {
 				await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
+				await new OptionsRepository(db).deleteByPrefix(`plugin:${pluginId}:`);
 				dataDeleted = true;
 			} catch {
 				// Plugin storage table may not have data for this plugin

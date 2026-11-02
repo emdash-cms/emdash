@@ -27,6 +27,7 @@ import type {
 	LinkElement,
 	LinkTarget,
 	MediaPickerElement,
+	MenuElement,
 	MeterBlock,
 	NumberInputElement,
 	SecretInputElement,
@@ -204,6 +205,21 @@ function link(
 		label,
 		target,
 		...(opts?.appearance !== undefined && { appearance: opts.appearance }),
+	};
+}
+
+function menu(
+	actionId: string,
+	label: string,
+	items: Array<{ label: string; value: string }>,
+	opts?: { style?: MenuElement["style"] },
+): MenuElement {
+	return {
+		type: "menu",
+		action_id: actionId,
+		label,
+		items,
+		...(opts?.style !== undefined && { style: opts.style }),
 	};
 }
 
@@ -544,6 +560,7 @@ export const elements = {
 	toggle,
 	button,
 	link,
+	menu,
 	secretInput,
 	checkbox,
 	combobox,

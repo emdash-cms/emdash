@@ -7,7 +7,7 @@ description: Port a WordPress theme's design and template behavior to an EmDash-
 
 Recreate the theme's relevant layouts and interactions as an Astro site backed by EmDash. Preserve the user's requested visual fidelity and feature scope; do not assume every WordPress template or demo feature belongs in the port.
 
-Load [building-emdash-site](../building-emdash-site/SKILL.md) for current EmDash schema, query, rendering, caching, and seed patterns. Load [agent-browser](../agent-browser/SKILL.md) when a live reference site is available for rendered comparison.
+Load [building-emdash-site](../building-emdash-site/SKILL.md) for current EmDash schema, query, rendering, caching, and seed patterns. When a live reference site is available, use the `agent-browser` CLI for rendered comparison; run `agent-browser skills get core --full` for its command reference.
 
 ## Choose the evidence
 

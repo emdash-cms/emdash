@@ -93,7 +93,7 @@ const MAX_JSON_BIND_BYTES = 1_900_000;
 const MEDIA_USAGE_EVENT_QUERY_CEILING = 900;
 const MEDIA_USAGE_QUERY_RESERVE = 150;
 
-function chunkJsonRows<T>(rows: readonly T[]): T[][] {
+export function chunkJsonRows<T>(rows: readonly T[]): T[][] {
 	const batches: T[][] = [];
 	let batch: T[] = [];
 	let batchBytes = 2;
@@ -454,6 +454,12 @@ export interface MediaUsageCollectionIndexStatusScope {
 	status: string | null;
 	schemaVersion: number | null;
 	reconciliationRequired: boolean;
+}
+
+export interface MediaUsageCoverageRead {
+	scopes: MediaUsageCollectionIndexStatusScope[];
+	/** Raw JSON option values by name; `null` when the option is not stored. */
+	options: Map<string, string | null>;
 }
 
 export interface MediaUsageCollectionProgress {
@@ -1291,11 +1297,18 @@ export class MediaUsageRepository {
 		return counts;
 	}
 
-	async findCollectionIndexStatusScopes(
+	/**
+	 * Read collection index status and the named options in one statement.
+	 * The one-row anchor keeps the option values readable on a site with no
+	 * collections.
+	 */
+	async findCoverageWithOptions(
 		identity: Pick<MediaUsageIndexStatusIdentity, "adapterId" | "scopeType">,
-	): Promise<MediaUsageCollectionIndexStatusScope[]> {
-		const rows = await this.db
-			.selectFrom("_emdash_collections as collection")
+		optionNames: readonly string[],
+	): Promise<MediaUsageCoverageRead> {
+		let query = this.db
+			.selectFrom(this.db.selectNoFrom(sql<number>`1`.as("anchor")).as("anchor"))
+			.leftJoin("_emdash_collections as collection", (join) => join.on(sql<boolean>`1 = 1`))
 			.leftJoin("_emdash_media_usage_index_status as status", (join) =>
 				join
 					.on("status.adapter_id", "=", identity.adapterId)
@@ -1308,16 +1321,33 @@ export class MediaUsageRepository {
 				"status.schema_version as schema_version",
 				"status.reconciliation_required as reconciliation_required",
 			])
-			.orderBy("collection.slug", "asc")
-			.execute();
+			.orderBy("collection.slug", "asc");
+		const optionAliases = optionNames.map((name, index) => [name, `option_${index}`] as const);
+		for (const [name, alias] of optionAliases) {
+			query = query.select((eb) =>
+				eb.selectFrom("options").select("value").where("name", "=", name).as(alias),
+			);
+		}
+		const rows: Array<Record<string, unknown>> = await query.execute();
 
-		return rows.map((row) => ({
-			collectionSlug: row.collection_slug,
-			status: row.status,
-			schemaVersion: row.schema_version === null ? null : Number(row.schema_version),
-			reconciliationRequired:
-				row.reconciliation_required !== null && Number(row.reconciliation_required) !== 0,
-		}));
+		const scopes: MediaUsageCollectionIndexStatusScope[] = [];
+		for (const row of rows) {
+			if (typeof row.collection_slug !== "string") continue;
+			scopes.push({
+				collectionSlug: row.collection_slug,
+				status: typeof row.status === "string" ? row.status : null,
+				schemaVersion: row.schema_version == null ? null : Number(row.schema_version),
+				reconciliationRequired:
+					row.reconciliation_required != null && Number(row.reconciliation_required) !== 0,
+			});
+		}
+		const firstRow = rows[0];
+		const options = new Map<string, string | null>();
+		for (const [name, alias] of optionAliases) {
+			const value = firstRow?.[alias];
+			options.set(name, typeof value === "string" ? value : null);
+		}
+		return { scopes, options };
 	}
 
 	async findCollectionProgress(): Promise<MediaUsageCollectionProgress | null> {

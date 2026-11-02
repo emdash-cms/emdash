@@ -1,7 +1,8 @@
-import Database from "better-sqlite3";
 import type { DialectAdapter } from "kysely";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { LockingSqliteAdapter, readMigrationLock } from "../../../src/database/migration-lock.js";
 import { MIGRATION_NAMES, runMigrations } from "../../../src/database/migrations/runner.js";

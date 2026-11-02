@@ -39,7 +39,7 @@ import {
  * bundled `manifest.json` without re-asserting the shape.
  */
 export interface NormalisedAdmin {
-	pages: Array<{ path: string; label: string; icon?: string }>;
+	pages: Array<{ path: string; label: string; icon?: string; group?: string }>;
 	widgets: Array<{ id: string; title?: string; size?: "full" | "half" | "third" }>;
 	settingsSchema?: PluginAdminConfig["settingsSchema"];
 	fieldWidgets?: PluginAdminConfig["fieldWidgets"];

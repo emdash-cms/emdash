@@ -42,7 +42,7 @@ import {
 	samePdsOrigin,
 } from "../verification/pds.js";
 import { verifyReleaseEvidence } from "../verification/staged-input.js";
-import { createReleaseRecord, uploadReleaseBlob } from "./create-only.js";
+import { CreateReleaseError, createReleaseRecord, uploadReleaseBlob } from "./create-only.js";
 import {
 	buildMaterializedRelease,
 	stageReleaseArtifacts,
@@ -108,7 +108,7 @@ type TransitionSummary =
 
 type AttemptResult =
 	| { state: "published"; uri: string; cid: string }
-	| { state: "reconciling" }
+	| { state: "reconciling"; errorCode?: string }
 	| { state: "expired" }
 	| { state: "blocked"; reasonCode: string }
 	| { state: "failed"; reasonCode: string };
@@ -681,6 +681,57 @@ export async function publishVerifiedIntent(
 	originalIntent: StoredIntent,
 	approvalEvidence: ApprovalEvidence,
 ): Promise<PublicationWorkflowOutput> {
+	const result = await runPublication(env, step, publisherDid, originalIntent, approvalEvidence);
+	if (!isDid(publisherDid) || result.state === "ready") return result;
+	const publisher = env.PUBLISHER_DO.getByName(publisherDid);
+	await step.do("publication-terminal-staging-cleanup", async () => {
+		const latest = await publisher.getIntent(publisherDid, originalIntent.id);
+		if (
+			!latest ||
+			!["published", "failed", "invalid", "conflict", "expired", "cancelled"].includes(latest.state)
+		)
+			return false;
+		try {
+			const stored = await publisher.getPublicationMaterialization(publisherDid, originalIntent.id);
+			const release = releaseFromIntent(originalIntent);
+			await Promise.all([
+				deleteStagedArtifacts(
+					env.PUBLICATION_STAGING,
+					(stored?.slots ?? []).map((artifact) => ({
+						key: artifact.stagingKey,
+						metadata: stagedMetadata(artifact),
+						sourceUrlDigest: artifact.sourceUrlDigest,
+					})),
+				),
+				deleteWorkloadStagedArtifacts(
+					env.PUBLICATION_STAGING,
+					release
+						? workloadStagedSources(env.PUBLIC_ORIGIN, publisherDid, originalIntent, release)
+						: [],
+				),
+			]);
+			return true;
+		} catch (error) {
+			console.error(
+				JSON.stringify({
+					event: "publication_terminal_staging_cleanup_failed",
+					intentId: originalIntent.id,
+					name: error instanceof Error ? error.name : "UnknownError",
+				}),
+			);
+			return false;
+		}
+	});
+	return result;
+}
+
+async function runPublication(
+	env: PublicationWorkflowEnv,
+	step: WorkflowStep,
+	publisherDid: string,
+	originalIntent: StoredIntent,
+	approvalEvidence: ApprovalEvidence,
+): Promise<PublicationWorkflowOutput> {
 	if (!isDid(publisherDid)) {
 		return { intentId: originalIntent.id, state: "invalid", reasonCode: "PUBLISHER_INVALID" };
 	}
@@ -1015,39 +1066,6 @@ export async function publishVerifiedIntent(
 					},
 				);
 				if (!materializedPhase.ok) return failBeforeWrite(materializedPhase.code);
-				await step.do("publication-staging-cleanup", async () => {
-					const stored = await publisher.getPublicationMaterialization(
-						publisherDid,
-						originalIntent.id,
-					);
-					if (stored?.status !== "complete") return false;
-					try {
-						await Promise.all([
-							deleteStagedArtifacts(
-								env.PUBLICATION_STAGING,
-								stored.slots.map((artifact) => ({
-									key: artifact.stagingKey,
-									metadata: stagedMetadata(artifact),
-									sourceUrlDigest: artifact.sourceUrlDigest,
-								})),
-							),
-							deleteWorkloadStagedArtifacts(
-								env.PUBLICATION_STAGING,
-								workloadStagedSources(env.PUBLIC_ORIGIN, publisherDid, originalIntent, release),
-							),
-						]);
-						return true;
-					} catch (error) {
-						console.error(
-							JSON.stringify({
-								event: "publication_staging_cleanup_failed",
-								intentId: originalIntent.id,
-								name: error instanceof Error ? error.name : "UnknownError",
-							}),
-						);
-						return false;
-					}
-				});
 			} catch (error) {
 				return failBeforeWrite(publicationErrorCode(error, "PUBLICATION_PRECONDITION_FAILED"));
 			}
@@ -1219,6 +1237,10 @@ export async function publishVerifiedIntent(
 					console.error(
 						JSON.stringify({
 							event: "publication_attempt_ambiguous",
+							errorCode: publicationErrorCode(error, "PUBLICATION_AMBIGUOUS"),
+							...(error instanceof CreateReleaseError
+								? { status: error.status, pdsError: error.pdsError }
+								: {}),
 							intentId: originalIntent.id,
 							attempt,
 							name: error instanceof Error ? error.name : "UnknownError",
@@ -1232,11 +1254,18 @@ export async function publishVerifiedIntent(
 						resultUri: null,
 						resultCid: null,
 					});
-					if (ambiguous.ok) return { state: "reconciling" };
+					if (ambiguous.ok)
+						return {
+							state: "reconciling",
+							errorCode: publicationErrorCode(error, "PUBLICATION_AMBIGUOUS"),
+						};
 					const latest = await publisher.getIntent(publisherDid, originalIntent.id);
 					return latest?.state === "published"
 						? { state: "published", uri: "", cid: "" }
-						: { state: "reconciling" };
+						: {
+								state: "reconciling",
+								errorCode: publicationErrorCode(error, "PUBLICATION_AMBIGUOUS"),
+							};
 				}
 			});
 		})();
@@ -1256,33 +1285,6 @@ export async function publishVerifiedIntent(
 			return { intentId: originalIntent.id, state: "expired", reasonCode: "INTENT_EXPIRED" };
 		}
 		if (attemptResult.state === "failed") {
-			await step.do(`publication-terminal-staging-cleanup-${attempt}`, async () => {
-				const stored = await publisher.getPublicationMaterialization(
-					publisherDid,
-					originalIntent.id,
-				);
-				if (!stored) return true;
-				try {
-					await deleteStagedArtifacts(
-						env.PUBLICATION_STAGING,
-						stored.slots.map((artifact) => ({
-							key: artifact.stagingKey,
-							metadata: stagedMetadata(artifact),
-							sourceUrlDigest: artifact.sourceUrlDigest,
-						})),
-					);
-					return true;
-				} catch (error) {
-					console.error(
-						JSON.stringify({
-							event: "publication_terminal_staging_cleanup_failed",
-							intentId: originalIntent.id,
-							name: error instanceof Error ? error.name : "UnknownError",
-						}),
-					);
-					return false;
-				}
-			});
 			return { intentId: originalIntent.id, state: "failed", reasonCode: attemptResult.reasonCode };
 		}
 		if (attemptResult.state === "blocked") {
@@ -1410,7 +1412,10 @@ export async function publishVerifiedIntent(
 				actorRealm: "system",
 				actorIdentity: "release-service",
 				reasonCode: "PDS_RETRY_EXHAUSTED",
-				stateDataJson: JSON.stringify({ reasonCode: "PDS_RETRY_EXHAUSTED" }),
+				stateDataJson: JSON.stringify({
+					reasonCode: "PDS_RETRY_EXHAUSTED",
+					publicationErrorCode: attemptResult.errorCode ?? null,
+				}),
 			}),
 		);
 		return failed.ok
