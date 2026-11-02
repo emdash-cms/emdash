@@ -32,7 +32,8 @@ model. For example, a collection may support revisions, previews, taxonomies, or
 1. Select **Add New** on the collection page.
 
 2. Complete the required fields. If the collection has a title field, EmDash uses it to suggest a
-   slug. You can edit the slug before publishing.
+   slug. You can edit the slug before publishing. When you leave the **Slug** field after editing
+   it, EmDash removes spaces at either end and turns spaces inside the slug into hyphens.
 
 3. Add the body and any supporting fields, such as an excerpt, featured image, byline, categories,
    or tags.
@@ -160,7 +161,12 @@ previous live revision. Use **Preview draft** to check the pending version, **Li
 the public version, and **Publish changes** when the draft is ready to replace it.
 
 Changing the slug of a published entry follows the same draft flow. The public URL changes when you
-publish the draft, not when autosave runs.
+publish the draft, not when autosave runs, and EmDash then
+[redirects the old URL to the new one](/guides/seo/#redirects-and-the-404-log).
+
+A published URL that contains `%20` comes from a slug with spaces in it. Spaces at the end of a slug
+don't show in the **Slug** field, so retype the slug, then publish the change to move the entry to
+the cleaned URL.
 
 ## Work with another editor
 
