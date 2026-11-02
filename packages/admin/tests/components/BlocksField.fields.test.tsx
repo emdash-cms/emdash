@@ -408,6 +408,57 @@ describe("Fields inside a block", () => {
 		await expect.element(count).not.toBeVisible();
 	});
 
+	it("opens a choice's options in a short popup lined up with its value, and follows the keyboard", async () => {
+		const icons = ["star", "check", "lock", "clock", "cloud", "building", "leaf", "gauge"];
+		const feature = blockType("feature", "Feature", [
+			{
+				slug: "icon",
+				label: "Icon",
+				type: "select",
+				validation: { options: [...icons, "thermometer", "plug", "bell", "file", "flame", "sun"] },
+			},
+		]);
+		await renderEditor(
+			[{ _type: "feature", _version: 1, _key: "feature-1", icon: "gauge" }],
+			[feature],
+		);
+		await openBlock("Feature");
+
+		const icon = page.getByRole("combobox", { name: "Icon" });
+		await icon.click();
+		const listbox = page.getByRole("listbox");
+		await expect.element(listbox).toBeVisible();
+		const popup = listbox.element().parentElement!;
+		await expect.poll(() => getComputedStyle(popup).opacity).toBe("1");
+
+		const popupBox = popup.getBoundingClientRect();
+		const triggerBox = box(icon);
+		expect(popupBox.width).toBeLessThan(triggerBox.width);
+		expect(popupBox.height).toBeLessThanOrEqual(280);
+		expect(popupBox.top).toBeGreaterThanOrEqual(0);
+		expect(popupBox.bottom).toBeLessThanOrEqual(window.innerHeight);
+		expect(popupBox.top - triggerBox.bottom).toBeCloseTo(4, 0);
+
+		const textLeft = (el: Element) => {
+			const range = document.createRange();
+			range.selectNodeContents(el);
+			return range.getBoundingClientRect().left;
+		};
+		const firstOption = page.getByRole("option", { name: "star" }).element();
+		const value = icon.element().querySelector("span")!;
+		expect(
+			Math.abs(textLeft(firstOption.firstElementChild!) - textLeft(value)),
+		).toBeLessThanOrEqual(1);
+
+		await userEvent.keyboard("{Escape}");
+		await expect.element(icon).toHaveFocus();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(listbox).toBeVisible();
+		await userEvent.keyboard("{ArrowDown}{Enter}");
+		await expect.element(icon).toHaveTextContent("thermometer");
+		await expect.element(icon).toHaveFocus();
+	});
+
 	it("says so when a block has no fields", async () => {
 		await renderEditor(
 			[{ _type: "divider", _version: 1, _key: "divider-1" }],

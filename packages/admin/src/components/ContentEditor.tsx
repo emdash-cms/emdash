@@ -74,7 +74,9 @@ import {
 	QUIET_DATE,
 	QUIET_HEADING,
 	QUIET_INPUT,
+	QUIET_OPTION,
 	QUIET_SELECT,
+	QUIET_SELECT_ALIGN_OFFSET,
 	QUIET_TEXTAREA,
 	ROW_BUTTON,
 } from "./block-field-styles.js";
@@ -3022,13 +3024,14 @@ function FieldRenderer({
 							value={typeof value === "string" && value ? value : null}
 							onValueChange={(v) => handleChange(v ?? "")}
 							items={selectItems}
+							alignOffset={QUIET_SELECT_ALIGN_OFFSET}
 							className={cn(
 								QUIET_SELECT,
 								chrome.invalid && "[&_[data-placeholder]]:text-kumo-danger!",
 							)}
 						>
 							{selectOptions.map((opt) => (
-								<Select.Option key={opt.value} value={opt.value}>
+								<Select.Option key={opt.value} value={opt.value} className={QUIET_OPTION}>
 									{opt.label}
 								</Select.Option>
 							))}

@@ -36,8 +36,19 @@ export const QUIET_TEXTAREA = `${QUIET_CONTROL} min-h-8 resize-none overflow-hid
 export const QUIET_HEADING = "h-9 text-lg! leading-6 font-semibold!";
 
 // Its chevron follows the value, and like the date's calendar shows only when the control is reached for.
+// Kumo's hover tint carries a `not-disabled:` variant, which only the same variant replaces.
 export const QUIET_SELECT =
-	"h-8 w-full justify-start gap-1.5 rounded-md bg-transparent px-2 font-normal shadow-none ring-transparent hover:bg-emdash-hover focus-visible:bg-kumo-control focus-visible:ring-1 focus-visible:ring-kumo-focus/50 data-[popup-open]:bg-kumo-control data-[popup-open]:ring-1 data-[popup-open]:ring-kumo-focus/50 [&>span:last-child]:opacity-0 hover:[&>span:last-child]:opacity-100 focus-visible:[&>span:last-child]:opacity-100 data-[popup-open]:[&>span:last-child]:opacity-100 pointer-coarse:[&>span:last-child]:opacity-100";
+	"h-8 w-full justify-start gap-1.5 rounded-md bg-transparent px-2 font-normal shadow-none ring-transparent not-disabled:hover:bg-emdash-hover focus-visible:bg-kumo-control focus-visible:ring-1 focus-visible:ring-kumo-focus/50 data-[popup-open]:bg-emdash-hover data-[popup-open]:ring-0 [&>span:last-child]:opacity-0 hover:[&>span:last-child]:opacity-100 focus-visible:[&>span:last-child]:opacity-100 data-[popup-open]:[&>span:last-child]:opacity-100 pointer-coarse:[&>span:last-child]:opacity-100";
+
+/**
+ * An option in a quiet select's popup: as tall as the trigger, highlighted with the hover wash
+ * instead of a ring. `emdash-block-option` lets styles.css size the popup, which takes no class.
+ */
+export const QUIET_OPTION =
+	"emdash-block-option h-8 py-0 focus-visible:ring-0 data-highlighted:bg-emdash-hover";
+
+/** Options are inset 6px in their popup, so it starts that far before the trigger to line their text up with its value. */
+export const QUIET_SELECT_ALIGN_OFFSET = -6;
 
 export const QUIET_DATE = `${QUIET_INPUT} [&::-webkit-calendar-picker-indicator]:opacity-0 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 focus:[&::-webkit-calendar-picker-indicator]:opacity-100 pointer-coarse:[&::-webkit-calendar-picker-indicator]:opacity-100`;
 

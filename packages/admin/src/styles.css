@@ -962,6 +962,46 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	}
 }
 
+/*
+ * Kumo's Select popup takes no class, so a quiet select's options mark it. It sizes to its
+ * options instead of its trigger, stays short enough to scroll, and opens like a dropdown menu.
+ * The opening is a keyframe animation rather than a transition from `data-starting-style`, so it
+ * runs from the popup's first frame instead of the frame after.
+ */
+@keyframes emdash-select-popup-in {
+	from {
+		opacity: 0;
+		scale: 0.95;
+	}
+}
+
+div:has(> [role="listbox"] > .emdash-block-option) {
+	min-width: min(12rem, var(--available-width));
+	max-width: min(20rem, var(--available-width));
+	max-height: min(17.5rem, var(--available-height));
+	transform-origin: var(--transform-origin);
+	transition:
+		opacity 150ms var(--default-transition-timing-function),
+		scale 150ms var(--default-transition-timing-function);
+}
+
+div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
+	animation: emdash-select-popup-in 150ms var(--default-transition-timing-function);
+}
+
+div:has(> [role="listbox"] > .emdash-block-option)[data-ending-style] {
+	opacity: 0;
+	scale: 0.95;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	div:has(> [role="listbox"] > .emdash-block-option),
+	div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
+		transition: none;
+		animation: none;
+	}
+}
+
 /* Rich text inside a block reads at the block's value size. */
 [data-block-body] [data-emdash-editor-variant="boxed"] .ProseMirror {
 	min-height: 6rem;
