@@ -11044,6 +11044,11 @@ msgstr "要立即發佈嗎？"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "發佈、取消發佈、排程及取消排程內容"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "已發佈"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11054,11 +11059,6 @@ msgstr "發佈、取消發佈、排程及取消排程內容"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1490
 msgid "Published"
-msgstr "已發佈"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "已發佈"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
