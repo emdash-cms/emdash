@@ -210,6 +210,7 @@ export function PublishingDateTimeFields({
 				className="w-full"
 				classNames={{
 					caption_label: "rdp-caption_label text-base !font-medium",
+					day_button: "rdp-day_button !mx-auto",
 					month: "rdp-month !w-full",
 					month_grid: "rdp-month_grid !w-full table-fixed",
 					months: "rdp-months !w-full !max-w-none",
