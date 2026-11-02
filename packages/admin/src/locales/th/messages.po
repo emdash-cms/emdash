@@ -11044,6 +11044,11 @@ msgstr "เผยแพร่ทันทีหรือไม่?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "เผยแพร่ ยกเลิกการเผยแพร่ กำหนดเวลา และยกเลิกการกำหนดเวลาเนื้อหา"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11055,11 +11060,6 @@ msgstr "เผยแพร่ ยกเลิกการเผยแพร่ �
 #: packages/admin/src/router.tsx:1490
 msgid "Published"
 msgstr "เผยแพร่แล้ว"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr ""
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:348
