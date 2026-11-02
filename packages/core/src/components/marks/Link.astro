@@ -13,6 +13,7 @@ export interface Props {
 			_key: string;
 			href: string;
 			blank?: boolean;
+			title?: string;
 		};
 	};
 }
@@ -24,12 +25,18 @@ const href = sanitizeHref(node?.markDef?.href);
 // `blank` flag.
 const isSamePageAnchor = href.startsWith("#");
 const blank = !isSamePageAnchor && node?.markDef?.blank;
+// Advisory title (hover text). The editor round-trip keeps extra markDef
+// fields, so a title written by an import or a plugin survives saving; only
+// strings are rendered.
+const rawTitle = node?.markDef?.title;
+const title = typeof rawTitle === "string" && rawTitle.trim() ? rawTitle : undefined;
 ---
 
 <a
 	href={href}
 	target={blank ? "_blank" : undefined}
 	rel={blank ? "noopener noreferrer" : undefined}
+	title={title}
 >
 	<slot />
 </a>
