@@ -25,6 +25,7 @@ const mockFetchManifest = vi.fn<() => Promise<Partial<AdminManifest>>>();
 const mockCreateSignInHandover = vi.fn<() => Promise<{ url: string }>>();
 const mockFetchEmailSettings = vi.fn<() => Promise<Partial<EmailSettings>>>();
 const mockNotifyUsersOfDomain = vi.fn<() => Promise<{ sent: number; failed: number }>>();
+const mockUseCurrentUser = vi.hoisted(() => vi.fn());
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
@@ -52,6 +53,8 @@ vi.mock("../../../src/lib/api", async () => {
 		notifyUsersOfDomain: () => mockNotifyUsersOfDomain(),
 	};
 });
+
+vi.mock("../../../src/lib/api/current-user.js", () => ({ useCurrentUser: mockUseCurrentUser }));
 
 vi.mock("../../../src/components/MediaPickerModal", () => ({
 	MediaPickerModal: ({
@@ -127,6 +130,9 @@ beforeEach(() => {
 		siteOrigin: window.location.origin,
 	});
 	mockFetchManifest.mockResolvedValue(manifest);
+	mockUseCurrentUser.mockReturnValue({
+		data: { id: "admin", email: "admin@example.com", role: 50 },
+	});
 	mockCreateSignInHandover.mockReturnValue(new Promise(() => undefined));
 	mockFetchEmailSettings.mockResolvedValue({ available: true });
 	mockUpdateSettings.mockImplementation(async (settings) => {
@@ -639,5 +645,16 @@ describe("GeneralSettings", () => {
 		await expect.element(screen.getByText("Visible to search engines")).toBeInTheDocument();
 		expect(mockUpdateSettings).toHaveBeenCalledExactlyOnceWith({ staging: false });
 		await expect.element(screen.getByLabelText("Tagline")).toHaveValue("Not saved yet");
+	});
+
+	it("shows the site status to editors without the go-live button", async () => {
+		mockUseCurrentUser.mockReturnValue({
+			data: { id: "editor", email: "e@example.com", role: 40 },
+		});
+		mockFetchManifest.mockResolvedValue({ ...manifest, staging: true });
+		const screen = await renderGeneralSettings();
+
+		await expect.element(screen.getByText("Hidden from search engines")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Go live" }).query()).toBeNull();
 	});
 });

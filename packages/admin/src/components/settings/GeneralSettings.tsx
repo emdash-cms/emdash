@@ -33,12 +33,15 @@ import {
 	type SiteSettings,
 	type SiteSettingsUpdate,
 } from "../../lib/api";
+import { useCurrentUser } from "../../lib/api/current-user.js";
 import { useDateLocale } from "../../locales/date-locale.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { SaveButton } from "../SaveButton.js";
 import { ChangeDomainDialog } from "./ChangeDomainDialog.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
+
+const ROLE_ADMIN = 50;
 
 const timezones = ["UTC", ...Intl.supportedValuesOf("timeZone")];
 const exampleDate = new Date(2026, 0, 23);
@@ -76,7 +79,9 @@ function SiteStatusSection() {
 	const queryClient = useQueryClient();
 	const toastManager = useKumoToastManager();
 	const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest });
+	const { data: currentUser } = useCurrentUser();
 	const staging = manifest?.staging === true;
+	const isAdmin = !!currentUser && currentUser.role >= ROLE_ADMIN;
 
 	const stagingMutation = useMutation({
 		mutationFn: (next: boolean) => updateSettings({ staging: next }),
@@ -117,15 +122,17 @@ function SiteStatusSection() {
 								: t`Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch.`}
 						</p>
 					</div>
-					<Button
-						type="button"
-						variant={staging ? "primary" : "outline"}
-						className="shrink-0"
-						loading={stagingMutation.isPending}
-						onClick={() => stagingMutation.mutate(!staging)}
-					>
-						{staging ? t`Go live` : t`Switch back to staging`}
-					</Button>
+					{isAdmin && (
+						<Button
+							type="button"
+							variant={staging ? "primary" : "outline"}
+							className="shrink-0"
+							loading={stagingMutation.isPending}
+							onClick={() => stagingMutation.mutate(!staging)}
+						>
+							{staging ? t`Go live` : t`Switch back to staging`}
+						</Button>
+					)}
 				</div>
 			</SettingRow>
 		</SettingsSection>

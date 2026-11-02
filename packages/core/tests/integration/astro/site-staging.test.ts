@@ -42,11 +42,6 @@ function setupRequest(): Request {
 	});
 }
 
-async function robotsTxt(db: Kysely<Database>): Promise<string> {
-	const res = await getRobots(buildContext(db, new Request("https://site.example/robots.txt")));
-	return res.text();
-}
-
 describe("site staging", () => {
 	let db: Kysely<Database>;
 
@@ -75,14 +70,25 @@ describe("site staging", () => {
 	});
 
 	it("treats a site without the setting as live", async () => {
-		expect(await robotsTxt(db)).toContain("Allow: /");
+		const res = await getRobots(buildContext(db, new Request("https://site.example/robots.txt")));
+		expect(res.headers.get("cache-control")).toBe("public, max-age=86400");
 	});
 
-	it("disallows all crawlers in robots.txt while staging, even with custom content", async () => {
+	it("lets crawlers fetch pages while staging so they see noindex, without caching robots.txt", async () => {
+		await setSiteSettings({ staging: true }, db);
+
+		const res = await getRobots(buildContext(db, new Request("https://site.example/robots.txt")));
+		const body = await res.text();
+		expect(body).toContain("Allow: /");
+		expect(body).not.toMatch(/^Disallow: \/$/m);
+		expect(res.headers.get("cache-control")).toBe("no-store");
+	});
+
+	it("serves custom robots.txt content uncached while staging", async () => {
 		await setSiteSettings({ staging: true, seo: { robotsTxt: "User-agent: *\nAllow: /" } }, db);
 
 		const res = await getRobots(buildContext(db, new Request("https://site.example/robots.txt")));
-		expect(await res.text()).toBe("User-agent: *\nDisallow: /\n");
+		expect(await res.text()).toContain("User-agent: *\nAllow: /");
 		expect(res.headers.get("cache-control")).toBe("no-store");
 	});
 
@@ -90,9 +96,9 @@ describe("site staging", () => {
 		await setSiteSettings({ staging: true }, db);
 		await setSiteSettings({ staging: false }, db);
 
-		const body = await robotsTxt(db);
-		expect(body).not.toContain("Disallow: /\n");
-		expect(body).toContain("Sitemap: https://site.example/sitemap.xml");
+		const res = await getRobots(buildContext(db, new Request("https://site.example/robots.txt")));
+		expect(await res.text()).toContain("Sitemap: https://site.example/sitemap.xml");
+		expect(res.headers.get("cache-control")).toBe("public, max-age=86400");
 	});
 
 	it("keeps the staging status out of exported seeds", async () => {

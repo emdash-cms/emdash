@@ -64,8 +64,8 @@ export interface SiteSettings {
 	url?: string;
 
 	/**
-	 * Hides the site from search engines (`noindex` and a disallow-all
-	 * robots.txt) until it goes live. Sites created through the setup wizard
+	 * Asks search engines not to index the site with a `noindex` robots tag
+	 * until it goes live. Sites created through the setup wizard
 	 * start in staging; an absent value means live.
 	 */
 	staging?: boolean;

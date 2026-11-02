@@ -3810,7 +3810,9 @@ export function createMcpServer(
 				staging: z
 					.boolean()
 					.optional()
-					.describe("true hides the site from search engines; false makes it live"),
+					.describe(
+						"true asks search engines not to index the site (noindex); false makes it live",
+					),
 				postsPerPage: z
 					.number()
 					.int()
