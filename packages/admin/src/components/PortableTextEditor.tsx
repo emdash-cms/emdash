@@ -3552,6 +3552,29 @@ function mediaItemToImageAttrs(item: MediaItem) {
 }
 
 const EMPTY_PLUGIN_BLOCKS: PluginBlockDef[] = [];
+const BUILTIN_BLOCKS_PLUGIN_ID = "emdash";
+
+/**
+ * Shapes repeater rows into the `button` items `Buttons.astro` renders. The
+ * repeater drops `_key`, so existing keys are reused by position.
+ */
+function normalizeButtonItems(items: unknown, previous: unknown): Record<string, unknown>[] {
+	if (!Array.isArray(items)) return [];
+	const previousKeys = Array.isArray(previous)
+		? previous.map((item) => (isRecord(item) && typeof item._key === "string" ? item._key : ""))
+		: [];
+	return items.filter(isRecord).map((item, index) => {
+		const { url, style, ...rest } = item;
+		return {
+			...rest,
+			_type: "button",
+			_key: previousKeys[index] || generateKey(),
+			text: typeof item.text === "string" ? item.text : "",
+			...(typeof url === "string" && url.trim() ? { url: url.trim() } : {}),
+			...(typeof style === "string" && style ? { style } : {}),
+		};
+	});
+}
 
 /**
  * Portable Text Editor Component
@@ -3563,7 +3586,7 @@ export function PortableTextEditor({
 	className,
 	editable = true,
 	"aria-labelledby": ariaLabelledby,
-	pluginBlocks = EMPTY_PLUGIN_BLOCKS,
+	pluginBlocks: externalPluginBlocks = EMPTY_PLUGIN_BLOCKS,
 	focusMode: controlledFocusMode,
 	onEditorReady,
 	minimal = false,
@@ -3739,6 +3762,49 @@ export function PortableTextEditor({
 		[],
 	);
 
+	const pluginBlocks = React.useMemo(() => {
+		if (externalPluginBlocks.some((block) => block.type === "buttons")) return externalPluginBlocks;
+		const buttonsBlock: PluginBlockDef = {
+			type: "buttons",
+			pluginId: BUILTIN_BLOCKS_PLUGIN_ID,
+			label: t`Buttons`,
+			icon: "link",
+			description: t`Add one or more link buttons`,
+			category: t(BASIC_BLOCKS_CATEGORY),
+			fields: [
+				{
+					type: "select",
+					action_id: "layout",
+					label: t`Layout`,
+					initial_value: "horizontal",
+					options: [
+						{ label: t`Horizontal`, value: "horizontal" },
+						{ label: t`Vertical`, value: "vertical" },
+					],
+				},
+				{
+					type: "repeater",
+					action_id: "buttons",
+					label: t`Buttons`,
+					fields: [
+						{ type: "text_input", action_id: "text", label: t`Text` },
+						{ type: "text_input", action_id: "url", label: t`URL`, placeholder: "https://" },
+						{
+							type: "select",
+							action_id: "style",
+							label: t`Style`,
+							options: [
+								{ label: t`Default`, value: "default" },
+								{ label: t`Outline`, value: "outline" },
+								{ label: t`Fill`, value: "fill" },
+							],
+						},
+					],
+				},
+			],
+		};
+		return [...externalPluginBlocks, buttonsBlock];
+	}, [externalPluginBlocks, t]);
 	const pluginBlockTypes = React.useMemo(
 		() => new Set(pluginBlocks.map((block) => block.type)),
 		[pluginBlocks],
@@ -4436,7 +4502,15 @@ export function PortableTextEditor({
 		(values: Record<string, unknown>) => {
 			if (!editor || !pluginBlockModal) return;
 
-			const { id, ...data } = values;
+			const { id, ...fieldData } = values;
+			const data =
+				pluginBlockModal.pluginId === BUILTIN_BLOCKS_PLUGIN_ID &&
+				pluginBlockModal.type === "buttons"
+					? {
+							...fieldData,
+							buttons: normalizeButtonItems(fieldData.buttons, pluginBlockInitialValues?.buttons),
+						}
+					: fieldData;
 			const editPos = editingBlockPosRef.current;
 
 			if (editPos !== null) {
@@ -4487,7 +4561,7 @@ export function PortableTextEditor({
 			setPluginBlockInitialValues(undefined);
 			editingBlockPosRef.current = null;
 		},
-		[editor, pluginBlockModal],
+		[editor, pluginBlockModal, pluginBlockInitialValues],
 	);
 
 	React.useEffect(() => {
