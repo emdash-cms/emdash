@@ -23,13 +23,15 @@ export async function resolveTakedownSubject(
 		const rest = value.slice("at://".length);
 		const slash = rest.indexOf("/");
 		authority = slash === -1 ? rest : rest.slice(0, slash);
-		path = slash === -1 ? "" : rest.slice(slash);
 		if (authority.startsWith("did:")) return { success: true, uri: value };
+		path = slash === -1 ? "" : rest.slice(slash);
+		if (path.length <= 1) return { success: false, code: "INVALID_SUBJECT" };
 	} else {
 		const rest = value.startsWith("@") ? value.slice(1) : value;
 		const slash = rest.indexOf("/");
 		authority = slash === -1 ? rest : rest.slice(0, slash);
 		const slug = slash === -1 ? "" : rest.slice(slash + 1);
+		if (slash !== -1 && !slug) return { success: false, code: "INVALID_SUBJECT" };
 		if (slug.includes("/")) return { success: false, code: "INVALID_SUBJECT" };
 		path = slug ? `/${PROFILE_COLLECTION}/${slug}` : "";
 	}

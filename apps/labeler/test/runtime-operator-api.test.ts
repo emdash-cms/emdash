@@ -748,6 +748,18 @@ describe("operator takedown subjects", () => {
 		);
 	});
 
+	it.each(["@publisher.example/", "at://publisher.example", "at://publisher.example/"])(
+		"rejects the incomplete subject %s without resolving or issuing a label",
+		async (input) => {
+			const { response, issue, resolver } = await issueTakedown(input);
+
+			expect(response.status).toBe(400);
+			expect(await response.json()).toMatchObject({ error: { code: "INVALID_REQUEST" } });
+			expect(resolver).not.toHaveBeenCalled();
+			expect(issue).not.toHaveBeenCalled();
+		},
+	);
+
 	it("rejects a handle that does not resolve without issuing a label", async () => {
 		const { response, issue } = await issueTakedown("@missing.example", async () => null);
 
