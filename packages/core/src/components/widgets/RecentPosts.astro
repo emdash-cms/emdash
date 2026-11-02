@@ -20,6 +20,7 @@ interface Props {
 }
 
 const { count = 5, showThumbnails = false, showDate = true, urlTemplate } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const [{ entries: posts }, settings] = await Promise.all([
 	getEmDashCollection("posts", {
@@ -61,7 +62,7 @@ function getTitle(data: Record<string, unknown>): string | undefined {
 							{ posts: urlTemplate },
 						),
 					)
-				: `/posts/${post.id}`;
+				: `${base}/posts/${post.id}`;
 			return (
 				<li>
 					{showThumbnails && isThumbnailImage(featuredImage) && (
