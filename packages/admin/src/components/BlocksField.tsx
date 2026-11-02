@@ -999,7 +999,7 @@ function BlockRow({
 	return (
 		<div
 			ref={setNodeRef}
-			style={{ transform: CSS.Transform.toString(transform), transition }}
+			style={{ transform: CSS.Translate.toString(transform), transition }}
 			role="listitem"
 			data-block-key={block._key}
 			data-menu-open={menuOpen || undefined}

@@ -186,7 +186,11 @@ export function DisclosurePanel({
 }: { open: boolean } & React.ComponentPropsWithoutRef<"div">) {
 	return (
 		<Collapsible.Root open={open} className="contents">
-			<Collapsible.Panel inert={!open} className={cn("emdash-disclosure", className)} {...props} />
+			<Collapsible.Panel
+				inert={!open || undefined}
+				className={cn("emdash-disclosure", className)}
+				{...props}
+			/>
 		</Collapsible.Root>
 	);
 }
@@ -772,7 +776,7 @@ function useSortableRow(key: string, readOnly: boolean) {
 		isDragging,
 		menuOpen,
 		setMenuOpen,
-		style: { transform: CSS.Transform.toString(transform), transition },
+		style: { transform: CSS.Translate.toString(transform), transition },
 	};
 }
 

@@ -738,7 +738,7 @@ export function ImageFieldRenderer({
 					<img
 						src={displayUrl}
 						alt=""
-						className="emdash-media-transparency-grid max-h-80 w-full rounded-lg object-cover ring ring-kumo-line"
+						className="emdash-media-transparency-grid max-h-80 min-h-20 w-full rounded-lg object-cover ring ring-kumo-line"
 						style={{
 							objectPosition,
 							aspectRatio:
