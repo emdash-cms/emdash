@@ -65,8 +65,10 @@ Actors, from least to most trusted:
   declared allowlist, is in scope.
 - Native plugins registered under `plugins: []` run in the site process and are
   trusted like any other dependency.
-- Admins are highly trusted. They can install plugins, edit schema and
-  settings, and import or export the whole site.
+- Admins are fully trusted. They can install plugins, edit schema and
+  settings, and import or export the whole site, so a finding that needs admin
+  access is out of scope. A sandboxed plugin an admin installed is still
+  untrusted code and stays limited to its declared capabilities.
 - Site developers control `astro.config.mjs`, seeds, templates, and environment
   variables, and are trusted.
 
@@ -84,8 +86,8 @@ Important untrusted inputs include:
   comment bodies, and plugin settings.
 - URLs fetched by the server: media uploads by URL, imported media, embeds,
   registry artifacts, and plugin network requests.
-- Import and restore files (WordPress WXR, seeds, transfers, and backups), even
-  when an admin uploads them.
+- Import and restore files (WordPress WXR, seeds, transfers, and backups). An
+  admin uploads them, but a third party may have written them.
 - Messages from sandboxed plugin code to the bridge.
 - OAuth responses, redirect parameters, and MCP tool arguments.
 - Registry and aggregator records, which relay data they did not author.
@@ -165,20 +167,23 @@ automatic ratings:
   editor or admin capabilities; stored cross-site scripting that executes in
   another user's admin session; anonymous access to unpublished content or
   private media; a sandboxed plugin escaping its declared capabilities; an API
-  or OAuth token exceeding its scopes; SQL injection from a signed-in role; or
-  server-side request forgery that returns responses from internal addresses.
+  or OAuth token exceeding its scopes; SQL injection from a signed-in role
+  below admin; or server-side request forgery that returns responses from
+  internal addresses.
 - Medium: escalation between adjacent roles, such as an author editing another
   user's content; disclosure of limited sensitive data such as user email
   addresses or draft titles; cross-site request forgery on a state-changing
   route; blind server-side request forgery; or an open redirect.
-- Low: issues that need admin access and grant nothing beyond it, self-XSS,
-  denial of service that needs an account, missing hardening headers, or
-  limited impact with substantial prerequisites.
+- Low: limited impact with substantial prerequisites, such as denial of
+  service that needs a signed-in account.
 
-A crash, an expensive request, or a suspicious pattern alone does not establish
-severity. Explain what the attacker can do beyond their intended permissions,
-which deployment targets are affected (Workers, Node.js, or both), and which
-database dialects.
+These are informational or invalid rather than vulnerabilities: anything that
+needs admin access, self-XSS, missing hardening headers, and a crash, an
+expensive request, or a suspicious pattern without a demonstrated impact.
+
+Explain what the attacker can do beyond their intended permissions, which
+deployment targets are affected (Workers, Node.js, or both), and which database
+dialects.
 
 Provide the affected package and source location, a minimal reproducer,
 exact commands, expected and actual behavior, the role or configuration
