@@ -292,7 +292,17 @@ const REACTION_SCRIPT = `
 	.ec-comments {
 		--ec-comment-gap: 1.5rem;
 		--ec-comment-indent: 2rem;
-		--ec-comment-border: 1px solid #e5e7eb;
+		--ec-comment-border: 1px solid var(--ec-comment-border-color, #e5e7eb);
+	}
+
+	:global(.dark) .ec-comments {
+		--ec-comment-border-color: #374151;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.ec-comments {
+			--ec-comment-border-color: #374151;
+		}
 	}
 
 	.ec-comments-list,
