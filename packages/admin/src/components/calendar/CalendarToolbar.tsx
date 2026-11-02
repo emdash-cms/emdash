@@ -64,6 +64,8 @@ export function CalendarToolbar({
 		: t`Times are in ${zoneName}.`;
 	const previousLabel = t`Previous month`;
 	const nextLabel = t`Next month`;
+	const monthLabel = t`Month`;
+	const agendaLabel = t`Agenda`;
 
 	return (
 		<div className="grid gap-3">
@@ -77,6 +79,13 @@ export function CalendarToolbar({
 						{
 							value: "month",
 							className: "flex-1 justify-center text-sm sm:flex-none",
+							render: (props) => (
+								<Tooltip
+									delay={600}
+									content={<ShortcutHint label={monthLabel} shortcut="M" />}
+									render={<button {...props} aria-keyshortcuts="M" />}
+								/>
+							),
 							label: (
 								<span className="flex items-center gap-1.5">
 									<GridFour
@@ -84,13 +93,20 @@ export function CalendarToolbar({
 										weight={view === "month" ? "fill" : "regular"}
 										aria-hidden="true"
 									/>
-									{t`Month`}
+									{monthLabel}
 								</span>
 							),
 						},
 						{
 							value: "agenda",
 							className: "flex-1 justify-center text-sm sm:flex-none",
+							render: (props) => (
+								<Tooltip
+									delay={600}
+									content={<ShortcutHint label={agendaLabel} shortcut="A" />}
+									render={<button {...props} aria-keyshortcuts="A" />}
+								/>
+							),
 							label: (
 								<span className="flex items-center gap-1.5">
 									<ListBullets
@@ -98,7 +114,7 @@ export function CalendarToolbar({
 										weight={view === "agenda" ? "fill" : "regular"}
 										aria-hidden="true"
 									/>
-									{t`Agenda`}
+									{agendaLabel}
 								</span>
 							),
 						},
