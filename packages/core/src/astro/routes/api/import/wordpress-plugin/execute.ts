@@ -214,7 +214,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Import navigation menus, resolving item references through the
 		// WP-post-ID -> EmDash-ID map collected during the content pass.
 		if (config.importMenus !== false) {
-			await importMenusInto(result, emdash, body.url, body.token, contentIdMap);
+			await importMenusInto(result, emdash, body.url, body.token, contentIdMap, collectionByWpId);
 		}
 
 		// Import comments into EmDash's native comments table, preserving
@@ -284,11 +284,17 @@ async function importMenusInto(
 	url: string,
 	token: string,
 	contentIdMap: Map<number, string>,
+	collectionByWpId: Map<number, string>,
 ): Promise<void> {
 	try {
 		const menus = await fetchPluginMenus(url, token);
 		if (menus.length > 0) {
-			const menuResult = await importMenusFromPlugin(menus, emdash.db, contentIdMap);
+			const menuResult = await importMenusFromPlugin(
+				menus,
+				emdash.db,
+				contentIdMap,
+				collectionByWpId,
+			);
 			result.menus = {
 				created: menuResult.menusCreated,
 				items: menuResult.itemsCreated,
@@ -466,10 +472,10 @@ async function runFinalizePhase(
 	config: WpPluginImportConfig,
 ): Promise<ChunkResponse> {
 	const result = emptyImportResult();
-	const { contentIdMap } = parseIdMap(body.idMap);
+	const { contentIdMap, collectionByWpId } = parseIdMap(body.idMap);
 
 	if (config.importMenus !== false) {
-		await importMenusInto(result, emdash, body.url, body.token, contentIdMap);
+		await importMenusInto(result, emdash, body.url, body.token, contentIdMap, collectionByWpId);
 	}
 
 	try {

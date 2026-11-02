@@ -21,8 +21,9 @@ describe("importMenusFromPlugin", () => {
 	it.each([
 		["team-member", "team_member"],
 		["event", "events"],
+		["post", "articles"],
 	])(
-		"links a menu item for the %s post type to the %s collection the content import creates",
+		"links menu items for %s entries to the %s collection they were imported into",
 		async (postType, collection) => {
 			await new SchemaRegistry(db).createCollection({
 				slug: collection,
@@ -64,6 +65,7 @@ describe("importMenusFromPlugin", () => {
 				],
 				db,
 				new Map([[42, "entry-1"]]),
+				new Map([[42, collection]]),
 			);
 
 			const menu = await getMenuWithDb("primary", db);
