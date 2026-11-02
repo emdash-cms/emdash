@@ -246,6 +246,14 @@ describe("CalendarPage", () => {
 				.toBeInTheDocument();
 		});
 
+		it("tells screen readers how to reschedule without dragging", async () => {
+			const screen = await renderPage();
+
+			await expect
+				.element(screen.getByRole("link", { name: /Entry launch/ }))
+				.toHaveAccessibleDescription(/choose Reschedule/);
+		});
+
 		it("puts the entry back when the server refuses the move", async () => {
 			refuse = true;
 			const screen = await renderPage(({ children }) => (

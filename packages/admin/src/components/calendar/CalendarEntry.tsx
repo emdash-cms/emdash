@@ -372,7 +372,7 @@ function useClickAfterDragGuard(isDragging: boolean) {
 }
 
 function MovableEntryChip(props: CalendarEntryChipProps) {
-	const { setNodeRef, listeners, isDragging } = useDraggable({
+	const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
 		id: props.item.key,
 		data: { item: props.item },
 	});
@@ -382,7 +382,13 @@ function MovableEntryChip(props: CalendarEntryChipProps) {
 		<EntryChipLink
 			{...props}
 			linkRef={setNodeRef}
-			linkProps={{ ...listeners, draggable: false, onClickCapture }}
+			linkProps={{
+				...listeners,
+				// The rest of `attributes` would override the link's role and tab order.
+				"aria-describedby": attributes["aria-describedby"],
+				draggable: false,
+				onClickCapture,
+			}}
 			dragging={isDragging}
 		/>
 	);
