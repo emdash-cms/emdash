@@ -253,6 +253,10 @@ test.describe("Schedule content", () => {
 		).toBe(true);
 		await scheduleButton.click();
 		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
+		await expect(dialog).toBeVisible();
+		// On a phone the dialog slides up from the bottom edge.
+		await expect(dialog).not.toHaveAttribute("data-starting-style");
+		await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);
 		const dialogBox = await dialog.boundingBox();
 		expect(dialogBox).not.toBeNull();
 		expect(dialogBox!.x).toBeGreaterThanOrEqual(0);

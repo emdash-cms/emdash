@@ -2318,7 +2318,7 @@ const menuPaths = {
 		},
 		delete: {
 			operationId: "deleteMenuItem",
-			summary: "Delete a menu item",
+			summary: "Delete a menu item and its nested items",
 			tags: ["Menus"],
 			requestParams: {
 				path: z.object({

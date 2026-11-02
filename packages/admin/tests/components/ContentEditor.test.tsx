@@ -541,9 +541,9 @@ describe("ContentEditor", () => {
 		await userEvent.hover(helpTrigger.element());
 		await expect
 			.element(
-				screen.getByText(
-					"Used as the main visual for this post on listing pages and at the top of the post",
-				),
+				screen.getByRole("tooltip", {
+					name: "Used as the main visual for this post on listing pages and at the top of the post",
+				}),
 			)
 			.toBeVisible();
 	});
@@ -1557,6 +1557,17 @@ describe("ContentEditor", () => {
 			const textarea = screen.getByLabelText("Metadata");
 			await expect.element(textarea).toHaveValue(JSON.stringify(jsonData, null, 2));
 		});
+
+		it("sizes text field textareas from the rows option", async () => {
+			const screen = await renderEditor({
+				fields: {
+					excerpt: { kind: "richText", label: "Excerpt", options: { rows: 4 } },
+					notes: { kind: "richText", label: "Notes" },
+				},
+			});
+			await expect.element(screen.getByLabelText("Excerpt")).toHaveAttribute("rows", "4");
+			await expect.element(screen.getByLabelText("Notes")).toHaveAttribute("rows", "10");
+		});
 	});
 
 	describe("field defaults", () => {
@@ -2411,7 +2422,9 @@ describe("ContentEditor", () => {
 						.element(),
 				);
 
-				const tooltip = screen.getByText("Overrides the page title in search engine results");
+				const tooltip = screen.getByRole("tooltip", {
+					name: "Overrides the page title in search engine results",
+				});
 				await expect.element(tooltip).toBeVisible();
 				expect(tooltip.element().closest<HTMLElement>("[data-base-ui-portal]")?.style.zIndex).toBe(
 					"60",
