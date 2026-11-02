@@ -487,14 +487,14 @@ describe("BlocksField", () => {
 		await expect.element(handle).toHaveAttribute("aria-expanded", "false");
 	});
 
-	it("describes each block's actions button with its version", async () => {
+	it("describes a block's actions button with its version only when that's an older one", async () => {
 		await renderField({
 			initial: [heroBlock("current"), { _type: "hero", _version: 1, _key: "old", heading: "Old" }],
 		});
 
 		await expect
 			.element(row("current").getByRole("button", { name: "Hero actions" }))
-			.toHaveAccessibleDescription("Version 2");
+			.not.toHaveAccessibleDescription();
 		await expect
 			.element(row("old").getByRole("button", { name: "Hero actions" }))
 			.toHaveAccessibleDescription("Version 1");

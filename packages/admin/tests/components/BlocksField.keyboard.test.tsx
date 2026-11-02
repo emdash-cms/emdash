@@ -463,7 +463,7 @@ describe("Blocks field keyboard", () => {
 		await expect.element(screen.getByRole("button", { name: "Jonas Berg actions" })).toHaveFocus();
 	});
 
-	it("reads a field's hint, a block's version and a problem only as descriptions, once each", async () => {
+	it("reads a field's hint and a problem only as descriptions, once each, and a current block's version not at all", async () => {
 		const screen = await renderHarness({
 			initial: [heroBlock("hero-1"), { _type: "note", _version: 1, _key: "note-1", title: "" }],
 			reveal: { token: 0 },
@@ -482,7 +482,7 @@ describe("Blocks field keyboard", () => {
 		await expect.element(noteTitle).toHaveAccessibleDescription("Required");
 		await expect
 			.element(row("hero-1").getByRole("button", { name: "Hero actions" }))
-			.toHaveAccessibleDescription("Version 1");
+			.not.toHaveAccessibleDescription();
 
 		const texts = await textNodes();
 		expect(texts).not.toContain("Shown above the headline");

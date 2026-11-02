@@ -45,7 +45,6 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 }));
 
 const LINK_PATTERN = "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$";
-const LINK_HINT = "Starts with /, https://, mailto:, tel: or #";
 const PHOTO =
 	"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='9'/%3E";
 const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control";
@@ -302,33 +301,6 @@ describe("A field's notes", () => {
 		expect(textBoxes(label).filter((rect) => overlaps(rect, box(count)))).toEqual([]);
 	});
 
-	it("puts a settings row's hint where its label was while it has focus, and the label back on Escape", async () => {
-		await renderEditor([heroBlock], [hero]);
-		await openBlock("Hero");
-		await page.getByRole("button", { name: /^Advanced/ }).click();
-		await expect.poll(() => document.getAnimations().length).toBe(0);
-
-		const sectionId = control("Section ID");
-		const label = labelOf(sectionId);
-		const row = label.parentElement!;
-		const tops = rowTops();
-		await sectionId.click();
-		await expect.poll(() => shownText("Lowercase, for links like /#pricing")).toBeDefined();
-		const hint = shownText("Lowercase, for links like /#pricing")!;
-		expect(overlaps(box(hint), box(row))).toBe(true);
-		expect(box(hint).top).toBeGreaterThanOrEqual(box(row).top - 0.5);
-		expect(box(hint).bottom).toBeLessThanOrEqual(box(row).bottom + 0.5);
-		expect(textBoxes(row).filter((rect) => overlaps(rect, box(hint)))).toEqual([]);
-		expect(shownText("Section ID", row)).toBeUndefined();
-		await expect.element(sectionId).toHaveAccessibleName("Section ID");
-		expect(rowTops()).toEqual(tops);
-
-		await userEvent.keyboard("{Escape}");
-		await expect.element(sectionId).toHaveFocus();
-		await expect.poll(() => shownText("Section ID", row)).toBeDefined();
-		expect(shownText("Lowercase, for links like /#pricing")).toBeUndefined();
-	});
-
 	it("shows an unlabelled control's hint at the end of its own line, with its text kept clear of it", async () => {
 		await renderEditor([heroBlock], [hero]);
 		await openBlock("Hero");
@@ -369,38 +341,6 @@ describe("A field's problems", () => {
 		// The label's line says it, so the empty control doesn't say it again.
 		expect(headline.element().getAttribute("placeholder")).not.toBe("Required");
 		expect(getComputedStyle(message!).color).not.toBe(getComputedStyle(label).color);
-	});
-
-	it("keeps a broken link's problem in view beside its row at rest, and in full while it has focus", async () => {
-		await renderEditor([heroBlock], [hero]);
-		await openBlock("Hero");
-		const link = control("Primary button link");
-		const row = page.getByRole("group", { name: "Primary button", exact: true }).element();
-		const tops = rowTops();
-
-		await link.fill("not a url");
-		await control("Headline").click();
-		await expect.element(link).toHaveAttribute("aria-invalid", "true");
-		const atRest = shownText(LINK_HINT, row);
-		expect(atRest).toBeDefined();
-		expect(box(atRest!).top).toBeGreaterThanOrEqual(box(row).top - 0.5);
-		expect(box(atRest!).bottom).toBeLessThanOrEqual(box(row).bottom + 0.5);
-		expect(shownText("Primary button", row)).toBeDefined();
-		expect(rowTops()).toEqual(tops);
-
-		await link.click();
-		// Cut short beside the label at rest, it shows in full once the field has focus.
-		await expect.poll(() => shownText(LINK_HINT, row)?.getClientRects().length).toBe(2);
-		const focused = shownText(LINK_HINT, row)!;
-		expect(box(focused).top).toBeGreaterThanOrEqual(box(row).top - 0.5);
-		expect(box(focused).bottom).toBeLessThanOrEqual(box(row).bottom + 0.5);
-		expect(textBoxes(row).filter((rect) => overlaps(rect, box(focused)))).toEqual([]);
-
-		await link.fill("/contact");
-		await expect.element(link).not.toHaveAttribute("aria-invalid");
-		await control("Headline").click();
-		await expect.poll(() => shownText(LINK_HINT, row)).toBeUndefined();
-		expect(shownText("Primary button", row)).toBeDefined();
 	});
 
 	it("says an empty required item title's problem at the end of its line, without growing the head", async () => {
@@ -507,12 +447,12 @@ describe("Undo", () => {
 		await userEvent.keyboard("{Enter}");
 		const select = photo.getByRole("button", { name: "Select image" });
 		await expect.element(select).toHaveFocus();
-		await expect.element(page.getByText("Removed an image")).toBeVisible();
+		await expect.element(page.getByText("Removed Photo")).toBeVisible();
 
 		await userEvent.keyboard(`{${MOD}>}z{/${MOD}}`);
 		await expect.poll(() => photo.element().querySelector("img")?.getAttribute("src")).toBe(PHOTO);
 		await expect.element(photo.getByRole("button", { name: "Replace" })).toHaveFocus();
-		await expect.element(page.getByText("Removed an image")).not.toBeInTheDocument();
+		await expect.element(page.getByText("Removed Photo")).not.toBeInTheDocument();
 
 		await photo.getByRole("button", { name: "Remove image" }).click();
 		await page.getByRole("button", { name: "Undo" }).click();
@@ -536,7 +476,7 @@ describe("Autosave paused", () => {
 			await page.getByRole("textbox", { name: "Title" }).first().click();
 			await expect.element(page.getByText("Autosave paused")).toBeVisible();
 			await expect
-				.element(page.getByText("Fix Icon in the Features block to resume saving."))
+				.element(page.getByText("Fix Description in the Features block to resume saving."))
 				.toBeVisible();
 		} finally {
 			vi.useRealTimers();

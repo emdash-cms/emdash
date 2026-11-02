@@ -970,11 +970,21 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 	line-height: 1.5;
 }
 
-/* A blocks field marks keyboard focus with rings, which forced colors don't paint. */
+/*
+ * A blocks field marks keyboard focus with rings, and the active option in its popups with a wash,
+ * neither of which forced colors paint. Its problem dot is a fill, which they would paint over.
+ */
 @media (forced-colors: active) {
-	[data-blocks-field] :focus-visible {
+	[data-blocks-field] :focus-visible,
+	.emdash-block-option[data-highlighted],
+	[data-block-type-option][aria-selected="true"] {
 		outline: 2px solid Highlight;
 		outline-offset: -2px;
+	}
+
+	[data-blocks-field] [data-error-dot] {
+		forced-color-adjust: none;
+		background-color: CanvasText;
 	}
 }
 
@@ -1534,6 +1544,27 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
  */
 [role="region"][aria-label="Notifications"] {
 	z-index: 10000 !important;
+}
+
+/* A toast's close button takes a 44px square on a coarse pointer, at the same size. */
+@media (pointer: coarse) {
+	[role="region"][aria-label="Notifications"] [data-kumo-part="close"]::after {
+		content: "";
+		position: absolute;
+		inset: -12px;
+	}
+}
+
+/* Toasts fade in and out in place of sliding. */
+@media (prefers-reduced-motion: reduce) {
+	[role="region"][aria-label="Notifications"] [role="dialog"] {
+		transition-property: opacity !important;
+	}
+}
+
+/* While a toast is up, focus brought into view in the editor stays clear of it. */
+html:has([role="region"][aria-label="Notifications"] [role="dialog"]) [data-emdash-editor-canvas] {
+	scroll-padding-bottom: 8.5rem;
 }
 
 /* ==========================================================================

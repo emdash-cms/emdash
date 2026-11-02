@@ -81,7 +81,13 @@ import {
 	ROW_BUTTON,
 } from "./block-field-styles.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
-import { blockKeyOf, type BlockReveal, BlocksField, type FieldChrome } from "./BlocksField.js";
+import {
+	blockKeyOf,
+	type BlockReveal,
+	BlocksField,
+	type FieldChrome,
+	issuesInViewOrder,
+} from "./BlocksField.js";
 import type { BylineFormValues } from "./BylineFormDialog.js";
 import { ContentPickerModal, type PickedContentEntry } from "./ContentPickerModal.js";
 import {
@@ -136,10 +142,17 @@ function blockIssueKey({ name, issue }: FieldBlockIssue): string {
 	return `${name}:${issue.blockKey}:${issue.field}:${issue.code}`;
 }
 
+const POPUP = '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]';
+/** A trigger whose popup is open, or a block row whose menu or picker is. */
+const OPEN_POPUP =
+	'[aria-expanded="true"]:is([aria-haspopup]:not([aria-haspopup="false"]), [role="combobox"]), [data-popup-open], [data-menu-open], [data-picker-open]';
+/** A dialog a control opens, rather than a toast. */
+const OPENED_DIALOG = ':is([role="dialog"], [role="alertdialog"]):not([aria-modal="false"])';
+
 /**
  * Says autosave is paused while `heldBy` holds it, once per problem, with a way to reach the field.
- * While focus is still in the block with the problem, the writer is at work there, so it waits
- * until focus leaves the block.
+ * While focus is still in the block with the problem, or in a popup the block opened, the writer is
+ * at work there, so it waits until focus leaves for somewhere else.
  */
 function AutosavePausedNotice({
 	heldBy,
@@ -162,19 +175,34 @@ function AutosavePausedNotice({
 			setReleased(null);
 			return;
 		}
+		/** The block focus was in before it went into a popup. */
+		let cameFrom = blockKeyOf(document.activeElement);
+		const heldRows = () =>
+			[...document.querySelectorAll<HTMLElement>("[data-block-key]")].filter(
+				(row) => row.dataset.blockKey === heldBlock,
+			);
+		// A select's options take focus on an element outside their listbox, so the block's open
+		// trigger says whose they are. A dialog, such as the media library, marks no trigger.
+		const inOwnPopup = (active: Element | null) =>
+			heldRows().some((row) => row.matches(OPEN_POPUP) || row.querySelector(OPEN_POPUP)) ||
+			Boolean(active?.closest(OPENED_DIALOG) && cameFrom === heldBlock);
 		const check = () => {
 			const active = document.activeElement;
-			// A popup the block opened, such as a select's options, is still the block at work.
-			if (active?.closest('[role="dialog"], [role="menu"], [role="listbox"]')) return;
-			if (blockKeyOf(active) !== heldBlock) setReleased(heldKey);
+			if (blockKeyOf(active) !== heldBlock && !inOwnPopup(active)) setReleased(heldKey);
+		};
+		const onFocusIn = (event: FocusEvent) => {
+			if (event.target instanceof Element && !event.target.closest(POPUP)) {
+				cameFrom = blockKeyOf(event.target);
+			}
+			check();
 		};
 		// Focus leaving for nothing lands on the page only once the focusout has run.
 		const checkSoon = () => setTimeout(check, 0);
 		check();
-		document.addEventListener("focusin", check);
+		document.addEventListener("focusin", onFocusIn);
 		document.addEventListener("focusout", checkSoon);
 		return () => {
-			document.removeEventListener("focusin", check);
+			document.removeEventListener("focusin", onFocusIn);
 			document.removeEventListener("focusout", checkSoon);
 		};
 	}, [heldKey, heldBlock]);
@@ -1381,19 +1409,34 @@ export function ContentEditor({
 		(data: Record<string, unknown>): FieldBlockIssue | null => {
 			for (const [name, field] of Object.entries(fields)) {
 				if (field.kind !== "blocks") continue;
-				const [issue] = validateBlocks(data[name], field.blockTypes ?? []);
+				const blockTypes = field.blockTypes ?? [];
+				const [issue] = issuesInViewOrder(
+					validateBlocks(data[name], blockTypes),
+					data[name],
+					blockTypes,
+				);
 				if (issue) return { name, issue };
 			}
 			return null;
 		},
 		[fields],
 	);
-	const revealBlockIssue = React.useCallback((found: FieldBlockIssue) => {
-		setBlockReveal((current) => ({
-			token: current.token + 1,
-			focusId: blockIssueElementId(found.name, found.issue),
-		}));
-	}, []);
+	const revealBlockIssue = React.useCallback(
+		(found: FieldBlockIssue) => {
+			let count = 0;
+			for (const [name, field] of Object.entries(fields)) {
+				if (field.kind === "blocks") {
+					count += validateBlocks(formDataRef.current[name], field.blockTypes ?? []).length;
+				}
+			}
+			setBlockReveal((current) => ({
+				token: current.token + 1,
+				focusId: blockIssueElementId(found.name, found.issue),
+				count,
+			}));
+		},
+		[fields],
+	);
 	const showFirstBlockIssue = React.useCallback(() => {
 		const found = firstBlockIssue(formDataRef.current);
 		if (found) revealBlockIssue(found);
@@ -2645,8 +2688,8 @@ function DescribedSelect({ chrome, children }: { chrome: FieldChrome; children: 
 
 /**
  * Shows `meta`, such as a character count, where the blocks field keeps the control's count: on its
- * label's line, which shows it while the control has focus. A control with no room for it, such as
- * a table cell, shows none.
+ * label's line, or at the end of its own line, which show it while the control has focus. A control
+ * with no room for it, such as a table cell, shows none.
  */
 function QuietControl({
 	meta,
@@ -2657,14 +2700,20 @@ function QuietControl({
 	slotId?: string;
 	children: React.ReactNode;
 }) {
-	const [slot, setSlot] = React.useState<HTMLElement | null>(null);
+	const [slots, setSlots] = React.useState<readonly HTMLElement[]>([]);
 	React.useLayoutEffect(() => {
-		setSlot(slotId ? document.getElementById(slotId) : null);
+		setSlots(
+			slotId
+				? [...document.querySelectorAll<HTMLElement>("[data-count-slot]")].filter(
+						(slot) => slot.dataset.countSlot === slotId,
+					)
+				: [],
+		);
 	}, [slotId]);
 	return (
 		<>
 			{children}
-			{meta && slot && createPortal(meta, slot)}
+			{meta && slots.map((slot, index) => createPortal(meta, slot, index))}
 		</>
 	);
 }
@@ -3071,7 +3120,9 @@ function FieldRenderer({
 							alignOffset={QUIET_SELECT_ALIGN_OFFSET}
 							className={cn(
 								QUIET_SELECT,
-								chrome.emptyIssue && "[&_[data-placeholder]]:text-kumo-danger!",
+								chrome.emptyIssue
+									? "[&_[data-placeholder]]:text-kumo-danger!"
+									: chrome.placeholderSays && "[&_[data-placeholder]]:text-kumo-subtle!",
 							)}
 						>
 							{selectOptions.map((opt) => (

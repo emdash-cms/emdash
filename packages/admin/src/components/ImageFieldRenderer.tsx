@@ -32,7 +32,7 @@ import {
 	syncMediaCaption,
 } from "../lib/media-utils.js";
 import { cn } from "../lib/utils.js";
-import { IMAGE_EDGE, ROW_BUTTON } from "./block-field-styles.js";
+import { DISCLOSURE_EASE, DISCLOSURE_MS, IMAGE_EDGE, ROW_BUTTON } from "./block-field-styles.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
@@ -146,7 +146,7 @@ export interface ImageFieldRendererProps {
 }
 
 const HOVER_REVEAL =
-	"opacity-0 transition-opacity duration-0 ease-out [@media(hover:none)]:opacity-100 pointer-coarse:opacity-100";
+	"opacity-0 transition-opacity duration-0 ease-emdash [@media(hover:none)]:opacity-100 pointer-coarse:opacity-100";
 const PHOTO_REVEAL = cn(
 	HOVER_REVEAL,
 	"group-hover/photo:opacity-100 group-hover/photo:duration-100 group-[:not([data-quiet-focus]):has(:focus-visible)]/photo:opacity-100",
@@ -192,6 +192,9 @@ export function ImageFieldRenderer({
 	const photoReplaceRef = React.useRef<HTMLButtonElement>(null);
 	/** Where focus goes once the photo has gone, or come back. */
 	const focusNextRef = React.useRef<"slot" | "photo" | null>(null);
+	/** The labelled field's box, which eases to its new height when a photo goes or comes back. */
+	const slotRef = React.useRef<HTMLDivElement>(null);
+	const heightBeforeRef = React.useRef<number | null>(null);
 	const [editedContentHashes, setEditedContentHashes] = React.useState<
 		Record<string, string | null | undefined>
 	>({});
@@ -308,13 +311,35 @@ export function ImageFieldRenderer({
 			return;
 		}
 		focusNextRef.current = "slot";
+		heightBeforeRef.current = slotRef.current?.getBoundingClientRect().height ?? null;
 		onChange(null);
 		if (removed && offerRestore) {
 			offerRestore(removed, () => {
 				focusNextRef.current = "photo";
+				heightBeforeRef.current = slotRef.current?.getBoundingClientRect().height ?? null;
 			});
 		}
 	};
+
+	// The rows below glide to where the photo's going or coming back puts them, as they do when a
+	// block or item is deleted or put back.
+	React.useLayoutEffect(() => {
+		const from = heightBeforeRef.current;
+		heightBeforeRef.current = null;
+		const slot = slotRef.current;
+		if (from === null || !slot || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			return;
+		}
+		const to = slot.getBoundingClientRect().height;
+		if (Math.abs(to - from) < 1) return;
+		slot.animate(
+			{ height: [`${from}px`, `${to}px`], clipPath: ["inset(0)", "inset(0)"] },
+			{
+				duration: to < from ? DISCLOSURE_MS.close : DISCLOSURE_MS.open,
+				easing: DISCLOSURE_EASE,
+			},
+		);
+	}, [displayUrl]);
 
 	// A removed photo's actions go with it, so focus moves on to the slot's own button, and to the
 	// photo's Replace when Undo puts it back. Beside a thumbnail, or in a table cell, that button stays.
@@ -739,7 +764,7 @@ export function ImageFieldRenderer({
 						cell
 							? "border-transparent group-hover/item:border-kumo-line group-focus-within/item:border-kumo-line"
 							: "border-kumo-line",
-						invalid ? "text-kumo-danger" : "text-kumo-placeholder",
+						invalid ? "text-kumo-danger" : "text-kumo-subtle",
 					),
 		);
 		return (
@@ -822,6 +847,7 @@ export function ImageFieldRenderer({
 	return (
 		// The featured card lays out by its own width, which the editor's column keeps well below the viewport's.
 		<div
+			ref={slotRef}
 			id={id}
 			role={labelled ? "group" : undefined}
 			aria-labelledby={labelledBy}

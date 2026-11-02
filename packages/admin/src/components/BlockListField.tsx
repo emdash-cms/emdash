@@ -19,6 +19,7 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowDown,
@@ -30,6 +31,8 @@ import {
 	DotsSixVertical,
 	DotsThree,
 	Plus,
+	RowsPlusBottom,
+	RowsPlusTop,
 	Trash,
 } from "@phosphor-icons/react";
 import * as React from "react";
@@ -48,13 +51,16 @@ import { cn } from "../lib/utils.js";
 import {
 	DISCLOSURE_CURVE,
 	DISCLOSURE_EASE,
+	DISCLOSURE_MS,
 	DRAGGING,
+	EASE_EMDASH,
 	GLYPH_NUDGE,
 	IMAGE_EDGE,
 	ITEM_TITLE,
 	LIFT_SHADOW,
 	LIFTED,
 	LIST_LABEL,
+	MENU_TOUCH,
 	NOTE,
 	POPUP_MOTION,
 	ROW_BUTTON,
@@ -76,11 +82,19 @@ interface Row {
 	item: ListItem;
 }
 
+/** A deletion whose row is still shrinking away, which Undo can call off until it has happened. */
+export interface DeletionHold {
+	/** Ends the hold, once the deletion has happened or been called off. */
+	release: () => void;
+}
+
 export interface DeletedListItem {
 	item: ListItem;
 	/** Where the item sat in the saved list. */
 	index: number;
 	name: string;
+	/** The hold `onItemDeleteStart` gave the deletion while its row shrank away. */
+	hold?: DeletionHold;
 }
 
 export interface ListControlInput {
@@ -123,6 +137,11 @@ export interface BlockListFieldProps {
 	revealToken: number;
 	onItemDeleted: (deleted: DeletedListItem) => void;
 	/**
+	 * Called as an item's row starts shrinking away before it's deleted, with the function that
+	 * calls the deletion off.
+	 */
+	onItemDeleteStart?: (cancel: () => void) => DeletionHold | undefined;
+	/**
 	 * Called when saved items change position, with each item's new position by its old one,
 	 * or -1 for an item removed.
 	 */
@@ -135,6 +154,7 @@ export interface BlockListFieldProps {
 type ListFocus =
 	| { key: string; target: "control"; caret?: number; scroll?: false }
 	| { key: string; target: "item"; scroll?: false }
+	| { key: string; target: "cell"; column: number }
 	| { target: "add" };
 
 const FOCUSABLE =
@@ -143,6 +163,7 @@ const MENU_ICON = "size-4";
 const LINE_BREAK = /[\r\n]/;
 // Other input types, such as number and email, throw when a script sets their selection.
 export const SELECTABLE_INPUT_TYPES = new Set(["text", "search", "url", "tel", "password"]);
+const CELL_INPUT_TYPES = new Set(["text", "search", "url", "tel", "email", "number"]);
 const POPUP = '[role="dialog"], [role="menu"], [role="listbox"]';
 const IMAGE_COLUMN = "4.5rem";
 const MENU_COLUMN = "2rem";
@@ -228,22 +249,41 @@ function moveStep(event: React.KeyboardEvent): -1 | 0 | 1 {
 
 /**
  * The key handler for a row's head or menu button that moves the row one place with
- * `MOVE_KEYS`, as Move up and Move down do. Focus stays on the control, in view: a row moved down
- * is taken out of the page and put back, which drops its focus.
+ * `MOVE_KEYS`, as Move up and Move down do. Focus stays on the control, and the control stays
+ * where it was on screen while the list moves past it, as far as the view allows: a row moved
+ * down is taken out of the page and put back, which drops its focus. A move past either end
+ * calls `onEdge` instead.
  */
-export function useMoveKeys(index: number, count: number, onMove: (to: number) => void) {
-	const keepRef = React.useRef<HTMLElement | null>(null);
+export function useMoveKeys(
+	index: number,
+	count: number,
+	onMove: (to: number) => void,
+	onEdge?: (edge: "first" | "last") => void,
+) {
+	const keepRef = React.useRef<{ control: HTMLElement; top: number } | null>(null);
 	React.useLayoutEffect(() => {
-		const control = keepRef.current;
-		if (!control) return;
+		const kept = keepRef.current;
+		if (!kept) return;
 		keepRef.current = null;
-		if (document.activeElement === control) control.scrollIntoView({ block: "nearest" });
-		else control.focus();
+		const { control, top } = kept;
+		if (document.activeElement !== control) control.focus({ preventScroll: true });
+		const scroller = scrollerOf(control);
+		if (!scroller) return;
+		const box = control.getBoundingClientRect();
+		const moved = box.top - top;
+		const by = moved + revealBy(scroller, box.top - moved, box.bottom - moved);
+		if (Math.abs(by) >= 0.5) scrollInstantly(scroller, by);
 	});
 	return (event: React.KeyboardEvent<HTMLElement>) => {
-		const to = index + moveStep(event);
-		if (to === index || to < 0 || to >= count) return;
-		keepRef.current = event.currentTarget;
+		const step = moveStep(event);
+		if (step === 0) return;
+		const to = index + step;
+		if (to < 0 || to >= count) {
+			onEdge?.(to < 0 ? "first" : "last");
+			return;
+		}
+		const control = event.currentTarget;
+		keepRef.current = { control, top: control.getBoundingClientRect().top };
 		onMove(to);
 	};
 }
@@ -259,8 +299,10 @@ function textOffsetAt(x: number, y: number, within: Element | null): number | un
 	return range && within.contains(range.startContainer) ? range.startOffset : undefined;
 }
 
-const OPEN_MS = 200;
-const CLOSE_MS = 160;
+const OPEN_MS = DISCLOSURE_MS.open;
+const CLOSE_MS = DISCLOSURE_MS.close;
+/** The shortest a reversed panel takes, so its first frame doesn't snap. */
+const REVERSE_MS = 120;
 /** How long a dropped or moved row takes to slide into its place. */
 const SLIDE_MS = 200;
 /** How long a lifted row's shadow takes to fade, the same as its `after:duration-150`. */
@@ -380,33 +422,62 @@ export function growRow(row: HTMLElement) {
 	if (prefersReducedMotion()) return;
 	const to = shownPart(scroller, top - by, height);
 	if (to < 1) return;
-	row.animate(
+	const grow = row.animate(
 		{ height: ["0px", `${to}px`], opacity: [0, 1], clipPath: ["inset(0)", "inset(0)"] },
 		{ duration: OPEN_MS, easing: DISCLOSURE_EASE },
 	);
+	// Mounting the row's fields can make a long frame, which would otherwise count as part of the
+	// motion, so the row holds at nothing through it and starts on the next frame.
+	grow.pause();
+	requestAnimationFrame(() => {
+		if (grow.playState === "paused") grow.play();
+	});
+}
+
+/** A row shrinking away before it's deleted. */
+export interface RowCollapse {
+	/** Calls the deletion off: the row grows back from wherever it has got to. */
+	reverse: () => void;
 }
 
 /**
- * Shrinks a row being deleted to nothing, so the rows below glide up, then calls `remove` to take
- * it out. Only the part in view shrinks, and a row whose top is scrolled away goes at once.
+ * Shrinks a row being deleted to nothing, so the rows below glide up and the page holds still,
+ * then calls `remove` to take it out, and `settled` once it's out or back. Only the part in view
+ * shrinks, and a row whose top is scrolled away goes at once. A row that leaves the page while it
+ * shrinks, as when the whole value is replaced, isn't removed again.
  */
-export function collapseRow(row: HTMLElement, remove: () => void) {
+export function collapseRow(
+	row: HTMLElement,
+	remove: () => void,
+	settled: () => void = noop,
+): RowCollapse | null {
 	const scroller = scrollerOf(row);
 	const { top, height } = row.getBoundingClientRect();
 	const from = shownPart(scroller, top, height);
 	if (prefersReducedMotion() || from < 1 || top < viewEdge(scroller)) {
 		remove();
-		return;
+		return null;
 	}
+	const release = holdScroll(scroller, row);
 	const shrink = row.animate(
 		{ height: [`${from}px`, "0px"], opacity: [1, 0], clipPath: ["inset(0)", "inset(0)"] },
 		{ duration: CLOSE_MS, easing: DISCLOSURE_EASE, fill: "forwards" },
 	);
+	let reversed = false;
 	shrink.addEventListener("finish", () => {
-		flushSync(remove);
+		if (!reversed && row.isConnected) flushSync(remove);
 		// A row that wasn't taken out after all comes back.
 		if (row.isConnected) shrink.cancel();
+		release();
+		settled();
 	});
+	return {
+		reverse() {
+			if (reversed || shrink.playState !== "running") return;
+			reversed = true;
+			shrink.reverse();
+		},
+	};
 }
 
 /** Slides `node` back into its place from `x`, `y` away, on top of any transform it has. */
@@ -687,6 +758,22 @@ export function keepRowInView(
 	};
 }
 
+/**
+ * Turns the caret of the toggle that controls `panel` to where it's going over `duration`, in
+ * place of its own transition, so a reversed panel and its caret land together.
+ */
+function turnCaretWith(panel: HTMLElement, duration: number) {
+	if (!panel.id) return;
+	const caret = document
+		.querySelector(`[aria-controls="${window.CSS.escape(panel.id)}"]`)
+		?.querySelector("[data-disclosure-caret]");
+	if (!(caret instanceof SVGElement)) return;
+	const from = getComputedStyle(caret).rotate;
+	for (const animation of caret.getAnimations()) animation.cancel();
+	const to = getComputedStyle(caret).rotate;
+	if (from !== to) caret.animate({ rotate: [from, to] }, { duration, easing: DISCLOSURE_EASE });
+}
+
 interface PanelMotion {
 	height: Animation;
 	/** Holds the content drawn up by `lift` while the panel closes under its pinned head. */
@@ -785,9 +872,10 @@ export function DisclosurePanel({
 				restore();
 				return;
 			}
-			// A reversal takes the share of the time that is left of the way, as the caret's CSS
-			// transition does, so the two land together.
-			const duration = OPEN_MS * ((to - from) / to);
+			// A reversal takes the share of the time that is left of the way, but never so little
+			// that it snaps, and turns the caret on the same clock.
+			const duration = previous ? Math.max(REVERSE_MS, OPEN_MS * ((to - from) / to)) : OPEN_MS;
+			if (previous) turnCaretWith(panel, duration);
 			const height = panel.animate(
 				{
 					height: [`${from}px`, `${to}px`],
@@ -848,7 +936,10 @@ export function DisclosurePanel({
 			return;
 		}
 		const full = previous ? travel(scroller, top, natural - hidden) : from;
-		const duration = CLOSE_MS * Math.min(1, from / Math.max(from, full));
+		const duration = previous
+			? Math.max(REVERSE_MS, CLOSE_MS * Math.min(1, from / Math.max(from, full)))
+			: CLOSE_MS;
+		if (previous) turnCaretWith(panel, duration);
 		const height = panel.animate(
 			{
 				height: [`${from}px`, "0px"],
@@ -901,6 +992,7 @@ export function useDropSettle(
 	const nodeRef = React.useRef<HTMLElement | null>(null);
 	const letGoRef = React.useRef<DOMRect | null>(null);
 	const settleRef = React.useRef<Animation | null>(null);
+	const shadowRef = React.useRef<Animation | null>(null);
 	const [settling, setSettling] = React.useState(false);
 	const setNodeRef = React.useCallback(
 		(node: HTMLElement | null) => {
@@ -926,9 +1018,10 @@ export function useDropSettle(
 		const node = nodeRef.current;
 		const previous = settleRef.current;
 		// A row picked up again while it settles stays where it was caught: the settle holds still,
-		// added to the drag's own transform, until the row is let go again.
+		// added to the drag's own transform, until the row is let go again, and its shadow lifts again.
 		if (isDragging) {
 			previous?.pause();
+			shadowRef.current?.cancel();
 			return;
 		}
 		if (previous) {
@@ -945,9 +1038,9 @@ export function useDropSettle(
 		const settle = slideFrom(node, x, y);
 		// A row dropped in a new slot was moved in the page, which ends any transition on it, so its
 		// lifted shadow fades out here, while it settles.
-		node.animate(
+		shadowRef.current = node.animate(
 			{ opacity: [1, 0] },
-			{ pseudoElement: "::after", duration: SHADOW_MS, easing: DISCLOSURE_EASE },
+			{ pseudoElement: "::after", duration: SHADOW_MS, easing: EASE_EMDASH },
 		);
 		settleRef.current = settle;
 		const done = () => {
@@ -975,6 +1068,7 @@ export function DisclosureCaret({
 	return (
 		<span aria-hidden="true" className={cn("grid size-4 shrink-0 place-items-center", className)}>
 			<CaretRight
+				data-disclosure-caret=""
 				weight="bold"
 				className={cn(
 					"size-3 text-kumo-subtle transition-transform duration-160 ease-emdash-disclosure motion-reduce:transition-none rtl:-scale-x-100",
@@ -986,6 +1080,11 @@ export function DisclosureCaret({
 	);
 }
 
+/** How many items a list holds, in words. */
+function itemCount(count: number): string {
+	return plural(count, { one: "# item", other: "# items" });
+}
+
 export function ErrorDot({ id }: { id?: string }) {
 	const { t } = useLingui();
 	return (
@@ -993,6 +1092,7 @@ export function ErrorDot({ id }: { id?: string }) {
 			id={id}
 			role="img"
 			aria-label={t`Has fields to fix`}
+			data-error-dot=""
 			className="size-1.5 shrink-0 rounded-full bg-kumo-danger"
 		/>
 	);
@@ -1068,6 +1168,7 @@ export function BlockListField({
 	invalidItems,
 	revealToken,
 	onItemDeleted,
+	onItemDeleteStart,
 	onItemsShift,
 	renderControl,
 	renderItemFields,
@@ -1081,6 +1182,8 @@ export function BlockListField({
 		[value],
 	);
 	const knownKeys = React.useRef(new WeakMap<ListItem, string>()).current;
+	/** Items deleted here with an Undo, which grow back in when it puts them back. */
+	const deletedItems = React.useRef(new WeakSet<ListItem>()).current;
 	const [rows, setRows] = React.useState<Row[]>(() => syncRows([], items, knownKeys));
 	const [source, setSource] = React.useState(value);
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
@@ -1104,6 +1207,9 @@ export function BlockListField({
 			items,
 			knownKeys,
 		);
+		const shownKeys = new Set(rows.map((row) => row.key));
+		const restored = current.find((row) => deletedItems.has(row.item) && !shownKeys.has(row.key));
+		if (restored) setAddedKey(restored.key);
 		setSource(value);
 		setRows(current);
 	}
@@ -1159,17 +1265,23 @@ export function BlockListField({
 			(element) => element.dataset.itemKey === request.key,
 		);
 		if (!row) return;
-		const target = row.querySelector(
-			request.target === "item" ? "[data-item-focus]" : "[data-item-control]",
-		);
+		const target =
+			request.target === "cell"
+				? row.querySelectorAll('[role="cell"]')[request.column]
+				: row.querySelector(
+						request.target === "item" ? "[data-item-focus]" : "[data-item-control]",
+					);
 		const element = focusableIn(target) ?? focusableIn(row);
-		element?.focus(request.scroll === false ? { preventScroll: true } : undefined);
+		element?.focus(
+			request.target !== "cell" && request.scroll === false ? { preventScroll: true } : undefined,
+		);
 		if (
-			request.target === "control" &&
+			request.target !== "item" &&
 			element instanceof HTMLInputElement &&
 			SELECTABLE_INPUT_TYPES.has(element.type)
 		) {
-			const caret = request.caret ?? element.value.length;
+			const caret =
+				(request.target === "control" ? request.caret : undefined) ?? element.value.length;
 			element.setSelectionRange(caret, caret);
 		}
 	};
@@ -1203,14 +1315,17 @@ export function BlockListField({
 		emit([...current.slice(0, index), row, ...current.slice(index)]);
 	};
 
-	const addRow = () => {
+	const addRowAt = (index: number) => {
 		if (atMax) return;
 		const row = { key: createBlockKey(), item: newItem() };
-		insertRow(current.length, row);
+		insertRow(index, row);
 		if (presentation === "items") setOpenKeys(new Set(openKeys).add(row.key));
 		setAddedKey(row.key);
 		focusRef.current = { key: row.key, target: "control", scroll: false };
 	};
+	const addRow = () => addRowAt(current.length);
+	// Runs once the menu it was chosen in has closed.
+	const addRowLater = useStableCallback(addRowAt);
 
 	const moveRow = (from: number, to: number, slide = false) => {
 		const row = current[from];
@@ -1235,29 +1350,39 @@ export function BlockListField({
 		setAnnouncement(t`Duplicated ${copied}`);
 	};
 
-	const deleteRow = (key: string) => {
+	const deleteRow = (key: string, hold?: DeletionHold) => {
 		const index = current.findIndex((row) => row.key === key);
 		const row = current[index];
-		if (!row || !canDelete(row)) return;
+		if (readOnly || !row || !canDelete(row)) return;
 		const next = current.filter((candidate) => candidate.key !== key);
 		const neighbour = next[index] ?? next[index - 1];
 		focusRef.current = neighbour ? { key: neighbour.key, target: "item" } : { target: "add" };
 		emit(next);
 		const position = positions[index];
 		if (position === undefined) return;
-		onItemDeleted({ item: row.item, index: position, name: name(row, index) });
+		deletedItems.add(row.item);
+		onItemDeleted({ item: row.item, index: position, name: name(row, index), hold });
 	};
 
 	const deleteLater = useStableCallback(deleteRow);
-	// A row deleted from its menu shrinks away first.
+	// A row deleted from its menu shrinks away first, and until it has, Undo calls the deletion off.
 	const collapseAndDelete = (key: string) => {
 		const row = current.find((candidate) => candidate.key === key);
 		if (!row || !canDelete(row)) return;
 		const element = [
 			...(rootRef.current?.querySelectorAll<HTMLElement>("[data-item-key]") ?? []),
 		].find((candidate) => candidate.dataset.itemKey === key);
-		if (element) collapseRow(element, () => deleteLater(key));
-		else deleteRow(key);
+		if (!element) {
+			deleteRow(key);
+			return;
+		}
+		let hold: DeletionHold | undefined;
+		const collapse = collapseRow(
+			element,
+			() => deleteLater(key, hold),
+			() => hold?.release(),
+		);
+		if (collapse) hold = onItemDeleteStart?.(collapse.reverse);
 	};
 
 	const removeBlankLines = useStableCallback(() => {
@@ -1300,6 +1425,31 @@ export function BlockListField({
 			event.preventDefault();
 			focusRow({ key: target.key, target: "control" });
 		}
+	};
+
+	// Enter goes down a table's column, adding a row under the last, and the arrow keys go up and
+	// down it, except in a number, whose arrow keys step its value.
+	const cellKeyDown = (event: React.KeyboardEvent<HTMLElement>, index: number, column: number) => {
+		const input = event.target;
+		if (!(input instanceof HTMLInputElement) || !CELL_INPUT_TYPES.has(input.type)) return;
+		if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+		if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+		const enter = event.key === "Enter";
+		if (!enter && (input.type === "number" || !["ArrowUp", "ArrowDown"].includes(event.key))) {
+			return;
+		}
+		const target = current[index + (event.key === "ArrowUp" ? -1 : 1)];
+		if (target) {
+			event.preventDefault();
+			focusRow({ key: target.key, target: "cell", column });
+			return;
+		}
+		if (!enter) return;
+		event.preventDefault();
+		if (atMax) return;
+		const added = { key: createBlockKey(), item: newItem() };
+		insertRow(index + 1, added);
+		focusRef.current = { key: added.key, target: "cell", column };
 	};
 
 	const linePaste = (event: React.ClipboardEvent<HTMLElement>, index: number) => {
@@ -1347,6 +1497,12 @@ export function BlockListField({
 		canDelete: canDelete(row),
 		added: row.key === addedKey,
 		onMove: (to, slide) => moveRow(index, to, slide),
+		onEdge: (edge) => {
+			const moved = name(row, index);
+			setAnnouncement(
+				edge === "first" ? t`${moved} is already first` : t`${moved} is already last`,
+			);
+		},
 		onDelete: () => collapseAndDelete(row.key),
 	});
 
@@ -1434,6 +1590,7 @@ export function BlockListField({
 								label={splitLabelHint(subField.label).label}
 								position={index + 1}
 								first={column === 0}
+								onKeyDown={readOnly ? undefined : (event) => cellKeyDown(event, index, column)}
 							>
 								{(labelledBy) => control(row, index, subField, { labelledBy, cell: true })}
 							</LabelledCell>
@@ -1465,6 +1622,10 @@ export function BlockListField({
 							thumbnail={firstPhotoUrl(row.item, subFields)}
 							invalid={position !== undefined && invalidItems.has(position)}
 							duplicate={{ disabled: atMax, onSelect: () => duplicateRow(index) }}
+							add={{
+								disabled: atMax,
+								onSelect: (side) => addRowLater(side === "above" ? index : index + 1),
+							}}
 							onToggle={(titleCaret) => {
 								setOpenKeys(toggled(openKeys, row.key));
 								if (titleCaret) {
@@ -1511,7 +1672,12 @@ export function BlockListField({
 					{listLabel}
 				</span>
 				{savedCount > 0 && (
-					<bdi className={cn(NOTE, "text-kumo-subtle tabular-nums")}>{i18n.number(savedCount)}</bdi>
+					<>
+						<bdi aria-hidden="true" className={cn(NOTE, "text-kumo-subtle tabular-nums")}>
+							{i18n.number(savedCount)}
+						</bdi>
+						<span className="sr-only">{itemCount(savedCount)}</span>
+					</>
 				)}
 				{/* On the label's line, so showing it moves nothing. */}
 				{error && (
@@ -1519,7 +1685,7 @@ export function BlockListField({
 						<span aria-hidden="true" className={cn(NOTE, "text-kumo-placeholder")}>
 							·
 						</span>
-						<span id={errorId} className={cn(NOTE, "min-w-0 truncate text-kumo-danger")}>
+						<span id={errorId} className={cn(NOTE, "min-w-0 wrap-anywhere text-kumo-danger")}>
 							{error}
 						</span>
 					</>
@@ -1549,6 +1715,7 @@ export function BlockListField({
 						"h-8 w-full justify-start gap-2 px-2 font-normal text-kumo-subtle shadow-none hover:text-kumo-default pointer-coarse:h-11",
 						presentation === "items" && current.length > 0 && "mt-0.5",
 					)}
+					aria-label={t`Add item to ${listLabel}`}
 					onClick={addRow}
 				>
 					{t`Add item`}
@@ -1572,6 +1739,8 @@ interface SortableRowProps {
 	added: boolean;
 	/** Moves the row; `slide` slides it and the rows it passes into their places. */
 	onMove: (to: number, slide?: boolean) => void;
+	/** Called when the move keys would take the row past either end. */
+	onEdge: (edge: "first" | "last") => void;
 	onDelete: () => void;
 }
 
@@ -1626,8 +1795,11 @@ interface RowMenuProps {
 	index: number;
 	count: number;
 	canDelete: boolean;
+	/** Adds an item above or below this one. */
+	add?: { disabled: boolean; onSelect: (side: "above" | "below") => void };
 	duplicate?: { disabled: boolean; onSelect: () => void };
 	onMove: (to: number, slide?: boolean) => void;
+	onEdge: (edge: "first" | "last") => void;
 	onDelete: () => void;
 	onOpenChange: (open: boolean) => void;
 	className?: string;
@@ -1638,18 +1810,20 @@ function RowMenu({
 	index,
 	count,
 	canDelete,
+	add,
 	duplicate,
 	onMove,
+	onEdge,
 	onDelete,
 	onOpenChange,
 	className,
 }: RowMenuProps) {
 	const { t } = useLingui();
-	// Duplicate and Delete run once the menu has closed. Duplicate then focuses the copy, so the
-	// menu doesn't hand focus back to its button.
+	// Adding, Duplicate and Delete run once the menu has closed. Adding and Duplicate then focus
+	// the new row, so the menu doesn't hand focus back to its button.
 	const afterCloseRef = React.useRef<(() => void) | null>(null);
 	const keepFocusRef = React.useRef(false);
-	const moveKeys = useMoveKeys(index, count, onMove);
+	const moveKeys = useMoveKeys(index, count, onMove, onEdge);
 	const quiet = useQuietReturnFocus();
 	const label = name;
 	return (
@@ -1694,9 +1868,46 @@ function RowMenu({
 			<DropdownMenu.Portal>
 				<DropdownMenu.Positioner align="end">
 					<DropdownMenu.Popup
-						className={cn("min-w-44", POPUP_MOTION)}
+						className={cn("min-w-44", POPUP_MOTION, MENU_TOUCH)}
 						finalFocus={() => !keepFocusRef.current}
 					>
+						{add && (
+							<>
+								<DropdownMenu.Item
+									icon={<RowsPlusTop className={MENU_ICON} aria-hidden="true" />}
+									disabled={add.disabled}
+									onClick={() => {
+										afterCloseRef.current = () => add.onSelect("above");
+										keepFocusRef.current = true;
+									}}
+								>
+									{t`Add item above`}
+								</DropdownMenu.Item>
+								<DropdownMenu.Item
+									icon={<RowsPlusBottom className={MENU_ICON} aria-hidden="true" />}
+									disabled={add.disabled}
+									onClick={() => {
+										afterCloseRef.current = () => add.onSelect("below");
+										keepFocusRef.current = true;
+									}}
+								>
+									{t`Add item below`}
+								</DropdownMenu.Item>
+								<DropdownMenu.Separator />
+							</>
+						)}
+						{duplicate && (
+							<DropdownMenu.Item
+								icon={<Copy className={MENU_ICON} aria-hidden="true" />}
+								disabled={duplicate.disabled}
+								onClick={() => {
+									afterCloseRef.current = duplicate.onSelect;
+									keepFocusRef.current = true;
+								}}
+							>
+								{t`Duplicate`}
+							</DropdownMenu.Item>
+						)}
 						<DropdownMenu.Item
 							icon={<ArrowUp className={MENU_ICON} aria-hidden="true" />}
 							disabled={index === 0}
@@ -1725,18 +1936,6 @@ function RowMenu({
 						>
 							{t`Move to bottom`}
 						</DropdownMenu.Item>
-						{duplicate && (
-							<DropdownMenu.Item
-								icon={<Copy className={MENU_ICON} aria-hidden="true" />}
-								disabled={duplicate.disabled}
-								onClick={() => {
-									afterCloseRef.current = duplicate.onSelect;
-									keepFocusRef.current = true;
-								}}
-							>
-								{t`Duplicate`}
-							</DropdownMenu.Item>
-						)}
 						<DropdownMenu.Separator />
 						<DropdownMenu.Item
 							variant="danger"
@@ -1764,6 +1963,7 @@ function LineRow({
 	canDelete,
 	added,
 	onMove,
+	onEdge,
 	onDelete,
 	lineLabel,
 	children,
@@ -1800,6 +2000,7 @@ function LineRow({
 					count={count}
 					canDelete={canDelete}
 					onMove={onMove}
+					onEdge={onEdge}
 					onDelete={onDelete}
 					onOpenChange={sortable.setMenuOpen}
 				/>
@@ -1812,11 +2013,13 @@ function LabelledCell({
 	label,
 	position,
 	first,
+	onKeyDown,
 	children,
 }: {
 	label: string;
 	position: number;
 	first: boolean;
+	onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>;
 	children: (labelledBy: string) => React.ReactNode;
 }) {
 	const { t } = useLingui();
@@ -1827,6 +2030,7 @@ function LabelledCell({
 			className="min-w-0 tabular-nums"
 			data-item-control={first || undefined}
 			data-item-focus={first || undefined}
+			onKeyDown={onKeyDown}
 		>
 			<span id={labelId} hidden>
 				{t`${label} ${position}`}
@@ -1845,6 +2049,7 @@ function TableRow({
 	canDelete,
 	added,
 	onMove,
+	onEdge,
 	onDelete,
 	columns,
 	children,
@@ -1878,6 +2083,7 @@ function TableRow({
 						count={count}
 						canDelete={canDelete}
 						onMove={onMove}
+						onEdge={onEdge}
 						onDelete={onDelete}
 						onOpenChange={sortable.setMenuOpen}
 					/>
@@ -1893,6 +2099,7 @@ interface ItemRowProps extends SortableRowProps {
 	thumbnail?: string;
 	invalid: boolean;
 	duplicate: { disabled: boolean; onSelect: () => void };
+	add: { disabled: boolean; onSelect: (side: "above" | "below") => void };
 	/**
 	 * Opens or closes the item. A click that opens it passes where to put the caret in the
 	 * title: `at` is the offset clicked in the title's text, or undefined for its end.
@@ -1913,19 +2120,23 @@ function ItemRow({
 	canDelete,
 	added,
 	onMove,
+	onEdge,
 	onDelete,
 	open,
 	text,
 	thumbnail,
 	invalid,
 	duplicate,
+	add,
 	onToggle,
 	title,
 	titleLabel,
 	children,
 }: ItemRowProps) {
 	const sortable = useSortableRow(row.key, readOnly, added);
-	const moveKeys = useMoveKeys(index, count, onMove);
+	const moveKeys = useMoveKeys(index, count, onMove, onEdge);
+	/** The kind of pointer that pressed the toggle last. */
+	const pointerRef = React.useRef("");
 	const id = React.useId();
 	const nameId = `${id}-name`;
 	const summaryId = `${id}-summary`;
@@ -1973,7 +2184,7 @@ function ItemRow({
 			className={cn(
 				"group/item relative rounded-lg transition-[background-color] duration-200 ease-emdash motion-reduce:transition-none",
 				// Hover washes a row too, so an open item also takes an edge no hovered row has.
-				open && "bg-emdash-hover ring-1 ring-kumo-hairline ring-inset",
+				open && "bg-emdash-hover ring-1 ring-kumo-line ring-inset",
 				sortable.className,
 				"rounded-lg",
 			)}
@@ -2005,10 +2216,19 @@ function ItemRow({
 							[showDot && dotId, summary && summaryId].filter(Boolean).join(" ") || undefined
 						}
 						aria-keyshortcuts={MOVE_KEYS}
+						onPointerDown={(event) => {
+							pointerRef.current = event.pointerType;
+						}}
 						onClick={(event) => {
-							// A pointer click opens the item into its title, at the point clicked. Enter and
-							// Space click with no detail, and leave focus on the toggle.
-							if (event.detail === 0 || open || title === undefined) {
+							// A mouse click opens the item into its title, at the point clicked. A tap only
+							// opens it, so reading an item doesn't raise the keyboard. Enter and Space click
+							// with no detail, and leave focus on the toggle.
+							if (
+								event.detail === 0 ||
+								open ||
+								title === undefined ||
+								pointerRef.current !== "mouse"
+							) {
 								onToggle();
 								return;
 							}
@@ -2020,9 +2240,10 @@ function ItemRow({
 						onKeyDown={moveKeys}
 						className={cn(
 							"text-start outline-none",
-							// A 24px target around a 20px caret. It reaches under the title's box, so it sits above it.
+							// A 24px target around a 20px caret, 44px on a coarse pointer. It reaches under the
+							// title's box, so it sits above it.
 							editingTitle
-								? "group/caret relative z-1 -mx-1 grid size-6 shrink-0 place-items-center"
+								? "group/caret relative z-1 -mx-1 grid size-6 shrink-0 place-items-center pointer-coarse:after:absolute pointer-coarse:after:-inset-2.5"
 								: "flex min-h-9 min-w-0 flex-1 items-center gap-2 self-stretch",
 						)}
 					>
@@ -2080,8 +2301,10 @@ function ItemRow({
 					index={index}
 					count={count}
 					canDelete={canDelete}
+					add={add}
 					duplicate={duplicate}
 					onMove={onMove}
+					onEdge={onEdge}
 					onDelete={onDelete}
 					onOpenChange={sortable.setMenuOpen}
 					className="absolute end-0.5 top-[5px]"

@@ -76,6 +76,11 @@ function PickerList({ blockTypes, onPick }: Pick<BlockTypePickerProps, "blockTyp
 	const id = React.useId();
 	const [query, setQuery] = React.useState("");
 	const [active, setActive] = React.useState(0);
+	// On a touch screen the picker opens without focusing its search, which would raise the
+	// keyboard over the options. Tapping the search focuses it.
+	const [searchFocusable, setSearchFocusable] = React.useState(
+		() => !window.matchMedia("(pointer: coarse)").matches,
+	);
 
 	const needle = query.trim().toLocaleLowerCase();
 	const groups = new Map<string, BlockType[]>();
@@ -115,6 +120,8 @@ function PickerList({ blockTypes, onPick }: Pick<BlockTypePickerProps, "blockTyp
 			<div className="border-b border-kumo-hairline">
 				<Input
 					role="combobox"
+					tabIndex={searchFocusable ? undefined : -1}
+					onFocus={() => setSearchFocusable(true)}
 					aria-label={t`Search block types`}
 					aria-expanded={options.length > 0}
 					aria-controls={`${id}-listbox`}
@@ -158,6 +165,7 @@ function PickerList({ blockTypes, onPick }: Pick<BlockTypePickerProps, "blockTyp
 									id={optionId(index)}
 									role="option"
 									aria-selected={index === activeIndex}
+									data-block-type-option=""
 									className={cn(
 										"flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5",
 										index === activeIndex && "bg-kumo-tint",

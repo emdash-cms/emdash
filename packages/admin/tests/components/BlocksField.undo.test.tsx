@@ -1,0 +1,786 @@
+import { Toasty } from "@cloudflare/kumo";
+import * as React from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cdp, page, userEvent } from "vitest/browser";
+
+import "../../dist/styles.css";
+import { BlocksField, type BlocksFieldProps } from "../../src/components/BlocksField.js";
+import { ImageFieldRenderer } from "../../src/components/ImageFieldRenderer.js";
+import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
+import type { StoredBlockValue } from "../../src/lib/block-field-state.js";
+import { render } from "../utils/render.js";
+
+vi.mock("../../src/components/MediaPickerModal", () => ({ MediaPickerModal: () => null }));
+
+const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control";
+const PHOTO =
+	"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='9'/%3E";
+
+function blockType(slug: string, label: string, fields: BlockFieldDefinition[]): BlockType {
+	return {
+		id: `${slug}-type`,
+		slug,
+		label,
+		category: "Layout",
+		currentVersion: 1,
+		source: "seed",
+		createdAt: "2026-01-01T00:00:00.000Z",
+		updatedAt: "2026-01-01T00:00:00.000Z",
+		versions: [
+			{
+				id: `${slug}-v1`,
+				blockTypeId: `${slug}-type`,
+				version: 1,
+				fields,
+				fingerprint: slug,
+				active: true,
+				createdAt: "2026-01-01T00:00:00.000Z",
+				updatedAt: "2026-01-01T00:00:00.000Z",
+			},
+		],
+	};
+}
+
+const SHORT = blockType("short", "Short", [
+	{ slug: "title", label: "Title", type: "string" },
+	{ slug: "body", label: "Body", type: "string" },
+	{ slug: "note", label: "Note", type: "string" },
+]);
+
+const LONG = blockType(
+	"long",
+	"Long",
+	Array.from({ length: 12 }, (_, index) => ({
+		slug: `line_${index}`,
+		label: `Line ${index}`,
+		type: "string" as const,
+	})),
+);
+
+const QUOTES = blockType("quotes", "Testimonials", [
+	{
+		slug: "quotes",
+		label: "Testimonials",
+		type: "repeater",
+		validation: {
+			subFields: [
+				{ slug: "quote", label: "Quote", type: "text" },
+				{ slug: "author", label: "Author name", type: "string" },
+				{ slug: "role", label: "Role or title", type: "string" },
+			],
+		},
+	},
+]);
+
+const STATS = blockType("stats", "Stats", [
+	{
+		slug: "stats",
+		label: "Stats",
+		type: "repeater",
+		validation: {
+			subFields: [
+				{ slug: "value", label: "Value", type: "string" },
+				{ slug: "label", label: "Label", type: "string" },
+			],
+		},
+	},
+]);
+
+const CARD = blockType("card", "Card", [
+	{ slug: "headline", label: "Headline", type: "string" },
+	{ slug: "photo", label: "Background image", type: "image" },
+	{ slug: "caption", label: "Footnote", type: "string" },
+]);
+
+const EMBED = blockType("embed", "Embed", [{ slug: "body", label: "Body", type: "text" }]);
+
+const HINTED = blockType("hinted", "Hinted", [
+	{ slug: "link", label: "Link (starts with / or https://)", type: "string" },
+]);
+
+const TYPES = [SHORT, LONG, QUOTES, STATS, CARD, EMBED, HINTED];
+
+const short = (key: string): StoredBlockValue => ({
+	_type: "short",
+	_version: 1,
+	_key: key,
+	title: key,
+});
+const long = (key: string): StoredBlockValue => ({ _type: "long", _version: 1, _key: key });
+const quotes = (key = "quotes"): StoredBlockValue => ({
+	_type: "quotes",
+	_version: 1,
+	_key: key,
+	quotes: [
+		{ author: "Maya Okafor", quote: "Savings in the first month." },
+		{ author: "Jonas Berg", quote: "The numbers add up." },
+		{ author: "Ines Duarte", quote: "Our buildings run themselves." },
+	],
+});
+
+/** The next field to mount takes this long, as a rich text editor's mount can. */
+const slowMount = { ms: 0 };
+
+function SlowMount({ children }: { children: React.ReactNode }) {
+	React.useLayoutEffect(() => {
+		const done = performance.now() + slowMount.ms;
+		slowMount.ms = 0;
+		while (performance.now() < done) {
+			// Busy, as a heavy editor's mount is.
+		}
+	}, []);
+	return children;
+}
+
+const setters = new Map<
+	string,
+	{ value: (value: StoredBlockValue[]) => void; readOnly: (readOnly: boolean) => void }
+>();
+
+function Harness({
+	id = "layout",
+	label = "Layout",
+	initial,
+}: {
+	id?: string;
+	label?: string;
+	initial: StoredBlockValue[];
+}) {
+	const [value, setValue] = React.useState(initial);
+	const [readOnly, setReadOnly] = React.useState(false);
+	setters.set(id, { value: setValue, readOnly: setReadOnly });
+	const props: BlocksFieldProps = {
+		id: `field-${id}`,
+		fieldPath: id,
+		label,
+		value,
+		onChange: setValue,
+		blockTypes: TYPES,
+		allowedTypes: TYPES.map((type) => type.slug),
+		retiredTypes: [],
+		readOnly,
+		renderField: ({ name, field, value: fieldValue, onChange, chrome }) => {
+			if (field.kind === "image") {
+				return (
+					<ImageFieldRenderer
+						label={field.label ?? ""}
+						labelledBy={chrome.labelledBy}
+						value={fieldValue as string | undefined}
+						onChange={(next) => onChange(next ?? undefined)}
+					/>
+				);
+			}
+			if (field.blockType === "embed") {
+				return (
+					<div contentEditable suppressContentEditableWarning aria-labelledby={chrome.labelledBy}>
+						Text{" "}
+						<span contentEditable={false}>
+							<button type="button">Embedded</button>
+						</span>
+					</div>
+				);
+			}
+			return (
+				<SlowMount>
+					<input
+						id={`field-${name}`}
+						aria-labelledby={chrome.labelledBy}
+						className="h-8 w-full"
+						value={typeof fieldValue === "string" ? fieldValue : ""}
+						onChange={(event) => onChange(event.target.value)}
+					/>
+				</SlowMount>
+			);
+		},
+	};
+	return <BlocksField {...props} />;
+}
+
+/**
+ * The field with room beside it for its gutter, in a scroller with the editor canvas's scroll
+ * padding, and `before` and `after` it the room it scrolls through.
+ */
+function renderField(
+	initial: StoredBlockValue[],
+	{ height, before = 0, after = 0 }: { height?: number; before?: number; after?: number } = {},
+) {
+	return render(
+		<div
+			data-testid="scroller"
+			style={height ? { height, overflowY: "auto", scrollPaddingTop: 52 } : undefined}
+		>
+			<div style={{ height: before }} />
+			<div style={{ width: 480, marginInline: 80 }}>
+				<Harness initial={initial} />
+			</div>
+			<div style={{ height: after }} />
+		</div>,
+		{ wrapper: Toasty },
+	);
+}
+
+const rowKeys = () =>
+	Array.from(
+		document.querySelectorAll<HTMLElement>("[data-block-key]"),
+		(row) => row.dataset.blockKey,
+	);
+const row = (key: string) => document.querySelector<HTMLElement>(`[data-block-key="${key}"]`)!;
+const toggleOf = (key: string) => row(key).querySelector<HTMLElement>("[data-block-toggle]")!;
+const menuButtonOf = (key: string) =>
+	page.elementLocator(row(key)).getByRole("button", { name: /actions$/ });
+const field = () => document.querySelector<HTMLElement>("[data-blocks-field]")!;
+const fieldTop = () => field().getBoundingClientRect().top;
+const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+const running = () => document.getAnimations().filter((a) => a.playState === "running");
+const settled = () => expect.poll(() => running().length).toBe(0);
+const announced = () =>
+	Array.from(
+		document.querySelectorAll('[data-blocks-field] [aria-live="polite"]'),
+		(region) => region.textContent,
+	).join(" ");
+const undoButtons = () => page.getByRole("button", { name: "Undo" }).all();
+
+/** Presses Mod+Z at once, from wherever focus is, as a key event the page sees. */
+function pressUndo(init: KeyboardEventInit = {}) {
+	(document.activeElement ?? document.body).dispatchEvent(
+		new KeyboardEvent("keydown", {
+			key: "z",
+			code: "KeyZ",
+			bubbles: true,
+			cancelable: true,
+			...(MOD === "Meta" ? { metaKey: true } : { ctrlKey: true }),
+			...init,
+		}),
+	);
+}
+
+async function deleteFromMenu(key: string) {
+	await menuButtonOf(key).click();
+	await page.getByRole("menuitem", { name: "Delete" }).click();
+	await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
+}
+
+/** Waits, frame by frame, for `done`. */
+async function until(done: () => boolean) {
+	for (let count = 0; count < 120 && !done(); count++) await frame();
+	expect(done()).toBe(true);
+}
+
+/** Calls `read` on every frame for `ms`, and returns what it read with the time of each frame. */
+async function sample<T>(read: () => T, ms: number): Promise<Array<{ t: number; value: T }>> {
+	const frames: Array<{ t: number; value: T }> = [];
+	const start = performance.now();
+	await new Promise<void>((resolve) => {
+		const tick = (now: number) => {
+			frames.push({ t: now - start, value: read() });
+			if (now - start < ms) requestAnimationFrame(tick);
+			else resolve();
+		};
+		requestAnimationFrame(tick);
+	});
+	return frames;
+}
+
+/** How a value moved across frames: its total travel, the frames it changed in and its largest step. */
+function motion(values: number[]) {
+	const steps = values.slice(1).map((value, index) => value - values[index]!);
+	const moving = steps.filter((step) => Math.abs(step) > 0.5);
+	const travel = values.at(-1)! - values[0]!;
+	const largest = Math.max(0, ...steps.map(Math.abs));
+	return { travel, frames: moving.length, largest };
+}
+
+afterEach(async () => {
+	slowMount.ms = 0;
+	vi.useRealTimers();
+	await cdp().send("Emulation.setEmulatedMedia", { features: [] });
+});
+
+describe("One Undo for the page", () => {
+	it("puts nothing back with Mod+Z once the Undo toast has gone", async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		await renderField([short("one"), short("two")]);
+		await deleteFromMenu("one");
+		await expect.element(page.getByText("Deleted Short")).toBeVisible();
+
+		await vi.advanceTimersByTimeAsync(16_000);
+		await expect.element(page.getByText("Deleted Short")).not.toBeInTheDocument();
+		toggleOf("two").focus();
+		await userEvent.keyboard(`{${MOD}>}z{/${MOD}}`);
+		await frame();
+		expect(rowKeys()).toEqual(["two"]);
+	});
+
+	it("undoes only the latest deletion across two blocks fields", async () => {
+		await render(
+			<div style={{ display: "grid", gap: 16, width: 480, marginInline: 80 }}>
+				<Harness id="first" label="First" initial={[short("a1"), short("a2")]} />
+				<Harness id="second" label="Second" initial={[short("b1"), short("b2")]} />
+			</div>,
+			{ wrapper: Toasty },
+		);
+		await deleteFromMenu("a1");
+		await expect.poll(rowKeys).toEqual(["a2", "b1", "b2"]);
+		await deleteFromMenu("b1");
+		await expect.poll(rowKeys).toEqual(["a2", "b2"]);
+		await expect.poll(undoButtons).toHaveLength(1);
+
+		toggleOf("b2").focus();
+		await userEvent.keyboard(`{${MOD}>}z{/${MOD}}`);
+		await expect.poll(rowKeys).toEqual(["a2", "b1", "b2"]);
+		await expect.element(page.getByText("Deleted Short")).not.toBeInTheDocument();
+	});
+
+	it("calls off the deletion whose row is shrinking away, rather than undoing an older one", async () => {
+		await renderField([short("one"), short("two"), short("three")]);
+		await deleteFromMenu("one");
+		await expect.poll(rowKeys).toEqual(["two", "three"]);
+		await settled();
+		const full = row("two").getBoundingClientRect().height;
+
+		await menuButtonOf("two").click();
+		await page.getByRole("menuitem", { name: "Delete" }).click();
+		await until(() =>
+			row("two")
+				.getAnimations()
+				.some((a) => a.playState === "running"),
+		);
+		pressUndo();
+		const heights = await sample(() => row("two")?.getBoundingClientRect().height ?? 0, 400);
+
+		expect(rowKeys()).toEqual(["two", "three"]);
+		const growing = heights.filter(
+			(each, index) => index > 0 && each.value > heights[index - 1]!.value + 0.5,
+		);
+		expect(growing.length).toBeGreaterThanOrEqual(3);
+		expect(row("two").getBoundingClientRect().height).toBeCloseTo(full, 0);
+		await expect.poll(undoButtons).toHaveLength(0);
+	});
+
+	it("takes the Z key's place for Mod+Z on a layout without a Latin Z", async () => {
+		await renderField([short("one"), short("two")]);
+		await deleteFromMenu("one");
+		await expect.element(page.getByText("Deleted Short")).toBeVisible();
+
+		toggleOf("two").focus();
+		pressUndo({ key: "я" });
+		await expect.poll(rowKeys).toEqual(["one", "two"]);
+	});
+
+	it("leaves Mod+Z to rich text when focus is on a control inside it", async () => {
+		await renderField([short("one"), { _type: "embed", _version: 1, _key: "embed" }]);
+		await deleteFromMenu("one");
+		await expect.element(page.getByText("Deleted Short")).toBeVisible();
+		await page.getByRole("button", { name: "Embed", exact: true }).click();
+
+		await page.getByRole("button", { name: "Embedded" }).click();
+		await userEvent.keyboard(`{${MOD}>}z{/${MOD}}`);
+		await frame();
+		expect(rowKeys()).toEqual(["embed"]);
+	});
+});
+
+describe("A deletion that can't happen", () => {
+	it("leaves a value replaced while the deleted row shrinks away as it is", async () => {
+		await renderField([short("one"), short("two"), short("three")]);
+
+		await menuButtonOf("two").click();
+		await page.getByRole("menuitem", { name: "Delete" }).click();
+		await until(() =>
+			row("two")
+				.getAnimations()
+				.some((a) => a.playState === "running"),
+		);
+		setters.get("layout")!.value([short("x"), short("y")]);
+		// The page no longer lists the motion of a row taken out of it, which still runs its course.
+		await new Promise((resolve) => setTimeout(resolve, 400));
+
+		expect(rowKeys()).toEqual(["x", "y"]);
+	});
+
+	it("keeps the block when the field turns read-only while it shrinks away", async () => {
+		await renderField([short("one"), short("two"), short("three")]);
+
+		await menuButtonOf("two").click();
+		await page.getByRole("menuitem", { name: "Delete" }).click();
+		await until(() =>
+			row("two")
+				.getAnimations()
+				.some((a) => a.playState === "running"),
+		);
+		setters.get("layout")!.readOnly(true);
+		await settled();
+
+		expect(rowKeys()).toEqual(["one", "two", "three"]);
+		expect(row("two").getBoundingClientRect().height).toBeGreaterThan(30);
+	});
+});
+
+describe("Structure motion", () => {
+	it("grows a deleted block back in when Undo puts it back", async () => {
+		await renderField([short("one"), short("two"), short("three")]);
+		await deleteFromMenu("two");
+		await expect.poll(rowKeys).toEqual(["one", "three"]);
+		await settled();
+
+		const frames = sample(() => toggleOf("three").getBoundingClientRect().top - fieldTop(), 450);
+		await page.getByRole("button", { name: "Undo" }).click();
+		const { travel, frames: moving, largest } = motion((await frames).map((each) => each.value));
+
+		expect(rowKeys()).toEqual(["one", "two", "three"]);
+		expect(travel).toBeGreaterThan(30);
+		expect(moving).toBeGreaterThanOrEqual(6);
+		expect(largest).toBeLessThanOrEqual(travel * 0.5);
+	});
+
+	it("grows a deleted item back in when Undo puts it back", async () => {
+		await renderField([quotes()]);
+		await page.getByRole("button", { name: "Testimonials", exact: true }).click();
+		await settled();
+		const ines = () =>
+			page.getByRole("button", { name: "Ines Duarte", exact: true }).element() as HTMLElement;
+		await page.getByRole("button", { name: "Jonas Berg actions" }).click();
+		await page.getByRole("menuitem", { name: "Delete" }).click();
+		await expect.element(page.getByText("Deleted Jonas Berg")).toBeVisible();
+		await settled();
+
+		const frames = sample(() => ines().getBoundingClientRect().top - fieldTop(), 450);
+		await page.getByRole("button", { name: "Undo" }).click();
+		const { travel, frames: moving, largest } = motion((await frames).map((each) => each.value));
+
+		expect(travel).toBeGreaterThan(20);
+		expect(moving).toBeGreaterThanOrEqual(6);
+		expect(largest).toBeLessThanOrEqual(travel * 0.5);
+	});
+
+	it("starts an open duplicate from nothing even when its fields take long to mount", async () => {
+		await renderField([short("open"), short("after")]);
+		toggleOf("open").click();
+		await settled();
+
+		await menuButtonOf("open").click();
+		const copyKey = () => rowKeys().find((key) => key !== "open" && key !== "after");
+		const copyHeight = () => {
+			const copy = copyKey();
+			return copy ? row(copy).getBoundingClientRect().height : null;
+		};
+		const duplicate = page.getByRole("menuitem", { name: "Duplicate" }).element() as HTMLElement;
+		const frames = sample(copyHeight, 600);
+		slowMount.ms = 80;
+		// The menu commits its choice in a frame callback, where a long mount delays that frame.
+		requestAnimationFrame(() => duplicate.click());
+		const heights = (await frames).flatMap((each) => (each.value === null ? [] : [each.value]));
+		await settled();
+		const final = copyHeight()!;
+
+		expect(final).toBeGreaterThan(100);
+		expect(heights.length).toBeGreaterThan(3);
+		const steps = heights.map((height, index) => height - (heights[index - 1] ?? 0));
+		expect(Math.max(...steps)).toBeLessThanOrEqual(final * 0.45);
+	});
+
+	it("takes a reversed block a moment to close, with its caret on the same clock", async () => {
+		await renderField([long("big")]);
+		const caret = () => toggleOf("big").querySelector("svg")!;
+		const angle = () => Math.abs(Number.parseFloat(getComputedStyle(caret()).rotate) || 0);
+		const body = () => row("big").querySelector<HTMLElement>("[data-block-body]");
+
+		await frame();
+		toggleOf("big").click();
+		await until(() => {
+			const panel = body();
+			const full = panel?.firstElementChild?.getBoundingClientRect().height ?? 0;
+			return Boolean(panel && full > 0 && panel.getBoundingClientRect().height >= full * 0.2);
+		});
+		const reversedAt = performance.now();
+		toggleOf("big").click();
+		const frames = await sample(
+			() => ({
+				at: performance.now() - reversedAt,
+				angle: angle(),
+				height: body()?.getBoundingClientRect().height ?? 0,
+			}),
+			500,
+		);
+
+		const caretDown = frames.find((each) => each.value.angle < 0.5)!.t;
+		const fieldsGone = frames.find((each) => each.value.height < 0.5)!;
+		expect(fieldsGone.value.at).toBeGreaterThanOrEqual(90);
+		expect(Math.abs(caretDown - fieldsGone.t)).toBeLessThanOrEqual(20);
+	});
+
+	it("eases the rows below when a photo is removed, and names the field in its Undo", async () => {
+		await renderField([
+			{ _type: "card", _version: 1, _key: "card", headline: "Hi", photo: PHOTO, caption: "Under" },
+		]);
+		await page.getByRole("button", { name: "Card", exact: true }).click();
+		await settled();
+		const under = () => document.getElementById("field-layout.card.caption")!;
+
+		const frames = sample(() => under().getBoundingClientRect().top - fieldTop(), 450);
+		await page.getByRole("button", { name: "Remove image" }).click();
+		const { travel, frames: moving, largest } = motion((await frames).map((each) => each.value));
+
+		expect(travel).toBeLessThan(-30);
+		expect(moving).toBeGreaterThanOrEqual(6);
+		expect(largest).toBeLessThanOrEqual(Math.abs(travel) * 0.5);
+		await expect.element(page.getByText("Removed Background image")).toBeVisible();
+	});
+
+	it("leaves the rows above in place when the last block is deleted at the end of the page", async () => {
+		await renderField([short("one"), short("two"), short("three"), short("four")], {
+			height: 200,
+		});
+		const scroller = page.getByTestId("scroller").element() as HTMLElement;
+		scroller.scrollTop = scroller.scrollHeight;
+		await frame();
+
+		await menuButtonOf("four").click();
+		const tops = sample(() => toggleOf("three").getBoundingClientRect().top, 450);
+		await page.getByRole("menuitem", { name: "Delete" }).click();
+		const values = (await tops).map((each) => each.value);
+
+		expect(rowKeys()).toEqual(["one", "two", "three"]);
+		expect(Math.max(...values) - Math.min(...values)).toBeLessThanOrEqual(1);
+	});
+});
+
+describe("Dragging", () => {
+	function pointer(type: string, x: number, y: number) {
+		return new PointerEvent(type, {
+			bubbles: true,
+			cancelable: true,
+			isPrimary: true,
+			pointerId: 1,
+			button: 0,
+			buttons: type === "pointerup" ? 0 : 1,
+			clientX: x,
+			clientY: y,
+		});
+	}
+
+	it("lifts a row's shadow again when it's picked up while it settles", async () => {
+		await renderField([short("one"), short("two"), short("three")]);
+		const handle = () => row("one").querySelector<HTMLElement>('[aria-label^="Reorder"]')!;
+		const shadow = () => Number(getComputedStyle(row("one"), "::after").opacity);
+		const start = row("one").getBoundingClientRect();
+		const x = start.left + 4;
+		const y = start.top + start.height / 2;
+		const end = row("three").getBoundingClientRect().bottom - 4;
+		handle().dispatchEvent(pointer("pointerdown", x, y));
+		for (let step = 1; step <= 12; step++) {
+			document.dispatchEvent(pointer("pointermove", x, y + ((end - y) * step) / 12));
+			await frame();
+		}
+		await new Promise((resolve) => setTimeout(resolve, 250));
+		document.dispatchEvent(pointer("pointerup", x, end));
+		await frame();
+
+		handle().dispatchEvent(pointer("pointerdown", x, end));
+		const values: number[] = [];
+		for (let step = 1; step <= 16; step++) {
+			document.dispatchEvent(pointer("pointermove", x, end - step * 4));
+			await frame();
+			values.push(shadow());
+		}
+		document.dispatchEvent(pointer("pointerup", x, end - 64));
+
+		// The row is picked up again once the pointer has moved 8px, on the second move.
+		const held = values.slice(1);
+		expect(held.at(-1)).toBeGreaterThan(0.98);
+		const falling = held.slice(1).filter((value, index) => value < held[index]! - 0.01);
+		expect(falling).toHaveLength(0);
+	});
+});
+
+describe("Easing", () => {
+	it("moves and fades everything on the system's two curves", async () => {
+		await renderField([
+			{ _type: "card", _version: 1, _key: "card", headline: "Hi", photo: PHOTO },
+			{ _type: "hinted", _version: 1, _key: "hinted" },
+		]);
+		const curves = new Set<string>();
+		const collect = () => {
+			for (const element of document.querySelectorAll(
+				"[data-blocks-field], [data-blocks-field] *",
+			)) {
+				for (const pseudo of [null, "::after"]) {
+					const style = getComputedStyle(element, pseudo);
+					const durations = style.transitionDuration.split(", ").map(Number.parseFloat);
+					const easings = style.transitionTimingFunction.split(/,\s*(?![^(]*\))/);
+					durations.forEach((duration, index) => {
+						if (duration > 0) curves.add(easings[index % easings.length]!);
+					});
+				}
+			}
+			for (const animation of document.getAnimations()) {
+				if (animation.effect instanceof KeyframeEffect && !(animation instanceof CSSTransition)) {
+					curves.add(animation.effect.getTiming().easing ?? "linear");
+				}
+			}
+		};
+
+		await page.getByRole("button", { name: "Expand all" }).click();
+		await page.getByRole("button", { name: "Remove image" }).hover();
+		collect();
+		document.getElementById("field-layout.hinted.link")!.focus();
+		await frame();
+		collect();
+		await menuButtonOf("hinted").click();
+		await page.getByRole("menuitem", { name: "Duplicate" }).click();
+		for (let count = 0; count < 4; count++) {
+			collect();
+			await frame();
+		}
+
+		const allowed = new Set([
+			"cubic-bezier(0.22, 1, 0.36, 1)",
+			"cubic-bezier(0.33, 1, 0.68, 1)",
+			"linear",
+		]);
+		expect([...curves].filter((curve) => !allowed.has(curve))).toEqual([]);
+	});
+});
+
+describe("Moving with the keyboard", () => {
+	it("keeps an open block's head where it was on screen as it moves down past another", async () => {
+		await renderField([long("first"), long("second"), short("third")], {
+			height: 400,
+			before: 100,
+			after: 600,
+		});
+		await page.getByRole("button", { name: "Expand all" }).click();
+		const toggle = toggleOf("first");
+		toggle.focus();
+		const before = toggle.getBoundingClientRect().top;
+
+		await userEvent.keyboard("{Alt>}{Shift>}{ArrowDown}{/Shift}{/Alt}");
+
+		expect(rowKeys()).toEqual(["second", "first", "third"]);
+		await expect.element(page.elementLocator(toggle)).toHaveFocus();
+		expect(Math.abs(toggle.getBoundingClientRect().top - before)).toBeLessThanOrEqual(1);
+	});
+
+	it("says so when a block or an item is already at the end it's moved toward", async () => {
+		await renderField([short("one"), quotes()]);
+		toggleOf("one").focus();
+		await userEvent.keyboard("{Alt>}{Shift>}{ArrowUp}{/Shift}{/Alt}");
+		await expect.poll(announced).toContain("Short is already first");
+
+		await page.getByRole("button", { name: "Testimonials", exact: true }).click();
+		page.getByRole("button", { name: "Ines Duarte", exact: true }).element().focus();
+		await userEvent.keyboard("{Alt>}{Shift>}{ArrowDown}{/Shift}{/Alt}");
+		await expect.poll(announced).toContain("Ines Duarte is already last");
+	});
+});
+
+describe("Tables", () => {
+	const cell = (name: string) => page.getByRole("textbox", { name, exact: true });
+
+	it("moves Enter down a column, adding a row under the last, and the arrow keys up and down it", async () => {
+		await renderField([
+			{
+				_type: "stats",
+				_version: 1,
+				_key: "stats",
+				stats: [
+					{ value: "23%", label: "Lower spend" },
+					{ value: "4x", label: "Faster" },
+				],
+			},
+		]);
+		await page.getByRole("button", { name: "Stats", exact: true }).click();
+
+		await cell("Label 1").click();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(cell("Label 2")).toHaveFocus();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(cell("Label 3")).toHaveFocus();
+		expect(page.getByRole("table").getByRole("row").all()).toHaveLength(4);
+
+		await userEvent.keyboard("{ArrowUp}");
+		await expect.element(cell("Label 2")).toHaveFocus();
+		await cell("Value 1").click();
+		await userEvent.keyboard("{ArrowDown}");
+		await expect.element(cell("Value 2")).toHaveFocus();
+	});
+});
+
+describe("An item's menu", () => {
+	it("adds an item above or below it, in the block menu's order", async () => {
+		await renderField([quotes()]);
+		await page.getByRole("button", { name: "Testimonials", exact: true }).click();
+
+		await page.getByRole("button", { name: "Jonas Berg actions" }).click();
+		const items = page.getByRole("menu").getByRole("menuitem").all();
+		expect(items.map((item) => item.element().textContent)).toEqual([
+			"Add item above",
+			"Add item below",
+			"Duplicate",
+			"Move up",
+			"Move down",
+			"Move to top",
+			"Move to bottom",
+			"Delete",
+		]);
+
+		await page.getByRole("menuitem", { name: "Add item above" }).click();
+		const titles = () =>
+			Array.from(
+				document.querySelectorAll<HTMLElement>("[data-item-key]"),
+				(item) => item.querySelector('[id$="-name"]')?.textContent,
+			);
+		await expect.poll(() => titles().length).toBe(4);
+		expect(titles()[0]).toBe("Maya Okafor");
+		expect(titles()[2]).toBe("Jonas Berg");
+		const added = document.querySelectorAll<HTMLElement>("[data-item-key]")[1]!;
+		await expect.poll(() => added.contains(document.activeElement)).toBe(true);
+		expect(document.activeElement).toBeInstanceOf(HTMLInputElement);
+	});
+});
+
+describe("The Undo toast", () => {
+	it("fades in place of sliding when reduced motion is preferred", async () => {
+		await cdp().send("Emulation.setEmulatedMedia", {
+			features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+		});
+		await renderField([short("one"), short("two")]);
+		await deleteFromMenu("one");
+		const toast = page.getByRole("dialog").element() as HTMLElement;
+
+		const slides = toast
+			.getAnimations()
+			.filter((a) => a instanceof CSSTransition && a.transitionProperty === "transform");
+		expect(slides).toHaveLength(0);
+	});
+
+	it("keeps focus brought into view in the editor clear of it", async () => {
+		await render(
+			<div
+				data-testid="scroller"
+				data-emdash-editor-canvas=""
+				style={{ position: "fixed", inset: 0, overflowY: "auto" }}
+			>
+				<div style={{ width: 480, marginInline: "auto", paddingBlock: 40 }}>
+					<Harness initial={Array.from({ length: 30 }, (_, index) => short(`block-${index}`))} />
+				</div>
+			</div>,
+			{ wrapper: Toasty },
+		);
+		await deleteFromMenu("block-0");
+		await expect.element(page.getByText("Deleted Short")).toBeVisible();
+		await settled();
+		const toast = page.getByRole("dialog").element() as HTMLElement;
+		const toastTop = toast.getBoundingClientRect().top;
+		const below = [...document.querySelectorAll<HTMLElement>("[data-block-toggle]")].find(
+			(toggle) => {
+				const box = toggle.getBoundingClientRect();
+				return box.top > toastTop - 20 && box.bottom < innerHeight;
+			},
+		)!;
+
+		below.focus();
+		await frame();
+		expect(below.getBoundingClientRect().bottom).toBeLessThanOrEqual(toastTop);
+	});
+});

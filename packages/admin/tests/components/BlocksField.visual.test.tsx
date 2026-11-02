@@ -453,7 +453,7 @@ describe.each([
 });
 
 describe("Blocks field photos, tables and picker", () => {
-	it("draws a photo's edge faintly inside the image and no second line under it", async () => {
+	it("draws a photo's edge faintly inside the image, and keeps the settings' rule clear of it", async () => {
 		await openShowcase();
 
 		const image = page
@@ -484,7 +484,8 @@ describe("Blocks field photos, tables and picker", () => {
 				Number.parseFloat(border.borderTopWidth) > 0
 			);
 		});
-		expect(rules).toEqual([]);
+		expect(rules).toHaveLength(1);
+		expect(rules[0]!.getBoundingClientRect().top - photoBottom).toBeGreaterThanOrEqual(10);
 		expect(settingsTop - photoBottom).toBeGreaterThanOrEqual(16);
 	});
 

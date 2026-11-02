@@ -571,7 +571,7 @@ function shownText(text: string, within?: Element): Element | undefined {
 }
 
 describe("Checking fields inside a block", () => {
-	it("shows a failed pattern beside the field, as its hint or as Check the format, once the field is left", async () => {
+	it("shows a failed pattern beside the field as Check the format, and its hint to assistive technology, once the field is left", async () => {
 		await renderEditor(
 			[heroBlock, { _type: "logos", _version: 1, _key: "logos-1", logos: [{}, {}] }],
 			[hero, logoWall],
@@ -589,24 +589,24 @@ describe("Checking fields inside a block", () => {
 		await expect.element(sectionId).toHaveAttribute("aria-invalid", "true");
 		await expect
 			.element(sectionId)
-			.toHaveAccessibleDescription("Lowercase, for links like /#pricing");
+			.toHaveAccessibleDescription("Check the format. Lowercase, for links like /#pricing");
 		// At rest, the problem shows as words in the field's row, not only as a colour.
 		const row = label.closest("label")!.parentElement!;
-		await expect.poll(() => shownText("Lowercase, for links like /#pricing")).toBeDefined();
-		const error = shownText("Lowercase, for links like /#pricing")!.getBoundingClientRect();
+		await expect.poll(() => shownText("Check the format")).toBeDefined();
+		const error = shownText("Check the format")!.getBoundingClientRect();
 		expect(error.top).toBeGreaterThanOrEqual(row.getBoundingClientRect().top);
 		expect(error.bottom).toBeLessThanOrEqual(row.getBoundingClientRect().bottom);
 		expect(getComputedStyle(label).color).toBe(quietLabel);
 
 		const nextRowTop = box(control("Headline")).top;
 		await sectionId.click();
-		await expect.poll(() => shownText("Lowercase, for links like /#pricing")).toBeDefined();
+		await expect.poll(() => shownText("Check the format")).toBeDefined();
 		expect(box(control("Headline")).top).toBe(nextRowTop);
 
 		await sectionId.fill("pricing");
 		await expect.element(sectionId).not.toHaveAttribute("aria-invalid");
 		await control("Headline").click();
-		await expect.poll(() => shownText("Lowercase, for links like /#pricing")).toBeUndefined();
+		await expect.poll(() => shownText("Check the format")).toBeUndefined();
 
 		await openBlock("Logo wall");
 		const code = control("Code");

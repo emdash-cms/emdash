@@ -40,7 +40,7 @@ export const NOTE = "text-xs leading-4";
 
 /** A note shown while its field has focus fades in. Out of focus it isn't drawn, so it goes at once. */
 export const NOTE_ON_FOCUS =
-	"transition-opacity duration-150 ease-out starting:opacity-0 motion-reduce:transition-none";
+	"transition-opacity duration-150 ease-emdash starting:opacity-0 motion-reduce:transition-none";
 
 /**
  * A caret or type icon before a row's 14px text. A glyph centered on the line reads high next to
@@ -75,7 +75,7 @@ export const QUIET_HEADING = "h-9 text-lg! leading-6 font-medium!";
 // Its chevron follows the value, and like the date's calendar shows only when the control is reached for.
 // Kumo's hover tint carries a `not-disabled:` variant, which only the same variant replaces.
 export const QUIET_SELECT =
-	"h-8 w-full justify-start gap-1.5 rounded-md bg-transparent px-2 font-normal shadow-none ring-transparent not-disabled:hover:bg-emdash-hover focus-visible:bg-kumo-control focus-visible:ring-1 focus-visible:ring-kumo-focus/50 data-[popup-open]:bg-emdash-hover data-[popup-open]:ring-0 [&>span:last-child]:opacity-0 hover:[&>span:last-child]:opacity-100 focus-visible:[&>span:last-child]:opacity-100 data-[popup-open]:[&>span:last-child]:opacity-100 pointer-coarse:[&>span:last-child]:opacity-100";
+	"h-8 w-full justify-start gap-1.5 rounded-md bg-transparent px-2 font-normal shadow-none ring-transparent not-disabled:hover:bg-emdash-hover focus-visible:bg-kumo-control focus-visible:ring-1 focus-visible:ring-kumo-focus/50 data-[popup-open]:bg-emdash-hover data-[popup-open]:ring-0 [&>span:last-child]:opacity-0 hover:[&>span:last-child]:opacity-100 focus-visible:[&>span:last-child]:opacity-100 data-[popup-open]:[&>span:last-child]:opacity-100 pointer-coarse:[&>span:last-child]:opacity-100 relative pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-1.5";
 
 /**
  * An option in a quiet select's popup: as tall as the trigger, or taller for a label that wraps,
@@ -108,6 +108,11 @@ export const ROW_HOVER =
  */
 export const DISCLOSURE_CURVE = [0.33, 1, 0.68, 1] as const;
 export const DISCLOSURE_EASE = `cubic-bezier(${DISCLOSURE_CURVE.join(", ")})`;
+/** How long a row or panel takes to grow open and to shrink closed. */
+export const DISCLOSURE_MS = { open: 200, close: 160 } as const;
+
+/** The curve of everything else that moves or fades. `--ease-emdash` in styles.css is the same curve. */
+export const EASE_EMDASH = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 /** A block or list item being dragged, or settling into its slot after the drop, lifts off the list. */
 export const DRAGGING = "relative z-30 rounded-md bg-kumo-base";
@@ -133,6 +138,13 @@ export const POPUP_MOTION =
 /** A block's 26px menu button takes a 44px square on a coarse pointer, at the same size. */
 export const TOUCH_TARGET =
 	"relative pointer-coarse:after:absolute pointer-coarse:after:-inset-[9px]";
+
+/** A 26px-tall button that reaches 44px tall on a coarse pointer, at the same size. */
+export const TOUCH_HEIGHT =
+	"relative pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-[9px]";
+
+/** A menu's items are 44px tall on a coarse pointer. */
+export const MENU_TOUCH = "pointer-coarse:[&_[role=menuitem]]:min-h-11";
 
 /** A list row's menu button: 44px wide on a coarse pointer, and no taller than the shortest row. */
 export const ROW_TOUCH_TARGET =
