@@ -75,8 +75,10 @@ Actors, from least to most trusted:
 Important untrusted inputs include:
 
 - HTTP requests to the site and API: paths, query strings, cookies, uploads,
-  bodies, and headers such as `Host`, `Origin`, and forwarding headers. Node.js
-  deployments trust forwarding headers only when `trustedProxyHeaders` is set.
+  bodies, and headers such as `Host`, `Origin`, and client-IP headers. EmDash
+  trusts client-IP headers only when the `trustedProxyHeaders` option or the
+  `EMDASH_TRUSTED_PROXY_HEADERS` environment variable names them; an explicit
+  option, even `[]`, overrides the variable.
 - Stored content rendered on public pages or in the admin: Portable Text, HTML
   blocks, embeds, link URLs, SVG and other uploads, filenames, alt text,
   comment bodies, and plugin settings.
@@ -89,8 +91,22 @@ Important untrusted inputs include:
 - Registry and aggregator records, which relay data they did not author.
 
 Authentication middleware establishes the user; each route then checks
-permissions with `requirePerm` or `requireOwnerPerm`. State-changing requests
-must carry `X-EmDash-Request: 1`. Content queries must filter by locale and must
+permissions with `requirePerm` or `requireOwnerPerm`. CSRF protection
+(`packages/core/src/astro/middleware/auth.ts` and `packages/core/src/api/csrf.ts`)
+works like this:
+
+- State-changing requests authenticated by a session cookie, and setup
+  requests, must carry `X-EmDash-Request: 1`.
+- Requests authenticated with a bearer token skip that check, because tokens
+  are not ambient credentials.
+- State-changing requests to public routes pass with the header, with an
+  `Origin` matching the site, or with no `Origin` at all (a non-browser client
+  sends no cookies). A mismatched `Origin` is rejected.
+- The OAuth token, client registration, and device-flow endpoints are exempt,
+  because they are cross-origin by design and use no cookies.
+
+A request that changes state using a session cookie without passing these
+checks is a CSRF finding; the exemptions above are not. Content queries must filter by locale and must
 not return drafts, scheduled entries, or trash to a caller without
 `content:read_drafts`. Redirect targets must be same-site paths.
 
