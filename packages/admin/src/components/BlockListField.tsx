@@ -1,17 +1,5 @@
 import { Button, DropdownMenu } from "@cloudflare/kumo";
-import {
-	type Announcements,
-	closestCenter,
-	DndContext,
-	type DragCancelEvent,
-	type DragEndEvent,
-	type DragOverEvent,
-	type DragStartEvent,
-	PointerSensor,
-	useDndMonitor,
-	useSensor,
-	useSensors,
-} from "@dnd-kit/core";
+import { closestCenter, DndContext, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import {
 	arrayMove,
 	SortableContext,
@@ -21,22 +9,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	ArrowDown,
-	ArrowLineDown,
-	ArrowLineUp,
-	ArrowUp,
-	CaretRight,
-	Copy,
-	DotsSixVertical,
-	DotsThree,
-	Plus,
-	RowsPlusBottom,
-	RowsPlusTop,
-	Trash,
-} from "@phosphor-icons/react";
+import { DotsSixVertical, DotsThree, Plus } from "@phosphor-icons/react";
 import * as React from "react";
-import { flushSync } from "react-dom";
 
 import {
 	itemTitleField,
@@ -49,17 +23,33 @@ import { cloneValue, createBlockKey, isBlankLine, pastedLines } from "../lib/blo
 import { useStableCallback } from "../lib/hooks.js";
 import { cn } from "../lib/utils.js";
 import {
-	DISCLOSURE_CURVE,
-	DISCLOSURE_EASE,
-	DISCLOSURE_MS,
+	focusableIn,
+	MOVE_KEYS,
+	SELECTABLE_INPUT_TYPES,
+	TEXT_INPUT_TYPES,
+	textOffsetAt,
+	useMoveKeys,
+	whenFocusLeaves,
+} from "./block-field-keyboard.js";
+import {
+	collapseRow,
+	DisclosureCaret,
+	DisclosurePanel,
+	growRow,
+	prefersReducedMotion,
+	useDropSettle,
+	useReorderMotion,
+} from "./block-field-motion.js";
+import {
 	DRAGGING,
-	EASE_EMDASH,
 	GLYPH_NUDGE,
+	HEAD_FOCUS,
+	HEAD_PRESSED,
 	IMAGE_EDGE,
 	ITEM_TITLE,
+	LABEL,
 	LIFT_SHADOW,
 	LIFTED,
-	LIST_LABEL,
 	MENU_TOUCH,
 	NOTE,
 	POPUP_MOTION,
@@ -72,6 +62,8 @@ import {
 	SUMMARY_TEXT,
 } from "./block-field-styles.js";
 import { type ImageFieldValue, mediaDisplayUrl } from "./ImageFieldRenderer.js";
+import { RowMenuItems } from "./RowMenuItems.js";
+import { useDragAnnouncements } from "./useDragAnnouncements.js";
 import { useQuietReturnFocus } from "./useQuietReturnFocus.js";
 
 type ListItem = Record<string, unknown>;
@@ -157,928 +149,16 @@ type ListFocus =
 	| { key: string; target: "cell"; column: number }
 	| { target: "add" };
 
-const FOCUSABLE =
-	'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
-const MENU_ICON = "size-4";
 const LINE_BREAK = /[\r\n]/;
-// Other input types, such as number and email, throw when a script sets their selection.
-export const SELECTABLE_INPUT_TYPES = new Set(["text", "search", "url", "tel", "password"]);
-const CELL_INPUT_TYPES = new Set(["text", "search", "url", "tel", "email", "number"]);
-const POPUP = '[role="dialog"], [role="menu"], [role="listbox"]';
 const IMAGE_COLUMN = "4.5rem";
 const MENU_COLUMN = "2rem";
 // Touch and narrow screens have no hover, so their menus always show. Focus from a click doesn't
 // show them; the state being entered sets the duration, so they fade in and vanish at once.
 const SHOW_ON_HOVER =
 	"blocks-gutter:opacity-0 blocks-gutter:transition-opacity blocks-gutter:duration-0 blocks-gutter:ease-emdash blocks-gutter:group-hover/item:opacity-100 blocks-gutter:group-hover/item:duration-100 blocks-gutter:group-data-[menu-open]/item:opacity-100 blocks-gutter:group-data-[menu-open]/item:duration-100 blocks-gutter:[&:not([data-quiet-focus]):focus-visible]:opacity-100 blocks-gutter:[&:not([data-quiet-focus]):focus-visible]:duration-100";
-const HEAD_FOCUS =
-	"has-[[data-item-focus]:focus-visible]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))] has-[[data-item-focus]:focus-visible]:ring-1 has-[[data-item-focus]:focus-visible]:ring-kumo-focus/50 has-[[data-item-focus]:focus-visible]:ring-inset";
-// A closed item's head keeps its wash while its menu is open, and pressing its toggle deepens the
-// wash at once, before the click commits.
+// A closed item's head keeps its wash while its menu is open.
 const HEAD_MENU_OPEN =
 	"group-data-[menu-open]/item:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]";
-const HEAD_PRESSED =
-	"has-[[data-item-focus]:active]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover)),linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]";
-
-export function focusableIn(element: Element | null | undefined): HTMLElement | null {
-	if (!element) return null;
-	const candidates = [element, ...element.querySelectorAll(FOCUSABLE)];
-	return (
-		candidates.find(
-			(candidate): candidate is HTMLElement =>
-				candidate instanceof HTMLElement &&
-				candidate.matches(FOCUSABLE) &&
-				candidate.tabIndex >= 0 &&
-				!candidate.closest("[aria-hidden='true']") &&
-				// A rich text field's toolbar comes before its text, and a hidden control can't take focus.
-				!candidate.closest('[role="toolbar"]') &&
-				candidate.getClientRects().length > 0,
-		) ?? null
-	);
-}
-
-function leftFor(container: Element, next: Element | null): boolean {
-	return next !== null && !container.contains(next) && !next.closest(POPUP);
-}
-
-/**
- * Calls `callback` when focus leaves `event.currentTarget`. Focus that moves into a popup the
- * control opened, such as a menu or the media picker, or out of the window, has not left it.
- */
-export function whenFocusLeaves(event: React.FocusEvent<HTMLElement>, callback: () => void) {
-	const container = event.currentTarget;
-	const next = event.relatedTarget;
-	if (next instanceof Element) {
-		if (leftFor(container, next)) callback();
-		return;
-	}
-	// Clicking something that can't take focus blurs with no relatedTarget, and so does leaving
-	// the window; only the first moves focus to the page. Safari doesn't focus a clicked button
-	// either, so a click that lands inside the element, still under the pointer, stays in it.
-	queueMicrotask(() => {
-		if (
-			document.hasFocus() &&
-			!container.matches(":hover") &&
-			leftFor(container, document.activeElement ?? document.body)
-		) {
-			callback();
-		}
-	});
-}
-
-/** The keys that move a focused row's head or menu button one place, as `aria-keyshortcuts`. */
-export const MOVE_KEYS = "Alt+Shift+ArrowUp Alt+Shift+ArrowDown";
-
-/**
- * How many places one of `MOVE_KEYS` moves a row: -1 or 1, or 0 for any other key. The control
- * keeps a move key from doing anything else, such as a menu button opening its menu.
- */
-function moveStep(event: React.KeyboardEvent): -1 | 0 | 1 {
-	if (!event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) return 0;
-	let step: -1 | 0 | 1 = 0;
-	if (event.key === "ArrowUp") step = -1;
-	if (event.key === "ArrowDown") step = 1;
-	if (step === 0) return 0;
-	event.preventDefault();
-	// A menu button's own key handler, from Base UI, runs after this one unless told not to.
-	if ("preventBaseUIHandler" in event && typeof event.preventBaseUIHandler === "function") {
-		event.preventBaseUIHandler();
-	}
-	return step;
-}
-
-/**
- * The key handler for a row's head or menu button that moves the row one place with
- * `MOVE_KEYS`, as Move up and Move down do. Focus stays on the control, and the control stays
- * where it was on screen while the list moves past it, as far as the view allows: a row moved
- * down is taken out of the page and put back, which drops its focus. A move past either end
- * calls `onEdge` instead.
- */
-export function useMoveKeys(
-	index: number,
-	count: number,
-	onMove: (to: number) => void,
-	onEdge?: (edge: "first" | "last") => void,
-) {
-	const keepRef = React.useRef<{ control: HTMLElement; top: number } | null>(null);
-	React.useLayoutEffect(() => {
-		const kept = keepRef.current;
-		if (!kept) return;
-		keepRef.current = null;
-		const { control, top } = kept;
-		if (document.activeElement !== control) control.focus({ preventScroll: true });
-		const scroller = scrollerOf(control);
-		if (!scroller) return;
-		const box = control.getBoundingClientRect();
-		const moved = box.top - top;
-		const by = moved + revealBy(scroller, box.top - moved, box.bottom - moved);
-		if (Math.abs(by) >= 0.5) scrollInstantly(scroller, by);
-	});
-	return (event: React.KeyboardEvent<HTMLElement>) => {
-		const step = moveStep(event);
-		if (step === 0) return;
-		const to = index + step;
-		if (to < 0 || to >= count) {
-			onEdge?.(to < 0 ? "first" : "last");
-			return;
-		}
-		const control = event.currentTarget;
-		keepRef.current = { control, top: control.getBoundingClientRect().top };
-		onMove(to);
-	};
-}
-
-/** The offset in the text under a point, when that text is inside `within`. */
-function textOffsetAt(x: number, y: number, within: Element | null): number | undefined {
-	if (!within) return undefined;
-	if (typeof document.caretPositionFromPoint === "function") {
-		const position = document.caretPositionFromPoint(x, y);
-		return position && within.contains(position.offsetNode) ? position.offset : undefined;
-	}
-	const range = document.caretRangeFromPoint?.(x, y);
-	return range && within.contains(range.startContainer) ? range.startOffset : undefined;
-}
-
-const OPEN_MS = DISCLOSURE_MS.open;
-const CLOSE_MS = DISCLOSURE_MS.close;
-/** The shortest a reversed panel takes, so its first frame doesn't snap. */
-const REVERSE_MS = 120;
-/** How long a dropped or moved row takes to slide into its place. */
-const SLIDE_MS = 200;
-/** How long a lifted row's shadow takes to fade, the same as its `after:duration-150`. */
-const SHADOW_MS = 150;
-/** The space kept under a row brought into view, so whatever follows it shows too. */
-const REVEAL_ROOM = 48;
-
-const noop = () => {};
-
-export function prefersReducedMotion(): boolean {
-	return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-/** One axis of a cubic Bézier from (0, 0) to (1, 1), with control points `a` and `b`, at `t`. */
-function bezierAt(a: number, b: number, t: number): number {
-	return 3 * a * t * (1 - t) ** 2 + 3 * b * t ** 2 * (1 - t) + t ** 3;
-}
-
-function bezierSlope(a: number, b: number, t: number): number {
-	return 3 * a * (1 - t) ** 2 + 6 * (b - a) * t * (1 - t) + 3 * (1 - b) * t ** 2;
-}
-
-/** A CSS `cubic-bezier()` easing, as a function from time to progress, both 0–1. */
-function cubicBezier(x1: number, y1: number, x2: number, y2: number): (time: number) => number {
-	return (time) => {
-		let t = time;
-		for (let step = 0; step < 8; step++) {
-			const error = bezierAt(x1, x2, t) - time;
-			const gradient = bezierSlope(x1, x2, t);
-			if (Math.abs(error) < 1e-4 || gradient === 0) break;
-			t = Math.min(1, Math.max(0, t - error / gradient));
-		}
-		return bezierAt(y1, y2, t);
-	};
-}
-
-const disclosureProgress = cubicBezier(...DISCLOSURE_CURVE);
-
-/** The nearest ancestor of `element` that scrolls, or the page when it scrolls. */
-function scrollerOf(element: Element): HTMLElement | null {
-	for (let node = element.parentElement; node; node = node.parentElement) {
-		const { overflowY } = getComputedStyle(node);
-		if ((overflowY === "auto" || overflowY === "scroll") && node.scrollHeight > node.clientHeight) {
-			return node;
-		}
-	}
-	const page = document.scrollingElement;
-	return page instanceof HTMLElement && page.scrollHeight > page.clientHeight ? page : null;
-}
-
-function scrollInstantly(scroller: HTMLElement, by: number) {
-	scroller.scrollBy({ top: by, behavior: "instant" });
-}
-
-function viewBottom(scroller: HTMLElement | null): number {
-	if (!scroller || scroller === document.scrollingElement) return window.innerHeight;
-	return scroller.getBoundingClientRect().top + scroller.clientTop + scroller.clientHeight;
-}
-
-function viewEdge(scroller: HTMLElement | null): number {
-	if (!scroller || scroller === document.scrollingElement) return 0;
-	return scroller.getBoundingClientRect().top + scroller.clientTop;
-}
-
-/** How much of a box `height` tall, at `top`, shows above the scroller's bottom edge. */
-function shownPart(scroller: HTMLElement | null, top: number, height: number): number {
-	return Math.max(0, Math.min(height, viewBottom(scroller) - top));
-}
-
-/**
- * How far to scroll `scroller` so a box from `top` to `bottom` shows below its scroll padding,
- * which keeps clear of a pinned head, with room under it. A box taller than the view keeps its
- * top in view.
- */
-function revealBy(scroller: HTMLElement, top: number, bottom: number): number {
-	const style = getComputedStyle(scroller);
-	const start = viewEdge(scroller) + (Number.parseFloat(style.scrollPaddingTop) || 0);
-	if (top < start) return top - start;
-	const end = viewBottom(scroller) - (Number.parseFloat(style.scrollPaddingBottom) || 0);
-	const past = bottom + REVEAL_ROOM - end;
-	return past > 0 ? Math.min(past, top - start) : 0;
-}
-
-/**
- * Scrolls `scroller` by `by` on the disclosure curve, in step with the rows that move as it does.
- * The reader scrolling stops it.
- */
-function scrollAlong(scroller: HTMLElement, by: number, duration: number) {
-	if (Math.abs(by) < 1) return;
-	if (prefersReducedMotion()) {
-		scrollInstantly(scroller, by);
-		return;
-	}
-	const from = scroller.scrollTop;
-	let last = from;
-	let start: number | undefined;
-	const step = (now: number) => {
-		if (Math.abs(scroller.scrollTop - last) > 1) return;
-		start ??= now;
-		const progress = Math.min(1, (now - start) / duration);
-		scroller.scrollTop = from + by * disclosureProgress(progress);
-		last = scroller.scrollTop;
-		if (progress < 1) requestAnimationFrame(step);
-	};
-	requestAnimationFrame(step);
-}
-
-/**
- * Grows a row just added from nothing to its height, so the rows below glide down instead of
- * jumping, and brings it into view with room under it. Only the part that will be in view grows.
- */
-export function growRow(row: HTMLElement) {
-	const scroller = scrollerOf(row);
-	const { top, height } = row.getBoundingClientRect();
-	const by = scroller ? revealBy(scroller, top, top + height) : 0;
-	if (scroller) scrollAlong(scroller, by, OPEN_MS);
-	if (prefersReducedMotion()) return;
-	const to = shownPart(scroller, top - by, height);
-	if (to < 1) return;
-	const grow = row.animate(
-		{ height: ["0px", `${to}px`], opacity: [0, 1], clipPath: ["inset(0)", "inset(0)"] },
-		{ duration: OPEN_MS, easing: DISCLOSURE_EASE },
-	);
-	// Mounting the row's fields can make a long frame, which would otherwise count as part of the
-	// motion, so the row holds at nothing through it and starts on the next frame.
-	grow.pause();
-	requestAnimationFrame(() => {
-		if (grow.playState === "paused") grow.play();
-	});
-}
-
-/** A row shrinking away before it's deleted. */
-export interface RowCollapse {
-	/** Calls the deletion off: the row grows back from wherever it has got to. */
-	reverse: () => void;
-}
-
-/**
- * Shrinks a row being deleted to nothing, so the rows below glide up and the page holds still,
- * then calls `remove` to take it out, and `settled` once it's out or back. Only the part in view
- * shrinks, and a row whose top is scrolled away goes at once. A row that leaves the page while it
- * shrinks, as when the whole value is replaced, isn't removed again.
- */
-export function collapseRow(
-	row: HTMLElement,
-	remove: () => void,
-	settled: () => void = noop,
-): RowCollapse | null {
-	const scroller = scrollerOf(row);
-	const { top, height } = row.getBoundingClientRect();
-	const from = shownPart(scroller, top, height);
-	if (prefersReducedMotion() || from < 1 || top < viewEdge(scroller)) {
-		remove();
-		return null;
-	}
-	const release = holdScroll(scroller, row);
-	const shrink = row.animate(
-		{ height: [`${from}px`, "0px"], opacity: [1, 0], clipPath: ["inset(0)", "inset(0)"] },
-		{ duration: CLOSE_MS, easing: DISCLOSURE_EASE, fill: "forwards" },
-	);
-	let reversed = false;
-	shrink.addEventListener("finish", () => {
-		if (!reversed && row.isConnected) flushSync(remove);
-		// A row that wasn't taken out after all comes back.
-		if (row.isConnected) shrink.cancel();
-		release();
-		settled();
-	});
-	return {
-		reverse() {
-			if (reversed || shrink.playState !== "running") return;
-			reversed = true;
-			shrink.reverse();
-		},
-	};
-}
-
-/** Slides `node` back into its place from `x`, `y` away, on top of any transform it has. */
-function slideFrom(node: HTMLElement, x: number, y: number): Animation {
-	return node.animate(
-		{ transform: [`translate(${x}px, ${y}px)`, "none"] },
-		{ duration: SLIDE_MS, easing: DISCLOSURE_EASE, composite: "add" },
-	);
-}
-
-/**
- * Slides the rows a menu reorders from their old places to their new ones, instead of letting
- * them jump, and brings the moved row into view. Call the returned function with the moved row's
- * key just before the move. Rows are the elements in `rootRef` that carry `attribute`.
- */
-export function useReorderMotion(
-	rootRef: React.RefObject<HTMLElement | null>,
-	attribute: "data-block-key" | "data-item-key",
-) {
-	const pendingRef = React.useRef<{
-		moved: string;
-		order: string;
-		tops: Map<string, number>;
-	} | null>(null);
-	const rowsIn = (root: HTMLElement) =>
-		Array.from(root.querySelectorAll<HTMLElement>(`[${attribute}]`), (row) => ({
-			row,
-			key: row.getAttribute(attribute) ?? "",
-		}));
-
-	React.useLayoutEffect(() => {
-		const pending = pendingRef.current;
-		const root = rootRef.current;
-		if (!pending || !root) return;
-		const rows = rowsIn(root);
-		// The moved value can come back from the parent a render later.
-		if (rows.map(({ key }) => key).join(" ") === pending.order) return;
-		pendingRef.current = null;
-		const moved = rows.find(({ key }) => key === pending.moved)?.row;
-		const scroller = moved ? scrollerOf(moved) : null;
-		if (moved && scroller) {
-			const { top, bottom } = moved.getBoundingClientRect();
-			scrollAlong(scroller, revealBy(scroller, top, bottom), SLIDE_MS);
-		}
-		if (prefersReducedMotion()) return;
-		const origin = root.getBoundingClientRect().top;
-		for (const { row, key } of rows) {
-			const before = pending.tops.get(key);
-			if (before === undefined) continue;
-			const y = before - (row.getBoundingClientRect().top - origin);
-			if (Math.abs(y) >= 0.5) slideFrom(row, 0, y);
-		}
-	});
-
-	return (moved: string) => {
-		const root = rootRef.current;
-		if (!root) return;
-		const origin = root.getBoundingClientRect().top;
-		const rows = rowsIn(root);
-		pendingRef.current = {
-			moved,
-			order: rows.map(({ key }) => key).join(" "),
-			tops: new Map(rows.map(({ row, key }) => [key, row.getBoundingClientRect().top - origin])),
-		};
-	};
-}
-
-const silent = () => undefined;
-const SILENT_ANNOUNCEMENTS: Announcements = {
-	onDragStart: silent,
-	onDragOver: silent,
-	onDragEnd: silent,
-	onDragCancel: silent,
-};
-
-/**
- * Props for a sortable list's `DndContext` that announce a drag through the list's own polite
- * region, in the editor's language and by the rows' names. dnd-kit's own announcements are
- * English, assertive and name rows by their keys. `onMove` makes the move a drop asks for.
- */
-export function useDragAnnouncements({
-	keys,
-	nameOf,
-	announce,
-	onMove,
-}: {
-	keys: readonly string[];
-	nameOf: (key: string) => string;
-	announce: (message: string) => void;
-	onMove: (from: number, to: number) => void;
-}) {
-	const { t } = useLingui();
-	const overRef = React.useRef<string | null>(null);
-	const total = keys.length;
-	const notMoved = (key: string) => {
-		const name = nameOf(key);
-		announce(t`${name} was not moved`);
-	};
-	return {
-		accessibility: {
-			announcements: SILENT_ANNOUNCEMENTS,
-			screenReaderInstructions: { draggable: "" },
-		},
-		onDragStart: ({ active }: DragStartEvent) => {
-			const key = String(active.id);
-			overRef.current = key;
-			const name = nameOf(key);
-			const position = keys.indexOf(key) + 1;
-			announce(t`Picked up ${name}, position ${position} of ${total}`);
-		},
-		onDragOver: ({ active, over }: DragOverEvent) => {
-			if (!over || String(over.id) === overRef.current) return;
-			overRef.current = String(over.id);
-			const name = nameOf(String(active.id));
-			const position = keys.indexOf(String(over.id)) + 1;
-			announce(t`${name} is over position ${position} of ${total}`);
-		},
-		onDragEnd: ({ active, over }: DragEndEvent) => {
-			const key = String(active.id);
-			const from = keys.indexOf(key);
-			const to = over ? keys.indexOf(String(over.id)) : -1;
-			if (from < 0 || to < 0 || from === to) {
-				notMoved(key);
-				return;
-			}
-			const name = nameOf(key);
-			onMove(from, to);
-			const position = to + 1;
-			announce(t`Moved ${name} to position ${position} of ${total}`);
-		},
-		onDragCancel: ({ active }: DragCancelEvent) => notMoved(String(active.id)),
-	};
-}
-
-/**
- * How far a panel `height` tall, at `top`, moves. One taller than the scroller moves only down to
- * its bottom edge: the rest of its travel would be out of sight, and would crowd the part in
- * sight into the first frames.
- */
-function travel(scroller: HTMLElement | null, top: number, height: number): number {
-	const bottom = viewBottom(scroller);
-	if (top >= bottom) return 0;
-	return height > (scroller?.clientHeight ?? window.innerHeight)
-		? Math.min(height, bottom - top)
-		: height;
-}
-
-interface ScrollRoom {
-	/** Space added under the content. */
-	room: number;
-	/** The panels closing now, each by how far it still has to shrink. */
-	closing: Set<() => number>;
-	/** The rows whose panels made the room. */
-	owners: Set<Element>;
-	trim: () => void;
-	set: (room: number) => void;
-}
-
-const scrollRooms = new WeakMap<HTMLElement, ScrollRoom>();
-
-function scrollRoomOf(scroller: HTMLElement): ScrollRoom {
-	const existing = scrollRooms.get(scroller);
-	if (existing) return existing;
-	const events: HTMLElement | Window = scroller === document.scrollingElement ? window : scroller;
-	const resizes = new ResizeObserver(() => state.trim());
-	const swaps = new MutationObserver(() => {
-		for (const child of scroller.children) resizes.observe(child);
-		state.trim();
-	});
-	let base = { top: 0, end: 0, width: 0 };
-	const state: ScrollRoom = {
-		room: 0,
-		closing: new Set(),
-		owners: new Set(),
-		set(room) {
-			if (state.room === 0) {
-				const style = getComputedStyle(scroller);
-				base = {
-					top: Number.parseFloat(style.paddingBlockStart) || 0,
-					end: Number.parseFloat(style.paddingBlockEnd) || 0,
-					width: scroller.clientWidth,
-				};
-			}
-			// Padding past the scroller's own height would grow its box, not its content.
-			const next = Math.max(
-				0,
-				Math.min(Math.ceil(room), scroller.clientHeight - base.top - base.end),
-			);
-			if (next > 0 && state.room === 0) {
-				events.addEventListener("scroll", state.trim, { passive: true });
-				for (const child of scroller.children) resizes.observe(child);
-				swaps.observe(scroller, { childList: true });
-			}
-			state.room = next;
-			if (next > 0) {
-				scroller.style.setProperty("padding-block-end", `${base.end + next}px`);
-				return;
-			}
-			scroller.style.removeProperty("padding-block-end");
-			events.removeEventListener("scroll", state.trim);
-			resizes.disconnect();
-			swaps.disconnect();
-			if (state.closing.size === 0) scrollRooms.delete(scroller);
-		},
-		// As the reader scrolls back up, or the content grows, the room shrinks to what keeps the
-		// scroller where it is. It goes once the rows that made it are gone, or the scroller's
-		// width changed, since its padding may then differ.
-		trim() {
-			if (state.closing.size > 0) return;
-			if (
-				scroller.clientWidth !== base.width ||
-				![...state.owners].some((owner) => owner.isConnected)
-			) {
-				state.set(0);
-				return;
-			}
-			const content = scroller.scrollHeight - state.room;
-			state.set(Math.min(state.room, scroller.scrollTop + scroller.clientHeight - content));
-		},
-	};
-	scrollRooms.set(scroller, state);
-	return state;
-}
-
-/**
- * Keeps `scroller` where it is while `panel` shrinks away. When the content would end above the
- * scroller's bottom, room is added under it, so the row being closed stays under the pointer
- * instead of the page sliding down to meet the shorter content. Returns the function that ends
- * the hold, for once the panel has shrunk.
- */
-function holdScroll(scroller: HTMLElement | null, panel: HTMLElement): () => void {
-	const left = () => (panel.isConnected ? panel.getBoundingClientRect().height : 0);
-	if (!scroller || left() <= 0) return noop;
-	const state = scrollRoomOf(scroller);
-	state.closing.add(left);
-	if (panel.parentElement) state.owners.add(panel.parentElement);
-	// The content already lacks whatever the other closing panels have shrunk so far.
-	let shrink = 0;
-	for (const remaining of state.closing) shrink += remaining();
-	const content = scroller.scrollHeight - state.room;
-	const needed = scroller.scrollTop + scroller.clientHeight - (content - shrink);
-	if (needed > state.room) state.set(needed);
-	let held = true;
-	return () => {
-		if (!held) return;
-		held = false;
-		state.closing.delete(left);
-		state.trim();
-	};
-}
-
-/**
- * Notes where the head of the first of `rows` still in view sits, and returns the function that
- * scrolls it back there once the rows have all opened or closed at once, so the reader keeps their
- * place. A head may be pinned, so afterwards it's found where an unpinned head sits: at the top
- * of its row. With every row above the view, the end of the last one stays put instead.
- */
-export function keepRowInView(
-	rows: readonly HTMLElement[],
-	headOf: (row: HTMLElement) => Element,
-): () => void {
-	const last = rows.at(-1);
-	const scroller = last ? scrollerOf(last) : null;
-	if (!last || !scroller) return noop;
-	const top =
-		scroller === document.scrollingElement
-			? 0
-			: scroller.getBoundingClientRect().top + scroller.clientTop;
-	const row = rows.find((candidate) => candidate.getBoundingClientRect().bottom > top);
-	const before = row
-		? headOf(row).getBoundingClientRect().top
-		: last.getBoundingClientRect().bottom;
-	return () => {
-		const after = row
-			? row.getBoundingClientRect().top + row.clientTop
-			: last.getBoundingClientRect().bottom;
-		if (Math.abs(after - before) >= 0.5) scrollInstantly(scroller, after - before);
-	};
-}
-
-/**
- * Turns the caret of the toggle that controls `panel` to where it's going over `duration`, in
- * place of its own transition, so a reversed panel and its caret land together.
- */
-function turnCaretWith(panel: HTMLElement, duration: number) {
-	if (!panel.id) return;
-	const caret = document
-		.querySelector(`[aria-controls="${window.CSS.escape(panel.id)}"]`)
-		?.querySelector("[data-disclosure-caret]");
-	if (!(caret instanceof SVGElement)) return;
-	const from = getComputedStyle(caret).rotate;
-	for (const animation of caret.getAnimations()) animation.cancel();
-	const to = getComputedStyle(caret).rotate;
-	if (from !== to) caret.animate({ rotate: [from, to] }, { duration, easing: DISCLOSURE_EASE });
-}
-
-interface PanelMotion {
-	height: Animation;
-	/** Holds the content drawn up by `lift` while the panel closes under its pinned head. */
-	content?: Animation;
-	lift: number;
-	release: () => void;
-	/** Puts the panel where the motion ends. */
-	finish: () => void;
-}
-
-function liftContent(panel: HTMLElement, lift: number, duration: number): Animation | undefined {
-	const content = panel.firstElementChild;
-	if (lift <= 0 || !content) return undefined;
-	const transform = `translateY(${-lift}px)`;
-	return content.animate({ transform: [transform, transform] }, { duration, fill: "forwards" });
-}
-
-/**
- * The body of a block, a list item or the Advanced rows: grows open and shrinks closed, then
- * unmounts. Padding belongs on a child, since the panel's own height runs down to zero.
- *
- * Motion starts from wherever the panel is, so a toggle can be reversed midway, and only covers
- * what the scroller shows: the part of a tall panel below its bottom edge appears or goes at once.
- * The clip lasts only as long as the motion, so sticky toolbars and floating hints inside aren't
- * cut off at rest.
- */
-export function DisclosurePanel({
-	open,
-	instant = false,
-	headRef,
-	onClosed,
-	className,
-	...props
-}: {
-	open: boolean;
-	/** Opens or closes without motion, as Expand all and Collapse all do. */
-	instant?: boolean;
-	/**
-	 * The panel's head. When it's pinned over a scrolled panel, the panel closes in place: the
-	 * fields in view stay put and the rows below rise to meet the head.
-	 */
-	headRef?: React.RefObject<HTMLElement | null>;
-	/** Called once a closed panel is gone. */
-	onClosed?: () => void;
-} & React.ComponentPropsWithoutRef<"div">) {
-	const ref = React.useRef<HTMLDivElement>(null);
-	const motionRef = React.useRef<PanelMotion | null>(null);
-	const shownRef = React.useRef(open);
-	const [mounted, setMounted] = React.useState(open);
-	if (open && !mounted) setMounted(true);
-	const unmount = useStableCallback(() => {
-		setMounted(false);
-		onClosed?.();
-	});
-
-	React.useLayoutEffect(() => {
-		if (open === shownRef.current) {
-			// Expand all and Collapse all also finish a panel already on its way.
-			const motion = motionRef.current;
-			if (instant && motion) {
-				motionRef.current = null;
-				motion.finish();
-			}
-			return;
-		}
-		shownRef.current = open;
-		const panel = ref.current;
-		if (!panel) return;
-		const scroller = scrollerOf(panel);
-		const previous = motionRef.current;
-		motionRef.current = null;
-		const current = panel.getBoundingClientRect().height;
-		const opacity = previous ? Number(getComputedStyle(panel).opacity) : open ? 0 : 1;
-		let lift = previous?.lift ?? 0;
-		previous?.height.cancel();
-		previous?.content?.cancel();
-		// A close being reversed keeps holding the scroller until the panel is open again.
-		const held = previous?.release ?? noop;
-		const still = instant || prefersReducedMotion();
-
-		if (open) {
-			// An open panel takes the place of any room a close left under the content.
-			const restore = () => {
-				if (scroller && lift > 0) scrollInstantly(scroller, lift);
-				held();
-				if (scroller) scrollRooms.get(scroller)?.trim();
-			};
-			if (still) {
-				restore();
-				return;
-			}
-			const { top, height: natural } = panel.getBoundingClientRect();
-			const from = previous ? current : 0;
-			const to = Math.max(from, travel(scroller, top, natural - lift));
-			if (to - from < 1) {
-				restore();
-				return;
-			}
-			// A reversal takes the share of the time that is left of the way, but never so little
-			// that it snaps, and turns the caret on the same clock.
-			const duration = previous ? Math.max(REVERSE_MS, OPEN_MS * ((to - from) / to)) : OPEN_MS;
-			if (previous) turnCaretWith(panel, duration);
-			const height = panel.animate(
-				{
-					height: [`${from}px`, `${to}px`],
-					opacity: [opacity, 1],
-					clipPath: ["inset(0)", "inset(0)"],
-				},
-				{ duration, easing: DISCLOSURE_EASE, fill: lift > 0 ? "forwards" : "none" },
-			);
-			const motion: PanelMotion = {
-				height,
-				content: liftContent(panel, lift, duration),
-				lift,
-				release: held,
-				finish() {
-					height.cancel();
-					motion.content?.cancel();
-					restore();
-				},
-			};
-			motionRef.current = motion;
-			height.addEventListener("finish", () => {
-				if (motionRef.current !== motion) return;
-				motionRef.current = null;
-				motion.finish();
-			});
-			return;
-		}
-
-		// Expand all and Collapse all keep the reader's place themselves, once every panel has moved.
-		if (instant) {
-			held();
-			unmount();
-			return;
-		}
-		let shown = current;
-		let hidden = 0;
-		const head = headRef?.current;
-		if (head && scroller) {
-			// A head pinned over the panel hides the part above it. Scrolling the block's top up to
-			// the head while drawing the content up as far leaves everything in view where it was.
-			const pinned = Math.round(
-				head.getBoundingClientRect().bottom - panel.getBoundingClientRect().top,
-			);
-			if (pinned > 0) {
-				scrollInstantly(scroller, -pinned);
-				lift += pinned;
-				shown = Math.max(0, shown - pinned);
-				hidden = pinned;
-			}
-		}
-		const { top, height: natural } = panel.getBoundingClientRect();
-		const release = holdScroll(scroller, panel);
-		held();
-		const from = travel(scroller, top, shown);
-		if (still || from < 1) {
-			unmount();
-			requestAnimationFrame(release);
-			return;
-		}
-		const full = previous ? travel(scroller, top, natural - hidden) : from;
-		const duration = previous
-			? Math.max(REVERSE_MS, CLOSE_MS * Math.min(1, from / Math.max(from, full)))
-			: CLOSE_MS;
-		if (previous) turnCaretWith(panel, duration);
-		const height = panel.animate(
-			{
-				height: [`${from}px`, "0px"],
-				opacity: [opacity, 0],
-				clipPath: ["inset(0)", "inset(0)"],
-			},
-			{ duration, easing: DISCLOSURE_EASE, fill: "forwards" },
-		);
-		const motion: PanelMotion = {
-			height,
-			content: liftContent(panel, lift, duration),
-			lift,
-			release,
-			finish() {
-				height.finish();
-				release();
-				unmount();
-			},
-		};
-		motionRef.current = motion;
-		height.addEventListener("finish", () => {
-			if (motionRef.current !== motion) return;
-			motionRef.current = null;
-			motion.finish();
-		});
-	}, [open, instant, headRef, unmount]);
-
-	React.useEffect(() => () => motionRef.current?.release(), []);
-
-	if (!mounted) return null;
-	return (
-		<div
-			ref={ref}
-			inert={!open || undefined}
-			className={cn("emdash-disclosure", className)}
-			{...props}
-		/>
-	);
-}
-
-/**
- * A dragged row eases from where it was let go into its slot, still lifted, instead of jumping
- * there. Returns the sortable's node ref, wrapped, and whether the row is still settling.
- */
-export function useDropSettle(
-	id: string,
-	isDragging: boolean,
-	setSortableRef: (node: HTMLElement | null) => void,
-) {
-	const nodeRef = React.useRef<HTMLElement | null>(null);
-	const letGoRef = React.useRef<DOMRect | null>(null);
-	const settleRef = React.useRef<Animation | null>(null);
-	const shadowRef = React.useRef<Animation | null>(null);
-	const [settling, setSettling] = React.useState(false);
-	const setNodeRef = React.useCallback(
-		(node: HTMLElement | null) => {
-			nodeRef.current = node;
-			setSortableRef(node);
-		},
-		[setSortableRef],
-	);
-	const monitor = React.useMemo(() => {
-		const letGo = ({ active }: DragEndEvent) => {
-			if (active.id === id && nodeRef.current) {
-				letGoRef.current = nodeRef.current.getBoundingClientRect();
-			}
-		};
-		return { onDragEnd: letGo, onDragCancel: letGo };
-	}, [id]);
-	useDndMonitor(monitor);
-
-	// Runs in the commit that drops the row, once it sits in its new slot but before it paints.
-	React.useLayoutEffect(() => {
-		const from = letGoRef.current;
-		letGoRef.current = null;
-		const node = nodeRef.current;
-		const previous = settleRef.current;
-		// A row picked up again while it settles stays where it was caught: the settle holds still,
-		// added to the drag's own transform, until the row is let go again, and its shadow lifts again.
-		if (isDragging) {
-			previous?.pause();
-			shadowRef.current?.cancel();
-			return;
-		}
-		if (previous) {
-			settleRef.current = null;
-			previous.cancel();
-			setSettling(false);
-		}
-		if (!from || !node || prefersReducedMotion()) return;
-		const to = node.getBoundingClientRect();
-		const x = from.left - to.left;
-		const y = from.top - to.top;
-		if (Math.abs(x) < 0.5 && Math.abs(y) < 0.5) return;
-		setSettling(true);
-		const settle = slideFrom(node, x, y);
-		// A row dropped in a new slot was moved in the page, which ends any transition on it, so its
-		// lifted shadow fades out here, while it settles.
-		shadowRef.current = node.animate(
-			{ opacity: [1, 0] },
-			{ pseudoElement: "::after", duration: SHADOW_MS, easing: EASE_EMDASH },
-		);
-		settleRef.current = settle;
-		const done = () => {
-			if (settleRef.current !== settle) return;
-			settleRef.current = null;
-			setSettling(false);
-		};
-		settle.addEventListener("finish", done);
-		settle.addEventListener("cancel", done);
-	}, [isDragging]);
-
-	return { setNodeRef, settling };
-}
-
-/** The caret of a disclosure row, which turns to point at the open body as the body moves. */
-export function DisclosureCaret({
-	open,
-	instant = false,
-	className,
-}: {
-	open: boolean;
-	instant?: boolean;
-	className?: string;
-}) {
-	return (
-		<span aria-hidden="true" className={cn("grid size-4 shrink-0 place-items-center", className)}>
-			<CaretRight
-				data-disclosure-caret=""
-				weight="bold"
-				className={cn(
-					"size-3 text-kumo-subtle transition-transform duration-160 ease-emdash-disclosure motion-reduce:transition-none rtl:-scale-x-100",
-					open && "rotate-90 duration-200 rtl:-rotate-90",
-					instant && "transition-none",
-				)}
-			/>
-		</span>
-	);
-}
 
 /** How many items a list holds, in words. */
 function itemCount(count: number): string {
@@ -1431,7 +511,7 @@ export function BlockListField({
 	// down it, except in a number, whose arrow keys step its value.
 	const cellKeyDown = (event: React.KeyboardEvent<HTMLElement>, index: number, column: number) => {
 		const input = event.target;
-		if (!(input instanceof HTMLInputElement) || !CELL_INPUT_TYPES.has(input.type)) return;
+		if (!(input instanceof HTMLInputElement) || !TEXT_INPUT_TYPES.has(input.type)) return;
 		if (event.nativeEvent.isComposing || event.keyCode === 229) return;
 		if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
 		const enter = event.key === "Enter";
@@ -1668,7 +748,7 @@ export function BlockListField({
 			}
 		>
 			<div className={cn("flex min-w-0 items-baseline gap-1.5 ps-2", !hint && "pb-1")}>
-				<span id={labelId} className={cn(LIST_LABEL, "wrap-anywhere")}>
+				<span id={labelId} className={cn(LABEL, "wrap-anywhere")}>
 					{listLabel}
 				</span>
 				{savedCount > 0 && (
@@ -1871,82 +951,35 @@ function RowMenu({
 						className={cn("min-w-44", POPUP_MOTION, MENU_TOUCH)}
 						finalFocus={() => !keepFocusRef.current}
 					>
-						{add && (
-							<>
-								<DropdownMenu.Item
-									icon={<RowsPlusTop className={MENU_ICON} aria-hidden="true" />}
-									disabled={add.disabled}
-									onClick={() => {
-										afterCloseRef.current = () => add.onSelect("above");
+						<RowMenuItems
+							index={index}
+							count={count}
+							add={
+								add && {
+									above: t`Add item above`,
+									below: t`Add item below`,
+									disabled: add.disabled,
+									onSelect: (side) => {
+										afterCloseRef.current = () => add.onSelect(side);
 										keepFocusRef.current = true;
-									}}
-								>
-									{t`Add item above`}
-								</DropdownMenu.Item>
-								<DropdownMenu.Item
-									icon={<RowsPlusBottom className={MENU_ICON} aria-hidden="true" />}
-									disabled={add.disabled}
-									onClick={() => {
-										afterCloseRef.current = () => add.onSelect("below");
+									},
+								}
+							}
+							duplicate={
+								duplicate && {
+									disabled: duplicate.disabled,
+									onSelect: () => {
+										afterCloseRef.current = duplicate.onSelect;
 										keepFocusRef.current = true;
-									}}
-								>
-									{t`Add item below`}
-								</DropdownMenu.Item>
-								<DropdownMenu.Separator />
-							</>
-						)}
-						{duplicate && (
-							<DropdownMenu.Item
-								icon={<Copy className={MENU_ICON} aria-hidden="true" />}
-								disabled={duplicate.disabled}
-								onClick={() => {
-									afterCloseRef.current = duplicate.onSelect;
-									keepFocusRef.current = true;
-								}}
-							>
-								{t`Duplicate`}
-							</DropdownMenu.Item>
-						)}
-						<DropdownMenu.Item
-							icon={<ArrowUp className={MENU_ICON} aria-hidden="true" />}
-							disabled={index === 0}
-							onClick={() => onMove(index - 1, true)}
-						>
-							{t`Move up`}
-						</DropdownMenu.Item>
-						<DropdownMenu.Item
-							icon={<ArrowDown className={MENU_ICON} aria-hidden="true" />}
-							disabled={index === count - 1}
-							onClick={() => onMove(index + 1, true)}
-						>
-							{t`Move down`}
-						</DropdownMenu.Item>
-						<DropdownMenu.Item
-							icon={<ArrowLineUp className={MENU_ICON} aria-hidden="true" />}
-							disabled={index === 0}
-							onClick={() => onMove(0, true)}
-						>
-							{t`Move to top`}
-						</DropdownMenu.Item>
-						<DropdownMenu.Item
-							icon={<ArrowLineDown className={MENU_ICON} aria-hidden="true" />}
-							disabled={index === count - 1}
-							onClick={() => onMove(count - 1, true)}
-						>
-							{t`Move to bottom`}
-						</DropdownMenu.Item>
-						<DropdownMenu.Separator />
-						<DropdownMenu.Item
-							variant="danger"
-							icon={<Trash className={MENU_ICON} aria-hidden="true" />}
-							disabled={!canDelete}
-							onClick={() => {
+									},
+								}
+							}
+							deleteDisabled={!canDelete}
+							onMove={onMove}
+							onDelete={() => {
 								afterCloseRef.current = onDelete;
 							}}
-						>
-							{t`Delete`}
-						</DropdownMenu.Item>
+						/>
 					</DropdownMenu.Popup>
 				</DropdownMenu.Positioner>
 			</DropdownMenu.Portal>

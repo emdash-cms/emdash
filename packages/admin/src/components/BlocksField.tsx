@@ -1,34 +1,27 @@
-import { Badge, Button, DropdownMenu, Label, Tooltip, useKumoToastManager } from "@cloudflare/kumo";
+import { Badge, Button, DropdownMenu, Label, Tooltip } from "@cloudflare/kumo";
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
-	ArrowDown,
-	ArrowLineDown,
-	ArrowLineUp,
 	ArrowsInSimple,
 	ArrowsOutSimple,
-	ArrowUp,
-	Copy,
 	DotsSixVertical,
 	DotsThree,
 	Plus,
-	RowsPlusBottom,
-	RowsPlusTop,
-	Trash,
 	WarningCircle,
 } from "@phosphor-icons/react";
 import * as React from "react";
 import { flushSync } from "react-dom";
 
-import type { BlockFieldDefinition, BlockType } from "../lib/api/schema.js";
+import type { BlockType } from "../lib/api/schema.js";
 import {
 	blockSummary,
 	type BlockFieldPart,
 	isLinkField,
 	itemTitleField,
+	type LayoutFieldDefinition,
 	listPresentation,
 	type ListSubField,
 	planBlockFields,
@@ -53,10 +46,38 @@ import {
 import { useStableCallback } from "../lib/hooks.js";
 import { cn } from "../lib/utils.js";
 import {
+	focusableIn,
+	keepEnterInBlocks,
+	MOVE_KEYS,
+	onFocusLeave,
+	useMoveKeys,
+} from "./block-field-keyboard.js";
+import {
+	collapseRow,
+	DisclosureCaret,
+	DisclosurePanel,
+	growRow,
+	keepRowInView,
+	prefersReducedMotion,
+	useDropSettle,
+	useReorderMotion,
+} from "./block-field-motion.js";
+import {
+	isEmptyValue,
+	NOTE_DOT,
+	type NotedControl,
+	NotedField,
+	type NoteSource,
+	useControlNotes,
+	useIssueMessage,
+} from "./block-field-notes.js";
+import {
 	BLOCK_TITLE,
 	DRAGGING,
 	FIELD_GAP,
 	GLYPH_NUDGE,
+	HEAD_FOCUS,
+	HEAD_PRESSED,
 	IMAGE_EDGE,
 	LABEL,
 	NOTE,
@@ -74,31 +95,20 @@ import {
 	TOUCH_HEIGHT,
 	TOUCH_TARGET,
 } from "./block-field-styles.js";
+import { UndoContext, usePhotoUndo, useUndoToast } from "./block-field-undo.js";
 import {
 	BlockListField,
-	collapseRow,
 	type DeletedListItem,
 	type DeletionHold,
-	DisclosureCaret,
-	DisclosurePanel,
 	ErrorDot,
 	firstPhotoUrl,
-	focusableIn,
-	growRow,
-	keepRowInView,
-	MOVE_KEYS,
-	prefersReducedMotion,
-	SELECTABLE_INPUT_TYPES,
-	whenFocusLeaves,
 	toggled,
-	useDragAnnouncements,
-	useDropSettle,
-	useMoveKeys,
-	useReorderMotion,
 } from "./BlockListField.js";
 import { BlockTypeIcon, BlockTypePicker } from "./BlockTypePicker.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
-import { type ImageFieldValue, ImageRemovalContext } from "./ImageFieldRenderer.js";
+import { ImageRemovalContext } from "./ImageFieldRenderer.js";
+import { RowMenuItems } from "./RowMenuItems.js";
+import { useDragAnnouncements } from "./useDragAnnouncements.js";
 import { useQuietReturnFocus } from "./useQuietReturnFocus.js";
 
 interface NestedFieldDescriptor {
@@ -132,12 +142,6 @@ export interface FieldChrome {
 	/** Draws a photo as a thumbnail: in a list item's settings row, or in a table cell. */
 	thumbnail?: "row" | "cell";
 }
-
-/** A block field, or a list's sub-field, as an open block lays it out. */
-type LayoutFieldDefinition = Pick<
-	BlockFieldDefinition,
-	"slug" | "label" | "required" | "validation" | "options"
-> & { type: string };
 
 interface NestedFieldRenderInput {
 	name: string;
@@ -190,17 +194,8 @@ const NESTED_KIND: Record<string, string> = {
 	file: "file",
 };
 
-const UNDO_TIMEOUT_MS = 6000;
-/**
- * Reaching a toast from the keyboard takes longer, so a deletion made from it keeps its Undo
- * longer. So does one made from assistive technology, which presses nothing on the page.
- */
-const KEYBOARD_UNDO_TIMEOUT_MS = 15_000;
-/** How soon after a press of the pointer a deletion counts as made with it. */
-const POINTER_DELETION_MS = 2000;
 const SHEET_INNER_TOP = "rounded-t-[calc(var(--radius-lg)-1px)]";
 const SHEET_INNER_BOTTOM = "rounded-b-[calc(var(--radius-lg)-1px)]";
-const MENU_ICON = "size-4";
 const FIELD_LABEL = `${LABEL} ps-2 wrap-anywhere`;
 // An item's fields start 1.5rem in from its block's, so inside an item the label column is that
 // much narrower, and every settings value starts on one edge.
@@ -219,14 +214,9 @@ const REVEAL_GUTTER =
 // Touch and narrow screens have no hover, so their menus always show.
 const REVEAL_MENU =
 	"blocks-gutter:opacity-0 blocks-gutter:transition-opacity blocks-gutter:duration-0 blocks-gutter:ease-emdash blocks-gutter:group-hover/block:opacity-100 blocks-gutter:group-hover/block:duration-100 blocks-gutter:group-data-[menu-open]/block:opacity-100 blocks-gutter:group-data-[menu-open]/block:duration-100 blocks-gutter:[&:not([data-quiet-focus]):focus-visible]:opacity-100 blocks-gutter:[&:not([data-quiet-focus]):focus-visible]:duration-100";
-const HEAD_FOCUS =
-	"has-[[data-block-toggle]:focus-visible]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))] has-[[data-block-toggle]:focus-visible]:ring-1 has-[[data-block-toggle]:focus-visible]:ring-kumo-focus/50 has-[[data-block-toggle]:focus-visible]:ring-inset";
 // The head keeps its wash while its menu or picker is open, so the popup stays tied to its row.
 const HEAD_POPUP_OPEN =
 	"group-data-[menu-open]/block:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))] group-data-[picker-open]/block:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]";
-// Pressing the toggle deepens the wash at once, before the click commits.
-const HEAD_PRESSED =
-	"has-[[data-block-toggle]:active]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover)),linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]";
 
 type InsertSide = "top" | "bottom";
 
@@ -253,28 +243,7 @@ type FocusRequest =
 	| { key: string; target: "item"; field: string; index: number; scroll?: false }
 	| { target: "add" };
 
-type UndoOwner =
-	| { kind: "block" }
-	| { kind: "item"; blockKey: string; field: string }
-	| { kind: "field"; name: string };
-
 const NO_ISSUES: readonly BlockValueIssue[] = [];
-
-/**
- * Field types whose empty control shows a placeholder, so with no label line, a required one says
- * "Required" itself.
- */
-const EMPTY_SHOWN_BY_CONTROL = new Set([
-	"string",
-	"text",
-	"url",
-	"number",
-	"integer",
-	"select",
-	"datetime",
-	"image",
-	"file",
-]);
 
 /** The key of the block `element` is in, in any blocks field. */
 export function blockKeyOf(element: Element | null): string | undefined {
@@ -407,68 +376,6 @@ export function issuesInViewOrder(
 	);
 }
 
-interface IssueContext {
-	/** The field's hint, which a broken format restates after naming the problem. */
-	hint?: string;
-	/** The field holds a link. */
-	link?: boolean;
-	/** For a line with little room: the problem without the hint. */
-	brief?: boolean;
-}
-
-function useIssueMessage() {
-	const { t, i18n } = useLingui();
-	return React.useCallback(
-		(issue: BlockValueIssue, { hint, link = false, brief = false }: IssueContext = {}): string => {
-			switch (issue.code) {
-				case "required":
-					return t`Required`;
-				case "invalid_format": {
-					const isLink = link || issue.format === "url";
-					if (hint && !brief)
-						return isLink ? t`Invalid link. ${hint}` : t`Check the format. ${hint}`;
-					if (issue.format === "url" && !brief)
-						return t`Enter a valid URL (e.g. https://example.com)`;
-					return isLink ? t`Invalid link` : t`Check the format`;
-				}
-				case "invalid_value":
-					return t`Choose one of the options`;
-				case "not_integer":
-					return t`Enter a whole number`;
-				case "too_small": {
-					const minimum = issue.minimum ?? 0;
-					if (issue.origin === "array") {
-						return plural(minimum, { one: "Add at least # item", other: "Add at least # items" });
-					}
-					if (issue.origin === "string") {
-						return plural(minimum, {
-							one: "Use at least # character",
-							other: "Use at least # characters",
-						});
-					}
-					const formatted = i18n.number(minimum);
-					return t`Enter ${formatted} or more`;
-				}
-				case "too_big": {
-					const maximum = issue.maximum ?? 0;
-					if (issue.origin === "array") {
-						return plural(maximum, { one: "Keep to # item", other: "Keep to # items" });
-					}
-					if (issue.origin === "string") {
-						return plural(maximum, {
-							one: "Use at most # character",
-							other: "Use at most # characters",
-						});
-					}
-					const formatted = i18n.number(maximum);
-					return t`Enter ${formatted} or less`;
-				}
-			}
-		},
-		[t, i18n],
-	);
-}
-
 type MenuAction =
 	| { kind: "delete" }
 	| { kind: "duplicate" }
@@ -505,281 +412,6 @@ function listLimit(field: LayoutFieldDefinition, key: "minItems" | "maxItems") {
 	const value = field.validation?.[key];
 	return typeof value === "number" ? value : undefined;
 }
-
-/** Calls `callback` when focus leaves the element, rather than moving within it. */
-function onFocusLeave(callback: () => void) {
-	return (event: React.FocusEvent<HTMLElement>) => whenFocusLeaves(event, callback);
-}
-
-/** Inputs whose Enter does something of its own. In any other, Enter submits the page's form. */
-const ENTER_ACTIVATES = new Set(["button", "submit", "reset", "image", "file"]);
-const TEXT_INPUT_TYPES = new Set(["text", "search", "url", "tel", "email", "number"]);
-
-function isTextField(element: Element): element is HTMLElement {
-	if (element instanceof HTMLTextAreaElement) return true;
-	if (element instanceof HTMLElement && element.isContentEditable) return true;
-	return (
-		element instanceof HTMLInputElement &&
-		TEXT_INPUT_TYPES.has(element.type) &&
-		element.getAttribute("role") !== "combobox"
-	);
-}
-
-/**
- * Enter in a block's one-line field moves to the next place to type in its list item or block,
- * the way it starts a new line in a list of lines, instead of saving the page. With Shift or Alt
- * it does nothing.
- */
-function keepEnterInBlocks(event: React.KeyboardEvent<HTMLElement>) {
-	const input = event.target;
-	if (event.key !== "Enter" || event.defaultPrevented || event.ctrlKey || event.metaKey) return;
-	if (!(input instanceof HTMLInputElement) || ENTER_ACTIVATES.has(input.type)) return;
-	if (event.nativeEvent.isComposing || event.keyCode === 229) return;
-	// Keys from a popup the field opened, such as the block picker, reach here through its portal.
-	if (!event.currentTarget.contains(input)) return;
-	event.preventDefault();
-	if (event.altKey || event.shiftKey || !isTextField(input)) return;
-	const scope = input.closest("[data-list-item]") ?? input.closest("[data-block-body]");
-	const next = [
-		...(scope?.querySelectorAll('input, textarea, [contenteditable="true"]') ?? []),
-	].find(
-		(candidate) =>
-			input.compareDocumentPosition(candidate) & Node.DOCUMENT_POSITION_FOLLOWING &&
-			isTextField(candidate) &&
-			focusableIn(candidate) === candidate &&
-			!candidate.closest("[inert]"),
-	);
-	if (!(next instanceof HTMLElement)) return;
-	next.focus();
-	if (
-		next instanceof HTMLTextAreaElement ||
-		(next instanceof HTMLInputElement && SELECTABLE_INPUT_TYPES.has(next.type))
-	) {
-		next.setSelectionRange(next.value.length, next.value.length);
-	}
-}
-
-const APPLE_PLATFORM =
-	typeof navigator !== "undefined" &&
-	/Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
-const UNDO_KEYS = APPLE_PLATFORM ? "Meta+Z" : "Control+Z";
-const UNDO_KEYS_SHOWN = APPLE_PLATFORM ? "⌘Z" : "Ctrl+Z";
-const NOT_TYPED_IN = new Set([
-	"button",
-	"submit",
-	"reset",
-	"checkbox",
-	"radio",
-	"range",
-	"color",
-	"file",
-	"image",
-]);
-
-/** Cmd+Z on Apple platforms, Ctrl+Z elsewhere, and the Z key's place on a layout without a Latin Z. */
-function isUndoKey(event: KeyboardEvent): boolean {
-	const z =
-		event.key.toLowerCase() === "z" ||
-		(event.code === "KeyZ" && event.key.length === 1 && event.key.charCodeAt(0) > 0x7f);
-	if (!z || event.shiftKey || event.altKey) return false;
-	return APPLE_PLATFORM ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
-}
-
-/** Whether keys pressed in `target` edit text, which has an undo of its own. */
-function editsText(target: EventTarget | null): boolean {
-	if (!(target instanceof HTMLElement)) return false;
-	if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true;
-	if (target instanceof HTMLSelectElement) return true;
-	// A control inside rich text, such as a button in an embedded block, leaves undo to the text.
-	if (target.closest('[contenteditable]:not([contenteditable="false"])')) return true;
-	return target instanceof HTMLInputElement && !NOT_TYPED_IN.has(target.type);
-}
-
-/** The latest deletion in any blocks field on the page, which Undo and Mod+Z put back. */
-interface UndoEntry {
-	/** The blocks field it was made in. */
-	field: object;
-	/** What was deleted, once it has been. A deletion whose row still shrinks away has none. */
-	owner?: UndoOwner;
-	undo: () => void;
-	/** Closes its toast. */
-	close: () => void;
-}
-
-interface UndoSlot {
-	current: UndoEntry | null;
-	lastInput: { kind: "keyboard" | "pointer"; at: number };
-	/** How many blocks fields are on the page, while any are listening. */
-	fields: number;
-	onInput: (event: Event) => void;
-	onKeyDown: (event: KeyboardEvent) => void;
-}
-
-interface HeldDeletion extends DeletionHold {
-	entry: UndoEntry;
-}
-
-function isHeld(hold: DeletionHold | undefined): hold is HeldDeletion {
-	return hold !== undefined && "entry" in hold;
-}
-
-const UNDO_SLOT = Symbol.for("emdash.blocks-field.undo");
-
-/**
- * The page's one Undo, shared by every blocks field on it: only the latest deletion in any of
- * them can be put back, by its toast or by Mod+Z while that toast is open and focus is not
- * somewhere to type.
- */
-function undoSlot(): UndoSlot {
-	const scope = globalThis as typeof globalThis & { [UNDO_SLOT]?: UndoSlot };
-	scope[UNDO_SLOT] ??= {
-		current: null,
-		lastInput: { kind: "pointer", at: Number.NEGATIVE_INFINITY },
-		fields: 0,
-		onInput(event) {
-			if (event instanceof KeyboardEvent && isUndoKey(event)) return;
-			const kind = event.type === "pointerdown" ? "pointer" : "keyboard";
-			undoSlot().lastInput = { kind, at: performance.now() };
-		},
-		onKeyDown(event) {
-			const current = undoSlot().current;
-			if (!current || event.defaultPrevented || !isUndoKey(event) || editsText(event.target)) {
-				return;
-			}
-			event.preventDefault();
-			current.undo();
-		},
-	};
-	return scope[UNDO_SLOT];
-}
-
-/** Makes `entry` the page's Undo, closing the toast of the one before. */
-function takeUndo(entry: UndoEntry) {
-	const slot = undoSlot();
-	const previous = slot.current;
-	slot.current = entry;
-	if (previous !== entry) previous?.close();
-}
-
-/** Ends `entry`'s chance to undo, without closing its toast. */
-function releaseUndo(entry: UndoEntry) {
-	const slot = undoSlot();
-	if (slot.current === entry) slot.current = null;
-}
-
-/**
- * A blocks field's part in the page's Undo: it offers a toast for the field's deletions (of a
- * block, of a list item inside one, or of a photo), each in place of the page's latest, and
- * closes it once Undo can't apply. While a deleted row shrinks away, Mod+Z calls its deletion off.
- */
-function useUndoToast() {
-	const { t } = useLingui();
-	const toastManager = useKumoToastManager();
-	const field = React.useRef({}).current;
-
-	const mine = () => {
-		const current = undoSlot().current;
-		return current?.field === field ? current : null;
-	};
-	const dismiss = () => {
-		const entry = mine();
-		if (!entry) return;
-		releaseUndo(entry);
-		entry.close();
-	};
-	const dismissOnUnmount = useStableCallback(dismiss);
-
-	React.useEffect(() => {
-		const slot = undoSlot();
-		if (slot.fields++ === 0) {
-			document.addEventListener("keydown", slot.onInput, true);
-			document.addEventListener("pointerdown", slot.onInput, true);
-			document.addEventListener("keydown", slot.onKeyDown);
-		}
-		return () => {
-			dismissOnUnmount();
-			if (--slot.fields > 0) return;
-			document.removeEventListener("keydown", slot.onInput, true);
-			document.removeEventListener("pointerdown", slot.onInput, true);
-			document.removeEventListener("keydown", slot.onKeyDown);
-		};
-	}, [dismissOnUnmount]);
-
-	/** Lets Mod+Z call a deletion off while its row shrinks away, in place of any older Undo. */
-	const hold = (cancel: () => void): HeldDeletion => {
-		const entry: UndoEntry = {
-			field,
-			undo: () => {
-				releaseUndo(entry);
-				cancel();
-			},
-			close: () => {},
-		};
-		takeUndo(entry);
-		return { entry, release: () => releaseUndo(entry) };
-	};
-
-	/** Offers Undo for a deletion. One held while its row shrank away offers it only if still the latest. */
-	const offer = (title: string, owner: UndoOwner, restore: () => void, held?: DeletionHold) => {
-		const slot = undoSlot();
-		if (isHeld(held) && slot.current !== held.entry) return;
-		const { kind, at } = slot.lastInput;
-		const byPointer = kind === "pointer" && performance.now() - at < POINTER_DELETION_MS;
-		let id = "";
-		const entry: UndoEntry = {
-			field,
-			owner,
-			undo: () => {
-				if (undoSlot().current !== entry) return;
-				releaseUndo(entry);
-				entry.close();
-				restore();
-			},
-			close: () => toastManager.close(id),
-		};
-		takeUndo(entry);
-		id = toastManager.add({
-			title,
-			timeout: byPointer ? UNDO_TIMEOUT_MS : KEYBOARD_UNDO_TIMEOUT_MS,
-			onClose: () => releaseUndo(entry),
-			actions: [
-				{
-					children: (
-						<>
-							{t`Undo`}
-							<kbd
-								aria-hidden="true"
-								className="ms-1 font-sans text-kumo-subtle pointer-coarse:hidden"
-							>
-								{UNDO_KEYS_SHOWN}
-							</kbd>
-						</>
-					),
-					variant: "secondary",
-					size: "sm",
-					className: "pointer-coarse:h-11 pointer-coarse:px-4",
-					"aria-keyshortcuts": UNDO_KEYS,
-					onClick: entry.undo,
-				},
-			],
-		});
-	};
-
-	/** A deletion with no Undo of its own leaves nothing older for Undo to put back. */
-	const supersede = () => {
-		const entry = undoSlot().current;
-		if (!entry) return;
-		releaseUndo(entry);
-		entry.close();
-	};
-
-	return { offer, hold, dismiss, supersede, owner: () => mine()?.owner };
-}
-
-type UndoToast = ReturnType<typeof useUndoToast>;
-
-/** The blocks field's Undo toast, for the fields inside it. */
-const UndoContext = React.createContext<UndoToast | null>(null);
 
 export function BlocksField({
 	id,
@@ -1907,69 +1539,27 @@ function BlockRow({
 										!keepFocusRef.current && ((menuFromHandle && handleRef.current) || true)
 									}
 								>
-									<DropdownMenu.Item
-										icon={<RowsPlusTop className={MENU_ICON} aria-hidden="true" />}
-										disabled={!canAdd}
-										onClick={() => addFromMenu("top")}
-									>
-										{t`Add block above`}
-									</DropdownMenu.Item>
-									<DropdownMenu.Item
-										icon={<RowsPlusBottom className={MENU_ICON} aria-hidden="true" />}
-										disabled={!canAdd}
-										onClick={() => addFromMenu("bottom")}
-									>
-										{t`Add block below`}
-									</DropdownMenu.Item>
-									<DropdownMenu.Separator />
-									<DropdownMenu.Item
-										icon={<Copy className={MENU_ICON} aria-hidden="true" />}
-										disabled={retired || unsupported || inactive || atMax}
-										onClick={() => {
-											afterMenuCloseRef.current = { kind: "duplicate" };
-											keepFocusRef.current = true;
+									<RowMenuItems
+										index={index}
+										count={count}
+										add={{
+											above: t`Add block above`,
+											below: t`Add block below`,
+											disabled: !canAdd,
+											onSelect: (side) => addFromMenu(side === "above" ? "top" : "bottom"),
 										}}
-									>
-										{t`Duplicate`}
-									</DropdownMenu.Item>
-									<DropdownMenu.Item
-										icon={<ArrowUp className={MENU_ICON} aria-hidden="true" />}
-										disabled={index === 0}
-										onClick={() => onMove(index - 1, true)}
-									>
-										{t`Move up`}
-									</DropdownMenu.Item>
-									<DropdownMenu.Item
-										icon={<ArrowDown className={MENU_ICON} aria-hidden="true" />}
-										disabled={index === count - 1}
-										onClick={() => onMove(index + 1, true)}
-									>
-										{t`Move down`}
-									</DropdownMenu.Item>
-									<DropdownMenu.Item
-										icon={<ArrowLineUp className={MENU_ICON} aria-hidden="true" />}
-										disabled={index === 0}
-										onClick={() => onMove(0, true)}
-									>
-										{t`Move to top`}
-									</DropdownMenu.Item>
-									<DropdownMenu.Item
-										icon={<ArrowLineDown className={MENU_ICON} aria-hidden="true" />}
-										disabled={index === count - 1}
-										onClick={() => onMove(count - 1, true)}
-									>
-										{t`Move to bottom`}
-									</DropdownMenu.Item>
-									<DropdownMenu.Separator />
-									<DropdownMenu.Item
-										variant="danger"
-										icon={<Trash className={MENU_ICON} aria-hidden="true" />}
-										onClick={() => {
+										duplicate={{
+											disabled: retired || unsupported || inactive || atMax,
+											onSelect: () => {
+												afterMenuCloseRef.current = { kind: "duplicate" };
+												keepFocusRef.current = true;
+											},
+										}}
+										onMove={onMove}
+										onDelete={() => {
 											afterMenuCloseRef.current = { kind: "delete" };
 										}}
-									>
-										{t`Delete`}
-									</DropdownMenu.Item>
+									/>
 									<DropdownMenu.Separator />
 									<div className="grid gap-0.5 px-2 py-1 text-xs text-kumo-subtle">
 										<span>{t`${label} · version ${versionNumber}`}</span>
@@ -2073,238 +1663,8 @@ interface FieldControlProps extends ControlOptions {
 	renderField: BlocksFieldProps["renderField"];
 }
 
-function isEmptyValue(value: unknown): boolean {
-	return value === undefined || value === null || value === "";
-}
-
 function labelText(field: LayoutFieldDefinition): string {
 	return splitLabelHint(field.label).label;
-}
-
-/** Which of a label line's controls a note belongs to: its only one, or a half of a button row. */
-type NoteSource = "field" | "text" | "link";
-
-/** What a control has to say, and how its empty value reads. */
-interface ControlNotes {
-	/** Its problem, once that shows, when the control can't say it itself. */
-	message?: string;
-	/** The problem in a few words, for the end of the control's own line. */
-	briefMessage?: string;
-	/** Shown while it has focus, unless a problem shows. */
-	hint?: string;
-	/** Where its character count or range shows while it has focus. */
-	countSlotId?: string;
-	/** Whether it counts its characters or states its range. */
-	counted: boolean;
-	placeholder: string;
-	/** The placeholder names the control or says it's required, so it's read like any text. */
-	placeholderSays: boolean;
-	/** Its empty placeholder says its problem, so it turns red. */
-	emptyIssue: boolean;
-}
-
-type NotedControl = ControlNotes & { source: NoteSource };
-
-function countsItself(field: LayoutFieldDefinition): boolean {
-	const keys =
-		field.type === "number" || field.type === "integer"
-			? ["min", "max"]
-			: field.type === "string" || field.type === "text"
-				? ["minLength", "maxLength"]
-				: [];
-	return keys.some((key) => {
-		const bound = field.validation?.[key];
-		return typeof bound === "number" && Number.isFinite(bound);
-	});
-}
-
-function useControlNotes() {
-	const { t } = useLingui();
-	const issueMessage = useIssueMessage();
-	return (input: {
-		field: LayoutFieldDefinition;
-		/** The control's id. */
-		id: string;
-		value: unknown;
-		issue?: BlockValueIssue;
-		placeholder?: string;
-		emptyPlaceholder?: string;
-		/** A label's line says what the control has to say. */
-		onLabelLine: boolean;
-		cell?: boolean;
-	}): ControlNotes => {
-		const { field, issue, placeholder: override, onLabelLine, cell = false } = input;
-		const { hint } = splitLabelHint(field.label);
-		const empty = isEmptyValue(input.value);
-		const about = { hint, link: isLinkField(field) };
-		const message = issue ? issueMessage(issue, about) : undefined;
-		const emptyIssue =
-			!onLabelLine &&
-			issue?.code === "required" &&
-			override === undefined &&
-			empty &&
-			EMPTY_SHOWN_BY_CONTROL.has(field.type);
-		// Once the label's line says Required, the empty control reads like any other empty one.
-		const saysRequired = Boolean(field.required) && !(onLabelLine && message);
-		const placeholder =
-			override ?? (saysRequired ? t`Required` : (hint ?? input.emptyPlaceholder ?? t`Empty`));
-		return {
-			message: emptyIssue ? undefined : message,
-			briefMessage:
-				issue && !emptyIssue ? issueMessage(issue, { ...about, brief: true }) : undefined,
-			hint: !cell && hint && !(placeholder === hint && empty) ? hint : undefined,
-			countSlotId: cell ? undefined : `${input.id}-count`,
-			counted: !cell && countsItself(field),
-			placeholder,
-			placeholderSays: override !== undefined || saysRequired,
-			emptyIssue,
-		};
-	};
-}
-
-/** Tracks which of a field's controls has focus, by its `data-note`, ignoring focus in its popups. */
-function useNoteFocus() {
-	const [focused, setFocused] = React.useState<NoteSource | null>(null);
-	const props = {
-		onFocus: (event: React.FocusEvent<HTMLElement>) => {
-			if (!(event.target instanceof Element) || !event.currentTarget.contains(event.target)) return;
-			const source = event.target.closest("[data-note]")?.getAttribute("data-note");
-			setFocused(source === "field" || source === "text" || source === "link" ? source : null);
-		},
-		onBlur: onFocusLeave(() => setFocused(null)),
-	};
-	return { focused, props };
-}
-
-const NOTE_DOT = <span className="text-kumo-placeholder">·</span>;
-
-/** From this width a settings row's label sits beside its value, whose controls say their own notes. */
-const BESIDE_VALUE_HIDDEN = "@min-[440px]/blocks:hidden";
-
-/**
- * A field's label, with what its controls have to say on the label's own line: the problem once it
- * shows, and the focused control's hint and count. A problem too long for the line wraps rather
- * than being cut short. `side` is a settings row's label, which once it sits beside its value
- * leaves the notes to the controls.
- */
-function NotedLabel({
-	as: Element = "label",
-	id,
-	htmlFor,
-	className,
-	text,
-	controls,
-	focused,
-	side = false,
-}: {
-	as?: "label" | "span";
-	id: string;
-	htmlFor?: string;
-	className: string;
-	text: string;
-	controls: readonly NotedControl[];
-	focused: NoteSource | null;
-	side?: boolean;
-}) {
-	const rest = controls.find((control) => control.message)?.message;
-	const hasNotes = Boolean(rest) || controls.some((control) => control.hint || control.countSlotId);
-	return (
-		<Element
-			id={id}
-			htmlFor={Element === "label" ? htmlFor : undefined}
-			className={cn(className, "flex items-baseline gap-x-1.5")}
-		>
-			<span className="min-w-0 wrap-anywhere">{text}</span>
-			{hasNotes && (
-				<span
-					aria-hidden="true"
-					className={cn(
-						NOTE,
-						"flex min-w-0 flex-1 basis-0 items-baseline gap-x-1.5 font-normal",
-						side && BESIDE_VALUE_HIDDEN,
-					)}
-				>
-					{rest && (
-						<span className="flex min-w-0 items-baseline gap-x-1.5">
-							{NOTE_DOT}
-							<span dir="auto" className="min-w-0 wrap-anywhere text-kumo-danger">
-								{rest}
-							</span>
-						</span>
-					)}
-					{controls.map((control) => {
-						const shown = control.source === focused;
-						const note = control.message ?? control.hint;
-						return (
-							<React.Fragment key={control.source}>
-								{note && (
-									<span
-										className={cn(
-											"min-w-0 items-baseline gap-x-1.5",
-											// The line shows the problem already, with focus or without.
-											shown && note !== rest ? cn(NOTE_ON_FOCUS, "flex") : "hidden",
-										)}
-									>
-										{NOTE_DOT}
-										<span
-											dir="auto"
-											className={cn(
-												"min-w-0",
-												// A wrapping hint moves the rows below as focus comes, so a hint wraps only on
-												// the narrowest lines, which would cut off most of it.
-												control.message
-													? "wrap-anywhere text-kumo-danger"
-													: "truncate text-kumo-subtle @max-[22rem]/blocks:wrap-anywhere @max-[22rem]/blocks:whitespace-normal",
-											)}
-										>
-											{note}
-										</span>
-									</span>
-								)}
-								{control.countSlotId && (
-									<span
-										// A settings row's control has a count slot of its own, which carries the id.
-										id={side ? undefined : control.countSlotId}
-										data-count-slot={control.countSlotId}
-										className={cn(
-											"ms-auto shrink-0 text-kumo-subtle tabular-nums",
-											shown ? NOTE_ON_FOCUS : "hidden",
-										)}
-									/>
-								)}
-							</React.Fragment>
-						);
-					})}
-				</span>
-			)}
-		</Element>
-	);
-}
-
-/**
- * A field with its label: tracks which of its controls has focus, so the label's line shows that
- * control's notes.
- */
-function NotedField({
-	label,
-	side = false,
-	className,
-	groupProps,
-	children,
-}: {
-	label: Omit<React.ComponentProps<typeof NotedLabel>, "focused" | "side">;
-	side?: boolean;
-	className: string;
-	groupProps?: Pick<React.HTMLAttributes<HTMLDivElement>, "role" | "aria-labelledby">;
-	children: React.ReactNode;
-}) {
-	const { focused, props } = useNoteFocus();
-	return (
-		<div {...groupProps} className={className} {...props}>
-			<NotedLabel {...label} focused={focused} side={side} />
-			{children}
-		</div>
-	);
 }
 
 let measuring: CanvasRenderingContext2D | null | undefined;
@@ -2342,7 +1702,6 @@ function FieldControl({
 	onEdit,
 	renderField,
 }: FieldControlProps) {
-	const { t } = useLingui();
 	const issueMessage = useIssueMessage();
 	const controlNotes = useControlNotes();
 	const id = `field-${name}`;
@@ -2407,26 +1766,7 @@ function FieldControl({
 		if (!isEmptyValue(value) || !isEmptyValue(next)) onEdit();
 		onChange(next);
 	};
-	const undo = React.useContext(UndoContext);
-	const putBack = useStableCallback(change);
-	const ownsUndo = () => {
-		const owner = undo?.owner();
-		return owner?.kind === "field" && owner.name === name;
-	};
-	const fieldLabel = labelText(field);
-	const offerRestore = (removed: ImageFieldValue | string, restored: () => void) =>
-		undo?.offer(t`Removed ${fieldLabel}`, { kind: "field", name }, () => {
-			restored();
-			putBack(removed);
-		});
-	// Undo has nothing left to put back once a photo is there again, or the control has gone.
-	React.useEffect(() => {
-		if (!isEmptyValue(value) && ownsUndo()) undo?.dismiss();
-	});
-	const dismissOwnUndo = useStableCallback(() => {
-		if (ownsUndo()) undo?.dismiss();
-	});
-	React.useEffect(() => dismissOwnUndo, [dismissOwnUndo]);
+	const offerRestore = usePhotoUndo(name, labelText(field), isEmptyValue(value), change);
 	return (
 		<div
 			ref={wrapperRef}

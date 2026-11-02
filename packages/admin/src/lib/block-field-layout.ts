@@ -28,6 +28,12 @@ export interface ListSubField extends PlanField {
 	options?: string[];
 }
 
+/** A block field, or a list's sub-field, as an open block lays it out. */
+export type LayoutFieldDefinition = Pick<
+	BlockFieldDefinition,
+	"slug" | "label" | "required" | "validation" | "options"
+> & { type: string };
+
 export interface ListItemText {
 	/** Empty when the item has no title field or its title is empty. */
 	title: string;

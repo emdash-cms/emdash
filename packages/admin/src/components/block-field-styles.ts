@@ -22,9 +22,6 @@ export const SUMMARY_TEXT = "inline-block max-w-full truncate align-top @max-[6r
 /** A field's label above its control, and a settings row's when the row stacks. */
 export const LABEL = "text-xs leading-4 font-medium text-kumo-subtle";
 
-/** A list's label: a field label like any other, a weight above its column headers. */
-export const LIST_LABEL = LABEL;
-
 /**
  * The space between stacked fields. An open block's gaps grow with the level they separate, so
  * the levels read at a glance.
@@ -102,6 +99,17 @@ export const ROW_HOVER =
 	"hover:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]";
 
 /**
+ * A row's head while its toggle has keyboard focus: washed, with a faint inset ring. A block's
+ * toggle is `[data-block-toggle]`, a list item's `[data-item-focus]`.
+ */
+export const HEAD_FOCUS =
+	"has-[:is([data-block-toggle],[data-item-focus]):focus-visible]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))] has-[:is([data-block-toggle],[data-item-focus]):focus-visible]:ring-1 has-[:is([data-block-toggle],[data-item-focus]):focus-visible]:ring-kumo-focus/50 has-[:is([data-block-toggle],[data-item-focus]):focus-visible]:ring-inset";
+
+/** Pressing a row's toggle deepens its head's wash at once, before the click commits. */
+export const HEAD_PRESSED =
+	"has-[:is([data-block-toggle],[data-item-focus]):active]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover)),linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]";
+
+/**
  * The curve of everything that moves rows: a panel opening or closing, a row added, removed or
  * moved. It starts gently enough that no frame carries the rows below more than about a quarter
  * of the way. `--ease-emdash-disclosure` in styles.css is the same curve.
@@ -129,8 +137,8 @@ export const LIFTED = "after:opacity-100";
 export const SORT_TRANSITION = { duration: 200, easing: DISCLOSURE_EASE };
 
 /**
- * A menu, picker or select popup opening: from its first frame, unlike Kumo's transition, which
- * starts a frame later on a slow-starting curve. It closes at once, since the choice made is the feedback.
+ * A menu, picker or select popup opens from its first frame and closes at once, since the choice
+ * made is the feedback.
  */
 export const POPUP_MOTION =
 	"origin-(--transform-origin) duration-0 data-open:animate-emdash-popup-in motion-reduce:data-open:animate-none";

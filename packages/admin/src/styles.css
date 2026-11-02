@@ -922,8 +922,8 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 @custom-variant blocks-gutter (@media (min-width: 40rem) and (hover: hover) and (pointer: fine));
 
 /*
- * A blocks field's popups (menus, the block picker, a quiet select) open with this from their
- * first frame, rather than with a transition from `data-starting-style`, which starts a frame later.
+ * A blocks field's popups (menus, the block picker, a quiet select) open with this animation, which
+ * moves them from their first frame.
  */
 @keyframes emdash-popup-in {
 	from {
