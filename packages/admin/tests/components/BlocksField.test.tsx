@@ -466,9 +466,7 @@ describe("BlocksField", () => {
 
 	it("opens the block menu from the drag handle with Enter or Space", async () => {
 		const screen = await renderField({ initial: [heroBlock("one")] });
-		const handle = row("one").getByRole("button", {
-			name: "Block actions - drag to reorder, click for menu",
-		});
+		const handle = row("one").getByRole("button", { name: "Reorder Hero" });
 
 		for (const key of ["{Enter}", " "]) {
 			(handle.element() as HTMLElement).focus();

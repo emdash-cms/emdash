@@ -967,6 +967,14 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-ending-style] {
 	line-height: 1.5;
 }
 
+/* A blocks field marks keyboard focus with rings, which forced colors don't paint. */
+@media (forced-colors: active) {
+	[data-blocks-field] :focus-visible {
+		outline: 2px solid Highlight;
+		outline-offset: -2px;
+	}
+}
+
 [data-emdash-editor-variant="document"] .emdash-document {
 	margin-inline: calc(var(--emdash-editor-gutter, 0rem) * -1);
 	padding-inline: var(--emdash-editor-gutter, 0rem);

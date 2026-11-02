@@ -18,6 +18,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowDown,
+	ArrowLineDown,
+	ArrowLineUp,
 	ArrowUp,
 	CaretRight,
 	Copy,
@@ -41,13 +43,16 @@ import { cn } from "../lib/utils.js";
 import {
 	DRAGGING,
 	GLYPH_NUDGE,
+	IMAGE_EDGE,
+	ITEM_TITLE,
 	LIST_LABEL,
 	LIST_NOTE,
 	ROW_BUTTON,
 	ROW_HOVER,
 	ROW_SUMMARY,
-	ROW_TITLE,
 	SORT_TRANSITION,
+	SUMMARY_SLOT,
+	SUMMARY_TEXT,
 } from "./block-field-styles.js";
 import { type ImageFieldValue, mediaDisplayUrl } from "./ImageFieldRenderer.js";
 
@@ -124,7 +129,7 @@ const FOCUSABLE =
 const MENU_ICON = "size-4";
 const LINE_BREAK = /[\r\n]/;
 // Other input types, such as number and email, throw when a script sets their selection.
-const SELECTABLE_INPUT_TYPES = new Set(["text", "search", "url", "tel", "password"]);
+export const SELECTABLE_INPUT_TYPES = new Set(["text", "search", "url", "tel", "password"]);
 const POPUP = '[role="dialog"], [role="menu"], [role="listbox"]';
 const IMAGE_COLUMN = "4.5rem";
 const MENU_COLUMN = "2rem";
@@ -134,6 +139,12 @@ const SHOW_ON_HOVER =
 	"blocks-gutter:opacity-0 blocks-gutter:transition-opacity blocks-gutter:duration-0 blocks-gutter:ease-out blocks-gutter:group-hover/item:opacity-100 blocks-gutter:group-hover/item:duration-100 blocks-gutter:group-data-[menu-open]/item:opacity-100 blocks-gutter:group-data-[menu-open]/item:duration-100 blocks-gutter:focus-visible:opacity-100 blocks-gutter:focus-visible:duration-100";
 const HEAD_FOCUS =
 	"has-[[data-item-focus]:focus-visible]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))] has-[[data-item-focus]:focus-visible]:ring-1 has-[[data-item-focus]:focus-visible]:ring-kumo-focus/50 has-[[data-item-focus]:focus-visible]:ring-inset";
+// A closed item's head keeps its wash while its menu is open, and pressing its toggle deepens the
+// wash at once, before the click commits.
+const HEAD_MENU_OPEN =
+	"group-data-[menu-open]/item:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]";
+const HEAD_PRESSED =
+	"has-[[data-item-focus]:active]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover)),linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]";
 
 export function focusableIn(element: Element | null | undefined): HTMLElement | null {
 	if (!element) return null;
@@ -179,6 +190,60 @@ export function whenFocusLeaves(event: React.FocusEvent<HTMLElement>, callback: 
 			callback();
 		}
 	});
+}
+
+/** The keys that move a focused row's head or menu button one place, as `aria-keyshortcuts`. */
+export const MOVE_KEYS = "Alt+Shift+ArrowUp Alt+Shift+ArrowDown";
+
+/**
+ * How many places one of `MOVE_KEYS` moves a row: -1 or 1, or 0 for any other key. The control
+ * keeps a move key from doing anything else, such as a menu button opening its menu.
+ */
+function moveStep(event: React.KeyboardEvent): -1 | 0 | 1 {
+	if (!event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) return 0;
+	let step: -1 | 0 | 1 = 0;
+	if (event.key === "ArrowUp") step = -1;
+	if (event.key === "ArrowDown") step = 1;
+	if (step === 0) return 0;
+	event.preventDefault();
+	// A menu button's own key handler, from Base UI, runs after this one unless told not to.
+	if ("preventBaseUIHandler" in event && typeof event.preventBaseUIHandler === "function") {
+		event.preventBaseUIHandler();
+	}
+	return step;
+}
+
+/**
+ * The key handler for a row's head or menu button that moves the row one place with
+ * `MOVE_KEYS`, as Move up and Move down do. Focus stays on the control, in view: a row moved down
+ * is taken out of the page and put back, which drops its focus.
+ */
+export function useMoveKeys(index: number, count: number, onMove: (to: number) => void) {
+	const keepRef = React.useRef<HTMLElement | null>(null);
+	React.useLayoutEffect(() => {
+		const control = keepRef.current;
+		if (!control) return;
+		keepRef.current = null;
+		if (document.activeElement === control) control.scrollIntoView({ block: "nearest" });
+		else control.focus();
+	});
+	return (event: React.KeyboardEvent<HTMLElement>) => {
+		const to = index + moveStep(event);
+		if (to === index || to < 0 || to >= count) return;
+		keepRef.current = event.currentTarget;
+		onMove(to);
+	};
+}
+
+/** The offset in the text under a point, when that text is inside `within`. */
+function textOffsetAt(x: number, y: number, within: Element | null): number | undefined {
+	if (!within) return undefined;
+	if (typeof document.caretPositionFromPoint === "function") {
+		const position = document.caretPositionFromPoint(x, y);
+		return position && within.contains(position.offsetNode) ? position.offset : undefined;
+	}
+	const range = document.caretRangeFromPoint?.(x, y);
+	return range && within.contains(range.startContainer) ? range.startOffset : undefined;
 }
 
 // The rows below a panel move with its height, so the curve starts gently enough that no frame
@@ -1103,7 +1168,12 @@ export function BlockListField({
 							thumbnail={firstPhotoUrl(row.item, subFields)}
 							invalid={position !== undefined && invalidItems.has(position)}
 							duplicate={{ disabled: atMax, onSelect: () => duplicateRow(index) }}
-							onToggle={() => setOpenKeys(toggled(openKeys, row.key))}
+							onToggle={(titleCaret) => {
+								setOpenKeys(toggled(openKeys, row.key));
+								if (titleCaret) {
+									focusRef.current = { key: row.key, target: "control", caret: titleCaret.at };
+								}
+							}}
 							title={
 								editableTitle &&
 								((labelledBy) =>
@@ -1144,7 +1214,7 @@ export function BlockListField({
 					{listLabel}
 				</span>
 				{savedCount > 0 && (
-					<bdi className={cn(LIST_NOTE, "text-kumo-placeholder tabular-nums")}>
+					<bdi className={cn(LIST_NOTE, "text-kumo-subtle tabular-nums")}>
 						{i18n.number(savedCount)}
 					</bdi>
 				)}
@@ -1240,7 +1310,7 @@ function DragHandle({
 			aria-hidden="true"
 			{...listeners}
 			className={cn(
-				"absolute end-full me-0.5 hidden h-6 w-[1.125rem] cursor-grab touch-none place-items-center rounded-md text-kumo-placeholder opacity-0 transition-opacity duration-0 ease-out hover:bg-emdash-hover hover:text-kumo-subtle active:cursor-grabbing blocks-gutter:@min-[440px]/blocks:grid group-hover/item:opacity-100 group-hover/item:duration-100 group-data-[menu-open]/item:opacity-100 group-data-[menu-open]/item:duration-100",
+				"absolute end-full me-0.5 hidden h-6 w-[1.125rem] cursor-grab touch-none place-items-center rounded-md text-kumo-subtle opacity-0 transition-opacity duration-0 ease-out hover:bg-emdash-hover active:cursor-grabbing blocks-gutter:@min-[440px]/blocks:grid group-hover/item:opacity-100 group-hover/item:duration-100 group-data-[menu-open]/item:opacity-100 group-data-[menu-open]/item:duration-100",
 				className,
 			)}
 		>
@@ -1258,6 +1328,7 @@ interface RowMenuProps {
 	onMove: (to: number) => void;
 	onDelete: () => void;
 	onOpenChange: (open: boolean) => void;
+	className?: string;
 }
 
 function RowMenu({
@@ -1269,9 +1340,11 @@ function RowMenu({
 	onMove,
 	onDelete,
 	onOpenChange,
+	className,
 }: RowMenuProps) {
 	const { t } = useLingui();
 	const deleteOnCloseRef = React.useRef(false);
+	const moveKeys = useMoveKeys(index, count, onMove);
 	const label = name;
 	return (
 		<DropdownMenu
@@ -1288,8 +1361,10 @@ function RowMenu({
 						variant="ghost"
 						shape="square"
 						size="sm"
-						className={cn(ROW_BUTTON, "shrink-0 text-kumo-subtle", SHOW_ON_HOVER)}
+						className={cn(ROW_BUTTON, "shrink-0 text-kumo-subtle", SHOW_ON_HOVER, className)}
 						aria-label={t`${label} actions`}
+						aria-keyshortcuts={MOVE_KEYS}
+						onKeyDown={moveKeys}
 					>
 						<DotsThree className="size-4" weight="bold" aria-hidden="true" />
 					</Button>
@@ -1309,6 +1384,20 @@ function RowMenu({
 					onClick={() => onMove(index + 1)}
 				>
 					{t`Move down`}
+				</DropdownMenu.Item>
+				<DropdownMenu.Item
+					icon={<ArrowLineUp className={MENU_ICON} aria-hidden="true" />}
+					disabled={index === 0}
+					onClick={() => onMove(0)}
+				>
+					{t`Move to top`}
+				</DropdownMenu.Item>
+				<DropdownMenu.Item
+					icon={<ArrowLineDown className={MENU_ICON} aria-hidden="true" />}
+					disabled={index === count - 1}
+					onClick={() => onMove(count - 1)}
+				>
+					{t`Move to bottom`}
 				</DropdownMenu.Item>
 				{duplicate && (
 					<DropdownMenu.Item
@@ -1406,7 +1495,7 @@ function LabelledCell({
 	return (
 		<div
 			role="cell"
-			className="min-w-0"
+			className="min-w-0 tabular-nums"
 			data-item-control={first || undefined}
 			data-item-focus={first || undefined}
 		>
@@ -1441,7 +1530,11 @@ function TableRow({
 			style={{ ...sortable.style, gridTemplateColumns: columns }}
 			className={cn(
 				"group/item relative grid items-center rounded-md",
-				!readOnly && ROW_HOVER,
+				!readOnly &&
+					cn(
+						ROW_HOVER,
+						"data-[menu-open]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]",
+					),
 				sortable.isDragging && DRAGGING,
 			)}
 		>
@@ -1470,7 +1563,11 @@ interface ItemRowProps extends SortableRowProps {
 	thumbnail?: string;
 	invalid: boolean;
 	duplicate: { disabled: boolean; onSelect: () => void };
-	onToggle: () => void;
+	/**
+	 * Opens or closes the item. A click that opens it passes where to put the caret in the
+	 * title: `at` is the offset clicked in the title's text, or undefined for its end.
+	 */
+	onToggle: (titleCaret?: { at?: number }) => void;
 	/** The editable title, drawn in the row while the item is open. */
 	title?: (labelledBy: string) => React.ReactNode;
 	titleLabel?: string;
@@ -1497,6 +1594,7 @@ function ItemRow({
 	children,
 }: ItemRowProps) {
 	const sortable = useSortableRow(row.key, readOnly);
+	const moveKeys = useMoveKeys(index, count, onMove);
 	const id = React.useId();
 	const nameId = `${id}-name`;
 	const summaryId = `${id}-summary`;
@@ -1513,11 +1611,7 @@ function ItemRow({
 			className={
 				editingTitle
 					? "sr-only"
-					: cn(
-							"min-w-0 truncate",
-							summary && "@min-[440px]/blocks:max-w-[55%]",
-							text.title ? ROW_TITLE : "text-base text-kumo-placeholder",
-						)
+					: cn("min-w-0 truncate", text.title ? ITEM_TITLE : "text-base text-kumo-placeholder")
 			}
 		>
 			{name}
@@ -1531,7 +1625,7 @@ function ItemRow({
 			src={thumbnail}
 			alt=""
 			loading="lazy"
-			className="size-6 shrink-0 rounded-md object-cover ring-1 ring-kumo-line"
+			className={cn(IMAGE_EDGE, "size-6 shrink-0 rounded-md object-cover")}
 			onError={(event) => {
 				event.currentTarget.hidden = true;
 			}}
@@ -1547,15 +1641,18 @@ function ItemRow({
 			data-menu-open={sortable.menuOpen || undefined}
 			className={cn(
 				"group/item relative rounded-lg transition-[background-color] duration-200 ease-emdash motion-reduce:transition-none",
-				open && "bg-emdash-hover",
+				// Hover washes a row too, so an open item also takes an edge no hovered row has.
+				open && "bg-emdash-hover ring-1 ring-kumo-hairline ring-inset",
 				sortable.isDragging && cn(DRAGGING, "rounded-lg"),
 			)}
 		>
 			{!readOnly && <DragHandle listeners={sortable.listeners} className="top-1.5" />}
 			<div
 				className={cn(
-					"flex min-h-9 min-w-0 items-center gap-2 rounded-lg ps-2 pe-0.5",
-					!open && !readOnly && ROW_HOVER,
+					// The end keeps room for the menu button drawn over it.
+					"flex min-h-9 min-w-0 items-center gap-2 rounded-lg ps-2",
+					readOnly ? "pe-0.5" : "pe-9",
+					!open && !readOnly && cn(ROW_HOVER, HEAD_MENU_OPEN, HEAD_PRESSED),
 					!editingTitle && HEAD_FOCUS,
 				)}
 			>
@@ -1575,7 +1672,20 @@ function ItemRow({
 						aria-describedby={
 							[showDot && dotId, summary && summaryId].filter(Boolean).join(" ") || undefined
 						}
-						onClick={onToggle}
+						aria-keyshortcuts={MOVE_KEYS}
+						onClick={(event) => {
+							// A pointer click opens the item into its title, at the point clicked. Enter and
+							// Space click with no detail, and leave focus on the toggle.
+							if (event.detail === 0 || open || title === undefined) {
+								onToggle();
+								return;
+							}
+							const at = text.title
+								? textOffsetAt(event.clientX, event.clientY, document.getElementById(nameId))
+								: undefined;
+							onToggle({ at });
+						}}
+						onKeyDown={moveKeys}
 						className={cn(
 							"text-start outline-none",
 							// A 24px target around a 20px caret. It reaches under the title's box, so it sits above it.
@@ -1585,7 +1695,7 @@ function ItemRow({
 						)}
 					>
 						{editingTitle ? (
-							<span className="grid size-5 place-items-center rounded-md group-hover/caret:bg-emdash-hover group-focus-visible/caret:ring-1 group-focus-visible/caret:ring-kumo-focus/50">
+							<span className="grid size-5 place-items-center rounded-md group-hover/caret:bg-emdash-hover group-focus-visible/caret:ring-1 group-focus-visible/caret:ring-kumo-focus/50 group-active/caret:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]">
 								<DisclosureCaret open={open} className={GLYPH_NUDGE} />
 							</span>
 						) : (
@@ -1594,12 +1704,8 @@ function ItemRow({
 						{!editingTitle && thumb}
 						{nameText}
 						{summary && (
-							<span className={cn(ROW_SUMMARY, "min-w-0 flex-1 overflow-hidden")}>
-								<span
-									id={summaryId}
-									dir="auto"
-									className="inline-block max-w-full truncate align-top"
-								>
+							<span className={cn(ROW_SUMMARY, SUMMARY_SLOT)}>
+								<span id={summaryId} dir="auto" className={SUMMARY_TEXT}>
 									{summary}
 								</span>
 							</span>
@@ -1625,18 +1731,6 @@ function ItemRow({
 					</div>
 				)}
 				{showDot && <ErrorDot id={dotId} />}
-				{!readOnly && (
-					<RowMenu
-						name={name}
-						index={index}
-						count={count}
-						canDelete={canDelete}
-						duplicate={duplicate}
-						onMove={onMove}
-						onDelete={onDelete}
-						onOpenChange={sortable.setMenuOpen}
-					/>
-				)}
 			</div>
 			<DisclosurePanel
 				open={open}
@@ -1647,6 +1741,20 @@ function ItemRow({
 			>
 				<div className="pe-2 pt-1 pb-3 ps-6">{children}</div>
 			</DisclosurePanel>
+			{/* After the fields in the page, so Tab reaches them first. */}
+			{!readOnly && (
+				<RowMenu
+					name={name}
+					index={index}
+					count={count}
+					canDelete={canDelete}
+					duplicate={duplicate}
+					onMove={onMove}
+					onDelete={onDelete}
+					onOpenChange={sortable.setMenuOpen}
+					className="absolute end-0.5 top-[5px]"
+				/>
+			)}
 		</div>
 	);
 }

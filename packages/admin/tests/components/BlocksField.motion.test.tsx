@@ -430,9 +430,7 @@ describe("Blocks field motion", () => {
 				/>
 			</div>,
 		);
-		const handle = row("one").querySelector<HTMLElement>(
-			'[aria-label="Block actions - drag to reorder, click for menu"]',
-		)!;
+		const handle = row("one").querySelector<HTMLElement>('[aria-label="Reorder Short"]')!;
 		const start = row("one").getBoundingClientRect();
 		const target = row("three").getBoundingClientRect();
 		const x = start.left + 4;
@@ -487,10 +485,7 @@ describe("Blocks field motion", () => {
 				/>
 			</div>,
 		);
-		const handle = () =>
-			row("one").querySelector<HTMLElement>(
-				'[aria-label="Block actions - drag to reorder, click for menu"]',
-			)!;
+		const handle = () => row("one").querySelector<HTMLElement>('[aria-label="Reorder Short"]')!;
 		const pointer = (type: string, clientX: number, clientY: number) =>
 			new PointerEvent(type, {
 				bubbles: true,

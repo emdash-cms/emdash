@@ -165,12 +165,14 @@ function PickerList({ blockTypes, onPick }: Pick<BlockTypePickerProps, "blockTyp
 									onClick={() => onPick(blockType)}
 								>
 									<span className="grid size-10 shrink-0 place-items-center rounded-lg border border-kumo-line bg-kumo-base text-kumo-default">
-										<BlockTypeIcon name={blockType.icon} className="size-5" />
+										<BlockTypeIcon name={blockType.icon} className="size-4" />
 									</span>
 									<span className="grid min-w-0 gap-0.5">
-										<span className="font-medium text-kumo-default">{blockType.label}</span>
+										<span className="text-base leading-5 font-medium text-kumo-default">
+											{blockType.label}
+										</span>
 										{blockType.description && (
-											<span className="line-clamp-2 text-xs text-kumo-subtle">
+											<span className="line-clamp-2 text-xs leading-4 text-kumo-subtle">
 												{blockType.description}
 											</span>
 										)}

@@ -63,7 +63,7 @@ function renderField(ui: React.ReactElement) {
  * and can't emulate them.
  */
 function showGutters() {
-	for (const add of document.querySelectorAll<HTMLElement>('[aria-label="Add block below"]')) {
+	for (const add of document.querySelectorAll<HTMLElement>('[aria-label^="Add block below"]')) {
 		add.parentElement!.style.display = "flex";
 	}
 }
@@ -269,7 +269,7 @@ describe("Block row layout", () => {
 				.element()
 				.getBoundingClientRect();
 			const handle = screen
-				.getByRole("button", { name: "Block actions - drag to reorder, click for menu" })
+				.getByRole("button", { name: "Reorder Statement" })
 				.element()
 				.getBoundingClientRect();
 			const caret = screen
@@ -288,7 +288,7 @@ describe("Block row layout", () => {
 		},
 	);
 
-	it("shows only the hovered block's gutter after a click, and a gutter reached by keyboard", async () => {
+	it("shows only the hovered block's gutter after a click, and the gutter of a row whose menu the keyboard opened", async () => {
 		const screen = await renderField(
 			<div style={{ width: 480, marginInline: 80 }}>
 				<Field
@@ -305,7 +305,7 @@ describe("Block row layout", () => {
 		const row = (key: string) => document.querySelector(`[data-block-key="${key}"]`)!;
 		const gutterShows = (key: string) =>
 			row(key)
-				.querySelector<HTMLElement>('[aria-label="Add block below"]')!
+				.querySelector<HTMLElement>('[aria-label^="Add block below"]')!
 				.checkVisibility({ opacityProperty: true });
 		const toggles = screen.getByRole("button", { name: "Statement", exact: true });
 
@@ -316,10 +316,11 @@ describe("Block row layout", () => {
 
 		await userEvent.unhover(toggles.last());
 		await expect.poll(() => gutterShows("two")).toBe(false);
-		await userEvent.keyboard("{Shift>}{Tab}{Tab}{/Shift}");
-		expect(document.activeElement?.getAttribute("aria-label")).toBe("Add block below");
-		expect(row("one").contains(document.activeElement)).toBe(true);
+		await userEvent.keyboard("{Tab}{Enter}");
+		await expect.element(screen.getByRole("menu")).toBeVisible();
+		expect(row("one").contains(document.activeElement)).toBe(false);
 		await expect.poll(() => gutterShows("one")).toBe(true);
+		expect(gutterShows("two")).toBe(false);
 	});
 
 	it("hides a block's gutter once the picker its + opened with the pointer closes, but shows it for the keyboard", async () => {
@@ -345,10 +346,8 @@ describe("Block row layout", () => {
 		await userEvent.hover(screen.getByText("Layout", { exact: true }));
 		await expect.poll(gutterShows).toBe(false);
 
-		await userEvent.keyboard("{Tab}");
-		expect(document.activeElement?.getAttribute("aria-label")).toBe(
-			"Block actions - drag to reorder, click for menu",
-		);
+		await userEvent.keyboard("{Shift}");
+		await expect.element(add).toHaveFocus();
 		await expect.poll(gutterShows).toBe(true);
 	});
 

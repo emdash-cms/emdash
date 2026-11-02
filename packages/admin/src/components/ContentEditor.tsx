@@ -2023,6 +2023,9 @@ export function ContentEditor({
 							// Keeps the page from sliding sideways when its content grows past the
 							// canvas or shrinks back, or a shorter version takes the scrollbar away.
 							"[scrollbar-gutter:stable]",
+							// Focus scrolled into view from above lands below a blocks field's pinned
+							// 2.75rem head instead of under it.
+							"scroll-pt-[calc(var(--emdash-editor-sticky-top)+3.25rem)]",
 						)}
 					>
 						{!pinEditorBar && editorBar}

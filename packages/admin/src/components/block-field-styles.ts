@@ -1,17 +1,29 @@
 // How a blocks field draws text and controls, in one place, so a block, a list item and the
 // fields inside them use the same sizes and line up on the same edges whether open or closed.
 
-/** A block's or a list item's name, the same size and weight whether its row is open or closed. */
-export const ROW_TITLE = "text-base font-medium text-kumo-default";
+// A row's name keeps its size and weight whether the row is open or closed. A block's name heads
+// everything inside it, so it reads a weight above its items' names and its fields' labels.
+/** A block's name. */
+export const BLOCK_TITLE = "text-base font-semibold text-kumo-default";
+
+/** A list item's name. */
+export const ITEM_TITLE = "text-base font-medium text-kumo-default";
 
 /** A closed row's one-line summary, after its name. */
 export const ROW_SUMMARY = "text-base text-kumo-subtle";
 
+/**
+ * The summary takes only the width the row's name leaves, so the name truncates last, and it hides
+ * rather than show a stub too narrow to read. `SUMMARY_TEXT` goes on the summary's text inside it.
+ */
+export const SUMMARY_SLOT = "@container/summary min-w-0 flex-1 basis-0 overflow-hidden";
+export const SUMMARY_TEXT = "inline-block max-w-full truncate align-top @max-[6rem]/summary:hidden";
+
 /** A field's label above its control, and a settings row's when the row stacks. */
 export const LABEL = "text-xs leading-4 font-medium text-kumo-subtle";
 
-/** A list's label, a step above its column headers and its items' field labels. */
-export const LIST_LABEL = "text-sm leading-4.5 font-medium text-kumo-default";
+/** A list's label: a field label like any other, a weight above its column headers. */
+export const LIST_LABEL = LABEL;
 
 /**
  * The space between stacked fields. An open block's gaps grow with the level they separate, so
@@ -20,7 +32,7 @@ export const LIST_LABEL = "text-sm leading-4.5 font-medium text-kumo-default";
 export const FIELD_GAP = { block: "gap-y-4", item: "gap-y-3" } as const;
 
 /** A list's item count, and its size problem, on the label's line. */
-export const LIST_NOTE = "text-sm leading-4.5";
+export const LIST_NOTE = "text-xs leading-4";
 
 /**
  * A caret or type icon before a row's 14px text. A glyph centered on the line reads high next to
@@ -53,8 +65,11 @@ export const QUIET_INPUT = `${QUIET_CONTROL} h-8 text-ellipsis`;
 export const QUIET_TEXTAREA = `${QUIET_CONTROL} block min-h-8 resize-none overflow-hidden py-1.5`;
 
 // The editor's field column sets input text to text-base and font-normal, which only `!` outranks.
-/** The block's headline: the one larger size inside a block. */
-export const QUIET_HEADING = "h-9 text-lg! leading-6 font-semibold!";
+/**
+ * The block's headline: the one larger size inside a block. It's content, not structure, so it
+ * stays a weight under the block's name.
+ */
+export const QUIET_HEADING = "h-9 text-lg! leading-6 font-medium!";
 
 // Its chevron follows the value, and like the date's calendar shows only when the control is reached for.
 // Kumo's hover tint carries a `not-disabled:` variant, which only the same variant replaces.
@@ -74,6 +89,13 @@ export const QUIET_SELECT_ALIGN_OFFSET = -6;
 
 export const QUIET_DATE = `${QUIET_INPUT} [&::-webkit-calendar-picker-indicator]:opacity-0 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 focus:[&::-webkit-calendar-picker-indicator]:opacity-100 pointer-coarse:[&::-webkit-calendar-picker-indicator]:opacity-100`;
 
+/**
+ * A photo's edge: a faint line inside the image, which reads as the photo's own edge rather than
+ * a frame around it.
+ */
+export const IMAGE_EDGE =
+	"outline outline-1 -outline-offset-1 outline-[color:light-dark(oklch(0%_0_0/0.1),oklch(100%_0_0/0.1))]";
+
 /** A row's hover wash, painted over its background so a pinned header or a lifted row stays opaque. */
 export const ROW_HOVER =
 	"hover:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]";
@@ -85,7 +107,8 @@ export const DRAGGING = "relative z-30 rounded-md bg-kumo-base shadow-lg ring ri
 export const SORT_TRANSITION = { duration: 200, easing: "cubic-bezier(0.33, 1, 0.68, 1)" };
 
 /**
- * A ghost button in a blocks field row. Kumo's ghost buttons inherit their parent's background,
- * which would paint a row's translucent hover twice.
+ * A ghost button in a blocks field row, washed while hovered or while the menu it opened is open.
+ * Kumo's ghost buttons inherit their parent's background, which would paint a row's translucent
+ * hover twice.
  */
-export const ROW_BUTTON = "bg-transparent hover:bg-emdash-hover";
+export const ROW_BUTTON = "bg-transparent hover:bg-emdash-hover aria-expanded:bg-emdash-hover";

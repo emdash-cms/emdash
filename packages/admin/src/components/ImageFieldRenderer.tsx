@@ -32,7 +32,7 @@ import {
 	syncMediaCaption,
 } from "../lib/media-utils.js";
 import { cn } from "../lib/utils.js";
-import { ROW_BUTTON } from "./block-field-styles.js";
+import { IMAGE_EDGE, ROW_BUTTON } from "./block-field-styles.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
@@ -695,7 +695,7 @@ export function ImageFieldRenderer({
 			"grid shrink-0 place-items-center overflow-hidden rounded-md",
 			cell ? "h-7 w-9" : "size-8",
 			displayUrl
-				? "ring ring-kumo-line"
+				? IMAGE_EDGE
 				: cn(
 						"border-[1.5px] border-dashed",
 						cell
@@ -815,7 +815,10 @@ export function ImageFieldRenderer({
 						<img
 							src={displayUrl}
 							alt=""
-							className="emdash-media-transparency-grid max-h-60 min-h-20 w-full rounded-lg object-cover ring ring-kumo-line"
+							className={cn(
+								IMAGE_EDGE,
+								"emdash-media-transparency-grid max-h-60 min-h-20 w-full rounded-lg object-cover",
+							)}
 							style={{
 								objectPosition,
 								aspectRatio:

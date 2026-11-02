@@ -13,6 +13,8 @@ import { plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	ArrowDown,
+	ArrowLineDown,
+	ArrowLineUp,
 	ArrowsInSimple,
 	ArrowsOutSimple,
 	ArrowUp,
@@ -50,16 +52,19 @@ import { type BlockValueIssue, validateBlocks } from "../lib/block-validation.js
 import { useStableCallback } from "../lib/hooks.js";
 import { cn } from "../lib/utils.js";
 import {
+	BLOCK_TITLE,
 	DRAGGING,
 	FIELD_GAP,
 	FLOATING_NOTE,
 	GLYPH_NUDGE,
+	IMAGE_EDGE,
 	LABEL,
 	ROW_BUTTON,
 	ROW_HOVER,
 	ROW_SUMMARY,
-	ROW_TITLE,
 	SORT_TRANSITION,
+	SUMMARY_SLOT,
+	SUMMARY_TEXT,
 } from "./block-field-styles.js";
 import {
 	BlockListField,
@@ -70,9 +75,12 @@ import {
 	firstPhotoUrl,
 	focusableIn,
 	keepRowInView,
+	MOVE_KEYS,
+	SELECTABLE_INPUT_TYPES,
 	whenFocusLeaves,
 	toggled,
 	useDropSettle,
+	useMoveKeys,
 } from "./BlockListField.js";
 import { BlockTypeIcon, BlockTypePicker } from "./BlockTypePicker.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
@@ -185,6 +193,12 @@ const REVEAL_MENU =
 	"blocks-gutter:opacity-0 blocks-gutter:transition-opacity blocks-gutter:duration-0 blocks-gutter:ease-out blocks-gutter:group-hover/block:opacity-100 blocks-gutter:group-hover/block:duration-100 blocks-gutter:group-data-[menu-open]/block:opacity-100 blocks-gutter:group-data-[menu-open]/block:duration-100 blocks-gutter:focus-visible:opacity-100 blocks-gutter:focus-visible:duration-100";
 const HEAD_FOCUS =
 	"has-[[data-block-toggle]:focus-visible]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))] has-[[data-block-toggle]:focus-visible]:ring-1 has-[[data-block-toggle]:focus-visible]:ring-kumo-focus/50 has-[[data-block-toggle]:focus-visible]:ring-inset";
+// The head keeps its wash while its menu or picker is open, so the popup stays tied to its row.
+const HEAD_POPUP_OPEN =
+	"group-data-[menu-open]/block:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))] group-data-[picker-open]/block:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]";
+// Pressing the toggle deepens the wash at once, before the click commits.
+const HEAD_PRESSED =
+	"has-[[data-block-toggle]:active]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover)),linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]";
 
 type InsertSide = "top" | "bottom";
 
@@ -332,6 +346,54 @@ function listLimit(field: LayoutFieldDefinition, key: "minItems" | "maxItems") {
 /** Calls `callback` when focus leaves the element, rather than moving within it. */
 function onFocusLeave(callback: () => void) {
 	return (event: React.FocusEvent<HTMLElement>) => whenFocusLeaves(event, callback);
+}
+
+/** Inputs whose Enter does something of its own. In any other, Enter submits the page's form. */
+const ENTER_ACTIVATES = new Set(["button", "submit", "reset", "image", "file"]);
+const TEXT_INPUT_TYPES = new Set(["text", "search", "url", "tel", "email", "number"]);
+
+function isTextField(element: Element): element is HTMLElement {
+	if (element instanceof HTMLTextAreaElement) return true;
+	if (element instanceof HTMLElement && element.isContentEditable) return true;
+	return (
+		element instanceof HTMLInputElement &&
+		TEXT_INPUT_TYPES.has(element.type) &&
+		element.getAttribute("role") !== "combobox"
+	);
+}
+
+/**
+ * Enter in a block's one-line field moves to the next place to type in its list item or block,
+ * the way it starts a new line in a list of lines, instead of saving the page. With Shift or Alt
+ * it does nothing.
+ */
+function keepEnterInBlocks(event: React.KeyboardEvent<HTMLElement>) {
+	const input = event.target;
+	if (event.key !== "Enter" || event.defaultPrevented || event.ctrlKey || event.metaKey) return;
+	if (!(input instanceof HTMLInputElement) || ENTER_ACTIVATES.has(input.type)) return;
+	if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+	// Keys from a popup the field opened, such as the block picker, reach here through its portal.
+	if (!event.currentTarget.contains(input)) return;
+	event.preventDefault();
+	if (event.altKey || event.shiftKey || !isTextField(input)) return;
+	const scope = input.closest("[data-list-item]") ?? input.closest("[data-block-body]");
+	const next = [
+		...(scope?.querySelectorAll('input, textarea, [contenteditable="true"]') ?? []),
+	].find(
+		(candidate) =>
+			input.compareDocumentPosition(candidate) & Node.DOCUMENT_POSITION_FOLLOWING &&
+			isTextField(candidate) &&
+			focusableIn(candidate) === candidate &&
+			!candidate.closest("[inert]"),
+	);
+	if (!(next instanceof HTMLElement)) return;
+	next.focus();
+	if (
+		next instanceof HTMLTextAreaElement ||
+		(next instanceof HTMLInputElement && SELECTABLE_INPUT_TYPES.has(next.type))
+	) {
+		next.setSelectionRange(next.value.length, next.value.length);
+	}
 }
 
 /**
@@ -737,7 +799,13 @@ export function BlocksField({
 	);
 
 	return (
-		<div id={id} ref={rootRef} className="@container/blocks grid grid-cols-[minmax(0,1fr)] gap-2">
+		<div
+			id={id}
+			ref={rootRef}
+			data-blocks-field=""
+			className="@container/blocks grid grid-cols-[minmax(0,1fr)] gap-2"
+			onKeyDown={readOnly ? undefined : keepEnterInBlocks}
+		>
 			<div className="flex min-h-7 items-center justify-between gap-3">
 				<Label>{label}</Label>
 				{blocks.length > 0 && !readOnly && (
@@ -1014,6 +1082,7 @@ function BlockRow({
 		const { side, invoker } = action;
 		onAdd({ index: side === "top" ? index : index + 1, anchor: headRef.current, side, invoker });
 	});
+	const moveKeys = useMoveKeys(index, count, onMove);
 
 	const issueMessage = useIssueMessage();
 	const blockPath = `${fieldPath}.${block._key}`;
@@ -1121,7 +1190,9 @@ function BlockRow({
 									ROW_BUTTON,
 									"size-6 text-kumo-subtle aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
 								)}
-								aria-label={t`Add block below`}
+								// The gutter is for the pointer. The keyboard reaches the same actions in the menu.
+								tabIndex={-1}
+								aria-label={t`Add block below ${label}`}
 								aria-haspopup="dialog"
 								aria-disabled={!canAdd || undefined}
 								aria-describedby={atMax ? maxHintId : undefined}
@@ -1162,11 +1233,13 @@ function BlockRow({
 								shape="square"
 								size="sm"
 								className={cn(ROW_BUTTON, "h-6 w-[1.125rem] touch-none text-kumo-subtle")}
-								aria-label={t`Block actions - drag to reorder, click for menu`}
+								tabIndex={-1}
+								aria-label={t`Reorder ${blockType?.label ?? block._type}`}
 								aria-haspopup="menu"
 								aria-expanded={menuOpen && menuFromHandle}
 								{...listeners}
-								onClick={() => {
+								onClick={(event) => {
+									quietGutter.markOpener(event);
 									setMenuFromHandle(true);
 									setMenuOpen(true);
 								}}
@@ -1183,7 +1256,7 @@ function BlockRow({
 				data-block-head
 				className={cn(
 					"flex min-h-11 items-center gap-2 py-1.5 ps-2 pe-2.5",
-					!readOnly && ROW_HOVER,
+					!readOnly && cn(ROW_HOVER, HEAD_POPUP_OPEN, HEAD_PRESSED),
 					!readOnly && HEAD_FOCUS,
 					index === 0 && SHEET_INNER_TOP,
 					roundBottom && !open && SHEET_INNER_BOTTOM,
@@ -1197,7 +1270,7 @@ function BlockRow({
 							name={blockType?.icon}
 							className={cn("size-4 shrink-0 text-kumo-subtle", GLYPH_NUDGE)}
 						/>
-						<span id={labelId} dir="auto" className={cn(ROW_TITLE, "min-w-0 wrap-anywhere")}>
+						<span id={labelId} dir="auto" className={cn(BLOCK_TITLE, "min-w-0 wrap-anywhere")}>
 							{label}
 						</span>
 					</div>
@@ -1209,7 +1282,9 @@ function BlockRow({
 						aria-controls={bodyId}
 						aria-labelledby={labelId}
 						aria-describedby={toggleDescription || undefined}
+						aria-keyshortcuts={MOVE_KEYS}
 						onClick={onToggle}
+						onKeyDown={moveKeys}
 						className="flex min-w-0 flex-1 items-center gap-2 self-stretch text-start outline-none"
 					>
 						<DisclosureCaret open={open} instant={instant} className={GLYPH_NUDGE} />
@@ -1217,27 +1292,20 @@ function BlockRow({
 							name={blockType?.icon}
 							className={cn("size-4 shrink-0 text-kumo-subtle", GLYPH_NUDGE)}
 						/>
-						<span
-							id={labelId}
-							dir="auto"
-							className={cn(ROW_TITLE, "max-w-[60%] min-w-0 wrap-anywhere")}
-						>
+						<span id={labelId} dir="auto" className={cn(BLOCK_TITLE, "min-w-0 wrap-anywhere")}>
 							{label}
 						</span>
 						{summary && (
 							<span
 								className={cn(
 									ROW_SUMMARY,
-									"min-w-0 flex-1 overflow-hidden transition-opacity duration-150 ease-emdash motion-reduce:transition-none",
+									SUMMARY_SLOT,
+									"transition-opacity duration-150 ease-emdash motion-reduce:transition-none",
 									open && "opacity-0",
 									instant && "transition-none",
 								)}
 							>
-								<span
-									id={summaryId}
-									dir="auto"
-									className="inline-block max-w-full truncate align-top"
-								>
+								<span id={summaryId} dir="auto" className={SUMMARY_TEXT}>
 									{summary}
 								</span>
 							</span>
@@ -1251,7 +1319,8 @@ function BlockRow({
 						alt=""
 						loading="lazy"
 						className={cn(
-							"size-7 shrink-0 rounded-md object-cover ring-1 ring-kumo-line transition-opacity duration-150 ease-emdash motion-reduce:transition-none",
+							IMAGE_EDGE,
+							"size-7 shrink-0 rounded-md object-cover transition-opacity duration-150 ease-emdash motion-reduce:transition-none",
 							open && "opacity-0",
 							instant && "transition-none",
 						)}
@@ -1280,15 +1349,6 @@ function BlockRow({
 							const after = afterMenuCloseRef.current;
 							afterMenuCloseRef.current = null;
 							if (after) runMenuAction(after);
-							else if (menuFromHandle) {
-								// The menu returns focus to its trigger after this callback.
-								setTimeout(() => {
-									const active = document.activeElement;
-									if (active === triggerRef.current || active === document.body) {
-										handleRef.current?.focus();
-									}
-								});
-							}
 							setMenuFromHandle(false);
 						}}
 					>
@@ -1302,72 +1362,94 @@ function BlockRow({
 									className={cn(ROW_BUTTON, "shrink-0 text-kumo-subtle", REVEAL_MENU)}
 									aria-label={t`${label} actions`}
 									aria-describedby={versionId}
+									aria-keyshortcuts={MOVE_KEYS}
+									onKeyDown={moveKeys}
 								>
 									<DotsThree className="size-4" weight="bold" aria-hidden="true" />
 								</Button>
 							}
 						/>
-						<DropdownMenu.Content
-							anchor={menuFromHandle ? handleRef : undefined}
-							align={menuFromHandle ? "start" : "end"}
-							className="min-w-56"
-						>
-							<DropdownMenu.Item
-								icon={<RowsPlusTop className={MENU_ICON} aria-hidden="true" />}
-								disabled={!canAdd}
-								onClick={() => addFromMenu("top")}
+						<DropdownMenu.Portal>
+							<DropdownMenu.Positioner
+								anchor={menuFromHandle ? handleRef : undefined}
+								align={menuFromHandle ? "start" : "end"}
 							>
-								{t`Add block above`}
-							</DropdownMenu.Item>
-							<DropdownMenu.Item
-								icon={<RowsPlusBottom className={MENU_ICON} aria-hidden="true" />}
-								disabled={!canAdd}
-								onClick={() => addFromMenu("bottom")}
-							>
-								{t`Add block below`}
-							</DropdownMenu.Item>
-							<DropdownMenu.Separator />
-							<DropdownMenu.Item
-								icon={<Copy className={MENU_ICON} aria-hidden="true" />}
-								disabled={retired || unsupported || inactive || atMax}
-								onClick={onDuplicate}
-							>
-								{t`Duplicate`}
-							</DropdownMenu.Item>
-							<DropdownMenu.Item
-								icon={<ArrowUp className={MENU_ICON} aria-hidden="true" />}
-								disabled={index === 0}
-								onClick={() => onMove(index - 1)}
-							>
-								{t`Move up`}
-							</DropdownMenu.Item>
-							<DropdownMenu.Item
-								icon={<ArrowDown className={MENU_ICON} aria-hidden="true" />}
-								disabled={index === count - 1}
-								onClick={() => onMove(index + 1)}
-							>
-								{t`Move down`}
-							</DropdownMenu.Item>
-							<DropdownMenu.Separator />
-							<DropdownMenu.Item
-								variant="danger"
-								icon={<Trash className={MENU_ICON} aria-hidden="true" />}
-								onClick={() => {
-									afterMenuCloseRef.current = { kind: "delete" };
-								}}
-							>
-								{t`Delete`}
-							</DropdownMenu.Item>
-							<DropdownMenu.Separator />
-							<div className="grid gap-0.5 px-2 py-1 text-xs text-kumo-subtle">
-								<span>{t`${label} · version ${versionNumber}`}</span>
-								{atMax && <span>{maxHint}</span>}
-							</div>
-						</DropdownMenu.Content>
+								<DropdownMenu.Popup
+									className="min-w-56"
+									finalFocus={menuFromHandle ? handleRef : undefined}
+								>
+									<DropdownMenu.Item
+										icon={<RowsPlusTop className={MENU_ICON} aria-hidden="true" />}
+										disabled={!canAdd}
+										onClick={() => addFromMenu("top")}
+									>
+										{t`Add block above`}
+									</DropdownMenu.Item>
+									<DropdownMenu.Item
+										icon={<RowsPlusBottom className={MENU_ICON} aria-hidden="true" />}
+										disabled={!canAdd}
+										onClick={() => addFromMenu("bottom")}
+									>
+										{t`Add block below`}
+									</DropdownMenu.Item>
+									<DropdownMenu.Separator />
+									<DropdownMenu.Item
+										icon={<Copy className={MENU_ICON} aria-hidden="true" />}
+										disabled={retired || unsupported || inactive || atMax}
+										onClick={onDuplicate}
+									>
+										{t`Duplicate`}
+									</DropdownMenu.Item>
+									<DropdownMenu.Item
+										icon={<ArrowUp className={MENU_ICON} aria-hidden="true" />}
+										disabled={index === 0}
+										onClick={() => onMove(index - 1)}
+									>
+										{t`Move up`}
+									</DropdownMenu.Item>
+									<DropdownMenu.Item
+										icon={<ArrowDown className={MENU_ICON} aria-hidden="true" />}
+										disabled={index === count - 1}
+										onClick={() => onMove(index + 1)}
+									>
+										{t`Move down`}
+									</DropdownMenu.Item>
+									<DropdownMenu.Item
+										icon={<ArrowLineUp className={MENU_ICON} aria-hidden="true" />}
+										disabled={index === 0}
+										onClick={() => onMove(0)}
+									>
+										{t`Move to top`}
+									</DropdownMenu.Item>
+									<DropdownMenu.Item
+										icon={<ArrowLineDown className={MENU_ICON} aria-hidden="true" />}
+										disabled={index === count - 1}
+										onClick={() => onMove(count - 1)}
+									>
+										{t`Move to bottom`}
+									</DropdownMenu.Item>
+									<DropdownMenu.Separator />
+									<DropdownMenu.Item
+										variant="danger"
+										icon={<Trash className={MENU_ICON} aria-hidden="true" />}
+										onClick={() => {
+											afterMenuCloseRef.current = { kind: "delete" };
+										}}
+									>
+										{t`Delete`}
+									</DropdownMenu.Item>
+									<DropdownMenu.Separator />
+									<div className="grid gap-0.5 px-2 py-1 text-xs text-kumo-subtle">
+										<span>{t`${label} · version ${versionNumber}`}</span>
+										{atMax && <span>{maxHint}</span>}
+									</div>
+								</DropdownMenu.Popup>
+							</DropdownMenu.Positioner>
+						</DropdownMenu.Portal>
 					</DropdownMenu>
 				)}
 				{!readOnly && (
-					<span id={versionId} className="sr-only">
+					<span id={versionId} hidden>
 						{t`Version ${block._version}`}
 					</span>
 				)}
@@ -1408,7 +1490,6 @@ function BlockRow({
 							renderList={renderList}
 						/>
 					)}
-					<span className="sr-only">{t`Block ${index + 1}`}</span>
 				</div>
 			</DisclosurePanel>
 		</div>
@@ -1506,7 +1587,12 @@ function FieldControl({
 	return (
 		<div
 			data-field={dataField}
-			className="group/control relative min-w-0"
+			className={cn(
+				"group/control relative min-w-0",
+				// A placeholder passed in names a control whose label is hidden, so it reads like a label.
+				placeholderOverride !== undefined &&
+					"[&_:is(input,textarea)]:placeholder:text-kumo-subtle!",
+			)}
 			onBlur={onFocusLeave(onTouch)}
 		>
 			{renderField({
@@ -1524,7 +1610,7 @@ function FieldControl({
 				},
 			})}
 			{hint && error !== hint && (
-				<span id={hintId} className="sr-only">
+				<span id={hintId} hidden>
 					{hint}
 				</span>
 			)}
@@ -1552,7 +1638,7 @@ function FieldControl({
 				</span>
 			)}
 			{error && (
-				<p id={errorId} className="sr-only">
+				<p id={errorId} hidden>
 					{error}
 				</p>
 			)}
@@ -1774,14 +1860,17 @@ function BlockFields({
 
 	const hasContent = plan.content.length > 0;
 	const hasSettings = plan.settings.length + plan.advanced.length > 0;
+	const lastContent = plan.content.at(-1);
+	// A photo's own edge already closes the content, so a rule under it would read as a second line.
+	const photoEndsContent = lastContent?.kind === "image" && !lastContent.caption;
+	const settingsRule =
+		hasContent && plan.settings.length > 0 && scope === "block" && !photoEndsContent;
 	return (
 		<>
 			{hasContent && (
 				<div className={cn("grid", FIELD_GAP[scope])}>{plan.content.map(contentPart)}</div>
 			)}
-			{hasContent && plan.settings.length > 0 && scope === "block" && (
-				<div className="mx-2 my-2.5 border-t border-kumo-hairline" />
-			)}
+			{settingsRule && <div className="mx-2 my-2.5 border-t border-kumo-hairline" />}
 			{/* Below 440px settings rows stack like the fields above them, so they're spaced like fields. */}
 			{hasSettings && (
 				<div
@@ -1789,7 +1878,7 @@ function BlockFields({
 						"grid @min-[440px]/blocks:gap-y-0.5",
 						FIELD_GAP[scope],
 						hasContent && scope === "item" && "mt-3 @min-[440px]/blocks:mt-2",
-						hasContent && scope === "block" && plan.settings.length === 0 && "mt-5",
+						hasContent && scope === "block" && !settingsRule && "mt-5",
 					)}
 				>
 					{plan.settings.map(settingPart)}
@@ -1814,7 +1903,7 @@ function BlockFields({
 									className="@min-[440px]/blocks:translate-y-px"
 								/>
 								{!advancedOpen && advancedSummary && (
-									<span dir="auto" className="min-w-0 truncate font-normal text-kumo-placeholder">
+									<span dir="auto" className="min-w-0 truncate font-normal text-kumo-subtle">
 										{advancedSummary}
 									</span>
 								)}

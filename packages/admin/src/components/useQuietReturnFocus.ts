@@ -1,16 +1,16 @@
 import * as React from "react";
 
-const DIALOG = '[role="dialog"], [role="alertdialog"]';
+const POPUP = '[role="dialog"], [role="alertdialog"], [role="menu"]';
 
-function inDialog(target: EventTarget | null): boolean {
-	return target instanceof Element && target.closest(DIALOG) !== null;
+function inPopup(target: EventTarget | null): boolean {
+	return target instanceof Element && target.closest(POPUP) !== null;
 }
 
 /**
- * Hover controls show on keyboard focus with `:focus-visible`. A dialog that closes with Escape
- * hands focus back to its opener, and browsers count that as keyboard focus even when a pointer
- * opened it. This marks the group while that returned focus sits on the opener, so it doesn't
- * keep the controls shown. Any other focus, or a key pressed outside a dialog, ends it.
+ * Hover controls show on keyboard focus with `:focus-visible`. A dialog or menu that closes with
+ * Escape hands focus back to its opener, and browsers count that as keyboard focus even when a
+ * pointer opened it. This marks the group while that returned focus sits on the opener, so it
+ * doesn't keep the controls shown. Any other focus, or a key pressed outside the popup, ends it.
  */
 export function useQuietReturnFocus() {
 	const [quiet, setQuiet] = React.useState(false);
@@ -32,10 +32,10 @@ export function useQuietReturnFocus() {
 		openerRef.current = opener;
 		// Focus may come back somewhere else, or the dialog may never open.
 		const onFocusIn = (focus: FocusEvent) => {
-			if (focus.target !== opener && !inDialog(focus.target)) forget();
+			if (focus.target !== opener && !inPopup(focus.target)) forget();
 		};
 		const onKeyDown = (key: KeyboardEvent) => {
-			if (!inDialog(key.target)) forget();
+			if (!inPopup(key.target)) forget();
 		};
 		document.addEventListener("focusin", onFocusIn, true);
 		document.addEventListener("keydown", onKeyDown, true);
@@ -54,7 +54,7 @@ export function useQuietReturnFocus() {
 				if (!event.currentTarget.contains(event.target)) return;
 				const returned =
 					event.target === openerRef.current &&
-					(event.relatedTarget === null || inDialog(event.relatedTarget));
+					(event.relatedTarget === null || inPopup(event.relatedTarget));
 				forget();
 				setQuiet(returned);
 			},

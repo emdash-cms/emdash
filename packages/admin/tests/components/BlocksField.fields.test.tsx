@@ -216,10 +216,15 @@ describe("Fields inside a block", () => {
 
 		const headlineStyle = getComputedStyle(headline.element());
 		const subheadlineStyle = getComputedStyle(subheadline.element());
+		const heroToggle = page.getByRole("button", { name: "Hero", exact: true }).element();
+		const blockName = document.getElementById(heroToggle.getAttribute("aria-labelledby")!)!;
 		expect(Number.parseFloat(headlineStyle.fontSize)).toBeGreaterThan(
 			Number.parseFloat(subheadlineStyle.fontSize),
 		);
-		expect(Number(headlineStyle.fontWeight)).toBeGreaterThanOrEqual(600);
+		expect(Number(headlineStyle.fontWeight)).toBeGreaterThan(Number(subheadlineStyle.fontWeight));
+		expect(Number(headlineStyle.fontWeight)).toBeLessThan(
+			Number(getComputedStyle(blockName).fontWeight),
+		);
 
 		const primary = page.getByRole("group", { name: "Primary button", exact: true });
 		await expect
