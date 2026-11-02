@@ -20,9 +20,10 @@ export const FLOATING_NOTE =
 
 // A `dir="auto"` value aligns to the start of its own text. Quiet values line up with their labels
 // instead, so a value whose direction differs from its container's aligns to its own end.
-// Kumo's placeholder color is unlayered, so only an important utility recolors it.
+// An invalid control is drawn like any other; only its empty placeholder turns red. Kumo's
+// placeholder color is unlayered, so only an important utility recolors it.
 const QUIET_CONTROL =
-	"w-full rounded-md bg-transparent px-2 shadow-none ring-transparent [:dir(ltr)>&:dir(rtl)]:text-end [:dir(rtl)>&:dir(ltr)]:text-end enabled:hover:bg-emdash-hover focus:bg-kumo-control focus:ring-1 focus:ring-kumo-focus/50 aria-invalid:ring-kumo-danger aria-invalid:placeholder:text-kumo-danger! aria-invalid:focus:ring-kumo-danger";
+	"w-full rounded-md bg-transparent px-2 shadow-none ring-transparent [:dir(ltr)>&:dir(rtl)]:text-end [:dir(rtl)>&:dir(ltr)]:text-end enabled:hover:bg-emdash-hover focus:bg-kumo-control focus:ring-1 focus:ring-kumo-focus/50 aria-invalid:placeholder:text-kumo-danger!";
 
 /** A one-line control with no box until it's hovered or focused. Its text sits on the field's text edge. */
 export const QUIET_INPUT = `${QUIET_CONTROL} h-8 text-ellipsis`;

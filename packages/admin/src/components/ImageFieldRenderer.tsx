@@ -635,10 +635,8 @@ export function ImageFieldRenderer({
 			displayUrl
 				? "ring ring-kumo-line"
 				: cn(
-						"border-[1.5px] border-dashed",
-						invalid
-							? "border-kumo-danger text-kumo-danger"
-							: "border-kumo-line text-kumo-placeholder",
+						"border-[1.5px] border-dashed border-kumo-line",
+						invalid ? "text-kumo-danger" : "text-kumo-placeholder",
 					),
 		);
 		return (
@@ -671,7 +669,11 @@ export function ImageFieldRenderer({
 							type="button"
 							variant="ghost"
 							size="sm"
-							className={cn("h-8 px-2 text-base font-normal text-kumo-subtle", ROW_BUTTON)}
+							className={cn(
+								"h-8 px-2 text-base font-normal text-kumo-subtle",
+								ROW_BUTTON,
+								invalid && !displayUrl && "text-kumo-danger",
+							)}
 							aria-describedby={describedBy}
 							onClick={() => openPicker("image")}
 						>
@@ -788,7 +790,6 @@ export function ImageFieldRenderer({
 					className={cn(
 						"w-full justify-center border-dashed bg-kumo-control",
 						labelled ? "h-14" : "h-32",
-						invalid && "ring-kumo-danger",
 					)}
 					onClick={() => openPicker("image")}
 					aria-describedby={labelled ? describedBy : undefined}

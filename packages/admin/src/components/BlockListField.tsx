@@ -95,7 +95,7 @@ export interface BlockListFieldProps {
 	minItems?: number;
 	maxItems?: number;
 	readOnly: boolean;
-	/** A problem with the list's size, shown under its label. */
+	/** A problem with the list's size, shown after its label. */
 	error?: string;
 	/** Indexes, in the saved list, of the items that hold a problem to show. */
 	invalidItems: ReadonlySet<number>;
@@ -220,7 +220,7 @@ export function ErrorDot({ id }: { id?: string }) {
 			id={id}
 			role="img"
 			aria-label={t`Has fields to fix`}
-			className="size-2 shrink-0 rounded-full bg-kumo-danger"
+			className="size-1.5 shrink-0 rounded-full bg-kumo-danger"
 		/>
 	);
 }
@@ -711,15 +711,21 @@ export function BlockListField({
 						{i18n.number(savedCount)}
 					</bdi>
 				)}
+				{/* On the label's line, so showing it moves nothing. */}
+				{error && (
+					<>
+						<span aria-hidden="true" className="text-xs leading-4 text-kumo-placeholder">
+							·
+						</span>
+						<span id={errorId} className="min-w-0 truncate text-xs leading-4 text-kumo-danger">
+							{error}
+						</span>
+					</>
+				)}
 			</div>
 			{hint && (
 				<p id={hintId} className="ps-2 pt-0.5 text-xs leading-4 text-kumo-subtle">
 					{hint}
-				</p>
-			)}
-			{error && (
-				<p id={errorId} className="ps-2 pt-0.5 text-xs leading-4 text-kumo-danger">
-					{error}
 				</p>
 			)}
 			{current.length > 0 ? (

@@ -3024,8 +3024,7 @@ function FieldRenderer({
 							items={selectItems}
 							className={cn(
 								QUIET_SELECT,
-								chrome.invalid &&
-									"ring-kumo-danger focus-visible:ring-kumo-danger data-[popup-open]:ring-kumo-danger [&_[data-placeholder]]:text-kumo-danger!",
+								chrome.invalid && "[&_[data-placeholder]]:text-kumo-danger!",
 							)}
 						>
 							{selectOptions.map((opt) => (
@@ -3112,7 +3111,11 @@ function FieldRenderer({
 					{...quiet}
 					className={
 						quiet
-							? cn(QUIET_DATE, !dateValue && "text-kumo-placeholder focus:text-kumo-default")
+							? cn(
+									QUIET_DATE,
+									!dateValue && "focus:text-kumo-default",
+									!dateValue && (chrome?.invalid ? "text-kumo-danger" : "text-kumo-placeholder"),
+								)
 							: undefined
 					}
 				/>

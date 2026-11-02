@@ -161,6 +161,8 @@ const FIELD_LABEL = `${LABEL} ps-2 wrap-anywhere`;
 const SETTING_ROW =
 	"grid min-w-0 items-start gap-x-2 @min-[440px]/blocks:grid-cols-[11rem_minmax(0,1fr)]";
 const SETTING_LABEL = `${LABEL} flex items-center ps-2 wrap-anywhere @min-[440px]/blocks:min-h-8`;
+/** A failing field whose control can't show the problem itself turns its label red. */
+const INVALID_LABEL = "text-kumo-danger";
 // A block's gutter and menu show for the row under the pointer, the row whose menu or picker is
 // open, and keyboard focus on themselves, never for a row that only holds focus from a click. The
 // state being entered sets the duration, so they fade in and vanish at once.
@@ -194,21 +196,39 @@ type UndoOwner = { kind: "block" } | { kind: "item"; blockKey: string; field: st
 const NO_ISSUES: readonly BlockValueIssue[] = [];
 
 /**
- * Field types whose empty control says "Required" itself: in red placeholder text, or a red
- * photo slot. A placeholder passed to the control replaces "Required", so the error shows under it.
+ * Field types whose empty control shows its placeholder, so a required one says "Required" itself.
+ * A placeholder passed to the control replaces "Required", so the message moves to a note.
  */
-const REQUIRED_SHOWN_BY_CONTROL = new Set([
-	"string",
-	"text",
-	"url",
-	"number",
-	"integer",
-	"select",
-	"image",
-]);
+const REQUIRED_SHOWN_BY_CONTROL = new Set(["string", "text", "url", "number", "integer", "select"]);
+
+/**
+ * Field types whose empty control turns its own placeholder red when it fails. Any other
+ * failing field, and a filled one, turns its label red instead.
+ */
+const EMPTY_SHOWN_BY_CONTROL = new Set([...REQUIRED_SHOWN_BY_CONTROL, "datetime", "image", "file"]);
 
 function touchKey(blockKey: string, field: string): string {
 	return `${blockKey}:${field}`;
+}
+
+function withKey(keys: ReadonlySet<string>, key: string): ReadonlySet<string> {
+	return keys.has(key) ? keys : new Set(keys).add(key);
+}
+
+/**
+ * Whether a problem shows before a Save reveals it. A list's size shows once a deletion changed
+ * the list, a required value once it was edited and left empty, and any other problem once focus
+ * leaves its field, so tabbing through a new block or item flags nothing.
+ */
+function issueReached(
+	issue: BlockValueIssue,
+	touched: ReadonlySet<string>,
+	edited: ReadonlySet<string>,
+): boolean {
+	const key = touchKey(issue.blockKey, issue.path);
+	if (issue.origin === "array") return edited.has(key);
+	if (!touched.has(key)) return false;
+	return issue.code !== "required" || edited.has(key);
 }
 
 function useIssueMessage() {
@@ -376,6 +396,8 @@ export function BlocksField({
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	const [advancedKeys, setAdvancedKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	const [touched, setTouched] = React.useState<ReadonlySet<string>>(() => new Set());
+	/** Paths whose value was changed here, and lists an item was deleted from. */
+	const [edited, setEdited] = React.useState<ReadonlySet<string>>(() => new Set());
 	/** The latest reveal, and the blocks whose problems it shows. */
 	const [revealed, setRevealed] = React.useState<{ token: number; keys: ReadonlySet<string> }>(
 		() => ({ token: 0, keys: new Set() }),
@@ -409,29 +431,23 @@ export function BlocksField({
 	const shownIssues = new Map<string, BlockValueIssue[]>();
 	if (!readOnly) {
 		for (const issue of validateBlocks(blocks, blockTypes)) {
-			if (
-				!revealed.keys.has(issue.blockKey) &&
-				!touched.has(touchKey(issue.blockKey, issue.field)) &&
-				!touched.has(touchKey(issue.blockKey, issue.path))
-			) {
-				continue;
-			}
+			if (!revealed.keys.has(issue.blockKey) && !issueReached(issue, touched, edited)) continue;
 			shownIssues.set(issue.blockKey, [...(shownIssues.get(issue.blockKey) ?? []), issue]);
 		}
 	}
 
-	const touchField = (blockKey: string, path: string) => {
-		const key = touchKey(blockKey, path);
-		setTouched((current) => (current.has(key) ? current : new Set(current).add(key)));
-	};
+	const touchField = (blockKey: string, path: string) =>
+		setTouched((current) => withKey(current, touchKey(blockKey, path)));
+	const editField = (blockKey: string, path: string) =>
+		setEdited((current) => withKey(current, touchKey(blockKey, path)));
 
 	/**
-	 * Moves the touched paths of a list's items to the items' new positions. `moveTo` gives an
-	 * item's new position by its old one, or -1 for an item removed.
+	 * Moves the touched and edited paths of a list's items to the items' new positions. `moveTo`
+	 * gives an item's new position by its old one, or -1 for an item removed.
 	 */
 	const moveListTouches = (blockKey: string, field: string, moveTo: (index: number) => number) => {
 		const prefix = `${touchKey(blockKey, field)}.`;
-		setTouched((current) => {
+		const move = (current: ReadonlySet<string>) => {
 			const next = new Set<string>();
 			for (const key of current) {
 				if (!key.startsWith(prefix)) {
@@ -443,7 +459,9 @@ export function BlocksField({
 				if (to >= 0) next.add([`${prefix}${to}`, ...rest].join("."));
 			}
 			return next;
-		});
+		};
+		setTouched(move);
+		setEdited(move);
 	};
 
 	const revealIssues = useStableCallback((token: number, focusId: string | undefined) => {
@@ -764,10 +782,12 @@ export function BlocksField({
 										onToggle={() => toggleBlock(block._key)}
 										onAdvancedToggle={() => toggleAdvanced(block._key)}
 										onTouch={(path) => touchField(block._key, path)}
+										onEdit={(path) => editField(block._key, path)}
 										onItemDeleted={(field, deleted) => offerItemUndo(block._key, field, deleted)}
-										onItemsShift={(field, moves) =>
-											moveListTouches(block._key, field, (position) => moves[position] ?? -1)
-										}
+										onItemsShift={(field, moves) => {
+											moveListTouches(block._key, field, (position) => moves[position] ?? -1);
+											if (moves.includes(-1)) editField(block._key, field);
+										}}
 										onChange={(field, nextValue) =>
 											onChange(updateBlockFieldValue(blocks, block._key, field, nextValue))
 										}
@@ -861,6 +881,8 @@ interface BlockRowProps {
 	onAdvancedToggle: () => void;
 	/** Called when focus leaves the control at this path inside the block, or a list. */
 	onTouch: (path: string) => void;
+	/** Called when the value at this path inside the block changes here. */
+	onEdit: (path: string) => void;
 	onChange: (field: string, value: unknown) => void;
 	onItemDeleted: (field: string, deleted: DeletedListItem) => void;
 	onItemsShift: (field: string, moves: readonly number[]) => void;
@@ -894,6 +916,7 @@ function BlockRow({
 	onToggle,
 	onAdvancedToggle,
 	onTouch,
+	onEdit,
 	onChange,
 	onItemDeleted,
 	onItemsShift,
@@ -991,6 +1014,7 @@ function BlockRow({
 							{...control}
 							onChange={onControlChange}
 							onTouch={() => onTouch(path)}
+							onEdit={() => onEdit(path)}
 							renderField={renderField}
 						/>
 					);
@@ -1004,6 +1028,7 @@ function BlockRow({
 						describe={(definition) => nestedDescriptor(definition, block)}
 						issueAt={(slug) => issueAt(`${field.slug}.${at}.${slug}`)}
 						onTouch={(slug) => onTouch(`${field.slug}.${at}.${slug}`)}
+						onEdit={(slug) => onEdit(`${field.slug}.${at}.${slug}`)}
 						onChange={onItemChange}
 						renderField={renderField}
 					/>
@@ -1325,6 +1350,7 @@ function BlockRow({
 							advancedOpen={advancedOpen}
 							onAdvancedToggle={onAdvancedToggle}
 							onTouch={onTouch}
+							onEdit={onEdit}
 							onChange={onChange}
 							renderField={renderField}
 							renderList={renderList}
@@ -1346,8 +1372,8 @@ interface ControlOptions {
 	/** Draws a photo as a thumbnail in a settings row. */
 	thumbnail?: "row";
 	/**
-	 * A table cell, which has no room under it: keeps the hint and error for assistive technology
-	 * only, and draws a photo as a thumbnail.
+	 * A table cell, which has no room under it: keeps the hint for assistive technology only, and
+	 * draws a photo as a thumbnail.
 	 */
 	cell?: boolean;
 }
@@ -1365,6 +1391,8 @@ interface FieldControlProps extends ControlOptions {
 	onChange: (value: unknown) => void;
 	/** Called when focus leaves the control. */
 	onTouch: () => void;
+	/** Called when the control changes its value, unless it only swaps one empty value for another. */
+	onEdit: () => void;
 	renderField: BlocksFieldProps["renderField"];
 }
 
@@ -1376,7 +1404,11 @@ function labelText(field: LayoutFieldDefinition): string {
 	return splitLabelHint(field.label).label;
 }
 
-/** A field's quiet control, with its hint while focused and its error under it. */
+/**
+ * A field's quiet control, with its hint while focused. A problem turns the empty control's
+ * placeholder red, and its message floats under the control while it's hovered or focused, so
+ * showing one moves nothing.
+ */
 function FieldControl({
 	field,
 	name,
@@ -1392,6 +1424,7 @@ function FieldControl({
 	dataField,
 	onChange,
 	onTouch,
+	onEdit,
 	renderField,
 }: FieldControlProps) {
 	const { t } = useLingui();
@@ -1404,7 +1437,6 @@ function FieldControl({
 	const errorId = `${id}-error`;
 	const error = issue ? issueMessage(issue, hint) : undefined;
 	const errorShown =
-		!cell &&
 		issue !== undefined &&
 		!(
 			issue.code === "required" &&
@@ -1415,6 +1447,10 @@ function FieldControl({
 		[hint && error !== hint && hintId, error && errorId].filter(Boolean).join(" ") || undefined;
 	const showHintOnFocus =
 		!cell && Boolean(hint) && !errorShown && !(placeholder === hint && isEmptyValue(value));
+	const change = (next: unknown) => {
+		if (!isEmptyValue(value) || !isEmptyValue(next)) onEdit();
+		onChange(next);
+	};
 	return (
 		<div
 			data-field={dataField}
@@ -1425,7 +1461,7 @@ function FieldControl({
 				name,
 				field: descriptor,
 				value,
-				onChange,
+				onChange: change,
 				chrome: {
 					labelledBy,
 					describedBy,
@@ -1452,11 +1488,19 @@ function FieldControl({
 					{hint}
 				</span>
 			)}
-			{error && (
-				<p
-					id={errorId}
-					className={errorShown ? "px-2 pt-1 text-xs leading-4 text-kumo-danger" : "sr-only"}
+			{errorShown && (
+				<span
+					aria-hidden="true"
+					className={cn(
+						FLOATING_NOTE,
+						"start-0 text-kumo-danger group-hover/control:visible group-hover/control:translate-y-0 group-hover/control:opacity-100 group-focus-within/control:visible group-focus-within/control:translate-y-0 group-focus-within/control:opacity-100 group-focus-within/control:group-has-data-quiet-count/control:mt-8",
+					)}
 				>
+					<bdi>{error}</bdi>
+				</span>
+			)}
+			{error && (
+				<p id={errorId} className="sr-only">
 					{error}
 				</p>
 			)}
@@ -1478,6 +1522,8 @@ interface BlockFieldsProps {
 	onAdvancedToggle?: () => void;
 	/** Called when focus leaves the control of the field with this slug. */
 	onTouch: (slug: string) => void;
+	/** Called when the control of the field with this slug changes its value. */
+	onEdit: (slug: string) => void;
 	onChange: (slug: string, value: unknown) => void;
 	renderField: BlocksFieldProps["renderField"];
 	renderList?: (field: LayoutFieldDefinition, labelId: string) => React.ReactNode;
@@ -1493,6 +1539,7 @@ function BlockFields({
 	advancedOpen = false,
 	onAdvancedToggle,
 	onTouch,
+	onEdit,
 	onChange,
 	renderField,
 	renderList,
@@ -1509,6 +1556,9 @@ function BlockFields({
 
 	const controlId = (field: LayoutFieldDefinition) => `field-${namePrefix}.${field.slug}`;
 	const labelId = (field: LayoutFieldDefinition) => `${controlId(field)}-label`;
+	const labelShowsIssue = (field: LayoutFieldDefinition) =>
+		issueAt(field.slug) !== undefined &&
+		!(EMPTY_SHOWN_BY_CONTROL.has(field.type) && isEmptyValue(values[field.slug]));
 
 	const control = (
 		field: LayoutFieldDefinition,
@@ -1540,6 +1590,7 @@ function BlockFields({
 				dataField={scope === "block" ? field.slug : undefined}
 				onChange={(nextValue) => onChange(field.slug, nextValue)}
 				onTouch={() => onTouch(field.slug)}
+				onEdit={() => onEdit(field.slug)}
 				renderField={renderField}
 			/>
 		);
@@ -1549,7 +1600,11 @@ function BlockFields({
 		if (field.type === "repeater") return control(field, labelId(field));
 		return (
 			<div key={field.slug} className="grid min-w-0">
-				<label id={labelId(field)} htmlFor={controlId(field)} className={FIELD_LABEL}>
+				<label
+					id={labelId(field)}
+					htmlFor={controlId(field)}
+					className={cn(FIELD_LABEL, labelShowsIssue(field) && INVALID_LABEL)}
+				>
 					{labelText(field)}
 				</label>
 				{control(field, labelId(field), { heading })}
@@ -1560,11 +1615,18 @@ function BlockFields({
 	const settingRow = (field: LayoutFieldDefinition) => (
 		<div key={field.slug} className={SETTING_ROW}>
 			{field.type === "image" ? (
-				<span id={labelId(field)} className={SETTING_LABEL}>
+				<span
+					id={labelId(field)}
+					className={cn(SETTING_LABEL, labelShowsIssue(field) && INVALID_LABEL)}
+				>
 					{labelText(field)}
 				</span>
 			) : (
-				<label id={labelId(field)} htmlFor={controlId(field)} className={SETTING_LABEL}>
+				<label
+					id={labelId(field)}
+					htmlFor={controlId(field)}
+					className={cn(SETTING_LABEL, labelShowsIssue(field) && INVALID_LABEL)}
+				>
 					{labelText(field)}
 				</label>
 			)}
@@ -1594,7 +1656,10 @@ function BlockFields({
 				const caption = part.caption;
 				return (
 					<div key={part.field.slug} className="grid min-w-0">
-						<span id={labelId(part.field)} className={cn(FIELD_LABEL, "pb-1.5")}>
+						<span
+							id={labelId(part.field)}
+							className={cn(FIELD_LABEL, "pb-1.5", labelShowsIssue(part.field) && INVALID_LABEL)}
+						>
 							{labelText(part.field)}
 						</span>
 						{control(part.field, labelId(part.field))}
@@ -1620,7 +1685,14 @@ function BlockFields({
 		const rowLabelId = `${controlId(part.text)}-row`;
 		return (
 			<div key={part.text.slug} role="group" aria-labelledby={rowLabelId} className={SETTING_ROW}>
-				<label id={rowLabelId} htmlFor={controlId(part.text)} className={SETTING_LABEL}>
+				<label
+					id={rowLabelId}
+					htmlFor={controlId(part.text)}
+					className={cn(
+						SETTING_LABEL,
+						(labelShowsIssue(part.text) || labelShowsIssue(part.link)) && INVALID_LABEL,
+					)}
+				>
 					{part.label}
 				</label>
 				<div className="grid min-w-0 grid-cols-2 items-start gap-x-2">

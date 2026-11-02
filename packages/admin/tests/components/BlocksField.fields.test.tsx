@@ -442,8 +442,20 @@ function blockRow(key: string): Locator {
 	return page.elementLocator(document.querySelector(`[data-block-key="${key}"]`)!);
 }
 
+/** The element showing `text` on screen, leaving out copies kept for screen readers. */
+function shownText(text: string): Element | undefined {
+	return page
+		.getByText(text, { exact: true })
+		.elements()
+		.find(
+			(element) =>
+				!element.closest(".sr-only") &&
+				element.checkVisibility({ opacityProperty: true, visibilityProperty: true }),
+		);
+}
+
 describe("Checking fields inside a block", () => {
-	it("shows a failed pattern as the field's hint, or as Check the format", async () => {
+	it("shows a failed pattern as the field's hint, or as Check the format, while the field is reached for", async () => {
 		await renderEditor(
 			[heroBlock, { _type: "logos", _version: 1, _key: "logos-1", logos: [{}, {}] }],
 			[hero, logoWall],
@@ -452,28 +464,39 @@ describe("Checking fields inside a block", () => {
 		await page.getByRole("button", { name: /^Advanced/ }).click();
 
 		const sectionId = control("Section ID");
+		const label = page.getByText("Section ID", { exact: true });
+		const quietLabel = getComputedStyle(label.element()).color;
 		await sectionId.fill("Pricing!");
 		await control("Headline").click();
 		await expect.element(sectionId).toHaveAttribute("aria-invalid", "true");
 		await expect
 			.element(sectionId)
 			.toHaveAccessibleDescription("Lowercase, for links like /#pricing");
-		const error = page.getByText("Lowercase, for links like /#pricing", { exact: true });
-		expect(box(error).top).toBeGreaterThanOrEqual(box(sectionId).bottom);
-		expect(box(error).width).toBeGreaterThan(20);
+		expect(getComputedStyle(label.element()).color).not.toBe(quietLabel);
+		await expect.poll(() => shownText("Lowercase, for links like /#pricing")).toBeUndefined();
+
+		const nextRowTop = box(control("Headline")).top;
+		await sectionId.click();
+		await expect.poll(() => shownText("Lowercase, for links like /#pricing")).toBeDefined();
+		const error = shownText("Lowercase, for links like /#pricing")!.getBoundingClientRect();
+		expect(error.top).toBeGreaterThanOrEqual(box(sectionId).bottom);
+		expect(error.width).toBeGreaterThan(20);
+		expect(box(control("Headline")).top).toBe(nextRowTop);
 
 		await sectionId.fill("pricing");
 		await expect.element(sectionId).not.toHaveAttribute("aria-invalid");
+		expect(getComputedStyle(label.element()).color).toBe(quietLabel);
 
 		await openBlock("Logo wall");
 		const code = control("Code");
 		await code.fill("ABC");
 		await control("Section label").click();
 		await expect.element(code).toHaveAccessibleDescription("Check the format");
-		await expect.element(page.getByText("Check the format", { exact: true })).toBeVisible();
+		await code.hover();
+		await expect.poll(() => shownText("Check the format")).toBeDefined();
 	});
 
-	it("shows nothing on a new block until you leave one of its empty required fields", async () => {
+	it("shows nothing on a new block's empty required field you leave untouched, and flags it once you empty it", async () => {
 		vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValueOnce(
 			"00000000-0000-4000-8000-000000000003",
 		);
@@ -487,18 +510,24 @@ describe("Checking fields inside a block", () => {
 		await expect.element(headline).toHaveFocus();
 		expect(added().contains(headline.element())).toBe(true);
 		await expect.element(headline).toHaveAttribute("placeholder", "Required");
-		expect(added().querySelectorAll("[aria-invalid='true']")).toHaveLength(0);
 		const placeholderColor = () => getComputedStyle(headline.element(), "::placeholder").color;
 		const quietColor = placeholderColor();
 
 		await control("Subheadline").click();
+		await expect.element(control("Subheadline")).toHaveFocus();
+		expect(added().querySelectorAll("[aria-invalid='true']")).toHaveLength(0);
+		expect(placeholderColor()).toBe(quietColor);
+
+		await headline.fill("Every building");
+		await expect.element(headline).not.toHaveAttribute("aria-invalid");
+		await headline.fill("");
 		await expect.element(headline).toHaveAttribute("aria-invalid", "true");
 		await expect.element(headline).toHaveAccessibleDescription("Required");
 		expect(placeholderColor()).not.toBe(quietColor);
 		expect(added().querySelectorAll("[aria-invalid='true']")).toHaveLength(1);
 	});
 
-	it("marks a new block's empty required field when a click on empty space leaves it", async () => {
+	it("marks a new block's emptied required field when a click on empty space leaves it", async () => {
 		vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValueOnce(
 			"00000000-0000-4000-8000-000000000004",
 		);
@@ -508,6 +537,8 @@ describe("Checking fields inside a block", () => {
 		await page.getByRole("option", { name: /^Hero/ }).click();
 		const headline = control("Headline");
 		await expect.element(headline).toHaveFocus();
+		await headline.fill("Every building");
+		await headline.fill("");
 		await expect.element(headline).not.toHaveAttribute("aria-invalid");
 
 		const emptySpace = document.createElement("div");
@@ -574,10 +605,12 @@ describe("Checking fields inside a block", () => {
 		await expect
 			.element(page.getByRole("button", { name: "Select image" }))
 			.toHaveAccessibleDescription("Required");
-		await expect.element(page.getByText("Add at least 2 items")).toBeVisible();
-		expect(box(page.getByText("Add at least 2 items")).top).toBeLessThan(
-			box(page.getByRole("textbox", { name: "Company name" })).top,
-		);
+		const minimum = page.getByText("Add at least 2 items");
+		await expect.element(minimum).toBeVisible();
+		const listLabel = box(page.getByText("Logos", { exact: true }));
+		expect(box(minimum).top).toBeLessThan(listLabel.bottom);
+		expect(box(minimum).bottom).toBeGreaterThan(listLabel.top);
+		expect(box(minimum).left).toBeGreaterThan(listLabel.right);
 	});
 
 	it("marks a required list sub-field where it is and focuses it", async () => {
@@ -643,7 +676,7 @@ describe("Checking fields inside a block", () => {
 		await expect.element(page.elementLocator(text!)).toHaveFocus();
 	});
 
-	it("shows Required under an empty required button text, whose placeholder says Text", async () => {
+	it("shows Required under an empty required button text, whose placeholder says Text, while it has focus", async () => {
 		const strictHero = blockType(
 			"hero",
 			"Hero",
@@ -652,15 +685,25 @@ describe("Checking fields inside a block", () => {
 			),
 		);
 		await renderEditor([{ ...heroBlock, primary_cta_label: "" }], [strictHero]);
+		await openBlock();
+		const text = control("Primary button text");
+		const nextRowGap = () => box(control("Announcement")).top - box(text).top;
+		const gap = nextRowGap();
 
 		await page.getByRole("textbox", { name: "Title" }).fill("Home page");
 		await saveButton().click();
-		const text = control("Primary button text");
 		await expect.element(text).toHaveFocus();
 		await expect.element(text).toHaveAttribute("placeholder", "Text");
-		const error = page.getByText("Required", { exact: true });
-		expect(box(error).width).toBeGreaterThan(20);
-		expect(box(error).top).toBeGreaterThanOrEqual(box(text).bottom);
+		await expect.element(text).toHaveAttribute("aria-invalid", "true");
+		await expect.element(text).toHaveAccessibleDescription("Required");
+		await expect.poll(() => shownText("Required")).toBeDefined();
+		const error = shownText("Required")!.getBoundingClientRect();
+		expect(error.width).toBeGreaterThan(20);
+		expect(error.top).toBeGreaterThanOrEqual(box(text).bottom);
+		expect(nextRowGap()).toBe(gap);
+
+		await control("Headline").click();
+		await expect.poll(() => shownText("Required")).toBeUndefined();
 	});
 
 	it("holds autosave while a block field fails, names it in a notice, and resumes once it is fixed", async () => {

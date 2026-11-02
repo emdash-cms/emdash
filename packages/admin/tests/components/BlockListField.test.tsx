@@ -199,6 +199,22 @@ async function openBlock(name: string) {
 	await page.getByRole("button", { name, exact: true }).click();
 }
 
+function box(locator: Locator): DOMRect {
+	return locator.element().getBoundingClientRect();
+}
+
+/** The element showing `text` on screen, leaving out copies kept for screen readers. */
+function shownText(text: string): Element | undefined {
+	return page
+		.getByText(text, { exact: true })
+		.elements()
+		.find(
+			(element) =>
+				!element.closest(".sr-only") &&
+				element.checkVisibility({ opacityProperty: true, visibilityProperty: true }),
+		);
+}
+
 afterEach(async () => {
 	document.documentElement.dir = "ltr";
 	await page.viewport(1280, 800);
@@ -314,6 +330,40 @@ describe("Type-in lists inside a block", () => {
 		await expect
 			.element(page.getByRole("menuitem", { name: "Delete" }))
 			.toHaveAttribute("aria-disabled", "true");
+	});
+
+	it("shows a list's minimum on its label's line once emptying a line takes it below", async () => {
+		const tags = blockType("tags", "Tags", [
+			list("tags", "Tags", [{ slug: "name", label: "Name", type: "string" }], { minItems: 2 }),
+		]);
+		await renderHarness({
+			initial: [
+				{
+					_type: "tags",
+					_version: 1,
+					_key: "tags-1",
+					tags: [{ name: "Hotel Wilde" }, { name: "Norma" }],
+				},
+			],
+			blockTypes: [tags],
+			allowedTypes: ["tags"],
+		});
+		await openBlock("Tags");
+		const label = page.elementLocator(document.getElementById("field-layout.tags-1.tags-label")!);
+		const minimum = page.getByText("Add at least 2 items", { exact: true });
+		const firstLineTop = box(line(1)).top;
+
+		await line(2).fill("");
+		await expect.element(minimum).toBeVisible();
+		expect(box(minimum).top).toBeLessThan(box(label).bottom);
+		expect(box(minimum).bottom).toBeGreaterThan(box(label).top);
+		expect(box(line(1)).top).toBe(firstLineTop);
+		await expect
+			.element(page.getByRole("list", { name: "Tags", exact: true }))
+			.toHaveAccessibleDescription("Add at least 2 items");
+
+		await line(2).fill("Norma");
+		await expect.element(minimum).not.toBeInTheDocument();
 	});
 
 	it("keeps an empty item already saved, and counts it toward minItems", async () => {
@@ -542,7 +592,8 @@ describe("Expandable items inside a block", () => {
 
 		await page.getByRole("button", { name: "Untitled", exact: true }).click();
 		const author = page.getByRole("textbox", { name: "Author name", exact: true });
-		await author.click();
+		await author.fill("Ola");
+		await author.fill("");
 		await page.getByRole("textbox", { name: "Quote", exact: true }).click();
 		await expect.element(author).toHaveAttribute("aria-invalid", "true");
 
@@ -849,7 +900,63 @@ describe("Lists inside a block in the editor", () => {
 		await expect.element(item).toHaveAccessibleDescription(/^Has fields to fix/);
 	});
 
-	it("shows Required under an empty required item title, whose placeholder is its label", async () => {
+	it("flags nothing when you tab through a new item without typing", async () => {
+		await renderEditor([testimonialsBlock([maya])], [testimonials]);
+		await page.getByRole("button", { name: "Testimonials", exact: true }).click();
+		const addItem = page.getByRole("button", { name: "Add item" });
+		await addItem.click();
+		const title = page.getByRole("textbox", { name: "Author name", exact: true });
+		await expect.element(title).toHaveFocus();
+		const item = title.element().closest("[data-list-item]")!;
+		const addItemTop = box(addItem).top;
+
+		for (let tabs = 0; tabs < 12 && item.contains(document.activeElement); tabs++) {
+			await userEvent.keyboard("{Tab}");
+		}
+		expect(item.contains(document.activeElement)).toBe(false);
+		await page.getByRole("textbox", { name: "Title", exact: true }).click();
+
+		expect(item.querySelectorAll("[aria-invalid='true']")).toHaveLength(0);
+		expect(shownText("Required")).toBeUndefined();
+		expect(box(addItem).top).toBe(addItemTop);
+	});
+
+	it("flags a new item's empty required fields on Save without moving its head or the rows below", async () => {
+		const onSave = vi.fn();
+		await renderEditor([testimonialsBlock([maya])], [testimonials], { onSave });
+		await page.getByRole("textbox", { name: "Title" }).fill("Home page");
+		await page.getByRole("button", { name: "Testimonials", exact: true }).click();
+		const addItem = page.getByRole("button", { name: "Add item" });
+		await addItem.click();
+		const title = page.getByRole("textbox", { name: "Author name", exact: true });
+		const quote = page.getByRole("textbox", { name: "Quote", exact: true });
+		const role = page.getByRole("textbox", { name: "Role or title", exact: true });
+		const head = page
+			.getByRole("button", { name: "Untitled", exact: true })
+			.element().parentElement!;
+		const layout = () => {
+			const headBox = head.getBoundingClientRect();
+			return {
+				head: headBox.height,
+				quote: box(quote).top - headBox.top,
+				addItem: box(addItem).top - headBox.top,
+			};
+		};
+		const before = layout();
+		const quietRing = getComputedStyle(role.element()).boxShadow;
+
+		await save();
+		expect(onSave).not.toHaveBeenCalled();
+		await expect.element(quote).toHaveFocus();
+		await expect.element(quote).toHaveAttribute("aria-invalid", "true");
+		await expect.element(title).toHaveAttribute("aria-invalid", "true");
+		await expect.element(role).not.toHaveAttribute("aria-invalid");
+		expect(layout()).toEqual(before);
+		expect(getComputedStyle(title.element()).boxShadow).toBe(quietRing);
+		expect(shownText("Required")).toBeUndefined();
+	});
+
+	it("shows Required under an empty required item title, whose placeholder is its label, while it has focus", async () => {
 		await renderEditor([testimonialsBlock([maya, { ...jonas, author: "" }])], [testimonials]);
 
 		await page.getByRole("textbox", { name: "Title" }).fill("Home page");
@@ -857,8 +964,20 @@ describe("Lists inside a block in the editor", () => {
 		const title = page.getByRole("textbox", { name: "Author name", exact: true });
 		await expect.element(title).toHaveFocus();
 		await expect.element(title).toHaveAttribute("placeholder", "Author name");
-		const error = page.getByText("Required", { exact: true });
-		expect(error.element().getBoundingClientRect().width).toBeGreaterThan(20);
+		await expect.element(title).toHaveAccessibleDescription("Required");
+		await expect.poll(() => shownText("Required")).toBeDefined();
+		const error = shownText("Required")!.getBoundingClientRect();
+		expect(error.width).toBeGreaterThan(20);
+		expect(error.top).toBeGreaterThanOrEqual(box(title).bottom);
+		const head = title.element().closest("[data-item-control]")!.parentElement!;
+		const closedHead = page
+			.getByRole("button", { name: "Maya Okafor", exact: true })
+			.element().parentElement!;
+		expect(head.getBoundingClientRect().height).toBe(closedHead.getBoundingClientRect().height);
+
+		await page.getByRole("textbox", { name: "Quote", exact: true }).click();
+		await expect.poll(() => shownText("Required")).toBeUndefined();
+		await expect.element(title).toHaveAttribute("aria-invalid", "true");
 	});
 
 	it("keeps one Autosave paused notice when the failing item moves up, and Show finds it", async () => {
