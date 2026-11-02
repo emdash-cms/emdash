@@ -296,13 +296,7 @@ const REACTION_SCRIPT = `
 	}
 
 	:global(.dark) .ec-comments {
-		--ec-comment-border-color: #374151;
-	}
-
-	@media (prefers-color-scheme: dark) {
-		.ec-comments {
-			--ec-comment-border-color: #374151;
-		}
+		--ec-comment-border-color: var(--ec-comment-border-color-dark, #374151);
 	}
 
 	.ec-comments-list,
