@@ -290,6 +290,12 @@ describe("getTransformFingerprint", () => {
 	it("returns an empty string when no transform params are present", () => {
 		expect(getTransformFingerprint(new URLSearchParams())).toBe("");
 	});
+
+	it("stays valid as an ETag for control and non-Latin-1 characters", () => {
+		const params = new URLSearchParams("w=32&fit=%0A&position=%E2%86%91");
+		const fingerprint = getTransformFingerprint(params);
+		expect(() => new Headers(validatorHeaders(3, undefined, fingerprint))).not.toThrow();
+	});
 });
 
 describe("validatorHeaders", () => {

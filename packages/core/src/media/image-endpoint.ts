@@ -122,13 +122,14 @@ export function makeWeakEtag(size: number, lastModified?: Date, suffix?: string)
 
 /**
  * Build a canonical fingerprint of the transform query params that affect the
- * derived /_image bytes. Used as the suffix of a transform's weak ETag.
+ * derived /_image bytes. Used as the suffix of a transform's weak ETag, so
+ * values are percent-encoded to stay valid in a header.
  */
 export function getTransformFingerprint(params: URLSearchParams): string {
 	const parts: string[] = [];
 	const append = (name: string) => {
 		const value = params.get(name);
-		if (value !== null) parts.push(`${name}=${value}`);
+		if (value !== null) parts.push(`${name}=${encodeURIComponent(value)}`);
 	};
 	append("w");
 	append("h");

@@ -113,6 +113,13 @@ describe("Cloudflare image endpoint: fit and position", () => {
 		expect(lastTransform().gravity).toBe("bottom");
 	});
 
+	it("ignores a position that is not valid in a header instead of failing", async () => {
+		const response = await request("w=32&h=32&fit=cover&position=%0A");
+
+		expect(response.status).toBe(200);
+		expect(lastTransform().gravity).toBeUndefined();
+	});
+
 	it("replaces cached renditions from before fit was forwarded", async () => {
 		const params = "w=32&h=32&fit=cover";
 		const oldEtag = makeWeakEtag(3, new Date("2026-10-01T12:00:00.000Z"), params);
