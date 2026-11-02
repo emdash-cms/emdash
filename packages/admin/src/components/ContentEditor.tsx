@@ -2020,9 +2020,9 @@ export function ContentEditor({
 						data-emdash-editor-canvas=""
 						className={cn(
 							"min-w-0 flex-1 overflow-y-auto [--emdash-editor-sticky-top:0px]",
-							// Keeps the page from sliding sideways when a shorter version takes the
-							// scrollbar away.
-							isViewing && "[scrollbar-gutter:stable]",
+							// Keeps the page from sliding sideways when its content grows past the
+							// canvas or shrinks back, or a shorter version takes the scrollbar away.
+							"[scrollbar-gutter:stable]",
 						)}
 					>
 						{!pinEditorBar && editorBar}

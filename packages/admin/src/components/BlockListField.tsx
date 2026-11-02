@@ -1,9 +1,10 @@
-import { Button, Collapsible, DropdownMenu } from "@cloudflare/kumo";
+import { Button, DropdownMenu } from "@cloudflare/kumo";
 import {
 	closestCenter,
 	DndContext,
 	PointerSensor,
 	type DragEndEvent,
+	useDndMonitor,
 	useSensor,
 	useSensors,
 } from "@dnd-kit/core";
@@ -180,35 +181,387 @@ export function whenFocusLeaves(event: React.FocusEvent<HTMLElement>, callback: 
 	});
 }
 
+// The rows below a panel move with its height, so the curve starts gently enough that no frame
+// carries them more than about a quarter of the way. The caret's class repeats it.
+const DISCLOSURE_EASE = "cubic-bezier(0.33, 1, 0.68, 1)";
+const OPEN_MS = 200;
+const CLOSE_MS = 160;
+const DROP_MS = 200;
+
+const noop = () => {};
+
+function prefersReducedMotion(): boolean {
+	return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/** The nearest ancestor of `element` that scrolls, or the page when it scrolls. */
+function scrollerOf(element: Element): HTMLElement | null {
+	for (let node = element.parentElement; node; node = node.parentElement) {
+		const { overflowY } = getComputedStyle(node);
+		if ((overflowY === "auto" || overflowY === "scroll") && node.scrollHeight > node.clientHeight) {
+			return node;
+		}
+	}
+	const page = document.scrollingElement;
+	return page instanceof HTMLElement && page.scrollHeight > page.clientHeight ? page : null;
+}
+
+function scrollInstantly(scroller: HTMLElement, by: number) {
+	scroller.scrollBy({ top: by, behavior: "instant" });
+}
+
+function viewBottom(scroller: HTMLElement | null): number {
+	if (!scroller || scroller === document.scrollingElement) return window.innerHeight;
+	return scroller.getBoundingClientRect().top + scroller.clientTop + scroller.clientHeight;
+}
+
+/**
+ * How far a panel `height` tall, at `top`, moves. One taller than the scroller moves only down to
+ * its bottom edge: the rest of its travel would be out of sight, and would crowd the part in
+ * sight into the first frames.
+ */
+function travel(scroller: HTMLElement | null, top: number, height: number): number {
+	const bottom = viewBottom(scroller);
+	if (top >= bottom) return 0;
+	return height > (scroller?.clientHeight ?? window.innerHeight)
+		? Math.min(height, bottom - top)
+		: height;
+}
+
+interface ScrollRoom {
+	/** Space added under the content. */
+	room: number;
+	/** How far the panels closing now will still shrink the content. */
+	shrink: number;
+	holds: number;
+	trim: () => void;
+	set: (room: number) => void;
+}
+
+const scrollRooms = new WeakMap<HTMLElement, ScrollRoom>();
+
+function scrollRoomOf(scroller: HTMLElement): ScrollRoom {
+	const existing = scrollRooms.get(scroller);
+	if (existing) return existing;
+	const events: HTMLElement | Window = scroller === document.scrollingElement ? window : scroller;
+	const padding = Number.parseFloat(getComputedStyle(scroller).paddingBlockEnd) || 0;
+	const resizes = new ResizeObserver(() => state.trim());
+	const state: ScrollRoom = {
+		room: 0,
+		shrink: 0,
+		holds: 0,
+		set(room) {
+			const next = Math.max(0, room);
+			if (next > 0 && state.room === 0) {
+				events.addEventListener("scroll", state.trim, { passive: true });
+				for (const child of scroller.children) resizes.observe(child);
+			}
+			state.room = next;
+			if (next > 0) {
+				scroller.style.setProperty("padding-block-end", `${padding + next}px`);
+				return;
+			}
+			scroller.style.removeProperty("padding-block-end");
+			events.removeEventListener("scroll", state.trim);
+			resizes.disconnect();
+			if (state.holds === 0) scrollRooms.delete(scroller);
+		},
+		// As the reader scrolls back up, or the content grows, the room shrinks to what keeps the
+		// scroller where it is.
+		trim() {
+			if (state.holds > 0) return;
+			const content = scroller.scrollHeight - state.room;
+			const needed = Math.ceil(scroller.scrollTop + scroller.clientHeight - content);
+			state.set(Math.min(state.room, needed));
+		},
+	};
+	scrollRooms.set(scroller, state);
+	return state;
+}
+
+/**
+ * Keeps `scroller` where it is while its content shrinks by `shrink`. When the content would end
+ * above the scroller's bottom, room is added under it, so the row being closed stays under the
+ * pointer instead of the page sliding down to meet the shorter content. Returns the function
+ * that ends the hold, for once the content has shrunk.
+ */
+function holdScroll(scroller: HTMLElement | null, shrink: number): () => void {
+	if (!scroller || shrink <= 0) return noop;
+	const state = scrollRoomOf(scroller);
+	state.holds += 1;
+	state.shrink += shrink;
+	const content = scroller.scrollHeight - state.room;
+	const needed = Math.ceil(scroller.scrollTop + scroller.clientHeight - (content - state.shrink));
+	if (needed > state.room) state.set(needed);
+	let held = true;
+	return () => {
+		if (!held) return;
+		held = false;
+		state.holds -= 1;
+		state.shrink -= shrink;
+		state.trim();
+	};
+}
+
+interface PanelMotion {
+	height: Animation;
+	/** Holds the content drawn up by `lift` while the panel closes under its pinned head. */
+	content?: Animation;
+	lift: number;
+	release: () => void;
+	/** Puts the panel where the motion ends. */
+	finish: () => void;
+}
+
+function liftContent(panel: HTMLElement, lift: number, duration: number): Animation | undefined {
+	const content = panel.firstElementChild;
+	if (lift <= 0 || !content) return undefined;
+	const transform = `translateY(${-lift}px)`;
+	return content.animate({ transform: [transform, transform] }, { duration, fill: "forwards" });
+}
+
 /**
  * The body of a block, a list item or the Advanced rows: grows open and shrinks closed, then
  * unmounts. Padding belongs on a child, since the panel's own height runs down to zero.
+ *
+ * Motion starts from wherever the panel is, so a toggle can be reversed midway, and only covers
+ * what the scroller shows: the part of a tall panel below its bottom edge appears or goes at once.
+ * The clip lasts only as long as the motion, so sticky toolbars and floating hints inside aren't
+ * cut off at rest.
  */
 export function DisclosurePanel({
 	open,
+	instant = false,
+	headRef,
+	onClosed,
 	className,
 	...props
-}: { open: boolean } & React.ComponentPropsWithoutRef<"div">) {
+}: {
+	open: boolean;
+	/** Opens or closes without motion, as Expand all and Collapse all do. */
+	instant?: boolean;
+	/**
+	 * The panel's head. When it's pinned over a scrolled panel, the panel closes in place: the
+	 * fields in view stay put and the rows below rise to meet the head.
+	 */
+	headRef?: React.RefObject<HTMLElement | null>;
+	/** Called once a closed panel is gone. */
+	onClosed?: () => void;
+} & React.ComponentPropsWithoutRef<"div">) {
+	const ref = React.useRef<HTMLDivElement>(null);
+	const motionRef = React.useRef<PanelMotion | null>(null);
+	const shownRef = React.useRef(open);
+	const [mounted, setMounted] = React.useState(open);
+	if (open && !mounted) setMounted(true);
+	const unmount = useStableCallback(() => {
+		setMounted(false);
+		onClosed?.();
+	});
+
+	React.useLayoutEffect(() => {
+		if (open === shownRef.current) {
+			// Expand all and Collapse all also finish a panel already on its way.
+			const motion = motionRef.current;
+			if (instant && motion) {
+				motionRef.current = null;
+				motion.finish();
+			}
+			return;
+		}
+		shownRef.current = open;
+		const panel = ref.current;
+		if (!panel) return;
+		const scroller = scrollerOf(panel);
+		const previous = motionRef.current;
+		motionRef.current = null;
+		const current = panel.getBoundingClientRect().height;
+		const opacity = previous ? Number(getComputedStyle(panel).opacity) : open ? 0 : 1;
+		let lift = previous?.lift ?? 0;
+		previous?.height.cancel();
+		previous?.content?.cancel();
+		// A close being reversed keeps holding the scroller until the panel is open again.
+		const held = previous?.release ?? noop;
+		const still = instant || prefersReducedMotion();
+
+		if (open) {
+			// An open panel takes the place of any room a close left under the content.
+			const restore = () => {
+				if (scroller && lift > 0) scrollInstantly(scroller, lift);
+				held();
+				if (scroller) scrollRooms.get(scroller)?.trim();
+			};
+			if (still) {
+				restore();
+				return;
+			}
+			const { top, height: natural } = panel.getBoundingClientRect();
+			const from = previous ? current : 0;
+			const to = Math.max(from, travel(scroller, top, natural - lift));
+			if (to - from < 1) {
+				restore();
+				return;
+			}
+			const height = panel.animate(
+				{
+					height: [`${from}px`, `${to}px`],
+					opacity: [opacity, 1],
+					clipPath: ["inset(0)", "inset(0)"],
+				},
+				{ duration: OPEN_MS, easing: DISCLOSURE_EASE, fill: lift > 0 ? "forwards" : "none" },
+			);
+			const motion: PanelMotion = {
+				height,
+				content: liftContent(panel, lift, OPEN_MS),
+				lift,
+				release: held,
+				finish() {
+					height.cancel();
+					motion.content?.cancel();
+					restore();
+				},
+			};
+			motionRef.current = motion;
+			height.addEventListener("finish", () => {
+				if (motionRef.current !== motion) return;
+				motionRef.current = null;
+				motion.finish();
+			});
+			return;
+		}
+
+		let shown = current;
+		const head = headRef?.current;
+		if (head && scroller) {
+			// A head pinned over the panel hides the part above it. Scrolling the block's top up to
+			// the head while drawing the content up as far leaves everything in view where it was.
+			const pinned = Math.round(
+				head.getBoundingClientRect().bottom - panel.getBoundingClientRect().top,
+			);
+			if (pinned > 0) {
+				scrollInstantly(scroller, -pinned);
+				lift += pinned;
+				shown = Math.max(0, shown - pinned);
+			}
+		}
+		const { top, height: laidOut } = panel.getBoundingClientRect();
+		const release = holdScroll(scroller, laidOut);
+		held();
+		const from = travel(scroller, top, shown);
+		if (still || from < 1) {
+			unmount();
+			requestAnimationFrame(release);
+			return;
+		}
+		const height = panel.animate(
+			{
+				height: [`${from}px`, "0px"],
+				opacity: [opacity, 0],
+				clipPath: ["inset(0)", "inset(0)"],
+			},
+			{ duration: CLOSE_MS, easing: DISCLOSURE_EASE, fill: "forwards" },
+		);
+		const motion: PanelMotion = {
+			height,
+			content: liftContent(panel, lift, CLOSE_MS),
+			lift,
+			release,
+			finish() {
+				height.finish();
+				release();
+				unmount();
+			},
+		};
+		motionRef.current = motion;
+		height.addEventListener("finish", () => {
+			if (motionRef.current !== motion) return;
+			motionRef.current = null;
+			motion.finish();
+		});
+	}, [open, instant, headRef, unmount]);
+
+	React.useEffect(() => () => motionRef.current?.release(), []);
+
+	if (!mounted) return null;
 	return (
-		<Collapsible.Root open={open} className="contents">
-			<Collapsible.Panel
-				inert={!open || undefined}
-				className={cn("emdash-disclosure", className)}
-				{...props}
-			/>
-		</Collapsible.Root>
+		<div
+			ref={ref}
+			inert={!open || undefined}
+			className={cn("emdash-disclosure", className)}
+			{...props}
+		/>
 	);
 }
 
-/** The caret of a disclosure row, which turns to point at the open body. */
-export function DisclosureCaret({ open, className }: { open: boolean; className?: string }) {
+/**
+ * A dragged row eases from where it was let go into its slot, still lifted, instead of jumping
+ * there. Returns the sortable's node ref, wrapped, and whether the row is still settling.
+ */
+export function useDropSettle(
+	id: string,
+	isDragging: boolean,
+	setSortableRef: (node: HTMLElement | null) => void,
+) {
+	const nodeRef = React.useRef<HTMLElement | null>(null);
+	const letGoRef = React.useRef<DOMRect | null>(null);
+	const [settling, setSettling] = React.useState(false);
+	const setNodeRef = React.useCallback(
+		(node: HTMLElement | null) => {
+			nodeRef.current = node;
+			setSortableRef(node);
+		},
+		[setSortableRef],
+	);
+	const monitor = React.useMemo(() => {
+		const letGo = ({ active }: DragEndEvent) => {
+			if (active.id === id && nodeRef.current) {
+				letGoRef.current = nodeRef.current.getBoundingClientRect();
+			}
+		};
+		return { onDragEnd: letGo, onDragCancel: letGo };
+	}, [id]);
+	useDndMonitor(monitor);
+
+	// Runs in the commit that drops the row, once it sits in its new slot but before it paints.
+	React.useLayoutEffect(() => {
+		const from = letGoRef.current;
+		letGoRef.current = null;
+		const node = nodeRef.current;
+		if (isDragging || !from || !node || prefersReducedMotion()) return;
+		const to = node.getBoundingClientRect();
+		const x = from.left - to.left;
+		const y = from.top - to.top;
+		if (Math.abs(x) < 0.5 && Math.abs(y) < 0.5) return;
+		setSettling(true);
+		const settle = node.animate(
+			{ transform: [`translate(${x}px, ${y}px)`, "none"] },
+			{ duration: DROP_MS, easing: DISCLOSURE_EASE },
+		);
+		const done = () => setSettling(false);
+		settle.addEventListener("finish", done);
+		settle.addEventListener("cancel", done);
+	}, [isDragging]);
+
+	return { setNodeRef, settling };
+}
+
+/** The caret of a disclosure row, which turns to point at the open body as the body moves. */
+export function DisclosureCaret({
+	open,
+	instant = false,
+	className,
+}: {
+	open: boolean;
+	instant?: boolean;
+	className?: string;
+}) {
 	return (
 		<span aria-hidden="true" className={cn("grid size-4 shrink-0 place-items-center", className)}>
 			<CaretRight
 				weight="bold"
 				className={cn(
-					"size-3 text-kumo-subtle transition-transform duration-200 ease-emdash motion-reduce:transition-none rtl:-scale-x-100",
-					open && "rotate-90 rtl:-rotate-90",
+					"size-3 text-kumo-subtle transition-transform duration-160 ease-[cubic-bezier(0.33,1,0.68,1)] motion-reduce:transition-none rtl:-scale-x-100",
+					open && "rotate-90 duration-200 rtl:-rotate-90",
+					instant && "transition-none",
 				)}
 			/>
 		</span>
@@ -704,7 +1057,7 @@ export function BlockListField({
 					: undefined
 			}
 		>
-			<div className="flex min-w-0 items-baseline gap-1.5 ps-2">
+			<div className={cn("flex min-w-0 items-baseline gap-1.5 ps-2", !hint && "pb-1")}>
 				<span id={labelId} className={cn(LIST_LABEL, "wrap-anywhere")}>
 					{listLabel}
 				</span>
@@ -726,7 +1079,7 @@ export function BlockListField({
 				)}
 			</div>
 			{hint && (
-				<p id={hintId} className="ps-2 pt-0.5 text-xs leading-4 text-kumo-subtle">
+				<p id={hintId} className="ps-2 pt-0.5 pb-1 text-xs leading-4 text-kumo-subtle">
 					{hint}
 				</p>
 			)}
@@ -750,6 +1103,7 @@ export function BlockListField({
 					className={cn(
 						ROW_BUTTON,
 						"h-8 w-full justify-start gap-2 px-2 font-normal text-kumo-subtle shadow-none hover:text-kumo-default",
+						presentation === "items" && current.length > 0 && "mt-0.5",
 					)}
 					onClick={addRow}
 				>
@@ -780,11 +1134,12 @@ function useSortableRow(key: string, readOnly: boolean) {
 		disabled: readOnly,
 		transition: SORT_TRANSITION,
 	});
+	const drop = useDropSettle(key, isDragging, setNodeRef);
 	const [menuOpen, setMenuOpen] = React.useState(false);
 	return {
 		listeners,
-		setNodeRef,
-		isDragging,
+		setNodeRef: drop.setNodeRef,
+		isDragging: isDragging || drop.settling,
 		menuOpen,
 		setMenuOpen,
 		style: { transform: CSS.Translate.toString(transform), transition },
@@ -1110,7 +1465,7 @@ function ItemRow({
 			data-menu-open={sortable.menuOpen || undefined}
 			className={cn(
 				"group/item relative rounded-lg transition-[background-color] duration-200 ease-emdash motion-reduce:transition-none",
-				open && "bg-kumo-elevated",
+				open && "bg-emdash-hover",
 				sortable.isDragging && cn(DRAGGING, "rounded-lg"),
 			)}
 		>
@@ -1201,7 +1556,7 @@ function ItemRow({
 				aria-labelledby={nameId}
 				data-item-control={title === undefined || undefined}
 			>
-				<div className="pe-2 pt-1 pb-1.5 ps-6">{children}</div>
+				<div className="pe-2 pt-1 pb-3 ps-6">{children}</div>
 			</DisclosurePanel>
 		</div>
 	);

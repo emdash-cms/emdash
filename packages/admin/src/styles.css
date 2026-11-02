@@ -916,53 +916,6 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 @custom-variant blocks-gutter (@media (min-width: 40rem) and (hover: hover) and (pointer: fine));
 
 /*
- * A blocks field's disclosure panel (a block's fields, a list item's, the Advanced rows) grows
- * open and shrinks closed. Its clip lasts only as long as the animation, so the sticky toolbars
- * and floating hints inside aren't cut off once it rests.
- */
-@keyframes emdash-disclosure-open {
-	from {
-		height: 0;
-		opacity: 0;
-		clip-path: inset(0);
-	}
-	to {
-		height: var(--collapsible-panel-height);
-		opacity: 1;
-		clip-path: inset(0);
-	}
-}
-
-@keyframes emdash-disclosure-close {
-	from {
-		height: var(--collapsible-panel-height);
-		opacity: 1;
-		clip-path: inset(0);
-	}
-	to {
-		height: 0;
-		opacity: 0;
-		clip-path: inset(0);
-	}
-}
-
-/* A closed panel stays mounted only while it animates, so its own animation is the closing one. */
-.emdash-disclosure {
-	animation: emdash-disclosure-close 150ms var(--ease-emdash);
-}
-
-.emdash-disclosure[data-open] {
-	animation: emdash-disclosure-open 200ms var(--ease-emdash);
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.emdash-disclosure,
-	.emdash-disclosure[data-open] {
-		animation: none;
-	}
-}
-
-/*
  * Kumo's Select popup takes no class, so a quiet select's options mark it. It sizes to its
  * options instead of its trigger, stays short enough to scroll, and opens like a dropdown menu.
  * The opening is a keyframe animation rather than a transition from `data-starting-style`, so it

@@ -50,6 +50,7 @@ import { useStableCallback } from "../lib/hooks.js";
 import { cn } from "../lib/utils.js";
 import {
 	DRAGGING,
+	FIELD_GAP,
 	FLOATING_NOTE,
 	GLYPH_NUDGE,
 	LABEL,
@@ -69,6 +70,7 @@ import {
 	focusableIn,
 	whenFocusLeaves,
 	toggled,
+	useDropSettle,
 } from "./BlockListField.js";
 import { BlockTypeIcon, BlockTypePicker } from "./BlockTypePicker.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
@@ -165,7 +167,9 @@ const SETTING_ROW =
 	"grid min-w-0 items-start gap-x-2 @min-[440px]/blocks:grid-cols-[11rem_minmax(0,1fr)] @min-[440px]/blocks:in-data-list-item:grid-cols-[9.5rem_minmax(0,1fr)]";
 // Beside its value, a label takes the value's size and the line box a 32px control centers its text
 // in, so the two share a baseline and a wrapped label keeps its first line there.
-const SETTING_LABEL = `${LABEL} ps-2 wrap-anywhere @min-[440px]/blocks:min-h-8 @min-[440px]/blocks:py-[5.5px] @min-[440px]/blocks:text-base @min-[440px]/blocks:leading-(--text-base--line-height) @min-[440px]/blocks:font-normal`;
+const SIDE_LABEL_TEXT =
+	"@min-[440px]/blocks:text-base @min-[440px]/blocks:leading-(--text-base--line-height) @min-[440px]/blocks:font-normal";
+const SETTING_LABEL = `${LABEL} ps-2 wrap-anywhere @min-[440px]/blocks:min-h-8 @min-[440px]/blocks:py-[5.5px] ${SIDE_LABEL_TEXT}`;
 /** A failing field whose control can't show the problem itself turns its label red. */
 const INVALID_LABEL = "text-kumo-danger";
 // A block's gutter and menu show for the row under the pointer, the row whose menu or picker is
@@ -399,6 +403,8 @@ export function BlocksField({
 	const focusRequestRef = React.useRef<FocusRequest | null>(null);
 	const maxHintId = React.useId();
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
+	/** The open set Expand all or Collapse all made, which opens and closes without motion. */
+	const [allToggled, setAllToggled] = React.useState<ReadonlySet<string> | null>(null);
 	const [advancedKeys, setAdvancedKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	const [touched, setTouched] = React.useState<ReadonlySet<string>>(() => new Set());
 	/** Paths whose value was changed here, and lists an item was deleted from. */
@@ -743,9 +749,11 @@ export function BlocksField({
 								<ArrowsOutSimple className="size-3.5" aria-hidden="true" />
 							)
 						}
-						onClick={() =>
-							setOpenKeys(anyOpen ? new Set() : new Set(blocks.map((block) => block._key)))
-						}
+						onClick={() => {
+							const next = new Set(anyOpen ? [] : blocks.map((block) => block._key));
+							setOpenKeys(next);
+							setAllToggled(next);
+						}}
 					>
 						{anyOpen ? t`Collapse all` : t`Expand all`}
 					</Button>
@@ -775,6 +783,7 @@ export function BlocksField({
 										blockType={typeBySlug.get(block._type)}
 										retired={retiredTypes.includes(block._type)}
 										open={readOnly || openKeys.has(block._key)}
+										instant={allToggled === openKeys}
 										advancedOpen={readOnly || advancedKeys.has(block._key)}
 										issues={shownIssues.get(block._key) ?? NO_ISSUES}
 										revealToken={revealed.token}
@@ -871,6 +880,8 @@ interface BlockRowProps {
 	blockType?: BlockType;
 	retired: boolean;
 	open: boolean;
+	/** Opens or closes without motion, as Expand all and Collapse all do. */
+	instant: boolean;
 	advancedOpen: boolean;
 	/** Problems to show in this block. */
 	issues: readonly BlockValueIssue[];
@@ -909,6 +920,7 @@ function BlockRow({
 	blockType,
 	retired,
 	open,
+	instant,
 	advancedOpen,
 	issues,
 	revealToken,
@@ -933,11 +945,17 @@ function BlockRow({
 	renderField,
 }: BlockRowProps) {
 	const { t, i18n } = useLingui();
-	const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+	const sortable = useSortable({
 		id: block._key,
 		disabled: readOnly,
 		transition: SORT_TRANSITION,
 	});
+	const { listeners, transform, transition } = sortable;
+	const drop = useDropSettle(block._key, sortable.isDragging, sortable.setNodeRef);
+	const isDragging = sortable.isDragging || drop.settling;
+	// The head stays pinned until the fields have folded away under it.
+	const [bodyShown, setBodyShown] = React.useState(open);
+	if (open && !bodyShown) setBodyShown(true);
 	const rowId = React.useId();
 	const headRef = React.useRef<HTMLDivElement>(null);
 	const handleRef = React.useRef<HTMLButtonElement>(null);
@@ -1044,7 +1062,7 @@ function BlockRow({
 
 	return (
 		<div
-			ref={setNodeRef}
+			ref={drop.setNodeRef}
 			style={{ transform: CSS.Translate.toString(transform), transition }}
 			role="listitem"
 			data-block-key={block._key}
@@ -1151,7 +1169,7 @@ function BlockRow({
 					!readOnly && HEAD_FOCUS,
 					index === 0 && SHEET_INNER_TOP,
 					roundBottom && !open && SHEET_INNER_BOTTOM,
-					open &&
+					(open || bodyShown) &&
 						"sticky top-(--emdash-blocks-sticky-top) z-30 bg-kumo-base shadow-[inset_0_-1px_0_var(--color-kumo-hairline)]",
 				)}
 			>
@@ -1176,7 +1194,7 @@ function BlockRow({
 						onClick={onToggle}
 						className="flex min-w-0 flex-1 items-center gap-2 self-stretch text-start outline-none"
 					>
-						<DisclosureCaret open={open} className={GLYPH_NUDGE} />
+						<DisclosureCaret open={open} instant={instant} className={GLYPH_NUDGE} />
 						<BlockTypeIcon
 							name={blockType?.icon}
 							className={cn("size-4 shrink-0 text-kumo-subtle", GLYPH_NUDGE)}
@@ -1192,8 +1210,9 @@ function BlockRow({
 							<span
 								className={cn(
 									ROW_SUMMARY,
-									"min-w-0 flex-1 overflow-hidden transition-opacity duration-200 ease-emdash motion-reduce:transition-none",
+									"min-w-0 flex-1 overflow-hidden transition-opacity duration-150 ease-emdash motion-reduce:transition-none",
 									open && "opacity-0",
+									instant && "transition-none",
 								)}
 							>
 								<span
@@ -1214,8 +1233,9 @@ function BlockRow({
 						alt=""
 						loading="lazy"
 						className={cn(
-							"size-7 shrink-0 rounded-md object-cover ring-1 ring-kumo-line transition-opacity duration-200 ease-emdash motion-reduce:transition-none",
+							"size-7 shrink-0 rounded-md object-cover ring-1 ring-kumo-line transition-opacity duration-150 ease-emdash motion-reduce:transition-none",
 							open && "opacity-0",
+							instant && "transition-none",
 						)}
 						onError={(event) => {
 							event.currentTarget.hidden = true;
@@ -1337,13 +1357,16 @@ function BlockRow({
 
 			<DisclosurePanel
 				open={open}
+				instant={instant}
+				headRef={headRef}
+				onClosed={() => setBodyShown(false)}
 				id={bodyId}
 				data-block-body
 				role="group"
 				aria-labelledby={labelId}
 				className="[--emdash-editor-sticky-top:calc(var(--emdash-blocks-sticky-top)+2.75rem)]"
 			>
-				<div className="px-2 pt-3 pb-4 @min-[440px]/blocks:ps-12">
+				<div className="px-2 pt-2 pb-5 @min-[440px]/blocks:ps-12">
 					{unsupported || !version ? (
 						<p className="ps-2 text-base text-kumo-subtle">
 							{t`This block cannot be edited because its stored definition is unavailable.`}
@@ -1626,9 +1649,10 @@ function BlockFields({
 	const settingRow = (field: LayoutFieldDefinition) => (
 		<div key={field.slug} className={SETTING_ROW}>
 			{field.type === "image" ? (
+				// Stacked over a thumbnail, which has no padding of its own, the label keeps a photo's gap.
 				<span
 					id={labelId(field)}
-					className={cn(SETTING_LABEL, labelShowsIssue(field) && INVALID_LABEL)}
+					className={cn(SETTING_LABEL, "pb-1.5", labelShowsIssue(field) && INVALID_LABEL)}
 				>
 					{labelText(field)}
 				</span>
@@ -1654,7 +1678,8 @@ function BlockFields({
 					<div
 						key={part.fields.map((field) => field.slug).join(":")}
 						className={cn(
-							"grid min-w-0 gap-x-2 gap-y-3",
+							"grid min-w-0 gap-x-2",
+							FIELD_GAP[scope],
 							part.fields.length === 3
 								? "@min-[440px]/blocks:grid-cols-3"
 								: "@min-[440px]/blocks:grid-cols-2",
@@ -1666,10 +1691,10 @@ function BlockFields({
 			case "image": {
 				const caption = part.caption;
 				return (
-					<div key={part.field.slug} className="grid min-w-0">
+					<div key={part.field.slug} className="grid min-w-0 gap-y-0.5">
 						<span
 							id={labelId(part.field)}
-							className={cn(FIELD_LABEL, "pb-1.5", labelShowsIssue(part.field) && INVALID_LABEL)}
+							className={cn(FIELD_LABEL, "pb-1", labelShowsIssue(part.field) && INVALID_LABEL)}
 						>
 							{labelText(part.field)}
 						</span>
@@ -1721,54 +1746,71 @@ function BlockFields({
 	};
 
 	const advancedSummary = plan.advanced
-		.map((field) => values[field.slug])
-		.filter((value): value is string => typeof value === "string" && value.trim() !== "")
+		.flatMap((field) => {
+			const value = values[field.slug];
+			if (typeof value !== "string" || value.trim() === "") return [];
+			const label = labelText(field);
+			return [t`${label}: ${value}`];
+		})
 		.join(" · ");
 
+	const hasContent = plan.content.length > 0;
 	const hasSettings = plan.settings.length + plan.advanced.length > 0;
 	return (
 		<>
-			{plan.content.length > 0 && <div className="grid gap-3">{plan.content.map(contentPart)}</div>}
-			{plan.content.length > 0 && hasSettings && (
-				<div className="mx-2 my-3 border-t border-kumo-hairline" />
+			{hasContent && (
+				<div className={cn("grid", FIELD_GAP[scope])}>{plan.content.map(contentPart)}</div>
 			)}
+			{hasContent && plan.settings.length > 0 && scope === "block" && (
+				<div className="mx-2 my-2.5 border-t border-kumo-hairline" />
+			)}
+			{/* Below 440px settings rows stack like the fields above them, so they're spaced like fields. */}
 			{hasSettings && (
-				<div className="grid gap-y-3 @min-[440px]/blocks:gap-y-0.5">
+				<div
+					className={cn(
+						"grid @min-[440px]/blocks:gap-y-0.5",
+						FIELD_GAP[scope],
+						hasContent && scope === "item" && "mt-3 @min-[440px]/blocks:mt-2",
+						hasContent && scope === "block" && plan.settings.length === 0 && "mt-5",
+					)}
+				>
 					{plan.settings.map(settingPart)}
 					{plan.advanced.length > 0 && (
-						<div>
+						<div className={cn(plan.settings.length > 0 && "@min-[440px]/blocks:mt-1")}>
 							<button
 								type="button"
 								aria-expanded={advancedOpen}
 								aria-controls={advancedId}
 								onClick={onAdvancedToggle}
 								className={cn(
-									SETTING_ROW,
+									LABEL,
+									SIDE_LABEL_TEXT,
 									ROW_HOVER,
-									"w-full rounded-md text-start outline-none focus-visible:ring-1 focus-visible:ring-kumo-focus/50 focus-visible:ring-inset",
+									"flex min-h-8 w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-start outline-none focus-visible:ring-1 focus-visible:ring-kumo-focus/50 focus-visible:ring-inset",
 								)}
 							>
-								<span className={cn(SETTING_LABEL, "flex min-h-8 items-center gap-1")}>
-									{t`Advanced`}
-									{/* Below 440px the label is 12px, beside which a caret needs no nudge. */}
-									<DisclosureCaret
-										open={advancedOpen}
-										className="@min-[440px]/blocks:translate-y-px"
-									/>
-								</span>
-								<span className="flex min-w-0 items-center gap-2 px-2 text-base @min-[440px]/blocks:min-h-8">
-									{!advancedOpen && advancedSummary && (
-										<span dir="auto" className="min-w-0 truncate text-kumo-placeholder">
-											{advancedSummary}
-										</span>
-									)}
-									{!advancedOpen && plan.advanced.some((field) => issueAt(field.slug)) && (
-										<ErrorDot />
-									)}
-								</span>
+								<span className="shrink-0">{t`Advanced`}</span>
+								{/* Below 440px the label is 12px, beside which a caret needs no nudge. */}
+								<DisclosureCaret
+									open={advancedOpen}
+									className="@min-[440px]/blocks:translate-y-px"
+								/>
+								{!advancedOpen && advancedSummary && (
+									<span dir="auto" className="min-w-0 truncate font-normal text-kumo-placeholder">
+										{advancedSummary}
+									</span>
+								)}
+								{!advancedOpen && plan.advanced.some((field) => issueAt(field.slug)) && (
+									<ErrorDot />
+								)}
 							</button>
 							<DisclosurePanel open={advancedOpen} id={advancedId}>
-								<div className="grid gap-y-3 pt-3 @min-[440px]/blocks:gap-y-0.5 @min-[440px]/blocks:pt-0.5">
+								<div
+									className={cn(
+										"grid pt-2 @min-[440px]/blocks:gap-y-0.5 @min-[440px]/blocks:pt-0.5",
+										FIELD_GAP.block,
+									)}
+								>
 									{plan.advanced.map(settingRow)}
 								</div>
 							</DisclosurePanel>

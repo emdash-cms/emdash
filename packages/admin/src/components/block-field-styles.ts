@@ -13,6 +13,13 @@ export const LABEL = "text-xs leading-4 font-medium text-kumo-subtle";
 /** A list's label, a step above its column headers and its items' field labels. */
 export const LIST_LABEL = "text-sm leading-4.5 font-medium text-kumo-default";
 
+/**
+ * The space between stacked fields. An open block's gaps grow with the level they separate, so
+ * the levels read at a glance: 2 between rows of one sheet, 6 inside a toggle's rows, 8 under a
+ * block's head, 12 between an item's fields, 16 between a block's fields and 20 around its zones.
+ */
+export const FIELD_GAP = { block: "gap-y-4", item: "gap-y-3" } as const;
+
 /** A list's item count, and its size problem, on the label's line. */
 export const LIST_NOTE = "text-sm leading-4.5";
 
@@ -40,8 +47,11 @@ const QUIET_CONTROL =
 /** A one-line control with no box until it's hovered or focused. Its text sits on the field's text edge. */
 export const QUIET_INPUT = `${QUIET_CONTROL} h-8 text-ellipsis`;
 
-/** A text area that grows with its text, drawn like a quiet input. */
-export const QUIET_TEXTAREA = `${QUIET_CONTROL} min-h-8 resize-none overflow-hidden py-1.5`;
+/**
+ * A text area that grows with its text, drawn like a quiet input. An inline text area would sit
+ * on its line's baseline and leave a gap under it.
+ */
+export const QUIET_TEXTAREA = `${QUIET_CONTROL} block min-h-8 resize-none overflow-hidden py-1.5`;
 
 // The editor's field column sets input text to text-base and font-normal, which only `!` outranks.
 /** The block's headline: the one larger size inside a block. */
@@ -72,7 +82,7 @@ export const ROW_HOVER =
 export const DRAGGING = "relative z-30 rounded-md bg-kumo-base shadow-lg ring ring-kumo-line";
 
 /** How the rows a dragged row passes move aside: the same ease-out as the panels. */
-export const SORT_TRANSITION = { duration: 200, easing: "cubic-bezier(0.22, 1, 0.36, 1)" };
+export const SORT_TRANSITION = { duration: 200, easing: "cubic-bezier(0.33, 1, 0.68, 1)" };
 
 /**
  * A ghost button in a blocks field row. Kumo's ghost buttons inherit their parent's background,
