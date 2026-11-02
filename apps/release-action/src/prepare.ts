@@ -32,6 +32,7 @@ export interface PrepareReleaseFilesOptions {
 	repository: string;
 	workflowRef: string;
 	repositoryVisibility: string;
+	info?: (message: string) => void;
 }
 
 export interface PreparedReleaseFiles {
@@ -214,6 +215,7 @@ export async function prepareReleaseFiles(
 			version: bundle.value.version,
 			ignoreUnrelatedManifest:
 				Boolean(options.bundleFile) && (options.pluginDirectory ?? ".") === ".",
+			info: options.info,
 		}),
 		packageSlug: bundle.value.packageSlug,
 		version: bundle.value.version,

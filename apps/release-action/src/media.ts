@@ -40,6 +40,7 @@ export async function prepareReleaseMedia(options: {
 	packageSlug: string;
 	version: string;
 	ignoreUnrelatedManifest?: boolean;
+	info?: (message: string) => void;
 }): Promise<PreparedReleaseMedia> {
 	const workspace = await directoryRealpath(options.workspace, "Workspace");
 	const pluginDirectory = await directoryRealpath(
@@ -60,7 +61,12 @@ export async function prepareReleaseMedia(options: {
 			pluginDirectory,
 		);
 	} catch (error) {
-		if (error instanceof MissingFileError) return {};
+		if (error instanceof MissingFileError) {
+			options.info?.(
+				"No emdash-plugin.jsonc in plugin-directory, so the release has no listing images",
+			);
+			return {};
+		}
 		throw error;
 	}
 	const manifest = parseManifest(manifestBytes);
@@ -68,8 +74,12 @@ export async function prepareReleaseMedia(options: {
 		options.ignoreUnrelatedManifest &&
 		isObject(manifest) &&
 		manifest.slug !== options.packageSlug
-	)
+	) {
+		options.info?.(
+			`emdash-plugin.jsonc in plugin-directory belongs to another plugin, so the release has no listing images. Set plugin-directory to the directory of ${options.packageSlug}.`,
+		);
 		return {};
+	}
 	validateManifest(manifest, options.packageSlug, options.version);
 	const artifacts = getArtifacts(manifest);
 	const result: PreparedReleaseMedia = {};

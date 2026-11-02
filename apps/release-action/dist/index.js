@@ -4436,11 +4436,17 @@ async function prepareReleaseMedia(options) {
 	try {
 		manifestBytes = await boundedFile$1(manifestPath, MAX_MANIFEST_BYTES, "Manifest", pluginDirectory);
 	} catch (error) {
-		if (error instanceof MissingFileError) return {};
+		if (error instanceof MissingFileError) {
+			options.info?.("No emdash-plugin.jsonc in plugin-directory, so the release has no listing images");
+			return {};
+		}
 		throw error;
 	}
 	const manifest = parseManifest(manifestBytes);
-	if (options.ignoreUnrelatedManifest && isObject$1(manifest) && manifest.slug !== options.packageSlug) return {};
+	if (options.ignoreUnrelatedManifest && isObject$1(manifest) && manifest.slug !== options.packageSlug) {
+		options.info?.(`emdash-plugin.jsonc in plugin-directory belongs to another plugin, so the release has no listing images. Set plugin-directory to the directory of ${options.packageSlug}.`);
+		return {};
+	}
 	validateManifest(manifest, options.packageSlug, options.version);
 	const artifacts = getArtifacts(manifest);
 	const result = {};
@@ -15234,7 +15240,8 @@ async function prepareReleaseFiles(options, dependencies = {}) {
 			pluginDirectory: resolve(options.workspace, options.pluginDirectory ?? "."),
 			packageSlug: bundle.value.packageSlug,
 			version: bundle.value.version,
-			ignoreUnrelatedManifest: Boolean(options.bundleFile) && (options.pluginDirectory ?? ".") === "."
+			ignoreUnrelatedManifest: Boolean(options.bundleFile) && (options.pluginDirectory ?? ".") === ".",
+			info: options.info
 		}),
 		packageSlug: bundle.value.packageSlug,
 		version: bundle.value.version,
@@ -15361,7 +15368,8 @@ async function runAction(runtime, dependencies = {}) {
 			provenanceFile,
 			repository,
 			workflowRef,
-			repositoryVisibility
+			repositoryVisibility,
+			info: (message) => runtime.info(message)
 		});
 	}
 	const packageSlug = prepared?.packageSlug ?? release.package;

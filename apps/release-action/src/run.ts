@@ -191,6 +191,7 @@ export async function runAction(
 			repository,
 			workflowRef,
 			repositoryVisibility,
+			info: (message) => runtime.info(message),
 		});
 	}
 	const packageSlug = prepared?.packageSlug ?? release!.package;
