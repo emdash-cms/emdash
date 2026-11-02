@@ -373,37 +373,6 @@ describe("CalendarPage", () => {
 		});
 	});
 
-	it("moves between months and views with letter keys, but not while typing", async () => {
-		await page.viewport(1440, 900);
-		router.search = { month: "2030-03", view: "month" };
-		serveCalendar(() => Response.json({ data: { items: [] } }));
-		const screen = await renderPage(({ children }) => (
-			<>
-				<input aria-label="Notes" />
-				{children}
-			</>
-		));
-		await expect.element(screen.getByRole("heading", { name: "March 2030" })).toBeVisible();
-
-		await userEvent.keyboard("j");
-		expect(navigatedSearch(router.navigate.mock.lastCall).search).toMatchObject({
-			month: "2030-04",
-		});
-		// On Dvorak, the key labelled K sits where QWERTY has V.
-		window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", code: "KeyV" }));
-		expect(navigatedSearch(router.navigate.mock.lastCall).search).toMatchObject({
-			month: "2030-02",
-		});
-		await userEvent.keyboard("a");
-		expect(navigatedSearch(router.navigate.mock.lastCall).search).toMatchObject({ view: "agenda" });
-
-		router.navigate.mockClear();
-		await screen.getByLabelText("Notes").click();
-		await userEvent.keyboard("ja");
-		await expect.element(screen.getByLabelText("Notes")).toHaveValue("ja");
-		expect(router.navigate).not.toHaveBeenCalled();
-	});
-
 	it("keeps the month beside the panel on a wide screen", async () => {
 		await page.viewport(1440, 900);
 		router.search = { month: "2020-03", view: "month", entry: "posts:launch:published" };

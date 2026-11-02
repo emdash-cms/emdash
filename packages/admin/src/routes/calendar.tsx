@@ -107,47 +107,6 @@ function useNow(): number {
 	return now;
 }
 
-/**
- * Shortcuts don't fire while typing, inside menus and lists that use letter
- * keys themselves, or behind the phone's entry sheet.
- */
-const SHORTCUT_IGNORE =
-	"input, textarea, select, [contenteditable], [role=menu], [role=listbox], [role=combobox], [aria-modal=true]";
-
-const LATIN_LETTER = /^[a-z]$/i;
-const LETTER_KEY_CODE = /^Key([A-Z])$/;
-
-/**
- * The letter a key press means: the printed letter on Latin layouts, and the
- * letter at that position on others, such as Cyrillic.
- */
-function shortcutLetter(event: KeyboardEvent): string | undefined {
-	if (LATIN_LETTER.test(event.key)) return event.key.toLowerCase();
-	return LETTER_KEY_CODE.exec(event.code)?.[1]?.toLowerCase();
-}
-
-/** Runs the handler for a letter key pressed on its own. */
-function useShortcuts(handlers: Partial<Record<string, () => void>>) {
-	const latest = React.useRef(handlers);
-	React.useLayoutEffect(() => {
-		latest.current = handlers;
-	});
-	React.useEffect(() => {
-		const onKeyDown = (event: KeyboardEvent) => {
-			if (event.defaultPrevented || event.repeat) return;
-			if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-			if (event.target instanceof Element && event.target.closest(SHORTCUT_IGNORE)) return;
-			const letter = shortcutLetter(event);
-			const handler = letter && latest.current[letter];
-			if (!handler) return;
-			event.preventDefault();
-			handler();
-		};
-		window.addEventListener("keydown", onKeyDown);
-		return () => window.removeEventListener("keydown", onKeyDown);
-	}, []);
-}
-
 export function CalendarPage() {
 	const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest });
 	if (!manifest) return null;
@@ -421,17 +380,6 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 	const maxEntries = new Intl.NumberFormat(i18n.locale).format(CALENDAR_MAX_ENTRIES);
 	const cutOffDay = loadedThrough && display.monthDay(loadedThrough);
 
-	const showPrevious = () => goToMonth(shiftMonth(month, -1));
-	const showNext = () => goToMonth(shiftMonth(month, 1));
-	const showToday = () => goToMonth(undefined);
-	useShortcuts({
-		t: showToday,
-		j: showNext,
-		k: showPrevious,
-		m: () => changeView("month"),
-		a: () => changeView("agenda"),
-	});
-
 	return (
 		<div ref={containerRef} className="flex h-full min-w-0">
 			<div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-4 sm:p-6">
@@ -443,9 +391,9 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 					loading={calendar.isPending && calendar.isFetching}
 					view={view}
 					onViewChange={changeView}
-					onPrevious={showPrevious}
-					onNext={showNext}
-					onToday={showToday}
+					onPrevious={() => goToMonth(shiftMonth(month, -1))}
+					onNext={() => goToMonth(shiftMonth(month, 1))}
+					onToday={() => goToMonth(undefined)}
 					onPreviewPrevious={() => prefetchMonth(shiftMonth(month, -1))}
 					onPreviewNext={() => prefetchMonth(shiftMonth(month, 1))}
 					tools={
