@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import { PortableTextEditor } from "../../src/components/PortableTextEditor";
-import { render } from "../utils/render";
+import { PortableTextEditor } from "../../src/components/PortableTextEditor.js";
+import { render } from "../utils/render.js";
 
 import "../../dist/styles.css";
 
@@ -57,6 +57,26 @@ describe("Buttons block editor", () => {
 					},
 				],
 			});
+		});
+	});
+
+	it("keeps each button's key when an earlier button is removed", async () => {
+		const onChange = vi.fn();
+		const archive = {
+			_type: "button",
+			_key: "button-2",
+			text: "Archive",
+			url: "https://example.com/archive",
+		};
+		const group = { ...importedButtons, buttons: [...importedButtons.buttons, archive] };
+		const screen = await render(<PortableTextEditor value={[group]} onChange={onChange} />);
+
+		await screen.getByRole("button", { name: "Edit", exact: true }).click();
+		await screen.getByRole("button", { name: "Remove item 1" }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+
+		await vi.waitFor(() => {
+			expect(savedButtons(onChange)).toEqual({ ...importedButtons, buttons: [archive] });
 		});
 	});
 

@@ -3555,20 +3555,29 @@ const EMPTY_PLUGIN_BLOCKS: PluginBlockDef[] = [];
 const BUILTIN_BLOCKS_PLUGIN_ID = "emdash";
 
 /**
- * Shapes repeater rows into the `button` items `Buttons.astro` renders. The
- * repeater drops `_key`, so existing keys are reused by position.
+ * The repeater drops `_key` from the rows it emits, so each button's key rides
+ * along under this name while the form is open.
  */
-function normalizeButtonItems(items: unknown, previous: unknown): Record<string, unknown>[] {
+const BUTTON_KEY_FIELD = "_editorKey";
+
+function withButtonKeyField(buttons: unknown): unknown {
+	if (!Array.isArray(buttons)) return buttons;
+	return buttons.map((item) =>
+		isRecord(item) && typeof item._key === "string"
+			? { ...item, [BUTTON_KEY_FIELD]: item._key }
+			: item,
+	);
+}
+
+/** Shapes repeater rows into the `button` items `Buttons.astro` renders. */
+function normalizeButtonItems(items: unknown): Record<string, unknown>[] {
 	if (!Array.isArray(items)) return [];
-	const previousKeys = Array.isArray(previous)
-		? previous.map((item) => (isRecord(item) && typeof item._key === "string" ? item._key : ""))
-		: [];
-	return items.filter(isRecord).map((item, index) => {
-		const { url, style, ...rest } = item;
+	return items.filter(isRecord).map((item) => {
+		const { url, style, [BUTTON_KEY_FIELD]: key, ...rest } = item;
 		return {
 			...rest,
 			_type: "button",
-			_key: previousKeys[index] || generateKey(),
+			_key: typeof key === "string" && key ? key : generateKey(),
 			text: typeof item.text === "string" ? item.text : "",
 			...(typeof url === "string" && url.trim() ? { url: url.trim() } : {}),
 			...(typeof style === "string" && style ? { style } : {}),
@@ -4383,7 +4392,11 @@ export function PortableTextEditor({
 			const blockDef = pluginBlocks.find((b) => b.type === attrs.blockType);
 			if (!blockDef) return;
 			editingBlockPosRef.current = attrs.pos;
-			setPluginBlockInitialValues({ id: attrs.id, ...attrs.data });
+			const data =
+				blockDef.pluginId === BUILTIN_BLOCKS_PLUGIN_ID && blockDef.type === "buttons"
+					? { ...attrs.data, buttons: withButtonKeyField(attrs.data.buttons) }
+					: attrs.data;
+			setPluginBlockInitialValues({ id: attrs.id, ...data });
 			setPluginBlockModal(blockDef);
 		};
 		return () => {
@@ -4508,7 +4521,7 @@ export function PortableTextEditor({
 				pluginBlockModal.type === "buttons"
 					? {
 							...fieldData,
-							buttons: normalizeButtonItems(fieldData.buttons, pluginBlockInitialValues?.buttons),
+							buttons: normalizeButtonItems(fieldData.buttons),
 						}
 					: fieldData;
 			const editPos = editingBlockPosRef.current;
@@ -4561,7 +4574,7 @@ export function PortableTextEditor({
 			setPluginBlockInitialValues(undefined);
 			editingBlockPosRef.current = null;
 		},
-		[editor, pluginBlockModal, pluginBlockInitialValues],
+		[editor, pluginBlockModal],
 	);
 
 	React.useEffect(() => {
