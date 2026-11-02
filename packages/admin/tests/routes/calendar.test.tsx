@@ -71,6 +71,22 @@ function serveCalendar(respond: (request: number) => Response) {
 	);
 }
 
+/**
+ * Waits for running animations that end, after giving transitions that start
+ * on the next frame time to begin. Loading shimmers never end.
+ */
+async function animationsFinished() {
+	for (let frame = 0; frame < 2; frame++) {
+		await new Promise((resolve) => requestAnimationFrame(resolve));
+	}
+	await Promise.allSettled(
+		document
+			.getAnimations()
+			.filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity)
+			.map((animation) => animation.finished),
+	);
+}
+
 /** Renders the page at the window's height, as the admin shell does. */
 function renderPage(wrapper?: React.ComponentType<React.PropsWithChildren>) {
 	const Inner = wrapper ?? React.Fragment;
@@ -389,15 +405,30 @@ describe("CalendarPage", () => {
 
 		const panel = screen.getByRole("dialog", { name: "Entry launch" });
 		await expect.element(panel).toBeVisible();
-		const table = screen.getByRole("table");
-		await expect
-			.poll(
-				() =>
-					panel.element().getBoundingClientRect().left -
-					table.element().getBoundingClientRect().right,
-			)
-			.toBeGreaterThanOrEqual(0);
+		await animationsFinished();
+
+		const panelBox = panel.element().getBoundingClientRect();
+		expect(panelBox.left).toBeGreaterThanOrEqual(
+			screen.getByRole("table").element().getBoundingClientRect().right,
+		);
+		expect(panelBox.right).toBeLessThanOrEqual(window.innerWidth);
 		await expect.element(screen.getByRole("button", { name: "Next month" })).toBeVisible();
+	});
+
+	it("opens the panel over the month when beside it the month would be too narrow", async () => {
+		await page.viewport(1050, 800);
+		router.search = { month: "2020-03", view: "month", entry: "posts:launch:published" };
+		serveCalendar(() =>
+			Response.json({ data: { items: [entry("launch", "2020-03-05T09:00:00.000Z")] } }),
+		);
+		const screen = await renderPage();
+
+		await expect.element(screen.getByRole("dialog", { name: "Entry launch" })).toBeVisible();
+		await animationsFinished();
+
+		expect(
+			screen.getByRole("table").element().getBoundingClientRect().width,
+		).toBeGreaterThanOrEqual(640);
 	});
 
 	it("adds a history entry for the panel and goes back to close it", async () => {

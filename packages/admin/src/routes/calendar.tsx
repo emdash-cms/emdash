@@ -59,8 +59,12 @@ const COMPACT_WIDTH = 640;
  * with the taller grid narrows the page, which would otherwise flip it back.
  */
 const COMPACT_SLACK = 24;
-/** From this width the side panel sits beside the calendar instead of over it. */
-const DOCK_WIDTH = 1000;
+/**
+ * From this width the side panel sits beside the calendar instead of over it:
+ * the month keeps `COMPACT_WIDTH` next to the panel (`w-96`), its border, the
+ * page padding, and room for a scrollbar.
+ */
+const DOCK_WIDTH = COMPACT_WIDTH + 384 + 1 + 48 + COMPACT_SLACK;
 const NO_LOCALES: string[] = [];
 
 /**
@@ -222,7 +226,10 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 		...calendarQueryOptions(range.from, range.to),
 		staleTime: 0,
 		refetchInterval: (query) =>
-			rangeHasNow && query.state.status !== "error" ? REFRESH_MS : false,
+			rangeHasNow &&
+			query.state.status !== "error"
+				? REFRESH_MS
+				: false,
 	});
 
 	const items = React.useMemo(
