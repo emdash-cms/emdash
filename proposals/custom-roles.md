@@ -413,7 +413,7 @@ The extra query on authenticated pages is the existing user lookup, which carrie
 | 3     | The role editor: a permission matrix that starts from a built-in role as a template. Documentation.                                                                                                                                                                                                                                                                                     | None          |
 | 4     | `content:read_own_drafts` in the map and the role editor. Ownership checks on the single-entry routes, and the owner predicate in list routes and MCP list tools.                                                                                                                                                                                                                       | None          |
 
-Each phase is a separate set of pull requests and ships without a feature flag. Phase 1 can ship on its own. Phase 4 needs phase 2, because only a custom role can hold `content:read_own_drafts` without `content:read_drafts`. I will implement phases 1 and 2.
+Each phase is a separate set of pull requests and ships without a feature flag. Phase 1 can ship on its own. Phase 4 needs phase 2, because only a custom role can hold `content:read_own_drafts` without `content:read_drafts`. I will implement all four phases, in order.
 
 ### Reconciliation with related work
 
