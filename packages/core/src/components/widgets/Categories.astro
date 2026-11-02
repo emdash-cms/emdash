@@ -13,6 +13,8 @@ interface Props {
 const { showCount = true, hierarchical = true } = Astro.props;
 
 const categories = await getTaxonomyTerms("category", { includeCounts: showCount });
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 ---
 
 <ul class="widget-categories">
@@ -20,7 +22,7 @@ const categories = await getTaxonomyTerms("category", { includeCounts: showCount
 		categories.length > 0 ? (
 			categories.map((category) => (
 				<li>
-					<a href={`/category/${category.slug}`} class="widget-categories__link">
+					<a href={`${base}/category/${category.slug}`} class="widget-categories__link">
 						{category.label}
 					</a>
 					{showCount && category.count !== undefined && (
