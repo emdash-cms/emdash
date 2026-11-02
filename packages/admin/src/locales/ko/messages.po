@@ -2747,7 +2747,7 @@ msgstr "콘텐츠 조회 가능"
 #: packages/admin/src/components/PortableTextEditor.tsx:5857
 #: packages/admin/src/components/PortableTextEditor.tsx:5883
 #: packages/admin/src/components/PortableTextEditor.tsx:6631
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:390
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:391
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -2894,17 +2894,17 @@ msgstr "이미지 변경"
 msgid "Change Logo"
 msgstr "로고 변경"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:687
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:688
 msgid "Change publication date"
 msgstr "게시 일시 변경"
 
 #. placeholder {0}: isolate(formattedValue)
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:662
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:663
 msgid "Change publication date: {0}"
 msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:602
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:514
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "예약 변경"
 
@@ -3188,7 +3188,7 @@ msgstr "패키지 파일 선택"
 msgid "Choose replacement image"
 msgstr "교체할 이미지 선택"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:688
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:689
 msgid "Choose the date this entry shows as published."
 msgstr ""
 
@@ -3204,11 +3204,11 @@ msgstr "Touch ID 또는 사용할 수 있는 다른 자격 증명 관리자를 �
 msgid "Choose what kind of content the field holds."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:530
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
 msgid "Choose when the unpublished changes go live."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:532
 msgid "Choose when this entry is published."
 msgstr ""
 
@@ -7591,7 +7591,7 @@ msgstr "훅"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr "가로 {0}%, 세로 {1}%"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:232
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
 msgid "Hour"
 msgstr "시"
 
@@ -9206,7 +9206,7 @@ msgstr "최소 블록 수"
 msgid "Minor section heading"
 msgstr "아주 작은 섹션 제목"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:258
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:259
 msgid "Minute"
 msgstr "분"
 
@@ -10624,7 +10624,7 @@ msgstr "이 게시물에 공개적으로 표시되는 사람입니다."
 msgid "Per page"
 msgstr "페이지당"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:282
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:283
 msgid "Period"
 msgstr "오전/오후"
 
@@ -10998,7 +10998,7 @@ msgstr "공개 라우트"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:969
 #: packages/admin/src/components/ContentSettingsPanel.tsx:974
 #: packages/admin/src/components/ContentSettingsPanel.tsx:985
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:692
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "게시 일시"
 
@@ -12222,7 +12222,7 @@ msgstr "플러그인 작업을 실행하기 전에 변경 사항을 저장하세
 msgid "Save content as draft before publishing"
 msgstr "게시하기 전에 콘텐츠를 초안으로 저장"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:695
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:696
 msgid "Save date"
 msgstr "일시 저장"
 
@@ -12247,7 +12247,7 @@ msgstr "이미지를 자르기 전에 다른 변경 사항을 저장하거나 �
 msgid "Save Relation"
 msgstr "관계 저장"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Save schedule"
 msgstr "예약 저장"
 
@@ -12319,20 +12319,20 @@ msgid "Scan it with a nearby phone or tablet."
 msgstr "근처의 휴대전화나 태블릿으로 스캔하세요."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:602
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "예약"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:516
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:517
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule changes"
 msgstr "변경 사항 게시 예약"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:537
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:538
 msgid "Schedule date"
 msgstr "예약 날짜"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:517
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
 msgid "Schedule publication"
 msgstr "게시 예약"
 
@@ -14733,7 +14733,7 @@ msgstr "게시된 버전으로 되돌아갑니다. 초안 변경 사항이 손�
 msgid "Thoughts, tutorials, and more"
 msgstr "생각, 튜토리얼 등"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:220
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:221
 msgid "Time"
 msgstr "시간"
 
@@ -14745,7 +14745,7 @@ msgstr ""
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:311
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:312
 #: packages/admin/src/components/settings/GeneralSettings.tsx:508
 msgid "Timezone"
 msgstr "시간대"

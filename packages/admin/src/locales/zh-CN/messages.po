@@ -2747,7 +2747,7 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/PortableTextEditor.tsx:5857
 #: packages/admin/src/components/PortableTextEditor.tsx:5883
 #: packages/admin/src/components/PortableTextEditor.tsx:6631
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:390
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:391
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -2894,17 +2894,17 @@ msgstr "更换图片"
 msgid "Change Logo"
 msgstr "更改徽标"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:687
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:688
 msgid "Change publication date"
 msgstr "更改发布日期"
 
 #. placeholder {0}: isolate(formattedValue)
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:662
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:663
 msgid "Change publication date: {0}"
 msgstr "更改发布日期：{0}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:602
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:514
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "更改定时"
 
@@ -3188,7 +3188,7 @@ msgstr "选择安装包文件"
 msgid "Choose replacement image"
 msgstr "选择替换图片"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:688
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:689
 msgid "Choose the date this entry shows as published."
 msgstr ""
 
@@ -3204,11 +3204,11 @@ msgstr "选择触控 ID 或其他可用凭据管理器，然后用指纹或 Mac 
 msgid "Choose what kind of content the field holds."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:530
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
 msgid "Choose when the unpublished changes go live."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:532
 msgid "Choose when this entry is published."
 msgstr ""
 
@@ -7591,7 +7591,7 @@ msgstr "钩子"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr "水平 {0}%，垂直 {1}%"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:232
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
 msgid "Hour"
 msgstr "小时"
 
@@ -9206,7 +9206,7 @@ msgstr "区块数量下限"
 msgid "Minor section heading"
 msgstr "次级章节标题"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:258
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:259
 msgid "Minute"
 msgstr "分钟"
 
@@ -10624,7 +10624,7 @@ msgstr "公开展示在这篇文章中的人员。"
 msgid "Per page"
 msgstr "每页"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:282
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:283
 msgid "Period"
 msgstr "周期"
 
@@ -10998,7 +10998,7 @@ msgstr "公开路由"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:969
 #: packages/admin/src/components/ContentSettingsPanel.tsx:974
 #: packages/admin/src/components/ContentSettingsPanel.tsx:985
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:692
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "发布日期"
 
@@ -12222,7 +12222,7 @@ msgstr "运行插件操作前请先保存更改"
 msgid "Save content as draft before publishing"
 msgstr "发布前将内容保存为草稿"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:695
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:696
 msgid "Save date"
 msgstr "保存日期"
 
@@ -12247,7 +12247,7 @@ msgstr "裁剪前请保存或放弃其他更改。"
 msgid "Save Relation"
 msgstr "保存关联关系"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Save schedule"
 msgstr "保存定时发布"
 
@@ -12319,20 +12319,20 @@ msgid "Scan it with a nearby phone or tablet."
 msgstr "用附近的手机或平板扫描它。"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:602
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "定时发布"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:516
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:517
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule changes"
 msgstr "定时更改"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:537
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:538
 msgid "Schedule date"
 msgstr "定时日期"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:517
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
 msgid "Schedule publication"
 msgstr "定时发布"
 
@@ -14733,7 +14733,7 @@ msgstr "这将恢复到已发布的版本。您的草稿更改将会丢失。"
 msgid "Thoughts, tutorials, and more"
 msgstr "想法、教程等"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:220
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:221
 msgid "Time"
 msgstr "时间"
 
@@ -14745,7 +14745,7 @@ msgstr "时间为 {zoneName} 时间。"
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "时间为 {zoneName} 时间。您的浏览器使用 {viewerZoneName}。"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:311
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:312
 #: packages/admin/src/components/settings/GeneralSettings.tsx:508
 msgid "Timezone"
 msgstr "时区"

@@ -2747,7 +2747,7 @@ msgstr "Peut consulter le contenu"
 #: packages/admin/src/components/PortableTextEditor.tsx:5857
 #: packages/admin/src/components/PortableTextEditor.tsx:5883
 #: packages/admin/src/components/PortableTextEditor.tsx:6631
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:390
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:391
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -2894,17 +2894,17 @@ msgstr "Modifier l'image"
 msgid "Change Logo"
 msgstr "Modifier le logo"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:687
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:688
 msgid "Change publication date"
 msgstr "Modifier la date de publication"
 
 #. placeholder {0}: isolate(formattedValue)
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:662
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:663
 msgid "Change publication date: {0}"
 msgstr "Modifier la date de publication : {0}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:602
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:514
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "Modifier la programmation"
 
@@ -3188,7 +3188,7 @@ msgstr "Choisir le fichier du paquet"
 msgid "Choose replacement image"
 msgstr "Choisir l’image de remplacement"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:688
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:689
 msgid "Choose the date this entry shows as published."
 msgstr ""
 
@@ -3204,11 +3204,11 @@ msgstr "Choisissez Touch ID ou un autre gestionnaire d’identifiants disponible
 msgid "Choose what kind of content the field holds."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:530
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
 msgid "Choose when the unpublished changes go live."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:532
 msgid "Choose when this entry is published."
 msgstr ""
 
@@ -7591,7 +7591,7 @@ msgstr "Hooks"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr "Horizontal {0} %, vertical {1} %"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:232
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
 msgid "Hour"
 msgstr "Heure"
 
@@ -9206,7 +9206,7 @@ msgstr "Nombre minimal de blocs"
 msgid "Minor section heading"
 msgstr "Titre de sous-section"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:258
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:259
 msgid "Minute"
 msgstr "Minute"
 
@@ -10624,7 +10624,7 @@ msgstr "Personnes affichées publiquement sur cet article."
 msgid "Per page"
 msgstr "Par page"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:282
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:283
 msgid "Period"
 msgstr "Période"
 
@@ -10998,7 +10998,7 @@ msgstr "Routes publiques"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:969
 #: packages/admin/src/components/ContentSettingsPanel.tsx:974
 #: packages/admin/src/components/ContentSettingsPanel.tsx:985
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:692
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "Date de publication"
 
@@ -12222,7 +12222,7 @@ msgstr "Enregistrez les modifications avant d’exécuter les actions du module 
 msgid "Save content as draft before publishing"
 msgstr "Enregistrer le contenu en brouillon avant publication"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:695
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:696
 msgid "Save date"
 msgstr "Enregistrer la date"
 
@@ -12247,7 +12247,7 @@ msgstr "Enregistrez ou abandonnez les autres modifications avant de recadrer."
 msgid "Save Relation"
 msgstr "Enregistrer la relation"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Save schedule"
 msgstr "Enregistrer la programmation"
 
@@ -12319,20 +12319,20 @@ msgid "Scan it with a nearby phone or tablet."
 msgstr "Scannez-le avec un téléphone ou une tablette à proximité."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:602
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "Programmer"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:516
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:517
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule changes"
 msgstr "Programmer les modifications"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:537
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:538
 msgid "Schedule date"
 msgstr "Date de programmation"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:517
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
 msgid "Schedule publication"
 msgstr "Programmer la publication"
 
@@ -14733,7 +14733,7 @@ msgstr "Cela rétablira la version publiée. Vos modifications en cours seront p
 msgid "Thoughts, tutorials, and more"
 msgstr "Réflexions, tutoriels et bien plus encore"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:220
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:221
 msgid "Time"
 msgstr "Heure"
 
@@ -14745,7 +14745,7 @@ msgstr "Les heures sont dans le fuseau {zoneName}."
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "Les heures sont dans le fuseau {zoneName}. Votre navigateur utilise {viewerZoneName}."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:311
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:312
 #: packages/admin/src/components/settings/GeneralSettings.tsx:508
 msgid "Timezone"
 msgstr "Fuseau horaire"

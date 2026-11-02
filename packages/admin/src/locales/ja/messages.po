@@ -2747,7 +2747,7 @@ msgstr "コンテンツを閲覧できます"
 #: packages/admin/src/components/PortableTextEditor.tsx:5857
 #: packages/admin/src/components/PortableTextEditor.tsx:5883
 #: packages/admin/src/components/PortableTextEditor.tsx:6631
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:390
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:391
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -2894,17 +2894,17 @@ msgstr "画像を変更"
 msgid "Change Logo"
 msgstr "ロゴを変更"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:687
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:688
 msgid "Change publication date"
 msgstr "公開日時を変更"
 
 #. placeholder {0}: isolate(formattedValue)
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:662
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:663
 msgid "Change publication date: {0}"
 msgstr "公開日時を変更：{0}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:602
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:514
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "予約を変更"
 
@@ -3188,7 +3188,7 @@ msgstr "パッケージファイルを選択"
 msgid "Choose replacement image"
 msgstr "置き換える画像を選択"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:688
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:689
 msgid "Choose the date this entry shows as published."
 msgstr ""
 
@@ -3204,11 +3204,11 @@ msgstr "Touch IDまたは利用可能な別の認証情報マネージャーを�
 msgid "Choose what kind of content the field holds."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:530
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
 msgid "Choose when the unpublished changes go live."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:532
 msgid "Choose when this entry is published."
 msgstr ""
 
@@ -7591,7 +7591,7 @@ msgstr "フック"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr "水平方向{0}%、垂直方向{1}%"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:232
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
 msgid "Hour"
 msgstr "時"
 
@@ -9206,7 +9206,7 @@ msgstr "ブロック数の下限"
 msgid "Minor section heading"
 msgstr "レベル5の見出し"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:258
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:259
 msgid "Minute"
 msgstr "分"
 
@@ -10624,7 +10624,7 @@ msgstr "この投稿に表示される執筆者です。"
 msgid "Per page"
 msgstr "1ページあたり"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:282
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:283
 msgid "Period"
 msgstr "午前／午後"
 
@@ -10998,7 +10998,7 @@ msgstr "公開ルート"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:969
 #: packages/admin/src/components/ContentSettingsPanel.tsx:974
 #: packages/admin/src/components/ContentSettingsPanel.tsx:985
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:692
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "公開日時"
 
@@ -12222,7 +12222,7 @@ msgstr "プラグインのアクションを実行する前に変更を保存し
 msgid "Save content as draft before publishing"
 msgstr "公開前にコンテンツを下書きとして保存"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:695
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:696
 msgid "Save date"
 msgstr "日時を保存"
 
@@ -12247,7 +12247,7 @@ msgstr "切り抜く前に、ほかの変更を保存するか破棄してくだ
 msgid "Save Relation"
 msgstr "関連付けを保存"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Save schedule"
 msgstr "予約を保存"
 
@@ -12319,20 +12319,20 @@ msgid "Scan it with a nearby phone or tablet."
 msgstr "近くにあるスマートフォンまたはタブレットで読み取ってください。"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:602
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "予約公開"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:516
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:517
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule changes"
 msgstr "変更を予約公開"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:537
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:538
 msgid "Schedule date"
 msgstr "予約日時"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:517
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
 msgid "Schedule publication"
 msgstr "公開を予約"
 
@@ -14733,7 +14733,7 @@ msgstr "公開版に戻ります。下書きの変更は失われます。"
 msgid "Thoughts, tutorials, and more"
 msgstr "記事、チュートリアルなど"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:220
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:221
 msgid "Time"
 msgstr "時刻"
 
@@ -14745,7 +14745,7 @@ msgstr "時刻は{zoneName}で表示しています。"
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "時刻は{zoneName}で表示しています。ブラウザーのタイムゾーンは{viewerZoneName}です。"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:311
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:312
 #: packages/admin/src/components/settings/GeneralSettings.tsx:508
 msgid "Timezone"
 msgstr "タイムゾーン"

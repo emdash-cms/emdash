@@ -2747,7 +2747,7 @@ msgstr "İçeriği görüntüleyebilir"
 #: packages/admin/src/components/PortableTextEditor.tsx:5857
 #: packages/admin/src/components/PortableTextEditor.tsx:5883
 #: packages/admin/src/components/PortableTextEditor.tsx:6631
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:390
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:391
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -2894,17 +2894,17 @@ msgstr "Resmi Değiştir"
 msgid "Change Logo"
 msgstr "Logoyu Değiştir"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:687
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:688
 msgid "Change publication date"
 msgstr "Yayın tarihini değiştir"
 
 #. placeholder {0}: isolate(formattedValue)
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:662
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:663
 msgid "Change publication date: {0}"
 msgstr "Yayın tarihini değiştir: {0}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:602
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:514
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "Zamanlamayı değiştir"
 
@@ -3188,7 +3188,7 @@ msgstr "Paket dosyası seç"
 msgid "Choose replacement image"
 msgstr "Yerine konacak görseli seçin"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:688
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:689
 msgid "Choose the date this entry shows as published."
 msgstr ""
 
@@ -3204,11 +3204,11 @@ msgstr "Touch ID'yi veya kullanılabilir başka bir kimlik bilgisi yöneticisini
 msgid "Choose what kind of content the field holds."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:530
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
 msgid "Choose when the unpublished changes go live."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:532
 msgid "Choose when this entry is published."
 msgstr ""
 
@@ -7591,7 +7591,7 @@ msgstr "Kancalar"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr "Yatay %{0}, dikey %{1}"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:232
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
 msgid "Hour"
 msgstr "Saat"
 
@@ -9206,7 +9206,7 @@ msgstr "En az blok sayısı"
 msgid "Minor section heading"
 msgstr "Alt düzey bölüm başlığı"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:258
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:259
 msgid "Minute"
 msgstr "Dakika"
 
@@ -10624,7 +10624,7 @@ msgstr "Bu gönderide herkese açık olarak gösterilen kişiler."
 msgid "Per page"
 msgstr "Sayfa başına"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:282
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:283
 msgid "Period"
 msgstr "Günün bölümü"
 
@@ -10998,7 +10998,7 @@ msgstr "Herkese açık yollar"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:969
 #: packages/admin/src/components/ContentSettingsPanel.tsx:974
 #: packages/admin/src/components/ContentSettingsPanel.tsx:985
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:692
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "Yayın tarihi"
 
@@ -12222,7 +12222,7 @@ msgstr "Eklenti işlemlerini çalıştırmadan önce değişiklikleri kaydedin"
 msgid "Save content as draft before publishing"
 msgstr "İçeriği yayınlamadan önce taslak olarak kaydedin"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:695
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:696
 msgid "Save date"
 msgstr "Tarihi kaydet"
 
@@ -12247,7 +12247,7 @@ msgstr "Kırpmadan önce diğer değişiklikleri kaydedin veya onlardan vazgeçi
 msgid "Save Relation"
 msgstr "İlişkiyi Kaydet"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Save schedule"
 msgstr "Zamanlamayı kaydet"
 
@@ -12319,20 +12319,20 @@ msgid "Scan it with a nearby phone or tablet."
 msgstr "Yakındaki bir telefon veya tabletle QR kodunu tarayın."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:602
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "Zamanla"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:516
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:517
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule changes"
 msgstr "Değişiklikleri zamanla"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:537
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:538
 msgid "Schedule date"
 msgstr "Zamanlama tarihi"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:517
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
 msgid "Schedule publication"
 msgstr "Yayını zamanla"
 
@@ -14733,7 +14733,7 @@ msgstr "Bu, yayınlanan sürüme geri dönecektir. Taslak değişiklikleriniz ka
 msgid "Thoughts, tutorials, and more"
 msgstr "Düşünceler, öğreticiler ve daha fazlası"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:220
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:221
 msgid "Time"
 msgstr "Saat"
 
@@ -14745,7 +14745,7 @@ msgstr "Saatler {zoneName} saat dilimindedir."
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "Saatler {zoneName} saat dilimindedir. Tarayıcınız {viewerZoneName} saat dilimini kullanıyor."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:311
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:312
 #: packages/admin/src/components/settings/GeneralSettings.tsx:508
 msgid "Timezone"
 msgstr "Saat dilimi"
