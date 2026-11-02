@@ -230,6 +230,13 @@ function refuseDateChanges() {
 	return reads;
 }
 
+async function publishNow(screen: Screen) {
+	screen.getByRole("button", { name: "Publish now", exact: true }).element().click();
+	const confirm = screen.getByRole("dialog", { name: "Publish now?" });
+	await expect.element(confirm).toBeVisible();
+	confirm.getByRole("button", { name: "Publish now", exact: true }).element().click();
+}
+
 async function changePublicationDate(screen: Screen) {
 	screen
 		.getByRole("button", { name: /Change publication date/ })
@@ -257,12 +264,7 @@ const ACTIONS: Array<{
 	{
 		title: "publishes the entry Publish was clicked on",
 		item: CREATED,
-		act: async (screen) => {
-			screen.getByRole("button", { name: "Publish now", exact: true }).element().click();
-			const confirm = screen.getByRole("dialog", { name: "Publish now?" });
-			await expect.element(confirm).toBeVisible();
-			confirm.getByRole("button", { name: "Publish now", exact: true }).element().click();
-		},
+		act: publishNow,
 		write: { method: "POST", path: `${ENTRY_PATH}/publish?locale=en`, body: { _rev: "rev-2" } },
 	},
 	{
@@ -733,7 +735,7 @@ describe.each([
 		await save.answered;
 
 		await expect.poll(() => writes.length).toBe(2);
-		return { queryClient, writes };
+		return { queryClient, screen, title, writes };
 	}
 
 	for (const { title: action, item, act, write } of ACTIONS) {
@@ -743,6 +745,29 @@ describe.each([
 			expect(writes[1]).toMatchObject(write);
 		});
 	}
+
+	it("leaves the entry now open as it was once Publish lands", async () => {
+		const otherPath = `/_emdash/api/content/${other.type}/${other.id}`;
+		mockFetch
+			.on("GET", otherPath, { data: { item: other, _rev: "rev-other" } })
+			.on("PUT", `${otherPath}?locale=en`, { data: { item: other, _rev: "rev-other" } })
+			.on("POST", `${ENTRY_PATH}/publish?locale=en`, {
+				data: { item: { ...PUBLISHED, data: { title: "Edited title" } }, _rev: "rev-3" },
+			});
+		const { screen, title, writes } = await actThenSwitch(CREATED, publishNow);
+		await expect.element(screen.getByText("Content is now live")).toBeVisible();
+		await expect.element(title).toHaveValue("Other title");
+
+		await title.fill("Edited other title");
+		screen.getByRole("button", { name: "Save", exact: true }).element().click();
+
+		await expect.poll(() => writes.length).toBe(3);
+		expect(writes[2]).toMatchObject({
+			method: "PUT",
+			path: `${otherPath}?locale=en`,
+			body: { _rev: "rev-other" },
+		});
+	});
 
 	it("refreshes the entry whose publication date it changed", async () => {
 		const { queryClient } = await actThenSwitch(PUBLISHED, changePublicationDate);
