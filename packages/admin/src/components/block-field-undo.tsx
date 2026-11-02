@@ -8,19 +8,20 @@ import { useStableCallback } from "../lib/hooks.js";
 import type { DeletionHold } from "./BlockListField.js";
 import type { ImageFieldValue } from "./ImageFieldRenderer.js";
 
-const UNDO_TIMEOUT_MS = 6000;
+const MOUSE_UNDO_TIMEOUT_MS = 6000;
 /**
  * Reaching a toast from the keyboard takes longer, so a deletion made from it keeps its Undo
- * longer. So does one made from assistive technology, which presses nothing on the page.
+ * longer. So does one made by touch, where a screen reader taps for its user, and one made from
+ * assistive technology that presses nothing on the page.
  */
-const KEYBOARD_UNDO_TIMEOUT_MS = 15_000;
-/** How soon after a press of the pointer a deletion counts as made with it. */
-const POINTER_DELETION_MS = 2000;
+const UNDO_TIMEOUT_MS = 15_000;
+/** How soon after a press of the mouse a deletion counts as made with it. */
+const MOUSE_DELETION_MS = 2000;
 
 type UndoOwner =
 	| { kind: "block" }
 	| { kind: "item"; blockKey: string; field: string }
-	| { kind: "field"; name: string };
+	| { kind: "field"; control: object };
 
 const APPLE_PLATFORM =
 	typeof navigator !== "undefined" &&
@@ -48,6 +49,10 @@ function isUndoKey(event: KeyboardEvent): boolean {
 	return APPLE_PLATFORM ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
 }
 
+/** Popups over the page. Mod+Z in one leaves the page behind it alone. A toast isn't one. */
+const OVER_PAGE =
+	':is([role="dialog"], [role="alertdialog"]):not([aria-modal="false"]), [role="menu"], [role="listbox"]';
+
 /** Whether keys pressed in `target` edit text, which has an undo of its own. */
 function editsText(target: EventTarget | null): boolean {
 	if (!(target instanceof HTMLElement)) return false;
@@ -71,7 +76,8 @@ interface UndoEntry {
 
 interface UndoSlot {
 	current: UndoEntry | null;
-	lastInput: { kind: "keyboard" | "pointer"; at: number };
+	/** When the mouse was last pressed, unless a key or another pointer was pressed after it. */
+	lastMousePress: number;
 	/** How many blocks fields are on the page, while any are listening. */
 	fields: number;
 	onInput: (event: Event) => void;
@@ -97,18 +103,19 @@ function undoSlot(): UndoSlot {
 	const scope = globalThis as typeof globalThis & { [UNDO_SLOT]?: UndoSlot };
 	scope[UNDO_SLOT] ??= {
 		current: null,
-		lastInput: { kind: "pointer", at: Number.NEGATIVE_INFINITY },
+		lastMousePress: Number.NEGATIVE_INFINITY,
 		fields: 0,
 		onInput(event) {
 			if (event instanceof KeyboardEvent && isUndoKey(event)) return;
-			const kind = event.type === "pointerdown" ? "pointer" : "keyboard";
-			undoSlot().lastInput = { kind, at: performance.now() };
+			const mouse = event instanceof PointerEvent && event.pointerType === "mouse";
+			undoSlot().lastMousePress = mouse ? performance.now() : Number.NEGATIVE_INFINITY;
 		},
 		onKeyDown(event) {
 			const current = undoSlot().current;
 			if (!current || event.defaultPrevented || !isUndoKey(event) || editsText(event.target)) {
 				return;
 			}
+			if (event.target instanceof Element && event.target.closest(OVER_PAGE)) return;
 			event.preventDefault();
 			current.undo();
 		},
@@ -186,8 +193,7 @@ export function useUndoToast() {
 	const offer = (title: string, owner: UndoOwner, restore: () => void, held?: DeletionHold) => {
 		const slot = undoSlot();
 		if (isHeld(held) && slot.current !== held.entry) return;
-		const { kind, at } = slot.lastInput;
-		const byPointer = kind === "pointer" && performance.now() - at < POINTER_DELETION_MS;
+		const byMouse = performance.now() - slot.lastMousePress < MOUSE_DELETION_MS;
 		let id = "";
 		const entry: UndoEntry = {
 			field,
@@ -203,7 +209,7 @@ export function useUndoToast() {
 		takeUndo(entry);
 		id = toastManager.add({
 			title,
-			timeout: byPointer ? UNDO_TIMEOUT_MS : KEYBOARD_UNDO_TIMEOUT_MS,
+			timeout: byMouse ? MOUSE_UNDO_TIMEOUT_MS : UNDO_TIMEOUT_MS,
 			onClose: () => releaseUndo(entry),
 			actions: [
 				{
@@ -239,30 +245,56 @@ export function useUndoToast() {
 	return { offer, hold, dismiss, supersede, owner: () => mine()?.owner };
 }
 
+/**
+ * Marks the editor canvas holding the field `rootRef` while a toast that is staying covers part of
+ * the field's width, so focus brought into view there keeps clear of it. A toast beside the field,
+ * or on its way out, leaves the canvas alone.
+ */
+export function useToastClearance(rootRef: React.RefObject<HTMLElement | null>) {
+	const { toasts } = useKumoToastManager();
+	React.useLayoutEffect(() => {
+		const root = rootRef.current;
+		const canvas = root?.closest<HTMLElement>("[data-emdash-editor-canvas]");
+		if (!root || !canvas) return;
+		const update = () => {
+			const field = root.getBoundingClientRect();
+			const covered = toasts.some((toast) => {
+				if (toast.transitionStatus === "ending" || toast.limited) return false;
+				const box = toast.ref?.current?.getBoundingClientRect();
+				return box !== undefined && box.left < field.right && box.right > field.left;
+			});
+			canvas.toggleAttribute("data-toast-over", covered);
+		};
+		update();
+		const resizes = new ResizeObserver(update);
+		resizes.observe(root);
+		return () => {
+			resizes.disconnect();
+			canvas.removeAttribute("data-toast-over");
+		};
+	}, [rootRef, toasts]);
+}
+
 type UndoToast = ReturnType<typeof useUndoToast>;
 
 /** The blocks field's Undo toast, for the fields inside it. */
 export const UndoContext = React.createContext<UndoToast | null>(null);
 
 /**
- * The Undo for a photo removed from the control `name`: returns the function that offers it, and
- * puts the photo back through `change`.
+ * The Undo for a photo removed from the calling control: returns the function that offers it, and
+ * puts the photo back through `change`. The Undo stays with the control as its list item moves.
  */
-export function usePhotoUndo(
-	name: string,
-	fieldLabel: string,
-	empty: boolean,
-	change: (value: unknown) => void,
-) {
+export function usePhotoUndo(fieldLabel: string, empty: boolean, change: (value: unknown) => void) {
 	const { t } = useLingui();
 	const undo = React.useContext(UndoContext);
+	const control = React.useRef({}).current;
 	const putBack = useStableCallback(change);
 	const ownsUndo = () => {
 		const owner = undo?.owner();
-		return owner?.kind === "field" && owner.name === name;
+		return owner?.kind === "field" && owner.control === control;
 	};
 	const offerRestore = (removed: ImageFieldValue | string, restored: () => void) =>
-		undo?.offer(t`Removed ${fieldLabel}`, { kind: "field", name }, () => {
+		undo?.offer(t`Removed ${fieldLabel}`, { kind: "field", control }, () => {
 			restored();
 			putBack(removed);
 		});

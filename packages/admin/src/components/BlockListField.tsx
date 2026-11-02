@@ -264,13 +264,15 @@ export function BlockListField({
 	const knownKeys = React.useRef(new WeakMap<ListItem, string>()).current;
 	/** Items deleted here with an Undo, which grow back in when it puts them back. */
 	const deletedItems = React.useRef(new WeakSet<ListItem>()).current;
+	/** Table rows Enter added, which stay out of the saved list while all their cells are blank. */
+	const enteredRows = React.useRef(new Set<string>()).current;
 	const [rows, setRows] = React.useState<Row[]>(() => syncRows([], items, knownKeys));
 	const [source, setSource] = React.useState(value);
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	const [seenReveal, setSeenReveal] = React.useState(0);
 	const [announcement, setAnnouncement] = React.useState("");
-	/** The row just added or duplicated, which grows into place. */
-	const [addedKey, setAddedKey] = React.useState<string | null>(null);
+	/** The row just added, duplicated or put back by Undo, which grows into place. */
+	const [arrived, setArrived] = React.useState<{ key: string; restored?: true } | null>(null);
 	const rootRef = React.useRef<HTMLDivElement>(null);
 	const addRef = React.useRef<HTMLButtonElement>(null);
 	const focusRef = React.useRef<ListFocus | null>(null);
@@ -289,14 +291,20 @@ export function BlockListField({
 		);
 		const shownKeys = new Set(rows.map((row) => row.key));
 		const restored = current.find((row) => deletedItems.has(row.item) && !shownKeys.has(row.key));
-		if (restored) setAddedKey(restored.key);
+		if (restored) setArrived({ key: restored.key, restored: true });
 		setSource(value);
 		setRows(current);
 	}
 	const savedIndex = new Map(items.map((item, index) => [item, index]));
-	// Only a line that isn't in the saved list is blank, so an empty item already saved stays.
-	const isBlank = (row: Row) =>
-		lineField !== undefined && !savedIndex.has(row.item) && isBlankLine(row.item[lineField.slug]);
+	const blankCells = (row: Row) =>
+		subFields.every((subField) => isBlankLine(row.item[subField.slug]));
+	// Only a line or a row Enter added that isn't in the saved list is blank, so an empty item
+	// already saved stays.
+	const isBlank = (row: Row) => {
+		if (savedIndex.has(row.item)) return false;
+		if (lineField) return isBlankLine(row.item[lineField.slug]);
+		return enteredRows.has(row.key) && blankCells(row);
+	};
 	// Problems and reveals point into the saved list, where a line typed but not yet saved has no place.
 	const positions = current.map((row) => savedIndex.get(row.item));
 	const at = (index: number) => {
@@ -400,7 +408,7 @@ export function BlockListField({
 		const row = { key: createBlockKey(), item: newItem() };
 		insertRow(index, row);
 		if (presentation === "items") setOpenKeys(new Set(openKeys).add(row.key));
-		setAddedKey(row.key);
+		setArrived({ key: row.key });
 		focusRef.current = { key: row.key, target: "control", scroll: false };
 	};
 	const addRow = () => addRowAt(current.length);
@@ -424,7 +432,7 @@ export function BlockListField({
 		const copy = { key: createBlockKey(), item: cloneValue(row.item) };
 		insertRow(index + 1, copy);
 		if (openKeys.has(row.key)) setOpenKeys(new Set(openKeys).add(copy.key));
-		setAddedKey(copy.key);
+		setArrived({ key: copy.key });
 		focusRef.current = { key: copy.key, target: "item", scroll: false };
 		const copied = name(row, index);
 		setAnnouncement(t`Duplicated ${copied}`);
@@ -462,7 +470,12 @@ export function BlockListField({
 			() => deleteLater(key, hold),
 			() => hold?.release(),
 		);
-		if (collapse) hold = onItemDeleteStart?.(collapse.reverse);
+		if (collapse) {
+			hold = onItemDeleteStart?.(() => {
+				collapse.reverse();
+				focusRow({ key, target: "item", scroll: false });
+			});
+		}
 	};
 
 	const removeBlankLines = useStableCallback(() => {
@@ -470,6 +483,12 @@ export function BlockListField({
 		if (!root || root.contains(document.activeElement)) return;
 		const kept = current.filter((row) => !isBlank(row));
 		if (kept.length !== current.length) emit(kept);
+	});
+
+	// A table row Enter added goes once focus leaves it with every cell still blank.
+	const removeBlankRow = useStableCallback((key: string) => {
+		const row = current.find((candidate) => candidate.key === key);
+		if (row && isBlank(row)) emit(current.filter((candidate) => candidate !== row));
 	});
 
 	const lineKeyDown = (event: React.KeyboardEvent<HTMLElement>, index: number) => {
@@ -507,13 +526,25 @@ export function BlockListField({
 		}
 	};
 
-	// Enter goes down a table's column, adding a row under the last, and the arrow keys go up and
-	// down it, except in a number, whose arrow keys step its value.
+	// Enter goes down a table's column, adding a row under the last unless that one is blank, and
+	// the arrow keys go up and down it, except in a number, whose arrow keys step its value.
+	// Backspace in the empty first cell of a blank row deletes the row, as it does an empty line.
 	const cellKeyDown = (event: React.KeyboardEvent<HTMLElement>, index: number, column: number) => {
 		const input = event.target;
-		if (!(input instanceof HTMLInputElement) || !TEXT_INPUT_TYPES.has(input.type)) return;
+		const row = current[index];
+		if (!(input instanceof HTMLInputElement) || !TEXT_INPUT_TYPES.has(input.type) || !row) return;
 		if (event.nativeEvent.isComposing || event.keyCode === 229) return;
 		if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+		if (event.key === "Backspace") {
+			const above = current[index - 1];
+			if (column !== 0 || !above || input.value !== "" || !blankCells(row)) return;
+			if (positions[index] !== undefined && !canDelete(row)) return;
+			event.preventDefault();
+			if (positions[index] === undefined) emit(current.filter((candidate) => candidate !== row));
+			else deleteRow(row.key);
+			focusRef.current = { key: above.key, target: "cell", column };
+			return;
+		}
 		const enter = event.key === "Enter";
 		if (!enter && (input.type === "number" || !["ArrowUp", "ArrowDown"].includes(event.key))) {
 			return;
@@ -526,8 +557,9 @@ export function BlockListField({
 		}
 		if (!enter) return;
 		event.preventDefault();
-		if (atMax) return;
+		if (atMax || isBlank(row)) return;
 		const added = { key: createBlockKey(), item: newItem() };
+		enteredRows.add(added.key);
 		insertRow(index + 1, added);
 		focusRef.current = { key: added.key, target: "cell", column };
 	};
@@ -575,7 +607,7 @@ export function BlockListField({
 		name: name(row, index),
 		readOnly,
 		canDelete: canDelete(row),
-		added: row.key === addedKey,
+		added: arrived?.key === row.key ? (arrived.restored ? "restored" : "new") : undefined,
 		onMove: (to, slide) => moveRow(index, to, slide),
 		onEdge: (edge) => {
 			const moved = name(row, index);
@@ -663,7 +695,17 @@ export function BlockListField({
 					)}
 				</div>
 				{current.map((row, index) => (
-					<TableRow key={row.key} {...rowProps(row, index)} columns={columns}>
+					<TableRow
+						key={row.key}
+						{...rowProps(row, index)}
+						columns={columns}
+						onBlur={
+							readOnly || !enteredRows.has(row.key)
+								? undefined
+								: (event) =>
+										whenFocusLeaves(event, () => queueMicrotask(() => removeBlankRow(row.key)))
+						}
+					>
 						{subFields.map((subField, column) => (
 							<LabelledCell
 								key={subField.slug}
@@ -815,8 +857,11 @@ interface SortableRowProps {
 	name: string;
 	readOnly: boolean;
 	canDelete: boolean;
-	/** The row was just added, and grows into place. */
-	added: boolean;
+	/**
+	 * The row was just added or duplicated, and grows into place and into view, or put back by
+	 * Undo, and grows in where it was.
+	 */
+	added?: "new" | "restored";
 	/** Moves the row; `slide` slides it and the rows it passes into their places. */
 	onMove: (to: number, slide?: boolean) => void;
 	/** Called when the move keys would take the row past either end. */
@@ -824,7 +869,7 @@ interface SortableRowProps {
 	onDelete: () => void;
 }
 
-function useSortableRow(key: string, readOnly: boolean, added: boolean) {
+function useSortableRow(key: string, readOnly: boolean, added: SortableRowProps["added"]) {
 	const { listeners, setNodeRef, node, transform, transition, isDragging } = useSortable({
 		id: key,
 		disabled: readOnly,
@@ -833,7 +878,7 @@ function useSortableRow(key: string, readOnly: boolean, added: boolean) {
 	const drop = useDropSettle(key, isDragging, setNodeRef);
 	const [menuOpen, setMenuOpen] = React.useState(false);
 	React.useLayoutEffect(() => {
-		if (added && node.current) growRow(node.current);
+		if (added && node.current) growRow(node.current, { reveal: added === "new" });
 	}, [added, node]);
 	return {
 		listeners,
@@ -1085,13 +1130,19 @@ function TableRow({
 	onEdge,
 	onDelete,
 	columns,
+	onBlur,
 	children,
-}: SortableRowProps & { columns: string; children: React.ReactNode }) {
+}: SortableRowProps & {
+	columns: string;
+	onBlur?: React.FocusEventHandler<HTMLDivElement>;
+	children: React.ReactNode;
+}) {
 	const sortable = useSortableRow(row.key, readOnly, added);
 	return (
 		<div
 			ref={sortable.setNodeRef}
 			role="row"
+			onBlur={onBlur}
 			data-list-item
 			data-item-key={row.key}
 			data-menu-open={sortable.menuOpen || undefined}

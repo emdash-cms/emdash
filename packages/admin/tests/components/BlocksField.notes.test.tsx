@@ -443,30 +443,26 @@ describe("A settings row's hint with no room beside the value", () => {
 });
 
 describe("A settings row's problem", () => {
-	it("shows at the end of its control's line, in words its hint doesn't use, at rest and with focus", async () => {
+	it("shows under its control's line, in words its hint doesn't use, at rest and with focus", async () => {
 		await renderEditor([heroBlock], [hero]);
 		await openBlock("Hero");
 		const link = control("Primary button link");
 		const row = page.getByRole("group", { name: "Primary button", exact: true }).element();
 		const font = fontOf(shownText("Primary button", row)!);
-		const tops = rowTops();
 
 		await link.fill("not a url");
 		await control("Headline").click();
 		await expect.element(link).toHaveAttribute("aria-invalid", "true");
 		await expect.element(link).toHaveAccessibleDescription(`Invalid link. ${LINK_HINT}`);
 		const atRest = dangerTexts(row);
-		expect(atRest.map(ownText)).toEqual(["Invalid link"]);
-		const line = box(link);
-		expect(link.element().closest('[class~="group/control"]')!.contains(atRest[0]!)).toBe(true);
-		expect(box(atRest[0]!).top).toBeGreaterThanOrEqual(line.top - 0.5);
-		expect(box(atRest[0]!).bottom).toBeLessThanOrEqual(line.bottom + 0.5);
+		expect(atRest.map(ownText)).toEqual([`Invalid link. ${LINK_HINT}`]);
+		expect(box(atRest[0]!).top).toBeGreaterThanOrEqual(box(link).bottom - 0.5);
 		expect(fontOf(shownText("Primary button", row)!)).toBe(font);
-		expect(rowTops()).toEqual(tops);
+		const tops = rowTops();
 
 		await link.click();
-		await expect.poll(() => dangerTexts(row).map(ownText)).toEqual(["Invalid link"]);
-		expect(shownText(LINK_HINT)).toBeUndefined();
+		await expect.element(link).toHaveFocus();
+		await expect.poll(() => dangerTexts(row).map(ownText)).toEqual([`Invalid link. ${LINK_HINT}`]);
 		expect(fontOf(shownText("Primary button", row)!)).toBe(font);
 		expect(rowTops()).toEqual(tops);
 

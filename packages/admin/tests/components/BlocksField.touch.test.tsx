@@ -38,6 +38,10 @@ function blockType(slug: string, label: string, fields: BlockFieldDefinition[]):
 }
 
 const SHORT = blockType("short", "Short", [{ slug: "title", label: "Title", type: "string" }]);
+const OPTIONS = blockType("options", "Options", [
+	{ slug: "icon", label: "Icon", type: "select", validation: { options: ["bolt", "leaf"] } },
+	{ slug: "tone", label: "Tone", type: "select", validation: { options: ["calm", "bold"] } },
+]);
 const QUOTES = blockType("quotes", "Testimonials", [
 	{
 		slug: "quotes",
@@ -52,7 +56,7 @@ const QUOTES = blockType("quotes", "Testimonials", [
 		},
 	},
 ]);
-const TYPES = [SHORT, QUOTES];
+const TYPES = [SHORT, QUOTES, OPTIONS];
 
 const short = (key: string): StoredBlockValue => ({
 	_type: "short",
@@ -81,22 +85,42 @@ function Harness({ initial }: { initial: StoredBlockValue[] }) {
 		blockTypes: TYPES,
 		allowedTypes: TYPES.map((type) => type.slug),
 		retiredTypes: [],
-		renderField: ({ name, value: fieldValue, onChange, chrome }) => (
-			<input
-				id={`field-${name}`}
-				aria-labelledby={chrome.labelledBy}
-				className="h-8 w-full"
-				value={typeof fieldValue === "string" ? fieldValue : ""}
-				onChange={(event) => onChange(event.target.value)}
-			/>
-		),
+		renderField: ({ name, field, value: fieldValue, onChange, chrome }) =>
+			field.kind === "select" ? (
+				<Select
+					aria-label={field.label}
+					items={Object.fromEntries(
+						(Array.isArray(field.options) ? field.options : []).map((option) => [
+							option.value,
+							option.label,
+						]),
+					)}
+					value={typeof fieldValue === "string" ? fieldValue : null}
+					onValueChange={(next) => onChange(next)}
+					className={QUIET_SELECT}
+				>
+					{(Array.isArray(field.options) ? field.options : []).map((option) => (
+						<Select.Option key={option.value} value={option.value} className={QUIET_OPTION}>
+							{option.label}
+						</Select.Option>
+					))}
+				</Select>
+			) : (
+				<input
+					id={`field-${name}`}
+					aria-labelledby={chrome.labelledBy}
+					className="h-8 w-full"
+					value={typeof fieldValue === "string" ? fieldValue : ""}
+					onChange={(event) => onChange(event.target.value)}
+				/>
+			),
 	};
 	return <BlocksField {...props} />;
 }
 
-function renderField(initial: StoredBlockValue[]) {
+function renderField(initial: StoredBlockValue[], { width = 360 } = {}) {
 	return render(
-		<div style={{ width: 360, margin: "40px 16px" }}>
+		<div style={{ width, margin: "40px 16px" }}>
 			<Harness initial={initial} />
 		</div>,
 		{ wrapper: Toasty },
@@ -223,6 +247,64 @@ describe("Blocks field on a touch screen", () => {
 			expect(trigger.getBoundingClientRect().height).toBe(32);
 			expect(reaches(trigger, "above", 5)).toBe(true);
 			expect(reaches(trigger, "below", 5)).toBe(true);
+		});
+	});
+
+	it("keeps a settings row's select out of the rows beside it", async () => {
+		await onTouchScreen(async () => {
+			await renderField(
+				[{ _type: "options", _version: 1, _key: "options", icon: "bolt", tone: "calm" }],
+				{
+					width: 600,
+				},
+			);
+			await page.getByRole("button", { name: "Options", exact: true }).click();
+			await settled();
+			const icon = page.getByRole("combobox", { name: "Icon" }).element() as HTMLElement;
+			const tone = page.getByRole("combobox", { name: "Tone" }).element() as HTMLElement;
+			icon.scrollIntoView({ block: "center" });
+			const upper = icon.getBoundingClientRect();
+			const lower = tone.getBoundingClientRect();
+			expect(lower.top - upper.bottom).toBeLessThan(6);
+
+			const x = upper.left + upper.width / 2;
+			expect(icon.contains(document.elementFromPoint(x, upper.bottom - 1))).toBe(true);
+			expect(tone.contains(document.elementFromPoint(x, lower.top + 1))).toBe(true);
+		});
+	});
+
+	it("keeps Undo open as long after a tap as after the keyboard", async () => {
+		await onTouchScreen(async () => {
+			await renderField([short("one"), short("two")]);
+			await tap(
+				page
+					.getByRole("button", { name: /actions$/ })
+					.first()
+					.element(),
+			);
+			const remove = page.getByRole("menuitem", { name: "Delete" });
+			await expect.element(remove).toBeVisible();
+			await settled();
+			await tap(remove.element());
+			await expect.element(page.getByText("Deleted Short")).toBeVisible();
+
+			await new Promise((resolve) => setTimeout(resolve, 8000));
+			await expect.element(page.getByRole("button", { name: "Undo" })).toBeVisible();
+		});
+	}, 20_000);
+
+	it("opens the block picker from the keyboard ready to type in", async () => {
+		await onTouchScreen(async () => {
+			await renderField([short("one")]);
+			(
+				page.getByRole("button", { name: "Add block", exact: true }).element() as HTMLElement
+			).focus();
+			await userEvent.keyboard("{Enter}");
+			const search = page.getByRole("combobox", { name: "Search block types" });
+			await expect.element(search).toHaveFocus();
+
+			await userEvent.keyboard("{ArrowDown}{Enter}");
+			await expect.poll(() => document.querySelectorAll("[data-block-key]").length).toBe(2);
 		});
 	});
 

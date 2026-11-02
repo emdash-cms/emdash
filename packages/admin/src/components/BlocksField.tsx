@@ -53,6 +53,7 @@ import {
 	useMoveKeys,
 } from "./block-field-keyboard.js";
 import {
+	bringIntoView,
 	collapseRow,
 	DisclosureCaret,
 	DisclosurePanel,
@@ -95,7 +96,7 @@ import {
 	TOUCH_HEIGHT,
 	TOUCH_TARGET,
 } from "./block-field-styles.js";
-import { UndoContext, usePhotoUndo, useUndoToast } from "./block-field-undo.js";
+import { UndoContext, usePhotoUndo, useToastClearance, useUndoToast } from "./block-field-undo.js";
 import {
 	BlockListField,
 	type DeletedListItem,
@@ -227,11 +228,16 @@ interface PickerTarget {
 	invoker: HTMLElement | null;
 	/** The block whose gutter opened the picker. */
 	from?: string;
+	/** A tap opened the picker. */
+	byTouch?: boolean;
 }
 
-/** Where focus goes next. With `scroll: false`, the row's own motion brings it into view. */
+/**
+ * Where focus goes next. With `scroll: false`, the row's own motion brings it into view. With
+ * `"nearest"`, it's brought into view only when it's out of view.
+ */
 type FocusRequest =
-	| { key: string; target: "first-control" | "toggle"; scroll?: false }
+	| { key: string; target: "first-control" | "toggle"; scroll?: false | "nearest" }
 	| {
 			key: string;
 			target: "field";
@@ -240,7 +246,7 @@ type FocusRequest =
 			/** Focuses that control, rather than the block's first problem on screen. */
 			exact?: true;
 	  }
-	| { key: string; target: "item"; field: string; index: number; scroll?: false }
+	| { key: string; target: "item"; field: string; index: number; scroll?: false | "nearest" }
 	| { target: "add" };
 
 const NO_ISSUES: readonly BlockValueIssue[] = [];
@@ -451,10 +457,16 @@ export function BlocksField({
 	);
 	const revealCountRef = React.useRef(0);
 	const revealTokenRef = React.useRef(reveal?.token ?? 0);
-	/** The last place in a block that had focus, after which the next problem is found. */
-	const lastFocusRef = React.useRef<Element | null>(null);
+	/**
+	 * The last place in a block that had focus, or the last problem shown, after which the next
+	 * problem is found. Its rank keeps the place once its control has left the page, or when the
+	 * browser didn't focus it.
+	 */
+	const lastPlaceRef = React.useRef<{ element?: Element; rank?: number[] } | null>(null);
 	const [revealFocus, setRevealFocus] = React.useState<FocusRequest | null>(null);
 	const [picker, setPicker] = React.useState<PickerTarget | null>(null);
+	/** What pressed last in the field or a popup it opened: a pointer's type, or the keyboard. */
+	const pressRef = React.useRef("");
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const [confirmDelete, setConfirmDelete] = React.useState<{
 		block: StoredBlockValue;
@@ -465,9 +477,10 @@ export function BlocksField({
 	const [revealSummary, setRevealSummary] = React.useState<{ token: number; text: string } | null>(
 		null,
 	);
-	/** The block just added or duplicated, which grows into place. */
-	const [addedKey, setAddedKey] = React.useState<string | null>(null);
+	/** The block just added, duplicated or put back by Undo, which grows into place. */
+	const [arrived, setArrived] = React.useState<{ key: string; restored?: true } | null>(null);
 	const reorder = useReorderMotion(rootRef, "data-block-key");
+	useToastClearance(rootRef);
 
 	const typeBySlug = React.useMemo(
 		() => new Map(blockTypes.map((blockType) => [blockType.slug, blockType])),
@@ -621,10 +634,12 @@ export function BlocksField({
 	/** Goes to the problem after the last place in a block that had focus, or back to the first. */
 	const showNextIssue = () => {
 		const ranked = rankIssues([...shownIssues.values()].flat(), blocks, typeBySlug);
-		const from = lastFocusRef.current;
-		const at = from?.isConnected ? viewRankAt(from) : undefined;
+		const place = lastPlaceRef.current;
+		const at = place?.element?.isConnected ? viewRankAt(place.element) : place?.rank;
 		const next = (at && ranked.find(({ rank }) => compareRanks(rank, at) > 0)) || ranked[0];
-		if (next) showIssue(next.issue);
+		if (!next) return;
+		lastPlaceRef.current = { rank: next.rank };
+		showIssue(next.issue);
 	};
 
 	// Hands the focus over a render later, once the block, its Advanced row and any list item have opened.
@@ -638,6 +653,10 @@ export function BlocksField({
 		const request = focusRequestRef.current;
 		const root = rootRef.current;
 		if (!request || !root) return;
+		const focusTo = (element: HTMLElement | null, scroll: false | "nearest" | undefined) => {
+			element?.focus(scroll === undefined ? undefined : { preventScroll: true });
+			if (element && scroll === "nearest") bringIntoView(element);
+		};
 		if (request.target === "add") {
 			focusRequestRef.current = null;
 			addButtonRef.current?.focus();
@@ -654,8 +673,9 @@ export function BlocksField({
 				(element) => element.dataset.field === request.field,
 			);
 			const item = list?.querySelectorAll<HTMLElement>("[data-list-item]")[request.index];
-			(focusableIn(item?.querySelector("[data-item-focus]")) ?? focusableIn(item) ?? toggle)?.focus(
-				request.scroll === false ? { preventScroll: true } : undefined,
+			focusTo(
+				focusableIn(item?.querySelector("[data-item-focus]")) ?? focusableIn(item) ?? toggle,
+				request.scroll,
 			);
 			return;
 		}
@@ -683,7 +703,7 @@ export function BlocksField({
 			request.target === "first-control"
 				? focusableIn(row.querySelector("[data-block-body]"))
 				: null;
-		(control ?? toggle)?.focus(request.scroll === false ? { preventScroll: true } : undefined);
+		focusTo(control ?? toggle, request.scroll);
 	});
 
 	const listMaxItems = (block: StoredBlockValue, field: string) => {
@@ -716,7 +736,7 @@ export function BlocksField({
 	});
 
 	const openPicker = (target: PickerTarget) => {
-		setPicker(target);
+		setPicker({ ...target, byTouch: pressRef.current === "touch" || pressRef.current === "pen" });
 		setPickerOpen(true);
 	};
 
@@ -725,7 +745,7 @@ export function BlocksField({
 		const block = createBlockValue(blockType, createBlockKey());
 		onChange(insertBlockValue(blocks, block, picker.index));
 		setOpenKeys((current) => new Set(current).add(block._key));
-		setAddedKey(block._key);
+		setArrived({ key: block._key });
 		setPickerOpen(false);
 		focusRequestRef.current = { key: block._key, target: "first-control", scroll: false };
 	};
@@ -739,7 +759,7 @@ export function BlocksField({
 		const copy = duplicateBlockValue(block, createBlockKey());
 		onChange(insertBlockValue(blocks, copy, index + 1));
 		if (openKeys.has(block._key)) setOpenKeys((current) => new Set(current).add(copy._key));
-		setAddedKey(copy._key);
+		setArrived({ key: copy._key });
 		focusRequestRef.current = { key: copy._key, target: "toggle", scroll: false };
 		const name = blockLabel(block);
 		setAnnouncement(t`Duplicated ${name}`);
@@ -768,12 +788,12 @@ export function BlocksField({
 		return index;
 	};
 
-	// A block put back grows in, the way it shrank away.
+	// A block put back grows in where it was, the way it shrank away.
 	const restoreBlock = useStableCallback((block: StoredBlockValue, index: number) => {
 		if (blocks.some((candidate) => candidate._key === block._key)) return;
 		onChange(insertBlockValue(blocks, block, index));
-		setAddedKey(block._key);
-		focusRequestRef.current = { key: block._key, target: "toggle", scroll: false };
+		setArrived({ key: block._key, restored: true });
+		focusRequestRef.current = { key: block._key, target: "toggle", scroll: "nearest" };
 	});
 
 	const canRestore = (block: StoredBlockValue) => {
@@ -811,7 +831,13 @@ export function BlocksField({
 			items.splice(at, 0, item);
 			onChange(updateBlockFieldValue(blocks, blockKey, field, items));
 			moveListTouches(blockKey, field, (position) => (position < at ? position : position + 1));
-			focusRequestRef.current = { key: blockKey, target: "item", field, index: at, scroll: false };
+			focusRequestRef.current = {
+				key: blockKey,
+				target: "item",
+				field,
+				index: at,
+				scroll: "nearest",
+			};
 		},
 	);
 
@@ -888,9 +914,15 @@ export function BlocksField({
 				data-blocks-field=""
 				className="@container/blocks grid grid-cols-[minmax(0,1fr)] gap-2"
 				onKeyDown={readOnly ? undefined : keepEnterInBlocks}
+				onPointerDownCapture={(event) => {
+					pressRef.current = event.pointerType;
+				}}
+				onKeyDownCapture={() => {
+					pressRef.current = "keyboard";
+				}}
 				onFocus={(event) => {
 					if (blockKeyOf(event.target) && rootRef.current?.contains(event.target)) {
-						lastFocusRef.current = event.target;
+						lastPlaceRef.current = { element: event.target, rank: viewRankAt(event.target) };
 					}
 				}}
 			>
@@ -907,6 +939,10 @@ export function BlocksField({
 											size="sm"
 											className={cn("text-kumo-danger", TOUCH_HEIGHT)}
 											icon={<WarningCircle className="size-3.5" aria-hidden="true" />}
+											aria-label={plural(toFix, {
+												one: "# to fix. Go to the problem",
+												other: "# to fix. Go to the next problem",
+											})}
 											onClick={showNextIssue}
 										>
 											{plural(toFix, { one: "# to fix", other: "# to fix" })}
@@ -987,7 +1023,13 @@ export function BlocksField({
 												onChange(updateBlockFieldValue(blocks, block._key, field, nextValue))
 											}
 											pickerOpen={pickerOpen && picker?.from === block._key}
-											added={block._key === addedKey}
+											added={
+												arrived?.key === block._key
+													? arrived.restored
+														? "restored"
+														: "new"
+													: undefined
+											}
 											deleteConfirms={!canRestore(block)}
 											onAdd={(target) => openPicker({ ...target, from: block._key })}
 											onDuplicate={() => duplicateBlock(index)}
@@ -1039,6 +1081,7 @@ export function BlocksField({
 						anchor={picker?.anchor ?? null}
 						side={picker?.side ?? "bottom"}
 						invoker={picker?.invoker ?? null}
+						openedByTouch={picker?.byTouch}
 						blockTypes={insertable}
 						onPick={insertBlock}
 						onClose={() => setPickerOpen(false)}
@@ -1097,8 +1140,11 @@ interface BlockRowProps {
 	onItemsShift: (field: string, moves: readonly number[]) => void;
 	/** Whether the block picker this row opened is open. */
 	pickerOpen: boolean;
-	/** The block was just added, and grows into place. */
-	added: boolean;
+	/**
+	 * The block was just added or duplicated, and grows into place and into view, or put back by
+	 * Undo, and grows in where it was.
+	 */
+	added?: "new" | "restored";
 	/** Deleting asks first, so the row stays until that's confirmed. */
 	deleteConfirms: boolean;
 	onAdd: (target: PickerTarget) => void;
@@ -1159,7 +1205,7 @@ function BlockRow({
 	const drop = useDropSettle(block._key, sortable.isDragging, sortable.setNodeRef);
 	const isDragging = sortable.isDragging || drop.settling;
 	React.useLayoutEffect(() => {
-		if (added && node.current) growRow(node.current);
+		if (added && node.current) growRow(node.current, { reveal: added === "new" });
 	}, [added, node]);
 	// The head stays pinned until the fields have folded away under it.
 	const [bodyShown, setBodyShown] = React.useState(open);
@@ -1209,14 +1255,22 @@ function BlockRow({
 				onDelete();
 				return;
 			}
-			// Until the row has shrunk away, Undo calls the deletion off.
+			// Until the row has shrunk away, Undo calls the deletion off, and focuses the block as an
+			// Undo after it does.
 			let hold: DeletionHold | undefined;
 			const collapse = collapseRow(
 				node.current,
 				() => commitDelete(hold),
 				() => hold?.release(),
 			);
-			if (collapse) hold = undo?.hold(collapse.reverse);
+			if (collapse) {
+				hold = undo?.hold(() => {
+					collapse.reverse();
+					headRef.current
+						?.querySelector<HTMLElement>("[data-block-toggle]")
+						?.focus({ preventScroll: true });
+				});
+			}
 			return;
 		}
 		if (action.kind === "duplicate") {
@@ -1639,8 +1693,9 @@ interface ControlOptions {
 	noteSource?: NoteSource;
 	/**
 	 * A settings row's control. Beside its label it says what it has to say at the end of its own
-	 * line, and stacked under it, on the label's line. Empty and required, it says so with its
-	 * placeholder either way.
+	 * line, or for a problem with no room there, on a line of its own under the row's values.
+	 * Stacked under its label, it says it on the label's line. Empty and required, it says so with
+	 * its placeholder either way.
 	 */
 	side?: boolean;
 }
@@ -1677,10 +1732,41 @@ function textWidth(text: string, element: Element): number {
 	return measuring.measureText(text).width;
 }
 
+/** The space kept between a control's text and the note at the end of its line, and past the note. */
+const NOTE_ROOM = 16;
+
+/**
+ * How far into the line of the control in `wrapper` its own text, or failing that its buttons,
+ * reach from the line's start edge, and how wide the line is.
+ */
+function lineUse(wrapper: HTMLElement): { used: number; width: number } | null {
+	const control = wrapper.querySelector<HTMLElement>("input, [role=combobox]");
+	if (control) {
+		const text =
+			control instanceof HTMLInputElement
+				? control.value || control.placeholder
+				: (control.textContent ?? "");
+		const start = Number.parseFloat(getComputedStyle(control).paddingInlineStart) || 0;
+		return { used: start + textWidth(text, control), width: control.clientWidth };
+	}
+	const content = wrapper.firstElementChild;
+	if (!content) return null;
+	const line = wrapper.getBoundingClientRect();
+	const rtl = getComputedStyle(wrapper).direction === "rtl";
+	let used = 0;
+	for (const child of content.children) {
+		const box = child.getBoundingClientRect();
+		if (box.width > 0) used = Math.max(used, rtl ? line.right - box.left : box.right - line.left);
+	}
+	return { used, width: wrapper.clientWidth };
+}
+
 /**
  * A field's quiet control. What it has to say (its problem, and while it has focus its hint and
  * count) goes on its label's line, or at the end of its own line when it has no label line or sits
- * beside its label, so none of it moves or covers anything.
+ * beside its label, so none of it moves or covers anything. Beside its label, a problem with no
+ * room there goes on a line of its own under the control once focus has left, and stays there
+ * while the control has focus again.
  */
 function FieldControl({
 	field,
@@ -1729,6 +1815,10 @@ function FieldControl({
 	const wrapperRef = React.useRef<HTMLDivElement>(null);
 	const noteRef = React.useRef<HTMLSpanElement>(null);
 	const ownNote = !onLabelLine && Boolean(notes.message || notes.hint || notes.countSlotId);
+	/** Whether the hint and the problem fit at the end of the control's line beside its text. */
+	const [fit, setFit] = React.useState({ hint: true, message: true });
+	/** The problem shows on a line of its own, which keeps its place while the control has focus. */
+	const [problemBelow, setProblemBelow] = React.useState(false);
 	// The note at the end of the control's line keeps its text from running under it.
 	React.useLayoutEffect(() => {
 		const note = noteRef.current;
@@ -1743,124 +1833,149 @@ function FieldControl({
 		observer.observe(note);
 		return () => observer.disconnect();
 	}, [ownNote]);
-	const [hintFits, setHintFits] = React.useState(true);
-	// A hint at the end of the control's line shows only where it fits beside the control's text,
+	// A note at the end of the control's line shows only where it fits beside the control's text,
 	// rather than cutting short both.
 	React.useLayoutEffect(() => {
 		const note = noteRef.current;
-		const control = wrapperRef.current?.querySelector<HTMLElement>("input, [role=combobox]");
-		if (!focused || !ownNote || !notes.hint || !note || !control) return;
-		const text =
-			control instanceof HTMLInputElement
-				? control.value || control.placeholder
-				: (control.textContent ?? "");
+		const wrapper = wrapperRef.current;
+		if (!ownNote || !note || !wrapper) return;
+		if (!focused && !notes.message) {
+			setProblemBelow(false);
+			return;
+		}
+		const line = lineUse(wrapper);
+		if (!line) return;
+		const fits = (text: string) => {
+			const width = textWidth(text, note);
+			return line.used + width + NOTE_ROOM <= line.width && width <= wrapper.clientWidth * 0.6;
+		};
 		const count = note.querySelector("[data-count-slot]")?.textContent;
-		const room =
-			control.clientWidth - Number.parseFloat(getComputedStyle(control).paddingInlineStart) - 16;
-		setHintFits(
-			textWidth(text, control) + textWidth(count ? `${notes.hint} ${count}` : notes.hint, note) <=
-				room,
+		const hintFits = !notes.hint || fits(count ? `${notes.hint} ${count}` : notes.hint);
+		const messageFits = !notes.message || fits(notes.message);
+		setFit((current) =>
+			current.hint === hintFits && current.message === messageFits
+				? current
+				: { hint: hintFits, message: messageFits },
 		);
-	}, [focused, ownNote, notes.hint, value]);
+		if (side && !focused) setProblemBelow(!messageFits);
+	}, [ownNote, focused, side, notes.hint, notes.message, value]);
+	const endMessage =
+		notes.message && !problemBelow ? (fit.message ? notes.message : notes.briefMessage) : undefined;
 	const change = (next: unknown) => {
 		if (!isEmptyValue(value) || !isEmptyValue(next)) onEdit();
 		onChange(next);
 	};
-	const offerRestore = usePhotoUndo(name, labelText(field), isEmptyValue(value), change);
+	const offerRestore = usePhotoUndo(labelText(field), isEmptyValue(value), change);
 	return (
-		<div
-			ref={wrapperRef}
-			data-field={dataField}
-			data-field-issue={issue ? "" : undefined}
-			data-note={noteSource}
-			className={cn(
-				"group/control relative min-w-0",
-				notes.placeholderSays && "[&_:is(input,textarea)]:placeholder:text-kumo-subtle!",
-				// The note sits at the field's end, which is a control's own end only while its text
-				// runs the field's way.
-				ownNote &&
-					"ltr:[&_:is(input,[role=combobox])]:pr-[calc(0.5rem+var(--emdash-note-end,0px))]! rtl:[&_:is(input,[role=combobox])]:pl-[calc(0.5rem+var(--emdash-note-end,0px))]!",
-			)}
-			onFocus={ownNote ? () => setFocused(true) : undefined}
-			onBlur={onFocusLeave(() => {
-				setFocused(false);
-				onTouch();
-			})}
-		>
-			<ImageRemovalContext value={field.type === "image" ? offerRestore : null}>
-				{renderField({
-					name,
-					field: descriptor,
-					value,
-					onChange: change,
-					chrome: {
-						labelledBy,
-						describedBy,
-						placeholder: notes.placeholder,
-						placeholderSays: notes.placeholderSays,
-						invalid: issue !== undefined,
-						emptyIssue: notes.emptyIssue,
-						countSlotId: notes.countSlotId,
-						heading,
-						thumbnail: cell ? "cell" : thumbnail,
-					},
+		<>
+			<div
+				ref={wrapperRef}
+				data-field={dataField}
+				data-field-issue={issue ? "" : undefined}
+				data-note={noteSource}
+				className={cn(
+					"group/control relative min-w-0",
+					notes.placeholderSays && "[&_:is(input,textarea)]:placeholder:text-kumo-subtle!",
+					// The note sits at the field's end, which is a control's own end only while its text
+					// runs the field's way.
+					ownNote &&
+						"ltr:[&_:is(input,[role=combobox])]:pr-[calc(0.5rem+var(--emdash-note-end,0px))]! rtl:[&_:is(input,[role=combobox])]:pl-[calc(0.5rem+var(--emdash-note-end,0px))]!",
+				)}
+				onFocus={ownNote ? () => setFocused(true) : undefined}
+				onBlur={onFocusLeave(() => {
+					setFocused(false);
+					onTouch();
 				})}
-			</ImageRemovalContext>
-			{hint && !errorHasHint && (
-				<span id={hintId} hidden>
-					{hint}
-				</span>
-			)}
-			{ownNote && (
-				<span
-					ref={noteRef}
+			>
+				<ImageRemovalContext value={field.type === "image" ? offerRestore : null}>
+					{renderField({
+						name,
+						field: descriptor,
+						value,
+						onChange: change,
+						chrome: {
+							labelledBy,
+							describedBy,
+							placeholder: notes.placeholder,
+							placeholderSays: notes.placeholderSays,
+							invalid: issue !== undefined,
+							emptyIssue: notes.emptyIssue,
+							countSlotId: notes.countSlotId,
+							heading,
+							thumbnail: cell ? "cell" : thumbnail,
+						},
+					})}
+				</ImageRemovalContext>
+				{hint && !errorHasHint && (
+					<span id={hintId} hidden>
+						{hint}
+					</span>
+				)}
+				{ownNote && (
+					<span
+						ref={noteRef}
+						aria-hidden="true"
+						className={cn(
+							NOTE,
+							"pointer-events-none absolute end-2 top-0 h-8 max-w-[60%] items-center gap-x-1.5",
+							// Stacked under its label, a settings row's control leaves its notes to the label's line.
+							!endMessage && !focused
+								? "hidden"
+								: side
+									? "hidden @min-[440px]/blocks:flex"
+									: "flex",
+						)}
+					>
+						{endMessage ? (
+							<span dir="auto" className="min-w-0 truncate text-kumo-danger">
+								{endMessage}
+							</span>
+						) : (
+							notes.hint &&
+							!notes.message && (
+								<span
+									dir="auto"
+									className={cn(
+										"min-w-0 truncate text-kumo-subtle",
+										focused && fit.hint ? NOTE_ON_FOCUS : "hidden",
+									)}
+								>
+									{notes.hint}
+								</span>
+							)
+						)}
+						{notes.countSlotId && (
+							<span
+								id={notes.countSlotId}
+								data-count-slot={notes.countSlotId}
+								className={cn(
+									"shrink-0 text-kumo-subtle tabular-nums empty:hidden",
+									focused ? NOTE_ON_FOCUS : "hidden",
+								)}
+							/>
+						)}
+					</span>
+				)}
+				{error && (
+					<p id={errorId} hidden>
+						{error}
+					</p>
+				)}
+			</div>
+			{side && problemBelow && (
+				<p
 					aria-hidden="true"
 					className={cn(
 						NOTE,
-						"pointer-events-none absolute end-2 top-0 h-8 max-w-[60%] items-center gap-x-1.5",
-						// Stacked under its label, a settings row's control leaves its notes to the label's line.
-						!notes.message && !focused
-							? "hidden"
-							: side
-								? "hidden @min-[440px]/blocks:flex"
-								: "flex",
+						"hidden min-h-5 ps-2 pb-1 wrap-anywhere text-kumo-danger @min-[440px]/blocks:block",
+						// Under a button row's two halves, the line spans both.
+						noteSource === "field" ? "@min-[440px]/blocks:col-start-2" : "col-span-full",
 					)}
 				>
-					{notes.briefMessage ? (
-						<span dir="auto" className="min-w-0 truncate text-kumo-danger">
-							{notes.briefMessage}
-						</span>
-					) : (
-						notes.hint && (
-							<span
-								dir="auto"
-								className={cn(
-									"min-w-0 truncate text-kumo-subtle",
-									focused && hintFits ? NOTE_ON_FOCUS : "hidden",
-								)}
-							>
-								{notes.hint}
-							</span>
-						)
-					)}
-					{notes.countSlotId && (
-						<span
-							id={notes.countSlotId}
-							data-count-slot={notes.countSlotId}
-							className={cn(
-								"shrink-0 text-kumo-subtle tabular-nums",
-								focused ? NOTE_ON_FOCUS : "hidden",
-							)}
-						/>
-					)}
-				</span>
-			)}
-			{error && (
-				<p id={errorId} hidden>
-					{error}
+					<span dir="auto">{notes.message}</span>
 				</p>
 			)}
-		</div>
+		</>
 	);
 }
 
@@ -2099,7 +2214,7 @@ function BlockFields({
 					],
 				}}
 			>
-				<div className="grid min-w-0 grid-cols-2 items-start gap-x-2">
+				<div className="grid min-w-0 grid-flow-row-dense grid-cols-2 items-start gap-x-2">
 					<span id={labelId(part.text)} hidden>
 						{labelText(part.text)}
 					</span>

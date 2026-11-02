@@ -754,14 +754,14 @@ describe("The Undo toast", () => {
 		expect(slides).toHaveLength(0);
 	});
 
-	it("keeps focus brought into view in the editor clear of it", async () => {
+	it("keeps focus brought into view in the editor clear of it while it covers the field", async () => {
 		await render(
 			<div
 				data-testid="scroller"
 				data-emdash-editor-canvas=""
 				style={{ position: "fixed", inset: 0, overflowY: "auto" }}
 			>
-				<div style={{ width: 480, marginInline: "auto", paddingBlock: 40 }}>
+				<div style={{ marginInline: 80, paddingBlock: 40 }}>
 					<Harness initial={Array.from({ length: 30 }, (_, index) => short(`block-${index}`))} />
 				</div>
 			</div>,

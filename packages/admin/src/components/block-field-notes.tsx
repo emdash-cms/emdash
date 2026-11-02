@@ -1,5 +1,7 @@
 // What a blocks field's controls have to say: a problem once it shows, and while a control has
-// focus its hint and count, on its label's line, so none of it moves or covers anything.
+// focus its hint and count. Under its label, a control says it on the label's line. Beside its
+// label, it says it at the end of its own line, and a problem with no room there goes on a line of
+// its own under the control once focus has left it. Nothing moves as focus comes or goes.
 
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";

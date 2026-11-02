@@ -23,6 +23,11 @@ export interface BlockTypePickerProps {
 	side: "top" | "bottom";
 	/** Gets focus back when the picker is dismissed with Escape. */
 	invoker: HTMLElement | null;
+	/**
+	 * A tap opened the picker, so its search waits for a tap of its own rather than raising the
+	 * keyboard over the options.
+	 */
+	openedByTouch?: boolean;
 	blockTypes: readonly BlockType[];
 	onPick: (blockType: BlockType) => void;
 	onClose: () => void;
@@ -33,6 +38,7 @@ export function BlockTypePicker({
 	anchor,
 	side,
 	invoker,
+	openedByTouch = false,
 	blockTypes,
 	onPick,
 	onClose,
@@ -65,22 +71,23 @@ export function BlockTypePicker({
 				)}
 			>
 				<Popover.Title className="sr-only">{t`Add block`}</Popover.Title>
-				<PickerList blockTypes={blockTypes} onPick={onPick} />
+				<PickerList blockTypes={blockTypes} openedByTouch={openedByTouch} onPick={onPick} />
 			</Popover.Content>
 		</Popover>
 	);
 }
 
-function PickerList({ blockTypes, onPick }: Pick<BlockTypePickerProps, "blockTypes" | "onPick">) {
+function PickerList({
+	blockTypes,
+	openedByTouch,
+	onPick,
+}: Pick<BlockTypePickerProps, "blockTypes" | "openedByTouch" | "onPick">) {
 	const { t } = useLingui();
 	const id = React.useId();
 	const [query, setQuery] = React.useState("");
 	const [active, setActive] = React.useState(0);
-	// On a touch screen the picker opens without focusing its search, which would raise the
-	// keyboard over the options. Tapping the search focuses it.
-	const [searchFocusable, setSearchFocusable] = React.useState(
-		() => !window.matchMedia("(pointer: coarse)").matches,
-	);
+	// Opened by a tap, the search stays out of focus until it's tapped.
+	const [searchFocusable, setSearchFocusable] = React.useState(!openedByTouch);
 
 	const needle = query.trim().toLocaleLowerCase();
 	const groups = new Map<string, BlockType[]>();

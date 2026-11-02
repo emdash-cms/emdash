@@ -590,23 +590,25 @@ describe("Checking fields inside a block", () => {
 		await expect
 			.element(sectionId)
 			.toHaveAccessibleDescription("Check the format. Lowercase, for links like /#pricing");
-		// At rest, the problem shows as words in the field's row, not only as a colour.
+		// At rest, the problem shows as words in the field's row, not only as a colour. With no room
+		// beside the value, it says all of it on a line of its own.
 		const row = label.closest("label")!.parentElement!;
-		await expect.poll(() => shownText("Check the format")).toBeDefined();
-		const error = shownText("Check the format")!.getBoundingClientRect();
+		const problem = "Check the format. Lowercase, for links like /#pricing";
+		await expect.poll(() => shownText(problem)).toBeDefined();
+		const error = shownText(problem)!.getBoundingClientRect();
 		expect(error.top).toBeGreaterThanOrEqual(row.getBoundingClientRect().top);
 		expect(error.bottom).toBeLessThanOrEqual(row.getBoundingClientRect().bottom);
 		expect(getComputedStyle(label).color).toBe(quietLabel);
 
 		const nextRowTop = box(control("Headline")).top;
 		await sectionId.click();
-		await expect.poll(() => shownText("Check the format")).toBeDefined();
+		await expect.poll(() => shownText(problem)).toBeDefined();
 		expect(box(control("Headline")).top).toBe(nextRowTop);
 
 		await sectionId.fill("pricing");
 		await expect.element(sectionId).not.toHaveAttribute("aria-invalid");
 		await control("Headline").click();
-		await expect.poll(() => shownText("Check the format")).toBeUndefined();
+		await expect.poll(() => shownText(problem)).toBeUndefined();
 
 		await openBlock("Logo wall");
 		const code = control("Code");

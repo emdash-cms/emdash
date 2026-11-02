@@ -128,15 +128,34 @@ function scrollAlong(scroller: HTMLElement, by: number, duration: number) {
 }
 
 /**
- * Grows a row just added from nothing to its height, so the rows below glide down instead of
- * jumping, and brings it into view with room under it. Only the part that will be in view grows.
+ * Brings `element` into view below `scroller`'s scroll padding the shortest way, on the disclosure
+ * curve, when any of it is out of view. One taller than the view keeps its top in view.
  */
-export function growRow(row: HTMLElement) {
+export function bringIntoView(element: Element) {
+	const scroller = scrollerOf(element);
+	if (!scroller) return;
+	const { top, bottom } = element.getBoundingClientRect();
+	const style = getComputedStyle(scroller);
+	const start = viewEdge(scroller) + (Number.parseFloat(style.scrollPaddingTop) || 0);
+	const end = viewBottom(scroller) - (Number.parseFloat(style.scrollPaddingBottom) || 0);
+	let by = 0;
+	if (top < start) by = top - start;
+	else if (bottom > end) by = Math.min(bottom - end, top - start);
+	scrollAlong(scroller, by, OPEN_MS);
+}
+
+/**
+ * Grows a row just added from nothing to its height, so the rows below glide down instead of
+ * jumping, and brings it into view with room under it, unless `reveal` is false, as for a row put
+ * back where it was. Only the part that will be in view grows.
+ */
+export function growRow(row: HTMLElement, { reveal = true }: { reveal?: boolean } = {}) {
 	const scroller = scrollerOf(row);
 	const { top, height } = row.getBoundingClientRect();
-	const by = scroller ? revealBy(scroller, top, top + height) : 0;
+	const by = scroller && reveal ? revealBy(scroller, top, top + height) : 0;
 	if (scroller) scrollAlong(scroller, by, OPEN_MS);
-	if (prefersReducedMotion()) return;
+	// A row whose top is out of view appears at once, as one shrinking away there goes at once.
+	if (prefersReducedMotion() || top - by < viewEdge(scroller)) return;
 	const to = shownPart(scroller, top - by, height);
 	if (to < 1) return;
 	const grow = row.animate(
@@ -182,6 +201,8 @@ export function collapseRow(
 	);
 	let reversed = false;
 	shrink.addEventListener("finish", () => {
+		// A reversal that came after the row had shrunk away, but before this, runs its course.
+		if (shrink.playState === "running") return;
 		if (!reversed && row.isConnected) flushSync(remove);
 		// A row that wasn't taken out after all comes back.
 		if (row.isConnected) shrink.cancel();
@@ -190,7 +211,7 @@ export function collapseRow(
 	});
 	return {
 		reverse() {
-			if (reversed || shrink.playState !== "running") return;
+			if (reversed || (shrink.playState !== "running" && shrink.playState !== "finished")) return;
 			reversed = true;
 			shrink.reverse();
 		},

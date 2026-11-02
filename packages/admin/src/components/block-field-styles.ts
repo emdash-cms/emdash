@@ -71,8 +71,10 @@ export const QUIET_HEADING = "h-9 text-lg! leading-6 font-medium!";
 
 // Its chevron follows the value, and like the date's calendar shows only when the control is reached for.
 // Kumo's hover tint carries a `not-disabled:` variant, which only the same variant replaces.
+// On a coarse pointer it reaches 44px tall, except where its row sits beside its label, 2px from
+// the next row, which it reaches only halfway to.
 export const QUIET_SELECT =
-	"h-8 w-full justify-start gap-1.5 rounded-md bg-transparent px-2 font-normal shadow-none ring-transparent not-disabled:hover:bg-emdash-hover focus-visible:bg-kumo-control focus-visible:ring-1 focus-visible:ring-kumo-focus/50 data-[popup-open]:bg-emdash-hover data-[popup-open]:ring-0 [&>span:last-child]:opacity-0 hover:[&>span:last-child]:opacity-100 focus-visible:[&>span:last-child]:opacity-100 data-[popup-open]:[&>span:last-child]:opacity-100 pointer-coarse:[&>span:last-child]:opacity-100 relative pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-1.5";
+	"h-8 w-full justify-start gap-1.5 rounded-md bg-transparent px-2 font-normal shadow-none ring-transparent not-disabled:hover:bg-emdash-hover focus-visible:bg-kumo-control focus-visible:ring-1 focus-visible:ring-kumo-focus/50 data-[popup-open]:bg-emdash-hover data-[popup-open]:ring-0 [&>span:last-child]:opacity-0 hover:[&>span:last-child]:opacity-100 focus-visible:[&>span:last-child]:opacity-100 data-[popup-open]:[&>span:last-child]:opacity-100 pointer-coarse:[&>span:last-child]:opacity-100 relative pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-1.5 pointer-coarse:@min-[440px]/blocks:after:-inset-y-px";
 
 /**
  * An option in a quiet select's popup: as tall as the trigger, or taller for a label that wraps,

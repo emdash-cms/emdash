@@ -1546,9 +1546,16 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 	z-index: 10000 !important;
 }
 
+/*
+ * Kumo's toasts are the dialogs directly inside its live region, found by role rather than by the
+ * region's name, which a translation can change.
+ */
+
 /* A toast's close button takes a 44px square on a coarse pointer, at the same size. */
 @media (pointer: coarse) {
-	[role="region"][aria-label="Notifications"] [data-kumo-part="close"]::after {
+	[role="region"][aria-live]
+		> :is([role="dialog"], [role="alertdialog"])
+		[data-kumo-part="close"]::after {
 		content: "";
 		position: absolute;
 		inset: -12px;
@@ -1557,13 +1564,17 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 
 /* Toasts fade in and out in place of sliding. */
 @media (prefers-reduced-motion: reduce) {
-	[role="region"][aria-label="Notifications"] [role="dialog"] {
+	[role="region"][aria-live] > :is([role="dialog"], [role="alertdialog"]) {
 		transition-property: opacity !important;
+	}
+
+	[role="region"][aria-live] > :is([role="dialog"], [role="alertdialog"])[data-starting-style] {
+		opacity: 0;
 	}
 }
 
-/* While a toast is up, focus brought into view in the editor stays clear of it. */
-html:has([role="region"][aria-label="Notifications"] [role="dialog"]) [data-emdash-editor-canvas] {
+/* While a toast covers a blocks field (useToastClearance), focus brought into view stays clear of it. */
+[data-emdash-editor-canvas][data-toast-over] {
 	scroll-padding-bottom: 8.5rem;
 }
 
