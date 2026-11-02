@@ -244,7 +244,7 @@ msgstr "{0, plural, one {#件} other {#件}}"
 #. placeholder {0}: relation.boundFields.length
 #: packages/admin/src/components/RelationList.tsx:189
 msgid "{0, plural, one {# field} other {# fields}}"
-msgstr ""
+msgstr "{0, plural, other {#フィールド}}"
 
 #. placeholder {0}: uploadQueue.jobs.filter( (job) => job.status === "queued" || job.status === "uploading", ).length
 #: packages/admin/src/components/MediaPickerModal.tsx:1660
@@ -381,7 +381,7 @@ msgstr "{0, plural, one {#件のアップロードに失敗} other {#件のア�
 #. placeholder {0}: blockType.versions.length
 #: packages/admin/src/components/BlockTypeList.tsx:72
 msgid "{0, plural, one {# version} other {# versions}}"
-msgstr ""
+msgstr "{0, plural, other {#バージョン}}"
 
 #. placeholder {0}: section.keywords.length - 3
 #: packages/admin/src/components/Sections.tsx:498
@@ -431,7 +431,7 @@ msgstr "{0, plural, one {ブロックされたコンテンツがほかに#件あ
 #. placeholder {0}: bulkDeleteIds.length
 #: packages/admin/src/components/comments/CommentInbox.tsx:485
 msgid "{0, plural, one {Permanently delete # comment? This cannot be undone.} other {Permanently delete # comments? This cannot be undone.}}"
-msgstr ""
+msgstr "{0, plural, other {#件のコメントを完全に削除しますか？この操作は元に戻せません。}}"
 
 #. placeholder {0}: state.rows
 #: packages/admin/src/components/editor/TableControls.tsx:228
@@ -1360,7 +1360,7 @@ msgstr "操作"
 #: packages/admin/src/routes/byline-schema.tsx:422
 #: packages/admin/src/routes/bylines.tsx:422
 msgid "Actions for {0}"
-msgstr ""
+msgstr "「{0}」の操作"
 
 #: packages/admin/src/components/ContentList.tsx:1573
 #: packages/admin/src/components/ContentList.tsx:1766
@@ -1369,7 +1369,7 @@ msgstr "「{title}」の操作"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:584
 msgid "Actions for comment by {author}"
-msgstr ""
+msgstr "{author}のコメントの操作"
 
 #. placeholder {0}: redirect.source
 #: packages/admin/src/components/Redirects.tsx:514
@@ -2202,7 +2202,7 @@ msgstr "管理者として、ユーザーセクションから他のユーザー
 
 #: packages/admin/src/components/ContentList.tsx:1357
 msgid "Ascending"
-msgstr ""
+msgstr "昇順"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:307
 msgid "Ask an administrator to complete this setup."
@@ -4664,7 +4664,7 @@ msgstr "拒否"
 
 #: packages/admin/src/components/ContentList.tsx:1361
 msgid "Descending"
-msgstr ""
+msgstr "降順"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:66
@@ -10363,7 +10363,7 @@ msgstr "または直接アップロード"
 
 #: packages/admin/src/components/ContentList.tsx:1355
 msgid "Order"
-msgstr ""
+msgstr "並び順"
 
 #: packages/admin/src/components/MenuEditor.tsx:352
 msgid "Order saved"
@@ -13427,19 +13427,19 @@ msgstr "問題が発生しました"
 
 #: packages/admin/src/components/ContentList.tsx:1317
 msgid "Sort"
-msgstr ""
+msgstr "並べ替え"
 
 #: packages/admin/src/components/ContentList.tsx:1338
 msgid "Sort by"
-msgstr ""
+msgstr "並べ替えの基準"
 
 #: packages/admin/src/components/ContentList.tsx:1319
 msgid "Sort by {label}, ascending"
-msgstr ""
+msgstr "「{label}」の昇順で並べ替え"
 
 #: packages/admin/src/components/ContentList.tsx:1320
 msgid "Sort by {label}, descending"
-msgstr ""
+msgstr "「{label}」の降順で並べ替え"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:125
 msgid "Sort plugins"
