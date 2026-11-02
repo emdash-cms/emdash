@@ -9,11 +9,9 @@ export async function tap(element: Element) {
 	const box = element.getBoundingClientRect();
 	const x = frame.left + (box.left + box.width / 2) * scale;
 	const y = frame.top + (box.top + box.height / 2) * scale;
-	await session.send("Emulation.setTouchEmulationEnabled", { enabled: true });
-	try {
-		await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
-		await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-	} finally {
-		await session.send("Emulation.setTouchEmulationEnabled", { enabled: false });
-	}
+	// Touch input works without touch emulation, and turning emulation off resets
+	// the page's hover and pointer to the machine's own devices, none on Linux CI,
+	// for every later test file on the page.
+	await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+	await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
 }

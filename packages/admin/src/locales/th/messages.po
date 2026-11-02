@@ -259,9 +259,16 @@ msgstr "{0, plural, one {ไม่ได้เพิ่ม # ไฟล์ เน
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
 #: packages/admin/src/components/MediaDetailPanel.tsx:1514
-#: packages/admin/src/components/MediaLibrary.tsx:954
+#: packages/admin/src/components/MediaLibrary.tsx:962
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {โหลดโฟลเดอร์ # รายการแล้ว} other {โหลดโฟลเดอร์ # รายการแล้ว}}"
+
+#. placeholder {0}: item.count
+#. placeholder {0}: redirect.hits
+#: packages/admin/src/components/Redirects.tsx:382
+#: packages/admin/src/components/Redirects.tsx:494
+msgid "{0, plural, one {# hit} other {# hits}}"
+msgstr ""
 
 #. placeholder {0}: menu.itemCount ?? 0
 #: packages/admin/src/components/MenuCard.tsx:46
@@ -327,7 +334,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# โพสต์} other {# โพสต์}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:597
+#: packages/admin/src/components/Redirects.tsx:776
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {การเปลี่ยนเส้นทาง # รายการเป็นส่วนหนึ่งของลูป} other {การเปลี่ยนเส้นทาง # รายการเป็นส่วนหนึ่งของลูป}}"
 
@@ -910,7 +917,7 @@ msgstr "{rows, plural, one {ลบแถวแล้ว} other {ลบ # แถ�
 msgid "{rows} × {columns} table pasted"
 msgstr "วางตาราง {rows} × {columns} แล้ว"
 
-#: packages/admin/src/components/DataTable.tsx:138
+#: packages/admin/src/components/DataTable.tsx:360
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {เลือกแล้ว # รายการ} other {เลือกแล้ว # รายการ}}"
 
@@ -995,11 +1002,11 @@ msgstr "{widgetType} ใน {areaName}"
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr "{words, plural, one {# คำ} other {# คำ}}"
 
-#: packages/admin/src/components/Redirects.tsx:239
+#: packages/admin/src/components/Redirects.tsx:266
 msgid "/new-page or /articles/[slug]"
 msgstr "/new-page หรือ /articles/[slug]"
 
-#: packages/admin/src/components/Redirects.tsx:227
+#: packages/admin/src/components/Redirects.tsx:254
 msgid "/old-page or /blog/[slug]"
 msgstr "/old-page หรือ /blog/[slug]"
 
@@ -1097,19 +1104,19 @@ msgstr "3. เลือก \"All content\""
 msgid "30 days"
 msgstr "30 วัน"
 
-#: packages/admin/src/components/Redirects.tsx:257
+#: packages/admin/src/components/Redirects.tsx:284
 msgid "301 Permanent"
 msgstr "301 ถาวร"
 
-#: packages/admin/src/components/Redirects.tsx:258
+#: packages/admin/src/components/Redirects.tsx:285
 msgid "302 Temporary"
 msgstr "302 ชั่วคราว"
 
-#: packages/admin/src/components/Redirects.tsx:259
+#: packages/admin/src/components/Redirects.tsx:286
 msgid "307 Temporary (Strict)"
 msgstr "307 ชั่วคราว (Strict)"
 
-#: packages/admin/src/components/Redirects.tsx:260
+#: packages/admin/src/components/Redirects.tsx:287
 msgid "308 Permanent (Strict)"
 msgstr "308 ถาวร (Strict)"
 
@@ -1125,15 +1132,15 @@ msgstr "4. คลิก \"Download Export File\""
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. ป้อน \"EmDash\" แล้วคลิก \"Add New\""
 
-#: packages/admin/src/components/Redirects.tsx:572
+#: packages/admin/src/components/Redirects.tsx:751
 msgid "404 Errors"
 msgstr "ข้อผิดพลาด 404"
 
-#: packages/admin/src/components/Redirects.tsx:261
+#: packages/admin/src/components/Redirects.tsx:288
 msgid "410 Content Deleted (Gone)"
 msgstr "410 เนื้อหาถูกลบแล้ว (Gone)"
 
-#: packages/admin/src/components/Redirects.tsx:262
+#: packages/admin/src/components/Redirects.tsx:289
 msgid "451 Unavailable for legal reasons"
 msgstr "451 ไม่พร้อมใช้งานด้วยเหตุผลทางกฎหมาย"
 
@@ -1335,6 +1342,8 @@ msgstr "ฟิลด์ ACF"
 #: packages/admin/src/components/ContentList.tsx:782
 #: packages/admin/src/components/ContentList.tsx:924
 #: packages/admin/src/components/ContentTypeList.tsx:227
+#: packages/admin/src/components/Redirects.tsx:362
+#: packages/admin/src/components/Redirects.tsx:827
 #: packages/admin/src/components/RelationList.tsx:110
 #: packages/admin/src/components/TaxonomyManager.tsx:1325
 #: packages/admin/src/routes/byline-schema.tsx:238
@@ -1360,6 +1369,11 @@ msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:584
 msgid "Actions for comment by {author}"
+msgstr ""
+
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:514
+msgid "Actions for redirect {0}"
 msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
@@ -1546,8 +1560,8 @@ msgid "Add New"
 msgstr "เพิ่มใหม่"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:160
-#: packages/admin/src/components/MediaLibrary.tsx:804
-#: packages/admin/src/components/MediaLibrary.tsx:809
+#: packages/admin/src/components/MediaLibrary.tsx:812
+#: packages/admin/src/components/MediaLibrary.tsx:817
 msgid "Add new folder"
 msgstr "เพิ่มโฟลเดอร์ใหม่"
 
@@ -1829,13 +1843,13 @@ msgid "All sources"
 msgstr "ทุกแหล่งที่มา"
 
 #: packages/admin/src/components/ContentList.tsx:1015
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:706
 msgid "All statuses"
 msgstr "ทุกสถานะ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:936
+#: packages/admin/src/components/MediaLibrary.tsx:944
 #: packages/admin/src/components/MediaPickerModal.tsx:404
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "All types"
 msgstr "ทุกประเภท"
 
@@ -1905,7 +1919,7 @@ msgstr ""
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
-#: packages/admin/src/components/MediaLibrary.tsx:1165
+#: packages/admin/src/components/MediaLibrary.tsx:1176
 #: packages/admin/src/components/PortableTextEditor.tsx:5845
 #: packages/admin/src/components/PortableTextEditor.tsx:5911
 msgid "Alt text"
@@ -1917,12 +1931,11 @@ msgstr "ข้อความ Alt"
 msgid "Alt Text"
 msgstr "ข้อความ Alt"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1476
+#: packages/admin/src/components/MediaLibrary.tsx:1480
 msgid "Alt text is not applicable to folders"
 msgstr "ข้อความ Alt ใช้กับโฟลเดอร์ไม่ได้"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1704
-#: packages/admin/src/components/MediaLibrary.tsx:1761
+#: packages/admin/src/components/MediaLibrary.tsx:1779
 msgid "Alt text set"
 msgstr "ตั้งค่าข้อความ Alt แล้ว"
 
@@ -2040,7 +2053,7 @@ msgstr "มีการนำเข้าอื่นใช้แพ็กเก
 msgid "Another menu already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:158
+#: packages/admin/src/components/Redirects.tsx:185
 msgid "Another redirect already uses this source path. Enter a different one."
 msgstr ""
 
@@ -2228,7 +2241,7 @@ msgid "Attribution"
 msgstr "การระบุแหล่งที่มา"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:90
-#: packages/admin/src/components/MediaLibrary.tsx:939
+#: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
 msgstr "เสียง"
@@ -2303,11 +2316,11 @@ msgstr "ผู้เขียน"
 msgid "Authors will be assigned to users on this site"
 msgstr "ผู้เขียนจะถูกกำหนดให้กับผู้ใช้ในไซต์นี้"
 
-#: packages/admin/src/components/Redirects.tsx:696
+#: packages/admin/src/components/Redirects.tsx:467
 msgid "auto"
 msgstr "อัตโนมัติ"
 
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "Auto (slug change)"
 msgstr "อัตโนมัติ (เปลี่ยน slug)"
 
@@ -2375,7 +2388,7 @@ msgstr ""
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:1771
 #: packages/admin/src/components/MediaDetailPanel.tsx:1786
-#: packages/admin/src/components/MediaLibrary.tsx:763
+#: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/WordPressImport.tsx:1565
 #: packages/admin/src/components/WordPressImport.tsx:2586
@@ -2412,7 +2425,7 @@ msgstr ""
 msgid "Back to login"
 msgstr "กลับไปเข้าสู่ระบบ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1051
+#: packages/admin/src/components/MediaLibrary.tsx:1059
 msgid "Back to Main library"
 msgstr "กลับไปที่คลังหลัก"
 
@@ -2735,7 +2748,7 @@ msgstr "สามารถดูเนื้อหาได้"
 #: packages/admin/src/components/PortableTextEditor.tsx:5883
 #: packages/admin/src/components/PortableTextEditor.tsx:6631
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:390
-#: packages/admin/src/components/Redirects.tsx:279
+#: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:300
@@ -3216,7 +3229,7 @@ msgid "Choosing a byline replaces this automatic credit."
 msgstr "การเลือกชื่อผู้เขียนจะแทนที่เครดิตอัตโนมัตินี้"
 
 #: packages/admin/src/components/ContentList.tsx:1216
-#: packages/admin/src/components/DataTable.tsx:143
+#: packages/admin/src/components/DataTable.tsx:365
 msgid "Clear"
 msgstr "ล้าง"
 
@@ -3228,7 +3241,7 @@ msgstr "ล้างรายการที่เสร็จแล้ว"
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:185
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:103
 #: packages/admin/src/components/ContentList.tsx:1121
-#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
 #: packages/admin/src/components/users/UserList.tsx:125
 #: packages/admin/src/routes/bylines.tsx:472
@@ -3239,8 +3252,8 @@ msgstr "ล้างตัวกรอง"
 msgid "Clear formatting"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1036
-#: packages/admin/src/components/MediaLibrary.tsx:1076
+#: packages/admin/src/components/MediaLibrary.tsx:1044
+#: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/TaxonomyManager.tsx:1349
 msgid "Clear search"
 msgstr "ล้างการค้นหา"
@@ -3334,7 +3347,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:406
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
-#: packages/admin/src/components/Redirects.tsx:631
+#: packages/admin/src/components/Redirects.tsx:820
 msgid "Code"
 msgstr "โค้ด"
 
@@ -3889,7 +3902,7 @@ msgstr ""
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "ไม่สามารถจับคู่ \"{draft}\" กับประเภท MIME ได้ พิมพ์ MIME โดยตรง"
 
-#: packages/admin/src/components/MediaLibrary.tsx:587
+#: packages/admin/src/components/MediaLibrary.tsx:595
 msgid "Couldn’t move file"
 msgstr "ย้ายไฟล์ไม่สำเร็จ"
 
@@ -3930,7 +3943,7 @@ msgstr "จำนวน"
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuList.tsx:244
-#: packages/admin/src/components/Redirects.tsx:287
+#: packages/admin/src/components/Redirects.tsx:314
 #: packages/admin/src/components/TaxonomyManager.tsx:827
 #: packages/admin/src/components/Widgets.tsx:530
 msgid "Create"
@@ -4041,15 +4054,15 @@ msgid "Create personal access tokens for programmatic API access"
 msgstr "สร้างโทเค็นการเข้าถึงส่วนบุคคลสำหรับการเข้าถึง API แบบเป็นโปรแกรม"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:348
+#: packages/admin/src/components/Redirects.tsx:400
 msgid "Create redirect for {0}"
 msgstr "สร้างการเปลี่ยนเส้นทางสำหรับ {0}"
 
-#: packages/admin/src/components/Redirects.tsx:347
+#: packages/admin/src/components/Redirects.tsx:399
 msgid "Create redirect for this path"
 msgstr "สร้างการเปลี่ยนเส้นทางสำหรับเส้นทางนี้"
 
-#: packages/admin/src/components/Redirects.tsx:619
+#: packages/admin/src/components/Redirects.tsx:798
 msgid "Create redirect rules to manage URL changes."
 msgstr "สร้างกฎการเปลี่ยนเส้นทางเพื่อจัดการการเปลี่ยนแปลง URL"
 
@@ -4173,7 +4186,7 @@ msgid "Creating cropped copy..."
 msgstr "กำลังสร้างสำเนาที่ครอบตัด..."
 
 #: packages/admin/src/components/MenuList.tsx:244
-#: packages/admin/src/components/Redirects.tsx:284
+#: packages/admin/src/components/Redirects.tsx:311
 #: packages/admin/src/components/RelationFormPanel.tsx:148
 #: packages/admin/src/components/Sections.tsx:306
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:561
@@ -4201,7 +4214,7 @@ msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "ส่วนที่เลือกครอบตัด ใช้ปุ่มลูกศรเพื่อย้าย"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:771
-#: packages/admin/src/components/MediaLibrary.tsx:1310
+#: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Cropped copy created."
 msgstr "สร้างสำเนาที่ครอบตัดแล้ว"
 
@@ -4376,7 +4389,8 @@ msgstr "กำหนดไว้ในโค้ด"
 #: packages/admin/src/components/MenuEditor.tsx:800
 #: packages/admin/src/components/MenuEditor.tsx:818
 #: packages/admin/src/components/MenuList.tsx:291
-#: packages/admin/src/components/Redirects.tsx:762
+#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:886
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/RelationList.tsx:250
 #: packages/admin/src/components/Sections.tsx:423
@@ -4530,16 +4544,12 @@ msgstr "ลบถาวร"
 msgid "Delete Permanently?"
 msgstr "ลบถาวรหรือไม่?"
 
-#: packages/admin/src/components/Redirects.tsx:710
-msgid "Delete redirect"
-msgstr "ลบการเปลี่ยนเส้นทาง"
-
-#. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:711
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:525
 msgid "Delete redirect {0}"
 msgstr "ลบการเปลี่ยนเส้นทาง {0}"
 
-#: packages/admin/src/components/Redirects.tsx:760
+#: packages/admin/src/components/Redirects.tsx:884
 msgid "Delete Redirect?"
 msgstr "ลบการเปลี่ยนเส้นทางหรือไม่?"
 
@@ -4609,7 +4619,7 @@ msgstr "การลบ \"{0}\" จะลบ{1, plural, one {ค่าที่�
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:819
 #: packages/admin/src/components/MenuList.tsx:292
-#: packages/admin/src/components/Redirects.tsx:763
+#: packages/admin/src/components/Redirects.tsx:887
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:424
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
@@ -4695,11 +4705,11 @@ msgstr "คำอธิบาย"
 msgid "Description (optional)"
 msgstr "คำอธิบาย (ไม่บังคับ)"
 
-#: packages/admin/src/components/Redirects.tsx:629
+#: packages/admin/src/components/Redirects.tsx:811
 msgid "Destination"
 msgstr "ปลายทาง"
 
-#: packages/admin/src/components/Redirects.tsx:238
+#: packages/admin/src/components/Redirects.tsx:265
 msgid "Destination path"
 msgstr "เส้นทางปลายทาง"
 
@@ -4757,9 +4767,10 @@ msgstr "ปิดใช้งานปลั๊กอิน"
 msgid "Disable plugin MCP tools"
 msgstr "ปิดใช้งานเครื่องมือ MCP ของปลั๊กอิน"
 
-#: packages/admin/src/components/Redirects.tsx:679
-msgid "Disable redirect"
-msgstr "ปิดใช้งานการเปลี่ยนเส้นทาง"
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:508
+msgid "Disable redirect {0}"
+msgstr ""
 
 #: packages/admin/src/routes/users.tsx:289
 msgid "Disable User"
@@ -4770,7 +4781,7 @@ msgid "Disable User?"
 msgstr "ปิดใช้งานผู้ใช้หรือไม่?"
 
 #: packages/admin/src/components/PluginManager.tsx:462
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:706
 #: packages/admin/src/components/users/UserDetail.tsx:214
 #: packages/admin/src/components/users/UserList.tsx:178
 msgid "Disabled"
@@ -4895,7 +4906,7 @@ msgid "Document"
 msgstr "เอกสาร"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:87
-#: packages/admin/src/components/MediaLibrary.tsx:940
+#: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
 msgstr "เอกสาร"
@@ -5076,7 +5087,7 @@ msgstr "วางรูปภาพที่นี่หรือ <0>เลื�
 msgid "Drop an image here or browse for {label}"
 msgstr "วางรูปภาพที่นี่หรือเลือกไฟล์สำหรับ {label}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:743
+#: packages/admin/src/components/MediaLibrary.tsx:751
 msgid "Drop files to upload"
 msgstr "วางไฟล์เพื่ออัปโหลด"
 
@@ -5109,7 +5120,7 @@ msgstr "ไม่รวมการเปลี่ยนเส้นทางท
 msgid "e.g. application/zip or .pdf"
 msgstr "เช่น application/zip หรือ .pdf"
 
-#: packages/admin/src/components/Redirects.tsx:268
+#: packages/admin/src/components/Redirects.tsx:295
 msgid "e.g. import, blog"
 msgstr "เช่น import, blog"
 
@@ -5144,6 +5155,7 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:795
+#: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:513
 #: packages/admin/src/components/Shell.tsx:87
@@ -5226,8 +5238,8 @@ msgid "Edit folder"
 msgstr "แก้ไขโฟลเดอร์"
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:1391
-#: packages/admin/src/components/MediaLibrary.tsx:1458
+#: packages/admin/src/components/MediaLibrary.tsx:1399
+#: packages/admin/src/components/MediaLibrary.tsx:1462
 msgid "Edit folder {0}"
 msgstr "แก้ไขโฟลเดอร์ {0}"
 
@@ -5269,16 +5281,12 @@ msgstr "แก้ไขรายการเมนู"
 msgid "visualEditing.editMode"
 msgstr "โหมดแก้ไข"
 
-#: packages/admin/src/components/Redirects.tsx:702
-msgid "Edit redirect"
-msgstr "แก้ไขการเปลี่ยนเส้นทาง"
-
-#: packages/admin/src/components/Redirects.tsx:216
+#: packages/admin/src/components/Redirects.tsx:243
 msgid "Edit Redirect"
 msgstr "แก้ไขการเปลี่ยนเส้นทาง"
 
-#. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:703
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:451
 msgid "Edit redirect {0}"
 msgstr "แก้ไขการเปลี่ยนเส้นทาง {0}"
 
@@ -5531,9 +5539,10 @@ msgstr "เปิดใช้งานปลั๊กอิน"
 msgid "Enable plugin MCP tools"
 msgstr "เปิดใช้งานเครื่องมือ MCP ของปลั๊กอิน"
 
-#: packages/admin/src/components/Redirects.tsx:679
-msgid "Enable redirect"
-msgstr "เปิดใช้งานการเปลี่ยนเส้นทาง"
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:509
+msgid "Enable redirect {0}"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
 msgid "Enable tracking"
@@ -5543,8 +5552,8 @@ msgstr "เปิดใช้งานการติดตาม"
 msgid "Enable tracking to index existing content and keep references up to date."
 msgstr "เปิดใช้งานการติดตามเพื่อทำดัชนีเนื้อหาที่มีอยู่และรักษาการอ้างอิงให้เป็นปัจจุบัน"
 
-#: packages/admin/src/components/Redirects.tsx:274
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:301
+#: packages/admin/src/components/Redirects.tsx:706
 msgid "Enabled"
 msgstr "เปิดใช้งาน"
 
@@ -5552,11 +5561,11 @@ msgstr "เปิดใช้งาน"
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "ใช้ภาษาอังกฤษเนื่องจากยังไม่ได้กำหนดค่าภาษาของเนื้อหา ภาษาของเนื้อหาจะเก็บไว้กับรายการและแยกจากภาษาของหน้าผู้ดูแล"
 
-#: packages/admin/src/components/Redirects.tsx:88
+#: packages/admin/src/components/Redirects.tsx:115
 msgid "Enter a destination different from the source."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:84
+#: packages/admin/src/components/Redirects.tsx:111
 msgid "Enter a destination path."
 msgstr ""
 
@@ -5632,7 +5641,7 @@ msgid "Enter a number."
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:142
-#: packages/admin/src/components/Redirects.tsx:61
+#: packages/admin/src/components/Redirects.tsx:88
 msgid "Enter a path that starts with a single /."
 msgstr ""
 
@@ -5649,7 +5658,7 @@ msgstr "ป้อนเขตเวลาที่ถูกต้องเพื
 msgid "Enter a slug."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:79
+#: packages/admin/src/components/Redirects.tsx:106
 msgid "Enter a source path."
 msgstr ""
 
@@ -5827,7 +5836,7 @@ msgstr "ทุกรุ่นที่เผยแพร่ของปลั๊
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "ความสัมพันธ์ทุกรายการที่ประเภทเนื้อหานี้เกี่ยวข้องจะถูกลบไปด้วย:"
 
-#: packages/admin/src/components/Redirects.tsx:516
+#: packages/admin/src/components/Redirects.tsx:695
 msgid "Exact group name..."
 msgstr ""
 
@@ -7099,7 +7108,7 @@ msgstr "ไฟล์จากคลังมีเดีย"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1433
 #: packages/admin/src/components/MediaDetailPanel.tsx:1438
-#: packages/admin/src/components/MediaLibrary.tsx:1162
+#: packages/admin/src/components/MediaLibrary.tsx:1168
 msgid "Filename"
 msgstr "ชื่อไฟล์"
 
@@ -7147,7 +7156,7 @@ msgstr "กรองตามคอลเลกชัน"
 msgid "Filter by date range: {rangeLabel}"
 msgstr "กรองตามช่วงวันที่: {rangeLabel}"
 
-#: packages/admin/src/components/Redirects.tsx:515
+#: packages/admin/src/components/Redirects.tsx:694
 msgid "Filter by group"
 msgstr ""
 
@@ -7160,13 +7169,13 @@ msgid "Filter by source"
 msgstr "กรองตามแหล่งที่มา"
 
 #: packages/admin/src/components/ContentList.tsx:1054
-#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:707
 msgid "Filter by status"
 msgstr "กรองตามสถานะ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:942
+#: packages/admin/src/components/MediaLibrary.tsx:950
 #: packages/admin/src/components/MediaPickerModal.tsx:1327
-#: packages/admin/src/components/Redirects.tsx:535
+#: packages/admin/src/components/Redirects.tsx:714
 msgid "Filter by type"
 msgstr "กรองตามประเภท"
 
@@ -7207,7 +7216,7 @@ msgstr "แก้ไขฟิลด์ที่ไม่ถูกต้องก
 msgid "Fix invalid fields before changing the schedule"
 msgstr "แก้ไขฟิลด์ที่ไม่ถูกต้องก่อนเปลี่ยนกำหนดเวลา"
 
-#: packages/admin/src/components/Redirects.tsx:67
+#: packages/admin/src/components/Redirects.tsx:94
 msgid "Fix the percent-encoding in the path."
 msgstr ""
 
@@ -7248,19 +7257,19 @@ msgstr "แก้ไขโฟลเดอร์สำเร็จ"
 msgid "Folder unavailable"
 msgstr "โฟลเดอร์ไม่พร้อมใช้งาน"
 
-#: packages/admin/src/components/MediaLibrary.tsx:969
+#: packages/admin/src/components/MediaLibrary.tsx:977
 #: packages/admin/src/components/MediaPickerModal.tsx:1365
 msgid "Folders"
 msgstr "โฟลเดอร์"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1541
-#: packages/admin/src/components/MediaLibrary.tsx:979
-#: packages/admin/src/components/MediaLibrary.tsx:1488
+#: packages/admin/src/components/MediaLibrary.tsx:987
+#: packages/admin/src/components/MediaLibrary.tsx:1492
 #: packages/admin/src/components/MediaPickerModal.tsx:1370
 msgid "Folders could not be loaded."
 msgstr "โหลดโฟลเดอร์ไม่สำเร็จ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:774
+#: packages/admin/src/components/MediaLibrary.tsx:782
 msgid "Folders navigation"
 msgstr "การนำทางโฟลเดอร์"
 
@@ -7403,17 +7412,18 @@ msgstr "การยืนยัน Google"
 msgid "GraphQL"
 msgstr "GraphQL"
 
-#: packages/admin/src/components/MediaLibrary.tsx:897
+#: packages/admin/src/components/MediaLibrary.tsx:905
 #: packages/admin/src/components/MediaPickerModal.tsx:1283
 msgid "Grid view"
 msgstr "มุมมองตาราง"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:578
-#: packages/admin/src/components/Redirects.tsx:630
+#: packages/admin/src/components/Redirects.tsx:484
+#: packages/admin/src/components/Redirects.tsx:815
 msgid "Group"
 msgstr "กลุ่ม"
 
-#: packages/admin/src/components/Redirects.tsx:267
+#: packages/admin/src/components/Redirects.tsx:294
 msgid "Group (optional)"
 msgstr "กลุ่ม (ไม่บังคับ)"
 
@@ -7550,8 +7560,8 @@ msgstr "ซ่อนแถบเครื่องมือ"
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "แบบลำดับชั้น (เหมือนหมวดหมู่ ที่มีความสัมพันธ์แม่/ลูก)"
 
-#: packages/admin/src/components/Redirects.tsx:320
-#: packages/admin/src/components/Redirects.tsx:632
+#: packages/admin/src/components/Redirects.tsx:356
+#: packages/admin/src/components/Redirects.tsx:823
 msgid "Hits"
 msgstr "การเข้าชม"
 
@@ -7775,7 +7785,7 @@ msgstr "URL ของรูปภาพ"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:85
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
-#: packages/admin/src/components/MediaLibrary.tsx:937
+#: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
 msgid "Images"
 msgstr "รูปภาพ"
@@ -7949,7 +7959,7 @@ msgstr "ไม่เข้ากัน"
 msgid "Increase column width"
 msgstr "เพิ่มความกว้างคอลัมน์"
 
-#: packages/admin/src/components/MediaLibrary.tsx:838
+#: packages/admin/src/components/MediaLibrary.tsx:846
 msgid "Index existing content and keep Used in results up to date."
 msgstr "ทำดัชนีเนื้อหาที่มีอยู่และรักษาผลลัพธ์ “ใช้ใน” ให้เป็นปัจจุบัน"
 
@@ -8372,7 +8382,7 @@ msgstr "เข้าสู่ระบบล่าสุด"
 msgid "Last page"
 msgstr "หน้าสุดท้าย"
 
-#: packages/admin/src/components/Redirects.tsx:321
+#: packages/admin/src/components/Redirects.tsx:359
 msgid "Last seen"
 msgstr "พบครั้งล่าสุด"
 
@@ -8422,10 +8432,10 @@ msgstr ""
 msgid "Left"
 msgstr "ซ้าย"
 
-#: packages/admin/src/components/MediaLibrary.tsx:308
-#: packages/admin/src/components/MediaLibrary.tsx:426
-#: packages/admin/src/components/MediaLibrary.tsx:703
-#: packages/admin/src/components/MediaLibrary.tsx:1276
+#: packages/admin/src/components/MediaLibrary.tsx:316
+#: packages/admin/src/components/MediaLibrary.tsx:434
+#: packages/admin/src/components/MediaLibrary.tsx:711
+#: packages/admin/src/components/MediaLibrary.tsx:1284
 #: packages/admin/src/components/MediaPickerModal.tsx:381
 #: packages/admin/src/components/MediaPickerModal.tsx:398
 msgid "Library"
@@ -8543,7 +8553,7 @@ msgstr ""
 msgid "List each option only once."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:906
+#: packages/admin/src/components/MediaLibrary.tsx:914
 #: packages/admin/src/components/MediaPickerModal.tsx:1293
 msgid "List view"
 msgstr "มุมมองรายการ"
@@ -8563,7 +8573,7 @@ msgstr "มุมมองสด"
 #: packages/admin/src/components/ContentPickerModal.tsx:374
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:248
-#: packages/admin/src/components/Redirects.tsx:727
+#: packages/admin/src/components/Redirects.tsx:851
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -8573,14 +8583,14 @@ msgstr "โหลดเพิ่มเติม"
 
 #: packages/admin/src/components/ContentList.tsx:894
 #: packages/admin/src/components/ContentList.tsx:957
-#: packages/admin/src/components/MediaLibrary.tsx:1269
+#: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/users/UserList.tsx:157
 msgid "Load More"
 msgstr "โหลดเพิ่มเติม"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1560
-#: packages/admin/src/components/MediaLibrary.tsx:1009
-#: packages/admin/src/components/MediaLibrary.tsx:1206
+#: packages/admin/src/components/MediaLibrary.tsx:1017
+#: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1419
 msgid "Load more folders"
 msgstr "โหลดโฟลเดอร์เพิ่มเติม"
@@ -8636,8 +8646,8 @@ msgstr "กำลังโหลดตัวแก้ไข..."
 msgid "Loading exports…"
 msgstr "กำลังโหลดการส่งออก…"
 
-#: packages/admin/src/components/MediaLibrary.tsx:953
-#: packages/admin/src/components/MediaLibrary.tsx:1174
+#: packages/admin/src/components/MediaLibrary.tsx:961
+#: packages/admin/src/components/MediaLibrary.tsx:1185
 #: packages/admin/src/components/MediaPickerModal.tsx:1388
 msgid "Loading folders"
 msgstr "กำลังโหลดโฟลเดอร์"
@@ -8674,7 +8684,7 @@ msgstr "กำลังโหลดแผงปลั๊กอิน"
 msgid "Loading plugins..."
 msgstr "กำลังโหลดปลั๊กอิน..."
 
-#: packages/admin/src/components/Redirects.tsx:609
+#: packages/admin/src/components/Redirects.tsx:788
 msgid "Loading redirects..."
 msgstr "กำลังโหลดการเปลี่ยนเส้นทาง..."
 
@@ -8729,10 +8739,10 @@ msgstr "กำลังโหลดวิดเจ็ต..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:621
 #: packages/admin/src/components/MediaDetailPanel.tsx:623
 #: packages/admin/src/components/MediaDetailPanel.tsx:1720
-#: packages/admin/src/components/MediaLibrary.tsx:1269
+#: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3311
-#: packages/admin/src/components/Redirects.tsx:727
+#: packages/admin/src/components/Redirects.tsx:851
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:230
@@ -8869,7 +8879,7 @@ msgstr "จัดการเมนูนำทางสำหรับเว็
 msgid "Manage the people and teams credited on your content."
 msgstr "จัดการบุคคลและทีมที่ได้รับเครดิตในเนื้อหาของคุณ"
 
-#: packages/admin/src/components/Redirects.tsx:494
+#: packages/admin/src/components/Redirects.tsx:673
 msgid "Manage URL redirects and view 404 errors."
 msgstr "จัดการการเปลี่ยนเส้นทาง URL และดูข้อผิดพลาด 404"
 
@@ -8890,7 +8900,7 @@ msgstr "จัดการโดยผู้ให้บริการมีเ
 msgid "Managed by your identity provider. Change the name there."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "Manual"
 msgstr "กำหนดเอง"
 
@@ -8904,11 +8914,11 @@ msgid "Map WordPress user {0} to EmDash user"
 msgstr "จับคู่ผู้ใช้ WordPress {0} กับผู้ใช้ EmDash"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:356
+#: packages/admin/src/components/Redirects.tsx:409
 msgid "Mark {0} as Gone (410)"
 msgstr "ทำเครื่องหมาย {0} เป็น Gone (410)"
 
-#: packages/admin/src/components/Redirects.tsx:355
+#: packages/admin/src/components/Redirects.tsx:344
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
 msgstr "ทำเครื่องหมายเป็น Gone (410) — แจ้งเครื่องมือค้นหาว่าถูกลบถาวรแล้ว"
 
@@ -9021,8 +9031,8 @@ msgid "visualEditing.mediaLibrary"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:171
-#: packages/admin/src/components/MediaLibrary.tsx:771
-#: packages/admin/src/components/MediaLibrary.tsx:786
+#: packages/admin/src/components/MediaLibrary.tsx:779
+#: packages/admin/src/components/MediaLibrary.tsx:794
 msgid "Media Library"
 msgstr "คลังมีเดีย"
 
@@ -9030,7 +9040,7 @@ msgstr "คลังมีเดีย"
 msgid "Media links were made relative"
 msgstr "ลิงก์มีเดียถูกเปลี่ยนเป็นแบบสัมพัทธ์"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1262
+#: packages/admin/src/components/MediaLibrary.tsx:1270
 #: packages/admin/src/components/MediaPickerModal.tsx:1596
 msgid "Media pagination"
 msgstr "การแบ่งหน้ามีเดีย"
@@ -9048,7 +9058,7 @@ msgstr "ผลลัพธ์มีเดีย"
 msgid "Media usage tracking"
 msgstr "การติดตามการใช้งานมีเดีย"
 
-#: packages/admin/src/components/MediaLibrary.tsx:835
+#: packages/admin/src/components/MediaLibrary.tsx:843
 msgid "Media usage tracking is indexing existing content"
 msgstr "การติดตามการใช้งานมีเดียกำลังทำดัชนีเนื้อหาที่มีอยู่"
 
@@ -9060,11 +9070,11 @@ msgstr "การติดตามการใช้งานมีเดีย
 msgid "Media usage tracking is ready"
 msgstr "การติดตามการใช้งานมีเดียพร้อมใช้งาน"
 
-#: packages/admin/src/components/MediaLibrary.tsx:836
+#: packages/admin/src/components/MediaLibrary.tsx:844
 msgid "Media usage tracking is setting up"
 msgstr "การติดตามการใช้งานมีเดียกำลังตั้งค่า"
 
-#: packages/admin/src/components/MediaLibrary.tsx:833
+#: packages/admin/src/components/MediaLibrary.tsx:841
 msgid "Media usage tracking needs attention"
 msgstr "การติดตามการใช้งานมีเดียต้องการการตรวจสอบ"
 
@@ -9409,7 +9419,7 @@ msgid "Moved an image"
 msgstr ""
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:580
+#: packages/admin/src/components/MediaLibrary.tsx:588
 msgid "Moved to {0}"
 msgstr "ย้ายไปที่ {0} แล้ว"
 
@@ -9550,7 +9560,7 @@ msgstr ""
 msgid "New field"
 msgstr "ฟิลด์ใหม่"
 
-#: packages/admin/src/components/MediaLibrary.tsx:808
+#: packages/admin/src/components/MediaLibrary.tsx:816
 msgid "New folder"
 msgstr "โฟลเดอร์ใหม่"
 
@@ -9562,8 +9572,8 @@ msgstr "การค้นหาปลั๊กอินใหม่ใช้ร
 msgid "New public routes"
 msgstr "เส้นทางสาธารณะใหม่"
 
-#: packages/admin/src/components/Redirects.tsx:216
-#: packages/admin/src/components/Redirects.tsx:501
+#: packages/admin/src/components/Redirects.tsx:243
+#: packages/admin/src/components/Redirects.tsx:680
 msgid "New Redirect"
 msgstr "การเปลี่ยนเส้นทางใหม่"
 
@@ -9667,12 +9677,11 @@ msgstr "ยังไม่มี{0} สร้างขึ้นมาเพื�
 msgid "No {label} found."
 msgstr "ไม่พบ {label}"
 
-#: packages/admin/src/components/Redirects.tsx:312
+#: packages/admin/src/components/Redirects.tsx:340
 msgid "No 404 errors recorded yet."
 msgstr "ยังไม่มีการบันทึกข้อผิดพลาด 404"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1704
-#: packages/admin/src/components/MediaLibrary.tsx:1761
+#: packages/admin/src/components/MediaLibrary.tsx:1779
 msgid "No alt text"
 msgstr "ไม่มี alt text"
 
@@ -9822,7 +9831,7 @@ msgstr "ยังไม่ได้เพิ่มไฟล์"
 msgid "No folders found"
 msgstr "ไม่พบโฟลเดอร์"
 
-#: packages/admin/src/components/Redirects.tsx:662
+#: packages/admin/src/components/Redirects.tsx:489
 msgid "No group"
 msgstr ""
 
@@ -9899,8 +9908,8 @@ msgstr "ไม่พบผู้เขียนที่ตรงกัน"
 msgid "No matching content found."
 msgstr "ไม่พบเนื้อหาที่ตรงกัน"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1028
-#: packages/admin/src/components/MediaLibrary.tsx:1072
+#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1080
 msgid "No matching media"
 msgstr "ไม่พบมีเดียที่ตรงกัน"
 
@@ -9921,11 +9930,11 @@ msgstr "ไม่มีเขตเวลาที่ตรงกัน"
 msgid "No maximum"
 msgstr "ไม่มีค่าสูงสุด"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1095
+#: packages/admin/src/components/MediaLibrary.tsx:1103
 msgid "No media available from this provider."
 msgstr "ไม่มีมีเดียจากผู้ให้บริการรายนี้"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1094
+#: packages/admin/src/components/MediaLibrary.tsx:1102
 #: packages/admin/src/components/MediaPickerModal.tsx:1457
 msgid "No media found"
 msgstr "ไม่พบมีเดีย"
@@ -9987,11 +9996,11 @@ msgstr "ไม่มี URL สาธารณะ"
 msgid "No recent activity"
 msgstr "ไม่มีกิจกรรมล่าสุด"
 
-#: packages/admin/src/components/Redirects.tsx:614
+#: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects match these filters"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:614
+#: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects yet"
 msgstr "ยังไม่มีการเปลี่ยนเส้นทาง"
 
@@ -10235,8 +10244,8 @@ msgstr "เปิด {0} ในแท็บใหม่"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:182
-#: packages/admin/src/components/MediaLibrary.tsx:1375
-#: packages/admin/src/components/MediaLibrary.tsx:1446
+#: packages/admin/src/components/MediaLibrary.tsx:1383
+#: packages/admin/src/components/MediaLibrary.tsx:1449
 msgid "Open folder {0}"
 msgstr "เปิดโฟลเดอร์ {0}"
 
@@ -10264,7 +10273,7 @@ msgstr "เปิดในแท็บใหม่"
 msgid "Open read-only"
 msgstr "เปิดแบบอ่านอย่างเดียว"
 
-#: packages/admin/src/components/MediaLibrary.tsx:841
+#: packages/admin/src/components/MediaLibrary.tsx:849
 msgid "Open setup"
 msgstr "เปิดการตั้งค่า"
 
@@ -10459,8 +10468,8 @@ msgstr "แทรกย่อหน้าก่อนตารางแล้ว
 msgid "Parent"
 msgstr "รายการแม่"
 
-#: packages/admin/src/components/Redirects.tsx:684
-#: packages/admin/src/components/Redirects.tsx:690
+#: packages/admin/src/components/Redirects.tsx:457
+#: packages/admin/src/components/Redirects.tsx:463
 msgid "Part of a redirect loop"
 msgstr "เป็นส่วนหนึ่งของวงวนการเปลี่ยนเส้นทาง"
 
@@ -10560,7 +10569,7 @@ msgstr ""
 msgid "Paste your migration key"
 msgstr "วางคีย์การย้ายข้อมูลของคุณ"
 
-#: packages/admin/src/components/Redirects.tsx:319
+#: packages/admin/src/components/Redirects.tsx:354
 msgid "Path"
 msgstr "เส้นทาง"
 
@@ -10897,7 +10906,7 @@ msgstr "กด Space เพื่อหยิบรูปภาพ ใช้ป�
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
 #: packages/admin/src/components/MediaDetailPanel.tsx:1667
-#: packages/admin/src/components/MediaLibrary.tsx:1161
+#: packages/admin/src/components/MediaLibrary.tsx:1166
 msgid "Preview"
 msgstr "ดูตัวอย่าง"
 
@@ -11283,7 +11292,7 @@ msgstr "ไม่ได้รวมระเบียนที่ไม่มี
 msgid "Recovery link sent to {0}"
 msgstr "ส่งลิงก์กู้คืนไปยัง {0} แล้ว"
 
-#: packages/admin/src/components/Redirects.tsx:595
+#: packages/admin/src/components/Redirects.tsx:774
 msgid "Redirect loop detected"
 msgstr "ตรวจพบการวนซ้ำของการเปลี่ยนเส้นทาง"
 
@@ -11291,8 +11300,8 @@ msgstr "ตรวจพบการวนซ้ำของการเปลี
 msgid "Redirecting to login..."
 msgstr "กำลังเปลี่ยนเส้นทางไปยังหน้าเข้าสู่ระบบ..."
 
-#: packages/admin/src/components/Redirects.tsx:493
-#: packages/admin/src/components/Redirects.tsx:552
+#: packages/admin/src/components/Redirects.tsx:672
+#: packages/admin/src/components/Redirects.tsx:731
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:481
@@ -11521,7 +11530,7 @@ msgstr "นำกำหนดเวลาออก"
 msgid "Remove sub-field"
 msgstr "นำฟิลด์ย่อยออก"
 
-#: packages/admin/src/components/Redirects.tsx:69
+#: packages/admin/src/components/Redirects.tsx:96
 msgid "Remove the .. segments from the path."
 msgstr ""
 
@@ -11920,8 +11929,8 @@ msgstr "เลิกใช้แล้ว"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
-#: packages/admin/src/components/MediaLibrary.tsx:973
-#: packages/admin/src/components/MediaLibrary.tsx:1491
+#: packages/admin/src/components/MediaLibrary.tsx:981
+#: packages/admin/src/components/MediaLibrary.tsx:1495
 #: packages/admin/src/components/MediaPickerModal.tsx:1259
 #: packages/admin/src/components/MediaPickerModal.tsx:1355
 #: packages/admin/src/components/MediaPickerModal.tsx:1377
@@ -12177,7 +12186,7 @@ msgstr "เนื้อหาตัวอย่าง"
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
 #: packages/admin/src/components/PortableTextEditor.tsx:2820
-#: packages/admin/src/components/Redirects.tsx:286
+#: packages/admin/src/components/Redirects.tsx:313
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/Widgets.tsx:1070
@@ -12277,7 +12286,7 @@ msgstr "การบันทึกคอลเลกชันที่นี่
 #: packages/admin/src/components/MenuEditor.tsx:906
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
-#: packages/admin/src/components/Redirects.tsx:283
+#: packages/admin/src/components/Redirects.tsx:310
 #: packages/admin/src/components/RelationFormPanel.tsx:151
 #: packages/admin/src/components/SaveButton.tsx:36
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
@@ -12452,7 +12461,7 @@ msgstr "ค้นหาประเภทบล็อก"
 msgid "Search blocks"
 msgstr "ค้นหาบล็อก"
 
-#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaLibrary.tsx:926
 #: packages/admin/src/components/MediaPickerModal.tsx:1306
 msgid "Search by filename..."
 msgstr "ค้นหาตามชื่อไฟล์..."
@@ -12526,7 +12535,7 @@ msgstr "ค้นหาเขตเวลา IANA (เช่น Europe/London)"
 msgid "Search form"
 msgstr "แบบฟอร์มค้นหา"
 
-#: packages/admin/src/components/MediaLibrary.tsx:919
+#: packages/admin/src/components/MediaLibrary.tsx:927
 #: packages/admin/src/components/MediaPickerModal.tsx:1308
 msgid "Search media"
 msgstr "ค้นหามีเดีย"
@@ -12559,7 +12568,7 @@ msgstr "ค้นหาโปรไฟล์สาธารณะที่ใช
 msgid "Search sections..."
 msgstr "ค้นหาส่วน..."
 
-#: packages/admin/src/components/Redirects.tsx:488
+#: packages/admin/src/components/Redirects.tsx:667
 msgid "Search source or destination..."
 msgstr "ค้นหาต้นทางหรือปลายทาง..."
 
@@ -12595,7 +12604,7 @@ msgstr "ค้นหาผู้ใช้"
 msgid "Search will be turned off for some collections"
 msgstr "การค้นหาจะถูกปิดสำหรับบางคอลเลกชัน"
 
-#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaLibrary.tsx:926
 #: packages/admin/src/components/MediaPickerModal.tsx:1306
 msgid "Search..."
 msgstr "ค้นหา..."
@@ -12994,7 +13003,7 @@ msgstr "เปลี่ยนเป็นฉบับร่าง"
 msgid "Set up an email provider in Email settings to email users."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:831
+#: packages/admin/src/components/MediaLibrary.tsx:839
 msgid "Set up media usage tracking"
 msgstr "ตั้งค่าการติดตามการใช้งานมีเดีย"
 
@@ -13281,12 +13290,12 @@ msgstr ""
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr "เว็บไซต์บน Cloudflare D1 สามารถกู้คืนฐานข้อมูลไปยังนาทีใดก็ได้ภายใน 30 วันล่าสุดเพิ่มเติมได้ด้วย D1 Time Travel — เปิดใช้งานตลอดเวลา ไม่ต้องตั้งค่า"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1164
+#: packages/admin/src/components/MediaLibrary.tsx:1173
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:280
 msgid "Size"
 msgstr "ขนาด"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1472
+#: packages/admin/src/components/MediaLibrary.tsx:1476
 msgid "Size is not applicable to folders"
 msgstr "ขนาดใช้กับโฟลเดอร์ไม่ได้"
 
@@ -13446,12 +13455,12 @@ msgstr "จัดเรียงธีม"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:790
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
 #: packages/admin/src/components/PluginManager.tsx:653
-#: packages/admin/src/components/Redirects.tsx:627
+#: packages/admin/src/components/Redirects.tsx:808
 #: packages/admin/src/components/SectionEditor.tsx:316
 msgid "Source"
 msgstr "แหล่งที่มา"
 
-#: packages/admin/src/components/Redirects.tsx:226
+#: packages/admin/src/components/Redirects.tsx:253
 msgid "Source path"
 msgstr "พาธแหล่งที่มา"
 
@@ -13548,7 +13557,7 @@ msgstr "สถานะ"
 #: packages/admin/src/components/ContentList.tsx:505
 #: packages/admin/src/components/ContentList.tsx:754
 #: packages/admin/src/components/ContentTypeEditor.tsx:141
-#: packages/admin/src/components/Redirects.tsx:633
+#: packages/admin/src/components/Redirects.tsx:825
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
@@ -13556,7 +13565,7 @@ msgstr "สถานะ"
 msgid "Status"
 msgstr "สถานะ"
 
-#: packages/admin/src/components/Redirects.tsx:252
+#: packages/admin/src/components/Redirects.tsx:279
 msgid "Status code"
 msgstr "รหัสสถานะ"
 
@@ -13933,7 +13942,7 @@ msgstr "แพ็กเกจที่ส่งออกและการนำ
 msgid "The file is not a valid EmDash site package."
 msgstr "ไฟล์นี้ไม่ใช่แพ็กเกจเว็บไซต์ EmDash ที่ถูกต้อง"
 
-#: packages/admin/src/components/MediaLibrary.tsx:590
+#: packages/admin/src/components/MediaLibrary.tsx:598
 msgid "The file or folder no longer exists."
 msgstr "ไม่มีไฟล์หรือโฟลเดอร์นี้แล้ว"
 
@@ -14445,7 +14454,7 @@ msgstr "ไฟล์นี้ไม่ใช่แพ็กเกจเว็บ
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr "ไฟล์นี้ไม่ใช่แพ็กเกจเว็บไซต์ EmDash: ต้องขึ้นต้นด้วย manifest.json"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1043
+#: packages/admin/src/components/MediaLibrary.tsx:1051
 msgid "This folder is empty"
 msgstr "โฟลเดอร์นี้ว่างเปล่า"
 
@@ -14571,11 +14580,11 @@ msgstr "handle ของผู้เผยแพร่นี้ไม่ชี�
 msgid "This range has more than {maxEntries} entries"
 msgstr "ช่วงนี้มีมากกว่า {maxEntries} รายการ"
 
-#: packages/admin/src/components/Redirects.tsx:761
+#: packages/admin/src/components/Redirects.tsx:885
 msgid "This redirect rule will be permanently removed."
 msgstr "กฎการเปลี่ยนเส้นทางนี้จะถูกนำออกอย่างถาวร"
 
-#: packages/admin/src/components/Redirects.tsx:453
+#: packages/admin/src/components/Redirects.tsx:632
 msgid "This redirect was already deleted."
 msgstr ""
 
@@ -14903,7 +14912,7 @@ msgstr ""
 msgid "True/false toggle"
 msgstr "สวิตช์จริง/เท็จ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1032
+#: packages/admin/src/components/MediaLibrary.tsx:1040
 msgid "Try a broader media type or clear your filters."
 msgstr "ลองเลือกประเภทมีเดียที่กว้างขึ้น หรือล้างตัวกรองของคุณ"
 
@@ -14941,7 +14950,7 @@ msgstr "ลองอีกครั้ง"
 msgid "Try Again"
 msgstr "ลองอีกครั้ง"
 
-#: packages/admin/src/components/MediaLibrary.tsx:597
+#: packages/admin/src/components/MediaLibrary.tsx:605
 msgid "Try again."
 msgstr "ลองอีกครั้ง"
 
@@ -14953,12 +14962,12 @@ msgstr "ลองอีกครั้ง หากยังล้มเหล�
 msgid "Try another code"
 msgstr "ลองรหัสอื่น"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1073
+#: packages/admin/src/components/MediaLibrary.tsx:1081
 #: packages/admin/src/components/MediaPickerModal.tsx:1460
 msgid "Try another filename or clear your search."
 msgstr "ลองชื่อไฟล์อื่น หรือล้างการค้นหาของคุณ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1031
+#: packages/admin/src/components/MediaLibrary.tsx:1039
 msgid "Try another filename, or clear your search and filters."
 msgstr "ลองชื่อไฟล์อื่น หรือล้างการค้นหาและตัวกรองของคุณ"
 
@@ -14967,7 +14976,7 @@ msgstr "ลองชื่อไฟล์อื่น หรือล้าง�
 msgid "Try Another URL"
 msgstr "ลอง URL อื่น"
 
-#: packages/admin/src/components/Redirects.tsx:618
+#: packages/admin/src/components/Redirects.tsx:797
 msgid "Try changing or clearing your filters."
 msgstr ""
 
@@ -15023,7 +15032,7 @@ msgstr "มีสองระเบียนที่มีค่าเดีย
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
 #: packages/admin/src/components/FieldEditor.tsx:1659
-#: packages/admin/src/components/MediaLibrary.tsx:1163
+#: packages/admin/src/components/MediaLibrary.tsx:1170
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
 msgid "Type"
@@ -15050,7 +15059,7 @@ msgstr ""
 msgid "Type to search"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1468
+#: packages/admin/src/components/MediaLibrary.tsx:1472
 msgid "Type: Folder"
 msgstr "ประเภท: โฟลเดอร์"
 
@@ -15248,7 +15257,7 @@ msgstr "อัปเดตแพ็กเกจ emdash ในโปรเจก�
 msgid "Update the profile for {0}."
 msgstr "อัปเดตโปรไฟล์ของ {0}"
 
-#: packages/admin/src/components/Redirects.tsx:219
+#: packages/admin/src/components/Redirects.tsx:246
 msgid "Update this redirect rule."
 msgstr "อัปเดตกฎการเปลี่ยนเส้นทางนี้"
 
@@ -15293,7 +15302,7 @@ msgstr "กำลังอัปเดต..."
 msgid "visualEditing.uploadImage"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:820
+#: packages/admin/src/components/MediaLibrary.tsx:828
 msgid "Upload"
 msgstr "อัปโหลด"
 
@@ -15336,18 +15345,18 @@ msgstr "อัปโหลดไม่สำเร็จ"
 msgid "Upload files"
 msgstr "อัปโหลดไฟล์"
 
-#: packages/admin/src/components/MediaLibrary.tsx:702
-#: packages/admin/src/components/MediaLibrary.tsx:1048
-#: packages/admin/src/components/MediaLibrary.tsx:1063
-#: packages/admin/src/components/MediaLibrary.tsx:1087
+#: packages/admin/src/components/MediaLibrary.tsx:710
+#: packages/admin/src/components/MediaLibrary.tsx:1056
+#: packages/admin/src/components/MediaLibrary.tsx:1071
+#: packages/admin/src/components/MediaLibrary.tsx:1095
 msgid "Upload Files"
 msgstr "อัปโหลดไฟล์"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1044
+#: packages/admin/src/components/MediaLibrary.tsx:1052
 msgid "Upload files here or move media here from Media Details."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1060
+#: packages/admin/src/components/MediaLibrary.tsx:1068
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "อัปโหลดรูปภาพ วิดีโอ และเอกสาร เพื่อเก็บทรัพยากรที่ใช้ซ้ำได้ไว้ในที่เดียว"
 
@@ -15355,7 +15364,7 @@ msgstr "อัปโหลดรูปภาพ วิดีโอ และเ�
 msgid "Upload Media"
 msgstr "อัปโหลดมีเดีย"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1084
+#: packages/admin/src/components/MediaLibrary.tsx:1092
 msgid "Upload media to keep reusable assets in one place."
 msgstr "อัปโหลดมีเดียเพื่อเก็บทรัพยากรที่ใช้ซ้ำได้ไว้ในที่เดียว"
 
@@ -15372,7 +15381,7 @@ msgid "Upload site packages and check whether they can be imported. Admin includ
 msgstr "อัปโหลดแพ็กเกจเว็บไซต์และตรวจสอบว่านำเข้าได้หรือไม่ สิทธิ์ผู้ดูแลระบบรวมสิทธิ์นี้อยู่แล้ว เลือกสิทธิ์นี้แทนผู้ดูแลระบบเพื่อให้ agent มีสิทธิ์เข้าถึงที่แคบลง"
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:703
+#: packages/admin/src/components/MediaLibrary.tsx:711
 msgid "Upload to {0}"
 msgstr "อัปโหลดไปยัง {0}"
 
@@ -15480,7 +15489,7 @@ msgstr "โหลดข้อมูลการใช้งานแล้ว"
 msgid "Usage may be out of date."
 msgstr "ข้อมูลการใช้งานอาจไม่เป็นปัจจุบัน"
 
-#: packages/admin/src/components/Redirects.tsx:220
+#: packages/admin/src/components/Redirects.tsx:247
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "ใช้ [param] หรือ [...rest] ในเส้นทางเพื่อจับคู่รูปแบบ"
 
@@ -15709,7 +15718,7 @@ msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
-#: packages/admin/src/components/MediaLibrary.tsx:938
+#: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407
 #: packages/admin/src/components/PortableTextEditor.tsx:3799
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:485
@@ -15733,7 +15742,7 @@ msgstr "ดูสถานะผู้ให้บริการอีเมล
 msgid "View live"
 msgstr "ดูบนเว็บไซต์จริง"
 
-#: packages/admin/src/components/MediaLibrary.tsx:884
+#: packages/admin/src/components/MediaLibrary.tsx:892
 #: packages/admin/src/components/MediaPickerModal.tsx:1266
 msgid "View mode"
 msgstr "โหมดการแสดงผล"
@@ -15742,7 +15751,7 @@ msgstr "โหมดการแสดงผล"
 msgid "View published"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:841
+#: packages/admin/src/components/MediaLibrary.tsx:849
 msgid "View setup"
 msgstr "ดูการตั้งค่า"
 
@@ -15762,7 +15771,7 @@ msgstr "ดูสัญญาอนุญาต {license} บน spdx.org"
 msgid "Viewing the version from {when} by {name}."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:601
+#: packages/admin/src/components/Redirects.tsx:780
 msgid "Visitors hitting these paths will see an error."
 msgstr "ผู้เข้าชมที่เข้าถึงเส้นทางเหล่านี้จะพบข้อผิดพลาด"
 
@@ -16062,7 +16071,7 @@ msgstr "การให้สิทธิ์ WordPress ถูกปฏิเส�
 msgid "WordPress Username"
 msgstr "ชื่อผู้ใช้ WordPress"
 
-#: packages/admin/src/components/DataTable.tsx:137
+#: packages/admin/src/components/DataTable.tsx:359
 msgid "Working on {selectedCount} items…"
 msgstr "กำลังดำเนินการ {selectedCount} รายการ…"
 
@@ -16162,7 +16171,7 @@ msgstr "คุณไม่สามารถเปลี่ยนบทบาท
 msgid "You do not have permission to edit this asset."
 msgstr "คุณไม่มีสิทธิ์แก้ไขไฟล์นี้"
 
-#: packages/admin/src/components/MediaLibrary.tsx:595
+#: packages/admin/src/components/MediaLibrary.tsx:603
 msgid "You don’t have permission to move this file."
 msgstr "คุณไม่มีสิทธิ์ย้ายไฟล์นี้"
 
@@ -16309,8 +16318,8 @@ msgstr "ชื่อผู้ใช้ Instagram ของคุณ"
 msgid "Your LinkedIn profile username"
 msgstr "ชื่อผู้ใช้โปรไฟล์ LinkedIn ของคุณ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1059
-#: packages/admin/src/components/MediaLibrary.tsx:1083
+#: packages/admin/src/components/MediaLibrary.tsx:1067
+#: packages/admin/src/components/MediaLibrary.tsx:1091
 msgid "Your media library is empty"
 msgstr "คลังมีเดียของคุณว่างเปล่า"
 
