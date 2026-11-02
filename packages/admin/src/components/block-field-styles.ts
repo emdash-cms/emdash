@@ -7,8 +7,20 @@ export const ROW_TITLE = "text-base font-medium text-kumo-default";
 /** A closed row's one-line summary, after its name. */
 export const ROW_SUMMARY = "text-base text-kumo-subtle";
 
-/** A field's label, a list's, and the Advanced row. */
+/** A field's label above its control, and a settings row's when the row stacks. */
 export const LABEL = "text-xs leading-4 font-medium text-kumo-subtle";
+
+/** A list's label, a step above its column headers and its items' field labels. */
+export const LIST_LABEL = "text-sm leading-4.5 font-medium text-kumo-default";
+
+/** A list's item count, and its size problem, on the label's line. */
+export const LIST_NOTE = "text-sm leading-4.5";
+
+/**
+ * A caret or type icon before a row's 14px text. A glyph centered on the line reads high next to
+ * the text's capitals, so it sits 1px lower.
+ */
+export const GLYPH_NUDGE = "translate-y-px";
 
 /**
  * A hint or count shown while a control has focus. It floats over the rows below, so focusing a

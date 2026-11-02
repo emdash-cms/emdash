@@ -719,7 +719,7 @@ export function ImageFieldRenderer({
 			);
 		const frame = cn(
 			"grid shrink-0 place-items-center overflow-hidden rounded-md",
-			cell ? "h-7 w-9" : "size-10",
+			cell ? "h-7 w-9" : "size-8",
 			displayUrl
 				? "ring ring-kumo-line"
 				: cn(

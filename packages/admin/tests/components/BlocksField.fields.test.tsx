@@ -459,6 +459,34 @@ describe("Fields inside a block", () => {
 		await expect.element(icon).toHaveFocus();
 	});
 
+	it("sets a settings row's label in its value's size, on its value's baseline", async () => {
+		const feature = blockType("feature", "Feature", [
+			{ slug: "icon", label: "Icon", type: "select", validation: { options: ["star", "gauge"] } },
+		]);
+		await renderEditor(
+			[{ _type: "feature", _version: 1, _key: "feature-1", icon: "gauge" }],
+			[feature],
+		);
+		await openBlock("Feature");
+
+		const label = page
+			.getByText("Icon", { exact: true })
+			.elements()
+			.find((element) => element.tagName === "LABEL")!;
+		const value = page.getByRole("combobox", { name: "Icon" }).getByText("gauge").element();
+		// A 0x0 inline block after the text rests on its baseline.
+		const baseline = (element: Element) => {
+			const probe = document.createElement("span");
+			probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
+			element.append(probe);
+			const top = probe.getBoundingClientRect().top;
+			probe.remove();
+			return top;
+		};
+		expect(getComputedStyle(label).fontSize).toBe(getComputedStyle(value).fontSize);
+		expect(Math.abs(baseline(label) - baseline(value))).toBeLessThan(0.5);
+	});
+
 	it("says so when a block has no fields", async () => {
 		await renderEditor(
 			[{ _type: "divider", _version: 1, _key: "divider-1" }],

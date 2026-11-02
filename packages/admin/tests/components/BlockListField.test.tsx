@@ -1005,6 +1005,65 @@ describe("Lists inside a block in the editor", () => {
 		await expect.element(title).toHaveAttribute("aria-invalid", "true");
 	});
 
+	it("keeps an item's photo in its row, and its title in place, when the item opens", async () => {
+		await renderEditor(
+			[testimonialsBlock([{ ...maya, avatar: { id: "media-1", src: PHOTO } }, jonas])],
+			[testimonials],
+		);
+		const block = page.getByRole("button", { name: "Testimonials", exact: true });
+		await block.click();
+		const row = block.element().closest("[data-block-key]")!;
+		await expect.poll(() => row.getAnimations({ subtree: true }).length).toBe(0);
+
+		const toggle = page.getByRole("button", { name: "Maya Okafor", exact: true });
+		const item = toggle.element().closest('[role="listitem"]')!;
+		const photo = () => {
+			const { left, top, width, height } = item.querySelector("img")!.getBoundingClientRect();
+			return { left, top, width, height };
+		};
+		const closedPhoto = photo();
+		const name = shownText("Maya Okafor")!.getBoundingClientRect();
+
+		await toggle.click();
+		const title = page.getByRole("textbox", { name: "Author name", exact: true });
+		await expect.element(title).toHaveValue("Maya Okafor");
+		await expect.poll(() => row.getAnimations({ subtree: true }).length).toBe(0);
+		const input = title.element();
+		const inputBox = input.getBoundingClientRect();
+		const { borderLeftWidth, paddingLeft } = getComputedStyle(input);
+		const textStart =
+			inputBox.left + Number.parseFloat(borderLeftWidth) + Number.parseFloat(paddingLeft);
+		expect(photo()).toEqual(closedPhoto);
+		expect(Math.abs(textStart - name.left)).toBeLessThan(0.5);
+		expect(
+			Math.abs(inputBox.top + inputBox.height / 2 - (name.top + name.height / 2)),
+		).toBeLessThan(0.5);
+	});
+
+	it("lines up every row's actions button, in blocks, items and table rows, on one edge", async () => {
+		await renderEditor(
+			[
+				testimonialsBlock([maya, jonas]),
+				{
+					_type: "stats",
+					_version: 1,
+					_key: "stats-1",
+					stats: [{ value: "23%", label: "Lower energy spend, on average" }],
+				},
+			],
+			[testimonials, stats],
+		);
+		await page.getByRole("button", { name: "Expand all" }).click();
+		await expect.poll(() => document.getAnimations().length).toBe(0);
+
+		const buttons = page.getByRole("button", { name: / actions$/ }).all();
+		expect(buttons.length).toBeGreaterThanOrEqual(5);
+		const boxes = buttons.map((button) => box(button));
+		const centers = boxes.map((rect) => rect.left + rect.width / 2);
+		expect(Math.max(...centers) - Math.min(...centers)).toBeLessThan(0.5);
+		expect(new Set(boxes.map((rect) => `${rect.width}x${rect.height}`)).size).toBe(1);
+	});
+
 	it("shows every item open with its fields disabled in a read-only entry", async () => {
 		await renderEditor([testimonialsBlock([maya, jonas])], [testimonials], { readOnly: true });
 

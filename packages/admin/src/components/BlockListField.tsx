@@ -39,7 +39,9 @@ import { useStableCallback } from "../lib/hooks.js";
 import { cn } from "../lib/utils.js";
 import {
 	DRAGGING,
-	LABEL,
+	GLYPH_NUDGE,
+	LIST_LABEL,
+	LIST_NOTE,
 	ROW_BUTTON,
 	ROW_HOVER,
 	ROW_SUMMARY,
@@ -199,9 +201,9 @@ export function DisclosurePanel({
 }
 
 /** The caret of a disclosure row, which turns to point at the open body. */
-export function DisclosureCaret({ open }: { open: boolean }) {
+export function DisclosureCaret({ open, className }: { open: boolean; className?: string }) {
 	return (
-		<span aria-hidden="true" className="grid size-4 shrink-0 place-items-center">
+		<span aria-hidden="true" className={cn("grid size-4 shrink-0 place-items-center", className)}>
 			<CaretRight
 				weight="bold"
 				className={cn(
@@ -703,21 +705,21 @@ export function BlockListField({
 			}
 		>
 			<div className="flex min-w-0 items-baseline gap-1.5 ps-2">
-				<span id={labelId} className={cn(LABEL, "wrap-anywhere")}>
+				<span id={labelId} className={cn(LIST_LABEL, "wrap-anywhere")}>
 					{listLabel}
 				</span>
 				{savedCount > 0 && (
-					<bdi className="text-xs leading-4 text-kumo-placeholder tabular-nums">
+					<bdi className={cn(LIST_NOTE, "text-kumo-placeholder tabular-nums")}>
 						{i18n.number(savedCount)}
 					</bdi>
 				)}
 				{/* On the label's line, so showing it moves nothing. */}
 				{error && (
 					<>
-						<span aria-hidden="true" className="text-xs leading-4 text-kumo-placeholder">
+						<span aria-hidden="true" className={cn(LIST_NOTE, "text-kumo-placeholder")}>
 							·
 						</span>
-						<span id={errorId} className="min-w-0 truncate text-xs leading-4 text-kumo-danger">
+						<span id={errorId} className={cn(LIST_NOTE, "min-w-0 truncate text-kumo-danger")}>
 							{error}
 						</span>
 					</>
@@ -805,7 +807,7 @@ function DragHandle({
 				className,
 			)}
 		>
-			<DotsSixVertical className="size-3.5" weight="bold" />
+			<DotsSixVertical className="size-4" weight="bold" />
 		</span>
 	);
 }
@@ -849,7 +851,7 @@ function RowMenu({
 						variant="ghost"
 						shape="square"
 						size="sm"
-						className={cn(ROW_BUTTON, "size-7 shrink-0 text-kumo-subtle", SHOW_ON_HOVER)}
+						className={cn(ROW_BUTTON, "shrink-0 text-kumo-subtle", SHOW_ON_HOVER)}
 						aria-label={t`${label} actions`}
 					>
 						<DotsThree className="size-4" weight="bold" aria-hidden="true" />
@@ -924,7 +926,7 @@ function LineRow({
 			data-item-key={row.key}
 			data-menu-open={sortable.menuOpen || undefined}
 			className={cn(
-				"group/item relative flex min-h-8 items-center",
+				"group/item relative flex min-h-8 items-center pe-0.5",
 				sortable.isDragging && DRAGGING,
 			)}
 		>
@@ -1008,7 +1010,7 @@ function TableRow({
 		>
 			{children}
 			{!readOnly && (
-				<div role="cell" className="flex justify-end">
+				<div role="cell" className="flex justify-end pe-0.5">
 					<DragHandle listeners={sortable.listeners} className="top-1" />
 					<RowMenu
 						name={name}
@@ -1084,6 +1086,20 @@ function ItemRow({
 			{name}
 		</span>
 	);
+	// While the title is edited in the row, the photo sits between the caret and the title input,
+	// so the title keeps its place.
+	const thumb = thumbnail && !readOnly && (
+		<img
+			key={thumbnail}
+			src={thumbnail}
+			alt=""
+			loading="lazy"
+			className="size-6 shrink-0 rounded-md object-cover ring-1 ring-kumo-line"
+			onError={(event) => {
+				event.currentTarget.hidden = true;
+			}}
+		/>
+	);
 	return (
 		<div
 			ref={sortable.setNodeRef}
@@ -1098,10 +1114,10 @@ function ItemRow({
 				sortable.isDragging && cn(DRAGGING, "rounded-lg"),
 			)}
 		>
-			{!readOnly && <DragHandle listeners={sortable.listeners} className="top-1" />}
+			{!readOnly && <DragHandle listeners={sortable.listeners} className="top-1.5" />}
 			<div
 				className={cn(
-					"flex min-h-8 min-w-0 items-center gap-2 rounded-lg ps-2 pe-0.5",
+					"flex min-h-9 min-w-0 items-center gap-2 rounded-lg ps-2 pe-0.5",
 					!open && !readOnly && ROW_HOVER,
 					!editingTitle && HEAD_FOCUS,
 				)}
@@ -1110,7 +1126,7 @@ function ItemRow({
 					editingTitle ? (
 						nameText
 					) : (
-						<div className="flex min-h-8 min-w-0 flex-1 items-center ps-6">{nameText}</div>
+						<div className="flex min-h-9 min-w-0 flex-1 items-center ps-6">{nameText}</div>
 					)
 				) : (
 					<button
@@ -1127,22 +1143,11 @@ function ItemRow({
 							"text-start outline-none",
 							editingTitle
 								? "-mx-0.5 grid size-5 shrink-0 place-items-center rounded-md hover:bg-emdash-hover focus-visible:ring-1 focus-visible:ring-kumo-focus/50"
-								: "flex min-h-8 min-w-0 flex-1 items-center gap-2 self-stretch",
+								: "flex min-h-9 min-w-0 flex-1 items-center gap-2 self-stretch",
 						)}
 					>
-						<DisclosureCaret open={open} />
-						{thumbnail && !open && (
-							<img
-								key={thumbnail}
-								src={thumbnail}
-								alt=""
-								loading="lazy"
-								className="size-6 shrink-0 rounded-md object-cover ring-1 ring-kumo-line"
-								onError={(event) => {
-									event.currentTarget.hidden = true;
-								}}
-							/>
-						)}
+						<DisclosureCaret open={open} className={GLYPH_NUDGE} />
+						{!editingTitle && thumb}
 						{nameText}
 						{summary && (
 							<span className={cn(ROW_SUMMARY, "min-w-0 flex-1 overflow-hidden")}>
@@ -1157,6 +1162,7 @@ function ItemRow({
 						)}
 					</button>
 				)}
+				{editingTitle && thumb}
 				{editingTitle && (
 					// The title keeps its closed weight. The editor's field column sets input text to
 					// font-normal, which only `!` outranks. A box shorter than the row keeps the focused
@@ -1164,7 +1170,7 @@ function ItemRow({
 					<div
 						data-item-control
 						className={cn(
-							"min-w-0 flex-1 [&_input]:h-7 [&_input]:font-medium!",
+							"min-w-0 flex-1 [&_input]:h-8 [&_input]:font-medium!",
 							readOnly ? "ms-4" : "-ms-2",
 						)}
 					>

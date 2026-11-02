@@ -51,6 +51,7 @@ import { cn } from "../lib/utils.js";
 import {
 	DRAGGING,
 	FLOATING_NOTE,
+	GLYPH_NUDGE,
 	LABEL,
 	ROW_BUTTON,
 	ROW_HOVER,
@@ -158,9 +159,13 @@ const SHEET_INNER_TOP = "rounded-t-[calc(var(--radius-lg)-1px)]";
 const SHEET_INNER_BOTTOM = "rounded-b-[calc(var(--radius-lg)-1px)]";
 const MENU_ICON = "size-4";
 const FIELD_LABEL = `${LABEL} ps-2 wrap-anywhere`;
+// An item's fields start 1.5rem in from its block's, so inside an item the label column is that
+// much narrower, and every settings value starts on one edge.
 const SETTING_ROW =
-	"grid min-w-0 items-start gap-x-2 @min-[440px]/blocks:grid-cols-[11rem_minmax(0,1fr)]";
-const SETTING_LABEL = `${LABEL} flex items-center ps-2 wrap-anywhere @min-[440px]/blocks:min-h-8`;
+	"grid min-w-0 items-start gap-x-2 @min-[440px]/blocks:grid-cols-[11rem_minmax(0,1fr)] @min-[440px]/blocks:in-data-list-item:grid-cols-[9.5rem_minmax(0,1fr)]";
+// Beside its value, a label takes the value's size and the line box a 32px control centers its text
+// in, so the two share a baseline and a wrapped label keeps its first line there.
+const SETTING_LABEL = `${LABEL} ps-2 wrap-anywhere @min-[440px]/blocks:min-h-8 @min-[440px]/blocks:py-[5.5px] @min-[440px]/blocks:text-base @min-[440px]/blocks:leading-(--text-base--line-height) @min-[440px]/blocks:font-normal`;
 /** A failing field whose control can't show the problem itself turns its label red. */
 const INVALID_LABEL = "text-kumo-danger";
 // A block's gutter and menu show for the row under the pointer, the row whose menu or picker is
@@ -1141,7 +1146,7 @@ function BlockRow({
 			<div
 				ref={headRef}
 				className={cn(
-					"flex min-h-11 items-center gap-2 py-1.5 ps-2 pe-2",
+					"flex min-h-11 items-center gap-2 py-1.5 ps-2 pe-2.5",
 					!readOnly && ROW_HOVER,
 					!readOnly && HEAD_FOCUS,
 					index === 0 && SHEET_INNER_TOP,
@@ -1152,7 +1157,10 @@ function BlockRow({
 			>
 				{readOnly ? (
 					<div className="flex min-w-0 flex-1 items-center gap-2 self-stretch ps-6">
-						<BlockTypeIcon name={blockType?.icon} className="size-4 shrink-0 text-kumo-subtle" />
+						<BlockTypeIcon
+							name={blockType?.icon}
+							className={cn("size-4 shrink-0 text-kumo-subtle", GLYPH_NUDGE)}
+						/>
 						<span id={labelId} dir="auto" className={cn(ROW_TITLE, "min-w-0 wrap-anywhere")}>
 							{label}
 						</span>
@@ -1168,8 +1176,11 @@ function BlockRow({
 						onClick={onToggle}
 						className="flex min-w-0 flex-1 items-center gap-2 self-stretch text-start outline-none"
 					>
-						<DisclosureCaret open={open} />
-						<BlockTypeIcon name={blockType?.icon} className="size-4 shrink-0 text-kumo-subtle" />
+						<DisclosureCaret open={open} className={GLYPH_NUDGE} />
+						<BlockTypeIcon
+							name={blockType?.icon}
+							className={cn("size-4 shrink-0 text-kumo-subtle", GLYPH_NUDGE)}
+						/>
 						<span
 							id={labelId}
 							dir="auto"
@@ -1737,11 +1748,15 @@ function BlockFields({
 									"w-full rounded-md text-start outline-none focus-visible:ring-1 focus-visible:ring-kumo-focus/50 focus-visible:ring-inset",
 								)}
 							>
-								<span className={cn(SETTING_LABEL, "min-h-8 gap-1")}>
+								<span className={cn(SETTING_LABEL, "flex min-h-8 items-center gap-1")}>
 									{t`Advanced`}
-									<DisclosureCaret open={advancedOpen} />
+									{/* Below 440px the label is 12px, beside which a caret needs no nudge. */}
+									<DisclosureCaret
+										open={advancedOpen}
+										className="@min-[440px]/blocks:translate-y-px"
+									/>
 								</span>
-								<span className="flex min-w-0 items-center gap-2 px-2 @min-[440px]/blocks:min-h-8">
+								<span className="flex min-w-0 items-center gap-2 px-2 text-base @min-[440px]/blocks:min-h-8">
 									{!advancedOpen && advancedSummary && (
 										<span dir="auto" className="min-w-0 truncate text-kumo-placeholder">
 											{advancedSummary}
