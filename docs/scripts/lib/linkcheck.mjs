@@ -4,6 +4,11 @@ import { join } from "node:path";
 import { parse } from "parse5";
 
 const INDEX_HTML = /\/index\.html$/;
+const HTML_EXTENSION = /\.html$/;
+
+function encodePathname(pathname) {
+	return pathname.split("/").map(encodeURIComponent).join("/");
+}
 
 function decode(value) {
 	try {
@@ -35,6 +40,7 @@ export function buildPageIndex(directory) {
 	const pages = new Map();
 	const files = new Set();
 	const sources = [];
+	const htmlRedirects = new Map();
 	function visitDirectory(path, prefix = "") {
 		for (const entry of readdirSync(path, { withFileTypes: true }).toSorted((a, b) =>
 			a.name.localeCompare(b.name),
@@ -43,14 +49,22 @@ export function buildPageIndex(directory) {
 			if (entry.isDirectory()) {
 				visitDirectory(join(path, entry.name), `${relative}/`);
 			} else if (entry.isFile()) {
-				files.add(`/${relative}`);
+				const filePath = `/${relative}`;
+				files.add(filePath);
 				if (!relative.endsWith(".html")) continue;
-				const pathname = `/${relative}`.replace(INDEX_HTML, "/");
+				const isIndex = INDEX_HTML.test(filePath);
+				const stem = filePath.replace(isIndex ? INDEX_HTML : HTML_EXTENSION, "");
+				const pathname = isIndex ? `${stem}/` : stem;
 				const page = readPage(readFileSync(join(path, entry.name), "utf8"));
-				pages.set(`/${relative}`, page);
 				pages.set(pathname, page);
-				if (pathname.endsWith("/") && pathname !== "/") {
-					pages.set(pathname.slice(0, -1), page);
+				const aliases = [filePath, `${stem}/index`, `${stem}/index.html`];
+				if (isIndex) {
+					if (stem) aliases.push(stem, `${stem}.html`);
+				} else {
+					aliases.push(`${stem}/`);
+				}
+				for (const from of aliases) {
+					htmlRedirects.set(encodePathname(from), encodePathname(pathname));
 				}
 				sources.push({ pathname, ...page });
 			}
@@ -60,14 +74,14 @@ export function buildPageIndex(directory) {
 	if (sources.length === 0)
 		throw new Error("No generated HTML pages found. Build the docs before checking links.");
 
-	return { pages, files, sources };
+	return { pages, files, sources, htmlRedirects };
 }
 
-export function findLinkIssues({ pages, files, sources }, { site, redirects = {} }) {
+export function findLinkIssues({ pages, files, sources, htmlRedirects }, { site, redirects = {} }) {
 	const origin = new URL(site).origin;
 	const redirectTargets = new Map(
 		Object.entries(redirects).map(([path, destination]) => [
-			path,
+			new URL(path, origin).pathname,
 			typeof destination === "string" ? destination : destination.destination,
 		]),
 	);
@@ -75,7 +89,7 @@ export function findLinkIssues({ pages, files, sources }, { site, redirects = {}
 	let links = 0;
 	for (const source of sources) {
 		const pageUrl = new URL(origin);
-		pageUrl.pathname = source.pathname;
+		pageUrl.pathname = encodePathname(source.pathname);
 		const base = source.base === undefined ? pageUrl : new URL(source.base, pageUrl);
 		for (const href of source.links) {
 			if (!URL.canParse(href, base)) continue;
@@ -85,8 +99,10 @@ export function findLinkIssues({ pages, files, sources }, { site, redirects = {}
 			const visited = new Set();
 			let redirectLoop = false;
 			while (url.origin === origin) {
-				const path = decode(url.pathname);
-				const destination = redirectTargets.get(path);
+				const path = url.pathname;
+				const destination =
+					redirectTargets.get(path) ??
+					(pages.has(decode(path)) ? undefined : htmlRedirects.get(path));
 				if (destination === undefined) break;
 				if (visited.has(path)) {
 					issues.push(`${source.pathname}: ${href} -> redirect loop at ${url.pathname}`);
