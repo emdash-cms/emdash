@@ -136,6 +136,45 @@ export interface ImageFieldRendererProps {
 	thumbnail?: "row" | "cell";
 }
 
+const HOVER_REVEAL =
+	"opacity-0 transition-opacity duration-0 ease-out [@media(hover:none)]:opacity-100 pointer-coarse:opacity-100";
+const PHOTO_REVEAL = cn(
+	HOVER_REVEAL,
+	"group-hover/photo:opacity-100 group-hover/photo:duration-100 group-[:not([data-quiet-focus]):has(:focus-visible)]/photo:opacity-100",
+);
+const THUMB_REVEAL = cn(
+	HOVER_REVEAL,
+	"group-hover/thumb:opacity-100 group-hover/thumb:duration-100 group-[:not([data-quiet-focus]):has(:focus-visible)]/thumb:opacity-100",
+);
+const PHOTO_ACTION = "bg-kumo-base/85 shadow-sm backdrop-blur-sm not-disabled:hover:bg-kumo-base";
+
+/**
+ * Hover controls show on keyboard focus with `:focus-visible`. A dialog that closes with
+ * Escape hands focus back to its opener, and browsers count that as keyboard focus even when
+ * a pointer opened it. This marks the group so that returned focus doesn't keep them shown.
+ */
+function useQuietReturnFocus() {
+	const [quiet, setQuiet] = React.useState(false);
+	const openedByPointer = React.useRef(false);
+	return {
+		markOpener: (event: React.MouseEvent) => {
+			openedByPointer.current = event.detail > 0;
+		},
+		groupProps: {
+			"data-quiet-focus": quiet || undefined,
+			// Events from a dialog rendered inside the group bubble here through its portal.
+			onFocus: (event: React.FocusEvent<HTMLElement>) => {
+				if (!event.currentTarget.contains(event.target)) return;
+				setQuiet(openedByPointer.current);
+				openedByPointer.current = false;
+			},
+			onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+				if (event.currentTarget.contains(event.target as Node)) setQuiet(false);
+			},
+		},
+	};
+}
+
 export function ImageFieldRenderer({
 	id,
 	label,
@@ -163,6 +202,7 @@ export function ImageFieldRenderer({
 	const [imageBroken, setImageBroken] = React.useState(false);
 	const [darkImageBroken, setDarkImageBroken] = React.useState(false);
 	const mobileImageActionsRef = React.useRef<HTMLButtonElement>(null);
+	const quietFocus = useQuietReturnFocus();
 	const [editedContentHashes, setEditedContentHashes] = React.useState<
 		Record<string, string | null | undefined>
 	>({});
@@ -353,6 +393,54 @@ export function ImageFieldRenderer({
 				{t`Remove`}
 			</Button>
 		</div>
+	);
+	const photoActions = (
+		<>
+			<Button
+				type="button"
+				size="sm"
+				variant="secondary"
+				className={PHOTO_ACTION}
+				icon={<ImageSquare aria-hidden="true" />}
+				onClick={(event) => {
+					quietFocus.markOpener(event);
+					openPicker("image");
+				}}
+				disabled={assetEditor.isActive}
+			>
+				{t`Replace`}
+			</Button>
+			{canEditPrimaryAsset && (
+				<Button
+					type="button"
+					size="sm"
+					variant="secondary"
+					shape="square"
+					className={PHOTO_ACTION}
+					icon={<PencilSimple aria-hidden="true" />}
+					loading={assetEditor.isOpening && pickerTarget === "image"}
+					title={t`Edit asset`}
+					aria-label={t`Edit asset`}
+					onClick={(event) => {
+						quietFocus.markOpener(event);
+						setPickerTarget("image");
+						void assetEditor.openAssetEditor(objectValue!.id, event.currentTarget);
+					}}
+				/>
+			)}
+			<Button
+				type="button"
+				size="sm"
+				variant="secondary"
+				shape="square"
+				className={PHOTO_ACTION}
+				icon={<X aria-hidden="true" />}
+				title={t`Remove image`}
+				aria-label={t`Remove image`}
+				onClick={handleRemove}
+				disabled={assetEditor.isActive}
+			/>
+		</>
 	);
 	const mobileFeaturedActions = (
 		<DropdownMenu open={mobileActionsOpen} onOpenChange={setMobileActionsOpen}>
@@ -635,7 +723,10 @@ export function ImageFieldRenderer({
 			displayUrl
 				? "ring ring-kumo-line"
 				: cn(
-						"border-[1.5px] border-dashed border-kumo-line",
+						"border-[1.5px] border-dashed",
+						cell
+							? "border-transparent group-hover/item:border-kumo-line group-focus-within/item:border-kumo-line"
+							: "border-kumo-line",
 						invalid ? "text-kumo-danger" : "text-kumo-placeholder",
 					),
 		);
@@ -645,6 +736,7 @@ export function ImageFieldRenderer({
 				role="group"
 				aria-labelledby={labelledBy}
 				aria-describedby={describedBy}
+				{...quietFocus.groupProps}
 				className={cn(
 					"group/thumb flex min-h-8 min-w-0 items-center gap-1",
 					cell ? "justify-center" : "px-2",
@@ -658,7 +750,10 @@ export function ImageFieldRenderer({
 						className={cn(frame, "p-0")}
 						aria-label={displayUrl ? t`Replace ${label}` : t`Select ${label}`}
 						aria-describedby={describedBy}
-						onClick={() => openPicker("image")}
+						onClick={(event) => {
+							quietFocus.markOpener(event);
+							openPicker("image");
+						}}
 					>
 						{preview}
 					</Button>
@@ -688,7 +783,7 @@ export function ImageFieldRenderer({
 							variant="ghost"
 							shape="square"
 							size="sm"
-							className="size-6 text-kumo-subtle opacity-0 group-hover/thumb:opacity-100 group-focus-within/thumb:opacity-100 pointer-coarse:opacity-100"
+							className={cn("size-6 text-kumo-subtle", THUMB_REVEAL)}
 							aria-label={t`Remove ${label}`}
 							onClick={handleRemove}
 						>
@@ -734,22 +829,34 @@ export function ImageFieldRenderer({
 				avatarField
 			) : isFeatured && displayUrl ? (
 				featuredCard
-			) : displayUrl && labelled && !imageBroken ? (
-				<div className="group/photo relative">
-					{/* Its size is known before it loads, so a block opening around it animates to its full height. */}
-					<img
-						src={displayUrl}
-						alt=""
-						className="emdash-media-transparency-grid max-h-80 min-h-20 w-full rounded-lg object-cover ring ring-kumo-line"
-						style={{
-							objectPosition,
-							aspectRatio:
-								currentWidth && currentHeight ? `${currentWidth} / ${currentHeight}` : "16 / 9",
-						}}
-						onError={() => setImageBroken(true)}
-					/>
-					<div className="absolute end-2 top-2 opacity-0 transition-opacity group-hover/photo:opacity-100 group-focus-within/photo:opacity-100 pointer-coarse:opacity-100">
-						{primaryActions}
+			) : displayUrl && labelled ? (
+				<div className="group/photo relative mx-2" {...quietFocus.groupProps}>
+					{imageBroken ? (
+						<div className="flex min-h-20 items-center justify-center gap-2 rounded-lg bg-kumo-tint text-kumo-subtle ring ring-kumo-line">
+							<ImageBroken className="size-5" aria-hidden="true" />
+							<span className="text-xs leading-4">{t`Image not found`}</span>
+						</div>
+					) : (
+						// Its size is known before it loads, so a block opening around it animates to its full height.
+						<img
+							src={displayUrl}
+							alt=""
+							className="emdash-media-transparency-grid max-h-60 min-h-20 w-full rounded-lg object-cover ring ring-kumo-line"
+							style={{
+								objectPosition,
+								aspectRatio:
+									currentWidth && currentHeight ? `${currentWidth} / ${currentHeight}` : "16 / 9",
+							}}
+							onError={() => setImageBroken(true)}
+						/>
+					)}
+					<div
+						className={cn(
+							"absolute end-2 top-2 flex gap-1",
+							imageBroken ? undefined : PHOTO_REVEAL,
+						)}
+					>
+						{photoActions}
 					</div>
 				</div>
 			) : displayUrl ? (
@@ -788,8 +895,8 @@ export function ImageFieldRenderer({
 					type="button"
 					variant="outline"
 					className={cn(
-						"w-full justify-center border-dashed bg-kumo-control",
-						labelled ? "h-14" : "h-32",
+						"justify-center border-dashed bg-kumo-control",
+						labelled ? "mx-2 h-14 w-auto" : "h-32 w-full",
 					)}
 					onClick={() => openPicker("image")}
 					aria-describedby={labelled ? describedBy : undefined}
