@@ -212,7 +212,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		);
 
 		// Import navigation menus, resolving item references through the
-		// WP-post-ID -> EmDash-ID map collected during the content pass.
+		// WP-post-ID -> EmDash-ID and -> collection maps collected during the content pass.
 		if (config.importMenus !== false) {
 			await importMenusInto(result, emdash, body.url, body.token, contentIdMap, collectionByWpId);
 		}
@@ -275,7 +275,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 /**
  * Import navigation menus into `result`, resolving item references through
- * the WP-post-ID -> EmDash-ID map collected during the content pass.
+ * the WP-post-ID -> EmDash-ID and -> collection maps collected during the content pass.
  * Non-fatal: older plugin versions have no /menus endpoint.
  */
 async function importMenusInto(
@@ -831,7 +831,7 @@ export async function importContent(
 	// WP post ID -> EmDash content ID, used to resolve menu item references
 	const contentIdMap = new Map<number, string>();
 
-	// WP post ID -> EmDash collection slug, used by the comment import
+	// WP post ID -> EmDash collection slug, used by the comment and menu imports
 	const collectionByWpId = new Map<number, string>();
 
 	// Create content repository for checking existing items
