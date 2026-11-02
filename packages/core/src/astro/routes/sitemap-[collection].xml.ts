@@ -21,7 +21,7 @@ import type { APIRoute } from "astro";
 import virtualConfig from "virtual:emdash/config";
 
 import { handleSitemapData } from "#api/handlers/seo.js";
-import { getPublicOrigin } from "#api/public-url.js";
+import { getPublicSiteUrl } from "#api/public-url.js";
 import { getSiteSettingsWithDb } from "#settings/index.js";
 
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
@@ -31,7 +31,6 @@ import { parseCollectionSitemapName } from "../../seo/sitemap-name.js";
 
 export const prerender = false;
 
-const TRAILING_SLASH_RE = /\/$/;
 const AMP_RE = /&/g;
 const LT_RE = /</g;
 const GT_RE = />/g;
@@ -61,10 +60,8 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 
 	try {
 		const settings = await getSiteSettingsWithDb(emdash.db);
-		const siteUrl = (settings.url || getPublicOrigin(url, emdash?.config)).replace(
-			TRAILING_SLASH_RE,
-			"",
-		);
+		const siteUrl = getPublicSiteUrl(url, emdash.config, settings.url, import.meta.env.BASE_URL);
+		const mediaOrigin = new URL(siteUrl).origin;
 
 		const result = await handleSitemapData(emdash.db, collectionSlug, { page });
 
@@ -162,7 +159,7 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 			// image (the same "preferred image" used for og:image) so it
 			// can be discovered and indexed for Google Images.
 			if (entry.image) {
-				const imageLoc = buildSeoImageUrl(entry.image, siteUrl);
+				const imageLoc = buildSeoImageUrl(entry.image, mediaOrigin);
 				lines.push("    <image:image>");
 				lines.push(`      <image:loc>${escapeXml(imageLoc)}</image:loc>`);
 				lines.push("    </image:image>");
