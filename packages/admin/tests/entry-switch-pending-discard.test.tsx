@@ -83,6 +83,14 @@ const ENTRY_REV = btoa(`3:${ENTRY.updatedAt}`);
 const DISCARDED_REV = btoa(`4:${DISCARDED.updatedAt}`);
 const OTHER_REV = btoa(`2:${OTHER.updatedAt}`);
 
+const LOCKED = {
+	error: {
+		code: "ENTRY_LOCKED",
+		message: "Someone else is editing this entry.",
+		details: { userId: "user_02" },
+	},
+};
+
 type Entry = { id: string; type: string };
 type Screen = Awaited<ReturnType<typeof render>>;
 
@@ -164,8 +172,8 @@ describe.each([
 		mockFetch.restore();
 	});
 
-	/** Discards the first entry's draft and reopens `other`, where `beforeLanding` runs before it lands. */
-	async function discardThenSwitch(beforeLanding?: (screen: Screen) => Promise<void>) {
+	/** Discards the first entry's draft and reopens `other`, where `beforeAnswer` runs before the server answers. */
+	async function switchDuringDiscard(beforeAnswer?: (screen: Screen) => Promise<void>) {
 		const queryClient = createTestQueryClient();
 		// Kept in the cache, so switching entries keeps the editor mounted.
 		queryClient.setQueryDefaults(["content"], { gcTime: Infinity });
@@ -197,12 +205,17 @@ describe.each([
 		await discardChanges(screen);
 		await openEntry(router, other);
 		await expect.element(title).toHaveValue("Other title");
-		await beforeLanding?.(screen);
+		await beforeAnswer?.(screen);
 		discard.release();
 		await discard.answered;
-		await expect.element(screen.getByText("Changes discarded")).toBeVisible();
 
 		return { queryClient, screen, title };
+	}
+
+	async function discardThenSwitch(beforeLanding?: (screen: Screen) => Promise<void>) {
+		const opened = await switchDuringDiscard(beforeLanding);
+		await expect.element(opened.screen.getByText("Changes discarded")).toBeVisible();
+		return opened;
 	}
 
 	it("refreshes the entry whose draft it discarded", async () => {
@@ -232,5 +245,17 @@ describe.each([
 		});
 
 		await expect.element(title).toHaveValue("Typed while discarding");
+	});
+
+	it("keeps the entry now open editable when another editor's lock refuses the discard", async () => {
+		mockFetch.on("POST", `${ENTRY_PATH}/discard-draft?locale=en`, LOCKED, 409);
+		const saves = recordSaves(other);
+		const { queryClient, screen, title } = await switchDuringDiscard();
+		await expect.poll(() => queryClient.isMutating()).toBe(0);
+
+		await title.fill("Edited other title");
+		screen.getByRole("button", { name: "Save", exact: true }).element().click();
+
+		await expect.poll(() => saves.length).toBe(1);
 	});
 });

@@ -1761,12 +1761,13 @@ function ContentEditPage() {
 					publishedAt,
 				})
 				.catch((error: unknown) => {
-					if (!entryLock.reportWriteError(error, id)) throw error;
+					if (!editorShows(id) || !entryLock.reportWriteError(error, id)) throw error;
 				});
 		},
 		[
 			activeLocale,
 			collection,
+			editorShows,
 			entryLock.reportWriteError,
 			id,
 			publishedAtMutation.mutateAsync,
@@ -1887,12 +1888,13 @@ function ContentEditPage() {
 					targetLocale: rawItem?.locale ?? activeLocale,
 				})
 				.catch((error: unknown) => {
-					if (!entryLock.reportWriteError(error, id)) throw error;
+					if (!editorShows(id) || !entryLock.reportWriteError(error, id)) throw error;
 				}),
 		[
 			activeLocale,
 			collection,
 			discardDraftMutation.mutateAsync,
+			editorShows,
 			entryLock.reportWriteError,
 			id,
 			rawItem?.locale,
@@ -1926,7 +1928,7 @@ function ContentEditPage() {
 					scheduledAt,
 				})
 				.catch((error: unknown) => {
-					if (entryLock.reportWriteError(error, id)) return null;
+					if (editorShows(id) && entryLock.reportWriteError(error, id)) return null;
 					throw error;
 				});
 			if (!scheduledItem) return;
@@ -1936,6 +1938,7 @@ function ContentEditPage() {
 			activeLocale,
 			applyScheduleChange,
 			collection,
+			editorShows,
 			entryLock.reportWriteError,
 			id,
 			rawItem?.locale,
