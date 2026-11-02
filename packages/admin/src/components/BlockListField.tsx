@@ -125,9 +125,12 @@ const SELECTABLE_INPUT_TYPES = new Set(["text", "search", "url", "tel", "passwor
 const POPUP = '[role="dialog"], [role="menu"], [role="listbox"]';
 const IMAGE_COLUMN = "4.5rem";
 const MENU_COLUMN = "2rem";
-// Touch and narrow screens have no hover, so their menus always show.
+// Touch and narrow screens have no hover, so their menus always show. Focus from a click doesn't
+// show them; the state being entered sets the duration, so they fade in and vanish at once.
 const SHOW_ON_HOVER =
-	"blocks-gutter:opacity-0 blocks-gutter:group-hover/item:opacity-100 blocks-gutter:group-focus-within/item:opacity-100 blocks-gutter:group-data-[menu-open]/item:opacity-100";
+	"blocks-gutter:opacity-0 blocks-gutter:transition-opacity blocks-gutter:duration-0 blocks-gutter:ease-out blocks-gutter:group-hover/item:opacity-100 blocks-gutter:group-hover/item:duration-100 blocks-gutter:group-data-[menu-open]/item:opacity-100 blocks-gutter:group-data-[menu-open]/item:duration-100 blocks-gutter:focus-visible:opacity-100 blocks-gutter:focus-visible:duration-100";
+const HEAD_FOCUS =
+	"has-[[data-item-focus]:focus-visible]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))] has-[[data-item-focus]:focus-visible]:ring-1 has-[[data-item-focus]:focus-visible]:ring-kumo-focus/50 has-[[data-item-focus]:focus-visible]:ring-inset";
 
 export function focusableIn(element: Element | null | undefined): HTMLElement | null {
 	if (!element) return null;
@@ -792,7 +795,7 @@ function DragHandle({
 			aria-hidden="true"
 			{...listeners}
 			className={cn(
-				"absolute end-full me-0.5 hidden h-6 w-[1.125rem] cursor-grab touch-none place-items-center rounded-md text-kumo-placeholder opacity-0 transition-opacity hover:bg-emdash-hover hover:text-kumo-subtle active:cursor-grabbing blocks-gutter:@min-[440px]/blocks:grid group-hover/item:opacity-100 group-data-[menu-open]/item:opacity-100",
+				"absolute end-full me-0.5 hidden h-6 w-[1.125rem] cursor-grab touch-none place-items-center rounded-md text-kumo-placeholder opacity-0 transition-opacity duration-0 ease-out hover:bg-emdash-hover hover:text-kumo-subtle active:cursor-grabbing blocks-gutter:@min-[440px]/blocks:grid group-hover/item:opacity-100 group-hover/item:duration-100 group-data-[menu-open]/item:opacity-100 group-data-[menu-open]/item:duration-100",
 				className,
 			)}
 		>
@@ -1094,6 +1097,7 @@ function ItemRow({
 				className={cn(
 					"flex min-h-8 min-w-0 items-center gap-2 rounded-lg ps-2 pe-0.5",
 					!open && !readOnly && ROW_HOVER,
+					!editingTitle && HEAD_FOCUS,
 				)}
 			>
 				{readOnly ? (
@@ -1114,8 +1118,10 @@ function ItemRow({
 						}
 						onClick={onToggle}
 						className={cn(
-							"-ms-1 flex min-h-8 items-center gap-2 self-stretch rounded-md ps-1 text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand",
-							editingTitle ? "shrink-0" : "min-w-0 flex-1",
+							"text-start outline-none",
+							editingTitle
+								? "-mx-0.5 grid size-5 shrink-0 place-items-center rounded-md hover:bg-emdash-hover focus-visible:ring-1 focus-visible:ring-kumo-focus/50"
+								: "flex min-h-8 min-w-0 flex-1 items-center gap-2 self-stretch",
 						)}
 					>
 						<DisclosureCaret open={open} />

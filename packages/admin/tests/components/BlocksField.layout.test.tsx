@@ -288,6 +288,40 @@ describe("Block row layout", () => {
 		},
 	);
 
+	it("shows only the hovered block's gutter after a click, and a gutter reached by keyboard", async () => {
+		const screen = await renderField(
+			<div style={{ width: 480, marginInline: 80 }}>
+				<Field
+					value={[
+						{ _type: "statement", _version: 1, _key: "one", title: "One" },
+						{ _type: "statement", _version: 1, _key: "two", title: "Two" },
+					]}
+					blockTypes={[blockType("statement", "Statement")]}
+				/>
+			</div>,
+		);
+
+		showGutters();
+		const row = (key: string) => document.querySelector(`[data-block-key="${key}"]`)!;
+		const gutterShows = (key: string) =>
+			row(key)
+				.querySelector<HTMLElement>('[aria-label="Add block below"]')!
+				.checkVisibility({ opacityProperty: true });
+		const toggles = screen.getByRole("button", { name: "Statement", exact: true });
+
+		await toggles.first().click();
+		await userEvent.hover(toggles.last());
+		await expect.poll(() => gutterShows("two")).toBe(true);
+		expect(gutterShows("one")).toBe(false);
+
+		await userEvent.unhover(toggles.last());
+		await expect.poll(() => gutterShows("two")).toBe(false);
+		await userEvent.keyboard("{Shift>}{Tab}{Tab}{/Shift}");
+		expect(document.activeElement?.getAttribute("aria-label")).toBe("Add block below");
+		expect(row("one").contains(document.activeElement)).toBe(true);
+		await expect.poll(() => gutterShows("one")).toBe(true);
+	});
+
 	it("leaves no gutter on a phone-width screen", async () => {
 		await page.viewport(375, 812);
 		const screen = await renderField(

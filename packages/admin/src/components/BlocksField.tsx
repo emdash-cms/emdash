@@ -161,6 +161,16 @@ const FIELD_LABEL = `${LABEL} ps-2 wrap-anywhere`;
 const SETTING_ROW =
 	"grid min-w-0 items-start gap-x-2 @min-[440px]/blocks:grid-cols-[11rem_minmax(0,1fr)]";
 const SETTING_LABEL = `${LABEL} flex items-center ps-2 wrap-anywhere @min-[440px]/blocks:min-h-8`;
+// A block's gutter and menu show for the row under the pointer, the row whose menu or picker is
+// open, and keyboard focus on themselves, never for a row that only holds focus from a click. The
+// state being entered sets the duration, so they fade in and vanish at once.
+const REVEAL_GUTTER =
+	"opacity-0 transition-opacity duration-0 ease-out group-hover/block:opacity-100 group-hover/block:duration-100 group-data-[menu-open]/block:opacity-100 group-data-[menu-open]/block:duration-100 group-data-[picker-open]/block:opacity-100 group-data-[picker-open]/block:duration-100 has-[:focus-visible]:opacity-100 has-[:focus-visible]:duration-100";
+// Touch and narrow screens have no hover, so their menus always show.
+const REVEAL_MENU =
+	"blocks-gutter:opacity-0 blocks-gutter:transition-opacity blocks-gutter:duration-0 blocks-gutter:ease-out blocks-gutter:group-hover/block:opacity-100 blocks-gutter:group-hover/block:duration-100 blocks-gutter:group-data-[menu-open]/block:opacity-100 blocks-gutter:group-data-[menu-open]/block:duration-100 blocks-gutter:focus-visible:opacity-100 blocks-gutter:focus-visible:duration-100";
+const HEAD_FOCUS =
+	"has-[[data-block-toggle]:focus-visible]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))] has-[[data-block-toggle]:focus-visible]:ring-1 has-[[data-block-toggle]:focus-visible]:ring-kumo-focus/50 has-[[data-block-toggle]:focus-visible]:ring-inset";
 
 type InsertSide = "top" | "bottom";
 
@@ -169,6 +179,8 @@ interface PickerTarget {
 	anchor: Element | null;
 	side: InsertSide;
 	invoker: HTMLElement | null;
+	/** The block whose gutter opened the picker. */
+	from?: string;
 }
 
 type FocusRequest =
@@ -759,7 +771,8 @@ export function BlocksField({
 										onChange={(field, nextValue) =>
 											onChange(updateBlockFieldValue(blocks, block._key, field, nextValue))
 										}
-										onAdd={openPicker}
+										pickerOpen={pickerOpen && picker?.from === block._key}
+										onAdd={(target) => openPicker({ ...target, from: block._key })}
 										onDuplicate={() => duplicateBlock(index)}
 										onMove={(to) => moveBlock(index, to)}
 										onDelete={() => deleteBlock(block)}
@@ -851,6 +864,8 @@ interface BlockRowProps {
 	onChange: (field: string, value: unknown) => void;
 	onItemDeleted: (field: string, deleted: DeletedListItem) => void;
 	onItemsShift: (field: string, moves: readonly number[]) => void;
+	/** Whether the block picker this row opened is open. */
+	pickerOpen: boolean;
 	onAdd: (target: PickerTarget) => void;
 	onDuplicate: () => void;
 	onMove: (to: number) => void;
@@ -882,6 +897,7 @@ function BlockRow({
 	onChange,
 	onItemDeleted,
 	onItemsShift,
+	pickerOpen,
 	onAdd,
 	onDuplicate,
 	onMove,
@@ -1003,6 +1019,7 @@ function BlockRow({
 			role="listitem"
 			data-block-key={block._key}
 			data-menu-open={menuOpen || undefined}
+			data-picker-open={pickerOpen || undefined}
 			className={cn(
 				"group/block relative [--emdash-blocks-sticky-top:var(--emdash-editor-sticky-top,0px)] focus-within:z-40",
 				index > 0 && "border-t border-kumo-hairline",
@@ -1010,7 +1027,12 @@ function BlockRow({
 			)}
 		>
 			{!readOnly && (
-				<div className="absolute end-full top-2.5 hidden items-center pe-1 opacity-0 transition-opacity blocks-gutter:flex group-hover/block:opacity-100 group-focus-within/block:opacity-100 group-data-[menu-open]/block:opacity-100">
+				<div
+					className={cn(
+						"absolute end-full top-2.5 hidden items-center pe-1 blocks-gutter:flex",
+						REVEAL_GUTTER,
+					)}
+				>
 					<Tooltip
 						side="bottom"
 						content={
@@ -1096,6 +1118,7 @@ function BlockRow({
 				className={cn(
 					"flex min-h-11 items-center gap-2 py-1.5 ps-2 pe-2",
 					!readOnly && ROW_HOVER,
+					!readOnly && HEAD_FOCUS,
 					index === 0 && SHEET_INNER_TOP,
 					roundBottom && !open && SHEET_INNER_BOTTOM,
 					open &&
@@ -1118,7 +1141,7 @@ function BlockRow({
 						aria-labelledby={labelId}
 						aria-describedby={toggleDescription || undefined}
 						onClick={onToggle}
-						className="-ms-1 flex min-w-0 flex-1 items-center gap-2 self-stretch rounded-md ps-1 text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand"
+						className="flex min-w-0 flex-1 items-center gap-2 self-stretch text-start outline-none"
 					>
 						<DisclosureCaret open={open} />
 						<BlockTypeIcon name={blockType?.icon} className="size-4 shrink-0 text-kumo-subtle" />
@@ -1202,10 +1225,7 @@ function BlockRow({
 									variant="ghost"
 									shape="square"
 									size="sm"
-									className={cn(
-										ROW_BUTTON,
-										"shrink-0 text-kumo-subtle blocks-gutter:opacity-0 blocks-gutter:group-hover/block:opacity-100 blocks-gutter:group-focus-within/block:opacity-100 blocks-gutter:group-data-[menu-open]/block:opacity-100",
-									)}
+									className={cn(ROW_BUTTON, "shrink-0 text-kumo-subtle", REVEAL_MENU)}
 									aria-label={t`${label} actions`}
 									aria-describedby={versionId}
 								>
@@ -1642,7 +1662,7 @@ function BlockFields({
 								className={cn(
 									SETTING_ROW,
 									ROW_HOVER,
-									"w-full rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand",
+									"w-full rounded-md text-start outline-none focus-visible:ring-1 focus-visible:ring-kumo-focus/50 focus-visible:ring-inset",
 								)}
 							>
 								<span className={cn(SETTING_LABEL, "min-h-8 gap-1")}>
