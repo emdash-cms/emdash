@@ -1309,12 +1309,14 @@ function ContentEditPage() {
 		[collection, queryClient, rawItem?.draftRevisionId],
 	);
 	const recoverFromSaveConflict = React.useCallback(
-		async (entryId: string, targetCollection = collection) => {
+		async (
+			entryId: string,
+			targetCollection = collection,
+			targetLocale = rawItem?.locale ?? activeLocale,
+		) => {
 			setConflictedEntryId(entryId);
 			try {
-				const server = await fetchContent(targetCollection, entryId, {
-					locale: rawItem?.locale ?? activeLocale,
-				});
+				const server = await fetchContent(targetCollection, entryId, { locale: targetLocale });
 				recordWriteRevision(entryId, server);
 				return true;
 			} catch {
@@ -1416,8 +1418,9 @@ function ContentEditPage() {
 			void handleContentUpdateSuccess(targetId, targetCollection);
 		},
 		// The publication-date dialog shows the failure.
-		onError: async (error, { targetCollection, targetId }) => {
-			if (isSaveConflict(error)) await recoverFromSaveConflict(targetId, targetCollection);
+		onError: async (error, { targetCollection, targetId, targetLocale }) => {
+			if (isSaveConflict(error))
+				await recoverFromSaveConflict(targetId, targetCollection, targetLocale);
 		},
 	});
 
