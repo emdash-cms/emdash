@@ -1,9 +1,13 @@
 import { Button, DropdownMenu } from "@cloudflare/kumo";
 import {
+	type Announcements,
 	closestCenter,
 	DndContext,
-	PointerSensor,
+	type DragCancelEvent,
 	type DragEndEvent,
+	type DragOverEvent,
+	type DragStartEvent,
+	PointerSensor,
 	useDndMonitor,
 	useSensor,
 	useSensors,
@@ -29,6 +33,7 @@ import {
 	Trash,
 } from "@phosphor-icons/react";
 import * as React from "react";
+import { flushSync } from "react-dom";
 
 import {
 	itemTitleField,
@@ -41,20 +46,27 @@ import { cloneValue, createBlockKey, isBlankLine, pastedLines } from "../lib/blo
 import { useStableCallback } from "../lib/hooks.js";
 import { cn } from "../lib/utils.js";
 import {
+	DISCLOSURE_CURVE,
+	DISCLOSURE_EASE,
 	DRAGGING,
 	GLYPH_NUDGE,
 	IMAGE_EDGE,
 	ITEM_TITLE,
+	LIFT_SHADOW,
+	LIFTED,
 	LIST_LABEL,
-	LIST_NOTE,
+	NOTE,
+	POPUP_MOTION,
 	ROW_BUTTON,
 	ROW_HOVER,
 	ROW_SUMMARY,
+	ROW_TOUCH_TARGET,
 	SORT_TRANSITION,
 	SUMMARY_SLOT,
 	SUMMARY_TEXT,
 } from "./block-field-styles.js";
 import { type ImageFieldValue, mediaDisplayUrl } from "./ImageFieldRenderer.js";
+import { useQuietReturnFocus } from "./useQuietReturnFocus.js";
 
 type ListItem = Record<string, unknown>;
 
@@ -119,9 +131,10 @@ export interface BlockListFieldProps {
 	renderItemFields: (input: ListItemFieldsInput) => React.ReactNode;
 }
 
+/** Where focus goes next. With `scroll: false`, the row's own motion brings it into view. */
 type ListFocus =
-	| { key: string; target: "control"; caret?: number }
-	| { key: string; target: "item" }
+	| { key: string; target: "control"; caret?: number; scroll?: false }
+	| { key: string; target: "item"; scroll?: false }
 	| { target: "add" };
 
 const FOCUSABLE =
@@ -136,7 +149,7 @@ const MENU_COLUMN = "2rem";
 // Touch and narrow screens have no hover, so their menus always show. Focus from a click doesn't
 // show them; the state being entered sets the duration, so they fade in and vanish at once.
 const SHOW_ON_HOVER =
-	"blocks-gutter:opacity-0 blocks-gutter:transition-opacity blocks-gutter:duration-0 blocks-gutter:ease-out blocks-gutter:group-hover/item:opacity-100 blocks-gutter:group-hover/item:duration-100 blocks-gutter:group-data-[menu-open]/item:opacity-100 blocks-gutter:group-data-[menu-open]/item:duration-100 blocks-gutter:focus-visible:opacity-100 blocks-gutter:focus-visible:duration-100";
+	"blocks-gutter:opacity-0 blocks-gutter:transition-opacity blocks-gutter:duration-0 blocks-gutter:ease-emdash blocks-gutter:group-hover/item:opacity-100 blocks-gutter:group-hover/item:duration-100 blocks-gutter:group-data-[menu-open]/item:opacity-100 blocks-gutter:group-data-[menu-open]/item:duration-100 blocks-gutter:[&:not([data-quiet-focus]):focus-visible]:opacity-100 blocks-gutter:[&:not([data-quiet-focus]):focus-visible]:duration-100";
 const HEAD_FOCUS =
 	"has-[[data-item-focus]:focus-visible]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))] has-[[data-item-focus]:focus-visible]:ring-1 has-[[data-item-focus]:focus-visible]:ring-kumo-focus/50 has-[[data-item-focus]:focus-visible]:ring-inset";
 // A closed item's head keeps its wash while its menu is open, and pressing its toggle deepens the
@@ -246,18 +259,45 @@ function textOffsetAt(x: number, y: number, within: Element | null): number | un
 	return range && within.contains(range.startContainer) ? range.startOffset : undefined;
 }
 
-// The rows below a panel move with its height, so the curve starts gently enough that no frame
-// carries them more than about a quarter of the way. The caret's class repeats it.
-const DISCLOSURE_EASE = "cubic-bezier(0.33, 1, 0.68, 1)";
 const OPEN_MS = 200;
 const CLOSE_MS = 160;
-const DROP_MS = 200;
+/** How long a dropped or moved row takes to slide into its place. */
+const SLIDE_MS = 200;
+/** How long a lifted row's shadow takes to fade, the same as its `after:duration-150`. */
+const SHADOW_MS = 150;
+/** The space kept under a row brought into view, so whatever follows it shows too. */
+const REVEAL_ROOM = 48;
 
 const noop = () => {};
 
-function prefersReducedMotion(): boolean {
+export function prefersReducedMotion(): boolean {
 	return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
+
+/** One axis of a cubic Bézier from (0, 0) to (1, 1), with control points `a` and `b`, at `t`. */
+function bezierAt(a: number, b: number, t: number): number {
+	return 3 * a * t * (1 - t) ** 2 + 3 * b * t ** 2 * (1 - t) + t ** 3;
+}
+
+function bezierSlope(a: number, b: number, t: number): number {
+	return 3 * a * (1 - t) ** 2 + 6 * (b - a) * t * (1 - t) + 3 * (1 - b) * t ** 2;
+}
+
+/** A CSS `cubic-bezier()` easing, as a function from time to progress, both 0–1. */
+function cubicBezier(x1: number, y1: number, x2: number, y2: number): (time: number) => number {
+	return (time) => {
+		let t = time;
+		for (let step = 0; step < 8; step++) {
+			const error = bezierAt(x1, x2, t) - time;
+			const gradient = bezierSlope(x1, x2, t);
+			if (Math.abs(error) < 1e-4 || gradient === 0) break;
+			t = Math.min(1, Math.max(0, t - error / gradient));
+		}
+		return bezierAt(y1, y2, t);
+	};
+}
+
+const disclosureProgress = cubicBezier(...DISCLOSURE_CURVE);
 
 /** The nearest ancestor of `element` that scrolls, or the page when it scrolls. */
 function scrollerOf(element: Element): HTMLElement | null {
@@ -278,6 +318,227 @@ function scrollInstantly(scroller: HTMLElement, by: number) {
 function viewBottom(scroller: HTMLElement | null): number {
 	if (!scroller || scroller === document.scrollingElement) return window.innerHeight;
 	return scroller.getBoundingClientRect().top + scroller.clientTop + scroller.clientHeight;
+}
+
+function viewEdge(scroller: HTMLElement | null): number {
+	if (!scroller || scroller === document.scrollingElement) return 0;
+	return scroller.getBoundingClientRect().top + scroller.clientTop;
+}
+
+/** How much of a box `height` tall, at `top`, shows above the scroller's bottom edge. */
+function shownPart(scroller: HTMLElement | null, top: number, height: number): number {
+	return Math.max(0, Math.min(height, viewBottom(scroller) - top));
+}
+
+/**
+ * How far to scroll `scroller` so a box from `top` to `bottom` shows below its scroll padding,
+ * which keeps clear of a pinned head, with room under it. A box taller than the view keeps its
+ * top in view.
+ */
+function revealBy(scroller: HTMLElement, top: number, bottom: number): number {
+	const style = getComputedStyle(scroller);
+	const start = viewEdge(scroller) + (Number.parseFloat(style.scrollPaddingTop) || 0);
+	if (top < start) return top - start;
+	const end = viewBottom(scroller) - (Number.parseFloat(style.scrollPaddingBottom) || 0);
+	const past = bottom + REVEAL_ROOM - end;
+	return past > 0 ? Math.min(past, top - start) : 0;
+}
+
+/**
+ * Scrolls `scroller` by `by` on the disclosure curve, in step with the rows that move as it does.
+ * The reader scrolling stops it.
+ */
+function scrollAlong(scroller: HTMLElement, by: number, duration: number) {
+	if (Math.abs(by) < 1) return;
+	if (prefersReducedMotion()) {
+		scrollInstantly(scroller, by);
+		return;
+	}
+	const from = scroller.scrollTop;
+	let last = from;
+	let start: number | undefined;
+	const step = (now: number) => {
+		if (Math.abs(scroller.scrollTop - last) > 1) return;
+		start ??= now;
+		const progress = Math.min(1, (now - start) / duration);
+		scroller.scrollTop = from + by * disclosureProgress(progress);
+		last = scroller.scrollTop;
+		if (progress < 1) requestAnimationFrame(step);
+	};
+	requestAnimationFrame(step);
+}
+
+/**
+ * Grows a row just added from nothing to its height, so the rows below glide down instead of
+ * jumping, and brings it into view with room under it. Only the part that will be in view grows.
+ */
+export function growRow(row: HTMLElement) {
+	const scroller = scrollerOf(row);
+	const { top, height } = row.getBoundingClientRect();
+	const by = scroller ? revealBy(scroller, top, top + height) : 0;
+	if (scroller) scrollAlong(scroller, by, OPEN_MS);
+	if (prefersReducedMotion()) return;
+	const to = shownPart(scroller, top - by, height);
+	if (to < 1) return;
+	row.animate(
+		{ height: ["0px", `${to}px`], opacity: [0, 1], clipPath: ["inset(0)", "inset(0)"] },
+		{ duration: OPEN_MS, easing: DISCLOSURE_EASE },
+	);
+}
+
+/**
+ * Shrinks a row being deleted to nothing, so the rows below glide up, then calls `remove` to take
+ * it out. Only the part in view shrinks, and a row whose top is scrolled away goes at once.
+ */
+export function collapseRow(row: HTMLElement, remove: () => void) {
+	const scroller = scrollerOf(row);
+	const { top, height } = row.getBoundingClientRect();
+	const from = shownPart(scroller, top, height);
+	if (prefersReducedMotion() || from < 1 || top < viewEdge(scroller)) {
+		remove();
+		return;
+	}
+	const shrink = row.animate(
+		{ height: [`${from}px`, "0px"], opacity: [1, 0], clipPath: ["inset(0)", "inset(0)"] },
+		{ duration: CLOSE_MS, easing: DISCLOSURE_EASE, fill: "forwards" },
+	);
+	shrink.addEventListener("finish", () => {
+		flushSync(remove);
+		// A row that wasn't taken out after all comes back.
+		if (row.isConnected) shrink.cancel();
+	});
+}
+
+/** Slides `node` back into its place from `x`, `y` away, on top of any transform it has. */
+function slideFrom(node: HTMLElement, x: number, y: number): Animation {
+	return node.animate(
+		{ transform: [`translate(${x}px, ${y}px)`, "none"] },
+		{ duration: SLIDE_MS, easing: DISCLOSURE_EASE, composite: "add" },
+	);
+}
+
+/**
+ * Slides the rows a menu reorders from their old places to their new ones, instead of letting
+ * them jump, and brings the moved row into view. Call the returned function with the moved row's
+ * key just before the move. Rows are the elements in `rootRef` that carry `attribute`.
+ */
+export function useReorderMotion(
+	rootRef: React.RefObject<HTMLElement | null>,
+	attribute: "data-block-key" | "data-item-key",
+) {
+	const pendingRef = React.useRef<{
+		moved: string;
+		order: string;
+		tops: Map<string, number>;
+	} | null>(null);
+	const rowsIn = (root: HTMLElement) =>
+		Array.from(root.querySelectorAll<HTMLElement>(`[${attribute}]`), (row) => ({
+			row,
+			key: row.getAttribute(attribute) ?? "",
+		}));
+
+	React.useLayoutEffect(() => {
+		const pending = pendingRef.current;
+		const root = rootRef.current;
+		if (!pending || !root) return;
+		const rows = rowsIn(root);
+		// The moved value can come back from the parent a render later.
+		if (rows.map(({ key }) => key).join(" ") === pending.order) return;
+		pendingRef.current = null;
+		const moved = rows.find(({ key }) => key === pending.moved)?.row;
+		const scroller = moved ? scrollerOf(moved) : null;
+		if (moved && scroller) {
+			const { top, bottom } = moved.getBoundingClientRect();
+			scrollAlong(scroller, revealBy(scroller, top, bottom), SLIDE_MS);
+		}
+		if (prefersReducedMotion()) return;
+		const origin = root.getBoundingClientRect().top;
+		for (const { row, key } of rows) {
+			const before = pending.tops.get(key);
+			if (before === undefined) continue;
+			const y = before - (row.getBoundingClientRect().top - origin);
+			if (Math.abs(y) >= 0.5) slideFrom(row, 0, y);
+		}
+	});
+
+	return (moved: string) => {
+		const root = rootRef.current;
+		if (!root) return;
+		const origin = root.getBoundingClientRect().top;
+		const rows = rowsIn(root);
+		pendingRef.current = {
+			moved,
+			order: rows.map(({ key }) => key).join(" "),
+			tops: new Map(rows.map(({ row, key }) => [key, row.getBoundingClientRect().top - origin])),
+		};
+	};
+}
+
+const silent = () => undefined;
+const SILENT_ANNOUNCEMENTS: Announcements = {
+	onDragStart: silent,
+	onDragOver: silent,
+	onDragEnd: silent,
+	onDragCancel: silent,
+};
+
+/**
+ * Props for a sortable list's `DndContext` that announce a drag through the list's own polite
+ * region, in the editor's language and by the rows' names. dnd-kit's own announcements are
+ * English, assertive and name rows by their keys. `onMove` makes the move a drop asks for.
+ */
+export function useDragAnnouncements({
+	keys,
+	nameOf,
+	announce,
+	onMove,
+}: {
+	keys: readonly string[];
+	nameOf: (key: string) => string;
+	announce: (message: string) => void;
+	onMove: (from: number, to: number) => void;
+}) {
+	const { t } = useLingui();
+	const overRef = React.useRef<string | null>(null);
+	const total = keys.length;
+	const notMoved = (key: string) => {
+		const name = nameOf(key);
+		announce(t`${name} was not moved`);
+	};
+	return {
+		accessibility: {
+			announcements: SILENT_ANNOUNCEMENTS,
+			screenReaderInstructions: { draggable: "" },
+		},
+		onDragStart: ({ active }: DragStartEvent) => {
+			const key = String(active.id);
+			overRef.current = key;
+			const name = nameOf(key);
+			const position = keys.indexOf(key) + 1;
+			announce(t`Picked up ${name}, position ${position} of ${total}`);
+		},
+		onDragOver: ({ active, over }: DragOverEvent) => {
+			if (!over || String(over.id) === overRef.current) return;
+			overRef.current = String(over.id);
+			const name = nameOf(String(active.id));
+			const position = keys.indexOf(String(over.id)) + 1;
+			announce(t`${name} is over position ${position} of ${total}`);
+		},
+		onDragEnd: ({ active, over }: DragEndEvent) => {
+			const key = String(active.id);
+			const from = keys.indexOf(key);
+			const to = over ? keys.indexOf(String(over.id)) : -1;
+			if (from < 0 || to < 0 || from === to) {
+				notMoved(key);
+				return;
+			}
+			const name = nameOf(key);
+			onMove(from, to);
+			const position = to + 1;
+			announce(t`Moved ${name} to position ${position} of ${total}`);
+		},
+		onDragCancel: ({ active }: DragCancelEvent) => notMoved(String(active.id)),
+	};
 }
 
 /**
@@ -524,17 +785,20 @@ export function DisclosurePanel({
 				restore();
 				return;
 			}
+			// A reversal takes the share of the time that is left of the way, as the caret's CSS
+			// transition does, so the two land together.
+			const duration = OPEN_MS * ((to - from) / to);
 			const height = panel.animate(
 				{
 					height: [`${from}px`, `${to}px`],
 					opacity: [opacity, 1],
 					clipPath: ["inset(0)", "inset(0)"],
 				},
-				{ duration: OPEN_MS, easing: DISCLOSURE_EASE, fill: lift > 0 ? "forwards" : "none" },
+				{ duration, easing: DISCLOSURE_EASE, fill: lift > 0 ? "forwards" : "none" },
 			);
 			const motion: PanelMotion = {
 				height,
-				content: liftContent(panel, lift, OPEN_MS),
+				content: liftContent(panel, lift, duration),
 				lift,
 				release: held,
 				finish() {
@@ -559,6 +823,7 @@ export function DisclosurePanel({
 			return;
 		}
 		let shown = current;
+		let hidden = 0;
 		const head = headRef?.current;
 		if (head && scroller) {
 			// A head pinned over the panel hides the part above it. Scrolling the block's top up to
@@ -570,9 +835,10 @@ export function DisclosurePanel({
 				scrollInstantly(scroller, -pinned);
 				lift += pinned;
 				shown = Math.max(0, shown - pinned);
+				hidden = pinned;
 			}
 		}
-		const { top } = panel.getBoundingClientRect();
+		const { top, height: natural } = panel.getBoundingClientRect();
 		const release = holdScroll(scroller, panel);
 		held();
 		const from = travel(scroller, top, shown);
@@ -581,17 +847,19 @@ export function DisclosurePanel({
 			requestAnimationFrame(release);
 			return;
 		}
+		const full = previous ? travel(scroller, top, natural - hidden) : from;
+		const duration = CLOSE_MS * Math.min(1, from / Math.max(from, full));
 		const height = panel.animate(
 			{
 				height: [`${from}px`, "0px"],
 				opacity: [opacity, 0],
 				clipPath: ["inset(0)", "inset(0)"],
 			},
-			{ duration: CLOSE_MS, easing: DISCLOSURE_EASE, fill: "forwards" },
+			{ duration, easing: DISCLOSURE_EASE, fill: "forwards" },
 		);
 		const motion: PanelMotion = {
 			height,
-			content: liftContent(panel, lift, CLOSE_MS),
+			content: liftContent(panel, lift, duration),
 			lift,
 			release,
 			finish() {
@@ -674,9 +942,12 @@ export function useDropSettle(
 		const y = from.top - to.top;
 		if (Math.abs(x) < 0.5 && Math.abs(y) < 0.5) return;
 		setSettling(true);
-		const settle = node.animate(
-			{ transform: [`translate(${x}px, ${y}px)`, "none"] },
-			{ duration: DROP_MS, easing: DISCLOSURE_EASE, composite: "add" },
+		const settle = slideFrom(node, x, y);
+		// A row dropped in a new slot was moved in the page, which ends any transition on it, so its
+		// lifted shadow fades out here, while it settles.
+		node.animate(
+			{ opacity: [1, 0] },
+			{ pseudoElement: "::after", duration: SHADOW_MS, easing: DISCLOSURE_EASE },
 		);
 		settleRef.current = settle;
 		const done = () => {
@@ -706,7 +977,7 @@ export function DisclosureCaret({
 			<CaretRight
 				weight="bold"
 				className={cn(
-					"size-3 text-kumo-subtle transition-transform duration-160 ease-[cubic-bezier(0.33,1,0.68,1)] motion-reduce:transition-none rtl:-scale-x-100",
+					"size-3 text-kumo-subtle transition-transform duration-160 ease-emdash-disclosure motion-reduce:transition-none rtl:-scale-x-100",
 					open && "rotate-90 duration-200 rtl:-rotate-90",
 					instant && "transition-none",
 				)}
@@ -815,9 +1086,12 @@ export function BlockListField({
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	const [seenReveal, setSeenReveal] = React.useState(0);
 	const [announcement, setAnnouncement] = React.useState("");
+	/** The row just added or duplicated, which grows into place. */
+	const [addedKey, setAddedKey] = React.useState<string | null>(null);
 	const rootRef = React.useRef<HTMLDivElement>(null);
 	const addRef = React.useRef<HTMLButtonElement>(null);
 	const focusRef = React.useRef<ListFocus | null>(null);
+	const reorder = useReorderMotion(rootRef, "data-item-key");
 	const hintId = React.useId();
 	const errorId = React.useId();
 	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -889,7 +1163,7 @@ export function BlockListField({
 			request.target === "item" ? "[data-item-focus]" : "[data-item-control]",
 		);
 		const element = focusableIn(target) ?? focusableIn(row);
-		element?.focus();
+		element?.focus(request.scroll === false ? { preventScroll: true } : undefined);
 		if (
 			request.target === "control" &&
 			element instanceof HTMLInputElement &&
@@ -934,12 +1208,14 @@ export function BlockListField({
 		const row = { key: createBlockKey(), item: newItem() };
 		insertRow(current.length, row);
 		if (presentation === "items") setOpenKeys(new Set(openKeys).add(row.key));
-		focusRef.current = { key: row.key, target: "control" };
+		setAddedKey(row.key);
+		focusRef.current = { key: row.key, target: "control", scroll: false };
 	};
 
-	const moveRow = (from: number, to: number) => {
+	const moveRow = (from: number, to: number, slide = false) => {
 		const row = current[from];
 		if (!row || to < 0 || to >= current.length) return;
+		if (slide) reorder(row.key);
 		emit(arrayMove(current, from, to));
 		const moved = name(row, from);
 		const position = to + 1;
@@ -952,7 +1228,11 @@ export function BlockListField({
 		if (!row || atMax) return;
 		const copy = { key: createBlockKey(), item: cloneValue(row.item) };
 		insertRow(index + 1, copy);
-		setOpenKeys(new Set(openKeys).add(copy.key));
+		if (openKeys.has(row.key)) setOpenKeys(new Set(openKeys).add(copy.key));
+		setAddedKey(copy.key);
+		focusRef.current = { key: copy.key, target: "item", scroll: false };
+		const copied = name(row, index);
+		setAnnouncement(t`Duplicated ${copied}`);
 	};
 
 	const deleteRow = (key: string) => {
@@ -966,6 +1246,18 @@ export function BlockListField({
 		const position = positions[index];
 		if (position === undefined) return;
 		onItemDeleted({ item: row.item, index: position, name: name(row, index) });
+	};
+
+	const deleteLater = useStableCallback(deleteRow);
+	// A row deleted from its menu shrinks away first.
+	const collapseAndDelete = (key: string) => {
+		const row = current.find((candidate) => candidate.key === key);
+		if (!row || !canDelete(row)) return;
+		const element = [
+			...(rootRef.current?.querySelectorAll<HTMLElement>("[data-item-key]") ?? []),
+		].find((candidate) => candidate.dataset.itemKey === key);
+		if (element) collapseRow(element, () => deleteLater(key));
+		else deleteRow(key);
 	};
 
 	const removeBlankLines = useStableCallback(() => {
@@ -1034,13 +1326,17 @@ export function BlockListField({
 		if (last) focusRef.current = { key: last.key, target: "control", caret };
 	};
 
-	const handleDragEnd = (event: DragEndEvent) => {
-		if (!event.over || event.active.id === event.over.id) return;
-		const from = current.findIndex((row) => row.key === event.active.id);
-		const to = current.findIndex((row) => row.key === event.over?.id);
-		if (from < 0 || to < 0) return;
-		emit(arrayMove(current, from, to));
-	};
+	const keys = current.map((row) => row.key);
+	const drag = useDragAnnouncements({
+		keys,
+		nameOf: (key) => {
+			const index = keys.indexOf(key);
+			const row = current[index];
+			return row ? name(row, index) : "";
+		},
+		announce: setAnnouncement,
+		onMove: (from, to) => emit(arrayMove(current, from, to)),
+	});
 
 	const rowProps = (row: Row, index: number): SortableRowProps => ({
 		row,
@@ -1049,8 +1345,9 @@ export function BlockListField({
 		name: name(row, index),
 		readOnly,
 		canDelete: canDelete(row),
-		onMove: (to) => moveRow(index, to),
-		onDelete: () => deleteRow(row.key),
+		added: row.key === addedKey,
+		onMove: (to, slide) => moveRow(index, to, slide),
+		onDelete: () => collapseAndDelete(row.key),
 	});
 
 	const control = (
@@ -1214,17 +1511,15 @@ export function BlockListField({
 					{listLabel}
 				</span>
 				{savedCount > 0 && (
-					<bdi className={cn(LIST_NOTE, "text-kumo-subtle tabular-nums")}>
-						{i18n.number(savedCount)}
-					</bdi>
+					<bdi className={cn(NOTE, "text-kumo-subtle tabular-nums")}>{i18n.number(savedCount)}</bdi>
 				)}
 				{/* On the label's line, so showing it moves nothing. */}
 				{error && (
 					<>
-						<span aria-hidden="true" className={cn(LIST_NOTE, "text-kumo-placeholder")}>
+						<span aria-hidden="true" className={cn(NOTE, "text-kumo-placeholder")}>
 							·
 						</span>
-						<span id={errorId} className={cn(LIST_NOTE, "min-w-0 truncate text-kumo-danger")}>
+						<span id={errorId} className={cn(NOTE, "min-w-0 truncate text-kumo-danger")}>
 							{error}
 						</span>
 					</>
@@ -1236,11 +1531,8 @@ export function BlockListField({
 				</p>
 			)}
 			{current.length > 0 ? (
-				<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-					<SortableContext
-						items={current.map((row) => row.key)}
-						strategy={verticalListSortingStrategy}
-					>
+				<DndContext sensors={sensors} collisionDetection={closestCenter} {...drag}>
+					<SortableContext items={keys} strategy={verticalListSortingStrategy}>
 						{body}
 					</SortableContext>
 				</DndContext>
@@ -1254,7 +1546,7 @@ export function BlockListField({
 					icon={<Plus className="size-4" aria-hidden="true" />}
 					className={cn(
 						ROW_BUTTON,
-						"h-8 w-full justify-start gap-2 px-2 font-normal text-kumo-subtle shadow-none hover:text-kumo-default",
+						"h-8 w-full justify-start gap-2 px-2 font-normal text-kumo-subtle shadow-none hover:text-kumo-default pointer-coarse:h-11",
 						presentation === "items" && current.length > 0 && "mt-0.5",
 					)}
 					onClick={addRow}
@@ -1276,22 +1568,32 @@ interface SortableRowProps {
 	name: string;
 	readOnly: boolean;
 	canDelete: boolean;
-	onMove: (to: number) => void;
+	/** The row was just added, and grows into place. */
+	added: boolean;
+	/** Moves the row; `slide` slides it and the rows it passes into their places. */
+	onMove: (to: number, slide?: boolean) => void;
 	onDelete: () => void;
 }
 
-function useSortableRow(key: string, readOnly: boolean) {
-	const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+function useSortableRow(key: string, readOnly: boolean, added: boolean) {
+	const { listeners, setNodeRef, node, transform, transition, isDragging } = useSortable({
 		id: key,
 		disabled: readOnly,
-		transition: SORT_TRANSITION,
+		transition: prefersReducedMotion() ? null : SORT_TRANSITION,
 	});
 	const drop = useDropSettle(key, isDragging, setNodeRef);
 	const [menuOpen, setMenuOpen] = React.useState(false);
+	React.useLayoutEffect(() => {
+		if (added && node.current) growRow(node.current);
+	}, [added, node]);
 	return {
 		listeners,
 		setNodeRef: drop.setNodeRef,
-		isDragging: isDragging || drop.settling,
+		className: cn(
+			!readOnly && LIFT_SHADOW,
+			(isDragging || drop.settling) && DRAGGING,
+			isDragging && LIFTED,
+		),
 		menuOpen,
 		setMenuOpen,
 		style: { transform: CSS.Translate.toString(transform), transition },
@@ -1310,7 +1612,7 @@ function DragHandle({
 			aria-hidden="true"
 			{...listeners}
 			className={cn(
-				"absolute end-full me-0.5 hidden h-6 w-[1.125rem] cursor-grab touch-none place-items-center rounded-md text-kumo-subtle opacity-0 transition-opacity duration-0 ease-out hover:bg-emdash-hover active:cursor-grabbing blocks-gutter:@min-[440px]/blocks:grid group-hover/item:opacity-100 group-hover/item:duration-100 group-data-[menu-open]/item:opacity-100 group-data-[menu-open]/item:duration-100",
+				"absolute end-full me-0.5 hidden h-6 w-[1.125rem] cursor-grab touch-none place-items-center rounded-md text-kumo-subtle opacity-0 transition-opacity duration-0 ease-emdash hover:bg-emdash-hover active:cursor-grabbing blocks-gutter:@min-[440px]/blocks:grid group-hover/item:opacity-100 group-hover/item:duration-100 group-data-[menu-open]/item:opacity-100 group-data-[menu-open]/item:duration-100",
 				className,
 			)}
 		>
@@ -1325,7 +1627,7 @@ interface RowMenuProps {
 	count: number;
 	canDelete: boolean;
 	duplicate?: { disabled: boolean; onSelect: () => void };
-	onMove: (to: number) => void;
+	onMove: (to: number, slide?: boolean) => void;
 	onDelete: () => void;
 	onOpenChange: (open: boolean) => void;
 	className?: string;
@@ -1343,16 +1645,24 @@ function RowMenu({
 	className,
 }: RowMenuProps) {
 	const { t } = useLingui();
-	const deleteOnCloseRef = React.useRef(false);
+	// Duplicate and Delete run once the menu has closed. Duplicate then focuses the copy, so the
+	// menu doesn't hand focus back to its button.
+	const afterCloseRef = React.useRef<(() => void) | null>(null);
+	const keepFocusRef = React.useRef(false);
 	const moveKeys = useMoveKeys(index, count, onMove);
+	const quiet = useQuietReturnFocus();
 	const label = name;
 	return (
 		<DropdownMenu
-			onOpenChange={onOpenChange}
+			onOpenChange={(open) => {
+				if (open) keepFocusRef.current = false;
+				onOpenChange(open);
+			}}
 			onOpenChangeComplete={(open) => {
-				if (open || !deleteOnCloseRef.current) return;
-				deleteOnCloseRef.current = false;
-				onDelete();
+				const after = afterCloseRef.current;
+				if (open || !after) return;
+				afterCloseRef.current = null;
+				after();
 			}}
 		>
 			<DropdownMenu.Trigger
@@ -1361,65 +1671,86 @@ function RowMenu({
 						variant="ghost"
 						shape="square"
 						size="sm"
-						className={cn(ROW_BUTTON, "shrink-0 text-kumo-subtle", SHOW_ON_HOVER, className)}
+						className={cn(
+							ROW_BUTTON,
+							"shrink-0 text-kumo-subtle",
+							SHOW_ON_HOVER,
+							ROW_TOUCH_TARGET,
+							className,
+						)}
 						aria-label={t`${label} actions`}
 						aria-keyshortcuts={MOVE_KEYS}
-						onKeyDown={moveKeys}
+						{...quiet.groupProps}
+						onClick={quiet.markOpener}
+						onKeyDown={(event) => {
+							quiet.groupProps.onKeyDown(event);
+							moveKeys(event);
+						}}
 					>
 						<DotsThree className="size-4" weight="bold" aria-hidden="true" />
 					</Button>
 				}
 			/>
-			<DropdownMenu.Content align="end" className="min-w-44">
-				<DropdownMenu.Item
-					icon={<ArrowUp className={MENU_ICON} aria-hidden="true" />}
-					disabled={index === 0}
-					onClick={() => onMove(index - 1)}
-				>
-					{t`Move up`}
-				</DropdownMenu.Item>
-				<DropdownMenu.Item
-					icon={<ArrowDown className={MENU_ICON} aria-hidden="true" />}
-					disabled={index === count - 1}
-					onClick={() => onMove(index + 1)}
-				>
-					{t`Move down`}
-				</DropdownMenu.Item>
-				<DropdownMenu.Item
-					icon={<ArrowLineUp className={MENU_ICON} aria-hidden="true" />}
-					disabled={index === 0}
-					onClick={() => onMove(0)}
-				>
-					{t`Move to top`}
-				</DropdownMenu.Item>
-				<DropdownMenu.Item
-					icon={<ArrowLineDown className={MENU_ICON} aria-hidden="true" />}
-					disabled={index === count - 1}
-					onClick={() => onMove(count - 1)}
-				>
-					{t`Move to bottom`}
-				</DropdownMenu.Item>
-				{duplicate && (
-					<DropdownMenu.Item
-						icon={<Copy className={MENU_ICON} aria-hidden="true" />}
-						disabled={duplicate.disabled}
-						onClick={duplicate.onSelect}
+			<DropdownMenu.Portal>
+				<DropdownMenu.Positioner align="end">
+					<DropdownMenu.Popup
+						className={cn("min-w-44", POPUP_MOTION)}
+						finalFocus={() => !keepFocusRef.current}
 					>
-						{t`Duplicate`}
-					</DropdownMenu.Item>
-				)}
-				<DropdownMenu.Separator />
-				<DropdownMenu.Item
-					variant="danger"
-					icon={<Trash className={MENU_ICON} aria-hidden="true" />}
-					disabled={!canDelete}
-					onClick={() => {
-						deleteOnCloseRef.current = true;
-					}}
-				>
-					{t`Delete`}
-				</DropdownMenu.Item>
-			</DropdownMenu.Content>
+						<DropdownMenu.Item
+							icon={<ArrowUp className={MENU_ICON} aria-hidden="true" />}
+							disabled={index === 0}
+							onClick={() => onMove(index - 1, true)}
+						>
+							{t`Move up`}
+						</DropdownMenu.Item>
+						<DropdownMenu.Item
+							icon={<ArrowDown className={MENU_ICON} aria-hidden="true" />}
+							disabled={index === count - 1}
+							onClick={() => onMove(index + 1, true)}
+						>
+							{t`Move down`}
+						</DropdownMenu.Item>
+						<DropdownMenu.Item
+							icon={<ArrowLineUp className={MENU_ICON} aria-hidden="true" />}
+							disabled={index === 0}
+							onClick={() => onMove(0, true)}
+						>
+							{t`Move to top`}
+						</DropdownMenu.Item>
+						<DropdownMenu.Item
+							icon={<ArrowLineDown className={MENU_ICON} aria-hidden="true" />}
+							disabled={index === count - 1}
+							onClick={() => onMove(count - 1, true)}
+						>
+							{t`Move to bottom`}
+						</DropdownMenu.Item>
+						{duplicate && (
+							<DropdownMenu.Item
+								icon={<Copy className={MENU_ICON} aria-hidden="true" />}
+								disabled={duplicate.disabled}
+								onClick={() => {
+									afterCloseRef.current = duplicate.onSelect;
+									keepFocusRef.current = true;
+								}}
+							>
+								{t`Duplicate`}
+							</DropdownMenu.Item>
+						)}
+						<DropdownMenu.Separator />
+						<DropdownMenu.Item
+							variant="danger"
+							icon={<Trash className={MENU_ICON} aria-hidden="true" />}
+							disabled={!canDelete}
+							onClick={() => {
+								afterCloseRef.current = onDelete;
+							}}
+						>
+							{t`Delete`}
+						</DropdownMenu.Item>
+					</DropdownMenu.Popup>
+				</DropdownMenu.Positioner>
+			</DropdownMenu.Portal>
 		</DropdownMenu>
 	);
 }
@@ -1431,6 +1762,7 @@ function LineRow({
 	name,
 	readOnly,
 	canDelete,
+	added,
 	onMove,
 	onDelete,
 	lineLabel,
@@ -1440,7 +1772,7 @@ function LineRow({
 	children: (labelledBy: string) => React.ReactNode;
 }) {
 	const { t } = useLingui();
-	const sortable = useSortableRow(row.key, readOnly);
+	const sortable = useSortableRow(row.key, readOnly, added);
 	const labelId = React.useId();
 	const label = lineLabel;
 	const position = index + 1;
@@ -1451,10 +1783,7 @@ function LineRow({
 			data-list-item
 			data-item-key={row.key}
 			data-menu-open={sortable.menuOpen || undefined}
-			className={cn(
-				"group/item relative flex min-h-8 items-center pe-0.5",
-				sortable.isDragging && DRAGGING,
-			)}
+			className={cn("group/item relative flex min-h-8 items-center pe-0.5", sortable.className)}
 		>
 			{!readOnly && <DragHandle listeners={sortable.listeners} className="top-1" />}
 			<span aria-hidden="true" className="ms-2 grid w-4 shrink-0 place-items-center self-stretch">
@@ -1514,12 +1843,13 @@ function TableRow({
 	name,
 	readOnly,
 	canDelete,
+	added,
 	onMove,
 	onDelete,
 	columns,
 	children,
 }: SortableRowProps & { columns: string; children: React.ReactNode }) {
-	const sortable = useSortableRow(row.key, readOnly);
+	const sortable = useSortableRow(row.key, readOnly, added);
 	return (
 		<div
 			ref={sortable.setNodeRef}
@@ -1535,7 +1865,7 @@ function TableRow({
 						ROW_HOVER,
 						"data-[menu-open]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]",
 					),
-				sortable.isDragging && DRAGGING,
+				sortable.className,
 			)}
 		>
 			{children}
@@ -1581,6 +1911,7 @@ function ItemRow({
 	name,
 	readOnly,
 	canDelete,
+	added,
 	onMove,
 	onDelete,
 	open,
@@ -1593,7 +1924,7 @@ function ItemRow({
 	titleLabel,
 	children,
 }: ItemRowProps) {
-	const sortable = useSortableRow(row.key, readOnly);
+	const sortable = useSortableRow(row.key, readOnly, added);
 	const moveKeys = useMoveKeys(index, count, onMove);
 	const id = React.useId();
 	const nameId = `${id}-name`;
@@ -1643,7 +1974,8 @@ function ItemRow({
 				"group/item relative rounded-lg transition-[background-color] duration-200 ease-emdash motion-reduce:transition-none",
 				// Hover washes a row too, so an open item also takes an edge no hovered row has.
 				open && "bg-emdash-hover ring-1 ring-kumo-hairline ring-inset",
-				sortable.isDragging && cn(DRAGGING, "rounded-lg"),
+				sortable.className,
+				"rounded-lg",
 			)}
 		>
 			{!readOnly && <DragHandle listeners={sortable.listeners} className="top-1.5" />}

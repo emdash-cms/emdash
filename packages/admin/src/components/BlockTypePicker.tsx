@@ -6,6 +6,7 @@ import * as React from "react";
 import type { BlockType } from "../lib/api/schema.js";
 import { cn } from "../lib/utils.js";
 import { resolveNavIcon } from "./admin-navigation-icons.js";
+import { POPUP_MOTION } from "./block-field-styles.js";
 
 export function BlockTypeIcon({ name, className }: { name?: string; className?: string }) {
 	const Icon = resolveNavIcon(name, Cube);
@@ -58,7 +59,10 @@ export function BlockTypePicker({
 				side={side}
 				align="start"
 				sideOffset={4}
-				className="max-h-[min(26rem,var(--available-height))] w-[22rem] max-w-[calc(100vw-1rem)] overflow-hidden p-0 *:data-side:hidden"
+				className={cn(
+					"max-h-[min(26rem,var(--available-height))] w-[22rem] max-w-[calc(100vw-1rem)] overflow-hidden p-0 *:data-side:hidden",
+					POPUP_MOTION,
+				)}
 			>
 				<Popover.Title className="sr-only">{t`Add block`}</Popover.Title>
 				<PickerList blockTypes={blockTypes} onPick={onPick} />

@@ -1,12 +1,5 @@
 import { Badge, Button, DropdownMenu, Label, Tooltip, useKumoToastManager } from "@cloudflare/kumo";
-import {
-	closestCenter,
-	DndContext,
-	PointerSensor,
-	type DragEndEvent,
-	useSensor,
-	useSensors,
-} from "@dnd-kit/core";
+import { closestCenter, DndContext, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { plural } from "@lingui/core/macro";
@@ -55,35 +48,46 @@ import {
 	BLOCK_TITLE,
 	DRAGGING,
 	FIELD_GAP,
-	FLOATING_NOTE,
 	GLYPH_NUDGE,
 	IMAGE_EDGE,
 	LABEL,
+	NOTE,
+	NOTE_ON_FOCUS,
+	LIFT_SHADOW,
+	LIFTED,
+	POPUP_MOTION,
 	ROW_BUTTON,
 	ROW_HOVER,
 	ROW_SUMMARY,
 	SORT_TRANSITION,
 	SUMMARY_SLOT,
 	SUMMARY_TEXT,
+	TOUCH_TARGET,
 } from "./block-field-styles.js";
 import {
 	BlockListField,
+	collapseRow,
 	type DeletedListItem,
 	DisclosureCaret,
 	DisclosurePanel,
 	ErrorDot,
 	firstPhotoUrl,
 	focusableIn,
+	growRow,
 	keepRowInView,
 	MOVE_KEYS,
+	prefersReducedMotion,
 	SELECTABLE_INPUT_TYPES,
 	whenFocusLeaves,
 	toggled,
+	useDragAnnouncements,
 	useDropSettle,
 	useMoveKeys,
+	useReorderMotion,
 } from "./BlockListField.js";
 import { BlockTypeIcon, BlockTypePicker } from "./BlockTypePicker.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
+import { type ImageFieldValue, ImageRemovalContext } from "./ImageFieldRenderer.js";
 import { useQuietReturnFocus } from "./useQuietReturnFocus.js";
 
 interface NestedFieldDescriptor {
@@ -106,6 +110,10 @@ export interface FieldChrome {
 	describedBy?: string;
 	placeholder?: string;
 	invalid?: boolean;
+	/** The empty control's placeholder says its problem, so it's drawn as one. */
+	emptyIssue?: boolean;
+	/** Id of the element on the field's label line that shows the control's count or range. */
+	countSlotId?: string;
 	/** The block's headline, drawn larger. */
 	heading?: boolean;
 	/** Draws a photo as a thumbnail: in a list item's settings row, or in a table cell. */
@@ -168,6 +176,8 @@ const NESTED_KIND: Record<string, string> = {
 };
 
 const UNDO_TIMEOUT_MS = 6000;
+/** Reaching a toast from the keyboard takes longer, so a deletion made from it keeps its Undo longer. */
+const KEYBOARD_UNDO_TIMEOUT_MS = 15_000;
 const SHEET_INNER_TOP = "rounded-t-[calc(var(--radius-lg)-1px)]";
 const SHEET_INNER_BOTTOM = "rounded-b-[calc(var(--radius-lg)-1px)]";
 const MENU_ICON = "size-4";
@@ -181,16 +191,14 @@ const SETTING_ROW =
 const SIDE_LABEL_TEXT =
 	"@min-[440px]/blocks:text-base @min-[440px]/blocks:leading-(--text-base--line-height) @min-[440px]/blocks:font-normal";
 const SETTING_LABEL = `${LABEL} ps-2 wrap-anywhere @min-[440px]/blocks:min-h-8 @min-[440px]/blocks:py-[5.5px] ${SIDE_LABEL_TEXT}`;
-/** A failing field whose control can't show the problem itself turns its label red. */
-const INVALID_LABEL = "text-kumo-danger";
 // A block's gutter and menu show for the row under the pointer, the row whose menu or picker is
 // open, and keyboard focus on themselves, never for a row that only holds focus from a click. The
 // state being entered sets the duration, so they fade in and vanish at once.
 const REVEAL_GUTTER =
-	"opacity-0 transition-opacity duration-0 ease-out group-hover/block:opacity-100 group-hover/block:duration-100 group-data-[menu-open]/block:opacity-100 group-data-[menu-open]/block:duration-100 group-data-[picker-open]/block:opacity-100 group-data-[picker-open]/block:duration-100 [&:not([data-quiet-focus]):has(:focus-visible)]:opacity-100 [&:not([data-quiet-focus]):has(:focus-visible)]:duration-100";
+	"opacity-0 transition-opacity duration-0 ease-emdash group-hover/block:opacity-100 group-hover/block:duration-100 group-data-[menu-open]/block:opacity-100 group-data-[menu-open]/block:duration-100 group-data-[picker-open]/block:opacity-100 group-data-[picker-open]/block:duration-100 [&:not([data-quiet-focus]):has(:focus-visible)]:opacity-100 [&:not([data-quiet-focus]):has(:focus-visible)]:duration-100";
 // Touch and narrow screens have no hover, so their menus always show.
 const REVEAL_MENU =
-	"blocks-gutter:opacity-0 blocks-gutter:transition-opacity blocks-gutter:duration-0 blocks-gutter:ease-out blocks-gutter:group-hover/block:opacity-100 blocks-gutter:group-hover/block:duration-100 blocks-gutter:group-data-[menu-open]/block:opacity-100 blocks-gutter:group-data-[menu-open]/block:duration-100 blocks-gutter:focus-visible:opacity-100 blocks-gutter:focus-visible:duration-100";
+	"blocks-gutter:opacity-0 blocks-gutter:transition-opacity blocks-gutter:duration-0 blocks-gutter:ease-emdash blocks-gutter:group-hover/block:opacity-100 blocks-gutter:group-hover/block:duration-100 blocks-gutter:group-data-[menu-open]/block:opacity-100 blocks-gutter:group-data-[menu-open]/block:duration-100 blocks-gutter:[&:not([data-quiet-focus]):focus-visible]:opacity-100 blocks-gutter:[&:not([data-quiet-focus]):focus-visible]:duration-100";
 const HEAD_FOCUS =
 	"has-[[data-block-toggle]:focus-visible]:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))] has-[[data-block-toggle]:focus-visible]:ring-1 has-[[data-block-toggle]:focus-visible]:ring-kumo-focus/50 has-[[data-block-toggle]:focus-visible]:ring-inset";
 // The head keeps its wash while its menu or picker is open, so the popup stays tied to its row.
@@ -211,27 +219,40 @@ interface PickerTarget {
 	from?: string;
 }
 
+/** Where focus goes next. With `scroll: false`, the row's own motion brings it into view. */
 type FocusRequest =
-	| { key: string; target: "first-control" | "toggle" }
+	| { key: string; target: "first-control" | "toggle"; scroll?: false }
 	| { key: string; target: "field"; elementId: string; field: string }
 	| { key: string; target: "item"; field: string; index: number }
 	| { target: "add" };
 
-type UndoOwner = { kind: "block" } | { kind: "item"; blockKey: string; field: string };
+type UndoOwner =
+	| { kind: "block" }
+	| { kind: "item"; blockKey: string; field: string }
+	| { kind: "field"; name: string };
 
 const NO_ISSUES: readonly BlockValueIssue[] = [];
 
 /**
- * Field types whose empty control shows its placeholder, so a required one says "Required" itself.
- * A placeholder passed to the control replaces "Required", so the message moves to a note.
+ * Field types whose empty control shows a placeholder, so with no label line, a required one says
+ * "Required" itself.
  */
-const REQUIRED_SHOWN_BY_CONTROL = new Set(["string", "text", "url", "number", "integer", "select"]);
+const EMPTY_SHOWN_BY_CONTROL = new Set([
+	"string",
+	"text",
+	"url",
+	"number",
+	"integer",
+	"select",
+	"datetime",
+	"image",
+	"file",
+]);
 
-/**
- * Field types whose empty control turns its own placeholder red when it fails. Any other
- * failing field, and a filled one, turns its label red instead.
- */
-const EMPTY_SHOWN_BY_CONTROL = new Set([...REQUIRED_SHOWN_BY_CONTROL, "datetime", "image", "file"]);
+/** The key of the block `element` is in, in any blocks field. */
+export function blockKeyOf(element: Element | null): string | undefined {
+	return element?.closest<HTMLElement>("[data-block-key]")?.dataset.blockKey;
+}
 
 function touchKey(blockKey: string, field: string): string {
 	return `${blockKey}:${field}`;
@@ -309,6 +330,7 @@ function useIssueMessage() {
 
 type MenuAction =
 	| { kind: "delete" }
+	| { kind: "duplicate" }
 	| { kind: "add"; side: InsertSide; invoker: HTMLElement | null };
 
 function nestedDescriptor(
@@ -396,15 +418,48 @@ function keepEnterInBlocks(event: React.KeyboardEvent<HTMLElement>) {
 	}
 }
 
+const APPLE_PLATFORM =
+	typeof navigator !== "undefined" &&
+	/Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+const UNDO_KEYS = APPLE_PLATFORM ? "Meta+Z" : "Control+Z";
+const UNDO_KEYS_SHOWN = APPLE_PLATFORM ? "⌘Z" : "Ctrl+Z";
+const NOT_TYPED_IN = new Set([
+	"button",
+	"submit",
+	"reset",
+	"checkbox",
+	"radio",
+	"range",
+	"color",
+	"file",
+	"image",
+]);
+
+/** Cmd+Z on Apple platforms, Ctrl+Z elsewhere. */
+function isUndoKey(event: KeyboardEvent): boolean {
+	if (event.key.toLowerCase() !== "z" || event.shiftKey || event.altKey) return false;
+	return APPLE_PLATFORM ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+}
+
+/** Whether keys pressed in `target` edit text, which has an undo of its own. */
+function editsText(target: EventTarget | null): boolean {
+	if (!(target instanceof HTMLElement)) return false;
+	if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true;
+	if (target instanceof HTMLSelectElement) return true;
+	return target instanceof HTMLInputElement && !NOT_TYPED_IN.has(target.type);
+}
+
 /**
- * One Undo toast for a blocks field, offered for its latest deletion: of a block or of a
- * list item inside one. Offering another, or dismissing, closes the toast before its Undo can act.
+ * One Undo toast for a blocks field, offered for its latest deletion: of a block, of a list item
+ * inside one, or of a photo. Offering another, or dismissing, closes the toast before its Undo can
+ * act. While it's open, Mod+Z undoes too, unless focus is somewhere to type.
  */
 function useUndoToast() {
 	const { t } = useLingui();
 	const toastManager = useKumoToastManager();
 	const { close } = toastManager;
-	const currentRef = React.useRef<{ id: string; owner: UndoOwner } | null>(null);
+	const currentRef = React.useRef<{ id: string; owner: UndoOwner; undo: () => void } | null>(null);
+	const lastInputRef = React.useRef<"keyboard" | "pointer">("pointer");
 
 	const dismiss = React.useCallback(() => {
 		const current = currentRef.current;
@@ -420,29 +475,68 @@ function useUndoToast() {
 		[close],
 	);
 
+	React.useEffect(() => {
+		const fromKeyboard = (event: KeyboardEvent) => {
+			if (!isUndoKey(event)) lastInputRef.current = "keyboard";
+		};
+		const fromPointer = () => {
+			lastInputRef.current = "pointer";
+		};
+		const undoKey = (event: KeyboardEvent) => {
+			const current = currentRef.current;
+			if (!current || event.defaultPrevented || !isUndoKey(event) || editsText(event.target))
+				return;
+			event.preventDefault();
+			current.undo();
+		};
+		document.addEventListener("keydown", fromKeyboard, true);
+		document.addEventListener("pointerdown", fromPointer, true);
+		document.addEventListener("keydown", undoKey);
+		return () => {
+			document.removeEventListener("keydown", fromKeyboard, true);
+			document.removeEventListener("pointerdown", fromPointer, true);
+			document.removeEventListener("keydown", undoKey);
+		};
+	}, []);
+
 	const offer = (title: string, owner: UndoOwner, restore: () => void) => {
 		dismiss();
-		const id: string = toastManager.add({
+		let id = "";
+		const undo = () => {
+			if (currentRef.current?.id !== id) return;
+			dismiss();
+			restore();
+		};
+		id = toastManager.add({
 			title,
-			timeout: UNDO_TIMEOUT_MS,
+			timeout: lastInputRef.current === "keyboard" ? KEYBOARD_UNDO_TIMEOUT_MS : UNDO_TIMEOUT_MS,
 			actions: [
 				{
-					children: t`Undo`,
+					children: (
+						<>
+							{t`Undo`}
+							<kbd aria-hidden="true" className="ms-1 font-sans text-kumo-subtle">
+								{UNDO_KEYS_SHOWN}
+							</kbd>
+						</>
+					),
 					variant: "secondary",
 					size: "sm",
-					onClick: () => {
-						if (currentRef.current?.id !== id) return;
-						dismiss();
-						restore();
-					},
+					"aria-keyshortcuts": UNDO_KEYS,
+					onClick: undo,
 				},
 			],
 		});
-		currentRef.current = { id, owner };
+		currentRef.current = { id, owner, undo };
 	};
 
 	return { offer, dismiss, owner: () => currentRef.current?.owner };
 }
+
+type UndoToast = ReturnType<typeof useUndoToast>;
+
+/** The blocks field's Undo toast, for the fields inside it. */
+const UndoContext = React.createContext<UndoToast | null>(null);
 
 export function BlocksField({
 	id,
@@ -487,6 +581,13 @@ export function BlocksField({
 		open: boolean;
 	} | null>(null);
 	const [announcement, setAnnouncement] = React.useState("");
+	/** How many problems the latest reveal shows, said once per reveal. */
+	const [revealSummary, setRevealSummary] = React.useState<{ token: number; text: string } | null>(
+		null,
+	);
+	/** The block just added or duplicated, which grows into place. */
+	const [addedKey, setAddedKey] = React.useState<string | null>(null);
+	const reorder = useReorderMotion(rootRef, "data-block-key");
 
 	const typeBySlug = React.useMemo(
 		() => new Map(blockTypes.map((blockType) => [blockType.slug, blockType])),
@@ -543,6 +644,16 @@ export function BlocksField({
 	const revealIssues = useStableCallback((token: number, focusId: string | undefined) => {
 		if (readOnly) return;
 		setRevealed({ token, keys: new Set(blocks.map((block) => block._key)) });
+		const issues = validateBlocks(blocks, blockTypes);
+		if (issues.length > 0) {
+			setRevealSummary({
+				token,
+				text: plural(issues.length, {
+					one: "# field needs attention",
+					other: "# fields need attention",
+				}),
+			});
+		}
 		const block = focusId
 			? blocks.find((candidate) => focusId.startsWith(`field-${fieldPath}.${candidate._key}.`))
 			: undefined;
@@ -553,7 +664,9 @@ export function BlocksField({
 			.get(block._type)
 			?.versions.find((candidate) => candidate.version === block._version);
 		const advanced = version ? planBlockFields(version.fields, "block").advanced : [];
-		if (advanced.some((candidate) => candidate.slug === field)) {
+		// Any of the block's problems may be the first on screen, so every one of them is shown.
+		const inAdvanced = (slug: string) => advanced.some((candidate) => candidate.slug === slug);
+		if (issues.some((issue) => issue.blockKey === block._key && inAdvanced(issue.field))) {
 			setAdvancedKeys((current) => new Set(current).add(block._key));
 		}
 		setOpenKeys((current) => new Set(current).add(block._key));
@@ -604,14 +717,24 @@ export function BlocksField({
 		}
 		if (request.target === "field") {
 			const { elementId } = request;
+			// The first problem on screen, rather than the first in the block type's field order.
+			const firstShown = () =>
+				focusableIn(
+					row.querySelector("[data-block-body] [data-field-issue]:not(:has([data-field-issue]))"),
+				);
 			const focusField = () => {
 				const field = [...row.querySelectorAll<HTMLElement>("[data-block-body] [data-field]")].find(
 					(element) => element.dataset.field === request.field,
 				);
-				(focusableIn(document.getElementById(elementId)) ?? focusableIn(field) ?? toggle)?.focus();
+				(
+					firstShown() ??
+					focusableIn(document.getElementById(elementId)) ??
+					focusableIn(field) ??
+					toggle
+				)?.focus();
 			};
 			// A labelled Kumo input inside a list takes the id it was given only after its first render.
-			if (focusableIn(document.getElementById(elementId))) focusField();
+			if (firstShown() ?? focusableIn(document.getElementById(elementId))) focusField();
 			else requestAnimationFrame(focusField);
 			return;
 		}
@@ -619,7 +742,7 @@ export function BlocksField({
 			request.target === "first-control"
 				? focusableIn(row.querySelector("[data-block-body]"))
 				: null;
-		(control ?? toggle)?.focus();
+		(control ?? toggle)?.focus(request.scroll === false ? { preventScroll: true } : undefined);
 	});
 
 	const listMaxItems = (block: StoredBlockValue, field: string) => {
@@ -642,6 +765,8 @@ export function BlocksField({
 			if (atMax) undo.dismiss();
 			return;
 		}
+		// A photo's control closes its own Undo once it can't put the photo back.
+		if (owner.kind === "field") return;
 		const block = blocks.find((candidate) => candidate._key === owner.blockKey);
 		const items = block?.[owner.field];
 		if (!block || (Array.isArray(items) && items.length >= listMaxItems(block, owner.field))) {
@@ -659,8 +784,9 @@ export function BlocksField({
 		const block = createBlockValue(blockType, createBlockKey());
 		onChange(insertBlockValue(blocks, block, picker.index));
 		setOpenKeys((current) => new Set(current).add(block._key));
+		setAddedKey(block._key);
 		setPickerOpen(false);
-		focusRequestRef.current = { key: block._key, target: "first-control" };
+		focusRequestRef.current = { key: block._key, target: "first-control", scroll: false };
 	};
 
 	const toggleBlock = (key: string) => setOpenKeys((current) => toggled(current, key));
@@ -671,12 +797,17 @@ export function BlocksField({
 		if (!block) return;
 		const copy = duplicateBlockValue(block, createBlockKey());
 		onChange(insertBlockValue(blocks, copy, index + 1));
-		setOpenKeys((current) => new Set(current).add(copy._key));
+		if (openKeys.has(block._key)) setOpenKeys((current) => new Set(current).add(copy._key));
+		setAddedKey(copy._key);
+		focusRequestRef.current = { key: copy._key, target: "toggle", scroll: false };
+		const name = blockLabel(block);
+		setAnnouncement(t`Duplicated ${name}`);
 	};
 
-	const moveBlock = (from: number, to: number) => {
+	const moveBlock = (from: number, to: number, slide = false) => {
 		const block = blocks[from];
 		if (!block || to < 0 || to >= blocks.length) return;
+		if (slide) reorder(block._key);
 		onChange(moveBlockValue(blocks, from, to));
 		const name = blockLabel(block);
 		const position = to + 1;
@@ -747,12 +878,16 @@ export function BlocksField({
 		);
 	};
 
-	const handleDragEnd = (event: DragEndEvent) => {
-		if (!event.over || event.active.id === event.over.id) return;
-		const from = blocks.findIndex((block) => block._key === event.active.id);
-		const to = blocks.findIndex((block) => block._key === event.over?.id);
-		onChange(moveBlockValue(blocks, from, to));
-	};
+	const blockKeys = blocks.map((block) => block._key);
+	const drag = useDragAnnouncements({
+		keys: blockKeys,
+		nameOf: (key) => {
+			const block = blocks.find((candidate) => candidate._key === key);
+			return block ? blockLabel(block) : "";
+		},
+		announce: setAnnouncement,
+		onMove: (from, to) => onChange(moveBlockValue(blocks, from, to)),
+	});
 
 	const confirmBlock = confirmDelete?.block;
 	const confirmName = confirmBlock ? blockLabel(confirmBlock) : "";
@@ -799,157 +934,155 @@ export function BlocksField({
 	);
 
 	return (
-		<div
-			id={id}
-			ref={rootRef}
-			data-blocks-field=""
-			className="@container/blocks grid grid-cols-[minmax(0,1fr)] gap-2"
-			onKeyDown={readOnly ? undefined : keepEnterInBlocks}
-		>
-			<div className="flex min-h-7 items-center justify-between gap-3">
-				<Label>{label}</Label>
-				{blocks.length > 0 && !readOnly && (
-					<Button
-						variant="ghost"
-						size="sm"
-						className="text-kumo-subtle"
-						icon={
-							anyOpen ? (
-								<ArrowsInSimple className="size-3.5" aria-hidden="true" />
-							) : (
-								<ArrowsOutSimple className="size-3.5" aria-hidden="true" />
-							)
-						}
-						onClick={() => {
-							const next = new Set(anyOpen ? [] : blocks.map((block) => block._key));
-							const rows = [
-								...(rootRef.current?.querySelectorAll<HTMLElement>("[data-block-key]") ?? []),
-							];
-							const restore = keepRowInView(
-								rows,
-								(row) => row.querySelector(":scope > [data-block-head]") ?? row,
-							);
-							// Every block opens or closes, and is laid out, before the one scroll back.
-							flushSync(() => {
-								setOpenKeys(next);
-								setAllToggled(next);
-							});
-							restore();
-						}}
-					>
-						{anyOpen ? t`Collapse all` : t`Expand all`}
-					</Button>
-				)}
-			</div>
-
-			<div className="relative rounded-lg border border-kumo-line bg-kumo-base">
-				{blocks.length > 0 ? (
-					<DndContext
-						sensors={sensors}
-						collisionDetection={closestCenter}
-						onDragEnd={handleDragEnd}
-					>
-						<SortableContext
-							items={blocks.map((block) => block._key)}
-							strategy={verticalListSortingStrategy}
+		<UndoContext value={undo}>
+			<div
+				id={id}
+				ref={rootRef}
+				data-blocks-field=""
+				className="@container/blocks grid grid-cols-[minmax(0,1fr)] gap-2"
+				onKeyDown={readOnly ? undefined : keepEnterInBlocks}
+			>
+				<div className="flex min-h-7 items-center justify-between gap-3">
+					<Label>{label}</Label>
+					{blocks.length > 0 && !readOnly && (
+						<Button
+							variant="ghost"
+							size="sm"
+							className="text-kumo-subtle"
+							icon={
+								anyOpen ? (
+									<ArrowsInSimple className="size-3.5" aria-hidden="true" />
+								) : (
+									<ArrowsOutSimple className="size-3.5" aria-hidden="true" />
+								)
+							}
+							onClick={() => {
+								const next = new Set(anyOpen ? [] : blocks.map((block) => block._key));
+								const rows = [
+									...(rootRef.current?.querySelectorAll<HTMLElement>("[data-block-key]") ?? []),
+								];
+								const restore = keepRowInView(
+									rows,
+									(row) => row.querySelector(":scope > [data-block-head]") ?? row,
+								);
+								// Every block opens or closes, and is laid out, before the one scroll back.
+								flushSync(() => {
+									setOpenKeys(next);
+									setAllToggled(next);
+								});
+								restore();
+							}}
 						>
-							<div role="list" aria-label={label}>
-								{blocks.map((block, index) => (
-									<BlockRow
-										key={block._key}
-										outerId={fieldId ?? id}
-										fieldPath={fieldPath}
-										block={block}
-										index={index}
-										count={blocks.length}
-										blockType={typeBySlug.get(block._type)}
-										retired={retiredTypes.includes(block._type)}
-										open={readOnly || openKeys.has(block._key)}
-										instant={allToggled === openKeys}
-										advancedOpen={readOnly || advancedKeys.has(block._key)}
-										issues={shownIssues.get(block._key) ?? NO_ISSUES}
-										revealToken={revealed.token}
-										readOnly={readOnly}
-										canAdd={canAdd}
-										atMax={atMax}
-										maxHint={maxHint}
-										maxHintId={maxHintId}
-										roundBottom={readOnly && index === blocks.length - 1}
-										onToggle={() => toggleBlock(block._key)}
-										onAdvancedToggle={() => toggleAdvanced(block._key)}
-										onTouch={(path) => touchField(block._key, path)}
-										onEdit={(path) => editField(block._key, path)}
-										onItemDeleted={(field, deleted) => offerItemUndo(block._key, field, deleted)}
-										onItemsShift={(field, moves) => {
-											moveListTouches(block._key, field, (position) => moves[position] ?? -1);
-											if (moves.includes(-1)) editField(block._key, field);
-										}}
-										onChange={(field, nextValue) =>
-											onChange(updateBlockFieldValue(blocks, block._key, field, nextValue))
-										}
-										pickerOpen={pickerOpen && picker?.from === block._key}
-										onAdd={(target) => openPicker({ ...target, from: block._key })}
-										onDuplicate={() => duplicateBlock(index)}
-										onMove={(to) => moveBlock(index, to)}
-										onDelete={() => deleteBlock(block)}
-										renderField={renderField}
-									/>
-								))}
-							</div>
-						</SortableContext>
-					</DndContext>
-				) : (
-					<p
-						className={cn(
-							"px-4 pt-6 text-center text-base text-kumo-subtle",
-							readOnly ? "pb-6" : "pb-2",
-						)}
-					>
-						{t`No blocks yet`}
-					</p>
+							{anyOpen ? t`Collapse all` : t`Expand all`}
+						</Button>
+					)}
+				</div>
+
+				<div className="relative rounded-lg border border-kumo-line bg-kumo-base">
+					{blocks.length > 0 ? (
+						<DndContext sensors={sensors} collisionDetection={closestCenter} {...drag}>
+							<SortableContext items={blockKeys} strategy={verticalListSortingStrategy}>
+								<div role="list" aria-label={label}>
+									{blocks.map((block, index) => (
+										<BlockRow
+											key={block._key}
+											outerId={fieldId ?? id}
+											fieldPath={fieldPath}
+											block={block}
+											index={index}
+											count={blocks.length}
+											blockType={typeBySlug.get(block._type)}
+											retired={retiredTypes.includes(block._type)}
+											open={readOnly || openKeys.has(block._key)}
+											instant={allToggled === openKeys}
+											advancedOpen={readOnly || advancedKeys.has(block._key)}
+											issues={shownIssues.get(block._key) ?? NO_ISSUES}
+											revealToken={revealed.token}
+											readOnly={readOnly}
+											canAdd={canAdd}
+											atMax={atMax}
+											maxHint={maxHint}
+											maxHintId={maxHintId}
+											roundBottom={readOnly && index === blocks.length - 1}
+											onToggle={() => toggleBlock(block._key)}
+											onAdvancedToggle={() => toggleAdvanced(block._key)}
+											onTouch={(path) => touchField(block._key, path)}
+											onEdit={(path) => editField(block._key, path)}
+											onItemDeleted={(field, deleted) => offerItemUndo(block._key, field, deleted)}
+											onItemsShift={(field, moves) => {
+												moveListTouches(block._key, field, (position) => moves[position] ?? -1);
+												if (moves.includes(-1)) editField(block._key, field);
+											}}
+											onChange={(field, nextValue) =>
+												onChange(updateBlockFieldValue(blocks, block._key, field, nextValue))
+											}
+											pickerOpen={pickerOpen && picker?.from === block._key}
+											added={block._key === addedKey}
+											deleteConfirms={!canRestore(block)}
+											onAdd={(target) => openPicker({ ...target, from: block._key })}
+											onDuplicate={() => duplicateBlock(index)}
+											onMove={(to, slide) => moveBlock(index, to, slide)}
+											onDelete={() => deleteBlock(block)}
+											renderField={renderField}
+										/>
+									))}
+								</div>
+							</SortableContext>
+						</DndContext>
+					) : (
+						<p
+							className={cn(
+								"px-4 pt-6 text-center text-base text-kumo-subtle",
+								readOnly ? "pb-6" : "pb-2",
+							)}
+						>
+							{t`No blocks yet`}
+						</p>
+					)}
+					{!readOnly && (atMax ? <Tooltip content={maxHint} render={addButton} /> : addButton)}
+				</div>
+
+				{blocks.length < minItems && (
+					<p className="text-sm text-kumo-danger">{t`Add at least ${minItems} blocks.`}</p>
 				)}
-				{!readOnly && (atMax ? <Tooltip content={maxHint} render={addButton} /> : addButton)}
-			</div>
+				{atMax && !readOnly && (
+					<span id={maxHintId} className="sr-only">
+						{maxHint}
+					</span>
+				)}
+				<p className="sr-only" aria-live="polite">
+					{announcement}
+					{revealSummary && <span key={revealSummary.token}>{revealSummary.text}</span>}
+				</p>
 
-			{blocks.length < minItems && (
-				<p className="text-sm text-kumo-danger">{t`Add at least ${minItems} blocks.`}</p>
-			)}
-			{atMax && !readOnly && (
-				<span id={maxHintId} className="sr-only">
-					{maxHint}
-				</span>
-			)}
-			<p className="sr-only" aria-live="polite">
-				{announcement}
-			</p>
-
-			{!readOnly && (
-				<BlockTypePicker
-					open={pickerOpen}
-					anchor={picker?.anchor ?? null}
-					side={picker?.side ?? "bottom"}
-					invoker={picker?.invoker ?? null}
-					blockTypes={insertable}
-					onPick={insertBlock}
-					onClose={() => setPickerOpen(false)}
+				{!readOnly && (
+					<BlockTypePicker
+						open={pickerOpen}
+						anchor={picker?.anchor ?? null}
+						side={picker?.side ?? "bottom"}
+						invoker={picker?.invoker ?? null}
+						blockTypes={insertable}
+						onPick={insertBlock}
+						onClose={() => setPickerOpen(false)}
+					/>
+				)}
+				<ConfirmDialog
+					open={confirmDelete?.open ?? false}
+					onClose={() => setConfirmDelete((current) => current && { ...current, open: false })}
+					role="alertdialog"
+					title={t`Delete ${confirmName}?`}
+					description={confirmReason}
+					confirmLabel={t`Delete`}
+					pendingLabel={t`Deleting...`}
+					isPending={false}
+					error={null}
+					onConfirm={() => {
+						if (confirmBlock && removeBlock(confirmBlock._key) >= 0) undo.dismiss();
+						setConfirmDelete((current) => current && { ...current, open: false });
+					}}
 				/>
-			)}
-			<ConfirmDialog
-				open={confirmDelete?.open ?? false}
-				onClose={() => setConfirmDelete((current) => current && { ...current, open: false })}
-				role="alertdialog"
-				title={t`Delete ${confirmName}?`}
-				description={confirmReason}
-				confirmLabel={t`Delete`}
-				pendingLabel={t`Deleting...`}
-				isPending={false}
-				error={null}
-				onConfirm={() => {
-					if (confirmBlock && removeBlock(confirmBlock._key) >= 0) undo.dismiss();
-					setConfirmDelete((current) => current && { ...current, open: false });
-				}}
-			/>
-		</div>
+			</div>
+		</UndoContext>
 	);
 }
 
@@ -986,9 +1119,14 @@ interface BlockRowProps {
 	onItemsShift: (field: string, moves: readonly number[]) => void;
 	/** Whether the block picker this row opened is open. */
 	pickerOpen: boolean;
+	/** The block was just added, and grows into place. */
+	added: boolean;
+	/** Deleting asks first, so the row stays until that's confirmed. */
+	deleteConfirms: boolean;
 	onAdd: (target: PickerTarget) => void;
 	onDuplicate: () => void;
-	onMove: (to: number) => void;
+	/** Moves the block; `slide` slides it and the blocks it passes into their places. */
+	onMove: (to: number, slide?: boolean) => void;
 	onDelete: () => void;
 	renderField: BlocksFieldProps["renderField"];
 }
@@ -1020,6 +1158,8 @@ function BlockRow({
 	onItemDeleted,
 	onItemsShift,
 	pickerOpen,
+	added,
+	deleteConfirms,
 	onAdd,
 	onDuplicate,
 	onMove,
@@ -1030,11 +1170,14 @@ function BlockRow({
 	const sortable = useSortable({
 		id: block._key,
 		disabled: readOnly,
-		transition: SORT_TRANSITION,
+		transition: prefersReducedMotion() ? null : SORT_TRANSITION,
 	});
-	const { listeners, transform, transition } = sortable;
+	const { listeners, transform, transition, node } = sortable;
 	const drop = useDropSettle(block._key, sortable.isDragging, sortable.setNodeRef);
 	const isDragging = sortable.isDragging || drop.settling;
+	React.useLayoutEffect(() => {
+		if (added && node.current) growRow(node.current);
+	}, [added, node]);
 	// The head stays pinned until the fields have folded away under it.
 	const [bodyShown, setBodyShown] = React.useState(open);
 	if (open && !bodyShown) setBodyShown(true);
@@ -1043,9 +1186,12 @@ function BlockRow({
 	const handleRef = React.useRef<HTMLButtonElement>(null);
 	const triggerRef = React.useRef<HTMLButtonElement>(null);
 	const afterMenuCloseRef = React.useRef<MenuAction | null>(null);
+	/** Duplicate focuses the copy, so the closing menu leaves focus alone. */
+	const keepFocusRef = React.useRef(false);
 	const [menuOpen, setMenuOpen] = React.useState(false);
 	const [menuFromHandle, setMenuFromHandle] = React.useState(false);
 	const quietGutter = useQuietReturnFocus();
+	const quietMenu = useQuietReturnFocus();
 
 	const label = blockType?.label ?? block._type;
 	const version = blockType?.versions.find((candidate) => candidate.version === block._version);
@@ -1073,13 +1219,20 @@ function BlockRow({
 		const invoker = menuFromHandle ? handleRef.current : triggerRef.current;
 		afterMenuCloseRef.current = { kind: "add", side, invoker };
 	};
+	const commitDelete = useStableCallback(() => onDelete());
 	const runMenuAction = useStableCallback((action: MenuAction) => {
 		if (action.kind === "delete") {
-			onDelete();
+			if (deleteConfirms || !node.current) onDelete();
+			else collapseRow(node.current, commitDelete);
+			return;
+		}
+		if (action.kind === "duplicate") {
+			onDuplicate();
 			return;
 		}
 		if (!canAdd) return;
 		const { side, invoker } = action;
+		(invoker === handleRef.current ? quietGutter : quietMenu).handOff(invoker);
 		onAdd({ index: side === "top" ? index : index + 1, anchor: headRef.current, side, invoker });
 	});
 	const moveKeys = useMoveKeys(index, count, onMove);
@@ -1155,7 +1308,9 @@ function BlockRow({
 			className={cn(
 				"group/block relative [--emdash-blocks-sticky-top:var(--emdash-editor-sticky-top,0px)] focus-within:z-40",
 				index > 0 && "border-t border-kumo-hairline",
+				!readOnly && LIFT_SHADOW,
 				isDragging && cn(DRAGGING, "z-40 rounded-lg"),
+				sortable.isDragging && LIFTED,
 			)}
 		>
 			{!readOnly && (
@@ -1240,6 +1395,7 @@ function BlockRow({
 								{...listeners}
 								onClick={(event) => {
 									quietGutter.markOpener(event);
+									keepFocusRef.current = false;
 									setMenuFromHandle(true);
 									setMenuOpen(true);
 								}}
@@ -1341,7 +1497,10 @@ function BlockRow({
 					<DropdownMenu
 						open={menuOpen}
 						onOpenChange={(next) => {
-							if (next) setMenuFromHandle(false);
+							if (next) {
+								setMenuFromHandle(false);
+								keepFocusRef.current = false;
+							}
 							setMenuOpen(next);
 						}}
 						onOpenChangeComplete={(isOpen) => {
@@ -1359,11 +1518,16 @@ function BlockRow({
 									variant="ghost"
 									shape="square"
 									size="sm"
-									className={cn(ROW_BUTTON, "shrink-0 text-kumo-subtle", REVEAL_MENU)}
+									className={cn(ROW_BUTTON, "shrink-0 text-kumo-subtle", REVEAL_MENU, TOUCH_TARGET)}
 									aria-label={t`${label} actions`}
 									aria-describedby={versionId}
 									aria-keyshortcuts={MOVE_KEYS}
-									onKeyDown={moveKeys}
+									{...quietMenu.groupProps}
+									onClick={quietMenu.markOpener}
+									onKeyDown={(event) => {
+										quietMenu.groupProps.onKeyDown(event);
+										moveKeys(event);
+									}}
 								>
 									<DotsThree className="size-4" weight="bold" aria-hidden="true" />
 								</Button>
@@ -1375,8 +1539,10 @@ function BlockRow({
 								align={menuFromHandle ? "start" : "end"}
 							>
 								<DropdownMenu.Popup
-									className="min-w-56"
-									finalFocus={menuFromHandle ? handleRef : undefined}
+									className={cn("min-w-56", POPUP_MOTION)}
+									finalFocus={() =>
+										!keepFocusRef.current && ((menuFromHandle && handleRef.current) || true)
+									}
 								>
 									<DropdownMenu.Item
 										icon={<RowsPlusTop className={MENU_ICON} aria-hidden="true" />}
@@ -1396,35 +1562,38 @@ function BlockRow({
 									<DropdownMenu.Item
 										icon={<Copy className={MENU_ICON} aria-hidden="true" />}
 										disabled={retired || unsupported || inactive || atMax}
-										onClick={onDuplicate}
+										onClick={() => {
+											afterMenuCloseRef.current = { kind: "duplicate" };
+											keepFocusRef.current = true;
+										}}
 									>
 										{t`Duplicate`}
 									</DropdownMenu.Item>
 									<DropdownMenu.Item
 										icon={<ArrowUp className={MENU_ICON} aria-hidden="true" />}
 										disabled={index === 0}
-										onClick={() => onMove(index - 1)}
+										onClick={() => onMove(index - 1, true)}
 									>
 										{t`Move up`}
 									</DropdownMenu.Item>
 									<DropdownMenu.Item
 										icon={<ArrowDown className={MENU_ICON} aria-hidden="true" />}
 										disabled={index === count - 1}
-										onClick={() => onMove(index + 1)}
+										onClick={() => onMove(index + 1, true)}
 									>
 										{t`Move down`}
 									</DropdownMenu.Item>
 									<DropdownMenu.Item
 										icon={<ArrowLineUp className={MENU_ICON} aria-hidden="true" />}
 										disabled={index === 0}
-										onClick={() => onMove(0)}
+										onClick={() => onMove(0, true)}
 									>
 										{t`Move to top`}
 									</DropdownMenu.Item>
 									<DropdownMenu.Item
 										icon={<ArrowLineDown className={MENU_ICON} aria-hidden="true" />}
 										disabled={index === count - 1}
-										onClick={() => onMove(count - 1)}
+										onClick={() => onMove(count - 1, true)}
 									>
 										{t`Move to bottom`}
 									</DropdownMenu.Item>
@@ -1509,6 +1678,11 @@ interface ControlOptions {
 	 * draws a photo as a thumbnail.
 	 */
 	cell?: boolean;
+	/**
+	 * The label's line that says what the control has to say, and which of its controls this one is.
+	 * Without one, the control says it at the end of its own line.
+	 */
+	noteSource?: NoteSource;
 }
 
 interface FieldControlProps extends ControlOptions {
@@ -1537,10 +1711,278 @@ function labelText(field: LayoutFieldDefinition): string {
 	return splitLabelHint(field.label).label;
 }
 
+/** Which of a label line's controls a note belongs to: its only one, or a half of a button row. */
+type NoteSource = "field" | "text" | "link";
+
+/** What a control has to say, and how its empty value reads. */
+interface ControlNotes {
+	/** Its problem, once that shows, when the control can't say it itself. */
+	message?: string;
+	/** Shown while it has focus, unless a problem shows. */
+	hint?: string;
+	/** Where its character count or range shows while it has focus. */
+	countSlotId?: string;
+	/** Whether it counts its characters or states its range. */
+	counted: boolean;
+	placeholder: string;
+	/** Its empty placeholder says its problem, so it turns red. */
+	emptyIssue: boolean;
+}
+
+type NotedControl = ControlNotes & { source: NoteSource };
+
+function countsItself(field: LayoutFieldDefinition): boolean {
+	const keys =
+		field.type === "number" || field.type === "integer"
+			? ["min", "max"]
+			: field.type === "string" || field.type === "text"
+				? ["minLength", "maxLength"]
+				: [];
+	return keys.some((key) => {
+		const bound = field.validation?.[key];
+		return typeof bound === "number" && Number.isFinite(bound);
+	});
+}
+
+function useControlNotes() {
+	const { t } = useLingui();
+	const issueMessage = useIssueMessage();
+	return (input: {
+		field: LayoutFieldDefinition;
+		/** The control's id. */
+		id: string;
+		value: unknown;
+		issue?: BlockValueIssue;
+		placeholder?: string;
+		emptyPlaceholder?: string;
+		/** A label's line says what the control has to say. */
+		onLabelLine: boolean;
+		cell?: boolean;
+	}): ControlNotes => {
+		const { field, issue, placeholder: override, onLabelLine, cell = false } = input;
+		const { hint } = splitLabelHint(field.label);
+		const empty = isEmptyValue(input.value);
+		const message = issue ? issueMessage(issue, hint) : undefined;
+		const emptyIssue =
+			!onLabelLine &&
+			issue?.code === "required" &&
+			override === undefined &&
+			empty &&
+			EMPTY_SHOWN_BY_CONTROL.has(field.type);
+		// Once the label's line says Required, the empty control reads like any other empty one.
+		const placeholder =
+			override ??
+			(field.required && !(onLabelLine && message)
+				? t`Required`
+				: (hint ?? input.emptyPlaceholder ?? t`Empty`));
+		return {
+			message: emptyIssue ? undefined : message,
+			hint: !cell && hint && !(placeholder === hint && empty) ? hint : undefined,
+			countSlotId: cell ? undefined : `${input.id}-count`,
+			counted: !cell && countsItself(field),
+			placeholder,
+			emptyIssue,
+		};
+	};
+}
+
 /**
- * A field's quiet control, with its hint while focused. A problem turns the empty control's
- * placeholder red, and its message floats under the control while it's hovered or focused, so
- * showing one moves nothing.
+ * Tracks which of a field's controls has focus, by its `data-note`, ignoring focus in its popups,
+ * and whether the field's problem was cut short on its line when focus came.
+ */
+function useNoteFocus() {
+	const [focused, setFocused] = React.useState<NoteSource | null>(null);
+	const [problemClipped, setProblemClipped] = React.useState(false);
+	const [dismissed, setDismissed] = React.useState(false);
+	const props = {
+		onFocus: (event: React.FocusEvent<HTMLElement>) => {
+			if (!(event.target instanceof Element) || !event.currentTarget.contains(event.target)) return;
+			const source = event.target.closest("[data-note]")?.getAttribute("data-note");
+			const next = source === "field" || source === "text" || source === "link" ? source : null;
+			if (next === focused) return;
+			const problem = event.currentTarget.querySelector("[data-problem-note]");
+			setFocused(next);
+			setProblemClipped(Boolean(problem && problem.scrollWidth > problem.clientWidth + 1));
+			setDismissed(false);
+		},
+		onBlur: onFocusLeave(() => {
+			setFocused(null);
+			setDismissed(false);
+		}),
+	};
+	return { focused, problemClipped, dismissed, dismiss: () => setDismissed(true), props };
+}
+
+const NOTE_DOT = <span className="text-kumo-placeholder">·</span>;
+
+// Beside its value a label has no room left on its line, so a problem goes under it, and while
+// the field has focus its note takes the label's place. The label stays readable by assistive
+// technology, which reads the note as the control's description.
+const SIDE_LINE =
+	"group/label @min-[440px]/blocks:data-issue:flex-col @min-[440px]/blocks:data-issue:items-start @min-[440px]/blocks:data-issue:justify-center @min-[440px]/blocks:data-issue:py-0 @min-[440px]/blocks:data-replace:items-center @min-[440px]/blocks:data-replace:py-0";
+const SIDE_TEXT =
+	"@min-[440px]/blocks:group-data-issue/label:text-xs @min-[440px]/blocks:group-data-issue/label:leading-4 @min-[440px]/blocks:group-data-issue/label:font-medium @min-[440px]/blocks:group-data-replace/label:sr-only";
+const SIDE_NOTES =
+	"@min-[440px]/blocks:group-data-issue/label:w-full @min-[440px]/blocks:group-data-issue/label:flex-none @min-[440px]/blocks:group-data-replace/label:line-clamp-2";
+const SIDE_HIDDEN = "@min-[440px]/blocks:hidden";
+const SIDE_REST = "@min-[440px]/blocks:group-data-replace/label:hidden";
+/** A focused control's note that shows on a stacked label's line, and in place of a side label. */
+const SIDE_FOCUS = "@min-[440px]/blocks:hidden @min-[440px]/blocks:group-data-replace/label:inline";
+/** A focused control's problem, already on a stacked label's line, that shows in place of a side label. */
+const SIDE_FOCUS_ONLY = "hidden @min-[440px]/blocks:group-data-replace/label:inline";
+const SIDE_FOCUS_TEXT = "@min-[440px]/blocks:group-data-replace/label:whitespace-normal";
+
+/**
+ * A field's label, with what its controls have to say on the label's own line: the problem once it
+ * shows, and the focused control's hint and count. `side` is a settings row's label, which sits
+ * beside its value once the field is wide enough.
+ */
+function NotedLabel({
+	as: Element = "label",
+	id,
+	htmlFor,
+	className,
+	text,
+	controls,
+	focused,
+	side = false,
+	replace = false,
+}: {
+	as?: "label" | "span";
+	id: string;
+	htmlFor?: string;
+	className: string;
+	text: string;
+	controls: readonly NotedControl[];
+	focused: NoteSource | null;
+	side?: boolean;
+	/** A side label makes way for the focused control's note. */
+	replace?: boolean;
+}) {
+	const rest = controls.find((control) => control.message)?.message;
+	const hasNotes = Boolean(rest) || controls.some((control) => control.hint || control.countSlotId);
+	return (
+		<Element
+			id={id}
+			htmlFor={Element === "label" ? htmlFor : undefined}
+			data-issue={side && rest && !replace ? "" : undefined}
+			data-replace={side && replace ? "" : undefined}
+			className={cn(className, "flex items-baseline gap-x-1.5", side && SIDE_LINE)}
+		>
+			<span className={cn("min-w-0 wrap-anywhere", side && SIDE_TEXT)}>{text}</span>
+			{hasNotes && (
+				<span
+					aria-hidden="true"
+					className={cn(
+						NOTE,
+						"flex min-w-0 flex-1 basis-0 items-baseline gap-x-1.5 overflow-hidden font-normal",
+						side && SIDE_NOTES,
+					)}
+				>
+					{rest && (
+						<span className={cn("flex min-w-0 items-baseline gap-x-1.5", side && SIDE_REST)}>
+							<span className={cn(side && SIDE_HIDDEN)}>{NOTE_DOT}</span>
+							<span data-problem-note="" dir="auto" className="min-w-0 truncate text-kumo-danger">
+								{rest}
+							</span>
+						</span>
+					)}
+					{controls.map((control) => {
+						const shown = control.source === focused;
+						const note = control.message ?? control.hint;
+						return (
+							<React.Fragment key={control.source}>
+								{note && (
+									<span
+										className={cn(
+											"min-w-0 items-baseline gap-x-1.5",
+											shown ? cn(NOTE_ON_FOCUS, "flex") : "hidden",
+											// A stacked label's line already shows the problem.
+											shown && side && (note === rest ? SIDE_FOCUS_ONLY : SIDE_FOCUS),
+											shown && !side && note === rest && "hidden",
+										)}
+									>
+										<span className={cn(side && SIDE_HIDDEN)}>{NOTE_DOT}</span>
+										<span
+											dir="auto"
+											className={cn(
+												"min-w-0 truncate",
+												side && SIDE_FOCUS_TEXT,
+												control.message ? "text-kumo-danger" : "text-kumo-subtle",
+											)}
+										>
+											{note}
+										</span>
+									</span>
+								)}
+								{control.countSlotId && (
+									<span
+										id={control.countSlotId}
+										className={cn(
+											"ms-auto shrink-0 text-kumo-subtle tabular-nums",
+											shown ? NOTE_ON_FOCUS : "hidden",
+											shown && side && cn(SIDE_FOCUS, "@min-[440px]/blocks:ms-1.5"),
+										)}
+									/>
+								)}
+							</React.Fragment>
+						);
+					})}
+				</span>
+			)}
+		</Element>
+	);
+}
+
+/**
+ * A field with its label: tracks which of its controls has focus, so the label's line shows that
+ * control's notes. A side label that made way for a note comes back on Escape.
+ */
+function NotedField({
+	label,
+	side = false,
+	className,
+	groupProps,
+	children,
+}: {
+	label: Omit<React.ComponentProps<typeof NotedLabel>, "focused" | "side" | "replace">;
+	side?: boolean;
+	className: string;
+	groupProps?: Pick<React.HTMLAttributes<HTMLDivElement>, "role" | "aria-labelledby">;
+	children: React.ReactNode;
+}) {
+	const { focused, problemClipped, dismissed, dismiss, props } = useNoteFocus();
+	const active = label.controls.find((control) => control.source === focused);
+	const problem = label.controls.find((control) => control.message)?.message;
+	const note = active && (active.message ?? active.hint);
+	// The label makes way only for something its line doesn't already show in full.
+	const replace =
+		side &&
+		!dismissed &&
+		Boolean(active && ((note && (note !== problem || problemClipped)) || active.counted));
+	return (
+		<div
+			{...groupProps}
+			className={className}
+			{...props}
+			onKeyDown={(event) => {
+				if (!replace || event.key !== "Escape" || event.defaultPrevented) return;
+				if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return;
+				event.preventDefault();
+				event.stopPropagation();
+				dismiss();
+			}}
+		>
+			<NotedLabel {...label} focused={focused} side={side} replace={replace} />
+			{children}
+		</div>
+	);
+}
+
+/**
+ * A field's quiet control. What it has to say (its problem, and while it has focus its hint and
+ * count) goes on its label's line, or at the end of its own line when it has no label line, so
+ * none of it moves or covers anything.
  */
 function FieldControl({
 	field,
@@ -1554,6 +1996,7 @@ function FieldControl({
 	heading,
 	thumbnail,
 	cell = false,
+	noteSource,
 	dataField,
 	onChange,
 	onTouch,
@@ -1562,79 +2005,144 @@ function FieldControl({
 }: FieldControlProps) {
 	const { t } = useLingui();
 	const issueMessage = useIssueMessage();
+	const controlNotes = useControlNotes();
 	const id = `field-${name}`;
+	const onLabelLine = noteSource !== undefined;
+	const notes = controlNotes({
+		field,
+		id,
+		value,
+		issue,
+		placeholder: placeholderOverride,
+		emptyPlaceholder,
+		onLabelLine,
+		cell,
+	});
 	const { hint } = splitLabelHint(field.label);
-	const placeholder =
-		placeholderOverride ?? (field.required ? t`Required` : (hint ?? emptyPlaceholder ?? t`Empty`));
 	const hintId = `${id}-hint`;
 	const errorId = `${id}-error`;
 	const error = issue ? issueMessage(issue, hint) : undefined;
-	const errorShown =
-		issue !== undefined &&
-		!(
-			issue.code === "required" &&
-			placeholderOverride === undefined &&
-			REQUIRED_SHOWN_BY_CONTROL.has(field.type)
-		);
 	const describedBy =
 		[hint && error !== hint && hintId, error && errorId].filter(Boolean).join(" ") || undefined;
-	const showHintOnFocus =
-		!cell && Boolean(hint) && !errorShown && !(placeholder === hint && isEmptyValue(value));
+	const [focused, setFocused] = React.useState(false);
+	const wrapperRef = React.useRef<HTMLDivElement>(null);
+	const noteRef = React.useRef<HTMLSpanElement>(null);
+	const ownNote = !onLabelLine && Boolean(notes.message || notes.hint || notes.countSlotId);
+	// The note at the end of the control's line keeps its text from running under it.
+	React.useLayoutEffect(() => {
+		const note = noteRef.current;
+		const wrapper = wrapperRef.current;
+		if (!note || !wrapper || typeof ResizeObserver === "undefined") return;
+		const reserve = () => {
+			const width = note.getBoundingClientRect().width;
+			wrapper.style.setProperty("--emdash-note-end", `${width > 0 ? width + 8 : 0}px`);
+		};
+		reserve();
+		const observer = new ResizeObserver(reserve);
+		observer.observe(note);
+		return () => observer.disconnect();
+	}, [ownNote]);
 	const change = (next: unknown) => {
 		if (!isEmptyValue(value) || !isEmptyValue(next)) onEdit();
 		onChange(next);
 	};
+	const undo = React.useContext(UndoContext);
+	const putBack = useStableCallback(change);
+	const ownsUndo = () => {
+		const owner = undo?.owner();
+		return owner?.kind === "field" && owner.name === name;
+	};
+	const offerRestore = (removed: ImageFieldValue | string, restored: () => void) =>
+		undo?.offer(t`Removed an image`, { kind: "field", name }, () => {
+			putBack(removed);
+			restored();
+		});
+	// Undo has nothing left to put back once a photo is there again, or the control has gone.
+	React.useEffect(() => {
+		if (!isEmptyValue(value) && ownsUndo()) undo?.dismiss();
+	});
+	const dismissOwnUndo = useStableCallback(() => {
+		if (ownsUndo()) undo?.dismiss();
+	});
+	React.useEffect(() => dismissOwnUndo, [dismissOwnUndo]);
 	return (
 		<div
+			ref={wrapperRef}
 			data-field={dataField}
+			data-field-issue={issue ? "" : undefined}
+			data-note={noteSource}
 			className={cn(
 				"group/control relative min-w-0",
 				// A placeholder passed in names a control whose label is hidden, so it reads like a label.
 				placeholderOverride !== undefined &&
 					"[&_:is(input,textarea)]:placeholder:text-kumo-subtle!",
+				ownNote && "[&_input]:pe-[calc(0.5rem+var(--emdash-note-end,0px))]!",
 			)}
-			onBlur={onFocusLeave(onTouch)}
-		>
-			{renderField({
-				name,
-				field: descriptor,
-				value,
-				onChange: change,
-				chrome: {
-					labelledBy,
-					describedBy,
-					placeholder,
-					invalid: issue !== undefined,
-					heading,
-					thumbnail: cell ? "cell" : thumbnail,
-				},
+			onFocus={ownNote ? () => setFocused(true) : undefined}
+			onBlur={onFocusLeave(() => {
+				setFocused(false);
+				onTouch();
 			})}
+		>
+			<ImageRemovalContext value={field.type === "image" ? offerRestore : null}>
+				{renderField({
+					name,
+					field: descriptor,
+					value,
+					onChange: change,
+					chrome: {
+						labelledBy,
+						describedBy,
+						placeholder: notes.placeholder,
+						invalid: issue !== undefined,
+						emptyIssue: notes.emptyIssue,
+						countSlotId: notes.countSlotId,
+						heading,
+						thumbnail: cell ? "cell" : thumbnail,
+					},
+				})}
+			</ImageRemovalContext>
 			{hint && error !== hint && (
 				<span id={hintId} hidden>
 					{hint}
 				</span>
 			)}
-			{showHintOnFocus && (
+			{ownNote && (
 				<span
-					aria-hidden="true"
-					dir="auto"
-					className={cn(
-						FLOATING_NOTE,
-						"start-0 group-focus-within/control:visible group-focus-within/control:translate-y-0 group-focus-within/control:opacity-100 group-has-data-quiet-count/control:mt-8",
-					)}
-				>
-					{hint}
-				</span>
-			)}
-			{errorShown && (
-				<span
+					ref={noteRef}
 					aria-hidden="true"
 					className={cn(
-						FLOATING_NOTE,
-						"start-0 text-kumo-danger group-hover/control:visible group-hover/control:translate-y-0 group-hover/control:opacity-100 group-focus-within/control:visible group-focus-within/control:translate-y-0 group-focus-within/control:opacity-100 group-focus-within/control:group-has-data-quiet-count/control:mt-8",
+						NOTE,
+						"pointer-events-none absolute end-2 top-0 flex h-8 max-w-[60%] items-center gap-x-1.5",
+						!notes.message && !focused && "hidden",
 					)}
 				>
-					<bdi>{error}</bdi>
+					{notes.message ? (
+						<span dir="auto" className="min-w-0 truncate text-kumo-danger">
+							{notes.message}
+						</span>
+					) : (
+						notes.hint && (
+							<span
+								dir="auto"
+								className={cn(
+									"min-w-0 truncate text-kumo-subtle",
+									focused ? NOTE_ON_FOCUS : "hidden",
+								)}
+							>
+								{notes.hint}
+							</span>
+						)
+					)}
+					{notes.countSlotId && (
+						<span
+							id={notes.countSlotId}
+							className={cn(
+								"shrink-0 text-kumo-subtle tabular-nums",
+								focused ? NOTE_ON_FOCUS : "hidden",
+							)}
+						/>
+					)}
 				</span>
 			)}
 			{error && (
@@ -1683,6 +2191,7 @@ function BlockFields({
 	renderList,
 }: BlockFieldsProps) {
 	const { t } = useLingui();
+	const controlNotes = useControlNotes();
 	const plan = React.useMemo(() => planBlockFields(fields, scope), [fields, scope]);
 	const advancedId = React.useId();
 
@@ -1694,9 +2203,22 @@ function BlockFields({
 
 	const controlId = (field: LayoutFieldDefinition) => `field-${namePrefix}.${field.slug}`;
 	const labelId = (field: LayoutFieldDefinition) => `${controlId(field)}-label`;
-	const labelShowsIssue = (field: LayoutFieldDefinition) =>
-		issueAt(field.slug) !== undefined &&
-		!(EMPTY_SHOWN_BY_CONTROL.has(field.type) && isEmptyValue(values[field.slug]));
+	/** What the control of `field` has to say on its label's line. */
+	const notesOf = (
+		field: LayoutFieldDefinition,
+		source: NoteSource = "field",
+		placeholder?: string,
+	): NotedControl => ({
+		source,
+		...controlNotes({
+			field,
+			id: controlId(field),
+			value: values[field.slug],
+			issue: issueAt(field.slug),
+			placeholder,
+			onLabelLine: true,
+		}),
+	});
 
 	const control = (
 		field: LayoutFieldDefinition,
@@ -1708,6 +2230,7 @@ function BlockFields({
 				<div
 					key={field.slug}
 					data-field={field.slug}
+					data-field-issue={issueAt(field.slug) ? "" : undefined}
 					className="min-w-0"
 					onBlur={onFocusLeave(() => onTouch(field.slug))}
 				>
@@ -1737,40 +2260,51 @@ function BlockFields({
 	const stacked = (field: LayoutFieldDefinition, heading?: boolean) => {
 		if (field.type === "repeater") return control(field, labelId(field));
 		return (
-			<div key={field.slug} className="grid min-w-0">
-				<label
-					id={labelId(field)}
-					htmlFor={controlId(field)}
-					className={cn(FIELD_LABEL, labelShowsIssue(field) && INVALID_LABEL)}
-				>
-					{labelText(field)}
-				</label>
-				{control(field, labelId(field), { heading })}
-			</div>
+			<NotedField
+				key={field.slug}
+				className="grid min-w-0"
+				label={{
+					id: labelId(field),
+					htmlFor: controlId(field),
+					className: FIELD_LABEL,
+					text: labelText(field),
+					controls: [notesOf(field)],
+				}}
+			>
+				{control(field, labelId(field), { heading, noteSource: "field" })}
+			</NotedField>
 		);
 	};
 
 	const settingRow = (field: LayoutFieldDefinition) => (
-		<div key={field.slug} className={SETTING_ROW}>
-			{field.type === "image" ? (
-				// Stacked over a thumbnail, which has no padding of its own, the label keeps a photo's gap.
-				<span
-					id={labelId(field)}
-					className={cn(SETTING_LABEL, "pb-1.5", labelShowsIssue(field) && INVALID_LABEL)}
-				>
-					{labelText(field)}
-				</span>
-			) : (
-				<label
-					id={labelId(field)}
-					htmlFor={controlId(field)}
-					className={cn(SETTING_LABEL, labelShowsIssue(field) && INVALID_LABEL)}
-				>
-					{labelText(field)}
-				</label>
-			)}
-			{control(field, labelId(field), field.type === "image" ? { thumbnail: "row" } : {})}
-		</div>
+		<NotedField
+			key={field.slug}
+			side
+			className={SETTING_ROW}
+			label={
+				field.type === "image"
+					? {
+							as: "span",
+							id: labelId(field),
+							// Stacked over a thumbnail, which has no padding of its own, the label keeps a photo's gap.
+							className: cn(SETTING_LABEL, "pb-1.5"),
+							text: labelText(field),
+							controls: [notesOf(field)],
+						}
+					: {
+							id: labelId(field),
+							htmlFor: controlId(field),
+							className: SETTING_LABEL,
+							text: labelText(field),
+							controls: [notesOf(field)],
+						}
+			}
+		>
+			{control(field, labelId(field), {
+				...(field.type === "image" ? { thumbnail: "row" } : {}),
+				noteSource: "field",
+			})}
+		</NotedField>
 	);
 
 	const contentPart = (part: BlockFieldPart<LayoutFieldDefinition>) => {
@@ -1795,14 +2329,18 @@ function BlockFields({
 			case "image": {
 				const caption = part.caption;
 				return (
-					<div key={part.field.slug} className="grid min-w-0 gap-y-0.5">
-						<span
-							id={labelId(part.field)}
-							className={cn(FIELD_LABEL, "pb-1", labelShowsIssue(part.field) && INVALID_LABEL)}
-						>
-							{labelText(part.field)}
-						</span>
-						{control(part.field, labelId(part.field))}
+					<NotedField
+						key={part.field.slug}
+						className="grid min-w-0 gap-y-0.5"
+						label={{
+							as: "span",
+							id: labelId(part.field),
+							className: cn(FIELD_LABEL, "pb-1"),
+							text: labelText(part.field),
+							controls: [notesOf(part.field)],
+						}}
+					>
+						{control(part.field, labelId(part.field), { noteSource: "field" })}
 						{caption && (
 							<>
 								<span id={labelId(caption)} hidden>
@@ -1811,7 +2349,7 @@ function BlockFields({
 								{control(caption, labelId(caption), { emptyPlaceholder: t`Add a caption` })}
 							</>
 						)}
-					</div>
+					</NotedField>
 				);
 			}
 			case "button":
@@ -1823,29 +2361,42 @@ function BlockFields({
 		if (part.kind === "field" || part.kind === "image") return settingRow(part.field);
 		if (part.kind !== "button") return null;
 		const rowLabelId = `${controlId(part.text)}-row`;
+		const textPlaceholder = t`Text`;
+		const linkPlaceholder = t`Link`;
 		return (
-			<div key={part.text.slug} role="group" aria-labelledby={rowLabelId} className={SETTING_ROW}>
-				<label
-					id={rowLabelId}
-					htmlFor={controlId(part.text)}
-					className={cn(
-						SETTING_LABEL,
-						(labelShowsIssue(part.text) || labelShowsIssue(part.link)) && INVALID_LABEL,
-					)}
-				>
-					{part.label}
-				</label>
+			<NotedField
+				key={part.text.slug}
+				side
+				className={SETTING_ROW}
+				groupProps={{ role: "group", "aria-labelledby": rowLabelId }}
+				label={{
+					id: rowLabelId,
+					htmlFor: controlId(part.text),
+					className: SETTING_LABEL,
+					text: part.label,
+					controls: [
+						notesOf(part.text, "text", textPlaceholder),
+						notesOf(part.link, "link", linkPlaceholder),
+					],
+				}}
+			>
 				<div className="grid min-w-0 grid-cols-2 items-start gap-x-2">
 					<span id={labelId(part.text)} hidden>
 						{labelText(part.text)}
 					</span>
-					{control(part.text, labelId(part.text), { placeholder: t`Text` })}
+					{control(part.text, labelId(part.text), {
+						placeholder: textPlaceholder,
+						noteSource: "text",
+					})}
 					<span id={labelId(part.link)} hidden>
 						{labelText(part.link)}
 					</span>
-					{control(part.link, labelId(part.link), { placeholder: t`Link` })}
+					{control(part.link, labelId(part.link), {
+						placeholder: linkPlaceholder,
+						noteSource: "link",
+					})}
 				</div>
-			</div>
+			</NotedField>
 		);
 	};
 
@@ -1878,12 +2429,17 @@ function BlockFields({
 						"grid @min-[440px]/blocks:gap-y-0.5",
 						FIELD_GAP[scope],
 						hasContent && scope === "item" && "mt-3 @min-[440px]/blocks:mt-2",
-						hasContent && scope === "block" && !settingsRule && "mt-5",
+						hasContent && scope === "block" && !settingsRule && !photoEndsContent && "mt-5",
+						// A stacked label starts at its box's top, where a side label sits lower on its row, so
+						// under a photo the zone takes more space to stay a step above the field gap.
+						hasContent && scope === "block" && photoEndsContent && "mt-7 @min-[440px]/blocks:mt-5",
 					)}
 				>
 					{plan.settings.map(settingPart)}
 					{plan.advanced.length > 0 && (
-						<div className={cn(plan.settings.length > 0 && "@min-[440px]/blocks:mt-1")}>
+						// Advanced's text sits in the middle of its row, so after stacked rows it comes closer by
+						// as much, to keep the field gap.
+						<div className={cn(plan.settings.length > 0 && "-mt-2 @min-[440px]/blocks:mt-1")}>
 							<button
 								type="button"
 								aria-expanded={advancedOpen}

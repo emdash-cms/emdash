@@ -503,6 +503,8 @@ describe("Blocks field photos, tables and picker", () => {
 
 		await page.getByRole("button", { name: "Add block", exact: true }).click();
 		const option = page.getByRole("option", { name: /^FAQ/ }).element();
+		// The picker scales in as it opens.
+		await expect.poll(() => document.getAnimations().length).toBe(0);
 		expect(getComputedStyle(page.getByText("FAQ", { exact: true }).last().element()).fontSize).toBe(
 			rowName,
 		);

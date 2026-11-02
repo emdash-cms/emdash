@@ -373,7 +373,7 @@ describe("BlocksField", () => {
 		await expect.element(screen.getByLabelText("Caption")).toHaveFocus();
 	});
 
-	it("duplicates a block below the original and opens the copy", async () => {
+	it("duplicates a block below the original, closed like the original", async () => {
 		const onValue = vi.fn();
 		vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValueOnce(
 			"00000000-0000-4000-8000-000000000002",
@@ -383,14 +383,17 @@ describe("BlocksField", () => {
 		await openMenu("one");
 		await screen.getByRole("menuitem", { name: "Duplicate" }).click();
 
-		expect(rowKeys()).toEqual(["one", "00000000-0000-4000-8000-000000000002", "two"]);
+		await expect.poll(rowKeys).toEqual(["one", "00000000-0000-4000-8000-000000000002", "two"]);
 		expect(onValue.mock.lastCall?.[0][1]).toEqual({
 			...heroBlock("one"),
 			_key: "00000000-0000-4000-8000-000000000002",
 		});
+		const copy = row("00000000-0000-4000-8000-000000000002");
 		await expect
-			.element(row("00000000-0000-4000-8000-000000000002").getByLabelText("Title"))
-			.toHaveValue("one");
+			.element(copy.getByRole("button", { name: "Hero", exact: true }))
+			.toHaveAttribute("aria-expanded", "false");
+		await copy.getByRole("button", { name: "Hero", exact: true }).click();
+		await expect.element(copy.getByLabelText("Title")).toHaveValue("one");
 		await expect
 			.element(row("one").getByRole("button", { name: "Hero", exact: true }))
 			.toHaveAttribute("aria-expanded", "false");
@@ -542,7 +545,7 @@ describe("BlocksField", () => {
 				.query(),
 		).toBeNull();
 		await screen.getByRole("menuitem", { name: "Delete" }).click();
-		expect(rowKeys()).toEqual(["one", "three"]);
+		await expect.poll(rowKeys).toEqual(["one", "three"]);
 		await expect
 			.element(row("three").getByRole("button", { name: "Hero", exact: true }))
 			.toHaveFocus();
@@ -576,6 +579,7 @@ describe("BlocksField", () => {
 
 		await openMenu("middle");
 		await screen.getByRole("menuitem", { name: "Delete" }).click();
+		await expect.element(screen.getByRole("button", { name: "Undo" })).toBeVisible();
 		const undo = screen.getByRole("button", { name: "Undo" }).element() as HTMLElement;
 		undo.click();
 		await Promise.resolve();

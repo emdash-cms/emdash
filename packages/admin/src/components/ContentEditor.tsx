@@ -31,6 +31,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import type {
@@ -70,7 +71,6 @@ import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import {
-	FLOATING_NOTE,
 	QUIET_DATE,
 	QUIET_HEADING,
 	QUIET_INPUT,
@@ -81,7 +81,7 @@ import {
 	ROW_BUTTON,
 } from "./block-field-styles.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
-import { type BlockReveal, BlocksField, type FieldChrome } from "./BlocksField.js";
+import { blockKeyOf, type BlockReveal, BlocksField, type FieldChrome } from "./BlocksField.js";
 import type { BylineFormValues } from "./BylineFormDialog.js";
 import { ContentPickerModal, type PickedContentEntry } from "./ContentPickerModal.js";
 import {
@@ -136,7 +136,11 @@ function blockIssueKey({ name, issue }: FieldBlockIssue): string {
 	return `${name}:${issue.blockKey}:${issue.field}:${issue.code}`;
 }
 
-/** Says autosave is paused while `heldBy` holds it, once per problem, with a way to reach the field. */
+/**
+ * Says autosave is paused while `heldBy` holds it, once per problem, with a way to reach the field.
+ * While focus is still in the block with the problem, the writer is at work there, so it waits
+ * until focus leaves the block.
+ */
 function AutosavePausedNotice({
 	heldBy,
 	onShow,
@@ -147,7 +151,33 @@ function AutosavePausedNotice({
 	const { t } = useLingui();
 	const { add, close } = useKumoToastManager();
 	const shownRef = React.useRef<{ key: string; toastId: string } | null>(null);
-	const key = heldBy ? blockIssueKey(heldBy) : null;
+	const heldKey = heldBy ? blockIssueKey(heldBy) : null;
+	const heldBlock = heldBy?.issue.blockKey;
+	/** The problem whose block focus has left since it held autosave. */
+	const [released, setReleased] = React.useState<string | null>(null);
+	const key = heldKey !== null && released === heldKey ? heldKey : null;
+
+	React.useEffect(() => {
+		if (!heldKey || !heldBlock) {
+			setReleased(null);
+			return;
+		}
+		const check = () => {
+			const active = document.activeElement;
+			// A popup the block opened, such as a select's options, is still the block at work.
+			if (active?.closest('[role="dialog"], [role="menu"], [role="listbox"]')) return;
+			if (blockKeyOf(active) !== heldBlock) setReleased(heldKey);
+		};
+		// Focus leaving for nothing lands on the page only once the focusout has run.
+		const checkSoon = () => setTimeout(check, 0);
+		check();
+		document.addEventListener("focusin", check);
+		document.addEventListener("focusout", checkSoon);
+		return () => {
+			document.removeEventListener("focusin", check);
+			document.removeEventListener("focusout", checkSoon);
+		};
+	}, [heldKey, heldBlock]);
 
 	React.useEffect(() => {
 		const shown = shownRef.current;
@@ -156,10 +186,13 @@ function AutosavePausedNotice({
 		shownRef.current = null;
 		if (!heldBy || !key) return;
 		const block = heldBy.issue.blockLabel;
-		const field = splitLabelHint(heldBy.issue.fieldLabel).label;
+		const field = splitLabelHint(heldBy.issue.label).label;
 		const toastId: string = add({
 			title: t`Autosave paused`,
-			description: t`Fix ${field} in the ${block} block to resume saving.`,
+			description:
+				field === block
+					? t`Fix the ${block} block to resume saving.`
+					: t`Fix ${field} in the ${block} block to resume saving.`,
 			variant: "warning",
 			timeout: 0,
 			actions: [
@@ -2586,6 +2619,7 @@ function quietControlProps(chrome: FieldChrome, required: boolean | undefined) {
 		"aria-invalid": chrome.invalid || undefined,
 		// Native `required` would let the browser stop the editor's form before its own messages show.
 		"aria-required": required || undefined,
+		"data-empty-issue": chrome.emptyIssue || undefined,
 		placeholder: chrome.placeholder,
 	};
 }
@@ -2609,22 +2643,29 @@ function DescribedSelect({ chrome, children }: { chrome: FieldChrome; children: 
 	);
 }
 
-/** Shows `meta`, such as a character count, under a quiet control while it has focus. */
-function QuietControl({ meta, children }: { meta?: React.ReactNode; children: React.ReactNode }) {
-	if (!meta) return children;
+/**
+ * Shows `meta`, such as a character count, where the blocks field keeps the control's count: on its
+ * label's line, which shows it while the control has focus. A control with no room for it, such as
+ * a table cell, shows none.
+ */
+function QuietControl({
+	meta,
+	slotId,
+	children,
+}: {
+	meta?: React.ReactNode;
+	slotId?: string;
+	children: React.ReactNode;
+}) {
+	const [slot, setSlot] = React.useState<HTMLElement | null>(null);
+	React.useLayoutEffect(() => {
+		setSlot(slotId ? document.getElementById(slotId) : null);
+	}, [slotId]);
 	return (
-		<div className="group/quiet relative">
+		<>
 			{children}
-			<div
-				data-quiet-count
-				className={cn(
-					FLOATING_NOTE,
-					"end-0 whitespace-nowrap tabular-nums group-focus-within/quiet:visible group-focus-within/quiet:translate-y-0 group-focus-within/quiet:opacity-100",
-				)}
-			>
-				{meta}
-			</div>
-		</div>
+			{meta && slot && createPortal(meta, slot)}
+		</>
 	);
 }
 
@@ -2795,7 +2836,7 @@ function FieldRenderer({
 			) : undefined;
 			if (quiet) {
 				return (
-					<QuietControl meta={hint}>
+					<QuietControl meta={hint} slotId={chrome?.countSlotId}>
 						<Input
 							id={id}
 							value={text}
@@ -2866,7 +2907,7 @@ function FieldRenderer({
 			const hint = hasBounds(range) ? <RangeHint bounds={range} /> : undefined;
 			if (quiet) {
 				return (
-					<QuietControl meta={hint}>
+					<QuietControl meta={hint} slotId={chrome?.countSlotId}>
 						<Input
 							id={id}
 							type="number"
@@ -2981,7 +3022,7 @@ function FieldRenderer({
 			) : undefined;
 			if (quiet) {
 				return (
-					<QuietControl meta={hint}>
+					<QuietControl meta={hint} slotId={chrome?.countSlotId}>
 						<GrowingTextArea
 							id={id}
 							value={text}
@@ -3030,7 +3071,7 @@ function FieldRenderer({
 							alignOffset={QUIET_SELECT_ALIGN_OFFSET}
 							className={cn(
 								QUIET_SELECT,
-								chrome.invalid && "[&_[data-placeholder]]:text-kumo-danger!",
+								chrome.emptyIssue && "[&_[data-placeholder]]:text-kumo-danger!",
 							)}
 						>
 							{selectOptions.map((opt) => (
@@ -3120,7 +3161,7 @@ function FieldRenderer({
 							? cn(
 									QUIET_DATE,
 									!dateValue && "focus:text-kumo-default",
-									!dateValue && (chrome?.invalid ? "text-kumo-danger" : "text-kumo-placeholder"),
+									!dateValue && (chrome?.emptyIssue ? "text-kumo-danger" : "text-kumo-placeholder"),
 								)
 							: undefined
 					}
@@ -3156,7 +3197,7 @@ function FieldRenderer({
 					darkVariant={!Array.isArray(field.options) && field.options?.darkVariant === true}
 					labelledBy={chrome?.labelledBy}
 					describedBy={chrome?.describedBy}
-					invalid={chrome?.invalid}
+					invalid={chrome?.emptyIssue}
 					thumbnail={chrome?.thumbnail}
 				/>
 			);
@@ -3186,7 +3227,7 @@ function FieldRenderer({
 					blockVersion={field.blockVersion}
 					labelledBy={chrome?.labelledBy}
 					describedBy={chrome?.describedBy}
-					invalid={chrome?.invalid}
+					invalid={chrome?.emptyIssue}
 				/>
 			);
 		}

@@ -31,8 +31,16 @@ export const LIST_LABEL = LABEL;
  */
 export const FIELD_GAP = { block: "gap-y-4", item: "gap-y-3" } as const;
 
-/** A list's item count, and its size problem, on the label's line. */
-export const LIST_NOTE = "text-xs leading-4";
+/**
+ * A note on a field's label line: a list's item count, a field's hint or count while it has focus,
+ * and its problem once that shows. The line is there whether a note shows or not, so a note moves
+ * nothing and covers nothing.
+ */
+export const NOTE = "text-xs leading-4";
+
+/** A note shown while its field has focus fades in. Out of focus it isn't drawn, so it goes at once. */
+export const NOTE_ON_FOCUS =
+	"transition-opacity duration-150 ease-out starting:opacity-0 motion-reduce:transition-none";
 
 /**
  * A caret or type icon before a row's 14px text. A glyph centered on the line reads high next to
@@ -40,20 +48,13 @@ export const LIST_NOTE = "text-xs leading-4";
  */
 export const GLYPH_NUDGE = "translate-y-px";
 
-/**
- * A hint or count shown while a control has focus. It floats over the rows below, so focusing a
- * control moves nothing. Its parent is `relative` and names the group that shows it. It layers above
- * a rich text toolbar (z-20) and under the block's pinned header (z-30).
- */
-export const FLOATING_NOTE =
-	"pointer-events-none invisible absolute top-full z-[25] mt-1 max-w-full rounded-md bg-kumo-overlay px-2 py-1 text-xs leading-4 text-kumo-subtle opacity-0 shadow-sm ring ring-kumo-line transition-[opacity,translate,visibility] duration-150 ease-emdash -translate-y-0.5 motion-reduce:transition-none";
-
 // A `dir="auto"` value aligns to the start of its own text. Quiet values line up with their labels
 // instead, so a value whose direction differs from its container's aligns to its own end.
-// An invalid control is drawn like any other; only its empty placeholder turns red. Kumo's
+// An invalid control is drawn like any other. Its problem shows on its label's line, or, for a
+// control with no label line, as its red placeholder when that says the problem. Kumo's
 // placeholder color is unlayered, so only an important utility recolors it.
 const QUIET_CONTROL =
-	"w-full rounded-md bg-transparent px-2 shadow-none ring-transparent [:dir(ltr)>&:dir(rtl)]:text-end [:dir(rtl)>&:dir(ltr)]:text-end enabled:hover:bg-emdash-hover focus:bg-kumo-control focus:ring-1 focus:ring-kumo-focus/50 aria-invalid:placeholder:text-kumo-danger!";
+	"w-full rounded-md bg-transparent px-2 shadow-none ring-transparent [:dir(ltr)>&:dir(rtl)]:text-end [:dir(rtl)>&:dir(ltr)]:text-end enabled:hover:bg-emdash-hover focus:bg-kumo-control focus:ring-1 focus:ring-kumo-focus/50 data-empty-issue:placeholder:text-kumo-danger!";
 
 /** A one-line control with no box until it's hovered or focused. Its text sits on the field's text edge. */
 export const QUIET_INPUT = `${QUIET_CONTROL} h-8 text-ellipsis`;
@@ -100,11 +101,42 @@ export const IMAGE_EDGE =
 export const ROW_HOVER =
 	"hover:bg-[image:linear-gradient(var(--color-emdash-hover),var(--color-emdash-hover))]";
 
-/** A block or list item being dragged lifts off the list. */
-export const DRAGGING = "relative z-30 rounded-md bg-kumo-base shadow-lg ring ring-kumo-line";
+/**
+ * The curve of everything that moves rows: a panel opening or closing, a row added, removed or
+ * moved. It starts gently enough that no frame carries the rows below more than about a quarter
+ * of the way. `--ease-emdash-disclosure` in styles.css is the same curve.
+ */
+export const DISCLOSURE_CURVE = [0.33, 1, 0.68, 1] as const;
+export const DISCLOSURE_EASE = `cubic-bezier(${DISCLOSURE_CURVE.join(", ")})`;
+
+/** A block or list item being dragged, or settling into its slot after the drop, lifts off the list. */
+export const DRAGGING = "relative z-30 rounded-md bg-kumo-base";
+
+/**
+ * A row's lifted shadow, drawn by a layer of its own so it can fade in on pickup and out as the
+ * dropped row settles. `LIFTED` shows it.
+ */
+export const LIFT_SHADOW =
+	"after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:shadow-lg after:ring after:ring-kumo-line after:opacity-0 after:transition-opacity after:duration-150 after:ease-emdash motion-reduce:after:transition-none";
+export const LIFTED = "after:opacity-100";
 
 /** How the rows a dragged row passes move aside: the same ease-out as the panels. */
-export const SORT_TRANSITION = { duration: 200, easing: "cubic-bezier(0.33, 1, 0.68, 1)" };
+export const SORT_TRANSITION = { duration: 200, easing: DISCLOSURE_EASE };
+
+/**
+ * A menu, picker or select popup opening: from its first frame, unlike Kumo's transition, which
+ * starts a frame later on a slow-starting curve. It closes at once, since the choice made is the feedback.
+ */
+export const POPUP_MOTION =
+	"origin-(--transform-origin) duration-0 data-open:animate-emdash-popup-in motion-reduce:data-open:animate-none";
+
+/** A block's 26px menu button takes a 44px square on a coarse pointer, at the same size. */
+export const TOUCH_TARGET =
+	"relative pointer-coarse:after:absolute pointer-coarse:after:-inset-[9px]";
+
+/** A list row's menu button: 44px wide on a coarse pointer, and no taller than the shortest row. */
+export const ROW_TOUCH_TARGET =
+	"relative pointer-coarse:after:absolute pointer-coarse:after:-inset-x-[9px] pointer-coarse:after:-inset-y-[3px]";
 
 /**
  * A ghost button in a blocks field row, washed while hovered or while the menu it opened is open.

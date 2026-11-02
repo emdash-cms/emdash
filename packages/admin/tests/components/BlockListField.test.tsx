@@ -485,6 +485,12 @@ function quotesOf(onValue: ReturnType<typeof vi.fn>): unknown {
 	return blocks.find((block) => block._type === "testimonials")?.quotes;
 }
 
+/** Waits out a new item growing into place, and the scroll that brings it into view. */
+async function addMotionSettled() {
+	await expect.poll(() => document.getAnimations().length).toBe(0);
+	await new Promise((resolve) => setTimeout(resolve, 100));
+}
+
 async function itemMenu(name: string, action: string) {
 	await page.getByRole("button", { name: `${name} actions`, exact: true }).click();
 	await page.getByRole("menuitem", { name: action }).click();
@@ -558,7 +564,8 @@ describe("Expandable items inside a block", () => {
 		expect(quotesOf(onValue)).toEqual([maya, jonas, jonas, ines]);
 		const copies = page.getByRole("button", { name: "Jonas Berg", exact: true });
 		await expect.element(copies.nth(0)).toHaveAttribute("aria-expanded", "false");
-		await expect.element(copies.nth(1)).toHaveAttribute("aria-expanded", "true");
+		await expect.element(copies.nth(1)).toHaveAttribute("aria-expanded", "false");
+		await copies.nth(1).click();
 		await page.getByRole("textbox", { name: "Role or title" }).fill("Head of Operations");
 		const copy = { ...jonas, role: "Head of Operations" };
 		expect(quotesOf(onValue)).toEqual([maya, jonas, copy, ines]);
@@ -926,6 +933,7 @@ describe("Lists inside a block in the editor", () => {
 		const title = page.getByRole("textbox", { name: "Author name", exact: true });
 		await expect.element(title).toHaveFocus();
 		const item = title.element().closest("[data-list-item]")!;
+		await addMotionSettled();
 		const addItemTop = box(addItem).top;
 
 		for (let tabs = 0; tabs < 12 && item.contains(document.activeElement); tabs++) {
@@ -960,21 +968,27 @@ describe("Lists inside a block in the editor", () => {
 				addItem: box(addItem).top - headBox.top,
 			};
 		};
+		await addMotionSettled();
 		const before = layout();
 		const quietRing = getComputedStyle(role.element()).boxShadow;
 
 		await save();
 		expect(onSave).not.toHaveBeenCalled();
-		await expect.element(quote).toHaveFocus();
+		// The title comes first on screen, in the item's head.
+		await expect.element(title).toHaveFocus();
 		await expect.element(quote).toHaveAttribute("aria-invalid", "true");
 		await expect.element(title).toHaveAttribute("aria-invalid", "true");
 		await expect.element(role).not.toHaveAttribute("aria-invalid");
 		expect(layout()).toEqual(before);
-		expect(getComputedStyle(title.element()).boxShadow).toBe(quietRing);
-		expect(shownText("Required")).toBeUndefined();
+		expect(getComputedStyle(quote.element()).boxShadow).toBe(quietRing);
+		const item = head.closest("[data-list-item]")!;
+		const required = [...item.querySelectorAll("*")].filter(
+			(element) => element.textContent === "Required" && element.checkVisibility(),
+		);
+		expect(required.length).toBeGreaterThanOrEqual(2);
 	});
 
-	it("shows Required under an empty required item title, whose placeholder is its label, while it has focus", async () => {
+	it("shows Required at the end of an empty required item title's line, whose placeholder is its label", async () => {
 		await renderEditor([testimonialsBlock([maya, { ...jonas, author: "" }])], [testimonials]);
 
 		await page.getByRole("textbox", { name: "Title" }).fill("Home page");
@@ -986,7 +1000,8 @@ describe("Lists inside a block in the editor", () => {
 		await expect.poll(() => shownText("Required")).toBeDefined();
 		const error = shownText("Required")!.getBoundingClientRect();
 		expect(error.width).toBeGreaterThan(20);
-		expect(error.top).toBeGreaterThanOrEqual(box(title).bottom);
+		expect(error.top).toBeGreaterThanOrEqual(box(title).top);
+		expect(error.bottom).toBeLessThanOrEqual(box(title).bottom);
 		const head = title.element().closest("[data-item-control]")!.parentElement!;
 		const closedHead = page
 			.getByRole("button", { name: "Maya Okafor", exact: true })
@@ -994,7 +1009,7 @@ describe("Lists inside a block in the editor", () => {
 		expect(head.getBoundingClientRect().height).toBe(closedHead.getBoundingClientRect().height);
 
 		await page.getByRole("textbox", { name: "Quote", exact: true }).click();
-		await expect.poll(() => shownText("Required")).toBeUndefined();
+		await expect.poll(() => shownText("Required")).toBeDefined();
 		await expect.element(title).toHaveAttribute("aria-invalid", "true");
 	});
 

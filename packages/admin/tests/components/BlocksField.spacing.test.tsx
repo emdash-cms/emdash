@@ -149,7 +149,8 @@ function gap(above: Locator | Element, below: Locator | Element): number {
 }
 
 const control = (name: string) => page.getByRole("textbox", { name, exact: true });
-const label = (text: string) => page.getByText(text, { exact: true }).first();
+const label = (text: string) =>
+	page.getByText(text, { exact: true }).first().element().closest('label, [id$="-label"]')!;
 const itemOf = (title: string) =>
 	page.getByRole("button", { name: title, exact: true }).element().closest('[role="listitem"]')!;
 

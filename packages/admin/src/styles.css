@@ -68,6 +68,12 @@
 @theme {
 	/* A strong ease-out: fast to respond, gentle to settle. */
 	--ease-emdash: cubic-bezier(0.22, 1, 0.36, 1);
+	/*
+	 * For anything that moves rows: a gentler start, so no frame carries the rows below a panel
+	 * too far. `DISCLOSURE_EASE` in block-field-styles.ts is the same curve.
+	 */
+	--ease-emdash-disclosure: cubic-bezier(0.33, 1, 0.68, 1);
+	--animate-emdash-popup-in: emdash-popup-in 150ms var(--ease-emdash);
 	/* A hover wash that darkens or lightens whatever surface it's on, so nested rows and cards hover alike. */
 	--color-emdash-hover: light-dark(oklch(0% 0 0 / 0.045), oklch(100% 0 0 / 0.06));
 	--text-color-emdash-media-folder: light-dark(var(--color-blue-500), var(--color-blue-400));
@@ -916,41 +922,38 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 @custom-variant blocks-gutter (@media (min-width: 40rem) and (hover: hover) and (pointer: fine));
 
 /*
- * Kumo's Select popup takes no class, so a quiet select's options mark it. It sizes to its
- * options instead of its trigger, stays short enough to scroll, and opens like a dropdown menu.
- * The opening is a keyframe animation rather than a transition from `data-starting-style`, so it
- * runs from the popup's first frame instead of the frame after.
+ * A blocks field's popups (menus, the block picker, a quiet select) open with this from their
+ * first frame, rather than with a transition from `data-starting-style`, which starts a frame later.
  */
-@keyframes emdash-select-popup-in {
+@keyframes emdash-popup-in {
 	from {
 		opacity: 0;
-		scale: 0.95;
+		scale: 0.97;
+	}
+	to {
+		opacity: 1;
+		scale: 1;
 	}
 }
 
+/*
+ * Kumo's Select popup takes no class, so a quiet select's options mark it. It sizes to its
+ * options instead of its trigger, stays short enough to scroll, opens like the field's menus and
+ * goes at once after a choice.
+ */
 div:has(> [role="listbox"] > .emdash-block-option) {
 	min-width: min(12rem, var(--available-width));
 	max-width: min(20rem, var(--available-width));
 	max-height: min(17.5rem, var(--available-height));
 	transform-origin: var(--transform-origin);
-	transition:
-		opacity 150ms var(--default-transition-timing-function),
-		scale 150ms var(--default-transition-timing-function);
 }
 
 div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
-	animation: emdash-select-popup-in 150ms var(--default-transition-timing-function);
-}
-
-div:has(> [role="listbox"] > .emdash-block-option)[data-ending-style] {
-	opacity: 0;
-	scale: 0.95;
+	animation: var(--animate-emdash-popup-in);
 }
 
 @media (prefers-reduced-motion: reduce) {
-	div:has(> [role="listbox"] > .emdash-block-option),
 	div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
-		transition: none;
 		animation: none;
 	}
 }

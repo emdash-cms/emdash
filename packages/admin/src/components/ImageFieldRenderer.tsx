@@ -108,6 +108,14 @@ function mediaItemToImageFieldValue(item: MediaItem): ImageFieldValue {
 	});
 }
 
+/**
+ * Offers to put back a photo removed from a labelled image field, such as one in a block. It's
+ * called with the photo removed, and calls `restored` once it puts the photo back.
+ */
+export const ImageRemovalContext = React.createContext<
+	((removed: ImageFieldValue | string, restored: () => void) => void) | null
+>(null);
+
 export interface ImageFieldRendererProps {
 	id?: string;
 	label: string;
@@ -147,7 +155,8 @@ const THUMB_REVEAL = cn(
 	HOVER_REVEAL,
 	"group-hover/thumb:opacity-100 group-hover/thumb:duration-100 group-[:not([data-quiet-focus]):has(:focus-visible)]/thumb:opacity-100",
 );
-const PHOTO_ACTION = "bg-kumo-base/85 shadow-sm backdrop-blur-sm not-disabled:hover:bg-kumo-base";
+const PHOTO_ACTION =
+	"bg-kumo-base/85 shadow-sm backdrop-blur-sm not-disabled:hover:bg-kumo-base pointer-coarse:h-11 pointer-coarse:min-w-11";
 
 export function ImageFieldRenderer({
 	id,
@@ -177,6 +186,12 @@ export function ImageFieldRenderer({
 	const [darkImageBroken, setDarkImageBroken] = React.useState(false);
 	const mobileImageActionsRef = React.useRef<HTMLButtonElement>(null);
 	const quietFocus = useQuietReturnFocus();
+	const offerRestore = React.useContext(ImageRemovalContext);
+	/** The labelled slot's own button: Select image, or Replace beside a thumbnail. */
+	const slotButtonRef = React.useRef<HTMLButtonElement>(null);
+	const photoReplaceRef = React.useRef<HTMLButtonElement>(null);
+	/** Where focus goes once the photo has gone, or come back. */
+	const focusNextRef = React.useRef<"slot" | "photo" | null>(null);
 	const [editedContentHashes, setEditedContentHashes] = React.useState<
 		Record<string, string | null | undefined>
 	>({});
@@ -287,8 +302,30 @@ export function ImageFieldRenderer({
 	};
 
 	const handleRemove = () => {
+		const removed = value;
+		if (!labelled) {
+			onChange(null);
+			return;
+		}
+		focusNextRef.current = "slot";
 		onChange(null);
+		if (removed && offerRestore) {
+			offerRestore(removed, () => {
+				focusNextRef.current = "photo";
+			});
+		}
 	};
+
+	// A removed photo's actions go with it, so focus moves on to the slot's own button, and to the
+	// photo's Replace when Undo puts it back. Beside a thumbnail, or in a table cell, that button stays.
+	React.useLayoutEffect(() => {
+		const next = focusNextRef.current;
+		if (!next || (next === "photo") !== Boolean(displayUrl)) return;
+		focusNextRef.current = null;
+		const dropped = !document.activeElement || document.activeElement === document.body;
+		if (next === "slot" && !dropped) return;
+		(next === "photo" && !thumbnail ? photoReplaceRef : slotButtonRef).current?.focus();
+	}, [displayUrl, thumbnail]);
 
 	const handleRemoveDarkVariant = () => {
 		if (!objectValue) return;
@@ -371,6 +408,7 @@ export function ImageFieldRenderer({
 	const photoActions = (
 		<>
 			<Button
+				ref={photoReplaceRef}
 				type="button"
 				size="sm"
 				variant="secondary"
@@ -718,6 +756,7 @@ export function ImageFieldRenderer({
 			>
 				{cell ? (
 					<Button
+						ref={slotButtonRef}
 						type="button"
 						variant="ghost"
 						shape="square"
@@ -735,6 +774,7 @@ export function ImageFieldRenderer({
 					<>
 						<span className={cn(frame, "me-1")}>{preview}</span>
 						<Button
+							ref={slotButtonRef}
 							type="button"
 							variant="ghost"
 							size="sm"
@@ -869,6 +909,7 @@ export function ImageFieldRenderer({
 				/>
 			) : (
 				<Button
+					ref={labelled ? slotButtonRef : undefined}
 					type="button"
 					variant="outline"
 					className={cn(
