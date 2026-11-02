@@ -32,9 +32,17 @@ export function StatusWidget() {
 	if (!status.connected) {
 		return (
 			<WidgetBody
-				title="AI Search is not connected"
-				description="Add an AI Search namespace binding to your Wrangler configuration and deploy again."
-				action={<SettingsLink label="See how" />}
+				title={
+					status.credentialsRejected
+						? "Cloudflare rejected the API token"
+						: "AI Search is not connected"
+				}
+				description={
+					status.credentialsRejected
+						? "Set a new API token to keep the index up to date."
+						: "Connect it with a Cloudflare API token, or add an AI Search binding on Cloudflare Workers."
+				}
+				action={<SettingsLink label={status.credentialsRejected ? "Open settings" : "Connect"} />}
 			/>
 		);
 	}

@@ -156,6 +156,10 @@ test.describe("Menus", () => {
 			const itemRow = page.locator(".border.rounded-lg").filter({ hasText: "To Delete" });
 			await itemRow.locator("button").last().click();
 
+			const dialog = page.getByRole("dialog", { name: "Delete menu item?" });
+			await dialog.getByRole("button", { name: "Delete" }).click();
+			await expect(dialog).not.toBeVisible();
+
 			// Item should be removed
 			await admin.waitForLoading();
 			await expect(page.locator("text=To Delete")).not.toBeVisible();

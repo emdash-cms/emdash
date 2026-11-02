@@ -97,7 +97,7 @@ export function fakeEmDash(records: {
 }) {
 	const entries = records.entries ?? [];
 	const bylines = records.bylines ?? [];
-	const deps: Omit<IndexerDeps, "items"> = {
+	const deps: Omit<IndexerDeps, "provider"> = {
 		snapshot: memorySnapshot(),
 		content: {
 			get: async (_collection, id) => entries.find((item) => item.id === id) ?? null,

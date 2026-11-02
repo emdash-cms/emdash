@@ -1,15 +1,8 @@
 /**
- * Regression test for https://github.com/emdash-cms/emdash/issues/845
- *
- * Several admin forms use `<input pattern="...">` for slug-style identifiers.
- * Modern browsers compile that attribute as a regex with the `v`
- * (unicode-sets) flag, where unescaped/dangling `-` inside a character class
- * is a syntax error. The original `[a-z0-9-]+` therefore failed with
- * `Invalid character class` and disabled HTML form validation entirely on
- * the affected inputs.
- *
- * This test asserts that every slug-style `pattern` attribute in the admin
- * is a valid `v`-flag regex.
+ * Slug-style identifiers in the create dialogs take lowercase letters,
+ * numbers, and hyphens. A hyphen has broken this check before (a `pattern`
+ * attribute that browsers could not compile switched validation off), so each
+ * dialog must still accept a hyphenated value and refuse anything else.
  */
 
 import { Toasty } from "@cloudflare/kumo";
@@ -17,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import "../../dist/styles.css";
 import { render } from "../utils/render.tsx";
 
 // ---------------------------------------------------------------------------
@@ -71,9 +65,12 @@ vi.mock("../../src/lib/api", async () => {
 });
 
 // Imported lazily so the mocks above are in place
+const api = await import("../../src/lib/api");
 const { Sections } = await import("../../src/components/Sections");
 const { MenuList } = await import("../../src/components/MenuList");
 const { Widgets } = await import("../../src/components/Widgets");
+
+const SLUG_RULE = "Use lowercase letters, numbers, and hyphens.";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -90,62 +87,96 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 	);
 }
 
-/**
- * Asserts that every `<input pattern="...">` currently in the document is a
- * valid regex when compiled with the `v` flag — which is what the browser
- * does for HTML form validation.
- */
-function expectAllPatternsValidV() {
-	const inputs = [...document.querySelectorAll<HTMLInputElement>("input[pattern]")];
-	expect(inputs.length).toBeGreaterThan(0);
-	for (const input of inputs) {
-		const pattern = input.getAttribute("pattern");
-		expect(pattern, "input pattern attribute should be set").toBeTruthy();
-		expect(
-			() => new RegExp(pattern as string, "v"),
-			`pattern ${JSON.stringify(pattern)} on input name=${JSON.stringify(input.name)} must compile with the 'v' flag`,
-		).not.toThrow();
-	}
-}
-
 beforeEach(() => {
 	vi.clearAllMocks();
 });
 
-describe("slug pattern attributes are valid v-flag regexes (issue #845)", () => {
-	it("Sections create dialog slug input pattern is valid", async () => {
+describe("slug-style identifiers accept hyphens and refuse other characters", () => {
+	it("Sections create dialog", async () => {
+		vi.mocked(api.createSection).mockResolvedValue({ slug: "hero-banner" } as Awaited<
+			ReturnType<typeof api.createSection>
+		>);
 		const screen = await render(
 			<Wrapper>
 				<Sections />
 			</Wrapper>,
 		);
 		await screen.getByText("New Section").click();
-		// Wait for the dialog to render
-		await expect.element(screen.getByLabelText("Slug")).toBeInTheDocument();
-		expectAllPatternsValidV();
+		const dialog = screen.getByRole("dialog", { name: "Create section" });
+		await dialog.getByRole("textbox", { name: "Title", exact: true }).fill("Hero banner");
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+
+		await slug.fill("hero banner");
+		await dialog.getByRole("button", { name: "Create section" }).click();
+		await expect.element(dialog.getByText(SLUG_RULE)).toBeVisible();
+		expect(api.createSection).not.toHaveBeenCalled();
+
+		await slug.fill("hero-banner");
+		await dialog.getByRole("button", { name: "Create section" }).click();
+		await vi.waitFor(() =>
+			expect(vi.mocked(api.createSection).mock.calls[0]?.[0]).toMatchObject({
+				slug: "hero-banner",
+			}),
+		);
 	});
 
-	it("MenuList create dialog name input pattern is valid", async () => {
+	it("MenuList create dialog", async () => {
+		vi.mocked(api.createMenu).mockResolvedValue({
+			name: "footer-links",
+			label: "Footer links",
+		} as Awaited<ReturnType<typeof api.createMenu>>);
 		const screen = await render(
 			<Wrapper>
 				<MenuList />
 			</Wrapper>,
 		);
-		// "Create Menu" button opens the create dialog. With empty menus, two
-		// buttons render (header trigger + empty state CTA). Click the first.
+		// With no menus, the header and the empty state both offer "Create Menu".
 		await screen.getByText("Create Menu").first().click();
-		await expect.element(screen.getByLabelText("Name")).toBeInTheDocument();
-		expectAllPatternsValidV();
+		const dialog = screen.getByRole("dialog", { name: "Create menu" });
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("Footer links");
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+
+		await name.fill("footer_links");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+		await expect.element(dialog.getByText(SLUG_RULE)).toBeVisible();
+		expect(api.createMenu).not.toHaveBeenCalled();
+
+		await name.fill("footer-links");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+		await vi.waitFor(() =>
+			expect(vi.mocked(api.createMenu).mock.calls[0]?.[0]).toMatchObject({
+				name: "footer-links",
+			}),
+		);
 	});
 
-	it("Widgets create-area dialog name input pattern is valid", async () => {
+	it("Widgets create-area dialog", async () => {
+		vi.mocked(api.createWidgetArea).mockResolvedValue({
+			id: "a1",
+			name: "main-sidebar",
+			label: "Main sidebar",
+		});
 		const screen = await render(
 			<Wrapper>
 				<Widgets />
 			</Wrapper>,
 		);
 		await screen.getByText("Add Widget Area").click();
-		await expect.element(screen.getByLabelText("Name")).toBeInTheDocument();
-		expectAllPatternsValidV();
+		const dialog = screen.getByRole("dialog", { name: "Create Widget Area" });
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("Main sidebar");
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+
+		await name.fill("Main Sidebar");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+		await expect.element(dialog.getByText(SLUG_RULE)).toBeVisible();
+		expect(api.createWidgetArea).not.toHaveBeenCalled();
+
+		await name.fill("main-sidebar");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+		await vi.waitFor(() =>
+			expect(vi.mocked(api.createWidgetArea).mock.calls[0]?.[0]).toMatchObject({
+				name: "main-sidebar",
+			}),
+		);
 	});
 });

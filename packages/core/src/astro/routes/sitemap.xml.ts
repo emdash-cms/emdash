@@ -12,12 +12,11 @@
 import type { APIRoute } from "astro";
 
 import { handleSitemapIndexData } from "#api/handlers/seo.js";
-import { getPublicOrigin } from "#api/public-url.js";
+import { getPublicSiteUrl } from "#api/public-url.js";
 import { getSiteSettingsWithDb } from "#settings/index.js";
 
 export const prerender = false;
 
-const TRAILING_SLASH_RE = /\/$/;
 const AMP_RE = /&/g;
 const LT_RE = /</g;
 const GT_RE = />/g;
@@ -36,10 +35,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
 
 	try {
 		const settings = await getSiteSettingsWithDb(emdash.db);
-		const siteUrl = (settings.url || getPublicOrigin(url, emdash?.config)).replace(
-			TRAILING_SLASH_RE,
-			"",
-		);
+		const siteUrl = getPublicSiteUrl(url, emdash.config, settings.url, import.meta.env.BASE_URL);
 
 		const result = await handleSitemapIndexData(emdash.db);
 

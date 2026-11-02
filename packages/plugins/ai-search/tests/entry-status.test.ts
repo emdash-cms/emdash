@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { SearchDocument } from "../src/documents.js";
 import { entryIndexStatus } from "../src/entry-status.js";
 import type { Exclusion } from "../src/indexer.js";
+import type { Item, ItemStatus } from "../src/ports/ai-search.js";
 import type { RetryQueue } from "../src/retry.js";
 
 const record = { source: "posts", id: "entry-1" };
@@ -14,7 +15,7 @@ const document = {
 	context: [],
 } as unknown as SearchDocument;
 
-function item(status: AiSearchItemInfo["status"], hash = "new"): AiSearchItemInfo {
+function item(status: ItemStatus, hash = "new"): Item {
 	return {
 		id: "item-1",
 		key: "posts/entry-1.md",
@@ -27,15 +28,11 @@ function item(status: AiSearchItemInfo["status"], hash = "new"): AiSearchItemInf
 			excerpt: "",
 			hash,
 		},
-		last_seen_at: "2026-09-28 19:42:15",
-	} as AiSearchItemInfo;
+		updatedAt: "2026-09-28T19:42:15Z",
+	};
 }
 
-function statusOf(
-	plan: SearchDocument | Exclusion,
-	indexed: AiSearchItemInfo | null,
-	queue = emptyQueue,
-) {
+function statusOf(plan: SearchDocument | Exclusion, indexed: Item | null, queue = emptyQueue) {
 	return entryIndexStatus(
 		{ plan: async () => plan, indexedItem: async () => indexed },
 		queue,

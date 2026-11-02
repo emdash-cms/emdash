@@ -2,6 +2,7 @@ import type { CollectionSchemaInfo } from "emdash";
 import { describe, expect, it } from "vitest";
 
 import { resultLabels } from "../src/config.js";
+import type { SearchChunk, SearchQuery } from "../src/ports/ai-search.js";
 import {
 	parseSearchRequest,
 	type SearchInput,
@@ -10,38 +11,30 @@ import {
 } from "../src/search.js";
 import { config } from "./fakes.js";
 
-type Chunk = AiSearchSearchResponse["chunks"][number];
-
-function chunk(key: string, score: number, metadata: Record<string, unknown> = {}): Chunk {
+function chunk(key: string, metadata: Record<string, unknown> = {}): SearchChunk {
 	return {
-		id: `${key}-${score}`,
-		type: "text",
-		score,
-		text: "",
-		item: {
-			key,
-			metadata: {
-				source: "posts",
-				locale: "en",
-				title: key,
-				url: `/${key}`,
-				excerpt: "",
-				hash: "hash",
-				...metadata,
-			},
+		key,
+		metadata: {
+			source: "posts",
+			locale: "en",
+			title: key,
+			url: `/${key}`,
+			excerpt: "",
+			hash: "hash",
+			...metadata,
 		},
 	};
 }
 
-function instanceReturning(chunks: Chunk[]) {
-	const requests: AiSearchSearchRequest[] = [];
-	const instance = {
-		search: async (request: AiSearchSearchRequest) => {
+function providerReturning(chunks: SearchChunk[]) {
+	const requests: SearchQuery[] = [];
+	const provider = {
+		search: async (request: SearchQuery) => {
 			requests.push(request);
-			return { search_query: "", chunks };
+			return chunks;
 		},
-	} as unknown as AiSearchInstance;
-	return { instance, requests };
+	};
+	return { provider, requests };
 }
 
 const all = () => true;
@@ -54,37 +47,28 @@ const input = (overrides: Partial<SearchInput> = {}): SearchInput => ({
 
 describe("searchIndex", () => {
 	it("returns one result per document in AI Search's ranking, boosted by priority", async () => {
-		const { instance, requests } = instanceReturning([
-			chunk("a", 0.9),
-			chunk("b", 0.7),
-			chunk("a", 0.5),
-		]);
+		const { provider, requests } = providerReturning([chunk("a"), chunk("b"), chunk("a")]);
 
-		const hits = await searchIndex(instance, input(), all);
+		const hits = await searchIndex(provider, input(), all);
 
 		expect(hits.map((hit) => hit.title)).toEqual(["a", "b"]);
-		expect(requests[0]?.ai_search_options?.retrieval?.boost_by).toEqual([
-			{ field: "priority", direction: "desc" },
-		]);
+		expect(requests[0]?.boostBy).toBe("priority");
 	});
 
 	it("skips chunks from items without display metadata", async () => {
-		const { instance } = instanceReturning([
-			chunk("a", 0.9, { title: undefined }),
-			chunk("b", 0.5),
-		]);
+		const { provider } = providerReturning([chunk("a", { title: undefined }), chunk("b")]);
 
-		const hits = await searchIndex(instance, input(), all);
+		const hits = await searchIndex(provider, input(), all);
 
 		expect(hits.map((hit) => hit.title)).toEqual(["b"]);
 	});
 
 	it("filters by locale in AI Search and caps the result count", async () => {
-		const { instance, requests } = instanceReturning([chunk("a", 0.9), chunk("b", 0.8)]);
+		const { provider, requests } = providerReturning([chunk("a"), chunk("b")]);
 
-		const hits = await searchIndex(instance, input({ locale: "pt", limit: 1 }), all);
+		const hits = await searchIndex(provider, input({ locale: "pt", limit: 1 }), all);
 
-		expect(requests[0]?.ai_search_options?.retrieval?.filters).toEqual({ locale: "pt" });
+		expect(requests[0]?.filters).toEqual({ locale: "pt" });
 		expect(hits).toHaveLength(1);
 	});
 });
@@ -118,14 +102,14 @@ describe("searchResponse", () => {
 	}
 
 	it("groups results by the labels saved with the config, without disabled sources", async () => {
-		const { instance } = instanceReturning([
-			chunk("a", 0.9),
-			chunk("b", 0.8, { source: "pages" }),
-			chunk("c", 0.7, { source: "_authors" }),
+		const { provider } = providerReturning([
+			chunk("a"),
+			chunk("b", { source: "pages" }),
+			chunk("c", { source: "_authors" }),
 		]);
 
 		const response = await searchResponse(
-			{ config: config({ labels: resultLabels(collections) }), instance },
+			{ config: config({ labels: resultLabels(collections) }), provider },
 			request,
 		);
 
@@ -142,11 +126,11 @@ describe("searchResponse", () => {
 	});
 
 	it("sends titles and excerpts as text for the search box, which reads them as HTML", async () => {
-		const { instance } = instanceReturning([
-			chunk("a", 0.9, { title: "<img src=x> & co", excerpt: "Use <b>bold</b>" }),
+		const { provider } = providerReturning([
+			chunk("a", { title: "<img src=x> & co", excerpt: "Use <b>bold</b>" }),
 		]);
 
-		const response = await searchResponse({ config: config(), instance }, request);
+		const response = await searchResponse({ config: config(), provider }, request);
 
 		const [result] = (await body(response)).result.chunks;
 		const { title, description } = result.item.metadata;

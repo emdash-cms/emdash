@@ -715,6 +715,7 @@ export type {
 
 // Search
 export {
+	SearchUnavailableError,
 	SEARCH_TOKENIZERS,
 	FTSManager,
 	search,

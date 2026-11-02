@@ -207,14 +207,28 @@ export class RedirectRepository {
 		for (let attempt = 0; attempt < REDIRECT_WRITE_LOCK_ATTEMPTS; attempt++) {
 			const now = Date.now();
 			const result = await this.db
-				.updateTable("_emdash_redirect_write_lock")
-				.set({
+				.insertInto("_emdash_redirect_write_lock")
+				.values({
+					id: REDIRECT_WRITE_LOCK_ID,
 					token,
 					expires_at: now + REDIRECT_WRITE_LEASE_MS,
-					generation: sql`generation + 1`,
+					generation: 1,
 				})
-				.where("id", "=", REDIRECT_WRITE_LOCK_ID)
-				.where((eb) => eb.or([eb("token", "=", ""), eb("expires_at", "<", now)]))
+				.onConflict((oc) =>
+					oc
+						.column("id")
+						.doUpdateSet({
+							token,
+							expires_at: now + REDIRECT_WRITE_LEASE_MS,
+							generation: sql`${sql.ref("_emdash_redirect_write_lock.generation")} + 1`,
+						})
+						.where((eb) =>
+							eb.or([
+								eb("_emdash_redirect_write_lock.token", "=", ""),
+								eb("_emdash_redirect_write_lock.expires_at", "<", now),
+							]),
+						),
+				)
 				.returning("generation")
 				.executeTakeFirst();
 			if (result) {

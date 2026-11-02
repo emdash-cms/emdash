@@ -116,6 +116,10 @@ The collection and entries use the real EmDash schema registry and content repos
 
 Create a runtime host when the result depends on EmDash orchestration. Fixtures write initial state without firing plugin hooks. Actions call the production runtime or handler boundary, and inspectors read observable state without invoking plugin code.
 
+`createPluginRuntimeTestHost()` runs `plugin:install` and then `plugin:activate` before resolving, before the test adds fixtures. Keep lifecycle setup independent of fixtures created afterward. A failure in the plugin's own lifecycle hook disables the plugin in the host, so subsequent actions will not invoke its hooks. Check `host.inspect.pluginState()` when diagnosing missing hook effects.
+
+Tasks scheduled during activation are visible through `host.inspect.scheduledTasks()` without calling `host.actions.plugin.activate()`. `host.restart()` preserves recorded plugin state, so successfully completed initial lifecycle hooks do not run again. An explicit `host.actions.plugin.activate()` runs another activation.
+
 For a plugin whose `content:beforeSave` hook appends ` [checked]` to the title, the following test proves that a content save reaches the hook:
 
 ```ts title="tests/plugin.test.ts"

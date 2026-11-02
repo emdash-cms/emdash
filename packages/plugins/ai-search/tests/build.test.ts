@@ -1,10 +1,11 @@
 import type { PluginContext } from "emdash";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { RestAiSearch } from "../src/adapters/rest.js";
 import { getBuild, recentBuildUploads, runBuild, startBuild } from "../src/build.js";
 import { Indexer, type PageResult } from "../src/indexer.js";
 import { getRetryQueue, queueRetries } from "../src/retry.js";
-import { FakeItems } from "./fake-ai-search.js";
+import { FakeAiSearch } from "./fake-ai-search.js";
 import { config, entry, fakeEmDash, memoryKv } from "./fakes.js";
 
 const CONFIG = config();
@@ -213,13 +214,13 @@ describe("build", () => {
 	it("removes an unpublished entry when the sweep resumes after its failure could not be queued", async () => {
 		const ctx = await buildContext();
 		const post = entry();
-		const items = new FakeItems();
-		const indexer = new Indexer({ ...fakeEmDash({ entries: [post] }), items }, CONFIG);
+		const items = new FakeAiSearch();
+		const indexer = new Indexer({ ...fakeEmDash({ entries: [post] }), provider: items }, CONFIG);
 		await startBuild(ctx, ["posts"]);
 		await runBuild(ctx, indexer, 10_000);
 		post.status = "draft";
-		const remove = items.delete.bind(items);
-		items.delete = async () => {
+		const remove = items.deleteItem.bind(items);
+		items.deleteItem = async () => {
 			throw new Error("AiSearchError: internal_error");
 		};
 		const compareAndSet = ctx.kv.compareAndSet;
@@ -230,7 +231,7 @@ describe("build", () => {
 
 		await startBuild(ctx, ["posts"]);
 		await expect(runBuild(ctx, indexer, 10_000)).rejects.toThrow("kv unavailable");
-		items.delete = remove;
+		items.deleteItem = remove;
 		ctx.kv.compareAndSet = compareAndSet;
 		await runBuild(ctx, indexer, 10_000);
 
@@ -321,6 +322,120 @@ describe("build", () => {
 
 		expect(indexer.calls).toBe(4);
 		expect(await getBuild(ctx)).toBeNull();
+	});
+
+	it("pauses a REST build once its requests, deletions included, reach its share of the limit", async () => {
+		const run = async (kind: "rest" | "binding") => {
+			const ctx = await buildContext();
+			await startBuild(ctx, ["posts"]);
+			await ctx.kv.set("build", { ...(await getBuild(ctx)), step: { phase: "sweep" } });
+			const provider = { kind, requests: 0 };
+			let pages = 0;
+			// Each sweep page deletes 50 items and uploads nothing.
+			const sweeping = {
+				...pagedIndexer(),
+				sweepPage: async () => {
+					pages++;
+					provider.requests += 50;
+					return { synced: [], uploaded: 0, failures: [], backOff: false, done: pages === 20 };
+				},
+			};
+			const build = await runBuild(ctx, sweeping, 10_000, provider);
+			return { pages, build };
+		};
+
+		const rest = await run("rest");
+		const binding = await run("binding");
+
+		expect(rest.pages).toBe(12);
+		expect(rest.build?.requests?.count).toBe(600);
+		expect(rest.build?.pausedUntil).toBeGreaterThan(Date.now());
+		expect(binding.pages).toBe(20);
+		expect(binding.build).toBeNull();
+	});
+
+	it("stops REST requests within a page at the budget and resumes its remaining records", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		const ctx = await buildContext();
+		const uploaded: string[] = [];
+		let requests = 0;
+		const provider = new RestAiSearch(
+			{ accountId: "account", apiToken: "token", namespace: "default" },
+			"emdash",
+			async (_input, init) => {
+				requests++;
+				if (init?.method === "GET") {
+					return Response.json({ success: true, result: [], result_info: { total_count: 0 } });
+				}
+				const form = init?.body as FormData;
+				const key = (form.get("file") as File).name;
+				uploaded.push(key);
+				return Response.json({
+					success: true,
+					result: {
+						id: key,
+						key,
+						status: "queued",
+						metadata: JSON.parse(form.get("metadata") as string),
+					},
+				});
+			},
+		);
+		const entries = Array.from({ length: 650 }, (_, id) => entry({ id: String(id) }));
+		const indexer = new Indexer({ ...fakeEmDash({ entries }), provider }, CONFIG);
+		await startBuild(ctx, ["posts"]);
+		const startedAt = Date.now();
+
+		const paused = await runBuild(ctx, indexer, 10_000, provider);
+
+		expect(requests).toBe(600);
+		expect(paused).toMatchObject({ requests: { count: 600 }, pausedUntil: startedAt + 5 * 60_000 });
+		vi.advanceTimersByTime(5 * 60_000);
+		expect(await runBuild(ctx, indexer, 10_000, provider)).toBeNull();
+		expect(uploaded).toHaveLength(entries.length);
+		expect(new Set(uploaded).size).toBe(entries.length);
+	});
+
+	it("counts a REST request even when its page throws, so a retry still respects the budget", async () => {
+		const ctx = await buildContext();
+		let requests = 0;
+		const provider = new RestAiSearch(
+			{ accountId: "account", apiToken: "token", namespace: "default" },
+			"emdash",
+			async () => {
+				requests++;
+				return Response.json({ success: false }, { status: 500 });
+			},
+		);
+		const indexer = new Indexer({ ...fakeEmDash({}), provider }, CONFIG);
+		await startBuild(ctx, ["posts"]);
+		await ctx.kv.set("build", {
+			...(await getBuild(ctx)),
+			requests: { since: Date.now(), count: 599 },
+		});
+
+		await expect(runBuild(ctx, indexer, 10_000, provider)).rejects.toMatchObject({
+			reason: "failed",
+		});
+		expect((await getBuild(ctx))?.requests?.count).toBe(600);
+		const paused = await runBuild(ctx, indexer, 10_000, provider);
+		expect(paused?.pausedUntil).toBeGreaterThan(Date.now());
+		expect(requests).toBe(1);
+	});
+
+	it("pauses for minutes instead of seconds when a rate-limited token is rejected", async () => {
+		const pausedFor = async (tokenRejected: boolean) => {
+			const ctx = await buildContext();
+			await startBuild(ctx, ["posts"]);
+			const build = await runBuild(ctx, pagedIndexer({ backOff: true }), 10_000, {
+				kind: "rest",
+				tokenRejected: async () => tokenRejected,
+			});
+			return (build?.pausedUntil ?? 0) - Date.now();
+		};
+
+		expect(await pausedFor(false)).toBeLessThanOrEqual(10_000);
+		expect(await pausedFor(true)).toBeGreaterThan(60_000);
 	});
 
 	it("pauses on a rate limit and retries the same page once the pause is over", async () => {
