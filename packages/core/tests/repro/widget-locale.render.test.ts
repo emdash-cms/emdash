@@ -86,6 +86,7 @@ describe("widgets on a translated site", () => {
 		expect(html.categories).toContain("News");
 		expect(html.tags).toContain('href="/en/tag/history"');
 		expect(html.recent).toContain("Museum news");
+		expect(html.recent).toContain('href="/en/posts/museum-news"');
 		expect(html.recentWithTemplate).toContain('href="/en/blog/museum-news"');
 		expect(html.archives).toContain('href="/en/archives/2025/01"');
 		expect(html.archives).toContain("(2)");
@@ -108,6 +109,7 @@ describe("widgets on a translated site", () => {
 		expect(html.categories).toContain('href="/category/novyny"');
 		expect(html.tags).toContain('href="/tag/istoriia"');
 		expect(html.recent).toContain("Новина музею");
+		expect(html.recent).toContain('href="/posts/novyna"');
 		expect(html.recentWithTemplate).toContain('href="/blog/novyna"');
 		expect(html.archives).toContain('href="/archives/2024/03"');
 		expect(html.archives).toContain("(1)");
