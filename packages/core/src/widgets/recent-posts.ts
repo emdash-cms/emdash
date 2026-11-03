@@ -60,3 +60,13 @@ export function isThumbnailImage(value: unknown): value is ImageValue | string {
 		typeof value === "object" && value !== null && "id" in value && typeof value.id === "string"
 	);
 }
+
+/**
+ * Put a root-relative URL under a locale's path prefix, such as `/en`,
+ * unless it is already there. Other URLs are returned unchanged.
+ */
+export function withLocalePrefix(url: string, prefix: string): string {
+	if (!prefix || !url.startsWith("/") || url.startsWith("//")) return url;
+	if (url === prefix || url.startsWith(`${prefix}/`)) return url;
+	return `${prefix}${url}`;
+}

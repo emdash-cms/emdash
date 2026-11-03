@@ -1,6 +1,7 @@
 ---
 import { getEmDashCollection } from "../../query.js";
 import { getI18nConfig } from "../../i18n/config.js";
+import { localePathPrefix } from "../../i18n/resolve.js";
 import { getSiteSettings } from "../../settings/index.js";
 import { sanitizeHref } from "../../utils/url.js";
 import EmDashImage from "../EmDashImage.astro";
@@ -9,6 +10,7 @@ import {
 	createPublishedDateFormatter,
 	isThumbnailImage,
 	toPublishedDate,
+	withLocalePrefix,
 } from "../../widgets/recent-posts.js";
 
 interface Props {
@@ -25,9 +27,12 @@ const [{ entries: posts }, settings] = await Promise.all([
 	getEmDashCollection("posts", {
 		limit: count,
 		orderBy: { published_at: "desc" },
+		locale: Astro.currentLocale,
 	}),
 	showDate ? getSiteSettings() : undefined,
 ]);
+
+const localePrefix = urlTemplate ? await localePathPrefix(Astro.currentLocale) : "";
 
 const dateFormatter = createPublishedDateFormatter({
 	locale: Astro.currentLocale ?? getI18nConfig()?.defaultLocale,
@@ -49,16 +54,20 @@ function getTitle(data: Record<string, unknown>): string | undefined {
 			// `post.id` is the loader's slug (or `locale/slug` with i18n
 			// prefixing), so the locale prefix is preserved. With a template,
 			// use the same token semantics as LiveSearch's routeMap — `:id`
-			// is the content ULID (`data.id`), `:slug` the bare slug.
+			// is the content ULID (`data.id`), `:slug` the bare slug — and
+			// put the result under the page's locale prefix.
 			const href = urlTemplate
 				? sanitizeHref(
-						buildLiveSearchResultUrl(
-							{
-								collection: "posts",
-								id: typeof post.data.id === "string" ? post.data.id : post.id,
-								slug: typeof post.data.slug === "string" ? post.data.slug : post.id,
-							},
-							{ posts: urlTemplate },
+						withLocalePrefix(
+							buildLiveSearchResultUrl(
+								{
+									collection: "posts",
+									id: typeof post.data.id === "string" ? post.data.id : post.id,
+									slug: typeof post.data.slug === "string" ? post.data.slug : post.id,
+								},
+								{ posts: urlTemplate },
+							),
+							localePrefix,
 						),
 					)
 				: `/posts/${post.id}`;
