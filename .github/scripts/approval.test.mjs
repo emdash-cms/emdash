@@ -166,6 +166,8 @@ describe("Maintainer review status", () => {
 		["adds a write permission", "+  contents: write"],
 		["requests an OIDC token", "+      id-token: write"],
 		["uses a secret", "+          TOKEN: ${{ secrets.APP_PRIVATE_KEY }}"],
+		["uses a secret in capitals", "+          TOKEN: ${{ SECRETS.APP_PRIVATE_KEY }}"],
+		["spells a secret with a YAML escape", '+          TOKEN: "${{ \\x73ecrets.APP_ID }}"'],
 		["removes its permissions", "-permissions:"],
 		["adds a pull_request_target trigger", "+  pull_request_target:"],
 		["adds a workflow_run trigger", "+  workflow_run:"],
@@ -178,8 +180,8 @@ describe("Maintainer review status", () => {
 
 	for (const { change, files } of [
 		{
-			change: "adds a workflow",
-			files: [{ filename: ".github/workflows/lint.yml", status: "added", patch: "+name: Lint" }],
+			change: "adds a workflow under a read-only workflow's name",
+			files: [{ filename: ".github/workflows/ci.yml", status: "added", patch: "+name: CI" }],
 		},
 		{
 			change: "renames a workflow to a read-only workflow's name",

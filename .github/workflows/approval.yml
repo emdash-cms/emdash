@@ -104,6 +104,8 @@ jobs:
             // this repository's context, or that hand it a caller's token and
             // secrets.
             const privilegedEvents = [
+              'check_run',
+              'check_suite',
               'discussion',
               'discussion_comment',
               'fork',
@@ -115,8 +117,12 @@ jobs:
               'workflow_call',
               'workflow_run',
             ];
+            // Expressions ignore case, and an escape in a double-quoted YAML
+            // string can spell any of these words, so case is ignored and any
+            // backslash counts.
             const privilegeChange = new RegExp(
-              `permissions|secrets|\\bwrite\\b|\\b(?:${privilegedEvents.join('|')})\\b`,
+              `permissions|secrets|\\bwrite\\b|\\\\|\\b(?:${privilegedEvents.join('|')})\\b`,
+              'i',
             );
 
             // Removed lines count too: deleting `permissions:` hands the workflow
