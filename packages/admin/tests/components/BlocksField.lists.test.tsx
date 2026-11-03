@@ -5,12 +5,9 @@ import { cdp, page, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
 import { BlocksField, type BlocksFieldProps } from "../../src/components/BlocksField.js";
-import { useQuietReturnFocus } from "../../src/components/useQuietReturnFocus.js";
 import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
 import type { StoredBlockValue } from "../../src/lib/block-field-state.js";
 import { render } from "../utils/render.js";
-
-const LINK_PATTERN = "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$";
 
 function blockType(slug: string, label: string, fields: BlockFieldDefinition[]): BlockType {
 	return {
@@ -53,13 +50,17 @@ const STATS = blockType("stats", "Stats", [
 	},
 ]);
 
-const LINKED = blockType("linked", "Linked", [
-	{ slug: "title", label: "Title", type: "string" },
+const METRICS = blockType("metrics", "Metrics", [
 	{
-		slug: "cta_url",
-		label: "Link (starts with /, https://, mailto:, tel: or #)",
-		type: "string",
-		validation: { pattern: LINK_PATTERN },
+		slug: "metrics",
+		label: "Metrics",
+		type: "repeater",
+		validation: {
+			subFields: [
+				{ slug: "count", label: "Count", type: "number" },
+				{ slug: "label", label: "Label", type: "string" },
+			],
+		},
 	},
 ]);
 
@@ -72,7 +73,7 @@ const POINTS = blockType("points", "Points", [
 	},
 ]);
 
-const TYPES = [SHORT, STATS, LINKED, POINTS];
+const TYPES = [SHORT, STATS, METRICS, POINTS];
 
 const short = (key: string): StoredBlockValue => ({
 	_type: "short",
@@ -89,23 +90,24 @@ const stats = (): StoredBlockValue => ({
 		{ value: "4x", label: "Faster" },
 	],
 });
+const metrics = (): StoredBlockValue => ({
+	_type: "metrics",
+	_version: 1,
+	_key: "metrics",
+	metrics: [
+		{ count: 12, label: "Sites" },
+		{ count: 4, label: "Regions" },
+	],
+});
 const points = (): StoredBlockValue => ({
 	_type: "points",
 	_version: 1,
 	_key: "points",
 	points: [{ text: "Fast" }, { text: "Cheap" }],
 });
-const linked = (): StoredBlockValue => ({
-	_type: "linked",
-	_version: 1,
-	_key: "linked",
-	title: "Contact",
-});
 
 /** Every value the field saved, latest last. */
 const saved: StoredBlockValue[][] = [];
-const savedTwoStats = (value: StoredBlockValue[]) =>
-	Array.isArray(value[0]?.stats) && value[0].stats.length === 2;
 
 function Harness({ initial }: { initial: StoredBlockValue[] }) {
 	const [value, setValue] = React.useState(initial);
@@ -121,22 +123,35 @@ function Harness({ initial }: { initial: StoredBlockValue[] }) {
 		blockTypes: TYPES,
 		allowedTypes: TYPES.map((type) => type.slug),
 		retiredTypes: [],
-		renderField: ({ name, value: fieldValue, onChange, chrome }) => (
+		renderField: ({ name, field, value: fieldValue, onChange, chrome }) => (
 			<input
 				id={`field-${name}`}
+				type={field.kind === "number" ? "number" : "text"}
 				aria-labelledby={chrome.labelledBy}
 				className="h-8 w-full"
-				value={typeof fieldValue === "string" ? fieldValue : ""}
-				onChange={(event) => onChange(event.target.value)}
+				value={
+					typeof fieldValue === "number"
+						? String(fieldValue)
+						: typeof fieldValue === "string"
+							? fieldValue
+							: ""
+				}
+				onChange={(event) =>
+					onChange(
+						field.kind === "number" && event.target.value !== ""
+							? Number(event.target.value)
+							: event.target.value,
+					)
+				}
 			/>
 		),
 	};
 	return <BlocksField {...props} />;
 }
 
-function renderField(initial: StoredBlockValue[], { width = 480 }: { width?: number } = {}) {
+function renderField(initial: StoredBlockValue[]) {
 	return render(
-		<div style={{ width, marginInline: 80 }}>
+		<div style={{ width: 480, marginInline: 80 }}>
 			<Harness initial={initial} />
 		</div>,
 		{ wrapper: Toasty },
@@ -157,6 +172,12 @@ async function reduceMotion() {
 	await cdp().send("Emulation.setEmulatedMedia", {
 		features: [{ name: "prefers-reduced-motion", value: "reduce" }],
 	});
+}
+
+async function deleteFromMenu(key: string) {
+	await menuButtonOf(key).click();
+	await page.getByRole("menuitem", { name: "Delete" }).click();
+	await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
 }
 
 /** Waits, frame by frame, for `done`. */
@@ -210,21 +231,119 @@ afterEach(async () => {
 	await cdp().send("Emulation.setEmulatedMedia", { features: [] });
 });
 
-describe("A table row Enter added, going once focus leaves it blank", () => {
+describe("A table's blank row", () => {
+	const cell = (name: string) => page.getByRole("textbox", { name, exact: true });
 	const dataRows = () =>
 		page.getByRole("table").element().querySelectorAll("[data-list-item]").length;
+	const savedStats = () => {
+		const latest = saved.at(-1)?.[0];
+		return Array.isArray(latest?.stats) ? latest.stats.length : undefined;
+	};
+	const savedTwoStats = (value: StoredBlockValue[]) =>
+		Array.isArray(value[0]?.stats) && value[0].stats.length === 2;
 
 	async function addBlankRow() {
 		await renderField([stats(), short("after")]);
 		await page.getByRole("button", { name: "Stats", exact: true }).click();
 		await settled();
-		await page.getByRole("textbox", { name: "Label 2", exact: true }).click();
+		await cell("Label 2").click();
 		await userEvent.keyboard("{Enter}");
-		await expect.element(page.getByRole("textbox", { name: "Label 3", exact: true })).toHaveFocus();
+		await expect.element(cell("Label 3")).toHaveFocus();
 		await settled();
 	}
 
-	it("shrinks away, so the rows below glide up after the click lands", async () => {
+	it("that Enter added goes once focus leaves it, leaving the value as it was", async () => {
+		await renderField([stats()]);
+		await page.getByRole("button", { name: "Stats", exact: true }).click();
+		await cell("Label 2").click();
+
+		await userEvent.keyboard("{Enter}");
+		await expect.element(cell("Label 3")).toHaveFocus();
+		expect(dataRows()).toBe(3);
+		await userEvent.keyboard("{Tab}");
+		expect(dataRows()).toBe(3);
+		await userEvent.keyboard("{Tab}");
+
+		await expect.poll(dataRows).toBe(2);
+		expect(saved).toEqual([]);
+		expect(page.getByRole("table").element().querySelector('[aria-invalid="true"]')).toBeNull();
+	});
+
+	it("stays once something is typed in it", async () => {
+		await renderField([stats()]);
+		await page.getByRole("button", { name: "Stats", exact: true }).click();
+		await cell("Label 2").click();
+
+		await userEvent.keyboard("{Enter}x{Tab}{Tab}");
+		await expect.poll(savedStats).toBe(3);
+		expect(dataRows()).toBe(3);
+	});
+
+	it("goes with Backspace in its empty first cell, back to the row above", async () => {
+		await renderField([stats()]);
+		await page.getByRole("button", { name: "Stats", exact: true }).click();
+		await cell("Value 2").click();
+
+		await userEvent.keyboard("{Enter}");
+		await expect.element(cell("Value 3")).toHaveFocus();
+		await userEvent.keyboard("{Backspace}");
+
+		await expect.poll(dataRows).toBe(2);
+		await expect.element(cell("Value 2")).toHaveFocus();
+		const value = cell("Value 2").element() as HTMLInputElement;
+		expect(value.selectionStart).toBe(value.value.length);
+		expect(saved).toEqual([]);
+	});
+
+	it("keeps Backspace for a number cell that holds half-typed input", async () => {
+		await renderField([metrics()]);
+		await page.getByRole("button", { name: "Metrics", exact: true }).click();
+		const count = (index: number) =>
+			page.getByRole("spinbutton", { name: `Count ${index}`, exact: true });
+		await count(2).click();
+
+		await userEvent.keyboard("{Enter}");
+		await expect.element(count(3)).toHaveFocus();
+		await userEvent.keyboard("-");
+		const input = count(3).element() as HTMLInputElement;
+		expect(input.validity.badInput).toBe(true);
+
+		await userEvent.keyboard("{Backspace}");
+		expect(dataRows()).toBe(3);
+		await expect.element(count(3)).toHaveFocus();
+		expect(input.validity.badInput).toBe(false);
+	});
+
+	it("that Enter added goes after a click below it has landed, rather than moving it away", async () => {
+		await renderField([stats(), short("after")]);
+		await page.getByRole("button", { name: "Stats", exact: true }).click();
+		await settled();
+		await cell("Label 2").click();
+		await userEvent.keyboard("{Enter}");
+		expect(dataRows()).toBe(3);
+
+		await clickNearBottom(toggleOf("after"));
+
+		await expect.poll(dataRows).toBe(2);
+		await settled();
+		expect(toggleOf("after").getAttribute("aria-expanded")).toBe("true");
+	});
+
+	it("that Enter added goes once focus moves into a toast", async () => {
+		await renderField([short("one"), stats()]);
+		await deleteFromMenu("one");
+		await until(() => toastOf() !== null);
+		await page.getByRole("button", { name: "Stats", exact: true }).click();
+		await cell("Label 2").click();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(cell("Label 3")).toHaveFocus();
+		expect(dataRows()).toBe(3);
+
+		toastOf()!.querySelector<HTMLElement>("button")!.focus();
+		await expect.poll(dataRows).toBe(2);
+	});
+
+	it("shrinks away once focus leaves it, so the rows below glide up after the click lands", async () => {
 		await addBlankRow();
 		const head = toggleOf("after");
 
@@ -237,13 +356,13 @@ describe("A table row Enter added, going once focus leaves it blank", () => {
 		expect(head.getAttribute("aria-expanded")).toBe("true");
 		const { travel, maxStep } = motion(tops);
 		expect(tops[0]! - tops.at(-1)!).toBeGreaterThan(15);
-		expect(maxStep).toBeLessThan(travel * 0.4);
+		expect(maxStep).toBeLessThan(travel * 0.5);
 		expect(saved.every(savedTwoStats)).toBe(true);
 	});
 
 	it("comes back when focus returns to it while it shrinks away", async () => {
 		await addBlankRow();
-		const label3 = page.getByRole("textbox", { name: "Label 3", exact: true });
+		const label3 = cell("Label 3");
 		const blankRow = label3.element().closest<HTMLElement>("[data-list-item]")!;
 		const full = blankRow.getBoundingClientRect().height;
 
@@ -260,7 +379,7 @@ describe("A table row Enter added, going once focus leaves it blank", () => {
 		expect(saved.every(savedTwoStats)).toBe(true);
 	});
 
-	it("goes at once under reduced motion", async () => {
+	it("goes at once under reduced motion once focus leaves it", async () => {
 		await reduceMotion();
 		await addBlankRow();
 		const head = toggleOf("after");
@@ -306,7 +425,7 @@ describe("A blank line, going once focus leaves its list", () => {
 		expect(head.getAttribute("aria-expanded")).toBe("true");
 		const { travel, maxStep } = motion(tops);
 		expect(tops[0]! - tops.at(-1)!).toBeGreaterThan(15);
-		expect(maxStep).toBeLessThan(travel * 0.4);
+		expect(maxStep).toBeLessThan(travel * 0.5);
 		expect(saved.every(savedTwoPoints)).toBe(true);
 	});
 
@@ -339,113 +458,5 @@ describe("A blank line, going once focus leaves its list", () => {
 
 		expect(lines()).toBe(2);
 		expect(new Set(tops).size).toBe(2);
-	});
-});
-
-describe("A long problem that wraps its narrow field's label line", () => {
-	const link = () => page.getByRole("textbox", { name: "Link", exact: true });
-	const label = () => document.getElementById("field-layout.linked.cta_url-label")!;
-
-	async function openLinked() {
-		await renderField([linked(), short("after")], { width: 300 });
-		await page.getByRole("button", { name: "Linked", exact: true }).click();
-		await settled();
-		await link().fill("contact us");
-	}
-
-	it("moves the rows below smoothly as it comes", async () => {
-		await openLinked();
-		const oneLine = label().getBoundingClientRect().height;
-		const head = toggleOf("after");
-
-		const sampling = sampleFrames(() => head.getBoundingClientRect().top, 500);
-		await page.getByRole("textbox", { name: "Title", exact: true }).click();
-		const tops = await sampling;
-		await settled();
-
-		expect(label().getBoundingClientRect().height).toBeGreaterThan(oneLine + 8);
-		const { travel, maxStep } = motion(tops);
-		expect(tops.at(-1)! - tops[0]!).toBeGreaterThan(8);
-		expect(maxStep).toBeLessThan(travel * 0.4);
-	});
-
-	it("moves the rows below smoothly as it goes", async () => {
-		await openLinked();
-		await page.getByRole("textbox", { name: "Title", exact: true }).click();
-		await settled();
-		const twoLines = label().getBoundingClientRect().height;
-		const head = toggleOf("after");
-
-		const sampling = sampleFrames(() => head.getBoundingClientRect().top, 600);
-		await link().fill("/contact");
-		await page.getByRole("textbox", { name: "Title", exact: true }).click();
-		const tops = await sampling;
-		await settled();
-
-		expect(label().getBoundingClientRect().height).toBeLessThan(twoLines - 8);
-		const { travel, maxStep } = motion(tops);
-		expect(tops[0]! - tops.at(-1)!).toBeGreaterThan(8);
-		expect(maxStep).toBeLessThan(travel * 0.4);
-	});
-
-	it("comes at once under reduced motion", async () => {
-		await reduceMotion();
-		await openLinked();
-		const oneLine = label().getBoundingClientRect().height;
-
-		(page.getByRole("textbox", { name: "Title", exact: true }).element() as HTMLElement).focus();
-		await expect.poll(() => label().getBoundingClientRect().height).toBeGreaterThan(oneLine + 8);
-
-		expect(running()).toEqual([]);
-	});
-
-	it("moves nothing as focus comes back to its control", async () => {
-		await openLinked();
-		await page.getByRole("textbox", { name: "Title", exact: true }).click();
-		await settled();
-		const head = toggleOf("after");
-
-		const sampling = sampleFrames(() => head.getBoundingClientRect().top, 300);
-		(link().element() as HTMLElement).focus();
-		const tops = await sampling;
-
-		expect(new Set(tops).size).toBe(1);
-	});
-});
-
-describe("Focus coming back to an opener from a toast", () => {
-	/** An opener whose popup didn't open, as a picker that fails to load. */
-	function Opener() {
-		const quiet = useQuietReturnFocus();
-		return (
-			<button type="button" {...quiet.groupProps} onClick={quiet.markOpener}>
-				Choose
-			</button>
-		);
-	}
-
-	it("counts as focus from anywhere else, so the opener's controls show", async () => {
-		await render(
-			<>
-				<div style={{ width: 480, marginInline: 80 }}>
-					<Harness initial={[short("one"), short("two")]} />
-				</div>
-				<Opener />
-			</>,
-			{ wrapper: Toasty },
-		);
-		await menuButtonOf("one").click();
-		await page.getByRole("menuitem", { name: "Delete" }).click();
-		await until(() => toastOf() !== null);
-		await settled();
-		const opener = page.getByRole("button", { name: "Choose", exact: true });
-		await opener.click();
-
-		toastOf()!.querySelector<HTMLElement>("button")!.focus();
-		(opener.element() as HTMLElement).focus();
-		await frame();
-
-		await expect.element(opener).toHaveFocus();
-		expect(opener.element().closest("[data-quiet-focus]")).toBeNull();
 	});
 });

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cdp, page, userEvent, type Locator } from "vitest/browser";
 
 import "../../dist/styles.css";
+import { BlocksField, type BlocksFieldProps } from "../../src/components/BlocksField.js";
 import {
 	ContentEditor,
 	type ContentEditorProps,
@@ -12,6 +13,7 @@ import {
 } from "../../src/components/ContentEditor.js";
 import type { ContentItem } from "../../src/lib/api";
 import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
+import type { StoredBlockValue } from "../../src/lib/block-field-state.js";
 import { render } from "../utils/render.js";
 
 vi.mock("@tanstack/react-router", async () => {
@@ -46,9 +48,11 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 
 const LINK_PATTERN = "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$";
 const LINK_HINT = "Starts with /, https://, mailto:, tel: or #";
+const LINK_PROBLEM = `Invalid link. ${LINK_HINT}`;
 const SECTION_HINT = "Lowercase, for links like /#pricing";
 const PHOTO =
 	"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='9'/%3E";
+const PHOTO_HINT = "Shown at 16:9, at least 1600px wide";
 
 function blockType(slug: string, label: string, fields: BlockFieldDefinition[]): BlockType {
 	return {
@@ -159,6 +163,69 @@ const cardBlock = {
 	primary_cta_url: "/more",
 };
 
+const linkHero = blockType("hero", "Hero", [
+	{ slug: "headline", label: "Headline", type: "string", required: true },
+	{ slug: "primary_cta_label", label: "Primary button text", type: "string" },
+	{
+		slug: "primary_cta_url",
+		label: "Primary button link (starts with /, https://, mailto:, tel: or #)",
+		type: "string",
+		validation: { pattern: LINK_PATTERN },
+	},
+	{ slug: "site_url", label: "Website", type: "string", validation: { pattern: LINK_PATTERN } },
+]);
+
+const linkHeroBlock = {
+	_type: "hero",
+	_version: 1,
+	_key: "hero-1",
+	headline: "Every building, running at its best.",
+	primary_cta_label: "Book a demo",
+	primary_cta_url: "/contact",
+	site_url: "/",
+};
+
+const switchHero = blockType("hero", "Hero", [
+	{ slug: "headline", label: "Headline", type: "string", required: true },
+	{ slug: "primary_cta_label", label: "Primary button text", type: "string" },
+	{
+		slug: "primary_cta_url",
+		label: "Primary button link (starts with /, https://, mailto:, tel: or #)",
+		type: "string",
+		validation: { pattern: LINK_PATTERN },
+	},
+	{ slug: "centered", label: "Center the layout", type: "boolean" },
+]);
+
+const switchHeroBlock = {
+	_type: "hero",
+	_version: 1,
+	_key: "hero-1",
+	headline: "Every building, running at its best.",
+	primary_cta_label: "Book a demo",
+	primary_cta_url: "/contact",
+	centered: false,
+};
+
+const simple = blockType("simple", "Simple", [
+	{ slug: "headline", label: "Headline", type: "string", required: true },
+]);
+
+const cards = blockType("cards", "Cards", [
+	{
+		slug: "cards",
+		label: "Cards",
+		type: "repeater",
+		validation: {
+			subFields: [
+				{ slug: "title", label: "Title", type: "string" },
+				{ slug: "body", label: "Body", type: "text" },
+				{ slug: "photo", label: `Photo (${PHOTO_HINT.toLowerCase()})`, type: "image" },
+			],
+		},
+	},
+]);
+
 function makeItem(data: Record<string, unknown>): ContentItem {
 	return {
 		id: "page-1",
@@ -208,6 +275,153 @@ function renderEditor(
 		/>,
 		{ wrapper: Toasty },
 	);
+}
+
+// The blocks field on its own
+
+const SHORT = blockType("short", "Short", [{ slug: "title", label: "Title", type: "string" }]);
+
+const LINKED = blockType("linked", "Linked", [
+	{ slug: "title", label: "Title", type: "string" },
+	{
+		slug: "cta_url",
+		label: "Link (starts with /, https://, mailto:, tel: or #)",
+		type: "string",
+		validation: { pattern: LINK_PATTERN },
+	},
+]);
+
+/** A link whose hint, and so its problem, wraps a narrow label line in any font. */
+const WORDY = blockType("wordy", "Wordy", [
+	{ slug: "title", label: "Title", type: "string" },
+	{
+		slug: "cta_url",
+		label:
+			"Link (starts with /, https://, mailto:, tel: or #, and goes to a page on this site or on another one)",
+		type: "string",
+		validation: { pattern: LINK_PATTERN },
+	},
+]);
+
+const HINTED = blockType("hinted", "Hinted", [
+	{
+		slug: "summary",
+		label: "Summary (shown under the title on cards and in search results across the site)",
+		type: "string",
+	},
+]);
+
+const FIELD_TYPES = [SHORT, LINKED, WORDY, HINTED];
+
+const short = (key: string): StoredBlockValue => ({
+	_type: "short",
+	_version: 1,
+	_key: key,
+	title: key,
+});
+const linked = (): StoredBlockValue => ({
+	_type: "linked",
+	_version: 1,
+	_key: "linked",
+	title: "Contact",
+});
+const wordy = (): StoredBlockValue => ({
+	_type: "wordy",
+	_version: 1,
+	_key: "wordy",
+	title: "Contact",
+});
+const hinted = (): StoredBlockValue => ({
+	_type: "hinted",
+	_version: 1,
+	_key: "hinted",
+	summary: "Riverside",
+});
+
+function Harness({ initial }: { initial: StoredBlockValue[] }) {
+	const [value, setValue] = React.useState(initial);
+	const props: BlocksFieldProps = {
+		id: "field-layout",
+		fieldPath: "layout",
+		label: "Layout",
+		value,
+		onChange: setValue,
+		blockTypes: FIELD_TYPES,
+		allowedTypes: FIELD_TYPES.map((type) => type.slug),
+		retiredTypes: [],
+		renderField: ({ name, value: fieldValue, onChange, chrome }) => (
+			<input
+				id={`field-${name}`}
+				aria-labelledby={chrome.labelledBy}
+				className="h-8 w-full"
+				value={typeof fieldValue === "string" ? fieldValue : ""}
+				onChange={(event) => onChange(event.target.value)}
+			/>
+		),
+	};
+	return <BlocksField {...props} />;
+}
+
+function renderField(initial: StoredBlockValue[], { width = 480 }: { width?: number } = {}) {
+	return render(
+		<div data-testid="frame" style={{ width, marginInline: 80 }}>
+			<Harness initial={initial} />
+		</div>,
+		{ wrapper: Toasty },
+	);
+}
+
+const blockRow = (key: string) => document.querySelector<HTMLElement>(`[data-block-key="${key}"]`)!;
+const toggleOf = (key: string) => blockRow(key).querySelector<HTMLElement>("[data-block-toggle]")!;
+const textbox = (name: string) => page.getByRole("textbox", { name, exact: true });
+const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+const running = () => document.getAnimations().filter((a) => a.playState === "running");
+const settled = () => expect.poll(() => running().length).toBe(0);
+
+async function reduceMotion() {
+	await cdp().send("Emulation.setEmulatedMedia", {
+		features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+	});
+}
+
+/** Clicks the point `x`, `y` with the mouse, holding the button down for `hold` ms as a hand does. */
+async function clickAt(x: number, y: number, { hold = 0 } = {}) {
+	// Mouse input lands in the top-level page, which hosts this test's frame.
+	const host = window.frameElement?.getBoundingClientRect() ?? new DOMRect();
+	const scale = host.width ? host.width / window.innerWidth : 1;
+	const point = { x: host.left + x * scale, y: host.top + y * scale };
+	const button = { ...point, button: "left", clickCount: 1 } as const;
+	await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", ...point });
+	await cdp().send("Input.dispatchMouseEvent", { type: "mousePressed", ...button });
+	if (hold > 0) await new Promise((resolve) => setTimeout(resolve, hold));
+	await cdp().send("Input.dispatchMouseEvent", { type: "mouseReleased", ...button });
+}
+
+/** Clicks `element` near its bottom edge, which anything rising under the pointer takes away. */
+async function clickNearBottom(element: Element) {
+	const target = element.getBoundingClientRect();
+	await clickAt(target.left + Math.min(40, target.width / 2), target.bottom - 4, { hold: 150 });
+}
+
+/** Samples `read` now and on every frame until `ms` have passed. */
+function sampleFrames(read: () => number, ms: number): Promise<number[]> {
+	return new Promise((resolve) => {
+		const values = [read()];
+		const end = performance.now() + ms;
+		const step = (now: number) => {
+			values.push(read());
+			if (now < end) requestAnimationFrame(step);
+			else resolve(values);
+		};
+		requestAnimationFrame(step);
+	});
+}
+
+/** How far `values` travel from first to last, and the largest move between two frames. */
+function motion(values: number[]) {
+	const travel = Math.abs(values.at(-1)! - values[0]!);
+	const steps = values.slice(1).map((value, index) => Math.abs(value - values[index]!));
+	return { travel, maxStep: Math.max(0, ...steps) };
 }
 
 function box(target: Locator | Element): DOMRect {
@@ -385,10 +599,15 @@ async function axNodes(): Promise<AxNode[]> {
 	return nodes.filter((node) => !node.ignored);
 }
 
+/** The element showing `text` in the blocks field, leaving out copies kept for screen readers. */
+const fieldText = (text: string) =>
+	shownText(text, document.querySelector("[data-blocks-field]") ?? document.body);
+
 afterEach(async () => {
 	document.documentElement.dir = "ltr";
 	document.documentElement.removeAttribute("data-theme");
 	document.documentElement.removeAttribute("data-mode");
+	await cdp().send("Emulation.setEmulatedMedia", { features: [] });
 	await page.viewport(1280, 800);
 });
 
@@ -491,6 +710,416 @@ describe("A settings row's problem", () => {
 	});
 });
 
+describe.each(["ltr", "rtl"] as const)(
+	"A settings row's problem with no room beside its value (%s)",
+	(dir) => {
+		it("goes on its own line under the value once focus leaves, and stays put with focus", async () => {
+			document.documentElement.dir = dir;
+			await renderEditor([linkHeroBlock], [linkHero]);
+			await openBlock("Hero");
+			const link = control("Primary button link");
+			const input = link.element() as HTMLInputElement;
+			const group = page.getByRole("group", { name: "Primary button", exact: true }).element();
+
+			await link.fill("contact us");
+			await control("Headline").click();
+			await expect.element(link).toHaveAttribute("aria-invalid", "true");
+			await expect.poll(() => dangerTexts(group).map(ownText)).toEqual([LINK_PROBLEM]);
+			await settle();
+			const problem = dangerTexts(group)[0]!;
+			expect(box(problem).top).toBeGreaterThanOrEqual(box(link).bottom - 0.5);
+			expect(input.scrollWidth).toBeLessThanOrEqual(input.clientWidth);
+			const atRest = {
+				width: input.clientWidth,
+				end: getComputedStyle(input).paddingInlineEnd,
+				tops: rowTops(),
+				problem: box(problem).toJSON(),
+			};
+
+			await link.click();
+			await expect.element(link).toHaveFocus();
+			await settle();
+			expect(input.clientWidth).toBe(atRest.width);
+			expect(getComputedStyle(input).paddingInlineEnd).toBe(atRest.end);
+			expect(rowTops()).toEqual(atRest.tops);
+			expect(dangerTexts(group).map(ownText)).toEqual([LINK_PROBLEM]);
+			expect(box(dangerTexts(group)[0]!).toJSON()).toEqual(atRest.problem);
+		});
+	},
+);
+
+describe.each(["ltr", "rtl"] as const)("A short settings-row problem (%s)", (dir) => {
+	it("stays at the end of its value's line, moving nothing, with or without focus", async () => {
+		document.documentElement.dir = dir;
+		await renderEditor([linkHeroBlock], [linkHero]);
+		await openBlock("Hero");
+		const website = control("Website");
+		const field = website.element().closest('[class~="group/control"]')!;
+		const tops = rowTops();
+
+		await website.fill("abc");
+		await control("Headline").click();
+		await expect.element(website).toHaveAttribute("aria-invalid", "true");
+		await expect.poll(() => dangerTexts(field).map(ownText)).toEqual(["Invalid link"]);
+		const note = dangerTexts(field)[0]!;
+		expect(box(note).top).toBeGreaterThanOrEqual(box(website).top - 0.5);
+		expect(box(note).bottom).toBeLessThanOrEqual(box(website).bottom + 0.5);
+		expect(rowTops()).toEqual(tops);
+		const atRest = box(note).toJSON();
+
+		await website.click();
+		await expect.element(website).toHaveFocus();
+		await settle();
+		expect(rowTops()).toEqual(tops);
+		expect(box(dangerTexts(field)[0]!).toJSON()).toEqual(atRest);
+	});
+});
+
+describe("A settings row's problem line", () => {
+	const center = () => page.getByRole("switch", { name: "Center the layout" });
+	const buttonRow = () =>
+		page.getByRole("group", { name: "Primary button", exact: true }).element();
+	const problem = () => fieldText(LINK_PROBLEM);
+
+	/** The top of `element` now and on each of the next `frames` frames. */
+	function topsOver(element: Element, frames: number): Promise<number[]> {
+		return new Promise((resolve) => {
+			const tops = [element.getBoundingClientRect().top];
+			const step = () => {
+				tops.push(element.getBoundingClientRect().top);
+				if (tops.length > frames) resolve(tops);
+				else requestAnimationFrame(step);
+			};
+			requestAnimationFrame(step);
+		});
+	}
+
+	async function openLinked(width?: number) {
+		await renderField([linked(), short("after")], { width });
+		await page.getByRole("button", { name: "Linked", exact: true }).click();
+		await settled();
+	}
+
+	it("comes after a click below it has landed, rather than moving it away", async () => {
+		await renderEditor([switchHeroBlock], [switchHero]);
+		await openBlock("Hero");
+		const link = control("Primary button link");
+
+		await link.fill("contact us");
+		const target = box(center());
+		await clickAt(target.left + target.width / 2, target.top + 3, { hold: 150 });
+
+		await expect.element(center()).toBeChecked();
+		await expect.poll(() => dangerTexts(buttonRow()).map(ownText)).toEqual([LINK_PROBLEM]);
+	});
+
+	it("goes after a click below it has landed, rather than moving it away", async () => {
+		await renderEditor([switchHeroBlock], [switchHero]);
+		await openBlock("Hero");
+		const link = control("Primary button link");
+		await link.fill("contact us");
+		await control("Headline").click();
+		await expect.poll(() => dangerTexts(buttonRow()).map(ownText)).toEqual([LINK_PROBLEM]);
+		await settled();
+
+		await link.click();
+		await link.fill("/contact");
+		await clickNearBottom(center().element());
+
+		await expect.element(center()).toBeChecked();
+		await expect.poll(() => dangerTexts(buttonRow())).toEqual([]);
+	});
+
+	it("moves the rows below smoothly as it comes and goes", async () => {
+		await renderEditor([switchHeroBlock], [switchHero]);
+		await openBlock("Hero");
+		const link = control("Primary button link");
+		const switchElement = center().element();
+		/** The largest move between two frames, as a share of the whole way. */
+		const largestShare = (tops: number[]) => {
+			const steps = tops.slice(1).map((top, index) => Math.abs(top - tops[index]!));
+			return Math.max(0, ...steps) / Math.abs(tops.at(-1)! - tops[0]!);
+		};
+
+		await link.fill("contact us");
+		const coming = topsOver(switchElement, 30);
+		await userEvent.keyboard("{Tab}");
+		const down = await coming;
+		await settled();
+		expect(down.at(-1)! - down[0]!).toBeGreaterThan(15);
+		expect(largestShare(down)).toBeLessThanOrEqual(0.5);
+
+		await link.click();
+		await link.fill("/contact");
+		const going = topsOver(switchElement, 30);
+		await userEvent.keyboard("{Tab}");
+		const up = await going;
+		await settled();
+		expect(up[0]! - up.at(-1)!).toBeGreaterThan(15);
+		expect(largestShare(up)).toBeLessThanOrEqual(0.5);
+	});
+
+	it("comes at once under reduced motion", async () => {
+		await reduceMotion();
+		await renderEditor([switchHeroBlock], [switchHero]);
+		await openBlock("Hero");
+		const link = control("Primary button link");
+		const before = box(center()).top;
+
+		await link.fill("contact us");
+		await userEvent.keyboard("{Tab}");
+		await frame();
+
+		expect(box(center()).top - before).toBeGreaterThan(15);
+		expect(running()).toEqual([]);
+	});
+
+	it("keeps its problem until it has shrunk away", async () => {
+		await openLinked(560);
+		await textbox("Link").fill("contact us");
+		await textbox("Title").click();
+		await expect.poll(() => problem() !== undefined).toBe(true);
+		await settled();
+		const line = [...document.querySelectorAll("[data-blocks-field] p:not([hidden])")].find(
+			(element) => element.textContent?.trim() === LINK_PROBLEM,
+		)!;
+		const panel = line.parentElement!;
+		const full = panel.getBoundingClientRect().height;
+
+		await textbox("Link").click();
+		await textbox("Link").fill("/contact");
+		(textbox("Title").element() as HTMLElement).focus();
+		const frames: Array<{ height: number; text: string }> = [];
+		for (let count = 0; count < 60; count++) {
+			await frame();
+			frames.push({
+				height: panel.getBoundingClientRect().height,
+				text: line.textContent?.trim() ?? "",
+			});
+		}
+
+		const shrinking = frames.filter(({ height }) => height > 1 && height < full - 1);
+		expect(shrinking.length).toBeGreaterThan(0);
+		expect(shrinking.map(({ text }) => text)).toEqual(shrinking.map(() => LINK_PROBLEM));
+		expect(frames.at(-1)!.height).toBeLessThan(1);
+	});
+
+	it("fades a problem fixed while typing, and holds its line until focus leaves", async () => {
+		await openLinked(560);
+		await textbox("Link").fill("contact us");
+		await textbox("Title").click();
+		await expect.poll(() => problem() !== undefined).toBe(true);
+		await settled();
+		const line = [...document.querySelectorAll("[data-blocks-field] p:not([hidden])")].find(
+			(element) => element.textContent?.trim() === LINK_PROBLEM,
+		)!;
+		const panel = line.parentElement!;
+		const full = panel.getBoundingClientRect().height;
+
+		await textbox("Link").click();
+		await textbox("Link").fill("/contact");
+		await settled();
+		expect(Number(getComputedStyle(line.firstElementChild!).opacity)).toBe(0);
+		expect(panel.getBoundingClientRect().height).toBeCloseTo(full, 0);
+	});
+
+	it("moves to a line of its own when a resize takes the room beside the value", async () => {
+		await openLinked(1100);
+		const link = textbox("Link");
+		await link.fill("contact us");
+		await textbox("Title").click();
+		await expect.poll(problem).toBeDefined();
+		expect(box(problem()!).bottom).toBeLessThanOrEqual(box(link).bottom + 0.5);
+
+		(page.getByTestId("frame").element() as HTMLElement).style.width = "560px";
+		await expect.poll(() => problem() && box(problem()!).top >= box(link).bottom - 0.5).toBe(true);
+		await settled();
+		const line = problem()!;
+		expect(line.scrollWidth).toBeLessThanOrEqual(line.clientWidth);
+	});
+
+	it("moves back beside the value once a resize past the stacked width gives it room", async () => {
+		await openLinked(400);
+		const link = textbox("Link");
+		await link.fill("contact us");
+		await textbox("Title").click();
+		await expect.poll(problem).toBeDefined();
+
+		(page.getByTestId("frame").element() as HTMLElement).style.width = "1100px";
+		await expect
+			.poll(() => problem() && box(problem()!).bottom <= box(link).bottom + 0.5)
+			.toBe(true);
+		await settled();
+		const field = link.element().closest('[class~="group/control"]')!;
+		expect(dangerTexts(field.parentElement!).length).toBe(1);
+	});
+});
+
+describe("A hint that wraps on a narrow field's label line", () => {
+	const label = () => document.getElementById("field-layout.hinted.summary-label")!;
+
+	async function openHinted() {
+		await renderField([hinted(), short("after")], { width: 300 });
+		await page.getByRole("button", { name: "Hinted", exact: true }).click();
+		await settled();
+	}
+
+	it("goes after a click below it has landed, rather than moving it away", async () => {
+		await openHinted();
+		const oneLine = label().getBoundingClientRect().height;
+		await textbox("Summary").click();
+		await expect.poll(() => label().getBoundingClientRect().height).toBeGreaterThan(oneLine);
+
+		await clickNearBottom(toggleOf("after"));
+
+		await settled();
+		expect(toggleOf("after").getAttribute("aria-expanded")).toBe("true");
+		expect(label().getBoundingClientRect().height).toBe(oneLine);
+	});
+
+	it("moves the rows below smoothly as focus brings it and takes it away", async () => {
+		await openHinted();
+		const atRest = label().getBoundingClientRect().height;
+		const head = toggleOf("after");
+		const summary = textbox("Summary").element() as HTMLElement;
+
+		const coming = sampleFrames(() => head.getBoundingClientRect().top, 500);
+		summary.focus();
+		const down = await coming;
+		await settled();
+		expect(label().getBoundingClientRect().height).toBeGreaterThan(atRest + 8);
+		expect(down.at(-1)! - down[0]!).toBeGreaterThan(8);
+		const growing = motion(down);
+		expect(growing.maxStep).toBeLessThan(growing.travel * 0.5);
+
+		const going = sampleFrames(() => head.getBoundingClientRect().top, 500);
+		summary.blur();
+		const up = await going;
+		await settled();
+		expect(label().getBoundingClientRect().height).toBe(atRest);
+		expect(up[0]! - up.at(-1)!).toBeGreaterThan(8);
+		const shrinking = motion(up);
+		expect(shrinking.maxStep).toBeLessThan(shrinking.travel * 0.5);
+	});
+});
+
+describe("A long problem that wraps its narrow field's label line", () => {
+	const link = () => textbox("Link");
+	const label = () => document.getElementById("field-layout.wordy.cta_url-label")!;
+
+	/** Opens the block at a width its problem wraps at, and returns the label's height at rest. */
+	async function openWordy() {
+		await renderField([wordy(), short("after")], { width: 300 });
+		await page.getByRole("button", { name: "Wordy", exact: true }).click();
+		await settled();
+		return label().getBoundingClientRect().height;
+	}
+
+	it("moves the rows below smoothly as it comes", async () => {
+		const atRest = await openWordy();
+		const head = toggleOf("after");
+
+		const sampling = sampleFrames(() => head.getBoundingClientRect().top, 900);
+		await link().fill("contact us");
+		await textbox("Title").click();
+		const tops = await sampling;
+		await settled();
+
+		expect(label().getBoundingClientRect().height).toBeGreaterThan(atRest + 8);
+		const { travel, maxStep } = motion(tops);
+		expect(tops.at(-1)! - tops[0]!).toBeGreaterThan(8);
+		expect(maxStep).toBeLessThan(travel * 0.5);
+	});
+
+	it("moves the rows below smoothly as it goes", async () => {
+		const atRest = await openWordy();
+		await link().fill("contact us");
+		await textbox("Title").click();
+		await settled();
+		const twoLines = label().getBoundingClientRect().height;
+		expect(twoLines).toBeGreaterThan(atRest + 8);
+		const head = toggleOf("after");
+
+		const sampling = sampleFrames(() => head.getBoundingClientRect().top, 900);
+		await link().fill("/contact");
+		await textbox("Title").click();
+		const tops = await sampling;
+		await settled();
+
+		expect(label().getBoundingClientRect().height).toBeLessThan(twoLines - 8);
+		const { travel, maxStep } = motion(tops);
+		expect(tops[0]! - tops.at(-1)!).toBeGreaterThan(8);
+		expect(maxStep).toBeLessThan(travel * 0.5);
+	});
+
+	it("comes at once under reduced motion", async () => {
+		await reduceMotion();
+		const atRest = await openWordy();
+		await link().fill("contact us");
+
+		(textbox("Title").element() as HTMLElement).focus();
+		await expect.poll(() => label().getBoundingClientRect().height).toBeGreaterThan(atRest + 8);
+
+		expect(running()).toEqual([]);
+	});
+
+	it("moves nothing as focus comes back to its control", async () => {
+		await openWordy();
+		await link().fill("contact us");
+		await textbox("Title").click();
+		await settled();
+		const head = toggleOf("after");
+
+		const sampling = sampleFrames(() => head.getBoundingClientRect().top, 300);
+		(link().element() as HTMLElement).focus();
+		const tops = await sampling;
+
+		expect(new Set(tops).size).toBe(1);
+	});
+});
+
+describe("An item's photo row", () => {
+	it("shows its hint beside Replace and Remove only where it fits there", async () => {
+		await renderEditor(
+			[
+				{
+					_type: "cards",
+					_version: 1,
+					_key: "cards-1",
+					cards: [
+						{ title: "Riverside", body: "Tower", photo: { id: "media-1", src: PHOTO, alt: "" } },
+					],
+				},
+			],
+			[cards],
+		);
+		await openBlock("Cards");
+		await page.getByRole("button", { name: "Riverside", exact: true }).click();
+		await settle();
+		const replace = page.getByRole("button", { name: "Replace", exact: true });
+		const remove = page.getByRole("button", { name: "Remove", exact: true });
+		const hint = () => fieldText(PHOTO_HINT);
+		const clear = (note: Element) =>
+			[replace, remove].every((button) => {
+				const a = box(note);
+				const b = box(button);
+				return a.right <= b.left || a.left >= b.right;
+			});
+
+		(replace.element() as HTMLElement).focus();
+		await expect.poll(hint).toBeDefined();
+		expect(clear(hint()!)).toBe(true);
+
+		(document.activeElement as HTMLElement).blur();
+		await page.viewport(600, 800);
+		await settle();
+		(replace.element() as HTMLElement).focus();
+		await settle();
+		const narrow = hint();
+		if (narrow) expect(clear(narrow)).toBe(true);
+	});
+});
+
 describe("A field's notes on a narrow screen", () => {
 	it("wrap onto another line instead of being cut off", async () => {
 		await page.viewport(320, 800);
@@ -587,6 +1216,40 @@ describe("After a save finds problems", () => {
 		await page.getByRole("combobox", { name: "Icon", exact: true }).click();
 		await page.getByRole("option", { name: "bell" }).click();
 		await expect.poll(liveText).not.toContain("need attention");
+	});
+
+	it("names its count button by what it does", async () => {
+		await renderEditor(
+			[
+				{ _type: "simple", _version: 1, _key: "a", headline: "" },
+				{ _type: "simple", _version: 1, _key: "b", headline: "" },
+			],
+			[simple],
+		);
+		await save();
+		const next = page.getByRole("button", { name: /to fix/ });
+		await expect.element(next).toBeVisible();
+		await expect.element(next).toHaveAccessibleName("2 to fix. Go to the next problem");
+	});
+
+	it("goes on from the last problem shown when the control it focused has left the page", async () => {
+		await renderEditor(
+			["a", "b", "c"].map((key) => ({ _type: "simple", _version: 1, _key: key, headline: "" })),
+			[simple],
+		);
+		await save();
+		const focusedId = () => document.activeElement?.id;
+		await expect.poll(focusedId).toBe("field-content.a.headline");
+		const next = page.getByRole("button", { name: /to fix/ });
+		await next.click();
+		await expect.poll(focusedId).toBe("field-content.b.headline");
+
+		// Safari doesn't focus a clicked button, so closing the block leaves focus nowhere.
+		blockRow("b").querySelector<HTMLElement>("[data-block-toggle]")!.click();
+		await settle();
+		expect(document.getElementById("field-content.b.headline")).toBeNull();
+		await next.click();
+		await expect.poll(focusedId).toBe("field-content.c.headline");
 	});
 });
 

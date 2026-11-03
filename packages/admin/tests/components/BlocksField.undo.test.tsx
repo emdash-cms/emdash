@@ -15,6 +15,8 @@ vi.mock("../../src/components/MediaPickerModal", () => ({ MediaPickerModal: () =
 const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control";
 const PHOTO =
 	"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='9'/%3E";
+const OTHER_PHOTO =
+	"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='16'/%3E";
 
 function blockType(slug: string, label: string, fields: BlockFieldDefinition[]): BlockType {
 	return {
@@ -54,6 +56,17 @@ const LONG = blockType(
 		slug: `line_${index}`,
 		label: `Line ${index}`,
 		type: "string" as const,
+	})),
+);
+
+/** Taller when open than `LONG`, as its fields are text areas. */
+const TALL = blockType(
+	"tall",
+	"Tall",
+	Array.from({ length: 12 }, (_, index) => ({
+		slug: `line_${index}`,
+		label: `Line ${index}`,
+		type: "text" as const,
 	})),
 );
 
@@ -98,7 +111,21 @@ const HINTED = blockType("hinted", "Hinted", [
 	{ slug: "link", label: "Link (starts with / or https://)", type: "string" },
 ]);
 
-const TYPES = [SHORT, LONG, QUOTES, STATS, CARD, EMBED, HINTED];
+const GALLERY = blockType("gallery", "Gallery", [
+	{
+		slug: "shots",
+		label: "Shots",
+		type: "repeater",
+		validation: {
+			subFields: [
+				{ slug: "photo", label: "Photo", type: "image" },
+				{ slug: "label", label: "Label", type: "string" },
+			],
+		},
+	},
+]);
+
+const TYPES = [SHORT, LONG, TALL, QUOTES, STATS, CARD, EMBED, HINTED, GALLERY];
 
 const short = (key: string): StoredBlockValue => ({
 	_type: "short",
@@ -107,6 +134,7 @@ const short = (key: string): StoredBlockValue => ({
 	title: key,
 });
 const long = (key: string): StoredBlockValue => ({ _type: "long", _version: 1, _key: key });
+const tall = (key: string): StoredBlockValue => ({ _type: "tall", _version: 1, _key: key });
 const quotes = (key = "quotes"): StoredBlockValue => ({
 	_type: "quotes",
 	_version: 1,
@@ -117,6 +145,18 @@ const quotes = (key = "quotes"): StoredBlockValue => ({
 		{ author: "Ines Duarte", quote: "Our buildings run themselves." },
 	],
 });
+const gallery = (): StoredBlockValue => ({
+	_type: "gallery",
+	_version: 1,
+	_key: "gallery",
+	shots: [
+		{ photo: PHOTO, label: "First" },
+		{ photo: OTHER_PHOTO, label: "Second" },
+	],
+});
+
+/** Every value the field saved, latest last. */
+const saved: StoredBlockValue[][] = [];
 
 /** The next field to mount takes this long, as a rich text editor's mount can. */
 const slowMount = { ms: 0 };
@@ -154,7 +194,10 @@ function Harness({
 		fieldPath: id,
 		label,
 		value,
-		onChange: setValue,
+		onChange: (next) => {
+			saved.push(next);
+			setValue(next);
+		},
 		blockTypes: TYPES,
 		allowedTypes: TYPES.map((type) => type.slug),
 		retiredTypes: [],
@@ -165,6 +208,7 @@ function Harness({
 					<ImageFieldRenderer
 						label={field.label ?? ""}
 						labelledBy={chrome.labelledBy}
+						thumbnail={chrome.thumbnail}
 						value={fieldValue as string | undefined}
 						onChange={(next) => onChange(next ?? undefined)}
 					/>
@@ -219,12 +263,33 @@ function renderField(
 	);
 }
 
+/**
+ * The field in the editor's canvas, a scroller as tall as the page. At this width the field is
+ * centred well clear of the toasts in the page's end corner, unless `fieldWidth` takes it there.
+ */
+function renderInCanvas(initial: StoredBlockValue[], { fieldWidth = 480 } = {}) {
+	return render(
+		<div
+			data-testid="canvas"
+			data-emdash-editor-canvas=""
+			style={{ position: "fixed", inset: 0, overflowY: "auto", scrollPaddingTop: 52 }}
+		>
+			<div style={{ width: fieldWidth, marginInline: "auto", paddingBlock: 40 }}>
+				<Harness initial={initial} />
+			</div>
+			<div style={{ height: 1200 }} />
+		</div>,
+		{ wrapper: Toasty },
+	);
+}
+
 const rowKeys = () =>
 	Array.from(
 		document.querySelectorAll<HTMLElement>("[data-block-key]"),
 		(row) => row.dataset.blockKey,
 	);
 const row = (key: string) => document.querySelector<HTMLElement>(`[data-block-key="${key}"]`)!;
+const headOf = (key: string) => row(key).querySelector<HTMLElement>("[data-block-head]")!;
 const toggleOf = (key: string) => row(key).querySelector<HTMLElement>("[data-block-toggle]")!;
 const menuButtonOf = (key: string) =>
 	page.elementLocator(row(key)).getByRole("button", { name: /actions$/ });
@@ -239,6 +304,13 @@ const announced = () =>
 		(region) => region.textContent,
 	).join(" ");
 const undoButtons = () => page.getByRole("button", { name: "Undo" }).all();
+const canvas = () => page.getByTestId("canvas").element() as HTMLElement;
+const toastOf = () =>
+	document.querySelector<HTMLElement>('[role="region"][aria-live] > [role="dialog"]');
+const inView = (element: Element) => {
+	const { top, bottom } = element.getBoundingClientRect();
+	return top >= 0 && bottom <= innerHeight;
+};
 
 /** Presses Mod+Z at once, from wherever focus is, as a key event the page sees. */
 function pressUndo(init: KeyboardEventInit = {}) {
@@ -266,6 +338,23 @@ async function until(done: () => boolean) {
 	expect(done()).toBe(true);
 }
 
+/** The animation shrinking a deleted row away. */
+function shrinking(element: HTMLElement): Animation | undefined {
+	return element
+		.getAnimations()
+		.find(
+			(animation) =>
+				animation.effect instanceof KeyframeEffect &&
+				animation.effect.getKeyframes().some((keyframe) => "height" in keyframe),
+		);
+}
+
+async function reduceMotion() {
+	await cdp().send("Emulation.setEmulatedMedia", {
+		features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+	});
+}
+
 /** Calls `read` on every frame for `ms`, and returns what it read with the time of each frame. */
 async function sample<T>(read: () => T, ms: number): Promise<Array<{ t: number; value: T }>> {
 	const frames: Array<{ t: number; value: T }> = [];
@@ -291,8 +380,10 @@ function motion(values: number[]) {
 
 afterEach(async () => {
 	slowMount.ms = 0;
+	saved.length = 0;
 	vi.useRealTimers();
 	await cdp().send("Emulation.setEmulatedMedia", { features: [] });
+	await page.viewport(1280, 800);
 });
 
 describe("One Undo for the page", () => {
@@ -379,6 +470,124 @@ describe("One Undo for the page", () => {
 		await userEvent.keyboard(`{${MOD}>}z{/${MOD}}`);
 		await frame();
 		expect(rowKeys()).toEqual(["embed"]);
+	});
+});
+
+describe("Undo puts a block back", () => {
+	it("where it was, growing in place without scrolling the page under it", async () => {
+		await renderInCanvas([short("one"), tall("big"), short("three")]);
+		toggleOf("big").click();
+		await settled();
+		canvas().scrollTop = toggleOf("big").getBoundingClientRect().top - 360;
+		await frame();
+		const before = toggleOf("big").getBoundingClientRect().top;
+		expect(
+			toggleOf("big").closest("[data-block-key]")!.getBoundingClientRect().bottom,
+		).toBeGreaterThan(innerHeight - 120);
+
+		await deleteFromMenu("big");
+		await expect.poll(rowKeys).toEqual(["one", "three"]);
+		await settled();
+		await page.getByRole("button", { name: "Undo" }).click();
+		await expect.poll(rowKeys).toEqual(["one", "big", "three"]);
+		await settled();
+
+		expect(Math.abs(toggleOf("big").getBoundingClientRect().top - before)).toBeLessThanOrEqual(1);
+		await expect.element(page.elementLocator(toggleOf("big"))).toHaveFocus();
+	});
+
+	it("into view, with focus, when it went back somewhere scrolled away", async () => {
+		await renderInCanvas(Array.from({ length: 24 }, (_, index) => short(`block-${index}`)));
+		await deleteFromMenu("block-1");
+		await expect.poll(rowKeys).not.toContain("block-1");
+		await settled();
+		canvas().scrollTop = canvas().scrollHeight;
+		await frame();
+		expect(inView(toggleOf("block-0"))).toBe(false);
+
+		pressUndo();
+		await expect.poll(rowKeys).toContain("block-1");
+		await expect.element(page.elementLocator(toggleOf("block-1"))).toHaveFocus();
+		await expect.poll(() => inView(toggleOf("block-1"))).toBe(true);
+	});
+
+	it("with focus on it when Mod+Z calls the deletion off while the row shrinks away", async () => {
+		await renderField([short("one"), short("two"), short("three")]);
+		await menuButtonOf("two").click();
+		await page.getByRole("menuitem", { name: "Delete" }).click();
+		await until(() => shrinking(row("two"))?.playState === "running");
+
+		pressUndo();
+		await settled();
+		expect(rowKeys()).toEqual(["one", "two", "three"]);
+		await expect.element(page.elementLocator(toggleOf("two"))).toHaveFocus();
+	});
+
+	it("when Mod+Z comes once the row has shrunk away but before it's taken out", async () => {
+		await renderField([short("one"), short("two"), short("three")]);
+		await menuButtonOf("two").click();
+		await page.getByRole("menuitem", { name: "Delete" }).click();
+		await until(() => shrinking(row("two"))?.playState === "running");
+
+		shrinking(row("two"))!.finish();
+		pressUndo();
+		await new Promise((resolve) => setTimeout(resolve, 400));
+		await settled();
+
+		expect(rowKeys()).toEqual(["one", "two", "three"]);
+		expect(row("two").getBoundingClientRect().height).toBeGreaterThan(30);
+	});
+});
+
+describe("Mod+Z", () => {
+	it("puts nothing back while focus is in a menu or a popup", async () => {
+		await renderField([short("one"), short("two")]);
+		await deleteFromMenu("one");
+		await expect.element(page.getByText("Deleted Short")).toBeVisible();
+
+		await menuButtonOf("two").click();
+		await expect.element(page.getByRole("menu")).toBeVisible();
+		await until(() => Boolean(document.activeElement?.closest('[role="menu"]')));
+		pressUndo();
+		await frame();
+		expect(rowKeys()).toEqual(["two"]);
+		await userEvent.keyboard("{Escape}");
+		await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
+
+		await page.getByRole("button", { name: "Add block", exact: true }).click();
+		const picker = page.getByRole("dialog", { name: "Add block" });
+		await expect.element(picker).toBeVisible();
+		(picker.element() as HTMLElement).focus();
+		pressUndo();
+		await frame();
+		expect(rowKeys()).toEqual(["two"]);
+	});
+});
+
+describe("A removed photo's Undo", () => {
+	it("stays with the photo's row when another row moves into its place", async () => {
+		await renderField([gallery()]);
+		await page.getByRole("button", { name: "Gallery", exact: true }).click();
+		await settled();
+		await page.getByRole("button", { name: "Remove Photo" }).first().click();
+		await expect.element(page.getByText("Removed Photo")).toBeVisible();
+
+		await page.getByRole("button", { name: "Second actions" }).click();
+		await page.getByRole("menuitem", { name: "Move up" }).click();
+		await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
+		// A toast closing fades out over half a second.
+		await new Promise((resolve) => setTimeout(resolve, 700));
+		expect(undoButtons()).toHaveLength(1);
+
+		await page.getByRole("button", { name: "Undo" }).click();
+		const shots = () =>
+			(saved.at(-1)?.[0]?.shots as Array<{ photo?: string; label: string }>) ?? [];
+		await expect
+			.poll(() => shots().map((shot) => [shot.label, shot.photo]))
+			.toEqual([
+				["Second", OTHER_PHOTO],
+				["First", PHOTO],
+			]);
 	});
 });
 
@@ -740,9 +949,7 @@ describe("An item's menu", () => {
 
 describe("The Undo toast", () => {
 	it("fades in place of sliding when reduced motion is preferred", async () => {
-		await cdp().send("Emulation.setEmulatedMedia", {
-			features: [{ name: "prefers-reduced-motion", value: "reduce" }],
-		});
+		await reduceMotion();
 		await renderField([short("one"), short("two")]);
 		await deleteFromMenu("one");
 		const toast = page.getByRole("dialog").element() as HTMLElement;
@@ -753,7 +960,56 @@ describe("The Undo toast", () => {
 		expect(slides).toHaveLength(0);
 	});
 
-	it("keeps focus brought into view in the editor clear of it while it covers the field", async () => {
+	it("fades in and out in place of sliding under reduced motion, whatever its region is called", async () => {
+		await reduceMotion();
+		await renderField([short("one"), short("two")]);
+		for (const region of document.querySelectorAll('[role="region"][aria-live]')) {
+			region.setAttribute("aria-label", "Benachrichtigungen");
+		}
+		await menuButtonOf("one").click();
+		await page.getByRole("menuitem", { name: "Delete" }).click();
+		await until(() => document.querySelector('[role="region"] > [role="dialog"]') !== null);
+		const toast = document.querySelector<HTMLElement>('[role="region"] > [role="dialog"]')!;
+		const opacities: number[] = [];
+		for (let count = 0; count < 6; count++) {
+			opacities.push(Number(getComputedStyle(toast).opacity));
+			await frame();
+		}
+
+		const slides = toast
+			.getAnimations()
+			.filter((a) => a instanceof CSSTransition && a.transitionProperty === "transform");
+		expect(slides).toHaveLength(0);
+		expect(Math.min(...opacities)).toBeLessThan(0.9);
+	});
+
+	it("fades out where it rests under reduced motion instead of dropping first", async () => {
+		await reduceMotion();
+		await renderField([short("one"), short("two")]);
+		await deleteFromMenu("one");
+		await until(() => toastOf() !== null);
+		await settled();
+		const toast = toastOf()!;
+		const rest = toast.getBoundingClientRect().top;
+
+		pressUndo();
+		const tops: number[] = [];
+		const opacities: number[] = [];
+		for (let count = 0; count < 60 && toast.isConnected; count++) {
+			await frame();
+			if (!toast.isConnected) break;
+			tops.push(toast.getBoundingClientRect().top);
+			opacities.push(Number(getComputedStyle(toast).opacity));
+		}
+
+		expect(tops.length).toBeGreaterThan(2);
+		expect(Math.max(...tops.map((top) => Math.abs(top - rest)))).toBeLessThanOrEqual(1);
+		expect(Math.min(...opacities)).toBeLessThan(0.9);
+	});
+});
+
+describe("Keeping focus clear of a toast", () => {
+	it("keeps focus brought into view in the editor clear of the toast while it covers the field", async () => {
 		await render(
 			<div
 				data-testid="scroller"
@@ -781,5 +1037,85 @@ describe("The Undo toast", () => {
 		below.focus();
 		await frame();
 		expect(below.getBoundingClientRect().bottom).toBeLessThanOrEqual(toastTop);
+	});
+
+	it("leaves the page alone while the toast is beside the field, not over it", async () => {
+		await renderInCanvas(Array.from({ length: 30 }, (_, index) => short(`block-${index}`)));
+		await deleteFromMenu("block-0");
+		await expect.element(page.getByText("Deleted Short")).toBeVisible();
+		await settled();
+		const toast = page.getByRole("dialog").element() as HTMLElement;
+		const toastTop = toast.getBoundingClientRect().top;
+		const beside = [...document.querySelectorAll<HTMLElement>("[data-block-toggle]")].find(
+			(toggle) => {
+				const { top, bottom } = toggle.getBoundingClientRect();
+				return top > toastTop + 4 && bottom < innerHeight - 4;
+			},
+		)!;
+		const scrolled = canvas().scrollTop;
+
+		beside.focus();
+		await frame();
+		expect(canvas().scrollTop).toBe(scrolled);
+	});
+
+	it("scrolls the block focus goes to after a deletion clear of the Undo toast", async () => {
+		await page.viewport(700, 900);
+		await renderInCanvas(
+			Array.from({ length: 30 }, (_, index) => short(`block-${index}`)),
+			{ fieldWidth: 600 },
+		);
+		canvas().scrollTop += headOf("block-20").getBoundingClientRect().top - 831;
+		await frame();
+		expect(Math.round(headOf("block-20").getBoundingClientRect().top)).toBe(831);
+
+		(menuButtonOf("block-20").element() as HTMLElement).focus();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(page.getByRole("menu")).toBeVisible();
+		await userEvent.keyboard("{End}{Enter}");
+		await expect.poll(rowKeys).not.toContain("block-20");
+		await expect.element(page.elementLocator(toggleOf("block-21"))).toHaveFocus();
+		await settled();
+
+		const toast = toastOf()!;
+		expect(toggleOf("block-21").getBoundingClientRect().bottom).toBeLessThanOrEqual(
+			toast.getBoundingClientRect().top,
+		);
+	});
+
+	it("keeps clear of a toast over one of two fields on the canvas", async () => {
+		await page.viewport(700, 900);
+		await render(
+			<div
+				data-testid="canvas"
+				data-emdash-editor-canvas=""
+				style={{ position: "fixed", inset: 0, overflowY: "auto" }}
+			>
+				<div style={{ width: 600, marginInline: "auto", paddingBlock: 40 }}>
+					<Harness id="wide" initial={[short("one"), short("two")]} />
+				</div>
+				<div style={{ width: 200, paddingBlock: 40 }}>
+					<Harness id="narrow" initial={[short("three")]} />
+				</div>
+			</div>,
+			{ wrapper: Toasty },
+		);
+
+		await deleteFromMenu("one");
+		await until(() => toastOf() !== null);
+		await frame();
+		expect(getComputedStyle(canvas()).scrollPaddingBottom).toBe("136px");
+	});
+
+	it("keeps clear of a toast once a resize takes the field under it", async () => {
+		await page.viewport(1280, 900);
+		await renderInCanvas([short("one"), short("two")]);
+		await deleteFromMenu("one");
+		await until(() => toastOf() !== null);
+		await frame();
+		expect(getComputedStyle(canvas()).scrollPaddingBottom).not.toBe("136px");
+
+		await page.viewport(700, 900);
+		await expect.poll(() => getComputedStyle(canvas()).scrollPaddingBottom).toBe("136px");
 	});
 });

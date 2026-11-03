@@ -234,8 +234,10 @@ function NotedLabel({
 	const rest = controls.find((control) => control.message)?.message;
 	const hasNotes = Boolean(rest) || controls.some((control) => control.hint || control.countSlotId);
 	const ref = React.useRef<HTMLLabelElement & HTMLSpanElement>(null);
-	// On a narrow line, a problem can wrap the line as it comes or goes.
-	useHeightGlide(ref, rest);
+	const focusedControl = controls.find((control) => control.source === focused);
+	const focusedNote = focusedControl?.message ?? focusedControl?.hint;
+	// On a narrow line, a problem or the focused control's note can wrap the line as it comes or goes.
+	useHeightGlide(ref, JSON.stringify([rest, focused, focusedNote]));
 	return (
 		<Element
 			ref={ref}

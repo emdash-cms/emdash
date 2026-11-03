@@ -1,17 +1,18 @@
 import { Toasty } from "@cloudflare/kumo";
 import * as React from "react";
+import { flushSync } from "react-dom";
 import { afterEach, describe, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
 import { BlocksField, type BlocksFieldProps } from "../../src/components/BlocksField.js";
+import { useQuietReturnFocus } from "../../src/components/useQuietReturnFocus.js";
 import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
 import type { StoredBlockValue } from "../../src/lib/block-field-state.js";
 import { render } from "../utils/render.js";
 
 const LINK_PATTERN = "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$";
 const LINK_HINT = "Starts with /, https://, mailto:, tel: or #";
-const LINK_PROBLEM = `Invalid link. ${LINK_HINT}`;
 
 function blockType(slug: string, label: string, fields: BlockFieldDefinition[]): BlockType {
 	return {
@@ -89,13 +90,7 @@ const linked = (): StoredBlockValue => ({
 	title: "Contact",
 });
 
-function Harness({
-	initial,
-	retiredTypes = [],
-}: {
-	initial: StoredBlockValue[];
-	retiredTypes?: string[];
-}) {
+function Harness({ initial }: { initial: StoredBlockValue[] }) {
 	const [value, setValue] = React.useState(initial);
 	const props: BlocksFieldProps = {
 		id: "field-layout",
@@ -105,7 +100,7 @@ function Harness({
 		onChange: setValue,
 		blockTypes: TYPES,
 		allowedTypes: TYPES.map((type) => type.slug),
-		retiredTypes,
+		retiredTypes: [],
 		renderField: ({ name, value: fieldValue, onChange, chrome }) => (
 			<input
 				id={`field-${name}`}
@@ -120,23 +115,23 @@ function Harness({
 	return <BlocksField {...props} />;
 }
 
-function renderField(
-	initial: StoredBlockValue[],
-	{ width = 480, retiredTypes }: { width?: number; retiredTypes?: string[] } = {},
-) {
+function renderField(initial: StoredBlockValue[], { width = 480 }: { width?: number } = {}) {
 	return render(
 		<div style={{ width, marginInline: 80 }}>
-			<Harness initial={initial} retiredTypes={retiredTypes} />
+			<Harness initial={initial} />
 		</div>,
 		{ wrapper: Toasty },
 	);
 }
 
 const row = (key: string) => document.querySelector<HTMLElement>(`[data-block-key="${key}"]`)!;
-const toggleOf = (key: string) => row(key).querySelector<HTMLElement>("[data-block-toggle]")!;
+const menuButtonOf = (key: string) =>
+	page.elementLocator(row(key)).getByRole("button", { name: /actions$/ });
 const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 const running = () => document.getAnimations().filter((a) => a.playState === "running");
 const settled = () => expect.poll(() => running().length).toBe(0);
+const toastOf = () =>
+	document.querySelector<HTMLElement>('[role="region"][aria-live] > [role="dialog"]');
 const textbox = (name: string) => page.getByRole("textbox", { name, exact: true });
 const link = () => textbox("Link");
 
@@ -154,6 +149,12 @@ function ownText(element: Element): string {
 		.map((node) => node.textContent ?? "")
 		.join("")
 		.trim();
+}
+
+/** Waits, frame by frame, for `done`. */
+async function until(done: () => boolean) {
+	for (let count = 0; count < 120 && !done(); count++) await frame();
+	expect(done()).toBe(true);
 }
 
 /** Whether `text` shows anywhere in the blocks field. */
@@ -301,69 +302,73 @@ describe("Focus left by a press that closes its block at once", () => {
 	});
 });
 
-describe("A settings row's problem line, as it goes", () => {
-	it("keeps its problem until it has shrunk away", async () => {
-		await openLinked(560);
-		await link().fill("contact us");
-		await textbox("Title").click();
-		await expect.poll(() => showsText(LINK_PROBLEM)).toBe(true);
+describe("Focus coming back to an opener from a toast", () => {
+	/** An opener whose popup didn't open, as a picker that fails to load. */
+	function Opener() {
+		const quiet = useQuietReturnFocus();
+		return (
+			<button type="button" {...quiet.groupProps} onClick={quiet.markOpener}>
+				Choose
+			</button>
+		);
+	}
+
+	it("counts as focus from anywhere else, so the opener's controls show", async () => {
+		await render(
+			<>
+				<div style={{ width: 480, marginInline: 80 }}>
+					<Harness initial={[short("one"), short("two")]} />
+				</div>
+				<Opener />
+			</>,
+			{ wrapper: Toasty },
+		);
+		await menuButtonOf("one").click();
+		await page.getByRole("menuitem", { name: "Delete" }).click();
+		await until(() => toastOf() !== null);
 		await settled();
-		const line = [...document.querySelectorAll("[data-blocks-field] p:not([hidden])")].find(
-			(element) => element.textContent?.trim() === LINK_PROBLEM,
-		)!;
-		const panel = line.parentElement!;
-		const full = panel.getBoundingClientRect().height;
+		const opener = page.getByRole("button", { name: "Choose", exact: true });
+		await opener.click();
 
-		await link().click();
-		await link().fill("/contact");
-		(textbox("Title").element() as HTMLElement).focus();
-		const frames: Array<{ height: number; text: string }> = [];
-		for (let count = 0; count < 60; count++) {
-			await frame();
-			frames.push({
-				height: panel.getBoundingClientRect().height,
-				text: line.textContent?.trim() ?? "",
-			});
-		}
+		toastOf()!.querySelector<HTMLElement>("button")!.focus();
+		(opener.element() as HTMLElement).focus();
+		await frame();
 
-		const shrinking = frames.filter(({ height }) => height > 1 && height < full - 1);
-		expect(shrinking.length).toBeGreaterThan(0);
-		expect(shrinking.map(({ text }) => text)).toEqual(shrinking.map(() => LINK_PROBLEM));
-		expect(frames.at(-1)!.height).toBeLessThan(1);
-	});
-
-	it("fades a problem fixed while typing, and holds its line until focus leaves", async () => {
-		await openLinked(560);
-		await link().fill("contact us");
-		await textbox("Title").click();
-		await expect.poll(() => showsText(LINK_PROBLEM)).toBe(true);
-		await settled();
-		const line = [...document.querySelectorAll("[data-blocks-field] p:not([hidden])")].find(
-			(element) => element.textContent?.trim() === LINK_PROBLEM,
-		)!;
-		const panel = line.parentElement!;
-		const full = panel.getBoundingClientRect().height;
-
-		await link().click();
-		await link().fill("/contact");
-		await settled();
-		expect(Number(getComputedStyle(line.firstElementChild!).opacity)).toBe(0);
-		expect(panel.getBoundingClientRect().height).toBeCloseTo(full, 0);
+		await expect.element(opener).toHaveFocus();
+		expect(opener.element().closest("[data-quiet-focus]")).toBeNull();
 	});
 });
 
-describe("A block's status badge", () => {
-	it("opens and closes the block like the rest of its head", async () => {
-		await renderField([short("old"), short("after")], { retiredTypes: ["short"] });
-		const toggle = toggleOf("old");
-		await expect.element(page.elementLocator(toggle)).toHaveAccessibleDescription(/Retired/);
-		const badge = page.elementLocator(row("old")).getByText("Retired", { exact: true });
+describe("The block picker", () => {
+	it("opened by a tap while it still closes from a keyboard opening keeps its search out of focus", async () => {
+		await renderField([short("one")]);
+		const add = page
+			.getByRole("button", { name: "Add block", exact: true })
+			.element() as HTMLElement;
+		add.focus();
+		await userEvent.keyboard("{Enter}");
+		const search = () =>
+			document.querySelector<HTMLInputElement>(
+				'[role="combobox"][aria-label="Search block types"]',
+			);
+		await until(() => document.activeElement === search());
+		await settled();
 
-		await badge.click();
-		await settled();
-		expect(toggle.getAttribute("aria-expanded")).toBe("true");
-		await badge.click();
-		await settled();
-		expect(toggle.getAttribute("aria-expanded")).toBe("false");
+		flushSync(() => {
+			search()!.dispatchEvent(
+				new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+			);
+		});
+		expect(search()).not.toBeNull();
+		flushSync(() => {
+			add.dispatchEvent(
+				new PointerEvent("pointerdown", { pointerType: "touch", bubbles: true, isPrimary: true }),
+			);
+			add.click();
+		});
+		for (let count = 0; count < 4; count++) await frame();
+
+		expect(search()?.tabIndex).toBe(-1);
+		expect(document.activeElement).not.toBe(search());
 	});
 });
