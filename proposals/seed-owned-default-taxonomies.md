@@ -7,7 +7,7 @@ authors:
 champion: Kevin Kyburz (@swissky)
 sponsor: null
 discussions:
-  - https://github.com/emdash-cms/emdash/discussions/XXX
+  - https://github.com/emdash-cms/emdash/discussions/4622
 created: 2026-11-03
 ---
 
