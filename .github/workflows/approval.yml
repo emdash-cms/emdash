@@ -106,6 +106,8 @@ jobs:
             const privilegedEvents = [
               'check_run',
               'check_suite',
+              'deployment',
+              'deployment_status',
               'discussion',
               'discussion_comment',
               'fork',
