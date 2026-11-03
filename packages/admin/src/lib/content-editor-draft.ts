@@ -185,8 +185,10 @@ function jsonOf(value: unknown): string | undefined {
 	}
 }
 
+/** A JSON round trip of `value`, or undefined for a value JSON can't hold. */
 function jsonCopy(value: unknown): unknown {
-	return JSON.parse(JSON.stringify(value));
+	const json = jsonOf(value);
+	return json === undefined ? undefined : JSON.parse(json);
 }
 
 /** The JSON of each draft value in key order. The revision and the snapshot both come from it. */
@@ -237,32 +239,27 @@ function richTextProblem(value: unknown, state: EditorDraftState): string | null
 	}
 }
 
-/** Why `operation` can't go into `key`, or null. */
+/** Why `operation` can't go into `key`, or null. `value` is the JSON copy the form would receive. */
 function valueProblem(
 	key: DraftKey,
 	operation: EditorDraftPatchOperation,
+	value: unknown,
 	state: EditorDraftState,
 ): string | null {
 	if (key.source === "host" && key.host.holds === "slug") {
 		if (operation.op === "clear") return "the slug can't be cleared";
-		return typeof operation.value === "string" && operation.value !== ""
-			? null
-			: "expected a non-empty string";
+		return typeof value === "string" && value !== "" ? null : "expected a non-empty string";
 	}
+	// NaN and Infinity copy as null, so only a null the caller passed counts as a clear.
 	if (operation.op === "clear" || operation.value === null) return null;
-	const json = jsonOf(operation.value);
-	if (json === undefined) return "the value can't be serialized as JSON";
-	// The shape is checked before the JSON copy, which would turn NaN and Infinity into null.
-	if (!key.rule.accepts(operation.value)) return `expected ${key.rule.expected}`;
+	if (!key.rule.accepts(value)) return `expected ${key.rule.expected}`;
 	if (key.source === "host") {
 		const { maxLength } = key.host;
-		return maxLength !== undefined &&
-			typeof operation.value === "string" &&
-			operation.value.length > maxLength
+		return maxLength !== undefined && typeof value === "string" && value.length > maxLength
 			? `longer than ${maxLength} characters`
 			: null;
 	}
-	return loadsAsRichText(key.field, state) ? richTextProblem(JSON.parse(json), state) : null;
+	return loadsAsRichText(key.field, state) ? richTextProblem(value, state) : null;
 }
 
 function parseOperation(value: unknown): EditorDraftPatchOperation | null {
@@ -272,19 +269,24 @@ function parseOperation(value: unknown): EditorDraftPatchOperation | null {
 	return null;
 }
 
+/** Adds the write of `value`, a JSON copy or null, to `field`. */
+function addChange(changes: DraftChanges, field: string, value: unknown): void {
+	const host = HOST_KEYS.find((rule) => rule.key === field);
+	if (!host) {
+		changes.fields[field] = value;
+		return;
+	}
+	const held = typeof value === "string" ? value : "";
+	if (host.holds === "slug") changes.slug = held;
+	else changes.seo = { ...changes.seo, [host.holds]: held };
+}
+
 function toDraftChanges(operations: readonly EditorDraftPatchOperation[]): DraftChanges {
 	const changes: DraftChanges = { fields: {} };
 	for (const operation of operations) {
-		const host = HOST_KEYS.find((rule) => rule.key === operation.field);
-		if (!host) {
-			changes.fields[operation.field] =
-				operation.op === "set" && operation.value !== null ? jsonCopy(operation.value) : null;
-			continue;
-		}
 		const value =
-			operation.op === "set" && typeof operation.value === "string" ? operation.value : "";
-		if (host.holds === "slug") changes.slug = value;
-		else changes.seo = { ...changes.seo, [host.holds]: value };
+			operation.op === "set" && operation.value !== null ? jsonCopy(operation.value) : null;
+		addChange(changes, operation.field, value);
 	}
 	return changes;
 }
@@ -304,7 +306,8 @@ function checkPatch(
 		};
 	}
 	const byName = new Map(keys.map((key) => [key.name, key]));
-	const checked: EditorDraftPatchOperation[] = [];
+	const changes: DraftChanges = { fields: {} };
+	const seen = new Set<string>();
 	for (const [index, value] of operations.entries()) {
 		const at = `Operation ${index + 1}`;
 		const operation = parseOperation(value);
@@ -315,16 +318,21 @@ function checkPatch(
 			};
 		}
 		const named = `${at} (${operation.op} "${operation.field}")`;
-		if (checked.some((earlier) => earlier.field === operation.field)) {
+		if (seen.has(operation.field)) {
 			return { ok: false, message: `${named} names a field an earlier operation names` };
 		}
+		seen.add(operation.field);
 		const key = byName.get(operation.field);
 		if (!key) return { ok: false, message: `${named} names a field that isn't a draft field` };
-		const problem = valueProblem(key, operation, state);
+		const copy = operation.op === "set" ? jsonCopy(operation.value) : null;
+		const problem =
+			copy === undefined
+				? "the value can't be serialized as JSON"
+				: valueProblem(key, operation, copy, state);
 		if (problem) return { ok: false, message: `${named}: ${problem}` };
-		checked.push(operation);
+		addChange(changes, operation.field, copy);
 	}
-	return { ok: true, changes: toDraftChanges(checked) };
+	return { ok: true, changes };
 }
 
 /**
@@ -404,7 +412,13 @@ export function createContentEditorDraft(host: EditorDraftHost): ContentEditorDr
 			if (!state.acceptsEdits) {
 				return refuse("EDITOR_DRAFT_READ_ONLY", "The editor doesn't accept edits right now.");
 			}
-			const checked = checkPatch(operations, keys, state);
+			let checked: PatchCheck;
+			try {
+				checked = checkPatch(operations, keys, state);
+			} catch {
+				// A getter or proxy in the caller's operations threw.
+				checked = { ok: false, message: "the operations couldn't be read" };
+			}
 			if (!checked.ok) return refuse("EDITOR_DRAFT_INVALID", checked.message);
 			host.apply(checked.changes);
 			return { ok: true };

@@ -29,6 +29,7 @@ const FIELDS: Record<string, DraftFieldDescriptor> = {
 	rank: { kind: "number", type: "integer", label: "Rank" },
 	featured: { kind: "boolean", type: "boolean", label: "Featured" },
 	cover: { kind: "image", type: "image", label: "Cover" },
+	layout: { kind: "blocks", type: "blocks", label: "Layout" },
 	data: { kind: "json", type: "json", label: "Data" },
 	body: { kind: "portableText", type: "portableText", label: "Body" },
 	author: {
@@ -91,6 +92,7 @@ describe("createContentEditorDraft", () => {
 			"rank",
 			"featured",
 			"cover",
+			"layout",
 			"data",
 			"body",
 			"legacy",
@@ -282,6 +284,11 @@ describe("createContentEditorDraft", () => {
 		["1.5 for an integer", [{ op: "set", field: "rank", value: 1.5 }]],
 		["2 for a boolean", [{ op: "set", field: "featured", value: 2 }]],
 		["an array for an image", [{ op: "set", field: "cover", value: [] }]],
+		["a Date for an image", [{ op: "set", field: "cover", value: new Date("2026-01-01") }]],
+		[
+			"an array of Dates for blocks",
+			[{ op: "set", field: "layout", value: [new Date("2026-01-01")] }],
+		],
 		["a block without _type", [{ op: "set", field: "body", value: [{ text: "Hi" }] }]],
 		[
 			"a mark the rich text editor doesn't support",
@@ -381,5 +388,23 @@ describe("createContentEditorDraft", () => {
 			ok: false,
 			code: "EDITOR_DRAFT_INVALID",
 		});
+	});
+
+	it("refuses rather than throws when reading the operations throws, and writes nothing", () => {
+		const { draft, apply } = setup();
+		const unreadable = {
+			op: "set",
+			field: "excerpt",
+			get value(): never {
+				throw new Error("Unreadable");
+			},
+		};
+		expect(
+			patchWith(draft, [{ op: "set", field: "title", value: "Hi" }, unreadable]),
+		).toMatchObject({ ok: false, code: "EDITOR_DRAFT_INVALID" });
+		const { proxy, revoke } = Proxy.revocable([], {});
+		revoke();
+		expect(patchWith(draft, proxy)).toMatchObject({ ok: false, code: "EDITOR_DRAFT_INVALID" });
+		expect(apply).not.toHaveBeenCalled();
 	});
 });
