@@ -14,9 +14,13 @@ export * from "./lib/api";
 export { cn } from "./lib/utils";
 
 export {
+	type ContentEditorDraft,
+	type ContentEditorDraftPatchResult,
+	type ContentEditorDraftSnapshot,
 	type ContentEditorPanelContext,
 	type ContentEditorPanelExtension,
 } from "./lib/content-editor-panels";
+export type { EditorDraftFieldDefinition, EditorDraftPatchOperation } from "@emdash-cms/blocks";
 
 // Plugin admin context (for accessing plugin components)
 export {

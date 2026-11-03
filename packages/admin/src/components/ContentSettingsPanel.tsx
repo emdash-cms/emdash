@@ -41,6 +41,7 @@ import type {
 import {
 	ContentEditorPanelBoundary,
 	resolveContentEditorPanels,
+	type ContentEditorDraft,
 } from "../lib/content-editor-panels";
 import {
 	getContentPublishingState,
@@ -77,7 +78,7 @@ import type {
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
 import { SaveButton } from "./SaveButton";
-import { SeoPanel } from "./SeoPanel";
+import { SeoPanel, type SeoTextBridge } from "./SeoPanel";
 import { declaredLabelTranslator } from "./Sidebar.js";
 import {
 	SortableContentSettingsSection,
@@ -773,6 +774,10 @@ export interface ContentSettingsPanelProps {
 		response: EditorDraftResponse,
 	) => void;
 	onEntryRefresh?: () => void | Promise<void>;
+	/** Passed to every trusted editor panel; one per entry. */
+	editorDraft?: ContentEditorDraft;
+	/** The editor's copy of the SEO title and description, which outlives SeoPanel; one per entry. */
+	seoTextBridge?: SeoTextBridge;
 }
 
 /**
@@ -829,6 +834,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	captureEditorDraft,
 	onEditorDraftResponse,
 	onEntryRefresh,
+	editorDraft,
+	seoTextBridge,
 }: ContentSettingsPanelProps) {
 	const { t, i18n: lingui } = useLingui();
 	const navigate = useNavigate();
@@ -1192,6 +1199,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								defaultDescription={
 									typeof item?.data?.excerpt === "string" ? item.data.excerpt : null
 								}
+								textBridge={seoTextBridge}
 							/>
 						</div>
 					</SortableContentSettingsSection>
@@ -1256,6 +1264,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 												collection={collection}
 												entry={item}
 												locale={item.locale ?? entryLocale ?? undefined}
+												editorDraft={editorDraft}
 											/>
 										</div>
 									</ContentEditorPanelBoundary>

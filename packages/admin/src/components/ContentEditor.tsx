@@ -46,7 +46,14 @@ import {
 	getPreviewUrl,
 	getDraftStatus,
 } from "../lib/api";
-import { checkSandboxedPatch, type DraftChanges } from "../lib/content-editor-draft.js";
+import {
+	boundReference,
+	checkSandboxedPatch,
+	createContentEditorDraft,
+	type DraftChanges,
+	type EditorDraftHost,
+	type EditorDraftState,
+} from "../lib/content-editor-draft.js";
 import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
@@ -96,6 +103,7 @@ import type {
 	BrowserEditorDraftRequest,
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
+import { createSeoTextBridge, seoTextInput } from "./SeoPanel.js";
 import { UnsavedChangesGuard } from "./UnsavedChangesGuard.js";
 
 /** Autosave debounce delay in milliseconds */
@@ -827,6 +835,11 @@ export function ContentEditor({
 		setBylinesTouched(false);
 	}
 
+	const entrySwitches = entrySwitchesRef.current;
+	/** The SEO title and description for the shown entry, which outlive SeoPanel. */
+	const seoTextBridge = React.useMemo(() => createSeoTextBridge(item?.seo), [entrySwitches]);
+	const seoAvailable = hasSeo && !isNew && Boolean(onSeoChange);
+
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
 	const itemDataString = React.useMemo(() => (item ? JSON.stringify(item.data) : ""), [item?.data]);
@@ -1227,66 +1240,6 @@ export function ContentEditor({
 		},
 		[editorDraftResponseIsCurrent, t],
 	);
-
-	const pluginAdmins = usePluginAdmins();
-	const rendersWidget = React.useCallback(
-		(field: { widget?: string }) =>
-			resolvePluginFieldWidget(field.widget, pluginAdmins, manifest) !== null,
-		[manifest, pluginAdmins],
-	);
-
-	/** The one step that writes an editor draft patch, trusted or sandboxed, into the form. */
-	const applyDraftChanges = React.useCallback(
-		(changes: DraftChanges) => {
-			const names = Object.keys(changes.fields);
-			if (names.length === 0) return;
-			formDataRef.current = { ...formDataRef.current, ...changes.fields };
-			setFormData((previous) => ({ ...previous, ...changes.fields }));
-			// An open block panel edits through a rich text editor this remount replaces.
-			if (names.some((name) => READ_ONCE_FIELD_KINDS.has(fields[name]?.kind ?? ""))) {
-				handleBlockSidebarClose();
-			}
-			setFieldGenerations((generations) => {
-				const next = { ...generations };
-				for (const name of names) next[name] = (next[name] ?? 0) + 1;
-				return next;
-			});
-			editorGenerationRef.current++;
-			markDirty();
-			patchCountRef.current++;
-		},
-		[fields, handleBlockSidebarClose, markDirty],
-	);
-
-	const applyEditorDraftPatch = React.useCallback(() => {
-		if (!pendingEditorDraftPatch) return;
-		const { access, response } = pendingEditorDraftPatch;
-		setPendingEditorDraftPatch(null);
-		if (!response.patch || !editorDraftResponseIsCurrent(access, response)) {
-			setEditorDraftError(
-				t`The plugin result is stale because the editor changed while it was working.`,
-			);
-			return;
-		}
-		const checked = checkSandboxedPatch(response.patch.operations, {
-			fields,
-			pluginBlocks: pluginBlocks ?? [],
-			rendersWidget,
-		});
-		if (!checked.ok) {
-			setEditorDraftError(t`The plugin proposed a value this editor can't load.`);
-			return;
-		}
-		applyDraftChanges(checked.changes);
-	}, [
-		applyDraftChanges,
-		editorDraftResponseIsCurrent,
-		fields,
-		pendingEditorDraftPatch,
-		pluginBlocks,
-		rendersWidget,
-		t,
-	]);
 
 	/**
 	 * Advances the saved baseline to what a successful save sent. Editing further
@@ -1742,13 +1695,18 @@ export function ContentEditor({
 		}
 	};
 
+	// The handlers write the refs as well as the state, so an editor draft read in the same
+	// task sees an edit that hasn't rendered: the rich text editor reports changes outside
+	// React events.
 	const handleFieldChange = React.useCallback(
 		(name: string, value: unknown) => {
 			editorGenerationRef.current++;
 			markDirty();
+			formDataRef.current = { ...formDataRef.current, [name]: value };
 			setFormData((prev) => ({ ...prev, [name]: value }));
 			if (name === (titleField ?? "title") && !slugTouched && typeof value === "string" && value) {
-				setSlug(slugify(value));
+				slugRef.current = slugify(value);
+				setSlug(slugRef.current);
 			}
 		},
 		[slugTouched, markDirty, titleField],
@@ -1758,11 +1716,109 @@ export function ContentEditor({
 		(value: string) => {
 			editorGenerationRef.current++;
 			markDirty();
+			slugRef.current = value;
 			setSlug(value);
 			setSlugTouched(true);
 		},
 		[markDirty],
 	);
+
+	const pluginAdmins = usePluginAdmins();
+	const rendersWidget = React.useCallback(
+		(field: { widget?: string }) =>
+			resolvePluginFieldWidget(field.widget, pluginAdmins, manifest) !== null,
+		[manifest, pluginAdmins],
+	);
+
+	/** The one step that writes an editor draft patch, trusted or sandboxed, into the editor. */
+	const applyDraftChanges = React.useCallback(
+		(changes: DraftChanges) => {
+			const names = Object.keys(changes.fields);
+			const writesForm = names.length > 0 || changes.slug !== undefined;
+			if (writesForm) {
+				formDataRef.current = { ...formDataRef.current, ...changes.fields };
+				// A new object even for a slug-only patch, so a render shows the patch count.
+				setFormData((previous) => ({ ...previous, ...changes.fields }));
+				patchCountRef.current++;
+			}
+			if (names.length > 0) {
+				// An open block panel edits through a rich text editor this remount replaces.
+				if (names.some((name) => READ_ONCE_FIELD_KINDS.has(fields[name]?.kind ?? ""))) {
+					handleBlockSidebarClose();
+				}
+				setFieldGenerations((generations) => {
+					const next = { ...generations };
+					for (const name of names) next[name] = (next[name] ?? 0) + 1;
+					return next;
+				});
+				editorGenerationRef.current++;
+				markDirty();
+			}
+			if (changes.slug !== undefined) handleSlugChange(changes.slug);
+			if (changes.seo) {
+				seoTextBridge.text = { ...seoTextBridge.text, ...changes.seo };
+				// A mounted SeoPanel saves it after its debounce, as it saves typing. Without one it
+				// is saved now, as the panel saves pending text when it closes.
+				if (seoTextBridge.setText) seoTextBridge.setText(changes.seo);
+				else handleSeoChange(seoTextInput(changes.seo));
+			}
+		},
+		[fields, handleBlockSidebarClose, handleSeoChange, handleSlugChange, markDirty, seoTextBridge],
+	);
+
+	const draftHost = {
+		read: (): EditorDraftState => ({
+			acceptsEdits: !readOnly && !isViewing,
+			fields,
+			formData: formDataRef.current,
+			slug: slugRef.current,
+			seo: seoAvailable ? seoTextBridge.text : null,
+			pluginBlocks: pluginBlocks ?? [],
+			rendersWidget,
+		}),
+		apply: applyDraftChanges,
+	} satisfies EditorDraftHost;
+	const draftHostRef = React.useRef(draftHost);
+	draftHostRef.current = draftHost;
+	/** Retires the draft objects once the editor unmounts. */
+	const mountedRef = React.useRef(true);
+	// A layout cleanup, so no task can patch between the unmount commit and the retirement.
+	React.useLayoutEffect(() => {
+		mountedRef.current = true;
+		return () => {
+			mountedRef.current = false;
+		};
+	}, []);
+	// Keyed by the switch count, which is what retires an object, so the object handed out
+	// always matches the count, including after a render that advanced it was discarded.
+	const editorDraft = React.useMemo(() => {
+		const switches = entrySwitchesRef.current;
+		return createContentEditorDraft({
+			read: () =>
+				mountedRef.current && entrySwitchesRef.current === switches
+					? draftHostRef.current.read()
+					: null,
+			apply: (changes) => draftHostRef.current.apply(changes),
+		});
+	}, [entrySwitches]);
+
+	const applyEditorDraftPatch = React.useCallback(() => {
+		if (!pendingEditorDraftPatch) return;
+		const { access, response } = pendingEditorDraftPatch;
+		setPendingEditorDraftPatch(null);
+		if (!response.patch || !editorDraftResponseIsCurrent(access, response)) {
+			setEditorDraftError(
+				t`The plugin result is stale because the editor changed while it was working.`,
+			);
+			return;
+		}
+		const checked = checkSandboxedPatch(response.patch.operations, draftHostRef.current.read());
+		if (!checked.ok) {
+			setEditorDraftError(t`The plugin proposed a value this editor can't load.`);
+			return;
+		}
+		applyDraftChanges(checked.changes);
+	}, [applyDraftChanges, editorDraftResponseIsCurrent, pendingEditorDraftPatch, t]);
 
 	const isPublished = status === "published";
 
@@ -2228,6 +2284,8 @@ export function ContentEditor({
 										captureEditorDraft={captureEditorDraft}
 										onEditorDraftResponse={handleEditorDraftResponse}
 										onEntryRefresh={onEntryRefresh}
+										editorDraft={editorDraft}
+										seoTextBridge={seoTextBridge}
 									/>
 								</RevisionViewProvider>
 							</div>
@@ -2936,12 +2994,7 @@ function FieldRenderer({
 		}
 
 		case "reference": {
-			const relationGroup =
-				typeof field.validation?.relation === "string" ? field.validation.relation : undefined;
-			const targetCollection =
-				typeof field.validation?.targetCollection === "string"
-					? field.validation.targetCollection
-					: undefined;
+			const bound = boundReference(field);
 			// For a bound field the manifest reports the relation's own cardinality
 			// here; the field row's `multiple` is only the create-time input that set
 			// it, and a later schema edit can rewrite the row without it.
@@ -2949,7 +3002,7 @@ function FieldRenderer({
 			// A reference field created before relations existed keeps its own column
 			// holding one entry id, so it stays the text input it has always been
 			// until an admin gives it a target collection.
-			if (!relationGroup || !targetCollection) {
+			if (!bound) {
 				return (
 					<Input
 						label={label}
@@ -2967,7 +3020,7 @@ function FieldRenderer({
 					label={label}
 					labelClass={labelClass}
 					required={field.required}
-					targetCollection={targetCollection}
+					targetCollection={bound.targetCollection}
 					multiple={multiple}
 					reorderable={field.validation?.relationSide !== "child"}
 					state={referenceState?.[name]}
