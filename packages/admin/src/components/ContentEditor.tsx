@@ -127,19 +127,30 @@ function listValue(value: unknown): unknown[] {
 	return Array.isArray(value) ? value : [];
 }
 
+/** The fields where `next` holds a different value than `current`, comparing list values as their editors load them. */
+function changedFields(
+	fields: Record<string, FieldDescriptor>,
+	current: Record<string, unknown>,
+	next: Record<string, unknown>,
+): string[] {
+	return Object.entries(fields)
+		.filter(([name, field]) =>
+			READ_ONCE_FIELD_KINDS.has(field.kind)
+				? JSON.stringify(listValue(current[name])) !== JSON.stringify(listValue(next[name]))
+				: JSON.stringify(current[name]) !== JSON.stringify(next[name]),
+		)
+		.map(([name]) => name);
+}
+
 /** The fields with editors that read their value once, where `next` holds a different value than `current`. */
 function changedReadOnceFields(
 	fields: Record<string, FieldDescriptor>,
 	current: Record<string, unknown>,
 	next: Record<string, unknown>,
 ): string[] {
-	return Object.entries(fields)
-		.filter(
-			([name, field]) =>
-				READ_ONCE_FIELD_KINDS.has(field.kind) &&
-				JSON.stringify(listValue(current[name])) !== JSON.stringify(listValue(next[name])),
-		)
-		.map(([name]) => name);
+	return changedFields(fields, current, next).filter((name) =>
+		READ_ONCE_FIELD_KINDS.has(fields[name]!.kind),
+	);
 }
 
 function defaultFieldValues(fields: Record<string, FieldDescriptor>): Record<string, unknown> {
@@ -809,19 +820,19 @@ export function ContentEditor({
 			) {
 				const saved =
 					itemReset && !discarded && !restored
-						? (JSON.parse(lastSavedData) as { data: Record<string, unknown> }).data
+						? (JSON.parse(lastSavedData) as { data: Record<string, unknown>; slug: string })
 						: undefined;
-				// A save's reload can arrive behind edits made after the save went out. Where the
-				// editor reads its value once, they stay in the editor and in the form, so the next
-				// save sends them under the revision they were made on.
+				// A save's reload can arrive behind edits made after the save went out. They stay in
+				// the form, so the next save sends them under the revision they were made on.
 				const keepEdits = (current: Record<string, unknown>) => {
 					let next = item.data;
 					if (!saved) return next;
-					for (const name of changedReadOnceFields(fields, saved, current)) {
+					for (const name of changedFields(fields, saved.data, current)) {
 						next = { ...next, [name]: current[name] };
 					}
 					return next;
 				};
+				const keepSlug = saved !== undefined && slugRef.current !== saved.slug;
 				const replaced = changedReadOnceFields(
 					fields,
 					formDataRef.current,
@@ -842,8 +853,10 @@ export function ContentEditor({
 				}
 				// An edit can still be waiting to render, so the kept edits come from the latest form.
 				setFormData(keepEdits);
-				setSlug(item.slug || "");
-				setSlugTouched(!!item.slug);
+				if (!keepSlug) {
+					setSlug(item.slug || "");
+					setSlugTouched(!!item.slug);
+				}
 				setInternalBylines(nextBylines);
 				setBylinesTouched(false);
 			}
