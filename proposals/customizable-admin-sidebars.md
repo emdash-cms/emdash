@@ -1,7 +1,7 @@
 ---
 title: Customizable admin sidebars
 type: feature-plan
-status: accepted
+status: implemented
 authors:
   - Noah Pham (@khoinguyenpham04)
 discussion: null
@@ -63,7 +63,7 @@ Linear ([Personalized sidebar](https://linear.app/changelog/2024-12-18-personali
 
   A navigation ID is the entry's admin path without its query string, such as `/content/posts`, `/taxonomies/category`, or `/plugins/forms/submissions`, or `folder:<label>` for a folder. An editor sidebar ID is the section's existing ID: `publish`, `url-language`, `ownership`, `bylines`, `translations`, `taxonomies`, `seo`, `outline`, `revisions`, `plugin:<pluginId>:<panelId>`, or `sandbox-plugin:<pluginId>:<panelId>`.
 
-- **API.** `GET /_emdash/api/auth/me` also returns `adminLayout`: the stored layout if it passes validation, otherwise `null`. The admin already loads this response, and the route reads the session's user, so returning the layout adds no request and no query. `POST /_emdash/api/auth/me` accepts a new action, `{ "action": "setAdminLayout", "adminLayout": AdminLayout | null }`, which replaces the stored layout, or removes it when `adminLayout` is `null`. The action's body schema gains `adminLayout` as a strict object: `version` is the literal `1`, and each list holds non-empty strings. Like the existing `dismissWelcome` action, the new action needs a signed-in user and the `X-EmDash-Request` header, and a save costs what a `dismissWelcome` request costs today. Both changes are additive.
+- **API.** `GET /_emdash/api/auth/me` also returns `adminLayout`: the stored layout if it passes validation, otherwise `null`. The admin already loads this response, and the route reads the session's user, so returning the layout adds no request and no query. `POST /_emdash/api/auth/me` accepts a new action, `{ "action": "setAdminLayout", "adminLayout": AdminLayout | null }`, which replaces the stored layout, or removes it when `adminLayout` is `null`. The action's body schema gains `adminLayout` as a strict object: `version` is the literal `1`, and each list holds non-empty strings. Like the existing `dismissWelcome` action, the new action needs a signed-in user and the `X-EmDash-Request` header. Both actions write only their own key of `data`, in one statement that merges into the stored value, so a save costs one query and leaves the other keys alone. Both changes are additive.
 
 - **Resolving a layout.** The admin builds each sidebar in three steps:
   1. Start from what the user can see today. Role checks, `admin.hiddenNavItems`, hidden collections, disabled plugins, and each collection's features still decide which entries and sections exist.
@@ -84,8 +84,8 @@ Linear ([Personalized sidebar](https://linear.app/changelog/2024-12-18-personali
 ## Errors and edge cases
 
 - A missing or invalid stored layout counts as no layout. The admin drops duplicate IDs when it reads one.
-- The auth middleware loads and parses `users.data` on every authenticated request, so the action keeps the layout small. It rejects an `adminLayout` whose JSON is larger than 16 KB in UTF-8, or a list with more than 200 IDs, with `VALIDATION_ERROR`.
-- A tab holding an older layout overwrites changes saved from another tab. Because the Settings page reloads the layout when it opens, this takes two Settings pages open at once. A layout save and a `dismissWelcome` request at the same moment can also overwrite each other, because each rewrites the whole `data` value.
+- The auth middleware loads and parses `users.data` on every authenticated request, so the action keeps the layout small. It rejects an `adminLayout` whose JSON is larger than 16 KB in UTF-8, or a list with more than 200 IDs, with `VALIDATION_ERROR`. It also rejects IDs containing U+0000 or a lone UTF-16 surrogate, which PostgreSQL can't store.
+- A tab holding an older layout overwrites changes saved from another tab. Because the Settings page reloads the layout when it opens, this takes two Settings pages open at once.
 - In a list with a saved order, a new collection, taxonomy, plugin page, or plugin panel appears after the saved entries in its group, folder, or list.
 - An entry that disappears, for example because its plugin is disabled, and comes back after the user has moved something in that list returns to its default position.
 - Renaming a folder resets its position, because folder IDs use the label.
