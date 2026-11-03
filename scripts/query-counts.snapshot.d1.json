@@ -1,5 +1,5 @@
 {
-	"GET / (cold)": 23,
+	"GET / (cold)": 22,
 	"GET / (warm)": 5,
 	"GET /category/development (cold)": 21,
 	"GET /category/development (warm)": 9,

@@ -3235,6 +3235,7 @@ export class EmDashRuntime {
 			fallbackProviders: new Set([
 				DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 				...(smtpFromEnv ? [SMTP_EMAIL_PLUGIN_ID] : []),
+				DEV_CONSOLE_EMAIL_PLUGIN_ID,
 			]),
 			manualProviders: smtpFromEnv ? undefined : new Set([SMTP_EMAIL_PLUGIN_ID]),
 		});
