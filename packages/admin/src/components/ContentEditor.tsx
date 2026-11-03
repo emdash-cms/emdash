@@ -215,6 +215,8 @@ import {
 export interface FieldDescriptor {
 	id?: string;
 	kind: string;
+	/** Schema type from the manifest; `slug` and `string` share the `string` kind. */
+	type?: string;
 	label?: string;
 	required?: boolean;
 	translatable?: boolean;

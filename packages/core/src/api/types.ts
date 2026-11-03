@@ -69,6 +69,8 @@ export interface ManifestCollectionDescriptor {
 
 export interface ManifestFieldDescriptor extends FieldDescriptor {
 	id?: string;
+	/** Schema type. Absent for unsupported types and for descriptors derived from Zod schemas. */
+	type?: FieldType;
 	widget?: string;
 	validation?: Record<string, unknown>;
 	unsupportedType?: { type: string; path: string };
@@ -119,3 +121,4 @@ export interface ApiContext {
 	userRole?: string;
 }
 import type { BlockType } from "../schema/block-types.js";
+import type { FieldType } from "../schema/types.js";

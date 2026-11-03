@@ -353,6 +353,7 @@ function dbFieldDescriptor(
 		id: field.id,
 	};
 	if (field.unsupportedType) entry.unsupportedType = field.unsupportedType;
+	else entry.type = field.type;
 	if (field.type === "integer") entry.integer = true;
 	if (field.blockTypes) entry.blockTypes = field.blockTypes;
 	if (field.blockTypeFingerprint) entry.blockTypeFingerprint = field.blockTypeFingerprint;
