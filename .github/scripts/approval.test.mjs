@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { basename } from "node:path";
 import { describe, it } from "node:test";
 
 const workflow = readFileSync(new URL("../workflows/approval.yml", import.meta.url), "utf8");
@@ -10,6 +11,11 @@ const script = workflow
 	.join("\n");
 const AsyncFunction = Object.getPrototypeOf(async () => null).constructor;
 const execute = new AsyncFunction("github", "context", "core", script);
+const rules = await new AsyncFunction(
+	"context",
+	`${script.split("\nlet governanceFile;")[0]}\nreturn { readOnlyWorkflows, readOnlyScripts, privilegedEvents };`,
+)({ repo: {} });
+const workflowsDir = new URL("../workflows/", import.meta.url);
 const checkName = "Human Maintainer approval";
 
 function review(login, state = "APPROVED", commit = "head", type = "User") {
@@ -262,5 +268,35 @@ describe("Maintainer review status", () => {
 		await test.run();
 		assertStatus(test, "neutral", null);
 		assert.ok(test.state.checks[0].output.title.includes("Draft"));
+	});
+});
+
+describe("Read-only workflow list", () => {
+	it("lists only workflows without a write permission, a secret or a privileged trigger", () => {
+		const privilege = new RegExp(
+			`secrets|\\bwrite\\b|\\b(?:${rules.privilegedEvents.join("|")})\\b`,
+			"i",
+		);
+		for (const path of rules.readOnlyWorkflows) {
+			const lines = readFileSync(new URL(`../../${path}`, import.meta.url), "utf8")
+				.split("\n")
+				.filter((line) => !line.trimStart().startsWith("#"));
+			assert.ok(
+				lines.some((line) => line.startsWith("permissions:")),
+				`${path} sets no top-level permissions`,
+			);
+			for (const line of lines) assert.doesNotMatch(line, privilege, path);
+		}
+	});
+
+	it("lists only scripts that no other workflow runs", () => {
+		for (const name of readdirSync(workflowsDir)) {
+			const path = `.github/workflows/${name}`;
+			if (name === "approval.yml" || rules.readOnlyWorkflows.has(path)) continue;
+			const text = readFileSync(new URL(name, workflowsDir), "utf8");
+			for (const listed of rules.readOnlyScripts) {
+				assert.ok(!text.includes(basename(listed)), `${path} runs ${listed}`);
+			}
+		}
 	});
 });
