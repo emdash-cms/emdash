@@ -476,7 +476,7 @@ msgid "{0} detected"
 msgstr "ตรวจพบ {0}"
 
 #. placeholder {0}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:620
+#: packages/admin/src/components/TaxonomySidebar.tsx:627
 msgid "{0} fallback"
 msgstr "ใช้ {0} แทน"
 
@@ -591,7 +591,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr "ระบบ {0} + กำหนดเอง {1} {2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:680
+#: packages/admin/src/components/TaxonomySidebar.tsx:687
 msgid "{0} updated"
 msgstr "อัปเดต {0} แล้ว"
 
@@ -741,7 +741,7 @@ msgstr "ย้าย {label} ไปยังตำแหน่งที่ {0} �
 msgid "{label} moved to position {0}."
 msgstr "ย้าย {label} ไปตำแหน่งที่ {0} แล้ว"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:533
+#: packages/admin/src/components/TaxonomySidebar.tsx:535
 msgid "{label} options"
 msgstr "ตัวเลือกของ {label}"
 
@@ -1252,7 +1252,7 @@ msgstr ""
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:762
+#: packages/admin/src/components/TaxonomySidebar.tsx:769
 msgid "A source and target locale are required"
 msgstr "ต้องระบุภาษาต้นทางและภาษาปลายทาง"
 
@@ -1984,8 +1984,8 @@ msgstr "กุญแจดิจิทัลที่เข้ารหัส �
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
 #: packages/admin/src/components/settings/TransferSettings.tsx:85
-#: packages/admin/src/components/TaxonomySidebar.tsx:687
-#: packages/admin/src/components/TaxonomySidebar.tsx:783
+#: packages/admin/src/components/TaxonomySidebar.tsx:694
+#: packages/admin/src/components/TaxonomySidebar.tsx:790
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:664
 #: packages/admin/src/router.tsx:685
@@ -2359,7 +2359,7 @@ msgid "Available bylines"
 msgstr "ชื่อผู้เขียนที่ใช้ได้"
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:846
+#: packages/admin/src/components/TaxonomySidebar.tsx:853
 msgid "Available in {0}"
 msgstr "มีใน {0}"
 
@@ -3097,9 +3097,9 @@ msgstr "กำลังตรวจสอบไซต์นี้"
 msgid "Checking…"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:395
 #: packages/admin/src/components/TaxonomySidebar.tsx:396
-#: packages/admin/src/components/TaxonomySidebar.tsx:489
+#: packages/admin/src/components/TaxonomySidebar.tsx:397
+#: packages/admin/src/components/TaxonomySidebar.tsx:490
 msgid "Choose {label}"
 msgstr "เลือก {label}"
 
@@ -3311,7 +3311,7 @@ msgstr "คลิกลิงก์นี้เพื่อเข้าสู่
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
-#: packages/admin/src/components/TaxonomySidebar.tsx:606
+#: packages/admin/src/components/TaxonomySidebar.tsx:613
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:8
 msgid "Close"
@@ -3958,7 +3958,7 @@ msgstr "สร้าง"
 msgid "Create “{0}”"
 msgstr "สร้าง “{0}”"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:584
+#: packages/admin/src/components/TaxonomySidebar.tsx:586
 msgid "Create \"{trimmedInput}\""
 msgstr "สร้าง \"{trimmedInput}\""
 
@@ -3968,7 +3968,7 @@ msgid "Create {0}"
 msgstr "สร้าง {0}"
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:857
+#: packages/admin/src/components/TaxonomySidebar.tsx:864
 msgid "Create {0} translation"
 msgstr "สร้างคำแปลภาษา {0}"
 
@@ -3989,7 +3989,7 @@ msgstr "สร้างรายการแบบจุด"
 msgid "Create a new {0}"
 msgstr "สร้าง {0} ใหม่"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:584
+#: packages/admin/src/components/TaxonomySidebar.tsx:586
 msgid "Create a new {singularLabel}"
 msgstr "สร้าง {singularLabel} ใหม่"
 
@@ -5196,8 +5196,8 @@ msgstr "แก้ไขฟิลด์ {0}"
 msgid "Edit {itemLabel}"
 msgstr "แก้ไข {itemLabel}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:415
-#: packages/admin/src/components/TaxonomySidebar.tsx:424
+#: packages/admin/src/components/TaxonomySidebar.tsx:416
+#: packages/admin/src/components/TaxonomySidebar.tsx:425
 msgid "Edit {label}"
 msgstr "แก้ไข {label}"
 
@@ -5812,7 +5812,7 @@ msgstr "เกิดข้อผิดพลาดในการอัปเด
 msgid "esc"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:604
+#: packages/admin/src/components/TaxonomySidebar.tsx:611
 msgid "Esc"
 msgstr "Esc"
 
@@ -6028,7 +6028,7 @@ msgid "Failed to continue import"
 msgstr "ดำเนินการนำเข้าต่อไม่สำเร็จ"
 
 #. placeholder {0}: failedLabels.join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:753
+#: packages/admin/src/components/TaxonomySidebar.tsx:760
 msgid "Failed to create {0}"
 msgstr "สร้าง {0} ไม่สำเร็จ"
 
@@ -6118,7 +6118,7 @@ msgstr "สร้างบางคอลเลกชันไม่สำเร
 msgid "Failed to create taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:732
+#: packages/admin/src/components/TaxonomySidebar.tsx:739
 #: packages/admin/src/lib/api/taxonomies.ts:215
 msgid "Failed to create term"
 msgstr "สร้างเทอมไม่สำเร็จ"
@@ -6127,7 +6127,7 @@ msgstr "สร้างเทอมไม่สำเร็จ"
 msgid "Failed to create term translation"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:782
+#: packages/admin/src/components/TaxonomySidebar.tsx:789
 #: packages/admin/src/router.tsx:1634
 msgid "Failed to create translation"
 msgstr "สร้างคำแปลไม่สำเร็จ"
@@ -6898,7 +6898,7 @@ msgid "Failed to update"
 msgstr "อัปเดตไม่สำเร็จ"
 
 #. placeholder {0}: inlineLabel(taxonomy.label, lingui.locale)
-#: packages/admin/src/components/TaxonomySidebar.tsx:686
+#: packages/admin/src/components/TaxonomySidebar.tsx:693
 msgid "Failed to update {0}"
 msgstr "อัปเดต {0} ไม่สำเร็จ"
 
@@ -9496,7 +9496,7 @@ msgstr ""
 msgid "Name your section, then add its content in the editor."
 msgstr "ตั้งชื่อส่วน แล้วเพิ่มเนื้อหาในตัวแก้ไข"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:594
+#: packages/admin/src/components/TaxonomySidebar.tsx:601
 msgid "Navigate"
 msgstr "นำทาง"
 
@@ -9677,7 +9677,7 @@ msgstr "ยังไม่มี{0}"
 msgid "No {0} yet. Create one to get started."
 msgstr "ยังไม่มี{0} สร้างขึ้นมาเพื่อเริ่มต้นใช้งาน"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:568
+#: packages/admin/src/components/TaxonomySidebar.tsx:570
 msgid "No {label} found."
 msgstr "ไม่พบ {label}"
 
@@ -11052,11 +11052,6 @@ msgstr "เผยแพร่ทันทีหรือไม่?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "เผยแพร่ ยกเลิกการเผยแพร่ กำหนดเวลา และยกเลิกการกำหนดเวลาเนื้อหา"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr ""
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11068,6 +11063,11 @@ msgstr ""
 #: packages/admin/src/router.tsx:1490
 msgid "Published"
 msgstr "เผยแพร่แล้ว"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr ""
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:348
@@ -11456,7 +11456,7 @@ msgstr "นำออก"
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
-#: packages/admin/src/components/TaxonomySidebar.tsx:458
+#: packages/admin/src/components/TaxonomySidebar.tsx:459
 msgid "Remove {0}"
 msgstr "นำออก {0}"
 
@@ -11475,7 +11475,7 @@ msgstr "นำออก {entry}"
 msgid "Remove {label}"
 msgstr "นำออก {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:866
+#: packages/admin/src/components/TaxonomySidebar.tsx:873
 msgid "Remove assignment"
 msgstr "นำการกำหนดออก"
 
@@ -12283,7 +12283,7 @@ msgstr "บันทึกแล้ว"
 msgid "Saved \"{0}\"."
 msgstr "บันทึก \"{0}\" แล้ว"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:681
+#: packages/admin/src/components/TaxonomySidebar.tsx:688
 msgid "Saved immediately; term changes do not wait for Publish changes."
 msgstr "บันทึกทันที การเปลี่ยนแปลงเทอมไม่ต้องรอ เผยแพร่การเปลี่ยนแปลง"
 
@@ -12458,11 +12458,11 @@ msgstr "ค้นหา {0}"
 msgid "Search {0}..."
 msgstr "ค้นหา {0}..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:500
+#: packages/admin/src/components/TaxonomySidebar.tsx:501
 msgid "Search {label}"
 msgstr "ค้นหา {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:520
+#: packages/admin/src/components/TaxonomySidebar.tsx:522
 msgid "Search {label}…"
 msgstr "ค้นหา {label}…"
 
@@ -12552,6 +12552,14 @@ msgstr "แบบฟอร์มค้นหา"
 #: packages/admin/src/components/MediaPickerModal.tsx:1308
 msgid "Search media"
 msgstr "ค้นหามีเดีย"
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:501
+msgid "Search or create {label}"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:522
+msgid "Search or create {label}…"
+msgstr ""
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
@@ -12872,7 +12880,7 @@ msgstr "เลือกประเภทเนื้อหาที่จะน
 msgid "Select..."
 msgstr "เลือก..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:429
+#: packages/admin/src/components/TaxonomySidebar.tsx:430
 msgid "Selected {label}"
 msgstr "{label} ที่เลือก"
 
@@ -13752,7 +13760,7 @@ msgstr "ภาษาเป้าหมาย"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 #: packages/admin/src/components/settings/transfer/labels.ts:13
-#: packages/admin/src/components/TaxonomySidebar.tsx:898
+#: packages/admin/src/components/TaxonomySidebar.tsx:905
 msgid "Taxonomies"
 msgstr "อนุกรมวิธาน"
 
@@ -14803,7 +14811,7 @@ msgstr "เพื่อเลือก"
 msgid "Today"
 msgstr "วันนี้"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:600
+#: packages/admin/src/components/TaxonomySidebar.tsx:607
 msgid "Toggle"
 msgstr "สลับ"
 
@@ -14887,7 +14895,7 @@ msgstr "กำลังแปล..."
 
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
-#: packages/admin/src/components/TaxonomySidebar.tsx:778
+#: packages/admin/src/components/TaxonomySidebar.tsx:785
 #: packages/admin/src/router.tsx:1628
 msgid "Translation created"
 msgstr "สร้างคำแปลแล้ว"
@@ -15055,6 +15063,10 @@ msgstr "มีสองระเบียนที่มีค่าเดีย
 msgid "Type"
 msgstr "ประเภท"
 
+#: packages/admin/src/components/TaxonomySidebar.tsx:590
+msgid "Type a name above to create a new {singularLabel}."
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageNode.tsx:312
 msgid "Type caption for image (optional)"
 msgstr "พิมพ์คำบรรยายภาพ (ไม่บังคับ)"
@@ -15178,7 +15190,7 @@ msgstr ""
 msgid "Unregistered Content Tables Found"
 msgstr "พบตารางเนื้อหาที่ยังไม่ได้ลงทะเบียน"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:844
+#: packages/admin/src/components/TaxonomySidebar.tsx:851
 msgid "Unresolved assignment"
 msgstr "การกำหนดที่ยังไม่มีในภาษานี้"
 

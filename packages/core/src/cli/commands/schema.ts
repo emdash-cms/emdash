@@ -115,7 +115,7 @@ const deleteCommand = defineCommand({
 		},
 		force: {
 			type: "boolean",
-			description: "Skip confirmation",
+			description: "Skip confirmation and delete even if the collection has content",
 		},
 		...commonArgs,
 	},
@@ -132,7 +132,7 @@ const deleteCommand = defineCommand({
 				}
 			}
 			const client = createClientFromArgs(args);
-			await client.deleteCollection(args.collection);
+			await client.deleteCollection(args.collection, { force: args.force });
 			consola.success(`Deleted collection "${args.collection}"`);
 		} catch (error) {
 			consola.error(error instanceof Error ? error.message : "Unknown error");

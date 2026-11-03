@@ -476,7 +476,7 @@ msgid "{0} detected"
 msgstr "偵測到 {0}"
 
 #. placeholder {0}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:620
+#: packages/admin/src/components/TaxonomySidebar.tsx:627
 msgid "{0} fallback"
 msgstr "{0} 備用版本"
 
@@ -591,7 +591,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr "{0} 個系統欄位 + {1} 個自訂{2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:680
+#: packages/admin/src/components/TaxonomySidebar.tsx:687
 msgid "{0} updated"
 msgstr "{0} 已更新"
 
@@ -741,7 +741,7 @@ msgstr "已將 {label} 移到第 {0} / {1} 個位置。"
 msgid "{label} moved to position {0}."
 msgstr "已將 {label} 移到第 {0} 個位置。"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:533
+#: packages/admin/src/components/TaxonomySidebar.tsx:535
 msgid "{label} options"
 msgstr "{label} 選項"
 
@@ -1252,7 +1252,7 @@ msgstr ""
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:762
+#: packages/admin/src/components/TaxonomySidebar.tsx:769
 msgid "A source and target locale are required"
 msgstr "必須指定來源與目標語言"
 
@@ -1984,8 +1984,8 @@ msgstr "使用指紋、臉部辨識、PIN 碼或裝置密碼解鎖的加密數�
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
 #: packages/admin/src/components/settings/TransferSettings.tsx:85
-#: packages/admin/src/components/TaxonomySidebar.tsx:687
-#: packages/admin/src/components/TaxonomySidebar.tsx:783
+#: packages/admin/src/components/TaxonomySidebar.tsx:694
+#: packages/admin/src/components/TaxonomySidebar.tsx:790
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:664
 #: packages/admin/src/router.tsx:685
@@ -2359,7 +2359,7 @@ msgid "Available bylines"
 msgstr "可用的署名"
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:846
+#: packages/admin/src/components/TaxonomySidebar.tsx:853
 msgid "Available in {0}"
 msgstr "有 {0} 版本"
 
@@ -3097,9 +3097,9 @@ msgstr "正在檢查這個網站"
 msgid "Checking…"
 msgstr "正在檢查…"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:395
 #: packages/admin/src/components/TaxonomySidebar.tsx:396
-#: packages/admin/src/components/TaxonomySidebar.tsx:489
+#: packages/admin/src/components/TaxonomySidebar.tsx:397
+#: packages/admin/src/components/TaxonomySidebar.tsx:490
 msgid "Choose {label}"
 msgstr "選擇 {label}"
 
@@ -3311,7 +3311,7 @@ msgstr "請點擊這個連結以登入 {siteName}："
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
-#: packages/admin/src/components/TaxonomySidebar.tsx:606
+#: packages/admin/src/components/TaxonomySidebar.tsx:613
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:8
 msgid "Close"
@@ -3958,7 +3958,7 @@ msgstr "建立"
 msgid "Create “{0}”"
 msgstr "建立「{0}」"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:584
+#: packages/admin/src/components/TaxonomySidebar.tsx:586
 msgid "Create \"{trimmedInput}\""
 msgstr "建立「{trimmedInput}」"
 
@@ -3968,7 +3968,7 @@ msgid "Create {0}"
 msgstr "建立 {0}"
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:857
+#: packages/admin/src/components/TaxonomySidebar.tsx:864
 msgid "Create {0} translation"
 msgstr "建立 {0} 翻譯"
 
@@ -3989,7 +3989,7 @@ msgstr "建立項目符號清單"
 msgid "Create a new {0}"
 msgstr "建立新的 {0}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:584
+#: packages/admin/src/components/TaxonomySidebar.tsx:586
 msgid "Create a new {singularLabel}"
 msgstr "建立新的 {singularLabel}"
 
@@ -5196,8 +5196,8 @@ msgstr "編輯 {0} 欄位"
 msgid "Edit {itemLabel}"
 msgstr "編輯 {itemLabel}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:415
-#: packages/admin/src/components/TaxonomySidebar.tsx:424
+#: packages/admin/src/components/TaxonomySidebar.tsx:416
+#: packages/admin/src/components/TaxonomySidebar.tsx:425
 msgid "Edit {label}"
 msgstr "編輯 {label}"
 
@@ -5812,7 +5812,7 @@ msgstr "更新小工具時發生錯誤"
 msgid "esc"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:604
+#: packages/admin/src/components/TaxonomySidebar.tsx:611
 msgid "Esc"
 msgstr "Esc"
 
@@ -6028,7 +6028,7 @@ msgid "Failed to continue import"
 msgstr "無法繼續匯入"
 
 #. placeholder {0}: failedLabels.join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:753
+#: packages/admin/src/components/TaxonomySidebar.tsx:760
 msgid "Failed to create {0}"
 msgstr "無法建立 {0}"
 
@@ -6118,7 +6118,7 @@ msgstr "建立部分內容集合失敗"
 msgid "Failed to create taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:732
+#: packages/admin/src/components/TaxonomySidebar.tsx:739
 #: packages/admin/src/lib/api/taxonomies.ts:215
 msgid "Failed to create term"
 msgstr "建立分類項目失敗"
@@ -6127,7 +6127,7 @@ msgstr "建立分類項目失敗"
 msgid "Failed to create term translation"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:782
+#: packages/admin/src/components/TaxonomySidebar.tsx:789
 #: packages/admin/src/router.tsx:1634
 msgid "Failed to create translation"
 msgstr "無法建立翻譯"
@@ -6898,7 +6898,7 @@ msgid "Failed to update"
 msgstr "更新失敗"
 
 #. placeholder {0}: inlineLabel(taxonomy.label, lingui.locale)
-#: packages/admin/src/components/TaxonomySidebar.tsx:686
+#: packages/admin/src/components/TaxonomySidebar.tsx:693
 msgid "Failed to update {0}"
 msgstr "更新 {0} 失敗"
 
@@ -9496,7 +9496,7 @@ msgstr ""
 msgid "Name your section, then add its content in the editor."
 msgstr "為區段命名，接著在編輯器中加入內容。"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:594
+#: packages/admin/src/components/TaxonomySidebar.tsx:601
 msgid "Navigate"
 msgstr "移動選取位置"
 
@@ -9677,7 +9677,7 @@ msgstr "目前沒有 {0}。"
 msgid "No {0} yet. Create one to get started."
 msgstr "尚無 {0}。請建立一個以開始使用。"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:568
+#: packages/admin/src/components/TaxonomySidebar.tsx:570
 msgid "No {label} found."
 msgstr "找不到{label}。"
 
@@ -11052,11 +11052,6 @@ msgstr "要立即發佈嗎？"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "發佈、取消發佈、排程及取消排程內容"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "已發佈"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11067,6 +11062,11 @@ msgstr "已發佈"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1490
 msgid "Published"
+msgstr "已發佈"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "已發佈"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11456,7 +11456,7 @@ msgstr "移除"
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
-#: packages/admin/src/components/TaxonomySidebar.tsx:458
+#: packages/admin/src/components/TaxonomySidebar.tsx:459
 msgid "Remove {0}"
 msgstr "移除 {0}"
 
@@ -11475,7 +11475,7 @@ msgstr "移除 {entry}"
 msgid "Remove {label}"
 msgstr "移除 {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:866
+#: packages/admin/src/components/TaxonomySidebar.tsx:873
 msgid "Remove assignment"
 msgstr "移除指派"
 
@@ -12283,7 +12283,7 @@ msgstr "已儲存"
 msgid "Saved \"{0}\"."
 msgstr "已儲存「{0}」。"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:681
+#: packages/admin/src/components/TaxonomySidebar.tsx:688
 msgid "Saved immediately; term changes do not wait for Publish changes."
 msgstr "立即儲存；分類項目的變更不會等到按下「發佈變更」才生效。"
 
@@ -12458,11 +12458,11 @@ msgstr "搜尋 {0}"
 msgid "Search {0}..."
 msgstr "搜尋 {0}…"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:500
+#: packages/admin/src/components/TaxonomySidebar.tsx:501
 msgid "Search {label}"
 msgstr "搜尋 {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:520
+#: packages/admin/src/components/TaxonomySidebar.tsx:522
 msgid "Search {label}…"
 msgstr "搜尋 {label}…"
 
@@ -12552,6 +12552,14 @@ msgstr "搜尋表單"
 #: packages/admin/src/components/MediaPickerModal.tsx:1308
 msgid "Search media"
 msgstr "搜尋媒體"
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:501
+msgid "Search or create {label}"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:522
+msgid "Search or create {label}…"
+msgstr ""
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
@@ -12872,7 +12880,7 @@ msgstr "選取要匯入的內容類型。"
 msgid "Select..."
 msgstr "選取..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:429
+#: packages/admin/src/components/TaxonomySidebar.tsx:430
 msgid "Selected {label}"
 msgstr "已選取 {label}"
 
@@ -13752,7 +13760,7 @@ msgstr "目標語言地區"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 #: packages/admin/src/components/settings/transfer/labels.ts:13
-#: packages/admin/src/components/TaxonomySidebar.tsx:898
+#: packages/admin/src/components/TaxonomySidebar.tsx:905
 msgid "Taxonomies"
 msgstr "分類法"
 
@@ -14803,7 +14811,7 @@ msgstr "選取"
 msgid "Today"
 msgstr "今天"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:600
+#: packages/admin/src/components/TaxonomySidebar.tsx:607
 msgid "Toggle"
 msgstr "切換"
 
@@ -14887,7 +14895,7 @@ msgstr "正在翻譯..."
 
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
-#: packages/admin/src/components/TaxonomySidebar.tsx:778
+#: packages/admin/src/components/TaxonomySidebar.tsx:785
 #: packages/admin/src/router.tsx:1628
 msgid "Translation created"
 msgstr "翻譯已建立"
@@ -15055,6 +15063,10 @@ msgstr "兩筆記錄在必須唯一的欄位中有相同的值"
 msgid "Type"
 msgstr "類型"
 
+#: packages/admin/src/components/TaxonomySidebar.tsx:590
+msgid "Type a name above to create a new {singularLabel}."
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageNode.tsx:312
 msgid "Type caption for image (optional)"
 msgstr "輸入圖片說明 (選填)"
@@ -15178,7 +15190,7 @@ msgstr "尚未發佈的變更"
 msgid "Unregistered Content Tables Found"
 msgstr "發現未註冊的內容資料表"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:844
+#: packages/admin/src/components/TaxonomySidebar.tsx:851
 msgid "Unresolved assignment"
 msgstr "無法解析的指派"
 

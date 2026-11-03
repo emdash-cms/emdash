@@ -476,7 +476,7 @@ msgid "{0} detected"
 msgstr "{0} algılandı"
 
 #. placeholder {0}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:620
+#: packages/admin/src/components/TaxonomySidebar.tsx:627
 msgid "{0} fallback"
 msgstr "{0} dilinden gösteriliyor"
 
@@ -591,7 +591,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr "{0} sistemi + {1} özel {2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:680
+#: packages/admin/src/components/TaxonomySidebar.tsx:687
 msgid "{0} updated"
 msgstr "{0} güncellendi"
 
@@ -741,7 +741,7 @@ msgstr "{label}, {1} görsel arasında {0}. konuma taşındı."
 msgid "{label} moved to position {0}."
 msgstr "{label}, {0}. sıraya taşındı."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:533
+#: packages/admin/src/components/TaxonomySidebar.tsx:535
 msgid "{label} options"
 msgstr "{label} seçenekleri"
 
@@ -1252,7 +1252,7 @@ msgstr "Bu etiketten slug oluşturulamıyor. Küçük harf, rakam ve alt çizgi 
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr "Bu etiketten slug oluşturulamıyor. Kendiniz girin."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:762
+#: packages/admin/src/components/TaxonomySidebar.tsx:769
 msgid "A source and target locale are required"
 msgstr "Kaynak ve hedef dil gerekli"
 
@@ -1984,8 +1984,8 @@ msgstr "Parmak izi, yüz tanıma, PIN veya cihaz parolasıyla açabildiğiniz ş
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
 #: packages/admin/src/components/settings/TransferSettings.tsx:85
-#: packages/admin/src/components/TaxonomySidebar.tsx:687
-#: packages/admin/src/components/TaxonomySidebar.tsx:783
+#: packages/admin/src/components/TaxonomySidebar.tsx:694
+#: packages/admin/src/components/TaxonomySidebar.tsx:790
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:664
 #: packages/admin/src/router.tsx:685
@@ -2359,7 +2359,7 @@ msgid "Available bylines"
 msgstr "Kullanılabilir yazar bilgileri"
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:846
+#: packages/admin/src/components/TaxonomySidebar.tsx:853
 msgid "Available in {0}"
 msgstr "{0} dilinde kullanılabilir"
 
@@ -3097,9 +3097,9 @@ msgstr "Bu site kontrol ediliyor"
 msgid "Checking…"
 msgstr "Kontrol ediliyor…"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:395
 #: packages/admin/src/components/TaxonomySidebar.tsx:396
-#: packages/admin/src/components/TaxonomySidebar.tsx:489
+#: packages/admin/src/components/TaxonomySidebar.tsx:397
+#: packages/admin/src/components/TaxonomySidebar.tsx:490
 msgid "Choose {label}"
 msgstr "{label} seç"
 
@@ -3311,7 +3311,7 @@ msgstr "{siteName} sitesinde oturum açmak için bu bağlantıya tıklayın:"
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
-#: packages/admin/src/components/TaxonomySidebar.tsx:606
+#: packages/admin/src/components/TaxonomySidebar.tsx:613
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:8
 msgid "Close"
@@ -3958,7 +3958,7 @@ msgstr "Oluştur"
 msgid "Create “{0}”"
 msgstr "“{0}” oluştur"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:584
+#: packages/admin/src/components/TaxonomySidebar.tsx:586
 msgid "Create \"{trimmedInput}\""
 msgstr "\"{trimmedInput}\" oluştur"
 
@@ -3968,7 +3968,7 @@ msgid "Create {0}"
 msgstr "{0} oluştur"
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:857
+#: packages/admin/src/components/TaxonomySidebar.tsx:864
 msgid "Create {0} translation"
 msgstr "{0} çevirisini oluştur"
 
@@ -3989,7 +3989,7 @@ msgstr "Bir madde işareti listesi oluşturun"
 msgid "Create a new {0}"
 msgstr "Yeni bir {0} oluşturun"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:584
+#: packages/admin/src/components/TaxonomySidebar.tsx:586
 msgid "Create a new {singularLabel}"
 msgstr "Yeni bir {singularLabel} oluştur"
 
@@ -5196,8 +5196,8 @@ msgstr "{0} alanını düzenleyin"
 msgid "Edit {itemLabel}"
 msgstr "{itemLabel} öğesini düzenle"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:415
-#: packages/admin/src/components/TaxonomySidebar.tsx:424
+#: packages/admin/src/components/TaxonomySidebar.tsx:416
+#: packages/admin/src/components/TaxonomySidebar.tsx:425
 msgid "Edit {label}"
 msgstr "{label} düzenle"
 
@@ -5812,7 +5812,7 @@ msgstr "Widget güncellenirken hata oluştu"
 msgid "esc"
 msgstr "esc"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:604
+#: packages/admin/src/components/TaxonomySidebar.tsx:611
 msgid "Esc"
 msgstr "Esc"
 
@@ -6028,7 +6028,7 @@ msgid "Failed to continue import"
 msgstr "İçe aktarmaya devam edilemedi"
 
 #. placeholder {0}: failedLabels.join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:753
+#: packages/admin/src/components/TaxonomySidebar.tsx:760
 msgid "Failed to create {0}"
 msgstr "{0} oluşturulamadı"
 
@@ -6118,7 +6118,7 @@ msgstr "Bazı koleksiyonlar oluşturulamadı"
 msgid "Failed to create taxonomy"
 msgstr "Sınıflandırma oluşturulamadı"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:732
+#: packages/admin/src/components/TaxonomySidebar.tsx:739
 #: packages/admin/src/lib/api/taxonomies.ts:215
 msgid "Failed to create term"
 msgstr "Terim oluşturulamadı"
@@ -6127,7 +6127,7 @@ msgstr "Terim oluşturulamadı"
 msgid "Failed to create term translation"
 msgstr "Terim çevirisi oluşturulamadı"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:782
+#: packages/admin/src/components/TaxonomySidebar.tsx:789
 #: packages/admin/src/router.tsx:1634
 msgid "Failed to create translation"
 msgstr "Çeviri oluşturulamadı"
@@ -6898,7 +6898,7 @@ msgid "Failed to update"
 msgstr "Güncelleme başarısız oldu"
 
 #. placeholder {0}: inlineLabel(taxonomy.label, lingui.locale)
-#: packages/admin/src/components/TaxonomySidebar.tsx:686
+#: packages/admin/src/components/TaxonomySidebar.tsx:693
 msgid "Failed to update {0}"
 msgstr "{0} güncellenemedi"
 
@@ -9496,7 +9496,7 @@ msgstr ""
 msgid "Name your section, then add its content in the editor."
 msgstr "Bölümünüze ad verin, ardından içeriğini düzenleyicide ekleyin."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:594
+#: packages/admin/src/components/TaxonomySidebar.tsx:601
 msgid "Navigate"
 msgstr "Gezin"
 
@@ -9677,7 +9677,7 @@ msgstr "Henüz {0} yok."
 msgid "No {0} yet. Create one to get started."
 msgstr "Henüz {0} yok. Başlamak için bir tane oluşturun."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:568
+#: packages/admin/src/components/TaxonomySidebar.tsx:570
 msgid "No {label} found."
 msgstr "{label} bulunamadı."
 
@@ -11052,11 +11052,6 @@ msgstr "Şimdi yayınlansın mı?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "İçeriği yayınlayın, yayından kaldırın, zamanlayın ve zamanlamasını kaldırın"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "Yayınlandı"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11067,6 +11062,11 @@ msgstr "Yayınlandı"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1490
 msgid "Published"
+msgstr "Yayınlandı"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "Yayınlandı"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11456,7 +11456,7 @@ msgstr "Kaldır"
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
-#: packages/admin/src/components/TaxonomySidebar.tsx:458
+#: packages/admin/src/components/TaxonomySidebar.tsx:459
 msgid "Remove {0}"
 msgstr "{0}'i kaldırın"
 
@@ -11475,7 +11475,7 @@ msgstr "{entry} öğesini kaldır"
 msgid "Remove {label}"
 msgstr "{label}'i kaldırın"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:866
+#: packages/admin/src/components/TaxonomySidebar.tsx:873
 msgid "Remove assignment"
 msgstr "Atamayı kaldır"
 
@@ -12283,7 +12283,7 @@ msgstr "Kaydedildi"
 msgid "Saved \"{0}\"."
 msgstr "\"{0}\" kaydedildi."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:681
+#: packages/admin/src/components/TaxonomySidebar.tsx:688
 msgid "Saved immediately; term changes do not wait for Publish changes."
 msgstr "Hemen kaydedilir; terim değişiklikleri Değişiklikleri yayınla işlemini beklemez."
 
@@ -12458,11 +12458,11 @@ msgstr "{0}'te arama yapın"
 msgid "Search {0}..."
 msgstr "{0}'i arayın..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:500
+#: packages/admin/src/components/TaxonomySidebar.tsx:501
 msgid "Search {label}"
 msgstr "{label} ara"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:520
+#: packages/admin/src/components/TaxonomySidebar.tsx:522
 msgid "Search {label}…"
 msgstr "{label} ara…"
 
@@ -12552,6 +12552,14 @@ msgstr "Arama formu"
 #: packages/admin/src/components/MediaPickerModal.tsx:1308
 msgid "Search media"
 msgstr "Medya ara"
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:501
+msgid "Search or create {label}"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:522
+msgid "Search or create {label}…"
+msgstr ""
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
@@ -12872,7 +12880,7 @@ msgstr "Hangi içerik türlerinin içe aktarılacağını seçin."
 msgid "Select..."
 msgstr "Seç..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:429
+#: packages/admin/src/components/TaxonomySidebar.tsx:430
 msgid "Selected {label}"
 msgstr "Seçilen {label}"
 
@@ -13752,7 +13760,7 @@ msgstr "Hedef dil"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 #: packages/admin/src/components/settings/transfer/labels.ts:13
-#: packages/admin/src/components/TaxonomySidebar.tsx:898
+#: packages/admin/src/components/TaxonomySidebar.tsx:905
 msgid "Taxonomies"
 msgstr "Sınıflandırmalar"
 
@@ -14803,7 +14811,7 @@ msgstr "seçmek için"
 msgid "Today"
 msgstr "Bugün"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:600
+#: packages/admin/src/components/TaxonomySidebar.tsx:607
 msgid "Toggle"
 msgstr "Seçimi değiştir"
 
@@ -14887,7 +14895,7 @@ msgstr "Çeviri..."
 
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
-#: packages/admin/src/components/TaxonomySidebar.tsx:778
+#: packages/admin/src/components/TaxonomySidebar.tsx:785
 #: packages/admin/src/router.tsx:1628
 msgid "Translation created"
 msgstr "Çeviri oluşturuldu"
@@ -15055,6 +15063,10 @@ msgstr "Benzersiz olması gereken bir değer iki kayıtta aynı"
 msgid "Type"
 msgstr "Tür"
 
+#: packages/admin/src/components/TaxonomySidebar.tsx:590
+msgid "Type a name above to create a new {singularLabel}."
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageNode.tsx:312
 msgid "Type caption for image (optional)"
 msgstr "Resim yazısı girin (isteğe bağlı)"
@@ -15178,7 +15190,7 @@ msgstr "Yayınlanmamış değişiklikler"
 msgid "Unregistered Content Tables Found"
 msgstr "Kayıtlı Olmayan İçerik Tabloları Bulundu"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:844
+#: packages/admin/src/components/TaxonomySidebar.tsx:851
 msgid "Unresolved assignment"
 msgstr "Çevirisi eksik atama"
 
