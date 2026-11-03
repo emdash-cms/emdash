@@ -11,6 +11,7 @@ import type { APIRoute } from "astro";
 
 import { apiSuccess, handleError } from "#api/error.js";
 import { getAuthMode } from "#auth/mode.js";
+import { MediaRepository } from "#db/repositories/media.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
 import { COMMIT, VERSION } from "../../../version.js";
@@ -67,6 +68,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					"emdash:site_title",
 					"site:timezone",
 					"site:staging",
+					"site:logo",
 				]);
 				const title = titles.get("site:title") || titles.get("emdash:site_title");
 				const siteTitle = typeof title === "string" ? title : undefined;
@@ -75,6 +77,23 @@ export const GET: APIRoute = async ({ locals }) => {
 				staging = titles.get("site:staging") === true;
 				if (!adminBranding?.siteName && siteTitle) {
 					adminBranding = { ...adminBranding, siteName: siteTitle };
+				}
+
+				const siteLogo: unknown = titles.get("site:logo");
+				if (
+					!adminBranding?.logo &&
+					typeof siteLogo === "object" &&
+					siteLogo !== null &&
+					"mediaId" in siteLogo &&
+					typeof siteLogo.mediaId === "string"
+				) {
+					const media = await new MediaRepository(emdash.db).findById(siteLogo.mediaId);
+					if (media) {
+						adminBranding = {
+							...adminBranding,
+							logo: `/_emdash/api/media/file/${media.storageKey}`,
+						};
+					}
 				}
 			} catch {
 				// options table may not exist yet (pre-setup) — keep the default.
