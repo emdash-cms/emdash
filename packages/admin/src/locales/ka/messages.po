@@ -1209,9 +1209,9 @@ msgstr ""
 msgid "A package file is missing"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:179
-#: packages/admin/src/components/ContentSettingsPanel.tsx:230
-#: packages/admin/src/components/ContentSettingsPanel.tsx:256
+#: packages/admin/src/components/ContentSettingsPanel.tsx:180
+#: packages/admin/src/components/ContentSettingsPanel.tsx:231
+#: packages/admin/src/components/ContentSettingsPanel.tsx:257
 msgid "A publication time has not been selected"
 msgstr "გამოქვეყნების დრო არ არის არჩეული"
 
@@ -2270,7 +2270,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "ავთენტიფიკაცია გაუქმდა ან დრო ამოიწურა. სცადეთ ხელახლა."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1345
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1350
 #: packages/admin/src/components/RelationForm.tsx:395
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2677,8 +2677,8 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:339
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1109
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1113
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1110
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1114
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
@@ -2729,7 +2729,7 @@ msgstr "შეუძლია შიგთავსის ნახვა"
 #: packages/admin/src/components/ConfirmDialog.tsx:92
 #: packages/admin/src/components/ContentList.tsx:686
 #: packages/admin/src/components/ContentPickerModal.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:530
+#: packages/admin/src/components/ContentSettingsPanel.tsx:531
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:826
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
@@ -2903,7 +2903,7 @@ msgstr "გამოქვეყნების თარიღის შეც�
 msgid "Change publication date: {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:602
+#: packages/admin/src/components/ContentSettingsPanel.tsx:603
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "განრიგის შეცვლა"
@@ -3554,7 +3554,7 @@ msgstr "დაკავშირებულია {0}"
 msgid "Connects"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:465
+#: packages/admin/src/components/ContentSettingsPanel.tsx:466
 msgid "content"
 msgstr "შიგთავსი"
 
@@ -3597,7 +3597,7 @@ msgstr "შიგთავსის ID:"
 msgid "Content is now live"
 msgstr "შიგთავსი ახლა გამოქვეყნებულია"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1075
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1076
 msgid "Content language"
 msgstr "შიგთავსის ენა"
 
@@ -4148,7 +4148,7 @@ msgid "Create, update, delete content"
 msgstr "შიგთავსის შექმნა, განახლება, წაშლა"
 
 #: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1026
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1027
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
 msgid "Created"
@@ -4169,7 +4169,7 @@ msgstr "შექმნილია {0}"
 msgid "Created {0} translation"
 msgstr "შეიქმნა {0} თარგმანი"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1006
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1007
 msgid "Created and updated"
 msgstr "შექმნილია და განახლებულია"
 
@@ -4813,8 +4813,8 @@ msgstr ""
 msgid "Discard"
 msgstr "უარყოფა"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:345
-#: packages/admin/src/components/ContentSettingsPanel.tsx:352
+#: packages/admin/src/components/ContentSettingsPanel.tsx:346
+#: packages/admin/src/components/ContentSettingsPanel.tsx:353
 msgid "Discard changes"
 msgstr "ცვლილებების უარყოფა"
 
@@ -4822,11 +4822,11 @@ msgstr "ცვლილებების უარყოფა"
 msgid "Discard changes?"
 msgstr "უარყოთ ცვლილებები?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:350
+#: packages/admin/src/components/ContentSettingsPanel.tsx:351
 msgid "Discard draft changes?"
 msgstr "უარყოთ მონახაზის ცვლილებები?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:353
+#: packages/admin/src/components/ContentSettingsPanel.tsx:354
 #: packages/admin/src/components/MediaDetailPanel.tsx:1876
 msgid "Discarding..."
 msgstr "მიმდინარეობს უარყოფა..."
@@ -5025,12 +5025,12 @@ msgstr ""
 msgid "Draft"
 msgstr "მონახაზი"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:203
-#: packages/admin/src/components/ContentSettingsPanel.tsx:229
+#: packages/admin/src/components/ContentSettingsPanel.tsx:204
+#: packages/admin/src/components/ContentSettingsPanel.tsx:230
 msgid "Draft changes"
 msgstr "მონახაზის ცვლილებები"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:169
+#: packages/admin/src/components/ContentSettingsPanel.tsx:170
 msgid "Draft version"
 msgstr "მონახაზის ვერსია"
 
@@ -5561,7 +5561,7 @@ msgstr "ჩართეთ თვალყურის დევნება, �
 msgid "Enabled"
 msgstr "ჩართული"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1078
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1079
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "ინგლისური გამოიყენება, რადგან შიგთავსის ენა არ არის კონფიგურირებული. შიგთავსის ენა ჩანაწერთან ერთად ინახება და ადმინის ენისგან დამოუკიდებელია."
 
@@ -7200,7 +7200,7 @@ msgstr "დაასრულეთ მიმდინარე რედაქ�
 msgid "First page"
 msgstr "პირველი გვერდი"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:178
+#: packages/admin/src/components/ContentSettingsPanel.tsx:179
 msgid "First publication"
 msgstr "პირველი გამოქვეყნება"
 
@@ -8563,14 +8563,14 @@ msgid "List view"
 msgstr "სიის ხედი"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:187
-#: packages/admin/src/components/ContentSettingsPanel.tsx:197
-#: packages/admin/src/components/ContentSettingsPanel.tsx:223
-#: packages/admin/src/components/ContentSettingsPanel.tsx:249
+#: packages/admin/src/components/ContentSettingsPanel.tsx:188
+#: packages/admin/src/components/ContentSettingsPanel.tsx:198
+#: packages/admin/src/components/ContentSettingsPanel.tsx:224
+#: packages/admin/src/components/ContentSettingsPanel.tsx:250
 msgid "Live version"
 msgstr "აქტიური ვერსია"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:684
+#: packages/admin/src/components/ContentSettingsPanel.tsx:685
 msgid "Live View"
 msgstr "ცოცხალი გადახედვა"
 
@@ -9339,14 +9339,14 @@ msgstr "ნაგავში გადატანა"
 
 #: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/ContentList.tsx:1624
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1312
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1318
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1317
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1323
 msgid "Move to Trash"
 msgstr "ნაგავში გადატანა"
 
 #: packages/admin/src/components/ContentList.tsx:678
 #: packages/admin/src/components/ContentList.tsx:1622
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1316
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1321
 msgid "Move to Trash?"
 msgstr "გადავიტანოთ ნაგავში?"
 
@@ -9451,7 +9451,7 @@ msgid "Moving from another EmDash site?"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1625
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1319
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1324
 msgid "Moving to trash..."
 msgstr ""
 
@@ -10395,7 +10395,7 @@ msgstr "ორიგინალი:"
 msgid "Other"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1263
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1268
 #: packages/admin/src/components/editor/DocumentOutline.tsx:248
 msgid "Outline"
 msgstr "სარჩევი"
@@ -10416,8 +10416,8 @@ msgstr ""
 msgid "Overrides the page title in search engine results"
 msgstr "ანაცვლებს გვერდის სათაურს საძიებო სისტემების შედეგებში"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1094
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1097
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1095
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1098
 msgid "Ownership"
 msgstr "მფლობელობა"
 
@@ -10909,7 +10909,7 @@ msgid "Press Space to pick up an image. Use the Arrow keys to move it, then pres
 msgstr "სურათის ასაღებად დააჭირეთ Space-ს. გადასატანად გამოიყენეთ ისრის ღილაკები, შემდეგ ჩამოსაშვებად ისევ დააჭირეთ Space-ს."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
-#: packages/admin/src/components/ContentSettingsPanel.tsx:414
+#: packages/admin/src/components/ContentSettingsPanel.tsx:415
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
@@ -10926,7 +10926,7 @@ msgstr ""
 msgid "Preview content before publishing"
 msgstr "შიგთავსის გადახედვა გამოქვეყნებამდე"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:414
+#: packages/admin/src/components/ContentSettingsPanel.tsx:415
 msgid "Preview draft"
 msgstr "მონახაზის გადახედვა"
 
@@ -11003,9 +11003,9 @@ msgstr "პროვაიდერი:"
 msgid "Public routes"
 msgstr "საჯარო მარშრუტები"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:969
-#: packages/admin/src/components/ContentSettingsPanel.tsx:974
-#: packages/admin/src/components/ContentSettingsPanel.tsx:985
+#: packages/admin/src/components/ContentSettingsPanel.tsx:970
+#: packages/admin/src/components/ContentSettingsPanel.tsx:975
+#: packages/admin/src/components/ContentSettingsPanel.tsx:986
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "გამოქვეყნების თარიღი"
@@ -11020,17 +11020,17 @@ msgid "visualEditing.publish"
 msgstr "გამოქვეყნება"
 
 #: packages/admin/src/components/ContentList.tsx:611
-#: packages/admin/src/components/ContentSettingsPanel.tsx:520
-#: packages/admin/src/components/ContentSettingsPanel.tsx:936
-#: packages/admin/src/components/ContentSettingsPanel.tsx:939
+#: packages/admin/src/components/ContentSettingsPanel.tsx:521
+#: packages/admin/src/components/ContentSettingsPanel.tsx:937
+#: packages/admin/src/components/ContentSettingsPanel.tsx:940
 msgid "Publish"
 msgstr "გამოქვეყნება"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/ContentSettingsPanel.tsx:494
 msgid "Publish changes"
 msgstr "ცვლილებების გამოქვეყნება"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:494
+#: packages/admin/src/components/ContentSettingsPanel.tsx:495
 msgid "Publish changes?"
 msgstr "გამოვაქვეყნოთ ცვლილებები?"
 
@@ -11040,11 +11040,11 @@ msgid "visualEditing.publishFailed"
 msgstr "გამოქვეყნება ვერ მოხერხდა. შეამოწმეთ ნებართვები და სცადეთ ხელახლა."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:408
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/ContentSettingsPanel.tsx:494
 msgid "Publish now"
 msgstr "ახლავე გამოქვეყნება"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:494
+#: packages/admin/src/components/ContentSettingsPanel.tsx:495
 msgid "Publish now?"
 msgstr "გამოვაქვეყნოთ ახლავე?"
 
@@ -11114,7 +11114,7 @@ msgstr "გამომცემლის გამოშვების პო�
 msgid "Publishing"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:943
+#: packages/admin/src/components/ContentSettingsPanel.tsx:944
 msgid "Publishing summary"
 msgstr "გამოქვეყნების შეჯამება"
 
@@ -11246,7 +11246,7 @@ msgstr ""
 msgid "Ready"
 msgstr "მზადაა"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:204
+#: packages/admin/src/components/ContentSettingsPanel.tsx:205
 msgid "Ready to publish now or schedule for later"
 msgstr "მზადაა ახლავე გამოსაქვეყნებლად ან მოგვიანებით დასაგეგმად"
 
@@ -11530,7 +11530,7 @@ msgid "Remove passkey?"
 msgstr "მოვაცილოთ პასკი?"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:425
-#: packages/admin/src/components/ContentSettingsPanel.tsx:622
+#: packages/admin/src/components/ContentSettingsPanel.tsx:623
 msgid "Remove schedule"
 msgstr "დაგეგმვის მოცილება"
 
@@ -12053,7 +12053,7 @@ msgstr ""
 msgid "Revision not found: {revisionId}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1287
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1292
 #: packages/admin/src/components/ContentTypeEditor.tsx:100
 #: packages/admin/src/components/RevisionHistory.tsx:57
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12331,7 +12331,7 @@ msgstr "SBOM · {0}"
 msgid "Scan it with a nearby phone or tablet."
 msgstr "დაასკანერეთ ახლომდებარე ტელეფონით ან პლანშეტით."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:602
+#: packages/admin/src/components/ContentSettingsPanel.tsx:603
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "დაგეგმვა"
@@ -12370,12 +12370,12 @@ msgid "Scheduled entries appear here with their publish time."
 msgstr ""
 
 #. placeholder {0}: isolate(formattedSchedule)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:148
+#: packages/admin/src/components/ContentSettingsPanel.tsx:149
 msgid "Scheduled for {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:156
-#: packages/admin/src/components/ContentSettingsPanel.tsx:255
+#: packages/admin/src/components/ContentSettingsPanel.tsx:157
+#: packages/admin/src/components/ContentSettingsPanel.tsx:256
 msgid "Scheduled publication"
 msgstr "დაგეგმილი გამოქვეყნება"
 
@@ -12950,8 +12950,8 @@ msgstr "სატესტო ელფოსტის გაგზავნა"
 msgid "Sending..."
 msgstr "იგზავნება..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1177
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1180
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1178
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1181
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
 #: packages/admin/src/components/Settings.tsx:66
 msgid "SEO"
@@ -13138,7 +13138,7 @@ msgstr "ნაჩვენებია {pageShowingRange} {0}-დან"
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1116
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1117
 msgid "Shown to readers in this order."
 msgstr "მკითხველისთვის ამ თანმიმდევრობით ჩანს."
 
@@ -13330,7 +13330,7 @@ msgstr "გამოტოვებული"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1067
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1068
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 #: packages/admin/src/components/ContentTypeEditor.tsx:502
 #: packages/admin/src/components/ContentTypeList.tsx:218
@@ -13750,7 +13750,7 @@ msgstr "სამიზნე"
 msgid "Target locale"
 msgstr "სამიზნე ლოკალი"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1164
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:898
 msgid "Taxonomies"
@@ -14353,7 +14353,7 @@ msgstr "ეს კოლექცია კოდშია განსაზღ
 msgid "This content cannot be edited safely"
 msgstr "ამ შიგთავსის უსაფრთხოდ რედაქტირება შეუძლებელია"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:499
+#: packages/admin/src/components/ContentSettingsPanel.tsx:500
 msgid "This content will be visible on the site immediately."
 msgstr "ეს შიგთავსი საიტზე დაუყოვნებლივ გამოჩნდება."
 
@@ -14617,7 +14617,7 @@ msgstr "ეს წაშლის ბაილაინის პროფილ
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:496
+#: packages/admin/src/components/ContentSettingsPanel.tsx:497
 msgid "This removes the schedule and publishes immediately."
 msgstr "ეს გააუქმებს დაგეგმვას და დაუყოვნებლივ გამოაქვეყნებს."
 
@@ -14708,7 +14708,7 @@ msgstr "ეს განახლება შემდეგ მარშრუ
 msgid "This version can't be shown."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:170
+#: packages/admin/src/components/ContentSettingsPanel.tsx:171
 msgid "This version is not visible on the site"
 msgstr "ეს ვერსია საიტზე არ ჩანს"
 
@@ -14720,7 +14720,7 @@ msgstr ""
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "ეს წაშლის ვიჯეტების არეალს და მის ყველა ვიჯეტს. ეს მოქმედება ვერ დაბრუნდება."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1317
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1322
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "ეს ელემენტს სანაგვეში გადაიტანს. მის აღდგენას მოგვიანებით შეძლებთ სანაგვიდან."
 
@@ -14742,7 +14742,7 @@ msgstr "ეს კომენტარს სამუდამოდ წაშ
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "ეს მოხსნის პლაგინს და მის პაკეტს საიტიდან."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:351
+#: packages/admin/src/components/ContentSettingsPanel.tsx:352
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "ეს დაუბრუნდება გამოქვეყნებულ ვერსიას. მონახაზის ცვლილებები დაიკარგება."
 
@@ -14892,7 +14892,7 @@ msgstr "ითარგმნება..."
 msgid "Translation created"
 msgstr "თარგმანი შეიქმნა"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1142
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1143
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "თარგმანები"
@@ -15089,8 +15089,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "მარკეტპლეისთან დაკავშირება ვერ მოხერხდა"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1337
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1354
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1342
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1359
 msgid "Unassigned"
 msgstr "მიუკუთვნებელი"
 
@@ -15161,7 +15161,7 @@ msgstr "უსახელო პასკი"
 msgid "Unnamed user"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:485
+#: packages/admin/src/components/ContentSettingsPanel.tsx:486
 msgid "Unpublish {itemLabel}"
 msgstr "{itemLabel}-ის გამოქვეყნების გაუქმება"
 
@@ -15284,7 +15284,7 @@ msgid "Update to v{0}"
 msgstr "v{0}-ზე განახლება"
 
 #: packages/admin/src/components/ContentList.tsx:1026
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1033
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1034
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
 msgstr "განახლებულია"
@@ -15452,8 +15452,8 @@ msgstr ""
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1059
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1062
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1060
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1063
 msgid "URL & language"
 msgstr "URL და ენა"
 
@@ -15796,20 +15796,20 @@ msgstr ""
 msgid "Visitors hitting these paths will see an error."
 msgstr "ამ ბილიკებზე მისული ვიზიტორები შეცდომას დაინახავენ."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:224
+#: packages/admin/src/components/ContentSettingsPanel.tsx:225
 msgid "Visitors see the published version until the scheduled update"
 msgstr "ვიზიტორები ხედავენ გამოქვეყნებულ ვერსიას დაგეგმილი განახლების დადგომამდე"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:188
-#: packages/admin/src/components/ContentSettingsPanel.tsx:250
+#: packages/admin/src/components/ContentSettingsPanel.tsx:189
+#: packages/admin/src/components/ContentSettingsPanel.tsx:251
 msgid "Visitors see this published version"
 msgstr "ვიზიტორები ხედავენ ამ გამოქვეყნებულ ვერსიას"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:198
+#: packages/admin/src/components/ContentSettingsPanel.tsx:199
 msgid "Visitors still see the published version"
 msgstr "ვიზიტორები კვლავ ხედავენ გამოქვეყნებულ ვერსიას"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:498
+#: packages/admin/src/components/ContentSettingsPanel.tsx:499
 msgid "Visitors will see these changes immediately."
 msgstr "ვიზიტორები ამ ცვლილებებს დაუყოვნებლივ დაინახავენ."
 
@@ -15968,7 +15968,7 @@ msgstr "რომელ შიგთავსის ტიპებს შეუ
 msgid "Whole number"
 msgstr "მთელი რიცხვი"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1117
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1118
 msgid "Why are bylines shown in this order?"
 msgstr "რატომ არის ბაილაინები ამ თანმიმდევრობით ნაჩვენები?"
 
@@ -15976,7 +15976,7 @@ msgstr "რატომ არის ბაილაინები ამ თ�
 msgid "Why can't this be changed?"
 msgstr "რატომ ვერ იცვლება ეს?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1079
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1080
 msgid "Why English is used"
 msgstr "რატომ გამოიყენება ინგლისური"
 
