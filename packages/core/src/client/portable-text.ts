@@ -1,3 +1,5 @@
+import { marked, type Token, type Tokens } from "marked";
+
 /**
  * Portable Text <-> Markdown conversion layer.
  *
@@ -20,6 +22,35 @@ export interface PortableTextBlock {
 	listItem?: string;
 	markDefs?: MarkDef[];
 	children?: PortableTextSpan[];
+	[key: string]: unknown;
+}
+
+export interface PortableTextTableCell {
+	_type: "tableCell";
+	_key: string;
+	content: PortableTextSpan[];
+	markDefs?: MarkDef[];
+	isHeader?: boolean;
+	colspan?: number;
+	rowspan?: number;
+	colwidth?: number[];
+	textAlign?: "left" | "center" | "right" | "justify";
+	[key: string]: unknown;
+}
+
+export interface PortableTextTableRow {
+	_type: "tableRow";
+	_key: string;
+	cells: PortableTextTableCell[];
+	[key: string]: unknown;
+}
+
+export interface PortableTextTableBlock {
+	_type: "table";
+	_key: string;
+	rows: PortableTextTableRow[];
+	hasHeaderRow?: boolean;
+	markDefs?: MarkDef[];
 	[key: string]: unknown;
 }
 
@@ -82,6 +113,64 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 			const url = (block.asset as { url?: string })?.url || "";
 			lines.push(`![${alt}](${url})`);
 			prevWasList = false;
+		} else if (block._type === "table") {
+			const rows = (block.rows as PortableTextTableRow[]) || [];
+			const isCanonicalRows =
+				Array.isArray(rows) &&
+				rows.length > 0 &&
+				rows.every((r) => r && typeof r === "object" && Array.isArray(r.cells));
+
+			// Can only be serialized losslessly as a GFM table if:
+			// 1. It is a canonical table with rows and cells
+			// 2. It has a header row (hasHeaderRow === true or first row cells are all isHeader === true)
+			// 3. No cells use colspan > 1 or rowspan > 1
+			const hasHeader =
+				isCanonicalRows &&
+				(block.hasHeaderRow === true ||
+					(rows[0].cells.length > 0 && rows[0].cells.every((c) => c.isHeader === true)));
+			const hasComplexSpans =
+				isCanonicalRows &&
+				rows.some((r) =>
+					r.cells.some(
+						(c) => (c.colspan != null && c.colspan > 1) || (c.rowspan != null && c.rowspan > 1),
+					),
+				);
+
+			if (isCanonicalRows && hasHeader && !hasComplexSpans) {
+				if (i > 0) lines.push("");
+				const headerRow = rows[0];
+				const headerTexts = headerRow.cells.map((c) =>
+					renderSpans(c.content || [], (c.markDefs as MarkDef[]) || [])
+						.replaceAll("|", "\\|")
+						.replaceAll("\n", " ")
+						.trim(),
+				);
+				const alignments = headerRow.cells.map((c) => {
+					if (c.textAlign === "center") return ":---:";
+					if (c.textAlign === "right") return "---:";
+					if (c.textAlign === "left") return ":---";
+					return "---";
+				});
+				lines.push("| " + headerTexts.join(" | ") + " |");
+				lines.push("| " + alignments.join(" | ") + " |");
+
+				for (let r = 1; r < rows.length; r++) {
+					const bodyRow = rows[r];
+					const bodyTexts = bodyRow.cells.map((c) =>
+						renderSpans(c.content || [], (c.markDefs as MarkDef[]) || [])
+							.replaceAll("|", "\\|")
+							.replaceAll("\n", " ")
+							.trim(),
+					);
+					lines.push("| " + bodyTexts.join(" | ") + " |");
+				}
+				prevWasList = false;
+			} else {
+				// Complex table or non-canonical/no-header table -> preserve losslessly as opaque fence
+				if (i > 0) lines.push("");
+				lines.push(`<!--ec:block ${JSON.stringify(block)} -->`);
+				prevWasList = false;
+			}
 		} else {
 			// Tier 3: Unknown block -> opaque fence
 			if (i > 0) lines.push("");
@@ -98,7 +187,9 @@ function renderStandardBlock(block: PortableTextBlock): string {
 
 	// List items
 	if (block.listItem) {
-		const indent = "  ".repeat(Math.max(0, (block.level ?? 1) - 1));
+		const indent = (block.listItem === "number" ? "   " : "  ").repeat(
+			Math.max(0, (block.level ?? 1) - 1),
+		);
 		const marker = block.listItem === "number" ? "1." : "-";
 		return `${indent}${marker} ${text}`;
 	}
@@ -163,14 +254,113 @@ function renderSpans(spans: PortableTextSpan[], markDefs: MarkDef[]): string {
 // Markdown -> PT
 // ---------------------------------------------------------------------------
 
-// Regex patterns for markdown parsing
 const OPAQUE_FENCE_PATTERN = /^<!--ec:block (.+) -->$/;
-const HEADING_PATTERN = /^(#{1,6})\s+(.+)$/;
-const UNORDERED_LIST_PATTERN = /^(\s*)[-*+]\s+(.+)$/;
-const ORDERED_LIST_PATTERN = /^(\s*)\d+\.\s+(.+)$/;
-const IMAGE_PATTERN = /^!\[([^\]]*)\]\(([^)]+)\)$/;
-const INLINE_MARKDOWN_PATTERN =
-	/(\*\*(.+?)\*\*)|(_(.+?)_)|(`(.+?)`)|(\[(.+?)\]\((.+?)\))|(~~(.+?)~~)/g;
+
+function parseCodeFence(langStr: string = ""): { language?: string; filename?: string } {
+	const trimmed = langStr.trim();
+	if (!trimmed) return {};
+
+	const fileMatch = trimmed.match(/(?:filename|title)=["']?([^"'\s]+)["']?/i);
+	if (fileMatch) {
+		const filename = fileMatch[1];
+		const language =
+			trimmed.split(/\s+/)[0].replace(/(?:filename|title)=.*/i, "").trim() || undefined;
+		return { language, filename };
+	}
+
+	if (trimmed.includes(":")) {
+		const [language, ...rest] = trimmed.split(":");
+		return { language: language.trim() || undefined, filename: rest.join(":").trim() };
+	}
+
+	const parts = trimmed.split(/\s+/);
+	if (parts.length > 1 && (parts[1].includes(".") || parts[1].includes("/"))) {
+		return { language: parts[0], filename: parts[1] };
+	}
+
+	return { language: parts[0] || undefined };
+}
+
+function processInlineTokens(
+	tokens: Token[],
+	markDefs: MarkDef[],
+	activeMarks: string[] = [],
+): PortableTextSpan[] {
+	const spans: PortableTextSpan[] = [];
+
+	for (const token of tokens) {
+		if (token.type === "text" || token.type === "escape") {
+			spans.push({
+				_type: "span",
+				_key: generateKey(),
+				text: token.text,
+				marks: [...activeMarks],
+			});
+		} else if (token.type === "codespan") {
+			spans.push({
+				_type: "span",
+				_key: generateKey(),
+				text: token.text,
+				marks: [...activeMarks, "code"],
+			});
+		} else if (token.type === "strong") {
+			const childTokens = (token as Tokens.Strong).tokens || [];
+			spans.push(...processInlineTokens(childTokens, markDefs, [...activeMarks, "strong"]));
+		} else if (token.type === "em") {
+			const childTokens = (token as Tokens.Em).tokens || [];
+			spans.push(...processInlineTokens(childTokens, markDefs, [...activeMarks, "em"]));
+		} else if (token.type === "del") {
+			const childTokens = (token as Tokens.Del).tokens || [];
+			spans.push(...processInlineTokens(childTokens, markDefs, [...activeMarks, "strike-through"]));
+		} else if (token.type === "link") {
+			const linkToken = token as Tokens.Link;
+			const key = generateKey();
+			markDefs.push({
+				_key: key,
+				_type: "link",
+				href: linkToken.href,
+			});
+			const childTokens = linkToken.tokens || [
+				{ type: "text", raw: linkToken.text, text: linkToken.text } as Token,
+			];
+			spans.push(...processInlineTokens(childTokens, markDefs, [...activeMarks, key]));
+		} else if (token.type === "br") {
+			spans.push({
+				_type: "span",
+				_key: generateKey(),
+				text: "\n",
+				marks: [...activeMarks],
+			});
+		} else if ("tokens" in token && Array.isArray((token as any).tokens)) {
+			spans.push(...processInlineTokens((token as any).tokens, markDefs, activeMarks));
+		} else if ("text" in token && typeof (token as any).text === "string") {
+			spans.push({
+				_type: "span",
+				_key: generateKey(),
+				text: (token as any).text,
+				marks: [...activeMarks],
+			});
+		}
+	}
+
+	// Merge contiguous spans with identical marks
+	const merged: PortableTextSpan[] = [];
+	for (const span of spans) {
+		if (!span.text) continue;
+		const last = merged[merged.length - 1];
+		if (
+			last &&
+			(last.marks ?? []).length === (span.marks ?? []).length &&
+			[...(last.marks ?? [])].sort().join(",") === [...(span.marks ?? [])].sort().join(",")
+		) {
+			last.text = (last.text ?? "") + (span.text ?? "");
+		} else {
+			merged.push({ ...span });
+		}
+	}
+
+	return merged.length > 0 ? merged : [{ _type: "span", _key: generateKey(), text: "", marks: [] }];
+}
 
 /**
  * Convert Markdown to Portable Text blocks.
@@ -178,98 +368,310 @@ const INLINE_MARKDOWN_PATTERN =
  */
 export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 	const blocks: PortableTextBlock[] = [];
-	const lines = markdown.split("\n");
-	let i = 0;
+	const tokens = marked.lexer(markdown);
 
-	while (i < lines.length) {
-		const line = lines[i];
+	function processListItems(items: Tokens.ListItem[], ordered: boolean, level = 1) {
+		for (const item of items) {
+			const itemTokens = item.tokens || [];
+			const inlineTokens: Token[] = [];
+			const nestedLists: Tokens.List[] = [];
 
-		// Opaque fence
-		const opaqueMatch = line.match(OPAQUE_FENCE_PATTERN);
-		if (opaqueMatch) {
-			try {
-				blocks.push(JSON.parse(opaqueMatch[1]) as PortableTextBlock);
-			} catch {
-				blocks.push(makeBlock(line));
+			for (const t of itemTokens) {
+				if (t.type === "list") {
+					nestedLists.push(t as Tokens.List);
+				} else if (t.type === "text" && (t as any).tokens) {
+					inlineTokens.push(...(t as any).tokens);
+				} else if (t.type === "paragraph") {
+					if (inlineTokens.length > 0) {
+						inlineTokens.push({ type: "br", raw: "\n" } as Token);
+					}
+					inlineTokens.push(...(t as Tokens.Paragraph).tokens);
+				} else if (t.type === "space") {
+					// skip space tokens
+				} else {
+					inlineTokens.push(t);
+				}
 			}
-			i++;
+
+			const markDefs: MarkDef[] = [];
+			const spans = processInlineTokens(inlineTokens, markDefs);
+
+			blocks.push({
+				_type: "block",
+				_key: generateKey(),
+				listItem: ordered ? "number" : "bullet",
+				level,
+				style: "normal",
+				markDefs,
+				children: spans,
+			});
+
+			for (const nested of nestedLists) {
+				processListItems(nested.items, !!nested.ordered, level + 1);
+			}
+		}
+	}
+
+	for (const token of tokens) {
+		if (token.type === "space") continue;
+
+		if (token.type === "html") {
+			const raw = token.raw?.trim() || "";
+			const opaqueMatch = raw.match(OPAQUE_FENCE_PATTERN);
+			if (opaqueMatch) {
+				try {
+					blocks.push(JSON.parse(opaqueMatch[1]) as PortableTextBlock);
+					continue;
+				} catch {
+					// Fall through to plain text if JSON invalid
+				}
+			}
+
+			// Preserve unsupported HTML as plain text block so content is not lost
+			if (raw) {
+				blocks.push({
+					_type: "block",
+					_key: generateKey(),
+					style: "normal",
+					markDefs: [],
+					children: [{ _type: "span", _key: generateKey(), text: raw, marks: [] }],
+				});
+			}
 			continue;
 		}
 
-		// Code fence
-		if (line.startsWith("```")) {
-			const lang = line.slice(3).trim();
-			const codeLines: string[] = [];
-			i++;
-			while (i < lines.length && !lines[i].startsWith("```")) {
-				codeLines.push(lines[i]);
-				i++;
-			}
+		if (token.type === "heading") {
+			const hToken = token as Tokens.Heading;
+			const markDefs: MarkDef[] = [];
+			const spans = processInlineTokens(
+				hToken.tokens || [{ type: "text", raw: hToken.text, text: hToken.text } as Token],
+				markDefs,
+			);
 			blocks.push({
+				_type: "block",
+				_key: generateKey(),
+				style: `h${hToken.depth}`,
+				markDefs,
+				children: spans,
+			});
+		} else if (token.type === "paragraph") {
+			const pToken = token as Tokens.Paragraph;
+			const text = pToken.text?.trim() || "";
+			const opaqueMatch = text.match(OPAQUE_FENCE_PATTERN);
+			if (opaqueMatch) {
+				try {
+					blocks.push(JSON.parse(opaqueMatch[1]) as PortableTextBlock);
+					continue;
+				} catch {
+					// Fall through
+				}
+			}
+
+			const hasImage = pToken.tokens.some((t) => t.type === "image");
+			if (!hasImage) {
+				const markDefs: MarkDef[] = [];
+				const spans = processInlineTokens(pToken.tokens, markDefs);
+				blocks.push({
+					_type: "block",
+					_key: generateKey(),
+					style: "normal",
+					markDefs,
+					children: spans,
+				});
+			} else {
+				// Paragraph contains one or more images: split into image and text blocks
+				let currentTokens: Token[] = [];
+				const flush = () => {
+					if (
+						currentTokens.length > 0 &&
+						currentTokens[0].type === "text" &&
+						typeof currentTokens[0].text === "string"
+					) {
+						currentTokens[0].text = currentTokens[0].text.replace(/^\n+/, "");
+					}
+					const nonWs = currentTokens.filter((t) => t.type !== "text" || t.text.trim() !== "");
+					if (nonWs.length > 0) {
+						const markDefs: MarkDef[] = [];
+						const spans = processInlineTokens(currentTokens, markDefs);
+						if (spans.length > 0 && spans.some((s) => (s.text ?? "").trim() !== "")) {
+							blocks.push({
+								_type: "block",
+								_key: generateKey(),
+								style: "normal",
+								markDefs,
+								children: spans,
+							});
+						}
+					}
+					currentTokens = [];
+				};
+
+				for (const t of pToken.tokens) {
+					if (t.type === "image") {
+						flush();
+						const img = t as Tokens.Image;
+						blocks.push({
+							_type: "image",
+							_key: generateKey(),
+							alt: img.text || "",
+							asset: { url: img.href },
+						});
+					} else {
+						currentTokens.push(t);
+					}
+				}
+				flush();
+			}
+		} else if (token.type === "code") {
+			const cToken = token as Tokens.Code;
+			const { language, filename } = parseCodeFence(cToken.lang);
+			const codeBlock: PortableTextBlock = {
 				_type: "code",
 				_key: generateKey(),
-				language: lang || undefined,
-				code: codeLines.join("\n"),
-			});
-			i++; // skip closing ```
-			continue;
-		}
+				code: cToken.text,
+			};
+			if (language) codeBlock.language = language;
+			if (filename) codeBlock.filename = filename;
+			blocks.push(codeBlock);
+		} else if (token.type === "table") {
+			const tToken = token as Tokens.Table;
+			const rows: PortableTextTableRow[] = [];
 
-		// Blank line
-		if (line.trim() === "") {
-			i++;
-			continue;
-		}
+			if (tToken.header && tToken.header.length > 0) {
+				const headerCells: PortableTextTableCell[] = tToken.header.map((cell, colIndex) => {
+					const cellMarkDefs: MarkDef[] = [];
+					const content = processInlineTokens(cell.tokens || [], cellMarkDefs);
+					const tableCell: PortableTextTableCell = {
+						_type: "tableCell",
+						_key: generateKey(),
+						isHeader: true,
+						content,
+					};
+					if (cellMarkDefs.length > 0) tableCell.markDefs = cellMarkDefs;
+					const align = tToken.align[colIndex];
+					if (align === "left" || align === "center" || align === "right") {
+						tableCell.textAlign = align;
+					}
+					return tableCell;
+				});
+				rows.push({
+					_type: "tableRow",
+					_key: generateKey(),
+					cells: headerCells,
+				});
+			}
 
-		// Heading
-		const headingMatch = line.match(HEADING_PATTERN);
-		if (headingMatch) {
-			blocks.push(makeBlock(headingMatch[2], `h${headingMatch[1].length}`));
-			i++;
-			continue;
-		}
+			for (const row of tToken.rows) {
+				const bodyCells: PortableTextTableCell[] = row.map((cell, colIndex) => {
+					const cellMarkDefs: MarkDef[] = [];
+					const content = processInlineTokens(cell.tokens || [], cellMarkDefs);
+					const tableCell: PortableTextTableCell = {
+						_type: "tableCell",
+						_key: generateKey(),
+						content,
+					};
+					if (cellMarkDefs.length > 0) tableCell.markDefs = cellMarkDefs;
+					const align = tToken.align[colIndex];
+					if (align === "left" || align === "center" || align === "right") {
+						tableCell.textAlign = align;
+					}
+					return tableCell;
+				});
+				rows.push({
+					_type: "tableRow",
+					_key: generateKey(),
+					cells: bodyCells,
+				});
+			}
 
-		// Blockquote
-		if (line.startsWith("> ")) {
-			blocks.push(makeBlock(line.slice(2), "blockquote"));
-			i++;
-			continue;
-		}
-
-		// Unordered list
-		const ulMatch = line.match(UNORDERED_LIST_PATTERN);
-		if (ulMatch) {
-			const level = Math.floor(ulMatch[1].length / 2) + 1;
-			blocks.push(makeListBlock(ulMatch[2], "bullet", level));
-			i++;
-			continue;
-		}
-
-		// Ordered list
-		const olMatch = line.match(ORDERED_LIST_PATTERN);
-		if (olMatch) {
-			const level = Math.floor(olMatch[1].length / 2) + 1;
-			blocks.push(makeListBlock(olMatch[2], "number", level));
-			i++;
-			continue;
-		}
-
-		// Image
-		const imgMatch = line.match(IMAGE_PATTERN);
-		if (imgMatch) {
 			blocks.push({
-				_type: "image",
+				_type: "table",
 				_key: generateKey(),
-				alt: imgMatch[1],
-				asset: { url: imgMatch[2] },
+				hasHeaderRow: !!(tToken.header && tToken.header.length > 0),
+				rows,
 			});
-			i++;
-			continue;
+		} else if (token.type === "blockquote") {
+			const bToken = token as Tokens.Blockquote;
+			for (const sub of bToken.tokens) {
+				if (sub.type === "paragraph") {
+					const markDefs: MarkDef[] = [];
+					const spans = processInlineTokens((sub as Tokens.Paragraph).tokens || [], markDefs);
+					blocks.push({
+						_type: "block",
+						_key: generateKey(),
+						style: "blockquote",
+						markDefs,
+						children: spans,
+					});
+				} else if (sub.type === "heading") {
+					const markDefs: MarkDef[] = [];
+					const spans = processInlineTokens(
+						(sub as Tokens.Heading).tokens || [
+							{ type: "text", raw: (sub as Tokens.Heading).text, text: (sub as Tokens.Heading).text } as Token,
+						],
+						markDefs,
+					);
+					blocks.push({
+						_type: "block",
+						_key: generateKey(),
+						style: "blockquote",
+						markDefs,
+						children: spans,
+					});
+				} else if (sub.type === "text") {
+					const markDefs: MarkDef[] = [];
+					const inlineTokens = (sub as any).tokens || [
+						{ type: "text", raw: sub.text, text: sub.text } as Token,
+					];
+					const spans = processInlineTokens(inlineTokens, markDefs);
+					blocks.push({
+						_type: "block",
+						_key: generateKey(),
+						style: "blockquote",
+						markDefs,
+						children: spans,
+					});
+				} else if (sub.type === "list") {
+					const lToken = sub as Tokens.List;
+					for (const item of lToken.items) {
+						const markDefs: MarkDef[] = [];
+						const inlineTokens = (item as any).tokens || [
+							{ type: "text", raw: item.text, text: item.text } as Token,
+						];
+						const spans = processInlineTokens(inlineTokens, markDefs);
+						blocks.push({
+							_type: "block",
+							_key: generateKey(),
+							style: "blockquote",
+							markDefs,
+							children: spans,
+						});
+					}
+				} else {
+					const rawText = (sub as any).text ?? sub.raw.replace(/^>\s*/gm, "").trim();
+					if (rawText) {
+						blocks.push({
+							_type: "block",
+							_key: generateKey(),
+							style: "blockquote",
+							markDefs: [],
+							children: [{ _type: "span", _key: generateKey(), text: rawText, marks: [] }],
+						});
+					}
+				}
+			}
+		} else if (token.type === "list") {
+			const lToken = token as Tokens.List;
+			processListItems(lToken.items, !!lToken.ordered, 1);
+		} else if (token.type === "hr") {
+			blocks.push({
+				_type: "block",
+				_key: generateKey(),
+				style: "normal",
+				markDefs: [],
+				children: [{ _type: "span", _key: generateKey(), text: "---", marks: [] }],
+			});
 		}
-
-		// Paragraph
-		blocks.push(makeBlock(line));
-		i++;
 	}
 
 	return blocks;
@@ -284,70 +686,13 @@ function makeBlock(text: string, style: string = "normal"): PortableTextBlock {
 	return { _type: "block", _key: generateKey(), style, markDefs, children: spans };
 }
 
-function makeListBlock(text: string, listItem: string, level: number): PortableTextBlock {
-	const { spans, markDefs } = parseInline(text);
-	return {
-		_type: "block",
-		_key: generateKey(),
-		style: "normal",
-		listItem,
-		level,
-		markDefs,
-		children: spans,
-	};
-}
-
 /**
  * Parse inline markdown (bold, italic, code, links, strikethrough) into PT spans + markDefs.
  */
 function parseInline(text: string): ParsedInline {
-	const spans: PortableTextSpan[] = [];
 	const markDefs: MarkDef[] = [];
-	const regex = INLINE_MARKDOWN_PATTERN;
-
-	let lastIndex = 0;
-	let match: RegExpExecArray | null;
-
-	while ((match = regex.exec(text)) !== null) {
-		if (match.index > lastIndex) {
-			spans.push({
-				_type: "span",
-				_key: generateKey(),
-				text: text.slice(lastIndex, match.index),
-				marks: [],
-			});
-		}
-
-		if (match[2] != null) {
-			spans.push({ _type: "span", _key: generateKey(), text: match[2], marks: ["strong"] });
-		} else if (match[4] != null) {
-			spans.push({ _type: "span", _key: generateKey(), text: match[4], marks: ["em"] });
-		} else if (match[6] != null) {
-			spans.push({ _type: "span", _key: generateKey(), text: match[6], marks: ["code"] });
-		} else if (match[8] != null && match[9] != null) {
-			const key = generateKey();
-			markDefs.push({ _key: key, _type: "link", href: match[9] });
-			spans.push({ _type: "span", _key: generateKey(), text: match[8], marks: [key] });
-		} else if (match[11] != null) {
-			spans.push({
-				_type: "span",
-				_key: generateKey(),
-				text: match[11],
-				marks: ["strike-through"],
-			});
-		}
-
-		lastIndex = match.index + match[0].length;
-	}
-
-	if (lastIndex < text.length) {
-		spans.push({ _type: "span", _key: generateKey(), text: text.slice(lastIndex), marks: [] });
-	}
-
-	if (spans.length === 0) {
-		spans.push({ _type: "span", _key: generateKey(), text, marks: [] });
-	}
-
+	const tokens = marked.Lexer.lexInline(text);
+	const spans = processInlineTokens(tokens, markDefs);
 	return { spans, markDefs };
 }
 

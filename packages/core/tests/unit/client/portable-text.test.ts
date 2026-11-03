@@ -195,6 +195,97 @@ describe("portableTextToMarkdown", () => {
 		);
 	});
 
+	it("converts canonical table blocks to GFM tables", () => {
+		const blocks: PortableTextBlock[] = [
+			{
+				_type: "table",
+				hasHeaderRow: true,
+				rows: [
+					{
+						_type: "tableRow",
+						_key: "r1",
+						cells: [
+							{
+								_type: "tableCell",
+								_key: "c1",
+								isHeader: true,
+								content: [{ _type: "span", text: "Fruit", marks: [] }],
+							},
+							{
+								_type: "tableCell",
+								_key: "c2",
+								isHeader: true,
+								content: [{ _type: "span", text: "Color", marks: [] }],
+							},
+						],
+					},
+					{
+						_type: "tableRow",
+						_key: "r2",
+						cells: [
+							{
+								_type: "tableCell",
+								_key: "c3",
+								content: [{ _type: "span", text: "Apple", marks: [] }],
+							},
+							{
+								_type: "tableCell",
+								_key: "c4",
+								content: [{ _type: "span", text: "Red", marks: [] }],
+							},
+						],
+					},
+					{
+						_type: "tableRow",
+						_key: "r3",
+						cells: [
+							{
+								_type: "tableCell",
+								_key: "c5",
+								content: [{ _type: "span", text: "Banana", marks: [] }],
+							},
+							{
+								_type: "tableCell",
+								_key: "c6",
+								content: [{ _type: "span", text: "Yellow", marks: [] }],
+							},
+						],
+					},
+				],
+			},
+		];
+		expect(portableTextToMarkdown(blocks)).toBe(
+			"| Fruit | Color |\n| --- | --- |\n| Apple | Red |\n| Banana | Yellow |\n",
+		);
+	});
+
+	it("preserves canonical tables with colspan/rowspan as opaque fences", () => {
+		const blocks: PortableTextBlock[] = [
+			{
+				_type: "table",
+				hasHeaderRow: true,
+				rows: [
+					{
+						_type: "tableRow",
+						_key: "r1",
+						cells: [
+							{
+								_type: "tableCell",
+								_key: "c1",
+								isHeader: true,
+								colspan: 2,
+								content: [{ _type: "span", text: "Merged Header", marks: [] }],
+							},
+						],
+					},
+				],
+			},
+		];
+		const md = portableTextToMarkdown(blocks);
+		expect(md).toContain("<!--ec:block ");
+		expect(md).toContain('"colspan":2');
+	});
+
 	it("converts images", () => {
 		const blocks: PortableTextBlock[] = [
 			{ _type: "image", _key: "i1", alt: "A cat", asset: { url: "/img/cat.jpg" } },
@@ -387,6 +478,123 @@ describe("markdownToPortableText", () => {
 		expect(strikeSpan).toBeDefined();
 		expect(strikeSpan!.text).toBe("deleted");
 	});
+
+	it("converts GFM tables into canonical table blocks with cell marks and alignment", () => {
+		const md =
+			"| Name | Role |\n| :--- | :---: |\n| **Alice** | [Admin](https://example.com) |\n";
+		const blocks = markdownToPortableText(md);
+		expect(blocks).toHaveLength(1);
+		expect(blocks[0]._type).toBe("table");
+		expect(blocks[0].hasHeaderRow).toBe(true);
+
+		const rows = blocks[0].rows as PortableTextTableRow[];
+		expect(rows).toHaveLength(2);
+
+		// Header row
+		expect(rows[0].cells).toHaveLength(2);
+		expect(rows[0].cells[0].isHeader).toBe(true);
+		expect(rows[0].cells[0].textAlign).toBe("left");
+		expect(rows[0].cells[0].content[0].text).toBe("Name");
+
+		expect(rows[0].cells[1].isHeader).toBe(true);
+		expect(rows[0].cells[1].textAlign).toBe("center");
+		expect(rows[0].cells[1].content[0].text).toBe("Role");
+
+		// Body row with bold and link
+		expect(rows[1].cells).toHaveLength(2);
+		expect(rows[1].cells[0].content[0].text).toBe("Alice");
+		expect(rows[1].cells[0].content[0].marks).toContain("strong");
+
+		expect(rows[1].cells[1].content[0].text).toBe("Admin");
+		expect(rows[1].cells[1].markDefs).toBeDefined();
+		expect(rows[1].cells[1].markDefs![0].href).toBe("https://example.com");
+	});
+
+	it("preserves multiple paragraphs in a loose list item with word separation", () => {
+		const md = "- One\n\n  Two\n";
+		const blocks = markdownToPortableText(md);
+		expect(blocks).toHaveLength(1);
+		const fullText = (blocks[0].children as Array<{ text: string }>).map((c) => c.text).join("");
+		expect(fullText).toContain("One");
+		expect(fullText).toContain("Two");
+		expect(fullText).not.toBe("OneTwo");
+	});
+
+	it("splits multiple images in a paragraph and preserves alt and url", () => {
+		const md = "![Cat](/cat.jpg)\n![Dog](/dog.jpg)\n";
+		const blocks = markdownToPortableText(md);
+		expect(blocks).toHaveLength(2);
+		expect(blocks[0]._type).toBe("image");
+		expect(blocks[0].alt).toBe("Cat");
+		expect((blocks[0].asset as { url: string }).url).toBe("/cat.jpg");
+		expect(blocks[1]._type).toBe("image");
+		expect(blocks[1].alt).toBe("Dog");
+		expect((blocks[1].asset as { url: string }).url).toBe("/dog.jpg");
+	});
+
+	it("splits image followed by caption in a paragraph", () => {
+		const md = "![Cat](/cat.jpg)\nA cute cat caption\n";
+		const blocks = markdownToPortableText(md);
+		expect(blocks).toHaveLength(2);
+		expect(blocks[0]._type).toBe("image");
+		expect((blocks[0].asset as { url: string }).url).toBe("/cat.jpg");
+		expect(blocks[1]._type).toBe("block");
+		expect(blocks[1].children[0].text).toBe("A cute cat caption");
+	});
+
+	it("preserves headings and lists inside blockquotes", () => {
+		const md = "> # Important Header\n> - List item in quote\n";
+		const blocks = markdownToPortableText(md);
+		expect(blocks).toHaveLength(2);
+		expect(blocks[0].style).toBe("blockquote");
+		expect(blocks[0].children[0].text).toBe("Important Header");
+		expect(blocks[1].style).toBe("blockquote");
+		expect(blocks[1].children[0].text).toBe("List item in quote");
+	});
+
+	it("preserves unsupported literal HTML as text", () => {
+		const md = "<div>Keep me</div>\n";
+		const blocks = markdownToPortableText(md);
+		expect(blocks).toHaveLength(1);
+		expect(blocks[0]._type).toBe("block");
+		expect(blocks[0].children[0].text).toBe("<div>Keep me</div>");
+
+		// and round-trips
+		const roundTrip = portableTextToMarkdown(blocks);
+		expect(roundTrip).toContain("<div>Keep me</div>");
+	});
+
+	it("converts compound marks such as bold hyperlinks and bold italic", () => {
+		const md = "Paragraph with **[Bold Link](https://example.com)** and ***bold italic***.\n";
+		const blocks = markdownToPortableText(md);
+		expect(blocks).toHaveLength(1);
+		const linkDef = blocks[0].markDefs.find((m) => m._type === "link");
+		expect(linkDef).toBeDefined();
+		expect(linkDef?.href).toBe("https://example.com");
+
+		const boldLinkSpan = blocks[0].children.find((c) => c.text === "Bold Link");
+		expect(boldLinkSpan).toBeDefined();
+		expect(boldLinkSpan?.marks).toContain("strong");
+		expect(boldLinkSpan?.marks).toContain(linkDef?._key);
+
+		const boldItalicSpan = blocks[0].children.find((c) => c.text === "bold italic");
+		expect(boldItalicSpan).toBeDefined();
+		expect(boldItalicSpan?.marks).toContain("strong");
+		expect(boldItalicSpan?.marks).toContain("em");
+	});
+
+	it("converts deep nested lists with levels 1, 2, and 3", () => {
+		const md = "- Level 1\n  - Level 2a\n  - Level 2b\n    - Level 3\n- Level 1 again\n";
+		const blocks = markdownToPortableText(md);
+		expect(blocks).toHaveLength(5);
+		expect(blocks.map((b) => [b.listItem, b.level])).toEqual([
+			["bullet", 1],
+			["bullet", 2],
+			["bullet", 2],
+			["bullet", 3],
+			["bullet", 1],
+		]);
+	});
 });
 
 // ---------------------------------------------------------------------------
@@ -505,6 +713,95 @@ describe("PT <-> Markdown round-trip", () => {
 		const boldSpan = roundTripped[0].children.find((c) => (c.marks ?? []).includes("strong"));
 		expect(boldSpan).toBeDefined();
 		expect(boldSpan!.text).toBe("bold");
+	});
+
+	it("preserves canonical tables through round-trip", () => {
+		const original: PortableTextBlock = {
+			_type: "table",
+			hasHeaderRow: true,
+			rows: [
+				{
+					_type: "tableRow",
+					_key: "r1",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "c1",
+							isHeader: true,
+							content: [{ _type: "span", text: "Header A", marks: [] }],
+						},
+						{
+							_type: "tableCell",
+							_key: "c2",
+							isHeader: true,
+							content: [{ _type: "span", text: "Header B", marks: [] }],
+						},
+					],
+				},
+				{
+					_type: "tableRow",
+					_key: "r2",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "c3",
+							content: [{ _type: "span", text: "Row 1A", marks: [] }],
+						},
+						{
+							_type: "tableCell",
+							_key: "c4",
+							content: [{ _type: "span", text: "Row 1B", marks: [] }],
+						},
+					],
+				},
+			],
+		};
+
+		const md = portableTextToMarkdown([original]);
+		const roundTripped = markdownToPortableText(md);
+
+		expect(roundTripped).toHaveLength(1);
+		expect(roundTripped[0]._type).toBe("table");
+		expect(roundTripped[0].hasHeaderRow).toBe(true);
+
+		const rows = roundTripped[0].rows as PortableTextTableRow[];
+		expect(rows).toHaveLength(2);
+		expect(rows[0].cells[0].content[0].text).toBe("Header A");
+		expect(rows[0].cells[1].content[0].text).toBe("Header B");
+		expect(rows[1].cells[0].content[0].text).toBe("Row 1A");
+		expect(rows[1].cells[1].content[0].text).toBe("Row 1B");
+	});
+
+	it("preserves nested numbered lists through round-trip", () => {
+		const original: PortableTextBlock[] = [
+			{
+				_type: "block",
+				_key: "n1",
+				listItem: "number",
+				level: 1,
+				style: "normal",
+				markDefs: [],
+				children: [{ _type: "span", text: "Parent", marks: [] }],
+			},
+			{
+				_type: "block",
+				_key: "n2",
+				listItem: "number",
+				level: 2,
+				style: "normal",
+				markDefs: [],
+				children: [{ _type: "span", text: "Child", marks: [] }],
+			},
+		];
+
+		const md = portableTextToMarkdown(original);
+		const roundTripped = markdownToPortableText(md);
+
+		expect(roundTripped).toHaveLength(2);
+		expect(roundTripped[0].listItem).toBe("number");
+		expect(roundTripped[0].level).toBe(1);
+		expect(roundTripped[1].listItem).toBe("number");
+		expect(roundTripped[1].level).toBe(2);
 	});
 });
 
