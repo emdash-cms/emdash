@@ -121,11 +121,16 @@ export const passkeyRenameBody = z
 const ADMIN_LAYOUT_MAX_IDS = 200;
 const ADMIN_LAYOUT_MAX_BYTES = 16 * 1024;
 
-// PostgreSQL's jsonb rejects U+0000, so such an ID would fail the write instead of validation.
+const LONE_SURROGATE = /\p{Cs}/u;
+
+// PostgreSQL's jsonb rejects U+0000 and lone UTF-16 surrogates, so such an ID would fail the
+// write instead of validation.
 const adminLayoutId = z
 	.string()
 	.min(1)
-	.refine((id) => !id.includes("\u0000"), { message: "IDs must not contain U+0000" });
+	.refine((id) => !id.includes("\u0000") && !LONE_SURROGATE.test(id), {
+		message: "IDs must not contain U+0000 or lone UTF-16 surrogates",
+	});
 
 const adminLayoutIds = z.array(adminLayoutId).max(ADMIN_LAYOUT_MAX_IDS);
 

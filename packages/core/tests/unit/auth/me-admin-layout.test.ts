@@ -247,6 +247,13 @@ describeEachDialect("/_emdash/api/auth/me admin layout", (dialect) => {
 			},
 		],
 		[
+			"an ID containing a lone UTF-16 surrogate",
+			{
+				action: "setAdminLayout",
+				adminLayout: { ...layout, nav: { order: ["/media\ud800"], hidden: [] } },
+			},
+		],
+		[
 			"a numeric ID",
 			{
 				action: "setAdminLayout",
