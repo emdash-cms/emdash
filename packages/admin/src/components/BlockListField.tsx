@@ -537,7 +537,9 @@ export function BlockListField({
 		if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
 		if (event.key === "Backspace") {
 			const above = current[index - 1];
-			if (column !== 0 || !above || input.value !== "" || !blankCells(row)) return;
+			// A number's half-typed text, such as "-", reads as an empty value.
+			const empty = input.value === "" && !input.validity.badInput;
+			if (column !== 0 || !above || !empty || !blankCells(row)) return;
 			if (positions[index] !== undefined && !canDelete(row)) return;
 			event.preventDefault();
 			if (positions[index] === undefined) emit(current.filter((candidate) => candidate !== row));

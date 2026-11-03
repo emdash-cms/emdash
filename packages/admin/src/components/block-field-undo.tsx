@@ -5,6 +5,7 @@ import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
 import { useStableCallback } from "../lib/hooks.js";
+import { TOAST_REGION } from "./block-field-keyboard.js";
 import type { DeletionHold } from "./BlockListField.js";
 import type { ImageFieldValue } from "./ImageFieldRenderer.js";
 
@@ -246,33 +247,37 @@ export function useUndoToast() {
 }
 
 /**
- * Marks the editor canvas holding the field `rootRef` while a toast that is staying covers part of
- * the field's width, so focus brought into view there keeps clear of it. A toast beside the field,
- * or on its way out, leaves the canvas alone.
+ * Marks the field `rootRef` while a toast that is staying covers part of its width, so the editor
+ * canvas keeps focus brought into view there clear of it. A toast beside the field, or on its way
+ * out, leaves it alone. Toasts stack in their region, which is as wide as they are. A toast's own
+ * box is known only a render after it's added, too late for focus moved in that render.
  */
 export function useToastClearance(rootRef: React.RefObject<HTMLElement | null>) {
 	const { toasts } = useKumoToastManager();
+	const staying = toasts.some((toast) => toast.transitionStatus !== "ending" && !toast.limited);
 	React.useLayoutEffect(() => {
 		const root = rootRef.current;
-		const canvas = root?.closest<HTMLElement>("[data-emdash-editor-canvas]");
-		if (!root || !canvas) return;
+		if (!root || !staying) return;
 		const update = () => {
 			const field = root.getBoundingClientRect();
-			const covered = toasts.some((toast) => {
-				if (toast.transitionStatus === "ending" || toast.limited) return false;
-				const box = toast.ref?.current?.getBoundingClientRect();
-				return box !== undefined && box.left < field.right && box.right > field.left;
+			const covered = [...document.querySelectorAll(TOAST_REGION)].some((region) => {
+				const box = region.getBoundingClientRect();
+				return box.width > 0 && box.left < field.right && box.right > field.left;
 			});
-			canvas.toggleAttribute("data-toast-over", covered);
+			root.toggleAttribute("data-toast-over", covered);
 		};
 		update();
 		const resizes = new ResizeObserver(update);
 		resizes.observe(root);
+		const canvas = root.closest("[data-emdash-editor-canvas]");
+		if (canvas) resizes.observe(canvas);
+		window.addEventListener("resize", update);
 		return () => {
 			resizes.disconnect();
-			canvas.removeAttribute("data-toast-over");
+			window.removeEventListener("resize", update);
+			root.removeAttribute("data-toast-over");
 		};
-	}, [rootRef, toasts]);
+	}, [rootRef, staying]);
 }
 
 type UndoToast = ReturnType<typeof useUndoToast>;

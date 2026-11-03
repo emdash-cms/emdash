@@ -1562,7 +1562,11 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 	}
 }
 
-/* Toasts fade in and out in place of sliding. */
+/*
+ * Toasts fade in and out where they rest instead of sliding. Without its transition, Kumo's exit
+ * transform would drop a toast below the screen at once, so one on its way out keeps its resting
+ * transform, Kumo's own collapsed or expanded one. One swiped away still goes the way it was swiped.
+ */
 @media (prefers-reduced-motion: reduce) {
 	[role="region"][aria-live] > :is([role="dialog"], [role="alertdialog"]) {
 		transition-property: opacity !important;
@@ -1571,10 +1575,29 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 	[role="region"][aria-live] > :is([role="dialog"], [role="alertdialog"])[data-starting-style] {
 		opacity: 0;
 	}
+
+	[role="region"][aria-live]
+		> :is([role="dialog"], [role="alertdialog"])[data-ending-style]:not([data-swipe-direction]) {
+		transform: translateX(var(--toast-swipe-movement-x))
+			translateY(
+				calc(
+					var(--toast-swipe-movement-y) - (var(--toast-index) * var(--peek)) -
+						(var(--shrink) * var(--height))
+				)
+			)
+			scale(var(--scale));
+	}
+
+	[role="region"][aria-live]
+		> :is([role="dialog"], [role="alertdialog"])[data-ending-style][data-expanded]:not(
+			[data-swipe-direction]
+		) {
+		transform: translateX(var(--toast-swipe-movement-x)) translateY(var(--offset-y));
+	}
 }
 
 /* While a toast covers a blocks field (useToastClearance), focus brought into view stays clear of it. */
-[data-emdash-editor-canvas][data-toast-over] {
+[data-emdash-editor-canvas]:has([data-blocks-field][data-toast-over]) {
 	scroll-padding-bottom: 8.5rem;
 }
 

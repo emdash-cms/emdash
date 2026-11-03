@@ -45,6 +45,13 @@ export function BlockTypePicker({
 }: BlockTypePickerProps) {
 	const { t } = useLingui();
 	const restoreFocusRef = React.useRef(false);
+	// Each opening starts afresh, even one that comes while the last is still closing.
+	const [openings, setOpenings] = React.useState(0);
+	const [wasOpen, setWasOpen] = React.useState(open);
+	if (open !== wasOpen) {
+		setWasOpen(open);
+		if (open) setOpenings(openings + 1);
+	}
 
 	return (
 		<Popover
@@ -71,7 +78,12 @@ export function BlockTypePicker({
 				)}
 			>
 				<Popover.Title className="sr-only">{t`Add block`}</Popover.Title>
-				<PickerList blockTypes={blockTypes} openedByTouch={openedByTouch} onPick={onPick} />
+				<PickerList
+					key={openings}
+					blockTypes={blockTypes}
+					openedByTouch={openedByTouch}
+					onPick={onPick}
+				/>
 			</Popover.Content>
 		</Popover>
 	);

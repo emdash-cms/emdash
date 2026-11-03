@@ -31,19 +31,125 @@ export function focusableIn(element: Element | null | undefined): HTMLElement | 
 	);
 }
 
+/** How long after a pointer is let go its click can still come, as a tap's comes after the touch ends. */
+const CLICK_WAIT_MS = 500;
+
+interface PressWatch {
+	/** A pointer is down, or was let go and its click hasn't come yet. */
+	pressing: boolean;
+	/** What waits for the press to land. */
+	waiting: Set<() => void>;
+	timer?: ReturnType<typeof setTimeout>;
+}
+
+const PRESS_WATCH = Symbol.for("emdash.blocks-field.press");
+
+/** Watches the page's presses, from the first call on. */
+function pressWatch(): PressWatch {
+	const scope = globalThis as typeof globalThis & { [PRESS_WATCH]?: PressWatch };
+	const existing = scope[PRESS_WATCH];
+	if (existing) return existing;
+	const watch: PressWatch = { pressing: false, waiting: new Set() };
+	const land = (delay: number) => {
+		clearTimeout(watch.timer);
+		watch.timer = setTimeout(() => {
+			watch.pressing = false;
+			const waiting = [...watch.waiting];
+			watch.waiting.clear();
+			for (const run of waiting) run();
+		}, delay);
+	};
+	document.addEventListener(
+		"pointerdown",
+		() => {
+			clearTimeout(watch.timer);
+			watch.pressing = true;
+		},
+		true,
+	);
+	document.addEventListener("pointerup", () => land(CLICK_WAIT_MS), true);
+	document.addEventListener("pointercancel", () => land(0), true);
+	// Runs before the click's own handlers, so what waits runs after them.
+	document.addEventListener(
+		"click",
+		() => {
+			if (watch.pressing) land(0);
+		},
+		true,
+	);
+	scope[PRESS_WATCH] = watch;
+	return watch;
+}
+
+/** Starts watching the page's presses, which a blocks field's focus handling waits on. */
+export function usePressWatch() {
+	React.useEffect(() => {
+		pressWatch();
+	}, []);
+}
+
+/**
+ * Returns the function that makes a change to the layout that focus moving brings: at once, or
+ * while a press is in progress, once it has landed. Only the latest change waits, and it's
+ * dropped if the component goes first.
+ */
+export function useAfterPress() {
+	const waitingRef = React.useRef<(() => void) | null>(null);
+	React.useEffect(() => {
+		const watch = pressWatch();
+		return () => {
+			if (waitingRef.current) watch.waiting.delete(waitingRef.current);
+		};
+	}, []);
+	return React.useCallback((change: () => void) => {
+		const watch = pressWatch();
+		if (waitingRef.current) watch.waiting.delete(waitingRef.current);
+		waitingRef.current = null;
+		if (!watch.pressing) {
+			change();
+			return;
+		}
+		const run = () => {
+			waitingRef.current = null;
+			change();
+		};
+		waitingRef.current = run;
+		watch.waiting.add(run);
+	}, []);
+}
+
+/** The live region Kumo's toast viewport draws. Its toasts are dialogs inside it, which no control opened. */
+export const TOAST_REGION = '[role="region"][aria-live]';
+
 function leftFor(container: Element, next: Element | null): boolean {
-	return next !== null && !container.contains(next) && !next.closest(POPUP);
+	if (next === null || container.contains(next)) return false;
+	return !next.closest(POPUP) || next.closest(TOAST_REGION) !== null;
 }
 
 /**
  * Calls `callback` when focus leaves `event.currentTarget`. Focus that moves into a popup the
  * control opened, such as a menu or the media picker, or out of the window, has not left it.
+ * Focus that moves into a toast has.
+ *
+ * Focus moved by a press leaves once the press has landed, if focus hasn't come back by then:
+ * what leaving changes would otherwise move the press's target out from under the pointer, and
+ * its click would land on something else.
  */
 export function whenFocusLeaves(event: React.FocusEvent<HTMLElement>, callback: () => void) {
 	const container = event.currentTarget;
 	const next = event.relatedTarget;
+	const leave = () => {
+		const watch = pressWatch();
+		if (!watch.pressing) {
+			callback();
+			return;
+		}
+		watch.waiting.add(() => {
+			if (leftFor(container, document.activeElement ?? document.body)) callback();
+		});
+	};
 	if (next instanceof Element) {
-		if (leftFor(container, next)) callback();
+		if (leftFor(container, next)) leave();
 		return;
 	}
 	// Clicking something that can't take focus blurs with no relatedTarget, and so does leaving
@@ -55,7 +161,7 @@ export function whenFocusLeaves(event: React.FocusEvent<HTMLElement>, callback: 
 			!container.matches(":hover") &&
 			leftFor(container, document.activeElement ?? document.body)
 		) {
-			callback();
+			leave();
 		}
 	});
 }

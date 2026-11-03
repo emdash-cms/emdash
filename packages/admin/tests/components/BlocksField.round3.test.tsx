@@ -666,6 +666,7 @@ describe.each(["ltr", "rtl"] as const)(
 			await control("Headline").click();
 			await expect.element(link).toHaveAttribute("aria-invalid", "true");
 			await expect.poll(() => dangerTexts(group).map(ownText)).toEqual([message]);
+			await settle();
 			const problem = dangerTexts(group)[0]!;
 			expect(box(problem).top).toBeGreaterThanOrEqual(box(link).bottom - 0.5);
 			expect(input.scrollWidth).toBeLessThanOrEqual(input.clientWidth);

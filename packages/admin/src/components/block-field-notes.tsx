@@ -14,7 +14,7 @@ import {
 } from "../lib/block-field-layout.js";
 import type { BlockValueIssue } from "../lib/block-validation.js";
 import { cn } from "../lib/utils.js";
-import { onFocusLeave } from "./block-field-keyboard.js";
+import { onFocusLeave, useAfterPress } from "./block-field-keyboard.js";
 import { NOTE, NOTE_ON_FOCUS } from "./block-field-styles.js";
 
 /**
@@ -180,16 +180,22 @@ export function useControlNotes() {
 	};
 }
 
-/** Tracks which of a field's controls has focus, by its `data-note`, ignoring focus in its popups. */
+/**
+ * Tracks which of a field's controls has focus, by its `data-note`, ignoring focus in its popups.
+ * A note that a press brings shows once the press has landed, as one it takes away goes.
+ */
 function useNoteFocus() {
 	const [focused, setFocused] = React.useState<NoteSource | null>(null);
+	const afterPress = useAfterPress();
 	const props = {
 		onFocus: (event: React.FocusEvent<HTMLElement>) => {
 			if (!(event.target instanceof Element) || !event.currentTarget.contains(event.target)) return;
 			const source = event.target.closest("[data-note]")?.getAttribute("data-note");
-			setFocused(source === "field" || source === "text" || source === "link" ? source : null);
+			afterPress(() =>
+				setFocused(source === "field" || source === "text" || source === "link" ? source : null),
+			);
 		},
-		onBlur: onFocusLeave(() => setFocused(null)),
+		onBlur: onFocusLeave(() => afterPress(() => setFocused(null))),
 	};
 	return { focused, props };
 }

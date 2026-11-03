@@ -595,6 +595,7 @@ describe("Checking fields inside a block", () => {
 		const row = label.closest("label")!.parentElement!;
 		const problem = "Check the format. Lowercase, for links like /#pricing";
 		await expect.poll(() => shownText(problem)).toBeDefined();
+		await expect.poll(() => document.getAnimations().length).toBe(0);
 		const error = shownText(problem)!.getBoundingClientRect();
 		expect(error.top).toBeGreaterThanOrEqual(row.getBoundingClientRect().top);
 		expect(error.bottom).toBeLessThanOrEqual(row.getBoundingClientRect().bottom);

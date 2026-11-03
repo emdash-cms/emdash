@@ -51,6 +51,7 @@ import {
 	MOVE_KEYS,
 	onFocusLeave,
 	useMoveKeys,
+	usePressWatch,
 } from "./block-field-keyboard.js";
 import {
 	bringIntoView,
@@ -481,6 +482,7 @@ export function BlocksField({
 	const [arrived, setArrived] = React.useState<{ key: string; restored?: true } | null>(null);
 	const reorder = useReorderMotion(rootRef, "data-block-key");
 	useToastClearance(rootRef);
+	usePressWatch();
 
 	const typeBySlug = React.useMemo(
 		() => new Map(blockTypes.map((blockType) => [blockType.slug, blockType])),
@@ -1459,7 +1461,9 @@ function BlockRow({
 				ref={headRef}
 				data-block-head
 				className={cn(
-					"flex min-h-11 items-center gap-2 py-1.5 ps-2 pe-2.5",
+					// The toggle fills the head's height and its width up to the menu, padding included, so a
+					// click anywhere the row washes before its menu opens it.
+					"flex min-h-11 items-stretch pe-2.5",
 					!readOnly && cn(ROW_HOVER, HEAD_POPUP_OPEN, HEAD_PRESSED),
 					!readOnly && HEAD_FOCUS,
 					index === 0 && SHEET_INNER_TOP,
@@ -1469,7 +1473,7 @@ function BlockRow({
 				)}
 			>
 				{readOnly ? (
-					<div className="flex min-w-0 flex-1 items-center gap-2 self-stretch ps-6">
+					<div className="flex min-w-0 flex-1 items-center gap-2 py-1.5 ps-8">
 						<BlockTypeIcon
 							name={blockType?.icon}
 							className={cn("size-4 shrink-0 text-kumo-subtle", GLYPH_NUDGE)}
@@ -1489,7 +1493,7 @@ function BlockRow({
 						aria-keyshortcuts={MOVE_KEYS}
 						onClick={onToggle}
 						onKeyDown={moveKeys}
-						className="flex min-w-0 flex-1 items-center gap-2 self-stretch text-start outline-none"
+						className="flex min-w-0 flex-1 items-center gap-2 py-1.5 ps-2 pe-2 text-start outline-none"
 					>
 						<DisclosureCaret open={open} instant={instant} className={GLYPH_NUDGE} />
 						<BlockTypeIcon
@@ -1514,28 +1518,33 @@ function BlockRow({
 								</span>
 							</span>
 						)}
+						{thumbnail && (
+							<img
+								key={thumbnail}
+								src={thumbnail}
+								alt=""
+								loading="lazy"
+								className={cn(
+									IMAGE_EDGE,
+									"size-7 shrink-0 rounded-md object-cover transition-opacity duration-150 ease-emdash motion-reduce:transition-none",
+									open && "opacity-0",
+									instant && "transition-none",
+								)}
+								onError={(event) => {
+									event.currentTarget.hidden = true;
+								}}
+							/>
+						)}
+						{showErrorDot && <ErrorDot id={errorDotId} />}
 					</button>
 				)}
-				{thumbnail && !readOnly && (
-					<img
-						key={thumbnail}
-						src={thumbnail}
-						alt=""
-						loading="lazy"
-						className={cn(
-							IMAGE_EDGE,
-							"size-7 shrink-0 rounded-md object-cover transition-opacity duration-150 ease-emdash motion-reduce:transition-none",
-							open && "opacity-0",
-							instant && "transition-none",
-						)}
-						onError={(event) => {
-							event.currentTarget.hidden = true;
-						}}
-					/>
-				)}
-				{showErrorDot && <ErrorDot id={errorDotId} />}
 				{(inactive || retired || unsupported) && (
-					<span className="flex flex-wrap justify-end gap-1">
+					<span
+						className={cn(
+							"flex flex-wrap items-center justify-end gap-1 self-center",
+							readOnly ? "ms-2" : "me-2",
+						)}
+					>
 						{inactive && <Badge variant="secondary">{t`Inactive version`}</Badge>}
 						{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
 						{unsupported && <Badge variant="secondary">{t`Unsupported`}</Badge>}
@@ -1566,7 +1575,12 @@ function BlockRow({
 									variant="ghost"
 									shape="square"
 									size="sm"
-									className={cn(ROW_BUTTON, "shrink-0 text-kumo-subtle", REVEAL_MENU, TOUCH_TARGET)}
+									className={cn(
+										ROW_BUTTON,
+										"shrink-0 self-center text-kumo-subtle",
+										REVEAL_MENU,
+										TOUCH_TARGET,
+									)}
 									aria-label={t`${label} actions`}
 									// The menu shows the version. Only an older one is worth saying before it opens.
 									aria-describedby={inactive ? versionId : undefined}
@@ -1817,8 +1831,18 @@ function FieldControl({
 	const ownNote = !onLabelLine && Boolean(notes.message || notes.hint || notes.countSlotId);
 	/** Whether the hint and the problem fit at the end of the control's line beside its text. */
 	const [fit, setFit] = React.useState({ hint: true, message: true });
-	/** The problem shows on a line of its own, which keeps its place while the control has focus. */
-	const [problemBelow, setProblemBelow] = React.useState(false);
+	/**
+	 * The problem shows on a line of its own, which keeps its place while the control has focus. The
+	 * line comes at once with the control, and after that grows in and shrinks away, so the rows
+	 * below glide rather than jump.
+	 */
+	const [below, setBelow] = React.useState({ shown: false, instant: true });
+	const placedRef = React.useRef(false);
+	const placeProblem = (shown: boolean) => {
+		const instant = !placedRef.current;
+		placedRef.current = true;
+		setBelow((current) => (current.shown === shown ? current : { shown, instant }));
+	};
 	// The note at the end of the control's line keeps its text from running under it.
 	React.useLayoutEffect(() => {
 		const note = noteRef.current;
@@ -1835,12 +1859,12 @@ function FieldControl({
 	}, [ownNote]);
 	// A note at the end of the control's line shows only where it fits beside the control's text,
 	// rather than cutting short both.
-	React.useLayoutEffect(() => {
+	const measureNote = useStableCallback(() => {
 		const note = noteRef.current;
 		const wrapper = wrapperRef.current;
 		if (!ownNote || !note || !wrapper) return;
 		if (!focused && !notes.message) {
-			setProblemBelow(false);
+			placeProblem(false);
 			return;
 		}
 		const line = lineUse(wrapper);
@@ -1857,10 +1881,27 @@ function FieldControl({
 				? current
 				: { hint: hintFits, message: messageFits },
 		);
-		if (side && !focused) setProblemBelow(!messageFits);
-	}, [ownNote, focused, side, notes.hint, notes.message, value]);
+		if (side && !focused) placeProblem(!messageFits);
+	});
+	React.useLayoutEffect(
+		() => measureNote(),
+		[ownNote, focused, side, notes.hint, notes.message, value, measureNote],
+	);
+	// The room beside the control's text changes with its line's width.
+	React.useLayoutEffect(() => {
+		const wrapper = wrapperRef.current;
+		if (!ownNote || !wrapper || typeof ResizeObserver === "undefined") return;
+		let width = wrapper.clientWidth;
+		const observer = new ResizeObserver(() => {
+			if (wrapper.clientWidth === width) return;
+			width = wrapper.clientWidth;
+			measureNote();
+		});
+		observer.observe(wrapper);
+		return () => observer.disconnect();
+	}, [ownNote, measureNote]);
 	const endMessage =
-		notes.message && !problemBelow ? (fit.message ? notes.message : notes.briefMessage) : undefined;
+		notes.message && !below.shown ? (fit.message ? notes.message : notes.briefMessage) : undefined;
 	const change = (next: unknown) => {
 		if (!isEmptyValue(value) || !isEmptyValue(next)) onEdit();
 		onChange(next);
@@ -1962,18 +2003,21 @@ function FieldControl({
 					</p>
 				)}
 			</div>
-			{side && problemBelow && (
-				<p
+			{side && (
+				<DisclosurePanel
+					open={below.shown}
+					instant={below.instant}
 					aria-hidden="true"
 					className={cn(
-						NOTE,
-						"hidden min-h-5 ps-2 pb-1 wrap-anywhere text-kumo-danger @min-[440px]/blocks:block",
+						"hidden @min-[440px]/blocks:block",
 						// Under a button row's two halves, the line spans both.
 						noteSource === "field" ? "@min-[440px]/blocks:col-start-2" : "col-span-full",
 					)}
 				>
-					<span dir="auto">{notes.message}</span>
-				</p>
+					<p className={cn(NOTE, "min-h-5 ps-2 pb-1 wrap-anywhere text-kumo-danger")}>
+						<span dir="auto">{notes.message}</span>
+					</p>
+				</DisclosurePanel>
 			)}
 		</>
 	);
