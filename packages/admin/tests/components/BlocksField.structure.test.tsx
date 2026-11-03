@@ -9,6 +9,7 @@ import { BlocksField, type BlocksFieldProps } from "../../src/components/BlocksF
 import { ImageFieldRenderer } from "../../src/components/ImageFieldRenderer.js";
 import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
 import type { StoredBlockValue } from "../../src/lib/block-field-state.js";
+import { expectGlide, holdAnimations, readAlong, readMotion } from "../utils/animation.js";
 import { render } from "../utils/render.js";
 
 vi.mock("../../src/components/MediaPickerModal", () => ({ MediaPickerModal: () => null }));
@@ -202,13 +203,8 @@ async function sample<T>(read: () => T, ms: number): Promise<Array<{ t: number; 
 	return frames;
 }
 
-/** How a value moved across frames: its total travel and its largest step. */
-function motion(values: number[]) {
-	const steps = values.slice(1).map((value, index) => value - values[index]!);
-	const travel = values.at(-1)! - values[0]!;
-	const largest = Math.max(0, ...steps.map(Math.abs));
-	return { travel, largest };
-}
+/** Whether `target` is in the blocks field, where everything that moves its rows is. */
+const inField = (target: Element) => field().contains(target);
 
 async function reduceMotion() {
 	await cdp().send("Emulation.setEmulatedMedia", {
@@ -269,50 +265,46 @@ afterEach(async () => {
 });
 
 describe("Blocks field popups", () => {
-	/** Watches for a popup to appear, and returns its animation and opacity on each frame from then. */
+	/**
+	 * Watches for a popup to appear, and reads its entrance there, before a frame can run it: its
+	 * animation, and its opacity 60ms in.
+	 */
 	function watchPopup(find: () => HTMLElement | null | undefined) {
-		return sample(() => {
-			const popup = find();
-			if (!popup) return null;
-			const style = getComputedStyle(popup);
-			return {
-				opacity: Number(style.opacity),
-				animation: style.animationName,
-				easing: style.animationTimingFunction,
-				duration: style.animationDuration,
-				running: popup.getAnimations().some((a) => a.playState === "running"),
-			};
-		}, 400);
+		return new Promise<{
+			animation: string;
+			easing: string;
+			duration: string;
+			running: boolean;
+			early: number;
+		}>((resolve) => {
+			const observer = new MutationObserver(() => {
+				const popup = find();
+				if (!popup) return;
+				observer.disconnect();
+				const style = getComputedStyle(popup);
+				const entrance = popup.getAnimations().find((each) => each instanceof CSSAnimation);
+				const first = {
+					animation: style.animationName,
+					easing: style.animationTimingFunction,
+					duration: style.animationDuration,
+					running: entrance?.playState === "running",
+				};
+				entrance?.pause();
+				if (entrance) entrance.currentTime = 60;
+				const early = Number(getComputedStyle(popup).opacity);
+				entrance?.play();
+				resolve({ ...first, early });
+			});
+			observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+		});
 	}
 
-	function fromMount<T>(frames: Array<{ t: number; value: T | null }>) {
-		const first = frames.findIndex((each) => each.value !== null);
-		expect(first).toBeGreaterThanOrEqual(0);
-		const mounted = frames[first]!.t;
-		return frames.slice(first).map((each) => ({ t: each.t - mounted, value: each.value! }));
-	}
-
-	function expectPopupMotion(
-		frames: Array<{
-			t: number;
-			value: {
-				opacity: number;
-				animation: string;
-				easing: string;
-				duration: string;
-				running: boolean;
-			};
-		}>,
-	) {
-		const first = frames[0]!.value;
+	function expectPopupMotion(first: Awaited<ReturnType<typeof watchPopup>>) {
 		expect(first.animation).toBe("emdash-popup-in");
 		expect(first.easing).toBe("cubic-bezier(0.22, 1, 0.36, 1)");
 		expect(first.duration).toBe("0.15s");
 		expect(first.running).toBe(true);
-		const early = frames
-			.filter((each) => each.t > 0 && each.t <= 60)
-			.map((each) => each.value.opacity);
-		expect(Math.max(0, ...early)).toBeGreaterThanOrEqual(0.4);
+		expect(first.early).toBeGreaterThanOrEqual(0.4);
 	}
 
 	it("opens the block menu, the picker and an item menu with one motion, from their first frame", async () => {
@@ -323,20 +315,20 @@ describe("Blocks field popups", () => {
 		const menu = () => document.querySelector<HTMLElement>('[role="menu"]');
 		const blockMenu = watchPopup(menu);
 		await menuButtonOf("one").click();
-		expectPopupMotion(fromMount(await blockMenu));
+		expectPopupMotion(await blockMenu);
 		await userEvent.keyboard("{Escape}");
 		await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
 
 		const picker = () => document.querySelector<HTMLElement>('[role="dialog"]');
 		const pickerFrames = watchPopup(picker);
 		await addBlock().click();
-		expectPopupMotion(fromMount(await pickerFrames));
+		expectPopupMotion(await pickerFrames);
 		await userEvent.keyboard("{Escape}");
 		await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
 
 		const itemMenu = watchPopup(menu);
 		await page.getByRole("button", { name: "Jonas Berg actions" }).click();
-		expectPopupMotion(fromMount(await itemMenu));
+		expectPopupMotion(await itemMenu);
 	});
 
 	it("opens a quiet select's options with the same motion and closes them at once on a choice", async () => {
@@ -354,7 +346,7 @@ describe("Blocks field popups", () => {
 			document.querySelector('[role="listbox"]')?.parentElement as HTMLElement | undefined;
 		const frames = watchPopup(popup);
 		await page.getByRole("combobox", { name: "Icon" }).click();
-		expectPopupMotion(fromMount(await frames));
+		expectPopupMotion(await frames);
 
 		await settled();
 		// A closed select keeps its popup mounted, hidden.
@@ -428,12 +420,14 @@ describe("Blocks field structure motion", () => {
 		await settled();
 		const button = addItem().element() as HTMLElement;
 
-		const frames = sample(() => button.getBoundingClientRect().top - fieldTop(), 450);
-		await addItem().click();
-		const { travel, largest } = motion((await frames).map((each) => each.value));
+		const { from, along, to } = await readMotion(
+			inField,
+			() => button.getBoundingClientRect().top - fieldTop(),
+			() => addItem().click(),
+		);
 
-		expect(travel).toBeGreaterThan(60);
-		expect(largest).toBeLessThanOrEqual(travel * 0.5);
+		expect(to - from).toBeGreaterThan(60);
+		expectGlide(along, from, to);
 	});
 
 	it("grows an inserted block and a duplicate in place of a jump", async () => {
@@ -441,43 +435,43 @@ describe("Blocks field structure motion", () => {
 		const button = addBlock().element() as HTMLElement;
 
 		await addBlock().click();
-		const inserted = sample(() => button.getBoundingClientRect().top - fieldTop(), 450);
-		await page.getByRole("option", { name: /Short/ }).click();
-		let result = motion((await inserted).map((each) => each.value));
-		expect(result.travel).toBeGreaterThan(60);
-		expect(result.largest).toBeLessThanOrEqual(result.travel * 0.5);
-		await settled();
+		const inserted = await readMotion(
+			inField,
+			() => button.getBoundingClientRect().top - fieldTop(),
+			() => page.getByRole("option", { name: /Short/ }).click(),
+		);
+		expect(inserted.to - inserted.from).toBeGreaterThan(60);
+		expectGlide(inserted.along, inserted.from, inserted.to);
 
 		await menuButtonOf("one").click();
-		const duplicated = sample(() => row("two").getBoundingClientRect().top - fieldTop(), 450);
-		await page.getByRole("menuitem", { name: "Duplicate" }).click();
-		result = motion((await duplicated).map((each) => each.value));
-		expect(result.travel).toBeGreaterThan(30);
-		expect(result.largest).toBeLessThanOrEqual(result.travel * 0.5);
+		const duplicated = await readMotion(
+			inField,
+			() => row("two").getBoundingClientRect().top - fieldTop(),
+			() => page.getByRole("menuitem", { name: "Duplicate" }).click(),
+		);
+		expect(duplicated.to - duplicated.from).toBeGreaterThan(30);
+		expectGlide(duplicated.along, duplicated.from, duplicated.to);
 	});
 
 	it("shrinks a deleted block before it goes, then focuses its neighbour, and Undo still restores it", async () => {
 		await renderField([short("one"), short("two"), short("three")]);
 
 		await menuButtonOf("two").click();
-		const frames = sample(
-			() => ({
-				top: row("three").getBoundingClientRect().top - fieldTop(),
-				rows: rowKeys().length,
-			}),
-			500,
-		);
+		const top = () => row("three").getBoundingClientRect().top - fieldTop();
+		const from = top();
+		const shrink = holdAnimations(inField);
 		await page.getByRole("menuitem", { name: "Delete" }).click();
-		const values = (await frames).map((each) => each.value);
+		const along = readAlong(await shrink.started(), top, [0.25, 0.5, 0.75, 1]);
+		expect(rowKeys()).toHaveLength(3);
+		shrink.release();
+		await expect.poll(() => rowKeys().length).toBe(2);
+		await settled();
 
-		const { travel, largest } = motion(values.map((each) => each.top));
-		expect(travel).toBeLessThan(-30);
-		expect(largest).toBeLessThanOrEqual(Math.abs(travel) * 0.5);
-		const removed = values.findIndex((each) => each.rows === 2);
-		const lastMove = values.findLastIndex(
-			(each, index) => index > 0 && Math.abs(each.top - values[index - 1]!.top) > 0.5,
-		);
-		expect(removed).toBeGreaterThanOrEqual(lastMove);
+		const to = top();
+		expect(to - from).toBeLessThan(-30);
+		expectGlide(along.slice(0, -1), from, to);
+		// Taking out the row once it has shrunk away moves the rows below no more than a pixel.
+		expect(Math.abs(along.at(-1)! - to)).toBeLessThanOrEqual(1);
 		await expect.element(page.elementLocator(toggleOf("three"))).toHaveFocus();
 
 		await page.getByRole("button", { name: "Undo" }).click();
@@ -493,12 +487,14 @@ describe("Blocks field structure motion", () => {
 		const before = ines().getBoundingClientRect().top;
 
 		await page.getByRole("button", { name: "Jonas Berg actions" }).click();
-		const frames = sample(() => ines().getBoundingClientRect().top - fieldTop(), 450);
-		await page.getByRole("menuitem", { name: "Delete" }).click();
-		const { travel, largest } = motion((await frames).map((each) => each.value));
+		const { from, along, to } = await readMotion(
+			inField,
+			() => ines().getBoundingClientRect().top - fieldTop(),
+			() => page.getByRole("menuitem", { name: "Delete" }).click(),
+		);
 
-		expect(travel).toBeLessThan(-20);
-		expect(largest).toBeLessThanOrEqual(Math.abs(travel) * 0.5);
+		expect(to - from).toBeLessThan(-20);
+		expectGlide(along, from, to);
 		expect(ines().getBoundingClientRect().top).toBeLessThan(before);
 	});
 
@@ -721,23 +717,39 @@ describe("Blocks field drag", () => {
 			const after = getComputedStyle(lifted, "::after");
 			return after.boxShadow === "none" ? 0 : Number(after.opacity);
 		};
-		const between = (values: number[]) =>
-			new Set(
-				values.filter((value) => value > 0.02 && value < 0.98).map((value) => value.toFixed(2)),
-			).size;
+		// The shadow lifts on a stylesheet transition. One is created by the first style update after
+		// the row's class changes, which a script reading the row's layout can bring forward to the
+		// commit, so it's caught there, before a frame can run it.
+		const lifts: Animation[] = [];
+		const holdLift = new MutationObserver(() => {
+			for (const transition of row("one").getAnimations({ subtree: true })) {
+				if (
+					transition instanceof CSSTransition &&
+					(transition.effect as KeyframeEffect).pseudoElement === "::after" &&
+					!lifts.includes(transition)
+				) {
+					transition.pause();
+					lifts.push(transition);
+				}
+			}
+		});
+		holdLift.observe(row("one"), { attributes: true });
 
 		const start = row("one").getBoundingClientRect();
 		const x = start.left + 4;
 		const y = start.top + start.height / 2;
-		const lift = sample(shadow, 300);
 		handleOf("one").dispatchEvent(pointer("pointerdown", x, y));
 		for (let step = 1; step <= 4; step++) {
 			document.dispatchEvent(pointer("pointermove", x, y + step * 6));
 			await frame();
 		}
-		const lifting = (await lift).map((each) => each.value);
-		expect(Math.max(...lifting)).toBeGreaterThan(0.98);
-		expect(between(lifting)).toBeGreaterThanOrEqual(3);
+		holdLift.disconnect();
+		expect(lifts.length, "the shadow's lift to start").toBeGreaterThan(0);
+		const lifting = readAlong(lifts, shadow);
+		for (const transition of lifts) transition.play();
+		await settled();
+		expect(shadow()).toBeGreaterThan(0.98);
+		expectGlide(lifting, 0, 1);
 
 		const target = row("three").getBoundingClientRect();
 		const end = target.top + target.height / 2 + 12;
@@ -745,12 +757,13 @@ describe("Blocks field drag", () => {
 			document.dispatchEvent(pointer("pointermove", x, y + 24 + ((end - y - 24) * step) / 8));
 			await frame();
 		}
-		const drop = sample(shadow, 300);
+		const drop = holdAnimations((element) => element === row("one"));
 		document.dispatchEvent(pointer("pointerup", x, end));
-		const dropping = await drop;
-		expect(between(dropping.map((each) => each.value))).toBeGreaterThanOrEqual(3);
-		const gone = dropping.find((each) => each.value <= 0.02);
-		expect(gone?.t ?? Infinity).toBeLessThanOrEqual(220);
+		const settling = await drop.started();
+		const dropping = readAlong(settling, shadow);
+		expectGlide(dropping, 1, 0);
+		for (const animation of settling) animation.currentTime = 220;
+		expect(shadow()).toBeLessThanOrEqual(0.02);
 	});
 });
 
@@ -800,29 +813,45 @@ describe("Blocks field disclosure", () => {
 		const angle = () => Math.abs(Number.parseFloat(getComputedStyle(caret()).rotate) || 0);
 		const body = () => row("long").querySelector<HTMLElement>("[data-block-body]");
 
+		const motion = holdAnimations((target) => row("long").contains(target));
+
 		// A caret styled for the first time as it opens has nothing to turn from.
 		await frame();
 		toggleOf("long").click();
-		// Reverse about a third of the way open.
-		for (let count = 0; count < 60; count++) {
-			await frame();
-			const panel = body();
-			const full = panel?.firstElementChild?.getBoundingClientRect().height ?? 0;
-			if (panel && full > 0 && panel.getBoundingClientRect().height >= full * 0.3) break;
+		// Reverse about a third of the way open, with the caret's own transition as far along.
+		const [opening] = await motion.started();
+		const reverseAt = Number(opening!.effect!.getComputedTiming().endTime) * 0.12;
+		opening!.currentTime = reverseAt;
+		for (const turn of caret().getAnimations()) {
+			turn.pause();
+			turn.currentTime = reverseAt;
 		}
-		const reversedAt = body()!.getBoundingClientRect().height;
-		expect(reversedAt).toBeLessThan(
-			body()!.firstElementChild!.getBoundingClientRect().height * 0.7,
-		);
+		const full = body()!.firstElementChild!.getBoundingClientRect().height;
+		expect(body()!.getBoundingClientRect().height).toBeGreaterThan(full * 0.2);
+		expect(body()!.getBoundingClientRect().height).toBeLessThan(full * 0.7);
+		expect(angle()).toBeGreaterThan(5);
 		toggleOf("long").click();
-		const frames = await sample(
-			() => ({ angle: angle(), height: body()?.getBoundingClientRect().height ?? 0 }),
-			400,
+		const closing = await motion.started();
+		const duration = Math.max(
+			...closing.map((animation) => Number(animation.effect!.getComputedTiming().endTime)),
 		);
+		const at = (time: number) => {
+			for (const animation of closing) animation.currentTime = time;
+			return { angle: angle(), height: body()?.getBoundingClientRect().height ?? 0 };
+		};
 
-		const caretDown = frames.find((each) => each.value.angle < 0.5)!.t;
-		const fieldsGone = frames.find((each) => each.value.height < 0.5)!.t;
-		expect(Math.abs(caretDown - fieldsGone)).toBeLessThanOrEqual(20);
+		// On one clock, the caret has as much of its turn left as the fields have of their height.
+		const reversed = at(0);
+		expect(reversed.angle).toBeGreaterThan(5);
+		for (const share of [0.25, 0.5, 0.75]) {
+			const { angle: turned, height } = at(duration * share);
+			expect(turned / reversed.angle).toBeCloseTo(height / reversed.height, 1);
+		}
+		const landed = at(duration);
+		expect(landed.angle).toBeLessThan(0.5);
+		expect(landed.height).toBeLessThan(0.5);
+		motion.release();
+		await expect.poll(body).toBeNull();
 	});
 
 	it.each(["ltr", "rtl"] as const)(

@@ -8,6 +8,7 @@ import { BlocksField, type BlocksFieldProps } from "../../src/components/BlocksF
 import { ImageFieldRenderer } from "../../src/components/ImageFieldRenderer.js";
 import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
 import type { StoredBlockValue } from "../../src/lib/block-field-state.js";
+import { expectGlide, holdAnimations, readAlong, readMotion } from "../utils/animation.js";
 import { render } from "../utils/render.js";
 
 vi.mock("../../src/components/MediaPickerModal", () => ({ MediaPickerModal: () => null }));
@@ -370,12 +371,55 @@ async function sample<T>(read: () => T, ms: number): Promise<Array<{ t: number; 
 	return frames;
 }
 
-/** How a value moved across frames: its total travel and its largest step. */
-function motion(values: number[]) {
-	const steps = values.slice(1).map((value, index) => value - values[index]!);
-	const travel = values.at(-1)! - values[0]!;
-	const largest = Math.max(0, ...steps.map(Math.abs));
-	return { travel, largest };
+/** Whether `target` is in the blocks field, where everything that moves its rows is. */
+const inField = (target: Element) => field().contains(target);
+
+/** Deletes the block `key` from its menu, and holds its row halfway through shrinking away. */
+async function deleteHalfway(key: string) {
+	const shrinkingRow = row(key);
+	const shrink = holdAnimations((target) => target === shrinkingRow);
+	await menuButtonOf(key).click();
+	await page.getByRole("menuitem", { name: "Delete" }).click();
+	const [height] = readAlong(
+		await shrink.started(),
+		() => shrinkingRow.getBoundingClientRect().height,
+		[0.5],
+	);
+	return { shrink, height: height! };
+}
+
+/**
+ * Reverses a block's panel a share of the way through opening, with its caret's own transition as
+ * far along, and returns the panel's closing motion, read at a time into it.
+ */
+async function closeWhileOpening(key: string, share: number) {
+	const caret = () => toggleOf(key).querySelector("svg")!;
+	const angle = () => Math.abs(Number.parseFloat(getComputedStyle(caret()).rotate) || 0);
+	const body = () => row(key).querySelector<HTMLElement>("[data-block-body]");
+	const motion = holdAnimations((target) => row(key).contains(target));
+
+	// A caret styled for the first time as it opens has nothing to turn from.
+	await frame();
+	toggleOf(key).click();
+	const [opening] = await motion.started();
+	const reverseAt = Number(opening!.effect!.getComputedTiming().endTime) * share;
+	opening!.currentTime = reverseAt;
+	for (const turn of caret().getAnimations()) {
+		turn.pause();
+		turn.currentTime = reverseAt;
+	}
+	const full = body()!.firstElementChild!.getBoundingClientRect().height;
+	toggleOf(key).click();
+	const closing = await motion.started();
+	return {
+		full,
+		motion,
+		duration: Math.max(...closing.map((each) => Number(each.effect!.getComputedTiming().endTime))),
+		at(time: number) {
+			for (const animation of closing) animation.currentTime = time;
+			return { angle: angle(), height: body()?.getBoundingClientRect().height ?? 0 };
+		},
+	};
 }
 
 afterEach(async () => {
@@ -428,26 +472,27 @@ describe("One Undo for the page", () => {
 		await settled();
 		const full = row("two").getBoundingClientRect().height;
 
-		await menuButtonOf("two").click();
-		await page.getByRole("menuitem", { name: "Delete" }).click();
-		await until(() => row("two").getBoundingClientRect().height < full - 1);
-		const shrunk = row("two").getBoundingClientRect().height;
+		const height = () => row("two").getBoundingClientRect().height;
+		const { shrink, height: shrunk } = await deleteHalfway("two");
+		expect(shrunk).toBeLessThan(full - 1);
+		shrink.release();
 		pressUndo();
-		const heights = [
-			shrunk,
-			...(await sample(() => row("two")?.getBoundingClientRect().height ?? 0, 400)).map(
-				(each) => each.value,
-			),
-		];
+		const [back] = shrink.held;
+		back!.pause();
+		// Seeking settles a reversal still pending, so the rate reads the way the row now goes.
+		back!.currentTime = Number(back!.currentTime);
+		const now = Number(back!.currentTime);
+		const ahead = [0.25, 0.5, 0.75].map((share) => {
+			back!.currentTime = now + back!.playbackRate * now * share;
+			return height();
+		});
+		back!.play();
+		await settled();
 
 		expect(rowKeys()).toEqual(["two", "three"]);
-		// From the first frame after Undo, the row only grows, back to its full height. On a loaded
-		// machine the frame in flight when Undo is pressed can still show the shrink's last step.
-		const after = heights.slice(1);
-		expect(after.every((height, index) => index === 0 || height >= after[index - 1]! - 0.5)).toBe(
-			true,
-		);
-		expect(row("two").getBoundingClientRect().height).toBeCloseTo(full, 0);
+		// From where Undo caught it, the row only grows, back to its full height.
+		expectGlide(ahead, shrunk, full);
+		expect(height()).toBeCloseTo(full, 0);
 		await expect.element(page.elementLocator(toggleOf("two"))).toHaveFocus();
 		await expect.poll(undoButtons).toHaveLength(0);
 	});
@@ -515,10 +560,9 @@ describe("Undo puts a block back", () => {
 
 	it("with focus on it when Mod+Z calls the deletion off while the row shrinks away", async () => {
 		await renderField([short("one"), short("two"), short("three")]);
-		await menuButtonOf("two").click();
-		await page.getByRole("menuitem", { name: "Delete" }).click();
-		await until(() => shrinking(row("two"))?.playState === "running");
+		const { shrink } = await deleteHalfway("two");
 
+		shrink.release();
 		pressUndo();
 		await settled();
 		expect(rowKeys()).toEqual(["one", "two", "three"]);
@@ -527,10 +571,9 @@ describe("Undo puts a block back", () => {
 
 	it("when Mod+Z comes once the row has shrunk away but before it's taken out", async () => {
 		await renderField([short("one"), short("two"), short("three")]);
-		await menuButtonOf("two").click();
-		await page.getByRole("menuitem", { name: "Delete" }).click();
-		await until(() => shrinking(row("two"))?.playState === "running");
+		const { shrink } = await deleteHalfway("two");
 
+		shrink.release();
 		shrinking(row("two"))!.finish();
 		pressUndo();
 		await new Promise((resolve) => setTimeout(resolve, 400));
@@ -597,13 +640,8 @@ describe("A deletion that can't happen", () => {
 	it("leaves a value replaced while the deleted row shrinks away as it is", async () => {
 		await renderField([short("one"), short("two"), short("three")]);
 
-		await menuButtonOf("two").click();
-		await page.getByRole("menuitem", { name: "Delete" }).click();
-		await until(() =>
-			row("two")
-				.getAnimations()
-				.some((a) => a.playState === "running"),
-		);
+		const { shrink } = await deleteHalfway("two");
+		shrink.release();
 		setters.get("layout")!.value([short("x"), short("y")]);
 		// The page no longer lists the motion of a row taken out of it, which still runs its course.
 		await new Promise((resolve) => setTimeout(resolve, 400));
@@ -614,13 +652,8 @@ describe("A deletion that can't happen", () => {
 	it("keeps the block when the field turns read-only while it shrinks away", async () => {
 		await renderField([short("one"), short("two"), short("three")]);
 
-		await menuButtonOf("two").click();
-		await page.getByRole("menuitem", { name: "Delete" }).click();
-		await until(() =>
-			row("two")
-				.getAnimations()
-				.some((a) => a.playState === "running"),
-		);
+		const { shrink } = await deleteHalfway("two");
+		shrink.release();
 		setters.get("layout")!.readOnly(true);
 		await settled();
 
@@ -636,13 +669,15 @@ describe("Structure motion", () => {
 		await expect.poll(rowKeys).toEqual(["one", "three"]);
 		await settled();
 
-		const frames = sample(() => toggleOf("three").getBoundingClientRect().top - fieldTop(), 450);
-		await page.getByRole("button", { name: "Undo" }).click();
-		const { travel, largest } = motion((await frames).map((each) => each.value));
+		const { from, along, to } = await readMotion(
+			inField,
+			() => toggleOf("three").getBoundingClientRect().top - fieldTop(),
+			() => page.getByRole("button", { name: "Undo" }).click(),
+		);
 
 		expect(rowKeys()).toEqual(["one", "two", "three"]);
-		expect(travel).toBeGreaterThan(30);
-		expect(largest).toBeLessThanOrEqual(travel * 0.5);
+		expect(to - from).toBeGreaterThan(30);
+		expectGlide(along, from, to);
 	});
 
 	it("grows a deleted item back in when Undo puts it back", async () => {
@@ -656,12 +691,14 @@ describe("Structure motion", () => {
 		await expect.element(page.getByText("Deleted Jonas Berg")).toBeVisible();
 		await settled();
 
-		const frames = sample(() => ines().getBoundingClientRect().top - fieldTop(), 450);
-		await page.getByRole("button", { name: "Undo" }).click();
-		const { travel, largest } = motion((await frames).map((each) => each.value));
+		const { from, along, to } = await readMotion(
+			inField,
+			() => ines().getBoundingClientRect().top - fieldTop(),
+			() => page.getByRole("button", { name: "Undo" }).click(),
+		);
 
-		expect(travel).toBeGreaterThan(20);
-		expect(largest).toBeLessThanOrEqual(travel * 0.5);
+		expect(to - from).toBeGreaterThan(20);
+		expectGlide(along, from, to);
 	});
 
 	it("starts an open duplicate from nothing even when its fields take long to mount", async () => {
@@ -676,48 +713,59 @@ describe("Structure motion", () => {
 			return copy ? row(copy).getBoundingClientRect().height : null;
 		};
 		const duplicate = page.getByRole("menuitem", { name: "Duplicate" }).element() as HTMLElement;
-		const frames = sample(copyHeight, 600);
+		/** The copy's height on the first frame it shows in. */
+		const firstShown = new Promise<number>((resolve) => {
+			const tick = () => {
+				const height = copyHeight();
+				if (height === null) requestAnimationFrame(tick);
+				else resolve(height);
+			};
+			requestAnimationFrame(tick);
+		});
 		slowMount.ms = 80;
 		// The menu commits its choice in a frame callback, where a long mount delays that frame.
 		requestAnimationFrame(() => duplicate.click());
-		const heights = (await frames).flatMap((each) => (each.value === null ? [] : [each.value]));
+		const first = await firstShown;
+		const grow = row(copyKey()!)
+			.getAnimations()
+			.find(
+				(animation) =>
+					animation.effect instanceof KeyframeEffect &&
+					animation.effect.getKeyframes().some((keyframe) => "height" in keyframe),
+			)!;
+		// A zero rate holds the grow wherever it's sought, even once the row plays it.
+		grow.playbackRate = 0;
+		const heights = readAlong([grow], () => copyHeight()!);
+		grow.playbackRate = 1;
+		await grow.finished;
 		await settled();
 		const final = copyHeight()!;
 
 		expect(final).toBeGreaterThan(100);
-		expect(heights.length).toBeGreaterThan(3);
-		const steps = heights.map((height, index) => height - (heights[index - 1] ?? 0));
-		expect(Math.max(...steps)).toBeLessThanOrEqual(final * 0.45);
+		expect(first).toBeLessThanOrEqual(final * 0.45);
+		expectGlide(heights, first, final);
 	});
 
 	it("takes a reversed block a moment to close, with its caret on the same clock", async () => {
 		await renderField([long("big")]);
-		const caret = () => toggleOf("big").querySelector("svg")!;
-		const angle = () => Math.abs(Number.parseFloat(getComputedStyle(caret()).rotate) || 0);
-		const body = () => row("big").querySelector<HTMLElement>("[data-block-body]");
 
-		await frame();
-		toggleOf("big").click();
-		await until(() => {
-			const panel = body();
-			const full = panel?.firstElementChild?.getBoundingClientRect().height ?? 0;
-			return Boolean(panel && full > 0 && panel.getBoundingClientRect().height >= full * 0.2);
-		});
-		const reversedAt = performance.now();
-		toggleOf("big").click();
-		const frames = await sample(
-			() => ({
-				at: performance.now() - reversedAt,
-				angle: angle(),
-				height: body()?.getBoundingClientRect().height ?? 0,
-			}),
-			500,
-		);
+		// A fifth of the way open.
+		const closing = await closeWhileOpening("big", 0.08);
+		const reversed = closing.at(0);
+		expect(reversed.height).toBeGreaterThan(closing.full * 0.15);
+		expect(reversed.angle).toBeGreaterThan(5);
 
-		const caretDown = frames.find((each) => each.value.angle < 0.5)!.t;
-		const fieldsGone = frames.find((each) => each.value.height < 0.5)!;
-		expect(fieldsGone.value.at).toBeGreaterThanOrEqual(90);
-		expect(Math.abs(caretDown - fieldsGone.t)).toBeLessThanOrEqual(20);
+		expect(closing.at(90).height).toBeGreaterThan(0.5);
+		// On one clock, the caret has as much of its turn left as the fields have of their height.
+		for (const share of [0.25, 0.5, 0.75]) {
+			const { angle, height } = closing.at(closing.duration * share);
+			expect(angle / reversed.angle).toBeCloseTo(height / reversed.height, 1);
+		}
+		const landed = closing.at(closing.duration);
+		expect(landed.angle).toBeLessThan(0.5);
+		expect(landed.height).toBeLessThan(0.5);
+		closing.motion.release();
+		await settled();
 	});
 
 	it("eases the rows below when a photo is removed, and names the field in its Undo", async () => {
@@ -728,12 +776,14 @@ describe("Structure motion", () => {
 		await settled();
 		const under = () => document.getElementById("field-layout.card.caption")!;
 
-		const frames = sample(() => under().getBoundingClientRect().top - fieldTop(), 450);
-		await page.getByRole("button", { name: "Remove image" }).click();
-		const { travel, largest } = motion((await frames).map((each) => each.value));
+		const { from, along, to } = await readMotion(
+			inField,
+			() => under().getBoundingClientRect().top - fieldTop(),
+			() => page.getByRole("button", { name: "Remove image" }).click(),
+		);
 
-		expect(travel).toBeLessThan(-30);
-		expect(largest).toBeLessThanOrEqual(Math.abs(travel) * 0.5);
+		expect(to - from).toBeLessThan(-30);
+		expectGlide(along, from, to);
 		await expect.element(page.getByText("Removed Background image")).toBeVisible();
 	});
 

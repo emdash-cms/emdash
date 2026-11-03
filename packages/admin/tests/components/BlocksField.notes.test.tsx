@@ -14,6 +14,7 @@ import {
 import type { ContentItem } from "../../src/lib/api";
 import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
 import type { StoredBlockValue } from "../../src/lib/block-field-state.js";
+import { expectGlide, holdAnimations, readAlong, readMotion } from "../utils/animation.js";
 import { render } from "../utils/render.js";
 
 vi.mock("@tanstack/react-router", async () => {
@@ -417,12 +418,8 @@ function sampleFrames(read: () => number, ms: number): Promise<number[]> {
 	});
 }
 
-/** How far `values` travel from first to last, and the largest move between two frames. */
-function motion(values: number[]) {
-	const travel = Math.abs(values.at(-1)! - values[0]!);
-	const steps = values.slice(1).map((value, index) => Math.abs(value - values[index]!));
-	return { travel, maxStep: Math.max(0, ...steps) };
-}
+/** Whether `target` is in a blocks field, where everything that moves the rows below it is. */
+const inField = (target: Element) => target.closest("[data-blocks-field]") !== null;
 
 function box(target: Locator | Element): DOMRect {
 	return (target instanceof Element ? target : target.element()).getBoundingClientRect();
@@ -781,19 +778,6 @@ describe("A settings row's problem line", () => {
 		page.getByRole("group", { name: "Primary button", exact: true }).element();
 	const problem = () => fieldText(LINK_PROBLEM);
 
-	/** The top of `element` now and on each of the next `frames` frames. */
-	function topsOver(element: Element, frames: number): Promise<number[]> {
-		return new Promise((resolve) => {
-			const tops = [element.getBoundingClientRect().top];
-			const step = () => {
-				tops.push(element.getBoundingClientRect().top);
-				if (tops.length > frames) resolve(tops);
-				else requestAnimationFrame(step);
-			};
-			requestAnimationFrame(step);
-		});
-	}
-
 	async function openLinked(width?: number) {
 		await renderField([linked(), short("after")], { width });
 		await page.getByRole("button", { name: "Linked", exact: true }).click();
@@ -835,28 +819,18 @@ describe("A settings row's problem line", () => {
 		await openBlock("Hero");
 		const link = control("Primary button link");
 		const switchElement = center().element();
-		/** The largest move between two frames, as a share of the whole way. */
-		const largestShare = (tops: number[]) => {
-			const steps = tops.slice(1).map((top, index) => Math.abs(top - tops[index]!));
-			return Math.max(0, ...steps) / Math.abs(tops.at(-1)! - tops[0]!);
-		};
+		const top = () => switchElement.getBoundingClientRect().top;
 
 		await link.fill("contact us");
-		const coming = topsOver(switchElement, 30);
-		await userEvent.keyboard("{Tab}");
-		const down = await coming;
-		await settled();
-		expect(down.at(-1)! - down[0]!).toBeGreaterThan(15);
-		expect(largestShare(down)).toBeLessThanOrEqual(0.5);
+		const down = await readMotion(inField, top, () => userEvent.keyboard("{Tab}"));
+		expect(down.to - down.from).toBeGreaterThan(15);
+		expectGlide(down.along, down.from, down.to);
 
 		await link.click();
 		await link.fill("/contact");
-		const going = topsOver(switchElement, 30);
-		await userEvent.keyboard("{Tab}");
-		const up = await going;
-		await settled();
-		expect(up[0]! - up.at(-1)!).toBeGreaterThan(15);
-		expect(largestShare(up)).toBeLessThanOrEqual(0.5);
+		const up = await readMotion(inField, top, () => userEvent.keyboard("{Tab}"));
+		expect(up.from - up.to).toBeGreaterThan(15);
+		expectGlide(up.along, up.from, up.to);
 	});
 
 	it("comes at once under reduced motion", async () => {
@@ -888,20 +862,17 @@ describe("A settings row's problem line", () => {
 
 		await textbox("Link").click();
 		await textbox("Link").fill("/contact");
+		const shrink = holdAnimations((target) => target === panel);
 		(textbox("Title").element() as HTMLElement).focus();
-		const frames: Array<{ height: number; text: string }> = [];
-		for (let count = 0; count < 60; count++) {
-			await frame();
-			frames.push({
-				height: panel.getBoundingClientRect().height,
-				text: line.textContent?.trim() ?? "",
-			});
-		}
+		const heights = readAlong(await shrink.started(), () => {
+			expect(line.textContent?.trim()).toBe(LINK_PROBLEM);
+			return panel.getBoundingClientRect().height;
+		});
+		shrink.release();
+		await settled();
 
-		const shrinking = frames.filter(({ height }) => height > 1 && height < full - 1);
-		expect(shrinking.length).toBeGreaterThan(0);
-		expect(shrinking.map(({ text }) => text)).toEqual(shrinking.map(() => LINK_PROBLEM));
-		expect(frames.at(-1)!.height).toBeLessThan(1);
+		expectGlide(heights, full, 0);
+		expect(panel.getBoundingClientRect().height).toBeLessThan(1);
 	});
 
 	it("fades a problem fixed while typing, and holds its line until focus leaves", async () => {
@@ -983,23 +954,17 @@ describe("A hint that wraps on a narrow field's label line", () => {
 		const head = toggleOf("after");
 		const summary = textbox("Summary").element() as HTMLElement;
 
-		const coming = sampleFrames(() => head.getBoundingClientRect().top, 500);
-		summary.focus();
-		const down = await coming;
-		await settled();
-		expect(label().getBoundingClientRect().height).toBeGreaterThan(atRest + 8);
-		expect(down.at(-1)! - down[0]!).toBeGreaterThan(8);
-		const growing = motion(down);
-		expect(growing.maxStep).toBeLessThan(growing.travel * 0.5);
+		const top = () => head.getBoundingClientRect().top;
 
-		const going = sampleFrames(() => head.getBoundingClientRect().top, 500);
-		summary.blur();
-		const up = await going;
-		await settled();
+		const down = await readMotion(inField, top, () => summary.focus());
+		expect(label().getBoundingClientRect().height).toBeGreaterThan(atRest + 8);
+		expect(down.to - down.from).toBeGreaterThan(8);
+		expectGlide(down.along, down.from, down.to);
+
+		const up = await readMotion(inField, top, () => summary.blur());
 		expect(label().getBoundingClientRect().height).toBe(atRest);
-		expect(up[0]! - up.at(-1)!).toBeGreaterThan(8);
-		const shrinking = motion(up);
-		expect(shrinking.maxStep).toBeLessThan(shrinking.travel * 0.5);
+		expect(up.from - up.to).toBeGreaterThan(8);
+		expectGlide(up.along, up.from, up.to);
 	});
 });
 
@@ -1019,16 +984,18 @@ describe("A long problem that wraps its narrow field's label line", () => {
 		const atRest = await openWordy();
 		const head = toggleOf("after");
 
-		const sampling = sampleFrames(() => head.getBoundingClientRect().top, 900);
-		await link().fill("contact us");
-		await textbox("Title").click();
-		const tops = await sampling;
-		await settled();
+		const { from, along, to } = await readMotion(
+			inField,
+			() => head.getBoundingClientRect().top,
+			async () => {
+				await link().fill("contact us");
+				await textbox("Title").click();
+			},
+		);
 
 		expect(label().getBoundingClientRect().height).toBeGreaterThan(atRest + 8);
-		const { travel, maxStep } = motion(tops);
-		expect(tops.at(-1)! - tops[0]!).toBeGreaterThan(8);
-		expect(maxStep).toBeLessThan(travel * 0.5);
+		expect(to - from).toBeGreaterThan(8);
+		expectGlide(along, from, to);
 	});
 
 	it("moves the rows below smoothly as it goes", async () => {
@@ -1040,16 +1007,18 @@ describe("A long problem that wraps its narrow field's label line", () => {
 		expect(twoLines).toBeGreaterThan(atRest + 8);
 		const head = toggleOf("after");
 
-		const sampling = sampleFrames(() => head.getBoundingClientRect().top, 900);
-		await link().fill("/contact");
-		await textbox("Title").click();
-		const tops = await sampling;
-		await settled();
+		const { from, along, to } = await readMotion(
+			inField,
+			() => head.getBoundingClientRect().top,
+			async () => {
+				await link().fill("/contact");
+				await textbox("Title").click();
+			},
+		);
 
 		expect(label().getBoundingClientRect().height).toBeLessThan(twoLines - 8);
-		const { travel, maxStep } = motion(tops);
-		expect(tops[0]! - tops.at(-1)!).toBeGreaterThan(8);
-		expect(maxStep).toBeLessThan(travel * 0.5);
+		expect(from - to).toBeGreaterThan(8);
+		expectGlide(along, from, to);
 	});
 
 	it("comes at once under reduced motion", async () => {

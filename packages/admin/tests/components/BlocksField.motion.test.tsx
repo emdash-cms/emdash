@@ -7,6 +7,7 @@ import "../../dist/styles.css";
 import { BlocksField, type BlocksFieldProps } from "../../src/components/BlocksField.js";
 import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
 import type { StoredBlockValue } from "../../src/lib/block-field-state.js";
+import { expectGlide, holdAnimations, readAlong, readMotion } from "../utils/animation.js";
 import { render } from "../utils/render.js";
 
 function blockType(slug: string, label: string, fields: BlockFieldDefinition[]): BlockType {
@@ -162,17 +163,18 @@ describe("Blocks field motion", () => {
 		const before = [head.getBoundingClientRect().top, field.getBoundingClientRect().top];
 		const scrolled = scroller.scrollTop;
 
+		const tops = () => [head.getBoundingClientRect().top, field.getBoundingClientRect().top];
+		const panels = holdAnimations((target) => row("long").contains(target));
+
 		head.click();
-		await frame();
-		await frame();
+		const frames = readAlong(await panels.started(), tops, [0.25, 0.5]);
 		head.click();
-		const frames = await framesUntilSettled(() => [
-			head.getBoundingClientRect().top,
-			field.getBoundingClientRect().top,
-		]);
+		frames.push(...readAlong(panels.held, tops));
+		panels.release();
+		await settled();
 
 		await expect.poll(() => Math.abs(scroller.scrollTop - scrolled)).toBeLessThanOrEqual(1);
-		frames.push([head.getBoundingClientRect().top, field.getBoundingClientRect().top]);
+		frames.push(tops());
 		for (const [headTop, fieldTop] of frames) {
 			expect(Math.abs(headTop! - before[0]!)).toBeLessThanOrEqual(1);
 			expect(Math.abs(fieldTop! - before[1]!)).toBeLessThanOrEqual(1);
@@ -185,21 +187,19 @@ describe("Blocks field motion", () => {
 				<Field initial={[{ _type: "long", _version: 1, _key: "long" }]} types={[LONG]} />
 			</div>,
 		);
+		const height = () => bodyOf("long")?.getBoundingClientRect().height ?? 0;
+		const panel = holdAnimations((target) => target.matches("[data-block-body]"));
 		toggleOf("long").click();
-		for (let count = 0; count < 4; count++) await frame();
-		const body = bodyOf("long")!;
-		const midway = body.getBoundingClientRect().height;
+		const [midway] = readAlong(await panel.started(), height, [0.5]);
 		expect(midway).toBeGreaterThan(0);
-		expect(midway).toBeLessThan(body.firstElementChild!.getBoundingClientRect().height);
+		expect(midway).toBeLessThan(bodyOf("long")!.firstElementChild!.getBoundingClientRect().height);
 
 		toggleOf("long").click();
-		const heights = await framesUntilSettled(
-			() => bodyOf("long")?.getBoundingClientRect().height ?? 0,
-			() => !bodyOf("long"),
-		);
+		const heights = readAlong(await panel.started(), height);
+		panel.release();
+		await expect.poll(() => bodyOf("long")).toBeNull();
 
-		expect(Math.max(...heights)).toBeLessThanOrEqual(midway + 1);
-		expect(heights.at(-1)).toBe(0);
+		expectGlide(heights, midway!, 0);
 	});
 
 	it("opens and closes every block at once with Expand all and Collapse all", async () => {
@@ -454,22 +454,18 @@ describe("Blocks field motion", () => {
 			await frame();
 		}
 		await new Promise((resolve) => setTimeout(resolve, 250));
-		const letGo = row("one").getBoundingClientRect().top;
-		document.dispatchEvent(pointer("pointerup", end));
-
-		const tops = await framesUntilSettled(() => row("one").getBoundingClientRect().top);
+		const { from, along, to } = await readMotion(
+			(element) => element === row("one"),
+			() => row("one").getBoundingClientRect().top,
+			() => document.dispatchEvent(pointer("pointerup", end)),
+		);
 
 		const order = Array.from(document.querySelectorAll("[data-block-key]"), (element) =>
 			element.getAttribute("data-block-key"),
 		);
 		expect(order).toEqual(["two", "three", "one"]);
-		const slot = tops.at(-1)!;
-		const distance = Math.abs(letGo - slot);
-		expect(distance).toBeGreaterThan(4);
-		expect(Math.abs(tops[0]! - slot)).toBeGreaterThan(1);
-		const path = [letGo, ...tops];
-		const steps = tops.map((top, index) => Math.abs(top - path[index]!));
-		expect(Math.max(...steps)).toBeLessThan(distance * 0.75);
+		expect(Math.abs(from - to)).toBeGreaterThan(4);
+		expectGlide(along, from, to);
 	});
 
 	it("follows the pointer at once when a block is dragged again while it settles", async () => {

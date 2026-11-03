@@ -7,6 +7,7 @@ import "../../dist/styles.css";
 import { BlocksField, type BlocksFieldProps } from "../../src/components/BlocksField.js";
 import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
 import type { StoredBlockValue } from "../../src/lib/block-field-state.js";
+import { expectGlide, holdAnimations, readAlong, readMotion } from "../utils/animation.js";
 import { render } from "../utils/render.js";
 
 function blockType(slug: string, label: string, fields: BlockFieldDefinition[]): BlockType {
@@ -219,12 +220,7 @@ function sampleFrames(read: () => number, ms: number): Promise<number[]> {
 	});
 }
 
-/** How far `values` travel from first to last, and the largest move between two frames. */
-function motion(values: number[]) {
-	const travel = Math.abs(values.at(-1)! - values[0]!);
-	const steps = values.slice(1).map((value, index) => Math.abs(value - values[index]!));
-	return { travel, maxStep: Math.max(0, ...steps) };
-}
+const itemOf = (control: Element) => control.closest<HTMLElement>("[data-list-item]")!;
 
 afterEach(async () => {
 	saved.length = 0;
@@ -346,29 +342,37 @@ describe("A table's blank row", () => {
 	it("shrinks away once focus leaves it, so the rows below glide up after the click lands", async () => {
 		await addBlankRow();
 		const head = toggleOf("after");
+		const blankRow = itemOf(cell("Label 3").element());
 
-		const sampling = sampleFrames(() => head.getBoundingClientRect().top, 700);
-		await clickNearBottom(head);
-		const tops = await sampling;
-		await settled();
+		const { from, along, to } = await readMotion(
+			(target) => target === blankRow,
+			() => head.getBoundingClientRect().top,
+			() => clickNearBottom(head),
+		);
 
 		expect(dataRows()).toBe(2);
 		expect(head.getAttribute("aria-expanded")).toBe("true");
-		const { travel, maxStep } = motion(tops);
-		expect(tops[0]! - tops.at(-1)!).toBeGreaterThan(15);
-		expect(maxStep).toBeLessThan(travel * 0.5);
+		expect(from - to).toBeGreaterThan(15);
+		expectGlide(along, from, to);
 		expect(saved.every(savedTwoStats)).toBe(true);
 	});
 
 	it("comes back when focus returns to it while it shrinks away", async () => {
 		await addBlankRow();
 		const label3 = cell("Label 3");
-		const blankRow = label3.element().closest<HTMLElement>("[data-list-item]")!;
+		const blankRow = itemOf(label3.element());
 		const full = blankRow.getBoundingClientRect().height;
 
+		const shrink = holdAnimations((target) => target === blankRow);
 		toggleOf("after").focus();
-		await until(() => blankRow.getAnimations().some((a) => a.playState === "running"));
-		await frame();
+		const [midway] = readAlong(
+			await shrink.started(),
+			() => blankRow.getBoundingClientRect().height,
+			[0.5],
+		);
+		expect(midway).toBeGreaterThan(0.5);
+		expect(midway).toBeLessThan(full - 0.5);
+		shrink.release();
 		(label3.element() as HTMLElement).focus();
 		await settled();
 
@@ -415,29 +419,37 @@ describe("A blank line, going once focus leaves its list", () => {
 	it("shrinks away, so the rows below glide up after the click lands", async () => {
 		await addBlankLine();
 		const head = toggleOf("after");
+		const blankLine = itemOf(page.getByRole("textbox", { name: "Point 3", exact: true }).element());
 
-		const sampling = sampleFrames(() => head.getBoundingClientRect().top, 700);
-		await clickNearBottom(head);
-		const tops = await sampling;
-		await settled();
+		const { from, along, to } = await readMotion(
+			(target) => target === blankLine,
+			() => head.getBoundingClientRect().top,
+			() => clickNearBottom(head),
+		);
 
 		expect(lines()).toBe(2);
 		expect(head.getAttribute("aria-expanded")).toBe("true");
-		const { travel, maxStep } = motion(tops);
-		expect(tops[0]! - tops.at(-1)!).toBeGreaterThan(15);
-		expect(maxStep).toBeLessThan(travel * 0.5);
+		expect(from - to).toBeGreaterThan(15);
+		expectGlide(along, from, to);
 		expect(saved.every(savedTwoPoints)).toBe(true);
 	});
 
 	it("comes back when focus returns to its list while it shrinks away", async () => {
 		await addBlankLine();
 		const point3 = page.getByRole("textbox", { name: "Point 3", exact: true });
-		const blankLine = point3.element().closest<HTMLElement>("[data-list-item]")!;
+		const blankLine = itemOf(point3.element());
 		const full = blankLine.getBoundingClientRect().height;
 
+		const shrink = holdAnimations((target) => target === blankLine);
 		toggleOf("after").focus();
-		await until(() => blankLine.getAnimations().some((a) => a.playState === "running"));
-		await frame();
+		const [midway] = readAlong(
+			await shrink.started(),
+			() => blankLine.getBoundingClientRect().height,
+			[0.5],
+		);
+		expect(midway).toBeGreaterThan(0.5);
+		expect(midway).toBeLessThan(full - 0.5);
+		shrink.release();
 		(page.getByRole("textbox", { name: "Point 1", exact: true }).element() as HTMLElement).focus();
 		await settled();
 
