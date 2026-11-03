@@ -18,8 +18,6 @@ export interface CalendarEntry {
 	/** `published` events sit at `published_at`, `scheduled` events at `scheduled_at`. */
 	kind: "published" | "scheduled";
 	at: string;
-	/** Who owns the entry; older servers leave it out. */
-	authorId?: string | null;
 }
 
 export interface CalendarPage {

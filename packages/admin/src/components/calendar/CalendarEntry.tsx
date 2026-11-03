@@ -1,5 +1,4 @@
 import { Badge, Tooltip } from "@cloudflare/kumo";
-import { useDraggable } from "@dnd-kit/core";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -276,36 +275,55 @@ function CalendarEntryDetails({ item, display }: { item: CalendarItem; display: 
 	);
 }
 
-function chipClassName(item: CalendarItem, display: CalendarDisplay): string {
-	const { color } = display.collection(item.collection);
-	return cn(
-		// The time wraps onto a clipped second line when the whole title doesn't fit.
-		"flex h-[22px] min-w-0 flex-wrap items-center gap-x-1.5 overflow-hidden rounded px-1.5 text-xs leading-[22px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-kumo-brand aria-[current=true]:ring-2 aria-[current=true]:ring-kumo-brand aria-[current=true]:ring-inset motion-reduce:transition-none",
-		item.state === "published"
-			? "text-kumo-subtle hover:bg-kumo-tint aria-[current=true]:bg-kumo-tint"
-			: item.state === "overdue"
-				? "bg-kumo-warning-tint text-kumo-default hover:bg-kumo-warning/20"
-				: cn("text-kumo-default", COLLECTION_TINTS[color], COLLECTION_HOVER_TINTS[color]),
-	);
-}
-
-function ChipContent({
-	item,
-	display,
-	now,
-}: {
+interface CalendarEntryChipProps {
 	item: CalendarItem;
 	display: CalendarDisplay;
 	now: number;
-}) {
+	selected?: boolean;
+	onSelect?: CalendarSelectHandler;
+}
+
+/**
+ * A one-line month-cell entry linking to the editor: published entries lie
+ * flat, scheduled ones take their collection's tint, and overdue ones turn
+ * warning-tinted. It is 22px tall, which the month grid's row math relies on.
+ */
+export function CalendarEntryChip({
+	item,
+	display,
+	now,
+	selected,
+	onSelect,
+}: CalendarEntryChipProps) {
 	const { t } = useLingui();
+	const { color } = display.collection(item.collection);
 	const state = t(CALENDAR_STATE_LABELS[item.state]);
 	const time = display.formatTime(item.time);
 	const overdue = item.state === "overdue";
 	const lateness = overdue ? formatShortDuration(now - item.time, display.locale) : "";
 
-	return (
-		<>
+	const link = (
+		<Link
+			to="/content/$collection/$id"
+			params={{ collection: item.collection, id: item.id }}
+			search={{ locale: item.locale }}
+			aria-haspopup={onSelect ? "dialog" : undefined}
+			aria-current={selected ? "true" : undefined}
+			onClick={(event) => {
+				if (!onSelect || !isPlainClick(event)) return;
+				event.preventDefault();
+				onSelect(item, event.currentTarget);
+			}}
+			className={cn(
+				// The time wraps onto a clipped second line when the whole title doesn't fit.
+				"flex h-[22px] min-w-0 flex-wrap items-center gap-x-1.5 overflow-hidden rounded px-1.5 text-xs leading-[22px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-kumo-brand aria-[current=true]:ring-2 aria-[current=true]:ring-kumo-brand aria-[current=true]:ring-inset motion-reduce:transition-none",
+				item.state === "published"
+					? "text-kumo-subtle hover:bg-kumo-tint aria-[current=true]:bg-kumo-tint"
+					: overdue
+						? "bg-kumo-warning-tint text-kumo-default hover:bg-kumo-warning/20"
+						: cn("text-kumo-default", COLLECTION_TINTS[color], COLLECTION_HOVER_TINTS[color]),
+			)}
+		>
 			<span className="flex h-[22px] min-w-0 flex-auto items-center gap-1">
 				<CalendarStateIcon state={item.state} className="size-3.5" />
 				<span className="sr-only">
@@ -325,111 +343,6 @@ function ChipContent({
 			>
 				{overdue ? t`${lateness} late` : time}
 			</span>
-		</>
-	);
-}
-
-interface CalendarEntryChipProps {
-	item: CalendarItem;
-	display: CalendarDisplay;
-	now: number;
-	selected?: boolean;
-	onSelect?: CalendarSelectHandler;
-	/** The entry can be dragged to another day. */
-	movable?: boolean;
-}
-
-/**
- * A one-line month-cell entry linking to the editor: published entries lie
- * flat, scheduled ones take their collection's tint, and overdue ones turn
- * warning-tinted. It is 22px tall, which the month grid's row math relies on.
- */
-export function CalendarEntryChip(props: CalendarEntryChipProps) {
-	return props.movable ? <MovableEntryChip {...props} /> : <EntryChipLink {...props} />;
-}
-
-/**
- * A click handler that swallows the click a drag can end with, which would
- * otherwise open the dragged link.
- */
-function useClickAfterDragGuard(isDragging: boolean) {
-	const dragged = React.useRef(false);
-	React.useEffect(() => {
-		if (isDragging) {
-			dragged.current = true;
-			return;
-		}
-		const timer = setTimeout(() => {
-			dragged.current = false;
-		});
-		return () => clearTimeout(timer);
-	}, [isDragging]);
-	return (event: React.MouseEvent) => {
-		if (!dragged.current) return;
-		event.preventDefault();
-		event.stopPropagation();
-	};
-}
-
-function MovableEntryChip(props: CalendarEntryChipProps) {
-	const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
-		id: props.item.key,
-		data: { item: props.item },
-	});
-	const onClickCapture = useClickAfterDragGuard(isDragging);
-
-	return (
-		<EntryChipLink
-			{...props}
-			linkRef={setNodeRef}
-			linkProps={{
-				...listeners,
-				// The rest of `attributes` would override the link's role and tab order.
-				"aria-describedby": attributes["aria-describedby"],
-				draggable: false,
-				onClickCapture,
-			}}
-			dragging={isDragging}
-		/>
-	);
-}
-
-function EntryChipLink({
-	item,
-	display,
-	now,
-	selected,
-	onSelect,
-	linkRef,
-	linkProps,
-	dragging,
-}: CalendarEntryChipProps & {
-	linkRef?: (element: HTMLElement | null) => void;
-	linkProps?: React.HTMLAttributes<HTMLElement> & { draggable?: boolean };
-	dragging?: boolean;
-}) {
-	const link = (
-		<Link
-			ref={linkRef}
-			{...linkProps}
-			to="/content/$collection/$id"
-			params={{ collection: item.collection, id: item.id }}
-			search={{ locale: item.locale }}
-			aria-haspopup={onSelect ? "dialog" : undefined}
-			aria-current={selected ? "true" : undefined}
-			onClick={(event) => {
-				if (!onSelect || !isPlainClick(event)) return;
-				event.preventDefault();
-				onSelect(item, event.currentTarget);
-			}}
-			className={cn(
-				chipClassName(item, display),
-				// A long press starts a drag on touch screens, not the link preview.
-				linkRef && "[-webkit-touch-callout:none]",
-				dragging && "opacity-40",
-			)}
-		>
-			<ChipContent item={item} display={display} now={now} />
 		</Link>
 	);
 
@@ -439,33 +352,6 @@ function EntryChipLink({
 			render={link}
 			className="cursor-pointer"
 		/>
-	);
-}
-
-/** The chip that follows the pointer while an entry is dragged. */
-export function CalendarEntryChipPreview({
-	item,
-	display,
-	now,
-	allowed,
-}: {
-	item: CalendarItem;
-	display: CalendarDisplay;
-	now: number;
-	/** Whether dropping here would move the entry. */
-	allowed: boolean;
-}) {
-	return (
-		<div
-			className={cn(
-				chipClassName(item, display),
-				// The landing time matters most while dragging, so the title gives way to it.
-				"max-w-56 flex-nowrap cursor-grabbing shadow-lg ring-1 ring-kumo-line",
-				!allowed && "cursor-not-allowed opacity-60",
-			)}
-		>
-			<ChipContent item={item} display={display} now={now} />
-		</div>
 	);
 }
 

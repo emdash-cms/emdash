@@ -22,7 +22,6 @@ import {
 import { cn } from "../../lib/utils.js";
 import { useDateLocale } from "../../locales/date-locale.js";
 import { getLocaleDir } from "../../locales/index.js";
-import { useCalendarDrop } from "./CalendarDrag.js";
 import { CalendarDayList, CalendarEntryChip, type CalendarSelectHandler } from "./CalendarEntry.js";
 
 /** Month cells are never shorter than this, so short windows scroll the grid instead. */
@@ -57,8 +56,6 @@ interface CalendarMonthProps {
 	compact?: boolean;
 	selectedKey?: string;
 	onSelect?: CalendarSelectHandler;
-	/** Whether the user may drag the entry to another day. */
-	canMove?: (item: CalendarItem) => boolean;
 	onMonthChange: (month: string) => void;
 	/** Filters are on; when they hide every entry, a notice offers to clear them. */
 	onClearFilters?: () => void;
@@ -134,7 +131,6 @@ function CalendarMonthGrid({
 	loadedThrough,
 	selectedKey,
 	onSelect,
-	canMove,
 	onClearFilters,
 }: CalendarMonthProps) {
 	const weeks = React.useMemo(
@@ -186,7 +182,6 @@ function CalendarMonthGrid({
 											display={display}
 											selectedKey={selectedKey}
 											onSelect={onSelect}
-											canMove={canMove}
 										/>
 									))}
 								</tr>
@@ -222,7 +217,6 @@ interface CalendarMonthCellProps {
 	display: CalendarDisplay;
 	selectedKey?: string;
 	onSelect?: CalendarSelectHandler;
-	canMove?: (item: CalendarItem) => boolean;
 }
 
 function CalendarMonthCell({
@@ -236,22 +230,18 @@ function CalendarMonthCell({
 	display,
 	selectedKey,
 	onSelect,
-	canMove,
 }: CalendarMonthCellProps) {
 	const { t } = useLingui();
-	const drop = useCalendarDrop(day, today);
 	const isToday = day === today;
 	const label = day.endsWith("-01") ? display.monthDayShort(day) : display.dayNumber(day);
 	const visible = items.length > chips ? items.slice(0, chips - 1) : items;
 
 	return (
 		<td
-			ref={drop.ref}
 			aria-current={isToday ? "date" : undefined}
 			className={cn(
 				"border-s border-t border-kumo-line p-1 align-top first:border-s-0",
 				(!inMonth || display.isWeekend(day)) && "bg-kumo-elevated",
-				drop.highlighted && "bg-kumo-tint",
 			)}
 		>
 			<div className="flex min-w-0 flex-col gap-0.5">
@@ -285,7 +275,6 @@ function CalendarMonthCell({
 									now={now}
 									selected={item.key === selectedKey}
 									onSelect={onSelect}
-									movable={canMove?.(item)}
 								/>
 							</li>
 						))}

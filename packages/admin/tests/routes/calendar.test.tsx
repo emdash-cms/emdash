@@ -1,8 +1,8 @@
-import { Toasty } from "@cloudflare/kumo";
+import { Toast } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { page } from "vitest/browser";
 
 import "../../dist/styles.css";
 import { calendarQueryOptions, type CalendarEntry } from "../../src/lib/api/calendar";
@@ -40,11 +40,8 @@ vi.mock("../../src/lib/api/client.js", async () => ({
 	}),
 }));
 
-const EDITOR = { id: "editor", email: "editor@example.com", role: 40 };
-const currentUser = vi.hoisted(() => ({ value: { id: "", email: "", role: 0 } }));
-
 vi.mock("../../src/lib/api/current-user.js", () => ({
-	useCurrentUser: () => ({ data: currentUser.value }),
+	useCurrentUser: () => ({ data: { id: "editor", email: "editor@example.com", role: 40 } }),
 }));
 
 const originalFetch = globalThis.fetch;
@@ -92,18 +89,17 @@ function renderPage(wrapper?: React.ComponentType<React.PropsWithChildren>) {
 	const Inner = wrapper ?? React.Fragment;
 	return render(<CalendarPage />, {
 		wrapper: ({ children }) => (
-			<Toasty>
+			<Toast.Provider>
 				<Inner>
 					<div style={{ height: "100vh" }}>{children}</div>
 				</Inner>
-			</Toasty>
+			</Toast.Provider>
 		),
 	});
 }
 
 describe("CalendarPage", () => {
 	beforeEach(() => {
-		currentUser.value = EDITOR;
 		router.search = {};
 		router.navigate.mockReset();
 		router.back.mockReset();
@@ -184,192 +180,6 @@ describe("CalendarPage", () => {
 		expect(navigatedSearch(router.navigate.mock.lastCall)).toMatchObject({
 			replace: true,
 			search: { entry: undefined },
-		});
-	});
-
-	describe("dragging an entry", () => {
-		let launch: CalendarEntry;
-		let schedules: unknown[];
-		let refuse: boolean;
-		let calendarLoads: number;
-
-		beforeEach(async () => {
-			await page.viewport(1440, 900);
-			launch = {
-				...entry("launch", "2030-03-05T09:00:00.000Z"),
-				status: "scheduled",
-				kind: "scheduled",
-				authorId: "someone",
-			};
-			schedules = [];
-			refuse = false;
-			calendarLoads = 0;
-			router.search = { month: "2030-03", view: "month" };
-			globalThis.fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-				const url = input instanceof Request ? input.url : input.toString();
-				if (url.includes("/calendar?")) {
-					// After a refused move, only the rollback can put the entry back: reloads never finish.
-					if (refuse && ++calendarLoads > 1) return new Promise<Response>(() => {});
-					return Response.json({ data: { items: [launch] } });
-				}
-				if (url.includes("/content/posts/launch/schedule")) {
-					schedules.push(JSON.parse(typeof init?.body === "string" ? init.body : "null"));
-					return refuse
-						? Response.json(
-								{ error: { code: "CONFLICT", message: "Someone else is editing this entry" } },
-								{ status: 409 },
-							)
-						: Response.json({ data: { item: { id: "launch" } } });
-				}
-				return Response.json(
-					{ error: { code: "NOT_FOUND", message: "Not found" } },
-					{ status: 404 },
-				);
-			});
-		});
-
-		const dayCell = (screen: Awaited<ReturnType<typeof renderPage>>, day: string) =>
-			screen.getByRole("cell").filter({ hasText: new RegExp(`^${day}$`) });
-
-		it("reschedules it to the day it's dropped on, at the same time", async () => {
-			const screen = await renderPage();
-			const chip = screen.getByRole("link", { name: /Entry launch/ });
-			await expect.element(chip).toBeVisible();
-
-			await userEvent.dragAndDrop(chip, dayCell(screen, "12"), { steps: 10 });
-
-			await expect.poll(() => schedules).toEqual([{ scheduledAt: "2030-03-12T09:00:00.000Z" }]);
-			// The drop doesn't also open the entry.
-			expect(router.navigate).not.toHaveBeenCalled();
-			await expect
-				.element(page.getByText("Entry launch was dropped on Tuesday, March 12, 2030."))
-				.toBeInTheDocument();
-		});
-
-		it("tells screen readers how to reschedule without dragging", async () => {
-			const screen = await renderPage();
-
-			await expect
-				.element(screen.getByRole("link", { name: /Entry launch/ }))
-				.toHaveAccessibleDescription(/choose Reschedule/);
-		});
-
-		it("puts the entry back when the server refuses the move", async () => {
-			refuse = true;
-			const screen = await renderPage(({ children }) => (
-				<>
-					{children}
-					<span data-testid="danger-swatch" className="text-kumo-danger" />
-					<span data-testid="neutral-swatch" className="text-kumo-default" />
-				</>
-			));
-			const colorOf = (element: Element) => getComputedStyle(element).color;
-			const chip = screen.getByRole("link", { name: /Entry launch/ });
-			await expect.element(chip).toBeVisible();
-
-			await userEvent.dragAndDrop(chip, dayCell(screen, "12"), { steps: 10 });
-
-			await expect.poll(() => schedules).toHaveLength(1);
-			await expect
-				.element(
-					screen
-						.getByRole("list", { name: "Tuesday, March 5, 2030" })
-						.getByRole("link", { name: /Entry launch/ }),
-				)
-				.toBeVisible();
-			const toastTitle = page.getByText("Could not reschedule");
-			await expect.element(toastTitle).toBeInTheDocument();
-			const dangerColor = colorOf(screen.getByTestId("danger-swatch").element());
-			expect(dangerColor).not.toBe(colorOf(screen.getByTestId("neutral-swatch").element()));
-			expect(colorOf(toastTitle.element())).toBe(dangerColor);
-		});
-
-		it("moves it back when the move is undone", async () => {
-			const screen = await renderPage();
-			const chip = screen.getByRole("link", { name: /Entry launch/ });
-			await expect.element(chip).toBeVisible();
-
-			await userEvent.dragAndDrop(chip, dayCell(screen, "12"), { steps: 10 });
-			await page.getByRole("button", { name: "Undo" }).click();
-
-			await expect
-				.poll(() => schedules)
-				.toEqual([
-					{ scheduledAt: "2030-03-12T09:00:00.000Z" },
-					{ scheduledAt: "2030-03-05T09:00:00.000Z" },
-				]);
-		});
-
-		it("leaves other moves in place when one is refused", async () => {
-			const notes = {
-				...launch,
-				id: "notes",
-				title: "Entry notes",
-				at: "2030-03-06T09:00:00.000Z",
-			};
-			let refuseLaunch: (() => void) | undefined;
-			globalThis.fetch = vi.fn(async (input: string | URL | Request) => {
-				const url = input instanceof Request ? input.url : input.toString();
-				// The server keeps both entries where they were until a move is saved.
-				if (url.includes("/calendar?")) {
-					return Response.json({ data: { items: [launch, notes] } });
-				}
-				if (url.includes("/content/posts/launch/schedule")) {
-					return new Promise<Response>((resolve) => {
-						refuseLaunch = () =>
-							resolve(
-								Response.json(
-									{ error: { code: "CONFLICT", message: "Someone else is editing this entry" } },
-									{ status: 409 },
-								),
-							);
-					});
-				}
-				// The other move is still on its way.
-				return new Promise<Response>(() => {});
-			});
-			const screen = await renderPage();
-			const chip = screen.getByRole("link", { name: /Entry launch/ });
-			await expect.element(chip).toBeVisible();
-
-			await userEvent.dragAndDrop(chip, dayCell(screen, "12"), { steps: 10 });
-			await userEvent.dragAndDrop(
-				screen.getByRole("link", { name: /Entry notes/ }),
-				dayCell(screen, "13"),
-				{ steps: 10 },
-			);
-			await expect.poll(() => refuseLaunch).toBeTypeOf("function");
-			refuseLaunch?.();
-			await expect.element(page.getByText("Could not reschedule")).toBeInTheDocument();
-			// Room for a reload, which would carry the pending move's old day.
-			await new Promise((resolve) => setTimeout(resolve, 200));
-
-			await expect
-				.element(
-					screen
-						.getByRole("list", { name: "Tuesday, March 5, 2030" })
-						.getByRole("link", { name: /Entry launch/ }),
-				)
-				.toBeVisible();
-			await expect
-				.element(
-					screen
-						.getByRole("list", { name: "Wednesday, March 13, 2030" })
-						.getByRole("link", { name: /Entry notes/ }),
-				)
-				.toBeVisible();
-		});
-
-		it("leaves another author's entry where it is for an author", async () => {
-			currentUser.value = { id: "author", email: "author@example.com", role: 30 };
-			const screen = await renderPage();
-			const chip = screen.getByRole("link", { name: /Entry launch/ });
-			await expect.element(chip).toBeVisible();
-
-			await userEvent.dragAndDrop(chip, dayCell(screen, "12"), { steps: 10 });
-			await new Promise((resolve) => setTimeout(resolve, 200));
-
-			expect(schedules).toEqual([]);
 		});
 	});
 
