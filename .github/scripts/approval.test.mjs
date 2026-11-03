@@ -192,6 +192,10 @@ describe("Maintainer review status", () => {
 			],
 		},
 		{
+			change: "deletes the test-plan script",
+			files: [{ filename: ".github/scripts/test-plan.mjs", status: "removed" }],
+		},
+		{
 			change: "also edits a privileged workflow",
 			files: [
 				workflowEdit(".github/workflows/ci.yml", "+      - run: pnpm test"),
