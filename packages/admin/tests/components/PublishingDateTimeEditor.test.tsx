@@ -11,6 +11,8 @@ import {
 import { getPublishingTimeZone } from "../../src/lib/publishing-datetime.js";
 import { render } from "../utils/render.tsx";
 
+import "../../dist/styles.css";
+
 afterEach(() => {
 	vi.useRealTimers();
 });
@@ -168,6 +170,34 @@ it("keeps the chosen day when it is clicked again", async () => {
 	await day.click();
 
 	expect(cell()).toHaveAttribute("aria-selected", "true");
+});
+
+it("centres each day under its weekday heading", async () => {
+	const screen = await render(
+		<div style={{ width: 480 }}>
+			<PublishingDateTimeFields
+				date={new Date(2035, 5, 15, 12)}
+				time="09:00"
+				dateAriaLabel="Publication date"
+				onDateChange={vi.fn()}
+				onTimeChange={vi.fn()}
+			/>
+		</div>,
+	);
+	await expect.element(screen.getByText("June 2035", { exact: true })).toBeVisible();
+
+	const centre = (element: Element) => {
+		const { left, width } = element.getBoundingClientRect();
+		return left + width / 2;
+	};
+	const grid = screen.container.querySelector('[role="grid"]')!;
+	const headings = Array.from(grid.querySelectorAll("thead th"), centre);
+	const firstWeek = Array.from(grid.querySelectorAll("tbody tr:first-child button"), centre);
+
+	expect(firstWeek).toHaveLength(7);
+	firstWeek.forEach((dayCentre, column) => {
+		expect(dayCentre).toBeCloseTo(headings[column]!, 0);
+	});
 });
 
 const scheduleDialogProps = {
