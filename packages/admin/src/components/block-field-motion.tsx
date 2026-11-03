@@ -186,17 +186,20 @@ export interface RowCollapse {
  * then calls `remove` to take it out, and `settled` once it's out or back. Only the part in view
  * shrinks, and a row whose top is scrolled away goes at once. A row that leaves the page while it
  * shrinks, as when the whole value is replaced, isn't removed again.
+ *
+ * `remove` is told whether focus is still the deletion's to place. It isn't once focus has moved
+ * on from the row to another control while the row shrank, as a press on another menu moves it.
  */
 export function collapseRow(
 	row: HTMLElement,
-	remove: () => void,
+	remove: (placeFocus: boolean) => void,
 	settled: () => void = noop,
 ): RowCollapse | null {
 	const scroller = scrollerOf(row);
 	const { top, height } = row.getBoundingClientRect();
 	const from = shownPart(scroller, top, height);
 	if (prefersReducedMotion() || from < 1 || top < viewEdge(scroller)) {
-		remove();
+		remove(true);
 		return null;
 	}
 	const release = holdScroll(scroller, row);
@@ -213,7 +216,11 @@ export function collapseRow(
 	shrink.addEventListener("finish", () => {
 		// A reversal that came after the row had shrunk away, but before this, runs its course.
 		if (shrink.playState === "running") return;
-		if (!reversed && row.isConnected) flushSync(remove);
+		if (!reversed && row.isConnected) {
+			const focus = document.activeElement;
+			const placeFocus = !focus || focus === document.body || row.contains(focus);
+			flushSync(() => remove(placeFocus));
+		}
 		// A row that wasn't taken out after all comes back.
 		if (row.isConnected) shrink.cancel();
 		release();

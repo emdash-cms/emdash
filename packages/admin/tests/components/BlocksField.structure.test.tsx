@@ -502,6 +502,54 @@ describe("Blocks field structure motion", () => {
 		expect(ines().getBoundingClientRect().top).toBeLessThan(before);
 	});
 
+	it("leaves a menu opened while a deleted block or item shrinks away open", async () => {
+		await renderField([short("one"), short("two"), quotes()]);
+		await page.getByRole("button", { name: "Testimonials", exact: true }).click();
+		await settled();
+		const item = (name: string) =>
+			page
+				.getByRole("button", { name, exact: true })
+				.element()
+				.closest<HTMLElement>("[data-item-key]")!;
+		/** Holds the row's shrink, so the next press comes while it's still on its way out. */
+		const holdShrink = async (shrinking: HTMLElement) => {
+			await expect.poll(() => shrinking.getAnimations().length).toBe(1);
+			const shrink = shrinking.getAnimations()[0]!;
+			shrink.pause();
+			return shrink;
+		};
+
+		await menuButtonOf("two").click();
+		await page.getByRole("menuitem", { name: "Delete" }).click();
+		const block = await holdShrink(row("two"));
+		await menuButtonOf("one").click();
+		await expect.element(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
+		block.finish();
+		await expect.poll(rowKeys).toEqual(["one", "quotes"]);
+		await frame();
+		expect(document.activeElement).not.toBe(toggleOf("quotes"));
+		await expect.element(menuButtonOf("one")).toHaveAttribute("aria-expanded", "true");
+		await userEvent.keyboard("{Escape}");
+		await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
+
+		await page.getByRole("button", { name: "Jonas Berg actions" }).click();
+		await page.getByRole("menuitem", { name: "Delete" }).click();
+		const listItem = await holdShrink(item("Jonas Berg"));
+		await page.getByRole("button", { name: "Maya Okafor actions" }).click();
+		await expect.element(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
+		listItem.finish();
+		await expect
+			.element(page.getByRole("button", { name: "Jonas Berg", exact: true }))
+			.not.toBeInTheDocument();
+		await frame();
+		expect(document.activeElement).not.toBe(
+			page.getByRole("button", { name: "Ines Duarte", exact: true }).element(),
+		);
+		await expect
+			.element(page.getByRole("button", { name: "Maya Okafor actions" }))
+			.toHaveAttribute("aria-expanded", "true");
+	});
+
 	it("slides the rows a menu move swaps, and moves at once with Alt+Shift+Arrow", async () => {
 		await renderField([short("one"), short("two"), short("three")]);
 		const slides = () =>

@@ -600,6 +600,10 @@ describe("Expandable items inside a block", () => {
 		expect(quotesOf(onValue)).toEqual([maya, jonas]);
 
 		await itemMenu("Clients", "Delete");
+		// The toast Undo closed can still be on its way out.
+		await expect
+			.element(page.getByRole("button", { name: "Clients", exact: true }))
+			.not.toBeInTheDocument();
 		await expect.element(page.getByText("Deleted Clients")).toBeVisible();
 		await itemMenu("Jonas Berg", "Delete");
 		await expect.element(page.getByText("Deleted Jonas Berg")).toBeVisible();

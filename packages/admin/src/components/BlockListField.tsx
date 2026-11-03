@@ -441,13 +441,15 @@ export function BlockListField({
 		setAnnouncement(t`Duplicated ${copied}`);
 	};
 
-	const deleteRow = (key: string, hold?: DeletionHold) => {
+	const deleteRow = (key: string, hold?: DeletionHold, placeFocus = true) => {
 		const index = current.findIndex((row) => row.key === key);
 		const row = current[index];
 		if (readOnly || !row || !canDelete(row)) return;
 		const next = current.filter((candidate) => candidate.key !== key);
 		const neighbour = next[index] ?? next[index - 1];
-		focusRef.current = neighbour ? { key: neighbour.key, target: "item" } : { target: "add" };
+		if (placeFocus) {
+			focusRef.current = neighbour ? { key: neighbour.key, target: "item" } : { target: "add" };
+		}
 		emit(next);
 		const position = positions[index];
 		if (position === undefined) return;
@@ -473,7 +475,7 @@ export function BlockListField({
 		let hold: DeletionHold | undefined;
 		const collapse = collapseRow(
 			element,
-			() => deleteLater(key, hold),
+			(placeFocus) => deleteLater(key, hold, placeFocus),
 			() => hold?.release(),
 		);
 		if (collapse) {

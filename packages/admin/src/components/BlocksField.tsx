@@ -778,15 +778,17 @@ export function BlocksField({
 		setAnnouncement(t`Moved ${name} to position ${position} of ${total}`);
 	};
 
-	const removeBlock = (key: string): number => {
+	const removeBlock = (key: string, placeFocus = true): number => {
 		const index = blocks.findIndex((block) => block._key === key);
 		if (index < 0) return index;
 		const next = blocks.filter((block) => block._key !== key);
 		onChange(next);
 		const neighbour = next[index] ?? next[index - 1];
-		focusRequestRef.current = neighbour
-			? { key: neighbour._key, target: "toggle" }
-			: { target: "add" };
+		if (placeFocus) {
+			focusRequestRef.current = neighbour
+				? { key: neighbour._key, target: "toggle" }
+				: { target: "add" };
+		}
 		return index;
 	};
 
@@ -811,13 +813,13 @@ export function BlocksField({
 		);
 	};
 
-	const deleteBlock = (block: StoredBlockValue, hold?: DeletionHold) => {
+	const deleteBlock = (block: StoredBlockValue, hold?: DeletionHold, placeFocus?: boolean) => {
 		if (readOnly) return;
 		if (!canRestore(block)) {
 			setConfirmDelete({ block, open: true });
 			return;
 		}
-		const index = removeBlock(block._key);
+		const index = removeBlock(block._key, placeFocus);
 		if (index < 0) return;
 		const name = blockLabel(block);
 		undo.offer(t`Deleted ${name}`, { kind: "block" }, () => restoreBlock(block, index), hold);
@@ -1044,7 +1046,7 @@ export function BlocksField({
 														: t`${moved} is already last`,
 												);
 											}}
-											onDelete={(hold) => deleteBlock(block, hold)}
+											onDelete={(hold, placeFocus) => deleteBlock(block, hold, placeFocus)}
 											renderField={renderField}
 										/>
 									))}
@@ -1155,8 +1157,11 @@ interface BlockRowProps {
 	onMove: (to: number, slide?: boolean) => void;
 	/** Called when the move keys would take the block past either end. */
 	onEdge: (edge: "first" | "last") => void;
-	/** Deletes the block. `hold` is the Undo hold it had while its row shrank away. */
-	onDelete: (hold?: DeletionHold) => void;
+	/**
+	 * Deletes the block. `hold` is the Undo hold it had while its row shrank away, and
+	 * `placeFocus: false` leaves focus where it moved on to meanwhile.
+	 */
+	onDelete: (hold?: DeletionHold, placeFocus?: boolean) => void;
 	renderField: BlocksFieldProps["renderField"];
 }
 
@@ -1269,7 +1274,9 @@ function BlockRow({
 		const invoker = menuFromHandle ? handleRef.current : triggerRef.current;
 		afterMenuCloseRef.current = { kind: "add", side, invoker };
 	};
-	const commitDelete = useStableCallback((hold?: DeletionHold) => onDelete(hold));
+	const commitDelete = useStableCallback((hold: DeletionHold | undefined, placeFocus: boolean) =>
+		onDelete(hold, placeFocus),
+	);
 	const runMenuAction = useStableCallback((action: MenuAction) => {
 		if (action.kind === "delete") {
 			if (deleteConfirms || !node.current) {
@@ -1281,7 +1288,7 @@ function BlockRow({
 			let hold: DeletionHold | undefined;
 			const collapse = collapseRow(
 				node.current,
-				() => commitDelete(hold),
+				(placeFocus) => commitDelete(hold, placeFocus),
 				() => hold?.release(),
 			);
 			if (collapse) {
