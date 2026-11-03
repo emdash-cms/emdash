@@ -224,7 +224,13 @@ import type { ContentEditorPanelExtension } from "@emdash-cms/admin";
 import { TranslatePanel } from "./TranslatePanel.js";
 
 export const contentEditorPanels = [
-	{ id: "translate", title: "Translate", component: TranslatePanel, collections: ["posts"], order: 10 },
+	{
+		id: "translate",
+		title: "Translate",
+		component: TranslatePanel,
+		collections: ["posts"],
+		order: 10,
+	},
 ] satisfies readonly ContentEditorPanelExtension[];
 ```
 
