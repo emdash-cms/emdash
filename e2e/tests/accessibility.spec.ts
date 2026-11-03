@@ -425,7 +425,10 @@ test.describe("Accessibility Audit", () => {
 			expect(results.violations).toEqual([]);
 		});
 
-		test("sidebars settings page should have no WCAG 2.x AA violations", async ({ admin, page }) => {
+		test("sidebars settings page should have no WCAG 2.x AA violations", async ({
+			admin,
+			page,
+		}) => {
 			for (const tab of ["", "?tab=editor"]) {
 				await admin.goto(`/settings/sidebars${tab}`);
 				await admin.waitForShell();
