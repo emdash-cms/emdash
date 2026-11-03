@@ -456,7 +456,237 @@ Panel fields have the following behavior:
 - `minRole` is a numeric visibility threshold. It does not authorize API calls.
 - `order` sorts lower values first. Ties use plugin ID and panel ID.
 
-The component receives the saved `entry`, its `collection`, and the resolved `locale`. Keep its layout responsive to the narrow sidebar. EmDash isolates component and collection-predicate failures so one panel cannot unmount the editor.
+The component receives the saved `entry`, its `collection`, the resolved `locale`, and `editorDraft`. Keep its layout responsive to the narrow sidebar. EmDash isolates component and collection-predicate failures so one panel cannot unmount the editor.
+
+`entry` holds the entry as last saved. `editorDraft` works with the values open in the editor, including changes the user has not saved yet. Its `get()` method reads them, and its `patch()` method puts new values into the form without saving the entry. Both methods return synchronously.
+
+`editorDraft` is `undefined` on EmDash versions without draft access. Hide the panel's draft actions when it is missing, or declare the minimum `emdash` version in the plugin's `peerDependencies`.
+
+<Aside type="caution">
+	Unsaved content can be confidential. Read draft values and send them to an outside service only when the user asks for it, for example by pressing a button, and tell the user where the content goes.
+</Aside>
+
+### Read unsaved values with `get()`
+
+`get()` returns a snapshot with the following properties:
+
+| Property | Contents |
+| --- | --- |
+| `revision` | An opaque string that identifies the values the snapshot was read from. Pass it to `patch()` as `expectedRevision`. |
+| `readOnly` | `true` when the editor does not accept edits: another user holds the edit lock, the user cannot edit the entry, the collection has a field type the editor does not support, or a version of the entry is open in the revision view. |
+| `fields` | A copy of each draft value, keyed by field slug. A field without a value is `null`. |
+| `fieldDefinitions` | One `EditorDraftFieldDefinition` per draft value, with `slug`, `label`, schema `type`, `required`, `translatable`, and `validation`. |
+
+Each value appears as the editor holds it, which is not always its stored type. For example, a boolean loaded from storage is `0` or `1` until the user changes it. Changing a snapshot does not change the form.
+
+The draft includes every collection field except reference fields bound to a relation and fields whose type the editor does not support. It also includes three values that are not collection fields, under keys that no field slug can take:
+
+| Key | Value | Present | Definition |
+| --- | --- | --- | --- |
+| `slug` | The entry's slug | Always | `slug` type |
+| `seo.title` | The SEO title | In collections with SEO | `string` type, `validation.maxLength` of 200 |
+| `seo.description` | The meta description | In collections with SEO | `text` type, `validation.maxLength` of 500 |
+
+An empty slug or SEO value is `null`. The definitions of these keys use the labels the editor shows, in the admin's language. If the panel writes values through the content API instead, send these keys as `slug` and `seo: { title, description }`, not in `data`. The draft does not include bylines, taxonomy terms, the status, or the other SEO settings.
+
+### Change the form with `patch()`
+
+`patch(operations, { expectedRevision })` takes the `revision` from a snapshot and an array of operations. Each operation replaces a whole value:
+
+- `{ op: "set", field, value }` sets a value. A `null` value clears it.
+- `{ op: "clear", field }` clears a value.
+
+A successful patch writes the values into the form without saving the entry. A patch to collection fields or the slug marks the entry as having unsaved changes. The form autosaves on its usual schedule, and the user can keep, edit, or save the values like typed changes. In a collection with revisions, the first save that includes the patched values keeps the previous draft in the revision history, so the user can restore it. A patched rich text field reloads with the new value and starts a new undo history. Patching `slug` has the same effect as typing in the slug input, so later edits to the title leave the slug unchanged.
+
+<Aside type="caution">
+	The SEO panel saves `seo.title` and `seo.description` itself within about half a second, as it saves typed SEO edits. The save takes effect at once, on a published entry too, and the revision history cannot restore the values it replaced. A patch that also changes collection fields is saved in two requests, and either request can fail on its own.
+</Aside>
+
+`patch()` never throws, and a refused patch changes nothing. It returns `{ ok: true }` or `{ ok: false, code, message }`. `message` is English text for developers, so show the user your own localized text based on `code`. The editor checks the patch in the following order and returns the first failure:
+
+| `code` | Returned when |
+| --- | --- |
+| `EDITOR_DRAFT_STALE` | A draft value changed after `get()` returned `expectedRevision`, or the editor has switched to another entry or locale, or closed. |
+| `EDITOR_DRAFT_READ_ONLY` | The editor does not accept edits. |
+| `EDITOR_DRAFT_INVALID` | An operation or one of its values is not allowed, as listed below. `message` names the operation and field. |
+
+The revision follows the draft values. A patch is stale when the draft values differ from the ones `get()` read, whether the user typed the change, a patch wrote it, or the editor reloaded the entry with different values after a save. A completed autosave does not change the values, so it leaves the revision current. Call `get()` again before each patch.
+
+When the editor switches to another entry or locale, or closes, the `editorDraft` object it passed to the panel stops working for good. Its `get()` returns an empty, read-only snapshot and its `patch()` returns `EDITOR_DRAFT_STALE`, even after the user returns to the same entry. While an image or gallery block's settings are open, the settings sidebar shows them in place of the panels, so the panel unmounts. A task it started earlier can still call `patch()`.
+
+`patch()` returns `EDITOR_DRAFT_INVALID` in these cases:
+
+- `operations` is empty or contains something other than `set` and `clear` operations.
+- Two operations name the same field.
+- An operation names a field that is not in the draft.
+- An operation clears `slug` or sets it to anything other than a non-empty string.
+- An SEO value is longer than the `validation.maxLength` in its definition.
+- A value cannot be serialized as JSON, or does not have the shape its field type takes.
+- A Portable Text value uses marks the rich text editor does not support, or the editor cannot load it.
+
+A `set` value must have the following shape for its field type:
+
+| Field type | `set` value |
+| --- | --- |
+| `string`, `slug`, `text`, `url`, `datetime`, `select`, `reference` | string |
+| `number` | finite number |
+| `integer` | integer |
+| `boolean` | `true`, `false`, `0`, or `1` |
+| `multiSelect` | array of strings |
+| `portableText` | array of objects with a string `_type` |
+| `repeater`, `blocks` | array of objects |
+| `image`, `file` | object that is not an array |
+| `json` | any JSON value |
+
+Other schema rules, such as required fields, length limits, patterns, select choices, reference targets, and slug uniqueness, are checked when the entry is saved and reported as they are for typed values.
+
+### Translate a draft from a panel
+
+The following function reads the translatable text fields, sends them to a private plugin route that calls a translation provider, and patches the results into the form. In a collection with SEO, `seo.title` and `seo.description` have the `string` and `text` types, so the function translates them too. The slug has the `slug` type and stays unchanged.
+
+```ts title="src/admin/translate.ts"
+import type {
+	ContentEditorDraft,
+	ContentEditorDraftPatchResult,
+} from "@emdash-cms/admin";
+import { apiFetch, parseApiResponse } from "emdash/plugin-utils";
+
+const TEXT_TYPES = new Set(["string", "text"]);
+
+async function translate(texts: string[], locale: string): Promise<string[]> {
+	const response = await apiFetch(
+		"/_emdash/api/plugins/plugin-translate/translate",
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ texts, locale }),
+		},
+	);
+	const result = await parseApiResponse<{ texts: string[] }>(
+		response,
+		"Translation failed",
+	);
+	return result.texts;
+}
+
+export async function translateDraft(
+	editorDraft: ContentEditorDraft,
+	locale: string,
+): Promise<ContentEditorDraftPatchResult | null> {
+	const snapshot = editorDraft.get();
+	if (snapshot.readOnly) {
+		return {
+			ok: false,
+			code: "EDITOR_DRAFT_READ_ONLY",
+			message: "The editor does not accept edits",
+		};
+	}
+
+	const slugs = snapshot.fieldDefinitions
+		.filter((field) => field.translatable && TEXT_TYPES.has(field.type))
+		.map((field) => field.slug)
+		.filter((slug) => typeof snapshot.fields[slug] === "string");
+	if (slugs.length === 0) return null;
+
+	const translated = await translate(
+		slugs.map((slug) => snapshot.fields[slug] as string),
+		locale,
+	);
+
+	return editorDraft.patch(
+		slugs.map((slug, index) => ({
+			op: "set",
+			field: slug,
+			value: translated[index],
+		})),
+		{ expectedRevision: snapshot.revision },
+	);
+}
+```
+
+`translateDraft()` checks `readOnly` before it sends anything, so a read-only editor never sends content to the provider. It returns `null` when no field needs translating.
+
+The following panel calls `translateDraft()` when the user presses its button, and says where the text goes. If the user edits a draft value while the request runs, `patch()` returns `EDITOR_DRAFT_STALE` and the form is unchanged, so the panel asks the user to translate again.
+
+```tsx title="src/admin/TranslatePanel.tsx"
+import { Button } from "@cloudflare/kumo";
+import type { ContentEditorPanelContext } from "@emdash-cms/admin";
+import { useLingui } from "@lingui/react";
+import * as React from "react";
+
+import { translateDraft } from "./translate.js";
+
+export function TranslatePanel({ locale, editorDraft }: ContentEditorPanelContext) {
+	const { i18n } = useLingui();
+	const [working, setWorking] = React.useState(false);
+	const [message, setMessage] = React.useState("");
+
+	if (!editorDraft || !locale) {
+		return (
+			<p className="text-sm text-kumo-subtle">
+				{i18n._({
+					id: "translate.unavailable",
+					message: "Translation is not available in this editor.",
+				})}
+			</p>
+		);
+	}
+
+	const handleTranslate = async () => {
+		setWorking(true);
+		setMessage("");
+		try {
+			const result = await translateDraft(editorDraft, locale);
+			if (result === null) {
+				setMessage(
+					i18n._({ id: "translate.nothing", message: "This entry has no text to translate." }),
+				);
+			} else if (result.ok) {
+				setMessage(
+					i18n._({ id: "translate.done", message: "The translation is in the form." }),
+				);
+			} else if (result.code === "EDITOR_DRAFT_STALE") {
+				setMessage(
+					i18n._({
+						id: "translate.stale",
+						message: "The entry changed during translation. Translate again.",
+					}),
+				);
+			} else {
+				setMessage(
+					i18n._({
+						id: "translate.not-applied",
+						message: "The translation could not be added to this entry.",
+					}),
+				);
+			}
+		} catch {
+			setMessage(i18n._({ id: "translate.error", message: "Translation failed. Try again." }));
+		} finally {
+			setWorking(false);
+		}
+	};
+
+	return (
+		<div className="space-y-3">
+			<p className="text-sm text-kumo-subtle">
+				{i18n._({
+					id: "translate.notice",
+					message: "Translating sends this entry's text, including unsaved changes, to the translation service.",
+				})}
+			</p>
+			<Button type="button" loading={working} onClick={() => void handleTranslate()}>
+				{i18n._({ id: "translate.action", message: "Translate" })}
+			</Button>
+			<p role="status" className="text-sm">
+				{message}
+			</p>
+		</div>
+	);
+}
+```
+
+Register the component in the `contentEditorPanels` export of the admin module, as in the first example of this section.
 
 ## Content-list columns
 
