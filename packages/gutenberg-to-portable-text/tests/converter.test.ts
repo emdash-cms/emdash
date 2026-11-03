@@ -1234,6 +1234,50 @@ describe("htmlToPortableText", () => {
 			{ style: "normal", text: "Still in the div." },
 		]);
 	});
+
+	it("does not split a comment, a tag or formatting at a blank line", () => {
+		const html =
+			'Intro\n\n<!-- draft\n\nold paragraph\n\n-->\n\nOutro<p>Shown<!-- hidden\n\nstill hidden -->after</p><p><a href="https://example.com/" title="first\n\nsecond">Link</a> text.</p><p><strong>Bold\n\nstill bold</strong> plain.</p><p><a href="https://example.com/b">linked\n\nstill linked</a></p>';
+		const blocks = htmlToPortableText(html) as PortableTextTextBlock[];
+		const text = (block: PortableTextTextBlock) => block.children.map((span) => span.text).join("");
+
+		expect(blocks.map(text)).toEqual([
+			"Intro",
+			"Outro",
+			"Shownafter",
+			"Link text.",
+			"Bold",
+			"still bold plain.",
+			"linked",
+			"still linked",
+		]);
+		expect(blocks[3]?.markDefs?.[0]).toMatchObject({ href: "https://example.com/" });
+		expect(blocks[4]?.children[0]?.marks).toContain("strong");
+		expect(blocks[5]?.children.find((span) => span.text === "still bold")?.marks).toContain(
+			"strong",
+		);
+		expect(blocks[5]?.children.find((span) => span.text === " plain.")?.marks ?? []).not.toContain(
+			"strong",
+		);
+		for (const block of blocks.slice(6)) {
+			expect(block.markDefs?.[0]).toMatchObject({ href: "https://example.com/b" });
+			expect(block.children[0]?.marks).toContain(block.markDefs?.[0]?._key);
+		}
+	});
+
+	it.each([
+		["unclosed formatting tags", "<b>x\n\n".repeat(20_000)],
+		[
+			"a long unclosed link",
+			`<a href="https://example.com/${"x".repeat(100_000)}">${"y\n\n".repeat(20_000)}`,
+		],
+		["end tags with nothing open", `${"<b>".repeat(25_000)}${"</i>\n\n".repeat(25_000)}`],
+	])("splits paragraphs after %s within a second", (_shape, html) => {
+		const started = performance.now();
+		htmlToPortableText(html);
+
+		expect(performance.now() - started).toBeLessThan(1000);
+	});
 });
 
 describe("classic editor tables", () => {

@@ -22,7 +22,12 @@ import type {
 const BLOCK_ELEMENT_PATTERN =
 	/<(p|h[1-6]|blockquote|pre|ul|ol|figure|div|hr)[^>]*>([\s\S]*?)<\/\1>|<(hr|br)\s*\/?>|<img\s+[^>]+\/?>/gu;
 const WORD_CHARACTER_PATTERN = /\w/;
-const PARAGRAPH_BREAK_PATTERN = /\n[^\S\n]*\n/;
+/** HTML comments and tags, which a blank line must not split, and the blank lines between classic paragraphs */
+const PARAGRAPH_SPLIT_TOKEN_PATTERN = /<!--[\s\S]*?(?:-->|$)|<\/?[a-z][^<>]*>|\n[^\S\n]*\n/gi;
+/** The formatting elements a browser reopens in the next paragraph when wpautop splits them */
+const FORMATTING_TAG_PATTERN = /^<(\/?)(a|b|big|code|em|font|i|nobr|s|small|strike|strong|tt|u)\b/i;
+/** Unclosed formatting tracked across paragraph breaks; real content nests far less */
+const MAX_OPEN_FORMATTING = 16;
 const TABLE_BLOCK_CONTENT_PATTERN = /<(?:img|h[1-6]|ul|ol|pre|blockquote|hr)\b/i;
 const MERGED_CELL_PATTERN = /\b(?:colspan|rowspan)\s*=\s*(?:["']\s*)?(?:[2-9]|[1-9]\d)/i;
 const TABLE_ROW_TAG_PATTERN = /<tr\b/gi;
@@ -417,7 +422,7 @@ function pushParagraphs(
 	html: string,
 	generateKey: () => string,
 ): void {
-	for (const paragraph of html.split(PARAGRAPH_BREAK_PATTERN)) {
+	for (const paragraph of splitParagraphs(html)) {
 		const text = paragraph.trim();
 		if (!text) continue;
 		const { children, markDefs } = parseInlineContent(text, generateKey);
@@ -431,6 +436,47 @@ function pushParagraphs(
 			});
 		}
 	}
+}
+
+/**
+ * Split classic-editor HTML at blank lines, as wpautop does, but never inside
+ * a comment or a tag. Formatting still open at a break is reopened in the
+ * next paragraph, as a browser does with wpautop's output.
+ */
+function splitParagraphs(html: string): string[] {
+	const paragraphs: string[] = [];
+	const open: { name: string; tag: string }[] = [];
+	let openLength = 0;
+	// Each later paragraph gets a copy of the open tags. Copying no more than
+	// the input's length keeps unclosed tags from making this quadratic.
+	let copyBudget = html.length;
+	let reopen = "";
+	let start = 0;
+	for (const match of html.matchAll(PARAGRAPH_SPLIT_TOKEN_PATTERN)) {
+		const token = match[0];
+		if (token.startsWith("<")) {
+			const [, slash, tagName] = FORMATTING_TAG_PATTERN.exec(token) ?? [];
+			if (!tagName) continue;
+			const name = tagName.toLowerCase();
+			if (slash) {
+				const index = open.findLastIndex((element) => element.name === name);
+				const [closed] = index === -1 ? [] : open.splice(index, 1);
+				if (closed) openLength -= closed.tag.length;
+			} else if (!token.endsWith("/>")) {
+				open.push({ name, tag: token });
+				openLength += token.length;
+				const dropped = open.length > MAX_OPEN_FORMATTING ? open.shift() : undefined;
+				if (dropped) openLength -= dropped.tag.length;
+			}
+			continue;
+		}
+		paragraphs.push(reopen + html.slice(start, match.index).trim());
+		start = match.index + token.length;
+		reopen = openLength <= copyBudget ? open.map((element) => element.tag).join("") : "";
+		copyBudget -= reopen.length;
+	}
+	paragraphs.push(reopen + html.slice(start).trim());
+	return paragraphs;
 }
 
 /**
