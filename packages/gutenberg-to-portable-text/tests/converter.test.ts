@@ -1265,6 +1265,26 @@ describe("htmlToPortableText", () => {
 		}
 	});
 
+	it("keeps line breaks and no-break spaces at the edges of a paragraph", () => {
+		const blocks = htmlToPortableText(
+			"<p><br>Intro<br></p><p>&nbsp;Spaced&nbsp;</p>Text\n&nbsp;\nMore",
+		) as PortableTextTextBlock[];
+
+		expect(blocks.map((block) => block.children.map((span) => span.text).join(""))).toEqual([
+			"\nIntro\n",
+			"\u00a0Spaced\u00a0",
+			"Text\n\u00a0\nMore",
+		]);
+	});
+
+	it("keeps each link's target across a paragraph break", () => {
+		const html =
+			'<a href="https://example.com/" target="_blank">One</a>\n\n<a href="https://example.com/">Two</a>\n\n<a href="https://example.com/" target="_blank">Three</a>';
+		const blocks = htmlToPortableText(html) as PortableTextTextBlock[];
+
+		expect(blocks.map((block) => block.markDefs?.[0]?.blank ?? false)).toEqual([true, false, true]);
+	});
+
 	it("keeps a link across every paragraph it spans", () => {
 		const html = '<a href="https://example.com/article">One\n\nTwo\n\nThree\n\nFour</a>';
 		const blocks = htmlToPortableText(html) as PortableTextTextBlock[];

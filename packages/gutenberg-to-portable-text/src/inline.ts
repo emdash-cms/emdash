@@ -12,7 +12,8 @@ import { sanitizeHref } from "./url.js";
 
 // Regex patterns for inline parsing
 const WHITESPACE_PATTERN = /\S/;
-const PARAGRAPH_BREAK_PATTERN = /\n[^\S\n]*\n/g;
+/** A blank line with the source whitespace around it; like wpautop, a no-break space is not blank */
+const PARAGRAPH_BREAK_PATTERN = /[\t\n\v\f\r ]*\n[\t\v\f\r ]*\n[\t\n\v\f\r ]*/g;
 /** Stands for a blank line in parsed text; parse5 drops U+0000 from text, so content can't contain it */
 const PARAGRAPH_BREAK_MARK = "\u0000";
 
@@ -132,11 +133,10 @@ export function parseInlineParagraphs(html: string, generateKey: () => string): 
 	const markDefsByKey = new Map(markDefs.map((def) => [def._key, def]));
 	const results: ParseResult[] = [];
 	for (const spans of paragraphs) {
-		const paragraph = trimParagraph(spans);
-		if (paragraph.length === 0) continue;
-		const marks = new Set(paragraph.flatMap((span) => span.marks ?? []));
+		if (!spans.some((span) => WHITESPACE_PATTERN.test(span.text))) continue;
+		const marks = new Set(spans.flatMap((span) => span.marks ?? []));
 		results.push({
-			children: paragraph,
+			children: spans,
 			markDefs: [...marks].flatMap((mark) => markDefsByKey.get(mark) ?? []),
 		});
 	}
@@ -144,7 +144,8 @@ export function parseInlineParagraphs(html: string, generateKey: () => string): 
 }
 
 /**
- * Replace each blank line in the fragment's text with a paragraph break mark
+ * Replace each blank line in the fragment's text, and the source whitespace
+ * around it, with a paragraph break mark
  */
 function markParagraphBreaks(nodes: Node[]): void {
 	const pending = [...nodes];
@@ -155,25 +156,6 @@ function markParagraphBreaks(nodes: Node[]): void {
 			for (const child of node.childNodes) pending.push(child);
 		}
 	}
-}
-
-/**
- * Drop the whitespace a paragraph's blank lines leave at its edges
- */
-function trimParagraph(spans: PortableTextSpan[]): PortableTextSpan[] {
-	let start = 0;
-	while (start < spans.length && !WHITESPACE_PATTERN.test(spans[start]!.text)) start++;
-	let end = spans.length;
-	while (end > start && !WHITESPACE_PATTERN.test(spans[end - 1]!.text)) end--;
-	if (start === end) return [];
-
-	const paragraph = spans.slice(start, end);
-	paragraph[0] = { ...paragraph[0]!, text: paragraph[0]!.text.trimStart() };
-	paragraph[paragraph.length - 1] = {
-		...paragraph.at(-1)!,
-		text: paragraph.at(-1)!.text.trimEnd(),
-	};
-	return paragraph;
 }
 
 /**
@@ -348,10 +330,11 @@ function getMarkForElement(
 
 		case "a": {
 			const href = sanitizeHref(getAttr(element, "href"));
-			const target = getAttr(element, "target");
+			const blank = getAttr(element, "target") === "_blank";
 
-			// Check if we already have a markDef for this href
-			const existingKey = markDefMap.get(href);
+			// Reuse the definition of an earlier link with the same href and target
+			const mapKey = `${blank ? 1 : 0}${href}`;
+			const existingKey = markDefMap.get(mapKey);
 			if (existingKey) {
 				return existingKey;
 			}
@@ -363,11 +346,11 @@ function getMarkForElement(
 				_key: key,
 				href,
 			};
-			if (target === "_blank") {
+			if (blank) {
 				markDef.blank = true;
 			}
 			markDefs.push(markDef);
-			markDefMap.set(href, key);
+			markDefMap.set(mapKey, key);
 			return key;
 		}
 
