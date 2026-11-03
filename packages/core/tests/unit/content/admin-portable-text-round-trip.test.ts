@@ -68,7 +68,14 @@ describe("admin Portable Text through a shared document", () => {
 		expect(roundTripThroughSharedDocument(blocks, pluginTypes)).toEqual(blocks);
 	});
 
-	it("has a fixture for every node and mark but the line break", () => {
+	it.each(editorFixtures)(
+		"keeps $name unchanged through the converter alone",
+		({ blocks, pluginTypes }) => {
+			expect(roundTripThroughConverter(blocks, pluginTypes)).toEqual(blocks);
+		},
+	);
+
+	it("has a fixture for every node and mark", () => {
 		const used = new Set<string>();
 		const visit = (node: { type: string; content?: unknown[]; marks?: unknown[] }) => {
 			used.add(node.type);
@@ -80,7 +87,7 @@ describe("admin Portable Text through a shared document", () => {
 		}
 		const schema = portableTextSchema();
 		const names = [...Object.keys(schema.nodes), ...Object.keys(schema.marks)];
-		expect(names.filter((name) => !used.has(name))).toEqual(["hardBreak"]);
+		expect(names.filter((name) => !used.has(name))).toEqual([]);
 	});
 
 	it("finds Portable Text in the template seeds", () => {

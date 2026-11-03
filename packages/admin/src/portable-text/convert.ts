@@ -583,6 +583,16 @@ function isUnkeyedEmptyParagraph(node: {
 	);
 }
 
+/** A table with no cells, which merges can leave behind, holds nothing to save. */
+function isEmptyTable(node: { content?: unknown[] }): boolean {
+	return (node.content ?? []).every(
+		(row) =>
+			isRecord(row) &&
+			row.type === "tableRow" &&
+			(Array.isArray(row.content) ? row.content.length === 0 : row.content === undefined),
+	);
+}
+
 function convertPMNode(
 	node: {
 		type: string;
@@ -772,6 +782,7 @@ function convertPMNode(
 		}
 
 		case "table": {
+			if (isEmptyTable(node)) return null;
 			const key = claimKey(attrStr(node.attrs?.emdashKey), path);
 			const createKey = tableKeys(key);
 			const table = { ...node, attrs: { ...node.attrs, emdashKey: key } };
@@ -918,10 +929,15 @@ function convertInlineContent(
 
 	const typedNodes = nodes as Array<{
 		type: string;
+		attrs?: Record<string, unknown>;
 		text?: string;
 		marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
 	}>;
-	const spanKeys = keyClaims(typedNodes.map((node) => portableTextSpanKeyFromMarks(node.marks)));
+	const spanKeys = keyClaims(
+		typedNodes.map(
+			(node) => portableTextKeyFromAttrs(node.attrs) ?? portableTextSpanKeyFromMarks(node.marks),
+		),
+	);
 	const markDefKeys = keyClaims(
 		typedNodes.flatMap((node) =>
 			portableTextMarkDefsFromMarks(node.marks).map((markDef) => markDef._key),
@@ -932,12 +948,19 @@ function convertInlineContent(
 	const claimMarkDefKey = (preferred: string | undefined) =>
 		markDefKeys(preferred, `${blockKey}:m${markDefs.length}`);
 
+	// A line break carries its span's key but no marks, so a span it opens takes
+	// the marks of the span's text that follows.
+	let openedByBreak: PortableTextSpan | undefined;
+
 	for (const node of typedNodes) {
 		if (node.type === "text" && node.text) {
 			const marks: string[] = [];
 			const originalMarkDefs = portableTextMarkDefsFromMarks(node.marks);
+			// Concurrent edits can leave both on one span, though each excludes the other.
+			const subscripted = node.marks?.some((mark) => mark.type === "subscript");
 
 			for (const mark of node.marks || []) {
+				if (subscripted && mark.type === "superscript") continue;
 				const markType = convertMark(mark, markDefs, markDefMap, originalMarkDefs, claimMarkDefKey);
 				if (markType) {
 					marks.push(markType);
@@ -950,9 +973,11 @@ function convertInlineContent(
 			if (
 				preferredKey &&
 				previous?._key === preferredKey &&
-				equalJsonValues(previous.marks, normalizedMarks)
+				(previous === openedByBreak || equalJsonValues(previous.marks, normalizedMarks))
 			) {
 				previous.text += node.text;
+				previous.marks = normalizedMarks;
+				openedByBreak = undefined;
 				continue;
 			}
 
@@ -963,15 +988,18 @@ function convertInlineContent(
 				marks: normalizedMarks,
 			});
 		} else if (node.type === "hardBreak") {
-			if (children.length > 0 && !preserveHardBreakBoundary) {
-				const last = children.at(-1);
-				if (last) last.text += "\n";
+			const key = portableTextKeyFromAttrs(node.attrs);
+			const last = children.at(-1);
+			if (last && (key ? last._key === key : !preserveHardBreakBoundary)) {
+				last.text += "\n";
 			} else {
-				children.push({
+				const span: PortableTextSpan = {
 					_type: "span",
-					_key: claimSpanKey(portableTextSpanKeyFromMarks(node.marks)),
+					_key: claimSpanKey(key ?? portableTextSpanKeyFromMarks(node.marks)),
 					text: "\n",
-				});
+				};
+				children.push(span);
+				if (key) openedByBreak = span;
 			}
 		}
 	}
@@ -1406,16 +1434,27 @@ function convertPTList(
 				convertPTListItem(item, nestedItems, listType, `${context}:${rootItems.length}`),
 			);
 		} else {
-			// Orphan nested item with no preceding level=1 anchor — treat as root
-			// so we don't drop content.
-			rootItems.push(convertPTListItem(item, [], listType, `${context}:${rootItems.length}`));
-			i++;
+			// Nested items with no root item before them get a list item that
+			// holds only their nested list, so they keep their levels.
+			const nestedItems: PortableTextTextBlock[] = [];
+			while (i < items.length && (items[i]!.level || 1) > 1) {
+				nestedItems.push(items[i]!);
+				i++;
+			}
+			rootItems.push(
+				convertPTListItem(undefined, nestedItems, listType, `${context}:${rootItems.length}`),
+			);
 		}
 	}
 
-	const firstItem = items[0]!;
+	// A list of nested items only can't take their list id: their own list holds it.
+	const firstItem = items.find((item) => (item.level || 1) === 1);
 	const metadata =
-		listType === "number" ? getListMetadata(firstItem, `${context}:${firstItem._key}`) : undefined;
+		listType !== "number"
+			? undefined
+			: firstItem
+				? getListMetadata(firstItem, `${context}:${firstItem._key}`)
+				: { listId: deriveLegacyListId(context) };
 
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
@@ -1425,19 +1464,21 @@ function convertPTList(
 }
 
 function convertPTListItem(
-	item: PortableTextTextBlock,
+	item: PortableTextTextBlock | undefined,
 	nestedItems: PortableTextTextBlock[],
 	parentListType: "bullet" | "number",
 	context: string,
 ): unknown {
 	const content: unknown[] = [];
 
-	const pmContent = convertPTSpans(item.children, item.markDefs || []);
-	content.push({
-		type: "paragraph",
-		attrs: attrsWithPortableTextKey(undefined, item._key),
-		content: pmContent.length > 0 ? pmContent : undefined,
-	});
+	if (item) {
+		const pmContent = convertPTSpans(item.children, item.markDefs || []);
+		content.push({
+			type: "paragraph",
+			attrs: attrsWithPortableTextKey(undefined, item._key),
+			content: pmContent.length > 0 ? pmContent : undefined,
+		});
+	}
 
 	if (nestedItems.length > 0) {
 		// The shallowest level in `nestedItems` is the effective root of this
@@ -1518,12 +1559,7 @@ function convertPTSpans(spans: PortableTextSpan[], markDefs: PortableTextMarkDef
 			if (i < parts.length - 1) {
 				nodes.push({
 					type: "hardBreak",
-					marks: [
-						{
-							type: PORTABLE_TEXT_SPAN_MARK,
-							attrs: { key: span._key, markDefs: referencedMarkDefs },
-						},
-					],
+					attrs: attrsWithPortableTextKey(undefined, span._key),
 				});
 			}
 		}

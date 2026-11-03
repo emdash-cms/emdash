@@ -126,6 +126,101 @@ export const editorFixtures: RoundTripFixture[] = [
 		],
 	},
 	{
+		name: "line breaks anywhere in a span, with and without marks",
+		blocks: [
+			{
+				_type: "block",
+				_key: "lb1",
+				style: "normal",
+				children: [
+					span("lb1a", "\nLeading"),
+					span("lb1b", " middle\nof", ["strong"]),
+					span("lb1c", " trailing\n", ["em"]),
+					span("lb1d", "next"),
+				],
+			},
+			{
+				_type: "block",
+				_key: "lb2",
+				style: "normal",
+				children: [
+					span("lb2a", "\nBold leading", ["strong"]),
+					span("lb2b", "\n\nRepeated\n\n"),
+					span("lb2c", "\n"),
+					span("lb2d", "\nItalic after a break", ["em", "underline"]),
+				],
+			},
+			{
+				_type: "block",
+				_key: "lb3",
+				style: "normal",
+				markDefs: [{ _type: "link", _key: "lbl", href: "https://example.com" }],
+				children: [span("lb3a", "\nLinked\nlines\n", ["lbl", "strong"]), span("lb3b", "\n")],
+			},
+			{ _type: "block", _key: "lb4", style: "normal", children: [span("lb4a", "\n")] },
+			{ ...paragraph("lb5", "Heading\non two lines"), style: "h2" },
+			{ ...paragraph("lb6", "\nQuoted\nlines\n"), style: "blockquote" },
+			{ ...paragraph("lb7", "List item\non two lines"), listItem: "bullet", level: 1 },
+		],
+	},
+	{
+		name: "line breaks in table cells",
+		blocks: [
+			{
+				_type: "table",
+				_key: "lt",
+				rows: [
+					{
+						_type: "tableRow",
+						_key: "ltr",
+						cells: [
+							{
+								_type: "tableCell",
+								_key: "ltc1",
+								isHeader: false,
+								markDefs: [{ _type: "link", _key: "ltl", href: "https://example.com" }],
+								content: [
+									span("ltc1a", "First", ["ltl"]),
+									span("ltc1b", "\n"),
+									span("ltc1c", "Second", ["em"]),
+								],
+							},
+							{
+								_type: "tableCell",
+								_key: "ltc2",
+								isHeader: false,
+								content: [span("ltc2a", "\n"), span("ltc2b", "Leading")],
+							},
+							{
+								_type: "tableCell",
+								_key: "ltc3",
+								isHeader: false,
+								content: [span("ltc3a", "Trailing"), span("ltc3b", "\n")],
+							},
+							{
+								_type: "tableCell",
+								_key: "ltc4",
+								isHeader: false,
+								content: [
+									span("ltc4a", "A"),
+									span("ltc4b", "\n"),
+									span("ltc4c", "\n"),
+									span("ltc4d", "B"),
+								],
+							},
+							{
+								_type: "tableCell",
+								_key: "ltc5",
+								isHeader: false,
+								content: [span("ltc5a", "\nOne span\nof lines\n", ["strong"])],
+							},
+						],
+					},
+				],
+			},
+		],
+	},
+	{
 		name: "quotes of one and several paragraphs",
 		blocks: [
 			{ ...paragraph("q1", "A short quote"), style: "blockquote" },

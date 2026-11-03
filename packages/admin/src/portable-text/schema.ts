@@ -68,6 +68,7 @@ export const PortableTextIdentityExtension = Extension.create({
 					"tableCell",
 					"tableHeader",
 					"pluginBlock",
+					"hardBreak",
 				],
 				attributes: { [PORTABLE_TEXT_KEY_ATTR]: hiddenAttribute },
 			},
