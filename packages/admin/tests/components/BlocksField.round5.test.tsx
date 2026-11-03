@@ -63,7 +63,16 @@ const LINKED = blockType("linked", "Linked", [
 	},
 ]);
 
-const TYPES = [SHORT, STATS, LINKED];
+const POINTS = blockType("points", "Points", [
+	{
+		slug: "points",
+		label: "Points",
+		type: "repeater",
+		validation: { subFields: [{ slug: "text", label: "Point", type: "string" }] },
+	},
+]);
+
+const TYPES = [SHORT, STATS, LINKED, POINTS];
 
 const short = (key: string): StoredBlockValue => ({
 	_type: "short",
@@ -79,6 +88,12 @@ const stats = (): StoredBlockValue => ({
 		{ value: "23%", label: "Lower spend" },
 		{ value: "4x", label: "Faster" },
 	],
+});
+const points = (): StoredBlockValue => ({
+	_type: "points",
+	_version: 1,
+	_key: "points",
+	points: [{ text: "Fast" }, { text: "Cheap" }],
 });
 const linked = (): StoredBlockValue => ({
 	_type: "linked",
@@ -255,6 +270,74 @@ describe("A table row Enter added, going once focus leaves it blank", () => {
 		const tops = await sampling;
 
 		expect(dataRows()).toBe(2);
+		expect(new Set(tops).size).toBe(2);
+	});
+});
+
+describe("A blank line, going once focus leaves its list", () => {
+	const lines = () =>
+		page
+			.getByRole("list", { name: "Points", exact: true })
+			.element()
+			.querySelectorAll("[data-list-item]").length;
+	const savedTwoPoints = (value: StoredBlockValue[]) =>
+		Array.isArray(value[0]?.points) && value[0].points.length === 2;
+
+	async function addBlankLine() {
+		await renderField([points(), short("after")]);
+		await page.getByRole("button", { name: "Points", exact: true }).click();
+		await settled();
+		await page.getByRole("textbox", { name: "Point 2", exact: true }).click();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(page.getByRole("textbox", { name: "Point 3", exact: true })).toHaveFocus();
+		await settled();
+	}
+
+	it("shrinks away, so the rows below glide up after the click lands", async () => {
+		await addBlankLine();
+		const head = toggleOf("after");
+
+		const sampling = sampleFrames(() => head.getBoundingClientRect().top, 700);
+		await clickNearBottom(head);
+		const tops = await sampling;
+		await settled();
+
+		expect(lines()).toBe(2);
+		expect(head.getAttribute("aria-expanded")).toBe("true");
+		const { travel, maxStep } = motion(tops);
+		expect(tops[0]! - tops.at(-1)!).toBeGreaterThan(15);
+		expect(maxStep).toBeLessThan(travel * 0.4);
+		expect(saved.every(savedTwoPoints)).toBe(true);
+	});
+
+	it("comes back when focus returns to its list while it shrinks away", async () => {
+		await addBlankLine();
+		const point3 = page.getByRole("textbox", { name: "Point 3", exact: true });
+		const blankLine = point3.element().closest<HTMLElement>("[data-list-item]")!;
+		const full = blankLine.getBoundingClientRect().height;
+
+		toggleOf("after").focus();
+		await until(() => blankLine.getAnimations().some((a) => a.playState === "running"));
+		await frame();
+		(page.getByRole("textbox", { name: "Point 1", exact: true }).element() as HTMLElement).focus();
+		await settled();
+
+		expect(lines()).toBe(3);
+		expect(blankLine.isConnected).toBe(true);
+		expect(blankLine.getBoundingClientRect().height).toBeCloseTo(full, 0);
+		expect(saved.every(savedTwoPoints)).toBe(true);
+	});
+
+	it("goes at once under reduced motion", async () => {
+		await reduceMotion();
+		await addBlankLine();
+		const head = toggleOf("after");
+
+		const sampling = sampleFrames(() => head.getBoundingClientRect().top, 300);
+		head.focus();
+		const tops = await sampling;
+
+		expect(lines()).toBe(2);
 		expect(new Set(tops).size).toBe(2);
 	});
 });

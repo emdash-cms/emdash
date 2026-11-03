@@ -267,7 +267,7 @@ export function BlockListField({
 	const deletedItems = React.useRef(new WeakSet<ListItem>()).current;
 	/** Table rows Enter added, which stay out of the saved list while all their cells are blank. */
 	const enteredRows = React.useRef(new Set<string>()).current;
-	/** Blank table rows shrinking away now that focus has left them. */
+	/** Blank lines and table rows shrinking away now that focus has left them. */
 	const shrinkingBlankRows = React.useRef(new Map<string, RowCollapse>()).current;
 	const [rows, setRows] = React.useState<Row[]>(() => syncRows([], items, knownKeys));
 	const [source, setSource] = React.useState(value);
@@ -484,37 +484,50 @@ export function BlockListField({
 		}
 	};
 
+	const dropBlankRows = useStableCallback((keys: ReadonlySet<string>) => {
+		const kept = current.filter((row) => !keys.has(row.key) || !isBlank(row));
+		if (kept.length !== current.length) emit(kept);
+	});
+	// Blank rows shrink away, and come back if focus returns before they have gone. Those that
+	// can't shrink go together, as one change.
+	const shrinkBlankRows = (keys: readonly string[]) => {
+		const atOnce = new Set<string>();
+		let starting = true;
+		for (const key of keys) {
+			if (shrinkingBlankRows.has(key)) continue;
+			const element = rowElement(key);
+			if (!element) {
+				atOnce.add(key);
+				continue;
+			}
+			const collapse = collapseRow(element, () => {
+				shrinkingBlankRows.delete(key);
+				if (starting) atOnce.add(key);
+				else dropBlankRows(new Set([key]));
+			});
+			if (collapse) shrinkingBlankRows.set(key, collapse);
+		}
+		starting = false;
+		if (atOnce.size > 0) dropBlankRows(atOnce);
+	};
+	const keepBlankRows = (keys: Iterable<string>) => {
+		for (const key of keys) {
+			shrinkingBlankRows.get(key)?.reverse();
+			shrinkingBlankRows.delete(key);
+		}
+	};
+
 	const removeBlankLines = useStableCallback(() => {
 		const root = rootRef.current;
 		if (!root || root.contains(document.activeElement)) return;
-		const kept = current.filter((row) => !isBlank(row));
-		if (kept.length !== current.length) emit(kept);
+		shrinkBlankRows(current.filter(isBlank).map((row) => row.key));
 	});
 
-	const dropBlankRow = useStableCallback((key: string) => {
-		const row = current.find((candidate) => candidate.key === key);
-		if (row && isBlank(row)) emit(current.filter((candidate) => candidate !== row));
-	});
-	// A table row Enter added shrinks away once focus leaves it with every cell still blank, and
-	// comes back if focus returns before it has gone.
+	// A table row Enter added goes once focus leaves it with every cell still blank.
 	const removeBlankRow = useStableCallback((key: string) => {
 		const row = current.find((candidate) => candidate.key === key);
-		if (!row || !isBlank(row) || shrinkingBlankRows.has(key)) return;
-		const element = rowElement(key);
-		if (!element) {
-			dropBlankRow(key);
-			return;
-		}
-		const collapse = collapseRow(element, () => {
-			shrinkingBlankRows.delete(key);
-			dropBlankRow(key);
-		});
-		if (collapse) shrinkingBlankRows.set(key, collapse);
+		if (row && isBlank(row)) shrinkBlankRows([key]);
 	});
-	const keepBlankRow = (key: string) => {
-		shrinkingBlankRows.get(key)?.reverse();
-		shrinkingBlankRows.delete(key);
-	};
 
 	const lineKeyDown = (event: React.KeyboardEvent<HTMLElement>, index: number) => {
 		const input = event.target;
@@ -727,7 +740,7 @@ export function BlockListField({
 						{...rowProps(row, index)}
 						columns={columns}
 						onFocus={
-							readOnly || !enteredRows.has(row.key) ? undefined : () => keepBlankRow(row.key)
+							readOnly || !enteredRows.has(row.key) ? undefined : () => keepBlankRows([row.key])
 						}
 						onBlur={
 							readOnly || !enteredRows.has(row.key)
@@ -811,6 +824,7 @@ export function BlockListField({
 		<div
 			ref={rootRef}
 			className="grid min-w-0 grid-cols-[minmax(0,1fr)]"
+			onFocus={lineField && !readOnly ? () => keepBlankRows(shrinkingBlankRows.keys()) : undefined}
 			onBlur={
 				lineField && !readOnly
 					? (event) => {

@@ -159,7 +159,12 @@ export function growRow(row: HTMLElement, { reveal = true }: { reveal?: boolean 
 	const to = shownPart(scroller, top - by, height);
 	if (to < 1) return;
 	const grow = row.animate(
-		{ height: ["0px", `${to}px`], opacity: [0, 1], clipPath: ["inset(0)", "inset(0)"] },
+		{
+			height: ["0px", `${to}px`],
+			minHeight: ["0px", "0px"],
+			opacity: [0, 1],
+			clipPath: ["inset(0)", "inset(0)"],
+		},
 		{ duration: OPEN_MS, easing: DISCLOSURE_EASE },
 	);
 	// Mounting the row's fields can make a long frame, which would otherwise count as part of the
@@ -196,7 +201,12 @@ export function collapseRow(
 	}
 	const release = holdScroll(scroller, row);
 	const shrink = row.animate(
-		{ height: [`${from}px`, "0px"], opacity: [1, 0], clipPath: ["inset(0)", "inset(0)"] },
+		{
+			height: [`${from}px`, "0px"],
+			minHeight: ["0px", "0px"],
+			opacity: [1, 0],
+			clipPath: ["inset(0)", "inset(0)"],
+		},
 		{ duration: CLOSE_MS, easing: DISCLOSURE_EASE, fill: "forwards" },
 	);
 	let reversed = false;

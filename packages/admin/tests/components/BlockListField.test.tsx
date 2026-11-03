@@ -862,7 +862,7 @@ describe("Lists inside a block in the editor", () => {
 		await expect.element(line(3)).toHaveFocus();
 
 		await page.getByRole("textbox", { name: "Title", exact: true }).fill("Home page");
-		expect(lineValues()).toEqual(["Hotel Wilde", "Norma"]);
+		await expect.poll(lineValues).toEqual(["Hotel Wilde", "Norma"]);
 		await save();
 		expect(savedContent(onSave)[0]?.clients).toEqual([{ name: "Hotel Wilde" }, { name: "Norma" }]);
 	});
