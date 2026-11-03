@@ -361,6 +361,15 @@ function refuse(
 	return { ok: false, code, message };
 }
 
+/** The caller's `options.expectedRevision`, or undefined when the options can't be read. */
+function expectedRevisionOf(options: unknown): unknown {
+	try {
+		return isRecord(options) ? options.expectedRevision : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 /**
  * The draft object a trusted panel receives, one per entry the editor shows. Its revision is a
  * random ID and a counter that advances whenever a call finds the draft values different from
@@ -394,7 +403,7 @@ export function createContentEditorDraft(host: EditorDraftHost): ContentEditorDr
 				fieldDefinitions: keys.map(definitionOf),
 			};
 		},
-		patch(operations: unknown, options?: { expectedRevision?: unknown }) {
+		patch(operations: unknown, options?: unknown) {
 			const state = host.read();
 			if (!state) {
 				return refuse(
@@ -403,7 +412,7 @@ export function createContentEditorDraft(host: EditorDraftHost): ContentEditorDr
 				);
 			}
 			const keys = draftKeys(state);
-			if (revisionOf(serializeValues(keys, state)) !== options?.expectedRevision) {
+			if (revisionOf(serializeValues(keys, state)) !== expectedRevisionOf(options)) {
 				return refuse(
 					"EDITOR_DRAFT_STALE",
 					"The draft changed after this revision was read. Read it again with get().",

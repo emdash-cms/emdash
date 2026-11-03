@@ -388,6 +388,14 @@ describe("createContentEditorDraft", () => {
 			ok: false,
 			code: "EDITOR_DRAFT_INVALID",
 		});
+		const unreadableOptions = {
+			get expectedRevision(): string {
+				throw new Error("Unreadable");
+			},
+		};
+		expect(
+			loose.patch([{ op: "set", field: "title", value: "Hi" }], unreadableOptions),
+		).toMatchObject({ ok: false, code: "EDITOR_DRAFT_STALE" });
 	});
 
 	it("refuses rather than throws when reading the operations throws, and writes nothing", () => {
