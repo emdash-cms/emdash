@@ -604,7 +604,9 @@ export async function translateDraft(
 }
 ```
 
-`translateDraft()` checks `readOnly` before it sends anything, so a read-only editor never sends content to the provider. It returns `null` when no field needs translating.
+`translateDraft()` checks `readOnly` before it sends anything, so a read-only editor never sends content to the provider. It returns `null` when no field needs translating. Define the `translate` route as in [Admin pages](#admin-pages), with a permission that every user of the panel holds, such as `content:edit_own_drafts`. A private route without a permission accepts only administrators.
+
+The SEO panel saves the translated `seo.title` and `seo.description` within about half a second, so on a published entry they reach the live page before the user reviews them. To let the user review them first, leave the `seo.` keys out of the patch and show those translations in the panel instead.
 
 The following panel calls `translateDraft()` when the user presses its button, and says where the text goes. If the user edits a draft value while the request runs, `patch()` returns `EDITOR_DRAFT_STALE` and the form is unchanged, so the panel asks the user to translate again.
 
