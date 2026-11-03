@@ -1242,9 +1242,28 @@ function BlockRow({
 	const versionId = `${rowId}-version`;
 	const errorDotId = `${rowId}-errors`;
 	const showErrorDot = !open && issues.length > 0;
-	const toggleDescription = [showErrorDot && errorDotId, summary && summaryId]
+	const hasBadges = inactive || retired || unsupported;
+	const badgesId = `${rowId}-badges`;
+	const toggleDescription = [
+		hasBadges && badgesId,
+		showErrorDot && errorDotId,
+		summary && summaryId,
+	]
 		.filter(Boolean)
 		.join(" ");
+	const badges = hasBadges && (
+		<span
+			id={badgesId}
+			className={cn(
+				"flex flex-wrap items-center justify-end gap-1 self-center",
+				readOnly ? "ms-2" : "ms-auto",
+			)}
+		>
+			{inactive && <Badge variant="secondary">{t`Inactive version`}</Badge>}
+			{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
+			{unsupported && <Badge variant="secondary">{t`Unsupported`}</Badge>}
+		</span>
+	);
 
 	const addFromMenu = (side: InsertSide) => {
 		const invoker = menuFromHandle ? handleRef.current : triggerRef.current;
@@ -1536,20 +1555,10 @@ function BlockRow({
 							/>
 						)}
 						{showErrorDot && <ErrorDot id={errorDotId} />}
+						{badges}
 					</button>
 				)}
-				{(inactive || retired || unsupported) && (
-					<span
-						className={cn(
-							"flex flex-wrap items-center justify-end gap-1 self-center",
-							readOnly ? "ms-2" : "me-2",
-						)}
-					>
-						{inactive && <Badge variant="secondary">{t`Inactive version`}</Badge>}
-						{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
-						{unsupported && <Badge variant="secondary">{t`Unsupported`}</Badge>}
-					</span>
-				)}
+				{readOnly && badges}
 				{!readOnly && (
 					<DropdownMenu
 						open={menuOpen}
@@ -1826,6 +1835,9 @@ function FieldControl({
 			.filter(Boolean)
 			.join(" ") || undefined;
 	const [focused, setFocused] = React.useState(false);
+	// Focus left by a press is handled once its click lands, which can move this control to
+	// another place in its list.
+	const touch = useStableCallback(onTouch);
 	const wrapperRef = React.useRef<HTMLDivElement>(null);
 	const noteRef = React.useRef<HTMLSpanElement>(null);
 	const ownNote = !onLabelLine && Boolean(notes.message || notes.hint || notes.countSlotId);
@@ -1900,6 +1912,9 @@ function FieldControl({
 		observer.observe(wrapper);
 		return () => observer.disconnect();
 	}, [ownNote, measureNote]);
+	// The line keeps its last problem while it shrinks away, rather than going blank first.
+	const [lineMessage, setLineMessage] = React.useState(notes.message);
+	if (notes.message && notes.message !== lineMessage) setLineMessage(notes.message);
 	const endMessage =
 		notes.message && !below.shown ? (fit.message ? notes.message : notes.briefMessage) : undefined;
 	const change = (next: unknown) => {
@@ -1925,7 +1940,7 @@ function FieldControl({
 				onFocus={ownNote ? () => setFocused(true) : undefined}
 				onBlur={onFocusLeave(() => {
 					setFocused(false);
-					onTouch();
+					touch();
 				})}
 			>
 				<ImageRemovalContext value={field.type === "image" ? offerRestore : null}>
@@ -2015,7 +2030,16 @@ function FieldControl({
 					)}
 				>
 					<p className={cn(NOTE, "min-h-5 ps-2 pb-1 wrap-anywhere text-kumo-danger")}>
-						<span dir="auto">{notes.message}</span>
+						{/* A fixed problem fades out at once; its line keeps its height until focus leaves. */}
+						<span
+							dir="auto"
+							className={cn(
+								"transition-opacity duration-150 ease-emdash motion-reduce:transition-none",
+								!notes.message && "opacity-0",
+							)}
+						>
+							{notes.message || lineMessage}
+						</span>
 					</p>
 				</DisclosurePanel>
 			)}
@@ -2068,6 +2092,7 @@ function BlockFields({
 	const advancedId = React.useId();
 	const advancedSummaryId = `${advancedId}-summary`;
 	const advancedDotId = `${advancedId}-dot`;
+	const touch = useStableCallback(onTouch);
 
 	if (fields.length === 0) {
 		return scope === "block" ? (
@@ -2109,7 +2134,7 @@ function BlockFields({
 					data-field={field.slug}
 					data-field-issue={issueAt(field.slug) ? "" : undefined}
 					className="min-w-0"
-					onBlur={onFocusLeave(() => onTouch(field.slug))}
+					onBlur={onFocusLeave(() => touch(field.slug))}
 				>
 					{renderList(field, labelledBy)}
 				</div>

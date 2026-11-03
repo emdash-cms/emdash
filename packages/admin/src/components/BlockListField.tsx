@@ -500,11 +500,18 @@ export function BlockListField({
 				atOnce.add(key);
 				continue;
 			}
-			const collapse = collapseRow(element, () => {
-				shrinkingBlankRows.delete(key);
-				if (starting) atOnce.add(key);
-				else dropBlankRows(new Set([key]));
-			});
+			const collapse = collapseRow(
+				element,
+				() => {
+					shrinkingBlankRows.delete(key);
+					if (starting) atOnce.add(key);
+					else dropBlankRows(new Set([key]));
+				},
+				// A row the value left out while it shrank isn't removed by the shrink.
+				() => {
+					if (shrinkingBlankRows.get(key) === collapse) shrinkingBlankRows.delete(key);
+				},
+			);
 			if (collapse) shrinkingBlankRows.set(key, collapse);
 		}
 		starting = false;

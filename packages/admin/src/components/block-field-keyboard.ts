@@ -61,14 +61,26 @@ function pressWatch(): PressWatch {
 	};
 	document.addEventListener(
 		"pointerdown",
-		() => {
+		(event) => {
+			// Only the primary button clicks. The others' releases can go unseen, as a native menu
+			// opened by a right press takes them.
+			if (event.button !== 0) return;
 			clearTimeout(watch.timer);
 			watch.pressing = true;
 		},
 		true,
 	);
 	document.addEventListener("pointerup", () => land(CLICK_WAIT_MS), true);
-	document.addEventListener("pointercancel", () => land(0), true);
+	// A press whose release the page may never see, as when a menu opens or the window goes, has
+	// landed as far as anything waiting can tell.
+	const landNow = () => {
+		if (watch.pressing) land(0);
+	};
+	for (const type of ["pointercancel", "contextmenu", "keydown"]) {
+		document.addEventListener(type, landNow, true);
+	}
+	document.addEventListener("visibilitychange", landNow);
+	window.addEventListener("blur", landNow);
 	// Runs before the click's own handlers, so what waits runs after them.
 	document.addEventListener(
 		"click",
@@ -144,8 +156,10 @@ export function whenFocusLeaves(event: React.FocusEvent<HTMLElement>, callback: 
 			callback();
 			return;
 		}
+		// Whether focus went into a popup was settled as it left. What the press did since, such
+		// as open a popup, doesn't bring it back.
 		watch.waiting.add(() => {
-			if (leftFor(container, document.activeElement ?? document.body)) callback();
+			if (container.isConnected && !container.contains(document.activeElement)) callback();
 		});
 	};
 	if (next instanceof Element) {

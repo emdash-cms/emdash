@@ -469,7 +469,7 @@ describe("A settings row's problem", () => {
 		await link.fill("/contact");
 		await control("Headline").click();
 		await expect.element(link).not.toHaveAttribute("aria-invalid");
-		expect(dangerTexts(row)).toEqual([]);
+		await expect.poll(() => dangerTexts(row)).toEqual([]);
 	});
 
 	it("is the red placeholder alone when the control is empty, and leaves the label as it was", async () => {
