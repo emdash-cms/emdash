@@ -125,7 +125,7 @@ describe("CalendarMonth", () => {
 		const screen = await renderMonth({ shown: all, unfilteredDays: all });
 		const full = busyWeek();
 
-		// Four cards unfold where the whole day folds into three and "+2 more".
+		// Four chips unfold where the whole day folds into three and "+2 more".
 		await screen.rerender(month({ shown: toDays(scheduled), unfilteredDays: all }));
 		expect(busyWeek()).toBe(full);
 
