@@ -358,6 +358,115 @@ describe("markdownToPortableText", () => {
 		expect((blocks[0].asset as { url: string }).url).toBe("/img/cat.jpg");
 	});
 
+	it("keeps standalone images between surrounding paragraph text", () => {
+		const blocks = markdownToPortableText(
+			"Here is the photo:\n![photo](/_emdash/api/media/file/abc.jpg)\nThat was the photo.\n",
+		);
+		expect(blocks.map((block) => block._type)).toEqual(["block", "image", "block"]);
+		expect(blocks[0].children.map((span) => span.text).join("")).toBe("Here is the photo:");
+		expect(blocks[1]).toMatchObject({
+			_type: "image",
+			alt: "photo",
+			asset: { url: "/_emdash/api/media/file/abc.jpg" },
+		});
+		expect(blocks[2].children.map((span) => span.text).join("")).toBe("That was the photo.");
+	});
+
+	it("splits images out of marked text without losing surrounding marks", () => {
+		const blocks = markdownToPortableText("**before ![photo](/photo.jpg) after**");
+		expect(blocks.map((block) => block._type)).toEqual(["block", "image", "block"]);
+		for (const [block, text] of [
+			[blocks[0], "before"],
+			[blocks[2], "after"],
+		] as const) {
+			expect(
+				block.children
+					.map((span) => span.text)
+					.join("")
+					.trim(),
+			).toBe(text);
+			expect(block.children.every((span) => span.marks?.includes("strong"))).toBe(true);
+		}
+		expect(blocks[1]).toMatchObject({ _type: "image", asset: { url: "/photo.jpg" } });
+	});
+
+	it("does not create empty text blocks between adjacent paragraph images", () => {
+		const blocks = markdownToPortableText("![one](/one.jpg)\n![two](/two.jpg)");
+		expect(blocks.map((block) => block._type)).toEqual(["image", "image"]);
+	});
+
+	it("splits unlinked images only from ordinary paragraphs", () => {
+		const blocks = markdownToPortableText(
+			"Before ![middle](/middle.jpg) after\n- ![leading](/leading.jpg) item\n  - nested ![trailing](/trailing.jpg)\n> Quote ![quoted](/quoted.jpg)\n",
+		);
+		expect(blocks.map((block) => block._type)).toEqual([
+			"block",
+			"image",
+			"block",
+			"block",
+			"block",
+			"block",
+		]);
+		expect(blocks[1]).toMatchObject({
+			_type: "image",
+			alt: "middle",
+			asset: { url: "/middle.jpg" },
+		});
+		expect(blocks[2].children.map((span) => span.text).join("")).toBe("after");
+		expect(blocks.slice(3).map((block) => [block.listItem, block.level])).toEqual([
+			["bullet", 1],
+			["bullet", 2],
+			[undefined, undefined],
+		]);
+		expect(blocks[3].children.map((span) => span.text).join("")).toBe(
+			"![leading](/leading.jpg) item",
+		);
+		expect(blocks[4].children.map((span) => span.text).join("")).toBe(
+			"nested ![trailing](/trailing.jpg)",
+		);
+		expect(blocks[5]).toMatchObject({ style: "blockquote" });
+		expect(blocks[5].children.map((span) => span.text).join("")).toBe(
+			"Quote ![quoted](/quoted.jpg)",
+		);
+	});
+
+	it("preserves linked image syntax and each link mark definition", () => {
+		const [block] = markdownToPortableText(
+			"[![first](/first.svg)](/first) [![second](/second.svg)](/second)\n",
+		);
+		expect(block._type).toBe("block");
+		expect(block.markDefs.map((def) => def.href)).toEqual(["/first", "/second"]);
+		for (const name of ["first", "second"]) {
+			const span = block.children.find((child) => child.text === `![${name}](/${name}.svg)`);
+			expect(span).toBeDefined();
+			expect(block.markDefs.find((def) => span?.marks?.includes(def._key))?.href).toBe(`/${name}`);
+		}
+	});
+
+	it("keeps escaped punctuation and combined marks through an import/export/import", () => {
+		const imported = markdownToPortableText("**a\\!b**\n");
+		const [escaped] = markdownToPortableText(portableTextToMarkdown(imported));
+		expect(escaped.children.map((span) => span.text).join("")).toBe("a!b");
+		expect(escaped.children.every((span) => span.marks?.includes("strong"))).toBe(true);
+
+		const original: PortableTextBlock[] = [
+			{
+				_type: "block",
+				markDefs: [],
+				children: [
+					{ _type: "span", text: "first", marks: ["strong", "em"] },
+					{ _type: "span", text: "second", marks: ["em", "strong"] },
+				],
+			},
+		];
+		const roundTripped = markdownToPortableText(portableTextToMarkdown(original))[0];
+		expect(roundTripped.children.map((span) => span.text).join("")).toBe("firstsecond");
+		for (const span of roundTripped.children) {
+			expect(span.marks).toEqual(expect.arrayContaining(["strong", "em"]));
+			expect(span.marks).toHaveLength(2);
+		}
+	});
+
 	it("deserializes opaque fences back to original blocks", () => {
 		const original = {
 			_type: "pluginWidget",
@@ -707,6 +816,143 @@ describe("markdownToPortableText", () => {
 		expect(codeSpan).toMatchObject({ text: "a `backtick` value", marks: ["code"] });
 	});
 
+	it("keeps native code-cell backslash pipes lossless", () => {
+		const table = {
+			_type: "table",
+			_key: "code-pipe-table",
+			hasHeaderRow: true,
+			rows: [
+				{
+					_type: "tableRow",
+					_key: "header-row",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "header-cell",
+							isHeader: true,
+							content: [{ _type: "span", _key: "header-span", text: "Value", marks: [] }],
+						},
+					],
+				},
+				{
+					_type: "tableRow",
+					_key: "body-row",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "body-cell",
+							content: [{ _type: "span", _key: "body-span", text: "a\\|b", marks: ["code"] }],
+						},
+					],
+				},
+			],
+		} as unknown as PortableTextBlock;
+		const markdown = portableTextToMarkdown([table]);
+		expect(markdown).toBe(`<!--ec:block ${JSON.stringify(table)} -->\n`);
+		expect(markdownToPortableText(markdown)[0]).toEqual(table);
+		const split = structuredClone(table);
+		split.rows[1].cells[0].content = [
+			{ _type: "span", text: "a\\", marks: ["code"] },
+			{ _type: "span", text: "|b", marks: ["code"] },
+		];
+		expect(portableTextToMarkdown([split])).toBe(`<!--ec:block ${JSON.stringify(split)} -->\n`);
+	});
+
+	it("keeps native table alignment lossless when body alignment is absent", () => {
+		for (const alignment of ["right", "center"]) {
+			const table = {
+				_type: "table",
+				_key: `${alignment}-header-only-alignment`,
+				hasHeaderRow: true,
+				rows: [
+					{
+						_type: "tableRow",
+						_key: "header-row",
+						cells: [
+							{
+								_type: "tableCell",
+								_key: "header-cell",
+								isHeader: true,
+								textAlign: alignment,
+								content: [{ _type: "span", text: "Value", marks: [] }],
+							},
+						],
+					},
+					{
+						_type: "tableRow",
+						_key: "body-row",
+						cells: [
+							{
+								_type: "tableCell",
+								_key: "body-cell",
+								content: [{ _type: "span", text: "body", marks: [] }],
+							},
+						],
+					},
+				],
+			} as unknown as PortableTextBlock;
+			const markdown = portableTextToMarkdown([table]);
+			expect(markdown).toBe(`<!--ec:block ${JSON.stringify(table)} -->\n`);
+			expect(markdownToPortableText(markdown)[0]).toEqual(table);
+
+			const supported = structuredClone(table);
+			(supported.rows[1].cells[0] as Record<string, unknown>).textAlign = alignment;
+			const supportedMarkdown = portableTextToMarkdown([supported]);
+			expect(supportedMarkdown).not.toContain("<!--ec:block");
+			const imported = markdownToPortableText(supportedMarkdown)[0];
+			expect(imported._type).toBe("table");
+			expect(imported.rows.map((row) => row.cells[0].textAlign)).toEqual([alignment, alignment]);
+		}
+	});
+
+	it("keeps native table cell edge whitespace lossless, including split spans", () => {
+		for (const [index, text] of [
+			["leading-space", " leading"],
+			["trailing-space", "trailing "],
+			["both-spaces", " both "],
+			["isolated-leading-span", " x"],
+			["isolated-trailing-span", "x "],
+			["whitespace-only", "  "],
+			["leading-tab", "\tleading"],
+			["trailing-tab", "trailing\t"],
+			["both-tabs", "\tboth\t"],
+		] as const) {
+			const splitAt = Math.ceil(text.length / 2);
+			const table = {
+				_type: "table",
+				_key: `whitespace-${index}`,
+				hasHeaderRow: true,
+				rows: [
+					{
+						_type: "tableRow",
+						cells: [
+							{
+								_type: "tableCell",
+								isHeader: true,
+								content: [{ _type: "span", text: "Header", marks: [] }],
+							},
+						],
+					},
+					{
+						_type: "tableRow",
+						cells: [
+							{
+								_type: "tableCell",
+								content: [
+									{ _type: "span", text: text.slice(0, splitAt), marks: [] },
+									{ _type: "span", text: text.slice(splitAt), marks: [] },
+								],
+							},
+						],
+					},
+				],
+			} as unknown as PortableTextBlock;
+			const markdown = portableTextToMarkdown([table]);
+			expect(markdown).toBe(`<!--ec:block ${JSON.stringify(table)} -->\n`);
+			expect(markdownToPortableText(markdown)[0]).toEqual(table);
+		}
+	});
+
 	it("parses table cell marks, escaped pipes, backslashes, and alignment", () => {
 		const [table] = markdownToPortableText(
 			"| Left | Right |\n| :--- | ---: |\n| **bold** and [link](https://example.com) | `code` and literal \\| pipe \\\\ |\n",
@@ -982,6 +1228,21 @@ describe("convertDataForWrite", () => {
 		expect(blocks[0]._type).toBe("block");
 		const boldSpan = blocks[0].children.find((c) => (c.marks ?? []).includes("strong"));
 		expect(boldSpan!.text).toBe("bold");
+	});
+
+	it("converts an image on a new line in markdown field data to an image block", () => {
+		const result = convertDataForWrite(
+			{ body: "Intro text\n![External image](/external.jpg)" },
+			fields,
+		);
+		const blocks = result.body as PortableTextBlock[];
+
+		expect(blocks.map((block) => block._type)).toEqual(["block", "image"]);
+		expect(blocks[1]).toMatchObject({
+			_type: "image",
+			alt: "External image",
+			asset: { url: "/external.jpg" },
+		});
 	});
 
 	it("passes through raw PT arrays unchanged", () => {

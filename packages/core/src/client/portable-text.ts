@@ -7,7 +7,7 @@
  *   Tier 3: Unknown blocks <-> opaque HTML comment fences (preserved, not editable)
  */
 
-import { Marked, type MarkedToken } from "marked";
+import { Marked, type MarkedToken, type Tokens } from "marked";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -111,6 +111,7 @@ const LINE_BREAK_PATTERN = /[\n\r]/;
 const TRAILING_LINE_BREAK_PATTERN = /\n+$/;
 const CODE_EDGE_PATTERN = /^`|`$/;
 const PADDED_CODE_PATTERN = /^ .* $/;
+const CODE_PIPE_PATTERN = /\\\|/;
 
 interface MarkdownTableCell {
 	_type: string;
@@ -176,7 +177,7 @@ function renderTable(block: PortableTextBlock): string | undefined {
 				(cell.rowspan ?? 1) !== 1 ||
 				cell.colwidth ||
 				(cell.isHeader ?? index === 0) !== (index === 0) ||
-				(cell.textAlign && cell.textAlign !== rows[0]?.cells?.[column]?.textAlign) ||
+				cell.textAlign !== rows[0]?.cells?.[column]?.textAlign ||
 				cell.textAlign === "justify" ||
 				cell.content.some(
 					(span) =>
@@ -191,6 +192,14 @@ function renderTable(block: PortableTextBlock): string | undefined {
 									(def) => def._key === mark && def._type === "link",
 								),
 						),
+				)
+			)
+				return undefined;
+			const text = cell.content.map((span) => span.text ?? "").join("");
+			if (
+				text !== text.trim() ||
+				coalesceSpans(cell.content).some(
+					(span) => span.marks?.includes("code") && CODE_PIPE_PATTERN.test(span.text ?? ""),
 				)
 			)
 				return undefined;
@@ -244,10 +253,29 @@ function wrapMark(text: string, delimiter: string): string {
 	return `${text.slice(0, start)}${delimiter}${trimmed}${delimiter}${text.slice(start + trimmed.length)}`;
 }
 
+function coalesceSpans(spans: PortableTextSpan[]): PortableTextSpan[] {
+	const runs: PortableTextSpan[] = [];
+	for (const span of spans) {
+		const previous = runs.at(-1);
+		const marks = [...new Set(span.marks ?? [])];
+		if (
+			span._type === "span" &&
+			previous?._type === "span" &&
+			marks.length === previous.marks?.length &&
+			marks.every((mark) => previous.marks?.includes(mark))
+		) {
+			previous.text = (previous.text ?? "") + (span.text ?? "");
+		} else {
+			runs.push({ ...span, marks });
+		}
+	}
+	return runs;
+}
+
 function renderSpans(spans: PortableTextSpan[], markDefs: MarkDef[]): string {
 	let result = "";
 
-	for (const span of spans) {
+	for (const span of coalesceSpans(spans)) {
 		if (span._type !== "span") continue;
 
 		const marks = span.marks ?? [];
@@ -307,7 +335,11 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 	return convertTokens(markdownLexer.lexer(markdown) as MarkedToken[]);
 }
 
-function convertTokens(tokens: MarkedToken[], level = 0): PortableTextBlock[] {
+function convertTokens(
+	tokens: MarkedToken[],
+	level = 0,
+	splitParagraphImages = true,
+): PortableTextBlock[] {
 	const blocks: PortableTextBlock[] = [];
 	for (const token of tokens) {
 		switch (token.type) {
@@ -321,21 +353,31 @@ function convertTokens(tokens: MarkedToken[], level = 0): PortableTextBlock[] {
 			case "paragraph":
 			case "text": {
 				const inline = token.tokens as MarkedToken[] | undefined;
-				if (inline?.length === 1 && inline[0]?.type === "image") {
-					const image = inline[0];
-					blocks.push({
-						_type: "image",
-						_key: generateKey(),
-						alt: image.text,
-						asset: { url: image.href },
-					});
-				} else {
-					blocks.push(makeBlock(inline ?? [{ type: "text", raw: token.text, text: token.text }]));
+				const children = inline ?? [{ type: "text" as const, raw: token.text, text: token.text }];
+				const parts = splitParagraphImages ? splitInlineImages(children) : [children];
+				for (const part of parts) {
+					if (Array.isArray(part)) {
+						const block = makeBlock(part);
+						if (parts.length > 1) {
+							const first = block.children?.[0];
+							const last = block.children?.at(-1);
+							if (first && !first.marks?.length) first.text = first.text?.trimStart();
+							if (last && !last.marks?.length) last.text = last.text?.trimEnd();
+						}
+						if (block.children?.some((span) => span.text)) blocks.push(block);
+					} else {
+						blocks.push({
+							_type: "image",
+							_key: generateKey(),
+							alt: part.text,
+							asset: { url: part.href },
+						});
+					}
 				}
 				break;
 			}
 			case "blockquote":
-				for (const block of convertTokens(token.tokens as MarkedToken[], level)) {
+				for (const block of convertTokens(token.tokens as MarkedToken[], level, false)) {
 					if (block._type === "block") block.style = "blockquote";
 					blocks.push(block);
 				}
@@ -343,7 +385,7 @@ function convertTokens(tokens: MarkedToken[], level = 0): PortableTextBlock[] {
 			case "list":
 				for (const item of token.items) {
 					let first = true;
-					for (const block of convertTokens(item.tokens as MarkedToken[], level + 1)) {
+					for (const block of convertTokens(item.tokens as MarkedToken[], level + 1, false)) {
 						if (first && block._type === "block" && !block.listItem) {
 							block.listItem = token.ordered ? "number" : "bullet";
 							block.level = level + 1;
@@ -411,6 +453,36 @@ function convertTokens(tokens: MarkedToken[], level = 0): PortableTextBlock[] {
 		}
 	}
 	return blocks;
+}
+
+function splitInlineImages(tokens: MarkedToken[]): Array<MarkedToken[] | Tokens.Image> {
+	const parts: Array<MarkedToken[] | Tokens.Image> = [];
+	let pending: MarkedToken[] = [];
+	function appendImage(image: Tokens.Image): void {
+		if (pending.length) parts.push(pending);
+		pending = [];
+		parts.push(image);
+	}
+	for (const token of tokens) {
+		if (token.type === "image") {
+			appendImage(token);
+		} else if (
+			(token.type === "strong" ||
+				token.type === "em" ||
+				token.type === "del" ||
+				token.type === "text") &&
+			token.tokens
+		) {
+			for (const part of splitInlineImages(token.tokens as MarkedToken[])) {
+				if (Array.isArray(part)) pending.push({ ...token, tokens: part });
+				else appendImage(part);
+			}
+		} else {
+			pending.push(token);
+		}
+	}
+	if (pending.length) parts.push(pending);
+	return parts;
 }
 
 function makeBlock(tokens: MarkedToken[], style = "normal"): PortableTextBlock {
