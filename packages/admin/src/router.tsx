@@ -69,6 +69,7 @@ import { GeneralSettings } from "./components/settings/GeneralSettings";
 import { MediaUsageSettings } from "./components/settings/MediaUsageSettings";
 import { SecuritySettings } from "./components/settings/SecuritySettings";
 import { SeoSettings } from "./components/settings/SeoSettings";
+import { SidebarsSettings } from "./components/settings/SidebarsSettings";
 import { SocialSettings } from "./components/settings/SocialSettings";
 import { TransferSettings } from "./components/settings/TransferSettings";
 import { SetupWizard } from "./components/SetupWizard";
@@ -2597,6 +2598,19 @@ function TransferSettingsPage() {
 	return <TransferSettings focusImport={start === "import"} />;
 }
 
+const sidebarsSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/settings/sidebars",
+	component: SidebarsSettingsPage,
+	validateSearch: (search: Record<string, unknown>): { tab?: "editor" } =>
+		search.tab === "editor" ? { tab: "editor" } : {},
+});
+
+function SidebarsSettingsPage() {
+	const { tab } = sidebarsSettingsRoute.useSearch();
+	return <SidebarsSettings tab={tab ?? "navigation"} />;
+}
+
 // General settings route
 const generalSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -3297,6 +3311,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	emailSettingsRoute,
 	backupSettingsRoute,
 	transferSettingsRoute,
+	sidebarsSettingsRoute,
 	wordpressImportRoute,
 	notFoundRoute,
 ]);
