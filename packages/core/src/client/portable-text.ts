@@ -7,6 +7,8 @@
  *   Tier 3: Unknown blocks <-> opaque HTML comment fences (preserved, not editable)
  */
 
+import { Marked, type MarkedToken } from "marked";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -54,6 +56,7 @@ interface ParsedInline {
 export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 	const lines: string[] = [];
 	let prevWasList = false;
+	const listWidths: number[] = [];
 
 	for (let i = 0; i < blocks.length; i++) {
 		const block = blocks[i];
@@ -66,7 +69,14 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 				lines.push("");
 			}
 
-			lines.push(renderStandardBlock(block));
+			const level = Math.max(1, block.level ?? 1);
+			const indent = Array.from({ length: level - 1 }, (_, index) => listWidths[index] ?? 2).reduce(
+				(sum, width) => sum + width,
+				0,
+			);
+			listWidths[level - 1] = block.listItem === "number" ? 3 : 2;
+			listWidths.length = isList ? level : 0;
+			lines.push(renderStandardBlock(block, indent));
 			prevWasList = isList;
 		} else if (block._type === "code") {
 			if (i > 0) lines.push("");
@@ -82,6 +92,10 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 			const url = (block.asset as { url?: string })?.url || "";
 			lines.push(`![${alt}](${url})`);
 			prevWasList = false;
+		} else if (block._type === "table") {
+			if (i > 0) lines.push("");
+			lines.push(renderTable(block) ?? `<!--ec:block ${JSON.stringify(block)} -->`);
+			prevWasList = false;
 		} else {
 			// Tier 3: Unknown block -> opaque fence
 			if (i > 0) lines.push("");
@@ -93,14 +107,118 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 	return lines.join("\n") + "\n";
 }
 
-function renderStandardBlock(block: PortableTextBlock): string {
+const LINE_BREAK_PATTERN = /[\n\r]/;
+const TRAILING_LINE_BREAK_PATTERN = /\n+$/;
+const CODE_EDGE_PATTERN = /^`|`$/;
+const PADDED_CODE_PATTERN = /^ .* $/;
+
+interface MarkdownTableCell {
+	_type: string;
+	content: PortableTextSpan[];
+	markDefs?: MarkDef[];
+	isHeader?: boolean;
+	colspan?: number;
+	rowspan?: number;
+	colwidth?: unknown;
+	textAlign?: string;
+}
+
+const TABLE_FIELDS = new Set(["_type", "_key", "rows", "hasHeaderRow", "markDefs"]);
+const ROW_FIELDS = new Set(["_type", "_key", "cells"]);
+const CELL_FIELDS = new Set([
+	"_type",
+	"_key",
+	"content",
+	"markDefs",
+	"isHeader",
+	"colspan",
+	"rowspan",
+	"colwidth",
+	"textAlign",
+]);
+const SPAN_FIELDS = new Set(["_type", "_key", "text", "marks"]);
+const LINK_FIELDS = new Set(["_type", "_key", "href"]);
+const MARKDOWN_MARKS = new Set(["strong", "em", "code", "strike-through", "strikethrough"]);
+
+function hasOnlyFields(value: object, fields: Set<string>): boolean {
+	return Object.keys(value).every((key) => fields.has(key));
+}
+
+function canRenderMarkDefs(defs: MarkDef[]): boolean {
+	return defs.every((def) => def?._type === "link" && hasOnlyFields(def, LINK_FIELDS));
+}
+
+function renderTable(block: PortableTextBlock): string | undefined {
+	if (
+		!Array.isArray(block.rows) ||
+		!block.rows.length ||
+		!hasOnlyFields(block, TABLE_FIELDS) ||
+		!canRenderMarkDefs(block.markDefs ?? [])
+	)
+		return undefined;
+	const rows = block.rows as Array<{ cells?: MarkdownTableCell[] }>;
+	const width = rows[0]?.cells?.length;
+	if (!width || !block.hasHeaderRow) return undefined;
+	const rendered: string[] = [];
+	for (const [index, row] of rows.entries()) {
+		if (!Array.isArray(row?.cells) || row.cells.length !== width || !hasOnlyFields(row, ROW_FIELDS))
+			return undefined;
+		const cells: string[] = [];
+		for (const [column, cell] of row.cells.entries()) {
+			// GFM cannot represent merged cells, per-row alignment, or column widths.
+			if (
+				!cell ||
+				cell._type !== "tableCell" ||
+				!hasOnlyFields(cell, CELL_FIELDS) ||
+				!canRenderMarkDefs(cell.markDefs ?? []) ||
+				!Array.isArray(cell.content) ||
+				(cell.colspan ?? 1) !== 1 ||
+				(cell.rowspan ?? 1) !== 1 ||
+				cell.colwidth ||
+				(cell.isHeader ?? index === 0) !== (index === 0) ||
+				(cell.textAlign && cell.textAlign !== rows[0]?.cells?.[column]?.textAlign) ||
+				cell.textAlign === "justify" ||
+				cell.content.some(
+					(span) =>
+						!span ||
+						span._type !== "span" ||
+						!hasOnlyFields(span, SPAN_FIELDS) ||
+						LINE_BREAK_PATTERN.test(span.text ?? "") ||
+						span.marks?.some(
+							(mark) =>
+								!MARKDOWN_MARKS.has(mark) &&
+								![...(cell.markDefs ?? []), ...(block.markDefs ?? [])].some(
+									(def) => def._key === mark && def._type === "link",
+								),
+						),
+				)
+			)
+				return undefined;
+			cells.push(
+				renderSpans(cell.content, [...(cell.markDefs ?? []), ...(block.markDefs ?? [])]).replaceAll(
+					"|",
+					"\\|",
+				),
+			);
+		}
+		rendered.push(`| ${cells.join(" | ")} |`);
+		if (index === 0) {
+			rendered.push(
+				`| ${row.cells.map((cell) => (cell.textAlign === "center" ? ":---:" : cell.textAlign === "right" ? "---:" : cell.textAlign === "left" ? ":---" : "---")).join(" | ")} |`,
+			);
+		}
+	}
+	return rendered.join("\n");
+}
+
+function renderStandardBlock(block: PortableTextBlock, indentation = 0): string {
 	const text = renderSpans(block.children ?? [], block.markDefs ?? []);
 
 	// List items
 	if (block.listItem) {
-		const indent = "  ".repeat(Math.max(0, (block.level ?? 1) - 1));
+		const indent = " ".repeat(indentation);
 		const marker = block.listItem === "number" ? "1." : "-";
-		return `${indent}${marker} ${text}`;
+		return `${indent}${marker} ${text.replaceAll("\n", `\n${indent}${" ".repeat(marker.length + 1)}`)}`;
 	}
 
 	// Headings
@@ -113,10 +231,17 @@ function renderStandardBlock(block: PortableTextBlock): string {
 
 	// Blockquote
 	if (block.style === "blockquote") {
-		return `> ${text}`;
+		return `> ${text.replaceAll("\n", "\n> ")}`;
 	}
 
 	return text;
+}
+
+function wrapMark(text: string, delimiter: string): string {
+	const trimmed = text.trim();
+	if (!trimmed) return text;
+	const start = text.length - text.trimStart().length;
+	return `${text.slice(0, start)}${delimiter}${trimmed}${delimiter}${text.slice(start + trimmed.length)}`;
 }
 
 function renderSpans(spans: PortableTextSpan[], markDefs: MarkDef[]): string {
@@ -125,229 +250,217 @@ function renderSpans(spans: PortableTextSpan[], markDefs: MarkDef[]): string {
 	for (const span of spans) {
 		if (span._type !== "span") continue;
 
-		let text = span.text ?? "";
 		const marks = span.marks ?? [];
-
+		const value = marks.includes("code")
+			? (span.text ?? "").replaceAll("\n", " ")
+			: (span.text ?? "");
+		let text: string;
+		if (marks.includes("code")) {
+			const runs = value.match(/`+/g) ?? [];
+			const fence = "`".repeat(runs.reduce((max, run) => Math.max(max, run.length), 0) + 1);
+			const padding =
+				CODE_EDGE_PATTERN.test(value) || (PADDED_CODE_PATTERN.test(value) && value.trim())
+					? " "
+					: "";
+			text = `${fence}${padding}${value}${padding}${fence}`;
+		} else {
+			text = value.replace(/[\\`*_[\]<>~]/g, "\\$&");
+		}
 		for (const mark of marks) {
-			const def = markDefs.find((d) => d._key === mark);
-			if (def) {
-				if (def._type === "link") {
-					text = `[${text}](${def.href ?? ""})`;
-				}
-			} else {
-				switch (mark) {
-					case "strong":
-						text = `**${text}**`;
-						break;
-					case "em":
-						text = `_${text}_`;
-						break;
-					case "code":
-						text = `\`${text}\``;
-						break;
-					case "strike-through":
-					case "strikethrough":
-						text = `~~${text}~~`;
-						break;
-				}
+			switch (mark) {
+				case "strong":
+					text = wrapMark(text, "**");
+					break;
+				case "em":
+					text = wrapMark(text, "*");
+					break;
+				case "strike-through":
+				case "strikethrough":
+					text = wrapMark(text, "~~");
+					break;
 			}
+		}
+		for (const mark of marks) {
+			const def = markDefs.find((candidate) => candidate._key === mark);
+			if (def?._type === "link") text = `[${text}](${def.href ?? ""})`;
 		}
 
 		result += text;
 	}
 
-	return result;
+	return result.replace(TRAILING_LINE_BREAK_PATTERN, "").replaceAll("\n", "\\\n");
 }
 
 // ---------------------------------------------------------------------------
 // Markdown -> PT
 // ---------------------------------------------------------------------------
 
-// Regex patterns for markdown parsing
+let markdownLexer: Marked | undefined;
 const OPAQUE_FENCE_PATTERN = /^<!--ec:block (.+) -->$/;
-const HEADING_PATTERN = /^(#{1,6})\s+(.+)$/;
-const UNORDERED_LIST_PATTERN = /^(\s*)[-*+]\s+(.+)$/;
-const ORDERED_LIST_PATTERN = /^(\s*)\d+\.\s+(.+)$/;
-const IMAGE_PATTERN = /^!\[([^\]]*)\]\(([^)]+)\)$/;
-const INLINE_MARKDOWN_PATTERN =
-	/(\*\*(.+?)\*\*)|(_(.+?)_)|(`(.+?)`)|(\[(.+?)\]\((.+?)\))|(~~(.+?)~~)/g;
 
 /**
  * Convert Markdown to Portable Text blocks.
  * Opaque fences (<!--ec:block ... -->) are deserialized and spliced back in.
  */
 export function markdownToPortableText(markdown: string): PortableTextBlock[] {
+	markdownLexer ??= new Marked({ gfm: true, tokenizer: { url: () => undefined } });
+	return convertTokens(markdownLexer.lexer(markdown) as MarkedToken[]);
+}
+
+function convertTokens(tokens: MarkedToken[], level = 0): PortableTextBlock[] {
 	const blocks: PortableTextBlock[] = [];
-	const lines = markdown.split("\n");
-	let i = 0;
-
-	while (i < lines.length) {
-		const line = lines[i];
-
-		// Opaque fence
-		const opaqueMatch = line.match(OPAQUE_FENCE_PATTERN);
-		if (opaqueMatch) {
-			try {
-				blocks.push(JSON.parse(opaqueMatch[1]) as PortableTextBlock);
-			} catch {
-				blocks.push(makeBlock(line));
+	for (const token of tokens) {
+		switch (token.type) {
+			case "space":
+			case "def":
+			case "checkbox":
+				break;
+			case "heading":
+				blocks.push(makeBlock(token.tokens as MarkedToken[], `h${token.depth}`));
+				break;
+			case "paragraph":
+			case "text": {
+				const inline = token.tokens as MarkedToken[] | undefined;
+				if (inline?.length === 1 && inline[0]?.type === "image") {
+					const image = inline[0];
+					blocks.push({
+						_type: "image",
+						_key: generateKey(),
+						alt: image.text,
+						asset: { url: image.href },
+					});
+				} else {
+					blocks.push(makeBlock(inline ?? [{ type: "text", raw: token.text, text: token.text }]));
+				}
+				break;
 			}
-			i++;
-			continue;
+			case "blockquote":
+				for (const block of convertTokens(token.tokens as MarkedToken[], level)) {
+					if (block._type === "block") block.style = "blockquote";
+					blocks.push(block);
+				}
+				break;
+			case "list":
+				for (const item of token.items) {
+					let first = true;
+					for (const block of convertTokens(item.tokens as MarkedToken[], level + 1)) {
+						if (first && block._type === "block" && !block.listItem) {
+							block.listItem = token.ordered ? "number" : "bullet";
+							block.level = level + 1;
+							if (item.tokens[0]?.type === "checkbox") {
+								block.children?.unshift({
+									_type: "span",
+									_key: generateKey(),
+									text: item.tokens[0].raw,
+									marks: [],
+								});
+							}
+						}
+						first = false;
+						blocks.push(block);
+					}
+				}
+				break;
+			case "code":
+				blocks.push({
+					_type: "code",
+					_key: generateKey(),
+					language: token.lang || undefined,
+					code: token.text,
+				});
+				break;
+			case "table":
+				blocks.push({
+					_type: "table",
+					_key: generateKey(),
+					hasHeaderRow: true,
+					rows: [token.header, ...token.rows].map((row, index) => ({
+						_type: "tableRow",
+						_key: generateKey(),
+						cells: row.map((cell, column) => {
+							const { spans, markDefs } = parseInline(cell.tokens as MarkedToken[]);
+							return {
+								_type: "tableCell",
+								_key: generateKey(),
+								content: spans,
+								markDefs,
+								isHeader: index === 0,
+								...(token.align[column] ? { textAlign: token.align[column] } : {}),
+							};
+						}),
+					})),
+				});
+				break;
+			case "html":
+				// Marked can group adjacent comments into one HTML token.
+				for (const line of token.raw.trimEnd().split("\n")) {
+					const match = line.match(OPAQUE_FENCE_PATTERN);
+					if (match) {
+						try {
+							blocks.push(JSON.parse(match[1]) as PortableTextBlock);
+							continue;
+						} catch {
+							/* Preserve malformed fences as literal text. */
+						}
+					}
+					blocks.push(makeBlock([{ type: "text", raw: line, text: line }]));
+				}
+				break;
+			default:
+				blocks.push(makeBlock([{ type: "text", raw: token.raw, text: token.raw.trimEnd() }]));
 		}
-
-		// Code fence
-		if (line.startsWith("```")) {
-			const lang = line.slice(3).trim();
-			const codeLines: string[] = [];
-			i++;
-			while (i < lines.length && !lines[i].startsWith("```")) {
-				codeLines.push(lines[i]);
-				i++;
-			}
-			blocks.push({
-				_type: "code",
-				_key: generateKey(),
-				language: lang || undefined,
-				code: codeLines.join("\n"),
-			});
-			i++; // skip closing ```
-			continue;
-		}
-
-		// Blank line
-		if (line.trim() === "") {
-			i++;
-			continue;
-		}
-
-		// Heading
-		const headingMatch = line.match(HEADING_PATTERN);
-		if (headingMatch) {
-			blocks.push(makeBlock(headingMatch[2], `h${headingMatch[1].length}`));
-			i++;
-			continue;
-		}
-
-		// Blockquote
-		if (line.startsWith("> ")) {
-			blocks.push(makeBlock(line.slice(2), "blockquote"));
-			i++;
-			continue;
-		}
-
-		// Unordered list
-		const ulMatch = line.match(UNORDERED_LIST_PATTERN);
-		if (ulMatch) {
-			const level = Math.floor(ulMatch[1].length / 2) + 1;
-			blocks.push(makeListBlock(ulMatch[2], "bullet", level));
-			i++;
-			continue;
-		}
-
-		// Ordered list
-		const olMatch = line.match(ORDERED_LIST_PATTERN);
-		if (olMatch) {
-			const level = Math.floor(olMatch[1].length / 2) + 1;
-			blocks.push(makeListBlock(olMatch[2], "number", level));
-			i++;
-			continue;
-		}
-
-		// Image
-		const imgMatch = line.match(IMAGE_PATTERN);
-		if (imgMatch) {
-			blocks.push({
-				_type: "image",
-				_key: generateKey(),
-				alt: imgMatch[1],
-				asset: { url: imgMatch[2] },
-			});
-			i++;
-			continue;
-		}
-
-		// Paragraph
-		blocks.push(makeBlock(line));
-		i++;
 	}
-
 	return blocks;
 }
 
-// ---------------------------------------------------------------------------
-// Block builders
-// ---------------------------------------------------------------------------
-
-function makeBlock(text: string, style: string = "normal"): PortableTextBlock {
-	const { spans, markDefs } = parseInline(text);
+function makeBlock(tokens: MarkedToken[], style = "normal"): PortableTextBlock {
+	const { spans, markDefs } = parseInline(tokens);
 	return { _type: "block", _key: generateKey(), style, markDefs, children: spans };
 }
 
-function makeListBlock(text: string, listItem: string, level: number): PortableTextBlock {
-	const { spans, markDefs } = parseInline(text);
-	return {
-		_type: "block",
-		_key: generateKey(),
-		style: "normal",
-		listItem,
-		level,
-		markDefs,
-		children: spans,
-	};
-}
-
-/**
- * Parse inline markdown (bold, italic, code, links, strikethrough) into PT spans + markDefs.
- */
-function parseInline(text: string): ParsedInline {
+function parseInline(tokens: MarkedToken[]): ParsedInline {
 	const spans: PortableTextSpan[] = [];
 	const markDefs: MarkDef[] = [];
-	const regex = INLINE_MARKDOWN_PATTERN;
-
-	let lastIndex = 0;
-	let match: RegExpExecArray | null;
-
-	while ((match = regex.exec(text)) !== null) {
-		if (match.index > lastIndex) {
-			spans.push({
-				_type: "span",
-				_key: generateKey(),
-				text: text.slice(lastIndex, match.index),
-				marks: [],
-			});
+	const append = (text: string, marks: string[]) => {
+		spans.push({ _type: "span", _key: generateKey(), text, marks });
+	};
+	function visit(children: MarkedToken[], marks: string[] = []): void {
+		for (const token of children) {
+			switch (token.type) {
+				case "strong":
+				case "em":
+				case "del":
+					visit(token.tokens as MarkedToken[], [
+						...marks,
+						token.type === "del" ? "strike-through" : token.type,
+					]);
+					break;
+				case "link": {
+					const key = generateKey();
+					markDefs.push({ _type: "link", _key: key, href: token.href });
+					visit(token.tokens as MarkedToken[], [...marks, key]);
+					break;
+				}
+				case "codespan":
+					append(token.text, [...marks, "code"]);
+					break;
+				case "br":
+					append("\n", marks);
+					break;
+				case "text":
+					if (token.tokens) visit(token.tokens as MarkedToken[], marks);
+					else append(token.text.replaceAll("\n", " "), marks);
+					break;
+				case "escape":
+					append(token.text, marks);
+					break;
+				default:
+					append(token.raw, marks);
+			}
 		}
-
-		if (match[2] != null) {
-			spans.push({ _type: "span", _key: generateKey(), text: match[2], marks: ["strong"] });
-		} else if (match[4] != null) {
-			spans.push({ _type: "span", _key: generateKey(), text: match[4], marks: ["em"] });
-		} else if (match[6] != null) {
-			spans.push({ _type: "span", _key: generateKey(), text: match[6], marks: ["code"] });
-		} else if (match[8] != null && match[9] != null) {
-			const key = generateKey();
-			markDefs.push({ _key: key, _type: "link", href: match[9] });
-			spans.push({ _type: "span", _key: generateKey(), text: match[8], marks: [key] });
-		} else if (match[11] != null) {
-			spans.push({
-				_type: "span",
-				_key: generateKey(),
-				text: match[11],
-				marks: ["strike-through"],
-			});
-		}
-
-		lastIndex = match.index + match[0].length;
 	}
-
-	if (lastIndex < text.length) {
-		spans.push({ _type: "span", _key: generateKey(), text: text.slice(lastIndex), marks: [] });
-	}
-
-	if (spans.length === 0) {
-		spans.push({ _type: "span", _key: generateKey(), text, marks: [] });
-	}
-
+	visit(tokens);
+	if (!spans.length) append("", []);
 	return { spans, markDefs };
 }
 

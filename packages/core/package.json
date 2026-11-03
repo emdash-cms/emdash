@@ -309,6 +309,7 @@
     "jpeg-js": "^0.4.4",
     "jsonc-parser": "catalog:",
     "kysely": "catalog:",
+    "marked": "^17.0.3",
     "mime": "^4.1.0",
     "modern-tar": "^0.7.5",
     "picocolors": "^1.1.1",

@@ -67,7 +67,7 @@ describe("portableTextToMarkdown", () => {
 			},
 		];
 		expect(portableTextToMarkdown(blocks)).toBe(
-			"**bold** and _italic_ and `code` and ~~struck~~\n",
+			"**bold** and *italic* and `code` and ~~struck~~\n",
 		);
 	});
 
@@ -387,6 +387,390 @@ describe("markdownToPortableText", () => {
 		expect(strikeSpan).toBeDefined();
 		expect(strikeSpan!.text).toBe("deleted");
 	});
+
+	it("preserves marks when links are nested inside or outside strong text", () => {
+		const blocks = markdownToPortableText(
+			"**[Bold Link](https://example.com)** and [**Link with bold**](https://example.org)\n",
+		);
+		const links = blocks[0].markDefs;
+		expect(links).toHaveLength(2);
+		expect(blocks[0].children).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ text: "Bold Link", marks: expect.arrayContaining(["strong"]) }),
+				expect.objectContaining({
+					text: "Link with bold",
+					marks: expect.arrayContaining(["strong"]),
+				}),
+			]),
+		);
+		const linkKeys = links.map((def) => def._key);
+		for (const span of blocks[0].children.filter((child) =>
+			/Bold Link|Link with bold/.test(child.text),
+		)) {
+			expect(span.marks).toEqual(expect.arrayContaining(["strong"]));
+			expect(linkKeys).toContain(span.marks.find((mark) => linkKeys.includes(mark)));
+		}
+	});
+
+	it("parses nested marks and resolves link marks on the actual spans", () => {
+		const block = markdownToPortableText(
+			"*italic* **strong _em `code` ~~strike~~_** [**linked**](https://example.com)\n",
+		)[0];
+		const spans = new Map(block.children.map((child) => [child.text, child]));
+		const linkKey = block.markDefs.find(
+			(def) => def._type === "link" && def.href === "https://example.com",
+		)?._key;
+
+		expect(spans.get("italic")?.marks).toEqual(["em"]);
+		expect(spans.get("code")?.marks).toEqual(["strong", "em", "code"]);
+		expect(spans.get("strike")?.marks).toEqual(["strong", "em", "strike-through"]);
+		expect(linkKey).toBeDefined();
+		expect(spans.get("linked")?.marks).toEqual(expect.arrayContaining(["strong", linkKey]));
+		expect(spans.get("linked")?.marks).toHaveLength(2);
+		expect(block.markDefs).toEqual([
+			expect.objectContaining({ _type: "link", href: "https://example.com", _key: linkKey }),
+		]);
+
+		const compound = {
+			...block,
+			children: [{ _type: "span", text: "compound", marks: ["strong", "em", "code", linkKey] }],
+		};
+		const roundTripped = markdownToPortableText(portableTextToMarkdown([compound]))[0];
+		const roundTrippedSpan = roundTripped.children.find((child) => child.text === "compound");
+		const roundTrippedLinkKey = roundTripped.markDefs.find(
+			(def) => def._type === "link" && def.href === "https://example.com",
+		)?._key;
+		expect(roundTrippedSpan?.marks).toEqual(
+			expect.arrayContaining(["strong", "em", "code", roundTrippedLinkKey]),
+		);
+		expect(roundTrippedSpan?.marks).toHaveLength(4);
+	});
+
+	it("imports GFM tables into the native table block shape", () => {
+		const [table] = markdownToPortableText("| Name | Score |\n| :--- | ---: |\n| Ada | 10 |\n");
+		expect(table).toMatchObject({ _type: "table", hasHeaderRow: true });
+		expect(table.rows).toHaveLength(2);
+		expect(table.rows.map((row) => row._type)).toEqual(["tableRow", "tableRow"]);
+		expect(table.rows.map((row) => row.cells.map((cell) => cell._type))).toEqual([
+			["tableCell", "tableCell"],
+			["tableCell", "tableCell"],
+		]);
+		expect(table.rows[0].cells.map((cell) => cell.content[0].text)).toEqual(["Name", "Score"]);
+		expect(table.rows[0].cells.every((cell) => cell.isHeader)).toBe(true);
+		expect(table.rows[1].cells.map((cell) => cell.content[0].text)).toEqual(["Ada", "10"]);
+	});
+
+	it("round-trips a native table with header cells and cell content", () => {
+		const original: PortableTextBlock[] = [
+			{
+				_type: "table",
+				_key: "table",
+				hasHeaderRow: true,
+				rows: [
+					{
+						_type: "tableRow",
+						_key: "header",
+						cells: [
+							{
+								_type: "tableCell",
+								_key: "h1",
+								isHeader: true,
+								content: [{ _type: "span", _key: "s1", text: "Name" }],
+							},
+							{
+								_type: "tableCell",
+								_key: "h2",
+								isHeader: true,
+								content: [{ _type: "span", _key: "s2", text: "Score" }],
+							},
+						],
+					},
+					{
+						_type: "tableRow",
+						_key: "body",
+						cells: [
+							{
+								_type: "tableCell",
+								_key: "c1",
+								content: [{ _type: "span", _key: "s3", text: "Ada" }],
+							},
+							{
+								_type: "tableCell",
+								_key: "c2",
+								content: [{ _type: "span", _key: "s4", text: "10" }],
+							},
+						],
+					},
+				],
+			},
+		];
+		const markdown = portableTextToMarkdown(original);
+		expect(markdown).toContain("| Name | Score |");
+		expect(markdown).not.toContain("<!--ec:block");
+		const roundTripped = markdownToPortableText(markdown);
+		expect(roundTripped[0]).toMatchObject({ _type: "table", hasHeaderRow: true });
+		expect(
+			roundTripped[0].rows.map((row) => row.cells.map((cell) => cell.content[0].text)),
+		).toEqual([
+			["Name", "Score"],
+			["Ada", "10"],
+		]);
+	});
+
+	it("retains mixed list types and indentation levels", () => {
+		const blocks = markdownToPortableText("1. One\n   1. Two\n    - Three\n       * Four\n");
+		expect(blocks.map((block) => [block.listItem, block.level])).toEqual([
+			["number", 1],
+			["number", 2],
+			["bullet", 2],
+			["bullet", 3],
+		]);
+	});
+
+	it("keeps wrapped paragraphs, escaped literals, references, and multiline quotes", () => {
+		const blocks = markdownToPortableText(
+			"wrapped first line\nwrapped second line\n\nEscaped \\*literal\\* and [reference][id]\n\n> first quote\n> second quote\n\n[id]: https://example.com\n",
+		);
+		expect(blocks).toHaveLength(3);
+		expect(blocks[0].children.map((child) => child.text).join("")).toContain("wrapped first line");
+		expect(blocks[0].children.map((child) => child.text).join("")).toContain("wrapped second line");
+		expect(blocks[1].children.map((child) => child.text).join("")).toContain("*literal*");
+		expect(blocks[1].markDefs).toEqual([
+			expect.objectContaining({ _type: "link", href: "https://example.com" }),
+		]);
+		expect(blocks[2]).toMatchObject({ _type: "block", style: "blockquote" });
+		expect(blocks[2].children.map((child) => child.text).join("")).toContain("first quote");
+		expect(blocks[2].children.map((child) => child.text).join("")).toContain("second quote");
+	});
+
+	it("keeps strong edge whitespace and intraword emphasis through Markdown round-trip", () => {
+		const original: PortableTextBlock[] = [
+			{
+				_type: "block",
+				style: "normal",
+				markDefs: [],
+				children: [
+					{ _type: "span", text: " bold ", marks: ["strong"] },
+					{ _type: "span", text: "bar", marks: [] },
+					{ _type: "span", text: "foo", marks: ["em"] },
+					{ _type: "span", text: "baz", marks: [] },
+				],
+			},
+		];
+
+		const roundTripped = markdownToPortableText(portableTextToMarkdown(original));
+		const perCharacterMarks = (block: PortableTextBlock) =>
+			block.children.flatMap((span) =>
+				Array.from(span.text ?? "", (character) => ({
+					character,
+					marks: character.trim() ? (span.marks ?? []) : [],
+				})),
+			);
+		expect(perCharacterMarks(roundTripped[0])).toEqual(perCharacterMarks(original[0]));
+	});
+
+	it("preserves unsupported table content and fields as opaque blocks", () => {
+		const variants: Array<{
+			marks: string[];
+			markDefs?: Array<Record<string, unknown>>;
+			cellFields?: Record<string, unknown>;
+			tableFields?: Record<string, unknown>;
+		}> = [
+			{ marks: ["underline"] },
+			{ marks: ["subscript"] },
+			{ marks: ["superscript"] },
+			{
+				marks: ["annotation"],
+				markDefs: [{ _key: "annotation", _type: "annotation", value: "x" }],
+			},
+			{ marks: ["link"], markDefs: [{ _key: "link", _type: "link", href: "/x", blank: true }] },
+			{
+				marks: [],
+				cellFields: { unknownCellField: true },
+				tableFields: { unknownTableField: "kept" },
+			},
+		];
+		const tables = variants.map((variant, index) => ({
+			_type: "table",
+			_key: `unsupported-${index}`,
+			...variant.tableFields,
+			hasHeaderRow: true,
+			rows: [
+				{
+					_type: "tableRow",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: `cell-${index}`,
+							...variant.cellFields,
+							content: [{ _type: "span", text: "value", marks: variant.marks }],
+							...(variant.markDefs ? { markDefs: variant.markDefs } : {}),
+							isHeader: true,
+						},
+					],
+				},
+			],
+		})) as unknown as PortableTextBlock[];
+
+		for (const table of tables) {
+			const markdown = portableTextToMarkdown([table]);
+			expect(markdown).toBe(`<!--ec:block ${JSON.stringify(table)} -->\n`);
+			expect(markdownToPortableText(markdown)[0]).toEqual(table);
+		}
+	});
+
+	it("does not link plain URLs or email addresses, but imports angle autolinks", () => {
+		const [block] = markdownToPortableText(
+			"https://plain.example alice@example.com <https://explicit.example>\n",
+		);
+		expect(block.markDefs).toEqual([
+			expect.objectContaining({ _type: "link", href: "https://explicit.example" }),
+		]);
+		expect(
+			block.children.find((span) => span.text?.includes("https://plain.example"))?.marks,
+		).toEqual([]);
+		expect(block.children.find((span) => span.text?.includes("alice@example.com"))?.marks).toEqual(
+			[],
+		);
+		const explicit = block.children.find((span) => span.text === "https://explicit.example");
+		expect(explicit?.marks).toContain(block.markDefs[0]._key);
+	});
+
+	it("keeps tight and loose task list items as one item", () => {
+		for (const markdown of ["- [ ] Buy milk\n- [x] Done\n", "- [ ] Buy milk\n\n- [x] Done\n"]) {
+			const blocks = markdownToPortableText(markdown);
+			expect(blocks).toHaveLength(2);
+			expect(blocks.map((block) => block.listItem)).toEqual(["bullet", "bullet"]);
+			expect(blocks.map((block) => block.children.map((span) => span.text).join(""))).toEqual([
+				"[ ] Buy milk",
+				"[x] Done",
+			]);
+		}
+	});
+
+	it("distinguishes soft wraps, hard breaks, and Portable Text newlines", () => {
+		const blocks = markdownToPortableText("soft one\nsoft two\n\nhard one  \nhard two\n");
+		expect(blocks[0].children.map((span) => span.text).join("")).toBe("soft one soft two");
+		expect(blocks[1].children.map((span) => span.text).join("")).toBe("hard one\nhard two");
+
+		const original: PortableTextBlock[] = [
+			{
+				_type: "block",
+				style: "normal",
+				markDefs: [],
+				children: [{ _type: "span", text: "first\nsecond", marks: [] }],
+			},
+		];
+		const markdown = portableTextToMarkdown(original);
+		expect(
+			markdownToPortableText(markdown)[0]
+				.children.map((span) => span.text)
+				.join(""),
+		).toBe("first\nsecond");
+	});
+
+	it("does not inject backslashes into code newlines or a trailing block break", () => {
+		for (const [text, marks, expected] of [
+			["a\nb", ["code"], "a b"],
+			["text\n", [], "text"],
+		] as const) {
+			const original: PortableTextBlock[] = [
+				{ _type: "block", children: [{ _type: "span", text, marks: [...marks] }] },
+			];
+			const [block] = markdownToPortableText(portableTextToMarkdown(original));
+			expect(block.children.map((span) => span.text).join("")).toBe(expected);
+		}
+	});
+
+	it("preserves opaque and malformed comment sequences as distinct content", () => {
+		const opaque = { _type: "callout", _key: "opaque", text: "kept" };
+		const blocks = markdownToPortableText(
+			`before\n\n<!--ec:block ${JSON.stringify(opaque)} -->\n\n<!--ec:block {malformed} -->\n<!-- ordinary comment -->\n`,
+		);
+		expect(blocks[1]).toMatchObject(opaque);
+		expect(blocks[2].children[0].text).toBe("<!--ec:block {malformed} -->");
+		expect(blocks[3].children[0].text).toBe("<!-- ordinary comment -->");
+	});
+
+	it("keeps escaped punctuation and backslashes as literal text", () => {
+		const markdown = "Escaped \\*asterisks\\* \\_underscores\\_ \\[brackets\\] and \\\\backslash";
+		const [block] = markdownToPortableText(markdown);
+		expect(block.children.map((child) => child.text).join("")).toBe(
+			"Escaped *asterisks* _underscores_ [brackets] and \\backslash",
+		);
+		expect(block.children.every((child) => child.marks?.length === 0)).toBe(true);
+	});
+
+	it("parses code spans containing backticks", () => {
+		const [block] = markdownToPortableText("Use ``a `backtick` value`` here\n");
+		const codeSpan = block.children.find((child) => child.marks?.includes("code"));
+		expect(codeSpan).toMatchObject({ text: "a `backtick` value", marks: ["code"] });
+	});
+
+	it("parses table cell marks, escaped pipes, backslashes, and alignment", () => {
+		const [table] = markdownToPortableText(
+			"| Left | Right |\n| :--- | ---: |\n| **bold** and [link](https://example.com) | `code` and literal \\| pipe \\\\ |\n",
+		);
+		const cells = table.rows[1].cells;
+		const leftText = cells[0].content.map((span) => span.text).join("");
+		const rightText = cells[1].content.map((span) => span.text).join("");
+		const linkKey = cells[0].markDefs.find((def) => def._type === "link")?._key;
+		expect(table).toMatchObject({ _type: "table", hasHeaderRow: true });
+		expect(table.rows[0].cells.map((cell) => cell.textAlign)).toEqual(["left", "right"]);
+		expect(leftText).toBe("bold and link");
+		expect(rightText).toBe("code and literal | pipe \\");
+		expect(cells[0].content.find((span) => span.text === "bold")?.marks).toEqual(["strong"]);
+		expect(cells[0].content.find((span) => span.text === "link")?.marks).toEqual([linkKey]);
+		expect(cells[1].content.find((span) => span.text === "code")?.marks).toEqual(["code"]);
+		expect(linkKey).toBeDefined();
+
+		const roundTripped = markdownToPortableText(portableTextToMarkdown([table]))[0];
+		expect(roundTripped.rows[0].cells.map((cell) => cell.textAlign)).toEqual(["left", "right"]);
+		expect(
+			roundTripped.rows[1].cells.map((cell) => cell.content.map((span) => span.text).join("")),
+		).toEqual(["bold and link", "code and literal | pipe \\"]);
+	});
+
+	it("keeps unsupported native tables opaque and lossless", () => {
+		const tables = [
+			{
+				_type: "table",
+				_key: "merged",
+				hasHeaderRow: true,
+				rows: [{ _type: "tableRow", cells: [{ _type: "tableCell", colspan: 2, content: [] }] }],
+			},
+			{
+				_type: "table",
+				_key: "headerless",
+				hasHeaderRow: false,
+				rows: [{ _type: "tableRow", cells: [{ _type: "tableCell", content: [] }] }],
+			},
+			{
+				_type: "table",
+				_key: "legacy",
+				headers: ["Name"],
+				rows: [["Ada"]],
+			},
+		] as unknown as PortableTextBlock[];
+
+		for (const table of tables) {
+			const markdown = portableTextToMarkdown([table]);
+			expect(markdown).toBe(`<!--ec:block ${JSON.stringify(table)} -->\n`);
+			expect(markdownToPortableText(markdown)[0]).toEqual(table);
+		}
+	});
+
+	it("does not throw for malformed native table rows", () => {
+		const malformed = {
+			_type: "table",
+			_key: "malformed",
+			hasHeaderRow: true,
+			rows: [{ _type: "tableRow", cells: [{ _type: "tableCell", content: [] }] }, null],
+		} as unknown as PortableTextBlock;
+
+		expect(() => portableTextToMarkdown([malformed])).not.toThrow();
+		expect(markdownToPortableText(portableTextToMarkdown([malformed]))[0]).toEqual(malformed);
+	});
 });
 
 // ---------------------------------------------------------------------------
@@ -429,6 +813,33 @@ describe("PT <-> Markdown round-trip", () => {
 		expect(roundTripped).toHaveLength(1);
 		expect(roundTripped[0].style).toBe("h2");
 		expect((roundTripped[0].children[0] as { text: string }).text).toBe("My Heading");
+	});
+
+	it("round-trips three mixed list levels with ordered-marker indentation", () => {
+		const original: PortableTextBlock[] = [
+			{ _type: "block", listItem: "number", level: 1, children: [{ _type: "span", text: "One" }] },
+			{ _type: "block", listItem: "bullet", level: 2, children: [{ _type: "span", text: "Two" }] },
+			{
+				_type: "block",
+				listItem: "number",
+				level: 3,
+				children: [{ _type: "span", text: "Three" }],
+			},
+		];
+
+		const markdown = portableTextToMarkdown(original);
+		expect(markdown).toBe("1. One\n   - Two\n     1. Three\n");
+		expect(
+			markdownToPortableText(markdown).map((block) => [
+				block.listItem,
+				block.level,
+				block.children[0].text,
+			]),
+		).toEqual([
+			["number", 1, "One"],
+			["bullet", 2, "Two"],
+			["number", 3, "Three"],
+		]);
 	});
 
 	it("preserves opaque fences through round-trip", () => {
