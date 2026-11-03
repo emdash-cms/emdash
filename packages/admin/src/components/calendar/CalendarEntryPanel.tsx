@@ -152,7 +152,7 @@ export function CalendarEntryPanel(props: CalendarEntryPanelProps) {
 						"flex flex-col bg-kumo-base text-kumo-default outline-none motion-reduce:transition-none",
 						dock
 							? // The dock animates its width, so the panel keeps its own.
-								"h-full w-96 transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0"
+								"h-full w-96 border-s border-kumo-line transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0"
 							: "fixed end-0 top-0 h-full w-full max-w-md border-s border-kumo-line shadow-xl transition-transform duration-200 ease-out data-ending-style:ltr:translate-x-full data-ending-style:rtl:-translate-x-full data-starting-style:ltr:translate-x-full data-starting-style:rtl:-translate-x-full",
 					)}
 				>
