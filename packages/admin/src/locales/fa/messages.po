@@ -261,8 +261,15 @@ msgstr ""
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
 #: packages/admin/src/components/MediaDetailPanel.tsx:1514
-#: packages/admin/src/components/MediaLibrary.tsx:954
+#: packages/admin/src/components/MediaLibrary.tsx:962
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
+msgstr ""
+
+#. placeholder {0}: item.count
+#. placeholder {0}: redirect.hits
+#: packages/admin/src/components/Redirects.tsx:382
+#: packages/admin/src/components/Redirects.tsx:494
+msgid "{0, plural, one {# hit} other {# hits}}"
 msgstr ""
 
 #. placeholder {0}: menu.itemCount ?? 0
@@ -329,7 +336,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# نوشته} other {# نوشته}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:597
+#: packages/admin/src/components/Redirects.tsx:776
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {#    تغییر مسیر بخشی از یک حلقه است.} other {#    تغییر مسیر بخشی از یک حلقه هستند.}}"
 
@@ -471,7 +478,7 @@ msgid "{0} detected"
 msgstr "{0} شناسایی شد"
 
 #. placeholder {0}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:620
+#: packages/admin/src/components/TaxonomySidebar.tsx:627
 msgid "{0} fallback"
 msgstr ""
 
@@ -586,7 +593,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:680
+#: packages/admin/src/components/TaxonomySidebar.tsx:687
 msgid "{0} updated"
 msgstr "{0} به‌روزرسانی شد"
 
@@ -736,7 +743,7 @@ msgstr ""
 msgid "{label} moved to position {0}."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:533
+#: packages/admin/src/components/TaxonomySidebar.tsx:535
 msgid "{label} options"
 msgstr ""
 
@@ -912,7 +919,7 @@ msgstr ""
 msgid "{rows} × {columns} table pasted"
 msgstr ""
 
-#: packages/admin/src/components/DataTable.tsx:138
+#: packages/admin/src/components/DataTable.tsx:360
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr ""
 
@@ -997,11 +1004,11 @@ msgstr ""
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:239
+#: packages/admin/src/components/Redirects.tsx:266
 msgid "/new-page or /articles/[slug]"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:227
+#: packages/admin/src/components/Redirects.tsx:254
 msgid "/old-page or /blog/[slug]"
 msgstr ""
 
@@ -1099,19 +1106,19 @@ msgstr "۳. «همه محتوا» را انتخاب کنید"
 msgid "30 days"
 msgstr "۳۰ روز"
 
-#: packages/admin/src/components/Redirects.tsx:257
+#: packages/admin/src/components/Redirects.tsx:284
 msgid "301 Permanent"
 msgstr "۳۰۱ تغییر مسیر دائمی"
 
-#: packages/admin/src/components/Redirects.tsx:258
+#: packages/admin/src/components/Redirects.tsx:285
 msgid "302 Temporary"
 msgstr "۳۰۲ تغییر مسیر موقت"
 
-#: packages/admin/src/components/Redirects.tsx:259
+#: packages/admin/src/components/Redirects.tsx:286
 msgid "307 Temporary (Strict)"
 msgstr "۳۰۷ موقت (سخت‌گیرانه)"
 
-#: packages/admin/src/components/Redirects.tsx:260
+#: packages/admin/src/components/Redirects.tsx:287
 msgid "308 Permanent (Strict)"
 msgstr "۳۰۸ دائمی (سخت‌گیرانه)"
 
@@ -1127,15 +1134,15 @@ msgstr "۴. روی «دریافت فایل برون‌ریزی» کلیک کنی
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "۴. «EmDash» را وارد کنید و «افزودن جدید» را بزنید"
 
-#: packages/admin/src/components/Redirects.tsx:572
+#: packages/admin/src/components/Redirects.tsx:751
 msgid "404 Errors"
 msgstr "خطاهای ۴۰۴"
 
-#: packages/admin/src/components/Redirects.tsx:261
+#: packages/admin/src/components/Redirects.tsx:288
 msgid "410 Content Deleted (Gone)"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:262
+#: packages/admin/src/components/Redirects.tsx:289
 msgid "451 Unavailable for legal reasons"
 msgstr ""
 
@@ -1204,9 +1211,9 @@ msgstr ""
 msgid "A package file is missing"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:179
-#: packages/admin/src/components/ContentSettingsPanel.tsx:230
-#: packages/admin/src/components/ContentSettingsPanel.tsx:256
+#: packages/admin/src/components/ContentSettingsPanel.tsx:180
+#: packages/admin/src/components/ContentSettingsPanel.tsx:231
+#: packages/admin/src/components/ContentSettingsPanel.tsx:257
 msgid "A publication time has not been selected"
 msgstr ""
 
@@ -1247,7 +1254,7 @@ msgstr ""
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:762
+#: packages/admin/src/components/TaxonomySidebar.tsx:769
 msgid "A source and target locale are required"
 msgstr ""
 
@@ -1337,6 +1344,8 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:782
 #: packages/admin/src/components/ContentList.tsx:924
 #: packages/admin/src/components/ContentTypeList.tsx:227
+#: packages/admin/src/components/Redirects.tsx:362
+#: packages/admin/src/components/Redirects.tsx:827
 #: packages/admin/src/components/RelationList.tsx:110
 #: packages/admin/src/components/TaxonomyManager.tsx:1325
 #: packages/admin/src/routes/byline-schema.tsx:238
@@ -1362,6 +1371,11 @@ msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:584
 msgid "Actions for comment by {author}"
+msgstr ""
+
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:514
+msgid "Actions for redirect {0}"
 msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
@@ -1548,8 +1562,8 @@ msgid "Add New"
 msgstr "افزودن جدید"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:160
-#: packages/admin/src/components/MediaLibrary.tsx:804
-#: packages/admin/src/components/MediaLibrary.tsx:809
+#: packages/admin/src/components/MediaLibrary.tsx:812
+#: packages/admin/src/components/MediaLibrary.tsx:817
 msgid "Add new folder"
 msgstr ""
 
@@ -1713,12 +1727,12 @@ msgid "admin"
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:706
+#: packages/admin/src/components/Sidebar.tsx:722
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "مدیر"
 
-#: packages/admin/src/components/Sidebar.tsx:648
+#: packages/admin/src/components/Sidebar.tsx:664
 msgid "Admin navigation"
 msgstr "ناوبری مدیریت"
 
@@ -1831,13 +1845,13 @@ msgid "All sources"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1015
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:706
 msgid "All statuses"
 msgstr "همه وضعیت‌ها"
 
-#: packages/admin/src/components/MediaLibrary.tsx:936
+#: packages/admin/src/components/MediaLibrary.tsx:944
 #: packages/admin/src/components/MediaPickerModal.tsx:404
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "All types"
 msgstr "همه انواع"
 
@@ -1907,7 +1921,7 @@ msgstr ""
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
-#: packages/admin/src/components/MediaLibrary.tsx:1165
+#: packages/admin/src/components/MediaLibrary.tsx:1176
 #: packages/admin/src/components/PortableTextEditor.tsx:5845
 #: packages/admin/src/components/PortableTextEditor.tsx:5911
 msgid "Alt text"
@@ -1919,12 +1933,11 @@ msgstr ""
 msgid "Alt Text"
 msgstr "متن جایگزین"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1476
+#: packages/admin/src/components/MediaLibrary.tsx:1480
 msgid "Alt text is not applicable to folders"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1704
-#: packages/admin/src/components/MediaLibrary.tsx:1761
+#: packages/admin/src/components/MediaLibrary.tsx:1779
 msgid "Alt text set"
 msgstr "متن جایگزین تنظیم شد"
 
@@ -1973,8 +1986,8 @@ msgstr ""
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
 #: packages/admin/src/components/settings/TransferSettings.tsx:85
-#: packages/admin/src/components/TaxonomySidebar.tsx:687
-#: packages/admin/src/components/TaxonomySidebar.tsx:783
+#: packages/admin/src/components/TaxonomySidebar.tsx:694
+#: packages/admin/src/components/TaxonomySidebar.tsx:790
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:664
 #: packages/admin/src/router.tsx:685
@@ -2042,7 +2055,7 @@ msgstr ""
 msgid "Another menu already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:158
+#: packages/admin/src/components/Redirects.tsx:185
 msgid "Another redirect already uses this source path. Enter a different one."
 msgstr ""
 
@@ -2230,7 +2243,7 @@ msgid "Attribution"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:90
-#: packages/admin/src/components/MediaLibrary.tsx:939
+#: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
 msgstr ""
@@ -2259,7 +2272,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "احراز هویت لغو شد یا زمان آن به پایان رسید. لطفاً دوباره تلاش کنید."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1346
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1350
 #: packages/admin/src/components/RelationForm.tsx:395
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2305,11 +2318,11 @@ msgstr ""
 msgid "Authors will be assigned to users on this site"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:696
+#: packages/admin/src/components/Redirects.tsx:467
 msgid "auto"
 msgstr "خودکار"
 
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "Auto (slug change)"
 msgstr "خودکار (تغییر نامک)"
 
@@ -2348,7 +2361,7 @@ msgid "Available bylines"
 msgstr ""
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:846
+#: packages/admin/src/components/TaxonomySidebar.tsx:853
 msgid "Available in {0}"
 msgstr ""
 
@@ -2377,7 +2390,7 @@ msgstr ""
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:1771
 #: packages/admin/src/components/MediaDetailPanel.tsx:1786
-#: packages/admin/src/components/MediaLibrary.tsx:763
+#: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/WordPressImport.tsx:1565
 #: packages/admin/src/components/WordPressImport.tsx:2586
@@ -2414,7 +2427,7 @@ msgstr ""
 msgid "Back to login"
 msgstr "بازگشت به ورود"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1051
+#: packages/admin/src/components/MediaLibrary.tsx:1059
 msgid "Back to Main library"
 msgstr ""
 
@@ -2656,7 +2669,7 @@ msgstr ""
 msgid "Byline schema"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:536
+#: packages/admin/src/components/Sidebar.tsx:552
 msgid "Byline Schema"
 msgstr ""
 
@@ -2670,7 +2683,7 @@ msgstr ""
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1114
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
-#: packages/admin/src/components/Sidebar.tsx:502
+#: packages/admin/src/components/Sidebar.tsx:518
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "نام نگارندگان"
@@ -2689,7 +2702,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:581
-#: packages/admin/src/components/Sidebar.tsx:680
+#: packages/admin/src/components/Sidebar.tsx:696
 #: packages/admin/src/routes/calendar.tsx:277
 msgid "Calendar"
 msgstr ""
@@ -2718,7 +2731,7 @@ msgstr "می‌تواند محتوا را مشاهده کند"
 #: packages/admin/src/components/ConfirmDialog.tsx:92
 #: packages/admin/src/components/ContentList.tsx:686
 #: packages/admin/src/components/ContentPickerModal.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:530
+#: packages/admin/src/components/ContentSettingsPanel.tsx:531
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:826
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
@@ -2736,8 +2749,8 @@ msgstr "می‌تواند محتوا را مشاهده کند"
 #: packages/admin/src/components/PortableTextEditor.tsx:5857
 #: packages/admin/src/components/PortableTextEditor.tsx:5883
 #: packages/admin/src/components/PortableTextEditor.tsx:6631
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:390
-#: packages/admin/src/components/Redirects.tsx:279
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:391
+#: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:300
@@ -2883,17 +2896,17 @@ msgstr ""
 msgid "Change Logo"
 msgstr "تغییر لوگو"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:687
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:688
 msgid "Change publication date"
 msgstr ""
 
 #. placeholder {0}: isolate(formattedValue)
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:662
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:663
 msgid "Change publication date: {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:602
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:514
+#: packages/admin/src/components/ContentSettingsPanel.tsx:603
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr ""
 
@@ -3086,9 +3099,9 @@ msgstr ""
 msgid "Checking…"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:395
 #: packages/admin/src/components/TaxonomySidebar.tsx:396
-#: packages/admin/src/components/TaxonomySidebar.tsx:489
+#: packages/admin/src/components/TaxonomySidebar.tsx:397
+#: packages/admin/src/components/TaxonomySidebar.tsx:490
 msgid "Choose {label}"
 msgstr ""
 
@@ -3177,7 +3190,7 @@ msgstr ""
 msgid "Choose replacement image"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:688
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:689
 msgid "Choose the date this entry shows as published."
 msgstr ""
 
@@ -3193,11 +3206,11 @@ msgstr ""
 msgid "Choose what kind of content the field holds."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:530
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
 msgid "Choose when the unpublished changes go live."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:532
 msgid "Choose when this entry is published."
 msgstr ""
 
@@ -3218,7 +3231,7 @@ msgid "Choosing a byline replaces this automatic credit."
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1216
-#: packages/admin/src/components/DataTable.tsx:143
+#: packages/admin/src/components/DataTable.tsx:365
 msgid "Clear"
 msgstr ""
 
@@ -3230,7 +3243,7 @@ msgstr ""
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:185
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:103
 #: packages/admin/src/components/ContentList.tsx:1121
-#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
 #: packages/admin/src/components/users/UserList.tsx:125
 #: packages/admin/src/routes/bylines.tsx:472
@@ -3241,8 +3254,8 @@ msgstr ""
 msgid "Clear formatting"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1036
-#: packages/admin/src/components/MediaLibrary.tsx:1076
+#: packages/admin/src/components/MediaLibrary.tsx:1044
+#: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/TaxonomyManager.tsx:1349
 msgid "Clear search"
 msgstr ""
@@ -3300,7 +3313,7 @@ msgstr ""
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
-#: packages/admin/src/components/TaxonomySidebar.tsx:606
+#: packages/admin/src/components/TaxonomySidebar.tsx:613
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:8
 msgid "Close"
@@ -3336,7 +3349,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:406
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
-#: packages/admin/src/components/Redirects.tsx:631
+#: packages/admin/src/components/Redirects.tsx:820
 msgid "Code"
 msgstr "کد"
 
@@ -3382,6 +3395,10 @@ msgstr ""
 #: packages/admin/src/router.tsx:977
 #: packages/admin/src/router.tsx:1964
 msgid "Collection \"{collection}\" not found"
+msgstr ""
+
+#: packages/admin/src/lib/api/schema.ts:349
+msgid "Collection \"{slug}\" not found"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:109
@@ -3458,7 +3475,7 @@ msgstr ""
 #: packages/admin/src/components/ContentTypeEditor.tsx:674
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
-#: packages/admin/src/components/Sidebar.tsx:466
+#: packages/admin/src/components/Sidebar.tsx:482
 msgid "Comments"
 msgstr "دیدگاه‌ها"
 
@@ -3539,7 +3556,7 @@ msgstr "متصل شده در {0}"
 msgid "Connects"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:465
+#: packages/admin/src/components/ContentSettingsPanel.tsx:466
 msgid "content"
 msgstr ""
 
@@ -3548,7 +3565,7 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentInbox.tsx:359
 #: packages/admin/src/components/Dashboard.tsx:499
 #: packages/admin/src/components/SectionEditor.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:690
+#: packages/admin/src/components/Sidebar.tsx:706
 #: packages/admin/src/components/Widgets.tsx:986
 msgid "Content"
 msgstr "محتوا"
@@ -3629,7 +3646,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
-#: packages/admin/src/components/Sidebar.tsx:532
+#: packages/admin/src/components/Sidebar.tsx:548
 msgid "Content Types"
 msgstr "انواع محتوا"
 
@@ -3883,7 +3900,7 @@ msgstr ""
 msgid "Couldn’t load usage."
 msgstr ""
 
-#: packages/admin/src/components/RevisionHistory.tsx:91
+#: packages/admin/src/components/RevisionHistory.tsx:90
 msgid "Couldn't load versions"
 msgstr ""
 
@@ -3891,7 +3908,7 @@ msgstr ""
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:587
+#: packages/admin/src/components/MediaLibrary.tsx:595
 msgid "Couldn’t move file"
 msgstr ""
 
@@ -3932,7 +3949,7 @@ msgstr "تعداد"
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuList.tsx:244
-#: packages/admin/src/components/Redirects.tsx:287
+#: packages/admin/src/components/Redirects.tsx:314
 #: packages/admin/src/components/TaxonomyManager.tsx:827
 #: packages/admin/src/components/Widgets.tsx:530
 msgid "Create"
@@ -3943,7 +3960,7 @@ msgstr "ساخت جدید"
 msgid "Create “{0}”"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:584
+#: packages/admin/src/components/TaxonomySidebar.tsx:586
 msgid "Create \"{trimmedInput}\""
 msgstr ""
 
@@ -3953,7 +3970,7 @@ msgid "Create {0}"
 msgstr ""
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:857
+#: packages/admin/src/components/TaxonomySidebar.tsx:864
 msgid "Create {0} translation"
 msgstr ""
 
@@ -3974,7 +3991,7 @@ msgstr "ساخت لیست نشانه‌دار"
 msgid "Create a new {0}"
 msgstr "ساخت {0} جدید"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:584
+#: packages/admin/src/components/TaxonomySidebar.tsx:586
 msgid "Create a new {singularLabel}"
 msgstr ""
 
@@ -4043,15 +4060,15 @@ msgid "Create personal access tokens for programmatic API access"
 msgstr "توکن‌های دسترسی شخصی برای دسترسی برنامه‌نویسی به API بسازید"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:348
+#: packages/admin/src/components/Redirects.tsx:400
 msgid "Create redirect for {0}"
 msgstr "ساخت    تغییر مسیر برای {0}"
 
-#: packages/admin/src/components/Redirects.tsx:347
+#: packages/admin/src/components/Redirects.tsx:399
 msgid "Create redirect for this path"
 msgstr "ساخت    تغییر مسیر برای این مسیر"
 
-#: packages/admin/src/components/Redirects.tsx:619
+#: packages/admin/src/components/Redirects.tsx:798
 msgid "Create redirect rules to manage URL changes."
 msgstr "قوانین    تغییر مسیر برای مدیریت تغییرات آدرس بسازید."
 
@@ -4154,7 +4171,7 @@ msgstr "ساخته شده در {0}"
 msgid "Created {0} translation"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1006
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1007
 msgid "Created and updated"
 msgstr ""
 
@@ -4175,7 +4192,7 @@ msgid "Creating cropped copy..."
 msgstr ""
 
 #: packages/admin/src/components/MenuList.tsx:244
-#: packages/admin/src/components/Redirects.tsx:284
+#: packages/admin/src/components/Redirects.tsx:311
 #: packages/admin/src/components/RelationFormPanel.tsx:148
 #: packages/admin/src/components/Sections.tsx:306
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:561
@@ -4203,7 +4220,7 @@ msgid "Crop selection. Use the Arrow keys to move it."
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:771
-#: packages/admin/src/components/MediaLibrary.tsx:1310
+#: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Cropped copy created."
 msgstr ""
 
@@ -4277,8 +4294,8 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:140
 #: packages/admin/src/components/ContentTypeList.tsx:408
 #: packages/admin/src/components/Dashboard.tsx:75
-#: packages/admin/src/components/Sidebar.tsx:436
-#: packages/admin/src/components/Sidebar.tsx:675
+#: packages/admin/src/components/Sidebar.tsx:452
+#: packages/admin/src/components/Sidebar.tsx:691
 msgid "Dashboard"
 msgstr "داشبورد"
 
@@ -4378,7 +4395,8 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:800
 #: packages/admin/src/components/MenuEditor.tsx:818
 #: packages/admin/src/components/MenuList.tsx:291
-#: packages/admin/src/components/Redirects.tsx:762
+#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:886
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/RelationList.tsx:250
 #: packages/admin/src/components/Sections.tsx:423
@@ -4532,16 +4550,12 @@ msgstr "حذف دائمی"
 msgid "Delete Permanently?"
 msgstr "حذف دائمی؟"
 
-#: packages/admin/src/components/Redirects.tsx:710
-msgid "Delete redirect"
-msgstr "حذف    تغییر مسیر"
-
-#. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:711
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:525
 msgid "Delete redirect {0}"
 msgstr "حذف    تغییر مسیر {0}"
 
-#: packages/admin/src/components/Redirects.tsx:760
+#: packages/admin/src/components/Redirects.tsx:884
 msgid "Delete Redirect?"
 msgstr "حذف    تغییر مسیر؟"
 
@@ -4611,7 +4625,7 @@ msgstr ""
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:819
 #: packages/admin/src/components/MenuList.tsx:292
-#: packages/admin/src/components/Redirects.tsx:763
+#: packages/admin/src/components/Redirects.tsx:887
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:424
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
@@ -4697,11 +4711,11 @@ msgstr "توضیحات"
 msgid "Description (optional)"
 msgstr "توضیحات (اختیاری)"
 
-#: packages/admin/src/components/Redirects.tsx:629
+#: packages/admin/src/components/Redirects.tsx:811
 msgid "Destination"
 msgstr "مقصد"
 
-#: packages/admin/src/components/Redirects.tsx:238
+#: packages/admin/src/components/Redirects.tsx:265
 msgid "Destination path"
 msgstr "مسیر مقصد"
 
@@ -4759,9 +4773,10 @@ msgstr "غیرفعال‌سازی افزونه"
 msgid "Disable plugin MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:679
-msgid "Disable redirect"
-msgstr "غیرفعال‌سازی    تغییر مسیر"
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:508
+msgid "Disable redirect {0}"
+msgstr ""
 
 #: packages/admin/src/routes/users.tsx:289
 msgid "Disable User"
@@ -4772,7 +4787,7 @@ msgid "Disable User?"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:462
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:706
 #: packages/admin/src/components/users/UserDetail.tsx:214
 #: packages/admin/src/components/users/UserList.tsx:178
 msgid "Disabled"
@@ -4800,8 +4815,8 @@ msgstr ""
 msgid "Discard"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:345
-#: packages/admin/src/components/ContentSettingsPanel.tsx:352
+#: packages/admin/src/components/ContentSettingsPanel.tsx:346
+#: packages/admin/src/components/ContentSettingsPanel.tsx:353
 msgid "Discard changes"
 msgstr "صرف‌نظر از تغییرات"
 
@@ -4809,11 +4824,11 @@ msgstr "صرف‌نظر از تغییرات"
 msgid "Discard changes?"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:350
+#: packages/admin/src/components/ContentSettingsPanel.tsx:351
 msgid "Discard draft changes?"
 msgstr "صرف‌نظر از تغییرات پیش‌نویس؟"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:353
+#: packages/admin/src/components/ContentSettingsPanel.tsx:354
 #: packages/admin/src/components/MediaDetailPanel.tsx:1876
 msgid "Discarding..."
 msgstr ""
@@ -4897,7 +4912,7 @@ msgid "Document"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:87
-#: packages/admin/src/components/MediaLibrary.tsx:940
+#: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
 msgstr ""
@@ -5012,12 +5027,12 @@ msgstr ""
 msgid "Draft"
 msgstr "پیش‌نویس"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:203
-#: packages/admin/src/components/ContentSettingsPanel.tsx:229
+#: packages/admin/src/components/ContentSettingsPanel.tsx:204
+#: packages/admin/src/components/ContentSettingsPanel.tsx:230
 msgid "Draft changes"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:169
+#: packages/admin/src/components/ContentSettingsPanel.tsx:170
 msgid "Draft version"
 msgstr ""
 
@@ -5078,7 +5093,7 @@ msgstr ""
 msgid "Drop an image here or browse for {label}"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:743
+#: packages/admin/src/components/MediaLibrary.tsx:751
 msgid "Drop files to upload"
 msgstr ""
 
@@ -5111,7 +5126,7 @@ msgstr ""
 msgid "e.g. application/zip or .pdf"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:268
+#: packages/admin/src/components/Redirects.tsx:295
 msgid "e.g. import, blog"
 msgstr ""
 
@@ -5146,6 +5161,7 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:795
+#: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:513
 #: packages/admin/src/components/Shell.tsx:87
@@ -5182,8 +5198,8 @@ msgstr ""
 msgid "Edit {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:415
-#: packages/admin/src/components/TaxonomySidebar.tsx:424
+#: packages/admin/src/components/TaxonomySidebar.tsx:416
+#: packages/admin/src/components/TaxonomySidebar.tsx:425
 msgid "Edit {label}"
 msgstr ""
 
@@ -5228,8 +5244,8 @@ msgid "Edit folder"
 msgstr ""
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:1391
-#: packages/admin/src/components/MediaLibrary.tsx:1458
+#: packages/admin/src/components/MediaLibrary.tsx:1399
+#: packages/admin/src/components/MediaLibrary.tsx:1462
 msgid "Edit folder {0}"
 msgstr ""
 
@@ -5271,16 +5287,12 @@ msgstr "ویرایش آیتم‌های فهرست"
 msgid "visualEditing.editMode"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:702
-msgid "Edit redirect"
-msgstr "ویرایش    تغییر مسیر"
-
-#: packages/admin/src/components/Redirects.tsx:216
+#: packages/admin/src/components/Redirects.tsx:243
 msgid "Edit Redirect"
 msgstr "ویرایش    تغییر مسیر"
 
-#. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:703
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:451
 msgid "Edit redirect {0}"
 msgstr "ویرایش    تغییر مسیر {0}"
 
@@ -5530,9 +5542,10 @@ msgstr "فعال‌سازی افزونه"
 msgid "Enable plugin MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:679
-msgid "Enable redirect"
-msgstr "فعال‌سازی    تغییر مسیر"
+#. placeholder {0}: redirect.source
+#: packages/admin/src/components/Redirects.tsx:509
+msgid "Enable redirect {0}"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
 msgid "Enable tracking"
@@ -5542,8 +5555,8 @@ msgstr ""
 msgid "Enable tracking to index existing content and keep references up to date."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:274
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:301
+#: packages/admin/src/components/Redirects.tsx:706
 msgid "Enabled"
 msgstr "فعال"
 
@@ -5551,11 +5564,11 @@ msgstr "فعال"
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:88
+#: packages/admin/src/components/Redirects.tsx:115
 msgid "Enter a destination different from the source."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:84
+#: packages/admin/src/components/Redirects.tsx:111
 msgid "Enter a destination path."
 msgstr ""
 
@@ -5631,7 +5644,7 @@ msgid "Enter a number."
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:142
-#: packages/admin/src/components/Redirects.tsx:61
+#: packages/admin/src/components/Redirects.tsx:88
 msgid "Enter a path that starts with a single /."
 msgstr ""
 
@@ -5648,7 +5661,7 @@ msgstr ""
 msgid "Enter a slug."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:79
+#: packages/admin/src/components/Redirects.tsx:106
 msgid "Enter a source path."
 msgstr ""
 
@@ -5798,7 +5811,7 @@ msgstr ""
 msgid "esc"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:604
+#: packages/admin/src/components/TaxonomySidebar.tsx:611
 msgid "Esc"
 msgstr ""
 
@@ -5826,7 +5839,7 @@ msgstr ""
 msgid "Every relationship this content type takes part in goes too:"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:516
+#: packages/admin/src/components/Redirects.tsx:695
 msgid "Exact group name..."
 msgstr ""
 
@@ -6014,7 +6027,7 @@ msgid "Failed to continue import"
 msgstr ""
 
 #. placeholder {0}: failedLabels.join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:753
+#: packages/admin/src/components/TaxonomySidebar.tsx:760
 msgid "Failed to create {0}"
 msgstr ""
 
@@ -6104,7 +6117,7 @@ msgstr "ساخت برخی مجموعه‌ها ناموفق بود"
 msgid "Failed to create taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:732
+#: packages/admin/src/components/TaxonomySidebar.tsx:739
 #: packages/admin/src/lib/api/taxonomies.ts:215
 msgid "Failed to create term"
 msgstr "ساخت اصطلاح ناموفق بود"
@@ -6113,7 +6126,7 @@ msgstr "ساخت اصطلاح ناموفق بود"
 msgid "Failed to create term translation"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:782
+#: packages/admin/src/components/TaxonomySidebar.tsx:789
 #: packages/admin/src/router.tsx:1634
 msgid "Failed to create translation"
 msgstr ""
@@ -6884,7 +6897,7 @@ msgid "Failed to update"
 msgstr ""
 
 #. placeholder {0}: inlineLabel(taxonomy.label, lingui.locale)
-#: packages/admin/src/components/TaxonomySidebar.tsx:686
+#: packages/admin/src/components/TaxonomySidebar.tsx:693
 msgid "Failed to update {0}"
 msgstr "به‌روزرسانی {0} ناموفق بود"
 
@@ -7098,7 +7111,7 @@ msgstr "فایل از کتابخانه رسانه"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1433
 #: packages/admin/src/components/MediaDetailPanel.tsx:1438
-#: packages/admin/src/components/MediaLibrary.tsx:1162
+#: packages/admin/src/components/MediaLibrary.tsx:1168
 msgid "Filename"
 msgstr "نام فایل"
 
@@ -7146,7 +7159,7 @@ msgstr "فیلتر بر اساس مجموعه"
 msgid "Filter by date range: {rangeLabel}"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:515
+#: packages/admin/src/components/Redirects.tsx:694
 msgid "Filter by group"
 msgstr ""
 
@@ -7159,13 +7172,13 @@ msgid "Filter by source"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1054
-#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:707
 msgid "Filter by status"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:942
+#: packages/admin/src/components/MediaLibrary.tsx:950
 #: packages/admin/src/components/MediaPickerModal.tsx:1327
-#: packages/admin/src/components/Redirects.tsx:535
+#: packages/admin/src/components/Redirects.tsx:714
 msgid "Filter by type"
 msgstr ""
 
@@ -7186,7 +7199,7 @@ msgstr ""
 msgid "First page"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:178
+#: packages/admin/src/components/ContentSettingsPanel.tsx:179
 msgid "First publication"
 msgstr ""
 
@@ -7206,7 +7219,7 @@ msgstr ""
 msgid "Fix invalid fields before changing the schedule"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:67
+#: packages/admin/src/components/Redirects.tsx:94
 msgid "Fix the percent-encoding in the path."
 msgstr ""
 
@@ -7247,19 +7260,19 @@ msgstr ""
 msgid "Folder unavailable"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:969
+#: packages/admin/src/components/MediaLibrary.tsx:977
 #: packages/admin/src/components/MediaPickerModal.tsx:1365
 msgid "Folders"
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1541
-#: packages/admin/src/components/MediaLibrary.tsx:979
-#: packages/admin/src/components/MediaLibrary.tsx:1488
+#: packages/admin/src/components/MediaLibrary.tsx:987
+#: packages/admin/src/components/MediaLibrary.tsx:1492
 #: packages/admin/src/components/MediaPickerModal.tsx:1370
 msgid "Folders could not be loaded."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:774
+#: packages/admin/src/components/MediaLibrary.tsx:782
 msgid "Folders navigation"
 msgstr ""
 
@@ -7402,17 +7415,18 @@ msgstr "تأیید گوگل"
 msgid "GraphQL"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:897
+#: packages/admin/src/components/MediaLibrary.tsx:905
 #: packages/admin/src/components/MediaPickerModal.tsx:1283
 msgid "Grid view"
 msgstr "نمای شبکه‌ای"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:578
-#: packages/admin/src/components/Redirects.tsx:630
+#: packages/admin/src/components/Redirects.tsx:484
+#: packages/admin/src/components/Redirects.tsx:815
 msgid "Group"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:267
+#: packages/admin/src/components/Redirects.tsx:294
 msgid "Group (optional)"
 msgstr "گروه (اختیاری)"
 
@@ -7549,8 +7563,8 @@ msgstr ""
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "سلسله‌مراتبی (مانند دسته‌ها، با روابط والد/فرزند)"
 
-#: packages/admin/src/components/Redirects.tsx:320
-#: packages/admin/src/components/Redirects.tsx:632
+#: packages/admin/src/components/Redirects.tsx:356
+#: packages/admin/src/components/Redirects.tsx:823
 msgid "Hits"
 msgstr "بازدید"
 
@@ -7580,7 +7594,7 @@ msgstr "هوک‌ها"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:232
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
 msgid "Hour"
 msgstr ""
 
@@ -7774,14 +7788,14 @@ msgstr "آدرس تصویر"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:85
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
-#: packages/admin/src/components/MediaLibrary.tsx:937
+#: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
 msgid "Images"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:244
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:558
+#: packages/admin/src/components/Sidebar.tsx:574
 #: packages/admin/src/components/WordPressImport.tsx:783
 msgid "Import"
 msgstr "درون‌ریزی"
@@ -7948,7 +7962,7 @@ msgstr "ناسازگار"
 msgid "Increase column width"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:838
+#: packages/admin/src/components/MediaLibrary.tsx:846
 msgid "Index existing content and keep Used in results up to date."
 msgstr ""
 
@@ -8371,7 +8385,7 @@ msgstr ""
 msgid "Last page"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:321
+#: packages/admin/src/components/Redirects.tsx:359
 msgid "Last seen"
 msgstr "آخرین مشاهده"
 
@@ -8421,10 +8435,10 @@ msgstr ""
 msgid "Left"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:308
-#: packages/admin/src/components/MediaLibrary.tsx:426
-#: packages/admin/src/components/MediaLibrary.tsx:703
-#: packages/admin/src/components/MediaLibrary.tsx:1276
+#: packages/admin/src/components/MediaLibrary.tsx:316
+#: packages/admin/src/components/MediaLibrary.tsx:434
+#: packages/admin/src/components/MediaLibrary.tsx:711
+#: packages/admin/src/components/MediaLibrary.tsx:1284
 #: packages/admin/src/components/MediaPickerModal.tsx:381
 #: packages/admin/src/components/MediaPickerModal.tsx:398
 msgid "Library"
@@ -8542,27 +8556,27 @@ msgstr ""
 msgid "List each option only once."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:906
+#: packages/admin/src/components/MediaLibrary.tsx:914
 #: packages/admin/src/components/MediaPickerModal.tsx:1293
 msgid "List view"
 msgstr "نمای لیستی"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:187
-#: packages/admin/src/components/ContentSettingsPanel.tsx:197
-#: packages/admin/src/components/ContentSettingsPanel.tsx:223
-#: packages/admin/src/components/ContentSettingsPanel.tsx:249
+#: packages/admin/src/components/ContentSettingsPanel.tsx:188
+#: packages/admin/src/components/ContentSettingsPanel.tsx:198
+#: packages/admin/src/components/ContentSettingsPanel.tsx:224
+#: packages/admin/src/components/ContentSettingsPanel.tsx:250
 msgid "Live version"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:684
+#: packages/admin/src/components/ContentSettingsPanel.tsx:685
 msgid "Live View"
 msgstr "نمای زنده"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:374
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:248
-#: packages/admin/src/components/Redirects.tsx:727
+#: packages/admin/src/components/Redirects.tsx:851
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -8572,14 +8586,14 @@ msgstr "بارگذاری بیشتر"
 
 #: packages/admin/src/components/ContentList.tsx:894
 #: packages/admin/src/components/ContentList.tsx:957
-#: packages/admin/src/components/MediaLibrary.tsx:1269
+#: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/users/UserList.tsx:157
 msgid "Load More"
 msgstr "بارگذاری بیشتر"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1560
-#: packages/admin/src/components/MediaLibrary.tsx:1009
-#: packages/admin/src/components/MediaLibrary.tsx:1206
+#: packages/admin/src/components/MediaLibrary.tsx:1017
+#: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1419
 msgid "Load more folders"
 msgstr ""
@@ -8635,8 +8649,8 @@ msgstr ""
 msgid "Loading exports…"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:953
-#: packages/admin/src/components/MediaLibrary.tsx:1174
+#: packages/admin/src/components/MediaLibrary.tsx:961
+#: packages/admin/src/components/MediaLibrary.tsx:1185
 #: packages/admin/src/components/MediaPickerModal.tsx:1388
 msgid "Loading folders"
 msgstr ""
@@ -8673,7 +8687,7 @@ msgstr ""
 msgid "Loading plugins..."
 msgstr "در حال بارگذاری افزونه‌ها..."
 
-#: packages/admin/src/components/Redirects.tsx:609
+#: packages/admin/src/components/Redirects.tsx:788
 msgid "Loading redirects..."
 msgstr "در حال بارگذاری    تغییر مسیر‌ها..."
 
@@ -8728,10 +8742,10 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:621
 #: packages/admin/src/components/MediaDetailPanel.tsx:623
 #: packages/admin/src/components/MediaDetailPanel.tsx:1720
-#: packages/admin/src/components/MediaLibrary.tsx:1269
+#: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3311
-#: packages/admin/src/components/Redirects.tsx:727
+#: packages/admin/src/components/Redirects.tsx:851
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:230
@@ -8838,7 +8852,7 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:698
+#: packages/admin/src/components/Sidebar.tsx:714
 msgid "Manage"
 msgstr "مدیریت"
 
@@ -8868,7 +8882,7 @@ msgstr "مدیریت فهرستهای ناوبری وبسایت شما"
 msgid "Manage the people and teams credited on your content."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:494
+#: packages/admin/src/components/Redirects.tsx:673
 msgid "Manage URL redirects and view 404 errors."
 msgstr "مدیریت    تغییر مسیر‌های آدرس و مشاهده خطاهای ۴۰۴."
 
@@ -8889,7 +8903,7 @@ msgstr ""
 msgid "Managed by your identity provider. Change the name there."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:534
+#: packages/admin/src/components/Redirects.tsx:713
 msgid "Manual"
 msgstr "دستی"
 
@@ -8903,11 +8917,11 @@ msgid "Map WordPress user {0} to EmDash user"
 msgstr ""
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:356
+#: packages/admin/src/components/Redirects.tsx:409
 msgid "Mark {0} as Gone (410)"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:355
+#: packages/admin/src/components/Redirects.tsx:344
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
 msgstr ""
 
@@ -8976,7 +8990,7 @@ msgstr ""
 #: packages/admin/src/components/Settings.tsx:72
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
-#: packages/admin/src/components/Sidebar.tsx:451
+#: packages/admin/src/components/Sidebar.tsx:467
 #: packages/admin/src/components/WordPressImport.tsx:797
 #: packages/admin/src/components/WordPressImport.tsx:1195
 #: packages/admin/src/components/WordPressImport.tsx:1388
@@ -9020,8 +9034,8 @@ msgid "visualEditing.mediaLibrary"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:171
-#: packages/admin/src/components/MediaLibrary.tsx:771
-#: packages/admin/src/components/MediaLibrary.tsx:786
+#: packages/admin/src/components/MediaLibrary.tsx:779
+#: packages/admin/src/components/MediaLibrary.tsx:794
 msgid "Media Library"
 msgstr "کتابخانه رسانه"
 
@@ -9029,7 +9043,7 @@ msgstr "کتابخانه رسانه"
 msgid "Media links were made relative"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1262
+#: packages/admin/src/components/MediaLibrary.tsx:1270
 #: packages/admin/src/components/MediaPickerModal.tsx:1596
 msgid "Media pagination"
 msgstr ""
@@ -9047,7 +9061,7 @@ msgstr ""
 msgid "Media usage tracking"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:835
+#: packages/admin/src/components/MediaLibrary.tsx:843
 msgid "Media usage tracking is indexing existing content"
 msgstr ""
 
@@ -9059,11 +9073,11 @@ msgstr ""
 msgid "Media usage tracking is ready"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:836
+#: packages/admin/src/components/MediaLibrary.tsx:844
 msgid "Media usage tracking is setting up"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:833
+#: packages/admin/src/components/MediaLibrary.tsx:841
 msgid "Media usage tracking needs attention"
 msgstr ""
 
@@ -9132,7 +9146,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:178
 #: packages/admin/src/components/MenuList.tsx:159
 #: packages/admin/src/components/settings/transfer/labels.ts:28
-#: packages/admin/src/components/Sidebar.tsx:474
+#: packages/admin/src/components/Sidebar.tsx:490
 #: packages/admin/src/components/WordPressImport.tsx:1199
 msgid "Menus"
 msgstr "فهرستها"
@@ -9195,7 +9209,7 @@ msgstr ""
 msgid "Minor section heading"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:258
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:259
 msgid "Minute"
 msgstr ""
 
@@ -9324,14 +9338,14 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/ContentList.tsx:1624
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1313
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1319
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1317
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1323
 msgid "Move to Trash"
 msgstr "انتقال به سطل زباله"
 
 #: packages/admin/src/components/ContentList.tsx:678
 #: packages/admin/src/components/ContentList.tsx:1622
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1317
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1321
 msgid "Move to Trash?"
 msgstr "انتقال به سطل زباله؟"
 
@@ -9408,7 +9422,7 @@ msgid "Moved an image"
 msgstr ""
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:580
+#: packages/admin/src/components/MediaLibrary.tsx:588
 msgid "Moved to {0}"
 msgstr ""
 
@@ -9436,7 +9450,7 @@ msgid "Moving from another EmDash site?"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1625
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1320
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1324
 msgid "Moving to trash..."
 msgstr ""
 
@@ -9481,7 +9495,7 @@ msgstr ""
 msgid "Name your section, then add its content in the editor."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:594
+#: packages/admin/src/components/TaxonomySidebar.tsx:601
 msgid "Navigate"
 msgstr ""
 
@@ -9549,7 +9563,7 @@ msgstr ""
 msgid "New field"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:808
+#: packages/admin/src/components/MediaLibrary.tsx:816
 msgid "New folder"
 msgstr ""
 
@@ -9561,8 +9575,8 @@ msgstr ""
 msgid "New public routes"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:216
-#: packages/admin/src/components/Redirects.tsx:501
+#: packages/admin/src/components/Redirects.tsx:243
+#: packages/admin/src/components/Redirects.tsx:680
 msgid "New Redirect"
 msgstr "تغییر مسیر جدید"
 
@@ -9662,16 +9676,15 @@ msgstr "هنوز {0} موجود نیست."
 msgid "No {0} yet. Create one to get started."
 msgstr "هنوز {0} موجود نیست. برای شروع یکی بسازید."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:568
+#: packages/admin/src/components/TaxonomySidebar.tsx:570
 msgid "No {label} found."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:312
+#: packages/admin/src/components/Redirects.tsx:340
 msgid "No 404 errors recorded yet."
 msgstr "هنوز خطای ۴۰۴ ثبت نشده است."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1704
-#: packages/admin/src/components/MediaLibrary.tsx:1761
+#: packages/admin/src/components/MediaLibrary.tsx:1779
 msgid "No alt text"
 msgstr "بدون متن جایگزین"
 
@@ -9821,11 +9834,11 @@ msgstr ""
 msgid "No folders found"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:662
+#: packages/admin/src/components/Redirects.tsx:489
 msgid "No group"
 msgstr ""
 
-#: packages/admin/src/components/editor/DocumentOutline.tsx:269
+#: packages/admin/src/components/editor/DocumentOutline.tsx:268
 msgid "No headings in document"
 msgstr "سرتیتری در سند نیست"
 
@@ -9898,8 +9911,8 @@ msgstr ""
 msgid "No matching content found."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1028
-#: packages/admin/src/components/MediaLibrary.tsx:1072
+#: packages/admin/src/components/MediaLibrary.tsx:1036
+#: packages/admin/src/components/MediaLibrary.tsx:1080
 msgid "No matching media"
 msgstr ""
 
@@ -9920,11 +9933,11 @@ msgstr ""
 msgid "No maximum"
 msgstr "بدون حداکثر"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1095
+#: packages/admin/src/components/MediaLibrary.tsx:1103
 msgid "No media available from this provider."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1094
+#: packages/admin/src/components/MediaLibrary.tsx:1102
 #: packages/admin/src/components/MediaPickerModal.tsx:1457
 msgid "No media found"
 msgstr "رسانه‌ای یافت نشد"
@@ -9986,11 +9999,11 @@ msgstr ""
 msgid "No recent activity"
 msgstr "فعالیت اخیری نیست"
 
-#: packages/admin/src/components/Redirects.tsx:614
+#: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects match these filters"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:614
+#: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects yet"
 msgstr "هنوز    تغییر مسیری نیست"
 
@@ -10063,7 +10076,7 @@ msgstr ""
 msgid "No users yet."
 msgstr ""
 
-#: packages/admin/src/components/RevisionHistory.tsx:84
+#: packages/admin/src/components/RevisionHistory.tsx:83
 msgid "No versions yet"
 msgstr ""
 
@@ -10234,8 +10247,8 @@ msgstr ""
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:182
-#: packages/admin/src/components/MediaLibrary.tsx:1375
-#: packages/admin/src/components/MediaLibrary.tsx:1446
+#: packages/admin/src/components/MediaLibrary.tsx:1383
+#: packages/admin/src/components/MediaLibrary.tsx:1449
 msgid "Open folder {0}"
 msgstr ""
 
@@ -10263,7 +10276,7 @@ msgstr "باز کردن در زبانه جدید"
 msgid "Open read-only"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:841
+#: packages/admin/src/components/MediaLibrary.tsx:849
 msgid "Open setup"
 msgstr ""
 
@@ -10378,7 +10391,7 @@ msgstr "اصلی:"
 msgid "Other"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1264
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1268
 #: packages/admin/src/components/editor/DocumentOutline.tsx:248
 msgid "Outline"
 msgstr "فهرست مطالب"
@@ -10455,8 +10468,8 @@ msgstr ""
 msgid "Parent"
 msgstr "مادر"
 
-#: packages/admin/src/components/Redirects.tsx:684
-#: packages/admin/src/components/Redirects.tsx:690
+#: packages/admin/src/components/Redirects.tsx:457
+#: packages/admin/src/components/Redirects.tsx:463
 msgid "Part of a redirect loop"
 msgstr "بخشی از حلقه    تغییر مسیر"
 
@@ -10556,7 +10569,7 @@ msgstr ""
 msgid "Paste your migration key"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:319
+#: packages/admin/src/components/Redirects.tsx:354
 msgid "Path"
 msgstr "مسیر"
 
@@ -10611,7 +10624,7 @@ msgstr ""
 msgid "Per page"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:282
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:283
 msgid "Period"
 msgstr ""
 
@@ -10678,6 +10691,10 @@ msgstr "لطفاً یک آدرس معتبر وارد کنید"
 #: packages/admin/src/components/WordPressImport.tsx:1232
 msgid "Plugin"
 msgstr "پلاگین"
+
+#: packages/admin/src/lib/api/marketplace.ts:322
+msgid "Plugin \"{id}\" not found in marketplace"
+msgstr ""
 
 #: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
@@ -10810,8 +10827,8 @@ msgstr ""
 #: packages/admin/src/components/PluginManager.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:191
 #: packages/admin/src/components/PluginManager.tsx:201
-#: packages/admin/src/components/Sidebar.tsx:540
-#: packages/admin/src/components/Sidebar.tsx:714
+#: packages/admin/src/components/Sidebar.tsx:556
+#: packages/admin/src/components/Sidebar.tsx:730
 msgid "Plugins"
 msgstr "پلاگین‌ها"
 
@@ -10888,12 +10905,12 @@ msgid "Press Space to pick up an image. Use the Arrow keys to move it, then pres
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
-#: packages/admin/src/components/ContentSettingsPanel.tsx:414
+#: packages/admin/src/components/ContentSettingsPanel.tsx:415
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
 #: packages/admin/src/components/MediaDetailPanel.tsx:1667
-#: packages/admin/src/components/MediaLibrary.tsx:1161
+#: packages/admin/src/components/MediaLibrary.tsx:1166
 msgid "Preview"
 msgstr "پیش‌نمایش"
 
@@ -10905,7 +10922,7 @@ msgstr ""
 msgid "Preview content before publishing"
 msgstr "پیش‌نمایش محتوا قبل از انتشار"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:414
+#: packages/admin/src/components/ContentSettingsPanel.tsx:415
 msgid "Preview draft"
 msgstr "پیش‌نمایش پیش‌نویس"
 
@@ -10982,10 +10999,10 @@ msgstr "ارائه‌دهنده:"
 msgid "Public routes"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:969
-#: packages/admin/src/components/ContentSettingsPanel.tsx:974
-#: packages/admin/src/components/ContentSettingsPanel.tsx:985
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:692
+#: packages/admin/src/components/ContentSettingsPanel.tsx:970
+#: packages/admin/src/components/ContentSettingsPanel.tsx:975
+#: packages/admin/src/components/ContentSettingsPanel.tsx:986
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr ""
 
@@ -10999,17 +11016,17 @@ msgid "visualEditing.publish"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:611
-#: packages/admin/src/components/ContentSettingsPanel.tsx:520
-#: packages/admin/src/components/ContentSettingsPanel.tsx:936
-#: packages/admin/src/components/ContentSettingsPanel.tsx:939
+#: packages/admin/src/components/ContentSettingsPanel.tsx:521
+#: packages/admin/src/components/ContentSettingsPanel.tsx:937
+#: packages/admin/src/components/ContentSettingsPanel.tsx:940
 msgid "Publish"
 msgstr "انتشار"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/ContentSettingsPanel.tsx:494
 msgid "Publish changes"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:494
+#: packages/admin/src/components/ContentSettingsPanel.tsx:495
 msgid "Publish changes?"
 msgstr ""
 
@@ -11019,11 +11036,11 @@ msgid "visualEditing.publishFailed"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:408
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/ContentSettingsPanel.tsx:494
 msgid "Publish now"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:494
+#: packages/admin/src/components/ContentSettingsPanel.tsx:495
 msgid "Publish now?"
 msgstr ""
 
@@ -11093,7 +11110,7 @@ msgstr ""
 msgid "Publishing"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:943
+#: packages/admin/src/components/ContentSettingsPanel.tsx:944
 msgid "Publishing summary"
 msgstr ""
 
@@ -11225,7 +11242,7 @@ msgstr ""
 msgid "Ready"
 msgstr "آماده"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:204
+#: packages/admin/src/components/ContentSettingsPanel.tsx:205
 msgid "Ready to publish now or schedule for later"
 msgstr ""
 
@@ -11279,7 +11296,7 @@ msgstr ""
 msgid "Recovery link sent to {0}"
 msgstr "لینک بازیابی به {0} ارسال شد"
 
-#: packages/admin/src/components/Redirects.tsx:595
+#: packages/admin/src/components/Redirects.tsx:774
 msgid "Redirect loop detected"
 msgstr "حلقه تغییر مسیر شناسایی شد"
 
@@ -11287,11 +11304,11 @@ msgstr "حلقه تغییر مسیر شناسایی شد"
 msgid "Redirecting to login..."
 msgstr "در حال هدایت به صفحه ورود..."
 
-#: packages/admin/src/components/Redirects.tsx:493
-#: packages/admin/src/components/Redirects.tsx:552
+#: packages/admin/src/components/Redirects.tsx:672
+#: packages/admin/src/components/Redirects.tsx:731
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
-#: packages/admin/src/components/Sidebar.tsx:481
+#: packages/admin/src/components/Sidebar.tsx:497
 msgid "Redirects"
 msgstr "تغییر مسیر‌ها"
 
@@ -11361,7 +11378,7 @@ msgstr "ثبت‌نام لغو شد یا زمان آن به پایان رسید.
 
 #: packages/admin/src/components/PluginManager.tsx:219
 #: packages/admin/src/components/PluginManager.tsx:464
-#: packages/admin/src/components/Sidebar.tsx:549
+#: packages/admin/src/components/Sidebar.tsx:565
 msgid "Registry"
 msgstr ""
 
@@ -11435,7 +11452,7 @@ msgstr "حذف"
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
-#: packages/admin/src/components/TaxonomySidebar.tsx:458
+#: packages/admin/src/components/TaxonomySidebar.tsx:459
 msgid "Remove {0}"
 msgstr "حذف {0}"
 
@@ -11454,7 +11471,7 @@ msgstr ""
 msgid "Remove {label}"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:866
+#: packages/admin/src/components/TaxonomySidebar.tsx:873
 msgid "Remove assignment"
 msgstr ""
 
@@ -11509,7 +11526,7 @@ msgid "Remove passkey?"
 msgstr "حذف شاه‌کلید؟"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:425
-#: packages/admin/src/components/ContentSettingsPanel.tsx:622
+#: packages/admin/src/components/ContentSettingsPanel.tsx:623
 msgid "Remove schedule"
 msgstr ""
 
@@ -11517,7 +11534,7 @@ msgstr ""
 msgid "Remove sub-field"
 msgstr "حذف زیرفیلد"
 
-#: packages/admin/src/components/Redirects.tsx:69
+#: packages/admin/src/components/Redirects.tsx:96
 msgid "Remove the .. segments from the path."
 msgstr ""
 
@@ -11916,8 +11933,8 @@ msgstr ""
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
-#: packages/admin/src/components/MediaLibrary.tsx:973
-#: packages/admin/src/components/MediaLibrary.tsx:1491
+#: packages/admin/src/components/MediaLibrary.tsx:981
+#: packages/admin/src/components/MediaLibrary.tsx:1495
 #: packages/admin/src/components/MediaPickerModal.tsx:1259
 #: packages/admin/src/components/MediaPickerModal.tsx:1355
 #: packages/admin/src/components/MediaPickerModal.tsx:1377
@@ -12027,7 +12044,12 @@ msgstr ""
 msgid "Reviewing…"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1288
+#: packages/admin/src/lib/api/content.ts:650
+#: packages/admin/src/lib/api/content.ts:672
+msgid "Revision not found: {revisionId}"
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1292
 #: packages/admin/src/components/ContentTypeEditor.tsx:100
 #: packages/admin/src/components/RevisionHistory.tsx:57
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12173,7 +12195,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
 #: packages/admin/src/components/PortableTextEditor.tsx:2820
-#: packages/admin/src/components/Redirects.tsx:286
+#: packages/admin/src/components/Redirects.tsx:313
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/Widgets.tsx:1070
@@ -12209,7 +12231,7 @@ msgstr ""
 msgid "Save content as draft before publishing"
 msgstr "ذخیره محتوا به‌عنوان پیش‌نویس قبل از انتشار"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:695
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:696
 msgid "Save date"
 msgstr ""
 
@@ -12234,7 +12256,7 @@ msgstr ""
 msgid "Save Relation"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Save schedule"
 msgstr ""
 
@@ -12257,7 +12279,7 @@ msgstr "ذخیره شد"
 msgid "Saved \"{0}\"."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:681
+#: packages/admin/src/components/TaxonomySidebar.tsx:688
 msgid "Saved immediately; term changes do not wait for Publish changes."
 msgstr ""
 
@@ -12273,7 +12295,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:906
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
-#: packages/admin/src/components/Redirects.tsx:283
+#: packages/admin/src/components/Redirects.tsx:310
 #: packages/admin/src/components/RelationFormPanel.tsx:151
 #: packages/admin/src/components/SaveButton.tsx:36
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
@@ -12305,21 +12327,21 @@ msgstr ""
 msgid "Scan it with a nearby phone or tablet."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:602
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/ContentSettingsPanel.tsx:603
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "زمان‌بندی"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:516
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:517
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule changes"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:537
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:538
 msgid "Schedule date"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:517
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
 msgid "Schedule publication"
 msgstr ""
 
@@ -12344,12 +12366,12 @@ msgid "Scheduled entries appear here with their publish time."
 msgstr ""
 
 #. placeholder {0}: isolate(formattedSchedule)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:148
+#: packages/admin/src/components/ContentSettingsPanel.tsx:149
 msgid "Scheduled for {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:156
-#: packages/admin/src/components/ContentSettingsPanel.tsx:255
+#: packages/admin/src/components/ContentSettingsPanel.tsx:157
+#: packages/admin/src/components/ContentSettingsPanel.tsx:256
 msgid "Scheduled publication"
 msgstr ""
 
@@ -12432,11 +12454,11 @@ msgstr "جستجوی {0}"
 msgid "Search {0}..."
 msgstr "جستجوی {0}..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:500
+#: packages/admin/src/components/TaxonomySidebar.tsx:501
 msgid "Search {label}"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:520
+#: packages/admin/src/components/TaxonomySidebar.tsx:522
 msgid "Search {label}…"
 msgstr ""
 
@@ -12448,7 +12470,7 @@ msgstr ""
 msgid "Search blocks"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaLibrary.tsx:926
 #: packages/admin/src/components/MediaPickerModal.tsx:1306
 msgid "Search by filename..."
 msgstr ""
@@ -12522,10 +12544,18 @@ msgstr ""
 msgid "Search form"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:919
+#: packages/admin/src/components/MediaLibrary.tsx:927
 #: packages/admin/src/components/MediaPickerModal.tsx:1308
 msgid "Search media"
 msgstr "جستجوی رسانه"
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:501
+msgid "Search or create {label}"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:522
+msgid "Search or create {label}…"
+msgstr ""
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
@@ -12555,7 +12585,7 @@ msgstr ""
 msgid "Search sections..."
 msgstr "جستجوی بخش‌ها..."
 
-#: packages/admin/src/components/Redirects.tsx:488
+#: packages/admin/src/components/Redirects.tsx:667
 msgid "Search source or destination..."
 msgstr "جستجوی مبدأ یا مقصد..."
 
@@ -12591,7 +12621,7 @@ msgstr ""
 msgid "Search will be turned off for some collections"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:918
+#: packages/admin/src/components/MediaLibrary.tsx:926
 #: packages/admin/src/components/MediaPickerModal.tsx:1306
 msgid "Search..."
 msgstr "جستجو…"
@@ -12638,7 +12668,7 @@ msgstr "عنوان بخش"
 #: packages/admin/src/components/Sections.tsx:218
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
-#: packages/admin/src/components/Sidebar.tsx:495
+#: packages/admin/src/components/Sidebar.tsx:511
 msgid "Sections"
 msgstr "بخش‌ها"
 
@@ -12846,7 +12876,7 @@ msgstr "انتخاب کنید کدام انواع محتوا درون‌ریزی
 msgid "Select..."
 msgstr "انتخاب…"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:429
+#: packages/admin/src/components/TaxonomySidebar.tsx:430
 msgid "Selected {label}"
 msgstr ""
 
@@ -12990,7 +13020,7 @@ msgstr ""
 msgid "Set up an email provider in Email settings to email users."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:831
+#: packages/admin/src/components/MediaLibrary.tsx:839
 msgid "Set up media usage tracking"
 msgstr ""
 
@@ -13019,7 +13049,7 @@ msgstr "در حال راه‌اندازی..."
 #: packages/admin/src/components/Header.tsx:104
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:46
-#: packages/admin/src/components/Sidebar.tsx:563
+#: packages/admin/src/components/Sidebar.tsx:579
 #: packages/admin/src/components/WordPressImport.tsx:1868
 msgid "Settings"
 msgstr "تنظیمات"
@@ -13277,12 +13307,12 @@ msgstr ""
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1164
+#: packages/admin/src/components/MediaLibrary.tsx:1173
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:280
 msgid "Size"
 msgstr "اندازه"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1472
+#: packages/admin/src/components/MediaLibrary.tsx:1476
 msgid "Size is not applicable to folders"
 msgstr ""
 
@@ -13442,12 +13472,12 @@ msgstr "مرتب‌سازی قالب‌ها"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:790
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
 #: packages/admin/src/components/PluginManager.tsx:653
-#: packages/admin/src/components/Redirects.tsx:627
+#: packages/admin/src/components/Redirects.tsx:808
 #: packages/admin/src/components/SectionEditor.tsx:316
 msgid "Source"
 msgstr "منبع"
 
-#: packages/admin/src/components/Redirects.tsx:226
+#: packages/admin/src/components/Redirects.tsx:253
 msgid "Source path"
 msgstr "مسیر مبدأ"
 
@@ -13544,7 +13574,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:505
 #: packages/admin/src/components/ContentList.tsx:754
 #: packages/admin/src/components/ContentTypeEditor.tsx:141
-#: packages/admin/src/components/Redirects.tsx:633
+#: packages/admin/src/components/Redirects.tsx:825
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
@@ -13552,7 +13582,7 @@ msgstr ""
 msgid "Status"
 msgstr "وضعیت"
 
-#: packages/admin/src/components/Redirects.tsx:252
+#: packages/admin/src/components/Redirects.tsx:279
 msgid "Status code"
 msgstr "کد وضعیت"
 
@@ -13726,7 +13756,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 #: packages/admin/src/components/settings/transfer/labels.ts:13
-#: packages/admin/src/components/TaxonomySidebar.tsx:898
+#: packages/admin/src/components/TaxonomySidebar.tsx:905
 msgid "Taxonomies"
 msgstr "دسته‌بندی‌ها"
 
@@ -13929,7 +13959,7 @@ msgstr ""
 msgid "The file is not a valid EmDash site package."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:590
+#: packages/admin/src/components/MediaLibrary.tsx:598
 msgid "The file or folder no longer exists."
 msgstr ""
 
@@ -14247,6 +14277,10 @@ msgstr ""
 msgid "Theme"
 msgstr "پوسته"
 
+#: packages/admin/src/lib/api/theme-marketplace.ts:97
+msgid "Theme \"{id}\" not found"
+msgstr ""
+
 #. placeholder {0}: section.themeId
 #: packages/admin/src/components/SectionEditor.tsx:329
 msgid "Theme ID: {0}"
@@ -14323,7 +14357,7 @@ msgstr ""
 msgid "This content cannot be edited safely"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:499
+#: packages/admin/src/components/ContentSettingsPanel.tsx:500
 msgid "This content will be visible on the site immediately."
 msgstr ""
 
@@ -14441,7 +14475,7 @@ msgstr ""
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1043
+#: packages/admin/src/components/MediaLibrary.tsx:1051
 msgid "This folder is empty"
 msgstr ""
 
@@ -14567,11 +14601,11 @@ msgstr ""
 msgid "This range has more than {maxEntries} entries"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:761
+#: packages/admin/src/components/Redirects.tsx:885
 msgid "This redirect rule will be permanently removed."
 msgstr "این قانون    تغییر مسیر برای همیشه حذف خواهد شد."
 
-#: packages/admin/src/components/Redirects.tsx:453
+#: packages/admin/src/components/Redirects.tsx:632
 msgid "This redirect was already deleted."
 msgstr ""
 
@@ -14587,7 +14621,7 @@ msgstr ""
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:496
+#: packages/admin/src/components/ContentSettingsPanel.tsx:497
 msgid "This removes the schedule and publishes immediately."
 msgstr ""
 
@@ -14678,7 +14712,7 @@ msgstr ""
 msgid "This version can't be shown."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:170
+#: packages/admin/src/components/ContentSettingsPanel.tsx:171
 msgid "This version is not visible on the site"
 msgstr ""
 
@@ -14690,7 +14724,7 @@ msgstr ""
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1318
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1322
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "این مورد به سطل زباله منتقل خواهد شد. می‌توانید بعداً آن را از سطل زباله بازیابی کنید."
 
@@ -14712,7 +14746,7 @@ msgstr "این دیدگاه برای همیشه حذف خواهد شد. این �
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "این افزونه و بسته آن را از وبسایت شما حذف می‌کند."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:351
+#: packages/admin/src/components/ContentSettingsPanel.tsx:352
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "این به نسخه منتشرشده بازمی‌گردد. تغییرات پیش‌نویس شما از بین خواهد رفت."
 
@@ -14720,7 +14754,7 @@ msgstr "این به نسخه منتشرشده بازمی‌گردد. تغییر�
 msgid "Thoughts, tutorials, and more"
 msgstr "اندیشه‌ها، آموزش‌ها و بیشتر"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:220
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:221
 msgid "Time"
 msgstr ""
 
@@ -14732,7 +14766,7 @@ msgstr ""
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:311
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:312
 #: packages/admin/src/components/settings/GeneralSettings.tsx:508
 msgid "Timezone"
 msgstr "منطقه زمانی"
@@ -14773,7 +14807,7 @@ msgstr "برای انتخاب"
 msgid "Today"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:600
+#: packages/admin/src/components/TaxonomySidebar.tsx:607
 msgid "Toggle"
 msgstr ""
 
@@ -14857,7 +14891,7 @@ msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
-#: packages/admin/src/components/TaxonomySidebar.tsx:778
+#: packages/admin/src/components/TaxonomySidebar.tsx:785
 #: packages/admin/src/router.tsx:1628
 msgid "Translation created"
 msgstr ""
@@ -14899,7 +14933,7 @@ msgstr ""
 msgid "True/false toggle"
 msgstr "تغییر صحیح/غلط"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1032
+#: packages/admin/src/components/MediaLibrary.tsx:1040
 msgid "Try a broader media type or clear your filters."
 msgstr ""
 
@@ -14922,7 +14956,7 @@ msgstr "جستجو یا فیلترهای خود را تنظیم کنید."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:247
 #: packages/admin/src/components/MediaUsedIn.tsx:277
-#: packages/admin/src/components/RevisionHistory.tsx:93
+#: packages/admin/src/components/RevisionHistory.tsx:92
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:352
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:386
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:397
@@ -14937,7 +14971,7 @@ msgstr ""
 msgid "Try Again"
 msgstr "تلاش مجدد"
 
-#: packages/admin/src/components/MediaLibrary.tsx:597
+#: packages/admin/src/components/MediaLibrary.tsx:605
 msgid "Try again."
 msgstr ""
 
@@ -14949,12 +14983,12 @@ msgstr ""
 msgid "Try another code"
 msgstr "کد دیگری را امتحان کنید"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1073
+#: packages/admin/src/components/MediaLibrary.tsx:1081
 #: packages/admin/src/components/MediaPickerModal.tsx:1460
 msgid "Try another filename or clear your search."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1031
+#: packages/admin/src/components/MediaLibrary.tsx:1039
 msgid "Try another filename, or clear your search and filters."
 msgstr ""
 
@@ -14963,7 +14997,7 @@ msgstr ""
 msgid "Try Another URL"
 msgstr "آدرس دیگری را امتحان کنید"
 
-#: packages/admin/src/components/Redirects.tsx:618
+#: packages/admin/src/components/Redirects.tsx:797
 msgid "Try changing or clearing your filters."
 msgstr ""
 
@@ -15019,11 +15053,15 @@ msgstr ""
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
 #: packages/admin/src/components/FieldEditor.tsx:1659
-#: packages/admin/src/components/MediaLibrary.tsx:1163
+#: packages/admin/src/components/MediaLibrary.tsx:1170
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
 msgid "Type"
 msgstr "نوع"
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:590
+msgid "Type a name above to create a new {singularLabel}."
+msgstr ""
 
 #: packages/admin/src/components/editor/ImageNode.tsx:312
 msgid "Type caption for image (optional)"
@@ -15046,7 +15084,7 @@ msgstr ""
 msgid "Type to search"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1468
+#: packages/admin/src/components/MediaLibrary.tsx:1472
 msgid "Type: Folder"
 msgstr ""
 
@@ -15059,8 +15097,8 @@ msgstr ""
 msgid "Unable to reach marketplace"
 msgstr "دسترسی به فروشگاه ممکن نیست"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1338
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1355
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1342
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1359
 msgid "Unassigned"
 msgstr "بدون تخصیص"
 
@@ -15131,7 +15169,7 @@ msgstr "شاه‌کلید بدون نام"
 msgid "Unnamed user"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:485
+#: packages/admin/src/components/ContentSettingsPanel.tsx:486
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
@@ -15148,7 +15186,7 @@ msgstr ""
 msgid "Unregistered Content Tables Found"
 msgstr "جداول محتوای ثبت‌نشده یافت شد"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:844
+#: packages/admin/src/components/TaxonomySidebar.tsx:851
 msgid "Unresolved assignment"
 msgstr ""
 
@@ -15244,7 +15282,7 @@ msgstr ""
 msgid "Update the profile for {0}."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:219
+#: packages/admin/src/components/Redirects.tsx:246
 msgid "Update this redirect rule."
 msgstr "این قانون    تغییر مسیر را به‌روزرسانی کنید."
 
@@ -15289,7 +15327,7 @@ msgstr "در حال به‌روزرسانی..."
 msgid "visualEditing.uploadImage"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:820
+#: packages/admin/src/components/MediaLibrary.tsx:828
 msgid "Upload"
 msgstr "بارگذاری"
 
@@ -15332,18 +15370,18 @@ msgstr ""
 msgid "Upload files"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:702
-#: packages/admin/src/components/MediaLibrary.tsx:1048
-#: packages/admin/src/components/MediaLibrary.tsx:1063
-#: packages/admin/src/components/MediaLibrary.tsx:1087
+#: packages/admin/src/components/MediaLibrary.tsx:710
+#: packages/admin/src/components/MediaLibrary.tsx:1056
+#: packages/admin/src/components/MediaLibrary.tsx:1071
+#: packages/admin/src/components/MediaLibrary.tsx:1095
 msgid "Upload Files"
 msgstr "بارگذاری فایل‌ها"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1044
+#: packages/admin/src/components/MediaLibrary.tsx:1052
 msgid "Upload files here or move media here from Media Details."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1060
+#: packages/admin/src/components/MediaLibrary.tsx:1068
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr ""
 
@@ -15351,7 +15389,7 @@ msgstr ""
 msgid "Upload Media"
 msgstr "بارگذاری رسانه"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1084
+#: packages/admin/src/components/MediaLibrary.tsx:1092
 msgid "Upload media to keep reusable assets in one place."
 msgstr ""
 
@@ -15368,7 +15406,7 @@ msgid "Upload site packages and check whether they can be imported. Admin includ
 msgstr ""
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:703
+#: packages/admin/src/components/MediaLibrary.tsx:711
 msgid "Upload to {0}"
 msgstr "بارگذاری به {0}"
 
@@ -15476,7 +15514,7 @@ msgstr ""
 msgid "Usage may be out of date."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:220
+#: packages/admin/src/components/Redirects.tsx:247
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "از [param] یا [...rest] در مسیرها برای تطبیق الگو استفاده کنید."
 
@@ -15607,8 +15645,12 @@ msgstr ""
 msgid "User not found"
 msgstr "کاربر یافت نشد"
 
+#: packages/admin/src/lib/api/users.ts:89
+msgid "User not found: {id}"
+msgstr ""
+
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
-#: packages/admin/src/components/Sidebar.tsx:537
+#: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/users/UserList.tsx:63
 msgid "Users"
 msgstr "کاربران"
@@ -15705,7 +15747,7 @@ msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
-#: packages/admin/src/components/MediaLibrary.tsx:938
+#: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407
 #: packages/admin/src/components/PortableTextEditor.tsx:3799
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:485
@@ -15729,7 +15771,7 @@ msgstr "مشاهده وضعیت ارائه‌دهنده ایمیل و ارسال
 msgid "View live"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:884
+#: packages/admin/src/components/MediaLibrary.tsx:892
 #: packages/admin/src/components/MediaPickerModal.tsx:1266
 msgid "View mode"
 msgstr "حالت نمایش"
@@ -15738,7 +15780,7 @@ msgstr "حالت نمایش"
 msgid "View published"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:841
+#: packages/admin/src/components/MediaLibrary.tsx:849
 msgid "View setup"
 msgstr ""
 
@@ -15758,24 +15800,24 @@ msgstr ""
 msgid "Viewing the version from {when} by {name}."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:601
+#: packages/admin/src/components/Redirects.tsx:780
 msgid "Visitors hitting these paths will see an error."
 msgstr "بازدیدکنندگانی که به این مسیرها می‌رسند خطا خواهند دید."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:224
+#: packages/admin/src/components/ContentSettingsPanel.tsx:225
 msgid "Visitors see the published version until the scheduled update"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:188
-#: packages/admin/src/components/ContentSettingsPanel.tsx:250
+#: packages/admin/src/components/ContentSettingsPanel.tsx:189
+#: packages/admin/src/components/ContentSettingsPanel.tsx:251
 msgid "Visitors see this published version"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:198
+#: packages/admin/src/components/ContentSettingsPanel.tsx:199
 msgid "Visitors still see the published version"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:498
+#: packages/admin/src/components/ContentSettingsPanel.tsx:499
 msgid "Visitors will see these changes immediately."
 msgstr ""
 
@@ -16011,7 +16053,7 @@ msgstr ""
 #: packages/admin/src/components/PluginManager.tsx:495
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
-#: packages/admin/src/components/Sidebar.tsx:488
+#: packages/admin/src/components/Sidebar.tsx:504
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "Widgets"
@@ -16058,7 +16100,7 @@ msgstr ""
 msgid "WordPress Username"
 msgstr "نام کاربری وردپرس"
 
-#: packages/admin/src/components/DataTable.tsx:137
+#: packages/admin/src/components/DataTable.tsx:359
 msgid "Working on {selectedCount} items…"
 msgstr ""
 
@@ -16158,7 +16200,7 @@ msgstr "نمی‌توانید نقش خود را تغییر دهید"
 msgid "You do not have permission to edit this asset."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:595
+#: packages/admin/src/components/MediaLibrary.tsx:603
 msgid "You don’t have permission to move this file."
 msgstr ""
 
@@ -16305,8 +16347,8 @@ msgstr "نام کاربری اینستاگرام شما"
 msgid "Your LinkedIn profile username"
 msgstr "نام کاربری پروفایل لینکدین شما"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1059
-#: packages/admin/src/components/MediaLibrary.tsx:1083
+#: packages/admin/src/components/MediaLibrary.tsx:1067
+#: packages/admin/src/components/MediaLibrary.tsx:1091
 msgid "Your media library is empty"
 msgstr ""
 

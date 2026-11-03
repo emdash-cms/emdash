@@ -102,8 +102,14 @@ export type GetImage = (options: {
 	height?: number;
 	widths?: number[];
 	sizes?: string;
+	format?: string;
 	quality?: EmbedOptions["quality"];
 }) => Promise<{ src: string; srcSet?: { attribute?: string } | undefined }>;
+
+/** MIME type for a transform output format, for `<source type>`. */
+export function formatContentType(format: string): string {
+	return `image/${format === "jpg" ? "jpeg" : format}`;
+}
 
 export interface ResponsiveImage {
 	src: string;
@@ -135,10 +141,11 @@ export async function buildResponsiveImage(
 		width?: number;
 		height?: number;
 		originalWidth?: number;
+		format?: string;
 		quality?: EmbedOptions["quality"];
 	},
 ): Promise<ResponsiveImage | null> {
-	const { src, width, height, originalWidth, quality } = opts;
+	const { src, width, height, originalWidth, format, quality } = opts;
 	if (!src || !width || !height) return null;
 	if (!ABSOLUTE_HTTP_URL.test(src)) return null;
 	try {
@@ -149,6 +156,7 @@ export async function buildResponsiveImage(
 			height,
 			widths: responsiveWidths(width, originalWidth),
 			sizes,
+			format,
 			...(quality !== undefined ? { quality } : {}),
 		});
 		// Passthrough: the service returned the source unchanged (unauthorized

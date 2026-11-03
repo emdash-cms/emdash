@@ -47,6 +47,7 @@ import {
 	type ContentPublishingState,
 } from "../lib/content-publishing-state.js";
 import { useConfirmedRequest } from "../lib/dialog-form.js";
+import { getSeoFallbackTitle } from "../lib/entryTitle.js";
 import { usePluginAdmins } from "../lib/plugin-context";
 import {
 	formatPublishingInstant,
@@ -1016,13 +1017,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 												/>
 											</Collapsible.Trigger>
 											<Collapsible.Panel
-												className="overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+												className="overflow-hidden transition-[height] duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
 												style={({ transitionStatus }) => ({
 													height:
 														transitionStatus === "starting" || transitionStatus === "ending"
 															? 0
 															: "var(--collapsible-panel-height)",
-													transitionProperty: "height",
 												})}
 											>
 												<dl className="grid gap-1.5 px-0 pt-1.5 pb-0.5">
@@ -1197,7 +1197,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								contentKey={item?.id ?? `new:${collection}`}
 								seo={item?.seo}
 								onChange={onSeoChange}
-								defaultTitle={typeof item?.data?.title === "string" ? item.data.title : null}
+								defaultTitle={
+									item
+										? getSeoFallbackTitle(item.data, manifest?.collections[collection]?.titleField)
+										: null
+								}
 								defaultDescription={
 									typeof item?.data?.excerpt === "string" ? item.data.excerpt : null
 								}

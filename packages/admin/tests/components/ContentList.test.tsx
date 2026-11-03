@@ -576,6 +576,37 @@ describe("ContentList", () => {
 			await expect.element(trigger).toHaveFocus();
 		});
 
+		it("moves focus to the next row's menu button when the trashed row leaves with its dialog", async () => {
+			function TrashableList() {
+				const [items, setItems] = React.useState(
+					[1, 2, 3].map((n) => makeItem({ id: `item_${n}`, data: { title: `Post ${n}` } })),
+				);
+				return (
+					<ContentList
+						{...defaultProps}
+						items={items}
+						onDelete={(id) => setItems((current) => current.filter((item) => item.id !== id))}
+					/>
+				);
+			}
+			const screen = await render(<TrashableList />);
+			const actions = (title: string) =>
+				screen.getByRole("button", { name: `Actions for ${title}`, exact: true });
+			await userEvent.hover(document.body);
+			actions("Post 2").element().focus();
+			await userEvent.keyboard("{Enter}");
+			await expect.element(screen.getByRole("menuitem").first()).toHaveFocus();
+			await userEvent.keyboard("{End}{Enter}");
+			const dialog = screen.getByRole("dialog", { name: "Move to Trash?" });
+			await expect.element(dialog).toBeVisible();
+			dialog.getByRole("button", { name: "Move to Trash" }).element().focus();
+
+			await userEvent.keyboard("{Enter}");
+
+			await expect.element(actions("Post 2")).not.toBeInTheDocument();
+			await expect.element(actions("Post 3")).toHaveFocus();
+		});
+
 		it("closes the dialog when the user confirms", async () => {
 			const onDelete = vi.fn();
 			const items = [makeItem({ id: "item_1", data: { title: "Post" } })];
