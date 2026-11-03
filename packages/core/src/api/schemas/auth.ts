@@ -121,7 +121,13 @@ export const passkeyRenameBody = z
 const ADMIN_LAYOUT_MAX_IDS = 200;
 const ADMIN_LAYOUT_MAX_BYTES = 16 * 1024;
 
-const adminLayoutIds = z.array(z.string().min(1)).max(ADMIN_LAYOUT_MAX_IDS);
+// PostgreSQL's jsonb rejects U+0000, so such an ID would fail the write instead of validation.
+const adminLayoutId = z
+	.string()
+	.min(1)
+	.refine((id) => !id.includes("\u0000"), { message: "IDs must not contain U+0000" });
+
+const adminLayoutIds = z.array(adminLayoutId).max(ADMIN_LAYOUT_MAX_IDS);
 
 const adminLayoutList = z.strictObject({
 	order: adminLayoutIds,

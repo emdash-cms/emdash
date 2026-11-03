@@ -240,6 +240,13 @@ describeEachDialect("/_emdash/api/auth/me admin layout", (dialect) => {
 			},
 		],
 		[
+			"an ID containing U+0000",
+			{
+				action: "setAdminLayout",
+				adminLayout: { ...layout, nav: { order: ["/media\u0000"], hidden: [] } },
+			},
+		],
+		[
 			"a numeric ID",
 			{
 				action: "setAdminLayout",

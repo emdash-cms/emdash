@@ -43,7 +43,6 @@ export interface UpdateUserInput {
 	data?: Record<string, unknown>;
 }
 
-/** A JSON-serializable value stored under one `users.data` key. */
 export type UserDataValue =
 	| string
 	| number
