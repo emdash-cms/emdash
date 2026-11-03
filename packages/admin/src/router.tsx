@@ -147,6 +147,7 @@ import {
 	type RevisionListItem,
 	type RevisionListResponse,
 } from "./lib/api";
+import { useAdminLayout } from "./lib/api/admin-layout.js";
 import {
 	fetchComments,
 	fetchCommentCounts,
@@ -871,6 +872,7 @@ function ContentNewPage() {
 	const toastManager = useKumoToastManager();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
 	const { data: currentUser } = useCurrentUser();
+	const adminLayout = useAdminLayout();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -996,6 +998,7 @@ function ContentNewPage() {
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
 			currentUser={currentUser}
+			adminLayout={adminLayout.editor}
 			manifest={manifest ?? null}
 			timezone={manifest.timezone ?? "UTC"}
 		/>
@@ -1074,6 +1077,7 @@ function ContentEditPage() {
 			!(queryError instanceof ApiResponseError && queryError.status === 404) && failureCount < 1,
 	});
 	const { data: currentUser } = useCurrentUser();
+	const adminLayout = useAdminLayout();
 
 	// Nothing is withheld until the current user has loaded; the server still
 	// refuses what the role can't do.
@@ -2021,6 +2025,7 @@ function ContentEditPage() {
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
 			supportsPreview={collectionConfig.supports.includes("preview")}
 			currentUser={currentUser}
+			adminLayout={adminLayout.editor}
 			users={usersData?.items}
 			onAuthorChange={handleAuthorChange}
 			i18n={i18n}

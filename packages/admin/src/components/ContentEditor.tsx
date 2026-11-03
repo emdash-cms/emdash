@@ -24,6 +24,7 @@ import {
 	ArrowsOutSimple,
 	CaretUp,
 	CaretDown,
+	PencilSimple,
 	Plus,
 	Trash,
 } from "@phosphor-icons/react";
@@ -32,6 +33,7 @@ import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
+import type { ListLayout } from "../lib/admin-layout.js";
 import type {
 	BylineCreditInput,
 	BylineSummary,
@@ -448,6 +450,8 @@ export interface ContentEditorProps {
 	supportsPreview?: boolean;
 	/** Current user (for permission checks) */
 	currentUser?: CurrentUserInfo;
+	/** The user's editor sidebar layout; must keep its identity across renders. */
+	adminLayout?: ListLayout;
 	/** Available users for author selection (only shown to editors+) */
 	users?: UserListItem[];
 	/** Callback when author is changed */
@@ -530,6 +534,7 @@ export function ContentEditor({
 	supportsRevisions = false,
 	supportsPreview = false,
 	currentUser,
+	adminLayout,
 	users,
 	onAuthorChange,
 	availableBylines,
@@ -2080,6 +2085,7 @@ export function ContentEditor({
 										onDelete={onDelete}
 										isDeleting={isDeleting}
 										currentUser={currentUser}
+										adminLayout={adminLayout}
 										users={users}
 										onAuthorChange={onAuthorChange}
 										activeBylines={activeBylines}
@@ -2105,6 +2111,20 @@ export function ContentEditor({
 								</RevisionViewProvider>
 							</div>
 						</fieldset>
+						{/* Kumo pins only a direct `Sidebar.Footer` child below the scrolling sections. */}
+						{!blockSidebarPanel && (
+							<Sidebar.Footer className="bg-kumo-base px-1 group-not-data-[state=collapsed]/sidebar:px-1">
+								<RouterLinkButton
+									to="/settings/sidebars"
+									search={{ tab: "editor" }}
+									variant="ghost"
+									icon={<PencilSimple aria-hidden="true" />}
+									className="w-full min-w-0 justify-start font-normal text-kumo-subtle hover:text-kumo-default"
+								>
+									<span className="truncate">{t`Customize sidebar`}</span>
+								</RouterLinkButton>
+							</Sidebar.Footer>
+						)}
 						{!isBelowLg && <ContentEditorSettingsResizeHandle panelId={settingsPanelId} />}
 					</Sidebar>
 				</div>
