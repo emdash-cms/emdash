@@ -1265,13 +1265,34 @@ describe("htmlToPortableText", () => {
 		}
 	});
 
+	it("keeps a link across every paragraph it spans", () => {
+		const html = '<a href="https://example.com/article">One\n\nTwo\n\nThree\n\nFour</a>';
+		const blocks = htmlToPortableText(html) as PortableTextTextBlock[];
+
+		expect(blocks.map((block) => block.children.map((span) => span.text).join(""))).toEqual([
+			"One",
+			"Two",
+			"Three",
+			"Four",
+		]);
+		for (const block of blocks) {
+			expect(block.markDefs?.[0]).toMatchObject({ href: "https://example.com/article" });
+			expect(block.children[0]?.marks).toContain(block.markDefs?.[0]?._key);
+		}
+	});
+
 	it.each([
 		["unclosed formatting tags", "<b>x\n\n".repeat(20_000)],
 		[
 			"a long unclosed link",
 			`<a href="https://example.com/${"x".repeat(100_000)}">${"y\n\n".repeat(20_000)}`,
 		],
-		["end tags with nothing open", `${"<b>".repeat(25_000)}${"</i>\n\n".repeat(25_000)}`],
+		[
+			"a link in each of many paragraphs",
+			Array.from({ length: 20_000 }, (_, i) => `<a href="https://example.com/${i}">x</a>\n\n`).join(
+				"",
+			),
+		],
 	])("splits paragraphs after %s within a second", (_shape, html) => {
 		const started = performance.now();
 		htmlToPortableText(html);

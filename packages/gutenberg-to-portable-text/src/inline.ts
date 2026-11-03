@@ -12,6 +12,9 @@ import { sanitizeHref } from "./url.js";
 
 // Regex patterns for inline parsing
 const WHITESPACE_PATTERN = /\S/;
+const PARAGRAPH_BREAK_PATTERN = /\n[^\S\n]*\n/g;
+/** Stands for a blank line in parsed text; parse5 drops U+0000 from text, so content can't contain it */
+const PARAGRAPH_BREAK_MARK = "\u0000";
 
 // Elements that put what follows on a new line anyway, so a newline right
 // before one is not a line break of its own
@@ -101,6 +104,76 @@ export function parseInlineContent(html: string, generateKey: () => string): Par
 	}
 
 	return { children, markDefs };
+}
+
+/**
+ * Parse inline HTML into the paragraphs that its blank lines separate, as
+ * wpautop does. Only blank lines in text count, so one inside a comment or an
+ * attribute is not a break, and spans keep their marks and links across one.
+ */
+export function parseInlineParagraphs(html: string, generateKey: () => string): ParseResult[] {
+	const fragment = parseFragment(stripBlockTags(html));
+	markParagraphBreaks(fragment.childNodes);
+
+	const children: PortableTextSpan[] = [];
+	const markDefs: PortableTextMarkDef[] = [];
+	walkNodes(fragment.childNodes, children, markDefs, new Map(), generateKey);
+
+	const paragraphs: PortableTextSpan[][] = [[]];
+	for (const span of children) {
+		for (const [index, text] of span.text.split(PARAGRAPH_BREAK_MARK).entries()) {
+			if (index > 0) paragraphs.push([]);
+			if (text) {
+				paragraphs.at(-1)!.push({ ...span, _key: index === 0 ? span._key : generateKey(), text });
+			}
+		}
+	}
+
+	const markDefsByKey = new Map(markDefs.map((def) => [def._key, def]));
+	const results: ParseResult[] = [];
+	for (const spans of paragraphs) {
+		const paragraph = trimParagraph(spans);
+		if (paragraph.length === 0) continue;
+		const marks = new Set(paragraph.flatMap((span) => span.marks ?? []));
+		results.push({
+			children: paragraph,
+			markDefs: [...marks].flatMap((mark) => markDefsByKey.get(mark) ?? []),
+		});
+	}
+	return results;
+}
+
+/**
+ * Replace each blank line in the fragment's text with a paragraph break mark
+ */
+function markParagraphBreaks(nodes: Node[]): void {
+	const pending = [...nodes];
+	for (let node = pending.pop(); node; node = pending.pop()) {
+		if (isTextNode(node)) {
+			node.value = node.value.replace(PARAGRAPH_BREAK_PATTERN, PARAGRAPH_BREAK_MARK);
+		} else if (isElement(node)) {
+			for (const child of node.childNodes) pending.push(child);
+		}
+	}
+}
+
+/**
+ * Drop the whitespace a paragraph's blank lines leave at its edges
+ */
+function trimParagraph(spans: PortableTextSpan[]): PortableTextSpan[] {
+	let start = 0;
+	while (start < spans.length && !WHITESPACE_PATTERN.test(spans[start]!.text)) start++;
+	let end = spans.length;
+	while (end > start && !WHITESPACE_PATTERN.test(spans[end - 1]!.text)) end--;
+	if (start === end) return [];
+
+	const paragraph = spans.slice(start, end);
+	paragraph[0] = { ...paragraph[0]!, text: paragraph[0]!.text.trimStart() };
+	paragraph[paragraph.length - 1] = {
+		...paragraph.at(-1)!,
+		text: paragraph.at(-1)!.text.trimEnd(),
+	};
+	return paragraph;
 }
 
 /**
