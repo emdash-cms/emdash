@@ -1073,6 +1073,28 @@ describe("PT <-> Markdown round-trip", () => {
 		expect(mdNewline).toContain("<!--ec:block");
 		expect(markdownToPortableText(mdNewline)[0]).toEqual(newlineTable);
 	});
+
+	it("preserves inline HTML tags in text spans", () => {
+		const md = "Water is H<sub>2</sub>O and press <kbd>Ctrl</kbd> + <kbd>C</kbd>.\n";
+		const blocks = markdownToPortableText(md);
+		expect(blocks).toHaveLength(1);
+		const fullText = (blocks[0].children as Array<{ text: string }>).map((c) => c.text).join("");
+		expect(fullText).toContain("<sub>");
+		expect(fullText).toContain("</sub>");
+		expect(fullText).toContain("<kbd>Ctrl</kbd>");
+	});
+
+	it("handles empty cells in tables with valid empty spans", () => {
+		const md = "| A | B |\n| --- | --- |\n|   | Row 1B |\n";
+		const blocks = markdownToPortableText(md);
+		expect(blocks).toHaveLength(1);
+		const rows = blocks[0].rows as PortableTextTableRow[];
+		expect(rows).toHaveLength(2);
+		// Row 1 Cell 0 was empty
+		expect(rows[1].cells[0].content).toHaveLength(1);
+		expect(rows[1].cells[0].content[0]._type).toBe("span");
+		expect(rows[1].cells[0].content[0].text).toBe("");
+	});
 });
 
 // ---------------------------------------------------------------------------

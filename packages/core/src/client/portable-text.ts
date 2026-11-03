@@ -69,11 +69,6 @@ interface MarkDef {
 	[key: string]: unknown;
 }
 
-interface ParsedInline {
-	spans: PortableTextSpan[];
-	markDefs: MarkDef[];
-}
-
 // ---------------------------------------------------------------------------
 // PT -> Markdown
 // ---------------------------------------------------------------------------
@@ -142,29 +137,27 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 			if (canSerializeTableAsGfm(block)) {
 				if (i > 0) lines.push("");
 				const rows = block.rows as PortableTextTableRow[];
-				const headerRow = rows[0];
-				const headerTexts = headerRow.cells.map((c) =>
-					renderSpans(c.content || [], resolveCellMarkDefs(block.markDefs, c.markDefs))
-						.replaceAll("|", "\\|")
-						.trim(),
-				);
-				const alignments = headerRow.cells.map((c) => {
+				const formatRow = (cells: PortableTextTableCell[]) =>
+					cells
+						.map((c) =>
+							renderSpans(c.content || [], resolveCellMarkDefs(block.markDefs, c.markDefs))
+								.replaceAll("|", "\\|")
+								.trim(),
+						)
+						.join(" | ");
+
+				const alignments = rows[0].cells.map((c) => {
 					if (c.textAlign === "center") return ":---:";
 					if (c.textAlign === "right") return "---:";
 					if (c.textAlign === "left") return ":---";
 					return "---";
 				});
-				lines.push("| " + headerTexts.join(" | ") + " |");
+
+				lines.push("| " + formatRow(rows[0].cells) + " |");
 				lines.push("| " + alignments.join(" | ") + " |");
 
 				for (let r = 1; r < rows.length; r++) {
-					const bodyRow = rows[r];
-					const bodyTexts = bodyRow.cells.map((c) =>
-						renderSpans(c.content || [], resolveCellMarkDefs(block.markDefs, c.markDefs))
-							.replaceAll("|", "\\|")
-							.trim(),
-					);
-					lines.push("| " + bodyTexts.join(" | ") + " |");
+					lines.push("| " + formatRow(rows[r].cells) + " |");
 				}
 				prevWasList = false;
 			} else {
@@ -391,6 +384,16 @@ function processInlineTokens(
 				text: "\n",
 				marks: [...activeMarks],
 			});
+		} else if (token.type === "html") {
+			const htmlText = (token as any).text ?? (token as any).raw ?? "";
+			if (htmlText) {
+				spans.push({
+					_type: "span",
+					_key: generateKey(),
+					text: htmlText,
+					marks: [...activeMarks],
+				});
+			}
 		} else if ("tokens" in token && Array.isArray((token as any).tokens)) {
 			spans.push(...processInlineTokens((token as any).tokens, markDefs, activeMarks));
 		} else if ("text" in token && typeof (token as any).text === "string") {
@@ -597,50 +600,40 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 			const tToken = token as Tokens.Table;
 			const rows: PortableTextTableRow[] = [];
 
+			const buildCell = (
+				cell: { tokens?: Token[] },
+				colIndex: number,
+				isHeader = false,
+			): PortableTextTableCell => {
+				const cellMarkDefs: MarkDef[] = [];
+				const content = processInlineTokens(cell.tokens || [], cellMarkDefs);
+				const align = tToken.align[colIndex];
+				const tableCell: PortableTextTableCell = {
+					_type: "tableCell",
+					_key: generateKey(),
+					content,
+				};
+				if (isHeader) tableCell.isHeader = true;
+				if (cellMarkDefs.length > 0) tableCell.markDefs = cellMarkDefs;
+				if (align === "left" || align === "center" || align === "right") {
+					tableCell.textAlign = align;
+				}
+				return tableCell;
+			};
+
 			if (tToken.header && tToken.header.length > 0) {
-				const headerCells: PortableTextTableCell[] = tToken.header.map((cell, colIndex) => {
-					const cellMarkDefs: MarkDef[] = [];
-					const content = processInlineTokens(cell.tokens || [], cellMarkDefs);
-					const tableCell: PortableTextTableCell = {
-						_type: "tableCell",
-						_key: generateKey(),
-						isHeader: true,
-						content,
-					};
-					if (cellMarkDefs.length > 0) tableCell.markDefs = cellMarkDefs;
-					const align = tToken.align[colIndex];
-					if (align === "left" || align === "center" || align === "right") {
-						tableCell.textAlign = align;
-					}
-					return tableCell;
-				});
 				rows.push({
 					_type: "tableRow",
 					_key: generateKey(),
-					cells: headerCells,
+					cells: tToken.header.map((cell, idx) => buildCell(cell, idx, true)),
 				});
 			}
 
 			for (const row of tToken.rows) {
-				const bodyCells: PortableTextTableCell[] = row.map((cell, colIndex) => {
-					const cellMarkDefs: MarkDef[] = [];
-					const content = processInlineTokens(cell.tokens || [], cellMarkDefs);
-					const tableCell: PortableTextTableCell = {
-						_type: "tableCell",
-						_key: generateKey(),
-						content,
-					};
-					if (cellMarkDefs.length > 0) tableCell.markDefs = cellMarkDefs;
-					const align = tToken.align[colIndex];
-					if (align === "left" || align === "center" || align === "right") {
-						tableCell.textAlign = align;
-					}
-					return tableCell;
-				});
 				rows.push({
 					_type: "tableRow",
 					_key: generateKey(),
-					cells: bodyCells,
+					cells: row.map((cell, idx) => buildCell(cell, idx, false)),
 				});
 			}
 
@@ -653,70 +646,46 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 		} else if (token.type === "blockquote") {
 			const bToken = token as Tokens.Blockquote;
 			for (const sub of bToken.tokens) {
-				if (sub.type === "paragraph") {
-					const markDefs: MarkDef[] = [];
-					const spans = processInlineTokens((sub as Tokens.Paragraph).tokens || [], markDefs);
-					blocks.push({
-						_type: "block",
-						_key: generateKey(),
-						style: "blockquote",
-						markDefs,
-						children: spans,
-					});
-				} else if (sub.type === "heading") {
-					const markDefs: MarkDef[] = [];
-					const spans = processInlineTokens(
-						(sub as Tokens.Heading).tokens || [
-							{ type: "text", raw: (sub as Tokens.Heading).text, text: (sub as Tokens.Heading).text } as Token,
-						],
-						markDefs,
-					);
-					blocks.push({
-						_type: "block",
-						_key: generateKey(),
-						style: "blockquote",
-						markDefs,
-						children: spans,
-					});
-				} else if (sub.type === "text") {
-					const markDefs: MarkDef[] = [];
-					const inlineTokens = (sub as any).tokens || [
-						{ type: "text", raw: sub.text, text: sub.text } as Token,
-					];
-					const spans = processInlineTokens(inlineTokens, markDefs);
-					blocks.push({
-						_type: "block",
-						_key: generateKey(),
-						style: "blockquote",
-						markDefs,
-						children: spans,
-					});
-				} else if (sub.type === "list") {
+				if (sub.type === "list") {
 					const lToken = sub as Tokens.List;
 					for (const item of lToken.items) {
 						const markDefs: MarkDef[] = [];
 						const inlineTokens = (item as any).tokens || [
 							{ type: "text", raw: item.text, text: item.text } as Token,
 						];
-						const spans = processInlineTokens(inlineTokens, markDefs);
 						blocks.push({
 							_type: "block",
 							_key: generateKey(),
 							style: "blockquote",
 							markDefs,
-							children: spans,
+							children: processInlineTokens(inlineTokens, markDefs),
 						});
 					}
 				} else {
-					const rawText = (sub as any).text ?? sub.raw.replace(/^>\s*/gm, "").trim();
-					if (rawText) {
+					const inlineTokens =
+						"tokens" in sub && Array.isArray((sub as any).tokens)
+							? (sub as any).tokens
+							: undefined;
+					if (inlineTokens) {
+						const markDefs: MarkDef[] = [];
 						blocks.push({
 							_type: "block",
 							_key: generateKey(),
 							style: "blockquote",
-							markDefs: [],
-							children: [{ _type: "span", _key: generateKey(), text: rawText, marks: [] }],
+							markDefs,
+							children: processInlineTokens(inlineTokens, markDefs),
 						});
+					} else {
+						const rawText = (sub as any).text ?? sub.raw.replace(/^>\s*/gm, "").trim();
+						if (rawText) {
+							blocks.push({
+								_type: "block",
+								_key: generateKey(),
+								style: "blockquote",
+								markDefs: [],
+								children: [{ _type: "span", _key: generateKey(), text: rawText, marks: [] }],
+							});
+						}
 					}
 				}
 			}
@@ -735,25 +704,6 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 	}
 
 	return blocks;
-}
-
-// ---------------------------------------------------------------------------
-// Block builders
-// ---------------------------------------------------------------------------
-
-function makeBlock(text: string, style: string = "normal"): PortableTextBlock {
-	const { spans, markDefs } = parseInline(text);
-	return { _type: "block", _key: generateKey(), style, markDefs, children: spans };
-}
-
-/**
- * Parse inline markdown (bold, italic, code, links, strikethrough) into PT spans + markDefs.
- */
-function parseInline(text: string): ParsedInline {
-	const markDefs: MarkDef[] = [];
-	const tokens = marked.Lexer.lexInline(text);
-	const spans = processInlineTokens(tokens, markDefs);
-	return { spans, markDefs };
 }
 
 // ---------------------------------------------------------------------------
