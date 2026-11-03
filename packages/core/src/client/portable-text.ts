@@ -85,6 +85,7 @@ interface ParsedInline {
 export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 	const lines: string[] = [];
 	let prevWasList = false;
+	const listAncestors: Array<{ level: number; listItem: string }> = [];
 
 	for (let i = 0; i < blocks.length; i++) {
 		const block = blocks[i];
@@ -97,9 +98,31 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 				lines.push("");
 			}
 
-			lines.push(renderStandardBlock(block));
+			if (isList) {
+				const level = block.level ?? 1;
+				while (
+					listAncestors.length > 0 &&
+					listAncestors[listAncestors.length - 1].level >= level
+				) {
+					listAncestors.pop();
+				}
+
+				let indent = "";
+				for (const ancestor of listAncestors) {
+					indent += ancestor.listItem === "number" ? "   " : "  ";
+				}
+
+				const marker = block.listItem === "number" ? "1." : "-";
+				const text = renderSpans(block.children ?? [], block.markDefs ?? []);
+				lines.push(`${indent}${marker} ${text}`);
+				listAncestors.push({ level, listItem: block.listItem! });
+			} else {
+				listAncestors.length = 0;
+				lines.push(renderStandardBlock(block));
+			}
 			prevWasList = isList;
 		} else if (block._type === "code") {
+			listAncestors.length = 0;
 			if (i > 0) lines.push("");
 			const lang = (block.language as string) || "";
 			const code = (block.code as string) || "";
@@ -108,41 +131,21 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 			lines.push("```");
 			prevWasList = false;
 		} else if (block._type === "image") {
+			listAncestors.length = 0;
 			if (i > 0) lines.push("");
 			const alt = (block.alt as string) || "";
 			const url = (block.asset as { url?: string })?.url || "";
 			lines.push(`![${alt}](${url})`);
 			prevWasList = false;
 		} else if (block._type === "table") {
-			const rows = (block.rows as PortableTextTableRow[]) || [];
-			const isCanonicalRows =
-				Array.isArray(rows) &&
-				rows.length > 0 &&
-				rows.every((r) => r && typeof r === "object" && Array.isArray(r.cells));
-
-			// Can only be serialized losslessly as a GFM table if:
-			// 1. It is a canonical table with rows and cells
-			// 2. It has a header row (hasHeaderRow === true or first row cells are all isHeader === true)
-			// 3. No cells use colspan > 1 or rowspan > 1
-			const hasHeader =
-				isCanonicalRows &&
-				(block.hasHeaderRow === true ||
-					(rows[0].cells.length > 0 && rows[0].cells.every((c) => c.isHeader === true)));
-			const hasComplexSpans =
-				isCanonicalRows &&
-				rows.some((r) =>
-					r.cells.some(
-						(c) => (c.colspan != null && c.colspan > 1) || (c.rowspan != null && c.rowspan > 1),
-					),
-				);
-
-			if (isCanonicalRows && hasHeader && !hasComplexSpans) {
+			listAncestors.length = 0;
+			if (canSerializeTableAsGfm(block)) {
 				if (i > 0) lines.push("");
+				const rows = block.rows as PortableTextTableRow[];
 				const headerRow = rows[0];
 				const headerTexts = headerRow.cells.map((c) =>
-					renderSpans(c.content || [], (c.markDefs as MarkDef[]) || [])
+					renderSpans(c.content || [], resolveCellMarkDefs(block.markDefs, c.markDefs))
 						.replaceAll("|", "\\|")
-						.replaceAll("\n", " ")
 						.trim(),
 				);
 				const alignments = headerRow.cells.map((c) => {
@@ -157,21 +160,21 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 				for (let r = 1; r < rows.length; r++) {
 					const bodyRow = rows[r];
 					const bodyTexts = bodyRow.cells.map((c) =>
-						renderSpans(c.content || [], (c.markDefs as MarkDef[]) || [])
+						renderSpans(c.content || [], resolveCellMarkDefs(block.markDefs, c.markDefs))
 							.replaceAll("|", "\\|")
-							.replaceAll("\n", " ")
 							.trim(),
 					);
 					lines.push("| " + bodyTexts.join(" | ") + " |");
 				}
 				prevWasList = false;
 			} else {
-				// Complex table or non-canonical/no-header table -> preserve losslessly as opaque fence
+				// Complex table or non-canonical/unsupported formatting -> preserve losslessly as opaque fence
 				if (i > 0) lines.push("");
 				lines.push(`<!--ec:block ${JSON.stringify(block)} -->`);
 				prevWasList = false;
 			}
 		} else {
+			listAncestors.length = 0;
 			// Tier 3: Unknown block -> opaque fence
 			if (i > 0) lines.push("");
 			lines.push(`<!--ec:block ${JSON.stringify(block)} -->`);
@@ -180,6 +183,63 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 	}
 
 	return lines.join("\n") + "\n";
+}
+
+function resolveCellMarkDefs(tableMarkDefs?: MarkDef[], cellMarkDefs?: MarkDef[]): MarkDef[] {
+	const defs = new Map<string, MarkDef>();
+	for (const d of tableMarkDefs ?? []) {
+		if (d && d._key) defs.set(d._key, d);
+	}
+	for (const d of cellMarkDefs ?? []) {
+		if (d && d._key) defs.set(d._key, d);
+	}
+	return Array.from(defs.values());
+}
+
+function canSerializeTableAsGfm(block: PortableTextBlock): boolean {
+	const rows = (block.rows as PortableTextTableRow[]) || [];
+	if (!Array.isArray(rows) || rows.length === 0) return false;
+	if (!rows.every((r) => r && typeof r === "object" && Array.isArray(r.cells))) return false;
+
+	const colCount = rows[0].cells.length;
+	if (colCount === 0) return false;
+	if (!rows.every((r) => r.cells.length === colCount)) return false;
+
+	const row0IsHeader =
+		block.hasHeaderRow === true ||
+		(rows[0].cells.length > 0 && rows[0].cells.every((c) => c.isHeader === true));
+	if (!row0IsHeader) return false;
+
+	for (let r = 1; r < rows.length; r++) {
+		if (rows[r].cells.some((c) => c.isHeader === true)) return false;
+	}
+
+	const colAlignments: Array<string | undefined> = rows[0].cells.map((c) => c.textAlign);
+
+	for (let r = 0; r < rows.length; r++) {
+		for (let c = 0; c < colCount; c++) {
+			const cell = rows[r].cells[c];
+			if (!cell) return false;
+
+			if (cell.colspan != null && cell.colspan > 1) return false;
+			if (cell.rowspan != null && cell.rowspan > 1) return false;
+			if (Array.isArray(cell.colwidth) && cell.colwidth.length > 0) return false;
+			if (cell.textAlign === "justify") return false;
+
+			if (cell.content && Array.isArray(cell.content)) {
+				for (const span of cell.content) {
+					if (span.text && span.text.includes("\n")) return false;
+				}
+			}
+
+			if (r > 0 && cell.textAlign !== undefined) {
+				const expectedAlign = colAlignments[c] ?? undefined;
+				if (cell.textAlign !== expectedAlign) return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 function renderStandardBlock(block: PortableTextBlock): string {

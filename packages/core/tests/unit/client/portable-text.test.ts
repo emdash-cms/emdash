@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
-import type { PortableTextBlock, FieldSchema } from "../../../src/client/portable-text.js";
+import type {
+	PortableTextBlock,
+	PortableTextTableBlock,
+	PortableTextTableRow,
+	PortableTextTableCell,
+	FieldSchema,
+} from "../../../src/client/portable-text.js";
 import {
 	portableTextToMarkdown,
 	markdownToPortableText,
@@ -802,6 +808,270 @@ describe("PT <-> Markdown round-trip", () => {
 		expect(roundTripped[0].level).toBe(1);
 		expect(roundTripped[1].listItem).toBe("number");
 		expect(roundTripped[1].level).toBe(2);
+	});
+
+	it("preserves mixed nested lists (number -> bullet -> number) through round-trip", () => {
+		const original: PortableTextBlock[] = [
+			{
+				_type: "block",
+				_key: "m1",
+				listItem: "number",
+				level: 1,
+				style: "normal",
+				markDefs: [],
+				children: [{ _type: "span", text: "L1 Num", marks: [] }],
+			},
+			{
+				_type: "block",
+				_key: "m2",
+				listItem: "bullet",
+				level: 2,
+				style: "normal",
+				markDefs: [],
+				children: [{ _type: "span", text: "L2 Bullet", marks: [] }],
+			},
+			{
+				_type: "block",
+				_key: "m3",
+				listItem: "number",
+				level: 3,
+				style: "normal",
+				markDefs: [],
+				children: [{ _type: "span", text: "L3 Num", marks: [] }],
+			},
+		];
+
+		const md = portableTextToMarkdown(original);
+		expect(md).toBe("1. L1 Num\n   - L2 Bullet\n     1. L3 Num\n");
+
+		const roundTripped = markdownToPortableText(md);
+		expect(roundTripped).toHaveLength(3);
+		expect(roundTripped[0].listItem).toBe("number");
+		expect(roundTripped[0].level).toBe(1);
+		expect(roundTripped[1].listItem).toBe("bullet");
+		expect(roundTripped[1].level).toBe(2);
+		expect(roundTripped[2].listItem).toBe("number");
+		expect(roundTripped[2].level).toBe(3);
+	});
+
+	it("preserves mixed nested lists (bullet -> number -> bullet) through round-trip", () => {
+		const original: PortableTextBlock[] = [
+			{
+				_type: "block",
+				_key: "b1",
+				listItem: "bullet",
+				level: 1,
+				style: "normal",
+				markDefs: [],
+				children: [{ _type: "span", text: "L1 Bullet", marks: [] }],
+			},
+			{
+				_type: "block",
+				_key: "b2",
+				listItem: "number",
+				level: 2,
+				style: "normal",
+				markDefs: [],
+				children: [{ _type: "span", text: "L2 Num", marks: [] }],
+			},
+			{
+				_type: "block",
+				_key: "b3",
+				listItem: "bullet",
+				level: 3,
+				style: "normal",
+				markDefs: [],
+				children: [{ _type: "span", text: "L3 Bullet", marks: [] }],
+			},
+		];
+
+		const md = portableTextToMarkdown(original);
+		expect(md).toBe("- L1 Bullet\n  1. L2 Num\n     - L3 Bullet\n");
+
+		const roundTripped = markdownToPortableText(md);
+		expect(roundTripped).toHaveLength(3);
+		expect(roundTripped[0].listItem).toBe("bullet");
+		expect(roundTripped[0].level).toBe(1);
+		expect(roundTripped[1].listItem).toBe("number");
+		expect(roundTripped[1].level).toBe(2);
+		expect(roundTripped[2].listItem).toBe("bullet");
+		expect(roundTripped[2].level).toBe(3);
+	});
+
+	it("resolves table-level shared link markDefs in table cells", () => {
+		const table: PortableTextTableBlock = {
+			_type: "table",
+			_key: "tbl-shared-mark",
+			hasHeaderRow: true,
+			markDefs: [
+				{
+					_key: "sharedLink1",
+					_type: "link",
+					href: "https://example.org/docs",
+				},
+			],
+			rows: [
+				{
+					_type: "tableRow",
+					_key: "r1",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "c1",
+							isHeader: true,
+							content: [{ _type: "span", text: "Header", marks: [] }],
+						},
+					],
+				},
+				{
+					_type: "tableRow",
+					_key: "r2",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "c2",
+							content: [{ _type: "span", text: "Docs Link", marks: ["sharedLink1"] }],
+						},
+					],
+				},
+			],
+		};
+
+		const md = portableTextToMarkdown([table]);
+		expect(md).toContain("[Docs Link](https://example.org/docs)");
+
+		const roundTripped = markdownToPortableText(md);
+		expect(roundTripped).toHaveLength(1);
+		expect(roundTripped[0]._type).toBe("table");
+		const rows = roundTripped[0].rows as PortableTextTableRow[];
+		expect(rows[1].cells[0].content[0].text).toBe("Docs Link");
+		expect(rows[1].cells[0].markDefs).toBeDefined();
+		expect(rows[1].cells[0].markDefs![0].href).toBe("https://example.org/docs");
+	});
+
+	it("falls back to opaque fence for canonical tables with non-GFM formatting", () => {
+		// 1. Body cell with differing textAlign from column header
+		const diffAlignTable: PortableTextTableBlock = {
+			_type: "table",
+			_key: "tbl-diff-align",
+			hasHeaderRow: true,
+			rows: [
+				{
+					_type: "tableRow",
+					_key: "r1",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "c1",
+							isHeader: true,
+							textAlign: "left",
+							content: [{ _type: "span", text: "Col 1", marks: [] }],
+						},
+					],
+				},
+				{
+					_type: "tableRow",
+					_key: "r2",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "c2",
+							textAlign: "right",
+							content: [{ _type: "span", text: "Right Val", marks: [] }],
+						},
+					],
+				},
+			],
+		};
+		const mdDiffAlign = portableTextToMarkdown([diffAlignTable]);
+		expect(mdDiffAlign).toContain("<!--ec:block");
+		const roundTrippedDiffAlign = markdownToPortableText(mdDiffAlign);
+		expect(roundTrippedDiffAlign[0]).toEqual(diffAlignTable);
+
+		// 2. Table cell with colwidth
+		const colwidthTable: PortableTextTableBlock = {
+			_type: "table",
+			_key: "tbl-colwidth",
+			hasHeaderRow: true,
+			rows: [
+				{
+					_type: "tableRow",
+					_key: "r1",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "c1",
+							isHeader: true,
+							colwidth: [180],
+							content: [{ _type: "span", text: "Col 1", marks: [] }],
+						},
+					],
+				},
+			],
+		};
+		const mdColwidth = portableTextToMarkdown([colwidthTable]);
+		expect(mdColwidth).toContain("<!--ec:block");
+		expect(markdownToPortableText(mdColwidth)[0]).toEqual(colwidthTable);
+
+		// 3. Body row with isHeader: true
+		const bodyHeaderTable: PortableTextTableBlock = {
+			_type: "table",
+			_key: "tbl-body-header",
+			hasHeaderRow: true,
+			rows: [
+				{
+					_type: "tableRow",
+					_key: "r1",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "c1",
+							isHeader: true,
+							content: [{ _type: "span", text: "Header", marks: [] }],
+						},
+					],
+				},
+				{
+					_type: "tableRow",
+					_key: "r2",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "c2",
+							isHeader: true,
+							content: [{ _type: "span", text: "Sub-Header", marks: [] }],
+						},
+					],
+				},
+			],
+		};
+		const mdBodyHeader = portableTextToMarkdown([bodyHeaderTable]);
+		expect(mdBodyHeader).toContain("<!--ec:block");
+		expect(markdownToPortableText(mdBodyHeader)[0]).toEqual(bodyHeaderTable);
+
+		// 4. Cell with newline in content
+		const newlineTable: PortableTextTableBlock = {
+			_type: "table",
+			_key: "tbl-newline",
+			hasHeaderRow: true,
+			rows: [
+				{
+					_type: "tableRow",
+					_key: "r1",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "c1",
+							isHeader: true,
+							content: [{ _type: "span", text: "Line 1\nLine 2", marks: [] }],
+						},
+					],
+				},
+			],
+		};
+		const mdNewline = portableTextToMarkdown([newlineTable]);
+		expect(mdNewline).toContain("<!--ec:block");
+		expect(markdownToPortableText(mdNewline)[0]).toEqual(newlineTable);
 	});
 });
 
