@@ -800,6 +800,52 @@ describe("redirect middleware: non-ASCII source paths", () => {
 		expect(redirect).toHaveBeenCalledWith("/stitek/domaci-zvirata", 301);
 	});
 
+	it("fires when the stored source uses lowercase percent-escapes", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/stitek/dom%c3%a1c%c3%ad",
+			destination: "/stitek/domaci",
+			type: 301,
+		});
+		await publishRedirectArtifacts(db);
+
+		const { context, redirect } = buildContext({ pathname: "/stitek/domácí" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/stitek/domaci", 301);
+	});
+
+	it("percent-encodes a non-ASCII destination for the Location header", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/stitek/zvířata", destination: "/štítek/zvířata", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const { context } = buildContext({ pathname: "/stitek/zvířata" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await runMiddleware(context, next);
+
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/%C5%A1t%C3%ADtek/zv%C3%AD%C5%99ata");
+	});
+
+	it("percent-encodes a non-ASCII pattern destination", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/clanky/[...slug]",
+			destination: "/články/[...slug]",
+			type: 301,
+			isPattern: true,
+		});
+		await publishRedirectArtifacts(db);
+
+		const { context } = buildContext({ pathname: "/clanky/hello" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await runMiddleware(context, next);
+
+		expect(response.headers.get("Location")).toBe("/%C4%8Dl%C3%A1nky/hello");
+	});
+
 	it("matches a pattern whose literal segment contains non-ASCII characters", async () => {
 		const repo = new RedirectRepository(db);
 		await repo.create({

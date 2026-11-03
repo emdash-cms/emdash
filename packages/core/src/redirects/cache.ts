@@ -28,6 +28,7 @@ import {
 	compilePattern,
 	interpolateDestination,
 	matchPattern,
+	normalizeSourcePath,
 	validatePattern,
 } from "./patterns.js";
 
@@ -103,19 +104,6 @@ export function invalidateRedirectCache(): void {
 	cacheState.expiresAt = 0;
 	cacheState.revalidatingUntil = 0;
 	invalidateSingleFlightCache(cacheState.refresh);
-}
-
-/**
- * Percent-encode a source the way the URL parser encodes a request pathname,
- * so a source typed as raw Unicode matches. Already-encoded sources are kept.
- */
-function normalizeSourcePath(source: string): string {
-	if (source.includes("?") || source.includes("#")) return source;
-	try {
-		return new URL(source, "http://placeholder.invalid").pathname;
-	} catch {
-		return source;
-	}
 }
 
 /** Compile a rule set into the in-memory lookup structures. */
