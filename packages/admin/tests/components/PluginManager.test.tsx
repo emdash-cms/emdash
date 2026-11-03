@@ -87,7 +87,8 @@ vi.mock("../../src/lib/api/registry", async () => {
 });
 
 // Import after mocks
-const { PluginManager } = await import("../../src/components/PluginManager");
+const { PluginManager, UninstallConfirmDialog } =
+	await import("../../src/components/PluginManager");
 
 function makePlugin(overrides: Partial<PluginInfo> = {}): PluginInfo {
 	return {
@@ -317,7 +318,9 @@ describe("PluginManager", () => {
 			expect(mockUpdateRegistryPlugin).toHaveBeenNthCalledWith(1, "r_abcdefghijklmnop", {});
 		});
 		await expect.element(screen.getByText("webhook")).toBeInTheDocument();
-		await screen.getByText("Accept & Update").click();
+		const acceptUpdate = screen.getByRole("button", { name: "Accept & Update" });
+		await expect.element(acceptUpdate).toBeEnabled();
+		acceptUpdate.element().click();
 
 		await vi.waitFor(() => {
 			expect(mockUpdateRegistryPlugin).toHaveBeenNthCalledWith(2, "r_abcdefghijklmnop", {
@@ -635,10 +638,12 @@ describe("PluginManager", () => {
 				hasCapabilityChanges: true,
 			},
 		]);
-		await screen.getByText("Check for updates").click();
+		screen.getByText("Check for updates").element().click();
 		await expect.element(screen.getByText("Update to v3.0.0")).toBeInTheDocument();
 		await expect.element(screen.getByText("2.0.0", { exact: true })).toBeInTheDocument();
-		await screen.getByText("Accept & Update").click();
+		const acceptUpdate = screen.getByRole("button", { name: "Accept & Update" });
+		await expect.element(acceptUpdate).toBeEnabled();
+		acceptUpdate.element().click();
 
 		await vi.waitFor(() => {
 			expect(mockUpdateMarketplacePlugin).toHaveBeenNthCalledWith(2, "mp-plugin", {
@@ -717,6 +722,42 @@ describe("PluginManager", () => {
 
 		await expect.element(screen.getByText("Failed to update plugin")).toBeInTheDocument();
 		await expect.element(screen.getByText("Marketplace unavailable")).toBeInTheDocument();
+	});
+
+	it("reports a failed Accept & Update once, inside the consent dialog", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({ id: "mp-plugin", name: "MP Plugin", source: "marketplace" }),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{
+				pluginId: "mp-plugin",
+				installed: "1.0.0",
+				latest: "2.0.0",
+				hasCapabilityChanges: true,
+			},
+		]);
+		mockUpdateMarketplacePlugin
+			.mockRejectedValueOnce(
+				new MarketplaceUpdateEscalationError("CAPABILITY_ESCALATION", "Review the update", {
+					added: ["network:request"],
+					removed: [],
+				}),
+			)
+			.mockRejectedValueOnce(new Error("Marketplace unavailable"));
+
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await screen.getByText("Check for updates").click();
+		await screen.getByText("Update to v2.0.0").click();
+		const dialog = screen.getByRole("dialog", { name: "Review New Permissions" });
+		await expect.element(dialog).toBeVisible();
+		dialog.getByRole("button", { name: "Accept & Update" }).element().click();
+
+		await expect.element(dialog.getByRole("alert")).toHaveTextContent("Marketplace unavailable");
+		expect(screen.getByText("Failed to update plugin").query()).toBeNull();
 	});
 
 	it("hides 'Check for updates' button when no marketplace plugins", async () => {
@@ -830,5 +871,26 @@ describe("PluginManager", () => {
 		);
 		await expect.element(screen.getByRole("link", { name: /documentation/ })).toBeInTheDocument();
 		await expect.element(screen.getByText("registry", { exact: true })).not.toBeInTheDocument();
+	});
+});
+
+describe("UninstallConfirmDialog", () => {
+	it("uninstalls once on a double press", async () => {
+		const onConfirm = vi.fn();
+		const screen = await render(
+			<UninstallConfirmDialog
+				pluginName="Gallery"
+				isPending={false}
+				onConfirm={onConfirm}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		const uninstall = screen.getByRole("button", { name: "Uninstall", exact: true });
+		await expect.element(uninstall).toBeEnabled();
+		uninstall.element().click();
+		uninstall.element().click();
+		expect(onConfirm).toHaveBeenCalledTimes(1);
+		expect(onConfirm).toHaveBeenCalledWith(false);
 	});
 });

@@ -4,7 +4,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
-import { createByline, fetchBylines } from "../../src/lib/api";
+import {
+	ApiResponseError,
+	createByline,
+	deleteByline,
+	fetchBylines,
+	fetchUsers,
+} from "../../src/lib/api";
 import type { BylineSummary } from "../../src/lib/api/bylines";
 import { BylinesPage } from "../../src/routes/bylines";
 import { render } from "../utils/render.tsx";
@@ -37,6 +43,7 @@ vi.mock("../../src/lib/api", async () => {
 		...actual,
 		fetchBylines: vi.fn(),
 		createByline: vi.fn(),
+		deleteByline: vi.fn(),
 		fetchUsers: vi.fn().mockResolvedValue({ items: [] }),
 		fetchByline: vi.fn().mockResolvedValue(null),
 		fetchBylineTranslations: vi.fn().mockResolvedValue({ items: [] }),
@@ -50,6 +57,29 @@ vi.mock("../../src/lib/api/byline-fields.js", async () => {
 
 const fetchBylinesMock = vi.mocked(fetchBylines);
 const createBylineMock = vi.mocked(createByline);
+const deleteBylineMock = vi.mocked(deleteByline);
+
+const TAKEN_SLUG = "Another byline already uses this slug. Enter a different one.";
+
+function deferred<T>() {
+	let resolve: (value: T) => void = () => {};
+	let reject: (reason: unknown) => void = () => {};
+	const promise = new Promise<T>((settle, fail) => {
+		resolve = settle;
+		reject = fail;
+	});
+	return { promise, resolve, reject };
+}
+
+async function renderPage() {
+	return render(
+		<QueryWrapper>
+			<Toast.Provider>
+				<BylinesPage />
+			</Toast.Provider>
+		</QueryWrapper>,
+	);
+}
 
 afterEach(async () => {
 	await page.viewport(1280, 800);
@@ -162,18 +192,79 @@ describe("BylinesPage search", () => {
 	});
 });
 
+const guestByline: BylineSummary = {
+	id: "guest",
+	slug: "guest-contributor",
+	displayName: "Guest Contributor",
+	bio: "A visiting writer",
+	avatarMediaId: null,
+	websiteUrl: null,
+	userId: null,
+	isGuest: true,
+	locale: "en",
+	translationGroup: null,
+	createdAt: "2026-01-01",
+	updatedAt: "2026-01-01",
+};
+
 describe("BylinesPage directory", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		fetchBylinesMock.mockResolvedValue({ items: [guestByline], nextCursor: undefined });
+	});
+
+	it("fits a byline with a long bio and slug in a phone-width table", async () => {
+		fetchBylinesMock.mockResolvedValue({
+			items: [
+				{
+					...guestByline,
+					slug: "regionalnewsroompartnership",
+					bio: "A visiting writer who covers city hall, transit, housing, and the regional economy for partner newsrooms.",
+				},
+			],
+			nextCursor: undefined,
+		});
+		const screen = await render(
+			<div style={{ width: 272 }}>
+				<QueryWrapper>
+					<Toast.Provider>
+						<BylinesPage />
+					</Toast.Provider>
+				</QueryWrapper>
+			</div>,
+		);
+
+		const actions = screen.getByRole("button", { name: "Actions for Guest Contributor" });
+		await expect.element(actions).toBeVisible();
+		const tray = screen.getByRole("table").element().parentElement!;
+		const trayBounds = tray.getBoundingClientRect();
+		const actionsBounds = actions.element().getBoundingClientRect();
+		const bylineCell = screen
+			.getByRole("button", { name: "Edit Guest Contributor" })
+			.element()
+			.closest("td")!;
+
+		expect(tray.scrollWidth).toBeLessThanOrEqual(tray.clientWidth);
+		expect(actionsBounds.left).toBeGreaterThanOrEqual(trayBounds.left);
+		expect(actionsBounds.right).toBeLessThanOrEqual(trayBounds.right);
+		await expect
+			.element(page.elementLocator(bylineCell).getByText("Guest", { exact: true }))
+			.toBeVisible();
+	});
+
+	it("cuts a long website and bio at their end on a right-to-left page", async () => {
+		const websiteUrl = "https://example.com/contributors/guest-contributor/profile";
+		const bio =
+			"A visiting writer who covers city hall, transit, housing, and the regional economy for partner newsrooms.";
 		fetchBylinesMock.mockResolvedValue({
 			items: [
 				{
 					id: "guest",
 					slug: "guest-contributor",
 					displayName: "Guest Contributor",
-					bio: "A visiting writer",
+					bio,
 					avatarMediaId: null,
-					websiteUrl: null,
+					websiteUrl,
 					userId: null,
 					isGuest: true,
 					locale: "en",
@@ -184,6 +275,31 @@ describe("BylinesPage directory", () => {
 			],
 			nextCursor: undefined,
 		});
+		const screen = await render(
+			<div dir="rtl" style={{ width: 900 }}>
+				<QueryWrapper>
+					<Toast.Provider>
+						<BylinesPage />
+					</Toast.Provider>
+				</QueryWrapper>
+			</div>,
+		);
+
+		for (const text of [websiteUrl, bio]) {
+			await expect.element(screen.getByText(text, { exact: true })).toBeVisible();
+			const element = screen.getByText(text, { exact: true }).element();
+			let clip = element as HTMLElement;
+			while (getComputedStyle(clip).overflowX === "visible") clip = clip.parentElement!;
+			const firstCharacter = document.createRange();
+			firstCharacter.setStart(element.firstChild!, 0);
+			firstCharacter.setEnd(element.firstChild!, 1);
+			const shown = clip.getBoundingClientRect();
+			const first = firstCharacter.getBoundingClientRect();
+
+			expect(clip.scrollWidth).toBeGreaterThan(clip.clientWidth);
+			expect(first.left).toBeGreaterThanOrEqual(shown.left);
+			expect(first.right).toBeLessThanOrEqual(shown.right);
+		}
 	});
 
 	it("keeps the create dialog and its actions within a narrow viewport", async () => {
@@ -242,10 +358,24 @@ describe("BylinesPage directory", () => {
 			</QueryWrapper>,
 		);
 
-		await screen.getByRole("button", { name: "More actions for Guest Contributor" }).click();
+		await screen.getByRole("button", { name: "Actions for Guest Contributor" }).click();
 		await expect
 			.element(screen.getByRole("menuitem", { name: "Delete byline Guest Contributor" }))
 			.toBeVisible();
+	});
+
+	it("opens the edit dialog from the row's menu", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<Toast.Provider>
+					<BylinesPage />
+				</Toast.Provider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByRole("button", { name: "Actions for Guest Contributor" }).click();
+		await screen.getByRole("menuitem", { name: "Edit", exact: true }).click();
+		await expect.element(screen.getByRole("dialog", { name: "Edit byline" })).toBeVisible();
 	});
 
 	it("shows byline identities and discards edits when the profile dialog is cancelled", async () => {
@@ -259,7 +389,9 @@ describe("BylinesPage directory", () => {
 
 		await expect.element(screen.getByText("Guest Contributor")).toBeInTheDocument();
 		await expect.element(screen.getByText("A visiting writer")).toBeInTheDocument();
-		await expect.element(screen.getByText("Guest", { exact: true })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("cell", { name: "Guest", exact: true }))
+			.toBeInTheDocument();
 		await expect
 			.element(screen.getByRole("textbox", { name: "Display name" }))
 			.not.toBeInTheDocument();
@@ -410,5 +542,151 @@ describe("BylinesPage directory", () => {
 					.getByRole("combobox", { name: "Linked user" }),
 			)
 			.toBeInTheDocument();
+	});
+
+	it("shows a slug another byline uses on the slug field", async () => {
+		createBylineMock.mockRejectedValue(
+			new ApiResponseError(409, "CONFLICT", 'Byline "laurel-wamsley" already exists'),
+		);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		const dialog = screen.getByRole("dialog", { name: "New byline" });
+		const slug = dialog.getByRole("textbox", { name: "Slug" });
+		await dialog.getByRole("textbox", { name: "Display name" }).fill("Laurel Wamsley");
+		await dialog.getByRole("button", { name: "Create" }).click();
+
+		await expect.element(dialog.getByText(TAKEN_SLUG)).toBeVisible();
+		await expect.element(slug).toHaveAttribute("aria-invalid", "true");
+		await expect.element(slug).toHaveFocus();
+		expect(dialog.getByText('Byline "laurel-wamsley" already exists').query()).toBeNull();
+
+		await slug.fill("laurel");
+		await expect.element(dialog.getByText(TAKEN_SLUG)).not.toBeInTheDocument();
+	});
+
+	it("reports a refused slug in the banner when the slug changed during the save", async () => {
+		const created = deferred<BylineSummary>();
+		createBylineMock.mockReturnValue(created.promise);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		const dialog = screen.getByRole("dialog", { name: "New byline" });
+		const slug = dialog.getByRole("textbox", { name: "Slug" });
+		await dialog.getByRole("textbox", { name: "Display name" }).fill("Laurel Wamsley");
+		await dialog.getByRole("button", { name: "Create" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Saving..." })).toBeVisible();
+		await slug.fill("laurel");
+		created.reject(new ApiResponseError(409, "CONFLICT", 'Byline "laurel-wamsley" already exists'));
+
+		await expect.element(dialog.getByText('Byline "laurel-wamsley" already exists')).toBeVisible();
+		await expect.element(slug).not.toHaveAttribute("aria-invalid");
+	});
+
+	it("leaves a conflict in the banner when the linked user could be its cause", async () => {
+		vi.mocked(fetchUsers).mockResolvedValue({
+			items: [{ id: "user-1", name: "Ann", email: "ann@example.com" }],
+		} as Awaited<ReturnType<typeof fetchUsers>>);
+		createBylineMock.mockRejectedValue(
+			new ApiResponseError(409, "CONFLICT", 'This user is already linked to byline "ann"'),
+		);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		const dialog = screen.getByRole("dialog", { name: "New byline" });
+		await dialog.getByRole("textbox", { name: "Display name" }).fill("Ann Writer");
+		await dialog.getByRole("combobox", { name: "Linked user" }).click();
+		await page.getByRole("option", { name: "Ann (ann@example.com)" }).click();
+		await dialog.getByRole("button", { name: "Create" }).click();
+
+		await expect
+			.element(dialog.getByText('This user is already linked to byline "ann"'))
+			.toBeVisible();
+		expect(dialog.getByText(TAKEN_SLUG).query()).toBeNull();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Slug" }))
+			.not.toHaveAttribute("aria-invalid");
+	});
+
+	it("creates once on a double click, and closes when the byline is saved", async () => {
+		const created = deferred<BylineSummary>();
+		createBylineMock.mockReturnValue(created.promise);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		const dialog = screen.getByRole("dialog", { name: "New byline" });
+		await dialog.getByRole("textbox", { name: "Display name" }).fill("Laurel Wamsley");
+		await dialog.getByRole("button", { name: "Create" }).dblClick();
+		await expect.element(dialog.getByRole("button", { name: "Saving..." })).toBeVisible();
+		expect(createBylineMock).toHaveBeenCalledTimes(1);
+
+		created.resolve({ id: "new", slug: "laurel-wamsley" } as BylineSummary);
+		await expect.element(dialog).not.toBeInTheDocument();
+		expect(createBylineMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("deletes once on a double click", async () => {
+		const deleted = deferred<void>();
+		deleteBylineMock.mockReturnValue(deleted.promise);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "Actions for Guest Contributor" }).click();
+		await screen.getByRole("menuitem", { name: "Delete byline Guest Contributor" }).click();
+		const confirm = screen.getByRole("alertdialog", { name: "Delete Guest Contributor?" });
+		await confirm.getByRole("button", { name: "Delete byline" }).dblClick();
+		await expect.element(confirm.getByRole("button", { name: "Deleting..." })).toBeVisible();
+		expect(deleteBylineMock).toHaveBeenCalledTimes(1);
+
+		deleted.resolve();
+		await expect.element(confirm).not.toBeInTheDocument();
+		expect(deleteBylineMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps the edit form when Escape is pressed while its delete runs", async () => {
+		const deleted = deferred<void>();
+		deleteBylineMock.mockReturnValue(deleted.promise);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "Edit Guest Contributor" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Edit byline" });
+		const displayName = dialog.getByRole("textbox", { name: "Display name" });
+		await expect.element(displayName).toHaveValue("Guest Contributor");
+		await displayName.fill("Guest Writer");
+		await dialog.getByRole("button", { name: "Delete byline" }).click();
+		const confirm = screen.getByRole("alertdialog", { name: "Delete Guest Contributor?" });
+		await confirm.getByRole("button", { name: "Delete byline" }).click();
+		await expect.element(confirm.getByRole("button", { name: "Deleting..." })).toBeVisible();
+
+		await userEvent.keyboard("{Escape}");
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		deleted.reject(new ApiResponseError(500, "BYLINE_DELETE_ERROR", "Byline could not be deleted"));
+		await expect.element(confirm.getByText("Byline could not be deleted")).toBeVisible();
+		await confirm.getByRole("button", { name: "Cancel" }).click();
+
+		await expect.element(confirm).not.toBeInTheDocument();
+		await expect.element(displayName).toHaveValue("Guest Writer");
+	});
+
+	it("keeps the edit dialog behind the delete confirmation, and closes both once deleted", async () => {
+		deleteBylineMock.mockResolvedValue(undefined);
+		const screen = await renderPage();
+
+		await screen.getByRole("button", { name: "Edit Guest Contributor" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Edit byline" });
+		await dialog.getByRole("button", { name: "Delete byline" }).click();
+		const confirm = screen.getByRole("alertdialog", { name: "Delete Guest Contributor?" });
+		await expect.element(confirm).toBeVisible();
+
+		await userEvent.keyboard("{Escape}");
+		await expect.element(confirm).not.toBeInTheDocument();
+		await expect.element(dialog).toBeVisible();
+
+		await dialog.getByRole("button", { name: "Delete byline" }).click();
+		await confirm.getByRole("button", { name: "Delete byline" }).click();
+		await expect.element(confirm).not.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("textbox", { name: "Display name" }))
+			.not.toBeInTheDocument();
+		expect(deleteBylineMock).toHaveBeenCalledWith("guest");
 	});
 });
