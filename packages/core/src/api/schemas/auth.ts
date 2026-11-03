@@ -118,8 +118,53 @@ export const passkeyRenameBody = z
 	})
 	.meta({ id: "PasskeyRenameBody" });
 
+const ADMIN_LAYOUT_MAX_IDS = 200;
+const ADMIN_LAYOUT_MAX_BYTES = 16 * 1024;
+
+const adminLayoutIds = z.array(z.string().min(1)).max(ADMIN_LAYOUT_MAX_IDS);
+
+const adminLayoutList = z.strictObject({
+	order: adminLayoutIds,
+	hidden: adminLayoutIds,
+});
+
+/**
+ * A user's personal sidebar layout, stored at `users.data.adminLayout`.
+ *
+ * Validates both writes and reads, so a stored value this schema rejects is
+ * served as `null`. The byte cap matters because the auth middleware parses
+ * `users.data` on every authenticated request.
+ */
+export const adminLayoutSchema = z
+	.strictObject({
+		version: z.literal(1),
+		nav: adminLayoutList,
+		editor: adminLayoutList,
+	})
+	.refine(
+		(layout) =>
+			new TextEncoder().encode(JSON.stringify(layout)).byteLength <= ADMIN_LAYOUT_MAX_BYTES,
+		{ message: "Admin layout must be 16 KB or smaller" },
+	)
+	.meta({ id: "AdminLayout" });
+
+export type AdminLayout = z.infer<typeof adminLayoutSchema>;
+
+/**
+ * Envelope for `POST /auth/me`. The route dispatches on `action` and validates
+ * the rest with that action's schema, so an unknown action answers
+ * `UNKNOWN_ACTION` rather than a union `VALIDATION_ERROR`.
+ */
 export const authMeActionBody = z
-	.object({
+	.looseObject({
 		action: z.string().min(1),
 	})
 	.meta({ id: "AuthMeActionBody" });
+
+/** `null` removes the stored layout. */
+export const setAdminLayoutBody = z
+	.strictObject({
+		action: z.literal("setAdminLayout"),
+		adminLayout: adminLayoutSchema.nullable(),
+	})
+	.meta({ id: "SetAdminLayoutBody" });
