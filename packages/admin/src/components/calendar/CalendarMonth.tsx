@@ -24,12 +24,12 @@ import { useDateLocale } from "../../locales/date-locale.js";
 import { getLocaleDir } from "../../locales/index.js";
 import { CalendarDayList, CalendarEntryChip, type CalendarSelectHandler } from "./CalendarEntry.js";
 
-/** Month cells are never shorter than this, so short windows scroll the grid instead. */
-const MIN_ROW_HEIGHT = 92;
 /** A cell's padding, its day number, and the gap below it. */
 const CELL_CHROME = 30;
 /** One chip and the gap after it; see `CalendarEntryChip`. */
 const CHIP_STEP = 24;
+/** Room for two chips, the last without its gap; shorter windows scroll the grid instead. */
+const MIN_ROW_HEIGHT = CELL_CHROME + 2 * CHIP_STEP - 2;
 const MAX_DOTS = 3;
 
 const DOT_COLORS: Record<CalendarState, string> = {

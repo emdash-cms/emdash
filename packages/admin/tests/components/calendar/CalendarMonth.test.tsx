@@ -146,6 +146,27 @@ describe("CalendarMonth", () => {
 			.toBeVisible();
 	});
 
+	it("fits a six-week month with two entries a day in a 720px-tall window", async () => {
+		const pair = groupByDay(
+			toCalendarItems(
+				[entry("first", "2026-08-12T00:00:00.000Z"), entry("second", "2026-08-12T01:00:00.000Z")],
+				{ timeZone, loadedAt: now, collectionOrder: ["posts"] },
+			),
+		);
+		// The height the admin leaves the month at 1280×720.
+		const screen = await renderMonth({ shownMonth: "2026-08", shown: pair, height: 509 });
+		expect(document.querySelectorAll("tbody tr")).toHaveLength(6);
+
+		const day = screen.getByRole("list", { name: "Wednesday, August 12, 2026" });
+		await expect.poll(() => day.getByRole("link").elements()).toHaveLength(2);
+		const scroller = screen.getByRole("table").element().parentElement!;
+		expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);
+		const cell = day.element().closest("td")!.getBoundingClientRect();
+		expect(
+			day.getByRole("link").last().element().getBoundingClientRect().bottom,
+		).toBeLessThanOrEqual(cell.bottom);
+	});
+
 	it("places entries on site-zone days and folds a busy day into a popover", async () => {
 		const screen = await renderMonth();
 
