@@ -1212,6 +1212,28 @@ describe("htmlToPortableText", () => {
 		expect(block.children.some((c) => c.marks?.includes("strong"))).toBe(true);
 		expect(block.children.some((c) => c.marks?.includes("em"))).toBe(true);
 	});
+
+	it("splits classic-editor text into paragraphs at blank lines", () => {
+		const html =
+			"First paragraph.\r\n\r\nSecond paragraph with a\r\nline break.\r\n\r\n<strong>Third</strong> paragraph.<h2>Heading</h2>\nAfter the heading.\n\n\nLast one.<div>In a div.\n\nStill in the div.</div>";
+		const result = htmlToPortableText(html);
+
+		expect(
+			result.map((block) => ({
+				style: (block as PortableTextTextBlock).style,
+				text: (block as PortableTextTextBlock).children.map((span) => span.text).join(""),
+			})),
+		).toEqual([
+			{ style: "normal", text: "First paragraph." },
+			{ style: "normal", text: "Second paragraph with a\nline break." },
+			{ style: "normal", text: "Third paragraph." },
+			{ style: "h2", text: "Heading" },
+			{ style: "normal", text: "After the heading." },
+			{ style: "normal", text: "Last one." },
+			{ style: "normal", text: "In a div." },
+			{ style: "normal", text: "Still in the div." },
+		]);
+	});
 });
 
 describe("classic editor tables", () => {

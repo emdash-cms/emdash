@@ -13,6 +13,28 @@ import { sanitizeHref } from "./url.js";
 // Regex patterns for inline parsing
 const WHITESPACE_PATTERN = /\S/;
 
+// Elements that put what follows on a new line anyway, so a newline right
+// before one is not a line break of its own
+const NEW_LINE_ELEMENTS = new Set([
+	"blockquote",
+	"br",
+	"div",
+	"figure",
+	"h1",
+	"h2",
+	"h3",
+	"h4",
+	"h5",
+	"h6",
+	"hr",
+	"li",
+	"ol",
+	"p",
+	"pre",
+	"table",
+	"ul",
+]);
+
 // Pre-compiled block tag patterns
 const BLOCK_TAG_PATTERNS: Record<string, { open: RegExp; close: RegExp }> = {
 	p: { open: /^<p[^>]*>/i, close: /<\/p>$/i },
@@ -121,9 +143,12 @@ function walkNodes(
 			if (text) {
 				// Handle line breaks in text
 				const parts = text.split("\n");
+				const inlineFollows = WHITESPACE_PATTERN.test(text) || isInlineNode(pending.at(-1)?.node);
+				const leadingBreak =
+					inlineFollows && children.length > 0 && !children.at(-1)!.text.endsWith("\n");
 				for (let i = 0; i < parts.length; i++) {
 					const part = parts[i];
-					if (part || i > 0) {
+					if (part || i > 0 || leadingBreak) {
 						// Add text span
 						if (part) {
 							children.push({
@@ -292,6 +317,12 @@ function getAttr(element: Element, name: string): string | undefined {
  */
 function isTextNode(node: Node): node is TextNode {
 	return node.nodeName === "#text";
+}
+
+function isInlineNode(node: Node | undefined): boolean {
+	if (!node) return false;
+	if (isTextNode(node)) return true;
+	return isElement(node) && !NEW_LINE_ELEMENTS.has(node.tagName.toLowerCase());
 }
 
 /**

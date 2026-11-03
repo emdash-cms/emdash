@@ -22,6 +22,7 @@ import type {
 const BLOCK_ELEMENT_PATTERN =
 	/<(p|h[1-6]|blockquote|pre|ul|ol|figure|div|hr)[^>]*>([\s\S]*?)<\/\1>|<(hr|br)\s*\/?>|<img\s+[^>]+\/?>/gu;
 const WORD_CHARACTER_PATTERN = /\w/;
+const PARAGRAPH_BREAK_PATTERN = /\n[^\S\n]*\n/;
 const TABLE_BLOCK_CONTENT_PATTERN = /<(?:img|h[1-6]|ul|ol|pre|blockquote|hr)\b/i;
 const MERGED_CELL_PATTERN = /\b(?:colspan|rowspan)\s*=\s*(?:["']\s*)?(?:[2-9]|[1-9]\d)/i;
 const TABLE_ROW_TAG_PATTERN = /<tr\b/gi;
@@ -191,19 +192,7 @@ export function htmlToPortableText(
 			);
 			if (tableBlocks.length === 0) continue;
 
-			const between = html.slice(lastIndex, table.start).trim();
-			if (between) {
-				const { children, markDefs } = parseInlineContent(between, generateKey);
-				if (children.some((c) => c.text.trim())) {
-					blocks.push({
-						_type: "block",
-						_key: generateKey(),
-						style: "normal",
-						children,
-						markDefs: markDefs.length > 0 ? markDefs : undefined,
-					});
-				}
-			}
+			pushParagraphs(blocks, html.slice(lastIndex, table.start), generateKey);
 			blocks.push(...tableBlocks);
 			lastIndex = table.end;
 		}
@@ -222,19 +211,7 @@ export function htmlToPortableText(
 		const content = match[2] || "";
 
 		// Handle text between matches
-		const between = html.slice(lastIndex, match.index).trim();
-		if (between) {
-			const { children, markDefs } = parseInlineContent(between, generateKey);
-			if (children.some((c) => c.text.trim())) {
-				blocks.push({
-					_type: "block",
-					_key: generateKey(),
-					style: "normal",
-					children,
-					markDefs: markDefs.length > 0 ? markDefs : undefined,
-				});
-			}
-		}
+		pushParagraphs(blocks, html.slice(lastIndex, match.index), generateKey);
 		lastIndex = match.index + match[0].length;
 
 		// Check for standalone <img> tag (not wrapped in figure/p)
@@ -320,22 +297,10 @@ export function htmlToPortableText(
 				}
 
 				// Then handle the text content (with images and image links stripped)
-				let textContent = content
+				const textContent = content
 					.replace(LINKED_IMAGE_PATTERN, "") // Remove linked images
-					.replace(STANDALONE_IMAGE_PATTERN, "") // Remove standalone images
-					.trim();
-				if (textContent) {
-					const { children, markDefs } = parseInlineContent(textContent, generateKey);
-					if (children.some((c) => c.text.trim())) {
-						blocks.push({
-							_type: "block",
-							_key: generateKey(),
-							style: "normal",
-							children,
-							markDefs: markDefs.length > 0 ? markDefs : undefined,
-						});
-					}
-				}
+					.replace(STANDALONE_IMAGE_PATTERN, ""); // Remove standalone images
+				pushParagraphs(blocks, textContent, generateKey);
 				break;
 			}
 
@@ -437,9 +402,25 @@ export function htmlToPortableText(
 	pushTablesBefore(html.length);
 
 	// Handle remaining text
-	const remaining = html.slice(lastIndex).trim();
-	if (remaining) {
-		const { children, markDefs } = parseInlineContent(remaining, generateKey);
+	pushParagraphs(blocks, html.slice(lastIndex), generateKey);
+
+	return blocks;
+}
+
+/**
+ * Add text as paragraph blocks, one per run of text between blank lines.
+ * Classic-editor posts mark paragraphs only with blank lines: WordPress adds
+ * the `<p>` tags when it displays a post (`wpautop`).
+ */
+function pushParagraphs(
+	blocks: PortableTextBlock[],
+	html: string,
+	generateKey: () => string,
+): void {
+	for (const paragraph of html.split(PARAGRAPH_BREAK_PATTERN)) {
+		const text = paragraph.trim();
+		if (!text) continue;
+		const { children, markDefs } = parseInlineContent(text, generateKey);
 		if (children.some((c) => c.text.trim())) {
 			blocks.push({
 				_type: "block",
@@ -450,8 +431,6 @@ export function htmlToPortableText(
 			});
 		}
 	}
-
-	return blocks;
 }
 
 /**
