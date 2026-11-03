@@ -444,9 +444,9 @@ describe("One Undo for the page", () => {
 		// From the first frame after Undo, the row only grows, back to its full height. On a loaded
 		// machine the frame in flight when Undo is pressed can still show the shrink's last step.
 		const after = heights.slice(1);
-		expect(
-			after.every((height, index) => index === 0 || height >= after[index - 1]! - 0.5),
-		).toBe(true);
+		expect(after.every((height, index) => index === 0 || height >= after[index - 1]! - 0.5)).toBe(
+			true,
+		);
 		expect(row("two").getBoundingClientRect().height).toBeCloseTo(full, 0);
 		await expect.element(page.elementLocator(toggleOf("two"))).toHaveFocus();
 		await expect.poll(undoButtons).toHaveLength(0);
