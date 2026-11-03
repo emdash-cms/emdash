@@ -7,8 +7,8 @@
 	"GET /contributors (warm)": 5,
 	"GET /contributors-naive (cold)": 12,
 	"GET /contributors-naive (warm)": 12,
-	"GET /pages/about (cold)": 5,
-	"GET /pages/about (warm)": 5,
+	"GET /pages/about (cold)": 4,
+	"GET /pages/about (warm)": 4,
 	"GET /posts (cold)": 5,
 	"GET /posts (warm)": 5,
 	"GET /posts/building-for-the-long-term (cold)": 14,
@@ -19,8 +19,8 @@
 	"GET /related-baseline (warm)": 5,
 	"GET /rss.xml (cold)": 2,
 	"GET /rss.xml (warm)": 2,
-	"GET /search (cold)": 10,
-	"GET /search (warm)": 10,
+	"GET /search (cold)": 5,
+	"GET /search (warm)": 5,
 	"GET /tag/webdev (cold)": 9,
 	"GET /tag/webdev (warm)": 9
 }

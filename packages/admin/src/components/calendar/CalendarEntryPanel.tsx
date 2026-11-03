@@ -1,4 +1,4 @@
-import { Button, LinkButton, SkeletonLine, Toast } from "@cloudflare/kumo";
+import { Button, LinkButton, SkeletonLine, useKumoToastManager } from "@cloudflare/kumo";
 import { Dialog } from "@cloudflare/kumo/primitives";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -133,7 +133,7 @@ function CalendarEntryPanelContent({
 }: CalendarEntryPanelProps & { item: CalendarItem }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [scheduleOpen, setScheduleOpen] = React.useState(false);
 	const [previewing, setPreviewing] = React.useState(false);
 
@@ -169,7 +169,7 @@ function CalendarEntryPanelContent({
 		void queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
 	};
 	const reportError = (errorTitle: string, error: unknown) => {
-		toastManager.add({ title: errorTitle, description: getMutationError(error), type: "error" });
+		toastManager.add({ title: errorTitle, description: getMutationError(error), variant: "error" });
 	};
 
 	const publish = useMutation({

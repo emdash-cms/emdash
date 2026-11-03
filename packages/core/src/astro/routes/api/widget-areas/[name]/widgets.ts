@@ -13,7 +13,7 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { createWidgetBody } from "#api/schemas.js";
 import { widgetAreaTag } from "#cache/chrome-tags.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
-import { rowToWidget } from "#widgets/index.js";
+import { invalidateWidgetObjectCache, rowToWidget } from "#widgets/index.js";
 import type { WidgetRow } from "#widgets/types.js";
 
 export const prerender = false;
@@ -70,6 +70,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 				component_props: body.componentProps ? JSON.stringify(body.componentProps) : null,
 			})
 			.execute();
+		invalidateWidgetObjectCache();
 
 		const widget = await db
 			.selectFrom("_emdash_widgets")

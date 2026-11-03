@@ -7,7 +7,7 @@
  * server never returns their values, only whether one is set.
  */
 
-import { Button, Input, InputArea, Select, Switch, Toast } from "@cloudflare/kumo";
+import { Button, Input, InputArea, Select, Switch, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { FloppyDisk } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,7 +30,7 @@ export interface PluginSettingsProps {
 export function PluginSettings({ pluginId }: PluginSettingsProps) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 
 	const { data: plugin } = useQuery({
 		queryKey: ["plugins", pluginId],
@@ -73,7 +73,7 @@ export function PluginSettings({ pluginId }: PluginSettingsProps) {
 			toastManager.add({
 				title: t`Failed to save settings`,
 				description: err instanceof Error ? err.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 				timeout: 5000,
 			});
 		},
@@ -264,6 +264,7 @@ function SettingFieldInput({
 			return (
 				<Input
 					type={field.type}
+					dir="ltr"
 					label={field.label}
 					description={field.description}
 					placeholder={field.placeholder}

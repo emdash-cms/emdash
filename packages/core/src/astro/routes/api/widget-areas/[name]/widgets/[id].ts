@@ -13,7 +13,7 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { updateWidgetBody } from "#api/schemas.js";
 import { widgetAreaTag } from "#cache/chrome-tags.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
-import { rowToWidget } from "#widgets/index.js";
+import { invalidateWidgetObjectCache, rowToWidget } from "#widgets/index.js";
 import type { WidgetRow } from "#widgets/types.js";
 
 export const prerender = false;
@@ -73,6 +73,7 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 		}
 
 		await db.updateTable("_emdash_widgets").set(updates).where("id", "=", id).execute();
+		invalidateWidgetObjectCache();
 
 		const widget = await db
 			.selectFrom("_emdash_widgets")
@@ -126,6 +127,7 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 
 		await db.deleteFrom("_emdash_widgets").where("id", "=", id).execute();
 
+		invalidateWidgetObjectCache();
 		await invalidateRouteCache(cache, [widgetAreaTag(name)]);
 		return apiSuccess({ deleted: true });
 	} catch (error) {

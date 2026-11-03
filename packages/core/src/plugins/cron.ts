@@ -13,6 +13,7 @@ import { sql } from "kysely";
 import { ulid } from "ulidx";
 
 import type { Database } from "../database/types.js";
+import { isMissingTableError } from "../utils/db-errors.js";
 import type { CronAccess, CronEvent, CronTaskInfo } from "./types.js";
 
 /** Matches the Workers runtime, which always runs in UTC, so Node hosts fire at the same instant. */
@@ -322,12 +323,14 @@ export class CronAccessImpl implements CronAccess {
 /**
  * Enable or disable all cron tasks for a plugin.
  * Called by admin disable/enable endpoints and PluginManager lifecycle.
- * Gracefully handles the cron table not existing yet (pre-migration).
+ * Best-effort by default. With throwOnError, only missing-table errors
+ * (pre-migration) are tolerated; other database errors propagate to the caller.
  */
 export async function setCronTasksEnabled(
 	db: Kysely<Database>,
 	pluginId: string,
 	enabled: boolean,
+	options: { throwOnError?: boolean } = {},
 ): Promise<void> {
 	try {
 		await sql`
@@ -335,8 +338,8 @@ export async function setCronTasksEnabled(
 			SET enabled = ${enabled ? 1 : 0}
 			WHERE plugin_id = ${pluginId}
 		`.execute(db);
-	} catch {
-		// Cron table may not exist yet (pre-migration). Non-fatal.
+	} catch (error) {
+		if (options.throwOnError && !isMissingTableError(error)) throw error;
 	}
 }
 

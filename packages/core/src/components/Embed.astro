@@ -27,22 +27,36 @@ if (!node?.url) {
 const { url: rawUrl, provider, html, caption } = node;
 const url = sanitizeHref(rawUrl);
 
-const YOUTUBE_ID_PATTERN = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-const VIMEO_ID_PATTERN = /vimeo\.com\/(\d+)/;
+const YOUTUBE_HOSTS = new Set(["youtube.com", "www.youtube.com", "m.youtube.com"]);
+const VIMEO_HOSTS = new Set(["vimeo.com", "www.vimeo.com"]);
+const YOUTUBE_ID_PATTERN = /^[a-zA-Z0-9_-]{11}$/;
+const YOUTUBE_SHORT_PATH_PATTERN = /^\/([a-zA-Z0-9_-]{11})\/?$/;
+const YOUTUBE_EMBED_PATH_PATTERN = /^\/embed\/([a-zA-Z0-9_-]{11})\/?$/;
+const VIMEO_PATH_PATTERN = /^\/(\d+)(?:\/|$)/;
 
-// Extract video ID for common providers
-function getYouTubeId(input: string): string | null {
-	const match = input.match(YOUTUBE_ID_PATTERN);
-	return match?.[1] || null;
+function getYouTubeId(input: URL | null): string | null {
+	if (!input) return null;
+	const id =
+		input.hostname === "youtu.be"
+			? input.pathname.match(YOUTUBE_SHORT_PATH_PATTERN)?.[1]
+			: YOUTUBE_HOSTS.has(input.hostname)
+				? input.pathname === "/watch"
+					? input.searchParams.get("v")
+					: input.pathname.match(YOUTUBE_EMBED_PATH_PATTERN)?.[1]
+				: null;
+	return id && YOUTUBE_ID_PATTERN.test(id) ? id : null;
 }
 
-function getVimeoId(input: string): string | null {
-	const match = input.match(VIMEO_ID_PATTERN);
-	return match?.[1] || null;
+function getVimeoId(input: URL | null): string | null {
+	if (!input || !VIMEO_HOSTS.has(input.hostname)) return null;
+	return input.pathname.match(VIMEO_PATH_PATTERN)?.[1] || null;
 }
 
-const youtubeId = getYouTubeId(url);
-const vimeoId = getVimeoId(url);
+const parsedUrl = URL.canParse(url) ? new URL(url) : null;
+const videoUrl =
+	parsedUrl?.protocol === "https:" || parsedUrl?.protocol === "http:" ? parsedUrl : null;
+const youtubeId = getYouTubeId(videoUrl);
+const vimeoId = getVimeoId(videoUrl);
 
 // Check if this is a self-hosted video or audio
 const isSelfHostedVideo = provider === "video";

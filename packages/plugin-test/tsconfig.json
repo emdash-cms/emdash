@@ -4,5 +4,5 @@
 		"types": ["@cloudflare/workers-types", "@cloudflare/vitest-plugin/types", "node"],
 		"noEmit": true
 	},
-	"include": ["src/**/*.ts", "test/**/*.ts", "vitest.config.ts"]
+	"include": ["src/**/*.ts", "test/**/*.ts", "vitest.config.ts", "vitest.config.node.ts"]
 }

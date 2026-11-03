@@ -1,6 +1,8 @@
 import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
+import { getLocaleCandidates, getLocaleChainRank, getLocaleRank } from "../../i18n/config.js";
+import { localeMatches, localeOrder } from "../../i18n/query.js";
 import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { slugify } from "../../utils/slugify.js";
@@ -255,8 +257,11 @@ export class TaxonomyRepository {
 			.selectAll()
 			.where("name", "=", name)
 			.where("slug", "=", slug);
-		if (locale !== undefined) query = query.where("locale", "=", locale);
-		const row = await query.orderBy("locale", "asc").executeTakeFirst();
+		if (locale !== undefined) query = query.where(localeMatches("locale", locale));
+		const row = await query
+			.orderBy(locale !== undefined ? localeOrder("locale", locale) : "locale", "asc")
+			.orderBy("id", "asc")
+			.executeTakeFirst();
 		return row ? this.rowToTaxonomy(row) : null;
 	}
 
@@ -268,7 +273,7 @@ export class TaxonomyRepository {
 			.select("slug")
 			.where("name", "=", name)
 			.where((eb) => eb.or([eb("slug", "=", baseSlug), eb("slug", "like", `${baseSlug}-%`)]));
-		if (locale !== undefined) query = query.where("locale", "=", locale);
+		if (locale !== undefined) query = query.where(localeMatches("locale", locale));
 		const candidates = await query.execute();
 		if (!candidates.some((candidate) => candidate.slug === baseSlug)) return baseSlug;
 
@@ -300,7 +305,7 @@ export class TaxonomyRepository {
 			.orderBy("label", "asc")
 			.orderBy("id", "asc");
 
-		if (options.locale !== undefined) query = query.where("locale", "=", options.locale);
+		if (options.locale !== undefined) query = query.where(localeMatches("locale", options.locale));
 
 		if (options.parentId !== undefined) {
 			if (options.parentId === null) {
@@ -324,7 +329,7 @@ export class TaxonomyRepository {
 			.selectFrom("taxonomies")
 			.selectAll()
 			.where("name", "=", name)
-			.where("locale", "in", locales)
+			.where((eb) => eb.or(locales.map((candidate) => localeMatches("locale", candidate))))
 			.orderBy("sort_order", "asc")
 			.orderBy("label", "asc")
 			.orderBy("id", "asc")
@@ -335,7 +340,13 @@ export class TaxonomyRepository {
 			const term = this.rowToTaxonomy(row);
 			const group = term.translationGroup ?? term.id;
 			const current = selected.get(group);
-			if (!current || term.locale === locale) selected.set(group, term);
+			if (
+				!current ||
+				getLocaleChainRank(term.locale, [locale, defaultLocale]) <
+					getLocaleChainRank(current.locale, [locale, defaultLocale])
+			) {
+				selected.set(group, term);
+			}
 		}
 		return [...selected.values()].toSorted(
 			(a, b) =>
@@ -347,7 +358,7 @@ export class TaxonomyRepository {
 		const limit = Math.max(1, Math.min(options.limit ?? 50, 100));
 		let query = this.db.selectFrom("taxonomies").selectAll().where("name", "=", name);
 
-		if (options.locale !== undefined) query = query.where("locale", "=", options.locale);
+		if (options.locale !== undefined) query = query.where(localeMatches("locale", options.locale));
 
 		if (options.parentId !== undefined) {
 			query =
@@ -397,7 +408,7 @@ export class TaxonomyRepository {
 			.orderBy("sort_order", "asc")
 			.orderBy("label", "asc")
 			.orderBy("id", "asc");
-		if (locale !== undefined) query = query.where("locale", "=", locale);
+		if (locale !== undefined) query = query.where(localeMatches("locale", locale));
 
 		const rows = await query.execute();
 		return rows.map((row) => this.rowToTaxonomy(row));
@@ -742,10 +753,25 @@ export class TaxonomyRepository {
 			.where("content_taxonomies.entry_id", "=", entryGroup);
 
 		if (taxonomyName) query = query.where("taxonomies.name", "=", taxonomyName);
-		if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
+		if (locale !== undefined) query = query.where(localeMatches("taxonomies.locale", locale));
 
 		const rows = await query.orderBy("taxonomies.locale", "asc").execute();
-		return rows.map((row) => this.rowToTaxonomy(row));
+		const terms = rows.map((row) => this.rowToTaxonomy(row));
+		if (locale === undefined) return terms;
+		const selected = new Map<string, Taxonomy>();
+		for (const term of terms) {
+			const group = term.translationGroup ?? term.id;
+			const current = selected.get(group);
+			if (
+				!current ||
+				getLocaleRank(term.locale, locale) < getLocaleRank(current.locale, locale) ||
+				(getLocaleRank(term.locale, locale) === getLocaleRank(current.locale, locale) &&
+					term.id < current.id)
+			) {
+				selected.set(group, term);
+			}
+		}
+		return [...selected.values()];
 	}
 
 	async getTermAssignmentsForEntry(
@@ -777,11 +803,18 @@ export class TaxonomyRepository {
 			byGroup.set(row.assignment_group, variants);
 		}
 
+		const chain = [locale, ...(defaultLocale !== locale ? [defaultLocale] : [])];
+		const chainLimit =
+			getLocaleChainRank(defaultLocale, chain) + getLocaleCandidates(defaultLocale).length;
 		return Array.from(byGroup, ([translationGroup, variants]) => {
-			const term =
-				variants.find((variant) => variant.locale === locale) ??
-				variants.find((variant) => variant.locale === defaultLocale) ??
-				null;
+			const candidates = variants
+				.filter((variant) => getLocaleChainRank(variant.locale, chain) < chainLimit)
+				.toSorted(
+					(a, b) =>
+						getLocaleChainRank(a.locale, chain) - getLocaleChainRank(b.locale, chain) ||
+						a.id.localeCompare(b.id),
+				);
+			const term = candidates[0] ?? null;
 			return {
 				translationGroup,
 				term,

@@ -86,7 +86,7 @@
 	}
 }
 
-body {
+body:has(> #admin-root) {
 	background-color: var(--color-kumo-elevated);
 	color: var(--text-color-kumo-default);
 	-webkit-font-smoothing: antialiased;
@@ -547,8 +547,27 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	quotes: none;
 }
 
+/* A quote's rule frames it, so it keeps the 1rem of the other framed blocks. */
 .emdash-document > blockquote {
-	margin-block: 0.25rem;
+	margin-block: 1rem;
+}
+
+/* An upload placeholder takes the space of the image that replaces it. */
+.emdash-document > :where([data-image-upload-placeholder]) {
+	margin-block: 1rem;
+}
+
+/*
+ * Portable Text stores each paragraph of a quote as its own block, so quotes
+ * next to each other open as one quote. They read as one while editing too,
+ * and in a revision, which draws each block on its own.
+ */
+.emdash-document > blockquote:has(+ blockquote) {
+	margin-bottom: 0;
+}
+
+.emdash-document > blockquote + blockquote {
+	margin-top: 0;
 }
 
 /* A divider is a full-height block with a centered rule, so it is easy to hover and drag. */
@@ -592,17 +611,62 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 /*
  * Space above headings lives on the block before them, so a dragged
  * heading's preview starts at its text rather than at an empty margin.
+ * A divider already separates the sections, so it keeps its own margin.
  */
-.emdash-document > :has(+ h1) {
+.emdash-document > :not(hr):has(+ h1) {
 	margin-bottom: 2rem;
 }
 
-.emdash-document > :has(+ h2) {
+.emdash-document > :not(hr):has(+ h2) {
 	margin-bottom: 1.4rem;
 }
 
-.emdash-document > :has(+ :is(h3, h4, h5, h6)) {
+.emdash-document > :not(hr):has(+ :is(h3, h4, h5, h6)) {
 	margin-bottom: 1rem;
+}
+
+/*
+ * Framed blocks (quotes, tables, upload placeholders, and node views, whose
+ * wrappers carry `my-4`) sit 1rem from their neighbours. A frame's edge has
+ * none of the padding and leading around a line of text, so a heading after a
+ * frame gets 0.5rem more space than after text, and a frame after a heading
+ * gets 0.5rem: each then looks as far from the heading as text would.
+ */
+.emdash-document
+	> :is(
+		blockquote,
+		.tableWrapper,
+		:has(> [data-node-view-wrapper]),
+		[data-image-upload-placeholder]
+	):has(+ h1) {
+	margin-bottom: 2.5rem;
+}
+
+.emdash-document
+	> :is(
+		blockquote,
+		.tableWrapper,
+		:has(> [data-node-view-wrapper]),
+		[data-image-upload-placeholder]
+	):has(+ h2) {
+	margin-bottom: 1.9rem;
+}
+
+.emdash-document
+	> :is(
+		blockquote,
+		.tableWrapper,
+		:has(> [data-node-view-wrapper]),
+		[data-image-upload-placeholder]
+	):has(+ :is(h3, h4, h5, h6)) {
+	margin-bottom: 1.5rem;
+}
+
+.emdash-document
+	> :is(h1, h2, h3, h4, h5, h6)
+	+ :is(blockquote, .tableWrapper, [data-image-upload-placeholder]),
+.emdash-document > :is(h1, h2, h3, h4, h5, h6) + * > [data-node-view-wrapper] {
+	margin-top: 0.5rem;
 }
 
 /* `currentcolor` keeps links, inline code, and syntax colours while selected. */
@@ -727,7 +791,7 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
  */
 [data-emdash-editor-floating-root]
 	> div:has(
-		> :is(
+		:is(
 			[data-emdash-inline-bubble-menu],
 			[data-emdash-link-bubble-menu],
 			[data-emdash-table-bubble-menu],
@@ -1013,35 +1077,124 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 }
 
 /*
- * Keep heading margins compact to minimize drag preview offset.
+ * Block rhythm for the boxed editor, over the prose styles. Text blocks sit
+ * 1rem apart, framed blocks (quotes, tables, upload placeholders, and node
+ * views) 1.5rem, and headings 0.5rem above what follows them. As in the page
+ * layout, the space above a heading lives on the block before it, so a dragged
+ * block's preview starts at its text, and a divider keeps its own margin.
  */
-:is(.ProseMirror, [data-emdash-static-document]).prose > h1 {
-	margin-top: 0.5em !important;
-	margin-bottom: 0.5em !important;
-}
-
-:is(.ProseMirror, [data-emdash-static-document]).prose > h2 {
-	margin-top: 0.4em !important;
-	margin-bottom: 0.4em !important;
-}
-
-:is(.ProseMirror, [data-emdash-static-document]).prose > h3,
-:is(.ProseMirror, [data-emdash-static-document]).prose > h4,
-:is(.ProseMirror, [data-emdash-static-document]).prose > h5,
-:is(.ProseMirror, [data-emdash-static-document]).prose > h6 {
-	margin-top: 0.3em !important;
-	margin-bottom: 0.3em !important;
-}
-
-/* Top margins add blank space above the text in block drag previews. */
 :is(.ProseMirror, [data-emdash-static-document]).prose > p {
 	font-size: 1rem;
 	line-height: 1.5;
-	margin-block: 0 1em !important;
+	margin-block: 0 1rem;
 }
 
-:is(.ProseMirror, [data-emdash-static-document]).prose > *:first-child {
-	margin-top: 0 !important;
+:is(.ProseMirror, [data-emdash-static-document]).prose > :is(ul, ol) {
+	margin-block: 0 1rem;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose > :is(h1, h2, h3, h4, h5, h6) {
+	margin-block: 0 0.5rem;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose > hr {
+	margin-block: 2rem;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose
+	> :where(blockquote, .tableWrapper, [data-image-upload-placeholder]),
+:is(.ProseMirror, [data-emdash-static-document]).prose > * > [data-node-view-wrapper] {
+	margin-block: 1.5rem;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose .emdash-code-block {
+	margin-block: 0;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose > blockquote > p {
+	margin-block: 0;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose > blockquote > p + p {
+	margin-top: 1rem;
+}
+
+/*
+ * Quotes next to each other open as one quote, so they read as one while
+ * editing too, and in a revision, which draws each block on its own.
+ */
+:is(.ProseMirror, [data-emdash-static-document]).prose > blockquote:has(+ blockquote) {
+	margin-bottom: 0;
+	padding-bottom: 1rem;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose > blockquote + blockquote {
+	margin-top: 0;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose > :not(hr):has(+ h1) {
+	margin-bottom: 2.75rem;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose > :not(hr):has(+ h2) {
+	margin-bottom: 2.25rem;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose > :not(hr):has(+ :is(h3, h4, h5, h6)) {
+	margin-bottom: 1.75rem;
+}
+
+/*
+ * Prose text has no padding, only its leading, so beside a heading a frame's
+ * gap shifts less than in the page layout: 0.25rem more above the heading.
+ */
+:is(.ProseMirror, [data-emdash-static-document]).prose
+	> :is(
+		blockquote,
+		.tableWrapper,
+		:has(> [data-node-view-wrapper]),
+		[data-image-upload-placeholder]
+	):has(+ h1) {
+	margin-bottom: 3rem;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose
+	> :is(
+		blockquote,
+		.tableWrapper,
+		:has(> [data-node-view-wrapper]),
+		[data-image-upload-placeholder]
+	):has(+ h2) {
+	margin-bottom: 2.5rem;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose
+	> :is(
+		blockquote,
+		.tableWrapper,
+		:has(> [data-node-view-wrapper]),
+		[data-image-upload-placeholder]
+	):has(+ :is(h3, h4, h5, h6)) {
+	margin-bottom: 2rem;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose
+	> :is(h1, h2, h3, h4, h5, h6)
+	+ :is(blockquote, .tableWrapper, [data-image-upload-placeholder]),
+:is(.ProseMirror, [data-emdash-static-document]).prose
+	> :is(h1, h2, h3, h4, h5, h6)
+	+ *
+	> [data-node-view-wrapper] {
+	margin-top: 0.5rem;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose > *:first-child,
+:is(.ProseMirror, [data-emdash-static-document]).prose > :first-child > [data-node-view-wrapper] {
+	margin-top: 0;
+}
+
+:is(.ProseMirror, [data-emdash-static-document]).prose > p:last-child {
+	margin-bottom: 0;
 }
 
 [data-emdash-editor-surface] {
@@ -1081,10 +1234,6 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 
 :is(.ProseMirror, [data-emdash-static-document]) .tableWrapper::-webkit-scrollbar {
 	display: none;
-}
-
-:is(.ProseMirror, [data-emdash-static-document]).prose > p:last-child {
-	margin-bottom: 0 !important;
 }
 
 /* TipTap table styles */
@@ -1246,12 +1395,52 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 }
 
 /**
- * Prevent dialogs from overflowing the viewport on small screens.
- * Kumo's size variants set min-width (e.g. min-w-[32rem] for "lg")
- * which overrides max-width in CSS. We need to cap min-width too.
+ * Keep Kumo dialogs centred and sized to their content, with each size as a
+ * minimum width. Kumo pins them near the top at a fixed width per size.
+ * The rules match only while Kumo's classes are still on the dialog. `top` and
+ * `width` override those classes; the translate and minimum widths are in
+ * `:where()`, so a dialog's own classes for them still win. A dialog that needs
+ * one of these widths exactly must use another class for it, such as `sm:w-lg`.
+ */
+@layer utilities {
+	:where([role="dialog"], [role="alertdialog"]).top-8:where(.sm\:top-16) {
+		top: 50%;
+	}
+	:where([role="dialog"].top-8.sm\:top-16, [role="alertdialog"].top-8.sm\:top-16) {
+		--tw-translate-y: -50%;
+	}
+
+	@media (width >= 40rem) {
+		:where([role="dialog"], [role="alertdialog"]):is(
+			.sm\:w-72,
+			.sm\:w-96,
+			.sm\:w-\[32rem\],
+			.sm\:w-\[48rem\]
+		) {
+			width: auto;
+		}
+		:where([role="dialog"].sm\:w-72, [role="alertdialog"].sm\:w-72) {
+			min-width: 18rem;
+		}
+		:where([role="dialog"].sm\:w-96, [role="alertdialog"].sm\:w-96) {
+			min-width: 24rem;
+		}
+		:where([role="dialog"].sm\:w-\[32rem\], [role="alertdialog"].sm\:w-\[32rem\]) {
+			min-width: 32rem;
+		}
+		:where([role="dialog"].sm\:w-\[48rem\], [role="alertdialog"].sm\:w-\[48rem\]) {
+			min-width: 48rem;
+		}
+	}
+}
+
+/**
+ * Prevent dialogs from overflowing the viewport on small screens, where a
+ * dialog's own min-width would override max-width. LayerDialog popups carry
+ * data-swipe-direction and are full-width bottom sheets there.
  */
 @media (max-width: 639px) {
-	[role="dialog"] {
+	body:has(> #admin-root) [role="dialog"]:not([data-swipe-direction]) {
 		min-width: 0 !important;
 		max-width: calc(100vw - 2rem);
 	}

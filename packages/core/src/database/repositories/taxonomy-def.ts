@@ -1,5 +1,6 @@
 import { sql, type Kysely } from "kysely";
 
+import { localeMatches, localeOrder } from "../../i18n/query.js";
 import type { Database } from "../types.js";
 
 /**
@@ -20,8 +21,8 @@ export interface TaxonomyStructure {
  * A row that has no group yet, because code without the group table wrote it
  * during a rolling deploy, reads its own copy.
  */
-export function selectTaxonomyDefs(db: Kysely<Database>) {
-	return db
+export function selectTaxonomyDefs(db: Kysely<Database>, locale?: string) {
+	let query = db
 		.selectFrom("_emdash_taxonomy_defs as d")
 		.leftJoin("_emdash_taxonomy_def_groups as g", "g.name", "d.name")
 		.select([
@@ -35,6 +36,12 @@ export function selectTaxonomyDefs(db: Kysely<Database>) {
 			sql<number>`coalesce(g.hierarchical, d.hierarchical)`.as("hierarchical"),
 			sql<string | null>`coalesce(g.collections, d.collections)`.as("collections"),
 		]);
+	if (locale !== undefined) {
+		query = query
+			.where(localeMatches("d.locale", locale))
+			.orderBy(localeOrder("d.locale", locale), "asc");
+	}
+	return query;
 }
 
 /**

@@ -42,6 +42,7 @@ export interface ShellProps {
 		}>;
 		i18n?: { defaultLocale: string; locales: string[] };
 		version?: string;
+		admin?: AdminManifest["admin"];
 		registryConfigurationError?: AdminManifest["registryConfigurationError"];
 	};
 }

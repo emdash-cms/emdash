@@ -11,7 +11,7 @@ import { Checkbox } from "@cloudflare/kumo/components/checkbox";
 import { InputGroup } from "@cloudflare/kumo/components/input-group";
 import { LayerCard } from "@cloudflare/kumo/components/layer-card";
 import { Text } from "@cloudflare/kumo/components/text";
-import { Toast } from "@cloudflare/kumo/components/toast";
+import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Popover as PopoverPrimitive } from "@cloudflare/kumo/primitives/popover";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
@@ -218,6 +218,7 @@ function TaxonomyTermPicker({
 	const listId = React.useId();
 	const triggerId = React.useId();
 	const inputId = React.useId();
+	const createHintId = React.useId();
 	const trimmedInput = input.trim();
 	const flatTerms = React.useMemo(() => flattenTerms(terms), [terms]);
 	const termOptions = React.useMemo<TaxonomyPickerOption[]>(
@@ -497,7 +498,8 @@ function TaxonomyTermPicker({
 										ref={inputRef}
 										id={inputId}
 										role="searchbox"
-										aria-label={t`Search ${label}`}
+										aria-label={canCreate ? t`Search or create ${label}` : t`Search ${label}`}
+										aria-describedby={canCreate && !trimmedInput ? createHintId : undefined}
 										aria-controls={listId}
 										value={input}
 										onChange={(event) => {
@@ -517,7 +519,7 @@ function TaxonomyTermPicker({
 											setActiveIndex(0);
 										}}
 										onKeyDown={handleInputKeyDown}
-										placeholder={t`Search ${label}…`}
+										placeholder={canCreate ? t`Search or create ${label}…` : t`Search ${label}…`}
 										className="text-base font-normal"
 									/>
 								</InputGroup>
@@ -576,13 +578,18 @@ function TaxonomyTermPicker({
 										type="button"
 										variant="ghost"
 										className="h-9 w-full justify-start px-2 text-kumo-subtle"
-										disabled={isCreating || (Boolean(trimmedInput) && !canCreateInput)}
+										disabled={isCreating || !canCreateInput}
 										loading={isCreating}
 										onClick={handleCreate}
 										icon={<Plus size={16} aria-hidden="true" />}
 									>
 										{trimmedInput ? t`Create "${trimmedInput}"` : t`Create a new ${singularLabel}`}
 									</Button>
+									{!trimmedInput ? (
+										<p id={createHintId} className="px-2 pb-1.5 text-xs leading-4 text-kumo-subtle">
+											{t`Type a name above to create a new ${singularLabel}.`}
+										</p>
+									) : null}
 								</div>
 							) : null}
 
@@ -640,7 +647,7 @@ function TaxonomySection({
 }) {
 	const { t, i18n: lingui } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 
 	// The count mode belongs in the key: the Taxonomies settings page reads the
 	// same endpoint with counts and must not be served this count-free list.
@@ -685,7 +692,7 @@ function TaxonomySection({
 			toastManager.add({
 				title: t`Failed to update ${inlineLabel(taxonomy.label, lingui.locale)}`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -781,7 +788,7 @@ function TaxonomySection({
 			toastManager.add({
 				title: t`Failed to create translation`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});

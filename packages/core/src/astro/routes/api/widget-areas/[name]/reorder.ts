@@ -12,6 +12,7 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { reorderWidgetsBody } from "#api/schemas.js";
 import { widgetAreaTag } from "#cache/chrome-tags.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
+import { invalidateWidgetObjectCache } from "#widgets/index.js";
 
 export const prerender = false;
 
@@ -57,11 +58,16 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 		}
 
 		// Update sort_order for each widget
-		await Promise.all(
+		// Invalidating before every update settles would let a concurrent read
+		// cache a half-reordered area under the new epoch.
+		const results = await Promise.allSettled(
 			body.widgetIds.map((id, index) =>
 				db.updateTable("_emdash_widgets").set({ sort_order: index }).where("id", "=", id).execute(),
 			),
 		);
+		invalidateWidgetObjectCache();
+		const failed = results.find((result) => result.status === "rejected");
+		if (failed) throw failed.reason;
 
 		await invalidateRouteCache(cache, [widgetAreaTag(name)]);
 		return apiSuccess({ success: true });

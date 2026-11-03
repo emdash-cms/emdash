@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+	classifyRereviewMove,
 	completeReviewCheck,
 	createReviewCheck,
 	fetchAcceptedDesign,
+	fetchHeadChecks,
+	fetchLastReviewedHead,
+	fetchLinkedIssues,
 	fetchPriorReview,
 	findReviewCheck,
 	classifyPullRequestHeadMove,
@@ -11,6 +15,7 @@ import {
 	fetchUnifiedDiff,
 	githubRateLimitGate,
 	GitHubRateLimitError,
+	hasReviewCheck,
 	postReview,
 	POST_MODEL_PERMIT_WAIT_MS,
 	removePullRequestLabel,
@@ -1213,5 +1218,139 @@ describe("fetchAcceptedDesign", () => {
 			),
 		).resolves.toBeUndefined();
 		expect(fetchMock).not.toHaveBeenCalled();
+	});
+});
+
+describe("fetchLinkedIssues", () => {
+	function stubClosingIssues(response: Response): ReturnType<typeof vi.fn<typeof fetch>> {
+		const fetchMock = vi.fn<typeof fetch>(async () => response);
+		vi.stubGlobal("fetch", fetchMock);
+		return fetchMock;
+	}
+
+	it("returns the title and body of issues in this repository the PR closes", async () => {
+		const fetchMock = stubClosingIssues(
+			Response.json({
+				data: {
+					repository: {
+						pullRequest: {
+							closingIssuesReferences: {
+								nodes: [
+									{
+										number: 12,
+										title: "Settings stay stale",
+										body: "Steps to reproduce.",
+										repository: { nameWithOwner: "emdash-cms/emdash" },
+									},
+									{
+										number: 3,
+										title: "Elsewhere",
+										body: "Not ours.",
+										repository: { nameWithOwner: "someone/fork" },
+									},
+									{
+										number: 13,
+										title: "No body",
+										body: null,
+										repository: { nameWithOwner: "Emdash-CMS/Emdash" },
+									},
+								],
+							},
+						},
+					},
+				},
+			}),
+		);
+
+		await expect(fetchLinkedIssues(TOKEN, "emdash-cms", "emdash", 7)).resolves.toEqual([
+			{ number: 12, title: "Settings stay stale", body: "Steps to reproduce." },
+			{ number: 13, title: "No body", body: "" },
+		]);
+		const [url, init] = fetchMock.mock.calls[0] ?? [];
+		expect(url).toBe("https://api.github.com/graphql");
+		expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${TOKEN}`);
+		const body = requestBody(fetchMock);
+		expect(body.query).toContain("closingIssuesReferences");
+		expect(body.query).not.toContain("comments");
+		expect(body.variables).toMatchObject({ owner: "emdash-cms", repo: "emdash", number: 7 });
+	});
+
+	it("returns nothing when the lookup fails", async () => {
+		stubClosingIssues(new Response("forbidden", { status: 403 }));
+		await expect(fetchLinkedIssues(TOKEN, "emdash-cms", "emdash", 7)).resolves.toEqual([]);
+
+		stubClosingIssues(Response.json({ errors: [{ message: "Resource not accessible" }] }));
+		await expect(fetchLinkedIssues(TOKEN, "emdash-cms", "emdash", 7)).resolves.toEqual([]);
+	});
+});
+
+describe("re-review GitHub reads", () => {
+	function stub(routes: Record<string, unknown>): ReturnType<typeof vi.fn<typeof fetch>> {
+		const fetchMock = vi.fn<typeof fetch>(async (input) => {
+			const url = new Request(input).url;
+			const match = Object.keys(routes).find((suffix) => url.includes(suffix));
+			return match ? Response.json(routes[match]) : new Response(null, { status: 404 });
+		});
+		vi.stubGlobal("fetch", fetchMock);
+		return fetchMock;
+	}
+	const human = {
+		author: { login: "contributor", type: "User" },
+		commit: { message: "fix: address review", author: { name: "C", email: "c@example.com" } },
+	};
+
+	it("classifies a move whose PR changes are identical at both heads as a base merge", async () => {
+		const patches = { files: [{ filename: "a.ts", patch: "@@ -1 +1 @@\n-a\n+b" }] };
+		stub({
+			"/compare/A...M": { status: "ahead", total_commits: 1, commits: [human] },
+			"/compare/base...A": patches,
+			"/compare/base...M": patches,
+		});
+		await expect(classifyRereviewMove(TOKEN, "o", "r", "base", "A", "M")).resolves.toBe(
+			"base_merge_only",
+		);
+	});
+
+	it("classifies an author change as substantive", async () => {
+		stub({
+			"/compare/A...B": { status: "ahead", total_commits: 1, commits: [human] },
+			"/compare/base...A": { files: [{ filename: "a.ts", patch: "-a\n+b" }] },
+			"/compare/base...B": { files: [{ filename: "a.ts", patch: "-a\n+c" }] },
+		});
+		await expect(classifyRereviewMove(TOKEN, "o", "r", "base", "A", "B")).resolves.toBe(
+			"substantive",
+		);
+	});
+
+	it("counts head check runs other than the bot's own review checks", async () => {
+		stub({
+			"/commits/B/check-runs": {
+				check_runs: [
+					{ name: "test", status: "completed" },
+					{ name: "lint", status: "in_progress" },
+					{ name: "EmDashBot review", status: "in_progress" },
+				],
+			},
+		});
+		await expect(fetchHeadChecks(TOKEN, "o", "r", "B")).resolves.toEqual({
+			total: 2,
+			incomplete: 1,
+		});
+	});
+
+	it("finds the head of the bot's latest review", async () => {
+		stub({
+			"/pulls/7/reviews": [
+				{ user: { login: "emdashbot[bot]" }, commit_id: "A", submitted_at: "2026-10-01T00:00:00Z" },
+				{ user: { login: "maintainer" }, commit_id: "C", submitted_at: "2026-10-03T00:00:00Z" },
+				{ user: { login: "emdashbot[bot]" }, commit_id: "B", submitted_at: "2026-10-02T00:00:00Z" },
+			],
+		});
+		await expect(fetchLastReviewedHead(TOKEN, "o", "r", 7)).resolves.toBe("B");
+	});
+
+	it("detects a review check already started on a head", async () => {
+		stub({ "/commits/B/check-runs": { total_count: 1 } });
+		await expect(hasReviewCheck(TOKEN, "o", "r", "B")).resolves.toBe(true);
 	});
 });

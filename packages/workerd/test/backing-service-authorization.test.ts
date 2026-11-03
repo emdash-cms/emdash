@@ -144,6 +144,13 @@ describe("backing service authorization", () => {
 			.addPrimaryKeyConstraint("pk_plugin_storage", ["plugin_id", "collection", "id"])
 			.execute();
 
+		await db.schema
+			.createTable("options")
+			.addColumn("name", "text", (column) => column.primaryKey())
+			.addColumn("value", "text", (column) => column.notNull())
+			.addColumn("revision", "text", (column) => column.notNull().defaultTo("0"))
+			.execute();
+
 		runner = new WorkerdSandboxRunner({ db });
 		vi.spyOn(runner, "ensureRunning").mockResolvedValue();
 		const backingService = createBackingServiceHandler(runner);

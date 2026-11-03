@@ -62,11 +62,15 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	// locale and slug, used below to resolve the public path.
 	let entryLocale: string | null = null;
 	let entrySlug: string | null = null;
+	let entryId = id;
 	if (emdash?.handleContentGet) {
-		const result = await emdash.handleContentGet(collection, id);
+		const result = await emdash.handleContentGet(collection, id, undefined, undefined, {
+			includeStagedSlug: true,
+		});
 		if (!result.success) return unwrapResult(result);
 		entryLocale = result.data?.item?.locale ?? null;
 		entrySlug = result.data?.item?.slug ?? null;
+		entryId = result.data?.item?.id ?? id;
 	}
 
 	// Parse request body
@@ -126,7 +130,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				// still hand back a usable preview link rather than failing.
 				const localized = await localizePath(path, entryLocale ?? "");
 				const token = await generatePreviewToken({
-					contentId: `${collection}:${id}`,
+					contentId: `${collection}:${entryId}`,
 					expiresIn,
 					secret: previewSecret,
 				});

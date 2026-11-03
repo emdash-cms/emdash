@@ -95,7 +95,7 @@ After the deploy, open the admin, load at least one public page, edit and publis
 
 ## Notes for specific releases
 
-Most releases need nothing beyond the steps above. The entries below cover releases that changed data EmDash already stored, and say when that needs an action from you.
+Most releases need nothing beyond the steps above. The entries below cover releases that change data EmDash already stored, or cannot repair it, and say when that needs an action from you.
 
 ### Changed: reference fields bind to relations
 
@@ -127,6 +127,16 @@ An unbound field keeps behaving as it did. Its column holds the entry ID, the va
 #### What should I do?
 
 Open an entry in each collection that has a reference field. A field that renders as a picker needs nothing. For a field that still renders as a text box, follow [Bind a field that has no relation](/guides/relations/#bind-a-field-that-has-no-relation), which creates the relation and copies the field's stored IDs in as links. On a multi-locale site, settle which entry each translation should point at before binding, since binding keeps one selection for all of them.
+
+### Fixed: searchable reference fields
+
+In earlier versions, a reference field marked `searchable` broke its collection: adding one to a collection with search turned on failed, and after a seed turned search on, creating or saving any entry in that collection failed with `no such column` in the server log.
+
+Site search and content-list search ignore the `searchable` flag on a reference field bound to a [relation](/guides/relations/). Updating does not repair a collection that a seed already broke, because its search index still expects the field.
+
+#### What should I do?
+
+If creating or saving entries in a collection fails and the server log shows `no such column`, open the collection under **Content Types**, clear the **Search** checkbox, and save. Then select **Search** again and save. This rebuilds the collection's search index, and the collection accepts new and edited entries again.
 
 ## If the site breaks after an update
 

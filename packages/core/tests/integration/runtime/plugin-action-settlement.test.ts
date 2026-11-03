@@ -261,6 +261,41 @@ describe("sandboxed plugin action settlement", () => {
 		expect(afterPublish).toHaveBeenCalledOnce();
 	});
 
+	it("rejects an independent action while a deferred after-hook is running", async () => {
+		const item = await draft();
+		const current = await contentActions.getVersioned(pluginId, "post", item.id);
+		if (!current) throw new Error("Content not found");
+		let releaseAfterPublish: () => void = () => undefined;
+		let markAfterPublishStarted: () => void = () => undefined;
+		const afterPublishGate = new Promise<void>((resolve) => (releaseAfterPublish = resolve));
+		const afterPublishStarted = new Promise<void>((resolve) => (markAfterPublishStarted = resolve));
+		afterPublish.mockImplementationOnce(async () => {
+			markAfterPublishStarted();
+			await afterPublishGate;
+		});
+
+		await contentActions.publish(pluginId, "post", item.id, { _rev: current._rev });
+		const published = await contentActions.getVersioned(pluginId, "post", item.id);
+		if (!published) throw new Error("Content not found");
+
+		const flushing = flushDeferred();
+		await afterPublishStarted;
+		try {
+			await expect(
+				contentActions.unpublish(pluginId, "post", item.id, { _rev: published._rev }),
+			).rejects.toMatchObject({ code: "CONTENT_ACTION_REENTRANT" });
+		} finally {
+			releaseAfterPublish();
+			await flushing;
+		}
+		await contentActions.unpublish(pluginId, "post", item.id, { _rev: published._rev });
+
+		expect((await new ContentRepository(runtime.db).findByIdOrSlug("post", item.id))?.status).toBe(
+			"draft",
+		);
+		await flushDeferred();
+	});
+
 	it("keeps concurrent route invalidators scoped to their own request", async () => {
 		const [first, second] = await Promise.all([draft(), draft()]);
 		let releaseFirst: () => void = () => undefined;

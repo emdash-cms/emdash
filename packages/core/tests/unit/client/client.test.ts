@@ -1,7 +1,12 @@
+import { once } from "node:events";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+
 import { Role } from "@emdash-cms/auth";
 import { describe, it, expect } from "vitest";
 
 import { GET as schemaGET } from "../../../src/astro/routes/api/schema/index.js";
+import { customHeadersInterceptor } from "../../../src/client/cf-access.js";
 import { EmDashClient, EmDashApiError } from "../../../src/client/index.js";
 import type { Interceptor } from "../../../src/client/transport.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
@@ -532,6 +537,30 @@ describe("EmDashClient", () => {
 	});
 
 	describe("schema methods", () => {
+		it("deleteCollection sends force to the API as a query parameter", async () => {
+			const calledPaths: string[] = [];
+			const backend: Interceptor = async (req) => {
+				const url = new URL(req.url);
+				calledPaths.push(`${req.method} ${url.pathname}${url.search}`);
+				return jsonResponse({});
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.deleteCollection("posts");
+			await client.deleteCollection("posts", { force: false });
+			await client.deleteCollection("posts", { force: true });
+
+			expect(calledPaths).toEqual([
+				"DELETE /_emdash/api/schema/collections/posts",
+				"DELETE /_emdash/api/schema/collections/posts",
+				"DELETE /_emdash/api/schema/collections/posts?force=true",
+			]);
+		});
+
 		it("schema route wraps JSON exports in the API data envelope", async () => {
 			const db = await setupTestDatabaseWithCollections();
 
@@ -1865,6 +1894,43 @@ describe("EmDashClient", () => {
 			expect(Array.isArray(result)).toBe(true);
 			expect(result.length).toBe(1);
 			expect(result[0]!.name).toBe("primary");
+		});
+	});
+
+	describe("token refresh", () => {
+		it("refreshes an expired token behind a proxy that requires custom headers", async () => {
+			const server = createServer((req, res) => {
+				const json = (status: number, body: unknown) => {
+					res.writeHead(status, { "Content-Type": "application/json" });
+					res.end(JSON.stringify(body));
+				};
+				if (req.headers["cf-access-client-id"] !== "access-id") {
+					json(403, { error: "blocked by proxy" });
+				} else if (req.method === "POST" && req.url === "/_emdash/api/oauth/token/refresh") {
+					json(200, { success: true, data: { access_token: "ec_oat_new", expires_in: 3600 } });
+				} else if (req.headers.authorization === "Bearer ec_oat_new") {
+					json(200, { success: true, data: { items: [{ slug: "posts" }] } });
+				} else {
+					json(401, { success: false, error: { code: "UNAUTHORIZED", message: "Expired" } });
+				}
+			});
+			server.listen(0, "127.0.0.1");
+			await once(server, "listening");
+			const { port } = server.address() as AddressInfo;
+
+			try {
+				const client = new EmDashClient({
+					baseUrl: `http://127.0.0.1:${port}`,
+					token: "ec_oat_expired",
+					refreshToken: "ec_ort_valid",
+					interceptors: [customHeadersInterceptor({ "CF-Access-Client-Id": "access-id" })],
+				});
+
+				const collections = await client.collections();
+				expect(collections.map((c) => c.slug)).toEqual(["posts"]);
+			} finally {
+				await new Promise<void>((done) => server.close(() => done()));
+			}
 		});
 	});
 });

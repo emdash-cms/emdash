@@ -33,16 +33,20 @@
  * ```
  */
 
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
+
 import type {
 	AuthDescriptor,
 	DatabaseDescriptor,
 	ObjectCacheDescriptor,
 	StorageDescriptor,
 } from "emdash";
-import { unstable_readConfig } from "wrangler";
 
 import type { DurableObjectsConfig } from "./db/do-sql-types.js";
 import type { PreviewDOConfig } from "./db/do-types.js";
+
+const require = createRequire(import.meta.url);
 
 const ENVIRONMENT_VARIABLE_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -544,6 +548,11 @@ export function access(config: AccessConfig): AuthDescriptor {
  * Returns the module path for the Cloudflare sandbox runner when the project's
  * Wrangler config includes the `LOADER` Worker Loader binding. Without that
  * paid-plan binding, sandboxed plugins are disabled at build time.
+ * Requires `wrangler` to be installed; other config helpers do not need it.
+ *
+ * When `cloudflare.config.ts` exists in the working directory, the runner is
+ * always returned and a missing `LOADER` binding is reported when the Worker
+ * starts, because that file can only be evaluated asynchronously.
  *
  * @example
  * ```ts
@@ -551,7 +560,10 @@ export function access(config: AccessConfig): AuthDescriptor {
  * ```
  */
 export function sandbox(): string | undefined {
+	if (existsSync("cloudflare.config.ts")) return "@emdash-cms/cloudflare/sandbox";
+
 	const environment = process.env.CLOUDFLARE_ENV;
+	const { unstable_readConfig }: typeof import("wrangler") = require("wrangler");
 	const config = unstable_readConfig(environment ? { env: environment } : {}, {
 		hideWarnings: true,
 	});
