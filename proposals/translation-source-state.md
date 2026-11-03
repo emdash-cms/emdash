@@ -131,13 +131,13 @@ The entry is current again, with origin `machine:deepl`. When an editor later co
 
 One migration adds five nullable columns to every `ec_*` table:
 
-| Column                       | Type    | Holds                                                                                |
-| ---------------------------- | ------- | ------------------------------------------------------------------------------------ |
-| `content_fingerprint`        | text    | Fingerprint of this entry's own stored translatable content                          |
-| `translation_source_id`      | text    | Id of the source sibling                                                             |
-| `translation_source_hash`    | text    | The source's `content_fingerprint` when this translation was last confirmed           |
+| Column                           | Type | Holds                                                                                          |
+| -------------------------------- | ---- | ---------------------------------------------------------------------------------------------- |
+| `content_fingerprint`            | text | Fingerprint of this entry's own stored translatable content                                    |
+| `translation_source_id`          | text | Id of the source sibling                                                                       |
+| `translation_source_hash`        | text | The source's `content_fingerprint` when this translation was last confirmed                    |
 | `translation_source_revision_id` | text | The source's `live_revision_id` at that moment, or null when the collection keeps no revisions |
-| `translation_origin`         | text    | What produced the current translatable content, such as `human` or `machine:deepl`   |
+| `translation_origin`             | text | What produced the current translatable content, such as `human` or `machine:deepl`             |
 
 Every entry gets a `content_fingerprint`, sources included, so the state of a whole translation group can be derived from the rows of that group.
 
@@ -149,12 +149,12 @@ The migration adds the index `idx_{table}_translation_source_id`, following the 
 
 EmDash derives a translation's state from its own row and its source's row, and never stores it:
 
-| State            | Condition                                                                                             |
-| ---------------- | ----------------------------------------------------------------------------------------------------- |
-| `untracked`      | `translation_source_id` is null                                                                       |
-| `source-missing` | `translation_source_id` names no non-deleted entry in the same translation group                      |
-| `current`        | `translation_source_hash` equals the source's `content_fingerprint`                                   |
-| `outdated`       | any other case, including a null `translation_source_hash` or a source without a fingerprint yet       |
+| State            | Condition                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------ |
+| `untracked`      | `translation_source_id` is null                                                                  |
+| `source-missing` | `translation_source_id` names no non-deleted entry in the same translation group                 |
+| `current`        | `translation_source_hash` equals the source's `content_fingerprint`                              |
+| `outdated`       | any other case, including a null `translation_source_hash` or a source without a fingerprint yet |
 
 In a group listing, an entry with no source of its own reports `null` when another sibling uses it as a source, and `untracked` otherwise. The editor shows sources without a state badge.
 
@@ -219,10 +219,10 @@ All strings go through Lingui, icons carry accessible labels, the layout uses lo
 
 ### Errors
 
-| Code                         | Status | When                                                                                                                                                         |
-| ---------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Code                         | Status | When                                                                                                                                                     |
+| ---------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `VALIDATION_ERROR`           | 400    | Invalid origin string, a source outside the group or the entry itself, `markTranslationCurrent` without a source, or `translationState` without `locale` |
-| `TRANSLATION_SOURCE_MISSING` | 409    | `markTranslationCurrent` while the recorded source is deleted                                                                                                |
+| `TRANSLATION_SOURCE_MISSING` | 409    | `markTranslationCurrent` while the recorded source is deleted                                                                                            |
 
 ### Runtime differences
 
