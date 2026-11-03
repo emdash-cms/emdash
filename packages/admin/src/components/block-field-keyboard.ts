@@ -33,6 +33,7 @@ export function focusableIn(element: Element | null | undefined): HTMLElement | 
 
 /** How long after a pointer is let go its click can still come, as a tap's comes after the touch ends. */
 const CLICK_WAIT_MS = 500;
+const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta", "AltGraph", "CapsLock"]);
 
 interface PressWatch {
 	/** A pointer is down, or was let go and its click hasn't come yet. */
@@ -76,9 +77,18 @@ function pressWatch(): PressWatch {
 	const landNow = () => {
 		if (watch.pressing) land(0);
 	};
-	for (const type of ["pointercancel", "contextmenu", "keydown"]) {
+	for (const type of ["pointercancel", "contextmenu"]) {
 		document.addEventListener(type, landNow, true);
 	}
+	// A modifier held through a click, or repeating while held, is part of that click.
+	document.addEventListener(
+		"keydown",
+		(event) => {
+			if (event.repeat || MODIFIER_KEYS.has(event.key)) return;
+			landNow();
+		},
+		true,
+	);
 	document.addEventListener("visibilitychange", landNow);
 	window.addEventListener("blur", landNow);
 	// Runs before the click's own handlers, so what waits runs after them.
@@ -159,7 +169,7 @@ export function whenFocusLeaves(event: React.FocusEvent<HTMLElement>, callback: 
 		// Whether focus went into a popup was settled as it left. What the press did since, such
 		// as open a popup, doesn't bring it back.
 		watch.waiting.add(() => {
-			if (container.isConnected && !container.contains(document.activeElement)) callback();
+			if (!container.contains(document.activeElement)) callback();
 		});
 	};
 	if (next instanceof Element) {

@@ -254,7 +254,7 @@ describe("A press whose release the page never sees", () => {
 		[
 			"a key is pressed",
 			() =>
-				document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", bubbles: true })),
+				document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true })),
 		],
 		["the window loses focus", () => window.dispatchEvent(new FocusEvent("blur"))],
 		["the page is hidden", () => document.dispatchEvent(new Event("visibilitychange"))],
@@ -265,6 +265,39 @@ describe("A press whose release the page never sees", () => {
 		pressDown(0);
 		lose();
 		await leaveByKeyboard();
+	});
+
+	it.each([
+		["a modifier is pressed", { key: "Shift" }],
+		["a held key repeats", { key: "a", repeat: true }],
+	])("keeps waiting when %s, as part of the click", async (_what, init) => {
+		await openLinked();
+		await link().fill("not a link");
+
+		pressDown(0);
+		document.body.dispatchEvent(new KeyboardEvent("keydown", { ...init, bubbles: true }));
+		(textbox("Title").element() as HTMLElement).focus();
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(link().element().getAttribute("aria-invalid")).toBeNull();
+
+		document.body.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true }));
+		await expect.element(link()).toHaveAttribute("aria-invalid", "true");
+	});
+});
+
+describe("Focus left by a press that closes its block at once", () => {
+	it("still leaves the control it left", async () => {
+		await renderField([linked(), short("after")]);
+		await page.getByRole("button", { name: "Expand all" }).click();
+		await settled();
+		await link().fill("not a link");
+
+		await page.getByRole("button", { name: "Collapse all" }).click();
+		await settled();
+		await page.getByRole("button", { name: "Linked", exact: true }).click();
+		await settled();
+
+		await expect.element(link()).toHaveAttribute("aria-invalid", "true");
 	});
 });
 

@@ -532,6 +532,7 @@ export function BlockListField({
 
 	// A table row Enter added goes once focus leaves it with every cell still blank.
 	const removeBlankRow = useStableCallback((key: string) => {
+		if (!rootRef.current) return;
 		const row = current.find((candidate) => candidate.key === key);
 		if (row && isBlank(row)) shrinkBlankRows([key]);
 	});
