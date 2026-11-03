@@ -37,6 +37,7 @@ export interface SiteSettings {
 		titleSeparator?: string;
 		defaultOgImage?: { mediaId: string; alt?: string; url?: string };
 		robotsTxt?: string;
+		disallowAiTraining?: boolean;
 		googleVerification?: string;
 		bingVerification?: string;
 	};

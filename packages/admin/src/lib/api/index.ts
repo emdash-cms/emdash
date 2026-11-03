@@ -28,6 +28,8 @@ export {
 	type TrashedContentItem,
 	type PreviewUrlResponse,
 	type Revision,
+	type RevisionAuthor,
+	type RevisionListItem,
 	type RevisionListResponse,
 	type TranslationSummary,
 	type TranslationsResponse,

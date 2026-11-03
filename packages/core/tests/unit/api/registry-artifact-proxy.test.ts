@@ -348,6 +348,32 @@ describe("registry artifact proxy", () => {
 		);
 	});
 
+	it("uses the feed_fullsize preset for screenshot blobs", async () => {
+		mockArtifacts = {
+			screenshots: [
+				{
+					blob: {
+						$type: "blob",
+						ref: { $link: BLOB_CID },
+						mimeType: "image/png",
+						size: BLOB_BYTES.byteLength,
+					},
+					checksum: BLOB_CHECKSUM,
+				},
+			],
+		};
+		const fetchMock = vi.fn(async () => imageResponse(PNG_1x1)) as typeof globalThis.fetch;
+		globalThis.fetch = fetchMock;
+
+		const response = await GET(makeContext({ ...DEFAULT_PARAMS, kind: "screenshot", index: "0" }));
+
+		expect(response.status).toBe(200);
+		const fetched = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0];
+		expect(fetched).toBe(
+			`https://cdn.em-da.sh/img/feed_fullsize/r/did:plc:abc123/com.emdashcms.experimental.package.release/myplugin:1.0.0/${RELEASE_CID}/${BLOB_CID}`,
+		);
+	});
+
 	it("verifies external fallback bytes for a blob-backed image", async () => {
 		mockArtifactCaches = [];
 		mockArtifacts = {

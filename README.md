@@ -41,12 +41,12 @@ A classic blog with sidebar widgets, search, and RSS.
 
 <a href="assets/templates/marketing/latest/"><img src="assets/templates/marketing/latest/homepage-light-desktop.jpg" alt="Marketing template" width="100%"></a>
 
-A conversion-focused landing page with pricing and contact form.
+A photo-led landing page built from modular blocks.
 
-- Hero with CTAs
-- Feature grid
-- Pricing cards
-- FAQ and contact form
+- Hero with photo and CTAs
+- Logo wall, features and stats
+- Text and photo sections
+- Pricing, FAQ and closing CTA
 - Dark / light mode
 
 </td>

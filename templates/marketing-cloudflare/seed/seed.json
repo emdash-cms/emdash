@@ -3,12 +3,13 @@
 	"version": "1",
 	"meta": {
 		"name": "Marketing Starter",
-		"description": "A conversion-focused marketing site with landing pages",
+		"description": "A photo-led marketing site for a product or service, built from modular blocks",
 		"author": "EmDash"
 	},
 	"settings": {
-		"title": "Acme",
-		"tagline": "Build products people actually want"
+		"title": "Halden",
+		"tagline": "Energy intelligence for commercial buildings",
+		"seo": { "titleSeparator": "—" }
 	},
 	"blockTypes": [
 		{
@@ -21,34 +22,50 @@
 				{
 					"version": 1,
 					"fields": [
-						{
-							"slug": "anchor_id",
-							"label": "Anchor ID",
-							"type": "string",
-							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
-						},
 						{ "slug": "headline", "label": "Headline", "type": "string", "required": true },
 						{ "slug": "subheadline", "label": "Subheadline", "type": "text" },
-						{ "slug": "primary_cta_label", "label": "Primary CTA label", "type": "string" },
+						{ "slug": "primary_cta_label", "label": "Primary button text", "type": "string" },
 						{
 							"slug": "primary_cta_url",
-							"label": "Primary CTA URL",
+							"label": "Primary button link (starts with /, https://, mailto:, tel: or #)",
 							"type": "string",
 							"validation": { "pattern": "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$" }
 						},
-						{ "slug": "secondary_cta_label", "label": "Secondary CTA label", "type": "string" },
+						{ "slug": "secondary_cta_label", "label": "Secondary button text", "type": "string" },
 						{
 							"slug": "secondary_cta_url",
-							"label": "Secondary CTA URL",
+							"label": "Secondary button link (starts with /, https://, mailto:, tel: or #)",
 							"type": "string",
 							"validation": { "pattern": "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$" }
 						},
 						{ "slug": "image", "label": "Image", "type": "image" },
 						{
+							"slug": "image_caption",
+							"label": "Image caption (shown on the photo)",
+							"type": "string"
+						},
+						{
+							"slug": "eyebrow",
+							"label": "Announcement (shown above the headline)",
+							"type": "string"
+						},
+						{
+							"slug": "eyebrow_url",
+							"label": "Announcement link (starts with /, https://, mailto:, tel: or #)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|/(?!/|\\\\).*|(?:https?://|mailto:|tel:|#).+)$" }
+						},
+						{
 							"slug": "centered",
 							"label": "Center the layout",
 							"type": "boolean",
 							"defaultValue": false
+						},
+						{
+							"slug": "anchor_id",
+							"label": "Section ID (lowercase, for links like /#pricing)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
 						}
 					]
 				}
@@ -64,14 +81,13 @@
 				{
 					"version": 1,
 					"fields": [
-						{
-							"slug": "anchor_id",
-							"label": "Anchor ID",
-							"type": "string",
-							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
-						},
 						{ "slug": "headline", "label": "Headline", "type": "string", "required": true },
-						{ "slug": "subheadline", "label": "Subheadline", "type": "text" },
+						{
+							"slug": "subheadline",
+							"label": "Second sentence (shown muted after the headline)",
+							"type": "text"
+						},
+						{ "slug": "eyebrow", "label": "Label above headline", "type": "string" },
 						{
 							"slug": "features",
 							"label": "Features",
@@ -98,18 +114,33 @@
 											"check",
 											"lock",
 											"clock",
-											"cloud"
+											"cloud",
+											"building",
+											"leaf",
+											"gauge",
+											"thermometer",
+											"plug",
+											"bell",
+											"file",
+											"sun",
+											"trend"
 										]
 									},
 									{ "slug": "title", "label": "Title", "type": "string", "required": true },
 									{
 										"slug": "description",
-										"label": "Description",
+										"label": "Description (leave a blank line between paragraphs)",
 										"type": "text",
 										"required": true
 									}
 								]
 							}
+						},
+						{
+							"slug": "anchor_id",
+							"label": "Section ID (lowercase, for links like /#pricing)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
 						}
 					]
 				}
@@ -118,7 +149,7 @@
 		{
 			"slug": "marketing_testimonials",
 			"label": "Testimonials",
-			"description": "Customer quotes and attribution",
+			"description": "Customer quotes and attribution. The first quote is shown large",
 			"category": "Marketing",
 			"currentVersion": 1,
 			"versions": [
@@ -126,12 +157,10 @@
 					"version": 1,
 					"fields": [
 						{
-							"slug": "anchor_id",
-							"label": "Anchor ID",
-							"type": "string",
-							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
+							"slug": "headline",
+							"label": "Section label (small text above the quotes)",
+							"type": "string"
 						},
-						{ "slug": "headline", "label": "Headline", "type": "string" },
 						{
 							"slug": "testimonials",
 							"label": "Testimonials",
@@ -141,13 +170,28 @@
 								"minItems": 1,
 								"maxItems": 12,
 								"subFields": [
-									{ "slug": "quote", "label": "Quote", "type": "text", "required": true },
+									{
+										"slug": "quote",
+										"label": "Quote (leave a blank line between paragraphs)",
+										"type": "text",
+										"required": true
+									},
 									{ "slug": "author", "label": "Author name", "type": "string", "required": true },
 									{ "slug": "role", "label": "Role or title", "type": "string" },
 									{ "slug": "company", "label": "Company", "type": "string" },
-									{ "slug": "avatar", "label": "Avatar", "type": "image" }
+									{
+										"slug": "avatar",
+										"label": "Avatar (initials show when empty)",
+										"type": "image"
+									}
 								]
 							}
+						},
+						{
+							"slug": "anchor_id",
+							"label": "Section ID (lowercase, for links like /#pricing)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
 						}
 					]
 				}
@@ -163,12 +207,6 @@
 				{
 					"version": 1,
 					"fields": [
-						{
-							"slug": "anchor_id",
-							"label": "Anchor ID",
-							"type": "string",
-							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
-						},
 						{ "slug": "headline", "label": "Headline", "type": "string" },
 						{
 							"slug": "plans",
@@ -182,13 +220,38 @@
 									{ "slug": "name", "label": "Plan name", "type": "string", "required": true },
 									{ "slug": "price", "label": "Price", "type": "string", "required": true },
 									{ "slug": "period", "label": "Period", "type": "string" },
-									{ "slug": "description", "label": "Description", "type": "text" },
-									{ "slug": "features", "label": "Features, one per line", "type": "text" },
-									{ "slug": "cta_label", "label": "CTA label", "type": "string", "required": true },
-									{ "slug": "cta_url", "label": "CTA URL", "type": "string", "required": true },
-									{ "slug": "highlighted", "label": "Highlight this plan", "type": "boolean" }
+									{
+										"slug": "description",
+										"label": "Description (leave a blank line between paragraphs)",
+										"type": "text"
+									},
+									{ "slug": "features", "label": "Features (one per line)", "type": "text" },
+									{
+										"slug": "cta_label",
+										"label": "Button text",
+										"type": "string",
+										"required": true
+									},
+									{
+										"slug": "cta_url",
+										"label": "Button link (starts with /, https://, mailto:, tel: or #)",
+										"type": "string",
+										"required": true
+									},
+									{ "slug": "highlighted", "label": "Highlight this plan", "type": "boolean" },
+									{
+										"slug": "badge",
+										"label": "Badge text, for example Most popular",
+										"type": "string"
+									}
 								]
 							}
+						},
+						{
+							"slug": "anchor_id",
+							"label": "Section ID (lowercase, for links like /#pricing)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
 						}
 					]
 				}
@@ -204,13 +267,8 @@
 				{
 					"version": 1,
 					"fields": [
-						{
-							"slug": "anchor_id",
-							"label": "Anchor ID",
-							"type": "string",
-							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
-						},
 						{ "slug": "headline", "label": "Headline", "type": "string" },
+						{ "slug": "subheadline", "label": "Subheadline", "type": "text" },
 						{
 							"slug": "items",
 							"label": "Questions",
@@ -221,9 +279,269 @@
 								"maxItems": 12,
 								"subFields": [
 									{ "slug": "question", "label": "Question", "type": "string", "required": true },
-									{ "slug": "answer", "label": "Answer", "type": "text", "required": true }
+									{
+										"slug": "answer",
+										"label": "Answer (leave a blank line between paragraphs)",
+										"type": "text",
+										"required": true
+									}
 								]
 							}
+						},
+						{
+							"slug": "anchor_id",
+							"label": "Section ID (lowercase, for links like /#pricing)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
+						}
+					]
+				}
+			]
+		},
+		{
+			"slug": "marketing_logos",
+			"label": "Logo wall",
+			"description": "A scrolling row of customer or partner logos. Names without a logo show as text",
+			"category": "Marketing",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{
+							"slug": "headline",
+							"label": "Section label (small text above the logos)",
+							"type": "string"
+						},
+						{
+							"slug": "logos",
+							"label": "Logos",
+							"type": "repeater",
+							"required": true,
+							"validation": {
+								"minItems": 1,
+								"maxItems": 24,
+								"subFields": [
+									{ "slug": "name", "label": "Company name", "type": "string", "required": true },
+									{ "slug": "logo", "label": "Logo", "type": "image" }
+								]
+							}
+						},
+						{
+							"slug": "anchor_id",
+							"label": "Section ID (lowercase, for links like /#pricing)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
+						}
+					]
+				}
+			]
+		},
+		{
+			"slug": "marketing_split",
+			"label": "Text and image",
+			"description": "A headline, copy and checklist beside a photo",
+			"category": "Marketing",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{ "slug": "headline", "label": "Headline", "type": "string", "required": true },
+						{ "slug": "eyebrow", "label": "Label above headline", "type": "string" },
+						{
+							"slug": "body",
+							"label": "Body (leave a blank line between paragraphs)",
+							"type": "text"
+						},
+						{ "slug": "points", "label": "Checklist (one item per line)", "type": "text" },
+						{ "slug": "cta_label", "label": "Link text", "type": "string" },
+						{
+							"slug": "cta_url",
+							"label": "Link (starts with /, https://, mailto:, tel: or #)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|/(?!/|\\\\).*|(?:https?://|mailto:|tel:|#).+)$" }
+						},
+						{ "slug": "image", "label": "Image", "type": "image" },
+						{
+							"slug": "image_caption",
+							"label": "Image caption (shown on the photo)",
+							"type": "string"
+						},
+						{
+							"slug": "image_first",
+							"label": "Show the image first",
+							"type": "boolean",
+							"defaultValue": false
+						},
+						{
+							"slug": "anchor_id",
+							"label": "Section ID (lowercase, for links like /#pricing)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
+						}
+					]
+				}
+			]
+		},
+		{
+			"slug": "marketing_stats",
+			"label": "Stats",
+			"description": "Headline numbers on a dark panel",
+			"category": "Marketing",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{ "slug": "headline", "label": "Headline", "type": "string" },
+						{
+							"slug": "subheadline",
+							"label": "Second sentence (shown muted after the headline)",
+							"type": "text"
+						},
+						{
+							"slug": "stats",
+							"label": "Stats",
+							"type": "repeater",
+							"required": true,
+							"validation": {
+								"minItems": 1,
+								"maxItems": 6,
+								"subFields": [
+									{ "slug": "value", "label": "Value", "type": "string", "required": true },
+									{ "slug": "label", "label": "Label", "type": "string", "required": true }
+								]
+							}
+						},
+						{
+							"slug": "anchor_id",
+							"label": "Section ID (lowercase, for links like /#pricing)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
+						}
+					]
+				}
+			]
+		},
+		{
+			"slug": "marketing_cta",
+			"label": "Call to action",
+			"description": "A closing call to action over a photo or dark panel",
+			"category": "Marketing",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{ "slug": "headline", "label": "Headline", "type": "string", "required": true },
+						{
+							"slug": "body",
+							"label": "Body (leave a blank line between paragraphs)",
+							"type": "text"
+						},
+						{ "slug": "primary_cta_label", "label": "Primary button text", "type": "string" },
+						{
+							"slug": "primary_cta_url",
+							"label": "Primary button link (starts with /, https://, mailto:, tel: or #)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|/(?!/|\\\\).*|(?:https?://|mailto:|tel:|#).+)$" }
+						},
+						{ "slug": "secondary_cta_label", "label": "Secondary button text", "type": "string" },
+						{
+							"slug": "secondary_cta_url",
+							"label": "Secondary button link (starts with /, https://, mailto:, tel: or #)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|/(?!/|\\\\).*|(?:https?://|mailto:|tel:|#).+)$" }
+						},
+						{ "slug": "image", "label": "Background image", "type": "image" },
+						{
+							"slug": "anchor_id",
+							"label": "Section ID (lowercase, for links like /#pricing)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
+						}
+					]
+				}
+			]
+		},
+		{
+			"slug": "marketing_contact",
+			"label": "Contact options",
+			"description": "Cards that point readers to the right email address, phone number or page",
+			"category": "Marketing",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{ "slug": "headline", "label": "Headline", "type": "string" },
+						{ "slug": "eyebrow", "label": "Label above headline", "type": "string" },
+						{ "slug": "subheadline", "label": "Subheadline", "type": "text" },
+						{
+							"slug": "options",
+							"label": "Contact options",
+							"type": "repeater",
+							"required": true,
+							"validation": {
+								"minItems": 1,
+								"maxItems": 6,
+								"subFields": [
+									{
+										"slug": "icon",
+										"label": "Icon",
+										"type": "select",
+										"required": true,
+										"options": ["email", "support", "sales", "phone", "chat", "location"]
+									},
+									{ "slug": "title", "label": "Title", "type": "string", "required": true },
+									{
+										"slug": "description",
+										"label": "Description (leave a blank line between paragraphs)",
+										"type": "text"
+									},
+									{
+										"slug": "link_label",
+										"label": "Link text",
+										"type": "string",
+										"required": true
+									},
+									{
+										"slug": "link_url",
+										"label": "Link (starts with /, https://, mailto:, tel: or #)",
+										"type": "url",
+										"required": true
+									}
+								]
+							}
+						},
+						{
+							"slug": "anchor_id",
+							"label": "Section ID (lowercase, for links like /#pricing)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
+						}
+					]
+				}
+			]
+		},
+		{
+			"slug": "marketing_text",
+			"label": "Text",
+			"description": "Long-form text with headings, lists and links, for pages like About or Privacy",
+			"category": "Marketing",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{ "slug": "headline", "label": "Headline", "type": "string" },
+						{ "slug": "body", "label": "Body", "type": "portableText", "required": true },
+						{
+							"slug": "anchor_id",
+							"label": "Section ID (lowercase, for links like /#pricing)",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
 						}
 					]
 				}
@@ -254,7 +572,13 @@
 							"marketing_features",
 							"marketing_testimonials",
 							"marketing_pricing",
-							"marketing_faq"
+							"marketing_faq",
+							"marketing_logos",
+							"marketing_split",
+							"marketing_stats",
+							"marketing_cta",
+							"marketing_contact",
+							"marketing_text"
 						],
 						"maxItems": 20
 					}
@@ -269,8 +593,18 @@
 			"items": [
 				{
 					"type": "custom",
-					"label": "Features",
-					"url": "/#features"
+					"label": "Platform",
+					"url": "/#platform"
+				},
+				{
+					"type": "custom",
+					"label": "Monitoring",
+					"url": "/#monitoring"
+				},
+				{
+					"type": "custom",
+					"label": "Customers",
+					"url": "/#customers"
 				},
 				{
 					"type": "custom",
@@ -281,34 +615,41 @@
 					"type": "custom",
 					"label": "Contact",
 					"url": "/contact"
+				},
+				{
+					"type": "custom",
+					"label": "Book a demo",
+					"url": "/contact",
+					"cssClasses": "button"
 				}
 			]
 		},
 		{
 			"name": "footer_product",
-			"label": "Footer: Product",
+			"label": "Product",
 			"items": [
-				{ "type": "custom", "label": "Features", "url": "/#features" },
-				{ "type": "custom", "label": "Pricing", "url": "/pricing" },
-				{ "type": "custom", "label": "Contact", "url": "/contact" }
+				{ "type": "custom", "label": "Platform", "url": "/#platform" },
+				{ "type": "custom", "label": "Monitoring", "url": "/#monitoring" },
+				{ "type": "custom", "label": "Planning", "url": "/#planning" },
+				{ "type": "custom", "label": "Pricing", "url": "/pricing" }
 			]
 		},
 		{
 			"name": "footer_company",
-			"label": "Footer: Company",
+			"label": "Company",
 			"items": [
-				{ "type": "custom", "label": "Home", "url": "/" },
-				{ "type": "custom", "label": "Features", "url": "/#features" },
+				{ "type": "custom", "label": "Customers", "url": "/#customers" },
+				{ "type": "custom", "label": "FAQ", "url": "/#faq" },
 				{ "type": "custom", "label": "Contact", "url": "/contact" }
 			]
 		},
 		{
 			"name": "footer_support",
-			"label": "Footer: Support",
+			"label": "Support",
 			"items": [
-				{ "type": "custom", "label": "Pricing", "url": "/pricing" },
-				{ "type": "custom", "label": "Contact", "url": "/contact" },
-				{ "type": "custom", "label": "Email", "url": "mailto:hello@acme.example" }
+				{ "type": "custom", "label": "Talk to sales", "url": "mailto:sales@halden.example" },
+				{ "type": "custom", "label": "Support", "url": "mailto:support@halden.example" },
+				{ "type": "custom", "label": "Email us", "url": "mailto:hello@halden.example" }
 			]
 		}
 	],
@@ -325,76 +666,156 @@
 							"_type": "marketing_hero",
 							"_version": 1,
 							"_key": "hero",
-							"headline": "Build products people actually want",
-							"subheadline": "The all-in-one platform for modern teams. Ship faster, collaborate better, and focus on what matters.",
-							"primary_cta_label": "See Pricing",
-							"primary_cta_url": "/pricing",
-							"secondary_cta_label": "Talk to Us",
-							"secondary_cta_url": "/contact"
+							"eyebrow": "New: automated CSRD and GRESB reporting",
+							"eyebrow_url": "/#planning",
+							"headline": "Every building, running at its best.",
+							"subheadline": "Halden connects to the meters and systems you already have, finds the waste, and fixes it automatically, across one building or ten thousand.",
+							"primary_cta_label": "Book a demo",
+							"primary_cta_url": "/contact",
+							"secondary_cta_label": "See how it works",
+							"secondary_cta_url": "/#platform",
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1476889833843-503f40e367a0?w=2400&h=1350&fit=crop&q=80&fm=jpg",
+									"alt": "Concrete atrium with round skylights, seen from below",
+									"filename": "halden-atrium.jpg"
+								}
+							},
+							"image_caption": "Riverside Tower · 18% below its 2024 energy baseline"
+						},
+						{
+							"_type": "marketing_logos",
+							"_version": 1,
+							"_key": "logos",
+							"headline": "Trusted by property, hospitality and campus teams",
+							"logos": [
+								{ "name": "Oakline" },
+								{ "name": "Arden Hotels" },
+								{ "name": "Calder" },
+								{ "name": "Westmere" },
+								{ "name": "Kestrel" },
+								{ "name": "Northfield" }
+							]
 						},
 						{
 							"_type": "marketing_features",
 							"_version": 1,
-							"_key": "features",
-							"anchor_id": "features",
-							"headline": "Everything you need to ship",
-							"subheadline": "Powerful features that help your team move faster without sacrificing quality.",
+							"_key": "platform",
+							"anchor_id": "platform",
+							"eyebrow": "Platform",
+							"headline": "One platform for every building.",
+							"subheadline": "Meters, controls and reports, finally in one place.",
 							"features": [
 								{
+									"icon": "gauge",
+									"title": "Every meter, one view",
+									"description": "Electricity, gas, water and heat from every site, normalised and live."
+								},
+								{
 									"icon": "zap",
-									"title": "Lightning Fast",
-									"description": "Built for speed from the ground up. Your team will notice the difference from day one."
+									"title": "Fixes that run themselves",
+									"description": "When a building drifts, Halden adjusts schedules and setpoints, then shows what it saved."
 								},
 								{
-									"icon": "shield",
-									"title": "Enterprise Security",
-									"description": "SOC 2 compliant with end-to-end encryption. Your data stays yours."
-								},
-								{
-									"icon": "users",
-									"title": "Team Collaboration",
-									"description": "Real-time collaboration features that make working together feel effortless."
+									"icon": "file",
+									"title": "Reports in minutes",
+									"description": "CSRD, GRESB and ENERGY STAR submissions from the same data, ready for your auditor."
 								},
 								{
 									"icon": "chart",
-									"title": "Powerful Analytics",
-									"description": "Understand how your team works with detailed insights and reporting."
+									"title": "Benchmarks that mean something",
+									"description": "Compare buildings by type, climate and occupancy, not just floor area."
 								},
 								{
-									"icon": "code",
-									"title": "Developer Friendly",
-									"description": "A robust API and CLI tools that integrate with your existing workflow."
+									"icon": "plug",
+									"title": "Works with what you have",
+									"description": "Connects to your existing BMS, meters and utility accounts. No rip and replace."
 								},
 								{
-									"icon": "globe",
-									"title": "Global Scale",
-									"description": "Deployed to edge locations worldwide. Fast for everyone, everywhere."
+									"icon": "trend",
+									"title": "Budgets you can trust",
+									"description": "Forecast spend and carbon a year ahead, with weather and tariffs built in."
 								}
+							]
+						},
+						{
+							"_type": "marketing_split",
+							"_version": 1,
+							"_key": "monitoring",
+							"anchor_id": "monitoring",
+							"eyebrow": "Monitoring",
+							"headline": "See every kilowatt, room by room.",
+							"body": "Halden reads your meters every fifteen minutes and learns how each building should behave. When a chiller runs overnight or a floor heats an empty office, you know before the bill does.",
+							"points": "Live data from 400+ meter and BMS integrations\nAlerts ranked by cost, not by noise\nEvery fix logged with the saving it made",
+							"cta_label": "Book a walkthrough",
+							"cta_url": "/contact",
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1504297050568-910d24c426d3?w=1200&h=1500&fit=crop&q=80&fm=jpg",
+									"alt": "Office corridor with glass walls and concrete columns",
+									"filename": "halden-corridor.jpg"
+								}
+							},
+							"image_caption": "Floor 3 · 21.4 °C · CO₂ 612 ppm"
+						},
+						{
+							"_type": "marketing_split",
+							"_version": 1,
+							"_key": "planning",
+							"anchor_id": "planning",
+							"eyebrow": "Planning",
+							"headline": "Plan the path to net zero.",
+							"body": "Model retrofits, solar and electrification against how your buildings really run, then track every project against the plan.",
+							"points": "Scenario plans for every building\nPayback and carbon side by side\nBoard-ready progress reports",
+							"cta_label": "See pricing",
+							"cta_url": "/pricing",
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1694327671725-e2a81cda3436?w=1200&h=1500&fit=crop&q=80&fm=jpg",
+									"alt": "Rows of solar panels on a roof in warm light",
+									"filename": "halden-solar.jpg"
+								}
+							},
+							"image_caption": "Rooftop solar · 312 MWh generated this year",
+							"image_first": true
+						},
+						{
+							"_type": "marketing_stats",
+							"_version": 1,
+							"_key": "results",
+							"headline": "What customers see in their first year.",
+							"subheadline": "Measured across 4,800 connected buildings.",
+							"stats": [
+								{ "value": "23%", "label": "Lower energy spend, on average" },
+								{ "value": "4,800", "label": "Buildings connected across 14 countries" },
+								{ "value": "9 mo", "label": "Average payback period" },
+								{ "value": "99.98%", "label": "Data uptime over the last 12 months" }
 							]
 						},
 						{
 							"_type": "marketing_testimonials",
 							"_version": 1,
-							"_key": "testimonials",
-							"headline": "Trusted by teams everywhere",
+							"_key": "customers",
+							"anchor_id": "customers",
+							"headline": "Customers",
 							"testimonials": [
 								{
-									"quote": "We cut our deployment time by 80%. The team actually enjoys shipping now.",
-									"author": "Sarah Chen",
-									"role": "CTO",
-									"company": "Streamline"
+									"quote": "We found more savings in the first month than in five years of energy audits. Halden paid for itself before the first invoice was due.",
+									"author": "Maya Okafor",
+									"role": "Director of Facilities",
+									"company": "Calder University"
 								},
 								{
-									"quote": "The best developer experience I've used. Everything just works the way you'd expect.",
-									"author": "Marcus Johnson",
-									"role": "Lead Engineer",
-									"company": "Volt Labs"
+									"quote": "Our GRESB submission used to take a quarter. Now it is a week of review, and the numbers hold up.",
+									"author": "Daniel Reyes",
+									"role": "Head of Sustainability",
+									"company": "Oakline"
 								},
 								{
-									"quote": "Finally, a tool that doesn't get in the way. Our team is more productive than ever.",
-									"author": "Elena Rodriguez",
-									"role": "VP Engineering",
-									"company": "Nexus"
+									"quote": "Guests never notice, which is the point. Our hotels use 19% less energy and nobody had to change how they work.",
+									"author": "Priya Nair",
+									"role": "VP Operations",
+									"company": "Arden Hotels"
 								}
 							]
 						},
@@ -402,25 +823,49 @@
 							"_type": "marketing_faq",
 							"_version": 1,
 							"_key": "faq",
-							"headline": "Frequently asked questions",
+							"anchor_id": "faq",
+							"headline": "Questions, answered.",
+							"subheadline": "Something else on your mind? Our building engineers reply within one working day.",
 							"items": [
 								{
-									"question": "How long does setup take?",
-									"answer": "Most teams are up and running in under 15 minutes. Our onboarding wizard guides you through connecting your existing tools and inviting your team."
+									"question": "Do we need new hardware?",
+									"answer": "Usually not. Halden connects to the meters, building management systems and utility accounts you already have. Where a site has no metering, we ship clip-on sensors that take an hour to fit."
 								},
 								{
-									"question": "Can I migrate from my current tool?",
-									"answer": "Yes. We have built-in importers for all major platforms, and our support team can help with custom migrations for larger teams."
+									"question": "How quickly will we see savings?",
+									"answer": "Most teams act on their first findings within two weeks of connecting a building. The early fixes are usually schedule and setpoint changes, such as plant that runs overnight or heating in empty rooms. The savings report at day 30 measures each change against the building's own baseline."
 								},
 								{
-									"question": "What kind of support do you offer?",
-									"answer": "All plans include email support with a 24-hour response time. Pro and Enterprise plans include priority support with dedicated account managers."
+									"question": "Which reporting frameworks do you support?",
+									"answer": "Halden prepares CSRD, GRESB, ENERGY STAR, SECR and NABERS reports from the same metered data, so the figures agree across every submission. Your auditor can have read-only access to the readings behind each number."
 								},
 								{
-									"question": "Is there a free trial?",
-									"answer": "Yes, all plans come with a 14-day free trial. No credit card required. You can upgrade, downgrade, or cancel at any time."
+									"question": "Is our data secure?",
+									"answer": "Halden is audited every year against SOC 2 Type II and certified to ISO 27001. You choose EU or US hosting, and your meter data is encrypted in transit and at rest."
+								},
+								{
+									"question": "Can Halden change settings on its own?",
+									"answer": "Only inside limits you set, such as comfort bands, occupancy hours and equipment you mark as off limits. Every change is logged with the reason it was made, and anyone on your team can roll it back."
 								}
 							]
+						},
+						{
+							"_type": "marketing_cta",
+							"_version": 1,
+							"_key": "cta",
+							"headline": "See what your buildings could save.",
+							"body": "Book a 30-minute walkthrough with a building engineer. Bring a utility bill and we will bring the numbers.",
+							"primary_cta_label": "Book a demo",
+							"primary_cta_url": "/contact",
+							"secondary_cta_label": "Talk to sales",
+							"secondary_cta_url": "mailto:sales@halden.example",
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1674763973434-75e1930d4959?w=2400&h=1350&fit=crop&q=80&fm=jpg",
+									"alt": "Timber-lined atrium opening to the sky",
+									"filename": "halden-timber-atrium.jpg"
+								}
+							}
 						}
 					]
 				}
@@ -436,8 +881,8 @@
 							"_type": "marketing_hero",
 							"_version": 1,
 							"_key": "pricing-hero",
-							"headline": "Simple, transparent pricing",
-							"subheadline": "No hidden fees. No surprises. Start free and scale as you grow.",
+							"headline": "Pricing that pays for itself.",
+							"subheadline": "Start with one building for free. Every plan includes onboarding, live metering and support from energy engineers.",
 							"centered": true
 						},
 						{
@@ -446,31 +891,32 @@
 							"_key": "pricing-plans",
 							"plans": [
 								{
-									"name": "Starter",
-									"price": "$0",
-									"period": "/month",
-									"description": "Perfect for trying things out",
-									"features": "Up to 3 team members\n5 projects\nBasic analytics\nCommunity support\n1GB storage",
-									"cta_label": "Contact Us",
+									"name": "Pilot",
+									"price": "Free",
+									"period": "for 30 days",
+									"description": "Prove the savings on one building before you commit.",
+									"features": "1 building\nLive metering and fault detection\nSavings report at day 30\nEmail support",
+									"cta_label": "Start a pilot",
 									"cta_url": "/contact"
 								},
 								{
-									"name": "Pro",
-									"price": "$29",
-									"period": "/user/month",
-									"description": "For growing teams",
-									"features": "Unlimited team members\nUnlimited projects\nAdvanced analytics\nPriority support\n100GB storage\nCustom integrations\nAPI access",
-									"cta_label": "Contact Us",
+									"name": "Portfolio",
+									"price": "$149",
+									"period": "/building/month",
+									"description": "For owners and operators running 5 to 500 buildings.",
+									"features": "Unlimited buildings and users\nAutomated BMS control\nCSRD, GRESB and ENERGY STAR reporting\nPortfolio benchmarking\nA dedicated energy engineer",
+									"cta_label": "Book a demo",
 									"cta_url": "/contact",
-									"highlighted": true
+									"highlighted": true,
+									"badge": "Most popular"
 								},
 								{
 									"name": "Enterprise",
 									"price": "Custom",
-									"description": "For large organizations",
-									"features": "Everything in Pro\nDedicated support\nCustom contracts\nSLA guarantee\nUnlimited storage",
-									"cta_label": "Contact Sales",
-									"cta_url": "/contact"
+									"description": "For global portfolios with custom integration and security needs.",
+									"features": "Everything in Portfolio\nSSO, SCIM and audit logs\nEU or US data residency\nCustom integrations and API access\n99.9% uptime SLA",
+									"cta_label": "Talk to sales",
+									"cta_url": "mailto:sales@halden.example"
 								}
 							]
 						},
@@ -478,21 +924,37 @@
 							"_type": "marketing_faq",
 							"_version": 1,
 							"_key": "pricing-faq",
-							"headline": "Pricing FAQ",
+							"headline": "Pricing questions.",
+							"subheadline": "Still deciding? Talk to an energy engineer before you start a pilot.",
 							"items": [
 								{
-									"question": "Can I change plans later?",
-									"answer": "Yes, you can upgrade or downgrade at any time. Changes take effect immediately and we'll prorate your billing."
+									"question": "What counts as a building?",
+									"answer": "Any site with its own utility meter or building management system, from a 40-storey office tower to a single retail unit. Several buildings on one shared meter count as one until you add sub-meters to measure them separately."
 								},
 								{
-									"question": "What payment methods do you accept?",
-									"answer": "We accept all major credit cards, and Enterprise customers can pay via invoice with NET 30 terms."
+									"question": "Are there setup fees?",
+									"answer": "No. Every plan, including the pilot, covers onboarding, connecting your meters and building systems, and training for your team. Clip-on sensors for unmetered sites are supplied at cost."
 								},
 								{
 									"question": "Is there a discount for annual billing?",
-									"answer": "Yes, annual plans receive a 20% discount compared to monthly billing."
+									"answer": "Yes. Annual billing takes 15% off the Portfolio price and is invoiced on NET 30 terms. You can move from monthly to annual billing at any time."
+								},
+								{
+									"question": "What happens after the pilot?",
+									"answer": "On day 30 you receive a savings report for the pilot building. Move to the Portfolio plan to keep its data, alerts and automations running, or stop there and we delete the data within 30 days."
 								}
 							]
+						},
+						{
+							"_type": "marketing_cta",
+							"_version": 1,
+							"_key": "pricing-cta",
+							"headline": "Start with one building.",
+							"body": "Connect a site in an afternoon and see your first savings report in 30 days.",
+							"primary_cta_label": "Start a pilot",
+							"primary_cta_url": "/contact",
+							"secondary_cta_label": "Talk to sales",
+							"secondary_cta_url": "mailto:sales@halden.example"
 						}
 					]
 				}
@@ -508,9 +970,37 @@
 							"_type": "marketing_hero",
 							"_version": 1,
 							"_key": "contact-hero",
-							"headline": "Get in touch",
-							"subheadline": "Have questions? Want a demo? We'd love to hear from you.",
+							"headline": "Talk to the Halden team",
+							"subheadline": "Questions, a demo, or a building you want us to look at? Email the team that can help and include any useful context. We reply within one working day.",
 							"centered": true
+						},
+						{
+							"_type": "marketing_contact",
+							"_version": 1,
+							"_key": "contact-options",
+							"options": [
+								{
+									"icon": "email",
+									"title": "General questions",
+									"description": "Ask about Halden, partnerships, press, or a building you’d like us to look at.",
+									"link_label": "hello@halden.example",
+									"link_url": "mailto:hello@halden.example"
+								},
+								{
+									"icon": "support",
+									"title": "Customer support",
+									"description": "Get help with your account, a meter integration, or a building that’s already connected.",
+									"link_label": "support@halden.example",
+									"link_url": "mailto:support@halden.example"
+								},
+								{
+									"icon": "sales",
+									"title": "Sales",
+									"description": "Talk through pricing, a pilot, procurement or a security review for your portfolio.",
+									"link_label": "sales@halden.example",
+									"link_url": "mailto:sales@halden.example"
+								}
+							]
 						}
 					]
 				}

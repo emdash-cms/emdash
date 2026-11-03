@@ -84,3 +84,61 @@ describe("D1 request scoping bookmark persistence", () => {
 		expect(cookies.set).not.toHaveBeenCalled();
 	});
 });
+
+describe("D1 request scoping query concurrency", () => {
+	/** Statements the session received in its first round trip, while that trip is still pending. */
+	async function firstRoundTrip(coalesce: boolean) {
+		const trips: string[][] = [];
+		let release!: () => void;
+		const pending = new Promise<void>((resolve) => (release = resolve));
+		const result = { success: true, results: [], meta: { changes: 0, last_row_id: 0 } };
+		const statement = (sql: string) => {
+			const stmt = {
+				sql,
+				bind: () => stmt,
+				all: async () => {
+					trips.push([sql]);
+					await pending;
+					return result;
+				},
+			};
+			return stmt;
+		};
+		const session = {
+			prepare: statement,
+			batch: async (stmts: { sql: string }[]) => {
+				trips.push(stmts.map((s) => s.sql));
+				await pending;
+				return stmts.map(() => result);
+			},
+			getBookmark: () => null,
+		};
+		mocks.binding.withSession.mockReturnValue(session as never);
+
+		const scoped = createRequestScopedDb({
+			config: { ...config, coalesce },
+			isAuthenticated: false,
+			isWrite: false,
+			cookies: { get: vi.fn(), set: vi.fn() },
+			url: new URL("https://example.com/"),
+		})!;
+		const reads = Promise.all([
+			scoped.db.selectFrom("a").selectAll().execute(),
+			scoped.db.selectFrom("b").selectAll().execute(),
+		]);
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		const first = trips[0]?.length ?? 0;
+		release();
+		await reads;
+		return { scoped, first };
+	}
+
+	it.each([false, true])(
+		"reports multiple connections exactly when concurrent reads share a round trip (coalesce: %s)",
+		async (coalesce) => {
+			const { scoped, first } = await firstRoundTrip(coalesce);
+			expect(first).toBeGreaterThan(0);
+			expect(scoped.db.getExecutor().adapter.supportsMultipleConnections).toBe(first > 1);
+		},
+	);
+});

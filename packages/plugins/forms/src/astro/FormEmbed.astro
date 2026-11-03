@@ -39,6 +39,12 @@ const hasFiles = form.pages.some((p: FormPage) =>
  * label, an aria-describedby or a password manager resolves to the first copy rather than the one being used. */
 const instance = Math.random().toString(36).slice(2, 8);
 
+/** A required select with no default needs an empty first option, or the browser preselects the first real option
+ * and `required` can never fail. An empty-valued first option is the HTML spec's placeholder label option. */
+function needsEmptyOption(field: FormField): boolean {
+	return field.required && !(field.options || []).some((o) => o.value === field.defaultValue);
+}
+
 /** Generate an element ID for a field, unique to this rendering of the form */
 function fieldId(name: string): string {
 	return `${formId}-${name}-${instance}`;
@@ -51,6 +57,7 @@ function fieldId(name: string): string {
 	action={submitUrl}
 	enctype={hasFiles ? "multipart/form-data" : undefined}
 	data-form-id={formId}
+	data-submit-label={form.settings.submitLabel || "Submit"}
 	data-ec-form
 	data-pages={isMultiPage ? form.pages.length : undefined}
 >
@@ -129,9 +136,7 @@ function fieldId(name: string): string {
 								required={field.required}
 								minlength={field.validation?.minLength}
 								maxlength={field.validation?.maxLength}
-							>
-								{field.defaultValue || ""}
-							</textarea>
+							>{field.defaultValue || ""}</textarea>
 						)}
 						{field.type === "select" && (
 							<select
@@ -140,6 +145,11 @@ function fieldId(name: string): string {
 								name={field.name}
 								required={field.required}
 							>
+								{needsEmptyOption(field) && (
+									<option value="" selected>
+										{field.placeholder || ""}
+									</option>
+								)}
 								{(field.options || []).map((o) => (
 									<option
 										value={o.value}
@@ -170,7 +180,6 @@ function fieldId(name: string): string {
 							<label class="ec-form-checkbox-label">
 								<input
 									type="checkbox"
-									class="ec-form-input"
 									id={fieldId(field.name)}
 									name={field.name}
 									value={field.defaultValue || "1"}

@@ -146,8 +146,9 @@ async function unwrapRedirectResult(promise) {
 // Context Factory - creates ctx that proxies to BRIDGE
 // -----------------------------------------------------------------------------
 
-function createContext(env, originHook, invocationId) {
+function createContext(env, originHook, invocationId, runtimeBridge) {
 	const bridge = env.BRIDGE;
+	const runtime = runtimeBridge ?? bridge;
 	const storageCollections = ${JSON.stringify(storageCollections)};
 	
 	// KV - proxies to bridge.kvGet/Set/Delete/List
@@ -228,7 +229,7 @@ function createContext(env, originHook, invocationId) {
 		} : {}),
 		...(${hasContentWrite} ? {
 			create: async (collection, data, options) => {
-				const result = await bridge.contentCreate(collection, data, options, originHook);
+				const result = await runtime.contentCreate(collection, data, options, originHook);
 				if (result && result.__emdashContentCreateError === true && result.error) {
 					const error = new Error(result.error.message);
 					error.name = result.error.code;
@@ -242,15 +243,15 @@ function createContext(env, originHook, invocationId) {
 			delete: (collection, id) => bridge.contentDelete(collection, id)
 		} : {}),
 		...(${hasContentPublish} ? {
-			getVersioned: (collection, id) => contentAction(bridge.contentGetVersioned(collection, id)),
-			publish: (collection, id, options) => contentAction(bridge.contentPublish(collection, id, options._rev, invocationId)),
-			unpublish: (collection, id, options) => contentAction(bridge.contentUnpublish(collection, id, options._rev, invocationId)),
-			schedule: (collection, id, options) => contentAction(bridge.contentSchedule(collection, id, options.scheduledAt, options._rev, invocationId)),
-			unschedule: (collection, id, options) => contentAction(bridge.contentUnschedule(collection, id, options._rev, invocationId))
+			getVersioned: (collection, id) => contentAction(runtime.contentGetVersioned(collection, id)),
+			publish: (collection, id, options) => contentAction(runtime.contentPublish(collection, id, options._rev, invocationId)),
+			unpublish: (collection, id, options) => contentAction(runtime.contentUnpublish(collection, id, options._rev, invocationId)),
+			schedule: (collection, id, options) => contentAction(runtime.contentSchedule(collection, id, options.scheduledAt, options._rev, invocationId)),
+			unschedule: (collection, id, options) => contentAction(runtime.contentUnschedule(collection, id, options._rev, invocationId))
 		} : {}),
 		...(${hasContentRestore} ? {
-			getTrashedVersioned: (collection, id) => contentAction(bridge.contentGetTrashedVersioned(collection, id)),
-			restore: (collection, id, options) => contentAction(bridge.contentRestore(collection, id, options._rev, invocationId))
+			getTrashedVersioned: (collection, id) => contentAction(runtime.contentGetTrashedVersioned(collection, id)),
+			restore: (collection, id, options) => contentAction(runtime.contentRestore(collection, id, options._rev, invocationId))
 		} : {})
 	} : undefined;
 
@@ -264,9 +265,9 @@ function createContext(env, originHook, invocationId) {
 		getAll: (opts) => bridge.taxonomyList(opts),
 		getTerms: (taxonomy, opts) => bridge.taxonomyTerms(taxonomy, opts),
 		getEntryTerms: (collection, entryId, opts) => bridge.taxonomyEntryTerms(collection, entryId, opts),
-		createTerm: (taxonomy, input) => bridge.taxonomyCreateTerm(taxonomy, input),
-		addEntryTerms: (collection, entryId, taxonomy, termIds) => bridge.taxonomyAddEntryTerms(collection, entryId, taxonomy, termIds),
-		removeEntryTerms: (collection, entryId, taxonomy, termIds) => bridge.taxonomyRemoveEntryTerms(collection, entryId, taxonomy, termIds)
+		createTerm: (taxonomy, input) => runtime.taxonomyCreateTerm(taxonomy, input),
+		addEntryTerms: (collection, entryId, taxonomy, termIds) => runtime.taxonomyAddEntryTerms(collection, entryId, taxonomy, termIds),
+		removeEntryTerms: (collection, entryId, taxonomy, termIds) => runtime.taxonomyRemoveEntryTerms(collection, entryId, taxonomy, termIds)
 	};
 
 	const bylines = ${hasBylinesRead} ? {
@@ -350,7 +351,7 @@ function createContext(env, originHook, invocationId) {
 		count: (opts) => bridge.commentCount(opts),
 		...(${hasModerateComments} ? {
 			setStatus: async (id, status, opts) =>
-				unwrapCommentResult(await bridge.commentSetStatus(id, status, opts.expectedStatus))
+				unwrapCommentResult(await runtime.commentSetStatus(id, status, opts.expectedStatus))
 		} : {})
 	} : undefined;
 	
@@ -395,8 +396,8 @@ function createContext(env, originHook, invocationId) {
 // -----------------------------------------------------------------------------
 
 export default class PluginEntrypoint extends WorkerEntrypoint {
-	async invokeHook(hookName, event, invocationId) {
-		const ctx = createContext(this.env, hookName, invocationId);
+	async invokeHook(hookName, event, invocationId, runtimeBridge) {
+		const ctx = createContext(this.env, hookName, invocationId, runtimeBridge);
 		
 		// Find the hook handler
 		const hookDef = hooks[hookName];
@@ -417,8 +418,8 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 		return handler(event, ctx);
 	}
 	
-	async invokeRoute(routeName, input, serializedRequest, invocationId) {
-		const ctx = createContext(this.env, undefined, invocationId);
+	async invokeRoute(routeName, input, serializedRequest, invocationId, runtimeBridge) {
+		const ctx = createContext(this.env, undefined, invocationId, runtimeBridge);
 		
 		// Find the route handler
 		const route = routes[routeName];

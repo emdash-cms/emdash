@@ -1,0 +1,7 @@
+---
+import Default from "@astrojs/starlight/components/Head.astro";
+import { Font } from "astro:assets";
+---
+
+<Default />
+<Font cssVariable="--font-inter" preload={[{ subset: "latin", style: "normal" }]} />

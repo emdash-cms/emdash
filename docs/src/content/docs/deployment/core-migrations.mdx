@@ -160,9 +160,23 @@ jobs:
 
 Update `EMDASH_TARGET_FINGERPRINT` only after reviewing a changed target locally. The fingerprint contains no credential, but changing it without checking the account and database removes the guard against migrating the wrong database.
 
+## Apply large content migrations from the CLI
+
+Some core migrations process every content entry and revision, so their work grows with the size of the site. A deployed Cloudflare Worker stops a request when it reaches its subrequest or CPU limit, and on a large site such a migration reaches that limit before it finishes.
+
+In `auto` mode, a deployed Worker counts the rows first. When the pending migrations of this kind would process more than about 5,000 content entries and revisions, the Worker applies none of the pending migrations and answers requests with a 503 response. The Worker log shows the following error, which names the migration.
+
+```text
+Pending migration 079_datetime_normalization processes more than 5000 content rows, too many to apply while serving a request. Apply it with `emdash migrate`: https://docs.emdashcms.com/deployment/core-migrations/#apply-large-content-migrations-from-the-cli
+```
+
+Apply the pending migrations from the deployment machine with `emdash migrate`, as described in [Build, migrate, deploy, check](#build-migrate-deploy-check). A Worker instance checks again 30 seconds after its last check, so pages return within 30 seconds of the command finishing.
+
+Node deployments and the development server apply these migrations at startup regardless of size.
+
 ## Release a stuck migration lock
 
-A D1 migration run that stops before it releases the migration lock leaves the lock held. This happens when a CI job is cancelled during `emdash migrate`, when a Worker in `auto` mode stops during a runtime migration, or when a development server is stopped while it applies migrations. A run that fails with a migration error releases the lock. EmDash does not release a lock it does not hold, because the holder may still be applying migrations or may have stopped partway through one. Until the lock is released, the site cannot apply its pending migrations, and in `auto` mode EmDash fails to initialize.
+A D1 migration run that stops before it releases the migration lock leaves the lock held. This happens when a CI job is cancelled during `emdash migrate`, when a Worker in `auto` mode stops during a runtime migration, or when a development server is stopped while it applies migrations. A run that fails with a migration error releases the lock. EmDash does not release a lock it does not hold, because the holder may still be applying migrations or may have stopped partway through one. Until the lock is released, the site cannot apply its pending migrations. Once the lock has been held for more than a minute, a site in `auto` mode answers requests with a 503 response, as `check` mode does while migrations are pending.
 
 After the lock has been held for more than a minute, `emdash migrate` and runtime migrations stop waiting for it and report the following error:
 
@@ -170,7 +184,7 @@ After the lock has been held for more than a minute, `emdash migrate` and runtim
 The migration lock has been held since 2026-09-01T12:00:00.000Z (lock 1788264000000). A migration may still be running; if none is, check the database and release the lock: https://docs.emdashcms.com/deployment/core-migrations/#release-a-stuck-migration-lock
 ```
 
-Releasing the lock of a remote D1 database uses `emdash migrate`, so it needs a build that wrote `.emdash/migrations.json` and an API token with D1 Edit permission, as described in [Provision D1 before migrating it](#provision-d1-before-migrating-it).
+Taking over or releasing the lock of a remote D1 database uses `emdash migrate`, so it needs a build that wrote `.emdash/migrations.json` and an API token with D1 Edit permission, as described in [Provision D1 before migrating it](#provision-d1-before-migrating-it).
 
 <Steps>
 
@@ -188,23 +202,19 @@ Releasing the lock of a remote D1 database uses `emdash migrate`, so it needs a 
    Migration lock: held since 2026-09-01T12:00:00.000Z (id 1788264000000)
    ```
 
-   A Worker in `auto` mode can also hold the lock while it applies migrations. Run the command again a minute or more later, and wait instead of releasing the lock while the known applied migrations keep changing.
+   A Worker in `auto` mode can also hold the lock while it applies migrations. Run the command again a minute or more later, and wait instead of taking over the lock while the known applied migrations keep changing.
 
-3. Release the lock with that id. The command asks you to confirm the target, and it releases the lock only while the lock still has that id. In a non-interactive shell, add `--expected-target-fingerprint` with the target fingerprint that `--status` printed.
-
-   ```bash
-   pnpm emdash migrate --release-lock 1788264000000
-   ```
-
-4. Apply the pending migrations again.
+3. Take over the lock with that id and apply the pending migrations. The command asks you to confirm the target, and it takes over the lock only while the lock still has that id. In a non-interactive shell, add `--expected-target-fingerprint` with the target fingerprint that `--status` printed.
 
    ```bash
-   pnpm emdash migrate
+   pnpm emdash migrate --take-over-lock 1788264000000
    ```
 
-   If the apply fails in the first pending migration, treat that migration as left partway through and follow the entry for an ambiguous D1 write in [Troubleshooting](#troubleshooting).
+   The lock passes straight to this run and is never free in between, so a Worker in `auto` mode cannot take it first. If the apply fails in the first pending migration, treat that migration as left partway through and follow the entry for an ambiguous D1 write in [Troubleshooting](#troubleshooting).
 
 </Steps>
+
+To free the lock without applying migrations, run `pnpm emdash migrate --release-lock 1788264000000` with the same confirmation. On a site in `auto` mode, a request can take the free lock and start the pending migrations before a later `emdash migrate` does, so use `--take-over-lock` there.
 
 `emdash migrate` reaches remote D1 databases only. When the lock is held in the local D1 database of a development server, stop the server and clear the lock with Wrangler, replacing `DB` with the binding name and the number with the lock id from the error.
 
@@ -232,7 +242,7 @@ emdash({
 });
 ```
 
-- `auto` is the backwards-compatible default. Runtime startup checks and applies pending migrations.
+- `auto` is the backwards-compatible default. Runtime startup checks and applies pending migrations. On a deployed Cloudflare Worker, it leaves [large content migrations](#apply-large-content-migrations-from-the-cli) to `emdash migrate`.
 - `check` performs one directional status query and returns 503 before serving a request when known migrations are pending. It tolerates records from a newer compatible build during a rolling deployment. Requests to the image endpoint EmDash installs are still served, because they skip the runtime startup that runs this check.
 - `manual` performs no runtime migration or status query. Use it only after the deployment pipeline applies and checks every build reliably.
 
@@ -307,6 +317,6 @@ For a non-superuser to transfer ownership, it must own or inherit ownership of t
 - **The target is missing or ambiguous.** Provision it first, then supply an explicit database path, connection-variable name, D1 selector, or selected Wrangler config and environment. EmDash does not guess from unrelated environment variables or bindings.
 - **The target fingerprint changed.** Stop and review the displayed account, environment, database name, UUID, or path. Update the expected fingerprint only after confirming the intended target.
 - **Unknown migration records are present.** Do not delete the records or rerun apply. Confirm that the application artifact is the intended version and investigate whether a newer or divergent build migrated the database.
-- **A D1 write outcome is ambiguous.** Do not replay the migration command. Run `emdash migrate --status` against the same account and database UUID, inspect the result, and escalate if the migration stopped part-way through.
-- **Datetime normalization requires manual review.** A legacy datetime falls in a repeated or skipped daylight-saving hour in the site's configured timezone. The error lists each affected content row or revision. Correct those values with an explicit UTC offset, then retry the migration. The migration preflight does not write any datetime until every stored value can be resolved.
+- **A D1 write outcome is ambiguous.** Do not replay the migration command. Run `emdash migrate --status` against the same account and database UUID, inspect the result, and escalate if the migration stopped part-way through. The exception is `079_datetime_normalization`: when it is the next pending migration, run the migration command again. The datetime normalization continues after the last rows it wrote, or starts over with a full check if the site timezone changed in between.
+- **Datetime normalization requires manual review.** A legacy datetime falls in a repeated or skipped daylight-saving hour in the site's configured timezone. The error lists each affected content row or revision. Correct those values with an explicit UTC offset, then retry the migration. A first run of the migration writes no datetime until every stored value can be resolved. A run that continues an interrupted normalization skips that check, writes the remaining rows, and then reports the values that need review.
 - **Hyperdrive cannot connect.** Test reachability from the deployment runner to the PostgreSQL origin and verify the direct-origin variable. Worker-to-Hyperdrive connectivity does not prove the runner can reach the origin.

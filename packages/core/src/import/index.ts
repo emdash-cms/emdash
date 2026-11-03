@@ -69,6 +69,7 @@ export {
 	getUrlSources,
 	probeUrl,
 	clearSources,
+	SiteChallengeError,
 } from "./registry.js";
 
 // SSRF protection

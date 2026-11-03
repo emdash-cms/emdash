@@ -391,6 +391,7 @@ export function EmailSettings() {
 							>
 								<div className="min-w-0 flex-1">
 									<Input
+										dir="ltr"
 										label={t`Recipient email`}
 										type="email"
 										value={testEmail}

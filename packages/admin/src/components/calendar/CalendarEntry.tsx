@@ -46,6 +46,11 @@ export const CALENDAR_STATE_LABELS: Record<CalendarState, MessageDescriptor> = {
 	overdue: msg`Overdue`,
 };
 
+const UPDATE_STATE_NOTE = msg({
+	message: "Update",
+	context: "A published entry's scheduled changes",
+});
+
 const COLLECTION_TINTS: Record<CollectionColor, string> = {
 	blue: "bg-kumo-badge-blue/15",
 	purple: "bg-kumo-badge-purple/15",
@@ -154,7 +159,7 @@ function useStateNote(item: CalendarItem, display: CalendarDisplay, now: number)
 		const lateness = formatTimeAgo(now - item.time, display.locale);
 		return t`Overdue · ${lateness}`;
 	}
-	if (item.state === "update") return t`Update`;
+	if (item.state === "update") return t(UPDATE_STATE_NOTE);
 	return null;
 }
 

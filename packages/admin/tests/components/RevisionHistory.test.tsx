@@ -1,497 +1,433 @@
-import { Toasty } from "@cloudflare/kumo";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
-import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
-import { userEvent } from "vitest/browser";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { RevisionHistory } from "../../src/components/RevisionHistory";
-import type { Revision, RevisionListResponse } from "../../src/lib/api";
+import {
+	REVISION_LIST_LIMIT,
+	REVISION_LIST_LIMIT_ALL,
+} from "../../src/components/revisions/revision-query.js";
+import {
+	RevisionViewProvider,
+	type RevisionViewContextValue,
+} from "../../src/components/revisions/revision-view-context.js";
+import type { RevisionListItem, RevisionListResponse } from "../../src/lib/api";
+import type { ChangeItem, RevisionDiff } from "../../src/lib/revision-diff/types.js";
 import { render } from "../utils/render.tsx";
 
-// Mock the API module
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
-	return {
-		...actual,
-		fetchRevisions: vi.fn(),
-		restoreRevision: vi.fn(),
-	};
+	return { ...actual, fetchRevisions: vi.fn() };
 });
 
-// Import mocked functions for test control
-import { fetchRevisions, restoreRevision } from "../../src/lib/api";
+import { fetchRevisions } from "../../src/lib/api";
 
 const mockFetchRevisions = fetchRevisions as Mock;
-const mockRestoreRevision = restoreRevision as Mock;
 
-const REVISIONS_BUTTON_REGEX = /Revisions/i;
-const RESTORE_BUTTON_REGEX = /Restore this version/i;
-const TIME_REGEX_5_MINS = /5 minutes ago/;
-const TIME_REGEX_3_HOURS = /3 hours ago/;
+const REVISIONS_TRIGGER = /^Revisions/;
+const MAYA_ROW = /^Today, 12:00\sPM, Current version, Maya Chen$/;
+const SAM_ROW = /^Yesterday, 11:30\sPM, Published, Sam Okafor$/;
+const UNKNOWN_ROW = /^Yesterday, 10:00\sAM, Unknown author$/;
+const RESTORED_FROM_YESTERDAY = /^Restored the version from \u2068Yesterday, 10:00\sAM\u2069$/;
 
-function QueryWrapper({ children }: { children: React.ReactNode }) {
-	const qc = new QueryClient({
-		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-	});
-	return (
-		<Toasty>
-			<QueryClientProvider client={qc}>{children}</QueryClientProvider>
-		</Toasty>
-	);
+/** A SQLite timestamp (UTC, no zone) for a local wall-clock time `daysAgo` days back. */
+function localTimestamp(daysAgo: number, hours: number, minutes: number): string {
+	const now = new Date();
+	const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, hours, minutes);
+	return date.toISOString().replace("T", " ").slice(0, 19);
 }
 
-function makeRevision(overrides: Partial<Revision> = {}): Revision {
+function makeRevision(overrides: Partial<RevisionListItem> = {}): RevisionListItem {
 	return {
 		id: "rev-1",
 		collection: "posts",
 		entryId: "entry-1",
-		data: { title: "Hello World", body: "Content here" },
-		authorId: "user-1",
-		createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+		data: { title: "Hello World" },
+		authorId: "u-maya",
+		author: { id: "u-maya", name: "Maya Chen" },
+		createdAt: localTimestamp(0, 12, 0),
 		...overrides,
 	};
 }
 
-function makeRevisionList(revisions: Revision[]): RevisionListResponse {
-	return { items: revisions, total: revisions.length };
+// Yesterday 11:30 PM in New York is already today in UTC, so grouping by UTC date would misfile it.
+const threeVersions: RevisionListResponse = {
+	items: [
+		makeRevision({ id: "rev-3" }),
+		makeRevision({
+			id: "rev-2",
+			authorId: "u-sam",
+			author: { id: "u-sam", name: "Sam Okafor" },
+			createdAt: localTimestamp(1, 23, 30),
+		}),
+		makeRevision({
+			id: "rev-1",
+			authorId: "u-gone",
+			author: null,
+			createdAt: localTimestamp(1, 10, 0),
+		}),
+	],
+	total: 3,
+};
+
+function makeView(overrides: Partial<RevisionViewContextValue> = {}): RevisionViewContextValue {
+	return {
+		viewingId: null,
+		viewingDiff: null,
+		currentRevisionId: "rev-3",
+		liveRevisionId: "rev-2",
+		fields: { title: { kind: "string", label: "Title" } },
+		rowToFocus: null,
+		clearRowToFocus: vi.fn(),
+		listLimit: REVISION_LIST_LIMIT,
+		showOlderVersions: vi.fn(),
+		view: vi.fn(),
+		exit: vi.fn(),
+		goToChange: vi.fn(),
+		...overrides,
+	};
+}
+
+function makeDiff(changes: ChangeItem[]): RevisionDiff {
+	return { hasPrevious: true, fields: [], slug: null, changes };
+}
+
+async function renderExpanded(view: RevisionViewContextValue | null) {
+	const history = <RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />;
+	const screen = await render(
+		view ? <RevisionViewProvider value={view}>{history}</RevisionViewProvider> : history,
+	);
+	await screen.getByRole("button", { name: REVISIONS_TRIGGER }).click();
+	return screen;
 }
 
 beforeEach(() => {
 	vi.resetAllMocks();
+	mockFetchRevisions.mockResolvedValue(threeVersions);
 });
 
 describe("RevisionHistory", () => {
-	// ---- Starts collapsed ----
-
-	it("starts collapsed with only header visible", async () => {
+	it("does not fetch until expanded", async () => {
 		const screen = await render(
-			<QueryWrapper>
+			<RevisionViewProvider value={makeView()}>
 				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
+			</RevisionViewProvider>,
+		);
+		expect(mockFetchRevisions).not.toHaveBeenCalled();
+
+		await screen.getByRole("button", { name: REVISIONS_TRIGGER }).click();
+
+		await expect.element(screen.getByRole("button", { name: MAYA_ROW })).toBeInTheDocument();
+		await expect.element(screen.getByText("(3)")).toBeInTheDocument();
+	});
+
+	it("groups versions by local day with their status and author", async () => {
+		const screen = await renderExpanded(makeView());
+
+		const today = screen.getByRole("list", { name: "Today" });
+		const yesterday = screen.getByRole("list", { name: "Yesterday" });
+		await expect.element(today.getByRole("button", { name: MAYA_ROW })).toBeInTheDocument();
+		await expect.element(yesterday.getByRole("button", { name: SAM_ROW })).toBeInTheDocument();
+		await expect.element(yesterday.getByRole("button", { name: UNKNOWN_ROW })).toBeInTheDocument();
+		await expect.element(screen.getByText("Current version", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("Published", { exact: true })).toBeVisible();
+	});
+
+	it("says which version a restored copy came from", async () => {
+		mockFetchRevisions.mockResolvedValue({
+			items: [
+				makeRevision({ id: "rev-3", data: { title: "First draft" } }),
+				makeRevision({ id: "rev-2", data: { title: "Second draft" } }),
+				makeRevision({
+					id: "rev-1",
+					data: { title: "First draft" },
+					createdAt: localTimestamp(1, 10, 0),
+				}),
+			],
+			total: 3,
+		});
+		const screen = await renderExpanded(makeView({ liveRevisionId: null }));
+
+		await expect
+			.element(
+				screen.getByRole("button", {
+					name: /^Today, 12:00\sPM, Current version, Maya Chen, Restored from \u2068Yesterday, 10:00\sAM\u2069$/,
+				}),
+			)
+			.toBeInTheDocument();
+		expect(screen.getByText(/^Restored from/).elements()).toHaveLength(1);
+	});
+
+	it("doesn't repeat which version a restored copy came from in its changes", async () => {
+		mockFetchRevisions.mockResolvedValue({
+			items: [
+				makeRevision({ id: "rev-3", data: { title: "First draft" } }),
+				makeRevision({ id: "rev-2", data: { title: "Second draft" } }),
+				makeRevision({
+					id: "rev-1",
+					data: { title: "First draft" },
+					createdAt: localTimestamp(1, 10, 0),
+				}),
+			],
+			total: 3,
+		});
+		const screen = await renderExpanded(
+			makeView({
+				liveRevisionId: null,
+				viewingId: "rev-3",
+				viewingDiff: makeDiff([
+					{ kind: "restored", revisionId: "rev-1" },
+					{ kind: "title", field: { slug: "title", label: "Title" }, target: "f-title" },
+				]),
+			}),
 		);
 
-		await expect.element(screen.getByText("Revisions")).toBeInTheDocument();
-		// The expanded content should not be visible
-		const noRevisionsText = screen.getByText("No revisions yet");
-		await expect.element(noRevisionsText).not.toBeInTheDocument();
+		const changes = screen.getByRole("list", { name: "Changes in this version" });
+		await expect.element(changes.getByRole("button", { name: "Changed the title" })).toBeVisible();
+		expect(changes.getByRole("listitem").elements()).toHaveLength(1);
+		expect(screen.getByText(/^Restored from/).elements()).toHaveLength(1);
+	});
+
+	it("moves focus from the version that was restored to the new current one", async () => {
+		const history = <RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />;
+		const screen = await renderExpanded(makeView());
+		const sam = screen.getByRole("button", { name: SAM_ROW });
+		await expect.element(sam).toBeInTheDocument();
+		sam.element().focus();
+
+		const clearRowToFocus = vi.fn();
+		const rowToFocus = { revisionId: "rev-3", opener: sam.element() as HTMLElement };
+		await screen.rerender(
+			<RevisionViewProvider value={makeView({ rowToFocus, clearRowToFocus })}>
+				{history}
+			</RevisionViewProvider>,
+		);
+		await expect.element(screen.getByRole("button", { name: MAYA_ROW })).toHaveFocus();
+		expect(clearRowToFocus).toHaveBeenCalled();
+	});
+
+	it("leaves focus where the writer moved it after the restore", async () => {
+		const history = <RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />;
+		const screen = await renderExpanded(makeView());
+		const sam = screen.getByRole("button", { name: SAM_ROW });
+		const unknown = screen.getByRole("button", { name: UNKNOWN_ROW });
+		await expect.element(unknown).toBeInTheDocument();
+		unknown.element().focus();
+
+		const clearRowToFocus = vi.fn();
+		const rowToFocus = { revisionId: "rev-3", opener: sam.element() as HTMLElement };
+		await screen.rerender(
+			<RevisionViewProvider value={makeView({ rowToFocus, clearRowToFocus })}>
+				{history}
+			</RevisionViewProvider>,
+		);
+		await vi.waitFor(() => expect(clearRowToFocus).toHaveBeenCalled());
+		await expect.element(unknown).toHaveFocus();
+	});
+
+	it("names an account without a display name differently from a missing author", async () => {
+		mockFetchRevisions.mockResolvedValue({
+			items: [
+				makeRevision({ id: "rev-2", authorId: "u-anon", author: { id: "u-anon", name: null } }),
+				makeRevision({ id: "rev-1", authorId: null, author: null }),
+			],
+			total: 2,
+		});
+		const screen = await renderExpanded(
+			makeView({ currentRevisionId: null, liveRevisionId: null }),
+		);
+
+		await expect
+			.element(screen.getByRole("button", { name: /, Unnamed user$/ }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: /, Unknown author$/ }))
+			.toBeInTheDocument();
+	});
+
+	it("gives each author their own colour and an unknown author the neutral one", async () => {
+		const screen = await renderExpanded(makeView());
+		const colorOf = async (name: RegExp) => {
+			const row = screen.getByRole("button", { name });
+			await expect.element(row).toBeInTheDocument();
+			return row.element().querySelector("[data-author-color]")?.getAttribute("data-author-color");
+		};
+
+		const maya = await colorOf(MAYA_ROW);
+		const sam = await colorOf(SAM_ROW);
+		expect(maya).not.toBe(sam);
+		expect([maya, sam]).not.toContain("neutral");
+		expect(await colorOf(UNKNOWN_ROW)).toBe("neutral");
+	});
+
+	it("shows a version in the canvas when its row is clicked", async () => {
+		const view = makeView();
+		const screen = await renderExpanded(view);
+
+		const row = screen.getByRole("button", { name: SAM_ROW });
+		await row.click();
+
+		expect(view.view).toHaveBeenCalledWith("rev-2", { opener: row.element() });
+	});
+
+	it("marks the version being shown", async () => {
+		const view = makeView({ viewingId: "rev-2", viewingDiff: makeDiff([{ kind: "noChanges" }]) });
+		const screen = await renderExpanded(view);
+
+		await expect
+			.element(screen.getByRole("button", { name: SAM_ROW }))
+			.toHaveAttribute("aria-current", "true");
+		await expect
+			.element(screen.getByRole("button", { name: MAYA_ROW }))
+			.not.toHaveAttribute("aria-current");
+	});
+
+	it("lists what changed in the version being viewed and jumps to a change", async () => {
+		const view = makeView({
+			viewingId: "rev-2",
+			viewingDiff: makeDiff([
+				{ kind: "restored", revisionId: "rev-1" },
+				{ kind: "title", field: { slug: "title", label: "Title" }, target: "f-title" },
+				{ kind: "slug", after: "hello-world" },
+			]),
+		});
+		const screen = await renderExpanded(view);
+
+		const changes = screen.getByRole("list", { name: "Changes in this version" });
+		await expect.element(changes.getByText(RESTORED_FROM_YESTERDAY)).toBeInTheDocument();
+		await expect.element(changes.getByText("Changed the slug to", { exact: false })).toBeVisible();
+		expect(changes.getByRole("button").elements()).toHaveLength(1);
+
+		await changes.getByRole("button", { name: "Changed the title" }).click();
+		expect(view.goToChange).toHaveBeenCalledWith("f-title");
+	});
+
+	it("keeps a picked version under the pointer when the changes listed above it close", async () => {
+		const changes = ["A", "B", "C", "D", "E"].map(
+			(label): ChangeItem => ({
+				kind: "field",
+				field: { slug: label.toLowerCase(), label: `Field ${label}` },
+				target: `f-${label}`,
+			}),
+		);
+		function Picking() {
+			const [viewingId, setViewingId] = React.useState("rev-3");
+			const view = makeView({
+				viewingId,
+				viewingDiff: makeDiff(viewingId === "rev-3" ? changes : []),
+				view: (revisionId) => setViewingId(revisionId),
+			});
+			return (
+				<div data-testid="scroller" style={{ height: 240, overflowY: "auto" }}>
+					<RevisionViewProvider value={view}>
+						<RevisionHistory collection="posts" entryId="entry-1" />
+					</RevisionViewProvider>
+					<div style={{ height: 1000 }} />
+				</div>
+			);
+		}
+		const screen = await render(<Picking />);
+		await screen.getByRole("button", { name: REVISIONS_TRIGGER }).click();
+		await expect.element(screen.getByText("Field E", { exact: false })).toBeVisible();
+
+		const scroller = screen.getByTestId("scroller").element();
+		const row = screen.getByRole("button", { name: UNKNOWN_ROW });
+		scroller.scrollTop = 200;
+		const top = row.element().getBoundingClientRect().top;
+		await row.click();
+
+		await expect.element(screen.getByText("Field E", { exact: false })).not.toBeInTheDocument();
+		expect(row.element().getBoundingClientRect().top).toBe(top);
+	});
+
+	it("shows five changes, then reveals the rest and focuses the first new one", async () => {
+		const fields = ["A", "B", "C", "D", "E", "F", "G"].map(
+			(label): ChangeItem => ({
+				kind: "field",
+				field: { slug: label.toLowerCase(), label: `Field ${label}` },
+				target: `f-${label}`,
+			}),
+		);
+		const screen = await renderExpanded(
+			makeView({ viewingId: "rev-3", viewingDiff: makeDiff(fields) }),
+		);
+
+		const changes = screen.getByRole("list", { name: "Changes in this version" });
+		await expect.element(changes.getByText("Field E", { exact: false })).toBeInTheDocument();
+		await expect.element(changes.getByText("Field F", { exact: false })).not.toBeInTheDocument();
+
+		await changes.getByRole("button", { name: "Show 2 more" }).click();
+
+		const fieldF = changes.getByRole("button", { name: "Field F" });
+		await expect.element(fieldF).toHaveFocus();
+		await expect.element(changes.getByText("Field G", { exact: false })).toBeInTheDocument();
+		await expect
+			.element(changes.getByRole("button", { name: "Show 2 more" }))
+			.not.toBeInTheDocument();
+	});
+
+	it("offers older versions when the list holds back some", async () => {
+		const items = Array.from({ length: 21 }, (_, index) =>
+			makeRevision({ id: `rev-${30 - index}`, createdAt: localTimestamp(0, 12, 0) }),
+		);
+		mockFetchRevisions.mockResolvedValue({ items, total: 30 });
+		const view = makeView({ currentRevisionId: "rev-30" });
+		const screen = await renderExpanded(view);
+
+		const rows = screen.getByRole("list", { name: "Today" }).getByRole("button");
+		await expect.poll(() => rows.elements().length).toBe(20);
+
+		await screen.getByRole("button", { name: "Show older versions" }).click();
+		expect(view.showOlderVersions).toHaveBeenCalledOnce();
+	});
+
+	it("asks for every version and stops offering older ones once they are requested", async () => {
+		const items = Array.from({ length: 21 }, (_, index) =>
+			makeRevision({ id: `rev-${30 - index}` }),
+		);
+		mockFetchRevisions.mockResolvedValue({ items, total: 30 });
+		const screen = await renderExpanded(makeView({ listLimit: REVISION_LIST_LIMIT_ALL }));
+
+		await expect.element(screen.getByRole("list", { name: "Today" })).toBeInTheDocument();
+		expect(mockFetchRevisions).toHaveBeenCalledWith(
+			"posts",
+			"entry-1",
+			expect.objectContaining({ limit: REVISION_LIST_LIMIT_ALL }),
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Show older versions" }))
+			.not.toBeInTheDocument();
+	});
+
+	it("lists versions without buttons outside the content editor", async () => {
+		const screen = await renderExpanded(null);
+
+		await expect.element(screen.getByText("Maya Chen", { exact: true })).toBeVisible();
+		expect(screen.getByRole("button").elements()).toHaveLength(1);
+	});
+
+	it("says so when there are no versions yet", async () => {
+		mockFetchRevisions.mockResolvedValue({ items: [], total: 0 });
+		const screen = await renderExpanded(makeView());
+
+		await expect.element(screen.getByText("No versions yet")).toBeVisible();
+	});
+
+	it("offers to try again when the versions can't be loaded", async () => {
+		mockFetchRevisions.mockRejectedValueOnce(new Error("Network error"));
+		const screen = await renderExpanded(makeView());
+
+		await expect.element(screen.getByText("Couldn't load versions")).toBeVisible();
+		await screen.getByRole("button", { name: "Try again" }).click();
+
+		await expect.element(screen.getByRole("button", { name: MAYA_ROW })).toBeInTheDocument();
 	});
 
 	it("reserves a separate trailing area for an external header control", async () => {
 		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />
-			</QueryWrapper>,
+			<RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />,
 		);
 
-		const trigger = screen.getByRole("button", { name: REVISIONS_BUTTON_REGEX }).element();
+		const trigger = screen.getByRole("button", { name: REVISIONS_TRIGGER }).element();
 		expect(trigger.style.width).toBe("calc(100% - 1.5rem)");
-	});
-
-	// ---- Query only fires when expanded ----
-
-	it("does not fetch revisions until expanded", async () => {
-		await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		// Should not have called fetchRevisions while collapsed
-		expect(mockFetchRevisions).not.toHaveBeenCalled();
-	});
-
-	it("fetches revisions when header is clicked to expand", async () => {
-		mockFetchRevisions.mockResolvedValue(makeRevisionList([]));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		// Click header to expand
-		const header = screen.getByText("Revisions");
-		await header.click();
-
-		expect(mockFetchRevisions).toHaveBeenCalledWith("posts", "entry-1", { limit: 20 });
-	});
-
-	// ---- Shows loading state ----
-
-	it("shows loading state when expanded and fetching", async () => {
-		// Never resolve — keeps it in loading state
-		mockFetchRevisions.mockReturnValue(new Promise(() => {}));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		await screen.getByRole("button", { name: REVISIONS_BUTTON_REGEX }).click();
-
-		// Loader renders an SVG spinner — verify the loading container is present
-		// and that none of the "loaded" states are showing
-		const emptyText = screen.getByText("No revisions yet");
-		await expect.element(emptyText).not.toBeInTheDocument();
-		const errorText = screen.getByText("Failed to load revisions");
-		await expect.element(errorText).not.toBeInTheDocument();
-	});
-
-	// ---- Shows revision list with relative times ----
-
-	it("shows revision list with relative times", async () => {
-		const revisions = [
-			makeRevision({
-				id: "rev-1",
-				createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5 mins ago
-			}),
-			makeRevision({
-				id: "rev-2",
-				createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
-			}),
-		];
-		mockFetchRevisions.mockResolvedValue(makeRevisionList(revisions));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		await screen.getByText("Revisions").click();
-
-		await expect.element(screen.getByText(TIME_REGEX_5_MINS)).toBeInTheDocument();
-		await expect.element(screen.getByText(TIME_REGEX_3_HOURS)).toBeInTheDocument();
-	});
-
-	// ---- First revision has "Current" badge ----
-
-	it("shows 'Current' badge on the first (latest) revision", async () => {
-		const revisions = [
-			makeRevision({ id: "rev-1" }),
-			makeRevision({
-				id: "rev-2",
-				createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-			}),
-		];
-		mockFetchRevisions.mockResolvedValue(makeRevisionList(revisions));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		await screen.getByText("Revisions").click();
-
-		await expect.element(screen.getByText("Current")).toBeInTheDocument();
-	});
-
-	// ---- First revision does NOT have restore button ----
-
-	it("does not show restore button on the latest revision", async () => {
-		const revisions = [makeRevision({ id: "rev-1" })];
-		mockFetchRevisions.mockResolvedValue(makeRevisionList(revisions));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		await screen.getByText("Revisions").click();
-
-		// Wait for revision to appear
-		await expect.element(screen.getByText("Current")).toBeInTheDocument();
-
-		// The restore button has title "Restore this version" — should not exist for latest
-		const restoreButton = screen.getByRole("button", { name: RESTORE_BUTTON_REGEX });
-		await expect.element(restoreButton).not.toBeInTheDocument();
-	});
-
-	// ---- Non-latest revisions have restore button ----
-
-	it("shows restore button on non-latest revisions", async () => {
-		const revisions = [
-			makeRevision({ id: "rev-1" }),
-			makeRevision({
-				id: "rev-2",
-				createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-			}),
-		];
-		mockFetchRevisions.mockResolvedValue(makeRevisionList(revisions));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		await screen.getByText("Revisions").click();
-
-		// Wait for revisions to load
-		await expect.element(screen.getByText("Current")).toBeInTheDocument();
-
-		// There should be a restore button for the non-latest revision
-		const restoreButton = screen.getByRole("button", { name: RESTORE_BUTTON_REGEX });
-		await expect.element(restoreButton).toBeInTheDocument();
-	});
-
-	// ---- Clicking revision toggles selection (shows content snapshot) ----
-
-	it("toggles content snapshot when clicking a revision", async () => {
-		const revisions = [makeRevision({ id: "rev-1", data: { title: "Latest content" } })];
-		mockFetchRevisions.mockResolvedValue(makeRevisionList(revisions));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		await screen.getByText("Revisions").click();
-		await expect.element(screen.getByText("Current")).toBeInTheDocument();
-
-		// Content snapshot should not be visible initially
-		const snapshotLabel = screen.getByText("Content snapshot:");
-		await expect.element(snapshotLabel).not.toBeInTheDocument();
-
-		// Click the revision to select it
-		const revisionButton = screen.getByText("Current").element().closest("button")!;
-		await userEvent.click(revisionButton);
-
-		// Content snapshot should now be visible
-		await expect.element(screen.getByText("Content snapshot:")).toBeInTheDocument();
-
-		// Click again to deselect
-		await userEvent.click(revisionButton);
-
-		await expect.element(screen.getByText("Content snapshot:")).not.toBeInTheDocument();
-	});
-
-	// ---- Restore calls confirm() then restoreRevision ----
-
-	it("opens confirm dialog then restoreRevision when confirmed", async () => {
-		mockRestoreRevision.mockResolvedValue({});
-		const onRestored = vi.fn();
-
-		const revisions = [
-			makeRevision({ id: "rev-1" }),
-			makeRevision({
-				id: "rev-2",
-				createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-			}),
-		];
-		mockFetchRevisions.mockResolvedValue(makeRevisionList(revisions));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" onRestored={onRestored} />
-			</QueryWrapper>,
-		);
-
-		await screen.getByText("Revisions").click();
-		await expect.element(screen.getByText("Current")).toBeInTheDocument();
-
-		// Click the restore button on the second revision
-		const restoreButton = screen.getByRole("button", { name: RESTORE_BUTTON_REGEX });
-		await restoreButton.click();
-
-		// ConfirmDialog should appear
-		await expect.element(screen.getByText("Restore Revision?")).toBeInTheDocument();
-
-		// Direct DOM click to bypass Base UI inert overlay
-		screen.getByRole("button", { name: "Restore" }).element().click();
-
-		await vi.waitFor(() => {
-			expect(mockRestoreRevision).toHaveBeenCalledWith("rev-2");
-		});
-	});
-
-	it("does not call restoreRevision when confirm dialog is cancelled", async () => {
-		const revisions = [
-			makeRevision({ id: "rev-1" }),
-			makeRevision({
-				id: "rev-2",
-				createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-			}),
-		];
-		mockFetchRevisions.mockResolvedValue(makeRevisionList(revisions));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		await screen.getByText("Revisions").click();
-		await expect.element(screen.getByText("Current")).toBeInTheDocument();
-
-		const restoreButton = screen.getByRole("button", { name: RESTORE_BUTTON_REGEX });
-		await restoreButton.click();
-
-		// ConfirmDialog should appear
-		await expect.element(screen.getByText("Restore Revision?")).toBeInTheDocument();
-
-		// Direct DOM click to bypass Base UI inert overlay
-		screen.getByRole("button", { name: "Cancel" }).element().click();
-
-		expect(mockRestoreRevision).not.toHaveBeenCalled();
-	});
-
-	// ---- Error state ----
-
-	it("shows error message when fetching revisions fails", async () => {
-		mockFetchRevisions.mockRejectedValue(new Error("Network error"));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		await screen.getByText("Revisions").click();
-
-		await expect.element(screen.getByText("Failed to load revisions")).toBeInTheDocument();
-	});
-
-	// ---- Empty state ----
-
-	it("shows empty state when no revisions exist", async () => {
-		mockFetchRevisions.mockResolvedValue(makeRevisionList([]));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		await screen.getByText("Revisions").click();
-
-		await expect.element(screen.getByText("No revisions yet")).toBeInTheDocument();
-	});
-
-	// ---- Collapse hides revision content ----
-
-	it("hides revision content when collapsed after expanding", async () => {
-		mockFetchRevisions.mockResolvedValue(makeRevisionList([]));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		const headerButton = screen.getByRole("button", { name: REVISIONS_BUTTON_REGEX });
-
-		// Expand
-		await headerButton.click();
-		await expect.element(screen.getByText("No revisions yet")).toBeInTheDocument();
-
-		// Collapse
-		await headerButton.click();
-
-		// Content should be hidden
-		await expect.element(screen.getByText("No revisions yet")).not.toBeInTheDocument();
-	});
-
-	// ---- Shows total count in header ----
-
-	it("shows total count in header when revisions exist", async () => {
-		const revisions = [
-			makeRevision({ id: "rev-1" }),
-			makeRevision({
-				id: "rev-2",
-				createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-			}),
-			makeRevision({
-				id: "rev-3",
-				createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-			}),
-		];
-		mockFetchRevisions.mockResolvedValue(makeRevisionList(revisions));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		await screen.getByText("Revisions").click();
-
-		// Should show (3) next to "Revisions"
-		await expect.element(screen.getByText("(3)")).toBeInTheDocument();
-	});
-
-	// ---- Visual diff view ----
-
-	it("shows visual diff when selecting a non-latest revision", async () => {
-		const revisions = [
-			makeRevision({
-				id: "rev-1",
-				data: { title: "Updated Title", body: "Same body", newField: "added" },
-				createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-			}),
-			makeRevision({
-				id: "rev-2",
-				data: { title: "Original Title", body: "Same body", removed: "gone" },
-				createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-			}),
-		];
-		mockFetchRevisions.mockResolvedValue(makeRevisionList(revisions));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		await screen.getByText("Revisions").click();
-		await expect.element(screen.getByText("Current")).toBeInTheDocument();
-
-		// Click the second (non-latest) revision
-		const revisionButtons = screen.getByText("yesterday").element().closest("button")!;
-		await userEvent.click(revisionButtons);
-
-		// Should show diff, not raw snapshot
-		await expect
-			.element(screen.getByText("from next revision", { exact: false }))
-			.toBeInTheDocument();
-
-		// Changed field values should appear in the diff
-		await expect.element(screen.getByText("Original Title")).toBeInTheDocument();
-		await expect.element(screen.getByText("Updated Title")).toBeInTheDocument();
-	});
-
-	it("shows raw snapshot for latest revision (no diff target)", async () => {
-		const revisions = [
-			makeRevision({
-				id: "rev-1",
-				data: { title: "Latest" },
-				createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-			}),
-			makeRevision({
-				id: "rev-2",
-				data: { title: "Older" },
-				createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-			}),
-		];
-		mockFetchRevisions.mockResolvedValue(makeRevisionList(revisions));
-
-		const screen = await render(
-			<QueryWrapper>
-				<RevisionHistory collection="posts" entryId="entry-1" />
-			</QueryWrapper>,
-		);
-
-		await screen.getByText("Revisions").click();
-
-		// Click the latest revision
-		const latestButton = screen.getByText("Current").element().closest("button")!;
-		await userEvent.click(latestButton);
-
-		// Should show raw JSON snapshot, not diff
-		await expect.element(screen.getByText("Content snapshot:")).toBeInTheDocument();
 	});
 });

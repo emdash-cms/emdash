@@ -20,7 +20,7 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { wxrChunkCursor, wxrChunkState, wxrImportConfig } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
-import { resolveImportByline } from "#import/utils.js";
+import { relativizeContentLinks, resolveImportByline } from "#import/utils.js";
 import {
 	attachPostTaxonomies,
 	isWxrTaxonomyConflictError,
@@ -83,6 +83,7 @@ export interface ImportConfig {
 export interface ImportResult {
 	success: boolean;
 	imported: number;
+	/** Entries not imported because the slug already exists in the collection and locale. */
 	skipped: number;
 	errors: Array<{ title: string; error: string }>;
 	byCollection: Record<string, number>;
@@ -334,6 +335,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			config.locale,
 			authorDisplayNames,
 			taxonomyPlan,
+			new Map(),
+			wxr.site.link,
 		);
 
 		// Import reusable blocks as sections (if enabled)
@@ -418,6 +421,7 @@ async function runContentChunk(
 		authorDisplayNames,
 		taxonomyPlan,
 		translationGroupMap,
+		wxr.site.link,
 	);
 
 	const nextOffset = offset + posts.length;
@@ -465,6 +469,7 @@ export async function importContent(
 	authorDisplayNames: Map<string, string> | undefined,
 	taxonomyPlan: TaxonomyImportPlan,
 	translationGroupMap = new Map<string, string>(),
+	siteUrl = "",
 ): Promise<ImportResult> {
 	const result: ImportResult = {
 		success: true,
@@ -489,9 +494,8 @@ export async function importContent(
 		const postType = post.postType || "post";
 		const mapping = config.postTypeMappings[postType];
 
-		// Skip if not mapped or disabled
+		// Not part of the import: internal post types, or ones left disabled.
 		if (!mapping || !mapping.enabled) {
-			result.skipped++;
 			continue;
 		}
 
@@ -511,6 +515,7 @@ export async function importContent(
 		try {
 			// Convert content to Portable Text
 			const content = post.content ? gutenbergToPortableText(post.content) : [];
+			if (siteUrl) relativizeContentLinks(content, siteUrl);
 
 			// Generate slug from post name or title
 			const slug = post.postName || slugify(post.title || `post-${post.id || Date.now()}`);

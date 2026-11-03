@@ -16,7 +16,7 @@ import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
 import { requestCached } from "../request-cache.js";
-import { isMissingTableError } from "../utils/db-errors.js";
+import { isMissingColumnError, isMissingTableError } from "../utils/db-errors.js";
 
 /** One reference field, as a render needs it. */
 export interface ReferenceFieldBinding {
@@ -43,7 +43,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 async function loadBindings(
 	db: Kysely<Database>,
 	collection: string,
-): Promise<ReferenceFieldBinding[]> {
+): Promise<ReferenceFieldBinding[] | null> {
 	// The relation's id joins in here rather than being looked up per field at
 	// render time: the field stores a slug, but the link table is keyed by id.
 	const relationSlug = jsonExtractExpr(db, "validation", "relation");
@@ -62,7 +62,8 @@ async function loadBindings(
 		`.execute(db);
 		rows = result.rows;
 	} catch (error) {
-		if (isMissingTableError(error)) return [];
+		// A partial schema is transient; don't retain its degraded result in cache.
+		if (isMissingTableError(error) || isMissingColumnError(error)) return null;
 		throw error;
 	}
 
@@ -109,7 +110,8 @@ export function getReferenceFieldMap(
 			namespace: CacheNamespace.SCHEMA,
 			key: `reference-field-map:${collection}`,
 			load: async () => loadBindings(await getDb(), collection),
+			cacheable: (value) => value !== null,
 		});
-		return new Map(bindings.map((binding) => [binding.slug, binding]));
+		return new Map((bindings ?? []).map((binding) => [binding.slug, binding]));
 	});
 }

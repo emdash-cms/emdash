@@ -13,6 +13,7 @@ import { handleSettingsGet, handleSettingsUpdate } from "#api/handlers/settings.
 import { isParseError, parseBody } from "#api/parse.js";
 import { settingsUpdateBody } from "#api/schemas.js";
 import { siteSettingsTag } from "#cache/chrome-tags.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -62,7 +63,7 @@ export const POST: APIRoute = async ({ request, locals, cache }) => {
 
 		const result = await handleSettingsUpdate(emdash.db, emdash.storage, body);
 		if (!result.success) return unwrapResult(result);
-		if (cache?.enabled) await cache.invalidate({ tags: [siteSettingsTag()] });
+		await invalidateRouteCache(cache, [siteSettingsTag()]);
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to update settings", "SETTINGS_UPDATE_ERROR");

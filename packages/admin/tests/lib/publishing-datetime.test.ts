@@ -4,6 +4,7 @@ import {
 	formatPublishingInstant,
 	formatPublishingInstantWithZone,
 	getPublishingTimeZone,
+	nextPublishingScheduleSlot,
 	publishingFieldsMatchInstant,
 	publishingInstantToLocalFields,
 	resolvePublishingLocalDateTime,
@@ -69,6 +70,17 @@ describe("publishing date-time helpers", () => {
 		expect(publishingFieldsMatchInstant("2026-07-01T13:30:45.123Z", fields.date, fields.time)).toBe(
 			true,
 		);
+	});
+
+	it("suggests the next whole hour at least five minutes away", () => {
+		expect(nextPublishingScheduleSlot(new Date(2035, 5, 15, 8, 55))).toEqual({
+			date: new Date(2035, 5, 15, 12),
+			time: "09:00",
+		});
+		expect(nextPublishingScheduleSlot(new Date(2035, 5, 15, 23, 56))).toEqual({
+			date: new Date(2035, 5, 16, 12),
+			time: "01:00",
+		});
 	});
 
 	it("formats the instant and reports the browser time zone", () => {
