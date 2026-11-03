@@ -62,6 +62,7 @@ export default defineConfig({
 		"src/locales/config.ts",
 		"src/locales/emails.ts",
 		"src/portable-text-table.ts",
+		"src/portable-text.ts",
 		"src/html-block.ts",
 		"src/slugify.ts",
 	],

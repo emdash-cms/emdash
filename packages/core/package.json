@@ -343,6 +343,7 @@
     "@cloudflare/vitest-plugin": "catalog:",
     "@emdash-cms/atproto-test-utils": "workspace:*",
     "@emdash-cms/registry-verification": "workspace:*",
+    "@tiptap/y-tiptap": "catalog:",
     "@types/pg": "^8.16.0",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
@@ -356,6 +357,7 @@
     "typescript": "catalog:",
     "vite": "^6.0.0",
     "vitest": "catalog:",
+    "yjs": "catalog:",
     "zod-openapi": "^5.4.6"
   },
   "repository": {

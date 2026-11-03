@@ -9,7 +9,6 @@
 import { useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import type { NodeViewProps } from "@tiptap/react";
-import { Node, mergeAttributes } from "@tiptap/react";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import * as React from "react";
 
@@ -17,6 +16,7 @@ import { fetchMediaItem } from "../../lib/api/media.js";
 import { useStableCallback } from "../../lib/hooks";
 import { canonicalMediaProviderId, getMediaPreviewUrl } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
+import { ImageNode } from "../../portable-text/schema.js";
 import type { ImageAttributes, ImagePanelAttributes } from "./ImageDetailPanel";
 import { useCaptionField, useCaptionText } from "./useCaptionField.js";
 
@@ -337,17 +337,7 @@ function ImageNodeView({
 }
 
 // Custom Image extension with React NodeView
-export const ImageExtension = Node.create({
-	name: "image",
-
-	addOptions() {
-		return {
-			inline: false,
-			allowBase64: false,
-			HTMLAttributes: {},
-		};
-	},
-
+export const ImageExtension = ImageNode.extend({
 	addStorage() {
 		return {
 			/** Callback set by PortableTextEditor to open image settings in the content sidebar */
@@ -366,76 +356,6 @@ export const ImageExtension = Node.create({
 			/** One per mounted image node view, so the toolbar can toggle a given image's settings */
 			settingsHandles: new Set<ImageSettingsHandle>(),
 		};
-	},
-
-	inline() {
-		return this.options.inline;
-	},
-
-	group() {
-		return this.options.inline ? "inline" : "block";
-	},
-
-	draggable: true,
-
-	addAttributes() {
-		return {
-			src: {
-				default: null,
-			},
-			alt: {
-				default: null,
-			},
-			title: {
-				default: null,
-			},
-			caption: {
-				default: null,
-			},
-			mediaId: {
-				default: null,
-			},
-			/** Provider ID for external media (e.g., "cloudflare-images") */
-			provider: {
-				default: null,
-			},
-			width: {
-				default: null,
-			},
-			height: {
-				default: null,
-			},
-			blurhash: {
-				default: null,
-			},
-			dominantColor: {
-				default: null,
-			},
-			displayWidth: {
-				default: null,
-			},
-			displayHeight: {
-				default: null,
-			},
-			alignment: {
-				default: null,
-			},
-			link: {
-				default: null,
-			},
-		};
-	},
-
-	parseHTML() {
-		return [
-			{
-				tag: "img[src]",
-			},
-		];
-	},
-
-	renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, unknown> }) {
-		return ["img", mergeAttributes(this.options.HTMLAttributes, HTMLAttributes)];
 	},
 
 	addNodeView() {
