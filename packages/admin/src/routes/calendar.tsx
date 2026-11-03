@@ -51,12 +51,13 @@ const COMPACT_WIDTH = 640;
  * with the taller grid narrows the page, which would otherwise flip it back.
  */
 const COMPACT_SLACK = 24;
+/** The calendar column's `sm:p-6` on both sides, which the measured width includes. */
+const PAGE_PADDING = 48;
 /**
- * From this width the side panel sits beside the calendar instead of over it:
- * the month keeps `COMPACT_WIDTH` next to the panel (`w-96`), its border, the
- * page padding, and room for a scrollbar.
+ * From this width the side panel (`w-96`) sits beside the calendar instead of
+ * over it, leaving the month `COMPACT_WIDTH` and room for a scrollbar.
  */
-const DOCK_WIDTH = COMPACT_WIDTH + 384 + 1 + 48 + COMPACT_SLACK;
+const DOCK_WIDTH = COMPACT_WIDTH + PAGE_PADDING + 384 + COMPACT_SLACK;
 const NO_LOCALES: string[] = [];
 
 /**
@@ -113,7 +114,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 	const { data: user } = useCurrentUser();
 	const now = useNow();
 	const containerRef = React.useRef<HTMLDivElement>(null);
-	const compact = useNarrow(containerRef, COMPACT_WIDTH);
+	const compact = useNarrow(containerRef, COMPACT_WIDTH + PAGE_PADDING);
 	const docked = !useNarrow(containerRef, DOCK_WIDTH);
 	const [dock, setDock] = React.useState<HTMLDivElement | null>(null);
 
@@ -373,8 +374,8 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 				<div
 					ref={setDock}
 					className={cn(
-						"h-full shrink-0 overflow-hidden border-kumo-line transition-[width] duration-200 ease-out motion-reduce:transition-none",
-						selectedItem ? "w-96 border-s" : "w-0",
+						"h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none",
+						selectedItem ? "w-96" : "w-0",
 					)}
 				/>
 			)}

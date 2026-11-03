@@ -375,6 +375,18 @@ describe("CalendarPage", () => {
 			.toBeVisible();
 	});
 
+	it("opens the agenda when the page padding leaves the month under 640px", async () => {
+		await page.viewport(660, 800);
+		router.search = { month: "2020-03" };
+		serveCalendar(() => Response.json({ data: { items: [] } }));
+
+		const screen = await renderPage();
+
+		await expect
+			.element(screen.getByRole("tab", { name: "Agenda" }))
+			.toHaveAttribute("aria-selected", "true");
+	});
+
 	it("opens the agenda on a narrow screen", async () => {
 		await page.viewport(375, 800);
 		router.search = { month: "2020-03" };
