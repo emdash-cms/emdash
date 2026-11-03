@@ -439,6 +439,15 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 			const inlineTokens: Token[] = [];
 			const nestedLists: Tokens.List[] = [];
 
+			if (item.task) {
+				const checkPrefix = item.checked ? "[x] " : "[ ] ";
+				inlineTokens.push({
+					type: "text",
+					raw: checkPrefix,
+					text: checkPrefix,
+				} as Token);
+			}
+
 			for (const t of itemTokens) {
 				if (t.type === "list") {
 					nestedLists.push(t as Tokens.List);

@@ -1074,6 +1074,19 @@ describe("PT <-> Markdown round-trip", () => {
 		expect(markdownToPortableText(mdNewline)[0]).toEqual(newlineTable);
 	});
 
+	it("preserves task list checkboxes through round-trip", () => {
+		const md = "- [ ] Unfinished task\n- [x] Completed task\n";
+		const blocks = markdownToPortableText(md);
+		expect(blocks).toHaveLength(2);
+		expect(blocks[0].listItem).toBe("bullet");
+		expect(blocks[0].children[0].text).toContain("[ ] Unfinished task");
+		expect(blocks[1].listItem).toBe("bullet");
+		expect(blocks[1].children[0].text).toContain("[x] Completed task");
+
+		const roundTripMd = portableTextToMarkdown(blocks);
+		expect(roundTripMd).toBe("- [ ] Unfinished task\n- [x] Completed task\n");
+	});
+
 	it("preserves inline HTML tags in text spans", () => {
 		const md = "Water is H<sub>2</sub>O and press <kbd>Ctrl</kbd> + <kbd>C</kbd>.\n";
 		const blocks = markdownToPortableText(md);
