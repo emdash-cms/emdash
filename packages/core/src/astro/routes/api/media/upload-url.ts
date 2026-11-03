@@ -107,7 +107,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Validate content type (field-aware widening)
 		const fieldAllowlist = body.fieldId
-			? await resolveFieldAllowlist(emdash.db, body.fieldId)
+			? await resolveFieldAllowlist(emdash.db, body.fieldId, body.blockType, body.blockVersion)
 			: null;
 		const allowlist = fieldAllowlist ?? [...GLOBAL_UPLOAD_ALLOWLIST];
 
