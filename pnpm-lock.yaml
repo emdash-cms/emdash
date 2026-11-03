@@ -1986,9 +1986,6 @@ importers:
       '@cloudflare/ai-search-snippet':
         specifier: ^0.0.42
         version: 0.0.42
-      emdash:
-        specifier: workspace:*
-        version: link:../core
       jose:
         specifier: ^6.1.3
         version: 6.1.3
@@ -2029,6 +2026,9 @@ importers:
       astro:
         specifier: 'catalog:'
         version: 7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@26.1.1)(aws4fetch@1.0.20)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1)
+      emdash:
+        specifier: workspace:*
+        version: link:../core
       publint:
         specifier: 'catalog:'
         version: 0.3.17
