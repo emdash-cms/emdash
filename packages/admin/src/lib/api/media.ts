@@ -17,11 +17,14 @@ export const MEDIA_SEARCH_MAX_LENGTH = 200;
 
 export interface MediaUploadOptions {
 	signal?: AbortSignal;
+	folderId?: string | null;
+	deduplicate?: boolean;
 }
 
 export interface UploadMediaOptions extends MediaUploadOptions {
 	fieldId?: string;
-	deduplicate?: boolean;
+	blockType?: string;
+	blockVersion?: number;
 	ensureUniqueFilename?: boolean;
 	folderId?: string | null;
 }
@@ -49,7 +52,12 @@ export interface MediaUsageOccurrenceDetail {
 	fieldSlug: string;
 	fieldPath: string;
 	occurrenceIndex: number;
-	referenceType: "image_field" | "file_field" | "portable_text_image" | "unknown";
+	referenceType:
+		| "image_field"
+		| "file_field"
+		| "portable_text_image"
+		| "portable_text_video"
+		| "unknown";
 }
 
 export interface MediaUsageSourceDetail {
@@ -330,6 +338,8 @@ async function getUploadUrl(
 				size: file.size,
 				...(contentHash ? { contentHash } : {}),
 				...(opts?.fieldId ? { fieldId: opts.fieldId } : {}),
+				...(opts?.blockType ? { blockType: opts.blockType } : {}),
+				...(opts?.blockVersion !== undefined ? { blockVersion: opts.blockVersion } : {}),
 				...(opts?.deduplicate === false ? { deduplicate: false } : {}),
 				...(opts?.ensureUniqueFilename ? { ensureUniqueFilename: true } : {}),
 				...(opts?.folderId !== undefined ? { folderId: opts.folderId } : {}),
@@ -532,6 +542,8 @@ async function uploadMediaDirect(file: File, opts?: UploadMediaOptions): Promise
 	if (dimensions?.width) formData.append("width", String(dimensions.width));
 	if (dimensions?.height) formData.append("height", String(dimensions.height));
 	if (opts?.fieldId) formData.append("fieldId", opts.fieldId);
+	if (opts?.blockType) formData.append("blockType", opts.blockType);
+	if (opts?.blockVersion !== undefined) formData.append("blockVersion", String(opts.blockVersion));
 	if (opts?.deduplicate === false) formData.append("deduplicate", "false");
 	if (opts?.ensureUniqueFilename) formData.append("ensureUniqueFilename", "true");
 	if (opts?.folderId === null) formData.append("folderId", "unfiled");
@@ -677,6 +689,7 @@ export interface MediaProviderItem {
 	/** LQIP dominant-color placeholder, as a CSS color (images only) */
 	dominantColor?: string;
 	alt?: string;
+	caption?: string;
 	previewUrl?: string;
 	meta?: Record<string, unknown>;
 }

@@ -72,7 +72,7 @@ WordPress template parts become ordinary Astro components. Template hierarchy fa
 
 Two identifiers are easy to confuse:
 
-- `entry.id` is the slug used in URLs.
+- `entry.id` is the slug used in URLs, prefixed with the locale for locales whose URLs are prefixed.
 - `entry.data.id` is the database ID used by APIs such as taxonomy and comment lookups.
 
 Content queries return a `cacheHint`. Pass it to `Astro.cache.set(cacheHint)` so publishing invalidates cached routes.

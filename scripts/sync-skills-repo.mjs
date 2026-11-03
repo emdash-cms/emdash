@@ -44,6 +44,7 @@ const SKILLS = [
 	"building-emdash-site",
 	"creating-plugins",
 	"emdash-cli",
+	"upgrading-emdash",
 	"wordpress-plugin-to-emdash",
 	"wordpress-theme-to-emdash",
 ];

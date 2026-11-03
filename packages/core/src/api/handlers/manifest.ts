@@ -353,6 +353,7 @@ function dbFieldDescriptor(
 		id: field.id,
 	};
 	if (field.unsupportedType) entry.unsupportedType = field.unsupportedType;
+	if (field.type === "integer") entry.integer = true;
 	if (field.blockTypes) entry.blockTypes = field.blockTypes;
 	if (field.blockTypeFingerprint) entry.blockTypeFingerprint = field.blockTypeFingerprint;
 
@@ -375,6 +376,11 @@ function dbFieldDescriptor(
 			if (limits) validation.multiple = boundReferenceIsMultiple(field.validation, limits);
 		}
 		entry.validation = validation;
+	}
+
+	// A bound reference is set through `references`; create refuses a value for it in `data`.
+	if (field.defaultValue !== undefined && !isStoragelessField(field)) {
+		entry.defaultValue = field.defaultValue;
 	}
 
 	return entry;

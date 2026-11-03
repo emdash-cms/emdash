@@ -964,7 +964,22 @@ export function PublisherPage() {
 												{stateLabel(t, intent.state)}
 											</Badge>
 											{intent.reasonCode ? (
-												<code className="text-xs text-kumo-subtle">{intent.reasonCode}</code>
+												<code dir="ltr" className="text-xs text-kumo-subtle">
+													{intent.reasonCode}
+												</code>
+											) : null}
+											{intent.reasonMessage ? (
+												<>
+													<p dir="auto" className="max-w-prose text-xs text-kumo-subtle">
+														{intent.reasonMessage}
+													</p>
+													<div className="flex flex-col text-xs text-kumo-subtle">
+														<span>{t("publisher.intents.id", "Intent ID")}</span>
+														<code dir="ltr" className="break-all">
+															{intent.id}
+														</code>
+													</div>
+												</>
 											) : null}
 										</div>
 									</Table.Cell>

@@ -105,7 +105,7 @@ export function CalendarAgenda({
 	const tomorrow = shiftDay(today, 1);
 
 	return (
-		<div className="grid max-w-5xl gap-6">
+		<div className="grid gap-6">
 			{earlierCount > 0 && (
 				<Button
 					variant="ghost"

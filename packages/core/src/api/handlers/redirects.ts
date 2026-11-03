@@ -16,7 +16,7 @@ import {
 import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { FindManyResult } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
-import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { publishRedirectChanges } from "../../redirects/artifacts.js";
 import { wouldCreateLoop, detectLoops, type RedirectEdge } from "../../redirects/loops.js";
 import { validatePattern, validateDestinationParams, isPattern } from "../../redirects/patterns.js";
 import { isTerminalStatus } from "../../redirects/status.js";
@@ -174,7 +174,7 @@ export async function handleRedirectCreate(
 			);
 			return { success: true, data: redirect };
 		});
-		if (result.success) invalidateRedirectCache();
+		if (result.success) await publishRedirectChanges(db);
 		return result;
 	} catch {
 		return {
@@ -313,12 +313,12 @@ export async function handleRedirectUpdate(
 				}
 			}
 
-			// Check for redirect loops if source or destination changed
+			// Check for redirect loops if the rule's edge changes or it becomes active
 			const willBeEnabled = input.enabled ?? existing.enabled;
 			if (
 				!terminal &&
 				willBeEnabled &&
-				(input.source !== undefined || input.destination !== undefined)
+				(input.source !== undefined || input.destination !== undefined || !existing.enabled)
 			) {
 				const edges = toEdges(await repo.findAllEnabled());
 				const loopPath = wouldCreateLoop(newSource, newDest, edges, id);
@@ -351,7 +351,7 @@ export async function handleRedirectUpdate(
 			await updateLoopCache(repo.db);
 			return { success: true, data: updated };
 		});
-		if (result.success) invalidateRedirectCache();
+		if (result.success) await publishRedirectChanges(db);
 		return result;
 	} catch {
 		return {
@@ -402,7 +402,7 @@ export async function handleRedirectDelete(
 			await updateLoopCache(repo.db);
 			return { success: true, data: { deleted: true } };
 		});
-		if (result.success) invalidateRedirectCache();
+		if (result.success) await publishRedirectChanges(db);
 		return result;
 	} catch {
 		return {

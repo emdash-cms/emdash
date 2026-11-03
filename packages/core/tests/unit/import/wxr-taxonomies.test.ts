@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { WxrCategory, WxrPost, WxrTag, WxrTerm } from "../../../src/cli/wxr/parser.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import {
 	attachPostTaxonomies,
 	preImportWxrTaxonomies,
@@ -93,6 +94,7 @@ describe("preImportWxrTaxonomies", () => {
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		await teardownTestDatabase(db);
 	});
 
@@ -161,6 +163,36 @@ describe("preImportWxrTaxonomies", () => {
 			.where("name", "=", "category")
 			.execute();
 		expect(rows).toHaveLength(1);
+	});
+
+	it("reuses a legacy locale code when importing a configured locale path", async () => {
+		setI18nConfig({
+			defaultLocale: "en",
+			locales: ["en"],
+			localeAliases: { "en-US": "en" },
+		});
+		const repo = new TaxonomyRepository(db);
+		await repo.create({
+			name: "category",
+			slug: "patents",
+			label: "Patents",
+			locale: "en-US",
+		});
+
+		const plan = await preImportWxrTaxonomies(
+			db,
+			[],
+			[{ id: 5, nicename: "patents", name: "Patents" }],
+			[],
+			[],
+			"en",
+		);
+
+		expect(plan.termsCreated.category).toBeUndefined();
+		expect(plan.termsReused.category).toBe(1);
+		expect(
+			await db.selectFrom("taxonomies").selectAll().where("slug", "=", "patents").execute(),
+		).toHaveLength(1);
 	});
 
 	it("backfills terms referenced only by per-item <category> assignments", async () => {

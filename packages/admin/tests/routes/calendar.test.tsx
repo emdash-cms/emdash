@@ -108,9 +108,37 @@ describe("CalendarPage", () => {
 		const screen = await renderPage();
 
 		await expect.element(screen.getByRole("link", { name: /Entry launch/ })).toBeVisible();
-		await expect
-			.element(screen.getByRole("button", { name: "Collection", exact: true }))
-			.toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Filter", exact: true })).toBeVisible();
+	});
+
+	it("says when filters hide every entry in the month grid", async () => {
+		router.search = { month: "2020-03", view: "month", states: "scheduled" };
+		serveCalendar(() =>
+			Response.json({ data: { items: [entry("launch", "2020-03-05T09:00:00.000Z")] } }),
+		);
+
+		const screen = await renderPage();
+
+		await expect.element(screen.getByText("No entries match these filters")).toBeVisible();
+		await screen.getByRole("button", { name: "Clear filters" }).click();
+		expect(navigatedSearch(router.navigate.mock.lastCall).search).toMatchObject({
+			collections: undefined,
+			locales: undefined,
+			states: undefined,
+		});
+		await expect.element(screen.getByRole("button", { name: "Filter: 1 selected" })).toHaveFocus();
+	});
+
+	it("counts only the month's own days on a phone, where the picker hides the rest", async () => {
+		await page.viewport(375, 800);
+		router.search = { month: "2020-03", view: "month", states: "published" };
+		serveCalendar(() =>
+			Response.json({ data: { items: [entry("april", "2020-04-02T09:00:00.000Z")] } }),
+		);
+
+		const screen = await renderPage();
+
+		await expect.element(screen.getByText("No entries match these filters")).toBeVisible();
 	});
 
 	it("opens the entry named in the URL in the side panel", async () => {
@@ -124,7 +152,7 @@ describe("CalendarPage", () => {
 		const panel = screen.getByRole("dialog", { name: "Entry launch" });
 		await expect.element(panel).toBeVisible();
 		await expect.element(panel.getByText("Thu, Mar 5, 9:00 AM UTC").first()).toBeVisible();
-		await expect.element(panel.getByRole("link", { name: "Open in editor" }).last()).toBeVisible();
+		await expect.element(panel.getByRole("link", { name: "Open in editor" })).toBeVisible();
 
 		// The panel came from the link, not from a history entry this page added.
 		await panel.getByRole("button", { name: "Close" }).click();
@@ -215,9 +243,6 @@ describe("CalendarPage", () => {
 			.element(screen.getByText("The calendar shows the first 1,000, which end on March 10."))
 			.toBeVisible();
 		await expect.element(screen.getByText(/^Later entries weren't loaded\./)).toBeVisible();
-		await expect
-			.element(screen.getByRole("list", { name: "Entries this month" }))
-			.not.toBeInTheDocument();
 	});
 
 	it("judges schedules by when the entries loaded, not by the current time", async () => {

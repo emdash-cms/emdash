@@ -1013,7 +1013,7 @@ describe("SEO", () => {
 			expect(result.data!.collections).toEqual([]);
 		});
 
-		it("should include updatedAt and lastmod", async () => {
+		it("should include updatedAt", async () => {
 			await repo.create({
 				type: "post",
 				slug: "test",
@@ -1024,8 +1024,6 @@ describe("SEO", () => {
 			const result = await handleSitemapData(db);
 
 			const col = result.data!.collections[0]!;
-			expect(col.lastmod).toBeDefined();
-			expect(new Date(col.lastmod).getTime()).not.toBeNaN();
 			expect(col.entries[0]!.updatedAt).toBeDefined();
 			expect(new Date(col.entries[0]!.updatedAt).getTime()).not.toBeNaN();
 		});
@@ -1049,12 +1047,8 @@ describe("SEO", () => {
 			expect(result.success).toBe(true);
 
 			const col = result.data!.collections[0]!;
-			// Both the index <lastmod> and the per-entry value are normalized
-			// to ISO 8601 (UTC assumed, matching SQLite's datetime('now')).
-			expect(col.lastmod).toBe("2026-06-28T04:01:26.000Z");
+			// Normalized to ISO 8601 (UTC assumed, matching SQLite's datetime('now')).
 			expect(col.entries[0]!.updatedAt).toBe("2026-06-28T04:01:26.000Z");
-			// The raw, space-separated form must not leak into the sitemap.
-			expect(col.lastmod).not.toContain(" ");
 		});
 
 		it("should include urlPattern from collection", async () => {

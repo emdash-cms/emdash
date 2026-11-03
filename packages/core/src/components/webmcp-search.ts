@@ -10,9 +10,11 @@ export interface SiteSearchToolConfig {
 	routeMap: LiveSearchRouteMap;
 }
 
-interface ToolResult {
-	content: { type: "text"; text: string }[];
-	isError?: boolean;
+interface SiteSearchToolResult {
+	title: string;
+	url: string;
+	collection: string;
+	excerpt?: string;
 }
 
 interface WebMcpTool {
@@ -20,7 +22,11 @@ interface WebMcpTool {
 	description: string;
 	inputSchema: Record<string, unknown>;
 	annotations: { readOnlyHint: boolean; untrustedContentHint: boolean };
-	execute: (input: { query?: unknown; limit?: unknown }) => Promise<ToolResult>;
+	/**
+	 * WebMCP serializes the fulfilled value to JSON for the agent and reports only a
+	 * rejection as a failed call, so errors must throw rather than resolve.
+	 */
+	execute: (input: { query?: unknown; limit?: unknown }) => Promise<SiteSearchToolResult[]>;
 }
 
 export interface ModelContextLike {
@@ -53,10 +59,6 @@ function snippetToText(snippet: string): string {
 		.replaceAll("&amp;", "&");
 }
 
-function textResult(text: string, isError = false): ToolResult {
-	return { content: [{ type: "text", text }], ...(isError ? { isError } : {}) };
-}
-
 export function createSiteSearchTool(
 	config: SiteSearchToolConfig,
 	origin: string,
@@ -83,7 +85,7 @@ export function createSiteSearchTool(
 		annotations: { readOnlyHint: true, untrustedContentHint: true },
 		async execute(input) {
 			const query = typeof input.query === "string" ? input.query.trim() : "";
-			if (!query) return textResult("Provide a search query.", true);
+			if (!query) throw new Error("Provide a search query.");
 			const requested = typeof input.limit === "number" ? Math.floor(input.limit) : maxLimit;
 			const limit = Math.min(Math.max(requested, 1), maxLimit);
 
@@ -91,21 +93,15 @@ export function createSiteSearchTool(
 			if (config.collections) params.set("collections", config.collections);
 			if (config.locale) params.set("locale", config.locale);
 
-			let body: { data?: { items?: SearchApiResult[] } };
-			try {
-				const response = await fetchImpl(`${origin}/_emdash/api/search?${params}`);
-				if (!response.ok) return textResult(`Search failed (HTTP ${response.status}).`, true);
-				body = await response.json();
-			} catch {
-				return textResult("Search failed.", true);
-			}
-			const results = (body.data?.items ?? []).map((item) => ({
+			const response = await fetchImpl(`${origin}/_emdash/api/search?${params}`);
+			if (!response.ok) throw new Error(`Search failed (HTTP ${response.status}).`);
+			const body: { data?: { items?: SearchApiResult[] } } = await response.json();
+			return (body.data?.items ?? []).map((item) => ({
 				title: item.title ?? item.slug ?? item.id,
 				url: new URL(buildLiveSearchResultUrl(item, config.routeMap), origin).href,
 				collection: item.collection,
 				...(item.snippet ? { excerpt: snippetToText(item.snippet) } : {}),
 			}));
-			return textResult(JSON.stringify(results));
 		},
 	};
 }

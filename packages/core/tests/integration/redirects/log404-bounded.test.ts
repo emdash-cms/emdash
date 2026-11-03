@@ -299,4 +299,60 @@ describe("RedirectRepository.log404 — bounded logging", () => {
 			await loggedDb.destroy();
 		}
 	});
+
+	it("does not run the expensive DELETE when the table is under capacity", async () => {
+		// Regression: cleanup404Log() used to run the full ORDER BY / NOT IN
+		// DELETE unconditionally on every cron tick, even when the table was
+		// below the cap and had nothing to evict.
+		const captured: string[] = [];
+		const loggedDb = new Kysely<Database>({
+			dialect: new SqliteDialect({ database: openNodeSqliteDatabase(":memory:") }),
+			log(event) {
+				if (event.level === "query") {
+					captured.push(event.query.sql);
+				}
+			},
+		});
+		await runMigrations(loggedDb);
+		const loggedRepo = new RedirectRepository(loggedDb);
+
+		try {
+			const now = Date.now();
+			const target = MAX_404_LOG_ROWS - 1;
+			const batchSize = 500;
+			for (let start = 0; start < target; start += batchSize) {
+				const rows = [];
+				for (let i = start; i < Math.min(start + batchSize, target); i++) {
+					rows.push({
+						id: `under-${i.toString().padStart(6, "0")}`,
+						path: `/under-${i}`,
+						referrer: null,
+						user_agent: null,
+						ip: null,
+						hits: 1,
+						last_seen_at: new Date(now - i).toISOString(),
+						created_at: new Date(now - i).toISOString(),
+					});
+				}
+				await loggedDb.insertInto("_emdash_404_log").values(rows).execute();
+			}
+
+			captured.length = 0;
+			const deleted = await loggedRepo.cleanup404Log();
+			expect(deleted).toBe(0);
+
+			const countAfter = await loggedDb
+				.selectFrom("_emdash_404_log")
+				.select((eb) => eb.fn.countAll<number>().as("c"))
+				.executeTakeFirstOrThrow();
+			expect(Number(countAfter.c)).toBe(target);
+
+			const cleanupDeletes = captured.filter((sql) =>
+				/delete\s+from\s+["]?_emdash_404_log["]?/i.test(sql),
+			);
+			expect(cleanupDeletes).toHaveLength(0);
+		} finally {
+			await loggedDb.destroy();
+		}
+	});
 });

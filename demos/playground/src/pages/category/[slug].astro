@@ -1,27 +1,40 @@
 ---
 import {
-	getTerm,
+	getTaxonomyTermsWithCacheHint,
 	getEmDashCollection,
 	getTermsForEntries,
 	decodeSlug,
 } from "emdash";
 import Base from "../../layouts/Base.astro";
 import PostCard from "../../components/PostCard.astro";
-import { getReadingTime } from "../../utils/reading-time";
+import Pagination from "../../components/Pagination.astro";
 
 const slug = decodeSlug(Astro.params.slug);
-const term = slug ? await getTerm("category", slug) : null;
+const termsResult = await getTaxonomyTermsWithCacheHint("category", {
+	includeCounts: false,
+});
+const term = slug ? termsResult.data.find((item) => item.slug === slug) : null;
 
 if (!term) {
 	return Astro.rewrite("/404");
 }
 
-const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
+const cursor = Astro.url.searchParams.get("cursor") || undefined;
+const {
+	entries: posts,
+	cacheHint,
+	nextCursor,
+} = await getEmDashCollection("posts", {
 	where: { category: term.slug },
 	orderBy: { published_at: "desc" },
+	limit: 20,
+	cursor,
 });
 
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) {
+	Astro.cache.set(termsResult.cacheHint);
+	Astro.cache.set(cacheHint);
+}
 
 // Single batched query for tags on every post in this category, rather
 // than calling getEntryTerms() per post (which would be one round-trip
@@ -38,93 +51,88 @@ const filteredPosts = posts.map((post) => ({
 ---
 
 <Base title={`${term.label} posts`} description={`All posts in ${term.label}`}>
-	<section class="archive-section">
-		<header class="archive-header">
-			<span class="archive-label">Category</span>
-			<h1 class="archive-title">{term.label}</h1>
-			<p class="archive-count">
-				{filteredPosts.length}
-				{filteredPosts.length === 1 ? "post" : "posts"}
-			</p>
-		</header>
+	<header class="band intro">
+		<div class="frame archive-intro">
+			<div class="archive-intro__text">
+				<p class="eyebrow">Category</p>
+				<h1 class="intro__title">{term.label}</h1>
+				<p class="intro__lead">
+					{term.description || `Posts filed under ${term.label}, newest first.`}
+				</p>
+			</div>
+			<a href="/posts" class="arrow-link">
+				All posts
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.75"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M5 12h14"></path>
+					<path d="m12 5 7 7-7 7"></path>
+				</svg>
+			</a>
+		</div>
+	</header>
 
-		{
-			filteredPosts.length === 0 ? (
-				<p class="no-posts">No posts in this category yet.</p>
-			) : (
-				<div class="posts-grid">
-					{filteredPosts.map(({ post, tags }) => (
-						<PostCard
-							title={post.data.title}
-							excerpt={post.data.excerpt}
-							featuredImage={post.data.featured_image}
-							href={`/posts/${post.id}`}
-							date={post.data.publishedAt ?? undefined}
-							readingTime={getReadingTime(post.data.content)}
-							tags={tags.map((t) => ({ slug: t.slug, label: t.label }))}
-							edit={post.edit}
+	<section class="band section">
+		<div class="frame">
+			{
+				filteredPosts.length > 0 ? (
+					<>
+						<div class="post-grid">
+							{filteredPosts.map(({ post, tags }) => (
+								<PostCard
+									post={post}
+									tags={tags.map((t) => ({ slug: t.slug, label: t.label }))}
+								/>
+							))}
+						</div>
+						<Pagination
+							basePath={`/category/${term.slug}`}
+							cursor={cursor}
+							nextCursor={nextCursor}
 						/>
-					))}
-				</div>
-			)
-		}
+					</>
+				) : (
+					<div class="empty-state">
+						<h2 class="empty-state__title">
+							{cursor ? "No more posts" : "Nothing here yet"}
+						</h2>
+						<p class="empty-state__text">
+							{cursor
+								? "This page is past the last post."
+								: `No posts have been filed under ${term.label} so far.`}
+						</p>
+						<div class="empty-state__actions">
+							<a
+								href={cursor ? `/category/${term.slug}` : "/posts"}
+								class="btn btn--ghost"
+							>
+								{cursor ? "Back to the first page" : "Browse all posts"}
+							</a>
+						</div>
+					</div>
+				)
+			}
+		</div>
 	</section>
 </Base>
 
 <style>
-	.archive-section {
-		max-width: var(--wide-width);
-		margin: 0 auto;
-		padding: var(--spacing-12) var(--spacing-6);
+	.archive-intro {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		align-items: last baseline;
+		justify-content: space-between;
+		gap: var(--spacing-5) var(--spacing-10);
 	}
 
-	.archive-header {
-		margin-bottom: var(--spacing-12);
-		padding-bottom: var(--spacing-8);
-		border-bottom: 1px solid var(--color-border-subtle);
-	}
-
-	.archive-label {
-		display: block;
-		font-size: var(--font-size-xs);
-		font-weight: 500;
-		color: var(--color-accent);
-		text-transform: uppercase;
-		letter-spacing: var(--tracking-wider);
-		margin-bottom: var(--spacing-2);
-	}
-
-	.archive-title {
-		font-size: var(--font-size-4xl);
-		font-weight: 700;
-		letter-spacing: var(--tracking-tight);
-		margin-bottom: var(--spacing-2);
-	}
-
-	.archive-count {
-		font-size: var(--font-size-sm);
-		color: var(--color-muted);
-	}
-
-	.posts-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: var(--spacing-12) var(--spacing-8);
-	}
-
-	.no-posts {
-		color: var(--color-muted);
-	}
-
-	@media (max-width: 900px) {
-		.posts-grid {
-			grid-template-columns: repeat(2, 1fr);
-		}
-	}
-
-	@media (max-width: 600px) {
-		.posts-grid {
-			grid-template-columns: 1fr;
-		}
+	.archive-intro__text {
+		min-width: 0;
 	}
 </style>

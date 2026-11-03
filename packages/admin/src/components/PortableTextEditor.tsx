@@ -13,14 +13,16 @@
 
 import {
 	Button,
-	Dialog,
 	Input,
+	LayerDialog,
 	Popover,
 	Select,
 	Switch,
+	Text,
 	Tooltip,
 	TooltipProvider,
 } from "@cloudflare/kumo";
+import { Menu } from "@cloudflare/kumo/primitives/menu";
 import { Popover as PopoverPrimitive } from "@cloudflare/kumo/primitives/popover";
 import {
 	DndContext,
@@ -76,51 +78,67 @@ import {
 	ImageSquare,
 	Rows,
 	SlidersHorizontal,
+	Subtitles,
 	TextAa,
 	Minus,
 	LinkBreak,
-	ArrowSquareOut,
 	BracketsAngle,
+	FrameCorners,
 	CodeBlock,
 	Stack,
 	Table as TableIcon,
+	VideoCamera,
 	Plus,
 	Trash,
 	RowsPlusBottom,
 	ColumnsPlusRight,
 	DotsSixVertical,
 	CaretDown,
+	DotsThree,
+	Eraser,
+	Globe,
+	PencilSimple,
+	TextT,
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Extension, Mark, type EditorEvents, type Range } from "@tiptap/core";
+import { Extension, InputRule, Mark, type EditorEvents, type Range } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
-import Placeholder from "@tiptap/extension-placeholder";
+import { isAllowedUri } from "@tiptap/extension-link";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { closeHistory, undo, undoDepth } from "@tiptap/pm/history";
+import type { Mark as ProseMirrorMark, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import {
 	AllSelection,
 	NodeSelection,
 	Plugin,
+	Selection,
 	TextSelection,
 	type EditorState,
+	type Transaction,
 } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
-import Suggestion, { exitSuggestion } from "@tiptap/suggestion";
+import Suggestion, { exitSuggestion, SuggestionPluginKey } from "@tiptap/suggestion";
 import * as React from "react";
 
+import { htmlBlockFields } from "../html-block";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { fetchMediaItem, uploadMedia } from "../lib/api/media.js";
-import { canonicalMediaProviderId, localMediaFileUrl } from "../lib/media-utils.js";
+import { guardUnsavedInput, revealErrors } from "../lib/dialog-form.js";
+import {
+	canonicalMediaProviderId,
+	dropsDisplayHeight,
+	localMediaFileUrl,
+} from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -137,16 +155,48 @@ import {
 } from "../portable-text-table.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
+import { DialogError } from "./DialogError.js";
+import {
+	BlockSelectAll,
+	BlockSelection,
+	DoubleClickLineEnd,
+	SelectionHighlights,
+	blockInsertPosition,
+} from "./editor/BlockCommands.js";
+import {
+	activeTextBlockType,
+	canTurnInto,
+	prepareBlockInsert,
+	textBlockTypes,
+	toggleTextBlockType,
+	turnInto,
+	turnIntoMenuTypes,
+	type TextBlockTypeId,
+} from "./editor/blockTypes.js";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { CodeMarkExtension } from "./editor/CodeMarkExtension";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import {
+	EditorMenuCheckboxItem,
+	EditorMenuItem,
+	EditorMenuLabel,
+	EditorMenuRadioItem,
+	EditorMenuSeparator,
+	editorMenuPopupClassName,
+	editorSurfaceClassName,
+	tabToEditor,
+} from "./editor/EditorMenu.js";
+import { TopBlockDocument } from "./editor/EmbedBlockShell";
 import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
 import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
+import { iframeEmbedFromAttrs, isBuiltInIframeBlock } from "./editor/iframe-embed";
+import { IframeBlockExtension } from "./editor/IframeBlockNode";
 import { ImageExtension, type ImageSettingsHandle } from "./editor/ImageNode";
 import { ImageUploadExtension } from "./editor/ImageUploadExtension.js";
-import { LinkDestinationInput } from "./editor/LinkDestinationInput";
+import { liftPastedBlocks } from "./editor/liftPastedBlocks";
+import { LinkDestinationInput, normalizeLinkHref } from "./editor/LinkDestinationInput";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
 import { EmDashOrderedList } from "./editor/ordered-list";
 import {
@@ -155,6 +205,7 @@ import {
 	registerPluginBlocks,
 	resolveIcon,
 } from "./editor/PluginBlockNode";
+import { PORTABLE_TEXT_BLOCK_ATTR } from "./editor/portableTextIdentity.js";
 import { runTableAction } from "./editor/TableActions.js";
 import { createTableCellSafety, type TablePasteRejection } from "./editor/TableCellSafety.js";
 import { createTableClipboard } from "./editor/TableClipboard.js";
@@ -176,13 +227,24 @@ import {
 	selectionTouchesTable,
 } from "./editor/TableExtensions.js";
 import { createTableResize } from "./editor/TableResize.js";
+import { createTextBlockPlaceholder } from "./editor/TextBlockPlaceholder.js";
+import {
+	VideoExtension,
+	isVideoBlock,
+	mediaItemToVideoAttrs,
+	videoBlockFields,
+	videoNodeAttrs,
+} from "./editor/VideoNode";
 import { MediaPickerModal } from "./MediaPickerModal";
 import { NonListFieldValue, isNonListValue } from "./NonListFieldValue.js";
 import { SectionPickerModal } from "./SectionPickerModal";
 
+const bubbleMenuClassName = cn("z-[100] flex items-center gap-0.5 p-1", editorSurfaceClassName);
+
 const INLINE_BUBBLE_MENU_KEY = "emdashInlineBubbleMenu";
 const TABLE_BUBBLE_MENU_KEY = "emdashTableBubbleMenu";
 const IMAGE_BUBBLE_MENU_KEY = "emdashImageBubbleMenu";
+const LINK_BUBBLE_MENU_KEY = "emdashLinkBubbleMenu";
 
 type BubbleMenuCollisionOptions = () => {
 	rootBoundary: { x: number; y: number; width: number; height: number };
@@ -249,6 +311,20 @@ interface PortableTextHtmlBlock {
 	_type: "htmlBlock";
 	_key: string;
 	html: string;
+	css?: string;
+	js?: string;
+	isolated?: boolean;
+}
+
+interface PortableTextIframeBlock {
+	_type: "iframe";
+	_key: string;
+	src: string;
+	title?: string;
+	width?: number;
+	height?: number;
+	allow?: string;
+	allowFullscreen?: boolean;
 }
 
 type PortableTextBlock =
@@ -256,6 +332,7 @@ type PortableTextBlock =
 	| PortableTextImageBlock
 	| PortableTextCodeBlock
 	| PortableTextHtmlBlock
+	| PortableTextIframeBlock
 	| { _type: string; _key: string; [key: string]: unknown };
 
 // Generate unique key
@@ -334,7 +411,6 @@ const attrStr = (v: unknown): string | undefined => (typeof v === "string" && v 
 const attrNum = (v: unknown): number | undefined =>
 	typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined;
 
-const PORTABLE_TEXT_BLOCK_ATTR = "emdashPortableTextBlock";
 const PORTABLE_TEXT_KEY_ATTR = "emdashPortableTextKey";
 const PORTABLE_TEXT_SPAN_MARK = "emdashPortableTextSpan";
 
@@ -370,29 +446,100 @@ function normalizeImageLink(raw: unknown): { href: string; blank?: boolean } | n
  * Keeps an existing "open in new tab" choice when only the destination changes.
  * Shared by the toolbar and the bubble menu, which both edit image links.
  */
-function setSelectedImageLink(editor: Editor, href: string | null) {
-	const trimmed = href?.trim() ?? "";
+function setSelectedImageLink(editor: Editor, href: string | null): boolean {
+	const trimmed = href ? normalizeLinkHref(href) : "";
+	if (trimmed && !isAllowedUri(trimmed)) return false;
 	const existing = editor.getAttributes("image").link as { blank?: boolean } | null;
 	const link = trimmed ? { href: trimmed, ...(existing?.blank ? { blank: true } : {}) } : null;
-	editor.chain().focus().updateAttributes("image", { link }).run();
+	return editor.chain().focus().updateAttributes("image", { link }).run();
 }
 
-function setSelectedTextLink(editor: Editor, href: string) {
-	const chain = editor.chain().focus().extendMarkRange("link").setLink({ href });
-	if (editor.state.selection.empty) {
-		chain.run();
-		return;
-	}
-	chain
+/**
+ * The link at the start of the selection, or holding the caret. A caret at a
+ * link's edge, where a click on its first or last letter can leave it, counts
+ * too, and between two links the one after the caret wins.
+ */
+function linkAtCaret(state: EditorState): ProseMirrorMark | undefined {
+	const { selection, schema } = state;
+	const linkType = schema.marks.link;
+	if (!linkType) return undefined;
+	const { $from } = selection;
+	const after = linkType.isInSet($from.nodeAfter?.marks ?? []);
+	if (!selection.empty) return after;
+	return after ?? linkType.isInSet($from.nodeBefore?.marks ?? []);
+}
+
+/**
+ * Links the selected text, or the whole link around the caret, to `value`.
+ * At a caret outside a link, the text typed next gets the link. Returns
+ * `false`, changing nothing, for a URL the editor won't link.
+ */
+function setSelectedTextLink(editor: Editor, value: string): boolean {
+	const href = normalizeLinkHref(value);
+	if (!editor.can().setLink({ href })) return false;
+	const chain = editor
+		.chain()
+		.focus()
+		.extendMarkRange("link", linkAtCaret(editor.state)?.attrs)
+		.setLink({ href });
+	if (editor.state.selection.empty && !editor.isActive("link")) return chain.run();
+	return chain
 		.command(({ tr, state }) => {
 			const linkType = state.schema.marks.link;
 			if (!linkType) return false;
+			// The caret ends after the link, so the next words typed aren't part of it.
 			tr.setSelection(TextSelection.near(tr.doc.resolve(tr.selection.to), -1));
 			tr.removeStoredMark(linkType);
 			return true;
 		})
 		.run();
 }
+
+/**
+ * Quotes and list items hold only what Portable Text stores for them: quoted
+ * paragraphs, and list item text with nested lists. Anything else typed,
+ * pasted, or dropped into one lands beside it instead of being lost on save,
+ * and `---` typed in one adds the divider the way the slash menu does.
+ */
+const PortableTextStarterKit = StarterKit.extend({
+	addProseMirrorPlugins() {
+		return [
+			...(this.parent?.() ?? []),
+			new Plugin({ props: { transformPastedHTML: liftPastedBlocks } }),
+		];
+	},
+	addExtensions() {
+		return (this.parent?.() ?? []).map((extension) => {
+			if (extension.name === "blockquote") return extension.extend({ content: "paragraph+" });
+			if (extension.name === "listItem") {
+				return extension.extend({ content: "paragraph (paragraph | bulletList | orderedList)*" });
+			}
+			if (extension.name !== "horizontalRule") return extension;
+			return extension.extend({
+				addInputRules() {
+					return (this.parent?.() ?? []).map(
+						(rule) =>
+							new InputRule({
+								find: rule.find,
+								handler: (props) => {
+									// Table cells can't hold a divider, so the dashes stay text there.
+									if (selectionTouchesTable(props.state)) return null;
+									if (blockInsertPosition(props.state.selection) === null) {
+										return rule.handler(props);
+									}
+									props
+										.chain()
+										.deleteRange(props.range)
+										.command(({ tr }) => insertDivider(tr))
+										.run();
+								},
+							}),
+					);
+				},
+			});
+		});
+	},
+});
 
 const LinkBoundaryExit = Extension.create({
 	name: "linkBoundaryExit",
@@ -409,9 +556,13 @@ const LinkBoundaryExit = Extension.create({
 					if (!(selection instanceof TextSelection) || !selection.empty) return null;
 					const linkType = newState.schema.marks.link;
 					if (!linkType) return null;
-					const linkBefore = linkType.isInSet(selection.$from.nodeBefore?.marks ?? []);
-					const linkAfter = linkType.isInSet(selection.$from.nodeAfter?.marks ?? []);
-					if (!linkBefore || (linkAfter && linkBefore.eq(linkAfter))) return null;
+					const { nodeBefore, nodeAfter } = selection.$from;
+					const linkBefore = linkType.isInSet(nodeBefore?.marks ?? []);
+					const linkAfter = linkType.isInSet(nodeAfter?.marks ?? []);
+					const leavingLink = linkBefore && !(linkAfter && linkBefore.eq(linkAfter));
+					// At the start of a block that opens with a link, typing goes before it.
+					const beforeFirstLink = !nodeBefore && linkAfter;
+					if (!leavingLink && !beforeFirstLink) return null;
 					return newState.tr.removeStoredMark(linkType);
 				},
 			}),
@@ -477,6 +628,23 @@ function customBlockIdentityField(block: PortableTextBlock): "id" | "url" | unde
 	return undefined;
 }
 
+/**
+ * TrailingNode adds an empty paragraph after a final block on the first
+ * transaction. It isn't content: `prosemirrorToPortableText` drops it too.
+ */
+function withoutTrailingEmptyParagraph(doc: ProseMirrorNode): ProseMirrorNode {
+	const last = doc.lastChild;
+	if (
+		doc.childCount > 1 &&
+		last?.type.name === "paragraph" &&
+		last.childCount === 0 &&
+		portableTextKeyFromAttrs(last.attrs) === undefined
+	) {
+		return doc.copy(doc.content.cut(0, doc.content.size - last.nodeSize));
+	}
+	return doc;
+}
+
 function equalJsonValues(left: unknown, right: unknown): boolean {
 	if (Object.is(left, right)) return true;
 	if (Array.isArray(left) || Array.isArray(right)) {
@@ -509,7 +677,9 @@ const PortableTextIdentityExtension = Extension.create({
 					"blockquote",
 					"codeBlock",
 					"htmlBlock",
+					"iframeBlock",
 					"image",
+					"videoBlock",
 					"horizontalRule",
 					"gallery",
 					"table",
@@ -849,14 +1019,26 @@ function convertPMNode(
 			};
 		}
 
-		case "htmlBlock": {
-			const rawHtml = node.attrs?.html;
+		case "htmlBlock":
 			return {
 				_type: "htmlBlock",
 				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-				html: typeof rawHtml === "string" ? rawHtml : "",
+				...htmlBlockFields(node.attrs ?? {}),
 			};
-		}
+
+		case "iframeBlock":
+			return {
+				_type: "iframe",
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				...iframeEmbedFromAttrs(node.attrs ?? {}),
+			};
+
+		case "videoBlock":
+			return {
+				_type: "video",
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				...videoBlockFields(node.attrs ?? {}),
+			};
 
 		case "image": {
 			const attrs = node.attrs ?? {};
@@ -1189,6 +1371,15 @@ function isTextBlock(block: PortableTextBlock): block is PortableTextTextBlock {
 	return block._type === "block";
 }
 
+function isQuoteBlock(block: PortableTextBlock): block is PortableTextTextBlock {
+	return isTextBlock(block) && !block.listItem && block.style === "blockquote";
+}
+
+/** A built-in `iframe` block. Any other belongs to a plugin and stays a plugin block. */
+function isIframeBlock(block: PortableTextBlock): block is PortableTextIframeBlock {
+	return block._type === "iframe" && isBuiltInIframeBlock(block);
+}
+
 function isImageBlock(block: PortableTextBlock): block is PortableTextImageBlock {
 	const asset = "asset" in block ? block.asset : undefined;
 	return block._type === "image" && typeof asset === "object" && asset !== null;
@@ -1199,7 +1390,11 @@ function isCodeBlock(block: PortableTextBlock): block is PortableTextCodeBlock {
 }
 
 // Portable Text to ProseMirror converter
-function portableTextToProsemirror(blocks: PortableTextBlock[]): {
+/** `pluginTypes`: block types plugins register, which stay plugin blocks. */
+function portableTextToProsemirror(
+	blocks: PortableTextBlock[],
+	pluginTypes: ReadonlySet<string> = new Set(),
+): {
 	type: "doc";
 	content: unknown[];
 } {
@@ -1245,8 +1440,16 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 			}
 
 			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
+		} else if (isQuoteBlock(block)) {
+			// Portable Text stores each paragraph of a quote as its own block.
+			const quoteBlocks: PortableTextTextBlock[] = [];
+			while (i < blocks.length && isQuoteBlock(blocks[i]!)) {
+				quoteBlocks.push(blocks[i] as PortableTextTextBlock);
+				i++;
+			}
+			content.push(convertPTQuote(quoteBlocks));
 		} else {
-			const converted = convertPTBlock(block, `root:${i}`);
+			const converted = convertPTBlock(block, `root:${i}`, pluginTypes);
 			if (converted) {
 				content.push(converted);
 			}
@@ -1288,7 +1491,11 @@ function belongsToNestedGroup(
 	return anchorId ? itemId === anchorId : itemId === undefined;
 }
 
-function convertPTBlock(block: PortableTextBlock, path: string): unknown {
+function convertPTBlock(
+	block: PortableTextBlock,
+	path: string,
+	pluginTypes: ReadonlySet<string>,
+): unknown {
 	switch (block._type) {
 		case "block": {
 			if (!isTextBlock(block)) return null;
@@ -1313,16 +1520,7 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 					};
 				}
 				case "blockquote":
-					return {
-						type: "blockquote",
-						attrs: attrsWithPortableTextKey(undefined, block._key),
-						content: [
-							{
-								type: "paragraph",
-								content: pmContent.length > 0 ? pmContent : undefined,
-							},
-						],
-					};
+					return convertPTQuote([block]);
 				default:
 					return {
 						type: "paragraph",
@@ -1430,13 +1628,27 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 			};
 		}
 
-		case "htmlBlock": {
-			const htmlBlock = block as { _type: "htmlBlock"; _key: string; html?: string };
+		case "htmlBlock":
 			return {
 				type: "htmlBlock",
-				attrs: attrsWithPortableTextKey({ html: htmlBlock.html || "" }, htmlBlock._key),
+				attrs: attrsWithPortableTextKey({ ...htmlBlockFields(block) }, block._key),
 			};
-		}
+
+		case "iframe":
+			return isIframeBlock(block) && !pluginTypes.has("iframe")
+				? {
+						type: "iframeBlock",
+						attrs: attrsWithPortableTextKey({ ...iframeEmbedFromAttrs(block) }, block._key),
+					}
+				: convertCustomBlock(block);
+
+		case "video":
+			return isVideoBlock(block) && !pluginTypes.has("video")
+				? {
+						type: "videoBlock",
+						attrs: attrsWithPortableTextKey(videoNodeAttrs(block), block._key),
+					}
+				: convertCustomBlock(block);
 
 		case "table": {
 			const result = portableTextTableToProseMirror(block, {
@@ -1455,6 +1667,23 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 			return convertCustomBlock(block);
 		}
 	}
+}
+
+/** One quote from consecutive quote blocks, one paragraph each. */
+function convertPTQuote(blocks: PortableTextTextBlock[]): unknown {
+	return {
+		type: "blockquote",
+		attrs: attrsWithPortableTextKey(undefined, blocks[0]!._key),
+		content: blocks.map((block, index) => {
+			const content = convertPTSpans(block.children, block.markDefs ?? []);
+			return {
+				type: "paragraph",
+				// The first paragraph is saved under the quote's key.
+				...(index > 0 ? { attrs: attrsWithPortableTextKey(undefined, block._key) } : {}),
+				content: content.length > 0 ? content : undefined,
+			};
+		}),
+	};
 }
 
 function convertCustomBlock(block: PortableTextBlock): unknown {
@@ -1691,6 +1920,10 @@ interface SlashCommandItem {
 	deferInsertion?: boolean;
 	opensTablePicker?: boolean;
 	aliases?: string[];
+	/** Markdown that creates the same block, shown as a hint beside the title. */
+	markdown?: string;
+	/** Only listed when the query matches, to keep the unfiltered menu short. */
+	searchOnly?: boolean;
 	/**
 	 * Display category. Built-in commands use `msg`-tagged descriptors;
 	 * plugin-supplied categories arrive as plain strings via the manifest
@@ -1699,10 +1932,105 @@ interface SlashCommandItem {
 	category?: MessageDescriptor | string;
 }
 
-function insertHtmlBlock(editor: Editor, range?: Range) {
-	const chain = editor.chain().focus();
-	if (range) chain.deleteRange(range);
-	chain.insertContent({ type: "htmlBlock", attrs: { html: "" } }).run();
+/**
+ * Puts a divider where an inserted block can be saved, with the caret in the
+ * text after it. TipTap's own command can leave the caret between blocks
+ * when the divider ends the document.
+ */
+function insertDivider(tr: Transaction): boolean {
+	prepareBlockInsert(tr);
+	const { $from } = tr.selection;
+	if ($from.depth !== 1 || $from.parent.content.size > 0) return false;
+	const { schema } = tr.doc.type;
+	const start = $from.before();
+	tr.replaceWith(start, $from.after(), schema.nodes.horizontalRule!.create());
+	const after = start + 1;
+	if (!tr.doc.resolve(after).nodeAfter?.isTextblock) {
+		tr.insert(after, schema.nodes.paragraph!.create());
+	}
+	tr.setSelection(TextSelection.create(tr.doc, after + 1)).scrollIntoView();
+	return true;
+}
+
+/**
+ * Insert a top-level block: at `position` when given, in place of an empty
+ * top-level paragraph or an empty line in a list or quote, before the
+ * top-level block whose start holds the cursor, and otherwise after it. The
+ * new block is node-selected; its node view takes focus itself.
+ */
+function insertTopLevelBlock(
+	editor: Editor,
+	block: ProseMirrorNode,
+	range?: Range,
+	position?: number,
+) {
+	const tr = closeHistory(editor.state.tr);
+	if (range) tr.delete(range.from, range.to);
+	if (position === undefined && tr.selection.empty && !tr.selection.$from.parent.content.size) {
+		prepareBlockInsert(tr);
+	}
+	const { selection } = tr;
+	const { $from } = selection;
+	const atBlockStart =
+		$from.parentOffset === 0 &&
+		Array.from({ length: $from.depth - 1 }, (_, depth) => $from.index(depth + 1)).every(
+			(index) => index === 0,
+		);
+	let at: number;
+	if (position !== undefined) {
+		at = position;
+		tr.insert(at, block);
+	} else if (
+		$from.depth === 1 &&
+		$from.parent.type.name === "paragraph" &&
+		!$from.parent.childCount
+	) {
+		at = $from.before(1);
+		tr.replaceWith(at, $from.after(1), block);
+	} else {
+		at = $from.depth === 0 ? selection.to : atBlockStart ? $from.before(1) : $from.after(1);
+		tr.insert(at, block);
+	}
+	tr.setSelection(NodeSelection.create(tr.doc, at));
+	editor.view.dispatch(tr.scrollIntoView());
+}
+
+function insertIframeBlock(editor: Editor, range?: Range, position?: number) {
+	insertTopLevelBlock(editor, editor.schema.nodes.iframeBlock!.create(), range, position);
+}
+
+function insertHtmlBlock(editor: Editor, range?: Range, position?: number) {
+	insertTopLevelBlock(
+		editor,
+		editor.schema.nodes.htmlBlock!.create({ isolated: true }),
+		range,
+		position,
+	);
+}
+
+const BASIC_BLOCKS_CATEGORY = msg`Basic blocks`;
+const MEDIA_CATEGORY = msg`Media`;
+const ADVANCED_CATEGORY = msg`Advanced`;
+const EMBEDS_CATEGORY = msg`Embeds`;
+
+function headingCommand(
+	level: 1 | 2 | 3 | 4 | 5 | 6,
+	title: MessageDescriptor,
+	description: MessageDescriptor,
+	icon: Icon,
+	aliases: string[],
+): SlashCommandItem {
+	return {
+		id: `heading${level}`,
+		title,
+		description,
+		icon,
+		aliases,
+		markdown: "#".repeat(level),
+		searchOnly: level > 3,
+		category: BASIC_BLOCKS_CATEGORY,
+		command: ({ editor, range }) => turnInto(editor, `heading${level}`, range),
+	};
 }
 
 /**
@@ -1710,74 +2038,26 @@ function insertHtmlBlock(editor: Editor, range?: Range) {
  */
 const defaultSlashCommands: SlashCommandItem[] = [
 	{
-		id: "heading1",
-		title: msg`Heading 1`,
-		description: msg`Large section heading`,
-		icon: TextHOne,
-		aliases: ["h1", "title"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setNode("heading", { level: 1 }).run();
-		},
+		id: "paragraph",
+		title: msg`Paragraph`,
+		description: msg`Start writing with plain text`,
+		icon: TextT,
+		aliases: ["text", "plain", "p"],
+		category: BASIC_BLOCKS_CATEGORY,
+		command: ({ editor, range }) => turnInto(editor, "paragraph", range),
 	},
-	{
-		id: "heading2",
-		title: msg`Heading 2`,
-		description: msg`Medium section heading`,
-		icon: TextHTwo,
-		aliases: ["h2", "subtitle"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setNode("heading", { level: 2 }).run();
-		},
-	},
-	{
-		id: "heading3",
-		title: msg`Heading 3`,
-		description: msg`Small section heading`,
-		icon: TextHThree,
-		aliases: ["h3"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
-		},
-	},
-	{
-		id: "heading4",
-		title: msg`Heading 4`,
-		description: msg`Smaller section heading`,
-		icon: TextHFour,
-		aliases: ["h4"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setNode("heading", { level: 4 }).run();
-		},
-	},
-	{
-		id: "heading5",
-		title: msg`Heading 5`,
-		description: msg`Minor section heading`,
-		icon: TextHFive,
-		aliases: ["h5"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setNode("heading", { level: 5 }).run();
-		},
-	},
-	{
-		id: "heading6",
-		title: msg`Heading 6`,
-		description: msg`Smallest section heading`,
-		icon: TextHSix,
-		aliases: ["h6"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setNode("heading", { level: 6 }).run();
-		},
-	},
+	headingCommand(1, msg`Heading 1`, msg`Large section heading`, TextHOne, ["h1", "title"]),
+	headingCommand(2, msg`Heading 2`, msg`Medium section heading`, TextHTwo, ["h2", "subtitle"]),
+	headingCommand(3, msg`Heading 3`, msg`Small section heading`, TextHThree, ["h3"]),
 	{
 		id: "bulletList",
 		title: msg`Bullet List`,
 		description: msg`Create a bullet list`,
 		icon: List,
-		aliases: ["ul", "unordered"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).toggleBulletList().run();
-		},
+		aliases: ["ul", "unordered", "bulleted"],
+		markdown: "-",
+		category: BASIC_BLOCKS_CATEGORY,
+		command: ({ editor, range }) => turnInto(editor, "bulletList", range),
 	},
 	{
 		id: "numberedList",
@@ -1785,9 +2065,9 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		description: msg`Create a numbered list`,
 		icon: ListNumbers,
 		aliases: ["ol", "ordered"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).toggleOrderedList().run();
-		},
+		markdown: "1.",
+		category: BASIC_BLOCKS_CATEGORY,
+		command: ({ editor, range }) => turnInto(editor, "orderedList", range),
 	},
 	{
 		id: "quote",
@@ -1795,36 +2075,36 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		description: msg`Insert a blockquote`,
 		icon: Quotes,
 		aliases: ["blockquote", "cite"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).toggleBlockquote().run();
-		},
+		markdown: ">",
+		category: BASIC_BLOCKS_CATEGORY,
+		command: ({ editor, range }) => turnInto(editor, "blockquote", range),
 	},
 	{
 		id: "codeBlock",
 		title: msg`Code Block`,
 		description: msg`Insert a code block`,
 		icon: CodeBlock,
-		aliases: ["code", "pre", "```"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
-		},
-	},
-	{
-		id: "htmlBlock",
-		title: msg`HTML`,
-		description: msg`Insert raw HTML`,
-		icon: BracketsAngle,
-		aliases: ["html", "raw", "markup"],
-		command: ({ editor, range }) => insertHtmlBlock(editor, range),
+		aliases: ["pre", "snippet", "```"],
+		markdown: "```",
+		category: BASIC_BLOCKS_CATEGORY,
+		command: ({ editor, range }) => turnInto(editor, "codeBlock", range),
 	},
 	{
 		id: "divider",
 		title: msg`Divider`,
 		description: msg`Insert a horizontal rule`,
 		icon: Minus,
-		aliases: ["hr", "---", "separator"],
+		// Typography turns a typed "--" into an em dash, so "/---" arrives as "/—-".
+		aliases: ["hr", "---", "—-", "separator", "line"],
+		markdown: "---",
+		category: BASIC_BLOCKS_CATEGORY,
 		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setHorizontalRule().run();
+			editor
+				.chain()
+				.focus()
+				.deleteRange(range)
+				.command(({ tr }) => insertDivider(tr))
+				.run();
 		},
 	},
 	{
@@ -1833,10 +2113,76 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		description: msg`Insert a table`,
 		icon: TableIcon,
 		aliases: ["grid", "spreadsheet"],
+		category: BASIC_BLOCKS_CATEGORY,
 		opensTablePicker: true,
 		command: () => undefined,
 	},
+	headingCommand(4, msg`Heading 4`, msg`Smaller section heading`, TextHFour, ["h4"]),
+	headingCommand(5, msg`Heading 5`, msg`Minor section heading`, TextHFive, ["h5"]),
+	headingCommand(6, msg`Heading 6`, msg`Smallest section heading`, TextHSix, ["h6"]),
 ];
+
+const htmlSlashCommand: SlashCommandItem = {
+	id: "htmlBlock",
+	title: msg`HTML`,
+	description: msg`Insert raw HTML`,
+	icon: BracketsAngle,
+	aliases: ["html", "raw", "markup"],
+	category: ADVANCED_CATEGORY,
+	command: ({ editor, range }) => insertHtmlBlock(editor, range),
+};
+
+const iframeSlashCommand: SlashCommandItem = {
+	id: "iframe",
+	title: msg`Iframe`,
+	description: msg`Embed a page from another site`,
+	icon: FrameCorners,
+	aliases: ["embed", "youtube", "vimeo", "map"],
+	category: EMBEDS_CATEGORY,
+	command: ({ editor, range }) => insertIframeBlock(editor, range),
+};
+
+/**
+ * Ranks a command against the slash query: exact aliases (`/h1`) first, then
+ * title prefixes, initials (`/bl` → "Bullet List"), word prefixes,
+ * substrings, descriptions, and finally loose in-order character matches.
+ * The loose matches need three characters, so `/di` doesn't list every
+ * "heading". Zero means no match.
+ */
+function scoreSlashCommand(
+	query: string,
+	title: string,
+	description: string,
+	aliases: string[] = [],
+): number {
+	const q = query.toLowerCase().trim();
+	if (!q) return 1;
+	const lowerTitle = title.toLowerCase();
+	const lowerAliases = aliases.map((alias) => alias.toLowerCase());
+	if (lowerAliases.includes(q)) return 100;
+	if (lowerTitle === q) return 95;
+	if (lowerTitle.startsWith(q)) return 90;
+	const words = lowerTitle.split(WHITESPACE_REGEX);
+	if (
+		q.length > 1 &&
+		words
+			.map((word) => word[0])
+			.join("")
+			.startsWith(q)
+	)
+		return 85;
+	if (words.some((word) => word.startsWith(q))) return 80;
+	if (lowerAliases.some((alias) => alias.startsWith(q))) return 70;
+	if (q.length < 3) return 0;
+	if (lowerTitle.includes(q)) return 60;
+	if (description.toLowerCase().includes(q)) return 40;
+	let index = 0;
+	for (const char of lowerTitle) {
+		if (char === q[index]) index++;
+		if (index === q.length) return 20;
+	}
+	return 0;
+}
 
 /**
  * Slash menu state
@@ -1848,9 +2194,41 @@ interface SlashMenuState {
 	selectedIndex: number;
 	clientRect: (() => DOMRect | null) | null;
 	range: Range | null;
-	trigger: "slash" | "gutter";
-	gutterBlockPos: number | null;
 	dismissedSlashFrom: number | null;
+	query: string;
+}
+
+/** The slash the block insert button typed, while its menu is open. */
+interface InsertedSlashLine {
+	slashPos: number;
+	/** The button added the paragraph, rather than typing into an empty one. */
+	addedParagraph: boolean;
+	/** The undo history's depth just after the button typed the line. */
+	undoDepth: number;
+}
+
+/** The nearest element around `element` that scrolls vertically. */
+function scrollContainer(element: HTMLElement): HTMLElement | null {
+	for (let node = element.parentElement; node; node = node.parentElement) {
+		if (SCROLLING_OVERFLOW_REGEX.test(getComputedStyle(node).overflowY)) return node;
+	}
+	return null;
+}
+
+function isEmptyParagraph(node: ProseMirrorNode | null | undefined): boolean {
+	return node?.type.name === "paragraph" && node.content.size === 0;
+}
+
+/** The paragraph the insert button added for this slash, if it holds nothing else. */
+function addedSlashParagraph(
+	doc: ProseMirrorNode,
+	range: Range,
+	line: InsertedSlashLine | null,
+): Range | null {
+	if (!line?.addedParagraph || line.slashPos !== range.from) return null;
+	const $slash = doc.resolve(range.from);
+	if ($slash.parent.content.size !== range.to - range.from) return null;
+	return { from: $slash.before(), to: $slash.after() };
 }
 
 /**
@@ -1860,15 +2238,13 @@ function createSlashCommandsExtension(options: {
 	filterCommands: (query: string) => SlashCommandItem[];
 	onStateChange: React.Dispatch<React.SetStateAction<SlashMenuState>>;
 	getState: () => SlashMenuState;
+	onCommand: (item: SlashCommandItem) => void;
+	/** Escape or Tab closed the menu without running a command. */
+	onDismiss: () => void;
+	/** The menu closed; changes the block insert button's line held back can be reported. */
+	onExit: (editor: Editor) => void;
 }) {
-	const { filterCommands, onStateChange, getState } = options;
-	const execute = (item: SlashCommandItem, editor: Editor, range: Range) => {
-		if (item.opensTablePicker) {
-			onStateChange((state) => ({ ...state, isOpen: true, mode: "table-size", range }));
-			return;
-		}
-		item.command({ editor, range });
-	};
+	const { filterCommands, onStateChange, getState, onCommand, onDismiss, onExit } = options;
 
 	return Extension.create({
 		name: "slashCommands",
@@ -1882,18 +2258,27 @@ function createSlashCommandsExtension(options: {
 		},
 
 		addProseMirrorPlugins() {
+			const { editor } = this;
 			return [
 				Suggestion({
-					editor: this.editor,
+					editor,
 					char: "/",
 					startOfLine: true,
-					command: ({ editor, range, props }) => {
-						const item = props as SlashCommandItem;
-						execute(item, editor, range);
-					},
+					decorationClass: "emdash-slash-query",
+					command: ({ props }) => onCommand(props as SlashCommandItem),
 					items: ({ query }) => filterCommands(query),
-					allow: ({ range }) =>
-						!this.editor.isActive("table") && getState().dismissedSlashFrom !== range.from,
+					// Titles such as "Code Block" can be typed whole; a space after no match ends the query.
+					allowSpaces: true,
+					allow: ({ state, range }) => {
+						if (this.editor.isActive("table") || getState().dismissedSlashFrom === range.from) {
+							return false;
+						}
+						const query = state.doc.textBetween(range.from + 1, range.to);
+						return (
+							!WHITESPACE_START_REGEX.test(query) &&
+							(!WHITESPACE_REGEX.test(query) || filterCommands(query).length > 0)
+						);
+					},
 					render: () => {
 						return {
 							onStart: (props) => {
@@ -1904,9 +2289,8 @@ function createSlashCommandsExtension(options: {
 									selectedIndex: 0,
 									clientRect: props.clientRect ?? null,
 									range: props.range,
-									trigger: "slash",
-									gutterBlockPos: null,
 									dismissedSlashFrom: null,
+									query: props.query,
 								});
 							},
 							onUpdate: (props) => {
@@ -1916,19 +2300,13 @@ function createSlashCommandsExtension(options: {
 									selectedIndex: 0,
 									clientRect: props.clientRect ?? null,
 									range: props.range,
-									trigger: "slash",
-									gutterBlockPos: null,
 									dismissedSlashFrom: null,
+									query: props.query,
 								}));
 							},
 							onKeyDown: (props) => {
 								if (props.event.key === "Escape" || props.event.key === "Tab") {
-									onStateChange((prev) => ({
-										...prev,
-										isOpen: false,
-										dismissedSlashFrom: props.range.from,
-									}));
-									exitSuggestion(props.view);
+									onDismiss();
 									return props.event.key === "Escape";
 								}
 
@@ -1949,24 +2327,17 @@ function createSlashCommandsExtension(options: {
 								}
 
 								if (props.event.key === "Enter") {
-									const state = getState();
-									if (state.items.length > 0 && state.range) {
-										const item = state.items[state.selectedIndex];
-										if (item) {
-											execute(item, this.editor, state.range);
-											if (!item.opensTablePicker) {
-												onStateChange((prev) => ({ ...prev, isOpen: false }));
-											}
-											return true;
-										}
-									}
-									return false;
+									const item = getState().items[getState().selectedIndex];
+									if (!item) return false;
+									onCommand(item);
+									return true;
 								}
 
 								return false;
 							},
 							onExit: () => {
 								onStateChange((prev) => ({ ...prev, isOpen: false }));
+								onExit(editor);
 							},
 						};
 					},
@@ -1976,9 +2347,19 @@ function createSlashCommandsExtension(options: {
 	});
 }
 
+/** The block insert buttons open the slash menu on a new line, so pressing one doesn't close it first. */
+function isBlockInsertButton(target: EventTarget | null): boolean {
+	return (
+		target instanceof Element &&
+		target.closest("[data-block-insert], [data-touch-block-insert]") !== null
+	);
+}
+
 /** Slash command menu anchored to the TipTap caret. */
 function SlashCommandMenu({
 	state,
+	contextElement,
+	getToolbarBottom,
 	onCommand,
 	onClose,
 	onTableInsert,
@@ -1986,6 +2367,10 @@ function SlashCommandMenu({
 	setSelectedIndex,
 }: {
 	state: SlashMenuState;
+	/** The editor element, so the menu follows its line when a container scrolls. */
+	contextElement: HTMLElement | undefined;
+	/** Where the sticky toolbar ends, which the menu stays below. */
+	getToolbarBottom: () => number;
 	onCommand: (item: SlashCommandItem) => void;
 	onClose: () => void;
 	onTableInsert: (rows: number, columns: number, withHeaderRow: boolean) => void;
@@ -1997,10 +2382,18 @@ function SlashCommandMenu({
 	const popupRef = React.useRef<HTMLDivElement>(null);
 	const virtualAnchor = React.useMemo(
 		() => ({
-			getBoundingClientRect: () => state.clientRect?.() ?? new DOMRect(),
+			getBoundingClientRect: () => {
+				const rect = state.clientRect?.();
+				// Base UI hides the menu for an empty rect, as when its line scrolls under the toolbar.
+				return rect && rect.bottom > getToolbarBottom() ? rect : new DOMRect();
+			},
+			contextElement,
 		}),
-		[state.clientRect],
+		[contextElement, getToolbarBottom, state.clientRect],
 	);
+	const toolbarBottom = getToolbarBottom();
+	const text = (value: MessageDescriptor | string) =>
+		typeof value === "string" ? value : t(value);
 
 	// Scroll selected item into view
 	React.useEffect(() => {
@@ -2009,9 +2402,12 @@ function SlashCommandMenu({
 		if (!container) return;
 
 		const selected = container.querySelector<HTMLElement>(`[data-index="${state.selectedIndex}"]`);
-		if (selected) {
-			selected.scrollIntoView({ block: "nearest" });
+		if (!selected) return;
+		if (state.selectedIndex === 0) {
+			container.scrollTop = 0;
+			return;
 		}
+		selected.scrollIntoView({ block: "nearest" });
 	}, [state.selectedIndex, state.isOpen]);
 
 	// Track whether the mouse has actually moved since the menu opened.
@@ -2036,6 +2432,7 @@ function SlashCommandMenu({
 		const handlePointerDown = (event: PointerEvent) => {
 			const target = event.target as Node | null;
 			if (target && popupRef.current?.contains(target)) return;
+			if (isBlockInsertButton(target)) return;
 			onClose();
 		};
 
@@ -2044,18 +2441,29 @@ function SlashCommandMenu({
 	}, [onClose, state.isOpen]);
 
 	const selectedItem = state.items[state.selectedIndex];
-	const selectedItemTitle = selectedItem
-		? typeof selectedItem.title === "string"
-			? selectedItem.title
-			: t(selectedItem.title)
-		: "";
+	const selectedItemTitle = selectedItem ? text(selectedItem.title) : "";
+	const groups = React.useMemo(() => {
+		const byCategory: {
+			key: string;
+			label: string;
+			entries: { item: SlashCommandItem; index: number }[];
+		}[] = [];
+		state.items.forEach((item, index) => {
+			const label = item.category ? text(item.category) : t(BASIC_BLOCKS_CATEGORY);
+			const key = state.query ? "results" : label;
+			const group = byCategory.find((candidate) => candidate.key === key);
+			if (group) group.entries.push({ item, index });
+			else byCategory.push({ key, label, entries: [{ item, index }] });
+		});
+		return byCategory;
+	}, [state.items, state.query, t]);
 
 	return (
 		<PopoverPrimitive.Root
 			open={state.isOpen}
 			modal={false}
-			onOpenChange={(open) => {
-				if (!open && state.isOpen) onClose();
+			onOpenChange={(open, details) => {
+				if (!open && state.isOpen && !isBlockInsertButton(details.event?.target ?? null)) onClose();
 			}}
 		>
 			<PopoverPrimitive.Portal>
@@ -2064,11 +2472,17 @@ function SlashCommandMenu({
 					anchor={virtualAnchor}
 					side="bottom"
 					align="start"
-					sideOffset={8}
+					sideOffset={6}
 					positionMethod="fixed"
+					collisionBoundary={{
+						x: 0,
+						y: toolbarBottom,
+						width: window.innerWidth,
+						height: Math.max(0, window.innerHeight - toolbarBottom),
+					}}
 					collisionPadding={8}
 					collisionAvoidance={{ side: "flip", align: "shift", fallbackAxisSide: "none" }}
-					className="slash-command-menu-positioner z-[100]"
+					className="slash-command-menu-positioner z-[100] data-anchor-hidden:invisible"
 				>
 					<PopoverPrimitive.Popup
 						ref={popupRef}
@@ -2077,15 +2491,28 @@ function SlashCommandMenu({
 						aria-label={t`Insert block`}
 						data-slash-command-menu
 						className={cn(
-							"min-w-[220px] overflow-hidden rounded-lg bg-kumo-base text-sm text-kumo-default",
-							"shadow-lg shadow-kumo-tip-shadow outline outline-kumo-fill",
-							"origin-(--transform-origin) transition-[transform,scale,opacity] duration-150 ease-out",
-							"data-starting-style:scale-90 data-starting-style:opacity-0",
-							"data-ending-style:scale-90 data-ending-style:opacity-0 data-instant:duration-0",
+							"flex max-h-[min(21rem,var(--available-height))] flex-col overflow-hidden",
+							state.mode === "table-size" ? "w-auto" : "w-80 max-w-[calc(100vw-1rem)]",
+							editorSurfaceClassName,
+							"text-base text-kumo-default",
+							"origin-(--transform-origin) transition-[transform,scale,opacity] duration-100 ease-out",
+							"data-starting-style:scale-[0.97] data-starting-style:opacity-0",
+							"data-ending-style:opacity-0 data-ending-style:duration-75 data-instant:duration-0",
 							"motion-reduce:transition-none",
 						)}
 						onPointerMove={() => {
 							hasMouseMovedRef.current = true;
+						}}
+						onKeyDown={(event) => {
+							// Tab past the table picker's controls goes back to the editor, as in the other menus.
+							if (state.mode !== "table-size" || event.key !== "Tab") return;
+							const controls = [
+								...event.currentTarget.querySelectorAll<HTMLElement>("button, input, [tabindex]"),
+							].filter((control) => control.tabIndex >= 0 && !control.matches(":disabled"));
+							if (document.activeElement !== (event.shiftKey ? controls[0] : controls.at(-1)))
+								return;
+							event.preventDefault();
+							onTableCancel();
 						}}
 					>
 						{state.mode === "table-size" ? (
@@ -2100,49 +2527,73 @@ function SlashCommandMenu({
 								<div
 									ref={containerRef}
 									data-slash-menu-scroll-viewport
-									className="max-h-[300px] overflow-y-auto overscroll-contain scroll-py-1 p-1"
+									className="min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-py-1 p-1"
 								>
 									{state.items.length === 0 ? (
-										<p className="px-3 py-2 text-sm text-kumo-subtle">{t`No results`}</p>
+										<p className="px-2 py-1.5 text-kumo-subtle">{t`No results`}</p>
 									) : (
-										state.items.map((item, index) => (
-											<button
-												key={item.id}
-												type="button"
-												tabIndex={-1}
-												data-index={index}
-												aria-current={index === state.selectedIndex ? "true" : undefined}
-												className={cn(
-													"flex w-full items-center gap-3 rounded px-3 py-2 text-start text-sm",
-													index === state.selectedIndex
-														? "bg-kumo-interact text-kumo-default"
-														: "hover:bg-kumo-interact",
-												)}
-												onPointerDown={(event) => event.preventDefault()}
-												onClick={() => onCommand(item)}
-												onMouseEnter={() => {
-													// Only react if the user has actually moved the
-													// mouse since the menu opened -- not when items
-													// appear under a stationary pointer.
-													if (hasMouseMovedRef.current) {
-														setSelectedIndex(index);
-													}
-												}}
+										groups.map((group) => (
+											<div
+												key={group.key}
+												role="group"
+												aria-label={state.query ? undefined : group.label}
 											>
-												<item.icon className="h-4 w-4 flex-shrink-0 text-kumo-subtle" />
-												<div className="flex flex-col">
-													<span className="font-medium">
-														{typeof item.title === "string" ? item.title : t(item.title)}
-													</span>
-													<span className="text-xs text-kumo-subtle">
-														{typeof item.description === "string"
-															? item.description
-															: t(item.description)}
-													</span>
-												</div>
-											</button>
+												{!state.query && (
+													<div
+														aria-hidden="true"
+														className="px-2 pt-2 pb-1 text-xs font-medium text-kumo-subtle select-none"
+													>
+														{group.label}
+													</div>
+												)}
+												{group.entries.map(({ item, index }) => (
+													<button
+														key={item.id}
+														type="button"
+														tabIndex={-1}
+														data-index={index}
+														aria-current={index === state.selectedIndex ? "true" : undefined}
+														className={cn(
+															"flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-start",
+															"pointer-coarse:h-11",
+															index === state.selectedIndex && "bg-kumo-tint",
+														)}
+														onPointerDown={(event) => event.preventDefault()}
+														onClick={() => onCommand(item)}
+														onMouseEnter={() => {
+															// Only react if the user has actually moved the
+															// mouse since the menu opened -- not when items
+															// appear under a stationary pointer.
+															if (hasMouseMovedRef.current) {
+																setSelectedIndex(index);
+															}
+														}}
+													>
+														<item.icon className="size-[1.125rem] flex-none text-kumo-subtle" />
+														<span data-slash-item-title className="min-w-0 flex-1 truncate">
+															{text(item.title)}
+														</span>
+														{item.markdown && (
+															<span
+																aria-hidden="true"
+																className="flex-none ps-3 font-mono text-xs text-kumo-subtle"
+															>
+																<bdi dir="ltr">{item.markdown}</bdi>
+															</span>
+														)}
+													</button>
+												))}
+											</div>
 										))
 									)}
+								</div>
+								<div className="flex items-center gap-3 border-t border-kumo-hairline px-3 py-2 text-xs text-kumo-subtle">
+									<span className="min-w-0 flex-1 truncate" aria-hidden="true">
+										{selectedItem ? text(selectedItem.description) : t`Type to filter`}
+									</span>
+									<span aria-hidden="true" className="flex-none pointer-coarse:hidden">
+										<bdi dir="ltr">{t`esc`}</bdi>
+									</span>
 								</div>
 							</>
 						)}
@@ -2180,6 +2631,59 @@ function hasPluginBlockFormData(values: Record<string, unknown>): boolean {
 	);
 }
 
+interface PluginBlockProblems {
+	url?: MessageDescriptor;
+	/** Top-level fields by `action_id`. */
+	fields: Record<string, MessageDescriptor>;
+	form?: MessageDescriptor;
+}
+
+const ABSOLUTE_URI_PATTERN = /^([a-z][a-z0-9+.-]*):\S+$/i;
+const UNSAFE_URI_SCHEMES = new Set(["javascript", "data", "vbscript"]);
+
+/**
+ * Any absolute URI a block can embed. URL parsing alone would refuse some,
+ * such as Bluesky's `at://did:plc:…` post URIs.
+ */
+function isEmbeddableUrl(url: string): boolean {
+	const scheme = ABSOLUTE_URI_PATTERN.exec(url)?.[1]?.toLowerCase();
+	if (!scheme || UNSAFE_URI_SCHEMES.has(scheme)) return false;
+	return scheme === "http" || scheme === "https" ? URL.canParse(url) : true;
+}
+
+function numberRangeProblem(field: Element, value: unknown): MessageDescriptor | undefined {
+	if (field.type !== "number_input" || typeof value !== "number") return undefined;
+	const min = typeof field.min === "number" ? field.min : undefined;
+	const max = typeof field.max === "number" ? field.max : undefined;
+	if ((min === undefined || value >= min) && (max === undefined || value <= max)) return undefined;
+	if (min !== undefined && max !== undefined) return msg`Enter a number between ${min} and ${max}.`;
+	if (min !== undefined) return msg`Enter a number of ${min} or more.`;
+	if (max !== undefined) return msg`Enter a number of ${max} or less.`;
+	return undefined;
+}
+
+function pluginBlockProblems(
+	block: PluginBlockDef | null,
+	values: Record<string, unknown>,
+): PluginBlockProblems {
+	const fields = block?.fields ?? [];
+	if (fields.length === 0) {
+		const url = typeof values.id === "string" ? values.id.trim() : "";
+		return isEmbeddableUrl(url)
+			? { fields: {} }
+			: { fields: {}, url: msg`Enter a full URL, such as https://example.com.` };
+	}
+	if (!hasPluginBlockFormData(values)) {
+		return { fields: {}, form: msg`Fill in at least one field.` };
+	}
+	const fieldProblems: Record<string, MessageDescriptor> = {};
+	for (const field of fields) {
+		const problem = numberRangeProblem(field, values[field.action_id]);
+		if (problem) fieldProblems[field.action_id] = problem;
+	}
+	return { fields: fieldProblems };
+}
+
 /**
  * Plugin block insertion/editing modal.
  * When the block has `fields`, renders Block Kit elements.
@@ -2198,103 +2702,126 @@ function PluginBlockModal({
 	onInsert: (values: Record<string, unknown>) => void;
 }) {
 	const [formValues, setFormValues] = React.useState<Record<string, unknown>>({});
+	const [touched, setTouched] = React.useState(false);
+	const [submitted, setSubmitted] = React.useState(false);
 	const inputRef = React.useRef<HTMLInputElement>(null);
+	const formId = React.useId();
 	const { t } = useLingui();
 
 	React.useEffect(() => {
 		if (block) {
 			setFormValues(buildPluginBlockFormValues(block, initialValues));
+			setTouched(false);
+			setSubmitted(false);
 			if (!block.fields || block.fields.length === 0) {
 				setTimeout(() => inputRef.current?.focus(), 0);
 			}
 		}
 	}, [block, initialValues]);
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const problems = pluginBlockProblems(block, formValues);
+	const urlError = submitted && problems.url ? t(problems.url) : undefined;
+	const formError = submitted && problems.form ? t(problems.form) : null;
+	const fieldErrors = submitted ? problems.fields : {};
+
+	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		e.stopPropagation();
+		const form = e.currentTarget;
+		if (problems.url || problems.form || Object.keys(problems.fields).length > 0) {
+			revealErrors(form, () => setSubmitted(true));
+			return;
+		}
+		// The form is noValidate, so the browser's own checks on fields inside repeater items run here.
+		if (!form.reportValidity()) return;
 		if (block?.fields && block.fields.length > 0) {
 			onInsert(formValues);
 		} else {
 			const url = typeof formValues.id === "string" ? formValues.id.trim() : "";
-			if (url) {
-				onInsert({ id: url });
-			}
+			onInsert({ id: url });
 		}
 	};
 
 	const handleFieldChange = (actionId: string, value: unknown) => {
+		setTouched(true);
 		setFormValues((prev) => ({ ...prev, [actionId]: value }));
 	};
 
 	const isEditing = !!initialValues;
 	const hasFields = block?.fields && block.fields.length > 0;
 
-	// For simple URL mode, check if the URL is non-empty
-	// For Block Kit fields, require at least one field to have a value
-	const canSubmit = hasFields
-		? hasPluginBlockFormData(formValues)
-		: typeof formValues.id === "string" && formValues.id.trim().length > 0;
-
 	const dialogSize = hasFields ? "xl" : "sm";
 
 	return (
-		<Dialog.Root open={!!block} onOpenChange={(open: boolean) => !open && onClose()}>
-			<Dialog className="p-6" size={dialogSize}>
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{isEditing ? t`Edit ${block?.label || ""}` : t`Insert ${block?.label || ""}`}
-					</Dialog.Title>
-					<Dialog.Close
-						aria-label={t`Close`}
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								aria-label={t`Close`}
-								className="absolute end-4 top-4"
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">{t`Close`}</span>
-							</Button>
-						)}
-					/>
-				</div>
-				<form onSubmit={handleSubmit}>
-					<div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto -mx-1 px-1">
-						{hasFields ? (
-							block.fields!.map((field) => (
-								<BlockKitField
-									key={field.action_id}
-									field={field}
-									pluginId={block.pluginId}
-									value={formValues[field.action_id]}
-									onChange={handleFieldChange}
+		<LayerDialog.Root
+			open={!!block}
+			{...guardUnsavedInput(touched, (open: boolean) => !open && onClose())}
+		>
+			<LayerDialog.Content size={dialogSize}>
+				<LayerDialog.Title>
+					{isEditing ? t`Edit ${block?.label || ""}` : t`Insert ${block?.label || ""}`}
+				</LayerDialog.Title>
+				<LayerDialog.Description>
+					{hasFields ? t`Fill in what this block shows.` : t`Paste the address of what to embed.`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<form id={formId} noValidate onSubmit={handleSubmit}>
+						<div className="grid gap-5" data-field-invalid={formError ? true : undefined}>
+							{hasFields ? (
+								block.fields!.map((field) => {
+									const fieldError = fieldErrors[field.action_id];
+									const errorId = fieldError ? `${formId}-${field.action_id}-error` : undefined;
+									return (
+										<div key={field.action_id} data-field-invalid={fieldError ? true : undefined}>
+											<BlockKitField
+												field={field}
+												pluginId={block.pluginId}
+												value={formValues[field.action_id]}
+												onChange={handleFieldChange}
+												errorId={errorId}
+											/>
+											{fieldError && (
+												<Text
+													as="p"
+													id={errorId}
+													role="alert"
+													variant="error"
+													size="sm"
+													DANGEROUS_className="mt-2"
+												>
+													{t(fieldError)}
+												</Text>
+											)}
+										</div>
+									);
+								})
+							) : (
+								<Input
+									dir="ltr"
+									ref={inputRef}
+									type="text"
+									inputMode="url"
+									className="w-full"
+									label={t`URL`}
+									placeholder={block?.placeholder || t`Enter URL...`}
+									value={typeof formValues.id === "string" ? formValues.id : ""}
+									onChange={(e) => handleFieldChange("id", e.target.value)}
+									required
+									error={urlError}
+									aria-invalid={urlError ? true : undefined}
 								/>
-							))
-						) : (
-							<Input
-								ref={inputRef}
-								type="url"
-								className="w-full"
-								placeholder={block?.placeholder || "Enter URL..."}
-								value={typeof formValues.id === "string" ? formValues.id : ""}
-								onChange={(e) => handleFieldChange("id", e.target.value)}
-							/>
-						)}
-					</div>
-					<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-						<Button type="button" variant="ghost" onClick={onClose}>
-							Cancel
-						</Button>
-						<Button type="submit" disabled={!canSubmit}>
-							{isEditing ? "Save" : "Insert"}
-						</Button>
-					</div>
-				</form>
-			</Dialog>
-		</Dialog.Root>
+							)}
+						</div>
+						<DialogError message={formError} className="mt-4" />
+					</form>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action type="submit" form={formId}>
+						{isEditing ? t`Save` : t`Insert`}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
@@ -2307,12 +2834,16 @@ function BlockKitField({
 	pluginId,
 	value,
 	onChange,
+	errorId,
 }: {
 	field: Element;
 	pluginId?: string;
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
+	/** The element describing this field's error, when it has one. */
+	errorId?: string;
 }) {
+	const id = React.useId();
 	switch (field.type) {
 		case "text_input": {
 			const multiline = !!field.multiline;
@@ -2320,9 +2851,13 @@ function BlockKitField({
 			const Tag = multiline ? "textarea" : "input";
 			return (
 				<div>
-					<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
+					<label id={`${id}-label`} htmlFor={id} className="text-sm font-medium mb-1.5 block">
+						{field.label}
+					</label>
 					{multiline ? (
 						<Tag
+							id={id}
+							aria-labelledby={`${id}-label`}
 							className="flex w-full rounded-md border border-kumo-line bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-kumo-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kumo-ring focus-visible:ring-offset-2 min-h-[80px]"
 							placeholder={placeholder}
 							value={typeof value === "string" ? value : ""}
@@ -2330,6 +2865,8 @@ function BlockKitField({
 						/>
 					) : (
 						<Input
+							id={id}
+							aria-labelledby={`${id}-label`}
 							type="text"
 							className="w-full"
 							placeholder={placeholder}
@@ -2345,8 +2882,14 @@ function BlockKitField({
 			const max = typeof field.max === "number" ? field.max : undefined;
 			return (
 				<div>
-					<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
+					<label id={`${id}-label`} htmlFor={id} className="text-sm font-medium mb-1.5 block">
+						{field.label}
+					</label>
 					<Input
+						id={id}
+						aria-labelledby={`${id}-label`}
+						aria-invalid={errorId ? true : undefined}
+						aria-describedby={errorId}
 						type="number"
 						className="w-full"
 						min={min}
@@ -2365,6 +2908,7 @@ function BlockKitField({
 		case "toggle": {
 			return (
 				<Switch
+					aria-label={field.label}
 					checked={!!value}
 					onCheckedChange={(checked) => onChange(field.action_id, checked)}
 					label={<span className="text-sm font-medium">{field.label}</span>}
@@ -2429,6 +2973,7 @@ function BlockKitRepeater({
 	onChange: (actionId: string, value: unknown) => void;
 }) {
 	const { t } = useLingui();
+	const labelId = React.useId();
 	const rawItems = React.useMemo<unknown[]>(() => (Array.isArray(value) ? value : []), [value]);
 
 	const [items, setItems] = React.useState<RepeaterItem[]>(() => ensureKeys(rawItems));
@@ -2539,14 +3084,14 @@ function BlockKitRepeater({
 	};
 
 	return (
-		<div className="space-y-2">
+		<div role="group" aria-labelledby={labelId} className="space-y-2">
 			<div className="flex items-center justify-between">
-				<label className="text-sm font-medium">
+				<span id={labelId} className="text-sm font-medium">
 					{field.label}
 					{items.length > 0 && (
 						<span className="ms-2 text-kumo-subtle font-normal">({items.length})</span>
 					)}
-				</label>
+				</span>
 				{canAdd && (
 					<Button variant="outline" size="sm" icon={<Plus />} onClick={handleAdd} type="button">
 						{addButtonLabel}
@@ -2711,6 +3256,7 @@ function DynamicSelect({
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
 }) {
+	const labelId = React.useId();
 	const [dynamicOptions, setDynamicOptions] = React.useState<Array<{
 		label: string;
 		value: string;
@@ -2758,12 +3304,15 @@ function DynamicSelect({
 
 	return (
 		<div>
-			<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
+			<span id={labelId} className="text-sm font-medium mb-1.5 block">
+				{field.label}
+			</span>
 			{loading ? (
 				<div className="flex h-10 items-center px-3 text-sm text-kumo-subtle">{t`Loading...`}</div>
 			) : (
 				<Select
-					aria-label={field.label}
+					aria-labelledby={labelId}
+					className="w-full"
 					value={typeof value === "string" ? value : ""}
 					onValueChange={(v) => onChange(field.action_id, v ?? "")}
 					items={{
@@ -2799,6 +3348,9 @@ export {
 const WORDS_PER_MINUTE = 200;
 const CJK_CHARACTERS_PER_MINUTE = 500;
 const WHITESPACE_REGEX = /\s+/;
+const WHITESPACE_START_REGEX = /^\s/;
+const NON_WHITESPACE_REGEX = /\S/;
+const SCROLLING_OVERFLOW_REGEX = /auto|scroll|overlay/;
 const URL_SCHEME_REGEX = /^[a-z][a-z0-9+.-]*:/i;
 const WWW_PREFIX_REGEX = /^www\./i;
 
@@ -2840,7 +3392,13 @@ export function calculateReadingTime(text: string): number {
 /**
  * Editor footer showing writing metrics (word count, character count, reading time)
  */
-function EditorFooter({ editor }: { editor: Editor }) {
+function EditorFooter({
+	editor,
+	variant = "boxed",
+}: {
+	editor: Editor;
+	variant?: PortableTextEditorProps["variant"];
+}) {
 	const { words, characters, text } = useEditorState({
 		editor,
 		selector: (ctx) => {
@@ -2858,11 +3416,68 @@ function EditorFooter({ editor }: { editor: Editor }) {
 	useLinguiContext();
 	const readingTime = calculateReadingTime(text);
 
+	if (variant === "document") {
+		if (characters === 0) return null;
+		return (
+			<div className="flex items-center gap-3">
+				<span aria-hidden="true" className="h-px min-w-6 flex-1 bg-kumo-hairline" />
+				<div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-kumo-subtle tabular-nums">
+					<span>{plural(words, { one: "# word", other: "# words" })}</span>
+					<span aria-hidden="true">·</span>
+					<span>{plural(characters, { one: "# character", other: "# characters" })}</span>
+					<span aria-hidden="true">·</span>
+					<span>{plural(readingTime, { one: "# min read", other: "# min read" })}</span>
+				</div>
+				<span aria-hidden="true" className="h-px min-w-6 flex-1 bg-kumo-hairline" />
+			</div>
+		);
+	}
+
 	return (
 		<div className="border-t px-4 py-2 flex items-center gap-4 text-xs text-kumo-subtle">
 			<span>{plural(words, { one: "# word", other: "# words" })}</span>
 			<span>{plural(characters, { one: "# character", other: "# characters" })}</span>
 			<span>{plural(readingTime, { one: "# min read", other: "# min read" })}</span>
+		</div>
+	);
+}
+
+/**
+ * The space below the last block, holding the word count. Clicking anywhere
+ * in it continues writing at the end, like the end of a page.
+ */
+function DocumentEnd({
+	editor,
+	editable,
+	children,
+}: {
+	editor: Editor;
+	editable: boolean;
+	children?: React.ReactNode;
+}) {
+	if (!editable) return <div className="pt-8 pb-6">{children}</div>;
+	return (
+		<div
+			className="cursor-text pt-8 pb-6"
+			onMouseDown={(event) => {
+				if (event.button !== 0) return;
+				event.preventDefault();
+				// The trailing-node extension keeps a paragraph after any other last block.
+				if (!event.shiftKey) {
+					editor.commands.focus("end");
+					return;
+				}
+				const { doc, selection } = editor.state;
+				// A selected block, such as an image, stays in the selection.
+				const anchor =
+					selection instanceof NodeSelection
+						? (Selection.findFrom(selection.$from, -1, true)?.from ?? selection.from)
+						: selection.anchor;
+				const extended = TextSelection.between(doc.resolve(anchor), Selection.atEnd(doc).$to);
+				editor.chain().focus().setTextSelection({ from: extended.anchor, to: extended.head }).run();
+			}}
+		>
+			{children}
 		</div>
 	);
 }
@@ -2907,6 +3522,18 @@ export interface PortableTextEditorProps {
 	onBlockSidebarOpen?: (panel: BlockSidebarPanel) => void;
 	/** Callback when a block node closes its sidebar */
 	onBlockSidebarClose?: () => void;
+	/**
+	 * `boxed` (default) frames the editor with a border and an attached
+	 * toolbar. `document` lays it out like a page: no frame, a floating toolbar
+	 * that sticks while you scroll, and block handles in a gutter the host
+	 * reserves with `--emdash-editor-gutter` inline padding.
+	 */
+	variant?: "boxed" | "document";
+	/**
+	 * Called when ArrowUp moves past the first line of the document, so the
+	 * host can move focus to the field above, such as the page title.
+	 */
+	onArrowUpAtStart?: () => void;
 }
 
 // For external providers, src is only used for admin preview; the frontend Image
@@ -2924,6 +3551,8 @@ function mediaItemToImageAttrs(item: MediaItem) {
 	};
 }
 
+const EMPTY_PLUGIN_BLOCKS: PluginBlockDef[] = [];
+
 /**
  * Portable Text Editor Component
  */
@@ -2934,17 +3563,43 @@ export function PortableTextEditor({
 	className,
 	editable = true,
 	"aria-labelledby": ariaLabelledby,
-	pluginBlocks = [],
+	pluginBlocks = EMPTY_PLUGIN_BLOCKS,
 	focusMode: controlledFocusMode,
 	onEditorReady,
 	minimal = false,
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
+	variant = "boxed",
+	onArrowUpAtStart,
 }: PortableTextEditorProps) {
 	const { t } = useLingui();
-	const placeholderRef = React.useRef(placeholder ?? t`Start writing, or type '/' for commands`);
-	placeholderRef.current = placeholder ?? t`Start writing, or type '/' for commands`;
+	const onArrowUpAtStartRef = React.useRef(onArrowUpAtStart);
+	onArrowUpAtStartRef.current = onArrowUpAtStart;
+	const isDocument = variant === "document";
+	const documentPlaceholder = placeholder ?? t`Start writing, or type '/' for commands`;
+	const placeholderRef = React.useRef<Parameters<typeof createTextBlockPlaceholder>[0]>(
+		() => documentPlaceholder,
+	);
+	// An empty heading always names its level; other blocks hint only where the caret is.
+	placeholderRef.current = ({ node, parent, hasAnchor }) => {
+		if (node.type.name === "heading") {
+			const headingType = textBlockTypes.find((type) => type.id === `heading${node.attrs.level}`);
+			return headingType ? t(headingType.label) : documentPlaceholder;
+		}
+		if (node.type.name !== "paragraph" || !hasAnchor) return "";
+		if (parent?.type.name === "listItem") return t`List`;
+		if (parent?.type.name === "blockquote") return t`Quote`;
+		return documentPlaceholder;
+	};
 	const toolbarRef = React.useRef<HTMLDivElement>(null);
+	// Where the sticky toolbar's cover ends: its card, and the fade under it while it's stuck.
+	const getToolbarBottom = React.useCallback(() => {
+		const toolbar = toolbarRef.current;
+		if (!toolbar) return 0;
+		const { bottom } = toolbar.getBoundingClientRect();
+		if (!toolbar.hasAttribute("data-stuck")) return bottom;
+		return bottom + (Number.parseFloat(getComputedStyle(toolbar, "::after").height) || 0);
+	}, []);
 	const floatingRootRef = React.useRef<HTMLDivElement>(null);
 	const appendBubbleMenu = React.useCallback(() => floatingRootRef.current!, []);
 	const getBubbleMenuCollisionOptions = React.useCallback(() => {
@@ -2953,7 +3608,7 @@ export function PortableTextEditor({
 		const viewportLeft = viewport?.offsetLeft ?? 0;
 		const viewportWidth = viewport?.width ?? window.innerWidth;
 		const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
-		const toolbarBottom = toolbarRef.current?.getBoundingClientRect().bottom ?? viewportTop;
+		const toolbarBottom = getToolbarBottom() || viewportTop;
 		const safeTop = Math.min(viewportBottom, Math.max(viewportTop, toolbarBottom));
 
 		return {
@@ -2970,6 +3625,8 @@ export function PortableTextEditor({
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
 	const lastPortableTextValueRef = React.useRef(value || []);
+	// The document last handed to onChange, starting from the loaded one.
+	const lastReportedDocRef = React.useRef<ProseMirrorNode | null>(null);
 	React.useEffect(() => {
 		onChangeRef.current = onChange;
 	}, [onChange]);
@@ -2978,6 +3635,8 @@ export function PortableTextEditor({
 
 	// Media picker state (for image insertion)
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
+
+	const [videoPickerOpen, setVideoPickerOpen] = React.useState(false);
 
 	// Multi-select media picker state (for gallery insertion)
 	const [galleryPickerOpen, setGalleryPickerOpen] = React.useState(false);
@@ -3013,6 +3672,7 @@ export function PortableTextEditor({
 	const uploadImageRef = React.useRef(async (file: File, signal: AbortSignal) => {
 		const item = await uploadMedia(file, { signal });
 		void queryClient.invalidateQueries({ queryKey: ["media"] });
+		if (file.type.startsWith("video/")) return mediaItemToVideoAttrs(item);
 		return mediaItemToImageAttrs({ ...item, url: item.url || localMediaFileUrl(item.storageKey) });
 	});
 
@@ -3040,9 +3700,13 @@ export function PortableTextEditor({
 		selectedIndex: 0,
 		clientRect: null,
 		range: null,
-		trigger: "slash",
-		gutterBlockPos: null,
 		dismissedSlashFrom: null,
+		query: "",
+	});
+	const insertedLineRef = React.useRef<InsertedSlashLine | null>(null);
+	const slashMenuActionsRef = React.useRef({
+		run: (_item: SlashCommandItem) => {},
+		dismiss: () => {},
 	});
 
 	// Ref to access current state synchronously in keyboard handlers.
@@ -3075,54 +3739,92 @@ export function PortableTextEditor({
 		[],
 	);
 
+	const pluginBlockTypes = React.useMemo(
+		() => new Set(pluginBlocks.map((block) => block.type)),
+		[pluginBlocks],
+	);
+	const pluginBlockTypesRef = React.useRef(pluginBlockTypes);
+	pluginBlockTypesRef.current = pluginBlockTypes;
+
 	// Build slash commands
 	const slashCommands = React.useMemo(() => {
+		// From the block insert button, insert at its position in the same undo step.
+		const topLevelInsert = (
+			item: SlashCommandItem,
+			insert: typeof insertHtmlBlock,
+		): SlashCommandItem => ({
+			...item,
+			deferInsertion: true,
+			command: ({ editor, range }) => {
+				const position = pendingBlockInsertPosRef.current;
+				pendingBlockInsertPosRef.current = null;
+				if (position === null) insert(editor, range);
+				else insert(editor, undefined, position);
+			},
+		});
+
 		const cmds: SlashCommandItem[] = [...defaultSlashCommands];
-
-		// Add image command
-		cmds.push({
-			id: "image",
-			title: msg`Image`,
-			description: msg`Insert an image`,
-			icon: ImageIcon,
-			aliases: ["img", "photo", "picture", "url"],
-			category: msg`Media`,
-			deferInsertion: true,
-			command: ({ editor, range }) => {
-				editor.chain().focus().deleteRange(range).run();
-				setMediaPickerOpen(true);
+		cmds.push(
+			{
+				id: "image",
+				title: msg`Image`,
+				description: msg`Insert an image`,
+				icon: ImageIcon,
+				aliases: ["img", "photo", "picture", "url"],
+				category: MEDIA_CATEGORY,
+				deferInsertion: true,
+				command: ({ editor, range }) => {
+					editor.chain().focus().deleteRange(range).run();
+					setMediaPickerOpen(true);
+				},
 			},
-		});
-
-		// Add gallery command
-		cmds.push({
-			id: "gallery",
-			title: msg`Gallery`,
-			description: msg`Insert an image gallery`,
-			icon: Images,
-			aliases: ["gal", "photos", "grid"],
-			category: msg`Media`,
-			deferInsertion: true,
-			command: ({ editor, range }) => {
-				editor.chain().focus().deleteRange(range).run();
-				setGalleryPickerOpen(true);
+			{
+				id: "gallery",
+				title: msg`Gallery`,
+				description: msg`Insert an image gallery`,
+				icon: Images,
+				aliases: ["gal", "photos", "grid"],
+				category: MEDIA_CATEGORY,
+				deferInsertion: true,
+				command: ({ editor, range }) => {
+					editor.chain().focus().deleteRange(range).run();
+					setGalleryPickerOpen(true);
+				},
 			},
-		});
-
-		// Add section command
-		cmds.push({
+		);
+		// A plugin's own video block replaces the built-in one.
+		if (!pluginBlockTypes.has("video")) {
+			cmds.push({
+				id: "video",
+				title: msg`Video`,
+				description: msg`Upload or choose a video`,
+				icon: VideoCamera,
+				aliases: ["movie", "clip", "mp4", "film"],
+				category: MEDIA_CATEGORY,
+				deferInsertion: true,
+				command: ({ editor, range }) => {
+					editor.chain().focus().deleteRange(range).run();
+					setVideoPickerOpen(true);
+				},
+			});
+		}
+		cmds.push(topLevelInsert(htmlSlashCommand, insertHtmlBlock), {
 			id: "section",
 			title: msg`Section`,
 			description: msg`Insert a reusable section`,
 			icon: Stack,
 			aliases: ["pattern", "block", "template"],
-			category: msg`Content`,
+			category: ADVANCED_CATEGORY,
 			deferInsertion: true,
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setSectionPickerOpen(true);
 			},
 		});
+		// A plugin's own iframe block replaces the built-in one.
+		if (!pluginBlockTypes.has("iframe")) {
+			cmds.push(topLevelInsert(iframeSlashCommand, insertIframeBlock));
+		}
 
 		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped).
 		// Plugins can supply a custom `category` (plain string) — falls back to "Embeds".
@@ -3133,7 +3835,7 @@ export function PortableTextEditor({
 				description: block.description ?? t(msg`Embed a ${block.label}`),
 				icon: resolveIcon(block.icon),
 				aliases: [block.type],
-				category: block.category ?? msg`Embeds`,
+				category: block.category ?? EMBEDS_CATEGORY,
 				deferInsertion: true,
 				command: ({ editor, range }) => {
 					editor.chain().focus().deleteRange(range).run();
@@ -3143,30 +3845,37 @@ export function PortableTextEditor({
 		}
 
 		return cmds;
-	}, [pluginBlocks, t]);
+	}, [pluginBlockTypes, pluginBlocks, t]);
 
 	// Filter commands by query — accessed via ref so the Suggestion plugin
 	// (created once) always sees the latest command list without needing
 	// the extension to be recreated.
 	const filterCommandsRef = React.useRef((_q: string): SlashCommandItem[] => []);
 	filterCommandsRef.current = (query: string) => {
-		if (!query) return slashCommands;
-		const searchText = query.toLowerCase();
-		const titleMatches: SlashCommandItem[] = [];
-		const otherMatches: SlashCommandItem[] = [];
-		for (const item of slashCommands) {
-			const titleStr = typeof item.title === "string" ? item.title : t(item.title);
-			const descStr = typeof item.description === "string" ? item.description : t(item.description);
-			if (titleStr.toLowerCase().includes(searchText)) {
-				titleMatches.push(item);
-			} else if (
-				descStr.toLowerCase().includes(searchText) ||
-				item.aliases?.some((alias) => alias.toLowerCase().includes(searchText))
-			) {
-				otherMatches.push(item);
-			}
+		const text = (label: MessageDescriptor | string) =>
+			typeof label === "string" ? label : t(label);
+		if (!query.trim()) {
+			// The menu groups commands by category, so arrow keys must follow that order.
+			const visible = slashCommands.filter((item) => !item.searchOnly);
+			const categories = [
+				...new Set(visible.map((item) => text(item.category ?? BASIC_BLOCKS_CATEGORY))),
+			];
+			const rank = (item: SlashCommandItem) =>
+				categories.indexOf(text(item.category ?? BASIC_BLOCKS_CATEGORY));
+			return visible.toSorted((a, b) => rank(a) - rank(b));
 		}
-		return [...titleMatches, ...otherMatches];
+		return slashCommands
+			.map((item, order) => ({
+				item,
+				order,
+				score: scoreSlashCommand(query, text(item.title), text(item.description), [
+					...(item.aliases ?? []),
+					...(item.markdown ? [item.markdown] : []),
+				]),
+			}))
+			.filter((entry) => entry.score > 0)
+			.toSorted((a, b) => b.score - a.score || a.order - b.order)
+			.map((entry) => entry.item);
 	};
 
 	// Convert initial value to ProseMirror format
@@ -3184,7 +3893,10 @@ export function PortableTextEditor({
 			return { content: emptyDocument, tableError: null };
 		}
 		try {
-			return { content: portableTextToProsemirror(value || []), tableError: null };
+			return {
+				content: portableTextToProsemirror(value || [], pluginBlockTypes),
+				tableError: null,
+			};
 		} catch (error) {
 			if (error instanceof UnsafePortableTextTableError) {
 				return { content: emptyDocument, tableError: error };
@@ -3194,6 +3906,49 @@ export function PortableTextEditor({
 	}, []); // Only compute once on mount
 	const initialContent = initialConversion.content;
 	const tableConversionError = initialConversion.tableError ?? conversionTableError;
+
+	/**
+	 * Hands the document to `onChange` as Portable Text. While the slash line
+	 * the block insert button typed is open, changes wait until its menu
+	 * closes, so the line alone isn't an edit for autosave to save.
+	 *
+	 * Documents are compared rather than their Portable Text: stored content
+	 * the converter would write in a different shape (empty `markDefs`, a
+	 * missing `style`, fields it doesn't map) is unchanged until the document is.
+	 */
+	const reportChange = React.useCallback((changedEditor: Editor) => {
+		const cb = onChangeRef.current;
+		if (!cb) return;
+		if (insertedLineRef.current && SuggestionPluginKey.getState(changedEditor.state)?.active)
+			return;
+		lastReportedDocRef.current ??= changedEditor.schema.nodeFromJSON(initialContent);
+		if (
+			withoutTrailingEmptyParagraph(changedEditor.state.doc).eq(
+				withoutTrailingEmptyParagraph(lastReportedDocRef.current),
+			)
+		)
+			return;
+		lastReportedDocRef.current = changedEditor.state.doc;
+		const doc = changedEditor.getJSON();
+		// TipTap's getJSON() returns JSONContent which is structurally compatible
+		const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];
+		try {
+			const portableText = prosemirrorToPortableText(pmDoc);
+			if (equalJsonValues(portableText, lastPortableTextValueRef.current)) return;
+			lastPortableTextValueRef.current = portableText;
+			cb(portableText);
+		} catch (error) {
+			if (error instanceof UnsupportedPortableTextMarksError) {
+				setConversionErrorMarks(error.marks);
+				return;
+			}
+			if (error instanceof UnsafePortableTextTableError) {
+				setConversionTableError(error);
+				return;
+			}
+			throw error;
+		}
+	}, []);
 
 	// Memoize the entire extensions array so TipTap never diffs/replaces
 	// plugins on re-render. The loop was: extension array changes → useEditor
@@ -3205,7 +3960,9 @@ export function PortableTextEditor({
 			PortableTextIdentityExtension,
 			PortableTextSpanIdentity,
 			LinkBoundaryExit,
-			StarterKit.configure({
+			PortableTextStarterKit.configure({
+				// Replaced with TopBlockDocument so top-level-only blocks can't be nested.
+				document: false,
 				heading: {
 					levels: [1, 2, 3, 4, 5, 6],
 				},
@@ -3222,26 +3979,34 @@ export function PortableTextEditor({
 				link: {
 					shouldAutoLink: (url) => URL_SCHEME_REGEX.test(url) || WWW_PREFIX_REGEX.test(url),
 					openOnClick: false,
-					enableClickSelection: true,
+					// TipTap's Link extension defaults HTMLAttributes.target to "_blank".
+					// Without an explicit override every link created via setLink would be
+					// serialized as blank: true, even though there is no UI to enable it.
 					HTMLAttributes: {
+						target: null,
 						class: "text-kumo-link underline",
 					},
 				},
 				underline: {},
 			}),
+			TopBlockDocument,
 			EmDashOrderedList,
 			CodeMarkExtension,
 			CodeBlockExtension,
 			HtmlBlockExtension,
+			IframeBlockExtension,
+			VideoExtension,
 			GalleryExtension,
 			ImageExtension,
 			ImageUploadExtension.configure({
 				upload: (file, signal) => uploadImageRef.current(file, signal),
+				// A plugin's own video block replaces the built-in one.
+				acceptsVideo: () => !pluginBlockTypesRef.current.has("video"),
 			}),
 			MarkdownLinkExtension,
 			PluginBlockExtension,
-			Subscript,
-			Superscript,
+			Subscript.extend({ excludes: "superscript" }),
+			Superscript.extend({ excludes: "subscript" }),
 			EmDashTable.configure({
 				allowTableNodeSelection: true,
 				cellMinWidth: TABLE_CELL_MIN_WIDTH,
@@ -3252,15 +4017,23 @@ export function PortableTextEditor({
 			EmDashTableHeader,
 			EmDashTableCell,
 			TableIdentity,
-			TableSafetyShortcuts,
+			BlockFormatShortcuts,
+			BlockSelection.configure({
+				onArrowUpAtStart: () => {
+					const handler = onArrowUpAtStartRef.current;
+					if (!handler) return false;
+					handler();
+					return true;
+				},
+			}),
+			BlockSelectAll,
+			DoubleClickLineEnd,
+			SelectionHighlights,
 			createTableCellSafety(rejectTablePaste),
 			createTableClipboard(rejectTablePaste, (rows, columns) =>
 				extensionAnnouncementRef.current(rows, columns),
 			),
-			Placeholder.configure({
-				includeChildren: true,
-				placeholder: () => placeholderRef.current,
-			}),
+			createTextBlockPlaceholder((props) => placeholderRef.current(props)),
 			TextAlign.configure({
 				types: ["heading", "paragraph"],
 			}),
@@ -3268,6 +4041,12 @@ export function PortableTextEditor({
 				filterCommands: (query: string) => filterCommandsRef.current(query),
 				onStateChange: setSlashMenuState,
 				getState: () => slashMenuStateRef.current,
+				onCommand: (item) => slashMenuActionsRef.current.run(item),
+				onDismiss: () => slashMenuActionsRef.current.dismiss(),
+				onExit: (exitedEditor) => {
+					if (insertedLineRef.current) reportChange(exitedEditor);
+					insertedLineRef.current = null;
+				},
 			}),
 			CharacterCount.configure({ wordCounter: countWords }),
 			Focus.configure({
@@ -3284,13 +4063,18 @@ export function PortableTextEditor({
 	// Suggestion onExit → setSlashMenuState → re-render → infinite loop.
 	const editorProps = React.useMemo(
 		() => ({
+			// Typing or moving the caret under the document's sticky toolbar, or the fade under
+			// it, scrolls the caret out from under them.
+			scrollThreshold: isDocument ? { top: 96, right: 0, bottom: 0, left: 0 } : 0,
+			scrollMargin: isDocument ? { top: 96, right: 5, bottom: 5, left: 5 } : 5,
 			attributes: {
-				class:
-					"prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
+				class: isDocument
+					? "emdash-document flow-root min-h-32 pb-2 focus:outline-none"
+					: "prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
 				dir: "auto",
 			},
 		}),
-		[],
+		[isDocument],
 	);
 
 	const editor = useEditor({
@@ -3299,202 +4083,153 @@ export function PortableTextEditor({
 		editable: editable && unsupportedMarks.length === 0 && tableConversionError === null,
 		immediatelyRender: true,
 		editorProps,
-		onUpdate: ({ editor: updatedEditor }) => {
-			const cb = onChangeRef.current;
-			if (cb) {
-				const doc = updatedEditor.getJSON();
-				// TipTap's getJSON() returns JSONContent which is structurally compatible
-				const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];
-				try {
-					const portableText = prosemirrorToPortableText(pmDoc);
-					if (equalJsonValues(portableText, lastPortableTextValueRef.current)) return;
-					lastPortableTextValueRef.current = portableText;
-					cb(portableText);
-				} catch (error) {
-					if (error instanceof UnsupportedPortableTextMarksError) {
-						setConversionErrorMarks(error.marks);
-						return;
-					}
-					if (error instanceof UnsafePortableTextTableError) {
-						setConversionTableError(error);
-						return;
-					}
-					throw error;
-				}
-			}
-		},
+		onUpdate: ({ editor: updatedEditor }) => reportChange(updatedEditor),
 	});
 
-	const openBlockInsertMenuAt = React.useCallback(
-		(insertPos: number) => {
-			if (!editor) return;
-			const state = slashMenuStateRef.current;
-			const activeSlashFrom = state.trigger === "slash" && state.isOpen ? state.range?.from : null;
-			if (activeSlashFrom != null) {
-				setSlashMenuState((prev) => ({ ...prev, dismissedSlashFrom: activeSlashFrom }));
-			}
-			exitSuggestion(editor.view);
-			editor.commands.focus();
-
-			setSlashMenuState((prev) => ({
-				isOpen: true,
-				mode: "commands",
-				items: filterCommandsRef.current(""),
-				selectedIndex: 0,
-				clientRect: () => {
-					if (editor.isDestroyed) return null;
-					const coords = editor.view.coordsAtPos(insertPos);
-					const DOMRectCtor = editor.view.dom.ownerDocument.defaultView?.DOMRect;
-					if (!DOMRectCtor) return null;
-					return new DOMRectCtor(
-						coords.left,
-						coords.top,
-						coords.right - coords.left,
-						coords.bottom - coords.top,
-					);
-				},
-				range: { from: insertPos, to: insertPos },
-				trigger: "gutter",
-				gutterBlockPos: insertPos,
-				dismissedSlashFrom: prev.dismissedSlashFrom,
-			}));
+	/**
+	 * Takes the line the block insert button typed back out, or only its slash
+	 * from an empty line that was already there. While the line holds only the
+	 * slash command and is still the last change in the undo history, the change
+	 * is undone instead, so no undo step is left behind that does nothing.
+	 */
+	const removeInsertedLine = React.useCallback(
+		(activeEditor: Editor, line: InsertedSlashLine, range: Range): Transaction => {
+			const { state, view } = activeEditor;
+			const undone: Transaction[] = [];
+			// Text typed after the caret moved back sits outside the range, and undoing would take it too.
+			const onlyCommand =
+				state.doc.resolve(range.from).parent.content.size === range.to - range.from;
+			if (onlyCommand && undoDepth(state) === line.undoDepth) undo(state, (tr) => undone.push(tr));
+			const removed = addedSlashParagraph(state.doc, range, line) ?? range;
+			const tr =
+				undone[0] ??
+				closeHistory(state.tr.delete(removed.from, removed.to).setMeta("addToHistory", false));
+			view.dispatch(tr);
+			return tr;
 		},
-		[editor, setSlashMenuState],
+		[],
 	);
 
-	const closeSlashMenu = React.useCallback(() => {
-		const state = slashMenuStateRef.current;
+	/**
+	 * Closes the menu without running a command, keeping what was typed. The
+	 * line the block insert button typed goes again if nothing followed its
+	 * slash; the transaction that removed it is returned.
+	 */
+	const closeSlashMenu = React.useCallback((): Transaction | null => {
+		const { range } = slashMenuStateRef.current;
+		const untouched =
+			editor !== null &&
+			range !== null &&
+			insertedLineRef.current?.slashPos === range.from &&
+			editor.state.doc.textBetween(range.from, range.to) === "/" &&
+			editor.state.doc.resolve(range.from).parent.content.size === 1;
 		setSlashMenuState((prev) => ({
 			...prev,
 			isOpen: false,
 			mode: "commands",
-			gutterBlockPos: null,
-			dismissedSlashFrom:
-				state.trigger === "slash" ? (state.range?.from ?? null) : prev.dismissedSlashFrom,
+			dismissedSlashFrom: untouched || !range ? prev.dismissedSlashFrom : range.from,
 		}));
-		if (editor && state.trigger === "slash") {
+		if (!editor || !range) return null;
+		if (!untouched) {
 			exitSuggestion(editor.view);
+			return null;
 		}
-	}, [editor, setSlashMenuState]);
+		return removeInsertedLine(editor, insertedLineRef.current!, range);
+	}, [editor, removeInsertedLine, setSlashMenuState]);
+
+	/**
+	 * The block insert button types a slash on a new line at `insertPos`, or
+	 * into the empty paragraph just before it, which opens the slash menu there.
+	 */
+	const openBlockInsertMenuAt = React.useCallback(
+		(insertPos: number) => {
+			if (!editor) return;
+			const closed = slashMenuStateRef.current.isOpen ? closeSlashMenu() : null;
+			const pos = closed ? closed.mapping.map(insertPos) : insertPos;
+			const { doc } = editor.state;
+			if (pos < 0 || pos > doc.content.size || doc.resolve(pos).depth !== 0) return;
+			const { nodeBefore, nodeAfter } = doc.resolve(pos);
+			// An empty paragraph beside the insert point takes the slash instead of gaining a neighbour.
+			const reuseBefore = isEmptyParagraph(nodeBefore);
+			const reuse = reuseBefore || isEmptyParagraph(nodeAfter);
+			const slashPos = reuseBefore ? pos - 1 : pos + 1;
+			// A stale dismissed position could block this slash; opening a menu forgets it anyway.
+			setSlashMenuState((prev) => ({ ...prev, dismissedSlashFrom: null }));
+			const inserted: InsertedSlashLine = { slashPos, addedParagraph: !reuse, undoDepth: -1 };
+			insertedLineRef.current = inserted;
+			editor
+				.chain()
+				.focus()
+				.command(({ tr }) => {
+					closeHistory(tr);
+					if (!reuse) tr.insert(pos, tr.doc.type.schema.nodes.paragraph!.create());
+					tr.insertText("/", slashPos).setSelection(TextSelection.create(tr.doc, slashPos + 1));
+					return true;
+				})
+				.run();
+			inserted.undoDepth = undoDepth(editor.state);
+			// Scrolls far enough for the menu, up to 21rem tall, to open below the line, without
+			// scrolling the line under the toolbar.
+			const line = editor.view.coordsAtPos(slashPos);
+			const scroller = scrollContainer(editor.view.dom);
+			const viewBottom = Math.min(
+				window.innerHeight,
+				scroller?.getBoundingClientRect().bottom ?? Infinity,
+			);
+			const room = 23 * Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+			const distance = Math.min(line.bottom + room - viewBottom, line.top - getToolbarBottom() - 8);
+			if (distance > 0) (scroller ?? window).scrollBy({ top: distance });
+		},
+		[closeSlashMenu, editor, getToolbarBottom, setSlashMenuState],
+	);
+
+	/**
+	 * The range a slash command replaces. The slash the block insert button
+	 * typed is cleared outside the undo history first, so undoing the command
+	 * doesn't bring it back; undoing it again removes a line the button added.
+	 * A picker inserts where the button's line was, so cancelling the picker
+	 * leaves nothing behind.
+	 */
+	const takeSlashRange = React.useCallback(
+		(activeEditor: Editor, range: Range, deferred: boolean): Range => {
+			pendingBlockInsertPosRef.current = null;
+			const line = insertedLineRef.current;
+			if (line?.slashPos !== range.from) return range;
+			const paragraph = addedSlashParagraph(activeEditor.state.doc, range, line);
+			if (paragraph && !deferred) {
+				const tr = activeEditor.state.tr.delete(range.from, range.to);
+				activeEditor.view.dispatch(closeHistory(tr.setMeta("addToHistory", false)));
+			} else {
+				removeInsertedLine(activeEditor, line, range);
+				if (paragraph) {
+					pendingBlockInsertPosRef.current = paragraph.from;
+				} else {
+					const { state } = activeEditor;
+					activeEditor.view.dispatch(
+						state.tr.setSelection(TextSelection.create(state.doc, line.slashPos)),
+					);
+				}
+			}
+			const caret = activeEditor.state.selection.from;
+			return { from: caret, to: caret };
+		},
+		[removeInsertedLine],
+	);
 
 	const executeSlashCommand = React.useCallback(
-		(item: SlashCommandItem, state: SlashMenuState) => {
-			if (!editor || !state.range) return;
+		(item: SlashCommandItem) => {
+			const { range } = slashMenuStateRef.current;
+			if (!editor || !range) return;
 			if (item.opensTablePicker) {
 				setSlashMenuState((current) => ({ ...current, mode: "table-size", isOpen: true }));
 				return;
 			}
-
-			let range = state.range;
-			if (state.trigger === "gutter") {
-				const insertPos = state.gutterBlockPos;
-				if (insertPos === null) return;
-
-				if (item.deferInsertion) {
-					pendingBlockInsertPosRef.current = insertPos;
-					const selectionPos = editor.state.selection.from;
-					range = { from: selectionPos, to: selectionPos };
-				} else {
-					const selectionPos = insertPos + 1;
-					const inserted = editor
-						.chain()
-						.focus()
-						.insertContentAt(insertPos, { type: "paragraph" })
-						.setTextSelection(selectionPos)
-						.run();
-					if (!inserted) return;
-					range = { from: selectionPos, to: selectionPos };
-				}
-			}
-
-			item.command({ editor, range });
-			setSlashMenuState((prev) => ({
-				...prev,
-				isOpen: false,
-				mode: "commands",
-				gutterBlockPos: null,
-			}));
+			item.command({ editor, range: takeSlashRange(editor, range, item.deferInsertion === true) });
+			setSlashMenuState((prev) => ({ ...prev, isOpen: false, mode: "commands" }));
 		},
-		[editor, setSlashMenuState],
+		[editor, setSlashMenuState, takeSlashRange],
 	);
-
-	React.useEffect(() => {
-		if (!editor || !slashMenuState.isOpen || slashMenuState.trigger !== "gutter") return;
-
-		const handleKeyDown = (event: KeyboardEvent) => {
-			const state = slashMenuStateRef.current;
-			if (!state.isOpen || state.trigger !== "gutter") return;
-
-			if (event.key === "Tab") {
-				closeSlashMenu();
-				return;
-			}
-
-			if (event.key === "Escape") {
-				event.preventDefault();
-				closeSlashMenu();
-				return;
-			}
-
-			if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-				if (state.items.length === 0) return;
-				event.preventDefault();
-				const delta = event.key === "ArrowUp" ? -1 : 1;
-				setSlashMenuState((prev) => ({
-					...prev,
-					selectedIndex: (prev.selectedIndex + delta + prev.items.length) % prev.items.length,
-				}));
-				return;
-			}
-
-			if (event.key === "Enter") {
-				const item = state.items[state.selectedIndex];
-				if (!item || !state.range) return;
-				event.preventDefault();
-				executeSlashCommand(item, state);
-				return;
-			}
-
-			if (
-				event.key.length === 1 &&
-				!event.ctrlKey &&
-				!event.metaKey &&
-				!event.altKey &&
-				!event.isComposing &&
-				state.gutterBlockPos !== null
-			) {
-				event.preventDefault();
-				const selectionPos = state.gutterBlockPos + event.key.length + 1;
-				editor
-					.chain()
-					.focus()
-					.insertContentAt(state.gutterBlockPos, {
-						type: "paragraph",
-						content: [{ type: "text", text: event.key }],
-					})
-					.setTextSelection(selectionPos)
-					.run();
-				setSlashMenuState((prev) => ({ ...prev, isOpen: false, gutterBlockPos: null }));
-				return;
-			}
-
-			if (event.key === "Backspace" || event.key === "Delete") {
-				event.preventDefault();
-				closeSlashMenu();
-			}
-		};
-
-		const editorElement = editor.view.dom;
-		editorElement.addEventListener("keydown", handleKeyDown, true);
-		return () => editorElement.removeEventListener("keydown", handleKeyDown, true);
-	}, [
-		closeSlashMenu,
-		editor,
-		executeSlashCommand,
-		setSlashMenuState,
-		slashMenuState.isOpen,
-		slashMenuState.trigger,
-	]);
+	slashMenuActionsRef.current = { run: executeSlashCommand, dismiss: closeSlashMenu };
 
 	const handleTouchInsertBlock = React.useCallback(() => {
 		if (!editor) return;
@@ -3523,21 +4258,37 @@ export function PortableTextEditor({
 		const viewport = window.visualViewport;
 		if (!editor || !viewport) return;
 
+		let frame = 0;
 		const updateBubbleMenuPositions = () => {
-			if (editor.isDestroyed) return;
-			editor.view.dispatch(
-				editor.state.tr
-					.setMeta(INLINE_BUBBLE_MENU_KEY, "updatePosition")
-					.setMeta(TABLE_BUBBLE_MENU_KEY, "updatePosition")
-					.setMeta(IMAGE_BUBBLE_MENU_KEY, "updatePosition"),
-			);
+			if (frame) return;
+			frame = requestAnimationFrame(() => {
+				frame = 0;
+				if (editor.isDestroyed) return;
+				editor.view.dispatch(
+					editor.state.tr
+						.setMeta(INLINE_BUBBLE_MENU_KEY, "updatePosition")
+						.setMeta(TABLE_BUBBLE_MENU_KEY, "updatePosition")
+						.setMeta(IMAGE_BUBBLE_MENU_KEY, "updatePosition")
+						.setMeta(LINK_BUBBLE_MENU_KEY, "updatePosition"),
+				);
+			});
+		};
+		// The bubble menus only follow the window's scroll, so they'd stay put over the
+		// sticky toolbar when the container around the editor scrolls instead.
+		const updateOnContainerScroll = (event: Event) => {
+			if (!(event.target instanceof Node) || !event.target.contains(editor.view.dom)) return;
+			const root = editor.view.dom.closest("[data-emdash-editor-floating-root]");
+			if (root?.querySelector(BUBBLE_MENU_SELECTOR)) updateBubbleMenuPositions();
 		};
 
 		viewport.addEventListener("resize", updateBubbleMenuPositions);
 		viewport.addEventListener("scroll", updateBubbleMenuPositions);
+		document.addEventListener("scroll", updateOnContainerScroll, { capture: true, passive: true });
 		return () => {
+			cancelAnimationFrame(frame);
 			viewport.removeEventListener("resize", updateBubbleMenuPositions);
 			viewport.removeEventListener("scroll", updateBubbleMenuPositions);
+			document.removeEventListener("scroll", updateOnContainerScroll, { capture: true });
 		};
 	}, [editor]);
 
@@ -3603,6 +4354,23 @@ export function PortableTextEditor({
 		};
 	}, [editor]);
 
+	// A picker can stay open while an upload lands, so the insert position follows the document.
+	React.useEffect(() => {
+		if (!editor) return;
+		const follow = ({ transaction, appendedTransactions }: EditorEvents["transaction"]) => {
+			const position = pendingBlockInsertPosRef.current;
+			if (position === null) return;
+			pendingBlockInsertPosRef.current = [transaction, ...appendedTransactions].reduce(
+				(pos, tr) => tr.mapping.map(pos, -1),
+				position,
+			);
+		};
+		editor.on("transaction", follow);
+		return () => {
+			editor.off("transaction", follow);
+		};
+	}, [editor]);
+
 	// Handle image selection from media picker
 	const handleImageSelect = React.useCallback(
 		(item: MediaItem) => {
@@ -3611,13 +4379,31 @@ export function PortableTextEditor({
 				const insertPos = pendingBlockInsertPosRef.current;
 				const chain = editor.chain().focus();
 				if (insertPos === null) {
-					chain.setImage(attrs).run();
+					chain
+						.command(({ tr }) => prepareBlockInsert(tr))
+						.setImage(attrs)
+						.scrollIntoView()
+						.run();
 				} else {
 					chain.insertContentAt(insertPos, { type: "image", attrs }).run();
 				}
 			}
 			pendingBlockInsertPosRef.current = null;
 			setMediaPickerOpen(false);
+		},
+		[editor],
+	);
+
+	const handleVideoSelect = React.useCallback(
+		(item: MediaItem) => {
+			if (editor?.isEditable) {
+				const video = editor.schema.nodes.videoBlock!.create(mediaItemToVideoAttrs(item));
+				const position = pendingBlockInsertPosRef.current ?? undefined;
+				insertTopLevelBlock(editor, video, undefined, position);
+				editor.view.focus();
+			}
+			pendingBlockInsertPosRef.current = null;
+			setVideoPickerOpen(false);
 		},
 		[editor],
 	);
@@ -3630,7 +4416,11 @@ export function PortableTextEditor({
 				const insertPos = pendingBlockInsertPosRef.current;
 				const chain = editor.chain().focus();
 				if (insertPos === null) {
-					chain.setGallery(attrs).run();
+					chain
+						.command(({ tr }) => prepareBlockInsert(tr))
+						.setGallery(attrs)
+						.scrollIntoView()
+						.run();
 				} else {
 					chain.insertContentAt(insertPos, { type: "gallery", attrs }).run();
 				}
@@ -3682,7 +4472,11 @@ export function PortableTextEditor({
 				const insertPos = pendingBlockInsertPosRef.current;
 				const chain = editor.chain().focus();
 				if (insertPos === null) {
-					chain.insertContent(content).run();
+					chain
+						.command(({ tr }) => prepareBlockInsert(tr))
+						.insertContent(content)
+						.scrollIntoView()
+						.run();
 				} else {
 					chain.insertContentAt(insertPos, content).run();
 				}
@@ -3696,14 +4490,6 @@ export function PortableTextEditor({
 		[editor, pluginBlockModal],
 	);
 
-	// Handle slash menu command execution
-	const handleSlashCommand = React.useCallback(
-		(item: SlashCommandItem) => {
-			const state = slashMenuStateRef.current;
-			executeSlashCommand(item, state);
-		},
-		[executeSlashCommand],
-	);
 	React.useEffect(() => {
 		if (editable || !editor || slashMenuStateRef.current.mode !== "table-size") return;
 		exitSuggestion(editor.view);
@@ -3712,50 +4498,38 @@ export function PortableTextEditor({
 				...current,
 				isOpen: false,
 				mode: "commands",
-				gutterBlockPos: null,
 			})),
 		);
 	}, [editable, editor, setSlashMenuState]);
 	const handleSlashTableInsert = React.useCallback(
 		(rows: number, columns: number, withHeaderRow: boolean) => {
+			const { range } = slashMenuStateRef.current;
 			if (!editor?.isEditable) return;
-			const state = slashMenuStateRef.current;
 			const inserted = insertEditorTable(
 				editor,
 				rows,
 				columns,
 				withHeaderRow,
-				state.trigger === "slash" ? (state.range ?? undefined) : undefined,
-				state.trigger === "gutter" ? (state.gutterBlockPos ?? undefined) : undefined,
+				range ? takeSlashRange(editor, range, false) : undefined,
 			);
 			if (!inserted) return;
-			if (state.trigger === "slash") exitSuggestion(editor.view);
+			exitSuggestion(editor.view);
+			// The picker's focused cell goes away with the menu.
+			editor.view.focus();
 			setSlashMenuState((current) => ({
 				...current,
 				isOpen: false,
 				mode: "commands",
-				gutterBlockPos: null,
 				dismissedSlashFrom: null,
 			}));
 			announceTable(t`Table inserted`);
 		},
-		[announceTable, editor, setSlashMenuState, t],
+		[announceTable, editor, setSlashMenuState, t, takeSlashRange],
 	);
 	const handleSlashTableCancel = React.useCallback(() => {
-		const state = slashMenuStateRef.current;
-		setSlashMenuState((current) => ({
-			...current,
-			isOpen: false,
-			mode: "commands",
-			gutterBlockPos: null,
-			dismissedSlashFrom:
-				state.trigger === "slash" ? (state.range?.from ?? null) : current.dismissedSlashFrom,
-		}));
-		if (editor) {
-			if (state.trigger === "slash") exitSuggestion(editor.view);
-			editor.view.focus();
-		}
-	}, [editor, setSlashMenuState]);
+		closeSlashMenu();
+		editor?.view.focus();
+	}, [closeSlashMenu, editor]);
 
 	// Handle section selection - insert section content at cursor
 	const handleSectionSelect = React.useCallback(
@@ -3768,7 +4542,7 @@ export function PortableTextEditor({
 				: [];
 			let prosemirrorContent: unknown[];
 			try {
-				({ content: prosemirrorContent } = portableTextToProsemirror(ptContent));
+				({ content: prosemirrorContent } = portableTextToProsemirror(ptContent, pluginBlockTypes));
 			} catch (error) {
 				if (error instanceof UnsupportedPortableTextMarksError) {
 					setSectionInsertErrorMarks(error.marks);
@@ -3788,13 +4562,17 @@ export function PortableTextEditor({
 			const insertPos = pendingBlockInsertPosRef.current;
 			const chain = editor.chain().focus();
 			if (insertPos === null) {
-				chain.insertContent(prosemirrorContent).run();
+				chain
+					.command(({ tr }) => prepareBlockInsert(tr))
+					.insertContent(prosemirrorContent)
+					.scrollIntoView()
+					.run();
 			} else {
 				chain.insertContentAt(insertPos, prosemirrorContent).run();
 			}
 			pendingBlockInsertPosRef.current = null;
 		},
-		[editor],
+		[editor, pluginBlockTypes],
 	);
 
 	if (tableConversionError) {
@@ -3939,14 +4717,15 @@ export function PortableTextEditor({
 			<TableSelectionAnnouncer editor={editor} onChange={announceTable} />
 			<div
 				className={cn(
-					"border rounded-lg overflow-clip",
-					!minimal && "bg-kumo-base",
+					isDocument ? "relative" : "border rounded-lg overflow-clip",
+					!minimal && !isDocument && "bg-kumo-base",
 					minimal && "border-0 rounded-none",
 					focusMode === "spotlight" && "spotlight-mode",
 					className,
 				)}
 				aria-labelledby={ariaLabelledby}
 				data-emdash-editor-surface
+				data-emdash-editor-variant={variant}
 			>
 				{!minimal && (
 					<EditorToolbar
@@ -3956,19 +4735,34 @@ export function PortableTextEditor({
 						onInsertBlock={handleTouchInsertBlock}
 						onInsertImage={openToolbarImagePicker}
 						onTableAction={announceTable}
+						variant={variant}
 					/>
 				)}
-				<div className="relative overflow-visible">
+				<div
+					className="relative overflow-visible"
+					// CSS `content` takes the slash menu's hint as a quoted string.
+					style={
+						{ "--emdash-slash-hint": JSON.stringify(t`Type to search`) } as React.CSSProperties
+					}
+				>
 					<EditorContent editor={editor} />
 					{editable && <DragHandleWrapper editor={editor} onInsertBlock={openBlockInsertMenuAt} />}
 				</div>
-				{!minimal && <EditorFooter editor={editor} />}
+				{isDocument ? (
+					<DocumentEnd editor={editor} editable={editable}>
+						{!minimal && <EditorFooter editor={editor} variant={variant} />}
+					</DocumentEnd>
+				) : (
+					!minimal && <EditorFooter editor={editor} variant={variant} />
+				)}
 
 				{/* Slash command menu */}
 				{editable && (
 					<SlashCommandMenu
 						state={slashMenuState}
-						onCommand={handleSlashCommand}
+						contextElement={editor.isInitialized ? editor.view.dom : undefined}
+						getToolbarBottom={getToolbarBottom}
+						onCommand={executeSlashCommand}
 						onClose={closeSlashMenu}
 						onTableInsert={handleSlashTableInsert}
 						onTableCancel={handleSlashTableCancel}
@@ -3989,6 +4783,20 @@ export function PortableTextEditor({
 					mimeTypeFilter="image/"
 					title={t`Select image`}
 					confirmLabel={t`Insert image`}
+				/>
+
+				<MediaPickerModal
+					open={videoPickerOpen}
+					onOpenChange={(open) => {
+						setVideoPickerOpen(open);
+						if (!open) pendingBlockInsertPosRef.current = null;
+					}}
+					onSelect={handleVideoSelect}
+					mimeTypeFilter="video/"
+					mediaKind="video"
+					localOnly
+					title={t`Select video`}
+					confirmLabel={t`Insert video`}
 				/>
 
 				{/* Multi-select media picker for gallery insertion */}
@@ -4032,9 +4840,72 @@ export function PortableTextEditor({
 	);
 }
 
+/** The editor's floating toolbars, which are only in the page while they show. */
+const BUBBLE_MENU_SELECTOR = [
+	"[data-emdash-inline-bubble-menu]",
+	"[data-emdash-link-bubble-menu]",
+	"[data-emdash-table-bubble-menu]",
+	"[data-emdash-image-bubble-menu]",
+].join(", ");
+
+/** Popups opened from the selection toolbar keep it visible while they have focus. */
+const BUBBLE_POPUP_ATTR = "data-emdash-bubble-popup";
+
+/** A boundary no selection falls outside of. */
+const UNBOUNDED_RECT = { x: -1e6, y: -1e6, width: 2e6, height: 2e6 };
+
 /**
- * Bubble Menu - appears when text is selected
- * Shows inline formatting options and link editing
+ * Options for floating-ui's hide check: a floating toolbar hides while its
+ * selection is under the sticky toolbar, and stays while it, or a menu or
+ * field opened from it, has focus, so typing there isn't lost. No padding,
+ * so a caret near the screen's edge doesn't count as hidden.
+ */
+function hideUnderToolbar(getCollisionOptions: BubbleMenuCollisionOptions) {
+	return () => ({
+		rootBoundary: document.activeElement?.closest(
+			`${BUBBLE_MENU_SELECTOR}, [role="menu"], [${BUBBLE_POPUP_ATTR}]`,
+		)
+			? UNBOUNDED_RECT
+			: getCollisionOptions().rootBoundary,
+		padding: 0,
+	});
+}
+
+const INLINE_MARKS = [
+	{ mark: "bold", label: msg`Bold`, icon: TextB },
+	{ mark: "italic", label: msg`Italic`, icon: TextItalic },
+	{ mark: "underline", label: msg`Underline`, icon: TextUnderline },
+	{ mark: "strike", label: msg`Strikethrough`, icon: TextStrikethrough },
+	{ mark: "code", label: msg`Inline Code`, icon: Code },
+] as const;
+
+const FORMATTING_MARKS = [
+	"bold",
+	"italic",
+	"underline",
+	"strike",
+	"code",
+	"subscript",
+	"superscript",
+] as const;
+
+function playBubbleEntrance(surface: HTMLElement | null) {
+	if (!(surface instanceof HTMLElement) || typeof surface.animate !== "function") return;
+	const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+	surface.animate(
+		reduceMotion
+			? [{ opacity: 0 }, { opacity: 1 }]
+			: [
+					{ opacity: 0, transform: "translateY(2px) scale(0.98)" },
+					{ opacity: 1, transform: "none" },
+				],
+		{ duration: 120, easing: "cubic-bezier(0.23, 1, 0.32, 1)" },
+	);
+}
+
+/**
+ * Bubble Menu - appears when text is selected.
+ * Turn into, link, inline marks, and a menu for less common formatting.
  */
 function EditorBubbleMenu({
 	editor,
@@ -4047,8 +4918,15 @@ function EditorBubbleMenu({
 }) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
+	const [linkInvalid, setLinkInvalid] = React.useState(false);
+	const [openMenu, setOpenMenu] = React.useState<"turnInto" | "more" | null>(null);
+	// Opening one menu closes the other, whose close then mustn't undo the open.
+	const toggleMenu = (menu: "turnInto" | "more", open: boolean) =>
+		setOpenMenu((current) => (open ? menu : current === menu ? null : current));
+	const menuRef = React.useRef<HTMLDivElement>(null);
+	const surfaceRef = React.useRef<HTMLDivElement>(null);
 	const { t } = useLingui();
-	const activeMarks = useEditorState({
+	const state = useEditorState({
 		editor,
 		selector: ({ editor: activeEditor }) => ({
 			bold: activeEditor.isActive("bold"),
@@ -4059,6 +4937,8 @@ function EditorBubbleMenu({
 			superscript: activeEditor.isActive("superscript"),
 			code: activeEditor.isActive("code"),
 			link: activeEditor.isActive("link"),
+			canTurnInto: canTurnInto(activeEditor),
+			blockType: activeTextBlockType(activeEditor)?.id,
 		}),
 	});
 	// When bubble menu opens with link input, populate the URL
@@ -4071,159 +4951,465 @@ function EditorBubbleMenu({
 	const closeLinkInput = () => {
 		setShowLinkInput(false);
 		setLinkUrl("");
+		setLinkInvalid(false);
 	};
+	// The error makes the toolbar taller, so it moves to keep the selection in view.
+	React.useEffect(() => {
+		if (editor.isDestroyed) return;
+		editor.view.dispatch(editor.state.tr.setMeta(INLINE_BUBBLE_MENU_KEY, "updatePosition"));
+	}, [editor, linkInvalid]);
+	const showLinkInputRef = React.useRef(showLinkInput);
+	showLinkInputRef.current = showLinkInput;
+	const closeLinkInputRef = React.useRef(closeLinkInput);
+	closeLinkInputRef.current = closeLinkInput;
 
+	// A URL the editor won't link keeps the field open, saying why.
 	const handleSetLink = () => {
 		if (linkUrl.trim() === "") {
-			editor.chain().focus().extendMarkRange("link").unsetLink().run();
-		} else {
-			setSelectedTextLink(editor, linkUrl.trim());
+			editor
+				.chain()
+				.focus()
+				.extendMarkRange("link", linkAtCaret(editor.state)?.attrs)
+				.unsetLink()
+				.run();
+		} else if (!setSelectedTextLink(editor, linkUrl)) {
+			setLinkInvalid(true);
+			return;
 		}
 		closeLinkInput();
 	};
 
 	const applyLinkHref = (href: string) => {
-		setSelectedTextLink(editor, href);
-		closeLinkInput();
+		if (setSelectedTextLink(editor, href)) closeLinkInput();
+		else setLinkInvalid(true);
 	};
 
 	const handleRemoveLink = () => {
-		editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		editor
+			.chain()
+			.focus()
+			.extendMarkRange("link", linkAtCaret(editor.state)?.attrs)
+			.unsetLink()
+			.run();
 		closeLinkInput();
 	};
 
+	const options = React.useMemo(
+		() => ({
+			strategy: "absolute" as const,
+			placement: "top-start" as const,
+			offset: 8,
+			flip: getCollisionOptions,
+			shift: getCollisionOptions,
+			hide: hideUnderToolbar(getCollisionOptions),
+			size: () => ({
+				...getCollisionOptions(),
+				apply: ({
+					availableWidth,
+					elements,
+				}: {
+					availableWidth: number;
+					elements: { floating: HTMLElement };
+				}) => {
+					elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
+					// The surface scrolls itself, so no wrapper clips its rounded ring.
+					const surface = surfaceRef.current;
+					if (surface instanceof HTMLElement) {
+						surface.style.maxWidth = "100%";
+						surface.style.overflowX = "auto";
+					}
+				},
+			}),
+			onShow: () => {
+				playBubbleEntrance(surfaceRef.current);
+				// Edit link opens the field while this menu is still hidden, too early to focus it.
+				if (showLinkInputRef.current) menuRef.current?.querySelector("input")?.focus();
+			},
+			// A link edit left open doesn't carry over to the next selection.
+			onHide: () => {
+				if (showLinkInputRef.current) closeLinkInputRef.current();
+			},
+		}),
+		[getCollisionOptions],
+	);
+
+	return (
+		<>
+			<LinkBubbleMenu
+				editor={editor}
+				appendTo={appendTo}
+				getCollisionOptions={getCollisionOptions}
+				onEdit={() => {
+					editor.chain().focus().extendMarkRange("link", linkAtCaret(editor.state)?.attrs).run();
+					setShowLinkInput(true);
+				}}
+			/>
+			<BubbleMenu
+				ref={menuRef}
+				editor={editor}
+				pluginKey={INLINE_BUBBLE_MENU_KEY}
+				appendTo={appendTo}
+				updateDelay={120}
+				options={options}
+				shouldShow={({ editor: activeEditor, element, state: editorState, view }) => {
+					const { selection } = editorState;
+					const activeElement = document.activeElement;
+					const hasMenuFocus =
+						element.contains(activeElement) ||
+						Boolean(activeElement?.closest(`[${BUBBLE_POPUP_ATTR}]`));
+					return (
+						activeEditor.isEditable &&
+						(selection instanceof TextSelection || selection instanceof AllSelection) &&
+						// A selection of only line breaks or spaces has nothing to format.
+						NON_WHITESPACE_REGEX.test(
+							editorState.doc.textBetween(selection.from, selection.to, " "),
+						) &&
+						!activeEditor.isActive("codeBlock") &&
+						(view.hasFocus() || hasMenuFocus)
+					);
+				}}
+			>
+				<div
+					ref={surfaceRef}
+					data-emdash-inline-bubble-menu
+					role="toolbar"
+					aria-label={t`Format selection`}
+					className={bubbleMenuClassName}
+					onKeyDown={(event) => moveToolbarFocus(event, false)}
+				>
+					<TooltipProvider delay={400}>
+						{showLinkInput ? (
+							<div className="flex min-w-0 items-start gap-1">
+								<LinkDestinationInput
+									className="w-72 min-w-0 shrink"
+									value={linkUrl}
+									onValueChange={(value) => {
+										setLinkUrl(value);
+										setLinkInvalid(false);
+									}}
+									invalid={linkInvalid}
+									onSubmit={handleSetLink}
+									onPick={applyLinkHref}
+									onEscape={() => {
+										closeLinkInput();
+										editor.commands.focus();
+									}}
+								/>
+								<BubbleButton onClick={handleSetLink} title={t`Apply link`}>
+									<Check className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+								{state.link && (
+									<BubbleButton onClick={handleRemoveLink} title={t`Remove link`}>
+										<LinkBreak className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								)}
+							</div>
+						) : (
+							// Scrolls with the fixed toolbar's edge fade when a narrow screen cuts it off.
+							<div className="emdash-editor-toolbar -m-1 flex min-w-0 scroll-px-1 items-center gap-0.5 overflow-x-auto rounded-[inherit] p-1">
+								{state.canTurnInto && (
+									<>
+										<TurnIntoMenu
+											editor={editor}
+											activeId={state.blockType}
+											open={openMenu === "turnInto"}
+											onOpenChange={(open) => toggleMenu("turnInto", open)}
+										/>
+										<BubbleSeparator />
+									</>
+								)}
+								<BubbleButton
+									onClick={() => setShowLinkInput(true)}
+									active={state.link}
+									title={state.link ? t`Edit link` : t`Add link`}
+								>
+									<LinkIcon className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+								<BubbleSeparator />
+								{INLINE_MARKS.map(({ mark, label, icon: MarkIcon }) => (
+									<BubbleButton
+										key={mark}
+										onClick={() => editor.chain().focus().toggleMark(mark).run()}
+										active={state[mark]}
+										title={t(label)}
+									>
+										<MarkIcon className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								))}
+								<BubbleSeparator />
+								<MoreFormattingMenu
+									editor={editor}
+									subscript={state.subscript}
+									superscript={state.superscript}
+									open={openMenu === "more"}
+									onOpenChange={(open) => toggleMenu("more", open)}
+								/>
+							</div>
+						)}
+					</TooltipProvider>
+				</div>
+			</BubbleMenu>
+		</>
+	);
+}
+
+const SAFE_LINK_HREF_REGEX = /^(?:https?:|mailto:|tel:|\/|#)/i;
+const LINK_DISPLAY_PREFIX_REGEX = /^https?:\/\/(?:www\.)?/i;
+
+/** Shows where a link goes, with edit and remove, whenever the caret sits inside it. */
+function LinkBubbleMenu({
+	editor,
+	appendTo,
+	getCollisionOptions,
+	onEdit,
+}: {
+	editor: Editor;
+	appendTo: () => HTMLElement;
+	getCollisionOptions: BubbleMenuCollisionOptions;
+	onEdit: () => void;
+}) {
+	const { t } = useLingui();
+	const href = useEditorState({
+		editor,
+		selector: ({ editor: activeEditor }) => {
+			const value: unknown = linkAtCaret(activeEditor.state)?.attrs.href;
+			return typeof value === "string" ? value : "";
+		},
+	});
+	const options = React.useMemo(
+		() => ({
+			strategy: "absolute" as const,
+			placement: "bottom-start" as const,
+			offset: 6,
+			flip: getCollisionOptions,
+			shift: getCollisionOptions,
+			hide: hideUnderToolbar(getCollisionOptions),
+		}),
+		[getCollisionOptions],
+	);
+	const openable = SAFE_LINK_HREF_REGEX.test(href);
 	return (
 		<BubbleMenu
 			editor={editor}
-			pluginKey={INLINE_BUBBLE_MENU_KEY}
+			pluginKey={LINK_BUBBLE_MENU_KEY}
 			appendTo={appendTo}
-			options={{
-				strategy: "absolute",
-				placement: "top",
-				offset: 8,
-				flip: getCollisionOptions,
-				shift: getCollisionOptions,
-				size: () => ({
-					...getCollisionOptions(),
-					apply: ({ availableWidth, elements }) => {
-						elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
-						elements.floating.style.overflowX = "auto";
-						elements.floating.style.borderRadius = "var(--radius-lg)";
-					},
-				}),
-			}}
-			shouldShow={({ editor: activeEditor, element, state, view }) => {
-				const { selection } = state;
-				return (
-					activeEditor.isEditable &&
-					(selection instanceof TextSelection || selection instanceof AllSelection) &&
-					!selection.empty &&
-					(view.hasFocus() || element.contains(document.activeElement))
-				);
-			}}
-			data-emdash-inline-bubble-menu
-			className="z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg"
+			updateDelay={0}
+			options={options}
+			shouldShow={({ editor: activeEditor, element, state: editorState, oldState, view }) =>
+				activeEditor.isEditable &&
+				editorState.selection instanceof TextSelection &&
+				editorState.selection.empty &&
+				linkAtCaret(editorState) !== undefined &&
+				// At a link's edge, typing goes beside the link, so the preview gets out of the way.
+				(activeEditor.isActive("link") || !oldState || oldState.doc.eq(editorState.doc)) &&
+				(view.hasFocus() || element.contains(document.activeElement))
+			}
 		>
-			{showLinkInput ? (
-				<div className="flex items-start gap-1">
-					<LinkDestinationInput
-						className="w-72"
-						value={linkUrl}
-						onValueChange={setLinkUrl}
-						onSubmit={handleSetLink}
-						onPick={applyLinkHref}
-						onEscape={() => {
-							closeLinkInput();
-							editor.commands.focus();
-						}}
-					/>
-					<Button
-						type="button"
-						variant="ghost"
-						shape="square"
-						className="h-8 w-8"
-						onClick={handleSetLink}
-						title={t`Apply link`}
-						aria-label={t`Apply link`}
-					>
-						<ArrowSquareOut className="h-4 w-4" />
-					</Button>
-					{activeMarks.link && (
-						<Button
-							type="button"
-							variant="ghost"
-							shape="square"
-							className="h-8 w-8 text-kumo-danger"
-							onClick={handleRemoveLink}
-							title={t`Remove link`}
-							aria-label={t`Remove link`}
+			<div
+				data-emdash-link-bubble-menu
+				role="toolbar"
+				aria-label={t`Link options`}
+				className={cn(bubbleMenuClassName, "max-w-[min(28rem,calc(100vw-1rem))]")}
+				onKeyDown={(event) => moveToolbarFocus(event, false)}
+			>
+				<TooltipProvider delay={400}>
+					<Globe className="ms-1.5 size-4 flex-none text-kumo-subtle" aria-hidden="true" />
+					{openable ? (
+						<a
+							href={href}
+							target="_blank"
+							rel="noopener noreferrer"
+							dir="auto"
+							className="min-w-0 truncate px-1.5 text-base text-kumo-link hover:underline"
 						>
-							<LinkBreak className="h-4 w-4" />
-						</Button>
+							{href.replace(LINK_DISPLAY_PREFIX_REGEX, "")}
+						</a>
+					) : (
+						<span dir="auto" className="min-w-0 truncate px-1.5 text-base text-kumo-subtle">
+							{href}
+						</span>
 					)}
-				</div>
-			) : (
-				<>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleBold().run()}
-						active={activeMarks.bold}
-						title={t`Bold`}
-					>
-						<TextB className="h-4 w-4" />
+					<BubbleSeparator />
+					<BubbleButton onClick={onEdit} title={t`Edit link`}>
+						<PencilSimple className="h-4 w-4" aria-hidden="true" />
 					</BubbleButton>
 					<BubbleButton
-						onClick={() => editor.chain().focus().toggleItalic().run()}
-						active={activeMarks.italic}
-						title={t`Italic`}
+						onClick={() =>
+							editor
+								.chain()
+								.focus()
+								.extendMarkRange("link", linkAtCaret(editor.state)?.attrs)
+								.unsetLink()
+								.run()
+						}
+						title={t`Remove link`}
 					>
-						<TextItalic className="h-4 w-4" />
+						<LinkBreak className="h-4 w-4" aria-hidden="true" />
 					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleUnderline().run()}
-						active={activeMarks.underline}
-						title={t`Underline`}
-					>
-						<TextUnderline className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleStrike().run()}
-						active={activeMarks.strike}
-						title={t`Strikethrough`}
-					>
-						<TextStrikethrough className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleSubscript().run()}
-						active={activeMarks.subscript}
-						title={t`Subscript`}
-					>
-						<TextSubscript className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleSuperscript().run()}
-						active={activeMarks.superscript}
-						title={t`Superscript`}
-					>
-						<TextSuperscript className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleCode().run()}
-						active={activeMarks.code}
-						title={t`Code`}
-					>
-						<Code className="h-4 w-4" />
-					</BubbleButton>
-					<div className="w-px h-6 bg-kumo-line mx-1" />
-					<BubbleButton
-						onClick={() => setShowLinkInput(true)}
-						active={activeMarks.link}
-						title={activeMarks.link ? t`Edit link` : t`Add link`}
-					>
-						<LinkIcon className="h-4 w-4" />
-					</BubbleButton>
-				</>
-			)}
+				</TooltipProvider>
+			</div>
 		</BubbleMenu>
+	);
+}
+
+function BubbleSeparator() {
+	return <div aria-hidden="true" className="mx-0.5 h-5 w-px flex-none bg-kumo-hairline" />;
+}
+
+const bubbleTriggerClassName = cn(
+	"flex h-8 flex-none items-center gap-1 rounded-md px-2 text-base text-kumo-default outline-none",
+	"hover:bg-kumo-tint data-popup-open:bg-kumo-tint focus-visible:ring-2 focus-visible:ring-kumo-focus/50",
+	"pointer-coarse:h-11",
+);
+
+interface BubbleMenuControl {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+}
+
+/**
+ * Escape from a selection-toolbar menu goes back to the editor. The menu's
+ * own focus return can miss once the page has scrolled while it was open.
+ */
+function closeToEditor(editor: Editor, onOpenChange: (open: boolean) => void) {
+	return (open: boolean, details: { reason: string }) => {
+		onOpenChange(open);
+		if (!open && details.reason === "escape-key" && !editor.isDestroyed) editor.view.focus();
+	};
+}
+
+/** `activeId` is unset when the selection mixes block types, so nothing is checked. */
+function TurnIntoMenu({
+	editor,
+	activeId,
+	open,
+	onOpenChange,
+}: { editor: Editor; activeId?: TextBlockTypeId } & BubbleMenuControl) {
+	const { t } = useLingui();
+	const active = textBlockTypes.find((type) => type.id === activeId);
+	return (
+		<Menu.Root modal={false} open={open} onOpenChange={closeToEditor(editor, onOpenChange)}>
+			<Menu.Trigger
+				className={bubbleTriggerClassName}
+				onMouseDown={(event) => event.preventDefault()}
+				aria-label={t`Turn into`}
+			>
+				<span className="max-w-32 truncate">{active ? t(active.label) : t`Turn into`}</span>
+				<CaretDown className="size-3 flex-none text-kumo-subtle" aria-hidden="true" />
+			</Menu.Trigger>
+			<Menu.Portal>
+				<Menu.Positioner side="bottom" align="start" sideOffset={8} className="z-[110]">
+					<Menu.Popup
+						{...{ [BUBBLE_POPUP_ATTR]: "" }}
+						finalFocus={() => (editor.isDestroyed ? false : editor.view.dom)}
+						onKeyDown={tabToEditor(editor, () => onOpenChange(false))}
+						className={editorMenuPopupClassName}
+					>
+						<Menu.RadioGroup
+							value={activeId ?? null}
+							onValueChange={(id) =>
+								textBlockTypes.find((type) => type.id === id)?.transform(editor)
+							}
+						>
+							<EditorMenuLabel>{t`Turn into`}</EditorMenuLabel>
+							{turnIntoMenuTypes(activeId).map((type) => (
+								<EditorMenuRadioItem
+									key={type.id}
+									value={type.id}
+									icon={type.icon}
+									label={t(type.label)}
+								/>
+							))}
+						</Menu.RadioGroup>
+					</Menu.Popup>
+				</Menu.Positioner>
+			</Menu.Portal>
+		</Menu.Root>
+	);
+}
+
+function MoreFormattingMenu({
+	editor,
+	subscript,
+	superscript,
+	open,
+	onOpenChange,
+}: {
+	editor: Editor;
+	subscript: boolean;
+	superscript: boolean;
+} & BubbleMenuControl) {
+	const { t } = useLingui();
+	const alignment = useEditorState({
+		editor,
+		selector: ({ editor: activeEditor }) => {
+			const { alignments, isAlignmentUnavailable } = getSelectionTextAlignments(activeEditor);
+			return {
+				value: !isAlignmentUnavailable && alignments.size === 1 ? [...alignments][0] : undefined,
+				unavailable: isAlignmentUnavailable,
+			};
+		},
+	});
+	return (
+		<Menu.Root modal={false} open={open} onOpenChange={closeToEditor(editor, onOpenChange)}>
+			<Menu.Trigger
+				className={cn(bubbleTriggerClassName, "w-8 justify-center px-0 pointer-coarse:w-11")}
+				onMouseDown={(event) => event.preventDefault()}
+				aria-label={t`More formatting`}
+			>
+				<DotsThree className="h-4 w-4" weight="bold" aria-hidden="true" />
+			</Menu.Trigger>
+			<Menu.Portal>
+				<Menu.Positioner side="bottom" align="end" sideOffset={8} className="z-[110]">
+					<Menu.Popup
+						{...{ [BUBBLE_POPUP_ATTR]: "" }}
+						finalFocus={() => (editor.isDestroyed ? false : editor.view.dom)}
+						onKeyDown={tabToEditor(editor, () => onOpenChange(false))}
+						className={editorMenuPopupClassName}
+					>
+						<EditorMenuCheckboxItem
+							icon={TextSubscript}
+							label={t`Subscript`}
+							checked={subscript}
+							onCheckedChange={() => editor.chain().focus().toggleSubscript().run()}
+						/>
+						<EditorMenuCheckboxItem
+							icon={TextSuperscript}
+							label={t`Superscript`}
+							checked={superscript}
+							onCheckedChange={() => editor.chain().focus().toggleSuperscript().run()}
+						/>
+						<EditorMenuSeparator />
+						<Menu.RadioGroup
+							value={alignment.value ?? null}
+							disabled={alignment.unavailable}
+							onValueChange={(value: TextAlignment) => setSelectionTextAlignment(editor, value)}
+						>
+							<EditorMenuLabel>{t`Align`}</EditorMenuLabel>
+							{(
+								[
+									["left", msg`Left`, TextAlignLeft],
+									["center", msg`Center`, TextAlignCenter],
+									["right", msg`Right`, TextAlignRight],
+								] as const
+							).map(([value, label, AlignIcon]) => (
+								<EditorMenuRadioItem key={value} value={value} icon={AlignIcon} label={t(label)} />
+							))}
+						</Menu.RadioGroup>
+						<EditorMenuSeparator />
+						<EditorMenuItem
+							icon={Eraser}
+							label={t`Clear formatting`}
+							onClick={() => {
+								const chain = editor.chain().focus();
+								for (const mark of FORMATTING_MARKS) chain.unsetMark(mark);
+								chain.run();
+							}}
+						/>
+					</Menu.Popup>
+				</Menu.Positioner>
+			</Menu.Portal>
+		</Menu.Root>
 	);
 }
 
@@ -4261,6 +5447,7 @@ function TableBubbleMenu({
 				offset: 8,
 				flip: getCollisionOptions,
 				shift: getCollisionOptions,
+				hide: hideUnderToolbar(getCollisionOptions),
 				size: () => ({
 					...getCollisionOptions(),
 					apply: ({ availableWidth, elements }) => {
@@ -4278,38 +5465,44 @@ function TableBubbleMenu({
 					activeElement?.closest('[role="menu"]')?.getAttribute("aria-labelledby") === triggerId,
 				);
 				const hasEditorFocus = view.hasFocus() || element.contains(activeElement) || hasMenuFocus;
+				// In a link, the link preview shows instead, which would otherwise cover this.
 				return (
 					activeEditor.isEditable &&
 					hasEditorFocus &&
 					activeEditor.isActive("table") &&
-					(state.selection.empty || state.selection instanceof CellSelection)
+					((state.selection.empty && !activeEditor.isActive("link")) ||
+						state.selection instanceof CellSelection)
 				);
 			}}
-			data-emdash-table-bubble-menu
-			role="group"
-			aria-label={t`Table controls`}
-			className="z-[100] flex items-center gap-0.5 rounded-lg bg-kumo-base p-1 shadow-lg ring ring-kumo-line"
 		>
-			{controls && (controls.rows > 1 || controls.columns > 1) && (
-				<span className="px-2 text-xs text-kumo-subtle">
-					{t`${plural(controls.rows, { one: "# row", other: "# rows" })} × ${plural(controls.columns, { one: "# column", other: "# columns" })} selected`}
-				</span>
-			)}
-			<BubbleButton
-				onClick={() => run("add-row-after", t`Row added below`)}
-				disabled={!controls?.can["add-row-after"]}
-				title={t`Add row below`}
+			<div
+				data-emdash-table-bubble-menu
+				role="toolbar"
+				aria-label={t`Table controls`}
+				className={bubbleMenuClassName}
+				onKeyDown={(event) => moveToolbarFocus(event, false)}
 			>
-				<RowsPlusBottom className="h-4 w-4" aria-hidden="true" />
-			</BubbleButton>
-			<BubbleButton
-				onClick={() => run("add-column-after", t`Column added after`)}
-				disabled={!controls?.can["add-column-after"]}
-				title={t`Add column after`}
-			>
-				<ColumnsPlusRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
-			</BubbleButton>
-			<TableMoreMenu editor={editor} editable={editable} onRun={onRun} />
+				{controls && (controls.rows > 1 || controls.columns > 1) && (
+					<span className="px-2 text-xs text-kumo-subtle">
+						{t`${plural(controls.rows, { one: "# row", other: "# rows" })} × ${plural(controls.columns, { one: "# column", other: "# columns" })} selected`}
+					</span>
+				)}
+				<BubbleButton
+					onClick={() => run("add-row-after", t`Row added below`)}
+					disabled={!controls?.can["add-row-after"]}
+					title={t`Add row below`}
+				>
+					<RowsPlusBottom className="h-4 w-4" aria-hidden="true" />
+				</BubbleButton>
+				<BubbleButton
+					onClick={() => run("add-column-after", t`Column added after`)}
+					disabled={!controls?.can["add-column-after"]}
+					title={t`Add column after`}
+				>
+					<ColumnsPlusRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+				</BubbleButton>
+				<TableMoreMenu editor={editor} editable={editable} onRun={onRun} />
+			</div>
 		</BubbleMenu>
 	);
 }
@@ -4345,9 +5538,11 @@ function ImageBubbleMenu({
 }) {
 	const { t } = useLingui();
 	const menuRef = React.useRef<HTMLDivElement>(null);
+	const surfaceRef = React.useRef<HTMLDivElement>(null);
 	const altInputRef = React.useRef<HTMLInputElement>(null);
 	const [mode, setMode] = React.useState<"controls" | "alt" | "link">("controls");
 	const [draft, setDraft] = React.useState("");
+	const [linkInvalid, setLinkInvalid] = React.useState(false);
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	// Remounting the controls when the toolbar hides closes any hint left open on them.
 	const [controlsKey, setControlsKey] = React.useState(0);
@@ -4365,6 +5560,7 @@ function ImageBubbleMenu({
 				alt: typeof attrs?.alt === "string" ? attrs.alt : "",
 				alignment: (attrs?.alignment as string | null | undefined) ?? null,
 				link: (attrs?.link as { href?: string } | null | undefined)?.href ?? "",
+				caption: typeof attrs?.caption === "string" ? attrs.caption : "",
 				mediaId:
 					typeof attrs?.mediaId === "string" &&
 					attrs.mediaId &&
@@ -4403,7 +5599,7 @@ function ImageBubbleMenu({
 	// A quick fade and scale in, played when the toolbar appears or moves to another image.
 	const playEntrance = React.useCallback(() => {
 		const menu = menuRef.current;
-		const toolbar = menu?.firstElementChild;
+		const toolbar = surfaceRef.current;
 		if (!menu?.isConnected || menu.hidden || !(toolbar instanceof HTMLElement)) return;
 		const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 		for (const animation of toolbar.getAnimations()) animation.cancel();
@@ -4518,10 +5714,11 @@ function ImageBubbleMenu({
 		if (editingPosRef.current === null) return;
 		// Hold focus in the toolbar while the focused button unmounts, or the focus gate hides it.
 		if (menuRef.current?.contains(document.activeElement)) {
-			menuRef.current.focus({ preventScroll: true });
+			surfaceRef.current?.focus({ preventScroll: true });
 		}
 		editSessionRef.current += 1;
 		setDraft(next === "alt" ? image.alt : image.link);
+		setLinkInvalid(false);
 		setMode(next);
 	};
 	// Focus the editor before the edit row unmounts, so focus never drops to the page.
@@ -4538,8 +5735,10 @@ function ImageBubbleMenu({
 	// A link search pick can resolve after its row closed, or once another edit began.
 	const applyLink = (href: string | null, session = editSessionRef.current) => {
 		if (editingPosRef.current === null || session !== editSessionRef.current) return;
-		editor.view.focus();
-		setSelectedImageLink(editor, href);
+		if (!setSelectedImageLink(editor, href)) {
+			setLinkInvalid(true);
+			return;
+		}
 		showControls();
 	};
 	const toggleSettings = () => {
@@ -4558,7 +5757,7 @@ function ImageBubbleMenu({
 	);
 	// Below the sm breakpoint these buttons show only their icons.
 	const textButtonClass =
-		"h-8 gap-1.5 px-2 text-sm pointer-coarse:h-11 max-sm:w-8 max-sm:justify-center max-sm:px-0 max-sm:pointer-coarse:w-11";
+		"h-8 gap-1.5 rounded-md px-2 text-sm pointer-coarse:h-11 max-sm:w-8 max-sm:justify-center max-sm:px-0 max-sm:pointer-coarse:w-11";
 
 	return (
 		<>
@@ -4571,9 +5770,11 @@ function ImageBubbleMenu({
 				options={{
 					strategy: "absolute",
 					placement: "top",
-					offset: 8,
+					// Clears the selected image's edge, 6px outside it.
+					offset: 14,
 					flip: getCollisionOptions,
 					shift: getCollisionOptions,
+
 					size: () => ({
 						...getCollisionOptions(),
 						apply: ({ availableWidth, elements, placement }) => {
@@ -4601,143 +5802,161 @@ function ImageBubbleMenu({
 							Boolean(view.nodeDOM(selection.from)?.contains(document.activeElement)))
 					);
 				}}
-				data-emdash-image-bubble-menu
-				role="group"
-				aria-label={t`Image controls`}
-				className={cn(
-					"z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg",
-					"origin-[var(--transform-origin)]",
-					mode === "controls" && "flex-wrap justify-center",
-				)}
-				onMouseDown={(event) => {
-					if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
-				}}
-				// Capture, so an open hint can't stop Escape before the toolbar sees it.
-				onKeyDownCapture={(event) => {
-					if (event.key !== "Escape" || event.nativeEvent.isComposing) return;
-					event.stopPropagation();
-					returnToEditor();
-				}}
-				onKeyDown={(event) => {
-					if (event.nativeEvent.isComposing) return;
-					if (
-						event.key === "Tab" &&
-						event.shiftKey &&
-						event.target === menuRef.current?.querySelector("button, input")
-					) {
-						event.preventDefault();
-						(getSelectedCaption() ?? editor.view).focus();
-					}
-				}}
 			>
-				<TooltipProvider key={controlsKey} delay={200}>
-					{mode === "alt" ? (
-						<>
-							<Input
-								ref={altInputRef}
-								aria-label={t`Alt text`}
-								placeholder={t`Describe the image`}
-								value={draft}
-								onChange={(event) => setDraft(event.target.value)}
-								onKeyDown={(event) => {
-									if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-									if (event.keyCode === 229) return;
-									event.preventDefault();
-									saveAlt();
-								}}
-								className="h-8 w-72 min-w-0 text-sm"
-							/>
-							<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
-								<X className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-							<BubbleButton onClick={saveAlt} title={t`Save alt text`}>
-								<Check className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-						</>
-					) : mode === "link" ? (
-						<div className="flex min-w-0 items-start gap-0.5">
-							<LinkDestinationInput
-								className="w-72 min-w-0"
-								value={draft}
-								onValueChange={setDraft}
-								onSubmit={() => applyLink(draft)}
-								onPick={(href) => applyLink(href, editSession)}
-								onEscape={returnToEditor}
-							/>
-							{image.link && (
-								<BubbleButton onClick={() => applyLink(null)} title={t`Remove link`}>
-									<LinkBreak className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-								</BubbleButton>
-							)}
-							<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
-								<X className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-							<BubbleButton onClick={() => applyLink(draft)} title={t`Apply link`}>
-								<Check className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-						</div>
-					) : (
-						<>
-							<Button
-								variant="ghost"
-								className={textButtonClass}
-								icon={<ImageSquare className="h-4 w-4" aria-hidden="true" />}
-								onClick={() => {
-									pickerRef.current = "open";
-									setPickerOpen(true);
-								}}
-							>
-								<span className="max-sm:sr-only">{t`Replace`}</span>
-							</Button>
-							<Button
-								variant="ghost"
-								className={cn(textButtonClass, described && "bg-kumo-tint text-kumo-default")}
-								icon={<TextAa className="h-4 w-4" aria-hidden="true" />}
-								title={described ? image.alt : t`No description yet`}
-								aria-pressed={described}
-								onClick={() => startEditing("alt")}
-							>
-								<span className="max-sm:sr-only">{t`Alt text`}</span>
-							</Button>
-							{separator}
-							<div role="group" aria-label={t`Alignment`} className="flex items-center gap-0.5">
-								{IMAGE_ALIGNMENTS.map(({ value, label, Icon }) => (
-									<BubbleButton
-										key={value ?? "none"}
-										active={image.alignment === value}
-										title={t(label)}
-										onClick={() => {
-											if (image.alignment === value) return;
-											editor.chain().updateAttributes("image", { alignment: value }).run();
-										}}
-									>
-										<Icon className="h-4 w-4" aria-hidden="true" />
-									</BubbleButton>
-								))}
-							</div>
-							{rowBreak}
-							<BubbleButton
-								onClick={() => startEditing("link")}
-								active={Boolean(image.link)}
-								title={image.link ? t`Edit link` : t`Add link`}
-							>
-								<LinkIcon className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-							{canOpenSettings && (
-								<BubbleButton onClick={toggleSettings} title={t`Image settings`}>
-									<SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-								</BubbleButton>
-							)}
-							{separator}
-							<BubbleButton
-								onClick={() => editor.chain().focus().deleteSelection().run()}
-								title={t`Delete image`}
-							>
-								<Trash className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
-						</>
+				<div
+					ref={surfaceRef}
+					tabIndex={-1}
+					data-emdash-image-bubble-menu
+					role="toolbar"
+					aria-label={t`Image controls`}
+					className={cn(
+						bubbleMenuClassName,
+						"origin-[var(--transform-origin)]",
+						mode === "controls" && "flex-wrap justify-center",
 					)}
-				</TooltipProvider>
+					onMouseDown={(event) => {
+						if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
+					}}
+					// Capture, so an open hint can't stop Escape before the toolbar sees it.
+					onKeyDownCapture={(event) => {
+						if (event.key !== "Escape" || event.nativeEvent.isComposing) return;
+						event.stopPropagation();
+						returnToEditor();
+					}}
+					onKeyDown={(event) => {
+						if (event.nativeEvent.isComposing) return;
+						if (
+							event.key === "Tab" &&
+							event.shiftKey &&
+							event.target === menuRef.current?.querySelector("button, input")
+						) {
+							event.preventDefault();
+							(getSelectedCaption() ?? editor.view).focus();
+							return;
+						}
+						moveToolbarFocus(event, false);
+					}}
+				>
+					<TooltipProvider key={controlsKey} delay={200}>
+						{mode === "alt" ? (
+							<>
+								<Input
+									ref={altInputRef}
+									aria-label={t`Alt text`}
+									placeholder={t`Describe the image`}
+									value={draft}
+									onChange={(event) => setDraft(event.target.value)}
+									onKeyDown={(event) => {
+										if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+										if (event.keyCode === 229) return;
+										event.preventDefault();
+										saveAlt();
+									}}
+									className="h-8 w-72 min-w-0 text-sm"
+								/>
+								<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
+									<X className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+								<BubbleButton onClick={saveAlt} title={t`Save alt text`}>
+									<Check className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+							</>
+						) : mode === "link" ? (
+							<div className="flex min-w-0 items-start gap-0.5">
+								<LinkDestinationInput
+									className="w-72 min-w-0"
+									value={draft}
+									onValueChange={(value) => {
+										setDraft(value);
+										setLinkInvalid(false);
+									}}
+									invalid={linkInvalid}
+									onSubmit={() => applyLink(draft)}
+									onPick={(href) => applyLink(href, editSession)}
+									onEscape={returnToEditor}
+								/>
+								{image.link && (
+									<BubbleButton onClick={() => applyLink(null)} title={t`Remove link`}>
+										<LinkBreak className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								)}
+								<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
+									<X className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+								<BubbleButton onClick={() => applyLink(draft)} title={t`Apply link`}>
+									<Check className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+							</div>
+						) : (
+							<>
+								<Button
+									variant="ghost"
+									className={textButtonClass}
+									icon={<ImageSquare className="h-4 w-4" aria-hidden="true" />}
+									onClick={() => {
+										pickerRef.current = "open";
+										setPickerOpen(true);
+									}}
+								>
+									<span className="max-sm:sr-only">{t`Replace`}</span>
+								</Button>
+								<Button
+									variant="ghost"
+									className={cn(textButtonClass, described && "bg-kumo-tint text-kumo-link")}
+									icon={<TextAa className="h-4 w-4" aria-hidden="true" />}
+									title={described ? image.alt : t`No description yet`}
+									aria-pressed={described}
+									onClick={() => startEditing("alt")}
+								>
+									<span className="max-sm:sr-only">{t`Alt text`}</span>
+								</Button>
+								{separator}
+								<div role="group" aria-label={t`Alignment`} className="flex items-center gap-0.5">
+									{IMAGE_ALIGNMENTS.map(({ value, label, Icon }) => (
+										<BubbleButton
+											key={value ?? "none"}
+											active={image.alignment === value}
+											title={t(label)}
+											onClick={() => {
+												if (image.alignment === value) return;
+												editor.chain().updateAttributes("image", { alignment: value }).run();
+											}}
+										>
+											<Icon className="h-4 w-4" aria-hidden="true" />
+										</BubbleButton>
+									))}
+								</div>
+								{rowBreak}
+								<BubbleButton
+									onClick={() => startEditing("link")}
+									active={Boolean(image.link)}
+									title={image.link ? t`Edit link` : t`Add link`}
+								>
+									<LinkIcon className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+								<BubbleButton
+									onClick={() => getSelectedCaption()?.focus()}
+									active={Boolean(image.caption)}
+									title={image.caption ? t`Edit caption` : t`Add caption`}
+								>
+									<Subtitles className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+								{canOpenSettings && (
+									<BubbleButton onClick={toggleSettings} title={t`Image settings`}>
+										<SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								)}
+								{separator}
+								<BubbleButton
+									onClick={() => editor.chain().focus().deleteSelection().run()}
+									title={t`Delete image`}
+								>
+									<Trash className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+							</>
+						)}
+					</TooltipProvider>
+				</div>
 			</BubbleMenu>
 			<MediaPickerModal
 				open={pickerOpen}
@@ -4746,11 +5965,17 @@ function ImageBubbleMenu({
 					setPickerOpen(open);
 				}}
 				onSelect={(item) => {
-					if (!getSelectedImage(editor.state)) return;
+					const selected = getSelectedImage(editor.state);
+					if (!selected) return;
 					if (canonicalMediaProviderId(item.provider) === "local") {
 						queryClient.setQueryData(["media", item.id], item);
 					}
-					const attrs = { ...mediaItemToImageAttrs(item), caption: undefined, title: undefined };
+					const attrs = {
+						...mediaItemToImageAttrs(item),
+						caption: undefined,
+						title: undefined,
+						...(dropsDisplayHeight(selected.node.attrs, item) ? { displayHeight: undefined } : {}),
+					};
 					editor.chain().updateAttributes("image", attrs).run();
 				}}
 				mimeTypeFilter="image/"
@@ -4765,32 +5990,41 @@ function BubbleButton({
 	onClick,
 	active,
 	disabled,
+	danger,
 	title,
 	children,
 }: {
 	onClick: () => void;
 	active?: boolean;
 	disabled?: boolean;
+	danger?: boolean;
 	title: string;
 	children: React.ReactNode;
 }) {
 	return (
-		<Button
-			type="button"
-			variant="ghost"
-			shape="square"
-			className={cn(
-				"h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11",
-				active && "bg-kumo-tint text-kumo-default",
-			)}
-			onClick={onClick}
-			disabled={disabled}
-			title={title}
-			aria-label={title}
-			aria-pressed={active === undefined ? undefined : active}
-		>
-			{children}
-		</Button>
+		<Tooltip
+			side="top"
+			content={title}
+			render={
+				<Button
+					type="button"
+					variant="ghost"
+					shape="square"
+					className={cn(
+						"h-8 w-8 rounded-md pointer-coarse:h-11 pointer-coarse:w-11",
+						active && "bg-kumo-tint text-kumo-link",
+						danger && "text-kumo-danger",
+					)}
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={onClick}
+					disabled={disabled}
+					aria-label={title}
+					aria-pressed={active === undefined ? undefined : active}
+				>
+					{children}
+				</Button>
+			}
+		/>
 	);
 }
 
@@ -4817,14 +6051,14 @@ function getSelectedTableCells(editor: Editor): ProseMirrorNode[] {
 function getSelectionTextAlignments(editor: Editor): {
 	alignments: Set<TextAlignment>;
 	isCellSelection: boolean;
-	isTableAlignmentUnavailable: boolean;
+	isAlignmentUnavailable: boolean;
 } {
 	const tableCells = getSelectedTableCells(editor);
 	if (selectionTouchesTable(editor.state) && !selectionIsContainedInTableCells(editor.state)) {
 		return {
 			alignments: new Set(),
 			isCellSelection: false,
-			isTableAlignmentUnavailable: true,
+			isAlignmentUnavailable: true,
 		};
 	}
 	const ownerWindow = editor.view.dom.ownerDocument.defaultView;
@@ -4846,12 +6080,14 @@ function getSelectionTextAlignments(editor: Editor): {
 		return {
 			alignments,
 			isCellSelection: editor.state.selection instanceof CellSelection,
-			isTableAlignmentUnavailable: false,
+			isAlignmentUnavailable: false,
 		};
 	}
 
-	const collectAlignment = (node: ProseMirrorNode) => {
+	let nested = false;
+	const collectAlignment = (node: ProseMirrorNode, parent: ProseMirrorNode | null) => {
 		if (node.type.name !== "paragraph" && node.type.name !== "heading") return;
+		if (parent?.type.name !== "doc") nested = true;
 		const textAlign = node.attrs.textAlign;
 		alignments.add(
 			textAlign === "left" ||
@@ -4868,20 +6104,25 @@ function getSelectionTextAlignments(editor: Editor): {
 			for (let depth = $from.depth; depth >= 0; depth -= 1) {
 				const node = $from.node(depth);
 				if (node.type.name === "paragraph" || node.type.name === "heading") {
-					collectAlignment(node);
+					collectAlignment(node, depth > 0 ? $from.node(depth - 1) : null);
 					break;
 				}
 			}
 			continue;
 		}
 
-		editor.state.doc.nodesBetween($from.pos, $to.pos, (node) => {
-			collectAlignment(node);
+		editor.state.doc.nodesBetween($from.pos, $to.pos, (node, _pos, parent) => {
+			collectAlignment(node, parent);
 			return node.type.name !== "paragraph" && node.type.name !== "heading";
 		});
 	}
 
-	return { alignments, isCellSelection: false, isTableAlignmentUnavailable: false };
+	// List items and quotes can't keep an alignment, and code and media have none.
+	return {
+		alignments,
+		isCellSelection: false,
+		isAlignmentUnavailable: nested || alignments.size === 0,
+	};
 }
 
 function alignmentButtonState(
@@ -4894,9 +6135,7 @@ function alignmentButtonState(
 }
 
 function setSelectionTextAlignment(editor: Editor, alignment: TextAlignment): boolean {
-	if (selectionTouchesTable(editor.state) && !selectionIsContainedInTableCells(editor.state)) {
-		return false;
-	}
+	if (getSelectionTextAlignments(editor).isAlignmentUnavailable) return false;
 	if (!(editor.state.selection instanceof CellSelection)) {
 		const chain = editor.chain().focus();
 		return editor.isActive("table")
@@ -4919,34 +6158,61 @@ function setSelectionTextAlignment(editor: Editor, alignment: TextAlignment): bo
 	return true;
 }
 
-const TableSafetyShortcuts = Extension.create({
-	name: "tableSafetyShortcuts",
+/**
+ * Takes over TipTap's own block and alignment shortcuts, so they convert and
+ * align the way the toolbar does, and do nothing where the toolbar's buttons
+ * are disabled, such as in a table.
+ */
+const STYLED_TEXT_BLOCKS = new Set(["heading", "codeBlock"]);
+
+const BlockFormatShortcuts = Extension.create({
+	name: "emdashBlockFormatShortcuts",
 	priority: 1_200,
 	addKeyboardShortcuts() {
-		const blockUnsafeStructure = () => selectionTouchesTable(this.editor.state);
-		const setTableAlignment = (alignment: TextAlignment) => {
-			if (!selectionTouchesTable(this.editor.state)) return false;
+		const convert = (id: TextBlockTypeId) => () => {
+			if (canTurnInto(this.editor)) toggleTextBlockType(this.editor, id);
+			return true;
+		};
+		const setAlignment = (alignment: TextAlignment) => {
 			setSelectionTextAlignment(this.editor, alignment);
 			return true;
 		};
+		// Backspace at the start of a heading or code block turns it into text first, the way it
+		// lifts a list item or quote out, rather than joining it to the block above.
+		const backspaceToText = () => {
+			const { selection } = this.editor.state;
+			const { $from } = selection;
+			if (!selection.empty || $from.parentOffset !== 0) return false;
+			if (!STYLED_TEXT_BLOCKS.has($from.parent.type.name)) return false;
+			if (!this.editor.commands.undoInputRule()) turnInto(this.editor, "paragraph");
+			return true;
+		};
 		return {
-			"Mod-Alt-1": blockUnsafeStructure,
-			"Mod-Alt-2": blockUnsafeStructure,
-			"Mod-Alt-3": blockUnsafeStructure,
-			"Mod-Alt-4": blockUnsafeStructure,
-			"Mod-Alt-5": blockUnsafeStructure,
-			"Mod-Alt-6": blockUnsafeStructure,
-			"Mod-Shift-7": blockUnsafeStructure,
-			"Mod-Shift-8": blockUnsafeStructure,
-			"Mod-Shift-b": blockUnsafeStructure,
-			"Mod-Alt-c": blockUnsafeStructure,
-			"Mod-Shift-l": () => setTableAlignment("left"),
-			"Mod-Shift-e": () => setTableAlignment("center"),
-			"Mod-Shift-r": () => setTableAlignment("right"),
-			"Mod-Shift-j": () => setTableAlignment("justify"),
+			Backspace: backspaceToText,
+			"Shift-Backspace": backspaceToText,
+			"Mod-Backspace": backspaceToText,
+			"Alt-Backspace": backspaceToText,
+			"Mod-Alt-1": convert("heading1"),
+			"Mod-Alt-2": convert("heading2"),
+			"Mod-Alt-3": convert("heading3"),
+			"Mod-Alt-4": convert("heading4"),
+			"Mod-Alt-5": convert("heading5"),
+			"Mod-Alt-6": convert("heading6"),
+			"Mod-Shift-7": convert("orderedList"),
+			"Mod-Shift-8": convert("bulletList"),
+			"Mod-Shift-b": convert("blockquote"),
+			"Mod-Alt-c": convert("codeBlock"),
+			"Mod-Shift-l": () => setAlignment("left"),
+			"Mod-Shift-e": () => setAlignment("center"),
+			"Mod-Shift-r": () => setAlignment("right"),
+			"Mod-Shift-j": () => setAlignment("justify"),
 		};
 	},
 });
+
+const toolbarButtonClassName =
+	"size-8 rounded-lg text-kumo-subtle hover:bg-kumo-interact/50 hover:text-kumo-default pointer-coarse:size-11";
+const toolbarActiveClassName = "bg-kumo-interact/50 text-kumo-link hover:text-kumo-link";
 
 /**
  * Editor Toolbar
@@ -4961,6 +6227,7 @@ function EditorToolbar({
 	onInsertBlock,
 	onInsertImage,
 	onTableAction,
+	variant,
 }: {
 	toolbarRef: React.RefObject<HTMLDivElement | null>;
 	editor: Editor;
@@ -4968,19 +6235,37 @@ function EditorToolbar({
 	onInsertBlock: () => void;
 	onInsertImage: () => void;
 	onTableAction: (label: string) => void;
+	variant: NonNullable<PortableTextEditorProps["variant"]>;
 }) {
 	const { t } = useLingui();
 	const [showLinkPopover, setShowLinkPopover] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
+	const [linkInvalid, setLinkInvalid] = React.useState(false);
+
+	// The document toolbar is stuck once the point it scrolls from leaves the view.
+	const stuckSentinelRef = React.useRef<HTMLDivElement>(null);
+	const [stuck, setStuck] = React.useState(false);
+	React.useEffect(() => {
+		const sentinel = stuckSentinelRef.current;
+		if (!sentinel) return;
+		const observer = new IntersectionObserver((entries) =>
+			setStuck(entries.at(-1)?.isIntersecting === false),
+		);
+		observer.observe(sentinel);
+		return () => observer.disconnect();
+	}, []);
 
 	// Subscribe to editor state changes for reactive button states
 	const editorState = useEditorState({
 		editor,
 		selector: (ctx) => {
-			const { alignments, isCellSelection, isTableAlignmentUnavailable } =
-				getSelectionTextAlignments(ctx.editor);
-			const isOrderedList = ctx.editor.isActive("orderedList");
+			const { alignments, isCellSelection, isAlignmentUnavailable } = getSelectionTextAlignments(
+				ctx.editor,
+			);
+			const activeType = activeTextBlockType(ctx.editor)?.id;
+			const isOrderedList = activeType === "orderedList";
 			const touchesTable = selectionTouchesTable(ctx.editor.state);
+			const can = ctx.editor.can();
 			return {
 				isInTable: touchesTable,
 				isBold: ctx.editor.isActive("bold"),
@@ -4988,41 +6273,58 @@ function EditorToolbar({
 				isUnderline: ctx.editor.isActive("underline"),
 				isStrike: ctx.editor.isActive("strike"),
 				isCode: ctx.editor.isActive("code"),
-				isBulletList: ctx.editor.isActive("bulletList"),
+				canFormat: {
+					bold: can.toggleBold(),
+					italic: can.toggleItalic(),
+					underline: can.toggleUnderline(),
+					strike: can.toggleStrike(),
+					code: can.toggleCode(),
+				},
+				canTurnInto: canTurnInto(ctx.editor),
+				isBulletList: activeType === "bulletList",
 				isOrderedList,
-				canContinueOrderedList: isOrderedList && ctx.editor.can().continueOrderedList(),
-				canRestartOrderedList: isOrderedList && ctx.editor.can().restartOrderedList(),
-				isBlockquote: ctx.editor.isActive("blockquote"),
-				isCodeBlock: ctx.editor.isActive("codeBlock"),
-				alignLeftState: alignmentButtonState(alignments, isCellSelection, "left"),
-				alignCenterState: alignmentButtonState(alignments, isCellSelection, "center"),
-				alignRightState: alignmentButtonState(alignments, isCellSelection, "right"),
-				isTableAlignmentUnavailable,
-				isLink: ctx.editor.isActive("link"),
+				canContinueOrderedList: isOrderedList && can.continueOrderedList(),
+				canRestartOrderedList: isOrderedList && can.restartOrderedList(),
+				isBlockquote: activeType === "blockquote",
+				isCodeBlock: activeType === "codeBlock",
+				alignLeftState:
+					!isAlignmentUnavailable && alignmentButtonState(alignments, isCellSelection, "left"),
+				alignCenterState:
+					!isAlignmentUnavailable && alignmentButtonState(alignments, isCellSelection, "center"),
+				alignRightState:
+					!isAlignmentUnavailable && alignmentButtonState(alignments, isCellSelection, "right"),
+				isAlignmentUnavailable,
+				isLink: ctx.editor.isActive("link") || linkAtCaret(ctx.editor.state) !== undefined,
 				isImage: ctx.editor.isActive("image"),
+				canLink: ctx.editor.isActive("image") || can.setLink({ href: "https://example.com" }),
 				imageHasLink:
 					ctx.editor.isActive("image") && Boolean(ctx.editor.getAttributes("image").link),
-				canUndo: ctx.editor.can().undo(),
-				canRedo: ctx.editor.can().redo(),
+				canUndo: can.undo(),
+				canRedo: can.redo(),
 			};
 		},
 	});
 
 	// Populate link URL when opening popover
 	React.useEffect(() => {
+		setLinkInvalid(false);
 		if (showLinkPopover) {
 			const existingUrl = editor.isActive("image")
 				? ((editor.getAttributes("image").link as { href?: string } | null)?.href ?? "")
-				: editor.getAttributes("link").href || "";
+				: ((linkAtCaret(editor.state)?.attrs.href as string | undefined) ??
+					(editor.getAttributes("link").href || ""));
 			setLinkUrl(existingUrl);
 		}
 	}, [showLinkPopover, editor]);
 
+	// A URL the editor won't link keeps the popover open, saying why.
 	const applyLinkHref = (href: string) => {
-		if (editor.isActive("image")) {
-			setSelectedImageLink(editor, href);
-		} else {
-			setSelectedTextLink(editor, href);
+		const applied = editor.isActive("image")
+			? setSelectedImageLink(editor, href)
+			: setSelectedTextLink(editor, href);
+		if (!applied) {
+			setLinkInvalid(true);
+			return;
 		}
 		setShowLinkPopover(false);
 		setLinkUrl("");
@@ -5030,11 +6332,20 @@ function EditorToolbar({
 
 	const handleSetLink = () => {
 		if (editor.isActive("image")) {
-			setSelectedImageLink(editor, linkUrl);
+			if (!setSelectedImageLink(editor, linkUrl)) {
+				setLinkInvalid(true);
+				return;
+			}
 		} else if (linkUrl.trim() === "") {
-			editor.chain().focus().extendMarkRange("link").unsetLink().run();
-		} else {
-			setSelectedTextLink(editor, linkUrl.trim());
+			editor
+				.chain()
+				.focus()
+				.extendMarkRange("link", linkAtCaret(editor.state)?.attrs)
+				.unsetLink()
+				.run();
+		} else if (!setSelectedTextLink(editor, linkUrl)) {
+			setLinkInvalid(true);
+			return;
 		}
 		setShowLinkPopover(false);
 		setLinkUrl("");
@@ -5044,7 +6355,12 @@ function EditorToolbar({
 		if (editor.isActive("image")) {
 			setSelectedImageLink(editor, null);
 		} else {
-			editor.chain().focus().extendMarkRange("link").unsetLink().run();
+			editor
+				.chain()
+				.focus()
+				.extendMarkRange("link", linkAtCaret(editor.state)?.attrs)
+				.unsetLink()
+				.run();
 		}
 		setShowLinkPopover(false);
 		setLinkUrl("");
@@ -5057,58 +6373,21 @@ function EditorToolbar({
 	};
 
 	// Keyboard navigation for toolbar (WAI-ARIA toolbar pattern)
-	const handleKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-		const toolbar = toolbarRef.current;
-		if (!toolbar) return;
 
-		const buttons = [
-			...toolbar.querySelectorAll<HTMLButtonElement>(
-				'button:not([disabled]), [role="button"]:not([disabled])',
-			),
-		].filter((button) => button.getClientRects().length > 0);
-		const currentIndex = buttons.findIndex((btn) => btn === document.activeElement);
-		if (currentIndex === -1) return;
-		const isRtl = getComputedStyle(toolbar).direction === "rtl";
+	const isDocument = variant === "document";
+	const linkLabel = editorState.isImage
+		? t`Image link`
+		: editorState.isLink
+			? t`Edit link`
+			: t`Add link`;
 
-		let nextIndex: number | null = null;
-
-		switch (e.key) {
-			case "ArrowRight":
-				nextIndex = (currentIndex + (isRtl ? -1 : 1) + buttons.length) % buttons.length;
-				break;
-			case "ArrowLeft":
-				nextIndex = (currentIndex + (isRtl ? 1 : -1) + buttons.length) % buttons.length;
-				break;
-			case "ArrowDown":
-				nextIndex = (currentIndex + 1) % buttons.length;
-				break;
-			case "ArrowUp":
-				nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
-				break;
-			case "Home":
-				nextIndex = 0;
-				break;
-			case "End":
-				nextIndex = buttons.length - 1;
-				break;
-			default:
-				return;
-		}
-
-		if (nextIndex !== null) {
-			e.preventDefault();
-			buttons[nextIndex]?.focus();
-		}
-	}, []);
-
-	const toolbar = (
+	const controls = (
 		<div
-			ref={toolbarRef}
-			role="toolbar"
-			aria-label={t`Text formatting`}
-			className="sticky -top-6 z-10 flex flex-nowrap gap-0.5 overflow-x-auto border-b bg-kumo-tint p-1"
-			style={{ justifyContent: "safe center" }}
-			onKeyDown={handleKeyDown}
+			className={cn(
+				"emdash-editor-toolbar flex flex-nowrap scroll-px-1 items-center gap-0.5 overflow-x-auto rounded-[inherit] p-1",
+				isDocument && "justify-between",
+			)}
+			style={isDocument ? undefined : { justifyContent: "safe center" }}
 		>
 			{/* Text formatting */}
 			<ToolbarGroup>
@@ -5120,7 +6399,7 @@ function EditorToolbar({
 							type="button"
 							variant="ghost"
 							shape="square"
-							className="hidden h-8 w-8 flex-none hover:bg-kumo-interact/50 pointer-coarse:flex"
+							className={cn(toolbarButtonClassName, "hidden pointer-coarse:flex")}
 							onMouseDown={(event) => event.preventDefault()}
 							onClick={onInsertBlock}
 							aria-label={t`Insert block after current block`}
@@ -5133,6 +6412,7 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBold().run()}
 					active={editorState.isBold}
+					disabled={!editorState.canFormat.bold}
 					title={t`Bold`}
 				>
 					<TextB className="h-4 w-4" aria-hidden="true" />
@@ -5140,6 +6420,7 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleItalic().run()}
 					active={editorState.isItalic}
+					disabled={!editorState.canFormat.italic}
 					title={t`Italic`}
 				>
 					<TextItalic className="h-4 w-4" aria-hidden="true" />
@@ -5147,6 +6428,7 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleUnderline().run()}
 					active={editorState.isUnderline}
+					disabled={!editorState.canFormat.underline}
 					title={t`Underline`}
 				>
 					<TextUnderline className="h-4 w-4" aria-hidden="true" />
@@ -5154,6 +6436,7 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleStrike().run()}
 					active={editorState.isStrike}
+					disabled={!editorState.canFormat.strike}
 					title={t`Strikethrough`}
 				>
 					<TextStrikethrough className="h-4 w-4" aria-hidden="true" />
@@ -5161,6 +6444,7 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleCode().run()}
 					active={editorState.isCode}
+					disabled={!editorState.canFormat.code}
 					title={t`Inline Code`}
 				>
 					<Code className="h-4 w-4" aria-hidden="true" />
@@ -5171,7 +6455,11 @@ function EditorToolbar({
 
 			{/* Headings */}
 			<ToolbarGroup>
-				<HeadingDropdownMenu editor={editor} />
+				<HeadingDropdownMenu
+					editor={editor}
+					className={toolbarButtonClassName}
+					activeClassName={toolbarActiveClassName}
+				/>
 			</ToolbarGroup>
 
 			<ToolbarSeparator />
@@ -5179,17 +6467,17 @@ function EditorToolbar({
 			{/* Lists and blocks */}
 			<ToolbarGroup>
 				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleBulletList().run()}
+					onClick={() => toggleTextBlockType(editor, "bulletList")}
 					active={editorState.isBulletList}
-					disabled={editorState.isInTable}
+					disabled={!editorState.canTurnInto}
 					title={t`Bullet List`}
 				>
 					<List className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleOrderedList().run()}
+					onClick={() => toggleTextBlockType(editor, "orderedList")}
 					active={editorState.isOrderedList}
-					disabled={editorState.isInTable}
+					disabled={!editorState.canTurnInto}
 					title={t`Numbered List`}
 				>
 					<ListNumbers className="h-4 w-4" aria-hidden="true" />
@@ -5213,17 +6501,17 @@ function EditorToolbar({
 					</>
 				)}
 				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleBlockquote().run()}
+					onClick={() => toggleTextBlockType(editor, "blockquote")}
 					active={editorState.isBlockquote}
-					disabled={editorState.isInTable}
+					disabled={!editorState.canTurnInto}
 					title={t`Quote`}
 				>
 					<Quotes className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+					onClick={() => toggleTextBlockType(editor, "codeBlock")}
 					active={editorState.isCodeBlock}
-					disabled={editorState.isInTable}
+					disabled={!editorState.canTurnInto}
 					title={t`Code Block`}
 				>
 					<CodeBlock className="h-4 w-4" aria-hidden="true" />
@@ -5231,7 +6519,7 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={onInsertImage}
 					disabled={editorState.isInTable}
-					title={t`Insert Image`}
+					title={t`Insert image`}
 				>
 					<ImageIcon className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -5256,24 +6544,24 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => setSelectionTextAlignment(editor, "left")}
 					active={editorState.alignLeftState}
-					disabled={editorState.isTableAlignmentUnavailable}
-					title={t`Align Left`}
+					disabled={editorState.isAlignmentUnavailable}
+					title={t`Align left`}
 				>
 					<TextAlignLeft className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => setSelectionTextAlignment(editor, "center")}
 					active={editorState.alignCenterState}
-					disabled={editorState.isTableAlignmentUnavailable}
-					title={t`Align Center`}
+					disabled={editorState.isAlignmentUnavailable}
+					title={t`Align center`}
 				>
 					<TextAlignCenter className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => setSelectionTextAlignment(editor, "right")}
 					active={editorState.alignRightState}
-					disabled={editorState.isTableAlignmentUnavailable}
-					title={t`Align Right`}
+					disabled={editorState.isAlignmentUnavailable}
+					title={t`Align right`}
 				>
 					<TextAlignRight className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -5291,7 +6579,7 @@ function EditorToolbar({
 					}}
 				>
 					<Tooltip
-						content={editorState.isImage ? t`Image link` : t`Insert Link`}
+						content={linkLabel}
 						side="bottom"
 						render={
 							<Popover.Trigger
@@ -5301,12 +6589,12 @@ function EditorToolbar({
 										variant="ghost"
 										shape="square"
 										className={cn(
-											"h-8 w-8 flex-none hover:bg-kumo-interact/50",
-											(editorState.isLink || editorState.imageHasLink) &&
-												"bg-kumo-interact/50 text-kumo-default",
+											toolbarButtonClassName,
+											(editorState.isLink || editorState.imageHasLink) && toolbarActiveClassName,
 										)}
+										disabled={!editorState.canLink}
 										onMouseDown={(event) => event.preventDefault()}
-										aria-label={editorState.isImage ? t`Image link` : t`Insert Link`}
+										aria-label={linkLabel}
 										aria-pressed={editorState.isLink || editorState.imageHasLink}
 									>
 										<LinkIcon className="h-4 w-4" aria-hidden="true" />
@@ -5319,9 +6607,13 @@ function EditorToolbar({
 						<div className="flex flex-col gap-2">
 							<label className="text-xs font-medium text-kumo-subtle">{t`Link`}</label>
 							<LinkDestinationInput
-								className="w-80"
+								className="w-80 max-w-full min-w-0"
 								value={linkUrl}
-								onValueChange={setLinkUrl}
+								onValueChange={(value) => {
+									setLinkUrl(value);
+									setLinkInvalid(false);
+								}}
+								invalid={linkInvalid}
 								onSubmit={handleSetLink}
 								onPick={applyLinkHref}
 								onEscape={closeLinkPopover}
@@ -5361,7 +6653,7 @@ function EditorToolbar({
 				</Popover>
 			</ToolbarGroup>
 
-			<ToolbarSeparator aria-hidden="true" />
+			<ToolbarSeparator />
 
 			{/* History */}
 			<ToolbarGroup>
@@ -5383,7 +6675,81 @@ function EditorToolbar({
 		</div>
 	);
 
-	return <TooltipProvider>{toolbar}</TooltipProvider>;
+	return (
+		<TooltipProvider>
+			{isDocument && <div ref={stuckSentinelRef} aria-hidden="true" />}
+			<div
+				ref={toolbarRef}
+				role="toolbar"
+				aria-label={t`Text formatting`}
+				data-emdash-editor-toolbar={variant}
+				data-stuck={stuck || undefined}
+				className={cn(
+					"sticky z-20",
+					// The band of page colour above the card hides text scrolling under the stuck toolbar.
+					// The boxed toolbar sticks 1.5rem above its scroll container's top, past the padding
+					// most hosts give it; a host without that padding sets --emdash-editor-sticky-top.
+					isDocument
+						? "top-0 -mt-2 mb-4 bg-(--emdash-editor-surface) pt-2"
+						: "top-[var(--emdash-editor-sticky-top,-1.5rem)] border-b bg-kumo-tint",
+				)}
+				onKeyDown={(event) => moveToolbarFocus(event, true)}
+			>
+				{isDocument ? (
+					<div className="rounded-xl bg-kumo-base shadow-xs ring ring-kumo-line">{controls}</div>
+				) : (
+					controls
+				)}
+			</div>
+		</TooltipProvider>
+	);
+}
+
+/**
+ * Left and Right move focus between a toolbar's enabled buttons and links,
+ * flipped for right-to-left text, and Home and End go to the first and last.
+ * Up and Down do the same when `vertical`; otherwise the menus and selects in
+ * the toolbar keep them.
+ */
+function moveToolbarFocus(event: React.KeyboardEvent<HTMLElement>, vertical: boolean) {
+	if (event.nativeEvent.isComposing) return;
+	const toolbar = event.currentTarget;
+	const items = [
+		...toolbar.querySelectorAll<HTMLElement>(
+			'button:not([disabled]), [role="button"]:not([disabled]), a[href]',
+		),
+	].filter((item) => item.getClientRects().length > 0);
+	const currentIndex = items.findIndex((item) => item === document.activeElement);
+	if (currentIndex === -1) return;
+	const forward = getComputedStyle(toolbar).direction === "rtl" ? -1 : 1;
+
+	let nextIndex: number;
+	switch (event.key) {
+		case "ArrowRight":
+			nextIndex = currentIndex + forward;
+			break;
+		case "ArrowLeft":
+			nextIndex = currentIndex - forward;
+			break;
+		case "ArrowDown":
+			if (!vertical) return;
+			nextIndex = currentIndex + 1;
+			break;
+		case "ArrowUp":
+			if (!vertical) return;
+			nextIndex = currentIndex - 1;
+			break;
+		case "Home":
+			nextIndex = 0;
+			break;
+		case "End":
+			nextIndex = items.length - 1;
+			break;
+		default:
+			return;
+	}
+	event.preventDefault();
+	items[(nextIndex + items.length) % items.length]?.focus();
 }
 
 function ToolbarGroup({ children }: { children: React.ReactNode }) {
@@ -5391,7 +6757,7 @@ function ToolbarGroup({ children }: { children: React.ReactNode }) {
 }
 
 function ToolbarSeparator() {
-	return <div className="w-px bg-kumo-line mx-1 flex-none" />;
+	return <div aria-hidden="true" className="mx-0.5 h-4 w-px flex-none self-center bg-kumo-line" />;
 }
 
 interface ToolbarButtonProps {
@@ -5413,8 +6779,8 @@ function ToolbarButton({ onClick, active, disabled, title, children }: ToolbarBu
 					variant="ghost"
 					shape="square"
 					className={cn(
-						"h-8 w-8 flex-none hover:bg-kumo-interact/50",
-						active === true && "bg-kumo-interact/50 text-kumo-default",
+						toolbarButtonClassName,
+						active === true && toolbarActiveClassName,
 						active === "mixed" && "bg-kumo-tint text-kumo-default ring-1 ring-inset ring-kumo-line",
 					)}
 					onMouseDown={(e) => e.preventDefault()}

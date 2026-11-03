@@ -365,6 +365,8 @@ function parseIntent(value: unknown, serviceUrl?: string): ReleaseIntentResource
 	const state = value["state"];
 	const stateGeneration = safeInteger(value, "stateGeneration");
 	const reasonCode = nullableString(value, "reasonCode");
+	const reasonMessage =
+		value["reasonMessage"] === undefined ? null : nullableString(value, "reasonMessage");
 	const workflowId = nullableString(value, "workflowId");
 	const expiresAt = safeInteger(value, "expiresAt");
 	const createdAt = safeInteger(value, "createdAt");
@@ -384,6 +386,8 @@ function parseIntent(value: unknown, serviceUrl?: string): ReleaseIntentResource
 		stateGeneration === null ||
 		stateGeneration < 1 ||
 		reasonCode === undefined ||
+		reasonMessage === undefined ||
+		(reasonMessage !== null && reasonMessage.length > 2048) ||
 		workflowId === undefined ||
 		expiresAt === null ||
 		createdAt === null ||
@@ -418,6 +422,7 @@ function parseIntent(value: unknown, serviceUrl?: string): ReleaseIntentResource
 		state,
 		stateGeneration,
 		reasonCode,
+		...(value["reasonMessage"] === undefined ? {} : { reasonMessage }),
 		workflowId,
 		expiresAt,
 		createdAt,

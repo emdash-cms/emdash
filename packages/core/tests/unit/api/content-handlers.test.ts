@@ -65,6 +65,34 @@ describe("Content Handlers — auto-slug generation", () => {
 			expect(result.data?.item.slug).toBe("from-title");
 		});
 
+		it("should generate the slug from the collection's titleField instead of title", async () => {
+			// A person's name is the headline; `title` is their job title.
+			await new SchemaRegistry(db).updateCollection("page", { titleField: "name" });
+
+			const first = await handleContentCreate(db, "page", {
+				data: { name: "Jane Smith", title: "Trustee" },
+			});
+			const second = await handleContentCreate(db, "page", {
+				data: { name: "John Doe", title: "Trustee" },
+			});
+
+			expect(first.success).toBe(true);
+			expect(first.data?.item.slug).toBe("jane-smith");
+			expect(second.success).toBe(true);
+			expect(second.data?.item.slug).toBe("john-doe");
+		});
+
+		it("should fall back to title when the entry has no value for the titleField", async () => {
+			await new SchemaRegistry(db).updateCollection("page", { titleField: "name" });
+
+			const result = await handleContentCreate(db, "page", {
+				data: { title: "Trustee" },
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.slug).toBe("trustee");
+		});
+
 		it("should respect explicit slug and not auto-generate", async () => {
 			const result = await handleContentCreate(db, "post", {
 				data: { title: "Hello World" },
@@ -905,6 +933,32 @@ describe("Content Handlers — list total", () => {
 		expect(result.success).toBe(true);
 		expect(result.data?.items).toHaveLength(2);
 		expect(result.data?.total).toBe(8);
+	});
+
+	it("serves numbered pages with the total and no cursor", async () => {
+		const pages = await Promise.all(
+			[1, 2, 3].map((page) => handleContentList(db, "post", { page, limit: 3 })),
+		);
+
+		const ids = pages.flatMap((result) => result.data?.items.map((item) => item.id) ?? []);
+		expect(pages.map((result) => result.data?.items.length)).toEqual([3, 3, 2]);
+		expect(new Set(ids).size).toBe(8);
+		expect(pages.map((result) => result.data?.total)).toEqual([8, 8, 8]);
+		expect(pages.map((result) => result.data?.nextCursor)).toEqual([
+			undefined,
+			undefined,
+			undefined,
+		]);
+	});
+
+	it.each([
+		["with a cursor", { page: 2, cursor: "cursor" }],
+		["past the safe-integer offset range", { page: Number.MAX_SAFE_INTEGER, limit: 100 }],
+	])("rejects a page %s", async (_case, params) => {
+		const result = await handleContentList(db, "post", params);
+
+		expect(result.success).toBe(false);
+		expect(result.error?.code).toBe("VALIDATION_ERROR");
 	});
 });
 

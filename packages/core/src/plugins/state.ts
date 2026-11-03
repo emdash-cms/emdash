@@ -208,6 +208,42 @@ export class PluginStateRepository {
 		return (await this.get(pluginId))!;
 	}
 
+	/**
+	 * Insert an active state row unless the plugin already has one.
+	 *
+	 * Returns true only for the caller whose insert created the row, so
+	 * concurrent callers agree on a single owner for one-time setup.
+	 */
+	async createActiveIfAbsent(
+		pluginId: string,
+		version: string,
+		source: PluginSource,
+	): Promise<boolean> {
+		const now = new Date().toISOString();
+		const inserted = await this.db
+			.insertInto("_plugin_state")
+			.values({
+				plugin_id: pluginId,
+				status: "active",
+				version,
+				installed_at: now,
+				activated_at: now,
+				deactivated_at: null,
+				data: null,
+				source,
+				marketplace_version: null,
+				display_name: null,
+				description: null,
+				registry_publisher_did: null,
+				registry_slug: null,
+				mcp_tools_consent: null,
+			})
+			.onConflict((oc) => oc.column("plugin_id").doNothing())
+			.returning("plugin_id")
+			.executeTakeFirst();
+		return inserted !== undefined;
+	}
+
 	async restoreIfVersion(expectedVersion: string, state: PluginState): Promise<boolean> {
 		const result = await this.db
 			.updateTable("_plugin_state")
@@ -262,14 +298,11 @@ export class PluginStateRepository {
 }
 
 /**
- * Internal: map a `_plugin_state` row to the public `PluginState` shape.
- *
- * Kept at module scope so the three select paths (`get`, `getAll`,
- * `getMarketplacePlugins`, `getRegistryPlugins`) stay byte-identical in
- * their handling of nullable columns -- adding a new column to the table
- * means changing this function and nothing else.
+ * Map a `_plugin_state` row to the public `PluginState` shape. Every read
+ * path uses this, so adding a column to the table means changing this
+ * function and nothing else.
  */
-interface PluginStateRow {
+export interface PluginStateRow {
 	plugin_id: string;
 	status: string;
 	version: string;
@@ -286,7 +319,7 @@ interface PluginStateRow {
 	mcp_tools_consent: string | null;
 }
 
-function rowToPluginState(row: PluginStateRow): PluginState {
+export function rowToPluginState(row: PluginStateRow): PluginState {
 	return {
 		pluginId: row.plugin_id,
 		status: toPluginStatus(row.status),

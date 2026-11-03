@@ -1802,13 +1802,14 @@ function parseIntent(value, serviceUrl) {
 	const state = value["state"];
 	const stateGeneration = safeInteger(value, "stateGeneration");
 	const reasonCode = nullableString(value, "reasonCode");
+	const reasonMessage = value["reasonMessage"] === void 0 ? null : nullableString(value, "reasonMessage");
 	const workflowId = nullableString(value, "workflowId");
 	const expiresAt = safeInteger(value, "expiresAt");
 	const createdAt = safeInteger(value, "createdAt");
 	const updatedAt = safeInteger(value, "updatedAt");
 	const result = parseIntentResult(value["result"]);
 	const approvalUrl = nullableString(value, "approvalUrl");
-	if (!id || !ULID_PATTERN.test(id) || !publisherDid || !DID_PATTERN.test(publisherDid) || !packageSlug || !PACKAGE_SLUG_PATTERN.test(packageSlug) || !version || !VERSION_PATTERN.test(version) || !isIntentState(state) || stateGeneration === null || stateGeneration < 1 || reasonCode === void 0 || workflowId === void 0 || expiresAt === null || createdAt === null || updatedAt === null || result === void 0 || approvalUrl === void 0 || workflowId !== null && !ULID_PATTERN.test(workflowId) || createdAt > updatedAt || result !== null && (result.uri !== `at://${publisherDid}/com.emdashcms.experimental.package.release/${packageSlug}:${version}` || !CID_PATTERN.test(result.cid))) throw invalidResponse();
+	if (!id || !ULID_PATTERN.test(id) || !publisherDid || !DID_PATTERN.test(publisherDid) || !packageSlug || !PACKAGE_SLUG_PATTERN.test(packageSlug) || !version || !VERSION_PATTERN.test(version) || !isIntentState(state) || stateGeneration === null || stateGeneration < 1 || reasonCode === void 0 || reasonMessage === void 0 || reasonMessage !== null && reasonMessage.length > 2048 || workflowId === void 0 || expiresAt === null || createdAt === null || updatedAt === null || result === void 0 || approvalUrl === void 0 || workflowId !== null && !ULID_PATTERN.test(workflowId) || createdAt > updatedAt || result !== null && (result.uri !== `at://${publisherDid}/com.emdashcms.experimental.package.release/${packageSlug}:${version}` || !CID_PATTERN.test(result.cid))) throw invalidResponse();
 	if (approvalUrl !== null && serviceUrl) {
 		let parsedApproval;
 		try {
@@ -1826,6 +1827,7 @@ function parseIntent(value, serviceUrl) {
 		state,
 		stateGeneration,
 		reasonCode,
+		...value["reasonMessage"] === void 0 ? {} : { reasonMessage },
 		workflowId,
 		expiresAt,
 		createdAt,
@@ -8177,7 +8179,8 @@ const settingFieldSchema = discriminatedUnion("type", [
 const adminPageSchema = object({
 	path: string(),
 	label: string(),
-	icon: string().optional()
+	icon: string().optional(),
+	group: string().trim().min(1).max(100).optional()
 });
 const dashboardWidgetSchema = object({
 	id: string(),
@@ -13412,7 +13415,7 @@ async function runAction(runtime, dependencies = {}) {
 		runtime.info(`Published ${intent.result.uri} (${intent.result.cid})`);
 		return intent;
 	}
-	if (FAILURE_STATES.has(intent.state)) throw new ActionConfigurationError(`Release intent ended in ${intent.state}${intent.reasonCode ? ` (${intent.reasonCode})` : ""}`);
+	if (FAILURE_STATES.has(intent.state)) throw new ActionConfigurationError(`Release intent ${intent.id} ended in ${intent.state}${intent.reasonCode ? ` (${intent.reasonCode})` : ""}${intent.reasonMessage ? `: ${intent.reasonMessage}` : ""}`);
 	throw new ActionConfigurationError(`Release intent stopped in unexpected state ${intent.state}`);
 }
 async function executeAction(runtime, dependencies = {}) {

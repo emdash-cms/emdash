@@ -61,6 +61,7 @@ interface ReviewWatchdogRpc {
 	beginAdmission(attemptId: string, setupLease: string): Promise<boolean>;
 	identify(attemptId: string, expectedRunId: string, runId: string): Promise<boolean>;
 	heartbeat(attemptId: string, runId: string, stage: ReviewStage): Promise<boolean>;
+	isActive(attemptId: string): Promise<boolean>;
 	complete(attemptId: string): Promise<void>;
 	finish(attemptId: string, runId: string, terminal: ReviewTerminal): Promise<boolean>;
 }
@@ -82,4 +83,47 @@ export function isReviewAttemptStale(
 	stage: ReviewStage = "model_review",
 ): boolean {
 	return now - lastProgressAt >= reviewStaleAfter(stage);
+}
+
+/** How often a long stage tells the watchdog it is still running. */
+export const STAGE_HEARTBEAT_INTERVAL_MS = 5 * 60_000;
+
+/**
+ * Runs a long stage while heartbeating the watchdog, so a stage that outlasts
+ * its stale deadline is not mistaken for a stalled one. Heartbeats stop after
+ * `maxMs`, so a stage that never settles still goes stale. The stage is
+ * aborted when a heartbeat reports the attempt is no longer active.
+ */
+export async function withStageHeartbeats<T>(
+	task: (signal: AbortSignal) => Promise<T>,
+	options: {
+		readonly beat: () => Promise<boolean>;
+		readonly maxMs: number;
+		readonly intervalMs?: number;
+		readonly onError?: (error: unknown) => void;
+	},
+): Promise<T> {
+	const controller = new AbortController();
+	const startedAt = Date.now();
+	const intervalMs = options.intervalMs ?? STAGE_HEARTBEAT_INTERVAL_MS;
+	const timer = setInterval(() => {
+		if (Date.now() - startedAt >= options.maxMs) {
+			clearInterval(timer);
+			return;
+		}
+		void (async () => {
+			try {
+				if (!(await options.beat())) {
+					controller.abort(new Error("Review attempt is no longer active"));
+				}
+			} catch (error) {
+				options.onError?.(error);
+			}
+		})();
+	}, intervalMs);
+	try {
+		return await task(controller.signal);
+	} finally {
+		clearInterval(timer);
+	}
 }

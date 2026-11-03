@@ -163,6 +163,13 @@ interface HookHandlerMap {
 	"page:fragments": PageFragmentHandler;
 }
 
+/** A host-enforced hook deadline, distinct from an error thrown by plugin code. */
+export class HookTimeoutError extends Error {
+	constructor(timeout: number) {
+		super(`Hook timeout after ${timeout}ms`);
+	}
+}
+
 /**
  * Hook execution result
  */
@@ -443,8 +450,7 @@ export class HookPipeline {
 	private async executeWithTimeout<T>(fn: () => Promise<T>, timeout: number): Promise<T> {
 		let timer: ReturnType<typeof setTimeout>;
 		const timeoutPromise = new Promise<T>(
-			(_, reject) =>
-				(timer = setTimeout(() => reject(new Error(`Hook timeout after ${timeout}ms`)), timeout)),
+			(_, reject) => (timer = setTimeout(() => reject(new HookTimeoutError(timeout)), timeout)),
 		);
 		try {
 			return await Promise.race([fn(), timeoutPromise]);
@@ -1549,7 +1555,7 @@ export interface ExclusiveHookResolutionOptions {
 }
 
 /** Options table key prefix for exclusive hook selections */
-const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
+export const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
 
 /**
  * Resolve exclusive hook selections.

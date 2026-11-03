@@ -1,7 +1,7 @@
 import cloudflare from "@astrojs/cloudflare";
 import starlight from "@astrojs/starlight";
 // @ts-check
-import { defineConfig } from "astro/config";
+import { defineConfig, fontProviders } from "astro/config";
 
 // https://astro.build/config
 export default defineConfig({
@@ -16,6 +16,7 @@ export default defineConfig({
 			title: "EmDash",
 			disable404Route: true,
 			components: {
+				Head: "./src/components/Head.astro",
 				SkipLink: "./src/components/SkipLink.astro",
 				PageFrame: "./src/components/PageFrame.astro",
 			},
@@ -83,7 +84,9 @@ export default defineConfig({
 						{ label: "Blocks", slug: "guides/blocks" },
 						{ label: "Sections", slug: "guides/sections" },
 						{ label: "Site Settings", slug: "guides/site-settings" },
+						{ label: "Move to a New Domain", slug: "guides/change-domain" },
 						{ label: "Built-in SEO Features", slug: "guides/seo" },
+						{ label: "Google AdSense", slug: "guides/google-adsense" },
 						{ label: "Authentication", slug: "guides/authentication" },
 						{ label: "Email Setup", slug: "guides/email" },
 						{ label: "Atmosphere Login", slug: "guides/atmosphere-auth" },
@@ -202,6 +205,7 @@ export default defineConfig({
 							slug: "plugins/registry-client",
 						},
 						{ label: "Field Kit", slug: "plugins/field-kit" },
+						{ label: "AI Search", slug: "plugins/ai-search" },
 					],
 				},
 				{
@@ -246,6 +250,7 @@ export default defineConfig({
 						{ label: "Database Options", slug: "deployment/database" },
 						{ label: "Storage Options", slug: "deployment/storage" },
 						{ label: "Object Cache", slug: "deployment/object-cache" },
+						{ label: "Route Caching", slug: "deployment/route-caching" },
 						{ label: "Plugin Sandbox", slug: "deployment/plugin-sandbox" },
 						{ label: "Secrets & Key Management", slug: "deployment/secrets" },
 					],
@@ -275,6 +280,16 @@ export default defineConfig({
 				},
 			],
 		}),
+	],
+
+	fonts: [
+		{
+			provider: fontProviders.google(),
+			name: "Inter",
+			cssVariable: "--font-inter",
+			weights: [400, 500, 600, 700],
+			fallbacks: ["sans-serif"],
+		},
 	],
 
 	adapter: cloudflare({ remoteBindings: false, prerenderEnvironment: "node" }),

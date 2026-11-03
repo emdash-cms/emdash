@@ -46,7 +46,7 @@ if (!result.error) {
 </ul>
 ```
 
-The collection filter accepts `q`, `capability`, and `limit`. An exact handle, DID, or identity followed by `/slug` selects that publisher or package. Astro's live collection result does not expose pagination metadata. Use `DiscoveryClient` from `@emdash-cms/registry-client/discovery` when an interface needs the registry's cursor pagination.
+The collection filter accepts `q`, `capability`, and `limit`. Set `includeLatestRelease: true` to also load each package's latest release into `latestRelease`, at the cost of one registry request per package that has a published release. A release that can't be loaded within 3 seconds is left out. An exact handle, DID, or identity followed by `/slug` selects that publisher or package. Astro's live collection result does not expose pagination metadata. Use `DiscoveryClient` from `@emdash-cms/registry-client/discovery` when an interface needs the registry's cursor pagination.
 
 ## Load a plugin
 

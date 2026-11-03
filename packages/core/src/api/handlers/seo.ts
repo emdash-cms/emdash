@@ -50,18 +50,33 @@ export interface SitemapCollectionData {
 	collection: string;
 	/** URL pattern with {slug} placeholder, or null for default /{collection}/{slug} */
 	urlPattern: string | null;
-	/** Most recent updated_at across all entries (for sitemap index lastmod) */
-	lastmod: string;
-	/** Individual content entries */
+	/** Entries on the requested page */
 	entries: SitemapContentEntry[];
+	/**
+	 * Indexable translations of `entries` that sit on other pages. They are
+	 * not listed themselves but are needed for `hreflang` alternates.
+	 */
+	translations: SitemapContentEntry[];
 }
 
 export interface SitemapDataResponse {
 	collections: SitemapCollectionData[];
 }
 
-/** Maximum entries per sitemap (per spec) */
-const SITEMAP_MAX_ENTRIES = 50_000;
+/** One child sitemap in the sitemap index */
+export interface SitemapIndexEntry {
+	collection: string;
+	/** 1-based page number */
+	page: number;
+	/** Most recent updated_at across the page's entries */
+	lastmod: string;
+}
+
+/**
+ * Entries per child sitemap. Collections with more indexable entries continue
+ * at `/sitemap-{collection}-2.xml`, `-3.xml`, and so on.
+ */
+export const SITEMAP_PAGE_SIZE = 2000;
 
 /** Matches a trailing timezone designator (`Z` or `±HH`, `±HHMM`, `±HH:MM`). */
 const TZ_SUFFIX_RE = /([zZ]|[+-]\d{2}(:?\d{2})?)$/;
@@ -91,12 +106,112 @@ function toW3CDate(value: string): string {
 	return Number.isNaN(parsed) ? value : new Date(parsed).toISOString();
 }
 
+interface SitemapCollectionRow {
+	slug: string;
+	url_pattern: string | null;
+}
+
+/** Routable, SEO-enabled collections with a valid slug (optionally one collection). */
+async function getSitemapCollections(
+	db: Kysely<Database>,
+	collectionSlug?: string,
+): Promise<SitemapCollectionRow[]> {
+	let query = db
+		.selectFrom("_emdash_collections")
+		.select(["slug", "url_pattern"])
+		.where("has_seo", "=", 1)
+		.where("routable", "=", 1);
+
+	if (collectionSlug) {
+		query = query.where("slug", "=", collectionSlug);
+	}
+
+	const collections = await query.execute();
+	return collections.filter((col) => {
+		// Should always pass (slugs are validated on creation), but guards the
+		// table-name identifier against corrupted DB data.
+		try {
+			validateIdentifier(col.slug, "collection slug");
+			return true;
+		} catch {
+			console.warn(`[SITEMAP] Skipping collection with invalid slug: ${col.slug}`);
+			return false;
+		}
+	});
+}
+
 /**
- * Collect all published, indexable content across SEO-enabled collections
- * for sitemap generation, grouped by collection.
- *
- * Only includes content from routable collections with `has_seo = 1`.
- * Excludes content with `seo_no_index = 1` in the `_emdash_seo` table.
+ * Published, non-deleted rows with a slug that are not marked noindex.
+ * Content without an SEO row is indexable by default.
+ */
+function indexableRows(collection: string) {
+	return sql`
+		FROM ${sql.ref(`ec_${collection}`)} c
+		LEFT JOIN _emdash_seo s
+			ON s.collection = ${collection}
+			AND s.content_id = c.id
+		WHERE c.status = 'published'
+		AND c.deleted_at IS NULL
+		AND c.slug IS NOT NULL
+		AND TRIM(c.slug) <> ''
+		AND (s.seo_no_index IS NULL OR s.seo_no_index = 0)
+	`;
+}
+
+/**
+ * List the child sitemaps for the sitemap index: one per page of each
+ * SEO-enabled collection that has indexable content, with the page's latest
+ * update as `lastmod`.
+ */
+export async function handleSitemapIndexData(
+	db: Kysely<Database>,
+	pageSize = SITEMAP_PAGE_SIZE,
+): Promise<ApiResult<{ sitemaps: SitemapIndexEntry[] }>> {
+	try {
+		const collections = await getSitemapCollections(db);
+		const sitemaps: SitemapIndexEntry[] = [];
+
+		for (const col of collections) {
+			// A missing or broken table skips that collection instead of failing
+			// the whole index.
+			try {
+				const rows = await sql<{ page: number | string; lastmod: string }>`
+					SELECT p.page AS page, MAX(p.updated_at) AS lastmod
+					FROM (
+						SELECT c.updated_at,
+							(ROW_NUMBER() OVER (ORDER BY c.id) - 1) / CAST(${pageSize} AS INTEGER) AS page
+						${indexableRows(col.slug)}
+					) p
+					GROUP BY p.page
+					ORDER BY p.page
+				`.execute(db);
+
+				for (const row of rows.rows) {
+					sitemaps.push({
+						collection: col.slug,
+						page: Number(row.page) + 1,
+						lastmod: toW3CDate(row.lastmod),
+					});
+				}
+			} catch (err) {
+				console.warn(`[SITEMAP] Failed to query collection "${col.slug}":`, err);
+			}
+		}
+
+		return { success: true, data: { sitemaps } };
+	} catch (error) {
+		console.error("[SITEMAP_ERROR]", error);
+		return {
+			success: false,
+			error: { code: "SITEMAP_ERROR", message: "Failed to generate sitemap index" },
+		};
+	}
+}
+
+/**
+ * Collect one page of published, indexable content per SEO-enabled
+ * collection for sitemap generation, ordered by ID so editing an entry does
+ * not move it to another page.
  *
  * Returns raw data grouped per collection. The caller (route) is
  * responsible for building absolute URLs — this handler does NOT
@@ -106,42 +221,19 @@ export async function handleSitemapData(
 	db: Kysely<Database>,
 	/** When set, only return data for this collection. */
 	collectionSlug?: string,
+	options: { page?: number; pageSize?: number } = {},
 ): Promise<ApiResult<SitemapDataResponse>> {
+	const page = options.page ?? 1;
+	const pageSize = options.pageSize ?? SITEMAP_PAGE_SIZE;
 	try {
-		// Find SEO-enabled collections (optionally filtered)
-		let query = db
-			.selectFrom("_emdash_collections")
-			.select(["slug", "url_pattern"])
-			.where("has_seo", "=", 1)
-			.where("routable", "=", 1);
-
-		if (collectionSlug) {
-			query = query.where("slug", "=", collectionSlug);
-		}
-
-		const collections = await query.execute();
-
+		const collections = await getSitemapCollections(db, collectionSlug);
 		const result: SitemapCollectionData[] = [];
 
 		for (const col of collections) {
-			// Validate the slug before using it as a table name identifier.
-			// Should always pass (slugs are validated on creation), but
-			// guards against corrupted DB data.
+			// A missing or broken table skips that collection instead of failing
+			// the whole sitemap.
 			try {
-				validateIdentifier(col.slug, "collection slug");
-			} catch {
-				console.warn(`[SITEMAP] Skipping collection with invalid slug: ${col.slug}`);
-				continue;
-			}
-
-			const tableName = `ec_${col.slug}`;
-
-			// Query published, non-deleted content.
-			// LEFT JOIN _emdash_seo to check noindex flag.
-			// Content without an SEO row is assumed indexable (default).
-			// Wrapped in try/catch so a missing/broken table doesn't fail the
-			// entire sitemap — we skip that collection and continue.
-			try {
+				const from = indexableRows(col.slug);
 				const rows = await sql<{
 					slug: string | null;
 					id: string;
@@ -150,26 +242,29 @@ export async function handleSitemapData(
 					locale: string;
 					translation_group: string | null;
 					seo_image: string | null;
+					on_page: number | string;
 				}>`
-					SELECT c.slug, c.id, c.updated_at, c.published_at, c.locale, c.translation_group, s.seo_image
-					FROM ${sql.ref(tableName)} c
-					LEFT JOIN _emdash_seo s
-						ON s.collection = ${col.slug}
-						AND s.content_id = c.id
-					WHERE c.status = 'published'
-					AND c.deleted_at IS NULL
-					AND c.slug IS NOT NULL
-					AND TRIM(c.slug) <> ''
-					AND (s.seo_no_index IS NULL OR s.seo_no_index = 0)
-					ORDER BY c.updated_at DESC
-					LIMIT ${SITEMAP_MAX_ENTRIES}
+					WITH page AS (
+						SELECT c.id, c.translation_group
+						${from}
+						ORDER BY c.id
+						LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+					)
+					SELECT c.slug, c.id, c.updated_at, c.published_at, c.locale, c.translation_group,
+						s.seo_image,
+						CASE WHEN c.id IN (SELECT id FROM page) THEN 1 ELSE 0 END AS on_page
+					${from}
+					AND (
+						c.id IN (SELECT id FROM page)
+						OR c.translation_group IN (SELECT translation_group FROM page)
+					)
+					ORDER BY c.id
 				`.execute(db);
 
-				if (rows.rows.length === 0) continue;
-
 				const entries: SitemapContentEntry[] = [];
+				const translations: SitemapContentEntry[] = [];
 				for (const row of rows.rows) {
-					entries.push({
+					const entry: SitemapContentEntry = {
 						id: row.id,
 						slug: row.slug,
 						updatedAt: toW3CDate(row.updated_at),
@@ -177,18 +272,19 @@ export async function handleSitemapData(
 						locale: row.locale,
 						translationGroup: row.translation_group,
 						image: row.seo_image ?? null,
-					});
+					};
+					(Number(row.on_page) === 1 ? entries : translations).push(entry);
 				}
+
+				if (entries.length === 0) continue;
 
 				result.push({
 					collection: col.slug,
 					urlPattern: col.url_pattern,
-					// Rows are ordered by updated_at DESC, so first row is the latest
-					lastmod: toW3CDate(rows.rows[0].updated_at),
 					entries,
+					translations,
 				});
 			} catch (err) {
-				// Table missing or query error — skip this collection
 				console.warn(`[SITEMAP] Failed to query collection "${col.slug}":`, err);
 				continue;
 			}

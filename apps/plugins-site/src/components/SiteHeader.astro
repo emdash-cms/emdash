@@ -1,0 +1,479 @@
+---
+import Logo from "./Logo.astro";
+
+const GITHUB_URL = "https://github.com/emdash-cms/emdash";
+const TRY_URL = "https://try.emdashcms.com";
+
+const pathname = Astro.url.pathname.replace(/\/+$/, "") || "/";
+const links: {
+	label: string;
+	href: string;
+	current?: "page" | "true";
+	prefetch?: boolean;
+}[] = [
+	{
+		label: "Browse",
+		href: "/search",
+		prefetch: true,
+		current:
+			pathname === "/search"
+				? "page"
+				: pathname.startsWith("/plugins/")
+					? "true"
+					: undefined,
+	},
+	{
+		label: "Build a plugin",
+		href: "https://docs.emdashcms.com/plugins/creating-plugins/your-first-plugin/",
+	},
+	{
+		label: "Publish",
+		href: "https://docs.emdashcms.com/plugins/creating-plugins/publishing/",
+	},
+	{
+		label: "Docs",
+		href: "https://docs.emdashcms.com/plugins/overview/",
+	},
+];
+const githubPath =
+	"M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73c.5.09.68-.22.68-.49c0-.24-.01-1.05-.01-1.9c-2.78.62-3.37-1.21-3.37-1.21c-.45-1.19-1.11-1.5-1.11-1.5c-.91-.64.07-.63.07-.63c1 .07 1.53 1.06 1.53 1.06c.89 1.56 2.34 1.11 2.91.85c.09-.66.35-1.11.64-1.37c-2.22-.26-4.55-1.14-4.55-5.06c0-1.12.39-2.03 1.03-2.75c-.1-.26-.45-1.3.1-2.71c0 0 .84-.27 2.75 1.05A9.3 9.3 0 0 1 12 6.97c.85 0 1.71.12 2.51.35c1.91-1.32 2.75-1.05 2.75-1.05c.55 1.41.2 2.45.1 2.71c.64.72 1.03 1.63 1.03 2.75c0 3.93-2.34 4.8-4.57 5.06c.36.32.68.94.68 1.9c0 1.37-.01 2.48-.01 2.81c0 .27.18.59.69.49A10.1 10.1 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z";
+---
+
+<header class="site-header" data-site-header data-scrolled="false">
+	<nav class="site-nav" aria-label="Primary">
+		<div class="header-shell">
+			<a class="brand" href="/" aria-label="EmDash Plugins home"><Logo /></a>
+
+			<ul class="nav-links" role="list">
+				{
+					links.map((link) => (
+						<li>
+							<a
+								class="nav-link"
+								href={link.href}
+								aria-current={link.current}
+								data-astro-prefetch={link.prefetch ? "" : undefined}
+							>
+								{link.label}
+							</a>
+						</li>
+					))
+				}
+			</ul>
+
+			<div class="header-actions">
+				<a
+					class="btn btn-icon btn-ghost"
+					href={GITHUB_URL}
+					aria-label="EmDash on GitHub"
+				>
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path fill="currentColor" d={githubPath}></path>
+					</svg>
+				</a>
+				<a class="btn btn-primary" href={TRY_URL}>Try EmDash</a>
+			</div>
+
+			<details class="menu" data-site-menu>
+				<summary class="menu-toggle">
+					<span class="visually-hidden">Menu</span>
+					<svg
+						class="menu-icon menu-icon-open"
+						viewBox="0 0 24 24"
+						aria-hidden="true"
+					>
+						<path d="M4 7h16M4 12h16M4 17h16"></path>
+					</svg>
+					<svg
+						class="menu-icon menu-icon-close"
+						viewBox="0 0 24 24"
+						aria-hidden="true"
+					>
+						<path d="m6 6 12 12M18 6 6 18"></path>
+					</svg>
+				</summary>
+				<div class="menu-panel">
+					<ul class="menu-links" role="list">
+						{
+							links.map((link) => (
+								<li>
+									<a
+										class="menu-link"
+										href={link.href}
+										aria-current={link.current}
+										data-astro-prefetch={link.prefetch ? "" : undefined}
+									>
+										{link.label}
+									</a>
+								</li>
+							))
+						}
+					</ul>
+					<div class="menu-actions">
+						<a class="btn btn-secondary btn-lg" href={GITHUB_URL}>
+							<svg viewBox="0 0 24 24" aria-hidden="true">
+								<path fill="currentColor" d={githubPath}></path>
+							</svg>
+							GitHub
+						</a>
+						<a class="btn btn-primary btn-lg" href={TRY_URL}>Try EmDash</a>
+					</div>
+				</div>
+			</details>
+		</div>
+	</nav>
+</header>
+
+<script>
+	const header = document.querySelector<HTMLElement>("[data-site-header]");
+	const menu = header?.querySelector<HTMLDetailsElement>("[data-site-menu]");
+	const toggle = menu?.querySelector<HTMLElement>("summary");
+
+	if (header && menu && toggle) {
+		const desktop = matchMedia("(min-width: 960px)");
+
+		const updateScrolled = () => {
+			const scrolled = window.scrollY > 24 ? "true" : "false";
+			if (header.dataset.scrolled === scrolled) return;
+			// Scrolling past the top animates; landing deep in the page (a #link, a restored position) snaps.
+			header.toggleAttribute("data-instant", window.scrollY > 160);
+			header.dataset.scrolled = scrolled;
+		};
+
+		const close = ({ restoreFocus = false } = {}) => {
+			if (!menu.open) return;
+			menu.open = false;
+			if (restoreFocus) toggle.focus();
+		};
+
+		menu.addEventListener("toggle", () => {
+			header.dataset.menu = menu.open ? "open" : "closed";
+		});
+
+		menu.querySelectorAll(".menu-panel a").forEach((link) => {
+			link.addEventListener("click", () => close());
+		});
+
+		menu.addEventListener("focusout", (event) => {
+			if (
+				event.relatedTarget instanceof Node &&
+				!menu.contains(event.relatedTarget)
+			)
+				close();
+		});
+
+		document.addEventListener("pointerdown", (event) => {
+			if (
+				menu.open &&
+				event.target instanceof Node &&
+				!menu.contains(event.target)
+			) {
+				close();
+			}
+		});
+
+		document.addEventListener("keydown", (event) => {
+			if (event.key === "Escape" && menu.open) {
+				close({ restoreFocus: menu.contains(document.activeElement) });
+			}
+		});
+
+		desktop.addEventListener("change", () => {
+			if (desktop.matches) close();
+		});
+
+		window.addEventListener("scroll", updateScrolled, { passive: true });
+		updateScrolled();
+
+		const ready = () =>
+			requestAnimationFrame(() => {
+				updateScrolled();
+				header.dataset.ready = "";
+			});
+		if (document.readyState === "complete") ready();
+		else window.addEventListener("load", ready, { once: true });
+	}
+</script>
+
+<style>
+	.site-header {
+		position: fixed;
+		inset-block-start: 0;
+		inset-inline: 0;
+		z-index: 100;
+		pointer-events: none;
+	}
+
+	.header-shell {
+		position: relative;
+		display: flex;
+		width: 100%;
+		max-width: var(--container);
+		height: 64px;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		margin: 8px auto 0;
+		padding-inline: var(--gutter);
+		pointer-events: auto;
+		/* On the shell, not the header: a named ancestor would be the shell's backdrop root and leave nothing to blur. */
+		view-transition-name: site-header;
+		border: 1px solid transparent;
+		border-radius: 0;
+	}
+
+	/* Not while loading or after a jump, so a page opened already scrolled doesn't slide the bar into the pill. */
+	.site-header[data-ready]:not([data-instant]) .header-shell {
+		transition:
+			width 300ms var(--ease-out),
+			max-width 300ms var(--ease-out),
+			padding 300ms var(--ease-out),
+			border-color 300ms var(--ease-out),
+			border-radius 300ms var(--ease-out),
+			background-color 300ms var(--ease-out),
+			box-shadow 300ms var(--ease-out),
+			backdrop-filter 300ms var(--ease-out),
+			-webkit-backdrop-filter 300ms var(--ease-out);
+	}
+
+	:global(:root:not(.js)) .header-shell,
+	.site-header[data-scrolled="true"] .header-shell,
+	.site-header[data-menu="open"] .header-shell {
+		width: calc(100% - 16px);
+		max-width: 920px;
+		padding-inline: calc(var(--gutter) - 8px);
+		background: color-mix(in srgb, var(--surface) 86%, transparent);
+		border-color: var(--line);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-lg);
+		-webkit-backdrop-filter: blur(20px) saturate(1.5);
+		backdrop-filter: blur(20px) saturate(1.5);
+	}
+
+	.brand {
+		display: inline-flex;
+		align-items: center;
+		flex: none;
+		padding-block: 4px;
+		color: inherit;
+		text-decoration: none;
+		border-radius: var(--radius-sm);
+	}
+
+	.nav-links,
+	.menu-links {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.nav-links,
+	.header-actions {
+		display: none;
+	}
+
+	.nav-link {
+		display: block;
+		padding: 6px 12px;
+		color: var(--muted);
+		font-size: 14px;
+		font-weight: 500;
+		line-height: 20px;
+		text-decoration: none;
+		white-space: nowrap;
+		border-radius: var(--radius);
+		transition:
+			color 150ms ease,
+			background-color 150ms ease;
+	}
+
+	@media (hover: hover) {
+		.nav-link:hover {
+			color: var(--ink);
+			background: var(--fill-hover);
+		}
+	}
+
+	.nav-link[aria-current] {
+		color: var(--ink);
+		background: var(--fill);
+	}
+
+	.menu-toggle {
+		position: relative;
+		display: inline-flex;
+		width: 40px;
+		height: 40px;
+		align-items: center;
+		justify-content: center;
+		margin-inline-end: -8px;
+		color: var(--ink);
+		list-style: none;
+		cursor: pointer;
+		border-radius: var(--radius);
+		transition: background-color 150ms ease;
+	}
+
+	.menu-toggle::-webkit-details-marker {
+		display: none;
+	}
+
+	@media (hover: hover) {
+		.menu-toggle:hover {
+			background: var(--fill-hover);
+		}
+	}
+
+	.menu-icon {
+		position: absolute;
+		width: 22px;
+		height: 22px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.75;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		transition:
+			opacity 200ms ease,
+			transform 200ms var(--ease-out);
+	}
+
+	.menu-icon-close {
+		opacity: 0;
+		transform: rotate(-90deg) scale(0.6);
+	}
+
+	.menu[open] .menu-icon-open {
+		opacity: 0;
+		transform: rotate(90deg) scale(0.6);
+	}
+
+	.menu[open] .menu-icon-close {
+		opacity: 1;
+		transform: none;
+	}
+
+	.menu-panel {
+		position: absolute;
+		inset-block-start: calc(100% + 8px);
+		inset-inline: -1px;
+		max-height: calc(100dvh - var(--header-height) - 16px);
+		overflow-y: auto;
+		padding: 16px;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: 24px;
+		box-shadow: var(--shadow-xl);
+	}
+
+	/* Only where the closed panel can stay rendered for its fade out, so it never fades in but snaps shut. */
+	@supports selector(::details-content) {
+		@media (prefers-reduced-motion: no-preference) {
+			.menu::details-content {
+				transition: content-visibility 140ms ease-in allow-discrete;
+			}
+
+			.menu-panel {
+				transform-origin: top center;
+				transition:
+					opacity 140ms ease-in,
+					transform 140ms ease-in;
+			}
+
+			.menu:not([open]) .menu-panel {
+				opacity: 0;
+				transform: translateY(-6px) scale(0.98);
+			}
+
+			.menu[open] .menu-panel {
+				transition-duration: 200ms;
+				transition-timing-function: var(--ease-out);
+			}
+
+			@starting-style {
+				.menu[open] .menu-panel {
+					opacity: 0;
+					transform: translateY(-6px) scale(0.98);
+				}
+			}
+		}
+	}
+
+	.menu-links {
+		display: grid;
+		gap: 2px;
+	}
+
+	.menu-link {
+		display: block;
+		padding: 10px 12px;
+		color: var(--muted);
+		font-size: 16px;
+		font-weight: 500;
+		line-height: 1.4;
+		text-decoration: none;
+		border-radius: var(--radius-md);
+		transition:
+			color 150ms ease,
+			background-color 150ms ease;
+	}
+
+	@media (hover: hover) {
+		.menu-link:hover {
+			color: var(--ink);
+			background: var(--fill-hover);
+		}
+	}
+
+	.menu-link[aria-current] {
+		color: var(--ink);
+		background: var(--fill);
+	}
+
+	.menu-actions {
+		display: grid;
+		gap: 8px;
+		margin-block-start: 16px;
+		padding-block-start: 16px;
+		border-block-start: 1px solid var(--line);
+	}
+
+	.menu-actions .btn {
+		width: 100%;
+	}
+
+	.menu-actions svg {
+		width: 18px;
+		height: 18px;
+	}
+
+	@media (min-width: 640px) {
+		.menu-actions {
+			grid-template-columns: 1fr 1fr;
+		}
+	}
+
+	@media (min-width: 960px) {
+		.menu {
+			display: none;
+		}
+
+		.nav-links {
+			position: absolute;
+			inset: 0;
+			display: flex;
+			width: fit-content;
+			height: fit-content;
+			align-items: center;
+			gap: 4px;
+			margin: auto;
+		}
+
+		.header-actions {
+			display: flex;
+			align-items: center;
+			flex: none;
+			gap: 8px;
+		}
+	}
+</style>

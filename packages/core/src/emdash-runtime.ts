@@ -39,7 +39,7 @@ import {
 	type StagedReferences,
 } from "./api/handlers/staged-references.js";
 import { validateRev } from "./api/rev.js";
-import { getSiteBaseUrl } from "./api/site-url.js";
+import { getSiteBaseUrl, resolveSiteOrigin } from "./api/site-url.js";
 import type {
 	EmDashConfig,
 	PluginAdminPage,
@@ -55,17 +55,21 @@ import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import {
 	enforceRuntimeMigrationPolicy,
-	PendingMigrationsError,
 	type RuntimeMigrationMode,
 } from "./database/migrations/policy.js";
 import {
-	ConcurrentMigrationTimeoutError,
+	getAppliedMigrationCount,
+	isMigrationCountCurrent,
 	MIGRATION_RACE_WAIT_MS,
+	MigrationFailedError,
+	MigrationLockHeldError,
+	MigrationRowLimitError,
 } from "./database/migrations/runner.js";
 import { AuditRepository } from "./database/repositories/audit.js";
 import { CommentRepository } from "./database/repositories/comment.js";
 import type { CommentStatus } from "./database/repositories/comment.js";
 import { ContentRepository } from "./database/repositories/content.js";
+import { MediaRepository } from "./database/repositories/media.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
 import { ContentMutationConflictError } from "./database/repositories/types.js";
@@ -77,7 +81,10 @@ import type { ImageValue } from "./fields/types.js";
 import { getI18nConfig, resolveContentCreateLocale } from "./i18n/config.js";
 import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
+import { safeJsonSchemaToZod } from "./mcp/json-schema.js";
+import { pluginToolName } from "./mcp/plugin-tool-name.js";
 import { normalizeMediaValue } from "./media/normalize.js";
+import { linkPortableTextFileUrls } from "./media/portable-text-file-refs.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import { activateMediaUsageCapture } from "./media/usage/activation.js";
 import {
@@ -99,7 +106,7 @@ import {
 	getSandboxSaveRejectionDetails,
 } from "./plugins/sandbox/proxy.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
-import { getSandboxRouteErrorDetails } from "./plugins/sandbox/types.js";
+import { getSandboxRouteErrorDetails, SandboxUnavailableError } from "./plugins/sandbox/types.js";
 import type {
 	SandboxedPluginInstance,
 	SandboxRunner,
@@ -136,6 +143,7 @@ import type {
 } from "./plugins/types.js";
 import { normalizePluginCapabilities, warnDeprecatedPluginCapabilities } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
+import { inferBlockTypes } from "./schema/block-values.js";
 import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
 import { isStoragelessField, isStoragelessFieldRow } from "./schema/types.js";
 import type { CollectionWithFields } from "./schema/types.js";
@@ -200,7 +208,10 @@ import { after } from "./after.js";
 import { maybeRunScheduledBackup } from "./api/handlers/backup.js";
 import { changedStoragelessDataKeys, storagelessDataKeyError } from "./api/handlers/content.js";
 import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
-import { runSystemCleanup } from "./cleanup.js";
+import {
+	runSystemCleanup,
+	shouldRunSystemCleanup as shouldRunSystemCleanupNow,
+} from "./cleanup.js";
 import {
 	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 	defaultCommentModerate,
@@ -257,13 +268,15 @@ import {
 } from "./index.js";
 import { getDb } from "./loader.js";
 import { isRecord } from "./plugin-utils.js";
-import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
+import { CronExecutor, setCronTasksEnabled, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
 import { EmailPipeline } from "./plugins/email.js";
 import {
 	createHookPipeline,
+	EXCLUSIVE_HOOK_KEY_PREFIX,
 	getActiveContentSaveHookName,
+	HookTimeoutError,
 	resolveExclusiveHooks as resolveExclusiveHooksShared,
 	type HookPipeline,
 } from "./plugins/hooks.js";
@@ -282,7 +295,8 @@ import {
 } from "./plugins/routes.js";
 import { isContentSaveRejection } from "./plugins/save-rejection.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
-import { PluginStateRepository } from "./plugins/state.js";
+import { PluginStateRepository, rowToPluginState } from "./plugins/state.js";
+import type { PluginState } from "./plugins/state.js";
 import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
 import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
@@ -350,7 +364,7 @@ export interface SandboxedPluginEntry {
 	/** Hook declarations this plugin implements */
 	hooks?: PluginManifest["hooks"];
 	/** Admin pages */
-	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
+	adminPages?: Array<{ path: string; label?: string; icon?: string; group?: string }>;
 	/** Dashboard widgets */
 	adminWidgets?: Array<{ id: string; title?: string; size?: string }>;
 	/** Saved-entry Block Kit panels. */
@@ -624,7 +638,7 @@ interface DbHolder {
 	 * through the migration advisory lock (#1744). Entries expire after
 	 * DB_INIT_FAILURE_BACKOFF_MS; a successful init clears them.
 	 */
-	failures: Map<string, { at: number; message: string }>;
+	failures: Map<string, { at: number; message: string; cause?: unknown }>;
 }
 const globalSymbolStore = globalThis as Record<symbol, unknown>;
 function getDbHolder(): DbHolder {
@@ -651,6 +665,34 @@ function getDbHolder(): DbHolder {
  * most once per backoff window per isolate instead of on every request.
  */
 const DB_INIT_FAILURE_BACKOFF_MS = 30_000;
+
+/** The failure a db init is still backing off from, if any. */
+function activeInitFailure(holder: DbHolder, cacheKey: string) {
+	const failure = holder.failures.get(cacheKey);
+	if (!failure) return undefined;
+	if (Date.now() - failure.at < DB_INIT_FAILURE_BACKOFF_MS) return failure;
+	// Expired — drop it so the map only ever holds active backoffs.
+	holder.failures.delete(cacheKey);
+	return undefined;
+}
+
+/**
+ * The most content rows auto mode migrates inside a deployed Worker request.
+ * Datetime normalization (079) issues about one statement per row it changes,
+ * a paid Worker invocation stops at 10,000 subrequests and 30 s of CPU by
+ * default, and the migrations around it need some of that budget too.
+ */
+const WORKER_AUTO_MIGRATION_CONTENT_ROW_LIMIT = 5_000;
+
+/** Local development enforces no Worker limits, and Node has none. */
+function autoMigrationContentRowLimit(): number | undefined {
+	if (import.meta.env.DEV) return undefined;
+	const onWorkers =
+		typeof navigator !== "undefined" &&
+		typeof navigator.userAgent === "string" &&
+		navigator.userAgent.includes("Cloudflare-Workers");
+	return onWorkers ? WORKER_AUTO_MIGRATION_CONTENT_ROW_LIMIT : undefined;
+}
 
 /**
  * Auto-seed runs at most once per isolate per database. Its lock + "done" set
@@ -910,10 +952,14 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Run the full scheduled-maintenance batch: cron tasks, scheduled
-	 * publishing, and system cleanup. For request-less drivers — the
-	 * Cloudflare `scheduled()` handler invokes this from a Cron Trigger.
-	 * (On Node the timer-based scheduler drives the same work itself.)
+	 * Run the scheduled-maintenance batch: cron tasks, scheduled publishing,
+	 * and hourly system cleanup. For request-less drivers — the Cloudflare
+	 * `scheduled()` handler invokes this from a Cron Trigger. (On Node the
+	 * timer-based scheduler drives the same work itself.)
+	 *
+	 * Full cleanup runs only on the top of the hour so per-minute work stays
+	 * proportional to what is due; the heartbeat and scheduled publish sweep
+	 * still run every tick.
 	 *
 	 * Each step is independent and non-fatal. Returns the content promoted
 	 * by the publishing sweep so the caller can purge edge-cache tags.
@@ -956,6 +1002,26 @@ export class EmDashRuntime {
 			}
 		}
 
+		const currentTime = this.runtimeDeps.now?.() ?? new Date();
+		const { published } = await this.runScheduledMaintenanceTick(options, currentTime);
+
+		return { processed, published };
+	}
+
+	/**
+	 * Time-gated maintenance pass shared by Cloudflare `scheduled()` and the
+	 * Node timer scheduler. Scheduled publishing and the heartbeat run every
+	 * tick; the heavier bookkeeping cleanups run only on the top of the hour so
+	 * per-minute work stays proportional to what is actually due. This keeps the
+	 * cold-start CPU budget on Workers Free from being consumed by cleanup
+	 * queries on every quiet-hours tick.
+	 */
+	private async runScheduledMaintenanceTick(
+		options: {
+			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+		},
+		currentTime: Date,
+	): Promise<{ published: PublishedRef[] }> {
 		let published: PublishedRef[] = [];
 		try {
 			published = await this.publishScheduledWithFence(options.onPublished);
@@ -963,11 +1029,7 @@ export class EmDashRuntime {
 			console.error("[scheduled-publish] Sweep failed:", error);
 		}
 
-		try {
-			await runSystemCleanup(this.db, this.storage ?? undefined);
-		} catch (error) {
-			console.error("[cleanup] System cleanup failed:", error);
-		}
+		await this.runSystemCleanupIfDue(currentTime);
 
 		try {
 			await this.syncPluginStorageIndexesOnce();
@@ -977,9 +1039,25 @@ export class EmDashRuntime {
 
 		// Never throws; no-op unless scheduled backups are enabled and due.
 		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
-		await recordSchedulerHeartbeatSafely(this.db);
+		await recordSchedulerHeartbeatSafely(this.db, currentTime);
 
-		return { processed, published };
+		return { published };
+	}
+
+	private lastSystemCleanupAt: Date | null = null;
+
+	private shouldRunSystemCleanup(currentTime: Date): boolean {
+		return shouldRunSystemCleanupNow(currentTime, this.lastSystemCleanupAt);
+	}
+
+	private async runSystemCleanupIfDue(currentTime: Date): Promise<void> {
+		if (!this.shouldRunSystemCleanup(currentTime)) return;
+		this.lastSystemCleanupAt = currentTime;
+		try {
+			await runSystemCleanup(this.db, this.storage ?? undefined);
+		} catch (error) {
+			console.error("[cleanup] System cleanup failed:", error);
+		}
 	}
 
 	/**
@@ -1034,10 +1112,20 @@ export class EmDashRuntime {
 	async setPluginStatus(pluginId: string, status: "active" | "inactive"): Promise<void> {
 		this.pluginStates.set(pluginId, status);
 		if (status === "active") {
-			this.setSandboxedPluginActive(pluginId, true);
-			this.enabledPlugins.add(pluginId);
-			await this.rebuildHookPipeline();
-			await this._hooks.runPluginActivate(pluginId);
+			try {
+				this.setSandboxedPluginActive(pluginId, true);
+				this.enabledPlugins.add(pluginId);
+				await this.rebuildHookPipeline();
+				const results = await this._hooks.runPluginActivate(pluginId);
+				const failure = results.find((result) => !result.success);
+				if (failure) throw failure.error ?? new Error("Plugin activation failed");
+			} catch (error) {
+				this.pluginStates.set(pluginId, "inactive");
+				this.setSandboxedPluginActive(pluginId, false);
+				this.enabledPlugins.delete(pluginId);
+				await this.rebuildHookPipeline();
+				throw error;
+			}
 		} else {
 			try {
 				// Deactivate hooks retain access until their cleanup has finished.
@@ -1093,6 +1181,134 @@ export class EmDashRuntime {
 
 	async runPluginActivateLifecycle(pluginId: string): Promise<void> {
 		await this._hooks.runPluginActivate(pluginId);
+	}
+
+	/**
+	 * Run install → activate once for each loaded plugin registered in the
+	 * integration config that has no `_plugin_state` row.
+	 *
+	 * Only the isolate whose insert creates the row runs the hooks. A plugin
+	 * whose own hooks fail is recorded as inactive rather than retried on later
+	 * boots; re-enabling it from the admin runs `plugin:activate`. Sandbox
+	 * unavailability leaves no state so the next boot can retry.
+	 */
+	private async installUnrecordedConfigPlugins(
+		configPlugins: ResolvedPlugin[],
+		recordedStates: ReadonlyMap<string, string>,
+	): Promise<void> {
+		const stateRepo = new PluginStateRepository(this.db);
+		const failed: ResolvedPlugin[] = [];
+		let sandboxReadinessFailed = false;
+		let sandboxReadiness: Promise<void> | undefined;
+		const recordFailure = async (
+			plugin: ResolvedPlugin,
+			hook: string,
+			error: Error | undefined,
+		) => {
+			if (
+				this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
+				(error?.name === "SandboxUnavailableError" ||
+					(error instanceof HookTimeoutError && sandboxRunner && !sandboxRunner.isHealthy()))
+			) {
+				sandboxReadiness = undefined;
+				await this.db
+					.deleteFrom("_plugin_state")
+					.where("plugin_id", "=", plugin.id)
+					.where("version", "=", plugin.version)
+					.where("source", "=", "config")
+					.where("status", "=", "active")
+					.execute();
+				this.pluginStates.delete(plugin.id);
+				console.warn(
+					`EmDash: Sandbox unavailable for config plugin "${plugin.id}"; retrying on next boot:`,
+					error,
+				);
+				return;
+			}
+			console.error(
+				`EmDash: ${hook} failed for config plugin "${plugin.id}"; disabling it:`,
+				error,
+			);
+			failed.push(plugin);
+		};
+
+		for (const plugin of configPlugins) {
+			if (recordedStates.has(plugin.id)) continue;
+
+			try {
+				if (
+					this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
+					(plugin.hooks["plugin:install"] || plugin.hooks["plugin:activate"])
+				) {
+					if (sandboxReadinessFailed) continue;
+					try {
+						// Readiness has its own deadline, not the hook's execution budget.
+						await (sandboxReadiness ??=
+							sandboxRunner?.ensureRunning?.({ waitForPendingRestart: true }) ?? Promise.resolve());
+						if (sandboxRunner && !sandboxRunner.isHealthy()) {
+							throw new SandboxUnavailableError(
+								plugin.id,
+								sandboxRunner.unavailableReason?.() ?? "not ready",
+							);
+						}
+					} catch (error) {
+						sandboxReadinessFailed = true;
+						console.warn(
+							`EmDash: Sandbox not ready for config plugin "${plugin.id}"; retrying on next boot:`,
+							error,
+						);
+						continue;
+					}
+				}
+				if (!(await stateRepo.createActiveIfAbsent(plugin.id, plugin.version, "config"))) continue;
+				this.pluginStates.set(plugin.id, "active");
+
+				const install = await this._hooks.runPluginInstall(plugin.id);
+				const installFailure = install.find((result) => !result.success);
+				if (installFailure) {
+					await recordFailure(plugin, "plugin:install", installFailure.error);
+					continue;
+				}
+
+				if (
+					this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
+					plugin.hooks["plugin:activate"] &&
+					sandboxRunner &&
+					!sandboxRunner.isHealthy()
+				) {
+					await recordFailure(
+						plugin,
+						"plugin:activate",
+						new SandboxUnavailableError(
+							plugin.id,
+							sandboxRunner.unavailableReason?.() ?? "not ready",
+						),
+					);
+					continue;
+				}
+				const activate = await this._hooks.runPluginActivate(plugin.id);
+				const activateFailure = activate.find((result) => !result.success);
+				if (activateFailure) {
+					await recordFailure(plugin, "plugin:activate", activateFailure.error);
+				}
+			} catch (error) {
+				console.error(`EmDash: Config plugin "${plugin.id}" install/activate failed:`, error);
+			}
+		}
+
+		if (failed.length === 0) return;
+		for (const plugin of failed) {
+			try {
+				await stateRepo.disable(plugin.id, plugin.version);
+				await setCronTasksEnabled(this.db, plugin.id, false);
+			} catch (error) {
+				console.error(`EmDash: Failed to record config plugin "${plugin.id}" as disabled:`, error);
+			}
+			this.pluginStates.set(plugin.id, "inactive");
+			this.setSandboxedPluginActive(plugin.id, false);
+			this.enabledPlugins.delete(plugin.id);
+		}
+		await this.rebuildHookPipeline();
 	}
 
 	/**
@@ -1500,10 +1716,225 @@ export class EmDashRuntime {
 			}
 		};
 
+		// Validate EMDASH_ENCRYPTION_KEY once here so a malformed value
+		// surfaces in startup logs. Plugin secret-setting operations re-read
+		// the key and fail closed at their own boundary, so validation here
+		// does not block unrelated request paths.
+		await phase("rt.secrets", "Validate encryption key", () => validateEncryptionKeyAtStartup());
+
+		// FTS verify/repair is deferred off the cold-start hot path.
+		// See EmDashRuntime.ensureSearchHealthy().
+
+		// Initialize storage (sync)
+		const storage = EmDashRuntime.getStorage(deps);
+
+		const configuredLocales: string[] =
+			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
+		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
+
+		// Seeding must only touch the configured singleton, never a borrowed
+		// per-request db (playground / DO preview) or the loader-fallback db.
+		const reqCtx = getRequestContext();
+		const ownsConfiguredDb = !!deps.config.database && !(reqCtx?.dbIsIsolated && reqCtx.db);
+
+		// Run the init reads on a coalescing connection so the concurrent
+		// same-turn reads flush as one batch() round trip. The singleton can't:
+		// its plain SqliteAdapter reports supportsMultipleConnections=false, so
+		// Kysely's connection mutex serializes concurrent reads into N round
+		// trips. The connection is per-init and discarded — the long-lived
+		// singleton must never coalesce or one request's reads could land in
+		// another's batch. Backends without a coalescing dialect (Node/SQLite)
+		// fall back to the singleton, where serialization costs nothing.
+		let coalescingDb: Kysely<Database> | undefined;
+		let readDbDisposable: Kysely<Database> | undefined;
+		const disposeReadDb = async () => {
+			const disposable = readDbDisposable;
+			readDbDisposable = undefined;
+			if (!disposable) return;
+			try {
+				await disposable.destroy();
+			} catch {
+				// Non-fatal — the underlying binding is shared and needs no teardown.
+			}
+		};
+		if (ownsConfiguredDb && deps.createCoalescingDialect && deps.config.database) {
+			try {
+				const dialect = deps.createCoalescingDialect(deps.config.database.config);
+				if (dialect) {
+					coalescingDb = new Kysely<Database>({ dialect, log: kyselyLogOption() });
+					readDbDisposable = coalescingDb;
+				}
+			} catch {
+				// Fall back to the singleton below.
+			}
+		}
+		let missingManualSchemaError: unknown;
+		const captureMissingManualSchema = (error: unknown) => {
+			if ((deps.migrationMode ?? "auto") === "manual" && isMissingTableError(error)) {
+				missingManualSchemaError ??= error;
+			}
+		};
+
+		const readSiteInfo = async (readDb: Kysely<Database>) => {
+			const siteOpts = await new OptionsRepository(readDb).getMany([
+				"emdash:site_title",
+				"site:url",
+				"emdash:site_url",
+				"emdash:locale",
+				LOCALE_CASING_REPAIR_OPTION,
+				AUTO_SEED_COMPLETE_OPTION,
+				SETUP_COMPLETE_OPTION,
+			]);
+			const siteTitle = siteOpts.get("emdash:site_title");
+			const siteUrl = resolveSiteOrigin(
+				deps.config,
+				siteOpts.get("site:url"),
+				siteOpts.get("emdash:site_url"),
+			);
+			const locale = siteOpts.get("emdash:locale");
+			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
+			return {
+				siteInfo: {
+					siteName: deps.siteInfo?.name ?? (typeof siteTitle === "string" ? siteTitle : undefined),
+					siteUrl: deps.siteInfo?.url ?? siteUrl,
+					locale: deps.siteInfo?.locale ?? (typeof locale === "string" ? locale : undefined),
+					// trailingSlash is a build-time Astro routing decision, not a
+					// user-editable setting, so it comes from the Astro config
+					// (virtual:emdash/config), not the options table.
+					trailingSlash: deps.siteInfo?.trailingSlash ?? virtualConfig?.trailingSlash,
+				},
+				storedLocaleCasingRepairVersion:
+					typeof repairVersion === "string" ? repairVersion : undefined,
+				seedComplete: siteOpts.get(AUTO_SEED_COMPLETE_OPTION) === true,
+				setupDone: siteOpts.get(SETUP_COMPLETE_OPTION) === true,
+			};
+		};
+
+		// Each pass returns its own results, so a pass that runs again after
+		// migrations replaces the first pass's results whole.
+		const runColdStartReads = async (readDb: Kysely<Database>) => {
+			const reads: {
+				pluginStates: Map<string, string>;
+				pluginStatesRead: boolean;
+				installedPluginStates: PluginState[];
+				exclusiveHookSelections?: Map<string, string | undefined>;
+				site?: Awaited<ReturnType<typeof readSiteInfo>>;
+				seedCollectionsReadable: boolean;
+			} = {
+				pluginStates: new Map(),
+				pluginStatesRead: false,
+				installedPluginStates: [],
+				seedCollectionsReadable: false,
+			};
+			const coldStartReads: Array<Promise<void>> = [
+				phase("rt.plugins", "Plugin states", async () => {
+					try {
+						const states = await readDb.selectFrom("_plugin_state").selectAll().execute();
+						reads.pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
+						reads.pluginStatesRead = true;
+						reads.installedPluginStates = states
+							.filter((s) => s.source === "marketplace" || s.source === "registry")
+							.map(rowToPluginState);
+					} catch (error) {
+						captureMissingManualSchema(error);
+						// _plugin_state may not exist yet on a pre-migration db.
+					}
+				}),
+				phase("rt.site", "Site info options", async () => {
+					try {
+						reads.site = await readSiteInfo(readDb);
+					} catch (error) {
+						captureMissingManualSchema(error);
+						// options may not exist yet on a pre-migration db.
+					}
+				}),
+				phase("rt.hookselections", "Exclusive hook selections", async () => {
+					// Built-in and sandboxed providers register after these reads, so
+					// only configured plugins' hooks and the always-present
+					// comment:moderate are known here. Hook resolution reads the rest.
+					const keys = Array.from(
+						new Set([
+							"comment:moderate",
+							...deps.plugins.flatMap((plugin) =>
+								Object.entries(plugin.hooks)
+									.filter(([, hook]) => hook?.exclusive)
+									.map(([name]) => name),
+							),
+						]),
+						(name) => `${EXCLUSIVE_HOOK_KEY_PREFIX}${name}`,
+					);
+					try {
+						const stored = await new OptionsRepository(readDb).getMany<string>(keys);
+						reads.exclusiveHookSelections = new Map(keys.map((key) => [key, stored.get(key)]));
+					} catch (error) {
+						captureMissingManualSchema(error);
+						// Hook resolution reads the selections itself when this fails.
+					}
+				}),
+			];
+
+			if (ownsConfiguredDb) {
+				coldStartReads.push(
+					phase("rt.seedcheck", "Auto-seed gate", async () => {
+						try {
+							// Selecting the slugs instead of COUNT(*) costs the same
+							// round trip and primes the registered-collections cache,
+							// so the first render on this isolate skips its own lookup.
+							const collectionRows = await readDb
+								.selectFrom("_emdash_collections")
+								.select("slug")
+								.execute();
+							primeRegisteredCollections(collectionRows.map((row) => row.slug));
+							reads.seedCollectionsReadable = true;
+						} catch (error) {
+							captureMissingManualSchema(error);
+							// Leave collections unreadable so a read failure never triggers
+							// a seed onto a half-built db.
+						}
+					}),
+				);
+			}
+
+			await Promise.all(coldStartReads);
+			return reads;
+		};
+
+		// The applied-migration count rides in the cold-start batch on the
+		// coalescing connection instead of costing its own round trip first. In
+		// auto mode the policy uses it for its fast path. Reads in a batch whose
+		// count was current saw a fully migrated schema; otherwise they run again
+		// once the policy has finished.
+		let migrationsCurrent = false;
+		let foldedColdStartReads: ReturnType<typeof runColdStartReads> | undefined;
+		let appliedMigrationCount: Promise<number | null | undefined> | undefined;
+		// Only fold when getDatabase will actually initialize: a cached db needs
+		// no count, and during a backoff getDatabase throws without touching the
+		// database, so neither should the reads.
+		if (
+			coalescingDb &&
+			(deps.migrationMode ?? "auto") === "auto" &&
+			EmDashRuntime.databaseNeedsInit(deps)
+		) {
+			// A read error leaves the policy to read the count itself.
+			appliedMigrationCount = getAppliedMigrationCount(coalescingDb).catch(() => undefined);
+			foldedColdStartReads = runColdStartReads(coalescingDb);
+		}
+
 		// Initialize the database and enforce its configured migration policy.
-		const db = await phase("rt.db", "DB init + migration policy", () =>
-			EmDashRuntime.getDatabase(deps),
-		);
+		let db: Kysely<Database>;
+		try {
+			db = await phase("rt.db", "DB init + migration policy", async () => {
+				const count = await appliedMigrationCount;
+				migrationsCurrent = isMigrationCountCurrent(count);
+				return EmDashRuntime.getDatabase(deps, { appliedMigrationCount: count });
+			});
+		} catch (error) {
+			// Drain the folded reads without letting a secondary read failure
+			// replace the migration/init error we want to report.
+			await foldedColdStartReads?.catch(() => undefined);
+			await disposeReadDb();
+			throw error;
+		}
 
 		// Resolver for the live connection, mirroring the `get db()` getter
 		// below (which can't be used here — the runtime instance doesn't exist
@@ -1521,155 +1952,22 @@ export class EmDashRuntime {
 			return (ctx?.db as Kysely<Database> | undefined) ?? db;
 		};
 
-		// Validate EMDASH_ENCRYPTION_KEY once here so a malformed value
-		// surfaces in startup logs. Plugin secret-setting operations re-read
-		// the key and fail closed at their own boundary, so validation here
-		// does not block unrelated request paths.
-		await phase("rt.secrets", "Validate encryption key", () => validateEncryptionKeyAtStartup());
-
-		// FTS verify/repair is deferred off the cold-start hot path.
-		// See EmDashRuntime.ensureSearchHealthy().
-
-		// Initialize storage (sync)
-		const storage = EmDashRuntime.getStorage(deps);
-
-		let pluginStates: Map<string, string> = new Map();
-		const configuredLocales: string[] =
-			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
-		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
-		let storedLocaleCasingRepairVersion: string | undefined;
-		let siteInfo:
-			| {
-					siteName?: string;
-					siteUrl?: string;
-					locale?: string;
-					trailingSlash?: "always" | "never" | "ignore";
-			  }
-			| undefined;
+		const readDb = coalescingDb ?? db;
+		const foldedReads = await foldedColdStartReads;
+		const reads = foldedReads && migrationsCurrent ? foldedReads : await runColdStartReads(readDb);
+		const {
+			pluginStates,
+			pluginStatesRead,
+			installedPluginStates,
+			exclusiveHookSelections,
+			seedCollectionsReadable,
+		} = reads;
+		let siteInfo = reads.site?.siteInfo;
+		const storedLocaleCasingRepairVersion = reads.site?.storedLocaleCasingRepairVersion;
 		// "Already complete" by default so a read failure (e.g. tables absent on a
 		// pre-migration db) skips seeding rather than seeding a half-built db.
-		let seedComplete = true;
-		let setupDone = true;
-		let seedCollectionsReadable = false;
-
-		// Seeding must only touch the configured singleton, never a borrowed
-		// per-request db (playground / DO preview) or the loader-fallback db.
-		const reqCtx = getRequestContext();
-		const ownsConfiguredDb = !!deps.config.database && !(reqCtx?.dbIsIsolated && reqCtx.db);
-
-		// Run the init reads on a coalescing connection so the concurrent
-		// same-turn reads flush as one batch() round trip. The singleton can't:
-		// its plain SqliteAdapter reports supportsMultipleConnections=false, so
-		// Kysely's connection mutex serializes concurrent reads into N round
-		// trips. The connection is per-init and discarded — the long-lived
-		// singleton must never coalesce or one request's reads could land in
-		// another's batch. Backends without a coalescing dialect (Node/SQLite)
-		// fall back to the singleton, where serialization costs nothing.
-		let readDb = db;
-		let readDbDisposable: Kysely<Database> | undefined;
-		const disposeReadDb = async () => {
-			const disposable = readDbDisposable;
-			readDbDisposable = undefined;
-			if (!disposable) return;
-			try {
-				await disposable.destroy();
-			} catch {
-				// Non-fatal — the underlying binding is shared and needs no teardown.
-			}
-		};
-		if (ownsConfiguredDb && deps.createCoalescingDialect && deps.config.database) {
-			try {
-				const dialect = deps.createCoalescingDialect(deps.config.database.config);
-				if (dialect) {
-					readDb = new Kysely<Database>({ dialect, log: kyselyLogOption() });
-					readDbDisposable = readDb;
-				}
-			} catch {
-				readDb = db;
-			}
-		}
-		const optionsRepo = new OptionsRepository(readDb);
-		let missingManualSchemaError: unknown;
-		const captureMissingManualSchema = (error: unknown) => {
-			if ((deps.migrationMode ?? "auto") === "manual" && isMissingTableError(error)) {
-				missingManualSchemaError ??= error;
-			}
-		};
-
-		const readSiteInfo = async () => {
-			const siteOpts = await optionsRepo.getMany([
-				"emdash:site_title",
-				"emdash:site_url",
-				"emdash:locale",
-				LOCALE_CASING_REPAIR_OPTION,
-				AUTO_SEED_COMPLETE_OPTION,
-				SETUP_COMPLETE_OPTION,
-			]);
-			const siteTitle = siteOpts.get("emdash:site_title");
-			const siteUrl = siteOpts.get("emdash:site_url");
-			const locale = siteOpts.get("emdash:locale");
-			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
-			storedLocaleCasingRepairVersion =
-				typeof repairVersion === "string" ? repairVersion : undefined;
-			seedComplete = siteOpts.get(AUTO_SEED_COMPLETE_OPTION) === true;
-			setupDone = siteOpts.get(SETUP_COMPLETE_OPTION) === true;
-			return {
-				siteName: deps.siteInfo?.name ?? (typeof siteTitle === "string" ? siteTitle : undefined),
-				siteUrl: deps.siteInfo?.url ?? (typeof siteUrl === "string" ? siteUrl : undefined),
-				locale: deps.siteInfo?.locale ?? (typeof locale === "string" ? locale : undefined),
-				// trailingSlash is a build-time Astro routing decision, not a
-				// user-editable setting, so it comes from the Astro config
-				// (virtual:emdash/config), not the options table.
-				trailingSlash: deps.siteInfo?.trailingSlash ?? virtualConfig?.trailingSlash,
-			};
-		};
-
-		const coldStartReads: Array<Promise<void>> = [
-			phase("rt.plugins", "Plugin states", async () => {
-				try {
-					const states = await readDb
-						.selectFrom("_plugin_state")
-						.select(["plugin_id", "status"])
-						.execute();
-					pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
-				} catch (error) {
-					captureMissingManualSchema(error);
-					// _plugin_state may not exist yet on a pre-migration db.
-				}
-			}),
-			phase("rt.site", "Site info options", async () => {
-				try {
-					siteInfo = await readSiteInfo();
-				} catch (error) {
-					captureMissingManualSchema(error);
-					// options may not exist yet on a pre-migration db.
-				}
-			}),
-		];
-
-		if (ownsConfiguredDb) {
-			coldStartReads.push(
-				phase("rt.seedcheck", "Auto-seed gate", async () => {
-					try {
-						// Selecting the slugs instead of COUNT(*) costs the same
-						// round trip and primes the registered-collections cache,
-						// so the first render on this isolate skips its own lookup.
-						const collectionRows = await readDb
-							.selectFrom("_emdash_collections")
-							.select("slug")
-							.execute();
-						primeRegisteredCollections(collectionRows.map((row) => row.slug));
-						seedCollectionsReadable = true;
-					} catch (error) {
-						captureMissingManualSchema(error);
-						// Leave collections unreadable so a read failure never triggers
-						// a seed onto a half-built db.
-					}
-				}),
-			);
-		}
-
-		await Promise.all(coldStartReads);
+		const seedComplete = reads.site?.seedComplete ?? true;
+		const setupDone = reads.site?.setupDone ?? true;
 		if (missingManualSchemaError) {
 			await disposeReadDb();
 			throw missingManualSchemaError;
@@ -1734,7 +2032,7 @@ export class EmDashRuntime {
 				// The site-info read ran before the seed wrote its defaults, so
 				// refresh the snapshot the plugin context sees.
 				try {
-					siteInfo = await readSiteInfo();
+					siteInfo = (await readSiteInfo(readDb)).siteInfo;
 				} catch {
 					// Non-fatal — plugin context falls back to undefined fields.
 				}
@@ -1849,7 +2147,10 @@ export class EmDashRuntime {
 		// in-process plugins BEFORE pipeline creation. They need to be in the
 		// pipeline to participate in hook dispatch.
 		if (deps.sandboxBypassed && deps.config.marketplace && storage) {
-			const marketplaceBypassed = await EmDashRuntime.loadMarketplacePluginsBypassed(db, storage);
+			const marketplaceBypassed = await EmDashRuntime.loadMarketplacePluginsBypassed(
+				storage,
+				installedPluginStates,
+			);
 			for (const plugin of marketplaceBypassed) {
 				allPipelinePlugins.push(plugin);
 				bypassedPluginsList.push(plugin);
@@ -1885,6 +2186,7 @@ export class EmDashRuntime {
 						storage,
 						deps,
 						sandboxedPluginPool,
+						installedPluginStates,
 						siteInfo,
 					),
 				),
@@ -1901,6 +2203,7 @@ export class EmDashRuntime {
 						storage,
 						deps,
 						sandboxedPluginPool,
+						installedPluginStates,
 						siteInfo,
 					),
 				),
@@ -2033,7 +2336,7 @@ export class EmDashRuntime {
 
 		// Resolve exclusive hooks — auto-select providers and sync with DB
 		await phase("rt.hooks", "Exclusive hook resolution", () =>
-			EmDashRuntime.resolveExclusiveHooks(pipeline, db, deps),
+			EmDashRuntime.resolveExclusiveHooks(pipeline, db, deps, exclusiveHookSelections),
 		);
 
 		// ── Email pipeline ───────────────────────────────────────────────
@@ -2112,37 +2415,19 @@ export class EmDashRuntime {
 					cronScheduler = scheduler;
 
 					// Run scheduled publishing and system cleanup alongside each tick.
-					// Pass storage so cleanupPendingUploads can delete orphaned files.
+					// The heavier bookkeeping cleanup is time-gated to once per hour;
+					// per-minute work stays limited to publishing, cron tasks, and the
+					// heartbeat so cold isolates on tight CPU budgets don't pay for
+					// full cleanup on every quiet-hours tick.
 					scheduler.setSystemCleanup(async () => {
+						const runtime = runtimeRef.current;
+						if (!runtime) return;
+						const currentTime = deps.now?.() ?? new Date();
 						try {
-							// Route through the runtime so content:afterPublish hooks fire.
-							// Falls back to the raw handler if (improbably) the tick beats
-							// the post-construction ref assignment.
-							const runtime = runtimeRef.current;
-							if (runtime) {
-								await runtime.publishScheduled();
-							} else {
-								const recordWrite = await assertSiteWriteAllowed(db);
-								if ((await publishDueContent(db)).length > 0) await recordWrite();
-							}
+							await runtime.runScheduledMaintenanceTick({}, currentTime);
 						} catch (error) {
-							console.error("[scheduled-publish] Sweep failed:", error);
+							console.error("[scheduled] Maintenance tick failed:", error);
 						}
-						try {
-							await runSystemCleanup(db, storage ?? undefined);
-						} catch (error) {
-							// Non-fatal -- individual cleanup failures are already logged
-							// by runSystemCleanup. This catches unexpected errors.
-							console.error("[cleanup] System cleanup failed:", error);
-						}
-						try {
-							await runtimeRef.current?.syncPluginStorageIndexesOnce();
-						} catch (error) {
-							console.error("[plugins] Storage index sync failed:", error);
-						}
-						// Never throws; no-op unless scheduled backups are enabled and due.
-						await maybeRunScheduledBackup(db, storage ?? undefined);
-						await recordSchedulerHeartbeatSafely(db);
 					});
 					// start() is void on the timer scheduler but the interface
 					// allows a promise (alarm-backed schedulers); we don't block on it.
@@ -2218,6 +2503,18 @@ export class EmDashRuntime {
 			runtime.handlePluginCommentModerate(pluginId, id, status, expectedStatus),
 		);
 		sandboxRunner?.setContentActions?.(contentActions);
+
+		if (ownsConfiguredDb && pluginStatesRead) {
+			// A sandbox that failed to load must not consume its first-install guard.
+			const configPlugins = [
+				...deps.plugins,
+				...allPipelinePlugins.filter((plugin) => configuredSandboxIds.has(plugin.id)),
+			];
+			await phase("rt.lifecycle", "Config plugin install/activate", () =>
+				runtime.installUnrecordedConfigPlugins(configPlugins, new Map(pluginStates)),
+			);
+		}
+
 		return runtime;
 	}
 
@@ -2246,9 +2543,28 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Get or create database instance
+	 * Whether getDatabase would initialize the configured database: it isn't
+	 * cached yet and isn't backing off after a failed init.
 	 */
-	private static async getDatabase(deps: RuntimeDependencies): Promise<Kysely<Database>> {
+	private static databaseNeedsInit(deps: RuntimeDependencies): boolean {
+		const dbConfig = deps.config.database;
+		if (!dbConfig) return false;
+		const holder = getDbHolder();
+		return (
+			!holder.cache.has(dbConfig.entrypoint) && !activeInitFailure(holder, dbConfig.entrypoint)
+		);
+	}
+
+	/**
+	 * Get or create database instance
+	 *
+	 * `appliedMigrationCount` is a count the caller already read from this
+	 * database; the migration policy uses it rather than reading its own.
+	 */
+	private static async getDatabase(
+		deps: RuntimeDependencies,
+		options?: { appliedMigrationCount?: number | null },
+	): Promise<Kysely<Database>> {
 		// Only use the per-request `ctx.db` when it's an isolated instance
 		// (playground / DO preview). Plain D1 Sessions set `ctx.db` on every
 		// anonymous request — if we captured one of those session-bound
@@ -2287,15 +2603,12 @@ export class EmDashRuntime {
 		const holder = getDbHolder();
 
 		const throwIfBackingOff = () => {
-			const failure = holder.failures.get(cacheKey);
+			const failure = activeInitFailure(holder, cacheKey);
 			if (!failure) return;
-			if (Date.now() - failure.at < DB_INIT_FAILURE_BACKOFF_MS) {
-				throw new Error(
-					`Database initialization is backing off after a recent migration failure: ${failure.message}`,
-				);
-			}
-			// Expired — drop it so the map only ever holds active backoffs.
-			holder.failures.delete(cacheKey);
+			throw new Error(
+				`Database initialization is backing off after a recent migration failure: ${failure.message}`,
+				{ cause: failure.cause },
+			);
 		};
 		throwIfBackingOff();
 
@@ -2312,19 +2625,26 @@ export class EmDashRuntime {
 				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
 				try {
-					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto");
+					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto", {
+						contentRowLimit: autoMigrationContentRowLimit(),
+						appliedCount: options?.appliedMigrationCount,
+					});
 				} catch (error) {
-					// Timing out behind another instance's in-flight migrations
-					// is not a failure of OUR migration — the holder may just be
-					// slow. Don't back off for it: the next request waits again
-					// and init recovers the moment the holder finishes.
+					// Only a failed migration run, a lock its holder left behind, or
+					// content migrations too large for a request back off. Waiting
+					// behind a slow concurrent migrator, pending migrations in check
+					// mode, and errors from the applied-migration check on an
+					// up-to-date database (a lost connection, an unavailable replica)
+					// stay retryable, so the next request tries again.
 					if (
-						!(error instanceof ConcurrentMigrationTimeoutError) &&
-						!(error instanceof PendingMigrationsError)
+						error instanceof MigrationFailedError ||
+						error instanceof MigrationLockHeldError ||
+						error instanceof MigrationRowLimitError
 					) {
 						holder.failures.set(cacheKey, {
 							at: Date.now(),
-							message: error instanceof Error ? error.message : String(error),
+							message: error.message,
+							cause: error,
 						});
 					}
 					// Every attempt builds a fresh dialect/pool; close it or each
@@ -2420,6 +2740,7 @@ export class EmDashRuntime {
 					path: p.path,
 					label: p.label ?? p.path,
 					icon: p.icon,
+					group: p.group,
 				}));
 				const adminWidgets:
 					| Array<{
@@ -2549,6 +2870,7 @@ export class EmDashRuntime {
 					path: page.path,
 					label: page.label ?? page.path,
 					icon: page.icon,
+					group: page.group,
 				}));
 				const adminWidgets: PluginDashboardWidget[] | undefined = entry.adminWidgets?.map(
 					(widget) => ({
@@ -2612,18 +2934,13 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Cold-start: load marketplace-installed plugins from site-local R2 storage
-	 *
-	 * Queries _plugin_state for source='marketplace' rows, fetches each bundle
-	 * from R2, and loads via SandboxRunner.
-	 */
-	/**
 	 * Cold-start load of all active sandboxed plugins for one install
 	 * tier (marketplace or registry) from site-local R2.
 	 *
 	 * Mirrors {@link syncSandboxedSourcePlugins} but runs once at runtime
 	 * creation, before request traffic arrives; the sync method runs on
-	 * demand after install / update / uninstall handlers.
+	 * demand after install / update / uninstall handlers. `states` are the
+	 * `_plugin_state` rows read in the cold-start batch.
 	 */
 	private static async loadInstalledSandboxedPlugins(
 		source: "marketplace" | "registry",
@@ -2631,6 +2948,7 @@ export class EmDashRuntime {
 		storage: Storage,
 		deps: RuntimeDependencies,
 		cache: Map<string, SandboxedPluginInstance>,
+		states: readonly PluginState[],
 		siteInfo?: {
 			siteName?: string;
 			siteUrl?: string;
@@ -2673,67 +2991,57 @@ export class EmDashRuntime {
 
 		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
 
-		try {
-			const stateRepo = new PluginStateRepository(db);
-			const plugins =
-				source === "marketplace"
-					? await stateRepo.getMarketplacePlugins()
-					: await stateRepo.getRegistryPlugins();
+		for (const plugin of states.filter((state) => state.source === source)) {
+			if (plugin.status !== "active") continue;
 
-			for (const plugin of plugins) {
-				if (plugin.status !== "active") continue;
+			// Marketplace plugins record the live version in
+			// `marketplaceVersion`; registry plugins use `version` directly.
+			const version =
+				source === "marketplace" ? (plugin.marketplaceVersion ?? plugin.version) : plugin.version;
+			const pluginKey = `${plugin.pluginId}:${version}`;
 
-				// Marketplace plugins record the live version in
-				// `marketplaceVersion`; registry plugins use `version` directly.
-				const version =
-					source === "marketplace" ? (plugin.marketplaceVersion ?? plugin.version) : plugin.version;
-				const pluginKey = `${plugin.pluginId}:${version}`;
+			// Skip if already loaded (shouldn't happen, but guard)
+			if (cache.has(pluginKey)) continue;
 
-				// Skip if already loaded (shouldn't happen, but guard)
-				if (cache.has(pluginKey)) continue;
-
-				try {
-					const bundle = await loadBundleFromR2(storage, plugin.pluginId, version, source);
-					if (!bundle) {
-						console.warn(`EmDash: ${source} plugin ${plugin.pluginId}@${version} not found in R2`);
-						continue;
-					}
-
-					const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
-					cache.set(pluginKey, loaded);
-					sandboxedManifestCache.set(pluginKey, bundle.manifest);
-					keySet.add(pluginKey);
-
-					// Cache manifest admin config for getManifest()
-					marketplaceManifestCache.set(plugin.pluginId, {
-						id: bundle.manifest.id,
-						version: bundle.manifest.version,
-						admin: bundle.manifest.admin,
-						mcp: bundle.manifest.mcp,
-						storage: bundle.manifest.storage,
-						allowedHosts: bundle.manifest.allowedHosts,
-						capabilities: bundle.manifest.capabilities,
-					});
-
-					// Cache route metadata from manifest for auth decisions
-					if (bundle.manifest.routes.length > 0) {
-						const routeMeta = new Map<string, RouteMeta>();
-						for (const entry of bundle.manifest.routes) {
-							const normalized = normalizeManifestRoute(entry);
-							routeMeta.set(normalized.name, buildRouteMeta(normalized));
-						}
-						sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
-					}
-
-					console.log(
-						`EmDash: Loaded ${source} plugin ${pluginKey} with capabilities: [${bundle.manifest.capabilities.join(", ")}]`,
-					);
-				} catch (error) {
-					console.error(`EmDash: Failed to load ${source} plugin ${plugin.pluginId}:`, error);
+			try {
+				const bundle = await loadBundleFromR2(storage, plugin.pluginId, version, source);
+				if (!bundle) {
+					console.warn(`EmDash: ${source} plugin ${plugin.pluginId}@${version} not found in R2`);
+					continue;
 				}
+
+				const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
+				cache.set(pluginKey, loaded);
+				sandboxedManifestCache.set(pluginKey, bundle.manifest);
+				keySet.add(pluginKey);
+
+				// Cache manifest admin config for getManifest()
+				marketplaceManifestCache.set(plugin.pluginId, {
+					id: bundle.manifest.id,
+					version: bundle.manifest.version,
+					admin: bundle.manifest.admin,
+					mcp: bundle.manifest.mcp,
+					storage: bundle.manifest.storage,
+					allowedHosts: bundle.manifest.allowedHosts,
+					capabilities: bundle.manifest.capabilities,
+				});
+
+				// Cache route metadata from manifest for auth decisions
+				if (bundle.manifest.routes.length > 0) {
+					const routeMeta = new Map<string, RouteMeta>();
+					for (const entry of bundle.manifest.routes) {
+						const normalized = normalizeManifestRoute(entry);
+						routeMeta.set(normalized.name, buildRouteMeta(normalized));
+					}
+					sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
+				}
+
+				console.log(
+					`EmDash: Loaded ${source} plugin ${pluginKey} with capabilities: [${bundle.manifest.capabilities.join(", ")}]`,
+				);
+			} catch (error) {
+				console.error(`EmDash: Failed to load ${source} plugin ${plugin.pluginId}:`, error);
 			}
-		} catch {
-			// _plugin_state table may not exist yet (pre-migration)
 		}
 	}
 
@@ -2751,96 +3059,85 @@ export class EmDashRuntime {
 	 * Returns ResolvedPlugins to be merged into the pipeline.
 	 */
 	private static async loadMarketplacePluginsBypassed(
-		db: Kysely<Database>,
 		storage: Storage,
+		states: readonly PluginState[],
 	): Promise<ResolvedPlugin[]> {
 		const resolved: ResolvedPlugin[] = [];
-		try {
-			const stateRepo = new PluginStateRepository(db);
-			const marketplacePlugins = await stateRepo.getMarketplacePlugins();
-			if (marketplacePlugins.length === 0) return resolved;
+		const marketplacePlugins = states.filter((state) => state.source === "marketplace");
+		if (marketplacePlugins.length === 0) return resolved;
 
-			console.info(
-				"EmDash: Sandbox disabled (sandbox: false). " +
-					"Marketplace plugins will run in-process without isolation.",
-			);
+		console.info(
+			"EmDash: Sandbox disabled (sandbox: false). " +
+				"Marketplace plugins will run in-process without isolation.",
+		);
 
-			const { adaptSandboxEntry } = await import("./plugins/adapt-sandbox-entry.js");
+		const { adaptSandboxEntry } = await import("./plugins/adapt-sandbox-entry.js");
 
-			for (const plugin of marketplacePlugins) {
-				if (plugin.status !== "active") continue;
-				const version = plugin.marketplaceVersion ?? plugin.version;
-				try {
-					const bundle = await loadBundleFromR2(storage, plugin.pluginId, version);
-					if (!bundle) {
-						console.warn(
-							`EmDash: Marketplace plugin ${plugin.pluginId}@${version} not found in R2`,
-						);
-						continue;
-					}
-
-					// Cache manifest and route metadata for admin UI and route auth
-					marketplaceManifestCache.set(plugin.pluginId, {
-						id: bundle.manifest.id,
-						version: bundle.manifest.version,
-						admin: bundle.manifest.admin,
-						mcp: bundle.manifest.mcp,
-						storage: bundle.manifest.storage,
-						allowedHosts: bundle.manifest.allowedHosts,
-						capabilities: bundle.manifest.capabilities,
-					});
-					if (bundle.manifest.routes.length > 0) {
-						const routeMeta = new Map<string, RouteMeta>();
-						for (const entry of bundle.manifest.routes) {
-							const normalized = normalizeManifestRoute(entry);
-							routeMeta.set(normalized.name, buildRouteMeta(normalized));
-						}
-						sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
-					}
-
-					// Evaluate the bundled ESM and adapt it as a trusted plugin
-					const dataUrl = `data:text/javascript;base64,${Buffer.from(bundle.backendCode).toString("base64")}`;
-					// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- dynamic module from trusted bundle (built by plugin-cli); adaptSandboxEntry validates required fields.
-					const pluginModule = (await import(/* @vite-ignore */ dataUrl)) as Record<
-						string,
-						unknown
-					>;
-					const pluginDef = (pluginModule.default ?? pluginModule) as Parameters<
-						typeof adaptSandboxEntry
-					>[0];
-					const adapted = adaptSandboxEntry(pluginDef, {
-						id: bundle.manifest.id,
-						version: bundle.manifest.version,
-						entrypoint: "",
-						capabilities: bundle.manifest.capabilities ?? [],
-						allowedHosts: bundle.manifest.allowedHosts ?? [],
-						// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- adaptSandboxEntry copies storage through
-						storage: (bundle.manifest.storage ?? {}) as never,
-						adminPages: bundle.manifest.admin?.pages,
-						adminWidgets: bundle.manifest.admin?.widgets?.map((w) => ({
-							id: w.id,
-							title: w.title,
-							size:
-								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
-						})),
-						settingsSchema: bundle.manifest.admin?.settingsSchema,
-						editorPanels: bundle.manifest.admin?.editorPanels,
-						editorActions: bundle.manifest.admin?.editorActions,
-						mcp: bundle.manifest.mcp,
-					});
-					resolved.push(adapted);
-					console.log(
-						`EmDash: Loaded marketplace plugin ${plugin.pluginId}@${version} in-process (sandbox bypassed)`,
-					);
-				} catch (error) {
-					console.error(
-						`EmDash: Failed to load marketplace plugin ${plugin.pluginId} in-process:`,
-						error,
-					);
+		for (const plugin of marketplacePlugins) {
+			if (plugin.status !== "active") continue;
+			const version = plugin.marketplaceVersion ?? plugin.version;
+			try {
+				const bundle = await loadBundleFromR2(storage, plugin.pluginId, version);
+				if (!bundle) {
+					console.warn(`EmDash: Marketplace plugin ${plugin.pluginId}@${version} not found in R2`);
+					continue;
 				}
+
+				// Cache manifest and route metadata for admin UI and route auth
+				marketplaceManifestCache.set(plugin.pluginId, {
+					id: bundle.manifest.id,
+					version: bundle.manifest.version,
+					admin: bundle.manifest.admin,
+					mcp: bundle.manifest.mcp,
+					storage: bundle.manifest.storage,
+					allowedHosts: bundle.manifest.allowedHosts,
+					capabilities: bundle.manifest.capabilities,
+				});
+				if (bundle.manifest.routes.length > 0) {
+					const routeMeta = new Map<string, RouteMeta>();
+					for (const entry of bundle.manifest.routes) {
+						const normalized = normalizeManifestRoute(entry);
+						routeMeta.set(normalized.name, buildRouteMeta(normalized));
+					}
+					sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
+				}
+
+				// Evaluate the bundled ESM and adapt it as a trusted plugin
+				const dataUrl = `data:text/javascript;base64,${Buffer.from(bundle.backendCode).toString("base64")}`;
+				// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- dynamic module from trusted bundle (built by plugin-cli); adaptSandboxEntry validates required fields.
+				const pluginModule = (await import(/* @vite-ignore */ dataUrl)) as Record<string, unknown>;
+				const pluginDef = (pluginModule.default ?? pluginModule) as Parameters<
+					typeof adaptSandboxEntry
+				>[0];
+				const adapted = adaptSandboxEntry(pluginDef, {
+					id: bundle.manifest.id,
+					version: bundle.manifest.version,
+					entrypoint: "",
+					capabilities: bundle.manifest.capabilities ?? [],
+					allowedHosts: bundle.manifest.allowedHosts ?? [],
+					// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- adaptSandboxEntry copies storage through
+					storage: (bundle.manifest.storage ?? {}) as never,
+					adminPages: bundle.manifest.admin?.pages,
+					adminWidgets: bundle.manifest.admin?.widgets?.map((w) => ({
+						id: w.id,
+						title: w.title,
+						size: w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
+					})),
+					settingsSchema: bundle.manifest.admin?.settingsSchema,
+					editorPanels: bundle.manifest.admin?.editorPanels,
+					editorActions: bundle.manifest.admin?.editorActions,
+					mcp: bundle.manifest.mcp,
+				});
+				resolved.push(adapted);
+				console.log(
+					`EmDash: Loaded marketplace plugin ${plugin.pluginId}@${version} in-process (sandbox bypassed)`,
+				);
+			} catch (error) {
+				console.error(
+					`EmDash: Failed to load marketplace plugin ${plugin.pluginId} in-process:`,
+					error,
+				);
 			}
-		} catch {
-			// _plugin_state table may not exist yet
 		}
 		return resolved;
 	}
@@ -2856,6 +3153,7 @@ export class EmDashRuntime {
 		pipeline: HookPipeline,
 		db: Kysely<Database>,
 		deps: RuntimeDependencies,
+		storedSelections?: ReadonlyMap<string, string | undefined>,
 	): Promise<void> {
 		const exclusiveHookNames = pipeline.getRegisteredExclusiveHooks();
 		if (exclusiveHookNames.length === 0) return;
@@ -2881,7 +3179,16 @@ export class EmDashRuntime {
 			pipeline,
 			isActive: () => true,
 			getOption: (key) => optionsRepo.get<string>(key),
-			getOptions: (keys) => optionsRepo.getMany<string>(keys),
+			getOptions: async (keys) => {
+				const unread = keys.filter((key) => !storedSelections?.has(key));
+				const selections =
+					unread.length > 0 ? await optionsRepo.getMany<string>(unread) : new Map<string, string>();
+				for (const key of keys) {
+					const value = storedSelections?.get(key);
+					if (value !== undefined) selections.set(key, value);
+				}
+				return selections;
+			},
 			setOption: (key, value) => optionsRepo.set(key, value),
 			deleteOption: async (key) => {
 				await optionsRepo.delete(key);
@@ -2940,7 +3247,7 @@ export class EmDashRuntime {
 				enabled?: boolean;
 				sandboxed?: boolean;
 				adminMode?: "react" | "blocks" | "none";
-				adminPages?: Array<{ path: string; label?: string; icon?: string }>;
+				adminPages?: Array<{ path: string; label?: string; icon?: string; group?: string }>;
 				dashboardWidgets?: Array<{
 					id: string;
 					title?: string;
@@ -3206,6 +3513,7 @@ export class EmDashRuntime {
 		collection: string,
 		params: {
 			cursor?: string;
+			page?: number;
 			limit?: number;
 			status?: string;
 			orderBy?: string;
@@ -3234,9 +3542,10 @@ export class EmDashRuntime {
 		id: string,
 		locale?: string,
 		referenceOptions?: { includeDrafts: boolean },
+		draftOptions?: { includeStagedSlug?: boolean },
 	) {
 		const result = await handleContentGet(this.db, collection, id, locale, referenceOptions);
-		return this.hydrateDraftData(result);
+		return this.hydrateDraftData(result, draftOptions);
 	}
 
 	async handleContentGetIncludingTrashed(collection: string, id: string, locale?: string) {
@@ -3401,12 +3710,21 @@ export class EmDashRuntime {
 			...(body.translationOf ? { translationOf: body.translationOf } : {}),
 		};
 
+		const collectionInfo = await this.schemaRegistry
+			.getCollectionWithFields(collection)
+			.catch(() => null);
+
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
 		if (!options.skipSaveHooks && this.hooks.hasHooks("content:beforeSave")) {
+			const hookData = collectionInfo
+				? await inferBlockTypes(collectionInfo, body.data, () =>
+						Promise.resolve(translationSource?.data),
+					)
+				: body.data;
 			try {
 				const hookResult = await this.hooks.runContentBeforeSave(
-					body.data,
+					hookData,
 					collection,
 					true,
 					undefined,
@@ -3429,9 +3747,6 @@ export class EmDashRuntime {
 				}
 			}
 		}
-		const collectionInfo = await this.schemaRegistry
-			.getCollectionWithFields(collection)
-			.catch(() => null);
 		const resolvedBlockTypes = collectionInfo?.fields.some((field) => field.type === "blocks")
 			? await resolveBlockTypes(this.db)
 			: undefined;
@@ -3553,9 +3868,10 @@ export class EmDashRuntime {
 		const resolvedItem = await repo.findByIdOrSlug(collection, id, body.locale);
 		const resolvedId = resolvedItem?.id ?? id;
 
-		// Validate _rev early — before draft revision writes which modify updated_at.
-		// After validation, strip _rev so the handler doesn't double-check against
-		// the now-modified timestamp.
+		// Validate _rev early — before draft revision writes which modify the version.
+		// The token is checked again against the row the draft UPDATE is conditioned
+		// on, and reaches the column handler only when no draft revision was staged,
+		// since staging advances the version the token encodes.
 		if (body._rev) {
 			if (!resolvedItem) {
 				return {
@@ -3611,9 +3927,20 @@ export class EmDashRuntime {
 		let resolvedBlockTypes: Awaited<ReturnType<typeof resolveBlockTypes>> | undefined;
 		if (bodyWithoutRev.data) {
 			if (this.hooks.hasHooks("content:beforeSave")) {
+				const hookData = collectionInfo
+					? await inferBlockTypes(collectionInfo, bodyWithoutRev.data, async () => {
+							if (resolvedItem?.draftRevisionId && collectionInfo.supports?.includes("revisions")) {
+								const draft = await new RevisionRepository(this.db).findById(
+									resolvedItem.draftRevisionId,
+								);
+								return draft?.data ?? resolvedItem.data;
+							}
+							return resolvedItem?.data;
+						})
+					: bodyWithoutRev.data;
 				try {
 					const hookResult = await this.hooks.runContentBeforeSave(
-						bodyWithoutRev.data,
+						hookData,
 						collection,
 						false,
 						resolvedItem?.id,
@@ -3736,6 +4063,15 @@ export class EmDashRuntime {
 
 				const revisionRepo = new RevisionRepository(this.db);
 				let existing = await repo.findById(collection, resolvedId);
+				if (body._rev && existing) {
+					const revCheck = validateRev(body._rev, existing);
+					if (!revCheck.valid) {
+						return {
+							success: false as const,
+							error: { code: "CONFLICT", message: revCheck.message },
+						};
+					}
+				}
 
 				for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
 					let baseData: Record<string, unknown>;
@@ -3886,6 +4222,7 @@ export class EmDashRuntime {
 				? await handleContentGet(this.db, collection, resolvedId)
 				: await handleContentUpdate(this.db, collection, resolvedId, {
 						...bodyWithoutRev,
+						_rev: draftStorageChanged ? undefined : body._rev,
 						data: usesDraftRevisions ? undefined : processedData,
 						slug: usesDraftRevisions ? undefined : bodyWithoutRev.slug,
 						references: usesDraftRevisions ? undefined : bodyWithoutRev.references,
@@ -3985,7 +4322,7 @@ export class EmDashRuntime {
 
 	async handleContentListTrashed(
 		collection: string,
-		params: { cursor?: string; limit?: number; locale?: string } = {},
+		params: { cursor?: string; page?: number; limit?: number; locale?: string } = {},
 	) {
 		return handleContentListTrashed(this.db, collection, params);
 	}
@@ -4699,9 +5036,7 @@ export class EmDashRuntime {
 				url: `/media/${item.id}/${item.filename}`,
 				createdAt: item.createdAt,
 			};
-			this.hooks
-				.runMediaAfterUpload(mediaItem)
-				.catch((err) => console.error("EmDash afterUpload hook error:", err));
+			this.runMediaAfterUploadHook(mediaItem);
 		}
 
 		return result;
@@ -4713,6 +5048,8 @@ export class EmDashRuntime {
 		size?: number;
 		width?: number;
 		height?: number;
+		alt?: string;
+		caption?: string;
 		storageKey: string;
 		contentHash?: string;
 		blurhash?: string;
@@ -4739,7 +5076,6 @@ export class EmDashRuntime {
 		// Create the media record
 		const result = await handleMediaCreate(this.db, processedInput);
 
-		// Run afterUpload hooks (fire-and-forget)
 		if (result.success && this.hooks.hasHooks("media:afterUpload")) {
 			const item = result.data.item;
 			const mediaItem: MediaItem = {
@@ -4750,9 +5086,7 @@ export class EmDashRuntime {
 				url: `/media/${item.id}/${item.filename}`,
 				createdAt: item.createdAt,
 			};
-			this.hooks
-				.runMediaAfterUpload(mediaItem)
-				.catch((err) => console.error("EmDash afterUpload hook error:", err));
+			this.runMediaAfterUploadHook(mediaItem);
 		}
 
 		return result;
@@ -4827,14 +5161,18 @@ export class EmDashRuntime {
 				return result.result;
 			},
 			fireAfterCreate: (event) => {
-				void this.hooks
-					.runCommentAfterCreate(event)
-					.catch((error) =>
-						console.error(
-							"[comments] afterCreate error:",
-							error instanceof Error ? error.message : error,
+				// Deferred through after() so the host's waitUntil keeps the hooks
+				// alive past the response (see comments/public-submission.ts).
+				after(() =>
+					this.hooks
+						.runCommentAfterCreate(event)
+						.catch((error) =>
+							console.error(
+								"[comments] afterCreate error:",
+								error instanceof Error ? error.message : error,
+							),
 						),
-					);
+				);
 			},
 			fireAfterModerate: (event) => {
 				return this.hooks
@@ -5576,6 +5914,7 @@ export class EmDashRuntime {
 		const tools: Array<{
 			pluginId: string;
 			name: string;
+			mcpName: string;
 			description: string;
 			route: string;
 			permission: string;
@@ -5604,6 +5943,7 @@ export class EmDashRuntime {
 				tools.push({
 					pluginId: plugin.id,
 					name,
+					mcpName: pluginToolName(plugin.id, name),
 					description: tool.description,
 					route: tool.route,
 					permission: route.permission,
@@ -5634,12 +5974,17 @@ export class EmDashRuntime {
 				tools.push({
 					pluginId: id,
 					name: tool.name,
+					mcpName: pluginToolName(id, tool.name),
 					description: tool.description,
 					route: tool.route,
 					permission: tool.permission,
 					destructive: tool.destructive,
-					inputSchema: z.fromJSONSchema({ ...tool.inputSchema }),
-					outputSchema: tool.outputSchema ? z.fromJSONSchema({ ...tool.outputSchema }) : undefined,
+					inputSchema:
+						safeJsonSchemaToZod({ ...tool.inputSchema }, `${id}/${tool.name}`, "input") ??
+						z.record(z.string(), z.unknown()),
+					outputSchema: tool.outputSchema
+						? safeJsonSchemaToZod({ ...tool.outputSchema }, `${id}/${tool.name}`, "output")
+						: undefined,
 				});
 			}
 		};
@@ -5785,7 +6130,9 @@ export class EmDashRuntime {
 			const draft = await new RevisionRepository(this.db)
 				.findById(existing.draftRevisionId)
 				.catch(() => null);
-			if (draft?.data) stored = draft.data;
+			// A retired key may survive in the published row while the draft
+			// revision has already shed it, so the baseline has to cover both.
+			if (draft?.data) stored = { ...stored, ...draft.data };
 		}
 
 		const stale = staleStoredKeys(data, stored, knownFieldSlugs);
@@ -5798,8 +6145,9 @@ export class EmDashRuntime {
 
 	/**
 	 * Normalize field values in content data before validation.
-	 * Turns a blank string in an array-valued field into `null`, and fills
-	 * missing image/file dimensions, storageKey, mimeType, and filename from providers.
+	 * Turns a blank string in an array-valued field into `null`, fills
+	 * missing image/file dimensions, storageKey, mimeType, and filename from
+	 * providers, and links rich text media named by file URL to its media item.
 	 */
 	private async normalizeFieldValues(
 		collection: string,
@@ -5838,7 +6186,27 @@ export class EmDashRuntime {
 		const blockFields = includeBlocks
 			? collectionInfo.fields.filter((field) => field.type === "blocks")
 			: [];
+		// Collected across top-level and block fields so linking costs one lookup.
+		const portableTextValues: { owner: Record<string, unknown>; slug: string }[] =
+			collectionInfo.fields
+				.filter((field) => field.type === "portableText" && Array.isArray(result[field.slug]))
+				.map((field) => ({ owner: result, slug: field.slug }));
+		const linkPortableTextValues = async () => {
+			if (portableTextValues.length === 0) return;
+			try {
+				const linked = await linkPortableTextFileUrls(
+					portableTextValues.map(({ owner, slug }) => owner[slug]),
+					(storageKeys) => new MediaRepository(this.db).findIdsByStorageKeys(storageKeys),
+				);
+				for (const [index, { owner, slug }] of portableTextValues.entries()) {
+					owner[slug] = linked[index];
+				}
+			} catch {
+				// Don't fail the save if linking file URLs to media items fails
+			}
+		};
 		if (imageFields.length === 0 && repeaterFields.length === 0 && blockFields.length === 0) {
+			await linkPortableTextValues();
 			return result;
 		}
 
@@ -5856,6 +6224,8 @@ export class EmDashRuntime {
 						: await normalizeMediaValue(value, getProvider);
 				if (normalized) {
 					result[field.slug] = normalized;
+				} else if (isBlankString(value)) {
+					result[field.slug] = null;
 				}
 			} catch {
 				// Don't fail the save if normalization fails for a single field
@@ -5883,6 +6253,8 @@ export class EmDashRuntime {
 							const normalized = await normalizeImageValue(subValue, getProvider);
 							if (normalized) {
 								normalizedItem[slug] = normalized;
+							} else if (isBlankString(subValue)) {
+								normalizedItem[slug] = null;
 							}
 						} catch {
 							// Don't fail the save if normalization fails for a single sub-field
@@ -5911,12 +6283,18 @@ export class EmDashRuntime {
 							const nestedValue = normalizedBlock[nestedField.slug];
 							if (nestedValue == null) continue;
 							try {
-								if (nestedField.type === "image") {
-									const normalized = await normalizeImageValue(nestedValue, getProvider);
-									if (normalized) normalizedBlock[nestedField.slug] = normalized;
-								} else if (nestedField.type === "file") {
-									const normalized = await normalizeMediaValue(nestedValue, getProvider);
-									if (normalized) normalizedBlock[nestedField.slug] = normalized;
+								if (nestedField.type === "image" || nestedField.type === "file") {
+									const normalized =
+										nestedField.type === "image"
+											? await normalizeImageValue(nestedValue, getProvider)
+											: await normalizeMediaValue(nestedValue, getProvider);
+									if (normalized) {
+										normalizedBlock[nestedField.slug] = normalized;
+									} else if (isBlankString(nestedValue)) {
+										normalizedBlock[nestedField.slug] = null;
+									}
+								} else if (nestedField.type === "portableText" && Array.isArray(nestedValue)) {
+									portableTextValues.push({ owner: normalizedBlock, slug: nestedField.slug });
 								} else if (nestedField.type === "repeater" && Array.isArray(nestedValue)) {
 									const imageSlugs = (nestedField.validation?.subFields ?? [])
 										.filter((subField) => subField.type === "image")
@@ -5931,7 +6309,11 @@ export class EmDashRuntime {
 														normalizedItem[slug],
 														getProvider,
 													);
-													if (normalized) normalizedItem[slug] = normalized;
+													if (normalized) {
+														normalizedItem[slug] = normalized;
+													} else if (isBlankString(normalizedItem[slug])) {
+														normalizedItem[slug] = null;
+													}
 												} catch {
 													continue;
 												}
@@ -5950,6 +6332,7 @@ export class EmDashRuntime {
 			}
 		}
 
+		await linkPortableTextValues();
 		return result;
 	}
 
@@ -5989,6 +6372,16 @@ export class EmDashRuntime {
 				} catch (err) {
 					console.error("EmDash afterDelete hook error:", err);
 				}
+			}
+		});
+	}
+
+	private runMediaAfterUploadHook(mediaItem: MediaItem): void {
+		after(async () => {
+			try {
+				await this.hooks.runMediaAfterUpload(mediaItem);
+			} catch (err) {
+				console.error("EmDash afterUpload hook error:", err);
 			}
 		});
 	}
@@ -6311,6 +6704,10 @@ export class EmDashRuntime {
 		const status = this.pluginStates.get(pluginId);
 		return status === undefined || status === "active";
 	}
+}
+
+function isBlankString(value: unknown): boolean {
+	return typeof value === "string" && value.trim() === "";
 }
 
 /**

@@ -160,6 +160,45 @@ function verifierReport(): ReleaseVerificationReport {
 }
 
 describe("verification evaluation", () => {
+	it("verifies attestations for workflows running from package version tags", async () => {
+		const ref = "refs/tags/gallery@1.2.3";
+		const identity: VerifiedWorkloadIdentity = {
+			...WORKLOAD_IDENTITY,
+			workflow: {
+				...WORKLOAD_IDENTITY.workflow,
+				ref: `example/gallery/.github/workflows/release.yml@${ref}`,
+			},
+			run: { ...WORKLOAD_IDENTITY.run, ref, refType: "tag" },
+		};
+		const report = verifierReport();
+		if (!report.success) throw new Error("Verifier fixture must succeed");
+		report.value.provenance.builderId = `https://github.com/${identity.workflow.ref}`;
+		report.value.provenance.workflowRef = ref;
+		expect(
+			await evaluateWorkloadAttestation(
+				await intent(proposedRelease(), identity),
+				{
+					...WORKLOAD_POLICY,
+					workflowRef: "example/gallery/.github/workflows/release.yml@refs/*",
+					allowedRefs: ["refs/tags/*"],
+				},
+				report.value.provenance,
+			),
+		).toEqual({ ok: true });
+		report.value.provenance.workflowRef = "refs/tags/gallery@2.0.0";
+		expect(
+			await evaluateWorkloadAttestation(
+				await intent(proposedRelease(), identity),
+				{
+					...WORKLOAD_POLICY,
+					workflowRef: "example/gallery/.github/workflows/release.yml@refs/*",
+					allowedRefs: ["refs/tags/*"],
+				},
+				report.value.provenance,
+			),
+		).toEqual({ ok: false, reasonCode: "ATTESTED_REF_MISMATCH" });
+	});
+
 	it("prepares the isolated verifier request from signed inputs", async () => {
 		expect(prepareVerifierInput(await intent(), snapshot())).toEqual({
 			artifact: {
@@ -266,6 +305,55 @@ describe("verification evaluation", () => {
 		});
 	});
 
+	it("derives the same approval evidence from a fresh and a persisted verifier report", async () => {
+		const fresh = normalizeVerifierReport(verifierReport());
+		const persisted = parseNormalizedVerifierReport(JSON.stringify(fresh));
+		if (!persisted) throw new Error("Expected persisted verifier report");
+		const evaluate = async (report: typeof fresh) => {
+			const result = await evaluateVerifiedRelease(
+				PUBLISHER_DID,
+				await intent(),
+				snapshot(),
+				WORKLOAD_POLICY,
+				report,
+			);
+			if (!result.success) throw new Error(`${result.code}:${result.reasonCode}`);
+			return result.value.approvalEvidence;
+		};
+
+		expect(await evaluate(fresh)).toEqual(await evaluate(persisted));
+	});
+
+	it("accepts a manifest whose declared access is not in canonical order", async () => {
+		const declaredAccess = {
+			content: { read: {} },
+			schema: { read: {} },
+			network: { request: { allowedHosts: ["b.example.com", "a.example.com"] } },
+		};
+		const release = proposedRelease();
+		release.extensions["com.emdashcms.experimental.package.releaseExtension"]!.declaredAccess =
+			structuredClone(declaredAccess);
+		const report = verifierReport();
+		if (!report.success) throw new Error("Expected successful fixture");
+		report.value.artifact.manifest.declaredAccess = structuredClone(declaredAccess);
+		const profile = structuredClone(profileFixture) as PackageProfile.Main & {
+			extensions: Record<string, { repository: string; releasePolicy?: Record<string, unknown> }>;
+		};
+		profile.extensions["com.emdashcms.experimental.package.profileExtension"]!.releasePolicy = {
+			approvers: ["did:plc:approver"],
+		};
+
+		await expect(
+			evaluateVerifiedRelease(
+				PUBLISHER_DID,
+				await intent(release),
+				snapshot(profile),
+				WORKLOAD_POLICY,
+				report,
+			),
+		).resolves.toMatchObject({ success: true });
+	});
+
 	it("requires approval when the signed profile says always", async () => {
 		const profile = structuredClone(profileFixture) as PackageProfile.Main & {
 			extensions: Record<string, { repository: string; releasePolicy?: Record<string, unknown> }>;
@@ -303,6 +391,18 @@ describe("verification evaluation", () => {
 				snapshot(),
 				WORKLOAD_POLICY,
 				mismatched,
+			),
+		).resolves.toMatchObject({ success: false, code: "ARTIFACT_RECORD_MISMATCH" });
+		const malformed = normalizeVerifierReport(verifierReport());
+		if (!malformed.success) throw new Error("Expected successful fixture");
+		malformed.value.artifact.manifest.declaredAccess = "network";
+		await expect(
+			evaluateVerifiedRelease(
+				PUBLISHER_DID,
+				await intent(),
+				snapshot(),
+				WORKLOAD_POLICY,
+				malformed,
 			),
 		).resolves.toMatchObject({ success: false, code: "ARTIFACT_RECORD_MISMATCH" });
 	});

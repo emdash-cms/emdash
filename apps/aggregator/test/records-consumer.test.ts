@@ -759,12 +759,35 @@ describe("applyDelete", () => {
 
 // ─── Dispatcher (processMessage) ────────────────────────────────────────────
 
+function didDocFor(did: string, signingKey: string): DidDocument {
+	return {
+		id: did as Did,
+		verificationMethod: [
+			{
+				id: `${did}#atproto`,
+				type: "Multikey",
+				controller: did as Did,
+				publicKeyMultibase: signingKey,
+			},
+		],
+		service: [
+			{
+				id: "#atproto_pds",
+				type: "AtprotoPersonalDataServer",
+				serviceEndpoint: "https://pds.test.example",
+			},
+		],
+	};
+}
+
+/** Serves `results` in order (an `Error` rejects that lookup), then the same
+ * identity `MapDidDocCache.seed` writes. */
 class StubResolver implements DidDocumentResolverLike {
-	resolve(_did: Did): Promise<DidDocument> {
-		// processMessage tests inject a DidResolver that's wired to a stub DID
-		// doc — we never actually traverse this resolver because the cache
-		// always hits.
-		return Promise.reject(new Error("StubResolver should not be called"));
+	constructor(private readonly results: Array<DidDocument | Error> = []) {}
+	resolve(did: Did): Promise<DidDocument> {
+		const next = this.results.shift();
+		if (next instanceof Error) return Promise.reject(next);
+		return Promise.resolve(next ?? didDocFor(did, signingKeyMultibase));
 	}
 }
 
@@ -814,7 +837,7 @@ function buildDeps(opts: { fetch: typeof fetch }): {
 	const resolver = new DidResolver({
 		cache,
 		resolver: new StubResolver(),
-		// Long TTL so we never actually call StubResolver.
+		// Long TTL so a seeded entry is always a cache hit.
 		ttlMs: 1_000_000,
 		now: () => NOW,
 	});
@@ -856,13 +879,26 @@ describe("processMessage dispatcher", () => {
 			fetch: () => Promise.resolve(new Response("", { status: 503 })),
 		});
 		cache.seed(DID_A);
+		let fresh = 0;
+		const { resolver } = deps;
+		const counted: ConsumerDeps = {
+			...deps,
+			resolver: {
+				resolve: (did) => resolver.resolve(did),
+				resolveFresh: (did) => {
+					fresh++;
+					return resolver.resolveFresh(did);
+				},
+			},
+		};
 		const msg = new FakeMessage();
 
-		await processMessage(jobFor(DID_A, NSID.packageProfile, "demo"), msg, deps);
+		await processMessage(jobFor(DID_A, NSID.packageProfile, "demo"), msg, counted);
 
 		expect(msg.retried).toBe(1);
 		expect(msg.acked).toBe(0);
 		expect(await deadLetterCount()).toBe(0);
+		expect(fresh).toBe(0);
 	});
 
 	it("makes release history incomplete when a release is dead-lettered", async () => {
@@ -1448,6 +1484,104 @@ describe("processMessage dispatcher: MissingDependencyError → retry", () => {
 		expect(msg.retried).toBe(1);
 		expect(msg.acked).toBe(0);
 		expect(await deadLetterCount()).toBe(0);
+	});
+});
+
+describe("processMessage dispatcher: publisher identity", () => {
+	const profile = {
+		$type: NSID.publisherProfile,
+		displayName: "Acme Plugin Co.",
+		contact: [{ kind: "general", email: "hi@acme.test" }],
+	};
+
+	async function publisherRow() {
+		return testEnv.DB.prepare(`SELECT did FROM publishers WHERE did = ?`).bind(DID_A).first();
+	}
+
+	it("retries when the DID lookup fails, then ingests on redelivery", async () => {
+		const deps: ConsumerDeps = {
+			db: testEnv.DB,
+			resolver: new DidResolver({
+				cache: new MapDidDocCache(),
+				resolver: new StubResolver([new Error("PLC directory returned 503")]),
+				now: () => NOW,
+			}),
+			now: () => NOW,
+			verify: () => Promise.resolve(fakeVerified(profile)),
+		};
+		const job = jobFor(DID_A, NSID.publisherProfile, "self");
+
+		const first = new FakeMessage();
+		await processMessage(job, first, deps);
+		expect(first.retried).toBe(1);
+		expect(first.acked).toBe(0);
+		expect(await deadLetterCount()).toBe(0);
+
+		const redelivery = new FakeMessage();
+		await processMessage(job, redelivery, deps);
+		expect(redelivery.acked).toBe(1);
+		expect(await deadLetterCount()).toBe(0);
+		expect(await publisherRow()).not.toBeNull();
+	});
+
+	it("re-resolves a cached signing key the publisher has rotated", async () => {
+		const rotated = await (
+			await P256PrivateKeyExportable.createKeypair()
+		).exportPublicKey("multikey");
+		const cache = new MapDidDocCache();
+		cache.seed(DID_A);
+		const deps: ConsumerDeps = {
+			db: testEnv.DB,
+			resolver: new DidResolver({
+				cache,
+				resolver: new StubResolver([didDocFor(DID_A, rotated)]),
+				now: () => NOW,
+			}),
+			now: () => NOW,
+			verify: async ({ publicKey }) => {
+				if ((await publicKey.exportPublicKey("multikey")) !== rotated) {
+					throw new PdsVerificationError("INVALID_PROOF", "verifyRecord failed: bad signature");
+				}
+				return fakeVerified(profile);
+			},
+		};
+		const msg = new FakeMessage();
+
+		await processMessage(jobFor(DID_A, NSID.publisherProfile, "self"), msg, deps);
+
+		expect(msg.acked).toBe(1);
+		expect(msg.retried).toBe(0);
+		expect(await deadLetterCount()).toBe(0);
+		expect(await publisherRow()).not.toBeNull();
+		expect((await cache.read(DID_A))?.signingKey).toBe(rotated);
+	});
+
+	it("keeps verifying from the cache when a re-check's lookup fails", async () => {
+		const cache = new MapDidDocCache();
+		cache.seed(DID_A);
+		const plcDown = new Error("PLC directory returned 503");
+		const deps: ConsumerDeps = {
+			db: testEnv.DB,
+			resolver: new DidResolver({
+				cache,
+				resolver: new StubResolver([plcDown, plcDown]),
+				now: () => NOW,
+			}),
+			now: () => NOW,
+			verify: ({ collection }) =>
+				collection === NSID.publisherProfile
+					? Promise.resolve(fakeVerified(profile))
+					: Promise.reject(new PdsVerificationError("RECORD_NOT_FOUND", "PDS returned 404", 404)),
+		};
+
+		const gone = new FakeMessage();
+		await processMessage(jobFor(DID_A, NSID.packageProfile, "deleted"), gone, deps);
+		expect(gone.retried).toBe(1);
+
+		const next = new FakeMessage();
+		await processMessage(jobFor(DID_A, NSID.publisherProfile, "self"), next, deps);
+		expect(next.acked).toBe(1);
+		expect(await publisherRow()).not.toBeNull();
 	});
 });
 

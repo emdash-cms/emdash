@@ -448,7 +448,7 @@ export interface CollectionTable {
 	date_field: string | null; // field slug (datetime) for the admin list Date column (NULL = default)
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
 	routable: Generated<number>; // 0 or 1 — published entries require a slug when enabled
-	hidden: Generated<number>; // 0 or 1 — omit the auto-generated sidebar entry and dashboard quick action
+	hidden: Generated<number>; // 0 or 1 — omit the auto-generated sidebar entry, dashboard quick action, and dashboard Content card row
 	sort_order: number | null; // explicit admin sidebar position; NULL = alphabetical fallback
 	nav_group: string | null; // admin sidebar folder label; NULL = inline
 	comments_enabled: Generated<number>; // 0 or 1
@@ -808,6 +808,9 @@ export interface Database {
 	_emdash_comment_reactions: CommentReactionTable;
 	_emdash_redirects: RedirectTable;
 	_emdash_redirect_write_lock: RedirectWriteLockTable;
+	_emdash_redirect_state: RedirectStateTable;
+	_emdash_redirect_artifacts: RedirectArtifactTable;
+	_emdash_redirect_generation_artifacts: RedirectGenerationArtifactTable;
 	_emdash_404_log: NotFoundLogTable;
 	_emdash_bylines: BylineTable;
 	_emdash_content_bylines: ContentBylineTable;
@@ -870,6 +873,26 @@ export interface RedirectWriteLockTable {
 	token: string;
 	expires_at: number;
 	generation: number;
+}
+
+export interface RedirectStateTable {
+	id: number;
+	revision: Generated<number>;
+	generation: string | null;
+	generation_revision: Generated<number>;
+	repair_expires_at: Generated<number>;
+}
+
+export interface RedirectArtifactTable {
+	digest: string;
+	kind: string;
+	payload: string;
+}
+
+export interface RedirectGenerationArtifactTable {
+	generation: string;
+	position: number;
+	digest: string;
 }
 
 export interface NotFoundLogTable {

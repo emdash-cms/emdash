@@ -7,7 +7,8 @@
  * otherwise use up the single-use token before the recipient clicks.
  *
  * POST verifies the token and creates the session.
- * Tokens are single-use and expire after 15 minutes.
+ * Tokens are single-use and expire after 15 minutes, or 5 minutes for
+ * sign-in handover links.
  */
 
 import type { APIRoute } from "astro";
@@ -21,6 +22,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { magicLinkVerifyBody } from "#api/schemas.js";
 
+import { after } from "../../../../../after.js";
 import { sessionUnavailableError } from "../../../../session-user.js";
 
 export const GET: APIRoute = async ({ url, redirect }) => {
@@ -50,8 +52,14 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 		const adapter = createKyselyAdapter(emdash.db);
 		const user = await verifyMagicLink(adapter, body.token);
 
-		// Fire-and-forget cleanup of expired tokens -- prevents accumulation
-		void adapter.deleteExpiredTokens().catch(() => {});
+		// Cleanup of expired tokens -- prevents accumulation
+		after(async () => {
+			try {
+				await adapter.deleteExpiredTokens();
+			} catch (error) {
+				console.error("[magic-link] failed to delete expired tokens:", error);
+			}
+		});
 
 		session.set("user", { id: user.id });
 

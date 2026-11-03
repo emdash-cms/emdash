@@ -38,7 +38,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	return unwrapResult(result);
 };
 
-export const POST: APIRoute = async ({ params, request, locals, cache }) => {
+export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	if (!emdash?.handleContentCreate || !emdash?.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
@@ -89,10 +89,6 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 		translationOf: body.translationOf,
 		actor,
 	});
-
-	if (!result.success) return unwrapResult(result);
-
-	if (cache?.enabled) await cache.invalidate({ tags: [collection] });
 
 	return unwrapResult(result, 201);
 };
