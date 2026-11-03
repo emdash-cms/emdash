@@ -31,7 +31,7 @@ function fixture({ reviews = [], files = [], checks = [], draft = false, sweep =
 	};
 	const state = {
 		reviews,
-		files: files.map((filename) => ({ filename })),
+		files: files.map((file) => (typeof file === "string" ? { filename: file } : file)),
 		commits: [{ sha: "head", parents: [{ sha: "base" }] }],
 		checks: checks.map((check) => ({ name: checkName, ...check })),
 		writes: [],
@@ -106,6 +106,21 @@ function assertStatus(test, conclusion, label) {
 	assert.ok(test.state.writes.every((write) => write.status === "completed"));
 }
 
+function workflowEdit(filename, line) {
+	return {
+		filename,
+		status: "modified",
+		patch: `@@ -40,2 +40,3 @@ jobs:\n       - run: pnpm build\n${line}`,
+	};
+}
+
+async function assertNeedsTwo(files) {
+	const test = fixture({ reviews: [review("maintainer-one")], files });
+	await test.run();
+	assertStatus(test, "neutral", "review/needs-review");
+	assert.ok(test.state.checks[0].output.summary.includes("require 2"));
+}
+
 describe("Maintainer review status", () => {
 	it("finishes neutrally when no human Maintainer has approved", async () => {
 		const test = fixture({ reviews: [review("emdashbot[bot]", "APPROVED", "head", "Bot")] });
@@ -133,6 +148,65 @@ describe("Maintainer review status", () => {
 		assertStatus(test, "success", "review/approved");
 		assert.equal(test.state.checks.length, 1);
 	});
+
+	it("needs one approval for edits to read-only workflows and their scripts", async () => {
+		const test = fixture({
+			reviews: [review("maintainer-one")],
+			files: [
+				workflowEdit(".github/workflows/ci.yml", "+      - run: pnpm test"),
+				workflowEdit(".github/workflows/visual.yml", "-      - run: pnpm test:e2e"),
+				{ filename: ".github/scripts/test-plan.mjs", status: "modified" },
+			],
+		});
+		await test.run();
+		assertStatus(test, "success", "review/approved");
+	});
+
+	for (const [change, line] of [
+		["adds a write permission", "+  contents: write"],
+		["requests an OIDC token", "+      id-token: write"],
+		["uses a secret", "+          TOKEN: ${{ secrets.APP_PRIVATE_KEY }}"],
+		["removes its permissions", "-permissions:"],
+		["adds a pull_request_target trigger", "+  pull_request_target:"],
+		["adds a workflow_run trigger", "+  workflow_run:"],
+		["adds an issue_comment trigger", "+  issue_comment:"],
+	]) {
+		it(`keeps two approvals when an edit to a read-only workflow ${change}`, async () => {
+			await assertNeedsTwo([workflowEdit(".github/workflows/ci.yml", line)]);
+		});
+	}
+
+	for (const { change, files } of [
+		{
+			change: "adds a workflow",
+			files: [{ filename: ".github/workflows/lint.yml", status: "added", patch: "+name: Lint" }],
+		},
+		{
+			change: "renames a workflow to a read-only workflow's name",
+			files: [
+				{
+					...workflowEdit(".github/workflows/ci.yml", "+      - run: pnpm test"),
+					previous_filename: ".github/workflows/release.yml",
+					status: "renamed",
+				},
+			],
+		},
+		{
+			change: "also edits a privileged workflow",
+			files: [
+				workflowEdit(".github/workflows/ci.yml", "+      - run: pnpm test"),
+				workflowEdit(".github/workflows/release.yml", "+      - run: pnpm test"),
+			],
+		},
+		{
+			change: "edits a read-only workflow so much that GitHub sends no patch",
+			files: [{ filename: ".github/workflows/ci.yml", status: "modified" }],
+		},
+	]) {
+		it(`keeps two approvals when a change ${change}`, async () => {
+			await assertNeedsTwo(files);
+		});
+	}
 
 	it("reports change requests neutrally rather than leaving a running check", async () => {
 		const test = fixture({ reviews: [review("maintainer-one", "CHANGES_REQUESTED")] });

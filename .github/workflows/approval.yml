@@ -84,6 +84,53 @@ jobs:
               /^infra\/flue-review\//,
             ];
 
+            // These workflows run with a read-only token and no secrets, and
+            // these scripts run only in them, so editing them needs one
+            // approval. Remove a script once another workflow runs it.
+            const readOnlyWorkflows = new Set([
+              '.github/workflows/ci.yml',
+              '.github/workflows/env-types.yml',
+              '.github/workflows/format.yml',
+              '.github/workflows/preview-releases.yml',
+              '.github/workflows/query-counts.yml',
+              '.github/workflows/visual.yml',
+            ]);
+            const readOnlyScripts = new Set([
+              '.github/scripts/test-plan.mjs',
+              '.github/scripts/test-plan.test.mjs',
+            ]);
+
+            // Events that let someone without write access start a workflow in
+            // this repository's context, or that hand it a caller's token and
+            // secrets.
+            const privilegedEvents = [
+              'discussion',
+              'discussion_comment',
+              'fork',
+              'gollum',
+              'issue_comment',
+              'issues',
+              'pull_request_target',
+              'watch',
+              'workflow_call',
+              'workflow_run',
+            ];
+            const privilegeChange = new RegExp(
+              `permissions|secrets|\\bwrite\\b|\\b(?:${privilegedEvents.join('|')})\\b`,
+            );
+
+            // Removed lines count too: deleting `permissions:` hands the workflow
+            // the repository's default token. GitHub leaves out the patch of a
+            // very large diff, so such an edit can't be checked.
+            const staysReadOnly = file => {
+              if (file.status !== 'modified') return false;
+              if (readOnlyScripts.has(file.filename)) return true;
+              if (!readOnlyWorkflows.has(file.filename) || typeof file.patch !== 'string') return false;
+              return !file.patch
+                .split('\n')
+                .some(line => /^[+-]/.test(line) && privilegeChange.test(line));
+            };
+
             // Read from the default branch, so neither a PR nor its base branch can
             // change who counts as a Maintainer.
             let governanceFile;
@@ -263,7 +310,8 @@ jobs:
               const changeRequests = decisions.filter(review => review.state === 'CHANGES_REQUESTED');
 
               const privileged = files.some(file =>
-                privilegedPaths.some(pattern => pattern.test(file.filename))
+                privilegedPaths.some(pattern => pattern.test(file.filename)) &&
+                !staysReadOnly(file)
               );
               const required = privileged ? 2 : 1;
               const met = changeRequests.length === 0 && approvers.length >= required;
