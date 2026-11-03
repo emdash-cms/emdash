@@ -788,11 +788,11 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	);
 }
 
-/** Pencil in the navigation footer to Settings → Sidebars; gone while the sidebar shows icons only. */
 function CustomizeSidebarLink() {
 	const { t } = useLingui();
-	const { state } = useSidebar();
-	if (state === "collapsed") return null;
+	const { state, isMobile } = useSidebar();
+	// The phone sheet always shows labels; `state` follows the desktop sidebar.
+	if (state === "collapsed" && !isMobile) return null;
 	const label = t`Customize sidebar`;
 	return (
 		<Tooltip

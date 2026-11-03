@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { page } from "vitest/browser";
 
 import { ThemeProvider } from "../src/components/ThemeProvider";
 import type { AdminManifest } from "../src/lib/api";
@@ -66,6 +67,7 @@ function requestUrl(input: string | URL | Request) {
 }
 
 let adminLayout: unknown;
+let holdAuthMe: Promise<void> | null;
 
 function layout(nav: { order?: string[]; hidden?: string[] }) {
 	return {
@@ -75,14 +77,14 @@ function layout(nav: { order?: string[]; hidden?: string[] }) {
 	};
 }
 
-async function renderAdmin() {
+async function mountAdmin() {
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: 60_000 } },
 	});
 	const router = createAdminRouter(queryClient);
 	await router.navigate({ to: "/" });
 
-	const screen = await render(
+	return render(
 		<ThemeProvider defaultTheme="light">
 			<I18nProvider i18n={i18n}>
 				<Toasty>
@@ -95,6 +97,10 @@ async function renderAdmin() {
 			</I18nProvider>
 		</ThemeProvider>,
 	);
+}
+
+async function renderAdmin() {
+	const screen = await mountAdmin();
 	await expect.element(screen.getByRole("link", { name: "Menus" })).toBeInTheDocument();
 	await expect.element(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
 	return screen;
@@ -124,6 +130,7 @@ describe("navigation with a personal sidebar layout", () => {
 	beforeEach(() => {
 		originalFetch = globalThis.fetch;
 		adminLayout = undefined;
+		holdAuthMe = null;
 		localStorage.clear();
 		localStorage.setItem("emdash-sidebar-folders", JSON.stringify({ Blog: true }));
 		i18n.loadAndActivate({ locale: "en", messages: {} });
@@ -131,9 +138,10 @@ describe("navigation with a personal sidebar layout", () => {
 			const url = requestUrl(input);
 			if (url === "/_emdash/api/manifest") return json({ data: manifest });
 			if (url === "/_emdash/api/auth/me") {
-				return json({
+				const user = {
 					data: { id: "ada", email: "ada@example.com", name: "Ada", role: 50, adminLayout },
-				});
+				};
+				return holdAuthMe ? holdAuthMe.then(() => json(user)) : json(user);
 			}
 			if (url === "/_emdash/api/admin/comments/counts") {
 				return json({ data: { pending: 0, approved: 0, spam: 0, trash: 0 } });
@@ -150,8 +158,9 @@ describe("navigation with a personal sidebar layout", () => {
 		}) as typeof fetch;
 	});
 
-	afterEach(() => {
+	afterEach(async () => {
 		globalThis.fetch = originalFetch;
+		await page.viewport(1280, 800);
 	});
 
 	it("renders the default navigation without a stored layout", async () => {
@@ -206,5 +215,52 @@ describe("navigation with a personal sidebar layout", () => {
 		await nav.getByRole("button", { name: "Collapse sidebar" }).click();
 		await expect.element(nav.getByRole("button", { name: "Expand sidebar" })).toBeVisible();
 		expect(document.querySelector('a[aria-label="Customize sidebar"]')).toBeNull();
+	});
+
+	it("never shows a hidden entry while the user is still loading", async () => {
+		adminLayout = layout({ hidden: ["/media"] });
+		let releaseAuthMe!: () => void;
+		holdAuthMe = new Promise((resolve) => {
+			releaseAuthMe = resolve;
+		});
+		const seen: (string | undefined)[] = [];
+		const observer = new MutationObserver(() => {
+			for (const link of document.querySelectorAll(".emdash-sidebar a[data-sidebar^='menu']")) {
+				seen.push(link.textContent?.trim());
+			}
+		});
+		observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+
+		try {
+			const screen = await mountAdmin();
+			await vi.waitFor(() =>
+				expect(globalThis.fetch).toHaveBeenCalledWith("/_emdash/api/auth/me", expect.anything()),
+			);
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			releaseAuthMe();
+			await expect.element(screen.getByRole("link", { name: "Menus" })).toBeInTheDocument();
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		} finally {
+			observer.disconnect();
+		}
+
+		expect(seen).toContain("Menus");
+		expect(seen).not.toContain("Media");
+	});
+
+	it("links to Settings → Sidebars from the phone sheet after the desktop nav collapsed", async () => {
+		const screen = await renderAdmin();
+		const nav = screen.getByRole("complementary", { name: "Admin navigation" });
+		await nav.getByRole("button", { name: "Collapse sidebar" }).click();
+		await expect.element(nav.getByRole("button", { name: "Expand sidebar" })).toBeVisible();
+
+		await page.viewport(390, 844);
+		await vi.waitFor(() => expect(navigation().dataset.mobile).toBe("true"));
+		const headerTrigger = document.querySelector<HTMLElement>('header [data-sidebar="trigger"]');
+		if (!headerTrigger) throw new Error("Header sidebar trigger not rendered");
+		await expect.element(headerTrigger).toBeVisible();
+		headerTrigger.click();
+		await expect.element(page.getByRole("link", { name: "Customize sidebar" })).toBeVisible();
 	});
 });

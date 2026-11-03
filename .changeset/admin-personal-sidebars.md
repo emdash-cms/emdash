@@ -13,4 +13,4 @@ The editor settings sidebar no longer shows a drag handle on each section. A **C
 
 `GET /_emdash/api/auth/me` returns the stored layout as `adminLayout`, or `null`. `POST /_emdash/api/auth/me` accepts `{ "action": "setAdminLayout", "adminLayout": { ... } }` to replace it, or `"adminLayout": null` to remove it. A layout is limited to 200 IDs per list and 16 KB.
 
-Browser tests that used the editor sections' "Drag to reorder …" buttons or `[data-sortable-handle]` on a section need to change: editor sections are now `section[data-settings-section="<id>"]` elements without a handle. Byline reorder handles are unchanged.
+Browser tests that used the editor sections' "Drag to reorder …" buttons need to change, because those buttons no longer exist. Byline reorder handles are unchanged.

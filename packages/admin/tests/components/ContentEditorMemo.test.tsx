@@ -14,6 +14,7 @@ import { describe, it, expect, vi } from "vitest";
 
 import { ContentEditor, type ContentEditorProps } from "../../src/components/ContentEditor";
 import type { FieldDescriptor } from "../../src/components/ContentEditor";
+import type { ListLayout } from "../../src/lib/admin-layout";
 import type { ContentItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
@@ -49,6 +50,8 @@ const fields: Record<string, FieldDescriptor> = {
 	body: { kind: "string", label: "Body" },
 };
 
+const adminLayout: ListLayout = { order: ["seo", "publish"], hidden: ["revisions"] };
+
 function makeItem(): ContentItem {
 	return {
 		id: "item-1",
@@ -78,6 +81,7 @@ describe("ContentSettingsPanel memo contract", () => {
 			onAutosave: vi.fn(),
 			onPublish: vi.fn(),
 			onDelete: vi.fn(),
+			adminLayout,
 		};
 
 		const screen = await render(<ContentEditor {...props} />);

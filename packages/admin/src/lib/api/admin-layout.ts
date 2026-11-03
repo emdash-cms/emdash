@@ -51,15 +51,12 @@ export interface SaveQueue {
 	readonly inFlight: AdminLayout | null;
 	/** Only the latest change waits; each new change replaces it. */
 	readonly queued: AdminLayout | null;
-	/** The last failed save's error, until the next change or `dismiss`. */
-	readonly error: Error | null;
 }
 
 export type SaveQueueEvent =
 	| { readonly type: "change"; readonly layout: AdminLayout }
 	| { readonly type: "saved" }
-	| { readonly type: "failed"; readonly error: Error }
-	| { readonly type: "dismiss" };
+	| { readonly type: "failed"; readonly error: Error };
 
 export interface SaveQueueStep {
 	readonly queue: SaveQueue;
@@ -69,7 +66,7 @@ export interface SaveQueueStep {
 	readonly accepted: AdminLayout | null;
 }
 
-export const IDLE_SAVE_QUEUE: SaveQueue = { inFlight: null, queued: null, error: null };
+export const IDLE_SAVE_QUEUE: SaveQueue = { inFlight: null, queued: null };
 
 /** What readers show over the accepted layout, or `null` when nothing is unsaved. */
 export function pendingLayout(queue: SaveQueue): AdminLayout | null {
@@ -85,31 +82,25 @@ export function stepSaveQueue(queue: SaveQueue, event: SaveQueueEvent): SaveQueu
 		case "change":
 			if (queue.inFlight) {
 				return {
-					queue: { ...queue, queued: event.layout, error: null },
+					queue: { ...queue, queued: event.layout },
 					send: null,
 					accepted: null,
 				};
 			}
 			return {
-				queue: { inFlight: event.layout, queued: null, error: null },
+				queue: { inFlight: event.layout, queued: null },
 				send: event.layout,
 				accepted: null,
 			};
 		case "saved":
 			if (!queue.inFlight) return { queue, send: null, accepted: null };
 			return {
-				queue: { inFlight: queue.queued, queued: null, error: queue.error },
+				queue: { inFlight: queue.queued, queued: null },
 				send: queue.queued,
 				accepted: queue.inFlight,
 			};
 		case "failed":
-			return {
-				queue: { inFlight: null, queued: null, error: event.error },
-				send: null,
-				accepted: null,
-			};
-		case "dismiss":
-			return { queue: queue.error ? { ...queue, error: null } : queue, send: null, accepted: null };
+			return { queue: IDLE_SAVE_QUEUE, send: null, accepted: null };
 	}
 }
 
@@ -163,10 +154,6 @@ class AdminLayoutStore {
 	/** The latest handler reports every later failure, even after its page unmounted. */
 	setFailureHandler(handler: (error: Error) => void): void {
 		this.#onFailure = handler;
-	}
-
-	dismissError(): void {
-		this.#dispatch({ type: "dismiss" });
 	}
 
 	#dispatch(event: SaveQueueEvent): void {
@@ -246,14 +233,17 @@ export interface AdminLayoutEditor<TNav extends { id: string }, TSection extends
 	/**
 	 * False until the reload of the current user this hook starts on mount
 	 * succeeds; edits are ignored until then. True at once when a save from an
-	 * earlier visit is still running.
+	 * earlier visit is still running. Once true, it stays true.
 	 */
 	readonly ready: boolean;
+	/** Why the mount reload failed, while that keeps the editor from being ready. */
+	readonly reloadError: Error | null;
+	/** Start the mount reload again. */
+	retry(): void;
 	/** The Navigation list: every entry the user can see, hidden ones flagged. */
 	readonly nav: readonly ArrangedNavGroup<TNav>[];
 	/** The Editor list, hidden ones flagged. */
 	readonly editor: readonly ArrangedRow<TSection>[];
-	/** Whether each list stores anything. */
 	readonly customized: Readonly<Record<LayoutScope, boolean>>;
 	setVisible(scope: LayoutScope, id: string, visible: boolean): void;
 	move(scope: LayoutScope, activeId: string, overId: string): void;
@@ -263,7 +253,6 @@ export interface AdminLayoutEditor<TNav extends { id: string }, TSection extends
 
 const noop = () => {};
 
-/** Settings → Sidebars' only way to change the layout. */
 export function useAdminLayoutEditor<TNav extends { id: string }, TSection extends { id: string }>({
 	navGroups,
 	editorSections,
@@ -274,7 +263,13 @@ export function useAdminLayoutEditor<TNav extends { id: string }, TSection exten
 	const layout = useAdminLayout();
 	const [savingAtMount] = React.useState(() => store.getSnapshot().inFlight !== null);
 	const reload = useQuery({ ...currentUserQueryOptions(), refetchOnMount: "always" });
-	const ready = savingAtMount || (reload.isFetchedAfterMount && reload.isSuccess);
+	// A failed background refetch keeps the data but sets `isSuccess` to false.
+	const [reloaded, setReloaded] = React.useState(false);
+	if (!reloaded && reload.isFetchedAfterMount && reload.isSuccess) setReloaded(true);
+	const ready = savingAtMount || reloaded;
+	const reloadError = ready ? null : reload.error;
+	const { refetch } = reload;
+	const retry = React.useCallback(() => void refetch(), [refetch]);
 
 	React.useEffect(() => {
 		store.setFailureHandler((error) => {
@@ -285,8 +280,6 @@ export function useAdminLayoutEditor<TNav extends { id: string }, TSection exten
 			});
 		});
 	}, [store, t, toastManager]);
-
-	React.useEffect(() => () => store.dismissError(), [store]);
 
 	const nav = React.useMemo(() => arrangeNav(navGroups, layout.nav), [navGroups, layout.nav]);
 	const editor = React.useMemo(
@@ -323,5 +316,5 @@ export function useAdminLayoutEditor<TNav extends { id: string }, TSection exten
 		};
 	}, [store, ready, navGroups, editorSections]);
 
-	return { ready, nav, editor, customized, ...actions };
+	return { ready, reloadError, retry, nav, editor, customized, ...actions };
 }

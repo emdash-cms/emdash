@@ -1,8 +1,7 @@
 /**
  * The editor settings sidebar's sections: their labels, where each one is
- * available, and the plugin panels with their section IDs. The editor and
- * Settings → Sidebars both read it; the default order lives in
- * `admin-layout.ts`.
+ * available, and the plugin panels with their section IDs. The default order
+ * lives in `admin-layout.ts`.
  */
 
 import type { MessageDescriptor } from "@lingui/core";

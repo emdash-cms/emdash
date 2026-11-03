@@ -1,4 +1,4 @@
-import { Button, Tabs, useKumoToastManager } from "@cloudflare/kumo";
+import { Banner, Button, Tabs, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui as useLinguiContext } from "@lingui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ArrowCounterClockwise } from "@phosphor-icons/react";
@@ -32,7 +32,6 @@ function Kbd({ children }: { children: React.ReactNode }) {
 	);
 }
 
-/** Settings → Personal → Sidebars. Every change applies and saves at once. */
 export function SidebarsSettings({ tab }: SidebarsSettingsProps) {
 	const { t } = useLingui();
 	// `_` is rebound on locale switches, so it invalidates the memos below.
@@ -60,12 +59,15 @@ export function SidebarsSettings({ tab }: SidebarsSettingsProps) {
 	const sidebars = useAdminLayoutEditor({ navGroups, editorSections });
 	const scope = SCOPE[tab];
 	const disabled = !sidebars.ready;
+	const toolbarRef = React.useRef<HTMLDivElement>(null);
 
 	const setVisible = (id: string, visible: boolean) => sidebars.setVisible(scope, id, visible);
 	const move = (activeId: string, overId: string) => sidebars.move(scope, activeId, overId);
 
 	const reset = () => {
 		const undo = sidebars.reset(scope);
+		// Reset disables itself, which would drop focus to the page.
+		toolbarRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
 		const toastId: string = toastManager.add({
 			title: scope === "nav" ? t`Navigation reset` : t`Editor sidebar reset`,
 			description: t`Everything is shown again, in the default order.`,
@@ -87,7 +89,20 @@ export function SidebarsSettings({ tab }: SidebarsSettingsProps) {
 			description={t`Choose what your sidebars show and in what order. Only you see your layout, and it follows you to any browser.`}
 		>
 			<div className="grid max-w-2xl gap-3">
-				<div className="flex items-center justify-between gap-3">
+				{sidebars.reloadError && (
+					<Banner
+						variant="error"
+						role="alert"
+						title={t`Couldn't load your sidebars`}
+						description={sidebars.reloadError.message}
+						action={
+							<Button variant="secondary" size="sm" onClick={sidebars.retry}>
+								{t`Retry`}
+							</Button>
+						}
+					/>
+				)}
+				<div ref={toolbarRef} className="flex items-center justify-between gap-3">
 					<Tabs
 						variant="segmented"
 						value={tab}

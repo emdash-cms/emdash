@@ -1,14 +1,6 @@
 /**
  * Personal sidebar layout rules.
  *
- * The navigation, the editor settings sidebar, and Settings → Sidebars all
- * arrange their lists through this module. It is the only place that knows how
- * a navigation ID is derived and how a folder ID is formed, the editor
- * sections' default order, that Dashboard (`/`) is pinned first and always
- * shown, that Publish can move but never hides, how a saved `order` merges with
- * the default order per sibling set, and how a switch change or a move is
- * written back.
- *
  * Pure: no React, no I/O. Every write returns the same object when nothing
  * changes, so callers can skip a save by identity.
  */
@@ -65,7 +57,6 @@ export function parseAdminLayout(raw: unknown): AdminLayout {
 	return nav && editor ? { version: 1, nav, editor } : EMPTY_ADMIN_LAYOUT;
 }
 
-/** Whether the list stores anything; Reset is offered only then. */
 export function isCustomized(list: ListLayout): boolean {
 	return list.order.length > 0 || list.hidden.length > 0;
 }
@@ -91,10 +82,6 @@ const FOLDER_PREFIX = "folder:";
 const QUERY_OR_HASH = /[?#]/;
 const TRAILING_SLASHES = /\/+$/;
 
-/**
- * A navigation ID from an admin path: the query and hash are dropped, and
- * trailing slashes are stripped except for `/` itself.
- */
 export function navPathId(path: string): string {
 	const cut = path.search(QUERY_OR_HASH);
 	const pathname = cut === -1 ? path : path.slice(0, cut);
@@ -139,10 +126,6 @@ export const BUILT_IN_EDITOR_SECTION_IDS: readonly BuiltInEditorSectionId[] = [
 
 const PLUGIN_SECTION_PREFIXES = ["plugin:", "sandbox-plugin:"] as const;
 
-/**
- * Built-ins rank by their list position, every plugin panel takes the slot
- * between SEO and Outline (ties keep input order), unknown IDs go last.
- */
 function editorDefaultRank(id: string): number {
 	const before = EDITOR_SECTIONS_BEFORE_PLUGINS.findIndex((sectionId) => sectionId === id);
 	if (before !== -1) return before;
@@ -201,10 +184,8 @@ export interface ArrangedNavGroup<T extends { id: string }> {
 	readonly entries: readonly ArrangedNavEntry<T>[];
 }
 
-/** A list's saved order and hidden IDs, indexed once per arrangement. */
 interface ListIndex {
 	readonly scope: LayoutScope;
-	/** First position of each ID in `order`. */
 	readonly position: ReadonlyMap<string, number>;
 	readonly hidden: ReadonlySet<string>;
 }
@@ -273,7 +254,6 @@ export function arrangeEditor<T extends { id: string }>(
 	).map((section) => arrangeRow(index, section));
 }
 
-/** The editor sections to render, in order. */
 export function resolveEditor<T extends { id: string }>(
 	sections: readonly T[],
 	list: ListLayout,

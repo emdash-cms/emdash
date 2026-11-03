@@ -740,7 +740,6 @@ export interface ContentSettingsPanelProps {
 	onDelete?: () => Promise<unknown> | void;
 	isDeleting?: boolean;
 	currentUser?: CurrentUserInfo;
-	/** The user's editor sidebar layout. */
 	adminLayout?: ListLayout;
 	users?: UserListItem[];
 	onAuthorChange?: (authorId: string | null) => void;
@@ -1127,7 +1126,6 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 					</ContentSettingsSection>
 				)}
 
-				{/* TaxonomySidebar renders nothing here; without the check its section border would still show. */}
 				{item && hasApplicableTaxonomies && (
 					<ContentSettingsSection id="taxonomies">
 						<TaxonomySidebar

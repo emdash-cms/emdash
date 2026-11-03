@@ -15,7 +15,6 @@ import {
 	useAdminLayout,
 	useAdminLayoutEditor,
 	type AdminLayoutEditor,
-	type SaveQueue,
 } from "../../../src/lib/api/admin-layout";
 import { currentUserQueryKey, type CurrentUser } from "../../../src/lib/api/current-user";
 
@@ -31,13 +30,10 @@ describe("stepSaveQueue", () => {
 	const third = layoutNamed("/third");
 	const failure = new Error("Database is read-only");
 
-	it("sends a change at once when idle, clearing an earlier error", () => {
-		const step = stepSaveQueue(
-			{ inFlight: null, queued: null, error: failure },
-			{ type: "change", layout: first },
-		);
+	it("sends a change at once when idle", () => {
+		const step = stepSaveQueue(IDLE_SAVE_QUEUE, { type: "change", layout: first });
 		expect(step).toEqual({
-			queue: { inFlight: first, queued: null, error: null },
+			queue: { inFlight: first, queued: null },
 			send: first,
 			accepted: null,
 		});
@@ -46,11 +42,11 @@ describe("stepSaveQueue", () => {
 
 	it("queues a change while a save is in flight", () => {
 		const step = stepSaveQueue(
-			{ inFlight: first, queued: null, error: null },
+			{ inFlight: first, queued: null },
 			{ type: "change", layout: second },
 		);
 		expect(step).toEqual({
-			queue: { inFlight: first, queued: second, error: null },
+			queue: { inFlight: first, queued: second },
 			send: null,
 			accepted: null,
 		});
@@ -59,44 +55,35 @@ describe("stepSaveQueue", () => {
 
 	it("replaces an older queued layout with the latest change", () => {
 		const step = stepSaveQueue(
-			{ inFlight: first, queued: second, error: null },
+			{ inFlight: first, queued: second },
 			{ type: "change", layout: third },
 		);
-		expect(step.queue).toEqual({ inFlight: first, queued: third, error: null });
+		expect(step.queue).toEqual({ inFlight: first, queued: third });
 		expect(step.send).toBeNull();
 	});
 
 	it("accepts the saved layout and sends the queued one", () => {
-		const step = stepSaveQueue({ inFlight: first, queued: second, error: null }, { type: "saved" });
+		const step = stepSaveQueue({ inFlight: first, queued: second }, { type: "saved" });
 		expect(step).toEqual({
-			queue: { inFlight: second, queued: null, error: null },
+			queue: { inFlight: second, queued: null },
 			send: second,
 			accepted: first,
 		});
 	});
 
 	it("accepts the saved layout and goes idle when nothing is queued", () => {
-		const step = stepSaveQueue({ inFlight: first, queued: null, error: null }, { type: "saved" });
+		const step = stepSaveQueue({ inFlight: first, queued: null }, { type: "saved" });
 		expect(step).toEqual({ queue: IDLE_SAVE_QUEUE, send: null, accepted: first });
 		expect(pendingLayout(step.queue)).toBeNull();
 	});
 
-	it("drops the queued layout on failure and keeps the error", () => {
+	it("drops the queued layout on failure", () => {
 		const step = stepSaveQueue(
-			{ inFlight: first, queued: second, error: null },
+			{ inFlight: first, queued: second },
 			{ type: "failed", error: failure },
 		);
-		expect(step).toEqual({
-			queue: { inFlight: null, queued: null, error: failure },
-			send: null,
-			accepted: null,
-		});
+		expect(step).toEqual({ queue: IDLE_SAVE_QUEUE, send: null, accepted: null });
 		expect(pendingLayout(step.queue)).toBeNull();
-	});
-
-	it("clears the error on dismiss", () => {
-		const queue: SaveQueue = { inFlight: null, queued: null, error: failure };
-		expect(stepSaveQueue(queue, { type: "dismiss" }).queue).toEqual(IDLE_SAVE_QUEUE);
 	});
 });
 
@@ -324,6 +311,24 @@ describe("useAdminLayoutEditor", () => {
 		);
 		await settle();
 		expect(result.current.editor.ready).toBe(false);
+	});
+
+	it("stays ready when a later refetch of the user fails", async () => {
+		const server = fakeAuthMe(null);
+		const { result, act } = await renderReadyEditor();
+
+		server.holdGets = true;
+		void queryClient.refetchQueries({ queryKey: currentUserQueryKey });
+		await vi.waitFor(() => expect(server.heldGets).toHaveLength(1));
+		server.heldGets[0]?.fail();
+		await vi.waitFor(() =>
+			expect(queryClient.getQueryState(currentUserQueryKey)?.status).toBe("error"),
+		);
+		await settle();
+
+		expect(result.current.editor.ready).toBe(true);
+		await act(() => result.current.editor.setVisible("nav", "/widgets", false));
+		await vi.waitFor(() => expect(server.posts).toHaveLength(1));
 	});
 
 	it("is ready at once when a save from an earlier visit is still running", async () => {

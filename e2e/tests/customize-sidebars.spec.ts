@@ -1,6 +1,4 @@
 /**
- * Settings → Sidebars E2E Tests
- *
  * Personal sidebar layouts are saved on the shared dev user, so every test
  * clears the layout before and after it runs.
  */
@@ -119,9 +117,7 @@ test.describe("Settings → Sidebars", () => {
 			"true",
 		);
 		expect(
-			await page.evaluate(
-				() => (window as unknown as { sidebarsMarker?: string }).sidebarsMarker,
-			),
+			await page.evaluate(() => (window as unknown as { sidebarsMarker?: string }).sidebarsMarker),
 		).toBe("kept");
 	});
 });

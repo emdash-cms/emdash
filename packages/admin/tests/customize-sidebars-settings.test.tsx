@@ -89,13 +89,15 @@ interface PostedBody {
 }
 
 /**
- * `/auth/me` storing one layout. GETs answer with the stored layout, or wait
- * while `holdGets` is set; POSTs wait until the test accepts or fails them.
+ * `/auth/me` storing one layout. GETs answer with the stored layout, fail
+ * while `failGets` is set, or wait while `holdGets` is set; POSTs wait until
+ * the test accepts or fails them.
  */
 function fakeServer(stored: unknown) {
 	const server = {
 		stored,
 		holdGets: false,
+		failGets: false,
 		heldGets: [] as (() => void)[],
 		posts: [] as {
 			body: PostedBody;
@@ -126,6 +128,11 @@ function fakeServer(stored: unknown) {
 					resolve(json(status, { error: { code: "ADMIN_LAYOUT_SAVE_ERROR", message } })),
 			});
 			return promise;
+		}
+		if (server.failGets) {
+			return Promise.resolve(
+				json(500, { error: { code: "INTERNAL", message: "Database is down" } }),
+			);
 		}
 		const user = { data: { ...AUTHOR, adminLayout: server.stored } };
 		if (!server.holdGets) return Promise.resolve(json(200, user));
@@ -232,6 +239,26 @@ describe("Settings → Sidebars", () => {
 		await expect.element(screen.getByRole("switch", { name: "Show Calendar" })).not.toBeChecked();
 	});
 
+	it("shows why the page can't be used when its reload of the user fails, and retries", async () => {
+		const server = fakeServer(null);
+		const { screen } = await renderAdmin("/settings");
+		const personal = screen.getByRole("region", { name: "Personal" });
+		await expect.element(personal).toBeInTheDocument();
+
+		server.failGets = true;
+		await personal.getByRole("link", { name: /^Sidebars/ }).click();
+
+		await expect.element(screen.getByText("Couldn't load your sidebars")).toBeVisible();
+		await expect.element(screen.getByText("Database is down")).toBeVisible();
+		await expect.element(screen.getByRole("switch", { name: "Show Media" })).toBeDisabled();
+
+		server.failGets = false;
+		await screen.getByRole("button", { name: "Retry" }).click();
+
+		await expect.element(screen.getByRole("switch", { name: "Show Media" })).toBeEnabled();
+		await expect.element(screen.getByText("Couldn't load your sidebars")).not.toBeInTheDocument();
+	});
+
 	it("hides an entry from the navigation at once and saves the layout", async () => {
 		const server = fakeServer(null);
 		const { screen } = await openSidebars();
@@ -275,6 +302,23 @@ describe("Settings → Sidebars", () => {
 		expect(server.posts[0]?.body.adminLayout).toEqual(
 			layout({ order: ["/calendar", "/media", "folder:Blog", "/content/posts", "/content/pages"] }),
 		);
+	});
+
+	it("counts the pinned Dashboard in the positions it announces", async () => {
+		fakeServer(null);
+		const { screen } = await openSidebars();
+
+		const handle = screen.getByRole("button", { name: "Reorder Calendar" });
+		(handle.element() as HTMLElement).focus();
+		await userEvent.keyboard(" ");
+		await expect
+			.element(screen.getByText("Calendar moved to position 2 of 2.", { exact: true }))
+			.toBeInTheDocument();
+
+		await userEvent.keyboard("{Escape}");
+		await expect
+			.element(screen.getByText("Cancelled. Calendar is back at position 2 of 2.", { exact: true }))
+			.toBeInTheDocument();
 	});
 
 	it("sends only the latest layout after the save in flight", async () => {
@@ -343,6 +387,20 @@ describe("Settings → Sidebars", () => {
 		await vi.waitFor(() => expect(server.posts).toHaveLength(2));
 		expect(server.posts[1]?.body.adminLayout).toEqual(layout({ hidden: ["/media"] }));
 		await expect.element(screen.getByText("Navigation reset")).not.toBeInTheDocument();
+	});
+
+	it("moves focus to the selected tab when Reset disables itself", async () => {
+		fakeServer(layout({ hidden: ["/media"] }));
+		const { screen } = await openSidebars();
+
+		const reset = screen.getByRole("button", { name: "Reset navigation" });
+		(reset.element() as HTMLElement).focus();
+		await userEvent.keyboard("{Enter}");
+
+		await expect.element(reset).toBeDisabled();
+		await nextFrame();
+		await nextFrame();
+		expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Navigation" }).element());
 	});
 
 	it("opens the Editor sidebar tab from ?tab=editor and keeps the tab in the URL", async () => {

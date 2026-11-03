@@ -20,7 +20,7 @@ export interface CurrentUser {
 	/**
 	 * The stored sidebar layout as the server sent it. Read it through
 	 * `useAdminLayout()`, which validates it and adds unsaved changes. Absent
-	 * from older servers and most test mocks, which means "none".
+	 * from older servers, which means "none".
 	 */
 	adminLayout?: unknown;
 }

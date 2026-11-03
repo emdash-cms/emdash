@@ -7,7 +7,7 @@ export interface ContentSettingsSectionProps {
 	children: React.ReactNode;
 }
 
-/** One section of the editor settings sidebar. Bylines positions its Add button against it. */
+/** Bylines positions its Add button against it. */
 export function ContentSettingsSection({ id, children }: ContentSettingsSectionProps) {
 	return (
 		<section className="relative border-t first:border-t-0 bg-kumo-base" data-settings-section={id}>

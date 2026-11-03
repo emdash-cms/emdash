@@ -31,7 +31,6 @@ import { cn } from "../../lib/utils.js";
 import { ADMIN_NAV_ICONS, resolveNavIcon } from "../admin-navigation-icons.js";
 import { NavIcon } from "../Sidebar.js";
 
-/** What a row shows. */
 export interface LayoutRowItem {
 	readonly id: string;
 	readonly label: string;
@@ -40,7 +39,6 @@ export interface LayoutRowItem {
 	readonly meta?: string;
 }
 
-/** A row, or a folder row holding its members. */
 export type LayoutEntry<T extends LayoutRowItem> = ArrangedRow<T> | ArrangedNavFolder<T>;
 
 interface LayoutListProps<T extends LayoutRowItem> {
@@ -64,7 +62,6 @@ const dropAnimation: DropAnimation = {
 	sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0" } } }),
 };
 
-/** Keeps the dragged row on the list's vertical axis and inside the list. */
 const restrictToList: Modifier = ({ transform, draggingNodeRect, containerNodeRect }) => {
 	if (!draggingNodeRect || !containerNodeRect) return { ...transform, x: 0 };
 	const minY = containerNodeRect.top - draggingNodeRect.top;
@@ -176,7 +173,6 @@ interface EntryProps<T extends LayoutRowItem> {
 	onMove: (activeId: string, overId: string) => void;
 }
 
-/** One `<li>`: the row, and for a folder its members as their own list. */
 function EntryItem<T extends LayoutRowItem>({
 	entry,
 	disabled,
@@ -401,9 +397,13 @@ export function LayoutList<T extends LayoutRowItem>({
 		[entries],
 	);
 
+	const count = entries.length;
+	const positionOf = React.useCallback(
+		(id: UniqueIdentifier) => entries.findIndex((entry) => entry.id === String(id)) + 1,
+		[entries],
+	);
+
 	const accessibility = React.useMemo(() => {
-		const count = ids.length;
-		const positionOf = (id: UniqueIdentifier) => ids.indexOf(String(id)) + 1;
 		const announcements: Announcements = {
 			onDragStart: ({ active }) => {
 				const label = labelOf(active.id);
@@ -434,7 +434,7 @@ export function LayoutList<T extends LayoutRowItem>({
 				draggable: t`To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away.`,
 			},
 		};
-	}, [ids, labelOf, t]);
+	}, [count, positionOf, labelOf, t]);
 
 	const step = (id: string, delta: -1 | 1) => {
 		if (activeId !== null) return;
@@ -445,8 +445,7 @@ export function LayoutList<T extends LayoutRowItem>({
 		refocus.current = id;
 		onMove(id, overId);
 		const label = labelOf(id);
-		const position = to + 1;
-		const count = ids.length;
+		const position = positionOf(overId);
 		setStepMessage(t`${label} moved to position ${position} of ${count}.`);
 	};
 

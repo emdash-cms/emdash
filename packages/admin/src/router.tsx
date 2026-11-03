@@ -479,8 +479,13 @@ function RootComponent() {
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
 	});
+	// The navigation follows the user's sidebar layout, so wait for the first
+	// load of the user. Later resets (authorization recovery) must not unmount the admin.
+	const currentUser = useCurrentUser();
+	const [userSettled, setUserSettled] = React.useState(false);
+	if (!userSettled && !currentUser.isLoading) setUserSettled(true);
 
-	if (isLoading) {
+	if (isLoading || !userSettled) {
 		return <ConfigurationLoadingScreen />;
 	}
 
