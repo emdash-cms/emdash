@@ -411,7 +411,7 @@ export function LayoutList<T extends LayoutRowItem>({
 				return t`Picked up ${label}, position ${position} of ${count}.`;
 			},
 			onDragOver: ({ active, over }) => {
-				if (!over) return undefined;
+				if (!over || over.id === active.id) return undefined;
 				const label = labelOf(active.id);
 				const position = positionOf(over.id);
 				return t`${label} moved to position ${position} of ${count}.`;

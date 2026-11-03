@@ -312,8 +312,9 @@ describe("Settings → Sidebars", () => {
 		(handle.element() as HTMLElement).focus();
 		await userEvent.keyboard(" ");
 		await expect
-			.element(screen.getByText("Calendar moved to position 2 of 2.", { exact: true }))
+			.element(screen.getByText("Picked up Calendar, position 2 of 2.", { exact: true }))
 			.toBeInTheDocument();
+		expect(document.body.textContent).not.toContain("Calendar moved to position");
 
 		await userEvent.keyboard("{Escape}");
 		await expect
