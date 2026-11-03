@@ -560,6 +560,7 @@ describe("resolveExclusiveHooks — shared function", () => {
 		async function resolveWithFallback(
 			pipeline: HookPipeline,
 			store: Map<string, string>,
+			fallbackProviders: ReadonlySet<string> = new Set(["built-in"]),
 		): Promise<void> {
 			await resolveExclusiveHooks({
 				pipeline,
@@ -571,7 +572,7 @@ describe("resolveExclusiveHooks — shared function", () => {
 				deleteOption: async (key) => {
 					store.delete(key);
 				},
-				fallbackProviders: new Set(["built-in"]),
+				fallbackProviders,
 			});
 		}
 
@@ -602,6 +603,24 @@ describe("resolveExclusiveHooks — shared function", () => {
 			await resolveWithFallback(pipeline, store);
 
 			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("built-in");
+		});
+
+		it("selects the first fallback, without storing it, when only fallbacks are active", async () => {
+			const pipeline = providerPipeline("dev-console", "smtp");
+			const store = new Map<string, string>();
+
+			await resolveWithFallback(pipeline, store, new Set(["smtp", "dev-console"]));
+
+			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("smtp");
+			expect(store.size).toBe(0);
+		});
+
+		it("still selects the one other provider over several fallbacks", async () => {
+			const pipeline = providerPipeline("dev-console", "smtp", "plugin-a");
+
+			await resolveWithFallback(pipeline, new Map(), new Set(["smtp", "dev-console"]));
+
+			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("plugin-a");
 		});
 
 		it("leaves the hook unselected when several other providers compete", async () => {

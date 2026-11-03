@@ -76,6 +76,20 @@ describe("PUT /_emdash/api/settings/email", () => {
 		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toBeNull();
 	});
 
+	it("requires a sender email when the username is not an email address", async () => {
+		const rejected = await put(smtpBody({ user: "apikey", pass: "s3cret" }));
+		expect(rejected.status).toBe(400);
+		await expect(rejected.json()).resolves.toMatchObject({
+			error: { code: "VALIDATION_ERROR" },
+		});
+		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toBeNull();
+
+		const accepted = await put(
+			smtpBody({ user: "apikey", pass: "s3cret", fromEmail: "noreply@example.com" }),
+		);
+		expect(accepted.status).toBe(200);
+	});
+
 	it("keeps the stored password when a later save omits it", async () => {
 		const first = await put(smtpBody({ pass: "s3cret" }));
 		expect(first.status).toBe(200);

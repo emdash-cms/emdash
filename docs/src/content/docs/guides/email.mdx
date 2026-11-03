@@ -44,7 +44,7 @@ Configure it in one of two ways:
 | `EMAIL_SMTP_FROM_EMAIL` | `noreply@example.com`           | Optional sender address; takes precedence over `EMAIL_SMTP_FROM`        |
 | `EMAIL_SMTP_REPLY_TO`   | `hello@example.com`             | Optional Reply-To address                                               |
 
-Without a sender variable, EmDash sends from `EMAIL_SMTP_USER`. If your SMTP login is not an email address, set `EMAIL_SMTP_FROM_EMAIL` or `EMAIL_SMTP_FROM`, or delivery fails with **Invalid sender address for SMTP delivery**.
+Without a sender variable, EmDash sends from `EMAIL_SMTP_USER`. If your SMTP login is not an email address, set `EMAIL_SMTP_FROM_EMAIL` or `EMAIL_SMTP_FROM`, or delivery fails with **Invalid sender address for SMTP delivery**. Settings → Email asks for a sender email in that case before it saves.
 
 When the environment variables are complete, EmDash sends through SMTP unless an email provider plugin is active or another provider is selected under **Settings → Email**. To keep using SMTP alongside a provider plugin, select **SMTP** there and save.
 

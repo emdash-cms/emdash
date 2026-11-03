@@ -437,9 +437,14 @@ function formatNameAddress(name: string, email: string): string {
 }
 
 const ADDRESS_REGEX = /^\s*(?:"([^"]*)"|([^<]*))?\s*<([^>]+)>\s*$/;
+// ADDRESS_REGEX backtracks quadratically on long whitespace runs.
+const MAX_ADDRESS_LENGTH = 256;
 
 /** Parse "Name <email@example.com>" or bare "email@example.com". */
 function parseAddress(input: string): { email: string; name?: string } {
+	if (input.length > MAX_ADDRESS_LENGTH) {
+		throw new SmtpDeliveryError("Address is too long for SMTP delivery");
+	}
 	const match = input.match(ADDRESS_REGEX);
 	if (match) {
 		const name = (match[1] ?? match[2] ?? "").trim();
@@ -890,7 +895,16 @@ export async function deliverSmtp(
 		await sock.write(`${dotStuff(mime)}\r\n.\r\n`);
 		await recv("message accepted", 250);
 
-		await send("QUIT");
+		// The message is already accepted, so a failed QUIT must not report
+		// the send as failed and invite a duplicate retry.
+		try {
+			await send("QUIT");
+		} catch (error) {
+			ctx.log.warn("SMTP QUIT failed after the message was accepted", {
+				error: error instanceof Error ? error.message : String(error),
+				host: config.host,
+			});
+		}
 
 		ctx.log.info("email delivered via SMTP", {
 			to: message.to,

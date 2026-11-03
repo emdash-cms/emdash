@@ -201,23 +201,29 @@ export const POST: APIRoute = async ({ request, locals }) => {
 // PUT /_emdash/api/settings/email: configure email provider
 // ---------------------------------------------------------------------------
 
-const smtpConfigSchema = z.object({
-	host: z.string().min(1),
-	port: z
-		.number()
-		.int()
-		.min(1)
-		.max(65535)
-		.refine((p) => p !== 25, {
-			message: "Port 25 is not supported. Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
-		}),
-	secure: z.enum(["starttls", "tls"]),
-	user: z.string().min(1),
-	pass: z.string().min(1).optional(), // undefined = keep existing password
-	fromName: z.string().optional(),
-	fromEmail: z.string().email().optional(),
-	replyTo: z.string().email().optional(),
-});
+const smtpConfigSchema = z
+	.object({
+		host: z.string().min(1),
+		port: z
+			.number()
+			.int()
+			.min(1)
+			.max(65535)
+			.refine((p) => p !== 25, {
+				message: "Port 25 is not supported. Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
+			}),
+		secure: z.enum(["starttls", "tls"]),
+		user: z.string().min(1),
+		pass: z.string().min(1).optional(), // undefined = keep existing password
+		fromName: z.string().optional(),
+		fromEmail: z.string().email().optional(),
+		replyTo: z.string().email().optional(),
+	})
+	// Without a sender address, the username is used as the sender.
+	.refine((smtp) => smtp.fromEmail || z.email().safeParse(smtp.user).success, {
+		message: "A sender email is required when the SMTP username is not an email address.",
+		path: ["fromEmail"],
+	});
 
 const emailSettingsBody = z.discriminatedUnion("provider", [
 	// Without `smtp`, selects SMTP configured through environment variables.

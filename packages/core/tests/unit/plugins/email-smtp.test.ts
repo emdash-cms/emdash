@@ -317,6 +317,42 @@ describe("deliverSmtp", () => {
 		expect(connectFn).not.toHaveBeenCalled();
 	});
 
+	it("rejects an overlong Reply-To before parsing it", async () => {
+		const connectFn = vi.fn(async () => mockSocket([]).socket);
+		const started = Date.now();
+		await expect(
+			deliverSmtp(baseConfig, { ...message, replyTo: " ".repeat(5000) }, mockCtx, connectFn),
+		).rejects.toThrow(/too long/);
+		expect(Date.now() - started).toBeLessThan(500);
+		expect(connectFn).not.toHaveBeenCalled();
+	});
+
+	it("reports success when QUIT fails after the message was accepted", async () => {
+		const { socket, written } = mockSocket([
+			makeReply(220, "ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "Go ahead with TLS"),
+			EHLO_AUTH_LOGIN,
+			makeReply(334, "VXNlciBOYW1lAA=="),
+			makeReply(334, "UGFzc3dvcmQA"),
+			makeReply(235, "Authentication successful"),
+			makeReply(250, "Sender OK"),
+			makeReply(250, "Recipient OK"),
+			makeReply(354, "End data"),
+			makeReply(250, "Message accepted"),
+		]);
+		const write = socket.write;
+		socket.write = async (data) => {
+			if (data.startsWith("QUIT")) throw new Error("connection reset");
+			return write(data);
+		};
+
+		await expect(
+			deliverSmtp(baseConfig, message, mockCtx, async () => socket),
+		).resolves.toBeUndefined();
+		expect(written.join("")).toContain("DATA\r\n");
+	});
+
 	it("rejects a cc address that could inject SMTP commands", async () => {
 		const connectFn = vi.fn(async () => mockSocket([]).socket);
 		await expect(

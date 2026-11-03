@@ -1550,6 +1550,7 @@ export interface ExclusiveHookResolutionOptions {
 	 * selection is stored, a fallback is auto-selected only if no other
 	 * provider of the hook is active, and that selection is not stored, so a
 	 * plugin provider that becomes active later is selected in its place.
+	 * When only fallbacks are active, the first in set order is used.
 	 */
 	fallbackProviders?: ReadonlySet<string>;
 	/**
@@ -1645,10 +1646,14 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 
 		// Auto-select if only one active provider
 		const autoSelectable = [...activeProviderIds].filter((id) => !manualProviders?.has(id));
-		const candidates =
+		let candidates =
 			autoSelectable.length > 1 && fallbackProviders
 				? autoSelectable.filter((id) => !fallbackProviders.has(id))
 				: autoSelectable;
+		if (candidates.length === 0 && fallbackProviders) {
+			const firstFallback = [...fallbackProviders].find((id) => autoSelectable.includes(id));
+			if (firstFallback) candidates = [firstFallback];
+		}
 		if (candidates.length === 1) {
 			const [onlyProvider] = candidates;
 			if (!fallbackProviders?.has(onlyProvider)) {
