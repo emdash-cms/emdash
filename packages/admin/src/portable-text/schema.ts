@@ -11,7 +11,8 @@ import CodeBlock from "@tiptap/extension-code-block";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import TextAlign from "@tiptap/extension-text-align";
-import type { Schema } from "@tiptap/pm/model";
+import type { Fragment, Node as ProseMirrorNode, Schema } from "@tiptap/pm/model";
+import type { EditorState, Transaction } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 
 import { CodeMarkExtension } from "../components/editor/CodeMarkExtension.js";
@@ -31,6 +32,7 @@ import {
 import { isDimension, isString } from "../components/editor/video-block.js";
 import { TABLE_CELL_MIN_WIDTH } from "../portable-text-table.js";
 import { PortableTextKeys } from "./keys.js";
+import { PortableTextNormalizers, withLocalOnlyPlugins } from "./normalize.js";
 
 export {
 	CodeMarkExtension,
@@ -39,6 +41,7 @@ export {
 	EmDashTableHeader,
 	EmDashTableRow,
 	PortableTextKeys,
+	PortableTextNormalizers,
 	TableIdentity,
 };
 
@@ -103,17 +106,34 @@ export const PortableTextSpanIdentity = Mark.create({
 	},
 });
 
+const changedLastBlock = (
+	transactions: readonly Transaction[],
+	oldState: EditorState,
+	newState: EditorState,
+) =>
+	transactions.some((transaction) => transaction.docChanged) &&
+	oldState.doc.lastChild !== newState.doc.lastChild;
+
 /**
  * Quotes and list items hold only what Portable Text stores for them: quoted
  * paragraphs, and list item text with nested lists.
+ *
+ * Lists, list items, quotes, tables and cells may be empty, and a list item
+ * may start with a nested list: y-tiptap deletes a merged node the schema
+ * rejects, with everything other clients put in it. The editor gives back the
+ * shapes its own edits take from them (`PortableTextNormalizers`).
  */
 export const PortableTextStarterKit = StarterKit.extend({
 	addExtensions() {
 		return (this.parent?.() ?? []).map((extension) => {
-			if (extension.name === "blockquote") return extension.extend({ content: "paragraph+" });
+			if (extension.name === "blockquote") return extension.extend({ content: "paragraph*" });
+			if (extension.name === "bulletList") return extension.extend({ content: "listItem*" });
 			if (extension.name === "listItem") {
-				return extension.extend({ content: "paragraph (paragraph | bulletList | orderedList)*" });
+				return extension.extend({ content: "(paragraph | bulletList | orderedList)*" });
 			}
+			if (extension.name === "trailingNode")
+				return withLocalOnlyPlugins(extension, changedLastBlock);
+			if (extension.name === "link") return withLocalOnlyPlugins(extension);
 			return extension;
 		});
 	},
@@ -467,6 +487,45 @@ export const PortableTextTextAlign = TextAlign.configure({
 	types: ["heading", "paragraph"],
 });
 
+const FILLED_DEFAULTS: Record<string, (schema: Schema) => ProseMirrorNode> = {
+	listItem: (schema) => schema.nodes.paragraph!.create(),
+	bulletList: (schema) => schema.nodes.listItem!.create(null, schema.nodes.paragraph!.create()),
+	orderedList: (schema) => schema.nodes.listItem!.create(null, schema.nodes.paragraph!.create()),
+	blockquote: (schema) => schema.nodes.paragraph!.create(),
+	tableCell: (schema) => schema.nodes.paragraph!.create(),
+	tableHeader: (schema) => schema.nodes.paragraph!.create(),
+};
+
+const isEmptyContent = (
+	content: Fragment | ProseMirrorNode | readonly ProseMirrorNode[] | null | undefined,
+) =>
+	!content ||
+	("type" in content ? false : "size" in content ? content.size === 0 : content.length === 0);
+
+/**
+ * Makes `createAndFill` fill the containers that may be empty as it did when
+ * they couldn't be, so commands that build them, such as `insertTable` and
+ * `splitListItem`, still leave a paragraph for the caret.
+ */
+export function keepFilledDefaults(schema: Schema): void {
+	for (const [name, fill] of Object.entries(FILLED_DEFAULTS)) {
+		const type = schema.nodes[name];
+		if (!type) continue;
+		const createAndFill = type.createAndFill.bind(type);
+		type.createAndFill = (attrs, content, marks) =>
+			createAndFill(attrs, isEmptyContent(content) ? fill(schema) : content, marks);
+	}
+}
+
+/** The editor's `keepFilledDefaults`. Server code never fills nodes, so only the editor adds it. */
+export const PortableTextFilledDefaults = Extension.create({
+	name: "emdashPortableTextFilledDefaults",
+
+	onBeforeCreate() {
+		keepFilledDefaults(this.editor.schema);
+	},
+});
+
 /**
  * Every extension the schema is built from, in the editor's order. Plugins
  * and keymaps run in this order, and node and mark order is schema order.
@@ -493,6 +552,7 @@ export function portableTextExtensions(): AnyExtension[] {
 		EmDashTableHeader,
 		EmDashTableCell,
 		TableIdentity,
+		PortableTextNormalizers,
 		PortableTextKeys,
 		PortableTextTextAlign,
 	];

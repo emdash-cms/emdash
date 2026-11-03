@@ -347,6 +347,14 @@ export function withoutTrailingEmptyParagraph(doc: ProseMirrorNode): ProseMirror
 	return doc;
 }
 
+/** The blocks of a converted document, without the empty paragraph it ends with after a final block. */
+export function withoutTrailingParagraph(doc: { content: unknown[] }): unknown[] {
+	const last = doc.content.at(-1) as PortableTextProseMirrorNode | undefined;
+	return doc.content.length > 1 && last && isUnkeyedEmptyParagraph(last)
+		? doc.content.slice(0, -1)
+		: doc.content;
+}
+
 export function equalJsonValues(left: unknown, right: unknown): boolean {
 	if (Object.is(left, right)) return true;
 	if (Array.isArray(left) || Array.isArray(right)) {
@@ -1164,11 +1172,14 @@ export function portableTextToProsemirror(
 		}
 	}
 
+	// The editor keeps an empty paragraph after a final block, and a document
+	// loads in the shape the editor's normalizers give it.
+	if ((content.at(-1) as PortableTextProseMirrorNode | undefined)?.type !== "paragraph") {
+		content.push({ type: "paragraph" });
+	}
 	return normalizeOrderedListJson({
 		type: "doc",
-		content: (content.length > 0
-			? content
-			: [{ type: "paragraph" }]) as PortableTextProseMirrorNode[],
+		content: content as PortableTextProseMirrorNode[],
 	});
 }
 

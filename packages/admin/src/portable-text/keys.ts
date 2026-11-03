@@ -6,12 +6,11 @@
  */
 
 import { Extension } from "@tiptap/core";
-import { isChangeOrigin } from "@tiptap/extension-collaboration";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { Plugin, PluginKey, Transaction, type EditorState } from "@tiptap/pm/state";
-import type { Step } from "@tiptap/pm/transform";
+import { Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 
 import { PORTABLE_TEXT_KEY_ATTR } from "../components/editor/portableTextIdentity.js";
+import { changedRanges, localOnly, rootOf, type ChangedRange } from "./normalize.js";
 
 export function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
@@ -49,44 +48,6 @@ export function ownsPortableTextKey(
 	if (parent.type === parent.type.schema.topNodeType) return TOP_LEVEL_BLOCKS.has(node.type.name);
 	if (node.type.name !== "paragraph") return false;
 	return parent.type.name === "listItem" || (parent.type.name === "blockquote" && index > 0);
-}
-
-export interface ChangedRange {
-	from: number;
-	to: number;
-}
-
-function numberField(step: Step, field: string): number | undefined {
-	const value: unknown = Reflect.get(step, field);
-	return typeof value === "number" ? value : undefined;
-}
-
-/** The ranges of the final document that the transactions' steps changed. */
-export function changedRanges(transactions: readonly Transaction[]): ChangedRange[] {
-	const ranges: ChangedRange[] = [];
-	for (const transaction of transactions) {
-		for (const step of transaction.steps) {
-			const map = step.getMap();
-			for (const range of ranges) {
-				range.from = map.map(range.from, -1);
-				range.to = map.map(range.to, 1);
-			}
-			const stepRanges: ChangedRange[] = [];
-			map.forEach((_oldFrom, _oldTo, from, to) => stepRanges.push({ from, to }));
-			if (stepRanges.length === 0) {
-				// Mark and attribute steps have empty maps. They're read by shape:
-				// the editor bundles more than one prosemirror-transform, so
-				// instanceof can miss them.
-				const from = numberField(step, "from");
-				const to = numberField(step, "to");
-				const pos = numberField(step, "pos");
-				if (from !== undefined && to !== undefined) stepRanges.push({ from, to });
-				else if (pos !== undefined) stepRanges.push({ from: pos, to: pos + 1 });
-			}
-			ranges.push(...stepRanges);
-		}
-	}
-	return ranges;
 }
 
 function keyOf(node: ProseMirrorNode): string | undefined {
@@ -168,11 +129,6 @@ function assignPortableTextKeys(
 	return transaction;
 }
 
-function rootOf(transaction: Transaction): Transaction {
-	const root: unknown = transaction.getMeta("appendedTransaction");
-	return root instanceof Transaction ? root : transaction;
-}
-
 const composes = (transaction: Transaction) => Boolean(rootOf(transaction).getMeta("composition"));
 
 export const portableTextKeysPluginKey = new PluginKey<ChangedRange[]>("emdashPortableTextKeys");
@@ -187,7 +143,7 @@ export const portableTextKeysPluginKey = new PluginKey<ChangedRange[]>("emdashPo
  * plugin's state until it has ended.
  */
 export function portableTextKeysPlugin(): Plugin<ChangedRange[]> {
-	return new Plugin<ChangedRange[]>({
+	const plugin = new Plugin<ChangedRange[]>({
 		key: portableTextKeysPluginKey,
 		state: {
 			init: () => [],
@@ -201,7 +157,6 @@ export function portableTextKeysPlugin(): Plugin<ChangedRange[]> {
 			},
 		},
 		appendTransaction(transactions, _oldState, newState) {
-			if (transactions.some(isChangeOrigin) || transactions.some(composes)) return null;
 			const deferred = portableTextKeysPluginKey.getState(newState) ?? [];
 			const keyed = assignPortableTextKeys(newState, [...deferred, ...changedRanges(transactions)]);
 			if (!keyed && deferred.length === 0) return null;
@@ -227,6 +182,7 @@ export function portableTextKeysPlugin(): Plugin<ChangedRange[]> {
 			},
 		},
 	});
+	return localOnly(plugin, (transactions) => !transactions.some(composes));
 }
 
 export const PortableTextKeys = Extension.create({

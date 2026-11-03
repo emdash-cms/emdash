@@ -1,4 +1,4 @@
-import { Extension, type Command } from "@tiptap/core";
+import { Extension, mergeAttributes, type Command } from "@tiptap/core";
 import { Table } from "@tiptap/extension-table";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
@@ -17,6 +17,7 @@ import {
 import type { EditorView } from "@tiptap/pm/view";
 
 import { MAX_TABLE_REPAIRED_SLOTS, MAX_TABLE_SPAN } from "../../portable-text-table.js";
+import { changedRanges, localOnly } from "../../portable-text/normalize.js";
 
 const TABLE_NODE_ROLES = new Set(["table", "row", "cell", "header_cell"]);
 const TABLE_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
@@ -239,6 +240,16 @@ function handleRtlTableKey(view: EditorView, event: KeyboardEvent): boolean {
 }
 
 export const EmDashTable = Table.extend({
+	content: "tableRow*",
+
+	renderHTML(props) {
+		if (props.node.childCount > 0) return this.parent!(props);
+		return [
+			"table",
+			mergeAttributes(this.options.HTMLAttributes, props.HTMLAttributes),
+			["tbody", 0],
+		];
+	},
 	addProseMirrorPlugins() {
 		return [
 			new Plugin({
@@ -249,7 +260,8 @@ export const EmDashTable = Table.extend({
 					},
 				},
 			}),
-			...this.parent!(),
+			// fixTables adds the cells a table is missing.
+			...this.parent!().map((plugin) => localOnly(plugin)),
 		];
 	},
 	addCommands() {
@@ -274,14 +286,14 @@ export const EmDashTableRow = TableRow.extend({
 });
 
 export const EmDashTableCell = TableCell.extend({
-	content: "paragraph+",
+	content: "paragraph*",
 	addAttributes() {
 		return cellAttributes(this.parent?.() ?? {});
 	},
 });
 
 export const EmDashTableHeader = TableHeader.extend({
-	content: "paragraph+",
+	content: "paragraph*",
 	addAttributes() {
 		return cellAttributes(this.parent?.() ?? {});
 	},
@@ -298,6 +310,9 @@ export const TableIdentity = Extension.create({
 						transaction.steps.some((step) => containsTableStructure(step.toJSON())),
 					);
 					if (!addsTableStructure) return null;
+					const ranges = changedRanges(transactions);
+					const changed = (position: number, size: number) =>
+						ranges.some(({ from, to }) => position < to && position + size > from);
 					const survivingPositions = new Map<string, Set<number>>();
 					oldState.doc.descendants((node, position) => {
 						const key = node.attrs.emdashKey;
@@ -339,6 +354,21 @@ export const TableIdentity = Extension.create({
 						}
 					}
 					const seenTopLevelTableKeys = new Set<string>();
+					// A table the transactions didn't change keeps its key, so a copy of it gives the key up.
+					const untouchedTableKeys = new Set<string>();
+					newState.doc.descendants((node, position) => {
+						if (node.type.spec.tableRole !== "table") return;
+						const key = node.attrs.emdashKey;
+						if (
+							typeof key === "string" &&
+							key.length > 0 &&
+							newState.doc.resolve(position).depth === 0 &&
+							!changed(position, node.nodeSize)
+						) {
+							untouchedTableKeys.add(key);
+						}
+						return false;
+					});
 
 					const repairs: Array<{
 						position: number;
@@ -347,6 +377,7 @@ export const TableIdentity = Extension.create({
 
 					newState.doc.descendants((node, position) => {
 						if (node.type.spec.tableRole !== "table") return;
+						if (!changed(position, node.nodeSize)) return false;
 						const isTopLevelTable = newState.doc.resolve(position).depth === 0;
 
 						const entries = [{ node, position }];
@@ -387,6 +418,7 @@ export const TableIdentity = Extension.create({
 									(isTopLevelTable &&
 										entry.position === position &&
 										(seenTopLevelTableKeys.has(currentKey) ||
+											untouchedTableKeys.has(currentKey) ||
 											(topLevelSurvivorKeys.has(currentKey) &&
 												!survivingPositions.get(currentKey)?.has(entry.position)))));
 							let emdashKey = currentKey;
@@ -428,6 +460,6 @@ export const TableIdentity = Extension.create({
 					return transaction.setMeta("addToHistory", false);
 				},
 			}),
-		];
+		].map((plugin) => localOnly(plugin));
 	},
 });

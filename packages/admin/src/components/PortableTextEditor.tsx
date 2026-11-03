@@ -145,6 +145,7 @@ import {
 	portableTextToProsemirror,
 	prosemirrorToPortableText,
 	withoutTrailingEmptyParagraph,
+	withoutTrailingParagraph,
 	type PortableTextBlock,
 } from "../portable-text/convert.js";
 import { generateKey } from "../portable-text/keys.js";
@@ -154,8 +155,10 @@ import {
 	EmDashTableCell,
 	EmDashTableHeader,
 	EmDashTableRow,
+	PortableTextFilledDefaults,
 	PortableTextIdentityExtension,
 	PortableTextKeys,
+	PortableTextNormalizers,
 	PortableTextSpanIdentity,
 	PortableTextStarterKit,
 	PortableTextTable,
@@ -2497,7 +2500,9 @@ export function PortableTextEditor({
 			EmDashTableHeader,
 			EmDashTableCell,
 			TableIdentity,
+			PortableTextNormalizers,
 			PortableTextKeys,
+			PortableTextFilledDefaults,
 			BlockFormatShortcuts,
 			BlockSelection.configure({
 				onArrowUpAtStart: () => {
@@ -3044,7 +3049,9 @@ export function PortableTextEditor({
 				: [];
 			let prosemirrorContent: unknown[];
 			try {
-				({ content: prosemirrorContent } = portableTextToProsemirror(ptContent, pluginBlockTypes));
+				prosemirrorContent = withoutTrailingParagraph(
+					portableTextToProsemirror(ptContent, pluginBlockTypes),
+				);
 			} catch (error) {
 				if (error instanceof UnsupportedPortableTextMarksError) {
 					setSectionInsertErrorMarks(error.marks);
