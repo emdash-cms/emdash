@@ -22,19 +22,40 @@ export interface SeoText {
 
 /**
  * The editor's copy of one entry's SEO title and description, which outlives SeoPanel.
- * ContentEditor creates one per entry and reads `text`. A mounted SeoPanel keeps `text`
- * current and attaches `setText`. Text in `text` while no panel is attached has been
- * sent: the panel sends pending text when it detaches, and the editor saves at once any
- * text it writes while no panel is attached.
+ * ContentEditor creates one per entry, reads `text`, and reports the entry's saved text
+ * through `adoptSavedSeoText`. A mounted SeoPanel keeps `text` current and attaches
+ * `setText`. Text in `text` while no panel is attached has been sent: the panel sends
+ * pending text when it detaches, and the editor saves at once any text it writes while
+ * no panel is attached.
  */
 export interface SeoTextBridge {
 	text: SeoText;
+	/** The entry's saved text as last reported. */
+	base: SeoText;
 	/** Set while a SeoPanel shows the entry: writes text the way typing does. */
 	setText: ((text: Partial<SeoText>) => void) | null;
 }
 
 export function createSeoTextBridge(seo: ContentSeo | undefined): SeoTextBridge {
-	return { text: { title: seo?.title ?? "", description: seo?.description ?? "" }, setText: null };
+	const text = { title: seo?.title ?? "", description: seo?.description ?? "" };
+	return { text, base: text, setText: null };
+}
+
+/**
+ * Records the entry's saved text. While no panel is attached, `text` follows it only if `text`
+ * still matches the previous saved text, the rule SeoPanel uses to adopt a new `seo` prop.
+ * Other text has been sent and may not be saved yet.
+ */
+export function adoptSavedSeoText(bridge: SeoTextBridge, saved: SeoText): void {
+	const previous = bridge.base;
+	bridge.base = saved;
+	if (
+		!bridge.setText &&
+		bridge.text.title === previous.title &&
+		bridge.text.description === previous.description
+	) {
+		bridge.text = saved;
+	}
 }
 
 /** The SEO save for text written while no panel is attached. Columns it leaves out keep their stored value. */

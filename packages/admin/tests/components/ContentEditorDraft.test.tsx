@@ -543,6 +543,59 @@ describe("trusted panel draft access", () => {
 		expect(onSeoChange).toHaveBeenCalledTimes(1);
 	});
 
+	it("follows a newer saved SEO title while the block sidebar is open, and keeps it in the next SEO save", async () => {
+		const onSeoChange = vi.fn();
+		const { screen, props } = await renderTrusted({
+			hasSeo: true,
+			onSeoChange,
+			item: makeItem({ seo: seoOf("Saved SEO title") }),
+		});
+		openBlockSidebar();
+		await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+
+		await screen.rerender(
+			<TrustedEditor
+				{...props}
+				item={makeItem({ seo: seoOf("Newer SEO title"), _rev: "rev-2" })}
+			/>,
+		);
+		await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+		expect(currentDraft().get().fields["seo.title"]).toBe("Newer SEO title");
+
+		richText.props?.onBlockSidebarClose?.();
+		await expect
+			.element(screen.getByLabelText("SEO Title", { exact: true }))
+			.toHaveValue("Newer SEO title");
+		await screen.getByRole("switch", { name: "Hide from search engines" }).click();
+		expect(onSeoChange).toHaveBeenCalledExactlyOnceWith({
+			title: "Newer SEO title",
+			description: null,
+			canonical: null,
+			noIndex: true,
+		});
+	});
+
+	it("keeps a seo.title patch saved while the block sidebar is open through a read that doesn't reflect it", async () => {
+		const onSeoChange = vi.fn();
+		const { screen, props } = await renderTrusted({ hasSeo: true, onSeoChange });
+		openBlockSidebar();
+		await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+		expect(
+			patchCurrent(currentDraft(), [{ op: "set", field: "seo.title", value: "Hola" }]),
+		).toEqual({ ok: true });
+
+		await screen.rerender(
+			<TrustedEditor
+				{...props}
+				item={makeItem({ seo: seoOf("Other tab title"), _rev: "rev-2" })}
+			/>,
+		);
+		expect(currentDraft().get().fields["seo.title"]).toBe("Hola");
+
+		richText.props?.onBlockSidebarClose?.();
+		await expect.element(screen.getByLabelText("SEO Title", { exact: true })).toHaveValue("Hola");
+	});
+
 	it("is stale after an edit to the slug, the SEO title or the meta description", async () => {
 		const { screen } = await renderTrusted({ hasSeo: true, onSeoChange: vi.fn() });
 		const draft = currentDraft();

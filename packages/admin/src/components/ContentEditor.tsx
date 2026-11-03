@@ -103,7 +103,7 @@ import type {
 	BrowserEditorDraftRequest,
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
-import { createSeoTextBridge, seoTextInput } from "./SeoPanel.js";
+import { adoptSavedSeoText, createSeoTextBridge, seoTextInput } from "./SeoPanel.js";
 import { UnsavedChangesGuard } from "./UnsavedChangesGuard.js";
 
 /** Autosave debounce delay in milliseconds */
@@ -838,6 +838,11 @@ export function ContentEditor({
 	const entrySwitches = entrySwitchesRef.current;
 	/** The SEO title and description for the shown entry, which outlive SeoPanel. */
 	const seoTextBridge = React.useMemo(() => createSeoTextBridge(item?.seo), [entrySwitches]);
+	const savedSeoTitle = item?.seo?.title ?? "";
+	const savedSeoDescription = item?.seo?.description ?? "";
+	React.useEffect(() => {
+		adoptSavedSeoText(seoTextBridge, { title: savedSeoTitle, description: savedSeoDescription });
+	}, [savedSeoDescription, savedSeoTitle, seoTextBridge]);
 	const seoAvailable = hasSeo && !isNew && Boolean(onSeoChange);
 
 	// Update form and last saved state when item changes (e.g., after save or restore)
