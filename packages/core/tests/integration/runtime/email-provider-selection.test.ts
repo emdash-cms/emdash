@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
-import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
+import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID } from "../../../src/plugins/email-console.js";
 import { SMTP_EMAIL_PLUGIN_ID } from "../../../src/plugins/email-smtp.js";
