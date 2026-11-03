@@ -55,6 +55,8 @@ To import from a WordPress site that runs on your computer, give it a public add
 
    Point the tunnel at the site's port, not at its local hostname. In its default Site Domains mode, [Local](https://localwp.com/) serves all its sites on port 80 and picks one by hostname, so a tunnel to `http://mysite.local` gets Local's "Site Not Found" page. Local also gives each site its own port, and a tunnel to that port reaches the site. Local lists that port in its `sites.json` file (`~/Library/Application Support/Local/sites.json` on macOS), as `services.nginx.ports.HTTP` in the site's entry.
 
+   Laravel Valet serves all its sites through one web server and picks one by hostname, with no port for each site, so these steps don't work for Valet as written. Laravel Herd's documentation describes reaching its sites only by hostname, so the same likely applies to Herd.
+
 2. Make WordPress use the tunnel's address and HTTPS. The tunnel forwards requests to WordPress over plain HTTP, and WordPress accepts application passwords only over HTTPS unless `WP_ENVIRONMENT_TYPE` is `local`. Add the following lines to `wp-config.php`, above the "That's all, stop editing!" comment, so that WordPress treats tunnel requests as HTTPS and puts the tunnel address in API responses and attachment URLs:
 
    ```php title="wp-config.php"
@@ -74,7 +76,7 @@ To import from a WordPress site that runs on your computer, give it a public add
    wp search-replace 'http://mysite.local' 'https://example.trycloudflare.com' --skip-columns=guid
    ```
 
-   A quick tunnel gets a new address each time it starts. If it restarts before the media step finishes, run the command again from the old tunnel address to the new one.
+   A quick tunnel gets a new address each time it starts, and an import keeps the addresses it read when it started. Keep the tunnel running until step 5. If it restarts before step 4, run the command again from the old tunnel address to the new one.
 
 4. Use the tunnel address for the import: enter it as the site URL, generate the migration key from WordPress opened at that address, or download the WXR file from there so its attachment URLs point at the tunnel.
 
