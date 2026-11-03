@@ -4,9 +4,11 @@
 
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 
 import { apiFetch, parseApiResponse } from "./client.js";
+
+export const currentUserQueryKey = ["currentUser"] as const;
 
 export interface CurrentUser {
 	id: string;
@@ -15,6 +17,12 @@ export interface CurrentUser {
 	role: number;
 	avatarUrl?: string;
 	isFirstLogin?: boolean;
+	/**
+	 * The stored sidebar layout as the server sent it. Read it through
+	 * `useAdminLayout()`, which validates it and adds unsaved changes. Absent
+	 * from older servers and most test mocks, which means "none".
+	 */
+	adminLayout?: unknown;
 }
 
 async function fetchCurrentUser(): Promise<CurrentUser> {
@@ -22,11 +30,15 @@ async function fetchCurrentUser(): Promise<CurrentUser> {
 	return parseApiResponse<CurrentUser>(response, i18n._(msg`Failed to fetch user`));
 }
 
-export function useCurrentUser() {
-	return useQuery({
-		queryKey: ["currentUser"],
+export function currentUserQueryOptions() {
+	return queryOptions({
+		queryKey: currentUserQueryKey,
 		queryFn: fetchCurrentUser,
 		staleTime: 5 * 60 * 1000,
 		retry: false,
 	});
+}
+
+export function useCurrentUser() {
+	return useQuery(currentUserQueryOptions());
 }
