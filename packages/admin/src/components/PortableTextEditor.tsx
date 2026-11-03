@@ -3328,6 +3328,8 @@ function DynamicSelect({
 // Re-export for consumers
 export type { PluginBlockDef } from "./editor/PluginBlockNode";
 
+export { portableTextToProsemirror };
+
 // Exported for unit testing (pure functions, no React dependencies)
 export { prosemirrorToPortableText as _prosemirrorToPortableText };
 export { portableTextToProsemirror as _portableTextToProsemirror };

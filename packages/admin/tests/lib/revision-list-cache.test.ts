@@ -66,6 +66,18 @@ describe("withAutosavedDraft", () => {
 		expect(next.total).toBe(5);
 	});
 
+	it("keeps the replaced draft and counts the new one when the autosave kept it", () => {
+		const next = withAutosavedDraft(list(["rev-draft", "rev-live"]), {
+			draft: autosaved,
+			previousDraftId: "rev-draft",
+			liveRevisionId: "rev-live",
+			limit: 21,
+			keepPrevious: true,
+		});
+		expect(next.items.map((item) => item.id)).toEqual(["rev-autosaved", "rev-draft", "rev-live"]);
+		expect(next.total).toBe(3);
+	});
+
 	it("leaves a list that already holds the autosaved draft as it is", () => {
 		const next = withAutosavedDraft(list(["rev-autosaved", "rev-live"]), {
 			draft: autosaved,
