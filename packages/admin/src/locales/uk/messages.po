@@ -11052,6 +11052,11 @@ msgstr "Опублікувати зараз?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Публікувати вміст, знімати його з публікації, планувати публікацію та скасовувати її"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "Опубліковано"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11062,11 +11067,6 @@ msgstr "Публікувати вміст, знімати його з публі
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1490
 msgid "Published"
-msgstr "Опубліковано"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "Опубліковано"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
