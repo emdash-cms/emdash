@@ -39,3 +39,7 @@ The layout of fields and lists follows field types and names. The naming convent
 #### Block type icons
 
 Block types show their `icon` setting, a Phosphor icon name such as `"sparkle"` or `"chart-bar"`, in the block list and the picker. A block type without an icon, or with a name that doesn't match a Phosphor icon, shows a generic block icon. The marketing and portfolio templates now give their block types icons. Sites created from those templates before this release keep their stored block types, which have no icons, so their blocks show the generic icon until each block type gets an `icon`, for example through `PUT /_emdash/api/schema/block-types/{slug}` or the `schema_update_block_type` MCP tool.
+
+#### The editor's scrollbar
+
+The content editor's scrollbar shows over the page while you scroll, and under the pointer at the page's edge, instead of taking a strip beside it. Where scrollbars take up room, as on Windows and Linux, the page now keeps its width and stays centered whether or not it scrolls, and no longer shifts sideways when it grows long enough to scroll. This applies to every entry, not only ones with a blocks field.

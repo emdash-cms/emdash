@@ -14,6 +14,7 @@ import {
 	useKumoToastManager,
 	useSidebar,
 } from "@cloudflare/kumo";
+import { ScrollArea } from "@cloudflare/kumo/primitives/scroll-area";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -2095,171 +2096,185 @@ export function ContentEditor({
 			>
 				{pinEditorBar && editorBar}
 				<div className="flex min-h-0 flex-1">
-					<div
-						ref={canvasRef}
-						data-emdash-editor-canvas=""
-						className={cn(
-							"min-w-0 flex-1 overflow-y-auto [--emdash-editor-sticky-top:0px]",
-							// Keeps the page from sliding sideways when its content grows past the
-							// canvas or shrinks back, or a shorter version takes the scrollbar away.
-							"[scrollbar-gutter:stable]",
-							// Focus scrolled into view from above lands below a blocks field's pinned
-							// 2.75rem head instead of under it.
-							"scroll-pt-[calc(var(--emdash-editor-sticky-top)+3.25rem)]",
-						)}
-					>
-						{!pinEditorBar && editorBar}
-						<div
+					{/* The scrollbar is drawn over the canvas rather than beside it, so the page
+					    keeps its width, centered, whether or not it scrolls. */}
+					<ScrollArea.Root className="relative min-w-0 flex-1">
+						<ScrollArea.Viewport
+							ref={canvasRef}
+							data-emdash-editor-canvas=""
+							// Keeps the canvas out of the Tab order, which the scroll area adds it to while it scrolls.
+							tabIndex={undefined}
 							className={cn(
-								"emdash-editor-page mx-auto max-w-[52rem] space-y-6 pt-8 sm:pt-12",
-								// The revision bar settles under the last block, and stays at the bottom of
-								// the canvas when the version is too short to fill it.
-								isViewing ? "flex min-h-full flex-col pb-0" : "pb-16",
+								"h-full [--emdash-editor-sticky-top:0px]",
+								// Focus scrolled into view from above lands below a blocks field's pinned
+								// 2.75rem head instead of under it.
+								"scroll-pt-[calc(var(--emdash-editor-sticky-top)+3.25rem)]",
 							)}
 						>
-							{notice}
-							{editorDraftError && !isViewing ? (
-								<Banner
-									variant="error"
-									role="alert"
-									title={t`Plugin changes were not applied`}
-									description={editorDraftError}
-								/>
-							) : null}
-							{/* Hidden, not unmounted, while a version is shown, so unsaved edits,
-							    undo history and the outline survive. */}
-							<fieldset disabled={readOnly} hidden={isViewing} className="contents">
-								{unsupportedFields.length > 0 && (
-									<Banner
-										variant="error"
-										role="alert"
-										title={t`This entry is read-only because its schema uses field types this version of EmDash does not support.`}
-										description={unsupportedFields
-											.map(
-												([name, field]) =>
-													`${field.label ?? name}: ${field.unsupportedType?.type ?? field.kind}`,
-											)
-											.join(", ")}
-									/>
-								)}
-								{hasSaveConflict && (
-									<Banner
-										variant="error"
-										role="alert"
-										title={t`This entry changed somewhere else after you opened it.`}
-										description={t`What you typed is still here. Saving replaces the newer version.`}
-										action={
-											<Button size="sm" variant="secondary" type="button" onClick={submitSave}>
-												{t`Save anyway`}
-											</Button>
-										}
-									/>
-								)}
-								<div className="space-y-6 [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base">
-									{Object.entries(fields).map(([name, field]) => {
-										// Key by item id so all field editors remount cleanly when the
-										// underlying content item changes (e.g. switching translations).
-										// PortableTextEditor in particular freezes its initial content on
-										// mount; without this key, navigating between translations leaves
-										// the previous locale's body in the editor and silently overwrites
-										// the new translation on the next edit.
-										const fieldKey = `${name}:${item?.id ?? "new"}:${fieldsGeneration}:${fieldGenerations[name] ?? 0}`;
-										const isDocumentBody = field.kind === "portableText" && name === "content";
-										const fieldEl = (
-											<FieldRenderer
-												key={fieldKey}
-												name={name}
-												field={field}
-												value={formData[name]}
-												onChange={handleFieldChange}
-												onEditorReady={isDocumentBody ? setPortableTextEditor : undefined}
-												isDocumentTitle={name === documentTitleField}
-												titleInputRef={name === documentTitleField ? documentTitleRef : undefined}
-												onDocumentTitleExit={portableTextEditor ? focusDocumentBody : undefined}
-												isDocumentBody={isDocumentBody}
-												onArrowUpAtStart={
-													isDocumentBody && hasDocumentTitle ? focusDocumentTitle : undefined
-												}
-												pluginBlocks={pluginBlocks}
-												onBlockSidebarOpen={
-													field.kind === "portableText" ? handleBlockSidebarOpen : undefined
-												}
-												onBlockSidebarClose={
-													field.kind === "portableText" ? handleBlockSidebarClose : undefined
-												}
-												manifest={manifest}
-												readOnly={readOnly}
-												timezone={timezone}
-												blockReveal={field.kind === "blocks" ? blockReveal : undefined}
-												referenceState={referenceState}
-												onReferenceChange={handleReferenceCurrentChange}
-												onLoadMoreReferences={handleLoadMoreReferences}
-												onRetryReferences={handleRetryReferences}
-												// Existing entries carry their locale on `item`; new entries only
-												// have the URL-derived `entryLocale`. Mirror ContentSettingsPanel.
-												entryLocale={item?.locale ?? entryLocale}
-											/>
-										);
-										return fieldEl;
-									})}
-								</div>
-							</fieldset>
-							{isViewing ? (
-								<RevisionViewErrorBoundary resetKey={revisionView.viewingId}>
-									{revisionView.diff ? (
-										<RevisionViewCanvas
-											diff={revisionView.diff}
-											fields={fields}
-											titleField={documentTitleField}
-											showChanges={revisionView.showChanges}
-											authorColor={revisionView.authorColor}
-											label={revisionView.label}
-											timezone={timezone}
-										/>
-									) : revisionView.diffFailed ? (
-										<RevisionViewError />
-									) : (
-										<div className="flex justify-center py-16">
-											<Loader />
-										</div>
+							{/* Keeps the page to the canvas's width, where the scroll area would widen it
+							    to fit its widest field. */}
+							<ScrollArea.Content className="flex min-h-full flex-col" style={{ minWidth: 0 }}>
+								{!pinEditorBar && editorBar}
+								<div
+									className={cn(
+										"emdash-editor-page mx-auto w-full max-w-[52rem] space-y-6 pt-8 sm:pt-12",
+										// The revision bar settles under the last block, and stays at the bottom of
+										// the canvas when the version is too short to fill it.
+										isViewing ? "flex flex-1 flex-col pb-0" : "pb-16",
 									)}
-								</RevisionViewErrorBoundary>
-							) : null}
-							{item && revisionView.revision ? (
-								<RevisionViewBar
-									collection={collection}
-									entryId={item.id}
-									revision={revisionView.revision}
-									authorColor={revisionView.authorColor}
-									isCurrent={revisionView.isCurrent}
-									isPublished={revisionView.isPublished}
-									sameAsCurrent={revisionView.sameAsCurrent}
-									hasDraft={
-										Boolean(item.draftRevisionId) && item.draftRevisionId !== item.liveRevisionId
-									}
-									scheduled={hasSchedule}
-									canShowChanges={revisionView.diff?.hasPrevious ?? false}
-									showChanges={revisionView.showChanges}
-									onShowChangesChange={revisionView.setShowChanges}
-									onExit={revisionView.exit}
-									showStepper={!listVisible}
-									hasOlder={revisionView.hasOlder}
-									hasNewer={revisionView.hasNewer}
-									onStep={revisionView.step}
-									readOnly={readOnly}
-									saveBusy={Boolean(isSaving || isAutosaving)}
-									isDirty={isDirty}
-									restorePending={revisionView.restorePending}
-									onRestoreStart={revisionView.beginRestore}
-									onRestoreFailed={revisionView.cancelRestore}
-									onRestoreSettled={revisionView.completeRestore}
-									onRevisionRestored={onRevisionRestored}
-									titleRef={revisionView.barTitleRef}
-									dockRef={revisionView.dockRef}
-								/>
-							) : null}
-						</div>
-					</div>
+								>
+									{notice}
+									{editorDraftError && !isViewing ? (
+										<Banner
+											variant="error"
+											role="alert"
+											title={t`Plugin changes were not applied`}
+											description={editorDraftError}
+										/>
+									) : null}
+									{/* Hidden, not unmounted, while a version is shown, so unsaved edits,
+									    undo history and the outline survive. */}
+									<fieldset disabled={readOnly} hidden={isViewing} className="contents">
+										{unsupportedFields.length > 0 && (
+											<Banner
+												variant="error"
+												role="alert"
+												title={t`This entry is read-only because its schema uses field types this version of EmDash does not support.`}
+												description={unsupportedFields
+													.map(
+														([name, field]) =>
+															`${field.label ?? name}: ${field.unsupportedType?.type ?? field.kind}`,
+													)
+													.join(", ")}
+											/>
+										)}
+										{hasSaveConflict && (
+											<Banner
+												variant="error"
+												role="alert"
+												title={t`This entry changed somewhere else after you opened it.`}
+												description={t`What you typed is still here. Saving replaces the newer version.`}
+												action={
+													<Button size="sm" variant="secondary" type="button" onClick={submitSave}>
+														{t`Save anyway`}
+													</Button>
+												}
+											/>
+										)}
+										<div className="space-y-6 [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base">
+											{Object.entries(fields).map(([name, field]) => {
+												// Key by item id so all field editors remount cleanly when the
+												// underlying content item changes (e.g. switching translations).
+												// PortableTextEditor in particular freezes its initial content on
+												// mount; without this key, navigating between translations leaves
+												// the previous locale's body in the editor and silently overwrites
+												// the new translation on the next edit.
+												const fieldKey = `${name}:${item?.id ?? "new"}:${fieldsGeneration}:${fieldGenerations[name] ?? 0}`;
+												const isDocumentBody = field.kind === "portableText" && name === "content";
+												const fieldEl = (
+													<FieldRenderer
+														key={fieldKey}
+														name={name}
+														field={field}
+														value={formData[name]}
+														onChange={handleFieldChange}
+														onEditorReady={isDocumentBody ? setPortableTextEditor : undefined}
+														isDocumentTitle={name === documentTitleField}
+														titleInputRef={
+															name === documentTitleField ? documentTitleRef : undefined
+														}
+														onDocumentTitleExit={portableTextEditor ? focusDocumentBody : undefined}
+														isDocumentBody={isDocumentBody}
+														onArrowUpAtStart={
+															isDocumentBody && hasDocumentTitle ? focusDocumentTitle : undefined
+														}
+														pluginBlocks={pluginBlocks}
+														onBlockSidebarOpen={
+															field.kind === "portableText" ? handleBlockSidebarOpen : undefined
+														}
+														onBlockSidebarClose={
+															field.kind === "portableText" ? handleBlockSidebarClose : undefined
+														}
+														manifest={manifest}
+														readOnly={readOnly}
+														timezone={timezone}
+														blockReveal={field.kind === "blocks" ? blockReveal : undefined}
+														referenceState={referenceState}
+														onReferenceChange={handleReferenceCurrentChange}
+														onLoadMoreReferences={handleLoadMoreReferences}
+														onRetryReferences={handleRetryReferences}
+														// Existing entries carry their locale on `item`; new entries only
+														// have the URL-derived `entryLocale`. Mirror ContentSettingsPanel.
+														entryLocale={item?.locale ?? entryLocale}
+													/>
+												);
+												return fieldEl;
+											})}
+										</div>
+									</fieldset>
+									{isViewing ? (
+										<RevisionViewErrorBoundary resetKey={revisionView.viewingId}>
+											{revisionView.diff ? (
+												<RevisionViewCanvas
+													diff={revisionView.diff}
+													fields={fields}
+													titleField={documentTitleField}
+													showChanges={revisionView.showChanges}
+													authorColor={revisionView.authorColor}
+													label={revisionView.label}
+													timezone={timezone}
+												/>
+											) : revisionView.diffFailed ? (
+												<RevisionViewError />
+											) : (
+												<div className="flex justify-center py-16">
+													<Loader />
+												</div>
+											)}
+										</RevisionViewErrorBoundary>
+									) : null}
+									{item && revisionView.revision ? (
+										<RevisionViewBar
+											collection={collection}
+											entryId={item.id}
+											revision={revisionView.revision}
+											authorColor={revisionView.authorColor}
+											isCurrent={revisionView.isCurrent}
+											isPublished={revisionView.isPublished}
+											sameAsCurrent={revisionView.sameAsCurrent}
+											hasDraft={
+												Boolean(item.draftRevisionId) &&
+												item.draftRevisionId !== item.liveRevisionId
+											}
+											scheduled={hasSchedule}
+											canShowChanges={revisionView.diff?.hasPrevious ?? false}
+											showChanges={revisionView.showChanges}
+											onShowChangesChange={revisionView.setShowChanges}
+											onExit={revisionView.exit}
+											showStepper={!listVisible}
+											hasOlder={revisionView.hasOlder}
+											hasNewer={revisionView.hasNewer}
+											onStep={revisionView.step}
+											readOnly={readOnly}
+											saveBusy={Boolean(isSaving || isAutosaving)}
+											isDirty={isDirty}
+											restorePending={revisionView.restorePending}
+											onRestoreStart={revisionView.beginRestore}
+											onRestoreFailed={revisionView.cancelRestore}
+											onRestoreSettled={revisionView.completeRestore}
+											onRevisionRestored={onRevisionRestored}
+											titleRef={revisionView.barTitleRef}
+											dockRef={revisionView.dockRef}
+										/>
+									) : null}
+								</div>
+							</ScrollArea.Content>
+						</ScrollArea.Viewport>
+						{/* Shows while the canvas scrolls, and under a pointer at its edge. */}
+						<ScrollArea.Scrollbar className="z-30 flex w-2.5 justify-center p-0.5 opacity-0 transition-opacity duration-150 ease-emdash hover:opacity-100 data-[scrolling]:opacity-100 pointer-coarse:pointer-events-none motion-reduce:transition-none">
+							<ScrollArea.Thumb className="w-full rounded-full bg-kumo-interact" />
+						</ScrollArea.Scrollbar>
+					</ScrollArea.Root>
 
 					{/* Hidden (not unmounted) in distraction-free mode so panel-local
 					    state survives the round trip; `hidden` on the pane's own layout
