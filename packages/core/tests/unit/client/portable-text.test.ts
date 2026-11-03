@@ -49,6 +49,67 @@ describe("portableTextToMarkdown", () => {
 		expect(portableTextToMarkdown(blocks)).toBe("# Title\n\n### Subtitle\n");
 	});
 
+	it.each(["h1", "h2", "h3", "h4", "h5", "h6"])(
+		"keeps hard breaks in %s headings opaque and lossless",
+		(style) => {
+			for (const text of ["first\nsecond", "first\r\nsecond", "first\n"]) {
+				const heading: PortableTextBlock = {
+					_type: "block",
+					_key: "heading",
+					style,
+					markDefs: [{ _key: "link", _type: "link", href: "https://example.com" }],
+					children: [{ _type: "span", _key: "heading-text", text, marks: ["strong", "link"] }],
+				};
+				const fields: FieldSchema[] = [{ slug: "body", type: "portableText" }];
+				const data = { body: [heading] };
+				const read = convertDataForRead(data, fields);
+				expect(read.body).toBe(`<!--ec:block ${JSON.stringify(heading)} -->\n`);
+				expect(convertDataForWrite(read, fields)).toEqual(data);
+			}
+		},
+	);
+
+	it("serializes large newline runs without dropping internal breaks", () => {
+		const breaks = "\n".repeat(50_000);
+		const blocks: PortableTextBlock[] = [
+			{ _type: "block", children: [{ _type: "span", text: `${breaks}end\n\n`, marks: [] }] },
+		];
+		expect(portableTextToMarkdown(blocks)).toBe(`${"\\\n".repeat(50_000)}end\n`);
+	});
+
+	it("normalizes carriage returns to hard breaks in paragraphs, quotes, and list items", () => {
+		for (const properties of [
+			{ style: "normal" },
+			{ style: "blockquote" },
+			{ listItem: "bullet", level: 1 },
+		]) {
+			for (const lineBreak of ["\r", "\r\n", "\n"]) {
+				const source: PortableTextBlock[] = [
+					{
+						_type: "block",
+						...properties,
+						children: [{ _type: "span", text: `first${lineBreak}second`, marks: [] }],
+					},
+				];
+				const [block] = markdownToPortableText(portableTextToMarkdown(source));
+				expect(block.children.map((span) => span.text).join("")).toBe("first\nsecond");
+				expect(block).toMatchObject(properties);
+			}
+		}
+	});
+
+	it("keeps table link destinations with backslashes or pipes opaque and lossless", () => {
+		for (const href of ["a\\|b", "a|b", "a\\b"]) {
+			const [table] = markdownToPortableText(
+				"| Head | Keep |\n| --- | --- |\n| [link](/safe) | other content |\n",
+			);
+			table.rows[1].cells[0].markDefs[0].href = href;
+			const markdown = portableTextToMarkdown([table]);
+			expect(markdown).toBe(`<!--ec:block ${JSON.stringify(table)} -->\n`);
+			expect(markdownToPortableText(markdown)).toEqual([table]);
+		}
+	});
+
 	it("converts bold, italic, code, and strikethrough marks", () => {
 		const blocks: PortableTextBlock[] = [
 			{

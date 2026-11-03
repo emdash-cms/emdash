@@ -108,7 +108,6 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 }
 
 const LINE_BREAK_PATTERN = /[\n\r]/;
-const TRAILING_LINE_BREAK_PATTERN = /\n+$/;
 const CODE_EDGE_PATTERN = /^`|`$/;
 const PADDED_CODE_PATTERN = /^ .* $/;
 const CODE_PIPE_PATTERN = /\\\|/;
@@ -146,7 +145,13 @@ function hasOnlyFields(value: object, fields: Set<string>): boolean {
 }
 
 function canRenderMarkDefs(defs: MarkDef[]): boolean {
-	return defs.every((def) => def?._type === "link" && hasOnlyFields(def, LINK_FIELDS));
+	return defs.every(
+		(def) =>
+			def?._type === "link" &&
+			hasOnlyFields(def, LINK_FIELDS) &&
+			!def.href?.includes("\\") &&
+			!def.href?.includes("|"),
+	);
 }
 
 function renderTable(block: PortableTextBlock): string | undefined {
@@ -234,6 +239,13 @@ function renderStandardBlock(block: PortableTextBlock, indentation = 0): string 
 	if (block.style && block.style.startsWith("h")) {
 		const level = parseInt(block.style.substring(1), 10);
 		if (level >= 1 && level <= 6) {
+			if (
+				block.children?.some(
+					(span) => span._type === "span" && LINE_BREAK_PATTERN.test(span.text ?? ""),
+				)
+			) {
+				return `<!--ec:block ${JSON.stringify(block)} -->`;
+			}
 			return `${"#".repeat(level)} ${text}`;
 		}
 	}
@@ -279,9 +291,8 @@ function renderSpans(spans: PortableTextSpan[], markDefs: MarkDef[]): string {
 		if (span._type !== "span") continue;
 
 		const marks = span.marks ?? [];
-		const value = marks.includes("code")
-			? (span.text ?? "").replaceAll("\n", " ")
-			: (span.text ?? "");
+		const normalized = (span.text ?? "").replaceAll("\r\n", "\n").replaceAll("\r", "\n");
+		const value = marks.includes("code") ? normalized.replaceAll("\n", " ") : normalized;
 		let text: string;
 		if (marks.includes("code")) {
 			const runs = value.match(/`+/g) ?? [];
@@ -316,7 +327,9 @@ function renderSpans(spans: PortableTextSpan[], markDefs: MarkDef[]): string {
 		result += text;
 	}
 
-	return result.replace(TRAILING_LINE_BREAK_PATTERN, "").replaceAll("\n", "\\\n");
+	let end = result.length;
+	while (end > 0 && result[end - 1] === "\n") end--;
+	return result.slice(0, end).replaceAll("\n", "\\\n");
 }
 
 // ---------------------------------------------------------------------------
