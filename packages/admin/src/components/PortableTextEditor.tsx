@@ -147,6 +147,7 @@ import {
 	withoutTrailingEmptyParagraph,
 	type PortableTextBlock,
 } from "../portable-text/convert.js";
+import { generateKey } from "../portable-text/keys.js";
 import {
 	CodeMarkExtension,
 	EmDashOrderedList,
@@ -154,6 +155,7 @@ import {
 	EmDashTableHeader,
 	EmDashTableRow,
 	PortableTextIdentityExtension,
+	PortableTextKeys,
 	PortableTextSpanIdentity,
 	PortableTextStarterKit,
 	PortableTextTable,
@@ -211,6 +213,7 @@ import {
 	registerPluginBlocks,
 	resolveIcon,
 } from "./editor/PluginBlockNode";
+import { PORTABLE_TEXT_KEY_ATTR } from "./editor/portableTextIdentity.js";
 import { runTableAction } from "./editor/TableActions.js";
 import { createTableCellSafety, type TablePasteRejection } from "./editor/TableCellSafety.js";
 import { createTableClipboard } from "./editor/TableClipboard.js";
@@ -1152,6 +1155,44 @@ function pluginBlockProblems(
 }
 
 /**
+ * The plugin block the modal edits, by its key, or by its position while no
+ * other block has the same key. A null position means the block was deleted.
+ */
+type EditedPluginBlock = { key: string } | { pos: number | null };
+
+function editedPluginBlockAt(doc: ProseMirrorNode, pos: number): EditedPluginBlock | null {
+	const node = doc.nodeAt(pos);
+	if (node?.type.name !== "pluginBlock") return null;
+	const key: unknown = node.attrs[PORTABLE_TEXT_KEY_ATTR];
+	if (typeof key !== "string" || !key) return { pos };
+	let holders = 0;
+	doc.forEach((child) => {
+		if (child.type.name === "pluginBlock" && child.attrs[PORTABLE_TEXT_KEY_ATTR] === key) holders++;
+	});
+	return holders === 1 ? { key } : { pos };
+}
+
+function findPluginBlock(
+	doc: ProseMirrorNode,
+	block: EditedPluginBlock,
+): { node: ProseMirrorNode; pos: number } | null {
+	if ("pos" in block) {
+		if (block.pos === null) return null;
+		const node = doc.nodeAt(block.pos);
+		return node?.type.name === "pluginBlock" ? { node, pos: block.pos } : null;
+	}
+	let pos = 0;
+	for (let index = 0; index < doc.childCount; index++) {
+		const node = doc.child(index);
+		if (node.type.name === "pluginBlock" && node.attrs[PORTABLE_TEXT_KEY_ATTR] === block.key) {
+			return { node, pos };
+		}
+		pos += node.nodeSize;
+	}
+	return null;
+}
+
+/**
  * Plugin block insertion/editing modal.
  * When the block has `fields`, renders Block Kit elements.
  * Otherwise falls back to a simple URL input.
@@ -1166,11 +1207,13 @@ function PluginBlockModal({
 	/** Pre-populated values when editing an existing block */
 	initialValues?: Record<string, unknown>;
 	onClose: () => void;
-	onInsert: (values: Record<string, unknown>) => void;
+	/** Returns why the values couldn't be saved, leaving the modal open. */
+	onInsert: (values: Record<string, unknown>) => MessageDescriptor | undefined;
 }) {
 	const [formValues, setFormValues] = React.useState<Record<string, unknown>>({});
 	const [touched, setTouched] = React.useState(false);
 	const [submitted, setSubmitted] = React.useState(false);
+	const [insertProblem, setInsertProblem] = React.useState<MessageDescriptor | undefined>();
 	const inputRef = React.useRef<HTMLInputElement>(null);
 	const formId = React.useId();
 	const { t } = useLingui();
@@ -1180,6 +1223,7 @@ function PluginBlockModal({
 			setFormValues(buildPluginBlockFormValues(block, initialValues));
 			setTouched(false);
 			setSubmitted(false);
+			setInsertProblem(undefined);
 			if (!block.fields || block.fields.length === 0) {
 				setTimeout(() => inputRef.current?.focus(), 0);
 			}
@@ -1202,10 +1246,10 @@ function PluginBlockModal({
 		// The form is noValidate, so the browser's own checks on fields inside repeater items run here.
 		if (!form.reportValidity()) return;
 		if (block?.fields && block.fields.length > 0) {
-			onInsert(formValues);
+			setInsertProblem(onInsert(formValues));
 		} else {
 			const url = typeof formValues.id === "string" ? formValues.id.trim() : "";
-			onInsert({ id: url });
+			setInsertProblem(onInsert({ id: url }));
 		}
 	};
 
@@ -1279,7 +1323,10 @@ function PluginBlockModal({
 								/>
 							)}
 						</div>
-						<DialogError message={formError} className="mt-4" />
+						<DialogError
+							message={formError ?? (insertProblem ? t(insertProblem) : null)}
+							className="mt-4"
+						/>
 					</form>
 				</LayerDialog.Body>
 				<LayerDialog.Actions dismissLabel={t`Cancel`}>
@@ -2146,8 +2193,8 @@ export function PortableTextEditor({
 	const [pluginBlockInitialValues, setPluginBlockInitialValues] = React.useState<
 		Record<string, unknown> | undefined
 	>(undefined);
-	/** When editing an existing block, store the node position for updateAttributes */
-	const editingBlockPosRef = React.useRef<number | null>(null);
+	/** The plugin block the modal is editing, or null while it inserts one */
+	const editingBlockRef = React.useRef<EditedPluginBlock | null>(null);
 
 	// Section picker state (for inserting sections)
 	const [sectionPickerOpen, setSectionPickerOpen] = React.useState(false);
@@ -2450,6 +2497,7 @@ export function PortableTextEditor({
 			EmDashTableHeader,
 			EmDashTableCell,
 			TableIdentity,
+			PortableTextKeys,
 			BlockFormatShortcuts,
 			BlockSelection.configure({
 				onArrowUpAtStart: () => {
@@ -2747,7 +2795,9 @@ export function PortableTextEditor({
 		}) => {
 			const blockDef = pluginBlocks.find((b) => b.type === attrs.blockType);
 			if (!blockDef) return;
-			editingBlockPosRef.current = attrs.pos;
+			const block = editedPluginBlockAt(editor.state.doc, attrs.pos);
+			if (block === null) return;
+			editingBlockRef.current = block;
 			setPluginBlockInitialValues({ id: attrs.id, ...attrs.data });
 			setPluginBlockModal(blockDef);
 		};
@@ -2795,6 +2845,26 @@ export function PortableTextEditor({
 				(pos, tr) => tr.mapping.map(pos, -1),
 				position,
 			);
+		};
+		editor.on("transaction", follow);
+		return () => {
+			editor.off("transaction", follow);
+		};
+	}, [editor]);
+
+	// The plugin block modal finds a block with no key by position, so it follows the document too.
+	React.useEffect(() => {
+		if (!editor) return;
+		const follow = ({ transaction, appendedTransactions }: EditorEvents["transaction"]) => {
+			const block = editingBlockRef.current;
+			if (!block || !("pos" in block) || block.pos === null) return;
+			let pos: number | null = block.pos;
+			for (const tr of [transaction, ...appendedTransactions]) {
+				if (pos === null) break;
+				const mapped = tr.mapping.mapResult(pos);
+				pos = mapped.deleted ? null : mapped.pos;
+			}
+			editingBlockRef.current = { pos };
 		};
 		editor.on("transaction", follow);
 		return () => {
@@ -2864,32 +2934,32 @@ export function PortableTextEditor({
 
 	// Handle plugin block insertion or update
 	const handlePluginBlockInsert = React.useCallback(
-		(values: Record<string, unknown>) => {
-			if (!editor || !pluginBlockModal) return;
+		(values: Record<string, unknown>): MessageDescriptor | undefined => {
+			if (!editor || !pluginBlockModal) return undefined;
 
 			const { id, ...data } = values;
-			const editPos = editingBlockPosRef.current;
+			const editing = editingBlockRef.current;
 
-			if (editPos !== null) {
+			if (editing !== null) {
 				// Editing an existing block — update its attributes in place.
 				// Use the chain API so TipTap's onUpdate fires reliably
 				// (raw view.dispatch may not trigger onUpdate for attribute-only
 				// changes on atom nodes in some TipTap versions).
-				editor
+				const edited = editor
 					.chain()
 					.command(({ tr }) => {
-						const node = tr.doc.nodeAt(editPos);
-						if (node?.type.name === "pluginBlock") {
-							tr.setNodeMarkup(editPos, undefined, {
-								...node.attrs,
-								id: typeof id === "string" ? id : node.attrs.id,
-								data,
-							});
-							return true;
-						}
-						return false;
+						const block = findPluginBlock(tr.doc, editing);
+						if (!block) return false;
+						tr.setNodeMarkup(block.pos, undefined, {
+							...block.node.attrs,
+							[PORTABLE_TEXT_KEY_ATTR]: block.node.attrs[PORTABLE_TEXT_KEY_ATTR] || generateKey(),
+							id: typeof id === "string" ? id : block.node.attrs.id,
+							data,
+						});
+						return true;
 					})
 					.run();
+				if (!edited) return msg`This block was deleted, so your changes can't be saved.`;
 			} else {
 				// Inserting a new block
 				const content = {
@@ -2916,7 +2986,8 @@ export function PortableTextEditor({
 			pendingBlockInsertPosRef.current = null;
 			setPluginBlockModal(null);
 			setPluginBlockInitialValues(undefined);
-			editingBlockPosRef.current = null;
+			editingBlockRef.current = null;
+			return undefined;
 		},
 		[editor, pluginBlockModal],
 	);
@@ -3252,7 +3323,7 @@ export function PortableTextEditor({
 						pendingBlockInsertPosRef.current = null;
 						setPluginBlockModal(null);
 						setPluginBlockInitialValues(undefined);
-						editingBlockPosRef.current = null;
+						editingBlockRef.current = null;
 					}}
 					onInsert={handlePluginBlockInsert}
 				/>

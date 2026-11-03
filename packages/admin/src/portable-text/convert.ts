@@ -135,9 +135,37 @@ export interface GalleryImage {
 	dominantColor?: string;
 }
 
-// Generate unique key
-function generateKey(): string {
-	return Math.random().toString(36).substring(2, 11);
+type ClaimKey = (key: string | undefined, derived: string) => string;
+
+/**
+ * Hands out the keys of a set of siblings: a document's blocks, a block's spans
+ * or mark definitions, or a gallery's images. The first holder of an explicit
+ * key keeps it. A missing or repeated key is derived from the holder's
+ * position, with a suffix if that is taken, so a document always serializes to
+ * the same keys. Derived keys hold a `:`, which generated keys never do.
+ */
+function keyClaims(explicit: Iterable<string | undefined>): ClaimKey {
+	const reserved = new Set<string>();
+	for (const key of explicit) if (key) reserved.add(key);
+	const claimed = new Set<string>();
+	return (key, derived) => {
+		if (key && !claimed.has(key)) {
+			claimed.add(key);
+			return key;
+		}
+		let claim = derived;
+		for (let suffix = 1; claimed.has(claim) || reserved.has(claim); suffix++) {
+			claim = `${derived}~${suffix}`;
+		}
+		claimed.add(claim);
+		return claim;
+	};
+}
+
+/** Keys for a table's unkeyed rows, cells and spans, in document order. */
+function tableKeys(tableKey: string): () => string {
+	let next = 0;
+	return () => `${tableKey}:t${next++}`;
 }
 
 type ImageMedia = Pick<GalleryImage, "asset" | "alt" | "width" | "height">;
@@ -178,10 +206,15 @@ function resolveImageMedia(image: unknown): ImageMedia {
  * Normalize an untrusted gallery `images` value into well-formed entries.
  * Mirrors `sanitizeGalleryImages` in core's content/converters.
  */
-function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[] {
+function sanitizeGalleryImages(value: unknown, galleryKey?: string): GalleryImage[] {
 	if (!Array.isArray(value)) return [];
+	const entries = value as unknown[];
+	const claimKey =
+		galleryKey === undefined
+			? undefined
+			: keyClaims(entries.map((entry) => (isRecord(entry) ? attrStr(entry._key) : undefined)));
 	const images: GalleryImage[] = [];
-	for (const entry of value as unknown[]) {
+	for (const entry of entries) {
 		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
 		const record = entry as Record<string, unknown>;
 		const asset = record.asset;
@@ -189,7 +222,9 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 		const { asset: reference, alt, width, height } = resolveImageMedia(record);
 		const image: GalleryImage = {
 			_type: "image",
-			_key: attrStr(record._key) ?? (withKeys ? generateKey() : ""),
+			_key: claimKey
+				? claimKey(attrStr(record._key), `${galleryKey}:i${images.length}`)
+				: (attrStr(record._key) ?? ""),
 			asset: reference,
 		};
 		if (alt) image.alt = alt;
@@ -502,24 +537,38 @@ export function prosemirrorToPortableText(doc: {
 	assertProseMirrorMarksSupported(doc);
 
 	const blocks: PortableTextBlock[] = [];
-	const usedBlockKeys = new Set<string>();
+	const claimKey = keyClaims(explicitBlockKeys(doc.content));
 
 	for (let i = 0; i < doc.content.length; i++) {
 		const node = doc.content[i]!;
 		if (i === doc.content.length - 1 && isUnkeyedEmptyParagraph(node)) continue;
-		const converted = convertPMNode(node, `root:${i}`);
-		for (const block of converted ? (Array.isArray(converted) ? converted : [converted]) : []) {
-			let key = block._key;
-			if (usedBlockKeys.has(key)) {
-				do key = generateKey();
-				while (usedBlockKeys.has(key));
-			}
-			usedBlockKeys.add(key);
-			blocks.push(key === block._key ? block : { ...block, _key: key });
-		}
+		const converted = convertPMNode(node, `root:${i}`, claimKey);
+		if (converted) blocks.push(...(Array.isArray(converted) ? converted : [converted]));
 	}
 
 	return blocks;
+}
+
+const BLOCK_CONTAINERS = new Set(["blockquote", "bulletList", "orderedList", "listItem"]);
+
+/** Every key the document's nodes hold for their blocks, so no derived key takes one. */
+function explicitBlockKeys(nodes: unknown[]): string[] {
+	const keys: string[] = [];
+	const visit = (node: PortableTextProseMirrorNode) => {
+		const key = portableTextKeyFromAttrs(node.attrs);
+		if (key) keys.push(key);
+		if (node.type === "table") {
+			const tableKey = attrStr(node.attrs?.emdashKey);
+			if (tableKey) keys.push(tableKey);
+		} else if (node.type === "pluginBlock") {
+			const original = portableTextBlockFromAttrs(node.attrs);
+			if (original) keys.push(original._key);
+		} else if (BLOCK_CONTAINERS.has(node.type)) {
+			for (const child of node.content ?? []) visit(child);
+		}
+	};
+	for (const node of nodes as PortableTextProseMirrorNode[]) visit(node);
+	return keys;
 }
 
 function isUnkeyedEmptyParagraph(node: {
@@ -543,16 +592,18 @@ function convertPMNode(
 		text?: string;
 	},
 	path: string,
+	claimKey: ClaimKey,
 ): PortableTextBlock | PortableTextBlock[] | null {
 	switch (node.type) {
 		case "paragraph": {
-			const { children, markDefs } = convertInlineContent(node.content || []);
+			const key = claimKey(portableTextKeyFromAttrs(node.attrs), path);
+			const { children, markDefs } = convertInlineContent(node.content || [], key);
 			if (children.length === 0) return null;
 			const ta = node.attrs?.textAlign;
 			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				_key: key,
 				style: "normal",
 				children,
 				...(markDefs.length > 0 ? { markDefs } : {}),
@@ -561,7 +612,8 @@ function convertPMNode(
 		}
 
 		case "heading": {
-			const { children, markDefs } = convertInlineContent(node.content || []);
+			const key = claimKey(portableTextKeyFromAttrs(node.attrs), path);
+			const { children, markDefs } = convertInlineContent(node.content || [], key);
 			const rawLevel = node.attrs?.level;
 			const level = typeof rawLevel === "number" ? rawLevel : 1;
 			if (children.length === 0) return null;
@@ -573,7 +625,7 @@ function convertPMNode(
 			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				_key: key,
 				style: headingStyle,
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -582,10 +634,10 @@ function convertPMNode(
 		}
 
 		case "bulletList":
-			return convertList(node.content || [], "bullet", 1, node.attrs, path);
+			return convertList(node.content || [], "bullet", 1, node.attrs, path, claimKey);
 
 		case "orderedList":
-			return convertList(node.content || [], "number", 1, node.attrs, path);
+			return convertList(node.content || [], "number", 1, node.attrs, path, claimKey);
 
 		case "blockquote": {
 			const blocks: PortableTextTextBlock[] = [];
@@ -594,16 +646,19 @@ function convertPMNode(
 				attrs?: Record<string, unknown>;
 				content?: unknown[];
 			}>;
-			for (const child of blockquoteContent) {
+			for (const [index, child] of blockquoteContent.entries()) {
 				if (child.type === "paragraph") {
-					const { children, markDefs } = convertInlineContent(child.content || []);
+					const childKey = portableTextKeyFromAttrs(child.attrs);
+					// The first paragraph is saved under the quote's key.
+					const key =
+						index === 0
+							? claimKey(portableTextKeyFromAttrs(node.attrs) ?? childKey, path)
+							: claimKey(childKey, `${path}:${index}`);
+					const { children, markDefs } = convertInlineContent(child.content || [], key);
 					if (children.length > 0) {
 						blocks.push({
 							_type: "block",
-							_key:
-								portableTextKeyFromAttrs(child.attrs) ??
-								portableTextKeyFromAttrs(node.attrs) ??
-								generateKey(),
+							_key: key,
 							style: "blockquote",
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -623,7 +678,7 @@ function convertPMNode(
 			const rawLanguage = node.attrs?.language;
 			return {
 				_type: "code",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				_key: claimKey(portableTextKeyFromAttrs(node.attrs), path),
 				code,
 				language: typeof rawLanguage === "string" ? rawLanguage : undefined,
 			};
@@ -632,21 +687,21 @@ function convertPMNode(
 		case "htmlBlock":
 			return {
 				_type: "htmlBlock",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				_key: claimKey(portableTextKeyFromAttrs(node.attrs), path),
 				...htmlBlockFields(node.attrs ?? {}),
 			};
 
 		case "iframeBlock":
 			return {
 				_type: "iframe",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				_key: claimKey(portableTextKeyFromAttrs(node.attrs), path),
 				...iframeEmbedFromAttrs(node.attrs ?? {}),
 			};
 
 		case "videoBlock":
 			return {
 				_type: "video",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				_key: claimKey(portableTextKeyFromAttrs(node.attrs), path),
 				...videoBlockFields(node.attrs ?? {}),
 			};
 
@@ -678,7 +733,7 @@ function convertPMNode(
 			}
 			return {
 				_type: "image",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				_key: claimKey(portableTextKeyFromAttrs(node.attrs), path),
 				asset: {
 					_ref: attrStr(attrs.mediaId) ?? "",
 					url: attrStr(attrs.src) ?? "",
@@ -701,26 +756,30 @@ function convertPMNode(
 		case "horizontalRule":
 			return {
 				_type: "break",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				_key: claimKey(portableTextKeyFromAttrs(node.attrs), path),
 				style: "lineBreak",
 			};
 
 		case "gallery": {
 			const columns = node.attrs?.columns;
+			const key = claimKey(portableTextKeyFromAttrs(node.attrs), path);
 			return {
 				_type: "gallery",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-				images: sanitizeGalleryImages(node.attrs?.images, true),
+				_key: key,
+				images: sanitizeGalleryImages(node.attrs?.images, key),
 				...(typeof columns === "number" ? { columns } : {}),
 			};
 		}
 
 		case "table": {
-			const result = proseMirrorTableToPortableText(node, {
+			const key = claimKey(attrStr(node.attrs?.emdashKey), path);
+			const createKey = tableKeys(key);
+			const table = { ...node, attrs: { ...node.attrs, emdashKey: key } };
+			const result = proseMirrorTableToPortableText(table, {
 				path,
-				createKey: generateKey,
+				createKey,
 				inlineToSpans: (content) => {
-					const { children, markDefs } = convertInlineContent(content, true);
+					const { children, markDefs } = convertInlineContent(content, createKey(), true);
 					return {
 						content: children,
 						markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -739,6 +798,7 @@ function convertPMNode(
 			const pluginId = typeof attrs.id === "string" ? attrs.id : "";
 			const data = isRecord(attrs.data) ? attrs.data : {};
 			const originalBlock = portableTextBlockFromAttrs(attrs);
+			const blockKey = claimKey(portableTextKeyFromAttrs(attrs) ?? originalBlock?._key, path);
 
 			if (
 				originalBlock &&
@@ -746,7 +806,7 @@ function convertPMNode(
 				customBlockIdentity(originalBlock) === pluginId &&
 				equalJsonValues(customBlockData(originalBlock), data)
 			) {
-				return { ...originalBlock };
+				return { ...originalBlock, _key: blockKey };
 			}
 
 			const result: Record<string, unknown> = {
@@ -759,7 +819,7 @@ function convertPMNode(
 					: {}),
 				...data,
 				_type: blockType,
-				_key: portableTextKeyFromAttrs(attrs) ?? originalBlock?._key ?? generateKey(),
+				_key: blockKey,
 			};
 			const identityField =
 				(originalBlock ? customBlockIdentityField(originalBlock) : undefined) ??
@@ -776,9 +836,10 @@ function convertPMNode(
 function convertList(
 	items: unknown[],
 	listItem: "bullet" | "number",
-	level = 1,
-	attrs?: Record<string, unknown>,
-	path = `list:${level}`,
+	level: number,
+	attrs: Record<string, unknown> | undefined,
+	path: string,
+	claimKey: ClaimKey,
 ): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
 	const typedItems = items as Array<{ type: string; content?: unknown[] }>;
@@ -795,11 +856,15 @@ function convertList(
 			for (let childIndex = 0; childIndex < listItemContent.length; childIndex++) {
 				const child = listItemContent[childIndex]!;
 				if (child.type === "paragraph") {
-					const { children, markDefs } = convertInlineContent(child.content || []);
+					const key = claimKey(
+						portableTextKeyFromAttrs(child.attrs),
+						`${path}:${itemIndex}:${childIndex}`,
+					);
+					const { children, markDefs } = convertInlineContent(child.content || [], key);
 					if (children.length > 0) {
 						blocks.push({
 							_type: "block",
-							_key: portableTextKeyFromAttrs(child.attrs) ?? generateKey(),
+							_key: key,
 							style: "normal",
 							listItem,
 							level,
@@ -816,6 +881,7 @@ function convertList(
 							level + 1,
 							child.attrs,
 							`${path}:${itemIndex}:${childIndex}`,
+							claimKey,
 						),
 					);
 				} else if (child.type === "orderedList") {
@@ -826,6 +892,7 @@ function convertList(
 							level + 1,
 							child.attrs,
 							`${path}:${itemIndex}:${childIndex}`,
+							claimKey,
 						),
 					);
 				}
@@ -836,8 +903,10 @@ function convertList(
 	return blocks;
 }
 
+/** `blockKey`: the key the block's derived span and mark definition keys start from. */
 function convertInlineContent(
 	nodes: unknown[],
+	blockKey: string,
 	preserveHardBreakBoundary = false,
 ): {
 	children: PortableTextSpan[];
@@ -846,31 +915,30 @@ function convertInlineContent(
 	const children: PortableTextSpan[] = [];
 	const markDefs: PortableTextMarkDef[] = [];
 	const markDefMap = new Map<string, string>();
-	const usedSpanKeys = new Set<string>();
-	const claimSpanKey = (preferred?: string) => {
-		if (preferred && !usedSpanKeys.has(preferred)) {
-			usedSpanKeys.add(preferred);
-			return preferred;
-		}
-		let key: string;
-		do key = generateKey();
-		while (usedSpanKeys.has(key));
-		usedSpanKeys.add(key);
-		return key;
-	};
 
 	const typedNodes = nodes as Array<{
 		type: string;
 		text?: string;
 		marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
 	}>;
+	const spanKeys = keyClaims(typedNodes.map((node) => portableTextSpanKeyFromMarks(node.marks)));
+	const markDefKeys = keyClaims(
+		typedNodes.flatMap((node) =>
+			portableTextMarkDefsFromMarks(node.marks).map((markDef) => markDef._key),
+		),
+	);
+	const claimSpanKey = (preferred?: string) =>
+		spanKeys(preferred, `${blockKey}:s${children.length}`);
+	const claimMarkDefKey = (preferred: string | undefined) =>
+		markDefKeys(preferred, `${blockKey}:m${markDefs.length}`);
+
 	for (const node of typedNodes) {
 		if (node.type === "text" && node.text) {
 			const marks: string[] = [];
 			const originalMarkDefs = portableTextMarkDefsFromMarks(node.marks);
 
 			for (const mark of node.marks || []) {
-				const markType = convertMark(mark, markDefs, markDefMap, originalMarkDefs);
+				const markType = convertMark(mark, markDefs, markDefMap, originalMarkDefs, claimMarkDefKey);
 				if (markType) {
 					marks.push(markType);
 				}
@@ -924,6 +992,7 @@ function convertMark(
 	markDefs: PortableTextMarkDef[],
 	markDefMap: Map<string, string>,
 	originalMarkDefs: PortableTextMarkDef[],
+	claimMarkDefKey: (preferred: string | undefined) => string,
 ): string | null {
 	switch (mark.type) {
 		case "bold":
@@ -956,7 +1025,7 @@ function convertMark(
 			if (markDefMap.has(mapKey)) {
 				return markDefMap.get(mapKey)!;
 			}
-			const key = originalMarkDef?._key || generateKey();
+			const key = claimMarkDefKey(originalMarkDef?._key || undefined);
 			markDefs.push({
 				...originalMarkDef,
 				_type: "link",
@@ -1263,7 +1332,7 @@ function convertPTBlock(
 		case "table": {
 			const result = portableTextTableToProseMirror(block, {
 				path,
-				createKey: generateKey,
+				createKey: tableKeys(attrStr(block._key) ?? path),
 				spansToInline: (content, markDefs) =>
 					convertPTSpans(content, markDefs) as PortableTextTableProseMirrorNode[],
 			});

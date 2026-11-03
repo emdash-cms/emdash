@@ -30,6 +30,7 @@ import {
 } from "../components/editor/TableExtensions.js";
 import { isDimension, isString } from "../components/editor/video-block.js";
 import { TABLE_CELL_MIN_WIDTH } from "../portable-text-table.js";
+import { PortableTextKeys } from "./keys.js";
 
 export {
 	CodeMarkExtension,
@@ -37,6 +38,7 @@ export {
 	EmDashTableCell,
 	EmDashTableHeader,
 	EmDashTableRow,
+	PortableTextKeys,
 	TableIdentity,
 };
 
@@ -490,6 +492,7 @@ export function portableTextExtensions(): AnyExtension[] {
 		EmDashTableHeader,
 		EmDashTableCell,
 		TableIdentity,
+		PortableTextKeys,
 		PortableTextTextAlign,
 	];
 }
