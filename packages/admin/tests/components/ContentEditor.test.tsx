@@ -695,7 +695,7 @@ describe("ContentEditor", () => {
 		});
 	});
 
-	describe("customize sidebar footer", () => {
+	describe("customize sidebar link", () => {
 		function customizeLink() {
 			const link = [...document.querySelectorAll("a")].find(
 				(anchor) => anchor.textContent === "Customize sidebar",
@@ -704,14 +704,18 @@ describe("ContentEditor", () => {
 			return link!;
 		}
 
-		it("links to the Editor tab of Settings → Sidebars from a pinned footer", async () => {
+		it("links to the Editor tab of Settings → Sidebars after the last section", async () => {
 			await renderEditor({ isNew: false, item: makeItem() });
 
 			const link = customizeLink();
 			expect(link.getAttribute("to")).toBe("/settings/sidebars");
 			expect(JSON.parse(link.dataset.search ?? "null")).toEqual({ tab: "editor" });
-			expect(link.closest('[data-sidebar="footer"]')).not.toBeNull();
-			expect(link.closest('[data-sidebar="peek-zone"]')).toBeNull();
+			const lastSection = [...document.querySelectorAll("[data-settings-section]")].at(-1);
+			expect(lastSection).toBeDefined();
+			expect(
+				lastSection!.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
+			).toBeTruthy();
+			expect(link.closest('[data-sidebar="footer"]')).toBeNull();
 		});
 
 		it("stays outside the read-only lock", async () => {

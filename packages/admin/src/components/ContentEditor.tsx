@@ -2048,11 +2048,11 @@ export function ContentEditor({
 						aria-label={t`Settings`}
 						className={cn(isDistractionFree && "hidden")}
 					>
-						<fieldset disabled={readOnly} className="contents">
-							<div
-								className="flex-1 overflow-y-auto overflow-x-hidden bg-kumo-base"
-								style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
-							>
+						<div
+							className="flex-1 overflow-y-auto overflow-x-hidden bg-kumo-base"
+							style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
+						>
+							<fieldset disabled={readOnly} className="contents">
 								{isBelowLg && blockSidebarPanel?.type !== "image" && (
 									<div className="flex justify-end px-4 pt-3">
 										<MobileSettingsCloseButton />
@@ -2109,22 +2109,21 @@ export function ContentEditor({
 										onEntryRefresh={onEntryRefresh}
 									/>
 								</RevisionViewProvider>
-							</div>
-						</fieldset>
-						{/* Kumo pins only a direct `Sidebar.Footer` child below the scrolling sections. */}
-						{!blockSidebarPanel && (
-							<Sidebar.Footer className="bg-kumo-base px-1 group-not-data-[state=collapsed]/sidebar:px-1">
-								<RouterLinkButton
-									to="/settings/sidebars"
-									search={{ tab: "editor" }}
-									variant="ghost"
-									icon={<PencilSimple aria-hidden="true" />}
-									className="w-full min-w-0 justify-start font-normal text-kumo-subtle hover:text-kumo-default"
-								>
-									<span className="truncate">{t`Customize sidebar`}</span>
-								</RouterLinkButton>
-							</Sidebar.Footer>
-						)}
+							</fieldset>
+							{!blockSidebarPanel && (
+								<div className="border-t px-1 py-1.5">
+									<RouterLinkButton
+										to="/settings/sidebars"
+										search={{ tab: "editor" }}
+										variant="ghost"
+										icon={<PencilSimple aria-hidden="true" />}
+										className="w-full min-w-0 justify-start font-normal text-kumo-subtle hover:text-kumo-default"
+									>
+										<span className="truncate">{t`Customize sidebar`}</span>
+									</RouterLinkButton>
+								</div>
+							)}
+						</div>
 						{!isBelowLg && <ContentEditorSettingsResizeHandle panelId={settingsPanelId} />}
 					</Sidebar>
 				</div>

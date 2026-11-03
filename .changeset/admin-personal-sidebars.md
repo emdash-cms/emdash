@@ -9,7 +9,7 @@ Adds **Settings > Sidebars**, where each admin user hides and reorders entries i
 - The editor sidebar order applies to every collection and to new entries. Publish can move but can't be hidden.
 - Reset restores a list's default and offers Undo.
 
-The editor settings sidebar no longer shows a drag handle on each section. A **Customize sidebar** link pinned to the bottom of the sidebar opens the new page, and a pencil at the bottom of the navigation does too. Section orders that the drag handles saved in a browser are not carried over, so every user starts from the default order.
+The editor settings sidebar no longer shows a drag handle on each section. A **Customize sidebar** link after the last section opens the new page, and a pencil at the bottom of the navigation does too. Section orders that the drag handles saved in a browser are not carried over, so every user starts from the default order.
 
 `GET /_emdash/api/auth/me` returns the stored layout as `adminLayout`, or `null`. `POST /_emdash/api/auth/me` accepts `{ "action": "setAdminLayout", "adminLayout": { ... } }` to replace it, or `"adminLayout": null` to remove it. A layout is limited to 200 IDs per list and 16 KB.
 
