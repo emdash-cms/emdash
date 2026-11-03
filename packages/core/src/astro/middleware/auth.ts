@@ -35,7 +35,7 @@ import {
 } from "../../api/handlers/api-tokens.js";
 import { hasScope, TRANSFER_SCOPES } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
-import type { ExternalAuthConfig } from "../../auth/types.js";
+import type { AuthResult, ExternalAuthConfig } from "../../auth/types.js";
 import { getRegistryConfigInput } from "../../registry/config.js";
 import { resolveSessionUser } from "../session-user.js";
 import type { EmDashHandlers } from "../types.js";
@@ -528,6 +528,7 @@ async function handleExternalAuth(
 	const { locals, request } = context;
 	const { emdash } = locals;
 
+	let authResult: AuthResult;
 	try {
 		// Use the authenticate function from the virtual module
 		// (statically imported at build time to work with Cloudflare Workers)
@@ -537,9 +538,18 @@ async function handleExternalAuth(
 			);
 		}
 
-		// Authenticate via the provider
-		const authResult = await virtualAuthenticate(request, authMode.config);
+		authResult = await virtualAuthenticate(request, authMode.config);
+	} catch (error) {
+		console.error("[external-auth] Auth error:", error);
 
+		return new Response("Authentication failed", {
+			status: 401,
+			headers: { "Content-Type": "text/plain", ...MW_CACHE_HEADERS },
+		});
+	}
+
+	// Identity is verified; failures below are server-side.
+	try {
 		// Get external auth config for auto-provision settings
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing AuthModeConfig to ExternalAuthConfig after provider check
 		const externalConfig = authMode.config as ExternalAuthConfig;
@@ -649,16 +659,16 @@ async function handleExternalAuth(
 			const sessionUser = await resolveSessionUser(session);
 			if (sessionUser?.id !== user.id) session.set("user", { id: user.id });
 		}
-
-		return next();
 	} catch (error) {
-		console.error("[external-auth] Auth error:", error);
+		console.error("[external-auth] User lookup error:", error);
 
-		return new Response("Authentication failed", {
-			status: 401,
-			headers: { "Content-Type": "text/plain", ...MW_CACHE_HEADERS },
+		return new Response("Service temporarily unavailable", {
+			status: 503,
+			headers: { "Content-Type": "text/plain", "Retry-After": "60", ...MW_CACHE_HEADERS },
 		});
 	}
+
+	return next();
 }
 
 /**
