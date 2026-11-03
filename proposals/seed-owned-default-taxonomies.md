@@ -48,12 +48,12 @@ A seed with one collection and one taxonomy:
 }
 ```
 
-| Site                                   | Taxonomies after setup today              | Taxonomies after setup with this RFC      |
-| -------------------------------------- | ----------------------------------------- | ----------------------------------------- |
-| New site with the seed above           | `news_category`, `category`, `tag`        | `news_category`                           |
-| New site without a seed file           | `category`, `tag` (from the default seed) | `category`, `tag` (from the default seed) |
-| New site from the `blog` template      | `category`, `tag` (from its seed)         | `category`, `tag` (from its seed)         |
-| Existing site, after updating EmDash   | unchanged                                 | unchanged                                 |
+| Site                                 | Taxonomies after setup today              | Taxonomies after setup with this RFC      |
+| ------------------------------------ | ----------------------------------------- | ----------------------------------------- |
+| New site with the seed above         | `news_category`, `category`, `tag`        | `news_category`                           |
+| New site without a seed file         | `category`, `tag` (from the default seed) | `category`, `tag` (from the default seed) |
+| New site from the `blog` template    | `category`, `tag` (from its seed)         | `category`, `tag` (from its seed)         |
+| Existing site, after updating EmDash | unchanged                                 | unchanged                                 |
 
 ## Goals
 
