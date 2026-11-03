@@ -263,6 +263,7 @@ export function wouldCreateLoop(
 ): string[] | null {
 	const source = normalizeSourcePath(rawSource);
 	const destination = normalizeSourcePath(rawDestination);
+	if (source === destination) return [rawSource, rawDestination];
 	const filtered = normalizeEdges(
 		excludeId ? existingEdges.filter((e) => e.id !== excludeId) : existingEdges,
 	);
