@@ -16,7 +16,7 @@ export async function tap(element: Element) {
 	await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
 }
 
-/** Pulls a phone sheet down by `element` with real touch input, as a finger would. */
+/** Drags a finger 500px down from near the top of `element`, with real touch input. */
 export async function swipeDown(element: Element) {
 	const session = cdp();
 	const frame = window.frameElement?.getBoundingClientRect() ?? new DOMRect();

@@ -9,6 +9,7 @@ import { calendarQueryOptions, type CalendarEntry } from "../../src/lib/api/cale
 import { fetchRange, monthGridDays } from "../../src/lib/calendar";
 import { CalendarPage } from "../../src/routes/calendar";
 import { render } from "../utils/render.tsx";
+import { swipeDown, tap } from "../utils/touch.ts";
 
 const router = vi.hoisted(() => ({
 	search: {} as Record<string, unknown>,
@@ -201,6 +202,28 @@ describe("CalendarPage", () => {
 		);
 		expect(panelBox.right).toBeLessThanOrEqual(window.innerWidth);
 		await expect.element(screen.getByRole("button", { name: "Next month" })).toBeVisible();
+	});
+
+	it("keeps the wide-screen panel open while a finger scrolls the page and closes it on a tap", async () => {
+		await page.viewport(1440, 900);
+		router.search = { month: "2020-03", view: "month", entry: "posts:launch:published" };
+		serveCalendar(() =>
+			Response.json({ data: { items: [entry("launch", "2020-03-05T09:00:00.000Z")] } }),
+		);
+		const screen = await renderPage();
+
+		const panel = screen.getByRole("dialog", { name: "Entry launch" });
+		await expect.element(panel).toBeVisible();
+		const heading = screen.getByRole("heading", { name: "March 2020" }).element();
+
+		await swipeDown(heading);
+		await expect.element(panel).toBeVisible();
+		expect(router.navigate).not.toHaveBeenCalled();
+
+		await tap(heading);
+		await expect
+			.poll(() => navigatedSearch(router.navigate.mock.lastCall))
+			.toMatchObject({ replace: true, search: { entry: undefined } });
 	});
 
 	it("opens the panel over the month when beside it the month would be too narrow", async () => {

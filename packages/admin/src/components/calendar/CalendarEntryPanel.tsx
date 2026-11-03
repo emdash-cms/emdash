@@ -133,11 +133,13 @@ export function CalendarEntryPanel(props: CalendarEntryPanelProps) {
 				if (open) return;
 				const { reason, event } = eventDetails;
 				// Focus may leave the panel, so keyboard users can move on to another entry.
+				// Without a backdrop, a finger moving outside the panel counts as a press,
+				// but it is scrolling the page.
 				if (
 					reason === "focus-out" ||
 					(reason === "outside-press" &&
-						event.target instanceof Element &&
-						event.target.closest(KEEPS_PANEL_OPEN))
+						(event.type === "touchmove" ||
+							(event.target instanceof Element && event.target.closest(KEEPS_PANEL_OPEN))))
 				) {
 					eventDetails.cancel();
 					return;
