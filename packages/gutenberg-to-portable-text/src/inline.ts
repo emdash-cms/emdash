@@ -12,8 +12,8 @@ import { sanitizeHref } from "./url.js";
 
 // Regex patterns for inline parsing
 const WHITESPACE_PATTERN = /\S/;
-/** A blank line with the source whitespace around it; like wpautop, a no-break space is not blank */
-const PARAGRAPH_BREAK_PATTERN = /[\t\n\v\f\r ]*\n[\t\v\f\r ]*\n[\t\n\v\f\r ]*/g;
+/** A run of source whitespace; like wpautop, a no-break space is not part of one */
+const WHITESPACE_RUN_PATTERN = /[\t\n\v\f\r ]+/g;
 /** Stands for a blank line in parsed text; parse5 drops U+0000 from text, so content can't contain it */
 const PARAGRAPH_BREAK_MARK = "\u0000";
 
@@ -144,14 +144,16 @@ export function parseInlineParagraphs(html: string, generateKey: () => string): 
 }
 
 /**
- * Replace each blank line in the fragment's text, and the source whitespace
- * around it, with a paragraph break mark
+ * Replace each run of whitespace in the fragment's text that holds a blank
+ * line, meaning two newlines, with a paragraph break mark
  */
 function markParagraphBreaks(nodes: Node[]): void {
 	const pending = [...nodes];
 	for (let node = pending.pop(); node; node = pending.pop()) {
 		if (isTextNode(node)) {
-			node.value = node.value.replace(PARAGRAPH_BREAK_PATTERN, PARAGRAPH_BREAK_MARK);
+			node.value = node.value.replace(WHITESPACE_RUN_PATTERN, (run) =>
+				run.indexOf("\n") === run.lastIndexOf("\n") ? run : PARAGRAPH_BREAK_MARK,
+			);
 		} else if (isElement(node)) {
 			for (const child of node.childNodes) pending.push(child);
 		}

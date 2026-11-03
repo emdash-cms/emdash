@@ -1307,6 +1307,8 @@ describe("htmlToPortableText", () => {
 			"a long unclosed link",
 			`<a href="https://example.com/${"x".repeat(100_000)}">${"y\n\n".repeat(20_000)}`,
 		],
+		["a long run of spaces", `A${" ".repeat(100_000)}B`],
+		["a newline and a long run of spaces", `A\n${" ".repeat(100_000)}B`],
 		[
 			"a link in each of many paragraphs",
 			Array.from({ length: 20_000 }, (_, i) => `<a href="https://example.com/${i}">x</a>\n\n`).join(
