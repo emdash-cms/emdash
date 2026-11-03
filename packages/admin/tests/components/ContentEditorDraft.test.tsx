@@ -17,6 +17,7 @@ import type {
 } from "../../src/lib/api";
 import type {
 	ContentEditorDraft,
+	ContentEditorDraftPatchResult,
 	ContentEditorPanelContext,
 } from "../../src/lib/content-editor-panels";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
@@ -353,6 +354,12 @@ function TrustedEditor(props: ContentEditorProps) {
 	);
 }
 
+/** Calls `onCleanup` from a layout cleanup, which runs after those of the siblings before it. */
+function LayoutCleanupProbe({ onCleanup }: { onCleanup: () => void }) {
+	React.useLayoutEffect(() => onCleanup, [onCleanup]);
+	return null;
+}
+
 async function renderTrusted(overrides: Partial<ContentEditorProps> = {}) {
 	const props = editorProps({ fields: DRAFT_FIELDS, ...overrides });
 	const screen = await render(<TrustedEditor {...props} />, { wrapper: Toasty });
@@ -663,7 +670,7 @@ describe("trusted panel draft access", () => {
 		await expect.element(screen.getByLabelText("Title", { exact: true })).toHaveValue("My post");
 	});
 
-	it("retires the draft on an entry switch, on a switch back, and when the editor unmounts", async () => {
+	it("retires the draft on an entry switch and on a switch back", async () => {
 		const { screen, props } = await renderTrusted();
 		const late: EditorDraftPatchOperation[] = [{ op: "set", field: "title", value: "Late" }];
 		const title = screen.getByLabelText("Title", { exact: true });
@@ -693,13 +700,30 @@ describe("trusted panel draft access", () => {
 			code: "EDITOR_DRAFT_STALE",
 		});
 		expect(second.get()).toEqual(RETIRED);
+	});
 
-		const { revision } = third.get();
+	it("retires the draft before later layout cleanups in the commit that unmounts the editor", async () => {
+		let patchLate = () => {};
+		const screen = await render(
+			<>
+				<TrustedEditor {...editorProps({ fields: DRAFT_FIELDS })} />
+				<LayoutCleanupProbe onCleanup={() => patchLate()} />
+			</>,
+			{ wrapper: Toasty },
+		);
+		await expect.element(screen.getByTestId("draft-tools")).toBeInTheDocument();
+		const draft = currentDraft();
+		const { revision } = draft.get();
+		let late: ContentEditorDraftPatchResult | undefined;
+		patchLate = () => {
+			late = draft.patch([{ op: "set", field: "title", value: "Late" }], {
+				expectedRevision: revision,
+			});
+		};
+
 		await screen.unmount();
-		expect(third.get()).toEqual(RETIRED);
-		expect(third.patch(late, { expectedRevision: revision })).toMatchObject({
-			code: "EDITOR_DRAFT_STALE",
-		});
+		expect(late).toMatchObject({ ok: false, code: "EDITOR_DRAFT_STALE" });
+		expect(draft.get()).toEqual(RETIRED);
 	});
 
 	it("is not stale after an autosave completes without edits", async () => {
