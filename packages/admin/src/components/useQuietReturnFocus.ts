@@ -1,9 +1,14 @@
 import * as React from "react";
 
+import { TOAST_REGION } from "./block-field-keyboard.js";
+
 const POPUP = '[role="dialog"], [role="alertdialog"], [role="menu"]';
 
+/** Whether `target` is in a dialog or menu a control opened. A toast is a dialog no control opened. */
 function inPopup(target: EventTarget | null): boolean {
-	return target instanceof Element && target.closest(POPUP) !== null;
+	return (
+		target instanceof Element && target.closest(POPUP) !== null && !target.closest(TOAST_REGION)
+	);
 }
 
 /**

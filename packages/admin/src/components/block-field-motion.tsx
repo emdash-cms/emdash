@@ -218,6 +218,55 @@ export function collapseRow(
 	};
 }
 
+/**
+ * Glides the element `ref` holds from its old height to its new one whenever `cause` changes, as
+ * a problem coming onto a label's line can wrap it, so whatever follows moves smoothly instead of
+ * in one frame. Changes from anything else, such as a resize, aren't animated.
+ */
+export function useHeightGlide(ref: React.RefObject<HTMLElement | null>, cause: unknown) {
+	const heightRef = React.useRef<number | null>(null);
+	const glideRef = React.useRef<Animation | null>(null);
+	const causeRef = React.useRef(cause);
+
+	React.useLayoutEffect(() => {
+		const element = ref.current;
+		if (!element) return;
+		const measure = () => {
+			if (!glideRef.current) heightRef.current = element.getBoundingClientRect().height;
+		};
+		measure();
+		const resizes = new ResizeObserver(measure);
+		resizes.observe(element);
+		return () => resizes.disconnect();
+	}, [ref]);
+
+	React.useLayoutEffect(() => {
+		if (Object.is(causeRef.current, cause)) return;
+		causeRef.current = cause;
+		const element = ref.current;
+		if (!element) return;
+		const previous = glideRef.current;
+		const from = previous ? element.getBoundingClientRect().height : heightRef.current;
+		glideRef.current = null;
+		previous?.cancel();
+		const to = element.getBoundingClientRect().height;
+		heightRef.current = to;
+		if (from === null || Math.abs(to - from) < 0.5 || prefersReducedMotion()) return;
+		const glide = element.animate(
+			{ height: [`${from}px`, `${to}px`], clipPath: ["inset(0)", "inset(0)"] },
+			{ duration: to > from ? OPEN_MS : CLOSE_MS, easing: DISCLOSURE_EASE },
+		);
+		glideRef.current = glide;
+		glide.addEventListener("finish", () => {
+			if (glideRef.current !== glide) return;
+			glideRef.current = null;
+			heightRef.current = element.getBoundingClientRect().height;
+		});
+	}, [ref, cause]);
+
+	React.useEffect(() => () => glideRef.current?.cancel(), []);
+}
+
 /** Slides `node` back into its place from `x`, `y` away, on top of any transform it has. */
 function slideFrom(node: HTMLElement, x: number, y: number): Animation {
 	return node.animate(

@@ -37,6 +37,7 @@ import {
 	DisclosurePanel,
 	growRow,
 	prefersReducedMotion,
+	type RowCollapse,
 	useDropSettle,
 	useReorderMotion,
 } from "./block-field-motion.js";
@@ -266,6 +267,8 @@ export function BlockListField({
 	const deletedItems = React.useRef(new WeakSet<ListItem>()).current;
 	/** Table rows Enter added, which stay out of the saved list while all their cells are blank. */
 	const enteredRows = React.useRef(new Set<string>()).current;
+	/** Blank table rows shrinking away now that focus has left them. */
+	const shrinkingBlankRows = React.useRef(new Map<string, RowCollapse>()).current;
 	const [rows, setRows] = React.useState<Row[]>(() => syncRows([], items, knownKeys));
 	const [source, setSource] = React.useState(value);
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
@@ -452,14 +455,17 @@ export function BlockListField({
 		onItemDeleted({ item: row.item, index: position, name: name(row, index), hold });
 	};
 
+	const rowElement = (key: string) =>
+		[...(rootRef.current?.querySelectorAll<HTMLElement>("[data-item-key]") ?? [])].find(
+			(candidate) => candidate.dataset.itemKey === key,
+		);
+
 	const deleteLater = useStableCallback(deleteRow);
 	// A row deleted from its menu shrinks away first, and until it has, Undo calls the deletion off.
 	const collapseAndDelete = (key: string) => {
 		const row = current.find((candidate) => candidate.key === key);
 		if (!row || !canDelete(row)) return;
-		const element = [
-			...(rootRef.current?.querySelectorAll<HTMLElement>("[data-item-key]") ?? []),
-		].find((candidate) => candidate.dataset.itemKey === key);
+		const element = rowElement(key);
 		if (!element) {
 			deleteRow(key);
 			return;
@@ -485,11 +491,30 @@ export function BlockListField({
 		if (kept.length !== current.length) emit(kept);
 	});
 
-	// A table row Enter added goes once focus leaves it with every cell still blank.
-	const removeBlankRow = useStableCallback((key: string) => {
+	const dropBlankRow = useStableCallback((key: string) => {
 		const row = current.find((candidate) => candidate.key === key);
 		if (row && isBlank(row)) emit(current.filter((candidate) => candidate !== row));
 	});
+	// A table row Enter added shrinks away once focus leaves it with every cell still blank, and
+	// comes back if focus returns before it has gone.
+	const removeBlankRow = useStableCallback((key: string) => {
+		const row = current.find((candidate) => candidate.key === key);
+		if (!row || !isBlank(row) || shrinkingBlankRows.has(key)) return;
+		const element = rowElement(key);
+		if (!element) {
+			dropBlankRow(key);
+			return;
+		}
+		const collapse = collapseRow(element, () => {
+			shrinkingBlankRows.delete(key);
+			dropBlankRow(key);
+		});
+		if (collapse) shrinkingBlankRows.set(key, collapse);
+	});
+	const keepBlankRow = (key: string) => {
+		shrinkingBlankRows.get(key)?.reverse();
+		shrinkingBlankRows.delete(key);
+	};
 
 	const lineKeyDown = (event: React.KeyboardEvent<HTMLElement>, index: number) => {
 		const input = event.target;
@@ -701,6 +726,9 @@ export function BlockListField({
 						key={row.key}
 						{...rowProps(row, index)}
 						columns={columns}
+						onFocus={
+							readOnly || !enteredRows.has(row.key) ? undefined : () => keepBlankRow(row.key)
+						}
 						onBlur={
 							readOnly || !enteredRows.has(row.key)
 								? undefined
@@ -1132,10 +1160,12 @@ function TableRow({
 	onEdge,
 	onDelete,
 	columns,
+	onFocus,
 	onBlur,
 	children,
 }: SortableRowProps & {
 	columns: string;
+	onFocus?: React.FocusEventHandler<HTMLDivElement>;
 	onBlur?: React.FocusEventHandler<HTMLDivElement>;
 	children: React.ReactNode;
 }) {
@@ -1144,6 +1174,7 @@ function TableRow({
 		<div
 			ref={sortable.setNodeRef}
 			role="row"
+			onFocus={onFocus}
 			onBlur={onBlur}
 			data-list-item
 			data-item-key={row.key}

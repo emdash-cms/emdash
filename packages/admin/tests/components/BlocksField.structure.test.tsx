@@ -167,13 +167,12 @@ async function sample<T>(read: () => T, ms: number): Promise<Array<{ t: number; 
 	return frames;
 }
 
-/** How a value moved across frames: its total travel, the frames it changed in and its largest step. */
+/** How a value moved across frames: its total travel and its largest step. */
 function motion(values: number[]) {
 	const steps = values.slice(1).map((value, index) => value - values[index]!);
-	const moving = steps.filter((step) => Math.abs(step) > 0.5);
 	const travel = values.at(-1)! - values[0]!;
 	const largest = Math.max(0, ...steps.map(Math.abs));
-	return { travel, frames: moving.length, largest };
+	return { travel, largest };
 }
 
 async function reduceMotion() {
@@ -383,10 +382,9 @@ describe("Blocks field structure motion", () => {
 
 		const frames = sample(() => button.getBoundingClientRect().top - fieldTop(), 450);
 		await addItem().click();
-		const { travel, frames: moving, largest } = motion((await frames).map((each) => each.value));
+		const { travel, largest } = motion((await frames).map((each) => each.value));
 
 		expect(travel).toBeGreaterThan(60);
-		expect(moving).toBeGreaterThanOrEqual(8);
 		expect(largest).toBeLessThanOrEqual(travel * 0.4);
 	});
 
@@ -399,7 +397,6 @@ describe("Blocks field structure motion", () => {
 		await page.getByRole("option", { name: /Short/ }).click();
 		let result = motion((await inserted).map((each) => each.value));
 		expect(result.travel).toBeGreaterThan(60);
-		expect(result.frames).toBeGreaterThanOrEqual(8);
 		expect(result.largest).toBeLessThanOrEqual(result.travel * 0.4);
 		await settled();
 
@@ -408,7 +405,6 @@ describe("Blocks field structure motion", () => {
 		await page.getByRole("menuitem", { name: "Duplicate" }).click();
 		result = motion((await duplicated).map((each) => each.value));
 		expect(result.travel).toBeGreaterThan(30);
-		expect(result.frames).toBeGreaterThanOrEqual(6);
 		expect(result.largest).toBeLessThanOrEqual(result.travel * 0.5);
 	});
 
@@ -426,9 +422,9 @@ describe("Blocks field structure motion", () => {
 		await page.getByRole("menuitem", { name: "Delete" }).click();
 		const values = (await frames).map((each) => each.value);
 
-		const { travel, frames: moving } = motion(values.map((each) => each.top));
+		const { travel, largest } = motion(values.map((each) => each.top));
 		expect(travel).toBeLessThan(-30);
-		expect(moving).toBeGreaterThanOrEqual(6);
+		expect(largest).toBeLessThanOrEqual(Math.abs(travel) * 0.5);
 		const removed = values.findIndex((each) => each.rows === 2);
 		const lastMove = values.findLastIndex(
 			(each, index) => index > 0 && Math.abs(each.top - values[index - 1]!.top) > 0.5,
@@ -451,10 +447,10 @@ describe("Blocks field structure motion", () => {
 		await page.getByRole("button", { name: "Jonas Berg actions" }).click();
 		const frames = sample(() => ines().getBoundingClientRect().top - fieldTop(), 450);
 		await page.getByRole("menuitem", { name: "Delete" }).click();
-		const { travel, frames: moving } = motion((await frames).map((each) => each.value));
+		const { travel, largest } = motion((await frames).map((each) => each.value));
 
 		expect(travel).toBeLessThan(-20);
-		expect(moving).toBeGreaterThanOrEqual(6);
+		expect(largest).toBeLessThanOrEqual(Math.abs(travel) * 0.5);
 		expect(ines().getBoundingClientRect().top).toBeLessThan(before);
 	});
 

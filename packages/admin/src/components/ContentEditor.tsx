@@ -70,6 +70,7 @@ import { cn, slugify } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
+import { TOAST_REGION } from "./block-field-keyboard.js";
 import {
 	QUIET_DATE,
 	QUIET_HEADING,
@@ -191,7 +192,10 @@ function AutosavePausedNotice({
 			if (blockKeyOf(active) !== heldBlock && !inOwnPopup(active)) setReleased(heldKey);
 		};
 		const onFocusIn = (event: FocusEvent) => {
-			if (event.target instanceof Element && !event.target.closest(POPUP)) {
+			if (
+				event.target instanceof Element &&
+				(!event.target.closest(POPUP) || event.target.closest(TOAST_REGION))
+			) {
 				cameFrom = blockKeyOf(event.target);
 			}
 			check();

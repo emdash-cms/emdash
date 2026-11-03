@@ -15,6 +15,7 @@ import {
 import type { BlockValueIssue } from "../lib/block-validation.js";
 import { cn } from "../lib/utils.js";
 import { onFocusLeave, useAfterPress } from "./block-field-keyboard.js";
+import { useHeightGlide } from "./block-field-motion.js";
 import { NOTE, NOTE_ON_FOCUS } from "./block-field-styles.js";
 
 /**
@@ -232,8 +233,12 @@ function NotedLabel({
 }) {
 	const rest = controls.find((control) => control.message)?.message;
 	const hasNotes = Boolean(rest) || controls.some((control) => control.hint || control.countSlotId);
+	const ref = React.useRef<HTMLLabelElement & HTMLSpanElement>(null);
+	// On a narrow line, a problem can wrap the line as it comes or goes.
+	useHeightGlide(ref, rest);
 	return (
 		<Element
+			ref={ref}
 			id={id}
 			htmlFor={Element === "label" ? htmlFor : undefined}
 			className={cn(className, "flex items-baseline gap-x-1.5")}

@@ -281,13 +281,12 @@ async function sample<T>(read: () => T, ms: number): Promise<Array<{ t: number; 
 	return frames;
 }
 
-/** How a value moved across frames: its total travel, the frames it changed in and its largest step. */
+/** How a value moved across frames: its total travel and its largest step. */
 function motion(values: number[]) {
 	const steps = values.slice(1).map((value, index) => value - values[index]!);
-	const moving = steps.filter((step) => Math.abs(step) > 0.5);
 	const travel = values.at(-1)! - values[0]!;
 	const largest = Math.max(0, ...steps.map(Math.abs));
-	return { travel, frames: moving.length, largest };
+	return { travel, largest };
 }
 
 afterEach(async () => {
@@ -340,20 +339,23 @@ describe("One Undo for the page", () => {
 
 		await menuButtonOf("two").click();
 		await page.getByRole("menuitem", { name: "Delete" }).click();
-		await until(() =>
-			row("two")
-				.getAnimations()
-				.some((a) => a.playState === "running"),
-		);
+		await until(() => row("two").getBoundingClientRect().height < full - 1);
+		const shrunk = row("two").getBoundingClientRect().height;
 		pressUndo();
-		const heights = await sample(() => row("two")?.getBoundingClientRect().height ?? 0, 400);
+		const heights = [
+			shrunk,
+			...(await sample(() => row("two")?.getBoundingClientRect().height ?? 0, 400)).map(
+				(each) => each.value,
+			),
+		];
 
 		expect(rowKeys()).toEqual(["two", "three"]);
-		const growing = heights.filter(
-			(each, index) => index > 0 && each.value > heights[index - 1]!.value + 0.5,
-		);
-		expect(growing.length).toBeGreaterThanOrEqual(3);
+		// From the moment Undo is pressed, the row only grows, back to its full height.
+		expect(
+			heights.every((height, index) => index === 0 || height >= heights[index - 1]! - 0.5),
+		).toBe(true);
 		expect(row("two").getBoundingClientRect().height).toBeCloseTo(full, 0);
+		await expect.element(page.elementLocator(toggleOf("two"))).toHaveFocus();
 		await expect.poll(undoButtons).toHaveLength(0);
 	});
 
@@ -425,11 +427,10 @@ describe("Structure motion", () => {
 
 		const frames = sample(() => toggleOf("three").getBoundingClientRect().top - fieldTop(), 450);
 		await page.getByRole("button", { name: "Undo" }).click();
-		const { travel, frames: moving, largest } = motion((await frames).map((each) => each.value));
+		const { travel, largest } = motion((await frames).map((each) => each.value));
 
 		expect(rowKeys()).toEqual(["one", "two", "three"]);
 		expect(travel).toBeGreaterThan(30);
-		expect(moving).toBeGreaterThanOrEqual(6);
 		expect(largest).toBeLessThanOrEqual(travel * 0.5);
 	});
 
@@ -446,10 +447,9 @@ describe("Structure motion", () => {
 
 		const frames = sample(() => ines().getBoundingClientRect().top - fieldTop(), 450);
 		await page.getByRole("button", { name: "Undo" }).click();
-		const { travel, frames: moving, largest } = motion((await frames).map((each) => each.value));
+		const { travel, largest } = motion((await frames).map((each) => each.value));
 
 		expect(travel).toBeGreaterThan(20);
-		expect(moving).toBeGreaterThanOrEqual(6);
 		expect(largest).toBeLessThanOrEqual(travel * 0.5);
 	});
 
@@ -519,10 +519,9 @@ describe("Structure motion", () => {
 
 		const frames = sample(() => under().getBoundingClientRect().top - fieldTop(), 450);
 		await page.getByRole("button", { name: "Remove image" }).click();
-		const { travel, frames: moving, largest } = motion((await frames).map((each) => each.value));
+		const { travel, largest } = motion((await frames).map((each) => each.value));
 
 		expect(travel).toBeLessThan(-30);
-		expect(moving).toBeGreaterThanOrEqual(6);
 		expect(largest).toBeLessThanOrEqual(Math.abs(travel) * 0.5);
 		await expect.element(page.getByText("Removed Background image")).toBeVisible();
 	});

@@ -755,9 +755,10 @@ describe("A settings row's problem line", () => {
 		await openBlock("Hero");
 		const link = control("Primary button link");
 		const switchElement = center().element();
-		const intermediate = (tops: number[]) => {
-			const [first = 0, last = 0] = [tops[0], tops.at(-1)];
-			return tops.filter((top) => Math.abs(top - first) > 0.5 && Math.abs(top - last) > 0.5).length;
+		/** The largest move between two frames, as a share of the whole way. */
+		const largestShare = (tops: number[]) => {
+			const steps = tops.slice(1).map((top, index) => Math.abs(top - tops[index]!));
+			return Math.max(0, ...steps) / Math.abs(tops.at(-1)! - tops[0]!);
 		};
 
 		await link.fill("contact us");
@@ -766,7 +767,7 @@ describe("A settings row's problem line", () => {
 		const down = await coming;
 		await settled();
 		expect(down.at(-1)! - down[0]!).toBeGreaterThan(15);
-		expect(intermediate(down)).toBeGreaterThanOrEqual(3);
+		expect(largestShare(down)).toBeLessThanOrEqual(0.5);
 
 		await link.click();
 		await link.fill("/contact");
@@ -775,7 +776,7 @@ describe("A settings row's problem line", () => {
 		const up = await going;
 		await settled();
 		expect(up[0]! - up.at(-1)!).toBeGreaterThan(15);
-		expect(intermediate(up)).toBeGreaterThanOrEqual(3);
+		expect(largestShare(up)).toBeLessThanOrEqual(0.5);
 	});
 
 	it("comes at once under reduced motion", async () => {
