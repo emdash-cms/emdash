@@ -221,6 +221,21 @@ describe("createContentEditorDraft", () => {
 		expect(setup().draft.get().revision).not.toBe(setup().draft.get().revision);
 	});
 
+	it("works where crypto.randomUUID is missing, as on a plain HTTP host", () => {
+		// Shadows the prototype method the way an insecure context leaves it out.
+		Object.defineProperty(crypto, "randomUUID", { value: undefined, configurable: true });
+		try {
+			const { draft } = setup();
+			const { revision } = draft.get();
+			expect(revision).not.toBe("");
+			expect(
+				draft.patch([{ op: "set", field: "title", value: "Hi" }], { expectedRevision: revision }),
+			).toEqual({ ok: true });
+		} finally {
+			Reflect.deleteProperty(crypto, "randomUUID");
+		}
+	});
+
 	it("checks staleness first, then whether the editor accepts edits, then the operations", () => {
 		const { draft, update } = setup();
 		const { revision } = draft.get();

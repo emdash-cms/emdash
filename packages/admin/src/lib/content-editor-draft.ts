@@ -377,7 +377,8 @@ function expectedRevisionOf(options: unknown): unknown {
  * is the host's `read()` returning null, which never reverts.
  */
 export function createContentEditorDraft(host: EditorDraftHost): ContentEditorDraft {
-	const id = crypto.randomUUID();
+	const id =
+		globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 	let counter = 0;
 	let lastValues: string | null = null;
 
