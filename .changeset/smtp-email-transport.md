@@ -18,7 +18,7 @@ Port 465 uses implicit TLS and port 587 uses STARTTLS. The provider verifies the
 
 #### Provider selection
 
-Settings → Email now has a provider dropdown that lists SMTP and any installed email plugins. When its environment variables are set, SMTP delivers email unless an email plugin is active or another provider is selected. Without them, SMTP is used only after you select it. A site with a single email plugin still selects that plugin automatically.
+Settings → Email now has a provider dropdown that lists SMTP and any installed email plugins. When its environment variables are set, SMTP delivers email unless an email plugin is active or another provider is selected. Without them, SMTP is used only after you select it. A site with a single email plugin still selects that plugin automatically. In `astro dev`, the console provider is used only when no other email provider is active, and that choice is no longer saved to the database.
 
 **Send test email** now shows the SMTP server's error, for example a rejected login, instead of a generic failure.
 
