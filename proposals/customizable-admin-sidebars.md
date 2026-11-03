@@ -1,7 +1,7 @@
 ---
 title: Customizable admin sidebars
 type: feature-plan
-status: proposed
+status: accepted
 authors:
   - Noah Pham (@khoinguyenpham04)
 discussion: null
