@@ -1672,7 +1672,7 @@ function BlockRow({
 				aria-labelledby={labelId}
 				className="[--emdash-editor-sticky-top:calc(var(--emdash-blocks-sticky-top)+2.75rem)]"
 			>
-				<div className="px-2 pt-2 pb-5 @min-[440px]/blocks:ps-12">
+				<div className="px-2 pt-2 pb-5 @min-[440px]/blocks:px-12">
 					{unsupported || !version ? (
 						<p className="ps-2 text-base text-kumo-subtle">
 							{t`This block cannot be edited because its stored definition is unavailable.`}

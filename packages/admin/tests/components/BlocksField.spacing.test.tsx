@@ -217,6 +217,24 @@ describe("Spacing inside an open block", () => {
 		expect(lines.filter((line) => box(line).height <= 1)).toEqual([]);
 	});
 
+	it.each(["ltr", "rtl"] as const)(
+		"leaves as much room after an open block's fields as before them (%s)",
+		async (dir) => {
+			document.documentElement.dir = dir;
+			await openShowcase();
+
+			const row = box(
+				page
+					.getByRole("button", { name: "Showcase", exact: true })
+					.element()
+					.closest("[data-block-key]")!,
+			);
+			const card = box(itemOf("Maya Okafor"));
+			expect(card.left - row.left).toBeGreaterThan(30);
+			expect(Math.abs(card.left - row.left - (row.right - card.right))).toBeLessThan(0.5);
+		},
+	);
+
 	it("spaces an item's stacked settings like its fields on a narrow screen", async () => {
 		await page.viewport(400, 800);
 		await openShowcase();

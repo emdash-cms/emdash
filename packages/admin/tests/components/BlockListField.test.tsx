@@ -1077,7 +1077,7 @@ describe("Lists inside a block in the editor", () => {
 		).toBeLessThan(0.5);
 	});
 
-	it("lines up every row's actions button, in blocks, items and table rows, on one edge", async () => {
+	it("lines up the actions buttons of blocks on one edge, and of items and table rows on another", async () => {
 		await renderEditor(
 			[
 				testimonialsBlock([maya, jonas]),
@@ -1094,11 +1094,18 @@ describe("Lists inside a block in the editor", () => {
 		await expect.poll(() => document.getAnimations().length).toBe(0);
 
 		const buttons = page.getByRole("button", { name: / actions$/ }).all();
-		expect(buttons.length).toBeGreaterThanOrEqual(5);
-		const boxes = buttons.map((button) => box(button));
-		const centers = boxes.map((rect) => rect.left + rect.width / 2);
-		expect(Math.max(...centers) - Math.min(...centers)).toBeLessThan(0.5);
-		expect(new Set(boxes.map((rect) => `${rect.width}x${rect.height}`)).size).toBe(1);
+		const inList = buttons.filter((button) => button.element().closest("[data-list-item]"));
+		const ofBlocks = buttons.filter((button) => !button.element().closest("[data-list-item]"));
+		expect(ofBlocks.length).toBe(2);
+		expect(inList.length).toBeGreaterThanOrEqual(3);
+		const centers = (group: typeof buttons) =>
+			group.map((button) => box(button).left + box(button).width / 2);
+		for (const group of [ofBlocks, inList]) {
+			expect(Math.max(...centers(group)) - Math.min(...centers(group))).toBeLessThan(0.5);
+		}
+		expect(
+			new Set(buttons.map((button) => `${box(button).width}x${box(button).height}`)).size,
+		).toBe(1);
 	});
 
 	it("shows every item open with its fields disabled in a read-only entry", async () => {
