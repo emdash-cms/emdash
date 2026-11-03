@@ -1,14 +1,43 @@
-import { Button, Dialog, Input, Select } from "@cloudflare/kumo";
+import { Input, LayerDialog, Select } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Check, Copy, X } from "@phosphor-icons/react";
 import * as React from "react";
 
+import { ApiResponseError } from "../../lib/api/client.js";
+import {
+	focusFirstInvalid,
+	guardUnsavedInput,
+	revealErrors,
+	useValueAtFailure,
+} from "../../lib/dialog-form.js";
+import { DialogError, getMutationError } from "../DialogError.js";
+import { HelpLabel } from "../FieldHelpLabel.js";
 import { useRolesConfig } from "./useRolesConfig.js";
+
+const DEFAULT_ROLE = 30; // Author
+
+/** The address check the server applies to an invite (Zod's `z.email()`). */
+const EMAIL_PATTERN =
+	/^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+\-.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9-]*\.)+[A-Za-z]{2,}$/;
+
+function emailProblem(email: string): MessageDescriptor | undefined {
+	if (!email) return msg`Enter an email address.`;
+	if (!EMAIL_PATTERN.test(email)) {
+		return msg`Enter a valid email address, such as name@example.com.`;
+	}
+	return undefined;
+}
+
+function isUserExists(error: unknown): boolean {
+	return error instanceof ApiResponseError && error.code === "USER_EXISTS";
+}
 
 export interface InviteUserModalProps {
 	open: boolean;
 	isSending?: boolean;
-	error?: string | null;
+	/** The last invite request's failure; pass the mutation's `error`. */
+	error?: unknown;
 	/** When set, shows a copy-link view instead of the form (no email provider) */
 	inviteUrl?: string | null;
 	onOpenChange: (open: boolean) => void;
@@ -29,9 +58,13 @@ export function InviteUserModal({
 	const { t } = useLingui();
 	const { roles, roleLabels } = useRolesConfig();
 	const [email, setEmail] = React.useState("");
-	const [role, setRole] = React.useState(30); // Default to Author
+	const [role, setRole] = React.useState(DEFAULT_ROLE);
 	const [copied, setCopied] = React.useState(false);
 	const [copyError, setCopyError] = React.useState(false);
+	const [submitted, setSubmitted] = React.useState(false);
+	const [sentEmail, setSentEmail] = React.useState<string | null>(null);
+	const formId = React.useId();
+	const formRef = React.useRef<HTMLFormElement>(null);
 
 	const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -39,11 +72,31 @@ export function InviteUserModal({
 	React.useEffect(() => {
 		if (open) {
 			setEmail("");
-			setRole(30);
+			setRole(DEFAULT_ROLE);
 			setCopied(false);
 			setCopyError(false);
+			setSubmitted(false);
+			setSentEmail(null);
 		}
 	}, [open]);
+
+	const trimmedEmail = email.trim();
+	// The address typed and the one sent, as they stood when the answer came back. A new
+	// submit replaces `sentEmail` a moment before the old error clears, so both are kept.
+	const failure = useValueAtFailure(error, { email: trimmedEmail, sent: sentEmail });
+	// An address edited while the request ran isn't the one refused, so its refusal stays in the banner.
+	const refusedOnField = isUserExists(error) && !!failure && failure.email === failure.sent;
+	const emailTaken = refusedOnField && failure?.sent === trimmedEmail;
+	const problem = emailTaken
+		? msg`Another user already uses this email address. Enter a different one.`
+		: emailProblem(trimmedEmail);
+	const emailError = submitted && problem ? t(problem) : undefined;
+	const requestError = refusedOnField ? null : getMutationError(error);
+
+	// Sending disables the action, so focus has left the form by the time the address is refused.
+	React.useEffect(() => {
+		if (refusedOnField) focusFirstInvalid(formRef.current);
+	}, [error, refusedOnField]);
 
 	// Clean up timeout on unmount
 	React.useEffect(() => {
@@ -52,10 +105,21 @@ export function InviteUserModal({
 		};
 	}, []);
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		onInvite(email, role);
+		if (isSending) return;
+		if (problem) {
+			const form = e.currentTarget;
+			revealErrors(form, () => setSubmitted(true));
+			return;
+		}
+		setSubmitted(true);
+		setSentEmail(trimmedEmail);
+		onInvite(trimmedEmail, role);
 	};
+
+	// The invite link can't be shown again, so only Done or Escape may dismiss it.
+	const unsaved = inviteUrl ? true : trimmedEmail !== "" || role !== DEFAULT_ROLE;
 
 	const handleCopyUrl = async () => {
 		if (!inviteUrl) return;
@@ -71,101 +135,73 @@ export function InviteUserModal({
 	};
 
 	return (
-		<Dialog.Root open={open} onOpenChange={onOpenChange}>
-			<Dialog className="p-6 max-w-md" size="lg">
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<div className="flex flex-col space-y-1.5">
-						<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-							{inviteUrl ? t`Invite Link Created` : t`Invite User`}
-						</Dialog.Title>
-						<Dialog.Description className="text-sm text-kumo-subtle">
-							{inviteUrl
-								? t`No email provider configured. Share this link manually.`
-								: t`Send an invitation email to a new team member.`}
-						</Dialog.Description>
-					</div>
-					<Dialog.Close
-						aria-label={t`Close`}
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								aria-label={t`Close`}
-								className="absolute end-4 top-4"
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">{t`Close`}</span>
-							</Button>
-						)}
-					/>
-				</div>
+		<LayerDialog.Root
+			open={open}
+			{...guardUnsavedInput(unsaved, onOpenChange)}
+			dismissDisabled={isSending}
+		>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>{inviteUrl ? t`Invite Link Created` : t`Invite User`}</LayerDialog.Title>
+				<LayerDialog.Description>
+					{inviteUrl
+						? t`No email provider configured. Share this link manually.`
+						: t`Send an invitation email to a new team member.`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					{inviteUrl ? (
+						/* Copy-link view — shown when no email provider is configured */
+						<div className="space-y-4">
+							<div className="rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint p-4">
+								<p className="text-sm text-kumo-warning font-medium">
+									{t`Share this link with the invited user`}
+								</p>
+								<p className="text-xs text-kumo-subtle mt-1">
+									{t`This link expires in 7 days and can only be used once.`}
+								</p>
+							</div>
 
-				{inviteUrl ? (
-					/* Copy-link view — shown when no email provider is configured */
-					<div className="py-4 space-y-4">
-						<div className="rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint p-4">
-							<p className="text-sm text-kumo-warning font-medium">
-								{t`Share this link with the invited user`}
-							</p>
-							<p className="text-xs text-kumo-subtle mt-1">
-								{t`This link expires in 7 days and can only be used once.`}
-							</p>
-						</div>
-
-						<div className="flex items-center gap-2">
 							<code
 								dir="ltr"
-								className="flex-1 rounded bg-kumo-tint px-3 py-2 text-sm font-mono border truncate"
+								className="block rounded bg-kumo-tint px-3 py-2 text-sm font-mono border break-all"
 							>
 								{inviteUrl}
 							</code>
-							<Button
-								variant="ghost"
-								shape="square"
-								onClick={handleCopyUrl}
-								aria-label={t`Copy invite link`}
-							>
-								{copied ? (
-									<Check className="h-4 w-4 text-kumo-success" />
-								) : (
-									<Copy className="h-4 w-4" />
-								)}
-							</Button>
+							{copied && <p className="text-xs text-kumo-success">{t`Copied to clipboard`}</p>}
+							{copyError && (
+								<p className="text-xs text-kumo-warning">
+									{t`Could not copy automatically. Please select the URL above and copy manually.`}
+								</p>
+							)}
 						</div>
-						{copied && <p className="text-xs text-kumo-success">{t`Copied to clipboard`}</p>}
-						{copyError && (
-							<p className="text-xs text-kumo-warning">
-								{t`Could not copy automatically. Please select the URL above and copy manually.`}
-							</p>
-						)}
+					) : (
+						/* Standard invite form */
+						<form ref={formRef} id={formId} noValidate onSubmit={handleSubmit}>
+							<div className="grid gap-5">
+								{/* Email */}
+								<Input
+									dir="ltr"
+									label={t`Email address`}
+									type="email"
+									value={email}
+									onChange={(e) => setEmail(e.target.value)}
+									placeholder={t`colleague@example.com`}
+									required
+									autoComplete="off"
+									error={emailError}
+									aria-invalid={emailError ? true : undefined}
+								/>
 
-						<div className="flex justify-end">
-							<Button type="button" onClick={() => onOpenChange(false)}>
-								{t`Done`}
-							</Button>
-						</div>
-					</div>
-				) : (
-					/* Standard invite form */
-					<form onSubmit={handleSubmit}>
-						<div className="grid gap-4 py-4">
-							{/* Email */}
-							<Input
-								dir="ltr"
-								label={t`Email address`}
-								type="email"
-								value={email}
-								onChange={(e) => setEmail(e.target.value)}
-								placeholder={t`colleague@example.com`}
-								required
-								autoComplete="off"
-							/>
-
-							{/* Role */}
-							<div className="grid gap-2">
+								{/* Role */}
 								<Select
-									label={t`Role`}
+									label={
+										<HelpLabel
+											help={t`The invited user will have this role once they complete registration.`}
+										>
+											{t`Role`}
+										</HelpLabel>
+									}
+									aria-label={t`Role`}
+									className="w-full"
 									value={role.toString()}
 									onValueChange={(v) => v !== null && setRole(parseInt(v, 10))}
 									items={roleLabels}
@@ -179,35 +215,27 @@ export function InviteUserModal({
 										</Select.Option>
 									))}
 								</Select>
-								<p className="text-xs text-kumo-subtle">
-									{t`The invited user will have this role once they complete registration.`}
-								</p>
+
+								<DialogError message={requestError} />
 							</div>
-
-							{/* Error message */}
-							{error && (
-								<div className="rounded-md bg-kumo-danger/10 p-3 text-sm text-kumo-danger">
-									{error}
-								</div>
-							)}
-						</div>
-
-						<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => onOpenChange(false)}
-								disabled={isSending}
-							>
-								{t`Cancel`}
-							</Button>
-							<Button type="submit" disabled={isSending || !email}>
-								{isSending ? t`Sending...` : t`Send Invite`}
-							</Button>
-						</div>
-					</form>
+						</form>
+					)}
+				</LayerDialog.Body>
+				{inviteUrl ? (
+					<LayerDialog.Actions dismissLabel={t`Done`}>
+						{/* The key mounts a new button rather than reusing Send's, so autoFocus applies. */}
+						<LayerDialog.Action key="copy-invite-link" autoFocus onClick={handleCopyUrl}>
+							{t`Copy invite link`}
+						</LayerDialog.Action>
+					</LayerDialog.Actions>
+				) : (
+					<LayerDialog.Actions dismissLabel={t`Cancel`}>
+						<LayerDialog.Action type="submit" form={formId} disabled={isSending}>
+							{isSending ? t`Sending...` : t`Send Invite`}
+						</LayerDialog.Action>
+					</LayerDialog.Actions>
 				)}
-			</Dialog>
-		</Dialog.Root>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }

@@ -593,6 +593,8 @@ function pushMetricsTimings(
 	}
 }
 
+const TRAILING_SLASH_RE = /\/$/;
+
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
 const SITEMAP_COLLECTION_RE = /^\/sitemap-([^/]+)\.xml$/;
@@ -772,8 +774,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// Process /_emdash routes and public routes with an active session
 		// (logged-in editors need the runtime for toolbar/visual editing on public pages)
 		const isEmDashRoute = url.pathname.startsWith("/_emdash");
+		const base = import.meta.env.BASE_URL.replace(TRAILING_SLASH_RE, "");
+		const publicPath =
+			base && url.pathname.startsWith(`${base}/`) ? url.pathname.slice(base.length) : url.pathname;
 		const isPublicRuntimeRoute =
-			PUBLIC_RUNTIME_ROUTES.has(url.pathname) || isCollectionSitemapPath(url.pathname);
+			PUBLIC_RUNTIME_ROUTES.has(publicPath) || isCollectionSitemapPath(publicPath);
 
 		// Check for edit mode cookie - editors viewing public pages need the runtime
 		// so auth middleware can verify their session for visual editing

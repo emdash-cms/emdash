@@ -9,6 +9,8 @@
  * Workers-safe: no Node.js imports.
  */
 
+const TRAILING_SLASH_RE = /\/$/;
+
 /** Minimal config shape — avoids importing the full EmDashConfig type tree. */
 export interface SiteUrlConfig {
 	siteUrl?: string;
@@ -144,4 +146,18 @@ export function getEnvAllowedOrigins(): string[] {
  */
 export function getPublicUrl(url: URL, config: SiteUrlConfig | undefined, path: string): string {
 	return `${getPublicOrigin(url, config)}${path}`;
+}
+
+/** Public site root including Astro's base, without duplicating a stored base path. */
+export function getPublicSiteUrl(
+	url: URL,
+	config: SiteUrlConfig | undefined,
+	storedUrl: string | undefined,
+	base: string,
+): string {
+	const siteUrl = (storedUrl || getPublicOrigin(url, config)).replace(TRAILING_SLASH_RE, "");
+	const basePath = base.replace(TRAILING_SLASH_RE, "");
+	if (!basePath) return siteUrl;
+	const pathname = new URL(siteUrl).pathname.replace(TRAILING_SLASH_RE, "");
+	return pathname.endsWith(basePath) ? siteUrl : `${siteUrl}${basePath}`;
 }

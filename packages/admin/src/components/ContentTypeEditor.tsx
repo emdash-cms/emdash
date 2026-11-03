@@ -37,10 +37,10 @@ import type {
 	RelationDef,
 	UpdateRelationInput,
 } from "../lib/api/relations.js";
+import { useConfirmedRequest } from "../lib/dialog-form.js";
 import { cn, slugifyIdentifier } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { getMutationError } from "./DialogError";
 import { EditorHeader } from "./EditorHeader";
 import { FieldEditor } from "./FieldEditor";
 import { RelationImpact } from "./RelationImpact.js";
@@ -60,8 +60,12 @@ export interface ContentTypeEditorProps {
 	/** Resolves once the field is saved; rejects with the server's message. */
 	onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => Promise<unknown>;
 	/** `deleteRelation` also removes the relationship a reference field views,
-	 * its links, and the field on the other end. */
-	onDeleteField?: (fieldSlug: string, options?: { deleteRelation?: boolean }) => void;
+	 * its links, and the field on the other end. Return the request's promise to
+	 * keep the confirmation open, showing its progress and any failure. */
+	onDeleteField?: (
+		fieldSlug: string,
+		options?: { deleteRelation?: boolean },
+	) => void | Promise<unknown>;
 	onReorderFields?: (fieldSlugs: string[]) => void;
 	/** Resolves with the new relation; rejects with the server's message. */
 	onCreateRelation?: (input: CreateRelationInput) => Promise<RelationDef>;
@@ -218,7 +222,7 @@ export function ContentTypeEditor({
 	const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false);
 	const [editingField, setEditingField] = React.useState<SchemaField | undefined>();
 	const [fieldSaving, setFieldSaving] = React.useState(false);
-	const [fieldSaveError, setFieldSaveError] = React.useState<string | null>(null);
+	const [fieldSaveError, setFieldSaveError] = React.useState<unknown>(null);
 	const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null);
 	// Checked by default: deleting a reference field almost always means the
 	// relationship it views is finished too.
@@ -358,15 +362,10 @@ export function ContentTypeEditor({
 			setFieldEditorOpen(false);
 			setEditingField(undefined);
 		} catch (err) {
-			setFieldSaveError(getMutationError(err));
+			setFieldSaveError(err);
 		} finally {
 			setFieldSaving(false);
 		}
-	};
-
-	const requestDeleteField = (field: SchemaField) => {
-		setDeleteFieldRelation(true);
-		setDeleteFieldTarget(field);
 	};
 
 	const handleEditField = (field: SchemaField) => {
@@ -395,6 +394,20 @@ export function ContentTypeEditor({
 	});
 	const targetRelationSlug = deleteFieldTarget?.validation?.relation;
 	const targetRelation = relations.find((rel) => rel.slug === targetRelationSlug);
+	const deleteField = useConfirmedRequest(
+		deleteFieldTarget
+			? () =>
+					onDeleteField?.(
+						deleteFieldTarget.slug,
+						targetRelation ? { deleteRelation: deleteFieldRelation } : undefined,
+					)
+			: undefined,
+	);
+	const requestDeleteField = (field: SchemaField) => {
+		setDeleteFieldRelation(true);
+		setDeleteFieldTarget(field);
+		deleteField.show();
+	};
 
 	const sensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -857,8 +870,7 @@ export function ContentTypeEditor({
 			/>
 
 			<ConfirmDialog
-				open={!!deleteFieldTarget}
-				onClose={() => setDeleteFieldTarget(null)}
+				{...deleteField.dialog}
 				title={t`Delete Field?`}
 				description={
 					deleteFieldTarget
@@ -867,27 +879,17 @@ export function ContentTypeEditor({
 				}
 				confirmLabel={t`Delete`}
 				pendingLabel={t`Deleting...`}
-				isPending={false}
-				error={null}
-				onConfirm={() => {
-					if (deleteFieldTarget) {
-						onDeleteField?.(
-							deleteFieldTarget.slug,
-							targetRelation ? { deleteRelation: deleteFieldRelation } : undefined,
-						);
-						setDeleteFieldTarget(null);
-					}
-				}}
 			>
 				{targetRelation && (
-					<div className="mt-4 space-y-3">
+					<div className="space-y-3">
 						<Checkbox
 							checked={deleteFieldRelation}
 							onCheckedChange={(checked) => setDeleteFieldRelation(checked === true)}
+							disabled={deleteField.dialog.isPending}
 							label={t`Also delete the relationship this field uses`}
 						/>
 						{deleteFieldRelation && collection && (
-							<div className="rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3">
+							<div className="space-y-3 rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3">
 								<p className="text-sm font-medium">{t`This also removes:`}</p>
 								<RelationImpact
 									relations={[targetRelation]}
