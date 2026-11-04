@@ -3570,8 +3570,8 @@ function withButtonKeyField(buttons: unknown): unknown {
 }
 
 /** Shapes repeater rows into the `button` items `Buttons.astro` renders. */
-function normalizeButtonItems(items: unknown): Record<string, unknown>[] {
-	if (!Array.isArray(items)) return [];
+function normalizeButtonItems(items: unknown): unknown {
+	if (!Array.isArray(items)) return items;
 	return items.filter(isRecord).map((item) => {
 		const { url, style, [BUTTON_KEY_FIELD]: key, ...rest } = item;
 		return {
@@ -3795,6 +3795,7 @@ export function PortableTextEditor({
 					type: "repeater",
 					action_id: "buttons",
 					label: t`Buttons`,
+					item_label: t`button`,
 					fields: [
 						{ type: "text_input", action_id: "text", label: t`Text` },
 						{ type: "text_input", action_id: "url", label: t`URL`, placeholder: "https://" },
@@ -3803,9 +3804,9 @@ export function PortableTextEditor({
 							action_id: "style",
 							label: t`Style`,
 							options: [
-								{ label: t`Default`, value: "default" },
-								{ label: t`Outline`, value: "outline" },
-								{ label: t`Fill`, value: "fill" },
+								{ label: t({ message: "Default", context: "button style" }), value: "default" },
+								{ label: t({ message: "Outline", context: "button style" }), value: "outline" },
+								{ label: t({ message: "Fill", context: "button style" }), value: "fill" },
 							],
 						},
 					],
@@ -4515,15 +4516,15 @@ export function PortableTextEditor({
 		(values: Record<string, unknown>) => {
 			if (!editor || !pluginBlockModal) return;
 
-			const { id, ...fieldData } = values;
-			const data =
+			const { id: formId, ...fieldData } = values;
+			const isBuiltinButtons =
 				pluginBlockModal.pluginId === BUILTIN_BLOCKS_PLUGIN_ID &&
-				pluginBlockModal.type === "buttons"
-					? {
-							...fieldData,
-							buttons: normalizeButtonItems(fieldData.buttons),
-						}
-					: fieldData;
+				pluginBlockModal.type === "buttons";
+			// A buttons group has no URL of its own; an older editor could store one here.
+			const id = isBuiltinButtons ? "" : formId;
+			const data = isBuiltinButtons
+				? { ...fieldData, buttons: normalizeButtonItems(fieldData.buttons) }
+				: fieldData;
 			const editPos = editingBlockPosRef.current;
 
 			if (editPos !== null) {

@@ -80,6 +80,34 @@ describe("Buttons block editor", () => {
 		});
 	});
 
+	it("clears a URL an older editor stored on the group when it is saved", async () => {
+		const onChange = vi.fn();
+		const strayGroup = { ...importedButtons, id: "https://example.com/stray" };
+		const screen = await render(<PortableTextEditor value={[strayGroup]} onChange={onChange} />);
+
+		await screen.getByRole("button", { name: "Edit", exact: true }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+
+		await vi.waitFor(() => {
+			expect(savedButtons(onChange)?.id).toBe("");
+		});
+	});
+
+	it("keeps a buttons value that isn't a list when the group is saved", async () => {
+		const onChange = vi.fn();
+		const legacy = { _type: "buttons", _key: "buttons-1", layout: "vertical", buttons: "Sign up" };
+		const screen = await render(<PortableTextEditor value={[legacy]} onChange={onChange} />);
+
+		await screen.getByRole("button", { name: "Edit", exact: true }).click();
+		await screen.getByLabelText("Layout").click();
+		await screen.getByRole("option", { name: "Horizontal" }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+
+		await vi.waitFor(() => {
+			expect(savedButtons(onChange)).toMatchObject({ layout: "horizontal", buttons: "Sign up" });
+		});
+	});
+
 	it("inserts a new buttons block from the slash menu", async () => {
 		const onChange = vi.fn();
 		const screen = await render(<PortableTextEditor onChange={onChange} />);
@@ -91,7 +119,7 @@ describe("Buttons block editor", () => {
 		await userEvent.keyboard("{Enter}");
 
 		await expect.element(screen.getByRole("dialog")).toBeVisible();
-		await screen.getByRole("button", { name: "Add item" }).first().click();
+		await screen.getByRole("button", { name: "Add button" }).first().click();
 		await screen.getByLabelText("Text", { exact: true }).fill("Sign up");
 		await screen.getByLabelText("URL", { exact: true }).fill("https://example.com/signup");
 		await screen.getByRole("button", { name: "Insert", exact: true }).click();
