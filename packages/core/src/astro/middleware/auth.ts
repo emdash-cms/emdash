@@ -89,7 +89,7 @@ function mcpUnauthorizedResponse(
  * API routes that skip auth — each handles its own access control.
  *
  * Prefix entries match any path starting with that prefix.
- * Exact entries (no trailing slash or wildcard) match that path only.
+ * Entries in PUBLIC_API_EXACT match that path only.
  */
 const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/setup",
@@ -98,7 +98,6 @@ const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/auth/dev-bypass",
 	"/_emdash/api/auth/signup/",
 	"/_emdash/api/auth/magic-link/",
-	"/_emdash/api/auth/invite/",
 	"/_emdash/api/auth/oauth/",
 	"/_emdash/api/oauth/device/token",
 	"/_emdash/api/oauth/device/code",
@@ -110,6 +109,13 @@ const PUBLIC_API_PREFIXES = [
 ];
 
 const PUBLIC_API_EXACT = new Set([
+	// Invite creation requires auth; only the token-based acceptance flow is public.
+	"/_emdash/api/auth/invite/accept",
+	"/_emdash/api/auth/invite/accept/",
+	"/_emdash/api/auth/invite/register-options",
+	"/_emdash/api/auth/invite/register-options/",
+	"/_emdash/api/auth/invite/complete",
+	"/_emdash/api/auth/invite/complete/",
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/auth/mode",

@@ -39,7 +39,7 @@ const _mainSchema = /*#__PURE__*/ v.query(
 				25,
 			),
 			/**
-			 * Free-text search query. An exact handle, DID, or identity/slug pair searches that publisher or package. Other values match against name, description, keywords, and authors. Empty or absent returns all packages.
+			 * Free-text search query. An exact handle, DID, or identity/slug pair searches that publisher or package. Other values match against name, description, keywords, authors, sections, slug, and the publisher's handle without its domain ending, with the last word matched as a prefix. Empty or absent returns all packages.
 			 * @maxLength 256
 			 */
 			q: /*#__PURE__*/ v.optional(

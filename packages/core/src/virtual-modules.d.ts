@@ -142,7 +142,7 @@ declare module "virtual:emdash/auth" {
 declare module "virtual:emdash/plugins" {
 	import type { ResolvedPlugin } from "./plugins/types.js";
 
-	export const plugins: ResolvedPlugin[];
+	export const plugins: ResolvedPlugin[] | (() => ResolvedPlugin[]);
 }
 
 declare module "virtual:emdash/sandbox-runner" {
