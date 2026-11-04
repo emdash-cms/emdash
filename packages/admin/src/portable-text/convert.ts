@@ -666,12 +666,10 @@ function convertPMNode(
 			}>;
 			for (const [index, child] of blockquoteContent.entries()) {
 				if (child.type === "paragraph") {
-					const childKey = portableTextKeyFromAttrs(child.attrs);
-					// The first paragraph is saved under the quote's key.
-					const key =
-						index === 0
-							? claimKey(portableTextKeyFromAttrs(node.attrs) ?? childKey, path)
-							: claimKey(childKey, `${path}:${index}`);
+					const key = claimKey(
+						portableTextKeyFromAttrs(child.attrs),
+						index === 0 ? path : `${path}:${index}`,
+					);
 					const { children, markDefs } = convertInlineContent(child.content || [], key);
 					if (children.length > 0) {
 						blocks.push({
@@ -1390,13 +1388,11 @@ function convertPTBlock(
 function convertPTQuote(blocks: PortableTextTextBlock[]): unknown {
 	return {
 		type: "blockquote",
-		attrs: attrsWithPortableTextKey(undefined, blocks[0]!._key),
-		content: blocks.map((block, index) => {
+		content: blocks.map((block) => {
 			const content = convertPTSpans(block.children, block.markDefs ?? []);
 			return {
 				type: "paragraph",
-				// The first paragraph is saved under the quote's key.
-				...(index > 0 ? { attrs: attrsWithPortableTextKey(undefined, block._key) } : {}),
+				attrs: attrsWithPortableTextKey(undefined, block._key),
 				content: content.length > 0 ? content : undefined,
 			};
 		}),

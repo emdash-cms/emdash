@@ -19,7 +19,6 @@ export function generateKey(): string {
 const TOP_LEVEL_BLOCKS = new Set([
 	"paragraph",
 	"heading",
-	"blockquote",
 	"codeBlock",
 	"htmlBlock",
 	"iframeBlock",
@@ -34,20 +33,18 @@ const TOP_LEVEL_BLOCKS = new Set([
 const KEYED_CONTAINERS = new Set(["blockquote", "bulletList", "orderedList", "listItem"]);
 
 /**
- * Whether `node`, the `index`th child of `parent`, holds the `_key` of a
- * Portable Text block: a top-level text block, quote or block atom, a list
- * item's paragraph, or a quote's paragraph after the first, which is saved
- * under the quote's key. Tables keep their keys in `emdashKey`.
+ * Whether `node`, a child of `parent`, holds the `_key` of a Portable Text
+ * block: a top-level text block or block atom, or a list item's or quote's
+ * paragraph. Tables keep their keys in `emdashKey`.
  */
 export function ownsPortableTextKey(
 	node: ProseMirrorNode,
 	parent: ProseMirrorNode | null,
-	index: number,
 ): boolean {
 	if (!parent) return false;
 	if (parent.type === parent.type.schema.topNodeType) return TOP_LEVEL_BLOCKS.has(node.type.name);
 	if (node.type.name !== "paragraph") return false;
-	return parent.type.name === "listItem" || (parent.type.name === "blockquote" && index > 0);
+	return parent.type.name === "listItem" || parent.type.name === "blockquote";
 }
 
 function keyOf(node: ProseMirrorNode): string | undefined {
@@ -76,17 +73,17 @@ function assignPortableTextKeys(
 	const { doc } = state;
 	const changed = new Map<number, ProseMirrorNode>();
 	for (const { from, to } of ranges) {
-		doc.nodesBetween(from, to, (node, pos, parent, index) => {
-			if (ownsPortableTextKey(node, parent, index)) changed.set(pos, node);
+		doc.nodesBetween(from, to, (node, pos, parent) => {
+			if (ownsPortableTextKey(node, parent)) changed.set(pos, node);
 			return KEYED_CONTAINERS.has(node.type.name);
 		});
 	}
 	if (changed.size === 0) return null;
 
 	const holders = new Map<string, number[]>();
-	doc.descendants((node, pos, parent, index) => {
+	doc.descendants((node, pos, parent) => {
 		const key = keyOf(node);
-		if (key && ownsPortableTextKey(node, parent, index)) {
+		if (key && ownsPortableTextKey(node, parent)) {
 			const positions = holders.get(key);
 			if (positions) positions.push(pos);
 			else holders.set(key, [pos]);

@@ -24,6 +24,7 @@ vi.mock("../../src/components/editor/DragHandleWrapper", () => ({ DragHandleWrap
 type Block = {
 	_type: string;
 	_key: string;
+	style?: string;
 	listItem?: string;
 	children?: Array<{ _key: string; text: string }>;
 };
@@ -63,9 +64,9 @@ function startOf(editor: Editor, text: string): number {
 function documentKeys(editor: Editor): string[] {
 	const keys: unknown[] = [];
 	const { doc } = editor.state;
-	doc.descendants((node, pos, parent, index) => {
+	doc.descendants((node, pos, parent) => {
 		const trailing = pos + node.nodeSize === doc.content.size && node.content.size === 0;
-		if (ownsPortableTextKey(node, parent, index) && !trailing) {
+		if (ownsPortableTextKey(node, parent) && !trailing) {
 			keys.push(node.attrs.emdashPortableTextKey);
 		}
 	});
@@ -195,6 +196,34 @@ describe("Portable Text block keys", () => {
 		await userEvent.keyboard("{Enter}");
 		const blocks = await saved(editor, changes, ["", "日本"]);
 		expect(blocks[1]).toEqual(typed);
+	});
+
+	it("keeps a block's key when it is quoted and when its quote is split at the start", async () => {
+		const block = (key: string, text: string, style = "normal") => ({
+			_type: "block",
+			_key: key,
+			style,
+			children: [{ _type: "span", _key: `${key}-span`, text }],
+		});
+		const { editor, changes } = await renderEditor([
+			block("hello", "Hello"),
+			block("between", "Between"),
+			block("quote", "Quoted", "blockquote"),
+		]);
+
+		await focus(editor, startOf(editor, "Hello") + 2);
+		editor.commands.toggleBlockquote();
+		let blocks = await saved(editor, changes, ["Hello", "Between", "Quoted"]);
+		expect(blocks.map(({ _key, style }) => [_key, style])).toEqual([
+			["hello", "blockquote"],
+			["between", "normal"],
+			["quote", "blockquote"],
+		]);
+
+		await focus(editor, startOf(editor, "Quoted"));
+		await userEvent.keyboard("{Enter}");
+		blocks = await saved(editor, changes, ["Hello", "Between", "", "Quoted"]);
+		expect(blocks[3]!._key).toBe("quote");
 	});
 
 	it("leaves an opened document unchanged when the empty last line is added", async () => {

@@ -274,9 +274,9 @@ describe("typing", () => {
 			to: textPosition(editor, "Quoted", "end"),
 		});
 		await userEvent.keyboard("{Backspace}");
-		expectShape(editor, 'doc(p#k-a("Before"~k-a-s), quote#k-q(p), p)@10');
+		expectShape(editor, 'doc(p#k-a("Before"~k-a-s), quote(p#k-q), p)@10');
 		await userEvent.keyboard("{Backspace}");
-		expectShape(editor, 'doc(p#k-a("Before"~k-a-s), p, p)@9');
+		expectShape(editor, 'doc(p#k-a("Before"~k-a-s), p#k-q, p)@9');
 	});
 
 	it("deletes everything", async () => {
@@ -547,7 +547,7 @@ describe("typing", () => {
 			],
 			[
 				"quote-backspace-at-second",
-				'doc(quote#k-q1(p("First"~k-q1-s, "Second"~k-q2-s)), p)@7',
+				'doc(quote(p#k-q1("First"~k-q1-s, "Second"~k-q2-s)), p)@7',
 				quote,
 				async (editor) => {
 					select(editor, textPosition(editor, "Second", "start"));
@@ -556,7 +556,7 @@ describe("typing", () => {
 			],
 			[
 				"quote-select-across-backspace",
-				"doc(p, p)@1",
+				"doc(p#k-q1, p)@1",
 				quote,
 				async (editor) => {
 					select(
@@ -569,7 +569,7 @@ describe("typing", () => {
 			],
 			[
 				"quote-enter-twice-at-end",
-				'doc(quote#k-q1(p("First"~k-q1-s), p#k-q2("Second"~k-q2-s)), p#new, p)@18',
+				'doc(quote(p#k-q1("First"~k-q1-s), p#k-q2("Second"~k-q2-s)), p#new, p)@18',
 				quote,
 				async (editor) => {
 					select(editor, textPosition(editor, "Second", "end"));
@@ -578,7 +578,7 @@ describe("typing", () => {
 			],
 			[
 				"quote-select-all-text-backspace",
-				'doc(p#k-before("before"~k-before-s), quote#k-q1(p), p#k-after("after"~k-after-s))@10',
+				'doc(p#k-before("before"~k-before-s), quote(p#k-q1), p#k-after("after"~k-after-s))@10',
 				[block("k-before", "before"), ...quote, block("k-after", "after")],
 				async (editor) => {
 					select(
