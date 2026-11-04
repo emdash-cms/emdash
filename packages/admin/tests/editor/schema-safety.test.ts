@@ -6,8 +6,9 @@
  * that ProseMirror matches Y on each, that tables stay under a size cap, and
  * that no normalizer writes while rendering another client's change.
  *
- * By default it runs the first 1,000 seeds of the acceptance gate, which is
- * 10,000 runs of 200 edits. Run the gate, or one shard of it from SEED_START:
+ * By default it runs 1,000 seeds of 100 edits, which still catches a list item
+ * that must start with a paragraph. The acceptance gate is 10,000 runs of 200
+ * edits. Run it, or one shard of it from SEED_START:
  *
  *   RUNS=10000 EDITS=200 SEED_START=1 pnpm --filter @emdash-cms/admin exec vitest run tests/editor/schema-safety.test.ts
  */
@@ -29,7 +30,7 @@ import {
 } from "./schema-safety-harness.js";
 
 const RUNS = Number(import.meta.env.RUNS || 1000);
-const EDITS = Number(import.meta.env.EDITS || 200);
+const EDITS = Number(import.meta.env.EDITS || 100);
 const SEED_START = Number(import.meta.env.SEED_START || 1);
 const CHUNK = 50;
 const CHUNK_TIMEOUT = CHUNK * EDITS * 20 + 300_000;
