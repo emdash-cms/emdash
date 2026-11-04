@@ -278,6 +278,7 @@
     "@oslojs/encoding": "catalog:",
     "@phosphor-icons/react": "catalog:",
     "@portabletext/toolkit": "^5.0.1",
+    "@portabletext/types": "^2.0.15",
     "@tiptap/core": "catalog:",
     "@tiptap/extension-code": "catalog:",
     "@tiptap/extension-code-block": "catalog:",
