@@ -542,7 +542,7 @@ Other schema rules, such as required fields, length limits, patterns, select cho
 
 ### Translate a draft from a panel
 
-The following function reads the translatable text fields, sends them to a private plugin route that calls a translation provider, and patches the results into the form. In a collection with SEO, `seo.title` and `seo.description` have the `string` and `text` types, so the function translates them too. The slug has the `slug` type and stays unchanged.
+The following function reads the translatable text fields, sends them to a private plugin route that calls a translation provider, and patches the results into the form. In a collection with SEO, `seo.title` and `seo.description` have the `string` and `text` types, so the function translates them too, unless the entry is published. The slug has the `slug` type and stays unchanged.
 
 ```ts title="src/admin/translate.ts"
 import type {
@@ -572,6 +572,7 @@ async function translate(texts: string[], locale: string): Promise<string[]> {
 export async function translateDraft(
 	editorDraft: ContentEditorDraft,
 	locale: string,
+	published: boolean,
 ): Promise<ContentEditorDraftPatchResult | null> {
 	const snapshot = editorDraft.get();
 	if (snapshot.readOnly) {
@@ -585,6 +586,7 @@ export async function translateDraft(
 	const slugs = snapshot.fieldDefinitions
 		.filter((field) => field.translatable && TEXT_TYPES.has(field.type))
 		.map((field) => field.slug)
+		.filter((slug) => !(published && slug.startsWith("seo.")))
 		.filter((slug) => typeof snapshot.fields[slug] === "string");
 	if (slugs.length === 0) return null;
 
@@ -606,7 +608,7 @@ export async function translateDraft(
 
 `translateDraft()` checks `readOnly` before it sends anything, so a read-only editor never sends content to the provider. It returns `null` when no field needs translating. Define the `translate` route as in [Admin pages](#admin-pages), with a permission that every user of the panel holds, such as `content:edit_own_drafts`. A private route without a permission accepts only administrators.
 
-The SEO panel saves the translated `seo.title` and `seo.description` within about half a second, so on a published entry they reach the live page before the user reviews them. To let the user review them first, leave the `seo.` keys out of the patch and show those translations in the panel instead.
+The SEO panel saves a patched `seo.title` and `seo.description` within about half a second, so on a published entry they would reach the live page before the user reviews them. `translateDraft()` therefore leaves the `seo.` keys out when `published` is `true`. To translate a published entry's SEO text, show those translations in the panel and let the user copy them into the SEO fields.
 
 The following panel calls `translateDraft()` when the user presses its button, and says where the text goes. If the user edits a draft value while the request runs, `patch()` returns `EDITOR_DRAFT_STALE` and the form is unchanged, so the panel asks the user to translate again.
 
@@ -618,7 +620,7 @@ import * as React from "react";
 
 import { translateDraft } from "./translate.js";
 
-export function TranslatePanel({ locale, editorDraft }: ContentEditorPanelContext) {
+export function TranslatePanel({ entry, locale, editorDraft }: ContentEditorPanelContext) {
 	const { i18n } = useLingui();
 	const [working, setWorking] = React.useState(false);
 	const [message, setMessage] = React.useState("");
@@ -638,7 +640,7 @@ export function TranslatePanel({ locale, editorDraft }: ContentEditorPanelContex
 		setWorking(true);
 		setMessage("");
 		try {
-			const result = await translateDraft(editorDraft, locale);
+			const result = await translateDraft(editorDraft, locale, entry.status === "published");
 			if (result === null) {
 				setMessage(
 					i18n._({ id: "translate.nothing", message: "This entry has no text to translate." }),
