@@ -20,7 +20,7 @@ import type {
 
 // Regex patterns for HTML parsing and conversion
 const BLOCK_ELEMENT_PATTERN =
-	/<(p|h[1-6]|blockquote|pre|ul|ol|figure|div|hr)[^>]*>([\s\S]*?)<\/\1>|<(hr|br)\s*\/?>|<img\s+[^>]+\/?>/gu;
+	/<(p|h[1-6]|blockquote|pre|ul|ol|figure|div|hr)(?=[\s/>])[^>]*>([\s\S]*?)<\/\1>|<(hr|br)\s*\/?>|<img\s+[^>]+\/?>/gu;
 const WORD_CHARACTER_PATTERN = /\w/;
 const TABLE_BLOCK_CONTENT_PATTERN = /<(?:img|h[1-6]|ul|ol|pre|blockquote|hr)\b/i;
 const MERGED_CELL_PATTERN = /\b(?:colspan|rowspan)\s*=\s*(?:["']\s*)?(?:[2-9]|[1-9]\d)/i;
@@ -39,6 +39,8 @@ const SRC_ATTR_PATTERN = /src=["']([^"']+)["']/i;
 const ALT_ATTR_PATTERN = /alt=["']([^"']*)["']/i;
 const LIST_ITEM_PATTERN = /<li[^>]*>([\s\S]*?)<\/li>/gu;
 const CODE_TAG_PATTERN = /<code[^>]*>([\s\S]*?)<\/code>/i;
+const CODE_LANGUAGE_PATTERN = /<code[^>]*\sclass=["'][^"']*language-([^\s"']+)/i;
+const BR_TAG_PATTERN = /<br\s*\/?>/giu;
 const HTML_TAG_PATTERN = /<[^>]+>/g;
 const FIGCAPTION_TAG_PATTERN = /<figcaption[^>]*>([\s\S]*?)<\/figcaption>/i;
 const AMP_ENTITY_PATTERN = /&amp;/g;
@@ -372,10 +374,14 @@ export function htmlToPortableText(
 				// Extract code content
 				const codeMatch = content.match(CODE_TAG_PATTERN);
 				const code = codeMatch?.[1] || content;
+				// Classic editor content often uses <br> for the newlines inside a code block
+				const withNewlines = code.replace(BR_TAG_PATTERN, "\n");
+				const language = content.match(CODE_LANGUAGE_PATTERN)?.[1];
 				blocks.push({
 					_type: "code",
 					_key: generateKey(),
-					code: decodeHtmlEntities(code),
+					code: decodeHtmlEntities(withNewlines),
+					...(language ? { language } : {}),
 				});
 				break;
 			}
