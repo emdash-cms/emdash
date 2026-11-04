@@ -16,16 +16,28 @@
 
 import type { Kysely, Transaction } from "kysely";
 
+import { deferObjectCacheInvalidations } from "../object-cache/index.js";
+
 /**
  * Run a callback inside a transaction if supported, or directly if not.
  *
  * Probes the database once on first call to determine if transactions work.
  * The result is cached for the lifetime of the process/worker.
+ *
+ * Object-cache invalidations made by `fn` take effect once the transaction
+ * has committed or rolled back.
  */
 let transactionsSupported: boolean | null = null;
 const TRANSACTIONS_NOT_SUPPORTED_RE = /transactions are not supported/i;
 
-export async function withTransaction<DB, T>(
+export function withTransaction<DB, T>(
+	db: Kysely<DB>,
+	fn: (trx: Kysely<DB> | Transaction<DB>) => Promise<T>,
+): Promise<T> {
+	return deferObjectCacheInvalidations(() => runTransaction(db, fn));
+}
+
+async function runTransaction<DB, T>(
 	db: Kysely<DB>,
 	fn: (trx: Kysely<DB> | Transaction<DB>) => Promise<T>,
 ): Promise<T> {
