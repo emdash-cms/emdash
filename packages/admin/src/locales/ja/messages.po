@@ -16,107 +16,107 @@ msgstr ""
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:588
 msgid "Autoresponder subject and body are required"
-msgstr ""
+msgstr "自動返信メールの件名と本文は必須です"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:762
 msgid "Daily digest"
-msgstr ""
+msgstr "日次ダイジェスト"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:768
 msgid "Digest hour (UTC)"
-msgstr ""
+msgstr "ダイジェストの送信時刻（UTC）"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:779
 msgid "Send a daily summary to the notification recipients instead of an email for each submission. Email must be configured."
-msgstr ""
+msgstr "送信ごとの通知メールの代わりに、1日分の要約を通知先に送信します。メールの設定が必要です。"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:785
 msgid "Send an autoresponder"
-msgstr ""
+msgstr "自動返信メールを送信"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:790
 msgid "Send a reply to the first email field in the form. Email must be configured."
-msgstr ""
+msgstr "フォーム内で最初にあるメールアドレスフィールドに入力されたアドレスに返信します。メールの設定が必要です。"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:797
 msgid "Autoresponder subject"
-msgstr ""
+msgstr "自動返信メールの件名"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:804
 msgid "Autoresponder body"
-msgstr ""
+msgstr "自動返信メールの本文"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:815
 msgid "Webhook URL (optional)"
-msgstr ""
+msgstr "Webhook URL（任意）"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:875
 msgid "Always visible"
-msgstr ""
+msgstr "常に表示"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:877
 msgid "Unnamed field"
-msgstr ""
+msgstr "名前のないフィールド"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:975
 msgid "Placeholder"
-msgstr ""
+msgstr "プレースホルダー"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:982
 msgid "Help text"
-msgstr ""
+msgstr "ヘルプテキスト"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:989
 msgid "Default value"
-msgstr ""
+msgstr "初期値"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:997
 msgid "Show when field"
-msgstr ""
+msgstr "表示条件のフィールド"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:1021
 msgid "Condition operator"
-msgstr ""
+msgstr "条件演算子"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:1025
 msgid "Equals"
-msgstr ""
+msgstr "等しい"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:1026
 msgid "Does not equal"
-msgstr ""
+msgstr "等しくない"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:1027
 msgid "Is filled"
-msgstr ""
+msgstr "入力済み"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:1028
 msgid "Is empty"
-msgstr ""
+msgstr "未入力"
 
 #. js-lingui-explicit-id
 #: packages/plugins/forms/src/admin.tsx:1038
 msgid "Condition value"
-msgstr ""
+msgstr "条件値"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:75
 #: packages/admin/src/components/TranslationsPanel.tsx:81
@@ -139,7 +139,7 @@ msgstr "、"
 #. placeholder {0}: item.label
 #: packages/admin/src/components/MenuEditor.tsx:815
 msgid "\"{0}\" and its nested items will be removed from this menu. This action cannot be undone."
-msgstr ""
+msgstr "「{0}」とその子項目をこのメニューから削除します。この操作は元に戻せません。"
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:1894
@@ -244,7 +244,7 @@ msgstr "{0, plural, one {#件} other {#件}}"
 #. placeholder {0}: relation.boundFields.length
 #: packages/admin/src/components/RelationList.tsx:189
 msgid "{0, plural, one {# field} other {# fields}}"
-msgstr ""
+msgstr "{0, plural, other {#フィールド}}"
 
 #. placeholder {0}: uploadQueue.jobs.filter( (job) => job.status === "queued" || job.status === "uploading", ).length
 #: packages/admin/src/components/MediaPickerModal.tsx:1660
@@ -268,7 +268,7 @@ msgstr "{0, plural, one {#件のフォルダーを読み込みました} other {
 #: packages/admin/src/components/Redirects.tsx:382
 #: packages/admin/src/components/Redirects.tsx:494
 msgid "{0, plural, one {# hit} other {# hits}}"
-msgstr ""
+msgstr "{0, plural, other {#回のアクセス}}"
 
 #. placeholder {0}: menu.itemCount ?? 0
 #: packages/admin/src/components/MenuCard.tsx:46
@@ -381,7 +381,7 @@ msgstr "{0, plural, one {#件のアップロードに失敗} other {#件のア�
 #. placeholder {0}: blockType.versions.length
 #: packages/admin/src/components/BlockTypeList.tsx:72
 msgid "{0, plural, one {# version} other {# versions}}"
-msgstr ""
+msgstr "{0, plural, other {#バージョン}}"
 
 #. placeholder {0}: section.keywords.length - 3
 #: packages/admin/src/components/Sections.tsx:498
@@ -431,7 +431,7 @@ msgstr "{0, plural, one {ブロックされたコンテンツがほかに#件あ
 #. placeholder {0}: bulkDeleteIds.length
 #: packages/admin/src/components/comments/CommentInbox.tsx:485
 msgid "{0, plural, one {Permanently delete # comment? This cannot be undone.} other {Permanently delete # comments? This cannot be undone.}}"
-msgstr ""
+msgstr "{0, plural, other {#件のコメントを完全に削除しますか？この操作は元に戻せません。}}"
 
 #. placeholder {0}: state.rows
 #: packages/admin/src/components/editor/TableControls.tsx:228
@@ -1271,7 +1271,7 @@ msgstr "このサイトのデータベースに保存できない値がありま
 
 #: packages/admin/src/components/Widgets.tsx:479
 msgid "A widget area is a place in your theme, such as a sidebar, that holds widgets."
-msgstr ""
+msgstr "ウィジェットエリアは、サイドバーなど、テーマ内でウィジェットを配置する場所です。"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:370
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:525
@@ -1364,21 +1364,21 @@ msgstr "操作"
 #: packages/admin/src/routes/byline-schema.tsx:422
 #: packages/admin/src/routes/bylines.tsx:422
 msgid "Actions for {0}"
-msgstr ""
+msgstr "「{0}」の操作"
 
 #: packages/admin/src/components/ContentList.tsx:1573
 #: packages/admin/src/components/ContentList.tsx:1766
 msgid "Actions for {title}"
-msgstr ""
+msgstr "「{title}」の操作"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:584
 msgid "Actions for comment by {author}"
-msgstr ""
+msgstr "{author}のコメントの操作"
 
 #. placeholder {0}: redirect.source
 #: packages/admin/src/components/Redirects.tsx:514
 msgid "Actions for redirect {0}"
-msgstr ""
+msgstr "リダイレクト「{0}」の操作"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
@@ -1427,7 +1427,7 @@ msgstr "投稿に{singularLower}を追加"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:334
 msgid "Add a detail every byline can fill in, such as a job title."
-msgstr ""
+msgstr "役職など、各執筆者が入力できる項目を追加します。"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:165
 msgid "Add a new passkey"
@@ -1453,7 +1453,7 @@ msgstr "ブロックを{minItems}個以上追加してください。"
 #: packages/admin/src/components/BylineFieldEditor.tsx:138
 #: packages/admin/src/components/FieldEditor.tsx:449
 msgid "Add at least one option."
-msgstr ""
+msgstr "選択肢を1つ以上追加してください。"
 
 #: packages/admin/src/components/FieldEditor.tsx:455
 #: packages/admin/src/components/FieldEditor.tsx:1590
@@ -2034,7 +2034,7 @@ msgstr "アニメーションWebPは、切り抜くと静止画になります�
 
 #: packages/admin/src/components/BylineFormDialog.tsx:289
 msgid "Another byline already uses this slug. Enter a different one."
-msgstr ""
+msgstr "このスラッグは別の執筆者が使用しています。別のスラッグを入力してください。"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:30
 msgid "Another editor"
@@ -2043,11 +2043,11 @@ msgstr "ほかの編集者"
 #: packages/admin/src/components/BylineFieldEditor.tsx:151
 #: packages/admin/src/components/FieldEditor.tsx:497
 msgid "Another field already uses this slug. Enter a different one."
-msgstr ""
+msgstr "このスラッグは別のフィールドが使用しています。別のスラッグを入力してください。"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:105
 msgid "Another folder already uses this name. Enter a different one."
-msgstr ""
+msgstr "この名前は別のフォルダーが使用しています。別の名前を入力してください。"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:192
 msgid "Another import is already using this package."
@@ -2055,39 +2055,39 @@ msgstr "別のインポートがすでにこのパッケージを使用してい
 
 #: packages/admin/src/components/MenuList.tsx:133
 msgid "Another menu already uses this name. Enter a different one."
-msgstr ""
+msgstr "この名前は別のメニューが使用しています。別の名前を入力してください。"
 
 #: packages/admin/src/components/Redirects.tsx:185
 msgid "Another redirect already uses this source path. Enter a different one."
-msgstr ""
+msgstr "この転送元パスは別のリダイレクトが使用しています。別のパスを入力してください。"
 
 #: packages/admin/src/components/RelationFormPanel.tsx:76
 msgid "Another relation already uses this slug. Enter a different one."
-msgstr ""
+msgstr "このスラッグは別の関連付けが使用しています。別のスラッグを入力してください。"
 
 #: packages/admin/src/components/Sections.tsx:186
 msgid "Another section already uses this slug. Enter a different one."
-msgstr ""
+msgstr "このスラッグは別のセクションが使用しています。別のスラッグを入力してください。"
 
 #: packages/admin/src/components/FieldEditor.tsx:470
 msgid "Another sub-field already uses this slug. Enter a different one."
-msgstr ""
+msgstr "このスラッグは別のサブフィールドが使用しています。別のスラッグを入力してください。"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:912
 msgid "Another taxonomy already uses this name. Enter a different one."
-msgstr ""
+msgstr "この名前は別の分類グループが使用しています。別の名前を入力してください。"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:678
 msgid "Another term already uses this slug. Enter a different one."
-msgstr ""
+msgstr "このスラッグは別の分類項目が使用しています。別のスラッグを入力してください。"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:91
 msgid "Another user already uses this email address. Enter a different one."
-msgstr ""
+msgstr "このメールアドレスは別のユーザーが使用しています。別のメールアドレスを入力してください。"
 
 #: packages/admin/src/components/Widgets.tsx:307
 msgid "Another widget area already uses this name. Enter a different one."
-msgstr ""
+msgstr "この名前は別のウィジェットエリアが使用しています。別の名前を入力してください。"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:130
 msgid "Any media type allowed (subject to global limits)."
@@ -2206,7 +2206,7 @@ msgstr "管理者として、ユーザーセクションから他のユーザー
 
 #: packages/admin/src/components/ContentList.tsx:1357
 msgid "Ascending"
-msgstr ""
+msgstr "昇順"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:307
 msgid "Ask an administrator to complete this setup."
@@ -2888,7 +2888,7 @@ msgstr "ファビコンを変更"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:333
 msgid "Change how bylines fill in this detail."
-msgstr ""
+msgstr "執筆者がこの項目に入力する方法を変更します。"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:213
 msgid "Change Image"
@@ -2914,11 +2914,11 @@ msgstr "予約を変更"
 
 #: packages/admin/src/components/FieldEditor.tsx:986
 msgid "Change the field's label and what it accepts."
-msgstr ""
+msgstr "フィールドのラベルと入力できる内容を変更します。"
 
 #: packages/admin/src/components/MenuEditor.tsx:840
 msgid "Change this item's label, link and place in the menu."
-msgstr ""
+msgstr "この項目のラベル、リンク先、メニュー内の位置を変更します。"
 
 #: packages/admin/src/lib/api/marketplace.ts:436
 msgid "Change where visitors are sent"
@@ -3109,12 +3109,12 @@ msgstr "{label}を選択"
 
 #: packages/admin/src/components/FieldEditor.tsx:407
 msgid "Choose a collection."
-msgstr ""
+msgstr "コンテンツタイプを選択してください。"
 
 #: packages/admin/src/components/RelationForm.tsx:187
 #: packages/admin/src/components/RelationForm.tsx:188
 msgid "Choose a content type."
-msgstr ""
+msgstr "コンテンツタイプを選択してください。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:577
 msgid "Choose a credential manager on this device, another device, or a security key."
@@ -3144,7 +3144,7 @@ msgstr "日付を正しく表示するには、有効なタイムゾーンを選
 
 #: packages/admin/src/components/FieldEditor.tsx:406
 msgid "Choose a relationship."
-msgstr ""
+msgstr "関連付けを選択してください。"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:184
 msgid "Choose a term and enter between 1 and 50 posts."
@@ -3172,7 +3172,7 @@ msgstr "別の方法を選択"
 
 #: packages/admin/src/components/FieldEditor.tsx:480
 msgid "Choose at least one block type."
-msgstr ""
+msgstr "ブロックタイプを1つ以上選択してください。"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:567
 #: packages/admin/src/components/BylineCreditsEditor.tsx:582
@@ -3194,7 +3194,7 @@ msgstr "置き換える画像を選択"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:689
 msgid "Choose the date this entry shows as published."
-msgstr ""
+msgstr "このコンテンツの公開日時として表示する日時を選択します。"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:261
 msgid "Choose the same package file again to finish uploading it."
@@ -3206,15 +3206,15 @@ msgstr "Touch IDまたは利用可能な別の認証情報マネージャーを�
 
 #: packages/admin/src/components/FieldEditor.tsx:988
 msgid "Choose what kind of content the field holds."
-msgstr ""
+msgstr "フィールドに入力する内容の種類を選択します。"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
 msgid "Choose when the unpublished changes go live."
-msgstr ""
+msgstr "未公開の変更を公開する日時を選択します。"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:532
 msgid "Choose when this entry is published."
-msgstr ""
+msgstr "このコンテンツを公開する日時を選択します。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
 msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
@@ -3636,7 +3636,7 @@ msgstr "コンテンツの検索結果"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:540
 msgid "Content that credits this byline loses the credit."
-msgstr ""
+msgstr "この執筆者が表記されているコンテンツから、その執筆者表記が削除されます。"
 
 #: packages/admin/src/components/WordPressImport.tsx:1788
 msgid "Content to Import"
@@ -3844,7 +3844,7 @@ msgstr "投稿を確認できませんでした"
 
 #: packages/admin/src/components/MenuEditor.tsx:306
 msgid "Couldn’t add the menu item"
-msgstr ""
+msgstr "メニュー項目を追加できませんでした"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:828
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
@@ -3928,7 +3928,7 @@ msgstr "エクスポートを開始できませんでした"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:31
 msgid "Couldn’t take over this entry. Try again."
-msgstr ""
+msgstr "このコンテンツの編集を引き継げませんでした。もう一度お試しください。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:481
 msgid "Couldn’t update the plan"
@@ -4672,7 +4672,7 @@ msgstr "拒否"
 
 #: packages/admin/src/components/ContentList.tsx:1361
 msgid "Descending"
-msgstr ""
+msgstr "降順"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:66
@@ -4778,7 +4778,7 @@ msgstr "プラグインのMCPツールを無効化"
 #. placeholder {0}: redirect.source
 #: packages/admin/src/components/Redirects.tsx:508
 msgid "Disable redirect {0}"
-msgstr ""
+msgstr "リダイレクト「{0}」を無効化"
 
 #: packages/admin/src/routes/users.tsx:289
 msgid "Disable User"
@@ -5550,7 +5550,7 @@ msgstr "プラグインのMCPツールを有効化"
 #. placeholder {0}: redirect.source
 #: packages/admin/src/components/Redirects.tsx:509
 msgid "Enable redirect {0}"
-msgstr ""
+msgstr "リダイレクト「{0}」を有効化"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
 msgid "Enable tracking"
@@ -5571,11 +5571,11 @@ msgstr "コンテンツの言語が設定されていないため、英語にな
 
 #: packages/admin/src/components/Redirects.tsx:115
 msgid "Enter a destination different from the source."
-msgstr ""
+msgstr "転送元とは異なる転送先を入力してください。"
 
 #: packages/admin/src/components/Redirects.tsx:111
 msgid "Enter a destination path."
-msgstr ""
+msgstr "転送先パスを入力してください。"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:315
 msgid "Enter a display name."
@@ -5587,15 +5587,15 @@ msgstr "example.comのように、パスやポートを含めずにドメイン�
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:59
 msgid "Enter a domain such as example.com."
-msgstr ""
+msgstr "example.comのようなドメインを入力してください。"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:58
 msgid "Enter a domain."
-msgstr ""
+msgstr "ドメインを入力してください。"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:23
 msgid "Enter a folder name."
-msgstr ""
+msgstr "フォルダー名を入力してください。"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:322
 msgid "Enter a full URL that starts with https:// or http://."
@@ -5603,7 +5603,7 @@ msgstr "https://またはhttp://で始まる完全なURLを入力してくださ
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2674
 msgid "Enter a full URL, such as https://example.com."
-msgstr ""
+msgstr "https://example.comのような完全なURLを入力してください。"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:119
 #: packages/admin/src/components/FieldEditor.tsx:329
@@ -5613,11 +5613,11 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:119
 #: packages/admin/src/components/Widgets.tsx:200
 msgid "Enter a label."
-msgstr ""
+msgstr "ラベルを入力してください。"
 
 #: packages/admin/src/components/FieldEditor.tsx:332
 msgid "Enter a maximum that is at least the minimum."
-msgstr ""
+msgstr "最大値には最小値以上の値を入力してください。"
 
 #: packages/admin/src/components/MenuList.tsx:42
 #: packages/admin/src/components/RelationForm.tsx:189
@@ -5626,32 +5626,32 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:124
 #: packages/admin/src/components/Widgets.tsx:196
 msgid "Enter a name."
-msgstr ""
+msgstr "名前を入力してください。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2659
 msgid "Enter a number between {min} and {max}."
-msgstr ""
+msgstr "{min}以上{max}以下の数値を入力してください。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2661
 msgid "Enter a number of {max} or less."
-msgstr ""
+msgstr "{max}以下の数値を入力してください。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2660
 msgid "Enter a number of {min} or more."
-msgstr ""
+msgstr "{min}以上の数値を入力してください。"
 
 #: packages/admin/src/components/FieldEditor.tsx:333
 msgid "Enter a number of 100 or less."
-msgstr ""
+msgstr "100以下の数値を入力してください。"
 
 #: packages/admin/src/components/FieldEditor.tsx:331
 msgid "Enter a number."
-msgstr ""
+msgstr "数値を入力してください。"
 
 #: packages/admin/src/components/MenuEditor.tsx:142
 #: packages/admin/src/components/Redirects.tsx:88
 msgid "Enter a path that starts with a single /."
-msgstr ""
+msgstr "「/」1つで始まるパスを入力してください。"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:521
 msgid "Enter a recognized timezone to save"
@@ -5668,7 +5668,7 @@ msgstr "スラッグを入力してください。"
 
 #: packages/admin/src/components/Redirects.tsx:106
 msgid "Enter a source path."
-msgstr ""
+msgstr "転送元パスを入力してください。"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:39
 msgid "Enter a time"
@@ -5676,23 +5676,23 @@ msgstr "時刻を入力してください"
 
 #: packages/admin/src/components/Sections.tsx:97
 msgid "Enter a title."
-msgstr ""
+msgstr "タイトルを入力してください。"
 
 #: packages/admin/src/components/MenuEditor.tsx:144
 msgid "Enter a URL that starts with https://, http://, mailto:, tel:, /, or #."
-msgstr ""
+msgstr "https://、http://、mailto:、tel:、/、#のいずれかで始まるURLを入力してください。"
 
 #: packages/admin/src/components/MenuEditor.tsx:140
 msgid "Enter a URL."
-msgstr ""
+msgstr "URLを入力してください。"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:27
 msgid "Enter a valid email address, such as name@example.com."
-msgstr ""
+msgstr "name@example.comのような有効なメールアドレスを入力してください。"
 
 #: packages/admin/src/components/FieldEditor.tsx:434
 msgid "Enter a valid regular expression."
-msgstr ""
+msgstr "有効な正規表現を入力してください。"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:40
 msgid "Enter a valid time"
@@ -5704,20 +5704,20 @@ msgstr "有効なURL（例：https://example.com）を入力"
 
 #: packages/admin/src/components/FieldEditor.tsx:330
 msgid "Enter a whole number of 0 or more."
-msgstr ""
+msgstr "0以上の整数を入力してください。"
 
 #: packages/admin/src/components/FieldEditor.tsx:393
 msgid "Enter a whole number of 1 or more."
-msgstr ""
+msgstr "1以上の整数を入力してください。"
 
 #: packages/admin/src/components/RelationForm.tsx:200
 #: packages/admin/src/components/RelationForm.tsx:203
 msgid "Enter a whole number of 2 or more."
-msgstr ""
+msgstr "2以上の整数を入力してください。"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:25
 msgid "Enter an email address."
-msgstr ""
+msgstr "メールアドレスを入力してください。"
 
 #: packages/admin/src/components/WordPressImport.tsx:1434
 msgid "Enter credentials manually"
@@ -5846,7 +5846,7 @@ msgstr "このコンテンツタイプが含まれるすべての関連付けも
 
 #: packages/admin/src/components/Redirects.tsx:695
 msgid "Exact group name..."
-msgstr ""
+msgstr "グループ名を完全一致で指定..."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:502
 msgid "Example: {pattern} → {preview}"
@@ -7130,11 +7130,11 @@ msgstr "ファイルを追加すると、自動的にアップロードが始ま
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2677
 msgid "Fill in at least one field."
-msgstr ""
+msgstr "1つ以上のフィールドに入力してください。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2765
 msgid "Fill in what this block shows."
-msgstr ""
+msgstr "このブロックに表示する内容を入力します。"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:421
 msgid "Filled in from the display name. Use lowercase letters, numbers, and hyphens."
@@ -7166,7 +7166,7 @@ msgstr "期間で絞り込む：{rangeLabel}"
 
 #: packages/admin/src/components/Redirects.tsx:694
 msgid "Filter by group"
-msgstr ""
+msgstr "グループで絞り込む"
 
 #: packages/admin/src/components/users/UserList.tsx:83
 msgid "Filter by role"
@@ -7226,7 +7226,7 @@ msgstr "予約を変更する前に、入力内容の誤りを直してくださ
 
 #: packages/admin/src/components/Redirects.tsx:94
 msgid "Fix the percent-encoding in the path."
-msgstr ""
+msgstr "パスのパーセントエンコーディングを修正してください。"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1627
 #: packages/admin/src/components/MediaDetailPanel.tsx:1638
@@ -7373,7 +7373,7 @@ msgstr "GitHub"
 
 #: packages/admin/src/components/MenuEditor.tsx:547
 msgid "Give this menu a new label."
-msgstr ""
+msgstr "このメニューに新しいラベルを付けます。"
 
 #: packages/admin/src/components/MenuList.tsx:188
 msgid "Give this navigation a label and a site identifier."
@@ -7441,7 +7441,7 @@ msgstr "表示単位"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:164
 msgid "Group media into a folder in the library."
-msgstr ""
+msgstr "ライブラリ内のフォルダーにメディアをまとめます。"
 
 #: packages/admin/src/routes/bylines.tsx:93
 msgid "Guest"
@@ -7999,7 +7999,7 @@ msgstr "インラインコード"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2820
 msgid "Insert"
-msgstr ""
+msgstr "挿入"
 
 #. placeholder {0}: block?.label || ""
 #: packages/admin/src/components/PortableTextEditor.tsx:2762
@@ -8157,7 +8157,7 @@ msgstr "無効なリンク"
 
 #: packages/admin/src/routes/users.tsx:132
 msgid "Invitation sent to {email}"
-msgstr ""
+msgstr "{email}に招待を送信しました"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:246
 msgid "Invite Error"
@@ -8479,7 +8479,7 @@ msgstr "別のコンテンツへのリンク"
 
 #: packages/admin/src/components/MenuEditor.tsx:615
 msgid "Link to any page by its address, on this site or another."
-msgstr ""
+msgstr "このサイトやほかのサイトのページに、アドレスを指定してリンクします。"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:545
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:772
@@ -8559,7 +8559,7 @@ msgstr "リスト"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:141
 msgid "List each option only once."
-msgstr ""
+msgstr "選択肢が重複しないようにしてください。"
 
 #: packages/admin/src/components/MediaLibrary.tsx:914
 #: packages/admin/src/components/MediaPickerModal.tsx:1293
@@ -9457,7 +9457,7 @@ msgstr "ほかのEmDashサイトから移行しますか？"
 #: packages/admin/src/components/ContentList.tsx:1625
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1324
 msgid "Moving to trash..."
-msgstr ""
+msgstr "ゴミ箱に移動中..."
 
 #: packages/admin/src/components/FieldEditor.tsx:676
 msgid "Multi Select"
@@ -9494,7 +9494,7 @@ msgstr "名前"
 
 #: packages/admin/src/components/FieldEditor.tsx:989
 msgid "Name the field and choose what it accepts."
-msgstr ""
+msgstr "フィールドに名前を付け、入力できる内容を選択します。"
 
 #: packages/admin/src/components/Sections.tsx:246
 msgid "Name your section, then add its content in the editor."
@@ -9841,7 +9841,7 @@ msgstr "フォルダーが見つかりません"
 
 #: packages/admin/src/components/Redirects.tsx:489
 msgid "No group"
-msgstr ""
+msgstr "グループなし"
 
 #: packages/admin/src/components/editor/DocumentOutline.tsx:268
 msgid "No headings in document"
@@ -10006,7 +10006,7 @@ msgstr "最近の更新はありません"
 
 #: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects match these filters"
-msgstr ""
+msgstr "条件に一致するリダイレクトはありません"
 
 #: packages/admin/src/components/Redirects.tsx:793
 msgid "No redirects yet"
@@ -10371,7 +10371,7 @@ msgstr "または直接アップロード"
 
 #: packages/admin/src/components/ContentList.tsx:1355
 msgid "Order"
-msgstr ""
+msgstr "並び順"
 
 #: packages/admin/src/components/MenuEditor.tsx:352
 msgid "Order saved"
@@ -10571,7 +10571,7 @@ msgstr "埋め込みコードまたはhttpsのリンクを貼り付け…"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2765
 msgid "Paste the address of what to embed."
-msgstr ""
+msgstr "埋め込むコンテンツのアドレスを貼り付けます。"
 
 #: packages/admin/src/components/WordPressImport.tsx:1084
 msgid "Paste your migration key"
@@ -11540,7 +11540,7 @@ msgstr "サブフィールドを削除"
 
 #: packages/admin/src/components/Redirects.tsx:96
 msgid "Remove the .. segments from the path."
-msgstr ""
+msgstr "パスから「..」のセグメントを削除してください。"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:357
 msgid "Remove this image from the document?"
@@ -11651,7 +11651,7 @@ msgstr "パスキーの名前を変更"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:163
 msgid "Rename this folder, or delete it."
-msgstr ""
+msgstr "このフォルダーの名前を変更するか、削除します。"
 
 #: packages/admin/src/components/ContentTypeList.tsx:213
 msgid "Reorder"
@@ -13445,19 +13445,19 @@ msgstr "問題が発生しました"
 
 #: packages/admin/src/components/ContentList.tsx:1317
 msgid "Sort"
-msgstr ""
+msgstr "並べ替え"
 
 #: packages/admin/src/components/ContentList.tsx:1338
 msgid "Sort by"
-msgstr ""
+msgstr "並べ替えの基準"
 
 #: packages/admin/src/components/ContentList.tsx:1319
 msgid "Sort by {label}, ascending"
-msgstr ""
+msgstr "「{label}」の昇順で並べ替え"
 
 #: packages/admin/src/components/ContentList.tsx:1320
 msgid "Sort by {label}, descending"
-msgstr ""
+msgstr "「{label}」の降順で並べ替え"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:125
 msgid "Sort plugins"
@@ -13833,7 +13833,7 @@ msgstr "分類項目の割り当て"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:592
 msgid "Term created"
-msgstr ""
+msgstr "分類項目を作成しました"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1092
 msgid "Term deleted"
@@ -13841,7 +13841,7 @@ msgstr "分類項目を削除しました"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:610
 msgid "Term updated"
-msgstr ""
+msgstr "分類項目を更新しました"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:112
 #: packages/admin/src/components/settings/transfer/labels.ts:18
@@ -14376,7 +14376,7 @@ msgstr "有効な移行キーではないようです。プラグインで新し
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:134
 msgid "This domain is already in the list. Enter a different one."
-msgstr ""
+msgstr "このドメインはすでに一覧にあります。別のドメインを入力してください。"
 
 #: packages/admin/src/components/ContentEditor.tsx:1924
 msgid "This entry changed somewhere else after you opened it."
@@ -14608,7 +14608,7 @@ msgstr "このリダイレクトルールは完全に削除されます。"
 
 #: packages/admin/src/components/Redirects.tsx:632
 msgid "This redirect was already deleted."
-msgstr ""
+msgstr "このリダイレクトはすでに削除されています。"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:715
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
@@ -14691,7 +14691,7 @@ msgstr "このサイトは初期コンテンツ付きでセットアップされ
 #: packages/admin/src/components/BylineFieldEditor.tsx:161
 #: packages/admin/src/components/FieldEditor.tsx:499
 msgid "This slug is reserved. Enter a different one."
-msgstr ""
+msgstr "このスラッグは予約されています。別のスラッグを入力してください。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4630
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
@@ -15000,7 +15000,7 @@ msgstr "別のURLを試す"
 
 #: packages/admin/src/components/Redirects.tsx:797
 msgid "Try changing or clearing your filters."
-msgstr ""
+msgstr "フィルターを変更するか、解除してください。"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
@@ -15380,7 +15380,7 @@ msgstr "ファイルをアップロード"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1052
 msgid "Upload files here or move media here from Media Details."
-msgstr ""
+msgstr "ここにファイルをアップロードするか、メディアの詳細画面からここにメディアを移動してください。"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1068
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
@@ -15528,18 +15528,18 @@ msgstr "確認せずに{fallbackUrl}を使用"
 #: packages/admin/src/components/RelationForm.tsx:82
 #: packages/admin/src/components/TaxonomyManager.tsx:121
 msgid "Use 200 characters or fewer."
-msgstr ""
+msgstr "200文字以内で入力してください。"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:139
 msgid "Use 200 options or fewer."
-msgstr ""
+msgstr "選択肢は200個以内にしてください。"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:133
 #: packages/admin/src/components/FieldEditor.tsx:339
 #: packages/admin/src/components/RelationForm.tsx:178
 #: packages/admin/src/components/TaxonomyManager.tsx:131
 msgid "Use 63 characters or fewer."
-msgstr ""
+msgstr "63文字以内で入力してください。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:623
 msgid "Use a security key"
@@ -15573,7 +15573,7 @@ msgstr "半角英小文字・数字・ハイフンを使用してください。
 #: packages/admin/src/components/RelationForm.tsx:176
 #: packages/admin/src/components/TaxonomyManager.tsx:129
 msgid "Use lowercase letters, numbers, and underscores, starting with a letter."
-msgstr ""
+msgstr "先頭は半角英小文字にし、半角英小文字・数字・アンダースコアを使ってください。"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1191
 msgid "Use URL"
@@ -15779,7 +15779,7 @@ msgstr "表示モード"
 
 #: packages/admin/src/components/ContentList.tsx:1600
 msgid "View published"
-msgstr ""
+msgstr "公開版を表示"
 
 #: packages/admin/src/components/MediaLibrary.tsx:849
 msgid "View setup"
