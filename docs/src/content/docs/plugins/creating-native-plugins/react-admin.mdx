@@ -130,7 +130,7 @@ Use `apiFetch` and `parseApiResponse` from `emdash/plugin-utils` for plugin API 
 `@emdash-cms/admin` does not export a `usePluginAPI` hook or the UI components `Button`, `Card`, `Table`, `Loading`, `Alert`, `Input`, `Toggle`, or `Pagination`. Import controls directly from [`@cloudflare/kumo`](https://github.com/cloudflare/kumo), as the page example does with `Button` and `Loader`. Keep Kumo as a peer dependency so the plugin shares the host's instance; see [Distributing native plugins](/plugins/creating-native-plugins/distributing/#package-exports).
 
 <Aside type="caution" title="Missing exports can prevent admin hydration">
-	If the admin stays on `Loading EmDash...` and the browser reports a missing named export while hydrating `PluginRegistry` (for example, `does not provide an export named`), check the imports in your admin entrypoint and its components. An unsupported named import can prevent the entire admin from loading. Replace `usePluginAPI` with the request helpers above and import UI controls from Kumo, not `@emdash-cms/admin`.
+	If the admin stays on its loading screen (`Loading EmDash...`, or `Loading <site name>...` on branded sites) and the browser reports a missing named export while hydrating `PluginRegistry` (for example, `does not provide an export named`), check the imports in your admin entrypoint and its components. An unsupported named import can prevent the entire admin from loading. Replace `usePluginAPI` with the request helpers above and import UI controls from Kumo, not `@emdash-cms/admin`.
 </Aside>
 
 ## Admin pages
