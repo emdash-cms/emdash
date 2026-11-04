@@ -144,12 +144,11 @@ export function normalizeOrderedListDocument(doc: ProseMirrorNode): OrderedListN
 function orderedListsIn(doc: ProseMirrorNode): Set<ProseMirrorNode> {
 	const lists = new Set<ProseMirrorNode>();
 	doc.descendants((node) => {
-		if (node.type.name === "orderedList") lists.add(node);
-		return (
-			node.type.name === "orderedList" ||
-			node.type.name === "bulletList" ||
-			node.type.name === "listItem"
-		);
+		if (node.type.name === "orderedList") {
+			lists.add(node);
+			return true;
+		}
+		return node.type.name === "bulletList" || node.type.name === "listItem";
 	});
 	return lists;
 }
