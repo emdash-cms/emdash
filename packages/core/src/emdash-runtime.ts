@@ -40,6 +40,7 @@ import {
 	type StagedReferences,
 } from "./api/handlers/staged-references.js";
 import { validateRev } from "./api/rev.js";
+import { resolveSiteTitle } from "./api/site-title.js";
 import { getSiteBaseUrl, resolveSiteOrigin } from "./api/site-url.js";
 import type {
 	EmDashConfig,
@@ -1778,6 +1779,7 @@ export class EmDashRuntime {
 
 		const readSiteInfo = async (readDb: Kysely<Database>) => {
 			const siteOpts = await new OptionsRepository(readDb).getMany([
+				"site:title",
 				"emdash:site_title",
 				"site:url",
 				"emdash:site_url",
@@ -1786,7 +1788,10 @@ export class EmDashRuntime {
 				AUTO_SEED_COMPLETE_OPTION,
 				SETUP_COMPLETE_OPTION,
 			]);
-			const siteTitle = siteOpts.get("emdash:site_title");
+			const siteTitle = resolveSiteTitle(
+				siteOpts.get("site:title"),
+				siteOpts.get("emdash:site_title"),
+			);
 			const siteUrl = resolveSiteOrigin(
 				deps.config,
 				siteOpts.get("site:url"),
@@ -1796,7 +1801,7 @@ export class EmDashRuntime {
 			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
 			return {
 				siteInfo: {
-					siteName: deps.siteInfo?.name ?? (typeof siteTitle === "string" ? siteTitle : undefined),
+					siteName: deps.siteInfo?.name ?? siteTitle,
 					siteUrl: deps.siteInfo?.url ?? siteUrl,
 					locale: deps.siteInfo?.locale ?? (typeof locale === "string" ? locale : undefined),
 					// trailingSlash is a build-time Astro routing decision, not a
