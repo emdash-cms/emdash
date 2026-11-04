@@ -1311,9 +1311,9 @@ describe("htmlToPortableText", () => {
 		["a newline and a long run of spaces", `A\n${" ".repeat(100_000)}B`],
 		[
 			"a link in each of many paragraphs",
-			Array.from({ length: 20_000 }, (_, i) => `<a href="https://example.com/${i}">x</a>\n\n`).join(
-				"",
-			),
+			// One wrapper element keeps the timing on this package: parse5 detaches each
+			// top-level fragment node with an array splice, which is quadratic in their number.
+			`<span>${Array.from({ length: 20_000 }, (_, i) => `<a href="https://example.com/${i}">x</a>\n\n`).join("")}</span>`,
 		],
 	])("splits paragraphs after %s within a second", (_shape, html) => {
 		const started = performance.now();
