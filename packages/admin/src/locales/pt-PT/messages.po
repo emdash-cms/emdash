@@ -6019,7 +6019,7 @@ msgstr "Não foi possível comunicar com o plugin"
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "Não foi possível confirmar o carregamento"
 
@@ -6180,11 +6180,11 @@ msgstr "Não foi possível eliminar o conteúdo"
 msgid "Failed to delete field"
 msgstr "Não foi possível eliminar o campo"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "Não foi possível eliminar do fornecedor"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "Não foi possível eliminar o ficheiro multimédia"
 
@@ -6401,7 +6401,7 @@ msgstr "Não foi possível obter as pastas multimédia"
 msgid "Failed to fetch media item"
 msgstr "Não foi possível obter o item multimédia"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "Não foi possível obter os fornecedores de multimédia"
 
@@ -6443,7 +6443,7 @@ msgstr "Não foi possível obter as definições do plugin"
 msgid "Failed to fetch plugins"
 msgstr "Não foi possível obter os plugins"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "Não foi possível obter os ficheiros multimédia do fornecedor"
 
@@ -6798,7 +6798,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "Não foi possível reordenar os widgets"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "Não foi possível substituir a imagem"
 
@@ -6946,7 +6946,7 @@ msgstr "Não foi possível atualizar o domínio"
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "Não foi possível atualizar o ficheiro multimédia"
 
@@ -7008,15 +7008,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "Não foi possível carregar um ficheiro do pacote"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "Não foi possível carregar o ficheiro"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "Não foi possível carregar o ficheiro multimédia"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "Não foi possível carregar para o fornecedor"
 

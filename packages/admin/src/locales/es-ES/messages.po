@@ -6019,7 +6019,7 @@ msgstr "Error al comunicar con el plugin"
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "No se pudo confirmar la subida"
 
@@ -6180,11 +6180,11 @@ msgstr "Error al eliminar el contenido"
 msgid "Failed to delete field"
 msgstr "Error al eliminar el campo"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "Error al eliminar del proveedor"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "Error al eliminar el medio"
 
@@ -6401,7 +6401,7 @@ msgstr "No se pudieron obtener las carpetas multimedia"
 msgid "Failed to fetch media item"
 msgstr "No se pudo obtener el elemento multimedia"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "No se pudieron obtener los proveedores de medios"
 
@@ -6443,7 +6443,7 @@ msgstr "No se pudo obtener la configuración del plugin"
 msgid "Failed to fetch plugins"
 msgstr "No se pudieron obtener los plugins"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "No se pudieron obtener los medios del proveedor"
 
@@ -6798,7 +6798,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "Error al reordenar los widgets"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "No se pudo reemplazar la imagen del medio"
 
@@ -6946,7 +6946,7 @@ msgstr "No se pudo actualizar el dominio"
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "No se pudo actualizar el medio"
 
@@ -7008,15 +7008,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "No se pudo subir un archivo del paquete"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "Error al subir el archivo"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "No se pudo subir el medio"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "No se pudo subir al proveedor"
 

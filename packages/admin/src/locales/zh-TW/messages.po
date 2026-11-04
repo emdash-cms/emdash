@@ -6019,7 +6019,7 @@ msgstr "無法與外掛通訊"
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "無法確認上傳"
 
@@ -6180,11 +6180,11 @@ msgstr "無法刪除內容"
 msgid "Failed to delete field"
 msgstr "無法刪除欄位"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "無法從服務提供者刪除"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "無法刪除媒體"
 
@@ -6401,7 +6401,7 @@ msgstr "無法取得媒體資料夾"
 msgid "Failed to fetch media item"
 msgstr "擷取媒體項目失敗"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "無法擷取媒體服務提供者"
 
@@ -6443,7 +6443,7 @@ msgstr "無法擷取外掛設定"
 msgid "Failed to fetch plugins"
 msgstr "無法擷取外掛"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "無法擷取服務提供者媒體"
 
@@ -6798,7 +6798,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "無法重新排序小工具"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "無法取代媒體圖片"
 
@@ -6946,7 +6946,7 @@ msgstr "無法更新網域"
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "更新媒體失敗"
 
@@ -7008,15 +7008,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "無法上傳套件檔案"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "上傳檔案失敗"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "上傳媒體失敗"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "無法上傳至服務提供者"
 

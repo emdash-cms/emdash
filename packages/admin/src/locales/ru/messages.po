@@ -6019,7 +6019,7 @@ msgstr "Не удалось связаться с плагином"
 msgid "Failed to compare revisions"
 msgstr "Не удалось сравнить ревизии"
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "Не удалось подтвердить загрузку"
 
@@ -6180,11 +6180,11 @@ msgstr "Не удалось удалить материал"
 msgid "Failed to delete field"
 msgstr "Не удалось удалить поле"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "Не удалось удалить у поставщика"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "Не удалось удалить медиа"
 
@@ -6401,7 +6401,7 @@ msgstr "Не удалось получить папки медиа"
 msgid "Failed to fetch media item"
 msgstr "Не удалось получить медиафайл"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "Не удалось получить поставщиков медиа"
 
@@ -6443,7 +6443,7 @@ msgstr "Не удалось получить настройки плагина"
 msgid "Failed to fetch plugins"
 msgstr "Не удалось получить плагины"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "Не удалось получить медиа поставщика"
 
@@ -6798,7 +6798,7 @@ msgstr "Не удалось изменить порядок терминов"
 msgid "Failed to reorder widgets"
 msgstr "Не удалось изменить порядок виджетов"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "Не удалось заменить изображение медиа"
 
@@ -6946,7 +6946,7 @@ msgstr "Не удалось обновить домен"
 msgid "Failed to update field"
 msgstr "Не удалось обновить поле"
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "Не удалось обновить медиа"
 
@@ -7008,15 +7008,15 @@ msgstr "Не удалось обновить виджет"
 msgid "Failed to upload a package file"
 msgstr "Не удалось загрузить файл пакета"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "Не удалось загрузить файл"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "Не удалось загрузить медиа"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "Не удалось загрузить поставщику"
 

@@ -6019,7 +6019,7 @@ msgstr "Det gick inte att kommunicera med tillägget"
 msgid "Failed to compare revisions"
 msgstr "Det gick inte att jämföra revisionerna"
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "Det gick inte att bekräfta uppladdningen"
 
@@ -6180,11 +6180,11 @@ msgstr "Det gick inte att ta bort innehållet"
 msgid "Failed to delete field"
 msgstr "Det gick inte att ta bort fältet"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "Det gick inte att ta bort från leverantören"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "Det gick inte att ta bort media"
 
@@ -6401,7 +6401,7 @@ msgstr "Det gick inte att hämta mediemappar"
 msgid "Failed to fetch media item"
 msgstr "Det gick inte att hämta mediefilen"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "Det gick inte att hämta medieleverantörer"
 
@@ -6443,7 +6443,7 @@ msgstr "Det gick inte att hämta inställningar för tillägget"
 msgid "Failed to fetch plugins"
 msgstr "Det gick inte att hämta tillägg"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "Det gick inte att hämta media från leverantören"
 
@@ -6798,7 +6798,7 @@ msgstr "Det gick inte att ändra ordning på termerna"
 msgid "Failed to reorder widgets"
 msgstr "Det gick inte att ändra ordning på widgetar"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "Det gick inte att ersätta bilden"
 
@@ -6946,7 +6946,7 @@ msgstr "Det gick inte att uppdatera domänen"
 msgid "Failed to update field"
 msgstr "Det gick inte att uppdatera fältet"
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "Det gick inte att uppdatera media"
 
@@ -7008,15 +7008,15 @@ msgstr "Det gick inte att uppdatera widgeten"
 msgid "Failed to upload a package file"
 msgstr "Det gick inte att ladda upp en paketfil"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "Det gick inte att ladda upp filen"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "Det gick inte att ladda upp media"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "Det gick inte att ladda upp till leverantören"
 

@@ -6019,7 +6019,7 @@ msgstr "فشل التواصل مع الإضافة"
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "فشل تأكيد الرفع"
 
@@ -6180,11 +6180,11 @@ msgstr "فشل حذف المحتوى"
 msgid "Failed to delete field"
 msgstr "فشل حذف الحقل"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "فشل الحذف من المزوّد"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "فشل حذف الوسائط"
 
@@ -6401,7 +6401,7 @@ msgstr "فشل جلب مجلدات الوسائط"
 msgid "Failed to fetch media item"
 msgstr "فشل جلب عنصر الوسائط"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "فشل جلب مزوّدي الوسائط"
 
@@ -6443,7 +6443,7 @@ msgstr "فشل جلب إعدادات الإضافة"
 msgid "Failed to fetch plugins"
 msgstr "فشل جلب الإضافات"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "فشل جلب وسائط المزوّد"
 
@@ -6798,7 +6798,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "فشل إعادة ترتيب عناصر الواجهة"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "فشل استبدال صورة الوسائط"
 
@@ -6946,7 +6946,7 @@ msgstr "فشل في تحديث النطاق"
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "فشل تحديث الوسائط"
 
@@ -7008,15 +7008,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "فشل رفع ملف من الحزمة"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "فشل رفع الملف"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "فشل رفع الوسائط"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "فشل الرفع إلى المزوّد"
 

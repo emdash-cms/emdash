@@ -6019,7 +6019,7 @@ msgstr "প্লাগইনের সাথে যোগাযোগ করত
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "আপলোড নিশ্চিত করতে ব্যর্থ হয়েছে"
 
@@ -6180,11 +6180,11 @@ msgstr "কনটেন্ট মুছতে ব্যর্থ হয়েছ
 msgid "Failed to delete field"
 msgstr "ফিল্ড মুছতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "প্রোভাইডার থেকে মুছতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "মিডিয়া মুছতে ব্যর্থ হয়েছে"
 
@@ -6401,7 +6401,7 @@ msgstr "মিডিয়া ফোল্ডারগুলো আনতে ব
 msgid "Failed to fetch media item"
 msgstr "মিডিয়া আইটেম আনতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "মিডিয়া প্রোভাইডার আনতে ব্যর্থ হয়েছে"
 
@@ -6443,7 +6443,7 @@ msgstr "প্লাগইন সেটিংস আনতে ব্যর্থ
 msgid "Failed to fetch plugins"
 msgstr "প্লাগইনগুলো আনতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "প্রোভাইডারের মিডিয়া আনতে ব্যর্থ হয়েছে"
 
@@ -6798,7 +6798,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "উইজেটের ক্রম পরিবর্তন করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "মিডিয়া ছবি প্রতিস্থাপন করতে ব্যর্থ হয়েছে"
 
@@ -6946,7 +6946,7 @@ msgstr "ডোমেইন আপডেট করতে ব্যর্থ হ�
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "মিডিয়া আপডেট করতে ব্যর্থ হয়েছে"
 
@@ -7008,15 +7008,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "একটি প্যাকেজ ফাইল আপলোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "ফাইল আপলোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "মিডিয়া আপলোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "প্রোভাইডারে আপলোড করতে ব্যর্থ হয়েছে"
 

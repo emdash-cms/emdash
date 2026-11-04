@@ -6019,7 +6019,7 @@ msgstr "प्लगइन से कम्युनिकेट करने �
 msgid "Failed to compare revisions"
 msgstr "रिविज़न की तुलना करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "अपलोड की पुष्टि करने में असफल"
 
@@ -6180,11 +6180,11 @@ msgstr "कंटेंट हटाने में असफल"
 msgid "Failed to delete field"
 msgstr "फ़ील्ड हटाने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "प्रोवाइडर से हटाने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "मीडिया हटाने में असफल"
 
@@ -6401,7 +6401,7 @@ msgstr "मीडिया फ़ोल्डर प्राप्त करन
 msgid "Failed to fetch media item"
 msgstr "मीडिया आइटम लाने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "मीडिया प्रदाता लाने में असफल"
 
@@ -6443,7 +6443,7 @@ msgstr "प्लगइन सेटिंग लाने में असफ�
 msgid "Failed to fetch plugins"
 msgstr "प्लगइन्स लाने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "प्रदाता मीडिया लाने में असफल"
 
@@ -6798,7 +6798,7 @@ msgstr "टर्म का क्रम बदलने में असफल"
 msgid "Failed to reorder widgets"
 msgstr "विजेट्स को पुन: व्यवस्थित करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "मीडिया इमेज बदलने में असफल"
 
@@ -6946,7 +6946,7 @@ msgstr "डोमेन अद्यतन करने में असफल"
 msgid "Failed to update field"
 msgstr "फ़ील्ड अपडेट करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "मीडिया अपडेट करने में असफल"
 
@@ -7008,15 +7008,15 @@ msgstr "विजेट अपडेट करने में असफल"
 msgid "Failed to upload a package file"
 msgstr "पैकेज फ़ाइल अपलोड करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "फ़ाइल अपलोड करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "मीडिया अपलोड करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "प्रदाता पर अपलोड करने में असफल"
 

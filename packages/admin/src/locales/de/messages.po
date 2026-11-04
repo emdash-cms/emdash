@@ -6019,7 +6019,7 @@ msgstr "Kommunikation mit dem Plugin fehlgeschlagen"
 msgid "Failed to compare revisions"
 msgstr "Vergleichen der Revisionen fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "Bestätigen des Uploads fehlgeschlagen"
 
@@ -6180,11 +6180,11 @@ msgstr "Löschen des Inhalts fehlgeschlagen"
 msgid "Failed to delete field"
 msgstr "Löschen des Felds fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "Löschen beim Anbieter fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "Löschen der Datei fehlgeschlagen"
 
@@ -6401,7 +6401,7 @@ msgstr "Abrufen der Medienordner fehlgeschlagen"
 msgid "Failed to fetch media item"
 msgstr "Abrufen des Medienelements fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "Abrufen der Medienanbieter fehlgeschlagen"
 
@@ -6443,7 +6443,7 @@ msgstr "Abrufen der Plugin-Einstellungen fehlgeschlagen"
 msgid "Failed to fetch plugins"
 msgstr "Abrufen der Plugins fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "Abrufen der Medien vom Anbieter fehlgeschlagen"
 
@@ -6798,7 +6798,7 @@ msgstr "Neuanordnen der Begriffe fehlgeschlagen"
 msgid "Failed to reorder widgets"
 msgstr "Neuanordnen der Widgets fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "Ersetzen des Medienbilds fehlgeschlagen"
 
@@ -6946,7 +6946,7 @@ msgstr "Aktualisieren der Domain fehlgeschlagen"
 msgid "Failed to update field"
 msgstr "Aktualisieren des Felds fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "Aktualisieren der Medien fehlgeschlagen"
 
@@ -7008,15 +7008,15 @@ msgstr "Aktualisieren des Widgets fehlgeschlagen"
 msgid "Failed to upload a package file"
 msgstr "Hochladen einer Paketdatei fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "Hochladen der Datei fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "Hochladen der Medien fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "Hochladen zum Anbieter fehlgeschlagen"
 

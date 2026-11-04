@@ -6019,7 +6019,7 @@ msgstr "Komunikacija sa dodatkom nije uspela"
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "Potvrda otpremanja nije uspela"
 
@@ -6180,11 +6180,11 @@ msgstr "Brisanje sadržaja nije uspelo"
 msgid "Failed to delete field"
 msgstr "Brisanje polja nije uspelo"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "Brisanje od provajdera nije uspelo"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "Brisanje medija nije uspelo"
 
@@ -6401,7 +6401,7 @@ msgstr "Dohvatanje fascikli za medije nije uspelo"
 msgid "Failed to fetch media item"
 msgstr "Preuzimanje stavke medija nije uspelo"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "Preuzimanje provajdera medija nije uspelo"
 
@@ -6443,7 +6443,7 @@ msgstr "Dohvatanje podešavanja dodatka nije uspelo"
 msgid "Failed to fetch plugins"
 msgstr "Preuzimanje dodataka nije uspelo"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "Preuzimanje medija od provajdera nije uspelo"
 
@@ -6798,7 +6798,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "Promena redosleda vidžeta nije uspela"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "Zamena slike medija nije uspela"
 
@@ -6946,7 +6946,7 @@ msgstr "Ažuriranje domena nije uspelo"
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "Ažuriranje medija nije uspelo"
 
@@ -7008,15 +7008,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "Otpremanje fajla paketa nije uspelo"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "Otpremanje fajla nije uspelo"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "Otpremanje medija nije uspelo"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "Otpremanje provajderu nije uspelo"
 

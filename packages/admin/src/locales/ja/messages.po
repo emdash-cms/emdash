@@ -6019,7 +6019,7 @@ msgstr "プラグインとの通信に失敗しました"
 msgid "Failed to compare revisions"
 msgstr "版の比較に失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "アップロードの確認に失敗しました"
 
@@ -6180,11 +6180,11 @@ msgstr "コンテンツの削除に失敗しました"
 msgid "Failed to delete field"
 msgstr "項目を削除できませんでした"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "連携先からの削除に失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "メディアの削除に失敗しました"
 
@@ -6401,7 +6401,7 @@ msgstr "メディアフォルダーの一覧を取得できませんでした"
 msgid "Failed to fetch media item"
 msgstr "メディア項目の取得に失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "メディア連携サービスの取得に失敗しました"
 
@@ -6443,7 +6443,7 @@ msgstr "プラグイン設定の取得に失敗しました"
 msgid "Failed to fetch plugins"
 msgstr "プラグイン一覧の取得に失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "連携先のメディア取得に失敗しました"
 
@@ -6798,7 +6798,7 @@ msgstr "分類項目の並べ替えに失敗しました"
 msgid "Failed to reorder widgets"
 msgstr "ウィジェットの並べ替えに失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "メディアの画像の置き換えに失敗しました"
 
@@ -6946,7 +6946,7 @@ msgstr "ドメインの設定を更新できませんでした"
 msgid "Failed to update field"
 msgstr "フィールドの更新に失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "メディアの更新に失敗しました"
 
@@ -7008,15 +7008,15 @@ msgstr "ウィジェットの更新に失敗しました"
 msgid "Failed to upload a package file"
 msgstr "パッケージ内のファイルのアップロードに失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "ファイルのアップロードに失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "メディアのアップロードに失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "連携先へのアップロードに失敗しました"
 

@@ -6019,7 +6019,7 @@ msgstr "No s'ha pogut comunicar amb el connector"
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "No s'ha pogut confirmar la pujada"
 
@@ -6180,11 +6180,11 @@ msgstr "No s'ha pogut eliminar el contingut"
 msgid "Failed to delete field"
 msgstr "No s'ha pogut eliminar el camp"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "No s'ha pogut eliminar del proveïdor"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "No s'ha pogut eliminar el fitxer multimèdia"
 
@@ -6401,7 +6401,7 @@ msgstr "No s'han pogut obtenir les carpetes multimèdia"
 msgid "Failed to fetch media item"
 msgstr "No s'ha pogut obtenir l'element multimèdia"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "No s'han pogut obtenir els proveïdors multimèdia"
 
@@ -6443,7 +6443,7 @@ msgstr "No s'ha pogut obtenir la configuració del connector"
 msgid "Failed to fetch plugins"
 msgstr "No s'han pogut obtenir els connectors"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "No s'han pogut obtenir els fitxers multimèdia del proveïdor"
 
@@ -6798,7 +6798,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "No s'han pogut reordenar els ginys"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "No s'ha pogut substituir la imatge multimèdia"
 
@@ -6946,7 +6946,7 @@ msgstr "No s'ha pogut actualitzar el domini"
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "No s'ha pogut actualitzar el fitxer multimèdia"
 
@@ -7008,15 +7008,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "No s'ha pogut pujar un fitxer del paquet"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "No s'ha pogut pujar el fitxer"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "No s'han pogut pujar els fitxers multimèdia"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "No s'ha pogut pujar al proveïdor"
 

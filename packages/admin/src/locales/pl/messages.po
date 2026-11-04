@@ -6019,7 +6019,7 @@ msgstr "Nie udało się skomunikować z wtyczką"
 msgid "Failed to compare revisions"
 msgstr "Nie udało się porównać wersji"
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "Nie udało się potwierdzić przesłania"
 
@@ -6180,11 +6180,11 @@ msgstr "Nie udało się usunąć treści"
 msgid "Failed to delete field"
 msgstr "Nie udało się usunąć pola"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "Nie udało się usunąć u dostawcy"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "Nie udało się usunąć mediów"
 
@@ -6401,7 +6401,7 @@ msgstr "Nie udało się pobrać folderów mediów"
 msgid "Failed to fetch media item"
 msgstr "Nie udało się pobrać pliku multimedialnego"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "Nie udało się pobrać dostawców mediów"
 
@@ -6443,7 +6443,7 @@ msgstr "Nie udało się pobrać ustawień wtyczki"
 msgid "Failed to fetch plugins"
 msgstr "Nie udało się pobrać wtyczek"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "Nie udało się pobrać mediów dostawcy"
 
@@ -6798,7 +6798,7 @@ msgstr "Nie udało się zmienić kolejności terminów"
 msgid "Failed to reorder widgets"
 msgstr "Nie udało się zmienić kolejności widżetów"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "Nie udało się zastąpić obrazu"
 
@@ -6946,7 +6946,7 @@ msgstr "Nie udało się zaktualizować domeny"
 msgid "Failed to update field"
 msgstr "Nie udało się zaktualizować pola"
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "Nie udało się zaktualizować mediów"
 
@@ -7008,15 +7008,15 @@ msgstr "Nie udało się zaktualizować widżetu"
 msgid "Failed to upload a package file"
 msgstr "Nie udało się przesłać pliku paczki"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "Nie udało się przesłać pliku"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "Nie udało się przesłać mediów"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "Nie udało się przesłać do dostawcy"
 

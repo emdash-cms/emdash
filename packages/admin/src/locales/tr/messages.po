@@ -6019,7 +6019,7 @@ msgstr "Eklentiyle iletişim kurulamadı"
 msgid "Failed to compare revisions"
 msgstr "Sürümler karşılaştırılamadı"
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "Yükleme onaylanamadı"
 
@@ -6180,11 +6180,11 @@ msgstr "İçerik silinemedi"
 msgid "Failed to delete field"
 msgstr "Alan silinemedi"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "Sağlayıcıdan silinemedi"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "Medya silinemedi"
 
@@ -6401,7 +6401,7 @@ msgstr "Medya klasörleri getirilemedi"
 msgid "Failed to fetch media item"
 msgstr "Medya öğesi getirilemedi"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "Medya sağlayıcıları getirilemedi"
 
@@ -6443,7 +6443,7 @@ msgstr "Eklenti ayarları getirilemedi"
 msgid "Failed to fetch plugins"
 msgstr "Eklentiler getirilemedi"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "Sağlayıcı medyası getirilemedi"
 
@@ -6798,7 +6798,7 @@ msgstr "Terimler yeniden sıralanamadı"
 msgid "Failed to reorder widgets"
 msgstr "Widget'lar yeniden sıralanamadı"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "Medya görseli değiştirilemedi"
 
@@ -6946,7 +6946,7 @@ msgstr "Alan adı güncellenemedi"
 msgid "Failed to update field"
 msgstr "Alan güncellenemedi"
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "Medya güncellenemedi"
 
@@ -7008,15 +7008,15 @@ msgstr "Widget güncellenemedi"
 msgid "Failed to upload a package file"
 msgstr "Bir paket dosyası yüklenemedi"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "Dosya yüklenemedi"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "Medya yüklenemedi"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "Sağlayıcıya yüklenemedi"
 

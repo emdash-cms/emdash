@@ -6019,7 +6019,7 @@ msgstr "与插件通信失败"
 msgid "Failed to compare revisions"
 msgstr "比较修订版本失败"
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "确认上传失败"
 
@@ -6180,11 +6180,11 @@ msgstr "删除内容失败"
 msgid "Failed to delete field"
 msgstr "删除字段失败"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "从提供商处删除失败"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "删除媒体失败"
 
@@ -6401,7 +6401,7 @@ msgstr "获取媒体文件夹失败"
 msgid "Failed to fetch media item"
 msgstr "获取媒体项失败"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "获取媒体提供者失败"
 
@@ -6443,7 +6443,7 @@ msgstr "获取插件设置失败"
 msgid "Failed to fetch plugins"
 msgstr "获取插件失败"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "获取提供者媒体失败"
 
@@ -6798,7 +6798,7 @@ msgstr "重新排序术语失败"
 msgid "Failed to reorder widgets"
 msgstr "重新排序小部件失败"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "替换媒体图片失败"
 
@@ -6946,7 +6946,7 @@ msgstr "更新域名失败"
 msgid "Failed to update field"
 msgstr "更新字段失败"
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "更新媒体失败"
 
@@ -7008,15 +7008,15 @@ msgstr "更新小组件失败"
 msgid "Failed to upload a package file"
 msgstr "上传包文件失败"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "上传文件失败"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "上传媒体失败"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "上传到提供者失败"
 

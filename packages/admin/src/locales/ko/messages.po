@@ -6019,7 +6019,7 @@ msgstr "플러그인과 통신하지 못했습니다."
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "업로드 완료 확인에 실패했습니다"
 
@@ -6180,11 +6180,11 @@ msgstr "콘텐츠를 삭제하지 못했습니다."
 msgid "Failed to delete field"
 msgstr "필드를 삭제하지 못했습니다."
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "미디어 제공자에서 삭제하는 데 실패했습니다"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "미디어 삭제에 실패했습니다"
 
@@ -6401,7 +6401,7 @@ msgstr "미디어 폴더 목록을 가져오지 못했습니다"
 msgid "Failed to fetch media item"
 msgstr "미디어 항목을 가져오지 못했습니다"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "미디어 제공자 목록을 가져오지 못했습니다"
 
@@ -6443,7 +6443,7 @@ msgstr "플러그인 설정을 가져오지 못했습니다."
 msgid "Failed to fetch plugins"
 msgstr "플러그인 목록을 가져오지 못했습니다."
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "미디어 제공자의 미디어를 가져오지 못했습니다"
 
@@ -6798,7 +6798,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "위젯 순서를 변경하지 못했습니다."
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "미디어 이미지 교체에 실패했습니다"
 
@@ -6946,7 +6946,7 @@ msgstr "도메인을 업데이트하지 못했습니다."
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "미디어 업데이트에 실패했습니다"
 
@@ -7008,15 +7008,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "패키지 파일을 업로드하지 못했습니다"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "파일 업로드에 실패했습니다"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "미디어 업로드에 실패했습니다"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "미디어 제공자에 업로드하는 데 실패했습니다"
 

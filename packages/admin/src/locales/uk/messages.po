@@ -6019,7 +6019,7 @@ msgstr "Не вдалося зв'язатися з плагіном"
 msgid "Failed to compare revisions"
 msgstr "Не вдалося порівняти ревізії"
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "Не вдалося підтвердити завантаження"
 
@@ -6180,11 +6180,11 @@ msgstr "Не вдалося видалити вміст"
 msgid "Failed to delete field"
 msgstr "Не вдалося видалити поле"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "Не вдалося видалити з провайдера"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "Не вдалося видалити медіа"
 
@@ -6401,7 +6401,7 @@ msgstr "Не вдалося отримати папки медіатеки"
 msgid "Failed to fetch media item"
 msgstr "Не вдалося отримати медіа-елемент"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "Не вдалося отримати медіа-провайдерів"
 
@@ -6443,7 +6443,7 @@ msgstr "Не вдалося отримати налаштування плагі
 msgid "Failed to fetch plugins"
 msgstr "Не вдалося отримати плагіни"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "Не вдалося отримати медіа від провайдера"
 
@@ -6798,7 +6798,7 @@ msgstr "Не вдалося змінити порядок термінів"
 msgid "Failed to reorder widgets"
 msgstr "Не вдалося змінити порядок віджетів"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "Не вдалося замінити зображення в медіатеці"
 
@@ -6946,7 +6946,7 @@ msgstr "Не вдалося оновити домен"
 msgid "Failed to update field"
 msgstr "Не вдалося оновити поле"
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "Не вдалося оновити медіа"
 
@@ -7008,15 +7008,15 @@ msgstr "Не вдалося оновити віджет"
 msgid "Failed to upload a package file"
 msgstr "Не вдалося завантажити файл пакета на сайт"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "Не вдалося завантажити файл"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "Не вдалося завантажити медіа"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "Не вдалося завантажити до провайдера"
 

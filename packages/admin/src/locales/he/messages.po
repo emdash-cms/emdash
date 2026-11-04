@@ -6020,7 +6020,7 @@ msgstr "התקשורת עם התוסף נכשלה"
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:384
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to confirm upload"
 msgstr "אישור ההעלאה נכשל"
 
@@ -6181,11 +6181,11 @@ msgstr "מחיקת תוכן נכשלה"
 msgid "Failed to delete field"
 msgstr "מחיקת שדה נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:771
+#: packages/admin/src/lib/api/media.ts:868
 msgid "Failed to delete from provider"
 msgstr "המחיקה מהספק נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:630
+#: packages/admin/src/lib/api/media.ts:727
 msgid "Failed to delete media"
 msgstr "מחיקת מדיה נכשלה"
 
@@ -6402,7 +6402,7 @@ msgstr "אחזור תיקיות מדיה נכשל"
 msgid "Failed to fetch media item"
 msgstr "אחזור פריט מדיה נכשל"
 
-#: packages/admin/src/lib/api/media.ts:704
+#: packages/admin/src/lib/api/media.ts:801
 msgid "Failed to fetch media providers"
 msgstr "אחזור ספקי מדיה נכשל"
 
@@ -6444,7 +6444,7 @@ msgstr "אחזור הגדרות תוסף נכשל"
 msgid "Failed to fetch plugins"
 msgstr "אחזור תוספים נכשל"
 
-#: packages/admin/src/lib/api/media.ts:734
+#: packages/admin/src/lib/api/media.ts:831
 msgid "Failed to fetch provider media"
 msgstr "אחזור מדיה מהספק נכשל"
 
@@ -6799,7 +6799,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "שינוי סדר וידג׳טים נכשל"
 
-#: packages/admin/src/lib/api/media.ts:618
+#: packages/admin/src/lib/api/media.ts:715
 msgid "Failed to replace media image"
 msgstr "החלפת תמונת מדיה נכשלה"
 
@@ -6947,7 +6947,7 @@ msgstr "עדכון דומיין נכשל"
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:654
+#: packages/admin/src/lib/api/media.ts:751
 msgid "Failed to update media"
 msgstr "עדכון מדיה נכשל"
 
@@ -7009,15 +7009,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "העלאת קובץ חבילה נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:409
+#: packages/admin/src/lib/api/media.ts:414
 msgid "Failed to upload file"
 msgstr "העלאת קובץ נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:559
+#: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to upload media"
 msgstr "העלאת מדיה נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:759
+#: packages/admin/src/lib/api/media.ts:856
 msgid "Failed to upload to provider"
 msgstr "העלאה לספק נכשלה"
 
