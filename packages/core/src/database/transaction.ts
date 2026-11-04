@@ -16,6 +16,8 @@
 
 import type { Kysely, Transaction } from "kysely";
 
+import { deferObjectCacheInvalidations } from "../object-cache/index.js";
+
 /**
  * Run a callback inside a transaction if supported, or directly if not.
  *
@@ -41,6 +43,13 @@ export async function withTransaction<DB, T>(
 	if (db.isTransaction) {
 		return fn(db);
 	}
+	return deferObjectCacheInvalidations(() => runTransaction(db, fn));
+}
+
+async function runTransaction<DB, T>(
+	db: Kysely<DB>,
+	fn: (trx: Kysely<DB> | Transaction<DB>) => Promise<T>,
+): Promise<T> {
 	// Fast path: we already know transactions work
 	if (transactionsSupported === true) {
 		return db.transaction().execute(fn);

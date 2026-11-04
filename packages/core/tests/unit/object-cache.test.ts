@@ -11,6 +11,7 @@ import {
 	cachedQueryWithEpochs,
 	coalesceObjectCacheWrites,
 	contentNamespaces,
+	deferObjectCacheInvalidations,
 	getLastContentWriteAt,
 	invalidateCollectionCache,
 	invalidateCommentObjectCache,
@@ -534,6 +535,69 @@ describe("cachedQuery", () => {
 		} finally {
 			vi.restoreAllMocks();
 		}
+	});
+});
+
+describe("deferObjectCacheInvalidations", () => {
+	beforeEach(() => {
+		__setObjectCacheBackendForTests(createMemoryCache({}), { revalidate: 0, defaultTtl: 3600 });
+	});
+	afterEach(() => {
+		__setObjectCacheBackendForTests(null);
+	});
+
+	it("flushes invalidations after a failed operation", async () => {
+		let value = "old";
+		const load = vi.fn(() => Promise.resolve(value));
+		await cachedQuery({ namespace: "defer-failure-posts", key: "entry", load });
+		await flush();
+
+		value = "new";
+		await expect(
+			deferObjectCacheInvalidations(async () => {
+				invalidateObjectCache("defer-failure-posts");
+				await cachedQuery({ namespace: "defer-failure-posts", key: "entry", load });
+				throw new Error("partially committed");
+			}),
+		).rejects.toThrow("partially committed");
+		await flush();
+
+		expect(await cachedQuery({ namespace: "defer-failure-posts", key: "entry", load })).toBe("new");
+		expect(load).toHaveBeenCalledTimes(3);
+	});
+
+	it("flushes nested invalidations without releasing the parent scope", async () => {
+		const backend = createMemoryCache({});
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+
+		await deferObjectCacheInvalidations(async () => {
+			invalidateObjectCache("defer-parent-posts");
+			await deferObjectCacheInvalidations(async () => {
+				invalidateObjectCache("defer-child-menus");
+			});
+			await flush();
+
+			expect(await backend.get("em:epoch:defer-child-menus")).not.toBeNull();
+			expect(await backend.get("em:epoch:defer-parent-posts")).toBeNull();
+		});
+	});
+
+	it("writes invalidations from callbacks that outlive the scope", async () => {
+		const backend = createMemoryCache({});
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		let release!: () => void;
+		const late = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+
+		await deferObjectCacheInvalidations(async () => {
+			void late.then(() => invalidateObjectCache("menus"));
+		});
+		release();
+		await late;
+		await flush();
+
+		expect(await backend.get("em:epoch:menus")).not.toBeNull();
 	});
 });
 

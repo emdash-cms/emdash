@@ -200,6 +200,7 @@ const PENDING_KEY = Symbol.for("emdash:object-cache:pending-bumps");
 const LAST_CONTENT_WRITE_KEY = Symbol.for("emdash:object-cache:last-content-write");
 const PENDING_CONTENT_WRITE_KEY = Symbol.for("emdash:object-cache:pending-content-write");
 const WRITE_SCOPE_KEY = Symbol.for("emdash:object-cache:write-scope");
+const INVALIDATION_SCOPE_KEY = Symbol.for("emdash:object-cache:invalidation-scope");
 const CHANGE_MARKER_KEY = Symbol.for("emdash:object-cache:change-marker");
 const MARKER_WRITE_KEY = Symbol.for("emdash:object-cache:marker-write");
 const g = globalThis as Record<symbol, unknown>;
@@ -325,6 +326,39 @@ const writeScopes: AsyncLocalStorage<WriteScope> =
 		g[WRITE_SCOPE_KEY] = als;
 		return als;
 	})();
+
+interface InvalidationScope {
+	namespaces: Set<string>;
+	closed: boolean;
+}
+
+const invalidationScopes: AsyncLocalStorage<InvalidationScope> =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	(g[INVALIDATION_SCOPE_KEY] as AsyncLocalStorage<InvalidationScope> | undefined) ??
+	(() => {
+		const als = new AsyncLocalStorage<InvalidationScope>();
+		g[INVALIDATION_SCOPE_KEY] = als;
+		return als;
+	})();
+
+/**
+ * Hold local and backend invalidations until a write transaction settles.
+ * Reads within the scope bypass the cache so uncommitted data cannot escape.
+ * Flush on failure too: non-transactional adapters may have committed some writes.
+ * @internal
+ */
+export function deferObjectCacheInvalidations<T>(fn: () => Promise<T>): Promise<T> {
+	const scope: InvalidationScope = { namespaces: new Set(), closed: false };
+	return invalidationScopes.run(scope, async () => {
+		try {
+			return await fn();
+		} finally {
+			// Deferred work can outlive the transaction and must then write through.
+			scope.closed = true;
+			for (const namespace of scope.namespaces) invalidateObjectCache(namespace);
+		}
+	});
+}
 
 /**
  * Resolve (once per isolate) the configured object-cache backend.
@@ -518,6 +552,8 @@ function epochsMatch(stored: readonly number[], current: readonly number[]): boo
  * object-cache snapshot.
  */
 function shouldBypass(): boolean {
+	const scope = invalidationScopes.getStore();
+	if (scope && !scope.closed) return true;
 	const ctx = getRequestContext();
 	if (!ctx) return false;
 	return (
@@ -929,8 +965,10 @@ export async function getLastContentWriteAt(): Promise<number> {
 /**
  * Invalidate every cached value in `namespace` by bumping its epoch.
  *
- * Sync and non-blocking: the local epoch is stamped immediately (so the
- * writing isolate is instantly consistent) and the backend write is deferred
+ * Sync and non-blocking: outside a write transaction, the local epoch is stamped
+ * immediately. Transactions hold invalidations until they settle so concurrent
+ * readers cannot cache uncommitted snapshots under the new epoch.
+ * The backend write is deferred
  * via `after`, or held until the work ends inside
  * {@link coalesceObjectCacheWrites}. Other isolates pick up the new epoch
  * within their `revalidate` window after that write. No-ops when the cache is
@@ -939,6 +977,11 @@ export async function getLastContentWriteAt(): Promise<number> {
  * Content namespaces (`content:*`) also stamp {@link getLastContentWriteAt}.
  */
 export function invalidateObjectCache(namespace: string): void {
+	const scope = invalidationScopes.getStore();
+	if (scope && !scope.closed) {
+		scope.namespaces.add(namespace);
+		return;
+	}
 	// Monotonic so two writes in the same millisecond still produce distinct
 	// epochs — otherwise the second write reuses the first's stamp and its
 	// stale entries survive.
