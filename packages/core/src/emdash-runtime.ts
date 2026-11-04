@@ -22,6 +22,7 @@ import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
+import type { ContentWrite } from "./api/content-save.js";
 import { ErrorCode } from "./api/errors.js";
 import { buildManifestCollections } from "./api/handlers/manifest.js";
 import {
@@ -39,7 +40,7 @@ import {
 	type StagedReferenceBaselines,
 	type StagedReferences,
 } from "./api/handlers/staged-references.js";
-import { validateRev } from "./api/rev.js";
+import { encodeRev, validateRev } from "./api/rev.js";
 import { resolveSiteTitle } from "./api/site-title.js";
 import { getSiteBaseUrl, resolveSiteOrigin } from "./api/site-url.js";
 import type {
@@ -4266,6 +4267,7 @@ export class EmDashRuntime {
 		// Draft data lives only in the revisions table.
 		let usesDraftRevisions = false;
 		let draftStorageChanged = false;
+		let stagedWrite: ContentWrite | undefined;
 		if (processedData || bodyWithoutRev.references) {
 			if (collectionInfo?.supports?.includes("revisions")) {
 				usesDraftRevisions = true;
@@ -4391,9 +4393,9 @@ export class EmDashRuntime {
 						editedBy: credit.editedBy,
 					});
 
-					let staged: boolean;
+					let staged: Pick<ContentItemInternal, "version" | "updatedAt"> | null;
 					try {
-						staged = await repo.replaceDraftRevision(collection, resolvedId, revision.id, existing);
+						staged = await repo.stageDraftRevision(collection, resolvedId, revision.id, existing);
 					} catch (error) {
 						try {
 							await revisionRepo.deleteIfUnreferenced(collection, resolvedId, revision.id);
@@ -4428,6 +4430,17 @@ export class EmDashRuntime {
 
 					draftStorageChanged = true;
 					processedData = attemptData;
+					stagedWrite = {
+						rev: encodeRev({ ...existing, ...staged }),
+						// Read back as a fresh read hydrates it: the live values under the draft's.
+						data: {
+							...existing.data,
+							...Object.fromEntries(
+								Object.entries(revision.data).filter(([key]) => !key.startsWith("_")),
+							),
+						},
+						slug: typeof revision.data._slug === "string" ? revision.data._slug : existing.slug,
+					};
 
 					if (credit.replaces && existing.draftRevisionId) {
 						try {
@@ -4529,6 +4542,11 @@ export class EmDashRuntime {
 		}
 
 		if (hydrated.success) {
+			// Only the draft path knows its own write: the column handler reads the row again after
+			// writing, outside a transaction on D1, so that read can include another write.
+			if (stagedWrite && !liveMetaTouched) {
+				return { ...hydrated, liveContentChanged, saved: stagedWrite };
+			}
 			return { ...hydrated, liveContentChanged };
 		}
 		return hydrated;
