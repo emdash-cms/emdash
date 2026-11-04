@@ -58,8 +58,8 @@ const block: Block = { _type: "block", children: [], _key: "1", style: "normal" 
 Block({ node: block, index: 0, isInline: false });
 // @ts-expect-error PortableText value is required
 PortableText({});
-// @ts-expect-error Block is a component, not just a type
-Block({ node: 42 });
+// @ts-expect-error invalid Block node
+Block({ node: 42, index: 0, isInline: false });
 // @ts-expect-error image is required
 Image({});
 // @ts-expect-error invalid quality

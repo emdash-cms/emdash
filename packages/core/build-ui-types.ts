@@ -22,12 +22,20 @@ export async function buildUiTypes(): Promise<void> {
 		for (const file of await readdir(src, { recursive: true })) {
 			if (!file.endsWith(".astro")) continue;
 			const filename = join(src, file);
-			const { code } = await convertToTSX(await readFile(filename, "utf8"), {
+			const { code, diagnostics } = await convertToTSX(await readFile(filename, "utf8"), {
 				filename,
 				includeScripts: false,
 				includeStyles: false,
 				sourcemap: "external",
 			});
+			const errors = diagnostics.filter((diagnostic) => diagnostic.severity === 1);
+			if (errors.length) {
+				throw new Error(
+					errors
+						.map(({ location, text }) => `${file}:${location.line}:${location.column}: ${text}`)
+						.join("\n"),
+				);
+			}
 			const declaration = ts.transpileDeclaration(code, {
 				fileName: `${filename}.tsx`,
 				compilerOptions: { jsx: ts.JsxEmit.Preserve },
