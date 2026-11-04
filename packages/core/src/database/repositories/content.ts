@@ -17,7 +17,7 @@ import { executeAtomicBatchIfSupported, isPostgres } from "../dialect-helpers.js
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
-import { createRevisionId, RevisionRepository } from "./revision.js";
+import { createRevisionId, RevisionRepository, startingRevisionId } from "./revision.js";
 import type {
 	CreateContentInput,
 	UpdateContentInput,
@@ -1408,6 +1408,7 @@ export class ContentRepository {
 
 			const mergedData = keepKnownFields({ ...baseData, ...incoming }, fieldSlugs);
 			if (stagedSlug !== undefined) mergedData._slug = stagedSlug;
+			await this.keepStartingRevision(revisionRepo, type, existing);
 			const revision = await revisionRepo.create({
 				collection: type,
 				entryId: id,
@@ -1439,6 +1440,41 @@ export class ContentRepository {
 
 		if (!existing) throw new Error("Content not found");
 		throw new ContentMutationConflictError();
+	}
+
+	/**
+	 * Keep an entry's starting content as a revision before any other revision of it is written.
+	 * Until then only the columns hold it, and publishing a later draft overwrites them. A save
+	 * writes it ahead of its own draft, and publishing an entry with no live or draft revision
+	 * publishes it. Neither removes it, so a save that finds any revision already there can skip
+	 * writing it. Returns its id while it is the entry's newest revision and holds the stored
+	 * content, otherwise null.
+	 */
+	async keepStartingRevision(
+		revisionRepo: RevisionRepository,
+		type: string,
+		existing: ContentItem,
+		extraData?: () => Promise<Record<string, unknown>>,
+	): Promise<string | null> {
+		if (existing.draftRevisionId || existing.liveRevisionId) return null;
+		const id = startingRevisionId(type, existing.id, existing.createdAt);
+		const latest = await revisionRepo.findLatest(type, existing.id);
+		if (latest) {
+			const holdsStoredContent =
+				latest.id === id &&
+				Object.entries(existing.data).every(([key, value]) =>
+					sameStoredValue(latest.data[key], value),
+				);
+			return holdsStoredContent ? id : null;
+		}
+		await revisionRepo.createIfMissing({
+			id,
+			collection: type,
+			entryId: existing.id,
+			data: { ...existing.data, ...(await extraData?.()) },
+			authorId: existing.authorId ?? undefined,
+		});
+		return id;
 	}
 
 	private async deleteUnstagedRevision(
@@ -2652,7 +2688,10 @@ export class ContentRepository {
 		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let provisionalRevisionId: string | null = null;
 		try {
-			let revisionToPublish = existing.draftRevisionId || existing.liveRevisionId;
+			let revisionToPublish =
+				existing.draftRevisionId ||
+				existing.liveRevisionId ||
+				(await this.keepStartingRevision(revisionRepo, type, existing));
 
 			if (!revisionToPublish) {
 				const revision = await revisionRepo.create({
