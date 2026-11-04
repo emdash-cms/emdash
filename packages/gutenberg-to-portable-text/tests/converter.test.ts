@@ -1565,20 +1565,27 @@ describe("WordPress.com classic editor content", () => {
 		]);
 	});
 
-	it("keeps an image's alt text when it contains >", () => {
-		expect(
-			htmlToPortableText('<p><img src="https://example.com/hall.jpg" alt="Hall > Floor 2"></p>'),
-		).toEqual([expect.objectContaining({ _type: "image", alt: "Hall > Floor 2" })]);
+	it.each([
+		["in a paragraph", '<p><img src="https://example.com/hall.jpg" alt="Hall > Floor 2"></p>'],
+		["outside a paragraph", '<img src="https://example.com/hall.jpg" alt="Hall > Floor 2">'],
+	])("keeps an image's alt text that contains > %s", (_place, html) => {
+		expect(htmlToPortableText(html)).toEqual([
+			expect.objectContaining({ _type: "image", alt: "Hall > Floor 2" }),
+		]);
 	});
 
 	it.each([
-		["a link start tag with a long run of tabs", `<p><a${"\t".repeat(100_000)}</p>`],
 		[
-			"a link start tag with many href attributes",
+			"a paragraph with a link start tag and a long run of tabs",
+			`<p><a${"\t".repeat(100_000)}</p>`,
+		],
+		[
+			"a paragraph with a link start tag and many href attributes",
 			`<p><a\thref="!"${'href="!"'.repeat(20_000)}</p>`,
 		],
-		["an image tag with a long run of tabs", `<p><img${"\t".repeat(100_000)}</p>`],
-	])("converts a paragraph with %s within a second", (_shape, html) => {
+		["a paragraph with an image tag and a long run of tabs", `<p><img${"\t".repeat(100_000)}</p>`],
+		["an image tag with a long run of tabs outside a paragraph", `<img${"\t".repeat(100_000)}`],
+	])("converts %s within a second", (_shape, html) => {
 		const started = performance.now();
 		const result = htmlToPortableText(html);
 

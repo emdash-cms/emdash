@@ -19,8 +19,9 @@ import type {
 } from "./types.js";
 
 // Regex patterns for HTML parsing and conversion
+// The image alternative reads attributes as STANDALONE_IMAGE_PATTERN does, in linear time.
 const BLOCK_ELEMENT_PATTERN =
-	/<(p|h[1-6]|blockquote|pre|ul|ol|figure|div|hr)[^>]*>([\s\S]*?)<\/\1>|<(hr|br)\s*\/?>|<img\s+[^>]+\/?>/gu;
+	/<(p|h[1-6]|blockquote|pre|ul|ol|figure|div|hr)[^>]*>([\s\S]*?)<\/\1>|<(hr|br)\s*\/?>|<img\s(?:[^<>"']|"[^"<]*"|'[^'<]*')*>/gu;
 const WORD_CHARACTER_PATTERN = /\w/;
 const TABLE_BLOCK_CONTENT_PATTERN = /<(?:img|h[1-6]|ul|ol|pre|blockquote|hr)\b/i;
 const MERGED_CELL_PATTERN = /\b(?:colspan|rowspan)\s*=\s*(?:["']\s*)?(?:[2-9]|[1-9]\d)/i;
