@@ -35,7 +35,7 @@ import {
 } from "../../api/handlers/api-tokens.js";
 import { hasScope, TRANSFER_SCOPES } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
-import type { ExternalAuthConfig } from "../../auth/types.js";
+import type { AuthResult, ExternalAuthConfig } from "../../auth/types.js";
 import { getRegistryConfigInput } from "../../registry/config.js";
 import { resolveSessionUser } from "../session-user.js";
 import type { EmDashHandlers } from "../types.js";
@@ -89,7 +89,7 @@ function mcpUnauthorizedResponse(
  * API routes that skip auth — each handles its own access control.
  *
  * Prefix entries match any path starting with that prefix.
- * Entries in PUBLIC_API_EXACT match that path only.
+ * Entries in PUBLIC_API_EXACT match that path with or without a trailing slash.
  */
 const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/setup",
@@ -111,11 +111,8 @@ const PUBLIC_API_PREFIXES = [
 const PUBLIC_API_EXACT = new Set([
 	// Invite creation requires auth; only the token-based acceptance flow is public.
 	"/_emdash/api/auth/invite/accept",
-	"/_emdash/api/auth/invite/accept/",
 	"/_emdash/api/auth/invite/register-options",
-	"/_emdash/api/auth/invite/register-options/",
 	"/_emdash/api/auth/invite/complete",
-	"/_emdash/api/auth/invite/complete/",
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/auth/mode",
@@ -174,17 +171,22 @@ const CSRF_EXEMPT_PUBLIC_ROUTES = new Set([
 	"/_emdash/api/oauth/device/token",
 ]);
 
+function stripTrailingSlash(pathname: string): string {
+	return pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+}
+
 function isPublicEmDashRoute(pathname: string): boolean {
-	if (PUBLIC_API_EXACT.has(pathname)) return true;
+	const exactPathname = stripTrailingSlash(pathname);
+	if (PUBLIC_API_EXACT.has(exactPathname)) return true;
 	if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return true;
-	if (_providerExactRoutes.has(pathname)) return true;
+	if (_providerExactRoutes.has(exactPathname)) return true;
 	if (_providerPrefixRoutes.some((p) => pathname.startsWith(p))) return true;
-	if (import.meta.env.DEV && DEV_PUBLIC_API_EXACT.has(pathname)) return true;
+	if (import.meta.env.DEV && DEV_PUBLIC_API_EXACT.has(exactPathname)) return true;
 	return false;
 }
 
 function isCsrfExemptPublicRoute(pathname: string): boolean {
-	return CSRF_EXEMPT_PUBLIC_ROUTES.has(pathname);
+	return CSRF_EXEMPT_PUBLIC_ROUTES.has(stripTrailingSlash(pathname));
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -218,7 +220,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// one exists; anonymous callers skip the user DB lookup. Bearer tokens
 		// are not resolved on public routes; token callers continue to receive
 		// published results only.
-		if (url.pathname === "/_emdash/api/search") {
+		if (stripTrailingSlash(url.pathname) === "/_emdash/api/search") {
 			return handlePublicRouteAuth(context, next);
 		}
 		return next();
@@ -528,6 +530,7 @@ async function handleExternalAuth(
 	const { locals, request } = context;
 	const { emdash } = locals;
 
+	let authResult: AuthResult;
 	try {
 		// Use the authenticate function from the virtual module
 		// (statically imported at build time to work with Cloudflare Workers)
@@ -537,9 +540,18 @@ async function handleExternalAuth(
 			);
 		}
 
-		// Authenticate via the provider
-		const authResult = await virtualAuthenticate(request, authMode.config);
+		authResult = await virtualAuthenticate(request, authMode.config);
+	} catch (error) {
+		console.error("[external-auth] Auth error:", error);
 
+		return new Response("Authentication failed", {
+			status: 401,
+			headers: { "Content-Type": "text/plain", ...MW_CACHE_HEADERS },
+		});
+	}
+
+	// Identity is verified; failures below are server-side.
+	try {
 		// Get external auth config for auto-provision settings
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing AuthModeConfig to ExternalAuthConfig after provider check
 		const externalConfig = authMode.config as ExternalAuthConfig;
@@ -649,16 +661,16 @@ async function handleExternalAuth(
 			const sessionUser = await resolveSessionUser(session);
 			if (sessionUser?.id !== user.id) session.set("user", { id: user.id });
 		}
-
-		return next();
 	} catch (error) {
-		console.error("[external-auth] Auth error:", error);
+		console.error("[external-auth] User lookup error:", error);
 
-		return new Response("Authentication failed", {
-			status: 401,
-			headers: { "Content-Type": "text/plain", ...MW_CACHE_HEADERS },
+		return new Response("Service temporarily unavailable", {
+			status: 503,
+			headers: { "Content-Type": "text/plain", "Retry-After": "60", ...MW_CACHE_HEADERS },
 		});
 	}
+
+	return next();
 }
 
 /**

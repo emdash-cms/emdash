@@ -8,7 +8,8 @@
 
 import { parse } from "@wordpress/block-serialization-default-parser";
 
-import { extractText, parseInlineContent } from "./inline.js";
+import { createBlockScanner } from "./block-elements.js";
+import { extractText, parseInlineContent, parseInlineParagraphs } from "./inline.js";
 import { table as tableTransformer } from "./transformers/core.js";
 import { getTransformer } from "./transformers/index.js";
 import type {
@@ -19,8 +20,6 @@ import type {
 } from "./types.js";
 
 // Regex patterns for HTML parsing and conversion
-const BLOCK_ELEMENT_PATTERN =
-	/<(p|h[1-6]|blockquote|pre|ul|ol|figure|div|hr)[^>]*>([\s\S]*?)<\/\1>|<(hr|br)\s*\/?>|<img\s+[^>]+\/?>/gu;
 const WORD_CHARACTER_PATTERN = /\w/;
 const TABLE_BLOCK_CONTENT_PATTERN = /<(?:img|h[1-6]|ul|ol|pre|blockquote|hr)\b/i;
 const MERGED_CELL_PATTERN = /\b(?:colspan|rowspan)\s*=\s*(?:["']\s*)?(?:[2-9]|[1-9]\d)/i;
@@ -32,13 +31,19 @@ const BLOCK_END_INSIDE_CELL_PATTERN = /<\/(?:p|div)>(?!\s*<\/(?:p|div|t[dh])>)/g
 const BLOCK_START_INSIDE_CELL_PATTERN =
 	/(?<!(?:<(?:t[dh]|p|div)\b[^>]*>|<br\s*\/?>)\s*)<(?:p|div)\b/gi;
 const ALL_WHITESPACE_PATTERN = /\s+/g;
-const LINKED_IMAGE_PATTERN = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>\s*<img\s+([^>]+)\/?>\s*<\/a>/gu;
-const STANDALONE_IMAGE_PATTERN = /<img\s+[^>]+\/?>/gu;
+// Attributes are read as whole quoted values or single characters. Each part can match a
+// given character in only one way and none spans a `<`, so a tag that never closes costs
+// linear time instead of quadratic backtracking. The link's quoted `href` is capture 1.
+const LINKED_IMAGE_PATTERN =
+	/<a(?=\s)(?:[^<>"'\s]|\s(?!href=)|"[^"<]*"|'[^'<]*')*\shref=("[^"<]+"|'[^'<]+')(?:[^<>"']|"[^"<]*"|'[^'<]*')*>\s*<img(\s(?:[^<>"']|"[^"<]*"|'[^'<]*')*)>\s*<\/a>/gu;
+const STANDALONE_IMAGE_PATTERN = /<img\s(?:[^<>"']|"[^"<]*"|'[^'<]*')*>/gu;
 const IMG_TAG_PATTERN = /<img[^>]+>/i;
 const SRC_ATTR_PATTERN = /src=["']([^"']+)["']/i;
 const ALT_ATTR_PATTERN = /alt=["']([^"']*)["']/i;
 const LIST_ITEM_PATTERN = /<li[^>]*>([\s\S]*?)<\/li>/gu;
 const CODE_TAG_PATTERN = /<code[^>]*>([\s\S]*?)<\/code>/i;
+const CODE_LANGUAGE_PATTERN = /<code[^>]*\sclass=["'][^"']*language-([^\s"']+)/i;
+const BR_TAG_PATTERN = /<br\s*\/?>/giu;
 const HTML_TAG_PATTERN = /<[^>]+>/g;
 const FIGCAPTION_TAG_PATTERN = /<figcaption[^>]*>([\s\S]*?)<\/figcaption>/i;
 const AMP_ENTITY_PATTERN = /&amp;/g;
@@ -191,51 +196,30 @@ export function htmlToPortableText(
 			);
 			if (tableBlocks.length === 0) continue;
 
-			const between = html.slice(lastIndex, table.start).trim();
-			if (between) {
-				const { children, markDefs } = parseInlineContent(between, generateKey);
-				if (children.some((c) => c.text.trim())) {
-					blocks.push({
-						_type: "block",
-						_key: generateKey(),
-						style: "normal",
-						children,
-						markDefs: markDefs.length > 0 ? markDefs : undefined,
-					});
-				}
-			}
+			pushParagraphs(blocks, html.slice(lastIndex, table.start), generateKey);
 			blocks.push(...tableBlocks);
 			lastIndex = table.end;
 		}
 	};
 
-	while ((match = BLOCK_ELEMENT_PATTERN.exec(html)) !== null) {
+	const nextBlockElement = createBlockScanner(html);
+	let scanFrom = 0;
+	while ((match = nextBlockElement(scanFrom)) !== null) {
+		scanFrom = match.index + match.html.length;
 		pushTablesBefore(match.index);
 		if (lastIndex > match.index) {
 			// A table took in this element: resume the scan after the table.
-			BLOCK_ELEMENT_PATTERN.lastIndex = lastIndex;
+			scanFrom = lastIndex;
 			continue;
 		}
 
-		const fullMatch = match[0];
-		const tag = (match[1] || match[3] || "").toLowerCase();
-		const content = match[2] || "";
+		const fullMatch = match.html;
+		const tag = match.tag.toLowerCase();
+		const content = match.content;
 
 		// Handle text between matches
-		const between = html.slice(lastIndex, match.index).trim();
-		if (between) {
-			const { children, markDefs } = parseInlineContent(between, generateKey);
-			if (children.some((c) => c.text.trim())) {
-				blocks.push({
-					_type: "block",
-					_key: generateKey(),
-					style: "normal",
-					children,
-					markDefs: markDefs.length > 0 ? markDefs : undefined,
-				});
-			}
-		}
-		lastIndex = match.index + match[0].length;
+		pushParagraphs(blocks, html.slice(lastIndex, match.index), generateKey);
+		lastIndex = match.index + match.html.length;
 
 		// Check for standalone <img> tag (not wrapped in figure/p)
 		if (fullMatch.toLowerCase().startsWith("<img")) {
@@ -269,7 +253,7 @@ export function htmlToPortableText(
 				// First extract linked images
 				let linkedMatch;
 				while ((linkedMatch = LINKED_IMAGE_PATTERN.exec(content)) !== null) {
-					const linkUrl = decodeUrlEntities(linkedMatch[1]!);
+					const linkUrl = decodeUrlEntities(linkedMatch[1]!.slice(1, -1));
 					const imgAttrs = linkedMatch[2]!;
 					const srcMatch = imgAttrs.match(SRC_ATTR_PATTERN);
 					const altMatch = imgAttrs.match(ALT_ATTR_PATTERN);
@@ -320,22 +304,10 @@ export function htmlToPortableText(
 				}
 
 				// Then handle the text content (with images and image links stripped)
-				let textContent = content
+				const textContent = content
 					.replace(LINKED_IMAGE_PATTERN, "") // Remove linked images
-					.replace(STANDALONE_IMAGE_PATTERN, "") // Remove standalone images
-					.trim();
-				if (textContent) {
-					const { children, markDefs } = parseInlineContent(textContent, generateKey);
-					if (children.some((c) => c.text.trim())) {
-						blocks.push({
-							_type: "block",
-							_key: generateKey(),
-							style: "normal",
-							children,
-							markDefs: markDefs.length > 0 ? markDefs : undefined,
-						});
-					}
-				}
+					.replace(STANDALONE_IMAGE_PATTERN, ""); // Remove standalone images
+				pushParagraphs(blocks, textContent, generateKey);
 				break;
 			}
 
@@ -372,10 +344,14 @@ export function htmlToPortableText(
 				// Extract code content
 				const codeMatch = content.match(CODE_TAG_PATTERN);
 				const code = codeMatch?.[1] || content;
+				// Classic editor content often uses <br> for the newlines inside a code block
+				const withNewlines = code.replace(BR_TAG_PATTERN, "\n");
+				const language = content.match(CODE_LANGUAGE_PATTERN)?.[1];
 				blocks.push({
 					_type: "code",
 					_key: generateKey(),
-					code: decodeHtmlEntities(code),
+					code: decodeHtmlEntities(withNewlines),
+					...(language ? { language } : {}),
 				});
 				break;
 			}
@@ -437,21 +413,30 @@ export function htmlToPortableText(
 	pushTablesBefore(html.length);
 
 	// Handle remaining text
-	const remaining = html.slice(lastIndex).trim();
-	if (remaining) {
-		const { children, markDefs } = parseInlineContent(remaining, generateKey);
-		if (children.some((c) => c.text.trim())) {
-			blocks.push({
-				_type: "block",
-				_key: generateKey(),
-				style: "normal",
-				children,
-				markDefs: markDefs.length > 0 ? markDefs : undefined,
-			});
-		}
-	}
+	pushParagraphs(blocks, html.slice(lastIndex), generateKey);
 
 	return blocks;
+}
+
+/**
+ * Add text as paragraph blocks, one per run of text between blank lines.
+ * Classic-editor posts mark paragraphs only with blank lines: WordPress adds
+ * the `<p>` tags when it displays a post (`wpautop`).
+ */
+function pushParagraphs(
+	blocks: PortableTextBlock[],
+	html: string,
+	generateKey: () => string,
+): void {
+	for (const { children, markDefs } of parseInlineParagraphs(html, generateKey)) {
+		blocks.push({
+			_type: "block",
+			_key: generateKey(),
+			style: "normal",
+			children,
+			markDefs: markDefs.length > 0 ? markDefs : undefined,
+		});
+	}
 }
 
 /**

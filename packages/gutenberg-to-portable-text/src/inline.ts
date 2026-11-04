@@ -12,6 +12,32 @@ import { sanitizeHref } from "./url.js";
 
 // Regex patterns for inline parsing
 const WHITESPACE_PATTERN = /\S/;
+/** A run of source whitespace; like wpautop, a no-break space is not part of one */
+const WHITESPACE_RUN_PATTERN = /[\t\n\v\f\r ]+/g;
+/** Stands for a blank line in parsed text; parse5 drops U+0000 from text, so content can't contain it */
+const PARAGRAPH_BREAK_MARK = "\u0000";
+
+// Elements that put what follows on a new line anyway, so a newline right
+// before one is not a line break of its own
+const NEW_LINE_ELEMENTS = new Set([
+	"blockquote",
+	"br",
+	"div",
+	"figure",
+	"h1",
+	"h2",
+	"h3",
+	"h4",
+	"h5",
+	"h6",
+	"hr",
+	"li",
+	"ol",
+	"p",
+	"pre",
+	"table",
+	"ul",
+]);
 
 // Pre-compiled block tag patterns
 const BLOCK_TAG_PATTERNS: Record<string, { open: RegExp; close: RegExp }> = {
@@ -82,6 +108,59 @@ export function parseInlineContent(html: string, generateKey: () => string): Par
 }
 
 /**
+ * Parse inline HTML into the paragraphs that its blank lines separate, as
+ * wpautop does. Only blank lines in text count, so one inside a comment or an
+ * attribute is not a break, and spans keep their marks and links across one.
+ */
+export function parseInlineParagraphs(html: string, generateKey: () => string): ParseResult[] {
+	const fragment = parseFragment(stripBlockTags(html));
+	markParagraphBreaks(fragment.childNodes);
+
+	const children: PortableTextSpan[] = [];
+	const markDefs: PortableTextMarkDef[] = [];
+	walkNodes(fragment.childNodes, children, markDefs, new Map(), generateKey);
+
+	const paragraphs: PortableTextSpan[][] = [[]];
+	for (const span of children) {
+		for (const [index, text] of span.text.split(PARAGRAPH_BREAK_MARK).entries()) {
+			if (index > 0) paragraphs.push([]);
+			if (text) {
+				paragraphs.at(-1)!.push({ ...span, _key: index === 0 ? span._key : generateKey(), text });
+			}
+		}
+	}
+
+	const markDefsByKey = new Map(markDefs.map((def) => [def._key, def]));
+	const results: ParseResult[] = [];
+	for (const spans of paragraphs) {
+		if (!spans.some((span) => WHITESPACE_PATTERN.test(span.text))) continue;
+		const marks = new Set(spans.flatMap((span) => span.marks ?? []));
+		results.push({
+			children: spans,
+			markDefs: [...marks].flatMap((mark) => markDefsByKey.get(mark) ?? []),
+		});
+	}
+	return results;
+}
+
+/**
+ * Replace each run of whitespace in the fragment's text that holds a blank
+ * line, meaning two newlines, with a paragraph break mark
+ */
+function markParagraphBreaks(nodes: Node[]): void {
+	const pending = [...nodes];
+	for (let node = pending.pop(); node; node = pending.pop()) {
+		if (isTextNode(node)) {
+			node.value = node.value.replace(WHITESPACE_RUN_PATTERN, (run) =>
+				run.indexOf("\n") === run.lastIndexOf("\n") ? run : PARAGRAPH_BREAK_MARK,
+			);
+		} else if (isElement(node)) {
+			for (const child of node.childNodes) pending.push(child);
+		}
+	}
+}
+
+/**
  * Strip common block-level wrapper tags
  */
 function stripBlockTags(html: string): string {
@@ -121,9 +200,12 @@ function walkNodes(
 			if (text) {
 				// Handle line breaks in text
 				const parts = text.split("\n");
+				const inlineFollows = WHITESPACE_PATTERN.test(text) || isInlineNode(pending.at(-1)?.node);
+				const leadingBreak =
+					inlineFollows && children.length > 0 && !children.at(-1)!.text.endsWith("\n");
 				for (let i = 0; i < parts.length; i++) {
 					const part = parts[i];
-					if (part || i > 0) {
+					if (part || i > 0 || leadingBreak) {
 						// Add text span
 						if (part) {
 							children.push({
@@ -250,10 +332,11 @@ function getMarkForElement(
 
 		case "a": {
 			const href = sanitizeHref(getAttr(element, "href"));
-			const target = getAttr(element, "target");
+			const blank = getAttr(element, "target") === "_blank";
 
-			// Check if we already have a markDef for this href
-			const existingKey = markDefMap.get(href);
+			// Reuse the definition of an earlier link with the same href and target
+			const mapKey = `${blank ? 1 : 0}${href}`;
+			const existingKey = markDefMap.get(mapKey);
 			if (existingKey) {
 				return existingKey;
 			}
@@ -265,11 +348,11 @@ function getMarkForElement(
 				_key: key,
 				href,
 			};
-			if (target === "_blank") {
+			if (blank) {
 				markDef.blank = true;
 			}
 			markDefs.push(markDef);
-			markDefMap.set(href, key);
+			markDefMap.set(mapKey, key);
 			return key;
 		}
 
@@ -292,6 +375,12 @@ function getAttr(element: Element, name: string): string | undefined {
  */
 function isTextNode(node: Node): node is TextNode {
 	return node.nodeName === "#text";
+}
+
+function isInlineNode(node: Node | undefined): boolean {
+	if (!node) return false;
+	if (isTextNode(node)) return true;
+	return isElement(node) && !NEW_LINE_ELEMENTS.has(node.tagName.toLowerCase());
 }
 
 /**
