@@ -591,6 +591,172 @@ describe("WXR import: WPML translations (#1080)", () => {
 	});
 });
 
+describe("WXR import: Polylang exports", () => {
+	let harness: Harness;
+
+	beforeEach(async () => {
+		harness = await setup();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(harness.db);
+	});
+
+	// A plain Polylang export: the language and translation group of every post
+	// and term are taxonomy data. Category 1 and 8 are translations of each
+	// other; tag 26 exists only in Ukrainian.
+	const polylangWxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <wp:category>
+      <wp:term_id>1</wp:term_id>
+      <wp:category_nicename>novyny</wp:category_nicename>
+      <wp:cat_name><![CDATA[Новини]]></wp:cat_name>
+    </wp:category>
+    <wp:category>
+      <wp:term_id>8</wp:term_id>
+      <wp:category_nicename>news</wp:category_nicename>
+      <wp:cat_name><![CDATA[News]]></wp:cat_name>
+    </wp:category>
+    <wp:tag>
+      <wp:term_id>26</wp:term_id>
+      <wp:tag_slug>istoriia</wp:tag_slug>
+      <wp:tag_name><![CDATA[Історія]]></wp:tag_name>
+    </wp:tag>
+    <wp:term>
+      <wp:term_id>3</wp:term_id>
+      <wp:term_taxonomy>term_language</wp:term_taxonomy>
+      <wp:term_slug>pll_uk</wp:term_slug>
+      <wp:term_name><![CDATA[pll_uk]]></wp:term_name>
+    </wp:term>
+    <wp:term>
+      <wp:term_id>5</wp:term_id>
+      <wp:term_taxonomy>term_translations</wp:term_taxonomy>
+      <wp:term_slug>pll_65a1b2c3d4f60</wp:term_slug>
+      <wp:term_name><![CDATA[pll_65a1b2c3d4f60]]></wp:term_name>
+      <wp:term_description><![CDATA[a:2:{s:2:"uk";i:1;s:2:"en";i:8;}]]></wp:term_description>
+    </wp:term>
+    <wp:term>
+      <wp:term_id>27</wp:term_id>
+      <wp:term_taxonomy>term_translations</wp:term_taxonomy>
+      <wp:term_slug>pll_65a1b2c3d4f71</wp:term_slug>
+      <wp:term_name><![CDATA[pll_65a1b2c3d4f71]]></wp:term_name>
+      <wp:term_description><![CDATA[a:1:{s:2:"uk";i:26;}]]></wp:term_description>
+    </wp:term>
+    <wp:term>
+      <wp:term_id>60</wp:term_id>
+      <wp:term_taxonomy>post_translations</wp:term_taxonomy>
+      <wp:term_slug>pll_65a1b2c3d4e5f</wp:term_slug>
+      <wp:term_name><![CDATA[pll_65a1b2c3d4e5f]]></wp:term_name>
+      <wp:term_description><![CDATA[a:2:{s:2:"uk";i:10;s:2:"en";i:11;}]]></wp:term_description>
+    </wp:term>
+    <item>
+      <title>Новини музею</title>
+      <wp:post_id>10</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_name>novyny-muzeiu</wp:post_name>
+      <category domain="language" nicename="uk"><![CDATA[Українська]]></category>
+      <category domain="post_translations" nicename="pll_65a1b2c3d4e5f"><![CDATA[pll_65a1b2c3d4e5f]]></category>
+      <category domain="category" nicename="novyny"><![CDATA[Новини]]></category>
+      <category domain="post_tag" nicename="istoriia"><![CDATA[Історія]]></category>
+    </item>
+    <item>
+      <title>Museum news</title>
+      <wp:post_id>11</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_name>museum-news</wp:post_name>
+      <category domain="language" nicename="en"><![CDATA[English]]></category>
+      <category domain="post_translations" nicename="pll_65a1b2c3d4e5f"><![CDATA[pll_65a1b2c3d4e5f]]></category>
+      <category domain="category" nicename="news"><![CDATA[News]]></category>
+    </item>
+  </channel>
+</rss>`;
+
+	it("links translations through the `post_translations` groups of a plain export", async () => {
+		const { result } = await runImport(harness, polylangWxr, { locale: "uk" });
+
+		expect(result.errors).toEqual([]);
+		const rows = await harness.db
+			.selectFrom("ec_post" as keyof Database)
+			.select(["slug", "locale", "translation_group"])
+			.orderBy("locale")
+			.execute();
+		expect(rows.map((row) => row.locale)).toEqual(["en", "uk"]);
+		expect(rows[0]?.translation_group).toBe(rows[1]?.translation_group);
+		expect(result.taxonomies?.missingTaxonomies ?? []).toEqual([]);
+	});
+
+	it("keeps translated terms in their own locales, linked and with their own labels", async () => {
+		await runImport(harness, polylangWxr, { locale: "uk" });
+
+		const terms = await harness.db
+			.selectFrom("taxonomies")
+			.select(["name", "slug", "label", "locale", "translation_group"])
+			.orderBy("name")
+			.orderBy("locale")
+			.execute();
+		expect(terms.map(({ name, slug, label, locale }) => ({ name, slug, label, locale }))).toEqual([
+			{ name: "category", slug: "news", label: "News", locale: "en" },
+			{ name: "category", slug: "novyny", label: "Новини", locale: "uk" },
+			{ name: "tag", slug: "istoriia", label: "Історія", locale: "uk" },
+		]);
+		expect(terms[0]?.translation_group).toBe(terms[1]?.translation_group);
+
+		const repo = new TaxonomyRepository(harness.db);
+		const posts = await harness.db
+			.selectFrom("ec_post" as keyof Database)
+			.select(["id", "locale"])
+			.execute();
+		for (const post of posts) {
+			const categories = await repo.getTermsForEntry("post", post.id, "category", post.locale);
+			expect(categories.map((term) => term.label)).toEqual([
+				post.locale === "uk" ? "Новини" : "News",
+			]);
+			// The tag has no English version, so the English post shows none.
+			const tags = await repo.getTermsForEntry("post", post.id, "tag", post.locale);
+			expect(tags.map((term) => term.label)).toEqual(post.locale === "uk" ? ["Історія"] : []);
+		}
+	});
+
+	it("keeps translated terms apart when they share a slug", async () => {
+		// Polylang Pro can let the translations of a term share one slug.
+		const sharedSlug = polylangWxr
+			.replace(
+				"<wp:category_nicename>novyny</wp:category_nicename>",
+				"<wp:category_nicename>news</wp:category_nicename>",
+			)
+			.replace(
+				'<category domain="category" nicename="novyny">',
+				'<category domain="category" nicename="news">',
+			);
+		await runImport(harness, sharedSlug, { locale: "uk" });
+
+		const categories = await harness.db
+			.selectFrom("taxonomies")
+			.select(["slug", "label", "locale", "translation_group"])
+			.where("name", "=", "category")
+			.orderBy("locale")
+			.execute();
+		expect(categories.map(({ slug, label, locale }) => ({ slug, label, locale }))).toEqual([
+			{ slug: "news", label: "News", locale: "en" },
+			{ slug: "news", label: "Новини", locale: "uk" },
+		]);
+		expect(categories[0]?.translation_group).toBe(categories[1]?.translation_group);
+
+		const repo = new TaxonomyRepository(harness.db);
+		const posts = await harness.db
+			.selectFrom("ec_post" as keyof Database)
+			.select(["id", "locale"])
+			.execute();
+		for (const post of posts) {
+			const shown = await repo.getTermsForEntry("post", post.id, "category", post.locale);
+			expect(shown.map((term) => term.label)).toEqual([post.locale === "uk" ? "Новини" : "News"]);
+		}
+	});
+});
+
 describe("WXR import: taxonomy ingest (#1061)", () => {
 	let harness: Harness;
 
