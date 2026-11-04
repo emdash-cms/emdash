@@ -1255,27 +1255,29 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				)}
 			</ContentSettingsSections>
 
-			{!isNew && onDelete && (
-				<div data-testid="content-trash-actions" className="border-t bg-kumo-base p-4">
-					<Button
-						type="button"
-						variant="ghost"
-						className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
-						disabled={isDeleting}
-						icon={isDeleting ? <Loader size="sm" /> : <Trash />}
-						onClick={trash.show}
-					>
-						{t`Move to Trash`}
-					</Button>
-					<ConfirmDialog
-						{...trash.dialog}
-						title={t`Move to Trash?`}
-						description={t`This will move the item to trash. You can restore it later from the trash.`}
-						confirmLabel={t`Move to Trash`}
-						pendingLabel={t`Moving to trash...`}
-					/>
-				</div>
-			)}
+			{!isNew &&
+				onDelete && (
+					// The editor's Customize sidebar link follows this group and adds the bottom padding.
+					<div data-testid="content-trash-actions" className="border-t bg-kumo-base px-4 pt-4 pb-2">
+						<Button
+							type="button"
+							variant="ghost"
+							className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
+							disabled={isDeleting}
+							icon={isDeleting ? <Loader size="sm" /> : <Trash />}
+							onClick={trash.show}
+						>
+							{t`Move to Trash`}
+						</Button>
+						<ConfirmDialog
+							{...trash.dialog}
+							title={t`Move to Trash?`}
+							description={t`This will move the item to trash. You can restore it later from the trash.`}
+							confirmLabel={t`Move to Trash`}
+							pendingLabel={t`Moving to trash...`}
+						/>
+					</div>
+				)}
 		</div>
 	);
 });

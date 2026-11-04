@@ -2111,7 +2111,7 @@ export function ContentEditor({
 								</RevisionViewProvider>
 							</fieldset>
 							{!blockSidebarPanel && (
-								<div className={cn("px-4 pb-4", isNew || !onDelete ? "border-t pt-4" : "-mt-2")}>
+								<div className={cn("px-4 pb-4", (isNew || !onDelete) && "border-t pt-4")}>
 									<RouterLinkButton
 										to="/settings/sidebars"
 										search={{ tab: "editor" }}
