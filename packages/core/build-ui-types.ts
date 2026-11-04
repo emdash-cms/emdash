@@ -28,7 +28,7 @@ export async function buildUiTypes(): Promise<void> {
 				includeStyles: false,
 				sourcemap: "external",
 			});
-			const errors = diagnostics.filter((diagnostic) => diagnostic.severity === 1);
+			const errors = diagnostics.filter((diagnostic) => Number(diagnostic.severity) === 1);
 			if (errors.length) {
 				throw new Error(
 					errors
