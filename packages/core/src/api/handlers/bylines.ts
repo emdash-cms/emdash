@@ -7,7 +7,7 @@ import {
 } from "../../database/repositories/byline.js";
 import { EmDashValidationError, type BylineSummary } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
-import { getI18nConfig } from "../../i18n/config.js";
+import { getI18nConfig, resolveConfiguredLocale } from "../../i18n/config.js";
 import type { ApiResult } from "../types.js";
 
 // `undefined → null` so a missing field in the create payload matches the
@@ -31,7 +31,7 @@ function bylineFixedFieldsMatch(
 		norm(existing.websiteUrl) === norm(input.websiteUrl) &&
 		norm(existing.userId) === norm(input.userId) &&
 		existing.isGuest === (input.isGuest ?? false) &&
-		existing.locale === effectiveLocale
+		resolveConfiguredLocale(existing.locale) === resolveConfiguredLocale(effectiveLocale)
 	);
 }
 
@@ -116,7 +116,10 @@ export async function handleBylineTranslations(
 
 /**
  * Create a new byline. When `translationOf` is supplied, the new row joins the
- * source byline's translation_group (a sibling in the same logical identity).
+ * source byline's translation_group (a sibling in the same logical identity)
+ * and keeps the source's linked user unless `userId` is given. A user can own
+ * one byline per locale, so linking a user who already has a byline in the
+ * target locale returns CONFLICT.
  *
  * Translating from a source row only makes sense when the caller names the
  * target locale, otherwise we'd silently clone into the configured default,
@@ -138,7 +141,8 @@ export async function handleBylineCreate(
 			};
 		}
 
-		const localeErr = rejectUnknownLocale(input.locale);
+		const locale = input.locale ? resolveConfiguredLocale(input.locale) : undefined;
+		const localeErr = rejectUnknownLocale(locale);
 		if (localeErr) return localeErr;
 
 		const repo = new BylineRepository(db);
@@ -146,6 +150,7 @@ export async function handleBylineCreate(
 		// Existence check up front so the repo's "Source not found" throw
 		// becomes a clean NOT_FOUND on the API.
 		let sourceGroup: string | undefined;
+		let sourceUserId: string | null = null;
 		if (input.translationOf) {
 			const source = await repo.findById(input.translationOf);
 			if (!source) {
@@ -158,9 +163,11 @@ export async function handleBylineCreate(
 				};
 			}
 			sourceGroup = source.translationGroup ?? source.id;
+			sourceUserId = source.userId;
 		}
 
-		const effectiveLocale = input.locale ?? getI18nConfig()?.defaultLocale ?? "en";
+		const userId = input.userId === undefined ? sourceUserId : input.userId;
+		const effectiveLocale = locale ?? getI18nConfig()?.defaultLocale ?? "en";
 
 		// Translation-group guard: the row-per-locale model (PR #916)
 		// allows exactly one row per (translation_group, locale). Reject
@@ -169,7 +176,11 @@ export async function handleBylineCreate(
 		// net; this is the friendly error.
 		if (sourceGroup) {
 			const siblings = await repo.findByTranslationGroup(sourceGroup);
-			if (siblings.some((b) => b.locale === effectiveLocale)) {
+			if (
+				siblings.some(
+					(b) => resolveConfiguredLocale(b.locale) === resolveConfiguredLocale(effectiveLocale),
+				)
+			) {
 				return {
 					success: false,
 					error: {
@@ -195,7 +206,7 @@ export async function handleBylineCreate(
 			const inputHasFields = !!input.customFields && Object.keys(input.customFields).length > 0;
 			if (
 				inputHasFields &&
-				bylineFixedFieldsMatch(existing, input, effectiveLocale) &&
+				bylineFixedFieldsMatch(existing, { ...input, userId }, effectiveLocale) &&
 				existing.translationGroup === expectedTranslationGroup &&
 				existingCustomFieldsAreSubsetOf(existing.customFields ?? {}, input.customFields)
 			) {
@@ -216,7 +227,22 @@ export async function handleBylineCreate(
 			};
 		}
 
-		const byline = await repo.create(input);
+		// Runs after the slug check: a retried partial create already owns this
+		// user link, and the recovery branch above has to see that row first.
+		if (userId) {
+			const linked = await repo.findByUserId(userId, { locale: effectiveLocale });
+			if (linked) {
+				return {
+					success: false,
+					error: {
+						code: "CONFLICT",
+						message: `This user is already linked to byline "${linked.slug}" in locale "${effectiveLocale}"`,
+					},
+				};
+			}
+		}
+
+		const byline = await repo.create({ ...input, userId, locale: effectiveLocale });
 		return { success: true, data: byline };
 	} catch (error) {
 		// Mirror handleBylineUpdate: surface customFields validation

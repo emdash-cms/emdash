@@ -36,6 +36,7 @@ export type RouterLinkButtonProps = Omit<LinkProps, "children"> &
 	ButtonStyleProps & {
 		className?: string;
 		children?: React.ReactNode;
+		onClick?: React.MouseEventHandler<HTMLAnchorElement>;
 	};
 
 export function RouterLinkButton({

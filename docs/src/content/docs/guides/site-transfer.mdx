@@ -1,0 +1,586 @@
+---
+title: Site transfer
+description: Export a complete EmDash site as a site package, import it into a new empty site, and verify the result with an import receipt.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+A site package is a portable copy of an EmDash site's content model, content, editorial history, site presentation, settings, and media files. Import a site package to move a site to another EmDash deployment, including one that uses a different database: SQLite, PostgreSQL, or Cloudflare D1.
+
+An import writes into a new site whose content area is empty. EmDash checks the whole package before it writes anything, runs the import in small resumable steps, reads the imported site back, and issues a receipt when the result matches the package.
+
+A site package does not contain users, credentials, or secrets. It does contain every entry and comment on the site, including author and commenter email addresses. Store and send it with the same care as a database backup.
+
+## Choose the right kind of copy
+
+| Mechanism | Purpose | Importable | Media files | Users and secrets |
+| --- | --- | --- | --- | --- |
+| [Seed file](/themes/seed-files/) | Bootstrap a content model and sample content | Yes, with seed semantics | No | No |
+| [Preview](/guides/preview/) snapshot | Populate isolated preview rendering | Preview only | No | No |
+| [JSON backup](/guides/backups/) | Inspect selected database-shaped state | No | No | No |
+| [Raw database and media backup](/guides/backups/) | Recover one deployment | Restore into the same database type | Separate copy | Yes |
+| Site package | Move a site into another EmDash site | Yes, into an empty site | Yes | No. Author names and email addresses only |
+
+Use a raw database backup to recover a deployment after data loss. Use a site package to create a new copy of a site somewhere else.
+
+## What a site package contains
+
+A site package contains:
+
+- collections, fields, [block types](/guides/blocks/) with every version, taxonomy definitions, relation definitions, and byline field definitions;
+- every content entry in every locale, including drafts, scheduled entries, trashed entries, revision history, and translation groups;
+- taxonomy terms and term assignments, bylines and credits, content references, and SEO records;
+- menus and menu items, widget areas and widgets, sections, and redirects;
+- comments and comment reactions, unless the export turns comments off;
+- media folders, media metadata, and the bytes of every ready media file; and
+- the portable site settings listed below.
+
+The package stores JSON values, such as JSON fields and Portable Text, with their object keys sorted. An imported value can therefore list its keys in a different order from the origin. The values are otherwise unchanged.
+
+### Portable settings
+
+Only these settings are exported: `site:title`, `site:tagline`, `site:logo`, `site:favicon`, `site:postsPerPage`, `site:dateFormat`, `site:timezone`, `site:social`, `site:seo`, `emdash:site_title`, `emdash:site_tagline`, and `emdash:locale`.
+
+The target site keeps its own site URL (`site:url` and `emdash:site_url`), site ID, setup state, and backup settings. An import never overwrites them.
+
+The import plan asks whether to keep the target's title and tagline, which the setup wizard wrote, or use the package's values. The default uses the package's values.
+
+### Principals
+
+A user account never moves with a package. For each origin user that content, revisions, media, bylines, or comments refer to, the package carries a principal: the user's ID, display name, and email address. A principal has no role, password, passkey, session, or token.
+
+During import, you map each principal to a user on the target site or leave it unmapped. See [map authors to target users](#map-authors-to-target-users).
+
+### Comments
+
+Comments include the author name and email address, body, status, threading, timestamps, and moderation metadata. The IP address hash and user agent are not exported.
+
+Reactions keep their counts. The exporter replaces each voter hash with a new random value, so the target cannot match a reaction to the visitor who made it.
+
+## What a site package leaves out
+
+A site package never contains:
+
+- users, sessions, passkeys, OAuth accounts, allowed domains, API tokens, OAuth clients, authorization codes, or device codes;
+- plugin storage, plugin state, or plugin settings, including plugin secrets;
+- settings other than the portable settings, such as the preview signing secret;
+- audit logs, rate limits, edit locks, scheduled-task state, the 404 log, or migration history;
+- media usage records and search indexes, which the import rebuilds;
+- origin storage keys, bucket names, database names, or binding names; or
+- media that is not ready, such as an incomplete upload.
+
+Media from an external media provider stays external. The package keeps the reference, but the provider's files are not copied.
+
+## Prepare the target site
+
+Import into a site that meets every requirement below. When the target's content, locales, upload limit, or supported format does not fit the package, analysis reports a blocker.
+
+- **An administrator account.** Import runs as a signed-in administrator or with an API token. Create the target's administrator during setup.
+- **A storage backend.** Both the origin and the target need configured [storage](/deployment/storage/). EmDash stages package files in it.
+- **No content.** The target must not hold entries (including trashed entries), revisions, media or media folders, bylines or byline fields, comments, redirects, term assignments, relations, SEO records, sections created in the admin, or collections or block types created after setup. A site set up from any official template qualifies. What setup created is setup scaffold: the seeded collections and block types, taxonomy definitions and their unassigned terms, menus and their items, widget areas and their widgets, and theme sections. The plan lists the scaffold, and the import removes it after you confirm the plan.
+- **Every locale the package uses.** Add each of the package's locales to the target's [i18n configuration](/guides/internationalization/#configure-locales). A site without i18n configuration accepts only `en`. Locales are matched without regard to case, and the import writes each locale with the target's configured casing, declared as `locale_recased`.
+- **A large enough upload limit.** Every media file must fit the target's [`maxUploadSize`](/reference/configuration/#maxuploadsize), which defaults to 50 MiB.
+- **Format version `1`.** The target must support the package's format version and every required feature.
+
+The following request returns the supported format versions, features, and limits. Its `portableDomain` object reports whether the site can receive an import, and why not when it cannot.
+
+```bash
+curl https://new.example.com/_emdash/api/admin/transfer/capabilities \
+  -H "Authorization: Bearer $EMDASH_TOKEN"
+```
+
+## Export a site
+
+An export reads the site in bounded steps and writes the package to the site's storage. Before an export finishes, the exporter validates the finished package the same way an import does. When a write to the site succeeds during an export, the exporter starts again. Taking or renewing an entry edit lock does not count as a write. After three attempts it fails with `TRANSFER_EXPORT_CONCURRENT_WRITES`.
+
+The export's files stay available for seven days after the export is created. After that, a download returns `TRANSFER_EXPIRED`.
+
+### Export in the admin
+
+<Steps>
+
+1. Open **Settings → Transfer**. The page is available to administrators.
+
+2. In the **Export** section, turn off **Include comments** to leave comments and reactions out.
+
+3. Select **Export site**. The page shows the export's progress. Keep the page open; if you leave, the export continues when you return.
+
+4. When **Export ready** appears, select **Download package** and choose where to save the `.emdash` file. The page shows how many files and bytes have downloaded, and **Stop** cancels the download.
+
+</Steps>
+
+The section also shows the package digest, the number of records of each kind, and the site's recent exports, each with its own download button until it expires.
+
+**Download package** fetches the export one file at a time, checks each file's size and SHA-256 digest against the manifest, and builds the `.emdash` file in the browser, so it works on Cloudflare Workers for sites of any size. If a file doesn't match, the download stops with an error. Chrome, Edge, and other Chromium-based browsers write the file straight to disk. Other browsers hold the whole package in memory until the download finishes; for an export larger than about 500 MB, the page recommends a Chromium-based browser or the CLI.
+
+**Download as one file** asks the server for the archive in a single response instead. It suits small sites. On Cloudflare Workers, a large site can exceed a single request's limits.
+
+### Export with the CLI
+
+Log in to the origin site, then export it to a package file:
+
+```bash
+npx emdash login --url https://example.com
+npx emdash site export --url https://example.com --output site.emdash
+```
+
+The command drives the export to completion, downloads the package file by file, checks every file's size and digest, and writes `site.emdash`. Add `--no-comments` to leave comments and reactions out. If the command is interrupted, run it again with the same options to resume the same export. See the [`emdash site export` reference](/reference/cli/#site-export).
+
+### Export with the REST API
+
+Each call to `advance` runs one step and returns `nextRequestInMs`, the delay before the next call. The export is finished when `nextRequestInMs` is `null`.
+
+These examples use a personal access token with the `transfer:export` scope. See [token scopes](#token-scopes).
+
+<Steps>
+
+1. Start the export. To leave comments and reactions out, send `{ "comments": false }` as the body. An `Idempotency-Key` header makes a retried request return the same export instead of starting another. Reusing a key with different options fails with `409 TRANSFER_IDEMPOTENCY_CONFLICT`.
+
+   ```bash
+   curl -X POST https://example.com/_emdash/api/admin/transfer/exports \
+     -H "Authorization: Bearer $EMDASH_TOKEN" \
+     -H "Idempotency-Key: move-to-new-host"
+   ```
+
+2. Advance the export until `nextRequestInMs` is `null`. Wait the returned number of milliseconds between calls. `operation.progress` reports `done` and `total` steps, the `records` written so far, and `bytesDone` and `bytesTotal` once the package size is known.
+
+   ```bash
+   curl -X POST https://example.com/_emdash/api/admin/transfer/exports/$EXPORT_ID/advance \
+     -H "Authorization: Bearer $EMDASH_TOKEN"
+   ```
+
+3. Check that `operation.state` is `complete`. A `failed` export carries the reason in `operation.errorCode`.
+
+4. Download the package as one `.emdash` file:
+
+   ```bash
+   curl -o site.emdash \
+     https://example.com/_emdash/api/admin/transfer/exports/$EXPORT_ID/archive \
+     -H "Authorization: Bearer $EMDASH_TOKEN"
+   ```
+
+</Steps>
+
+An `.emdash` file is an uncompressed tar archive with `manifest.json` as its first entry. The archive streams every file in one response. On Cloudflare Workers, a large site can exceed a single request's limits. Download `manifest.json` from `exports/{id}/manifest` and each file from `exports/{id}/files/{path}` instead. Every downloaded file is checked against its recorded digest as it streams. If the stored bytes changed after the export, the download ends with an error instead of completing.
+
+## Import a site
+
+An import is created from a package, analyzed into a plan, and executed only after you confirm that plan by its digest. An import that has not started executing expires 24 hours after it was created.
+
+The admin, the CLI, and the REST API can run every step. An AI agent can analyze and start an import that was already uploaded, through the [MCP tools](#approvals-for-agents).
+
+### Import in the admin
+
+<Steps>
+
+1. On the target site, open **Settings → Transfer**. The **Import** section appears when the site can receive an import. Otherwise it lists what the site already has that prevents an import.
+
+2. Select **Choose package file** and choose the `.emdash` file. The browser checks the package and uploads it in parts. Nothing on the site changes during the upload. If the upload stops, choose the same file again to continue where it left off.
+
+3. When the upload finishes, the site analyzes the package. You can leave the page and come back.
+
+4. Review the import: the source site, export date and EmDash version, size, package digest, and the number of records of each kind. Read the **Blockers** and **Warnings**, the **Differences from the source site**, which lists the plan's transformations, and the **Starter content that will be removed**, grouped by type. See [review the import plan](#review-the-import-plan).
+
+5. Under **Authors**, choose the user on this site who should own each author's content, or **Don't map**. Authors that match a user's email address are marked **Matched by email**. See [map authors to target users](#map-authors-to-target-users).
+
+6. Under **Site identity**, choose whether to use the package's site title and tagline or keep this site's.
+
+7. Select **Start import** and confirm. The button is disabled while the plan has blockers. Editing on the site is paused until the import finishes.
+
+8. Follow the progress. When the import completes, the page shows the receipt with a **Verified** badge and its receipt, package, plan, and content digests. Select **Copy receipt** to keep a copy of the receipt JSON.
+
+</Steps>
+
+The page also offers **Cancel import** from the upload until the import finishes, and **Abandon import** after an import that started writing fails or is cancelled. Both ask for confirmation. See [cancel an import](#cancel-an-import) and [abandon an incomplete import](#abandon-an-incomplete-import).
+
+### Import with the CLI
+
+Log in to the target site, then analyze the package:
+
+```bash
+npx emdash login --url https://new.example.com
+npx emdash site import site.emdash --url https://new.example.com --analyze
+```
+
+The command checks the whole package file locally, uploads it, analyzes it, and prints the plan with its plan digest. It exits with code `2` when the plan has blockers. Review the plan as described in [review the import plan](#review-the-import-plan).
+
+To change the plan's decisions, run `--analyze` again with decision flags. `--map-principal` maps a principal, by ID or email address, to a target user by ID or email address, or to `none`. `--use-target-title` and `--use-target-tagline` keep the target's title and tagline:
+
+```bash
+npx emdash site import site.emdash --url https://new.example.com --analyze \
+  --map-principal editor@example.com=editor@example.com \
+  --map-principal 01J8ZQ4Y6T2N0D3VJ5R7K9M1PX=none \
+  --use-target-title
+```
+
+Execute the plan you reviewed by passing its digest:
+
+```bash
+npx emdash site import site.emdash --url https://new.example.com \
+  --plan sha256:3f1c… --confirm
+```
+
+The command runs the import to completion and prints the receipt. If it is interrupted, continue it with `emdash site import resume <operation-id>`. `emdash site import status <operation-id>` prints the import's state, and `emdash site import receipt <operation-id>` prints the receipt again. See the [`emdash site import` reference](/reference/cli/#site-import-file).
+
+### Import with the REST API
+
+The server works with the files inside a package, not with the `.emdash` archive. Unpack the archive first. It contains `manifest.json`, index files under `index/`, record files under `records/`, and media files under `media/`. The manifest pins the size and SHA-256 digest of every file, so the package digest identifies the whole package.
+
+These examples use a token with the `transfer:analyze` and `transfer:execute` scopes.
+
+<Steps>
+
+1. Create the import. Send the unchanged bytes of `manifest.json` as the request body. The response contains the operation and the first page of files the server still needs.
+
+   ```bash
+   curl -X POST https://new.example.com/_emdash/api/admin/transfer/imports \
+     -H "Authorization: Bearer $EMDASH_TOKEN" \
+     -H "Idempotency-Key: move-to-new-host" \
+     --data-binary @site/manifest.json
+   ```
+
+2. Upload every missing file to `imports/{id}/files/{path}`. The `Content-Length` header must equal the file's declared size, and the bytes must match its declared digest.
+
+   ```bash
+   curl -X PUT \
+     https://new.example.com/_emdash/api/admin/transfer/imports/$IMPORT_ID/files/index/000000.ndjson \
+     -H "Authorization: Bearer $EMDASH_TOKEN" \
+     --data-binary @site/index/000000.ndjson
+   ```
+
+   Uploading an index file declares the record and media files it lists. Request `imports/{id}/missing` again after each batch of uploads, and continue until it returns no items.
+
+   Uploading a file that is already stored checks it again. If the stored copy no longer matches, the upload replaces it and the response reports `alreadyVerified: false`.
+
+3. Analyze the package. Call `imports/{id}/analyze` until `nextRequestInMs` is `null`. The final response contains the `plan` and its `planDigest`.
+
+   ```bash
+   curl -X POST https://new.example.com/_emdash/api/admin/transfer/imports/$IMPORT_ID/analyze \
+     -H "Authorization: Bearer $EMDASH_TOKEN"
+   ```
+
+4. Review the plan and read every blocker, warning, and transformation. See [review the import plan](#review-the-import-plan).
+
+5. Submit decisions if the defaults are not what you want. Each submission returns a new plan and plan digest. Once execution is requested, the plan is frozen, and submitting decisions fails with `409 TRANSFER_INVALID_STATE`.
+
+   ```bash
+   curl -X POST https://new.example.com/_emdash/api/admin/transfer/imports/$IMPORT_ID/analyze \
+     -H "Authorization: Bearer $EMDASH_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{ "decisions": { "principalMappings": { "01J8ZQ4Y6T2N0D3VJ5R7K9M1PX": null }, "siteTitle": "target" } }'
+   ```
+
+6. Start the import with the digests you reviewed:
+
+   ```bash
+   curl -X POST https://new.example.com/_emdash/api/admin/transfer/imports/$IMPORT_ID/execute \
+     -H "Authorization: Bearer $EMDASH_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{ "packageDigest": "sha256:…", "planDigest": "sha256:…" }'
+   ```
+
+7. Advance the import until `nextRequestInMs` is `null`, waiting the returned delay between calls.
+
+   ```bash
+   curl -X POST https://new.example.com/_emdash/api/admin/transfer/imports/$IMPORT_ID/advance \
+     -H "Authorization: Bearer $EMDASH_TOKEN"
+   ```
+
+8. Check that `operation.state` is `complete`, then read the receipt from `imports/{id}/receipt`.
+
+</Steps>
+
+Execution fails with `TRANSFER_PACKAGE_DIGEST_MISMATCH` or `TRANSFER_PLAN_DIGEST_MISMATCH` when either digest differs from the staged package or the current plan. Read the current plan from `imports/{id}/plan`, review it again, and retry with its digests.
+
+## Map authors to target users
+
+Analysis lists each principal with its display name, email address, and the number of package records that refer to it. When exactly one target user has the same email address, compared without regard to case, the plan suggests that user and maps the principal to it by default. Principals without a suggestion start unmapped.
+
+To change a mapping, pass `--map-principal` to `emdash site import --analyze`, or submit `principalMappings` to the analyze endpoint. Each mapping names a target user, or leaves the principal unmapped (`none` in the CLI, `null` in the API). EmDash applies each mapping to entry authors, revision authors, media uploaders, byline user links, and comment authors.
+
+An unmapped principal's references are removed. When an unmapped author also had a byline linked to their account, the importer credits that byline explicitly on each of the author's entries that has no explicit byline credit and whose locale has the author's byline. The author's credit therefore stays on the page.
+
+Two mappings produce a `principal_conflict` blocker:
+
+- a principal with more than one byline in the same locale is mapped to a user; or
+- two principals that both have bylines in the same locale are mapped to the same user.
+
+A target user can have only one byline per locale. Leave one principal unmapped, or map the principals to different users.
+
+## Review the import plan
+
+A plan lists what the import will create, the decisions it will apply, and three kinds of findings:
+
+- **Blockers** prevent execution. Execution returns `TRANSFER_PLAN_BLOCKED` until the plan has none. Change the principal mappings to resolve a `principal_conflict`. Any other blocker needs a change to the package or the target: cancel the import, make the change, and create a new import.
+- **Warnings** describe problems in the package that do not stop the import. They are copied into the receipt.
+- **Transformations** are the exact, declared differences between the source site and the imported site. The exporter's changes are listed first, then the import's. Verification applies the import's transformations when it compares the imported site with the package.
+
+A plan lists at most 500 blockers and warnings. An `issues_truncated` warning reports how many more were found.
+
+### Blockers
+
+| Code | Meaning |
+| --- | --- |
+| `package_invalid` | A package file or path fails validation. |
+| `unsupported_format` | The target does not support the package's format or format version. |
+| `unsupported_feature` | The package requires a feature the target does not support. |
+| `limit_exceeded` | A package file or record exceeds a [limit](#limits). |
+| `file_missing` | A declared package file has not been uploaded. |
+| `file_mismatch` | A package file's size or digest does not match its declaration. |
+| `record_invalid` | A record is malformed or is not canonical JSON. |
+| `record_count_mismatch` | The number of records of a kind differs from the manifest. |
+| `record_order_invalid` | Records are out of order, or a parent appears after its child. |
+| `duplicate_id` | Two records of the same kind share an ID. |
+| `dangling_reference` | A record refers to a record that is not in the package. This includes a blocks field that names a block type the package lacks, and a block type whose current version the package lacks. |
+| `reference_cycle` | A term, comment, or menu item is its own parent. |
+| `media_ref_invalid` | Content refers to a media record that is not in the package. |
+| `media_blob_missing` | A media record's file is not in the package. |
+| `media_blob_too_large` | A media file is larger than the target's `maxUploadSize`. |
+| `target_not_empty` | The target already has content. The blocker's `detail` names what it found. |
+| `locale_not_configured` | The package uses a locale the target's i18n configuration does not include. |
+| `field_type_unknown` | A field or byline field uses a type the target does not support. |
+| `principal_conflict` | Principal mappings would give one user two bylines in the same locale. |
+| `integer_out_of_range` | An integer is outside the target database's integer range. PostgreSQL stores integers in 32 bits. |
+| `value_constraint_violation` | A value that the admin API would refuse. See the list below. |
+| `unique_violation` | A record would duplicate another record's unique key on the target. |
+
+The importer writes records directly, so analysis applies the same checks the admin API applies when those records are saved. Each of these values is a `value_constraint_violation`:
+
+- an entry value that does not fit its field's column, a required field without a value, or a value for a field the collection does not have;
+- a redirect whose source or destination is not a path on the site, whose type is not supported, whose source pattern is invalid, or whose destination uses a parameter the source does not capture;
+- a byline website that is not an `http` or `https` URL, a byline field value that does not fit its field's type or choices, or a byline field with more choices than a site supports;
+- a collection URL pattern that is invalid;
+- a block type with a reserved slug, a label that is empty or longer than 200 characters, or field definitions the block type editor would refuse;
+- an SEO canonical URL that is neither an `http` or `https` URL nor a site path; and
+- a menu item URL with a scheme menus do not allow.
+
+### Warnings
+
+| Code | Meaning |
+| --- | --- |
+| `media_provider_external` | Content uses media from an external provider. The reference is kept; the files are not copied. |
+| `media_row_missing` | A setting refers to media that is not in the package. |
+| `soft_reference_dangling` | An optional reference does not resolve to a record in the package. |
+| `redirect_loops_unchecked` | The package has too many redirects to check for loops before importing. A redirect that would close a loop is imported disabled. |
+| `issues_truncated` | More blockers or warnings were found than the plan lists. |
+
+### Transformations
+
+The exporter declares the changes it made to the source site's data. Each of these transformations carries a record kind and a count:
+
+| Code | Meaning |
+| --- | --- |
+| `orphan_dropped` | Records whose parent no longer existed on the source site were left out, such as a revision of a deleted entry. |
+| `soft_orphan_dropped` | Links to missing records were left out, such as a term assignment to a deleted term or a menu item pointing to a deleted entry. |
+| `orphan_reference_nulled` | A reference to a missing record was removed, such as a media file's deleted folder. |
+| `avatar_nulled` | A byline avatar or section preview image referred to media not in the package, and was removed. |
+| `media_not_ready_dropped` | Media that was not ready, such as an incomplete upload, was left out. |
+| `media_ref_unlinked` | References to media not in the package were removed from content. |
+| `media_url_relativized` | Absolute URLs to the source site's own media files were converted into site-relative URLs that resolve on the target. |
+| `redirect_duplicate_dropped` | Duplicate redirects for the same source path were left out. One redirect per source path was kept. |
+| `unknown_storage_key` | Records still refer to media files the source site does not have. They were exported unchanged. |
+
+The import declares its own changes:
+
+| Code | Meaning |
+| --- | --- |
+| `principal_mapped` | Principal references are rewritten to the mapped target users. |
+| `principal_unmapped` | References to unmapped principals are removed. |
+| `seeded_scaffold_removed` | Setup scaffold on the target is deleted before the import writes. The plan lists each item. |
+| `redirect_loop_disabled` | Redirects that form a loop are imported disabled. |
+| `search_unsupported` | Search is turned off for the listed collections because the target uses PostgreSQL. |
+| `float4_rounded` | Decimal values are rounded to the precision of the target's PostgreSQL `real` columns. |
+| `locale_recased` | Locales are written with the target's configured casing, such as `pt-br` as `pt-BR`. |
+
+## Run the import
+
+Execution runs these stages in order:
+
+1. Reserve the target and check again that it is empty.
+2. Remove the setup scaffold listed in the plan.
+3. Create block types, collections, fields, taxonomy definitions, relation definitions, and byline fields.
+4. Copy media files into the target's storage and create media records.
+5. Write terms and bylines.
+6. Write revisions and entries.
+7. Write term assignments, byline credits, content references, and SEO records.
+8. Write menus, widgets, sections, redirects, comments, reactions, and settings.
+9. Rebuild search indexes and caches, and queue media usage re-indexing.
+10. Verify the result.
+
+Each `advance` call runs one bounded step, which fits the request limits of Cloudflare Workers on D1. Progress is stored on the server. An interrupted request loses at most the step in progress, and every write is idempotent, so running a step again does not duplicate records.
+
+While another request is running a step, or when another request takes over the operation during a step, `advance` returns the operation with a short `nextRequestInMs`. A storage or database error is retried: the operation records the error, and `nextRequestInMs` grows with each consecutive failure. After repeated failures without progress, the import fails.
+
+### Writes are blocked during an import
+
+From the first execution step until the import completes, EmDash rejects write requests to its API with `503 TRANSFER_IMPORT_IN_PROGRESS`. This covers the admin, the REST API, plugin routes, public comment submissions, scheduled publishing, and plugin content writes. Sign-in, user and API token management, entry edit locks, and the transfer API itself stay available. Read requests are not blocked.
+
+MCP write tools, including plugin MCP tools, fail with `TRANSFER_IMPORT_IN_PROGRESS` in the usual tool error. Read-only MCP tools and the `site_*` transfer tools keep working, so an import started over MCP can be resumed, inspected, and completed over MCP.
+
+<Aside type="caution">
+	The public site is not hidden during an import. Visitors can see a partially imported site while
+	the import runs, and after it fails. Keep the target site private until you hold a verified receipt
+	for it.
+</Aside>
+
+### Resume after an interruption
+
+The admin page advances an import only while it is open. To resume, reopen **Settings → Transfer**, run `emdash site import resume <operation-id>`, or call `advance` again for the same operation. The server continues from the last completed step. If the interrupted request still held the operation, the next call waits for that hold to expire, at most five minutes.
+
+A failed or cancelled import cannot be resumed.
+
+### Cancel an import
+
+Select **Cancel import** in **Settings → Transfer**, run `emdash site import cancel <operation-id>`, or send `POST imports/{id}/cancel`. A step in progress stops after its current batch. Cancelling does not remove records that were already written.
+
+### Abandon an incomplete import
+
+A failed or cancelled import that started writing keeps blocking writes, so the incomplete site cannot be edited by mistake. To lift the block, select **Abandon import** in **Settings → Transfer**, run `emdash site import abandon <operation-id>`, or send `POST imports/{id}/abandon`. Abandoning keeps the imported data.
+
+After an abandon, the site is no longer empty, so it cannot receive another import. Import into a newly set-up site instead.
+
+A failed or cancelled import that never started writing does not block writes and does not need to be abandoned.
+
+## Verify the result
+
+Verification reads every imported record back with the same code the exporter uses, applies the plan's declared transformations to the package's records, and compares the two. It also checks the record count of every kind and downloads every imported media file again to check its digest. Any difference fails the import with `TRANSFER_VERIFICATION_FAILED`. The operation's `errorDetail` lists up to 50 of the differences.
+
+A successful import produces a receipt:
+
+```json title="receipt.json"
+{
+	"operationId": "01J8ZR2C4S6D8F0G2H4J6K8M0N",
+	"packageDigest": "sha256:…",
+	"planDigest": "sha256:…",
+	"targetSiteId": "01J8ZR0A2B4C6D8E0F2G4H6J8K",
+	"originSiteId": "01J1A3C5E7G9J1L3N5Q7S9U1W3",
+	"formatVersion": "1",
+	"importerEmDashVersion": "0.38.0",
+	"completedAt": "2026-09-23T10:15:00.000Z",
+	"logicalDigest": "sha256:…",
+	"counts": { "entry": 412, "media": 96 },
+	"warnings": [],
+	"verification": "verified",
+	"receiptDigest": "sha256:…"
+}
+```
+
+A receipt records that the target site identified by `targetSiteId` held exactly the content of the package identified by `packageDigest`, after the plan identified by `planDigest`, when verification finished. The `logicalDigest` summarizes the verified records.
+
+`receiptDigest` is the SHA-256 digest of the receipt's canonical JSON with the `receiptDigest` property removed. It detects a receipt that was changed after it was issued. A receipt is not signed, so it does not prove which server issued it. Fetch the receipt from the target over an authenticated connection when that matters.
+
+A receipt describes the site at the moment verification finished. It says nothing about later edits.
+
+## Move between databases
+
+A package does not depend on the origin's database. Export from SQLite, PostgreSQL, or D1 and import into any of them. Plan the following differences when the target uses PostgreSQL:
+
+- PostgreSQL stores integers in 32 bits. An integer outside that range is an `integer_out_of_range` blocker.
+- PostgreSQL stores `number` fields and media focal points as 32-bit floating point values. Values that change are declared as `float4_rounded`, and verification compares the rounded values.
+- Full-text search is available only on SQLite and D1. Collections with search enabled are imported with search turned off and declared as `search_unsupported`.
+
+The importer writes media to the target's storage backend under new storage keys and rewrites media references in content, settings, and SEO records to match. A reference to a media file the origin does not have is exported unchanged and declared as `unknown_storage_key`.
+
+## Security
+
+- **Treat a package as sensitive.** It holds all content, including drafts and trash, and the email addresses of authors and commenters. Keep it out of public buckets and shared folders, and delete copies you no longer need.
+- **Treat a package as untrusted input.** Import checks paths, sizes, digests, record schemas, references, and limits before it writes. It never runs code or SQL from a package and never fetches URLs from one.
+- **Grant transfer access deliberately.** Transfer requires the administrator role. A token with the `admin` scope can run every transfer action, so give an agent's token only the transfer scope it needs.
+- **Review the audit log.** EmDash records transfer actions in the site's audit log: `transfer_export_create`, `transfer_import_create`, `transfer_import_execute`, `transfer_import_cancel`, `transfer_import_abandon`, `transfer_import_complete`, `transfer_import_fail`, `transfer_approval_approve`, and `transfer_approval_deny`. Each entry names the acting user and the operation or approval (resource type `transfer_operation` or `transfer_approval`). Its details hold only IDs, digests, record counts, and error codes, never package content. Transfer error details likewise never include package content.
+- **Keep staging private.** EmDash stages package files under the `transfers/` prefix of your storage bucket and refuses to serve that prefix through its media route. If the bucket has a public domain, scope it to media, as for [backups](/guides/backups/#automatic-backups-to-storage). Staged files are deleted after an operation ends or expires.
+
+### Token scopes
+
+Transfer uses three API token scopes:
+
+| Scope | Allows |
+| --- | --- |
+| `transfer:export` | Start, advance, and download exports. |
+| `transfer:analyze` | Create imports, upload package files, analyze, and read plans. |
+| `transfer:execute` | Start, advance, cancel, and abandon imports. |
+
+The `admin` scope includes all three, so the token that `emdash login` saves can run every transfer. Each transfer scope grants only its own actions, and only an administrator can issue one. Use them to give a token narrower access than `admin`, for example an agent that may analyze packages but not export or import. See the [scope reference](/reference/mcp-server/#scopes).
+
+### Approvals for agents
+
+AI agents drive transfers through the `site_*` [MCP tools](/reference/mcp-server/#site-transfer). The tools start, advance, and report on operations. They never carry package bytes, so an agent's user downloads exports and uploads packages with the CLI or the REST API. Every tool requires the Admin role.
+
+An MCP client whose token has neither `admin` nor the matching transfer scope, such as an agent granted only `transfer:analyze`, cannot start an export or an import alone. Its `site_export_start` or `site_import_start` call creates a pending approval request and fails with `TRANSFER_APPROVAL_REQUIRED` and the approval ID. An administrator approves or denies the request under **Approval requests** in **Settings → Transfer**, which lists each pending request with its requester, action, and expiry time. The session-only `POST /_emdash/api/admin/transfer/approvals/{id}/approve` and `…/deny` endpoints do the same. API tokens cannot approve requests. The client then repeats the call with the approval ID. Approvals apply only to these MCP tools; the REST API has no approval parameter.
+
+An approval grants one call to the user who requested it, from the same token, with the same arguments. An export approval is bound to the export options. An import approval is bound to the operation and both digests, so a changed plan needs a new approval. A pending request expires after 15 minutes, and an approved one 15 minutes after approval. The retry that starts the operation uses it up; if the operation fails to start, the same approval can be retried until it expires. The same user and token can then check and advance that one operation without the scope.
+
+Grant `transfer:export`, `transfer:execute`, or `admin` to an agent's token only when the agent must run transfers without a person approving each one.
+
+## Limits
+
+| Limit | Value |
+| --- | --- |
+| `manifest.json` | 8 MiB |
+| One record | 1,900,000 bytes |
+| One record or index file | 4 MiB and 1,000 records |
+| Records per package | 5,000,000 |
+| Files per package | 1,000,000 |
+| JSON nesting depth | 64 |
+| One media file | The target's `maxUploadSize`, 50 MiB by default |
+
+The `capabilities` endpoint reports the values the site enforces.
+
+## For hosting providers
+
+A hosting control plane can move a customer's site into production with the REST API alone:
+
+<Steps>
+
+1. Provision a new EmDash site with its storage, locales, and `maxUploadSize`, and complete setup. Check that `capabilities` reports `portableDomain.empty` as `true`.
+
+2. Issue a token for the control plane with `transfer:analyze` and `transfer:execute`. Keep it out of any agent or site-building tool.
+
+3. Run the [import](#import-a-site), and enforce your own policy on the plan's warnings before you execute. Refuse any plan with blockers.
+
+4. Fetch the receipt and check it before promoting the site:
+
+   - `verification` is `verified`;
+   - `packageDigest` is the digest of the package you meant to publish;
+   - `planDigest` is the plan you accepted;
+   - `targetSiteId` is the site you are about to promote; and
+   - `receiptDigest` matches the receipt's canonical JSON.
+
+5. Promote the site, for example by routing its domain to it.
+
+</Steps>
+
+Keep the target unreachable until step 4 succeeds. EmDash does not hide a partially imported site from visitors.
+
+## Troubleshooting
+
+Transfer errors use stable codes. The HTTP status appears with each code.
+
+| Code | Status | What to do |
+| --- | --- | --- |
+| `TRANSFER_TARGET_NOT_EMPTY` | 409 | The target already has content. Import into a newly set-up site. **Settings → Transfer** and `capabilities` list what makes the site ineligible. |
+| `TRANSFER_IMPORT_IN_PROGRESS` | 503 | An import is running on this site, or an incomplete import is still blocking writes. Wait for it to finish, or [abandon](#abandon-an-incomplete-import) a failed or cancelled import. |
+| `TRANSFER_FENCE_CHECK_FAILED` | 503 | EmDash could not check whether an import is running. Retry the write. |
+| `TRANSFER_EXPORT_CONCURRENT_WRITES` | 409 | The site kept changing while the export ran. Export again when editing is quiet. |
+| `TRANSFER_EXPIRED` | 410 | The export's files were deleted after seven days, or an import was not executed within 24 hours. Start again. |
+| `TRANSFER_FILE_MISSING` | 422 | Some declared files are not uploaded. Upload everything `imports/{id}/missing` lists. |
+| `TRANSFER_FILE_NOT_DECLARED` | 422 | The upload path is not in the package. Upload only listed paths. |
+| `TRANSFER_FILE_SIZE_MISMATCH` | 422 | `Content-Length` or the uploaded bytes differ from the declared size. Upload the file unchanged. |
+| `TRANSFER_FILE_DIGEST_MISMATCH` | 422 | The uploaded bytes differ from the declared digest, or an export file changed after the export. Upload the original file, or export again. |
+| `TRANSFER_LIMIT_EXCEEDED` | 413 | A file exceeds a [limit](#limits). For media, raise the target's `maxUploadSize`. |
+| `TRANSFER_MANIFEST_INVALID` | 422 | The request body is not a valid manifest. Send `manifest.json` byte for byte. |
+| `TRANSFER_UNSUPPORTED_FORMAT` | 422 | Upgrade EmDash on the target. |
+| `TRANSFER_UNSUPPORTED_FEATURE` | 422 | Upgrade EmDash on the target. |
+| `TRANSFER_CONTAINER_INVALID` | 422 | The `.emdash` file is not a valid package archive. Download it again. |
+| `TRANSFER_PLAN_BLOCKED` | 409 | The plan has blockers. See [review the import plan](#review-the-import-plan). |
+| `TRANSFER_PACKAGE_DIGEST_MISMATCH` | 409 | The digest does not match the staged package. Use the operation's `packageDigest`. |
+| `TRANSFER_PLAN_DIGEST_MISMATCH` | 409 | The plan changed since you reviewed it. Read the current plan and review it again. |
+| `TRANSFER_DECISIONS_INVALID` | 422 | A decision names an unknown principal, or a target user that does not exist. Correct the mapping. |
+| `TRANSFER_INVALID_STATE` | 409 | The operation is not in a state that allows the request. Read the operation and follow its `state`. |
+| `TRANSFER_LEASE_ACTIVE` | 409 | Another request is running a step. Wait and retry. |
+| `TRANSFER_IDEMPOTENCY_CONFLICT` | 409 | The `Idempotency-Key` was already used for an export with other options, or an import of another package. Use a new key. |
+| `TRANSFER_RUNTIME_MISMATCH` | 409 | An incompatible EmDash version started the operation. Finish it with the version that started it, or start a new one. |
+| `TRANSFER_VERIFICATION_FAILED` | 422 | The imported site does not match the package. Read the differences in `errorDetail`, abandon the import, and import into a new site. |
+| `TRANSFER_APPROVAL_REQUIRED` | 403 | An administrator must approve the request. See [approvals for agents](#approvals-for-agents). |
+| `TRANSFER_APPROVAL_INVALID` | 403 | The approval is unknown, denied, expired, used, or bound to other parameters. Request a new one. |
+| `TRANSFER_SCHEMA_UNCLASSIFIED` | 500 | The database has a table or column the exporter does not recognize. Run the EmDash version that matches the database's migrations. |
+| `INSUFFICIENT_SCOPE` | 403 | The token has neither `admin` nor the transfer scope the request needs. Issue a token with the scope. |

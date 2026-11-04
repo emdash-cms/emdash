@@ -1,0 +1,16 @@
+import { fileURLToPath } from "node:url";
+
+import { defineConfig } from "vitest/config";
+
+import { emdashPluginTest } from "./src/config.js";
+
+const fixture = fileURLToPath(new URL("../plugins/marketplace-test", import.meta.url));
+export default defineConfig({
+	plugins: [emdashPluginTest({ dir: fixture })],
+	test: {
+		include: ["test/**/*.test.ts"],
+		exclude: ["test/node/**/*.test.ts"],
+		testTimeout: 30_000,
+		hookTimeout: 30_000,
+	},
+});

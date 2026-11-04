@@ -15,8 +15,8 @@ import { MIGRATION_COUNT, runMigrations } from "../../../src/database/migrations
  * Migrator races on inserting into `_emdash_migrations` and the loser
  * throws `UNIQUE constraint failed: _emdash_migrations.name`.
  *
- * The Kysely SqliteAdapter (which D1 inherits from kysely-d1) has a no-op
- * `acquireMigrationLock`, so this race is unprotected on D1.
+ * The Kysely SqliteAdapter has a no-op `acquireMigrationLock`, so this race
+ * is unprotected on SQLite.
  *
  * We simulate the race here by pointing two independent Kysely instances
  * at the same SQLite file and starting `runMigrations` on both
@@ -42,8 +42,6 @@ describe("Migration race condition (#762)", () => {
 
 		try {
 			// Fire both migrators in parallel against the same database file.
-			// On D1, this is what happens when two Workers isolates spin up
-			// at once on first request after deploy.
 			const results = await Promise.allSettled([runMigrations(dbA), runMigrations(dbB)]);
 
 			const failures = results.filter((r) => r.status === "rejected");

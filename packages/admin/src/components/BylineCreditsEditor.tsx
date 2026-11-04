@@ -1,0 +1,781 @@
+import {
+	Badge,
+	Button,
+	Collapsible,
+	DropdownMenu,
+	Input,
+	LayerCard,
+	Loader,
+	Popover,
+	Text,
+} from "@cloudflare/kumo";
+import {
+	closestCenter,
+	DndContext,
+	type DragEndEvent,
+	type DragStartEvent,
+	KeyboardSensor,
+	type Modifier,
+	PointerSensor,
+	useSensor,
+	useSensors,
+} from "@dnd-kit/core";
+import {
+	arrayMove,
+	sortableKeyboardCoordinates,
+	SortableContext,
+	useSortable,
+	verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useLingui } from "@lingui/react/macro";
+import {
+	DotsSixVertical,
+	DotsThree,
+	PencilSimple,
+	Plus,
+	Tag,
+	UserMinus,
+	X,
+} from "@phosphor-icons/react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import * as React from "react";
+
+import { fetchBylines, type BylineCreditInput, type BylineSummary } from "../lib/api";
+import { useDebouncedValue } from "../lib/hooks.js";
+import { BylineFormDialog, toBylineSlug, type BylineFormValues } from "./BylineFormDialog.js";
+import { RouterLinkButton } from "./RouterLinkButton.js";
+
+const restrictToBylineList: Modifier = ({ activeNodeRect, containerNodeRect, transform }) => {
+	if (!containerNodeRect || !activeNodeRect) return { ...transform, x: 0 };
+	const minY = containerNodeRect.top - activeNodeRect.top;
+	const maxY = containerNodeRect.bottom - activeNodeRect.bottom;
+	return {
+		...transform,
+		x: 0,
+		y: Math.min(maxY, Math.max(minY, transform.y)),
+	};
+};
+
+type BylineOption = { type: "byline"; byline: BylineSummary } | { type: "create"; label: string };
+
+/** The byline the form dialog opened for: an existing one, or a new one with a starting name. */
+interface BylineFormTarget {
+	byline: BylineSummary | null;
+	displayName: string;
+	submit: (values: BylineFormValues) => Promise<BylineSummary>;
+}
+
+export interface BylineCreditsEditorProps {
+	credits: BylineCreditInput[];
+	inferredByline?: BylineSummary | null;
+	bylines: BylineSummary[];
+	selectedBylineDetails?: BylineSummary[];
+	bylinesLoaded?: boolean;
+	onChange: (bylines: BylineCreditInput[]) => void;
+	onQuickCreate?: (input: BylineFormValues) => Promise<BylineSummary>;
+	onQuickEdit?: (bylineId: string, input: BylineFormValues) => Promise<BylineSummary>;
+	entryLocale?: string | null;
+	i18n?: { defaultLocale: string; locales: string[] } | null;
+}
+
+export function BylineCreditsEditor({
+	credits,
+	inferredByline,
+	bylines,
+	selectedBylineDetails,
+	bylinesLoaded = true,
+	onChange,
+	onQuickCreate,
+	onQuickEdit,
+	entryLocale,
+	i18n,
+}: BylineCreditsEditorProps) {
+	const { t } = useLingui();
+	const [chooserOpen, setChooserOpen] = React.useState(false);
+	const [search, setSearch] = React.useState("");
+	const [knownBylines, setKnownBylines] = React.useState<Record<string, BylineSummary>>({});
+	const [announcement, setAnnouncement] = React.useState("");
+	const [activeDragId, setActiveDragId] = React.useState<string | null>(null);
+	const [roleEditorId, setRoleEditorId] = React.useState<string | null>(null);
+	const [roleDraft, setRoleDraft] = React.useState("");
+	const [formTarget, setFormTarget] = React.useState<BylineFormTarget | null>(null);
+	const [formOpen, setFormOpen] = React.useState(false);
+	const [formPendingOpen, setFormPendingOpen] = React.useState(false);
+	const chooserRef = React.useRef<HTMLDivElement>(null);
+	const chooserTriggerRef = React.useRef<HTMLButtonElement | null>(null);
+	const pendingRowFocusRef = React.useRef<string | null>(null);
+	const rowRefs = React.useRef(new Map<string, HTMLDivElement>());
+	const creditsRef = React.useRef(credits);
+	creditsRef.current = credits;
+
+	const debouncedSearch = useDebouncedValue(search, 300);
+	const currentSearch = search.trim();
+	const trimmedSearch = debouncedSearch.trim();
+	const searchIsDebouncing = chooserOpen && currentSearch !== trimmedSearch;
+	const searchEnabled = chooserOpen && trimmedSearch.length > 0;
+	const searchResults = useQuery({
+		queryKey: ["bylines", "credit-picker", entryLocale ?? null, trimmedSearch],
+		queryFn: () =>
+			fetchBylines({ search: trimmedSearch, locale: entryLocale ?? undefined, limit: 20 }),
+		enabled: searchEnabled,
+		placeholderData: keepPreviousData,
+	});
+
+	const bylineMap = React.useMemo(() => {
+		const map = new Map<string, BylineSummary>();
+		for (const byline of selectedBylineDetails ?? []) map.set(byline.id, byline);
+		for (const byline of bylines) map.set(byline.id, byline);
+		for (const byline of searchResults.data?.items ?? []) map.set(byline.id, byline);
+		for (const byline of Object.values(knownBylines)) map.set(byline.id, byline);
+		return map;
+	}, [bylines, knownBylines, searchResults.data?.items, selectedBylineDetails]);
+
+	const resultPool = searchIsDebouncing
+		? []
+		: searchEnabled
+			? searchResults.isError
+				? []
+				: (searchResults.data?.items ?? [])
+			: bylines;
+	const selectedIds = React.useMemo(
+		() => new Set(credits.map((credit) => credit.bylineId)),
+		[credits],
+	);
+	const availableResults = resultPool.filter((byline) => !selectedIds.has(byline.id));
+	const normalizedSearch = trimmedSearch.toLocaleLowerCase();
+	const generatedSearchSlug = toBylineSlug(trimmedSearch);
+	const hasExactMatch = resultPool.some(
+		(byline) =>
+			byline.displayName.trim().toLocaleLowerCase() === normalizedSearch ||
+			byline.slug === generatedSearchSlug,
+	);
+	const showCreate =
+		!!onQuickCreate &&
+		!searchIsDebouncing &&
+		searchEnabled &&
+		searchResults.isSuccess &&
+		!searchResults.isFetching &&
+		!hasExactMatch;
+	const options = React.useMemo<BylineOption[]>(
+		() => [
+			...availableResults.map((byline) => ({ type: "byline" as const, byline })),
+			...(showCreate ? [{ type: "create" as const, label: trimmedSearch }] : []),
+		],
+		[availableResults, showCreate, trimmedSearch],
+	);
+	const searchBusy = chooserOpen && (searchIsDebouncing || searchResults.isFetching);
+
+	const sensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+	);
+
+	const focusChooser = React.useCallback(() => {
+		requestAnimationFrame(() =>
+			chooserRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true }),
+		);
+	}, []);
+	const focusRow = React.useCallback((id: string) => {
+		requestAnimationFrame(() =>
+			rowRefs.current
+				.get(id)
+				?.querySelector<HTMLButtonElement>("button[data-byline-actions-trigger]")
+				?.focus(),
+		);
+	}, []);
+	const focusPendingRow = React.useCallback(() => {
+		const id = pendingRowFocusRef.current;
+		if (!id) return;
+		pendingRowFocusRef.current = null;
+		focusRow(id);
+	}, [focusRow]);
+
+	const changeCredits = React.useCallback(
+		(next: BylineCreditInput[]) => {
+			creditsRef.current = next;
+			onChange(next);
+		},
+		[onChange],
+	);
+
+	const openChooser = React.useCallback(() => {
+		setChooserOpen(true);
+		focusChooser();
+	}, [focusChooser]);
+
+	const closeChooser = React.useCallback((restoreFocus = true) => {
+		setChooserOpen(false);
+		setSearch("");
+		if (restoreFocus) requestAnimationFrame(() => chooserTriggerRef.current?.focus());
+	}, []);
+
+	const addByline = React.useCallback(
+		(byline: BylineSummary) => {
+			const current = creditsRef.current;
+			if (current.some((credit) => credit.bylineId === byline.id)) return;
+			pendingRowFocusRef.current = byline.id;
+			setKnownBylines((known) => ({ ...known, [byline.id]: byline }));
+			changeCredits([...current, { bylineId: byline.id, roleLabel: null }]);
+			closeChooser(false);
+			setAnnouncement(t`${byline.displayName} added to this post.`);
+		},
+		[changeCredits, closeChooser, t],
+	);
+
+	const handleDragStart = React.useCallback((event: DragStartEvent) => {
+		setActiveDragId(String(event.active.id));
+	}, []);
+	const handleDragEnd = React.useCallback(
+		(event: DragEndEvent) => {
+			setActiveDragId(null);
+			if (!event.over || event.active.id === event.over.id) return;
+			const current = creditsRef.current;
+			const from = current.findIndex((credit) => credit.bylineId === event.active.id);
+			const to = current.findIndex((credit) => credit.bylineId === event.over?.id);
+			if (from < 0 || to < 0) return;
+			changeCredits(arrayMove(current, from, to));
+			const id = String(event.active.id);
+			const label = bylineMap.get(id)?.displayName ?? t`Byline`;
+			setAnnouncement(t`${label} moved to position ${to + 1}.`);
+			focusRow(id);
+		},
+		[bylineMap, changeCredits, focusRow, t],
+	);
+
+	const openCreate = React.useCallback(() => {
+		if (!onQuickCreate) return;
+		setFormTarget({ byline: null, displayName: search.trim(), submit: onQuickCreate });
+		setFormPendingOpen(true);
+		setChooserOpen(false);
+	}, [onQuickCreate, search]);
+
+	const openEdit = React.useCallback(
+		(byline: BylineSummary) => {
+			if (!onQuickEdit) return;
+			setFormTarget({
+				byline,
+				displayName: byline.displayName,
+				submit: (values) => onQuickEdit(byline.id, values),
+			});
+			requestAnimationFrame(() => setFormOpen(true));
+		},
+		[onQuickEdit],
+	);
+
+	const handleBylineSaved = React.useCallback(
+		(saved: BylineSummary) => {
+			setFormOpen(false);
+			if (!formTarget?.byline) {
+				addByline(saved);
+				return;
+			}
+			setKnownBylines((known) => ({ ...known, [saved.id]: saved }));
+			setAnnouncement(t`${saved.displayName} updated everywhere it appears.`);
+			focusRow(saved.id);
+		},
+		[addByline, focusRow, formTarget, t],
+	);
+
+	const isMultiLocale = !!i18n && i18n.locales.length > 1;
+	const showLocaleEmptyState =
+		isMultiLocale && bylinesLoaded && bylines.length === 0 && !!entryLocale;
+
+	return (
+		<div>
+			<Popover
+				open={chooserOpen}
+				onOpenChange={(open) => (open ? openChooser() : closeChooser(false))}
+				onOpenChangeComplete={(open) => {
+					if (open) return;
+					if (formPendingOpen) {
+						setFormPendingOpen(false);
+						setFormOpen(true);
+						return;
+					}
+					focusPendingRow();
+				}}
+			>
+				<Popover.Content
+					align="end"
+					positionMethod="fixed"
+					className="w-80 max-h-[var(--available-height)] max-w-[calc(100vw-2rem)] overflow-hidden"
+				>
+					<div
+						ref={chooserRef}
+						className="flex min-h-0 flex-col gap-3"
+						onKeyDown={(event) => {
+							if (event.key === "Escape") {
+								event.preventDefault();
+								closeChooser();
+							}
+						}}
+					>
+						<div className="flex shrink-0 items-start justify-between gap-3">
+							<div className="min-w-0 space-y-1">
+								<Popover.Title>{t`Add byline`}</Popover.Title>
+								<Popover.Description>{t`Search reusable public profiles.`}</Popover.Description>
+							</div>
+							<Popover.Close
+								render={
+									<Button
+										type="button"
+										variant="ghost"
+										shape="square"
+										icon={<X aria-hidden="true" />}
+										aria-label={t`Close byline search`}
+									/>
+								}
+							/>
+						</div>
+
+						<div className="relative shrink-0">
+							<Input
+								size="base"
+								aria-label={t`Search bylines`}
+								placeholder={t`Search bylines to add…`}
+								className={searchBusy ? "w-full pe-10" : "w-full"}
+								value={search}
+								onChange={(event) => setSearch(event.target.value)}
+							/>
+							{searchBusy ? (
+								<span
+									className="pointer-events-none absolute end-3 top-1/2 flex -translate-y-1/2 items-center"
+									aria-hidden="true"
+								>
+									<Loader size="sm" />
+								</span>
+							) : null}
+						</div>
+
+						<div
+							role="region"
+							aria-label={t`Available bylines`}
+							aria-busy={searchBusy}
+							className="-mx-1 max-h-42 min-h-0 shrink overflow-y-auto overscroll-contain p-1"
+						>
+							{searchIsDebouncing ||
+							(searchEnabled && searchResults.isLoading && !searchResults.data) ? (
+								<div className="flex h-full items-center justify-center gap-2">
+									<Loader size="sm" />
+									<Text variant="secondary" size="xs">
+										{t`Searching…`}
+									</Text>
+								</div>
+							) : searchEnabled && searchResults.isError ? (
+								<div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+									<Text variant="error" size="xs">
+										{t`Couldn’t search bylines.`}
+									</Text>
+									<Button type="button" variant="secondary" onClick={() => searchResults.refetch()}>
+										{t`Retry`}
+									</Button>
+								</div>
+							) : options.length > 0 ? (
+								<ul className="space-y-2">
+									{options.map((option) => (
+										<li key={option.type === "byline" ? option.byline.id : "create"}>
+											<LayerCard className="flex min-h-14 items-center gap-3 px-4 py-2.5">
+												{option.type === "byline" ? (
+													<>
+														<div className="min-w-0 flex-1">
+															<Text bold as="span" DANGEROUS_className="block wrap-break-word">
+																{option.byline.displayName}
+															</Text>
+															<Text
+																as="span"
+																variant="secondary"
+																size="xs"
+																DANGEROUS_className="block wrap-break-word"
+															>
+																<bdi dir="ltr">{option.byline.slug}</bdi>
+															</Text>
+														</div>
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="ms-auto"
+															aria-label={t`Add ${option.byline.displayName}`}
+															onClick={() => addByline(option.byline)}
+														>
+															{t`Add`}
+														</Button>
+													</>
+												) : (
+													<>
+														<span className="flex size-6 shrink-0 items-center justify-center text-kumo-subtle">
+															<Plus aria-hidden="true" />
+														</span>
+														<div className="min-w-0 flex-1">
+															<Text bold as="span" DANGEROUS_className="block wrap-break-word">
+																{t`Create “${option.label}”`}
+															</Text>
+															<Text as="span" variant="secondary" size="xs">
+																{t`New reusable profile`}
+															</Text>
+														</div>
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="ms-auto"
+															aria-label={t`Create ${option.label}`}
+															onClick={openCreate}
+														>
+															{t`Create`}
+														</Button>
+													</>
+												)}
+											</LayerCard>
+										</li>
+									))}
+									{(searchResults.data?.nextCursor ||
+										(!searchEnabled && bylines.length >= 100)) && (
+										<li className="px-2 py-1">
+											<Text variant="secondary" size="xs">
+												{t`Keep typing to narrow the list.`}
+											</Text>
+										</li>
+									)}
+								</ul>
+							) : (
+								<div className="flex h-full items-center justify-center text-center">
+									<Text variant="secondary" size="xs">
+										{searchEnabled ? t`No matching bylines.` : t`No bylines available.`}
+									</Text>
+								</div>
+							)}
+						</div>
+						<span className="sr-only" aria-live="polite">
+							{searchBusy ? t`Searching…` : ""}
+						</span>
+					</div>
+				</Popover.Content>
+				<>
+					{credits.length > 0 ? (
+						<>
+							<Popover.Trigger
+								render={
+									<Button
+										ref={chooserTriggerRef}
+										type="button"
+										variant="ghost"
+										shape="square"
+										icon={<Plus aria-hidden="true" />}
+										className="absolute end-14 top-2"
+										aria-label={t`Add another byline`}
+										data-keep-mobile-sidebar-open
+									/>
+								}
+							/>
+							<DndContext
+								sensors={sensors}
+								collisionDetection={closestCenter}
+								modifiers={[restrictToBylineList]}
+								onDragStart={handleDragStart}
+								onDragCancel={() => setActiveDragId(null)}
+								onDragEnd={handleDragEnd}
+							>
+								<SortableContext
+									items={credits.map((credit) => credit.bylineId)}
+									strategy={verticalListSortingStrategy}
+								>
+									<div className="space-y-2">
+										{credits.map((credit) => {
+											const byline = bylineMap.get(credit.bylineId);
+											if (!byline) return null;
+											return (
+												<SortableBylineRow
+													key={credit.bylineId}
+													credit={credit}
+													byline={byline}
+													isSorting={activeDragId !== null}
+													roleOpen={roleEditorId === credit.bylineId}
+													roleDraft={roleDraft}
+													onRoleDraftChange={setRoleDraft}
+													onOpenRole={() => {
+														setRoleEditorId(credit.bylineId);
+														setRoleDraft(credit.roleLabel ?? "");
+													}}
+													onCancelRole={() => {
+														setRoleEditorId(null);
+														focusRow(credit.bylineId);
+													}}
+													onCommitRole={() => {
+														changeCredits(
+															creditsRef.current.map((entry) =>
+																entry.bylineId === credit.bylineId
+																	? { ...entry, roleLabel: roleDraft || null }
+																	: entry,
+															),
+														);
+														setRoleEditorId(null);
+														setAnnouncement(t`Role updated for ${byline.displayName}.`);
+														focusRow(credit.bylineId);
+													}}
+													onEdit={onQuickEdit ? () => openEdit(byline) : undefined}
+													onRemove={() => {
+														if (roleEditorId === credit.bylineId) {
+															setRoleEditorId(null);
+															setRoleDraft("");
+														}
+														changeCredits(
+															creditsRef.current.filter(
+																(entry) => entry.bylineId !== credit.bylineId,
+															),
+														);
+														setAnnouncement(t`${byline.displayName} removed from this post.`);
+													}}
+													rowRef={(node) => {
+														if (node) rowRefs.current.set(credit.bylineId, node);
+														else rowRefs.current.delete(credit.bylineId);
+													}}
+												/>
+											);
+										})}
+									</div>
+								</SortableContext>
+							</DndContext>
+						</>
+					) : inferredByline ? (
+						<div className="space-y-3">
+							<Text variant="secondary" size="xs">
+								{t`People shown publicly on this post.`}
+							</Text>
+							<div className="flex flex-wrap items-center gap-2">
+								<Text bold as="span">
+									{inferredByline.displayName}
+								</Text>
+								<Badge variant="secondary">{t`Automatic`}</Badge>
+							</div>
+							<Text as="p" variant="secondary" size="xs">
+								{t`From the post owner`}
+							</Text>
+							<Text as="p" variant="secondary" size="xs">
+								{t`Choosing a byline replaces this automatic credit.`}
+							</Text>
+							<Popover.Trigger
+								render={
+									<Button
+										ref={chooserTriggerRef}
+										type="button"
+										variant="secondary"
+										className="w-full"
+										data-keep-mobile-sidebar-open
+									>
+										{t`Choose bylines`}
+									</Button>
+								}
+							/>
+						</div>
+					) : (
+						<Popover.Trigger
+							render={
+								<Button
+									ref={chooserTriggerRef}
+									type="button"
+									variant="secondary"
+									className="w-full"
+									data-keep-mobile-sidebar-open
+								>
+									{t`Choose bylines`}
+								</Button>
+							}
+						/>
+					)}
+
+					{showLocaleEmptyState ? (
+						<div className="mt-4 space-y-2 rounded-lg border border-dashed p-3">
+							<Text variant="secondary" size="xs">
+								{t`No bylines available in ${entryLocale}. Create a variant from the Bylines page before crediting one on this entry.`}
+							</Text>
+							<RouterLinkButton
+								to="/bylines"
+								search={{ locale: entryLocale ?? undefined }}
+								variant="secondary"
+								size="sm"
+							>
+								{t`Manage bylines in ${entryLocale}`}
+							</RouterLinkButton>
+						</div>
+					) : null}
+				</>
+			</Popover>
+
+			<p className="sr-only" aria-live="polite">
+				{announcement}
+			</p>
+
+			{formTarget ? (
+				<BylineFormDialog
+					open={formOpen}
+					onOpenChange={(open) => {
+						if (open) return;
+						setFormOpen(false);
+						if (formTarget.byline) focusRow(formTarget.byline.id);
+						else requestAnimationFrame(openChooser);
+					}}
+					onOpenChangeComplete={(open) => !open && focusPendingRow()}
+					bylineId={formTarget.byline?.id ?? null}
+					byline={formTarget.byline}
+					initialDisplayName={formTarget.displayName}
+					onSubmit={formTarget.submit}
+					onSaved={handleBylineSaved}
+					createLabel={t`Create and add`}
+					editDescription={t`Changes apply everywhere this byline appears.`}
+				/>
+			) : null}
+		</div>
+	);
+}
+
+interface SortableBylineRowProps {
+	credit: BylineCreditInput;
+	byline: BylineSummary;
+	isSorting: boolean;
+	roleOpen: boolean;
+	roleDraft: string;
+	onRoleDraftChange: (value: string) => void;
+	onOpenRole: () => void;
+	onCancelRole: () => void;
+	onCommitRole: () => void;
+	onEdit?: () => void;
+	onRemove: () => void;
+	rowRef: (node: HTMLDivElement | null) => void;
+}
+
+function SortableBylineRow({
+	credit,
+	byline,
+	isSorting,
+	roleOpen,
+	roleDraft,
+	onRoleDraftChange,
+	onOpenRole,
+	onCancelRole,
+	onCommitRole,
+	onEdit,
+	onRemove,
+	rowRef,
+}: SortableBylineRowProps) {
+	const { t } = useLingui();
+	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+		id: credit.bylineId,
+	});
+	const setRefs = React.useCallback(
+		(node: HTMLDivElement | null) => {
+			setNodeRef(node);
+			rowRef(node);
+		},
+		[rowRef, setNodeRef],
+	);
+
+	return (
+		<LayerCard
+			ref={setRefs}
+			className="relative grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 px-2 py-2"
+			style={{
+				transform: transform ? CSS.Transform.toString(transform) : undefined,
+				transition,
+				zIndex: isDragging ? 10 : undefined,
+			}}
+		>
+			<Button
+				type="button"
+				variant="ghost"
+				shape="square"
+				className="touch-none"
+				icon={<DotsSixVertical aria-hidden="true" />}
+				aria-label={t`Reorder ${byline.displayName}`}
+				data-sortable-handle
+				data-sorting={isSorting ? "true" : "false"}
+				{...attributes}
+				{...listeners}
+			/>
+
+			<div className="min-w-0">
+				<Text bold as="span" DANGEROUS_className="block wrap-break-word">
+					{byline.displayName}
+				</Text>
+				{credit.roleLabel ? (
+					<Text as="span" variant="secondary" size="xs" DANGEROUS_className="block wrap-break-word">
+						{credit.roleLabel}
+					</Text>
+				) : null}
+			</div>
+
+			<DropdownMenu>
+				<DropdownMenu.Trigger
+					render={
+						<Button
+							type="button"
+							variant="ghost"
+							shape="square"
+							icon={<DotsThree aria-hidden="true" />}
+							aria-label={t`More actions for ${byline.displayName}`}
+							data-byline-actions-trigger
+						/>
+					}
+				/>
+				<DropdownMenu.Content className="origin-[var(--transform-origin)] p-1 transition-[transform,scale,opacity] duration-150 data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[instant]:duration-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 motion-reduce:transition-none">
+					<DropdownMenu.Item
+						className="py-1 data-highlighted:bg-kumo-fill"
+						icon={<Tag className="size-3.5" aria-hidden="true" />}
+						onClick={onOpenRole}
+					>
+						{credit.roleLabel ? t`Edit role` : t`Set role`}
+					</DropdownMenu.Item>
+					{onEdit ? (
+						<DropdownMenu.Item
+							className="py-1 data-highlighted:bg-kumo-fill"
+							icon={<PencilSimple className="size-3.5" aria-hidden="true" />}
+							onClick={onEdit}
+						>
+							{t`Edit byline`}
+						</DropdownMenu.Item>
+					) : null}
+					<DropdownMenu.Separator className="my-0.5" />
+					<DropdownMenu.Item
+						className="py-1"
+						icon={<UserMinus className="size-3.5" aria-hidden="true" />}
+						variant="danger"
+						onClick={onRemove}
+					>
+						{t`Remove from post`}
+					</DropdownMenu.Item>
+				</DropdownMenu.Content>
+			</DropdownMenu>
+
+			<Collapsible.Root
+				className="col-span-full"
+				open={roleOpen}
+				onOpenChange={(open) => !open && onCancelRole()}
+			>
+				<Collapsible.Panel>
+					<div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 pt-2">
+						<div className="min-w-0">
+							<Input
+								size="base"
+								label={t`Role on this post (optional)`}
+								className="w-full min-w-0"
+								value={roleDraft}
+								onChange={(event) => onRoleDraftChange(event.target.value)}
+								onKeyDown={(event) => {
+									if (event.key === "Escape") {
+										event.preventDefault();
+										onCancelRole();
+									}
+								}}
+								autoFocus={roleOpen}
+							/>
+						</div>
+						<Button type="button" variant="secondary" onClick={onCommitRole}>
+							{t`Done`}
+						</Button>
+					</div>
+				</Collapsible.Panel>
+			</Collapsible.Root>
+		</LayerCard>
+	);
+}

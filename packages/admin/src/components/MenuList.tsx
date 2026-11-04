@@ -4,22 +4,51 @@
  * Displays all menus with ability to create, edit, and delete.
  */
 
-import { Button, Dialog, Input, Toast } from "@cloudflare/kumo";
-import { plural } from "@lingui/core/macro";
-import { Trans } from "@lingui/react/macro";
+import { Button, Input, LayerCard, LayerDialog, Toast } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react";
-import { X } from "@phosphor-icons/react";
+import { Plus } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
-import { fetchMenus, createMenu, deleteMenu } from "../lib/api";
-import { fetchManifest } from "../lib/api/client.js";
+import { fetchMenus, createMenu, deleteMenu, type CreateMenuInput } from "../lib/api";
+import { ApiResponseError, fetchManifest } from "../lib/api/client.js";
+import {
+	guardUnsavedInput,
+	revealErrors,
+	useSingleFlight,
+	useTakenValue,
+} from "../lib/dialog-form.js";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { HelpLabel } from "./FieldHelpLabel.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
-import { RouterLinkButton } from "./RouterLinkButton.js";
+import { MenuCard } from "./MenuCard.js";
+
+const MENU_NAME_PATTERN = /^[a-z0-9-]+$/;
+
+type CreateMenuField = "label" | "name";
+
+function createMenuProblems(
+	label: string,
+	name: string,
+): Partial<Record<CreateMenuField, MessageDescriptor>> {
+	const problems: Partial<Record<CreateMenuField, MessageDescriptor>> = {};
+	if (!label.trim()) problems.label = msg`Enter a label.`;
+	const trimmedName = name.trim();
+	if (!trimmedName) problems.name = msg`Enter a name.`;
+	else if (!MENU_NAME_PATTERN.test(trimmedName)) {
+		problems.name = msg`Use lowercase letters, numbers, and hyphens.`;
+	}
+	return problems;
+}
+
+function isConflict(error: unknown): boolean {
+	return error instanceof ApiResponseError && error.code === "CONFLICT";
+}
 
 export function MenuList() {
 	const { t } = useLingui();
@@ -28,7 +57,12 @@ export function MenuList() {
 	const toastManager = Toast.useToastManager();
 	const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 	const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null);
-	const [createError, setCreateError] = React.useState<string | null>(null);
+	const createFormId = React.useId();
+	const createFormRef = React.useRef<HTMLFormElement>(null);
+	const [createLabel, setCreateLabel] = React.useState("");
+	const [createName, setCreateName] = React.useState("");
+	const [createSubmitted, setCreateSubmitted] = React.useState(false);
+	const takenName = useTakenValue(createName.trim());
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -60,10 +94,17 @@ export function MenuList() {
 				search: { locale: menu.locale },
 			});
 		},
-		onError: (error: Error) => {
-			setCreateError(error.message);
+		onError: (error, input) => {
+			if (!isConflict(error) || !takenName.stillHolds(input.name)) return;
+			revealErrors(createFormRef.current, () => {
+				setCreateSubmitted(true);
+				takenName.take(input.name, error);
+			});
 		},
 	});
+	const submitCreate = useSingleFlight((input: CreateMenuInput) =>
+		createMutation.mutateAsync(input),
+	);
 
 	const deleteMutation = useMutation({
 		mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }),
@@ -77,15 +118,30 @@ export function MenuList() {
 		},
 	});
 
+	const handleCreateOpenChange = (open: boolean) => {
+		setIsCreateOpen(open);
+		if (!open) return;
+		setCreateLabel("");
+		setCreateName("");
+		setCreateSubmitted(false);
+		takenName.reset();
+		createMutation.reset();
+	};
+
+	const createProblems = createMenuProblems(createLabel, createName);
+	if (takenName.isTaken) {
+		createProblems.name = msg`Another menu already uses this name. Enter a different one.`;
+	}
+	const createErrors = createSubmitted ? createProblems : {};
+
 	const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		setCreateError(null);
-		const formData = new FormData(e.currentTarget);
-		const nameVal = formData.get("name");
-		const name = typeof nameVal === "string" ? nameVal : "";
-		const labelVal = formData.get("label");
-		const label = typeof labelVal === "string" ? labelVal : "";
-		createMutation.mutate({ name, label, locale: activeLocale });
+		if (createMutation.isPending) return;
+		if (Object.keys(createProblems).length > 0) {
+			revealErrors(e.currentTarget, () => setCreateSubmitted(true));
+			return;
+		}
+		submitCreate({ name: createName.trim(), label: createLabel.trim(), locale: activeLocale });
 	};
 
 	if (isLoading) {
@@ -98,12 +154,14 @@ export function MenuList() {
 
 	return (
 		<div className="space-y-6">
-			<div className="flex items-center justify-between gap-4 flex-wrap">
-				<div>
-					<h1 className="text-3xl font-bold">{t`Menus`}</h1>
-					<p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p>
+			<header className="flex flex-col gap-4 border-b border-kumo-line pb-4 sm:flex-row sm:items-start sm:justify-between">
+				<div className="min-w-0">
+					<h1 className="text-2xl font-semibold leading-tight">{t`Menus`}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+						{t`Manage navigation menus for your site`}
+					</p>
 				</div>
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2">
 					{i18n && activeLocale ? (
 						<LocaleSwitcher
 							locales={i18n.locales}
@@ -112,136 +170,114 @@ export function MenuList() {
 							onChange={setActiveLocale}
 						/>
 					) : null}
-				</div>
-				<Dialog.Root
-					open={isCreateOpen}
-					onOpenChange={(open) => {
-						setIsCreateOpen(open);
-						if (!open) setCreateError(null);
-					}}
-				>
-					<Dialog.Trigger
-						render={(props) => (
-							<Button {...props} icon={<Plus />}>
-								{t`Create Menu`}
-							</Button>
-						)}
-					/>
-					<Dialog className="p-6" size="lg">
-						<div className="flex items-start justify-between gap-4 mb-4">
-							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-								{t`Create New Menu`}
-							</Dialog.Title>
-							<Dialog.Close
-								aria-label={t`Close`}
-								render={(props) => (
-									<Button
-										{...props}
-										variant="ghost"
-										shape="square"
-										aria-label={t`Close`}
-										className="absolute end-4 top-4"
-									>
-										<X className="h-4 w-4" />
-										<span className="sr-only">{t`Close`}</span>
-									</Button>
-								)}
-							/>
-						</div>
-						<form onSubmit={handleCreate} className="space-y-4">
-							<div>
-								<Input
-									label={t`Name`}
-									name="name"
-									required
-									placeholder="primary"
-									pattern="[a-z0-9\-]+"
-									title={t`Only lowercase letters, numbers, and hyphens`}
-								/>
-								<p className="text-sm text-kumo-subtle mt-1">
-									{t`URL-friendly identifier (e.g., "primary", "footer")`}
-								</p>
-							</div>
-							<div>
-								<Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} />
-								<p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p>
-							</div>
-							<DialogError message={createError || getMutationError(createMutation.error)} />
-							<div className="flex justify-end gap-2">
-								<Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-									{t`Cancel`}
+					<LayerDialog.Root
+						open={isCreateOpen}
+						{...guardUnsavedInput(createLabel !== "" || createName !== "", handleCreateOpenChange)}
+						dismissDisabled={createMutation.isPending}
+					>
+						<LayerDialog.Trigger
+							render={(props) => (
+								<Button {...props} icon={<Plus aria-hidden="true" />}>
+									{t`Create Menu`}
 								</Button>
-								<Button type="submit" disabled={createMutation.isPending}>
+							)}
+						/>
+						<LayerDialog.Content>
+							<LayerDialog.Title>{t`Create menu`}</LayerDialog.Title>
+							<LayerDialog.Description>
+								{t`Give this navigation a label and a site identifier.`}
+							</LayerDialog.Description>
+							<LayerDialog.Body>
+								<form
+									ref={createFormRef}
+									id={createFormId}
+									noValidate
+									onSubmit={handleCreate}
+									className="grid gap-5"
+								>
+									<Input
+										label={
+											<HelpLabel
+												help={t`Shown in the admin. Some themes also show it on the site.`}
+											>
+												{t`Label`}
+											</HelpLabel>
+										}
+										aria-label={t`Label`}
+										name="label"
+										required
+										placeholder={t`Primary navigation`}
+										value={createLabel}
+										onChange={(e) => setCreateLabel(e.target.value)}
+										error={createErrors.label && t(createErrors.label)}
+										aria-invalid={createErrors.label ? true : undefined}
+									/>
+									<Input
+										label={
+											<HelpLabel
+												help={t`Stable identifier for your site, such as primary or footer.`}
+											>
+												{t`Name`}
+											</HelpLabel>
+										}
+										aria-label={t`Name`}
+										name="name"
+										dir="ltr"
+										required
+										placeholder={t`primary`}
+										value={createName}
+										onChange={(e) => setCreateName(e.target.value)}
+										error={createErrors.name && t(createErrors.name)}
+										aria-invalid={createErrors.name ? true : undefined}
+									/>
+									<DialogError
+										message={getMutationError(takenName.unlessTaken(createMutation.error))}
+									/>
+								</form>
+							</LayerDialog.Body>
+							<LayerDialog.Actions dismissLabel={t`Cancel`}>
+								<LayerDialog.Action
+									type="submit"
+									form={createFormId}
+									disabled={createMutation.isPending}
+								>
 									{createMutation.isPending ? t`Creating...` : t`Create`}
-								</Button>
-							</div>
-						</form>
-					</Dialog>
-				</Dialog.Root>
-			</div>
+								</LayerDialog.Action>
+							</LayerDialog.Actions>
+						</LayerDialog.Content>
+					</LayerDialog.Root>
+				</div>
+			</header>
 
 			{!menus || menus.length === 0 ? (
-				<div className="border rounded-lg p-12 text-center">
-					<ListIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" />
-					<h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3>
-					<p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p>
-					<Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}>
+				<LayerCard className="flex flex-col items-center px-6 py-16 text-center">
+					<span className="mb-5 flex size-14 items-center justify-center rounded-xl bg-kumo-tint text-kumo-brand">
+						<ADMIN_NAV_ICONS.menus size={28} aria-hidden="true" />
+					</span>
+					<h2 className="text-lg font-semibold leading-6">{t`No menus yet`}</h2>
+					<p className="mt-2 max-w-sm text-sm leading-5 text-pretty text-kumo-subtle">
+						{t`Create your first navigation menu to get started`}
+					</p>
+					<Button
+						className="mt-5"
+						icon={<Plus aria-hidden="true" />}
+						onClick={() => handleCreateOpenChange(true)}
+					>
 						{t`Create Menu`}
 					</Button>
-				</div>
+				</LayerCard>
 			) : (
-				<div className="grid gap-4">
+				<ul className="grid gap-4 lg:grid-cols-2">
 					{menus.map((menu) => (
-						<div
-							key={menu.id}
-							className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors"
-						>
-							<Link
-								to="/menus/$name"
-								params={{ name: menu.name }}
-								search={{ locale: menu.locale }}
-								className="flex-1"
-							>
-								<div>
-									<h3 className="font-semibold text-lg">
-										{menu.label}
-										{i18n ? (
-											<span className="ms-2 text-xs font-mono uppercase text-kumo-subtle">
-												{menu.locale}
-											</span>
-										) : null}
-									</h3>
-									<p className="text-sm text-kumo-subtle">
-										<Trans>
-											{menu.name} •{" "}
-											{plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })}
-										</Trans>
-									</p>
-								</div>
-							</Link>
-							<div className="flex gap-2">
-								<RouterLinkButton
-									to="/menus/$name"
-									params={{ name: menu.name }}
-									search={{ locale: menu.locale }}
-									variant="outline"
-									size="sm"
-									icon={<Pencil />}
-								>
-									{t`Edit`}
-								</RouterLinkButton>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => setDeleteMenuName(menu.name)}
-									aria-label={t`Delete ${menu.name} menu`}
-								>
-									<Trash className="h-4 w-4" />
-								</Button>
-							</div>
-						</div>
+						<li key={menu.id}>
+							<MenuCard
+								menu={menu}
+								showLocale={!!i18n}
+								onDelete={() => setDeleteMenuName(menu.name)}
+							/>
+						</li>
 					))}
-				</div>
+				</ul>
 			)}
 
 			<ConfirmDialog
@@ -250,7 +286,7 @@ export function MenuList() {
 					setDeleteMenuName(null);
 					deleteMutation.reset();
 				}}
-				title={t`Delete Menu`}
+				title={t`Delete menu`}
 				description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`}
 				confirmLabel={t`Delete`}
 				pendingLabel={t`Deleting...`}

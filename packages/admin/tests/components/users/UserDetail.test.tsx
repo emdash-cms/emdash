@@ -1,6 +1,6 @@
-import { userEvent } from "@vitest/browser/context";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { UserDetail } from "../../../src/components/users/UserDetail";
 import type { UserDetail as UserDetailType } from "../../../src/lib/api";
@@ -170,6 +170,29 @@ describe("UserDetail", () => {
 		await userEvent.type(nameInput, "New Name");
 		const saveButton = screen.getByText("Save Changes").element().closest("button")!;
 		expect(saveButton.disabled).toBe(false);
+	});
+
+	it("provider-managed name: field is read-only and explains why", async () => {
+		const screen = await render(
+			<UserDetail
+				user={makeUser()}
+				isOpen={true}
+				providerManagedName={true}
+				onClose={noop}
+				onSave={noop}
+				onDisable={noop}
+				onEnable={noop}
+			/>,
+		);
+		const nameInput = screen.getByLabelText("Name");
+		await expect.element(nameInput).toHaveAttribute("readonly");
+		await expect
+			.element(nameInput)
+			.toHaveAccessibleDescription("Managed by your identity provider. Change the name there.");
+		await userEvent.type(nameInput, "New Name");
+		await expect.element(nameInput).toHaveValue("Test User");
+		const saveButton = screen.getByText("Save Changes").element().closest("button")!;
+		expect(saveButton.disabled).toBe(true);
 	});
 
 	it("changing email enables save", async () => {

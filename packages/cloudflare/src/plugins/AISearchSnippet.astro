@@ -1,0 +1,75 @@
+---
+export interface Props {
+	id?: string;
+	apiUrl?: string;
+	placeholder?: string;
+	theme?: "light" | "dark" | "auto";
+	maxResults?: number;
+	maxRenderResults?: number;
+	debounceMs?: number;
+	hideBranding?: boolean;
+	showUrl?: boolean;
+	showDate?: boolean;
+	hideThumbnails?: boolean;
+	seeMore?: string;
+	disableAnalytics?: boolean;
+}
+
+const {
+	id,
+	apiUrl = "/api/ai-search",
+	placeholder = "Search...",
+	theme = "auto",
+	maxResults = 30,
+	maxRenderResults = 10,
+	debounceMs,
+	hideBranding,
+	showUrl = true,
+	showDate = true,
+	hideThumbnails,
+	seeMore,
+	disableAnalytics = true,
+} = Astro.props;
+---
+
+<div data-emdash-ai-search style="display: contents">
+	{
+		Astro.slots.has("trigger") && (
+			<div data-emdash-ai-search-trigger style="display: contents">
+				<slot name="trigger" />
+			</div>
+		)
+	}
+	<search-modal-snippet
+		id={id}
+		api-url={apiUrl}
+		placeholder={placeholder}
+		theme={theme}
+		max-results={maxResults}
+		max-render-results={maxRenderResults}
+		debounce-ms={debounceMs}
+		hide-branding={hideBranding === undefined ? undefined : String(hideBranding)}
+		show-url={String(showUrl)}
+		show-date={String(showDate)}
+		hide-thumbnails={hideThumbnails === undefined ? undefined : String(hideThumbnails)}
+		see-more={seeMore}
+		disable-analytics={String(disableAnalytics)}
+	></search-modal-snippet>
+</div>
+
+<script>
+	import * as aiSearchSnippet from "@cloudflare/ai-search-snippet/search";
+
+	void aiSearchSnippet;
+
+	type SearchModal = HTMLElement & { open: () => void };
+
+	document.querySelectorAll<HTMLElement>("[data-emdash-ai-search]").forEach((root) => {
+		if (root.dataset.emdashAiSearchReady) return;
+		root.dataset.emdashAiSearchReady = "true";
+		const modal = root.querySelector<SearchModal>("search-modal-snippet");
+		root
+			.querySelector("[data-emdash-ai-search-trigger]")
+			?.addEventListener("click", () => modal?.open());
+	});
+</script>

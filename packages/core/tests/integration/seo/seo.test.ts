@@ -667,6 +667,42 @@ describe("SEO", () => {
 			expect(meta.canonical).toBe("https://example.com/posts/my-post");
 		});
 
+		it("should absolutize root-relative explicit canonical with siteUrl", () => {
+			const content = createMockContent({
+				seo: {
+					title: null,
+					description: null,
+					image: null,
+					canonical: "/custom-path",
+					noIndex: false,
+				},
+			});
+
+			const meta = getSeoMeta(content, {
+				siteUrl: "https://example.com",
+			});
+
+			expect(meta.canonical).toBe("https://example.com/custom-path");
+		});
+
+		it("should pass protocol-relative explicit canonical through unchanged", () => {
+			const content = createMockContent({
+				seo: {
+					title: null,
+					description: null,
+					image: null,
+					canonical: "//other.example/page",
+					noIndex: false,
+				},
+			});
+
+			const meta = getSeoMeta(content, {
+				siteUrl: "https://example.com",
+			});
+
+			expect(meta.canonical).toBe("//other.example/page");
+		});
+
 		it("should prefer explicit canonical over path-based", () => {
 			const content = createMockContent({
 				seo: {
@@ -964,8 +1000,8 @@ describe("SEO", () => {
 			expect(result.data!.collections[0]!.collection).toBe("post");
 		});
 
-		it("should return null slug and valid id when slug is null", async () => {
-			const created = await repo.create({
+		it("should exclude published content without a slug", async () => {
+			await repo.create({
 				type: "post",
 				data: { title: "No Slug Post" },
 				status: "published",
@@ -974,13 +1010,10 @@ describe("SEO", () => {
 			const result = await handleSitemapData(db);
 
 			expect(result.success).toBe(true);
-			const entries = flatEntries(result.data!);
-			expect(entries[0]!.collection).toBe("post");
-			expect(entries[0]!.slug).toBeNull();
-			expect(entries[0]!.id).toBe(created.id);
+			expect(result.data!.collections).toEqual([]);
 		});
 
-		it("should include updatedAt and lastmod", async () => {
+		it("should include updatedAt", async () => {
 			await repo.create({
 				type: "post",
 				slug: "test",
@@ -991,8 +1024,6 @@ describe("SEO", () => {
 			const result = await handleSitemapData(db);
 
 			const col = result.data!.collections[0]!;
-			expect(col.lastmod).toBeDefined();
-			expect(new Date(col.lastmod).getTime()).not.toBeNaN();
 			expect(col.entries[0]!.updatedAt).toBeDefined();
 			expect(new Date(col.entries[0]!.updatedAt).getTime()).not.toBeNaN();
 		});
@@ -1016,12 +1047,8 @@ describe("SEO", () => {
 			expect(result.success).toBe(true);
 
 			const col = result.data!.collections[0]!;
-			// Both the index <lastmod> and the per-entry value are normalized
-			// to ISO 8601 (UTC assumed, matching SQLite's datetime('now')).
-			expect(col.lastmod).toBe("2026-06-28T04:01:26.000Z");
+			// Normalized to ISO 8601 (UTC assumed, matching SQLite's datetime('now')).
 			expect(col.entries[0]!.updatedAt).toBe("2026-06-28T04:01:26.000Z");
-			// The raw, space-separated form must not leak into the sitemap.
-			expect(col.lastmod).not.toContain(" ");
 		});
 
 		it("should include urlPattern from collection", async () => {

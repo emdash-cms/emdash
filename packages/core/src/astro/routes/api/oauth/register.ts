@@ -4,12 +4,16 @@
  * RFC 7591 Dynamic Client Registration. Public, unauthenticated.
  * MCP clients (e.g. Claude Code) call this to register themselves
  * before starting the OAuth authorization flow.
+ *
+ * Rate limited: 10 registrations per minute per IP.
  */
 
 import type { APIRoute } from "astro";
 
 import { apiError, handleError } from "#api/error.js";
 import { handleOAuthClientCreate } from "#api/handlers/oauth-clients.js";
+import { checkRateLimit, getClientIp } from "#auth/rate-limit.js";
+import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 
 export const prerender = false;
 
@@ -36,10 +40,14 @@ const SUPPORTED_GRANT_TYPES = new Set([
 ]);
 const SUPPORTED_RESPONSE_TYPES = new Set(["code"]);
 
-function registrationError(description: string, status = 400): Response {
+function registrationError(
+	description: string,
+	status = 400,
+	error = "invalid_client_metadata",
+): Response {
 	return Response.json(
 		{
-			error: "invalid_client_metadata",
+			error,
 			error_description: description,
 		},
 		{ status, headers: OAUTH_REGISTRATION_HEADERS },
@@ -139,6 +147,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const scopes = parseScope(body.scope);
 		if (scopes instanceof Response) {
 			return scopes;
+		}
+
+		const ip = getClientIp(request, getTrustedProxyHeaders(emdash.config));
+		const rateLimit = await checkRateLimit(emdash.db, ip, "oauth/register", 10, 60);
+		if (!rateLimit.allowed) {
+			const response = registrationError(
+				"Too many registration requests. Please try again later.",
+				429,
+				"temporarily_unavailable",
+			);
+			response.headers.set("Retry-After", "60");
+			return response;
 		}
 
 		const clientId = crypto.randomUUID();

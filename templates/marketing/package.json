@@ -19,12 +19,12 @@
     "@iconify-json/ph": "catalog:",
     "astro": "catalog:",
     "astro-iconset": "catalog:",
-    "better-sqlite3": "catalog:",
     "emdash": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@astrojs/check": "catalog:"
+    "@astrojs/check": "catalog:",
+    "lightningcss": "catalog:"
   }
 }

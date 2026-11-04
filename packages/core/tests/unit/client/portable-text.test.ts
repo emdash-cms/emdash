@@ -150,6 +150,42 @@ describe("portableTextToMarkdown", () => {
 		expect(portableTextToMarkdown(blocks)).toBe("1. First\n1. Second\n");
 	});
 
+	it("does not synthesize continuity metadata across a lossy Markdown boundary", () => {
+		const blocks: PortableTextBlock[] = [
+			{
+				_type: "block",
+				listItem: "number",
+				level: 1,
+				listId: "first",
+				listStart: 1,
+				children: [{ _type: "span", text: "One" }],
+			},
+			{
+				_type: "block",
+				listItem: "number",
+				level: 2,
+				listId: "nested",
+				listStart: 1,
+				children: [{ _type: "span", text: "Nested" }],
+			},
+			{
+				_type: "block",
+				listItem: "number",
+				level: 1,
+				listId: "second",
+				listStart: 1,
+				children: [{ _type: "span", text: "Other" }],
+			},
+		];
+		const imported = markdownToPortableText(portableTextToMarkdown(blocks));
+
+		expect(imported.map((block) => [block.listId, block.listStart])).toEqual([
+			[undefined, undefined],
+			[undefined, undefined],
+			[undefined, undefined],
+		]);
+	});
+
 	it("converts code blocks", () => {
 		const blocks: PortableTextBlock[] = [
 			{ _type: "code", _key: "c1", language: "typescript", code: "const x = 1;\nconsole.log(x);" },
@@ -542,5 +578,74 @@ describe("convertDataForWrite", () => {
 		const data = { body: ptArray };
 		const result = convertDataForWrite(data, fields);
 		expect(result.body).toBe(ptArray); // same reference
+	});
+});
+
+describe("blocks Portable Text conversion", () => {
+	const fields: FieldSchema[] = [
+		{
+			slug: "layout",
+			type: "blocks",
+			blockTypes: [
+				{
+					slug: "hero",
+					currentVersion: 2,
+					versions: [
+						{ version: 1, fields: [{ slug: "body", type: "portableText" }] },
+						{ version: 2, fields: [{ slug: "introduction", type: "portableText" }] },
+					],
+				},
+			],
+		},
+	];
+
+	it("does not add an omitted blocks field on read", () => {
+		expect(convertDataForRead({ title: "Example" }, fields)).toStrictEqual({ title: "Example" });
+	});
+
+	it("does not add an omitted blocks field to a partial write", () => {
+		expect(convertDataForWrite({ title: "Updated" }, fields)).toStrictEqual({ title: "Updated" });
+	});
+
+	it("uses the active version for a new keyless block write", () => {
+		const result = convertDataForWrite(
+			{ layout: [{ _type: "hero", introduction: "Hello **world**" }] },
+			fields,
+		);
+		const block = (result.layout as Array<Record<string, unknown>>)[0]!;
+		expect(Array.isArray(block.introduction)).toBe(true);
+	});
+
+	it("converts nested Markdown for the sole allowed type even with a retired type present", () => {
+		const result = convertDataForWrite({ layout: [{ introduction: "Hello **world**" }] }, [
+			{
+				...fields[0]!,
+				validation: { allowedTypes: ["hero"], retiredTypes: ["banner"] },
+				blockTypes: [
+					...fields[0]!.blockTypes!,
+					{ slug: "banner", currentVersion: 1, versions: [{ version: 1, fields: [] }] },
+				],
+			},
+		]);
+		const block = (result.layout as Array<Record<string, unknown>>)[0]!;
+		expect(block.introduction).toMatchObject([
+			{ _type: "block", children: [{ text: "Hello " }, { text: "world", marks: ["strong"] }] },
+		]);
+	});
+
+	it("uses each retained stored version on read", () => {
+		const portableText = markdownToPortableText("Historical");
+		const result = convertDataForRead(
+			{
+				layout: [
+					{ _type: "hero", _version: 1, _key: "one", body: portableText },
+					{ _type: "hero", _version: 2, _key: "two", introduction: portableText },
+				],
+			},
+			fields,
+		);
+		const blocks = result.layout as Array<Record<string, unknown>>;
+		expect(String(blocks[0]?.body)).toContain("Historical");
+		expect(String(blocks[1]?.introduction)).toContain("Historical");
 	});
 });

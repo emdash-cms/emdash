@@ -4,9 +4,8 @@
  * Generated TypeScript types and runtime validation schemas for the EmDash
  * plugin registry lexicons under `com.emdashcms.experimental.*`.
  *
- * EXPERIMENTAL: NSIDs and shapes will change. Once the registry stabilises the
- * NSIDs are expected to migrate to either `pm.fair.package.*` (if FAIR adopts the
- * shape) or `com.emdashcms.package.*`. Pin to an exact version while we iterate.
+ * EXPERIMENTAL: NSIDs and shapes will change. The stable package namespace is
+ * expected to be `com.emdashcms.package.*`. Pin to an exact version while we iterate.
  *
  * The exports below are namespace re-exports so consumers can write:
  *
@@ -28,7 +27,14 @@ export * as AggregatorListReleases from "./generated/types/com/emdashcms/experim
 export * as AggregatorResolvePackage from "./generated/types/com/emdashcms/experimental/aggregator/resolvePackage.js";
 export * as AggregatorSearchPackages from "./generated/types/com/emdashcms/experimental/aggregator/searchPackages.js";
 
+export * as LabelerDefs from "./generated/types/com/emdashcms/experimental/labeler/defs.js";
+export * as LabelerGetAssessment from "./generated/types/com/emdashcms/experimental/labeler/getAssessment.js";
+export * as LabelerGetCurrentAssessment from "./generated/types/com/emdashcms/experimental/labeler/getCurrentAssessment.js";
+export * as LabelerGetPolicy from "./generated/types/com/emdashcms/experimental/labeler/getPolicy.js";
+export * as LabelerListAssessments from "./generated/types/com/emdashcms/experimental/labeler/listAssessments.js";
+
 export * as PackageProfile from "./generated/types/com/emdashcms/experimental/package/profile.js";
+export * as PackageProfileExtension from "./generated/types/com/emdashcms/experimental/package/profileExtension.js";
 export * as PackageRelease from "./generated/types/com/emdashcms/experimental/package/release.js";
 export * as PackageReleaseExtension from "./generated/types/com/emdashcms/experimental/package/releaseExtension.js";
 
@@ -42,6 +48,7 @@ export * as PublisherVerification from "./generated/types/com/emdashcms/experime
  */
 export const NSID = {
 	packageProfile: "com.emdashcms.experimental.package.profile",
+	packageProfileExtension: "com.emdashcms.experimental.package.profileExtension",
 	packageRelease: "com.emdashcms.experimental.package.release",
 	packageReleaseExtension: "com.emdashcms.experimental.package.releaseExtension",
 	publisherProfile: "com.emdashcms.experimental.publisher.profile",
@@ -52,13 +59,35 @@ export const NSID = {
 	aggregatorListReleases: "com.emdashcms.experimental.aggregator.listReleases",
 	aggregatorResolvePackage: "com.emdashcms.experimental.aggregator.resolvePackage",
 	aggregatorSearchPackages: "com.emdashcms.experimental.aggregator.searchPackages",
+	labelerDefs: "com.emdashcms.experimental.labeler.defs",
+	labelerGetAssessment: "com.emdashcms.experimental.labeler.getAssessment",
+	labelerGetCurrentAssessment: "com.emdashcms.experimental.labeler.getCurrentAssessment",
+	labelerGetPolicy: "com.emdashcms.experimental.labeler.getPolicy",
+	labelerListAssessments: "com.emdashcms.experimental.labeler.listAssessments",
 } as const;
 
 export type NSIDValue = (typeof NSID)[keyof typeof NSID];
 
+export const REGISTRY_CUMULUS_ORIGIN = "https://cdn.em-da.sh";
+export const RECORD_SCOPED_BLOB_CACHE_TYPE =
+	`${NSID.aggregatorDefs}#recordScopedBlobCache` as const;
+
+const DELEGATED_RELEASE_PERMISSION = Object.freeze({
+	collection: NSID.packageRelease,
+	scope: `atproto repo:${NSID.packageRelease}?action=create blob:application/gzip blob:image/*`,
+} as const);
+
+/**
+ * Return the exact collection and OAuth scope set used by delegated publishing.
+ * A collection or blob-scope change requires every publisher to authorize a new grant.
+ */
+export function getDelegatedReleasePermission(): typeof DELEGATED_RELEASE_PERMISSION {
+	return DELEGATED_RELEASE_PERMISSION;
+}
+
 /**
  * NSIDs of record-shaped lexicons in this package (one row per NSID in the
- * publisher's repo). Embedded objects (`releaseExtension`) and shared defs
+ * publisher's repo). Embedded objects (`profileExtension`, `releaseExtension`) and shared defs
  * (`aggregator.defs`) are excluded — they don't address their own collection.
  *
  * Useful for consumers building OAuth `repo:` scopes or enumerating writable
@@ -84,6 +113,10 @@ export const QUERY_NSIDS = [
 	NSID.aggregatorListReleases,
 	NSID.aggregatorResolvePackage,
 	NSID.aggregatorSearchPackages,
+	NSID.labelerGetAssessment,
+	NSID.labelerGetCurrentAssessment,
+	NSID.labelerGetPolicy,
+	NSID.labelerListAssessments,
 ] as const;
 
 import type * as PackageProfileNs from "./generated/types/com/emdashcms/experimental/package/profile.js";
@@ -96,7 +129,7 @@ import type * as PublisherVerificationNs from "./generated/types/com/emdashcms/e
  * to its PDS. Used by `PublishingClient.putRecord` (and any other typed-write
  * helper) to ensure callers pass a record matching the collection's lexicon.
  *
- * Embedded objects (`releaseExtension`, which lives inside a release record's
+ * Embedded objects (`profileExtension`, `releaseExtension`, which live inside profile and release records'
  * `extensions` map) and query/procedure NSIDs (the `aggregator.*` ones) are
  * deliberately absent -- they aren't standalone repo collections.
  */

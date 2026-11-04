@@ -1,7 +1,14 @@
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import { loginHelp as AtprotoLoginHelp } from "../../../auth-atproto/src/admin.js";
+import { AdminBrandingProvider } from "../../src/lib/admin-branding-context";
+import { AuthProviderProvider } from "../../src/lib/auth-provider-context";
+import type { AuthProviderModule } from "../../src/lib/auth-provider-context";
+import { loadMessages } from "../../src/locales/loadMessages.js";
 import { render } from "../utils/render.tsx";
 
 // Mock router
@@ -54,6 +61,9 @@ describe("LoginPage", () => {
 	beforeEach(() => {
 		// Clean URL params
 		window.history.replaceState({}, "", window.location.pathname);
+		// Reset auth mode mock to the default passkey response
+		mockFetchAuthMode.mockReset();
+		mockFetchAuthMode.mockResolvedValue({ authMode: "passkey" });
 	});
 
 	it("shows passkey login button when authMode is passkey", async () => {
@@ -139,5 +149,146 @@ describe("LoginPage", () => {
 			</QueryWrapper>,
 		);
 		await expect.element(screen.getByText("Sign up")).toBeInTheDocument();
+	});
+
+	// Regression test for #639 / PR #705: the login page must reflect the
+	// configured admin.logo/siteName (white-label branding), not the stock
+	// hardcoded EmDash mark — same as the Sidebar and SetupWizard already do.
+	it("renders the configured admin logo and site name instead of the stock EmDash mark", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<AdminBrandingProvider
+					adminBranding={{ logo: "https://example.com/logo.png", siteName: "Acme CMS" }}
+				>
+					<LoginPage />
+				</AdminBrandingProvider>
+			</QueryWrapper>,
+		);
+		const logoImg = screen.getByRole("img", { name: "Acme CMS" });
+		await expect.element(logoImg).toBeInTheDocument();
+		expect(logoImg.element().getAttribute("src")).toBe("https://example.com/logo.png");
+		// The stock lockup must not also be rendered
+		expect(screen.getByRole("img", { name: "EmDash" }).query()).toBeNull();
+	});
+
+	it("falls back to the stock EmDash mark when no admin branding is configured", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<LoginPage />
+			</QueryWrapper>,
+		);
+		await expect.element(screen.getByRole("img", { name: "EmDash" })).toBeInTheDocument();
+	});
+
+	it("falls back to neutral help text for providers without a loginHelp export", async () => {
+		const passwordProvider: AuthProviderModule = {
+			id: "password",
+			label: "Email & Password",
+			LoginButton: () => <button type="button">Email & Password</button>,
+			LoginForm: () => (
+				<form data-testid="password-form">
+					<input />
+				</form>
+			),
+		};
+
+		const screen = await render(
+			<QueryWrapper>
+				<AuthProviderProvider authProviders={{ password: passwordProvider }}>
+					<LoginPage />
+				</AuthProviderProvider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByText("Email & Password").click();
+		await expect.element(screen.getByText("Continue with Email & Password.")).toBeInTheDocument();
+		expect(screen.getByText("Enter your handle to sign in.").query()).toBeNull();
+	});
+
+	it("shows a provider's exported loginHelp string on its LoginForm", async () => {
+		const handleProvider: AuthProviderModule = {
+			id: "atproto-mock",
+			label: "Mock Atmosphere",
+			LoginButton: () => <button type="button">Mock Atmosphere</button>,
+			LoginForm: () => (
+				<form data-testid="handle-form">
+					<input />
+				</form>
+			),
+			loginHelp: "Enter your handle to sign in.",
+		};
+
+		const screen = await render(
+			<QueryWrapper>
+				<AuthProviderProvider authProviders={{ "atproto-mock": handleProvider }}>
+					<LoginPage />
+				</AuthProviderProvider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByText("Mock Atmosphere").click();
+		await expect.element(screen.getByText("Enter your handle to sign in.")).toBeInTheDocument();
+		expect(screen.getByText("Continue with Mock Atmosphere.").query()).toBeNull();
+	});
+
+	it("renders AT Protocol help in the active admin locale", async () => {
+		const i18n = setupI18n({
+			locale: "ar",
+			messages: {
+				ar: await loadMessages("ar"),
+				en: {},
+			},
+		});
+		const provider: AuthProviderModule = {
+			id: "atproto",
+			label: "Atmosphere",
+			LoginButton: () => <button type="button">Atmosphere</button>,
+			LoginForm: () => <input aria-label="Handle" />,
+			loginHelp: AtprotoLoginHelp,
+		};
+		const screen = await render(
+			<I18nProvider i18n={i18n}>
+				<AuthProviderProvider authProviders={{ atproto: provider }}>
+					<LoginPage />
+				</AuthProviderProvider>
+			</I18nProvider>,
+		);
+
+		await screen.getByText("Atmosphere").click();
+		await expect.element(screen.getByText("أدخل معرّفك لتسجيل الدخول.")).toBeInTheDocument();
+		expect(screen.getByText("Enter your handle to sign in.").query()).toBeNull();
+
+		i18n.activate("en");
+		await expect.element(screen.getByText("Enter your handle to sign in.")).toBeInTheDocument();
+	});
+
+	it("supports loginHelp exported as a component", async () => {
+		function CustomHelp() {
+			return <>Custom provider help.</>;
+		}
+
+		const customProvider: AuthProviderModule = {
+			id: "custom",
+			label: "Custom Provider",
+			LoginButton: () => <button type="button">Custom Provider</button>,
+			LoginForm: () => (
+				<form data-testid="custom-form">
+					<input />
+				</form>
+			),
+			loginHelp: CustomHelp,
+		};
+
+		const screen = await render(
+			<QueryWrapper>
+				<AuthProviderProvider authProviders={{ custom: customProvider }}>
+					<LoginPage />
+				</AuthProviderProvider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByText("Custom Provider").click();
+		await expect.element(screen.getByText("Custom provider help.")).toBeInTheDocument();
+		expect(screen.getByText("Continue with Custom Provider.").query()).toBeNull();
 	});
 });

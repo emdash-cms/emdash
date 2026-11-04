@@ -1,0 +1,386 @@
+---
+import { storyIcons as i } from "./story/icons.js";
+---
+
+<section class="cta section" aria-labelledby="cta-title">
+	<div class="shell">
+		<div class="cta-card">
+			<div class="cta-content">
+				<p class="eyebrow">Build</p>
+				<h2 class="h-section" id="cta-title">Have an idea for EmDash?</h2>
+				<p class="cta-text">
+					Write a plugin in TypeScript, declare the capabilities it needs, and
+					publish it from your own Atmosphere account.
+				</p>
+
+				<div class="cta-command" dir="ltr" data-copy-root>
+					<span class="cta-prompt" aria-hidden="true">$</span>
+					<code data-copy-source
+						>npx <span class="cta-pkg"
+							><span>@emdash-cms/</span><wbr /><span>plugin-cli</span></span
+						> init my-plugin</code
+					>
+					<button
+						type="button"
+						class="cta-copy-btn"
+						aria-label="Copy command"
+						data-copy-button
+					>
+						<svg
+							class="cta-copy-icon"
+							viewBox="0 0 256 256"
+							aria-hidden="true"
+							set:html={i.copy}
+						/>
+						<svg
+							class="cta-check-icon"
+							viewBox="0 0 256 256"
+							aria-hidden="true"
+							set:html={i.check}
+						/>
+					</button>
+					<span
+						class="visually-hidden"
+						role="status"
+						aria-live="polite"
+						data-copy-status></span>
+				</div>
+
+				<div class="cta-actions">
+					<a
+						class="btn btn-primary btn-lg"
+						href="https://docs.emdashcms.com/plugins/creating-plugins/your-first-plugin/"
+						>Build your first plugin</a
+					>
+					<a
+						class="btn btn-secondary btn-lg"
+						href="https://docs.emdashcms.com/plugins/creating-plugins/publishing/"
+						>Publishing guide</a
+					>
+				</div>
+			</div>
+			<div class="cta-art" aria-hidden="true"><slot name="art" /></div>
+		</div>
+	</div>
+</section>
+
+<script>
+	const RESET_MS = 2000;
+
+	for (const root of document.querySelectorAll<HTMLElement>(
+		"[data-copy-root]",
+	)) {
+		const source = root.querySelector<HTMLElement>("[data-copy-source]");
+		const button = root.querySelector<HTMLButtonElement>("[data-copy-button]");
+		const status = root.querySelector<HTMLElement>("[data-copy-status]");
+		if (!source || !button || !status) continue;
+		let resetTimer: number | undefined;
+
+		const selectCommand = () => {
+			const selection = window.getSelection();
+			if (!selection) return;
+			const range = document.createRange();
+			range.selectNodeContents(source);
+			selection.removeAllRanges();
+			selection.addRange(range);
+		};
+
+		button.addEventListener("click", async () => {
+			window.clearTimeout(resetTimer);
+			const command = source.textContent?.trim() ?? "";
+			try {
+				if (!navigator.clipboard?.writeText)
+					throw new Error("Clipboard unavailable");
+				await navigator.clipboard.writeText(command);
+			} catch {
+				root.classList.remove("is-copied");
+				selectCommand();
+				status.textContent = "Command selected. Copy it with your keyboard.";
+				return;
+			}
+			root.classList.add("is-copied");
+			status.textContent = "Copied";
+			resetTimer = window.setTimeout(() => {
+				root.classList.remove("is-copied");
+				status.textContent = "";
+			}, RESET_MS);
+		});
+	}
+</script>
+
+<style>
+	.cta {
+		background: var(--page-lift);
+		padding-block-start: 0;
+	}
+
+	/* The card is always dark, so it carries the dark palette for everything inside it. */
+	.cta-card {
+		--ink: #f5f5f5;
+		--ink-strong: #ffffff;
+		--muted: #a3a3a3;
+		--subtle: #737373;
+		--line: #262626;
+		--line-strong: #3a3a3a;
+		--surface: #161616;
+		--surface-raised: #1d1d1d;
+		--surface-soft: #1c1c1c;
+		--fill: rgb(255 255 255 / 5%);
+		--fill-hover: rgb(255 255 255 / 8%);
+		--accent-ink: #ff7a45;
+		--accent-tint: #ff5e1f2e;
+
+		position: relative;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		overflow: hidden;
+		color: var(--ink);
+		color-scheme: dark;
+		background: #0a0a0a;
+		border: 1px solid transparent;
+		border-radius: 24px;
+		box-shadow:
+			0 0 0 4px #ededed,
+			0 24px 48px -28px rgb(0 0 0 / 45%);
+	}
+
+	:global(:root[data-theme="dark"]) .cta-card {
+		background: var(--surface-raised);
+		border-color: var(--line);
+		box-shadow:
+			0 0 0 4px rgb(255 255 255 / 4.5%),
+			0 24px 48px -24px rgb(0 0 0 / 70%);
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:global(:root:not([data-theme])) .cta-card {
+			background: var(--surface-raised);
+			border-color: var(--line);
+			box-shadow:
+				0 0 0 4px rgb(255 255 255 / 4.5%),
+				0 24px 48px -24px rgb(0 0 0 / 70%);
+		}
+	}
+
+	.cta-content {
+		position: relative;
+		z-index: 1;
+		min-width: 0;
+		padding: clamp(2rem, 1.25rem + 3.5vw, 4rem);
+	}
+
+	.cta-content .h-section {
+		margin-block: 1.25rem 0;
+		color: var(--ink-strong);
+	}
+
+	.cta-text {
+		max-width: 30rem;
+		margin: 1rem 0 0;
+		color: var(--muted);
+		font-size: 1.0625rem;
+		line-height: 1.6;
+		text-wrap: pretty;
+	}
+
+	.cta-command {
+		display: flex;
+		max-width: 32rem;
+		min-height: 3rem;
+		align-items: center;
+		gap: 0.625rem;
+		margin-block-start: 2rem;
+		padding-inline-start: 0.875rem;
+		color: var(--ink);
+		background: color-mix(in srgb, var(--ink) 5%, transparent);
+		border: 1px solid var(--line-strong);
+		border-radius: var(--radius);
+		box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
+	}
+
+	.cta-prompt {
+		color: var(--subtle);
+		font-family: var(--font-mono);
+		font-size: 0.8125rem;
+		user-select: none;
+	}
+
+	.cta-command code {
+		min-width: 0;
+		flex: 1 1 auto;
+		padding-block: 0.75rem;
+		font-family: var(--font-mono);
+		font-size: 0.8125rem;
+		line-height: 1.5;
+		overflow-wrap: anywhere;
+		user-select: all;
+	}
+
+	.cta-pkg {
+		color: var(--accent);
+		font-weight: 600;
+	}
+
+	.cta-pkg > span {
+		white-space: nowrap;
+	}
+
+	.cta-copy-btn {
+		display: grid;
+		width: 2.75rem;
+		flex: 0 0 auto;
+		align-self: stretch;
+		place-items: center;
+		padding: 0;
+		color: var(--muted);
+		background: transparent;
+		border: 0;
+		border-inline-start: 1px solid var(--line-strong);
+		border-start-end-radius: calc(var(--radius) - 1px);
+		border-end-end-radius: calc(var(--radius) - 1px);
+		cursor: copy;
+		transition:
+			color 150ms,
+			background-color 150ms;
+	}
+
+	@media (hover: hover) {
+		.cta-copy-btn:hover {
+			color: var(--ink);
+			background: var(--fill-hover);
+		}
+	}
+
+	:global(:root:not(.js)) .cta-copy-btn {
+		display: none;
+	}
+
+	.is-copied .cta-copy-btn {
+		color: var(--success);
+	}
+
+	.cta-copy-btn svg {
+		grid-area: 1 / 1;
+		width: 1rem;
+		height: 1rem;
+		fill: currentColor;
+		transition:
+			opacity 150ms,
+			transform 150ms var(--ease-out);
+	}
+
+	.cta-check-icon,
+	.is-copied .cta-copy-icon {
+		opacity: 0;
+		transform: scale(0.7);
+	}
+
+	.is-copied .cta-check-icon {
+		opacity: 1;
+		transform: scale(1);
+	}
+
+	.cta-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-block-start: 1.25rem;
+	}
+
+	.cta-actions .btn-secondary {
+		background: color-mix(in srgb, var(--surface) 70%, transparent);
+		box-shadow:
+			inset 0 1px 0 rgb(255 255 255 / 4%),
+			0 1px 2px rgb(0 0 0 / 40%);
+	}
+
+	.cta-art {
+		--art-bg: transparent;
+		position: relative;
+		min-height: 11rem;
+		overflow: hidden;
+	}
+
+	.cta-art > :global(.plugin-art) {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		-webkit-mask-image: radial-gradient(
+			ellipse 80% 85% at 50% 50%,
+			#000 50%,
+			transparent 100%
+		);
+		mask-image: radial-gradient(
+			ellipse 80% 85% at 50% 50%,
+			#000 50%,
+			transparent 100%
+		);
+	}
+
+	.cta-art:empty::before {
+		position: absolute;
+		inset: 0;
+		background-image: radial-gradient(
+			rgb(255 255 255 / 16%) 1px,
+			transparent 1.3px
+		);
+		background-size: 12px 12px;
+		-webkit-mask-image: radial-gradient(
+			ellipse 60% 70% at 55% 55%,
+			#000 10%,
+			transparent 72%
+		);
+		mask-image: radial-gradient(
+			ellipse 60% 70% at 55% 55%,
+			#000 10%,
+			transparent 72%
+		);
+		content: "";
+	}
+
+	.cta-art:empty::after {
+		position: absolute;
+		inset: 0;
+		background: radial-gradient(
+			ellipse 34% 30% at 58% 54%,
+			color-mix(in srgb, var(--accent) 16%, transparent),
+			transparent 70%
+		);
+		content: "";
+	}
+
+	@media (min-width: 900px) {
+		.cta-card {
+			grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+		}
+
+		.cta-art {
+			min-height: 100%;
+		}
+	}
+
+	@media (max-width: 639.98px) {
+		.cta-actions .btn {
+			flex: 1 1 100%;
+		}
+	}
+
+	@media (max-width: 479.98px) {
+		.cta-content {
+			padding: 2rem 1.5rem 1.5rem;
+		}
+
+		.cta-command {
+			gap: 0.5rem;
+			padding-inline-start: 0.75rem;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.cta-copy-btn,
+		.cta-copy-btn svg {
+			transition: none;
+		}
+	}
+</style>

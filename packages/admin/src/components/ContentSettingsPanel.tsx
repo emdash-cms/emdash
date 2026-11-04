@@ -1,0 +1,1381 @@
+import {
+	Badge,
+	Button,
+	Collapsible,
+	Input,
+	Label,
+	LayerCard,
+	LayerDialog,
+	LinkButton,
+	Loader,
+	Select,
+	Text,
+} from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
+import {
+	ArrowSquareOut,
+	CalendarDots,
+	CalendarPlus,
+	CalendarX,
+	CaretDown,
+	Eye,
+	EyeSlash,
+	Trash,
+	Upload,
+	X,
+} from "@phosphor-icons/react";
+import { useNavigate } from "@tanstack/react-router";
+import type { Editor } from "@tiptap/react";
+import * as React from "react";
+import { flushSync } from "react-dom";
+
+import type {
+	AdminManifest,
+	BylineCreditInput,
+	BylineSummary,
+	ContentItem,
+	ContentSeoInput,
+	TranslationSummary,
+	UserListItem,
+} from "../lib/api";
+import {
+	ContentEditorPanelBoundary,
+	resolveContentEditorPanels,
+} from "../lib/content-editor-panels";
+import {
+	getContentPublishingState,
+	type ContentPublishingState,
+} from "../lib/content-publishing-state.js";
+import { useConfirmedRequest } from "../lib/dialog-form.js";
+import { getSeoFallbackTitle } from "../lib/entryTitle.js";
+import { usePluginAdmins } from "../lib/plugin-context";
+import {
+	formatPublishingInstant,
+	formatPublishingInstantWithZone,
+} from "../lib/publishing-datetime.js";
+import { resolveSandboxedEditorPanels } from "../lib/sandboxed-editor-extensions.js";
+import { cn, isolate } from "../lib/utils.js";
+import { getLocaleLabel } from "../locales/config.js";
+import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
+import type { BylineFormValues } from "./BylineFormDialog.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
+import type { CurrentUserInfo } from "./ContentEditor.js";
+import { ContentStatusIcon } from "./ContentStatusBadge.js";
+import { DocumentOutline } from "./editor/DocumentOutline";
+import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
+import type { GalleryAttributes } from "./editor/GalleryNode";
+import { ImageDetailPanel } from "./editor/ImageDetailPanel";
+import type { ImageAttributes } from "./editor/ImageDetailPanel";
+import { HelpTooltip } from "./FieldHelpLabel.js";
+import type { BlockSidebarPanel } from "./PortableTextEditor";
+import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
+import { RevisionHistory } from "./RevisionHistory";
+import { useRevisionViewContext } from "./revisions/revision-view-context.js";
+import { SandboxedContentEditorPanel } from "./SandboxedContentEditorPanel.js";
+import type {
+	BrowserEditorDraftRequest,
+	EditorDraftResponse,
+} from "./SandboxedContentEditorPanel.js";
+import { SaveButton } from "./SaveButton";
+import { SeoPanel } from "./SeoPanel";
+import { declaredLabelTranslator } from "./Sidebar.js";
+import {
+	SortableContentSettingsSection,
+	SortableContentSettingsSections,
+} from "./SortableContentSettingsSections.js";
+import { TaxonomySidebar, useHasApplicableTaxonomies } from "./TaxonomySidebar";
+import { TranslationsPanel } from "./TranslationsPanel.js";
+
+// Editor role level (40) from @emdash-cms/auth
+const ROLE_EDITOR = 40;
+
+function PublishingVersionRow({
+	iconState,
+	title,
+	description,
+	action,
+	connectToNext,
+}: {
+	iconState: "published" | "draft" | "scheduled" | "pendingChanges";
+	title: string;
+	description: React.ReactNode;
+	action?: React.ReactNode;
+	connectToNext?: boolean;
+}) {
+	return (
+		<div className="flex items-start gap-3">
+			<span className="relative flex w-3.5 shrink-0 self-stretch justify-center">
+				{connectToNext ? (
+					<span className="absolute top-6 -bottom-3 w-px bg-kumo-line" aria-hidden="true" />
+				) : null}
+				<span className="relative z-10 flex h-5 items-center bg-kumo-base">
+					<ContentStatusIcon state={iconState} decorative />
+				</span>
+			</span>
+			<div className="min-w-0 flex-1">
+				<Text as="p" bold>
+					{title}
+				</Text>
+				<Text as="p" variant="secondary" size="xs" DANGEROUS_className="mt-0.5 text-pretty">
+					{description}
+				</Text>
+				{action ? <div className="-ms-2 mt-1">{action}</div> : null}
+			</div>
+		</div>
+	);
+}
+
+function PublishingVersionRelationship({
+	publishingState,
+	supportsDrafts,
+	scheduledAt,
+	locale,
+	onDiscardDraft,
+	discardDisabled,
+}: {
+	publishingState: ContentPublishingState;
+	supportsDrafts: boolean;
+	scheduledAt?: string | null;
+	locale: string;
+	onDiscardDraft?: () => Promise<unknown> | void;
+	discardDisabled?: boolean;
+}) {
+	const { t } = useLingui();
+	const formattedSchedule = scheduledAt
+		? formatPublishingInstantWithZone(scheduledAt, locale)
+		: null;
+	const scheduledSummary =
+		scheduledAt && formattedSchedule ? (
+			<time dateTime={scheduledAt}>{t`Scheduled for ${isolate(formattedSchedule)}`}</time>
+		) : null;
+
+	if (!supportsDrafts) {
+		return scheduledSummary ? (
+			<div className="grid gap-4 px-3 py-3">
+				<PublishingVersionRow
+					iconState="scheduled"
+					title={t`Scheduled publication`}
+					description={scheduledSummary}
+				/>
+			</div>
+		) : null;
+	}
+
+	let rows: React.ReactNode;
+	switch (publishingState) {
+		case "draft":
+			rows = (
+				<PublishingVersionRow
+					iconState="draft"
+					title={t`Draft version`}
+					description={t`This version is not visible on the site`}
+				/>
+			);
+			break;
+		case "scheduled":
+			rows = (
+				<PublishingVersionRow
+					iconState="scheduled"
+					title={t`First publication`}
+					description={scheduledSummary ?? t`A publication time has not been selected`}
+				/>
+			);
+			break;
+		case "published":
+			rows = (
+				<PublishingVersionRow
+					iconState="published"
+					title={t`Live version`}
+					description={t`Visitors see this published version`}
+				/>
+			);
+			break;
+		case "published-with-changes":
+			rows = (
+				<>
+					<PublishingVersionRow
+						iconState="published"
+						title={t`Live version`}
+						description={t`Visitors still see the published version`}
+						connectToNext
+					/>
+					<PublishingVersionRow
+						iconState="pendingChanges"
+						title={t`Draft changes`}
+						description={t`Ready to publish now or schedule for later`}
+						action={
+							onDiscardDraft ? (
+								<DiscardDraftDialog
+									onDiscard={onDiscardDraft}
+									triggerSize="sm"
+									disabled={discardDisabled}
+								/>
+							) : undefined
+						}
+					/>
+				</>
+			);
+			break;
+		case "update-scheduled":
+			rows = (
+				<>
+					<PublishingVersionRow
+						iconState="published"
+						title={t`Live version`}
+						description={t`Visitors see the published version until the scheduled update`}
+						connectToNext
+					/>
+					<PublishingVersionRow
+						iconState="scheduled"
+						title={t`Draft changes`}
+						description={scheduledSummary ?? t`A publication time has not been selected`}
+						action={
+							onDiscardDraft ? (
+								<DiscardDraftDialog
+									onDiscard={onDiscardDraft}
+									triggerSize="sm"
+									disabled={discardDisabled}
+								/>
+							) : undefined
+						}
+					/>
+				</>
+			);
+			break;
+		case "published-scheduled":
+			rows = (
+				<>
+					<PublishingVersionRow
+						iconState="published"
+						title={t`Live version`}
+						description={t`Visitors see this published version`}
+						connectToNext
+					/>
+					<PublishingVersionRow
+						iconState="scheduled"
+						title={t`Scheduled publication`}
+						description={scheduledSummary ?? t`A publication time has not been selected`}
+					/>
+				</>
+			);
+	}
+
+	return <div className="grid gap-4 px-3 py-3">{rows}</div>;
+}
+
+function TimestampValue({
+	value,
+	locale,
+	size = "xs",
+}: {
+	value: string;
+	locale: string;
+	size?: "xs" | "base";
+}) {
+	return (
+		<time dateTime={value}>
+			<Text as="span" size={size}>
+				<bdi>{formatPublishingInstant(value, locale)}</bdi>
+			</Text>
+		</time>
+	);
+}
+
+function TimestampRow({
+	label,
+	children,
+	size = "xs",
+}: React.PropsWithChildren<{ label: string; size?: "xs" | "base" }>) {
+	return (
+		<div className="flex items-center justify-between gap-2 whitespace-nowrap">
+			<dt className="min-w-0 flex-1">
+				<Text as="span" variant="secondary" size={size} truncate>
+					{label}
+				</Text>
+			</dt>
+			<dd className="shrink-0 text-end">{children}</dd>
+		</div>
+	);
+}
+
+/**
+ * When the editor bar is narrow, its secondary buttons keep only their icon so
+ * the bar stays on one row. The buttons distraction-free mode adds give up
+ * their labels first, at a wider bar.
+ */
+export const compactBarButtonClassName =
+	"@max-2xl/editor-bar:w-6.5 @max-2xl/editor-bar:justify-center @max-2xl/editor-bar:px-0";
+export const compactBarLabelClassName = "@max-2xl/editor-bar:sr-only";
+const compactBarExtraButtonClassName =
+	"@max-[60rem]/editor-bar:w-6.5 @max-[60rem]/editor-bar:justify-center @max-[60rem]/editor-bar:px-0";
+const compactBarExtraLabelClassName = "@max-[60rem]/editor-bar:sr-only";
+
+/**
+ * Discard-draft confirmation shared by the settings panel and the
+ * distraction-free bar, so the copy and behavior can't drift.
+ */
+export function DiscardDraftDialog({
+	onDiscard,
+	triggerVariant = "ghost",
+	triggerSize,
+	compact,
+	disabled,
+}: {
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDiscard?: () => Promise<unknown> | void;
+	triggerVariant?: "ghost" | "outline";
+	triggerSize?: "sm";
+	/** Shows only the icon on small screens, for the editor bar. */
+	compact?: boolean;
+	disabled?: boolean;
+}) {
+	const { t } = useLingui();
+	const discard = useConfirmedRequest(onDiscard);
+	return (
+		<>
+			<Button
+				type="button"
+				variant={triggerVariant}
+				size={triggerSize}
+				disabled={disabled}
+				className={compact ? compactBarExtraButtonClassName : undefined}
+				icon={<X />}
+				onClick={discard.show}
+			>
+				<span className={compact ? compactBarExtraLabelClassName : undefined}>
+					{t`Discard changes`}
+				</span>
+			</Button>
+			<ConfirmDialog
+				{...discard.dialog}
+				title={t`Discard draft changes?`}
+				description={t`This will revert to the published version. Your draft changes will be lost.`}
+				confirmLabel={t`Discard changes`}
+				pendingLabel={t`Discarding...`}
+			/>
+		</>
+	);
+}
+
+export interface EditorActionsProps {
+	collectionLabel?: string;
+	isNew?: boolean;
+	isDirty: boolean;
+	isSaving: boolean;
+	/** Autosave in flight — reported by the save button's busy state. */
+	isAutosaving?: boolean;
+	/** Preserve operation blocking independently of the visual feedback state. */
+	saveDisabled?: boolean;
+	isLive: boolean;
+	hasPendingChanges: boolean;
+	publishingState?: ContentPublishingState;
+	publishingPending?: boolean;
+	publishDisabled?: boolean;
+	liveViewUrl?: string | null;
+	supportsPreview?: boolean;
+	isLoadingPreview?: boolean;
+	onPreview?: () => void;
+	onPublish?: () => void;
+	onUnpublish?: () => void;
+	onMenuOpenChange?: (open: boolean) => void;
+	/** Shown before Publish, e.g. scheduling while the settings panel is hidden. */
+	beforePublish?: React.ReactNode;
+}
+
+export interface PreviewButtonProps {
+	hasPendingChanges: boolean;
+	isLoadingPreview?: boolean;
+	onPreview?: () => void;
+	size?: "sm";
+	variant?: "outline" | "ghost";
+	/** Shows only the icon on small screens, for the editor bar. */
+	compact?: boolean;
+}
+
+export function PreviewButton({
+	hasPendingChanges,
+	isLoadingPreview,
+	onPreview,
+	size,
+	variant = "outline",
+	compact,
+}: PreviewButtonProps) {
+	const { t } = useLingui();
+	return (
+		<Button
+			type="button"
+			variant={variant}
+			size={size}
+			className={compact ? compactBarButtonClassName : undefined}
+			onClick={onPreview}
+			disabled={isLoadingPreview}
+			icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
+		>
+			<span className={compact ? compactBarLabelClassName : undefined}>
+				{hasPendingChanges ? t`Preview draft` : t`Preview`}
+			</span>
+		</Button>
+	);
+}
+
+export interface PublishActionsProps {
+	collectionLabel?: string;
+	isNew?: boolean;
+	isLive: boolean;
+	hasPendingChanges: boolean;
+	publishingState?: ContentPublishingState;
+	isPending?: boolean;
+	/** Blocks every publishing action, including confirmation from an already open dialog. */
+	disabled?: boolean;
+	onPublish?: () => void;
+	onUnpublish?: () => void;
+	onMenuOpenChange?: (open: boolean) => void;
+	size?: "sm";
+	/** In the editor's bar, which shortens or hides the labels when it's narrow. */
+	compact?: boolean;
+}
+
+export function PublishActions({
+	collectionLabel,
+	isNew,
+	isLive,
+	hasPendingChanges,
+	publishingState,
+	isPending,
+	disabled,
+	onPublish,
+	onUnpublish,
+	onMenuOpenChange,
+	size,
+	compact,
+}: PublishActionsProps) {
+	const { t } = useLingui();
+	const [publishOpen, setPublishOpen] = React.useState(false);
+	const publishOpenRef = React.useRef(publishOpen);
+	publishOpenRef.current = publishOpen;
+	React.useEffect(
+		() => () => {
+			if (publishOpenRef.current) onMenuOpenChange?.(false);
+		},
+		[onMenuOpenChange],
+	);
+	const setConfirmationOpen = (open: boolean) => {
+		setPublishOpen(open);
+		onMenuOpenChange?.(open);
+	};
+	const itemLabel = collectionLabel ?? t`content`;
+	const state =
+		publishingState ??
+		(isLive ? (hasPendingChanges ? "published-with-changes" : "published") : "draft");
+	const hasDraftChanges = state === "published-with-changes" || state === "update-scheduled";
+
+	if (isNew) return null;
+	if (state === "published") {
+		return onUnpublish ? (
+			<Button
+				type="button"
+				variant="outline"
+				size={size}
+				onClick={onUnpublish}
+				loading={isPending}
+				disabled={disabled}
+				icon={<EyeSlash />}
+				className={compact ? compactBarButtonClassName : undefined}
+			>
+				<span className={compact ? compactBarLabelClassName : undefined}>
+					{t`Unpublish ${itemLabel}`}
+				</span>
+			</Button>
+		) : null;
+	}
+	if (!onPublish) return null;
+	const hasSchedule =
+		state === "scheduled" || state === "update-scheduled" || state === "published-scheduled";
+	const publishLabel = hasDraftChanges ? t`Publish changes` : t`Publish now`;
+	const confirmationTitle = hasDraftChanges ? t`Publish changes?` : t`Publish now?`;
+	const confirmationDescription = hasSchedule
+		? t`This removes the schedule and publishes immediately.`
+		: hasDraftChanges
+			? t`Visitors will see these changes immediately.`
+			: t`This content will be visible on the site immediately.`;
+
+	return (
+		<LayerDialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
+			<LayerDialog.Trigger
+				disabled={disabled}
+				render={
+					<Button
+						type="button"
+						variant="primary"
+						size={size}
+						icon={<Upload aria-hidden="true" />}
+						loading={isPending}
+						disabled={disabled}
+						aria-label={publishLabel}
+					/>
+				}
+			>
+				{compact ? (
+					<>
+						<span className="@max-2xl/editor-bar:hidden">{publishLabel}</span>
+						<span className="hidden @max-2xl/editor-bar:inline">{t`Publish`}</span>
+					</>
+				) : (
+					publishLabel
+				)}
+			</LayerDialog.Trigger>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>{confirmationTitle}</LayerDialog.Title>
+				<LayerDialog.Description>{confirmationDescription}</LayerDialog.Description>
+				<LayerDialog.Body>{null}</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action
+						loading={isPending}
+						disabled={disabled}
+						aria-label={publishLabel}
+						onClick={() => {
+							setConfirmationOpen(false);
+							onPublish();
+						}}
+					>
+						{publishLabel}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
+	);
+}
+
+export interface ScheduleActionsProps {
+	publishingState: ContentPublishingState;
+	canSchedule?: boolean;
+	isScheduling?: boolean;
+	isUnscheduling?: boolean;
+	disabled?: boolean;
+	onOpenSchedule?: () => void;
+	onUnschedule?: () => void | Promise<void>;
+	inline?: boolean;
+}
+
+export function ScheduleActions({
+	publishingState,
+	canSchedule,
+	isScheduling,
+	isUnscheduling,
+	disabled,
+	onOpenSchedule,
+	onUnschedule,
+	inline,
+}: ScheduleActionsProps) {
+	const { t } = useLingui();
+	const hasSchedule =
+		publishingState === "scheduled" ||
+		publishingState === "update-scheduled" ||
+		publishingState === "published-scheduled";
+	const showSchedule = Boolean(onOpenSchedule && (canSchedule || hasSchedule));
+	const showRemove = Boolean(onUnschedule && hasSchedule);
+	if (!showSchedule && !showRemove) return null;
+
+	return (
+		<div
+			className={cn(
+				inline ? "contents" : "mt-3 grid gap-2",
+				!inline && (showSchedule && showRemove ? "grid-cols-2" : "grid-cols-1"),
+			)}
+		>
+			{showSchedule ? (
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					className={cn(
+						"min-w-0 justify-center overflow-hidden whitespace-nowrap",
+						inline ? compactBarExtraButtonClassName : "w-full",
+					)}
+					icon={
+						hasSchedule ? <CalendarDots aria-hidden="true" /> : <CalendarPlus aria-hidden="true" />
+					}
+					loading={isScheduling}
+					disabled={disabled || isUnscheduling}
+					onClick={onOpenSchedule}
+				>
+					<span className={inline ? compactBarExtraLabelClassName : undefined}>
+						{hasSchedule ? t`Change schedule` : t`Schedule`}
+					</span>
+				</Button>
+			) : null}
+			{showRemove ? (
+				<Button
+					type="button"
+					variant="secondary-destructive"
+					size="sm"
+					className={cn(
+						"min-w-0 justify-center overflow-hidden whitespace-nowrap",
+						inline ? compactBarExtraButtonClassName : "w-full",
+					)}
+					icon={<CalendarX aria-hidden="true" />}
+					loading={isUnscheduling}
+					disabled={disabled || isScheduling}
+					onClick={() => void Promise.resolve(onUnschedule?.()).catch(() => undefined)}
+				>
+					<span
+						className={inline ? compactBarExtraLabelClassName : undefined}
+					>{t`Remove schedule`}</span>
+				</Button>
+			) : null}
+		</div>
+	);
+}
+
+/**
+ * The entry's save, view, and publish actions for the editor's top bar.
+ * Publish-state context lives in the settings panel's Publish section.
+ *
+ * Deliberately NOT memoized — it exists so high-frequency props
+ * (isDirty, isSaving, isAutosaving) stop here instead of re-rendering the
+ * rest of the editor.
+ */
+export function EditorActions({
+	collectionLabel,
+	isNew,
+	isDirty,
+	isSaving,
+	isAutosaving,
+	saveDisabled,
+	isLive,
+	hasPendingChanges,
+	publishingState,
+	publishingPending,
+	publishDisabled,
+	liveViewUrl,
+	supportsPreview,
+	isLoadingPreview,
+	onPreview,
+	onPublish,
+	onUnpublish,
+	onMenuOpenChange,
+	beforePublish,
+}: EditorActionsProps) {
+	const { t } = useLingui();
+	const busy = isSaving || Boolean(isAutosaving);
+	// Saved reads as a quiet status; unsaved work becomes a button again.
+	const saveVariant = !isDirty && !busy ? "ghost" : isNew ? "primary" : "secondary";
+
+	return (
+		<div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+			<SaveButton
+				type="submit"
+				size="sm"
+				variant={saveVariant}
+				className={cn("min-w-0", compactBarButtonClassName)}
+				labelClassName="@max-2xl/editor-bar:hidden"
+				isDirty={isDirty}
+				isSaving={busy}
+				disabled={saveDisabled}
+			/>
+			{liveViewUrl && (
+				<LinkButton
+					href={liveViewUrl}
+					external
+					variant="ghost"
+					size="sm"
+					className={compactBarButtonClassName}
+					icon={<ArrowSquareOut />}
+				>
+					<span className={compactBarLabelClassName}>{t`Live View`}</span>
+				</LinkButton>
+			)}
+			{!isNew && supportsPreview && (
+				<PreviewButton
+					size="sm"
+					variant="ghost"
+					compact
+					hasPendingChanges={hasPendingChanges}
+					isLoadingPreview={isLoadingPreview}
+					onPreview={onPreview}
+				/>
+			)}
+			{beforePublish}
+			{!isNew && (
+				<PublishActions
+					collectionLabel={collectionLabel}
+					isNew={isNew}
+					isLive={isLive}
+					hasPendingChanges={hasPendingChanges}
+					publishingState={publishingState}
+					isPending={publishingPending}
+					disabled={publishDisabled}
+					onPublish={onPublish}
+					onUnpublish={onUnpublish}
+					onMenuOpenChange={onMenuOpenChange}
+					size="sm"
+					compact
+				/>
+			)}
+		</div>
+	);
+}
+
+export interface ContentSettingsPanelProps {
+	collection: string;
+	item?: ContentItem | null;
+	isNew?: boolean;
+	manifest?: AdminManifest | null;
+	/** Locale this entry is bound to (URL `?locale=` for new entries). */
+	entryLocale?: string | null;
+	slug: string;
+	onSlugChange: (value: string) => void;
+	status: string;
+	supportsDrafts: boolean;
+	isLive: boolean;
+	hasPendingChanges: boolean;
+	publishingState?: ContentPublishingState;
+	publishingDisabled?: boolean;
+	canSchedule?: boolean;
+	isScheduling?: boolean;
+	isUnscheduling?: boolean;
+	onOpenSchedule?: () => void;
+	onUnschedule?: () => void | Promise<void>;
+	supportsRevisions: boolean;
+	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
+	isUpdatingPublishedAt?: boolean;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDiscardDraft?: () => Promise<unknown> | void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDelete?: () => Promise<unknown> | void;
+	isDeleting?: boolean;
+	currentUser?: CurrentUserInfo;
+	users?: UserListItem[];
+	onAuthorChange?: (authorId: string | null) => void;
+	activeBylines: BylineCreditInput[];
+	inferredByline?: BylineSummary | null;
+	availableBylines?: BylineSummary[];
+	availableBylinesLoaded?: boolean;
+	onBylinesChange: (next: BylineCreditInput[]) => void;
+	onQuickCreateByline?: (input: BylineFormValues) => Promise<BylineSummary>;
+	onQuickEditByline?: (bylineId: string, input: BylineFormValues) => Promise<BylineSummary>;
+	i18n?: { defaultLocale: string; locales: string[] };
+	translations?: TranslationSummary[];
+	onTranslate?: (locale: string) => void;
+	hasSeo: boolean;
+	onSeoChange?: (seo: ContentSeoInput) => void;
+	/** portableText editor for the document outline (null when none mounted) */
+	portableTextEditor: Editor | null;
+	/** When set, the panel shows the block's detail panel instead of settings */
+	blockSidebarPanel: BlockSidebarPanel | null;
+	onBlockSidebarClose: () => void;
+	onBlockSidebarDelete: () => void;
+	captureEditorDraft?: (
+		access: import("../lib/sandboxed-editor-extensions.js").EditorDraftAccessDeclaration,
+	) => BrowserEditorDraftRequest | null;
+	onEditorDraftResponse?: (
+		access: import("../lib/sandboxed-editor-extensions.js").EditorDraftAccessDeclaration,
+		response: EditorDraftResponse,
+	) => void;
+	onEntryRefresh?: () => void | Promise<void>;
+}
+
+/**
+ * Content settings sidebar: publish controls, ownership, bylines,
+ * translations, taxonomies, SEO, document outline, and revision history.
+ *
+ * Memoized — ContentEditor re-renders on every keystroke (formData state),
+ * and this subtree is expensive (queries + lists). All handler props must be
+ * referentially stable or the memo is defeated.
+ */
+export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
+	collection,
+	item,
+	isNew,
+	manifest,
+	entryLocale,
+	slug,
+	onSlugChange,
+	supportsDrafts,
+	isLive,
+	hasPendingChanges,
+	publishingState,
+	publishingDisabled,
+	canSchedule,
+	isScheduling,
+	isUnscheduling,
+	onOpenSchedule,
+	onUnschedule,
+	supportsRevisions,
+	onPublishedAtChange,
+	isUpdatingPublishedAt,
+	onDiscardDraft,
+	onDelete,
+	isDeleting,
+	currentUser,
+	users,
+	onAuthorChange,
+	activeBylines,
+	inferredByline,
+	availableBylines,
+	availableBylinesLoaded,
+	onBylinesChange,
+	onQuickCreateByline,
+	onQuickEditByline,
+	i18n,
+	translations,
+	onTranslate,
+	hasSeo,
+	onSeoChange,
+	portableTextEditor,
+	blockSidebarPanel,
+	onBlockSidebarClose,
+	onBlockSidebarDelete,
+	captureEditorDraft,
+	onEditorDraftResponse,
+	onEntryRefresh,
+}: ContentSettingsPanelProps) {
+	const { t, i18n: lingui } = useLingui();
+	const navigate = useNavigate();
+	const pluginAdmins = usePluginAdmins();
+	const revisionView = useRevisionViewContext();
+	const viewingRevision = Boolean(revisionView?.viewingId);
+	const trustedExtensionPanels = React.useMemo(
+		() =>
+			!isNew && item
+				? resolveContentEditorPanels(
+						pluginAdmins,
+						collection,
+						currentUser?.role ?? 0,
+						manifest?.plugins,
+					)
+				: [],
+		[collection, currentUser?.role, isNew, item, manifest?.plugins, pluginAdmins],
+	);
+	const sandboxedExtensionPanels = React.useMemo(
+		() => (!isNew && item ? resolveSandboxedEditorPanels(manifest?.plugins, collection) : []),
+		[collection, isNew, item, manifest?.plugins],
+	);
+	const extensionPanels = React.useMemo(
+		() =>
+			[
+				...trustedExtensionPanels.map((panel) => ({
+					kind: "trusted" as const,
+					pluginId: panel.pluginId,
+					id: panel.extension.id,
+					order: panel.extension.order ?? 0,
+					panel,
+				})),
+				...sandboxedExtensionPanels.map((panel) => ({
+					kind: "sandboxed" as const,
+					pluginId: panel.pluginId,
+					id: panel.extension.id,
+					order: panel.extension.order ?? 0,
+					panel,
+				})),
+			].toSorted(
+				(a, b) =>
+					a.order - b.order || a.pluginId.localeCompare(b.pluginId) || a.id.localeCompare(b.id),
+			),
+		[sandboxedExtensionPanels, trustedExtensionPanels],
+	);
+
+	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
+	const [datesOpen, setDatesOpen] = React.useState(false);
+	const trash = useConfirmedRequest(onDelete);
+	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
+	const activeEntryLocale = item?.locale ?? entryLocale ?? undefined;
+	const resolvedPublishingState =
+		publishingState ??
+		getContentPublishingState({ isLive, hasPendingChanges, scheduledAt: item?.scheduledAt });
+	const hasApplicableTaxonomies = useHasApplicableTaxonomies(
+		collection,
+		activeEntryLocale,
+		i18n?.defaultLocale,
+	);
+	const canUpdatePublishedDate =
+		item?.publishedAt != null && (currentUser?.role ?? 0) >= ROLE_EDITOR && !!onPublishedAtChange;
+	const contentLocale = item?.locale ?? entryLocale ?? manifest?.contentLocale?.defaultLocale;
+	const usesImplicitEnglish = manifest?.contentLocale?.implicit === true && contentLocale === "en";
+	const publicationEntryKey = `${item?.id ?? "new"}:${activeEntryLocale ?? ""}`;
+	const showPublishingRelationship = supportsDrafts || Boolean(item?.scheduledAt);
+	React.useEffect(() => setDatesOpen(false), [item?.id, item?.locale]);
+
+	if (blockSidebarPanel) {
+		// A block requesting the sidebar replaces the default sections.
+		return blockSidebarPanel.type === "image" ? (
+			<ImageDetailPanel
+				attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+				onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
+				onReplace={(attrs) =>
+					blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
+				}
+				onDelete={onBlockSidebarDelete}
+				onClose={onBlockSidebarClose}
+				inlineClassName="rounded-none border-0"
+				stickyFooter
+				inline
+			/>
+		) : blockSidebarPanel.type === "gallery" ? (
+			<div className="p-4">
+				<GalleryDetailPanel
+					attributes={blockSidebarPanel.attrs as unknown as GalleryAttributes}
+					onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
+					onDelete={onBlockSidebarDelete}
+					onClose={onBlockSidebarClose}
+					inline
+				/>
+			</div>
+		) : null;
+	}
+
+	return (
+		// The Kumo Sidebar wrapper sets `whitespace-nowrap` for its collapse
+		// animation, which would stop long field descriptions from wrapping.
+		<div className="flex flex-col whitespace-normal [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base">
+			<SortableContentSettingsSections
+				collection={collection}
+				// A new entry shows fewer sections, and saving its order would drop the rest.
+				userId={isNew ? undefined : currentUser?.id}
+				onSortingChange={setIsReorderingSections}
+			>
+				<SortableContentSettingsSection id="publish" label={t`Publish`} hidden={isNew}>
+					<div className="p-4">
+						<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
+							{t`Publish`}
+						</Text>
+						{showPublishingRelationship || item ? (
+							<LayerCard
+								render={<div role="group" aria-label={t`Publishing summary`} />}
+								className="overflow-hidden p-0"
+							>
+								{showPublishingRelationship ? (
+									<PublishingVersionRelationship
+										publishingState={resolvedPublishingState}
+										supportsDrafts={supportsDrafts}
+										scheduledAt={item?.scheduledAt}
+										locale={lingui.locale}
+										onDiscardDraft={showDiscard ? onDiscardDraft : undefined}
+										discardDisabled={viewingRevision}
+									/>
+								) : null}
+
+								{item ? (
+									<div
+										data-testid="content-timestamps"
+										className={cn(
+											"px-3 py-1.5",
+											showPublishingRelationship && "border-t border-kumo-line",
+										)}
+									>
+										{item.publishedAt ? (
+											<dl>
+												{canUpdatePublishedDate && onPublishedAtChange ? (
+													<div>
+														<dt className="sr-only">{t`Publication date`}</dt>
+														<dd>
+															<PublicationDateDialog
+																entryKey={publicationEntryKey}
+																publishedAt={item.publishedAt}
+																label={t`Publication date`}
+																formattedValue={formatPublishingInstant(
+																	item.publishedAt,
+																	lingui.locale,
+																)}
+																isPending={isUpdatingPublishedAt}
+																onPublishedAtChange={onPublishedAtChange}
+															/>
+														</dd>
+													</div>
+												) : (
+													<TimestampRow label={t`Publication date`}>
+														<TimestampValue value={item.publishedAt} locale={lingui.locale} />
+													</TimestampRow>
+												)}
+											</dl>
+										) : null}
+
+										<Collapsible.Root open={datesOpen} onOpenChange={setDatesOpen}>
+											<Collapsible.Trigger
+												render={
+													<Button
+														type="button"
+														variant="ghost"
+														className={cn(
+															"-mx-2 h-9 w-[calc(100%+1rem)] min-w-0 justify-between overflow-hidden whitespace-nowrap px-2 py-1.5 font-normal",
+															item.publishedAt && "mt-1",
+														)}
+													/>
+												}
+											>
+												<Text as="span" variant="secondary" size="xs">
+													{t`Created and updated`}
+												</Text>
+												<CaretDown
+													className={cn(
+														"size-3 transition-transform duration-150 ease-out motion-reduce:transition-none",
+														datesOpen && "rotate-180",
+													)}
+													aria-hidden="true"
+												/>
+											</Collapsible.Trigger>
+											<Collapsible.Panel
+												className="overflow-hidden transition-[height] duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+												style={({ transitionStatus }) => ({
+													height:
+														transitionStatus === "starting" || transitionStatus === "ending"
+															? 0
+															: "var(--collapsible-panel-height)",
+												})}
+											>
+												<dl className="grid gap-1.5 px-0 pt-1.5 pb-0.5">
+													<TimestampRow label={t`Created`} size="xs">
+														<TimestampValue
+															value={item.createdAt}
+															locale={lingui.locale}
+															size="xs"
+														/>
+													</TimestampRow>
+													<TimestampRow label={t`Updated`} size="xs">
+														<TimestampValue
+															value={item.updatedAt}
+															locale={lingui.locale}
+															size="xs"
+														/>
+													</TimestampRow>
+												</dl>
+											</Collapsible.Panel>
+										</Collapsible.Root>
+									</div>
+								) : null}
+							</LayerCard>
+						) : null}
+						<ScheduleActions
+							publishingState={resolvedPublishingState}
+							canSchedule={canSchedule}
+							isScheduling={isScheduling}
+							isUnscheduling={isUnscheduling}
+							disabled={publishingDisabled}
+							onOpenSchedule={onOpenSchedule}
+							onUnschedule={onUnschedule}
+						/>
+					</div>
+				</SortableContentSettingsSection>
+
+				<SortableContentSettingsSection id="url-language" label={t`URL & language`}>
+					<div className="p-4">
+						<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
+							{t`URL & language`}
+						</Text>
+						<div className="grid gap-4">
+							<Input
+								dir="ltr"
+								label={t`Slug`}
+								value={slug}
+								onChange={(event) => onSlugChange(event.target.value)}
+								placeholder="my-post-slug"
+							/>
+							{contentLocale ? (
+								<div className="flex items-center justify-between gap-3">
+									<div className="flex items-center gap-1.5">
+										<Label>{t`Content language`}</Label>
+										{usesImplicitEnglish ? (
+											<HelpTooltip
+												help={t`English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.`}
+												ariaLabel={t`Why English is used`}
+											/>
+										) : null}
+									</div>
+									<div className="flex items-center gap-2">
+										<Text as="span">{getLocaleLabel(contentLocale)}</Text>
+										<Badge variant="secondary">{contentLocale.toUpperCase()}</Badge>
+									</div>
+								</div>
+							) : null}
+						</div>
+					</div>
+				</SortableContentSettingsSection>
+
+				{currentUser && currentUser.role >= ROLE_EDITOR && users && users.length > 0 && (
+					<SortableContentSettingsSection id="ownership" label={t`Ownership`}>
+						<div className="p-4">
+							<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
+								{t`Ownership`}
+							</Text>
+							<AuthorSelector
+								authorId={item?.authorId || null}
+								users={users}
+								onChange={onAuthorChange}
+							/>
+						</div>
+					</SortableContentSettingsSection>
+				)}
+
+				{currentUser && currentUser.role >= ROLE_EDITOR && (
+					<SortableContentSettingsSection id="bylines" label={t`Bylines`}>
+						<div className="p-4">
+							<div className="mb-4 flex items-center gap-1.5 pe-24">
+								<Text as="h3" DANGEROUS_className="font-semibold">
+									{t`Bylines`}
+								</Text>
+								<HelpTooltip
+									help={t`Shown to readers in this order.`}
+									ariaLabel={t`Why are bylines shown in this order?`}
+								/>
+							</div>
+							<BylineCreditsEditor
+								key={`${collection}:${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`}
+								credits={activeBylines}
+								inferredByline={inferredByline}
+								bylines={availableBylines ?? []}
+								selectedBylineDetails={item?.bylines
+									?.filter((entry) => entry.source !== "inferred")
+									.map((entry) => entry.byline)}
+								bylinesLoaded={availableBylinesLoaded}
+								onChange={onBylinesChange}
+								onQuickCreate={onQuickCreateByline}
+								onQuickEdit={onQuickEditByline}
+								// Existing entry: use its own locale. New entry: use the
+								// URL `?locale=` (passed in via `entryLocale`).
+								entryLocale={item?.locale ?? entryLocale}
+								i18n={i18n}
+							/>
+						</div>
+					</SortableContentSettingsSection>
+				)}
+
+				{i18n && item && !isNew && (
+					<SortableContentSettingsSection id="translations" label={t`Translations`}>
+						<div className="p-4">
+							<TranslationsPanel
+								locales={i18n.locales}
+								defaultLocale={i18n.defaultLocale}
+								currentLocale={item.locale ?? undefined}
+								translations={translations ?? []}
+								onOpen={(tr) =>
+									navigate({
+										to: "/content/$collection/$id",
+										params: { collection, id: tr.id },
+										search: { locale: tr.locale },
+									})
+								}
+								onCreate={onTranslate}
+							/>
+						</div>
+					</SortableContentSettingsSection>
+				)}
+
+				{/* Do not register an empty sortable row when this collection has no taxonomies. */}
+				{item && hasApplicableTaxonomies && (
+					<SortableContentSettingsSection id="taxonomies" label={t`Taxonomies`}>
+						<TaxonomySidebar
+							className="p-4"
+							collection={collection}
+							entryId={item.id}
+							entryLocale={activeEntryLocale}
+							defaultLocale={i18n?.defaultLocale}
+							canManageTaxonomies={(currentUser?.role ?? 0) >= ROLE_EDITOR}
+						/>
+					</SortableContentSettingsSection>
+				)}
+
+				{hasSeo && !isNew && onSeoChange && (
+					<SortableContentSettingsSection id="seo" label={t`SEO`}>
+						<div className="p-4">
+							<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
+								{t`SEO`}
+							</Text>
+							<SeoPanel
+								contentKey={item?.id ?? `new:${collection}`}
+								seo={item?.seo}
+								onChange={onSeoChange}
+								defaultTitle={
+									item
+										? getSeoFallbackTitle(item.data, manifest?.collections[collection]?.titleField)
+										: null
+								}
+								defaultDescription={
+									typeof item?.data?.excerpt === "string" ? item.data.excerpt : null
+								}
+							/>
+						</div>
+					</SortableContentSettingsSection>
+				)}
+
+				{item &&
+					extensionPanels.map(({ kind, pluginId, panel }) => {
+						const sectionId = `${kind === "trusted" ? "plugin" : "sandbox-plugin"}:${pluginId}:${panel.extension.id}`;
+						const title = declaredLabelTranslator(lingui, (id) => lingui._(id))(
+							panel.extension.title,
+						);
+						if (kind === "sandboxed") {
+							const extension = panel.extension;
+							return (
+								<SortableContentSettingsSection
+									key={sectionId}
+									id={sectionId}
+									label={title}
+									disclosure
+								>
+									<div className="min-w-0 p-4">
+										<ContentEditorPanelBoundary
+											key={`${collection}:${item.id}:${item.locale ?? entryLocale ?? ""}`}
+											pluginId={pluginId}
+											panelId={extension.id}
+										>
+											<SandboxedContentEditorPanel
+												pluginId={pluginId}
+												panelId={extension.id}
+												title={title}
+												collection={collection}
+												entryId={item.id}
+												locale={item.locale ?? entryLocale}
+												versionToken={item._rev ?? item.updatedAt}
+												draftAccess={extension.draft}
+												captureDraft={captureEditorDraft}
+												onDraftResponse={onEditorDraftResponse}
+												onEntryRefresh={onEntryRefresh}
+												reserveHeaderEnd
+											/>
+										</ContentEditorPanelBoundary>
+									</div>
+								</SortableContentSettingsSection>
+							);
+						}
+						const extension = panel.extension;
+						const Panel = extension.component;
+
+						return (
+							<SortableContentSettingsSection key={sectionId} id={sectionId} label={title}>
+								<div className="min-w-0 p-4">
+									<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
+										{title}
+									</Text>
+									<ContentEditorPanelBoundary
+										key={`${collection}:${item.id}`}
+										pluginId={pluginId}
+										panelId={extension.id}
+									>
+										<div className="min-w-0 max-w-full">
+											<Panel
+												collection={collection}
+												entry={item}
+												locale={item.locale ?? entryLocale ?? undefined}
+											/>
+										</div>
+									</ContentEditorPanelBoundary>
+								</div>
+							</SortableContentSettingsSection>
+						);
+					})}
+
+				{portableTextEditor && (
+					<SortableContentSettingsSection id="outline" label={t`Outline`} disclosure>
+						<div
+							className="p-4"
+							// A heading moves the caret in the editor, so the editor has to be back on screen
+							// before the outline handles the click. The section toggle stays in the view.
+							onClickCapture={
+								viewingRevision && revisionView
+									? (event) => {
+											if (
+												event.target instanceof Element &&
+												event.target.closest("button:not([aria-expanded])")
+											) {
+												flushSync(revisionView.exit);
+											}
+										}
+									: undefined
+							}
+						>
+							<DocumentOutline editor={portableTextEditor} reserveHeaderEnd />
+						</div>
+					</SortableContentSettingsSection>
+				)}
+
+				{!isNew && item && supportsRevisions && (
+					<SortableContentSettingsSection id="revisions" label={t`Revisions`} disclosure>
+						<div className="p-4">
+							<RevisionHistory collection={collection} entryId={item.id} reserveHeaderEnd />
+						</div>
+					</SortableContentSettingsSection>
+				)}
+			</SortableContentSettingsSections>
+
+			{!isNew && onDelete && (
+				<div
+					data-testid="content-trash-actions"
+					aria-hidden={isReorderingSections || undefined}
+					className={cn(
+						"border-t bg-kumo-base p-4",
+						isReorderingSections && "invisible pointer-events-none",
+					)}
+				>
+					<Button
+						type="button"
+						variant="ghost"
+						className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
+						disabled={isDeleting}
+						icon={isDeleting ? <Loader size="sm" /> : <Trash />}
+						onClick={trash.show}
+					>
+						{t`Move to Trash`}
+					</Button>
+					<ConfirmDialog
+						{...trash.dialog}
+						title={t`Move to Trash?`}
+						description={t`This will move the item to trash. You can restore it later from the trash.`}
+						confirmLabel={t`Move to Trash`}
+						pendingLabel={t`Moving to trash...`}
+					/>
+				</div>
+			)}
+		</div>
+	);
+});
+
+interface AuthorSelectorProps {
+	authorId: string | null;
+	users: UserListItem[];
+	onChange?: (authorId: string | null) => void;
+}
+
+function AuthorSelector({ authorId, users, onChange }: AuthorSelectorProps) {
+	const { t } = useLingui();
+	const currentAuthor = users.find((u) => u.id === authorId);
+
+	const authorItems: Record<string, string> = { unassigned: t`Unassigned` };
+	for (const user of users) {
+		authorItems[user.id] = user.name || user.email;
+	}
+
+	return (
+		<div className="space-y-2">
+			<Select
+				aria-label={t`Author`}
+				className="w-full"
+				value={authorId || "unassigned"}
+				onValueChange={(value) =>
+					onChange?.(value === "unassigned" || value === null ? null : value)
+				}
+				items={authorItems}
+			>
+				<Select.Option value="unassigned">
+					<span className="text-kumo-subtle">{t`Unassigned`}</span>
+				</Select.Option>
+				{users.map((user) => (
+					<Select.Option key={user.id} value={user.id}>
+						<span className="flex items-center gap-2">
+							{user.name || user.email}
+							{user.name && (
+								<span className="text-xs text-kumo-subtle">
+									(<bdi dir="ltr">{user.email}</bdi>)
+								</span>
+							)}
+						</span>
+					</Select.Option>
+				))}
+			</Select>
+			{currentAuthor && (
+				<p className="text-xs text-kumo-subtle">
+					<bdi dir="ltr">{currentAuthor.email}</bdi>
+				</p>
+			)}
+		</div>
+	);
+}

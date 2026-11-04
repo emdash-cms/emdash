@@ -25,11 +25,28 @@ const minimalResolved = (overrides: Partial<ResolvedPlugin> = {}): ResolvedPlugi
 	storage: {},
 	hooks: {},
 	routes: {},
+	mcp: { tools: {} },
 	admin: {},
 	...overrides,
 });
 
 describe("extractManifest", () => {
+	it("closes redirect write authority under its read implication", () => {
+		const manifest = extractManifest(minimalResolved({ capabilities: ["redirects:write"] }));
+		expect(manifest.capabilities).toEqual(["redirects:read", "redirects:write"]);
+		expect(manifest.declaredAccess).toEqual({
+			redirects: { read: {}, write: {} },
+		});
+	});
+
+	it("preserves legacy allowed hosts without changing capability authority", () => {
+		const manifest = extractManifest(
+			minimalResolved({ capabilities: ["content:read"], allowedHosts: ["api.example.com"] }),
+		);
+		expect(manifest.capabilities).toEqual(["content:read"]);
+		expect(manifest.allowedHosts).toEqual(["api.example.com"]);
+	});
+
 	it("emits plain hook names when metadata is at defaults", () => {
 		const manifest = extractManifest(
 			minimalResolved({
@@ -72,6 +89,150 @@ describe("extractManifest", () => {
 		expect(manifest.routes.toSorted((a, b) => a.localeCompare(b))).toEqual(["admin", "api"]);
 	});
 
+	it("preserves public route authorization and cache metadata", () => {
+		const manifest = extractManifest(
+			minimalResolved({
+				routes: {
+					feed: {
+						handler: () => {},
+						public: true,
+						permission: "content:read",
+						cacheControl: "public, max-age=300",
+					},
+				},
+			}),
+		);
+
+		expect(manifest.routes).toEqual([
+			{
+				name: "feed",
+				public: true,
+				permission: "content:read",
+				cacheControl: "public, max-age=300",
+			},
+		]);
+	});
+
+	it("preserves raw request and response route metadata", () => {
+		const manifest = extractManifest(
+			minimalResolved({
+				routes: {
+					upload: {
+						handler: () => {},
+						methods: ["POST"],
+						request: {
+							body: "bytes",
+							maxBytes: 4096,
+							headers: ["content-type", "x-upload-token"],
+						},
+						response: "raw",
+					},
+				},
+			}),
+		);
+
+		expect(manifest.routes).toEqual([
+			{
+				name: "upload",
+				methods: ["POST"],
+				request: {
+					body: "bytes",
+					maxBytes: 4096,
+					headers: ["content-type", "x-upload-token"],
+				},
+				response: "raw",
+			},
+		]);
+	});
+
+	it("serializes explicitly declared MCP tools", () => {
+		const manifest = extractManifest(
+			minimalResolved({
+				routes: {
+					"events/create": {
+						handler: () => {},
+						permission: "content:create",
+					},
+				},
+				mcp: {
+					tools: {
+						createEvent: {
+							description: "Create a calendar event.",
+							route: "events/create",
+							input: { type: "object", properties: { title: { type: "string" } } },
+							destructive: false,
+						},
+					},
+				},
+			}),
+		);
+
+		expect(manifest.mcp?.tools).toEqual([
+			{
+				name: "createEvent",
+				description: "Create a calendar event.",
+				route: "events/create",
+				permission: "content:create",
+				destructive: false,
+				inputSchema: { type: "object", properties: { title: { type: "string" } } },
+			},
+		]);
+	});
+
+	it("rejects MCP tools that reference raw response routes", () => {
+		expect(() =>
+			extractManifest(
+				minimalResolved({
+					routes: {
+						download: {
+							handler: () => {},
+							permission: "plugins:manage",
+							response: "raw",
+						},
+					},
+					mcp: {
+						tools: {
+							download: {
+								description: "Download a report.",
+								route: "download",
+								input: { type: "object" },
+							},
+						},
+					},
+				}),
+			),
+		).toThrow("cannot reference raw response route");
+	});
+
+	it.each([
+		{ methods: ["GET"] as const },
+		{ request: { body: "none" as const } },
+		{ request: { body: "form-data" as const } },
+	])("rejects MCP tools with an incompatible route %#", (routeOptions) => {
+		expect(() =>
+			extractManifest(
+				minimalResolved({
+					routes: {
+						tool: {
+							handler: () => {},
+							permission: "plugins:manage",
+							...routeOptions,
+						},
+					},
+					mcp: {
+						tools: {
+							tool: {
+								description: "Manage a resource.",
+								route: "tool",
+								input: { type: "object" },
+							},
+						},
+					},
+				}),
+			),
+		).toThrow("POST-compatible JSON route");
+	});
+
 	it("strips the runtime entry pointer from admin", () => {
 		const manifest = extractManifest(
 			minimalResolved({
@@ -80,6 +241,56 @@ describe("extractManifest", () => {
 		);
 		expect(manifest.admin).not.toHaveProperty("entry");
 		expect(manifest.admin.pages).toEqual([{ path: "/x" }]);
+	});
+
+	it.each([
+		{ response: "raw" as const },
+		{ methods: ["GET"] as const },
+		{ request: { body: "none" as const } },
+		{ request: { body: "form-data" as const } },
+	])("rejects an incompatible explicit Block Kit admin route %#", (routeOptions) => {
+		expect(() =>
+			extractManifest(
+				minimalResolved({
+					routes: { admin: { ...routeOptions, handler: () => ({ blocks: [] }) } },
+					admin: { pages: [{ path: "/overview" }] },
+				}),
+			),
+		).toThrow("Block Kit admin route must accept POST JSON requests and return JSON");
+	});
+
+	it("preserves settings and field widgets in the wire manifest", () => {
+		const manifest = extractManifest(
+			minimalResolved({
+				admin: {
+					editorPanels: [{ id: "health", title: "Health", route: "entry-health" }],
+					editorActions: [
+						{
+							id: "repair",
+							label: "Repair",
+							route: "entry-repair",
+							placement: "toolbar",
+						},
+					],
+					settingsSchema: {
+						enabled: { type: "boolean", label: "Enabled", default: true },
+					},
+					fieldWidgets: [
+						{
+							name: "event-picker",
+							label: "Event",
+							fieldTypes: ["string"],
+							elements: [{ type: "input", action_id: "event" }],
+						},
+					],
+				},
+			}),
+		);
+
+		expect(manifest.admin.settingsSchema).toHaveProperty("enabled");
+		expect(manifest.admin.fieldWidgets?.[0]).toMatchObject({ name: "event-picker" });
+		expect(manifest.admin.editorPanels?.[0]).toMatchObject({ id: "health" });
+		expect(manifest.admin.editorActions?.[0]).toMatchObject({ id: "repair" });
 	});
 });
 

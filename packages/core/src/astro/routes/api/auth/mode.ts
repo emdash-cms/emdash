@@ -11,6 +11,7 @@
 
 import type { APIRoute } from "astro";
 
+import { apiSuccess } from "#api/error.js";
 import { getAuthMode } from "#auth/mode.js";
 
 export const prerender = false;
@@ -40,18 +41,9 @@ export const GET: APIRoute = async ({ locals }) => {
 		label: p.label,
 	}));
 
-	return Response.json(
-		{
-			data: {
-				authMode: authMode.type === "external" ? authMode.providerType : "passkey",
-				signupEnabled,
-				providers,
-			},
-		},
-		{
-			headers: {
-				"Cache-Control": "private, no-store",
-			},
-		},
-	);
+	return apiSuccess({
+		authMode: authMode.type === "external" ? authMode.providerType : "passkey",
+		signupEnabled,
+		providers,
+	});
 };

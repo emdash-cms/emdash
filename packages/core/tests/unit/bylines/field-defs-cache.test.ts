@@ -5,10 +5,11 @@
  * states without orchestrating a real process crash.
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { ulid } from "ulidx";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import {
 	getBylineFieldDefs,

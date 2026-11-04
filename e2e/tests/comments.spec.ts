@@ -6,6 +6,8 @@
  * page rendering, empty state, comment list, approve, and delete.
  */
 
+import type { APIRequestContext } from "@playwright/test";
+
 import { test, expect } from "../fixtures";
 
 // Regex patterns (e18e/prefer-static-regex)
@@ -23,23 +25,27 @@ function apiHeaders(token: string) {
 	};
 }
 
-/** Seed a comment via the public API and return the response body. */
+/** Seed an anonymous comment via the public API. */
 async function seedComment(
-	page: import("@playwright/test").Page,
+	request: APIRequestContext,
 	baseUrl: string,
-	token: string,
 	postId: string,
 	overrides: { body?: string; authorName?: string; authorEmail?: string } = {},
 ) {
-	const res = await page.request.post(`${baseUrl}/_emdash/api/comments/posts/${postId}`, {
-		headers: apiHeaders(token),
+	const res = await request.post(`${baseUrl}/_emdash/api/comments/posts/${postId}`, {
+		headers: {
+			"Content-Type": "application/json",
+			"X-EmDash-Request": "1",
+		},
 		data: {
 			body: overrides.body ?? "Test comment from E2E",
 			authorName: overrides.authorName ?? "E2E Tester",
 			authorEmail: overrides.authorEmail ?? "e2e@test.com",
 		},
 	});
-	return res;
+	expect(res.ok()).toBe(true);
+	const json = (await res.json()) as { data: { status: string } };
+	expect(json.data.status).toBe("pending");
 }
 
 /** Delete all comments currently in the admin inbox (best-effort cleanup). */
@@ -96,24 +102,29 @@ test.describe("Comments Moderation", () => {
 		await admin.waitForLoading();
 
 		// The "Pending" tab is active by default -- should show empty message
-		await expect(page.locator("td").filter({ hasText: PENDING_EMPTY_PATTERN })).toBeVisible({
+		await expect(page.getByText(PENDING_EMPTY_PATTERN)).toBeVisible({
 			timeout: 10000,
 		});
 	});
 
-	test("displays seeded comments with author and body", async ({ admin, page, serverInfo }) => {
+	test("displays seeded comments with author and body", async ({
+		admin,
+		page,
+		request: anonymousRequest,
+		serverInfo,
+	}) => {
 		const postId = serverInfo.contentIds.posts[0]!;
 
 		// Clean slate
 		await cleanupComments(page, serverInfo.baseUrl, serverInfo.token);
 
 		// Seed two comments
-		await seedComment(page, serverInfo.baseUrl, serverInfo.token, postId, {
+		await seedComment(anonymousRequest, serverInfo.baseUrl, postId, {
 			body: "First seeded comment",
 			authorName: "Alice Commenter",
 			authorEmail: "alice@test.com",
 		});
-		await seedComment(page, serverInfo.baseUrl, serverInfo.token, postId, {
+		await seedComment(anonymousRequest, serverInfo.baseUrl, postId, {
 			body: "Second seeded comment",
 			authorName: "Bob Commenter",
 			authorEmail: "bob@test.com",
@@ -151,14 +162,19 @@ test.describe("Comments Moderation", () => {
 		await expect(page.locator("text=Second seeded comment").first()).toBeVisible();
 	});
 
-	test("approve a pending comment", async ({ admin, page, serverInfo }) => {
+	test("approve a pending comment", async ({
+		admin,
+		page,
+		request: anonymousRequest,
+		serverInfo,
+	}) => {
 		const postId = serverInfo.contentIds.posts[0]!;
 
 		// Clean slate
 		await cleanupComments(page, serverInfo.baseUrl, serverInfo.token);
 
 		// Seed a comment
-		await seedComment(page, serverInfo.baseUrl, serverInfo.token, postId, {
+		await seedComment(anonymousRequest, serverInfo.baseUrl, postId, {
 			body: "Comment to approve",
 			authorName: "Approval Tester",
 			authorEmail: "approve@test.com",
@@ -214,14 +230,19 @@ test.describe("Comments Moderation", () => {
 		});
 	});
 
-	test("delete a comment permanently", async ({ admin, page, serverInfo }) => {
+	test("delete a comment permanently", async ({
+		admin,
+		page,
+		request: anonymousRequest,
+		serverInfo,
+	}) => {
 		const postId = serverInfo.contentIds.posts[0]!;
 
 		// Clean slate
 		await cleanupComments(page, serverInfo.baseUrl, serverInfo.token);
 
 		// Seed a comment
-		await seedComment(page, serverInfo.baseUrl, serverInfo.token, postId, {
+		await seedComment(anonymousRequest, serverInfo.baseUrl, postId, {
 			body: "Comment to delete",
 			authorName: "Delete Tester",
 			authorEmail: "delete@test.com",
@@ -249,17 +270,18 @@ test.describe("Comments Moderation", () => {
 
 		expect(commentVisible).toBe(true);
 
-		// The admin user should see the "Delete permanently" button
+		// The admin user should see "Delete permanently" in the row's menu
 		const row = page.locator("tr", { hasText: "Delete Tester" });
-		const deleteBtn = row.locator('button[aria-label="Delete permanently"]');
+		await row.getByRole("button", { name: "Actions for comment by Delete Tester" }).click();
+		const menu = page.getByRole("menu");
+		await expect(menu).toBeVisible();
+		const deleteItem = menu.getByRole("menuitem", { name: "Delete permanently" });
 
-		const hasDeleteBtn = await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false);
+		const hasDeleteItem = await deleteItem.isVisible().catch(() => false);
 
-		if (!hasDeleteBtn) {
-			// Fallback: try the "Trash" button instead (non-admin role)
-			const trashBtn = row.locator('button[aria-label="Trash"]');
-			await expect(trashBtn).toBeVisible({ timeout: 3000 });
-			await trashBtn.click();
+		if (!hasDeleteItem) {
+			// Fallback: use "Trash" instead (non-admin role)
+			await menu.getByRole("menuitem", { name: "Trash" }).click();
 			await admin.waitForLoading();
 
 			// Comment should disappear from the current tab
@@ -268,7 +290,7 @@ test.describe("Comments Moderation", () => {
 		}
 
 		// Click "Delete permanently" -- this opens a ConfirmDialog
-		await deleteBtn.click();
+		await deleteItem.click();
 
 		// Confirm deletion in the dialog
 		const dialog = page.locator('[role="dialog"]');

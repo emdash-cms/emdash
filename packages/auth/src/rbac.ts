@@ -17,6 +17,9 @@ export const Permissions = {
 	// drafts.
 	"content:read_drafts": Role.CONTRIBUTOR,
 	"content:create": Role.CONTRIBUTOR,
+	// Lets an owner edit their entry while it is a draft. Published and scheduled
+	// entries need content:edit_own, since saving one can change what visitors see.
+	"content:edit_own_drafts": Role.CONTRIBUTOR,
 	"content:edit_own": Role.AUTHOR,
 	"content:edit_any": Role.EDITOR,
 	"content:delete_own": Role.AUTHOR,
@@ -85,6 +88,16 @@ export const Permissions = {
 
 	// Import
 	"import:execute": Role.ADMIN,
+
+	// Backups (full content export — admin-only, same tier as settings:manage)
+	"backups:manage": Role.ADMIN,
+
+	// Site transfer (whole-site export, and import into an empty site)
+	"transfer:export": Role.ADMIN,
+	"transfer:import": Role.ADMIN,
+
+	// Core update notice
+	"updates:read": Role.ADMIN,
 
 	// Search
 	"search:read": Role.SUBSCRIBER,
@@ -185,7 +198,7 @@ export class PermissionError extends Error {
  * (RBAC roles and API token scopes). When issuing a token, the granted
  * scopes must be intersected with the scopes allowed by the user's role.
  */
-const SCOPE_MIN_ROLE: Record<ApiTokenScope, RoleLevel> = {
+const SCOPE_MIN_ROLE: Record<Exclude<ApiTokenScope, `mcp:tools:${string}`>, RoleLevel> = {
 	"content:read": Role.SUBSCRIBER,
 	"content:write": Role.CONTRIBUTOR,
 	"media:read": Role.SUBSCRIBER,
@@ -196,6 +209,10 @@ const SCOPE_MIN_ROLE: Record<ApiTokenScope, RoleLevel> = {
 	"menus:manage": Role.EDITOR,
 	"settings:read": Role.EDITOR,
 	"settings:manage": Role.ADMIN,
+	"mcp:tools": Role.ADMIN,
+	"transfer:export": Role.ADMIN,
+	"transfer:analyze": Role.ADMIN,
+	"transfer:execute": Role.ADMIN,
 	admin: Role.ADMIN,
 };
 
@@ -223,5 +240,7 @@ export function scopesForRole(role: RoleLevel): ApiTokenScope[] {
  */
 export function clampScopes(requested: string[], role: RoleLevel): string[] {
 	const allowed = new Set<string>(scopesForRole(role));
-	return requested.filter((s) => allowed.has(s));
+	return requested.filter(
+		(scope) => allowed.has(scope) || (scope.startsWith("mcp:tools:") && role >= Role.SUBSCRIBER),
+	);
 }

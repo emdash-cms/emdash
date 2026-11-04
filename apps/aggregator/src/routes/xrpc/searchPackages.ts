@@ -14,28 +14,50 @@
  * writing), and the optimiser short-circuits the NOT EXISTS subquery
  * cheaply when no rows match. See plan §Search.
  *
- * `q` is passed directly to FTS5 MATCH. Special characters in user input
- * are escaped via `quoteFtsQuery` so a stray `"`/`*`/`(` doesn't blow up
- * the FTS parser. Empty query returns all packages (paginated, ordered by
- * last_updated DESC) — the lexicon's documented behaviour.
+ * A query that is exactly a handle, DID, or either identity plus `/slug`
+ * resolves the publisher first and queries by stable DID. A bare handle or
+ * DID that matches no publisher's packages falls back to FTS5, since dotted
+ * terms like `standard.site` are also ordinary search text. Other queries use
+ * FTS5 with defensive quoting. Empty queries return all visible packages.
  */
 
+import { isDid, isHandle } from "@atcute/lexicons/syntax";
 import { InvalidRequestError, json } from "@atcute/xrpc-server";
-import {
-	type AggregatorDefs,
-	NSID,
-	type AggregatorSearchPackages,
-} from "@emdash-cms/registry-lexicons";
+import { type AggregatorDefs, type AggregatorSearchPackages } from "@emdash-cms/registry-lexicons";
 
+import { createProductionDidResolver, upsertPublisherHandle } from "../../did-resolver.js";
+import {
+	ACTIVE_PROJECTION_JOINS_SQL,
+	ACTIVE_PROJECTION_POLICY_SQL,
+	ACTIVE_PROFILE_REDACTION_SQL,
+	ACTIVE_PROFILE_SQL,
+	ACTIVE_PUBLIC_PACKAGE_SQL,
+	ALLOWLIST_PROFILE_SQL,
+	activeProjectionPolicyBindings,
+	activePublicSubjectBindings,
+	getListingPolicy,
+	type ListingPolicyConfig,
+} from "../../listing-policy.js";
 import { decodeOffsetCursor, encodeOffsetCursor, InvalidCursorError } from "./cursor.js";
 import { type PackageRow, packageColumns, packageView } from "./views.js";
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
+const PACKAGE_SLUG_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/i;
+const LEADING_AT_PATTERN = /^@/;
+
+export interface SearchPackagesDeps {
+	resolvePublisher(identifier: string): Promise<{
+		did: `did:${string}:${string}`;
+		handle?: `${string}.${string}`;
+		identityCacheHit?: boolean;
+	}>;
+}
 
 export async function searchPackages(
 	env: Env,
 	params: AggregatorSearchPackages.$params,
+	deps: SearchPackagesDeps = productionSearchDeps(env),
 ): Promise<Response> {
 	const limit = clampLimit(params.limit);
 	let offset: number;
@@ -48,18 +70,57 @@ export async function searchPackages(
 		throw err;
 	}
 	const session = env.DB.withSession("first-primary");
+	const policy = await getListingPolicy(env);
 
 	const hasQuery = typeof params.q === "string" && params.q.trim().length > 0;
 	const hasCapability = typeof params.capability === "string" && params.capability.length > 0;
+	const publisherQuery = hasQuery ? parsePublisherQuery(params.q!) : null;
 
-	let rows: PackageRow[];
-	if (hasQuery) {
+	let rows: PackageRow[] = [];
+	if (publisherQuery) {
+		let identity: Awaited<ReturnType<SearchPackagesDeps["resolvePublisher"]>> | undefined;
+		try {
+			identity = await deps.resolvePublisher(publisherQuery.identifier);
+		} catch {
+			if (isDid(publisherQuery.identifier)) identity = { did: publisherQuery.identifier };
+		}
+		if (identity) {
+			const result = await session
+				.prepare(buildPublisherSearchSql(policy, hasCapability, publisherQuery.slug !== undefined))
+				.bind(
+					...buildPublisherSearchBindings(
+						policy,
+						identity.did,
+						publisherQuery.slug,
+						policy.mode === "allowlist" ? policy.allowlistJson : undefined,
+						hasCapability ? params.capability : undefined,
+						limit + 1,
+						offset,
+					),
+				)
+				.all<PackageRow>();
+			rows = result.results ?? [];
+			if (rows.length > 0 && identity.handle) {
+				if (!identity.identityCacheHit) {
+					await upsertPublisherHandle(env.DB, identity.did, identity.handle);
+				}
+				for (const row of rows) row.handle = identity.handle;
+			}
+		}
+	}
+
+	// Bare handle-shaped queries are often ordinary search terms (`standard.site`, `node.js`),
+	// so they fall back to full-text search when no publisher's packages match. A `/slug`
+	// query names one exact package and gets no fallback.
+	if (hasQuery && rows.length === 0 && publisherQuery?.slug === undefined) {
 		const ftsQuery = quoteFtsQuery(params.q!);
 		const result = await session
-			.prepare(buildFtsSearchSql(hasCapability))
+			.prepare(buildFtsSearchSql(policy, hasCapability))
 			.bind(
 				...buildFtsBindings(
+					policy,
 					ftsQuery,
+					policy.mode === "allowlist" ? policy.allowlistJson : undefined,
 					hasCapability ? params.capability : undefined,
 					limit + 1,
 					offset,
@@ -67,13 +128,19 @@ export async function searchPackages(
 			)
 			.all<PackageRow>();
 		rows = result.results ?? [];
-	} else {
+	} else if (!hasQuery) {
 		// No query → ordered list of all packages, label-filtered. last_updated
 		// DESC keeps the "what's new" view sensible for an empty search box.
 		const result = await session
-			.prepare(buildBrowseSql(hasCapability))
+			.prepare(buildBrowseSql(policy, hasCapability))
 			.bind(
-				...buildBrowseBindings(hasCapability ? params.capability : undefined, limit + 1, offset),
+				...buildBrowseBindings(
+					policy,
+					policy.mode === "allowlist" ? policy.allowlistJson : undefined,
+					hasCapability ? params.capability : undefined,
+					limit + 1,
+					offset,
+				),
 			)
 			.all<PackageRow>();
 		rows = result.results ?? [];
@@ -92,13 +159,115 @@ export async function searchPackages(
 	return json(response);
 }
 
-function buildFtsSearchSql(hasCapability: boolean): string {
+function productionSearchDeps(env: Env): SearchPackagesDeps {
+	return {
+		async resolvePublisher(identifier) {
+			const identity = await createProductionDidResolver(env).resolveIdentifier(identifier);
+			if (!identity.handle || !isHandle(identity.handle)) {
+				throw new Error(`publisher has no verified handle`);
+			}
+			return {
+				did: identity.did,
+				...(identity.handle ? { handle: identity.handle } : {}),
+				...(identity.identityCacheHit ? { identityCacheHit: true } : {}),
+			};
+		},
+	};
+}
+
+function parsePublisherQuery(
+	raw: string,
+): { identifier: `did:${string}:${string}` | `${string}.${string}`; slug?: string } | null {
+	const normalized = raw.trim().replace(LEADING_AT_PATTERN, "");
+	const slash = normalized.indexOf("/");
+	const identifier = slash === -1 ? normalized : normalized.slice(0, slash);
+	const slug = slash === -1 ? undefined : normalized.slice(slash + 1);
+	if (!isHandle(identifier) && !isDid(identifier)) return null;
+	if (slug !== undefined && !PACKAGE_SLUG_PATTERN.test(slug)) return null;
+	return slug === undefined ? { identifier } : { identifier, slug };
+}
+
+function buildPublisherSearchSql(
+	policy: ListingPolicyConfig,
+	hasCapability: boolean,
+	hasSlug: boolean,
+): string {
+	if (policy.mode === "projection") {
+		return `
+			SELECT ${packageColumns("p.")}, p.labels_json
+			FROM public_projection_state projection_state
+			${ACTIVE_PROJECTION_JOINS_SQL}
+			JOIN public_packages p ON p.generation = projection_state.active_generation
+			WHERE projection_state.id = 1
+			AND ${ACTIVE_PROJECTION_POLICY_SQL}
+			AND ${ACTIVE_PUBLIC_PACKAGE_SQL}
+			AND p.did = ?
+			${hasSlug ? "AND p.slug = ?" : ""}
+			${hasCapability ? CAPABILITY_FILTER_SQL : ""}
+			ORDER BY p.last_updated IS NULL, p.last_updated DESC, p.slug ASC
+			LIMIT ? OFFSET ?
+		`;
+	}
+	return `
+		SELECT ${packageColumns("p.")}
+		FROM packages p
+		WHERE p.did = ?
+		AND p.installability_status = 'valid'
+		${hasSlug ? "AND p.slug = ?" : ""}
+		AND ${ACTIVE_PROFILE_SQL}
+		${policy.mode === "allowlist" ? `AND ${ALLOWLIST_PROFILE_SQL}` : ""}
+		AND ${ACTIVE_PROFILE_REDACTION_SQL}
+		${hasCapability ? CAPABILITY_FILTER_SQL : ""}
+		ORDER BY p.last_updated IS NULL, p.last_updated DESC, p.slug ASC
+		LIMIT ? OFFSET ?
+	`;
+}
+
+function buildPublisherSearchBindings(
+	policy: ListingPolicyConfig,
+	did: string,
+	slug: string | undefined,
+	allowlistJson: string | undefined,
+	capability: string | undefined,
+	limit: number,
+	offset: number,
+): unknown[] {
+	const out: unknown[] = [];
+	if (policy.mode === "projection") out.push(...activeProjectionPolicyBindings(policy));
+	if (policy.mode === "projection") out.push(...activePublicSubjectBindings(policy));
+	out.push(did);
+	if (slug !== undefined) out.push(slug);
+	if (allowlistJson !== undefined) out.push(allowlistJson);
+	if (capability !== undefined) out.push(capability);
+	out.push(limit, offset);
+	return out;
+}
+
+function buildFtsSearchSql(policy: ListingPolicyConfig, hasCapability: boolean): string {
+	if (policy.mode === "projection") {
+		return `
+			SELECT ${packageColumns("p.")}, p.labels_json
+			FROM public_projection_state projection_state
+			${ACTIVE_PROJECTION_JOINS_SQL}
+			JOIN public_packages p ON p.generation = projection_state.active_generation
+			JOIN public_packages_fts ON p.rowid = public_packages_fts.rowid
+			WHERE projection_state.id = 1
+			AND ${ACTIVE_PROJECTION_POLICY_SQL}
+			AND ${ACTIVE_PUBLIC_PACKAGE_SQL}
+			AND public_packages_fts MATCH ?
+			${hasCapability ? CAPABILITY_FILTER_SQL : ""}
+			ORDER BY bm25(public_packages_fts), p.last_updated DESC, p.did ASC, p.slug ASC
+			LIMIT ? OFFSET ?
+		`;
+	}
 	return `
 		SELECT ${packageColumns("p.")}
 		FROM packages_fts
 		JOIN packages p ON p.rowid = packages_fts.rowid
 		WHERE packages_fts MATCH ?
-		${ENFORCEMENT_FILTER_SQL}
+		AND ${ACTIVE_PROFILE_SQL}
+		${policy.mode === "allowlist" ? `AND ${ALLOWLIST_PROFILE_SQL}` : ""}
+		AND ${ACTIVE_PROFILE_REDACTION_SQL}
 		${hasCapability ? CAPABILITY_FILTER_SQL : ""}
 		ORDER BY bm25(packages_fts), p.last_updated DESC, p.did ASC, p.slug ASC
 		LIMIT ? OFFSET ?
@@ -106,28 +275,50 @@ function buildFtsSearchSql(hasCapability: boolean): string {
 }
 
 function buildFtsBindings(
+	policy: ListingPolicyConfig,
 	ftsQuery: string,
+	allowlistJson: string | undefined,
 	capability: string | undefined,
 	limit: number,
 	offset: number,
 ): unknown[] {
-	const out: unknown[] = [ftsQuery];
+	const out: unknown[] = [];
+	if (policy.mode === "projection") out.push(...activeProjectionPolicyBindings(policy));
+	if (policy.mode === "projection") out.push(...activePublicSubjectBindings(policy));
+	out.push(ftsQuery);
+	if (allowlistJson !== undefined) out.push(allowlistJson);
 	if (capability !== undefined) out.push(capability);
 	out.push(limit, offset);
 	return out;
 }
 
-function buildBrowseSql(hasCapability: boolean): string {
+function buildBrowseSql(policy: ListingPolicyConfig, hasCapability: boolean): string {
 	// Stable tiebreakers (did, slug) so offset pagination doesn't shuffle
 	// rows across pages when many packages share `last_updated` (or it's
 	// NULL — `last_updated` comes from the optional record.lastUpdated
 	// field). NULLS LAST keeps NULL `last_updated` rows out of the way
 	// of the freshness sort but still reachable via pagination.
+	if (policy.mode === "projection") {
+		return `
+			SELECT ${packageColumns("p.")}, p.labels_json
+			FROM public_projection_state projection_state
+			${ACTIVE_PROJECTION_JOINS_SQL}
+			JOIN public_packages p ON p.generation = projection_state.active_generation
+			WHERE projection_state.id = 1
+			AND ${ACTIVE_PROJECTION_POLICY_SQL}
+			AND ${ACTIVE_PUBLIC_PACKAGE_SQL}
+			${hasCapability ? CAPABILITY_FILTER_SQL : ""}
+			ORDER BY p.last_updated IS NULL, p.last_updated DESC, p.did ASC, p.slug ASC
+			LIMIT ? OFFSET ?
+		`;
+	}
 	return `
 		SELECT ${packageColumns("p.")}
 		FROM packages p
-		WHERE 1=1
-		${ENFORCEMENT_FILTER_SQL}
+		WHERE p.installability_status = 'valid'
+		AND ${ACTIVE_PROFILE_SQL}
+		${policy.mode === "allowlist" ? `AND ${ALLOWLIST_PROFILE_SQL}` : ""}
+		AND ${ACTIVE_PROFILE_REDACTION_SQL}
 		${hasCapability ? CAPABILITY_FILTER_SQL : ""}
 		ORDER BY p.last_updated IS NULL, p.last_updated DESC, p.did ASC, p.slug ASC
 		LIMIT ? OFFSET ?
@@ -135,31 +326,20 @@ function buildBrowseSql(hasCapability: boolean): string {
 }
 
 function buildBrowseBindings(
+	policy: ListingPolicyConfig,
+	allowlistJson: string | undefined,
 	capability: string | undefined,
 	limit: number,
 	offset: number,
 ): unknown[] {
 	const out: unknown[] = [];
+	if (policy.mode === "projection") out.push(...activeProjectionPolicyBindings(policy));
+	if (policy.mode === "projection") out.push(...activePublicSubjectBindings(policy));
+	if (allowlistJson !== undefined) out.push(allowlistJson);
 	if (capability !== undefined) out.push(capability);
 	out.push(limit, offset);
 	return out;
 }
-
-/** Hard-enforcement label filter. The Slice 2 labeller writes to
- * `label_state`; until then the table is empty so this clause is a no-op
- * (the NOT EXISTS short-circuits). The plan calls for shipping the filter
- * now to lock the contract — adding it later would be a behaviour change
- * for cached clients. */
-const ENFORCEMENT_FILTER_SQL = `
-	AND NOT EXISTS (
-		SELECT 1 FROM label_state ls
-		WHERE ls.uri = 'at://' || p.did || '/${NSID.packageProfile}/' || p.slug
-		  AND ls.val IN ('!takedown', 'security:yanked')
-		  AND ls.trusted = 1
-		  AND ls.neg = 0
-		  AND (ls.exp IS NULL OR ls.exp > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-	)
-`;
 
 const CAPABILITY_FILTER_SQL = `
 	AND p.capabilities IS NOT NULL
@@ -167,15 +347,21 @@ const CAPABILITY_FILTER_SQL = `
 `;
 
 /** Quote a user-supplied search string for FTS5 MATCH. FTS5 treats `"`,
- * `*`, `(`, `)`, `.`, `:`, `^`, `+`, `-` as syntax. The simplest robust
- * escape is to wrap the whole query as a single phrase string and double
- * any embedded quotes. This loses prefix-search functionality
- * (`"foo*"` is treated literally) but is safe and sufficient for v1; if
- * advanced query syntax becomes a product feature we'll layer a parsed
- * mode on top. */
+ * `*`, `(`, `)`, `.`, `:`, `^`, `+`, `-` as syntax, so each whitespace-separated
+ * term becomes its own quoted phrase with embedded quotes doubled, and user
+ * input can never form an operator. The last term gets a `*` so a partly typed
+ * word still matches (`newslet` finds `newsletter`). Terms with no letters or
+ * digits are dropped: the tokenizer would turn them into empty phrases. */
 const FTS_QUOTE_RE = /"/g;
+const WHITESPACE_RE = /\s+/;
+const WORD_CHAR_RE = /[\p{L}\p{N}]/u;
 function quoteFtsQuery(raw: string): string {
-	return `"${raw.replace(FTS_QUOTE_RE, '""')}"`;
+	const terms = raw
+		.split(WHITESPACE_RE)
+		.filter((term) => WORD_CHAR_RE.test(term))
+		.map((term) => `"${term.replace(FTS_QUOTE_RE, '""')}"`);
+	if (terms.length === 0) return '""';
+	return `${terms.join(" ")}*`;
 }
 
 function clampLimit(raw: number | undefined): number {

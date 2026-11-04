@@ -7,9 +7,10 @@
  * browser, the EmDash admin UI.
  *
  * No authentication is required for discovery: the aggregator is a public
- * read-only index. Hard-enforcement labels (`!takedown`, `security:yanked`) are
- * applied server-side based on the request's `atproto-accept-labelers` header,
- * which the aggregator client may set per-request.
+ * read-only index. The aggregator applies its required positive-label and
+ * hard-enforcement policy server-side. The client may send an
+ * `atproto-accept-labelers` declaration for policy and cache identity. The
+ * aggregator validates it but does not let it override the configured policy.
  */
 
 import { Client, ok, simpleFetchHandler } from "@atcute/client";
@@ -23,6 +24,22 @@ import {
 	PackageProfile,
 	PackageRelease,
 } from "@emdash-cms/registry-lexicons";
+
+import {
+	mapListingStatus,
+	registryLabelerPolicy,
+	type ListingStatusResult,
+	type RegistryLabelerPolicy,
+} from "../listing-policy.js";
+
+export {
+	registryLabelerPolicy,
+	registryLabelerPolicyKey,
+	type ApprovedListing,
+	type ListingStatusResult,
+	type RegistryLabelerPolicy,
+	type UnavailableListing,
+} from "../listing-policy.js";
 
 /**
  * A package view whose embedded signed `profile` record has been validated
@@ -42,7 +59,11 @@ export type ValidatedPackageView = Omit<AggregatorGetPackage.$output, "profile">
  * against the `com.emdashcms.experimental.package.release` lexicon. `release`
  * is `null` when the record does not conform.
  */
-export type ValidatedReleaseView = Omit<AggregatorGetLatestRelease.$output, "release"> & {
+export type ValidatedReleaseView = Omit<
+	AggregatorGetLatestRelease.$output,
+	"artifactCaches" | "release"
+> & {
+	artifactCaches: NonNullable<AggregatorGetLatestRelease.$output["artifactCaches"]>;
 	release: PackageRelease.Main | null;
 };
 
@@ -84,6 +105,14 @@ function validateRelease(raw: unknown): PackageRelease.Main | null {
 	return result.ok ? result.value : null;
 }
 
+function validateReleaseView(view: AggregatorGetLatestRelease.$output): ValidatedReleaseView {
+	return {
+		...view,
+		artifactCaches: view.artifactCaches ?? [],
+		release: validateRelease(view.release),
+	};
+}
+
 /**
  * Options for constructing a `DiscoveryClient`.
  */
@@ -99,19 +128,25 @@ export interface DiscoveryClientOptions {
 	aggregatorUrl: string;
 
 	/**
-	 * Optional comma-separated list of labeller DIDs to forward as the
-	 * `atproto-accept-labelers` request header. The aggregator uses this to
-	 * decide which labellers' hard-enforcement labels (`!takedown`, etc.) to
-	 * apply when filtering results.
+	 * Optional comma-separated list of bare labeller DIDs to forward as the
+	 * `atproto-accept-labelers` request header. The aggregator validates this
+	 * declaration and rejects unknown sources or a list that omits a required
+	 * source.
 	 *
-	 * Format follows the atproto convention: `did:plc:abc;redact, did:plc:def`
-	 * where the optional `;redact` flag asks for label content to be redacted.
-	 *
-	 * Defaults to no header, which means the aggregator applies whatever its
-	 * own default policy is (typically: filter on its own publisher-verification
-	 * labeller plus any operator-configured trusted labellers).
+	 * Defaults to no header, which means the aggregator applies its configured
+	 * policy. The value contributes to the client's stable cache identity;
+	 * it does not select label effects or override the aggregator's approval,
+	 * block, takedown, or withdrawal policy.
 	 */
 	acceptLabelers?: string;
+
+	/**
+	 * Explicit listing policy for official consumers. This is deliberately not
+	 * an on/off switch: public discovery is always the aggregator's approved
+	 * projection. The policy records which accepted-labeler header produced the
+	 * response and supplies a stable cache-key input to browser consumers.
+	 */
+	labelerPolicy?: RegistryLabelerPolicy;
 
 	/**
 	 * Optional custom `fetch` implementation. Defaults to globalThis.fetch.
@@ -154,11 +189,26 @@ export interface DiscoveryClientOptions {
 export class DiscoveryClient {
 	readonly aggregatorUrl: string;
 	readonly acceptLabelers: string | undefined;
+	readonly labelerPolicy: RegistryLabelerPolicy;
 	readonly #client: Client;
 
 	constructor(options: DiscoveryClientOptions) {
 		this.aggregatorUrl = options.aggregatorUrl;
-		this.acceptLabelers = options.acceptLabelers;
+		const configuredPolicy = registryLabelerPolicy(options.labelerPolicy?.acceptLabelers);
+		const legacyPolicy = registryLabelerPolicy(options.acceptLabelers);
+		if (
+			configuredPolicy.acceptLabelers !== undefined &&
+			legacyPolicy.acceptLabelers !== undefined &&
+			configuredPolicy.acceptLabelers !== legacyPolicy.acceptLabelers
+		) {
+			throw new TypeError(
+				"labelerPolicy.acceptLabelers must match acceptLabelers when both are set",
+			);
+		}
+		this.labelerPolicy = registryLabelerPolicy(
+			configuredPolicy.acceptLabelers ?? legacyPolicy.acceptLabelers,
+		);
+		this.acceptLabelers = this.labelerPolicy.acceptLabelers;
 
 		const baseHandler = simpleFetchHandler({
 			service: options.aggregatorUrl,
@@ -168,9 +218,9 @@ export class DiscoveryClient {
 		// Wrap the handler so every outgoing request carries the
 		// `atproto-accept-labelers` header when configured. We always
 		// *overwrite* any value the caller might have supplied: this is the
-		// aggregator's policy, not a per-request setting, and letting
-		// downstream code substitute its own labellers would defeat the
-		// point of the wrapper.
+		// client's policy identity, not a per-request setting. Allowing
+		// downstream code to substitute another value would make the request
+		// disagree with the client's cache identity.
 		const acceptLabelers = this.acceptLabelers;
 		const handler: typeof baseHandler = acceptLabelers
 			? async (pathname, init) => {
@@ -209,6 +259,13 @@ export class DiscoveryClient {
 		return { ...out, profile: validateProfile(out.profile) };
 	}
 
+	/** Fetch a package while mapping the safe ListingUnavailable XRPC error. */
+	getPackageStatus(
+		params: AggregatorGetPackage.$params,
+	): Promise<ListingStatusResult<ValidatedPackageView>> {
+		return mapListingStatus(this.getPackage(params));
+	}
+
 	/**
 	 * Resolve a package by publisher handle + slug (or DID + slug). Cheaper
 	 * than `getPackage` when you only have human-readable identifiers.
@@ -216,6 +273,13 @@ export class DiscoveryClient {
 	async resolvePackage(params: AggregatorResolvePackage.$params): Promise<ValidatedPackageView> {
 		const out = await ok(this.#client.call(AggregatorResolvePackage, { params }));
 		return { ...out, profile: validateProfile(out.profile) };
+	}
+
+	/** Resolve a package while discarding all remote error text for unavailable listings. */
+	resolvePackageStatus(
+		params: AggregatorResolvePackage.$params,
+	): Promise<ListingStatusResult<ValidatedPackageView>> {
+		return mapListingStatus(this.resolvePackage(params));
 	}
 
 	/**
@@ -228,7 +292,7 @@ export class DiscoveryClient {
 		const out = await ok(this.#client.call(AggregatorListReleases, { params }));
 		return {
 			...out,
-			releases: out.releases.map((r) => ({ ...r, release: validateRelease(r.release) })),
+			releases: out.releases.map(validateReleaseView),
 		};
 	}
 
@@ -242,6 +306,6 @@ export class DiscoveryClient {
 		params: AggregatorGetLatestRelease.$params,
 	): Promise<ValidatedReleaseView> {
 		const out = await ok(this.#client.call(AggregatorGetLatestRelease, { params }));
-		return { ...out, release: validateRelease(out.release) };
+		return validateReleaseView(out);
 	}
 }

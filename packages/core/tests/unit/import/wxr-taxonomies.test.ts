@@ -6,12 +6,13 @@
  * never wrote anything to `taxonomies` or `content_taxonomies`.
  */
 
-import type { Kysely } from "kysely";
+import type { Kysely, KyselyPlugin } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { WxrCategory, WxrPost, WxrTag, WxrTerm } from "../../../src/cli/wxr/parser.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import {
 	attachPostTaxonomies,
 	preImportWxrTaxonomies,
@@ -37,6 +38,29 @@ function makePost(overrides: Partial<WxrPost> = {}): WxrPost {
 	};
 }
 
+function createAssignmentReadCountingPlugin(): {
+	plugin: KyselyPlugin;
+	counter: { count: number };
+} {
+	const counter = { count: 0 };
+	const plugin: KyselyPlugin = {
+		transformQuery(args) {
+			if (
+				args.node.kind === "SelectQueryNode" &&
+				JSON.stringify(args.node).includes("content_taxonomies") &&
+				JSON.stringify(args.node).includes("taxonomies")
+			) {
+				counter.count += 1;
+			}
+			return args.node;
+		},
+		transformResult(args) {
+			return Promise.resolve(args.result);
+		},
+	};
+	return { plugin, counter };
+}
+
 /**
  * Create the `posts` collection (plural) so the seeded `category` / `tag`
  * taxonomy defs (which list `["posts"]` in their `collections` array) match.
@@ -57,7 +81,7 @@ async function createPostsCollectionWithEntry(
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- ec_* tables aren't typed in Database
 		.insertInto("ec_posts" as never)
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- dynamic content table shape
-		.values({ id, slug, status: "published" } as never)
+		.values({ id, slug, status: "published", translation_group: id } as never)
 		.execute();
 	return id;
 }
@@ -70,6 +94,7 @@ describe("preImportWxrTaxonomies", () => {
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		await teardownTestDatabase(db);
 	});
 
@@ -138,6 +163,36 @@ describe("preImportWxrTaxonomies", () => {
 			.where("name", "=", "category")
 			.execute();
 		expect(rows).toHaveLength(1);
+	});
+
+	it("reuses a legacy locale code when importing a configured locale path", async () => {
+		setI18nConfig({
+			defaultLocale: "en",
+			locales: ["en"],
+			localeAliases: { "en-US": "en" },
+		});
+		const repo = new TaxonomyRepository(db);
+		await repo.create({
+			name: "category",
+			slug: "patents",
+			label: "Patents",
+			locale: "en-US",
+		});
+
+		const plan = await preImportWxrTaxonomies(
+			db,
+			[],
+			[{ id: 5, nicename: "patents", name: "Patents" }],
+			[],
+			[],
+			"en",
+		);
+
+		expect(plan.termsCreated.category).toBeUndefined();
+		expect(plan.termsReused.category).toBe(1);
+		expect(
+			await db.selectFrom("taxonomies").selectAll().where("slug", "=", "patents").execute(),
+		).toHaveLength(1);
 	});
 
 	it("backfills terms referenced only by per-item <category> assignments", async () => {
@@ -351,6 +406,29 @@ describe("attachPostTaxonomies", () => {
 			.where("entry_id", "=", entryId)
 			.execute();
 		expect(pivotRows).toHaveLength(1);
+	});
+
+	it("counts inserts without re-fetching all assignments for every term", async () => {
+		const entryId = await createPostsCollectionWithEntry(db);
+		const plan = await preImportWxrTaxonomies(
+			db,
+			[],
+			[
+				{ id: 5, nicename: "patents", name: "Patents" },
+				{ id: 6, nicename: "research", name: "Research" },
+				{ id: 7, nicename: "science", name: "Science" },
+			],
+			[],
+			[],
+			undefined,
+		);
+		const post = makePost({ categories: ["patents", "research", "science"] });
+		const { plugin, counter } = createAssignmentReadCountingPlugin();
+		const instrumentedDb = db.withPlugin(plugin);
+
+		expect(await attachPostTaxonomies(instrumentedDb, "posts", entryId, post, plan)).toBe(3);
+		expect(await attachPostTaxonomies(instrumentedDb, "posts", entryId, post, plan)).toBe(0);
+		expect(counter.count).toBe(0);
 	});
 
 	it("silently skips terms with no matching def (custom taxonomies)", async () => {

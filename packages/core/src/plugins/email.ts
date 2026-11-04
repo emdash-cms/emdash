@@ -134,6 +134,15 @@ export class EmailPipeline {
 		if (!message.to || typeof message.to !== "string") {
 			throw new Error("Invalid email message: 'to' is required and must be a string");
 		}
+		if (
+			message.cc !== undefined &&
+			(!Array.isArray(message.cc) || message.cc.some((address) => typeof address !== "string"))
+		) {
+			throw new Error("Invalid email message: 'cc' must be an array of strings");
+		}
+		if (message.replyTo !== undefined && typeof message.replyTo !== "string") {
+			throw new Error("Invalid email message: 'replyTo' must be a string");
+		}
 		if (!message.subject || typeof message.subject !== "string") {
 			throw new Error("Invalid email message: 'subject' is required and must be a string");
 		}
@@ -176,6 +185,13 @@ export class EmailPipeline {
 		}
 
 		if (deliverResult.error) {
+			// The caller (e.g. auth routes) often swallows delivery errors to avoid
+			// leaking whether an email address exists. Log here so the failure and
+			// the responsible provider are always visible in runtime logs.
+			console.error(
+				`[email:deliver] Provider "${deliverResult.pluginId}" failed to send email to "${finalMessage.to}":`,
+				deliverResult.error,
+			);
 			throw deliverResult.error;
 		}
 

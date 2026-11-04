@@ -46,33 +46,36 @@ export function createEditable(
 		...(options?.hasDraft && { hasDraft: true }),
 	};
 
-	return new Proxy({} as EditProxy, {
-		get(_, prop) {
-			if (prop === "toJSON") return () => ({ "data-emdash-ref": JSON.stringify(base) });
-			if (typeof prop === "symbol") return undefined;
+	return new Proxy(
+		{},
+		{
+			get(_, prop) {
+				if (prop === "toJSON") return () => ({ "data-emdash-ref": JSON.stringify(base) });
+				if (typeof prop === "symbol") return undefined;
 
-			// data-emdash-ref access returns the entry-level string
-			if (prop === "data-emdash-ref") return JSON.stringify(base);
+				// data-emdash-ref access returns the entry-level string
+				if (prop === "data-emdash-ref") return JSON.stringify(base);
 
-			// Field-level: return a FieldAnnotation for the specific field
-			return {
-				"data-emdash-ref": JSON.stringify({ ...base, field: String(prop) }),
-			} satisfies FieldAnnotation;
-		},
-		ownKeys() {
-			return ["data-emdash-ref"];
-		},
-		getOwnPropertyDescriptor(_, prop) {
-			if (prop === "data-emdash-ref") {
+				// Field-level: return a FieldAnnotation for the specific field
 				return {
-					configurable: true,
-					enumerable: true,
-					value: JSON.stringify(base),
-				};
-			}
-			return undefined;
+					"data-emdash-ref": JSON.stringify({ ...base, field: String(prop) }),
+				} satisfies FieldAnnotation;
+			},
+			ownKeys() {
+				return ["data-emdash-ref"];
+			},
+			getOwnPropertyDescriptor(_, prop) {
+				if (prop === "data-emdash-ref") {
+					return {
+						configurable: true,
+						enumerable: true,
+						value: JSON.stringify(base),
+					};
+				}
+				return undefined;
+			},
 		},
-	});
+	);
 }
 
 /**
@@ -80,19 +83,22 @@ export function createEditable(
  * Spreading this produces no attributes.
  */
 export function createNoop(): EditProxy {
-	return new Proxy({} as EditProxy, {
-		get(_, prop) {
-			if (typeof prop === "symbol") return undefined;
-			// All property access returns undefined in noop mode
-			return undefined;
+	return new Proxy(
+		{},
+		{
+			get(_, prop) {
+				if (typeof prop === "symbol") return undefined;
+				// All property access returns undefined in noop mode
+				return undefined;
+			},
+			ownKeys() {
+				return [];
+			},
+			getOwnPropertyDescriptor() {
+				return undefined;
+			},
 		},
-		ownKeys() {
-			return [];
-		},
-		getOwnPropertyDescriptor() {
-			return undefined;
-		},
-	});
+	);
 }
 
 /**

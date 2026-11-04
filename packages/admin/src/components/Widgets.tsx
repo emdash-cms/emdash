@@ -6,7 +6,15 @@
  * Widgets within an area can be reordered via drag-and-drop.
  */
 
-import { Button, Dialog, Input, Label, Select, Switch, Toast } from "@cloudflare/kumo";
+import {
+	Button,
+	Input,
+	Label,
+	LayerDialog,
+	Select,
+	Switch,
+	useKumoToastManager,
+} from "@cloudflare/kumo";
 import {
 	DndContext,
 	DragOverlay,
@@ -33,7 +41,6 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, DotsSixVertical, Trash, CaretDown } from "@phosphor-icons/react";
-import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -51,13 +58,23 @@ import {
 	type WidgetArea,
 	type Widget,
 	type WidgetComponent,
+	type CreateWidgetAreaInput,
 	type CreateWidgetInput,
 	type UpdateWidgetInput,
 } from "../lib/api";
+import { ApiResponseError } from "../lib/api/client.js";
+import {
+	guardUnsavedInput,
+	revealErrors,
+	useSingleFlight,
+	useTakenValue,
+} from "../lib/dialog-form.js";
 import { getPluginBlocks } from "../lib/pluginBlocks";
 import { CaretNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
+import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
 import {
 	PortableTextEditor,
@@ -105,12 +122,101 @@ const BUILTIN_WIDGETS: Array<{
 	},
 ];
 
+/**
+ * Localized labels/descriptions for built-in core widget components. The server
+ * (packages/core/src/widgets/components.ts) ships these in English as stable
+ * data; the admin maps them to translated strings client-side, the same way
+ * error codes are localized. Plugin-provided components fall back to their
+ * server-provided strings.
+ */
+interface CoreWidgetMeta {
+	label: MessageDescriptor;
+	description: MessageDescriptor;
+	/** Prop-field labels keyed by prop key; `options` localizes select choices by option value. */
+	props?: Record<string, { label: MessageDescriptor; options?: Record<string, MessageDescriptor> }>;
+}
+
+const CORE_WIDGET_META: Record<string, CoreWidgetMeta> = {
+	"core:recent-posts": {
+		label: msg`Recent Posts`,
+		description: msg`Display a list of recent posts`,
+		props: {
+			count: { label: msg`Number of posts` },
+			showThumbnails: { label: msg`Show thumbnails` },
+			showDate: { label: msg`Show date` },
+			urlTemplate: { label: msg`URL template (e.g. /blog/:slug)` },
+		},
+	},
+	"core:categories": {
+		label: msg`Categories`,
+		description: msg`Display category list`,
+		props: {
+			showCount: { label: msg`Show post count` },
+			hierarchical: { label: msg`Show hierarchy` },
+		},
+	},
+	"core:tags": {
+		label: msg`Tags`,
+		description: msg`Display tag cloud`,
+		props: {
+			showCount: { label: msg`Show count` },
+			limit: { label: msg`Maximum tags` },
+		},
+	},
+	"core:search": {
+		label: msg`Search`,
+		description: msg`Search form`,
+		props: {
+			placeholder: { label: msg`Placeholder text` },
+		},
+	},
+	"core:archives": {
+		label: msg`Archives`,
+		description: msg`Monthly/yearly archives`,
+		props: {
+			type: {
+				label: msg`Group by`,
+				options: { monthly: msg`Monthly`, yearly: msg`Yearly` },
+			},
+			limit: { label: msg`Limit` },
+		},
+	},
+};
+
+const WIDGET_AREA_NAME_PATTERN = /^[a-z0-9-]+$/;
+
+type CreateAreaField = "name" | "label";
+
+function createAreaProblems(
+	name: string,
+	label: string,
+): Partial<Record<CreateAreaField, MessageDescriptor>> {
+	const problems: Partial<Record<CreateAreaField, MessageDescriptor>> = {};
+	const trimmedName = name.trim();
+	if (!trimmedName) problems.name = msg`Enter a name.`;
+	else if (!WIDGET_AREA_NAME_PATTERN.test(trimmedName)) {
+		problems.name = msg`Use lowercase letters, numbers, and hyphens.`;
+	}
+	if (!label.trim()) problems.label = msg`Enter a label.`;
+	return problems;
+}
+
+function isConflict(error: unknown): boolean {
+	return error instanceof ApiResponseError && error.code === "CONFLICT";
+}
+
 export function Widgets() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [isCreateAreaOpen, setIsCreateAreaOpen] = React.useState(false);
-	const [createAreaError, setCreateAreaError] = React.useState<string | null>(null);
+	const createAreaFormId = React.useId();
+	const createAreaFormRef = React.useRef<HTMLFormElement>(null);
+	const [newAreaName, setNewAreaName] = React.useState("");
+	const [newAreaLabel, setNewAreaLabel] = React.useState("");
+	const [newAreaDescription, setNewAreaDescription] = React.useState("");
+	const [createAreaSubmitted, setCreateAreaSubmitted] = React.useState(false);
+	const takenAreaName = useTakenValue(newAreaName.trim());
 	const [activeId, setActiveId] = React.useState<string | null>(null);
 	const [activeDragData, setActiveDragData] = React.useState<DragItemData | null>(null);
 	const [expandedWidgets, setExpandedWidgets] = React.useState<Set<string>>(new Set());
@@ -157,10 +263,17 @@ export function Widgets() {
 			setIsCreateAreaOpen(false);
 			toastManager.add({ title: t`Widget area created` });
 		},
-		onError: (error: Error) => {
-			setCreateAreaError(error.message);
+		onError: (error, input) => {
+			if (!isConflict(error) || !takenAreaName.stillHolds(input.name)) return;
+			revealErrors(createAreaFormRef.current, () => {
+				setCreateAreaSubmitted(true);
+				takenAreaName.take(input.name, error);
+			});
 		},
 	});
+	const submitCreateArea = useSingleFlight((input: CreateWidgetAreaInput) =>
+		createAreaMutation.mutateAsync(input),
+	);
 
 	const createWidgetMutation = useMutation({
 		mutationFn: ({ areaName, input }: { areaName: string; input: CreateWidgetInput }) =>
@@ -173,22 +286,39 @@ export function Widgets() {
 			toastManager.add({
 				title: t`Error adding widget`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
 
+	const handleCreateAreaOpenChange = (open: boolean) => {
+		setIsCreateAreaOpen(open);
+		if (!open) return;
+		setNewAreaName("");
+		setNewAreaLabel("");
+		setNewAreaDescription("");
+		setCreateAreaSubmitted(false);
+		takenAreaName.reset();
+		createAreaMutation.reset();
+	};
+
+	const areaProblems = createAreaProblems(newAreaName, newAreaLabel);
+	if (takenAreaName.isTaken) {
+		areaProblems.name = msg`Another widget area already uses this name. Enter a different one.`;
+	}
+	const areaErrors = createAreaSubmitted ? areaProblems : {};
+
 	const handleCreateArea = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		setCreateAreaError(null);
-		const formData = new FormData(e.currentTarget);
-		const nameVal = formData.get("name");
-		const labelVal = formData.get("label");
-		const descVal = formData.get("description");
-		createAreaMutation.mutate({
-			name: typeof nameVal === "string" ? nameVal : "",
-			label: typeof labelVal === "string" ? labelVal : "",
-			description: typeof descVal === "string" ? descVal : "",
+		if (createAreaMutation.isPending) return;
+		if (Object.keys(areaProblems).length > 0) {
+			revealErrors(e.currentTarget, () => setCreateAreaSubmitted(true));
+			return;
+		}
+		submitCreateArea({
+			name: newAreaName.trim(),
+			label: newAreaLabel.trim(),
+			description: newAreaDescription,
 		});
 	};
 
@@ -234,7 +364,7 @@ export function Widgets() {
 			toastManager.add({
 				title: t`Error reordering widgets`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -313,174 +443,201 @@ export function Widgets() {
 	}
 
 	return (
-		<DndContext
-			sensors={sensors}
-			collisionDetection={collisionDetection}
-			onDragStart={handleDragStart}
-			onDragEnd={handleDragEnd}
-		>
-			<div className="space-y-6">
-				<div className="flex items-center justify-between">
-					<div>
-						<h1 className="text-3xl font-bold">{t`Widgets`}</h1>
-						<p className="text-kumo-subtle">{t`Manage content widgets in your widget areas`}</p>
-					</div>
-					<Dialog.Root
-						open={isCreateAreaOpen}
-						onOpenChange={(open) => {
-							setIsCreateAreaOpen(open);
-							if (!open) setCreateAreaError(null);
-						}}
-					>
-						<Dialog.Trigger
-							render={(props) => (
-								<Button {...props} icon={<Plus />}>
-									{t`Add Widget Area`}
-								</Button>
+		<>
+			<DndContext
+				sensors={sensors}
+				collisionDetection={collisionDetection}
+				onDragStart={handleDragStart}
+				onDragEnd={handleDragEnd}
+			>
+				<div className="space-y-6">
+					<div className="flex items-center justify-between">
+						<div>
+							<h1 className="text-2xl font-semibold leading-tight">{t`Widgets`}</h1>
+							<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+								{t`Manage content widgets in your widget areas`}
+							</p>
+						</div>
+						<LayerDialog.Root
+							open={isCreateAreaOpen}
+							{...guardUnsavedInput(
+								newAreaName !== "" || newAreaLabel !== "" || newAreaDescription !== "",
+								handleCreateAreaOpenChange,
 							)}
-						/>
-						<Dialog className="p-6" size="lg">
-							<div className="flex items-start justify-between gap-4 mb-4">
-								<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-									{t`Create Widget Area`}
-								</Dialog.Title>
-								<Dialog.Close
-									aria-label={t`Close`}
-									render={(props) => (
-										<Button
-											{...props}
-											variant="ghost"
-											shape="square"
-											aria-label={t`Close`}
-											className="absolute end-4 top-4"
-										>
-											<X className="h-4 w-4" />
-											<span className="sr-only">{t`Close`}</span>
-										</Button>
-									)}
-								/>
-							</div>
-							<form onSubmit={handleCreateArea} className="space-y-4">
-								<Input
-									label={t`Name`}
-									name="name"
-									required
-									placeholder="sidebar"
-									pattern="[a-z0-9\-]+"
-								/>
-								<Input label={t`Label`} name="label" required placeholder={t`Main Sidebar`} />
-								<Input
-									label={t`Description`}
-									name="description"
-									placeholder={t`Appears on posts and pages`}
-								/>
-								<DialogError
-									message={createAreaError || getMutationError(createAreaMutation.error)}
-								/>
-								<div className="flex justify-end gap-2">
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => setIsCreateAreaOpen(false)}
+							dismissDisabled={createAreaMutation.isPending}
+						>
+							<LayerDialog.Trigger
+								render={(props) => (
+									<Button {...props} icon={<Plus />}>
+										{t`Add Widget Area`}
+									</Button>
+								)}
+							/>
+							<LayerDialog.Content>
+								<LayerDialog.Title>{t`Create Widget Area`}</LayerDialog.Title>
+								<LayerDialog.Description>
+									{t`A widget area is a place in your theme, such as a sidebar, that holds widgets.`}
+								</LayerDialog.Description>
+								<LayerDialog.Body>
+									<form
+										ref={createAreaFormRef}
+										id={createAreaFormId}
+										noValidate
+										onSubmit={handleCreateArea}
+										className="grid gap-5"
 									>
-										{t`Cancel`}
-									</Button>
-									<Button type="submit" disabled={createAreaMutation.isPending}>
-										{t`Create`}
-									</Button>
+										<Input
+											dir="ltr"
+											label={t`Name`}
+											name="name"
+											required
+											placeholder="sidebar"
+											value={newAreaName}
+											onChange={(e) => setNewAreaName(e.target.value)}
+											error={areaErrors.name && t(areaErrors.name)}
+											aria-invalid={areaErrors.name ? true : undefined}
+										/>
+										<Input
+											label={t`Label`}
+											name="label"
+											required
+											placeholder={t`Main Sidebar`}
+											value={newAreaLabel}
+											onChange={(e) => setNewAreaLabel(e.target.value)}
+											error={areaErrors.label && t(areaErrors.label)}
+											aria-invalid={areaErrors.label ? true : undefined}
+										/>
+										<Input
+											label={t`Description`}
+											name="description"
+											placeholder={t`Appears on posts and pages`}
+											value={newAreaDescription}
+											onChange={(e) => setNewAreaDescription(e.target.value)}
+										/>
+										<DialogError
+											message={getMutationError(
+												takenAreaName.unlessTaken(createAreaMutation.error),
+											)}
+										/>
+									</form>
+								</LayerDialog.Body>
+								<LayerDialog.Actions dismissLabel={t`Cancel`}>
+									<LayerDialog.Action
+										type="submit"
+										form={createAreaFormId}
+										disabled={createAreaMutation.isPending}
+									>
+										{createAreaMutation.isPending ? t`Creating...` : t`Create`}
+									</LayerDialog.Action>
+								</LayerDialog.Actions>
+							</LayerDialog.Content>
+						</LayerDialog.Root>
+					</div>
+
+					<div className="overflow-x-auto">
+						<div className="min-w-[768px] grid grid-cols-12 gap-6">
+							{/* Available Widgets (draggable palette) */}
+							<div className="col-span-4">
+								<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
+									<h2 className="text-xl font-semibold">{t`Available Widgets`}</h2>
+									<p className="text-sm text-kumo-subtle">{t`Drag widgets into an area to add them`}</p>
+									<div className="space-y-2">
+										{BUILTIN_WIDGETS.map((item) => (
+											<DraggablePaletteItem
+												key={item.id}
+												id={item.id}
+												label={t(item.label)}
+												description={t(item.description)}
+												widgetInput={{ ...item.input, title: t(item.label) }}
+											/>
+										))}
+										{components.map((comp) => {
+											const meta = CORE_WIDGET_META[comp.id];
+											const label = meta ? t(meta.label) : comp.label;
+											const description = meta ? t(meta.description) : comp.description;
+											return (
+												<DraggablePaletteItem
+													key={`palette-comp-${comp.id}`}
+													id={`palette-comp-${comp.id}`}
+													label={label}
+													description={description}
+													widgetInput={{
+														type: "component",
+														title: label,
+														componentId: comp.id,
+													}}
+												/>
+											);
+										})}
+									</div>
 								</div>
-							</form>
-						</Dialog>
-					</Dialog.Root>
-				</div>
+							</div>
 
-				<div className="grid grid-cols-12 gap-6">
-					{/* Available Widgets (draggable palette) */}
-					<div className="col-span-4">
-						<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
-							<h2 className="text-xl font-semibold">{t`Available Widgets`}</h2>
-							<p className="text-sm text-kumo-subtle">{t`Drag widgets into an area to add them`}</p>
-							<div className="space-y-2">
-								{BUILTIN_WIDGETS.map((item) => (
-									<DraggablePaletteItem
-										key={item.id}
-										id={item.id}
-										label={t(item.label)}
-										description={t(item.description)}
-										widgetInput={{ ...item.input, title: t(item.label) }}
-									/>
-								))}
-								{components.map((comp) => (
-									<DraggablePaletteItem
-										key={`palette-comp-${comp.id}`}
-										id={`palette-comp-${comp.id}`}
-										label={comp.label}
-										description={comp.description}
-										widgetInput={{
-											type: "component",
-											title: comp.label,
-											componentId: comp.id,
-										}}
-									/>
-								))}
+							{/* Widget Areas (droppable + sortable) */}
+							<div className="col-span-8 space-y-4">
+								{areas.length === 0 ? (
+									<div className="rounded-lg border bg-kumo-base p-12 text-center">
+										<p className="text-kumo-subtle">{t`No widget areas yet. Create one to get started.`}</p>
+									</div>
+								) : (
+									areas.map((area) => (
+										<WidgetAreaPanel
+											key={area.id}
+											area={area}
+											expandedWidgets={expandedWidgets}
+											onToggleWidget={toggleWidget}
+											isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
+											components={components}
+											pluginBlocks={pluginBlocks}
+											onBlockSidebarOpen={handleBlockSidebarOpen}
+											onBlockSidebarClose={handleBlockSidebarClose}
+										/>
+									))
+								)}
 							</div>
 						</div>
 					</div>
-
-					{/* Widget Areas (droppable + sortable) */}
-					<div className="col-span-8 space-y-4">
-						{areas.length === 0 ? (
-							<div className="rounded-lg border bg-kumo-base p-12 text-center">
-								<p className="text-kumo-subtle">{t`No widget areas yet. Create one to get started.`}</p>
-							</div>
-						) : (
-							areas.map((area) => (
-								<WidgetAreaPanel
-									key={area.id}
-									area={area}
-									expandedWidgets={expandedWidgets}
-									onToggleWidget={toggleWidget}
-									isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
-									components={components}
-									pluginBlocks={pluginBlocks}
-									onBlockSidebarOpen={handleBlockSidebarOpen}
-									onBlockSidebarClose={handleBlockSidebarClose}
-								/>
-							))
-						)}
-					</div>
 				</div>
-			</div>
 
-			{/* Drag overlay — no drop animation for palette items (source stays in place).
+				{/* Drag overlay — no drop animation for palette items (source stays in place).
 			    Use ref because state is cleared in handleDragEnd before animation runs. */}
-			<DragOverlay dropAnimation={draggingFromPaletteRef.current ? null : undefined}>
-				{activePaletteLabel ? (
-					<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
-						<div className="font-medium">{activePaletteLabel}</div>
-					</div>
-				) : activeWidget ? (
-					<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
-						<div className="flex items-center gap-2">
-							<DotsSixVertical className="h-4 w-4 text-kumo-subtle" />
-							<span className="font-medium">{activeWidget.title || t`Untitled Widget`}</span>
-							<span className="text-xs text-kumo-subtle">({activeWidget.type})</span>
+				<DragOverlay dropAnimation={draggingFromPaletteRef.current ? null : undefined}>
+					{activePaletteLabel ? (
+						<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
+							<div className="font-medium">{activePaletteLabel}</div>
 						</div>
-					</div>
-				) : null}
-			</DragOverlay>
+					) : activeWidget ? (
+						<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
+							<div className="flex items-center gap-2">
+								<DotsSixVertical className="h-4 w-4 text-kumo-subtle" />
+								<span className="font-medium">{activeWidget.title || t`Untitled Widget`}</span>
+								<span className="text-xs text-kumo-subtle">({activeWidget.type})</span>
+							</div>
+						</div>
+					) : null}
+				</DragOverlay>
 
-			{/* A single block-sidebar panel for the whole page — ensures only one is ever
+				{/* A single block-sidebar panel for the whole page — ensures only one is ever
 			    open at a time, preventing stacked fixed overlays and duplicated window listeners. */}
-			{blockSidebarPanel?.type === "image" && (
-				<ImageDetailPanel
-					attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
-					onUpdate={(attrs) =>
-						blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
-					}
-					onReplace={(attrs) =>
-						blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
-					}
+				{blockSidebarPanel?.type === "image" && (
+					<ImageDetailPanel
+						attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+						onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
+						onReplace={(attrs) =>
+							blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
+						}
+						onDelete={() => {
+							blockSidebarPanel.onDelete();
+							setBlockSidebarPanel(null);
+						}}
+						onClose={handleBlockSidebarClose}
+					/>
+				)}
+			</DndContext>
+			{blockSidebarPanel?.type === "gallery" && (
+				<GalleryDetailPanel
+					attributes={blockSidebarPanel.attrs as unknown as GalleryAttributes}
+					onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
 					onDelete={() => {
 						blockSidebarPanel.onDelete();
 						setBlockSidebarPanel(null);
@@ -488,7 +645,7 @@ export function Widgets() {
 					onClose={handleBlockSidebarClose}
 				/>
 			)}
-		</DndContext>
+		</>
 	);
 }
 
@@ -549,7 +706,7 @@ function WidgetAreaPanel({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [deleteAreaName, setDeleteAreaName] = React.useState<string | null>(null);
 
 	// Make the area a droppable target for palette items
@@ -613,7 +770,7 @@ function WidgetAreaPanel({
 					<div
 						className={`text-center py-4 rounded border-2 border-dashed transition-colors ${
 							isOver
-								? "border-kumo-brand bg-kumo-brand/5 text-kumo-brand"
+								? "border-kumo-brand bg-kumo-brand/5 text-kumo-link"
 								: "border-kumo-subtle/30 text-kumo-subtle"
 						}`}
 					>
@@ -664,7 +821,8 @@ function WidgetItem({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
+	const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
 		id: widget.id,
 		data: {
@@ -682,14 +840,8 @@ function WidgetItem({
 		mutationFn: () => deleteWidget(areaName, widget.id),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["widget-areas"] });
+			setIsDeleteOpen(false);
 			toastManager.add({ title: t`Widget deleted` });
-		},
-		onError: (error: Error) => {
-			toastManager.add({
-				title: t`Error`,
-				description: error.message,
-				type: "error",
-			});
 		},
 	});
 
@@ -703,7 +855,7 @@ function WidgetItem({
 			toastManager.add({
 				title: t`Error updating widget`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -733,7 +885,7 @@ function WidgetItem({
 				<Button
 					variant="ghost"
 					size="sm"
-					onClick={() => deleteMutation.mutate()}
+					onClick={() => setIsDeleteOpen(true)}
 					aria-label={t`Delete ${widget.title ?? t`widget`}`}
 				>
 					<Trash className="h-4 w-4" />
@@ -751,6 +903,21 @@ function WidgetItem({
 					onBlockSidebarClose={onBlockSidebarClose}
 				/>
 			)}
+
+			<ConfirmDialog
+				open={isDeleteOpen}
+				onClose={() => {
+					setIsDeleteOpen(false);
+					deleteMutation.reset();
+				}}
+				title={t`Delete widget?`}
+				description={t`"${widget.title || t`Untitled Widget`}" will be removed from this widget area. This action cannot be undone.`}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
+				isPending={deleteMutation.isPending}
+				error={deleteMutation.error}
+				onConfirm={() => deleteMutation.mutate()}
+			/>
 		</div>
 	);
 }
@@ -819,7 +986,7 @@ function WidgetEditor({
 					<Label className="text-sm font-medium mb-2 block">{t`Content`}</Label>
 					<PortableTextEditor
 						value={content as Parameters<typeof PortableTextEditor>[0]["value"]}
-						onChange={(value) => setContent(value as unknown[])}
+						onChange={(value) => setContent(value)}
 						minimal
 						placeholder={t`Write widget content...`}
 						pluginBlocks={pluginBlocks}
@@ -866,20 +1033,29 @@ function WidgetEditor({
 								}
 							}
 						}}
-						items={Object.fromEntries(components.map((c) => [c.id, c.label]))}
+						items={Object.fromEntries(
+							components.map((c) => {
+								const meta = CORE_WIDGET_META[c.id];
+								return [c.id, meta ? t(meta.label) : c.label];
+							}),
+						)}
 					>
 						<Select.Option value="">{t`Select a component...`}</Select.Option>
-						{components.map((c) => (
-							<Select.Option key={c.id} value={c.id}>
-								{c.label}
-							</Select.Option>
-						))}
+						{components.map((c) => {
+							const meta = CORE_WIDGET_META[c.id];
+							return (
+								<Select.Option key={c.id} value={c.id}>
+									{meta ? t(meta.label) : c.label}
+								</Select.Option>
+							);
+						})}
 					</Select>
 
 					{selectedComponent &&
 						Object.entries(selectedComponent.props).map(([key, def]) => (
 							<ComponentPropField
 								key={key}
+								componentId={selectedComponent.id}
 								propKey={key}
 								def={def}
 								value={componentProps[key] ?? def.default ?? ""}
@@ -900,20 +1076,32 @@ function WidgetEditor({
 
 /** Renders a single prop field for a component widget based on PropDef type */
 function ComponentPropField({
+	componentId,
+	propKey,
 	def,
 	value,
 	onChange,
 }: {
+	componentId: string;
 	propKey: string;
 	def: WidgetComponent["props"][string];
 	value: unknown;
 	onChange: (value: unknown) => void;
 }) {
+	const { t } = useLingui();
+	// Localize built-in core widget prop labels/options; fall back to the
+	// server-provided string for plugin-registered components.
+	const propMeta = CORE_WIDGET_META[componentId]?.props?.[propKey];
+	const label = propMeta ? t(propMeta.label) : def.label;
+	const optionLabel = (optValue: string, fallback: string) => {
+		const descriptor = propMeta?.options?.[optValue];
+		return descriptor ? t(descriptor) : fallback;
+	};
 	switch (def.type) {
 		case "string":
 			return (
 				<Input
-					label={def.label}
+					label={label}
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}
 				/>
@@ -921,29 +1109,29 @@ function ComponentPropField({
 		case "number":
 			return (
 				<Input
-					label={def.label}
+					label={label}
 					type="number"
 					value={typeof value === "number" ? value : ""}
 					onChange={(e) => onChange(Number(e.target.value))}
 				/>
 			);
 		case "boolean":
-			return <Switch label={def.label} checked={Boolean(value)} onCheckedChange={onChange} />;
+			return <Switch label={label} checked={Boolean(value)} onCheckedChange={onChange} />;
 		case "select": {
 			const items: Record<string, string> = {};
 			for (const opt of def.options ?? []) {
-				items[opt.value] = opt.label;
+				items[opt.value] = optionLabel(opt.value, opt.label);
 			}
 			return (
 				<Select
-					label={def.label}
+					label={label}
 					value={typeof value === "string" ? value : ""}
 					onValueChange={(v) => onChange(v ?? "")}
 					items={items}
 				>
 					{def.options?.map((opt) => (
 						<Select.Option key={opt.value} value={opt.value}>
-							{opt.label}
+							{optionLabel(opt.value, opt.label)}
 						</Select.Option>
 					))}
 				</Select>
@@ -952,7 +1140,7 @@ function ComponentPropField({
 		default:
 			return (
 				<Input
-					label={def.label}
+					label={label}
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}
 				/>

@@ -1,15 +1,16 @@
 // @ts-check
 import cloudflare from "@astrojs/cloudflare";
+import { cacheCloudflare } from "@astrojs/cloudflare/cache";
 import react from "@astrojs/react";
 import {
 	d1,
 	r2,
 	access,
 	sandbox,
-	cloudflareCache,
 	cloudflareImages,
 	cloudflareStream,
 } from "@emdash-cms/cloudflare";
+import { aiSearch } from "@emdash-cms/plugin-ai-search";
 import { formsPlugin } from "@emdash-cms/plugin-forms";
 import webhookNotifier from "@emdash-cms/plugin-webhook-notifier";
 import { defineConfig, fontProviders } from "astro/config";
@@ -72,6 +73,12 @@ export default defineConfig({
 			plugins: [
 				// Test plugin that exercises all v2 APIs
 				formsPlugin(),
+				aiSearch({
+					// wrangler.jsonc `ai_search_namespaces` binding name.
+					binding: "AI_SEARCH",
+					// Instance the plugin creates and owns inside the namespace.
+					instance: "emdash-demo",
+				}),
 			],
 			// Sandboxed plugins (run in isolated workers)
 			sandboxed: [webhookNotifier],
@@ -81,8 +88,12 @@ export default defineConfig({
 			marketplace: "https://marketplace.emdashcms.com",
 		}),
 	],
+	// Preferred edge HTML cache: native Workers Caching via the Astro Cloudflare
+	// adapter. Pair with `"cache": { "enabled": true }` in wrangler.jsonc (the
+	// adapter also injects that when this provider is detected). Invalidation is
+	// `cache.purge()` from cloudflare:workers — no CF_ZONE_ID / API token.
 	cache: {
-		provider: cloudflareCache(),
+		provider: cacheCloudflare(),
 	},
 	routeRules: {
 		"/": {
@@ -98,7 +109,7 @@ export default defineConfig({
 		{
 			provider: fontProviders.google(),
 			name: "Inter",
-			cssVariable: "--font-sans",
+			cssVariable: "--font-body",
 			weights: [400, 500, 600, 700],
 			fallbacks: ["sans-serif"],
 		},

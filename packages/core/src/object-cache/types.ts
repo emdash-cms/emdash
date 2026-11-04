@@ -79,8 +79,9 @@ export interface ObjectCacheRuntimeConfig {
 	 * is only part of the cross-isolate staleness: a distributed backend adds its
 	 * own propagation delay (KV's edge cache is eventually consistent, up to
 	 * ~60s), so on KV the effective window is that propagation plus this value.
-	 * Only anonymous visitors are affected — preview and edit requests bypass the
-	 * cache.
+	 * Preview and edit requests bypass the cache. Renders that may fill Astro's
+	 * route cache also bypass it, preventing an older KV snapshot from being
+	 * stored as a fresh HTML response after a purge.
 	 *
 	 * Set to `0` to re-read the epoch on every query (strongest freshness, more
 	 * backend reads).

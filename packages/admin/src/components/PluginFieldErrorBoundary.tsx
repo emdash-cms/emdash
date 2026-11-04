@@ -30,7 +30,7 @@ export class PluginFieldErrorBoundary extends React.Component<Props, State> {
 		if (this.state.hasError) {
 			return (
 				<div className="rounded-md border border-kumo-danger/50 bg-kumo-danger/5 p-3">
-					<p className="text-sm font-medium text-kumo-danger">
+					<p className="text-base font-medium text-kumo-danger">
 						<Trans>Plugin widget error</Trans>
 					</p>
 					<p className="mt-1 text-xs text-kumo-subtle">
@@ -38,7 +38,7 @@ export class PluginFieldErrorBoundary extends React.Component<Props, State> {
 					</p>
 					<button
 						type="button"
-						className="mt-2 text-xs font-medium text-kumo-brand underline"
+						className="mt-2 text-xs font-medium text-kumo-link underline"
 						onClick={() => this.setState({ hasError: false, error: undefined })}
 					>
 						<Trans>Retry</Trans>

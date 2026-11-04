@@ -28,6 +28,20 @@ export const TOKEN_PREFIXES = {
 // Scopes
 // ---------------------------------------------------------------------------
 
+/**
+ * Site transfer scopes. `admin` grants all three; each transfer scope grants
+ * only itself, so a token can be limited to one transfer action.
+ */
+export const TRANSFER_SCOPES = ["transfer:export", "transfer:analyze", "transfer:execute"] as const;
+
+export type TransferScope = (typeof TRANSFER_SCOPES)[number];
+
+const TRANSFER_SCOPE_PREFIX = "transfer:";
+
+export function isTransferScope(scope: string): boolean {
+	return scope.startsWith(TRANSFER_SCOPE_PREFIX);
+}
+
 /** All valid API token scopes */
 export const VALID_SCOPES = [
 	"content:read",
@@ -40,18 +54,27 @@ export const VALID_SCOPES = [
 	"menus:manage",
 	"settings:read",
 	"settings:manage",
+	"mcp:tools",
+	...TRANSFER_SCOPES,
 	"admin",
 ] as const;
 
-export type ApiTokenScope = (typeof VALID_SCOPES)[number];
+export type ApiTokenScope = (typeof VALID_SCOPES)[number] | `mcp:tools:${string}`;
+
+const PLUGIN_MCP_SCOPE_PATTERN = /^mcp:tools:[a-z][a-z0-9_-]*$/;
+
+export function isValidScope(scope: string): scope is ApiTokenScope {
+	return (
+		(VALID_SCOPES as readonly string[]).includes(scope) || PLUGIN_MCP_SCOPE_PATTERN.test(scope)
+	);
+}
 
 /**
  * Validate that scopes are all valid.
  * Returns the invalid scopes, or empty array if all valid.
  */
 export function validateScopes(scopes: string[]): string[] {
-	const validSet = new Set<string>(VALID_SCOPES);
-	return scopes.filter((s) => !validSet.has(s));
+	return scopes.filter((scope) => !isValidScope(scope));
 }
 
 /**
@@ -81,6 +104,9 @@ const IMPLICIT_SCOPE_GRANTS = new Map<string, readonly string[]>([
  * compatibility with PATs issued before those scopes were split out.
  */
 export function hasScope(scopes: string[], required: string): boolean {
+	if (required === "mcp:tools" || required.startsWith("mcp:tools:")) {
+		return scopes.includes("mcp:tools") || scopes.includes(required);
+	}
 	if (scopes.includes("admin")) return true;
 	if (scopes.includes(required)) return true;
 	for (const held of scopes) {
@@ -105,7 +131,14 @@ export function generateToken(): string {
  * We never store raw tokens - only their SHA-256 hash
  */
 export function hashToken(token: string): string {
-	const bytes = decodeBase64urlIgnorePadding(token);
+	// Malformed input can't match an issued token, so hash its raw bytes and
+	// let the lookup miss.
+	let bytes: Uint8Array;
+	try {
+		bytes = decodeBase64urlIgnorePadding(token);
+	} catch {
+		bytes = new TextEncoder().encode(token);
+	}
 	const hash = sha256(bytes);
 	return encodeBase64urlNoPadding(hash);
 }

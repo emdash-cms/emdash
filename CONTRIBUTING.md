@@ -4,6 +4,19 @@ EmDash is published to npm and in active use. During development you work inside
 
 This guide covers setup, policy, and the rules around opening a PR. For code patterns (SQL, API routes, authorization, performance, Lingui, RTL, etc.), see [AGENTS.md](AGENTS.md).
 
+## Project processes
+
+`CONTRIBUTING.md` is the directory for project processes. The detailed policies live in focused documents:
+
+| Subject                                                      | Canonical document                   |
+| ------------------------------------------------------------ | ------------------------------------ |
+| Roles, decisions, membership, and public or private channels | [Governance](GOVERNANCE.md)          |
+| Maintainer review and merge requirements                     | [Maintaining EmDash](MAINTAINING.md) |
+| Feature plans and RFCs                                       | [Proposals](proposals/README.md)     |
+| Project-led priorities and planning horizons                 | [Roadmap](ROADMAP.md)                |
+| Project Team triage                                          | [Triage guide](TRIAGE.md)            |
+| AI-assisted contributions and communication                  | [AI usage policy](AI_POLICY.md)      |
+
 ## Prerequisites
 
 - **Node.js** 22+
@@ -66,20 +79,21 @@ Core changes propagate to the demo automatically.
 
 ## Repository Layout
 
-| Directory                 | What it is                                                                      |
-| ------------------------- | ------------------------------------------------------------------------------- |
-| `packages/core/`          | Main `emdash` package -- Astro integration, REST API, database, schema, plugins |
-| `packages/admin/`         | React admin UI SPA (`@emdash-cms/admin`)                                        |
-| `packages/auth/`          | Auth -- passkeys, OAuth, magic links (`@emdash-cms/auth`)                       |
-| `packages/cloudflare/`    | Cloudflare Workers adapter + plugin sandbox                                     |
-| `packages/blocks/`        | Portable Text block definitions                                                 |
-| `packages/create-emdash/` | `create-emdash` CLI scaffolder                                                  |
-| `packages/plugins/`       | First-party plugins                                                             |
-| `demos/`                  | Dev/test apps (`simple`, `cloudflare`, `postgres`, ...)                         |
-| `templates/`              | Starter templates                                                               |
-| `docs/`                   | Documentation site (Starlight)                                                  |
-| `e2e/`                    | Playwright test infrastructure                                                  |
-| `i18n/`                   | Translation status dashboard (Lunaria)                                          |
+| Directory                 | What it is                                                                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/`          | Main `emdash` package -- Astro integration, REST API, database, schema, plugins                                                                   |
+| `packages/admin/`         | React admin UI SPA (`@emdash-cms/admin`)                                                                                                          |
+| `packages/auth/`          | Auth -- passkeys, OAuth, magic links (`@emdash-cms/auth`)                                                                                         |
+| `packages/cloudflare/`    | Cloudflare Workers adapter + plugin sandbox                                                                                                       |
+| `packages/blocks/`        | Portable Text block definitions                                                                                                                   |
+| `packages/create-emdash/` | `create-emdash` CLI scaffolder                                                                                                                    |
+| `packages/plugins/`       | First-party plugins                                                                                                                               |
+| `demos/`                  | Dev/test apps (`simple`, `cloudflare`, `postgres`, ...)                                                                                           |
+| `templates/`              | Starter templates                                                                                                                                 |
+| `skills/`                 | Agent skills; those listed in `scripts/sync-skills-repo.mjs` publish to [emdash-cms/skills](https://github.com/emdash-cms/skills) on each release |
+| `docs/`                   | Documentation site (Starlight)                                                                                                                    |
+| `e2e/`                    | Playwright test infrastructure                                                                                                                    |
+| `i18n/`                   | Translation status dashboard (Lunaria)                                                                                                            |
 
 ## Checks
 
@@ -95,7 +109,21 @@ pnpm test:e2e    # Playwright
 
 `pnpm build` is required before the first typecheck in a fresh checkout. Scoped package typechecks such as `pnpm --filter @emdash-cms/plugin-cli typecheck` resolve internal workspace type declarations from `dist/`, which the build emits; this matches CI's build-then-typecheck order.
 
+`pnpm test:e2e` runs the fixture against the built packages in `dist/` and only builds what is missing, so run `pnpm build` after changing package source.
+
 Tests use real in-memory SQLite -- no mocking. Each test gets a fresh database. Typecheck and lint must pass.
+
+### Visual regression tests
+
+The admin UI has a Playwright visual-regression suite (`e2e/tests/visual-regression.spec.ts`) that screenshots key screens in both LTR (English) and RTL (Arabic). It is gated behind `EMDASH_VISUAL=1` so it stays out of the default `pnpm test:e2e` run:
+
+```bash
+EMDASH_VISUAL=1 pnpm test:e2e visual-regression
+```
+
+Baselines are platform-specific. **CI (Linux) is the source of truth** -- committed baselines are `*-chromium-linux.png`. Locally generated macOS/Windows baselines (`*-darwin.png`, `*-win32.png`) are gitignored; never commit them, they won't match CI.
+
+When a PR changes how a screen renders, the `Visual Regression` check goes red and a bot posts a sticky comment with the diff images. A maintainer reviews the diffs and, if the change is intended, comments `/accept-baselines`. The `Visual Regression — Apply` job then commits the regenerated Linux baselines to the PR branch. Baselines are never updated automatically on push -- a maintainer must accept each change.
 
 ### Building your own site in the monorepo
 
@@ -112,115 +140,87 @@ Your site uses `workspace:*` links, so core changes are reflected immediately.
 
 ## Contribution Policy
 
-### What we accept
+### Choose a contribution path
 
-| Type             | Process                                                                                                                  |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Bug fixes**    | Open a PR directly. Include a failing test that reproduces the bug.                                                      |
-| **Docs / typos** | Open a PR directly.                                                                                                      |
-| **Translations** | Open a PR directly. See [Translating EmDash](https://docs.emdashcms.com/contributing/translating/).                      |
-| **Features**     | Open a [Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) and wait for maintainer approval. |
-| **Refactors**    | Open a Discussion first.                                                                                                 |
-| **Performance**  | Open a Discussion first with benchmarks.                                                                                 |
+| Type                                       | Process                                                                                                                                                     |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Bug fix**                                | Open an implementation PR directly. Include a regression test when it can protect meaningful behavior; otherwise include the reproduction and verification. |
+| **Documentation or tests**                 | Open an implementation PR directly.                                                                                                                         |
+| **Translation**                            | Open an implementation PR directly. Follow [Translating EmDash](https://docs.emdashcms.com/contributing/translating/).                                      |
+| **Chore**                                  | Open an implementation PR directly when it is concrete and scoped. Dependency upgrades normally come through Renovate or Dependabot.                        |
+| **Behavior-preserving refactor**           | Open an implementation PR directly and show that behavior is unchanged.                                                                                     |
+| **Behavior-preserving performance change** | Open an implementation PR directly with relevant measurements.                                                                                              |
+| **Feature**                                | Get a [feature plan or RFC](proposals/README.md) accepted before opening the implementation PR.                                                             |
 
-**Feature PRs without prior maintainer approval will be closed.** Not gatekeeping -- it's about not wasting your time on work that might not align with the project's direction.
+A bounded, additive feature normally uses a feature-plan PR without a separate Discussion. A broader or harder-to-reverse feature starts with an Ideas Discussion and then uses an RFC PR. Every implementation PR marked as a Feature links its merged design PR.
+
+Do not open prototype or draft implementation PRs against EmDash while the design is unresolved. Prototype locally or in a fork and link the evidence from the design PR.
 
 ### What we don't accept
 
-- **Drive-by feature additions.** No Discussion, no PR.
+- **Drive-by changes.** Open a PR only when you use EmDash and encountered the problem, maintain a relevant upstream integration, or received prior Maintainer approval for that specific change.
 - **Speculative refactors** that don't solve a concrete problem.
 - **Dependency upgrades** outside Renovate/Dependabot.
 - **Drive-by "improvements"** in code unrelated to your change.
-- **Bulk/spray PRs** ("fix all lint warnings", "add types everywhere"). Open a Discussion first.
+- **Bulk/spray PRs** ("fix all lint warnings", "add types everywhere").
 
-### AI-generated PRs
+### AI-assisted contributions
 
-AI-assisted contributions are welcome and held to the same quality bar as any other PR:
+AI-assisted contributions are welcome. The human submitter remains responsible for the change, reviews the complete output, tests it, and discloses the models or tools used.
 
-- The submitter is responsible for correctness, not the tool.
-- AI-generated PRs must pass CI, follow project patterns, and include tests.
-- Check the PR template's AI disclosure box and name the model/tool (e.g. Claude Opus 4.7, GPT-5.5, Cursor + Sonnet 4.6). This isn't punitive -- it helps reviewers focus on edge cases that AI tools tend to miss and run the review pass with a different model family.
+Read the [AI usage policy](AI_POLICY.md) before using an agent to open an issue or pull request or to participate in project communication. Agents cannot open design PRs or comment on issues, Discussions, or design PRs. Their participation in implementation-PR conversation is limited to explicitly requested code review and replies to code review.
+
+### Interface screenshots
+
+An issue that refers to the interface must include a screenshot showing the reported state. A PR that changes the UI must include before-and-after screenshots of every screen it affects. For a new screen, the after state is enough. Describe the behavior in text as well, and use alt text that identifies the screen and relevant state.
+
+Put each pair side by side in a two-column table, cropped to the changed area, at the same viewport and with the same content, and put extra states such as Arabic in a collapsed `<details>` block:
+
+```markdown
+| Before                                                                  | After                                                                                      |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| ![Status filter before the change, a plain select](./status-before.png) | ![Status filter after the change, a menu with an icon for each status](./status-after.png) |
+
+<details>
+<summary>Arabic</summary>
+
+| Before                                                                            | After                                                                                                |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| ![Arabic status filter before the change, a plain select](./status-ar-before.png) | ![Arabic status filter after the change, a menu with an icon for each status](./status-ar-after.png) |
+
+</details>
+```
+
+In the GitHub web interface, drag or paste the images into the issue or PR body. From GitHub CLI 2.99.0 or later, use the repeatable `--attach` flag with issue and PR create, edit, or comment commands. CLI `--attach` uploads require write access to the repository; web interface uploads do not.
+
+The following command attaches two screenshots to a PR body:
+
+```bash
+gh pr create --body-file /tmp/emdash-pr.md \
+	--attach './before.png#Settings screen before the change' \
+	--attach './after.png#Settings screen after the change'
+```
+
+If the body contains `![Settings screen after the change](./after.png)`, pass `--attach ./after.png` to upload the image and replace the local path in place. GitHub appends attached files that are not referenced in the body. See [Attaching files with GitHub CLI](https://docs.github.com/en/github-cli/github-cli/attaching-files-with-github-cli) for the supported formats and size limits.
 
 ### PR rules
 
 - Branch from `main`.
 - Fill out the PR template completely. **PRs with an empty or missing template will be closed automatically.** The template is loaded by the GitHub UI; if you create a PR via API/CLI, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body.
+- For a design PR, use [the design template](.github/PULL_REQUEST_TEMPLATE/design.md), prefix the title with `design:`, and limit the change to `proposals/`. In the GitHub web interface, add `?template=design.md` to the new-PR URL to load the design template.
 - `pnpm typecheck` and `pnpm lint` must pass before pushing.
 - Run relevant tests.
+- Include screenshots for every UI change.
 - Commit messages describe _why_, not just _what_.
 
 ## Changesets
 
-Every PR that changes a published package's behavior needs a **changeset** -- a small Markdown file that describes the change for the CHANGELOG and determines the version bump. Without one, the change won't trigger a release.
+Follow [Writing and reviewing changesets](.changeset/README.md) for when a change needs one, package bump types, the user-facing writing standard, examples, and review criteria.
 
-### When you need one
-
-- Bug fixes, features, refactors, or anything that affects a published package's behavior or API.
-- Multi-package changes need one changeset listing all affected packages.
-- A PR making multiple distinct changes can include a changeset per change -- each becomes its own CHANGELOG entry.
-
-### When you don't
-
-- Docs-only, test-only, CI/tooling changes, or changes to demos and templates (these are in the ignore list -- see `.changeset/config.json`).
-
-### How
+Create the file with the Changesets CLI, then edit the generated Markdown:
 
 ```bash
 pnpm changeset
-```
-
-The CLI walks you through affected packages, bump type, and description. Edit the resulting `.md` file in `.changeset/` if needed.
-
-### Writing the description
-
-A changeset is the **release note a user reads while upgrading** -- it lands verbatim in the CHANGELOG. It is not a commit message, a PR description, or a summary of your diff. Don't paste your PR text into it: those explain the change to a reviewer reading the code, the changeset explains the effect to someone who will run the new version.
-
-Write for that reader:
-
-- Start with a present-tense verb -- **Fixes** (bug), **Adds** (feature), **Updates** (enhancement), **Removes** (removed functionality), **Refactors** (no behavior change).
-- Describe the observable effect -- what's different for someone using the package.
-- Leave out internal mechanics -- file names, function names, which catalog entry you bumped, how you implemented it. If a sentence only makes sense to someone who has read the diff, it doesn't belong here.
-- For a breaking change, include the migration step.
-
-One sentence is often enough.
-
-```diff
-- # too low-level -- reads like a commit message
-- Align the catalog so identity-resolver's lexicons peer resolves; migrates parseCanonicalResourceUri off the result-object API in backfill.ts.
-+ # right altitude -- the effect on the user
-+ Fixes peer dependency warnings on install caused by mismatched `@atcute` package versions.
-```
-
-**Patch** (bug fix or small improvement):
-
-```markdown
----
-"emdash": patch
----
-
-Fixes CLI `--json` flag so JSON output is clean. Log messages now go to stderr when `--json` is set.
-```
-
-**Minor** (new non-breaking feature):
-
-```markdown
----
-"emdash": minor
----
-
-Adds `scheduled_at` field to content entries, enabling scheduled publishing via the admin UI.
-```
-
-**Major** (breaking change) -- include migration guidance:
-
-```markdown
----
-"emdash": major
----
-
-Removes the `legacyAuth` option from the integration config. All sites must use passkey authentication.
-
-To migrate, remove `legacyAuth: true` from your `emdash()` config in `astro.config.mjs`.
 ```
 
 ## Internationalization
@@ -257,6 +257,10 @@ For RTL rules and the full Lingui pattern reference, see [AGENTS.md § Admin UI:
 ## Getting Help
 
 - [AGENTS.md](AGENTS.md) -- architecture and code patterns
+- [TRIAGE.md](TRIAGE.md) -- guidance for community triagers
+- [GOVERNANCE.md](GOVERNANCE.md) -- roles, decision-making, and team membership
+- [proposals/README.md](proposals/README.md) -- feature plans and RFCs
+- [ROADMAP.md](ROADMAP.md) -- project-led priorities and planning horizons
 - [docs.emdashcms.com](https://docs.emdashcms.com) -- user guides and API reference
 - [Discussions](https://github.com/emdash-cms/emdash/discussions) -- ask questions, propose features
 - [Issues](https://github.com/emdash-cms/emdash/issues) -- bug reports

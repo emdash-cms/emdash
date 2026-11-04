@@ -58,15 +58,18 @@ export class EmDashPreviewDB extends DurableObject {
 
 		const rows: Record<string, unknown>[] = [];
 		for (const row of cursor) {
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SqlStorageCursor yields record-like objects
-			rows.push(row as Record<string, unknown>);
+			rows.push(row);
 		}
 
 		const isRead = READ_PREFIXES.some((p) => sql.trimStart().toUpperCase().startsWith(p));
 
+		// `cursor.rowsWritten` also counts index entries, so it is not an
+		// affected-row count; SQLite `changes()` is.
 		return {
 			rows,
-			changes: isRead ? undefined : cursor.rowsWritten,
+			changes: isRead
+				? undefined
+				: Number(this.ctx.storage.sql.exec("SELECT changes() AS changes").one().changes),
 		};
 	}
 
@@ -141,8 +144,8 @@ export class EmDashPreviewDB extends DurableObject {
 				const gen = this.ctx.storage.sql
 					.exec("SELECT value FROM _emdash_do_meta WHERE key = 'snapshot_generated_at'")
 					.one();
-				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SqlStorageCursor yields loosely-typed rows
-				return { generatedAt: String(gen.value as string | number) };
+				// eslint-disable-next-line typescript/no-base-to-string -- meta column stores a scalar timestamp value
+				return { generatedAt: String(gen.value) };
 			}
 		} catch (error) {
 			// Only swallow "no such table" — surface all other errors
@@ -220,8 +223,8 @@ export class EmDashPreviewDB extends DurableObject {
 				),
 			];
 			for (const row of tables) {
-				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SqlStorageCursor yields loosely-typed rows
-				const name = String(row.name as string);
+				// eslint-disable-next-line typescript/no-base-to-string -- sqlite_master.name is a scalar text column
+				const name = String(row.name);
 				if (!SAFE_IDENTIFIER.test(name)) {
 					// Skip tables with unsafe names rather than interpolating them
 					continue;

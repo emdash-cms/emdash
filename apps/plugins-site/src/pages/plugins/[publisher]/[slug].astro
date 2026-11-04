@@ -1,0 +1,1521 @@
+---
+export const prerender = false;
+
+import { getLiveEntry } from "astro:content";
+
+import ExploreBand from "../../../components/ExploreBand.astro";
+import InstallDialog from "../../../components/detail/InstallDialog.astro";
+import PermissionList from "../../../components/detail/PermissionList.astro";
+import ScreenshotGallery from "../../../components/detail/ScreenshotGallery.astro";
+import DetailToc from "../../../components/detail/DetailToc.astro";
+import PluginArt from "../../../components/PluginArt.astro";
+import SubNav from "../../../components/SubNav.astro";
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import {
+	formatListedDate,
+	profileSections,
+	securityContactHref,
+	sourceLabel,
+} from "../../../lib/detail.js";
+import { pluginArtSeed } from "../../../lib/plugin-art.js";
+import {
+	isLiveEntryNotFoundError,
+	isNewPlugin,
+	isOfficialPublisher,
+	isRegistryRequestRejected,
+	listingImageUrl,
+	permissionCountLabel,
+	pluginPath,
+	publisherHandle,
+	publisherPath,
+	REGISTRY_PAGE_CACHE,
+	relativeUpdated,
+	renderRegistryMarkdown,
+	repositoryUrl,
+	requestedPermissions,
+	safeExternalUrl,
+} from "../../../lib/registry.js";
+import { pluginJsonLd } from "../../../lib/seo.js";
+
+const publisher = Astro.params.publisher;
+const slug = Astro.params.slug;
+if (!publisher || !slug) return Astro.rewrite("/404");
+
+const result = await getLiveEntry("plugins", { publisher, slug });
+if (!result.entry) {
+	if (
+		result.error &&
+		!isLiveEntryNotFoundError(result.error) &&
+		!isRegistryRequestRejected(result.error)
+	) {
+		return Astro.rewrite("/registry-unavailable");
+	}
+	return Astro.rewrite("/404");
+}
+
+const data = result.entry.data;
+const plugin = data.package;
+const profile = plugin.profile;
+const release = data.latestRelease;
+const name = profile?.name || plugin.slug;
+const handle = publisherHandle(plugin);
+const publisherLabel = handle ? `@${handle}` : plugin.did;
+const packageIdentifier = `${publisherLabel}/${plugin.slug}`;
+const canonicalPublisherPath = publisherPath(plugin);
+const canonicalPath = pluginPath(plugin);
+Astro.cache.set({
+	...REGISTRY_PAGE_CACHE,
+	tags: ["registry", plugin.uri, `publisher:${plugin.did}`],
+});
+if (Astro.url.pathname !== canonicalPath)
+	return Astro.redirect(canonicalPath, 302);
+
+const icon = listingImageUrl(data, "icon");
+const banner = listingImageUrl(data, "banner");
+const screenshots =
+	release?.release?.artifacts.screenshots
+		?.map((_artifact, index) => listingImageUrl(data, "screenshot", index))
+		.filter((url): url is string => Boolean(url)) ?? [];
+const repository = repositoryUrl(profile);
+const authors = (profile?.authors ?? []).map((author) => ({
+	name: author.name,
+	url: safeExternalUrl(author.url),
+}));
+const keywords = profile?.keywords ?? [];
+const permissions = requestedPermissions(data);
+const artSeed = pluginArtSeed(plugin);
+const official = isOfficialPublisher(plugin);
+const isNew = isNewPlugin(plugin);
+const version = release?.version ?? plugin.latestVersion;
+const lastUpdated = profile?.lastUpdated;
+const updated = lastUpdated ? relativeUpdated(lastUpdated) : undefined;
+const listed = formatListedDate(plugin.indexedAt);
+const license = profile?.license;
+const securityHref = securityContactHref(profile?.security);
+const description =
+	profile?.description || `View ${name} in the EmDash plugin registry.`;
+
+const sectionMap: Record<string, unknown> = profile?.sections ?? {};
+const overview =
+	typeof sectionMap.description === "string" &&
+	sectionMap.description.trim().length > 0
+		? sectionMap.description
+		: undefined;
+const extraSections = profileSections(sectionMap);
+const tocItems = [
+	...(overview ? [{ id: "overview", title: "Overview" }] : []),
+	...(screenshots.length > 0
+		? [{ id: "screenshots", title: "Screenshots" }]
+		: []),
+	{ id: "permissions", title: "Permissions" },
+	...extraSections.map(({ id, title }) => ({ id, title })),
+];
+const showToc = tocItems.length >= 2;
+
+const officialIcon =
+	'<path d="M12 3l2.8 2.2 3.6.4.4 3.6L21 12l-2.2 2.8-.4 3.6-3.6.4L12 21l-2.8-2.2-3.6-.4-.4-3.6L3 12l2.2-2.8.4-3.6 3.6-.4Z"/><path d="m8.8 12.2 2.2 2.2 4.2-4.6"/>';
+const shieldIcon =
+	'<path d="M12 3.5 5 6v5.6c0 4.2 2.9 7.5 7 8.9 4.1-1.4 7-4.7 7-8.9V6Z"/>';
+const openIcon = '<path d="M7 17 17 7"/><path d="M8.5 7H17v8.5"/>';
+const sourceIcon = '<path d="m8.5 8-4 4 4 4"/><path d="m15.5 8 4 4-4 4"/>';
+const arrowIcon = '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>';
+---
+
+<BaseLayout
+	title={name}
+	description={description}
+	canonical={canonicalPath}
+	image={banner}
+	jsonLd={pluginJsonLd(
+		data,
+		new URL(canonicalPath, Astro.site ?? Astro.url.origin).href,
+		{ image: icon, dateModified: result.entry.cacheHint?.lastModified },
+	)}
+>
+	<SubNav
+		items={[
+			{ label: "All plugins", href: "/search" },
+			{ label: publisherLabel, href: canonicalPublisherPath },
+			{ label: name },
+		]}
+	/>
+
+	<header class:list={["detail-head shell", { "has-cover": banner }]}>
+		{
+			banner && (
+				<div class="cover">
+					<img
+						src={banner}
+						alt={`${name} banner`}
+						width="1200"
+						height="400"
+						fetchpriority="high"
+						referrerpolicy="no-referrer"
+					/>
+				</div>
+			)
+		}
+
+		<div class="hero">
+			<div class="hero-icon">
+				{
+					icon ? (
+						<img
+							src={icon}
+							alt=""
+							width="96"
+							height="96"
+							referrerpolicy="no-referrer"
+						/>
+					) : (
+						<PluginArt seed={artSeed} variant="tile" />
+					)
+				}
+			</div>
+
+			<div class="hero-title">
+				<h1 class="h-page hero-name" dir="auto">{name}</h1>
+				<p class="hero-description" dir="auto">
+					{profile?.description || "An EmDash plugin."}
+				</p>
+				<div class="hero-meta-wrap">
+					<ul class="hero-meta">
+						<li class="meta-publisher">
+							<a href={canonicalPublisherPath} dir="auto" data-astro-prefetch
+								>{publisherLabel}</a
+							>
+							{
+								official && (
+									<span class="badge badge-official">
+										<svg
+											viewBox="0 0 24 24"
+											aria-hidden="true"
+											focusable="false"
+											set:html={officialIcon}
+										/>
+										Official
+									</span>
+								)
+							}
+						</li>
+						{
+							version && (
+								<li>
+									<span class="meta-version" dir="ltr">
+										v{version}
+									</span>
+								</li>
+							)
+						}
+						{
+							updated && (
+								<li>
+									<span>
+										Updated <time datetime={lastUpdated}>{updated}</time>
+									</span>
+								</li>
+							)
+						}
+						{
+							license && (
+								<li>
+									<span dir="auto">{license}</span>
+								</li>
+							)
+						}
+						{
+							isNew && (
+								<li>
+									<span class="badge badge-new">New</span>
+								</li>
+							)
+						}
+						{
+							permissions.declared && (
+								<li>
+									<a class="meta-permissions" href="#permissions">
+										<svg
+											viewBox="0 0 24 24"
+											aria-hidden="true"
+											focusable="false"
+											set:html={shieldIcon}
+										/>
+										{permissionCountLabel(permissions.capabilities.length)}
+									</a>
+								</li>
+							)
+						}
+					</ul>
+				</div>
+			</div>
+
+			<div class="hero-actions">
+				<div class="hero-buttons">
+					<button
+						class="btn btn-primary btn-lg"
+						type="button"
+						data-install-trigger
+					>
+						<svg
+							class="icon-open"
+							viewBox="0 0 24 24"
+							aria-hidden="true"
+							focusable="false"
+							set:html={openIcon}
+						/>
+						Open in EmDash
+					</button>
+					{
+						repository && (
+							<a class="btn btn-secondary btn-lg" href={repository}>
+								<svg
+									viewBox="0 0 24 24"
+									aria-hidden="true"
+									focusable="false"
+									set:html={sourceIcon}
+								/>
+								View source
+							</a>
+						)
+					}
+				</div>
+				<div class="public-name">
+					<div class="public-name-chip">
+						<span class="public-name-label">Public name</span>
+						<code class="public-name-value" dir="auto" title={packageIdentifier}
+							>{packageIdentifier}</code
+						>
+						<button
+							class="public-name-copy tap-target"
+							type="button"
+							aria-label="Copy public name"
+							data-copy-public-name={packageIdentifier}
+						>
+							<svg class="copy-icon" viewBox="0 0 24 24" aria-hidden="true">
+								<rect x="8.5" y="8.5" width="11" height="11" rx="2.25"></rect>
+								<path
+									d="M15.5 8.5V6.25A1.75 1.75 0 0 0 13.75 4.5h-7.5A1.75 1.75 0 0 0 4.5 6.25v7.5c0 .97.78 1.75 1.75 1.75H8.5"
+								></path>
+							</svg>
+							<svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true">
+								<path d="m5.5 12.5 4 4 9-9.5"></path>
+							</svg>
+						</button>
+						<span class="visually-hidden" aria-live="polite" data-copy-status
+						></span>
+					</div>
+					<p class="public-name-hint">
+						Or open Registry in your EmDash admin and search for this name.
+					</p>
+				</div>
+			</div>
+		</div>
+	</header>
+
+	<div class:list={["detail-body shell", { "has-toc": showToc }]}>
+		{showToc && <DetailToc items={tocItems} variant="chips" />}
+
+		<div class="detail-main">
+			{
+				overview && (
+					<section
+						class="detail-section"
+						id="overview"
+						aria-labelledby="overview-title"
+					>
+						<h2 class="detail-section-title" id="overview-title">
+							Overview
+						</h2>
+						<div
+							class="prose"
+							dir="auto"
+							set:html={renderRegistryMarkdown(overview)}
+						/>
+					</section>
+				)
+			}
+
+			{
+				screenshots.length > 0 && (
+					<section
+						class="detail-section"
+						id="screenshots"
+						aria-labelledby="screenshots-title"
+					>
+						<h2 class="detail-section-title" id="screenshots-title">
+							Screenshots
+						</h2>
+						<ScreenshotGallery screenshots={screenshots} name={name} />
+					</section>
+				)
+			}
+
+			<section
+				class="detail-section"
+				id="permissions"
+				aria-labelledby="permissions-title"
+			>
+				<h2 class="detail-section-title" id="permissions-title">Permissions</h2>
+				<p class="detail-section-intro">
+					Plugins get only the capabilities they declare and you approve. Your
+					EmDash admin lists these again before anything installs.
+				</p>
+				<PermissionList permissions={permissions} />
+			</section>
+
+			{
+				extraSections.map((section) => (
+					<section
+						class="detail-section"
+						id={section.id}
+						aria-labelledby={section.titleId}
+					>
+						<h2
+							class="detail-section-title"
+							id={section.titleId}
+							dir="auto"
+						>
+							{section.title}
+						</h2>
+						<div
+							class="prose"
+							dir="auto"
+							set:html={renderRegistryMarkdown(section.markdown)}
+						/>
+					</section>
+				))
+			}
+		</div>
+
+		<aside class="detail-aside" aria-label="Plugin details">
+			<div class="aside-card card">
+				<section class="aside-group" aria-labelledby="aside-details-title">
+					<h2 class="aside-title" id="aside-details-title">Details</h2>
+					<dl class="facts">
+						{
+							version && (
+								<div>
+									<dt>Version</dt>
+									<dd class="fact-mono" dir="ltr">
+										v{version}
+									</dd>
+								</div>
+							)
+						}
+						{
+							updated && (
+								<div>
+									<dt>Updated</dt>
+									<dd>
+										<time datetime={lastUpdated}>{updated}</time>
+									</dd>
+								</div>
+							)
+						}
+						{
+							listed && (
+								<div>
+									<dt>Listed</dt>
+									<dd>
+										<time datetime={plugin.indexedAt}>{listed}</time>
+									</dd>
+								</div>
+							)
+						}
+						{
+							license && (
+								<div>
+									<dt>License</dt>
+									<dd dir="auto" title={license}>
+										{license}
+									</dd>
+								</div>
+							)
+						}
+						{
+							repository && (
+								<div>
+									<dt>Source</dt>
+									<dd>
+										<a href={repository} dir="ltr" title={repository}>
+											{sourceLabel(repository)}
+										</a>
+									</dd>
+								</div>
+							)
+						}
+					</dl>
+				</section>
+
+				<div class="aside-more">
+					<section class="aside-group" aria-labelledby="aside-publisher-title">
+						<h2 class="aside-title" id="aside-publisher-title">Publisher</h2>
+						<div class="publisher">
+							<span class="publisher-avatar" aria-hidden="true">
+								<PluginArt seed={plugin.did} variant="tile" />
+							</span>
+							<div class="publisher-text">
+								<p class="publisher-name">
+									<a
+										href={canonicalPublisherPath}
+										dir="auto"
+										data-astro-prefetch>{publisherLabel}</a
+									>
+									{
+										official && (
+											<span class="badge badge-official">
+												<svg
+													viewBox="0 0 24 24"
+													aria-hidden="true"
+													focusable="false"
+													set:html={officialIcon}
+												/>
+												Official
+											</span>
+										)
+									}
+								</p>
+								<a
+									class="aside-link"
+									href={canonicalPublisherPath}
+									data-astro-prefetch
+								>
+									View all plugins
+									<svg
+										class="icon-arrow"
+										viewBox="0 0 24 24"
+										aria-hidden="true"
+										focusable="false"
+										set:html={arrowIcon}
+									/>
+								</a>
+							</div>
+						</div>
+					</section>
+
+					{
+						authors.length > 0 && (
+							<section
+								class="aside-group"
+								aria-labelledby="aside-authors-title"
+							>
+								<h2 class="aside-title" id="aside-authors-title">
+									{authors.length === 1 ? "Author" : "Authors"}
+								</h2>
+								<ul class="authors">
+									{authors.map((author) => (
+										<li dir="auto">
+											{author.url ? (
+												<a href={author.url}>{author.name}</a>
+											) : (
+												author.name
+											)}
+										</li>
+									))}
+								</ul>
+							</section>
+						)
+					}
+
+					{
+						keywords.length > 0 && (
+							<section
+								class="aside-group"
+								aria-labelledby="aside-keywords-title"
+							>
+								<h2 class="aside-title" id="aside-keywords-title">
+									Keywords
+								</h2>
+								<ul class="chip-list">
+									{keywords.map((keyword) => (
+										<li>
+											<a
+												class="chip"
+												href={`/search?q=${encodeURIComponent(keyword)}`}
+												dir="auto"
+											>
+												<span class="chip-label">{keyword}</span>
+											</a>
+										</li>
+									))}
+								</ul>
+							</section>
+						)
+					}
+
+					{
+						securityHref && (
+							<section
+								class="aside-group"
+								aria-labelledby="aside-security-title"
+							>
+								<h2 class="aside-title" id="aside-security-title">
+									Security contact
+								</h2>
+								<a class="aside-link" href={securityHref}>
+									<svg
+										viewBox="0 0 24 24"
+										aria-hidden="true"
+										focusable="false"
+										set:html={shieldIcon}
+									/>
+									Report a security issue
+								</a>
+							</section>
+						)
+					}
+				</div>
+			</div>
+		</aside>
+
+		{showToc && <DetailToc items={tocItems} variant="rail" />}
+	</div>
+
+	<ExploreBand
+		title={`More plugins like ${name}`}
+		keywords={keywords}
+		text={`Browse by keyword, or see everything ${publisherLabel} publishes.`}
+	>
+		<a class="btn btn-primary" href="/search">Browse all plugins</a>
+		<a
+			class="btn btn-secondary"
+			href={canonicalPublisherPath}
+			data-astro-prefetch
+		>
+			<span class="explore-more" dir="auto">More from {publisherLabel}</span>
+		</a>
+	</ExploreBand>
+
+	<InstallDialog
+		did={plugin.did}
+		slug={plugin.slug}
+		name={name}
+		publicName={packageIdentifier}
+		icon={icon}
+		artSeed={artSeed}
+	/>
+</BaseLayout>
+
+<style>
+	/* Hero */
+
+	.detail-head {
+		position: relative;
+		isolation: isolate;
+		padding-block-start: clamp(1.25rem, 0.75rem + 1.5vw, 2rem);
+	}
+
+	.detail-head:not(.has-cover)::before {
+		position: absolute;
+		z-index: -1;
+		inset-block: 0 -2rem;
+		inset-inline: auto calc(-1 * var(--gutter));
+		width: min(52rem, 75%);
+		pointer-events: none;
+		content: "";
+		background-image: radial-gradient(
+			color-mix(in srgb, var(--ink) 13%, transparent) 1px,
+			transparent 1.2px
+		);
+		background-size: 14px 14px;
+		-webkit-mask-image: radial-gradient(
+			ellipse 70% 90% at 100% 20%,
+			#000 15%,
+			transparent 75%
+		);
+		mask-image: radial-gradient(
+			ellipse 70% 90% at 100% 20%,
+			#000 15%,
+			transparent 75%
+		);
+	}
+
+	.detail-head:not(.has-cover):dir(rtl)::before {
+		-webkit-mask-image: radial-gradient(
+			ellipse 70% 90% at 0% 20%,
+			#000 15%,
+			transparent 75%
+		);
+		mask-image: radial-gradient(
+			ellipse 70% 90% at 0% 20%,
+			#000 15%,
+			transparent 75%
+		);
+	}
+
+	.cover {
+		aspect-ratio: 3 / 1;
+		overflow: hidden;
+		background: var(--surface-soft);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-lg);
+		box-shadow: 0 0 0 4px var(--line-soft);
+	}
+
+	.cover img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.hero {
+		--icon-size: 96px;
+
+		display: grid;
+		grid-template-areas: "icon title" "actions actions";
+		grid-template-columns: var(--icon-size) minmax(0, 1fr);
+		align-items: start;
+		gap: 1.5rem 1.75rem;
+		padding-block-start: clamp(1.25rem, 0.75rem + 1.5vw, 2.25rem);
+	}
+
+	.has-cover .hero {
+		padding-block-start: 0;
+	}
+
+	.hero-icon {
+		position: relative;
+		z-index: 1;
+		grid-area: icon;
+		width: var(--icon-size);
+		height: var(--icon-size);
+		overflow: hidden;
+		background: var(--surface-soft);
+		border: 1px solid var(--line);
+		border-radius: 22px;
+		box-shadow:
+			0 0 0 4px var(--line-soft),
+			var(--shadow-sm);
+	}
+
+	.hero-icon::after {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		content: "";
+		border-radius: inherit;
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent);
+	}
+
+	.has-cover .hero-icon {
+		margin-block-start: calc(var(--icon-size) * -0.4);
+		margin-inline-start: 2rem;
+		box-shadow:
+			0 0 0 4px var(--page),
+			var(--shadow-sm);
+	}
+
+	.has-cover .hero {
+		grid-template-columns: calc(var(--icon-size) + 2rem) minmax(0, 1fr);
+	}
+
+	.hero-icon img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.hero-title {
+		grid-area: title;
+		min-width: 0;
+	}
+
+	.has-cover .hero-title,
+	.has-cover .hero-actions {
+		padding-block-start: 1.5rem;
+	}
+
+	.hero-name {
+		overflow-wrap: anywhere;
+	}
+
+	.hero-description {
+		max-width: 40rem;
+		margin: 0.75rem 0 0;
+		color: var(--muted);
+		font-size: clamp(1.0625rem, 1rem + 0.3vw, 1.1875rem);
+		line-height: 1.55;
+		overflow-wrap: anywhere;
+		text-wrap: pretty;
+	}
+
+	/* Every item leads with a dot; the dot of an item that starts a line sits in the
+	   clipped negative margin, so wrapped lines never begin with a separator. */
+	.hero-meta-wrap {
+		margin: calc(1.25rem - 4px) -4px -4px;
+		padding: 4px;
+		overflow: hidden;
+	}
+
+	.hero-meta {
+		--meta-dot-space: calc(1rem + 3px);
+
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem 0;
+		margin: 0;
+		margin-inline-start: calc(-1 * var(--meta-dot-space));
+		padding: 0;
+		color: var(--muted);
+		font-size: 14px;
+		line-height: 1.5;
+		list-style: none;
+	}
+
+	.hero-meta li {
+		display: inline-flex;
+		align-items: center;
+		min-width: 0;
+		max-width: 100%;
+		gap: 0.5rem;
+	}
+
+	.hero-meta li::before {
+		width: 3px;
+		height: 3px;
+		flex: none;
+		margin-inline: 0.5rem 0;
+		content: "";
+		background: var(--subtle);
+		border-radius: var(--radius-full);
+	}
+
+	.meta-publisher a,
+	.meta-permissions {
+		border-radius: var(--radius-xs);
+	}
+
+	.meta-publisher a {
+		min-width: 0;
+		color: var(--ink);
+		font-weight: 500;
+		text-decoration: none;
+		overflow-wrap: anywhere;
+	}
+
+	@media (hover: hover) {
+		.meta-publisher a:hover,
+		.meta-permissions:hover {
+			text-decoration: underline;
+			text-underline-offset: 0.2em;
+		}
+	}
+
+	.meta-version {
+		font-family: var(--font-mono);
+		font-size: 13px;
+	}
+
+	.meta-permissions {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3125rem;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	@media (hover: hover) {
+		.meta-permissions:hover {
+			color: var(--ink);
+		}
+	}
+
+	.meta-permissions svg {
+		width: 15px;
+		height: 15px;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.75;
+	}
+
+	.badge {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0.0625rem 0.5rem;
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 1.5;
+		border-radius: var(--radius-full);
+	}
+
+	.badge-official {
+		padding-inline-start: 0.3125rem;
+		color: var(--ink);
+		background: var(--fill);
+	}
+
+	.badge-official svg {
+		width: 14px;
+		height: 14px;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.75;
+	}
+
+	.badge-new {
+		color: var(--accent-ink);
+		font-weight: 600;
+		background: var(--accent-soft);
+	}
+
+	.hero-actions {
+		display: grid;
+		grid-area: actions;
+		min-width: 0;
+		gap: 1rem;
+	}
+
+	.hero-buttons {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.625rem;
+	}
+
+	.hero-buttons svg {
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.75;
+	}
+
+	.icon-open:dir(rtl),
+	.icon-arrow:dir(rtl) {
+		transform: scaleX(-1);
+	}
+
+	.public-name {
+		display: grid;
+		min-width: 0;
+		gap: 0.5rem;
+	}
+
+	.public-name-chip {
+		display: flex;
+		align-items: center;
+		min-width: 0;
+		max-width: 26rem;
+		min-height: 40px;
+		padding-inline: 0.75rem 0.25rem;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.public-name-label {
+		flex: none;
+		padding-inline-end: 0.625rem;
+		margin-inline-end: 0.625rem;
+		color: var(--muted);
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 1.3;
+		border-inline-end: 1px solid var(--line);
+	}
+
+	.public-name-value {
+		min-width: 0;
+		flex: 1;
+		overflow: hidden;
+		color: var(--ink);
+		font-family: var(--font-mono);
+		font-size: 13px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.public-name-copy {
+		display: grid;
+		place-items: center;
+		width: 32px;
+		height: 32px;
+		flex: none;
+		margin-inline-start: 0.25rem;
+		padding: 0;
+		color: var(--muted);
+		cursor: pointer;
+		background: transparent;
+		border: 0;
+		border-radius: var(--radius-sm);
+		transition:
+			background-color 150ms ease,
+			color 150ms ease;
+	}
+
+	.public-name-copy:focus-visible {
+		outline-offset: 0;
+	}
+
+	@media (hover: hover) {
+		.public-name-copy:hover {
+			color: var(--ink);
+			background: var(--fill-hover);
+		}
+	}
+
+	.public-name-copy svg {
+		grid-area: 1 / 1;
+		width: 17px;
+		height: 17px;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.6;
+		transition:
+			opacity 150ms ease,
+			transform 150ms var(--ease-out);
+	}
+
+	.public-name-copy .check-icon {
+		color: var(--success);
+		stroke-width: 2;
+	}
+
+	.public-name-copy .check-icon,
+	.public-name-copy[data-copied="true"] .copy-icon {
+		opacity: 0;
+		transform: scale(0.7);
+	}
+
+	.public-name-copy[data-copied="true"] .check-icon {
+		opacity: 1;
+		transform: none;
+	}
+
+	:global(:root:not(.js)) [data-install-trigger],
+	:global(:root:not(.js)) .public-name-copy {
+		display: none;
+	}
+
+	.public-name-hint {
+		max-width: 26rem;
+		margin: 0;
+		color: var(--muted);
+		font-size: 13px;
+		line-height: 1.5;
+		text-wrap: pretty;
+	}
+
+	@media (max-width: 639.98px) {
+		.hero {
+			--icon-size: 72px;
+
+			grid-template-areas: "icon" "title" "actions";
+			grid-template-columns: minmax(0, 1fr);
+			gap: 1.25rem;
+		}
+
+		.has-cover .hero {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.has-cover .hero-icon {
+			margin-inline-start: 1rem;
+		}
+
+		.has-cover .hero-title,
+		.has-cover .hero-actions {
+			padding-block-start: 0;
+		}
+
+		.hero-buttons {
+			flex-direction: column;
+		}
+
+		.hero-buttons .btn,
+		.public-name-chip,
+		.public-name-hint {
+			width: 100%;
+			max-width: none;
+		}
+	}
+
+	@media (min-width: 640px) and (max-width: 1023.98px) {
+		.has-cover .hero-actions {
+			padding-block-start: 0;
+		}
+
+		.hero-actions {
+			grid-template-columns: auto minmax(0, 1fr);
+			align-items: start;
+			column-gap: 1.25rem;
+		}
+
+		.public-name-chip {
+			min-height: 48px;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.hero {
+			grid-template-areas: "icon title actions";
+			grid-template-columns: var(--icon-size) minmax(0, 1fr) minmax(
+					19rem,
+					22rem
+				);
+			column-gap: 2rem;
+		}
+
+		.has-cover .hero {
+			grid-template-columns: calc(var(--icon-size) + 2rem) minmax(
+					0,
+					1fr
+				) minmax(19rem, 22rem);
+		}
+
+		.hero-buttons .btn {
+			flex: 1 1 0;
+			padding-inline: 14px;
+		}
+
+		.public-name-chip,
+		.public-name-hint {
+			max-width: none;
+		}
+	}
+
+	time {
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* Body */
+
+	.detail-body {
+		display: grid;
+		grid-template-areas: "toc" "main" "aside";
+		grid-template-columns: minmax(0, 1fr);
+		gap: 2.5rem;
+		margin-block-start: clamp(2.5rem, 2rem + 2vw, 4rem);
+	}
+
+	.detail-body:not(.has-toc) {
+		grid-template-areas: "main" "aside";
+	}
+
+	.detail-main {
+		grid-area: main;
+		min-width: 0;
+	}
+
+	.detail-aside {
+		grid-area: aside;
+		min-width: 0;
+	}
+
+	@media (min-width: 1024px) {
+		.detail-body,
+		.detail-body:not(.has-toc) {
+			grid-template-areas: "main aside" "main rail";
+			grid-template-columns: minmax(0, 1fr) 19rem;
+			grid-template-rows: auto 1fr;
+			gap: 2.5rem 4rem;
+		}
+	}
+
+	.detail-section + .detail-section {
+		margin-block-start: 1.75rem;
+		padding-block-start: 1.75rem;
+		border-block-start: 1px solid var(--line-soft);
+	}
+
+	@media (min-width: 640px) {
+		.detail-section + .detail-section {
+			margin-block-start: 2rem;
+			padding-block-start: 2rem;
+		}
+	}
+
+	.detail-section-title {
+		margin: 0 0 1.25rem;
+		color: var(--ink-strong);
+		font-size: clamp(1.3125rem, 1.2rem + 0.4vw, 1.5rem);
+		font-weight: 600;
+		line-height: 1.25;
+		letter-spacing: -0.025em;
+		overflow-wrap: anywhere;
+	}
+
+	.detail-section-intro {
+		max-width: 40rem;
+		margin: -0.5rem 0 1.5rem;
+		color: var(--muted);
+		font-size: 15px;
+		line-height: 1.6;
+		text-wrap: pretty;
+	}
+
+	/* Publisher Markdown */
+
+	.prose {
+		max-width: 44rem;
+		color: color-mix(in srgb, var(--ink) 88%, transparent);
+		font-size: 16px;
+		line-height: 1.7;
+		overflow-wrap: anywhere;
+	}
+
+	.prose > :global(:first-child) {
+		margin-block-start: 0;
+	}
+
+	.prose > :global(:last-child) {
+		margin-block-end: 0;
+	}
+
+	.prose :global(p) {
+		margin: 0 0 1rem;
+	}
+
+	.prose :global(h3),
+	.prose :global(h4) {
+		margin: 2rem 0 0.625rem;
+		color: var(--ink-strong);
+		font-weight: 600;
+		letter-spacing: -0.015em;
+	}
+
+	.prose :global(h3) {
+		font-size: 18px;
+		line-height: 1.4;
+	}
+
+	.prose :global(h4) {
+		font-size: 16px;
+		line-height: 1.45;
+	}
+
+	.prose :global(strong) {
+		color: var(--ink-strong);
+		font-weight: 600;
+	}
+
+	.prose :global(ul),
+	.prose :global(ol) {
+		margin: 0 0 1rem;
+		padding-inline-start: 1.375rem;
+	}
+
+	.prose :global(li + li) {
+		margin-block-start: 0.375rem;
+	}
+
+	.prose :global(li > ul),
+	.prose :global(li > ol) {
+		margin-block: 0.375rem 0;
+	}
+
+	.prose :global(li::marker) {
+		color: var(--subtle);
+	}
+
+	.prose :global(a) {
+		color: var(--accent-ink);
+		text-decoration-thickness: 1px;
+		text-underline-offset: 0.2em;
+	}
+
+	@media (hover: hover) {
+		.prose :global(a:hover) {
+			text-decoration-thickness: 2px;
+		}
+	}
+
+	.prose :global(code) {
+		padding: 0.125em 0.375em;
+		font-family: var(--font-mono);
+		font-size: 0.85em;
+		background: var(--surface-soft);
+		border: 1px solid var(--line-soft);
+		border-radius: var(--radius-xs);
+	}
+
+	.prose :global(pre) {
+		margin: 0 0 1rem;
+		padding: 1rem 1.125rem;
+		overflow-x: auto;
+		font-size: 13.5px;
+		line-height: 1.6;
+		overflow-wrap: normal;
+		background: var(--surface-soft);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-md);
+	}
+
+	.prose :global(pre code) {
+		padding: 0;
+		font-size: inherit;
+		background: none;
+		border: 0;
+	}
+
+	.prose :global(blockquote) {
+		margin: 0 0 1rem;
+		padding-inline-start: 1rem;
+		color: var(--muted);
+		border-inline-start: 2px solid var(--line-strong);
+	}
+
+	.prose :global(hr) {
+		margin: 2rem 0;
+		border: 0;
+		border-block-start: 1px solid var(--line);
+	}
+
+	/* Aside */
+
+	.aside-card {
+		padding-inline: 1.25rem;
+	}
+
+	.aside-group {
+		min-width: 0;
+		padding-block: 1.25rem;
+	}
+
+	.aside-group + .aside-group,
+	.aside-more > .aside-group:first-child {
+		border-block-start: 1px solid var(--line-soft);
+	}
+
+	@media (min-width: 640px) and (max-width: 1023.98px) {
+		.aside-card {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		}
+
+		.aside-card > .aside-group {
+			padding-inline-end: 1.5rem;
+		}
+
+		.aside-more {
+			min-width: 0;
+			padding-inline-start: 1.5rem;
+			border-inline-start: 1px solid var(--line-soft);
+		}
+
+		.aside-more > .aside-group:first-child {
+			border-block-start: 0;
+		}
+	}
+
+	.aside-title {
+		margin: 0 0 0.75rem;
+		color: var(--ink-strong);
+		font-size: 14px;
+		font-weight: 600;
+		line-height: 1.4;
+	}
+
+	.facts {
+		display: grid;
+		gap: 0.625rem;
+		margin: 0;
+		font-size: 14px;
+		line-height: 1.45;
+	}
+
+	.facts div {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		min-width: 0;
+	}
+
+	.facts dt {
+		flex: none;
+		color: var(--muted);
+	}
+
+	/* The padding gives a link's focus ring room inside the ellipsis clip. */
+	.facts dd {
+		min-width: 0;
+		margin: -4px;
+		padding: 4px;
+		overflow: hidden;
+		color: var(--ink);
+		text-align: end;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.facts a {
+		display: block;
+		overflow: hidden;
+		color: inherit;
+		text-decoration: none;
+		text-overflow: ellipsis;
+	}
+
+	@media (hover: hover) {
+		.facts a:hover {
+			color: var(--link-hover);
+			text-decoration: underline;
+			text-underline-offset: 0.2em;
+		}
+	}
+
+	.fact-mono {
+		font-family: var(--font-mono);
+		font-size: 13px;
+	}
+
+	.publisher {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		min-width: 0;
+	}
+
+	.publisher-avatar {
+		display: block;
+		width: 40px;
+		height: 40px;
+		flex: none;
+		overflow: hidden;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-full);
+		box-shadow: 0 0 0 3px var(--line-soft);
+	}
+
+	.publisher-text {
+		display: grid;
+		min-width: 0;
+		gap: 0.125rem;
+	}
+
+	.publisher-name {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.25rem 0.5rem;
+		min-width: 0;
+		margin: 0;
+		font-size: 14px;
+		line-height: 1.45;
+	}
+
+	.publisher-name a {
+		min-width: 0;
+		color: var(--ink);
+		font-weight: 500;
+		text-decoration: none;
+		overflow-wrap: anywhere;
+	}
+
+	@media (hover: hover) {
+		.publisher-name a:hover {
+			text-decoration: underline;
+			text-underline-offset: 0.2em;
+		}
+	}
+
+	.aside-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		justify-self: start;
+		color: var(--muted);
+		font-size: 14px;
+		line-height: 1.45;
+		text-decoration: none;
+		border-radius: var(--radius-xs);
+		transition: color 150ms ease;
+	}
+
+	@media (hover: hover) {
+		.aside-link:hover {
+			color: var(--link-hover);
+		}
+	}
+
+	.aside-link svg {
+		width: 15px;
+		height: 15px;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.75;
+	}
+
+	.authors {
+		display: grid;
+		gap: 0.375rem;
+		margin: 0;
+		padding: 0;
+		font-size: 14px;
+		line-height: 1.45;
+		list-style: none;
+		overflow-wrap: anywhere;
+	}
+
+	.authors a {
+		color: var(--ink);
+		text-decoration-color: var(--line-strong);
+		text-underline-offset: 0.2em;
+	}
+
+	@media (hover: hover) {
+		.authors a:hover {
+			color: var(--link-hover);
+			text-decoration-color: currentColor;
+		}
+	}
+
+	.explore-more {
+		max-width: 16rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.public-name-copy,
+		.public-name-copy svg,
+		.aside-link {
+			transition: none;
+		}
+	}
+</style>
+
+<script>
+	const COPY_FEEDBACK_MS = 2_000;
+
+	document
+		.querySelectorAll<HTMLButtonElement>("[data-copy-public-name]")
+		.forEach((button) => {
+			const status =
+				button.parentElement?.querySelector<HTMLElement>("[data-copy-status]");
+			let reset: number | undefined;
+			button.addEventListener("click", async () => {
+				const publicName = button.dataset.copyPublicName;
+				if (!publicName) return;
+				window.clearTimeout(reset);
+				try {
+					await navigator.clipboard.writeText(publicName);
+					button.dataset.copied = "true";
+					if (status) status.textContent = "Copied";
+				} catch {
+					delete button.dataset.copied;
+					if (status) status.textContent = "Copy failed";
+				}
+				reset = window.setTimeout(() => {
+					delete button.dataset.copied;
+					if (status) status.textContent = "";
+				}, COPY_FEEDBACK_MS);
+			});
+		});
+</script>

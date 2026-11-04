@@ -7,11 +7,19 @@
 /**
  * Search configuration for a collection
  */
+export const SEARCH_TOKENIZERS = ["porter unicode61", "unicode61", "trigram"] as const;
+
+export type SearchTokenizer = (typeof SEARCH_TOKENIZERS)[number];
+
 export interface SearchConfig {
 	/** Whether search is enabled for this collection */
 	enabled: boolean;
 	/** Field weights for ranking (higher = more important) */
 	weights?: Record<string, number>;
+	/** Field slug used as the result title, from the collection's titleField. */
+	titleField?: string;
+	/** FTS5 tokenizer configuration (defaults to English Porter stemming) */
+	tokenize?: SearchTokenizer;
 }
 
 /**
@@ -28,6 +36,12 @@ export interface SearchOptions {
 	limit?: number;
 	/** Pagination cursor */
 	cursor?: string;
+	/**
+	 * Which indexed fields to match against (defaults to 'all').
+	 * With 'title', only the collection's title field is matched; collections
+	 * whose title field is not indexed for search return no results.
+	 */
+	scope?: "all" | "title";
 }
 
 /**
@@ -42,6 +56,8 @@ export interface CollectionSearchOptions {
 	limit?: number;
 	/** Pagination cursor */
 	cursor?: string;
+	/** Which indexed fields to match against (defaults to 'all'). */
+	scope?: "all" | "title";
 }
 
 /**
@@ -101,6 +117,8 @@ export interface Suggestion {
 	collection: string;
 	/** Entry ID */
 	id: string;
+	/** Entry slug, when available */
+	slug?: string | null;
 	/** Entry title */
 	title: string;
 }

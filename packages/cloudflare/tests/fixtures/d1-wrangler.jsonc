@@ -1,0 +1,24 @@
+{
+	"name": "d1-resolver-fixture",
+	"main": "./worker.ts",
+	"account_id": "0123456789abcdef0123456789abcdef",
+	"compatibility_date": "2026-08-12",
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "top-level-db",
+			"database_id": "11111111-2222-4333-8444-555555555555",
+		},
+	],
+	"env": {
+		"production": {
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "production-db",
+					"database_id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+				},
+			],
+		},
+	},
+}

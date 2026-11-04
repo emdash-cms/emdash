@@ -8,17 +8,17 @@
 
 import type { APIRoute } from "astro";
 
-import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
-import { apiError, handleError, unwrapResult } from "#api/error.js";
-import { isParseError, parseBody } from "#api/parse.js";
-import { mediaUpdateBody } from "#api/schemas.js";
-
+import { canReadMediaUsageCount, requireOwnerPerm, requirePerm } from "#api/authorize.js";
+import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
+import { handleMediaUsageSummaries } from "#api/handlers/media-usage.js";
+import { isParseError, parseBody, parseQuery } from "#api/parse.js";
+import { mediaGetQuery, mediaUpdateBody } from "#api/schemas.js";
 export const prerender = false;
 
 /**
  * Get media item
  */
-export const GET: APIRoute = async ({ params, locals }) => {
+export const GET: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const { id } = params;
 
@@ -32,9 +32,19 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	if (!emdash?.handleMediaGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
+	const query = parseQuery(new URL(request.url), mediaGetQuery);
+	if (isParseError(query)) return query;
 
 	const result = await emdash.handleMediaGet(id);
-	return unwrapResult(result);
+	if (!result.success || query.includeUsage !== "1") return unwrapResult(result);
+
+	const includeCount = canReadMediaUsageCount(user, locals.tokenScopes);
+	const usageResult = await handleMediaUsageSummaries(emdash.db, [id], { includeCount });
+	if (!usageResult.success) return unwrapResult(usageResult);
+	const usage = usageResult.data[id];
+	if (!usage) return apiError("MEDIA_USAGE_READ_ERROR", "Failed to read media usage", 500);
+
+	return apiSuccess({ item: { ...result.data.item, usage } });
 };
 
 /**
@@ -79,6 +89,9 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 			caption: body.caption,
 			width: body.width,
 			height: body.height,
+			folderId: body.folderId,
+			focalX: body.focalX,
+			focalY: body.focalY,
 		});
 
 		return unwrapResult(result);
@@ -126,20 +139,20 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 		);
 		if (ownerDenied) return ownerDenied;
 
-		// Delete file from storage via the storage adapter
-		if (emdash.storage) {
-			try {
-				await emdash.storage.delete(media.storageKey);
-			} catch {
-				// Best-effort — continue with database deletion
-			}
+		// Storage deletion and site-settings cache invalidation happen in
+		// `EmDashRuntime.handleMediaDelete` so the MCP tool inherits them.
+		const result = await emdash.handleMediaDelete(id);
+		if (!result.success) return unwrapResult(result);
+		if (
+			typeof result.data !== "object" ||
+			result.data === null ||
+			!("storageDeleted" in result.data) ||
+			typeof result.data.storageDeleted !== "boolean"
+		) {
+			return apiError("MEDIA_DELETE_ERROR", "Failed to delete media", 500);
 		}
 
-		// Delete from database — site-settings cache invalidation happens
-		// in `EmDashRuntime.handleMediaDelete` so MCP/plugin paths inherit it.
-		const result = await emdash.handleMediaDelete(id);
-
-		return unwrapResult(result);
+		return apiSuccess({ deleted: true, storageDeleted: result.data.storageDeleted });
 	} catch (error) {
 		return handleError(error, "Failed to delete media", "MEDIA_DELETE_ERROR");
 	}

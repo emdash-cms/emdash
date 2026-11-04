@@ -7,13 +7,13 @@ import { resolveStarterSiteIdentity } from "../utils/site-identity";
 const slug = decodeSlug(Astro.params.slug);
 
 if (!slug) {
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 
 const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
 
 if (!page) {
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
@@ -22,7 +22,7 @@ const { siteTitle } = resolveStarterSiteIdentity(await getSiteSettings());
 const seo = getSeoMeta(page, {
 	siteTitle,
 	siteUrl: Astro.url.origin,
-	path: `/${slug}`,
+	path: Astro.url.pathname.replace(/\/$/, ""),
 });
 ---
 

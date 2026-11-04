@@ -6,11 +6,11 @@ dist/
 
 # Astro
 .astro/
+.emdash/migrations.json
 
 # Data
 data.db
-data.db-shm
-data.db-wal
+data.db-*
 uploads/
 
 # Environment

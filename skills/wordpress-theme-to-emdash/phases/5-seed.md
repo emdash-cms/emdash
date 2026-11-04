@@ -1,203 +1,23 @@
-# Phase 5: Create Seed File
+# Phase 5: Define schema and seed data
 
-Combine all theme features into a seed file with sample content.
+Build the collections, fields, taxonomies, menus, widget areas, settings, and representative content needed to exercise the port. Read [schema and seed](../../building-emdash-site/references/schema-and-seed.md) for the current schema, file locations, media and reference syntax, and validation rules.
 
-## 5.1 Image Strategy
+## Model the source content
 
-**Use the same images you downloaded in Phase 1** for visual consistency.
+- Create fields for content the template actually renders or editors need to manage.
+- Keep taxonomy names consistent between the seed and query calls.
+- Preserve source identifiers when a later import or redirect needs them.
+- Use realistic long, short, missing, and media-rich entries to exercise the design.
+- Add redirects for legacy URLs only when the migration owns those URLs and the destination is known.
 
-1. **Open source themes (GPL)**: Use exact images from the demo
-2. **Premium themes**: Use Unsplash images matching the demo's style
-3. **Local images**: Reference with `file:./` prefix:
-   ```json
-   "featured_image": {
-     "$media": {
-       "url": "file:./discovery/images/hero.jpg",
-       "alt": "Hero image"
-     }
-   }
-   ```
+Use a seed for a new disposable site's initial schema and sample content. Do not treat a seed as a production backup, bidirectional synchronization mechanism, or replacement for an existing-site import plan.
 
-## 5.2 Validation
+## Choose assets lawfully
 
-The seed is applied automatically on the first request when the database is empty (and no setup wizard run yet). Validation runs at apply time — errors show up in the dev server logs. Restart the dev server after fixing them.
+Use licensed or user-provided images selected during discovery. Record the source and license of reused or substitute assets. Match the reference aspect ratio and visual weight when substituting an image.
 
-The validator catches common mistakes:
+Reference local seed media with the current `$media` syntax from the canonical seed guide. Do not copy a remote demo image merely because the theme code is open source.
 
-| Check                        | Error                     |
-| ---------------------------- | ------------------------- |
-| Image using raw URL          | "must use $media syntax"  |
-| Reference using raw ID       | "must use $ref:id syntax" |
-| PortableText not an array    | "expected array"          |
-| PortableText missing `_type` | "missing required \_type" |
+## Validate safely
 
-### Common Fixes
-
-```json
-// WRONG - raw URL
-"featured_image": "https://example.com/photo.jpg"
-
-// CORRECT - $media syntax
-"featured_image": {
-  "$media": {
-    "url": "https://example.com/photo.jpg",
-    "alt": "Description"
-  }
-}
-
-// WRONG - unknown byline reference
-"bylines": [{ "byline": "author-1" }]
-
-// CORRECT - define root bylines[] and reference byline IDs
-"bylines": [{ "byline": "byline-author-1" }]
-```
-
-## 5.3 Seed File Structure
-
-```json
-{
-	"$schema": "https://emdashcms.com/seed.schema.json",
-	"version": "1",
-	"meta": {
-		"name": "Theme Name",
-		"description": "Ported from WordPress theme"
-	},
-
-	"settings": {
-		"title": "Site Title",
-		"tagline": "Site tagline"
-	},
-
-	"collections": [
-		{
-			"slug": "posts",
-			"label": "Posts",
-			"fields": [
-				{ "slug": "title", "type": "string", "required": true },
-				{ "slug": "content", "type": "portableText" },
-				{ "slug": "featured_image", "type": "image" }
-			]
-		}
-	],
-
-	"taxonomies": [
-		{
-			"name": "categories",
-			"label": "Categories",
-			"hierarchical": true,
-			"collections": ["posts"],
-			"terms": [{ "slug": "news", "label": "News" }]
-		}
-	],
-
-	"bylines": [
-		{
-			"id": "byline-author-1",
-			"slug": "theme-author",
-			"displayName": "Theme Author"
-		}
-	],
-
-	"menus": [
-		{
-			"name": "primary",
-			"label": "Primary Navigation",
-			"items": [
-				{ "type": "custom", "label": "Home", "url": "/" },
-				{ "type": "custom", "label": "Blog", "url": "/posts" }
-			]
-		}
-	],
-
-	"content": {
-		"posts": [
-			{
-				"id": "post-1",
-				"slug": "hello-world",
-				"status": "published",
-				"bylines": [{ "byline": "byline-author-1" }],
-				"data": {
-					"title": "Hello World",
-					"content": [{ "_type": "block", "children": [{ "text": "Welcome!" }] }],
-					"featured_image": {
-						"$media": {
-							"url": "file:./discovery/images/featured-1.jpg",
-							"alt": "Featured image"
-						}
-					}
-				}
-			}
-		]
-	}
-}
-```
-
-## 5.4 Adding Sections (Reusable Blocks)
-
-If the theme has reusable block patterns, add them as sections:
-
-```json
-{
-	"sections": [
-		{
-			"slug": "hero-centered",
-			"title": "Centered Hero",
-			"description": "Full-width hero with centered heading and CTA button",
-			"keywords": ["hero", "banner", "header", "landing"],
-			"content": [
-				{
-					"_type": "block",
-					"style": "h1",
-					"children": [{ "_type": "span", "text": "Welcome to Our Site" }]
-				},
-				{
-					"_type": "block",
-					"children": [{ "_type": "span", "text": "Your compelling tagline goes here." }]
-				}
-			]
-		},
-		{
-			"slug": "newsletter-cta",
-			"title": "Newsletter Signup",
-			"keywords": ["newsletter", "subscribe", "email", "signup"],
-			"content": [
-				{
-					"_type": "block",
-					"style": "h3",
-					"children": [{ "_type": "span", "text": "Subscribe to our newsletter" }]
-				},
-				{
-					"_type": "block",
-					"children": [
-						{ "_type": "span", "text": "Get the latest updates delivered to your inbox." }
-					]
-				}
-			]
-		}
-	]
-}
-```
-
-Editors can insert these sections using the `/section` slash command in the rich text editor.
-
-## 5.5 Add Redirects for Legacy WordPress URLs
-
-Include redirects in the seed when the WordPress theme used different URL structures.
-
-```json
-{
-	"redirects": [
-		{ "source": "/?p=123", "destination": "/hello-world" },
-		{ "source": "/2024/01/hello-world", "destination": "/hello-world", "type": 301 },
-		{ "source": "/category/news", "destination": "/categories/news" }
-	]
-}
-```
-
-Rules:
-
-- `source` and `destination` must be local paths (start with `/`)
-- Supported `type` values are `301`, `302`, `307`, `308`
-- Redirects are idempotent during seeding (existing `source` entries are skipped)
-
-See `references/emdash-api.md` for full seed file schema.
+Apply the seed to a disposable database and inspect the first-request logs. Fix validation errors at their source. Do not delete an existing database to force a re-seed unless the user has identified that exact database as disposable.

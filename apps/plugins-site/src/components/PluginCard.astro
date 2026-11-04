@@ -1,0 +1,357 @@
+---
+/**
+ * A plugin summary for the catalog grids. The name links to the plugin, and
+ * that link stretches over the whole card, so the card has one link whose
+ * accessible name is the plugin's name.
+ */
+import type { RegistryEntryData } from "@emdash-cms/registry-loader";
+
+import { pluginArtSeed } from "../lib/plugin-art.js";
+import {
+	isNewPlugin,
+	isOfficialPublisher,
+	listingImageUrl,
+	permissionCountLabel,
+	pluginPath,
+	publisherHandle,
+	relativeUpdated,
+	requestedPermissions,
+} from "../lib/registry.js";
+import PluginArt from "./PluginArt.astro";
+
+interface Props {
+	entry: RegistryEntryData;
+	headingLevel?: 2 | 3;
+}
+
+const { entry, headingLevel = 3 } = Astro.props;
+const Heading = headingLevel === 2 ? "h2" : "h3";
+const plugin = entry.package;
+const profile = plugin.profile;
+const name = profile?.name || plugin.slug;
+const handle = publisherHandle(plugin);
+const official = isOfficialPublisher(plugin);
+const icon = listingImageUrl(entry, "icon");
+const permissions = requestedPermissions(entry);
+const isNew = isNewPlugin(plugin);
+const updated = profile?.lastUpdated
+	? relativeUpdated(profile.lastUpdated)
+	: undefined;
+---
+
+<article class="plugin-card card">
+	<div class="plugin-card-head">
+		<span class="plugin-icon">
+			{
+				icon ? (
+					<img
+						src={icon}
+						alt=""
+						width="44"
+						height="44"
+						loading="lazy"
+						decoding="async"
+						referrerpolicy="no-referrer"
+					/>
+				) : (
+					<PluginArt seed={pluginArtSeed(plugin)} variant="tile" />
+				)
+			}
+		</span>
+		<div class="plugin-card-titles">
+			<Heading class="plugin-card-name" dir="auto">
+				<a
+					class="plugin-card-link"
+					href={pluginPath(plugin)}
+					data-astro-prefetch>{name}</a
+				>
+			</Heading>
+			<p class="plugin-card-publisher">
+				<span class="plugin-card-handle" dir="auto"
+					>{handle ? `@${handle}` : plugin.did}</span
+				>
+				{
+					official && (
+						<span class="plugin-card-official">
+							<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+								<path d="M12 3l2.8 2.2 3.6.4.4 3.6L21 12l-2.2 2.8-.4 3.6-3.6.4L12 21l-2.8-2.2-3.6-.4-.4-3.6L3 12l2.2-2.8.4-3.6 3.6-.4Z" />
+								<path d="m8.8 12.2 2.2 2.2 4.2-4.6" />
+							</svg>
+							Official
+						</span>
+					)
+				}
+				{isNew && <span class="plugin-card-new">New</span>}
+			</p>
+		</div>
+	</div>
+	<p class="plugin-card-description" dir="auto">
+		{profile?.description || "An EmDash plugin."}
+	</p>
+	<div class="plugin-card-meta">
+		{
+			plugin.latestVersion && (
+				<span class="plugin-card-version" title={`v${plugin.latestVersion}`}>
+					v{plugin.latestVersion}
+				</span>
+			)
+		}
+		{
+			permissions.declared && (
+				<span class="plugin-card-permissions">
+					<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+						<path d="M12 3.5 5 6v5.6c0 4.2 2.9 7.5 7 8.9 4.1-1.4 7-4.7 7-8.9V6Z" />
+					</svg>
+					{permissionCountLabel(permissions.capabilities.length)}
+				</span>
+			)
+		}
+		{
+			updated && (
+				<span class="plugin-card-updated">
+					<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+						<circle cx="12" cy="12" r="8.5" />
+						<path d="M12 7.5V12l3 2" />
+					</svg>
+					<span class="visually-hidden">{"Updated "}</span>
+					<time datetime={profile?.lastUpdated}>{updated}</time>
+				</span>
+			)
+		}
+	</div>
+</article>
+
+<style>
+	.plugin-card {
+		position: relative;
+		container: plugin-card / inline-size;
+		display: flex;
+		min-width: 0;
+		height: 100%;
+		flex-direction: column;
+		gap: 0.875rem;
+		padding: 1.25rem;
+		transition:
+			border-color 150ms ease,
+			box-shadow 150ms ease;
+	}
+
+	@media (hover: hover) {
+		.plugin-card:hover {
+			border-color: var(--line-strong);
+			box-shadow: var(--shadow-card-hover);
+		}
+	}
+
+	/* The stretched link carries focus, so the ring is drawn around the whole card. */
+	@supports selector(:has(*)) {
+		.plugin-card:has(.plugin-card-link:focus-visible) {
+			outline: 2px solid var(--accent-ink);
+			outline-offset: 2px;
+		}
+
+		.plugin-card-link:focus-visible {
+			outline: none;
+		}
+	}
+
+	.plugin-card-link {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.plugin-card-link::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		border-radius: var(--radius-lg);
+	}
+
+	.plugin-card-head {
+		display: grid;
+		grid-template-columns: 2.75rem minmax(0, 1fr);
+		align-items: center;
+		gap: 0.875rem;
+	}
+
+	.plugin-icon {
+		position: relative;
+		display: block;
+		width: 2.75rem;
+		height: 2.75rem;
+		overflow: hidden;
+		background: var(--surface-soft);
+		border-radius: var(--radius-md);
+	}
+
+	/* Above the image, so light icons still have an edge on a white card. */
+	.plugin-icon::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+		pointer-events: none;
+	}
+
+	.plugin-icon img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.plugin-card-titles {
+		display: grid;
+		min-width: 0;
+		gap: 0.125rem;
+	}
+
+	.plugin-card-name {
+		display: -webkit-box;
+		margin: 0;
+		overflow: hidden;
+		color: var(--ink-strong);
+		font-size: 1.0625rem;
+		font-weight: 600;
+		line-height: 1.3;
+		letter-spacing: -0.02em;
+		overflow-wrap: anywhere;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+	}
+
+	.plugin-card-publisher {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		gap: 0.5rem;
+		margin: 0;
+		color: var(--muted);
+		font-size: 0.8125rem;
+		line-height: 1.4;
+	}
+
+	.plugin-card-handle {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.plugin-card-official {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		gap: 0.25rem;
+		padding-block: 0.0625rem;
+		padding-inline: 0.3125rem 0.4375rem;
+		color: var(--ink);
+		font-size: 0.71875rem;
+		font-weight: 500;
+		line-height: 1.45;
+		background: var(--fill);
+		border-radius: var(--radius-full);
+	}
+
+	.plugin-card-official svg {
+		width: 0.8125rem;
+		height: 0.8125rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.75;
+	}
+
+	.plugin-card-description {
+		display: -webkit-box;
+		margin: 0;
+		overflow: hidden;
+		color: var(--muted);
+		font-size: 0.90625rem;
+		line-height: 1.55;
+		overflow-wrap: break-word;
+		text-wrap: pretty;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+	}
+
+	.plugin-card-meta {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem 0.875rem;
+		margin-top: auto;
+		padding-top: 0.875rem;
+		color: var(--muted);
+		font-size: 0.8125rem;
+		line-height: 1.4;
+		font-variant-numeric: tabular-nums;
+		border-top: 1px dashed var(--line-strong);
+	}
+
+	.plugin-card-version {
+		min-width: 0;
+		overflow: hidden;
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.plugin-card-permissions,
+	.plugin-card-updated {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		gap: 0.3125rem;
+		white-space: nowrap;
+	}
+
+	.plugin-card-permissions svg,
+	.plugin-card-updated svg {
+		width: 0.875rem;
+		height: 0.875rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.75;
+	}
+
+	.plugin-card-updated {
+		margin-inline-start: auto;
+	}
+
+	.plugin-card-new {
+		flex: none;
+		padding: 0.0625rem 0.4375rem;
+		color: var(--accent-ink);
+		font-size: 0.71875rem;
+		font-weight: 600;
+		line-height: 1.45;
+		background: var(--accent-soft);
+		border-radius: var(--radius-full);
+	}
+
+	/* Phone-width cards drop the decorative icons to keep the footer on one line, and wrap if it still doesn't fit. */
+	@container plugin-card (max-width: 16rem) {
+		.plugin-card-meta {
+			flex-wrap: wrap;
+			column-gap: 0.75rem;
+		}
+
+		.plugin-card-meta svg {
+			display: none;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.plugin-card {
+			transition: none;
+		}
+	}
+</style>

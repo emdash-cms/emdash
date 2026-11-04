@@ -11,24 +11,46 @@
  */
 
 import type { APIContext } from "astro";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { GET as getManifest } from "../../../src/astro/routes/api/manifest.js";
+import { MediaRepository } from "../../../src/database/repositories/media.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
+import {
+	describeEachDialect,
+	setupForDialect,
+	setupTestDatabase,
+	teardownForDialect,
+	teardownTestDatabase,
+	type DialectTestContext,
+} from "../../utils/test-db.js";
 
 interface ManifestEnvelope {
 	data: {
-		admin?: { logo?: string; siteName?: string; favicon?: string };
+		admin?: {
+			logo?: string;
+			siteName?: string;
+			footerLabel?: string | false;
+			favicon?: string;
+		};
 		authMode: string;
+		providerManagedName?: boolean;
 		signupEnabled?: boolean;
 		collections?: Record<string, unknown>;
 		plugins?: Record<string, unknown>;
 		taxonomies?: unknown[];
 		version?: string;
+		timezone?: string;
 	};
 }
 
 function makeContext(
-	adminBranding?: { logo?: string; siteName?: string; favicon?: string },
+	adminBranding?: {
+		logo?: string;
+		siteName?: string;
+		footerLabel?: string | false;
+		favicon?: string;
+	},
 	manifest?: unknown,
 ): Parameters<typeof getManifest>[0] {
 	const locals = {
@@ -49,6 +71,7 @@ describe("manifest route admin branding", () => {
 		const branding = {
 			logo: "/logo.png",
 			siteName: "My Site",
+			footerLabel: false,
 			favicon: "/favicon.ico",
 		};
 
@@ -78,5 +101,152 @@ describe("manifest route admin branding", () => {
 		const response = await getManifest(ctx);
 		const body = (await response.json()) as ManifestEnvelope;
 		expect(body.data.admin).toEqual(branding);
+	});
+
+	it("includes the configured site timezone for datetime controls", async () => {
+		const db = await setupTestDatabase();
+		try {
+			await new OptionsRepository(db).set("site:timezone", "Asia/Tokyo");
+			const context = {
+				locals: {
+					emdash: {
+						db,
+						config: { admin: { siteName: "Configured name" } },
+						getManifest: async () => ({
+							version: "test",
+							hash: "test",
+							collections: {},
+							plugins: {},
+							taxonomies: [],
+						}),
+					},
+				},
+			} as unknown as APIContext;
+
+			const response = await getManifest(context);
+			const body = (await response.json()) as ManifestEnvelope;
+			expect(body.data.timezone).toBe("Asia/Tokyo");
+		} finally {
+			await teardownTestDatabase(db);
+		}
+	});
+});
+
+describe("manifest route provider-managed names", () => {
+	async function providerManagedName(auth?: Record<string, unknown>) {
+		const context = {
+			locals: {
+				emdash: {
+					config: auth ? { auth } : {},
+					getManifest: async () => ({
+						version: "test",
+						hash: "test",
+						collections: {},
+						plugins: {},
+						taxonomies: [],
+					}),
+				},
+			},
+		} as unknown as APIContext;
+		const body = (await (await getManifest(context)).json()) as ManifestEnvelope;
+		return body.data.providerManagedName;
+	}
+
+	const access = {
+		type: "cloudflare-access",
+		entrypoint: "@emdash-cms/cloudflare/auth",
+	};
+
+	it("reports names as provider-managed for external auth by default", async () => {
+		expect(await providerManagedName({ ...access, config: { teamDomain: "t" } })).toBe(true);
+	});
+
+	it("reports names as editable when external auth sets syncName to false", async () => {
+		expect(
+			await providerManagedName({ ...access, config: { teamDomain: "t", syncName: false } }),
+		).toBe(false);
+	});
+
+	it("reports names as editable with passkey auth", async () => {
+		expect(await providerManagedName()).toBe(false);
+	});
+});
+
+describeEachDialect("manifest route saved site logo", (dialect) => {
+	let ctx: DialectTestContext;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	function makeDatabaseContext(admin?: ManifestEnvelope["data"]["admin"]): APIContext {
+		return {
+			locals: {
+				emdash: {
+					db: ctx.db,
+					config: { admin },
+					getManifest: async () => ({
+						version: "test",
+						hash: "test",
+						collections: {},
+						plugins: {},
+						taxonomies: [],
+					}),
+				},
+			},
+		} as unknown as APIContext;
+	}
+
+	it("shows the saved site logo and removes it when the setting is cleared", async () => {
+		const media = await new MediaRepository(ctx.db).create({
+			filename: "logo.svg",
+			mimeType: "image/svg+xml",
+			storageKey: "branding/site-logo.svg",
+		});
+		const options = new OptionsRepository(ctx.db);
+		await options.set("site:title", "Saved Site");
+		await options.set("site:logo", { mediaId: media.id, alt: "Site logo" });
+		const branding = { footerLabel: false as const, favicon: "/favicon.ico" };
+
+		const response = await getManifest(makeDatabaseContext(branding));
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as ManifestEnvelope;
+		expect(body.data.admin).toEqual({
+			...branding,
+			siteName: "Saved Site",
+			logo: "/_emdash/api/media/file/branding/site-logo.svg",
+		});
+
+		await options.delete("site:logo");
+		const clearedResponse = await getManifest(makeDatabaseContext(branding));
+		const clearedBody = (await clearedResponse.json()) as ManifestEnvelope;
+		expect(clearedBody.data.admin).toEqual({ ...branding, siteName: "Saved Site" });
+	});
+
+	it("keeps an explicitly configured admin logo over the saved site logo", async () => {
+		const media = await new MediaRepository(ctx.db).create({
+			filename: "logo.svg",
+			mimeType: "image/svg+xml",
+			storageKey: "site-logo.svg",
+		});
+		await new OptionsRepository(ctx.db).set("site:logo", { mediaId: media.id });
+		const branding = { logo: "/admin-logo.svg", siteName: "Configured Site" };
+
+		const response = await getManifest(makeDatabaseContext(branding));
+		const body = (await response.json()) as ManifestEnvelope;
+		expect(body.data.admin).toEqual(branding);
+	});
+
+	it("falls back to the default branding when the saved logo media is missing", async () => {
+		await new OptionsRepository(ctx.db).set("site:logo", { mediaId: "missing-logo" });
+
+		const response = await getManifest(makeDatabaseContext());
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as ManifestEnvelope;
+		expect(body.data.admin).toBeUndefined();
 	});
 });

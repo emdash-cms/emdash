@@ -5,26 +5,34 @@
  * cancel/confirm buttons with pending state. Dialog stays open on error.
  */
 
-import { Button, Dialog } from "@cloudflare/kumo";
+import { LayerDialog } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
+import { useConfirmPress } from "../lib/dialog-form.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 
 export interface ConfirmDialogProps {
 	open: boolean;
 	onClose: () => void;
+	/** ARIA role; use alertdialog for destructive actions requiring acknowledgment. */
+	role?: "dialog" | "alertdialog";
 	title: string;
-	/** Static description or dynamic JSX content */
+	/** Static description or inline JSX; it renders inside a paragraph. */
 	description: React.ReactNode;
 	/** Label for the confirm button (e.g. "Delete", "Disable User") */
 	confirmLabel: string;
+	/** Optional cancel label; defaults to the localized host label. */
+	cancelLabel?: string;
 	/** Label shown while the action is pending (e.g. "Deleting...") */
 	pendingLabel: string;
 	/** Button variant — defaults to "destructive" */
 	variant?: "destructive" | "primary";
+	/** Disable confirmation until required input in the dialog is complete. */
+	confirmDisabled?: boolean;
 	isPending: boolean;
-	/** Error from a mutation — pass mutation.error directly */
+	/** Error from a mutation — pass mutation.error directly. An error already
+	 * there when the dialog opens came from an earlier request and is not shown. */
 	error: unknown;
 	onConfirm: () => void;
 	/** Extra content rendered between description and buttons (e.g. a checkbox) */
@@ -34,33 +42,63 @@ export interface ConfirmDialogProps {
 export function ConfirmDialog({
 	open,
 	onClose,
+	role = "dialog",
 	title,
 	description,
 	confirmLabel,
+	cancelLabel,
 	pendingLabel,
 	variant = "destructive",
+	confirmDisabled = false,
 	isPending,
 	error,
 	onConfirm,
 	children,
 }: ConfirmDialogProps) {
 	const { t } = useLingui();
+	const confirm = useConfirmPress(onConfirm, isPending, error);
+	// A mutation shared by several items still holds the last item's failure.
+	const [staleError, setStaleError] = React.useState(() => (open ? error : null));
+	const [wasOpen, setWasOpen] = React.useState(open);
+	if (open !== wasOpen) {
+		setWasOpen(open);
+		if (open) setStaleError(error);
+	}
+	const Root = role === "alertdialog" ? LayerDialog.Alert : LayerDialog.Root;
 	return (
-		<Dialog.Root open={open} onOpenChange={(o) => !o && onClose()} disablePointerDismissal>
-			<Dialog className="p-6" size="sm">
-				<Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
-				<Dialog.Description className="text-kumo-subtle">{description}</Dialog.Description>
-				{children}
-				<DialogError message={getMutationError(error)} className="mt-3" />
-				<div className="mt-6 flex justify-end gap-2">
-					<Button variant="secondary" onClick={onClose}>
-						{t`Cancel`}
-					</Button>
-					<Button variant={variant} disabled={isPending} onClick={onConfirm}>
+		<Root
+			open={open}
+			onOpenChange={(nextOpen) => !nextOpen && !isPending && onClose()}
+			dismissDisabled={isPending}
+			disablePointerDismissal
+		>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>
+					<span dir="auto" className="block">
+						{title}
+					</span>
+				</LayerDialog.Title>
+				<LayerDialog.Description>
+					<span dir="auto" className="block">
+						{description}
+					</span>
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<div className="grid gap-3">
+						{children}
+						<DialogError message={error === staleError ? null : getMutationError(error)} />
+					</div>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={cancelLabel ?? t`Cancel`}>
+					<LayerDialog.Action
+						variant={variant}
+						disabled={isPending || confirmDisabled}
+						onClick={() => confirm()}
+					>
 						{isPending ? pendingLabel : confirmLabel}
-					</Button>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</Root>
 	);
 }

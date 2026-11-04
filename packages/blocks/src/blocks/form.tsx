@@ -1,6 +1,7 @@
 import { Button } from "@cloudflare/kumo";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
+import { FormOwnerContext } from "../form-context.js";
 import { renderElement } from "../render-element.js";
 import type { BlockInteraction, FieldCondition, FormBlock, FormField } from "../types.js";
 
@@ -41,6 +42,7 @@ export function FormBlockComponent({
 	block: FormBlock;
 	onAction: (interaction: BlockInteraction) => void;
 }) {
+	const container = useRef<HTMLDivElement>(null);
 	const [values, setValues] = useState<Record<string, unknown>>(() =>
 		getInitialValues(block.fields),
 	);
@@ -49,8 +51,7 @@ export function FormBlockComponent({
 		setValues((prev) => ({ ...prev, [actionId]: value }));
 	}, []);
 
-	function handleSubmit(e: React.FormEvent) {
-		e.preventDefault();
+	function submit() {
 		onAction({
 			type: "form_submit",
 			action_id: block.submit.action_id,
@@ -59,17 +60,56 @@ export function FormBlockComponent({
 		});
 	}
 
+	function validate() {
+		const controls = container.current?.querySelectorAll<
+			HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+		>("input, select, textarea");
+		return controls ? [...controls].every((control) => control.reportValidity()) : false;
+	}
+
+	function handleClick() {
+		if (validate()) submit();
+	}
+
+	function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+		// Leave multiline editing, IME confirmation and combobox selection to the control.
+		const input = e.target;
+		if (
+			e.key !== "Enter" ||
+			e.defaultPrevented ||
+			e.nativeEvent.isComposing ||
+			e.nativeEvent.keyCode === 229 ||
+			!(input instanceof HTMLInputElement) ||
+			input.getAttribute("role") === "combobox" ||
+			!["text", "number", "email", "url", "password", "search", "tel", "date"].includes(input.type)
+		)
+			return;
+		e.preventDefault();
+		e.stopPropagation();
+		if (validate()) submit();
+	}
+
 	return (
-		<form onSubmit={handleSubmit} className="flex flex-col gap-4">
-			{block.fields.map((field) => {
-				if (field.condition && !evaluateCondition(field.condition, values)) {
-					return null;
-				}
-				return <div key={field.action_id}>{renderElement(field, onAction, handleChange)}</div>;
-			})}
-			<div>
-				<Button type="submit">{block.submit.label}</Button>
+		<FormOwnerContext.Provider value="">
+			<div
+				ref={container}
+				role="group"
+				aria-label={block.submit.label}
+				onKeyDown={handleKeyDown}
+				className="flex flex-col gap-4"
+			>
+				{block.fields.map((field) => {
+					if (field.condition && !evaluateCondition(field.condition, values)) {
+						return null;
+					}
+					return <div key={field.action_id}>{renderElement(field, onAction, handleChange)}</div>;
+				})}
+				<div>
+					<Button type="button" onClick={handleClick}>
+						{block.submit.label}
+					</Button>
+				</div>
 			</div>
-		</form>
+		</FormOwnerContext.Provider>
 	);
 }

@@ -14,6 +14,7 @@ import {
 	resolveApiToken,
 	resolveOAuthToken,
 } from "../../../src/api/handlers/api-tokens.js";
+import { handleTokenRefresh } from "../../../src/api/handlers/device-flow.js";
 import { generatePrefixedToken, TOKEN_PREFIXES } from "../../../src/auth/api-tokens.js";
 import type { Database } from "../../../src/database/types.js";
 import { setupTestDatabase } from "../../utils/test-db.js";
@@ -208,6 +209,7 @@ describe("resolveApiToken", () => {
 		expect(resolved).not.toBeNull();
 		expect(resolved!.userId).toBe("user_1");
 		expect(resolved!.scopes).toEqual(["content:read", "media:write"]);
+		expect(resolved!.tokenId).toBe(createResult.data!.info.id);
 	});
 
 	it("returns null for invalid token", async () => {
@@ -285,6 +287,51 @@ describe("resolveOAuthToken", () => {
 
 		const resolved = await resolveOAuthToken(db, raw);
 		expect(resolved).toBeNull();
+	});
+
+	it("identifies the grant by an id that survives refresh and is not a token hash", async () => {
+		const expires = new Date(Date.now() + 3600000).toISOString();
+		async function grant(): Promise<{ access: string; refresh: string; hashes: string[] }> {
+			const refresh = generatePrefixedToken(TOKEN_PREFIXES.OAUTH_REFRESH);
+			const access = generatePrefixedToken(TOKEN_PREFIXES.OAUTH_ACCESS);
+			await db
+				.insertInto("_emdash_oauth_tokens")
+				.values([
+					{
+						token_hash: refresh.hash,
+						token_type: "refresh",
+						user_id: "user_1",
+						scopes: JSON.stringify(["content:read"]),
+						client_type: "mcp",
+						expires_at: expires,
+					},
+					{
+						token_hash: access.hash,
+						token_type: "access",
+						user_id: "user_1",
+						scopes: JSON.stringify(["content:read"]),
+						client_type: "mcp",
+						expires_at: expires,
+						refresh_token_hash: refresh.hash,
+					},
+				])
+				.execute();
+			return { access: access.raw, refresh: refresh.raw, hashes: [refresh.hash, access.hash] };
+		}
+
+		const first = await grant();
+		const before = await resolveOAuthToken(db, first.access);
+		const refreshed = await handleTokenRefresh(db, {
+			refresh_token: first.refresh,
+			grant_type: "refresh_token",
+		});
+		expect(refreshed.success).toBe(true);
+		const after = await resolveOAuthToken(db, refreshed.data!.access_token);
+		expect(after!.tokenId).toBe(before!.tokenId);
+		for (const hash of first.hashes) expect(before!.tokenId).not.toContain(hash);
+
+		const second = await grant();
+		expect((await resolveOAuthToken(db, second.access))!.tokenId).not.toBe(before!.tokenId);
 	});
 
 	it("does not resolve refresh tokens", async () => {

@@ -1,12 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const { s3Send } = vi.hoisted(() => ({
+	s3Send: vi.fn((_command: unknown): Promise<unknown> => Promise.resolve({})),
+}));
+
 // The AWS SDK is a "bring-your-own" dependency of emdash core — it is NOT
 // installed in CI. Stub it here so loading s3.ts (which statically imports
 // both modules) does not require the real package.
 vi.mock("@aws-sdk/client-s3", () => {
 	class S3Client {
-		send(_command: unknown): Promise<unknown> {
-			return Promise.resolve({});
+		send(command: unknown): Promise<unknown> {
+			return s3Send(command);
 		}
 	}
 	class Command {
@@ -261,5 +265,158 @@ describe("resolveS3Config", () => {
 			const storage = createStorage({});
 			expect(storage.getPublicUrl("01ABC.jpg")).toBe("/_emdash/api/media/file/01ABC.jpg");
 		});
+	});
+});
+
+describe("S3Storage.getSignedUploadUrl", () => {
+	it("returns a zero Content-Length when zero is included in the signature", async () => {
+		const storage = createStorage({
+			endpoint: "https://bucket.s3.example.com",
+			bucket: "my-bucket",
+			accessKeyId: "key",
+			secretAccessKey: "secret",
+		});
+
+		const signed = await storage.getSignedUploadUrl({
+			key: "empty.pdf",
+			contentType: "application/pdf",
+			size: 0,
+		});
+
+		expect(signed.headers["Content-Length"]).toBe("0");
+	});
+});
+
+describe("S3Storage same-key upload", () => {
+	afterEach(() => s3Send.mockClear());
+
+	it("sends replacement bytes to the existing object key", async () => {
+		const storage = createStorage({
+			endpoint: "https://bucket.s3.example.com",
+			bucket: "my-bucket",
+			accessKeyId: "key",
+			secretAccessKey: "secret",
+		});
+
+		await storage.upload({
+			key: "hero.png",
+			body: new Uint8Array([1, 2, 3]),
+			contentType: "image/png",
+			cacheControl: "public, max-age=0, must-revalidate",
+		});
+		await storage.upload({
+			key: "hero.png",
+			body: new Uint8Array([9, 8]),
+			contentType: "image/png",
+			cacheControl: "public, max-age=0, must-revalidate",
+		});
+
+		const inputs = s3Send.mock.calls.map(
+			([command]) =>
+				(command as { input: { Key: string; Body: Uint8Array; CacheControl: string } }).input,
+		);
+		expect(inputs).toMatchObject([
+			{
+				Key: "hero.png",
+				Body: new Uint8Array([1, 2, 3]),
+				CacheControl: "public, max-age=0, must-revalidate",
+			},
+			{
+				Key: "hero.png",
+				Body: new Uint8Array([9, 8]),
+				CacheControl: "public, max-age=0, must-revalidate",
+			},
+		]);
+	});
+});
+
+describe("S3Storage ranged download", () => {
+	afterEach(() => s3Send.mockReset());
+
+	function storage() {
+		return createStorage({
+			endpoint: "https://bucket.s3.example.com",
+			bucket: "my-bucket",
+			accessKeyId: "key",
+			secretAccessKey: "secret",
+		});
+	}
+
+	function objectBody(text: string) {
+		return { transformToWebStream: () => new Blob([text]).stream() };
+	}
+
+	function sentRanges(): unknown[] {
+		return s3Send.mock.calls.map(
+			([command]) => (command as { input: { Range?: string } }).input.Range,
+		);
+	}
+
+	it.each([
+		[{ offset: 2, length: 3 }, "bytes=2-4"],
+		[{ offset: 7 }, "bytes=7-"],
+		[{ suffix: 3 }, "bytes=-3"],
+	])("requests %o as %s", async (range, header) => {
+		s3Send.mockResolvedValueOnce({ Body: objectBody(""), ContentLength: 0 });
+
+		await storage().download("clip.mp4", { range });
+
+		expect(sentRanges()).toEqual([header]);
+	});
+
+	it("reports the served bytes and the whole object's size from Content-Range", async () => {
+		s3Send.mockResolvedValueOnce({
+			Body: objectBody("234"),
+			ContentType: "video/mp4",
+			ContentLength: 3,
+			ContentRange: "bytes 2-4/10",
+		});
+
+		const result = await storage().download("clip.mp4", { range: { offset: 2, length: 3 } });
+
+		expect(result).toMatchObject({
+			contentType: "video/mp4",
+			size: 10,
+			range: { offset: 2, length: 3 },
+		});
+		expect(await new Response(result.body).text()).toBe("234");
+	});
+
+	it("downloads the whole object when the range is not satisfiable", async () => {
+		s3Send.mockRejectedValueOnce(
+			Object.assign(new Error("The requested range is not satisfiable"), { name: "InvalidRange" }),
+		);
+		s3Send.mockResolvedValueOnce({ Body: objectBody("0123456789"), ContentLength: 10 });
+
+		const result = await storage().download("clip.mp4", { range: { offset: 10 } });
+
+		expect(sentRanges()).toEqual(["bytes=10-", undefined]);
+		expect(result.range).toBeUndefined();
+		expect(result.size).toBe(10);
+	});
+
+	it("treats a response without Content-Range as the whole object", async () => {
+		s3Send.mockResolvedValueOnce({ Body: objectBody("0123456789"), ContentLength: 10 });
+
+		const result = await storage().download("clip.mp4", { range: { offset: 2, length: 3 } });
+
+		expect(result.range).toBeUndefined();
+		expect(result.size).toBe(10);
+	});
+
+	it("downloads the whole object when Content-Range doesn't give its size", async () => {
+		s3Send.mockResolvedValueOnce({
+			Body: objectBody("234"),
+			ContentLength: 3,
+			ContentRange: "bytes 2-4/*",
+		});
+		s3Send.mockResolvedValueOnce({ Body: objectBody("0123456789"), ContentLength: 10 });
+
+		const result = await storage().download("clip.mp4", { range: { offset: 2, length: 3 } });
+
+		expect(sentRanges()).toEqual(["bytes=2-4", undefined]);
+		expect(result.range).toBeUndefined();
+		expect(result.size).toBe(10);
+		expect(await new Response(result.body).text()).toBe("0123456789");
 	});
 });

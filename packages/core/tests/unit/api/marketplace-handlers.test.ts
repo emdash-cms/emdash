@@ -11,19 +11,26 @@
  * Uses a real in-memory SQLite database and mock Storage/SandboxRunner/fetch.
  */
 
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
+
 import {
+	diffRouteVisibility,
 	handleMarketplaceInstall,
 	handleMarketplaceUpdate,
 	handleMarketplaceUninstall,
 	handleMarketplaceUpdateCheck,
 	handleMarketplaceSearch,
 	handleMarketplaceGetPlugin,
+	diffCapabilities,
+	loadBundleFromR2,
+	rollbackPluginUpdate,
+	storeBundleInR2,
 } from "../../../src/api/handlers/marketplace.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
 import type { MarketplacePluginDetail } from "../../../src/plugins/marketplace.js";
 import type { SandboxRunner, SandboxedPlugin } from "../../../src/plugins/sandbox/types.js";
@@ -38,6 +45,28 @@ import type {
 } from "../../../src/storage/types.js";
 
 // ── Mock factories ────────────────────────────────────────────────
+
+describe("route visibility consent", () => {
+	it("treats a newly public raw route as a consent escalation", () => {
+		const oldManifest = mockManifest("webhooks", "1.0.0");
+		const nextManifest: PluginManifest = {
+			...mockManifest("webhooks", "1.1.0"),
+			routes: [
+				{
+					name: "incoming",
+					public: true,
+					methods: ["POST"],
+					request: { body: "bytes", headers: ["x-signature"] },
+					response: "raw",
+				},
+			],
+		};
+
+		expect(diffRouteVisibility(oldManifest, nextManifest)).toEqual({
+			newlyPublic: ["incoming"],
+		});
+	});
+});
 
 function createMockStorage(): Storage {
 	const store = new Map<string, { body: Uint8Array; contentType: string }>();
@@ -91,6 +120,24 @@ function createMockStorage(): Storage {
 		},
 		getPublicUrl(key: string): string {
 			return `https://storage.test/${key}`;
+		},
+	};
+}
+
+function deferStorageDeletes(storage: Storage): { releaseDeletes: () => void } {
+	const deleteImmediately = storage.delete.bind(storage);
+	let released = false;
+	const pending: Array<() => void> = [];
+	storage.delete = async (key: string): Promise<void> => {
+		if (!released) {
+			await new Promise<void>((resolve) => pending.push(resolve));
+		}
+		await deleteImmediately(key);
+	};
+	return {
+		releaseDeletes() {
+			released = true;
+			for (const resolve of pending.splice(0)) resolve();
 		},
 	};
 }
@@ -263,8 +310,18 @@ function mockPluginDetail(
 }
 
 describe("Marketplace handlers", () => {
+	it("requires consent when taxonomy write is added and reports its removal on downgrade", () => {
+		expect(diffCapabilities(["taxonomies:read"], ["taxonomies:read", "taxonomies:write"])).toEqual({
+			added: ["taxonomies:write"],
+			removed: [],
+		});
+		expect(diffCapabilities(["taxonomies:read", "taxonomies:write"], ["taxonomies:read"])).toEqual({
+			added: [],
+			removed: ["taxonomies:write"],
+		});
+	});
 	let db: Kysely<DbSchema>;
-	let sqliteDb: BetterSqlite3.Database;
+	let sqliteDb: BetterSqlite3;
 	let storage: Storage;
 	let sandboxRunner: ReturnType<typeof createMockSandboxRunner>;
 	let fetchSpy: ReturnType<typeof vi.fn>;
@@ -347,6 +404,151 @@ describe("Marketplace handlers", () => {
 			expect(state?.source).toBe("marketplace");
 			expect(state?.marketplaceVersion).toBe("1.0.0");
 			expect(state?.status).toBe("active");
+		});
+
+		it("materializes declared storage indexes on install and drops them on uninstall", async () => {
+			const manifest: PluginManifest = {
+				...mockManifest("audit-log", "1.0.0"),
+				storage: { entries: { indexes: ["timestamp", "action"] } },
+			};
+			const bundleBytes = await createMockBundle(manifest);
+			const detail = mockPluginDetail("audit-log", "1.0.0");
+			detail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response("OK", { status: 200 }));
+
+			const result = await handleMarketplaceInstall(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"audit-log",
+			);
+			expect(result.success).toBe(true);
+
+			const indexNames = () =>
+				sqliteDb
+					.prepare(
+						"SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_plugin_audit-log_%'",
+					)
+					.all()
+					.map((row) => (row as { name: string }).name);
+			expect(indexNames()).toEqual(
+				expect.arrayContaining([
+					"idx_plugin_audit-log_entries_timestamp",
+					"idx_plugin_audit-log_entries_action",
+				]),
+			);
+			const tracked = await db
+				.selectFrom("_plugin_indexes")
+				.select("index_name")
+				.where("plugin_id", "=", "audit-log")
+				.execute();
+			expect(tracked).toHaveLength(2);
+
+			const uninstall = await handleMarketplaceUninstall(db, storage, "audit-log");
+			expect(uninstall.success).toBe(true);
+			expect(indexNames()).toEqual([]);
+			expect(
+				await db
+					.selectFrom("_plugin_indexes")
+					.select("index_name")
+					.where("plugin_id", "=", "audit-log")
+					.execute(),
+			).toEqual([]);
+		});
+
+		it("requires explicit consent for public routes and MCP tools on install", async () => {
+			const manifest: PluginManifest = {
+				...mockManifest("test-seo", "1.0.0"),
+				routes: [
+					{ name: "events/create", permission: "content:create" },
+					{
+						name: "webhook",
+						public: true,
+						methods: ["POST"],
+						request: { body: "bytes", headers: ["x-signature"] },
+						response: "raw",
+					},
+				],
+				mcp: {
+					tools: [
+						{
+							name: "createEvent",
+							description: "Create a calendar event.",
+							route: "events/create",
+							permission: "content:create",
+							destructive: false,
+							inputSchema: { type: "object" },
+						},
+					],
+				},
+			};
+			const bundleBytes = await createMockBundle(manifest);
+			const detail = mockPluginDetail("test-seo", "1.0.0");
+			detail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+
+			const routeConsent = await handleMarketplaceInstall(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+			);
+
+			expect(routeConsent).toMatchObject({
+				success: false,
+				error: {
+					code: "ROUTE_VISIBILITY_ESCALATION",
+					details: {
+						routeVisibilityChanges: { newlyPublic: ["webhook"] },
+						mcpTools: [expect.objectContaining({ name: "createEvent" })],
+					},
+				},
+			});
+
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+			const mismatchedRouteConsent = await handleMarketplaceInstall(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+				{ acknowledgedPublicRoutes: ["admin-export"] },
+			);
+			expect(mismatchedRouteConsent).toMatchObject({
+				success: false,
+				error: {
+					code: "ROUTE_VISIBILITY_ESCALATION",
+					details: { routeVisibilityChanges: { newlyPublic: ["webhook"] } },
+				},
+			});
+
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+			const mcpConsent = await handleMarketplaceInstall(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+				{ acknowledgedPublicRoutes: ["webhook"] },
+			);
+			expect(mcpConsent).toMatchObject({
+				success: false,
+				error: {
+					code: "MCP_TOOL_CONSENT_REQUIRED",
+					details: {
+						routeVisibilityChanges: { newlyPublic: ["webhook"] },
+						mcpTools: [expect.objectContaining({ name: "createEvent" })],
+					},
+				},
+			});
+			expect(await new PluginStateRepository(db).get("test-seo")).toBeNull();
 		});
 
 		it("rejects install if plugin already installed", async () => {
@@ -438,6 +640,63 @@ describe("Marketplace handlers", () => {
 	// ── Update ─────────────────────────────────────────────────────
 
 	describe("handleMarketplaceUpdate", () => {
+		it("restores the previous state and removes the failed update bundle", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("test-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+				displayName: "Old name",
+				mcpToolsEnabled: true,
+				mcpToolsConsent: "old-consent",
+			});
+			const previousState = (await repo.get("test-seo"))!;
+			await repo.upsert("test-seo", "2.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "2.0.0",
+				displayName: "New name",
+				mcpToolsEnabled: false,
+				mcpToolsConsent: null,
+			});
+			await storage.upload({
+				key: "marketplace/test-seo/2.0.0/manifest.json",
+				body: new TextEncoder().encode("{}"),
+				contentType: "application/json",
+			});
+
+			await expect(
+				rollbackPluginUpdate(db, storage, previousState, "2.0.0", "marketplace"),
+			).resolves.toMatchObject({ success: true });
+			await expect(repo.get("test-seo")).resolves.toMatchObject({
+				version: "1.0.0",
+				marketplaceVersion: "1.0.0",
+				displayName: "Old name",
+				mcpToolsEnabled: true,
+				mcpToolsConsent: "old-consent",
+			});
+			expect(await storage.exists("marketplace/test-seo/2.0.0/manifest.json")).toBe(false);
+		});
+
+		it("does not overwrite a newer concurrent update during rollback", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("test-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+			});
+			const previousState = (await repo.get("test-seo"))!;
+			await repo.upsert("test-seo", "3.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "3.0.0",
+			});
+
+			await expect(
+				rollbackPluginUpdate(db, storage, previousState, "2.0.0", "marketplace"),
+			).resolves.toMatchObject({
+				success: false,
+				error: { code: "UPDATE_ROLLBACK_CONFLICT" },
+			});
+			await expect(repo.get("test-seo")).resolves.toMatchObject({ version: "3.0.0" });
+		});
+
 		it("returns error when plugin not found", async () => {
 			const result = await handleMarketplaceUpdate(
 				db,
@@ -640,6 +899,133 @@ describe("Marketplace handlers", () => {
 			expect(result.data?.oldVersion).toBe("1.0.0");
 			expect(result.data?.newVersion).toBe("2.0.0");
 			expect(result.data?.capabilityChanges.added).toContain("network:request");
+			expect(await storage.exists("marketplace/test-seo/1.0.0/manifest.json")).toBe(true);
+			expect(await storage.exists("marketplace/test-seo/2.0.0/manifest.json")).toBe(true);
+
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			const retried = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+				{ confirmCapabilityChanges: true },
+			);
+			expect(retried).toMatchObject({
+				success: false,
+				error: { code: "ALREADY_UP_TO_DATE" },
+			});
+			expect(await storage.exists("marketplace/test-seo/2.0.0/manifest.json")).toBe(true);
+		});
+
+		it("includes all authority changes in the initial preflight response", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("test-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+			});
+
+			const encoder = new TextEncoder();
+			const oldManifest = mockManifest("test-seo", "1.0.0");
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/manifest.json",
+				body: encoder.encode(JSON.stringify(oldManifest)),
+				contentType: "application/json",
+			});
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/backend.js",
+				body: encoder.encode("export default {};"),
+				contentType: "application/javascript",
+			});
+
+			const newManifest: PluginManifest = {
+				...mockManifest("test-seo", "2.0.0"),
+				capabilities: ["content:read", "network:request"],
+				routes: [
+					{ name: "events/create", permission: "content:create" },
+					{
+						name: "webhook",
+						public: true,
+						methods: ["POST"],
+						request: { body: "bytes", headers: ["x-signature"] },
+						response: "raw",
+					},
+				],
+				mcp: {
+					tools: [
+						{
+							name: "createEvent",
+							description: "Create a calendar event.",
+							route: "events/create",
+							permission: "content:create",
+							destructive: false,
+							inputSchema: { type: "object" },
+						},
+					],
+				},
+			};
+			const bundleBytes = await createMockBundle(newManifest);
+			const detail = mockPluginDetail("test-seo", "2.0.0");
+			detail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+
+			const result = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+			);
+
+			expect(result).toMatchObject({
+				success: false,
+				error: {
+					code: "CAPABILITY_ESCALATION",
+					details: {
+						capabilityChanges: { added: ["network:request"], removed: [] },
+						routeVisibilityChanges: { newlyPublic: ["webhook"] },
+						mcpTools: [expect.objectContaining({ name: "createEvent" })],
+					},
+				},
+			});
+
+			const swappedManifest: PluginManifest = {
+				...newManifest,
+				routes: [
+					{ name: "events/create", permission: "content:create" },
+					{
+						name: "admin-export",
+						public: true,
+						methods: ["GET"],
+						response: "raw",
+					},
+				],
+			};
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(
+				new Response(await createMockBundle(swappedManifest), { status: 200 }),
+			);
+			const changedAfterReview = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+				{
+					version: "2.0.0",
+					confirmCapabilityChanges: true,
+					acknowledgedPublicRoutes: ["webhook"],
+					confirmMcpTools: true,
+				},
+			);
+			expect(changedAfterReview).toMatchObject({
+				success: false,
+				error: {
+					code: "ROUTE_VISIBILITY_ESCALATION",
+					details: { routeVisibilityChanges: { newlyPublic: ["admin-export"] } },
+				},
+			});
 		});
 
 		it("treats deprecated → current capability rename as no change", async () => {
@@ -694,6 +1080,148 @@ describe("Marketplace handlers", () => {
 			expect(result.data?.capabilityChanges.added).toEqual([]);
 			expect(result.data?.capabilityChanges.removed).toEqual([]);
 		});
+
+		it("keeps a downgraded bundle active when an earlier update finishes later", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("test-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+			});
+
+			const encoder = new TextEncoder();
+			const initialManifest = mockManifest("test-seo", "1.0.0");
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/manifest.json",
+				body: encoder.encode(JSON.stringify(initialManifest)),
+				contentType: "application/json",
+			});
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/backend.js",
+				body: encoder.encode("export default {};"),
+				contentType: "application/javascript",
+			});
+			const deferredDeletes = deferStorageDeletes(storage);
+
+			const nextManifest = mockManifest("test-seo", "2.0.0");
+			const nextDetail = mockPluginDetail("test-seo", "2.0.0");
+			nextDetail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(nextDetail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(
+				new Response(await createMockBundle(nextManifest), { status: 200 }),
+			);
+			const updated = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+			);
+			expect(updated.success).toBe(true);
+
+			const initialDetail = mockPluginDetail("test-seo", "1.0.0");
+			initialDetail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(initialDetail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(
+				new Response(await createMockBundle(initialManifest), { status: 200 }),
+			);
+			const downgraded = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+			);
+			expect(downgraded).toMatchObject({
+				success: true,
+				data: { oldVersion: "2.0.0", newVersion: "1.0.0" },
+			});
+
+			deferredDeletes.releaseDeletes();
+			await new Promise((resolve) => setImmediate(resolve));
+			await new Promise((resolve) => setImmediate(resolve));
+
+			expect(await repo.get("test-seo")).toMatchObject({ version: "1.0.0" });
+			expect(await storage.exists("marketplace/test-seo/1.0.0/manifest.json")).toBe(true);
+			expect(await storage.exists("marketplace/test-seo/1.0.0/backend.js")).toBe(true);
+		});
+
+		it("refuses to update to a latest version that failed the security audit", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("test-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+			});
+			const detail = mockPluginDetail("test-seo", "2.0.0");
+			detail.latestVersion!.audit = { verdict: "fail", riskScore: 90 };
+			const bundle = await createMockBundle(mockManifest("test-seo", "2.0.0"));
+			fetchSpy.mockImplementation(async (url: string) =>
+				url.endsWith("/bundle")
+					? new Response(bundle, { status: 200 })
+					: new Response(JSON.stringify(detail), { status: 200 }),
+			);
+
+			const result = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+				{ confirmCapabilityChanges: true },
+			);
+
+			expect(result).toMatchObject({ success: false, error: { code: "AUDIT_FAILED" } });
+			expect(fetchSpy.mock.calls.map(([url]) => String(url))).not.toContainEqual(
+				expect.stringMatching(/\/bundle$/),
+			);
+			expect(await repo.get("test-seo")).toMatchObject({ version: "1.0.0" });
+			expect(await storage.exists("marketplace/test-seo/2.0.0/manifest.json")).toBe(false);
+		});
+
+		it("refuses to update to a pinned version whose audit was inconclusive", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("test-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+			});
+			const versions = {
+				items: [
+					{
+						version: "2.0.0",
+						minEmDashVersion: null,
+						bundleSize: 1234,
+						checksum: "",
+						changelog: null,
+						capabilities: ["hooks"],
+						auditVerdict: "warn",
+						imageAuditVerdict: "pass",
+						publishedAt: "2026-01-01T00:00:00Z",
+					},
+				],
+			};
+			const bundle = await createMockBundle(mockManifest("test-seo", "2.0.0"));
+			fetchSpy.mockImplementation(async (url: string) => {
+				if (url.endsWith("/bundle")) return new Response(bundle, { status: 200 });
+				if (url.endsWith("/versions"))
+					return new Response(JSON.stringify(versions), { status: 200 });
+				return new Response(JSON.stringify(mockPluginDetail("test-seo", "3.0.0")), { status: 200 });
+			});
+
+			const result = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+				{ version: "2.0.0", confirmCapabilityChanges: true },
+			);
+
+			expect(result).toMatchObject({ success: false, error: { code: "AUDIT_FAILED" } });
+			expect(fetchSpy.mock.calls.map(([url]) => String(url))).not.toContainEqual(
+				expect.stringMatching(/\/bundle$/),
+			);
+			expect(await repo.get("test-seo")).toMatchObject({ version: "1.0.0" });
+			expect(await storage.exists("marketplace/test-seo/2.0.0/manifest.json")).toBe(false);
+		});
 	});
 
 	// ── Uninstall ──────────────────────────────────────────────────
@@ -721,6 +1249,9 @@ describe("Marketplace handlers", () => {
 				marketplaceVersion: "1.0.0",
 			});
 
+			const options = new OptionsRepository(db);
+			await options.set("plugin:test-seo:config", { keep: true });
+
 			// Store bundle files that should be cleaned up
 			const encoder = new TextEncoder();
 			await storage.upload({
@@ -743,6 +1274,7 @@ describe("Marketplace handlers", () => {
 			// Verify state was deleted
 			const state = await repo.get("test-seo");
 			expect(state).toBeNull();
+			expect(await options.get("plugin:test-seo:config")).toEqual({ keep: true });
 		});
 
 		it("deletes plugin storage data when deleteData=true", async () => {
@@ -751,6 +1283,11 @@ describe("Marketplace handlers", () => {
 				source: "marketplace",
 				marketplaceVersion: "1.0.0",
 			});
+
+			const options = new OptionsRepository(db);
+			await options.set("plugin:test-seo:config", { name: "Acme" });
+			await options.set("plugin:test-seo:settings:organization", "Acme");
+			await options.set("plugin:test-seo-other:config", "other");
 
 			// Insert some plugin storage data
 			await db
@@ -762,13 +1299,31 @@ describe("Marketplace handlers", () => {
 					data: JSON.stringify({ foo: "bar" }),
 				})
 				.execute();
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/manifest.json",
+				body: new TextEncoder().encode("{}"),
+				contentType: "application/json",
+			});
 
+			let cleanupSawState = false;
 			const result = await handleMarketplaceUninstall(db, storage, "test-seo", {
 				deleteData: true,
+				beforeDelete: async () => {
+					cleanupSawState =
+						(
+							await db
+								.selectFrom("_plugin_storage")
+								.select("id")
+								.where("plugin_id", "=", "test-seo")
+								.executeTakeFirst()
+						)?.id === "test-key" &&
+						(await storage.exists("marketplace/test-seo/1.0.0/manifest.json"));
+				},
 			});
 
 			expect(result.success).toBe(true);
 			expect(result.data?.dataDeleted).toBe(true);
+			expect(cleanupSawState).toBe(true);
 
 			// Verify plugin storage data was deleted
 			const storageRows = await db
@@ -777,6 +1332,55 @@ describe("Marketplace handlers", () => {
 				.where("plugin_id", "=", "test-seo")
 				.execute();
 			expect(storageRows).toHaveLength(0);
+			expect(await options.get("plugin:test-seo:config")).toBeNull();
+			expect(await options.get("plugin:test-seo:settings:organization")).toBeNull();
+			expect(await options.get("plugin:test-seo-other:config")).toBe("other");
+		});
+
+		it("preserves plugin data during install rollback", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("rollback-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+			});
+			const options = new OptionsRepository(db);
+			await options.set("plugin:rollback-seo:config", { name: "Acme" });
+			await options.set("plugin:rollback-seo:settings:organization", "Acme");
+			await options.set("plugin:other-plugin:config", "other");
+			await db
+				.insertInto("_plugin_storage")
+				.values({
+					plugin_id: "rollback-seo",
+					collection: "default",
+					id: "config",
+					data: JSON.stringify({ name: "Acme" }),
+				})
+				.execute();
+			await storage.upload({
+				key: "marketplace/rollback-seo/1.0.0/manifest.json",
+				body: new TextEncoder().encode("{}"),
+				contentType: "application/json",
+			});
+
+			const result = await handleMarketplaceUninstall(db, storage, "rollback-seo", {
+				deleteData: true,
+				rollbackInstall: true,
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.dataDeleted).toBe(false);
+			expect(await repo.get("rollback-seo")).toBeNull();
+			expect(await options.get("plugin:rollback-seo:config")).toEqual({ name: "Acme" });
+			expect(await options.get("plugin:rollback-seo:settings:organization")).toBe("Acme");
+			expect(await options.get("plugin:other-plugin:config")).toBe("other");
+			expect(
+				await db
+					.selectFrom("_plugin_storage")
+					.select("id")
+					.where("plugin_id", "=", "rollback-seo")
+					.execute(),
+			).toHaveLength(1);
+			expect(await storage.exists("marketplace/rollback-seo/1.0.0/manifest.json")).toBe(false);
 		});
 	});
 
@@ -911,5 +1515,31 @@ describe("Marketplace handlers", () => {
 
 			expect(result.success).toBe(true);
 		});
+	});
+});
+
+describe("stored bundles with deprecated capability names", () => {
+	it("loads the bundle and warns that the plugin should be updated", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		try {
+			const storage = createMockStorage();
+			await storeBundleInR2(storage, "legacy-stored-bundle", "1.0.0", {
+				manifest: {
+					...mockManifest("legacy-stored-bundle"),
+					capabilities: ["read:content", "network:fetch"],
+				},
+				backendCode: "export default {};",
+			});
+
+			const bundle = await loadBundleFromR2(storage, "legacy-stored-bundle", "1.0.0");
+
+			expect(bundle).not.toBeNull();
+			expect(warn).toHaveBeenCalledOnce();
+			const message = String(warn.mock.calls[0]?.[0]);
+			expect(message).toContain('"legacy-stored-bundle"');
+			expect(message).toContain("read:content → content:read");
+		} finally {
+			warn.mockRestore();
+		}
 	});
 });

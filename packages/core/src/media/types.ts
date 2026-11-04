@@ -6,6 +6,9 @@
  * alongside the built-in local media library.
  */
 
+import { syncMediaCaption } from "./caption.js";
+import { normalizeFocalPoint } from "./focal-point.js";
+
 /**
  * Serializable media provider configuration descriptor
  * Returned by provider config functions (e.g., unsplash(), mux())
@@ -85,12 +88,17 @@ export interface MediaProviderItem {
 	/** Dimensions (for images/video) */
 	width?: number;
 	height?: number;
+	/** Default focal point for cover-cropped displays */
+	focalX?: number;
+	focalY?: number;
 	/** LQIP blurhash placeholder (images only) */
 	blurhash?: string;
 	/** LQIP dominant-color placeholder, as a CSS color (images only) */
 	dominantColor?: string;
 	/** Accessibility text */
 	alt?: string;
+	/** Default caption for display or attribution */
+	caption?: string;
 	/** Preview URL for admin UI thumbnail */
 	previewUrl?: string;
 	/** Provider-specific metadata */
@@ -116,6 +124,8 @@ export interface EmbedOptions {
 	height?: number;
 	/** Image format preference */
 	format?: "webp" | "avif" | "jpeg" | "png" | "auto";
+	/** Output quality (numeric or a provider-supported preset). */
+	quality?: number | string;
 }
 
 /**
@@ -138,7 +148,12 @@ export interface ImageEmbed {
 	/** Base URL without transforms, for responsive image generation */
 	cdnBaseUrl?: string;
 	/** For providers with URL-based transforms (Cloudinary, imgix) */
-	getSrc?: (opts: { width?: number; height?: number; format?: string }) => string;
+	getSrc?: (opts: {
+		width?: number;
+		height?: number;
+		format?: string;
+		quality?: EmbedOptions["quality"];
+	}) => string;
 }
 
 export interface VideoEmbed {
@@ -264,11 +279,16 @@ export interface MediaValue {
 	mimeType?: string;
 	width?: number;
 	height?: number;
+	/** Default focal point copied when the media item is selected */
+	focalX?: number;
+	focalY?: number;
 	/** Cached LQIP blurhash placeholder (images only) */
 	blurhash?: string;
 	/** Cached LQIP dominant-color placeholder, as a CSS color (images only) */
 	dominantColor?: string;
 	alt?: string;
+	/** Caption for display or attribution */
+	caption?: string;
 
 	/** Provider-specific data needed for embedding */
 	meta?: Record<string, unknown>;
@@ -278,16 +298,19 @@ export interface MediaValue {
  * Convert a MediaProviderItem to a MediaValue for storage
  */
 export function mediaItemToValue(providerId: string, item: MediaProviderItem): MediaValue {
-	return {
+	const focalPoint = normalizeFocalPoint(item.focalX, item.focalY);
+	return syncMediaCaption({
 		provider: providerId,
 		id: item.id,
 		filename: item.filename,
 		mimeType: item.mimeType,
 		width: item.width,
 		height: item.height,
+		...focalPoint,
 		blurhash: item.blurhash,
 		dominantColor: item.dominantColor,
 		alt: item.alt,
+		caption: item.caption,
 		meta: item.meta,
-	};
+	});
 }

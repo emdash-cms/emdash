@@ -5,7 +5,15 @@ vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual
 import { decode, encode } from "../../src/object-cache/codec.js";
 import {
 	__setObjectCacheBackendForTests,
+	__setObjectCacheBackendInitForTests,
+	CacheNamespace,
 	cachedQuery,
+	cachedQueryWithEpochs,
+	coalesceObjectCacheWrites,
+	contentNamespaces,
+	getLastContentWriteAt,
+	invalidateCollectionCache,
+	invalidateCommentObjectCache,
 	invalidateObjectCache,
 	type ObjectCacheBackend,
 } from "../../src/object-cache/index.js";
@@ -15,6 +23,18 @@ import { runWithContext } from "../../src/request-context.js";
 /** Flush the microtask + macrotask queue so deferred `after()` writes land. */
 async function flush(): Promise<void> {
 	await new Promise((r) => setTimeout(r, 0));
+}
+
+function neverSettles<T>(): Promise<T> {
+	return new Promise(() => {});
+}
+
+function withTestDeadline<T>(promise: Promise<T>, ms = 200): Promise<T> {
+	let timer: ReturnType<typeof setTimeout>;
+	const timeout = new Promise<never>((_resolve, reject) => {
+		timer = setTimeout(() => reject(new Error("test deadline exceeded")), ms);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 /** A simple in-memory backend with call spies, isolated per test. */
@@ -106,6 +126,20 @@ describe("cachedQuery", () => {
 		expect(load).toHaveBeenCalledTimes(1);
 	});
 
+	it("loads from the database while a route-cache response is being filled", async () => {
+		const staleLoad = vi.fn(() => Promise.resolve({ title: "Before publish" }));
+		await cachedQuery({ namespace: "content:v2:posts", key: "list", load: staleLoad });
+		await flush();
+
+		const freshLoad = vi.fn(() => Promise.resolve({ title: "After publish" }));
+		const result = await runWithContext({ editMode: false, routeCacheFill: true }, () =>
+			cachedQuery({ namespace: "content:v2:posts", key: "list", load: freshLoad }),
+		);
+
+		expect(result).toEqual({ title: "After publish" });
+		expect(freshLoad).toHaveBeenCalledTimes(1);
+	});
+
 	it("serves the second call from cache without calling load", async () => {
 		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
 		const first = await cachedQuery({ namespace: "t", key: "k", load });
@@ -182,6 +216,34 @@ describe("cachedQuery", () => {
 
 		await cachedQuery({ namespace: ns, key: "k", load });
 		expect(load).toHaveBeenCalledTimes(2);
+	});
+
+	it("reports the epochs it reads under before loading, and on a hit", async () => {
+		invalidateObjectCache("bylines");
+		const reported: (readonly number[])[] = [];
+		const load = vi.fn(() => {
+			expect(reported).toHaveLength(1);
+			return Promise.resolve({ n: 1 });
+		});
+		const read = () =>
+			cachedQueryWithEpochs({
+				namespace: ["posts", "bylines"],
+				key: "k",
+				load,
+				onEpochs: (epochs) => {
+					reported.push(epochs);
+				},
+			});
+
+		await read();
+		await flush();
+		await read();
+
+		expect(load).toHaveBeenCalledTimes(1);
+		expect(reported).toHaveLength(2);
+		expect(reported[0]?.[0]).toBe(0);
+		expect(reported[0]?.[1]).toBeGreaterThan(0);
+		expect(reported[1]).toEqual(reported[0]);
 	});
 
 	it("does not let a stale in-flight epoch read clobber a concurrent invalidation", async () => {
@@ -317,6 +379,93 @@ describe("cachedQuery", () => {
 		expect(load).toHaveBeenCalledTimes(1);
 	});
 
+	it("reclaims an epoch read whose owner was cancelled and never settles", async () => {
+		// On workerd a cancelled request's continuations never run — including
+		// the epoch read's own timeout timer — so the shared in-flight promise
+		// neither settles nor gets replaced. Simulated here with a get that
+		// never settles and a timeout too long to fire during the test; the
+		// deadline check is driven by Date.now, not timers.
+		const store = new Map<string, string>();
+		let stallEpoch = true;
+		const backend: ObjectCacheBackend = {
+			get: (key) => {
+				if (stallEpoch && key.includes(":epoch:")) return new Promise<string | null>(() => {});
+				return Promise.resolve(store.get(key) ?? null);
+			},
+			set: (key, value) => {
+				store.set(key, value);
+				return Promise.resolve();
+			},
+			delete: (key) => {
+				store.delete(key);
+				return Promise.resolve();
+			},
+		};
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600, timeout: 5000 });
+
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+
+		// The cancelled owner: parks on the epoch read and is never awaited.
+		void cachedQuery({ namespace: "posts", key: "k", load }).catch(() => {});
+		await flush();
+
+		// Past the read deadline (timeout + grace) the owner is presumed dead:
+		// the next caller must start a fresh read instead of joining the dead
+		// promise — which, on a recovered backend, settles normally.
+		const realNow = Date.now();
+		vi.spyOn(Date, "now").mockReturnValue(realNow + 6001);
+		stallEpoch = false;
+
+		await expect(cachedQuery({ namespace: "posts", key: "k", load })).resolves.toEqual({
+			n: 1,
+		});
+		expect(load).toHaveBeenCalledTimes(1);
+		vi.restoreAllMocks();
+	});
+
+	it("bounds a waiter on a foreign in-flight epoch read with its own timer", async () => {
+		// A waiter must never await another request's epoch-read promise bare:
+		// if the owner was cancelled the promise never settles. The waiter's
+		// race timer belongs to the waiter's own (live) request, so the query
+		// degrades to the last-known epoch instead of hanging.
+		const store = new Map<string, string>();
+		const backend: ObjectCacheBackend = {
+			get: (key) => {
+				if (key.includes(":epoch:")) return new Promise<string | null>(() => {}); // never settles
+				return Promise.resolve(store.get(key) ?? null);
+			},
+			set: (key, value) => {
+				store.set(key, value);
+				return Promise.resolve();
+			},
+			delete: (key) => {
+				store.delete(key);
+				return Promise.resolve();
+			},
+		};
+		__setObjectCacheBackendForTests(backend, {
+			revalidate: 0,
+			defaultTtl: 3600,
+			timeout: 20_000,
+		});
+
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+
+		// The cancelled owner parks on the epoch read.
+		void cachedQuery({ namespace: "posts", key: "k", load }).catch(() => {});
+		await flush();
+
+		// A waiter arriving late in the share window: its remaining bound is
+		// short, so its own timer fires and the query settles. (Unfixed, the
+		// waiter awaits the dead promise and hangs past the test timeout.)
+		const realNow = Date.now();
+		vi.spyOn(Date, "now").mockReturnValue(realNow + 20_900);
+		await expect(cachedQuery({ namespace: "posts", key: "k", load })).resolves.toEqual({
+			n: 1,
+		});
+		vi.restoreAllMocks();
+	});
+
 	it("self-heals after a stalled read instead of poisoning the namespace", async () => {
 		// First the backend stalls (epoch + value reads hang); after the timeout
 		// the namespace must recover and serve from cache on a healthy backend.
@@ -351,5 +500,504 @@ describe("cachedQuery", () => {
 		await cachedQuery({ namespace: "posts", key: "k", load });
 		// The second post-recovery call is served from cache (load not re-run).
 		expect(load.mock.calls.length).toBe(calls);
+	});
+
+	it("reclaims a dead backend initialization after its deadline", async () => {
+		__setObjectCacheBackendForTests(null, { timeout: 20 });
+		vi.spyOn(Date, "now").mockReturnValue(10_000);
+		__setObjectCacheBackendInitForTests(neverSettles(), 8_979);
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		try {
+			const load = vi.fn(() => Promise.resolve({ n: 1 }));
+			await expect(
+				withTestDeadline(cachedQuery({ namespace: "t", key: "k", load })),
+			).resolves.toEqual({ n: 1 });
+			expect(load).toHaveBeenCalledTimes(1);
+		} finally {
+			warnSpy.mockRestore();
+			vi.restoreAllMocks();
+		}
+	});
+
+	it("bounds a waiter on another request's backend initialization", async () => {
+		__setObjectCacheBackendForTests(null, { timeout: 20 });
+		vi.spyOn(Date, "now").mockReturnValue(10_000);
+		__setObjectCacheBackendInitForTests(neverSettles(), 8_990);
+
+		try {
+			const load = vi.fn(() => Promise.resolve({ n: 1 }));
+			await expect(
+				withTestDeadline(cachedQuery({ namespace: "t", key: "k", load })),
+			).resolves.toEqual({ n: 1 });
+			expect(load).toHaveBeenCalledTimes(1);
+		} finally {
+			vi.restoreAllMocks();
+		}
+	});
+});
+
+describe("coalesceObjectCacheWrites", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+		__setObjectCacheBackendForTests(null);
+	});
+
+	it("writes the latest held epoch once when the work throws", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+		const now = vi.spyOn(Date, "now");
+
+		await expect(
+			coalesceObjectCacheWrites(async () => {
+				now.mockReturnValue(1_000);
+				invalidateObjectCache("posts");
+				await flush();
+				now.mockReturnValue(2_000);
+				invalidateObjectCache("posts");
+				throw new Error("seed failed");
+			}),
+		).rejects.toThrow("seed failed");
+		await flush();
+
+		const epochWrites = vi
+			.mocked(backend.set)
+			.mock.calls.filter(([key]) => key === "em:epoch:posts");
+		expect(epochWrites).toEqual([["em:epoch:posts", "2000"]]);
+	});
+
+	it("writes through invalidations made after the work has ended", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+		let release!: () => void;
+		let late!: Promise<void>;
+
+		await coalesceObjectCacheWrites(async () => {
+			const released = new Promise<void>((resolve) => {
+				release = resolve;
+			});
+			late = released.then(() => invalidateObjectCache("menus"));
+		});
+		release();
+		await late;
+		await flush();
+
+		expect(backend.store.has("em:epoch:menus")).toBe(true);
+	});
+});
+
+describe("last content write stamp", () => {
+	beforeEach(() => {
+		__setObjectCacheBackendForTests(spyBackend(), { revalidate: 1000, defaultTtl: 3600 });
+	});
+	afterEach(() => {
+		__setObjectCacheBackendForTests(null);
+	});
+
+	it("stamps lastContentWriteAt when invalidating a content: namespace", async () => {
+		expect(await getLastContentWriteAt()).toBe(0);
+		const before = Date.now();
+		invalidateObjectCache("content:posts");
+		const local = await getLastContentWriteAt();
+		expect(local).toBeGreaterThanOrEqual(before);
+		await flush();
+	});
+
+	it("stamps via invalidateCollectionCache", async () => {
+		invalidateCollectionCache("posts");
+		expect(await getLastContentWriteAt()).toBeGreaterThan(0);
+	});
+
+	it("does not stamp on non-content namespaces", async () => {
+		invalidateObjectCache("settings");
+		invalidateObjectCache("menus");
+		invalidateObjectCache("bylines");
+		invalidateObjectCache("taxonomies");
+		invalidateObjectCache("schema");
+		invalidateObjectCache("comments");
+		expect(await getLastContentWriteAt()).toBe(0);
+	});
+
+	it("persists the stamp to the backend under a stable key", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+		invalidateObjectCache("content:posts");
+		const local = await getLastContentWriteAt();
+		await flush();
+		const setKeys = vi.mocked(backend.set).mock.calls.map((c) => c[0]);
+		expect(setKeys).toContain("em:last-content-write-at");
+		expect(backend.store.get("em:last-content-write-at")).toBe(String(local));
+	});
+
+	it("caches a confirmed zero marker within the revalidate window", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 60_000, defaultTtl: 3600 });
+		expect(await getLastContentWriteAt()).toBe(0);
+		expect(backend.get).toHaveBeenCalledTimes(1);
+		expect(await getLastContentWriteAt()).toBe(0);
+		expect(backend.get).toHaveBeenCalledTimes(1);
+	});
+
+	it("merges a fresher backend stamp on cold isolate read", async () => {
+		const backend = spyBackend();
+		backend.store.set("em:last-content-write-at", "1700000000000");
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		const got = await getLastContentWriteAt();
+		expect(got).toBe(1_700_000_000_000);
+	});
+
+	it("does not let a stale backend read lower a fresher local stamp", async () => {
+		const backend = spyBackend();
+		backend.store.set("em:last-content-write-at", "100");
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		invalidateObjectCache("content:posts");
+		const local = await getLastContentWriteAt();
+		expect(local).toBeGreaterThan(100);
+	});
+});
+
+describe("change marker", () => {
+	const MARKER = "em:epochs-changed";
+	const SETTLE_MS = 120_000;
+	const MAX_TRUST_MS = 600_000;
+	let clock: number;
+	let backend: ReturnType<typeof spyBackend>;
+
+	beforeEach(() => {
+		clock = 1_800_000_000_000;
+		vi.spyOn(Date, "now").mockImplementation(() => clock);
+		backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600, timeout: 2000 });
+	});
+	afterEach(() => {
+		vi.restoreAllMocks();
+		__setObjectCacheBackendForTests(null);
+	});
+
+	/** Another isolate's write: bump the epoch, then rewrite the marker. */
+	function remoteWrite(namespace: string, { marker = true, writerClock = clock } = {}): void {
+		backend.store.set(`em:epoch:${namespace}`, String(clock));
+		if (marker) backend.store.set(MARKER, `${writerClock}.remote-${clock}`);
+	}
+
+	function epochReads(): string[] {
+		return vi
+			.mocked(backend.get)
+			.mock.calls.map(([key]) => key)
+			.filter((key) => key.includes(":epoch:") || key === MARKER);
+	}
+
+	async function render(load: () => Promise<unknown>): Promise<void> {
+		await cachedQuery({
+			namespace: contentNamespaces("listings"),
+			key: "entry:listing-1",
+			load,
+		});
+		await Promise.all(
+			["main", "footer", "topbar"].map((menu) =>
+				cachedQuery({ namespace: CacheNamespace.MENUS, key: `menu:${menu}`, load }),
+			),
+		);
+		await cachedQuery({ namespace: contentNamespaces("events"), key: "list", load });
+		await cachedQuery({ namespace: contentNamespaces("banners"), key: "list", load });
+		await flush();
+	}
+
+	it("revalidates every cached epoch of a render with one read", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		invalidateObjectCache("settings");
+		await flush();
+
+		clock += SETTLE_MS;
+		await render(load);
+		vi.mocked(backend.get).mockClear();
+
+		clock += 60_000;
+		await render(load);
+
+		expect(epochReads()).toEqual([MARKER]);
+		expect(load).toHaveBeenCalledTimes(6);
+	});
+
+	it("writes the marker after the epoch writes it covers", async () => {
+		invalidateCollectionCache("posts");
+		invalidateObjectCache("bylines");
+		await flush();
+
+		const keys = vi.mocked(backend.set).mock.calls.map(([key]) => key);
+		const markerAt = keys.indexOf(MARKER);
+		expect(keys.filter((key) => key === MARKER)).toHaveLength(1);
+		for (const ns of ["content:v2:posts", "content:posts", "bylines"]) {
+			expect(keys.indexOf(`em:epoch:${ns}`)).toBeLessThan(markerAt);
+		}
+	});
+
+	it("rewrites the marker while an earlier epoch write is still in flight", async () => {
+		let release!: () => void;
+		const set = backend.set;
+		backend.set = vi.fn((key: string, value: string) =>
+			key === "em:epoch:menus"
+				? new Promise<void>((resolve) => {
+						release = () => resolve(set(key, value));
+					})
+				: set(key, value),
+		);
+		invalidateObjectCache("menus");
+		await flush();
+
+		clock += 2_000;
+		invalidateObjectCache("bylines");
+		await flush();
+		expect(backend.store.has(MARKER)).toBe(true);
+		release();
+		await flush();
+	});
+
+	it("reloads after another isolate publishes", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		const before = await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		clock += 60_000;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		expect(load).toHaveBeenCalledTimes(1);
+
+		remoteWrite("posts");
+		clock += 1_001;
+		const after = await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(load).toHaveBeenCalledTimes(2);
+		expect(after).not.toEqual(before);
+	});
+
+	it("reloads after a publish from an isolate whose clock runs behind", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		remoteWrite("posts", { writerClock: clock - 2 * SETTLE_MS });
+		clock += 1_001;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(load).toHaveBeenCalledTimes(2);
+	});
+
+	it("re-reads an epoch that was read before the marker settled", async () => {
+		// The marker is new but this location's KV still serves the old epoch.
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		backend.store.set("em:epoch:posts", "1");
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		clock += 30_000;
+		backend.store.set("em:epoch:posts", String(clock));
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(load).toHaveBeenCalledTimes(2);
+	});
+
+	it("does not trust epochs while no marker has been written", async () => {
+		// An isolate on an older release bumps epochs without writing a marker.
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		clock += SETTLE_MS;
+		remoteWrite("posts", { marker: false });
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(load).toHaveBeenCalledTimes(2);
+	});
+
+	it("re-reads an epoch bumped without a marker change once the trust window ends", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		remoteWrite("posts", { marker: false });
+		clock += MAX_TRUST_MS - 1;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		expect(load).toHaveBeenCalledTimes(1);
+
+		clock += 1_000;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		expect(load).toHaveBeenCalledTimes(2);
+	});
+
+	it("reads every epoch on every query with revalidate: 0", async () => {
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		vi.mocked(backend.get).mockClear();
+
+		clock += 60_000;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(epochReads()).toContain("em:epoch:posts");
+	});
+
+	it("does not read the marker with revalidate: 0", async () => {
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		expect(epochReads()).not.toContain(MARKER);
+	});
+
+	it("rewrites the marker after an epoch write that fails", async () => {
+		// The backend may give up on a write that still lands.
+		const set = backend.set;
+		backend.set = vi.fn((key: string, value: string) =>
+			key === "em:epoch:menus" ? Promise.reject(new Error("kv timed out")) : set(key, value),
+		);
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		invalidateObjectCache("menus");
+		await flush();
+
+		expect(backend.store.has(MARKER)).toBe(true);
+	});
+
+	it("does not wait for the marker on a re-check within two minutes of a change", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		remoteWrite("posts");
+		clock += 1_001;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		expect(load).toHaveBeenCalledTimes(2);
+		vi.mocked(backend.get).mockClear();
+
+		clock += 1_001;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(epochReads()).toEqual(["em:epoch:posts"]);
+		expect(load).toHaveBeenCalledTimes(2);
+	});
+
+	it("does not rewrite the marker for a change that only touches comments", async () => {
+		invalidateCommentObjectCache();
+		await flush();
+
+		expect(backend.store.has("em:epoch:comments")).toBe(true);
+		expect(backend.store.has(MARKER)).toBe(false);
+	});
+
+	it("always reads the comments epoch directly", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await cachedQuery({ namespace: CacheNamespace.COMMENTS, key: "k", load });
+		await flush();
+		vi.mocked(backend.get).mockClear();
+
+		clock += 60_000;
+		await cachedQuery({ namespace: CacheNamespace.COMMENTS, key: "k", load });
+
+		expect(epochReads()).toEqual(["em:epoch:comments"]);
+	});
+
+	it("does not hold the marker back for a comments write in flight", async () => {
+		let release!: () => void;
+		const set = backend.set;
+		backend.set = vi.fn((key: string, value: string) =>
+			key === "em:epoch:comments"
+				? new Promise<void>((resolve) => {
+						release = () => resolve(set(key, value));
+					})
+				: set(key, value),
+		);
+		invalidateCommentObjectCache();
+		invalidateObjectCache("bylines");
+		await flush();
+
+		expect(backend.store.has(MARKER)).toBe(true);
+		release();
+		await flush();
+	});
+
+	it("retries a failed marker read after revalidate", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		remoteWrite("posts");
+		const get = backend.get;
+		backend.get = vi.fn((key: string) =>
+			key === MARKER ? Promise.reject(new Error("kv timed out")) : get(key),
+		);
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		backend.get = vi.fn(get);
+		clock += 1_001;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		vi.mocked(backend.get).mockClear();
+
+		clock += 60_000;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(epochReads()).toEqual([MARKER]);
+	});
+
+	it("starts a new marker read once a stalled one passes the deadline", async () => {
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600, timeout: 0 });
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		remoteWrite("posts");
+		const get = backend.get;
+		backend.get = vi.fn((key: string) =>
+			key === MARKER ? neverSettles<string | null>() : get(key),
+		);
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		backend.get = vi.fn(get);
+		clock += 3_001; // past epochReadDeadline() with timeout: 0
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		clock += 1_001;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		vi.mocked(backend.get).mockClear();
+
+		clock += 60_000;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(epochReads()).toEqual([MARKER]);
+	});
+
+	it("re-reads epochs when the marker read fails", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		const get = backend.get;
+		backend.get = vi.fn((key: string) =>
+			key === MARKER ? Promise.reject(new Error("kv down")) : get(key),
+		);
+		remoteWrite("posts", { marker: false });
+		clock += 1_001;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(load).toHaveBeenCalledTimes(2);
 	});
 });

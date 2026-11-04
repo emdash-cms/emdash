@@ -9,6 +9,7 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { after } from "../../after.js";
 import { hashApiToken, generatePrefixedToken } from "../../auth/api-tokens.js";
 import type { Database } from "../../database/types.js";
 import type { ApiResult } from "../types.js";
@@ -192,6 +193,18 @@ export async function deleteApiTokensByName(
 }
 
 /**
+ * A resolved bearer token. `tokenId` identifies the credential (not the
+ * user) and is safe to store and show: the token row id for a PAT, and for
+ * an OAuth token a one-way id of its grant that stays the same across
+ * access-token refreshes.
+ */
+export interface ResolvedBearerToken {
+	userId: string;
+	scopes: string[];
+	tokenId: string;
+}
+
+/**
  * Resolve a raw API token (ec_pat_...) to a user ID and scopes.
  * Updates last_used_at on successful lookup.
  * Returns null if the token is invalid or expired.
@@ -199,7 +212,7 @@ export async function deleteApiTokensByName(
 export async function resolveApiToken(
 	db: Kysely<Database>,
 	rawToken: string,
-): Promise<{ userId: string; scopes: string[] } | null> {
+): Promise<ResolvedBearerToken | null> {
 	const hash = hashApiToken(rawToken);
 
 	const row = await db
@@ -215,16 +228,22 @@ export async function resolveApiToken(
 		return null;
 	}
 
-	// Update last_used_at (fire-and-forget, don't block the request)
-	db.updateTable("_emdash_api_tokens")
-		.set({ last_used_at: new Date().toISOString() })
-		.where("id", "=", row.id)
-		.execute()
-		.catch(() => {}); // Non-critical, swallow errors
+	after(async () => {
+		try {
+			await db
+				.updateTable("_emdash_api_tokens")
+				.set({ last_used_at: new Date().toISOString() })
+				.where("id", "=", row.id)
+				.execute();
+		} catch (error) {
+			console.error("[api-tokens] failed to record token use:", error);
+		}
+	});
 
 	return {
 		userId: row.user_id,
 		scopes: JSON.parse(row.scopes) as string[],
+		tokenId: row.id,
 	};
 }
 
@@ -235,12 +254,12 @@ export async function resolveApiToken(
 export async function resolveOAuthToken(
 	db: Kysely<Database>,
 	rawToken: string,
-): Promise<{ userId: string; scopes: string[] } | null> {
+): Promise<ResolvedBearerToken | null> {
 	const hash = hashApiToken(rawToken);
 
 	const row = await db
 		.selectFrom("_emdash_oauth_tokens")
-		.select(["user_id", "scopes", "expires_at", "token_type"])
+		.select(["user_id", "scopes", "expires_at", "token_type", "refresh_token_hash"])
 		.where("token_hash", "=", hash)
 		.where("token_type", "=", "access")
 		.executeTakeFirst();
@@ -255,5 +274,7 @@ export async function resolveOAuthToken(
 	return {
 		userId: row.user_id,
 		scopes: JSON.parse(row.scopes) as string[],
+		// Hashing the stored hash again keeps the id from being a token lookup key.
+		tokenId: `oauth:${hashApiToken(row.refresh_token_hash ?? hash)}`,
 	};
 }

@@ -9,9 +9,11 @@
  * when there's a text selection in the editor.
  */
 
+import { NodeSelection } from "@tiptap/pm/state";
+import { CellSelection } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/react";
-import { userEvent } from "@vitest/browser/context";
 import { describe, it, expect, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { PortableTextEditorProps } from "../../src/components/PortableTextEditor";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
@@ -51,6 +53,7 @@ vi.mock("../../src/components/editor/ImageNode", async () => {
 				height: { default: null },
 				displayWidth: { default: null },
 				displayHeight: { default: null },
+				link: { default: null },
 			};
 		},
 		parseHTML() {
@@ -104,17 +107,69 @@ const defaultValue = [
 	},
 ];
 
-async function renderEditor(props: Partial<PortableTextEditorProps> = {}) {
+const tableValue = [
+	{
+		_type: "table" as const,
+		_key: "table-1",
+		hasHeaderRow: true,
+		rows: [
+			{
+				_type: "tableRow" as const,
+				_key: "row-1",
+				cells: [
+					{
+						_type: "tableCell" as const,
+						_key: "cell-1",
+						content: [{ _type: "span" as const, _key: "table-span-1", text: "Header" }],
+						isHeader: true,
+					},
+					{
+						_type: "tableCell" as const,
+						_key: "cell-2",
+						content: [{ _type: "span" as const, _key: "table-span-2", text: "Other" }],
+						isHeader: true,
+					},
+				],
+			},
+			{
+				_type: "tableRow" as const,
+				_key: "row-2",
+				cells: [
+					{
+						_type: "tableCell" as const,
+						_key: "cell-3",
+						content: [{ _type: "span" as const, _key: "table-span-3", text: "Body" }],
+					},
+					{
+						_type: "tableCell" as const,
+						_key: "cell-4",
+						content: [{ _type: "span" as const, _key: "table-span-4", text: "Cell" }],
+					},
+				],
+			},
+		],
+	},
+];
+
+async function renderEditor(props: Partial<PortableTextEditorProps> = {}, scrollContainerTop = 0) {
 	let editorInstance: Editor | null = null;
 
 	const screen = await render(
-		<PortableTextEditor
-			value={defaultValue}
-			onEditorReady={(editor) => {
-				editorInstance = editor;
+		<div
+			style={{
+				marginTop: scrollContainerTop,
+				maxHeight: scrollContainerTop ? 500 : undefined,
+				overflowY: scrollContainerTop ? "auto" : undefined,
 			}}
-			{...props}
-		/>,
+		>
+			<PortableTextEditor
+				value={defaultValue}
+				onEditorReady={(editor) => {
+					editorInstance = editor;
+				}}
+				{...props}
+			/>
+		</div>,
 	);
 
 	await vi.waitFor(
@@ -137,28 +192,55 @@ async function focusAndSelectAll(editor: Editor, pm: HTMLElement) {
 	editor.commands.selectAll();
 }
 
+function getTextPosition(editor: Editor, text: string): number {
+	let textPosition = 0;
+	editor.state.doc.descendants((node, position) => {
+		if (node.isText && node.text === text) {
+			textPosition = position;
+			return false;
+		}
+		return undefined;
+	});
+	return textPosition;
+}
+
+async function focusTableCell(editor: Editor, pm: HTMLElement, text = "Header") {
+	pm.focus();
+	editor.chain().focus().setTextSelection(getTextPosition(editor, text)).run();
+	await vi.waitFor(() => expect(editor.isActive("table")).toBe(true));
+}
+
+async function waitForTableToolbar(): Promise<HTMLElement> {
+	let toolbar: HTMLElement | null = null;
+	await vi.waitFor(
+		() => {
+			toolbar = document.querySelector('[role="toolbar"][aria-label="Table controls"]');
+			expect(toolbar).toBeTruthy();
+		},
+		{ timeout: 3000 },
+	);
+	return toolbar!;
+}
+
 /**
  * Find the bubble menu element.
- * TipTap's BubbleMenu renders as a div with role=presentation (tippy.js).
- * Our menu has the class "bg-kumo-base" and contains aria-label buttons.
+ * The dedicated data attribute avoids coupling the test to surface styles,
+ * which are also shared by the editor canvas and other floating controls.
  */
 function getBubbleMenu(): HTMLElement | null {
-	// The BubbleMenu from @tiptap/react/menus renders inline.
-	// Look for the container with our known class pattern.
-	const candidates = document.querySelectorAll('[class*="bg-kumo-base"]');
-	for (const el of candidates) {
-		// Bubble menu has formatting buttons with specific aria-labels
-		if (el.querySelector('[aria-label="Bold"]') && el.querySelector('[aria-label="Italic"]')) {
-			return el as HTMLElement;
-		}
-	}
-	// Also check for link input mode (has Apply link button)
-	for (const el of candidates) {
-		if (el.querySelector('[aria-label="Apply link"]')) {
-			return el as HTMLElement;
-		}
-	}
-	return null;
+	return document.querySelector<HTMLElement>("[data-emdash-inline-bubble-menu]");
+}
+
+async function waitForImageToolbar(): Promise<HTMLElement> {
+	let toolbar: HTMLElement | null = null;
+	await vi.waitFor(
+		() => {
+			toolbar = document.querySelector<HTMLElement>("[data-emdash-image-bubble-menu]");
+			expect(toolbar).toBeTruthy();
+		},
+		{ timeout: 3000 },
+	);
+	return toolbar!;
 }
 
 /** Wait for bubble menu to appear */
@@ -174,9 +256,86 @@ async function waitForBubbleMenu(): Promise<HTMLElement> {
 	return menu!;
 }
 
+function findScrollableAncestor(element: HTMLElement): HTMLElement | null {
+	let ancestor = element.parentElement;
+	while (ancestor) {
+		if (["auto", "scroll"].includes(getComputedStyle(ancestor).overflowX)) return ancestor;
+		ancestor = ancestor.parentElement;
+	}
+	return null;
+}
+
+function hasNonZeroRadius(element: HTMLElement): boolean {
+	const computedRadius = getComputedStyle(element).borderRadius;
+	const computedValues = computedRadius.match(/\d*\.?\d+/g)?.map(Number) ?? [];
+	if (computedValues.some((value) => value > 0)) return true;
+
+	// The component harness does not resolve admin-only Tailwind variables, so
+	// fall back to validating a semantic inline declaration when necessary.
+	const declaredRadius = element.style.borderRadius.trim();
+	if (!declaredRadius || !CSS.supports("border-radius", declaredRadius)) return false;
+	if (declaredRadius.includes("var(")) return true;
+	const declaredValues = declaredRadius.match(/\d*\.?\d+/g)?.map(Number) ?? [];
+	return declaredValues.some((value) => value > 0);
+}
+
+function expectRoundedFloatingWrapper(menu: HTMLElement) {
+	const wrapper = findScrollableAncestor(menu);
+	expect(wrapper).toBeTruthy();
+	expect(hasNonZeroRadius(wrapper!)).toBe(true);
+}
+
 /** Get a bubble menu button by aria-label */
 function getBubbleButton(menu: HTMLElement, label: string): HTMLButtonElement | null {
 	return menu.querySelector(`[aria-label="${label}"]`);
+}
+
+/** The link destination field is a combobox that accepts a URL or a search term. */
+function getLinkInput(root: ParentNode = document): HTMLInputElement | null {
+	return root.querySelector<HTMLInputElement>('[role="combobox"]');
+}
+
+/** Set a React-controlled input's value through the native setter so React sees it. */
+function setInputValue(input: HTMLInputElement, value: string) {
+	const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+		HTMLInputElement.prototype,
+		"value",
+	)!.set!;
+	nativeInputValueSetter.call(input, value);
+	input.dispatchEvent(new Event("input", { bubbles: true }));
+	input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+/**
+ * Insert an image block and select it. A selected image is a NodeSelection,
+ * which is a different selection class from the text selections above.
+ */
+async function insertAndSelectImage(
+	editor: Editor,
+	pm: HTMLElement,
+	link: { href: string; blank?: boolean } | null = null,
+) {
+	pm.focus();
+	await vi.waitFor(() => expect(document.activeElement).toBe(pm), { timeout: 1000 });
+	editor
+		.chain()
+		.focus()
+		.insertContent({ type: "image", attrs: { src: "/img.jpg", alt: "Example", link } })
+		.run();
+
+	let imagePos = -1;
+	editor.state.doc.descendants((node, pos) => {
+		if (node.type.name === "image") {
+			imagePos = pos;
+			return false;
+		}
+		return true;
+	});
+	expect(imagePos).toBeGreaterThanOrEqual(0);
+	editor.view.dispatch(
+		editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, imagePos)),
+	);
+	await vi.waitFor(() => expect(editor.isActive("image")).toBe(true));
 }
 
 // =============================================================================
@@ -184,6 +343,30 @@ function getBubbleButton(menu: HTMLElement, label: string): HTMLButtonElement | 
 // =============================================================================
 
 describe("Bubble Menu", () => {
+	it("registers stable, independent plugins for both bubble menus", async () => {
+		const { editor, pm } = await renderEditor({ value: [...tableValue, ...defaultValue] });
+		const expectBubbleMenuPlugins = () => {
+			const pluginKeys = editor.state.plugins.map((plugin) => plugin.key);
+			expect(pluginKeys.filter((key) => key.startsWith("emdashInlineBubbleMenu"))).toHaveLength(1);
+			expect(pluginKeys.filter((key) => key.startsWith("emdashTableBubbleMenu"))).toHaveLength(1);
+		};
+
+		await vi.waitFor(expectBubbleMenuPlugins);
+		await focusTableCell(editor, pm);
+		await waitForTableToolbar();
+		expectBubbleMenuPlugins();
+
+		editor.chain().focus().setTextSelection(getTextPosition(editor, "Hello world")).run();
+		await vi.waitFor(() => {
+			expect(document.querySelector('[aria-label="Table controls"]')).toBeNull();
+		});
+		expectBubbleMenuPlugins();
+
+		await focusTableCell(editor, pm);
+		await waitForTableToolbar();
+		expectBubbleMenuPlugins();
+	});
+
 	it("appears when text is selected", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);
@@ -192,7 +375,393 @@ describe("Bubble Menu", () => {
 		expect(menu).toBeTruthy();
 	});
 
-	it("shows formatting buttons: Bold, Italic, Underline, Strikethrough, Code", async () => {
+	it("is a toolbar whose buttons the arrow keys move between", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+		const menu = await waitForBubbleMenu();
+		const buttons = [...menu.querySelectorAll<HTMLButtonElement>("button:not([disabled])")].filter(
+			(button) => button.getClientRects().length > 0,
+		);
+		expect(menu.getAttribute("role")).toBe("toolbar");
+		expect(menu.getAttribute("aria-label")).toBe("Format selection");
+		expect(buttons.length).toBeGreaterThan(2);
+
+		buttons[0]!.focus();
+		await userEvent.keyboard("{ArrowRight}");
+		expect(document.activeElement).toBe(buttons[1]);
+		await userEvent.keyboard("{End}");
+		expect(document.activeElement).toBe(buttons.at(-1));
+		await userEvent.keyboard("{ArrowRight}");
+		expect(document.activeElement).toBe(buttons[0]);
+		await userEvent.keyboard("{ArrowLeft}");
+		expect(document.activeElement).toBe(buttons.at(-1));
+		await userEvent.keyboard("{Home}");
+		expect(document.activeElement).toBe(buttons[0]);
+	});
+
+	it("leaves the arrow keys to the link field inside it", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+		const menu = await waitForBubbleMenu();
+		getBubbleButton(menu, "Add link")!.click();
+		const input = await vi.waitFor(() => {
+			const field = getLinkInput(menu);
+			expect(field).toBeTruthy();
+			return field!;
+		});
+
+		input.focus();
+		await userEvent.keyboard("abc{ArrowLeft}{Home}");
+
+		expect(document.activeElement).toBe(input);
+		expect(input.selectionStart).toBe(0);
+	});
+
+	it("stays hidden for a selection of only the break between two blocks", async () => {
+		const { editor, pm } = await renderEditor({
+			value: [
+				...defaultValue,
+				{
+					_type: "block" as const,
+					_key: "2",
+					style: "normal" as const,
+					children: [{ _type: "span" as const, _key: "s2", text: "Second" }],
+				},
+			],
+		});
+		pm.focus();
+		const lineEnd = getTextPosition(editor, "Hello world") + "Hello world".length;
+
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({ from: lineEnd - 5, to: lineEnd + 2 })
+			.run();
+		await waitForBubbleMenu();
+
+		editor.commands.setTextSelection({ from: lineEnd, to: lineEnd + 2 });
+		await vi.waitFor(() => expect(getBubbleMenu()).toBeNull());
+	});
+
+	it("scrolls inside its own rounded surface, so no wrapper clips its corners", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		await vi.waitFor(() => {
+			expect(getComputedStyle(menu).overflowX).toBe("auto");
+			expect(findScrollableAncestor(menu)).toBeNull();
+		});
+	});
+
+	it("flips below a top-line selection when the sticky toolbar blocks the preferred position", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		const toolbar = document.querySelector<HTMLElement>(
+			'[role="toolbar"][aria-label="Text formatting"]',
+		);
+		expect(toolbar).toBeTruthy();
+
+		await vi.waitFor(() => {
+			const selection = window.getSelection();
+			expect(selection?.rangeCount).toBe(1);
+			const selectionRect = selection!.getRangeAt(0).getBoundingClientRect();
+			const menuRect = menu.getBoundingClientRect();
+			expect(menuRect.top).toBeGreaterThanOrEqual(selectionRect.bottom);
+			expect(menuRect.top).toBeGreaterThanOrEqual(toolbar!.getBoundingClientRect().bottom);
+		});
+	});
+
+	it("stays above the selection when there is room below the sticky toolbar", async () => {
+		const value = ["First line", "Second line", "Third line", "Fourth line", "Fifth line"].map(
+			(text, index) => ({
+				_type: "block" as const,
+				_key: String(index),
+				style: "normal" as const,
+				children: [{ _type: "span" as const, _key: `span-${index}`, text }],
+			}),
+		);
+		const { editor, pm } = await renderEditor({ value }, 58);
+		pm.focus();
+
+		let textPosition = 0;
+		editor.state.doc.descendants((node, position) => {
+			if (node.isText && node.text === "Fifth line") {
+				textPosition = position;
+				return false;
+			}
+			return undefined;
+		});
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({ from: textPosition, to: textPosition + 10 })
+			.run();
+
+		const menu = await waitForBubbleMenu();
+		await vi.waitFor(() => {
+			const selection = window.getSelection();
+			expect(selection?.rangeCount).toBe(1);
+			const selectionRect = selection!.getRangeAt(0).getBoundingClientRect();
+			const menuRect = menu.getBoundingClientRect();
+			expect(menuRect.bottom).toBeLessThanOrEqual(selectionRect.top);
+		});
+	});
+
+	it("flips below a selection that the editor's container scrolls under the sticky toolbar", async () => {
+		const value = Array.from({ length: 30 }, (_, index) => ({
+			_type: "block" as const,
+			_key: String(index),
+			style: "normal" as const,
+			children: [{ _type: "span" as const, _key: `span-${index}`, text: `Line ${index}` }],
+		}));
+		const { editor, pm } = await renderEditor({ value }, 1);
+		// The test build has no Tailwind utilities, so the toolbar and the menus' positioning
+		// root get their positions here.
+		const toolbar = document.querySelector<HTMLElement>(
+			'[role="toolbar"][aria-label="Text formatting"]',
+		)!;
+		toolbar.style.position = "sticky";
+		toolbar.style.top = "0px";
+		pm.closest<HTMLElement>("[data-emdash-editor-floating-root]")!.style.position = "relative";
+		pm.focus();
+		const scroller = pm.closest<HTMLElement>('[style*="overflow-y"]')!;
+		const start = getTextPosition(editor, "Line 20");
+		scroller.scrollTop +=
+			editor.view.coordsAtPos(start).top - scroller.getBoundingClientRect().top - 300;
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({ from: start, to: start + 7 })
+			.run();
+		const menu = await waitForBubbleMenu();
+		const selectionRect = () => window.getSelection()!.getRangeAt(0).getBoundingClientRect();
+		await vi.waitFor(() =>
+			expect(menu.getBoundingClientRect().bottom).toBeLessThanOrEqual(selectionRect().top),
+		);
+
+		scroller.scrollTop += selectionRect().top - toolbar.getBoundingClientRect().bottom - 8;
+
+		await vi.waitFor(() => {
+			const gap = menu.getBoundingClientRect().top - selectionRect().bottom;
+			expect(gap).toBeGreaterThanOrEqual(0);
+			expect(gap).toBeLessThan(24);
+		});
+	});
+
+	it("hides while its selection is under the sticky toolbar", async () => {
+		const value = Array.from({ length: 30 }, (_, index) => ({
+			_type: "block" as const,
+			_key: String(index),
+			style: "normal" as const,
+			children: [{ _type: "span" as const, _key: `span-${index}`, text: `Line ${index}` }],
+		}));
+		const { editor, pm } = await renderEditor({ value }, 1);
+		// The test build has no Tailwind utilities, so the toolbar and the menus' positioning
+		// root get their positions here.
+		const toolbar = document.querySelector<HTMLElement>(
+			'[role="toolbar"][aria-label="Text formatting"]',
+		)!;
+		toolbar.style.position = "sticky";
+		toolbar.style.top = "0px";
+		pm.closest<HTMLElement>("[data-emdash-editor-floating-root]")!.style.position = "relative";
+		pm.focus();
+		const start = getTextPosition(editor, "Line 20");
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({ from: start, to: start + 7 })
+			.run();
+		const menu = await waitForBubbleMenu();
+		const selectionRect = () => window.getSelection()!.getRangeAt(0).getBoundingClientRect();
+
+		const scroller = pm.closest<HTMLElement>('[style*="overflow-y"]')!;
+		scroller.scrollTop += selectionRect().bottom - toolbar.getBoundingClientRect().bottom + 4;
+
+		await vi.waitFor(() => expect(getComputedStyle(menu).visibility).toBe("hidden"));
+	});
+
+	it.each([
+		["end", "here".length],
+		["start", 0],
+	])("previews a link from a caret at its %s", async (_edge, offset) => {
+		const { editor, pm } = await renderEditor({
+			value: [
+				{
+					_type: "block" as const,
+					_key: "1",
+					style: "normal" as const,
+					children: [
+						{ _type: "span" as const, _key: "a", text: "See " },
+						{ _type: "span" as const, _key: "b", text: "here", marks: ["link1"] },
+						{ _type: "span" as const, _key: "c", text: " now" },
+					],
+					markDefs: [{ _type: "link", _key: "link1", href: "https://example.com" }],
+				},
+			],
+		});
+		pm.focus();
+
+		editor
+			.chain()
+			.focus()
+			.setTextSelection(getTextPosition(editor, "here") + offset)
+			.run();
+
+		await vi.waitFor(() =>
+			expect(document.querySelector("[data-emdash-link-bubble-menu]")).toBeTruthy(),
+		);
+	});
+
+	it("keeps table controls mounted, unclipped, and below obstructing sticky chrome", async () => {
+		const { screen, editor, pm } = await renderEditor({ value: tableValue });
+		await focusTableCell(editor, pm);
+
+		const tableToolbar = await waitForTableToolbar();
+		const floatingRoot = screen.container.querySelector("[data-emdash-editor-floating-root]");
+		const clippedSurface = screen.container.querySelector("[data-emdash-editor-surface]");
+		expect(floatingRoot).toBeTruthy();
+		expect(floatingRoot?.contains(tableToolbar)).toBe(true);
+		expect(clippedSurface?.contains(tableToolbar)).toBe(false);
+
+		await vi.waitFor(() => {
+			const selection = window.getSelection();
+			expect(selection?.rangeCount).toBe(1);
+			const selectionRect = selection!.getRangeAt(0).getBoundingClientRect();
+			const menuRect = tableToolbar.getBoundingClientRect();
+			const formattingToolbar = document.querySelector<HTMLElement>(
+				'[role="toolbar"][aria-label="Text formatting"]',
+			);
+			expect(menuRect.top).toBeGreaterThanOrEqual(selectionRect.bottom);
+			expect(menuRect.top).toBeGreaterThanOrEqual(
+				formattingToolbar!.getBoundingClientRect().bottom,
+			);
+			expectRoundedFloatingWrapper(tableToolbar);
+		});
+	});
+
+	it("shows only inline formatting for a non-empty text selection inside a table", async () => {
+		const { editor, pm } = await renderEditor({ value: tableValue });
+		pm.focus();
+		const textPosition = getTextPosition(editor, "Body");
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({ from: textPosition, to: textPosition + 4 })
+			.run();
+
+		await waitForBubbleMenu();
+		await vi.waitFor(() => {
+			expect(document.querySelector('[aria-label="Table controls"]')).toBeNull();
+		});
+	});
+
+	it("shows only table controls for a cell selection", async () => {
+		const { editor, pm } = await renderEditor({ value: tableValue });
+		pm.focus();
+		const cellPositions: number[] = [];
+		editor.state.doc.descendants((node, position) => {
+			if (node.type.name === "tableHeader" || node.type.name === "tableCell") {
+				cellPositions.push(position);
+			}
+		});
+		editor.view.dispatch(
+			editor.state.tr.setSelection(
+				CellSelection.create(editor.state.doc, cellPositions[0]!, cellPositions[3]!),
+			),
+		);
+		expect(editor.state.selection).toBeInstanceOf(CellSelection);
+
+		await waitForTableToolbar();
+		await vi.waitFor(() => expect(getBubbleMenu()).toBeNull());
+	});
+
+	it("hides inline formatting controls when the editor becomes read-only", async () => {
+		const { editor, pm } = await renderEditor();
+		editor.setEditable(false);
+		pm.tabIndex = 0;
+		pm.focus();
+		editor.commands.selectAll();
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		expect(document.activeElement).toBe(pm);
+		expect(getBubbleMenu()).toBeNull();
+	});
+
+	it("exposes exactly three contextual shortcuts and the shared action menu", async () => {
+		const { screen, editor, pm } = await renderEditor({ value: tableValue });
+		await focusTableCell(editor, pm);
+		const controls = await waitForTableToolbar();
+
+		expect(Array.from(controls.querySelectorAll("button"), (button) => button.ariaLabel)).toEqual([
+			"Add row below",
+			"Add column after",
+			"More table actions",
+		]);
+		screen.getByRole("button", { name: "More table actions" }).element().click();
+		await expect
+			.element(screen.getByRole("menuitemcheckbox", { name: "Toggle header row" }))
+			.toHaveAttribute("aria-checked", "true");
+	});
+
+	it("uses purpose-built icons for table insertion actions", async () => {
+		const { screen, editor, pm } = await renderEditor({ value: tableValue });
+		await focusTableCell(editor, pm);
+		await waitForTableToolbar();
+
+		for (const name of ["Add row below", "Add column after", "More table actions"]) {
+			const button = screen.getByRole("button", { name }).element();
+			expect(button.querySelectorAll("svg")).toHaveLength(1);
+			expect(button.querySelector(".absolute")).toBeNull();
+		}
+
+		const afterIcon = screen
+			.getByRole("button", { name: "Add column after" })
+			.element()
+			.querySelector("svg");
+		expect(afterIcon?.getAttribute("class")).toContain("rtl:-scale-x-100");
+	});
+
+	it("restores the editor after escaping from More table actions", async () => {
+		const { screen, editor, pm } = await renderEditor({ value: tableValue });
+		await focusTableCell(editor, pm);
+		await waitForTableToolbar();
+		const before = editor.state.selection.toJSON();
+		screen.getByRole("button", { name: "More table actions" }).element().click();
+		await expect.element(screen.getByRole("menu")).toBeVisible();
+
+		await userEvent.keyboard("{Escape}");
+
+		await vi.waitFor(() => expect(document.activeElement).toBe(pm));
+		expect(editor.state.selection.toJSON()).toEqual(before);
+	});
+
+	it.each([
+		["Toggle header row", "false"],
+		["Toggle header column", "true"],
+	])("keeps the contextual menu anchored after %s", async (name, checked) => {
+		const { screen, editor, pm } = await renderEditor({ value: tableValue }, 180);
+		await focusTableCell(editor, pm, "Body");
+		await waitForTableToolbar();
+		const trigger = screen.getByRole("button", { name: "More table actions" });
+		const anchor = trigger.element();
+		await userEvent.click(trigger);
+		const menu = screen.getByRole("menu", { name: "More table actions" });
+		await expect.element(menu).toBeVisible();
+		const toggle = screen.getByRole("menuitemcheckbox", { name });
+		await userEvent.click(toggle);
+		await expect.element(toggle).toHaveAttribute("aria-checked", checked);
+		expect(anchor.isConnected).toBe(true);
+		expect(anchor.getBoundingClientRect().width).toBeGreaterThan(0);
+		await expect.element(menu).toBeVisible();
+		await userEvent.keyboard("{Escape}");
+		await expect.element(menu).not.toBeInTheDocument();
+		await vi.waitFor(() => expect(document.activeElement).toBe(pm));
+	});
+
+	it("shows inline formatting buttons", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);
 
@@ -202,7 +771,25 @@ describe("Bubble Menu", () => {
 		expect(getBubbleButton(menu, "Italic")).toBeTruthy();
 		expect(getBubbleButton(menu, "Underline")).toBeTruthy();
 		expect(getBubbleButton(menu, "Strikethrough")).toBeTruthy();
-		expect(getBubbleButton(menu, "Code")).toBeTruthy();
+		expect(getBubbleButton(menu, "Inline Code")).toBeTruthy();
+	});
+
+	it("keeps subscript and superscript in the More formatting menu", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		menu.querySelector<HTMLElement>('[aria-label="More formatting"]')!.click();
+		const subscript = await vi.waitFor(() => {
+			const item = document.querySelector<HTMLElement>('[role="menuitemcheckbox"]');
+			expect(item?.textContent).toContain("Subscript");
+			return item!;
+		});
+		expect(subscript).toHaveAttribute("aria-checked", "false");
+
+		subscript.click();
+
+		await vi.waitFor(() => expect(editor.isActive("subscript")).toBe(true));
 	});
 
 	it("shows Add link button", async () => {
@@ -219,11 +806,13 @@ describe("Bubble Menu", () => {
 
 		const menu = await waitForBubbleMenu();
 		const boldBtn = getBubbleButton(menu, "Bold")!;
+		expect(boldBtn.getAttribute("aria-pressed")).toBe("false");
 
 		boldBtn.click();
 
 		await vi.waitFor(() => {
 			expect(editor.isActive("bold")).toBe(true);
+			expect(boldBtn.getAttribute("aria-pressed")).toBe("true");
 		});
 
 		// Verify the text is wrapped in <strong>
@@ -283,7 +872,7 @@ describe("Bubble Menu", () => {
 		await focusAndSelectAll(editor, pm);
 
 		const menu = await waitForBubbleMenu();
-		const codeBtn = getBubbleButton(menu, "Code")!;
+		const codeBtn = getBubbleButton(menu, "Inline Code")!;
 
 		codeBtn.click();
 
@@ -309,12 +898,12 @@ describe("Bubble Menu", () => {
 			expect(applyBtn).toBeTruthy();
 		});
 
-		// Should have a URL input with placeholder
-		const input = menu.querySelector('input[type="url"]');
+		// Should have a link destination input
+		const input = menu.querySelector('input[aria-label="Search or type a URL"]');
 		expect(input).toBeTruthy();
 	});
 
-	it("applies link URL when Apply button is clicked", async () => {
+	it("keeps text typed after an applied link outside the link", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);
 
@@ -323,11 +912,13 @@ describe("Bubble Menu", () => {
 		linkBtn.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
 		// Type a URL into the input
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		input.focus();
 		// Use native value setter + input event for React controlled input
 		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
@@ -348,6 +939,21 @@ describe("Bubble Menu", () => {
 			expect(link).toBeTruthy();
 			expect(link!.getAttribute("href")).toBe("https://example.com");
 		});
+
+		// ProseMirror only observes native caret moves via the async selectionchange
+		// event, and for 20ms after the editor refocuses it resets moves it has not
+		// observed yet. Back-to-back synthetic keys outrun both, so move the caret
+		// through the editor instead.
+		await vi.waitFor(() => expect(document.activeElement).toBe(pm));
+		const linkEnd = editor.state.selection.from;
+		editor.commands.setTextSelection(linkEnd - 1);
+		editor.commands.setTextSelection(linkEnd);
+		await userEvent.keyboard(" for more information");
+
+		await vi.waitFor(() => {
+			expect(pm.textContent).toBe("Hello world for more information");
+			expect(pm.querySelector("a")?.textContent).toBe("Hello world");
+		});
 	});
 
 	it("applies link on Enter key in URL input", async () => {
@@ -358,10 +964,12 @@ describe("Bubble Menu", () => {
 		getBubbleButton(menu, "Add link")!.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		input.focus();
 		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
 			HTMLInputElement.prototype,
@@ -415,6 +1023,220 @@ describe("Bubble Menu", () => {
 		});
 	});
 
+	it("focuses the URL field when a link is edited from its preview", async () => {
+		const linkValue = [
+			{
+				_type: "block" as const,
+				_key: "1",
+				style: "normal" as const,
+				children: [{ _type: "span" as const, _key: "s1", text: "Click here", marks: ["link1"] }],
+				markDefs: [{ _type: "link", _key: "link1", href: "https://example.com" }],
+			},
+		];
+		const { editor, pm } = await renderEditor({ value: linkValue });
+		pm.focus();
+		editor.commands.setTextSelection(3);
+		const preview = await vi.waitFor(() => {
+			const element = document.querySelector<HTMLElement>("[data-emdash-link-bubble-menu]");
+			expect(element && getBubbleButton(element, "Edit link")).toBeTruthy();
+			return element!;
+		});
+
+		getBubbleButton(preview, "Edit link")!.click();
+		await vi.waitFor(() => expect(document.activeElement).toBe(getLinkInput()));
+		await userEvent.keyboard("x");
+
+		expect(editor.getText()).toBe("Click here");
+	});
+
+	it("moves from the link to its actions with the arrow keys", async () => {
+		const { editor, pm } = await renderEditor({
+			value: [
+				{
+					_type: "block" as const,
+					_key: "1",
+					style: "normal" as const,
+					children: [{ _type: "span" as const, _key: "s1", text: "Click here", marks: ["link1"] }],
+					markDefs: [{ _type: "link", _key: "link1", href: "https://example.com" }],
+				},
+			],
+		});
+		pm.focus();
+		editor.commands.setTextSelection(3);
+		const preview = await vi.waitFor(() => {
+			const element = document.querySelector<HTMLElement>("[data-emdash-link-bubble-menu]");
+			expect(element && getBubbleButton(element, "Edit link")).toBeTruthy();
+			return element!;
+		});
+		expect(preview.getAttribute("role")).toBe("toolbar");
+
+		preview.querySelector<HTMLElement>("a[href]")!.focus();
+		await userEvent.keyboard("{ArrowRight}");
+
+		expect(document.activeElement).toBe(getBubbleButton(preview, "Edit link"));
+	});
+
+	it("keeps the caret and the link preview when a link is clicked", async () => {
+		const { editor } = await renderEditor({
+			value: [
+				{
+					_type: "block" as const,
+					_key: "1",
+					style: "normal" as const,
+					children: [{ _type: "span" as const, _key: "s1", text: "Click here", marks: ["link1"] }],
+					markDefs: [{ _type: "link", _key: "link1", href: "https://example.com" }],
+				},
+			],
+		});
+
+		// A press as long as a person's, so the caret lands before the button is released.
+		await userEvent.click(document.querySelector<HTMLElement>(".ProseMirror a")!, { delay: 120 });
+
+		await vi.waitFor(() =>
+			expect(document.querySelector("[data-emdash-link-bubble-menu]")).toBeTruthy(),
+		);
+		expect(editor.state.selection.empty).toBe(true);
+		expect(document.querySelector("[data-emdash-inline-bubble-menu]")?.checkVisibility()).not.toBe(
+			true,
+		);
+	});
+
+	it("shows a linked table cell's link preview instead of the table controls", async () => {
+		const { editor, pm } = await renderEditor({ value: tableValue });
+		await focusTableCell(editor, pm);
+		await waitForTableToolbar();
+		const start = getTextPosition(editor, "Header");
+		editor
+			.chain()
+			.setTextSelection({ from: start, to: start + 6 })
+			.setLink({ href: "https://example.com" })
+			.setTextSelection(start + 2)
+			.run();
+
+		await vi.waitFor(() => {
+			expect(document.querySelector("[data-emdash-link-bubble-menu]")).toBeVisible();
+			expect(document.querySelector('[aria-label="Table controls"]')).toBeNull();
+		});
+	});
+
+	it("keeps the table controls with the caret at the end of a cell's link", async () => {
+		const { editor, pm } = await renderEditor({ value: tableValue });
+		await focusTableCell(editor, pm);
+		await waitForTableToolbar();
+		const start = getTextPosition(editor, "Header");
+		editor
+			.chain()
+			.setTextSelection({ from: start, to: start + 6 })
+			.setLink({ href: "https://example.com" })
+			.run();
+
+		editor.commands.setTextSelection(start + 6);
+
+		await waitForTableToolbar();
+	});
+
+	const touchingLinks = [
+		{
+			_type: "block" as const,
+			_key: "1",
+			style: "normal" as const,
+			children: [
+				{ _type: "span" as const, _key: "a", text: "first", marks: ["link1"] },
+				{ _type: "span" as const, _key: "b", text: "second", marks: ["link2"] },
+			],
+			markDefs: [
+				{ _type: "link", _key: "link1", href: "https://a.example" },
+				{ _type: "link", _key: "link2", href: "https://b.example" },
+			],
+		},
+	];
+
+	function linkTargets(editor: Editor) {
+		const links: string[] = [];
+		editor.state.doc.descendants((node) => {
+			const link = node.marks.find((mark) => mark.type.name === "link");
+			if (node.isText) links.push(`${node.text}:${link?.attrs.href ?? ""}`);
+		});
+		return links;
+	}
+
+	async function waitForLinkPreview() {
+		let preview: HTMLElement | null = null;
+		await vi.waitFor(() => {
+			preview = document.querySelector<HTMLElement>("[data-emdash-link-bubble-menu]");
+			expect(preview).toBeTruthy();
+		});
+		return preview!;
+	}
+
+	it.each([
+		["inside it", 3],
+		["between the two", 0],
+	])("removes only the second of two touching links from a caret %s", async (_where, offset) => {
+		const { editor, pm } = await renderEditor({ value: touchingLinks });
+		pm.focus();
+		editor
+			.chain()
+			.focus()
+			.setTextSelection(getTextPosition(editor, "second") + offset)
+			.run();
+		const preview = await waitForLinkPreview();
+		expect(preview.textContent).toContain("b.example");
+
+		getBubbleButton(preview, "Remove link")!.click();
+
+		await vi.waitFor(() =>
+			expect(linkTargets(editor)).toEqual(["first:https://a.example", "second:"]),
+		);
+	});
+
+	it("edits one of two touching links without merging them", async () => {
+		const { editor, pm } = await renderEditor({ value: touchingLinks });
+		pm.focus();
+		editor
+			.chain()
+			.focus()
+			.setTextSelection(getTextPosition(editor, "second") + 3)
+			.run();
+		getBubbleButton(await waitForLinkPreview(), "Edit link")!.click();
+		await vi.waitFor(() => expect(document.activeElement).toBe(getLinkInput()));
+
+		setInputValue(getLinkInput()!, "https://c.example");
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() =>
+			expect(linkTargets(editor)).toEqual(["first:https://a.example", "second:https://c.example"]),
+		);
+	});
+
+	it("hides the link preview while typing at the link's edge", async () => {
+		const { editor, pm } = await renderEditor({
+			value: [
+				{
+					_type: "block" as const,
+					_key: "1",
+					style: "normal" as const,
+					children: [
+						{ _type: "span" as const, _key: "a", text: "See " },
+						{ _type: "span" as const, _key: "b", text: "docs", marks: ["link1"] },
+					],
+					markDefs: [{ _type: "link", _key: "link1", href: "https://example.com" }],
+				},
+			],
+		});
+		pm.focus();
+		editor.chain().focus().setTextSelection(getTextPosition(editor, "docs")).run();
+		await vi.waitFor(() =>
+			expect(document.querySelector("[data-emdash-link-bubble-menu]")).toBeTruthy(),
+		);
+
+		await userEvent.keyboard("x");
+
+		await vi.waitFor(() =>
+			expect(document.querySelector("[data-emdash-link-bubble-menu]")).toBeNull(),
+		);
+	});
+
 	it("removes link when Remove link button is clicked", async () => {
 		const linkValue = [
 			{
@@ -461,10 +1283,12 @@ describe("Bubble Menu", () => {
 		getBubbleButton(menu, "Add link")!.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		input.focus();
 
 		// Press Escape
@@ -501,11 +1325,13 @@ describe("Bubble Menu", () => {
 		getBubbleButton(menu, "Edit link")!.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
 		// Clear the input
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		input.focus();
 		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
 			HTMLInputElement.prototype,
@@ -562,5 +1388,76 @@ describe("Bubble Menu", () => {
 		await vi.waitFor(() => expect(editor.isActive("bold")).toBe(false));
 
 		expect(pm.querySelector("strong")).toBeNull();
+	});
+});
+
+// =============================================================================
+// Image toolbar links
+// =============================================================================
+
+describe("Image toolbar links", () => {
+	it("does not show the text formatting bubble for a selected image", async () => {
+		const { editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm);
+
+		await waitForImageToolbar();
+		// Past the text bubble's 250 ms show delay.
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		expect(getBubbleMenu()).toBeNull();
+	});
+
+	it("applies a link to the selected image", async () => {
+		const { editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm);
+
+		const menu = await waitForImageToolbar();
+		getBubbleButton(menu, "Add link")!.click();
+		await vi.waitFor(() => {
+			expect(getLinkInput(menu)).toBeTruthy();
+		});
+
+		setInputValue(getLinkInput(menu)!, "https://example.com/promo");
+		getBubbleButton(menu, "Apply link")!.click();
+
+		await vi.waitFor(() => {
+			expect(editor.getAttributes("image").link).toEqual({ href: "https://example.com/promo" });
+		});
+	});
+
+	it("keeps the open-in-new-tab choice when only the URL is edited", async () => {
+		const { editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm, { href: "/old", blank: true });
+
+		const menu = await waitForImageToolbar();
+		expect(getBubbleButton(menu, "Edit link")).toBeTruthy();
+		getBubbleButton(menu, "Edit link")!.click();
+		await vi.waitFor(() => {
+			expect(getLinkInput(menu)).toBeTruthy();
+		});
+		const input = getLinkInput(menu)!;
+		expect(input.value).toBe("/old");
+
+		setInputValue(input, "/new");
+		getBubbleButton(menu, "Apply link")!.click();
+
+		await vi.waitFor(() => {
+			expect(editor.getAttributes("image").link).toEqual({ href: "/new", blank: true });
+		});
+	});
+
+	it("removes the image link with the Remove link button", async () => {
+		const { editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm, { href: "https://example.com/promo" });
+
+		const menu = await waitForImageToolbar();
+		getBubbleButton(menu, "Edit link")!.click();
+		await vi.waitFor(() => {
+			expect(getBubbleButton(menu, "Remove link")).toBeTruthy();
+		});
+		getBubbleButton(menu, "Remove link")!.click();
+
+		await vi.waitFor(() => {
+			expect(editor.getAttributes("image").link).toBeNull();
+		});
 	});
 });

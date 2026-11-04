@@ -17,7 +17,6 @@ import {
 } from "#api/index.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { updateFieldBody } from "#api/schemas.js";
-import type { UpdateFieldInput } from "#schema/types.js";
 
 export const prerender = false;
 
@@ -51,16 +50,11 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 	if (isParseError(body)) return body;
 
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- body is Zod-validated via parseBody(request, updateFieldBody) above
-	const result = await handleSchemaFieldUpdate(
-		emdash.db,
-		collectionSlug,
-		fieldSlug,
-		body as UpdateFieldInput,
-	);
+	const result = await handleSchemaFieldUpdate(emdash.db, collectionSlug, fieldSlug, body);
 	return unwrapResult(result);
 };
 
-export const DELETE: APIRoute = async ({ params, locals }) => {
+export const DELETE: APIRoute = async ({ params, url, locals }) => {
 	const { emdash, user } = locals;
 	const collectionSlug = params.slug!;
 	const fieldSlug = params.fieldSlug!;
@@ -71,6 +65,10 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 	const denied = requirePerm(user, "schema:manage");
 	if (denied) return denied;
 
-	const result = await handleSchemaFieldDelete(emdash.db, collectionSlug, fieldSlug);
+	// DELETE carries no body, so the cascade opt-in rides on the query string,
+	// matching `?force=true` on collection delete.
+	const result = await handleSchemaFieldDelete(emdash.db, collectionSlug, fieldSlug, {
+		deleteRelation: url.searchParams.get("deleteRelation") === "true",
+	});
 	return unwrapResult(result);
 };

@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import {
@@ -6,14 +6,23 @@ import {
 	handleContentDuplicate,
 	handleContentGet,
 	handleContentList,
+	handleContentPublish,
+	handleContentSchedule,
+	handleContentUnschedule,
 	handleContentUpdate,
 } from "../../../src/api/index.js";
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
+import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database } from "../../../src/database/types.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
-import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
+import {
+	setupTestDatabase,
+	setupTestDatabaseWithCollections,
+	teardownTestDatabase,
+} from "../../utils/test-db.js";
 
 describe("Content Handlers — auto-slug generation", () => {
 	let db: Kysely<Database>;
@@ -57,6 +66,34 @@ describe("Content Handlers — auto-slug generation", () => {
 			expect(result.data?.item.slug).toBe("from-title");
 		});
 
+		it("should generate the slug from the collection's titleField instead of title", async () => {
+			// A person's name is the headline; `title` is their job title.
+			await new SchemaRegistry(db).updateCollection("page", { titleField: "name" });
+
+			const first = await handleContentCreate(db, "page", {
+				data: { name: "Jane Smith", title: "Trustee" },
+			});
+			const second = await handleContentCreate(db, "page", {
+				data: { name: "John Doe", title: "Trustee" },
+			});
+
+			expect(first.success).toBe(true);
+			expect(first.data?.item.slug).toBe("jane-smith");
+			expect(second.success).toBe(true);
+			expect(second.data?.item.slug).toBe("john-doe");
+		});
+
+		it("should fall back to title when the entry has no value for the titleField", async () => {
+			await new SchemaRegistry(db).updateCollection("page", { titleField: "name" });
+
+			const result = await handleContentCreate(db, "page", {
+				data: { title: "Trustee" },
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.slug).toBe("trustee");
+		});
+
 		it("should respect explicit slug and not auto-generate", async () => {
 			const result = await handleContentCreate(db, "post", {
 				data: { title: "Hello World" },
@@ -80,6 +117,19 @@ describe("Content Handlers — auto-slug generation", () => {
 
 			expect(result.success).toBe(true);
 			expect(result.data?.item.slug).toBe("hello-world-1");
+		});
+
+		it("should preserve Unicode when resolving slug collisions", async () => {
+			await handleContentCreate(db, "post", {
+				data: { title: "你好世界" },
+			});
+
+			const result = await handleContentCreate(db, "post", {
+				data: { title: "你好世界" },
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.slug).toBe("你好世界-1");
 		});
 
 		it("should increment suffix on repeated collisions", async () => {
@@ -124,7 +174,21 @@ describe("Content Handlers — auto-slug generation", () => {
 			});
 
 			expect(result.success).toBe(true);
-			expect(result.data?.item.slug).toBe("cafe-naive");
+			expect(result.data?.item.slug).toBe("café-naïve");
+		});
+
+		it("should generate a stable fallback slug for an emoji-only title", async () => {
+			const first = await handleContentCreate(db, "post", {
+				data: { title: "😀😀" },
+			});
+			const second = await handleContentCreate(db, "post", {
+				data: { title: "😀😀" },
+			});
+
+			expect(first.success).toBe(true);
+			expect(first.data?.item.slug).toMatch(/^untitled-[a-z0-9]+$/);
+			expect(second.success).toBe(true);
+			expect(second.data?.item.slug).toBe(`${first.data?.item.slug}-1`);
 		});
 
 		it("should allow same auto-slug in different collections", async () => {
@@ -182,6 +246,158 @@ describe("Content Handlers — auto-slug generation", () => {
 
 			expect(result.success).toBe(true);
 			expect(result.data?.item.locale).toBe("en");
+		});
+	});
+
+	describe("direct status publishing", () => {
+		it("rejects creating slugless published content in a routable collection", async () => {
+			const result = await handleContentCreate(db, "post", {
+				data: {},
+				status: "published",
+			});
+
+			expect(result.success).toBe(false);
+			if (result.success) return;
+			expect(result.error.code).toBe("VALIDATION_ERROR");
+		});
+
+		it("allows creating slugless published content in a non-routable collection", async () => {
+			await new SchemaRegistry(db).updateCollection("post", { routable: false });
+
+			const result = await handleContentCreate(db, "post", {
+				data: {},
+				status: "published",
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.slug).toBeNull();
+		});
+
+		it("rejects updating a slugless routable draft to published", async () => {
+			const created = await handleContentCreate(db, "post", { data: {} });
+			expect(created.success).toBe(true);
+
+			const result = await handleContentUpdate(db, "post", created.data!.item.id, {
+				status: "published",
+			});
+
+			expect(result.success).toBe(false);
+			if (result.success) return;
+			expect(result.error.code).toBe("VALIDATION_ERROR");
+		});
+
+		it("allows publishing a routable draft when the update supplies a slug", async () => {
+			const created = await handleContentCreate(db, "post", { data: {} });
+			expect(created.success).toBe(true);
+
+			const result = await handleContentUpdate(db, "post", created.data!.item.id, {
+				slug: "published-directly",
+				status: "published",
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.slug).toBe("published-directly");
+		});
+
+		it("allows updating a slugless non-routable draft to published", async () => {
+			await new SchemaRegistry(db).updateCollection("post", { routable: false });
+			const created = await handleContentCreate(db, "post", { data: {} });
+			expect(created.success).toBe(true);
+
+			const result = await handleContentUpdate(db, "post", created.data!.item.id, {
+				status: "published",
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.status).toBe("published");
+		});
+
+		it("rejects clearing the slug of published routable content", async () => {
+			const created = await handleContentCreate(db, "post", {
+				data: { title: "Published" },
+				slug: "published",
+				status: "published",
+			});
+			expect(created.success).toBe(true);
+
+			const result = await handleContentUpdate(db, "post", created.data!.item.id, {
+				slug: null,
+			});
+
+			expect(result.success).toBe(false);
+			if (result.success) return;
+			expect(result.error.code).toBe("VALIDATION_ERROR");
+			expect((await handleContentGet(db, "post", created.data!.item.id)).data?.item.slug).toBe(
+				"published",
+			);
+		});
+
+		it("allows clearing a slug when the resulting content is not routable and published", async () => {
+			const created = await handleContentCreate(db, "post", {
+				data: { title: "Published" },
+				slug: "published",
+				status: "published",
+			});
+			expect(created.success).toBe(true);
+
+			const draft = await handleContentUpdate(db, "post", created.data!.item.id, {
+				slug: null,
+				status: "draft",
+			});
+			expect(draft.success).toBe(true);
+			expect(draft.data?.item).toMatchObject({ slug: null, status: "draft" });
+
+			await new SchemaRegistry(db).updateCollection("post", { routable: false });
+			const republished = await handleContentUpdate(db, "post", created.data!.item.id, {
+				status: "published",
+			});
+			expect(republished.success).toBe(true);
+			expect(republished.data?.item).toMatchObject({ slug: null, status: "published" });
+		});
+	});
+
+	describe("scheduling", () => {
+		it("rejects scheduling slugless content in a routable collection", async () => {
+			const created = await handleContentCreate(db, "post", { data: {} });
+			expect(created.success).toBe(true);
+
+			const scheduled = await handleContentSchedule(
+				db,
+				"post",
+				created.data!.item.id,
+				new Date(Date.now() + 60_000).toISOString(),
+			);
+
+			expect(scheduled.success).toBe(false);
+			if (scheduled.success) return;
+			expect(scheduled.error.code).toBe("VALIDATION_ERROR");
+			expect(scheduled.error.message).toContain("slug");
+
+			const unchanged = await handleContentGet(db, "post", created.data!.item.id);
+			expect(unchanged.data?.item).toMatchObject({ status: "draft", scheduledAt: null });
+		});
+
+		it("allows scheduling slugless content in a non-routable collection", async () => {
+			await new SchemaRegistry(db).updateCollection("post", { routable: false });
+			const created = await handleContentCreate(db, "post", { data: {} });
+			expect(created.success).toBe(true);
+
+			const scheduled = await handleContentSchedule(
+				db,
+				"post",
+				created.data!.item.id,
+				new Date(Date.now() + 60_000).toISOString(),
+			);
+
+			expect(scheduled.success).toBe(true);
+			expect(scheduled.data?.item).toMatchObject({ slug: null, status: "scheduled" });
+			const scheduledView = await handleContentGet(db, "post", created.data!.item.id);
+			expect(scheduled.data?._rev).toBe(scheduledView.data?._rev);
+
+			const unscheduled = await handleContentUnschedule(db, "post", created.data!.item.id);
+			expect(unscheduled.success).toBe(true);
+			const unscheduledView = await handleContentGet(db, "post", created.data!.item.id);
+			expect(unscheduled.data?._rev).toBe(unscheduledView.data?._rev);
 		});
 	});
 
@@ -630,6 +846,36 @@ describe("Content Handlers — auto-slug generation", () => {
 		});
 	});
 
+	describe("handleContentUpdate — side-write concurrency", () => {
+		it("advances _rev for byline-only updates", async () => {
+			const bylineRepo = new BylineRepository(db);
+			const firstByline = await bylineRepo.create({
+				slug: "first-byline",
+				displayName: "First Byline",
+			});
+			const secondByline = await bylineRepo.create({
+				slug: "second-byline",
+				displayName: "Second Byline",
+			});
+			const created = await handleContentCreate(db, "post", { data: { title: "Hi" } });
+			expect(created.success).toBe(true);
+			const originalRev = created.data!._rev;
+
+			const first = await handleContentUpdate(db, "post", created.data!.item.id, {
+				bylines: [{ bylineId: firstByline.id }],
+				_rev: originalRev,
+			});
+			const stale = await handleContentUpdate(db, "post", created.data!.item.id, {
+				bylines: [{ bylineId: secondByline.id }],
+				_rev: originalRev,
+			});
+
+			expect(first.success).toBe(true);
+			expect(first.data?._rev).not.toBe(originalRev);
+			expect(stale).toMatchObject({ success: false, error: { code: "CONFLICT" } });
+		});
+	});
+
 	describe("handleContentUpdate — publishedAt override", () => {
 		it("persists publishedAt when provided", async () => {
 			const created = await handleContentCreate(db, "post", { data: { title: "Hi" } });
@@ -688,5 +934,332 @@ describe("Content Handlers — list total", () => {
 		expect(result.success).toBe(true);
 		expect(result.data?.items).toHaveLength(2);
 		expect(result.data?.total).toBe(8);
+	});
+
+	it("serves numbered pages with the total and no cursor", async () => {
+		const pages = await Promise.all(
+			[1, 2, 3].map((page) => handleContentList(db, "post", { page, limit: 3 })),
+		);
+
+		const ids = pages.flatMap((result) => result.data?.items.map((item) => item.id) ?? []);
+		expect(pages.map((result) => result.data?.items.length)).toEqual([3, 3, 2]);
+		expect(new Set(ids).size).toBe(8);
+		expect(pages.map((result) => result.data?.total)).toEqual([8, 8, 8]);
+		expect(pages.map((result) => result.data?.nextCursor)).toEqual([
+			undefined,
+			undefined,
+			undefined,
+		]);
+	});
+
+	it.each([
+		["with a cursor", { page: 2, cursor: "cursor" }],
+		["past the safe-integer offset range", { page: Number.MAX_SAFE_INTEGER, limit: 100 }],
+	])("rejects a page %s", async (_case, params) => {
+		const result = await handleContentList(db, "post", params);
+
+		expect(result.success).toBe(false);
+		expect(result.error?.code).toBe("VALIDATION_ERROR");
+	});
+});
+
+describe("Content Handlers — slug-change auto-redirect", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	/**
+	 * Stage a slug change the way the runtime does for revision-supporting
+	 * collections: write `_slug` into a draft revision and point the entry's
+	 * `draft_revision_id` at it, leaving the live `slug` column untouched.
+	 */
+	async function stageDraftSlugChange(
+		collection: string,
+		entryId: string,
+		data: Record<string, unknown>,
+		newSlug: string,
+	): Promise<void> {
+		const revisionRepo = new RevisionRepository(db);
+		const revision = await revisionRepo.create({
+			collection,
+			entryId,
+			data: { ...data, _slug: newSlug },
+		});
+		await sql`
+			UPDATE ${sql.ref(`ec_${collection}`)}
+			SET draft_revision_id = ${revision.id}
+			WHERE id = ${entryId}
+		`.execute(db);
+	}
+
+	it("creates a 301 from the old URL when publishing a staged slug change", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Hello" },
+			slug: "hello",
+			status: "published",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Hello" }, "hello-world");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(true);
+		expect(published.data?.item.slug).toBe("hello-world");
+
+		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+		expect(redirects).toHaveLength(1);
+		expect(redirects[0]).toMatchObject({
+			source: "/post/hello",
+			destination: "/post/hello-world",
+			type: 301,
+			auto: 1,
+		});
+	});
+
+	it("does not create a redirect on first publish (draft URL was never live)", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Fresh" },
+			slug: "fresh-draft",
+			status: "draft",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Fresh" }, "fresh-final");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(true);
+		expect(published.data?.item.slug).toBe("fresh-final");
+
+		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+		expect(redirects).toHaveLength(0);
+	});
+
+	it.each([
+		["that keeps it a draft", { slug: "renamed" }],
+		["that publishes it", { slug: "renamed", status: "published" }],
+	])("does not redirect a draft renamed in an update %s", async (_case, body) => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Draft" },
+			slug: "unused-path",
+			status: "draft",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		const updated = await handleContentUpdate(db, "post", id, body);
+		expect(updated.success).toBe(true);
+		expect(updated.data?.item.slug).toBe("renamed");
+
+		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+		expect(redirects).toHaveLength(0);
+	});
+
+	it("keeps an existing redirect whose source a draft's slug change would claim", async () => {
+		await new RedirectRepository(db).create({
+			source: "/post/old-product",
+			destination: "/post/new-product",
+		});
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Draft" },
+			slug: "tmp",
+			status: "draft",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		const updated = await handleContentUpdate(db, "post", id, { slug: "old-product" });
+		expect(updated.success).toBe(true);
+
+		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+		expect(redirects).toHaveLength(1);
+		expect(redirects[0]).toMatchObject({
+			source: "/post/old-product",
+			destination: "/post/new-product",
+		});
+	});
+
+	it("does not create a redirect when republishing without a slug change", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Stable" },
+			slug: "stable",
+			status: "published",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Stable (edited)" }, "stable");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(true);
+
+		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+		expect(redirects).toHaveLength(0);
+	});
+
+	it("rejects publishing a routable entry without a slug", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: {},
+			status: "draft",
+		});
+		expect(created.success).toBe(true);
+
+		const published = await handleContentPublish(db, "post", created.data!.item.id);
+
+		expect(published.success).toBe(false);
+		if (published.success) return;
+		expect(published.error.code).toBe("VALIDATION_ERROR");
+		expect(published.error.message).toContain("slug");
+	});
+
+	it("allows a non-routable entry to publish without a slug", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.updateCollection("post", { routable: false });
+		const created = await handleContentCreate(db, "post", {
+			data: {},
+			status: "draft",
+		});
+		expect(created.success).toBe(true);
+
+		const published = await handleContentPublish(db, "post", created.data!.item.id);
+
+		expect(published.success).toBe(true);
+		expect(published.data?.item.slug).toBeNull();
+		expect(published.data?.item.status).toBe("published");
+	});
+
+	it("rejects a slugless routable publish without revision support", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.updateCollection("post", { supports: [] });
+		const created = await handleContentCreate(db, "post", {
+			data: {},
+			status: "draft",
+		});
+		expect(created.success).toBe(true);
+
+		const published = await handleContentPublish(db, "post", created.data!.item.id);
+
+		expect(published.success).toBe(false);
+		if (published.success) return;
+		expect(published.error.code).toBe("VALIDATION_ERROR");
+	});
+
+	it("does not replace a live slug with a staged empty slug", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Stable" },
+			slug: "stable",
+			status: "published",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Stable" }, "");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(false);
+		if (published.success) return;
+		expect(published.error.code).toBe("VALIDATION_ERROR");
+
+		const unchanged = await handleContentGet(db, "post", id);
+		expect(unchanged.success).toBe(true);
+		expect(unchanged.data?.item.slug).toBe("stable");
+	});
+
+	it("returns SLUG_CONFLICT naming the slug when the staged slug is taken", async () => {
+		const taken = await handleContentCreate(db, "post", {
+			data: { title: "Owner" },
+			slug: "eleven",
+			status: "published",
+		});
+		expect(taken.success).toBe(true);
+
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Victim" },
+			slug: "victim",
+			status: "published",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Victim" }, "eleven");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(false);
+		if (published.success) return;
+		expect(published.error.code).toBe("SLUG_CONFLICT");
+		expect(published.error.message).toContain("eleven");
+		expect(published.error.message).toContain(taken.data!.item.id);
+	});
+});
+
+describe("handleContentList — backing table missing deleted_at column", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		await sql`
+			CREATE TABLE ec_repro_test (
+				id TEXT PRIMARY KEY,
+				slug TEXT NOT NULL,
+				title TEXT NOT NULL,
+				content JSON,
+				excerpt TEXT,
+				status TEXT NOT NULL,
+				locale TEXT NOT NULL DEFAULT 'en',
+				published_at TEXT,
+				created_at TEXT NOT NULL,
+				updated_at TEXT NOT NULL
+			)
+		`.execute(db);
+		await sql`
+			INSERT INTO ec_repro_test (id, slug, title, content, excerpt, status, locale, published_at, created_at, updated_at)
+			VALUES ('01KPQZA8J1E206F60QSNFRX3Y2', 'repro', 'Repro entry', '[]', 'x', 'published', 'en',
+				'2026-05-01T00:00:00.000Z', '2026-05-01T00:00:00.000Z', '2026-05-01T00:00:00.000Z')
+		`.execute(db);
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("reports a schema mismatch instead of a generic list error", async () => {
+		const res = await handleContentList(db, "repro_test", {});
+		expect(res.success).toBe(false);
+		if (res.success) return;
+		expect(res.error.code).toBe("COLLECTION_SCHEMA_MISMATCH");
+		expect(res.error.message).toContain("repro_test");
+	});
+});
+
+describe("handleContentList — unknown orderBy column on a healthy collection", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("does not report a schema mismatch when ordering by a field the collection lacks", async () => {
+		const res = await handleContentList(db, "post", { orderBy: "name" });
+		expect(res.success).toBe(false);
+		if (res.success) return;
+		expect(res.error.code).not.toBe("COLLECTION_SCHEMA_MISMATCH");
+	});
+
+	it("keeps the missing-collection error when ordering by a custom field", async () => {
+		const res = await handleContentList(db, "missing", { orderBy: "priority" });
+		expect(res.success).toBe(false);
+		if (res.success) return;
+		expect(res.error.code).toBe("COLLECTION_NOT_FOUND");
 	});
 });

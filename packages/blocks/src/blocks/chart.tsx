@@ -1,10 +1,11 @@
 import { Chart, ChartPalette, TimeseriesChart } from "@cloudflare/kumo/components/chart";
-import type { EChartsOption } from "echarts";
 import { BarChart, LineChart, PieChart } from "echarts/charts";
 import {
 	AriaComponent,
 	AxisPointerComponent,
+	BrushComponent,
 	GridComponent,
+	ToolboxComponent,
 	TooltipComponent,
 } from "echarts/components";
 import * as echarts from "echarts/core";
@@ -20,7 +21,9 @@ echarts.use([
 	PieChart,
 	AriaComponent,
 	AxisPointerComponent,
+	BrushComponent,
 	GridComponent,
+	ToolboxComponent,
 	TooltipComponent,
 	CanvasRenderer,
 ]);
@@ -50,8 +53,19 @@ function escapeHtml(str: string): string {
 // that can execute arbitrary code. We strip dangerous properties and force
 // richText tooltip mode to eliminate HTML injection vectors.
 
-/** Keys that accept HTML strings or executable content in ECharts options */
-const DANGEROUS_KEYS = new Set(["formatter", "rich", "graphic", "axisPointer"]);
+/**
+ * Keys that accept HTML strings or executable content in ECharts options, or
+ * that turn on components registered only for the timeseries chart
+ */
+const DANGEROUS_KEYS = new Set([
+	"formatter",
+	"rich",
+	"graphic",
+	"axisPointer",
+	"toolbox",
+	"brush",
+	"dataZoom",
+]);
 
 function isRecord(v: unknown): v is Record<string, unknown> {
 	return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -135,12 +149,7 @@ function CustomChartBlock({ block, isDarkMode }: { block: ChartBlock; isDarkMode
 	}, [config.options]);
 
 	return (
-		<Chart
-			echarts={echarts}
-			isDarkMode={isDarkMode}
-			options={safeOptions as EChartsOption}
-			height={config.height}
-		/>
+		<Chart echarts={echarts} isDarkMode={isDarkMode} options={safeOptions} height={config.height} />
 	);
 }
 

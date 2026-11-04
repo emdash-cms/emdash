@@ -9,8 +9,10 @@
  * Workers-safe: no Node.js imports.
  */
 
+const TRAILING_SLASH_RE = /\/$/;
+
 /** Minimal config shape — avoids importing the full EmDashConfig type tree. */
-interface SiteUrlConfig {
+export interface SiteUrlConfig {
 	siteUrl?: string;
 }
 
@@ -22,8 +24,10 @@ interface SiteUrlConfig {
  * the build. Container deployments set env vars at runtime, so we must read
  * process.env which Vite leaves untouched.
  *
- * On Cloudflare Workers process.env is unavailable (returns undefined),
- * so the fallback chain continues to url.origin.
+ * On Cloudflare Workers process.env is empty by default, so the fallback
+ * chain continues to url.origin — unless the Worker enables the
+ * `nodejs_compat_populate_process_env` compatibility flag, in which case
+ * `vars`/secrets (e.g. EMDASH_SITE_URL) are readable here too.
  *
  * Caches after first call.
  */
@@ -35,7 +39,7 @@ export function _resetEnvCache(): void {
 	_envAllowedOrigins = null;
 }
 
-function getEnvSiteUrl(): string | undefined {
+export function getEnvSiteUrl(): string | undefined {
 	if (_envSiteUrl !== null) return _envSiteUrl || undefined;
 	try {
 		// process.env is available on Node.js; undefined on Workers
@@ -72,7 +76,19 @@ function getEnvSiteUrl(): string | undefined {
  * @returns Origin string, e.g. `"https://mysite.example.com"`
  */
 export function getPublicOrigin(url: URL, config?: SiteUrlConfig): string {
-	return config?.siteUrl || getEnvSiteUrl() || url.origin;
+	return getConfiguredOrigin(config) || url.origin;
+}
+
+/**
+ * Return the operator-configured public origin, if any.
+ *
+ * The first two steps of {@link getPublicOrigin}'s resolution —
+ * `config.siteUrl`, then the `EMDASH_SITE_URL`/`SITE_URL` env vars — without
+ * the request-URL fallback. For callers that have a more trustworthy fallback
+ * than the request (e.g. the stored setup origin used for outbound emails).
+ */
+export function getConfiguredOrigin(config?: SiteUrlConfig): string | undefined {
+	return config?.siteUrl || getEnvSiteUrl() || undefined;
 }
 
 /**
@@ -130,4 +146,23 @@ export function getEnvAllowedOrigins(): string[] {
  */
 export function getPublicUrl(url: URL, config: SiteUrlConfig | undefined, path: string): string {
 	return `${getPublicOrigin(url, config)}${path}`;
+}
+
+/** Public site root including Astro's base, without duplicating a stored base path. */
+export function getPublicSiteUrl(
+	url: URL,
+	config: SiteUrlConfig | undefined,
+	storedUrl: string | undefined,
+	base: string,
+): string {
+	return withBasePath(storedUrl || getPublicOrigin(url, config), base);
+}
+
+/** Append Astro's base to an absolute site URL unless its pathname already ends with it. */
+export function withBasePath(siteUrl: string, base: string): string {
+	const trimmed = siteUrl.replace(TRAILING_SLASH_RE, "");
+	const basePath = base.replace(TRAILING_SLASH_RE, "");
+	if (!basePath) return trimmed;
+	const pathname = new URL(trimmed).pathname.replace(TRAILING_SLASH_RE, "");
+	return pathname.endsWith(basePath) ? trimmed : `${trimmed}${basePath}`;
 }

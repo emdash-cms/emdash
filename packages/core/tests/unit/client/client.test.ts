@@ -1,7 +1,12 @@
+import { once } from "node:events";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+
 import { Role } from "@emdash-cms/auth";
 import { describe, it, expect } from "vitest";
 
 import { GET as schemaGET } from "../../../src/astro/routes/api/schema/index.js";
+import { customHeadersInterceptor } from "../../../src/client/cf-access.js";
 import { EmDashClient, EmDashApiError } from "../../../src/client/index.js";
 import type { Interceptor } from "../../../src/client/transport.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
@@ -45,14 +50,53 @@ function createMockBackend(routes: MockRoute[]): Interceptor {
 	};
 }
 
-/** Wraps body in `{ data: body }` to match the standard API response envelope. */
+/**
+ * Mirrors the API response envelope: `{ success: true, data }` on 2xx and
+ * `{ success: false, error }` on 4xx/5xx.
+ */
 function jsonResponse(body: unknown, status: number = 200): Response {
-	// Error responses (4xx/5xx) are NOT wrapped in { data }
-	const payload = status >= 400 ? body : { data: body };
+	// Error callers already pass `{ error: ... }`; add the discriminant so the
+	// fixture matches what `apiError()` actually sends.
+	const payload =
+		status >= 400
+			? { success: false, ...(typeof body === "object" && body !== null ? body : {}) }
+			: { success: true, data: body };
 	return new Response(JSON.stringify(payload), {
 		status,
 		headers: { "Content-Type": "application/json" },
 	});
+}
+
+function mediaUsageRepairCollection(
+	collection: string,
+	status: "complete" | "partial" | "failed" | "stale",
+) {
+	return {
+		collection,
+		status,
+		indexedSourceCount: status === "complete" ? 1 : 0,
+		failedSourceCount: status === "failed" ? 1 : 0,
+		skippedSourceCount: status === "partial" || status === "stale" ? 1 : 0,
+		deletedSourceCount: 0,
+		lastErrorCode: status === "complete" ? null : "CONTENT_USAGE_REPAIR_CONFLICT",
+		startedAt: "2026-07-07T00:00:00.000Z",
+		completedAt: status === "stale" ? null : "2026-07-07T00:00:01.000Z",
+	};
+}
+
+function mediaUsageRepairResponse(
+	collection: string,
+	status: "complete" | "partial" | "failed" | "stale",
+) {
+	const summary = mediaUsageRepairCollection(collection, status);
+	return {
+		status,
+		indexedSourceCount: summary.indexedSourceCount,
+		failedSourceCount: summary.failedSourceCount,
+		skippedSourceCount: summary.skippedSourceCount,
+		deletedSourceCount: summary.deletedSourceCount,
+		collections: [summary],
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -387,6 +431,40 @@ describe("EmDashClient", () => {
 			expect(result.items).toHaveLength(2);
 			expect(result.nextCursor).toBe("cursor123");
 		});
+
+		it("serializes indexed field filters", async () => {
+			let fieldFilters: string | null = null;
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/content/posts",
+					handler: (request) => {
+						fieldFilters = new URL(request.url).searchParams.get("fieldFilters");
+						return jsonResponse({ items: [] });
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.list("posts", {
+				fieldFilters: {
+					priority: { in: ["urgent", "high"] },
+					score: { gte: 80 },
+					resolved: false,
+				},
+			});
+
+			expect(JSON.parse(fieldFilters!)).toEqual({
+				priority: { in: ["urgent", "high"] },
+				score: { gte: 80 },
+				resolved: false,
+			});
+		});
 	});
 
 	describe("listAll()", () => {
@@ -459,6 +537,30 @@ describe("EmDashClient", () => {
 	});
 
 	describe("schema methods", () => {
+		it("deleteCollection sends force to the API as a query parameter", async () => {
+			const calledPaths: string[] = [];
+			const backend: Interceptor = async (req) => {
+				const url = new URL(req.url);
+				calledPaths.push(`${req.method} ${url.pathname}${url.search}`);
+				return jsonResponse({});
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.deleteCollection("posts");
+			await client.deleteCollection("posts", { force: false });
+			await client.deleteCollection("posts", { force: true });
+
+			expect(calledPaths).toEqual([
+				"DELETE /_emdash/api/schema/collections/posts",
+				"DELETE /_emdash/api/schema/collections/posts",
+				"DELETE /_emdash/api/schema/collections/posts?force=true",
+			]);
+		});
+
 		it("schema route wraps JSON exports in the API data envelope", async () => {
 			const db = await setupTestDatabaseWithCollections();
 
@@ -477,6 +579,7 @@ describe("EmDashClient", () => {
 
 				const body = await response.json();
 				expect(body).toEqual({
+					success: true,
 					data: expect.objectContaining({
 						collections: expect.arrayContaining([
 							expect.objectContaining({ slug: "page" }),
@@ -485,6 +588,33 @@ describe("EmDashClient", () => {
 						version,
 					}),
 				});
+			} finally {
+				await teardownTestDatabase(db);
+			}
+		});
+
+		it("schema TypeScript export imports every type emitted by the interfaces", async () => {
+			const db = await setupTestDatabaseWithCollections();
+
+			try {
+				const response = await schemaGET({
+					request: new Request("http://localhost:4321/_emdash/api/schema?format=typescript"),
+					locals: {
+						emdash: { db },
+						user: { id: "user_1", role: Role.EDITOR },
+					},
+				} as never);
+
+				expect(response.status).toBe(200);
+				expect(response.headers.get("Content-Type")).toBe("text/typescript");
+
+				const body = await response.text();
+				expect(body).toContain(
+					'import type { BylineSummary, ContentBylineCredit, TaxonomyTerm, PortableTextBlock } from "emdash";',
+				);
+				expect(body).toContain("byline?: BylineSummary | null;");
+				expect(body).toContain("bylines?: ContentBylineCredit[];");
+				expect(body).toContain("terms?: Record<string, TaxonomyTerm[]>;");
 			} finally {
 				await teardownTestDatabase(db);
 			}
@@ -649,6 +779,681 @@ describe("EmDashClient", () => {
 		});
 	});
 
+	describe("media usage reads", () => {
+		it("serializes Main library and folder media filters", async () => {
+			const capturedUrls: URL[] = [];
+			const backend: Interceptor = async (req) => {
+				capturedUrls.push(new URL(req.url));
+				return jsonResponse({ items: [] });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.mediaList({ folderId: null });
+			await client.mediaList({ folderId: "folder/one" });
+
+			expect(capturedUrls.map((url) => url.searchParams.get("folderId"))).toEqual([
+				"unfiled",
+				"folder/one",
+			]);
+		});
+
+		it("lists and mutates media folders with encoded IDs", async () => {
+			const requests: Array<{ method: string; url: URL; body: unknown }> = [];
+			const backend: Interceptor = async (req) => {
+				const url = new URL(req.url);
+				const text = await req.text();
+				requests.push({ method: req.method, url, body: text ? JSON.parse(text) : undefined });
+				if (req.method === "GET" && url.pathname.endsWith("/media/folders/folder%2Fone")) {
+					return jsonResponse({ item: { id: "folder/one", name: "One" } });
+				}
+				if (req.method === "GET") {
+					return jsonResponse({ items: [{ id: "folder/one", name: "One" }], nextCursor: "next" });
+				}
+				if (req.method === "DELETE") return jsonResponse({ deleted: true });
+				if (url.pathname.endsWith("/media/media%2Fone")) {
+					return jsonResponse({
+						item: { id: "media/one", folderId: null, focalX: 0.25, focalY: 0.75 },
+					});
+				}
+				return jsonResponse({ item: { id: "folder/one", name: "Updated" } });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const list = await client.mediaFolderList({
+				limit: 25,
+				cursor: "after / folder",
+				q: "photo set",
+			});
+			const fetched = await client.mediaFolderGet("folder/one");
+			const created = await client.mediaFolderCreate("Created");
+			const updated = await client.mediaFolderUpdate("folder/one", "Updated");
+			await client.mediaFolderDelete("folder/one");
+			const media = await client.mediaSetFolder("media/one", null);
+
+			expect(list).toEqual({ items: [{ id: "folder/one", name: "One" }], nextCursor: "next" });
+			expect(created).toEqual({ id: "folder/one", name: "Updated" });
+			expect(updated).toEqual({ id: "folder/one", name: "Updated" });
+			expect(fetched).toEqual({ id: "folder/one", name: "One" });
+			expect(media).toEqual({ id: "media/one", folderId: null });
+			expect(Object.fromEntries(requests[0]?.url.searchParams ?? [])).toEqual({
+				limit: "25",
+				cursor: "after / folder",
+				q: "photo set",
+			});
+			expect(
+				requests.map(({ method, url, body }) => ({ method, path: url.pathname, body })).slice(1),
+			).toEqual([
+				{
+					method: "GET",
+					path: "/_emdash/api/media/folders/folder%2Fone",
+					body: undefined,
+				},
+				{ method: "POST", path: "/_emdash/api/media/folders", body: { name: "Created" } },
+				{
+					method: "PUT",
+					path: "/_emdash/api/media/folders/folder%2Fone",
+					body: { name: "Updated" },
+				},
+				{
+					method: "DELETE",
+					path: "/_emdash/api/media/folders/folder%2Fone",
+					body: undefined,
+				},
+				{
+					method: "PUT",
+					path: "/_emdash/api/media/media%2Fone",
+					body: { folderId: null },
+				},
+			]);
+		});
+
+		it("requests a numbered media page and returns its total", async () => {
+			let capturedUrl: URL | undefined;
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse({ items: [{ id: "media-1" }], totalCount: 37 });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaList({ page: 2, limit: 25 });
+
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				limit: "25",
+				page: "2",
+			});
+			expect(result).toEqual({ items: [{ id: "media-1" }], totalCount: 37 });
+		});
+
+		it("opts media list into usage summaries with an exact includeUsage value", async () => {
+			let capturedUrl: URL | undefined;
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse({
+					items: [
+						{
+							id: "media-1",
+							usage: {
+								count: null,
+								coverage: { scope: "all_content_collections", status: "partial" },
+							},
+						},
+					],
+					nextCursor: "next-media",
+				});
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaList({
+				mimeType: "image/png",
+				limit: 25,
+				cursor: "after / one",
+				includeUsage: true,
+			});
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/media");
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				mimeType: "image/png",
+				limit: "25",
+				cursor: "after / one",
+				includeUsage: "1",
+			});
+			expect(result).toEqual({
+				items: [
+					{
+						id: "media-1",
+						usage: {
+							count: null,
+							coverage: { scope: "all_content_collections", status: "partial" },
+						},
+					},
+				],
+				nextCursor: "next-media",
+			});
+		});
+
+		it("omits includeUsage from media list when it is false", async () => {
+			let capturedUrl: URL | undefined;
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse({ items: [] });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.mediaList({ includeUsage: false });
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/media");
+			expect(capturedUrl?.search).toBe("");
+		});
+
+		it("opts media get into a usage summary without changing item unwrapping", async () => {
+			let capturedUrl: URL | undefined;
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse({
+					item: {
+						id: "media/one",
+						usage: {
+							count: 3,
+							coverage: { scope: "all_content_collections", status: "complete" },
+						},
+					},
+				});
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const item = await client.mediaGet("media/one", { includeUsage: true });
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/media/media%2Fone");
+			expect(capturedUrl?.search).toBe("?includeUsage=1");
+			expect(item).toEqual({
+				id: "media/one",
+				usage: {
+					count: 3,
+					coverage: { scope: "all_content_collections", status: "complete" },
+				},
+			});
+		});
+
+		it("omits includeUsage from media get when it is false", async () => {
+			let capturedUrl: URL | undefined;
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse({ item: { id: "media-1" } });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.mediaGet("media-1", { includeUsage: false });
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/media/media-1");
+			expect(capturedUrl?.search).toBe("");
+		});
+
+		it("serializes media usage detail pagination and unwraps grouped details", async () => {
+			let capturedUrl: URL | undefined;
+			const response = {
+				items: [
+					{
+						collection: "posts",
+						contentId: "post-1",
+						title: "Launch notes",
+						slug: "launch-notes",
+						locale: "en",
+						status: "published",
+						scheduledAt: null,
+						deletedAt: null,
+						sources: [
+							{
+								variant: "columns",
+								occurrences: [
+									{
+										fieldSlug: "hero",
+										fieldPath: "hero",
+										occurrenceIndex: 0,
+										referenceType: "image_field",
+									},
+								],
+							},
+						],
+					},
+				],
+				nextCursor: "next / group",
+				coverage: { scope: "all_content_collections", status: "complete" },
+			};
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse(response);
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaGetUsage("media/one", {
+				limit: 25,
+				cursor: "after / group",
+			});
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/media/media%2Fone/usage");
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				limit: "25",
+				cursor: "after / group",
+			});
+			expect(result).toEqual(response);
+		});
+
+		it.each([
+			[403, "INSUFFICIENT_SCOPE", "Admin scope required"],
+			[404, "NOT_FOUND", "Media not found"],
+		] as const)(
+			"throws EmDashApiError for media usage detail HTTP %i responses",
+			async (status, code, message) => {
+				const backend = createMockBackend([
+					{
+						method: "GET",
+						path: "/media/media-1/usage",
+						handler: () => jsonResponse({ error: { code, message } }, status),
+					},
+				]);
+				const client = new EmDashClient({
+					baseUrl: "http://localhost:4321",
+					token: "test",
+					interceptors: [backend],
+				});
+
+				await expect(client.mediaGetUsage("media-1")).rejects.toMatchObject({
+					name: "EmDashApiError",
+					status,
+					code,
+					message,
+				});
+			},
+		);
+	});
+
+	describe("mediaRepairUsage()", () => {
+		it("sends collection repair requests with the caller-provided body", async () => {
+			let capturedPath = "";
+			let capturedBody: unknown;
+			const backend = createMockBackend([
+				{
+					method: "POST",
+					path: "/admin/media-usage/repair",
+					handler: async (req) => {
+						capturedPath = new URL(req.url).pathname;
+						capturedBody = await req.json();
+						return jsonResponse(mediaUsageRepairResponse("posts", "complete"));
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaRepairUsage({ scope: "collection", collection: "posts" });
+
+			expect(capturedPath).toBe("/_emdash/api/admin/media-usage/repair");
+			expect(capturedBody).toEqual({ scope: "collection", collection: "posts" });
+			expect(result).toMatchObject({
+				status: "complete",
+				collections: [expect.objectContaining({ collection: "posts", status: "complete" })],
+			});
+		});
+
+		it("sends all-content repair requests with the explicit all scope", async () => {
+			let capturedBody: unknown;
+			const backend = createMockBackend([
+				{
+					method: "POST",
+					path: "/admin/media-usage/repair",
+					handler: async (req) => {
+						capturedBody = await req.json();
+						return jsonResponse({
+							...mediaUsageRepairResponse("posts", "complete"),
+							collections: [
+								mediaUsageRepairCollection("pages", "complete"),
+								mediaUsageRepairCollection("posts", "complete"),
+							],
+						});
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaRepairUsage({ scope: "all" });
+
+			expect(capturedBody).toEqual({ scope: "all" });
+			expect(result.collections.map((collection) => collection.collection)).toEqual([
+				"pages",
+				"posts",
+			]);
+		});
+
+		it("returns structured failed and stale 200 responses without throwing", async () => {
+			const statuses = ["failed", "stale"] as const;
+			let call = 0;
+			const backend = createMockBackend([
+				{
+					method: "POST",
+					path: "/admin/media-usage/repair",
+					handler: () => jsonResponse(mediaUsageRepairResponse("posts", statuses[call++]!)),
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await expect(
+				client.mediaRepairUsage({ scope: "collection", collection: "posts" }),
+			).resolves.toMatchObject({ status: "failed" });
+			await expect(client.mediaRepairUsage({ scope: "all" })).resolves.toMatchObject({
+				status: "stale",
+				collections: [expect.objectContaining({ completedAt: null })],
+			});
+		});
+	});
+
+	describe("media usage work operators", () => {
+		it("reads aggregate media usage indexing progress", async () => {
+			let capturedRequest: Request | undefined;
+			const progress = {
+				status: "indexing" as const,
+				readyCollections: 2,
+				totalCollections: 3,
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [
+					async (request) => {
+						capturedRequest = request;
+						return jsonResponse(progress);
+					},
+				],
+			});
+			await expect(client.mediaGetUsageProgress()).resolves.toEqual(progress);
+			expect(capturedRequest?.method).toBe("GET");
+			expect(new URL(capturedRequest!.url).pathname).toBe(
+				"/_emdash/api/admin/media-usage/progress",
+			);
+		});
+
+		it("advances one media usage progress step without a request body", async () => {
+			let capturedRequest: Request | undefined;
+			const result = {
+				activation: {
+					state: "active" as const,
+					collectionCursor: null,
+					attemptCount: 1,
+					drainConfirmedAt: "2026-08-12T09:00:00.000Z",
+					lastAttemptedAt: "2026-08-12T09:00:00.000Z",
+					lastErrorCode: null,
+					leaseExpiresAt: null,
+					activatedAt: "2026-08-12T09:00:01.000Z",
+					updatedAt: "2026-08-12T09:00:01.000Z",
+				},
+				progress: { status: "ready" as const, readyCollections: 2, totalCollections: 2 },
+				nextRequestInMs: null,
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [
+					async (request) => {
+						capturedRequest = request;
+						return jsonResponse(result);
+					},
+				],
+			});
+
+			await expect(client.mediaAdvanceUsageProgress()).resolves.toEqual(result);
+			expect(capturedRequest?.method).toBe("POST");
+			expect(capturedRequest?.headers.get("X-EmDash-Request")).toBe("1");
+			expect(capturedRequest?.body).toBeNull();
+			expect(new URL(capturedRequest!.url).pathname).toBe(
+				"/_emdash/api/admin/media-usage/progress",
+			);
+		});
+
+		it("reads the redacted activation status", async () => {
+			let capturedRequest: Request | undefined;
+			const status = {
+				state: "expanded" as const,
+				collectionCursor: null,
+				attemptCount: 0,
+				drainConfirmedAt: null,
+				lastAttemptedAt: null,
+				lastErrorCode: null,
+				leaseExpiresAt: null,
+				activatedAt: null,
+				updatedAt: "2026-08-12T09:00:00.000Z",
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [
+					async (request) => {
+						capturedRequest = request;
+						return jsonResponse(status);
+					},
+				],
+			});
+
+			await expect(client.mediaGetUsageActivation()).resolves.toEqual(status);
+			expect(capturedRequest?.method).toBe("GET");
+			expect(new URL(capturedRequest!.url).pathname).toBe(
+				"/_emdash/api/admin/media-usage/activation",
+			);
+		});
+
+		it("advances one activation batch after writer confirmation", async () => {
+			let capturedBody: unknown;
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [
+					async (request) => {
+						expect(request.method).toBe("POST");
+						expect(request.headers.get("X-EmDash-Request")).toBe("1");
+						capturedBody = await request.json();
+						return jsonResponse({
+							outcome: "active",
+							processedCollections: 0,
+							activation: {
+								state: "active",
+								collectionCursor: null,
+								attemptCount: 1,
+								drainConfirmedAt: "2026-08-12T09:00:00.000Z",
+								lastAttemptedAt: "2026-08-12T09:00:00.000Z",
+								lastErrorCode: null,
+								leaseExpiresAt: null,
+								activatedAt: "2026-08-12T09:00:01.000Z",
+								updatedAt: "2026-08-12T09:00:01.000Z",
+							},
+						});
+					},
+				],
+			});
+
+			await client.mediaAdvanceUsageActivation({
+				writersDrained: true,
+			});
+			expect(capturedBody).toEqual({ writersDrained: true });
+		});
+
+		it("serializes a bounded work-list query and returns the cursor page", async () => {
+			let capturedUrl: URL | undefined;
+			const page = {
+				items: [
+					{
+						collectionId: "collection-posts",
+						collectionSlug: "posts",
+						contentId: "entry-1",
+						state: "failed" as const,
+						attemptCount: 5,
+						nextAttemptAt: "2026-08-07T12:00:00.000Z",
+						leaseExpiresAt: null,
+						lastAttemptedAt: "2026-08-07T11:59:00.000Z",
+						lastErrorCode: "MEDIA_USAGE_PROCESSING_FAILED",
+						updatedAt: "2026-08-07T12:00:00.000Z",
+					},
+				],
+				nextCursor: "next / page",
+			};
+			const backend: Interceptor = async (request) => {
+				capturedUrl = new URL(request.url);
+				expect(request.method).toBe("GET");
+				return jsonResponse(page);
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaListUsageWork({
+				collection: "posts",
+				state: "failed",
+				limit: 25,
+				cursor: "after / entry",
+			});
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/admin/media-usage/work");
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				collection: "posts",
+				state: "failed",
+				limit: "25",
+				cursor: "after / entry",
+			});
+			expect(result).toEqual(page);
+		});
+
+		it("sends an exact retry identity and returns the pending item", async () => {
+			let capturedBody: unknown;
+			const backend = createMockBackend([
+				{
+					method: "POST",
+					path: "/admin/media-usage/work/retry",
+					handler: async (request) => {
+						expect(request.headers.get("X-EmDash-Request")).toBe("1");
+						capturedBody = await request.json();
+						return jsonResponse({
+							changed: true,
+							item: {
+								collectionId: "collection-posts",
+								collectionSlug: "posts",
+								contentId: "entry-1",
+								state: "pending",
+								attemptCount: 0,
+								nextAttemptAt: "2026-08-07T12:00:00.000Z",
+								leaseExpiresAt: null,
+								lastAttemptedAt: null,
+								lastErrorCode: null,
+								updatedAt: "2026-08-07T12:00:00.000Z",
+							},
+						});
+					},
+				},
+			]);
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaRetryUsageWork({
+				collectionId: "collection-posts",
+				contentId: "entry-1",
+			});
+
+			expect(capturedBody).toEqual({
+				collectionId: "collection-posts",
+				contentId: "entry-1",
+			});
+			expect(result).toEqual(
+				expect.objectContaining({
+					changed: true,
+					item: expect.objectContaining({ state: "pending", attemptCount: 0 }),
+				}),
+			);
+		});
+
+		it("propagates a lease conflict and its redacted retry time", async () => {
+			const backend = createMockBackend([
+				{
+					method: "POST",
+					path: "/admin/media-usage/work/retry",
+					handler: () =>
+						jsonResponse(
+							{
+								error: {
+									code: "WORK_LEASE_ACTIVE",
+									message: "Media usage work is currently leased",
+									details: { leaseExpiresAt: "2100-01-01T00:00:00.000Z" },
+								},
+							},
+							409,
+						),
+				},
+			]);
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await expect(
+				client.mediaRetryUsageWork({
+					collectionId: "collection-posts",
+					contentId: "entry-1",
+				}),
+			).rejects.toMatchObject<Partial<EmDashApiError>>({
+				status: 409,
+				code: "WORK_LEASE_ACTIVE",
+				details: { leaseExpiresAt: "2100-01-01T00:00:00.000Z" },
+			});
+		});
+	});
+
 	describe("PT <-> Markdown auto-conversion", () => {
 		it("converts PT fields to markdown on get()", async () => {
 			const backend = createMockBackend([
@@ -805,6 +1610,62 @@ describe("EmDashClient", () => {
 			expect(capturedData!.title).toBe("Hello");
 			expect(Array.isArray(capturedData!.body)).toBe(true);
 		});
+
+		it.each([false, true])(
+			"converts nested Markdown for a single-type block with a preloaded schema: %s",
+			async (preloadSchema) => {
+				let capturedData: Record<string, unknown> | undefined;
+				const backend = createMockBackend([
+					{
+						method: "GET",
+						path: "/schema/collections/posts",
+						handler: () =>
+							jsonResponse({
+								item: {
+									slug: "posts",
+									fields: [
+										{
+											slug: "layout",
+											type: "blocks",
+											validation: { allowedTypes: ["hero"] },
+											blockTypes: [
+												{
+													slug: "hero",
+													currentVersion: 1,
+													versions: [
+														{ version: 1, fields: [{ slug: "body", type: "portableText" }] },
+													],
+												},
+											],
+										},
+									],
+								},
+							}),
+					},
+					{
+						method: "POST",
+						path: "/content/posts",
+						handler: async (request) => {
+							const body = (await request.json()) as { data: Record<string, unknown> };
+							capturedData = body.data;
+							return jsonResponse({ item: { id: "new1", data: {} } });
+						},
+					},
+				]);
+				const client = new EmDashClient({
+					baseUrl: "http://localhost:4321",
+					token: "test",
+					interceptors: [backend],
+				});
+				if (preloadSchema) await client.collection("posts");
+				await client.create("posts", { data: { layout: [{ body: "**Welcome**" }] } });
+				expect(capturedData).toBeDefined();
+				const block = (capturedData!.layout as Array<Record<string, unknown>>)[0]!;
+				expect(block.body).toMatchObject([
+					{ _type: "block", children: [{ text: "Welcome", marks: ["strong"] }] },
+				]);
+			},
+		);
 	});
 
 	// -----------------------------------------------------------------------
@@ -873,6 +1734,136 @@ describe("EmDashClient", () => {
 			expect(result.items[1]!.slug).toBe("news");
 			expect(result.nextCursor).toBeUndefined();
 		});
+
+		it("sends includeCounts=false and does not synthesize a count", async () => {
+			let capturedUrl: URL | undefined;
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/taxonomies/categories/terms",
+					handler: (request) => {
+						capturedUrl = new URL(request.url);
+						return jsonResponse({
+							terms: [{ id: "t1", slug: "news", label: "News" }],
+						});
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.terms("categories", { includeCounts: false });
+
+			expect(capturedUrl?.search).toBe("?includeCounts=false");
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				includeCounts: "false",
+			});
+			expect(result).toEqual({ items: [{ id: "t1", slug: "news", label: "News" }] });
+			expect(result.items[0]).not.toHaveProperty("count");
+			expect(result.nextCursor).toBeUndefined();
+		});
+
+		it("sends includeCounts=true when counts are requested explicitly", async () => {
+			let capturedUrl: URL | undefined;
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/taxonomies/categories/terms",
+					handler: (request) => {
+						capturedUrl = new URL(request.url);
+						return jsonResponse({
+							terms: [{ id: "t1", slug: "news", label: "News", count: 4 }],
+						});
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.terms("categories", { includeCounts: true });
+
+			expect(capturedUrl?.search).toBe("?includeCounts=true");
+			expect(result).toEqual({
+				items: [{ id: "t1", slug: "news", label: "News", count: 4 }],
+			});
+			expect(result.nextCursor).toBeUndefined();
+		});
+
+		it("omits includeCounts when the option is absent and keeps the terms envelope", async () => {
+			const searches: string[] = [];
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/taxonomies/categories/terms",
+					handler: (request) => {
+						searches.push(new URL(request.url).search);
+						return jsonResponse({
+							terms: [{ id: "t1", slug: "uncategorized", label: "Uncategorized", count: 3 }],
+						});
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const omitted = await client.terms("categories");
+			const empty = await client.terms("categories", {});
+			const explicitUndefined = await client.terms("categories", { includeCounts: undefined });
+
+			expect(searches).toEqual(["", "", ""]);
+			for (const result of [omitted, empty, explicitUndefined]) {
+				expect(result).toEqual({
+					items: [{ id: "t1", slug: "uncategorized", label: "Uncategorized", count: 3 }],
+				});
+				expect(result.nextCursor).toBeUndefined();
+			}
+		});
+
+		it("encodes includeCounts=false with limit and a cursor that contains reserved characters", async () => {
+			let capturedUrl: URL | undefined;
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/taxonomies/",
+					handler: (request) => {
+						capturedUrl = new URL(request.url);
+						return jsonResponse({ terms: [] });
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.terms("news/world", {
+				limit: 25,
+				cursor: "after / term?a=1&b=2",
+				includeCounts: false,
+			});
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/taxonomies/news%2Fworld/terms");
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				limit: "25",
+				cursor: "after / term?a=1&b=2",
+				includeCounts: "false",
+			});
+			expect(result).toEqual({ items: [] });
+		});
 	});
 
 	describe("menus()", () => {
@@ -903,6 +1894,43 @@ describe("EmDashClient", () => {
 			expect(Array.isArray(result)).toBe(true);
 			expect(result.length).toBe(1);
 			expect(result[0]!.name).toBe("primary");
+		});
+	});
+
+	describe("token refresh", () => {
+		it("refreshes an expired token behind a proxy that requires custom headers", async () => {
+			const server = createServer((req, res) => {
+				const json = (status: number, body: unknown) => {
+					res.writeHead(status, { "Content-Type": "application/json" });
+					res.end(JSON.stringify(body));
+				};
+				if (req.headers["cf-access-client-id"] !== "access-id") {
+					json(403, { error: "blocked by proxy" });
+				} else if (req.method === "POST" && req.url === "/_emdash/api/oauth/token/refresh") {
+					json(200, { success: true, data: { access_token: "ec_oat_new", expires_in: 3600 } });
+				} else if (req.headers.authorization === "Bearer ec_oat_new") {
+					json(200, { success: true, data: { items: [{ slug: "posts" }] } });
+				} else {
+					json(401, { success: false, error: { code: "UNAUTHORIZED", message: "Expired" } });
+				}
+			});
+			server.listen(0, "127.0.0.1");
+			await once(server, "listening");
+			const { port } = server.address() as AddressInfo;
+
+			try {
+				const client = new EmDashClient({
+					baseUrl: `http://127.0.0.1:${port}`,
+					token: "ec_oat_expired",
+					refreshToken: "ec_ort_valid",
+					interceptors: [customHeadersInterceptor({ "CF-Access-Client-Id": "access-id" })],
+				});
+
+				const collections = await client.collections();
+				expect(collections.map((c) => c.slug)).toEqual(["posts"]);
+			} finally {
+				await new Promise<void>((done) => server.close(() => done()));
+			}
 		});
 	});
 });

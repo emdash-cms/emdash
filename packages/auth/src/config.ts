@@ -10,10 +10,7 @@ import type { RoleName } from "./types.js";
 const HTTP_SCHEME_RE = /^https?:\/\//i;
 
 /** Validates that a URL string uses http or https scheme. Rejects javascript:/data: URI XSS vectors. */
-const httpUrl = z
-	.string()
-	.url()
-	.refine((url) => HTTP_SCHEME_RE.test(url), "URL must use http or https");
+const httpUrl = z.url().refine((url) => HTTP_SCHEME_RE.test(url), "URL must use http or https");
 
 /**
  * OAuth provider configuration
@@ -29,7 +26,7 @@ const oauthProviderSchema = z.object({
 export const authConfigSchema = z.object({
 	/**
 	 * Secret key for encrypting tokens and session data.
-	 * Generate with: `emdash auth secret`
+	 * Use a random value of at least 32 characters.
 	 */
 	secret: z.string().min(32, "Auth secret must be at least 32 characters"),
 

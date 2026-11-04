@@ -2,11 +2,27 @@ import { sql, type ExpressionBuilder, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateCommentObjectCache } from "../../object-cache/index.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { encodeCursor, decodeCursor, type FindManyResult } from "./types.js";
 
 /** Matches LIKE wildcard characters and the escape character itself */
 const LIKE_ESCAPE_RE = /[%_\\]/g;
+
+const DEFAULT_COMMENT_LIMIT = 50;
+const MAX_COMMENT_LIMIT = 100;
+
+/**
+ * Normalize a caller-supplied page size to a whole number in [1, MAX].
+ * A fractional value reaching SQLite's `LIMIT` errors, and a negative one
+ * disables the cap; non-finite input falls back to the default.
+ */
+function clampLimit(limit: number | undefined): number {
+	const n = Math.floor(Number(limit));
+	if (!Number.isFinite(n)) return DEFAULT_COMMENT_LIMIT;
+	return Math.min(Math.max(n, 1), MAX_COMMENT_LIMIT);
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,6 +81,20 @@ export interface CommentFindOptions {
 	limit?: number;
 	cursor?: string;
 }
+
+export interface PluginCommentFindOptions {
+	status?: Exclude<CommentStatus, "trash">;
+	collection?: string;
+	contentId?: string;
+	limit?: number;
+	cursor?: string;
+}
+
+export type ConditionalCommentStatusResult =
+	| { state: "updated"; comment: Comment }
+	| { state: "unchanged"; comment: Comment }
+	| { state: "conflict"; comment: Comment }
+	| { state: "not_found" };
 
 // ---------------------------------------------------------------------------
 // Repository
@@ -133,7 +163,7 @@ export class CommentRepository {
 		contentId: string,
 		options: { status?: CommentStatus; limit?: number; cursor?: string } = {},
 	): Promise<FindManyResult<Comment>> {
-		const limit = Math.min(options.limit || 50, 100);
+		const limit = clampLimit(options.limit);
 
 		let query = this.db
 			.selectFrom("_emdash_comments")
@@ -181,7 +211,7 @@ export class CommentRepository {
 		status: CommentStatus,
 		options: { collection?: string; search?: string; limit?: number; cursor?: string } = {},
 	): Promise<FindManyResult<Comment>> {
-		const limit = Math.min(options.limit || 50, 100);
+		const limit = clampLimit(options.limit);
 
 		let query = this.db.selectFrom("_emdash_comments").selectAll().where("status", "=", status);
 
@@ -230,6 +260,50 @@ export class CommentRepository {
 		return result;
 	}
 
+	/** List non-trashed comments for capability-gated plugin administration. */
+	async findForPlugin(options: PluginCommentFindOptions = {}): Promise<FindManyResult<Comment>> {
+		const limit = clampLimit(options.limit);
+		let query = this.db.selectFrom("_emdash_comments").selectAll().where("status", "!=", "trash");
+
+		if (options.status) query = query.where("status", "=", options.status);
+		if (options.collection) query = query.where("collection", "=", options.collection);
+		if (options.contentId) query = query.where("content_id", "=", options.contentId);
+		if (options.cursor) {
+			const decoded = decodeCursor(options.cursor);
+			query = query.where((eb: ExpressionBuilder<Database, "_emdash_comments">) =>
+				eb.or([
+					eb("created_at", "<", decoded.orderValue),
+					eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
+				]),
+			);
+		}
+
+		const rows = await query
+			.orderBy("created_at", "desc")
+			.orderBy("id", "desc")
+			.limit(limit + 1)
+			.execute();
+		const items = rows.slice(0, limit).map((row) => this.rowToComment(row));
+		const result: FindManyResult<Comment> = { items };
+		if (rows.length > limit && items.length > 0) {
+			const last = items.at(-1)!;
+			result.nextCursor = encodeCursor(last.createdAt, last.id);
+		}
+		return result;
+	}
+
+	async countForPlugin(options: Omit<PluginCommentFindOptions, "limit" | "cursor"> = {}) {
+		let query = this.db
+			.selectFrom("_emdash_comments")
+			.select((eb) => eb.fn.count("id").as("count"))
+			.where("status", "!=", "trash");
+		if (options.status) query = query.where("status", "=", options.status);
+		if (options.collection) query = query.where("collection", "=", options.collection);
+		if (options.contentId) query = query.where("content_id", "=", options.contentId);
+		const result = await query.executeTakeFirst();
+		return Number(result?.count ?? 0);
+	}
+
 	/**
 	 * Update comment status
 	 */
@@ -246,6 +320,34 @@ export class CommentRepository {
 		return this.findById(id);
 	}
 
+	/** Atomically change status only when the caller's observed state is current. */
+	async updateStatusIf(
+		id: string,
+		status: CommentStatus,
+		expectedStatus: CommentStatus,
+	): Promise<ConditionalCommentStatusResult> {
+		const existing = await this.findById(id);
+		if (!existing) return { state: "not_found" };
+		if (existing.status !== expectedStatus) return { state: "conflict", comment: existing };
+		if (status === expectedStatus) return { state: "unchanged", comment: existing };
+
+		const now = new Date().toISOString();
+		const result = await this.db
+			.updateTable("_emdash_comments")
+			.set({ status, updated_at: now })
+			.where("id", "=", id)
+			.where("status", "=", expectedStatus)
+			.returningAll()
+			.executeTakeFirst();
+		if (result) {
+			invalidateCommentObjectCache();
+			return { state: "updated", comment: this.rowToComment(result) };
+		}
+
+		const current = await this.findById(id);
+		return !current ? { state: "not_found" } : { state: "conflict", comment: current };
+	}
+
 	/**
 	 * Bulk update comment statuses
 	 */
@@ -254,14 +356,22 @@ export class CommentRepository {
 
 		const now = new Date().toISOString();
 
-		const result = await this.db
-			.updateTable("_emdash_comments")
-			.set({ status, updated_at: now })
-			.where("id", "in", ids)
-			.executeTakeFirst();
+		const updatedCount = await withTransaction(this.db, async (db) => {
+			let updated = 0;
+			for (const batch of chunks([...new Set(ids)], SQL_BATCH_SIZE)) {
+				const result = await db
+					.updateTable("_emdash_comments")
+					.set({ status, updated_at: now })
+					.where("id", "in", batch)
+					.executeTakeFirst();
 
+				if (!db.isTransaction) invalidateCommentObjectCache();
+				updated += Number(result.numUpdatedRows ?? 0);
+			}
+			return updated;
+		});
 		invalidateCommentObjectCache();
-		return Number(result.numUpdatedRows ?? 0);
+		return updatedCount;
 	}
 
 	/**
@@ -419,7 +529,7 @@ export class CommentRepository {
 		return roots.map((root) => ({
 			...root,
 			_replies: childrenMap.get(root.id) ?? [],
-		})) as Comment[];
+		}));
 	}
 
 	/**

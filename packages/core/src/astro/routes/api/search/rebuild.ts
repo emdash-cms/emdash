@@ -57,7 +57,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		}
 
 		// Rebuild the index
-		await ftsManager.rebuildIndex(body.collection, searchableFields, config.weights);
+		await ftsManager.rebuildIndex(
+			body.collection,
+			searchableFields,
+			config.weights,
+			config.tokenize,
+		);
 
 		// Get stats after rebuild
 		const stats = await ftsManager.getIndexStats(body.collection);

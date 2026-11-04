@@ -1,0 +1,205 @@
+/*
+  tokens.css -- the design tokens for this template. These are the
+  defaults; to customize the site, override any variable in
+  src/styles/theme.css rather than editing this file. Declarations in
+  theme.css are unlayered, so they always beat these @layer base
+  defaults -- no specificity tricks needed.
+
+  Colors use light-dark(): the first value applies in light mode, the
+  second in dark mode. Overriding a color with a plain value changes
+  both modes at once; use light-dark(<light>, <dark>) in an override to
+  keep them distinct.
+
+  The palette is warm off-white and ink. Ink is the brand: --color-brand
+  follows --color-text and fills the primary buttons. The amber
+  --color-accent is for small marks only, such as the featured
+  testimonial's quote mark. Large rounded panels ("sheets") give the
+  page its structure: the sunken features panel is lit by
+  --glow-daylight and the dark --color-night panels by --glow-dusk. Set
+  a glow to none for a flat panel.
+
+  --font-body (Inter) and --font-display (Instrument Serif, for
+  headlines) are defined by the font pipeline in astro.config.mjs, not
+  here. To swap a loaded webfont, edit its fonts entry there. To use a
+  system font, or a different face for card titles and small headings,
+  override --font-body / --font-heading in theme.css.
+*/
+
+@layer base {
+	:root {
+		color-scheme: light dark;
+
+		/* Colors */
+		--color-bg: light-dark(#fafaf9, #0f0e0d); /* page canvas */
+		--color-surface: light-dark(#ffffff, #181715); /* cards, secondary buttons, menus */
+		--color-sunken: light-dark(#f2f1ee, #1c1b19); /* features panel, icon tiles, toggles */
+		--color-text: light-dark(#141312, #f3f2ef);
+		--color-text-secondary: light-dark(#57534e, #b4afa8); /* leads, nav and footer links */
+		--color-muted: light-dark(#78716c, #8f8982); /* the muted half of a headline, meta text */
+		--color-border: light-dark(rgb(20 19 18 / 0.08), rgb(255 255 255 / 0.08)); /* card rings */
+		--color-border-strong: light-dark(rgb(20 19 18 / 0.16), rgb(255 255 255 / 0.16));
+		--color-brand: var(--color-text);
+		--color-brand-strong: color-mix(in srgb, var(--color-brand) 84%, var(--color-bg)); /* hover */
+		--color-brand-soft: var(--color-text-secondary);
+		--color-on-brand: light-dark(#fafaf9, #141312); /* text and icons on brand surfaces */
+		--color-brand-ring: color-mix(in srgb, var(--color-brand) 14%, transparent);
+		--color-accent: light-dark(#d97706, #fbbf24);
+		--color-accent-soft: color-mix(in srgb, var(--color-accent) 22%, transparent);
+		--color-success: #22c55e;
+		--color-warning: #f59e0b;
+		--color-danger: light-dark(#dc2626, #f87171);
+
+		/* Night panels: stats, a closing call to action, the highlighted plan */
+		--color-night: light-dark(#141312, #1c1b19);
+		--color-on-night: #f3f2ef;
+		--color-on-night-muted: rgb(243 242 239 / 0.64);
+
+		/* Frosted glass: the floating header and photo captions */
+		--glass-bg: light-dark(rgb(255 255 255 / 0.78), rgb(28 27 25 / 0.74));
+		--chip-bg: light-dark(rgb(250 250 249 / 0.78), rgb(24 23 21 / 0.72));
+		--chip-text: light-dark(#141312, #f3f2ef);
+
+		/* Glows, layered over a panel's background color */
+		--glow-daylight:
+			radial-gradient(
+				60% 70% at 100% 0%,
+				light-dark(rgb(255 205 150 / 0.5), rgb(255 170 90 / 0.08)),
+				transparent 70%
+			),
+			radial-gradient(
+				40% 50% at 0% 100%,
+				light-dark(rgb(255 255 255 / 0.7), rgb(255 255 255 / 0.02)),
+				transparent 70%
+			);
+		--glow-dusk:
+			radial-gradient(55% 90% at 88% 0%, rgb(255 166 87 / 0.24), transparent 65%),
+			radial-gradient(45% 70% at 0% 100%, rgb(140 160 255 / 0.1), transparent 70%);
+
+		/* Typography */
+		--font-heading: var(--font-body); /* h1-h6, card titles */
+		--font-weight-heading: 500;
+		--font-weight-display: 400; /* serif headlines, set in --font-display */
+		--font-size-display: clamp(54px, 8.4vw, 120px); /* hero headline */
+		--font-size-h2: clamp(38px, 4.4vw, 60px); /* section headlines */
+
+		/* Type scale */
+		--font-size-xs: 0.75rem;
+		--font-size-sm: 0.875rem;
+		--font-size-base: 1rem;
+		--font-size-lg: 1.125rem;
+		--font-size-xl: 1.25rem;
+		--font-size-2xl: 1.5rem;
+		--font-size-3xl: 2rem;
+		--font-size-4xl: 2.5rem;
+		--font-size-5xl: 3.5rem;
+		--font-size-6xl: 4.5rem;
+
+		/* Line heights */
+		--leading-tight: 0.95; /* hero headline */
+		--leading-snug: 1.04; /* section headlines */
+		--leading-normal: 1.6; /* body copy */
+		--leading-relaxed: 1.7; /* long-form */
+
+		/* Letter spacing */
+		--tracking-tight: -0.03em; /* hero headline */
+		--tracking-snug: -0.02em; /* serif headlines */
+
+		/* Spacing */
+		--spacing-xs: 0.25rem;
+		--spacing-sm: 0.5rem;
+		--spacing-md: 1rem;
+		--spacing-lg: 1.5rem;
+		--spacing-xl: 2rem;
+		--spacing-2xl: 3rem;
+		--spacing-3xl: 4rem;
+		--spacing-4xl: 6rem;
+		--spacing-5xl: 8rem;
+
+		/* Layout */
+		--max-width: 720px; /* reading column */
+		--wide-width: 1200px; /* content container */
+		--gutter: 24px; /* container edge on narrow screens */
+		--sheet-inset: clamp(8px, 1vw, 16px); /* viewport edge to sheet */
+		--sheet-max: 1680px;
+		--section-space: clamp(80px, 9vw, 128px); /* between two blocks */
+
+		/* Radius */
+		--radius-sm: 8px;
+		--radius: 12px; /* icon tiles */
+		--radius-lg: 18px;
+		--radius-xl: 22px; /* cards */
+		--radius-media: 28px; /* photos */
+		--radius-sheet: clamp(20px, 2.2vw, 32px);
+		--radius-full: 9999px; /* pills: buttons, chips, the header */
+
+		/* Motion */
+		--ease-out: cubic-bezier(0.2, 0, 0, 1);
+		--transition-fast: 150ms var(--ease-out);
+		--transition-base: 200ms var(--ease-out);
+		--transition-slow: 300ms var(--ease-out);
+
+		/* Shadows */
+		--shadow-card:
+			0 0 0 1px var(--color-border), 0 1px 2px light-dark(rgb(20 19 18 / 0.04), rgb(0 0 0 / 0.3)),
+			0 10px 28px -12px light-dark(rgb(20 19 18 / 0.12), rgb(0 0 0 / 0.5));
+		--shadow-card-hover:
+			0 0 0 1px var(--color-border-strong),
+			0 2px 4px light-dark(rgb(20 19 18 / 0.05), rgb(0 0 0 / 0.3)),
+			0 18px 40px -14px light-dark(rgb(20 19 18 / 0.2), rgb(0 0 0 / 0.6));
+		--shadow-glass:
+			inset 0 0 0 1px light-dark(rgb(255 255 255 / 0.7), rgb(255 255 255 / 0.08)),
+			0 0 0 1px var(--color-border),
+			0 12px 32px -12px light-dark(rgb(20 19 18 / 0.18), rgb(0 0 0 / 0.6));
+		--shadow-sm: 0 1px 2px light-dark(rgb(20 19 18 / 0.05), rgb(0 0 0 / 0.3));
+		--shadow: var(--shadow-card);
+		--shadow-lg: var(--shadow-card-hover);
+		--shadow-xl:
+			0 0 0 1px var(--color-border),
+			0 24px 56px -16px light-dark(rgb(20 19 18 / 0.24), rgb(0 0 0 / 0.7));
+	}
+
+	@media (max-width: 640px) {
+		:root {
+			--radius-media: 22px;
+		}
+	}
+
+	/*
+	 * Light-mode values for browsers without light-dark() (Safari < 17.5,
+	 * Chrome < 123). Must mirror the light values above.
+	 */
+	@supports not (color: light-dark(#000, #fff)) {
+		:root {
+			color-scheme: light;
+			--color-bg: #fafaf9;
+			--color-surface: #ffffff;
+			--color-sunken: #f2f1ee;
+			--color-text: #141312;
+			--color-text-secondary: #57534e;
+			--color-muted: #78716c;
+			--color-border: rgb(20 19 18 / 0.08);
+			--color-border-strong: rgb(20 19 18 / 0.16);
+			--color-on-brand: #fafaf9;
+			--color-accent: #d97706;
+			--color-danger: #dc2626;
+			--color-night: #141312;
+			--glass-bg: rgb(255 255 255 / 0.78);
+			--chip-bg: rgb(250 250 249 / 0.78);
+			--chip-text: #141312;
+			--glow-daylight:
+				radial-gradient(60% 70% at 100% 0%, rgb(255 205 150 / 0.5), transparent 70%),
+				radial-gradient(40% 50% at 0% 100%, rgb(255 255 255 / 0.7), transparent 70%);
+			--shadow-card:
+				0 0 0 1px var(--color-border), 0 1px 2px rgb(20 19 18 / 0.04),
+				0 10px 28px -12px rgb(20 19 18 / 0.12);
+			--shadow-card-hover:
+				0 0 0 1px var(--color-border-strong), 0 2px 4px rgb(20 19 18 / 0.05),
+				0 18px 40px -14px rgb(20 19 18 / 0.2);
+			--shadow-glass:
+				inset 0 0 0 1px rgb(255 255 255 / 0.7), 0 0 0 1px var(--color-border),
+				0 12px 32px -12px rgb(20 19 18 / 0.18);
+			--shadow-sm: 0 1px 2px rgb(20 19 18 / 0.05);
+			--shadow-xl: 0 0 0 1px var(--color-border), 0 24px 56px -16px rgb(20 19 18 / 0.24);
+		}
+	}
+}

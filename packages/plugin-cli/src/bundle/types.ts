@@ -22,10 +22,13 @@ export {
 	type DeclaredAccess,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
+	type ManifestMcpTool,
 	type ManifestRouteEntry,
+	type PluginMcpManifestConfig,
 	type PluginAdminConfig,
 	type PluginCapability,
 	type PluginManifest,
+	type RouteOptions,
 	type PluginStorageConfig,
 	type StorageCollectionConfig,
 } from "@emdash-cms/plugin-types";
@@ -34,7 +37,16 @@ import type {
 	PluginAdminConfig,
 	PluginCapability,
 	PluginStorageConfig,
+	RouteOptions,
 } from "@emdash-cms/plugin-types";
+
+export interface ResolvedMcpTool {
+	description: string;
+	route: string;
+	input: unknown;
+	output?: unknown;
+	destructive?: boolean;
+}
 
 /**
  * The bundler's view of a "resolved" plugin -- whatever the user's plugin
@@ -63,10 +75,11 @@ export interface ResolvedPlugin {
 	>;
 	routes: Record<
 		string,
-		{
+		RouteOptions & {
 			handler?: unknown;
-			public?: boolean;
+			input?: unknown;
 		}
 	>;
+	mcp?: { tools: Record<string, ResolvedMcpTool> };
 	admin: PluginAdminConfig;
 }

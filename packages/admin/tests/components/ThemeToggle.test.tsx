@@ -1,5 +1,5 @@
 import * as React from "react";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { ThemeProvider } from "../../src/components/ThemeProvider";
 import { ThemeToggle } from "../../src/components/ThemeToggle";
@@ -13,60 +13,73 @@ function TestThemeToggle({ defaultTheme = "system" as "system" | "light" | "dark
 	);
 }
 
+function mockSystemTheme(theme: "light" | "dark") {
+	vi.spyOn(window, "matchMedia").mockImplementation(
+		(query) =>
+			({
+				matches: query === "(prefers-color-scheme: dark)" && theme === "dark",
+				media: query,
+				onchange: null,
+				addEventListener: vi.fn(),
+				removeEventListener: vi.fn(),
+				dispatchEvent: vi.fn(),
+				addListener: vi.fn(),
+				removeListener: vi.fn(),
+			}) satisfies MediaQueryList,
+	);
+}
+
 describe("ThemeToggle", () => {
 	beforeEach(() => {
+		vi.restoreAllMocks();
 		localStorage.clear();
 		document.documentElement.removeAttribute("data-theme");
 	});
 
 	// Kumo 2.x's <Button title="..."> wraps the button in a Tooltip popup
-	// rather than setting the native `title` attribute. The current theme is
-	// also exposed in `aria-label`, which is what these assertions read.
+	// rather than setting the native `title` attribute. The action is also
+	// exposed in `aria-label`, which is what these assertions read.
 
-	it("renders with system theme by default", async () => {
+	it("offers dark when the system theme is light", async () => {
+		mockSystemTheme("light");
 		const screen = await render(<TestThemeToggle />);
 		const button = screen.getByRole("button");
 		await expect.element(button).toBeInTheDocument();
-		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("System"));
+		await expect.element(button).toHaveAttribute("aria-label", "Switch to dark");
 	});
 
-	it("cycles from system to light on click", async () => {
+	it("switches from the light system theme to a dark override", async () => {
+		mockSystemTheme("light");
 		const screen = await render(<TestThemeToggle />);
 		const button = screen.getByRole("button");
 		await button.click();
-		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("Light"));
+		await expect.element(document.documentElement).toHaveAttribute("data-mode", "dark");
+		expect(localStorage.getItem("emdash-theme")).toBe("dark");
 	});
 
-	it("cycles through system -> light -> dark -> system", async () => {
+	it("switches from the dark system theme to a light override", async () => {
+		mockSystemTheme("dark");
 		const screen = await render(<TestThemeToggle />);
 		const button = screen.getByRole("button");
-
-		// Start: system
-		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("System"));
-
-		// Click 1: light
 		await button.click();
-		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("Light"));
-
-		// Click 2: dark
-		await button.click();
-		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("Dark"));
-
-		// Click 3: back to system
-		await button.click();
-		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("System"));
-	});
-
-	it("persists theme to localStorage", async () => {
-		const screen = await render(<TestThemeToggle />);
-		const button = screen.getByRole("button");
-		await button.click(); // system -> light
+		await expect.element(document.documentElement).toHaveAttribute("data-mode", "light");
 		expect(localStorage.getItem("emdash-theme")).toBe("light");
 	});
 
+	it("returns to the system theme by removing a matching override", async () => {
+		mockSystemTheme("light");
+		localStorage.setItem("emdash-theme", "dark");
+		const screen = await render(<TestThemeToggle />);
+		const button = screen.getByRole("button");
+		await button.click();
+		await expect.element(document.documentElement).toHaveAttribute("data-mode", "light");
+		expect(localStorage.getItem("emdash-theme")).toBeNull();
+	});
+
 	it("starts with light theme when defaultTheme is light", async () => {
+		mockSystemTheme("light");
 		const screen = await render(<TestThemeToggle defaultTheme="light" />);
 		const button = screen.getByRole("button");
-		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("Light"));
+		await expect.element(button).toHaveAttribute("aria-label", "Switch to dark");
 	});
 });

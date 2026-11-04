@@ -2,10 +2,10 @@ import type { APIRoute } from "astro";
 import { getEmDashCollection, getSiteSettings } from "emdash";
 
 export const GET: APIRoute = async ({ site, url }) => {
-	const siteUrl = site?.toString() || url.origin;
+	const siteUrl = site ?? url.origin;
 	const settings = await getSiteSettings();
 	const siteTitle = settings?.title || "Studio";
-	const siteDescription = settings?.tagline || "Design & Development";
+	const siteDescription = settings?.tagline || siteTitle;
 
 	const { entries: projects } = await getEmDashCollection("projects", {
 		orderBy: { published_at: "desc" },
@@ -17,7 +17,7 @@ export const GET: APIRoute = async ({ site, url }) => {
 			if (!project.data.publishedAt) return null;
 			const pubDate = project.data.publishedAt.toUTCString();
 
-			const projectUrl = `${siteUrl}/work/${project.id}`;
+			const projectUrl = new URL(`/work/${project.id}`, siteUrl).href;
 			const title = escapeXml(project.data.title || "Untitled");
 			const description = escapeXml(project.data.summary || "");
 
@@ -37,8 +37,8 @@ export const GET: APIRoute = async ({ site, url }) => {
   <channel>
     <title>${escapeXml(siteTitle)}</title>
     <description>${escapeXml(siteDescription)}</description>
-    <link>${siteUrl}</link>
-    <atom:link href="${siteUrl}/rss.xml" rel="self" type="application/rss+xml"/>
+    <link>${new URL("/", siteUrl).href}</link>
+    <atom:link href="${new URL("/rss.xml", siteUrl).href}" rel="self" type="application/rss+xml"/>
     <language>en-us</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
 ${items}

@@ -21,6 +21,7 @@ export const prerender = false;
  * - collection: Collection slug (required)
  * - enabled: boolean (required)
  * - weights: Optional field weights for ranking
+ * - tokenize: Optional FTS5 tokenizer configuration
  */
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
@@ -40,7 +41,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	try {
 		if (body.enabled) {
 			// Enable search - creates FTS table, triggers, and populates index
-			await ftsManager.enableSearch(body.collection, { weights: body.weights });
+			await ftsManager.enableSearch(body.collection, {
+				weights: body.weights,
+				tokenize: body.tokenize,
+			});
 
 			const stats = await ftsManager.getIndexStats(body.collection);
 

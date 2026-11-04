@@ -1,0 +1,279 @@
+import { afterEach, beforeEach, expect, it } from "vitest";
+
+import { handleSchemaFieldCreate } from "../../../src/api/handlers/schema.js";
+import { IdentifierError } from "../../../src/database/validate.js";
+import {
+	buildContentMediaUsageFieldFingerprint,
+	loadContentMediaUsageFields,
+	MediaUsageFieldDiscoveryError,
+} from "../../../src/media/usage/content-fields.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
+import {
+	describeEachDialect,
+	setupForDialect,
+	teardownForDialect,
+	type DialectTestContext,
+} from "../../utils/test-db.js";
+
+describeEachDialect("content media usage field discovery", (dialect) => {
+	let ctx: DialectTestContext;
+	let registry: SchemaRegistry;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		registry = new SchemaRegistry(ctx.db);
+		await registry.createCollection({ slug: "posts", label: "Posts" });
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("discovers V1 extraction fields and display fields separately", async () => {
+		await registry.createField("posts", { slug: "name", label: "Name", type: "string" });
+		await registry.createField("posts", { slug: "body", label: "Body", type: "portableText" });
+		await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+		await registry.createField("posts", { slug: "raw_data", label: "Raw Data", type: "json" });
+		await registry.createField("posts", { slug: "attachment", label: "Attachment", type: "file" });
+		await registry.createField("posts", { slug: "hero", label: "Hero", type: "image" });
+		await registry.createField("posts", {
+			slug: "sections",
+			label: "Sections",
+			type: "repeater",
+			validation: {
+				subFields: [
+					{ slug: "caption", type: "text", label: "Caption" },
+					{ slug: "image", type: "image", label: "Image" },
+				],
+			},
+		});
+
+		const discovery = await loadContentMediaUsageFields(ctx.db, "posts");
+
+		expect(discovery.displayFieldSlugs).toEqual(["title", "name"]);
+		expect(discovery.extractionFields).toEqual([
+			{ slug: "attachment", type: "file" },
+			{ slug: "body", type: "portableText" },
+			{ slug: "hero", type: "image" },
+			{
+				slug: "sections",
+				type: "repeater",
+				validation: { subFields: [{ slug: "image", type: "image" }] },
+			},
+		]);
+	});
+
+	it("filters unsupported repeater subfields and excludes repeaters without images", async () => {
+		await registry.createField("posts", {
+			slug: "sections",
+			label: "Sections",
+			type: "repeater",
+			validation: { subFields: [{ slug: "image", type: "image", label: "Image" }] },
+		});
+		await registry.createField("posts", {
+			slug: "downloads",
+			label: "Downloads",
+			type: "repeater",
+			validation: { subFields: [{ slug: "placeholder", type: "image", label: "Placeholder" }] },
+		});
+
+		await ctx.db
+			.updateTable("_emdash_fields")
+			.set({
+				validation: JSON.stringify({
+					subFields: [
+						{ slug: "download", type: "file", label: "Download" },
+						{ slug: "image", type: "image", label: "Image" },
+						{ slug: "caption", type: "text", label: "Caption" },
+					],
+				}),
+			})
+			.where("slug", "=", "sections")
+			.execute();
+		await ctx.db
+			.updateTable("_emdash_fields")
+			.set({
+				validation: JSON.stringify({
+					subFields: [{ slug: "download", type: "file", label: "Download" }],
+				}),
+			})
+			.where("slug", "=", "downloads")
+			.execute();
+
+		const discovery = await loadContentMediaUsageFields(ctx.db, "posts");
+
+		expect(discovery.extractionFields).toEqual([
+			{
+				slug: "sections",
+				type: "repeater",
+				validation: { subFields: [{ slug: "image", type: "image" }] },
+			},
+		]);
+	});
+
+	it("fails closed on malformed repeater validation", async () => {
+		await registry.createField("posts", {
+			slug: "sections",
+			label: "Sections",
+			type: "repeater",
+			validation: { subFields: [{ slug: "image", type: "image", label: "Image" }] },
+		});
+		await ctx.db
+			.updateTable("_emdash_fields")
+			.set({ validation: "{" })
+			.where("slug", "=", "sections")
+			.execute();
+
+		await expect(loadContentMediaUsageFields(ctx.db, "posts")).rejects.toThrow(
+			MediaUsageFieldDiscoveryError,
+		);
+	});
+
+	it("discovers every retained block version and fingerprints contract changes", async () => {
+		const blocks = new BlockTypeRegistry(ctx.db);
+		const created = await blocks.createBlockType({
+			slug: "hero",
+			label: "Hero",
+			fields: [{ slug: "image", label: "Image", type: "image" }],
+		});
+		const versioned = await blocks.updateBlockType("hero", {
+			expectedFingerprint: created.versions[0]!.fingerprint,
+			breaking: true,
+			fields: [{ slug: "file", label: "File", type: "file" }],
+		});
+		await registry.createField("posts", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["hero"] },
+		});
+
+		const before = await loadContentMediaUsageFields(ctx.db, "posts");
+		expect(before.extractionFields[0]).toMatchObject({
+			slug: "layout",
+			type: "blocks",
+			blockTypes: [{ slug: "hero", versions: [{ version: 1 }, { version: 2 }] }],
+		});
+		const beforeFingerprint = await buildContentMediaUsageFieldFingerprint(before);
+
+		await blocks.updateBlockType("hero", {
+			expectedFingerprint: versioned.versions[0]!.fingerprint,
+			fields: [
+				{ slug: "image", label: "Image", type: "image" },
+				{ slug: "gallery", label: "Gallery", type: "portableText" },
+			],
+		});
+		const after = await loadContentMediaUsageFields(ctx.db, "posts");
+		expect(await buildContentMediaUsageFieldFingerprint(after)).not.toBe(beforeFingerprint);
+	});
+
+	it("fails closed when a configured block type cannot be resolved", async () => {
+		const collection = await registry.getCollection("posts");
+		await ctx.db
+			.insertInto("_emdash_fields")
+			.values({
+				id: "layout-field",
+				collection_id: collection!.id,
+				slug: "layout",
+				label: "Layout",
+				type: "blocks",
+				column_type: "JSON",
+				required: 0,
+				unique: 0,
+				default_value: "[]",
+				validation: JSON.stringify({ allowedTypes: ["missing"] }),
+				widget: null,
+				options: null,
+				sort_order: 0,
+			})
+			.execute();
+
+		await expect(loadContentMediaUsageFields(ctx.db, "posts")).rejects.toMatchObject({
+			code: "UNSUPPORTED_BLOCK_DEFINITION",
+		});
+	});
+
+	it("rejects supported fields with invalid slugs before they can become column refs", async () => {
+		const collection = await registry.getCollection("posts");
+		expect(collection).not.toBeNull();
+
+		await ctx.db
+			.insertInto("_emdash_fields")
+			.values({
+				id: "invalid-media-field",
+				collection_id: collection!.id,
+				slug: "bad-slug",
+				label: "Bad Slug",
+				type: "image",
+				column_type: "TEXT",
+				required: 0,
+				unique: 0,
+				default_value: null,
+				validation: null,
+				widget: null,
+				options: null,
+				sort_order: 0,
+			})
+			.execute();
+
+		await expect(loadContentMediaUsageFields(ctx.db, "posts")).rejects.toThrow(IdentifierError);
+	});
+
+	it("keeps a reference field bound to a relation out of the display fields", async () => {
+		await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+		const created = await handleSchemaFieldCreate(ctx.db, "posts", {
+			slug: "name",
+			label: "Name",
+			type: "reference",
+			validation: { targetCollection: "posts" },
+		});
+		expect(created.success).toBe(true);
+
+		const discovery = await loadContentMediaUsageFields(ctx.db, "posts");
+
+		expect(discovery.displayFieldSlugs).toEqual(["title"]);
+	});
+
+	it("fingerprints exact extraction and display-field definitions independent of row order", async () => {
+		const first = await buildContentMediaUsageFieldFingerprint({
+			extractionFields: [
+				{
+					slug: "sections",
+					type: "repeater",
+					validation: {
+						subFields: [
+							{ slug: "secondary", type: "image" },
+							{ slug: "primary", type: "image" },
+						],
+					},
+				},
+				{ slug: "hero", type: "image" },
+			],
+			displayFieldSlugs: ["title", "name"],
+		});
+		const reordered = await buildContentMediaUsageFieldFingerprint({
+			extractionFields: [
+				{ slug: "hero", type: "image" },
+				{
+					slug: "sections",
+					type: "repeater",
+					validation: {
+						subFields: [
+							{ slug: "primary", type: "image" },
+							{ slug: "secondary", type: "image" },
+						],
+					},
+				},
+			],
+			displayFieldSlugs: ["name", "title"],
+		});
+		const changed = await buildContentMediaUsageFieldFingerprint({
+			extractionFields: [{ slug: "hero", type: "file" }],
+			displayFieldSlugs: ["name", "title"],
+		});
+
+		expect(first).toBe(reordered);
+		expect(changed).not.toBe(first);
+	});
+});

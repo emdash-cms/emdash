@@ -15,12 +15,14 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { handleError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, handleError, requireDb, unwrapResult } from "#api/error.js";
 import { handleBylineCreate, handleBylineTranslations } from "#api/handlers/bylines.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { bylineTranslationCreateBody } from "#api/schemas.js";
 import { invalidateBylineCache } from "#bylines/index.js";
 import { BylineRepository } from "#db/repositories/byline.js";
+
+import { after } from "../../../../../../after.js";
 
 export const prerender = false;
 
@@ -65,10 +67,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		const repo = new BylineRepository(emdash.db);
 		const source = await repo.findById(id);
 		if (!source) {
-			return new Response(
-				JSON.stringify({ error: { code: "NOT_FOUND", message: "Byline not found" } }),
-				{ status: 404, headers: { "Content-Type": "application/json" } },
-			);
+			return apiError("NOT_FOUND", "Byline not found", 404);
 		}
 
 		const result = await handleBylineCreate(emdash.db, {
@@ -77,17 +76,16 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			bio: body.bio ?? null,
 			avatarMediaId: body.avatarMediaId ?? source.avatarMediaId,
 			websiteUrl: body.websiteUrl ?? source.websiteUrl,
-			// Translations don't inherit the source's user_id or guest flag —
-			// the partial unique on (user_id, locale) means a single user can
-			// own one byline per locale, but the editor must opt into linking
-			// the new row by editing it after creation.
-			userId: null,
 			isGuest: source.isGuest,
 			locale: body.locale,
 			translationOf: id,
 		});
 
-		if (result.success) invalidateBylineCache();
+		if (result.success) {
+			invalidateBylineCache();
+			const byline = result.data;
+			after(() => emdash.hooks.runBylineAfterSave(byline, true));
+		}
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(

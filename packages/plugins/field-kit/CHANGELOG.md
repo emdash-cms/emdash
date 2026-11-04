@@ -1,5 +1,24 @@
 # @emdash-cms/plugin-field-kit
 
+## 0.1.2
+
+No changes in this release.
+
+## 0.1.2-rc.0
+
+### Patch Changes
+
+- Updated dependencies [[`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d), [`bc54886`](https://github.com/emdash-cms/emdash/commit/bc5488685c8a886e2375d066d7424ddf4aac9a78), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd)]:
+  - emdash@1.0.1-rc.0
+
+## 0.1.1
+
+### Patch Changes
+
+- [#3027](https://github.com/emdash-cms/emdash/pull/3027) [`42f0473`](https://github.com/emdash-cms/emdash/commit/42f0473ddccc9c6a59f85f01c01cc14c5f4af351) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes the `@cloudflare/kumo` peer-dependency range to match the `2.x` release used by `emdash`, `@emdash-cms/admin`, and `@emdash-cms/blocks`.
+  
+  The published `0.1.0` tarball still declared a `^1.0.0` peer range, which made `npm install` fail with a conflicting peer dependency (`ERESOLVE`) when users added the plugin alongside recent EmDash releases.
+
 ## 0.1.0
 
 ### Minor Changes

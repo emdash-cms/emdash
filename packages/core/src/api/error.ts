@@ -6,6 +6,7 @@
  */
 
 import { InvalidCursorError } from "../database/repositories/types.js";
+import { SearchUnavailableError } from "../search/errors.js";
 import { mapErrorStatus } from "./errors.js";
 import type { ApiResult } from "./types.js";
 
@@ -25,8 +26,8 @@ const API_CACHE_HEADERS: HeadersInit = {
 /**
  * Create a standardized error response.
  *
- * Always returns `{ error: { code, message } }` with correct Content-Type.
- * Use this for all error responses in API routes.
+ * Always returns `{ success: false, error: { code, message } }` with correct
+ * Content-Type. Use this for all error responses in API routes.
  */
 export function apiError(
 	code: string,
@@ -39,17 +40,17 @@ export function apiError(
 		message,
 	};
 	if (details !== undefined) error.details = details;
-	return Response.json({ error }, { status, headers: API_CACHE_HEADERS });
+	return Response.json({ success: false, error }, { status, headers: API_CACHE_HEADERS });
 }
 
 /**
  * Create a standardized success response.
  *
- * Always returns `{ data: T }` with correct status code.
+ * Always returns `{ success: true, data: T }` with correct status code.
  * Use this for all success responses in API routes.
  */
 export function apiSuccess<T>(data: T, status = 200): Response {
-	return Response.json({ data }, { status, headers: API_CACHE_HEADERS });
+	return Response.json({ success: true, data }, { status, headers: API_CACHE_HEADERS });
 }
 
 /**
@@ -69,6 +70,9 @@ export function handleError(
 	// generic 500.
 	if (error instanceof InvalidCursorError) {
 		return apiError("INVALID_CURSOR", error.message, 400);
+	}
+	if (error instanceof SearchUnavailableError) {
+		return apiError("SEARCH_UNAVAILABLE", error.message, 503);
 	}
 	console.error(`[${fallbackCode}]`, error);
 	return apiError(fallbackCode, fallbackMessage, 500);

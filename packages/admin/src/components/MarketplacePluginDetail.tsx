@@ -20,11 +20,15 @@ import * as React from "react";
 import {
 	fetchMarketplacePlugin,
 	installMarketplacePlugin,
+	PluginInstallConsentRequiredError,
+	PluginMcpConsentRequiredError,
 	uninstallMarketplacePlugin,
 	describeCapability,
+	type PluginMcpConsentTool,
 } from "../lib/api/marketplace.js";
 import { renderMarkdown } from "../lib/markdown.js";
 import { isSafeUrl, safeIconUrl } from "../lib/url.js";
+import { formatDate, isolate } from "../lib/utils.js";
 import { ArrowPrev, CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
@@ -41,9 +45,11 @@ export function MarketplacePluginDetail({
 	pluginId,
 	installedPluginIds = new Set(),
 }: MarketplacePluginDetailProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const queryClient = useQueryClient();
 	const [showConsent, setShowConsent] = React.useState(false);
+	const [mcpConsentTools, setMcpConsentTools] = React.useState<PluginMcpConsentTool[]>([]);
+	const [publicRouteConsent, setPublicRouteConsent] = React.useState<string[]>([]);
 	const [showUninstallConfirm, setShowUninstallConfirm] = React.useState(false);
 	const [lightboxIndex, setLightboxIndex] = React.useState<number | null>(null);
 
@@ -60,12 +66,28 @@ export function MarketplacePluginDetail({
 		mutationFn: () =>
 			installMarketplacePlugin(pluginId, {
 				version: plugin?.latestVersion?.version,
+				confirmMcpTools: mcpConsentTools.length > 0,
+				acknowledgedPublicRoutes: publicRouteConsent,
 			}),
 		onSuccess: () => {
 			setShowConsent(false);
+			setMcpConsentTools([]);
+			setPublicRouteConsent([]);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			void queryClient.invalidateQueries({ queryKey: ["marketplace"] });
+		},
+		onError: (mutationError) => {
+			if (mutationError instanceof PluginInstallConsentRequiredError) {
+				setMcpConsentTools(mutationError.tools);
+				setPublicRouteConsent(mutationError.newlyPublicRoutes);
+				setShowConsent(true);
+				return;
+			}
+			if (mutationError instanceof PluginMcpConsentRequiredError) {
+				setMcpConsentTools(mutationError.tools);
+				setShowConsent(true);
+			}
 		},
 	});
 
@@ -111,7 +133,7 @@ export function MarketplacePluginDetail({
 					<p className="mt-1 text-sm text-kumo-subtle">
 						{error instanceof Error ? error.message : t`Plugin not found`}
 					</p>
-					<Link to="/plugins/marketplace" className="mt-4 inline-block text-kumo-brand text-sm">
+					<Link to="/plugins/marketplace" className="mt-4 inline-block text-kumo-link text-sm">
 						{t`Back to marketplace`}
 					</Link>
 				</div>
@@ -142,16 +164,16 @@ export function MarketplacePluginDetail({
 							aria-label={isImageFlagged ? t`Icon blurred due to image audit` : undefined}
 						/>
 					) : (
-						<div className="flex h-16 w-16 items-center justify-center rounded-xl bg-kumo-brand/10 text-kumo-brand text-2xl font-bold">
+						<div className="flex h-16 w-16 items-center justify-center rounded-xl bg-kumo-brand/10 text-kumo-link text-2xl font-bold">
 							{plugin.name.charAt(0).toUpperCase()}
 						</div>
 					)}
 
 					<div>
-						<h1 className="text-2xl font-bold">{plugin.name}</h1>
+						<h1 className="text-2xl font-semibold leading-tight">{plugin.name}</h1>
 						<div className="mt-1 flex items-center gap-2 text-sm text-kumo-subtle">
 							<span>{plugin.author.name}</span>
-							{plugin.author.verified && <ShieldCheck className="h-4 w-4 text-kumo-brand" />}
+							{plugin.author.verified && <ShieldCheck className="h-4 w-4 text-kumo-link" />}
 							{latest && (
 								<>
 									<span aria-hidden="true">&middot;</span>
@@ -199,7 +221,7 @@ export function MarketplacePluginDetail({
 			<div className="flex flex-wrap items-center gap-4 rounded-lg border bg-kumo-tint/30 p-3 text-sm">
 				<div className="flex items-center gap-1.5">
 					<DownloadSimple className="h-4 w-4 text-kumo-subtle" />
-					<span>{t`${plugin.installCount.toLocaleString()} installs`}</span>
+					<span>{t`${plugin.installCount.toLocaleString(i18n.locale)} installs`}</span>
 				</div>
 				{latest?.audit && <AuditBadge verdict={latest.audit.verdict} />}
 				{plugin.license && <span className="text-kumo-subtle">{plugin.license}</span>}
@@ -208,7 +230,7 @@ export function MarketplacePluginDetail({
 						href={plugin.repositoryUrl}
 						target="_blank"
 						rel="noopener noreferrer"
-						className="flex items-center gap-1 text-kumo-brand hover:underline"
+						className="flex items-center gap-1 text-kumo-link hover:underline"
 					>
 						<GithubLogo className="h-4 w-4" />
 						{t`Source`}
@@ -219,7 +241,7 @@ export function MarketplacePluginDetail({
 						href={plugin.homepageUrl}
 						target="_blank"
 						rel="noopener noreferrer"
-						className="flex items-center gap-1 text-kumo-brand hover:underline"
+						className="flex items-center gap-1 text-kumo-link hover:underline"
 					>
 						<Globe className="h-4 w-4" />
 						{t`Website`}
@@ -279,7 +301,7 @@ export function MarketplacePluginDetail({
 							<ul className="space-y-1.5">
 								{plugin.capabilities.map((cap) => (
 									<li key={cap} className="flex items-start gap-2 text-xs text-kumo-subtle">
-										<ShieldCheck className="mt-0.5 h-3 w-3 shrink-0 text-kumo-brand" />
+										<ShieldCheck className="mt-0.5 h-3 w-3 shrink-0 text-kumo-link" />
 										<span>{describeCapability(cap)}</span>
 									</li>
 								))}
@@ -323,7 +345,7 @@ export function MarketplacePluginDetail({
 								{latest.minEmDashVersion && (
 									<div>{t`Requires EmDash ${latest.minEmDashVersion}`}</div>
 								)}
-								<div>{t`Published ${new Date(latest.publishedAt).toLocaleDateString()}`}</div>
+								<div>{t`Published ${isolate(formatDate(latest.publishedAt, i18n.locale))}`}</div>
 								{latest.bundleSize > 0 && <div>{formatBytes(latest.bundleSize)}</div>}
 							</div>
 						</div>
@@ -337,12 +359,20 @@ export function MarketplacePluginDetail({
 					mode="install"
 					pluginName={plugin.name}
 					capabilities={plugin.capabilities}
+					mcpTools={mcpConsentTools}
+					newlyPublicRoutes={publicRouteConsent}
 					auditVerdict={latest?.audit?.verdict}
 					isPending={installMutation.isPending}
-					error={getMutationError(installMutation.error)}
+					error={
+						installMutation.error instanceof PluginMcpConsentRequiredError
+							? null
+							: getMutationError(installMutation.error)
+					}
 					onConfirm={() => installMutation.mutate()}
 					onCancel={() => {
 						setShowConsent(false);
+						setMcpConsentTools([]);
+						setPublicRouteConsent([]);
 						installMutation.reset();
 					}}
 				/>

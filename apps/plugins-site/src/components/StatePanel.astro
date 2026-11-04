@@ -1,0 +1,93 @@
+---
+/** An empty or error state: icon, title, short text, and optional actions. */
+interface Props {
+	icon: "refresh" | "box" | "search";
+	title: string;
+	headingLevel?: 2 | 3;
+}
+
+const { icon, title, headingLevel = 3 } = Astro.props;
+const Heading = headingLevel === 2 ? "h2" : "h3";
+const icons = {
+	refresh:
+		'<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5v4h-4"/>',
+	box: '<path d="M4.5 8.2 12 4l7.5 4.2v7.6L12 20l-7.5-4.2Z"/><path d="M4.5 8.2 12 12.4l7.5-4.2M12 12.4V20"/>',
+	search:
+		'<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/><path d="M8.5 11h5"/>',
+};
+---
+
+<div class="state-panel card">
+	<span class="state-panel-icon" aria-hidden="true">
+		<svg viewBox="0 0 24 24" focusable="false" set:html={icons[icon]} />
+	</span>
+	<Heading class="state-panel-title" dir="auto">{title}</Heading>
+	<p class="state-panel-text"><slot /></p>
+	{
+		Astro.slots.has("actions") && (
+			<div class="state-panel-actions">
+				<slot name="actions" />
+			</div>
+		)
+	}
+</div>
+
+<style>
+	.state-panel {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: clamp(2.5rem, 2rem + 3vw, 4.5rem) 1.5rem;
+		text-align: center;
+	}
+
+	.state-panel-icon {
+		display: grid;
+		place-items: center;
+		width: 3rem;
+		height: 3rem;
+		margin-bottom: 1.25rem;
+		color: var(--ink);
+		background: var(--surface-soft);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-md);
+	}
+
+	.state-panel-icon svg {
+		width: 1.375rem;
+		height: 1.375rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.6;
+	}
+
+	.state-panel-title {
+		max-width: 100%;
+		margin: 0;
+		color: var(--ink-strong);
+		font-size: 1.0625rem;
+		font-weight: 600;
+		line-height: 1.3;
+		letter-spacing: -0.02em;
+		overflow-wrap: anywhere;
+	}
+
+	.state-panel-text {
+		max-width: 26rem;
+		margin: 0.5rem 0 0;
+		color: var(--muted);
+		font-size: 0.9375rem;
+		line-height: 1.55;
+		text-wrap: pretty;
+	}
+
+	.state-panel-actions {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 0.625rem;
+		margin-top: 1.5rem;
+	}
+</style>

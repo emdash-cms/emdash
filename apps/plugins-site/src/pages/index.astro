@@ -1,0 +1,58 @@
+---
+import { getLiveCollection } from "astro:content";
+
+import BuildCta from "../components/home/BuildCta.astro";
+import Hero from "../components/home/Hero.astro";
+import HowItWorks from "../components/home/HowItWorks.astro";
+import RecentPlugins from "../components/home/RecentPlugins.astro";
+import SectionNotch from "../components/home/SectionNotch.astro";
+import TrustBento from "../components/home/TrustBento.astro";
+import PluginArt from "../components/PluginArt.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { popularKeywords } from "../lib/home.js";
+import { REGISTRY_PAGE_CACHE } from "../lib/registry.js";
+
+const RECENT_LIMIT = 12;
+const CATALOG_LIMIT = 100;
+
+const [recent, catalog] = await Promise.all([
+	getLiveCollection("plugins", {
+		limit: RECENT_LIMIT,
+		includeLatestRelease: true,
+	}),
+	getLiveCollection("plugins", { limit: CATALOG_LIMIT }),
+]);
+
+const recentEntries = recent.entries?.map((entry) => entry.data) ?? [];
+const packages = catalog.entries?.map((entry) => entry.data.package) ?? [];
+const hasError = Boolean(recent.error);
+const keywords = popularKeywords(packages, 6);
+
+if (!hasError && !catalog.error) {
+	Astro.cache.set({ ...REGISTRY_PAGE_CACHE, tags: ["registry"] });
+}
+
+const websiteJsonLd = {
+	"@context": "https://schema.org",
+	"@type": "WebSite",
+	name: "EmDash Plugins",
+	url: new URL("/", Astro.site ?? Astro.url.origin).href,
+};
+---
+
+<BaseLayout jsonLd={websiteJsonLd}>
+	<Hero keywords={keywords} />
+	<RecentPlugins entries={recentEntries} hasError={hasError} />
+	<SectionNotch />
+	<TrustBento />
+	<HowItWorks />
+	<BuildCta>
+		<PluginArt slot="art" seed="idea" variant="feature" />
+	</BuildCta>
+</BaseLayout>
+
+<style is:global>
+	:root {
+		--main-end-space: 0;
+	}
+</style>

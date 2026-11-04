@@ -10,7 +10,6 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
-import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { generateAuthenticationOptions } from "@emdash-cms/auth/passkey";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
@@ -23,6 +22,8 @@ import { checkRateLimit, getClientIp, rateLimitResponse } from "#auth/rate-limit
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
+import { after } from "../../../../../after.js";
+
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash } = locals;
 
@@ -31,8 +32,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	}
 
 	try {
-		// Fire-and-forget cleanup of expired challenges -- prevents accumulation
-		void cleanupExpiredChallenges(emdash.db).catch(() => {});
+		// Cleanup of expired challenges -- prevents accumulation
+		after(async () => {
+			try {
+				await cleanupExpiredChallenges(emdash.db);
+			} catch (error) {
+				console.error("[passkey] failed to delete expired challenges:", error);
+			}
+		});
 
 		// Parse body before rate limiting so malformed requests don't consume slots
 		const body = await parseOptionalBody(request, passkeyOptionsBody, {});
@@ -45,21 +52,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			return rateLimitResponse(60);
 		}
 
-		const adapter = createKyselyAdapter(emdash.db);
-
-		// Get credentials to allow
-		let credentials: Awaited<ReturnType<typeof adapter.getCredentialsByUserId>> = [];
-
-		if (body.email) {
-			// Get credentials for specific user
-			const user = await adapter.getUserByEmail(body.email);
-			if (user) {
-				credentials = await adapter.getCredentialsByUserId(user.id);
-			}
-			// Don't reveal if user exists - just return empty allowCredentials
-		}
-		// If no email provided, allowCredentials will be undefined (allow any discoverable credential)
-
 		// Get passkey config
 		const url = new URL(request.url);
 		const options = new OptionsRepository(emdash.db);
@@ -69,11 +61,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Generate authentication options
 		const challengeStore = createChallengeStore(emdash.db);
-		const authOptions = await generateAuthenticationOptions(
-			passkeyConfig,
-			credentials,
-			challengeStore,
-		);
+		// Never scope to the submitted email: allowCredentials would reveal whether the account exists.
+		const authOptions = await generateAuthenticationOptions(passkeyConfig, [], challengeStore);
 
 		return apiSuccess({
 			success: true,

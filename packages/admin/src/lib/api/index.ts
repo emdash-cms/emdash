@@ -7,7 +7,9 @@
 // Base client and shared types
 export {
 	API_BASE,
+	ApiResponseError,
 	apiFetch,
+	isTerminalRequestError,
 	parseApiResponse,
 	throwResponseError,
 	type FindManyResult,
@@ -26,6 +28,8 @@ export {
 	type TrashedContentItem,
 	type PreviewUrlResponse,
 	type Revision,
+	type RevisionAuthor,
+	type RevisionListItem,
 	type RevisionListResponse,
 	type TranslationSummary,
 	type TranslationsResponse,
@@ -58,13 +62,34 @@ export {
 // Media
 export {
 	type MediaItem,
+	type LocalMediaItem,
+	type MediaFolder,
+	type MediaFolderListResult,
+	type MediaUpdateInput,
+	type MediaUploadOptions,
+	type MediaUsageCoverageStatus,
+	type MediaUsageCoverage,
+	type MediaUsageOccurrenceDetail,
+	type MediaUsageSourceDetail,
+	type MediaUsageEntryDetail,
+	type MediaUsageSiteSettingDetail,
+	type MediaUsageDetailsResponse,
 	type MediaProviderCapabilities,
 	type MediaProviderInfo,
 	type MediaProviderItem,
+	type UploadMediaOptions,
 	MEDIA_SEARCH_MAX_LENGTH,
 	fetchMediaList,
 	fetchMediaItem,
+	fetchMediaUsageDetails,
+	MediaUsageAccessDeniedError,
+	fetchMediaFolders,
+	fetchMediaFolder,
+	createMediaFolder,
+	renameMediaFolder,
+	deleteMediaFolder,
 	uploadMedia,
+	replaceMediaImage,
 	deleteMedia,
 	updateMedia,
 	fetchMediaProviders,
@@ -83,6 +108,7 @@ export {
 	type UpdateCollectionInput,
 	type CreateFieldInput,
 	type UpdateFieldInput,
+	type BlockType,
 	type OrphanedTable,
 	fetchCollections,
 	fetchCollection,
@@ -94,21 +120,37 @@ export {
 	updateField,
 	deleteField,
 	reorderFields,
+	reorderCollections,
 	fetchOrphanedTables,
 	registerOrphanedTable,
+	fetchBlockTypes,
 } from "./schema.js";
 
 // Plugins
 export {
 	type PluginInfo,
+	type SettingField,
 	fetchPlugins,
 	fetchPlugin,
+	fetchPluginSettings,
+	updatePluginSettings,
 	enablePlugin,
 	disablePlugin,
+	setPluginMcpEnabled,
 } from "./plugins.js";
 
 // Settings
-export { type SiteSettings, fetchSettings, updateSettings } from "./settings.js";
+export {
+	type SiteSettings,
+	type SiteSettingsUpdate,
+	type SiteDomain,
+	fetchSettings,
+	updateSettings,
+	fetchSiteDomain,
+	changeSiteDomain,
+	createSignInHandover,
+	notifyUsersOfDomain,
+} from "./settings.js";
 
 // Users, passkeys, allowed domains
 export {
@@ -272,6 +314,7 @@ export {
 	type ImportResult,
 	type MediaImportResult,
 	type MediaImportProgress,
+	type WpImportProgress,
 	type RewriteUrlsResult,
 	type SourceCapabilities,
 	type SourceAuth,
@@ -283,6 +326,7 @@ export {
 	prepareWxrImport,
 	executeWxrImport,
 	importWxrMedia,
+	importWxrMediaBatched,
 	probeImportUrl,
 	rewriteContentUrls,
 	analyzeWpPluginSite,
@@ -388,3 +432,31 @@ export {
 
 // Current user
 export { type CurrentUser, useCurrentUser } from "./current-user.js";
+
+// Relations (reference fields)
+export {
+	type BoundField,
+	type CreateRelationInput,
+	type EntryRef,
+	type ReferencePageOptions,
+	type RelationDef,
+	type RelationSide,
+	type RelationWithUsage,
+	type UpdateRelationInput,
+	createRelation,
+	deleteRelation,
+	fetchReferenceChildren,
+	fetchReferenceParents,
+	fetchRelation,
+	fetchRelations,
+	updateRelation,
+} from "./relations.js";
+
+// Entry edit locks
+export {
+	type EntryLockHolder,
+	type EntryLockStatus,
+	acquireEntryLock,
+	releaseEntryLock,
+	entryLockRefusal,
+} from "./entry-lock.js";

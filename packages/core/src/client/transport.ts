@@ -140,18 +140,22 @@ export function refreshInterceptor(options: {
 	refreshToken: string;
 	tokenEndpoint: string;
 	onTokenRefreshed?: (accessToken: string, refreshToken: string, expiresAt: string) => void;
+	fetch?: (request: Request) => Promise<Response>;
 }): Interceptor {
+	const send = options.fetch ?? baseFetch;
 	let refreshing: Promise<string | null> | null = null;
 
 	async function refresh(): Promise<string | null> {
-		const res = await globalThis.fetch(options.tokenEndpoint, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				grant_type: "refresh_token",
-				refresh_token: options.refreshToken,
+		const res = await send(
+			new Request(options.tokenEndpoint, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					grant_type: "refresh_token",
+					refresh_token: options.refreshToken,
+				}),
 			}),
-		});
+		);
 
 		if (!res.ok) return null;
 
@@ -163,7 +167,7 @@ export function refreshInterceptor(options: {
 
 		const json = (await res.json()) as Record<string, unknown>;
 
-		// The token endpoint wraps the response in { data: ... } via apiSuccess.
+		// The token endpoint wraps the response in { success, data: ... } via apiSuccess.
 		// Handle both wrapped and bare shapes for robustness.
 		const tokenData: TokenFields =
 			json.data && typeof json.data === "object" && "access_token" in json.data
@@ -186,6 +190,10 @@ export function refreshInterceptor(options: {
 	}
 
 	return async (request, next) => {
+		// A request body can only be read once; clone before sending so the
+		// 401 retry has an unconsumed request to rebuild from.
+		const retryTemplate = request.body ? request.clone() : request;
+
 		const response = await next(request);
 
 		if (response.status === 401) {
@@ -199,9 +207,9 @@ export function refreshInterceptor(options: {
 			const newToken = await refreshing;
 			if (newToken) {
 				// Retry with new token
-				const headers = new Headers(request.headers);
+				const headers = new Headers(retryTemplate.headers);
 				headers.set("Authorization", `Bearer ${newToken}`);
-				return next(new Request(request, { headers }));
+				return next(new Request(retryTemplate, { headers }));
 			}
 		}
 

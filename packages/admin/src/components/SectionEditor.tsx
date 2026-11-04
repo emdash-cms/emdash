@@ -4,18 +4,31 @@
  * Edit a section's content and metadata.
  */
 
-import { Input, InputArea, Label, Loader, Toast } from "@cloudflare/kumo";
+import { Input, InputArea, Label, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
-import { fetchSection, updateSection, type Section, type UpdateSectionInput } from "../lib/api";
+import {
+	fetchManifest,
+	fetchSection,
+	updateSection,
+	type Section,
+	type UpdateSectionInput,
+} from "../lib/api";
+import { getPluginBlocks } from "../lib/pluginBlocks";
 import { slugify } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
+import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
+import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
 import { EditorHeader } from "./EditorHeader";
-import { PortableTextEditor, type BlockSidebarPanel } from "./PortableTextEditor";
+import {
+	PortableTextEditor,
+	type BlockSidebarPanel,
+	type PluginBlockDef,
+} from "./PortableTextEditor";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton";
 
@@ -24,7 +37,7 @@ export function SectionEditor() {
 	const { slug } = useParams({ from: "/_admin/sections/$slug" });
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 
 	const {
 		data: section,
@@ -36,12 +49,18 @@ export function SectionEditor() {
 		staleTime: Infinity,
 	});
 
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+
+	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
+
 	const updateMutation = useMutation({
 		mutationFn: (input: UpdateSectionInput) => updateSection(slug, input),
 		onSuccess: (updated) => {
 			void queryClient.invalidateQueries({ queryKey: ["sections"] });
 			void queryClient.invalidateQueries({ queryKey: ["sections", slug] });
-			toastManager.add({ title: t`Section saved` });
 			// If slug changed, navigate to new URL
 			if (updated.slug !== slug) {
 				void navigate({ to: "/sections/$slug", params: { slug: updated.slug } });
@@ -51,7 +70,7 @@ export function SectionEditor() {
 			toastManager.add({
 				title: t`Error saving section`,
 				description: mutationError.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -75,7 +94,7 @@ export function SectionEditor() {
 						shape="square"
 						icon={<ArrowPrev />}
 					/>
-					<h1 className="text-2xl font-bold">{t`Section Not Found`}</h1>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Section Not Found`}</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<p className="text-kumo-subtle">
@@ -91,6 +110,7 @@ export function SectionEditor() {
 			key={section.updatedAt}
 			section={section}
 			isSaving={updateMutation.isPending}
+			pluginBlocks={pluginBlocks}
 			onSave={(input) => updateMutation.mutate(input)}
 		/>
 	);
@@ -99,10 +119,11 @@ export function SectionEditor() {
 interface SectionEditorFormProps {
 	section: Section;
 	isSaving: boolean;
+	pluginBlocks: PluginBlockDef[];
 	onSave: (input: UpdateSectionInput) => void;
 }
 
-function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps) {
+function SectionEditorForm({ section, isSaving, pluginBlocks, onSave }: SectionEditorFormProps) {
 	const { t } = useLingui();
 	const [title, setTitle] = React.useState(section.title);
 	const [sectionSlug, setSectionSlug] = React.useState(section.slug);
@@ -179,22 +200,23 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 				}
 				actions={<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />}
 			>
-				<h1 className="text-2xl font-bold truncate">{section.title}</h1>
+				<h1 className="truncate text-2xl font-semibold">{section.title}</h1>
 				<p className="text-sm text-kumo-subtle">
 					{section.source === "theme" ? t`Theme Section` : t`Custom Section`} &middot;{" "}
-					{section.slug}
+					<bdi dir="ltr">{section.slug}</bdi>
 				</p>
 			</EditorHeader>
 
-			<div className="grid grid-cols-12 gap-6">
+			<div className="grid gap-6 xl:grid-cols-12">
 				{/* Main content */}
-				<div className="col-span-8 space-y-6">
+				<div className="min-w-0 space-y-6 xl:col-span-8">
 					{/* Content editor */}
 					<div className="rounded-lg border bg-kumo-base p-6">
 						<Label className="text-lg font-semibold mb-4 block">{t`Content`}</Label>
 						<PortableTextEditor
 							value={content as Parameters<typeof PortableTextEditor>[0]["value"]}
-							onChange={(value) => setContent(value as unknown[])}
+							onChange={(value) => setContent(value)}
+							pluginBlocks={pluginBlocks}
 							onBlockSidebarOpen={handleBlockSidebarOpen}
 							onBlockSidebarClose={handleBlockSidebarClose}
 						/>
@@ -203,22 +225,36 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 					{/* Save action at the bottom of the main column so users hit
 					    it naturally when they finish editing, without needing to
 					    scroll past the entire sidebar. */}
-					<div className="flex justify-end">
-						<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />
+					<div className="flex items-center justify-end gap-2">
+						<SaveButton
+							isSaving={isSaving}
+							isDirty={isDirty}
+							announce={false}
+							onClick={handleSave}
+						/>
 					</div>
 				</div>
 
 				{/* Sidebar */}
-				<div className="col-span-4 space-y-6">
+				<div className="min-w-0 space-y-6 xl:col-span-4">
 					{blockSidebarPanel?.type === "image" ? (
 						<ImageDetailPanel
 							attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
-							onUpdate={(attrs) =>
-								blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
-							}
+							onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
 							onReplace={(attrs) =>
 								blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
 							}
+							onDelete={() => {
+								blockSidebarPanel.onDelete();
+								setBlockSidebarPanel(null);
+							}}
+							onClose={handleBlockSidebarClose}
+							inline
+						/>
+					) : blockSidebarPanel?.type === "gallery" ? (
+						<GalleryDetailPanel
+							attributes={blockSidebarPanel.attrs as unknown as GalleryAttributes}
+							onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
 							onDelete={() => {
 								blockSidebarPanel.onDelete();
 								setBlockSidebarPanel(null);
@@ -241,6 +277,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 
 								<div>
 									<Input
+										dir="ltr"
 										label={t`Slug`}
 										value={sectionSlug}
 										onChange={(e) => {

@@ -1,5 +1,28 @@
 # @emdash-cms/plugin-atproto
 
+## 0.2.4
+
+### Patch Changes
+
+- [#4188](https://github.com/emdash-cms/emdash/pull/4188) [`1709272`](https://github.com/emdash-cms/emdash/commit/17092725d9e59baf56e695d3cad4712aa71864a3) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes unpublished edits to a published post being sent to Bluesky and its standard.site document as soon as they were saved. They now sync when you publish them.
+
+## 0.2.3
+
+### Patch Changes
+
+- [#3647](https://github.com/emdash-cms/emdash/pull/3647) [`998b983`](https://github.com/emdash-cms/emdash/commit/998b983b7093e2c5a1f806b09cd8a93bfc33eb0a) Thanks [@nozamdavid](https://github.com/nozamdavid)! - Fixes the AT Protocol settings page failing to load by adding the required `page_action_id` to the “Recent Syncs” table.
+
+## 0.2.2
+
+No changes in this release.
+
+## 0.2.2-rc.0
+
+### Patch Changes
+
+- Updated dependencies [[`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d), [`bc54886`](https://github.com/emdash-cms/emdash/commit/bc5488685c8a886e2375d066d7424ddf4aac9a78), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd)]:
+  - emdash@1.0.1-rc.0
+
 ## 0.2.1
 
 ### Patch Changes

@@ -15,6 +15,7 @@ import type { Kysely } from "kysely";
 
 import {
 	MenuGoneError,
+	MenuItemParentError,
 	MenuRepository,
 	type CreateMenuItemInput as CreateMenuItemRepoInput,
 	type Menu,
@@ -25,7 +26,7 @@ import {
 	type UpdateMenuItemInput as UpdateMenuItemRepoInput,
 } from "../../database/repositories/menu.js";
 import type { Database } from "../../database/types.js";
-import { getI18nConfig } from "../../i18n/config.js";
+import { getI18nConfig, getLocaleRank, resolveConfiguredLocale } from "../../i18n/config.js";
 import type { ApiResult } from "../types.js";
 
 // Re-export entity types so route files and tests can import them from the
@@ -89,7 +90,8 @@ async function resolveMenu(
 	name: string,
 	options: { locale?: string },
 ): Promise<ResolveMenuResult> {
-	const matches = await repo.findByName(name, options);
+	const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+	const matches = await repo.findByName(name, { locale });
 	if (matches.length === 0) {
 		return {
 			success: false,
@@ -99,16 +101,20 @@ async function resolveMenu(
 			},
 		};
 	}
-	if (matches.length > 1) {
+	const canonicalLocales = new Set(matches.map((match) => resolveConfiguredLocale(match.locale)));
+	if (locale === undefined && canonicalLocales.size > 1) {
 		return {
 			success: false,
-			error: ambiguousMenuLocaleError(
-				name,
-				matches.map((m) => m.locale),
-			).error,
+			error: ambiguousMenuLocaleError(name, [...canonicalLocales]).error,
 		};
 	}
-	return { success: true, menu: matches[0] };
+	const preferredLocale = locale ?? resolveConfiguredLocale(matches[0].locale);
+	const menu = matches.toSorted(
+		(a, b) =>
+			getLocaleRank(a.locale, preferredLocale) - getLocaleRank(b.locale, preferredLocale) ||
+			a.id.localeCompare(b.id),
+	)[0];
+	return { success: true, menu };
 }
 
 // ---------------------------------------------------------------------------
@@ -124,7 +130,8 @@ export async function handleMenuList(
 ): Promise<ApiResult<MenuListItem[]>> {
 	try {
 		const repo = new MenuRepository(db);
-		const items = await repo.findMany(options);
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const items = await repo.findMany({ locale });
 		return { success: true, data: items };
 	} catch {
 		return {
@@ -171,11 +178,22 @@ export async function handleMenuCreate(
 					error: { code: "NOT_FOUND", message: "Source menu for translation not found" },
 				};
 			}
+			if (source.name !== input.name) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `A translation of menu "${source.name}" must use the same name`,
+					},
+				};
+			}
 		}
 
 		// Duplicate guard: same (name, locale). Falls back to the configured
 		// defaultLocale to match the column DEFAULT set by migration 036.
-		const effectiveLocale = input.locale ?? getI18nConfig()?.defaultLocale ?? "en";
+		const effectiveLocale = input.locale
+			? resolveConfiguredLocale(input.locale)
+			: (getI18nConfig()?.defaultLocale ?? "en");
 		if (await repo.existsByNameAndLocale(input.name, effectiveLocale)) {
 			return {
 				success: false,
@@ -188,7 +206,7 @@ export async function handleMenuCreate(
 			};
 		}
 
-		const menu = await repo.create(input);
+		const menu = await repo.create({ ...input, locale: effectiveLocale });
 		return { success: true, data: menu };
 	} catch {
 		return {
@@ -212,7 +230,8 @@ export async function handleMenuGet(
 ): Promise<ApiResult<MenuWithItems>> {
 	try {
 		const repo = new MenuRepository(db);
-		const matches = await repo.findByName(name, options);
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const matches = await repo.findByName(name, { locale });
 		if (matches.length === 0) {
 			return {
 				success: false,
@@ -355,7 +374,10 @@ export async function handleMenuItemCreate(
 
 		const item = await repo.createItem(resolved.menu.id, resolved.menu.locale, input);
 		return { success: true, data: item };
-	} catch {
+	} catch (error) {
+		if (error instanceof MenuItemParentError) {
+			return { success: false, error: { code: "VALIDATION_ERROR", message: error.message } };
+		}
 		return {
 			success: false,
 			error: { code: "MENU_ITEM_CREATE_ERROR", message: "Failed to create menu item" },
@@ -386,7 +408,10 @@ export async function handleMenuItemUpdate(
 			};
 		}
 		return { success: true, data: updated };
-	} catch {
+	} catch (error) {
+		if (error instanceof MenuItemParentError) {
+			return { success: false, error: { code: "VALIDATION_ERROR", message: error.message } };
+		}
 		return {
 			success: false,
 			error: { code: "MENU_ITEM_UPDATE_ERROR", message: "Failed to update menu item" },
@@ -474,9 +499,9 @@ export async function handleMenuSetItems(
 		const { itemCount } = await repo.setItems(resolved.menu.id, resolved.menu.locale, items);
 		return { success: true, data: { name: menuName, itemCount } };
 	} catch (error) {
-		// `MenuGoneError` is thrown from inside the repository transaction
-		// when the menu was deleted concurrently between `resolveMenu` and the
-		// setItems write. Returning NOT_FOUND mirrors the original handler's
+		// `MenuGoneError` is thrown by the repository when the menu was
+		// deleted concurrently between `resolveMenu` and the setItems
+		// write. Returning NOT_FOUND mirrors the original handler's
 		// in-transaction `notFoundSentinel` branch and keeps the response
 		// shape stable for REST/MCP callers.
 		if (error instanceof MenuGoneError) {
@@ -514,7 +539,10 @@ export async function handleMenuItemReorder(
 
 		const updated = await repo.reorderItems(resolved.menu.id, items);
 		return { success: true, data: updated };
-	} catch {
+	} catch (error) {
+		if (error instanceof MenuItemParentError) {
+			return { success: false, error: { code: "VALIDATION_ERROR", message: error.message } };
+		}
 		return {
 			success: false,
 			error: { code: "MENU_REORDER_ERROR", message: "Failed to reorder menu items" },

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isSafeHref } from "../../utils/url.js";
+import { localeCode } from "./common.js";
 
 // ---------------------------------------------------------------------------
 // Menus: Input schemas
@@ -12,7 +13,7 @@ import { isSafeHref } from "../../utils/url.js";
  */
 export const menuItemTypeEnum = z.enum(["custom", "page", "post", "taxonomy", "collection"]);
 
-const safeHref = z
+export const safeHref = z
 	.string()
 	.trim()
 	.refine(
@@ -24,7 +25,7 @@ export const createMenuBody = z
 	.object({
 		name: z.string().min(1),
 		label: z.string().min(1),
-		locale: z.string().min(1).optional(),
+		locale: localeCode.optional(),
 		/** When set, clones the items from the source menu. The new menu joins
 		 * the source's translation_group. */
 		translationOf: z.string().min(1).optional(),

@@ -19,25 +19,85 @@ export const wpPluginExecuteBody = z.object({
 	url: httpUrl,
 	token: z.string().min(1),
 	config: z.record(z.string(), z.unknown()),
+	// --- Chunked mode (issue #475). Absent phase = single-shot legacy run. ---
+	// The admin drives the import in a loop of bounded requests; cross-chunk
+	// state travels with the client so the server stays stateless.
+	phase: z.enum(["content", "comments", "finalize"]).optional(),
+	/** Position within the phase: post-type index + WP page (content), page (comments) */
+	cursor: z
+		.object({
+			postTypeIndex: z.number().int().min(0).default(0),
+			page: z.number().int().min(1).default(1),
+		})
+		.optional(),
+	/** WP post ID -> created EmDash item, accumulated across content chunks */
+	idMap: z
+		.record(z.string(), z.object({ id: z.string().min(1), collection: z.string().min(1) }))
+		.optional(),
+	/** Source translation group -> EmDash item ID, accumulated across content chunks */
+	translationGroups: z.record(z.string(), z.string().min(1)).optional(),
+	/** WP comment ID -> EmDash root comment ID, accumulated across comment chunks */
+	commentRoots: z.record(z.string(), z.string().min(1)).optional(),
+});
+
+export const wxrImportConfig = z.object({
+	postTypeMappings: z.record(
+		z.string(),
+		z.object({
+			collection: z.string().min(1),
+			enabled: z.boolean(),
+		}),
+	),
+	skipExisting: z.boolean().default(false),
+	importSections: z.boolean().optional(),
+	authorMappings: z.record(z.string(), z.string().min(1).nullable()).optional(),
+	locale: z.string().min(1).optional(),
+});
+
+export const wxrChunkCursor = z.object({
+	offset: z.number().int().min(0).max(10_000_000),
+	source: z.string().regex(/^[a-f0-9]{64}$/),
+	taxonomiesReady: z.literal(true),
+});
+
+export const wxrChunkState = z.object({
+	translationGroups: z
+		.record(z.string().max(1024), z.string().min(1).max(256))
+		.refine((groups) => Object.keys(groups).length <= 100_000, "Too many translation groups"),
+	/** WordPress author -> the byline earlier chunks of this import gave them */
+	bylines: z
+		.record(z.string().max(2048), z.string().min(1).max(256))
+		.refine((bylines) => Object.keys(bylines).length <= 100_000, "Too many bylines")
+		.optional(),
+});
+
+const wpPrepareField = z.object({
+	slug: z.string().min(1),
+	label: z.string().min(1),
+	type: z.string().min(1),
+	required: z.boolean(),
+	searchable: z.boolean().optional(),
 });
 
 export const wpPrepareBody = z.object({
 	postTypes: z.array(
-		z.object({
-			name: z.string().min(1),
-			collection: z.string().min(1),
-			fields: z
-				.array(
-					z.object({
-						slug: z.string().min(1),
-						label: z.string().min(1),
-						type: z.string().min(1),
-						required: z.boolean(),
-						searchable: z.boolean().optional(),
-					}),
-				)
-				.optional(),
-		}),
+		z
+			.object({
+				name: z.string().min(1),
+				collection: z.string().min(1).optional(),
+				suggestedCollection: z.string().min(1).optional(),
+				fields: z.array(wpPrepareField).optional(),
+				requiredFields: z.array(wpPrepareField).optional(),
+			})
+			.refine((pt) => pt.collection || pt.suggestedCollection, {
+				message: "collection or suggestedCollection is required",
+				path: ["collection"],
+			})
+			.transform((pt) => ({
+				name: pt.name,
+				collection: pt.collection ?? pt.suggestedCollection!,
+				fields: pt.fields ?? pt.requiredFields ?? [],
+			})),
 	),
 });
 

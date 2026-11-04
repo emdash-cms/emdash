@@ -2,6 +2,8 @@ import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { getBylineFieldDefs } from "../../bylines/field-defs-cache.js";
+import { getLocaleRank } from "../../i18n/config.js";
+import { localeMatches, localeOrder } from "../../i18n/query.js";
 import {
 	invalidateBylineObjectCache,
 	invalidateCollectionCache,
@@ -28,11 +30,38 @@ import {
 
 type BylineRow = Selectable<BylineTable>;
 
+type LocalizedBylineRow = {
+	id: string;
+	locale: string;
+	translation_group: string | null;
+	content_id?: string;
+};
+
+function preferLocalizedRows<T extends LocalizedBylineRow>(rows: T[], locale?: string): T[] {
+	if (locale === undefined) return rows;
+	const selected = new Map<string, T>();
+	for (const row of rows) {
+		const key = `${row.content_id ?? ""}:${row.translation_group ?? row.id}`;
+		const existing = selected.get(key);
+		if (
+			!existing ||
+			getLocaleRank(row.locale, locale) < getLocaleRank(existing.locale, locale) ||
+			(getLocaleRank(row.locale, locale) === getLocaleRank(existing.locale, locale) &&
+				row.id < existing.id)
+		) {
+			selected.set(key, row);
+		}
+	}
+	return rows.filter(
+		(row) => selected.get(`${row.content_id ?? ""}:${row.translation_group ?? row.id}`) === row,
+	);
+}
+
 /**
  * A byline row optionally augmented with the avatar's media columns, folded in
- * by the `LEFT JOIN media` in the content-credit hydration queries. The plain
- * `selectAll()` finders produce rows without these keys, so they're optional
- * and `rowToByline` defaults them to null.
+ * by the `LEFT JOIN media` in the credit-hydration and single-row finder
+ * queries. `findMany` selects without the join, so the keys are optional and
+ * `rowToByline` defaults them to null.
  */
 type BylineRowWithAvatar = BylineRow & {
 	avatar_storage_key?: string | null;
@@ -174,7 +203,10 @@ function assignCustomFieldValue(
  * toggle but the backend accepts missing values; design pass needed
  * on the enforcement model.
  */
-function coerceFieldValue(field: BylineFieldDefinition, raw: unknown): CustomFieldValue {
+export function coerceFieldValue(
+	field: Pick<BylineFieldDefinition, "slug" | "type" | "validation">,
+	raw: unknown,
+): CustomFieldValue {
 	if (raw === null) return null;
 
 	switch (field.type) {
@@ -298,7 +330,7 @@ export class BylineRepository {
 	 * same way `BylineRepository` doesn't resolve locale fallback for
 	 * the base byline lookup.
 	 */
-	private async withCustomFields(rows: BylineRow[]): Promise<BylineSummary[]> {
+	private async withCustomFields(rows: BylineRowWithAvatar[]): Promise<BylineSummary[]> {
 		const summaries = rows.map(rowToByline);
 		// Always populate `customFields = {}` (PR plan AC #6) — even when
 		// no fields are registered, every BylineSummary carries the empty
@@ -311,7 +343,9 @@ export class BylineRepository {
 		return summaries;
 	}
 
-	private async withCustomFieldsOne(row: BylineRow | undefined): Promise<BylineSummary | null> {
+	private async withCustomFieldsOne(
+		row: BylineRowWithAvatar | undefined,
+	): Promise<BylineSummary | null> {
 		if (!row) return null;
 		const [result] = await this.withCustomFields([row]);
 		return result ?? null;
@@ -369,21 +403,23 @@ export class BylineRepository {
 		// query covers everything).
 		const translatableByByline = new Map<string, Map<string, string | null>>();
 		const bylineIds = [...new Set(summaries.map((s) => s.id))];
-		for (const chunk of chunks(bylineIds, SQL_BATCH_SIZE)) {
-			const trRows = await this.db
-				.selectFrom("_emdash_byline_field_values")
-				.select(["byline_id", "field_id", "value"])
-				.where("byline_id", "in", chunk)
-				.execute();
-			for (const trRow of trRows) {
-				let fieldMap = translatableByByline.get(trRow.byline_id);
-				if (!fieldMap) {
-					fieldMap = new Map();
-					translatableByByline.set(trRow.byline_id, fieldMap);
+		const loadTranslatable = async () => {
+			for (const chunk of chunks(bylineIds, SQL_BATCH_SIZE)) {
+				const trRows = await this.db
+					.selectFrom("_emdash_byline_field_values")
+					.select(["byline_id", "field_id", "value"])
+					.where("byline_id", "in", chunk)
+					.execute();
+				for (const trRow of trRows) {
+					let fieldMap = translatableByByline.get(trRow.byline_id);
+					if (!fieldMap) {
+						fieldMap = new Map();
+						translatableByByline.set(trRow.byline_id, fieldMap);
+					}
+					fieldMap.set(trRow.field_id, trRow.value);
 				}
-				fieldMap.set(trRow.field_id, trRow.value);
 			}
-		}
+		};
 
 		// Group-shared values, batched over the union of translation_groups,
 		// with per-group request-cache priming so subsequent calls within
@@ -399,7 +435,13 @@ export class BylineRepository {
 					.filter((g): g is string => typeof g === "string" && g.length > 0),
 			),
 		];
-		const groupByGroup = await this.loadGroupValuesByIds(groups);
+		// The two reads are independent, so issue them together. On D1 with
+		// `coalesce` enabled they share one round trip; elsewhere they still
+		// run one after the other.
+		const [, groupByGroup] = await Promise.all([
+			loadTranslatable(),
+			this.loadGroupValuesByIds(groups),
+		]);
 
 		// Each loop gates on `field.translatable` so a row in the wrong
 		// owner table (e.g. left over from a translatable flip) can't
@@ -501,12 +543,26 @@ export class BylineRepository {
 	// Reads
 	// ============================================
 
+	/**
+	 * Every byline column plus the avatar's media columns, folded in by the
+	 * same `LEFT JOIN media` the credit-hydration queries use. Only the
+	 * single-row finders select this; `findMany` stays a single-table scan.
+	 */
+	private selectBylineWithAvatar() {
+		return this.db
+			.selectFrom("_emdash_bylines as b")
+			.leftJoin("media as m", "m.id", "b.avatar_media_id")
+			.selectAll("b")
+			.select([
+				"m.storage_key as avatar_storage_key",
+				"m.alt as avatar_alt",
+				"m.blurhash as avatar_blurhash",
+				"m.dominant_color as avatar_dominant_color",
+			]);
+	}
+
 	async findById(id: string): Promise<BylineSummary | null> {
-		const row = await this.db
-			.selectFrom("_emdash_bylines")
-			.selectAll()
-			.where("id", "=", id)
-			.executeTakeFirst();
+		const row = await this.selectBylineWithAvatar().where("b.id", "=", id).executeTakeFirst();
 		return this.withCustomFieldsOne(row);
 	}
 
@@ -516,9 +572,16 @@ export class BylineRepository {
 	 * calls). Mirrors `TaxonomyRepository.findBySlug`.
 	 */
 	async findBySlug(slug: string, options?: { locale?: string }): Promise<BylineSummary | null> {
-		let query = this.db.selectFrom("_emdash_bylines").selectAll().where("slug", "=", slug);
-		if (options?.locale !== undefined) query = query.where("locale", "=", options.locale);
-		const row = await query.orderBy("locale", "asc").executeTakeFirst();
+		let query = this.selectBylineWithAvatar().where("b.slug", "=", slug);
+		if (options?.locale !== undefined)
+			query = query.where(localeMatches("b.locale", options.locale));
+		const row = await query
+			.orderBy(
+				options?.locale !== undefined ? localeOrder("b.locale", options.locale) : "b.locale",
+				"asc",
+			)
+			.orderBy("b.id", "asc")
+			.executeTakeFirst();
 		return this.withCustomFieldsOne(row);
 	}
 
@@ -529,9 +592,16 @@ export class BylineRepository {
 	 * the lowest-locale-code match.
 	 */
 	async findByUserId(userId: string, options?: { locale?: string }): Promise<BylineSummary | null> {
-		let query = this.db.selectFrom("_emdash_bylines").selectAll().where("user_id", "=", userId);
-		if (options?.locale !== undefined) query = query.where("locale", "=", options.locale);
-		const row = await query.orderBy("locale", "asc").executeTakeFirst();
+		let query = this.selectBylineWithAvatar().where("b.user_id", "=", userId);
+		if (options?.locale !== undefined)
+			query = query.where(localeMatches("b.locale", options.locale));
+		const row = await query
+			.orderBy(
+				options?.locale !== undefined ? localeOrder("b.locale", options.locale) : "b.locale",
+				"asc",
+			)
+			.orderBy("b.id", "asc")
+			.executeTakeFirst();
 		return this.withCustomFieldsOne(row);
 	}
 
@@ -572,7 +642,7 @@ export class BylineRepository {
 		}
 
 		if (options?.locale !== undefined) {
-			query = query.where("locale", "=", options.locale);
+			query = query.where(localeMatches("locale", options.locale));
 		}
 
 		if (options?.cursor) {
@@ -961,9 +1031,10 @@ export class BylineRepository {
 			.where("cb.collection_slug", "=", collectionSlug)
 			.where("cb.content_id", "=", contentId)
 			.orderBy("cb.sort_order", "asc");
-		if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
+		if (options?.locale !== undefined)
+			query = query.where(localeMatches("b.locale", options.locale));
 
-		const rows = await query.execute();
+		const rows = preferLocalizedRows(await query.execute(), options?.locale);
 		// Reconstruct byline rows to feed `withCustomFields`. The JOIN selects
 		// the `BylineRow` columns under the `b.` alias plus the avatar media
 		// columns from the `media` LEFT JOIN; carry both through so
@@ -1101,9 +1172,10 @@ export class BylineRepository {
 				.where("cb.collection_slug", "=", collectionSlug)
 				.where("cb.content_id", "in", chunk)
 				.orderBy("cb.sort_order", "asc");
-			if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
+			if (options?.locale !== undefined)
+				query = query.where(localeMatches("b.locale", options.locale));
 
-			const rows = await query.execute();
+			const rows = preferLocalizedRows(await query.execute(), options?.locale);
 			// Carry the avatar media columns from the LEFT JOIN through the
 			// reshape so `rowToByline` can populate avatarStorageKey/avatarAlt.
 			const bylineRows: BylineRowWithAvatar[] = rows.map((row) => ({
@@ -1205,7 +1277,8 @@ export class BylineRepository {
 					"b.translation_group as translation_group",
 				])
 				.where("b.user_id", "in", chunk);
-			if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
+			if (options?.locale !== undefined)
+				query = query.where(localeMatches("b.locale", options.locale));
 
 			const rows = await query.execute();
 			let bylines: BylineSummary[];
@@ -1220,7 +1293,18 @@ export class BylineRepository {
 				const row = rows[i];
 				const summary = bylines[i];
 				if (!row || !summary || !row.user_id) continue;
-				result.set(row.user_id, summary);
+				const existing = result.get(row.user_id);
+				if (
+					!existing ||
+					options?.locale === undefined ||
+					getLocaleRank(row.locale, options.locale) <
+						getLocaleRank(existing.locale, options.locale) ||
+					(getLocaleRank(row.locale, options.locale) ===
+						getLocaleRank(existing.locale, options.locale) &&
+						row.id < existing.id)
+				) {
+					result.set(row.user_id, summary);
+				}
 			}
 		}
 		return result;
@@ -1322,17 +1406,16 @@ export class BylineRepository {
 		// actually lands in the junction. Deduping by wire row id BEFORE
 		// resolving would let two locale siblings of the same byline slip
 		// through and trigger a UNIQUE(collection, content, byline_id)
-		// failure at insert time. A single SELECT keeps this O(1) DB
-		// calls regardless of how many credits are being set.
+		// failure at insert time.
 		const idToGroup = new Map<string, string>();
-		if (inputBylines.length > 0) {
-			const wireIds = [...new Set(inputBylines.map((item) => item.bylineId))];
+		const wireIds = [...new Set(inputBylines.map((item) => item.bylineId))];
+		for (const batch of chunks(wireIds, SQL_BATCH_SIZE)) {
 			const rows = await this.db
 				.selectFrom("_emdash_bylines")
 				.select(["id", "translation_group"])
-				.where("id", "in", wireIds)
+				.where("id", "in", batch)
 				.execute();
-			if (rows.length !== wireIds.length) {
+			if (rows.length !== batch.length) {
 				throw new Error("One or more byline IDs do not exist");
 			}
 			for (const row of rows) {
@@ -1393,5 +1476,14 @@ export class BylineRepository {
 		invalidateCollectionCache(collectionSlug);
 
 		return await this.getContentBylines(collectionSlug, contentId);
+	}
+
+	async deleteContentBylines(collectionSlug: string, contentId: string): Promise<number> {
+		const result = await this.db
+			.deleteFrom("_emdash_content_bylines")
+			.where("collection_slug", "=", collectionSlug)
+			.where("content_id", "=", contentId)
+			.executeTakeFirst();
+		return Number(result.numDeletedRows ?? 0);
 	}
 }

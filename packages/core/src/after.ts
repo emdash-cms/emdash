@@ -16,6 +16,9 @@
  * `after()`, which they don't during type-checking.
  */
 
+import { trackDeferredTask } from "./deferred-tasks.js";
+import { getRequestContext } from "./request-context.js";
+
 export type WaitUntilFn = (promise: Promise<unknown>) => void;
 
 // Resolves to the host's waitUntil if the adapter provided one, or
@@ -45,11 +48,13 @@ waitUntilReady.catch(() => {});
  * that care about errors should handle them inside `fn`.
  */
 export function after(fn: () => void | Promise<void>): void {
-	const promise = Promise.resolve()
+	const task = Promise.resolve()
 		.then(fn)
 		.catch((error) => {
 			console.error("[emdash] deferred task failed:", error);
 		});
+	const requestTask = getRequestContext()?.deferredTasks?.track(task) ?? task;
+	const promise = trackDeferredTask(requestTask);
 
 	// Defer the lifetime-extender handoff to the microtask that resolves
 	// waitUntilReady. On workerd this is effectively instant (the virtual

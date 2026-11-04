@@ -28,6 +28,11 @@ import type {
 } from "@flue/runtime";
 import { getCloudflareContext } from "@flue/runtime/cloudflare";
 
+import {
+	assertCodeToolOutputWithinBudget,
+	formatCodeToolOutput,
+} from "../lib/code-tool-output-budget.js";
+
 export interface GetShellSandboxOptions {
 	workspace: Workspace;
 	loader: WorkerLoader;
@@ -172,12 +177,14 @@ function createCodeTool(executor: DynamicWorkerExecutor, stateProvider: Resolved
 			const { result, error, logs } = await executor.execute(code, [stateProvider]);
 			if (error) {
 				const logsTail = logs?.length ? `\n\nlogs:\n${logs.join("\n")}` : "";
-				throw new Error(`code tool failed: ${error}${logsTail}`);
+				const errorText = `code tool failed: ${error}${logsTail}`;
+				assertCodeToolOutputWithinBudget(errorText);
+				throw new Error(errorText);
 			}
 			const resultText = formatResult(result);
-			const logsText = logs?.length ? `\n\n--- logs ---\n${logs.join("\n")}` : "";
+			const output = formatCodeToolOutput(resultText, logs);
 			return {
-				content: [{ type: "text" as const, text: resultText + logsText }],
+				content: [{ type: "text" as const, text: output }],
 				details: logs?.length ? { logs } : {},
 			};
 		},
@@ -220,6 +227,52 @@ function buildCodeToolDescription(): string {
 	].join("\n");
 }
 
+// R2 operations log start/end so a stalled call is visible as an unmatched
+// start line. Wrapped once and cached per underlying bucket: Workspace
+// fingerprints construction options per storage, so every construction site
+// must receive the identical instance.
+const instrumentedBuckets = new WeakMap<R2Bucket, R2Bucket>();
+let r2OpSeq = 0;
+function instrumentR2(bucket: R2Bucket): R2Bucket {
+	const cached = instrumentedBuckets.get(bucket);
+	if (cached) return cached;
+	const wrap = (method: string) =>
+		async function (...args: unknown[]) {
+			const id = ++r2OpSeq;
+			const key = typeof args[0] === "string" ? args[0] : "?";
+			const t0 = Date.now();
+			console.log(JSON.stringify({ message: "r2 op start", id, method, key }));
+			try {
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion
+				const result = await (bucket as unknown as Record<string, Function>)[method]!(...args);
+				console.log(JSON.stringify({ message: "r2 op end", id, method, key, ms: Date.now() - t0 }));
+				return result;
+			} catch (error) {
+				console.error(
+					JSON.stringify({
+						message: "r2 op failed",
+						id,
+						method,
+						key,
+						ms: Date.now() - t0,
+						error: error instanceof Error ? error.message : String(error),
+					}),
+				);
+				throw error;
+			}
+		};
+	const proxied = new Proxy(bucket, {
+		get(target, prop, receiver) {
+			if (typeof prop === "string" && ["get", "put", "delete", "head", "list"].includes(prop)) {
+				return wrap(prop);
+			}
+			return Reflect.get(target, prop, receiver);
+		},
+	});
+	instrumentedBuckets.set(bucket, proxied);
+	return proxied;
+}
+
 export function getDefaultWorkspace(r2?: R2Bucket, name?: string): Workspace {
 	const { storage } = getCloudflareContext();
 	return new Workspace({
@@ -228,6 +281,6 @@ export function getDefaultWorkspace(r2?: R2Bucket, name?: string): Workspace {
 		// `name` keys R2 objects and namespaces this workspace; required when an
 		// R2 bucket is provided (large files spill under r2://<name>/...).
 		...(name ? { name } : {}),
-		...(r2 ? { r2 } : {}),
+		...(r2 ? { r2: instrumentR2(r2) } : {}),
 	});
 }

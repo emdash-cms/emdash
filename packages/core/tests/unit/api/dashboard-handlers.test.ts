@@ -3,7 +3,10 @@ import { describe, it, expect, afterEach } from "vitest";
 
 import { handleDashboardStats } from "../../../src/api/handlers/dashboard.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
+import { scheduledPolicyRejectionKey } from "../../../src/plugins/content-policy.js";
+import { SCHEDULER_HEARTBEAT_OPTION } from "../../../src/scheduler-health.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createPostFixture, createPageFixture } from "../../utils/fixtures.js";
 import {
@@ -11,6 +14,8 @@ import {
 	setupTestDatabaseWithCollections,
 	teardownTestDatabase,
 } from "../../utils/test-db.js";
+
+const fullAccess = { includeDrafts: true, includeMediaCount: true, includeUserCount: true };
 
 describe("Dashboard Handlers", () => {
 	describe("handleDashboardStats", () => {
@@ -23,7 +28,7 @@ describe("Dashboard Handlers", () => {
 		it("returns empty stats when no collections exist", async () => {
 			db = await setupTestDatabase();
 
-			const result = await handleDashboardStats(db);
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			expect(result.data).toBeDefined();
@@ -45,7 +50,7 @@ describe("Dashboard Handlers", () => {
 			// Create a draft page
 			await contentRepo.create(createPageFixture({ slug: "page-1" }));
 
-			const result = await handleDashboardStats(db);
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const { collections } = result.data!;
@@ -59,6 +64,7 @@ describe("Dashboard Handlers", () => {
 			expect(postStats!.total).toBe(3);
 			expect(postStats!.published).toBe(2);
 			expect(postStats!.draft).toBe(1);
+			expect(postStats!.scheduled).toBe(0);
 
 			const pageStats = collections.find((c) => c.slug === "page");
 			expect(pageStats).toBeDefined();
@@ -66,6 +72,134 @@ describe("Dashboard Handlers", () => {
 			expect(pageStats!.total).toBe(1);
 			expect(pageStats!.published).toBe(0);
 			expect(pageStats!.draft).toBe(1);
+			expect(pageStats!.scheduled).toBe(0);
+		});
+
+		it("counts entries with pending schedules in collection stats", async () => {
+			db = await setupTestDatabaseWithCollections();
+			const contentRepo = new ContentRepository(db);
+
+			const draftScheduled = await contentRepo.create(
+				createPostFixture({ slug: "draft-scheduled" }),
+			);
+			await contentRepo.schedule(
+				"post",
+				draftScheduled.id,
+				new Date(Date.now() + 86_400_000).toISOString(),
+			);
+
+			const publishedScheduled = await contentRepo.create(
+				createPostFixture({ slug: "published-scheduled" }),
+			);
+			await contentRepo.publish("post", publishedScheduled.id);
+			await contentRepo.schedule(
+				"post",
+				publishedScheduled.id,
+				new Date(Date.now() + 172_800_000).toISOString(),
+			);
+
+			await contentRepo.create(createPostFixture({ slug: "archived", status: "archived" }));
+
+			const result = await handleDashboardStats(db, fullAccess);
+
+			expect(result.success).toBe(true);
+			const postStats = result.data!.collections.find((c) => c.slug === "post");
+			expect(postStats).toBeDefined();
+			expect(postStats!.total).toBe(3);
+			expect(postStats!.scheduled).toBe(2);
+		});
+
+		it("reports an unknown scheduler with overdue content when no heartbeat exists", async () => {
+			db = await setupTestDatabaseWithCollections();
+			const contentRepo = new ContentRepository(db);
+			const now = new Date("2026-08-16T12:00:00.000Z");
+			const post = await contentRepo.create(createPostFixture());
+			await contentRepo.update("post", post.id, {
+				status: "scheduled",
+				scheduledAt: "2026-08-16T11:59:00.000Z",
+			});
+
+			const result = await handleDashboardStats(db, fullAccess, now);
+
+			expect(result.success).toBe(true);
+			expect(result.data!.schedulerHealth).toEqual({
+				status: "unknown",
+				lastCompletedAt: null,
+			});
+			expect(
+				result.data!.collections.find((collection) => collection.slug === "post"),
+			).toMatchObject({
+				overdueScheduled: 1,
+			});
+		});
+
+		it("reports stale and healthy scheduler heartbeats", async () => {
+			db = await setupTestDatabase();
+			const options = new OptionsRepository(db);
+			const now = new Date("2026-08-16T12:00:00.000Z");
+			await options.set(SCHEDULER_HEARTBEAT_OPTION, "2026-08-16T11:50:00.000Z");
+
+			const stale = await handleDashboardStats(db, fullAccess, now);
+			expect(stale.success).toBe(true);
+			expect(stale.data!.schedulerHealth.status).toBe("stale");
+
+			await options.set(SCHEDULER_HEARTBEAT_OPTION, "2026-08-16T11:58:00.000Z");
+			const healthy = await handleDashboardStats(db, fullAccess, now);
+			expect(healthy.success).toBe(true);
+			expect(healthy.data!.schedulerHealth.status).toBe("healthy");
+		});
+
+		it("counts scheduled publications that policy plugins rejected", async () => {
+			db = await setupTestDatabase();
+			const options = new OptionsRepository(db);
+			await options.set(scheduledPolicyRejectionKey("posts", "post-1"), {
+				collection: "posts",
+				id: "post-1",
+				pluginId: "content-guard",
+				reason: "Approval is required.",
+				rejectedAt: "2030-01-01T00:00:00.000Z",
+			});
+			await options.set(scheduledPolicyRejectionKey("pages", "missing-page"), {
+				collection: "pages",
+				id: "missing-page",
+				pluginId: "removed-plugin",
+				reason: "A removed plugin blocked this entry.",
+				rejectedAt: "2030-01-02T00:00:00.000Z",
+			});
+
+			const result = await handleDashboardStats(db, fullAccess);
+			expect(result.success).toBe(true);
+			expect(result.data!.policyRejectedScheduled).toBe(2);
+			expect(result.data!.policyRejections).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						id: "post-1",
+						pluginId: "content-guard",
+						_rev: expect.any(String),
+					}),
+					expect.objectContaining({ id: "missing-page", pluginId: "removed-plugin" }),
+				]),
+			);
+		});
+
+		it("bounds the policy-rejection records returned to the dashboard", async () => {
+			db = await setupTestDatabase();
+			const options = new OptionsRepository(db);
+			for (let index = 0; index < 25; index++) {
+				const id = `post-${String(index).padStart(2, "0")}`;
+				await options.set(scheduledPolicyRejectionKey("posts", id), {
+					collection: "posts",
+					id,
+					pluginId: "content-guard",
+					reason: "Approval is required.",
+					rejectedAt: "2030-01-01T00:00:00.000Z",
+				});
+			}
+
+			const result = await handleDashboardStats(db, fullAccess);
+			expect(result.success).toBe(true);
+			expect(result.data!.policyRejectedScheduled).toBe(25);
+			expect(result.data!.policyRejections).toHaveLength(20);
 		});
 
 		it("returns recent items across collections", async () => {
@@ -77,7 +211,7 @@ describe("Dashboard Handlers", () => {
 			await new Promise((r) => setTimeout(r, 10));
 			await contentRepo.create(createPageFixture({ slug: "page-1" }));
 
-			const result = await handleDashboardStats(db);
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const { recentItems } = result.data!;
@@ -107,7 +241,7 @@ describe("Dashboard Handlers", () => {
 				}),
 			);
 
-			const result = await handleDashboardStats(db);
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const postItem = result.data!.recentItems.find((i) => i.slug === "my-post");
@@ -139,7 +273,7 @@ describe("Dashboard Handlers", () => {
 				status: "draft",
 			});
 
-			const result = await handleDashboardStats(db);
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const eventItem = result.data!.recentItems.find((i) => i.collection === "events");
@@ -158,7 +292,7 @@ describe("Dashboard Handlers", () => {
 			// Soft-delete the first post
 			await contentRepo.delete("post", post.id);
 
-			const result = await handleDashboardStats(db);
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const slugs = result.data!.recentItems.map((i) => i.slug);
@@ -175,7 +309,7 @@ describe("Dashboard Handlers", () => {
 				await contentRepo.create(createPostFixture({ slug: `post-${String(i).padStart(2, "0")}` }));
 			}
 
-			const result = await handleDashboardStats(db);
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			expect(result.data!.recentItems).toHaveLength(10);
@@ -191,7 +325,7 @@ describe("Dashboard Handlers", () => {
 			await new Promise((r) => setTimeout(r, 10));
 			await contentRepo.create(createPostFixture({ slug: "newest" }));
 
-			const result = await handleDashboardStats(db);
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const slugs = result.data!.recentItems.map((i) => i.slug);
@@ -206,7 +340,7 @@ describe("Dashboard Handlers", () => {
 			await contentRepo.create(createPostFixture({ slug: "to-keep" }));
 			await contentRepo.delete("post", post.id);
 
-			const result = await handleDashboardStats(db);
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const postStats = result.data!.collections.find((c) => c.slug === "post");
@@ -248,7 +382,7 @@ describe("Dashboard Handlers", () => {
 				await new Promise((r) => setTimeout(r, 5));
 			}
 
-			const result = await handleDashboardStats(db);
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const { recentItems } = result.data!;
@@ -267,7 +401,7 @@ describe("Dashboard Handlers", () => {
 			const contentRepo = new ContentRepository(db);
 			await contentRepo.create(createPostFixture());
 
-			const result = await handleDashboardStats(db);
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const item = result.data!.recentItems[0]!;

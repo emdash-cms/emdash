@@ -17,6 +17,7 @@ import { describe, expect, it } from "vitest";
 import {
 	ArtifactFileSchema,
 	ArtifactsSchema,
+	AdminSchema,
 	AuthorSchema,
 	LicenseSchema,
 	ManifestSchema,
@@ -26,6 +27,134 @@ import {
 	SectionsSchema,
 	SecurityContactSchema,
 } from "../src/manifest/schema.js";
+
+describe("AdminSchema", () => {
+	it("accepts settings and declarative field widgets", () => {
+		const admin = {
+			settingsSchema: {
+				enabled: { type: "boolean", label: "Enabled", default: true },
+			},
+			fieldWidgets: [
+				{
+					name: "event-picker",
+					label: "Event",
+					fieldTypes: ["string"],
+					elements: [{ type: "input", action_id: "event" }],
+				},
+			],
+		};
+
+		expect(AdminSchema.parse(admin)).toEqual(admin);
+	});
+
+	it("accepts bounded saved-entry panels and confirmed actions", () => {
+		const admin = {
+			editorPanels: [
+				{
+					id: "health",
+					title: "Health",
+					route: "entry/health",
+					collections: ["posts"],
+					draft: { read: { translatable: true }, patch: { fields: ["title"] } },
+				},
+			],
+			editorActions: [
+				{
+					id: "repair",
+					label: "Repair",
+					route: "entry/repair",
+					placement: "overflow",
+					style: "danger",
+					confirm: { title: "Repair?", text: "Change entry", confirm: "Repair", deny: "Cancel" },
+				},
+			],
+		};
+		expect(AdminSchema.parse(admin)).toEqual(admin);
+	});
+
+	it("requires explicit collections and a bounded selector for draft access", () => {
+		expect(
+			AdminSchema.safeParse({
+				editorPanels: [
+					{
+						id: "translate",
+						title: "Translate",
+						route: "translate",
+						collections: ["posts"],
+						draft: {},
+					},
+				],
+			}).success,
+		).toBe(false);
+		expect(
+			AdminSchema.safeParse({
+				editorPanels: [
+					{
+						id: "translate",
+						title: "Translate",
+						route: "translate",
+						draft: { read: { translatable: true } },
+					},
+				],
+			}).success,
+		).toBe(false);
+		expect(
+			AdminSchema.safeParse({
+				editorActions: [
+					{
+						id: "translate",
+						label: "Translate",
+						route: "translate",
+						placement: "toolbar",
+						collections: ["posts"],
+						draft: { patch: {} },
+					},
+				],
+			}).success,
+		).toBe(false);
+	});
+
+	it.each([
+		[
+			"duplicate panel ids",
+			{
+				editorPanels: [
+					{ id: "health", title: "Health", route: "health" },
+					{ id: "health", title: "Other", route: "other" },
+				],
+			},
+		],
+		[
+			"danger action without confirmation",
+			{
+				editorActions: [
+					{
+						id: "repair",
+						label: "Repair",
+						route: "repair",
+						placement: "toolbar",
+						style: "danger",
+					},
+				],
+			},
+		],
+		[
+			"duplicate collection filters",
+			{
+				editorPanels: [
+					{
+						id: "health",
+						title: "Health",
+						route: "health",
+						collections: ["posts", "posts"],
+					},
+				],
+			},
+		],
+	])("rejects %s", (_label, admin) => {
+		expect(AdminSchema.safeParse(admin).success).toBe(false);
+	});
+});
 
 describe("LicenseSchema", () => {
 	it("accepts a typical SPDX expression", () => {
@@ -307,6 +436,15 @@ describe("ManifestSchema (full document)", () => {
 		expect(result.success).toBe(true);
 	});
 
+	it("accepts redirect read and write capabilities", () => {
+		expect(
+			ManifestSchema.safeParse({
+				...minimal,
+				capabilities: ["redirects:read", "redirects:write"],
+			}).success,
+		).toBe(true);
+	});
+
 	it("accepts a manifest with a release.artifacts block", () => {
 		const result = ManifestSchema.safeParse({
 			...minimal,
@@ -447,6 +585,45 @@ describe("ManifestSchema (full document)", () => {
 			keywords: ["a", "b", "c", "d", "e", "f"],
 		});
 		expect(result.success).toBe(false);
+	});
+
+	it.each([
+		["name", { name: "n".repeat(101) }, ["name"], "name must be <= 100 graphemes"],
+		[
+			"description",
+			{ description: "d".repeat(141) },
+			["description"],
+			"description must be <= 140 graphemes",
+		],
+		[
+			"author.name",
+			{ author: { name: "a".repeat(65) } },
+			["author", "name"],
+			"author.name must be <= 64 graphemes",
+		],
+		[
+			"a keyword",
+			{ keywords: ["k".repeat(65)] },
+			["keywords", 0],
+			"each keyword must be <= 64 graphemes",
+		],
+	])("rejects %s over the registry profile limit", (_field, fields, path, message) => {
+		const result = ManifestSchema.safeParse({ ...minimal, ...fields });
+		expect(result.error?.issues).toEqual([expect.objectContaining({ path, message })]);
+	});
+
+	it.each([
+		["name", { name: "n".repeat(100) }],
+		["description", { description: "d".repeat(140) }],
+		["author.name", { author: { name: "a".repeat(64) } }],
+		["a keyword", { keywords: ["k".repeat(64)] }],
+	])("accepts %s at the registry profile limit", (_field, fields) => {
+		expect(ManifestSchema.safeParse({ ...minimal, ...fields }).success).toBe(true);
+	});
+
+	it("counts a letter with a combining accent as one grapheme", () => {
+		const result = ManifestSchema.safeParse({ ...minimal, description: "e\u0301".repeat(140) });
+		expect(result.success).toBe(true);
 	});
 
 	it("accepts a full populated manifest", () => {

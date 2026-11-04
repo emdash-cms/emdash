@@ -118,8 +118,7 @@ export class AuditWorkflow extends WorkflowEntrypoint<Env, AuditParams> {
 				verdict: auditResult.verdict,
 				riskScore: auditResult.riskScore,
 				summary: auditResult.summary,
-				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- findings shape is preserved from AuditResult
-				findings: auditResult.findings as unknown[],
+				findings: auditResult.findings,
 				model: auditResult.model,
 				durationMs: auditResult.durationMs,
 			});
@@ -131,8 +130,7 @@ export class AuditWorkflow extends WorkflowEntrypoint<Env, AuditParams> {
 					pluginId,
 					version,
 					verdict: imageAuditResult.verdict,
-					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- images shape is preserved from ImageAuditResult
-					findings: imageAuditResult.images as unknown[],
+					findings: imageAuditResult.images,
 					model: imageAuditResult.model,
 					durationMs: imageAuditResult.durationMs,
 				});

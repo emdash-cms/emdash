@@ -33,11 +33,10 @@ test.describe("Content Types", () => {
 			// Page title
 			await admin.expectPageTitle("Content Types");
 
-			// Should show the table
-			await expect(admin.page.locator("table")).toBeVisible();
+			const table = admin.page.getByRole("table", { name: "Content Types" });
+			await expect(table).toBeVisible();
 
 			// Seeded collections should appear as links in the table (scope to table to avoid sidebar)
-			const table = admin.page.locator("table");
 			await expect(table.getByRole("link", { name: "Posts", exact: true })).toBeVisible();
 			await expect(table.getByRole("link", { name: "Pages", exact: true })).toBeVisible();
 		});
@@ -46,9 +45,8 @@ test.describe("Content Types", () => {
 			await admin.goto("/content-types");
 			await admin.waitForLoading();
 
-			// Slug values rendered as <code> elements inside the table
-			await expect(admin.page.locator("table code", { hasText: "posts" })).toBeVisible();
-			await expect(admin.page.locator("table code", { hasText: "pages" })).toBeVisible();
+			await expect(admin.page.getByRole("cell", { name: "posts", exact: true })).toBeVisible();
+			await expect(admin.page.getByRole("cell", { name: "pages", exact: true })).toBeVisible();
 		});
 
 		test("has a New Content Type button", async ({ admin }) => {
@@ -65,7 +63,10 @@ test.describe("Content Types", () => {
 			await admin.waitForLoading();
 
 			// Click into the posts collection (scope to table to avoid sidebar link)
-			await admin.page.locator("table").getByRole("link", { name: "Posts", exact: true }).click();
+			await admin.page
+				.getByRole("table", { name: "Content Types" })
+				.getByRole("link", { name: "Posts", exact: true })
+				.click();
 
 			// Should navigate to the editor page
 			await expect(admin.page).toHaveURL(CONTENT_TYPES_SLUG_PATTERN, {
@@ -117,14 +118,16 @@ test.describe("Content Types", () => {
 			await admin.waitForLoading();
 
 			const toggleLabel = admin.page.locator("label", { hasText: "Enable comments" });
-			const saveButton = admin.page.getByRole("button", { name: "Save Changes" });
+			const savedButton = () => admin.page.getByRole("button", { name: "Saved" }).first();
+			const saveButton = () =>
+				admin.page.getByRole("button", { name: "Save", exact: true }).first();
 
 			// On initial load there are no unsaved changes
-			await expect(saveButton).toBeDisabled();
+			await expect(savedButton()).toBeDisabled();
 
 			// Flip the toggle -- Save should enable
 			await toggleLabel.click();
-			await expect(saveButton).toBeEnabled();
+			await expect(saveButton()).toBeEnabled();
 
 			// Save: the PUT must return 200 and no failure toast should render
 			const savePut = admin.page.waitForResponse(
@@ -132,7 +135,7 @@ test.describe("Content Types", () => {
 					res.url().includes("/api/schema/collections/posts") && res.request().method() === "PUT",
 				{ timeout: 10000 },
 			);
-			await saveButton.click();
+			await saveButton().click();
 			expect((await savePut).status()).toBe(200);
 			await expect(admin.page.getByText("Failed to save")).not.toBeVisible();
 
@@ -141,24 +144,24 @@ test.describe("Content Types", () => {
 			await admin.page.reload();
 			await admin.waitForShell();
 			await admin.waitForLoading();
-			await expect(saveButton).toBeDisabled();
+			await expect(savedButton()).toBeDisabled();
 
 			// Restore the original toggle state so the shared DB used by other E2E
 			// tests (e.g. comments.spec.ts) isn't left with commentsEnabled flipped.
 			await toggleLabel.click();
-			await expect(saveButton).toBeEnabled();
+			await expect(saveButton()).toBeEnabled();
 			const restorePut = admin.page.waitForResponse(
 				(res) =>
 					res.url().includes("/api/schema/collections/posts") && res.request().method() === "PUT",
 				{ timeout: 10000 },
 			);
-			await saveButton.click();
+			await saveButton().click();
 			expect((await restorePut).status()).toBe(200);
 			await expect(admin.page.getByText("Failed to save")).not.toBeVisible();
 			await admin.page.reload();
 			await admin.waitForShell();
 			await admin.waitForLoading();
-			await expect(saveButton).toBeDisabled();
+			await expect(savedButton()).toBeDisabled();
 		});
 	});
 
@@ -180,7 +183,7 @@ test.describe("Content Types", () => {
 			await expect(pluralInput).toHaveValue(TEST_LABEL_PLURAL);
 
 			// Override slug with our unique test slug
-			const slugInput = admin.page.getByLabel("Slug");
+			const slugInput = admin.page.getByLabel("Slug", { exact: true });
 			await slugInput.fill(TEST_SLUG);
 
 			// Submit
@@ -201,10 +204,12 @@ test.describe("Content Types", () => {
 
 			// The collection we created in the previous test should appear (scope to table)
 			await expect(
-				admin.page.locator("table").getByRole("link", { name: TEST_LABEL_PLURAL, exact: true }),
+				admin.page
+					.getByRole("table", { name: "Content Types" })
+					.getByRole("link", { name: TEST_LABEL_PLURAL, exact: true }),
 			).toBeVisible({ timeout: 10000 });
 
-			await expect(admin.page.locator("table code", { hasText: TEST_SLUG })).toBeVisible();
+			await expect(admin.page.getByRole("cell", { name: TEST_SLUG, exact: true })).toBeVisible();
 		});
 	});
 
@@ -254,13 +259,11 @@ test.describe("Content Types", () => {
 			await admin.waitForLoading();
 
 			// Verify the test collection exists before deletion
-			await expect(admin.page.locator("table code", { hasText: TEST_SLUG })).toBeVisible({
-				timeout: 10000,
-			});
+			const slugCell = admin.page.getByRole("cell", { name: TEST_SLUG, exact: true });
+			await expect(slugCell).toBeVisible({ timeout: 10000 });
 
-			// Find the row for the test collection and click its delete button
-			const row = admin.page.locator("tr").filter({ hasText: TEST_LABEL_PLURAL });
-			await row.getByRole("button", { name: `Delete ${TEST_LABEL_PLURAL}` }).click();
+			await admin.page.getByRole("button", { name: `Actions for ${TEST_LABEL_PLURAL}` }).click();
+			await admin.page.getByRole("menuitem", { name: `Delete ${TEST_LABEL_PLURAL}` }).click();
 
 			// Confirm deletion in the dialog
 			const dialog = admin.page.locator('[role="dialog"]');
@@ -269,9 +272,7 @@ test.describe("Content Types", () => {
 
 			// Collection should disappear from the list
 			await admin.waitForLoading();
-			await expect(admin.page.locator("table code", { hasText: TEST_SLUG })).not.toBeVisible({
-				timeout: 10000,
-			});
+			await expect(slugCell).not.toBeVisible({ timeout: 10000 });
 		});
 	});
 });

@@ -44,6 +44,8 @@ export interface SeoSettings {
 	defaultOgImage?: MediaReference;
 	/** Custom robots.txt content. If unset, a default is generated. */
 	robotsTxt?: string;
+	/** Add rules to robots.txt that ask AI crawlers not to use the site for training. */
+	disallowAiTraining?: boolean;
 	/** Google Search Console verification meta tag content */
 	googleVerification?: string;
 	/** Bing Webmaster Tools verification meta tag content */
@@ -78,6 +80,21 @@ export interface SiteSettings {
 
 	// SEO
 	seo?: SeoSettings;
+}
+
+/** Partial SEO update. `null` removes the configured default image. */
+export interface SeoSettingsUpdate extends Omit<SeoSettings, "defaultOgImage"> {
+	defaultOgImage?: MediaReference | null;
+}
+
+/** Site-settings write shape. `null` removes media references; omitted fields are unchanged. */
+export interface SiteSettingsUpdate extends Omit<
+	Partial<SiteSettings>,
+	"logo" | "favicon" | "seo"
+> {
+	logo?: MediaReference | null;
+	favicon?: MediaReference | null;
+	seo?: SeoSettingsUpdate;
 }
 
 /** Keys that are valid site settings */

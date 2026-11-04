@@ -1,5 +1,5 @@
 import { CompiledQuery } from "kysely";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 import { CoalescingDOSqlDialect } from "../../src/db/coalescing-do-sql.js";
 import type { BookmarkSink } from "../../src/db/do-sql-dialect.js";
@@ -12,6 +12,7 @@ function setup(
 		readBookmark?: string;
 		bookmarkSink?: BookmarkSink;
 		onRpc?: () => void;
+		forcePrimary?: boolean;
 	} = {},
 ) {
 	const query = opts.query ?? vi.fn().mockResolvedValue({ rows: [] });
@@ -22,6 +23,7 @@ function setup(
 		readBookmark: opts.readBookmark,
 		bookmarkSink: opts.bookmarkSink,
 		onRpc: opts.onRpc,
+		forcePrimary: opts.forcePrimary,
 	});
 	return { query, batchQuery, dialect };
 }
@@ -118,6 +120,22 @@ describe("CoalescingDOSqlDialect", () => {
 		expect(batchQuery).toHaveBeenCalledWith(expect.any(Array), { bookmark: "bm-fresh" });
 	});
 
+	it("forces lone and coalesced reads to the primary when the scope mutates", async () => {
+		const query = vi.fn().mockResolvedValue({ rows: [] });
+		const batchQuery = vi.fn().mockResolvedValue([{ rows: [] }, { rows: [] }] as DOQueryResult[]);
+		const { dialect } = setup({ query, batchQuery, forcePrimary: true });
+		const conn = await dialect.createDriver().acquireConnection();
+
+		await conn.executeQuery(CompiledQuery.raw("SELECT * FROM solo"));
+		expect(query).toHaveBeenCalledWith("SELECT * FROM solo", [], { primary: true });
+
+		await Promise.all([
+			conn.executeQuery(CompiledQuery.raw("SELECT * FROM a")),
+			conn.executeQuery(CompiledQuery.raw("SELECT * FROM b")),
+		]);
+		expect(batchQuery).toHaveBeenCalledWith(expect.any(Array), { primary: true });
+	});
+
 	it("falls back to individual query() calls when the batch RPC fails", async () => {
 		const batchQuery = vi.fn().mockRejectedValue(new Error("batch boom"));
 		const query = vi
@@ -150,5 +168,65 @@ describe("CoalescingDOSqlDialect", () => {
 
 		expect(results[0]).toMatchObject({ status: "fulfilled" });
 		expect(results[1]).toMatchObject({ status: "rejected" });
+	});
+
+	describe("cancellation-safe flush (#1927)", () => {
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
+		it("reclaims a stranded flush so a later query is not left hanging", async () => {
+			// On workerd a cancelled request drops its pending timers, so the
+			// flush it scheduled never fires and #flushScheduled stays true. The
+			// next query must clear the stale flag (past its deadline) and
+			// reschedule instead of queueing behind a flush that will never run.
+			vi.useFakeTimers();
+			const { dialect } = setup({
+				// The stranded first query stays buffered and coalesces with the
+				// second after the reclaim, so the batch must return two results.
+				batchQuery: vi
+					.fn()
+					.mockResolvedValue([{ rows: [{ id: 1 }] }, { rows: [{ id: 1 }] }] as DOQueryResult[]),
+			});
+			const conn = await dialect.createDriver().acquireConnection();
+
+			// Queue a query, then drop its flush timer to simulate a cancelled
+			// owner: #flushScheduled is left set with no timer to clear it.
+			const first = conn.executeQuery(CompiledQuery.raw("select 1"));
+			vi.clearAllTimers();
+
+			// Let the reclaim deadline lapse, then queue another query. It must
+			// reclaim the stranded flag, reschedule, and both queries resolve.
+			await vi.advanceTimersByTimeAsync(2_000);
+			const second = conn.executeQuery(CompiledQuery.raw("select 1"));
+			await vi.runAllTimersAsync();
+
+			await expect(first).resolves.toMatchObject({ rows: [{ id: 1 }] });
+			await expect(second).resolves.toMatchObject({ rows: [{ id: 1 }] });
+		});
+
+		it("does not reclaim a live flush that is still within its deadline", async () => {
+			vi.useFakeTimers();
+			const { batchQuery, dialect } = setup({
+				batchQuery: vi
+					.fn()
+					.mockResolvedValue([{ rows: [{ id: 1 }] }, { rows: [{ id: 2 }] }] as DOQueryResult[]),
+			});
+			const conn = await dialect.createDriver().acquireConnection();
+
+			// Queue two queries in the same turn without advancing past the
+			// deadline: the second must coalesce onto the first's pending flush
+			// (no premature reclaim), so both land in one batch.
+			const p1 = conn.executeQuery(CompiledQuery.raw("select 1"));
+			const p2 = conn.executeQuery(CompiledQuery.raw("select 2"));
+			await vi.runAllTimersAsync();
+			await Promise.all([p1, p2]);
+
+			expect(batchQuery).toHaveBeenCalledTimes(1);
+			expect(batchQuery.mock.calls[0]![0]).toEqual([
+				{ sql: "select 1", params: [] },
+				{ sql: "select 2", params: [] },
+			]);
+		});
 	});
 });

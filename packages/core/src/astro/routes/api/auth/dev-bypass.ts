@@ -24,7 +24,6 @@ import { ulid } from "ulidx";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { escapeHtml } from "#api/escape.js";
 import { isSafeRedirect } from "#api/redirect.js";
-import { runMigrations } from "#db/migrations/runner.js";
 
 const DEV_USER_EMAIL = "dev@emdash.local";
 const DEV_USER_NAME = "Dev Admin";
@@ -46,9 +45,6 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 	}
 
 	try {
-		// Ensure migrations are run
-		await runMigrations(emdash.db);
-
 		// Find or create dev user (direct DB access to avoid @emdash-cms/auth import issues in dev)
 		const existingUser = await emdash.db
 			.selectFrom("users")

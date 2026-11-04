@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write EmDash Docs"
+  short_description: "Write clear, accurate, natural EmDash docs"
+  default_prompt: "Use $writing-emdash-docs to revise this documentation for accuracy, clarity, and natural prose."

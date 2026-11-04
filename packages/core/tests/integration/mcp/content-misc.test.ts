@@ -20,6 +20,8 @@ import type { Database } from "../../../src/database/types.js";
 import {
 	connectMcpHarness,
 	extractJson,
+	currentRev,
+	revOf,
 	extractText,
 	type McpHarness,
 } from "../../utils/mcp-runtime.js";
@@ -405,7 +407,7 @@ describe("_rev optimistic concurrency", () => {
 		expect(extractText(result)).toMatch(/conflict|stale|outdated|modified|rev/i);
 	});
 
-	it("content_update without _rev still succeeds (opt-in concurrency)", async () => {
+	it("content_update without _rev is rejected, and the error says how to get one", async () => {
 		const created = await harness.client.callTool({
 			name: "content_create",
 			arguments: { collection: "post", data: { title: "T" } },
@@ -414,10 +416,118 @@ describe("_rev optimistic concurrency", () => {
 
 		const result = await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "post", id, data: { title: "U" } },
+			arguments: {
+				collection: "post",
+				id,
+				data: { title: "U" },
+			},
 		});
-		expect(result.isError, extractText(result)).toBeFalsy();
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/_rev is required.*content_get/);
 	});
+
+	it("content_schedule rejects a stale _rev", async () => {
+		const created = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "Original" } },
+		});
+		const id = extractJson<{ item: { id: string } }>(created).item.id;
+		const staleRev = revOf(created);
+
+		const updated = await harness.client.callTool({
+			name: "content_update",
+			arguments: {
+				collection: "post",
+				id,
+				data: { title: "Updated" },
+				_rev: staleRev,
+			},
+		});
+		expect(updated.isError, extractText(updated)).toBeFalsy();
+
+		const result = await harness.client.callTool({
+			name: "content_schedule",
+			arguments: {
+				collection: "post",
+				id,
+				scheduledAt: new Date(Date.now() + 3_600_000).toISOString(),
+				_rev: staleRev,
+			},
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/conflict|stale|outdated|modified|rev/i);
+	});
+
+	it("content_schedule without _rev is rejected, and the error says how to get one", async () => {
+		const created = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "T" } },
+		});
+		const id = extractJson<{ item: { id: string } }>(created).item.id;
+
+		const result = await harness.client.callTool({
+			name: "content_schedule",
+			arguments: {
+				collection: "post",
+				id,
+				scheduledAt: new Date(Date.now() + 3_600_000).toISOString(),
+			},
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/_rev is required.*content_get/);
+	});
+
+	it.each(["content_publish", "content_unpublish", "content_discard_draft"])(
+		"%s without _rev is rejected, and the error says how to get one",
+		async (tool) => {
+			const created = await harness.client.callTool({
+				name: "content_create",
+				arguments: { collection: "post", data: { title: "T" }, status: "published" },
+			});
+			const id = extractJson<{ item: { id: string } }>(created).item.id;
+
+			const result = await harness.client.callTool({
+				name: tool,
+				arguments: { collection: "post", id },
+			});
+			expect(result.isError).toBe(true);
+			expect(extractText(result)).toMatch(/_rev is required.*content_get/);
+		},
+	);
+
+	it.each([
+		{ status: "published", createdAs: "draft" },
+		{ status: "draft", createdAs: "published" },
+	] as const)(
+		"content_update with status $status checks _rev even without field changes",
+		async ({ status, createdAs }) => {
+			const created = await harness.client.callTool({
+				name: "content_create",
+				arguments: { collection: "post", data: { title: "T" }, status: createdAs },
+			});
+			const id = extractJson<{ item: { id: string } }>(created).item.id;
+			const stale = revOf(created);
+			const moved = await harness.client.callTool({
+				name: "content_update",
+				arguments: { collection: "post", id, data: { title: "T2" }, _rev: stale },
+			});
+			expect(moved.isError, extractText(moved)).toBeFalsy();
+
+			const rejected = await harness.client.callTool({
+				name: "content_update",
+				arguments: { collection: "post", id, status, _rev: stale },
+			});
+			expect(rejected.isError).toBe(true);
+			expect(extractText(rejected)).toMatch(/conflict|modified/i);
+
+			const accepted = await harness.client.callTool({
+				name: "content_update",
+				arguments: { collection: "post", id, status, _rev: revOf(moved) },
+			});
+			expect(accepted.isError, extractText(accepted)).toBeFalsy();
+			expect(extractJson<{ item: { status: string } }>(accepted).item.status).toBe(status);
+		},
+	);
 });
 
 // ---------------------------------------------------------------------------
@@ -530,6 +640,8 @@ describe("edit-while-trashed", () => {
 			arguments: { collection: "post", data: { title: "T" } },
 		});
 		const id = extractJson<{ item: { id: string } }>(created).item.id;
+		// Read the token before the item goes to the trash; afterwards it is invisible.
+		const rev = revOf(created);
 
 		await harness.client.callTool({
 			name: "content_delete",
@@ -538,7 +650,12 @@ describe("edit-while-trashed", () => {
 
 		const updated = await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "post", id, data: { title: "Edit while dead" } },
+			arguments: {
+				collection: "post",
+				id,
+				data: { title: "Edit while dead" },
+				_rev: rev,
+			},
 		});
 		expect(updated.isError).toBe(true);
 		expect(extractText(updated)).toMatch(/\bNOT_FOUND\b|\bnot found\b|trash/i);
@@ -550,6 +667,8 @@ describe("edit-while-trashed", () => {
 			arguments: { collection: "post", data: { title: "T" } },
 		});
 		const id = extractJson<{ item: { id: string } }>(created).item.id;
+		// Read the token before the item goes to the trash; afterwards it is invisible.
+		const rev = revOf(created);
 
 		await harness.client.callTool({
 			name: "content_delete",
@@ -558,7 +677,7 @@ describe("edit-while-trashed", () => {
 
 		const result = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: rev },
 		});
 		expect(result.isError).toBe(true);
 	});
@@ -591,7 +710,7 @@ describe("idempotency", () => {
 
 		const first = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 		expect(first.isError, extractText(first)).toBeFalsy();
 		const firstItem = extractJson<{
@@ -609,7 +728,7 @@ describe("idempotency", () => {
 
 		const second = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 		// Contract: publish is idempotent. Second call succeeds, status
 		// remains published, and publishedAt is preserved (the repository
@@ -637,7 +756,7 @@ describe("idempotency", () => {
 		// and the item stays draft.
 		const result = await harness.client.callTool({
 			name: "content_unpublish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
 		const item = extractJson<{
@@ -662,12 +781,17 @@ describe("idempotency", () => {
 		const future = new Date(Date.now() + 3600_000).toISOString();
 		await harness.client.callTool({
 			name: "content_schedule",
-			arguments: { collection: "post", id, scheduledAt: future },
+			arguments: {
+				collection: "post",
+				id,
+				scheduledAt: future,
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 
 		const publish = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 		expect(publish.isError, extractText(publish)).toBeFalsy();
 
@@ -704,10 +828,10 @@ describe("idempotency", () => {
 });
 
 // ---------------------------------------------------------------------------
-// content_unschedule gap (no MCP tool for this, only on runtime)
+// content_unschedule
 // ---------------------------------------------------------------------------
 
-describe("content_unschedule gap", () => {
+describe("content_unschedule", () => {
 	let db: Kysely<Database>;
 	let harness: McpHarness;
 
@@ -719,12 +843,6 @@ describe("content_unschedule gap", () => {
 	afterEach(async () => {
 		if (harness) await harness.cleanup();
 		await teardownTestDatabase(db);
-	});
-
-	it("MCP exposes content_unschedule", async () => {
-		const tools = await harness.client.listTools();
-		const names = tools.tools.map((t) => t.name);
-		expect(names).toContain("content_unschedule");
 	});
 
 	it("schedule + unschedule clears scheduledAt and re-publish still works (F12)", async () => {
@@ -739,7 +857,12 @@ describe("content_unschedule gap", () => {
 		const future = new Date(Date.now() + 60_000).toISOString();
 		const schedule = await harness.client.callTool({
 			name: "content_schedule",
-			arguments: { collection: "post", id, scheduledAt: future },
+			arguments: {
+				collection: "post",
+				id,
+				scheduledAt: future,
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 		expect(schedule.isError, extractText(schedule)).toBeFalsy();
 
@@ -765,16 +888,39 @@ describe("content_unschedule gap", () => {
 			name: "content_get",
 			arguments: { collection: "post", id },
 		});
-		const cleared = extractJson<{ item: { scheduledAt: string | null } }>(afterUnschedule).item;
+		const cleared = extractJson<{ item: { scheduledAt: string | null; status: string } }>(
+			afterUnschedule,
+		).item;
 		expect(cleared.scheduledAt).toBeNull();
+		expect(cleared.status).toBe("draft");
 
 		// Re-publish still works after unschedule.
 		const republish = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 		expect(republish.isError, extractText(republish)).toBeFalsy();
 		const final = extractJson<{ item: { status: string } }>(republish).item;
 		expect(final.status).toBe("published");
+
+		const rescheduled = await harness.client.callTool({
+			name: "content_schedule",
+			arguments: {
+				collection: "post",
+				id,
+				scheduledAt: new Date(Date.now() + 120_000).toISOString(),
+				_rev: await currentRev(harness.client, "post", id),
+			},
+		});
+		expect(rescheduled.isError, extractText(rescheduled)).toBeFalsy();
+		const publishedUnschedule = await harness.client.callTool({
+			name: "content_unschedule",
+			arguments: { collection: "post", id },
+		});
+		expect(publishedUnschedule.isError, extractText(publishedUnschedule)).toBeFalsy();
+		expect(
+			extractJson<{ item: { scheduledAt: string | null; status: string } }>(publishedUnschedule)
+				.item,
+		).toMatchObject({ scheduledAt: null, status: "published" });
 	});
 });

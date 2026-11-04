@@ -44,13 +44,20 @@ export {
 // Sections import
 export { importReusableBlocksAsSections, type SectionsImportResult } from "./sections.js";
 
+// Comments import
+export {
+	importCommentsFromPlugin,
+	type PluginComment,
+	type CommentsImportResult,
+} from "./comments.js";
+
 // Site settings import
 export {
 	importSiteSettings,
 	parseSiteSettingsFromPlugin,
 	type SiteSettingsAnalysis,
 	type SettingsImportResult,
-	type WidgetAreaAnalysis,
+	type SettingsMediaIds,
 } from "./settings.js";
 
 // Registry
@@ -62,6 +69,7 @@ export {
 	getUrlSources,
 	probeUrl,
 	clearSources,
+	SiteChallengeError,
 } from "./registry.js";
 
 // SSRF protection

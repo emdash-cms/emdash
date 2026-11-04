@@ -8,6 +8,7 @@ import { Pencil, Trash, Check, X, DeviceMobile, Cloud } from "@phosphor-icons/re
 import * as React from "react";
 
 import type { PasskeyInfo } from "../../lib/api";
+import { formatRelativeTime } from "../../lib/utils.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 
 export interface PasskeyItemProps {
@@ -19,32 +20,6 @@ export interface PasskeyItemProps {
 	isRenaming?: boolean;
 }
 
-function formatRelativeTime(dateString: string): string {
-	const date = new Date(dateString);
-	const now = new Date();
-	const diffMs = now.getTime() - date.getTime();
-	const diffSecs = Math.floor(diffMs / 1000);
-	const diffMins = Math.floor(diffSecs / 60);
-	const diffHours = Math.floor(diffMins / 60);
-	const diffDays = Math.floor(diffHours / 24);
-
-	if (diffSecs < 60) {
-		return "just now";
-	} else if (diffMins < 60) {
-		return `${diffMins} minute${diffMins === 1 ? "" : "s"} ago`;
-	} else if (diffHours < 24) {
-		return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
-	} else if (diffDays < 7) {
-		return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
-	} else {
-		return date.toLocaleDateString(undefined, {
-			month: "short",
-			day: "numeric",
-			year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-		});
-	}
-}
-
 export function PasskeyItem({
 	passkey,
 	canDelete,
@@ -53,14 +28,13 @@ export function PasskeyItem({
 	isDeleting,
 	isRenaming,
 }: PasskeyItemProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const [isEditing, setIsEditing] = React.useState(false);
 	const [editName, setEditName] = React.useState(passkey.name || "");
 	const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
 	const [deleteError, setDeleteError] = React.useState<string | null>(null);
 	const inputRef = React.useRef<HTMLInputElement>(null);
 
-	// Focus input when editing starts
 	React.useEffect(() => {
 		if (isEditing && inputRef.current) {
 			inputRef.current.focus();
@@ -104,8 +78,8 @@ export function PasskeyItem({
 		passkey.deviceType === "multiDevice" ? t`Synced passkey` : t`Device-bound passkey`;
 
 	return (
-		<li className="flex items-center justify-between p-4 border rounded-lg bg-kumo-base">
-			<div className="flex items-start gap-3">
+		<li className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+			<div className="flex min-w-0 items-start gap-3">
 				{/* Icon */}
 				<div className="mt-0.5 p-2 rounded-md bg-kumo-tint">
 					{passkey.deviceType === "multiDevice" ? (
@@ -116,17 +90,18 @@ export function PasskeyItem({
 				</div>
 
 				{/* Info */}
-				<div>
+				<div className="min-w-0 flex-1">
 					{isEditing ? (
-						<div className="flex items-center gap-2">
+						<div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
 							<Input
 								ref={inputRef}
 								type="text"
 								value={editName}
 								onChange={(e) => setEditName(e.target.value)}
 								onKeyDown={handleKeyDown}
-								className="h-8 w-48"
+								className="h-8 w-full sm:w-48"
 								placeholder={t`Passkey name`}
+								aria-label={t`Passkey name`}
 								disabled={isRenaming}
 							/>
 							<Button
@@ -153,19 +128,17 @@ export function PasskeyItem({
 					)}
 					<div className="text-sm text-kumo-subtle">
 						{deviceTypeLabel}
-						{passkey.backedUp && (
-							<span className="text-green-600 dark:text-green-400"> {t`(synced)`}</span>
-						)}
+						{passkey.backedUp && <span className="text-kumo-success"> {t`(synced)`}</span>}
 					</div>
 					<div className="text-xs text-kumo-subtle mt-1">
-						{t`Last used`} {formatRelativeTime(passkey.lastUsedAt)}
+						{t`Last used`} <bdi>{formatRelativeTime(passkey.lastUsedAt, i18n.locale)}</bdi>
 					</div>
 				</div>
 			</div>
 
 			{/* Actions */}
 			{!isEditing && (
-				<div className="flex items-center gap-1">
+				<div className="flex self-end items-center gap-1 sm:self-center">
 					<Button
 						variant="ghost"
 						size="sm"

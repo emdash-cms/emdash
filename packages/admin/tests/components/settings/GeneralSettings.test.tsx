@@ -1,0 +1,609 @@
+import { Toasty } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import * as React from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
+
+import { ApiResponseError } from "../../../src/lib/api";
+import type {
+	AdminManifest,
+	EmailSettings,
+	MediaItem,
+	SiteDomain,
+	SiteSettings,
+	SiteSettingsUpdate,
+} from "../../../src/lib/api";
+import { render } from "../../utils/render";
+
+const mockFetchSettings = vi.fn<() => Promise<Partial<SiteSettings>>>();
+const mockUpdateSettings =
+	vi.fn<(settings: SiteSettingsUpdate) => Promise<Partial<SiteSettings>>>();
+const mockFetchSiteDomain = vi.fn<() => Promise<SiteDomain>>();
+const mockChangeSiteDomain = vi.fn<(domain: string) => Promise<{ url: string }>>();
+const mockFetchManifest = vi.fn<() => Promise<Partial<AdminManifest>>>();
+const mockCreateSignInHandover = vi.fn<() => Promise<{ url: string }>>();
+const mockFetchEmailSettings = vi.fn<() => Promise<Partial<EmailSettings>>>();
+const mockNotifyUsersOfDomain = vi.fn<() => Promise<{ sent: number; failed: number }>>();
+
+vi.mock("@tanstack/react-router", async () => {
+	const actual = await vi.importActual("@tanstack/react-router");
+	return {
+		...actual,
+		Link: ({ children, to, ...props }: any) => (
+			<a href={to} {...props}>
+				{children}
+			</a>
+		),
+	};
+});
+
+vi.mock("../../../src/lib/api", async () => {
+	const actual = await vi.importActual("../../../src/lib/api");
+	return {
+		...actual,
+		fetchSettings: () => mockFetchSettings(),
+		updateSettings: (settings: SiteSettingsUpdate) => mockUpdateSettings(settings),
+		fetchSiteDomain: () => mockFetchSiteDomain(),
+		changeSiteDomain: (domain: string) => mockChangeSiteDomain(domain),
+		fetchManifest: () => mockFetchManifest(),
+		createSignInHandover: () => mockCreateSignInHandover(),
+		fetchEmailSettings: () => mockFetchEmailSettings(),
+		notifyUsersOfDomain: () => mockNotifyUsersOfDomain(),
+	};
+});
+
+vi.mock("../../../src/components/MediaPickerModal", () => ({
+	MediaPickerModal: ({
+		open,
+		title,
+		onSelect,
+	}: {
+		open: boolean;
+		title: React.ReactNode;
+		onSelect: (media: MediaItem) => void;
+	}) => {
+		if (!open) return null;
+		const modalTitle = typeof title === "string" ? title : "";
+		const isLogo = modalTitle === "Select logo";
+		return (
+			<div role="dialog" aria-label={modalTitle}>
+				<button
+					type="button"
+					onClick={() =>
+						onSelect({
+							id: isLogo ? "new-logo" : "new-favicon",
+							filename: isLogo ? "logo.png" : "favicon.png",
+							mimeType: "image/png",
+							url: isLogo ? "/media/logo.png" : "/media/favicon.png",
+							alt: isLogo ? "Replacement logo" : "",
+							provider: "local",
+							storageKey: isLogo ? "logo.png" : "favicon.png",
+							size: 1,
+							createdAt: "2026-01-01T00:00:00.000Z",
+						})
+					}
+				>
+					Choose image
+				</button>
+			</div>
+		);
+	},
+}));
+
+const { GeneralSettings } = await import("../../../src/components/settings/GeneralSettings");
+
+const defaultSettings: Partial<SiteSettings> = {
+	title: "My Blog",
+	tagline: "Thoughts on building for the web",
+	url: "https://example.com",
+	postsPerPage: 10,
+	dateFormat: "MMMM d, yyyy",
+	timezone: "UTC",
+	social: { github: "https://github.com/example" },
+};
+
+function Wrapper({ children }: { children: React.ReactNode }) {
+	return <Toasty>{children}</Toasty>;
+}
+
+async function renderGeneralSettings() {
+	return render(<GeneralSettings />, { wrapper: Wrapper });
+}
+
+beforeEach(() => {
+	vi.clearAllMocks();
+	mockFetchSettings.mockResolvedValue(defaultSettings);
+	mockFetchSiteDomain.mockResolvedValue({
+		configuredUrl: null,
+		siteOrigin: window.location.origin,
+	});
+	mockFetchManifest.mockResolvedValue({ authMode: "passkey" });
+	mockCreateSignInHandover.mockReturnValue(new Promise(() => undefined));
+	mockFetchEmailSettings.mockResolvedValue({ available: true });
+	mockUpdateSettings.mockImplementation(async (settings) => {
+		mockFetchSettings.mockResolvedValue(settings);
+		return settings;
+	});
+});
+
+describe("GeneralSettings", () => {
+	it("shows the shared frame while settings load", async () => {
+		mockFetchSettings.mockReturnValue(new Promise(() => undefined));
+		const screen = await renderGeneralSettings();
+
+		await expect
+			.element(screen.getByRole("heading", { name: "General Settings", level: 1 }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("Loading settings...")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Save" }).query()).toBeNull();
+	});
+
+	it("shows a load failure without form actions", async () => {
+		mockFetchSettings.mockRejectedValue(new Error("Settings service unavailable"));
+		const screen = await renderGeneralSettings();
+
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("An error occurred");
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent("Settings service unavailable");
+		expect(screen.getByRole("button", { name: "Save" }).query()).toBeNull();
+	});
+
+	it("renders grouped fields with both save actions initially disabled", async () => {
+		const screen = await renderGeneralSettings();
+
+		await expect.element(screen.getByLabelText("Site Title")).toHaveValue("My Blog");
+		await expect
+			.element(screen.getByRole("heading", { name: "Site Identity", level: 2 }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("heading", { name: "Reading", level: 2 }))
+			.toBeInTheDocument();
+
+		const saveButtons = screen.getByRole("button", { name: "Saved", exact: true }).all();
+		expect(saveButtons).toHaveLength(2);
+		for (const button of saveButtons) await expect.element(button).toBeDisabled();
+	});
+
+	it("enables both save actions when dirty and returns to saved after success", async () => {
+		const screen = await renderGeneralSettings();
+		await screen.getByLabelText("Site Title").fill("A better blog");
+
+		const dirtyButtons = screen.getByRole("button", { name: "Save", exact: true }).all();
+		expect(dirtyButtons).toHaveLength(2);
+		for (const button of dirtyButtons) await expect.element(button).toBeEnabled();
+
+		await userEvent.click(dirtyButtons[0]);
+		await vi.waitFor(() => {
+			const { url: _url, ...withoutUrl } = defaultSettings;
+			expect(mockUpdateSettings).toHaveBeenCalledWith({ ...withoutUrl, title: "A better blog" });
+		});
+		await expect.element(screen.getByText("Settings saved successfully")).toBeInTheDocument();
+
+		const savedButtons = screen.getByRole("button", { name: "Saved", exact: true }).all();
+		expect(savedButtons).toHaveLength(2);
+		for (const button of savedButtons) await expect.element(button).toBeDisabled();
+	});
+
+	it("keeps cached settings visible when the post-save refetch fails", async () => {
+		mockUpdateSettings.mockImplementation(async (settings) => {
+			mockFetchSettings.mockRejectedValue(new Error("Settings refetch failed"));
+			return settings;
+		});
+		const screen = await renderGeneralSettings();
+		await screen.getByLabelText("Site Title").fill("A better blog");
+
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+
+		await vi.waitFor(() => expect(mockFetchSettings.mock.calls.length).toBeGreaterThanOrEqual(2));
+		await expect.element(screen.getByLabelText("Site Title")).toHaveValue("A better blog");
+		expect(screen.getByRole("alert").query()).toBeNull();
+	});
+
+	it("keeps the form dirty and reports a failed save", async () => {
+		mockUpdateSettings.mockRejectedValue(new Error("Could not persist settings"));
+		const screen = await renderGeneralSettings();
+		await screen.getByLabelText("Tagline").fill("A changed tagline");
+
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await expect.element(screen.getByText("Failed to save settings")).toBeInTheDocument();
+		await expect.element(screen.getByText("Could not persist settings")).toBeInTheDocument();
+
+		const dirtyButtons = screen.getByRole("button", { name: "Save", exact: true }).all();
+		expect(dirtyButtons).toHaveLength(2);
+		for (const button of dirtyButtons) await expect.element(button).toBeEnabled();
+	});
+
+	it("updates the date preview without preventing themes from using other patterns", async () => {
+		const screen = await renderGeneralSettings();
+		await expect.element(screen.getByText(/January 23, 2026/)).toBeInTheDocument();
+		await screen.getByLabelText("Date Format").fill("yyyy/MM/dd");
+		await expect.element(screen.getByText(/2026\/01\/23/)).toBeInTheDocument();
+		await screen.getByLabelText("Date Format").fill("YYYY-MM-DD");
+		await expect
+			.element(screen.getByText("Preview unavailable for this format"))
+			.toBeInTheDocument();
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ dateFormat: "YYYY-MM-DD" }),
+			),
+		);
+	});
+
+	it("previews month names in the active admin language", async () => {
+		const previousLocale = i18n.locale;
+		try {
+			const screen = await renderGeneralSettings();
+			await expect.element(screen.getByText(/January 23, 2026/)).toBeInTheDocument();
+			i18n.loadAndActivate({ locale: "ar", messages: {} });
+			await screen.rerender(<GeneralSettings />);
+			await expect.element(screen.getByText(/يناير/)).toBeInTheDocument();
+			i18n.loadAndActivate({ locale: "fr", messages: {} });
+			await screen.rerender(<GeneralSettings />);
+			await expect.element(screen.getByText(/janvier/)).toBeInTheDocument();
+		} finally {
+			i18n.loadAndActivate({ locale: previousLocale, messages: {} });
+		}
+	});
+
+	it("suggests valid timezones and rejects new unrecognized values", async () => {
+		const screen = await renderGeneralSettings();
+		await screen.getByRole("combobox", { name: "Timezone" }).fill("London");
+		await expect.element(screen.getByText("Europe/London", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		expect(mockUpdateSettings).not.toHaveBeenCalled();
+		await expect
+			.element(screen.getByText("Enter a recognized timezone to save"))
+			.toBeInTheDocument();
+		await screen.getByRole("combobox", { name: "Timezone" }).fill("Lond");
+		await userEvent.click(screen.getByText("Europe/London", { exact: true }));
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ timezone: "Europe/London" }),
+			),
+		);
+	});
+
+	it("keeps an unrecognized existing timezone when saving another setting", async () => {
+		mockFetchSettings.mockResolvedValue({ ...defaultSettings, timezone: "Legacy/Local" });
+		const screen = await renderGeneralSettings();
+		await screen.getByLabelText("Tagline").fill("Updated tagline");
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ timezone: "Legacy/Local", tagline: "Updated tagline" }),
+			),
+		);
+	});
+
+	it("accepts a recognized timezone alias that is not in the suggestion list", async () => {
+		const screen = await renderGeneralSettings();
+		await screen.getByRole("combobox", { name: "Timezone" }).fill("Etc/GMT");
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ timezone: "Etc/GMT" }),
+			),
+		);
+	});
+
+	it("preserves a valid existing timezone alias when saving another setting", async () => {
+		mockFetchSettings.mockResolvedValue({ ...defaultSettings, timezone: "Etc/GMT" });
+		const screen = await renderGeneralSettings();
+		await screen.getByLabelText("Tagline").fill("Updated tagline");
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ timezone: "Etc/GMT", tagline: "Updated tagline" }),
+			),
+		);
+	});
+
+	it("marks media selections dirty and includes them in the saved settings", async () => {
+		const screen = await renderGeneralSettings();
+
+		await userEvent.click(screen.getByRole("button", { name: "Select Logo" }));
+		await userEvent.click(screen.getByRole("button", { name: "Choose image" }));
+		await expect.element(screen.getByRole("img", { name: "Replacement logo" })).toBeInTheDocument();
+
+		await userEvent.click(screen.getByRole("button", { name: "Select Favicon" }));
+		await userEvent.click(screen.getByRole("button", { name: "Choose image" }));
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+
+		await vi.waitFor(() => {
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({
+					logo: {
+						mediaId: "new-logo",
+						alt: "Replacement logo",
+						url: "/media/logo.png",
+					},
+					favicon: { mediaId: "new-favicon", url: "/media/favicon.png" },
+				}),
+			);
+		});
+	});
+
+	it("allows existing logo and favicon references to be removed", async () => {
+		mockFetchSettings.mockResolvedValue({
+			...defaultSettings,
+			logo: { mediaId: "old-logo", alt: "Old logo", url: "/media/old-logo.png" },
+			favicon: { mediaId: "old-favicon", url: "/media/old-favicon.png" },
+		});
+		const screen = await renderGeneralSettings();
+		await expect.element(screen.getByRole("img", { name: "Old logo" })).toBeInTheDocument();
+
+		const removeButtons = screen.getByRole("button", { name: "Remove" }).all();
+		expect(removeButtons).toHaveLength(2);
+		await userEvent.click(removeButtons[0]);
+		await userEvent.click(screen.getByRole("button", { name: "Remove" }));
+
+		await expect.element(screen.getByRole("button", { name: "Select Logo" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Select Favicon" }))
+			.toBeInTheDocument();
+		for (const button of screen.getByRole("button", { name: "Save", exact: true }).all()) {
+			await expect.element(button).toBeEnabled();
+		}
+
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() => {
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ logo: null, favicon: null }),
+			);
+		});
+	});
+
+	it("changes the domain without discarding unsaved edits", async () => {
+		mockChangeSiteDomain.mockImplementation(async () => {
+			mockFetchSettings.mockResolvedValue({ ...defaultSettings, url: "https://new.example" });
+			return { url: "https://new.example" };
+		});
+		const screen = await renderGeneralSettings();
+		await screen.getByLabelText("Tagline").fill("Unsaved tagline");
+
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await screen.getByLabelText("New domain").fill("new.example");
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => expect(mockChangeSiteDomain).toHaveBeenCalledWith("new.example"));
+		await expect
+			.element(screen.getByText("Domain changed to https://new.example"))
+			.toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Tagline")).toHaveValue("Unsaved tagline");
+
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ tagline: "Unsaved tagline" }),
+			),
+		);
+		expect(mockUpdateSettings.mock.lastCall?.[0]).not.toHaveProperty("url");
+	});
+
+	it("shows the hint for an invalid domain in the admin language", async () => {
+		const hint = msg`Enter a domain such as example.com, without a path or port`;
+		const previousLocale = i18n.locale;
+		i18n.load("de", { [hint.id]: "Gib eine Domain wie example.com ohne Pfad oder Port ein." });
+		i18n.activate("de");
+		mockChangeSiteDomain.mockRejectedValue(
+			new ApiResponseError(
+				400,
+				"VALIDATION_ERROR",
+				"Enter a domain such as example.com, without a path or port",
+			),
+		);
+
+		try {
+			const screen = await renderGeneralSettings();
+			await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+			await screen.getByLabelText("New domain").fill("example.com/path");
+			await userEvent.keyboard("{Enter}");
+			await expect
+				.element(screen.getByLabelText("New domain"))
+				.toHaveAccessibleDescription("Gib eine Domain wie example.com ohne Pfad oder Port ein.");
+		} finally {
+			i18n.activate(previousLocale);
+		}
+	});
+
+	const host = "new.example";
+	const origin = "https://new.example";
+	const target = "https://www.new.example";
+	it.each([
+		{
+			case: "a host without a public address",
+			details: { reason: "NO_PUBLIC_ADDRESS", host },
+			message: msg`${host} does not resolve to a public address`,
+			translation: "{host} hat keine öffentliche Adresse.",
+			shown: "new.example hat keine öffentliche Adresse.",
+		},
+		{
+			case: "an unreachable domain",
+			details: { reason: "UNREACHABLE", origin },
+			message: msg`Could not reach ${origin}`,
+			translation: "{origin} ist nicht erreichbar.",
+			shown: "https://new.example ist nicht erreichbar.",
+		},
+		{
+			case: "a redirect to another address",
+			details: { reason: "REDIRECT", origin, target },
+			message: msg`${origin} redirects to ${target}. Enter that address instead.`,
+			translation: "{origin} leitet auf {target} um. Gib stattdessen diese Adresse ein.",
+			shown:
+				"https://new.example leitet auf https://www.new.example um. Gib stattdessen diese Adresse ein.",
+		},
+		{
+			case: "a redirect without a location",
+			details: { reason: "REDIRECT", origin },
+			message: msg`${origin} redirects elsewhere`,
+			translation: "{origin} leitet auf eine andere Adresse um.",
+			shown: "https://new.example leitet auf eine andere Adresse um.",
+		},
+		{
+			case: "a domain serving another site",
+			details: { reason: "NOT_SERVING", origin },
+			message: msg`${origin} does not serve this site yet`,
+			translation: "{origin} liefert diese Website noch nicht aus.",
+			shown: "https://new.example liefert diese Website noch nicht aus.",
+		},
+	])(
+		"shows the failed domain check for $case in the admin language",
+		async ({ details, message, translation, shown }) => {
+			const previousLocale = i18n.locale;
+			i18n.load("de", { [message.id]: translation });
+			i18n.activate("de");
+			mockChangeSiteDomain.mockRejectedValue(
+				new ApiResponseError(422, "DOMAIN_CHECK_FAILED", "English server message", details),
+			);
+
+			try {
+				const screen = await renderGeneralSettings();
+				await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+				await screen.getByLabelText("New domain").fill("new.example");
+				await userEvent.keyboard("{Enter}");
+				await expect
+					.element(screen.getByLabelText("New domain"))
+					.toHaveAccessibleDescription(shown);
+			} finally {
+				i18n.activate(previousLocale);
+			}
+		},
+	);
+
+	it("shows the server's message when a failed domain check has no known reason", async () => {
+		mockChangeSiteDomain.mockRejectedValue(
+			new ApiResponseError(400, "DOMAIN_CHECK_FAILED", "Could not reach https://example.com"),
+		);
+		const screen = await renderGeneralSettings();
+
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await screen.getByLabelText("New domain").fill("example.com");
+		await userEvent.keyboard("{Enter}");
+		await expect
+			.element(screen.getByLabelText("New domain"))
+			.toHaveAccessibleDescription("Could not reach https://example.com");
+	});
+
+	it("offers to use an address without the check when the check fails", async () => {
+		mockChangeSiteDomain.mockRejectedValue(new Error("Enter a domain such as example.com"));
+		const screen = await renderGeneralSettings();
+
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await screen.getByLabelText("New domain").fill("http://localhost:4321/");
+		await userEvent.keyboard("{Enter}");
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("Enter a domain such as");
+		screen.getByRole("button", { name: "Use http://localhost:4321 anyway" }).element().click();
+
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith({ url: "http://localhost:4321" }),
+		);
+		await expect
+			.element(screen.getByText("Site URL set to http://localhost:4321"))
+			.toBeInTheDocument();
+	});
+
+	it("names the configured address that emails use while keeping the Site URL changeable", async () => {
+		mockFetchSiteDomain.mockResolvedValue({
+			configuredUrl: "https://configured.example",
+			siteOrigin: window.location.origin,
+		});
+		const screen = await renderGeneralSettings();
+
+		await expect
+			.element(
+				screen.getByText(
+					"Links in emails and plugins use https://configured.example, set by the deployment configuration.",
+				),
+			)
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("https://example.com")).toBeInTheDocument();
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await expect
+			.element(
+				screen.getByText(/Links in emails and plugins keep using https:\/\/configured\.example/),
+			)
+			.toBeInTheDocument();
+	});
+
+	it("offers to continue signed in at the new domain after changing it", async () => {
+		mockChangeSiteDomain.mockImplementation(async () => {
+			mockFetchSiteDomain.mockResolvedValue({
+				configuredUrl: null,
+				siteOrigin: "https://new.example",
+			});
+			return { url: "https://new.example" };
+		});
+		const screen = await renderGeneralSettings();
+		await expect.element(screen.getByText("Site URL", { exact: true })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: /Continue on/ }).query()).toBeNull();
+
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await screen.getByLabelText("New domain").fill("new.example");
+		await userEvent.keyboard("{Enter}");
+
+		const continueButton = screen.getByRole("button", { name: "Continue on new.example" });
+		await expect.element(continueButton).toBeInTheDocument();
+		await userEvent.click(continueButton);
+		expect(mockCreateSignInHandover).toHaveBeenCalledOnce();
+	});
+
+	it("does not offer sign-in handover with external authentication", async () => {
+		mockFetchSiteDomain.mockResolvedValue({
+			configuredUrl: null,
+			siteOrigin: "https://new.example",
+		});
+		mockFetchManifest.mockResolvedValue({ authMode: "cloudflare-access" });
+		const screen = await renderGeneralSettings();
+
+		await expect.element(screen.getByText("https://example.com")).toBeInTheDocument();
+		await vi.waitFor(() => expect(mockFetchManifest).toHaveBeenCalled());
+		await mockFetchManifest.mock.results[0]?.value;
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(screen.getByRole("button", { name: /Continue on/ }).query()).toBeNull();
+	});
+
+	it("emails users where to sign in after confirming", async () => {
+		mockFetchSiteDomain.mockResolvedValue({
+			configuredUrl: null,
+			siteOrigin: "https://new.example",
+		});
+		mockNotifyUsersOfDomain.mockResolvedValue({ sent: 3, failed: 1 });
+		const screen = await renderGeneralSettings();
+
+		await userEvent.click(screen.getByRole("button", { name: "Email users" }));
+		await expect.element(screen.getByText(/now at new\.example/)).toBeInTheDocument();
+		expect(mockNotifyUsersOfDomain).not.toHaveBeenCalled();
+		screen.getByRole("button", { name: "Send emails" }).element().click();
+
+		await vi.waitFor(() => expect(mockNotifyUsersOfDomain).toHaveBeenCalledOnce());
+		await expect.element(screen.getByText("Emailed 3 users")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("1 email could not be sent. Check the email provider."))
+			.toBeInTheDocument();
+	});
+
+	it("does not offer to email users without an email provider", async () => {
+		mockFetchEmailSettings.mockResolvedValue({ available: false });
+		const screen = await renderGeneralSettings();
+
+		await expect
+			.element(screen.getByText("Set up an email provider in Email settings to email users."))
+			.toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Email users" })).toBeDisabled();
+	});
+
+	it("does not offer to email users with external authentication", async () => {
+		mockFetchManifest.mockResolvedValue({ authMode: "cloudflare-access" });
+		const screen = await renderGeneralSettings();
+
+		await expect.element(screen.getByText("https://example.com")).toBeInTheDocument();
+		await vi.waitFor(() => expect(mockFetchManifest).toHaveBeenCalled());
+		await mockFetchManifest.mock.results[0]?.value;
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(screen.getByRole("button", { name: "Email users" }).query()).toBeNull();
+	});
+});

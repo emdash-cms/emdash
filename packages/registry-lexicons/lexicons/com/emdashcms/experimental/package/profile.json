@@ -1,7 +1,7 @@
 {
 	"lexicon": 1,
 	"id": "com.emdashcms.experimental.package.profile",
-	"description": "Plugin package profile record. The atproto-record form of FAIR's Metadata Document. EXPERIMENTAL: this NSID is part of the experimental phase of the EmDash plugin registry. The shape is expected to migrate to either pm.fair.package.profile (if FAIR adopts it) or com.emdashcms.package.profile once stable.",
+	"description": "Plugin package profile record. EXPERIMENTAL: this NSID is part of the experimental phase of the EmDash plugin registry. The stable namespace target is com.emdashcms.package.profile.",
 	"defs": {
 		"main": {
 			"type": "record",
@@ -84,6 +84,10 @@
 						"type": "string",
 						"format": "datetime",
 						"description": "ISO 8601 datetime for the package's last update."
+					},
+					"extensions": {
+						"type": "unknown",
+						"description": "Opaque extension container keyed by NSID. The base profile Lexicon does not validate entries; consumers dispatch known entries to their embedded extension schemas. EmDash delegated-release policy uses com.emdashcms.experimental.package.profileExtension here."
 					}
 				}
 			}

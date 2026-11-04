@@ -11,9 +11,9 @@
 
 import { P256PrivateKeyExportable } from "@atcute/crypto";
 import type { DidDocument } from "@atcute/identity";
-import type { Did } from "@atcute/lexicons/syntax";
+import { type Did, isDid } from "@atcute/lexicons/syntax";
 import { applyD1Migrations, env } from "cloudflare:test";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
 	type CachedDidDoc,
@@ -21,6 +21,9 @@ import {
 	type DidDocCache,
 	type DidDocumentResolverLike,
 	DidResolver,
+	refreshStalePublisherHandles,
+	SlingshotIdentityResolver,
+	upsertPublisherHandle,
 } from "../src/did-resolver.js";
 
 interface TestEnv {
@@ -49,6 +52,17 @@ class MapDidDocCache implements DidDocCache {
 	read(did: string): Promise<CachedDidDoc | null> {
 		this.reads.push(did);
 		return Promise.resolve(this.entries.get(did) ?? null);
+	}
+	readByHandle(
+		handle: `${string}.${string}`,
+		resolvedAfter: Date,
+	): Promise<{ did: Did; value: CachedDidDoc } | null> {
+		for (const [did, value] of this.entries) {
+			if (isDid(did) && value.handle === handle && value.resolvedAt >= resolvedAfter) {
+				return Promise.resolve({ did, value });
+			}
+		}
+		return Promise.resolve(null);
 	}
 	upsert(did: string, doc: Omit<CachedDidDoc, "resolvedAt">, now: Date): Promise<void> {
 		this.upserts.push({ did, doc, now });
@@ -112,6 +126,107 @@ function buildDidDoc(overrides: Partial<DidDocument> = {}): DidDocument {
 
 describe("DidResolver", () => {
 	describe("with in-memory cache", () => {
+		it("uses a Slingshot handle with direct DID verification material", async () => {
+			const cache = new MapDidDocCache();
+			const resolver = new StubResolver(buildDidDoc());
+			const subject = new DidResolver({
+				cache,
+				resolver,
+				identityResolver: {
+					resolve: async () => ({
+						did: TEST_DID,
+						handle: "publisher.example",
+						pds: "https://untrusted-cache.example",
+						signingKey: "untrusted-cache-key",
+					}),
+				},
+			});
+
+			const result = await subject.resolve(TEST_DID);
+
+			expect(result.handle).toBe("publisher.example");
+			expect(result.pds).toBe(TEST_PDS);
+			expect(resolver.calls).toEqual([TEST_DID]);
+			expect(cache.upserts[0]?.doc).toMatchObject({
+				handle: "publisher.example",
+				pds: TEST_PDS,
+				signingKey: signingKeyMultibase,
+			});
+		});
+
+		it("uses a fresh cached handle without renewing it", async () => {
+			const cache = new MapDidDocCache();
+			const now = new Date("2026-05-09T12:00:00.000Z");
+			await cache.upsert(
+				TEST_DID,
+				{
+					handle: "publisher.example",
+					pds: TEST_PDS,
+					signingKey: signingKeyMultibase,
+					signingKeyId: `${TEST_DID}#atproto`,
+				},
+				now,
+			);
+			const identityResolver = { resolve: vi.fn() };
+			const subject = new DidResolver({
+				cache,
+				resolver: new StubResolver(buildDidDoc()),
+				identityResolver,
+				now: () => new Date(now.getTime() + 60_000),
+			});
+
+			await expect(subject.resolveIdentifier("publisher.example")).resolves.toMatchObject({
+				did: TEST_DID,
+				handle: "publisher.example",
+				identityCacheHit: true,
+			});
+			expect(identityResolver.resolve).not.toHaveBeenCalled();
+			expect(cache.upserts).toHaveLength(1);
+		});
+
+		it("falls back to direct DID resolution when Slingshot fails", async () => {
+			const cache = new MapDidDocCache();
+			const resolver = new StubResolver(buildDidDoc());
+			const subject = new DidResolver({
+				cache,
+				resolver,
+				identityResolver: {
+					resolve: () => Promise.reject(new Error("slingshot unavailable")),
+				},
+			});
+
+			const result = await subject.resolve(TEST_DID);
+
+			expect(result.pds).toBe(TEST_PDS);
+			expect(result.handle).toBeUndefined();
+			expect(resolver.calls).toEqual([TEST_DID]);
+		});
+
+		it("verifies a direct fallback handle in both directions", async () => {
+			const cache = new MapDidDocCache();
+			const resolver = new StubResolver(buildDidDoc({ alsoKnownAs: ["at://publisher.example"] }));
+			const handleCalls: string[] = [];
+			const subject = new DidResolver({
+				cache,
+				resolver,
+				identityResolver: {
+					resolve: () => Promise.reject(new Error("slingshot unavailable")),
+				},
+				handleResolver: {
+					resolve: async (handle) => {
+						handleCalls.push(handle);
+						return TEST_DID;
+					},
+				},
+			});
+
+			await expect(subject.resolveIdentifier(TEST_DID)).resolves.toMatchObject({
+				did: TEST_DID,
+				handle: "publisher.example",
+			});
+			expect(handleCalls).toEqual(["publisher.example"]);
+		});
+
 		it("resolves on cache miss, writes the row, returns a usable PublicKey", async () => {
 			const cache = new MapDidDocCache();
 			const resolver = new StubResolver(buildDidDoc());
@@ -363,5 +478,134 @@ describe("DidResolver", () => {
 				.first();
 			expect(row).toBeNull();
 		});
+	});
+
+	describe("SlingshotIdentityResolver", () => {
+		it("parses a verified MiniDoc response", async () => {
+			const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+				Response.json({
+					did: TEST_DID,
+					handle: "publisher.example",
+					pds: TEST_PDS,
+					signing_key: signingKeyMultibase,
+				}),
+			);
+			const resolver = new SlingshotIdentityResolver({
+				serviceUrl: "https://slingshot.example",
+				fetch,
+			});
+
+			await expect(resolver.resolve(TEST_DID)).resolves.toMatchObject({
+				did: TEST_DID,
+				handle: "publisher.example",
+			});
+			const requestUrl = fetch.mock.calls[0]?.[0];
+			expect(requestUrl).toBeInstanceOf(URL);
+			if (!(requestUrl instanceof URL)) throw new Error("expected URL request input");
+			expect(requestUrl.searchParams.get("identifier")).toBe(TEST_DID);
+		});
+	});
+
+	it("refreshes stale publisher handles", async () => {
+		await testEnv.DB.exec("DELETE FROM known_publishers");
+		const cache = createD1DidDocCache(testEnv.DB);
+		const staleAt = new Date("2026-05-09T12:00:00.000Z");
+		const now = new Date("2026-05-09T13:00:00.000Z");
+		await cache.upsert(
+			TEST_DID,
+			{
+				handle: "old.example",
+				pds: TEST_PDS,
+				signingKey: signingKeyMultibase,
+				signingKeyId: `${TEST_DID}#atproto`,
+			},
+			staleAt,
+		);
+		const calls: string[] = [];
+		const subject = new DidResolver({
+			cache,
+			now: () => now,
+			resolver: new StubResolver(buildDidDoc()),
+			identityResolver: {
+				resolve: async (identifier) => {
+					calls.push(identifier);
+					return {
+						did: TEST_DID,
+						handle: "new.example",
+						pds: TEST_PDS,
+						signingKey: signingKeyMultibase,
+					};
+				},
+			},
+		});
+
+		await expect(refreshStalePublisherHandles(testEnv.DB, subject, { now })).resolves.toEqual({
+			refreshed: 1,
+			unresolved: 0,
+		});
+		expect(calls).toEqual([TEST_DID]);
+		const row = await testEnv.DB.prepare(
+			"SELECT handle, handle_resolved_at FROM known_publishers WHERE did = ?",
+		)
+			.bind(TEST_DID)
+			.first<{ handle: string; handle_resolved_at: string }>();
+		expect(row).toEqual({ handle: "new.example", handle_resolved_at: now.toISOString() });
+	});
+
+	it("clears a stale handle after verified resolution reports no handle", async () => {
+		await testEnv.DB.exec("DELETE FROM known_publishers");
+		const cache = createD1DidDocCache(testEnv.DB);
+		const staleAt = new Date("2026-05-09T12:00:00.000Z");
+		const now = new Date("2026-05-09T13:00:00.000Z");
+		await cache.upsert(
+			TEST_DID,
+			{
+				handle: "old.example",
+				pds: TEST_PDS,
+				signingKey: signingKeyMultibase,
+				signingKeyId: `${TEST_DID}#atproto`,
+			},
+			staleAt,
+		);
+		const subject = new DidResolver({
+			cache,
+			now: () => now,
+			resolver: new StubResolver(buildDidDoc()),
+			identityResolver: {
+				resolve: async () => ({
+					did: TEST_DID,
+					handle: null,
+					pds: TEST_PDS,
+					signingKey: signingKeyMultibase,
+				}),
+			},
+		});
+
+		await expect(refreshStalePublisherHandles(testEnv.DB, subject, { now })).resolves.toEqual({
+			refreshed: 1,
+			unresolved: 0,
+		});
+		const row = await testEnv.DB.prepare(
+			"SELECT handle, handle_resolved_at FROM known_publishers WHERE did = ?",
+		)
+			.bind(TEST_DID)
+			.first<{ handle: string | null; handle_resolved_at: string }>();
+		expect(row).toEqual({ handle: null, handle_resolved_at: now.toISOString() });
+	});
+
+	it("moves a verified handle away from its previous DID", async () => {
+		await testEnv.DB.exec("DELETE FROM known_publishers");
+		const previousDid: Did = "did:plc:previous0000000000000000";
+		const currentDid: Did = "did:plc:current00000000000000000";
+		await upsertPublisherHandle(testEnv.DB, previousDid, "publisher.example");
+		await upsertPublisherHandle(testEnv.DB, currentDid, "publisher.example");
+
+		const rows = await testEnv.DB.prepare(
+			"SELECT did, handle FROM known_publishers ORDER BY did",
+		).all<{ did: string; handle: string | null }>();
+		expect(rows.results).toEqual([
+			{ did: currentDid, handle: "publisher.example" },
+			{ did: previousDid, handle: null },
+		]);
 	});
 });

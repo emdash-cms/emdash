@@ -95,6 +95,29 @@ async function runAuthMiddleware(opts: {
 }
 
 describe("MCP discovery auth middleware", () => {
+	it("rejects cross-origin browser posts to the dev maintenance bridge", async () => {
+		const { response, next } = await runAuthMiddleware({
+			pathname: "/_emdash/api/dev/scheduled-tasks",
+			headers: { Origin: "https://untrusted.example", "Content-Type": "text/plain" },
+		});
+
+		expect(response.status).toBe(403);
+		expect(next).not.toHaveBeenCalled();
+		await expect(response.json()).resolves.toMatchObject({
+			error: { code: "CSRF_REJECTED" },
+		});
+	});
+
+	it("allows the server-to-server Cloudflare dev maintenance bridge without auth", async () => {
+		const { response, next, session } = await runAuthMiddleware({
+			pathname: "/_emdash/api/dev/scheduled-tasks",
+		});
+
+		expect(response.status).toBe(200);
+		expect(next).toHaveBeenCalledOnce();
+		expect(session.get).not.toHaveBeenCalled();
+	});
+
 	it("returns 401 with discovery metadata for unauthenticated MCP POST requests", async () => {
 		const { response, next } = await runAuthMiddleware({
 			pathname: "/_emdash/api/mcp",
@@ -107,6 +130,7 @@ describe("MCP discovery auth middleware", () => {
 			'Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource"',
 		);
 		await expect(response.json()).resolves.toEqual({
+			success: false,
 			error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" },
 		});
 	});
@@ -151,6 +175,7 @@ describe("MCP discovery auth middleware", () => {
 			'Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource"',
 		);
 		await expect(response.json()).resolves.toEqual({
+			success: false,
 			error: { code: "INVALID_TOKEN", message: "Invalid or expired token" },
 		});
 	});
@@ -169,6 +194,7 @@ describe("MCP discovery auth middleware", () => {
 		expect(response.status).toBe(401);
 		expect(session.get).not.toHaveBeenCalled();
 		await expect(response.json()).resolves.toEqual({
+			success: false,
 			error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" },
 		});
 	});
@@ -182,6 +208,7 @@ describe("MCP discovery auth middleware", () => {
 		expect(next).not.toHaveBeenCalled();
 		expect(response.status).toBe(403);
 		await expect(response.json()).resolves.toEqual({
+			success: false,
 			error: { code: "CSRF_REJECTED", message: "Missing required header" },
 		});
 	});

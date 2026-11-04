@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Snapshot } from "../../../src/api/handlers/snapshot.js";
 import { generateSnapshot } from "../../../src/api/handlers/snapshot.js";
 import type { Database } from "../../../src/database/types.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { setupTestDatabaseWithCollections } from "../../utils/test-db.js";
 
 describe("generateSnapshot", () => {
@@ -79,7 +80,7 @@ describe("generateSnapshot", () => {
 		expect(snapshot.tables.ec_post).toHaveLength(2);
 	});
 
-	it("includes scheduled posts whose scheduled_at has passed (#917)", async () => {
+	it("excludes scheduled posts whose scheduled_at has passed", async () => {
 		const pastIso = new Date(Date.now() - 1000).toISOString();
 		await sql`
 			INSERT INTO ec_post (id, slug, status, title, content, scheduled_at, created_at, updated_at, version)
@@ -89,7 +90,7 @@ describe("generateSnapshot", () => {
 		const snapshot = await generateSnapshot(db);
 		const slugs = (snapshot.tables.ec_post ?? []).map((r) => r.slug);
 
-		expect(slugs).toContain("past-schedule");
+		expect(slugs).not.toContain("past-schedule");
 	});
 
 	it("excludes soft-deleted content", async () => {
@@ -129,8 +130,33 @@ describe("generateSnapshot", () => {
 		// These system tables should have schema entries
 		expect(snapshot.schema).toHaveProperty("_emdash_collections");
 		expect(snapshot.schema).toHaveProperty("_emdash_fields");
+		expect(snapshot.schema).toHaveProperty("_emdash_block_types");
+		expect(snapshot.schema).toHaveProperty("_emdash_block_type_versions");
 		expect(snapshot.schema).toHaveProperty("_emdash_migrations");
 		expect(snapshot.schema).toHaveProperty("options");
+	});
+
+	it("includes block type definitions and retained versions", async () => {
+		const registry = new BlockTypeRegistry(db);
+		const created = await registry.createBlockType({
+			slug: "hero",
+			label: "Hero",
+			fields: [{ slug: "heading", label: "Heading", type: "string" }],
+		});
+		const versioned = await registry.updateBlockType("hero", {
+			expectedFingerprint: created.versions[0]!.fingerprint,
+			breaking: true,
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+		await registry.activateVersion("hero", 2, versioned.versions[0]!.fingerprint);
+
+		const snapshot = await generateSnapshot(db);
+
+		expect(snapshot.tables._emdash_block_types).toHaveLength(1);
+		expect(snapshot.tables._emdash_block_types[0]).toMatchObject({ current_version: 2 });
+		expect(snapshot.tables._emdash_block_type_versions.map((version) => version.version)).toEqual([
+			1, 2,
+		]);
 	});
 
 	it("includes column type info in schema", async () => {
@@ -226,5 +252,42 @@ describe("generateSnapshot", () => {
 		expect(snapshot.schema.ec_post.columns).toContain("content");
 		expect(snapshot.schema.ec_page.columns).toContain("title");
 		expect(snapshot.schema.ec_page.columns).toContain("content");
+	});
+
+	it("splits table reads when a result exceeds D1's response size limit", async () => {
+		const rowCount = 40;
+		const resultLimitChars = 10_000_000;
+		for (let i = 0; i < rowCount; i++) {
+			await sql`
+				INSERT INTO ec_post (id, slug, status, title, content, created_at, updated_at, version)
+				VALUES (
+					${`post${String(i).padStart(2, "0")}`}, ${`post-${i}`}, 'published', 'Large',
+					replace(hex(zeroblob(500000)), '0', 'x'), datetime('now'), datetime('now'), 1
+				)
+			`.execute(db);
+		}
+
+		const limited = db.withPlugin({
+			transformQuery: (args) => args.node,
+			transformResult: async ({ result }) => {
+				let chars = 0;
+				for (const row of result.rows) {
+					for (const value of Object.values(row as Record<string, unknown>)) {
+						if (typeof value === "string") chars += value.length;
+					}
+				}
+				if (chars > resultLimitChars) {
+					throw new Error("D1 query result exceeded the maximum response size limit of 50 MB");
+				}
+				return result;
+			},
+		});
+
+		const snapshot = await generateSnapshot(limited, { includeDrafts: true });
+
+		expect(snapshot.tables.ec_post?.map((row) => row.id)).toEqual(
+			Array.from({ length: rowCount }, (_, i) => `post${String(i).padStart(2, "0")}`),
+		);
+		expect(snapshot.tables.ec_post?.[0]).not.toHaveProperty("__emdash_snapshot_rowid");
 	});
 });

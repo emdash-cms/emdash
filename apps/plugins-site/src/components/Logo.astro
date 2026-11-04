@@ -1,0 +1,95 @@
+---
+interface Props {
+	loading?: "eager" | "lazy";
+}
+
+const { loading = "eager" } = Astro.props;
+---
+
+<span class="logo">
+	<span class="brand-name">EmDash</span>
+	<img
+		class="wordmark wordmark-light"
+		src="/logo-light.svg"
+		width="471"
+		height="118"
+		alt=""
+		aria-hidden="true"
+		loading={loading}
+		decoding="async"
+	/>
+	<img
+		class="wordmark wordmark-dark"
+		src="/logo-dark.svg"
+		width="471"
+		height="118"
+		alt=""
+		aria-hidden="true"
+		loading={loading}
+		decoding="async"
+	/>
+	<span class="divider" aria-hidden="true"></span>
+	<span class="product">Plugins</span>
+</span>
+
+<style>
+	.logo {
+		display: inline-flex;
+		align-items: center;
+		gap: 12px;
+		color: var(--ink);
+		font-size: 15px;
+		font-weight: 600;
+		line-height: 1;
+		letter-spacing: -0.01em;
+	}
+
+	.wordmark {
+		display: block;
+		width: auto;
+		height: 26px;
+		flex: none;
+	}
+
+	.wordmark-dark {
+		display: none;
+	}
+
+	:global(:root[data-theme="dark"]) .wordmark-light {
+		display: none;
+	}
+
+	:global(:root[data-theme="dark"]) .wordmark-dark {
+		display: block;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:global(:root:not([data-theme])) .wordmark-light {
+			display: none;
+		}
+
+		:global(:root:not([data-theme])) .wordmark-dark {
+			display: block;
+		}
+	}
+
+	.brand-name {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		white-space: nowrap;
+		clip-path: inset(50%);
+	}
+
+	.divider {
+		width: 1px;
+		height: 16px;
+		flex: none;
+		background: var(--line-strong);
+	}
+
+	.product {
+		white-space: nowrap;
+	}
+</style>

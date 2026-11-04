@@ -55,10 +55,13 @@ export const GET: APIRoute = async ({ url, locals }) => {
 			status,
 			locale: query.locale,
 			limit: query.limit,
+			cursor: query.cursor,
+			scope: query.scope,
 		});
 
 		return apiSuccess(result);
 	} catch (error) {
+		// handleError maps a malformed pagination cursor to a 400 INVALID_CURSOR.
 		return handleError(error, "Search failed", "SEARCH_ERROR");
 	}
 };

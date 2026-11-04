@@ -5,8 +5,8 @@
  * exact +N increments — concurrent mutators can collapse one or both
  * bookends, which is fine per the registry's class JSDoc.
  *
- * Activate Postgres parity by exporting `EMDASH_TEST_PG=1` and pointing
- * `PG_CONNECTION_STRING` at a writable test database.
+ * Activate Postgres parity by setting `EMDASH_TEST_PG` to a connection string
+ * for a test role with `CREATEDB` privileges.
  */
 
 import { beforeEach, afterEach, expect, it } from "vitest";

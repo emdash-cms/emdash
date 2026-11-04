@@ -104,30 +104,16 @@ function validate<T extends z.ZodType>(schema: T, data: unknown): ParseResult<z.
 	const result = schema.safeParse(data);
 
 	if (result.success) {
-		return result.data as z.infer<T>;
+		return result.data;
 	}
 
 	// Format Zod errors into a readable structure
-	const issues = result.error.issues.map((issue: z.ZodIssue) => ({
+	const issues = result.error.issues.map((issue: z.core.$ZodIssue) => ({
 		path: issue.path.join("."),
 		message: issue.message,
 	}));
 
-	return Response.json(
-		{
-			error: {
-				code: "VALIDATION_ERROR",
-				message: "Invalid request data",
-				details: { issues },
-			},
-		},
-		{
-			status: 400,
-			headers: {
-				"Cache-Control": "private, no-store",
-			},
-		},
-	);
+	return apiError("VALIDATION_ERROR", "Invalid request data", 400, { issues });
 }
 
 /**

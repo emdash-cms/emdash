@@ -1,4 +1,7 @@
+import type { BlockType } from "../../schema/block-types.js";
 import type { FieldType } from "../../schema/types.js";
+
+export const CONTENT_SOURCE_SCHEMA_VERSION = 2;
 
 export type MediaKind =
 	| "image"
@@ -10,7 +13,11 @@ export type MediaKind =
 	| "text"
 	| "other";
 
-export type MediaUsageReferenceType = "image_field" | "file_field" | "portable_text_image";
+export type MediaUsageReferenceType =
+	| "image_field"
+	| "file_field"
+	| "portable_text_image"
+	| "portable_text_video";
 
 export interface MediaUsageExtractionSubField {
 	slug: string;
@@ -26,6 +33,7 @@ export interface MediaUsageExtractionField {
 	slug: string;
 	type: FieldType;
 	validation?: MediaUsageExtractionValidation | null;
+	blockTypes?: readonly BlockType[];
 }
 
 export interface ExtractMediaUsageOccurrencesInput {
@@ -43,4 +51,9 @@ export interface ExtractedMediaUsageOccurrence {
 	providerAssetId: string;
 	mediaKind: MediaKind | null;
 	mimeType: string | null;
+	/**
+	 * Set when a local file is named by its URL rather than its media id. The
+	 * occurrence has no media id until the key is matched to a media item.
+	 */
+	storageKey?: string;
 }

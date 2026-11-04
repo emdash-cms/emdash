@@ -89,7 +89,7 @@ test.describe("Allowed Domains Settings", () => {
 		await page.getByRole("button", { name: "Add Domain" }).click();
 
 		// The add form should appear with a domain input
-		const domainInput = page.getByLabel("Domain");
+		const domainInput = page.getByRole("textbox", { name: "Domain", exact: true });
 		await expect(domainInput).toBeVisible({ timeout: 5000 });
 
 		// Fill in the domain
@@ -100,7 +100,8 @@ test.describe("Allowed Domains Settings", () => {
 		await submitButton.click();
 
 		// Wait for the domain to appear in the list
-		await expect(page.locator(`.font-medium`, { hasText: testDomain })).toBeVisible({
+		const allowedDomains = page.getByRole("region", { name: "Allowed Domains", exact: true });
+		await expect(allowedDomains.getByText(testDomain, { exact: true })).toBeVisible({
 			timeout: 10000,
 		});
 
@@ -131,7 +132,8 @@ test.describe("Allowed Domains Settings", () => {
 		await admin.waitForLoading();
 
 		// Verify the domain is visible
-		await expect(page.locator(`.font-medium`, { hasText: testDomain })).toBeVisible({
+		const allowedDomains = page.getByRole("region", { name: "Allowed Domains", exact: true });
+		await expect(allowedDomains.getByText(testDomain, { exact: true })).toBeVisible({
 			timeout: 10000,
 		});
 
@@ -148,7 +150,7 @@ test.describe("Allowed Domains Settings", () => {
 		await dialog.getByRole("button", { name: "Remove Domain" }).click();
 
 		// Domain should disappear from the list
-		await expect(page.locator(`.font-medium`, { hasText: testDomain })).not.toBeVisible({
+		await expect(allowedDomains.getByText(testDomain, { exact: true })).not.toBeVisible({
 			timeout: 10000,
 		});
 
@@ -172,7 +174,8 @@ test.describe("Allowed Domains Settings", () => {
 		await admin.waitForLoading();
 
 		// Verify domain is visible
-		await expect(page.locator(`.font-medium`, { hasText: testDomain })).toBeVisible({
+		const allowedDomains = page.getByRole("region", { name: "Allowed Domains", exact: true });
+		await expect(allowedDomains.getByText(testDomain, { exact: true })).toBeVisible({
 			timeout: 10000,
 		});
 
@@ -190,7 +193,7 @@ test.describe("Allowed Domains Settings", () => {
 		await expect(dialog).not.toBeVisible({ timeout: 5000 });
 
 		// Domain should still be there
-		await expect(page.locator(`.font-medium`, { hasText: testDomain })).toBeVisible();
+		await expect(allowedDomains.getByText(testDomain, { exact: true })).toBeVisible();
 
 		// Clean up
 		await fetch(`${baseUrl}/_emdash/api/admin/allowed-domains/${encodeURIComponent(testDomain)}`, {
@@ -213,14 +216,8 @@ test.describe("Allowed Domains Settings", () => {
 		await admin.waitForShell();
 		await admin.waitForLoading();
 
-		// Find the domain row
-		const domainRow = page.locator("div.flex.items-center.justify-between").filter({
-			hasText: testDomain,
-		});
-		await expect(domainRow).toBeVisible({ timeout: 10000 });
-
-		// Find the switch toggle in the row and click it
-		const toggle = domainRow.locator("button[role='switch']");
+		const toggle = page.getByRole("switch", { name: testDomain, exact: true });
+		await expect(toggle).toBeVisible({ timeout: 10000 });
 		await toggle.click();
 
 		// Wait for the update to complete -- success message should appear

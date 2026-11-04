@@ -152,6 +152,7 @@ describe("CSRF exemption for OAuth protocol endpoints", () => {
 		expect(next).not.toHaveBeenCalled();
 		expect(response.status).toBe(403);
 		await expect(response.json()).resolves.toEqual({
+			success: false,
 			error: { code: "CSRF_REJECTED", message: "Cross-origin request blocked" },
 		});
 	});

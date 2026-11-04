@@ -1,119 +1,59 @@
 /**
  * Block Menu Component
  *
- * Floating menu that appears when a block is selected via drag handle click.
- * Provides block actions:
- * - Turn into (transform to different block type)
- * - Duplicate
- * - Delete
- *
- * Uses Floating UI for positioning relative to the selected block.
+ * Opens from the drag handle's ⋮⋮ button with the block already node-selected.
+ * Offers Turn into, alignment, numbering, duplicate, move, and delete.
  */
 
-import { Button } from "@cloudflare/kumo";
-import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
+import { Menu } from "@cloudflare/kumo/primitives/menu";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
-	DotsSixVertical,
-	Paragraph,
-	TextHOne,
-	TextHTwo,
-	TextHThree,
-	Quotes,
-	Code,
-	List,
-	ListNumbers,
+	ArrowDown,
+	ArrowsClockwise,
+	ArrowUUpLeft,
+	ArrowUUpRight,
+	ArrowUp,
 	Copy,
+	TextAlignCenter,
+	TextAlignLeft,
+	TextAlignRight,
 	Trash,
-	type Icon as PhosphorIcon,
 } from "@phosphor-icons/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
-import { createPortal } from "react-dom";
 
-import { useStableCallback } from "../../lib/hooks";
 import { cn } from "../../lib/utils";
-import { CaretNext, CaretPrev } from "../ArrowIcons.js";
+import { duplicateBlocks, moveBlocks } from "./BlockCommands.js";
+import { activeTextBlockType, textBlockTypes, turnIntoMenuTypes } from "./blockTypes.js";
+import {
+	EditorMenuItem,
+	EditorMenuLabel,
+	EditorMenuRadioItem,
+	EditorMenuSeparator,
+	EditorSubmenu,
+	editorMenuPopupClassName,
+	tabToEditor,
+} from "./EditorMenu.js";
 
-/**
- * Block transform options
- */
-interface BlockTransform {
-	id: string;
-	label: MessageDescriptor;
-	icon: PhosphorIcon;
-	transform: (editor: Editor) => void;
-}
+const NODE_LABELS: Record<string, MessageDescriptor> = {
+	image: msg`Image`,
+	videoBlock: msg`Video`,
+	gallery: msg`Gallery`,
+	table: msg`Table`,
+	horizontalRule: msg`Divider`,
+	htmlBlock: msg`HTML`,
+	iframeBlock: msg`Iframe`,
+	pluginBlock: msg`Embed`,
+};
 
-const blockTransforms: BlockTransform[] = [
-	{
-		id: "paragraph",
-		label: msg`Paragraph`,
-		icon: Paragraph,
-		transform: (editor) => {
-			editor.chain().focus().setNode("paragraph").run();
-		},
-	},
-	{
-		id: "heading1",
-		label: msg`Heading 1`,
-		icon: TextHOne,
-		transform: (editor) => {
-			editor.chain().focus().setNode("heading", { level: 1 }).run();
-		},
-	},
-	{
-		id: "heading2",
-		label: msg`Heading 2`,
-		icon: TextHTwo,
-		transform: (editor) => {
-			editor.chain().focus().setNode("heading", { level: 2 }).run();
-		},
-	},
-	{
-		id: "heading3",
-		label: msg`Heading 3`,
-		icon: TextHThree,
-		transform: (editor) => {
-			editor.chain().focus().setNode("heading", { level: 3 }).run();
-		},
-	},
-	{
-		id: "blockquote",
-		label: msg`Quote`,
-		icon: Quotes,
-		transform: (editor) => {
-			editor.chain().focus().toggleBlockquote().run();
-		},
-	},
-	{
-		id: "codeBlock",
-		label: msg`Code Block`,
-		icon: Code,
-		transform: (editor) => {
-			editor.chain().focus().toggleCodeBlock().run();
-		},
-	},
-	{
-		id: "bulletList",
-		label: msg`Bullet List`,
-		icon: List,
-		transform: (editor) => {
-			editor.chain().focus().toggleBulletList().run();
-		},
-	},
-	{
-		id: "orderedList",
-		label: msg`Numbered List`,
-		icon: ListNumbers,
-		transform: (editor) => {
-			editor.chain().focus().toggleOrderedList().run();
-		},
-	},
-];
+const ALIGNMENTS = [
+	{ value: "left", label: msg`Left`, icon: TextAlignLeft },
+	{ value: "center", label: msg`Center`, icon: TextAlignCenter },
+	{ value: "right", label: msg`Right`, icon: TextAlignRight },
+] as const;
 
 interface BlockMenuProps {
 	editor: Editor;
@@ -123,224 +63,162 @@ interface BlockMenuProps {
 	isOpen: boolean;
 	/** Callback to close the menu */
 	onClose: () => void;
+	/** Callback after the menu's exit transition completes */
+	onCloseComplete?: () => void;
 }
 
 /**
  * Block Menu - floating menu for block-level actions
  */
-export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuProps) {
+export function BlockMenu({
+	editor,
+	anchorElement,
+	isOpen,
+	onClose,
+	onCloseComplete,
+}: BlockMenuProps) {
 	const { t } = useLingui();
-	const [showTransforms, setShowTransforms] = React.useState(false);
-	const menuRef = React.useRef<HTMLDivElement>(null);
-	const stableOnClose = useStableCallback(onClose);
+	const anchorRef = React.useRef<HTMLElement | null>(anchorElement);
 
-	const { refs, floatingStyles } = useFloating({
-		open: isOpen,
-		placement: "left-start",
-		middleware: [offset({ mainAxis: 8, crossAxis: 0 }), flip(), shift({ padding: 8 })],
-		whileElementsMounted: autoUpdate,
-	});
+	React.useLayoutEffect(() => {
+		if (anchorElement) anchorRef.current = anchorElement;
+	}, [anchorElement]);
 
-	// Sync the anchor element
-	React.useEffect(() => {
-		if (anchorElement) {
-			refs.setReference(anchorElement);
-		}
-	}, [anchorElement, refs]);
-
-	// Close on escape
-	React.useEffect(() => {
-		if (!isOpen) return;
-
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
-				e.preventDefault();
-				if (showTransforms) {
-					setShowTransforms(false);
-				} else {
-					stableOnClose();
-				}
-			}
-		};
-
-		document.addEventListener("keydown", handleKeyDown);
-		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [isOpen, stableOnClose, showTransforms]);
-
-	// Close on click outside
-	React.useEffect(() => {
-		if (!isOpen) return;
-
-		const handleClickOutside = (e: MouseEvent) => {
-			const target = e.target;
-			// Don't close if clicking on the drag handle or menu itself
-			if (target instanceof Node && menuRef.current?.contains(target)) return;
-			if (target instanceof Element && target.closest("[data-block-handle]")) return;
-
-			stableOnClose();
-		};
-
-		// Delay to avoid immediate close from the click that opened it
-		const timer = setTimeout(() => {
-			document.addEventListener("mousedown", handleClickOutside);
-		}, 0);
-
-		return () => {
-			clearTimeout(timer);
-			document.removeEventListener("mousedown", handleClickOutside);
-		};
-	}, [isOpen, stableOnClose]);
-
-	// Reset submenu state when menu closes
-	React.useEffect(() => {
-		if (!isOpen) {
-			setShowTransforms(false);
-		}
-	}, [isOpen]);
-
-	const handleDuplicate = () => {
-		if (!(editor.state.selection instanceof NodeSelection)) {
-			onClose();
-			return;
-		}
-
-		const { selection, doc } = editor.state;
-		const { from, to } = selection;
-		const slice = doc.slice(from, to);
-		editor
-			.chain()
-			.focus()
-			.command(({ tr }) => {
-				tr.insert(to, slice.content);
-				return true;
-			})
-			.run();
-
-		onClose();
-	};
+	const selection = editor.state.selection;
+	const selectedNode = selection instanceof NodeSelection ? selection.node : null;
+	const blockIndex = selection instanceof NodeSelection ? selection.$from.index(0) : -1;
+	const activeType = selectedNode ? activeTextBlockType(editor) : undefined;
+	const nodeLabel = selectedNode ? NODE_LABELS[selectedNode.type.name] : undefined;
+	const blockLabel = activeType ? t(activeType.label) : nodeLabel ? t(nodeLabel) : t`Block`;
+	const canAlign = selectedNode?.type.name === "paragraph" || selectedNode?.type.name === "heading";
+	// No alignment means the start edge, which is the right in right-to-left text.
+	const startAlignment =
+		isOpen && getComputedStyle(editor.view.dom).direction === "rtl" ? "right" : "left";
+	const currentAlignment =
+		typeof selectedNode?.attrs.textAlign === "string"
+			? selectedNode.attrs.textAlign
+			: startAlignment;
+	const isOrderedList = selectedNode?.type.name === "orderedList";
 
 	const handleDelete = () => {
-		if (!(editor.state.selection instanceof NodeSelection)) {
-			onClose();
-			return;
-		}
-
+		if (!(editor.state.selection instanceof NodeSelection)) return;
 		editor.chain().focus().deleteSelection().run();
-		onClose();
 	};
 
-	const handleTransform = (transform: BlockTransform) => {
-		transform.transform(editor);
-		onClose();
-	};
-
-	if (!isOpen) return null;
-
-	return createPortal(
-		<div
-			ref={(node) => {
-				menuRef.current = node;
-				refs.setFloating(node);
-			}}
-			style={floatingStyles}
-			className="z-[100] rounded-lg border bg-kumo-overlay shadow-lg min-w-[180px] overflow-hidden"
-		>
-			{showTransforms ? (
-				// Transform submenu
-				<div className="py-1">
-					<button
-						type="button"
-						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
-						onClick={() => setShowTransforms(false)}
-					>
-						<CaretPrev className="h-4 w-4" />
-						<span>{t`Back`}</span>
-					</button>
-					<div className="h-px bg-kumo-line my-1" />
-					{blockTransforms.map((transform) => (
-						<button
-							key={transform.id}
-							type="button"
-							className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
-							onClick={() => handleTransform(transform)}
-						>
-							<transform.icon className="h-4 w-4 text-kumo-subtle" />
-							<span>{t(transform.label)}</span>
-						</button>
-					))}
-				</div>
-			) : (
-				// Main menu
-				<div className="py-1">
-					<button
-						type="button"
-						className="flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
-						onClick={() => setShowTransforms(true)}
-					>
-						<span className="flex items-center gap-2">
-							<Paragraph className="h-4 w-4 text-kumo-subtle" />
-							<span>{t`Turn into`}</span>
-						</span>
-						<CaretNext className="h-4 w-4 text-kumo-subtle" />
-					</button>
-					<button
-						type="button"
-						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
-						onClick={handleDuplicate}
-					>
-						<Copy className="h-4 w-4 text-kumo-subtle" />
-						<span>{t`Duplicate`}</span>
-					</button>
-					<div className="h-px bg-kumo-line my-1" />
-					<button
-						type="button"
-						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start text-kumo-danger"
-						onClick={handleDelete}
-					>
-						<Trash className="h-4 w-4" />
-						<span>{t`Delete`}</span>
-					</button>
-				</div>
-			)}
-		</div>,
-		document.body,
-	);
-}
-
-/**
- * Block Drag Handle Component
- *
- * Shown in the left gutter of each block. Clicking opens the block menu,
- * dragging reorders blocks.
- */
-interface BlockHandleProps {
-	onClick: (e: React.MouseEvent) => void;
-	onDragStart?: (e: React.DragEvent) => void;
-	selected?: boolean;
-}
-
-export function BlockHandle({ onClick, onDragStart, selected }: BlockHandleProps) {
-	const { t } = useLingui();
 	return (
-		<Button
-			type="button"
-			variant="ghost"
-			shape="square"
-			className={cn(
-				"h-6 w-6 cursor-grab active:cursor-grabbing",
-				"text-kumo-subtle/50 hover:text-kumo-subtle",
-				selected && "text-kumo-subtle",
-			)}
-			onClick={onClick}
-			onDragStart={onDragStart}
-			draggable
-			data-block-handle
-			aria-label={t`Drag to reorder block`}
+		<Menu.Root
+			open={isOpen}
+			modal={false}
+			onOpenChangeComplete={(open) => {
+				if (!open) onCloseComplete?.();
+			}}
+			onOpenChange={(open, eventDetails) => {
+				if (open) return;
+				if (eventDetails.reason === "trigger-hover") {
+					eventDetails.cancel();
+					return;
+				}
+				onClose();
+			}}
 		>
-			<DotsSixVertical className="h-4 w-4" />
-		</Button>
+			{/* Base UI registers a menu in its floating tree through a trigger. Without
+			    one, opening the Turn into submenu reads as a sibling opening and closes
+			    this menu, so a hidden trigger stands in for the drag handle. */}
+			<Menu.Trigger tabIndex={-1} aria-hidden="true" className="sr-only" />
+			<Menu.Portal>
+				<Menu.Positioner
+					anchor={anchorRef}
+					side="inline-start"
+					align="start"
+					sideOffset={6}
+					collisionPadding={8}
+					className="z-[100]"
+				>
+					<Menu.Popup
+						aria-label={t`Block actions`}
+						finalFocus={() => (editor.isDestroyed ? false : editor.view.dom)}
+						onKeyDown={tabToEditor(editor, onClose)}
+						className={cn(editorMenuPopupClassName, "w-60")}
+					>
+						<Menu.Group>
+							<EditorMenuLabel>{blockLabel}</EditorMenuLabel>
+							{activeType && (
+								<EditorSubmenu icon={ArrowsClockwise} label={t`Turn into`}>
+									<Menu.RadioGroup
+										value={activeType.id}
+										onValueChange={(id) =>
+											textBlockTypes.find((type) => type.id === id)?.transform(editor)
+										}
+									>
+										{turnIntoMenuTypes(activeType.id).map((type) => (
+											<EditorMenuRadioItem
+												key={type.id}
+												value={type.id}
+												icon={type.icon}
+												label={t(type.label)}
+											/>
+										))}
+									</Menu.RadioGroup>
+								</EditorSubmenu>
+							)}
+							{canAlign && (
+								<EditorSubmenu icon={TextAlignLeft} label={t`Align`}>
+									<Menu.RadioGroup
+										value={currentAlignment}
+										onValueChange={(value: string) =>
+											editor.chain().focus().setTextAlign(value).run()
+										}
+									>
+										{ALIGNMENTS.map((alignment) => (
+											<EditorMenuRadioItem
+												key={alignment.value}
+												value={alignment.value}
+												icon={alignment.icon}
+												label={t(alignment.label)}
+											/>
+										))}
+									</Menu.RadioGroup>
+								</EditorSubmenu>
+							)}
+							{isOrderedList && (
+								<>
+									<EditorMenuItem
+										icon={ArrowUUpRight}
+										label={t`Continue numbering`}
+										disabled={!editor.can().continueOrderedList()}
+										onClick={() => editor.chain().focus().continueOrderedList().run()}
+									/>
+									<EditorMenuItem
+										icon={ArrowUUpLeft}
+										label={t`Restart numbering`}
+										disabled={!editor.can().restartOrderedList()}
+										onClick={() => editor.chain().focus().restartOrderedList().run()}
+									/>
+								</>
+							)}
+							<EditorMenuItem
+								icon={Copy}
+								label={t`Duplicate`}
+								onClick={() => duplicateBlocks(editor)}
+							/>
+							<EditorMenuItem
+								icon={ArrowUp}
+								label={t`Move up`}
+								disabled={blockIndex <= 0}
+								onClick={() => moveBlocks(editor, "up")}
+							/>
+							<EditorMenuItem
+								icon={ArrowDown}
+								label={t`Move down`}
+								disabled={blockIndex < 0 || blockIndex >= editor.state.doc.childCount - 1}
+								onClick={() => moveBlocks(editor, "down")}
+							/>
+						</Menu.Group>
+						<EditorMenuSeparator />
+						<EditorMenuItem icon={Trash} label={t`Delete`} danger onClick={handleDelete} />
+					</Menu.Popup>
+				</Menu.Positioner>
+			</Menu.Portal>
+		</Menu.Root>
 	);
 }
-
-export { blockTransforms };
-export type { BlockTransform };

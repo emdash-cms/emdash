@@ -1,5 +1,72 @@
 import type { MediaItem, MediaProviderItem } from "./api/media.js";
 
+export function canonicalMediaProviderId(provider: string | undefined): string {
+	if (!provider) return "local";
+	return provider === "external-url" ? "external" : provider;
+}
+
+export interface MediaFocalPoint {
+	focalX: number;
+	focalY: number;
+}
+
+function isFocalCoordinate(value: unknown): value is number {
+	return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+export function normalizeMediaFocalPoint(value: {
+	focalX?: number | null;
+	focalY?: number | null;
+}): MediaFocalPoint | null {
+	const { focalX, focalY } = value;
+	if (!isFocalCoordinate(focalX) || !isFocalCoordinate(focalY)) return null;
+	return { focalX, focalY };
+}
+
+export function getMediaObjectPosition(value: {
+	focalX?: number | null;
+	focalY?: number | null;
+}): string | undefined {
+	const point = normalizeMediaFocalPoint(value);
+	if (!point) return undefined;
+	return `${Math.round(point.focalX * 10_000) / 100}% ${Math.round(point.focalY * 10_000) / 100}%`;
+}
+
+function isDimension(value: unknown): value is number {
+	return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+/** Whether a width and height have a picture's shape, within a pixel of rounding either way. */
+function hasShapeOf(
+	width: unknown,
+	height: unknown,
+	picture: { width?: unknown; height?: unknown },
+) {
+	if (!isDimension(width) || !isDimension(height)) return false;
+	if (!isDimension(picture.width) || !isDimension(picture.height)) return false;
+	return (
+		Math.abs(width * picture.height - height * picture.width) <=
+		Math.max(picture.width, picture.height)
+	);
+}
+
+/**
+ * Whether replacing an image's picture with `next` drops its display height.
+ * A display size in the old picture's shape would crop a new picture of
+ * another shape, so the height goes, and follows the new picture. A display
+ * size in another shape crops on purpose, as an imported WordPress thumbnail
+ * does, and stays.
+ */
+export function dropsDisplayHeight(
+	image: { width?: unknown; height?: unknown; displayWidth?: unknown; displayHeight?: unknown },
+	next: { width?: unknown; height?: unknown },
+): boolean {
+	return (
+		hasShapeOf(image.displayWidth, image.displayHeight, image) &&
+		!hasShapeOf(image.displayWidth, image.displayHeight, next)
+	);
+}
+
 /** Read a string value from an untyped `meta` bag, or undefined. */
 export function metaString(
 	meta: Record<string, unknown> | undefined,
@@ -9,30 +76,132 @@ export function metaString(
 	return typeof value === "string" ? value : undefined;
 }
 
+/** Read a finite number from an untyped `meta` bag, or undefined. */
+export function metaNumber(
+	meta: Record<string, unknown> | undefined,
+	key: string,
+): number | undefined {
+	const value = meta?.[key];
+	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+/** Streaming playback URLs a provider may expose for a video/audio item. */
+export interface MediaPlayback {
+	hls?: string;
+	dash?: string;
+}
+
+/**
+ * Read streaming playback URLs from an untyped `meta` bag.
+ *
+ * Streaming providers do not expose a single fetchable file URL — Cloudflare
+ * Stream, for example, reports `meta.playback = { hls, dash }` and uses
+ * `previewUrl` for the poster thumbnail. Returns undefined when the item has
+ * no streaming sources (e.g. a plain uploaded MP4, which is playable directly).
+ */
+export function metaPlayback(meta: Record<string, unknown> | undefined): MediaPlayback | undefined {
+	const raw = meta?.playback;
+	if (!isRecord(raw)) return undefined;
+	const hls = typeof raw.hls === "string" ? raw.hls : undefined;
+	const dash = typeof raw.dash === "string" ? raw.dash : undefined;
+	return hls || dash ? { hls, dash } : undefined;
+}
+
+/** Keep the legacy metadata alias consistent with the per-use caption. */
+export function syncMediaCaption<T extends { caption?: string; meta?: Record<string, unknown> }>(
+	value: T,
+): T {
+	const caption = value.caption ?? metaString(value.meta, "caption");
+	if (caption === undefined) return value;
+	return {
+		...value,
+		caption,
+		...(value.meta && Object.hasOwn(value.meta, "caption")
+			? { meta: { ...value.meta, caption } }
+			: {}),
+	};
+}
+
 export function providerItemToMediaItem(
 	providerId: string,
 	item: MediaProviderItem,
 ): MediaItem & { provider: string; meta?: Record<string, unknown> } {
-	return {
+	return syncMediaCaption({
 		id: item.id,
 		filename: item.filename,
 		mimeType: item.mimeType,
 		url: item.previewUrl || "",
-		size: item.size || 0,
+		// Providers may report size as a first-class field or stash it in `meta`
+		// (Cloudflare Stream uses `meta.size`); 0 means "unknown".
+		size: item.size ?? metaNumber(item.meta, "size") ?? 0,
 		width: item.width,
 		height: item.height,
 		// Prefer first-class fields; some providers stash LQIP in `meta`.
 		blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
 		dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
 		alt: item.alt,
+		caption: item.caption ?? metaString(item.meta, "caption"),
 		createdAt: new Date().toISOString(),
 		provider: providerId,
 		meta: item.meta,
-	} as MediaItem & { provider: string; meta?: Record<string, unknown> };
+	});
+}
+
+const MAX_UPLOAD_PREVIEW_BYTES = 8 * 1024 * 1024;
+const UPLOAD_PREVIEW_MIME_TYPES = new Set([
+	"image/jpeg",
+	"image/png",
+	"image/gif",
+	"image/webp",
+	"image/avif",
+]);
+
+/** A local preview URL for a file being uploaded, or undefined for large files and formats not previewed. */
+export function createUploadPreviewUrl(file: File): string | undefined {
+	if (file.size > MAX_UPLOAD_PREVIEW_BYTES || !UPLOAD_PREVIEW_MIME_TYPES.has(file.type)) {
+		return undefined;
+	}
+	try {
+		return URL.createObjectURL(file);
+	} catch {
+		return undefined;
+	}
 }
 
 /** Root-absolute path prefix for locally stored media served by EmDash. */
 const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
+
+/**
+ * URL of the local media file route for a storage key or media ID.
+ *
+ * Keys can contain `/` (an existing bucket layout such as `2026/08/photo.jpg`), and the
+ * `[...key]` route matches them as path segments, so each segment is encoded on its own:
+ * `?`, `#` and `%` stay inside the path, but `/` still separates segments. A key with an
+ * empty, `.` or `..` segment is encoded whole instead, because the URL parser would
+ * collapse those segments (even percent-encoded ones) and move the request off the route;
+ * encoded whole, the slashes become `%2F` and no segment is a dot segment any more.
+ *
+ * That covers slash-delimited traversal only. A key that is exactly `.` or `..` has no
+ * representation as a path segment: the parser collapses `%2e` and `%2e%2e` the same way.
+ * Neither is a valid storage key.
+ */
+export function localMediaFileUrl(key: string): string {
+	const segments = key.split("/");
+	if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+		return `${INTERNAL_MEDIA_PREFIX}${encodeURIComponent(key)}`;
+	}
+	return `${INTERNAL_MEDIA_PREFIX}${segments.map(encodeURIComponent).join("/")}`;
+}
+
+export function getMediaPreviewUrl(originalUrl: string, contentHash?: string | null): string {
+	if (!contentHash || !originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return originalUrl;
+	const separator = originalUrl.includes("?") ? "&" : "?";
+	return `${originalUrl}${separator}_emdash_media=${encodeURIComponent(contentHash)}`;
+}
 
 /**
  * Default rendered width (CSS px) for admin grid thumbnails, requested at ~2x
@@ -66,19 +235,21 @@ export function getMediaThumbnailUrl(
 	originalUrl: string,
 	mimeType: string,
 	width: number = MEDIA_THUMBNAIL_WIDTH,
+	contentHash?: string | null,
 ): string {
-	if (!mimeType.startsWith("image/") || mimeType === "image/svg+xml") return originalUrl;
-	if (!originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return originalUrl;
+	const previewUrl = getMediaPreviewUrl(originalUrl, contentHash);
+	if (!mimeType.startsWith("image/") || mimeType === "image/svg+xml") return previewUrl;
+	if (!originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return previewUrl;
 
 	// Astro authorizes the media route by absolute origin (see the
 	// `image.remotePatterns` entry the EmDash integration registers), so the
 	// transform source must be an absolute same-origin URL. The admin is served
 	// from the site origin, so `window.location.origin` is the right host.
 	const origin = typeof window === "undefined" ? "" : window.location.origin;
-	if (!origin) return originalUrl;
+	if (!origin) return previewUrl;
 
 	const params = new URLSearchParams({
-		href: `${origin}${originalUrl}`,
+		href: `${origin}${previewUrl}`,
 		w: String(width),
 		f: "webp",
 	});

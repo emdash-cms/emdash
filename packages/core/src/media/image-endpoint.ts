@@ -20,8 +20,30 @@ export const ALLOWED_TRANSFORM_FORMATS = ["webp", "avif", "jpeg", "png"] as cons
 /** Default output format -- broad support, strong compression. */
 export const DEFAULT_TRANSFORM_FORMAT: ImageTransformFormat = "webp";
 
+/**
+ * Default output quality for lossy formats (WebP/AVIF/JPEG) when the request
+ * doesn't specify one. Matches the default Cloudflare applies to URL-based
+ * image transformations. The Images *binding* applies no default of its own
+ * and encodes near-losslessly when quality is omitted (a 2048px WebP comes
+ * out ~900 KB instead of ~100 KB), so the endpoint sends an explicit quality
+ * for lossy output. PNG is exempt: an explicit PNG quality switches the
+ * binding to lossy PNG8, which is not a safe default for a lossless format.
+ */
+export const DEFAULT_TRANSFORM_QUALITY = 85;
+
 /** Upper bound for a requested dimension; caps the work a single request asks for. */
 export const MAX_TRANSFORM_DIMENSION = 4000;
+
+/** Weak prefix on an ETag, stripped for weak comparison per RFC 7232. */
+const WEAK_ETAG_PREFIX = /^W\//;
+
+/**
+ * Strip surrounding whitespace and the weak prefix from an ETag value for
+ * weak comparison. Defined at module scope so it is not recreated per request.
+ */
+function stripWeakEtagPrefix(value: string): string {
+	return value.trim().replace(WEAK_ETAG_PREFIX, "");
+}
 
 /** A format string accepted by {@link ImageTransformOptions.format}. */
 export type ImageTransformFormat = (typeof ALLOWED_TRANSFORM_FORMATS)[number];
@@ -31,11 +53,103 @@ export interface ImageTransformOptions {
 	width?: number;
 	height?: number;
 	format: ImageTransformFormat;
+	/**
+	 * Explicitly-requested quality (1-100), or `undefined` when the request
+	 * carried no `q`. Callers apply their own default per format (see
+	 * {@link DEFAULT_TRANSFORM_QUALITY}); lossless PNG deliberately gets none.
+	 */
 	quality?: number;
 }
 
-/** Long-lived immutable cache -- transform output is deterministic per key+params. */
+/** Long-lived cache for content-addressed image URLs. */
 export const IMMUTABLE_IMAGE_CACHE = "public, max-age=31536000, immutable";
+
+/** Cache policy for media keys that Replace original may overwrite. */
+export const MUTABLE_MEDIA_CACHE_CONTROL = "public, max-age=0, must-revalidate";
+
+/**
+ * Format a Date as an HTTP-date (RFC 7231).
+ */
+export function formatHttpDate(date: Date): string {
+	return date.toUTCString();
+}
+
+/**
+ * Build a weak validator from representation metadata. Weak because it is based
+ * on size and modification time rather than a content hash. Keeps the same
+ * shape for stored files and derived transforms so replacements change the tag.
+ */
+export function makeWeakEtag(size: number, lastModified?: Date, suffix?: string): string {
+	let value = String(size);
+	if (lastModified) value += `-${lastModified.getTime()}`;
+	if (suffix) value += `-${suffix}`;
+	return `W/"${value}"`;
+}
+
+/**
+ * Build a canonical fingerprint of the transform query params that affect the
+ * derived /_image bytes. Used as the suffix of a transform's weak ETag.
+ */
+export function getTransformFingerprint(params: URLSearchParams): string {
+	const parts: string[] = [];
+	const append = (name: string) => {
+		const value = params.get(name);
+		if (value !== null) parts.push(`${name}=${value}`);
+	};
+	append("w");
+	append("h");
+	append("f");
+	append("q");
+	append("fit");
+	return parts.join("&");
+}
+
+/**
+ * Check whether a request's preconditions are satisfied for the given
+ * representation. Returns true when the client already has the current version.
+ */
+export function isNotModified(
+	request: Request,
+	size: number,
+	lastModified?: Date,
+	suffix?: string,
+): boolean {
+	const etag = makeWeakEtag(size, lastModified, suffix);
+	const ifNoneMatch = request.headers.get("If-None-Match");
+	if (ifNoneMatch !== null) {
+		if (ifNoneMatch.trim() === "*") return true;
+		// If-None-Match uses weak comparison: "W/" prefixes are ignored.
+		const requestedTags = ifNoneMatch.split(",").map(stripWeakEtagPrefix);
+		return requestedTags.includes(stripWeakEtagPrefix(etag));
+	}
+	const ifModifiedSince = request.headers.get("If-Modified-Since");
+	if (ifModifiedSince !== null && lastModified) {
+		const since = Date.parse(ifModifiedSince);
+		if (!Number.isNaN(since)) {
+			// HTTP-date has one-second precision; round the stored time down so
+			// a Last-Modified header replayed as If-Modified-Since always matches.
+			return Math.floor(lastModified.getTime() / 1000) * 1000 <= since;
+		}
+	}
+	return false;
+}
+
+/**
+ * Headers that make a mutable representation conditionally cacheable.
+ */
+export function validatorHeaders(
+	size: number,
+	lastModified?: Date,
+	suffix?: string,
+): Record<string, string> {
+	const headers: Record<string, string> = {
+		ETag: makeWeakEtag(size, lastModified, suffix),
+	};
+	if (lastModified) {
+		headers["Last-Modified"] = formatHttpDate(lastModified);
+	}
+	return headers;
+}
 
 /**
  * Raster types safe to render inline. Anything else (SVG, PDF, ...) is served
@@ -58,14 +172,19 @@ const SAFE_INLINE_IMAGE_TYPES = new Set([
  * inline raster allowlist (so a stored SVG can't run scripts in the site
  * origin). Transformed output is always generated raster and doesn't need this.
  */
-export function originalMediaHeaders(contentType: string): Record<string, string> {
+export function originalMediaHeaders(
+	contentType: string,
+	size?: number,
+	lastModified?: Date,
+): Record<string, string> {
 	return {
 		"Content-Type": contentType,
-		"Cache-Control": IMMUTABLE_IMAGE_CACHE,
+		"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
 		"X-Content-Type-Options": "nosniff",
 		"Content-Security-Policy":
 			"sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
 		"Content-Disposition": SAFE_INLINE_IMAGE_TYPES.has(contentType) ? "inline" : "attachment",
+		...(size !== undefined ? validatorHeaders(size, lastModified) : {}),
 	};
 }
 
@@ -74,6 +193,8 @@ const SAFE_STORAGE_KEY = /^[A-Za-z0-9._-]+$/;
 
 /** Plain decimal digits only -- rejects "1e3", "0x10", "+5", whitespace. */
 const DECIMAL_DIGITS = /^\d+$/;
+const NUMERIC_QUALITY = /^-?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i;
+const QUALITY_PRESETS: Record<string, number> = { low: 25, mid: 50, high: 80, max: 100 };
 
 /** Whether a storage key is safe to resolve against the storage backend. */
 export function isSafeTransformKey(key: string): boolean {
@@ -118,9 +239,30 @@ export type ParsedTransformParams =
 	| { ok: false; message: string };
 
 /**
+ * Resolve the quality to send to the image binding for a transform. An
+ * explicitly-requested quality always wins. Otherwise lossy formats
+ * (WebP/AVIF/JPEG) get {@link DEFAULT_TRANSFORM_QUALITY} because the Images
+ * binding encodes near-losslessly when quality is omitted; lossless PNG gets
+ * `undefined` because an explicit PNG quality switches the binding to lossy
+ * PNG8, which is not a safe default for a lossless format.
+ */
+export function resolveTransformQuality(
+	format: ImageTransformFormat,
+	requested: number | undefined,
+): number | undefined {
+	if (requested !== undefined) return requested;
+	return format === "png" ? undefined : DEFAULT_TRANSFORM_QUALITY;
+}
+
+/**
  * Parse and validate `?w=&h=&f=&q=` query params. Width is required (it sizes
  * the rendition); dimensions are bounded so a request can't ask for an
- * unbounded or nonsensical transform.
+ * unbounded or nonsensical transform. Format falls back to
+ * {@link DEFAULT_TRANSFORM_FORMAT} when not requested. `q` accepts Astro presets
+ * or finite numbers rounded and clamped to 1-100. It is otherwise left
+ * `undefined` so the caller can apply a per-format
+ * default (lossy formats get one, lossless PNG does not — see
+ * {@link DEFAULT_TRANSFORM_QUALITY}).
  */
 export function parseTransformParams(params: URLSearchParams): ParsedTransformParams {
 	const width = parseDimension(params.get("w"));
@@ -139,14 +281,18 @@ export function parseTransformParams(params: URLSearchParams): ParsedTransformPa
 		format = formatRaw;
 	}
 
-	const qualityRaw = params.get("q");
 	let quality: number | undefined;
+	const qualityRaw = params.get("q");
 	if (qualityRaw !== null) {
-		const q = Number(qualityRaw);
-		if (!Number.isInteger(q) || q < 1 || q > 100) {
-			return { ok: false, message: "Invalid 'q' (quality), expected 1-100" };
+		if (Object.hasOwn(QUALITY_PRESETS, qualityRaw)) {
+			quality = QUALITY_PRESETS[qualityRaw];
+		} else {
+			const q = NUMERIC_QUALITY.test(qualityRaw) ? Number(qualityRaw) : Number.NaN;
+			if (!Number.isFinite(q)) {
+				return { ok: false, message: "Invalid 'q' (quality), expected a number or Astro preset" };
+			}
+			quality = Math.round(Math.min(100, Math.max(1, q)));
 		}
-		quality = q;
 	}
 
 	return { ok: true, options: { width, height, format, quality } };

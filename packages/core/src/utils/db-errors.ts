@@ -26,10 +26,12 @@ function messageOf(error: unknown): string {
  * Returns true when `error` is a "column does not exist" error.
  * Used to handle where filters that reference non-existent field names
  * gracefully (return empty results) instead of propagating a SQL error.
+ * When `column` is given, only errors naming that column match.
  */
-export function isMissingColumnError(error: unknown): boolean {
+export function isMissingColumnError(error: unknown, column?: string): boolean {
 	const message = messageOf(error);
 	if (!message) return false;
+	if (column && !message.includes(column.toLowerCase())) return false;
 
 	// SQLite / D1: "no such column: foo"
 	if (message.includes("no such column")) return true;
@@ -44,6 +46,21 @@ export function isMissingColumnError(error: unknown): boolean {
 		return true;
 
 	return false;
+}
+
+const SQLITE_MISSING_COLUMN_RE =
+	/\bno such column:\s*([^:\r\n]+?)(?= - should this be a string literal in single-quotes\?|:|$)/;
+const POSTGRES_MISSING_COLUMN_RE = /\bcolumn\s+(.+?)\s+does not exist\b/;
+const COLUMN_IDENTIFIER_RE =
+	/^(?:"[a-z_][a-z0-9_]*"|[a-z_][a-z0-9_]*)(?:\.(?:"[a-z_][a-z0-9_]*"|[a-z_][a-z0-9_]*))?$/;
+
+/** The missing column, including its qualifier if present, normalized for comparison. */
+export function getMissingColumnIdentifier(error: unknown): string | undefined {
+	const message = messageOf(error);
+	const identifier =
+		SQLITE_MISSING_COLUMN_RE.exec(message)?.[1] ?? POSTGRES_MISSING_COLUMN_RE.exec(message)?.[1];
+	if (!identifier || !COLUMN_IDENTIFIER_RE.test(identifier.trim())) return undefined;
+	return identifier.trim().replaceAll('"', "");
 }
 
 /**

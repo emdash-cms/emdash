@@ -8,7 +8,7 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
-import { Role, secureCompare } from "@emdash-cms/auth";
+import { secureCompare } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { verifyRegistrationResponse, registerPasskey } from "@emdash-cms/auth/passkey";
 
@@ -16,35 +16,43 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { getPublicOrigin } from "#api/public-url.js";
 import { setupAdminVerifyBody } from "#api/schemas.js";
+import { createFirstAdmin } from "#api/setup-complete.js";
 import { getConfiguredAllowedOrigins, validateAllowedOrigins } from "#auth/allowed-origins.js";
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
 import { SETUP_NONCE_COOKIE } from "#auth/setup-nonce.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
-export const POST: APIRoute = async ({ cookies, request, locals }) => {
+import { sessionUnavailableError } from "../../../session-user.js";
+
+export const POST: APIRoute = async ({ cookies, request, locals, session }) => {
 	const { emdash } = locals;
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
+	if (!session) return sessionUnavailableError();
 
 	try {
 		// Check if setup is already complete
 		const options = new OptionsRepository(emdash.db);
 		const setupComplete = await options.get("emdash:setup_complete");
-
-		if (setupComplete === true || setupComplete === "true") {
-			return apiError("SETUP_COMPLETE", "Setup already complete", 400);
-		}
+		const isComplete = setupComplete === true || setupComplete === "true";
 
 		// Check if any users exist
 		const adapter = createKyselyAdapter(emdash.db);
 		const userCount = await adapter.countUsers();
 
 		if (userCount > 0) {
+			if (isComplete) {
+				return apiError("SETUP_COMPLETE", "Setup already complete", 400);
+			}
 			return apiError("ADMIN_EXISTS", "Admin user already exists", 400);
 		}
+
+		// `setup_complete` with ZERO users is a recoverable half-state —
+		// see the matching guard in ./admin.ts. The verify step must
+		// accept it too, or the wizard dies between its two calls.
 
 		// Get setup state
 		const setupState = await options.get<{
@@ -99,19 +107,22 @@ export const POST: APIRoute = async ({ cookies, request, locals }) => {
 			challengeStore,
 		);
 
-		// Create the admin user
-		const user = await adapter.createUser({
+		const user = await createFirstAdmin(emdash.db, {
 			email: setupState.email,
 			name: setupState.name ?? null,
-			role: Role.ADMIN,
-			emailVerified: false, // No email verification for first user
 		});
+		if (!user) {
+			return apiError("ADMIN_EXISTS", "Admin user already exists", 400);
+		}
 
 		// Register the passkey
 		await registerPasskey(adapter, user.id, verified, "Setup passkey");
 
 		// Mark setup as complete
 		await options.set("emdash:setup_complete", true);
+
+		// Authenticate the newly created admin so the dashboard opens immediately.
+		session.set("user", { id: user.id });
 
 		// Clean up setup state and the session nonce cookie
 		await options.delete("emdash:setup_state");

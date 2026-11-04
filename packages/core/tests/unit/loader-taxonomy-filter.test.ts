@@ -2,9 +2,11 @@ import type { Kysely } from "kysely";
 import { it, expect, beforeEach, afterEach } from "vitest";
 
 import { handleContentCreate } from "../../src/api/index.js";
+import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
-import { emdashLoader } from "../../src/loader.js";
+import { emdashLoader, resetTaxonomyNamesCache } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
+import { SchemaRegistry } from "../../src/schema/registry.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
@@ -22,6 +24,12 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		ctx = await setupForDialectWithCollections(dialectName);
 		db = ctx.db;
 		termSeq = 0;
+		await db
+			.updateTable("_emdash_taxonomy_def_groups")
+			.set({ collections: JSON.stringify(["post"]) })
+			.where("name", "in", ["category", "tag"])
+			.execute();
+		resetTaxonomyNamesCache();
 	});
 
 	afterEach(async () => {
@@ -55,19 +63,36 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 	}
 
 	async function tag(contentId: string, taxonomyId: string) {
-		await db
-			.insertInto("content_taxonomies" as never)
-			.values({ collection: "post", entry_id: contentId, taxonomy_id: taxonomyId } as never)
-			.execute();
+		// Attach through the repository so the pivot row is stamped with the
+		// entry's denormalized filter/sort columns (migration 051) — the state the
+		// backfill and write-path re-stamp guarantee in production. The
+		// pivot-drive listing seeks on those columns.
+		await new TaxonomyRepository(db).attachToEntry("post", contentId, taxonomyId);
 	}
 
-	function load(where: Record<string, unknown>, locale?: string) {
+	function load(where: Record<string, unknown>, locale?: string, target = db) {
 		const loader = emdashLoader();
-		return runWithContext({ editMode: false, db }, () =>
+		return runWithContext({ editMode: false, db: target }, () =>
 			loader.loadCollection!({
 				filter: { type: "post", where: where as never, ...(locale ? { locale } : {}) },
 			}),
 		);
+	}
+
+	async function captureReads<T>(fn: (target: Kysely<Database>) => Promise<T>) {
+		const queries: Array<{ parameters: readonly unknown[] }> = [];
+		const target = db.withPlugin({
+			transformQuery: (args) => args.node,
+			transformResult: async (args) => args.result,
+		});
+		const executor = target.getExecutor();
+		const execute = executor.executeQuery.bind(executor);
+		executor.executeQuery = ((compiled: { parameters: readonly unknown[] }, ...rest: unknown[]) => {
+			queries.push(compiled);
+			return (execute as (...args: unknown[]) => unknown)(compiled, ...rest);
+		}) as typeof executor.executeQuery;
+		const value = await fn(target);
+		return { value, queries };
 	}
 
 	/**
@@ -90,7 +115,7 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		return id;
 	}
 
-	it("filters by a single taxonomy term", async () => {
+	it("filters by a taxonomy attached to the queried collection", async () => {
 		const news = await term("category", "news");
 		const a = await createPost("In News");
 		await createPost("Untagged");
@@ -100,6 +125,71 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 
 		expect(result.entries).toHaveLength(1);
 		expect(result.entries[0]!.data.title).toBe("In News");
+	});
+
+	it("treats a taxonomy name attached to another collection as an ordinary field", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createField("page", {
+			slug: "category",
+			label: "Category",
+			type: "string",
+		});
+		const matching = await handleContentCreate(db, "page", {
+			data: { title: "News Page", category: "news" },
+			status: "published",
+		});
+		if (!matching.success) throw new Error("Failed to create page");
+		const other = await handleContentCreate(db, "page", {
+			data: { title: "Other Page", category: "other" },
+			status: "published",
+		});
+		if (!other.success) throw new Error("Failed to create page");
+
+		const loader = emdashLoader();
+		const result = await runWithContext({ editMode: false, db }, () =>
+			loader.loadCollection!({
+				filter: { type: "page", where: { category: "news" } },
+			}),
+		);
+
+		expect(result.entries).toHaveLength(1);
+		expect(result.entries[0]!.data.title).toBe("News Page");
+	});
+
+	it("surfaces an unexpected definition-query failure without poisoning the cache", async () => {
+		const news = await term("category", "news");
+		const post = await createPost("In News");
+		await tag(post.id, news);
+
+		let failNextQuery = true;
+		const flakyDb = db.withPlugin({
+			transformQuery(args) {
+				if (failNextQuery) {
+					failNextQuery = false;
+					throw new Error("temporary database outage");
+				}
+				return args.node;
+			},
+			async transformResult(args) {
+				return args.result;
+			},
+		});
+		const loader = emdashLoader();
+		const loadWithFlakyDb = () =>
+			runWithContext({ editMode: false, db: flakyDb }, () =>
+				loader.loadCollection!({
+					filter: { type: "post", where: { category: "news" } },
+				}),
+			);
+
+		const failed = await loadWithFlakyDb();
+		expect(failed).toMatchObject({
+			error: { message: "Failed to load collection: temporary database outage" },
+		});
+		const recovered = await loadWithFlakyDb();
+
+		expect(recovered.entries).toHaveLength(1);
+		expect(recovered.entries[0]!.data.title).toBe("In News");
 	});
 
 	it("ANDs across two taxonomies — only entries tagged in BOTH match (#1479)", async () => {
@@ -157,6 +247,63 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		const result = await load({ category: ["news"], tag: [] });
 
 		expect(result.entries).toHaveLength(0);
+	});
+
+	it.each([false, true])(
+		"matches more than 100 taxonomy slugs and an unknown slug (field filter: %s)",
+		async (withFieldFilter) => {
+			const slugs: string[] = [];
+			const groups: string[] = [];
+			for (let i = 0; i < 120; i++) {
+				const id = await term("category", `long-${i}`);
+				slugs.push(`long-${i}`);
+				groups.push(id);
+			}
+			const post = await createPost("Long taxonomy match");
+			await new TaxonomyRepository(db).attachGroupsToEntry("post", post.id, groups);
+
+			const { value: result, queries } = await captureReads((target) =>
+				load(
+					{
+						category: [...slugs, "does-not-exist"],
+						...(withFieldFilter ? { title: ["Long taxonomy match"] } : {}),
+					},
+					undefined,
+					target,
+				),
+			);
+
+			expect(result.entries).toHaveLength(1);
+			expect(result.entries[0]!.data.title).toBe("Long taxonomy match");
+			expect(queries.length).toBeGreaterThan(0);
+			expect(queries.every((query) => query.parameters.length < 100)).toBe(true);
+		},
+	);
+
+	it("keeps combined taxonomy and field filters under the parameter budget", async () => {
+		const category: string[] = [];
+		const tagSlugs: string[] = [];
+		const groups: string[] = [];
+		for (let i = 0; i < 48; i++) {
+			category.push(`moderate-category-${i}`);
+			groups.push(await term("category", category[i]!));
+			tagSlugs.push(`moderate-tag-${i}`);
+			groups.push(await term("tag", tagSlugs[i]!));
+		}
+		const post = await createPost("Moderate taxonomy match");
+		await new TaxonomyRepository(db).attachGroupsToEntry("post", post.id, groups);
+
+		const title = [
+			"Moderate taxonomy match",
+			...Array.from({ length: 49 }, (_, i) => `Missing ${i}`),
+		];
+		const { value: result, queries } = await captureReads((target) =>
+			load({ category, tag: tagSlugs, title }, undefined, target),
+		);
+
+		expect(result.entries).toHaveLength(1);
+		expect(result.entries[0]!.data.title).toBe("Moderate taxonomy match");
+		expect(queries.every((query) => query.parameters.length < 100)).toBe(true);
 	});
 
 	it("resolves a taxonomy filter by the localized term slug in the query locale (#1480)", async () => {

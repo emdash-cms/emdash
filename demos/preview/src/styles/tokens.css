@@ -1,0 +1,176 @@
+/*
+  tokens.css -- the design tokens for this template. These are the
+  defaults; to customize the site, override any variable in
+  src/styles/theme.css rather than editing this file. Declarations in
+  theme.css are unlayered, so they always beat these @layer base
+  defaults -- no specificity tricks needed.
+
+  Colors use light-dark(): the first value applies in light mode, the
+  second in dark mode. Overriding a color with a plain value changes
+  both modes at once; use light-dark(<light>, <dark>) in an override to
+  keep them distinct.
+
+  --font-body is defined by the font pipeline in astro.config.mjs, not
+  here. To swap the loaded webfont, edit the fonts entry there. To use a
+  system font, or a different face for headings only, override
+  --font-body / --font-heading in theme.css.
+*/
+
+@layer base {
+	:root {
+		color-scheme: light dark;
+
+		/* Colors */
+		--color-bg: light-dark(#fafafa, #0a0a0a); /* page canvas */
+		--color-surface: light-dark(#ffffff, #141414); /* cards, inputs, menus */
+		--color-fill: light-dark(#f2f2f2, #1f1f1f); /* chips, code, hover fills */
+		--color-fill-strong: light-dark(#e8e8e8, #2a2a2a); /* hovered chips */
+		--color-bg-subtle: var(--color-fill); /* alternate rows, e.g. table stripes */
+		--color-text: light-dark(#171717, #ededed);
+		--color-text-secondary: light-dark(#525252, #a3a3a3);
+		--color-muted: light-dark(#6b6b6b, #8f8f8f); /* meta text, labels */
+		--color-border: light-dark(#e5e5e5, #262626); /* frame rails, dividers */
+		--color-border-subtle: light-dark(#efefef, #1c1c1c); /* dividers inside cards */
+		--color-border-strong: light-dark(#d4d4d4, #3a3a3a); /* rail crosshairs, input hover */
+		--color-ring: light-dark(rgb(0 0 0 / 0.07), rgb(255 255 255 / 0.09)); /* card hairline */
+		--color-media-outline: light-dark(rgb(0 0 0 / 0.1), rgb(255 255 255 / 0.1));
+		--color-shadow: light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0.4));
+		--color-shadow-strong: light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.6));
+		--color-brand: light-dark(#171717, #fafafa); /* buttons, links, focus */
+		--color-brand-hover: light-dark(#404040, #d4d4d4);
+		--color-on-brand: light-dark(#ffffff, #0a0a0a);
+		--color-brand-ring: color-mix(in srgb, var(--color-brand) 15%, transparent);
+
+		/* EmDash search theming */
+		--emdash-search-bg: var(--color-surface);
+		--emdash-search-text: var(--color-text);
+		--emdash-search-muted: var(--color-muted);
+		--emdash-search-border: var(--color-border);
+		--emdash-search-hover: var(--color-fill);
+		--emdash-search-highlight: var(--color-text);
+
+		/* Typography */
+		--font-heading: var(--font-body);
+		--font-weight-heading: 600; /* h2-h6, card and list titles */
+		--font-weight-display: 600; /* h1 and large page titles */
+
+		/* Type scale */
+		--font-size-label: 0.75rem; /* mono uppercase labels */
+		--font-size-xs: 0.8125rem;
+		--font-size-sm: 0.875rem;
+		--font-size-base: 1rem;
+		--font-size-lg: 1.125rem;
+		--font-size-xl: 1.25rem;
+		--font-size-2xl: 1.5rem;
+		--font-size-3xl: 2rem;
+		--font-size-4xl: 2.5rem;
+		--font-size-5xl: 3.5rem;
+		--font-size-display: clamp(2.25rem, 1.6rem + 2.6vw, 3.5rem); /* page titles */
+
+		/* Line heights */
+		--leading-tight: 1.1;
+		--leading-snug: 1.3;
+		--leading-normal: 1.5;
+		--leading-relaxed: 1.7;
+
+		/* Letter spacing */
+		--tracking-tight: -0.035em; /* h1 and large titles */
+		--tracking-snug: -0.02em; /* h2-h6, site/card titles */
+		--tracking-wide: 0.06em;
+		--tracking-wider: 0.08em; /* mono uppercase labels */
+
+		/* Spacing */
+		--spacing-1: 0.25rem;
+		--spacing-2: 0.5rem;
+		--spacing-3: 0.75rem;
+		--spacing-4: 1rem;
+		--spacing-5: 1.25rem;
+		--spacing-6: 1.5rem;
+		--spacing-8: 2rem;
+		--spacing-10: 2.5rem;
+		--spacing-12: 3rem;
+		--spacing-16: 4rem;
+		--spacing-20: 5rem;
+		--spacing-24: 6rem;
+
+		/* Legacy spacing aliases */
+		--spacing-xs: var(--spacing-1);
+		--spacing-sm: var(--spacing-2);
+		--spacing-md: var(--spacing-4);
+		--spacing-lg: var(--spacing-6);
+		--spacing-xl: var(--spacing-8);
+		--spacing-2xl: var(--spacing-12);
+		--spacing-3xl: var(--spacing-16);
+
+		/* Layout */
+		--content-width: 680px; /* article/page body column */
+		--wide-width: 1200px; /* frame width, rails included */
+		--max-width: var(--content-width);
+		--frame-margin: clamp(0.75rem, 3vw, 2rem); /* viewport edge to rail */
+		--frame-padding: clamp(1rem, 3vw, 2rem); /* rail to content */
+		--frame-width: min(100% - 2 * var(--frame-margin), var(--wide-width));
+		--gutter-width: 200px; /* right rail (TOC, widgets) on article pages */
+		--meta-col-width: 180px; /* left meta rail on article pages */
+		--nav-height: 64px; /* sticky header height */
+		--search-input-width: 200px; /* header search box width */
+
+		/* Radius: card = inset media + card padding, so corners stay concentric */
+		--radius-sm: 6px; /* small controls */
+		--radius: 8px; /* inputs, code */
+		--radius-lg: 12px; /* media inside cards */
+		--radius-xl: 18px; /* cards, panels */
+		--radius-full: 999px; /* pills: buttons, chips */
+		--card-padding: 6px; /* inset between card edge and its media */
+
+		/* Motion */
+		--ease-out: cubic-bezier(0.2, 0, 0, 1);
+		--transition-fast: 150ms var(--ease-out);
+		--transition-base: 250ms var(--ease-out);
+
+		/* Avatars */
+		--avatar-size-xs: 20px; /* card and row bylines */
+		--avatar-size-sm: 24px; /* featured post bylines */
+		--avatar-size-md: 32px; /* post header bylines */
+		--avatar-size-lg: 40px; /* post meta rail */
+
+		/* Misc */
+		--tag-padding-y: 2px; /* vertical padding on tag chips */
+
+		/* Shadows */
+		--shadow-sm: 0 1px 2px var(--color-shadow);
+		--shadow-card:
+			0 0 0 1px var(--color-ring), 0 1px 2px var(--color-shadow),
+			0 4px 12px -4px var(--color-shadow);
+		--shadow-card-hover:
+			0 0 0 1px var(--color-ring), 0 2px 4px var(--color-shadow),
+			0 16px 32px -12px var(--color-shadow-strong);
+		--shadow-lg: 0 0 0 1px var(--color-ring), 0 16px 40px -12px var(--color-shadow-strong);
+	}
+
+	/*
+	 * Light-mode values for browsers without light-dark() (Safari < 17.5,
+	 * Chrome < 123). Must mirror the light values above.
+	 */
+	@supports not (color: light-dark(#000, #fff)) {
+		:root {
+			color-scheme: light;
+			--color-bg: #fafafa;
+			--color-surface: #ffffff;
+			--color-fill: #f2f2f2;
+			--color-fill-strong: #e8e8e8;
+			--color-text: #171717;
+			--color-text-secondary: #525252;
+			--color-muted: #6b6b6b;
+			--color-border: #e5e5e5;
+			--color-border-subtle: #efefef;
+			--color-border-strong: #d4d4d4;
+			--color-ring: rgb(0 0 0 / 0.07);
+			--color-media-outline: rgb(0 0 0 / 0.1);
+			--color-shadow: rgb(0 0 0 / 0.06);
+			--color-shadow-strong: rgb(0 0 0 / 0.12);
+			--color-brand: #171717;
+			--color-brand-hover: #404040;
+			--color-on-brand: #ffffff;
+		}
+	}
+}

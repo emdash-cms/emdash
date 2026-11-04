@@ -116,6 +116,63 @@ describe("Plugin Storage Integration", () => {
 			});
 			expect(user1Pageviews.items).toHaveLength(1);
 		});
+
+		it("should treat LIKE metacharacters in startsWith prefixes literally", async () => {
+			const repo = new PluginStorageRepository<AnalyticsEvent>(db, "analytics-plugin", "events", [
+				"eventType",
+				"userId",
+				"timestamp",
+			]);
+
+			await repo.putMany([
+				{
+					id: "e1",
+					data: { eventType: "sale:50%", userId: "u1", timestamp: "2024-01-01", metadata: {} },
+				},
+				{
+					id: "e2",
+					// Would match "sale:50%" under an unescaped `%` wildcard
+					data: { eventType: "sale:50x", userId: "u1", timestamp: "2024-01-01", metadata: {} },
+				},
+				{
+					id: "e3",
+					data: { eventType: "a_b", userId: "u1", timestamp: "2024-01-01", metadata: {} },
+				},
+				{
+					id: "e4",
+					// Would match "a_b" under an unescaped `_` wildcard
+					data: { eventType: "axb", userId: "u1", timestamp: "2024-01-01", metadata: {} },
+				},
+			]);
+
+			const percent = await repo.query({ where: { eventType: { startsWith: "sale:50%" } } });
+			expect(percent.items.map((i) => i.id)).toEqual(["e1"]);
+
+			const underscore = await repo.query({ where: { eventType: { startsWith: "a_" } } });
+			expect(underscore.items.map((i) => i.id)).toEqual(["e3"]);
+
+			// Plain prefixes still match as before
+			const plain = await repo.query({ where: { eventType: { startsWith: "sale:" } } });
+			expect(plain.items).toHaveLength(2);
+		});
+
+		it("rejects a range filter with no defined bound instead of matching every row", async () => {
+			// A bound built from an optional value is the common way to reach this;
+			// dropping the predicate would silently widen the query to the whole
+			// collection.
+			const repo = new PluginStorageRepository<AnalyticsEvent>(db, "analytics", "events", [
+				"timestamp",
+			]);
+			await repo.putMany([
+				{ id: "e1", data: { eventType: "a", userId: "u1", timestamp: "2024-01-01", metadata: {} } },
+				{ id: "e2", data: { eventType: "b", userId: "u2", timestamp: "2024-06-01", metadata: {} } },
+			]);
+
+			const since: string | undefined = undefined;
+			await expect(repo.query({ where: { timestamp: { gte: since } } })).rejects.toThrow(
+				/no defined bound/,
+			);
+		});
 	});
 
 	describe("createPluginStorageAccessor", () => {

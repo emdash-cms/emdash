@@ -36,11 +36,8 @@ const OPEN_BRACKET = /\[/g;
 /** Count close brackets */
 const CLOSE_BRACKET = /\]/g;
 
-/** Split on capture groups in compiled regex string */
-const CAPTURE_GROUP_SPLIT = /(\([^)]+\))/;
-
 /** Escape regex-special characters in literal parts */
-const REGEX_SPECIAL_CHARS = /[.*+?^${}|\\]/g;
+const REGEX_SPECIAL_CHARS = /[.*+?^${}()|[\]\\]/g;
 
 export interface CompiledPattern {
 	regex: RegExp;
@@ -145,53 +142,62 @@ export function validateDestinationParams(source: string, destination: string): 
  */
 export function compilePattern(source: string): CompiledPattern {
 	const paramNames: string[] = [];
+	let regexStr = "";
+	let literalStart = 0;
 
-	// Replace [...splat] first (before [param]) since [...x] contains [x]
-	let regexStr = source.replace(SPLAT_PATTERN, (_match, name: string) => {
-		paramNames.push(name);
-		return "(.+)";
-	});
-
-	// Then replace [param]
-	regexStr = regexStr.replace(PARAM_PATTERN, (_match, name: string) => {
-		paramNames.push(name);
-		return "([^/]+)";
-	});
-
-	// Escape any regex-special characters in the literal parts
-	// We need to be careful: the replacement groups are already valid regex
-	// Split on capture groups, escape literals, rejoin
-	const parts = regexStr.split(CAPTURE_GROUP_SPLIT);
-	const escaped = parts
-		.map((part, i) => {
-			// Odd indices are the capture groups -- leave them alone
-			if (i % 2 === 1) return part;
-			// Even indices are literal text -- escape special regex chars
-			return part.replace(REGEX_SPECIAL_CHARS, "\\$&");
-		})
-		.join("");
+	for (const match of source.matchAll(ANY_PLACEHOLDER)) {
+		regexStr += source.slice(literalStart, match.index).replace(REGEX_SPECIAL_CHARS, "\\$&");
+		paramNames.push(match[1]);
+		regexStr += match[0].startsWith("[...") ? "(.+)" : "([^/]+)";
+		literalStart = match.index + match[0].length;
+	}
+	regexStr += source.slice(literalStart).replace(REGEX_SPECIAL_CHARS, "\\$&");
 
 	return {
-		regex: new RegExp(`^${escaped}$`),
+		regex: new RegExp(`^${regexStr}$`),
 		paramNames,
 		source,
 	};
 }
 
+function toggledTrailingSlash(path: string): string | null {
+	if (path.length <= 1) return null;
+	return path.endsWith("/") ? path.slice(0, -1) : `${path}/`;
+}
+
 /**
  * Match a path against a compiled pattern.
  * Returns captured params or null if no match.
+ *
+ * Trailing slashes are ignored so `/category/arts/feed` and
+ * `/category/arts/feed/` match the same rule, consistent with exact and
+ * catch-all redirects.
  */
 export function matchPattern(
 	compiled: CompiledPattern,
 	path: string,
 ): Record<string, string> | null {
 	const match = path.match(compiled.regex);
-	if (!match) return null;
+	if (match) {
+		const params: Record<string, string> = {};
+		for (let i = 0; i < compiled.paramNames.length; i++) {
+			const value = match[i + 1];
+			if (value !== undefined) {
+				params[compiled.paramNames[i]] = value;
+			}
+		}
+		return params;
+	}
+
+	const alt = toggledTrailingSlash(path);
+	if (!alt) return null;
+
+	const altMatch = alt.match(compiled.regex);
+	if (!altMatch) return null;
 
 	const params: Record<string, string> = {};
 	for (let i = 0; i < compiled.paramNames.length; i++) {
-		const value = match[i + 1];
+		const value = altMatch[i + 1];
 		if (value !== undefined) {
 			params[compiled.paramNames[i]] = value;
 		}

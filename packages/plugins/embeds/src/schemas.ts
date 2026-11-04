@@ -11,10 +11,7 @@ import { z } from "astro/zod";
 const HTTP_SCHEME_RE = /^https?:\/\//i;
 
 /** Validates that a URL string uses http or https scheme. Rejects javascript:/data: URI XSS vectors. */
-const httpUrl = z
-	.string()
-	.url()
-	.refine((url) => HTTP_SCHEME_RE.test(url), "URL must use http or https");
+const httpUrl = z.url().refine((url) => HTTP_SCHEME_RE.test(url), "URL must use http or https");
 
 /**
  * YouTube embed block
@@ -76,8 +73,7 @@ export const tweetBlockSchema = z.object({
 export type TweetBlock = z.infer<typeof tweetBlockSchema>;
 
 /**
- * Bluesky post embed block
- * @see https://astro-embed.netlify.app/components/bluesky/
+ * Bluesky post embed block, rendered from Bluesky's oEmbed endpoint
  */
 export const blueskyBlockSchema = z.object({
 	_type: z.literal("bluesky"),

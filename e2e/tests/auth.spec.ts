@@ -23,7 +23,7 @@ const SECURITY_SETTINGS_URL_PATTERN = /\/settings\/security/;
 const LOGIN_OR_ADMIN_URL_PATTERN = /\/(login|admin)/;
 const SECURITY_MENUITEM_REGEX = /Security/i;
 const ADD_PASSKEY_REGEX = /Add Passkey/i;
-const SIGN_HEADING_REGEX = /sign/i;
+const SIGNUP_OR_LOGIN_HEADING_REGEX = /create an account|sign in/i;
 
 test.describe("Authentication", () => {
 	test.describe("Login Page", () => {
@@ -42,6 +42,16 @@ test.describe("Authentication", () => {
 
 			// No allowed domains are seeded, so signup should not be visible
 			await expect(admin.page.locator('a:has-text("Sign up")')).not.toBeVisible();
+		});
+
+		test("admin shell is not storable by shared caches", async ({ request }) => {
+			// Regression: the admin shell had no Cache-Control header, so shared
+			// caches applying RFC 9111 heuristic freshness (e.g. Cloudflare's
+			// Workers Cache) could store an authenticated 200 and replay it to
+			// anonymous visitors instead of the login redirect.
+			const res = await request.get("/_emdash/admin/login");
+			expect(res.status()).toBe(200);
+			expect(res.headers()["cache-control"]).toBe("private, no-store");
 		});
 	});
 
@@ -193,11 +203,9 @@ test.describe("User Management", () => {
 		await admin.waitForShell();
 		await admin.waitForLoading();
 
-		// Click on user email link
-		await admin.page.locator("text=dev@emdash.local").first().click();
+		await admin.page.locator("table").getByRole("button", { name: "Dev Admin" }).click();
 
-		// Should show detail panel with user info
-		await expect(admin.page.locator("text=Dev Admin").first()).toBeVisible();
+		await expect(admin.page.getByRole("dialog", { name: "User Details" })).toBeVisible();
 	});
 });
 
@@ -228,10 +236,10 @@ test.describe("Signup Page", () => {
 		// Navigate directly (not through admin which has auth)
 		await admin.page.goto("/_emdash/admin/signup");
 
-		// Wait for the React app to hydrate and render a heading with sign-related content.
+		// Wait for the React app to hydrate and render the signup heading.
 		// The SPA may render the login page if signup is disabled, so accept either.
 		await expect(
-			admin.page.getByRole("heading", { level: 1, name: SIGN_HEADING_REGEX }),
+			admin.page.getByRole("heading", { level: 1, name: SIGNUP_OR_LOGIN_HEADING_REGEX }),
 		).toBeVisible({
 			timeout: 15000,
 		});

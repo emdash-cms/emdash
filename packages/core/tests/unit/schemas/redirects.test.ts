@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createRedirectBody } from "../../../src/api/schemas/redirects.js";
+import { createRedirectBody, notFoundPruneBody } from "../../../src/api/schemas/redirects.js";
 
 describe("createRedirectBody", () => {
 	it("accepts a 301 redirect with a destination", () => {
@@ -30,5 +30,12 @@ describe("createRedirectBody", () => {
 	it("rejects an unsupported status code", () => {
 		const result = createRedirectBody.safeParse({ source: "/x", destination: "/y", type: 418 });
 		expect(result.success).toBe(false);
+	});
+});
+
+describe("notFoundPruneBody", () => {
+	it("accepts minute-precision ISO datetimes", () => {
+		const olderThan = "2026-09-01T14:30Z";
+		expect(notFoundPruneBody.parse({ olderThan })).toEqual({ olderThan });
 	});
 });

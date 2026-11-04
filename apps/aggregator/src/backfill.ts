@@ -395,6 +395,7 @@ async function paginateAndEnqueue(opts: PaginateOpts): Promise<number> {
 					rkey: parsed.rkey,
 					operation: "create",
 					cid: record.cid,
+					source: "backfill",
 				},
 			});
 		}

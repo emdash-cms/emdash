@@ -11,17 +11,16 @@ import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ params, locals, cache }) => {
+export const POST: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 	const id = params.id!;
 
-	const denied = requirePerm(user, "content:create");
-	if (denied) return denied;
-
 	if (!emdash?.handleContentDuplicate || !emdash?.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
+	const denied = requirePerm(user, "content:create");
+	if (denied) return denied;
 
 	// Fetch item to check ownership — duplicating requires read access to the source
 	const existing = await emdash.handleContentGet(collection, id);
@@ -52,10 +51,6 @@ export const POST: APIRoute = async ({ params, locals, cache }) => {
 
 	const resolvedId = typeof existingItem?.id === "string" ? existingItem.id : id;
 	const result = await emdash.handleContentDuplicate(collection, resolvedId, user?.id);
-
-	if (!result.success) return unwrapResult(result);
-
-	if (cache?.enabled) await cache.invalidate({ tags: [collection] });
 
 	return unwrapResult(result, 201);
 };

@@ -22,6 +22,7 @@ import { GET as getItem } from "../../../src/astro/routes/api/content/[collectio
 import { GET as getCompare } from "../../../src/astro/routes/api/content/[collection]/[id]/compare.js";
 import { DELETE as deletePermanent } from "../../../src/astro/routes/api/content/[collection]/[id]/permanent.js";
 import { POST as postPreviewUrl } from "../../../src/astro/routes/api/content/[collection]/[id]/preview-url.js";
+import { GET as getParents } from "../../../src/astro/routes/api/content/[collection]/[id]/references/[relation]/parents.js";
 import { GET as getRevisions } from "../../../src/astro/routes/api/content/[collection]/[id]/revisions.js";
 import { GET as getTranslations } from "../../../src/astro/routes/api/content/[collection]/[id]/translations.js";
 import { GET as getList } from "../../../src/astro/routes/api/content/[collection]/index.js";
@@ -97,12 +98,17 @@ function buildEmdash(
 		compare?: { hasChanges: boolean; live: unknown; draft: unknown };
 	} = {},
 ) {
-	const handleContentList = vi.fn(async (_collection: string, params: { status?: string }) => {
-		const items = params.status
-			? (opts.listItems ?? []).filter((i) => i.status === params.status)
-			: (opts.listItems ?? []);
-		return { success: true as const, data: { items, nextCursor: undefined } };
-	});
+	const handleContentList = vi.fn(
+		async (
+			_collection: string,
+			params: { status?: string; fieldFilters?: Record<string, unknown> },
+		) => {
+			const items = params.status
+				? (opts.listItems ?? []).filter((i) => i.status === params.status)
+				: (opts.listItems ?? []);
+			return { success: true as const, data: { items, nextCursor: undefined } };
+		},
+	);
 
 	const handleContentGet = vi.fn(async (_collection: string, _id: string) => {
 		if (!opts.getItem) {
@@ -137,6 +143,9 @@ function buildEmdash(
 	}));
 
 	return {
+		// Routes treat a missing db as "runtime not initialized" (500 before any
+		// permission check), so the mock carries one to exercise the authz path.
+		db: {},
 		handleContentList,
 		handleContentGet,
 		handleContentTranslations,
@@ -218,6 +227,28 @@ describe("GET /content/:collection — subscriber drafts leak", () => {
 		// status param is undefined (caller-controlled), not forced
 		const call = emdash.handleContentList.mock.calls[0]?.[1];
 		expect(call?.status).toBeUndefined();
+	});
+
+	it("parses indexed field filters before calling the runtime", async () => {
+		const emdash = buildEmdash({ listItems: items });
+		const fieldFilters = encodeURIComponent(
+			JSON.stringify({ priority: { in: ["urgent", "high"] }, resolved: false }),
+		);
+		const res = await getList(
+			ctx({
+				user: contributor,
+				emdash,
+				url: `http://localhost/?fieldFilters=${fieldFilters}`,
+			}),
+		);
+
+		expect(res.status).toBe(200);
+		expect(emdash.handleContentList).toHaveBeenCalledWith(
+			"post",
+			expect.objectContaining({
+				fieldFilters: { priority: { in: ["urgent", "high"] }, resolved: false },
+			}),
+		);
 	});
 });
 
@@ -359,6 +390,18 @@ describe("GET /content/:collection/:id/translations", () => {
 		expect(body.data.translations.map((t) => t.id)).toEqual(["t-en"]);
 	});
 
+	it.each([
+		{ entry: "a draft", id: "t-fr", status: 404 },
+		{ entry: "a scheduled entry", id: "t-de", status: 404 },
+		{ entry: "a published entry", id: "t-en", status: 200 },
+	])("answers SUBSCRIBER asking for $entry with $status", async ({ id, status }) => {
+		const emdash = buildEmdash({ translations });
+		const res = await getTranslations(
+			ctx({ user: subscriber, emdash, params: { collection: "post", id } }),
+		);
+		expect(res.status).toBe(status);
+	});
+
 	it("returns all translations for CONTRIBUTOR", async () => {
 		const emdash = buildEmdash({ translations });
 		const res = await getTranslations(
@@ -426,5 +469,79 @@ describe("DELETE /content/:collection/:id/permanent", () => {
 		const res = await deletePermanent(permanentCtx(subscriber, emdash));
 		expect(res.status).toBe(403);
 		expect(emdash.handleContentPermanentDelete).not.toHaveBeenCalled();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Uninitialized runtime (#2094)
+// ---------------------------------------------------------------------------
+
+describe("uninitialized runtime returns NOT_CONFIGURED, not UNAUTHORIZED", () => {
+	// When runtime init fails, the middleware never sets locals.emdash and the
+	// auth middleware never resolves a user — even for a valid token. The
+	// routes must report the server fault (500) instead of blaming the
+	// caller's credentials (401).
+	const uninitialized = undefined as unknown as ReturnType<typeof buildEmdash>;
+
+	it("GET /content/:collection → 500 NOT_CONFIGURED with no user", async () => {
+		const res = await getList(ctx({ user: null, emdash: uninitialized }));
+		expect(res.status).toBe(500);
+		const body = (await res.json()) as { error: { code: string } };
+		expect(body.error.code).toBe("NOT_CONFIGURED");
+	});
+
+	it("GET /content/:collection → 500 even for an authenticated admin", async () => {
+		const res = await getList(ctx({ user: admin, emdash: uninitialized }));
+		expect(res.status).toBe(500);
+	});
+
+	it("GET /content/:collection/:id → 500 NOT_CONFIGURED", async () => {
+		const res = await getItem(
+			ctx({ user: null, emdash: uninitialized, params: { collection: "post", id: "p1" } }),
+		);
+		expect(res.status).toBe(500);
+		const body = (await res.json()) as { error: { code: string } };
+		expect(body.error.code).toBe("NOT_CONFIGURED");
+	});
+
+	it("GET /content/:collection/trash → 500 NOT_CONFIGURED", async () => {
+		const res = await getTrash(ctx({ user: null, emdash: uninitialized }));
+		expect(res.status).toBe(500);
+	});
+
+	// A requireDb-gated route (references) — the guard style differs from the
+	// handler-presence checks above, so pin it separately.
+	it("GET …/references/:relation/parents → 500 NOT_CONFIGURED", async () => {
+		const url = "http://localhost/";
+		const res = await getParents(
+			ctx({
+				user: admin,
+				emdash: uninitialized,
+				params: { collection: "post", id: "p1", relation: "rel" },
+				url,
+				request: new Request(url),
+			}),
+		);
+		expect(res.status).toBe(500);
+		const body = (await res.json()) as { error: { code: string } };
+		expect(body.error.code).toBe("NOT_CONFIGURED");
+	});
+
+	// A handler-presence WRITE route — deletes must also blame the server, not
+	// the caller's credentials, when the runtime never came up.
+	it("DELETE …/:id/permanent → 500 NOT_CONFIGURED", async () => {
+		const url = "http://localhost/";
+		const res = await deletePermanent(
+			ctx({
+				user: null,
+				emdash: uninitialized,
+				params: { collection: "post", id: "p1" },
+				url,
+				request: new Request(url, { method: "DELETE" }),
+			}),
+		);
+		expect(res.status).toBe(500);
+		const body = (await res.json()) as { error: { code: string } };
+		expect(body.error.code).toBe("NOT_CONFIGURED");
 	});
 });

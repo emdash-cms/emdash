@@ -21,7 +21,7 @@ const TYPE_SET: ReadonlySet<string> = new Set(BYLINE_FIELD_TYPES);
 const VERSION_KEY = "byline_fields_version";
 
 /** Hard cap on the choices array for a `select`-type field. */
-const MAX_SELECT_OPTIONS = 200;
+export const MAX_SELECT_OPTIONS = 200;
 /** Hard cap on a slug — mirrors `SchemaRegistry.validateSlug`. */
 const MAX_SLUG_LENGTH = 63;
 /** Hard cap on a label. Bigger than slugs because labels are display strings. */
@@ -627,7 +627,7 @@ export class BylineSchemaRegistry {
 		// payload silently. Today's `BylineFieldValidation` is `{ options? }`
 		// only, so this branch is a pass-through; left explicit for clarity.
 		const { options: _drop, ...rest } = validation;
-		return Object.keys(rest).length === 0 ? null : (rest as BylineFieldValidation);
+		return Object.keys(rest).length === 0 ? null : rest;
 	}
 }
 

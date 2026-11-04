@@ -4,6 +4,7 @@ import {
 	matchesMimeAllowlist,
 	normalizeMime,
 	expandExtensionShorthand,
+	resolveUploadMimeType,
 } from "../../../src/media/mime.js";
 
 describe("matchesMimeAllowlist", () => {
@@ -67,6 +68,25 @@ describe("normalizeMime", () => {
 	});
 });
 
+describe("resolveUploadMimeType", () => {
+	it("trusts a known client-supplied MIME type", () => {
+		expect(resolveUploadMimeType("photo.jxl", "image/jxl")).toBe("image/jxl");
+		expect(resolveUploadMimeType("photo.png", "image/png")).toBe("image/png");
+	});
+
+	it("falls back to the extension when the client sends an empty type", () => {
+		expect(resolveUploadMimeType("photo.jxl", "")).toBe("image/jxl");
+	});
+
+	it("falls back to the extension for a generic octet-stream type", () => {
+		expect(resolveUploadMimeType("photo.jxl", "application/octet-stream")).toBe("image/jxl");
+	});
+
+	it("returns an empty string when neither type nor extension is known", () => {
+		expect(resolveUploadMimeType("photo.unknown", "")).toBe("");
+	});
+});
+
 describe("expandExtensionShorthand", () => {
 	it("passes through an already-MIME entry", () => {
 		expect(expandExtensionShorthand("image/png")).toBe("image/png");
@@ -76,6 +96,7 @@ describe("expandExtensionShorthand", () => {
 	it("expands known dot-extensions", () => {
 		expect(expandExtensionShorthand(".pdf")).toBe("application/pdf");
 		expect(expandExtensionShorthand(".PDF")).toBe("application/pdf");
+		expect(expandExtensionShorthand(".avif")).toBe("image/avif");
 		expect(expandExtensionShorthand(".docx")).toBe(
 			"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 		);

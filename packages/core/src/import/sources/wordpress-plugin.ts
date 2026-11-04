@@ -8,6 +8,9 @@
 import { gutenbergToPortableText } from "@emdash-cms/gutenberg-to-portable-text";
 
 import { encodeBase64 } from "../../utils/base64.js";
+import type { PluginComment } from "../comments.js";
+import type { PluginMenu } from "../menus.js";
+import { SiteChallengeError } from "../registry.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../ssrf.js";
 import type {
 	ImportSource,
@@ -28,7 +31,12 @@ import {
 	mapWpStatus,
 	normalizeUrl,
 	checkSchemaCompatibility,
+	isPluginBookkeepingMeta,
+	isTypeCompatible,
+	relativizeContentLinks,
+	sanitizeFieldSlug,
 } from "../utils.js";
+import { parseWxrDate } from "./wxr.js";
 
 // =============================================================================
 // API Response Types
@@ -122,6 +130,8 @@ interface PluginAnalyzeResponse {
 	acf?: Array<{
 		key: string;
 		title: string;
+		/** ACF location rules: OR-groups of AND-ed rules */
+		location?: Array<Array<{ param: string; operator: string; value: string }>>;
 		fields: Array<{
 			key: string;
 			name: string;
@@ -216,6 +226,84 @@ interface PluginMediaItem {
 /** Pattern to remove spaces from application passwords */
 const SPACE_PATTERN = /\s/g;
 
+/**
+ * Identifying User-Agent for outbound WordPress plugin importer requests.
+ *
+ * The importer sends this on both plugin API calls and direct media downloads.
+ * Cloudflare Workers' fetch() has no default User-Agent, and some hosts reject
+ * requests without one (returning 403). Using the same value everywhere keeps
+ * behavior predictable when the importer is retried against a bot-filtered host.
+ */
+const IMPORTER_USER_AGENT = "EmDash-Importer/1.0";
+
+/**
+ * Build the REST API URL for a plugin endpoint.
+ *
+ * `restRoute: false` uses the pretty form (`/wp-json/emdash/v1/...`),
+ * `restRoute: true` uses the `?rest_route=` form that works on sites with
+ * plain permalinks (where `/wp-json/` doesn't exist).
+ */
+function pluginApiUrl(
+	siteUrl: string,
+	path: string,
+	params: Record<string, string> = {},
+	restRoute = false,
+): string {
+	if (restRoute) {
+		const url = new URL(siteUrl + "/");
+		url.searchParams.set("rest_route", `/emdash/v1/${path}`);
+		for (const [key, value] of Object.entries(params)) {
+			url.searchParams.set(key, value);
+		}
+		return url.toString();
+	}
+	const url = new URL(`${siteUrl}/wp-json/emdash/v1/${path}`);
+	for (const [key, value] of Object.entries(params)) {
+		url.searchParams.set(key, value);
+	}
+	return url.toString();
+}
+
+/**
+ * Fetch a plugin API endpoint, falling back to the `?rest_route=` form when
+ * the pretty `/wp-json/` route 404s or is unreachable. Sites with "Plain"
+ * permalinks have no `/wp-json/` rewrite, so without this fallback they
+ * always fail with a misleading 404.
+ */
+async function fetchPluginApi(
+	siteUrl: string,
+	path: string,
+	params: Record<string, string>,
+	headersInit: HeadersInit,
+	timeoutMs: number,
+): Promise<Response> {
+	const headers = new Headers(headersInit);
+	headers.set("User-Agent", IMPORTER_USER_AGENT);
+
+	let pretty: Response | null = null;
+	try {
+		pretty = await ssrfSafeFetch(pluginApiUrl(siteUrl, path, params), {
+			headers,
+			signal: AbortSignal.timeout(timeoutMs),
+		});
+	} catch {
+		// Network-level failure -- try the rest_route form before giving up.
+	}
+	// Any response other than 404 (including 401/403/500) is authoritative:
+	// the route exists, so don't mask the real error with a fallback attempt.
+	const response =
+		pretty && pretty.status !== 404
+			? pretty
+			: await ssrfSafeFetch(pluginApiUrl(siteUrl, path, params, true), {
+					headers,
+					signal: AbortSignal.timeout(timeoutMs),
+				});
+	if (response.headers.get("cf-mitigated") === "challenge") {
+		throw new SiteChallengeError();
+	}
+	return response;
+}
+
 // =============================================================================
 // Import Source
 // =============================================================================
@@ -235,12 +323,13 @@ export const wordpressPluginSource: ImportSource = {
 			// SSRF protection: validate URL before any outbound requests
 			validateExternalUrl(siteUrl);
 
-			const probeUrl = `${siteUrl}/wp-json/emdash/v1/probe`;
-
-			const response = await ssrfSafeFetch(probeUrl, {
-				headers: { Accept: "application/json" },
-				signal: AbortSignal.timeout(10000),
-			});
+			const response = await fetchPluginApi(
+				siteUrl,
+				"probe",
+				{},
+				{ Accept: "application/json" },
+				10000,
+			);
 
 			if (!response.ok) {
 				return null;
@@ -285,7 +374,8 @@ export const wordpressPluginSource: ImportSource = {
 				},
 				i18n: pluginI18nToDetection(data.i18n),
 			};
-		} catch {
+		} catch (error) {
+			if (error instanceof SiteChallengeError) throw error;
 			return null;
 		}
 	},
@@ -293,10 +383,7 @@ export const wordpressPluginSource: ImportSource = {
 	async analyze(input: SourceInput, context: ImportContext): Promise<ImportAnalysis> {
 		const { siteUrl, headers } = getRequestConfig(input);
 
-		const response = await ssrfSafeFetch(`${siteUrl}/wp-json/emdash/v1/analyze`, {
-			headers,
-			signal: AbortSignal.timeout(30000),
-		});
+		const response = await fetchPluginApi(siteUrl, "analyze", {}, headers, 30000);
 
 		if (!response.ok) {
 			const body: unknown = await response.json().catch(() => undefined);
@@ -330,6 +417,48 @@ export const wordpressPluginSource: ImportSource = {
 					? [...BASE_REQUIRED_FIELDS, FEATURED_IMAGE_FIELD]
 					: [...BASE_REQUIRED_FIELDS];
 
+				// Surface the post type's custom fields (ACF and plain meta) so
+				// the prepare step creates them — without this, execute() has no
+				// matching schema fields and silently drops the values.
+				const knownSlugs = new Set(requiredFields.map((f) => f.slug));
+				const metaTypes = new Map(
+					(pt.custom_fields ?? []).map((field) => [
+						sanitizeFieldSlug(field.key),
+						mapInferredFieldType(field.inferred_type),
+					]),
+				);
+				const jsonAcfFields: AcfFieldInfo[] = [];
+				for (const acfField of acfFieldsForPostType(data.acf, pt.name)) {
+					const slug = sanitizeFieldSlug(acfField.name);
+					if (knownSlugs.has(slug)) continue;
+					knownSlugs.add(slug);
+					const type = acfImportFieldType(
+						acfField,
+						existingCollection?.fields.get(slug)?.type,
+						metaTypes.get(slug),
+					);
+					if (type === "json") jsonAcfFields.push(acfField);
+					requiredFields.push({
+						slug,
+						label: acfField.label || fieldLabelFromKey(acfField.name),
+						type,
+						required: false,
+					});
+				}
+				for (const customField of pt.custom_fields ?? []) {
+					if (isPluginBookkeepingMeta(customField.key)) continue;
+					if (isAcfRowMeta(customField.key, jsonAcfFields)) continue;
+					const slug = sanitizeFieldSlug(customField.key);
+					if (knownSlugs.has(slug)) continue;
+					knownSlugs.add(slug);
+					requiredFields.push({
+						slug,
+						label: fieldLabelFromKey(customField.key),
+						type: mapInferredFieldType(customField.inferred_type),
+						required: false,
+					});
+				}
+
 				return {
 					name: pt.name,
 					count: pt.total,
@@ -339,20 +468,24 @@ export const wordpressPluginSource: ImportSource = {
 				};
 			});
 
-		// Fetch media list for attachment info
+		// Fetch the full media list, paginated. Stopping after the first page
+		// silently capped imports at 500 attachments (wp-emdash #1).
 		const attachments: AttachmentInfo[] = [];
 		if (data.attachments.count > 0) {
 			try {
-				// Fetch first page of media to populate attachment info
-				const mediaResponse = await ssrfSafeFetch(
-					`${siteUrl}/wp-json/emdash/v1/media?per_page=500`,
-					{
+				let page = 1;
+				let totalPages = 1;
+				while (page <= totalPages) {
+					const mediaResponse = await fetchPluginApi(
+						siteUrl,
+						"media",
+						{ per_page: "500", page: String(page) },
 						headers,
-						signal: AbortSignal.timeout(30000),
-					},
-				);
-				if (mediaResponse.ok) {
+						30000,
+					);
+					if (!mediaResponse.ok) break;
 					const mediaData: PluginMediaResponse = await mediaResponse.json();
+					totalPages = mediaData.pages;
 					for (const item of mediaData.items) {
 						attachments.push({
 							id: item.id,
@@ -366,8 +499,10 @@ export const wordpressPluginSource: ImportSource = {
 							height: item.height,
 						});
 					}
+					page++;
 				}
 			} catch (e) {
+				if (e instanceof SiteChallengeError) throw e;
 				console.warn("Failed to fetch media list:", e);
 			}
 		}
@@ -410,12 +545,13 @@ export const wordpressPluginSource: ImportSource = {
 
 			while (page <= totalPages) {
 				const status = options.includeDrafts ? "any" : "publish";
-				const url = `${siteUrl}/wp-json/emdash/v1/content?post_type=${postType}&status=${status}&per_page=100&page=${page}`;
-
-				const response = await ssrfSafeFetch(url, {
+				const response = await fetchPluginApi(
+					siteUrl,
+					"content",
+					{ post_type: postType, status, per_page: "100", page: String(page) },
 					headers,
-					signal: AbortSignal.timeout(60000),
-				});
+					60000,
+				);
 
 				if (!response.ok) {
 					throw new Error(`Failed to fetch ${postType}: ${response.statusText}`);
@@ -425,7 +561,7 @@ export const wordpressPluginSource: ImportSource = {
 				totalPages = data.pages;
 
 				for (const post of data.items) {
-					yield pluginPostToNormalizedItem(post);
+					yield pluginPostToNormalizedItem(post, siteUrl);
 					yielded++;
 
 					if (options.limit && yielded >= options.limit) {
@@ -443,7 +579,11 @@ export const wordpressPluginSource: ImportSource = {
 		validateExternalUrl(url);
 
 		// Media URLs are publicly accessible on WP (ssrfSafeFetch validates redirects)
-		const response = await ssrfSafeFetch(url);
+		const response = await ssrfSafeFetch(url, {
+			headers: {
+				"User-Agent": IMPORTER_USER_AGENT,
+			},
+		});
 		if (!response.ok) {
 			throw new Error(`Failed to fetch media: ${response.statusText}`);
 		}
@@ -451,9 +591,174 @@ export const wordpressPluginSource: ImportSource = {
 	},
 };
 
+/**
+ * Fetch a single page of content for one post type. This is the unit of
+ * work for the chunked import: one Worker invocation imports one page,
+ * keeping each request far below Cloudflare's CPU and subrequest limits
+ * (see issue #475).
+ */
+export async function fetchPluginContentPage(options: {
+	siteUrl: string;
+	token: string;
+	postType: string;
+	page: number;
+	perPage: number;
+	includeDrafts: boolean;
+}): Promise<{ items: NormalizedItem[]; totalPages: number }> {
+	const { siteUrl, headers } = getRequestConfig({
+		type: "url",
+		url: options.siteUrl,
+		token: options.token,
+	});
+
+	const response = await fetchPluginApi(
+		siteUrl,
+		"content",
+		{
+			post_type: options.postType,
+			status: options.includeDrafts ? "any" : "publish",
+			per_page: String(options.perPage),
+			page: String(options.page),
+		},
+		headers,
+		60000,
+	);
+
+	if (!response.ok) {
+		throw new Error(`Failed to fetch ${options.postType}: ${response.statusText}`);
+	}
+
+	const data: PluginContentResponse = await response.json();
+	return {
+		items: data.items.map((post) => pluginPostToNormalizedItem(post, siteUrl)),
+		totalPages: data.pages,
+	};
+}
+
 // =============================================================================
 // Helper Functions
 // =============================================================================
+
+/** Plugin `inferred_type` values that are valid EmDash field types as-is */
+const VALID_INFERRED_TYPES = new Set([
+	"string",
+	"text",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"json",
+	"reference",
+]);
+
+/**
+ * Map the plugin's inferred custom-field type to an EmDash field type.
+ * Unknown values fall back to string (always safe for TEXT storage).
+ */
+function mapInferredFieldType(inferredType: string): string {
+	return VALID_INFERRED_TYPES.has(inferredType) ? inferredType : "string";
+}
+
+/**
+ * EmDash field types for ACF field types that hold a single value and return
+ * a scalar by default. When a return format makes `get_fields()` give an
+ * array, the raw meta value fills the field instead. Every other ACF type
+ * (select, checkbox, relationship, repeater, gallery, ...) can return several
+ * values or an object and is stored as JSON.
+ */
+const ACF_FIELD_TYPES: Record<string, string> = {
+	text: "string",
+	email: "string",
+	url: "string",
+	password: "string",
+	radio: "string",
+	button_group: "string",
+	color_picker: "string",
+	oembed: "string",
+	date_picker: "string",
+	date_time_picker: "string",
+	time_picker: "string",
+	textarea: "text",
+	wysiwyg: "text",
+	number: "number",
+	range: "number",
+	true_false: "boolean",
+};
+
+type AcfFieldInfo = NonNullable<PluginAnalyzeResponse["acf"]>[number]["fields"][number];
+
+/**
+ * The field type for an ACF field. A collection created by an earlier
+ * import holds the type the raw meta suggested for that key; that type is
+ * kept so the collection still imports, and the field's flattened row
+ * keys then keep filling their own fields.
+ */
+function acfImportFieldType(
+	field: AcfFieldInfo,
+	existingType: string | undefined,
+	metaType: string | undefined,
+): string {
+	const acfType = ACF_FIELD_TYPES[field.type] ?? "json";
+	if (
+		existingType &&
+		metaType &&
+		!isTypeCompatible(acfType, existingType) &&
+		isTypeCompatible(metaType, existingType)
+	) {
+		return existingType;
+	}
+	return acfType;
+}
+
+/** ACF layout-only field types that hold no value */
+const ACF_LAYOUT_TYPES = new Set(["tab", "message", "accordion"]);
+
+/** Fields of the ACF field groups whose location rules include `post_type == <postType>` */
+function acfFieldsForPostType(
+	groups: PluginAnalyzeResponse["acf"],
+	postType: string,
+): AcfFieldInfo[] {
+	const fields: AcfFieldInfo[] = [];
+	for (const group of groups ?? []) {
+		const assigned = group.location?.some((rules) =>
+			rules.some(
+				(rule) => rule.param === "post_type" && rule.operator === "==" && rule.value === postType,
+			),
+		);
+		if (!assigned) continue;
+		for (const field of group.fields) {
+			if (field.name && !ACF_LAYOUT_TYPES.has(field.type)) fields.push(field);
+		}
+	}
+	return fields;
+}
+
+const ACF_ROW_SUFFIX = /^_\d+_/;
+
+/**
+ * ACF stores repeater and flexible content rows as `<name>_<row>_<sub>`
+ * meta keys. Their values already arrive whole under the parent field in
+ * `get_fields()`.
+ */
+function isAcfRowMeta(key: string, acfFields: AcfFieldInfo[]): boolean {
+	return acfFields.some(
+		(field) =>
+			(field.type === "repeater" || field.type === "flexible_content") &&
+			key.startsWith(field.name) &&
+			ACF_ROW_SUFFIX.test(key.slice(field.name.length)),
+	);
+}
+
+const FIELD_KEY_SEPARATORS = /[_-]+/;
+
+/** Derive a human label from a meta key: "event_start-date" -> "Event Start Date" */
+function fieldLabelFromKey(key: string): string {
+	return key
+		.split(FIELD_KEY_SEPARATORS)
+		.filter(Boolean)
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+		.join(" ");
+}
 
 /**
  * Convert plugin i18n info to the shared I18nDetection type.
@@ -513,8 +818,9 @@ function getRequestConfig(input: SourceInput): {
 /**
  * Convert plugin post to normalized item
  */
-function pluginPostToNormalizedItem(post: PluginPost): NormalizedItem {
+function pluginPostToNormalizedItem(post: PluginPost, siteUrl: string): NormalizedItem {
 	const content = post.content ? gutenbergToPortableText(post.content) : [];
+	relativizeContentLinks(content, siteUrl);
 
 	// Extract categories and tags from taxonomies
 	const categories =
@@ -525,6 +831,15 @@ function pluginPostToNormalizedItem(post: PluginPost): NormalizedItem {
 		post.taxonomies?.post_tag?.map((t) => t.slug) ??
 		post.taxonomies?.tags?.map((t) => t.slug) ??
 		[];
+
+	// Everything else is a custom taxonomy assignment (genre, product_cat, ...)
+	const customTaxonomies: Record<string, string[]> = {};
+	for (const [name, terms] of Object.entries(post.taxonomies ?? {})) {
+		if (["category", "categories", "post_tag", "tags"].includes(name)) continue;
+		if (Array.isArray(terms) && terms.length > 0) {
+			customTaxonomies[name] = terms.map((t) => t.slug);
+		}
+	}
 
 	// Build meta from various sources
 	const meta: Record<string, unknown> = { ...post.meta };
@@ -550,11 +865,12 @@ function pluginPostToNormalizedItem(post: PluginPost): NormalizedItem {
 		title: post.title,
 		content,
 		excerpt: post.excerpt || undefined,
-		date: new Date(post.date_gmt || post.date),
-		modified: post.modified_gmt ? new Date(post.modified_gmt) : new Date(post.modified),
+		date: parseWxrDate(post.date_gmt, undefined, post.date) ?? new Date(Number.NaN),
+		modified: parseWxrDate(post.modified_gmt, undefined, post.modified),
 		author: post.author?.login,
 		categories,
 		tags,
+		customTaxonomies: Object.keys(customTaxonomies).length > 0 ? customTaxonomies : undefined,
 		meta,
 		featuredImage: post.featured_image?.url,
 		locale: post.locale,
@@ -589,14 +905,13 @@ export async function fetchPluginMedia(
 	// SSRF protection: validate URL before any outbound requests
 	validateExternalUrl(normalizedSiteUrl);
 
-	const url = `${normalizedSiteUrl}/wp-json/emdash/v1/media?per_page=${perPage}&page=${page}`;
-
-	const response = await ssrfSafeFetch(url, {
-		headers: {
-			Accept: "application/json",
-			Authorization: `Basic ${authToken}`,
-		},
-	});
+	const response = await fetchPluginApi(
+		normalizedSiteUrl,
+		"media",
+		{ per_page: String(perPage), page: String(page) },
+		{ Accept: "application/json", Authorization: `Basic ${authToken}` },
+		30000,
+	);
 
 	if (!response.ok) {
 		throw new Error(`Failed to fetch media: ${response.statusText}`);
@@ -615,7 +930,11 @@ export async function fetchPluginTaxonomies(
 	Array<{
 		name: string;
 		label: string;
+		/** Singular label (added in emdash-exporter 1.2.0) */
+		label_singular?: string;
 		hierarchical: boolean;
+		/** WP post types this taxonomy is registered for (added in emdash-exporter 1.2.0) */
+		post_types?: string[];
 		terms: Array<{
 			id: number;
 			name: string;
@@ -631,18 +950,138 @@ export async function fetchPluginTaxonomies(
 	// SSRF protection: validate URL before any outbound requests
 	validateExternalUrl(normalizedSiteUrl);
 
-	const url = `${normalizedSiteUrl}/wp-json/emdash/v1/taxonomies`;
-
-	const response = await ssrfSafeFetch(url, {
-		headers: {
-			Accept: "application/json",
-			Authorization: `Basic ${authToken}`,
-		},
-	});
+	const response = await fetchPluginApi(
+		normalizedSiteUrl,
+		"taxonomies",
+		{},
+		{ Accept: "application/json", Authorization: `Basic ${authToken}` },
+		30000,
+	);
 
 	if (!response.ok) {
 		throw new Error(`Failed to fetch taxonomies: ${response.statusText}`);
 	}
 
 	return response.json();
+}
+
+/**
+ * Fetch navigation menus from plugin API (added in emdash-exporter 1.1.0).
+ * Returns an empty array when the endpoint doesn't exist (older plugin).
+ */
+export async function fetchPluginMenus(siteUrl: string, authToken: string): Promise<PluginMenu[]> {
+	const normalizedSiteUrl = normalizeUrl(siteUrl);
+
+	// SSRF protection: validate URL before any outbound requests
+	validateExternalUrl(normalizedSiteUrl);
+
+	const response = await fetchPluginApi(
+		normalizedSiteUrl,
+		"menus",
+		{},
+		{ Accept: "application/json", Authorization: `Basic ${authToken}` },
+		30000,
+	);
+
+	if (response.status === 404) {
+		return [];
+	}
+	if (!response.ok) {
+		throw new Error(`Failed to fetch menus: ${response.statusText}`);
+	}
+
+	return response.json();
+}
+
+/**
+ * Fetch site options from plugin API (title, tagline, logo, favicon, ...)
+ */
+export async function fetchPluginOptions(
+	siteUrl: string,
+	authToken: string,
+): Promise<Record<string, unknown>> {
+	const normalizedSiteUrl = normalizeUrl(siteUrl);
+
+	// SSRF protection: validate URL before any outbound requests
+	validateExternalUrl(normalizedSiteUrl);
+
+	const response = await fetchPluginApi(
+		normalizedSiteUrl,
+		"options",
+		{},
+		{ Accept: "application/json", Authorization: `Basic ${authToken}` },
+		30000,
+	);
+
+	if (!response.ok) {
+		throw new Error(`Failed to fetch options: ${response.statusText}`);
+	}
+
+	return response.json();
+}
+
+/** Comments response from /emdash/v1/comments */
+interface PluginCommentsResponse {
+	items: PluginComment[];
+	total: number;
+	pages: number;
+	page: number;
+	per_page: number;
+}
+
+/**
+ * Fetch a single page of comments from the plugin API (added in
+ * emdash-exporter 1.2.0). The exporter orders by comment ID ascending, so
+ * parents always appear before their children across pages. Returns
+ * `totalPages: 0` when the endpoint doesn't exist (older plugin).
+ */
+export async function fetchPluginCommentsPage(
+	siteUrl: string,
+	authToken: string,
+	page: number,
+): Promise<{ items: PluginComment[]; totalPages: number }> {
+	const normalizedSiteUrl = normalizeUrl(siteUrl);
+
+	// SSRF protection: validate URL before any outbound requests
+	validateExternalUrl(normalizedSiteUrl);
+
+	const response = await fetchPluginApi(
+		normalizedSiteUrl,
+		"comments",
+		{ per_page: "500", page: String(page) },
+		{ Accept: "application/json", Authorization: `Basic ${authToken}` },
+		30000,
+	);
+
+	if (response.status === 404) {
+		return { items: [], totalPages: 0 };
+	}
+	if (!response.ok) {
+		throw new Error(`Failed to fetch comments: ${response.statusText}`);
+	}
+
+	const data: PluginCommentsResponse = await response.json();
+	return { items: data.items, totalPages: data.pages };
+}
+
+/**
+ * Fetch all comments from plugin API, paginating through every page.
+ * Returns an empty array when the endpoint doesn't exist (older plugin).
+ */
+export async function fetchPluginComments(
+	siteUrl: string,
+	authToken: string,
+): Promise<PluginComment[]> {
+	const comments: PluginComment[] = [];
+	let page = 1;
+	let totalPages = 1;
+
+	while (page <= totalPages) {
+		const result = await fetchPluginCommentsPage(siteUrl, authToken, page);
+		totalPages = result.totalPages;
+		comments.push(...result.items);
+		page++;
+	}
+
+	return comments;
 }

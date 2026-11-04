@@ -26,7 +26,7 @@ import { P256PrivateKeyExportable } from "@atcute/crypto";
 import type { DidDocument } from "@atcute/identity";
 import type { Did } from "@atcute/lexicons/syntax";
 import { NSID } from "@emdash-cms/registry-lexicons";
-import { applyD1Migrations, env } from "cloudflare:test";
+import { applyD1Migrations, env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -67,9 +67,14 @@ beforeAll(async () => {
 
 beforeEach(async () => {
 	for (const table of [
+		"public_releases",
+		"public_packages",
 		"release_duplicate_attempts",
 		"releases",
+		"package_release_history",
 		"packages",
+		"package_profile_heads",
+		"package_profile_revisions",
 		"publisher_verifications",
 		"publishers",
 		"known_publishers",
@@ -116,6 +121,12 @@ describe("ingestPackageProfile", () => {
 		license: "MIT",
 		authors: [{ name: "Tester" }],
 		security: [{ email: "x@y.test" }],
+		extensions: {
+			[NSID.packageProfileExtension]: {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/demo",
+			},
+		},
 	};
 
 	it("inserts a row on first call", async () => {
@@ -126,6 +137,140 @@ describe("ingestPackageProfile", () => {
 			.bind(DID_A)
 			.first<{ did: string; slug: string; license: string }>();
 		expect(row).toMatchObject({ did: DID_A, slug: "demo", license: "MIT" });
+	});
+
+	it("accepts a profile without the optional repository extension", async () => {
+		const { extensions: _extensions, ...missingExtension } = validRecord;
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo"),
+			fakeVerified(missingExtension),
+			NOW,
+		);
+		const row = await testEnv.DB.prepare(
+			`SELECT emdash_extension, installability_status, installability_error
+			 FROM packages WHERE did = ? AND slug = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{
+				emdash_extension: string | null;
+				installability_status: string;
+				installability_error: string | null;
+			}>();
+		expect(row?.emdash_extension).toBeNull();
+		expect(row?.installability_status).toBe("valid");
+		expect(row?.installability_error).toBeNull();
+	});
+
+	it("accepts later revisions of an extensionless profile", async () => {
+		const { extensions: _extensions, ...record } = validRecord;
+		delete (record as { extensions?: unknown }).extensions;
+		const job = jobFor(DID_A, NSID.packageProfile, "demo", {
+			operation: "update",
+		});
+
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{ ...fakeVerified(record), cid: "bafy-extensionless-first" },
+			NOW,
+		);
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{ ...fakeVerified(record), cid: "bafy-extensionless-second" },
+			new Date(NOW.getTime() + 1_000),
+		);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT emdash_extension, installability_status, installability_error
+				 FROM packages WHERE did = ? AND slug = ?`,
+			)
+				.bind(DID_A, "demo")
+				.first(),
+		).toEqual({
+			emdash_extension: null,
+			installability_status: "valid",
+			installability_error: null,
+		});
+	});
+
+	it("records a stable reason for a malformed install-verification extension", async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo"),
+			fakeVerified({
+				...validRecord,
+				extensions: {
+					[NSID.packageProfileExtension]: {
+						$type: NSID.packageProfileExtension,
+						repository: "http://github.com/example/demo",
+					},
+				},
+			}),
+			NOW,
+		);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT emdash_extension, installability_status, installability_error
+			 FROM package_profile_revisions WHERE did = ? AND slug = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{
+				emdash_extension: string | null;
+				installability_status: string;
+				installability_error: string | null;
+			}>();
+		expect(row).toEqual({
+			emdash_extension: null,
+			installability_status: "invalid",
+			installability_error: "PROFILE_EXTENSION_INVALID",
+		});
+	});
+
+	it("restores visibility when an invalid publisher republishes a valid profile", async () => {
+		const job = jobFor(DID_A, NSID.packageProfile, "demo", { operation: "update" });
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{
+				...fakeVerified({
+					...validRecord,
+					extensions: {
+						[NSID.packageProfileExtension]: {
+							$type: NSID.packageProfileExtension,
+							repository: "http://github.com/example/demo",
+						},
+					},
+				}),
+				cid: "bafy-invalid-profile",
+			},
+			NOW,
+		);
+		const unavailable = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(unavailable.status).toBe(404);
+
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{ ...fakeVerified(validRecord), cid: "bafy-corrected-profile" },
+			new Date(NOW.getTime() + 1_000),
+		);
+
+		const restored = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(restored.status).toBe(200);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT installability_status, installability_error
+				 FROM packages WHERE did = ? AND slug = ?`,
+			)
+				.bind(DID_A, "demo")
+				.first(),
+		).toEqual({ installability_status: "valid", installability_error: null });
 	});
 
 	it("upserts on second call with edited record", async () => {
@@ -163,6 +308,73 @@ describe("ingestPackageProfile", () => {
 			.first<{ indexed_at: string; verified_at: string }>();
 		expect(row?.indexed_at).toBe(firstSeen.toISOString());
 		expect(row?.verified_at).toBe(reIngested.toISOString());
+	});
+
+	it("marks a live profile creation as complete release history", async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "jetstream" }),
+			fakeVerified(validRecord),
+			NOW,
+		);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT release_history_complete, first_observed_source
+			 FROM package_release_history WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number; first_observed_source: string }>();
+		expect(row).toEqual({
+			release_history_complete: 1,
+			first_observed_source: "jetstream",
+		});
+	});
+
+	it.each([
+		["backfill", { source: "backfill" as const }],
+		["an older producer", {}],
+		["a live profile update", { source: "jetstream" as const, operation: "update" as const }],
+	])("keeps %s history incomplete", async (_name, source) => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", source),
+			fakeVerified(validRecord),
+			NOW,
+		);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT release_history_complete FROM package_release_history
+			 WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number }>();
+		expect(row?.release_history_complete).toBe(0);
+	});
+
+	it("never upgrades incomplete history after a later live profile event", async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "backfill" }),
+			fakeVerified(validRecord),
+			NOW,
+		);
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "jetstream" }),
+			fakeVerified(validRecord),
+			new Date("2026-05-10T12:00:00.000Z"),
+		);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT release_history_complete, first_observed_source
+			 FROM package_release_history WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number; first_observed_source: string }>();
+		expect(row).toEqual({
+			release_history_complete: 0,
+			first_observed_source: "backfill",
+		});
 	});
 
 	it("rejects when rkey ≠ record.slug", async () => {
@@ -238,6 +450,33 @@ describe("ingestPackageRelease", () => {
 		expect(row?.version).toBe("1.10.0");
 		// 1.10.0 must sort after 1.9.0 — the whole point of version_sort.
 		expect(row?.version_sort.startsWith("0000000001.0000000010.")).toBe(true);
+	});
+
+	it("marks history incomplete when a release is first encountered by backfill", async () => {
+		await testEnv.DB.prepare("DELETE FROM package_release_history").run();
+		await testEnv.DB.prepare("DELETE FROM packages").run();
+		await testEnv.DB.prepare("DELETE FROM package_profile_heads").run();
+		await testEnv.DB.prepare("DELETE FROM package_profile_revisions").run();
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "jetstream" }),
+			fakeVerified(validProfile),
+			NOW,
+		);
+		await ingestPackageRelease(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageRelease, "demo:1.0.0", { source: "backfill" }),
+			fakeVerified(makeRelease("1.0.0")),
+			NOW,
+		);
+
+		const history = await testEnv.DB.prepare(
+			`SELECT release_history_complete FROM package_release_history
+			 WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number }>();
+		expect(history?.release_history_complete).toBe(0);
 	});
 
 	it("rejects when rkey ≠ '<package>:<version>'", async () => {
@@ -427,16 +666,32 @@ describe("applyDelete", () => {
 		);
 	});
 
-	it("hard-deletes a package.profile", async () => {
+	it("removes package eligibility while retaining verified history", async () => {
 		await applyDelete(
 			testEnv.DB,
 			jobFor(DID_A, NSID.packageProfile, "demo", { operation: "delete" }),
 			NOW,
 		);
-		const row = await testEnv.DB.prepare(`SELECT did FROM packages WHERE did = ?`)
-			.bind(DID_A)
-			.first();
-		expect(row).toBeNull();
+		const row = await testEnv.DB.prepare(
+			`SELECT h.deleted_at,
+			        (SELECT COUNT(*) FROM package_profile_revisions r
+			         WHERE r.did = h.did AND r.slug = h.slug) AS revision_count,
+			        (SELECT tombstoned_at FROM releases
+			         WHERE did = h.did AND package = h.slug LIMIT 1) AS release_tombstoned_at
+			 FROM package_profile_heads h
+			 WHERE h.did = ? AND h.slug = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{
+				deleted_at: string | null;
+				revision_count: number;
+				release_tombstoned_at: string | null;
+			}>();
+		expect(row).toMatchObject({
+			deleted_at: NOW.toISOString(),
+			revision_count: 1,
+			release_tombstoned_at: NOW.toISOString(),
+		});
 	});
 
 	it("soft-deletes a release (sets tombstoned_at)", async () => {
@@ -504,12 +759,35 @@ describe("applyDelete", () => {
 
 // ─── Dispatcher (processMessage) ────────────────────────────────────────────
 
+function didDocFor(did: string, signingKey: string): DidDocument {
+	return {
+		id: did as Did,
+		verificationMethod: [
+			{
+				id: `${did}#atproto`,
+				type: "Multikey",
+				controller: did as Did,
+				publicKeyMultibase: signingKey,
+			},
+		],
+		service: [
+			{
+				id: "#atproto_pds",
+				type: "AtprotoPersonalDataServer",
+				serviceEndpoint: "https://pds.test.example",
+			},
+		],
+	};
+}
+
+/** Serves `results` in order (an `Error` rejects that lookup), then the same
+ * identity `MapDidDocCache.seed` writes. */
 class StubResolver implements DidDocumentResolverLike {
-	resolve(_did: Did): Promise<DidDocument> {
-		// processMessage tests inject a DidResolver that's wired to a stub DID
-		// doc — we never actually traverse this resolver because the cache
-		// always hits.
-		return Promise.reject(new Error("StubResolver should not be called"));
+	constructor(private readonly results: Array<DidDocument | Error> = []) {}
+	resolve(did: Did): Promise<DidDocument> {
+		const next = this.results.shift();
+		if (next instanceof Error) return Promise.reject(next);
+		return Promise.resolve(next ?? didDocFor(did, signingKeyMultibase));
 	}
 }
 
@@ -559,7 +837,7 @@ function buildDeps(opts: { fetch: typeof fetch }): {
 	const resolver = new DidResolver({
 		cache,
 		resolver: new StubResolver(),
-		// Long TTL so we never actually call StubResolver.
+		// Long TTL so a seeded entry is always a cache hit.
 		ttlMs: 1_000_000,
 		now: () => NOW,
 	});
@@ -601,13 +879,64 @@ describe("processMessage dispatcher", () => {
 			fetch: () => Promise.resolve(new Response("", { status: 503 })),
 		});
 		cache.seed(DID_A);
+		let fresh = 0;
+		const { resolver } = deps;
+		const counted: ConsumerDeps = {
+			...deps,
+			resolver: {
+				resolve: (did) => resolver.resolve(did),
+				resolveFresh: (did) => {
+					fresh++;
+					return resolver.resolveFresh(did);
+				},
+			},
+		};
 		const msg = new FakeMessage();
 
-		await processMessage(jobFor(DID_A, NSID.packageProfile, "demo"), msg, deps);
+		await processMessage(jobFor(DID_A, NSID.packageProfile, "demo"), msg, counted);
 
 		expect(msg.retried).toBe(1);
 		expect(msg.acked).toBe(0);
 		expect(await deadLetterCount()).toBe(0);
+		expect(fresh).toBe(0);
+	});
+
+	it("makes release history incomplete when a release is dead-lettered", async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "jetstream" }),
+			fakeVerified({
+				$type: NSID.packageProfile,
+				id: `at://${DID_A}/${NSID.packageProfile}/demo`,
+				slug: "demo",
+				type: "emdash-plugin",
+				license: "MIT",
+				authors: [{ name: "Tester" }],
+				security: [{ email: "x@y.test" }],
+			}),
+			NOW,
+		);
+		const { deps, cache } = buildDeps({
+			fetch: () => Promise.resolve(new Response("", { status: 404 })),
+		});
+		cache.seed(DID_A);
+		const msg = new FakeMessage();
+
+		await processMessage(
+			jobFor(DID_A, NSID.packageRelease, "demo:1.0.0", { source: "jetstream" }),
+			msg,
+			deps,
+		);
+
+		expect(msg.acked).toBe(1);
+		expect(await deadLetterCount()).toBe(1);
+		const history = await testEnv.DB.prepare(
+			`SELECT release_history_complete FROM package_release_history
+			 WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number }>();
+		expect(history?.release_history_complete).toBe(0);
 	});
 
 	it("retries on a network error", async () => {
@@ -1155,6 +1484,104 @@ describe("processMessage dispatcher: MissingDependencyError → retry", () => {
 		expect(msg.retried).toBe(1);
 		expect(msg.acked).toBe(0);
 		expect(await deadLetterCount()).toBe(0);
+	});
+});
+
+describe("processMessage dispatcher: publisher identity", () => {
+	const profile = {
+		$type: NSID.publisherProfile,
+		displayName: "Acme Plugin Co.",
+		contact: [{ kind: "general", email: "hi@acme.test" }],
+	};
+
+	async function publisherRow() {
+		return testEnv.DB.prepare(`SELECT did FROM publishers WHERE did = ?`).bind(DID_A).first();
+	}
+
+	it("retries when the DID lookup fails, then ingests on redelivery", async () => {
+		const deps: ConsumerDeps = {
+			db: testEnv.DB,
+			resolver: new DidResolver({
+				cache: new MapDidDocCache(),
+				resolver: new StubResolver([new Error("PLC directory returned 503")]),
+				now: () => NOW,
+			}),
+			now: () => NOW,
+			verify: () => Promise.resolve(fakeVerified(profile)),
+		};
+		const job = jobFor(DID_A, NSID.publisherProfile, "self");
+
+		const first = new FakeMessage();
+		await processMessage(job, first, deps);
+		expect(first.retried).toBe(1);
+		expect(first.acked).toBe(0);
+		expect(await deadLetterCount()).toBe(0);
+
+		const redelivery = new FakeMessage();
+		await processMessage(job, redelivery, deps);
+		expect(redelivery.acked).toBe(1);
+		expect(await deadLetterCount()).toBe(0);
+		expect(await publisherRow()).not.toBeNull();
+	});
+
+	it("re-resolves a cached signing key the publisher has rotated", async () => {
+		const rotated = await (
+			await P256PrivateKeyExportable.createKeypair()
+		).exportPublicKey("multikey");
+		const cache = new MapDidDocCache();
+		cache.seed(DID_A);
+		const deps: ConsumerDeps = {
+			db: testEnv.DB,
+			resolver: new DidResolver({
+				cache,
+				resolver: new StubResolver([didDocFor(DID_A, rotated)]),
+				now: () => NOW,
+			}),
+			now: () => NOW,
+			verify: async ({ publicKey }) => {
+				if ((await publicKey.exportPublicKey("multikey")) !== rotated) {
+					throw new PdsVerificationError("INVALID_PROOF", "verifyRecord failed: bad signature");
+				}
+				return fakeVerified(profile);
+			},
+		};
+		const msg = new FakeMessage();
+
+		await processMessage(jobFor(DID_A, NSID.publisherProfile, "self"), msg, deps);
+
+		expect(msg.acked).toBe(1);
+		expect(msg.retried).toBe(0);
+		expect(await deadLetterCount()).toBe(0);
+		expect(await publisherRow()).not.toBeNull();
+		expect((await cache.read(DID_A))?.signingKey).toBe(rotated);
+	});
+
+	it("keeps verifying from the cache when a re-check's lookup fails", async () => {
+		const cache = new MapDidDocCache();
+		cache.seed(DID_A);
+		const plcDown = new Error("PLC directory returned 503");
+		const deps: ConsumerDeps = {
+			db: testEnv.DB,
+			resolver: new DidResolver({
+				cache,
+				resolver: new StubResolver([plcDown, plcDown]),
+				now: () => NOW,
+			}),
+			now: () => NOW,
+			verify: ({ collection }) =>
+				collection === NSID.publisherProfile
+					? Promise.resolve(fakeVerified(profile))
+					: Promise.reject(new PdsVerificationError("RECORD_NOT_FOUND", "PDS returned 404", 404)),
+		};
+
+		const gone = new FakeMessage();
+		await processMessage(jobFor(DID_A, NSID.packageProfile, "deleted"), gone, deps);
+		expect(gone.retried).toBe(1);
+
+		const next = new FakeMessage();
+		await processMessage(jobFor(DID_A, NSID.publisherProfile, "self"), next, deps);
+		expect(next.acked).toBe(1);
+		expect(await publisherRow()).not.toBeNull();
 	});
 });
 

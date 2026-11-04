@@ -6,10 +6,11 @@ node_modules/
 
 # astro
 .astro/
+.emdash/migrations.json
 
 # local data
 data.db
-data.db-journal
+data.db-*
 uploads/
 
 # logs

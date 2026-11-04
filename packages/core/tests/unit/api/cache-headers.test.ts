@@ -20,7 +20,7 @@ describe("API cache headers", () => {
 			const response = apiSuccess({ id: "123" }, 201);
 			expect(response.status).toBe(201);
 			const body = await response.json();
-			expect(body).toEqual({ data: { id: "123" } });
+			expect(body).toEqual({ success: true, data: { id: "123" } });
 		});
 	});
 
@@ -39,7 +39,10 @@ describe("API cache headers", () => {
 			const response = apiError("FORBIDDEN", "Access denied", 403);
 			expect(response.status).toBe(403);
 			const body = await response.json();
-			expect(body).toEqual({ error: { code: "FORBIDDEN", message: "Access denied" } });
+			expect(body).toEqual({
+				success: false,
+				error: { code: "FORBIDDEN", message: "Access denied" },
+			});
 		});
 	});
 

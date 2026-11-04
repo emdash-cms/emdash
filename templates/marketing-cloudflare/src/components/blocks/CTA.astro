@@ -1,0 +1,178 @@
+---
+import { sanitizeHref } from "emdash";
+import { Image, type BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
+import { toParagraphs } from "../../utils/text";
+
+type CTABlock = Extract<PageContentBlock, { _type: "marketing_cta" }>;
+type Props = BlockComponentProps<CTABlock>;
+
+const { value } = Astro.props;
+const { anchor_id, headline, image } = value;
+
+const paragraphs = toParagraphs(value.body);
+const primaryCta =
+	value.primary_cta_label && value.primary_cta_url
+		? { label: value.primary_cta_label, url: sanitizeHref(value.primary_cta_url) }
+		: undefined;
+const secondaryCta =
+	value.secondary_cta_label && value.secondary_cta_url
+		? { label: value.secondary_cta_label, url: sanitizeHref(value.secondary_cta_url) }
+		: undefined;
+---
+
+<section
+	id={anchor_id || undefined}
+	class:list={[
+		"cta",
+		"sheet",
+		"sheet-section",
+		image ? ["cta--photo", "settle"] : ["cta--night", "sheet--night"],
+	]}
+>
+	{image && (
+		<div class="cta__bg">
+			<Image image={image} alt="" sizes="(max-width: 960px) 1000px, min(100vw, 1680px)" />
+		</div>
+	)}
+	<div class="container cta__content">
+		<h2 class="display cta__headline">{headline}</h2>
+		{paragraphs.map((paragraph) => <p class="cta__body">{paragraph}</p>)}
+		{(primaryCta || secondaryCta) && (
+			<div class="actions cta__actions">
+				{primaryCta && (
+					<a href={primaryCta.url} class="btn btn-lg btn-light">
+						{primaryCta.label}
+					</a>
+				)}
+				{secondaryCta && (
+					<a href={secondaryCta.url} class="btn btn-lg btn-glass">
+						{secondaryCta.label}
+					</a>
+				)}
+			</div>
+		)}
+	</div>
+</section>
+
+<style>
+	.cta {
+		display: grid;
+		align-items: center;
+		min-height: clamp(480px, 42vw, 640px);
+	}
+
+	.cta--photo {
+		color: #fff;
+		background-color: var(--color-night);
+	}
+
+	.cta--photo::before {
+		content: "";
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		background: linear-gradient(
+			to right,
+			rgb(15 14 13 / 0.86),
+			rgb(15 14 13 / 0.6) 40%,
+			rgb(15 14 13 / 0.08) 80%
+		);
+	}
+
+	.cta--photo:dir(rtl)::before {
+		background: linear-gradient(
+			to left,
+			rgb(15 14 13 / 0.86),
+			rgb(15 14 13 / 0.6) 40%,
+			rgb(15 14 13 / 0.08) 80%
+		);
+	}
+
+	.cta__bg {
+		position: absolute;
+		inset: 0;
+		z-index: -2;
+	}
+
+	.cta__bg :global(img) {
+		width: 100%;
+		max-width: none;
+		height: 100%;
+		max-height: none;
+		object-fit: cover;
+	}
+
+	.cta__content {
+		padding-block: 72px;
+	}
+
+	.cta__headline {
+		max-width: 560px;
+		font-size: clamp(44px, 5.2vw, 76px);
+		line-height: 0.98;
+	}
+
+	.cta__body {
+		max-width: 42ch;
+		margin-block-start: 20px;
+		font-size: 18px;
+		color: var(--color-on-night-muted);
+	}
+
+	.cta--photo .cta__body {
+		color: rgb(255 255 255 / 0.74);
+	}
+
+	.cta__actions {
+		max-width: 560px;
+		margin-block-start: 36px;
+	}
+
+	.cta--night {
+		min-height: 0;
+		text-align: center;
+	}
+
+	.cta--night .cta__content {
+		padding-block: clamp(72px, 8vw, 112px);
+	}
+
+	.cta--night .cta__headline,
+	.cta--night .cta__body {
+		margin-inline: auto;
+	}
+
+	.cta--night .cta__headline {
+		max-width: 16ch;
+	}
+
+	.cta--night .cta__actions {
+		justify-content: center;
+		margin-inline: auto;
+	}
+
+	.cta :focus-visible {
+		outline-color: var(--color-on-night);
+	}
+
+	@media (max-width: 960px) {
+		.cta--photo {
+			align-items: end;
+			min-height: 560px;
+		}
+
+		:is(.cta--photo, .cta--photo:dir(rtl))::before {
+			background: linear-gradient(
+				to top,
+				rgb(15 14 13 / 0.9),
+				rgb(15 14 13 / 0.6) 50%,
+				rgb(15 14 13 / 0.1)
+			);
+		}
+
+		.cta__content {
+			padding-block: 40px;
+		}
+	}
+</style>

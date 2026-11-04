@@ -275,7 +275,8 @@ describe("Comments Integration", () => {
 				body: JSON.stringify({ status: "approved" }),
 			},
 		);
-		expect(approveRes.ok).toBe(true);
+		const approveBody = await approveRes.text();
+		expect(approveRes.ok, approveBody).toBe(true);
 
 		// Now it should appear on the rendered page
 		const htmlAfter = await fetchHtml(ctx, "/posts/second-post");

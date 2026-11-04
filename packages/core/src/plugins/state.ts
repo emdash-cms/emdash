@@ -12,6 +12,16 @@ import type { Database } from "../database/types.js";
 export type PluginStatus = "active" | "inactive";
 export type PluginSource = "config" | "marketplace" | "registry";
 
+const TIMEZONE_SUFFIX = /(?:z|[+-]\d{2}(?::?\d{2})?)$/i;
+const HOUR_OFFSET_SUFFIX = /\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?[+-]\d{2}$/i;
+
+function parseDatabaseTimestamp(value: string): Date {
+	let normalized = value.trim().replace(" ", "T");
+	if (HOUR_OFFSET_SUFFIX.test(normalized)) normalized += ":00";
+	else if (!TIMEZONE_SUFFIX.test(normalized)) normalized += "Z";
+	return new Date(normalized);
+}
+
 function toPluginStatus(value: string): PluginStatus {
 	if (value === "active") return "active";
 	return "inactive";
@@ -49,6 +59,8 @@ export interface PluginState {
 	 * `packages/core/src/registry/plugin-id.ts`.
 	 */
 	registrySlug: string | null;
+	mcpToolsEnabled: boolean;
+	mcpToolsConsent: string | null;
 }
 
 /**
@@ -121,6 +133,8 @@ export class PluginStateRepository {
 			description?: string;
 			registryPublisherDid?: string;
 			registrySlug?: string;
+			mcpToolsEnabled?: boolean;
+			mcpToolsConsent?: string | null;
 		},
 	): Promise<PluginState> {
 		const now = new Date().toISOString();
@@ -128,7 +142,7 @@ export class PluginStateRepository {
 
 		if (existing) {
 			// Update existing state
-			const updates: Record<string, string | null> = {
+			const updates: Record<string, string | number | null> = {
 				status,
 				version,
 			};
@@ -155,6 +169,12 @@ export class PluginStateRepository {
 			if (opts?.registrySlug !== undefined) {
 				updates.registry_slug = opts.registrySlug;
 			}
+			if (opts?.mcpToolsEnabled !== undefined) {
+				updates.mcp_tools_enabled = opts.mcpToolsEnabled ? 1 : 0;
+			}
+			if (opts?.mcpToolsConsent !== undefined) {
+				updates.mcp_tools_consent = opts.mcpToolsConsent;
+			}
 
 			await this.db
 				.updateTable("_plugin_state")
@@ -179,11 +199,75 @@ export class PluginStateRepository {
 					description: opts?.description ?? null,
 					registry_publisher_did: opts?.registryPublisherDid ?? null,
 					registry_slug: opts?.registrySlug ?? null,
+					mcp_tools_enabled: opts?.mcpToolsEnabled ? 1 : 0,
+					mcp_tools_consent: opts?.mcpToolsConsent ?? null,
 				})
 				.execute();
 		}
 
 		return (await this.get(pluginId))!;
+	}
+
+	/**
+	 * Insert an active state row unless the plugin already has one.
+	 *
+	 * Returns true only for the caller whose insert created the row, so
+	 * concurrent callers agree on a single owner for one-time setup.
+	 */
+	async createActiveIfAbsent(
+		pluginId: string,
+		version: string,
+		source: PluginSource,
+	): Promise<boolean> {
+		const now = new Date().toISOString();
+		const inserted = await this.db
+			.insertInto("_plugin_state")
+			.values({
+				plugin_id: pluginId,
+				status: "active",
+				version,
+				installed_at: now,
+				activated_at: now,
+				deactivated_at: null,
+				data: null,
+				source,
+				marketplace_version: null,
+				display_name: null,
+				description: null,
+				registry_publisher_did: null,
+				registry_slug: null,
+				mcp_tools_consent: null,
+			})
+			.onConflict((oc) => oc.column("plugin_id").doNothing())
+			.returning("plugin_id")
+			.executeTakeFirst();
+		return inserted !== undefined;
+	}
+
+	async restoreIfVersion(expectedVersion: string, state: PluginState): Promise<boolean> {
+		const result = await this.db
+			.updateTable("_plugin_state")
+			.set({
+				version: state.version,
+				status: state.status,
+				installed_at: state.installedAt.toISOString(),
+				activated_at: state.activatedAt?.toISOString() ?? null,
+				deactivated_at: state.deactivatedAt?.toISOString() ?? null,
+				source: state.source,
+				marketplace_version: state.marketplaceVersion,
+				display_name: state.displayName,
+				description: state.description,
+				registry_publisher_did: state.registryPublisherDid,
+				registry_slug: state.registrySlug,
+				mcp_tools_enabled: state.mcpToolsEnabled ? 1 : 0,
+				mcp_tools_consent: state.mcpToolsConsent,
+			})
+			.where("plugin_id", "=", state.pluginId)
+			.where("version", "=", expectedVersion)
+			.where("source", "=", state.source)
+			.executeTakeFirst();
+
+		return (result.numUpdatedRows ?? 0n) > 0n;
 	}
 
 	/**
@@ -214,14 +298,11 @@ export class PluginStateRepository {
 }
 
 /**
- * Internal: map a `_plugin_state` row to the public `PluginState` shape.
- *
- * Kept at module scope so the three select paths (`get`, `getAll`,
- * `getMarketplacePlugins`, `getRegistryPlugins`) stay byte-identical in
- * their handling of nullable columns -- adding a new column to the table
- * means changing this function and nothing else.
+ * Map a `_plugin_state` row to the public `PluginState` shape. Every read
+ * path uses this, so adding a column to the table means changing this
+ * function and nothing else.
  */
-interface PluginStateRow {
+export interface PluginStateRow {
 	plugin_id: string;
 	status: string;
 	version: string;
@@ -234,21 +315,25 @@ interface PluginStateRow {
 	description: string | null;
 	registry_publisher_did: string | null;
 	registry_slug: string | null;
+	mcp_tools_enabled: number;
+	mcp_tools_consent: string | null;
 }
 
-function rowToPluginState(row: PluginStateRow): PluginState {
+export function rowToPluginState(row: PluginStateRow): PluginState {
 	return {
 		pluginId: row.plugin_id,
 		status: toPluginStatus(row.status),
 		version: row.version,
-		installedAt: new Date(row.installed_at),
-		activatedAt: row.activated_at ? new Date(row.activated_at) : null,
-		deactivatedAt: row.deactivated_at ? new Date(row.deactivated_at) : null,
+		installedAt: parseDatabaseTimestamp(row.installed_at),
+		activatedAt: row.activated_at ? parseDatabaseTimestamp(row.activated_at) : null,
+		deactivatedAt: row.deactivated_at ? parseDatabaseTimestamp(row.deactivated_at) : null,
 		source: toPluginSource(row.source),
 		marketplaceVersion: row.marketplace_version ?? null,
 		displayName: row.display_name ?? null,
 		description: row.description ?? null,
 		registryPublisherDid: row.registry_publisher_did ?? null,
 		registrySlug: row.registry_slug ?? null,
+		mcpToolsEnabled: row.mcp_tools_enabled === 1,
+		mcpToolsConsent: row.mcp_tools_consent ?? null,
 	};
 }

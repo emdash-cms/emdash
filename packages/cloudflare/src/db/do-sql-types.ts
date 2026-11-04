@@ -63,13 +63,19 @@ export interface DOQueryStatement {
 /** Result shape returned by the `EmDashDB` RPC methods. */
 export interface DOQueryResult {
 	rows: Record<string, unknown>[];
-	/** Rows written. `undefined` for read-only statements. */
+	/** Rows changed by the last statement (SQLite `changes()`). `undefined` for read-only statements. */
 	changes?: number;
 	/**
 	 * Replication bookmark captured after a write, used for read-your-writes.
 	 * `undefined` for reads or when replication is not enabled.
 	 */
 	bookmark?: string;
+}
+
+export interface DOQueryOptions {
+	bookmark?: string;
+	/** Execute read statements on the primary instead of a replica. */
+	primary?: boolean;
 }
 
 /**
@@ -81,11 +87,11 @@ export interface DOQueryResult {
  * driver and request-scoped code free of `cloudflare:workers` types.
  */
 export interface EmDashDBStub {
-	query(sql: string, params?: unknown[], opts?: { bookmark?: string }): Promise<DOQueryResult>;
-	batchQuery(
-		statements: DOQueryStatement[],
-		opts?: { bookmark?: string },
-	): Promise<DOQueryResult[]>;
+	query(sql: string, params?: unknown[], opts?: DOQueryOptions): Promise<DOQueryResult>;
+	batchQuery(statements: DOQueryStatement[], opts?: DOQueryOptions): Promise<DOQueryResult[]>;
+	executeCollectionDeletionGuard(
+		input: import("emdash").CollectionDeletionGuardInput,
+	): Promise<import("emdash").CollectionDeletionGuardResult>;
 }
 
 /**

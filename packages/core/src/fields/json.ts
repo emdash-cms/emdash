@@ -15,7 +15,7 @@ export function json<T = unknown>(options: JsonOptions<T> = {}): FieldDefinition
 	// When T = unknown (default), z.unknown() is already z.ZodType<unknown>.
 	// When a custom schema is provided, it carries the correct generic.
 	// The generic constraint ensures type safety for callers.
-	let schema: z.ZodTypeAny = options.schema ?? z.unknown();
+	let schema: z.ZodType = options.schema ?? z.unknown();
 
 	// Optional vs required
 	if (!options.required && !options.schema) {

@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { SeoPanel } from "../../src/components/SeoPanel";
 import { render } from "../utils/render";
+import { tap } from "../utils/touch";
 
 // SeoPanel renders SeoImageField, which uses MediaPickerModal -- that hooks
 // into react-query. Tests need a QueryClient in scope even when the modal is
@@ -40,7 +41,42 @@ describe("SeoPanel", () => {
 		);
 
 		screen.getByText("OG Image");
-		screen.getByRole("button", { name: "Select OG image" });
+		screen.getByRole("button", { name: "Drop an image here or browse for OG Image" });
+	});
+
+	it("associates visible SEO labels with their fields", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+				/>
+			</QueryWrapper>,
+		);
+
+		for (const label of ["SEO Title", "Meta Description", "Canonical URL"]) {
+			await userEvent.click(screen.getByText(label));
+			expect(document.activeElement).toBe(screen.getByLabelText(label).element());
+		}
+	});
+
+	it("keeps the meta description field mounted while its character count updates", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+				/>
+			</QueryWrapper>,
+		);
+		const initialField = screen.getByLabelText("Meta Description").element();
+
+		await userEvent.type(initialField, "f");
+
+		expect(screen.getByLabelText("Meta Description").element()).toBe(initialField);
+		await expect.element(screen.getByText("1/160 characters")).toBeVisible();
 	});
 
 	it("renders the existing OG image preview when set", async () => {
@@ -276,5 +312,67 @@ describe("SeoPanel", () => {
 		await new Promise((resolve) => setTimeout(resolve, 700));
 		expect(onChange).toHaveBeenCalledTimes(1);
 		expect(onChange.mock.lastCall?.[0]).toEqual(expectedSeo);
+	});
+	it("shows the derived title and description as placeholders", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+					defaultTitle="About us"
+					defaultDescription="Who we are and what we do."
+				/>
+			</QueryWrapper>,
+		);
+
+		await expect
+			.element(screen.getByLabelText("SEO Title"))
+			.toHaveAttribute("placeholder", "About us");
+		await expect
+			.element(screen.getByLabelText("Meta Description"))
+			.toHaveAttribute("placeholder", "Who we are and what we do.");
+	});
+
+	it("omits placeholders when there is nothing to derive from", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+				/>
+			</QueryWrapper>,
+		);
+
+		await expect.element(screen.getByLabelText("SEO Title")).not.toHaveAttribute("placeholder");
+		await expect
+			.element(screen.getByLabelText("Meta Description"))
+			.not.toHaveAttribute("placeholder");
+	});
+
+	it("keeps SEO help open after a tap until the next tap", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+				/>
+			</QueryWrapper>,
+		);
+		const help = screen.getByRole("button", {
+			name: "Why is this important for search result titles?",
+		});
+		const helpText = page.getByRole("tooltip", {
+			name: "Overrides the page title in search engine results",
+		});
+
+		await tap(help.element());
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		await expect.element(helpText).toBeVisible();
+
+		await tap(help.element());
+		await expect.element(helpText).not.toBeInTheDocument();
 	});
 });

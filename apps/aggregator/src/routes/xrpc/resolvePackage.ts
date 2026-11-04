@@ -17,46 +17,21 @@
  * becomes a hot path, add a short-TTL cache here keyed by handle.
  */
 
-import {
-	CompositeHandleResolver,
-	DohJsonHandleResolver,
-	WellKnownHandleResolver,
-} from "@atcute/identity-resolver";
+import type { Did, Handle } from "@atcute/lexicons/syntax";
 import { json, XRPCError } from "@atcute/xrpc-server";
 import { type AggregatorResolvePackage } from "@emdash-cms/registry-lexicons";
 
-import { boundFetch } from "../../utils.js";
-import { type PackageRow, packageColumns, packageView } from "./views.js";
-
-/** Cache the resolver per worker isolate. Construction is allocation-only
- * (no I/O), but reusing a single instance avoids per-request setup. */
-let cachedResolver: CompositeHandleResolver | null = null;
-function getHandleResolver(): CompositeHandleResolver {
-	if (!cachedResolver) {
-		cachedResolver = new CompositeHandleResolver({
-			strategy: "race",
-			methods: {
-				dns: new DohJsonHandleResolver({
-					dohUrl: "https://mozilla.cloudflare-dns.com/dns-query",
-					fetch: boundFetch,
-				}),
-				http: new WellKnownHandleResolver({ fetch: boundFetch }),
-			},
-		});
-	}
-	return cachedResolver;
-}
+import { createProductionDidResolver, upsertPublisherHandle } from "../../did-resolver.js";
+import { lookupPackage, throwPackageLookupError } from "./listing-query.js";
+import { packageView } from "./views.js";
 
 export async function resolvePackage(
 	env: Env,
 	params: AggregatorResolvePackage.$params,
 ): Promise<Response> {
-	let did: string;
+	let identity: { did: Did; handle?: Handle; identityCacheHit?: boolean };
 	try {
-		// Lexicon validates `handle` format upstream so `params.handle` is
-		// already typed `${string}.${string}`, which structurally satisfies
-		// the resolver's `Handle` parameter — no cast needed.
-		did = await getHandleResolver().resolve(params.handle);
+		identity = await createProductionDidResolver(env).resolveIdentifier(params.handle);
 	} catch (err) {
 		throw new XRPCError({
 			status: 404,
@@ -66,20 +41,14 @@ export async function resolvePackage(
 	}
 
 	const session = env.DB.withSession("first-primary");
-	const row = await session
-		.prepare(`SELECT ${packageColumns()} FROM packages WHERE did = ? AND slug = ?`)
-		.bind(did, params.slug)
-		.first<PackageRow>();
-	if (!row) {
-		throw new XRPCError({
-			status: 404,
-			error: "NotFound",
-			message: `No package indexed under resolved (${did}, ${params.slug}).`,
-		});
+	const result = await lookupPackage(session, env, identity.did, params.slug);
+	if (result.state !== "visible") throwPackageLookupError(result);
+	const view = packageView(result.row);
+	if (identity.handle) {
+		if (!identity.identityCacheHit) {
+			await upsertPublisherHandle(env.DB, identity.did, identity.handle);
+		}
+		view.handle = identity.handle;
 	}
-	const view = packageView(row);
-	// Surface the handle we resolved — the lexicon's view has an optional
-	// `handle` field for exactly this case (best-effort current handle).
-	view.handle = params.handle;
 	return json(view);
 }

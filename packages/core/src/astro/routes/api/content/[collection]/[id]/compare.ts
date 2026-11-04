@@ -13,14 +13,13 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
+	if (!emdash?.handleContentCompare) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const denied = requirePerm(user, "content:read_drafts");
 	if (denied) return denied;
 	const collection = params.collection!;
 	const id = params.id!;
-
-	if (!emdash?.handleContentCompare) {
-		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
-	}
 
 	const result = await emdash.handleContentCompare(collection, id);
 

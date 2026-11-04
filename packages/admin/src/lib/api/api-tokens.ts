@@ -53,6 +53,10 @@ export const API_TOKEN_SCOPES = {
 	MenusManage: "menus:manage",
 	SettingsRead: "settings:read",
 	SettingsManage: "settings:manage",
+	McpTools: "mcp:tools",
+	TransferExport: "transfer:export",
+	TransferAnalyze: "transfer:analyze",
+	TransferExecute: "transfer:execute",
 	Admin: "admin",
 } as const;
 
@@ -69,7 +73,7 @@ export async function fetchApiTokens(): Promise<ApiTokenInfo[]> {
 	const response = await apiFetch(`${API_BASE}/admin/api-tokens`);
 	const result = await parseApiResponse<{ items: ApiTokenInfo[] }>(
 		response,
-		"Failed to fetch API tokens",
+		i18n._(msg`Failed to fetch API tokens`),
 	);
 	return result.items;
 }
@@ -84,7 +88,7 @@ export async function createApiToken(input: CreateApiTokenInput): Promise<ApiTok
 		body: JSON.stringify(input),
 	});
 
-	return parseApiResponse<ApiTokenCreateResult>(response, "Failed to create API token");
+	return parseApiResponse<ApiTokenCreateResult>(response, i18n._(msg`Failed to create API token`));
 }
 
 /**

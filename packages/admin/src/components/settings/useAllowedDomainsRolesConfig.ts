@@ -27,7 +27,7 @@ export function useAllowedDomainsRolesConfig(): {
 			const label = roleLabels[String(r.value)];
 			return [String(r.value), label ?? getRoleLabel(r.value)];
 		});
-		return Object.fromEntries(entries) as Record<string, string>;
+		return Object.fromEntries(entries);
 	}, [signupRoles, roleLabels, getRoleLabel]);
 
 	return { getRoleLabel, signupRoles, signupRoleItems };

@@ -21,7 +21,9 @@ permissions:
 jobs:
   apply:
     name: Apply
-    if: github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -154,6 +156,13 @@ jobs:
           repository: ${{ steps.pr.outputs.full_name }}
           ref: ${{ steps.pr.outputs.sha }}
           persist-credentials: false
+          # Reviewed opt-in to checkout v7's fork guard: no code from the
+          # fork tree is ever executed here. The steps below only copy the
+          # inert snapshot JSONs from the trusted measure artifact and run
+          # git add/commit/push — no scripts, hooks, or tooling from the
+          # checked-out tree. Credentials are not persisted; the push uses
+          # a scoped app token via GIT_ASKPASS.
+          allow-unsafe-pr-checkout: true
 
       - name: Apply snapshots
         if: steps.download.outputs.found == 'true'

@@ -28,13 +28,18 @@ import { getPublicOrigin } from "../../api/public-url.js";
 const MW_CACHE_HEADERS = {
 	"Cache-Control": "private, no-store",
 } as const;
-import { resolveApiToken, resolveOAuthToken } from "../../api/handlers/api-tokens.js";
-import { hasScope } from "../../auth/api-tokens.js";
+import {
+	resolveApiToken,
+	resolveOAuthToken,
+	type ResolvedBearerToken,
+} from "../../api/handlers/api-tokens.js";
+import { hasScope, TRANSFER_SCOPES } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
-import type { ExternalAuthConfig } from "../../auth/types.js";
+import type { AuthResult, ExternalAuthConfig } from "../../auth/types.js";
+import { getRegistryConfigInput } from "../../registry/config.js";
 import { resolveSessionUser } from "../session-user.js";
 import type { EmDashHandlers } from "../types.js";
-import { buildEmDashCsp } from "./csp.js";
+import { buildEmDashCsp, getConfiguredStorageEndpoint } from "./csp.js";
 
 declare global {
 	namespace App {
@@ -42,6 +47,8 @@ declare global {
 			user?: User;
 			/** Token scopes when authenticated via API token or OAuth token. Undefined for session auth. */
 			tokenScopes?: string[];
+			/** Id of the API or OAuth token the request authenticated with. Undefined for session auth. */
+			tokenId?: string;
 			emdash?: EmDashHandlers;
 		}
 		interface SessionData {
@@ -54,19 +61,14 @@ declare global {
 // Role level constants (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 const MCP_ENDPOINT_PATH = "/_emdash/api/mcp";
+const COMMENT_SUBMISSION_PATH = /^\/_emdash\/api\/comments\/[^/]+\/[^/]+\/?$/;
 
 function isUnsafeMethod(method: string): boolean {
 	return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
 }
 
 function csrfRejectedResponse(): Response {
-	return new Response(
-		JSON.stringify({ error: { code: "CSRF_REJECTED", message: "Missing required header" } }),
-		{
-			status: 403,
-			headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-		},
-	);
+	return apiError("CSRF_REJECTED", "Missing required header", 403);
 }
 
 function mcpUnauthorizedResponse(
@@ -74,23 +76,20 @@ function mcpUnauthorizedResponse(
 	config?: Parameters<typeof getPublicOrigin>[1],
 ): Response {
 	const origin = getPublicOrigin(url, config);
-	return Response.json(
-		{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
-		{
-			status: 401,
-			headers: {
-				"WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
-				...MW_CACHE_HEADERS,
-			},
-		},
+	const response = apiError("NOT_AUTHENTICATED", "Not authenticated", 401);
+	// Preserve the OAuth discovery header so MCP clients can find the auth server.
+	response.headers.set(
+		"WWW-Authenticate",
+		`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
 	);
+	return response;
 }
 
 /**
  * API routes that skip auth — each handles its own access control.
  *
  * Prefix entries match any path starting with that prefix.
- * Exact entries (no trailing slash or wildcard) match that path only.
+ * Entries in PUBLIC_API_EXACT match that path only.
  */
 const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/setup",
@@ -99,7 +98,6 @@ const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/auth/dev-bypass",
 	"/_emdash/api/auth/signup/",
 	"/_emdash/api/auth/magic-link/",
-	"/_emdash/api/auth/invite/",
 	"/_emdash/api/auth/oauth/",
 	"/_emdash/api/oauth/device/token",
 	"/_emdash/api/oauth/device/code",
@@ -111,17 +109,30 @@ const PUBLIC_API_PREFIXES = [
 ];
 
 const PUBLIC_API_EXACT = new Set([
+	// Invite creation requires auth; only the token-based acceptance flow is public.
+	"/_emdash/api/auth/invite/accept",
+	"/_emdash/api/auth/invite/accept/",
+	"/_emdash/api/auth/invite/register-options",
+	"/_emdash/api/auth/invite/register-options/",
+	"/_emdash/api/auth/invite/complete",
+	"/_emdash/api/auth/invite/complete/",
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/auth/mode",
+	"/_emdash/api/health",
+	"/_emdash/api/site/domain-proof",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
-	// Public site search — read-only. The query layer hardcodes status='published'
-	// so unauthenticated callers only see published content. Admin endpoints
+	"/_emdash/api/visual-editing/toolbar-labels",
+	// Public site search — read-only. Unauthenticated callers only see
+	// published content: /search forces status='published' without the
+	// content:read_drafts permission and /suggest hardcodes it. Admin endpoints
 	// (/enable, /rebuild, /stats) remain private because they're not in this set.
 	"/_emdash/api/search",
 	"/_emdash/api/search/suggest",
 ]);
+
+const DEV_PUBLIC_API_EXACT = new Set(["/_emdash/api/typegen", "/_emdash/api/dev/scheduled-tasks"]);
 
 // Build merged public routes at module load from auth provider descriptors.
 // Routes ending with "/" are treated as prefixes; all others are exact matches.
@@ -168,7 +179,7 @@ function isPublicEmDashRoute(pathname: string): boolean {
 	if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return true;
 	if (_providerExactRoutes.has(pathname)) return true;
 	if (_providerPrefixRoutes.some((p) => pathname.startsWith(p))) return true;
-	if (import.meta.env.DEV && pathname === "/_emdash/api/typegen") return true;
+	if (import.meta.env.DEV && DEV_PUBLIC_API_EXACT.has(pathname)) return true;
 	return false;
 }
 
@@ -200,6 +211,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const csrfError = checkPublicCsrf(context.request, url, publicOrigin);
 			if (csrfError) return csrfError;
 		}
+		if (method === "POST" && COMMENT_SUBMISSION_PATH.test(url.pathname)) {
+			return handlePublicRouteAuth(context, next);
+		}
+		// Search filters drafts by permission, so resolve the session user when
+		// one exists; anonymous callers skip the user DB lookup. Bearer tokens
+		// are not resolved on public routes; token callers continue to receive
+		// published results only.
+		if (url.pathname === "/_emdash/api/search") {
+			return handlePublicRouteAuth(context, next);
+		}
 		return next();
 	}
 
@@ -224,18 +245,23 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
 			const csrfHeader = context.request.headers.get("X-EmDash-Request");
 			if (csrfHeader !== "1") {
-				return new Response(
-					JSON.stringify({
-						error: { code: "CSRF_REJECTED", message: "Missing required header" },
-					}),
-					{
-						status: 403,
-						headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-					},
-				);
+				return apiError("CSRF_REJECTED", "Missing required header", 403);
 			}
 		}
-		return next();
+		const response = await next();
+		if (!import.meta.env.DEV) {
+			response.headers.set(
+				"Content-Security-Policy",
+				buildEmDashCsp(
+					getRegistryConfigInput(context.locals.emdash?.config.registry),
+					getConfiguredStorageEndpoint(
+						context.locals.emdash?.config.storage,
+						context.locals.emdash?.storage,
+					),
+				),
+			);
+		}
+		return response;
 	}
 
 	// For public routes: soft auth check (set locals.user if session exists, but never block)
@@ -250,20 +276,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const bearerResult = await handleBearerAuth(context);
 
 	if (bearerResult === "invalid") {
-		const headers: Record<string, string> = {
-			"Content-Type": "application/json",
-			...MW_CACHE_HEADERS,
-		};
+		const response = apiError("INVALID_TOKEN", "Invalid or expired token", 401);
 		// Add WWW-Authenticate header on MCP endpoint 401s to trigger OAuth discovery
 		if (url.pathname === "/_emdash/api/mcp") {
 			const origin = getPublicOrigin(url, context.locals.emdash?.config);
-			headers["WWW-Authenticate"] =
-				`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`;
+			response.headers.set(
+				"WWW-Authenticate",
+				`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+			);
 		}
-		return new Response(
-			JSON.stringify({ error: { code: "INVALID_TOKEN", message: "Invalid or expired token" } }),
-			{ status: 401, headers },
-		);
+		return response;
 	}
 
 	const isTokenAuth = bearerResult === "authenticated";
@@ -306,7 +328,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		if (!import.meta.env.DEV) {
 			response.headers.set(
 				"Content-Security-Policy",
-				buildEmDashCsp(context.locals.emdash?.config.experimental?.registry),
+				buildEmDashCsp(
+					getRegistryConfigInput(context.locals.emdash?.config.registry),
+					getConfiguredStorageEndpoint(
+						context.locals.emdash?.config.storage,
+						context.locals.emdash?.storage,
+					),
+				),
 			);
 		}
 		return response;
@@ -318,7 +346,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (!import.meta.env.DEV) {
 		response.headers.set(
 			"Content-Security-Policy",
-			buildEmDashCsp(context.locals.emdash?.config.experimental?.registry),
+			buildEmDashCsp(
+				getRegistryConfigInput(context.locals.emdash?.config.registry),
+				getConfiguredStorageEndpoint(
+					context.locals.emdash?.config.storage,
+					context.locals.emdash?.storage,
+				),
+			),
 		);
 	}
 
@@ -336,8 +370,11 @@ async function handleEmDashAuth(
 	const { url, locals } = context;
 	const { emdash } = locals;
 
+	// Pages an anonymous visitor must be able to reach: login itself, and the
+	// two token-bearing pages that emails link to.
 	const isPublicAdminRoute =
 		url.pathname.startsWith("/_emdash/admin/login") ||
+		url.pathname.startsWith("/_emdash/admin/signup") ||
 		url.pathname.startsWith("/_emdash/admin/invite/accept");
 	const isApiRoute = url.pathname.startsWith("/_emdash/api");
 
@@ -372,15 +409,28 @@ async function handleEmDashAuth(
 }
 
 /**
- * Soft auth for plugin routes: resolve user from Bearer token or session if present,
- * but never block unauthenticated requests. The catch-all handler checks route
- * metadata to decide whether auth is required (public vs private routes).
+ * Plugin-route auth. Resolves the user in three steps, stopping at the first that
+ * applies:
+ *
+ * 1. Bearer token (all modes). A valid token authenticates; an invalid/expired one
+ *    returns 401 (we never silently downgrade a bad token to anonymous).
+ * 2. External provider — only for a *private* route in production external-auth
+ *    mode. Here `handleExternalAuth` is the sole authority: the provider (e.g.
+ *    Cloudflare Access) is re-verified on every request, so it hard-blocks with
+ *    401 on failure. It does persist an EmDash session (so public pages can
+ *    identify the user), but on these routes that session is deliberately NOT
+ *    consulted as a fallback — the provider check is authoritative every time.
+ * 3. Session — everything else (non-external mode, DEV, and all public routes).
+ *    This is soft: it sets `locals.user` if a session exists but never blocks.
+ *
+ * Public routes are always allowed through. The catch-all handler still enforces
+ * the `plugins:manage` permission and CSRF for private invocations.
  */
 async function handlePluginRouteAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
 ): Promise<Response> {
-	const { locals } = context;
+	const { locals, url } = context;
 	const { emdash } = locals;
 
 	try {
@@ -393,17 +443,20 @@ async function handlePluginRouteAuth(
 		if (bearerResult === "invalid") {
 			// A token was presented but is invalid/expired — return 401 so the
 			// caller knows their token is bad (don't silently downgrade to no-auth).
-			return new Response(
-				JSON.stringify({ error: { code: "INVALID_TOKEN", message: "Invalid or expired token" } }),
-				{
-					status: 401,
-					headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-				},
-			);
+			return apiError("INVALID_TOKEN", "Invalid or expired token", 401);
 		}
-		// "none" — no token presented, try session auth below.
+		// "none" — no token presented, try external/session auth below.
 	} catch (error) {
 		console.error("Plugin route bearer auth error:", error);
+	}
+
+	const authMode = getAuthMode(emdash?.config);
+	if (
+		authMode.type === "external" &&
+		!import.meta.env.DEV &&
+		!isPublicPluginApiRoute(url.pathname, emdash)
+	) {
+		return handleExternalAuth(context, next, authMode, true);
 	}
 
 	try {
@@ -423,6 +476,17 @@ async function handlePluginRouteAuth(
 	}
 
 	return next();
+}
+
+function isPublicPluginApiRoute(pathname: string, emdash: EmDashHandlers | undefined): boolean {
+	const prefix = "/_emdash/api/plugins/";
+	const route = pathname.slice(prefix.length);
+	const slashIndex = route.indexOf("/");
+	if (slashIndex <= 0 || !emdash?.getPluginRouteMeta) return false;
+
+	return (
+		emdash.getPluginRouteMeta(route.slice(0, slashIndex), route.slice(slashIndex))?.public === true
+	);
 }
 
 /**
@@ -464,6 +528,7 @@ async function handleExternalAuth(
 	const { locals, request } = context;
 	const { emdash } = locals;
 
+	let authResult: AuthResult;
 	try {
 		// Use the authenticate function from the virtual module
 		// (statically imported at build time to work with Cloudflare Workers)
@@ -473,9 +538,18 @@ async function handleExternalAuth(
 			);
 		}
 
-		// Authenticate via the provider
-		const authResult = await virtualAuthenticate(request, authMode.config);
+		authResult = await virtualAuthenticate(request, authMode.config);
+	} catch (error) {
+		console.error("[external-auth] Auth error:", error);
 
+		return new Response("Authentication failed", {
+			status: 401,
+			headers: { "Content-Type": "text/plain", ...MW_CACHE_HEADERS },
+		});
+	}
+
+	// Identity is verified; failures below are server-side.
+	try {
 		// Get external auth config for auto-provision settings
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing AuthModeConfig to ExternalAuthConfig after provider check
 		const externalConfig = authMode.config as ExternalAuthConfig;
@@ -527,8 +601,7 @@ async function handleExternalAuth(
 			let newName: string | undefined;
 			let newRole: RoleLevel | undefined;
 
-			// Sync name from provider if provider provides one and local differs
-			if (authResult.name && user.name !== authResult.name) {
+			if (externalConfig.syncName !== false && authResult.name && user.name !== authResult.name) {
 				newName = authResult.name;
 				updates.name = newName;
 			}
@@ -576,19 +649,26 @@ async function handleExternalAuth(
 		locals.user = user;
 
 		// Persist to session so public pages can identify the user
-		// (external auth headers are only verified on /_emdash routes)
+		// (external auth headers are only verified on /_emdash routes).
+		// Astro marks the session dirty on every set(), and a dirty session is
+		// written to the store at the end of the request. Skip the set when the
+		// stored id already matches, or each request costs a session-store write
+		// (a KV put on Cloudflare, which also rate-limits writes to one key).
 		const { session } = context;
-		session?.set("user", { id: user.id });
-
-		return next();
+		if (session) {
+			const sessionUser = await resolveSessionUser(session);
+			if (sessionUser?.id !== user.id) session.set("user", { id: user.id });
+		}
 	} catch (error) {
-		console.error("[external-auth] Auth error:", error);
+		console.error("[external-auth] User lookup error:", error);
 
-		return new Response("Authentication failed", {
-			status: 401,
-			headers: { "Content-Type": "text/plain", ...MW_CACHE_HEADERS },
+		return new Response("Service temporarily unavailable", {
+			status: 503,
+			headers: { "Content-Type": "text/plain", "Retry-After": "60", ...MW_CACHE_HEADERS },
 		});
 	}
+
+	return next();
 }
 
 /**
@@ -613,7 +693,7 @@ async function handleBearerAuth(
 	if (!emdash?.db) return "none";
 
 	// Resolve token based on prefix
-	let resolved: { userId: string; scopes: string[] } | null = null;
+	let resolved: ResolvedBearerToken | null = null;
 
 	if (token.startsWith("ec_pat_")) {
 		resolved = await resolveApiToken(emdash.db, token);
@@ -635,6 +715,7 @@ async function handleBearerAuth(
 	// Set user and scopes on locals
 	locals.user = user;
 	locals.tokenScopes = resolved.scopes;
+	locals.tokenId = resolved.tokenId;
 
 	return "authenticated";
 }
@@ -656,13 +737,12 @@ async function handlePasskeyAuth(
 
 		if (!sessionUser?.id) {
 			if (isApiRoute) {
-				return Response.json(
-					{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
-					{ status: 401, headers: MW_CACHE_HEADERS },
-				);
+				return apiError("NOT_AUTHENTICATED", "Not authenticated", 401);
 			}
 			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
-			loginUrl.searchParams.set("redirect", url.pathname);
+			// Keep the query string: a token-bearing link that lands here must
+			// still carry its token after login.
+			loginUrl.searchParams.set("redirect", url.pathname + url.search);
 			return context.redirect(loginUrl.toString());
 		}
 
@@ -674,10 +754,7 @@ async function handlePasskeyAuth(
 			// User no longer exists - clear session
 			session?.destroy();
 			if (isApiRoute) {
-				return Response.json(
-					{ error: { code: "NOT_FOUND", message: "User not found" } },
-					{ status: 401, headers: MW_CACHE_HEADERS },
-				);
+				return apiError("NOT_FOUND", "User not found", 401);
 			}
 			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
 			return context.redirect(loginUrl.toString());
@@ -712,10 +789,11 @@ async function handlePasskeyAuth(
 /**
  * Scope rules: ordered list of (pathPrefix, method, requiredScope) tuples.
  * First matching rule wins. Methods: "*" = any, "WRITE" = POST/PUT/PATCH/DELETE.
+ * A list of scopes is satisfied by holding any one of them.
  *
  * Routes not matched by any rule default to "admin" scope (fail-closed).
  */
-const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
+const SCOPE_RULES: Array<[prefix: string, method: string, scope: string | readonly string[]]> = [
 	// Content routes
 	["/_emdash/api/content", "GET", "content:read"],
 	["/_emdash/api/content", "WRITE", "content:write"],
@@ -735,6 +813,7 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	// menus:manage are not rejected. content:write implicitly grants these via
 	// IMPLICIT_SCOPE_GRANTS in @emdash-cms/auth.
 	["/_emdash/api/taxonomies", "GET", "content:read"],
+	["/_emdash/api/taxonomies/bulk-tag", "WRITE", "content:write"],
 	["/_emdash/api/taxonomies", "WRITE", "taxonomies:manage"],
 	["/_emdash/api/menus", "GET", "content:read"],
 	["/_emdash/api/menus", "WRITE", "menus:manage"],
@@ -749,18 +828,23 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	["/_emdash/api/search", "GET", "content:read"],
 	["/_emdash/api/search", "WRITE", "admin"],
 
+	// Site transfer — must precede the generic /admin rule so a token holding
+	// only a transfer scope reaches the route, which requires its specific one.
+	["/_emdash/api/admin/transfer", "*", TRANSFER_SCOPES],
+
 	// Import, admin, plugins — all require admin scope
 	["/_emdash/api/import", "*", "admin"],
 	["/_emdash/api/admin", "*", "admin"],
 	["/_emdash/api/plugins", "*", "admin"],
 
+	// Backups are a full-site content export and must precede the generic
+	// settings rules, which would otherwise let a settings:read token through.
+	["/_emdash/api/settings/backups", "*", "admin"],
+
 	// Settings — use granular scopes so tokens with settings:read or
 	// settings:manage are not rejected at the middleware level.
 	["/_emdash/api/settings", "GET", "settings:read"],
 	["/_emdash/api/settings", "WRITE", "settings:manage"],
-
-	// MCP endpoint — scopes enforced per-tool inside mcp/server.ts
-	["/_emdash/api/mcp", "*", "content:read"],
 ];
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -779,6 +863,11 @@ function enforceTokenScope(
 	// Session auth — implicit full access, no scope restrictions
 	if (!tokenScopes) return null;
 
+	// MCP is authenticated here, but each tool enforces its own scope. A
+	// blanket content:read/admin requirement would prevent plugin-scoped tokens
+	// from reaching `mcp/server.ts`, where the actual tool policy lives.
+	if (pathname === MCP_ENDPOINT_PATH) return null;
+
 	const isWrite = WRITE_METHODS.has(method);
 
 	for (const [prefix, ruleMethod, scope] of SCOPE_RULES) {
@@ -787,16 +876,13 @@ function enforceTokenScope(
 
 		// Check method match
 		if (ruleMethod === "*" || (ruleMethod === "WRITE" && isWrite) || ruleMethod === method) {
-			if (hasScope(tokenScopes, scope)) return null;
+			const anyOf = typeof scope === "string" ? [scope] : scope;
+			if (anyOf.some((required) => hasScope(tokenScopes, required))) return null;
 
-			return new Response(
-				JSON.stringify({
-					error: {
-						code: "INSUFFICIENT_SCOPE",
-						message: `Token lacks required scope: ${scope}`,
-					},
-				}),
-				{ status: 403, headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS } },
+			return apiError(
+				"INSUFFICIENT_SCOPE",
+				`Token lacks required scope: ${anyOf.join(" or ")}`,
+				403,
 			);
 		}
 	}
@@ -804,13 +890,5 @@ function enforceTokenScope(
 	// No rule matched — default to admin scope (fail-closed)
 	if (hasScope(tokenScopes, "admin")) return null;
 
-	return new Response(
-		JSON.stringify({
-			error: {
-				code: "INSUFFICIENT_SCOPE",
-				message: "Token lacks required scope: admin",
-			},
-		}),
-		{ status: 403, headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS } },
-	);
+	return apiError("INSUFFICIENT_SCOPE", "Token lacks required scope: admin", 403);
 }

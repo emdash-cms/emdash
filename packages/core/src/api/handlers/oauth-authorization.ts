@@ -14,10 +14,11 @@ import { generateCodeVerifier } from "arctic";
 import type { Kysely } from "kysely";
 
 import {
+	ACCESS_TOKEN_TTL_SECONDS,
 	generatePrefixedToken,
 	hashApiToken,
+	isValidScope,
 	TOKEN_PREFIXES,
-	VALID_SCOPES,
 } from "../../auth/api-tokens.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
@@ -32,9 +33,6 @@ import { lookupUserRoleAndStatus } from "./oauth-user-lookup.js";
 
 /** Authorization codes expire after 10 minutes (RFC 6749 §4.1.2 recommends short-lived) */
 const AUTH_CODE_TTL_SECONDS = 10 * 60;
-
-/** Access token TTL: 1 hour */
-const ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
 
 /** Refresh token TTL: 90 days */
 const REFRESH_TOKEN_TTL_SECONDS = 90 * 24 * 60 * 60;
@@ -87,11 +85,7 @@ export { validateRedirectUri };
 function normalizeScopes(requested?: string): string[] {
 	if (!requested) return [];
 
-	const validSet = new Set<string>(VALID_SCOPES);
-	const scopes = requested
-		.split(" ")
-		.filter(Boolean)
-		.filter((s) => validSet.has(s));
+	const scopes = requested.split(" ").filter(Boolean).filter(isValidScope);
 
 	return scopes;
 }

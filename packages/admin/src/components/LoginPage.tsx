@@ -19,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
+import { useAdminBranding } from "../lib/admin-branding-context";
 import { apiFetch, fetchAuthMode } from "../lib/api";
 import { useAuthProviderList } from "../lib/auth-provider-context";
 import { sanitizeRedirectUrl } from "../lib/url";
@@ -83,7 +84,7 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 			<div className="space-y-6 text-center">
 				<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mx-auto">
 					<svg
-						className="w-8 h-8 text-kumo-brand"
+						className="w-8 h-8 text-kumo-link"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"
@@ -102,8 +103,10 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 					<p className="text-kumo-subtle mt-2">
 						<Trans>
 							If an account exists for{" "}
-							<span className="font-medium text-kumo-default">{email}</span>, we've sent a sign-in
-							link.
+							<span dir="ltr" className="font-medium text-kumo-default">
+								{email}
+							</span>
+							, we've sent a sign-in link.
 						</Trans>
 					</p>
 				</div>
@@ -123,6 +126,7 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4">
 			<Input
+				dir="ltr"
 				label={t`Email address`}
 				type="email"
 				value={email}
@@ -165,6 +169,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 	const safeRedirectUrl = sanitizeRedirectUrl(redirectUrl);
 	const { t } = useLingui();
 	const { locale, setLocale } = useLocale();
+	const { logo: brandLogo, siteName: brandSiteName } = useAdminBranding();
 	const [method, setMethod] = React.useState<LoginMethod>("passkey");
 	const [urlError, setUrlError] = React.useState<string | null>(null);
 	const [activeProvider, setActiveProvider] = React.useState<string | null>(null);
@@ -206,12 +211,28 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 	// All providers with a LoginButton show in the button grid
 	const buttonProviders = authProviderList.filter((p) => p.LoginButton);
 
+	const activeProviderEntry = activeProvider
+		? authProviderList.find((p) => p.id === activeProvider)
+		: undefined;
+
+	let helpText: React.ReactNode;
+	if (method === "magic-link") {
+		helpText = t`We'll send you a link to sign in without a password.`;
+	} else if (activeProviderEntry?.loginHelp) {
+		const LoginHelp = activeProviderEntry.loginHelp;
+		helpText = typeof LoginHelp === "string" ? LoginHelp : <LoginHelp />;
+	} else if (activeProviderEntry) {
+		helpText = t`Continue with ${activeProviderEntry.label}.`;
+	} else {
+		helpText = t`Use your registered passkey to sign in securely.`;
+	}
+
 	// Show loading state while checking auth mode
 	if (authModeLoading || (authInfo?.authMode && authInfo.authMode !== "passkey")) {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-kumo-base p-4">
 				<div className="flex flex-col items-center">
-					<BrandLogo className="h-10 mb-4" />
+					<BrandLogo logoUrl={brandLogo} siteName={brandSiteName} className="h-10 mb-4" />
 					<Loader />
 				</div>
 			</div>
@@ -223,12 +244,12 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 			<div className="w-full max-w-md">
 				{/* Header */}
 				<div className="text-center mb-8">
-					<BrandLogo className="h-10 mx-auto mb-2" />
+					<BrandLogo logoUrl={brandLogo} siteName={brandSiteName} className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{method === "magic-link"
 							? t`Sign in with email`
-							: activeProvider
-								? t`Sign in with ${authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider}`
+							: activeProviderEntry
+								? t`Sign in with ${activeProviderEntry.label ?? activeProvider}`
 								: t`Sign in to your site`}
 					</h1>
 				</div>
@@ -318,20 +339,14 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 				</div>
 
 				{/* Help text */}
-				<p className="text-center mt-6 text-sm text-kumo-subtle">
-					{method === "magic-link"
-						? t`We'll send you a link to sign in without a password.`
-						: activeProvider
-							? t`Enter your handle to sign in.`
-							: t`Use your registered passkey to sign in securely.`}
-				</p>
+				<p className="text-center mt-6 text-sm text-kumo-subtle">{helpText}</p>
 
 				{/* Signup link — only shown when self-signup is enabled */}
 				{authInfo?.signupEnabled && (
 					<p className="text-center mt-4 text-sm text-kumo-subtle">
 						<Trans>
 							Don't have an account?{" "}
-							<Link to="/signup" className="text-kumo-brand hover:underline font-medium">
+							<Link to="/signup" className="text-kumo-link hover:underline font-medium">
 								Sign up
 							</Link>
 						</Trans>

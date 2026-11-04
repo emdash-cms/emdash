@@ -10,7 +10,65 @@ import { sql } from "kysely";
 import { isSqlite, tableExists as dialectTableExists } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
-import type { SearchConfig } from "./types.js";
+import { isStoragelessFieldRow } from "../schema/types.js";
+import { normalizeSearchError } from "./errors.js";
+import { SEARCH_TOKENIZERS } from "./types.js";
+import type { SearchConfig, SearchTokenizer } from "./types.js";
+
+const DEFAULT_SEARCH_TOKENIZER: SearchTokenizer = "porter unicode61";
+
+function isSearchTokenizer(value: unknown): value is SearchTokenizer {
+	return SEARCH_TOKENIZERS.some((tokenizer) => tokenizer === value);
+}
+
+function resolveSearchTokenizer(tokenize?: SearchTokenizer): SearchTokenizer {
+	if (tokenize === undefined) return DEFAULT_SEARCH_TOKENIZER;
+	if (!isSearchTokenizer(tokenize)) {
+		throw new Error(`Unsupported FTS5 tokenizer: "${String(tokenize)}"`);
+	}
+	return tokenize;
+}
+
+export interface CollectionSearchMetadata {
+	config: SearchConfig;
+	searchableFields: string[];
+	hasTitle: boolean;
+}
+
+function parseSearchConfig(searchConfig: string, titleField: string | null): SearchConfig | null {
+	try {
+		const parsed: unknown = JSON.parse(searchConfig);
+		if (
+			typeof parsed !== "object" ||
+			parsed === null ||
+			!("enabled" in parsed) ||
+			typeof parsed.enabled !== "boolean"
+		) {
+			return null;
+		}
+		const config: SearchConfig = { enabled: parsed.enabled };
+		if (titleField) config.titleField = titleField;
+		if ("weights" in parsed && typeof parsed.weights === "object" && parsed.weights !== null) {
+			// weights is a JSON-parsed object — safe to treat as Record<string, number>
+			const weights: Record<string, number> = {};
+			for (const [k, v] of Object.entries(parsed.weights)) {
+				if (typeof v === "number") {
+					weights[k] = v;
+				}
+			}
+			config.weights = weights;
+		}
+		if ("tokenize" in parsed) {
+			if (!isSearchTokenizer(parsed.tokenize)) {
+				return null;
+			}
+			config.tokenize = parsed.tokenize;
+		}
+		return config;
+	} catch {
+		return null;
+	}
+}
 
 /**
  * FTS5 Manager
@@ -66,42 +124,94 @@ export class FTSManager {
 	 * @param collectionSlug - The collection slug
 	 * @param searchableFields - Array of field names to index
 	 * @param weights - Optional field weights for ranking
+	 * @param tokenize - Optional FTS5 tokenizer configuration
 	 */
 	async createFtsTable(
 		collectionSlug: string,
 		searchableFields: string[],
 		_weights?: Record<string, number>,
+		tokenize?: SearchTokenizer,
 	): Promise<void> {
+		const tokenizer = resolveSearchTokenizer(tokenize);
 		if (!isSqlite(this.db)) return;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
-		const contentTable = this.getContentTableName(collectionSlug);
 
 		// Build the column list for FTS5
 		// id and locale are UNINDEXED (used for joining/filtering, not searched)
 		const columns = ["id UNINDEXED", "locale UNINDEXED", ...searchableFields].join(", ");
 
-		// Create the FTS5 virtual table.
-		// `content='<table>'` makes this an *external content* FTS5 table:
-		// the inverted index lives in the FTS shadow tables, but the actual
-		// row data lives in the backing content table. The triggers in
-		// `createTriggers` keep the index in sync; they MUST use the
-		// external-content-safe `'delete'` command (see notes there) to
-		// avoid `SQLITE_CORRUPT_VTAB` on UPDATE/DELETE.
-		// tokenize='porter unicode61' enables stemming (run matches running, ran, etc.)
+		// Create the FTS5 virtual table. The table stores its own copy of the
+		// indexed values (no `content=` option): Portable Text fields are
+		// indexed as extracted plain text — see searchValueExpr — which cannot
+		// mirror the raw JSON in the ec_* column, and external-content FTS5
+		// requires the index to exactly mirror the backing table's values
+		// (snippet() reads them, and the 'delete' command must be fed the
+		// inserted values or the index corrupts — see migration 039's history).
+		// Storing the extracted text also makes snippet() return prose.
 		await sql
 			.raw(`
 			CREATE VIRTUAL TABLE IF NOT EXISTS "${ftsTable}" USING fts5(
 				${columns},
-				content='${contentTable}',
-				content_rowid='rowid',
-				tokenize='porter unicode61'
+				tokenize='${tokenizer}'
 			)
 		`)
-			.execute(this.db);
+			.execute(this.db)
+			.catch((error: unknown) => {
+				throw normalizeSearchError(error);
+			});
 
 		// Create triggers for automatic sync
 		await this.createTriggers(collectionSlug, searchableFields);
+	}
+
+	/**
+	 * SQL expression producing the indexed value for one searchable field.
+	 *
+	 * Portable Text fields are stored as JSON; indexing the raw JSON pollutes
+	 * the index with structural tokens (`_type`, style values like `normal`,
+	 * `_key` ULIDs) and makes snippets show JSON fragments. Extract the prose
+	 * instead: every JSON string under a `text`, `alt`, `caption`, or `code`
+	 * key (span text, image alt/caption, code blocks). This is a superset of
+	 * `extractPlainText` in text-extraction.ts, which walks only known block
+	 * shapes — the SQL variant takes those keys at any depth, so search and
+	 * the extractPlainText consumers (vectorize/ai-search) can see different
+	 * text for the same document. Only JSON documents
+	 * (arrays/objects) are extracted; legacy rows holding a bare string or a
+	 * JSON scalar (`Some title`, `2024`) are indexed as-is. Extraction must
+	 * live in SQL because the sync triggers cannot call into JS.
+	 *
+	 * `ref` must be a validated column reference (`NEW.x`, `OLD.x`, `"x"`).
+	 */
+	private searchValueExpr(ref: string, fieldType: string | undefined): string {
+		if (fieldType !== "portableText") return ref;
+		return (
+			`CASE WHEN ${ref} IS NULL THEN NULL ` +
+			`WHEN json_valid(${ref}) AND json_type(${ref}) IN ('array', 'object') THEN (` +
+			`SELECT group_concat(j.value, ' ') FROM json_tree(${ref}) AS j ` +
+			`WHERE j.key IN ('text', 'alt', 'caption', 'code') AND j.type = 'text') ` +
+			`ELSE ${ref} END`
+		);
+	}
+
+	/**
+	 * Field type per slug for a collection, for choosing the indexed-value
+	 * expression. Fields missing from the schema fall back to raw indexing.
+	 */
+	private async getFieldTypes(collectionSlug: string): Promise<Map<string, string>> {
+		const collection = await this.db
+			.selectFrom("_emdash_collections")
+			.select("id")
+			.where("slug", "=", collectionSlug)
+			.executeTakeFirst();
+		if (!collection) return new Map();
+
+		const rows = await this.db
+			.selectFrom("_emdash_fields")
+			.select(["slug", "type"])
+			.where("collection_id", "=", collection.id)
+			.execute();
+		return new Map(rows.map((r) => [r.slug, r.type]));
 	}
 
 	/**
@@ -112,31 +222,20 @@ export class FTSManager {
 	 * search index and ensures the FTS row count matches the non-deleted
 	 * content count (which `verifyAndRepairIndex` relies on).
 	 *
-	 * IMPORTANT: The FTS5 virtual table is created with `content='ec_<slug>'`
-	 * which makes it an *external content* FTS5 table. For external-content
-	 * tables, removing a row must use the documented `'delete'` command and
-	 * supply the OLD column values explicitly, e.g.:
+	 * The FTS table stores its own values (no `content=` option), so removal
+	 * is a plain `DELETE FROM fts WHERE rowid = OLD.rowid` — a harmless no-op
+	 * for rows that were never indexed (soft-deleted content). The
+	 * external-content `'delete'`-command choreography and its corruption
+	 * modes (migration 039) do not apply to self-contained tables.
 	 *
-	 *     INSERT INTO fts(fts, rowid, col1, col2)
-	 *     VALUES('delete', OLD.rowid, OLD.col1, OLD.col2);
+	 * `INSERT OR REPLACE` keeps the insert path idempotent: re-running a
+	 * populate (search repair runs per isolate, so two isolates can race) converges
+	 * on one index row per content row instead of failing on the rowid
+	 * constraint.
 	 *
-	 * Using `DELETE FROM fts WHERE rowid = OLD.rowid` is the correct form
-	 * for *contentless* tables but is unsafe for external-content tables:
-	 * FTS5 then reads column values from the backing content table, which
-	 * in an AFTER UPDATE trigger already holds the NEW values. The wrong
-	 * tokens get removed and the inverted index drifts out of sync until
-	 * SQLite raises `SQLITE_CORRUPT_VTAB` on the next mutation. See
-	 * https://www.sqlite.org/fts5.html#external_content_tables.
-	 *
-	 * The UPDATE and DELETE triggers gate the `'delete'` on
-	 * `OLD.deleted_at IS NULL` because the INSERT trigger never indexed
-	 * rows that were already soft-deleted. Issuing `'delete'` for a rowid
-	 * that was never inserted into the FTS index is itself a corruption
-	 * trigger -- FTS5's `'delete'` is not a no-op on missing rowids and
-	 * raises `SQLITE_CORRUPT_VTAB`. Affected paths include restore-from-
-	 * trash (UPDATE where `OLD.deleted_at IS NOT NULL`), permanent-delete
-	 * from trash (DELETE on a soft-deleted row), and any edit on a row
-	 * that's currently in the trash.
+	 * The trigger SQL emitted here MUST stay in lock-step with migration
+	 * `064_fts_plain_text.ts`. If this changes again, add a new migration
+	 * rather than editing shipped ones — migrations are forward-only.
 	 */
 	private async createTriggers(collectionSlug: string, searchableFields: string[]): Promise<void> {
 		this.validateInputs(collectionSlug, searchableFields);
@@ -148,64 +247,60 @@ export class FTSManager {
 		}
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const contentTable = this.getContentTableName(collectionSlug);
+		const fieldTypes = await this.getFieldTypes(collectionSlug);
 		const fieldList = searchableFields.join(", ");
-		const newFieldList = searchableFields.map((f) => `NEW.${f}`).join(", ");
-		// `'delete'` takes the FTS5 virtual table name as the first column,
-		// then the rowid being removed, then the OLD value of every column
-		// declared on the FTS5 table (in declaration order: id, locale,
-		// then each searchable field).
-		const oldFieldList = searchableFields.map((f) => `OLD.${f}`).join(", ");
+		const newValueList = searchableFields
+			.map((f) => this.searchValueExpr(`NEW.${f}`, fieldTypes.get(f)))
+			.join(", ");
 
 		// Insert trigger - only index non-deleted content
 		await sql
 			.raw(`
-			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_insert" 
-			AFTER INSERT ON "${contentTable}" 
+			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_insert"
+			AFTER INSERT ON "${contentTable}"
 			WHEN NEW.deleted_at IS NULL
 			BEGIN
-				INSERT INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
-				VALUES (NEW.rowid, NEW.id, NEW.locale, ${newFieldList});
+				INSERT OR REPLACE INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
+				VALUES (NEW.rowid, NEW.id, NEW.locale, ${newValueList});
 			END
 		`)
 			.execute(this.db);
 
-		// Update trigger - remove the old row from the FTS index using the
-		// external-content-safe `'delete'` command (which uses OLD column
-		// values, captured before the row was modified), then re-insert
-		// the new values when the row is still visible.
+		// Update trigger - drop the old index row, re-insert when the row is
+		// still visible. Trash (deleted_at set) ends at DELETE only; restore
+		// ends at DELETE (no-op) + re-insert.
 		//
-		// `'delete'` is gated on `OLD.deleted_at IS NULL` because rows that
-		// were soft-deleted are not in the FTS index (the INSERT trigger
-		// skips them). Issuing `'delete'` for a missing rowid raises
-		// `SQLITE_CORRUPT_VTAB`, which would break restore-from-trash and
-		// edits to soft-deleted rows.
+		// The WHEN guard compares raw column values (null-safe IS NOT) so the
+		// trigger fires only when an indexed value, the row's locale, or its
+		// trash state actually changed. Without it every UPDATE re-tokenizes
+		// the whole document — metadata-only saves (status flips, scheduling,
+		// version bumps) and the publish path's rewrite-identical-values
+		// UPDATEs dominate save CPU and WAL volume. deleted_at must stay in
+		// the guard or trash/restore stop syncing the index.
+		const changedCondition = ["deleted_at", "locale", ...searchableFields]
+			.map((f) => `OLD.${f} IS NOT NEW.${f}`)
+			.join(" OR ");
 		await sql
 			.raw(`
-			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_update" 
-			AFTER UPDATE ON "${contentTable}" 
+			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_update"
+			AFTER UPDATE ON "${contentTable}"
+			WHEN ${changedCondition}
 			BEGIN
-				INSERT INTO "${ftsTable}"("${ftsTable}", rowid, id, locale, ${fieldList})
-				SELECT 'delete', OLD.rowid, OLD.id, OLD.locale, ${oldFieldList}
-				WHERE OLD.deleted_at IS NULL;
+				DELETE FROM "${ftsTable}" WHERE rowid = OLD.rowid;
 				INSERT INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
-				SELECT NEW.rowid, NEW.id, NEW.locale, ${newFieldList}
+				SELECT NEW.rowid, NEW.id, NEW.locale, ${newValueList}
 				WHERE NEW.deleted_at IS NULL;
 			END
 		`)
 			.execute(this.db);
 
-		// Delete trigger - same external-content-safe `'delete'` form,
-		// gated on `OLD.deleted_at IS NULL` for the same reason as the
-		// UPDATE trigger: permanent-delete from trash hits a row whose
-		// `deleted_at` is already set and which was never indexed.
+		// Delete trigger
 		await sql
 			.raw(`
-			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_delete" 
-			AFTER DELETE ON "${contentTable}" 
+			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_delete"
+			AFTER DELETE ON "${contentTable}"
 			BEGIN
-				INSERT INTO "${ftsTable}"("${ftsTable}", rowid, id, locale, ${fieldList})
-				SELECT 'delete', OLD.rowid, OLD.id, OLD.locale, ${oldFieldList}
-				WHERE OLD.deleted_at IS NULL;
+				DELETE FROM "${ftsTable}" WHERE rowid = OLD.rowid;
 			END
 		`)
 			.execute(this.db);
@@ -231,11 +326,15 @@ export class FTSManager {
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 
-		// Drop triggers first
-		await this.dropTriggers(collectionSlug);
+		try {
+			// Drop triggers first
+			await this.dropTriggers(collectionSlug);
 
-		// Drop the FTS table
-		await sql.raw(`DROP TABLE IF EXISTS "${ftsTable}"`).execute(this.db);
+			// Drop the FTS table
+			await sql.raw(`DROP TABLE IF EXISTS "${ftsTable}"`).execute(this.db);
+		} catch (error) {
+			throw normalizeSearchError(error);
+		}
 	}
 
 	/**
@@ -247,36 +346,88 @@ export class FTSManager {
 		collectionSlug: string,
 		searchableFields: string[],
 		weights?: Record<string, number>,
+		tokenize?: SearchTokenizer,
 	): Promise<void> {
+		resolveSearchTokenizer(tokenize);
 		if (!isSqlite(this.db)) return;
 		// Drop existing table and triggers
 		await this.dropFtsTable(collectionSlug);
 
 		// Recreate table and triggers
-		await this.createFtsTable(collectionSlug, searchableFields, weights);
+		await this.createFtsTable(collectionSlug, searchableFields, weights, tokenize);
 
 		// Populate from existing content
 		await this.populateFromContent(collectionSlug, searchableFields);
 	}
 
 	/**
-	 * Populate the FTS table from existing content
+	 * Populate the FTS table from existing content.
+	 *
+	 * `INSERT OR REPLACE` so a concurrent double-populate (search repair runs
+	 * per isolate) converges instead of failing on the rowid constraint.
 	 */
 	async populateFromContent(collectionSlug: string, searchableFields: string[]): Promise<void> {
 		if (!isSqlite(this.db)) return;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const contentTable = this.getContentTableName(collectionSlug);
+		const fieldTypes = await this.getFieldTypes(collectionSlug);
 		const fieldList = searchableFields.join(", ");
+		// Table-qualified references: json_tree exposes columns named
+		// key/value/type/path/..., and inside the extraction subquery a bare
+		// column reference binds to those instead of the ec_* column.
+		const valueList = searchableFields
+			.map((f) => this.searchValueExpr(`"${contentTable}"."${f}"`, fieldTypes.get(f)))
+			.join(", ");
 
 		// Insert all existing content into FTS table
 		await sql
 			.raw(`
-			INSERT INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
-			SELECT rowid, id, locale, ${fieldList} FROM "${contentTable}"
+			INSERT OR REPLACE INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
+			SELECT rowid, id, locale, ${valueList} FROM "${contentTable}"
 			WHERE deleted_at IS NULL
 		`)
 			.execute(this.db);
+	}
+
+	/**
+	 * Index up to `limit` content rows with `rowid > afterRowid`, in rowid
+	 * order, so a large collection can be populated across several requests.
+	 * Returns the last rowid covered, or null when no rows remain. Returns
+	 * null on dialects without FTS5.
+	 */
+	async populateRange(
+		collectionSlug: string,
+		searchableFields: string[],
+		afterRowid: number,
+		limit: number,
+	): Promise<number | null> {
+		if (!isSqlite(this.db)) return null;
+		this.validateInputs(collectionSlug, searchableFields);
+		const ftsTable = this.getFtsTableName(collectionSlug);
+		const contentTable = this.getContentTableName(collectionSlug);
+		const range = await sql<{ last: number | null }>`
+			SELECT MAX(rowid) AS last FROM (
+				SELECT rowid FROM ${sql.ref(contentTable)}
+				WHERE rowid > ${afterRowid}
+				ORDER BY rowid
+				LIMIT ${limit}
+			)
+		`.execute(this.db);
+		const last = range.rows[0]?.last ?? null;
+		if (last === null) return null;
+
+		const fieldTypes = await this.getFieldTypes(collectionSlug);
+		const fieldList = searchableFields.join(", ");
+		const valueList = searchableFields
+			.map((f) => this.searchValueExpr(`"${contentTable}"."${f}"`, fieldTypes.get(f)))
+			.join(", ");
+		await sql`
+			INSERT OR REPLACE INTO ${sql.ref(ftsTable)}(rowid, id, locale, ${sql.raw(fieldList)})
+			SELECT rowid, id, locale, ${sql.raw(valueList)} FROM ${sql.ref(contentTable)}
+			WHERE deleted_at IS NULL AND rowid > ${afterRowid} AND rowid <= ${last}
+		`.execute(this.db);
+		return Number(last);
 	}
 
 	/**
@@ -285,7 +436,7 @@ export class FTSManager {
 	async getSearchConfig(collectionSlug: string): Promise<SearchConfig | null> {
 		const result = await this.db
 			.selectFrom("_emdash_collections")
-			.select("search_config")
+			.select(["search_config", "title_field"])
 			.where("slug", "=", collectionSlug)
 			.executeTakeFirst();
 
@@ -293,37 +444,83 @@ export class FTSManager {
 			return null;
 		}
 
-		try {
-			const parsed: unknown = JSON.parse(result.search_config);
-			if (
-				typeof parsed !== "object" ||
-				parsed === null ||
-				!("enabled" in parsed) ||
-				typeof parsed.enabled !== "boolean"
-			) {
-				return null;
-			}
-			const config: SearchConfig = { enabled: parsed.enabled };
-			if ("weights" in parsed && typeof parsed.weights === "object" && parsed.weights !== null) {
-				// weights is a JSON-parsed object — safe to treat as Record<string, number>
-				const weights: Record<string, number> = {};
-				for (const [k, v] of Object.entries(parsed.weights)) {
-					if (typeof v === "number") {
-						weights[k] = v;
-					}
-				}
-				config.weights = weights;
-			}
-			return config;
-		} catch {
-			return null;
+		return parseSearchConfig(result.search_config, result.title_field);
+	}
+
+	/**
+	 * Load all metadata needed to search the requested collections in one round trip.
+	 * Omitted or empty slugs select all search-enabled collections.
+	 */
+	async getSearchMetadata(
+		collectionSlugs?: string[],
+	): Promise<Map<string, CollectionSearchMetadata>> {
+		if (!isSqlite(this.db)) return new Map();
+
+		let query = this.db
+			.selectFrom("_emdash_collections as c")
+			.select([
+				// SQLite resolves bm25 at prepare time even when no rows match.
+				// The unreachable branch probes FTS5 without invoking bm25 outside
+				// a MATCH query.
+				sql<null>`CASE WHEN 0 THEN bm25(NULL) END`.as("fts5_capability"),
+				"c.slug",
+				"c.search_config",
+				"c.title_field",
+				// bm25 weights are positional, so use the index's physical column order.
+				sql<string>`(
+					SELECT json_group_array(name ORDER BY cid)
+					FROM pragma_table_info(${"_emdash_fts_"} || c.slug)
+					WHERE cid >= 2
+				)`.as("searchable_fields"),
+				sql<number>`EXISTS (
+					SELECT 1 FROM _emdash_fields WHERE collection_id = c.id AND slug = 'title'
+				)`.as("has_title"),
+			])
+			.where("c.search_config", "is not", null).where(sql<boolean>`EXISTS (
+				SELECT 1 FROM sqlite_master
+				WHERE type = 'table' AND name = ${"_emdash_fts_"} || c.slug
+			)`);
+
+		if (collectionSlugs?.length) {
+			query = query.where(
+				"c.slug",
+				"in",
+				sql<string>`(SELECT value FROM json_each(${JSON.stringify(collectionSlugs)}))`,
+			);
 		}
+
+		const metadata = new Map<string, CollectionSearchMetadata>();
+		const rows = await query.execute().catch((error: unknown) => {
+			throw normalizeSearchError(error);
+		});
+		for (const row of rows) {
+			const config = row.search_config
+				? parseSearchConfig(row.search_config, row.title_field)
+				: null;
+			if (!config?.enabled) continue;
+			const searchableFields: unknown = JSON.parse(row.searchable_fields);
+			if (
+				!Array.isArray(searchableFields) ||
+				!searchableFields.every((field: unknown) => typeof field === "string")
+			) {
+				throw new Error("Invalid FTS field metadata");
+			}
+			metadata.set(row.slug, {
+				config,
+				searchableFields,
+				hasTitle: Boolean(row.has_title),
+			});
+		}
+		return metadata;
 	}
 
 	/**
 	 * Update the search configuration for a collection
 	 */
 	async setSearchConfig(collectionSlug: string, config: SearchConfig): Promise<void> {
+		if (config.tokenize !== undefined) {
+			resolveSearchTokenizer(config.tokenize);
+		}
 		await this.db
 			.updateTable("_emdash_collections")
 			.set({ search_config: JSON.stringify(config) })
@@ -332,7 +529,8 @@ export class FTSManager {
 	}
 
 	/**
-	 * Get searchable fields for a collection
+	 * Get searchable fields for a collection. Fields that store no column (bound
+	 * reference fields) are left out: the index triggers read each field's column.
 	 */
 	async getSearchableFields(collectionSlug: string): Promise<string[]> {
 		const collection = await this.db
@@ -347,12 +545,46 @@ export class FTSManager {
 
 		const fields = await this.db
 			.selectFrom("_emdash_fields")
-			.select("slug")
+			.select(["slug", "type", "validation"])
 			.where("collection_id", "=", collection.id)
 			.where("searchable", "=", 1)
 			.execute();
 
-		return fields.map((f) => f.slug);
+		return fields.filter((f) => !isStoragelessFieldRow(f)).map((f) => f.slug);
+	}
+
+	/**
+	 * Whether a collection has a user-defined `title` field.
+	 *
+	 * `title` is not a system column on `ec_*` tables -- it exists only when a
+	 * collection defines a field with slug `title`. Search and suggestion SQL
+	 * that selects `c.title` must check this first; otherwise collections
+	 * without a title field raise "no such column: c.title".
+	 */
+	async hasTitleColumn(collectionSlug: string): Promise<boolean> {
+		const withTitle = await this.getCollectionsWithTitleColumn([collectionSlug]);
+		return withTitle.has(collectionSlug);
+	}
+
+	/**
+	 * Bulk variant of `hasTitleColumn()`: which of the given collections have
+	 * a user-defined `title` field. One query instead of one `hasTitleColumn`
+	 * round-trip pair per collection -- callers that check this once per
+	 * collection in a loop (multi-collection search, suggestions) should use
+	 * this instead (AGENTS.md: "one query beats two").
+	 */
+	async getCollectionsWithTitleColumn(collectionSlugs: string[]): Promise<Set<string>> {
+		if (collectionSlugs.length === 0) return new Set();
+
+		const rows = await this.db
+			.selectFrom("_emdash_fields as f")
+			.innerJoin("_emdash_collections as c", "c.id", "f.collection_id")
+			.select(["c.slug as collection_slug"])
+			.where("f.slug", "=", "title")
+			.execute();
+
+		const withTitle = new Set(rows.map((r) => r.collection_slug));
+		return new Set(collectionSlugs.filter((slug) => withTitle.has(slug)));
 	}
 
 	/**
@@ -365,8 +597,11 @@ export class FTSManager {
 	 */
 	async enableSearch(
 		collectionSlug: string,
-		options?: { weights?: Record<string, number> },
+		options?: { weights?: Record<string, number>; tokenize?: SearchTokenizer },
 	): Promise<void> {
+		if (options?.tokenize !== undefined) {
+			resolveSearchTokenizer(options.tokenize);
+		}
 		if (!isSqlite(this.db)) {
 			throw new Error("Full-text search is only available with SQLite databases");
 		}
@@ -380,13 +615,18 @@ export class FTSManager {
 			);
 		}
 
+		const existing = await this.getSearchConfig(collectionSlug);
+		const weights = options?.weights ?? existing?.weights;
+		const tokenize = options?.tokenize ?? existing?.tokenize;
+
 		// Rebuild from scratch to ensure clean state (no duplicate rows)
-		await this.rebuildIndex(collectionSlug, searchableFields, options?.weights);
+		await this.rebuildIndex(collectionSlug, searchableFields, weights, tokenize);
 
 		// Update search config
 		await this.setSearchConfig(collectionSlug, {
 			enabled: true,
-			weights: options?.weights,
+			weights,
+			tokenize,
 		});
 	}
 
@@ -399,7 +639,11 @@ export class FTSManager {
 		if (!isSqlite(this.db)) return;
 		await this.dropFtsTable(collectionSlug);
 		const existing = await this.getSearchConfig(collectionSlug);
-		await this.setSearchConfig(collectionSlug, { enabled: false, weights: existing?.weights });
+		await this.setSearchConfig(collectionSlug, {
+			enabled: false,
+			weights: existing?.weights,
+			tokenize: existing?.tokenize,
+		});
 	}
 
 	/**
@@ -456,14 +700,12 @@ export class FTSManager {
 			}
 
 			console.warn(`FTS index for "${collectionSlug}" is missing. Rebuilding.`);
-			await this.rebuildIndex(collectionSlug, fields, config.weights);
+			await this.rebuildIndex(collectionSlug, fields, config.weights, config.tokenize);
 			return true;
 		}
 
-		// Row count parity check. For external-content FTS tables, COUNT(*)
-		// on the virtual table is answered from the backing content table
-		// (including soft-deleted rows), so we use the docsize shadow table
-		// which tracks rows actually present in the full-text index.
+		// Row count parity check against the docsize shadow table, which
+		// tracks rows actually present in the full-text index.
 		const contentCount = await sql<{ count: number }>`
 			SELECT COUNT(*) as count FROM ${sql.ref(contentTable)}
 			WHERE deleted_at IS NULL
@@ -481,7 +723,7 @@ export class FTSManager {
 				`FTS index for "${collectionSlug}" has ${ftsRows} rows but content table has ${contentRows}. Rebuilding.`,
 			);
 			if (fields.length > 0) {
-				await this.rebuildIndex(collectionSlug, fields, config?.weights);
+				await this.rebuildIndex(collectionSlug, fields, config?.weights, config?.tokenize);
 			}
 			return true;
 		}

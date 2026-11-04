@@ -13,7 +13,7 @@ import { expect, test } from "../fixtures";
 import { refreshServerPatAfterDevBypass } from "../fixtures/refresh-server-pat";
 import { addVirtualWebAuthnAuthenticator } from "../fixtures/virtual-authenticator";
 
-const ADMIN_AFTER_SETUP_URL = /\/_emdash\/admin(\/login)?/;
+const ADMIN_DASHBOARD_PATTERN = /\/_emdash\/admin\/?$/;
 
 const SERVER_INFO_PATH = join(tmpdir(), "emdash-pw-server.json");
 
@@ -60,12 +60,19 @@ test.describe("Setup wizard passkey with virtual authenticator (localhost)", () 
 			await page.getByLabel("Your Name").fill("Virtual Auth User");
 			await page.getByRole("button", { name: "Continue" }).click();
 
-			await expect(page.locator("text=Choose how to sign in")).toBeVisible();
-			await page.getByRole("button", { name: "Create Passkey" }).click();
+			await expect(
+				page.getByRole("heading", {
+					name: "With a passkey, you don’t need to remember complex passwords",
+				}),
+			).toBeVisible();
+			await page.getByRole("button", { name: "Create passkey" }).click();
+			await expect(page.getByRole("heading", { name: "Passkey created" })).toBeVisible();
+			await page.getByRole("button", { name: "Open the dashboard" }).click();
 
-			// admin-verify creates the user but does not set a session; wizard sends user to /_emdash/admin and auth redirects to login.
-			await expect(page).toHaveURL(ADMIN_AFTER_SETUP_URL, { timeout: 60_000 });
-			await expect(page.locator("text=Choose how to sign in")).toHaveCount(0);
+			// admin-verify now creates the session, so the wizard lands on the dashboard.
+			await expect(page).toHaveURL(ADMIN_DASHBOARD_PATTERN, { timeout: 60_000 });
+			await admin.waitForShell();
+			await expect(page.getByRole("heading", { name: "Passkey created" })).toHaveCount(0);
 			await expect(page.locator("text=Registration was cancelled or timed out")).toHaveCount(0);
 			await expect(page.locator("text=Invalid origin")).toHaveCount(0);
 		} finally {

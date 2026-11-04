@@ -1,4 +1,16 @@
-import { Badge, Button, Dialog, Input, LinkButton, Loader, Select, Tabs } from "@cloudflare/kumo";
+import {
+	Badge,
+	Button,
+	Checkbox,
+	DatePicker,
+	DropdownMenu,
+	LayerDialog,
+	Loader,
+	Popover,
+	Select,
+	Tabs,
+} from "@cloudflare/kumo";
+import type { DateRange } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -7,29 +19,87 @@ import {
 	Trash,
 	ArrowCounterClockwise,
 	ArrowSquareOut,
+	ArrowsDownUp,
+	Calendar,
 	Copy,
-	MagnifyingGlass,
 	CaretUp,
 	CaretDown,
 	CaretUpDown,
+	CircleDashed,
+	Tag,
+	Upload,
 	X,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import type { ContentAuthor, ContentDateField, ContentItem, TrashedContentItem } from "../lib/api";
+import type {
+	AdminManifest,
+	ContentAuthor,
+	ContentDateField,
+	ContentItem,
+	TrashedContentItem,
+} from "../lib/api.js";
+import { getDraftStatus } from "../lib/api.js";
+import {
+	ContentListColumnBoundary,
+	resolveContentListColumns,
+	type ResolvedContentListColumn,
+} from "../lib/content-list-columns.js";
+import { useConfirmedRequest } from "../lib/dialog-form.js";
+import { getEntryTitle } from "../lib/entryTitle.js";
 import { useDebouncedValue } from "../lib/hooks.js";
+import { inlineLabel } from "../lib/inline-label.js";
+import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
-import { cn } from "../lib/utils";
+import { cn, formatDate, parseTimestamp } from "../lib/utils.js";
+import { getLocaleDir } from "../locales/config.js";
+import { useDateLocale } from "../locales/date-locale.js";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
+import { BulkTagDialog, type BulkTagTaxonomy, type SelectedBulkTagPost } from "./BulkTagDialog.js";
+import {
+	BylineFilter,
+	EMPTY_BYLINE_FILTER,
+	isBylineFilterActive,
+	type BylineFilterState,
+} from "./BylineFilter.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
+import {
+	ContentStatusBadge,
+	ContentStatusLabel,
+	isContentStatusState,
+} from "./ContentStatusBadge.js";
+import {
+	DataTable,
+	DataTableBulkBar,
+	DataTableMessage,
+	RowActionsMenu,
+	RowMeta,
+	rowTitleClassName,
+	tertiaryColumn,
+} from "./DataTable.js";
+import { ListPaginationFooter, type ListPagination } from "./ListPaginationFooter.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { declaredLabelTranslator } from "./Sidebar.js";
+import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
 
-/** Sortable content list columns. Maps to the server's order field whitelist. */
-export type ContentListSortField = "title" | "status" | "locale" | "updatedAt";
+/**
+ * Sortable content list columns. The named values map to the server's system
+ * order fields; a collection's configured titleField/dateField slug is also
+ * accepted, which the server validates against the collection.
+ */
+export type ContentListSortField = "title" | "status" | "locale" | "updatedAt" | (string & {});
 export interface ContentListSort {
 	field: ContentListSortField;
 	direction: "asc" | "desc";
+}
+
+export interface ContentListColumn {
+	slug: string;
+	label: string;
+	kind: string;
+	options?: Array<{ value: string; label: string }>;
 }
 
 /** Status filter values. `"all"` clears the status filter. */
@@ -49,30 +119,42 @@ export interface ContentDateFilter {
 /** An empty (inactive) date filter, defaulting to the created-at column. */
 export const EMPTY_DATE_FILTER: ContentDateFilter = { field: "createdAt", from: "", to: "" };
 
+type RowRequest = (id: string) => Promise<unknown> | void;
+
 export interface ContentListProps {
 	collection: string;
 	collectionLabel: string;
 	items: ContentItem[];
+	/** Validated custom-field columns from the collection manifest. */
+	listColumns?: ContentListColumn[];
 	trashedItems?: TrashedContentItem[];
 	isLoading?: boolean;
 	isTrashedLoading?: boolean;
-	onDelete?: (id: string) => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDelete?: RowRequest;
 	onDuplicate?: (id: string) => void;
+	/** Whether to offer Duplicate on an entry's row. Offered on every row when omitted. */
+	canDuplicate?: (item: ContentItem) => boolean;
 	onRestore?: (id: string) => void;
-	onPermanentDelete?: (id: string) => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onPermanentDelete?: RowRequest;
 	onLoadMore?: () => void;
 	onLoadMoreTrashed?: () => void;
 	hasMore?: boolean;
 	hasMoreTrashed?: boolean;
 	trashedCount?: number;
 	/** i18n config — present when multiple locales are configured */
-	i18n?: { defaultLocale: string; locales: string[] };
+	i18n?: { defaultLocale: string; locales: string[]; prefixDefaultLocale?: boolean };
 	/** Currently active locale filter */
 	activeLocale?: string;
 	/** Callback when locale filter changes */
 	onLocaleChange?: (locale: string) => void;
 	/** URL pattern for published content links (e.g. `/blog/{slug}`) */
 	urlPattern?: string;
+	/** Collection field slug powering the Title column (falls back to the title chain). */
+	titleField?: string;
+	/** Collection field slug (datetime) powering the Date column (falls back to updated date). */
+	dateField?: string;
 	/**
 	 * Controlled sort state. When `onSortChange` is also provided, the column
 	 * headers become sort controls that invoke it. Uncontrolled sort keeps
@@ -111,21 +193,80 @@ export interface ContentListProps {
 	/** Controlled date-range filter state. */
 	dateFilter?: ContentDateFilter;
 	onDateFilterChange?: (filter: ContentDateFilter) => void;
+	/** Controlled byline filter state. */
+	bylineFilter?: BylineFilterState;
+	onBylineFilterChange?: (filter: BylineFilterState) => void;
+	/**
+	 * Bulk actions. Each is opt-in: the selection checkboxes only appear when at
+	 * least one bulk handler is provided, and each toolbar button renders only
+	 * when its handler is present. Handlers receive the selected entry ids and
+	 * resolve with the ids that failed (empty array on full success); those
+	 * rows stay selected so a partial failure can be retried.
+	 */
+	onBulkPublish?: BulkActionHandler;
+	onBulkUnpublish?: BulkActionHandler;
+	onBulkDelete?: BulkActionHandler;
+	/** Taxonomies editors can bulk-assign terms from; empty disables the action. */
+	bulkTagTaxonomies?: BulkTagTaxonomy[];
+	/** Current role used only for contributed-column visibility, not authorization. */
+	userRole?: number;
+	/** Manifest state used to omit disabled or stale trusted-plugin contributions. */
+	pluginStates?: AdminManifest["plugins"];
+	/**
+	 * Server-side numbered pages for the All tab. `items` is then exactly the
+	 * current page, search is expected to be server-side (`onSearchChange`), and
+	 * `total`, `hasMore`, and `onLoadMore` are ignored. Selections persist across
+	 * pages and clear when the search, filters, locale, or collection change.
+	 */
+	pagination?: ListPagination;
+	/**
+	 * Server-side numbered pages for the Trash tab. `trashedItems` is then
+	 * exactly the current page; `hasMoreTrashed` and `onLoadMoreTrashed` are
+	 * ignored.
+	 */
+	trashPagination?: ListPagination;
 }
+
+type BulkActionHandler = (ids: string[]) => Promise<string[]>;
 
 type ViewTab = "all" | "trash";
 
 const PAGE_SIZE = 20;
 
-function getItemTitle(item: { data: Record<string, unknown>; slug: string | null; id: string }) {
-	const rawTitle = item.data.title;
-	const rawName = item.data.name;
-	return (
-		(typeof rawTitle === "string" ? rawTitle : "") ||
-		(typeof rawName === "string" ? rawName : "") ||
-		item.slug ||
-		item.id
-	);
+/** Page sizes offered with `pagination`; the first is the default. */
+export const CONTENT_LIST_PAGE_SIZES = [20, 50, 100];
+
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Parse a dateField value for the Date column. Returns null if missing or
+ * unparseable (so the caller falls back to a system date instead of showing
+ * "Invalid Date"). Bare `YYYY-MM-DD` is read as local midnight to avoid a
+ * previous-day shift in negative-UTC timezones.
+ */
+function parseListDate(value: unknown): Date | null {
+	if (typeof value !== "string" || !value) return null;
+	const normalized = DATE_ONLY_RE.test(value) ? `${value}T00:00:00` : value;
+	const parsed = new Date(normalized);
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseDateOnly(value: string): Date | undefined {
+	if (!DATE_ONLY_RE.test(value)) return undefined;
+	const [year, month, day] = value.split("-").map(Number);
+	if (year === undefined || month === undefined || day === undefined) return undefined;
+	const date = new Date(year, month - 1, day);
+	return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+		? date
+		: undefined;
+}
+
+function formatDateOnly(date: Date | undefined): string {
+	if (!date) return "";
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
 }
 
 /**
@@ -135,11 +276,13 @@ export function ContentList({
 	collection,
 	collectionLabel,
 	items,
+	listColumns = [],
 	trashedItems = [],
 	isLoading,
 	isTrashedLoading,
 	onDelete,
 	onDuplicate,
+	canDuplicate,
 	onRestore,
 	onPermanentDelete,
 	onLoadMore,
@@ -151,6 +294,8 @@ export function ContentList({
 	activeLocale,
 	onLocaleChange,
 	urlPattern,
+	titleField,
+	dateField,
 	sort,
 	onSortChange,
 	total,
@@ -162,11 +307,33 @@ export function ContentList({
 	onAuthorFilterChange,
 	dateFilter = EMPTY_DATE_FILTER,
 	onDateFilterChange,
+	bylineFilter = EMPTY_BYLINE_FILTER,
+	onBylineFilterChange,
+	onBulkPublish,
+	onBulkUnpublish,
+	onBulkDelete,
+	bulkTagTaxonomies = [],
+	userRole = 0,
+	pluginStates,
+	pagination,
+	trashPagination,
 }: ContentListProps) {
-	const { t } = useLingui();
+	const { t, i18n: lingui } = useLingui();
+	const pluginAdmins = usePluginAdmins();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
+	const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set());
+	const [bulkTagSelection, setBulkTagSelection] = React.useState<SelectedBulkTagPost[] | null>(
+		null,
+	);
+	const [bulkTagOpen, setBulkTagOpen] = React.useState(false);
+	const bulkTagEnabled = bulkTagTaxonomies.length > 0;
+	const soleBulkTagTaxonomy = bulkTagTaxonomies.length === 1 ? bulkTagTaxonomies[0] : undefined;
+
+	// Bulk selection is opt-in: the checkbox column + toolbar only render when
+	// the parent wired at least one bulk handler.
+	const bulkEnabled = !!(onBulkPublish || onBulkUnpublish || onBulkDelete || bulkTagEnabled);
 
 	// Server-side search mode: the caller refetches based on the (debounced)
 	// query, so `items`/`total` already reflect the filter and we must not
@@ -187,8 +354,8 @@ export function ContentList({
 	const filteredItems = React.useMemo(() => {
 		if (serverSearch || !searchQuery) return items;
 		const query = searchQuery.toLowerCase();
-		return items.filter((item) => getItemTitle(item).toLowerCase().includes(query));
-	}, [items, searchQuery, serverSearch]);
+		return items.filter((item) => getEntryTitle(item, titleField).toLowerCase().includes(query));
+	}, [items, searchQuery, serverSearch, titleField]);
 
 	// The query the current `items` reflect: server-side filtering lags behind
 	// typing by the debounce, so the empty-state message must use the debounced
@@ -207,10 +374,10 @@ export function ContentList({
 	// page 5 of 10, then typed a query narrowing to 1 page). Without clamping
 	// we'd render an empty table until the next refetch.
 	const clampedPage = Math.min(page, totalPages - 1);
-	const paginatedItems = filteredItems.slice(
-		clampedPage * PAGE_SIZE,
-		(clampedPage + 1) * PAGE_SIZE,
-	);
+	const paged = !!pagination;
+	const paginatedItems = paged
+		? filteredItems
+		: filteredItems.slice(clampedPage * PAGE_SIZE, (clampedPage + 1) * PAGE_SIZE);
 
 	// Auto-fetch the next API page when the user is on a client page whose
 	// items haven't been loaded yet. Skip during client-side search because
@@ -224,19 +391,136 @@ export function ContentList({
 		// In client-search mode we skip auto-fetch while a query is active
 		// (filtering can collapse the list). In server-search mode the loaded
 		// items already are the matches, so paging forward should keep fetching.
-		if (!hasMore || !onLoadMore || (!serverSearch && searchQuery)) return;
+		if (paged || !hasMore || !onLoadMore || (!serverSearch && searchQuery)) return;
 		const loadedPages = Math.ceil(filteredItems.length / PAGE_SIZE);
 		if (clampedPage >= loadedPages - 1) {
 			onLoadMore();
 		}
-	}, [clampedPage, filteredItems.length, hasMore, onLoadMore, searchQuery, serverSearch]);
+	}, [clampedPage, filteredItems.length, hasMore, onLoadMore, paged, searchQuery, serverSearch]);
+
+	// Drop selections for rows that left the current result set (filter/locale
+	// change, deletion) so a bulk action never targets a now-hidden id.
+	React.useEffect(() => {
+		if (paged) return;
+		setSelectedIds((prev) => {
+			if (prev.size === 0) return prev;
+			const present = new Set(items.map((i) => i.id));
+			let changed = false;
+			const next = new Set<string>();
+			for (const id of prev) {
+				if (present.has(id)) next.add(id);
+				else changed = true;
+			}
+			return changed ? next : prev;
+		});
+	}, [items, paged]);
+
+	// With server pages `items` holds one page, so selections on other pages
+	// can't be checked against it. Clear them when the result set changes.
+	const selectionScope = JSON.stringify([
+		collection,
+		activeLocale ?? null,
+		activeSearch,
+		statusFilter,
+		authorFilter,
+		dateFilter.from || dateFilter.to ? dateFilter : null,
+		isBylineFilterActive(bylineFilter) ? bylineFilter : null,
+	]);
+	const selectedRowsRef = React.useRef(new Map<string, ContentItem>());
+	React.useEffect(() => {
+		if (!paged) return;
+		setSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
+		selectedRowsRef.current.clear();
+	}, [paged, selectionScope]);
+
+	const clearSelection = React.useCallback(() => setSelectedIds(new Set()), []);
+	const rememberRows = (rows: readonly ContentItem[]) => {
+		if (!paged) return;
+		for (const row of rows) selectedRowsRef.current.set(row.id, row);
+	};
+	const toggleOne = (id: string) => {
+		rememberRows(paginatedItems.filter((item) => item.id === id));
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	};
+	const pageIds = paginatedItems.map((i) => i.id);
+	const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+	const togglePage = () => {
+		rememberRows(paginatedItems);
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (allPageSelected) for (const id of pageIds) next.delete(id);
+			else for (const id of pageIds) next.add(id);
+			return next;
+		});
+	};
+	const deleteRow = onDelete
+		? (id: string) =>
+				Promise.resolve(onDelete(id)).then(() =>
+					setSelectedIds((prev) => {
+						if (!prev.has(id)) return prev;
+						const next = new Set(prev);
+						next.delete(id);
+						return next;
+					}),
+				)
+		: undefined;
+	const selectedCount = selectedIds.size;
+	const extensionColumns = React.useMemo(
+		() => resolveContentListColumns(pluginAdmins, collection, userRole, pluginStates),
+		[collection, pluginAdmins, pluginStates, userRole],
+	);
+	const [bulkBusy, setBulkBusy] = React.useState(false);
+	const [bulkTrashOpen, setBulkTrashOpen] = React.useState(false);
+	const runBulk = (fn?: BulkActionHandler) => {
+		if (!fn || selectedCount === 0 || bulkBusy) return;
+		const ids = [...selectedIds];
+		setBulkBusy(true);
+		void (async () => {
+			try {
+				// Clear only after the batch settles, keeping the failed ids
+				// selected — a partial failure stays retryable instead of the
+				// selection vanishing while requests are still in flight.
+				const failedIds = await fn(ids);
+				setSelectedIds(new Set(failedIds));
+			} catch {
+				// Unexpected (non-per-item) error: keep the selection for a retry.
+				// The parent's mutation surfaces the error toast.
+			} finally {
+				setBulkBusy(false);
+			}
+		})();
+	};
+	const colSpan =
+		(i18n ? 5 : 4) + listColumns.length + extensionColumns.length + (bulkEnabled ? 1 : 0);
+	const trashColSpan = i18n ? 4 : 3;
+	const titleSortField = titleField ?? "title";
+	const dateSortField = dateField ?? "updatedAt";
+	const sortFields: SortFieldOption[] = [
+		{ field: titleSortField, label: t`Title` },
+		{ field: "status", label: t`Status` },
+		...(i18n ? [{ field: "locale", label: t`Locale` }] : []),
+		{ field: dateSortField, label: t`Date` },
+	];
+	const tabPagination = activeTab === "all" ? pagination : trashPagination;
+	const showPaginationFooter = !!tabPagination && tabPagination.totalCount > 0;
 
 	return (
-		<div className="space-y-4">
+		<div
+			className={
+				showPaginationFooter
+					? "flex min-h-full flex-col gap-4 [&_tbody_*]:scroll-mb-48"
+					: "space-y-4"
+			}
+		>
 			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-4">
-					<h1 className="text-2xl font-bold">{collectionLabel}</h1>
+			<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+				<div className="flex min-w-0 items-center gap-4">
+					<h1 className="text-2xl font-semibold leading-tight">{collectionLabel}</h1>
 					{i18n && activeLocale && onLocaleChange && (
 						<LocaleSwitcher
 							locales={i18n.locales}
@@ -256,21 +540,6 @@ export function ContentList({
 					{t`Add New`}
 				</RouterLinkButton>
 			</div>
-
-			{/* Search */}
-			{(serverSearch || items.length > 0) && (
-				<div className="relative max-w-sm">
-					<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
-					<Input
-						type="search"
-						placeholder={t`Search ${collectionLabel.toLowerCase()}...`}
-						aria-label={t`Search ${collectionLabel.toLowerCase()}`}
-						value={searchQuery}
-						onChange={handleSearchChange}
-						className="ps-9"
-					/>
-				</div>
-			)}
 
 			{/* Tabs */}
 			<Tabs
@@ -297,110 +566,291 @@ export function ContentList({
 			{/* Content based on active tab */}
 			{activeTab === "all" ? (
 				<>
-					{/* Filters */}
-					{onStatusFilterChange && (
-						<FilterBar
-							statusFilter={statusFilter}
-							onStatusFilterChange={onStatusFilterChange}
-							authors={authors}
-							authorFilter={authorFilter}
-							onAuthorFilterChange={onAuthorFilterChange}
-							dateFilter={dateFilter}
-							onDateFilterChange={onDateFilterChange}
-						/>
+					{(serverSearch || items.length > 0 || onStatusFilterChange) && (
+						<TableToolbar>
+							{(serverSearch || items.length > 0) && (
+								<TableToolbarSearch
+									placeholder={t`Search ${inlineLabel(collectionLabel, lingui.locale)}...`}
+									aria-label={t`Search ${inlineLabel(collectionLabel, lingui.locale)}`}
+									value={searchQuery}
+									onChange={handleSearchChange}
+								/>
+							)}
+							{onStatusFilterChange && (
+								<FilterBar
+									statusFilter={statusFilter}
+									onStatusFilterChange={onStatusFilterChange}
+									authors={authors}
+									authorFilter={authorFilter}
+									onAuthorFilterChange={onAuthorFilterChange}
+									dateFilter={dateFilter}
+									onDateFilterChange={onDateFilterChange}
+									bylineFilter={bylineFilter}
+									onBylineFilterChange={onBylineFilterChange}
+									locale={activeLocale ?? undefined}
+								/>
+							)}
+						</TableToolbar>
 					)}
 
+					{/* Bulk action toolbar — appears once one or more rows are selected */}
+					{bulkEnabled && selectedCount > 0 && (
+						<DataTableBulkBar
+							selectedCount={selectedCount}
+							busy={bulkBusy}
+							onClear={clearSelection}
+						>
+							{onBulkPublish && (
+								<Button
+									size="sm"
+									variant="secondary"
+									disabled={bulkBusy}
+									onClick={() => runBulk(onBulkPublish)}
+									icon={<Upload />}
+								>
+									{t`Publish`}
+								</Button>
+							)}
+							{onBulkUnpublish && (
+								<Button
+									size="sm"
+									variant="secondary"
+									disabled={bulkBusy}
+									onClick={() => runBulk(onBulkUnpublish)}
+									icon={<CircleDashed aria-hidden="true" />}
+								>
+									{t`Set to draft`}
+								</Button>
+							)}
+							{bulkTagEnabled && (
+								<Button
+									size="sm"
+									variant="secondary"
+									disabled={bulkBusy || selectedCount > 50}
+									icon={<Tag aria-hidden="true" />}
+									onClick={() => {
+										setBulkTagSelection(
+											Array.from(selectedIds, (id) => {
+												const item =
+													items.find((candidate) => candidate.id === id) ??
+													selectedRowsRef.current.get(id);
+												return {
+													collection,
+													id,
+													title: item ? getEntryTitle(item, titleField) : id,
+													locale: item?.locale,
+												};
+											}),
+										);
+										setBulkTagOpen(true);
+									}}
+								>
+									{soleBulkTagTaxonomy
+										? t`Add ${inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)}`
+										: t`Add term`}
+								</Button>
+							)}
+							{bulkTagEnabled && selectedCount > 50 && (
+								<span role="status" className="text-sm text-kumo-danger">
+									{t`Select up to 50 posts at a time.`}
+								</span>
+							)}
+							{onBulkDelete && (
+								<LayerDialog.Root
+									open={bulkTrashOpen}
+									onOpenChange={setBulkTrashOpen}
+									disablePointerDismissal
+								>
+									<LayerDialog.Trigger
+										render={(p) => (
+											<Button
+												{...p}
+												size="sm"
+												variant="destructive"
+												icon={<Trash />}
+												disabled={bulkBusy}
+											>
+												{t`Move to trash`}
+											</Button>
+										)}
+									/>
+									<LayerDialog.Content size="sm">
+										<LayerDialog.Title>{t`Move to Trash?`}</LayerDialog.Title>
+										<LayerDialog.Description>
+											{plural(selectedCount, {
+												one: "Move # item to trash? You can restore it later.",
+												other: "Move # items to trash? You can restore them later.",
+											})}
+										</LayerDialog.Description>
+										<LayerDialog.Body>{null}</LayerDialog.Body>
+										<LayerDialog.Actions dismissLabel={t`Cancel`}>
+											<LayerDialog.Action
+												variant="destructive"
+												onClick={() => {
+													setBulkTrashOpen(false);
+													runBulk(onBulkDelete);
+												}}
+											>
+												{t`Move to Trash`}
+											</LayerDialog.Action>
+										</LayerDialog.Actions>
+									</LayerDialog.Content>
+								</LayerDialog.Root>
+							)}
+						</DataTableBulkBar>
+					)}
+					<BulkTagDialog
+						taxonomies={bulkTagTaxonomies}
+						open={bulkTagOpen}
+						selected={bulkTagSelection ?? undefined}
+						activeLocale={activeLocale}
+						defaultLocale={i18n?.defaultLocale}
+						onClose={() => setBulkTagOpen(false)}
+						onClosed={() => setBulkTagSelection(null)}
+						onApplied={(results) => {
+							setSelectedIds(
+								new Set(
+									results.flatMap((result) =>
+										(result.status === "failed" || result.status === "unmatched") &&
+										"id" in result.input
+											? [result.input.id]
+											: [],
+									),
+								),
+							);
+						}}
+					/>
+
 					{/* Table */}
-					<div className="rounded-md border bg-kumo-base overflow-x-auto">
-						<table className="w-full">
-							<thead>
-								<tr className="border-b bg-kumo-tint/50">
-									<SortableTh
-										field="title"
-										sort={sort}
-										onSortChange={onSortChange}
-										label={t`Title`}
-									/>
-									<SortableTh
-										field="status"
-										sort={sort}
-										onSortChange={onSortChange}
-										label={t`Status`}
-									/>
-									{i18n && (
-										<SortableTh
-											field="locale"
-											sort={sort}
-											onSortChange={onSortChange}
-											label={t`Locale`}
+					<DataTable aria-busy={pagination?.isPending || undefined}>
+						<thead>
+							<tr>
+								{bulkEnabled && (
+									<th scope="col" className="w-10" inert={pagination?.isPending || undefined}>
+										<Checkbox
+											checked={allPageSelected}
+											onCheckedChange={togglePage}
+											aria-label={t`Select all on this page`}
 										/>
-									)}
-									<SortableTh
-										field="updatedAt"
-										sort={sort}
-										onSortChange={onSortChange}
-										label={t`Date`}
-									/>
-									<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
-										{t`Actions`}
 									</th>
-								</tr>
-							</thead>
-							<tbody className="divide-y divide-kumo-line">
-								{isLoading && items.length === 0 ? (
-									<tr>
-										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											<span className="inline-flex items-center gap-2">
-												<Loader size="sm" />
-												{t`Loading...`}
-											</span>
-										</td>
-									</tr>
-								) : items.length === 0 ? (
-									<tr>
-										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											{activeSearch ? (
-												t`No results for "${activeSearch}"`
-											) : (
-												<>
-													{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
-													<Link
-														to="/content/$collection/new"
-														params={{ collection }}
-														search={{ locale: activeLocale }}
-														className="text-kumo-brand underline"
-													>
-														{t`Create your first one`}
-													</Link>
-												</>
-											)}
-										</td>
-									</tr>
-								) : paginatedItems.length === 0 ? (
-									<tr>
-										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`No results for "${activeSearch}"`}
-										</td>
-									</tr>
-								) : (
-									paginatedItems.map((item) => (
-										<ContentListItem
-											key={item.id}
-											item={item}
-											collection={collection}
-											onDelete={onDelete}
-											onDuplicate={onDuplicate}
-											showLocale={!!i18n}
-											urlPattern={urlPattern}
-										/>
-									))
 								)}
-							</tbody>
-						</table>
-					</div>
+								{/* The Title/Date columns sort by the collection's configured
+								    titleField/dateField when set */}
+								<SortableTh
+									field={titleSortField}
+									sort={sort}
+									onSortChange={onSortChange}
+									label={t`Title`}
+								/>
+								{listColumns.map((column) => (
+									<th key={column.slug} scope="col" {...tertiaryColumn}>
+										{column.label}
+									</th>
+								))}
+								<SortableTh
+									field="status"
+									sort={sort}
+									onSortChange={onSortChange}
+									label={t`Status`}
+									{...tertiaryColumn}
+								/>
+								{i18n && (
+									<SortableTh
+										field="locale"
+										sort={sort}
+										onSortChange={onSortChange}
+										label={t`Locale`}
+										{...tertiaryColumn}
+									/>
+								)}
+								<SortableTh
+									field={dateSortField}
+									sort={sort}
+									onSortChange={onSortChange}
+									label={t`Date`}
+									{...tertiaryColumn}
+								/>
+								{extensionColumns.map((column) => (
+									<ExtensionColumnHeader
+										key={`${column.pluginId}:${column.extension.id}`}
+										column={column}
+										collection={collection}
+										locale={activeLocale}
+										{...tertiaryColumn}
+									/>
+								))}
+								<th scope="col" className="w-0" aria-label={t`Actions`}>
+									{onSortChange && (
+										// The negative margin keeps the header row as tall as a line of header text.
+										<div className="-my-0.75 @2xl:hidden">
+											<SortMenu
+												fields={sortFields}
+												sort={sort}
+												onSortChange={onSortChange}
+												defaultField={dateSortField}
+											/>
+										</div>
+									)}
+								</th>
+							</tr>
+						</thead>
+						<tbody inert={pagination?.isPending || undefined}>
+							{items.length === 0 && (isLoading || pagination?.isPending) ? (
+								<DataTableMessage colSpan={colSpan}>
+									<span className="inline-flex items-center gap-2">
+										<Loader size="sm" />
+										{t`Loading...`}
+									</span>
+								</DataTableMessage>
+							) : items.length === 0 ? (
+								<DataTableMessage colSpan={colSpan}>
+									{activeSearch ? (
+										t`No results for "${activeSearch}"`
+									) : (
+										<>
+											{t`No ${inlineLabel(collectionLabel, lingui.locale)} yet.`}{" "}
+											<Link
+												to="/content/$collection/new"
+												params={{ collection }}
+												search={{ locale: activeLocale }}
+												className="text-kumo-link underline"
+											>
+												{t`Create your first one`}
+											</Link>
+										</>
+									)}
+								</DataTableMessage>
+							) : paginatedItems.length === 0 ? (
+								<DataTableMessage colSpan={colSpan}>
+									{t`No results for "${activeSearch}"`}
+								</DataTableMessage>
+							) : (
+								paginatedItems.map((item) => (
+									<ContentListItem
+										key={item.id}
+										item={item}
+										visibleItems={paginatedItems}
+										collection={collection}
+										onDelete={deleteRow}
+										onDuplicate={!canDuplicate || canDuplicate(item) ? onDuplicate : undefined}
+										showLocale={!!i18n}
+										i18n={i18n}
+										urlPattern={urlPattern}
+										titleField={titleField}
+										dateField={dateField}
+										listColumns={listColumns}
+										selectable={bulkEnabled}
+										selected={selectedIds.has(item.id)}
+										onToggleSelect={toggleOne}
+										extensionColumns={extensionColumns}
+									/>
+								))
+							)}
+						</tbody>
+					</DataTable>
 
 					{/* Pagination */}
-					{totalPages > 1 && (
+					{!pagination && totalPages > 1 && (
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
 								{renderItemCount({
@@ -438,69 +888,84 @@ export function ContentList({
 					)}
 
 					{/* Load more */}
-					{hasMore && (
+					{!pagination && hasMore && (
 						<div className="flex justify-center">
 							<Button variant="outline" onClick={onLoadMore} disabled={isLoading}>
 								{isLoading ? t`Loading...` : t`Load More`}
 							</Button>
 						</div>
 					)}
+
+					{pagination && pagination.totalCount > 0 && (
+						<ListPaginationFooter
+							key="all"
+							pagination={pagination}
+							pageSizes={CONTENT_LIST_PAGE_SIZES}
+							label={t`${collectionLabel} pagination`}
+						/>
+					)}
 				</>
 			) : (
 				<>
 					{/* Trash Table */}
-					<div className="rounded-md border bg-kumo-base overflow-x-auto">
-						<table className="w-full">
-							<thead>
-								<tr className="border-b bg-kumo-tint/50">
-									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-										{t`Title`}
+					<DataTable aria-busy={trashPagination?.isPending || undefined}>
+						<thead>
+							<tr>
+								<th scope="col">{t`Title`}</th>
+								{i18n && (
+									<th scope="col" {...tertiaryColumn}>
+										{t`Locale`}
 									</th>
-									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-										{t`Deleted`}
-									</th>
-									<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
-										{t`Actions`}
-									</th>
-								</tr>
-							</thead>
-							<tbody className="divide-y divide-kumo-line">
-								{isTrashedLoading && trashedItems.length === 0 ? (
-									<tr>
-										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
-											<span className="inline-flex items-center gap-2">
-												<Loader size="sm" />
-												{t`Loading...`}
-											</span>
-										</td>
-									</tr>
-								) : trashedItems.length === 0 ? (
-									<tr>
-										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`Trash is empty`}
-										</td>
-									</tr>
-								) : (
-									trashedItems.map((item) => (
-										<TrashedListItem
-											key={item.id}
-											item={item}
-											onRestore={onRestore}
-											onPermanentDelete={onPermanentDelete}
-										/>
-									))
 								)}
-							</tbody>
-						</table>
-					</div>
+								<th scope="col" {...tertiaryColumn}>
+									{t`Deleted`}
+								</th>
+								<th scope="col" className="w-0">
+									<span className="sr-only">{t`Actions`}</span>
+								</th>
+							</tr>
+						</thead>
+						<tbody inert={trashPagination?.isPending || undefined}>
+							{trashedItems.length === 0 && (isTrashedLoading || trashPagination?.isPending) ? (
+								<DataTableMessage colSpan={trashColSpan}>
+									<span className="inline-flex items-center gap-2">
+										<Loader size="sm" />
+										{t`Loading...`}
+									</span>
+								</DataTableMessage>
+							) : trashedItems.length === 0 ? (
+								<DataTableMessage colSpan={trashColSpan}>{t`Trash is empty`}</DataTableMessage>
+							) : (
+								trashedItems.map((item) => (
+									<TrashedListItem
+										key={item.id}
+										item={item}
+										titleField={titleField}
+										showLocale={!!i18n}
+										onRestore={onRestore}
+										onPermanentDelete={onPermanentDelete}
+									/>
+								))
+							)}
+						</tbody>
+					</DataTable>
 
 					{/* Load more trashed */}
-					{hasMoreTrashed && (
+					{!trashPagination && hasMoreTrashed && (
 						<div className="flex justify-center">
 							<Button variant="outline" onClick={onLoadMoreTrashed} disabled={isTrashedLoading}>
 								{isTrashedLoading ? t`Loading...` : t`Load More`}
 							</Button>
 						</div>
+					)}
+
+					{trashPagination && trashPagination.totalCount > 0 && (
+						<ListPaginationFooter
+							key="trash"
+							pagination={trashPagination}
+							pageSizes={CONTENT_LIST_PAGE_SIZES}
+							label={t`Trash pagination`}
+						/>
 					)}
 				</>
 			)}
@@ -516,13 +981,18 @@ interface FilterBarProps {
 	onAuthorFilterChange?: (authorId: string) => void;
 	dateFilter: ContentDateFilter;
 	onDateFilterChange?: (filter: ContentDateFilter) => void;
+	bylineFilter: BylineFilterState;
+	onBylineFilterChange?: (filter: BylineFilterState) => void;
+	/** Locale the list is showing, so the byline picker offers matching rows. */
+	locale?: string;
 }
 
 /**
- * Filter controls for the content list: status, author, and a date range over
- * a chosen timestamp column (#1288). All controls report changes to the
- * parent, which owns the state and refetches. Filtering happens server-side,
- * so it works across the whole collection rather than the loaded page.
+ * Filter controls for the content list: status, author, byline, and a date
+ * range over a chosen timestamp column. All controls report changes to
+ * the parent, which owns the state and refetches. Filtering happens
+ * server-side, so it works across the whole collection rather than the loaded
+ * page.
  */
 function FilterBar({
 	statusFilter,
@@ -532,19 +1002,24 @@ function FilterBar({
 	onAuthorFilterChange,
 	dateFilter,
 	onDateFilterChange,
+	bylineFilter,
+	onBylineFilterChange,
+	locale,
 }: FilterBarProps) {
 	const { t } = useLingui();
 
 	const showAuthorFilter = !!onAuthorFilterChange && !!authors && authors.length > 0;
 	const showDateFilter = !!onDateFilterChange;
 
-	const statusItems: Record<string, string> = {
+	const statusItems: Record<ContentStatusFilter, string> = {
 		all: t`All statuses`,
 		published: t`Published`,
 		draft: t`Draft`,
 		scheduled: t`Scheduled`,
 		archived: t`Archived`,
 	};
+	const renderStatusLabel = (value: ContentStatusFilter) =>
+		value === "all" ? statusItems.all : <ContentStatusLabel state={value} />;
 
 	const dateFieldItems: Record<string, string> = {
 		createdAt: t`Created`,
@@ -553,26 +1028,40 @@ function FilterBar({
 	};
 
 	const hasActiveFilter =
-		statusFilter !== "all" || authorFilter !== "" || !!dateFilter.from || !!dateFilter.to;
+		statusFilter !== "all" ||
+		authorFilter !== "" ||
+		!!dateFilter.from ||
+		!!dateFilter.to ||
+		isBylineFilterActive(bylineFilter);
 
 	const handleClear = () => {
 		onStatusFilterChange("all");
 		onAuthorFilterChange?.("");
 		onDateFilterChange?.(EMPTY_DATE_FILTER);
+		// Clearing drops the selection but keeps the inferred-byline
+		// preference, which is a display choice rather than an active filter.
+		onBylineFilterChange?.({
+			...EMPTY_BYLINE_FILTER,
+			includeInferred: bylineFilter.includeInferred,
+		});
 	};
 
 	return (
-		<div className="flex flex-wrap items-end gap-3">
+		<>
 			<Select
 				size="sm"
+				className="emdash-status-filter-trigger min-w-32 ps-3.5"
 				aria-label={t`Filter by status`}
 				value={statusFilter}
 				onValueChange={(v) => onStatusFilterChange((v as ContentStatusFilter) ?? "all")}
+				renderValue={(v) =>
+					renderStatusLabel(typeof v === "string" && Object.hasOwn(statusItems, v) ? v : "all")
+				}
 				items={statusItems}
 			>
-				{Object.entries(statusItems).map(([value, label]) => (
-					<Select.Option key={value} value={value}>
-						{label}
+				{Object.entries(statusItems).map(([value]) => (
+					<Select.Option key={value} value={value} className="emdash-compact-select-option text-xs">
+						{renderStatusLabel(value as ContentStatusFilter)}
 					</Select.Option>
 				))}
 			</Select>
@@ -597,10 +1086,15 @@ function FilterBar({
 				</Select>
 			)}
 
+			{onBylineFilterChange && (
+				<BylineFilter value={bylineFilter} onChange={onBylineFilterChange} locale={locale} />
+			)}
+
 			{showDateFilter && (
-				<div className="flex flex-wrap items-end gap-2">
+				<>
 					<Select
 						size="sm"
+						className="emdash-date-field-filter-trigger min-w-28 ps-3.5"
 						aria-label={t`Date field to filter on`}
 						value={dateFilter.field}
 						onValueChange={(v) =>
@@ -609,29 +1103,17 @@ function FilterBar({
 						items={dateFieldItems}
 					>
 						{Object.entries(dateFieldItems).map(([value, label]) => (
-							<Select.Option key={value} value={value}>
+							<Select.Option
+								key={value}
+								value={value}
+								className="emdash-compact-select-option text-xs"
+							>
 								{label}
 							</Select.Option>
 						))}
 					</Select>
-					<Input
-						type="date"
-						size="sm"
-						aria-label={t`From date`}
-						value={dateFilter.from}
-						max={dateFilter.to || undefined}
-						onChange={(e) => onDateFilterChange?.({ ...dateFilter, from: e.target.value })}
-					/>
-					<span className="pb-2 text-sm text-kumo-subtle">{t`to`}</span>
-					<Input
-						type="date"
-						size="sm"
-						aria-label={t`To date`}
-						value={dateFilter.to}
-						min={dateFilter.from || undefined}
-						onChange={(e) => onDateFilterChange?.({ ...dateFilter, to: e.target.value })}
-					/>
-				</div>
+					<DateRangeFilter value={dateFilter} onChange={onDateFilterChange} />
+				</>
 			)}
 
 			{hasActiveFilter && (
@@ -639,11 +1121,114 @@ function FilterBar({
 					{t`Clear filters`}
 				</Button>
 			)}
-		</div>
+		</>
 	);
 }
 
-interface SortableThProps {
+function DateRangeFilter({
+	value,
+	onChange,
+}: {
+	value: ContentDateFilter;
+	onChange: (filter: ContentDateFilter) => void;
+}) {
+	const { i18n, t } = useLingui();
+	const from = parseDateOnly(value.from);
+	const to = parseDateOnly(value.to);
+	const formatter = React.useMemo(
+		() => new Intl.DateTimeFormat(i18n.locale, { dateStyle: "medium" }),
+		[i18n.locale],
+	);
+	const rangeLabel = from
+		? to
+			? formatter.formatRange(from, to)
+			: t`From ${formatter.format(from)}`
+		: to
+			? t`Until ${formatter.format(to)}`
+			: t`Date range`;
+	const selected: DateRange | undefined = from ? { from, to } : to ? { from: to, to } : undefined;
+	const dayPickerLocale = useDateLocale();
+	const direction = getLocaleDir(i18n.locale);
+	const isUpperBoundOnly = !from && !!to;
+	const canUseAsEndDate = !!from && (!to || value.from === value.to);
+
+	const handleChange = (range: DateRange | undefined, triggerDate?: Date) => {
+		if (isUpperBoundOnly && triggerDate) {
+			onChange({
+				...value,
+				from: "",
+				to: formatDateOnly(triggerDate),
+			});
+			return;
+		}
+		onChange({
+			...value,
+			from: formatDateOnly(range?.from),
+			to: formatDateOnly(range?.to),
+		});
+	};
+	const handleUseAsEndDate = () => {
+		if (!from || !canUseAsEndDate) return;
+		onChange({
+			...value,
+			from: "",
+			to: formatDateOnly(from),
+		});
+	};
+
+	return (
+		<Popover>
+			<Popover.Trigger
+				render={
+					<Button
+						variant="secondary"
+						size="sm"
+						icon={
+							<span
+								className="emdash-date-range-icon flex size-3 shrink-0 items-center justify-center"
+								aria-hidden="true"
+							>
+								<Calendar className="size-3" />
+							</span>
+						}
+						aria-label={t`Filter by date range: ${rangeLabel}`}
+						className="emdash-date-range-trigger px-3.5 font-normal"
+					/>
+				}
+			>
+				<span className="emdash-date-range-label">{rangeLabel}</span>
+			</Popover.Trigger>
+			<Popover.Content align="start" className="w-auto px-3 py-2.5">
+				<Popover.Title className="text-sm font-medium">{t`Choose a date range`}</Popover.Title>
+				<DatePicker
+					mode="range"
+					selected={selected}
+					defaultMonth={from ?? to}
+					onChange={handleChange}
+					aria-label={t`Choose a date range`}
+					className="mt-1"
+					locale={dayPickerLocale}
+					dir={direction}
+				/>
+				<div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-kumo-line pt-2">
+					{(from || to) && (
+						<Button size="sm" variant="ghost" onClick={() => handleChange(undefined)}>
+							{t`Clear`}
+						</Button>
+					)}
+					{canUseAsEndDate && (
+						<Button size="sm" variant="ghost" onClick={handleUseAsEndDate}>
+							{t`Use as end date`}
+						</Button>
+					)}
+					<Popover.Close render={<Button size="sm" variant="secondary" />}>{t`Done`}</Popover.Close>
+				</div>
+			</Popover.Content>
+		</Popover>
+	);
+}
+
+interface SortableThProps extends React.ComponentProps<"th"> {
 	field: ContentListSortField;
 	sort: ContentListSort | undefined;
 	onSortChange: ((sort: ContentListSort) => void) | undefined;
@@ -661,13 +1246,13 @@ interface SortableThProps {
  * automatically. Adding a verbose aria-label would make each header re-read
  * the sort instruction on every focus, which is noisy.
  */
-function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
+function SortableTh({ field, sort, onSortChange, label, ...props }: SortableThProps) {
 	const isActive = sort?.field === field;
 	const direction = isActive ? sort?.direction : undefined;
 
 	if (!onSortChange) {
 		return (
-			<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
+			<th scope="col" {...props}>
 				{label}
 			</th>
 		);
@@ -692,18 +1277,139 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 	const Icon = isActive ? (direction === "asc" ? CaretUp : CaretDown) : CaretUpDown;
 
 	return (
-		<th scope="col" aria-sort={ariaSort} className="px-4 py-3 text-start text-sm font-medium">
+		<th scope="col" aria-sort={ariaSort} {...props}>
 			<button
 				type="button"
 				onClick={handleClick}
 				className={cn(
-					"inline-flex items-center gap-1 rounded text-kumo-default hover:text-kumo-brand",
+					"inline-flex items-center gap-1.5 rounded hover:text-kumo-default",
 					"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand",
 				)}
 			>
 				<span>{label}</span>
-				<Icon className="h-3 w-3" aria-hidden="true" />
+				<Icon className={cn("size-3.5", !isActive && "opacity-50")} aria-hidden="true" />
 			</button>
+		</th>
+	);
+}
+
+interface SortFieldOption {
+	field: ContentListSortField;
+	label: string;
+}
+
+/** Offers the sort headers' choices while the table is too narrow to show those headers. */
+function SortMenu({
+	fields,
+	sort,
+	onSortChange,
+	defaultField,
+}: {
+	fields: SortFieldOption[];
+	sort: ContentListSort | undefined;
+	onSortChange: (sort: ContentListSort) => void;
+	defaultField: ContentListSortField;
+}) {
+	const { t } = useLingui();
+	const label = fields.find((option) => option.field === sort?.field)?.label;
+	const triggerLabel =
+		!sort || label === undefined
+			? t`Sort`
+			: sort.direction === "asc"
+				? t`Sort by ${label}, ascending`
+				: t`Sort by ${label}, descending`;
+
+	return (
+		<DropdownMenu>
+			<DropdownMenu.Trigger
+				render={
+					<Button variant="ghost" size="sm" shape="square" aria-label={triggerLabel}>
+						<ArrowsDownUp size={16} aria-hidden="true" />
+					</Button>
+				}
+			/>
+			<DropdownMenu.Content align="end">
+				<DropdownMenu.RadioGroup
+					value={sort?.field ?? null}
+					onValueChange={(field: ContentListSortField) => {
+						if (field !== sort?.field) onSortChange({ field, direction: "desc" });
+					}}
+				>
+					<DropdownMenu.Label className="text-xs text-kumo-subtle">{t`Sort by`}</DropdownMenu.Label>
+					{fields.map((option) => (
+						<DropdownMenu.RadioItem key={option.field} value={option.field}>
+							{option.label}
+							<SortMenuIndicator />
+						</DropdownMenu.RadioItem>
+					))}
+				</DropdownMenu.RadioGroup>
+				<DropdownMenu.Separator />
+				<DropdownMenu.RadioGroup
+					value={sort?.direction ?? null}
+					onValueChange={(direction: ContentListSort["direction"]) => {
+						if (direction !== sort?.direction) {
+							onSortChange({ field: sort?.field ?? defaultField, direction });
+						}
+					}}
+				>
+					<DropdownMenu.Label className="text-xs text-kumo-subtle">{t`Order`}</DropdownMenu.Label>
+					<DropdownMenu.RadioItem value="asc">
+						{t`Ascending`}
+						<SortMenuIndicator />
+					</DropdownMenu.RadioItem>
+					<DropdownMenu.RadioItem value="desc">
+						{t`Descending`}
+						<SortMenuIndicator />
+					</DropdownMenu.RadioItem>
+				</DropdownMenu.RadioGroup>
+			</DropdownMenu.Content>
+		</DropdownMenu>
+	);
+}
+
+function SortMenuIndicator() {
+	// m-0 drops Kumo's physical ml-auto, which would leave the check beside the label in
+	// right-to-left locales. Staying mounted keeps the open menu's width as the choice moves.
+	return (
+		<DropdownMenu.RadioItemIndicator
+			keepMounted
+			className="m-0 ms-auto ps-4 data-unchecked:invisible"
+		/>
+	);
+}
+
+interface ExtensionColumnHeaderProps extends React.ComponentProps<"th"> {
+	column: ResolvedContentListColumn;
+	collection: string;
+	locale?: string;
+}
+
+function ExtensionColumnHeader({
+	column,
+	collection,
+	locale,
+	...props
+}: ExtensionColumnHeaderProps) {
+	const { i18n } = useLingui();
+	const { pluginId, extension } = column;
+	const Header = extension.header;
+	const label = declaredLabelTranslator(i18n, (id) => i18n._(id))(extension.label);
+
+	return (
+		<th
+			scope="col"
+			aria-label={label}
+			className={extension.align === "end" ? "text-end" : "text-start"}
+			{...props}
+		>
+			<ContentListColumnBoundary
+				key={`${collection}:${locale ?? ""}:${pluginId}:${extension.id}`}
+				pluginId={pluginId}
+				columnId={extension.id}
+				fallback={label}
+			>
+				{Header ? <Header collection={collection} locale={locale} /> : label}
+			</ContentListColumnBoundary>
 		</th>
 	);
 }
@@ -752,194 +1458,344 @@ function renderItemCount({
 
 interface ContentListItemProps {
 	item: ContentItem;
+	visibleItems: readonly ContentItem[];
 	collection: string;
-	onDelete?: (id: string) => void;
+	onDelete?: RowRequest;
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
+	i18n?: { defaultLocale: string; locales: string[]; prefixDefaultLocale?: boolean };
 	urlPattern?: string;
+	titleField?: string;
+	dateField?: string;
+	listColumns: ContentListColumn[];
+	selectable?: boolean;
+	selected?: boolean;
+	onToggleSelect?: (id: string) => void;
+	extensionColumns?: ResolvedContentListColumn[];
 }
 
 function ContentListItem({
 	item,
+	visibleItems,
 	collection,
 	onDelete,
 	onDuplicate,
 	showLocale,
+	i18n,
 	urlPattern,
+	titleField,
+	dateField,
+	listColumns,
+	selectable,
+	selected,
+	onToggleSelect,
+	extensionColumns,
 }: ContentListItemProps) {
-	const { t } = useLingui();
-	const title = getItemTitle(item);
-	const date = new Date(item.updatedAt || item.createdAt);
+	const { t, i18n: lingui } = useLingui();
+	const title = getEntryTitle(item, titleField);
+	// A configured dateField drives the Date column; fall back to the
+	// last-updated / created date when it's unset, empty, or unparseable.
+	const customDate = dateField ? parseListDate(item.data[dateField]) : null;
+	const date = customDate ?? parseTimestamp(item.updatedAt || item.createdAt);
+	const trash = useConfirmedRequest(onDelete && (() => onDelete(item.id)));
+	const statusBadge = (
+		<StatusBadge
+			status={item.status}
+			hasPendingChanges={getDraftStatus(item) === "published_with_changes"}
+		/>
+	);
+	const localeChip = showLocale && <LocaleChip locale={item.locale} />;
+	const formattedDate = <bdi>{formatDate(date, lingui.locale)}</bdi>;
 
 	return (
-		<tr className="hover:bg-kumo-tint/25">
-			<td className="px-4 py-3">
+		<tr data-selected={selected || undefined}>
+			{selectable && (
+				<td>
+					<Checkbox
+						checked={!!selected}
+						onCheckedChange={() => onToggleSelect?.(item.id)}
+						aria-label={t`Select ${title}`}
+					/>
+				</td>
+			)}
+			<td>
 				<Link
 					to="/content/$collection/$id"
 					params={{ collection, id: item.id }}
 					search={{ locale: item.locale }}
-					className="font-medium hover:text-kumo-brand"
+					className={rowTitleClassName}
 				>
 					{title}
 				</Link>
+				<RowMeta priority="tertiary">
+					{statusBadge}
+					{localeChip}
+					{formattedDate}
+				</RowMeta>
 			</td>
-			<td className="px-4 py-3">
-				<StatusBadge
-					status={item.status}
-					hasPendingChanges={!!item.draftRevisionId && item.draftRevisionId !== item.liveRevisionId}
-				/>
+			{listColumns.map((column) => (
+				<ContentListCustomCell key={column.slug} column={column} value={item.data[column.slug]} />
+			))}
+			<td {...tertiaryColumn}>{statusBadge}</td>
+			{showLocale && <td {...tertiaryColumn}>{localeChip}</td>}
+			<td
+				data-testid="content-updated"
+				className="whitespace-nowrap text-kumo-subtle"
+				{...tertiaryColumn}
+			>
+				{formattedDate}
 			</td>
-			{showLocale && (
-				<td className="px-4 py-3">
-					<span className="bg-kumo-tint rounded px-1.5 py-0.5 text-xs font-semibold uppercase">
-						{item.locale}
-					</span>
-				</td>
-			)}
-			<td className="px-4 py-3 text-sm text-kumo-subtle">{date.toLocaleDateString()}</td>
-			<td className="px-4 py-3 text-end">
-				<div className="flex items-center justify-end space-x-1">
-					{item.status === "published" && item.slug && (
-						<LinkButton
-							href={contentUrl(collection, item.slug, urlPattern)}
-							external
-							variant="ghost"
-							shape="square"
-							aria-label={t`View published ${title}`}
-							icon={<ArrowSquareOut />}
-						/>
-					)}
-					<RouterLinkButton
-						to="/content/$collection/$id"
-						params={{ collection, id: item.id }}
-						search={{ locale: item.locale }}
-						aria-label={t`Edit ${title}`}
-						variant="ghost"
-						shape="square"
-						icon={<Pencil />}
-					/>
-					<Button
-						variant="ghost"
-						shape="square"
-						aria-label={t`Duplicate ${title}`}
-						onClick={() => onDuplicate?.(item.id)}
+			{extensionColumns?.map(({ pluginId, extension }) => {
+				const Cell = extension.cell;
+				return (
+					<td
+						key={`${pluginId}:${extension.id}`}
+						className={extension.align === "end" ? "text-end" : "text-start"}
+						{...tertiaryColumn}
 					>
-						<Copy className="h-4 w-4" aria-hidden="true" />
-					</Button>
-					<Dialog.Root disablePointerDismissal>
-						<Dialog.Trigger
-							render={(p) => (
-								<Button
-									{...p}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Move ${title} to trash`}
-								>
-									<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-							<Dialog.Description className="text-kumo-subtle">
-								{t`Move "${title}" to trash? You can restore it later.`}
-							</Dialog.Description>
-							<div className="mt-6 flex justify-end gap-2">
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="secondary">
-											{t`Cancel`}
-										</Button>
-									)}
-								/>
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="destructive" onClick={() => onDelete?.(item.id)}>
-											{t`Move to Trash`}
-										</Button>
-									)}
-								/>
-							</div>
-						</Dialog>
-					</Dialog.Root>
-				</div>
+						<ContentListColumnBoundary
+							key={`${collection}:${item.locale}:${item.id}:${pluginId}:${extension.id}`}
+							pluginId={pluginId}
+							columnId={extension.id}
+							resetKey={item.updatedAt}
+						>
+							<Cell
+								collection={collection}
+								item={item}
+								locale={item.locale}
+								visibleItems={visibleItems}
+							/>
+						</ContentListColumnBoundary>
+					</td>
+				);
+			})}
+			<td className="text-end">
+				<RowActionsMenu label={t`Actions for ${title}`}>
+					<DropdownMenu.LinkItem
+						closeOnClick
+						icon={<Pencil className="size-4" aria-hidden="true" />}
+						render={
+							<Link
+								to="/content/$collection/$id"
+								params={{ collection, id: item.id }}
+								search={{ locale: item.locale }}
+							/>
+						}
+					>
+						{t`Edit`}
+					</DropdownMenu.LinkItem>
+					{item.status === "published" && item.slug && (
+						<DropdownMenu.LinkItem
+							closeOnClick
+							icon={<ArrowSquareOut className="size-4" aria-hidden="true" />}
+							href={contentUrl(collection, item.slug, urlPattern, {
+								locale: item.locale,
+								i18n,
+								id: item.id,
+								date: item.publishedAt,
+							})}
+							target="_blank"
+							rel="noreferrer"
+						>
+							{t`View published`}
+						</DropdownMenu.LinkItem>
+					)}
+					{onDuplicate && (
+						<DropdownMenu.Item
+							icon={<Copy className="size-4" aria-hidden="true" />}
+							onClick={() => onDuplicate(item.id)}
+						>
+							{t`Duplicate`}
+						</DropdownMenu.Item>
+					)}
+					<DropdownMenu.Separator />
+					<DropdownMenu.Item
+						variant="danger"
+						icon={<Trash className="size-4" aria-hidden="true" />}
+						onClick={trash.show}
+					>
+						{t`Move to trash`}
+					</DropdownMenu.Item>
+				</RowActionsMenu>
+				<ConfirmDialog
+					{...trash.dialog}
+					title={t`Move to Trash?`}
+					description={t`Move "${title}" to trash? You can restore it later.`}
+					confirmLabel={t`Move to Trash`}
+					pendingLabel={t`Moving to trash...`}
+				/>
 			</td>
 		</tr>
 	);
 }
 
-interface TrashedListItemProps {
-	item: TrashedContentItem;
-	onRestore?: (id: string) => void;
-	onPermanentDelete?: (id: string) => void;
+function ContentListCustomCell({
+	column,
+	value,
+}: {
+	column: ContentListColumn;
+	value: unknown;
+}): React.ReactNode {
+	const { i18n, t } = useLingui();
+	const text = formatListColumnValue(column, value, {
+		emptyLabel: t`Not set`,
+		falseLabel: t`No`,
+		locale: i18n.locale,
+		trueLabel: t`Yes`,
+	});
+	return (
+		<td className="max-w-48" {...tertiaryColumn}>
+			<span className="block truncate" title={text}>
+				{text}
+			</span>
+		</td>
+	);
 }
 
-function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItemProps) {
-	const { t } = useLingui();
-	const title = getItemTitle(item);
-	const deletedDate = new Date(item.deletedAt);
+interface ListColumnFormatOptions {
+	emptyLabel: string;
+	falseLabel: string;
+	locale: string;
+	trueLabel: string;
+}
+
+function formatListColumnValue(
+	column: ContentListColumn,
+	value: unknown,
+	{ emptyLabel, falseLabel, locale, trueLabel }: ListColumnFormatOptions,
+): string {
+	if (value === null || value === undefined || value === "") return emptyLabel;
+
+	const optionLabel = (optionValue: unknown): string => {
+		const text = scalarListColumnValue(optionValue);
+		if (text === undefined) return emptyLabel;
+		return column.options?.find((option) => option.value === text)?.label ?? text;
+	};
+
+	switch (column.kind) {
+		case "select":
+			return optionLabel(value);
+		case "multiSelect": {
+			let values: unknown[];
+			if (Array.isArray(value)) {
+				values = value;
+			} else if (typeof value === "string") {
+				try {
+					const parsed: unknown = JSON.parse(value);
+					values = Array.isArray(parsed) ? parsed : [value];
+				} catch {
+					values = [value];
+				}
+			} else {
+				values = [value];
+			}
+			return values.length > 0
+				? new Intl.ListFormat(locale, { style: "short", type: "unit" }).format(
+						values.map(optionLabel),
+					)
+				: emptyLabel;
+		}
+		case "boolean":
+			return value === true || value === 1 || value === "1" || value === "true"
+				? trueLabel
+				: falseLabel;
+		case "datetime": {
+			const text = scalarListColumnValue(value);
+			if (text === undefined) return emptyLabel;
+			const date = new Date(text);
+			return Number.isNaN(date.getTime()) ? text : new Intl.DateTimeFormat(locale).format(date);
+		}
+		case "number": {
+			if (typeof value === "number" || typeof value === "bigint") {
+				return new Intl.NumberFormat(locale).format(value);
+			}
+			return scalarListColumnValue(value) ?? emptyLabel;
+		}
+		case "string":
+		default:
+			return scalarListColumnValue(value) ?? emptyLabel;
+	}
+}
+
+function scalarListColumnValue(value: unknown): string | undefined {
+	if (typeof value === "string") return value;
+	if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
+		return String(value);
+	}
+	return undefined;
+}
+
+interface TrashedListItemProps {
+	item: TrashedContentItem;
+	titleField?: string;
+	showLocale?: boolean;
+	onRestore?: (id: string) => void;
+	onPermanentDelete?: RowRequest;
+}
+
+function TrashedListItem({
+	item,
+	titleField,
+	showLocale,
+	onRestore,
+	onPermanentDelete,
+}: TrashedListItemProps) {
+	const { t, i18n } = useLingui();
+	const title = getEntryTitle(item, titleField);
+	const deletedDate = parseTimestamp(item.deletedAt);
+	const permanentDelete = useConfirmedRequest(
+		onPermanentDelete && (() => onPermanentDelete(item.id)),
+	);
+	const localeChip = showLocale && <LocaleChip locale={item.locale} />;
+	const formattedDeletedDate = <bdi>{formatDate(deletedDate, i18n.locale)}</bdi>;
 
 	return (
-		<tr className="hover:bg-kumo-tint/25">
-			<td className="px-4 py-3">
-				<span className="font-medium text-kumo-subtle">{title}</span>
+		<tr>
+			<td>
+				<span className="font-medium text-kumo-subtle @max-2xl:wrap-anywhere">{title}</span>
+				<RowMeta priority="tertiary">
+					{localeChip}
+					{formattedDeletedDate}
+				</RowMeta>
 			</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle">{deletedDate.toLocaleDateString()}</td>
-			<td className="px-4 py-3 text-end">
-				<div className="flex items-center justify-end space-x-1">
-					<Button
-						variant="ghost"
-						shape="square"
-						aria-label={t`Restore ${title}`}
+			{showLocale && <td {...tertiaryColumn}>{localeChip}</td>}
+			<td className="whitespace-nowrap text-kumo-subtle" {...tertiaryColumn}>
+				{formattedDeletedDate}
+			</td>
+			<td className="text-end">
+				<RowActionsMenu label={t`Actions for ${title}`}>
+					<DropdownMenu.Item
+						icon={<ArrowCounterClockwise className="size-4" aria-hidden="true" />}
 						onClick={() => onRestore?.(item.id)}
 					>
-						<ArrowCounterClockwise className="h-4 w-4 text-kumo-brand" aria-hidden="true" />
-					</Button>
-					<Dialog.Root disablePointerDismissal>
-						<Dialog.Trigger
-							render={(p) => (
-								<Button
-									{...p}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Permanently delete ${title}`}
-								>
-									<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">
-								{t`Delete Permanently?`}
-							</Dialog.Title>
-							<Dialog.Description className="text-kumo-subtle">
-								{t`Permanently delete "${title}"? This cannot be undone.`}
-							</Dialog.Description>
-							<div className="mt-6 flex justify-end gap-2">
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="secondary">
-											{t`Cancel`}
-										</Button>
-									)}
-								/>
-								<Dialog.Close
-									render={(p) => (
-										<Button
-											{...p}
-											variant="destructive"
-											onClick={() => onPermanentDelete?.(item.id)}
-										>
-											{t`Delete Permanently`}
-										</Button>
-									)}
-								/>
-							</div>
-						</Dialog>
-					</Dialog.Root>
-				</div>
+						{t`Restore`}
+					</DropdownMenu.Item>
+					<DropdownMenu.Separator />
+					<DropdownMenu.Item
+						variant="danger"
+						icon={<Trash className="size-4" aria-hidden="true" />}
+						onClick={permanentDelete.show}
+					>
+						{t`Delete permanently`}
+					</DropdownMenu.Item>
+				</RowActionsMenu>
+				<ConfirmDialog
+					{...permanentDelete.dialog}
+					title={t`Delete Permanently?`}
+					description={t`Permanently delete "${title}"? This cannot be undone.`}
+					confirmLabel={t`Delete Permanently`}
+					pendingLabel={t`Deleting...`}
+				/>
 			</td>
 		</tr>
+	);
+}
+
+function LocaleChip({ locale }: { locale: string }) {
+	return (
+		<span className="bg-kumo-tint rounded px-1.5 py-0.5 text-xs font-semibold uppercase">
+			{locale}
+		</span>
 	);
 }
 
@@ -950,36 +1806,12 @@ function StatusBadge({
 	status: string;
 	hasPendingChanges?: boolean;
 }) {
-	const { t } = useLingui();
-
-	const statusLabel =
-		status === "published"
-			? t`published`
-			: status === "draft"
-				? t`draft`
-				: status === "scheduled"
-					? t`scheduled`
-					: status === "archived"
-						? t`archived`
-						: status;
+	const state = isContentStatusState(status) ? status : undefined;
 
 	return (
-		<span className="inline-flex items-center gap-1.5">
-			<span
-				className={cn(
-					"inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
-					status === "published" &&
-						"bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-					status === "draft" &&
-						"bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-					status === "scheduled" &&
-						"bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-					status === "archived" && "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-				)}
-			>
-				{statusLabel}
-			</span>
-			{hasPendingChanges && <Badge variant="secondary">{t`pending`}</Badge>}
+		<span className="inline-flex flex-wrap items-center gap-1.5">
+			{state ? <ContentStatusBadge state={state} /> : <Badge variant="neutral">{status}</Badge>}
+			{hasPendingChanges && <ContentStatusBadge state="pendingChanges" />}
 		</span>
 	);
 }

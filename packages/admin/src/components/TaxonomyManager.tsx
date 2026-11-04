@@ -5,14 +5,42 @@
  * Shows hierarchical structure for categories, flat list for tags.
  */
 
-import { Button, Checkbox, Dialog, Input, InputArea, Select, Toast } from "@cloudflare/kumo";
+import {
+	Button,
+	Checkbox,
+	DropdownMenu,
+	Input,
+	InputArea,
+	LayerDialog,
+	Select,
+	useKumoToastManager,
+} from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Pencil, Trash, X } from "@phosphor-icons/react";
+import {
+	ArrowDown,
+	ArrowUp,
+	DotsThree,
+	MagnifyingGlass,
+	Plus,
+	Pencil,
+	StackSimple,
+	Tag,
+	Translate,
+	Trash,
+} from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchManifest } from "../lib/api/client.js";
-import type { TaxonomyTerm, TaxonomyDef, CreateTaxonomyInput } from "../lib/api/taxonomies.js";
+import { ApiResponseError, fetchManifest } from "../lib/api/client.js";
+import type {
+	TaxonomyTerm,
+	TaxonomyDef,
+	CreateTaxonomyInput,
+	CreateTermInput,
+	UpdateTermInput,
+} from "../lib/api/taxonomies.js";
 import {
 	fetchTaxonomyDef,
 	fetchTermTranslations,
@@ -20,23 +48,90 @@ import {
 	createTaxonomy,
 	createTerm,
 	createTermTranslation,
+	reorderTerms,
 	updateTerm,
+	deleteTaxonomy,
 	deleteTerm,
 } from "../lib/api/taxonomies.js";
-import { slugify } from "../lib/utils";
+import {
+	guardUnsavedInput,
+	revealErrors,
+	useSingleFlight,
+	useTakenValue,
+} from "../lib/dialog-form.js";
+import { inlineLabel } from "../lib/inline-label.js";
+import { slugify, slugifyIdentifier } from "../lib/utils";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
+import { BulkTagDialog } from "./BulkTagDialog.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
+import { DataTable, DataTableMessage, RowActionsMenu, RowTitleButton } from "./DataTable.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { DialogSection } from "./DialogSection.js";
+import { HelpLabel, HelpTooltip } from "./FieldHelpLabel.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
+import { TableToolbarSearch } from "./TableToolbar.js";
 import { TranslationsPanel } from "./TranslationsPanel.js";
+
+export function TaxonomyNotFoundMessage({ taxonomyName }: { taxonomyName: string }) {
+	const { t } = useLingui();
+	return <>{t`Taxonomy not found: ${taxonomyName}`}</>;
+}
 
 interface TaxonomyManagerProps {
 	taxonomyName: string;
+	/** Called after the taxonomy itself is deleted, so the host can route away. */
+	onDeleted?: () => void;
 }
 
 // Regex patterns for taxonomy name generation and validation (module-scoped per lint rules)
-const NON_ALPHANUMERIC_PATTERN = /[^a-z0-9]+/g;
-const LEADING_TRAILING_UNDERSCORE_PATTERN = /^_|_$/g;
 const TAXONOMY_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
+const TAXONOMY_NAME_MAX_LENGTH = 63;
+const TAXONOMY_LABEL_MAX_LENGTH = 200;
+
+function isConflict(error: unknown): boolean {
+	return error instanceof ApiResponseError && error.code === "CONFLICT";
+}
+
+type TermField = "label" | "slug";
+
+function termProblems(state: {
+	label: string;
+	slug: string;
+	autoSlug: boolean;
+}): Partial<Record<TermField, MessageDescriptor>> {
+	const problems: Partial<Record<TermField, MessageDescriptor>> = {};
+	const labelGiven = Boolean(state.label.trim());
+	if (!labelGiven) problems.label = msg`Enter a name.`;
+	// An untouched slug fills in from the name, and the missing name already carries the error.
+	if (!state.slug && (!state.autoSlug || labelGiven)) problems.slug = msg`Enter a slug.`;
+	return problems;
+}
+
+type TaxonomyField = "label" | "name";
+
+function taxonomyProblems(state: {
+	label: string;
+	name: string;
+	autoName: boolean;
+}): Partial<Record<TaxonomyField, MessageDescriptor>> {
+	const problems: Partial<Record<TaxonomyField, MessageDescriptor>> = {};
+	const labelGiven = Boolean(state.label.trim());
+	if (!labelGiven) problems.label = msg`Enter a label.`;
+	else if (state.label.length > TAXONOMY_LABEL_MAX_LENGTH) {
+		problems.label = msg`Use 200 characters or fewer.`;
+	}
+	if (!state.name) {
+		if (!state.autoName) problems.name = msg`Enter a name.`;
+		else if (labelGiven) {
+			problems.name = msg`A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`;
+		}
+	} else if (!TAXONOMY_NAME_PATTERN.test(state.name)) {
+		problems.name = msg`Use lowercase letters, numbers, and underscores, starting with a letter.`;
+	} else if (state.name.length > TAXONOMY_NAME_MAX_LENGTH) {
+		problems.name = msg`Use 63 characters or fewer.`;
+	}
+	return problems;
+}
 
 /**
  * Flatten tree to get all terms
@@ -45,73 +140,328 @@ function flattenTerms(terms: TaxonomyTerm[]): TaxonomyTerm[] {
 	return terms.flatMap((t) => [t, ...flattenTerms(t.children)]);
 }
 
+const NUMERIC_SUFFIX_PATTERN = /^\d+$/;
+
 /**
- * Term row component (recursive for hierarchy)
+ * The slug the server's `generateUniqueSlug` picks for `label` among `terms`:
+ * the label's slug, or that slug plus one more than the highest numeric suffix
+ * in use. Term slugs are unique per taxonomy and locale, not per parent.
+ */
+function freeTermSlug(label: string, terms: TaxonomyTerm[]): string {
+	const base = slugify(label);
+	const slugs = flattenTerms(terms).map((term) => term.slug);
+	if (!slugs.includes(base)) return base;
+	const prefix = `${base}-`;
+	let highest = 0;
+	for (const slug of slugs) {
+		const suffix = slug.startsWith(prefix) ? slug.slice(prefix.length) : "";
+		if (NUMERIC_SUFFIX_PATTERN.test(suffix)) {
+			highest = Math.max(highest, Number.parseInt(suffix, 10));
+		}
+	}
+	return `${base}-${highest + 1}`;
+}
+
+function canonicalSearchLocale(locale: string): string {
+	try {
+		return Intl.getCanonicalLocales(locale)[0] ?? "en";
+	} catch {
+		return "en";
+	}
+}
+
+function findMatchingTagIds(
+	terms: TaxonomyTerm[],
+	labelSearch: string,
+	slugSearch: string,
+	locale: string,
+) {
+	const visibleIds = new Set<string>();
+	let matchCount = 0;
+	const visit = (term: TaxonomyTerm): boolean => {
+		let hasMatchingChild = false;
+		for (const child of term.children) {
+			if (visit(child)) hasMatchingChild = true;
+		}
+		const matches =
+			term.label.toLocaleLowerCase(locale).includes(labelSearch) ||
+			term.slug.toLowerCase().includes(slugSearch);
+		if (matches) matchCount++;
+		if (matches || hasMatchingChild) visibleIds.add(term.id);
+		return matches || hasMatchingChild;
+	};
+	for (const term of terms) visit(term);
+	return { visibleIds, matchCount };
+}
+
+/**
+ * Return valid parent candidates in tree order.
+ *
+ * The current term and its complete subtree are excluded while editing so a
+ * parent change cannot create a taxonomy cycle.
+ */
+export function getAvailableParentTerms(
+	terms: TaxonomyTerm[],
+	currentTerm?: TaxonomyTerm,
+): TaxonomyTerm[] {
+	const flatTerms = flattenTerms(terms);
+	if (!currentTerm) return flatTerms;
+
+	const excludedIds = new Set([
+		currentTerm.id,
+		...flattenTerms(currentTerm.children).map((term) => term.id),
+	]);
+	return flatTerms.filter((term) => !excludedIds.has(term.id));
+}
+
+/** The translation group a term belongs to — what `parentId` and reorder ids hold. */
+export function termGroup(term: TaxonomyTerm): string {
+	return term.translationGroup ?? term.id;
+}
+
+/**
+ * Whether a term is rendered in a group it isn't a member of.
+ *
+ * A child whose parent has no row in this locale is listed at the top level so
+ * it isn't lost, but its position belongs to its parent's group. It can't be
+ * moved from here, and it can't be named in a reorder of the group it's drawn in.
+ */
+export function isStranded(term: TaxonomyTerm, parentId: string | null): boolean {
+	return parentId === null && !!term.parentId;
+}
+
+/**
+ * Permute `movable` into the slots those same terms occupy in `rendered`,
+ * leaving everything else where it is.
+ *
+ * Mirrors what the reorder endpoint does with the ids it's given, so the
+ * optimistic list matches what comes back.
+ */
+export function reorderWithinSlots(
+	rendered: TaxonomyTerm[],
+	movable: TaxonomyTerm[],
+	permuted: TaxonomyTerm[],
+): TaxonomyTerm[] {
+	const inGroup = new Set(movable);
+	const next = [...rendered];
+	let slot = 0;
+	for (const [index, term] of rendered.entries()) {
+		if (!inGroup.has(term)) continue;
+		const replacement = permuted[slot++];
+		if (replacement) next[index] = replacement;
+	}
+	return next;
+}
+
+/**
+ * Replace one sibling group in a term tree with a reordered copy of itself.
+ *
+ * `parentId` is a translation group (what `term.parentId` holds), so it matches
+ * the parent in whichever locale is on screen. `null` replaces the roots.
+ */
+export function replaceSiblingGroup(
+	terms: TaxonomyTerm[],
+	parentId: string | null,
+	ordered: TaxonomyTerm[],
+): TaxonomyTerm[] {
+	if (parentId === null) return ordered;
+	return terms.map((term) =>
+		termGroup(term) === parentId
+			? { ...term, children: ordered }
+			: { ...term, children: replaceSiblingGroup(term.children, parentId, ordered) },
+	);
+}
+
+interface TermRowCallbacks {
+	onEdit: (term: TaxonomyTerm) => void;
+	onDelete: (term: TaxonomyTerm) => void;
+	onMove: (
+		parentId: string | null,
+		siblings: TaxonomyTerm[],
+		movable: TaxonomyTerm[],
+		term: TaxonomyTerm,
+		direction: -1 | 1,
+	) => void;
+	onTranslate?: (term: TaxonomyTerm) => void;
+	canTranslate: boolean;
+}
+
+/**
+ * One sibling group's rows, in display order.
+ *
+ * The movable subset is worked out once for the whole group: each row needs it
+ * to know whether its Move items show and are live, and a move needs the same
+ * list to build the order it sends.
+ */
+function TermGroup({
+	siblings,
+	parentId,
+	level = 0,
+	searchActive = false,
+	visibleIds,
+	...callbacks
+}: {
+	siblings: TaxonomyTerm[];
+	parentId: string | null;
+	level?: number;
+	searchActive?: boolean;
+	visibleIds?: Set<string>;
+} & TermRowCallbacks) {
+	const movable = siblings.filter((sibling) => !isStranded(sibling, parentId));
+	const places = new Map(movable.map((term, index) => [term, index]));
+	return (
+		<>
+			{siblings
+				.filter((term) => !visibleIds || visibleIds.has(term.id))
+				.map((term) => (
+					<TermRow
+						key={term.id}
+						term={term}
+						siblings={siblings}
+						movable={movable}
+						place={places.get(term) ?? -1}
+						parentId={parentId}
+						level={level}
+						searchActive={searchActive}
+						visibleIds={visibleIds}
+						{...callbacks}
+					/>
+				))}
+		</>
+	);
+}
+
+/**
+ * A term's row, followed by its children's rows.
+ *
+ * `siblings` is the group the term is rendered from, in display order, and
+ * `parentId` is that group's parent. Moving a term reorders that group and
+ * never changes its parent.
+ *
+ * A term whose parent has no row in this locale is rendered at the top level so
+ * it isn't lost, but it belongs to its parent's group — a group this locale
+ * can't show. Its Move items are disabled rather than silently addressing the
+ * wrong group, and `place` is -1 because it holds no slot in the group it is
+ * drawn in.
  */
 function TermRow({
 	term,
-	level = 0,
+	siblings,
+	movable,
+	place,
+	parentId,
+	level,
+	searchActive,
+	visibleIds,
 	onEdit,
 	onDelete,
+	onMove,
 	onTranslate,
 	canTranslate,
 }: {
 	term: TaxonomyTerm;
-	level?: number;
-	onEdit: (term: TaxonomyTerm) => void;
-	onDelete: (term: TaxonomyTerm) => void;
-	onTranslate?: (term: TaxonomyTerm) => void;
-	canTranslate: boolean;
-}) {
+	siblings: TaxonomyTerm[];
+	movable: TaxonomyTerm[];
+	place: number;
+	parentId: string | null;
+	level: number;
+	searchActive: boolean;
+	visibleIds?: Set<string>;
+} & TermRowCallbacks) {
 	const { t } = useLingui();
+	const strandedReasonId = React.useId();
+	const stranded = isStranded(term, parentId);
+	const showMoves = !searchActive && (stranded || movable.length > 1);
 	return (
 		<>
-			<div className="flex items-center gap-4 py-2 px-4 hover:bg-kumo-tint/50">
-				<div style={{ marginInlineStart: `${level * 1.5}rem` }} className="flex-1">
-					<span className="font-medium">{term.label}</span>
-					<span className="text-sm text-kumo-subtle ms-2">({term.slug})</span>
-				</div>
-				<div className="text-sm text-kumo-subtle">{term.count || 0}</div>
-				<div className="flex gap-2">
-					{canTranslate && onTranslate ? (
-						<Button
-							variant="ghost"
-							size="sm"
-							aria-label={t`Translate ${term.label}`}
-							onClick={() => onTranslate(term)}
+			<tr>
+				<td>
+					{/* Deeper levels step in less, so a deep tree keeps its actions menu inside a narrow table. */}
+					<div
+						className="ps-[calc(min(var(--depth),6)*1.5rem+max(var(--depth)-6,0)*0.5rem)] @max-md:ps-[calc(min(var(--depth),4)*0.75rem+max(var(--depth)-4,0)*0.25rem)]"
+						style={{ "--depth": level } as React.CSSProperties}
+					>
+						<RowTitleButton
+							dir="auto"
+							aria-label={t`Edit ${term.label}`}
+							onClick={() => onEdit(term)}
 						>
-							{t`Translate`}
-						</Button>
-					) : null}
-					<Button
-						variant="ghost"
-						size="sm"
-						aria-label={t`Edit ${term.label}`}
-						onClick={() => onEdit(term)}
-					>
-						<Pencil className="w-4 h-4" />
-					</Button>
-					<Button
-						variant="ghost"
-						size="sm"
-						aria-label={t`Delete ${term.label}`}
-						onClick={() => onDelete(term)}
-					>
-						<Trash className="w-4 h-4" />
-					</Button>
-				</div>
-			</div>
-			{term.children.map((child) => (
-				<TermRow
-					key={child.id}
-					term={child}
-					level={level + 1}
-					onEdit={onEdit}
-					onDelete={onDelete}
-					onTranslate={onTranslate}
-					canTranslate={canTranslate}
-				/>
-			))}
+							{term.label}
+						</RowTitleButton>
+						<div className="text-xs text-kumo-subtle wrap-anywhere">
+							<bdi dir="ltr">/{term.slug}</bdi>
+						</div>
+					</div>
+				</td>
+				<td className="text-end text-sm tabular-nums">{term.count ?? 0}</td>
+				<td className="text-end">
+					<RowActionsMenu label={t`Actions for ${term.label}`}>
+						<DropdownMenu.Item
+							icon={<Pencil className="size-4" aria-hidden="true" />}
+							onClick={() => onEdit(term)}
+						>
+							{t`Edit`}
+						</DropdownMenu.Item>
+						{showMoves && (
+							<DropdownMenu.Group>
+								{stranded && (
+									<DropdownMenu.Label
+										id={strandedReasonId}
+										className="max-w-60 px-2! text-sm font-normal text-pretty text-kumo-subtle"
+									>
+										{t`${term.label} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to.`}
+									</DropdownMenu.Label>
+								)}
+								<DropdownMenu.Item
+									icon={<ArrowUp className="size-4" aria-hidden="true" />}
+									aria-describedby={stranded ? strandedReasonId : undefined}
+									disabled={stranded || place <= 0}
+									onClick={() => onMove(parentId, siblings, movable, term, -1)}
+								>
+									{t`Move up`}
+								</DropdownMenu.Item>
+								<DropdownMenu.Item
+									icon={<ArrowDown className="size-4" aria-hidden="true" />}
+									aria-describedby={stranded ? strandedReasonId : undefined}
+									disabled={stranded || place >= movable.length - 1}
+									onClick={() => onMove(parentId, siblings, movable, term, 1)}
+								>
+									{t`Move down`}
+								</DropdownMenu.Item>
+							</DropdownMenu.Group>
+						)}
+						{canTranslate && onTranslate && (
+							<DropdownMenu.Item
+								icon={<Translate className="size-4" aria-hidden="true" />}
+								onClick={() => onTranslate(term)}
+							>
+								{t`Translate`}
+							</DropdownMenu.Item>
+						)}
+						<DropdownMenu.Separator />
+						<DropdownMenu.Item
+							variant="danger"
+							icon={<Trash className="size-4" aria-hidden="true" />}
+							aria-label={t`Delete ${term.label}`}
+							onClick={() => onDelete(term)}
+						>
+							{t`Delete`}
+						</DropdownMenu.Item>
+					</RowActionsMenu>
+				</td>
+			</tr>
+			<TermGroup
+				siblings={term.children}
+				parentId={termGroup(term)}
+				level={level + 1}
+				searchActive={searchActive}
+				visibleIds={visibleIds}
+				onEdit={onEdit}
+				onDelete={onDelete}
+				onMove={onMove}
+				onTranslate={onTranslate}
+				canTranslate={canTranslate}
+			/>
 		</>
 	);
 }
@@ -143,59 +493,41 @@ function TranslateTermDialog({
 	const [selected, setSelected] = React.useState<string>(otherLocales[0] ?? "");
 
 	return (
-		<Dialog.Root
+		<LayerDialog.Root
 			open
 			onOpenChange={(isOpen: boolean) => {
 				if (!isOpen) onClose();
 			}}
+			dismissDisabled={isPending}
 		>
-			<Dialog className="p-6" size="sm">
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<div>
-						<Dialog.Title className="text-lg font-semibold">
-							{t`Translate "${term.label}"`}
-						</Dialog.Title>
-						<Dialog.Description className="text-sm text-kumo-subtle">
-							{t`Taxonomy: ${taxonomyName}`}
-						</Dialog.Description>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>{t`Translate "${term.label}"`}</LayerDialog.Title>
+				<LayerDialog.Description>{t`Taxonomy: ${taxonomyName}`}</LayerDialog.Description>
+				<LayerDialog.Body>
+					<div className="grid gap-5">
+						<Select
+							label={t`Target locale`}
+							className="w-full"
+							value={selected}
+							onValueChange={(v) => setSelected(v ?? "")}
+							items={Object.fromEntries(otherLocales.map((l) => [l, l.toUpperCase()]))}
+						>
+							{otherLocales.map((l) => (
+								<Select.Option key={l} value={l}>
+									{l.toUpperCase()}
+								</Select.Option>
+							))}
+						</Select>
+						<DialogError message={getMutationError(error)} />
 					</div>
-					<Dialog.Close
-						render={(props) => (
-							<Button {...props} variant="ghost" shape="square" aria-label={t`Close`}>
-								<X className="h-4 w-4" />
-							</Button>
-						)}
-					/>
-				</div>
-				<div className="space-y-4 py-2">
-					<Select
-						label={t`Target locale`}
-						value={selected}
-						onValueChange={(v) => setSelected(v ?? "")}
-						items={Object.fromEntries(otherLocales.map((l) => [l, l.toUpperCase()]))}
-					>
-						{otherLocales.map((l) => (
-							<Select.Option key={l} value={l}>
-								{l.toUpperCase()}
-							</Select.Option>
-						))}
-					</Select>
-					<DialogError message={error ? error.message : null} />
-				</div>
-				<div className="flex justify-end gap-2">
-					<Button variant="outline" type="button" onClick={onClose}>
-						{t`Cancel`}
-					</Button>
-					<Button
-						type="button"
-						disabled={!selected || isPending}
-						onClick={() => onSubmit(selected)}
-					>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action disabled={!selected || isPending} onClick={() => onSubmit(selected)}>
 						{isPending ? t`Translating...` : t`Translate`}
-					</Button>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
@@ -223,77 +555,65 @@ function TermFormDialog({
 	i18n: { defaultLocale: string; locales: string[] } | null;
 	onOpenTranslation?: (translatedTerm: { slug: string; locale: string }) => void;
 }) {
-	const { t } = useLingui();
+	const { t, i18n: lingui } = useLingui();
 	const queryClient = useQueryClient();
+	const toastManager = useKumoToastManager();
+	const formId = React.useId();
+	const formRef = React.useRef<HTMLFormElement>(null);
 	const [label, setLabel] = React.useState(term?.label || "");
 	const [slug, setSlug] = React.useState(term?.slug || "");
 	const [parentId, setParentId] = React.useState(term?.parentId || "");
 	const [description, setDescription] = React.useState(term?.description || "");
 	const [autoSlug, setAutoSlug] = React.useState(!term);
-	const [error, setError] = React.useState<string | null>(null);
-
-	// Sync form state when term prop changes (for edit mode)
-	React.useEffect(() => {
-		setLabel(term?.label || "");
-		setSlug(term?.slug || "");
-		setParentId(term?.parentId || "");
-		setDescription(term?.description || "");
-		setAutoSlug(!term);
-		setError(null);
-	}, [term]);
+	const [submitted, setSubmitted] = React.useState(false);
+	const takenSlug = useTakenValue(slug);
 
 	// Auto-generate slug from label
+	const generatedSlug = label.trim() ? freeTermSlug(label, allTerms) : "";
 	React.useEffect(() => {
-		if (autoSlug && label) {
-			setSlug(slugify(label));
-		}
-	}, [label, autoSlug]);
+		if (autoSlug) setSlug(generatedSlug);
+	}, [generatedSlug, autoSlug]);
+
+	const showTakenSlug = (error: unknown, sentSlug: string | undefined) => {
+		if (!isConflict(error) || sentSlug === undefined || !takenSlug.stillHolds(sentSlug)) return;
+		revealErrors(formRef.current, () => {
+			setSubmitted(true);
+			takenSlug.take(sentSlug, error);
+		});
+	};
 
 	const createMutation = useMutation({
-		mutationFn: () =>
-			createTerm(taxonomyName, {
-				slug,
-				label,
-				parentId: parentId || undefined,
-				description: description || undefined,
-				locale,
-			}),
+		mutationFn: (input: CreateTermInput) => createTerm(taxonomyName, input),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
 				queryKey: ["taxonomy-terms", taxonomyName],
 			});
 			onClose();
+			toastManager.add({ title: t`Term created` });
 		},
-		onError: (err: Error) => {
-			setError(err.message);
-		},
+		onError: (error, input) => showTakenSlug(error, input.slug),
 	});
+	const submitCreate = useSingleFlight((input: CreateTermInput) =>
+		createMutation.mutateAsync(input),
+	);
 
 	const updateMutation = useMutation({
-		mutationFn: () => {
+		mutationFn: (input: UpdateTermInput) => {
 			if (!term) throw new Error("No term to update");
-			return updateTerm(
-				taxonomyName,
-				term.slug,
-				{
-					slug,
-					label,
-					parentId: parentId || undefined,
-					description: description || undefined,
-				},
-				{ locale: term.locale ?? locale },
-			);
+			return updateTerm(taxonomyName, term.slug, input, { locale: term.locale ?? locale });
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
 				queryKey: ["taxonomy-terms", taxonomyName],
 			});
 			onClose();
+			toastManager.add({ title: t`Term updated` });
 		},
-		onError: (err: Error) => {
-			setError(err.message);
-		},
+		onError: (error, input) => showTakenSlug(error, input.slug),
 	});
+	const submitUpdate = useSingleFlight((input: UpdateTermInput) =>
+		updateMutation.mutateAsync(input),
+	);
 
 	// Translations list (only when editing an existing term and i18n is on).
 	const { data: translationsData } = useQuery({
@@ -321,109 +641,145 @@ function TermFormDialog({
 			onClose();
 			onOpenTranslation?.({ slug: translated.slug, locale: translated.locale });
 		},
-		onError: (err: Error) => {
-			setError(err.message);
-		},
 	});
 
-	const handleSubmit = (e: React.FormEvent) => {
+	React.useEffect(() => {
+		if (!open) return;
+		setLabel(term?.label || "");
+		setSlug(term?.slug || "");
+		setParentId(term?.parentId || "");
+		setDescription(term?.description || "");
+		setAutoSlug(!term);
+		setSubmitted(false);
+		takenSlug.reset();
+		createMutation.reset();
+		updateMutation.reset();
+		translateMutation.reset();
+	}, [
+		open,
+		term,
+		takenSlug.reset,
+		createMutation.reset,
+		updateMutation.reset,
+		translateMutation.reset,
+	]);
+
+	const saving = createMutation.isPending || updateMutation.isPending;
+	const busy = saving || translateMutation.isPending;
+	const dirty = term
+		? label !== term.label ||
+			slug !== term.slug ||
+			parentId !== (term.parentId || "") ||
+			description !== (term.description || "")
+		: label !== "" || slug !== "" || parentId !== "" || description !== "";
+
+	const problems = termProblems({ label, slug, autoSlug });
+	if (takenSlug.isTaken) {
+		problems.slug = msg`Another term already uses this slug. Enter a different one.`;
+	}
+	const errors = submitted ? problems : {};
+
+	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		setError(null);
+		if (busy) return;
+		if (Object.keys(problems).length > 0) {
+			revealErrors(e.currentTarget, () => setSubmitted(true));
+			return;
+		}
 		if (term) {
-			updateMutation.mutate();
+			submitUpdate({ slug, label, parentId: parentId || undefined, description });
 		} else {
-			createMutation.mutate();
+			submitCreate({
+				slug,
+				label,
+				parentId: parentId || undefined,
+				description: description || undefined,
+				locale,
+			});
 		}
 	};
 
-	// Flatten terms for parent selector (exclude current term and its children)
-	const flatTerms = flattenTerms(allTerms);
-	const availableParents = term
-		? flatTerms.filter((item) => item.id !== term.id && item.parentId !== term.id)
-		: flatTerms;
+	const availableParents = getAvailableParentTerms(allTerms, term);
 
 	return (
-		<Dialog.Root
+		<LayerDialog.Root
 			open={open}
-			onOpenChange={(isOpen: boolean) => {
-				if (!isOpen) {
-					setError(null);
-					onClose();
-				}
-			}}
+			{...guardUnsavedInput(dirty, (isOpen) => {
+				if (!isOpen) onClose();
+			})}
+			dismissDisabled={busy}
 		>
-			<Dialog className="p-6 max-h-[85vh] flex flex-col" size="lg">
-				<form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-					<div className="flex items-start justify-between gap-4 mb-4">
-						<div className="flex flex-col space-y-1.5">
-							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-								{term
-									? t`Edit ${taxonomyDef.labelSingular || t`Term`}`
-									: t`Add ${taxonomyDef.labelSingular || t`Term`}`}
-							</Dialog.Title>
-							<Dialog.Description className="text-sm text-kumo-subtle">
-								{term
-									? t`Update the ${taxonomyDef.labelSingular?.toLowerCase() || "term"} details`
-									: t`Create a new ${taxonomyDef.labelSingular?.toLowerCase() || "term"}`}
-							</Dialog.Description>
-						</div>
-						<Dialog.Close
-							aria-label={t`Close`}
-							render={(props) => (
-								<Button
-									{...props}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Close`}
-									className="absolute end-4 top-4"
-								>
-									<X className="h-4 w-4" />
-									<span className="sr-only">{t`Close`}</span>
-								</Button>
-							)}
-						/>
-					</div>
-
-					<div className="space-y-4 py-4 flex-1 overflow-y-auto -mx-1 px-1 min-h-0">
+			<LayerDialog.Content>
+				<LayerDialog.Title>
+					{term
+						? t`Edit ${taxonomyDef.labelSingular || t`Term`}`
+						: t`Add ${taxonomyDef.labelSingular || t`Term`}`}
+				</LayerDialog.Title>
+				<LayerDialog.Description>
+					{term
+						? t`Update the ${inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)} details`
+						: t`Create a new ${inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)}`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<form ref={formRef} id={formId} noValidate onSubmit={handleSubmit} className="grid gap-5">
 						<Input
 							label={t`Name`}
 							value={label}
 							onChange={(e) => setLabel(e.target.value)}
 							placeholder={t`News`}
 							required
+							error={errors.label && t(errors.label)}
+							aria-invalid={errors.label ? true : undefined}
 						/>
 
-						<div>
-							<Input
-								label={t`Slug`}
-								value={slug}
-								onChange={(e) => {
-									setSlug(e.target.value);
-									setAutoSlug(false);
-								}}
-								placeholder="news"
-								required
-							/>
-							<p className="text-sm text-kumo-subtle mt-1">
-								{t`Auto-generated from name (you can edit)`}
-							</p>
-						</div>
+						<Input
+							dir="ltr"
+							label={
+								<span className="inline-flex items-center gap-1.5">
+									{t`Slug`}
+									<HelpTooltip
+										help={t`Auto-generated from name (you can edit)`}
+										ariaLabel={t`How is the slug generated?`}
+										side="right"
+										size="sm"
+									/>
+								</span>
+							}
+							aria-label={t`Slug`}
+							className="w-full"
+							value={slug}
+							onChange={(e) => {
+								setSlug(e.target.value);
+								setAutoSlug(false);
+							}}
+							placeholder="news"
+							required
+							error={errors.slug && t(errors.slug)}
+							aria-invalid={errors.slug ? true : undefined}
+						/>
 
 						{taxonomyDef.hierarchical && (
 							<Select
 								label={t`Parent`}
+								className="w-full"
 								value={parentId}
 								onValueChange={(v) => setParentId(v ?? "")}
 								items={{
 									"": t`None (top level)`,
 									...Object.fromEntries(
-										availableParents.map((parentTerm) => [parentTerm.id, parentTerm.label]),
+										availableParents.map((parentTerm) => [
+											parentTerm.translationGroup ?? parentTerm.id,
+											parentTerm.label,
+										]),
 									),
 								}}
 							>
 								<Select.Option value="">{t`None (top level)`}</Select.Option>
 								{availableParents.map((parentTerm) => (
-									<Select.Option key={parentTerm.id} value={parentTerm.id}>
+									<Select.Option
+										key={parentTerm.id}
+										value={parentTerm.translationGroup ?? parentTerm.id}
+									>
 										{parentTerm.label}
 									</Select.Option>
 								))}
@@ -440,15 +796,14 @@ function TermFormDialog({
 
 						<DialogError
 							message={
-								error ||
-								getMutationError(createMutation.error) ||
-								getMutationError(updateMutation.error) ||
+								getMutationError(takenSlug.unlessTaken(createMutation.error)) ||
+								getMutationError(takenSlug.unlessTaken(updateMutation.error)) ||
 								getMutationError(translateMutation.error)
 							}
 						/>
 
 						{term && i18n && i18n.locales.length > 1 ? (
-							<div className="pt-4 border-t">
+							<div className="border-t border-kumo-line pt-5">
 								<TranslationsPanel
 									locales={i18n.locales}
 									defaultLocale={i18n.defaultLocale}
@@ -465,23 +820,15 @@ function TermFormDialog({
 								/>
 							</div>
 						) : null}
-					</div>
-
-					<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-						<Button type="button" variant="outline" onClick={onClose}>
-							{t`Cancel`}
-						</Button>
-						<Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-							{createMutation.isPending || updateMutation.isPending
-								? t`Saving...`
-								: term
-									? t`Update`
-									: t`Create`}
-						</Button>
-					</div>
-				</form>
-			</Dialog>
-		</Dialog.Root>
+					</form>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action type="submit" form={formId} disabled={busy}>
+						{saving ? t`Saving...` : term ? t`Update` : t`Create`}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
@@ -499,12 +846,15 @@ function CreateTaxonomyDialog({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const formId = React.useId();
+	const formRef = React.useRef<HTMLFormElement>(null);
 	const [name, setName] = React.useState("");
 	const [label, setLabel] = React.useState("");
 	const [hierarchical, setHierarchical] = React.useState(false);
 	const [selectedCollections, setSelectedCollections] = React.useState<string[]>([]);
 	const [autoName, setAutoName] = React.useState(true);
-	const [error, setError] = React.useState<string | null>(null);
+	const [submitted, setSubmitted] = React.useState(false);
+	const takenName = useTakenValue(name);
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -521,12 +871,7 @@ function CreateTaxonomyDialog({
 	// Auto-generate name from label
 	React.useEffect(() => {
 		if (autoName && label) {
-			setName(
-				label
-					.toLowerCase()
-					.replace(NON_ALPHANUMERIC_PATTERN, "_")
-					.replace(LEADING_TRAILING_UNDERSCORE_PATTERN, ""),
-			);
+			setName(slugifyIdentifier(label));
 		}
 	}, [label, autoName]);
 
@@ -535,10 +880,21 @@ function CreateTaxonomyDialog({
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["taxonomy-defs"] });
 			void queryClient.invalidateQueries({ queryKey: ["taxonomy-def"] });
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			onCreated();
 			resetForm();
 		},
+		onError: (error, input) => {
+			if (!isConflict(error) || !takenName.stillHolds(input.name)) return;
+			revealErrors(formRef.current, () => {
+				setSubmitted(true);
+				takenName.take(input.name, error);
+			});
+		},
 	});
+	const submitCreate = useSingleFlight((input: CreateTaxonomyInput) =>
+		createMutation.mutateAsync(input),
+	);
 
 	const resetForm = () => {
 		setName("");
@@ -546,27 +902,31 @@ function CreateTaxonomyDialog({
 		setHierarchical(false);
 		setSelectedCollections([]);
 		setAutoName(true);
-		setError(null);
+		setSubmitted(false);
+		takenName.reset();
 		createMutation.reset();
 	};
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const problems = taxonomyProblems({ label, name, autoName });
+	if (takenName.isTaken) {
+		problems.name = msg`Another taxonomy already uses this name. Enter a different one.`;
+	}
+	const errors = submitted ? problems : {};
+	// Before the first submit, the name that can't be generated is explained, not flagged.
+	const nameHelp =
+		!submitted && autoName && label.trim() && !name
+			? t`A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`
+			: undefined;
+	const dirty = label !== "" || name !== "" || hierarchical || selectedCollections.length > 0;
+
+	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		setError(null);
-
-		if (!name || !label) {
-			setError(t`Name and label are required`);
+		if (createMutation.isPending) return;
+		if (Object.keys(problems).length > 0) {
+			revealErrors(e.currentTarget, () => setSubmitted(true));
 			return;
 		}
-
-		if (!TAXONOMY_NAME_PATTERN.test(name)) {
-			setError(
-				t`Name must start with a letter and contain only lowercase letters, numbers, and underscores`,
-			);
-			return;
-		}
-
-		createMutation.mutate({
+		submitCreate({
 			name,
 			label,
 			hierarchical,
@@ -581,69 +941,54 @@ function CreateTaxonomyDialog({
 	};
 
 	return (
-		<Dialog.Root
+		<LayerDialog.Root
 			open={open}
-			onOpenChange={(isOpen: boolean) => {
+			{...guardUnsavedInput(dirty, (isOpen) => {
 				if (!isOpen) {
 					resetForm();
 					onClose();
 				}
-			}}
+			})}
+			dismissDisabled={createMutation.isPending}
 		>
-			<Dialog className="p-6" size="lg">
-				<form onSubmit={handleSubmit}>
-					<div className="flex items-start justify-between gap-4 mb-4">
-						<div className="flex flex-col space-y-1.5">
-							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-								{t`Create Taxonomy`}
-							</Dialog.Title>
-							<Dialog.Description className="text-sm text-kumo-subtle">
-								{t`Define a new taxonomy for classifying content`}
-							</Dialog.Description>
-						</div>
-						<Dialog.Close
-							aria-label={t`Close`}
-							render={(props) => (
-								<Button
-									{...props}
-									variant="ghost"
-									shape="square"
-									aria-label={t`Close`}
-									className="absolute end-4 top-4"
-								>
-									<X className="h-4 w-4" />
-									<span className="sr-only">{t`Close`}</span>
-								</Button>
-							)}
-						/>
-					</div>
-
-					<div className="space-y-4 py-4">
+			<LayerDialog.Content>
+				<LayerDialog.Title>{t`Create Taxonomy`}</LayerDialog.Title>
+				<LayerDialog.Description>
+					{t`Define a new taxonomy for classifying content`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<form ref={formRef} id={formId} noValidate onSubmit={handleSubmit} className="grid gap-5">
 						<Input
 							label={t`Label`}
 							value={label}
 							onChange={(e) => setLabel(e.target.value)}
 							placeholder={t`Genres`}
 							required
+							error={errors.label && t(errors.label)}
+							aria-invalid={errors.label ? true : undefined}
 						/>
 
-						<div>
-							<Input
-								label={t`Name`}
-								value={name}
-								onChange={(e) => {
-									setName(e.target.value);
-									setAutoName(false);
-								}}
-								placeholder="genre"
-								required
-								pattern="[a-z][a-z0-9_]*"
-								title={t`Lowercase letters, numbers, and underscores only, starting with a letter`}
-							/>
-							<p className="text-xs text-kumo-subtle mt-1">
-								{t`Used as the identifier. Lowercase letters, numbers, and underscores only.`}
-							</p>
-						</div>
+						<Input
+							dir="ltr"
+							label={
+								<HelpLabel
+									help={t`Used as the identifier. Lowercase letters, numbers, and underscores only.`}
+								>
+									{t`Name`}
+								</HelpLabel>
+							}
+							aria-label={t`Name`}
+							value={name}
+							onChange={(e) => {
+								setName(e.target.value);
+								setAutoName(false);
+							}}
+							placeholder="genre"
+							required
+							description={nameHelp}
+							error={errors.name && t(errors.name)}
+							aria-invalid={errors.name ? true : undefined}
+						/>
 
 						<Checkbox
 							label={t`Hierarchical (like categories, with parent/child relationships)`}
@@ -652,11 +997,10 @@ function CreateTaxonomyDialog({
 						/>
 
 						{collectionEntries.length > 0 && (
-							<div>
-								<label className="text-sm font-medium">{t`Collections`}</label>
-								<p className="text-xs text-kumo-subtle mb-2">
-									{t`Which content types can use this taxonomy`}
-								</p>
+							<DialogSection
+								title={t`Collections`}
+								help={t`Which content types can use this taxonomy`}
+							>
 								<div className="border rounded-md p-2 space-y-1">
 									{collectionEntries.map(({ slug, label: collLabel }) => (
 										<div key={slug} className="py-1 px-2 hover:bg-kumo-tint/50 rounded">
@@ -668,44 +1012,37 @@ function CreateTaxonomyDialog({
 										</div>
 									))}
 								</div>
-							</div>
+							</DialogSection>
 						)}
 
-						<DialogError message={error || getMutationError(createMutation.error)} />
-					</div>
-
-					<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => {
-								resetForm();
-								onClose();
-							}}
-						>
-							{t`Cancel`}
-						</Button>
-						<Button type="submit" disabled={createMutation.isPending}>
-							{createMutation.isPending ? t`Creating...` : t`Create Taxonomy`}
-						</Button>
-					</div>
-				</form>
-			</Dialog>
-		</Dialog.Root>
+						<DialogError message={getMutationError(takenName.unlessTaken(createMutation.error))} />
+					</form>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action type="submit" form={formId} disabled={createMutation.isPending}>
+						{createMutation.isPending ? t`Creating...` : t`Create Taxonomy`}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
 /**
  * Main TaxonomyManager component
  */
-export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
-	const { t } = useLingui();
+export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProps) {
+	const { t, i18n: lingui } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [formOpen, setFormOpen] = React.useState(false);
 	const [editingTerm, setEditingTerm] = React.useState<TaxonomyTerm | undefined>();
 	const [deleteTarget, setDeleteTarget] = React.useState<TaxonomyTerm | null>(null);
 	const [createTaxonomyOpen, setCreateTaxonomyOpen] = React.useState(false);
+	const [deleteTaxonomyOpen, setDeleteTaxonomyOpen] = React.useState(false);
+	const [bulkTagOpen, setBulkTagOpen] = React.useState(false);
+	const [tagSearch, setTagSearch] = React.useState("");
+	const tagSearchRef = React.useRef<HTMLInputElement>(null);
 	const [translateTarget, setTranslateTarget] = React.useState<TaxonomyTerm | null>(null);
 
 	const { data: manifest } = useQuery({
@@ -727,10 +1064,24 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 		queryFn: () => fetchTaxonomyDef(taxonomyName),
 	});
 
+	// The count mode belongs in the key: the editor's taxonomy picker reads the
+	// same endpoint without counts, and this page renders them.
+	const termsQueryKey = ["taxonomy-terms", taxonomyName, activeLocale, { includeCounts: true }];
 	const { data: terms = [], isLoading: termsLoading } = useQuery({
-		queryKey: ["taxonomy-terms", taxonomyName, activeLocale],
+		queryKey: termsQueryKey,
 		queryFn: () => fetchTerms(taxonomyName, { locale: activeLocale }),
 	});
+	const searchLocale = canonicalSearchLocale(activeLocale ?? i18n?.defaultLocale ?? "en");
+	const rawSearch = tagSearch.trim();
+	const tagMatches =
+		taxonomyName === "tag" && rawSearch
+			? findMatchingTagIds(
+					terms,
+					rawSearch.toLocaleLowerCase(searchLocale),
+					rawSearch.toLowerCase(),
+					searchLocale,
+				)
+			: null;
 
 	const deleteMutation = useMutation({
 		mutationFn: (term: TaxonomyTerm) =>
@@ -741,6 +1092,70 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 			toastManager.add({ title: t`Term deleted` });
 		},
 	});
+
+	const deleteTaxonomyMutation = useMutation({
+		mutationFn: () => deleteTaxonomy(taxonomyName),
+		onSuccess: () => {
+			setDeleteTaxonomyOpen(false);
+			onDeleted?.();
+			// The sidebar entry comes from the manifest, not from the taxonomy list.
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+			void queryClient.invalidateQueries({ queryKey: ["taxonomy-defs"] });
+			// The page is still mounted while the route change settles, so refetching
+			// these would ask for the taxonomy that was just deleted.
+			void queryClient.invalidateQueries({
+				queryKey: ["taxonomy-def", taxonomyName],
+				refetchType: "none",
+			});
+			void queryClient.invalidateQueries({
+				queryKey: ["taxonomy-terms", taxonomyName],
+				refetchType: "none",
+			});
+			toastManager.add({ title: t`Taxonomy deleted` });
+		},
+	});
+
+	const reorderMutationKey = ["taxonomy-terms-reorder", taxonomyName];
+	const reorderMutation = useMutation({
+		mutationKey: reorderMutationKey,
+		// Each body is an absolute order, so queued moves have to land in click
+		// order; a shared scope serializes them.
+		scope: { id: `taxonomy-reorder:${taxonomyName}` },
+		mutationFn: ({ parentId, ids }: { parentId: string | null; ids: string[] }) =>
+			reorderTerms(taxonomyName, { parentId, ids }),
+		onError: (error: Error) => {
+			toastManager.add({ title: t`Error`, description: error.message, variant: "error" });
+		},
+		onSettled: () => {
+			// The count includes this mutation, so >1 means another move is queued
+			// behind it and refetching now would serve a stale order.
+			if (queryClient.isMutating({ mutationKey: reorderMutationKey }) > 1) return;
+			void queryClient.invalidateQueries({ queryKey: ["taxonomy-terms", taxonomyName] });
+		},
+	});
+
+	const handleMove = (
+		parentId: string | null,
+		siblings: TaxonomyTerm[],
+		movable: TaxonomyTerm[],
+		term: TaxonomyTerm,
+		direction: -1 | 1,
+	) => {
+		const from = movable.indexOf(term);
+		const to = from + direction;
+		const moving = movable[from];
+		const displaced = movable[to];
+		if (!moving || !displaced) return;
+
+		const permuted = movable.map((sibling, index) =>
+			index === from ? displaced : index === to ? moving : sibling,
+		);
+		const reordered = reorderWithinSlots(siblings, movable, permuted);
+		queryClient.setQueryData(termsQueryKey, (current: TaxonomyTerm[] | undefined) =>
+			current ? replaceSiblingGroup(current, parentId, reordered) : current,
+		);
+		reorderMutation.mutate({ parentId, ids: permuted.map(termGroup) });
+	};
 
 	const translateMutation = useMutation({
 		mutationFn: ({ term, locale }: { term: TaxonomyTerm; locale: string }) =>
@@ -760,6 +1175,9 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 			});
 		},
 	});
+	const submitTranslate = useSingleFlight((input: { term: TaxonomyTerm; locale: string }) =>
+		translateMutation.mutateAsync(input),
+	);
 
 	const handleEdit = (term: TaxonomyTerm) => {
 		setEditingTerm(term);
@@ -782,23 +1200,21 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 	if (!taxonomyDef) {
 		return (
 			<div>
-				{t`Taxonomy not found:`} {taxonomyName}
+				<TaxonomyNotFoundMessage taxonomyName={taxonomyName} />
 			</div>
 		);
 	}
 
-	const flatTerms = flattenTerms(terms);
-
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center justify-between gap-4 flex-wrap">
-				<div>
-					<h1 className="text-3xl font-bold">{taxonomyDef.label}</h1>
-					<p className="text-kumo-subtle mt-1">
-						{t`Manage ${taxonomyDef.label.toLowerCase()} for ${taxonomyDef.collections.join(", ")}`}
+				<div className="min-w-0">
+					<h1 className="text-2xl font-semibold leading-tight">{taxonomyDef.label}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+						{t`Manage ${inlineLabel(taxonomyDef.label, lingui.locale)} for ${taxonomyDef.collections.join(", ")}`}
 					</p>
 				</div>
-				<div className="flex gap-2 items-center">
+				<div className="flex flex-wrap items-center gap-2">
 					{i18n && activeLocale ? (
 						<LocaleSwitcher
 							locales={i18n.locales}
@@ -807,42 +1223,147 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 							onChange={setActiveLocale}
 						/>
 					) : null}
-					<Button variant="outline" icon={<Plus />} onClick={() => setCreateTaxonomyOpen(true)}>
-						{t`New Taxonomy`}
-					</Button>
-					<Button icon={<Plus />} onClick={() => setFormOpen(true)}>
-						{t`Add ${taxonomyDef.labelSingular || t`Term`}`}
-					</Button>
+					{taxonomyName === "tag" ? (
+						<>
+							<Button
+								variant="secondary"
+								icon={<Tag aria-hidden="true" />}
+								onClick={() => setFormOpen(true)}
+							>
+								{t`Add tag`}
+							</Button>
+							<Button
+								variant="secondary"
+								icon={<ADMIN_NAV_ICONS.posts weight="regular" aria-hidden="true" />}
+								onClick={() => setBulkTagOpen(true)}
+							>
+								{t`Add to posts`}
+							</Button>
+						</>
+					) : (
+						<>
+							<Button variant="outline" icon={<Plus />} onClick={() => setCreateTaxonomyOpen(true)}>
+								{t`New Taxonomy`}
+							</Button>
+							<Button icon={<Plus />} onClick={() => setFormOpen(true)}>
+								{t`Add ${taxonomyDef.labelSingular || t`Term`}`}
+							</Button>
+							<Button
+								variant="outline"
+								icon={<ADMIN_NAV_ICONS.posts weight="regular" aria-hidden="true" />}
+								onClick={() => setBulkTagOpen(true)}
+							>
+								{t`Add to posts`}
+							</Button>
+						</>
+					)}
+					<DropdownMenu>
+						<DropdownMenu.Trigger
+							render={
+								<Button
+									type="button"
+									variant={taxonomyName === "tag" ? "secondary" : "outline"}
+									shape="square"
+									icon={<DotsThree aria-hidden="true" />}
+									aria-label={t`More actions for ${taxonomyDef.label}`}
+								/>
+							}
+						/>
+						<DropdownMenu.Content align="end">
+							{taxonomyName === "tag" && (
+								<>
+									<DropdownMenu.Item
+										icon={<StackSimple className="size-4" aria-hidden="true" />}
+										onClick={() => setCreateTaxonomyOpen(true)}
+									>
+										{t`New taxonomy`}
+									</DropdownMenu.Item>
+									<DropdownMenu.Separator />
+								</>
+							)}
+							<DropdownMenu.Item
+								variant="danger"
+								icon={<Trash className="size-4" aria-hidden="true" />}
+								onClick={() => setDeleteTaxonomyOpen(true)}
+							>
+								{t`Delete taxonomy`}
+							</DropdownMenu.Item>
+						</DropdownMenu.Content>
+					</DropdownMenu>
 				</div>
 			</div>
 
-			<div className="border rounded-lg">
-				<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 font-medium">
-					<div className="flex-1">{t`Name`}</div>
-					<div className="w-16 text-center">{t`Count`}</div>
-					<div className="w-24 text-center">{t`Actions`}</div>
-				</div>
-
-				{termsLoading ? (
-					<div className="p-8 text-center text-kumo-subtle">{t`Loading terms...`}</div>
-				) : terms.length === 0 ? (
-					<div className="p-8 text-center text-kumo-subtle">
-						{t`No ${taxonomyDef.label.toLowerCase()} yet. Create one to get started.`}
-					</div>
-				) : (
-					<div className="divide-y divide-kumo-line">
-						{terms.map((term) => (
-							<TermRow
-								key={term.id}
-								term={term}
+			<div className="flex flex-col gap-3">
+				{taxonomyName === "tag" && (
+					<>
+						<TableToolbarSearch
+							size="base"
+							inputRef={tagSearchRef}
+							placeholder={t`Search tags…`}
+							aria-label={t`Search tags`}
+							value={tagSearch}
+							onChange={(event) => setTagSearch(event.target.value)}
+						/>
+						<span role="status" className="sr-only">
+							{rawSearch
+								? plural(tagMatches?.matchCount ?? 0, {
+										one: "# matching tag",
+										other: "# matching tags",
+									})
+								: ""}
+						</span>
+					</>
+				)}
+				<DataTable>
+					<thead>
+						<tr>
+							<th scope="col">{t`Name`}</th>
+							<th scope="col" className="w-0 text-end">
+								{t`Count`}
+							</th>
+							<th scope="col" className="w-0">
+								<span className="sr-only">{t`Actions`}</span>
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{termsLoading ? (
+							<DataTableMessage colSpan={3}>{t`Loading terms...`}</DataTableMessage>
+						) : terms.length === 0 ? (
+							<DataTableMessage colSpan={3}>
+								{t`No ${inlineLabel(taxonomyDef.label, lingui.locale)} yet. Create one to get started.`}
+							</DataTableMessage>
+						) : tagMatches?.visibleIds.size === 0 ? (
+							<DataTableMessage colSpan={3}>
+								<MagnifyingGlass size={32} className="mx-auto mb-2 opacity-60" aria-hidden="true" />
+								<p className="font-medium text-kumo-default">{t`No matching tags`}</p>
+								<Button
+									variant="outline"
+									size="sm"
+									className="mx-auto mt-3"
+									onClick={() => {
+										setTagSearch("");
+										tagSearchRef.current?.focus();
+									}}
+								>
+									{t`Clear search`}
+								</Button>
+							</DataTableMessage>
+						) : (
+							<TermGroup
+								siblings={terms}
+								parentId={null}
+								searchActive={!!tagMatches}
+								visibleIds={tagMatches?.visibleIds}
 								onEdit={handleEdit}
 								onDelete={handleDelete}
+								onMove={handleMove}
 								onTranslate={setTranslateTarget}
 								canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
 							/>
-						))}
-					</div>
-				)}
+						)}
+					</tbody>
+				</DataTable>
 			</div>
 
 			<TermFormDialog
@@ -851,10 +1372,17 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 				taxonomyName={taxonomyName}
 				taxonomyDef={taxonomyDef}
 				term={editingTerm}
-				allTerms={flatTerms}
+				allTerms={terms}
 				locale={activeLocale}
 				i18n={i18n}
 				onOpenTranslation={(tr) => setActiveLocale(tr.locale)}
+			/>
+			<BulkTagDialog
+				taxonomies={[taxonomyDef]}
+				open={bulkTagOpen}
+				activeLocale={activeLocale}
+				defaultLocale={i18n?.defaultLocale}
+				onClose={() => setBulkTagOpen(false)}
 			/>
 
 			{i18n && translateTarget ? (
@@ -869,7 +1397,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 						setTranslateTarget(null);
 						translateMutation.reset();
 					}}
-					onSubmit={(locale) => translateMutation.mutate({ term: translateTarget, locale })}
+					onSubmit={(locale) => submitTranslate({ term: translateTarget, locale })}
 				/>
 			) : null}
 
@@ -879,7 +1407,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 					setDeleteTarget(null);
 					deleteMutation.reset();
 				}}
-				title={t`Delete ${taxonomyDef.labelSingular || "Term"}?`}
+				title={t`Delete ${taxonomyDef.labelSingular || t`Term`}?`}
 				description={
 					<>{t`This will permanently delete "${deleteTarget?.label}" and remove it from all content.`}</>
 				}
@@ -888,6 +1416,22 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 				isPending={deleteMutation.isPending}
 				error={deleteMutation.error}
 				onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+			/>
+
+			<ConfirmDialog
+				open={deleteTaxonomyOpen}
+				role="alertdialog"
+				onClose={() => {
+					setDeleteTaxonomyOpen(false);
+					deleteTaxonomyMutation.reset();
+				}}
+				title={t`Delete Taxonomy`}
+				description={t`Deleting "${taxonomyDef.label}" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone.`}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
+				isPending={deleteTaxonomyMutation.isPending}
+				error={deleteTaxonomyMutation.error}
+				onConfirm={() => deleteTaxonomyMutation.mutate()}
 			/>
 
 			<CreateTaxonomyDialog

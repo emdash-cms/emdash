@@ -12,6 +12,8 @@
  */
 
 import type { APIRoute } from "astro";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import { getPublicOrigin } from "#api/public-url.js";
 import { VALID_SCOPES } from "#auth/api-tokens.js";
@@ -19,7 +21,9 @@ import { VALID_SCOPES } from "#auth/api-tokens.js";
 export const prerender = false;
 
 export const GET: APIRoute = async ({ url, locals }) => {
-	const origin = getPublicOrigin(url, locals.emdash?.config);
+	// Anonymous discovery requests omit runtime config; use build-time config
+	// so `siteUrl` can override the proxy's internal origin (#2016).
+	const origin = getPublicOrigin(url, locals.emdash?.config ?? virtualConfig);
 
 	return Response.json(
 		{

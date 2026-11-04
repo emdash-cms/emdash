@@ -6,7 +6,7 @@
  * us HMR + proper module resolution, `vite build` produces the deployable
  * bundle that `wrangler deploy` ships.
  *
- * Test config is separate: `vitest.config.ts` uses `@cloudflare/vitest-pool-workers`,
+ * Test config is separate: `vitest.config.ts` uses `@cloudflare/vitest-plugin`,
  * which manages its own miniflare instance. The two pipelines don't share
  * configuration but read the same `wrangler.jsonc` for binding shape, so the
  * test environment matches dev/prod by construction.

@@ -7,10 +7,14 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { encodeCursor, decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import { resolveConfiguredLocale } from "../i18n/config.js";
+import { localeMatches } from "../i18n/query.js";
 import { getDb } from "../loader.js";
 import { FTSManager } from "./fts-manager.js";
+import type { CollectionSearchMetadata } from "./fts-manager.js";
 import type {
 	SearchOptions,
 	CollectionSearchOptions,
@@ -21,9 +25,49 @@ import type {
 	SearchStats,
 } from "./types.js";
 
+/**
+ * Marker stored in the `id` slot of a search pagination cursor.
+ *
+ * Search results are merged from per-collection FTS queries and re-sorted by
+ * score, so there is no single stable keyset column to encode (the way
+ * `getEmDashCollection` encodes `(orderValue, id)`). We page over the merged,
+ * score-sorted set by offset instead, carried as the cursor's `orderValue`.
+ * Reusing `encodeCursor`/`decodeCursor` keeps the opaque base64-JSON shape and
+ * the `InvalidCursorError` handling consistent with the rest of the API.
+ */
+const SEARCH_CURSOR_MARKER = "search";
+
+/** Encode the next-page offset into an opaque search cursor. */
+function encodeSearchCursor(offset: number): string {
+	return encodeCursor(String(offset), SEARCH_CURSOR_MARKER);
+}
+
+/**
+ * Decode a search cursor back to its offset. Throws `InvalidCursorError` for a
+ * malformed cursor or one that doesn't carry a non-negative integer offset, so
+ * a client pagination bug surfaces immediately rather than silently restarting
+ * from the first page.
+ */
+/** Upper bound on a decoded search offset, to cap the per-collection row fetch a forged cursor can trigger. */
+const MAX_SEARCH_OFFSET = 10_000;
+
+function decodeSearchOffset(cursor: string): number {
+	const { orderValue, id } = decodeCursor(cursor);
+	if (id !== SEARCH_CURSOR_MARKER) {
+		throw new InvalidCursorError(cursor);
+	}
+	const offset = Number(orderValue);
+	if (!Number.isInteger(offset) || offset < 0 || offset > MAX_SEARCH_OFFSET) {
+		throw new InvalidCursorError(cursor);
+	}
+	return offset;
+}
+
 /** Pattern to split on whitespace for query term extraction */
 const WHITESPACE_SPLIT_PATTERN = /\s+/;
-const FTS_OPERATORS_PATTERN = /\b(AND|OR|NOT|NEAR)\b/i;
+// FTS5 operators are uppercase-only; a case-insensitive match would treat
+// ordinary words as syntax and skip the safe quoting path below.
+const FTS_OPERATORS_PATTERN = /\b(AND|OR|NOT|NEAR)\b/;
 const DOUBLE_QUOTE_PATTERN = /"/g;
 
 /**
@@ -86,23 +130,24 @@ export async function searchWithDb(
 	const ftsManager = new FTSManager(db);
 	const limit = options.limit ?? 20;
 	const status = options.status ?? "published";
+	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
 
-	// Get searchable collections
-	let collections = options.collections;
-	if (!collections || collections.length === 0) {
-		collections = await getSearchableCollections(db);
-	}
+	if (!escapeQuery(query)) return { items: [] };
 
-	if (collections.length === 0) {
-		return { items: [] };
-	}
+	const metadata = await ftsManager.getSearchMetadata(options.collections);
+	const collections = options.collections?.length ? options.collections : [...metadata.keys()];
+
+	// To rank the merged window [offset, offset + limit) correctly, each
+	// collection must contribute its own top (offset + limit) rows — in the
+	// worst case the entire window comes from one collection. The extra +1
+	// row detects whether a further page exists.
+	const perCollectionLimit = offset + limit + 1;
 
 	// Search each collection and merge results
 	const allResults: SearchResult[] = [];
-
 	for (const collection of collections) {
-		const config = await ftsManager.getSearchConfig(collection);
-		if (!config?.enabled) {
+		const collectionMetadata = metadata.get(collection);
+		if (!collectionMetadata) {
 			continue;
 		}
 
@@ -113,9 +158,10 @@ export async function searchWithDb(
 			{
 				status,
 				locale: options.locale,
-				limit: limit * 2, // Get extra for merging
+				limit: perCollectionLimit,
+				scope: options.scope,
 			},
-			config.weights,
+			collectionMetadata,
 		);
 
 		allResults.push(...collectionResults);
@@ -124,10 +170,13 @@ export async function searchWithDb(
 	// Sort by score descending
 	allResults.sort((a, b) => b.score - a.score);
 
-	// Apply limit
-	const items = allResults.slice(0, limit);
+	// Page the merged set by offset. A nextCursor is issued only when at least
+	// one result exists past this page.
+	const items = allResults.slice(offset, offset + limit);
+	const hasMore = allResults.length > offset + limit;
+	const nextCursor = hasMore ? encodeSearchCursor(offset + limit) : undefined;
 
-	return { items };
+	return { items, nextCursor };
 }
 
 /**
@@ -152,16 +201,35 @@ export async function searchCollection(
 	query: string,
 	options: CollectionSearchOptions = {},
 ): Promise<SearchResponse> {
+	const limit = options.limit ?? 20;
+	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
+	if (!escapeQuery(query)) return { items: [] };
+
 	const ftsManager = new FTSManager(db);
-	const config = await ftsManager.getSearchConfig(collection);
+	const metadata = (await ftsManager.getSearchMetadata([collection])).get(collection);
+	if (!metadata) return { items: [] };
 
-	if (!config?.enabled) {
-		return { items: [] };
-	}
+	// Over-fetch the [offset, offset + limit) window plus one row to detect a
+	// further page, then slice. Keeps the FTS SQL (LIMIT-only) unchanged and
+	// the cursor contract identical to the cross-collection path.
+	const fetched = await searchSingleCollection(
+		db,
+		collection,
+		query,
+		{
+			status: options.status,
+			locale: options.locale,
+			limit: offset + limit + 1,
+			scope: options.scope,
+		},
+		metadata,
+	);
 
-	const items = await searchSingleCollection(db, collection, query, options, config.weights);
+	const items = fetched.slice(offset, offset + limit);
+	const hasMore = fetched.length > offset + limit;
+	const nextCursor = hasMore ? encodeSearchCursor(offset + limit) : undefined;
 
-	return { items };
+	return { items, nextCursor };
 }
 
 /**
@@ -172,7 +240,7 @@ async function searchSingleCollection(
 	collection: string,
 	query: string,
 	options: CollectionSearchOptions,
-	weights?: Record<string, number>,
+	metadata: CollectionSearchMetadata,
 ): Promise<SearchResult[]> {
 	// Validate before any raw SQL interpolation
 	validateIdentifier(collection, "collection slug");
@@ -182,12 +250,7 @@ async function searchSingleCollection(
 	const contentTable = ftsManager.getContentTableName(collection);
 	const limit = options.limit ?? 20;
 	const status = options.status ?? "published";
-	const locale = options.locale;
-
-	// Check if FTS table exists
-	if (!(await ftsManager.ftsTableExists(collection))) {
-		return [];
-	}
+	const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 
 	// Escape the query for FTS5
 	const escapedQuery = escapeQuery(query);
@@ -196,7 +259,41 @@ async function searchSingleCollection(
 	}
 
 	// Get searchable fields for snippet generation
-	const searchableFields = await ftsManager.getSearchableFields(collection);
+	const { searchableFields, hasTitle, config } = metadata;
+	const { weights, titleField } = config;
+
+	// Title scope restricts the FTS5 match to the collection's title column.
+	// The scoped column must be one of the indexed searchable fields; a
+	// collection whose title is not indexed cannot match by title. Operators
+	// are disabled so every term stays quoted inside the filter's group.
+	let matchQuery = escapedQuery;
+	if (options.scope === "title") {
+		const titleColumn =
+			titleField && searchableFields.includes(titleField)
+				? titleField
+				: searchableFields.includes("title")
+					? "title"
+					: undefined;
+		if (!titleColumn) {
+			return [];
+		}
+		validateIdentifier(titleColumn, "title field");
+		matchQuery = `${titleColumn} : (${escapeQuery(query, false)})`;
+	}
+
+	// `title` is an optional user-defined field, not a system column. Only
+	// select it when the collection actually has one; otherwise the query
+	// errors with "no such column: c.title".
+	// A configured titleField drives the result title so search shows
+	// the same value as the content list. It's a validated existing field, so
+	// the column exists; otherwise fall back to the optional `title` column.
+	let titleExpr;
+	if (titleField) {
+		validateIdentifier(titleField, "title field");
+		titleExpr = sql`c.${sql.ref(titleField)}`;
+	} else {
+		titleExpr = hasTitle ? sql`c.title` : sql`NULL`;
+	}
 
 	// Build weight string for bm25 if weights provided
 	// Format: bm25(table, weight1, weight2, ...)
@@ -225,19 +322,19 @@ async function searchSingleCollection(
 			snippet: string | null;
 			score: number;
 		}>`
-		SELECT 
+		SELECT
 			c.id,
 			c.slug,
 			c.locale,
-			c.title,
+			${titleExpr} as title,
 			snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) as snippet,
 			${sql.raw(bm25Expr)} as score
 		FROM "${sql.raw(ftsTable)}" f
 		JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
-		WHERE "${sql.raw(ftsTable)}" MATCH ${escapedQuery}
+		WHERE "${sql.raw(ftsTable)}" MATCH ${matchQuery}
 		AND c.status = ${status}
 		AND c.deleted_at IS NULL
-		${locale ? sql`AND c.locale = ${locale}` : sql``}
+		${locale ? sql`AND ${localeMatches("c.locale", locale)}` : sql``}
 		ORDER BY score
 		LIMIT ${limit}
 	`.execute(db);
@@ -321,24 +418,35 @@ export async function getSuggestions(
 	options: SuggestOptions = {},
 ): Promise<Suggestion[]> {
 	const limit = options.limit ?? 5;
-	const locale = options.locale;
+	const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 
-	// Get searchable collections
-	let collections = options.collections;
-	if (!collections || collections.length === 0) {
-		collections = await getSearchableCollections(db);
-	}
+	// escapeQuery already appends the prefix wildcard to each term.
+	const prefixQuery = escapeQuery(query);
+	if (!prefixQuery) return [];
 
-	if (collections.length === 0) {
-		return [];
-	}
-
+	const ftsManager = new FTSManager(db);
+	const metadata = await ftsManager.getSearchMetadata(options.collections);
+	const collections = options.collections?.length ? options.collections : [...metadata.keys()];
 	const suggestions: Suggestion[] = [];
 
 	for (const collection of collections) {
-		const ftsManager = new FTSManager(db);
-		const config = await ftsManager.getSearchConfig(collection);
-		if (!config?.enabled) {
+		const collectionMetadata = metadata.get(collection);
+		if (!collectionMetadata) continue;
+		const { config, hasTitle } = collectionMetadata;
+
+		// Suggestions are title-based (Suggestion.title is required). A configured
+		// titleField supplies it -- a validated existing column -- so it
+		// takes precedence and keeps autocomplete consistent with search results.
+		// Otherwise fall back to the optional `title` field; collections with
+		// neither can't produce a suggestion and are skipped (selecting a missing
+		// column would error).
+		let titleExpr;
+		if (config.titleField) {
+			validateIdentifier(config.titleField, "title field");
+			titleExpr = sql`c.${sql.ref(config.titleField)}`;
+		} else if (hasTitle) {
+			titleExpr = sql`c.title`;
+		} else {
 			continue;
 		}
 
@@ -348,29 +456,24 @@ export async function getSuggestions(
 		const ftsTable = ftsManager.getFtsTableName(collection);
 		const contentTable = ftsManager.getContentTableName(collection);
 
-		// Use prefix search for autocomplete. `escapeQuery` already appends `*`
-		// to each term for prefix matching, so we must not append another one.
-		const prefixQuery = escapeQuery(query);
-		if (!prefixQuery) {
-			continue;
-		}
-
 		let results;
 		try {
 			results = await sql<{
 				id: string;
+				slug: string | null;
 				title: string;
 			}>`
-				SELECT 
+				SELECT
 					c.id,
-					c.title
+					c.slug,
+					${titleExpr} AS title
 				FROM "${sql.raw(ftsTable)}" f
 				JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
 				WHERE "${sql.raw(ftsTable)}" MATCH ${prefixQuery}
 				AND c.status = 'published'
 				AND c.deleted_at IS NULL
-				AND c.title IS NOT NULL
-				${locale ? sql`AND c.locale = ${locale}` : sql``}
+				AND ${titleExpr} IS NOT NULL
+				${locale ? sql`AND ${localeMatches("c.locale", locale)}` : sql``}
 				ORDER BY bm25("${sql.raw(ftsTable)}")
 				LIMIT ${limit}
 			`.execute(db);
@@ -389,6 +492,7 @@ export async function getSuggestions(
 			suggestions.push({
 				collection,
 				id: row.id,
+				slug: row.slug,
 				title: row.title,
 			});
 		}
@@ -442,7 +546,7 @@ async function getSearchableCollections(db: Kysely<Database>): Promise<string[]>
  *
  * Handles special characters and prevents injection.
  */
-function escapeQuery(query: string): string {
+function escapeQuery(query: string, allowOperators = true): string {
 	if (!query || typeof query !== "string") {
 		return "";
 	}
@@ -464,8 +568,10 @@ function escapeQuery(query: string): string {
 	const escaped = query.replace(DOUBLE_QUOTE_PATTERN, '""');
 
 	// If the query contains FTS5 operators (AND, OR, NOT, NEAR),
-	// pass through with quotes escaped but operators preserved
-	if (FTS_OPERATORS_PATTERN.test(query)) {
+	// pass through with quotes escaped but operators preserved. Not allowed
+	// when the match string is embedded in a column filter: unquoted parens
+	// would let a clause escape the filter's group.
+	if (allowOperators && FTS_OPERATORS_PATTERN.test(query)) {
 		return escaped;
 	}
 

@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { BlockRenderer } from "../src/renderer.js";
 import type { Block, BlockInteraction } from "../src/types.js";
@@ -13,12 +13,27 @@ const CollapsibleContext = React.createContext<{
 	open?: boolean;
 	onOpenChange?: (next: boolean) => void;
 }>({});
+// Lets the LayerDialog.Actions mock close its root the way Kumo's dismiss button does.
+const DialogContext = React.createContext<((open: boolean) => void) | undefined>(undefined);
 
 vi.mock("@cloudflare/kumo", () => ({
 	Button: ({ children, onClick, variant, type }: any) => (
 		<button onClick={onClick} data-variant={variant} type={type || "button"}>
 			{children}
 		</button>
+	),
+	Link: Object.assign(({ children, ...props }: any) => <a {...props}>{children}</a>, {
+		ExternalIcon: () => <span data-testid="external-link-icon" />,
+	}),
+	LinkButton: ({ children, external, variant, ...props }: any) => (
+		<a
+			{...props}
+			data-variant={variant}
+			target={external ? "_blank" : undefined}
+			rel={external ? "noopener noreferrer" : undefined}
+		>
+			{children}
+		</a>
 	),
 	Badge: ({ children }: any) => <span data-testid="badge">{children}</span>,
 	Input: ({ label, value, defaultValue, onChange, onBlur, placeholder, type, min, max }: any) => (
@@ -94,9 +109,35 @@ vi.mock("@cloudflare/kumo", () => ({
 			/>
 		</div>
 	),
-	Dialog: ({ children }: any) => <div data-testid="dialog">{children}</div>,
-	DialogRoot: ({ children, open }: any) =>
-		open ? <div data-testid="dialog-root">{children}</div> : null,
+	LayerDialog: {
+		Root: ({ children, open, onOpenChange }: any) =>
+			open ? (
+				<DialogContext.Provider value={onOpenChange}>
+					<div data-testid="dialog-root">{children}</div>
+				</DialogContext.Provider>
+			) : null,
+		Content: ({ children }: any) => <div data-testid="dialog">{children}</div>,
+		Title: ({ children }: any) => <h2>{children}</h2>,
+		Description: ({ children }: any) => <p>{children}</p>,
+		Body: ({ children }: any) => <div>{children}</div>,
+		Actions: ({ children, dismissLabel }: any) => {
+			const onOpenChange = React.useContext(DialogContext);
+			return (
+				<div>
+					<button type="button" onClick={() => onOpenChange?.(false)}>
+						{dismissLabel}
+					</button>
+					{children}
+				</div>
+			);
+		},
+		Action: ({ children, onClick, variant }: any) => (
+			<button type="button" onClick={onClick} data-variant={variant}>
+				{children}
+			</button>
+		),
+	},
+	Text: ({ children }: any) => <p>{children}</p>,
 	Banner: ({ title, description, variant, icon }: any) => (
 		<div data-testid="banner" data-variant={variant}>
 			{icon}
@@ -166,6 +207,15 @@ vi.mock("@cloudflare/kumo", () => ({
 			</label>
 		),
 	},
+	DropdownMenu: Object.assign(({ children }: any) => <div>{children}</div>, {
+		Trigger: ({ render: trigger }: any) => trigger,
+		Content: ({ children }: any) => <div role="menu">{children}</div>,
+		Item: ({ children, onClick }: any) => (
+			<button type="button" role="menuitem" onClick={onClick}>
+				{children}
+			</button>
+		),
+	}),
 	Collapsible: Object.assign(
 		// `Collapsible` is also `Collapsible.Root` in Kumo 2.x.
 		({ children, open, onOpenChange, ...rest }: any) => (
@@ -230,7 +280,13 @@ vi.mock("@cloudflare/kumo/components/chart", () => ({
 	TimeseriesChart: (props: any) => (
 		<div data-testid="timeseries-chart" data-height={props.height} />
 	),
-	Chart: (props: any) => <div data-testid="custom-chart" data-height={props.height} />,
+	Chart: (props: any) => (
+		<div
+			data-testid="custom-chart"
+			data-height={props.height}
+			data-options={JSON.stringify(props.options)}
+		/>
+	),
 	ChartPalette: { color: (i: number) => `#color${i}` },
 }));
 
@@ -249,7 +305,9 @@ vi.mock("echarts/charts", () => ({
 vi.mock("echarts/components", () => ({
 	AriaComponent: {},
 	AxisPointerComponent: {},
+	BrushComponent: {},
 	GridComponent: {},
+	ToolboxComponent: {},
 	TooltipComponent: {},
 }));
 
@@ -260,6 +318,7 @@ vi.mock("echarts/renderers", () => ({
 vi.mock("@phosphor-icons/react", () => ({
 	ArrowUp: () => <span data-testid="arrow-up" />,
 	ArrowDown: () => <span data-testid="arrow-down" />,
+	CaretDown: () => <span data-testid="caret-down" />,
 	Minus: () => <span data-testid="minus" />,
 	Info: () => <span data-testid="icon-info" />,
 	Warning: () => <span data-testid="icon-warning" />,
@@ -271,9 +330,18 @@ afterEach(cleanup);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function renderBlocks(blocks: Block[], onAction?: (i: BlockInteraction) => void) {
+function renderBlocks(
+	blocks: Block[],
+	onAction?: (i: BlockInteraction) => void,
+	resolveLinkTarget?: (target: import("../src/types.js").LinkTarget) => string | null,
+) {
 	const handler = onAction ?? vi.fn();
-	return { ...render(<BlockRenderer blocks={blocks} onAction={handler} />), onAction: handler };
+	return {
+		...render(
+			<BlockRenderer blocks={blocks} onAction={handler} resolveLinkTarget={resolveLinkTarget} />,
+		),
+		onAction: handler,
+	};
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -300,6 +368,67 @@ describe("BlockRenderer", () => {
 		]);
 		expect(screen.getByText("Webhook endpoint")).toBeTruthy();
 		expect(screen.getByText("Edit")).toBeTruthy();
+	});
+
+	it("renders host-resolved internal and external navigation without dispatching actions", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "link",
+							label: "Edit article",
+							target: { kind: "content", collection: "posts", id: "post-1" },
+							appearance: "primary",
+						},
+						{
+							type: "link",
+							label: "Service status",
+							target: { kind: "external", url: "https://status.example.com" },
+						},
+					],
+				},
+			],
+			onAction,
+			(target) =>
+				target.kind === "content"
+					? `/_emdash/admin/content/${target.collection}/${target.id}`
+					: target.kind === "external"
+						? target.url
+						: null,
+		);
+
+		const internal = screen.getByRole("link", { name: "Edit article" });
+		expect(internal.getAttribute("href")).toBe("/_emdash/admin/content/posts/post-1");
+		expect(internal.getAttribute("target")).toBeNull();
+		const external = screen.getByRole("link", { name: /Service status/ });
+		expect(external.getAttribute("target")).toBe("_blank");
+		expect(external.getAttribute("rel")).toBe("noopener noreferrer");
+
+		fireEvent.keyDown(internal, { key: "Enter" });
+		expect(onAction).not.toHaveBeenCalled();
+	});
+
+	it("fails closed when the host does not resolve a link target", () => {
+		renderBlocks(
+			[
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "link",
+							label: "Unknown page",
+							target: { kind: "plugin-page", path: "/missing" },
+						},
+					],
+				},
+			],
+			undefined,
+			() => null,
+		);
+		expect(screen.queryByRole("link")).toBeNull();
 	});
 
 	it("divider block renders hr", () => {
@@ -351,6 +480,61 @@ describe("BlockRenderer", () => {
 		expect(screen.getByText("Role")).toBeTruthy();
 		expect(screen.getByText("Alice")).toBeTruthy();
 		expect(screen.getByText("Admin")).toBeTruthy();
+	});
+
+	it("table element cells render row actions that dispatch with the chosen value", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "table",
+					page_action_id: "page",
+					columns: [
+						{ key: "title", label: "Title" },
+						{ key: "action", label: "Actions", format: "element" },
+					],
+					rows: [
+						{
+							title: "Hello",
+							action: {
+								type: "menu",
+								action_id: "translate",
+								label: "Translate",
+								items: [
+									{ label: "French", value: "fr|post-1" },
+									{ label: "Italian", value: "it|post-1" },
+								],
+							},
+						},
+						{
+							title: "About",
+							action: {
+								type: "link",
+								label: "Open",
+								target: { kind: "content", collection: "pages", id: "page-1" },
+							},
+						},
+						{ title: "Empty" },
+					],
+				},
+			],
+			onAction,
+			(target) =>
+				target.kind === "content"
+					? `/_emdash/admin/content/${target.collection}/${target.id}`
+					: null,
+		);
+
+		fireEvent.click(screen.getByRole("menuitem", { name: "Italian" }));
+		expect(onAction).toHaveBeenCalledWith({
+			type: "block_action",
+			action_id: "translate",
+			value: "it|post-1",
+		});
+		expect(screen.getByRole("link", { name: "Open" }).getAttribute("href")).toBe(
+			"/_emdash/admin/content/pages/page-1",
+		);
+		expect(screen.getByText("Empty").closest("tr")?.lastElementChild?.textContent).toBe("");
 	});
 
 	it("table block shows empty_text when rows empty", () => {
@@ -486,6 +670,40 @@ describe("BlockRenderer", () => {
 		]);
 		const img = screen.getByAltText("A photo") as HTMLImageElement;
 		expect(img.src).toBe("https://example.com/photo.jpg");
+	});
+
+	it("chart block leaves toolbox, brush and dataZoom out of custom chart options", () => {
+		vi.stubGlobal("matchMedia", () => ({
+			matches: false,
+			addEventListener: () => {},
+			removeEventListener: () => {},
+		}));
+		onTestFinished(() => {
+			vi.unstubAllGlobals();
+		});
+		renderBlocks([
+			{
+				type: "chart",
+				config: {
+					chart_type: "custom",
+					options: {
+						toolbox: { show: true, feature: { restore: {} } },
+						brush: { xAxisIndex: 0 },
+						dataZoom: [{ type: "select", start: 50, end: 100 }],
+						baseOption: {
+							toolbox: { show: true },
+							series: [{ type: "pie", data: [{ name: "A", value: 1 }] }],
+						},
+					},
+				},
+			},
+		]);
+		const options = JSON.parse(screen.getByTestId("custom-chart").dataset.options!);
+		expect(options).not.toHaveProperty("toolbox");
+		expect(options).not.toHaveProperty("brush");
+		expect(options).not.toHaveProperty("dataZoom");
+		expect(options.baseOption).not.toHaveProperty("toolbox");
+		expect(options.baseOption.series).toEqual([{ type: "pie", data: [{ name: "A", value: 1 }] }]);
 	});
 
 	it("context block renders small muted text", () => {

@@ -9,9 +9,10 @@ import { Badge, Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { X, Check, Trash, Warning, UserCircle, EnvelopeSimple } from "@phosphor-icons/react";
 import * as React from "react";
+import type { ComponentProps } from "react";
 
 import type { AdminComment, CommentStatus } from "../../lib/api/comments.js";
-import { cn } from "../../lib/utils.js";
+import { formatDate } from "../../lib/utils.js";
 
 export interface CommentDetailProps {
 	comment: AdminComment;
@@ -30,7 +31,7 @@ export function CommentDetail({
 	isAdmin,
 	isStatusPending,
 }: CommentDetailProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 
 	// Close on Escape
 	React.useEffect(() => {
@@ -67,7 +68,9 @@ export function CommentDetail({
 					<div className="flex items-center justify-between">
 						<CommentStatusBadge status={comment.status} />
 						<span className="text-sm text-kumo-subtle">
-							{date.toLocaleDateString()} {date.toLocaleTimeString()}
+							<bdi>
+								{formatDate(date, i18n.locale, { dateStyle: "medium", timeStyle: "short" })}
+							</bdi>
 						</span>
 					</div>
 
@@ -108,14 +111,14 @@ export function CommentDetail({
 						</p>
 						<p className="text-sm">
 							<span className="text-kumo-subtle">{t`Content ID:`}</span>{" "}
-							<code className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
+							<code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
 								{comment.contentId}
 							</code>
 						</p>
 						{comment.parentId && (
 							<p className="text-sm">
 								<span className="text-kumo-subtle">{t`Reply to:`}</span>{" "}
-								<code className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
+								<code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
 									{comment.parentId}
 								</code>
 							</p>
@@ -128,7 +131,7 @@ export function CommentDetail({
 							<h3 className="text-sm font-semibold text-kumo-subtle uppercase tracking-wider">
 								{t`Moderation Signals`}
 							</h3>
-							<pre className="text-xs bg-kumo-tint rounded p-3 overflow-x-auto">
+							<pre dir="ltr" className="text-xs bg-kumo-tint rounded p-3 overflow-x-auto">
 								{JSON.stringify(comment.moderationMetadata, null, 2)}
 							</pre>
 						</div>
@@ -198,19 +201,12 @@ export function CommentStatusBadge({ status }: { status: CommentStatus }) {
 		trash: t`trash`,
 	};
 
-	return (
-		<span
-			className={cn(
-				"inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
-				status === "approved" &&
-					"bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-				status === "pending" &&
-					"bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-				status === "spam" && "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-				status === "trash" && "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-			)}
-		>
-			{labels[status]}
-		</span>
-	);
+	const variants: Record<CommentStatus, ComponentProps<typeof Badge>["variant"]> = {
+		approved: "success",
+		pending: "warning",
+		spam: "error",
+		trash: "neutral",
+	};
+
+	return <Badge variant={variants[status]}>{labels[status]}</Badge>;
 }

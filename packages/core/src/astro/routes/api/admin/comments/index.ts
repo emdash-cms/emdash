@@ -11,7 +11,6 @@ import { handleError, requireDb, unwrapResult } from "#api/error.js";
 import { handleCommentInbox } from "#api/handlers/comments.js";
 import { isParseError, parseQuery } from "#api/parse.js";
 import { commentListQuery } from "#api/schemas.js";
-import type { CommentStatus } from "#db/repositories/comment.js";
 
 export const prerender = false;
 
@@ -32,7 +31,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 		if (isParseError(query)) return query;
 
 		const result = await handleCommentInbox(emdash.db, {
-			status: query.status as CommentStatus | undefined,
+			status: query.status,
 			collection: query.collection,
 			search: query.search,
 			limit: query.limit,

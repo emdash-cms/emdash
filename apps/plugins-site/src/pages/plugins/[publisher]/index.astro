@@ -1,0 +1,114 @@
+---
+export const prerender = false;
+
+import { getLiveCollection } from "astro:content";
+import { isDid, isHandle } from "@atcute/lexicons/syntax";
+
+import ExploreBand from "../../../components/ExploreBand.astro";
+import PluginCard from "../../../components/PluginCard.astro";
+import PublisherHead from "../../../components/publisher/PublisherHead.astro";
+import SubNav from "../../../components/SubNav.astro";
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { publisherSummary } from "../../../lib/publisher.js";
+import {
+	isOfficialPublisher,
+	isRegistryRequestRejected,
+	publisherHandle,
+	publisherPath,
+	REGISTRY_PAGE_CACHE,
+} from "../../../lib/registry.js";
+
+const publisherParam = Astro.params.publisher;
+if (!publisherParam) return Astro.rewrite("/404");
+
+const identifier = publisherParam.startsWith("@")
+	? publisherParam.slice(1)
+	: publisherParam;
+if (!isDid(identifier) && !isHandle(identifier)) return Astro.rewrite("/404");
+const result = await getLiveCollection("plugins", {
+	q: identifier,
+	limit: 100,
+	includeLatestRelease: true,
+});
+if (result.error) {
+	return Astro.rewrite(
+		isRegistryRequestRejected(result.error) ? "/404" : "/registry-unavailable",
+	);
+}
+const entries = (result.entries ?? []).filter(({ data }) =>
+	isDid(identifier)
+		? data.package.did === identifier
+		: publisherHandle(data.package) === identifier,
+);
+if (entries.length === 0) return Astro.rewrite("/404");
+
+const handle = entries
+	.map(({ data }) => publisherHandle(data.package))
+	.find(Boolean);
+const canonicalPath = publisherPath(entries[0]!.data.package);
+Astro.cache.set({
+	...REGISTRY_PAGE_CACHE,
+	tags: ["registry", `publisher:${entries[0]!.data.package.did}`],
+});
+if (handle && publisherParam !== `@${handle}`) {
+	return Astro.redirect(canonicalPath, 302);
+}
+
+const displayIdentity = handle ? `@${handle}` : identifier;
+const publisherDid = entries[0]!.data.package.did;
+const summary = publisherSummary(entries.map(({ data }) => data.package));
+---
+
+<BaseLayout
+	title={`${displayIdentity} plugins`}
+	description={`Browse EmDash plugins published by ${displayIdentity}.`}
+	canonical={canonicalPath}
+>
+	<SubNav
+		items={[
+			{ label: "All plugins", href: "/search" },
+			{ label: displayIdentity },
+		]}
+	/>
+
+	<PublisherHead
+		did={publisherDid}
+		identity={displayIdentity}
+		official={isOfficialPublisher(entries[0]!.data.package)}
+		summary={summary}
+		plugins={entries.map(({ data }) => data)}
+	/>
+
+	<section class="publisher-plugins shell" aria-labelledby="plugins-heading">
+		<h2 id="plugins-heading" class="publisher-plugins-title">
+			Published plugins
+		</h2>
+		<ul class="plugin-grid">
+			{
+				entries.map((entry) => (
+					<li>
+						<PluginCard entry={entry.data} headingLevel={3} />
+					</li>
+				))
+			}
+		</ul>
+	</section>
+
+	<ExploreBand
+		title="Looking for something else?"
+		text="Search by name, keyword, or publisher, or browse every plugin."
+	>
+		<a class="btn btn-primary" href="/search">Browse all plugins</a>
+	</ExploreBand>
+</BaseLayout>
+
+<style>
+	.publisher-plugins-title {
+		margin: 0 0 1.5rem;
+		color: var(--ink-strong);
+		font-size: 1.375rem;
+		font-weight: 600;
+		line-height: 1.25;
+		letter-spacing: -0.025em;
+	}
+</style>

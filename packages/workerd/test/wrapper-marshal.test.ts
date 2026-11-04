@@ -10,6 +10,13 @@
 
 import { describe, it, expect } from "vitest";
 
+import { bufferPluginHttpRequest } from "../../core/src/plugins/http-wire.js";
+import {
+	bytesOverLimit,
+	PLUGIN_HTTP_FORM_BYTES,
+	PLUGIN_HTTP_FORM_CONTENT_TYPE,
+	pluginHttpFormBody,
+} from "../../core/tests/fixtures/plugin-http.js";
 import { generatePluginWrapper } from "../src/sandbox/wrapper.js";
 
 function extractMarshalRequestInit(): (init: unknown) => Promise<any> {
@@ -57,8 +64,8 @@ function extractMarshalRequestInit(): (init: unknown) => Promise<any> {
 	// produces the wrapper module. To exercise it directly we evaluate the
 	// extracted function definition in an isolated scope.
 	// eslint-disable-next-line no-implied-eval
-	const factory = new Function(`${body}\nreturn marshalRequestInit;`);
-	return factory();
+	const factory = new Function("bufferPluginHttpRequest", `${body}\nreturn marshalRequestInit;`);
+	return factory(bufferPluginHttpRequest);
 }
 
 describe("marshalRequestInit: URLSearchParams body", () => {
@@ -66,21 +73,18 @@ describe("marshalRequestInit: URLSearchParams body", () => {
 		const marshal = extractMarshalRequestInit();
 		const result = await marshal({
 			method: "POST",
-			body: new URLSearchParams({ a: "1", b: "2" }),
+			body: pluginHttpFormBody(),
 		});
-		expect(result.bodyType).toBe("string");
-		expect(result.body).toBe("a=1&b=2");
+		expect(result.bodyType).toBe("base64");
+		expect(new Uint8Array(Buffer.from(result.body, "base64"))).toEqual(PLUGIN_HTTP_FORM_BYTES);
 		expect(Array.isArray(result.headers)).toBe(true);
-		expect(result.headers).toContainEqual(["content-type", "application/x-www-form-urlencoded"]);
+		expect(result.headers).toContainEqual(["content-type", PLUGIN_HTTP_FORM_CONTENT_TYPE]);
 		// The previous bug set out.headers["content-type"] on an array;
 		// JSON.stringify of arrays drops non-index properties. Verify the
 		// header survives a JSON round-trip (which is how it's sent over
 		// the bridge to the Node backing service).
 		const roundtripped = JSON.parse(JSON.stringify(result));
-		expect(roundtripped.headers).toContainEqual([
-			"content-type",
-			"application/x-www-form-urlencoded",
-		]);
+		expect(roundtripped.headers).toContainEqual(["content-type", PLUGIN_HTTP_FORM_CONTENT_TYPE]);
 	});
 
 	it("preserves caller-provided content-type instead of overwriting", async () => {
@@ -101,6 +105,23 @@ describe("marshalRequestInit: URLSearchParams body", () => {
 		const marshal = extractMarshalRequestInit();
 		const result = await marshal({ body: new URLSearchParams({ x: "1" }) });
 		expect(Array.isArray(result.headers)).toBe(true);
-		expect(result.headers).toContainEqual(["content-type", "application/x-www-form-urlencoded"]);
+		expect(result.headers).toContainEqual(["content-type", PLUGIN_HTTP_FORM_CONTENT_TYPE]);
+	});
+
+	it("keeps the bounded JSON fallback for plain-object bodies", async () => {
+		const marshal = extractMarshalRequestInit();
+		const result = await marshal({ method: "POST", body: { event: "publish" } });
+		expect(result.bodyType).toBe("base64");
+		expect(Buffer.from(result.body, "base64").toString()).toBe('{"event":"publish"}');
+	});
+
+	it("rejects a streamed body after the decoded byte limit", async () => {
+		const marshal = extractMarshalRequestInit();
+		await expect(
+			marshal({
+				method: "POST",
+				body: bytesOverLimit(8 * 1024 * 1024),
+			}),
+		).rejects.toThrow(/request body exceeds the 8388608 byte limit/i);
 	});
 });
