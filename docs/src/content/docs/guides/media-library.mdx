@@ -37,14 +37,18 @@ or deletion.
 5. Select **Done** when the queue has no unfinished uploads.
 </Steps>
 
-Uploads begin as soon as files are added. New local files enter the Main library, even when another
-folder was open before the upload.
+Uploads begin as soon as files are added. New local files go into the folder you are browsing, or
+into the Main library if no folder is open. Empty folders also offer **Upload Files**. Each upload
+into a folder creates a new media item, even if the same file already exists in that folder or
+elsewhere, so existing files are not moved. Failed uploads keep their original destination when you
+retry them.
 
 ### Upload while editing content
 
 Image, file, gallery, and Portable Text image fields use a media picker. Open the field, select
 **Upload files**, and choose or drop files. A completed upload becomes part of the current selection;
-failed uploads stay visible so you can retry or remove them.
+failed uploads stay visible so you can retry or remove them. Local uploads go into the folder you
+are browsing, just as they do in the Media Library.
 
 For a gallery, review **Selected media** and use the move controls to set the order before selecting
 **Add images**. For a single image or file, select **Select** or **Insert image** after the upload
@@ -232,7 +236,9 @@ settings that select the file: **Logo**, **Favicon**, or **Default Social Image*
 - image and file fields
 - image fields inside repeaters
 - image, file, and Portable Text fields inside `blocks` fields
-- image, gallery, and video blocks in Portable Text fields
+- image, gallery, and video blocks in Portable Text fields, including blocks that refer to the file by
+  its `/_emdash/api/media/file/` URL instead of its media ID, as Markdown images written through MCP
+  or the CLI do
 - the site logo, favicon, and default social image
 
 When usage coverage is complete and the file has none of these references, the list shows **No
@@ -300,12 +306,31 @@ gives the browser a high fetch-priority hint. Other images should retain the com
 default.
 
 Set `quality={70}` to control optimized image output, or use an Astro preset: `"low"`, `"mid"`,
-`"high"`, or `"max"`. The setting applies to both light and dark variants. External media providers
+`"high"`, or `"max"`. The setting applies to both light and dark variants, and to every `<source>` when `formats` is set. External media providers
 must support the quality option; unoptimized images retain their original quality. The built-in
 Cloudflare Images media provider does not currently apply this option. For internally stored media
 on Cloudflare, presets map to 25, 50, 80, and 100, and finite numeric values are rounded and clamped
 to 1–100. Other preset strings are not recognized by that endpoint and fall back to the original
 upload without optimization.
+
+To serve a modern format with a fallback for older browsers, pass `formats` with the preferred
+formats first. With more than one format, the component renders a `<picture>` element: the last
+entry becomes the fallback `<img>` and the earlier entries become `<source>` elements in order.
+Without `fallbackFormat`, a single-entry `formats` renders one `<img>` in that format. Pass `fallbackFormat` to use a
+different format for the `<img>`; every `formats` entry then stays a `<source>`.
+
+```astro
+<Image
+  image={post.data.featured_image}
+  width={1200}
+  height={675}
+  formats={["avif", "webp"]}
+/>
+```
+
+Supported formats are `avif`, `webp`, `jpeg`, and `png`. `formats` applies to images optimized by
+the site's image service; images from external media providers keep the provider's own URLs. Without
+`formats`, the component renders a single `<img>` in the image service's default format.
 
 If the field has a dark-mode counterpart, `Image` renders both sources and selects one from the
 visitor's color scheme. See [Dark mode images](/guides/dark-mode/#dark-image-variants) for the field and

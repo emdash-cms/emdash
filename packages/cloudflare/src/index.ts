@@ -33,6 +33,7 @@
  * ```
  */
 
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 
 import type {
@@ -549,12 +550,18 @@ export function access(config: AccessConfig): AuthDescriptor {
  * paid-plan binding, sandboxed plugins are disabled at build time.
  * Requires `wrangler` to be installed; other config helpers do not need it.
  *
+ * When `cloudflare.config.ts` exists in the working directory, the runner is
+ * always returned and a missing `LOADER` binding is reported when the Worker
+ * starts, because that file can only be evaluated asynchronously.
+ *
  * @example
  * ```ts
  * sandboxRunner: sandbox()
  * ```
  */
 export function sandbox(): string | undefined {
+	if (existsSync("cloudflare.config.ts")) return "@emdash-cms/cloudflare/sandbox";
+
 	const environment = process.env.CLOUDFLARE_ENV;
 	const { unstable_readConfig }: typeof import("wrangler") = require("wrangler");
 	const config = unstable_readConfig(environment ? { env: environment } : {}, {

@@ -46,4 +46,4 @@ Closes #
 
 ## Screenshots / test output
 
-<!-- Screenshots are required for every UI change. Show the rendered result and include before-and-after images when the result alone is not enough. Use descriptive alt text. For non-UI changes, write "Not applicable"; test output remains optional. -->
+<!-- Screenshots are required for every UI change: before and after for every screen it affects, laid out as https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md#interface-screenshots shows. Use descriptive alt text. For non-UI changes, write "Not applicable"; test output remains optional. -->

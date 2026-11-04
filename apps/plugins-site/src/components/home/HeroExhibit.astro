@@ -1,0 +1,1266 @@
+---
+import { permissionCopy } from "../../lib/registry.js";
+import HeroSchematic from "./hero/HeroSchematic.astro";
+import { heroIcons } from "./hero/icons.js";
+
+const readContent = permissionCopy("content:read").label;
+const networkRequest = permissionCopy("network:request").label;
+const isolateRows = [
+	"Environment variables",
+	"Filesystem",
+	"Other plugins’ storage",
+	"Undeclared hosts",
+];
+
+// `pathLength="1"` lets the loop draw these strokes with a 0–1 dash offset.
+const DRAWABLE_SHAPE = /<(path|circle)\b/g;
+const drawable = (icon: string) =>
+	icon.replace(DRAWABLE_SHAPE, '<$1 pathLength="1"');
+
+// A small halftone ramp for the plugin's icon tile, peaking in one orange dot.
+const halftone: { cx: number; cy: number; r: number; accent: boolean }[] = [];
+for (let row = 0; row < 6; row++) {
+	for (let column = 0; column < 6; column++) {
+		const distance = Math.hypot(column - 4, row - 1);
+		const r = 1.75 - distance * 0.3;
+		if (r < 0.3) continue;
+		halftone.push({
+			cx: 2 + column * 4,
+			cy: 2 + row * 4,
+			r: Math.round(r * 100) / 100,
+			accent: column === 4 && row === 1,
+		});
+	}
+}
+---
+
+<div class="exhibit" data-exhibit>
+	<div class="x-frame-box">
+		<div class="x-canvas" dir="ltr" aria-hidden="true">
+			<div class="x-dots"></div>
+			<div class="x-glow"></div>
+			<HeroSchematic />
+
+			<svg class="x-traces" viewBox="0 0 1120 600" focusable="false">
+				<path d="M548 88V168M572 88V104l16 16V168"></path>
+				<path d="M728 300H840l32 32V360"></path>
+				<path d="M392 312H352l-32-32"></path>
+				<path d="M560 456V488"></path>
+				<path
+					d="M572 88V104l16 16V168"
+					class="x-signal x-signal--a"
+					pathLength="100"></path>
+				<path d="M560 456V488" class="x-signal x-signal--b" pathLength="100"
+				></path>
+				<path
+					d="M728 300H840l32 32V360"
+					class="x-signal x-signal--c"
+					pathLength="100"></path>
+				<path d="M560 466.5l5.5 5.5-5.5 5.5-5.5-5.5Z" class="x-node x-node--b"
+				></path>
+				<circle cx="760" cy="300" r="2.5" class="x-node x-node--c1"></circle>
+				<circle cx="360" cy="312" r="2.5" class="x-node"></circle>
+				<circle
+					cx="840"
+					cy="300"
+					r="1.5"
+					class="x-node x-node--solid x-node--c2"></circle>
+			</svg>
+
+			<div class="x-obj x-plugin" style="--x: 432; --y: 40; --w: 256; --h: 48">
+				<div class="x-plugin-inner">
+					<span class="x-plugin-tile">
+						<svg viewBox="0 0 24 24">
+							{
+								halftone.map((dot) => (
+									<circle
+										cx={dot.cx}
+										cy={dot.cy}
+										r={dot.r}
+										class:list={{ "x-dot-accent": dot.accent }}
+									/>
+								))
+							}
+						</svg>
+					</span>
+					<span class="x-type">
+						<span class="x-plugin-name"
+							><span class="x-plugin-scope">@example.com/</span
+							>search-ping</span
+						>
+						<span class="x-caret"></span>
+					</span>
+				</div>
+			</div>
+
+			<div
+				class="x-obj x-consent"
+				style="--x: 392; --y: 168; --w: 336; --h: 288"
+			>
+				<div class="x-consent-head">
+					<p class="x-consent-title">Review Verified Plugin</p>
+					<p class="x-consent-sub">
+						Review the independently verified release evidence and permissions
+						for Search Ping before continuing.
+					</p>
+				</div>
+				<ul class="x-consent-list">
+					<li style="--i: 0">
+						<span class="x-consent-icon">
+							<svg viewBox="0 0 24 24" set:html={heroIcons.fileText} />
+						</span>
+						<span class="x-consent-label">{readContent}</span>
+					</li>
+					<li style="--i: 1">
+						<span class="x-consent-icon">
+							<svg viewBox="0 0 24 24" set:html={heroIcons.globe} />
+						</span>
+						<span class="x-consent-text">
+							<span class="x-consent-label">{networkRequest}</span>
+							<span class="x-consent-host">api.indexnow.org</span>
+						</span>
+					</li>
+				</ul>
+				<p class="x-consent-status">
+					<svg viewBox="0 0 24 24" set:html={drawable(heroIcons.shieldCheck)} />
+					Signed release verified
+				</p>
+				<div class="x-consent-foot">
+					<span class="x-btn">Cancel</span>
+					<span class="x-btn x-btn--primary">Accept &amp; Install</span>
+				</div>
+			</div>
+
+			<div class="x-obj x-isolate" style="--x: 800; --y: 360; --w: 232">
+				<div class="x-bar">
+					<svg viewBox="0 0 24 24" set:html={heroIcons.cube} />
+					<span class="x-file">search-ping</span>
+					<span class="x-tag">Isolate</span>
+				</div>
+				<div class="x-isolate-body">
+					<p class="x-isolate-label">No access</p>
+					<ul class="x-isolate-list">
+						{
+							isolateRows.map((row, index) => (
+								<li style={`--i: ${index}`}>
+									<svg viewBox="0 0 24 24" set:html={heroIcons.lock} />
+									{row}
+								</li>
+							))
+						}
+					</ul>
+				</div>
+			</div>
+
+			<div
+				class="x-obj x-installed"
+				style="--x: 500; --y: 488; --w: 120; --h: 32"
+			>
+				<svg viewBox="0 0 24 24" set:html={drawable(heroIcons.checkCircle)} />
+				Installed
+			</div>
+		</div>
+		<span class="x-mark x-mark--ss"></span>
+		<span class="x-mark x-mark--se"></span>
+		<span class="x-mark x-mark--es"></span>
+		<span class="x-mark x-mark--ee"></span>
+		<button
+			class="x-toggle tap-target"
+			type="button"
+			aria-label="Pause animation"
+			aria-pressed="false"
+			data-exhibit-toggle
+		>
+			<svg
+				class="x-toggle-pause"
+				viewBox="0 0 12 12"
+				aria-hidden="true"
+				focusable="false"
+			>
+				<rect x="3" y="2.5" width="2" height="7" rx="0.5"></rect>
+				<rect x="7" y="2.5" width="2" height="7" rx="0.5"></rect>
+			</svg>
+			<svg
+				class="x-toggle-play"
+				viewBox="0 0 12 12"
+				aria-hidden="true"
+				focusable="false"
+			>
+				<path d="M4 2.6v6.8L9.6 6Z"></path>
+			</svg>
+		</button>
+	</div>
+</div>
+
+<script>
+	const exhibit = document.querySelector<HTMLElement>("[data-exhibit]");
+	const toggle = exhibit?.querySelector<HTMLButtonElement>(
+		"[data-exhibit-toggle]",
+	);
+	if (exhibit && toggle) {
+		let visible = true;
+		let pausedByVisitor = false;
+		const update = () =>
+			exhibit.toggleAttribute(
+				"data-paused",
+				pausedByVisitor || !visible || document.hidden,
+			);
+		toggle.addEventListener("click", () => {
+			pausedByVisitor = !pausedByVisitor;
+			toggle.setAttribute("aria-pressed", String(pausedByVisitor));
+			update();
+		});
+		document.addEventListener("visibilitychange", update);
+		if ("IntersectionObserver" in window) {
+			new IntersectionObserver(
+				(entries) => {
+					visible = entries.at(-1)?.isIntersecting ?? false;
+					update();
+				},
+				{ threshold: 0.2 },
+			).observe(exhibit);
+		}
+	}
+</script>
+
+<style>
+	.exhibit {
+		--x-glyph: var(--line-strong);
+		--x-trace: color-mix(in srgb, var(--ink) 24%, var(--page));
+		--x-caption: color-mix(in srgb, var(--ink) 72%, var(--page));
+		--x-obj: var(--surface-raised);
+		--x-obj-line: light-dark(var(--line), #2c2c2c);
+		--x-obj-highlight: light-dark(transparent, rgb(255 255 255 / 5%));
+		--x-tint: var(--fill);
+		--x-glow-core: light-dark(
+			color-mix(in srgb, var(--accent) 11%, transparent),
+			color-mix(in srgb, var(--accent) 13%, transparent)
+		);
+		--x-glow-edge: light-dark(
+			color-mix(in srgb, var(--accent) 4%, transparent),
+			color-mix(in srgb, var(--accent) 5%, transparent)
+		);
+		--x-drop: light-dark(rgb(0 0 0 / 16%), rgb(0 0 0 / 60%));
+
+		position: relative;
+		margin-block-start: clamp(3.5rem, 2.5rem + 3vw, 5rem);
+		padding-inline: var(--gutter);
+		border-block-end: 1px solid var(--line);
+	}
+
+	.x-frame-box {
+		position: relative;
+		max-width: 70rem;
+		margin-inline: auto;
+		overflow: hidden;
+		container-type: inline-size;
+		background: linear-gradient(
+			to bottom,
+			var(--page),
+			color-mix(in srgb, var(--surface-soft) 55%, var(--page))
+		);
+		border: 1px solid var(--line);
+		border-block-end: 0;
+	}
+
+	/*
+	 * Everything inside is drawn in a 1120×600 design space. `--u` is one
+	 * design pixel: it tracks the frame width and stops shrinking at 0.72, after
+	 * which the frame crops the outer columns instead.
+	 */
+	.x-canvas {
+		--u: max(0.72px, calc(100cqw / 1120));
+
+		position: relative;
+		width: calc(1120 * var(--u));
+		height: calc(600 * var(--u));
+		margin-inline-start: calc(50% - 560 * var(--u));
+		font-size: calc(12 * var(--u));
+		line-height: 1.35;
+		color: var(--ink);
+	}
+
+	.x-canvas p,
+	.x-canvas ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.x-dots {
+		position: absolute;
+		inset: 0;
+		background-image: radial-gradient(
+			color-mix(in srgb, var(--ink) 13%, transparent) 1px,
+			transparent 1.2px
+		);
+		background-size: 14px 14px;
+		background-position: center;
+		mask-image: radial-gradient(
+			ellipse 46% 62% at 50% 52%,
+			#000 25%,
+			transparent 100%
+		);
+	}
+
+	.x-glow {
+		position: absolute;
+		inset-inline-start: calc(250 * var(--u));
+		inset-block-start: calc(110 * var(--u));
+		width: calc(620 * var(--u));
+		height: calc(400 * var(--u));
+		background: radial-gradient(
+			closest-side,
+			var(--x-glow-core),
+			var(--x-glow-edge) 55%,
+			transparent
+		);
+	}
+
+	.x-traces {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+		fill: none;
+		stroke: var(--x-trace);
+		stroke-width: 1;
+		stroke-linejoin: round;
+	}
+
+	.x-traces * {
+		vector-effect: non-scaling-stroke;
+	}
+
+	.x-node {
+		fill: var(--page);
+	}
+
+	.x-node--solid {
+		fill: var(--x-trace);
+		stroke: none;
+	}
+
+	.x-signal {
+		stroke: var(--accent);
+		stroke-width: 1.5;
+		stroke-linecap: round;
+		stroke-dasharray: var(--dash) 200;
+		stroke-dashoffset: var(--dash);
+		opacity: 0;
+	}
+
+	.x-signal--a {
+		--dash: 14;
+	}
+
+	.x-signal--b {
+		--dash: 40;
+	}
+
+	.x-signal--c {
+		--dash: 10;
+	}
+
+	/* ---------- Objects ---------- */
+
+	.x-obj {
+		position: absolute;
+		inset-inline-start: calc(var(--x) * var(--u));
+		inset-block-start: calc(var(--y) * var(--u));
+		width: calc(var(--w) * var(--u));
+		background: var(--x-obj);
+		border: 1px solid var(--x-obj-line);
+		box-shadow: inset 0 1px 0 var(--x-obj-highlight);
+	}
+
+	.x-obj svg {
+		flex: none;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.75;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.x-plugin {
+		height: calc(var(--h) * var(--u));
+		padding: calc(3 * var(--u));
+		background: color-mix(in srgb, var(--page) 60%, transparent);
+		border-radius: calc(14 * var(--u));
+		box-shadow: none;
+	}
+
+	.x-plugin-inner {
+		display: flex;
+		align-items: center;
+		gap: calc(9 * var(--u));
+		height: 100%;
+		padding-inline: calc(7 * var(--u)) calc(12 * var(--u));
+		background: var(--x-obj);
+		border: 1px solid var(--x-obj-line);
+		border-radius: calc(11 * var(--u));
+		box-shadow:
+			inset 0 1px 0 var(--x-obj-highlight),
+			0 1px 2px rgb(0 0 0 / 5%);
+	}
+
+	.x-plugin-tile {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: calc(26 * var(--u));
+		height: calc(26 * var(--u));
+		background: var(--surface-soft);
+		border-radius: calc(7 * var(--u));
+	}
+
+	.x-plugin-tile svg {
+		width: calc(20 * var(--u));
+		height: calc(20 * var(--u));
+		fill: color-mix(in srgb, var(--ink) 55%, transparent);
+		stroke: none;
+	}
+
+	.x-plugin-tile .x-dot-accent {
+		fill: var(--accent);
+	}
+
+	.x-plugin-name {
+		overflow: hidden;
+		font-family: var(--font-mono);
+		font-size: calc(11 * var(--u));
+		white-space: nowrap;
+	}
+
+	.x-plugin-scope {
+		color: var(--muted);
+	}
+
+	.x-type {
+		position: relative;
+		display: flex;
+		min-width: 0;
+	}
+
+	.x-caret {
+		position: absolute;
+		inset-block: 15%;
+		inset-inline-start: 0;
+		width: calc(1.25 * var(--u));
+		font-family: var(--font-mono);
+		font-size: calc(11 * var(--u));
+		background: var(--ink);
+		opacity: 0;
+	}
+
+	.x-consent {
+		display: flex;
+		flex-direction: column;
+		height: calc(var(--h) * var(--u));
+		overflow: hidden;
+		border-radius: calc(16 * var(--u));
+		box-shadow:
+			inset 0 1px 0 var(--x-obj-highlight),
+			0 0 0 calc(4 * var(--u)) var(--line-soft),
+			var(--shadow-float);
+	}
+
+	.x-consent-head {
+		padding: calc(15 * var(--u)) calc(18 * var(--u)) calc(13 * var(--u));
+		border-block-end: 1px solid var(--line);
+	}
+
+	.x-consent-title {
+		color: var(--ink-strong);
+		font-size: calc(14.5 * var(--u));
+		font-weight: 600;
+		letter-spacing: -0.01em;
+	}
+
+	.x-consent-sub {
+		margin-block-start: calc(3 * var(--u)) !important;
+		color: var(--muted);
+		font-size: calc(12 * var(--u));
+	}
+
+	.x-consent-list {
+		display: grid;
+		flex: 1;
+		align-content: start;
+		gap: calc(6 * var(--u));
+		padding: calc(12 * var(--u)) calc(14 * var(--u)) !important;
+	}
+
+	.x-consent-list li {
+		display: flex;
+		align-items: center;
+		gap: calc(10 * var(--u));
+		min-height: calc(40 * var(--u));
+		padding: calc(6 * var(--u)) calc(8 * var(--u));
+		background: var(--x-tint);
+		border-radius: calc(9 * var(--u));
+	}
+
+	.x-consent-icon {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: calc(28 * var(--u));
+		height: calc(28 * var(--u));
+		color: var(--ink);
+		background: var(--x-obj);
+		border: 1px solid var(--x-obj-line);
+		border-radius: calc(7 * var(--u));
+	}
+
+	.x-consent-icon svg {
+		width: calc(15 * var(--u));
+		height: calc(15 * var(--u));
+	}
+
+	.x-consent-text {
+		display: grid;
+		gap: calc(2 * var(--u));
+	}
+
+	.x-consent-label {
+		font-size: calc(12.5 * var(--u));
+		font-weight: 500;
+	}
+
+	.x-consent-host {
+		color: var(--muted);
+		font-family: var(--font-mono);
+		font-size: calc(11 * var(--u));
+	}
+
+	.x-consent-status {
+		display: flex;
+		align-items: center;
+		gap: calc(6 * var(--u));
+		margin-inline: calc(18 * var(--u)) !important;
+		padding-block: calc(9 * var(--u)) !important;
+		color: var(--muted);
+		font-size: calc(11.5 * var(--u));
+		border-block-start: 1px dashed var(--line);
+	}
+
+	.x-consent-status svg {
+		width: calc(14 * var(--u));
+		height: calc(14 * var(--u));
+		color: var(--success);
+	}
+
+	.x-consent-foot {
+		display: flex;
+		justify-content: flex-end;
+		gap: calc(6 * var(--u));
+		padding: calc(10 * var(--u)) calc(14 * var(--u));
+		background: color-mix(in srgb, var(--surface-soft) 55%, var(--x-obj));
+		border-block-start: 1px solid var(--line);
+	}
+
+	.x-btn {
+		display: inline-flex;
+		align-items: center;
+		height: calc(28 * var(--u));
+		padding-inline: calc(11 * var(--u));
+		color: var(--ink);
+		font-size: calc(12 * var(--u));
+		font-weight: 500;
+		white-space: nowrap;
+		background: var(--x-obj);
+		border: 1px solid var(--x-obj-line);
+		border-radius: calc(8 * var(--u));
+		box-shadow: 0 1px 1px rgb(0 0 0 / 4%);
+	}
+
+	.x-btn--primary {
+		color: var(--btn-primary-fg);
+		background: var(--btn-primary-bg);
+		border-color: var(--btn-primary-border);
+		box-shadow:
+			inset 0 1px 0 rgb(255 255 255 / 14%),
+			0 1px 2px rgb(0 0 0 / 16%),
+			0 0 0 calc(2 * var(--u)) var(--btn-halo);
+	}
+
+	.x-isolate {
+		overflow: hidden;
+		border-radius: calc(12 * var(--u));
+		box-shadow:
+			inset 0 1px 0 var(--x-obj-highlight),
+			0 1px 2px rgb(0 0 0 / 4%),
+			0 calc(10 * var(--u)) calc(24 * var(--u)) calc(-14 * var(--u))
+				var(--x-drop);
+	}
+
+	.x-bar {
+		display: flex;
+		align-items: center;
+		gap: calc(6 * var(--u));
+		height: calc(34 * var(--u));
+		padding-inline: calc(12 * var(--u));
+		color: var(--muted);
+		border-block-end: 1px solid var(--line);
+	}
+
+	.x-bar svg {
+		width: calc(14 * var(--u));
+		height: calc(14 * var(--u));
+	}
+
+	.x-file {
+		color: var(--ink);
+		font-family: var(--font-mono);
+		font-size: calc(11 * var(--u));
+	}
+
+	.x-tag {
+		margin-inline-start: auto;
+		padding: calc(2 * var(--u)) calc(7 * var(--u));
+		color: var(--muted);
+		font-size: calc(10 * var(--u));
+		font-weight: 600;
+		background: var(--fill-active);
+		border-radius: var(--radius-full);
+	}
+
+	.x-isolate-body {
+		padding: calc(10 * var(--u)) calc(14 * var(--u)) calc(6 * var(--u));
+	}
+
+	.x-isolate-label {
+		color: var(--muted);
+		font-size: calc(11 * var(--u));
+		font-weight: 500;
+	}
+
+	.x-isolate-list {
+		margin-block-start: calc(4 * var(--u)) !important;
+	}
+
+	.x-isolate-list li {
+		display: flex;
+		align-items: center;
+		gap: calc(8 * var(--u));
+		padding-block: calc(7 * var(--u));
+		color: var(--ink);
+		font-size: calc(12 * var(--u));
+	}
+
+	.x-isolate-list li + li {
+		border-block-start: 1px solid var(--line);
+	}
+
+	.x-isolate-list svg {
+		width: calc(13 * var(--u));
+		height: calc(13 * var(--u));
+		color: var(--subtle);
+	}
+
+	.x-installed {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: calc(6 * var(--u));
+		height: calc(var(--h) * var(--u));
+		font-size: calc(12 * var(--u));
+		font-weight: 500;
+		border-radius: var(--radius-full);
+		box-shadow:
+			inset 0 1px 0 var(--x-obj-highlight),
+			0 0 0 calc(3 * var(--u)) var(--line-soft),
+			0 1px 2px rgb(0 0 0 / 5%);
+	}
+
+	.x-installed svg {
+		width: calc(15 * var(--u));
+		height: calc(15 * var(--u));
+		color: var(--success);
+	}
+
+	/* ---------- Corner marks ---------- */
+
+	.x-mark {
+		position: absolute;
+		width: 14px;
+		height: 14px;
+		background:
+			linear-gradient(var(--line-strong), var(--line-strong)) center / 6px 1px
+				no-repeat,
+			linear-gradient(var(--line-strong), var(--line-strong)) center / 1px 6px
+				no-repeat,
+			var(--page);
+		border: 1px solid var(--line-strong);
+		border-radius: 50%;
+	}
+
+	.x-mark--ss {
+		inset-block-start: 10px;
+		inset-inline-start: 10px;
+	}
+
+	.x-mark--se {
+		inset-block-start: 10px;
+		inset-inline-end: 10px;
+	}
+
+	.x-mark--es {
+		inset-block-end: 10px;
+		inset-inline-start: 10px;
+	}
+
+	.x-mark--ee {
+		inset-block-end: 10px;
+		inset-inline-end: 10px;
+	}
+
+	/* Takes the end corner mark's place while the loop can run. */
+	.x-toggle {
+		position: absolute;
+		inset-block-end: 10px;
+		inset-inline-end: 10px;
+		display: none;
+		place-items: center;
+		width: 24px;
+		height: 24px;
+		padding: 0;
+		color: var(--muted);
+		cursor: pointer;
+		background: var(--page);
+		border: 1px solid var(--line-strong);
+		border-radius: 50%;
+		transition:
+			color 150ms ease,
+			border-color 150ms ease;
+	}
+
+	.x-toggle svg {
+		grid-area: 1 / 1;
+		width: 10px;
+		height: 10px;
+		fill: currentColor;
+	}
+
+	.x-toggle[aria-pressed="true"] .x-toggle-pause,
+	.x-toggle:not([aria-pressed="true"]) .x-toggle-play {
+		visibility: hidden;
+	}
+
+	@media (hover: hover) {
+		.x-toggle:hover {
+			color: var(--ink);
+			border-color: var(--subtle);
+		}
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		:global(:root.js) .x-toggle {
+			display: grid;
+		}
+
+		:global(:root.js) .x-mark--ee {
+			display: none;
+		}
+	}
+
+	/*
+	 * ---------- Install loop ----------
+	 *
+	 * One 10s timeline: type the name, fill the dialog, verify, accept, install,
+	 * then close the sandbox. Every step shares the duration and start, so the
+	 * percentages below line up; 1s is 10%. The un-animated styles are the
+	 * finished frame, which is what reduced motion shows.
+	 */
+
+	@media (prefers-reduced-motion: no-preference) {
+		.exhibit {
+			--x-loop: 10s;
+			--x-start: 0.6s;
+
+			animation: x-rise 900ms var(--ease-out) 200ms both;
+		}
+
+		.exhibit[data-paused] {
+			--x-state: paused;
+		}
+
+		.x-plugin-name,
+		.x-caret,
+		.x-signal,
+		.x-node--b,
+		.x-node--c1,
+		.x-node--c2,
+		.x-consent-list li > *,
+		.x-consent-status,
+		.x-consent-status svg :global(path:last-child),
+		.x-btn--primary,
+		.x-installed,
+		.x-installed svg :global(*),
+		.x-isolate-list li,
+		.x-isolate-list svg :global(path) {
+			animation: var(--x-anim) var(--x-loop) linear var(--x-start) infinite both
+				var(--x-state, running);
+		}
+
+		/* Without JavaScript there's no pause button, so the loop stays on its finished frame. */
+		:global(:root:not(.js)) .exhibit :global(*) {
+			animation: none !important;
+		}
+
+		.x-plugin-name {
+			--x-anim: x-type;
+		}
+
+		.x-caret {
+			--x-anim: x-caret;
+		}
+
+		.x-signal--a {
+			--x-anim: x-signal-a;
+		}
+
+		.x-signal--b {
+			--x-anim: x-signal-b;
+		}
+
+		.x-signal--c {
+			--x-anim: x-signal-c;
+		}
+
+		.x-node--b {
+			--x-anim: x-node-b;
+		}
+
+		.x-node--c1 {
+			--x-anim: x-node-c1;
+		}
+
+		.x-node--c2 {
+			--x-anim: x-node-c2;
+		}
+
+		.x-consent-list li > * {
+			--x-anim: x-row;
+
+			animation-delay: calc(var(--x-start) + var(--i) * 0.12s);
+		}
+
+		.x-consent-status {
+			--x-anim: x-status;
+		}
+
+		.x-consent-status svg :global(path:last-child) {
+			--x-anim: x-draw-shield;
+
+			stroke-dasharray: 1 1;
+		}
+
+		.x-btn--primary {
+			--x-anim: x-press;
+		}
+
+		.x-installed {
+			--x-anim: x-installed;
+		}
+
+		.x-installed svg :global(*) {
+			--x-anim: x-draw-installed;
+
+			stroke-dasharray: 1 1;
+		}
+
+		.x-isolate-list li {
+			--x-anim: x-lock-row;
+
+			animation-delay: calc(var(--x-start) + var(--i) * 0.15s);
+		}
+
+		.x-isolate-list svg :global(path) {
+			--x-anim: x-lock-shackle;
+
+			animation-delay: calc(var(--x-start) + var(--i) * 0.15s);
+		}
+	}
+
+	@keyframes x-rise {
+		from {
+			opacity: 0;
+			transform: translateY(12px);
+		}
+	}
+
+	/* 0.2–1.0s: the name types in, one character per step. */
+	@keyframes x-type {
+		0%,
+		2% {
+			clip-path: inset(0 100% 0 0);
+			opacity: 1;
+			animation-timing-function: steps(24, end);
+		}
+		10%,
+		89% {
+			clip-path: inset(0 0 0 0);
+			opacity: 1;
+			animation-timing-function: ease-in;
+		}
+		94% {
+			clip-path: inset(0 0 0 0);
+			opacity: 0;
+		}
+		100% {
+			clip-path: inset(0 100% 0 0);
+			opacity: 0;
+		}
+	}
+
+	@keyframes x-caret {
+		0% {
+			opacity: 1;
+			transform: none;
+			animation-timing-function: step-end;
+		}
+		2% {
+			opacity: 1;
+			transform: none;
+			animation-timing-function: steps(24, end);
+		}
+		10% {
+			opacity: 1;
+			transform: translateX(24ch);
+			animation-timing-function: step-end;
+		}
+		11.5% {
+			opacity: 0;
+			transform: translateX(24ch);
+			animation-timing-function: step-end;
+		}
+		12.5%,
+		95% {
+			opacity: 0;
+			transform: translateX(24ch);
+			animation-timing-function: step-end;
+		}
+		96%,
+		100% {
+			opacity: 1;
+			transform: none;
+		}
+	}
+
+	/* 1.15–1.65s: the name travels down to the dialog. */
+	@keyframes x-signal-a {
+		0%,
+		11.5% {
+			stroke-dashoffset: var(--dash);
+			opacity: 0;
+			animation-timing-function: cubic-bezier(0.45, 0, 0.3, 1);
+		}
+		12%,
+		16% {
+			opacity: 1;
+		}
+		16.5%,
+		100% {
+			stroke-dashoffset: -100;
+			opacity: 0;
+		}
+	}
+
+	/* From 1.6s: each permission fills its row, 0.12s apart. */
+	@keyframes x-row {
+		0%,
+		16% {
+			opacity: 0;
+			transform: translateY(calc(4 * var(--u)));
+			animation-timing-function: var(--ease-out);
+		}
+		19%,
+		89% {
+			opacity: 1;
+			transform: none;
+			animation-timing-function: ease-in;
+		}
+		94%,
+		100% {
+			opacity: 0;
+			transform: none;
+		}
+	}
+
+	/* 2.2–2.7s: the release is verified. */
+	@keyframes x-status {
+		0%,
+		22% {
+			opacity: 0;
+			animation-timing-function: var(--ease-out);
+		}
+		25%,
+		89% {
+			opacity: 1;
+			animation-timing-function: ease-in;
+		}
+		94%,
+		100% {
+			opacity: 0;
+		}
+	}
+
+	@keyframes x-draw-shield {
+		0%,
+		23% {
+			stroke-dashoffset: 1;
+			animation-timing-function: ease-in-out;
+		}
+		27%,
+		100% {
+			stroke-dashoffset: 0;
+		}
+	}
+
+	/* 3.1–3.45s: Accept & Install is pressed. */
+	@keyframes x-press {
+		0%,
+		31% {
+			transform: none;
+			animation-timing-function: ease-out;
+		}
+		32.5% {
+			transform: scale(0.95);
+			animation-timing-function: ease-out;
+		}
+		34.5%,
+		100% {
+			transform: none;
+		}
+	}
+
+	/* 3.45–3.8s: down to Installed. */
+	@keyframes x-signal-b {
+		0%,
+		34.5% {
+			stroke-dashoffset: var(--dash);
+			opacity: 0;
+			animation-timing-function: cubic-bezier(0.45, 0, 0.3, 1);
+		}
+		35.2%,
+		37.2% {
+			opacity: 1;
+		}
+		38%,
+		100% {
+			stroke-dashoffset: -100;
+			opacity: 0;
+		}
+	}
+
+	@keyframes x-node-b {
+		0%,
+		35.5% {
+			stroke: var(--x-trace);
+		}
+		36.3% {
+			stroke: var(--accent);
+		}
+		40%,
+		100% {
+			stroke: var(--x-trace);
+		}
+	}
+
+	@keyframes x-installed {
+		0%,
+		37% {
+			opacity: 0;
+			transform: translateY(calc(-4 * var(--u))) scale(0.96);
+			animation-timing-function: var(--ease-out);
+		}
+		40.5%,
+		89% {
+			opacity: 1;
+			transform: none;
+			animation-timing-function: ease-in;
+		}
+		94%,
+		100% {
+			opacity: 0;
+			transform: none;
+		}
+	}
+
+	@keyframes x-draw-installed {
+		0%,
+		38.5% {
+			stroke-dashoffset: 1;
+			animation-timing-function: ease-in-out;
+		}
+		43.5%,
+		100% {
+			stroke-dashoffset: 0;
+		}
+	}
+
+	/* 4.2–5.0s: out to the plugin's isolate, at a steady pace so the nodes light as it passes. */
+	@keyframes x-signal-c {
+		0%,
+		42% {
+			stroke-dashoffset: var(--dash);
+			opacity: 0;
+		}
+		42.8%,
+		49.2% {
+			opacity: 1;
+		}
+		50%,
+		100% {
+			stroke-dashoffset: -100;
+			opacity: 0;
+		}
+	}
+
+	@keyframes x-node-c1 {
+		0%,
+		42.8% {
+			stroke: var(--x-trace);
+		}
+		43.4% {
+			stroke: var(--accent);
+		}
+		46.5%,
+		100% {
+			stroke: var(--x-trace);
+		}
+	}
+
+	@keyframes x-node-c2 {
+		0%,
+		46.2% {
+			fill: var(--x-trace);
+		}
+		46.8% {
+			fill: var(--accent);
+		}
+		50%,
+		100% {
+			fill: var(--x-trace);
+		}
+	}
+
+	/* From 4.9s: each lock clicks shut, 0.15s apart. */
+	@keyframes x-lock-row {
+		0%,
+		49% {
+			color: var(--muted);
+			animation-timing-function: ease-out;
+		}
+		51%,
+		89% {
+			color: var(--ink);
+			animation-timing-function: ease-in;
+		}
+		94%,
+		100% {
+			color: var(--muted);
+		}
+	}
+
+	@keyframes x-lock-shackle {
+		0%,
+		49% {
+			transform: translateY(-2.5px);
+			animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0);
+		}
+		50.5%,
+		89% {
+			transform: none;
+			animation-timing-function: ease-in-out;
+		}
+		94%,
+		100% {
+			transform: translateY(-2.5px);
+		}
+	}
+
+	/* ---------- Phones: the focal card alone on a dotted stage ---------- */
+
+	@media (max-width: 767.98px) {
+		/* Phones hide the name field, so the first play starts as the rows fill. */
+		.exhibit {
+			--x-start: -1.4s;
+		}
+
+		.x-canvas {
+			--u: 1px;
+
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			width: auto;
+			height: auto;
+			margin: 0;
+			padding: 44px 16px 40px;
+		}
+
+		.x-dots {
+			mask-image: radial-gradient(
+				ellipse 95% 75% at 50% 50%,
+				#000 40%,
+				transparent 100%
+			);
+		}
+
+		.x-glow {
+			inset: 10% -10%;
+			width: auto;
+			height: auto;
+		}
+
+		.x-canvas > :global(.x-schematic),
+		.x-traces,
+		.x-plugin,
+		.x-isolate {
+			display: none;
+		}
+
+		.x-obj {
+			position: relative;
+			inset: auto;
+		}
+
+		.x-consent {
+			width: min(100%, 336px);
+			height: auto;
+		}
+
+		.x-consent-list {
+			flex: none;
+		}
+
+		.x-installed {
+			margin-block-start: 36px;
+		}
+
+		.x-installed::before {
+			position: absolute;
+			inset-block-end: calc(100% + 1px);
+			inset-inline-start: 50%;
+			width: 1px;
+			height: 36px;
+			background: var(--x-trace);
+			content: "";
+		}
+	}
+
+	@media (max-width: 479.98px) {
+		.x-canvas {
+			padding: 36px 12px 32px;
+		}
+
+		.x-mark {
+			display: none;
+		}
+	}
+</style>

@@ -561,6 +561,14 @@ function isPublished(t: unknown): boolean {
 	);
 }
 
+function isEntry(t: unknown, idOrSlug: string): boolean {
+	return (
+		typeof t === "object" &&
+		t !== null &&
+		(("id" in t && t.id === idOrSlug) || ("slug" in t && t.slug === idOrSlug))
+	);
+}
+
 function getExtra(extra: { authInfo?: { extra?: Record<string, unknown> } }): EmDashExtra {
 	const payload = extra.authInfo?.extra as EmDashExtra | undefined;
 	if (!payload?.emdash) {
@@ -1138,6 +1146,15 @@ export function createMcpServer(
 						success: false,
 						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
 					});
+				}
+				// handleContentGet overlays the draft revision onto item.data and
+				// moves the published values to item.liveData.
+				if (item) {
+					if (item.liveData && typeof item.liveData === "object") {
+						item.data = item.liveData;
+					}
+					delete item.liveData;
+					delete item.draftRevisionId;
 				}
 			}
 			if (result.success && args.markdown && result.data?.item) {
@@ -1984,6 +2001,8 @@ export function createMcpServer(
 			const result = await ec.handleContentTranslations(args.collection, args.id);
 			// Filter out non-published translations for users without draft
 			// access so a subscriber can't enumerate locales that aren't yet live.
+			// The requested entry is one of the translations; if it isn't
+			// published, report it as not found so its id or slug can't be probed.
 			if (result.success && !canReadDrafts(extra)) {
 				const data =
 					result.data && typeof result.data === "object"
@@ -1992,6 +2011,12 @@ export function createMcpServer(
 						: undefined;
 				const translations = Array.isArray(data?.translations) ? data.translations : [];
 				const filtered = translations.filter(isPublished);
+				if (!filtered.some((t) => isEntry(t, args.id))) {
+					return unwrap({
+						success: false,
+						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
+					});
+				}
 				return unwrap({
 					success: true,
 					data: { ...data, translations: filtered },

@@ -24,7 +24,11 @@ import { getMutationError } from "./DialogError.js";
 import { MarketplaceMigrationBanner } from "./MarketplaceMigrationBanner.js";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
-import { resolvePluginWidgetTitle, visibleCollectionEntries } from "./Sidebar.js";
+import {
+	declaredLabelTranslator,
+	resolvePluginWidgetTitle,
+	visibleCollectionEntries,
+} from "./Sidebar.js";
 
 const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
 	published: "published",
@@ -85,7 +89,10 @@ export function Dashboard({ manifest }: DashboardProps) {
 					<SummaryMetrics
 						stats={stats}
 						loading={isLoading}
-						linkCalendar={(user?.role ?? 0) >= ROLE_CONTRIBUTOR}
+						linkCalendar={
+							(user?.role ?? 0) >= ROLE_CONTRIBUTOR &&
+							!manifest.admin?.hiddenNavItems?.includes("calendar")
+						}
 					/>
 
 					{/* Collections + Recent activity */}
@@ -344,9 +351,11 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 					{config.labelSingular ?? config.label}
 				</RouterLinkButton>
 			))}
-			<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
-				{t`Upload Media`}
-			</RouterLinkButton>
+			{!manifest.admin?.hiddenNavItems?.includes("media") && (
+				<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
+					{t`Upload Media`}
+				</RouterLinkButton>
+			)}
 		</div>
 	);
 }
@@ -404,22 +413,32 @@ function SummaryMetrics({
 					},
 				]
 			: []),
-		{
-			label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
-			value: stats.mediaCount,
-		},
-		{
-			label: plural(stats.userCount, { one: "User", other: "Users" }),
-			value: stats.userCount,
-		},
+		...(stats.mediaCount === undefined
+			? []
+			: [
+					{
+						label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
+						value: stats.mediaCount,
+					},
+				]),
+		...(stats.userCount === undefined
+			? []
+			: [
+					{
+						label: plural(stats.userCount, { one: "User", other: "Users" }),
+						value: stats.userCount,
+					},
+				]),
 	];
 
 	return (
 		<div
 			className={
-				hasScheduledContent
+				metrics.length === 4
 					? "grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-					: "grid gap-4 sm:grid-cols-3"
+					: metrics.length === 3
+						? "grid gap-4 sm:grid-cols-3"
+						: "grid gap-4 sm:grid-cols-2"
 			}
 		>
 			{metrics.map((metric) => (
@@ -473,6 +492,7 @@ function CollectionList({
 	loading: boolean;
 }) {
 	const { t } = useLingui();
+	const visibleCollections = collections.filter((col) => !manifest.collections[col.slug]?.hidden);
 
 	return (
 		<LayerCard className="h-full">
@@ -480,13 +500,13 @@ function CollectionList({
 			<LayerCard.Primary className="flex-1">
 				{loading ? (
 					<SkeletonRows count={3} />
-				) : collections.length === 0 ? (
+				) : visibleCollections.length === 0 ? (
 					<p className="px-3 text-sm leading-6 text-pretty text-kumo-subtle">
 						{t`No collections configured`}
 					</p>
 				) : (
 					<div className="space-y-1">
-						{collections.map((col) => {
+						{visibleCollections.map((col) => {
 							const config = manifest.collections[col.slug];
 							return (
 								<Link
@@ -658,7 +678,11 @@ function PluginWidgetCard({
 }) {
 	const { i18n } = useLingui();
 	const WidgetComponent = usePluginWidget(widget.pluginId, widget.id);
-	const title = resolvePluginWidgetTitle(widget.title, widget.id, (id) => i18n._(id));
+	const title = resolvePluginWidgetTitle(
+		widget.title,
+		widget.id,
+		declaredLabelTranslator(i18n, (id) => i18n._(id)),
+	);
 
 	return (
 		<LayerCard className="h-full">

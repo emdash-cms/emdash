@@ -72,10 +72,11 @@ describe("SaveButton", () => {
 		await expect.element(visibleState()).toHaveClass("is-exit");
 		expect(visibleState()).toHaveAttribute("data-save-button-visible-state", "save");
 
-		await new Promise((resolve) => window.setTimeout(resolve, 200));
-		expect(visibleState()).toHaveAttribute("data-save-button-visible-state", "saving");
-		expect(visibleState()).not.toHaveClass("is-exit");
-		expect(visibleState()).not.toHaveClass("is-enter-start");
+		await expect
+			.element(visibleState())
+			.toHaveAttribute("data-save-button-visible-state", "saving");
+		await expect.element(visibleState()).not.toHaveClass("is-exit");
+		await expect.element(visibleState()).not.toHaveClass("is-enter-start");
 	});
 
 	it("respects external disabled prop", async () => {

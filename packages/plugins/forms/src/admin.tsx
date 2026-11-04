@@ -5,7 +5,8 @@
  * Communicates with the plugin's API routes via fetch.
  */
 
-import { Badge, Button, Checkbox, Input, Loader, Select } from "@cloudflare/kumo";
+import { Badge, Button, Checkbox, Input, InputArea, Loader, Select } from "@cloudflare/kumo";
+import { LinguiContext } from "@lingui/react";
 import {
 	Plus,
 	Trash,
@@ -23,6 +24,15 @@ import {
 import type { PluginAdminExports } from "emdash";
 import { apiFetch as baseFetch, getErrorMessage, parseApiResponse } from "emdash/plugin-utils";
 import * as React from "react";
+
+import {
+	FORMS_LOAD_FAILED,
+	SUBMISSIONS_LOAD_FAILED,
+	formsLoadError,
+	submissionsLoadError,
+	writeError,
+} from "./admin-errors.js";
+import type { FieldCondition } from "./types.js";
 
 // =============================================================================
 // Constants
@@ -46,6 +56,27 @@ function apiFetch(route: string, body?: unknown): Promise<Response> {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(body ?? {}),
 	});
+}
+
+/**
+ * POST a write route. On a non-ok response or a thrown error, reports a message
+ * through `onError` (403 becomes a permission message) and returns null.
+ */
+async function apiWrite(
+	route: string,
+	body: unknown,
+	fallback: string,
+	onError: (message: string) => void,
+): Promise<Response | null> {
+	onError("");
+	try {
+		const res = await apiFetch(route, body);
+		if (res.ok) return res;
+		onError(writeError(res, fallback));
+	} catch {
+		onError(fallback);
+	}
+	return null;
 }
 
 // =============================================================================
@@ -81,7 +112,12 @@ interface FormField {
 	validation?: Record<string, unknown>;
 	options?: Array<{ label: string; value: string }>;
 	defaultValue?: string;
+	condition?: FieldCondition;
 	width: "full" | "half";
+}
+
+interface EditorField extends FormField {
+	conditionFieldId?: string;
 }
 
 interface FormSettings {
@@ -90,6 +126,7 @@ interface FormSettings {
 	notifyEmails: string[];
 	digestEnabled: boolean;
 	digestHour: number;
+	autoresponder?: { subject: string; body: string } | null;
 	webhookUrl?: string;
 	retentionDays: number;
 	spamProtection: "none" | "honeypot" | "turnstile";
@@ -105,7 +142,6 @@ interface SubmissionItem {
 	notes?: string;
 	createdAt: string;
 	meta: {
-		ip: string | null;
 		country: string | null;
 	};
 }
@@ -153,6 +189,11 @@ function formatDateTime(iso: string): string {
 	});
 }
 
+function useEditorI18n() {
+	// Older hosts may load a separate Lingui context for plugin source.
+	return React.useContext(LinguiContext)?.i18n ?? { _: (message: string) => message };
+}
+
 function autoName(label: string): string {
 	return label
 		.toLowerCase()
@@ -180,6 +221,7 @@ function FormsListPage() {
 	const [forms, setForms] = React.useState<FormItem[]>([]);
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
+	const [actionError, setActionError] = React.useState<string | null>(null);
 	const [editingForm, setEditingForm] = React.useState<FormItem | null>(null);
 	const [creating, setCreating] = React.useState(false);
 
@@ -187,13 +229,13 @@ function FormsListPage() {
 		try {
 			const res = await apiFetch("forms/list");
 			if (!res.ok) {
-				setError("Failed to load forms");
+				setError(formsLoadError(res));
 				return;
 			}
 			const data = await parseApiResponse<{ items: FormItem[] }>(res);
 			setForms(data.items);
 		} catch {
-			setError("Failed to load forms");
+			setError(FORMS_LOAD_FAILED);
 		} finally {
 			setLoading(false);
 		}
@@ -205,25 +247,34 @@ function FormsListPage() {
 
 	const handleToggleStatus = async (form: FormItem) => {
 		const newStatus = form.status === "active" ? "paused" : "active";
-		const res = await apiFetch("forms/update", {
-			id: form.id,
-			status: newStatus,
-		});
-		if (res.ok) await loadForms();
+		const res = await apiWrite(
+			"forms/update",
+			{ id: form.id, status: newStatus },
+			"Failed to update form",
+			setActionError,
+		);
+		if (res) await loadForms();
 	};
 
 	const handleDuplicate = async (form: FormItem) => {
-		const res = await apiFetch("forms/duplicate", { id: form.id });
-		if (res.ok) await loadForms();
+		const res = await apiWrite(
+			"forms/duplicate",
+			{ id: form.id },
+			"Failed to duplicate form",
+			setActionError,
+		);
+		if (res) await loadForms();
 	};
 
 	const handleDelete = async (form: FormItem) => {
 		if (!confirm(`Delete "${form.name}" and all its submissions?`)) return;
-		const res = await apiFetch("forms/delete", {
-			id: form.id,
-			deleteSubmissions: true,
-		});
-		if (res.ok) await loadForms();
+		const res = await apiWrite(
+			"forms/delete",
+			{ id: form.id, deleteSubmissions: true },
+			"Failed to delete form",
+			setActionError,
+		);
+		if (res) await loadForms();
 	};
 
 	if (editingForm || creating) {
@@ -270,6 +321,15 @@ function FormsListPage() {
 					New Form
 				</Button>
 			</div>
+
+			{actionError && (
+				<div
+					role="alert"
+					className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive"
+				>
+					{actionError}
+				</div>
+			)}
 
 			{forms.length === 0 ? (
 				<EmptyState
@@ -402,10 +462,25 @@ function FormEditor({
 	onSave: () => void;
 	onCancel: () => void;
 }) {
+	const i18n = useEditorI18n();
 	const [name, setName] = React.useState(form?.name ?? "");
 	const [slug, setSlug] = React.useState(form?.slug ?? "");
-	const [fields, setFields] = React.useState<FormField[]>(form?.pages[0]?.fields ?? []);
+	const [fields, setFields] = React.useState<EditorField[]>(() => {
+		const initialFields = form?.pages[0]?.fields ?? [];
+		return initialFields.map((field) => ({
+			...field,
+			conditionFieldId: field.condition
+				? initialFields.find((controller) => controller.name === field.condition?.field)?.id
+				: undefined,
+		}));
+	});
 	const [settings, setSettings] = React.useState<Partial<FormSettings>>(form?.settings ?? {});
+	const [autoresponderEnabled, setAutoresponderEnabled] = React.useState(
+		form?.settings.autoresponder != null,
+	);
+	const [autoresponderDraft, setAutoresponderDraft] = React.useState(
+		form?.settings.autoresponder ?? { subject: "", body: "" },
+	);
 	const [saving, setSaving] = React.useState(false);
 	const [error, setError] = React.useState<string | null>(null);
 	const [turnstileStatus, setTurnstileStatus] = React.useState<{
@@ -452,12 +527,32 @@ function FormEditor({
 		]);
 	};
 
-	const updateField = (index: number, updates: Partial<FormField>) => {
-		setFields((prev) => prev.map((f, i) => (i === index ? { ...f, ...updates } : f)));
+	const updateField = (index: number, updates: Partial<EditorField>) => {
+		setFields((prev) =>
+			prev.map((field, i) => {
+				const updated = i === index ? { ...field, ...updates } : field;
+				if (
+					updates.name !== undefined &&
+					updated.condition &&
+					updated.conditionFieldId === prev[index]?.id
+				) {
+					return { ...updated, condition: { ...updated.condition, field: updates.name } };
+				}
+				return updated;
+			}),
+		);
 	};
 
 	const removeField = (index: number) => {
-		setFields((prev) => prev.filter((_, i) => i !== index));
+		setFields((prev) =>
+			prev
+				.filter((_, i) => i !== index)
+				.map((field) =>
+					field.conditionFieldId === prev[index]?.id
+						? { ...field, condition: undefined, conditionFieldId: undefined }
+						: field,
+				),
+		);
 	};
 
 	const moveField = (index: number, direction: -1 | 1) => {
@@ -465,7 +560,7 @@ function FormEditor({
 		if (target < 0 || target >= fields.length) return;
 		setFields((prev) => {
 			const next = [...prev];
-			[next[index]!, next[target]!] = [next[target]!, next[index]!];
+			[next[index], next[target]] = [next[target]!, next[index]!];
 			return next;
 		});
 	};
@@ -486,21 +581,34 @@ function FormEditor({
 			}
 		}
 
+		if (
+			autoresponderEnabled &&
+			(!autoresponderDraft.subject.trim() || !autoresponderDraft.body.trim())
+		) {
+			setError(i18n._("Autoresponder subject and body are required"));
+			return;
+		}
+
 		setSaving(true);
 		setError(null);
 
+		const savedSettings = {
+			...settings,
+			autoresponder: autoresponderEnabled ? autoresponderDraft : form ? null : undefined,
+		};
+		const savedFields = fields.map(({ conditionFieldId: _controllerId, ...field }) => field);
 		const payload = form
 			? {
 					id: form.id,
 					name,
 					slug,
-					pages: [{ fields }],
-					settings,
+					pages: [{ fields: savedFields }],
+					settings: savedSettings,
 				}
 			: {
 					name,
 					slug,
-					pages: [{ fields }],
+					pages: [{ fields: savedFields }],
 					settings: {
 						confirmationMessage: "Thank you for your submission.",
 						notifyEmails: [],
@@ -509,7 +617,7 @@ function FormEditor({
 						retentionDays: 0,
 						spamProtection: "honeypot",
 						submitLabel: "Submit",
-						...settings,
+						...savedSettings,
 					},
 				};
 
@@ -581,6 +689,7 @@ function FormEditor({
 							<FieldRow
 								key={field.id}
 								field={field}
+								fields={fields}
 								index={index}
 								total={fields.length}
 								onChange={(updates) => updateField(index, updates)}
@@ -649,6 +758,66 @@ function FormEditor({
 							}))
 						}
 					/>
+					<Checkbox
+						label={i18n._("Daily digest")}
+						checked={settings.digestEnabled ?? false}
+						onCheckedChange={(checked) => setSettings((s) => ({ ...s, digestEnabled: checked }))}
+					/>
+					{settings.digestEnabled && (
+						<Select
+							label={i18n._("Digest hour (UTC)")}
+							hideLabel={false}
+							value={String(settings.digestHour ?? 9)}
+							onValueChange={(v) => setSettings((s) => ({ ...s, digestHour: Number(v ?? 9) }))}
+							items={Array.from({ length: 24 }, (_, hour) => ({
+								label: `${String(hour).padStart(2, "0")}:00`,
+								value: String(hour),
+							}))}
+						/>
+					)}
+					<p className="col-span-2 text-sm text-kumo-subtle">
+						{i18n._(
+							"Send a daily summary to the notification recipients instead of an email for each submission. Email must be configured.",
+						)}
+					</p>
+					<div className="col-span-2 space-y-3">
+						<Checkbox
+							label={i18n._("Send an autoresponder")}
+							checked={autoresponderEnabled}
+							onCheckedChange={setAutoresponderEnabled}
+						/>
+						<p className="text-sm text-kumo-subtle">
+							{i18n._(
+								"Send a reply to the first email field in the form. Email must be configured.",
+							)}
+						</p>
+						{autoresponderEnabled && (
+							<>
+								<Input
+									label={i18n._("Autoresponder subject")}
+									value={autoresponderDraft.subject}
+									onChange={(e) =>
+										setAutoresponderDraft((draft) => ({ ...draft, subject: e.target.value }))
+									}
+								/>
+								<InputArea
+									label={i18n._("Autoresponder body")}
+									value={autoresponderDraft.body}
+									onChange={(e) =>
+										setAutoresponderDraft((draft) => ({ ...draft, body: e.target.value }))
+									}
+								/>
+							</>
+						)}
+					</div>
+					<div className="col-span-2">
+						<Input
+							label={i18n._("Webhook URL (optional)")}
+							type="url"
+							value={settings.webhookUrl ?? ""}
+							onChange={(e) => setSettings((s) => ({ ...s, webhookUrl: e.target.value }))}
+						/>
+					</div>
 					<div className="col-span-2">
 						<Input
 							label="Redirect URL (optional)"
@@ -681,19 +850,42 @@ function FormEditor({
 
 function FieldRow({
 	field,
+	fields,
 	index,
 	total,
 	onChange,
 	onRemove,
 	onMove,
 }: {
-	field: FormField;
+	field: EditorField;
+	fields: EditorField[];
 	index: number;
 	total: number;
-	onChange: (updates: Partial<FormField>) => void;
+	onChange: (updates: Partial<EditorField>) => void;
 	onRemove: () => void;
 	onMove: (direction: -1 | 1) => void;
 }) {
+	const i18n = useEditorI18n();
+	const conditionFields = fields.filter(
+		(f) =>
+			f.id !== field.id &&
+			((f.name && !["checkbox-group", "file"].includes(f.type)) || f.id === field.conditionFieldId),
+	);
+	const conditionItems = [
+		{ label: i18n._("Always visible"), value: "" },
+		...conditionFields.map((f) => ({
+			label: f.name ? `${f.label} (${f.name})` : f.label || i18n._("Unnamed field"),
+			value: `id:${f.id}`,
+		})),
+	];
+	const conditionValue = field.conditionFieldId
+		? `id:${field.conditionFieldId}`
+		: field.condition
+			? `name:${field.condition.field}`
+			: "";
+	if (field.condition && !conditionItems.some((item) => item.value === conditionValue)) {
+		conditionItems.push({ label: field.condition.field, value: conditionValue });
+	}
 	const needsOptions = ["select", "radio", "checkbox-group"].includes(field.type);
 
 	const handleLabelChange = (label: string) => {
@@ -776,6 +968,84 @@ function FieldRow({
 				</div>
 			</div>
 
+			<div className="ms-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
+				{(["text", "email", "textarea", "number", "tel", "url"].includes(field.type) ||
+					(field.type === "select" && field.required)) && (
+					<Input
+						label={i18n._("Placeholder")}
+						value={field.placeholder ?? ""}
+						onChange={(e) => onChange({ placeholder: e.target.value })}
+					/>
+				)}
+				{field.type !== "hidden" && (
+					<Input
+						label={i18n._("Help text")}
+						value={field.helpText ?? ""}
+						onChange={(e) => onChange({ helpText: e.target.value })}
+					/>
+				)}
+				{!["checkbox", "checkbox-group", "file"].includes(field.type) && (
+					<Input
+						label={i18n._("Default value")}
+						value={field.defaultValue ?? ""}
+						onChange={(e) => onChange({ defaultValue: e.target.value })}
+					/>
+				)}
+			</div>
+			<div className="ms-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
+				<Select
+					label={i18n._("Show when field")}
+					hideLabel={false}
+					value={conditionValue}
+					items={conditionItems}
+					onValueChange={(value) => {
+						if (!value) {
+							onChange({ condition: undefined, conditionFieldId: undefined });
+							return;
+						}
+						const controller = conditionFields.find((f) => `id:${f.id}` === value);
+						if (!controller) return;
+						onChange({
+							conditionFieldId: controller.id,
+							condition: {
+								field: controller.name,
+								op: field.condition?.op ?? "filled",
+								value: field.condition?.value ?? "",
+							},
+						});
+					}}
+				/>
+				{field.condition && (
+					<>
+						<Select
+							label={i18n._("Condition operator")}
+							hideLabel={false}
+							value={field.condition.op}
+							items={[
+								{ label: i18n._("Equals"), value: "eq" },
+								{ label: i18n._("Does not equal"), value: "neq" },
+								{ label: i18n._("Is filled"), value: "filled" },
+								{ label: i18n._("Is empty"), value: "empty" },
+							]}
+							onValueChange={(op) =>
+								onChange({
+									condition: { ...field.condition!, op: (op ?? "eq") as FieldCondition["op"] },
+								})
+							}
+						/>
+						{["eq", "neq"].includes(field.condition.op) && (
+							<Input
+								label={i18n._("Condition value")}
+								value={field.condition.value ?? ""}
+								onChange={(e) =>
+									onChange({ condition: { ...field.condition!, value: e.target.value } })
+								}
+							/>
+						)}
+					</>
+				)}
+			</div>
+
 			{needsOptions && (
 				<OptionsEditor
 					options={field.options ?? []}
@@ -856,18 +1126,25 @@ function SubmissionsPage() {
 	const [loading, setLoading] = React.useState(true);
 	const [subsLoading, setSubsLoading] = React.useState(false);
 	const [selectedSub, setSelectedSub] = React.useState<SubmissionItem | null>(null);
+	const [error, setError] = React.useState<string | null>(null);
+	const [subsError, setSubsError] = React.useState<string | null>(null);
+	const [actionError, setActionError] = React.useState<string | null>(null);
 
 	React.useEffect(() => {
 		void (async () => {
 			try {
 				const res = await apiFetch("forms/list");
-				if (res.ok) {
-					const data = await parseApiResponse<{ items: FormItem[] }>(res);
-					setForms(data.items);
-					if (data.items.length > 0 && data.items[0]) {
-						setSelectedFormId(data.items[0].id);
-					}
+				if (!res.ok) {
+					setError(formsLoadError(res));
+					return;
 				}
+				const data = await parseApiResponse<{ items: FormItem[] }>(res);
+				setForms(data.items);
+				if (data.items.length > 0 && data.items[0]) {
+					setSelectedFormId(data.items[0].id);
+				}
+			} catch {
+				setError(FORMS_LOAD_FAILED);
 			} finally {
 				setLoading(false);
 			}
@@ -876,7 +1153,10 @@ function SubmissionsPage() {
 
 	React.useEffect(() => {
 		if (!selectedFormId) return;
+		let stale = false;
 		setSubsLoading(true);
+		setSubsError(null);
+		setActionError(null);
 		setSelectedSub(null);
 		void (async () => {
 			try {
@@ -886,22 +1166,36 @@ function SubmissionsPage() {
 				};
 				if (statusFilter) body.status = statusFilter;
 				const res = await apiFetch("submissions/list", body);
-				if (res.ok) {
-					const data = await parseApiResponse<{ items: SubmissionItem[] }>(res);
-					setSubmissions(data.items);
+				if (stale) return;
+				if (!res.ok) {
+					setSubmissions([]);
+					setSubsError(submissionsLoadError(res));
+					return;
 				}
+				const data = await parseApiResponse<{ items: SubmissionItem[] }>(res);
+				if (stale) return;
+				setSubmissions(data.items);
+			} catch {
+				if (stale) return;
+				setSubmissions([]);
+				setSubsError(SUBMISSIONS_LOAD_FAILED);
 			} finally {
-				setSubsLoading(false);
+				if (!stale) setSubsLoading(false);
 			}
 		})();
+		return () => {
+			stale = true;
+		};
 	}, [selectedFormId, statusFilter]);
 
 	const handleToggleStar = async (sub: SubmissionItem) => {
-		const res = await apiFetch("submissions/update", {
-			id: sub.id,
-			starred: !sub.starred,
-		});
-		if (res.ok) {
+		const res = await apiWrite(
+			"submissions/update",
+			{ id: sub.id, starred: !sub.starred },
+			"Failed to update submission",
+			setActionError,
+		);
+		if (res) {
 			setSubmissions((prev) =>
 				prev.map((s) => (s.id === sub.id ? { ...s, starred: !s.starred } : s)),
 			);
@@ -911,11 +1205,13 @@ function SubmissionsPage() {
 
 	const handleMarkRead = async (sub: SubmissionItem) => {
 		const newStatus = sub.status === "new" ? "read" : sub.status === "read" ? "archived" : "new";
-		const res = await apiFetch("submissions/update", {
-			id: sub.id,
-			status: newStatus,
-		});
-		if (res.ok) {
+		const res = await apiWrite(
+			"submissions/update",
+			{ id: sub.id, status: newStatus },
+			"Failed to update submission",
+			setActionError,
+		);
+		if (res) {
 			setSubmissions((prev) =>
 				prev.map((s) => (s.id === sub.id ? { ...s, status: newStatus } : s)),
 			);
@@ -925,8 +1221,13 @@ function SubmissionsPage() {
 
 	const handleDelete = async (sub: SubmissionItem) => {
 		if (!confirm("Delete this submission?")) return;
-		const res = await apiFetch("submissions/delete", { id: sub.id });
-		if (res.ok) {
+		const res = await apiWrite(
+			"submissions/delete",
+			{ id: sub.id },
+			"Failed to delete submission",
+			setActionError,
+		);
+		if (res) {
 			setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
 			if (selectedSub?.id === sub.id) setSelectedSub(null);
 		}
@@ -934,11 +1235,14 @@ function SubmissionsPage() {
 
 	const handleExport = async (format: "csv" | "json") => {
 		if (!selectedFormId) return;
-		const res = await apiFetch("submissions/export", {
-			formId: selectedFormId,
-			format,
-		});
-		if (res.ok) {
+		const res = await apiWrite(
+			"submissions/export",
+			{ formId: selectedFormId, format },
+			"Failed to export submissions",
+			setActionError,
+		);
+		if (!res) return;
+		try {
 			const data = await parseApiResponse<{ data: string; filename?: string }>(res);
 			const blob = new Blob([format === "csv" ? data.data : JSON.stringify(data.data, null, 2)], {
 				type: format === "csv" ? "text/csv" : "application/json",
@@ -949,6 +1253,8 @@ function SubmissionsPage() {
 			a.download = data.filename ?? `submissions.${format}`;
 			a.click();
 			URL.revokeObjectURL(url);
+		} catch {
+			setActionError("Failed to export submissions");
 		}
 	};
 
@@ -956,6 +1262,17 @@ function SubmissionsPage() {
 		return (
 			<div className="flex items-center justify-center py-16">
 				<Loader />
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="space-y-6">
+				<h1 className="text-3xl font-bold">Submissions</h1>
+				<div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
+					{error}
+				</div>
 			</div>
 		);
 	}
@@ -1006,6 +1323,15 @@ function SubmissionsPage() {
 				</div>
 			</div>
 
+			{actionError && (
+				<div
+					role="alert"
+					className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive"
+				>
+					{actionError}
+				</div>
+			)}
+
 			{/* Filters */}
 			<div className="flex items-center gap-3">
 				<div className="w-56">
@@ -1037,6 +1363,13 @@ function SubmissionsPage() {
 					{subsLoading ? (
 						<div className="flex items-center justify-center py-8">
 							<Loader />
+						</div>
+					) : subsError ? (
+						<div
+							role="alert"
+							className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive"
+						>
+							{subsError}
 						</div>
 					) : submissions.length === 0 ? (
 						<EmptyState
@@ -1202,27 +1535,37 @@ function RecentSubmissionsWidget() {
 	const [forms, setForms] = React.useState<FormItem[]>([]);
 	const [submissions, setSubmissions] = React.useState<SubmissionItem[]>([]);
 	const [loading, setLoading] = React.useState(true);
+	const [error, setError] = React.useState<string | null>(null);
 
 	React.useEffect(() => {
 		void (async () => {
+			let failure = FORMS_LOAD_FAILED;
 			try {
 				const formsRes = await apiFetch("forms/list");
-				if (!formsRes.ok) return;
+				if (!formsRes.ok) {
+					setError(formsLoadError(formsRes));
+					return;
+				}
 				const formsData = await parseApiResponse<{ items: FormItem[] }>(formsRes);
 				setForms(formsData.items);
 
 				if (formsData.items.length > 0 && formsData.items[0]) {
+					failure = SUBMISSIONS_LOAD_FAILED;
 					const subsRes = await apiFetch("submissions/list", {
 						formId: formsData.items[0].id,
 						limit: 5,
 					});
-					if (subsRes.ok) {
-						const subsData = await parseApiResponse<{
-							items: SubmissionItem[];
-						}>(subsRes);
-						setSubmissions(subsData.items);
+					if (!subsRes.ok) {
+						setError(submissionsLoadError(subsRes));
+						return;
 					}
+					const subsData = await parseApiResponse<{
+						items: SubmissionItem[];
+					}>(subsRes);
+					setSubmissions(subsData.items);
 				}
+			} catch {
+				setError(failure);
 			} finally {
 				setLoading(false);
 			}
@@ -1235,6 +1578,10 @@ function RecentSubmissionsWidget() {
 				<Loader />
 			</div>
 		);
+	}
+
+	if (error) {
+		return <div className="text-center text-sm text-muted-foreground py-4">{error}</div>;
 	}
 
 	if (forms.length === 0) {

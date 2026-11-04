@@ -220,6 +220,38 @@ describe("renderToolbar", () => {
 		expect(vi.getTimerCount()).toBe(expected.timers);
 	});
 
+	describe("admin window name", () => {
+		function adminWindowNameIn(script: string): (c: string, i: string) => string {
+			const start = script.indexOf("function adminWindowName(");
+			const end = script.indexOf("// Fallback: open admin");
+			if (start < 0 || end < 0) throw new Error("adminWindowName was not rendered");
+			const context = createContext({});
+			runInContext(script.slice(start, end), context);
+			return runInContext("adminWindowName", context) as (c: string, i: string) => string;
+		}
+
+		it("gives two entries two different window names", () => {
+			const adminWindowName = adminWindowNameIn(toolbarScript(actionToolbar()));
+			expect(adminWindowName("posts", "post-1")).not.toBe(adminWindowName("posts", "post-2"));
+			expect(adminWindowName("posts", "a")).not.toBe(adminWindowName("pages", "a"));
+		});
+
+		it("gives one entry the same name every time, so a repeat click reuses its window", () => {
+			const adminWindowName = adminWindowNameIn(toolbarScript(actionToolbar()));
+			expect(adminWindowName("posts", "post-1")).toBe(adminWindowName("posts", "post-1"));
+		});
+
+		it("encodes the collection and id, so no two entries share a name", () => {
+			const adminWindowName = adminWindowNameIn(toolbarScript(actionToolbar()));
+			expect(adminWindowName("my posts", "id with spaces")).toBe(
+				"emdash-admin-my%20posts/id%20with%20spaces",
+			);
+			expect(adminWindowName("posts", "a.b")).not.toBe(adminWindowName("posts", "a b"));
+			expect(adminWindowName("posts-a", "b")).not.toBe(adminWindowName("posts", "a-b"));
+			expect(adminWindowName("a/b", "c")).not.toBe(adminWindowName("a", "b/c"));
+		});
+	});
+
 	it("includes save status element", () => {
 		const html = renderToolbar({ editMode: true, isPreview: false });
 		expect(html).toContain('id="emdash-tb-save-status"');

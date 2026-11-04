@@ -163,6 +163,7 @@ export function UserDetail({
 											/>
 										)}
 										<Input
+											dir="ltr"
 											label={t`Email`}
 											type="email"
 											value={email}

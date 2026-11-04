@@ -1,51 +1,76 @@
 ---
 interface Props {
-	compact?: boolean;
+	loading?: "eager" | "lazy";
 }
 
-const { compact = false } = Astro.props;
+const { loading = "eager" } = Astro.props;
 ---
 
-<span class:list={["logo", { compact }]}>
+<span class="logo">
 	<span class="brand-name">EmDash</span>
 	<img
-		class="logo-light"
+		class="wordmark wordmark-light"
 		src="/logo-light.svg"
 		width="471"
 		height="118"
 		alt=""
 		aria-hidden="true"
+		loading={loading}
+		decoding="async"
 	/>
 	<img
-		class="logo-dark"
+		class="wordmark wordmark-dark"
 		src="/logo-dark.svg"
 		width="471"
 		height="118"
 		alt=""
 		aria-hidden="true"
+		loading={loading}
+		decoding="async"
 	/>
-	{!compact && <strong>Plugins</strong>}
+	<span class="divider" aria-hidden="true"></span>
+	<span class="product">Plugins</span>
 </span>
 
 <style>
 	.logo {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 12px;
 		color: var(--ink);
-		font-size: 1rem;
-		font-weight: 700;
-		letter-spacing: -0.025em;
+		font-size: 15px;
+		font-weight: 600;
+		line-height: 1;
+		letter-spacing: -0.01em;
 	}
 
-	.logo img {
-		width: 6.75rem;
-		height: auto;
+	.wordmark {
+		display: block;
+		width: auto;
+		height: 26px;
 		flex: none;
 	}
 
-	.logo-dark {
+	.wordmark-dark {
 		display: none;
+	}
+
+	:global(:root[data-theme="dark"]) .wordmark-light {
+		display: none;
+	}
+
+	:global(:root[data-theme="dark"]) .wordmark-dark {
+		display: block;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:global(:root:not([data-theme])) .wordmark-light {
+			display: none;
+		}
+
+		:global(:root:not([data-theme])) .wordmark-dark {
+			display: block;
+		}
 	}
 
 	.brand-name {
@@ -53,24 +78,18 @@ const { compact = false } = Astro.props;
 		width: 1px;
 		height: 1px;
 		overflow: hidden;
-		clip-path: inset(50%);
 		white-space: nowrap;
+		clip-path: inset(50%);
 	}
 
-	:global([data-theme="dark"]) .logo-light {
-		display: none;
+	.divider {
+		width: 1px;
+		height: 16px;
+		flex: none;
+		background: var(--line-strong);
 	}
 
-	:global([data-theme="dark"]) .logo-dark {
-		display: block;
-	}
-
-	.logo strong {
-		color: var(--muted);
-		font-weight: 500;
-	}
-
-	.logo.compact strong {
-		display: none;
+	.product {
+		white-space: nowrap;
 	}
 </style>

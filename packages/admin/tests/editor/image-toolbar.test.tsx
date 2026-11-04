@@ -427,7 +427,7 @@ describe("Image toolbar", () => {
 	});
 
 	it("rings the selected image only while focus is in the editor", async () => {
-		const { img, caption } = await setup();
+		const { img, caption } = await setup({ image: { caption: "Red bike" } });
 		const ringed = () => getComputedStyle(img).boxShadow !== "none";
 		await selectImage(img);
 		expect(ringed()).toBe(true);
@@ -501,6 +501,45 @@ describe("Image toolbar", () => {
 		expectFocus(pm);
 	});
 
+	it("paints floating controls above the sticky toolbar when their layers overlap", async () => {
+		const { pm, img } = await setup();
+		const menu = await selectImage(img);
+		const root = pm.closest<HTMLElement>("[data-emdash-editor-floating-root]")!;
+		const floating = [...root.children].find((child) => child.contains(menu)) as HTMLElement;
+		const toolbar = document.querySelector<HTMLElement>(
+			'[role="toolbar"][aria-label="Text formatting"]',
+		)!;
+		toolbar.style.position = "sticky";
+		toolbar.style.zIndex = "20";
+		const toolbarRect = toolbar.getBoundingClientRect();
+		// Force an overlap to exercise painting order rather than collision avoidance.
+		floating.style.setProperty("position", "fixed", "important");
+		floating.style.setProperty("left", `${toolbarRect.left}px`, "important");
+		floating.style.setProperty("top", `${toolbarRect.top}px`, "important");
+		const replace = button(menu, "Replace");
+		await vi.waitFor(() => {
+			const rect = replace.getBoundingClientRect();
+			const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+			expect(replace.contains(hit)).toBe(true);
+		});
+	});
+
+	it("moves between image controls with the arrow keys", async () => {
+		const { img } = await setup();
+		const toolbar = await selectImage(img);
+		const replace = button(toolbar, "Replace");
+		const alt = button(toolbar, "Alt text");
+		replace.focus();
+		await userEvent.keyboard("{ArrowRight}");
+		expect(document.activeElement).toBe(alt);
+		await userEvent.keyboard("{Home}");
+		expect(document.activeElement).toBe(replace);
+		await userEvent.keyboard("{ArrowLeft}");
+		expect(document.activeElement).toBe(button(toolbar, "Delete image"));
+		await userEvent.keyboard("{ArrowRight}");
+		expect(document.activeElement).toBe(replace);
+	});
+
 	it("opens the alt text and link rows from the keyboard", async () => {
 		const { pm, img } = await setup();
 		const toolbar = await selectImage(img);
@@ -540,14 +579,57 @@ describe("Image toolbar", () => {
 		expect(toolbar).toBeVisible();
 	});
 
+	it("keeps the cursor in place while typing at the start of a caption, and follows undo", async () => {
+		const { editor, img, caption } = await setup({ image: { caption: "Red bike" } });
+		await selectImage(img);
+		await userEvent.click(caption);
+		caption.setSelectionRange(0, 0);
+		await userEvent.keyboard("Big ");
+
+		expect(caption).toHaveValue("Big Red bike");
+		expect(caption.selectionStart).toBe(4);
+		expect(imageAttrs(editor)?.caption).toBe("Big Red bike");
+
+		editor.commands.undo();
+		await vi.waitFor(() => expect(caption).toHaveValue("Red bike"));
+	});
+
 	it("shows the toolbar when a caption is clicked from another field", async () => {
-		const { editor, caption } = await setup();
+		const { editor, caption } = await setup({ image: { caption: "Red bike" } });
 		await userEvent.click(document.querySelector<HTMLInputElement>('input[aria-label="Title"]')!);
 		await userEvent.click(caption);
 
 		expect(document.activeElement).toBe(caption);
 		expectImageSelected(editor);
 		await waitForToolbar();
+	});
+
+	it("takes no room for an empty caption until Add caption opens it", async () => {
+		const { img, caption } = await setup();
+		const figure = img.closest("figure")!;
+		const imageHeight = img.getBoundingClientRect().height;
+		expect(figure.getBoundingClientRect().height).toBeCloseTo(imageHeight, 0);
+
+		const toolbar = await selectImage(img);
+		await userEvent.click(button(toolbar, "Add caption"));
+		expect(document.activeElement).toBe(caption);
+		expect(figure.getBoundingClientRect().height).toBeGreaterThan(imageHeight);
+
+		await userEvent.keyboard("{Escape}");
+		await vi.waitFor(() =>
+			expect(figure.getBoundingClientRect().height).toBeCloseTo(imageHeight, 0),
+		);
+	});
+
+	it("keeps a caption under the image once it has text", async () => {
+		const { img, caption } = await setup();
+		const toolbar = await selectImage(img);
+		await userEvent.click(button(toolbar, "Add caption"));
+		await userEvent.keyboard("Red bike{Escape}");
+
+		expect(caption).toHaveValue("Red bike");
+		expect(caption).toBeVisible();
+		expect(button(toolbar, "Edit caption")).toHaveAttribute("aria-pressed", "true");
 	});
 
 	it("keeps text dropped on a caption out of the document", async () => {
