@@ -549,7 +549,9 @@ describe("GeneralSettings", () => {
 			await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
 			await screen.getByLabelText("New domain").fill("new.example");
 			await userEvent.keyboard("{Enter}");
-			await expect.element(screen.getByRole("alert")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Use https://new.example anyway" }))
+				.toBeInTheDocument();
 			await expect
 				.element(screen.getByText(/On Cloudflare Workers, the check may fail/))
 				.not.toBeInTheDocument();
