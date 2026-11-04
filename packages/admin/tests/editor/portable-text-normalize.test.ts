@@ -450,6 +450,12 @@ describe("shapes", () => {
 		expect(outline(remote.state.doc)).toBe(
 			'doc(paragraph("before"), paragraph("a"), bulletList(listItem(bulletList(listItem(paragraph("b"))))), paragraph("end"))',
 		);
+
+		const twoLines = createEditor(p("before"), ul(li(p("a"), p("a2"), ul(li(p("b"))))), p("end"));
+		apply(twoLines, liftFirstLine(twoLines));
+		expect(outline(twoLines.state.doc)).toBe(
+			'doc(paragraph("before"), paragraph("a"), bulletList(listItem(paragraph("a2"), bulletList(listItem(paragraph("b"))))), paragraph("end"))',
+		);
 	});
 
 	it("leaves a list item that already started with a nested list", () => {

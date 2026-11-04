@@ -134,7 +134,10 @@ function positionBefore(transactions: readonly Transaction[], pos: number): numb
 	return mapped;
 }
 
-/** Where the transactions' first change starts, in the document before them. */
+/**
+ * Where the transactions' first change starts, in the document before them:
+ * the steps before it move nothing.
+ */
 function firstChangeStart(transactions: readonly Transaction[]): number | null {
 	for (const transaction of transactions) {
 		for (const map of transaction.mapping.maps) {
@@ -320,7 +323,10 @@ function keepRemotelyEmptiedDocuments(): Plugin {
 	});
 }
 
-/** Whether `step` lifts the paragraph a list item starts with out of it, leaving the rest. */
+/**
+ * Whether `step` lifts the paragraph a list item starts with out of it, leaving
+ * the item to start with a nested list.
+ */
 function liftsItemStart(step: Step, before: ProseMirrorNode, after: ProseMirrorNode): boolean {
 	const gapFrom = numberField(step, "gapFrom");
 	const gapTo = numberField(step, "gapTo");
@@ -328,16 +334,17 @@ function liftsItemStart(step: Step, before: ProseMirrorNode, after: ProseMirrorN
 		return false;
 	}
 	const $gap = before.resolve(gapFrom);
-	if ($gap.parent.type.name !== "listItem" || $gap.index() !== 0 || gapTo >= $gap.end()) {
-		return false;
-	}
+	if ($gap.parent.type.name !== "listItem" || $gap.index() !== 0) return false;
+	const rest = before.resolve(gapTo).nodeAfter;
+	if (!rest || rest.type.name === "paragraph") return false;
 	return after.resolve(step.getMap().map(gapFrom, 1)).depth < $gap.depth;
 }
 
 /**
- * Lifting the paragraph a list item starts with out of it, as Delete before a
- * list can, did nothing when items had to start with a paragraph, so it still
- * does nothing.
+ * ProseMirror couldn't lift the paragraph a list item starts with out of it,
+ * leaving the item to start with a nested list, when items had to start with a
+ * paragraph, and the item would show as an empty bullet. A local transaction
+ * that does, as Delete before such a list makes, is dropped.
  */
 function keepListItemStarts(): Plugin {
 	return new Plugin({
