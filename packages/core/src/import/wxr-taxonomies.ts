@@ -325,11 +325,18 @@ async function ensureTermsBatch(
 	}
 }
 
+/** A term as the import's conflict messages name it */
+const describeTerm = (d: TermDescriptor) => `"${d.taxonomyName}/${d.slug}" (${d.locale})`;
+
 /**
  * Find or create terms whose locale the export records, each in that locale.
- * The members of one translation group are linked through `translationOf`;
- * the group's anchor is its member in the import's locale when there is one.
- * Existing rows are looked up in one batched SELECT per locale.
+ * The members of one translation group are linked through `translationOf`.
+ * Rows that already exist decide the group: missing members join it, anchored
+ * on the existing member in the import's locale when there is one. The import
+ * stops with a conflict when existing members sit in different groups, or
+ * when a missing member would give its group a second row in one locale,
+ * which the term API refuses too. Existing rows are looked up in one batched
+ * SELECT per locale, and the rows of their groups in batched SELECTs too.
  */
 async function ensureLocalizedTerms(
 	db: Kysely<Database>,
@@ -354,21 +361,66 @@ async function ensureLocalizedTerms(
 		else groups.set(groupKey, [d]);
 	}
 
-	const existing = new Map<string, string>();
+	// Existing rows, each with the translation group it belongs to
+	const existing = new Map<string, { id: string; group: string }>();
 	for (const [locale, localeDescriptors] of byLocale) {
 		for (const row of await findExistingTerms(db, localeDescriptors, locale)) {
-			existing.set(localizedTermKey(row.name, row.slug, locale), row.id);
+			existing.set(localizedTermKey(row.name, row.slug, locale), {
+				id: row.id,
+				group: row.translation_group ?? row.id,
+			});
 		}
 	}
 
-	for (const members of groups.values()) {
-		const ordered = members.toSorted(
+	// Resolve every group's existing members, and the translation group they
+	// share, before anything is created
+	const resolved = Array.from(groups.values(), (members) => {
+		const seen = new Set<string>();
+		const ordered: Array<{ d: TermDescriptor; key: string; row?: { id: string; group: string } }> =
+			[];
+		const sorted = members.toSorted(
 			(a, b) => Number(b.locale === importLocale) - Number(a.locale === importLocale),
 		);
-		let anchorId: string | undefined;
-		for (const d of ordered) {
+		for (const d of sorted) {
 			const key = localizedTermKey(d.taxonomyName, d.slug, d.locale!);
-			let termId = state.plan.termIdByNameSlugAndLocale.get(key) ?? existing.get(key);
+			// A term the export lists twice
+			if (seen.has(key)) continue;
+			seen.add(key);
+			ordered.push({ d, key, row: existing.get(key) });
+		}
+		const found = ordered.filter((member) => member.row !== undefined);
+		const existingGroups = new Set(found.map((member) => member.row!.group));
+		if (existingGroups.size > 1) {
+			throw new WxrTaxonomyConflictError(
+				`Cannot import: the translations ${found.map((member) => describeTerm(member.d)).join(" and ")} already exist in different translation groups. Link them in the admin (re-link via translationOf, or delete one) and retry.`,
+			);
+		}
+		const [group] = existingGroups;
+		return { ordered, found, group };
+	});
+
+	// A missing member may not give its group a second row in one locale
+	const occupied = await findGroupLocales(
+		db,
+		resolved.flatMap(({ group }) => (group === undefined ? [] : [group])),
+	);
+	for (const { ordered, found, group } of resolved) {
+		// Slug of each locale's row in the group the existing members share
+		const groupLocales = group === undefined ? undefined : occupied.get(group);
+		for (const { d, row } of ordered) {
+			const taken = row ? undefined : groupLocales?.get(d.locale!);
+			if (taken !== undefined) {
+				throw new WxrTaxonomyConflictError(
+					`Cannot import: term ${describeTerm(d)} would join the translation group of ${describeTerm(found[0].d)}, which already has "${d.taxonomyName}/${taken}" at locale "${d.locale}". Reconcile the rows in the admin (re-link via translationOf, or delete one) and retry.`,
+				);
+			}
+		}
+	}
+
+	for (const { ordered, found } of resolved) {
+		let anchorId = found[0]?.row?.id;
+		for (const { d, key, row } of ordered) {
+			let termId = row?.id ?? state.plan.termIdByNameSlugAndLocale.get(key);
 			if (termId) {
 				bump(state.plan.termsReused, d.taxonomyName);
 			} else {
@@ -403,16 +455,17 @@ async function findExistingTerms(
 	db: Kysely<Database>,
 	descriptors: TermDescriptor[],
 	locale: string | undefined,
-): Promise<Array<{ id: string; name: string; slug: string }>> {
+): Promise<Array<{ id: string; name: string; slug: string; translation_group: string | null }>> {
 	const { chunks, SQL_BATCH_SIZE } = await import("../utils/chunks.js");
-	const rows: Array<{ id: string; name: string; slug: string }> = [];
+	const rows: Array<{ id: string; name: string; slug: string; translation_group: string | null }> =
+		[];
 	const seenKeys = new Set<string>();
 
 	// Each pair uses 2 bind params, so limit each batch to SQL_BATCH_SIZE / 2 pairs.
 	for (const batch of chunks(descriptors, Math.floor(SQL_BATCH_SIZE / 2))) {
 		const batchRows = await db
 			.selectFrom("taxonomies")
-			.select(["id", "name", "slug"])
+			.select(["id", "name", "slug", "translation_group"])
 			.where((eb) =>
 				eb.or(batch.map((d) => eb.and([eb("name", "=", d.taxonomyName), eb("slug", "=", d.slug)]))),
 			)
@@ -429,6 +482,32 @@ async function findExistingTerms(
 	}
 
 	return rows;
+}
+
+/**
+ * Batched lookup of the rows in the given translation groups: for each group,
+ * the slug of its row in each locale.
+ */
+async function findGroupLocales(
+	db: Kysely<Database>,
+	groups: string[],
+): Promise<Map<string, Map<string, string>>> {
+	const { chunks, SQL_BATCH_SIZE } = await import("../utils/chunks.js");
+	const result = new Map<string, Map<string, string>>();
+	for (const batch of chunks([...new Set(groups)], SQL_BATCH_SIZE)) {
+		const rows = await db
+			.selectFrom("taxonomies")
+			.select(["translation_group", "locale", "slug"])
+			.where("translation_group", "in", batch)
+			.execute();
+		for (const row of rows) {
+			if (!row.translation_group) continue;
+			const locales = result.get(row.translation_group) ?? new Map<string, string>();
+			locales.set(row.locale, row.slug);
+			result.set(row.translation_group, locales);
+		}
+	}
+	return result;
 }
 
 /**
