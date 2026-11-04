@@ -1,8 +1,10 @@
+import { i18n } from "@lingui/core";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { page } from "vitest/browser";
 
 import "../../dist/styles.css";
+import { page } from "vitest/browser";
+
 import type { AdminManifest } from "../../src/lib/api";
 import type { DashboardStats } from "../../src/lib/api/dashboard";
 import { render } from "../utils/render.tsx";
@@ -39,6 +41,7 @@ vi.mock("../../src/lib/api/current-user", () => ({
 }));
 
 const { Dashboard } = await import("../../src/components/Dashboard");
+const { messages: ruMessages } = await import("../../src/locales/ru/messages.mjs");
 
 const manifest: AdminManifest = {
 	version: "1.0.0",
@@ -69,13 +72,17 @@ async function metricRects() {
 		const heading = card.querySelector("h2");
 		if (!heading) throw new Error("Metric label is missing");
 		const cardRect = card.getBoundingClientRect();
-		const headingRect = heading.getBoundingClientRect();
+		const inside = (element: Element) => {
+			const rect = element.getBoundingClientRect();
+			return (
+				rect.left >= cardRect.left - 0.5 &&
+				rect.right <= cardRect.right + 0.5 &&
+				element.scrollWidth <= element.clientWidth + 0.5
+			);
+		};
 		return {
 			top: Math.round(cardRect.top),
-			labelInside:
-				headingRect.left >= cardRect.left - 0.5 &&
-				headingRect.right <= cardRect.right + 0.5 &&
-				heading.scrollWidth <= heading.clientWidth + 0.5,
+			labelInside: [heading, ...heading.querySelectorAll("*")].every(inside),
 		};
 	});
 }
@@ -91,6 +98,8 @@ beforeEach(() => {
 
 afterEach(async () => {
 	document.documentElement.dir = "ltr";
+	document.documentElement.lang = "en";
+	i18n.loadAndActivate({ locale: "en", messages: {} });
 	await page.viewport(1280, 800);
 });
 
@@ -121,6 +130,30 @@ describe("Dashboard metrics layout", () => {
 			expect(rowCount(rects)).toBe(2);
 			expect(rects.every((rect) => rect.labelInside)).toBe(true);
 		});
+	});
+
+	it("keeps a long linked Scheduled label inside its card on a 320px phone", async () => {
+		i18n.loadAndActivate({ locale: "ru", messages: ruMessages });
+		document.documentElement.lang = "ru";
+		await page.viewport(320, 800);
+		const { userCount: _userCount, ...withoutUsers } = stats(2);
+		mockFetchDashboardStats.mockResolvedValue(withoutUsers);
+
+		const screen = await render(
+			<div className="p-6">
+				<Dashboard manifest={manifest} />
+			</div>,
+		);
+		const link = screen.getByRole("link", { name: "Запланировано" });
+		await expect.element(link).toBeVisible();
+		const rects = await metricRects();
+		const arrow = link.element().querySelector("svg");
+		if (!arrow) throw new Error("Scheduled arrow is missing");
+
+		expect(rects).toHaveLength(3);
+		expect(rowCount(rects)).toBe(1);
+		expect(rects.every((rect) => rect.labelInside)).toBe(true);
+		expect(arrow.getBoundingClientRect().width).toBeCloseTo(14, 0);
 	});
 
 	it("shows four metrics on one row on wide screens", async () => {

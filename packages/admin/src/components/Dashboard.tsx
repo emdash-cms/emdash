@@ -384,14 +384,14 @@ function SummaryMetrics({
 		return (
 			<div className={metricGridClass(3)}>
 				{[1, 2, 3].map((i) => (
-					<LayerCard key={i}>
-						<LayerCard.Secondary>
-							<DashboardCardInset>
+					<LayerCard key={i} className="min-w-0">
+						<LayerCard.Secondary className="text-sm sm:text-base">
+							<DashboardCardInset className="px-0 sm:px-3">
 								<SkeletonLine minWidth={45} maxWidth={70} />
 							</DashboardCardInset>
 						</LayerCard.Secondary>
-						<LayerCard.Primary className="text-3xl font-semibold leading-none">
-							<DashboardCardInset>
+						<LayerCard.Primary className="text-2xl font-semibold leading-none sm:text-3xl">
+							<DashboardCardInset className="px-0 sm:px-3">
 								<SkeletonLine minWidth={20} maxWidth={35} />
 							</DashboardCardInset>
 						</LayerCard.Primary>
@@ -450,12 +450,12 @@ function SummaryMetrics({
 						{metric.calendar ? (
 							<Link
 								to="/calendar"
-								className="group inline-flex items-center gap-1 rounded-sm hover:text-kumo-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
+								className="group rounded-sm hover:text-kumo-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
 							>
 								{metric.label}
 								<ArrowNext
 									aria-hidden="true"
-									className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100 motion-reduce:transition-none"
+									className="ms-1 inline-block size-3.5 align-[-0.125em] opacity-60 transition-opacity group-hover:opacity-100 motion-reduce:transition-none"
 								/>
 							</Link>
 						) : (
@@ -475,15 +475,13 @@ function SummaryMetrics({
 
 function metricGridClass(count: number) {
 	const columns =
-		count >= 5
-			? "grid-cols-3 lg:grid-flow-col lg:grid-cols-none lg:auto-cols-fr"
-			: count === 4
-				? "grid-cols-2 lg:grid-cols-4"
-				: count === 3
-					? "grid-cols-3"
-					: count === 2
-						? "grid-cols-2"
-						: "grid-cols-1";
+		count === 4
+			? "grid-cols-2 lg:grid-cols-4"
+			: count === 3
+				? "grid-cols-3"
+				: count === 2
+					? "grid-cols-2"
+					: "grid-cols-1";
 	return cn("grid gap-2 sm:gap-4", columns);
 }
 
