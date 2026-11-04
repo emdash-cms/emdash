@@ -54,6 +54,8 @@ type Hero = BlockValue & { _type: "hero"; title: string };
 const components = defineBlockComponents<Hero>({ hero: ({ value }) => value.title });
 Blocks<Hero>({ value: [], components });
 PortableText({ value: [] });
+PortableText({ value: undefined });
+PortableText({ value: null });
 const block: Block = { _type: "block", children: [], _key: "1", style: "normal" };
 Block({ node: block, index: 0, isInline: false });
 // @ts-expect-error PortableText value is required
