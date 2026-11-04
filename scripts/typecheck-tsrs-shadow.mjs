@@ -66,6 +66,7 @@ function run(bin, check) {
 		cwd: check.path,
 		encoding: "utf8",
 		maxBuffer: 64 * 1024 * 1024,
+		timeout: 60_000,
 	});
 	const ms = performance.now() - started;
 	const status = result.status ?? `${result.error?.code ?? result.signal}`;
@@ -85,7 +86,8 @@ function multisetMinus(a, b) {
 
 function median(numbers) {
 	const sorted = numbers.toSorted((a, b) => a - b);
-	return sorted[Math.floor(sorted.length / 2)];
+	const middle = Math.floor(sorted.length / 2);
+	return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
 }
 
 const rows = [];
