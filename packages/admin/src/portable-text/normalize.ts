@@ -11,7 +11,7 @@ import { Extension, type AnyExtension } from "@tiptap/core";
 import { isChangeOrigin } from "@tiptap/extension-collaboration";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, Transaction, type EditorState } from "@tiptap/pm/state";
-import type { Step } from "@tiptap/pm/transform";
+import { canJoin, liftTarget, type Step } from "@tiptap/pm/transform";
 
 export interface ChangedRange {
 	from: number;
@@ -134,15 +134,82 @@ function positionBefore(transactions: readonly Transaction[], pos: number): numb
 	return mapped;
 }
 
+/** Where the transactions' first change starts, in the document before them. */
+function firstChangeStart(transactions: readonly Transaction[]): number | null {
+	for (const transaction of transactions) {
+		for (const map of transaction.mapping.maps) {
+			let start: number | null = null;
+			map.forEach((oldStart) => {
+				start ??= oldStart;
+			});
+			if (start !== null) return start;
+		}
+	}
+	return null;
+}
+
+/**
+ * Whether the list item at `pos`, which starts with a nested list and started
+ * at `before` before the transactions, gives that list's items its place.
+ * ProseMirror did that when items had to start with a paragraph and an edit
+ * that started inside the item left text on the nested list's first line, by
+ * cutting into that line or pasting it. Otherwise it gave the item an empty
+ * paragraph.
+ */
+function liftsNestedItems(
+	node: ProseMirrorNode,
+	pos: number,
+	before: number | null,
+	transactions: readonly Transaction[],
+	oldDoc: ProseMirrorNode,
+): boolean {
+	const previous = before === null ? null : oldDoc.nodeAt(before);
+	const start = firstChangeStart(transactions);
+	if (before === null || previous?.type !== node.type || start === null) return false;
+	if (start <= before || start >= before + previous.nodeSize) return false;
+	let line = node;
+	let depth = 0;
+	while (!line.isTextblock) {
+		if (!line.firstChild) return false;
+		line = line.firstChild;
+		depth++;
+	}
+	const lineBefore = positionBefore(transactions, pos + depth + 1);
+	if (lineBefore === null) return true;
+	const $line = oldDoc.resolve(lineBefore);
+	if ($line.parentOffset === 0 && $line.parent.content.eq(line.content)) return false;
+	return $line.parentOffset < $line.parent.content.size;
+}
+
+/**
+ * Moves the items of the nested list that the list item at `pos` starts with up
+ * into the item's own list. What the item holds after that list stays in an
+ * item of its own, joined to the last moved item when it starts with a list.
+ */
+function liftNestedItems(tr: Transaction, pos: number) {
+	const item = tr.doc.nodeAt(pos)!;
+	const nested = item.firstChild!;
+	const $start = tr.doc.resolve(pos + 2);
+	const range = $start.blockRange(tr.doc.resolve(pos + 2 + nested.content.size));
+	const target = range ? liftTarget(range) : null;
+	if (!range || target === null) return;
+	const rest = pos + 1 + nested.nodeSize;
+	const steps = tr.steps.length;
+	tr.lift(range, target);
+	if (item.childCount < 2 || item.child(1).type.name === "paragraph") return;
+	const leftover = tr.mapping.slice(steps).map(rest) - 1;
+	if (canJoin(tr.doc, leftover)) tr.join(leftover);
+}
+
 /**
  * Gives back the shapes a local edit took from containers. A list item it left
- * without a leading paragraph gets one, and an empty list, quote or cell it
- * added gets an item or a paragraph. A list, list item or quote it emptied is
- * removed, as it was when they couldn't be empty, and so is a list or list item
- * that removal leaves empty; a cell it emptied gets a paragraph. A container
- * that already had its shape, such as one a merge left, is left alone, and only
- * what the edit itself emptied is removed, so this can't remove what another
- * client added.
+ * without a leading paragraph gets one, or gives the items of the nested list it
+ * starts with its place, and an empty list, quote or cell it added gets an item
+ * or a paragraph. A list, list item or quote it emptied is removed, as it was
+ * when they couldn't be empty, and so is a list or list item that removal leaves
+ * empty; a cell it emptied gets a paragraph. A container that already had its
+ * shape, such as one a merge left, is left alone, and only what the edit itself
+ * emptied is removed, so this can't remove what another client added.
  */
 function reshapeContainers(
 	state: EditorState,
@@ -153,6 +220,7 @@ function reshapeContainers(
 	const { doc } = state;
 	const refills = new Set<number>();
 	const removals = new Set<number>();
+	const lifts = new Set<number>();
 	for (const range of changedRanges(transactions)) {
 		const { from, to } = clamp(doc, range);
 		doc.nodesBetween(from, to, (node, pos) => {
@@ -168,15 +236,22 @@ function reshapeContainers(
 			) {
 				removals.add(pos);
 			} else if (previous?.type !== node.type || !misshapen(previous)) {
-				refills.add(pos);
+				const lifted =
+					node.type.name === "listItem" &&
+					liftsNestedItems(node, pos, before, transactions, oldState.doc);
+				(lifted ? lifts : refills).add(pos);
 			}
 			return true;
 		});
 	}
 	const { listItem, paragraph } = state.schema.nodes;
-	for (const pos of [...refills, ...removals].toSorted((a, b) => b - a)) {
+	for (const pos of [...refills, ...removals, ...lifts].toSorted((a, b) => b - a)) {
 		const mapped = tr.mapping.mapResult(pos);
 		if (mapped.deleted) continue;
+		if (lifts.has(pos)) {
+			liftNestedItems(tr, mapped.pos);
+			continue;
+		}
 		const $inside = tr.doc.resolve(mapped.pos + 1);
 		if (removals.has(pos)) {
 			let depth = $inside.depth;
@@ -245,10 +320,44 @@ function keepRemotelyEmptiedDocuments(): Plugin {
 	});
 }
 
+/** Whether `step` lifts the paragraph a list item starts with out of it, leaving the rest. */
+function liftsItemStart(step: Step, before: ProseMirrorNode, after: ProseMirrorNode): boolean {
+	const gapFrom = numberField(step, "gapFrom");
+	const gapTo = numberField(step, "gapTo");
+	if (gapFrom === undefined || gapTo === undefined || Reflect.get(step, "structure") !== true) {
+		return false;
+	}
+	const $gap = before.resolve(gapFrom);
+	if ($gap.parent.type.name !== "listItem" || $gap.index() !== 0 || gapTo >= $gap.end()) {
+		return false;
+	}
+	return after.resolve(step.getMap().map(gapFrom, 1)).depth < $gap.depth;
+}
+
+/**
+ * Lifting the paragraph a list item starts with out of it, as Delete before a
+ * list can, did nothing when items had to start with a paragraph, so it still
+ * does nothing.
+ */
+function keepListItemStarts(): Plugin {
+	return new Plugin({
+		filterTransaction(transaction) {
+			if (isRemote(transaction)) return true;
+			return !transaction.steps.some((step, index) =>
+				liftsItemStart(
+					step,
+					transaction.docs[index]!,
+					transaction.docs[index + 1] ?? transaction.doc,
+				),
+			);
+		},
+	});
+}
+
 export const PortableTextNormalizers = Extension.create({
 	name: "emdashPortableTextNormalizers",
 
 	addProseMirrorPlugins() {
-		return [keepRemotelyEmptiedDocuments(), localOnly(shapePlugin())];
+		return [keepRemotelyEmptiedDocuments(), keepListItemStarts(), localOnly(shapePlugin())];
 	},
 });

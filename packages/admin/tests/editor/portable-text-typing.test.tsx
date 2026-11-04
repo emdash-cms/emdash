@@ -673,6 +673,63 @@ describe("typing", () => {
 		expectShape(only, 'doc(p#k-before("before"~k-before-s), p#k-after("after"~k-after-s))@9');
 	});
 
+	it("edits at the start of an item that holds a nested list", async () => {
+		const cases: Array<[string, string, (editor: Editor) => Promise<void>]> = [
+			[
+				"paste-list-at-start-of-item",
+				'doc(p#k-intro("intro"~k-intro-s), ul(li(p#k-b("bb"~k-b-s), ul(li(p#k-c("cc"~k-c-s)))), li(p#new("x1")), li(p#new("x2", "dd"~k-d-s)), li(p#k-e("ee"~k-e-s))), p)@32',
+				async (editor) => {
+					select(editor, textPosition(editor, "dd", "start"));
+					editor.view.pasteHTML("<ul><li>x1</li><li>x2</li></ul>");
+				},
+			],
+			[
+				"select-into-nested-text-backspace",
+				'doc(p#k-intro("intro"~k-intro-s), ul(li(p#k-c("c"~k-c-s)), li(p#k-d("dd"~k-d-s)), li(p#k-e("ee"~k-e-s))), p)@10',
+				async (editor) => {
+					select(
+						editor,
+						textPosition(editor, "bb", "start"),
+						textPosition(editor, "cc", "start") + 1,
+					);
+					await userEvent.keyboard("{Backspace}");
+				},
+			],
+			[
+				"select-into-nested-text-enter",
+				'doc(p#k-intro("intro"~k-intro-s), ul(li(p#new, p#k-c("c"~k-c-s)), li(p#k-d("dd"~k-d-s)), li(p#k-e("ee"~k-e-s))), p)@12',
+				async (editor) => {
+					select(
+						editor,
+						textPosition(editor, "bb", "start"),
+						textPosition(editor, "cc", "start") + 1,
+					);
+					await userEvent.keyboard("{Enter}");
+				},
+			],
+			[
+				"delete-at-end-of-paragraph-before-list",
+				'doc(p#k-intro("intro"~k-intro-s), ul(li(p#k-b("bb"~k-b-s), ul(li(p#k-c("cc"~k-c-s)))), li(p#k-d("dd"~k-d-s)), li(p#k-e("ee"~k-e-s))), p)@6',
+				async (editor) => {
+					select(editor, textPosition(editor, "intro", "end"));
+					await userEvent.keyboard("{Delete}");
+				},
+			],
+		];
+		for (const [name, expected, run] of cases) {
+			const editor = await renderEditor([
+				block("k-intro", "intro"),
+				item("k-b", "bb"),
+				item("k-c", "cc", 2),
+				item("k-d", "dd"),
+				item("k-e", "ee"),
+			]);
+			await focus(editor, textPosition(editor, "intro", "start"));
+			await run(editor);
+			expectShape(editor, expected, name);
+		}
+	});
+
 	it("keeps a list another client's deletion empties", async () => {
 		const editor = await renderEditor([
 			block("k-before", "before"),

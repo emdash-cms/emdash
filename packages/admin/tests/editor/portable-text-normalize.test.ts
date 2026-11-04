@@ -7,6 +7,7 @@
 import { Editor, type JSONContent } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { TextSelection, type Transaction } from "@tiptap/pm/state";
+import { liftTarget } from "@tiptap/pm/transform";
 import { ySyncPluginKey } from "@tiptap/y-tiptap";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -409,6 +410,45 @@ describe("shapes", () => {
 		);
 		expect(outline(editor.state.doc)).toBe(
 			'doc(paragraph("a"), bulletList(listItem(paragraph)), paragraph("end"))',
+		);
+	});
+
+	it("moves up a nested list whose first line this client's edit cut into from the item's start", () => {
+		const content = [ul(li(p("a"), ul(li(p("bc"))))), p("end")];
+		const cut = (editor: Editor) => (t: Transaction) =>
+			t.delete(textblock(editor, "a"), textblock(editor, "bc") + 2);
+
+		const local = createEditor(...content);
+		apply(local, cut(local));
+		expect(outline(local.state.doc)).toBe(
+			'doc(bulletList(listItem(paragraph("c"))), paragraph("end"))',
+		);
+
+		const remote = createEditor(...content);
+		const rendered = apply(remote, cut(remote), { remote: true });
+		expect(remote.state.doc.eq(rendered)).toBe(true);
+		expect(outline(remote.state.doc)).toBe(
+			'doc(bulletList(listItem(bulletList(listItem(paragraph("c"))))), paragraph("end"))',
+		);
+	});
+
+	it("doesn't lift the paragraph a list item starts with out of it when this client does", () => {
+		const content = [p("before"), ul(li(p("a"), ul(li(p("b"))))), p("end")];
+		const liftFirstLine = (editor: Editor) => (t: Transaction) => {
+			const $line = t.doc.resolve(textblock(editor, "a") + 1);
+			const range = $line.blockRange()!;
+			t.lift(range, liftTarget(range)!);
+		};
+
+		const local = createEditor(...content);
+		const before = local.state.doc;
+		apply(local, liftFirstLine(local));
+		expect(local.state.doc.eq(before)).toBe(true);
+
+		const remote = createEditor(...content);
+		apply(remote, liftFirstLine(remote), { remote: true });
+		expect(outline(remote.state.doc)).toBe(
+			'doc(paragraph("before"), paragraph("a"), bulletList(listItem(bulletList(listItem(paragraph("b"))))), paragraph("end"))',
 		);
 	});
 
