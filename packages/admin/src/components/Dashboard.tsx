@@ -317,10 +317,18 @@ function DashboardDataError() {
 	);
 }
 
-function DashboardCardHeading({ children }: { children: React.ReactNode }) {
+function DashboardCardHeading({
+	children,
+	className,
+	headingClassName,
+}: {
+	children: React.ReactNode;
+	className?: string;
+	headingClassName?: string;
+}) {
 	return (
-		<LayerCard.Secondary>
-			<h2 className="px-3">{children}</h2>
+		<LayerCard.Secondary className={className}>
+			<h2 className={cn("px-3", headingClassName)}>{children}</h2>
 		</LayerCard.Secondary>
 	);
 }
@@ -374,7 +382,7 @@ function SummaryMetrics({
 }) {
 	if (loading) {
 		return (
-			<div className="grid gap-4 sm:grid-cols-3">
+			<div className={metricGridClass(3)}>
 				{[1, 2, 3].map((i) => (
 					<LayerCard key={i}>
 						<LayerCard.Secondary>
@@ -432,18 +440,13 @@ function SummaryMetrics({
 	];
 
 	return (
-		<div
-			className={
-				metrics.length === 4
-					? "grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-					: metrics.length === 3
-						? "grid gap-4 sm:grid-cols-3"
-						: "grid gap-4 sm:grid-cols-2"
-			}
-		>
+		<div className={metricGridClass(metrics.length)}>
 			{metrics.map((metric) => (
-				<LayerCard key={metric.label} data-testid="dashboard-metric">
-					<DashboardCardHeading>
+				<LayerCard key={metric.label} data-testid="dashboard-metric" className="min-w-0">
+					<DashboardCardHeading
+						className="text-sm sm:text-base"
+						headingClassName="min-w-0 px-0 break-words hyphens-auto sm:px-3"
+					>
 						{metric.calendar ? (
 							<Link
 								to="/calendar"
@@ -459,8 +462,8 @@ function SummaryMetrics({
 							metric.label
 						)}
 					</DashboardCardHeading>
-					<LayerCard.Primary className="text-3xl font-semibold leading-none tabular-nums">
-						<DashboardCardInset data-testid="dashboard-metric-value">
+					<LayerCard.Primary className="text-2xl font-semibold leading-none tabular-nums sm:text-3xl">
+						<DashboardCardInset data-testid="dashboard-metric-value" className="px-0 sm:px-3">
 							{metric.value}
 						</DashboardCardInset>
 					</LayerCard.Primary>
@@ -468,6 +471,20 @@ function SummaryMetrics({
 			))}
 		</div>
 	);
+}
+
+function metricGridClass(count: number) {
+	const columns =
+		count >= 5
+			? "grid-cols-3 lg:grid-flow-col lg:grid-cols-none lg:auto-cols-fr"
+			: count === 4
+				? "grid-cols-2 lg:grid-cols-4"
+				: count === 3
+					? "grid-cols-3"
+					: count === 2
+						? "grid-cols-2"
+						: "grid-cols-1";
+	return cn("grid gap-2 sm:gap-4", columns);
 }
 
 function SkeletonRows({ count }: { count: number }) {
