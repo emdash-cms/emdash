@@ -1,7 +1,7 @@
 ---
 title: Validate emdash() options
 type: feature-plan
-status: proposed
+status: implemented
 authors:
   - Kevin Kyburz (@swissky)
 discussion: null

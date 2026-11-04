@@ -142,6 +142,14 @@ function markSetupVerified(): void {
 	setupFlagStore[SETUP_VERIFIED_KEY] = true;
 }
 
+/** Nested request contexts copy this one, so call it before creating them. */
+function providePublicMediaUrl(storage: Storage | null): (storageKey: string) => string {
+	const resolve = createPublicMediaUrlResolver(storage);
+	const ctx = getRequestContext();
+	if (ctx) ctx.publicMediaUrl = resolve;
+	return resolve;
+}
+
 /** Whether i18n config has been initialized from the virtual module */
 let i18nInitialized = false;
 
@@ -901,6 +909,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						const runtime = await runtimeInit;
 						markSetupVerified();
 						const handlePublicPluginApiRoute = createPublicPluginApiRouteHandler(runtime);
+						const getPublicMediaUrl = providePublicMediaUrl(runtime.storage);
 						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
 							handlePublicPluginApiRoute,
@@ -908,7 +917,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 								getPublicPluginRouteMeta(runtime, pluginId, path),
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
-							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+							getPublicMediaUrl,
 							storage: runtime.storage,
 						} as EmDashHandlers;
 					} catch (error) {
@@ -1146,7 +1155,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					get db() {
 						return runtime.db;
 					},
-					getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+					getPublicMediaUrl: providePublicMediaUrl(runtime.storage),
 					hooks: runtime.hooks,
 					email: runtime.email,
 					configuredPlugins: runtime.configuredPlugins,
