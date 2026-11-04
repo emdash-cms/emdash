@@ -143,6 +143,82 @@ describe("admin Portable Text converter rules", () => {
 
 			expect(empty).toEqual(emptyParagraph);
 		});
+
+		it("saves a table whose second row a rowspan covers", () => {
+			const spanning: Node = {
+				type: "tableCell",
+				attrs: { colspan: 1, rowspan: 2, colwidth: null },
+				content: [{ type: "paragraph", content: [text("tall")] }],
+			};
+			const table: Node = {
+				type: "table",
+				attrs: { emdashKey: "t" },
+				content: [{ type: "tableRow", content: [spanning] }, { type: "tableRow" }],
+			};
+			const blocks = prosemirrorToPortableText(doc(table));
+
+			expect(
+				(blocks[0] as { rows: Array<{ cells: Array<{ rowspan?: number }> }> }).rows.map((row) =>
+					row.cells.map((tableCell) => tableCell.rowspan),
+				),
+			).toEqual([[2], []]);
+			expect(roundTripThroughSharedDocument(blocks)).toEqual(blocks);
+		});
+	});
+
+	describe("links that hold the same definition key", () => {
+		const link = (href: string): Mark => ({ type: "link", attrs: { href, target: null } });
+		const linkSpan = (key: string, href: string): Mark => ({
+			type: "emdashPortableTextSpan",
+			attrs: { key, markDefs: [{ _type: "link", _key: "link1", href }] },
+		});
+		const linked = (blocks: PortableTextBlock[]) => {
+			const block = blocks[0] as {
+				children: Array<{ text: string; marks?: string[] }>;
+				markDefs: Array<{ _key: string; href: string }>;
+			};
+			return block.children.map((span) => ({
+				text: span.text,
+				href: block.markDefs.find((markDef) => span.marks?.includes(markDef._key))?.href,
+			}));
+		};
+
+		it("keeps each link's destination when they point to different places", () => {
+			const saved = prosemirrorToPortableText(
+				doc(
+					paragraph(
+						"p",
+						text("first", [link("https://a.example"), linkSpan("s1", "https://a.example")]),
+						text(" and "),
+						text("second", [link("https://b.example"), linkSpan("s2", "https://a.example")]),
+					),
+				),
+			);
+
+			expect(linked(saved)).toEqual([
+				{ text: "first", href: "https://a.example" },
+				{ text: " and ", href: undefined },
+				{ text: "second", href: "https://b.example" },
+			]);
+			expect(roundTripThroughSharedDocument(saved)).toEqual(saved);
+		});
+
+		it("keeps one definition when they still point to the same place", () => {
+			const saved = prosemirrorToPortableText(
+				doc(
+					paragraph(
+						"p",
+						text("first", [link("https://a.example"), linkSpan("s1", "https://a.example")]),
+						text(" and "),
+						text("second", [link("https://a.example"), linkSpan("s2", "https://a.example")]),
+					),
+				),
+			);
+
+			expect((saved[0] as { markDefs: unknown[] }).markDefs).toEqual([
+				{ _type: "link", _key: "link1", href: "https://a.example" },
+			]);
+		});
 	});
 
 	describe("a table cell of several paragraphs", () => {

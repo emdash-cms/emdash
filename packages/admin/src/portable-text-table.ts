@@ -336,15 +336,21 @@ export function proseMirrorTableToPortableText(
 		}
 		const tableAttrs = asRecord(value.attrs);
 		const rows = value.content.map((row): UnknownRecord => {
-			if (!isRecord(row) || row.type !== "tableRow" || !Array.isArray(row.content)) {
+			// ProseMirror JSON omits the content of a row with no cells, such as one a rowspan covers.
+			if (
+				!isRecord(row) ||
+				row.type !== "tableRow" ||
+				(row.content !== undefined && !Array.isArray(row.content))
+			) {
 				return fail("INVALID_TABLE");
 			}
 			const attrs = asRecord(row.attrs);
+			const cells: unknown[] = Array.isArray(row.content) ? row.content : [];
 			return {
 				...safeFields(attrs.emdashData),
 				_type: "tableRow",
 				_key: readKey(attrs.emdashKey) ?? context.createKey(),
-				cells: row.content.map((cell) => pmCell(cell, context)),
+				cells: cells.map((cell) => pmCell(cell, context)),
 			};
 		});
 		return normalizeTable(

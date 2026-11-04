@@ -1,6 +1,6 @@
 /**
  * The editor's video block: its shape, and its ProseMirror attributes.
- * Keep in sync with the admin editor's `VideoNode`.
+ * Keep in sync with the admin editor's `video-block.ts`.
  */
 
 import type { PortableTextVideoBlock } from "./types.js";

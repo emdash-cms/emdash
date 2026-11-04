@@ -1055,9 +1055,8 @@ function convertMark(
 			const href = typeof rawHref === "string" ? rawHref : "";
 			const blank = mark.attrs?.target === "_blank";
 			const originalMarkDef = originalMarkDefs.find((markDef) => markDef._type === "link");
-			const mapKey = originalMarkDef
-				? `key:${originalMarkDef._key}`
-				: `value:${JSON.stringify([href, blank])}`;
+			// Two links can hold one definition's key, after a join or when one of them is edited.
+			const mapKey = JSON.stringify([originalMarkDef?._key ?? null, href, blank]);
 			if (markDefMap.has(mapKey)) {
 				return markDefMap.get(mapKey)!;
 			}
