@@ -27,6 +27,11 @@ const ADA = {
 
 const GRANTED: EntryLockStatus = { enabled: true, heldByCaller: true, holder: ADA };
 const HELD_BY_ADA: EntryLockStatus = { enabled: true, heldByCaller: false, holder: ADA };
+const HELD_BY_BOB: EntryLockStatus = {
+	enabled: true,
+	heldByCaller: false,
+	holder: { ...ADA, userId: "user-bob", userName: "Bob" },
+};
 
 /** Renders the hook's state so assertions read it out of the DOM. */
 function Probe() {
@@ -36,6 +41,7 @@ function Probe() {
 		<div>
 			<span data-testid="status">{lock.state.status}</span>
 			<span data-testid="read-only">{String(lock.readOnly)}</span>
+			<span data-testid="take-over-failed">{String(lock.takeOverFailed)}</span>
 			<span data-testid="last-report">{lastReport}</span>
 			<button type="button" onClick={lock.readInstead}>
 				read instead
@@ -168,6 +174,61 @@ describe("useEntryLock", () => {
 			"entry-1",
 			expect.objectContaining({ takeover: true }),
 		);
+	});
+
+	it("reports a failed take-over until the editor tries again", async () => {
+		acquireEntryLock
+			.mockResolvedValueOnce(HELD_BY_ADA)
+			.mockRejectedValueOnce(new Error("offline"))
+			.mockResolvedValueOnce(GRANTED);
+
+		const screen = await render(<Probe />);
+		await expect.element(screen.getByTestId("status")).toHaveTextContent("blocked");
+		await expect.element(screen.getByTestId("take-over-failed")).toHaveTextContent("false");
+
+		await screen.getByRole("button", { name: "take over" }).click();
+		await expect.element(screen.getByTestId("take-over-failed")).toHaveTextContent("true");
+		await expect.element(screen.getByTestId("status")).toHaveTextContent("blocked");
+
+		await screen.getByRole("button", { name: "take over" }).click();
+		await expect.element(screen.getByTestId("status")).toHaveTextContent("holding");
+		await expect.element(screen.getByTestId("take-over-failed")).toHaveTextContent("false");
+	});
+
+	it("keeps a failed take-over while the holder stays, and drops it once the lock changes hands", async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		acquireEntryLock.mockResolvedValueOnce(HELD_BY_ADA).mockRejectedValueOnce(new Error("offline"));
+
+		const screen = await render(<Probe />);
+		await expect.element(screen.getByTestId("status")).toHaveTextContent("blocked");
+		await screen.getByRole("button", { name: "take over" }).click();
+		await expect.element(screen.getByTestId("take-over-failed")).toHaveTextContent("true");
+
+		acquireEntryLock.mockResolvedValueOnce(HELD_BY_ADA);
+		await vi.advanceTimersByTimeAsync(ENTRY_LOCK_HEARTBEAT_MS + 100);
+		await vi.waitFor(() => expect(acquireEntryLock).toHaveBeenCalledTimes(3));
+		await expect.element(screen.getByTestId("take-over-failed")).toHaveTextContent("true");
+
+		acquireEntryLock.mockResolvedValue(GRANTED);
+		await vi.advanceTimersByTimeAsync(ENTRY_LOCK_HEARTBEAT_MS + 100);
+		await expect.element(screen.getByTestId("status")).toHaveTextContent("holding");
+		await expect.element(screen.getByTestId("take-over-failed")).toHaveTextContent("false");
+	});
+
+	it("drops a failed take-over once someone else holds the lock", async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		acquireEntryLock.mockResolvedValueOnce(HELD_BY_ADA).mockRejectedValueOnce(new Error("offline"));
+
+		const screen = await render(<Probe />);
+		await expect.element(screen.getByTestId("status")).toHaveTextContent("blocked");
+		await screen.getByRole("button", { name: "take over" }).click();
+		await expect.element(screen.getByTestId("take-over-failed")).toHaveTextContent("true");
+
+		acquireEntryLock.mockResolvedValue(HELD_BY_BOB);
+		await vi.advanceTimersByTimeAsync(ENTRY_LOCK_HEARTBEAT_MS + 100);
+		await vi.waitFor(() => expect(acquireEntryLock).toHaveBeenCalledTimes(3));
+		await expect.element(screen.getByTestId("status")).toHaveTextContent("blocked");
+		await expect.element(screen.getByTestId("take-over-failed")).toHaveTextContent("false");
 	});
 
 	it("switches to read-only when a save is refused by someone else's lock", async () => {

@@ -8,6 +8,7 @@ import { createDatabase } from "../../../src/database/connection.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database } from "../../../src/database/types.js";
 import { getMenuWithDb, getMenusWithDb } from "../../../src/menus/index.js";
+import { runWithContext } from "../../../src/request-context.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { sanitizeHref } from "../../../src/utils/url.js";
 
@@ -442,8 +443,8 @@ describe("Navigation Menus", () => {
 		it("resolves entry references from the content picker to the entry URL", async () => {
 			await setupProjectsCollection();
 			await sql`
-				INSERT INTO ec_projects (id, slug, locale, translation_group)
-				VALUES ('proj-1', 'widget-co', 'en', 'group-proj-1')
+				INSERT INTO ec_projects (id, slug, status, locale, translation_group)
+				VALUES ('proj-1', 'widget-co', 'published', 'en', 'group-proj-1')
 			`.execute(db);
 			await insertMenuWithCollectionItem({
 				referenceCollection: "projects",
@@ -459,8 +460,8 @@ describe("Navigation Menus", () => {
 		it("applies the collection url_pattern to entry references", async () => {
 			await setupProjectsCollection("/work/{slug}");
 			await sql`
-				INSERT INTO ec_projects (id, slug, locale, translation_group)
-				VALUES ('proj-1', 'widget-co', 'en', 'group-proj-1')
+				INSERT INTO ec_projects (id, slug, status, locale, translation_group)
+				VALUES ('proj-1', 'widget-co', 'published', 'en', 'group-proj-1')
 			`.execute(db);
 			await insertMenuWithCollectionItem({
 				referenceCollection: "projects",
@@ -476,8 +477,8 @@ describe("Navigation Menus", () => {
 		it("resolves date tokens in the url_pattern from the publish date (#1526)", async () => {
 			await setupProjectsCollection("/{year}/{month}/{slug}");
 			await sql`
-				INSERT INTO ec_projects (id, slug, locale, translation_group, published_at)
-				VALUES ('proj-1', 'widget-co', 'en', 'group-proj-1', '2023-05-08T12:00:00.000Z')
+				INSERT INTO ec_projects (id, slug, status, locale, translation_group, published_at)
+				VALUES ('proj-1', 'widget-co', 'published', 'en', 'group-proj-1', '2023-05-08T12:00:00.000Z')
 			`.execute(db);
 			await insertMenuWithCollectionItem({
 				referenceCollection: "projects",
@@ -515,6 +516,135 @@ describe("Navigation Menus", () => {
 			const menu = await getMenuWithDb("primary", db);
 			expect(menu).not.toBeNull();
 			expect(menu!.items).toHaveLength(0);
+		});
+
+		it("skips entry references whose entry is in the trash, in edit mode too", async () => {
+			await setupProjectsCollection();
+			await sql`
+				INSERT INTO ec_projects (id, slug, status, locale, translation_group, deleted_at)
+				VALUES ('proj-1', 'widget-co', 'published', 'en', 'group-proj-1', '2026-10-01T00:00:00.000Z')
+			`.execute(db);
+			await insertMenuWithCollectionItem({
+				referenceCollection: "projects",
+				referenceId: "group-proj-1",
+			});
+
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu).not.toBeNull();
+			expect(menu!.items).toHaveLength(0);
+			const editMenu = await runWithContext({ editMode: true }, () => getMenuWithDb("primary", db));
+			expect(editMenu!.items).toHaveLength(0);
+		});
+
+		it("skips legacy row-id references whose entry is in the trash", async () => {
+			await setupProjectsCollection();
+			await sql`
+				INSERT INTO ec_projects (id, slug, status, locale, translation_group, deleted_at)
+				VALUES ('proj-1', 'widget-co', 'published', 'en', 'group-proj-1', '2026-10-01T00:00:00.000Z')
+			`.execute(db);
+			await insertMenuWithCollectionItem({
+				referenceCollection: "projects",
+				referenceId: "proj-1",
+			});
+
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu).not.toBeNull();
+			expect(menu!.items).toHaveLength(0);
+		});
+
+		it("skips entry references whose entry is not published", async () => {
+			await setupProjectsCollection();
+			await sql`
+				INSERT INTO ec_projects (id, slug, status, locale, translation_group)
+				VALUES ('proj-1', 'widget-co', 'draft', 'en', 'group-proj-1')
+			`.execute(db);
+			await insertMenuWithCollectionItem({
+				referenceCollection: "projects",
+				referenceId: "group-proj-1",
+			});
+
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu).not.toBeNull();
+			expect(menu!.items).toHaveLength(0);
+		});
+
+		it("links unpublished entries in edit mode", async () => {
+			await setupProjectsCollection();
+			await sql`
+				INSERT INTO ec_projects (id, slug, status, locale, translation_group)
+				VALUES ('proj-1', 'widget-co', 'draft', 'en', 'group-proj-1')
+			`.execute(db);
+			await insertMenuWithCollectionItem({
+				referenceCollection: "projects",
+				referenceId: "group-proj-1",
+			});
+
+			const menu = await runWithContext({ editMode: true }, () => getMenuWithDb("primary", db));
+			expect(menu).not.toBeNull();
+			expect(menu!.items).toHaveLength(1);
+			expect(menu!.items[0].url).toBe("/projects/widget-co");
+		});
+
+		it("hides the children of an item it leaves out", async () => {
+			await setupProjectsCollection();
+			await sql`
+				INSERT INTO ec_projects (id, slug, status, locale, translation_group)
+				VALUES ('proj-1', 'widget-co', 'draft', 'en', 'group-proj-1')
+			`.execute(db);
+			const menuId = ulid();
+			const parentId = ulid();
+			const childId = ulid();
+			await db
+				.insertInto("_emdash_menus")
+				.values({ id: menuId, name: "primary", label: "Primary" })
+				.execute();
+			await db
+				.insertInto("_emdash_menu_items")
+				.values([
+					{
+						id: ulid(),
+						menu_id: menuId,
+						sort_order: 0,
+						type: "custom",
+						custom_url: "/about",
+						label: "About",
+					},
+					{
+						id: parentId,
+						menu_id: menuId,
+						sort_order: 1,
+						type: "collection",
+						reference_collection: "projects",
+						reference_id: "group-proj-1",
+						label: "Widget Co",
+					},
+					{
+						id: childId,
+						menu_id: menuId,
+						parent_id: parentId,
+						sort_order: 0,
+						type: "custom",
+						custom_url: "/widget-co/team",
+						label: "Team",
+					},
+					{
+						id: ulid(),
+						menu_id: menuId,
+						parent_id: childId,
+						sort_order: 0,
+						type: "custom",
+						custom_url: "/widget-co/team/jobs",
+						label: "Jobs",
+					},
+				])
+				.execute();
+
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu!.items.map((item) => item.label)).toEqual(["About"]);
+
+			const editMenu = await runWithContext({ editMode: true }, () => getMenuWithDb("primary", db));
+			expect(editMenu!.items.map((item) => item.label)).toEqual(["About", "Widget Co"]);
+			expect(editMenu!.items[1]!.children[0]!.children[0]!.label).toBe("Jobs");
 		});
 
 		it("skips items with no reference_collection instead of linking /null/", async () => {

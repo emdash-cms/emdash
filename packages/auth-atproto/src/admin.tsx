@@ -6,6 +6,7 @@
  */
 
 import { Button, Input } from "@cloudflare/kumo";
+import { Trans } from "@lingui/react";
 import * as React from "react";
 
 // ============================================================================
@@ -31,6 +32,16 @@ export function LoginButton() {
 			<span>Atmosphere</span>
 		</Button>
 	);
+}
+
+// ============================================================================
+// LoginHelp — shown beneath the provider's LoginForm on the login page
+// ============================================================================
+
+export function loginHelp() {
+	// Reuse the message's generated ID to retain existing admin translations.
+	// This package ships source, so use runtime Trans rather than a build-time macro.
+	return <Trans id="TZGT4o" message="Enter your handle to sign in." />;
 }
 
 // ============================================================================

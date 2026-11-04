@@ -46,12 +46,25 @@ export const CALENDAR_STATE_LABELS: Record<CalendarState, MessageDescriptor> = {
 	overdue: msg`Overdue`,
 };
 
+const UPDATE_STATE_NOTE = msg({
+	message: "Update",
+	context: "A published entry's scheduled changes",
+});
+
 const COLLECTION_TINTS: Record<CollectionColor, string> = {
 	blue: "bg-kumo-badge-blue/15",
 	purple: "bg-kumo-badge-purple/15",
 	teal: "bg-kumo-badge-teal/15",
 	green: "bg-kumo-badge-green/15",
 	neutral: "bg-kumo-fill",
+};
+
+const COLLECTION_HOVER_TINTS: Record<CollectionColor, string> = {
+	blue: "hover:bg-kumo-badge-blue/25",
+	purple: "hover:bg-kumo-badge-purple/25",
+	teal: "hover:bg-kumo-badge-teal/25",
+	green: "hover:bg-kumo-badge-green/25",
+	neutral: "hover:bg-kumo-tint",
 };
 
 /**
@@ -104,36 +117,22 @@ export function CalendarCollectionIcon({
 	);
 }
 
-/**
- * A collection's icon and name on its tint. `labelClassName` can hide the
- * name where space is short, leaving the icon.
- */
+/** A collection's icon and name on its tint. */
 export function CalendarCollectionTag({
 	slug,
 	display,
-	size = "base",
-	className,
-	labelClassName,
 }: {
 	slug: string;
 	display: CalendarDisplay;
-	size?: "sm" | "base";
-	className?: string;
-	labelClassName?: string;
 }) {
 	const { label, color } = display.collection(slug);
 	return (
 		<Badge
 			variant="secondary"
-			className={cn(
-				"max-w-40 gap-1 rounded-sm ps-1.5 text-kumo-default",
-				size === "sm" && "py-0 ps-1 pe-1",
-				COLLECTION_TINTS[color],
-				className,
-			)}
+			className={cn("max-w-40 gap-1 rounded-sm ps-1.5 text-kumo-default", COLLECTION_TINTS[color])}
 		>
 			<CalendarCollectionIcon slug={slug} display={display} />
-			<span className={cn("truncate", size === "sm" && "pe-0.5", labelClassName)}>{label}</span>
+			<span className="truncate">{label}</span>
 		</Badge>
 	);
 }
@@ -154,7 +153,7 @@ function useStateNote(item: CalendarItem, display: CalendarDisplay, now: number)
 		const lateness = formatTimeAgo(now - item.time, display.locale);
 		return t`Overdue · ${lateness}`;
 	}
-	if (item.state === "update") return t`Update`;
+	if (item.state === "update") return t(UPDATE_STATE_NOTE);
 	return null;
 }
 
@@ -198,7 +197,6 @@ export function CalendarEntryRow({
 	const { t } = useLingui();
 	const note = useStateNote(item, display, now);
 	const published = item.state === "published";
-	const viewerTime = display.viewerZoneDiffers ? display.formatViewerTime(item.time) : null;
 
 	return (
 		<Link
@@ -212,16 +210,10 @@ export function CalendarEntryRow({
 				event.preventDefault();
 				onSelect(item, event.currentTarget);
 			}}
-			className={cn(
-				"grid scroll-mt-12 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-kumo-tint focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-kumo-brand aria-[current=true]:bg-kumo-tint motion-reduce:transition-none",
-				display.viewerZoneDiffers
-					? "@lg:grid-cols-[8.5rem_minmax(0,1fr)_auto]"
-					: "@lg:grid-cols-[5rem_minmax(0,1fr)_auto]",
-			)}
+			className="grid scroll-mt-12 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-kumo-tint focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-kumo-brand aria-[current=true]:bg-kumo-tint motion-reduce:transition-none @lg:grid-cols-[5rem_minmax(0,1fr)_auto]"
 		>
 			<span className="row-span-2 self-start leading-5 text-kumo-subtle tabular-nums @lg:row-span-1 @lg:self-center">
 				{display.formatTime(item.time)}
-				{viewerTime && <span className="hidden text-xs leading-4 @lg:block">{viewerTime}</span>}
 			</span>
 			<span className="flex min-w-0 items-center gap-2">
 				<CalendarStateIcon state={item.state} />
@@ -250,9 +242,6 @@ export function CalendarEntryRow({
 				)}
 			</span>
 			<span className="col-start-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 @lg:col-start-auto @lg:justify-end">
-				{viewerTime && (
-					<span className="text-xs text-kumo-subtle tabular-nums @lg:hidden">{viewerTime}</span>
-				)}
 				<CalendarCollectionTag slug={item.collection} display={display} />
 				{display.showLocale && <CalendarLocaleChip locale={item.locale} />}
 			</span>
@@ -286,9 +275,18 @@ function CalendarEntryDetails({ item, display }: { item: CalendarItem; display: 
 	);
 }
 
+interface CalendarEntryChipProps {
+	item: CalendarItem;
+	display: CalendarDisplay;
+	now: number;
+	selected?: boolean;
+	onSelect?: CalendarSelectHandler;
+}
+
 /**
- * A month-cell entry linking to the editor. Published entries lie flat;
- * scheduled ones are raised cards, and overdue cards turn warning-tinted.
+ * A one-line month-cell entry linking to the editor: published entries lie
+ * flat, scheduled ones take their collection's tint, and overdue ones turn
+ * warning-tinted. It is 22px tall, which the month grid's row math relies on.
  */
 export function CalendarEntryChip({
 	item,
@@ -296,17 +294,11 @@ export function CalendarEntryChip({
 	now,
 	selected,
 	onSelect,
-}: {
-	item: CalendarItem;
-	display: CalendarDisplay;
-	now: number;
-	selected?: boolean;
-	onSelect?: CalendarSelectHandler;
-}) {
+}: CalendarEntryChipProps) {
 	const { t } = useLingui();
+	const { color } = display.collection(item.collection);
 	const state = t(CALENDAR_STATE_LABELS[item.state]);
 	const time = display.formatTime(item.time);
-	const flat = item.state === "published";
 	const overdue = item.state === "overdue";
 	const lateness = overdue ? formatShortDuration(now - item.time, display.locale) : "";
 
@@ -323,55 +315,34 @@ export function CalendarEntryChip({
 				onSelect(item, event.currentTarget);
 			}}
 			className={cn(
-				"min-w-0 text-xs transition-[background-color,box-shadow] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-kumo-brand motion-reduce:transition-none",
-				flat
-					? "flex items-center gap-1.5 rounded px-1.5 py-0.5 text-kumo-subtle hover:bg-kumo-tint aria-[current=true]:bg-kumo-tint"
-					: "grid gap-0.5 overflow-hidden rounded-md px-2 py-1.5 shadow-xs ring-1 hover:shadow-sm aria-[current=true]:ring-2 aria-[current=true]:ring-kumo-brand",
-				!flat &&
-					(overdue
-						? "bg-kumo-warning-tint ring-kumo-warning/30 hover:ring-kumo-warning/50"
-						: "bg-kumo-base ring-kumo-line hover:ring-kumo-interact"),
+				// The time wraps onto a clipped second line when the whole title doesn't fit.
+				"flex h-[22px] min-w-0 flex-wrap items-center gap-x-1.5 overflow-hidden rounded px-1.5 text-xs leading-[22px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-kumo-brand aria-[current=true]:ring-2 aria-[current=true]:ring-kumo-brand aria-[current=true]:ring-inset motion-reduce:transition-none",
+				item.state === "published"
+					? "text-kumo-subtle hover:bg-kumo-tint aria-[current=true]:bg-kumo-tint"
+					: overdue
+						? "bg-kumo-warning-tint text-kumo-default hover:bg-kumo-warning/20"
+						: cn("text-kumo-default", COLLECTION_TINTS[color], COLLECTION_HOVER_TINTS[color]),
 			)}
 		>
-			{flat ? (
-				<>
-					<CalendarStateIcon state={item.state} className="size-3.5" />
-					<span className="sr-only">{t`${state}, ${time}:`}</span>
-					<span dir="auto" className="truncate">
-						{item.title}
-					</span>
-				</>
-			) : (
-				<>
-					<span className="flex min-w-0 items-center gap-1.5">
-						<span dir="auto" className="truncate font-medium text-kumo-default">
-							{item.title}
-						</span>
-						{display.showLocale && (
-							<span className="ms-auto">
-								<CalendarLocaleChip locale={item.locale} />
-							</span>
-						)}
-					</span>
-					<span className="flex min-w-0 items-center gap-1 text-kumo-subtle">
-						<CalendarStateIcon state={item.state} className="size-3.5" />
-						<span className="shrink-0 tabular-nums">{time}</span>
-						<span className="sr-only">{state}</span>
-						{overdue ? (
-							<span className="truncate font-medium text-kumo-warning">{t`${lateness} late`}</span>
-						) : (
-							// The tag shows its icon once the cell has room, and its name once it has more.
-							<CalendarCollectionTag
-								slug={item.collection}
-								display={display}
-								size="sm"
-								className="ms-auto hidden min-w-0 shrink @min-[7.5rem]:inline-flex"
-								labelClassName="hidden @min-[9.5rem]:inline"
-							/>
-						)}
-					</span>
-				</>
-			)}
+			<span className="flex h-[22px] min-w-0 flex-auto items-center gap-1">
+				<CalendarStateIcon state={item.state} className="size-3.5" />
+				<span className="sr-only">
+					{overdue ? t`${state}, ${lateness} late, ${time}:` : t`${state}, ${time}:`}
+				</span>
+				<span dir="auto" className={cn("truncate", item.state !== "published" && "font-medium")}>
+					{item.title}
+				</span>
+				{display.showLocale && <CalendarLocaleChip locale={item.locale} />}
+			</span>
+			<span
+				aria-hidden="true"
+				className={cn(
+					"ms-auto shrink-0 tabular-nums",
+					overdue ? "font-medium text-kumo-warning" : "text-kumo-subtle",
+				)}
+			>
+				{overdue ? t`${lateness} late` : time}
+			</span>
 		</Link>
 	);
 

@@ -193,6 +193,8 @@ const SAFE_STORAGE_KEY = /^[A-Za-z0-9._-]+$/;
 
 /** Plain decimal digits only -- rejects "1e3", "0x10", "+5", whitespace. */
 const DECIMAL_DIGITS = /^\d+$/;
+const NUMERIC_QUALITY = /^-?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i;
+const QUALITY_PRESETS: Record<string, number> = { low: 25, mid: 50, high: 80, max: 100 };
 
 /** Whether a storage key is safe to resolve against the storage backend. */
 export function isSafeTransformKey(key: string): boolean {
@@ -256,8 +258,9 @@ export function resolveTransformQuality(
  * Parse and validate `?w=&h=&f=&q=` query params. Width is required (it sizes
  * the rendition); dimensions are bounded so a request can't ask for an
  * unbounded or nonsensical transform. Format falls back to
- * {@link DEFAULT_TRANSFORM_FORMAT} when not requested. `q` is validated when
- * present but otherwise left `undefined` so the caller can apply a per-format
+ * {@link DEFAULT_TRANSFORM_FORMAT} when not requested. `q` accepts Astro presets
+ * or finite numbers rounded and clamped to 1-100. It is otherwise left
+ * `undefined` so the caller can apply a per-format
  * default (lossy formats get one, lossless PNG does not — see
  * {@link DEFAULT_TRANSFORM_QUALITY}).
  */
@@ -281,11 +284,15 @@ export function parseTransformParams(params: URLSearchParams): ParsedTransformPa
 	let quality: number | undefined;
 	const qualityRaw = params.get("q");
 	if (qualityRaw !== null) {
-		const q = Number(qualityRaw);
-		if (!Number.isInteger(q) || q < 1 || q > 100) {
-			return { ok: false, message: "Invalid 'q' (quality), expected 1-100" };
+		if (Object.hasOwn(QUALITY_PRESETS, qualityRaw)) {
+			quality = QUALITY_PRESETS[qualityRaw];
+		} else {
+			const q = NUMERIC_QUALITY.test(qualityRaw) ? Number(qualityRaw) : Number.NaN;
+			if (!Number.isFinite(q)) {
+				return { ok: false, message: "Invalid 'q' (quality), expected a number or Astro preset" };
+			}
+			quality = Math.round(Math.min(100, Math.max(1, q)));
 		}
-		quality = q;
 	}
 
 	return { ok: true, options: { width, height, format, quality } };

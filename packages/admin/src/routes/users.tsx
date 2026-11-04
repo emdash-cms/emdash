@@ -4,6 +4,7 @@
  * Admin-only route for managing users, roles, and invites.
  */
 
+import { useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Trans } from "@lingui/react/macro";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,6 +29,7 @@ import {
 	fetchManifest,
 	type UpdateUserInput,
 } from "../lib/api";
+import { useSingleFlight } from "../lib/dialog-form.js";
 
 /**
  * Debounce hook for search input
@@ -47,6 +49,7 @@ export function UsersPage() {
 	const { t } = useLingui();
 	const { getRoleLabel } = useRolesConfig();
 	const queryClient = useQueryClient();
+	const toastManager = useKumoToastManager();
 
 	// State
 	const [searchQuery, setSearchQuery] = React.useState("");
@@ -57,7 +60,6 @@ export function UsersPage() {
 	const [showDisableConfirm, setShowDisableConfirm] = React.useState(false);
 	const [showDemoteConfirm, setShowDemoteConfirm] = React.useState(false);
 	const [pendingSaveData, setPendingSaveData] = React.useState<UpdateUserInput | null>(null);
-	const [inviteError, setInviteError] = React.useState<string | null>(null);
 	const [inviteUrl, setInviteUrl] = React.useState<string | null>(null);
 
 	// Debounced search
@@ -119,20 +121,21 @@ export function UsersPage() {
 
 	const inviteMutation = useMutation({
 		mutationFn: ({ email, role }: { email: string; role: number }) => inviteUser(email, role),
-		onSuccess: (result) => {
-			setInviteError(null);
+		onSuccess: (result, { email }) => {
 			if (result.inviteUrl) {
 				// No email provider — show copy-link view in the modal
 				setInviteUrl(result.inviteUrl);
 			} else {
 				// Email sent — close modal
 				setIsInviteOpen(false);
+				toastManager.add({
+					title: t`Invitation sent to ${email}`,
+					variant: "success",
+					timeout: 3000,
+				});
 			}
 			// Refresh user list (invite token was created either way)
 			void queryClient.invalidateQueries({ queryKey: ["users"] });
-		},
-		onError: (error: Error) => {
-			setInviteError(error.message);
 		},
 	});
 
@@ -191,10 +194,9 @@ export function UsersPage() {
 		}
 	};
 
-	const handleInvite = (email: string, role: number) => {
-		setInviteError(null);
-		inviteMutation.mutate({ email, role });
-	};
+	const handleInvite = useSingleFlight((email: string, role: number) =>
+		inviteMutation.mutateAsync({ email, role }),
+	);
 
 	// Loading state
 	if (usersQuery.isLoading && !usersQuery.data) {
@@ -230,7 +232,11 @@ export function UsersPage() {
 				onSearchChange={setSearchQuery}
 				onRoleFilterChange={setRoleFilter}
 				onSelectUser={handleSelectUser}
-				onInviteUser={() => setIsInviteOpen(true)}
+				onInviteUser={() => {
+					inviteMutation.reset();
+					setInviteUrl(null);
+					setIsInviteOpen(true);
+				}}
 				onLoadMore={() => void usersQuery.fetchNextPage()}
 			/>
 
@@ -254,12 +260,12 @@ export function UsersPage() {
 			<InviteUserModal
 				open={isInviteOpen}
 				isSending={inviteMutation.isPending}
-				error={inviteError}
+				error={inviteMutation.error}
 				inviteUrl={inviteUrl}
 				onOpenChange={(open) => {
 					setIsInviteOpen(open);
 					if (!open) {
-						setInviteError(null);
+						inviteMutation.reset();
 						setInviteUrl(null);
 					}
 				}}

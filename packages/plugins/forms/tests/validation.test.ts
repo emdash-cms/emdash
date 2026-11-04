@@ -2,6 +2,24 @@ import { describe, expect, it } from "vitest";
 
 import { validateSubmission } from "../src/validation.js";
 
+function singleCheckboxField(required = false): {
+	id: string;
+	type: "checkbox";
+	label: string;
+	name: string;
+	required: boolean;
+	width: "full";
+} {
+	return {
+		id: "f0",
+		type: "checkbox",
+		label: "I agree",
+		name: "agree",
+		required,
+		width: "full",
+	};
+}
+
 function checkboxField(): {
 	id: string;
 	type: "checkbox-group";
@@ -25,6 +43,33 @@ function checkboxField(): {
 		],
 	};
 }
+
+describe("validateSubmission checkbox", () => {
+	it("coerces the default value of a checked checkbox to true", () => {
+		const result = validateSubmission([singleCheckboxField()], { agree: "1" });
+		expect(result.valid).toBe(true);
+		expect(result.errors).toHaveLength(0);
+		expect(result.data.agree).toBe(true);
+	});
+
+	it("coerces an explicit true value to true", () => {
+		const result = validateSubmission([singleCheckboxField()], { agree: "true" });
+		expect(result.valid).toBe(true);
+		expect(result.data.agree).toBe(true);
+	});
+
+	it("coerces an on value to true", () => {
+		const result = validateSubmission([singleCheckboxField()], { agree: "on" });
+		expect(result.valid).toBe(true);
+		expect(result.data.agree).toBe(true);
+	});
+
+	it("rejects a required checkbox that is not submitted", () => {
+		const result = validateSubmission([singleCheckboxField(true)], {});
+		expect(result.valid).toBe(false);
+		expect(result.errors).toEqual([{ field: "agree", message: "I agree is required" }]);
+	});
+});
 
 describe("validateSubmission checkbox-group", () => {
 	it("accepts multiple selected values", () => {
@@ -53,6 +98,37 @@ describe("validateSubmission checkbox-group", () => {
 			{ field: "interests", message: "Interests contains an invalid selection" },
 		]);
 	});
+});
+
+describe("validateSubmission tel", () => {
+	const phoneField = {
+		id: "phone",
+		type: "tel" as const,
+		label: "Phone",
+		name: "phone",
+		required: true,
+		width: "full" as const,
+	};
+
+	it.each(["(555) 123-4567", "(11) 90000-0000", "+1 (555) 123-4567", "555 123-4567"])(
+		"accepts %s without changing its formatting",
+		(phone) => {
+			const result = validateSubmission([phoneField], { phone });
+			expect(result).toEqual({ valid: true, errors: [], data: { phone } });
+		},
+	);
+
+	it.each(["not a phone", "(555) 123-ABCD", "(555) 123/4567", "-555 123-4567", ")555 123-4567"])(
+		"rejects %s",
+		(phone) => {
+			const result = validateSubmission([phoneField], { phone });
+			expect(result).toEqual({
+				valid: false,
+				errors: [{ field: "phone", message: "Phone must be a valid phone number" }],
+				data: {},
+			});
+		},
+	);
 });
 
 describe("validateSubmission file fields", () => {

@@ -72,10 +72,55 @@ describe("pull request webhook gate", () => {
 		});
 	});
 
-	it("automatically reviews emdashbot PRs", () => {
-		expect(gatePullRequestEvent(event("opened", "emdashbot[bot]"))).toMatchObject({
-			review: true,
+	it.each(["emdashbot[bot]", "emdash-autofix[bot]"])("automatically reviews %s PRs", (author) => {
+		expect(gatePullRequestEvent(event("opened", author))).toMatchObject({ review: true });
+	});
+
+	it("reviews emdash-autofix's own pushes to its PRs", () => {
+		const push = event("synchronize", "emdash-autofix[bot]");
+		expect(
+			gatePullRequestEvent({ ...push, sender: { login: "emdash-autofix[bot]" } }),
+		).toMatchObject({ review: true, pr: { headSha: "abc123" } });
+	});
+
+	it.each([
+		{ author: "emdash-autofix[bot]", sender: "emdashbot[bot]" },
+		{ author: "emdash-autofix[bot]", sender: "ascorbic" },
+		{ author: "emdashbot[bot]", sender: "emdashbot[bot]" },
+		{ author: "contributor", sender: "contributor" },
+	])("schedules a re-review for a push by $sender to a PR by $author", ({ author, sender }) => {
+		expect(
+			gatePullRequestEvent({ ...event("synchronize", author), sender: { login: sender } }),
+		).toMatchObject({
+			review: false,
+			reason: "push scheduled for re-review after CI",
+			rereview: { prNumber: 42, headSha: "abc123" },
 		});
+	});
+
+	it("does not schedule re-reviews for drafts, other bots or design PRs", () => {
+		const draft = event("synchronize", "contributor");
+		expect(
+			gatePullRequestEvent({ ...draft, pull_request: { ...draft.pull_request, draft: true } }),
+		).toEqual({ review: false, reason: "PR is a draft" });
+		expect(gatePullRequestEvent(event("synchronize", "dependabot[bot]"))).toEqual({
+			review: false,
+			reason: 'author "dependabot[bot]" is a bot',
+		});
+		const design = event("synchronize", "contributor");
+		expect(
+			gatePullRequestEvent({
+				...design,
+				pull_request: { ...design.pull_request, title: "design: locking" },
+			}),
+		).toEqual({ review: false, reason: "design PRs require human discussion" });
+	});
+
+	it("reviews a bot:review label in full straight away", () => {
+		const labeled = { ...event("labeled", "contributor"), label: { name: "bot:review" } };
+		const decision = gatePullRequestEvent(labeled);
+		expect(decision).toMatchObject({ review: true });
+		expect(decision.review && decision.pr.reviewMode).toBeUndefined();
 	});
 
 	it("honors a bot:review label on any bot PR", () => {

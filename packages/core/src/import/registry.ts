@@ -14,6 +14,20 @@ const TRAILING_SLASHES_PATTERN = /\/+$/;
 const sources = new Map<string, ImportSource>();
 
 /**
+ * A bot-protection challenge page (for example Cloudflare's "Just a moment...")
+ * answered instead of the source's API. Server-side requests can't solve it,
+ * so the site owner has to let the importer's requests through.
+ */
+export class SiteChallengeError extends Error {
+	constructor() {
+		super(
+			"Cloudflare's bot protection answered with a challenge page instead of the EmDash Exporter API. Let requests to /wp-json/emdash/v1/ and ?rest_route=/emdash/v1/ through (for example with a WAF custom rule that skips bot protection), or pause bot protection during the migration.",
+		);
+		this.name = "SiteChallengeError";
+	}
+}
+
+/**
  * Register an import source
  */
 export function registerSource(source: ImportSource): void {
@@ -69,6 +83,7 @@ export async function probeUrl(url: string): Promise<ProbeResult> {
 
 	const results: SourceProbeResult[] = [];
 	const urlSources = getUrlSources();
+	let challenged = false;
 
 	// Probe all sources in parallel
 	const probePromises = urlSources.map(async (source) => {
@@ -78,6 +93,7 @@ export async function probeUrl(url: string): Promise<ProbeResult> {
 				return result;
 			}
 		} catch (error) {
+			if (error instanceof SiteChallengeError) challenged = true;
 			// Probe failed, skip this source
 			console.debug(`Probe failed for ${source.id}:`, error);
 		}
@@ -101,6 +117,7 @@ export async function probeUrl(url: string): Promise<ProbeResult> {
 		isWordPress: results.length > 0,
 		bestMatch: results[0] ?? null,
 		allMatches: results,
+		...(challenged && results.length === 0 ? { challenged: true } : {}),
 	};
 }
 

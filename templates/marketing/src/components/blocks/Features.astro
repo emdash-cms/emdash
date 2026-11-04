@@ -2,12 +2,13 @@
 import { Icon } from "astro-iconset/components";
 import type { BlockComponentProps } from "emdash/ui";
 import type { PageContentBlock } from "../../../emdash-env";
+import { toParagraphs } from "../../utils/text";
 
 type FeaturesBlock = Extract<PageContentBlock, { _type: "marketing_features" }>;
 type Props = BlockComponentProps<FeaturesBlock>;
 
 const { value } = Astro.props;
-const { anchor_id, headline, subheadline, features } = value;
+const { anchor_id, eyebrow, headline, subheadline, features } = value;
 
 const iconMap: Record<string, string> = {
 	zap: "ph:lightning",
@@ -22,80 +23,97 @@ const iconMap: Record<string, string> = {
 	lock: "ph:lock",
 	clock: "ph:clock",
 	cloud: "ph:cloud",
+	building: "ph:buildings",
+	leaf: "ph:leaf",
+	gauge: "ph:gauge",
+	thermometer: "ph:thermometer-simple",
+	plug: "ph:plug",
+	bell: "ph:bell-simple",
+	file: "ph:file-text",
+	sun: "ph:sun",
+	trend: "ph:trend-up",
 };
 ---
 
-<section class="features section" id={anchor_id || undefined}>
-	<div class="container">
-		{(headline || subheadline) && (
-			<header class="section-header">
-				{headline && <h2 class="section-headline">{headline}</h2>}
-				{subheadline && <p class="section-subheadline">{subheadline}</p>}
-			</header>
-		)}
-		<div class="features-grid">
-			{features.map((feature) => (
-				<div class="feature-card">
-					<div class="icon-tile feature-icon">
-						<Icon name={iconMap[feature.icon] || "ph:sparkle"} aria-hidden="true" />
-					</div>
-					<h3 class="feature-title">{feature.title}</h3>
-					<p class="feature-description">{feature.description}</p>
-				</div>
-			))}
-		</div>
+<section
+	id={anchor_id || undefined}
+	class="sheet sheet--sunken sheet-section"
+>
+	<div class="container sheet-body">
+		<header class="section-header">
+			{eyebrow && <p class="eyebrow">{eyebrow}</p>}
+			<h2 class="section-headline">
+				{headline}
+				{subheadline && " "}
+				{
+					subheadline && (
+						<span class="section-headline__muted">{subheadline}</span>
+					)
+				}
+			</h2>
+		</header>
+		<ul class="features" role="list">
+			{
+				features.map((feature) => (
+					<li class="card card--lift feature">
+						<span class="icon-tile" aria-hidden="true">
+							<Icon name={iconMap[feature.icon] ?? "ph:sparkle"} />
+						</span>
+						<h3 class="feature__title">{feature.title}</h3>
+						{toParagraphs(feature.description).map((paragraph) => (
+							<p class="feature__description">{paragraph}</p>
+						))}
+					</li>
+				))
+			}
+		</ul>
 	</div>
 </section>
 
 <style>
-	.features-grid {
+	.features {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: var(--spacing-xl);
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 16px;
+		list-style: none;
 	}
 
-	.feature-card {
-		padding: var(--spacing-xl);
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
-		transition:
-			transform var(--transition-base),
-			box-shadow var(--transition-base),
-			border-color var(--transition-base);
+	.feature {
+		padding: 28px 28px 32px;
 	}
 
-	.feature-card:hover {
-		transform: translateY(-4px);
-		box-shadow: var(--shadow-lg);
-		border-color: var(--color-brand-soft);
+	.feature__title {
+		margin-block-start: 28px;
+		font-size: 16px;
+		line-height: 1.4;
+		letter-spacing: -0.005em;
 	}
 
-	.feature-icon {
-		margin-bottom: var(--spacing-lg);
-	}
-
-	.feature-title {
-		font-size: var(--font-size-lg);
-		font-weight: var(--font-weight-heading);
-		margin-bottom: var(--spacing-sm);
-	}
-
-	.feature-description {
-		font-size: var(--font-size-sm);
+	.feature__description {
+		margin-block-start: 8px;
+		font-size: 15px;
+		line-height: 1.6;
 		color: var(--color-muted);
-		line-height: var(--leading-normal);
+		text-wrap: pretty;
 	}
 
-	@media (max-width: 900px) {
-		.features-grid {
-			grid-template-columns: repeat(2, 1fr);
+	@media (max-width: 960px) {
+		.features {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}
 
-	@media (max-width: 600px) {
-		.features-grid {
-			grid-template-columns: 1fr;
+	@media (max-width: 640px) {
+		.features {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.feature {
+			padding: 24px;
+		}
+
+		.feature__title {
+			margin-block-start: 20px;
 		}
 	}
 </style>

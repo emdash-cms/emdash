@@ -4,10 +4,10 @@ vi.mock("emdash", () => ({
 	definePlugin: (definition: unknown) => definition,
 }));
 
-function createCtx() {
+function createCtx(kvValues: Record<string, unknown> = {}) {
 	return {
 		kv: {
-			get: vi.fn(async () => undefined),
+			get: vi.fn(async (key: string) => kvValues[key]),
 			set: vi.fn(async () => undefined),
 		},
 		storage: {
@@ -51,6 +51,43 @@ describe("sandbox hooks", () => {
 		expect(ctx.http.fetch).not.toHaveBeenCalled();
 		expect(ctx.kv.get).not.toHaveBeenCalledWith("settings:siteUrl");
 	});
+
+	it.each([
+		{ draftRevisionId: "rev-draft", syncs: false },
+		{ draftRevisionId: null, syncs: true },
+	])(
+		"syncs a save to a synced, published post only without a pending draft (draft $draftRevisionId)",
+		async ({ draftRevisionId, syncs }) => {
+			const { default: plugin } = await import("../src/plugin.js");
+			const ctx = createCtx({
+				"settings:siteUrl": "https://example.com",
+				"state:publicationUri": "at://did:example/site.standard.publication/self",
+				"settings:handle": "writer.example.com",
+				"settings:appPassword": "app-password",
+				"state:accessJwt": "access-jwt",
+				"state:did": "did:example",
+			});
+			ctx.storage.records.get.mockResolvedValue({
+				collection: "posts",
+				contentId: "post-1",
+				atUri: "at://did:example/site.standard.document/abc",
+				atCid: "bafy",
+				status: "synced",
+			});
+			const handler = (plugin as any).hooks["content:afterSave"].handler;
+
+			await handler(
+				{
+					collection: "posts",
+					isNew: false,
+					content: { id: "post-1", status: "published", draftRevisionId, title: "Edited title" },
+				},
+				ctx,
+			);
+
+			expect(ctx.http.fetch.mock.calls.length > 0).toBe(syncs);
+		},
+	);
 
 	it("does not syndicate pages by default", async () => {
 		const { default: plugin } = await import("../src/plugin.js");

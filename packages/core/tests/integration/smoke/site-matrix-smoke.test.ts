@@ -77,11 +77,11 @@ const SITE_MATRIX: SiteCase[] = [
 		port: 4614,
 		startupTimeoutMs: 90_000,
 		frontendExpectations: [
-			{ path: "/", text: "Build products people actually want" },
-			{ path: "/pricing", text: "Simple, transparent pricing" },
+			{ path: "/", text: "Every building, running at its best." },
+			{ path: "/pricing", text: "Pricing that pays for itself." },
 		],
 		sitemapPath: "/sitemap-pages.xml",
-		previewEntry: { collection: "pages", id: "home" },
+		previewEntry: { collection: "pages", id: "pricing" },
 	},
 	{
 		name: "templates/marketing-cloudflare",
@@ -89,23 +89,35 @@ const SITE_MATRIX: SiteCase[] = [
 		port: 4615,
 		startupTimeoutMs: 120_000,
 		frontendExpectations: [
-			{ path: "/", text: "Build products people actually want" },
-			{ path: "/pricing", text: "Simple, transparent pricing" },
+			{ path: "/", text: "Every building, running at its best." },
+			{ path: "/pricing", text: "Pricing that pays for itself." },
 		],
 		sitemapPath: "/sitemap-pages.xml",
-		previewEntry: { collection: "pages", id: "home" },
+		previewEntry: { collection: "pages", id: "pricing" },
 	},
 	{
 		name: "templates/portfolio",
 		dir: resolve(WORKSPACE_ROOT, "templates/portfolio"),
 		port: 4616,
 		startupTimeoutMs: 90_000,
+		frontendExpectations: [
+			{ path: "/", text: "Full index" },
+			{ path: "/", text: "Have a project in mind?" },
+			{ path: "/contact", text: "hello@norma.example" },
+		],
+		sitemapPath: "/sitemap-pages.xml",
 	},
 	{
 		name: "templates/portfolio-cloudflare",
 		dir: resolve(WORKSPACE_ROOT, "templates/portfolio-cloudflare"),
 		port: 4617,
 		startupTimeoutMs: 120_000,
+		frontendExpectations: [
+			{ path: "/", text: "Full index" },
+			{ path: "/", text: "Have a project in mind?" },
+			{ path: "/contact", text: "hello@norma.example" },
+		],
+		sitemapPath: "/sitemap-pages.xml",
 	},
 	{
 		name: "templates/starter-cloudflare",

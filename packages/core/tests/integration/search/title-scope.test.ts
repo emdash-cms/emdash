@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { FTSManager } from "../../../src/search/fts-manager.js";
 import { searchCollection, searchWithDb } from "../../../src/search/query.js";
@@ -56,6 +57,7 @@ describe("search: title scope", () => {
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		await teardownTestDatabase(db);
 	});
 
@@ -63,6 +65,24 @@ describe("search: title scope", () => {
 		const res = await searchWithDb(db, "team");
 		const slugs = res.items.map((i) => i.slug).toSorted((a, b) => (a ?? "").localeCompare(b ?? ""));
 		expect(slugs).toEqual(["contact", "team"]);
+	});
+
+	it("matches a configured locale code in search", async () => {
+		setI18nConfig({
+			defaultLocale: "es-MX",
+			locales: ["es-MX", "en"],
+			localeAliases: { "en-US": "en" },
+		});
+		await new ContentRepository(db).create({
+			type: "pages",
+			slug: "terms-en",
+			locale: "en-US",
+			status: "published",
+			data: { title: "Terms", content: "Terms and conditions" },
+		});
+
+		const result = await searchWithDb(db, "conditions", { locale: "en" });
+		expect(result.items.map((item) => item.slug)).toEqual(["terms-en"]);
 	});
 
 	it("title scope drops body-only matches", async () => {

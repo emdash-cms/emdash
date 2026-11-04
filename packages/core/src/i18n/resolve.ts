@@ -8,7 +8,12 @@
  */
 
 import { getRequestContext } from "../request-context.js";
-import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./config.js";
+import {
+	getFallbackChain,
+	getI18nConfig,
+	isI18nEnabled,
+	resolveConfiguredLocale,
+} from "./config.js";
 
 /**
  * Resolve the locale to use for a query given an optional explicit value.
@@ -16,9 +21,9 @@ import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./config.js";
  * treat that as "do not filter by locale".
  */
 export function resolveLocale(explicit?: string): string | undefined {
-	if (explicit !== undefined) return explicit;
+	if (explicit !== undefined) return resolveConfiguredLocale(explicit);
 	const ctxLocale = getRequestContext()?.locale;
-	if (ctxLocale !== undefined) return ctxLocale;
+	if (ctxLocale !== undefined) return resolveConfiguredLocale(ctxLocale);
 	const cfg = getI18nConfig();
 	if (cfg && isI18nEnabled()) return cfg.defaultLocale;
 	return undefined;
@@ -166,6 +171,16 @@ export async function localizePath(path: string, locale: string): Promise<string
 	if (segment === undefined) return null;
 	if (segment === null || segment === "") return normalizePath(path);
 	return normalizePath(`/${segment}${path}`);
+}
+
+/**
+ * The path prefix of a locale's pages, such as `/en`. Empty when the locale
+ * is the unprefixed default, isn't configured, or isn't given.
+ */
+export async function localePathPrefix(locale: string | undefined): Promise<string> {
+	if (!locale) return "";
+	const root = await localizePath("/", locale);
+	return root && root !== "/" ? root : "";
 }
 
 /**

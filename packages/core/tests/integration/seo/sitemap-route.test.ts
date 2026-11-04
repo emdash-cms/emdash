@@ -10,7 +10,7 @@
 
 import type { APIContext } from "astro";
 import { sql, type Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SITEMAP_PAGE_SIZE } from "../../../src/api/handlers/seo.js";
 import { GET as getSitemap } from "../../../src/astro/routes/sitemap-[collection].xml.js";
@@ -22,6 +22,7 @@ import type { Database } from "../../../src/database/types.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import { _resetAstroI18nCacheForTests } from "../../../src/i18n/resolve.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { setSiteSettings } from "../../../src/settings/index.js";
 
 interface MockContextOpts {
 	collectionSlug: string | undefined;
@@ -67,6 +68,7 @@ describe("sitemap-[collection].xml route", () => {
 	afterEach(async () => {
 		setI18nConfig(null);
 		_resetAstroI18nCacheForTests();
+		vi.unstubAllEnvs();
 		await db.destroy();
 	});
 
@@ -99,6 +101,70 @@ describe("sitemap-[collection].xml route", () => {
 	it("returns a 404 when the collection has no published content", async () => {
 		const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
 		expect(res.status).toBe(404);
+	});
+
+	it.each(["/field-notes", "/field-notes/"])(
+		"prefixes index, content, and hreflang URLs with Astro base %s",
+		async (base) => {
+			vi.stubEnv("BASE_URL", base);
+			setI18nConfig({
+				defaultLocale: "en",
+				locales: ["en", "fr"],
+				prefixDefaultLocale: false,
+			});
+			const en = await repo.create({
+				type: "post",
+				slug: "hello",
+				data: { title: "Hello" },
+				status: "published",
+				locale: "en",
+			});
+			await repo.create({
+				type: "post",
+				slug: "bonjour",
+				data: { title: "Bonjour" },
+				status: "published",
+				locale: "fr",
+				translationOf: en.id,
+			});
+
+			const index = await (
+				await getSitemapIndex(mockContext({ collectionSlug: undefined, db }))
+			).text();
+			expect(index).toContain("<loc>http://localhost:4321/field-notes/sitemap-post.xml</loc>");
+
+			const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
+			expect(res.status).toBe(200);
+			const xml = await res.text();
+			expect(xml).toContain("<loc>http://localhost:4321/field-notes/blog/hello</loc>");
+			expect(xml).toContain("<loc>http://localhost:4321/field-notes/fr/blog/bonjour</loc>");
+			expect(xml).toContain(
+				'<xhtml:link rel="alternate" hreflang="en" href="http://localhost:4321/field-notes/blog/hello" />',
+			);
+			expect(xml).toContain(
+				'<xhtml:link rel="alternate" hreflang="fr" href="http://localhost:4321/field-notes/fr/blog/bonjour" />',
+			);
+			expect(xml).toContain(
+				'<xhtml:link rel="alternate" hreflang="x-default" href="http://localhost:4321/field-notes/blog/hello" />',
+			);
+		},
+	);
+
+	it("does not duplicate the base when the stored site URL already contains it", async () => {
+		vi.stubEnv("BASE_URL", "/field-notes");
+		await setSiteSettings({ url: "https://example.com/field-notes" }, db);
+		await repo.create({
+			type: "post",
+			slug: "hello",
+			data: { title: "Hello" },
+			status: "published",
+		});
+
+		const index = await (
+			await getSitemapIndex(mockContext({ collectionSlug: undefined, db }))
+		).text();
+		expect(index).toContain("<loc>https://example.com/field-notes/sitemap-post.xml</loc>");
+		expect(index).not.toContain("/field-notes/field-notes/");
 	});
 
 	it("does not advertise non-routable collections", async () => {
@@ -199,6 +265,81 @@ describe("sitemap-[collection].xml route", () => {
 			"<image:loc>http://localhost:4321/_emdash/api/media/file/01ABCDEF.webp</image:loc>",
 		);
 	});
+
+	it.each([
+		["01ABCDEF.webp", "https://example.com/_emdash/api/media/file/01ABCDEF.webp"],
+		[
+			"/_emdash/api/media/file/01ABCDEF.webp",
+			"https://example.com/_emdash/api/media/file/01ABCDEF.webp",
+		],
+		["/uploads/photo.webp", "https://example.com/uploads/photo.webp"],
+		["https://cdn.example.com/photo.webp", "https://cdn.example.com/photo.webp"],
+	])("keeps image %s independent of the public page base", async (image, expected) => {
+		vi.stubEnv("BASE_URL", "/field-notes/");
+		await setSiteSettings({ url: "https://example.com/field-notes/" }, db);
+		const post = await repo.create({
+			type: "post",
+			slug: "hello",
+			data: { title: "Hello" },
+			status: "published",
+		});
+		await db
+			.insertInto("_emdash_seo")
+			.values({
+				collection: "post",
+				content_id: post.id,
+				seo_image: image,
+				seo_no_index: 0,
+			})
+			.execute();
+		const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
+		expect(res.status).toBe(200);
+		const xml = await res.text();
+		expect(xml).toContain("<loc>https://example.com/field-notes/blog/hello</loc>");
+		expect(xml).toContain(`<image:loc>${expected}</image:loc>`);
+	});
+
+	it.each([
+		["/", "https://example.com/legacy/", "https://example.com/legacy/blog/hello"],
+		[
+			"/field-notes/",
+			"https://example.com/legacy",
+			"https://example.com/legacy/field-notes/blog/hello",
+		],
+		[
+			"/field-notes",
+			"https://example.com/legacy/field-notes/",
+			"https://example.com/legacy/field-notes/blog/hello",
+		],
+	])(
+		"preserves the stored media path with base %s and site URL %s",
+		async (base, storedUrl, pageUrl) => {
+			vi.stubEnv("BASE_URL", base);
+			await setSiteSettings({ url: storedUrl }, db);
+			const post = await repo.create({
+				type: "post",
+				slug: "hello",
+				data: { title: "Hello" },
+				status: "published",
+			});
+			await db
+				.insertInto("_emdash_seo")
+				.values({
+					collection: "post",
+					content_id: post.id,
+					seo_image: "01ABCDEF.webp",
+					seo_no_index: 0,
+				})
+				.execute();
+			const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
+			expect(res.status).toBe(200);
+			const xml = await res.text();
+			expect(xml).toContain(`<loc>${pageUrl}</loc>`);
+			expect(xml).toContain(
+				"<image:loc>https://example.com/legacy/_emdash/api/media/file/01ABCDEF.webp</image:loc>",
+			);
+		},
+	);
 
 	it("omits <image:image> for rows without an SEO image", async () => {
 		setI18nConfig(null);

@@ -2,6 +2,8 @@ import { sql, type ExpressionBuilder, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateCommentObjectCache } from "../../object-cache/index.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { encodeCursor, decodeCursor, type FindManyResult } from "./types.js";
 
@@ -354,14 +356,22 @@ export class CommentRepository {
 
 		const now = new Date().toISOString();
 
-		const result = await this.db
-			.updateTable("_emdash_comments")
-			.set({ status, updated_at: now })
-			.where("id", "in", ids)
-			.executeTakeFirst();
+		const updatedCount = await withTransaction(this.db, async (db) => {
+			let updated = 0;
+			for (const batch of chunks([...new Set(ids)], SQL_BATCH_SIZE)) {
+				const result = await db
+					.updateTable("_emdash_comments")
+					.set({ status, updated_at: now })
+					.where("id", "in", batch)
+					.executeTakeFirst();
 
+				if (!db.isTransaction) invalidateCommentObjectCache();
+				updated += Number(result.numUpdatedRows ?? 0);
+			}
+			return updated;
+		});
 		invalidateCommentObjectCache();
-		return Number(result.numUpdatedRows ?? 0);
+		return updatedCount;
 	}
 
 	/**

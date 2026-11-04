@@ -172,7 +172,24 @@ Read the [AI usage policy](AI_POLICY.md) before using an agent to open an issue 
 
 ### Interface screenshots
 
-An issue that refers to the interface must include a screenshot showing the reported state. A PR that changes the UI must include screenshots of the rendered result. Include before-and-after images when the result alone does not make the change clear. Describe the behavior in text as well, and use alt text that identifies the screen and relevant state.
+An issue that refers to the interface must include a screenshot showing the reported state. A PR that changes the UI must include before-and-after screenshots of every screen it affects. For a new screen, the after state is enough. Describe the behavior in text as well, and use alt text that identifies the screen and relevant state.
+
+Put each pair side by side in a two-column table, cropped to the changed area, at the same viewport and with the same content, and put extra states such as Arabic in a collapsed `<details>` block:
+
+```markdown
+| Before                                                                  | After                                                                                      |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| ![Status filter before the change, a plain select](./status-before.png) | ![Status filter after the change, a menu with an icon for each status](./status-after.png) |
+
+<details>
+<summary>Arabic</summary>
+
+| Before                                                                            | After                                                                                                |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| ![Arabic status filter before the change, a plain select](./status-ar-before.png) | ![Arabic status filter after the change, a menu with an icon for each status](./status-ar-after.png) |
+
+</details>
+```
 
 In the GitHub web interface, drag or paste the images into the issue or PR body. From GitHub CLI 2.99.0 or later, use the repeatable `--attach` flag with issue and PR create, edit, or comment commands. CLI `--attach` uploads require write access to the repository; web interface uploads do not.
 

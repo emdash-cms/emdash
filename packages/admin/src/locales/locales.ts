@@ -226,6 +226,13 @@ export const LOCALES: LocaleDefinition[] = [
 		enabled: true,
 		dateLocale: () => import("react-day-picker/locale/pt").then((m) => m.pt),
 	},
+	// Russian
+	{
+		code: "ru",
+		label: "Русский",
+		enabled: true,
+		dateLocale: () => import("react-day-picker/locale/ru").then((m) => m.ru),
+	},
 	// Serbian (Latin script)
 	{
 		code: "sr-Latn",

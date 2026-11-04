@@ -35,7 +35,7 @@ import {
 } from "../../api/handlers/api-tokens.js";
 import { hasScope, TRANSFER_SCOPES } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
-import type { ExternalAuthConfig } from "../../auth/types.js";
+import type { AuthResult, ExternalAuthConfig } from "../../auth/types.js";
 import { getRegistryConfigInput } from "../../registry/config.js";
 import { resolveSessionUser } from "../session-user.js";
 import type { EmDashHandlers } from "../types.js";
@@ -89,7 +89,7 @@ function mcpUnauthorizedResponse(
  * API routes that skip auth — each handles its own access control.
  *
  * Prefix entries match any path starting with that prefix.
- * Exact entries (no trailing slash or wildcard) match that path only.
+ * Entries in PUBLIC_API_EXACT match that path only.
  */
 const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/setup",
@@ -98,7 +98,6 @@ const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/auth/dev-bypass",
 	"/_emdash/api/auth/signup/",
 	"/_emdash/api/auth/magic-link/",
-	"/_emdash/api/auth/invite/",
 	"/_emdash/api/auth/oauth/",
 	"/_emdash/api/oauth/device/token",
 	"/_emdash/api/oauth/device/code",
@@ -110,6 +109,13 @@ const PUBLIC_API_PREFIXES = [
 ];
 
 const PUBLIC_API_EXACT = new Set([
+	// Invite creation requires auth; only the token-based acceptance flow is public.
+	"/_emdash/api/auth/invite/accept",
+	"/_emdash/api/auth/invite/accept/",
+	"/_emdash/api/auth/invite/register-options",
+	"/_emdash/api/auth/invite/register-options/",
+	"/_emdash/api/auth/invite/complete",
+	"/_emdash/api/auth/invite/complete/",
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/auth/mode",
@@ -522,6 +528,7 @@ async function handleExternalAuth(
 	const { locals, request } = context;
 	const { emdash } = locals;
 
+	let authResult: AuthResult;
 	try {
 		// Use the authenticate function from the virtual module
 		// (statically imported at build time to work with Cloudflare Workers)
@@ -531,9 +538,18 @@ async function handleExternalAuth(
 			);
 		}
 
-		// Authenticate via the provider
-		const authResult = await virtualAuthenticate(request, authMode.config);
+		authResult = await virtualAuthenticate(request, authMode.config);
+	} catch (error) {
+		console.error("[external-auth] Auth error:", error);
 
+		return new Response("Authentication failed", {
+			status: 401,
+			headers: { "Content-Type": "text/plain", ...MW_CACHE_HEADERS },
+		});
+	}
+
+	// Identity is verified; failures below are server-side.
+	try {
 		// Get external auth config for auto-provision settings
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing AuthModeConfig to ExternalAuthConfig after provider check
 		const externalConfig = authMode.config as ExternalAuthConfig;
@@ -633,19 +649,26 @@ async function handleExternalAuth(
 		locals.user = user;
 
 		// Persist to session so public pages can identify the user
-		// (external auth headers are only verified on /_emdash routes)
+		// (external auth headers are only verified on /_emdash routes).
+		// Astro marks the session dirty on every set(), and a dirty session is
+		// written to the store at the end of the request. Skip the set when the
+		// stored id already matches, or each request costs a session-store write
+		// (a KV put on Cloudflare, which also rate-limits writes to one key).
 		const { session } = context;
-		session?.set("user", { id: user.id });
-
-		return next();
+		if (session) {
+			const sessionUser = await resolveSessionUser(session);
+			if (sessionUser?.id !== user.id) session.set("user", { id: user.id });
+		}
 	} catch (error) {
-		console.error("[external-auth] Auth error:", error);
+		console.error("[external-auth] User lookup error:", error);
 
-		return new Response("Authentication failed", {
-			status: 401,
-			headers: { "Content-Type": "text/plain", ...MW_CACHE_HEADERS },
+		return new Response("Service temporarily unavailable", {
+			status: 503,
+			headers: { "Content-Type": "text/plain", "Retry-After": "60", ...MW_CACHE_HEADERS },
 		});
 	}
+
+	return next();
 }
 
 /**

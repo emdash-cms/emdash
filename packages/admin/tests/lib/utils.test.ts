@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 
-import { cn, formatRelativeTime, parseTimestamp, slugify } from "../../src/lib/utils";
+import {
+	cn,
+	formatDate,
+	formatRelativeTime,
+	isolate,
+	parseTimestamp,
+	slugify,
+} from "../../src/lib/utils.js";
 
 describe("slugify", () => {
 	it("converts basic text to slug", () => {
@@ -122,5 +129,34 @@ describe("formatRelativeTime", () => {
 			.replace("T", " ")
 			.replace(/\.\d+Z$/, "");
 		expect(formatRelativeTime(sqlite, "en")).toBe("5 minutes ago");
+	});
+});
+
+describe("formatDate", () => {
+	it("formats in the given locale rather than the browser's", () => {
+		expect(
+			formatDate("2026-09-22T19:48:00Z", "en-GB", { dateStyle: "medium", timeZone: "UTC" }),
+		).toBe("22 Sept 2026");
+		expect(formatDate("2026-09-22T19:48:00Z", "de", { dateStyle: "medium", timeZone: "UTC" })).toBe(
+			"22.09.2026",
+		);
+	});
+
+	it("accepts a Date as well as a timestamp string", () => {
+		const date = new Date("2026-09-22T19:48:00Z");
+		expect(formatDate(date, "en-GB", { dateStyle: "short", timeZone: "UTC" })).toBe("22/09/2026");
+	});
+});
+
+describe("isolate", () => {
+	it("wraps the value in first-strong isolate characters", () => {
+		expect(isolate("22 Sept 2026, 22:48")).toBe("\u206822 Sept 2026, 22:48\u2069");
+	});
+
+	it("keeps a date whole inside a right-to-left sentence", () => {
+		// Without the isolates the comma between the two numbers takes the sentence's direction.
+		const sentence = `נוצר ${isolate("22 בספט׳ 2026, 22:48")}`;
+		expect(sentence).toContain("\u2068");
+		expect(sentence.endsWith("\u2069")).toBe(true);
 	});
 });

@@ -586,7 +586,7 @@ Before serving a blob, Cumulus fetches the named release record, requires its CI
 
 Cumulus purges the release record's cache tag when Jetstream reports an update or deletion. The registry labeller subscription purges the same tag when a withdrawal label becomes active.
 
-Package bundles use the raw route and are served verbatim. Listing images use the image route with fixed `avatar`, `banner`, and `feed_thumbnail` presets and are re-encoded before delivery.
+Package bundles use the raw route and are served verbatim. Listing images use the image route with fixed presets and are re-encoded before delivery. Icons and banners use the `avatar` and `banner` presets; screenshots use `feed_fullsize` so detailed images stay under the 1 MiB proxy cap rather than being upscaled and losslessly re-encoded by `feed_thumbnail`.
 
 The aggregator envelope does not enumerate artifact URLs. Its required `artifactCaches` array contains typed service descriptors. The record-scoped Cumulus variant carries `serviceEndpoint`; clients combine it with the release URI, release CID, and each public blob CID. Unknown cache variants are ignored.
 

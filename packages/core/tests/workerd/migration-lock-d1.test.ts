@@ -8,11 +8,13 @@ import {
 	ConcurrentMigrationTimeoutError,
 	MIGRATION_NAMES,
 	MigrationLockHeldError,
+	MigrationRowLimitError,
 	createMigrator,
 	getExactMigrationStatus,
 	runMigrations,
 } from "../../src/database/migrations/runner.js";
 import type { Database } from "../../src/database/types.js";
+import { SchemaRegistry } from "../../src/schema/registry.js";
 import { resetD1Schema } from "./d1-schema.js";
 
 declare module "cloudflare:test" {
@@ -122,5 +124,124 @@ describe("migration lock on D1", () => {
 
 		await expect(clearMigrationLock(db, heldSince)).resolves.toBe(true);
 		expect(await readMigrationLock(db)).toBeNull();
+	});
+});
+
+describe("content row limit on D1", () => {
+	beforeEach(async () => {
+		await migrateThrough("078_menu_item_translation_groups");
+		await new SchemaRegistry(db).createCollection({ slug: "posts", label: "Posts" });
+		for (const id of ["post-1", "post-2", "post-3"]) {
+			await sql`
+				INSERT INTO ec_posts (id, slug, status, created_at, updated_at, version, locale, translation_group)
+				VALUES (${id}, ${id}, 'draft', '2012-09-12T18:00:00', '2012-09-12T18:00:00', 1, 'en', ${id})
+			`.execute(db);
+		}
+	});
+
+	it("refuses before it reaches the migration lock when the content exceeds the limit", async () => {
+		const heldSince = Date.now() - 10 * 60_000;
+		await holdLock(heldSince);
+
+		await expect(runMigrations(db, { contentRowLimit: 2 })).rejects.toBeInstanceOf(
+			MigrationRowLimitError,
+		);
+
+		expect(await readMigrationLock(db)).toBe(heldSince);
+		expect((await getExactMigrationStatus(db)).pending[0]).toBe("079_datetime_normalization");
+	});
+
+	it("applies and releases the lock when the content fits the limit", async () => {
+		const { applied } = await runMigrations(db, { contentRowLimit: 3 });
+
+		expect(applied[0]).toBe("079_datetime_normalization");
+		expect((await getExactMigrationStatus(db)).pending).toEqual([]);
+		expect(await readMigrationLock(db)).toBeNull();
+	});
+});
+
+describe("plugin KV options row limit on D1", () => {
+	beforeEach(async () => {
+		await resetD1Schema(db);
+		await migrateThrough("091_redirect_artifacts");
+		const qualifyingIds = [
+			"one",
+			"two",
+			"SETTINGS:uppercase",
+			...Array.from({ length: 30 }, (_, index) => `padding-${index}`),
+		];
+		for (let offset = 0; offset < qualifyingIds.length; offset += 10) {
+			const values = qualifyingIds
+				.slice(offset, offset + 10)
+				.map(
+					(id, index) =>
+						sql`('plugin', '__kv', ${id}, ${JSON.stringify({ value: offset + index + 1 })}, ${`revision-${offset + index + 1}`})`,
+				);
+			await sql`
+				INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision)
+				VALUES ${sql.join(values)}
+			`.execute(db);
+		}
+		await sql`
+			INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision)
+			VALUES
+				('plugin', '__kv', 'settings:ignored', '{"value":34}', 'revision-34'),
+				('plugin', 'other', 'ignored', '{"value":35}', 'revision-35')
+		`.execute(db);
+		await sql`
+			INSERT INTO options (name, value, revision)
+			VALUES ('plugin:plugin:one', '{"old":true}', 'existing')
+		`.execute(db);
+	});
+
+	it("accepts one batch at two statement units and skips excluded rows", async () => {
+		const { applied } = await runMigrations(db, { contentRowLimit: 2 });
+
+		expect(applied[0]).toBe("092_plugin_kv_options");
+		const migrated = await db
+			.selectFrom("options")
+			.select(["name", "value"])
+			.where("name", "like", "plugin:plugin:%")
+			.execute();
+		expect(migrated).toHaveLength(33);
+		expect(migrated).toContainEqual({
+			name: "plugin:plugin:SETTINGS:uppercase",
+			value: '{"value":3}',
+		});
+	});
+
+	it("refuses at the next batch boundary before the lock or writes", async () => {
+		await sql`
+			INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision)
+			VALUES ('plugin', '__kv', 'padding-30-extra', '{"value":36}', 'revision-36')
+		`.execute(db);
+		const heldSince = Date.now() - 10 * 60_000;
+		await holdLock(heldSince);
+
+		await expect(runMigrations(db, { contentRowLimit: 2 })).rejects.toBeInstanceOf(
+			MigrationRowLimitError,
+		);
+		expect(await readMigrationLock(db)).toBe(heldSince);
+		expect((await getExactMigrationStatus(db)).pending[0]).toBe("092_plugin_kv_options");
+		expect(
+			await db.selectFrom("options").selectAll().where("name", "like", "plugin:plugin:%").execute(),
+		).toEqual([{ name: "plugin:plugin:one", value: '{"old":true}', revision: "existing" }]);
+	});
+
+	it("counts conflicts and migrates the qualifying KV rows at the limit", async () => {
+		const { applied } = await runMigrations(db, { contentRowLimit: 2 });
+
+		expect(applied[0]).toBe("092_plugin_kv_options");
+		const migrated = await db
+			.selectFrom("options")
+			.select(["name", "value"])
+			.where("name", "like", "plugin:plugin:%")
+			.execute();
+		expect(migrated).toHaveLength(33);
+		expect(migrated).toContainEqual({
+			name: "plugin:plugin:SETTINGS:uppercase",
+			value: '{"value":3}',
+		});
+		expect(migrated).toContainEqual({ name: "plugin:plugin:one", value: '{"old":true}' });
 	});
 });

@@ -42,6 +42,7 @@ import {
 	isInstrumentationEnabled,
 } from "../database/instrumentation.js";
 import {
+	isMigrationRequiredError,
 	PendingMigrationsError,
 	resolveRuntimeMigrationMode,
 	type RuntimeMigrationMode,
@@ -74,7 +75,7 @@ import type { PublishedRef } from "../scheduled-publish.js";
 import { parseCollectionSitemapName } from "../seo/sitemap-name.js";
 import { EmDashStorageError } from "../storage/types.js";
 import { isMissingTableError } from "../utils/db-errors.js";
-import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
+import { initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
 import {
 	ASTRO_COOKIES_SYMBOL,
@@ -88,6 +89,7 @@ import {
 	createPublicPluginApiRouteHandler,
 	getPublicPluginRouteMeta,
 } from "./public-plugin-api-routes.js";
+import { getRuntimeHolder } from "./runtime-holder.js";
 import { resolveSessionUser } from "./session-user.js";
 import type { EmDashHandlers } from "./types.js";
 
@@ -140,29 +142,6 @@ function markSetupVerified(): void {
 	setupFlagStore[SETUP_VERIFIED_KEY] = true;
 }
 
-/**
- * The runtime singleton and its init lock live on globalThis behind a
- * Symbol — same reasoning as SETUP_VERIFIED_KEY above: the bundler can
- * duplicate this module across SSR chunks, and a duplicated instance/lock
- * would mean multiple runtimes (each with its own cron scheduler) per
- * isolate, initializing and reclaiming independently.
- */
-const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
-interface RuntimeHolder {
-	instance: EmDashRuntime | null;
-	lock: InitLock;
-}
-
-function getRuntimeHolder(): RuntimeHolder {
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
-	let holder = setupFlagStore[RUNTIME_HOLDER_KEY] as RuntimeHolder | undefined;
-	if (!holder) {
-		holder = { instance: null, lock: createInitLock() };
-		setupFlagStore[RUNTIME_HOLDER_KEY] = holder;
-	}
-	return holder;
-}
-
 /** Whether i18n config has been initialized from the virtual module */
 let i18nInitialized = false;
 
@@ -200,7 +179,8 @@ function getConfig(): EmDashConfig | null {
  */
 function getPlugins(): ResolvedPlugin[] {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module import is untyped (@ts-ignore above)
-	return (virtualPlugins as ResolvedPlugin[]) || [];
+	const plugins = virtualPlugins as ResolvedPlugin[] | (() => ResolvedPlugin[]);
+	return (typeof plugins === "function" ? plugins() : plugins) || [];
 }
 
 /**
@@ -260,10 +240,19 @@ async function getRuntime(
 	const holder = getRuntimeHolder();
 	return initWithLock(
 		holder.lock,
-		() => holder.instance,
+		() => {
+			if (holder.closed) throw new Error("EmDash dev server has closed");
+			return holder.instance;
+		},
 		async (isCurrentClaim) => {
+			if (holder.closed) throw new Error("EmDash dev server has closed");
 			const deps = buildDependencies(config, migrationMode);
 			const runtime = await EmDashRuntime.create(deps, initTimings);
+			// A restart can close the server while the first request is initializing.
+			if (holder.closed) {
+				await runtime.shutdown();
+				throw new Error("EmDash dev server has closed");
+			}
 			if (isCurrentClaim()) {
 				holder.instance = runtime;
 			} else {
@@ -484,6 +473,18 @@ function pendingMigrationsResponse(error: PendingMigrationsError): Response {
 	return migrationRequiredResponse();
 }
 
+function migrationRequiredErrorResponse(error: unknown): Response {
+	if (error instanceof PendingMigrationsError) return pendingMigrationsResponse(error);
+	if (Date.now() - lastRuntimeInitErrorLogAt >= RUNTIME_INIT_ERROR_LOG_INTERVAL_MS) {
+		lastRuntimeInitErrorLogAt = Date.now();
+		console.error(
+			"[emdash] database migrations are required:",
+			error instanceof Error ? error.message : error,
+		);
+	}
+	return migrationRequiredResponse();
+}
+
 function migrationRequiredResponse(): Response {
 	return new Response(
 		"Database migrations are required. Apply the deployment migration manifest and retry.",
@@ -591,6 +592,8 @@ function pushMetricsTimings(
 		timings.push({ name: "cache.miss", dur: metrics.cacheMisses, desc: "Cache misses" });
 	}
 }
+
+const TRAILING_SLASH_RE = /\/$/;
 
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
@@ -771,8 +774,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// Process /_emdash routes and public routes with an active session
 		// (logged-in editors need the runtime for toolbar/visual editing on public pages)
 		const isEmDashRoute = url.pathname.startsWith("/_emdash");
+		const base = import.meta.env.BASE_URL.replace(TRAILING_SLASH_RE, "");
+		const publicPath =
+			base && url.pathname.startsWith(`${base}/`) ? url.pathname.slice(base.length) : url.pathname;
 		const isPublicRuntimeRoute =
-			PUBLIC_RUNTIME_ROUTES.has(url.pathname) || isCollectionSitemapPath(url.pathname);
+			PUBLIC_RUNTIME_ROUTES.has(publicPath) || isCollectionSitemapPath(publicPath);
 
 		// Check for edit mode cookie - editors viewing public pages need the runtime
 		// so auth middleware can verify their session for visual editing
@@ -906,8 +912,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							storage: runtime.storage,
 						} as EmDashHandlers;
 					} catch (error) {
-						if (error instanceof PendingMigrationsError) {
-							return pendingMigrationsResponse(error);
+						if (isMigrationRequiredError(error)) {
+							return migrationRequiredErrorResponse(error);
 						}
 						if (migrationMode === "manual" && isMissingTableError(error)) {
 							console.error(
@@ -976,9 +982,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Eagerly warm site-global layout data (menus, widget areas,
 					// taxonomy terms, settings) concurrently so the layout's
 					// per-component reads overlap into ~one wall-clock round trip and
-					// hit a warm cache instead of serializing. Three guards:
+					// hit a warm cache instead of serializing. Four guards:
 					//  - request-scoped (remote) backend only -- this branch implies it;
 					//    pointless on synchronous local SQLite.
+					//  - an adapter that can overlap queries -- without that, Kysely's
+					//    connection mutex (D1 sessions without `coalesce`) queues the
+					//    prefetch ahead of the page's own first query.
 					//  - HTML navigations only -- feeds/sitemaps/JSON don't render the
 					//    layout, so prefetching their chrome is pure waste.
 					//  - the work starts immediately, then after() keeps both it and the
@@ -992,7 +1001,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						.trim()
 						.startsWith("text/html");
 					return runWithContext(ctx, async () => {
-						if (acceptsHtml) after(() => prefetchLayoutData());
+						if (
+							acceptsHtml &&
+							anonScoped.db.getExecutor().adapter.supportsMultipleConnections !== false
+						) {
+							after(() => prefetchLayoutData());
+						}
 						// commit() persists per-request state (e.g. the D1 bookmark cookie)
 						// before the response is returned, even if render throws; close()
 						// waits for stream-end and request-owned deferred work. See finishScoped.
@@ -1168,8 +1182,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					setPluginStatus: runtime.setPluginStatus.bind(runtime),
 				};
 			} catch (error) {
-				if (error instanceof PendingMigrationsError) {
-					return pendingMigrationsResponse(error);
+				if (isMigrationRequiredError(error)) {
+					return migrationRequiredErrorResponse(error);
 				}
 				if (migrationMode === "manual" && isMissingTableError(error)) {
 					console.error("[emdash] database schema is unavailable in manual migration mode:", error);

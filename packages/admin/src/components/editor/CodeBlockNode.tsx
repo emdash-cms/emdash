@@ -41,6 +41,11 @@ import {
 } from "./codeBlockLanguages";
 import { useAttachedKey } from "./useAttachedKey.js";
 
+// Kumo's Toolbar sets physical corner and divider classes on its children from the root's
+// child selectors, which outrank a child's own classes. Important logical classes win in RTL.
+const TOOLBAR_BUTTON_LOGICAL_EDGES =
+	"first:rounded-s-lg! first:rounded-e-none! last:rounded-s-none! last:rounded-e-lg! not-first:border-s! not-first:border-e-0!";
+
 const ADMIN_CODE_BLOCK_LOWLIGHT_KEY = Symbol.for("emdash:admin-code-block-lowlight");
 const globalStore = globalThis as Record<symbol, unknown>;
 const lowlight =
@@ -234,7 +239,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 							<Popover.Trigger
 								render={
 									<Toolbar.Button
-										className="min-w-0 flex-1 overflow-hidden text-[13px] focus:ring-0 focus-visible:relative focus-visible:z-10 focus-visible:bg-kumo-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus focus-visible:ring-0"
+										className={`${TOOLBAR_BUTTON_LOGICAL_EDGES} min-w-0 flex-1 overflow-hidden text-[13px] focus:ring-0 focus-visible:relative focus-visible:z-10 focus-visible:bg-kumo-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus focus-visible:ring-0`}
 										onMouseDown={(event) => event.preventDefault()}
 										aria-label={t`Set language (current: ${label})`}
 									>
@@ -250,7 +255,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 								render={
 									<Toolbar.Button
 										shape="square"
-										className="relative isolate overflow-hidden text-[13px]"
+										className={`${TOOLBAR_BUTTON_LOGICAL_EDGES} relative isolate overflow-hidden text-[13px]`}
 										onMouseDown={(event) => event.preventDefault()}
 										onClick={copyCode}
 										aria-label={copyFailed ? t`Retry copy` : t`Copy code`}
