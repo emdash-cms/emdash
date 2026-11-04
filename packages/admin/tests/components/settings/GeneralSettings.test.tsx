@@ -444,7 +444,7 @@ describe("GeneralSettings", () => {
 			shown: "https://new.example leitet auf eine andere Adresse um.",
 		},
 		{
-			case: "a domain serving another site",
+			case: "a domain the check could not verify",
 			details: { reason: "NOT_SERVING", origin },
 			message: msg`Could not verify that ${origin} serves this site`,
 			translation: "Es konnte nicht bestätigt werden, dass {origin} diese Website ausliefert.",
@@ -521,8 +521,8 @@ describe("GeneralSettings", () => {
 			await userEvent.keyboard("{Enter}");
 
 			await expect
-				.element(screen.getByText(/confirm it stays on that address and shows this site/))
-				.toBeInTheDocument();
+				.element(screen.getByRole("button", { name: "Use https://new.example anyway" }))
+				.toHaveAccessibleDescription(/confirm it stays on that address and shows this site/);
 			screen.getByRole("button", { name: "Use https://new.example anyway" }).element().focus();
 			await userEvent.keyboard("{Enter}");
 			await vi.waitFor(() =>
@@ -553,7 +553,7 @@ describe("GeneralSettings", () => {
 				.element(screen.getByRole("button", { name: "Use https://new.example anyway" }))
 				.toBeInTheDocument();
 			await expect
-				.element(screen.getByText(/On Cloudflare Workers, the check may fail/))
+				.element(screen.getByText(/On Cloudflare Workers, the check can fail/))
 				.not.toBeInTheDocument();
 		},
 	);

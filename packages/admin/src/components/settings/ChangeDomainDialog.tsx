@@ -184,12 +184,12 @@ export function ChangeDomainDialog({
 						<DialogError message={errorMessage} />
 						{fallbackUrl && (
 							<div className="grid gap-2 rounded-md border border-kumo-line p-3 text-sm">
-								<p>
+								<p id={`${formId}-fallback`}>
 									{t`If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check.`}
 								</p>
 								{showWorkersHint && (
-									<p>
-										{t`On Cloudflare Workers, the check may fail because a Worker cannot reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway.`}
+									<p id={`${formId}-workers`}>
+										{t`On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway.`}
 									</p>
 								)}
 								<div>
@@ -200,6 +200,11 @@ export function ChangeDomainDialog({
 										disabled={isPending}
 										loading={uncheckedMutation.isPending}
 										onClick={() => saveUnchecked(fallbackUrl)}
+										aria-describedby={
+											showWorkersHint
+												? `${formId}-fallback ${formId}-workers`
+												: `${formId}-fallback`
+										}
 									>
 										{t`Use ${fallbackUrl} anyway`}
 									</Button>
