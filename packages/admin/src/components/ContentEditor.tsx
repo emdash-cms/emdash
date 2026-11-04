@@ -2111,13 +2111,13 @@ export function ContentEditor({
 								</RevisionViewProvider>
 							</fieldset>
 							{!blockSidebarPanel && (
-								<div className="border-t px-1 py-1.5">
+								<div className={cn("px-4 pb-4", isNew || !onDelete ? "border-t pt-4" : "-mt-2")}>
 									<RouterLinkButton
 										to="/settings/sidebars"
 										search={{ tab: "editor" }}
 										variant="ghost"
 										icon={<PencilSimple aria-hidden="true" />}
-										className="w-full min-w-0 justify-start font-normal text-kumo-subtle hover:text-kumo-default"
+										className="w-full min-w-0 justify-start ps-2.5 pb-0.5 text-kumo-subtle hover:text-kumo-default [--kumo-button-text-lift:1px] [&>svg:first-child]:translate-y-(--kumo-button-text-lift)"
 									>
 										<span className="truncate">{t`Customize sidebar`}</span>
 									</RouterLinkButton>
