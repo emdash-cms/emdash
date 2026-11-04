@@ -77,6 +77,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm typecheck
+      - name: tsrs shadow typecheck (non-blocking)
+        run: node scripts/typecheck-tsrs-shadow.mjs
+        continue-on-error: true
+        timeout-minutes: 5
       - run: pnpm run --filter emdash-demo --filter @emdash-cms/demo-cloudflare typecheck
       - run: pnpm typecheck:templates
       - run: node scripts/typecheck-public-source.mjs
