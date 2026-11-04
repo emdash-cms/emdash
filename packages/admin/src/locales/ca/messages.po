@@ -638,12 +638,12 @@ msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
 msgstr "{columns, plural, one {Columna eliminada} other {# columnes eliminades}}"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "{completedCount} of {0} complete"
 msgstr "{completedCount} de {0} completats"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:196
+#: packages/admin/src/components/MediaUploadDialog.tsx:199
 msgid "{completedCount} of {0} uploads complete"
 msgstr "{completedCount} de {0} pujades completades"
 
@@ -684,7 +684,7 @@ msgstr "{earlierCount, plural, one {Mostra # entrada anterior} other {Mostra # e
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr "{failed, plural, one {No s'ha pogut enviar # correu. Comprova el proveïdor de correu.} other {No s'han pogut enviar # correus. Comprova el proveïdor de correu.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:198
+#: packages/admin/src/components/MediaUploadDialog.tsx:201
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{failedCount, plural, one {# pujada ha fallat} other {# pujades han fallat}}"
 
@@ -849,7 +849,7 @@ msgstr "{overdueCount, plural, one {Un element programat està vençut i el seny
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {Un element programat està vençut, però no s'ha completat cap execució del planificador. Executa `npx emdash doctor` i verifica el Cron Trigger desplegat.} other {# elements programats estan vençuts, però no s'ha completat cap execució del planificador. Executa `npx emdash doctor` i verifica el Cron Trigger desplegat.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:287
+#: packages/admin/src/components/MediaUploadDialog.tsx:290
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr "{overflowCount, plural, one {No s'ha afegit # fitxer perquè la llista de pujades és plena.} other {No s'han afegit # fitxers perquè la llista de pujades és plena.}}"
 
@@ -875,7 +875,7 @@ msgstr "{plural} es publiquen ara; les edicions de l'esborrany queden sense publ
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr "{policyRejected, plural, one {Obre l'entrada afectada, resol el motiu de la política i torna-la a programar. Una programació o publicació correcta esborra aquest avís.} other {Obre les entrades afectades, resol els motius de les polítiques i torna-les a programar. Una programació o publicació correcta esborra cada avís.}}"
 
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:303
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
 msgstr "{position} de {total}"
 
@@ -1857,7 +1857,7 @@ msgstr "Tots els estats"
 msgid "All types"
 msgstr "Tots els tipus"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:200
+#: packages/admin/src/components/MediaUploadDialog.tsx:203
 msgid "All uploads finished"
 msgstr "Totes les pujades han acabat"
 
@@ -2598,7 +2598,7 @@ msgstr "Explora i instal·la connectors publicats al registre descentralitzat."
 msgid "Browse and install plugins to extend your site."
 msgstr "Explora i instal·la connectors per ampliar el teu lloc."
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:268
+#: packages/admin/src/components/MediaUploadDialog.tsx:271
 msgid "Browse files"
 msgstr "Explora fitxers"
 
@@ -2607,7 +2607,7 @@ msgstr "Explora fitxers"
 msgid "Browse Files"
 msgstr "Explora els fitxers"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:277
+#: packages/admin/src/components/MediaUploadDialog.tsx:280
 msgid "Browse files to upload"
 msgstr "Explora fitxers per pujar"
 
@@ -2776,7 +2776,7 @@ msgid "Cancel (Esc)"
 msgstr "Cancel·la (Esc)"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:141
+#: packages/admin/src/components/MediaUploadDialog.tsx:144
 msgid "Cancel {0}"
 msgstr "Cancel·la {0}"
 
@@ -2785,7 +2785,7 @@ msgstr "Cancel·la {0}"
 msgid "Cancel import"
 msgstr "Cancel·la la importació"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:331
+#: packages/admin/src/components/MediaUploadDialog.tsx:334
 msgid "Cancel remaining"
 msgstr "Cancel·la la resta"
 
@@ -3237,7 +3237,7 @@ msgstr "Triar una signatura substitueix aquest crèdit automàtic."
 msgid "Clear"
 msgstr "Esborra"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:316
+#: packages/admin/src/components/MediaUploadDialog.tsx:319
 msgid "Clear completed"
 msgstr "Esborra les completades"
 
@@ -3311,7 +3311,7 @@ msgstr "Fes clic en aquest enllaç per iniciar la sessió a {siteName}:"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
-#: packages/admin/src/components/MediaUploadDialog.tsx:237
+#: packages/admin/src/components/MediaUploadDialog.tsx:240
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
@@ -4843,7 +4843,7 @@ msgid "Dismiss"
 msgstr "Descarta"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:143
+#: packages/admin/src/components/MediaUploadDialog.tsx:146
 msgid "Dismiss completed {0}"
 msgstr "Descarta {0} completat"
 
@@ -4950,7 +4950,7 @@ msgstr "No assignis"
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
 #: packages/admin/src/components/ContentList.tsx:1224
-#: packages/admin/src/components/MediaUploadDialog.tsx:335
+#: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
 #: packages/admin/src/components/WordPressImport.tsx:2185
 msgid "Done"
@@ -5051,7 +5051,7 @@ msgstr "Esborranys"
 msgid "Drafts & Private"
 msgstr "Esborranys i privat"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:256
+#: packages/admin/src/components/MediaUploadDialog.tsx:259
 msgid "Drag and drop files here"
 msgstr "Arrossega i deixa anar fitxers aquí"
 
@@ -7124,7 +7124,7 @@ msgstr "Nom del fitxer"
 msgid "Filename cannot be changed after upload"
 msgstr "El nom del fitxer no es pot canviar després de la pujada"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:228
+#: packages/admin/src/components/MediaUploadDialog.tsx:231
 msgid "Files upload as soon as you add them."
 msgstr "Els fitxers es pugen tan bon punt els afegeixes."
 
@@ -9301,12 +9301,12 @@ msgid "Move {0} down"
 msgstr "Mou {0} avall"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:312
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:318
 msgid "Move {0} earlier"
 msgstr "Mou {0} abans"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:321
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:327
 msgid "Move {0} later"
 msgstr "Mou {0} després"
 
@@ -9831,7 +9831,7 @@ msgstr "Encara no l'utilitza cap camp d'aquest tipus de contingut"
 msgid "No fields"
 msgstr "Sense camps"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "No files added"
 msgstr "No s'ha afegit cap fitxer"
 
@@ -10345,7 +10345,7 @@ msgstr "Descripció emergent opcional en passar-hi per sobre"
 msgid "Options (one per line)"
 msgstr "Opcions (una per línia)"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:258
+#: packages/admin/src/components/MediaUploadDialog.tsx:261
 msgid "Or browse files from your computer"
 msgstr "O explora fitxers del teu ordinador"
 
@@ -11058,6 +11058,11 @@ msgstr "Vols publicar ara?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Publica, despublica, programa i desprograma contingut"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "visualEditing.published"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11069,11 +11074,6 @@ msgstr "Publica, despublica, programa i desprograma contingut"
 #: packages/admin/src/router.tsx:1491
 msgid "Published"
 msgstr "Publicat"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "visualEditing.published"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:348
@@ -11441,7 +11441,7 @@ msgstr "visualEditing.removeImage"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:334
 #: packages/admin/src/components/ImageFieldRenderer.tsx:388
 #: packages/admin/src/components/ImageFieldRenderer.tsx:459
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:224
 #: packages/admin/src/components/PortableTextEditor.tsx:6643
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
@@ -11455,15 +11455,15 @@ msgstr "Treu"
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/ContentEditor.tsx:3159
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:219
-#: packages/admin/src/components/MediaUploadDialog.tsx:144
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:223
+#: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
 #: packages/admin/src/components/TaxonomySidebar.tsx:461
 msgid "Remove {0}"
 msgstr "Treu {0}"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:329
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:335
 msgid "Remove {0} from selection"
 msgstr "Treu {0} de la selecció"
 
@@ -11937,7 +11937,7 @@ msgstr "Retirat"
 #: packages/admin/src/components/ContentEditor.tsx:3173
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:217
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:221
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
@@ -11958,8 +11958,8 @@ msgstr "Reintenta"
 
 #. placeholder {0}: job.file.name
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:216
-#: packages/admin/src/components/MediaUploadDialog.tsx:130
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/MediaUploadDialog.tsx:133
 msgid "Retry {0}"
 msgstr "Torna-ho a provar {0}"
 
@@ -11972,7 +11972,7 @@ msgstr "Torna a provar d'actualitzar la memòria cau"
 msgid "Retry copy"
 msgstr "Torna a provar la còpia"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:326
+#: packages/admin/src/components/MediaUploadDialog.tsx:329
 msgid "Retry failed"
 msgstr "Torna-ho a provar ha fallat"
 
@@ -15413,7 +15413,7 @@ msgstr "Puja paquets de lloc i comprova si es poden importar. L'opció Administr
 msgid "Upload to {0}"
 msgstr "Puja a {0}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:225
+#: packages/admin/src/components/MediaUploadDialog.tsx:228
 msgid "Upload to {providerName}"
 msgstr "Puja a {providerName}"
 

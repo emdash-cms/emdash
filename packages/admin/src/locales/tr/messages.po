@@ -638,12 +638,12 @@ msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
 msgstr "{columns, plural, one {Sütun silindi} other {# sütun silindi}}"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "{completedCount} of {0} complete"
 msgstr "{completedCount}/{0} tamamlandı"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:196
+#: packages/admin/src/components/MediaUploadDialog.tsx:199
 msgid "{completedCount} of {0} uploads complete"
 msgstr "{completedCount}/{0} yükleme tamamlandı"
 
@@ -684,7 +684,7 @@ msgstr "{earlierCount, plural, one {Önceki # kaydı göster} other {Önceki # k
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr "{failed, plural, one {# e-posta gönderilemedi. E-posta sağlayıcısını kontrol edin.} other {# e-posta gönderilemedi. E-posta sağlayıcısını kontrol edin.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:198
+#: packages/admin/src/components/MediaUploadDialog.tsx:201
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{failedCount, plural, one {# yükleme başarısız oldu} other {# yükleme başarısız oldu}}"
 
@@ -849,7 +849,7 @@ msgstr "{overdueCount, plural, one {Zamanlanan bir öğenin yayın zamanı geçt
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {Zamanlanan bir öğenin yayın zamanı geçti, ancak zamanlayıcının hiçbir çalışması tamamlanmadı. `npx emdash doctor` komutunu çalıştırın ve dağıtılmış Cron Trigger yapılandırmasını doğrulayın.} other {Zamanlanan # öğenin yayın zamanı geçti, ancak zamanlayıcının hiçbir çalışması tamamlanmadı. `npx emdash doctor` komutunu çalıştırın ve dağıtılmış Cron Trigger yapılandırmasını doğrulayın.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:287
+#: packages/admin/src/components/MediaUploadDialog.tsx:290
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr "{overflowCount, plural, one {Yükleme listesi dolu olduğu için # dosya eklenmedi.} other {Yükleme listesi dolu olduğu için # dosya eklenmedi.}}"
 
@@ -875,7 +875,7 @@ msgstr "{plural} şimdi yayımlanır; taslak düzenlemeler yayımlanmaz."
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr "{policyRejected, plural, one {Etkilenen kaydı açın, politika engelini giderin ve yeniden zamanlayın. Başarılı bir zamanlama veya yayınlama işlemi bu bildirimi kaldırır.} other {Etkilenen kayıtları açın, politika engellerini giderin ve yeniden zamanlayın. Başarılı bir zamanlama veya yayınlama işlemi ilgili bildirimi kaldırır.}}"
 
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:303
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
 msgstr "{position}/{total}"
 
@@ -1857,7 +1857,7 @@ msgstr "Tüm durumlar"
 msgid "All types"
 msgstr "Tüm türler"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:200
+#: packages/admin/src/components/MediaUploadDialog.tsx:203
 msgid "All uploads finished"
 msgstr "Tüm yüklemeler tamamlandı"
 
@@ -2598,7 +2598,7 @@ msgstr "Merkezi olmayan eklenti kataloğunda yayımlanan eklentilere göz atın 
 msgid "Browse and install plugins to extend your site."
 msgstr "Sitenizi genişletmek için eklentilere göz atın ve yükleyin."
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:268
+#: packages/admin/src/components/MediaUploadDialog.tsx:271
 msgid "Browse files"
 msgstr "Dosyalara göz at"
 
@@ -2607,7 +2607,7 @@ msgstr "Dosyalara göz at"
 msgid "Browse Files"
 msgstr "Dosyalara göz at"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:277
+#: packages/admin/src/components/MediaUploadDialog.tsx:280
 msgid "Browse files to upload"
 msgstr "Yüklenecek dosyalara göz at"
 
@@ -2776,7 +2776,7 @@ msgid "Cancel (Esc)"
 msgstr "İptal (Esc)"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:141
+#: packages/admin/src/components/MediaUploadDialog.tsx:144
 msgid "Cancel {0}"
 msgstr "{0} yüklemesini iptal et"
 
@@ -2785,7 +2785,7 @@ msgstr "{0} yüklemesini iptal et"
 msgid "Cancel import"
 msgstr "İçe aktarmayı iptal et"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:331
+#: packages/admin/src/components/MediaUploadDialog.tsx:334
 msgid "Cancel remaining"
 msgstr "Kalanları iptal et"
 
@@ -3237,7 +3237,7 @@ msgstr "Seçtiğiniz yazar bilgisi otomatik atfın yerini alır."
 msgid "Clear"
 msgstr "Temizle"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:316
+#: packages/admin/src/components/MediaUploadDialog.tsx:319
 msgid "Clear completed"
 msgstr "Tamamlananları temizle"
 
@@ -3311,7 +3311,7 @@ msgstr "{siteName} sitesinde oturum açmak için bu bağlantıya tıklayın:"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
-#: packages/admin/src/components/MediaUploadDialog.tsx:237
+#: packages/admin/src/components/MediaUploadDialog.tsx:240
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
@@ -4843,7 +4843,7 @@ msgid "Dismiss"
 msgstr "Kapat"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:143
+#: packages/admin/src/components/MediaUploadDialog.tsx:146
 msgid "Dismiss completed {0}"
 msgstr "Tamamlanan {0} yüklemesini kapat"
 
@@ -4950,7 +4950,7 @@ msgstr "Eşleştirilmesin"
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
 #: packages/admin/src/components/ContentList.tsx:1224
-#: packages/admin/src/components/MediaUploadDialog.tsx:335
+#: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
 #: packages/admin/src/components/WordPressImport.tsx:2185
 msgid "Done"
@@ -5051,7 +5051,7 @@ msgstr "Taslaklar"
 msgid "Drafts & Private"
 msgstr "Taslaklar ve Özel İçerikler"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:256
+#: packages/admin/src/components/MediaUploadDialog.tsx:259
 msgid "Drag and drop files here"
 msgstr "Dosyaları buraya sürükleyip bırakın"
 
@@ -7124,7 +7124,7 @@ msgstr "Dosya adı"
 msgid "Filename cannot be changed after upload"
 msgstr "Dosya adı yüklemeden sonra değiştirilemez"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:228
+#: packages/admin/src/components/MediaUploadDialog.tsx:231
 msgid "Files upload as soon as you add them."
 msgstr "Dosyalar, eklediğiniz anda yüklenir."
 
@@ -9301,12 +9301,12 @@ msgid "Move {0} down"
 msgstr "{0} öğesini aşağı taşı"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:312
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:318
 msgid "Move {0} earlier"
 msgstr "{0} dosyasını öne taşı"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:321
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:327
 msgid "Move {0} later"
 msgstr "{0} dosyasını geriye taşı"
 
@@ -9831,7 +9831,7 @@ msgstr "Bu içerik türündeki hiçbir alan henüz bu ilişkiyi kullanmıyor"
 msgid "No fields"
 msgstr "Alan yok"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "No files added"
 msgstr "Dosya eklenmedi"
 
@@ -10345,7 +10345,7 @@ msgstr "Fareyle üzerine gelindiğinde isteğe bağlı araç ipucu"
 msgid "Options (one per line)"
 msgstr "Seçenekler (her satıra bir tane)"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:258
+#: packages/admin/src/components/MediaUploadDialog.tsx:261
 msgid "Or browse files from your computer"
 msgstr "Veya bilgisayarınızdaki dosyalara göz atın"
 
@@ -11058,6 +11058,11 @@ msgstr "Şimdi yayınlansın mı?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "İçeriği yayınlayın, yayından kaldırın, zamanlayın ve zamanlamasını kaldırın"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "Yayınlandı"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11068,11 +11073,6 @@ msgstr "İçeriği yayınlayın, yayından kaldırın, zamanlayın ve zamanlamas
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1491
 msgid "Published"
-msgstr "Yayınlandı"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "Yayınlandı"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11441,7 +11441,7 @@ msgstr "Kaldır"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:334
 #: packages/admin/src/components/ImageFieldRenderer.tsx:388
 #: packages/admin/src/components/ImageFieldRenderer.tsx:459
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:224
 #: packages/admin/src/components/PortableTextEditor.tsx:6643
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
@@ -11455,15 +11455,15 @@ msgstr "Kaldır"
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/ContentEditor.tsx:3159
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:219
-#: packages/admin/src/components/MediaUploadDialog.tsx:144
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:223
+#: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
 #: packages/admin/src/components/TaxonomySidebar.tsx:461
 msgid "Remove {0}"
 msgstr "{0}'i kaldırın"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:329
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:335
 msgid "Remove {0} from selection"
 msgstr "{0} dosyasını seçimden kaldır"
 
@@ -11937,7 +11937,7 @@ msgstr "Kullanımdan kaldırıldı"
 #: packages/admin/src/components/ContentEditor.tsx:3173
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:217
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:221
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
@@ -11958,8 +11958,8 @@ msgstr "Yeniden dene"
 
 #. placeholder {0}: job.file.name
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:216
-#: packages/admin/src/components/MediaUploadDialog.tsx:130
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/MediaUploadDialog.tsx:133
 msgid "Retry {0}"
 msgstr "{0} yüklemesini yeniden dene"
 
@@ -11972,7 +11972,7 @@ msgstr "Önbelleği yenilemeyi yeniden dene"
 msgid "Retry copy"
 msgstr "Kopyalamayı yeniden dene"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:326
+#: packages/admin/src/components/MediaUploadDialog.tsx:329
 msgid "Retry failed"
 msgstr "Başarısız olanları yeniden dene"
 
@@ -15413,7 +15413,7 @@ msgstr "Site paketlerini yükleyin ve içe aktarılıp aktarılamayacaklarını 
 msgid "Upload to {0}"
 msgstr "{0}'e yükle"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:225
+#: packages/admin/src/components/MediaUploadDialog.tsx:228
 msgid "Upload to {providerName}"
 msgstr "{providerName} sağlayıcısına yükle"
 

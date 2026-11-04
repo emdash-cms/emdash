@@ -638,12 +638,12 @@ msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
 msgstr "{columns, plural, one {Kolona obrisana} few {# kolone obrisane} other {# kolona obrisano}}"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "{completedCount} of {0} complete"
 msgstr "{completedCount} od {0} završeno"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:196
+#: packages/admin/src/components/MediaUploadDialog.tsx:199
 msgid "{completedCount} of {0} uploads complete"
 msgstr "{completedCount} od {0} otpremanja završeno"
 
@@ -684,7 +684,7 @@ msgstr "{earlierCount, plural, one {Prikaži # raniji unos} few {Prikaži # rani
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr "{failed, plural, one {# e-poruka nije poslata. Proveri provajdera e-pošte.} few {# e-poruke nisu poslate. Proveri provajdera e-pošte.} other {# e-poruka nije poslato. Proveri provajdera e-pošte.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:198
+#: packages/admin/src/components/MediaUploadDialog.tsx:201
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{failedCount, plural, one {# otpremanje nije uspelo} few {# otpremanja nisu uspela} other {# otpremanja nije uspelo}}"
 
@@ -849,7 +849,7 @@ msgstr "{overdueCount, plural, one {Jedna zakazana stavka kasni i otkucaj zakazi
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {Jedna zakazana stavka kasni, ali nijedno pokretanje zakazivača nije završeno. Pokreni `npx emdash doctor` i proveri raspoređeni Cron Trigger.} few {# zakazane stavke kasne, ali nijedno pokretanje zakazivača nije završeno. Pokreni `npx emdash doctor` i proveri raspoređeni Cron Trigger.} other {# zakazanih stavki kasni, ali nijedno pokretanje zakazivača nije završeno. Pokreni `npx emdash doctor` i proveri raspoređeni Cron Trigger.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:287
+#: packages/admin/src/components/MediaUploadDialog.tsx:290
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr "{overflowCount, plural, one {# fajl nije dodat jer je lista za otpremanje puna.} few {# fajla nisu dodata jer je lista za otpremanje puna.} other {# fajlova nije dodato jer je lista za otpremanje puna.}}"
 
@@ -875,7 +875,7 @@ msgstr "{plural} sada postaju objavljeni; izmene u nacrtu ostaju neobjavljene."
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr "{policyRejected, plural, one {Otvori pogođeni unos, otkloni razlog pravila i zakaži ga ponovo. Uspešno zakazivanje ili objavljivanje uklanja ovo obaveštenje.} few {Otvori pogođene unose, otkloni razloge pravila i zakaži ih ponovo. Uspešno zakazivanje ili objavljivanje uklanja svako obaveštenje.} other {Otvori pogođene unose, otkloni razloge pravila i zakaži ih ponovo. Uspešno zakazivanje ili objavljivanje uklanja svako obaveštenje.}}"
 
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:303
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
 msgstr "{position} od {total}"
 
@@ -1857,7 +1857,7 @@ msgstr "Svi statusi"
 msgid "All types"
 msgstr "Svi tipovi"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:200
+#: packages/admin/src/components/MediaUploadDialog.tsx:203
 msgid "All uploads finished"
 msgstr "Sva otpremanja su završena"
 
@@ -2598,7 +2598,7 @@ msgstr "Pregledaj i instaliraj dodatke objavljene u decentralizovanom registru."
 msgid "Browse and install plugins to extend your site."
 msgstr "Pregledaj i instaliraj dodatke da proširiš sajt."
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:268
+#: packages/admin/src/components/MediaUploadDialog.tsx:271
 msgid "Browse files"
 msgstr "Pregledaj fajlove"
 
@@ -2607,7 +2607,7 @@ msgstr "Pregledaj fajlove"
 msgid "Browse Files"
 msgstr "Pregledaj fajlove"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:277
+#: packages/admin/src/components/MediaUploadDialog.tsx:280
 msgid "Browse files to upload"
 msgstr "Pregledaj fajlove za otpremanje"
 
@@ -2776,7 +2776,7 @@ msgid "Cancel (Esc)"
 msgstr "Otkaži (Esc)"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:141
+#: packages/admin/src/components/MediaUploadDialog.tsx:144
 msgid "Cancel {0}"
 msgstr "Otkaži {0}"
 
@@ -2785,7 +2785,7 @@ msgstr "Otkaži {0}"
 msgid "Cancel import"
 msgstr "Otkaži uvoz"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:331
+#: packages/admin/src/components/MediaUploadDialog.tsx:334
 msgid "Cancel remaining"
 msgstr "Otkaži preostalo"
 
@@ -3237,7 +3237,7 @@ msgstr "Izborom potpisa zamenjuješ ovu automatsku zaslugu."
 msgid "Clear"
 msgstr "Očisti"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:316
+#: packages/admin/src/components/MediaUploadDialog.tsx:319
 msgid "Clear completed"
 msgstr "Očisti završeno"
 
@@ -3311,7 +3311,7 @@ msgstr "Klikni na ovaj link da se prijaviš na {siteName}:"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
-#: packages/admin/src/components/MediaUploadDialog.tsx:237
+#: packages/admin/src/components/MediaUploadDialog.tsx:240
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
@@ -4843,7 +4843,7 @@ msgid "Dismiss"
 msgstr "Odbaci"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:143
+#: packages/admin/src/components/MediaUploadDialog.tsx:146
 msgid "Dismiss completed {0}"
 msgstr "Sakloni završeno {0}"
 
@@ -4950,7 +4950,7 @@ msgstr "Ne mapiraj"
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
 #: packages/admin/src/components/ContentList.tsx:1224
-#: packages/admin/src/components/MediaUploadDialog.tsx:335
+#: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
 #: packages/admin/src/components/WordPressImport.tsx:2185
 msgid "Done"
@@ -5051,7 +5051,7 @@ msgstr "Nacrti"
 msgid "Drafts & Private"
 msgstr "Nacrti i privatno"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:256
+#: packages/admin/src/components/MediaUploadDialog.tsx:259
 msgid "Drag and drop files here"
 msgstr "Prevuci fajlove ovde"
 
@@ -7124,7 +7124,7 @@ msgstr "Ime fajla"
 msgid "Filename cannot be changed after upload"
 msgstr "Ime fajla se ne može menjati nakon otpremanja"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:228
+#: packages/admin/src/components/MediaUploadDialog.tsx:231
 msgid "Files upload as soon as you add them."
 msgstr "Fajlovi se otpremaju čim ih dodaš."
 
@@ -9301,12 +9301,12 @@ msgid "Move {0} down"
 msgstr "Pomeri {0} nadole"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:312
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:318
 msgid "Move {0} earlier"
 msgstr "Pomeri {0} ranije"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:321
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:327
 msgid "Move {0} later"
 msgstr "Pomeri {0} kasnije"
 
@@ -9831,7 +9831,7 @@ msgstr "Nijedno polje ovog tipa sadržaja ga još ne koristi"
 msgid "No fields"
 msgstr "Nema polja"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "No files added"
 msgstr "Nema dodatih fajlova"
 
@@ -10345,7 +10345,7 @@ msgstr "Opcioni tooltip pri prelasku mišem"
 msgid "Options (one per line)"
 msgstr "Opcije (jedna po liniji)"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:258
+#: packages/admin/src/components/MediaUploadDialog.tsx:261
 msgid "Or browse files from your computer"
 msgstr "Ili pregledaj fajlove sa računara"
 
@@ -11058,6 +11058,11 @@ msgstr "Objaviti odmah?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Objavljuj, poništavaj objavu, zakazuj i ukidaj zakazivanje sadržaja"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "visualEditing.published"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11069,11 +11074,6 @@ msgstr "Objavljuj, poništavaj objavu, zakazuj i ukidaj zakazivanje sadržaja"
 #: packages/admin/src/router.tsx:1491
 msgid "Published"
 msgstr "Objavljeno"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "visualEditing.published"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:348
@@ -11441,7 +11441,7 @@ msgstr "visualEditing.removeImage"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:334
 #: packages/admin/src/components/ImageFieldRenderer.tsx:388
 #: packages/admin/src/components/ImageFieldRenderer.tsx:459
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:224
 #: packages/admin/src/components/PortableTextEditor.tsx:6643
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
@@ -11455,15 +11455,15 @@ msgstr "Ukloni"
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/ContentEditor.tsx:3159
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:219
-#: packages/admin/src/components/MediaUploadDialog.tsx:144
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:223
+#: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
 #: packages/admin/src/components/TaxonomySidebar.tsx:461
 msgid "Remove {0}"
 msgstr "Ukloni {0}"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:329
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:335
 msgid "Remove {0} from selection"
 msgstr "Ukloni {0} iz izbora"
 
@@ -11937,7 +11937,7 @@ msgstr "Povučeno"
 #: packages/admin/src/components/ContentEditor.tsx:3173
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:217
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:221
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
@@ -11958,8 +11958,8 @@ msgstr "Pokušaj ponovo"
 
 #. placeholder {0}: job.file.name
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:216
-#: packages/admin/src/components/MediaUploadDialog.tsx:130
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/MediaUploadDialog.tsx:133
 msgid "Retry {0}"
 msgstr "Pokušaj ponovo {0}"
 
@@ -11972,7 +11972,7 @@ msgstr "Pokušaj ponovo osvežavanje keša"
 msgid "Retry copy"
 msgstr "Pokušaj ponovo kopiranje"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:326
+#: packages/admin/src/components/MediaUploadDialog.tsx:329
 msgid "Retry failed"
 msgstr "Ponovni pokušaj nije uspeo"
 
@@ -15413,7 +15413,7 @@ msgstr "Otpremi pakete sajta i proveri da li mogu da se uvezu. Ovo uključuje Ad
 msgid "Upload to {0}"
 msgstr "Otpremi na {0}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:225
+#: packages/admin/src/components/MediaUploadDialog.tsx:228
 msgid "Upload to {providerName}"
 msgstr "Otpremi na {providerName}"
 

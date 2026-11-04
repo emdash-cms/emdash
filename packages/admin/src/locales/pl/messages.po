@@ -638,12 +638,12 @@ msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
 msgstr "{columns, plural, one {Usunięto kolumnę} few {Usunięto # kolumny} other {Usunięto # kolumn}}"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "{completedCount} of {0} complete"
 msgstr "Ukończono: {completedCount} z {0}"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:196
+#: packages/admin/src/components/MediaUploadDialog.tsx:199
 msgid "{completedCount} of {0} uploads complete"
 msgstr "Przesłano {completedCount} z {0} plików"
 
@@ -684,7 +684,7 @@ msgstr "{earlierCount, plural, one {Pokaż # wcześniejszy wpis} few {Pokaż # w
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr "{failed, plural, one {Nie udało się wysłać # e-maila. Sprawdź dostawcę e-mail.} few {Nie udało się wysłać # e-maili. Sprawdź dostawcę e-mail.} other {Nie udało się wysłać # e-maili. Sprawdź dostawcę e-mail.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:198
+#: packages/admin/src/components/MediaUploadDialog.tsx:201
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{failedCount, plural, one {Nie udało się przesłać # pliku} few {Nie udało się przesłać # plików} other {Nie udało się przesłać # plików}}"
 
@@ -849,7 +849,7 @@ msgstr "{overdueCount, plural, one {Jeden zaplanowany element jest opóźniony, 
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {Jeden zaplanowany element jest opóźniony, ale harmonogram nie zakończył jeszcze żadnego przebiegu. Uruchom `npx emdash doctor` i sprawdź wdrożony Cron Trigger.} few {# zaplanowane elementy są opóźnione, ale harmonogram nie zakończył jeszcze żadnego przebiegu. Uruchom `npx emdash doctor` i sprawdź wdrożony Cron Trigger.} other {# zaplanowanych elementów jest opóźnionych, ale harmonogram nie zakończył jeszcze żadnego przebiegu. Uruchom `npx emdash doctor` i sprawdź wdrożony Cron Trigger.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:287
+#: packages/admin/src/components/MediaUploadDialog.tsx:290
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr "{overflowCount, plural, one {# plik nie został dodany, ponieważ lista przesyłania jest pełna.} few {# pliki nie zostały dodane, ponieważ lista przesyłania jest pełna.} other {# plików nie zostało dodanych, ponieważ lista przesyłania jest pełna.}}"
 
@@ -875,7 +875,7 @@ msgstr "Przypisania ({plural}) zostaną opublikowane od razu; zmiany w szkicach 
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr "{policyRejected, plural, one {Otwórz wpis, którego to dotyczy, usuń przyczynę wskazaną przez zasady publikacji i zaplanuj go ponownie. Udane zaplanowanie lub opublikowanie usunie to powiadomienie.} few {Otwórz wpisy, których to dotyczy, usuń przyczyny wskazane przez zasady publikacji i zaplanuj je ponownie. Udane zaplanowanie lub opublikowanie wpisu usuwa dotyczące go powiadomienie.} other {Otwórz wpisy, których to dotyczy, usuń przyczyny wskazane przez zasady publikacji i zaplanuj je ponownie. Udane zaplanowanie lub opublikowanie wpisu usuwa dotyczące go powiadomienie.}}"
 
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:303
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
 msgstr "{position} z {total}"
 
@@ -1857,7 +1857,7 @@ msgstr "Wszystkie statusy"
 msgid "All types"
 msgstr "Wszystkie typy"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:200
+#: packages/admin/src/components/MediaUploadDialog.tsx:203
 msgid "All uploads finished"
 msgstr "Zakończono wszystkie przesyłania"
 
@@ -2598,7 +2598,7 @@ msgstr "Przeglądaj i instaluj wtyczki opublikowane w zdecentralizowanym rejestr
 msgid "Browse and install plugins to extend your site."
 msgstr "Przeglądaj i instaluj wtyczki, aby rozszerzyć swoją witrynę."
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:268
+#: packages/admin/src/components/MediaUploadDialog.tsx:271
 msgid "Browse files"
 msgstr "Przeglądaj pliki"
 
@@ -2607,7 +2607,7 @@ msgstr "Przeglądaj pliki"
 msgid "Browse Files"
 msgstr "Przeglądaj pliki"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:277
+#: packages/admin/src/components/MediaUploadDialog.tsx:280
 msgid "Browse files to upload"
 msgstr "Przeglądaj pliki do przesłania"
 
@@ -2776,7 +2776,7 @@ msgid "Cancel (Esc)"
 msgstr "Anuluj (Esc)"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:141
+#: packages/admin/src/components/MediaUploadDialog.tsx:144
 msgid "Cancel {0}"
 msgstr "Anuluj: {0}"
 
@@ -2785,7 +2785,7 @@ msgstr "Anuluj: {0}"
 msgid "Cancel import"
 msgstr "Anuluj import"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:331
+#: packages/admin/src/components/MediaUploadDialog.tsx:334
 msgid "Cancel remaining"
 msgstr "Anuluj pozostałe"
 
@@ -3237,7 +3237,7 @@ msgstr "Wybranie autora zastąpi to automatyczne przypisanie."
 msgid "Clear"
 msgstr "Wyczyść"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:316
+#: packages/admin/src/components/MediaUploadDialog.tsx:319
 msgid "Clear completed"
 msgstr "Wyczyść ukończone"
 
@@ -3311,7 +3311,7 @@ msgstr "Kliknij ten link, aby zalogować się do witryny {siteName}:"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
-#: packages/admin/src/components/MediaUploadDialog.tsx:237
+#: packages/admin/src/components/MediaUploadDialog.tsx:240
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
@@ -4843,7 +4843,7 @@ msgid "Dismiss"
 msgstr "Zamknij"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:143
+#: packages/admin/src/components/MediaUploadDialog.tsx:146
 msgid "Dismiss completed {0}"
 msgstr "Ukryj przesłany plik: {0}"
 
@@ -4950,7 +4950,7 @@ msgstr "Nie przypisuj"
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
 #: packages/admin/src/components/ContentList.tsx:1224
-#: packages/admin/src/components/MediaUploadDialog.tsx:335
+#: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
 #: packages/admin/src/components/WordPressImport.tsx:2185
 msgid "Done"
@@ -5051,7 +5051,7 @@ msgstr "Szkice"
 msgid "Drafts & Private"
 msgstr "Szkice i prywatne"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:256
+#: packages/admin/src/components/MediaUploadDialog.tsx:259
 msgid "Drag and drop files here"
 msgstr "Przeciągnij i upuść pliki tutaj"
 
@@ -7124,7 +7124,7 @@ msgstr "Nazwa pliku"
 msgid "Filename cannot be changed after upload"
 msgstr "Nazwa pliku nie może być zmieniona po przesłaniu"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:228
+#: packages/admin/src/components/MediaUploadDialog.tsx:231
 msgid "Files upload as soon as you add them."
 msgstr "Pliki są przesyłane od razu po dodaniu."
 
@@ -9301,12 +9301,12 @@ msgid "Move {0} down"
 msgstr "Przenieś {0} w dół"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:312
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:318
 msgid "Move {0} earlier"
 msgstr "Przesuń {0} wyżej"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:321
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:327
 msgid "Move {0} later"
 msgstr "Przesuń {0} niżej"
 
@@ -9831,7 +9831,7 @@ msgstr "Żadne pole tego typu treści jeszcze jej nie używa"
 msgid "No fields"
 msgstr "Brak pól"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "No files added"
 msgstr "Nie dodano plików"
 
@@ -10345,7 +10345,7 @@ msgstr "Opcjonalna podpowiedź po najechaniu"
 msgid "Options (one per line)"
 msgstr "Opcje (jedna na linię)"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:258
+#: packages/admin/src/components/MediaUploadDialog.tsx:261
 msgid "Or browse files from your computer"
 msgstr "Lub wybierz pliki z komputera"
 
@@ -11058,6 +11058,11 @@ msgstr "Opublikować teraz?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Publikowanie, cofanie publikacji, planowanie i anulowanie zaplanowanej publikacji treści"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "Opublikowany"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11068,11 +11073,6 @@ msgstr "Publikowanie, cofanie publikacji, planowanie i anulowanie zaplanowanej p
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1491
 msgid "Published"
-msgstr "Opublikowany"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "Opublikowany"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11441,7 +11441,7 @@ msgstr "Usuń"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:334
 #: packages/admin/src/components/ImageFieldRenderer.tsx:388
 #: packages/admin/src/components/ImageFieldRenderer.tsx:459
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:224
 #: packages/admin/src/components/PortableTextEditor.tsx:6643
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
@@ -11455,15 +11455,15 @@ msgstr "Usuń"
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/ContentEditor.tsx:3159
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:219
-#: packages/admin/src/components/MediaUploadDialog.tsx:144
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:223
+#: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
 #: packages/admin/src/components/TaxonomySidebar.tsx:461
 msgid "Remove {0}"
 msgstr "Usuń {0}"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:329
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:335
 msgid "Remove {0} from selection"
 msgstr "Usuń {0} z wyboru"
 
@@ -11937,7 +11937,7 @@ msgstr "Wycofany"
 #: packages/admin/src/components/ContentEditor.tsx:3173
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:217
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:221
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
@@ -11958,8 +11958,8 @@ msgstr "Ponów"
 
 #. placeholder {0}: job.file.name
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:216
-#: packages/admin/src/components/MediaUploadDialog.tsx:130
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/MediaUploadDialog.tsx:133
 msgid "Retry {0}"
 msgstr "Ponów przesyłanie: {0}"
 
@@ -11972,7 +11972,7 @@ msgstr "Ponów odświeżanie pamięci podręcznej"
 msgid "Retry copy"
 msgstr "Ponów kopiowanie"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:326
+#: packages/admin/src/components/MediaUploadDialog.tsx:329
 msgid "Retry failed"
 msgstr "Ponów nieudane"
 
@@ -15413,7 +15413,7 @@ msgstr "Przesyłanie paczek witryn i sprawdzanie, czy można je zaimportować. Z
 msgid "Upload to {0}"
 msgstr "Prześlij do {0}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:225
+#: packages/admin/src/components/MediaUploadDialog.tsx:228
 msgid "Upload to {providerName}"
 msgstr "Prześlij do: {providerName}"
 

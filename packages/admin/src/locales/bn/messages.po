@@ -638,12 +638,12 @@ msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
 msgstr "{columns, plural, one {কলাম মুছে ফেলা হয়েছে} other {#টি কলাম মুছে ফেলা হয়েছে}}"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "{completedCount} of {0} complete"
 msgstr "{0}টির মধ্যে {completedCount}টি সম্পন্ন"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:196
+#: packages/admin/src/components/MediaUploadDialog.tsx:199
 msgid "{completedCount} of {0} uploads complete"
 msgstr "{0}টির মধ্যে {completedCount}টি আপলোড সম্পন্ন"
 
@@ -684,7 +684,7 @@ msgstr ""
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr ""
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:198
+#: packages/admin/src/components/MediaUploadDialog.tsx:201
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{failedCount, plural, one {#টি আপলোড ব্যর্থ হয়েছে} other {#টি আপলোড ব্যর্থ হয়েছে}}"
 
@@ -849,7 +849,7 @@ msgstr "{overdueCount, plural, one {একটি নির্ধারিত আ
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {একটি নির্ধারিত আইটেমের সময় পেরিয়ে গেছে, কিন্তু শিডিউলার এখনও একবারও সম্পূর্ণ চলেনি। `npx emdash doctor` চালান এবং ডিপ্লয় করা Cron Trigger যাচাই করুন।} other {#টি নির্ধারিত আইটেমের সময় পেরিয়ে গেছে, কিন্তু শিডিউলার এখনও একবারও সম্পূর্ণ চলেনি। `npx emdash doctor` চালান এবং ডিপ্লয় করা Cron Trigger যাচাই করুন।}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:287
+#: packages/admin/src/components/MediaUploadDialog.tsx:290
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr "{overflowCount, plural, one {আপলোড তালিকা পূর্ণ থাকায় #টি ফাইল যোগ করা হয়নি।} other {আপলোড তালিকা পূর্ণ থাকায় #টি ফাইল যোগ করা হয়নি।}}"
 
@@ -875,7 +875,7 @@ msgstr ""
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr "{policyRejected, plural, one {সংশ্লিষ্ট এন্ট্রিটি খুলুন, নীতিগত কারণটির সমাধান করুন এবং আবার সময় নির্ধারণ করুন। সফলভাবে সময় নির্ধারণ বা প্রকাশ করলে এই নোটিশটি মুছে যাবে।} other {সংশ্লিষ্ট এন্ট্রিগুলো খুলুন, নীতিগত কারণগুলোর সমাধান করুন এবং সেগুলোর আবার সময় নির্ধারণ করুন। সফলভাবে সময় নির্ধারণ বা প্রকাশ করলে প্রতিটি নোটিশ মুছে যাবে।}}"
 
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:303
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
 msgstr "{total}-এর মধ্যে {position}"
 
@@ -1857,7 +1857,7 @@ msgstr "সব স্ট্যাটাস"
 msgid "All types"
 msgstr "সব ধরন"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:200
+#: packages/admin/src/components/MediaUploadDialog.tsx:203
 msgid "All uploads finished"
 msgstr "সব আপলোড শেষ হয়েছে"
 
@@ -2598,7 +2598,7 @@ msgstr "বিকেন্দ্রীকৃত রেজিস্ট্রি�
 msgid "Browse and install plugins to extend your site."
 msgstr "আপনার সাইটের সক্ষমতা বাড়াতে প্লাগইন ব্রাউজ ও ইনস্টল করুন।"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:268
+#: packages/admin/src/components/MediaUploadDialog.tsx:271
 msgid "Browse files"
 msgstr "ফাইল ব্রাউজ করুন"
 
@@ -2607,7 +2607,7 @@ msgstr "ফাইল ব্রাউজ করুন"
 msgid "Browse Files"
 msgstr "ফাইল ব্রাউজ করুন"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:277
+#: packages/admin/src/components/MediaUploadDialog.tsx:280
 msgid "Browse files to upload"
 msgstr "আপলোড করার জন্য ফাইল ব্রাউজ করুন"
 
@@ -2776,7 +2776,7 @@ msgid "Cancel (Esc)"
 msgstr "বাতিল করুন (Esc)"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:141
+#: packages/admin/src/components/MediaUploadDialog.tsx:144
 msgid "Cancel {0}"
 msgstr "{0} বাতিল করুন"
 
@@ -2785,7 +2785,7 @@ msgstr "{0} বাতিল করুন"
 msgid "Cancel import"
 msgstr "ইমপোর্ট বাতিল করুন"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:331
+#: packages/admin/src/components/MediaUploadDialog.tsx:334
 msgid "Cancel remaining"
 msgstr "বাকিগুলো বাতিল করুন"
 
@@ -3237,7 +3237,7 @@ msgstr "একটি বাইলাইন বেছে নিলে এই স�
 msgid "Clear"
 msgstr "পরিষ্কার করুন"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:316
+#: packages/admin/src/components/MediaUploadDialog.tsx:319
 msgid "Clear completed"
 msgstr "সম্পন্নগুলো পরিষ্কার করুন"
 
@@ -3311,7 +3311,7 @@ msgstr "{siteName}-এ সাইন ইন করতে এই লিঙ্ক�
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
-#: packages/admin/src/components/MediaUploadDialog.tsx:237
+#: packages/admin/src/components/MediaUploadDialog.tsx:240
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
@@ -4843,7 +4843,7 @@ msgid "Dismiss"
 msgstr "সরিয়ে দিন"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:143
+#: packages/admin/src/components/MediaUploadDialog.tsx:146
 msgid "Dismiss completed {0}"
 msgstr "সম্পন্ন {0} সরিয়ে দিন"
 
@@ -4950,7 +4950,7 @@ msgstr "ম্যাপ করবেন না"
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
 #: packages/admin/src/components/ContentList.tsx:1224
-#: packages/admin/src/components/MediaUploadDialog.tsx:335
+#: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
 #: packages/admin/src/components/WordPressImport.tsx:2185
 msgid "Done"
@@ -5051,7 +5051,7 @@ msgstr "খসড়া"
 msgid "Drafts & Private"
 msgstr "খসড়া ও ব্যক্তিগত"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:256
+#: packages/admin/src/components/MediaUploadDialog.tsx:259
 msgid "Drag and drop files here"
 msgstr "ফাইল এখানে টেনে এনে ছাড়ুন"
 
@@ -7124,7 +7124,7 @@ msgstr "ফাইলের নাম"
 msgid "Filename cannot be changed after upload"
 msgstr "আপলোডের পরে ফাইলের নাম পরিবর্তন করা যায় না"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:228
+#: packages/admin/src/components/MediaUploadDialog.tsx:231
 msgid "Files upload as soon as you add them."
 msgstr "ফাইল যোগ করার সঙ্গে সঙ্গেই আপলোড হয়ে যায়।"
 
@@ -9301,12 +9301,12 @@ msgid "Move {0} down"
 msgstr "{0} নিচে সরান"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:312
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:318
 msgid "Move {0} earlier"
 msgstr "{0} আগে সরান"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:321
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:327
 msgid "Move {0} later"
 msgstr "{0} পরে সরান"
 
@@ -9831,7 +9831,7 @@ msgstr ""
 msgid "No fields"
 msgstr ""
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "No files added"
 msgstr "কোনো ফাইল যোগ করা হয়নি"
 
@@ -10345,7 +10345,7 @@ msgstr "হোভার করলে দেখানো ঐচ্ছিক ট�
 msgid "Options (one per line)"
 msgstr "বিকল্পসমূহ (প্রতি লাইনে একটি)"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:258
+#: packages/admin/src/components/MediaUploadDialog.tsx:261
 msgid "Or browse files from your computer"
 msgstr "অথবা আপনার কম্পিউটার থেকে ফাইল ব্রাউজ করুন"
 
@@ -11058,6 +11058,11 @@ msgstr "এখনই প্রকাশ করবেন?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "কনটেন্ট প্রকাশ, অপ্রকাশিত, সময় নির্ধারণ এবং নির্ধারিত সময় বাতিল করা"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11069,11 +11074,6 @@ msgstr "কনটেন্ট প্রকাশ, অপ্রকাশিত, �
 #: packages/admin/src/router.tsx:1491
 msgid "Published"
 msgstr "প্রকাশিত"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr ""
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:348
@@ -11441,7 +11441,7 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:334
 #: packages/admin/src/components/ImageFieldRenderer.tsx:388
 #: packages/admin/src/components/ImageFieldRenderer.tsx:459
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:224
 #: packages/admin/src/components/PortableTextEditor.tsx:6643
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
@@ -11455,15 +11455,15 @@ msgstr "সরান"
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/ContentEditor.tsx:3159
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:219
-#: packages/admin/src/components/MediaUploadDialog.tsx:144
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:223
+#: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
 #: packages/admin/src/components/TaxonomySidebar.tsx:461
 msgid "Remove {0}"
 msgstr "{0} সরান"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:329
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:335
 msgid "Remove {0} from selection"
 msgstr "নির্বাচন থেকে {0} সরান"
 
@@ -11937,7 +11937,7 @@ msgstr "অবসরপ্রাপ্ত"
 #: packages/admin/src/components/ContentEditor.tsx:3173
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:217
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:221
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
@@ -11958,8 +11958,8 @@ msgstr "আবার চেষ্টা করুন"
 
 #. placeholder {0}: job.file.name
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:216
-#: packages/admin/src/components/MediaUploadDialog.tsx:130
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/MediaUploadDialog.tsx:133
 msgid "Retry {0}"
 msgstr "{0} আবার চেষ্টা করুন"
 
@@ -11972,7 +11972,7 @@ msgstr "ক্যাশ রিফ্রেশ আবার চেষ্টা �
 msgid "Retry copy"
 msgstr "কপি আবার চেষ্টা করুন"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:326
+#: packages/admin/src/components/MediaUploadDialog.tsx:329
 msgid "Retry failed"
 msgstr "ব্যর্থগুলো আবার চেষ্টা করুন"
 
@@ -15413,7 +15413,7 @@ msgstr "সাইট প্যাকেজ আপলোড করা এবং �
 msgid "Upload to {0}"
 msgstr "{0}-এ আপলোড করুন"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:225
+#: packages/admin/src/components/MediaUploadDialog.tsx:228
 msgid "Upload to {providerName}"
 msgstr "{providerName}-এ আপলোড করুন"
 

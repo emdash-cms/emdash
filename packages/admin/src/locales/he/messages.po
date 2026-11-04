@@ -639,12 +639,12 @@ msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
 msgstr "{columns, plural, one {עמודה נמחקה} two {שתי עמודות נמחקו} other {# עמודות נמחקו}}"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "{completedCount} of {0} complete"
 msgstr "הושלמו {completedCount} מתוך {0}"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:196
+#: packages/admin/src/components/MediaUploadDialog.tsx:199
 msgid "{completedCount} of {0} uploads complete"
 msgstr "הושלמו {completedCount} מתוך {0} העלאות"
 
@@ -685,7 +685,7 @@ msgstr "{earlierCount, plural, one {הצגת פריט מוקדם אחד} two {ה
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr "{failed, plural, one {לא ניתן היה לשלוח אימייל אחד. בדקו את ספק האימייל.} two {לא ניתן היה לשלוח שני אימיילים. בדקו את ספק האימייל.} other {לא ניתן היה לשלוח # אימיילים. בדקו את ספק האימייל.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:198
+#: packages/admin/src/components/MediaUploadDialog.tsx:201
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{failedCount, plural, one {העלאה אחת נכשלה} two {שתי העלאות נכשלו} other {# העלאות נכשלו}}"
 
@@ -850,7 +850,7 @@ msgstr "{overdueCount, plural, one {פריט מתוזמן אחד באיחור ו
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {פריט מתוזמן אחד באיחור, אך אף הרצת מתזמן לא הושלמה. הריצו `npx emdash doctor` וודאו את Cron Trigger שנפרס.} two {שני פריטים מתוזמנים באיחור, אך אף הרצת מתזמן לא הושלמה. הריצו `npx emdash doctor` וודאו את Cron Trigger שנפרס.} other {# פריטים מתוזמנים באיחור, אך אף הרצת מתזמן לא הושלמה. הריצו `npx emdash doctor` וודאו את Cron Trigger שנפרס.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:287
+#: packages/admin/src/components/MediaUploadDialog.tsx:290
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr "{overflowCount, plural, one {קובץ אחד לא נוסף כי רשימת ההעלאות מלאה.} two {שני קבצים לא נוספו כי רשימת ההעלאות מלאה.} other {# קבצים לא נוספו כי רשימת ההעלאות מלאה.}}"
 
@@ -876,7 +876,7 @@ msgstr "{plural} מתפרסמים מיד; עריכות בטיוטה נשארות
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr "{policyRejected, plural, one {פתחו את הפריט המושפע, טפלו בסיבת המדיניות ותזמנו אותו שוב. תזמון או פרסום מוצלחים מסירים הודעה זו.} two {פתחו את הפריטים המושפעים, טפלו בסיבות המדיניות ותזמנו אותם שוב. תזמון או פרסום מוצלחים מסירים כל הודעה.} other {פתחו את הפריטים המושפעים, טפלו בסיבות המדיניות ותזמנו אותם שוב. תזמון או פרסום מוצלחים מסירים כל הודעה.}}"
 
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:303
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
 msgstr "{position} מתוך {total}"
 
@@ -1858,7 +1858,7 @@ msgstr "כל הסטטוסים"
 msgid "All types"
 msgstr "כל הסוגים"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:200
+#: packages/admin/src/components/MediaUploadDialog.tsx:203
 msgid "All uploads finished"
 msgstr "כל ההעלאות הסתיימו"
 
@@ -2599,7 +2599,7 @@ msgstr "עיינו והתקינו תוספים שפורסמו לרישום המ�
 msgid "Browse and install plugins to extend your site."
 msgstr "עיינו והתקינו תוספים להרחבת האתר שלכם."
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:268
+#: packages/admin/src/components/MediaUploadDialog.tsx:271
 msgid "Browse files"
 msgstr "עיון בקבצים"
 
@@ -2608,7 +2608,7 @@ msgstr "עיון בקבצים"
 msgid "Browse Files"
 msgstr "עיון בקבצים"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:277
+#: packages/admin/src/components/MediaUploadDialog.tsx:280
 msgid "Browse files to upload"
 msgstr "עיון בקבצים להעלאה"
 
@@ -2777,7 +2777,7 @@ msgid "Cancel (Esc)"
 msgstr "ביטול (Esc)"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:141
+#: packages/admin/src/components/MediaUploadDialog.tsx:144
 msgid "Cancel {0}"
 msgstr "ביטול {0}"
 
@@ -2786,7 +2786,7 @@ msgstr "ביטול {0}"
 msgid "Cancel import"
 msgstr "ביטול הייבוא"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:331
+#: packages/admin/src/components/MediaUploadDialog.tsx:334
 msgid "Cancel remaining"
 msgstr "ביטול הנותרים"
 
@@ -3238,7 +3238,7 @@ msgstr "בחירת קרדיט מחליפה את הקרדיט האוטומטי ה
 msgid "Clear"
 msgstr "ניקוי"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:316
+#: packages/admin/src/components/MediaUploadDialog.tsx:319
 msgid "Clear completed"
 msgstr "ניקוי שהושלמו"
 
@@ -3312,7 +3312,7 @@ msgstr "לחצו על הקישור הזה כדי להתחבר אל {siteName}:"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
-#: packages/admin/src/components/MediaUploadDialog.tsx:237
+#: packages/admin/src/components/MediaUploadDialog.tsx:240
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
@@ -4844,7 +4844,7 @@ msgid "Dismiss"
 msgstr "סגירה"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:143
+#: packages/admin/src/components/MediaUploadDialog.tsx:146
 msgid "Dismiss completed {0}"
 msgstr "סגירת {0} שהושלמו"
 
@@ -4951,7 +4951,7 @@ msgstr "ללא מיפוי"
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
 #: packages/admin/src/components/ContentList.tsx:1224
-#: packages/admin/src/components/MediaUploadDialog.tsx:335
+#: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
 #: packages/admin/src/components/WordPressImport.tsx:2185
 msgid "Done"
@@ -5052,7 +5052,7 @@ msgstr "טיוטות"
 msgid "Drafts & Private"
 msgstr "טיוטות ופרטי"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:256
+#: packages/admin/src/components/MediaUploadDialog.tsx:259
 msgid "Drag and drop files here"
 msgstr "גררו ושחררו קבצים כאן"
 
@@ -7125,7 +7125,7 @@ msgstr "שם קובץ"
 msgid "Filename cannot be changed after upload"
 msgstr "לא ניתן לשנות את שם הקובץ לאחר ההעלאה"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:228
+#: packages/admin/src/components/MediaUploadDialog.tsx:231
 msgid "Files upload as soon as you add them."
 msgstr "הקבצים מועלים מיד לאחר הוספתם."
 
@@ -9302,12 +9302,12 @@ msgid "Move {0} down"
 msgstr "העברת {0} למטה"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:312
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:318
 msgid "Move {0} earlier"
 msgstr "העברת {0} מוקדם יותר"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:321
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:327
 msgid "Move {0} later"
 msgstr "העברת {0} מאוחר יותר"
 
@@ -9832,7 +9832,7 @@ msgstr "אף שדה בסוג התוכן הזה עדיין לא משתמש בו"
 msgid "No fields"
 msgstr "אין שדות"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "No files added"
 msgstr "לא נוספו קבצים"
 
@@ -10346,7 +10346,7 @@ msgstr "חלונית מידע אופציונלית במעבר עכבר"
 msgid "Options (one per line)"
 msgstr "אפשרויות (אחת בכל שורה)"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:258
+#: packages/admin/src/components/MediaUploadDialog.tsx:261
 msgid "Or browse files from your computer"
 msgstr "או עיינו בקבצים מהמחשב שלכם"
 
@@ -11059,6 +11059,11 @@ msgstr "לפרסם כעת?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "פרסום, ביטול פרסום, תזמון וביטול תזמון של תוכן"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "פורסם"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11069,11 +11074,6 @@ msgstr "פרסום, ביטול פרסום, תזמון וביטול תזמון ש
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1491
 msgid "Published"
-msgstr "פורסם"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "פורסם"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11442,7 +11442,7 @@ msgstr "הסרה"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:334
 #: packages/admin/src/components/ImageFieldRenderer.tsx:388
 #: packages/admin/src/components/ImageFieldRenderer.tsx:459
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:224
 #: packages/admin/src/components/PortableTextEditor.tsx:6643
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
@@ -11456,15 +11456,15 @@ msgstr "הסרה"
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/ContentEditor.tsx:3159
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:219
-#: packages/admin/src/components/MediaUploadDialog.tsx:144
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:223
+#: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
 #: packages/admin/src/components/TaxonomySidebar.tsx:461
 msgid "Remove {0}"
 msgstr "הסרת {0}"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:329
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:335
 msgid "Remove {0} from selection"
 msgstr "הסרת {0} מהבחירה"
 
@@ -11938,7 +11938,7 @@ msgstr "הוצא משימוש"
 #: packages/admin/src/components/ContentEditor.tsx:3173
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:217
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:221
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
@@ -11959,8 +11959,8 @@ msgstr "ניסיון חוזר"
 
 #. placeholder {0}: job.file.name
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:216
-#: packages/admin/src/components/MediaUploadDialog.tsx:130
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/MediaUploadDialog.tsx:133
 msgid "Retry {0}"
 msgstr "ניסיון חוזר עבור {0}"
 
@@ -11973,7 +11973,7 @@ msgstr "ניסיון חוזר לרענון המטמון"
 msgid "Retry copy"
 msgstr "ניסיון חוזר להעתקה"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:326
+#: packages/admin/src/components/MediaUploadDialog.tsx:329
 msgid "Retry failed"
 msgstr "הניסיון החוזר נכשל"
 
@@ -15414,7 +15414,7 @@ msgstr "העלאת חבילות אתר ובדיקה אם ניתן לייבא א�
 msgid "Upload to {0}"
 msgstr "העלאה אל {0}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:225
+#: packages/admin/src/components/MediaUploadDialog.tsx:228
 msgid "Upload to {providerName}"
 msgstr "העלאה אל {providerName}"
 

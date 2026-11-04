@@ -638,12 +638,12 @@ msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
 msgstr "{columns, plural, one {Kolom verwijderd} other {# kolommen verwijderd}}"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "{completedCount} of {0} complete"
 msgstr "{completedCount} van {0} voltooid"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:196
+#: packages/admin/src/components/MediaUploadDialog.tsx:199
 msgid "{completedCount} of {0} uploads complete"
 msgstr "{completedCount} van {0} uploads voltooid"
 
@@ -684,7 +684,7 @@ msgstr "{earlierCount, plural, one {# eerder item tonen} other {# eerdere items 
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr "{failed, plural, one {# e-mail kon niet worden verzonden. Controleer de e-mailprovider.} other {# e-mails konden niet worden verzonden. Controleer de e-mailprovider.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:198
+#: packages/admin/src/components/MediaUploadDialog.tsx:201
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{failedCount, plural, one {# upload mislukt} other {# uploads mislukt}}"
 
@@ -849,7 +849,7 @@ msgstr "{overdueCount, plural, one {Eén ingepland item is over tijd en het laat
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {Eén ingepland item is over tijd, maar er is nog geen plannertaak voltooid. Voer `npx emdash doctor` uit en controleer de ingestelde Cron Trigger.} other {# ingeplande items zijn over tijd, maar er is nog geen plannertaak voltooid. Voer `npx emdash doctor` uit en controleer de ingestelde Cron Trigger.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:287
+#: packages/admin/src/components/MediaUploadDialog.tsx:290
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr "{overflowCount, plural, one {# bestand is niet toegevoegd omdat de uploadlijst vol is.} other {# bestanden zijn niet toegevoegd omdat de uploadlijst vol is.}}"
 
@@ -875,7 +875,7 @@ msgstr "{plural} worden nu zichtbaar; conceptwijzigingen blijven ongepubliceerd.
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr "{policyRejected, plural, one {Open het betreffende item, los de reden voor de blokkering op en plan het opnieuw in. Na een geslaagde inplanning of publicatie verdwijnt deze melding.} other {Open de betreffende items, los de redenen voor de blokkering op en plan ze opnieuw in. Na een geslaagde inplanning of publicatie verdwijnt de betreffende melding.}}"
 
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:303
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
 msgstr "{position} van {total}"
 
@@ -1857,7 +1857,7 @@ msgstr "Alle statussen"
 msgid "All types"
 msgstr "Alle types"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:200
+#: packages/admin/src/components/MediaUploadDialog.tsx:203
 msgid "All uploads finished"
 msgstr "Alle uploads afgerond"
 
@@ -2598,7 +2598,7 @@ msgstr "Blader door en installeer plugins die in de gedecentraliseerde registry 
 msgid "Browse and install plugins to extend your site."
 msgstr "Blader door plugins en installeer ze om je site uit te breiden."
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:268
+#: packages/admin/src/components/MediaUploadDialog.tsx:271
 msgid "Browse files"
 msgstr "Bestanden kiezen"
 
@@ -2607,7 +2607,7 @@ msgstr "Bestanden kiezen"
 msgid "Browse Files"
 msgstr "Bestanden kiezen"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:277
+#: packages/admin/src/components/MediaUploadDialog.tsx:280
 msgid "Browse files to upload"
 msgstr "Bestanden kiezen om te uploaden"
 
@@ -2776,7 +2776,7 @@ msgid "Cancel (Esc)"
 msgstr "Annuleren (Esc)"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:141
+#: packages/admin/src/components/MediaUploadDialog.tsx:144
 msgid "Cancel {0}"
 msgstr "{0} annuleren"
 
@@ -2785,7 +2785,7 @@ msgstr "{0} annuleren"
 msgid "Cancel import"
 msgstr "Import annuleren"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:331
+#: packages/admin/src/components/MediaUploadDialog.tsx:334
 msgid "Cancel remaining"
 msgstr "Resterende uploads annuleren"
 
@@ -3237,7 +3237,7 @@ msgstr "Als je een auteursvermelding kiest, vervangt die de automatische vermeld
 msgid "Clear"
 msgstr "Wissen"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:316
+#: packages/admin/src/components/MediaUploadDialog.tsx:319
 msgid "Clear completed"
 msgstr "Voltooide uploads uit de lijst halen"
 
@@ -3311,7 +3311,7 @@ msgstr "Klik op deze link om in te loggen op {siteName}:"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
-#: packages/admin/src/components/MediaUploadDialog.tsx:237
+#: packages/admin/src/components/MediaUploadDialog.tsx:240
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
@@ -4843,7 +4843,7 @@ msgid "Dismiss"
 msgstr "Sluiten"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:143
+#: packages/admin/src/components/MediaUploadDialog.tsx:146
 msgid "Dismiss completed {0}"
 msgstr "Voltooid bestand {0} verbergen"
 
@@ -4950,7 +4950,7 @@ msgstr "Niet toewijzen"
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
 #: packages/admin/src/components/ContentList.tsx:1224
-#: packages/admin/src/components/MediaUploadDialog.tsx:335
+#: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
 #: packages/admin/src/components/WordPressImport.tsx:2185
 msgid "Done"
@@ -5051,7 +5051,7 @@ msgstr "Concepten"
 msgid "Drafts & Private"
 msgstr "Concepten & privé"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:256
+#: packages/admin/src/components/MediaUploadDialog.tsx:259
 msgid "Drag and drop files here"
 msgstr "Sleep bestanden hierheen"
 
@@ -7124,7 +7124,7 @@ msgstr "Bestandsnaam"
 msgid "Filename cannot be changed after upload"
 msgstr "Bestandsnaam kan na het uploaden niet meer worden gewijzigd"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:228
+#: packages/admin/src/components/MediaUploadDialog.tsx:231
 msgid "Files upload as soon as you add them."
 msgstr "Bestanden worden geüpload zodra je ze toevoegt."
 
@@ -9301,12 +9301,12 @@ msgid "Move {0} down"
 msgstr "{0} omlaag verplaatsen"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:312
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:318
 msgid "Move {0} earlier"
 msgstr "{0} naar voren verplaatsen"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:321
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:327
 msgid "Move {0} later"
 msgstr "{0} naar achteren verplaatsen"
 
@@ -9831,7 +9831,7 @@ msgstr "Nog geen veld van dit contenttype gebruikt deze relatie"
 msgid "No fields"
 msgstr "Geen velden"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "No files added"
 msgstr "Geen bestanden toegevoegd"
 
@@ -10345,7 +10345,7 @@ msgstr "Optionele tooltip bij hover"
 msgid "Options (one per line)"
 msgstr "Opties (één per regel)"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:258
+#: packages/admin/src/components/MediaUploadDialog.tsx:261
 msgid "Or browse files from your computer"
 msgstr "Of kies bestanden op je computer"
 
@@ -11058,6 +11058,11 @@ msgstr "Nu publiceren?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Content publiceren, depubliceren, inplannen en de planning ervan annuleren"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "Gepubliceerd"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11068,11 +11073,6 @@ msgstr "Content publiceren, depubliceren, inplannen en de planning ervan annuler
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1491
 msgid "Published"
-msgstr "Gepubliceerd"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "Gepubliceerd"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11441,7 +11441,7 @@ msgstr "Verwijderen"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:334
 #: packages/admin/src/components/ImageFieldRenderer.tsx:388
 #: packages/admin/src/components/ImageFieldRenderer.tsx:459
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:224
 #: packages/admin/src/components/PortableTextEditor.tsx:6643
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
@@ -11455,15 +11455,15 @@ msgstr "Verwijderen"
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/ContentEditor.tsx:3159
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:219
-#: packages/admin/src/components/MediaUploadDialog.tsx:144
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:223
+#: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
 #: packages/admin/src/components/TaxonomySidebar.tsx:461
 msgid "Remove {0}"
 msgstr "{0} verwijderen"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:329
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:335
 msgid "Remove {0} from selection"
 msgstr "{0} uit selectie verwijderen"
 
@@ -11937,7 +11937,7 @@ msgstr "Buiten gebruik"
 #: packages/admin/src/components/ContentEditor.tsx:3173
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:217
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:221
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
@@ -11958,8 +11958,8 @@ msgstr "Opnieuw proberen"
 
 #. placeholder {0}: job.file.name
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:216
-#: packages/admin/src/components/MediaUploadDialog.tsx:130
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/MediaUploadDialog.tsx:133
 msgid "Retry {0}"
 msgstr "{0} opnieuw proberen"
 
@@ -11972,7 +11972,7 @@ msgstr "Cache opnieuw verversen"
 msgid "Retry copy"
 msgstr "Kopiëren opnieuw proberen"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:326
+#: packages/admin/src/components/MediaUploadDialog.tsx:329
 msgid "Retry failed"
 msgstr "Mislukte uploads opnieuw proberen"
 
@@ -15413,7 +15413,7 @@ msgstr "Upload sitepakketten en controleer of ze kunnen worden geïmporteerd. Ad
 msgid "Upload to {0}"
 msgstr "Uploaden naar {0}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:225
+#: packages/admin/src/components/MediaUploadDialog.tsx:228
 msgid "Upload to {providerName}"
 msgstr "Uploaden naar {providerName}"
 
