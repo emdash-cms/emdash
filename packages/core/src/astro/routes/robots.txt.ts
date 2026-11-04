@@ -11,12 +11,10 @@
 
 import type { APIRoute } from "astro";
 
-import { getPublicOrigin } from "#api/public-url.js";
+import { getPublicSiteUrl } from "#api/public-url.js";
 import { getSiteSettingsWithDb } from "#settings/index.js";
 
 export const prerender = false;
-
-const TRAILING_SLASH_RE = /\/$/;
 
 /** AI training crawlers and opt-out tokens, as listed in Cloudflare's managed robots.txt. */
 const AI_TRAINING_CRAWLERS = [
@@ -56,10 +54,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
 
 	try {
 		const settings = await getSiteSettingsWithDb(emdash.db);
-		const siteUrl = (settings.url || getPublicOrigin(url, emdash?.config)).replace(
-			TRAILING_SLASH_RE,
-			"",
-		);
+		const siteUrl = getPublicSiteUrl(url, emdash.config, settings.url, import.meta.env.BASE_URL);
 		const sitemapUrl = `${siteUrl}/sitemap.xml`;
 		const disallowAiTraining = settings.seo?.disallowAiTraining === true;
 

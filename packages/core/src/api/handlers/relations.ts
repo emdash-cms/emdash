@@ -13,6 +13,7 @@ import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { ContentItem } from "../../database/repositories/types.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
+import { getLocaleCandidates, getLocaleRank } from "../../i18n/config.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
 import {
 	pageStagedGroups,
@@ -378,7 +379,20 @@ async function resolveRelation(
  * `locale` so callers never mistake a fallback for the requested locale.
  */
 function pickVariant(items: ContentItem[], locale: string | null): ContentItem | undefined {
-	return items.find((i) => i.locale === locale) ?? items[0];
+	if (locale === null) return items[0];
+
+	const candidates = getLocaleCandidates(locale);
+	let best: ContentItem | undefined;
+	let bestRank = candidates.length;
+	for (const item of items) {
+		if (item.locale === null) continue;
+		const rank = getLocaleRank(item.locale, locale);
+		if (rank < bestRank) {
+			best = item;
+			bestRank = rank;
+		}
+	}
+	return best ?? items[0];
 }
 
 /**

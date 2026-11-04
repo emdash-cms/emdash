@@ -352,7 +352,7 @@ function buildRouter() {
 		i18n.loadAndActivate({ locale: "en", messages: {} });
 	}
 	// Toasty and I18nProvider are provided by App.tsx in production.
-	// Mirror that here so useLingui() and Toast.useToastManager() work inside page components.
+	// Mirror that here so useLingui() and useKumoToastManager() work inside page components.
 	function TestApp() {
 		return (
 			<I18nProvider i18n={i18n}>

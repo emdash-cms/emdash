@@ -34,6 +34,7 @@ import {
 } from "../database/repositories/taxonomy-def.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import type { Database } from "../database/types.js";
+import { localeMatches, localeOrder } from "../i18n/query.js";
 import { invalidateTermCache } from "../taxonomies/index.js";
 
 /**
@@ -292,8 +293,8 @@ async function findExistingTerms(
 			.where((eb) =>
 				eb.or(batch.map((d) => eb.and([eb("name", "=", d.taxonomyName), eb("slug", "=", d.slug)]))),
 			)
-			.$if(locale !== undefined, (qb) => qb.where("locale", "=", locale!))
-			.orderBy("locale", "asc")
+			.$if(locale !== undefined, (qb) => qb.where(localeMatches("locale", locale!)))
+			.orderBy(locale !== undefined ? localeOrder("locale", locale) : "locale", "asc")
 			.execute();
 
 		for (const row of batchRows) {

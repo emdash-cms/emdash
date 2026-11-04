@@ -31,7 +31,7 @@ function bylineFixedFieldsMatch(
 		norm(existing.websiteUrl) === norm(input.websiteUrl) &&
 		norm(existing.userId) === norm(input.userId) &&
 		existing.isGuest === (input.isGuest ?? false) &&
-		existing.locale === effectiveLocale
+		resolveConfiguredLocale(existing.locale) === resolveConfiguredLocale(effectiveLocale)
 	);
 }
 
@@ -176,7 +176,11 @@ export async function handleBylineCreate(
 		// net; this is the friendly error.
 		if (sourceGroup) {
 			const siblings = await repo.findByTranslationGroup(sourceGroup);
-			if (siblings.some((b) => b.locale === effectiveLocale)) {
+			if (
+				siblings.some(
+					(b) => resolveConfiguredLocale(b.locale) === resolveConfiguredLocale(effectiveLocale),
+				)
+			) {
 				return {
 					success: false,
 					error: {

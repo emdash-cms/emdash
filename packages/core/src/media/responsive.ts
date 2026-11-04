@@ -9,6 +9,8 @@
  * resolves inside an Astro project, not in this precompiled package).
  */
 
+import type { EmbedOptions } from "./types.js";
+
 /** Standard responsive breakpoints. Matches CDN-provider srcset generation. */
 export const RESPONSIVE_BREAKPOINTS = [640, 750, 828, 960, 1080, 1280, 1600, 1920];
 
@@ -100,7 +102,14 @@ export type GetImage = (options: {
 	height?: number;
 	widths?: number[];
 	sizes?: string;
+	format?: string;
+	quality?: EmbedOptions["quality"];
 }) => Promise<{ src: string; srcSet?: { attribute?: string } | undefined }>;
+
+/** MIME type for a transform output format, for `<source type>`. */
+export function formatContentType(format: string): string {
+	return `image/${format === "jpg" ? "jpeg" : format}`;
+}
 
 export interface ResponsiveImage {
 	src: string;
@@ -127,9 +136,16 @@ export interface ResponsiveImage {
  */
 export async function buildResponsiveImage(
 	getImage: GetImage,
-	opts: { src: string; width?: number; height?: number; originalWidth?: number },
+	opts: {
+		src: string;
+		width?: number;
+		height?: number;
+		originalWidth?: number;
+		format?: string;
+		quality?: EmbedOptions["quality"];
+	},
 ): Promise<ResponsiveImage | null> {
-	const { src, width, height, originalWidth } = opts;
+	const { src, width, height, originalWidth, format, quality } = opts;
 	if (!src || !width || !height) return null;
 	if (!ABSOLUTE_HTTP_URL.test(src)) return null;
 	try {
@@ -140,6 +156,8 @@ export async function buildResponsiveImage(
 			height,
 			widths: responsiveWidths(width, originalWidth),
 			sizes,
+			format,
+			...(quality !== undefined ? { quality } : {}),
 		});
 		// Passthrough: the service returned the source unchanged (unauthorized
 		// host or no optimization available). Don't emit a no-op srcset.

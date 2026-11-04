@@ -25,11 +25,20 @@
  */
 
 import type { ContentSeo } from "./database/repositories/types.js";
-import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
 import {
+	getFallbackChain,
+	getI18nConfig,
+	getLocaleCandidates,
+	isI18nEnabled,
+	resolveConfiguredLocale,
+} from "./i18n/config.js";
+import { resolveLocale } from "./i18n/resolve.js";
+import {
+	creditFromFoldedAuthorByline,
 	creditsFromFoldedBylines,
 	CURSOR_RAW_VALUES,
 	encodeSortCursor,
+	FOLDED_AUTHOR_BYLINE,
 	FOLDED_BYLINES,
 	FOLDED_BYLINES_EXIST,
 	FOLDED_TERMS,
@@ -49,6 +58,7 @@ import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { resetRegisteredCollectionsCache } from "./schema/collection-slugs-cache.js";
 import { compileUrlPattern } from "./schema/url-pattern.js";
+import { getEntryTitleField, setEntryTitleField } from "./seo/title-field.js";
 import type { TaxonomyTerm } from "./taxonomies/types.js";
 import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
 import {
@@ -309,7 +319,7 @@ export async function getPublishedDates(
 	options?: { locale?: string },
 ): Promise<PublishedDatesResult> {
 	const locale = effectiveLocaleKey(options) || undefined;
-	const key = `publishedDates:${JSON.stringify([type, locale])}`;
+	const key = `publishedDates:v2:${JSON.stringify([type, locale])}`;
 	try {
 		return await requestCached(key, () =>
 			cachedQuery<PublishedDatesResult>({
@@ -318,20 +328,13 @@ export async function getPublishedDates(
 				load: async () => {
 					const rows = await loadPublishedDates(type, locale);
 					const dates: Date[] = [];
-					let lastModified: Date | undefined;
 					for (const row of rows) {
 						if (row.published_at) {
 							const date = new Date(row.published_at);
 							if (!Number.isNaN(date.getTime())) dates.push(date);
 						}
-						if (row.updated_at) {
-							const modified = new Date(row.updated_at);
-							if (!Number.isNaN(modified.getTime()) && (!lastModified || modified > lastModified)) {
-								lastModified = modified;
-							}
-						}
 					}
-					return { dates, cacheHint: { tags: [type], lastModified } };
+					return { dates, cacheHint: { tags: [type] } };
 				},
 			}),
 		);
@@ -619,7 +622,7 @@ async function loadCollectionCached<T extends string, D = InferCollectionData<T>
 ): Promise<CollectionResult<D>> {
 	const snapshot = await cachedQuery<ContentSnapshot<CachedCollectionValue>>({
 		namespace: contentNamespaces(type),
-		key: `collection:${collectionCacheKey(type, filter)}|loc=${effectiveLocaleKey(filter)}`,
+		key: `collection:v2:${collectionCacheKey(type, filter)}|loc=${effectiveLocaleKey(filter)}`,
 		load: async () => {
 			const result = await getEmDashCollectionUncached<T, D>(type, filter);
 			if (result.error) {
@@ -781,7 +784,7 @@ function collectionCacheKey(type: string, filter?: CollectionFilter): string {
 		filter.offset ?? "",
 		filter.where ? stableStringify(filter.where) : "",
 		filter.orderBy ? JSON.stringify(filter.orderBy) : "",
-		filter.locale ?? "",
+		filter.locale === undefined ? "" : resolveConfiguredLocale(filter.locale),
 	];
 	return `collection:${type}:${parts.join("|")}`;
 }
@@ -807,12 +810,14 @@ function stableOrder(value: Record<string, unknown>): Record<string, unknown> {
 // ── Object-cache (L2) serialization for content reads ───────────────────────
 //
 // Content entries can't be stored verbatim: each carries a non-serializable
-// `edit` proxy (a function) and a non-enumerable `CURSOR_RAW_VALUES` symbol on
-// `data` (raw date strings used to reproduce the loader's pagination cursor).
-// We reduce each entry to a JSON-safe snapshot before caching — copying the
-// cursor-raw values into an enumerable field and dropping `edit` — then rebuild
-// the symbol and re-attach a no-op `edit` on the way out. The object cache's
-// codec preserves `Date` instances, so timestamps survive the round-trip.
+// `edit` proxy (a function) and non-enumerable symbols on `data`:
+// `CURSOR_RAW_VALUES` (raw date strings used to reproduce the loader's
+// pagination cursor) and, on a single entry, `ENTRY_TITLE_FIELD` (the
+// collection's `titleField`, which `getSeoMeta()` reads). We reduce each entry
+// to a JSON-safe snapshot before caching — copying the symbol values into
+// enumerable fields and dropping `edit` — then rebuild the symbols and
+// re-attach a no-op `edit` on the way out. The object cache's codec preserves
+// `Date` instances, so timestamps survive the round-trip.
 //
 // L2 is only consulted for anonymous, non-preview, non-edit requests (see
 // `shouldBypass` in object-cache), where `edit` is always the no-op variant —
@@ -821,6 +826,9 @@ function stableOrder(value: Record<string, unknown>): Record<string, unknown> {
 /** Enumerable field carrying the {@link CURSOR_RAW_VALUES} payload in snapshots. */
 const CURSOR_RAW_FIELD = "__emdashCursorRaw";
 
+/** Enumerable field carrying the `ENTRY_TITLE_FIELD` value in snapshots. */
+const TITLE_FIELD_KEY = "__emdashTitleField";
+
 /** Result wrapper distinguishing a cached error from a cacheable success. */
 type ContentSnapshot<S> =
 	| { ok: true; value: S }
@@ -828,20 +836,28 @@ type ContentSnapshot<S> =
 
 function dataSnapshot(data: Record<string, unknown>): Record<string, unknown> {
 	const rawCursor = Reflect.get(data, CURSOR_RAW_VALUES);
-	return { ...data, [CURSOR_RAW_FIELD]: rawCursor ?? {} };
+	const titleField = getEntryTitleField(data);
+	return {
+		...data,
+		[CURSOR_RAW_FIELD]: rawCursor ?? {},
+		...(titleField ? { [TITLE_FIELD_KEY]: titleField } : {}),
+	};
 }
 
 function reviveData(raw: Record<string, unknown>): Record<string, unknown> {
 	const data: Record<string, unknown> = { ...raw };
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- snapshot field written by dataSnapshot
 	const rawCursor = (data[CURSOR_RAW_FIELD] as Record<string, unknown> | undefined) ?? {};
+	const titleField = data[TITLE_FIELD_KEY];
 	delete data[CURSOR_RAW_FIELD];
+	delete data[TITLE_FIELD_KEY];
 	Object.defineProperty(data, CURSOR_RAW_VALUES, {
 		value: rawCursor,
 		enumerable: false,
 		configurable: false,
 		writable: false,
 	});
+	if (typeof titleField === "string") setEntryTitleField(data, titleField);
 	return data;
 }
 
@@ -915,11 +931,7 @@ function reviveEntry<D>(raw: unknown): ContentEntry<D> {
 
 /** Resolve the effective locale used by content reads, for the L2 cache key. */
 function effectiveLocaleKey(filter?: { locale?: string }): string {
-	const ctx = getRequestContext();
-	const i18nConfig = getI18nConfig();
-	return (
-		filter?.locale ?? ctx?.locale ?? (isI18nEnabled() ? i18nConfig!.defaultLocale : undefined) ?? ""
-	);
+	return resolveLocale(filter?.locale) ?? "";
 }
 
 async function getEmDashCollectionUncached<T extends string, D = InferCollectionData<T>>(
@@ -932,9 +944,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	// Resolve locale: explicit filter > ALS context > defaultLocale (when i18n enabled)
 	// Without this, queries return all locale rows, producing broken IDs
 	const ctx = getRequestContext();
-	const i18nConfig = getI18nConfig();
-	const resolvedLocale =
-		filter?.locale ?? ctx?.locale ?? (isI18nEnabled() ? i18nConfig!.defaultLocale : undefined);
+	const resolvedLocale = resolveLocale(filter?.locale);
 
 	const requestedLimit = filter?.limit;
 	// cursor and offset are mutually exclusive on the loader filter union, so
@@ -1095,12 +1105,9 @@ async function attachReferences<D>(
 
 	const references: ReferencePages = {};
 	const tags: string[] = [];
-	let lastModified: Date | undefined;
 	for (const [field, page] of Object.entries(pages)) {
 		for (const child of page.entries) {
 			tags.push(...child.cacheHint.tags);
-			const modified = child.cacheHint.lastModified;
-			if (modified && (!lastModified || modified > lastModified)) lastModified = modified;
 		}
 		references[field] = {
 			entries: page.entries.map((child) => wrapReferencedEntry(page.collection, child)),
@@ -1108,16 +1115,16 @@ async function attachReferences<D>(
 		};
 	}
 	entry.references = references;
-	return { tags, ...(lastModified ? { lastModified } : {}) };
+	return { tags };
 }
 
 /**
  * Fold the children's cache hint into the entry's own.
  *
  * A render that shows a referenced entry has read that row, so the route's tags
- * have to name it and its `Last-Modified` has to move when it changes. Without
- * this the route cache's `invalidate({ tags: [collection, id] })` on a child
- * write would never reach the pages that render the child.
+ * have to name it. Without this the route cache's
+ * `invalidate({ tags: [collection, id] })` on a child write would never reach
+ * the pages that render the child.
  */
 function mergeCacheHints(base: CacheHint, extra: CacheHint): CacheHint {
 	if (!extra.tags?.length && !extra.lastModified) return base;
@@ -1197,7 +1204,8 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 	const serveDrafts = isPreviewMode || isEditMode;
 
 	// Resolve locale: explicit option > ALS context > undefined (no filter)
-	const requestedLocale = options?.locale ?? ctx?.locale;
+	const rawLocale = options?.locale ?? ctx?.locale;
+	const requestedLocale = rawLocale === undefined ? undefined : resolveConfiguredLocale(rawLocale);
 	const references = options?.references;
 	const portableTextFields = isEditMode ? await getPortableTextFieldSlugs(type) : undefined;
 
@@ -1275,6 +1283,50 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 				locale,
 			});
 
+			// A staged slug can be absent from the content table or still belong
+			// to another row. Prefer the token's draft only when its slug matches.
+			if (
+				isPreviewMode &&
+				(!baseEntry || entryDatabaseId(baseEntry) !== preview.id) &&
+				(!baseError || baseError.name === "LiveEntryNotFoundError") &&
+				preview.id !== id
+			) {
+				const { entry: tokenEntry, error: tokenError } = await getLiveEntry(COLLECTION_NAME, {
+					type,
+					id: preview.id,
+					locale,
+				});
+				const draftRevisionId = tokenEntry
+					? dataStr(entryData(tokenEntry), "draftRevisionId")
+					: undefined;
+				if (
+					!tokenError &&
+					tokenEntry &&
+					entryDatabaseId(tokenEntry) === preview.id &&
+					draftRevisionId &&
+					(!locale ||
+						getLocaleCandidates(locale).includes(dataStr(entryData(tokenEntry), "locale")))
+				) {
+					const {
+						entry: draftEntry,
+						error: draftError,
+						cacheHint: draftCacheHint,
+					} = await getLiveEntry(COLLECTION_NAME, {
+						type,
+						id: preview.id,
+						revisionId: draftRevisionId,
+						locale,
+					});
+					if (!draftError && draftEntry && dataStr(entryData(draftEntry), "slug") === id) {
+						return successResult(wrapEntry(draftEntry), {
+							isPreview: true,
+							fallbackLocale,
+							cacheHint: draftCacheHint ?? {},
+						});
+					}
+				}
+			}
+
 			if (baseError) {
 				// Astro reports a missing entry as an error; try the next locale.
 				if (baseError.name === "LiveEntryNotFoundError") continue;
@@ -1344,7 +1396,14 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 			const locale = localeChain[i];
 			const fallbackLocale = i > 0 ? locale : undefined;
 
-			const { entry, error, cacheHint } = await getLiveEntry(COLLECTION_NAME, { type, id, locale });
+			const { entry, error, cacheHint } = await getLiveEntry(COLLECTION_NAME, {
+				type,
+				id,
+				locale,
+				...(locale !== undefined && getLocaleCandidates(locale).length > 1
+					? { publishedOnly: true }
+					: {}),
+			});
 			if (error) {
 				// Astro reports a missing entry as an error; try the next locale.
 				if (error.name === "LiveEntryNotFoundError") continue;
@@ -1376,7 +1435,7 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 
 	const snapshot = await cachedQuery<ContentSnapshot<CachedEntryValue>>({
 		namespace: namespaces,
-		key: `entry:${id}|loc=${requestedLocale ?? ""}${referenceKey}`,
+		key: `entry:v2:${id}|loc=${requestedLocale ?? ""}${referenceKey}`,
 		load: async () => {
 			const result = await resolveNormal();
 			if (result.error) {
@@ -1446,7 +1505,8 @@ export async function getEmDashReferences<D = Record<string, unknown>>(
 	const ctx = getRequestContext();
 	const preview = ctx?.preview;
 	const isEditMode = ctx?.editMode ?? false;
-	const locale = options?.locale ?? ctx?.locale;
+	const rawLocale = options?.locale ?? ctx?.locale;
+	const locale = rawLocale === undefined ? undefined : resolveConfiguredLocale(rawLocale);
 
 	try {
 		const { getDb } = await import("./loader.js");
@@ -1489,17 +1549,14 @@ export async function getEmDashReferences<D = Record<string, unknown>>(
 		if (!page) return { entries: [] };
 
 		const tags: string[] = [];
-		let lastModified: Date | undefined;
 		for (const child of page.entries) {
 			tags.push(...child.cacheHint.tags);
-			const modified = child.cacheHint.lastModified;
-			if (modified && (!lastModified || modified > lastModified)) lastModified = modified;
 		}
 
 		return {
 			entries: page.entries.map((child) => wrapReferencedEntry<D>(page.collection, child)),
 			...(page.nextCursor === undefined ? {} : { nextCursor: page.nextCursor }),
-			cacheHint: { tags, ...(lastModified ? { lastModified } : {}) },
+			cacheHint: { tags },
 		};
 	} catch (error) {
 		return { entries: [], error: error instanceof Error ? error : new Error(String(error)) };
@@ -1548,17 +1605,30 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 	if (entries.length === 0) return;
 
 	// Fast path: bylines were folded into the content query. Parse the JSON
-	// (no extra round trip) for the common case — explicit credits, no byline
-	// custom fields, no author fallback. The query path below handles the rest:
-	//  - author fallback (entry has authorId but no explicit credit), and
-	//  - custom byline fields (can't be expressed in the folded subquery).
+	// (no extra round trip): explicit credits, plus the author-fallback byline
+	// for an entry with none. Custom byline field values can't be expressed in
+	// the folded subquery, so when any credit resolves they are loaded for the
+	// folded bylines in one batched pass. The query path below handles only
+	// what the fold can't vouch for.
 	if (entries.every((e) => FOLDED_BYLINES in entryData(e))) {
 		const parsed = entries.map((entry) => {
 			const data = entryData(entry);
 			const folded = Reflect.get(data, FOLDED_BYLINES);
 			const rows = Array.isArray(folded) ? folded : [];
 			const credits = creditsFromFoldedBylines(rows);
-			return { data, credits };
+			// The fold is complete for an entry with no explicit credit when its
+			// author fallback was folded too and it has a locale: the query path
+			// resolves the fallback in that same locale (`(user_id, locale)` is
+			// unique), and a `primaryBylineId` without an explicit credit
+			// resolves to no byline on both paths.
+			const authorFolded = FOLDED_AUTHOR_BYLINE in data && dataStr(data, "locale") !== "";
+			if (credits.length === 0 && authorFolded && dataStr(data, "primaryBylineId") === "") {
+				const author = Reflect.get(data, FOLDED_AUTHOR_BYLINE);
+				if (dataStr(data, "authorId") !== "" && isRecord(author)) {
+					credits.push(creditFromFoldedAuthorByline(author));
+				}
+			}
+			return { data, credits, complete: credits.length > 0 || authorFolded };
 		});
 
 		// An empty `_emdash_bylines` table makes an empty fold authoritative: no
@@ -1572,34 +1642,36 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 
 		// Fall back to the full query path when the fold can't be trusted to be
 		// complete: an entry with a byline reference (explicit primary, or an
-		// author for the author-fallback) but no folded credits — e.g. a credit
-		// in a different locale than the row, which the locale-correlated subquery
-		// skips, or the author-fallback path which the fold doesn't express.
+		// author for the author-fallback) but no folded credits, and no folded
+		// author fallback either — e.g. a row read without the author column,
+		// or an entry with no locale, which the locale-correlated subqueries
+		// can't match.
 		let needsQueryPath =
 			!knownEmpty &&
 			parsed.some(
 				(p) =>
-					p.credits.length === 0 &&
+					!p.complete &&
 					(dataStr(p.data, "authorId") !== "" || dataStr(p.data, "primaryBylineId") !== ""),
 			);
-		let hasCustomFields = false;
-		if (!needsQueryPath && !knownEmpty) {
+
+		// Custom byline fields: only bylines that resolved need their values, so
+		// an entry set with no credits skips the field-definition probe too.
+		const summaries = parsed.flatMap((p) => p.credits.map((c) => c.byline));
+		if (!needsQueryPath && summaries.length > 0) {
 			try {
 				const { getDb } = await import("./loader.js");
-				const db = await getDb();
-				const { getBylineFieldDefs } = await import("./bylines/field-defs-cache.js");
-				hasCustomFields = (await getBylineFieldDefs(db)).length > 0;
+				const { BylineRepository } = await import("./database/repositories/byline.js");
+				await new BylineRepository(await getDb()).hydrateBylineCustomFields(summaries);
 			} catch (error) {
 				// A missing table is expected pre-migration and means there are no
 				// custom fields — the fold's values are complete. Any other error
-				// (lock-init failure, dialect error) means the probe can't be
-				// trusted, so fall back to the query path rather than risk serving
-				// folded bylines with empty customFields.
+				// means the values can't be trusted, so fall back to the query
+				// path rather than risk serving bylines with empty customFields.
 				if (!isMissingTableError(error)) needsQueryPath = true;
 			}
 		}
 
-		if (!needsQueryPath && !hasCustomFields) {
+		if (!needsQueryPath) {
 			for (const p of parsed) {
 				p.data.bylines = p.credits;
 				p.data.byline = p.credits[0]?.byline ?? null;

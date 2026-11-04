@@ -64,6 +64,11 @@ export const wxrChunkState = z.object({
 	translationGroups: z
 		.record(z.string().max(1024), z.string().min(1).max(256))
 		.refine((groups) => Object.keys(groups).length <= 100_000, "Too many translation groups"),
+	/** WordPress author -> the byline earlier chunks of this import gave them */
+	bylines: z
+		.record(z.string().max(2048), z.string().min(1).max(256))
+		.refine((bylines) => Object.keys(bylines).length <= 100_000, "Too many bylines")
+		.optional(),
 });
 
 const wpPrepareField = z.object({

@@ -1,0 +1,633 @@
+---
+import { permissionCopy } from "../../lib/registry.js";
+import { storyIcons as i } from "./story/icons.js";
+import "./story/story.css";
+
+const grants = [
+	permissionCopy("content:read").label,
+	permissionCopy("network:request").label,
+];
+---
+
+<section class="steps-section section" aria-labelledby="install-title">
+	<div class="shell">
+		<div class="section-head">
+			<div>
+				<p class="eyebrow">Install</p>
+				<h2 class="h-section" id="install-title">
+					From registry to running <span class="tone">in three steps</span>
+				</h2>
+			</div>
+			<div>
+				<p>
+					Installs happen in your own EmDash admin, so you stay in control of
+					every site.
+				</p>
+				<a
+					class="text-link"
+					href="https://docs.emdashcms.com/plugins/installing/"
+				>
+					Read the installation guide
+					<svg
+						class="text-link-arrow"
+						viewBox="0 0 256 256"
+						aria-hidden="true"
+						set:html={i.arrowRight}
+					/>
+				</a>
+			</div>
+		</div>
+
+		<ol class="steps">
+			<li class="step">
+				<span class="node node--ts"></span><span class="node node--te"></span>
+				<span class="node node--bs"></span><span class="node node--be"></span>
+				<div class="step-stage st-stage" aria-hidden="true">
+					<div class="find">
+						<div class="st-win find-field">
+							<svg
+								class="st-icon"
+								viewBox="0 0 256 256"
+								set:html={i.magnifyingGlass}
+							/>
+							<span class="find-query">seo<span class="st-caret"></span></span>
+						</div>
+						<div class="st-win find-results">
+							<div class="result st-thread">
+								<span class="st-tile"
+									><svg
+										class="st-icon"
+										viewBox="0 0 256 256"
+										set:html={i.magnifyingGlass}
+									/></span
+								>
+								<span class="result-text">
+									<span class="st-strong">Search Ping</span>
+									<span class="result-meta st-mono"
+										>@example.com/search-ping</span
+									>
+								</span>
+								<span class="st-pill">SEO</span>
+							</div>
+							<div class="result">
+								<span class="st-tile"
+									><svg
+										class="st-icon"
+										viewBox="0 0 256 256"
+										set:html={i.rows}
+									/></span
+								>
+								<span class="result-text">
+									<span class="st-strong">Meta Tags</span>
+									<span class="result-meta st-mono">@studio.dev/meta-tags</span>
+								</span>
+								<span class="st-pill">SEO</span>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="step-copy">
+					<span class="step-num" aria-hidden="true">01</span>
+					<h3>Find a plugin</h3>
+					<p>
+						Search by name or keyword, or paste a public name like{" "}
+						<span class="public-name" dir="ltr">@example.com/search-ping</span>.
+					</p>
+				</div>
+			</li>
+
+			<li class="step">
+				<span class="node node--ts"></span><span class="node node--te"></span>
+				<span class="node node--bs"></span><span class="node node--be"></span>
+				<div class="step-stage st-stage" aria-hidden="true">
+					<div class="st-win open">
+						<div class="open-head">
+							<span class="st-strong">Open in EmDash</span>
+							<svg
+								class="st-icon open-close"
+								viewBox="0 0 256 256"
+								set:html={i.x}
+							/>
+						</div>
+						<div class="open-body">
+							<span class="open-label">Your EmDash site</span>
+							<span class="open-input st-mono"
+								>https://cms.example.com<span class="st-caret"></span></span
+							>
+							<span class="st-btn st-btn--primary open-submit"
+								>Continue to your site</span
+							>
+						</div>
+					</div>
+				</div>
+				<div class="step-copy">
+					<span class="step-num" aria-hidden="true">02</span>
+					<h3>Open it in your site</h3>
+					<p>
+						Choose Open in EmDash on a plugin page to jump to its install screen
+						in your admin.
+					</p>
+				</div>
+			</li>
+
+			<li class="step">
+				<span class="node node--ts"></span><span class="node node--te"></span>
+				<span class="node node--bs"></span><span class="node node--be"></span>
+				<div class="step-stage st-stage" aria-hidden="true">
+					<div class="st-win done">
+						<div class="done-head">
+							<span class="st-tile"
+								><svg
+									class="st-icon"
+									viewBox="0 0 256 256"
+									set:html={i.magnifyingGlass}
+								/></span
+							>
+							<span class="done-name">
+								<span class="st-strong">Search Ping</span>
+								<span class="result-meta st-mono">1.2.0</span>
+							</span>
+							<span class="st-pill st-pill--end"
+								><span class="st-dot st-dot--success"></span>Enabled</span
+							>
+						</div>
+						<div class="done-status">
+							<span class="done-check"
+								><svg
+									class="st-icon"
+									viewBox="0 0 256 256"
+									set:html={i.check}
+								/></span
+							>
+							<span>
+								<span class="st-strong">Installed</span>
+								<span class="done-sub">Signed release verified</span>
+							</span>
+						</div>
+						<div class="done-grants">
+							{
+								grants.map((label) => (
+									<span class="grant">
+										<svg
+											class="st-icon"
+											viewBox="0 0 256 256"
+											set:html={i.shieldCheck}
+										/>
+										{label}
+									</span>
+								))
+							}
+						</div>
+					</div>
+				</div>
+				<div class="step-copy">
+					<span class="step-num" aria-hidden="true">03</span>
+					<h3>Review and install</h3>
+					<p>
+						Check the publisher, permissions, and verification status, then
+						confirm the install.
+					</p>
+				</div>
+			</li>
+		</ol>
+	</div>
+</section>
+
+<style>
+	.steps-section {
+		padding-block-start: 0;
+		overflow-x: clip;
+		background: var(--page-lift);
+	}
+
+	.text-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		color: var(--ink);
+		font-size: 0.9375rem;
+		font-weight: 500;
+		text-decoration: none;
+		transition: color 150ms;
+	}
+
+	@media (hover: hover) {
+		.text-link:hover {
+			color: var(--accent-ink);
+		}
+	}
+
+	.text-link-arrow {
+		width: 1rem;
+		height: 1rem;
+		fill: currentColor;
+		transition: transform 150ms var(--ease-out);
+	}
+
+	@media (hover: hover) {
+		.text-link:hover .text-link-arrow {
+			transform: translateX(2px);
+		}
+	}
+
+	.text-link-arrow:dir(rtl) {
+		transform: scaleX(-1);
+	}
+
+	@media (hover: hover) {
+		.text-link:hover .text-link-arrow:dir(rtl) {
+			transform: scaleX(-1) translateX(2px);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.text-link,
+		.text-link-arrow {
+			transition: none;
+		}
+	}
+
+	/* Blueprint grid: dashed rails drawn by the list and each cell, with a node at every crossing. */
+	.steps {
+		--rail: var(--line-strong);
+		--dash-x: linear-gradient(to right, var(--rail) 50%, transparent 0);
+		--dash-y: linear-gradient(to bottom, var(--rail) 50%, transparent 0);
+
+		position: relative;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.steps::before {
+		position: absolute;
+		inset: 0;
+		background:
+			var(--dash-y) left top / 1px 8px repeat-y,
+			var(--dash-y) right top / 1px 8px repeat-y,
+			var(--dash-x) left bottom / 8px 1px repeat-x;
+		pointer-events: none;
+		content: "";
+	}
+
+	/* The row lines run past the grid and fade out. */
+	.steps::after {
+		position: absolute;
+		inset-block: 0;
+		inset-inline: -3rem;
+		background:
+			var(--dash-x) left top / 8px 1px repeat-x,
+			var(--dash-x) left bottom / 8px 1px repeat-x;
+		-webkit-mask-image: linear-gradient(
+			to right,
+			transparent,
+			#000 3rem,
+			transparent 3rem,
+			transparent calc(100% - 3rem),
+			#000 calc(100% - 3rem),
+			transparent
+		);
+		mask-image: linear-gradient(
+			to right,
+			transparent,
+			#000 3rem,
+			transparent 3rem,
+			transparent calc(100% - 3rem),
+			#000 calc(100% - 3rem),
+			transparent
+		);
+		pointer-events: none;
+		content: "";
+	}
+
+	.step {
+		position: relative;
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+	}
+
+	.step::before {
+		position: absolute;
+		inset-block-start: 0;
+		inset-inline: 0;
+		height: 1px;
+		background: var(--dash-x) left top / 8px 1px repeat-x;
+		pointer-events: none;
+		content: "";
+	}
+
+	.node {
+		position: absolute;
+		z-index: 2;
+		width: 11px;
+		height: 11px;
+		background:
+			radial-gradient(circle, var(--subtle) 1.5px, transparent 2px),
+			var(--page-lift);
+		border: 1px solid var(--line-strong);
+		border-radius: 50%;
+	}
+
+	.node--ts,
+	.node--te {
+		inset-block-start: -5px;
+	}
+
+	.node--bs,
+	.node--be {
+		inset-block-end: -5px;
+	}
+
+	.node--ts,
+	.node--bs {
+		inset-inline-start: -5px;
+	}
+
+	.node--te,
+	.node--be {
+		inset-inline-end: -5px;
+	}
+
+	.node--bs,
+	.node--be {
+		display: none;
+	}
+
+	.step:last-child .node--bs,
+	.step:last-child .node--be {
+		display: block;
+	}
+
+	.step-stage {
+		display: flex;
+		height: 15rem;
+		align-items: center;
+		justify-content: center;
+		padding: 2rem 1.5rem 1rem;
+	}
+
+	.step-copy {
+		padding: 0.5rem 2rem 2.25rem;
+	}
+
+	.step-num {
+		display: block;
+		margin-block-end: 0.75rem;
+		color: var(--accent-ink);
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+	}
+
+	.step-copy h3 {
+		margin: 0;
+		color: var(--ink-strong);
+		font-size: 1.0625rem;
+		font-weight: 600;
+		line-height: 1.3;
+		letter-spacing: -0.02em;
+	}
+
+	.step-copy p {
+		max-width: 24rem;
+		margin: 0.5rem 0 0;
+		color: var(--muted);
+		font-size: 0.9375rem;
+		line-height: 1.6;
+		text-wrap: pretty;
+	}
+
+	.public-name {
+		overflow-wrap: anywhere;
+	}
+
+	@media (min-width: 900px) {
+		.steps {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+
+		.step + .step {
+			background: var(--dash-y) left top / 1px 8px repeat-y;
+		}
+
+		.step + .step:dir(rtl) {
+			background-position: right top;
+		}
+
+		.node--te {
+			display: none;
+		}
+
+		.step:last-child .node--te,
+		.node--bs {
+			display: block;
+		}
+
+		.node--be {
+			display: none;
+		}
+	}
+
+	@media (max-width: 899.98px) {
+		.step-stage {
+			height: auto;
+			min-height: 12rem;
+			padding-block: 2.5rem 1.5rem;
+		}
+	}
+
+	@media (max-width: 479.98px) {
+		.step-stage {
+			padding-inline: 1rem;
+		}
+
+		.step-copy {
+			padding-inline: 1.25rem;
+		}
+
+		.steps::after {
+			display: none;
+		}
+	}
+
+	/* 01: search */
+	.find {
+		display: grid;
+		width: min(100%, 17rem);
+		gap: 0.5rem;
+	}
+
+	.find-field {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		height: 2.25rem;
+		padding-inline: 0.75rem;
+		box-shadow:
+			0 0 0 3px var(--line-soft),
+			var(--shadow-sm);
+	}
+
+	.find-field > .st-icon {
+		color: var(--muted);
+	}
+
+	.find-query {
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+	}
+
+	.find-results {
+		display: grid;
+		gap: 0.125rem;
+		padding: 0.3125rem;
+	}
+
+	.result {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.375rem 0.4375rem;
+		border-radius: var(--radius-xs);
+	}
+
+	.result-text,
+	.done-name {
+		display: grid;
+		min-width: 0;
+		gap: 0.0625rem;
+	}
+
+	.result-meta {
+		overflow: hidden;
+		color: var(--muted);
+		font-size: 0.625rem;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.result .st-pill {
+		margin-inline-start: auto;
+	}
+
+	/* 02: open in your site */
+	.open {
+		width: min(100%, 16.5rem);
+		overflow: hidden;
+		box-shadow: var(--shadow-float);
+	}
+
+	.open-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.6875rem 0.875rem;
+		font-size: 0.8125rem;
+		border-block-end: 1px solid var(--st-line);
+	}
+
+	.open-close {
+		color: var(--muted);
+	}
+
+	.open-body {
+		display: grid;
+		gap: 0.4375rem;
+		padding: 0.75rem 0.875rem 0.875rem;
+	}
+
+	.open-label {
+		font-size: 0.6875rem;
+		font-weight: 500;
+	}
+
+	.open-input {
+		display: flex;
+		align-items: center;
+		height: 2rem;
+		padding-inline: 0.625rem;
+		overflow: hidden;
+		white-space: nowrap;
+		background: var(--surface);
+		border: 1px solid var(--line-strong);
+		border-radius: var(--radius-sm);
+		box-shadow: 0 0 0 3px var(--accent-tint);
+	}
+
+	.open-submit {
+		min-height: 2rem;
+		margin-block-start: 0.25rem;
+	}
+
+	/* 03: installed */
+	.done {
+		width: min(100%, 17rem);
+		overflow: hidden;
+	}
+
+	.done-head {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.625rem 0.75rem;
+		border-block-end: 1px solid var(--st-line);
+	}
+
+	.done-status {
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+		padding: 0.75rem 0.75rem 0.5rem;
+	}
+
+	.done-status > span:last-child {
+		display: grid;
+		gap: 0.0625rem;
+	}
+
+	.done-check {
+		display: grid;
+		width: 1.75rem;
+		height: 1.75rem;
+		flex: 0 0 auto;
+		place-items: center;
+		color: var(--success);
+		background: color-mix(in srgb, var(--success) 12%, transparent);
+		border-radius: 50%;
+	}
+
+	.done-sub {
+		color: var(--muted);
+		font-size: 0.6875rem;
+	}
+
+	.done-grants {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.375rem;
+		padding: 0.25rem 0.75rem 0.875rem;
+	}
+
+	.grant {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3125rem;
+		padding: 0.1875rem 0.5rem;
+		color: var(--ink);
+		font-size: 0.6875rem;
+		background: var(--st-tint);
+		border: 1px solid var(--st-line);
+		border-radius: var(--radius-full);
+	}
+
+	.grant .st-icon {
+		width: 0.75rem;
+		height: 0.75rem;
+		color: var(--muted);
+	}
+</style>

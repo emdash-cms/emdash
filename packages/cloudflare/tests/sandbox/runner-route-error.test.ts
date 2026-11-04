@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("cloudflare:workers", () => ({
+	// eslint-disable-next-line typescript/no-extraneous-class -- Cloudflare RPC base class stub
+	RpcTarget: class {},
 	WorkerEntrypoint: class {
 		ctx: unknown;
 		env: unknown;
@@ -285,6 +287,7 @@ describe("Cloudflare sandbox route errors", () => {
 			input,
 			expect.any(Object),
 			expect.any(String),
+			expect.any(Object),
 		);
 	});
 

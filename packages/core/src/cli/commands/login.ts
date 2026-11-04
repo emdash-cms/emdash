@@ -189,7 +189,6 @@ export const loginCommand = defineCommand({
 			type: "string",
 			alias: "u",
 			description: "EmDash instance URL",
-			default: "http://localhost:4321",
 		},
 		header: {
 			type: "string",
@@ -198,12 +197,14 @@ export const loginCommand = defineCommand({
 		},
 	},
 	async run({ args }) {
-		const baseUrl = args.url || "http://localhost:4321";
+		const baseUrl = resolveBaseUrl(args);
 		consola.start(`Connecting to ${baseUrl}...`);
 
 		// Resolve custom headers from --header flags and EMDASH_HEADERS env
 		const customHeaders = resolveCustomHeaders();
+		const hasUserHeaders = Object.keys(customHeaders).length > 0;
 		let headerFetch = createHeaderAwareFetch(customHeaders);
+		let accessViaCloudflared = false;
 
 		try {
 			// Step 1: Fetch auth discovery.
@@ -220,6 +221,7 @@ export const loginCommand = defineCommand({
 				// Add the Access token to our custom headers and rebuild the fetch wrapper
 				customHeaders["cf-access-token"] = accessToken;
 				headerFetch = createHeaderAwareFetch(customHeaders);
+				accessViaCloudflared = true;
 				res = await headerFetch(discoveryUrl);
 			} else if (res.status === 301 || res.status === 302) {
 				// Non-Access redirect — follow it normally
@@ -257,7 +259,19 @@ export const loginCommand = defineCommand({
 				// No device flow available (external auth mode)
 				consola.info("Device Flow is not available for this instance.");
 				consola.info("Generate an API token in Settings > API Tokens");
-				consola.info(`Then run: ${pc.cyan(`emdash --token <token> --url ${baseUrl}`)}`);
+				consola.info(
+					`Then pass it to each command, for example: ${pc.cyan(`emdash schema list --url ${baseUrl} --token <token>`)}`,
+				);
+				consola.info("Or set EMDASH_URL and EMDASH_TOKEN instead of passing the flags.");
+				if (hasUserHeaders) {
+					consola.info("Pass the same --header flags or EMDASH_HEADERS with each command as well.");
+				}
+				if (accessViaCloudflared) {
+					const origin = new URL(baseUrl).origin;
+					consola.info(
+						`Add the Cloudflare Access token to each command too: ${pc.cyan(`-H "cf-access-token: $(cloudflared access token -app ${origin})"`)}`,
+					);
+				}
 				return;
 			}
 
@@ -371,11 +385,10 @@ export const logoutCommand = defineCommand({
 			type: "string",
 			alias: "u",
 			description: "EmDash instance URL",
-			default: "http://localhost:4321",
 		},
 	},
 	async run({ args }) {
-		const baseUrl = args.url || "http://localhost:4321";
+		const baseUrl = resolveBaseUrl(args);
 
 		// Get stored credentials
 		const cred = getCredentials(baseUrl);

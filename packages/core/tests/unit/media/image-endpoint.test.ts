@@ -119,11 +119,48 @@ describe("parseTransformParams", () => {
 		expect(parse("w=640&h=-1").ok).toBe(false);
 	});
 
-	it("rejects unsupported format and bad quality", () => {
+	it.each([
+		["low", 25],
+		["mid", 50],
+		["high", 80],
+		["max", 100],
+		["70.6", 71],
+		["80.5", 81],
+		["0", 1],
+		["101", 100],
+		["150", 100],
+		["-5", 1],
+		["1e-7", 1],
+		["1e+21", 100],
+		["1", 1],
+		["100", 100],
+	])("parses quality %s as %s", (quality, expected) => {
+		const result = parse(`w=640&q=${encodeURIComponent(quality)}`);
+		expect(result.ok).toBe(true);
+		if (result.ok) expect(result.options.quality).toBe(expected);
+	});
+
+	it.each([
+		"",
+		"   ",
+		" 70 ",
+		"0x10",
+		"0b10",
+		"1e309",
+		"NaN",
+		"Infinity",
+		"-Infinity",
+		"unknown",
+		"constructor",
+		"toString",
+		"__proto__",
+	])("rejects invalid quality %s", (quality) => {
+		const result = parse(`w=640&q=${encodeURIComponent(quality)}`);
+		expect(result.ok).toBe(false);
+	});
+
+	it("rejects unsupported format", () => {
 		expect(parse("w=640&f=gif").ok).toBe(false);
-		expect(parse("w=640&q=0").ok).toBe(false);
-		expect(parse("w=640&q=101").ok).toBe(false);
-		expect(parse("w=640&q=foo").ok).toBe(false);
 	});
 
 	it("rejects exotic numeric encodings for dimensions", () => {

@@ -197,7 +197,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const fieldId =
 			typeof fieldIdEntry === "string" && fieldIdEntry.length > 0 ? fieldIdEntry : null;
 
-		const fieldAllowlist = fieldId ? await resolveFieldAllowlist(emdash.db, fieldId) : null;
+		const blockTypeEntry = formData.get("blockType");
+		const blockVersionEntry = formData.get("blockVersion");
+		const blockType = typeof blockTypeEntry === "string" ? blockTypeEntry : undefined;
+		const blockVersion =
+			typeof blockVersionEntry === "string" ? Number(blockVersionEntry) : undefined;
+		const fieldAllowlist = fieldId
+			? await resolveFieldAllowlist(emdash.db, fieldId, blockType, blockVersion)
+			: null;
 		const allowlist = fieldAllowlist ?? [...GLOBAL_UPLOAD_ALLOWLIST];
 
 		// Browsers that don't know a format (e.g. `.jxl`) may send an empty or

@@ -1,0 +1,71 @@
+import * as React from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { render } from "vitest-browser-react";
+
+import "../../dist/styles.css";
+import { ButtonElementComponent } from "../../../blocks/src/elements/button.js";
+import type { ButtonElement } from "../../../blocks/src/types.js";
+
+const element = {
+	type: "button",
+	label: "Delete",
+	action_id: "delete",
+	value: "item-1",
+	style: "danger",
+	confirm: {
+		style: "danger",
+		title: "Delete this item?",
+		text: "This permanently removes it.",
+		confirm: "Delete",
+		deny: "Cancel",
+	},
+} satisfies ButtonElement;
+
+describe("Block Kit button confirmation dialog", () => {
+	afterEach(() => {
+		document.documentElement.removeAttribute("dir");
+	});
+
+	it.each(["ltr", "rtl"])("insets content and waits for confirmation in %s", async (direction) => {
+		document.documentElement.dir = direction;
+		const onAction = vi.fn();
+		const screen = await render(<ButtonElementComponent element={element} onAction={onAction} />);
+		await screen.getByRole("button", { name: "Delete", exact: true }).click();
+
+		const dialog = screen.getByRole("dialog");
+		await expect.element(dialog).toBeVisible();
+		await expect.element(dialog).toHaveAccessibleName(element.confirm.title);
+		await expect.element(dialog).toHaveAccessibleDescription(element.confirm.text);
+		expect(onAction).not.toHaveBeenCalled();
+
+		await expect.element(dialog).not.toHaveAttribute("data-starting-style");
+		await expect.poll(() => dialog.element().getAnimations().length).toBe(0);
+		const bounds = dialog.element().getBoundingClientRect();
+		const insets: [Element, number][] = [
+			[screen.getByRole("heading", { name: element.confirm.title }).element(), 16],
+			[screen.getByText(element.confirm.text).element(), 16],
+			[dialog.getByRole("button", { name: "Delete", exact: true }).element(), 4],
+			[dialog.getByRole("button", { name: "Cancel" }).element(), 4],
+		];
+		for (const [content, inset] of insets) {
+			const contentBounds = content.getBoundingClientRect();
+			expect(contentBounds.left - bounds.left).toBeGreaterThanOrEqual(inset);
+			expect(bounds.right - contentBounds.right).toBeGreaterThanOrEqual(inset);
+			expect(contentBounds.top - bounds.top).toBeGreaterThanOrEqual(inset);
+			expect(bounds.bottom - contentBounds.bottom).toBeGreaterThanOrEqual(inset);
+		}
+
+		await dialog.getByRole("button", { name: "Cancel" }).click();
+		await expect.element(dialog).not.toBeInTheDocument();
+		expect(onAction).not.toHaveBeenCalled();
+
+		await screen.getByRole("button", { name: "Delete", exact: true }).click();
+		await dialog.getByRole("button", { name: "Delete", exact: true }).click();
+		await expect.element(dialog).not.toBeInTheDocument();
+		expect(onAction).toHaveBeenCalledExactlyOnceWith({
+			type: "block_action",
+			action_id: "delete",
+			value: "item-1",
+		});
+	});
+});

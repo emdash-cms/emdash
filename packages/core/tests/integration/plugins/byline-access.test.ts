@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import { createBylineAccess } from "../../../src/plugins/byline-access.js";
 import { PluginContextFactory } from "../../../src/plugins/context.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
@@ -44,6 +45,7 @@ describeEachDialect("plugin byline access", (dialect) => {
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		await teardownForDialect(ctx);
 	});
 
@@ -97,6 +99,19 @@ describeEachDialect("plugin byline access", (dialect) => {
 
 		const slugs = [...first.items, ...second.items].map((byline) => byline.slug).toSorted();
 		expect(slugs).toEqual(["a", "b", "c"]);
+	});
+
+	it("matches a configured locale code when listing bylines", async () => {
+		setI18nConfig({
+			defaultLocale: "es-MX",
+			locales: ["es-MX", "en"],
+			localeAliases: { "en-US": "en" },
+		});
+		await bylineRepo.create({ slug: "terms", displayName: "Terms", locale: "en-US" });
+
+		const result = await createBylineAccess(ctx.db).list({ locale: "en" });
+
+		expect(result.items.map((byline) => byline.slug)).toEqual(["terms"]);
 	});
 
 	it("resolves explicit and inferred credits at each entry's locale", async () => {
