@@ -30,6 +30,7 @@ import {
 } from "./api/handlers/media-upload.js";
 import { resolveReferenceSelection } from "./api/handlers/relations.js";
 import {
+	liveReferenceData,
 	liveReferenceSelection,
 	mergeStagedReferenceBaselines,
 	mergeStagedReferences,
@@ -2305,6 +2306,7 @@ export class EmDashRuntime {
 			contentActions,
 			now: deps.now,
 			storage: storage ?? undefined,
+			imagePlaceholders: deps.config.imagePlaceholders ?? true,
 			siteInfo,
 			commentModerate: (
 				pluginId: string,
@@ -4134,6 +4136,10 @@ export class EmDashRuntime {
 						);
 					}
 
+					const entryGroup = existing.translationGroup;
+					await repo.keepStartingRevision(revisionRepo, collection, existing, () =>
+						liveReferenceData(this.db, collection, entryGroup),
+					);
 					const revision = await revisionRepo.create({
 						collection,
 						entryId: resolvedId,
@@ -4997,12 +5003,17 @@ export class EmDashRuntime {
 				error: { code: "NO_STORAGE", message: "Storage not configured" },
 			};
 		}
-		const result = await uploadMedia(this.db, this.storage, input, {
-			beforeUpload: async (file) => {
-				if (!this.hooks.hasHooks("media:beforeUpload")) return file;
-				return (await this.hooks.runMediaBeforeUpload(file)).file;
+		const result = await uploadMedia(
+			this.db,
+			this.storage,
+			{ ...input, placeholders: input.placeholders ?? this.config.imagePlaceholders ?? true },
+			{
+				beforeUpload: async (file) => {
+					if (!this.hooks.hasHooks("media:beforeUpload")) return file;
+					return (await this.hooks.runMediaBeforeUpload(file)).file;
+				},
 			},
-		});
+		);
 		if (result.success && !result.data.deduplicated && this.hooks.hasHooks("media:afterUpload")) {
 			const item = result.data.item;
 			await this.hooks.runMediaAfterUpload({

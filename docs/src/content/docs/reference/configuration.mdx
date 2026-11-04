@@ -113,6 +113,22 @@ emdash({
 });
 ```
 
+### `imagePlaceholders`
+
+**Optional.** Controls whether EmDash generates blurhash and dominant-color placeholders for uploaded images. The default is `true` on every runtime, including Cloudflare Workers.
+
+`imagePlaceholders` is one site-wide switch for every upload and import. Set it to `false` to skip all blurhash and dominant-color generation, including from client thumbnails. Image dimensions, upload validation, content hashing, and responsive image variants remain unchanged.
+
+WordPress imports, MCP uploads, plugin uploads, and custom clients without thumbnails still decode originals when placeholders are enabled. Sites with constrained CPU budgets may choose to turn the switch off to avoid that decoding cost across all uploads and imports.
+
+```js
+emdash({
+	imagePlaceholders: false,
+});
+```
+
+The admin and visual-editing toolbar create a small browser thumbnail for every image the browser can decode and send it with uploads. These thumbnails also enable placeholders for opaque images in formats such as WebP and AVIF. New uploads and imports do not generate placeholders for transparent images, including PNGs, so placeholder backgrounds do not show through transparent areas. Previously stored placeholders are not removed. EmDash uses that thumbnail for placeholder generation instead of decoding the full original when the upload path provides one. A client can also provide a thumbnail in the signed-upload confirmation request; see [`POST /_emdash/api/media/{id}/confirm`](/reference/rest-api/#upload-target-flow).
+
 ### `mediaProviders`
 
 **Optional.** Adds media services to the media library. The storage-backed local provider remains available automatically; each descriptor in this array adds another place editors can browse or upload media.

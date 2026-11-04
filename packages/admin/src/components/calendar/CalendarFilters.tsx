@@ -118,7 +118,7 @@ export function CalendarFilters({
 					<Button
 						ref={triggerRef}
 						variant="secondary"
-						className="w-full justify-center text-sm sm:w-auto"
+						className="shrink-0 justify-center text-sm"
 						icon={
 							<Funnel
 								aria-hidden="true"

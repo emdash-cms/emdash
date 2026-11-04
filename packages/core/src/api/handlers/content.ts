@@ -70,6 +70,7 @@ import {
 } from "./relations.js";
 import {
 	applyStagedReferences,
+	liveReferenceData,
 	liveReferenceSelection,
 	pageStagedGroups,
 	readStagedReferenceBaselines,
@@ -1722,11 +1723,11 @@ export async function handleContentUpdate(
 				updated.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
 
-			// Create auto-redirect when slug changes. Date tokens in the URL
-			// pattern resolve from the publish date, so the old URL uses the
-			// pre-update date (the URL that was actually live) and the new URL
-			// the post-update one.
-			if (oldSlug && body.slug) {
+			// Create auto-redirect when a published entry's slug changes. Date
+			// tokens in the URL pattern resolve from the publish date, so the old
+			// URL uses the pre-update date (the URL that was actually live) and the
+			// new URL the post-update one.
+			if (oldSlug && body.slug && existing?.status === "published") {
 				redirectChanged = await createSlugChangeRedirect(
 					trx,
 					collection,
@@ -2542,6 +2543,14 @@ export async function handleContentPublish(
 						stagedReferenceBaselines,
 					);
 				}
+			}
+
+			// `repo.publish()` writes the starting revision too, but without the links.
+			if (publishConfig.supportsRevisions && existing) {
+				const entryGroup = existing.translationGroup;
+				await repo.keepStartingRevision(new RevisionRepository(trx), collection, existing, () =>
+					liveReferenceData(trx, collection, entryGroup),
+				);
 			}
 
 			const published = await repo.publish(
