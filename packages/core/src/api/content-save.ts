@@ -9,6 +9,9 @@ import type { Kysely } from "kysely";
 import type { z } from "zod";
 
 import type { EmDashHandlers, HandlerResponse } from "../astro/types.js";
+import { ContentRepository } from "../database/repositories/content.js";
+import { RevisionRepository } from "../database/repositories/revision.js";
+import type { ContentItem } from "../database/repositories/types.js";
 import type { Database } from "../database/types.js";
 import {
 	assertSiteWriteAllowed,
@@ -16,6 +19,7 @@ import {
 	type RecordSiteWrite,
 } from "../transfer/fence.js";
 import { entryEditAccess } from "./authorize.js";
+import { validateRev } from "./rev.js";
 import type { contentUpdateBody } from "./schemas/index.js";
 
 /** The handlers a save needs: the runtime, or the `emdash` handlers in Astro locals. */
@@ -92,14 +96,85 @@ export async function saveContent(
 	site: ContentSaveSite,
 	input: ContentSaveInput,
 ): Promise<ContentSaveResult> {
-	const { collection, id, locale, user, body } = input;
+	const { collection, locale, body } = input;
 
+	const grant = await checkEditAccess(site, input);
+	if ("code" in grant) return failure(grant.code, grant.message);
+	const { user, access, checkedRev } = grant;
+	// A draft-only grant covers the entry only while it is a draft. Conditioning
+	// the save on the checked revision makes it fail if the entry is published
+	// between this check and the write.
+	const rev = access === "draft" ? (body._rev ?? checkedRev) : body._rev;
+
+	// Only EDITOR+ can write publishedAt directly — incl. clearing to null.
+	if (body.publishedAt !== undefined && !hasPermission(user, "content:publish_any")) {
+		return failure("FORBIDDEN", "Writing publishedAt requires content:publish_any permission");
+	}
+
+	const resolvedId = grant.entryId;
+
+	const refusal = await input.beforeWrite?.(resolvedId);
+	if (refusal) return { success: false, error: refusal };
+
+	let recordWrite: RecordSiteWrite | undefined;
+	if (input.fence) {
+		const fenced = await applyFence(site.db);
+		if (typeof fenced !== "function") return failure(fenced.code, fenced.message);
+		recordWrite = fenced;
+	}
+
+	const canChangeAuthor = body.authorId !== undefined && hasPermission(user, "content:edit_any");
+	const writeBody = canChangeAuthor ? body : { ...body, authorId: undefined };
+
+	const result = await site.handleContentUpdate(collection, resolvedId, {
+		...writeBody,
+		locale,
+		_rev: rev,
+		actor: { id: user.id, role: user.role },
+		editedBy: input.editedBy,
+	});
+	if (result.success) await recordWrite?.();
+	return result;
+}
+
+/**
+ * The values a fresh read gives an entry: its live values under the draft revision's, without
+ * `_` keys, and the draft's staged slug, or else the live slug.
+ */
+export function overlayDraft(
+	live: { data: Record<string, unknown>; slug: string | null },
+	draft: Record<string, unknown> | null | undefined,
+): Omit<ContentWrite, "rev"> {
+	if (!draft) return { data: { ...live.data }, slug: live.slug };
+	return {
+		data: {
+			...live.data,
+			...Object.fromEntries(Object.entries(draft).filter(([key]) => !key.startsWith("_"))),
+		},
+		slug: typeof draft._slug === "string" ? draft._slug : live.slug,
+	};
+}
+
+interface EditGrant {
+	user: { id: string; role: RoleLevel };
+	entryId: string;
+	access: "full" | "draft";
+	/** The `_rev` of the entry as checked. */
+	checkedRev: string | undefined;
+}
+
+/** The checks a save makes before anything else: the entry exists and the user may edit it. */
+async function checkEditAccess(
+	site: ContentSaveSite,
+	input: Pick<ContentSaveInput, "collection" | "id" | "locale" | "user">,
+): Promise<EditGrant | ContentSaveError> {
+	const { collection, id, locale, user } = input;
 	const existing = await site.handleContentGet(collection, id, locale);
 	if (!existing.success) {
-		return failure(
-			existing.error?.code ?? "UNKNOWN_ERROR",
-			existing.error?.message ?? "Unknown error",
-		);
+		return {
+			code: existing.error?.code ?? "UNKNOWN_ERROR",
+			message: existing.error?.message ?? "Unknown error",
+		};
 	}
 
 	const existingData =
@@ -115,45 +190,92 @@ export async function saveContent(
 			: existingData;
 	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
 	const entry = { authorId, status: existingItem?.status };
-	if (!user) return failure("UNAUTHORIZED", "Authentication required");
+	if (!user) return { code: "UNAUTHORIZED", message: "Authentication required" };
 	const access = entryEditAccess(user, entry);
-	if (!access) return failure("FORBIDDEN", "Insufficient permissions");
-	// A draft-only grant covers the entry only while it is a draft. Conditioning
-	// the save on the checked revision makes it fail if the entry is published
-	// between this check and the write.
-	const checkedRev = typeof existingData?._rev === "string" ? existingData._rev : undefined;
-	const rev = access === "draft" ? (body._rev ?? checkedRev) : body._rev;
+	if (!access) return { code: "FORBIDDEN", message: "Insufficient permissions" };
+	return {
+		user,
+		entryId: typeof existingItem?.id === "string" ? existingItem.id : id,
+		access,
+		checkedRev: typeof existingData?._rev === "string" ? existingData._rev : undefined,
+	};
+}
 
-	// Only EDITOR+ can write publishedAt directly — incl. clearing to null.
-	if (body.publishedAt !== undefined && !hasPermission(user, "content:publish_any")) {
-		return failure("FORBIDDEN", "Writing publishedAt requires content:publish_any permission");
+/** Applies the site-write fence: the refusal, or the function that records the write. */
+async function applyFence(db: Kysely<Database>): Promise<RecordSiteWrite | ContentSaveError> {
+	try {
+		return await assertSiteWriteAllowed(db);
+	} catch (error) {
+		if (error instanceof SiteWriteBlockedError) return { code: error.code, message: error.message };
+		throw error;
 	}
+}
 
-	const resolvedId = typeof existingItem?.id === "string" ? existingItem.id : id;
+export interface KeptMarkInput {
+	collection: string;
+	/** Entry ID or slug. */
+	id: string;
+	/** The locale a slug resolves in. */
+	locale?: string;
+	/** The actor. Their current role decides access. */
+	user: { id: string; role: RoleLevel } | null | undefined;
+	/** The `_rev` the mark is conditioned on. */
+	rev: string;
+	/** Apply the site-write fence, as for {@link saveContent}. */
+	fence?: boolean;
+}
 
-	const refusal = await input.beforeWrite?.(resolvedId);
-	if (refusal) return { success: false, error: refusal };
+export type KeptMarkResult =
+	| { success: true; saved: ContentWrite }
+	| { success: false; error: ContentSaveError };
+
+const ENTRY_NOT_FOUND: ContentSaveError = { code: "NOT_FOUND", message: "Content item not found" };
+
+function revConflict(entry: ContentItem, rev: string): ContentSaveError | null {
+	const check = validateRev(rev, entry);
+	return check.valid ? null : { code: "CONFLICT", message: check.message };
+}
+
+/**
+ * A kept save with no changes: marks the entry's draft revision kept if it is an autosave, with
+ * the checks {@link saveContent} makes and the same `_rev` check. Creates no revision, runs no
+ * hooks and leaves `_rev` as it is. `saved` holds the entry's `_rev` and stored values, shaped
+ * as a save's own write.
+ */
+export async function markDraftKept(
+	site: ContentSaveSite,
+	input: KeptMarkInput,
+): Promise<KeptMarkResult> {
+	const grant = await checkEditAccess(site, input);
+	if ("code" in grant) return { success: false, error: grant };
 
 	let recordWrite: RecordSiteWrite | undefined;
 	if (input.fence) {
-		try {
-			recordWrite = await assertSiteWriteAllowed(site.db);
-		} catch (error) {
-			if (error instanceof SiteWriteBlockedError) return failure(error.code, error.message);
-			throw error;
-		}
+		const fenced = await applyFence(site.db);
+		if (typeof fenced !== "function") return { success: false, error: fenced };
+		recordWrite = fenced;
 	}
 
-	const canChangeAuthor = body.authorId !== undefined && hasPermission(user, "content:edit_any");
-	const writeBody = canChangeAuthor ? body : { ...body, authorId: undefined };
+	const repo = new ContentRepository(site.db);
+	const entry = await repo.findById(input.collection, grant.entryId);
+	if (!entry) return { success: false, error: ENTRY_NOT_FOUND };
+	const conflict = revConflict(entry, input.rev);
+	if (conflict) return { success: false, error: conflict };
+	const draft = entry.draftRevisionId
+		? await new RevisionRepository(site.db).findById(entry.draftRevisionId)
+		: null;
+	if (entry.draftRevisionId && !draft) {
+		throw new Error(`Draft revision not found: ${entry.draftRevisionId}`);
+	}
 
-	const result = await site.handleContentUpdate(collection, resolvedId, {
-		...writeBody,
-		locale,
-		_rev: rev,
-		actor: { id: user.id, role: user.role },
-		editedBy: input.editedBy,
-	});
-	if (result.success) await recordWrite?.();
-	return result;
+	if (await repo.markDraftRevisionKept(input.collection, entry.id, entry)) {
+		await recordWrite?.();
+	} else {
+		// Nothing was marked because the entry changed, or because its draft isn't an autosave.
+		const current = await repo.findById(input.collection, entry.id);
+		if (!current) return { success: false, error: ENTRY_NOT_FOUND };
+		const changed = revConflict(current, input.rev);
+		if (changed) return { success: false, error: changed };
+	}
+	return { success: true, saved: { rev: input.rev, ...overlayDraft(entry, draft?.data) } };
 }

@@ -12,6 +12,8 @@ const virtualStubs: Record<string, string> = {
 	// No object cache under test — like a site that configures none.
 	"virtual:emdash/object-cache":
 		"export const createObjectCache = undefined; export const objectCacheConfig = {};",
+	// No room host under test — like any adapter with co-editing off.
+	"virtual:emdash/rooms": "export const createRoomHost = null;",
 	// Default-export an empty config so modules that read top-level fields
 	// (e.g. `virtualConfig?.i18n?.defaultLocale`) don't blow up on import.
 	// Tests that need real config still `vi.mock(...)` their own.

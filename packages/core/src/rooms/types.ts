@@ -88,6 +88,16 @@ export interface RoomHost {
 	forgetTokens(roomId: string, userId: string): Promise<void>;
 }
 
+/** The host a runtime keeps, or null where co-editing is off or the host can't run rooms. */
+export interface RuntimeRoomHost extends RoomHost {
+	/** The hourly drop for rooms that aren't open. */
+	expireIdle(): Promise<void>;
+	/** Stores, saves, releases claims and closes every connection. */
+	shutdown(): Promise<void>;
+	/** Makes this the host notifications and upgrades reach. Called once the runtime is published. */
+	activate(): void;
+}
+
 export interface TokenClaims {
 	userId: string;
 	name: string;

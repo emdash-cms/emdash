@@ -2985,6 +2985,33 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Marks the entry's draft revision kept if it is an autosave and the entry still has
+	 * `expected`'s `version` and `updatedAt`, in one statement. Changes neither. Resolves to
+	 * whether a revision was marked.
+	 */
+	async markDraftRevisionKept(
+		type: string,
+		id: string,
+		expected: Pick<ContentItem, "version" | "updatedAt">,
+	): Promise<boolean> {
+		const tableName = getTableName(type);
+		const result = await sql<{ id: string }>`
+			UPDATE revisions
+			SET kind = NULL
+			WHERE kind = 'autosave'
+			AND id = (
+				SELECT draft_revision_id FROM ${sql.ref(tableName)}
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+				AND version = ${expected.version}
+				AND updated_at = ${expected.updatedAt}
+			)
+			RETURNING id
+		`.execute(this.db);
+		return result.rows.length > 0;
+	}
+
+	/**
 	 * Discard pending draft changes
 	 *
 	 * Clears draft_revision_id. The content table columns already hold the

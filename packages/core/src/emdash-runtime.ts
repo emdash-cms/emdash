@@ -22,7 +22,7 @@ import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
-import type { ContentWrite } from "./api/content-save.js";
+import { overlayDraft, type ContentWrite } from "./api/content-save.js";
 import { ErrorCode } from "./api/errors.js";
 import { buildManifestCollections } from "./api/handlers/manifest.js";
 import {
@@ -318,6 +318,7 @@ import {
 import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import type { RuntimeRoomHost } from "./rooms/types.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
@@ -460,6 +461,12 @@ export interface MediaProviderContext {
 export type CreateSchedulerFn = (executor: CronExecutor) => CronScheduler;
 
 /**
+ * Builds the runtime's co-editing room host. Injected via
+ * `virtual:emdash/rooms`, so only hosts that can run rooms load their code.
+ */
+export type CreateRoomHostFn = (runtime: EmDashRuntime) => RuntimeRoomHost | null;
+
+/**
  * Dependencies injected from virtual modules (middleware reads these)
  */
 export interface RuntimeDependencies {
@@ -494,6 +501,12 @@ export interface RuntimeDependencies {
 	 * integration means core has no adapter-specific runtime checks.
 	 */
 	createScheduler?: CreateSchedulerFn | null;
+	/**
+	 * Factory for the co-editing room host, from the generated
+	 * `virtual:emdash/rooms` module. When absent or null, or when it returns
+	 * null, every join gets single-editor mode.
+	 */
+	createRoomHost?: CreateRoomHostFn | null;
 	/** Media provider entries from virtual module */
 	mediaProviderEntries?: MediaProviderEntry[];
 	sandboxedPluginEntries: SandboxedPluginEntry[];
@@ -853,6 +866,7 @@ export class EmDashRuntime {
 	readonly email: EmailPipeline | null;
 
 	private cronScheduler: CronScheduler | null;
+	private _rooms: RuntimeRoomHost | null = null;
 	private enabledPlugins: Set<string>;
 	private pluginStates: Map<string, string>;
 	private readonly activePluginContentActions = new Map<string, number>();
@@ -935,6 +949,11 @@ export class EmDashRuntime {
 			return ctx.db as Kysely<Database>;
 		}
 		return this._db;
+	}
+
+	/** Co-editing rooms, or null where co-editing is off or this host can't run rooms. */
+	get rooms(): RuntimeRoomHost | null {
+		return this._rooms;
 	}
 
 	/** Bind the platform cache provider used by plugin actions, including request-less cron hooks. */
@@ -1127,6 +1146,13 @@ export class EmDashRuntime {
 		} catch (error) {
 			console.error("[cleanup] System cleanup failed:", error);
 		}
+		if (this._rooms) {
+			try {
+				await this._rooms.expireIdle();
+			} catch (error) {
+				console.error("[co-editing] Hourly room drop failed:", error);
+			}
+		}
 	}
 
 	/**
@@ -1282,6 +1308,7 @@ export class EmDashRuntime {
 
 	/** Stop background work and discard loaded sandbox isolates. */
 	async shutdown(): Promise<void> {
+		await this._rooms?.shutdown();
 		await this.stopCron();
 		sandboxRunner?.setCommentModerate?.(null);
 		await sandboxRunner?.terminateAll();
@@ -2745,6 +2772,7 @@ export class EmDashRuntime {
 			);
 		}
 
+		runtime._rooms = deps.createRoomHost?.(runtime) ?? null;
 		return runtime;
 	}
 
@@ -4438,14 +4466,7 @@ export class EmDashRuntime {
 					processedData = attemptData;
 					stagedWrite = {
 						rev: encodeRev({ ...existing, ...staged }),
-						// Read back as a fresh read hydrates it: the live values under the draft's.
-						data: {
-							...existing.data,
-							...Object.fromEntries(
-								Object.entries(revision.data).filter(([key]) => !key.startsWith("_")),
-							),
-						},
-						slug: typeof revision.data._slug === "string" ? revision.data._slug : existing.slug,
+						...overlayDraft(existing, revision.data),
 					};
 
 					if (credit.replaces && existing.draftRevisionId) {

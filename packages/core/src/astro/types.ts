@@ -668,6 +668,10 @@ export interface EmDashHandlers {
 	// by `requestCached`.
 	getManifest: () => Promise<EmDashManifest>;
 
+	// Co-editing rooms. Null where co-editing is off or the host can't run
+	// rooms, which gives every join single-editor mode.
+	rooms: import("../rooms/types.js").RuntimeRoomHost | null;
+
 	// Clear the cached URL patterns used by `resolveEmDashPath`. Call after
 	// any schema mutation that creates/updates/deletes a collection's
 	// `urlPattern` so public routing picks up the change immediately.

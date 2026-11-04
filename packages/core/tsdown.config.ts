@@ -133,6 +133,8 @@ export default defineConfig({
 		"src/plugins/adapt-sandbox-entry.ts",
 		// Platform adapter runtime used behind lazy sandbox bridges.
 		"src/plugins/host.ts",
+		// Node.js co-editing room host (loaded via virtual:emdash/rooms)
+		"src/rooms/node/index.ts",
 		// Lightweight synchronous log redaction for sandbox bridges.
 		"src/plugins/secret-redactor.ts",
 		// Binary-safe HTTP transport shared by sandbox runners.

@@ -213,6 +213,7 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		sandboxedPluginEntries: runtime.sandboxedPluginEntries,
 		config: runtime.config,
 		getManifest: runtime.getManifest.bind(runtime),
+		rooms: runtime.rooms,
 		invalidateUrlPatternCache,
 
 		// Fields the MCP server doesn't currently call. Stub so the type

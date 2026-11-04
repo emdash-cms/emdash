@@ -11,6 +11,7 @@ import {
 	generateConfigModule,
 	generateDialectModule,
 	generateEnvModule,
+	generateRoomsModule,
 	generateSchedulerModule,
 	generateSeedModule,
 	RESOLVED_VIRTUAL_BUILD_ID,
@@ -95,6 +96,25 @@ describe("generateDialectModule", () => {
 			supportsCollectionDeletionGuard: false,
 		});
 		expect(out).toContain(`export const dialectType = "postgres"`);
+	});
+});
+
+describe("generateRoomsModule", () => {
+	it("loads the in-process room host on @astrojs/node with co-editing on", () => {
+		expect(generateRoomsModule("@astrojs/node", true)).toContain(
+			'export { createRoomHost } from "emdash/internal/co-editing/node"',
+		);
+	});
+
+	it.each([
+		["@astrojs/node", false],
+		["@astrojs/cloudflare", true],
+		["@astrojs/netlify", true],
+		[undefined, true],
+	])("gives %s with co-editing %s no room host", (adapter, coEditing) => {
+		const out = generateRoomsModule(adapter, coEditing);
+		expect(out).toContain("export const createRoomHost = null");
+		expect(out).not.toContain("co-editing/node");
 	});
 });
 

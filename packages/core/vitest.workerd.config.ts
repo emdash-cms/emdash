@@ -4,6 +4,7 @@ import { defineConfig } from "vitest/config";
 const virtualStubs: Record<string, string> = {
 	"virtual:emdash/wait-until": "export const waitUntil = undefined;",
 	"virtual:emdash/scheduler": "export const createScheduler = null;",
+	"virtual:emdash/rooms": "export const createRoomHost = null;",
 	"virtual:emdash/config": "export default {};",
 	"virtual:emdash/env": "export const env = undefined;",
 	"virtual:emdash/object-cache":

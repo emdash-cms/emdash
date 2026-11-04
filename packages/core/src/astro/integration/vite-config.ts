@@ -52,9 +52,12 @@ import {
 	RESOLVED_VIRTUAL_ENV_ID,
 	VIRTUAL_BUILD_ID,
 	RESOLVED_VIRTUAL_BUILD_ID,
+	VIRTUAL_ROOMS_ID,
+	RESOLVED_VIRTUAL_ROOMS_ID,
 	generateSeedModule,
 	generateWaitUntilModule,
 	generateSchedulerModule,
+	generateRoomsModule,
 	generateEnvModule,
 	generateBuildModule,
 	generateConfigModule,
@@ -251,6 +254,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_BUILD_ID) {
 				return RESOLVED_VIRTUAL_BUILD_ID;
 			}
+			if (id === VIRTUAL_ROOMS_ID) {
+				return RESOLVED_VIRTUAL_ROOMS_ID;
+			}
 		},
 		load(id: string) {
 			if (id === RESOLVED_VIRTUAL_CONFIG_ID) {
@@ -347,6 +353,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			}
 			if (id === RESOLVED_VIRTUAL_BUILD_ID) {
 				return generateBuildModule(buildTime);
+			}
+			if (id === RESOLVED_VIRTUAL_ROOMS_ID) {
+				return generateRoomsModule(astroConfig.adapter?.name, resolvedConfig.coEditing ?? false);
 			}
 		},
 	};
