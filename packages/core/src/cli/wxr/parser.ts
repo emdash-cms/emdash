@@ -121,43 +121,43 @@ const WPML_TRID_META_KEYS = ["trid", "_icl_translation_id"] as const;
  * Polylang stores per-post language in postmeta as `_locale` on newer
  * exports. The actual language taxonomy assignment lives on
  * `customTaxonomies.language`, which we use as a fallback. Translation
- * grouping is encoded in `_translations` as a serialized PHP map of
- * `{ lang_code => post_id }`; we synthesize a stable group key from the
- * sorted IDs so every member of the group resolves to the same string.
+ * grouping is a serialized PHP map of `{ lang_code => post_id }`, in
+ * `_translations` meta or in the description of the post's
+ * `post_translations` term; we synthesize a stable group key from the sorted
+ * IDs so every member of the group resolves to the same string.
  */
 const POLYLANG_LOCALE_META_KEY = "_locale";
 const POLYLANG_TRANSLATIONS_META_KEY = "_translations";
 const POLYLANG_LANG_TAXONOMY = "language";
+const POLYLANG_POST_TRANSLATIONS_TAXONOMY = "post_translations";
 
 /**
- * Extract a list of post-IDs from Polylang's `_translations` PHP-serialized
- * value. The format we care about is roughly:
+ * Read the scalar values of a PHP-serialized value in order: string payloads
+ * and integer literals. Structure (`a:N:{`, `}`, `;`) and other types are
+ * skipped, so Polylang's flat `{ lang_code => id }` map
  *
  *   a:2:{s:2:"en";i:1;s:2:"ar";i:7;}
  *
- * We don't need to round-trip the PHP value -- we just need a stable group
- * key shared by every translation of the same content. Concatenating the
- * sorted IDs gives us exactly that: every post in the group derives the
- * same key from its own copy of `_translations`.
+ * comes out as `["en", 1, "ar", 7]`.
  *
  * Naïve `/i:(\d+);/g` would also match `i:N;` literals embedded INSIDE
- * string values (e.g. `s:11:"i:42;hello";`), which would silently corrupt
- * the group key. We walk the serialized blob token-by-token instead.
+ * string values (e.g. `s:11:"i:42;hello";`). We walk the serialized blob
+ * token-by-token instead.
  *
  * PHP serializes `s:LEN:"..."` with LEN counted in BYTES, not characters
  * (UTF-8 byte length). JS string positions are UTF-16 code units, so we
  * encode to bytes via `TextEncoder` and walk byte offsets. Single-byte-only
- * inputs (the common case for Polylang's `_translations` which only stores
- * ASCII locale codes) take the same path; the encoder is cheap.
+ * inputs (the common case for Polylang's maps, which only store ASCII locale
+ * codes) take the same path; the encoder is cheap.
  */
-function polylangTranslationGroupFromMeta(serialized: string): string | undefined {
+function phpSerializedScalars(serialized: string): Array<string | number> {
 	// Operate on the UTF-8 byte view so `s:LEN:` advances the right number
 	// of bytes when the payload contains multibyte characters.
 	const encoder = new TextEncoder();
 	const bytes = encoder.encode(serialized);
 	const decoder = new TextDecoder("utf-8");
 
-	const ids: number[] = [];
+	const scalars: Array<string | number> = [];
 	let i = 0;
 	const n = bytes.length;
 	const CHAR_S = 0x73; // 's'
@@ -176,7 +176,7 @@ function polylangTranslationGroupFromMeta(serialized: string): string | undefine
 	while (i < n) {
 		const ch = bytes[i];
 		if (ch === CHAR_S && bytes[i + 1] === CHAR_COLON) {
-			// s:LEN:"...";  — skip the entire string value: the LEN digits,
+			// s:LEN:"...";  — read the entire string value: the LEN digits,
 			// the opening quote, the payload of exactly LEN bytes, the
 			// closing quote, and the trailing semicolon.
 			const lenStart = i + 2;
@@ -197,6 +197,7 @@ function polylangTranslationGroupFromMeta(serialized: string): string | undefine
 			}
 			const payloadStart = lenEnd + 2;
 			const afterPayload = payloadStart + len;
+			scalars.push(decoder.decode(bytes.slice(payloadStart, afterPayload)));
 			// afterPayload should point at the closing `"`; +2 past `";`.
 			i = afterPayload + 2;
 			continue;
@@ -207,18 +208,71 @@ function polylangTranslationGroupFromMeta(serialized: string): string | undefine
 			if (valEnd === -1) break;
 			const idText = decoder.decode(bytes.slice(valStart, valEnd));
 			const id = Number.parseInt(idText, 10);
-			if (Number.isFinite(id)) ids.push(id);
+			if (Number.isFinite(id)) scalars.push(id);
 			i = valEnd + 1;
 			continue;
 		}
 		// Any other token (a:LEN:{...}, b:0;, N;, {, }, :, ;, etc.) -- just
-		// advance one byte. We only care about integer literals; everything
-		// else is structural.
+		// advance one byte. We only care about strings and integer literals;
+		// everything else is structural.
 		i++;
 	}
+	return scalars;
+}
+
+/**
+ * Derive a translation group key from Polylang's `{ lang_code => post_id }`
+ * map, serialized as `_translations` meta or as a `post_translations` term's
+ * description. We don't need to round-trip the PHP value -- we just need a
+ * stable key shared by every translation of the same content. Concatenating
+ * the sorted IDs gives us exactly that: every post in the group derives the
+ * same key from its own copy of the map.
+ */
+function polylangTranslationGroupFromMeta(serialized: string): string | undefined {
+	const ids = phpSerializedScalars(serialized).filter(
+		(value): value is number => typeof value === "number",
+	);
 	if (ids.length === 0) return undefined;
 	const sorted = [...new Set(ids)].toSorted((a, b) => a - b);
 	return `pll:${sorted.join(",")}`;
+}
+
+/**
+ * Read Polylang's `{ lang_code => id }` translation map, as serialized in the
+ * description of a `post_translations` or `term_translations` term.
+ */
+export function parsePolylangTranslations(serialized: string): Map<string, number> {
+	const scalars = phpSerializedScalars(serialized);
+	const translations = new Map<string, number>();
+	for (let i = 0; i < scalars.length; i++) {
+		const lang = scalars[i];
+		const id = scalars[i + 1];
+		if (typeof lang === "string" && typeof id === "number") {
+			translations.set(lang, id);
+			i++;
+		}
+	}
+	return translations;
+}
+
+/**
+ * Give posts without `_translations` meta the translation group that Polylang
+ * records in its `post_translations` taxonomy, which is where a plain export
+ * keeps it. The group term's description holds the same `{ lang_code =>
+ * post_id }` map as that meta, so both sources give a group the same key.
+ */
+function promotePolylangPostTranslations(data: WxrData): void {
+	const groupBySlug = new Map<string, string>();
+	for (const term of data.terms) {
+		if (term.taxonomy !== POLYLANG_POST_TRANSLATIONS_TAXONOMY || !term.description) continue;
+		const group = polylangTranslationGroupFromMeta(term.description);
+		if (group) groupBySlug.set(term.slug, group);
+	}
+	for (const post of data.posts) {
+		if (post.translationGroup) continue;
+		const slug = post.customTaxonomies?.get(POLYLANG_POST_TRANSLATIONS_TAXONOMY)?.[0];
+		if (slug) post.translationGroup = groupBySlug.get(slug) ?? `pll:${slug}`;
+	}
 }
 
 /**
@@ -758,6 +812,7 @@ export function parseWxr(stream: Readable): Promise<WxrData> {
 		parser.on("end", () => {
 			// Post-process nav_menu_item posts into structured menus
 			data.navMenus = buildNavMenus(navMenuItemPosts, menuTermsBySlug);
+			promotePolylangPostTranslations(data);
 			resolve(data);
 		});
 
@@ -1134,6 +1189,7 @@ export function parseWxrString(xml: string): Promise<WxrData> {
 		parser.onend = () => {
 			// Post-process nav_menu_item posts into structured menus
 			data.navMenus = buildNavMenus(navMenuItemPosts, menuTermsBySlug);
+			promotePolylangPostTranslations(data);
 			resolve(data);
 		};
 
