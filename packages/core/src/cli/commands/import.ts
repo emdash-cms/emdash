@@ -47,6 +47,11 @@ const wordpressCommand = defineCommand({
 			type: "string",
 			description: "Migration config path (default: <output-dir>/migration-config.json)",
 		},
+		force: {
+			type: "boolean",
+			description: "Overwrite an existing migration config when preparing",
+			default: false,
+		},
 		"media-dir": {
 			type: "string",
 			description: "Directory for downloaded media (default: <output-dir>/media)",
@@ -108,6 +113,7 @@ const wordpressCommand = defineCommand({
 				: await prepareWordPressImport(filePath, {
 						outputDir,
 						configPath,
+						force: args.force,
 						dryRun: args["dry-run"],
 						verbose: args.verbose,
 						json: args.json,
