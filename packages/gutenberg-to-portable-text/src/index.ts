@@ -32,8 +32,12 @@ const BLOCK_END_INSIDE_CELL_PATTERN = /<\/(?:p|div)>(?!\s*<\/(?:p|div|t[dh])>)/g
 const BLOCK_START_INSIDE_CELL_PATTERN =
 	/(?<!(?:<(?:t[dh]|p|div)\b[^>]*>|<br\s*\/?>)\s*)<(?:p|div)\b/gi;
 const ALL_WHITESPACE_PATTERN = /\s+/g;
-const LINKED_IMAGE_PATTERN = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>\s*<img\s+([^>]+)\/?>\s*<\/a>/gu;
-const STANDALONE_IMAGE_PATTERN = /<img\s+[^>]+\/?>/gu;
+// Attributes are read as whole quoted values or single characters. Each part can match a
+// given character in only one way and none spans a `<`, so a tag that never closes costs
+// linear time instead of quadratic backtracking. The link's quoted `href` is capture 1.
+const LINKED_IMAGE_PATTERN =
+	/<a(?=\s)(?:[^<>"'\s]|\s(?!href=)|"[^"<]*"|'[^'<]*')*\shref=("[^"<]+"|'[^'<]+')(?:[^<>"']|"[^"<]*"|'[^'<]*')*>\s*<img(\s(?:[^<>"']|"[^"<]*"|'[^'<]*')*)>\s*<\/a>/gu;
+const STANDALONE_IMAGE_PATTERN = /<img\s(?:[^<>"']|"[^"<]*"|'[^'<]*')*>/gu;
 const IMG_TAG_PATTERN = /<img[^>]+>/i;
 const SRC_ATTR_PATTERN = /src=["']([^"']+)["']/i;
 const ALT_ATTR_PATTERN = /alt=["']([^"']*)["']/i;
@@ -269,7 +273,7 @@ export function htmlToPortableText(
 				// First extract linked images
 				let linkedMatch;
 				while ((linkedMatch = LINKED_IMAGE_PATTERN.exec(content)) !== null) {
-					const linkUrl = decodeUrlEntities(linkedMatch[1]!);
+					const linkUrl = decodeUrlEntities(linkedMatch[1]!.slice(1, -1));
 					const imgAttrs = linkedMatch[2]!;
 					const srcMatch = imgAttrs.match(SRC_ATTR_PATTERN);
 					const altMatch = imgAttrs.match(ALT_ATTR_PATTERN);
