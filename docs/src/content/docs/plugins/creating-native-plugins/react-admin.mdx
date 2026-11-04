@@ -123,6 +123,16 @@ export function createPlugin() {
 
 Keep `adminEntry` and `admin.entry` identical. The first is a build-time import; the second tells the runtime that the plugin uses trusted React admin components.
 
+## API requests and UI imports
+
+Use `apiFetch` and `parseApiResponse` from `emdash/plugin-utils` for plugin API requests, as shown in the [admin page example](#admin-pages). `apiFetch(input, init)` accepts a URL, path, or `Request` object and optional fetch options. It returns a `Response`; it does not prepend the plugin route path or parse JSON. `parseApiResponse<T>(response, fallbackMessage?)` returns `data` from the response body and throws on non-2xx responses, using the server's error message or the fallback (default: `"Request failed"`).
+
+`@emdash-cms/admin` does not export a `usePluginAPI` hook or the UI components `Button`, `Card`, `Table`, `Loading`, `Alert`, `Input`, `Toggle`, or `Pagination`. Import controls directly from [`@cloudflare/kumo`](https://github.com/cloudflare/kumo), as the page example does with `Button` and `Loader`. Keep Kumo as a peer dependency so the plugin shares the host's instance; see [Distributing native plugins](/plugins/creating-native-plugins/distributing/#package-exports).
+
+<Aside type="caution" title="Missing exports can prevent admin hydration">
+	If the admin stays on `Loading EmDash...` and the browser reports a missing named export while hydrating `PluginRegistry` (for example, `does not provide an export named`), check the imports in your admin entrypoint and its components. An unsupported named import can prevent the entire admin from loading. Replace `usePluginAPI` with the request helpers above and import UI controls from Kumo, not `@emdash-cms/admin`.
+</Aside>
+
 ## Admin pages
 
 Each page declaration has the following fields:
