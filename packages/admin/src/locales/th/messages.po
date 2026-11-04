@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {นำเข้าความคิดเห็น # รายการแล้ว} other {นำเข้าความคิดเห็น # รายการแล้ว}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2468
+#: packages/admin/src/router.tsx:2469
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {อัปเดตความคิดเห็น # รายการ} other {อัปเดตความคิดเห็น # รายการ}}"
 
@@ -237,7 +237,7 @@ msgid "{0, plural, one {# content item imported} other {# content items imported
 msgstr "{0, plural, one {นำเข้าเนื้อหา # รายการแล้ว} other {นำเข้าเนื้อหา # รายการแล้ว}}"
 
 #. placeholder {0}: states.length
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:455
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:409
 msgid "{0, plural, one {# entry} other {# entries}}"
 msgstr "{0, plural, one {# รายการ} other {# รายการ}}"
 
@@ -476,7 +476,7 @@ msgid "{0} detected"
 msgstr "ตรวจพบ {0}"
 
 #. placeholder {0}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:620
+#: packages/admin/src/components/TaxonomySidebar.tsx:627
 msgid "{0} fallback"
 msgstr "ใช้ {0} แทน"
 
@@ -553,17 +553,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "{0} จาก {1} ขั้นตอน · {2} จาก {3}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:754
+#: packages/admin/src/router.tsx:755
 msgid "{0} of {total} could not be deleted"
 msgstr "ลบไม่สำเร็จ {0} จาก {total} รายการ"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:710
+#: packages/admin/src/router.tsx:711
 msgid "{0} of {total} could not be published"
 msgstr "เผยแพร่ไม่สำเร็จ {0} จาก {total} รายการ"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:733
+#: packages/admin/src/router.tsx:734
 msgid "{0} of {total} could not be updated"
 msgstr "อัปเดตไม่สำเร็จ {0} จาก {total} รายการ"
 
@@ -591,7 +591,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr "ระบบ {0} + กำหนดเอง {1} {2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:680
+#: packages/admin/src/components/TaxonomySidebar.tsx:687
 msgid "{0} updated"
 msgstr "อัปเดต {0} แล้ว"
 
@@ -668,7 +668,7 @@ msgstr "{count, plural, one {# รายการ} other {# รายการ}}
 msgid "{current} of {total}"
 msgstr "{current} จาก {total}"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:468
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:422
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
 
@@ -698,11 +698,11 @@ msgstr "{filesMissing, plural, one {ยังต้องอัปโหลด�
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} รายการ} other {#{1} รายการ}}"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:387
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:340
 msgid "{hidden, plural, one {# more entry on {date}} other {# more entries on {date}}}"
 msgstr "{hidden, plural, one {อีก # รายการในวันที่ {date}} other {อีก # รายการในวันที่ {date}}}"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:394
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:347
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {+อีก #} other {+อีก #}}"
 
@@ -741,7 +741,7 @@ msgstr "ย้าย {label} ไปยังตำแหน่งที่ {0} �
 msgid "{label} moved to position {0}."
 msgstr "ย้าย {label} ไปตำแหน่งที่ {0} แล้ว"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:533
+#: packages/admin/src/components/TaxonomySidebar.tsx:535
 msgid "{label} options"
 msgstr "ตัวเลือกของ {label}"
 
@@ -749,7 +749,7 @@ msgstr "ตัวเลือกของ {label}"
 msgid "{label}, {restored}"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:366
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:344
 msgid "{lateness} late"
 msgstr "ล่าช้า {lateness}"
 
@@ -937,15 +937,19 @@ msgstr ""
 msgid "{siteName} is now at {siteHost}. Sign in there from now on."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:53
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:107
 msgid "{siteZone} · Your time: {viewerZone}"
 msgstr "{siteZone} · เวลาของคุณ: {viewerZone}"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:282
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:266
 msgid "{state} · {when}"
 msgstr "{state} · {when}"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:344
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:330
+msgid "{state}, {lateness} late, {time}:"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:330
 msgid "{state}, {time}:"
 msgstr "{state}, {time}:"
 
@@ -953,15 +957,15 @@ msgstr "{state}, {time}:"
 msgid "{subLabel} ({label}, item {position})"
 msgstr "{subLabel} ({label}, รายการที่ {position})"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:194
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
 msgid "{title} is a draft again."
 msgstr "{title} กลับเป็นฉบับร่างแล้ว"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 msgid "{title} is now live."
 msgstr "{title} เผยแพร่แล้ว"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:206
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:249
 msgid "{title} now goes live {when}."
 msgstr "{title} จะเผยแพร่ {when}"
 
@@ -1209,9 +1213,9 @@ msgstr "ไฟล์ในแพ็กเกจไม่ตรงกับ manif
 msgid "A package file is missing"
 msgstr "ไฟล์ในแพ็กเกจหายไป"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:179
-#: packages/admin/src/components/ContentSettingsPanel.tsx:230
-#: packages/admin/src/components/ContentSettingsPanel.tsx:256
+#: packages/admin/src/components/ContentSettingsPanel.tsx:180
+#: packages/admin/src/components/ContentSettingsPanel.tsx:231
+#: packages/admin/src/components/ContentSettingsPanel.tsx:257
 msgid "A publication time has not been selected"
 msgstr "ยังไม่ได้เลือกเวลาเผยแพร่"
 
@@ -1252,7 +1256,7 @@ msgstr ""
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:762
+#: packages/admin/src/components/TaxonomySidebar.tsx:769
 msgid "A source and target locale are required"
 msgstr "ต้องระบุภาษาต้นทางและภาษาปลายทาง"
 
@@ -1309,7 +1313,7 @@ msgstr "ยอมรับคำเชิญ"
 msgid "Access denied"
 msgstr "ไม่มีสิทธิ์เข้าถึง"
 
-#: packages/admin/src/router.tsx:2490
+#: packages/admin/src/router.tsx:2491
 msgid "Access Denied"
 msgstr "การเข้าถึงถูกปฏิเสธ"
 
@@ -1759,7 +1763,7 @@ msgstr "หลังจากคุณเรียกใช้ปลั๊กอ
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to: {0}"
 msgstr "หลังจากคุณเรียกใช้ปลั๊กอินนี้อย่างชัดแจ้ง ปลั๊กอินจะส่งเนื้อหาในตัวแก้ไขที่เลือกและยังไม่ได้บันทึกไปยัง: {0}"
 
-#: packages/admin/src/routes/calendar.tsx:308
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:88
 msgid "Agenda"
 msgstr "กำหนดการ"
 
@@ -1984,22 +1988,22 @@ msgstr "กุญแจดิจิทัลที่เข้ารหัส �
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
 #: packages/admin/src/components/settings/TransferSettings.tsx:85
-#: packages/admin/src/components/TaxonomySidebar.tsx:687
-#: packages/admin/src/components/TaxonomySidebar.tsx:783
+#: packages/admin/src/components/TaxonomySidebar.tsx:694
+#: packages/admin/src/components/TaxonomySidebar.tsx:790
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:664
-#: packages/admin/src/router.tsx:685
-#: packages/admin/src/router.tsx:910
-#: packages/admin/src/router.tsx:1339
-#: packages/admin/src/router.tsx:1462
-#: packages/admin/src/router.tsx:1496
-#: packages/admin/src/router.tsx:1520
-#: packages/admin/src/router.tsx:1604
-#: packages/admin/src/router.tsx:1637
-#: packages/admin/src/router.tsx:2440
-#: packages/admin/src/router.tsx:2476
-#: packages/admin/src/router.tsx:2904
-#: packages/admin/src/router.tsx:3091
+#: packages/admin/src/router.tsx:665
+#: packages/admin/src/router.tsx:686
+#: packages/admin/src/router.tsx:911
+#: packages/admin/src/router.tsx:1340
+#: packages/admin/src/router.tsx:1463
+#: packages/admin/src/router.tsx:1497
+#: packages/admin/src/router.tsx:1521
+#: packages/admin/src/router.tsx:1605
+#: packages/admin/src/router.tsx:1638
+#: packages/admin/src/router.tsx:2441
+#: packages/admin/src/router.tsx:2477
+#: packages/admin/src/router.tsx:2905
+#: packages/admin/src/router.tsx:3092
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "เกิดข้อผิดพลาด"
@@ -2270,7 +2274,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "การยืนยันตัวตนถูกยกเลิกหรือหมดเวลา โปรดลองอีกครั้ง"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1345
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1350
 #: packages/admin/src/components/RelationForm.tsx:395
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2350,7 +2354,7 @@ msgstr "การสำรองข้อมูลอัตโนมัติ"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "การสำรองข้อมูลอัตโนมัติต้องใช้ที่จัดเก็บข้อมูล (R2, S3 หรือที่จัดเก็บในเครื่อง) ตั้งค่าที่จัดเก็บข้อมูลใน EmDash config เพื่อเปิดใช้งาน"
 
-#: packages/admin/src/router.tsx:1459
+#: packages/admin/src/router.tsx:1460
 msgid "Autosave failed"
 msgstr "บันทึกอัตโนมัติล้มเหลว"
 
@@ -2359,7 +2363,7 @@ msgid "Available bylines"
 msgstr "ชื่อผู้เขียนที่ใช้ได้"
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:846
+#: packages/admin/src/components/TaxonomySidebar.tsx:853
 msgid "Available in {0}"
 msgstr "มีใน {0}"
 
@@ -2676,9 +2680,9 @@ msgid "Byline updated"
 msgstr "อัปเดตชื่อผู้เขียนแล้ว"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:339
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1109
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1113
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:382
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1110
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1114
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
@@ -2701,7 +2705,7 @@ msgstr "C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:581
 #: packages/admin/src/components/Sidebar.tsx:696
-#: packages/admin/src/routes/calendar.tsx:277
+#: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
 msgstr "ปฏิทิน"
 
@@ -2729,7 +2733,7 @@ msgstr "สามารถดูเนื้อหาได้"
 #: packages/admin/src/components/ConfirmDialog.tsx:92
 #: packages/admin/src/components/ContentList.tsx:686
 #: packages/admin/src/components/ContentPickerModal.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:530
+#: packages/admin/src/components/ContentSettingsPanel.tsx:531
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:826
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
@@ -2903,7 +2907,7 @@ msgstr "เปลี่ยนวันที่เผยแพร่"
 msgid "Change publication date: {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:602
+#: packages/admin/src/components/ContentSettingsPanel.tsx:603
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "เปลี่ยนกำหนดเวลา"
@@ -2990,7 +2994,7 @@ msgstr "บันทึกการเปลี่ยนแปลง"
 msgid "Changes apply everywhere this byline appears."
 msgstr "การเปลี่ยนแปลงมีผลทุกที่ที่ชื่อผู้เขียนนี้ปรากฏ"
 
-#: packages/admin/src/router.tsx:1537
+#: packages/admin/src/router.tsx:1538
 msgid "Changes discarded"
 msgstr "ละทิ้งการเปลี่ยนแปลงแล้ว"
 
@@ -3038,7 +3042,7 @@ msgstr "ตรวจสอบเว็บไซต์"
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
 msgstr "ตรวจสอบบันทึกของเซิร์ฟเวอร์ แล้วใช้ media usage recovery API กับงานที่ล้มเหลว"
 
-#: packages/admin/src/routes/calendar.tsx:269
+#: packages/admin/src/routes/calendar.tsx:279
 msgid "Check your connection and try again."
 msgstr "ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง"
 
@@ -3097,9 +3101,9 @@ msgstr "กำลังตรวจสอบไซต์นี้"
 msgid "Checking…"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:395
 #: packages/admin/src/components/TaxonomySidebar.tsx:396
-#: packages/admin/src/components/TaxonomySidebar.tsx:489
+#: packages/admin/src/components/TaxonomySidebar.tsx:397
+#: packages/admin/src/components/TaxonomySidebar.tsx:490
 msgid "Choose {label}"
 msgstr "เลือก {label}"
 
@@ -3239,7 +3243,7 @@ msgstr "ล้างรายการที่เสร็จแล้ว"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:79
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:185
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:103
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:88
 #: packages/admin/src/components/ContentList.tsx:1121
 #: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
@@ -3295,7 +3299,7 @@ msgid "Click this link to sign in to {siteName}:"
 msgstr "คลิกลิงก์นี้เพื่อเข้าสู่ระบบ {siteName}:"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:274
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:278
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:321
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/ContentPickerModal.tsx:231
@@ -3311,7 +3315,7 @@ msgstr "คลิกลิงก์นี้เพื่อเข้าสู่
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
-#: packages/admin/src/components/TaxonomySidebar.tsx:606
+#: packages/admin/src/components/TaxonomySidebar.tsx:613
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:8
 msgid "Close"
@@ -3389,9 +3393,9 @@ msgstr "คอลเลกชัน “{0}” มีรายการอยู�
 msgid "Collection “{0}” was created on this site"
 msgstr "มีการสร้างคอลเลกชัน “{0}” ในไซต์นี้แล้ว"
 
-#: packages/admin/src/router.tsx:775
-#: packages/admin/src/router.tsx:977
-#: packages/admin/src/router.tsx:1964
+#: packages/admin/src/router.tsx:776
+#: packages/admin/src/router.tsx:978
+#: packages/admin/src/router.tsx:1965
 msgid "Collection \"{collection}\" not found"
 msgstr ""
 
@@ -3554,7 +3558,7 @@ msgstr "เชื่อมต่อ {0} แล้ว"
 msgid "Connects"
 msgstr "เชื่อมต่อ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:465
+#: packages/admin/src/components/ContentSettingsPanel.tsx:466
 msgid "content"
 msgstr "เนื้อหา"
 
@@ -3585,7 +3589,7 @@ msgstr "ข้อผิดพลาดของเนื้อหา ({0})"
 msgid "Content found:"
 msgstr "พบเนื้อหา:"
 
-#: packages/admin/src/router.tsx:1586
+#: packages/admin/src/router.tsx:1587
 msgid "Content has been scheduled for publishing"
 msgstr "กำหนดเวลาเผยแพร่เนื้อหาแล้ว"
 
@@ -3593,11 +3597,11 @@ msgstr "กำหนดเวลาเผยแพร่เนื้อหาแ
 msgid "Content ID:"
 msgstr "ID เนื้อหา:"
 
-#: packages/admin/src/router.tsx:1490
+#: packages/admin/src/router.tsx:1491
 msgid "Content is now live"
 msgstr "เนื้อหาเผยแพร่แล้ว"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1075
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1076
 msgid "Content language"
 msgstr "ภาษาของเนื้อหา"
 
@@ -3618,11 +3622,11 @@ msgstr "เนื้อหาอ้างอิงถึงมีเดียใ
 msgid "Content refers to media that is not in the package"
 msgstr "เนื้อหาอ้างอิงถึงมีเดียที่ไม่มีอยู่ในแพ็กเกจ"
 
-#: packages/admin/src/router.tsx:1514
+#: packages/admin/src/router.tsx:1515
 msgid "Content removed from public view"
 msgstr "นำเนื้อหาออกจากมุมมองสาธารณะแล้ว"
 
-#: packages/admin/src/router.tsx:1597
+#: packages/admin/src/router.tsx:1598
 msgid "Content reverted to draft"
 msgstr "เปลี่ยนเนื้อหากลับเป็นฉบับร่างแล้ว"
 
@@ -3810,11 +3814,11 @@ msgstr "ไม่สามารถโหลดรูปภาพจาก URL �
 msgid "Could not load media."
 msgstr "โหลดมีเดียไม่สำเร็จ"
 
-#: packages/admin/src/routes/calendar.tsx:341
+#: packages/admin/src/routes/calendar.tsx:315
 msgid "Could not load the calendar"
 msgstr "โหลดปฏิทินไม่สำเร็จ"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:349
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:392
 msgid "Could not load this entry's details."
 msgstr "โหลดรายละเอียดของรายการนี้ไม่สำเร็จ"
 
@@ -3822,7 +3826,7 @@ msgstr "โหลดรายละเอียดของรายการน
 msgid "Could not load this folder."
 msgstr "โหลดโฟลเดอร์นี้ไม่สำเร็จ"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:183
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 msgid "Could not publish"
 msgstr "เผยแพร่ไม่สำเร็จ"
 
@@ -3830,7 +3834,7 @@ msgstr "เผยแพร่ไม่สำเร็จ"
 msgid "Could not reach {origin}"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:198
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:241
 msgid "Could not remove the schedule"
 msgstr "นำกำหนดเวลาออกไม่สำเร็จ"
 
@@ -3958,7 +3962,7 @@ msgstr "สร้าง"
 msgid "Create “{0}”"
 msgstr "สร้าง “{0}”"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:584
+#: packages/admin/src/components/TaxonomySidebar.tsx:586
 msgid "Create \"{trimmedInput}\""
 msgstr "สร้าง \"{trimmedInput}\""
 
@@ -3968,7 +3972,7 @@ msgid "Create {0}"
 msgstr "สร้าง {0}"
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:857
+#: packages/admin/src/components/TaxonomySidebar.tsx:864
 msgid "Create {0} translation"
 msgstr "สร้างคำแปลภาษา {0}"
 
@@ -3989,7 +3993,7 @@ msgstr "สร้างรายการแบบจุด"
 msgid "Create a new {0}"
 msgstr "สร้าง {0} ใหม่"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:584
+#: packages/admin/src/components/TaxonomySidebar.tsx:586
 msgid "Create a new {singularLabel}"
 msgstr "สร้าง {singularLabel} ใหม่"
 
@@ -4148,7 +4152,7 @@ msgid "Create, update, delete content"
 msgstr "สร้าง อัปเดต ลบเนื้อหา"
 
 #: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1026
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1027
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
 msgid "Created"
@@ -4165,11 +4169,11 @@ msgid "Created {0}"
 msgstr "สร้าง {0} แล้ว"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1629
+#: packages/admin/src/router.tsx:1630
 msgid "Created {0} translation"
 msgstr "สร้างคำแปล {0} แล้ว"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1006
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1007
 msgid "Created and updated"
 msgstr "สร้างและอัปเดต"
 
@@ -4813,8 +4817,8 @@ msgstr ""
 msgid "Discard"
 msgstr "ละทิ้ง"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:345
-#: packages/admin/src/components/ContentSettingsPanel.tsx:352
+#: packages/admin/src/components/ContentSettingsPanel.tsx:346
+#: packages/admin/src/components/ContentSettingsPanel.tsx:353
 msgid "Discard changes"
 msgstr "ละทิ้งการเปลี่ยนแปลง"
 
@@ -4822,11 +4826,11 @@ msgstr "ละทิ้งการเปลี่ยนแปลง"
 msgid "Discard changes?"
 msgstr "ละทิ้งการเปลี่ยนแปลงหรือไม่?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:350
+#: packages/admin/src/components/ContentSettingsPanel.tsx:351
 msgid "Discard draft changes?"
 msgstr "ละทิ้งการเปลี่ยนแปลงในฉบับร่าง?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:353
+#: packages/admin/src/components/ContentSettingsPanel.tsx:354
 #: packages/admin/src/components/MediaDetailPanel.tsx:1876
 msgid "Discarding..."
 msgstr "กำลังละทิ้ง..."
@@ -5019,18 +5023,18 @@ msgstr "กำลังดาวน์โหลดแพ็กเกจ"
 msgid "visualEditing.draft"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:413
 #: packages/admin/src/components/ContentList.tsx:1017
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "ฉบับร่าง"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:203
-#: packages/admin/src/components/ContentSettingsPanel.tsx:229
+#: packages/admin/src/components/ContentSettingsPanel.tsx:204
+#: packages/admin/src/components/ContentSettingsPanel.tsx:230
 msgid "Draft changes"
 msgstr "การเปลี่ยนแปลงในฉบับร่าง"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:169
+#: packages/admin/src/components/ContentSettingsPanel.tsx:170
 msgid "Draft version"
 msgstr "เวอร์ชันฉบับร่าง"
 
@@ -5196,8 +5200,8 @@ msgstr "แก้ไขฟิลด์ {0}"
 msgid "Edit {itemLabel}"
 msgstr "แก้ไข {itemLabel}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:415
-#: packages/admin/src/components/TaxonomySidebar.tsx:424
+#: packages/admin/src/components/TaxonomySidebar.tsx:416
+#: packages/admin/src/components/TaxonomySidebar.tsx:425
 msgid "Edit {label}"
 msgstr "แก้ไข {label}"
 
@@ -5561,7 +5565,7 @@ msgstr "เปิดใช้งานการติดตามเพื่อ
 msgid "Enabled"
 msgstr "เปิดใช้งาน"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1078
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1079
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "ใช้ภาษาอังกฤษเนื่องจากยังไม่ได้กำหนดค่าภาษาของเนื้อหา ภาษาของเนื้อหาจะเก็บไว้กับรายการและแยกจากภาษาของหน้าผู้ดูแล"
 
@@ -5788,7 +5792,7 @@ msgstr "รายการฝั่งที่ลิงก์"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3366
+#: packages/admin/src/router.tsx:3367
 msgid "Error"
 msgstr "ข้อผิดพลาด"
 
@@ -5812,7 +5816,7 @@ msgstr "เกิดข้อผิดพลาดในการอัปเด
 msgid "esc"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:604
+#: packages/admin/src/components/TaxonomySidebar.tsx:611
 msgid "Esc"
 msgstr "Esc"
 
@@ -6028,7 +6032,7 @@ msgid "Failed to continue import"
 msgstr "ดำเนินการนำเข้าต่อไม่สำเร็จ"
 
 #. placeholder {0}: failedLabels.join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:753
+#: packages/admin/src/components/TaxonomySidebar.tsx:760
 msgid "Failed to create {0}"
 msgstr "สร้าง {0} ไม่สำเร็จ"
 
@@ -6118,7 +6122,7 @@ msgstr "สร้างบางคอลเลกชันไม่สำเร
 msgid "Failed to create taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:732
+#: packages/admin/src/components/TaxonomySidebar.tsx:739
 #: packages/admin/src/lib/api/taxonomies.ts:215
 msgid "Failed to create term"
 msgstr "สร้างเทอมไม่สำเร็จ"
@@ -6127,8 +6131,8 @@ msgstr "สร้างเทอมไม่สำเร็จ"
 msgid "Failed to create term translation"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:782
-#: packages/admin/src/router.tsx:1634
+#: packages/admin/src/components/TaxonomySidebar.tsx:789
+#: packages/admin/src/router.tsx:1635
 msgid "Failed to create translation"
 msgstr "สร้างคำแปลไม่สำเร็จ"
 
@@ -6140,7 +6144,7 @@ msgstr ""
 msgid "Failed to create widget area"
 msgstr ""
 
-#: packages/admin/src/router.tsx:753
+#: packages/admin/src/router.tsx:754
 msgid "Failed to delete"
 msgstr "ลบไม่สำเร็จ"
 
@@ -6262,7 +6266,7 @@ msgstr "ปิดข้อความต้อนรับไม่สำเร
 msgid "Failed to download a package file"
 msgstr "ดาวน์โหลดไฟล์แพ็กเกจไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:684
+#: packages/admin/src/router.tsx:685
 msgid "Failed to duplicate"
 msgstr "ทำสำเนาไม่สำเร็จ"
 
@@ -6524,7 +6528,7 @@ msgstr "ดึงสถานะการอัปเดตไม่สำเร
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2386
+#: packages/admin/src/router.tsx:2387
 msgid "Failed to fetch user"
 msgstr "ดึงข้อมูลผู้ใช้ไม่สำเร็จ"
 
@@ -6713,7 +6717,7 @@ msgid "Failed to lock the entry"
 msgstr "ล็อกรายการไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2475
+#: packages/admin/src/router.tsx:2476
 msgid "Failed to perform bulk action"
 msgstr "ดำเนินการแบบกลุ่มไม่สำเร็จ"
 
@@ -6730,8 +6734,8 @@ msgstr "เตรียมการนำเข้าไม่สำเร็จ
 msgid "Failed to probe URL"
 msgstr ""
 
-#: packages/admin/src/router.tsx:709
-#: packages/admin/src/router.tsx:1495
+#: packages/admin/src/router.tsx:710
+#: packages/admin/src/router.tsx:1496
 msgid "Failed to publish"
 msgstr "เผยแพร่ไม่สำเร็จ"
 
@@ -6743,7 +6747,7 @@ msgstr ""
 msgid "Failed to read byline field usage"
 msgstr "อ่านข้อมูลการใช้งานฟิลด์ชื่อผู้เขียนไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:2903
+#: packages/admin/src/router.tsx:2904
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -6798,7 +6802,7 @@ msgstr "จัดเรียงวิดเจ็ตใหม่ไม่สำ
 msgid "Failed to replace media image"
 msgstr "แทนที่รูปภาพมีเดียไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:663
+#: packages/admin/src/router.tsx:664
 msgid "Failed to restore"
 msgstr "กู้คืนไม่สำเร็จ"
 
@@ -6820,9 +6824,9 @@ msgstr "เพิกถอนโทเค็น API ไม่สำเร็จ"
 msgid "Failed to rewrite URLs"
 msgstr "เขียน URL ใหม่ไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:905
-#: packages/admin/src/router.tsx:1336
-#: packages/admin/src/router.tsx:3090
+#: packages/admin/src/router.tsx:906
+#: packages/admin/src/router.tsx:1337
+#: packages/admin/src/router.tsx:3091
 msgid "Failed to save"
 msgstr "บันทึกไม่สำเร็จ"
 
@@ -6877,7 +6881,7 @@ msgstr "เริ่มการนำเข้าไม่สำเร็จ"
 msgid "Failed to uninstall plugin"
 msgstr "ถอนการติดตั้งปลั๊กอินไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1519
+#: packages/admin/src/router.tsx:1520
 msgid "Failed to unpublish"
 msgstr "ยกเลิกการเผยแพร่ไม่สำเร็จ"
 
@@ -6885,7 +6889,7 @@ msgstr "ยกเลิกการเผยแพร่ไม่สำเร็
 msgid "Failed to unpublish content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1603
+#: packages/admin/src/router.tsx:1604
 msgid "Failed to unschedule"
 msgstr "ยกเลิกการกำหนดเวลาไม่สำเร็จ"
 
@@ -6893,12 +6897,12 @@ msgstr "ยกเลิกการกำหนดเวลาไม่สำเ
 msgid "Failed to unschedule content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:732
+#: packages/admin/src/router.tsx:733
 msgid "Failed to update"
 msgstr "อัปเดตไม่สำเร็จ"
 
 #. placeholder {0}: inlineLabel(taxonomy.label, lingui.locale)
-#: packages/admin/src/components/TaxonomySidebar.tsx:686
+#: packages/admin/src/components/TaxonomySidebar.tsx:693
 msgid "Failed to update {0}"
 msgstr "อัปเดต {0} ไม่สำเร็จ"
 
@@ -6984,7 +6988,7 @@ msgstr "อัปเดตส่วนไม่สำเร็จ"
 msgid "Failed to update settings"
 msgstr "อัปเดตการตั้งค่าไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:2439
+#: packages/admin/src/router.tsx:2440
 msgid "Failed to update status"
 msgstr "อัปเดตสถานะไม่สำเร็จ"
 
@@ -7200,7 +7204,7 @@ msgstr "ทำการแก้ไขที่ค้างอยู่ให้
 msgid "First page"
 msgstr "หน้าแรก"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:178
+#: packages/admin/src/components/ContentSettingsPanel.tsx:179
 msgid "First publication"
 msgstr "การเผยแพร่ครั้งแรก"
 
@@ -7241,7 +7245,7 @@ msgstr "โฟลเดอร์"
 msgid "Folder deleted"
 msgstr "ลบโฟลเดอร์แล้ว"
 
-#: packages/admin/src/router.tsx:2109
+#: packages/admin/src/router.tsx:2110
 msgid "Folder no longer exists"
 msgstr "ไม่มีโฟลเดอร์นี้แล้ว"
 
@@ -7387,12 +7391,12 @@ msgstr "Go"
 msgid "Go back to editing first."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:436
 msgid "Go live {countdown}"
 msgstr "เผยแพร่ {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3386
+#: packages/admin/src/router.tsx:3387
 msgid "Go to Dashboard"
 msgstr "ไปที่แดชบอร์ด"
 
@@ -7400,11 +7404,11 @@ msgstr "ไปที่แดชบอร์ด"
 msgid "Go to sign-in"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:308
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:351
 msgid "Goes live"
 msgstr "เผยแพร่จริง"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:375
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:418
 msgid "Goes live {countdown}"
 msgstr "เผยแพร่จริง {countdown}"
 
@@ -8365,7 +8369,7 @@ msgstr "ภาษา"
 msgid "Large section heading"
 msgstr "หัวข้อส่วนขนาดใหญ่"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:343
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
 msgid "Last edited"
 msgstr "แก้ไขล่าสุด"
 
@@ -8562,15 +8566,15 @@ msgstr ""
 msgid "List view"
 msgstr "มุมมองรายการ"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:187
-#: packages/admin/src/components/ContentSettingsPanel.tsx:197
-#: packages/admin/src/components/ContentSettingsPanel.tsx:223
-#: packages/admin/src/components/ContentSettingsPanel.tsx:249
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:429
+#: packages/admin/src/components/ContentSettingsPanel.tsx:188
+#: packages/admin/src/components/ContentSettingsPanel.tsx:198
+#: packages/admin/src/components/ContentSettingsPanel.tsx:224
+#: packages/admin/src/components/ContentSettingsPanel.tsx:250
 msgid "Live version"
 msgstr "เวอร์ชันที่เผยแพร่อยู่"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:684
+#: packages/admin/src/components/ContentSettingsPanel.tsx:685
 msgid "Live View"
 msgstr "มุมมองสด"
 
@@ -8603,8 +8607,8 @@ msgstr "โหลดโฟลเดอร์เพิ่มเติม"
 msgid "Load preview"
 msgstr "โหลดตัวอย่าง"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3341
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
+#: packages/admin/src/router.tsx:3342
 msgid "Loading"
 msgstr "กำลังโหลด"
 
@@ -8633,8 +8637,8 @@ msgstr "กำลังโหลดคอลเลกชัน..."
 msgid "Loading comments..."
 msgstr "กำลังโหลดความคิดเห็น..."
 
-#: packages/admin/src/router.tsx:3343
-#: packages/admin/src/router.tsx:3355
+#: packages/admin/src/router.tsx:3344
+#: packages/admin/src/router.tsx:3356
 msgid "Loading configuration..."
 msgstr "กำลังโหลดการกำหนดค่า..."
 
@@ -8778,7 +8782,7 @@ msgstr "กำลังโหลด…"
 msgid "Local time"
 msgstr "เวลาท้องถิ่น"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:320
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:363
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
 #: packages/admin/src/components/ContentList.tsx:506
 #: packages/admin/src/components/ContentList.tsx:762
@@ -8939,11 +8943,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Marketplace"
 
-#: packages/admin/src/router.tsx:2740
+#: packages/admin/src/router.tsx:2741
 msgid "Marketplace browsing is no longer available."
 msgstr "การเรียกดู Marketplace ไม่พร้อมใช้งานแล้ว"
 
-#: packages/admin/src/router.tsx:2715
+#: packages/admin/src/router.tsx:2716
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "การเรียกดู Marketplace ไม่พร้อมใช้งานแล้ว จัดการปลั๊กอินที่ติดตั้งได้จากหน้าปลั๊กอิน"
 
@@ -9230,7 +9234,7 @@ msgstr "สัญญาณการกลั่นกรอง"
 msgid "Modify collection schemas"
 msgstr "แก้ไขสคีมาของคอลเลกชัน"
 
-#: packages/admin/src/routes/calendar.tsx:294
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:74
 msgid "Month"
 msgstr "เดือน"
 
@@ -9339,14 +9343,14 @@ msgstr "ย้ายไปถังขยะ"
 
 #: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/ContentList.tsx:1624
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1312
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1318
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1317
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1323
 msgid "Move to Trash"
 msgstr "ย้ายไปยังถังขยะ"
 
 #: packages/admin/src/components/ContentList.tsx:678
 #: packages/admin/src/components/ContentList.tsx:1622
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1316
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1321
 msgid "Move to Trash?"
 msgstr "ย้ายไปยังถังขยะ?"
 
@@ -9366,11 +9370,11 @@ msgstr ""
 msgid "Moved {filename} to position {0}."
 msgstr "ย้าย {filename} ไปยังตำแหน่ง {0} แล้ว"
 
-#: packages/admin/src/router.tsx:729
+#: packages/admin/src/router.tsx:730
 msgid "Moved {total} items to draft"
 msgstr "ย้าย {total} รายการไปเป็นฉบับร่างแล้ว"
 
-#: packages/admin/src/router.tsx:750
+#: packages/admin/src/router.tsx:751
 msgid "Moved {total} items to trash"
 msgstr "ย้าย {total} รายการไปถังขยะแล้ว"
 
@@ -9451,7 +9455,7 @@ msgid "Moving from another EmDash site?"
 msgstr "ย้ายมาจากเว็บไซต์ EmDash อื่นใช่หรือไม่?"
 
 #: packages/admin/src/components/ContentList.tsx:1625
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1319
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1324
 msgid "Moving to trash..."
 msgstr ""
 
@@ -9496,7 +9500,7 @@ msgstr ""
 msgid "Name your section, then add its content in the editor."
 msgstr "ตั้งชื่อส่วน แล้วเพิ่มเนื้อหาในตัวแก้ไข"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:594
+#: packages/admin/src/components/TaxonomySidebar.tsx:601
 msgid "Navigate"
 msgstr "นำทาง"
 
@@ -9521,7 +9525,7 @@ msgstr "ต้องการการตรวจสอบ"
 msgid "Never"
 msgstr "ไม่เลย"
 
-#: packages/admin/src/router.tsx:1629
+#: packages/admin/src/router.tsx:1630
 msgid "new"
 msgstr "ใหม่"
 
@@ -9632,7 +9636,7 @@ msgstr "ข่าวสาร"
 msgid "Next"
 msgstr "ถัดไป"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:77
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:131
 msgid "Next month"
 msgstr "เดือนถัดไป"
 
@@ -9677,7 +9681,7 @@ msgstr "ยังไม่มี{0}"
 msgid "No {0} yet. Create one to get started."
 msgstr "ยังไม่มี{0} สร้างขึ้นมาเพื่อเริ่มต้นใช้งาน"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:568
+#: packages/admin/src/components/TaxonomySidebar.tsx:570
 msgid "No {label} found."
 msgstr "ไม่พบ {label}"
 
@@ -9806,7 +9810,7 @@ msgid "No EmDash users found"
 msgstr "ไม่พบผู้ใช้ EmDash"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:66
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:100
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:85
 msgid "No entries match these filters"
 msgstr "ไม่มีรายการที่ตรงกับตัวกรองเหล่านี้"
 
@@ -9884,7 +9888,7 @@ msgid "No linked user"
 msgstr "ไม่มีผู้ใช้ที่เชื่อมโยง"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:63
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:100
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:85
 msgid "No loaded entries match these filters"
 msgstr "ไม่มีรายการที่โหลดแล้วที่ตรงกับตัวกรองเหล่านี้"
 
@@ -10107,7 +10111,7 @@ msgstr "ไม่มี (ระดับบนสุด)"
 msgid "Not compatible with this environment"
 msgstr "ไม่รองรับกับสภาพแวดล้อมนี้"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:277
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:298
 msgid "Not loaded"
 msgstr "ยังไม่ได้โหลด"
 
@@ -10129,7 +10133,7 @@ msgstr "ยังไม่ได้ตั้งค่า"
 msgid "Nothing else is scheduled this month."
 msgstr "ไม่มีรายการอื่นที่กำหนดเวลาไว้ในเดือนนี้"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:600
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:554
 msgid "Nothing on this day."
 msgstr "ไม่มีรายการในวันนี้"
 
@@ -10147,7 +10151,7 @@ msgid "Nothing to preview yet."
 msgstr "ยังไม่มีอะไรให้ดูตัวอย่าง"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:104
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:419
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:385
 msgid "Now · {time}"
 msgstr "ขณะนี้ · {time}"
 
@@ -10258,7 +10262,7 @@ msgstr "เปิดโฟลเดอร์ {0}"
 msgid "visualEditing.openInAdmin"
 msgstr "เปิดในหน้าผู้ดูแล"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:482
 msgid "Open in editor"
 msgstr "เปิดในตัวแก้ไข"
 
@@ -10395,7 +10399,7 @@ msgstr "ต้นฉบับ:"
 msgid "Other"
 msgstr "อื่น ๆ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1263
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1268
 #: packages/admin/src/components/editor/DocumentOutline.tsx:248
 msgid "Outline"
 msgstr "โครงร่าง"
@@ -10408,7 +10412,7 @@ msgstr "ขนาดผลลัพธ์"
 msgid "Overdue"
 msgstr "เลยกำหนด"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:160
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:154
 msgid "Overdue · {lateness}"
 msgstr "เลยกำหนด · {lateness}"
 
@@ -10416,8 +10420,8 @@ msgstr "เลยกำหนด · {lateness}"
 msgid "Overrides the page title in search engine results"
 msgstr "แทนที่ชื่อหน้าในผลการค้นหาของเครื่องมือค้นหา"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1094
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1097
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1095
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1098
 msgid "Ownership"
 msgstr "ความเป็นเจ้าของ"
 
@@ -10435,7 +10439,7 @@ msgstr "Digest ของแพ็กเกจ"
 msgid "Package downloaded"
 msgstr "ดาวน์โหลดแพ็กเกจแล้ว"
 
-#: packages/admin/src/router.tsx:3381
+#: packages/admin/src/router.tsx:3382
 msgid "Page Not Found"
 msgstr "ไม่พบหน้า"
 
@@ -10794,8 +10798,8 @@ msgstr "ทะเบียนปลั๊กอิน"
 msgid "Plugin registry configuration error"
 msgstr "การกำหนดค่ารีจิสทรีปลั๊กอินผิดพลาด"
 
-#: packages/admin/src/router.tsx:2675
-#: packages/admin/src/router.tsx:2706
+#: packages/admin/src/router.tsx:2676
+#: packages/admin/src/router.tsx:2707
 msgid "Plugin registry is not configured."
 msgstr "ยังไม่ได้กำหนดค่ารีจิสทรีปลั๊กอิน"
 
@@ -10908,8 +10912,8 @@ msgstr "กด Escape เพื่อออกจากตัวแก้ไข�
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr "กด Space เพื่อหยิบรูปภาพ ใช้ปุ่มลูกศรเพื่อย้าย แล้วกด Space เพื่อวาง"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
-#: packages/admin/src/components/ContentSettingsPanel.tsx:414
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:491
+#: packages/admin/src/components/ContentSettingsPanel.tsx:415
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
@@ -10918,7 +10922,7 @@ msgstr "กด Space เพื่อหยิบรูปภาพ ใช้ป�
 msgid "Preview"
 msgstr "ดูตัวอย่าง"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:491
 msgid "Preview changes"
 msgstr "ดูตัวอย่างการเปลี่ยนแปลง"
 
@@ -10926,7 +10930,7 @@ msgstr "ดูตัวอย่างการเปลี่ยนแปลง
 msgid "Preview content before publishing"
 msgstr "ดูตัวอย่างเนื้อหาก่อนเผยแพร่"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:414
+#: packages/admin/src/components/ContentSettingsPanel.tsx:415
 msgid "Preview draft"
 msgstr "ดูตัวอย่างฉบับร่าง"
 
@@ -10943,7 +10947,7 @@ msgstr "ไม่มีตัวอย่างสำหรับรูปแบ
 msgid "Previous"
 msgstr "ก่อนหน้า"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:64
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:118
 msgid "Previous month"
 msgstr "เดือนก่อนหน้า"
 
@@ -11003,9 +11007,9 @@ msgstr "ผู้ให้บริการ:"
 msgid "Public routes"
 msgstr "เส้นทางสาธารณะ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:969
-#: packages/admin/src/components/ContentSettingsPanel.tsx:974
-#: packages/admin/src/components/ContentSettingsPanel.tsx:985
+#: packages/admin/src/components/ContentSettingsPanel.tsx:970
+#: packages/admin/src/components/ContentSettingsPanel.tsx:975
+#: packages/admin/src/components/ContentSettingsPanel.tsx:986
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "วันที่เผยแพร่"
@@ -11020,17 +11024,17 @@ msgid "visualEditing.publish"
 msgstr "เผยแพร่"
 
 #: packages/admin/src/components/ContentList.tsx:611
-#: packages/admin/src/components/ContentSettingsPanel.tsx:520
-#: packages/admin/src/components/ContentSettingsPanel.tsx:936
-#: packages/admin/src/components/ContentSettingsPanel.tsx:939
+#: packages/admin/src/components/ContentSettingsPanel.tsx:521
+#: packages/admin/src/components/ContentSettingsPanel.tsx:937
+#: packages/admin/src/components/ContentSettingsPanel.tsx:940
 msgid "Publish"
 msgstr "เผยแพร่"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/ContentSettingsPanel.tsx:494
 msgid "Publish changes"
 msgstr "เผยแพร่การเปลี่ยนแปลง"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:494
+#: packages/admin/src/components/ContentSettingsPanel.tsx:495
 msgid "Publish changes?"
 msgstr "เผยแพร่การเปลี่ยนแปลงหรือไม่?"
 
@@ -11039,12 +11043,12 @@ msgstr "เผยแพร่การเปลี่ยนแปลงหรื
 msgid "visualEditing.publishFailed"
 msgstr "เผยแพร่ไม่สำเร็จ ตรวจสอบสิทธิ์ของคุณแล้วลองอีกครั้ง"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:408
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:451
+#: packages/admin/src/components/ContentSettingsPanel.tsx:494
 msgid "Publish now"
 msgstr "เผยแพร่ทันที"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:494
+#: packages/admin/src/components/ContentSettingsPanel.tsx:495
 msgid "Publish now?"
 msgstr "เผยแพร่ทันทีหรือไม่?"
 
@@ -11058,14 +11062,14 @@ msgid "visualEditing.published"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1490
+#: packages/admin/src/router.tsx:1491
 msgid "Published"
 msgstr "เผยแพร่แล้ว"
 
@@ -11074,17 +11078,13 @@ msgstr "เผยแพร่แล้ว"
 msgid "Published {0}"
 msgstr "เผยแพร่แล้ว {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:387
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:430
 msgid "Published {liveSince}"
 msgstr "เผยแพร่ {liveSince}"
 
-#: packages/admin/src/router.tsx:706
+#: packages/admin/src/router.tsx:707
 msgid "Published {total} items"
 msgstr "เผยแพร่ {total} รายการแล้ว"
-
-#: packages/admin/src/routes/calendar.tsx:278
-msgid "Published and scheduled entries across collections, in the site's time zone."
-msgstr "รายการที่เผยแพร่และกำหนดเวลาไว้ในทุกคอลเลกชัน ตามเขตเวลาของเว็บไซต์"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:159
 msgid "Published At"
@@ -11110,11 +11110,11 @@ msgstr "ยืนยัน Handle ของผู้เผยแพร่ไม�
 msgid "Publisher release policy"
 msgstr "นโยบายการออกรุ่นของผู้เผยแพร่"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:355
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:398
 msgid "Publishing"
 msgstr "การเผยแพร่"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:943
+#: packages/admin/src/components/ContentSettingsPanel.tsx:944
 msgid "Publishing summary"
 msgstr "สรุปการเผยแพร่"
 
@@ -11222,7 +11222,7 @@ msgid "Read your taxonomies and terms"
 msgstr "อ่านอนุกรมวิธานและเทอมของคุณ"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2041
+#: packages/admin/src/router.tsx:2042
 msgid "Read-only"
 msgstr "อ่านอย่างเดียว"
 
@@ -11246,7 +11246,7 @@ msgstr "กำลังอ่านแพ็กเกจ"
 msgid "Ready"
 msgstr "พร้อม"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:204
+#: packages/admin/src/components/ContentSettingsPanel.tsx:205
 msgid "Ready to publish now or schedule for later"
 msgstr "พร้อมเผยแพร่ทันทีหรือกำหนดเวลาไว้ภายหลัง"
 
@@ -11456,7 +11456,7 @@ msgstr "นำออก"
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
-#: packages/admin/src/components/TaxonomySidebar.tsx:458
+#: packages/admin/src/components/TaxonomySidebar.tsx:459
 msgid "Remove {0}"
 msgstr "นำออก {0}"
 
@@ -11475,7 +11475,7 @@ msgstr "นำออก {entry}"
 msgid "Remove {label}"
 msgstr "นำออก {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:866
+#: packages/admin/src/components/TaxonomySidebar.tsx:873
 msgid "Remove assignment"
 msgstr "นำการกำหนดออก"
 
@@ -11529,8 +11529,8 @@ msgstr "นำ passkey ออก"
 msgid "Remove passkey?"
 msgstr "นำ passkey ออกหรือไม่"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:425
-#: packages/admin/src/components/ContentSettingsPanel.tsx:622
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:468
+#: packages/admin/src/components/ContentSettingsPanel.tsx:623
 msgid "Remove schedule"
 msgstr "นำกำหนดเวลาออก"
 
@@ -11809,11 +11809,11 @@ msgstr "ต้องระบุเพื่อการเข้าถึง �
 msgid "Requires EmDash {0}"
 msgstr "ต้องใช้ EmDash {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:460
 msgid "Reschedule"
 msgstr "เปลี่ยนกำหนดเวลา"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:206
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:249
 msgid "Rescheduled"
 msgstr "เปลี่ยนกำหนดเวลาแล้ว"
 
@@ -11948,9 +11948,9 @@ msgstr "เลิกใช้แล้ว"
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3369
+#: packages/admin/src/router.tsx:3370
 #: packages/admin/src/routes/byline-schema.tsx:264
-#: packages/admin/src/routes/calendar.tsx:345
+#: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
 msgstr "ลองใหม่"
 
@@ -11999,7 +11999,7 @@ msgstr "กำลังลองใหม่…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "บล็อกเนื้อหาที่นำกลับมาใช้ซ้ำได้ ซึ่งคุณสามารถแทรกลงในเนื้อหาใดก็ได้"
 
-#: packages/admin/src/router.tsx:1538
+#: packages/admin/src/router.tsx:1539
 msgid "Reverted to published version"
 msgstr "เปลี่ยนกลับเป็นเวอร์ชันที่เผยแพร่แล้ว"
 
@@ -12053,7 +12053,7 @@ msgstr "กำลังตรวจสอบ…"
 msgid "Revision not found: {revisionId}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1287
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1292
 #: packages/admin/src/components/ContentTypeEditor.tsx:100
 #: packages/admin/src/components/RevisionHistory.tsx:57
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12283,7 +12283,7 @@ msgstr "บันทึกแล้ว"
 msgid "Saved \"{0}\"."
 msgstr "บันทึก \"{0}\" แล้ว"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:681
+#: packages/admin/src/components/TaxonomySidebar.tsx:688
 msgid "Saved immediately; term changes do not wait for Publish changes."
 msgstr "บันทึกทันที การเปลี่ยนแปลงเทอมไม่ต้องรอ เผยแพร่การเปลี่ยนแปลง"
 
@@ -12331,7 +12331,7 @@ msgstr "SBOM · {0}"
 msgid "Scan it with a nearby phone or tablet."
 msgstr "สแกนด้วยโทรศัพท์หรือแท็บเล็ตที่อยู่ใกล้"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:602
+#: packages/admin/src/components/ContentSettingsPanel.tsx:603
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "กำหนดเวลา"
@@ -12349,19 +12349,19 @@ msgstr "วันที่กำหนดเวลา"
 msgid "Schedule publication"
 msgstr "กำหนดเวลาเผยแพร่"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:190
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:233
 msgid "Schedule removed"
 msgstr "นำกำหนดเวลาออกแล้ว"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1585
+#: packages/admin/src/router.tsx:1586
 msgid "Scheduled"
 msgstr "กำหนดเวลา"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:392
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:435
 msgid "Scheduled changes"
 msgstr "การเปลี่ยนแปลงที่กำหนดเวลาไว้"
 
@@ -12370,12 +12370,12 @@ msgid "Scheduled entries appear here with their publish time."
 msgstr "รายการที่กำหนดเวลาไว้จะแสดงที่นี่พร้อมเวลาเผยแพร่"
 
 #. placeholder {0}: isolate(formattedSchedule)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:148
+#: packages/admin/src/components/ContentSettingsPanel.tsx:149
 msgid "Scheduled for {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:156
-#: packages/admin/src/components/ContentSettingsPanel.tsx:255
+#: packages/admin/src/components/ContentSettingsPanel.tsx:157
+#: packages/admin/src/components/ContentSettingsPanel.tsx:256
 msgid "Scheduled publication"
 msgstr "การเผยแพร่ตามกำหนดเวลา"
 
@@ -12458,11 +12458,11 @@ msgstr "ค้นหา {0}"
 msgid "Search {0}..."
 msgstr "ค้นหา {0}..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:500
+#: packages/admin/src/components/TaxonomySidebar.tsx:501
 msgid "Search {label}"
 msgstr "ค้นหา {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:520
+#: packages/admin/src/components/TaxonomySidebar.tsx:522
 msgid "Search {label}…"
 msgstr "ค้นหา {label}…"
 
@@ -12552,6 +12552,14 @@ msgstr "แบบฟอร์มค้นหา"
 #: packages/admin/src/components/MediaPickerModal.tsx:1308
 msgid "Search media"
 msgstr "ค้นหามีเดีย"
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:501
+msgid "Search or create {label}"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:522
+msgid "Search or create {label}…"
+msgstr ""
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
@@ -12872,7 +12880,7 @@ msgstr "เลือกประเภทเนื้อหาที่จะน
 msgid "Select..."
 msgstr "เลือก..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:429
+#: packages/admin/src/components/TaxonomySidebar.tsx:430
 msgid "Selected {label}"
 msgstr "{label} ที่เลือก"
 
@@ -12950,8 +12958,8 @@ msgstr "ส่งอีเมลทดสอบ"
 msgid "Sending..."
 msgstr "กำลังส่ง..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1177
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1180
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1178
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1181
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
 #: packages/admin/src/components/Settings.tsx:66
 msgid "SEO"
@@ -13138,7 +13146,7 @@ msgstr "แสดง {pageShowingRange} จาก {0}"
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1116
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1117
 msgid "Shown to readers in this order."
 msgstr "แสดงต่อผู้อ่านตามลำดับนี้"
 
@@ -13330,7 +13338,7 @@ msgstr "ข้ามแล้ว"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1067
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1068
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 #: packages/admin/src/components/ContentTypeEditor.tsx:502
 #: packages/admin/src/components/ContentTypeList.tsx:218
@@ -13562,7 +13570,7 @@ msgstr "กำลังเริ่ม"
 msgid "Starting…"
 msgstr "กำลังเริ่ม…"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:294
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:337
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
 msgstr "สถานะ"
@@ -13750,9 +13758,9 @@ msgstr "เป้าหมาย"
 msgid "Target locale"
 msgstr "ภาษาเป้าหมาย"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1164
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 #: packages/admin/src/components/settings/transfer/labels.ts:13
-#: packages/admin/src/components/TaxonomySidebar.tsx:898
+#: packages/admin/src/components/TaxonomySidebar.tsx:905
 msgid "Taxonomies"
 msgstr "อนุกรมวิธาน"
 
@@ -13899,11 +13907,11 @@ msgstr "โดยปกติเบราว์เซอร์จะแสดง
 msgid "The build provenance matches this release and its package."
 msgstr "แหล่งที่มาของบิลด์ตรงกับรุ่นนี้และแพ็กเกจของรุ่นนี้"
 
-#: packages/admin/src/routes/calendar.tsx:356
+#: packages/admin/src/routes/calendar.tsx:330
 msgid "The calendar shows the first {maxEntries}, which end on {cutOffDay}."
 msgstr "ปฏิทินแสดง {maxEntries} รายการแรก ซึ่งสิ้นสุดในวันที่ {cutOffDay}"
 
-#: packages/admin/src/routes/calendar.tsx:357
+#: packages/admin/src/routes/calendar.tsx:331
 msgid "The calendar shows the first {maxEntries}."
 msgstr "ปฏิทินแสดง {maxEntries} รายการแรก"
 
@@ -14138,7 +14146,7 @@ msgstr "เนื้อหาของแพ็กเกจจะถูกเข
 msgid "The package’s file index is not valid."
 msgstr "ดัชนีไฟล์ของแพ็กเกจไม่ถูกต้อง"
 
-#: packages/admin/src/router.tsx:3383
+#: packages/admin/src/router.tsx:3384
 msgid "The page you're looking for doesn't exist."
 msgstr "ไม่พบหน้าที่คุณกำลังค้นหา"
 
@@ -14201,7 +14209,7 @@ msgstr "เนื้อหาตัวอย่างที่เพิ่มไ
 msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:193
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:236
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "การเปลี่ยนแปลงตามกำหนดเวลาของ {title} จะยังคงเป็นฉบับร่าง"
 
@@ -14353,11 +14361,11 @@ msgstr "คอลเลกชันนี้กำหนดไว้ในโค
 msgid "This content cannot be edited safely"
 msgstr "แก้ไขเนื้อหานี้อย่างปลอดภัยไม่ได้"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:499
+#: packages/admin/src/components/ContentSettingsPanel.tsx:500
 msgid "This content will be visible on the site immediately."
 msgstr "เนื้อหานี้จะแสดงบนเว็บไซต์ทันที"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:599
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:553
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "ยังไม่ได้โหลดวันนี้ ช่วงนี้มีรายการมากกว่าที่ปฏิทินแสดงได้"
 
@@ -14378,15 +14386,15 @@ msgid "This entry changed somewhere else after you opened it."
 msgstr "รายการนี้ถูกเปลี่ยนจากที่อื่นหลังจากที่คุณเปิด"
 
 #: packages/admin/src/components/ContentEditor.tsx:1485
-#: packages/admin/src/router.tsx:1140
+#: packages/admin/src/router.tsx:1141
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "รายการนี้ถูกเปลี่ยนจากที่อื่น บันทึกต่อไป หรือโหลดใหม่เพื่อรับเวอร์ชันที่ใหม่กว่า"
 
-#: packages/admin/src/router.tsx:1976
+#: packages/admin/src/router.tsx:1977
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1977
+#: packages/admin/src/router.tsx:1978
 msgid "This entry doesn't exist or was deleted."
 msgstr ""
 
@@ -14402,7 +14410,7 @@ msgstr "รายการนี้เปิดอยู่ที่อื่น
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "รายการนี้เป็นแบบอ่านอย่างเดียว เพราะสคีมาใช้ประเภทฟิลด์ที่ EmDash เวอร์ชันนี้ไม่รองรับ"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:363
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:406
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "รายการนี้ถึงกำหนด {lateness} แต่ยังไม่ได้เผยแพร่ การเผยแพร่ตามกำหนดเวลาอาจไม่ทำงาน"
 
@@ -14593,7 +14601,7 @@ msgstr "ตัวตนของผู้เผยแพร่นี้ไม่
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr "handle ของผู้เผยแพร่นี้ไม่ชี้กลับไปยังตัวตนของผู้เผยแพร่ ปิดการติดตั้งไว้จนกว่าผู้เผยแพร่จะแก้ไข handle"
 
-#: packages/admin/src/routes/calendar.tsx:353
+#: packages/admin/src/routes/calendar.tsx:327
 msgid "This range has more than {maxEntries} entries"
 msgstr "ช่วงนี้มีมากกว่า {maxEntries} รายการ"
 
@@ -14617,7 +14625,7 @@ msgstr "การดำเนินการนี้จะนำโปรไฟ
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
 msgstr "การดำเนินการนี้จะนำความสัมพันธ์ ลิงก์ทุกรายการที่จัดเก็บภายใต้ความสัมพันธ์นี้ และฟิลด์อ้างอิงที่ใช้ความสัมพันธ์นี้ออก:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:496
+#: packages/admin/src/components/ContentSettingsPanel.tsx:497
 msgid "This removes the schedule and publishes immediately."
 msgstr "การดำเนินการนี้จะนำกำหนดเวลาออกและเผยแพร่ทันที"
 
@@ -14708,7 +14716,7 @@ msgstr "การอัปเดตนี้เปิดเผยเส้นท
 msgid "This version can't be shown."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:170
+#: packages/admin/src/components/ContentSettingsPanel.tsx:171
 msgid "This version is not visible on the site"
 msgstr "เวอร์ชันนี้ไม่แสดงบนเว็บไซต์"
 
@@ -14720,7 +14728,7 @@ msgstr ""
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "การดำเนินการนี้จะลบพื้นที่วิดเจ็ตและวิดเจ็ตทั้งหมดในนั้น การดำเนินการนี้ไม่สามารถยกเลิกได้"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1317
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1322
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "การดำเนินการนี้จะย้ายรายการไปยังถังขยะ คุณสามารถกู้คืนได้ในภายหลังจากถังขยะ"
 
@@ -14742,7 +14750,7 @@ msgstr "การดำเนินการนี้จะลบความค
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "การดำเนินการนี้จะนำปลั๊กอินและบันเดิลของปลั๊กอินออกจากเว็บไซต์ของคุณ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:351
+#: packages/admin/src/components/ContentSettingsPanel.tsx:352
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "การดำเนินการนี้จะย้อนกลับไปยังเวอร์ชันที่เผยแพร่แล้ว การเปลี่ยนแปลงในฉบับร่างของคุณจะสูญหาย"
 
@@ -14754,11 +14762,11 @@ msgstr "ความคิด บทแนะนำ และอื่น ๆ"
 msgid "Time"
 msgstr "เวลา"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:41
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:53
 msgid "Times are in {zoneName}."
 msgstr "เวลาเป็นเขตเวลา {zoneName}"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:40
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:52
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "เวลาเป็นเขตเวลา {zoneName} เบราว์เซอร์ของคุณใช้ {viewerZoneName}"
 
@@ -14797,13 +14805,13 @@ msgid "to select"
 msgstr "เพื่อเลือก"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:188
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:570
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:71
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:524
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:125
 #: packages/admin/src/components/revisions/revision-format.ts:107
 msgid "Today"
 msgstr "วันนี้"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:600
+#: packages/admin/src/components/TaxonomySidebar.tsx:607
 msgid "Toggle"
 msgstr "สลับ"
 
@@ -14887,17 +14895,17 @@ msgstr "กำลังแปล..."
 
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
-#: packages/admin/src/components/TaxonomySidebar.tsx:778
-#: packages/admin/src/router.tsx:1628
+#: packages/admin/src/components/TaxonomySidebar.tsx:785
+#: packages/admin/src/router.tsx:1629
 msgid "Translation created"
 msgstr "สร้างคำแปลแล้ว"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1142
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1143
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "คำแปล"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:327
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
 msgid "Translations:"
 msgstr "คำแปล:"
 
@@ -15055,6 +15063,10 @@ msgstr "มีสองระเบียนที่มีค่าเดีย
 msgid "Type"
 msgstr "ประเภท"
 
+#: packages/admin/src/components/TaxonomySidebar.tsx:590
+msgid "Type a name above to create a new {singularLabel}."
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageNode.tsx:312
 msgid "Type caption for image (optional)"
 msgstr "พิมพ์คำบรรยายภาพ (ไม่บังคับ)"
@@ -15089,8 +15101,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "ไม่สามารถเชื่อมต่อกับมาร์เก็ตเพลซได้"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1337
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1354
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1342
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1359
 msgid "Unassigned"
 msgstr "ยังไม่ได้กำหนด"
 
@@ -15161,11 +15173,11 @@ msgstr "Passkey ที่ไม่มีชื่อ"
 msgid "Unnamed user"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:485
+#: packages/admin/src/components/ContentSettingsPanel.tsx:486
 msgid "Unpublish {itemLabel}"
 msgstr "ยกเลิกการเผยแพร่ {itemLabel}"
 
-#: packages/admin/src/router.tsx:1514
+#: packages/admin/src/router.tsx:1515
 msgid "Unpublished"
 msgstr "ยกเลิกการเผยแพร่แล้ว"
 
@@ -15178,7 +15190,7 @@ msgstr ""
 msgid "Unregistered Content Tables Found"
 msgstr "พบตารางเนื้อหาที่ยังไม่ได้ลงทะเบียน"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:844
+#: packages/admin/src/components/TaxonomySidebar.tsx:851
 msgid "Unresolved assignment"
 msgstr "การกำหนดที่ยังไม่มีในภาษานี้"
 
@@ -15191,7 +15203,7 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr "เนื้อหาที่ยังไม่บันทึกอาจถูกส่งออกไปนอกเว็บไซต์"
 
-#: packages/admin/src/router.tsx:1596
+#: packages/admin/src/router.tsx:1597
 msgid "Unscheduled"
 msgstr "ยกเลิกการกำหนดเวลาแล้ว"
 
@@ -15284,7 +15296,7 @@ msgid "Update to v{0}"
 msgstr "อัปเดตเป็น v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:1026
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1033
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1034
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
 msgstr "อัปเดตแล้ว"
@@ -15452,8 +15464,8 @@ msgstr ""
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1059
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1062
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1060
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1063
 msgid "URL & language"
 msgstr "URL และภาษา"
 
@@ -15759,7 +15771,7 @@ msgstr ""
 msgid "View email provider status and send test emails"
 msgstr "ดูสถานะผู้ให้บริการอีเมลและส่งอีเมลทดสอบ"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:458
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:501
 msgid "View live"
 msgstr "ดูบนเว็บไซต์จริง"
 
@@ -15796,20 +15808,20 @@ msgstr ""
 msgid "Visitors hitting these paths will see an error."
 msgstr "ผู้เข้าชมที่เข้าถึงเส้นทางเหล่านี้จะพบข้อผิดพลาด"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:224
+#: packages/admin/src/components/ContentSettingsPanel.tsx:225
 msgid "Visitors see the published version until the scheduled update"
 msgstr "ผู้เข้าชมจะเห็นเวอร์ชันที่เผยแพร่จนกว่าจะถึงเวลาอัปเดตตามกำหนด"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:188
-#: packages/admin/src/components/ContentSettingsPanel.tsx:250
+#: packages/admin/src/components/ContentSettingsPanel.tsx:189
+#: packages/admin/src/components/ContentSettingsPanel.tsx:251
 msgid "Visitors see this published version"
 msgstr "ผู้เข้าชมเห็นเวอร์ชันที่เผยแพร่นี้"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:198
+#: packages/admin/src/components/ContentSettingsPanel.tsx:199
 msgid "Visitors still see the published version"
 msgstr "ผู้เข้าชมยังคงเห็นเวอร์ชันที่เผยแพร่"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:498
+#: packages/admin/src/components/ContentSettingsPanel.tsx:499
 msgid "Visitors will see these changes immediately."
 msgstr "ผู้เข้าชมจะเห็นการเปลี่ยนแปลงเหล่านี้ทันที"
 
@@ -15835,7 +15847,7 @@ msgstr "เตือน"
 msgid "Warnings"
 msgstr "คำเตือน"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:307
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:350
 msgid "Was due"
 msgstr "ถึงกำหนดเมื่อ"
 
@@ -15968,7 +15980,7 @@ msgstr "ประเภทเนื้อหาใดบ้างที่ใช
 msgid "Whole number"
 msgstr "จำนวนเต็ม"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1117
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1118
 msgid "Why are bylines shown in this order?"
 msgstr "ทำไมชื่อผู้เขียนจึงแสดงตามลำดับนี้?"
 
@@ -15976,7 +15988,7 @@ msgstr "ทำไมชื่อผู้เขียนจึงแสดงต
 msgid "Why can't this be changed?"
 msgstr "ทำไมจึงเปลี่ยนสิ่งนี้ไม่ได้?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1079
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1080
 msgid "Why English is used"
 msgstr "ทำไมจึงใช้ภาษาอังกฤษ"
 
@@ -16196,7 +16208,7 @@ msgstr "คุณไม่มีสิทธิ์แก้ไขไฟล์น
 msgid "You don’t have permission to move this file."
 msgstr "คุณไม่มีสิทธิ์ย้ายไฟล์นี้"
 
-#: packages/admin/src/routes/calendar.tsx:267
+#: packages/admin/src/routes/calendar.tsx:277
 msgid "You don't have permission to view the calendar."
 msgstr "คุณไม่มีสิทธิ์ดูปฏิทิน"
 
@@ -16216,7 +16228,7 @@ msgstr "คุณต้องมีสิทธิ์ผู้ดูแลระ
 msgid "You need Admin permissions to transfer this site."
 msgstr "คุณต้องมีสิทธิ์ผู้ดูแลระบบเพื่อย้ายเว็บไซต์นี้"
 
-#: packages/admin/src/router.tsx:2491
+#: packages/admin/src/router.tsx:2492
 msgid "You need Editor permissions to moderate comments."
 msgstr "คุณต้องมีสิทธิ์ผู้แก้ไขเพื่อกลั่นกรองความคิดเห็น"
 
@@ -16357,11 +16369,11 @@ msgstr "ชื่อของคุณ (ไม่บังคับ)"
 msgid "Your Role"
 msgstr "บทบาทของคุณ"
 
-#: packages/admin/src/router.tsx:2046
+#: packages/admin/src/router.tsx:2047
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2047
+#: packages/admin/src/router.tsx:2048
 msgid "Your role can't edit this entry."
 msgstr ""
 
@@ -16378,8 +16390,8 @@ msgstr ""
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr "เว็บไซต์ของคุณกำหนดให้รุ่นต้องมีอายุอย่างน้อย {0} ก่อนจึงจะติดตั้งได้ รุ่นนี้จะติดตั้งได้ในภายหลัง"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:284
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:315
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:268
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:358
 msgid "Your time: {viewerTime}"
 msgstr "เวลาของคุณ: {viewerTime}"
 
