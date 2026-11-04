@@ -20,7 +20,9 @@ import { ThemeProvider } from "./components/ThemeProvider";
 import { AdminBrandingProvider, type AdminBranding } from "./lib/admin-branding-context";
 import { AuthProviderProvider, type AuthProviders } from "./lib/auth-provider-context";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
+import { getLoadedDateLocale, waitForDateLocale } from "./locales/date-locale.js";
 import { LocaleDirectionProvider } from "./locales/index.js";
+import { KumoTranslationsProvider } from "./locales/KumoTranslationsProvider.js";
 import { createAdminRouter } from "./router";
 
 // Create a query client
@@ -36,6 +38,7 @@ const queryClient = new QueryClient({
 // Create the router with query client context
 const router = createAdminRouter(queryClient);
 const ADMIN_BASEPATH = "/_emdash/admin";
+const DATE_LOCALE_BOOT_TIMEOUT_MS = 3000;
 
 export function normalizeAdminHref(href: string): string {
 	if (href === ADMIN_BASEPATH) return "/";
@@ -131,9 +134,27 @@ export function AdminApp({
 	locale = "en",
 	messages = {},
 }: AdminAppProps) {
+	// Date locales can't be serialized from the server, so the first render waits
+	// for the active one. Otherwise calendars would render with the US week start
+	// and then shift. The timeout keeps a stalled request from blocking the admin.
+	const [dateLocaleReady, setDateLocaleReady] = React.useState(
+		() => getLoadedDateLocale(locale) !== undefined,
+	);
 	React.useEffect(() => {
-		document.getElementById("emdash-boot-loader")?.remove();
-	}, []);
+		if (dateLocaleReady) return;
+		let active = true;
+		void (async () => {
+			await waitForDateLocale(locale, DATE_LOCALE_BOOT_TIMEOUT_MS);
+			if (active) setDateLocaleReady(true);
+		})();
+		return () => {
+			active = false;
+		};
+	}, [locale, dateLocaleReady]);
+
+	React.useEffect(() => {
+		if (dateLocaleReady) document.getElementById("emdash-boot-loader")?.remove();
+	}, [dateLocaleReady]);
 
 	const i18nInitialized = React.useRef(false);
 	if (!i18nInitialized.current) {
@@ -141,23 +162,27 @@ export function AdminApp({
 		i18nInitialized.current = true;
 	}
 
+	if (!dateLocaleReady) return null;
+
 	return (
 		<ThemeProvider>
 			<I18nProvider i18n={i18n}>
 				<LocaleDirectionProvider>
-					<Toasty>
-						<AdminBrandingProvider adminBranding={adminBranding}>
-							<AuthProviderProvider authProviders={authProviders}>
-								<PluginAdminProvider pluginAdmins={pluginAdmins}>
-									<QueryClientProvider client={queryClient}>
-										<LinkProvider component={KumoRouterLink}>
-											<RouterProvider router={router} />
-										</LinkProvider>
-									</QueryClientProvider>
-								</PluginAdminProvider>
-							</AuthProviderProvider>
-						</AdminBrandingProvider>
-					</Toasty>
+					<KumoTranslationsProvider>
+						<Toasty>
+							<AdminBrandingProvider adminBranding={adminBranding}>
+								<AuthProviderProvider authProviders={authProviders}>
+									<PluginAdminProvider pluginAdmins={pluginAdmins}>
+										<QueryClientProvider client={queryClient}>
+											<LinkProvider component={KumoRouterLink}>
+												<RouterProvider router={router} />
+											</LinkProvider>
+										</QueryClientProvider>
+									</PluginAdminProvider>
+								</AuthProviderProvider>
+							</AdminBrandingProvider>
+						</Toasty>
+					</KumoTranslationsProvider>
 				</LocaleDirectionProvider>
 			</I18nProvider>
 		</ThemeProvider>

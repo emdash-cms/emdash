@@ -7,7 +7,8 @@
  * otherwise use up the single-use token before the recipient clicks.
  *
  * POST verifies the token and creates the session.
- * Tokens are single-use and expire after 15 minutes.
+ * Tokens are single-use and expire after 15 minutes, or 5 minutes for
+ * sign-in handover links.
  */
 
 import type { APIRoute } from "astro";

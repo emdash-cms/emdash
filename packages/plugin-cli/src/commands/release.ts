@@ -65,6 +65,7 @@ function printIntent(intent: ReleaseIntentResource, json: boolean): void {
 		console.log(`  CID:    ${intent.result.cid}`);
 	}
 	if (intent.reasonCode) console.log(`  Reason: ${intent.reasonCode}`);
+	if (intent.reasonMessage) console.log(`  Detail: ${intent.reasonMessage}`);
 }
 
 function printDryRun(result: DryRunReleaseIntentResult, json: boolean): void {
@@ -254,7 +255,7 @@ export const releaseSubmitCommand = defineCommand({
 		printIntent(intent, args.json ?? false);
 		if (FAILURE_STATES.has(intent.state)) {
 			throw new Error(
-				`Release intent ended in ${intent.state}${intent.reasonCode ? ` (${intent.reasonCode})` : ""}`,
+				`Release intent ${intent.id} ended in ${intent.state}${intent.reasonCode ? ` (${intent.reasonCode})` : ""}${intent.reasonMessage ? `: ${intent.reasonMessage}` : ""}`,
 			);
 		}
 	},

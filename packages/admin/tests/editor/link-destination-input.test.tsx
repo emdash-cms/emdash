@@ -7,6 +7,7 @@ import { userEvent } from "vitest/browser";
 import {
 	LinkDestinationInput,
 	looksLikeUrl,
+	normalizeLinkHref,
 	type LinkDestinationInputProps,
 } from "../../src/components/editor/LinkDestinationInput";
 import {
@@ -191,6 +192,35 @@ describe("looksLikeUrl", () => {
 	it("treats plain text as a search query", () => {
 		for (const text of ["hello", "hello world", "emdash 0.38 release", "St. Gallen news"]) {
 			expect(looksLikeUrl(text), text).toBe(false);
+		}
+	});
+});
+
+describe("normalizeLinkHref", () => {
+	it("gives bare domains and hosts https and bare emails mailto", () => {
+		expect(normalizeLinkHref(" example.com/docs ")).toBe("https://example.com/docs");
+		expect(normalizeLinkHref("localhost:3000/x")).toBe("https://localhost:3000/x");
+		expect(normalizeLinkHref("127.0.0.1:8787")).toBe("https://127.0.0.1:8787");
+		expect(normalizeLinkHref("hi@example.com")).toBe("mailto:hi@example.com");
+	});
+
+	it("leaves links that already say where they go", () => {
+		for (const href of [
+			"https://example.com",
+			"tel:5551234",
+			"sms:12345",
+			"mailto:hi@example.com",
+			"/blog/hello",
+			"#section",
+			"?page=2",
+		]) {
+			expect(normalizeLinkHref(href), href).toBe(href);
+		}
+	});
+
+	it("leaves relative paths as typed", () => {
+		for (const href of ["../about.html", "./guide.pdf", "docs/guide.pdf", "files/report.v2.pdf"]) {
+			expect(normalizeLinkHref(href), href).toBe(href);
 		}
 	});
 });
@@ -557,7 +587,7 @@ describe("link destination input in the editor", () => {
 		const { screen, editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);
 
-		screen.getByRole("button", { name: "Insert Link" }).element().click();
+		screen.getByRole("button", { name: "Add link" }).element().click();
 
 		await typeQuery(screen, "hello");
 		const option = screen.getByRole("option", { name: /Hello World/ });
@@ -641,7 +671,7 @@ describe("link destination input in the editor", () => {
 		const { screen, editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);
 
-		screen.getByRole("button", { name: "Insert Link" }).element().click();
+		screen.getByRole("button", { name: "Add link" }).element().click();
 		await typeQuery(screen, "https://example.com");
 		screen.getByRole("button", { name: "Apply" }).element().click();
 

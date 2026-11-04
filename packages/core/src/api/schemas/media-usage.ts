@@ -43,7 +43,13 @@ export const mediaUsageOccurrenceDetailSchema = z
 		fieldSlug: z.string(),
 		fieldPath: z.string(),
 		occurrenceIndex: z.number().int().min(0),
-		referenceType: z.enum(["image_field", "file_field", "portable_text_image", "unknown"]),
+		referenceType: z.enum([
+			"image_field",
+			"file_field",
+			"portable_text_image",
+			"portable_text_video",
+			"unknown",
+		]),
 	})
 	.meta({ id: "MediaUsageOccurrenceDetail" });
 

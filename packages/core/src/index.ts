@@ -132,6 +132,7 @@ export type {
 	PortableTextCodeBlock,
 	PortableTextHtmlBlock,
 	PortableTextIframeBlock,
+	PortableTextVideoBlock,
 	PortableTextTableAlignment,
 	PortableTextTableBlock,
 	PortableTextTableCell,
@@ -235,6 +236,8 @@ export type {
 	SignedUploadOptions,
 	UploadResult,
 	DownloadResult,
+	DownloadOptions,
+	ByteRange,
 	ListResult,
 	ListOptions,
 	FileInfo,
@@ -253,6 +256,7 @@ export {
 	invalidateTaxonomyObjectCache,
 	invalidateBylineObjectCache,
 	invalidateMenuObjectCache,
+	invalidateWidgetObjectCache,
 	invalidateSchemaObjectCache,
 	invalidateCommentObjectCache,
 	contentNamespace,
@@ -711,6 +715,7 @@ export type {
 
 // Search
 export {
+	SearchUnavailableError,
 	SEARCH_TOKENIZERS,
 	FTSManager,
 	search,

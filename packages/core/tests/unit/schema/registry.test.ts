@@ -7,6 +7,7 @@ import { refreshDevTypes } from "../../../src/astro/dev-typegen.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { SchemaRegistry, SchemaError } from "../../../src/schema/registry.js";
+import { MAX_SCHEMA_SLUG_LENGTH } from "../../../src/schema/slug.js";
 import { FTSManager } from "../../../src/search/fts-manager.js";
 
 vi.mock("../../../src/astro/dev-typegen.js", () => ({ refreshDevTypes: vi.fn() }));
@@ -364,6 +365,20 @@ describe("SchemaRegistry", () => {
 			await expect(registry.createCollection({ slug: "users", label: "Users" })).rejects.toThrow(
 				SchemaError,
 			);
+		});
+
+		it("should cap collection slugs at MAX_SCHEMA_SLUG_LENGTH characters", async () => {
+			const atLimit = "a".repeat(MAX_SCHEMA_SLUG_LENGTH);
+			await expect(
+				registry.createCollection({ slug: atLimit, label: "At limit" }),
+			).resolves.toMatchObject({ slug: atLimit });
+
+			await expect(
+				registry.createCollection({
+					slug: "b".repeat(MAX_SCHEMA_SLUG_LENGTH + 1),
+					label: "Too long",
+				}),
+			).rejects.toThrow(SchemaError);
 		});
 
 		it("should validate collection slug format", async () => {

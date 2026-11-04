@@ -21,6 +21,19 @@ type Selection = number | { from: number; to: number };
 
 const tabEventInit = { key: "Tab", bubbles: true, cancelable: true };
 
+function pressSelectAll(editor: Editor) {
+	const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+	const event = new KeyboardEvent("keydown", {
+		key: "a",
+		bubbles: true,
+		cancelable: true,
+		metaKey: isMac,
+		ctrlKey: !isMac,
+	});
+	editor.view.dom.dispatchEvent(event);
+	return event;
+}
+
 function pressTab(editor: Editor, shiftKey = false) {
 	const event = new KeyboardEvent("keydown", { ...tabEventInit, shiftKey });
 	editor.view.dom.dispatchEvent(event);
@@ -29,6 +42,19 @@ function pressTab(editor: Editor, shiftKey = false) {
 
 function setCode(editor: Editor, text: string) {
 	editor.commands.setContent({ type: "codeBlock", content: [{ type: "text", text }] });
+}
+
+function setCodeDocument(editor: Editor, code = "code") {
+	editor.commands.setContent({
+		type: "doc",
+		content: [
+			{ type: "paragraph", content: [{ type: "text", text: "before" }] },
+			{ type: "codeBlock", content: code ? [{ type: "text", text: code }] : undefined },
+			{ type: "paragraph", content: [{ type: "text", text: "after" }] },
+		],
+	});
+	const from = editor.state.doc.child(0).nodeSize + 1;
+	return { from, to: from + code.length };
 }
 
 function expectTabUnhandled(editor: Editor, content: Content, selection: Selection) {
@@ -144,6 +170,38 @@ describe("CodeBlockExtension", () => {
 			},
 			{ from: 1, to: 9 },
 		);
+	});
+
+	it("keeps repeated Select All and deletion inside the active code block", () => {
+		const code = "one\ntwo";
+		const range = setCodeDocument(editor, code);
+		editor.commands.setTextSelection(range.from + 2);
+
+		expect(pressSelectAll(editor).defaultPrevented).toBe(true);
+		expect(editor.state.selection.toJSON()).toEqual({
+			type: "text",
+			anchor: range.from,
+			head: range.to,
+		});
+		const selectedCode = editor.state.selection.toJSON();
+		expect(pressSelectAll(editor).defaultPrevented).toBe(true);
+		expect(editor.state.selection.toJSON()).toEqual(selectedCode);
+
+		editor.commands.deleteSelection();
+		expect(editor.state.doc.childCount).toBe(3);
+		expect(editor.state.doc.child(0).textContent).toBe("before");
+		expect(editor.state.doc.child(1).toJSON()).toMatchObject({ type: "codeBlock" });
+		expect(editor.state.doc.child(1).textContent).toBe("");
+		expect(editor.state.doc.child(2).textContent).toBe("after");
+	});
+
+	it("keeps Select All document-wide outside a single code block", () => {
+		const range = setCodeDocument(editor);
+		for (const selection of [2, { from: range.from, to: range.to + 2 }]) {
+			editor.commands.setTextSelection(selection);
+			expect(pressSelectAll(editor).defaultPrevented).toBe(true);
+			expect(editor.state.selection.toJSON()).toEqual({ type: "all" });
+		}
 	});
 
 	it.each([

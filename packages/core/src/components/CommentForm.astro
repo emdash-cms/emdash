@@ -29,6 +29,21 @@ interface Props {
 	 * without it the token is ignored.
 	 */
 	turnstileSiteKey?: string;
+	/**
+	 * Replaces the built-in English text, for example to translate the form.
+	 * `error` is shown instead of the server's English error message.
+	 */
+	labels?: {
+		name?: string;
+		email?: string;
+		comment?: string;
+		submit?: string;
+		submitting?: string;
+		published?: string;
+		pending?: string;
+		error?: string;
+		networkError?: string;
+	};
 }
 
 import { getCollectionInfo } from "../schema/query.js";
@@ -39,7 +54,20 @@ const {
 	parentId = null,
 	class: className,
 	turnstileSiteKey,
+	labels: customLabels = {},
 } = Astro.props;
+
+const labels = {
+	name: customLabels.name ?? "Name",
+	email: customLabels.email ?? "Email",
+	comment: customLabels.comment ?? "Comment",
+	submit: customLabels.submit ?? "Post Comment",
+	submitting: customLabels.submitting ?? "Submitting...",
+	published: customLabels.published ?? "Comment published",
+	pending: customLabels.pending ?? "Comment submitted for review",
+	error: customLabels.error,
+	networkError: customLabels.networkError ?? "Network error. Please try again.",
+};
 
 const enabled = (await getCollectionInfo(collection))?.commentsEnabled ?? false;
 const { user } = Astro.locals;
@@ -56,6 +84,7 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 			data-endpoint={endpoint}
 			data-user-name={user?.name ?? ""}
 			data-user-email={user?.email ?? ""}
+			data-labels={JSON.stringify(labels)}
 		>
 			{user ? (
 				<div class="ec-comment-user-info">
@@ -65,12 +94,12 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 			) : (
 				<div class="ec-comment-form-fields">
 					<label class="ec-comment-form-field">
-						<span>Name</span>
+						<span>{labels.name}</span>
 						<input type="text" name="authorName" required maxlength="100" />
 					</label>
 
 					<label class="ec-comment-form-field">
-						<span>Email</span>
+						<span>{labels.email}</span>
 						<input type="email" name="authorEmail" required />
 					</label>
 				</div>
@@ -79,7 +108,7 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 			{/* Honeypot — hidden from humans, filled by bots */}
 			<div
 				aria-hidden="true"
-				style="position:absolute;left:-9999px;top:-9999px;"
+				style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;"
 			>
 				<label>
 					Don't fill this out
@@ -93,7 +122,7 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 			</div>
 
 			<label class="ec-comment-form-field">
-				<span>Comment</span>
+				<span>{labels.comment}</span>
 				<textarea name="body" required maxlength="5000" rows="4" />
 			</label>
 
@@ -108,7 +137,7 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 			)}
 
 			<button type="submit" class="ec-comment-form-submit">
-				Post Comment
+				{labels.submit}
 			</button>
 
 			<div class="ec-comment-form-status" role="status" aria-live="polite" />
@@ -139,8 +168,17 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 		const statusEl = form.querySelector<HTMLElement>(".ec-comment-form-status");
 		if (!submitBtn || !statusEl) return;
 
+		const labels: {
+			submit: string;
+			submitting: string;
+			published: string;
+			pending: string;
+			error?: string;
+			networkError: string;
+		} = JSON.parse(form.dataset.labels ?? "{}");
+
 		submitBtn.disabled = true;
-		submitBtn.textContent = "Submitting...";
+		submitBtn.textContent = labels.submitting;
 		statusEl.textContent = "";
 		statusEl.className = "ec-comment-form-status";
 
@@ -180,7 +218,8 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 			const result = await res.json();
 
 			if (res.ok) {
-				statusEl.textContent = result.message || "Comment submitted!";
+				statusEl.textContent =
+					result.data?.status === "approved" ? labels.published : labels.pending;
 				statusEl.classList.add("ec-comment-form-success");
 				// Reset form fields (but not disabled pre-filled fields)
 				const textarea = form.querySelector<HTMLTextAreaElement>(
@@ -189,13 +228,14 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 				if (textarea) textarea.value = "";
 			} else {
 				statusEl.textContent =
+					labels.error ||
 					result.error?.message ||
 					result.message ||
 					"Failed to submit comment.";
 				statusEl.classList.add("ec-comment-form-error");
 			}
 		} catch {
-			statusEl.textContent = "Network error. Please try again.";
+			statusEl.textContent = labels.networkError;
 			statusEl.classList.add("ec-comment-form-error");
 		} finally {
 			// Reset Turnstile on success and failure alike (incl. network
@@ -205,7 +245,7 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 				window.turnstile.reset();
 			}
 			submitBtn.disabled = false;
-			submitBtn.textContent = "Post Comment";
+			submitBtn.textContent = labels.submit;
 		}
 	});
 </script>
@@ -283,7 +323,7 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 
 	.ec-comment-user-email::before {
 		content: "·";
-		margin-right: 0.5rem;
+		margin-inline-end: 0.5rem;
 	}
 
 	.ec-comment-form-submit {

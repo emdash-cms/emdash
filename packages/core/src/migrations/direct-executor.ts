@@ -1,6 +1,10 @@
 import { type Dialect, Kysely } from "kysely";
 
-import { clearMigrationLock, readMigrationLock } from "../database/migration-lock.js";
+import {
+	armMigrationLockTakeOver,
+	clearMigrationLock,
+	readMigrationLock,
+} from "../database/migration-lock.js";
 import {
 	getExactMigrationStatus,
 	runMigrations,
@@ -45,23 +49,45 @@ function createReport(
 	return report;
 }
 
-async function releaseLock(db: Kysely<Database>, lockId: string | undefined): Promise<void> {
+function confirmedLockId(lockId: string | undefined): number {
 	if (!lockId || !LOCK_ID_PATTERN.test(lockId)) {
-		throw new Error("Releasing the migration lock requires the lock id reported by status.");
+		throw new Error("The migration lock id must be the one reported by status.");
 	}
-	const lock = Number(lockId);
+	return Number(lockId);
+}
+
+function lockMismatchError(current: number | null): Error {
+	// No lock ids here: the CLI's redaction can rewrite digits that match an
+	// environment value.
+	return new Error(
+		current === null
+			? "The migration lock is not held."
+			: "The migration lock has a different id now. Check the status again.",
+	);
+}
+
+async function releaseLock(db: Kysely<Database>, lockId: string | undefined): Promise<void> {
+	const lock = confirmedLockId(lockId);
 	// Read before writing: on Postgres the lock column is a 32-bit integer that
 	// a lock id does not fit, and no Postgres lock is ever held in it.
 	const heldSince = await readMigrationLock(db);
 	if (heldSince === lock && (await clearMigrationLock(db, lock))) return;
-	const current = heldSince === lock ? await readMigrationLock(db) : heldSince;
-	// No lock ids here: the CLI's redaction can rewrite digits that match an
-	// environment value.
-	throw new Error(
-		current === null
-			? "The migration lock is not held."
-			: "The migration lock has a different id now. Check the status again before releasing it.",
-	);
+	throw lockMismatchError(heldSince === lock ? await readMigrationLock(db) : heldSince);
+}
+
+async function takeOverLock(
+	db: Kysely<Database>,
+	lockId: string | undefined,
+	pending: boolean,
+): Promise<void> {
+	const lock = confirmedLockId(lockId);
+	// With nothing pending no run takes the lock, so releasing it is enough.
+	if (!pending) return releaseLock(db, lockId);
+	const heldSince = await readMigrationLock(db);
+	if (heldSince !== lock) throw lockMismatchError(heldSince);
+	// No run on this database takes the lock in its row, so nothing can claim
+	// it between the release and this run.
+	if (!armMigrationLockTakeOver(db, lock)) await releaseLock(db, lockId);
 }
 
 async function verifyRequest(request: MigrationRequest): Promise<void> {
@@ -94,6 +120,9 @@ async function executeRequest(
 		throw new Error(
 			`Cannot apply migrations with unknown applied migrations: ${initialStatus.unknownApplied.join(", ")}`,
 		);
+	}
+	if (request.action === "take-over-lock") {
+		await takeOverLock(db, request.lockId, initialStatus.pending.length > 0);
 	}
 	if (initialStatus.pending.length === 0) {
 		return createReport(target, initialStatus, []);
@@ -133,7 +162,8 @@ export function createDirectMigrationExecutor(
 			if (
 				request.action !== "check" &&
 				request.action !== "apply" &&
-				request.action !== "release-lock"
+				request.action !== "release-lock" &&
+				request.action !== "take-over-lock"
 			) {
 				throw new Error("Unsupported migration action.");
 			}

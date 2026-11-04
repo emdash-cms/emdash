@@ -306,7 +306,10 @@ export async function searchMarketplace(
 	const qs = params.toString();
 	const url = `${MARKETPLACE_BASE}${qs ? `?${qs}` : ""}`;
 	const response = await apiFetch(url);
-	return parseApiResponse<MarketplaceSearchResult>(response, "Marketplace search failed");
+	return parseApiResponse<MarketplaceSearchResult>(
+		response,
+		i18n._(msg`Marketplace search failed`),
+	);
 }
 
 /**
@@ -316,9 +319,9 @@ export async function searchMarketplace(
 export async function fetchMarketplacePlugin(id: string): Promise<MarketplacePluginDetail> {
 	const response = await apiFetch(`${MARKETPLACE_BASE}/${encodeURIComponent(id)}`);
 	if (response.status === 404) {
-		throw new Error(`Plugin "${id}" not found in marketplace`);
+		throw new Error(i18n._(msg`Plugin "${id}" not found in marketplace`));
 	}
-	return parseApiResponse<MarketplacePluginDetail>(response, "Failed to fetch plugin");
+	return parseApiResponse<MarketplacePluginDetail>(response, i18n._(msg`Failed to fetch plugin`));
 }
 
 /**
@@ -395,7 +398,7 @@ export async function checkPluginUpdates(): Promise<PluginUpdateInfo[]> {
 	const response = await apiFetch(`${API_BASE}/admin/plugins/updates`);
 	const result = await parseApiResponse<{ items: PluginUpdateInfo[] }>(
 		response,
-		"Failed to check for updates",
+		i18n._(msg`Failed to check for updates`),
 	);
 	return result.items;
 }

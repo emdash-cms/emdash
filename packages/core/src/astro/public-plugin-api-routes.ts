@@ -18,6 +18,15 @@ interface PublicPluginApiRouteRuntime {
 	): Promise<HandlerResponse>;
 }
 
+export function getPublicPluginRouteMeta(
+	runtime: Pick<PublicPluginApiRouteRuntime, "getPluginRouteMeta">,
+	pluginId: string,
+	path: string,
+): RouteMeta | null {
+	const meta = runtime.getPluginRouteMeta(pluginId, path);
+	return meta?.public === true ? meta : null;
+}
+
 function pluginRouteNotFound(): HandlerResponse {
 	return {
 		success: false,
@@ -32,8 +41,7 @@ export function createPublicPluginApiRouteHandler(
 	runtime: PublicPluginApiRouteRuntime,
 ): PublicPluginApiRouteHandler {
 	return async (pluginId, method, path, request) => {
-		const meta = runtime.getPluginRouteMeta(pluginId, path);
-		if (meta?.public !== true) {
+		if (!getPublicPluginRouteMeta(runtime, pluginId, path)) {
 			return pluginRouteNotFound();
 		}
 

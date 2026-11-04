@@ -13,6 +13,7 @@ import { handleMenuCreate, handleMenuList } from "#api/handlers/menus.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { createMenuBody, localeFilterQuery } from "#api/schemas.js";
 import { menuTag } from "#cache/chrome-tags.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -45,7 +46,7 @@ export const POST: APIRoute = async ({ request, locals, cache }) => {
 
 		const result = await handleMenuCreate(emdash.db, body);
 		if (!result.success) return unwrapResult(result, 201);
-		if (cache?.enabled) await cache.invalidate({ tags: [menuTag(result.data.name)] });
+		await invalidateRouteCache(cache, [menuTag(result.data.name)]);
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create menu", "MENU_CREATE_ERROR");

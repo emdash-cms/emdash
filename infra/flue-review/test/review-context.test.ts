@@ -10,7 +10,7 @@ import {
 
 const generatedPaths = [
 	"/repo/worker-configuration.d.ts",
-	"/repo/infra/emdash-bot/worker-configuration.d.ts",
+	"/repo/infra/flue-review/worker-configuration.d.ts",
 	"/repo/packages/plugins/example/generated/worker-configuration.d.ts",
 ];
 

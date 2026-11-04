@@ -2,11 +2,27 @@ import { sql, type ExpressionBuilder, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateCommentObjectCache } from "../../object-cache/index.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { encodeCursor, decodeCursor, type FindManyResult } from "./types.js";
 
 /** Matches LIKE wildcard characters and the escape character itself */
 const LIKE_ESCAPE_RE = /[%_\\]/g;
+
+const DEFAULT_COMMENT_LIMIT = 50;
+const MAX_COMMENT_LIMIT = 100;
+
+/**
+ * Normalize a caller-supplied page size to a whole number in [1, MAX].
+ * A fractional value reaching SQLite's `LIMIT` errors, and a negative one
+ * disables the cap; non-finite input falls back to the default.
+ */
+function clampLimit(limit: number | undefined): number {
+	const n = Math.floor(Number(limit));
+	if (!Number.isFinite(n)) return DEFAULT_COMMENT_LIMIT;
+	return Math.min(Math.max(n, 1), MAX_COMMENT_LIMIT);
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -147,7 +163,7 @@ export class CommentRepository {
 		contentId: string,
 		options: { status?: CommentStatus; limit?: number; cursor?: string } = {},
 	): Promise<FindManyResult<Comment>> {
-		const limit = Math.max(1, Math.min(options.limit || 50, 100));
+		const limit = clampLimit(options.limit);
 
 		let query = this.db
 			.selectFrom("_emdash_comments")
@@ -195,7 +211,7 @@ export class CommentRepository {
 		status: CommentStatus,
 		options: { collection?: string; search?: string; limit?: number; cursor?: string } = {},
 	): Promise<FindManyResult<Comment>> {
-		const limit = Math.max(1, Math.min(options.limit || 50, 100));
+		const limit = clampLimit(options.limit);
 
 		let query = this.db.selectFrom("_emdash_comments").selectAll().where("status", "=", status);
 
@@ -246,7 +262,7 @@ export class CommentRepository {
 
 	/** List non-trashed comments for capability-gated plugin administration. */
 	async findForPlugin(options: PluginCommentFindOptions = {}): Promise<FindManyResult<Comment>> {
-		const limit = Math.max(1, Math.min(options.limit ?? 50, 100));
+		const limit = clampLimit(options.limit);
 		let query = this.db.selectFrom("_emdash_comments").selectAll().where("status", "!=", "trash");
 
 		if (options.status) query = query.where("status", "=", options.status);
@@ -340,14 +356,22 @@ export class CommentRepository {
 
 		const now = new Date().toISOString();
 
-		const result = await this.db
-			.updateTable("_emdash_comments")
-			.set({ status, updated_at: now })
-			.where("id", "in", ids)
-			.executeTakeFirst();
+		const updatedCount = await withTransaction(this.db, async (db) => {
+			let updated = 0;
+			for (const batch of chunks([...new Set(ids)], SQL_BATCH_SIZE)) {
+				const result = await db
+					.updateTable("_emdash_comments")
+					.set({ status, updated_at: now })
+					.where("id", "in", batch)
+					.executeTakeFirst();
 
+				if (!db.isTransaction) invalidateCommentObjectCache();
+				updated += Number(result.numUpdatedRows ?? 0);
+			}
+			return updated;
+		});
 		invalidateCommentObjectCache();
-		return Number(result.numUpdatedRows ?? 0);
+		return updatedCount;
 	}
 
 	/**

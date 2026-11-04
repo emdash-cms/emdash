@@ -27,6 +27,26 @@ export interface ToolbarLabels {
 	editMode: string;
 	openInAdmin: string;
 	hideToolbar: string;
+	draft: string;
+	published: string;
+	unpublishedChanges: string;
+	unsaved: string;
+	saving: string;
+	saved: string;
+	saveFailed: string;
+	image: string;
+	noImageSelected: string;
+	altText: string;
+	altTextPlaceholder: string;
+	replaceImage: string;
+	uploadImage: string;
+	removeImage: string;
+	mediaLibrary: string;
+	back: string;
+	loading: string;
+	noImagesFound: string;
+	mediaLoadFailed: string;
+	uploadingFile: string;
 }
 
 const SCRIPT_LINE_SEPARATOR_RE = /\u2028/g;
@@ -63,7 +83,7 @@ export function renderToolbar(config: ToolbarConfig): string {
 
     <span class="emdash-tb-save-status" id="emdash-tb-save-status"></span>
 
-    <a class="emdash-tb-admin" id="emdash-tb-admin" href="#" target="emdash-admin" style="display:none" title="${escapeHtml(labels.openInAdmin)}">
+    <a class="emdash-tb-admin" id="emdash-tb-admin" href="#" style="display:none" title="${escapeHtml(labels.openInAdmin)}">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
     </a>
 
@@ -672,26 +692,30 @@ export function renderToolbar(config: ToolbarConfig): string {
     pendingSaves.push(settled);
   }
 
+  function badgeHtml(kind, label) {
+    return '<span class="emdash-tb-badge emdash-tb-badge--' + kind + '">' + escapeAttr(label) + '</span>';
+  }
+
   function setSaveState(state) {
     saveState = state;
     clearTimeout(saveHideTimer);
 
     switch (state) {
       case "unsaved":
-        saveStatusEl.innerHTML = '<span class="emdash-tb-badge emdash-tb-badge--unsaved">Unsaved</span>';
+        saveStatusEl.innerHTML = badgeHtml("unsaved", toolbarLabels.unsaved);
         break;
       case "saving":
-        saveStatusEl.innerHTML = '<span class="emdash-tb-badge emdash-tb-badge--saving">Saving\u2026</span>';
+        saveStatusEl.innerHTML = badgeHtml("saving", toolbarLabels.saving);
         break;
       case "saved":
-        saveStatusEl.innerHTML = '<span class="emdash-tb-badge emdash-tb-badge--saved">Saved</span>';
+        saveStatusEl.innerHTML = badgeHtml("saved", toolbarLabels.saved);
         saveHideTimer = setTimeout(function() {
           saveStatusEl.innerHTML = "";
           saveState = "idle";
         }, 2000);
         break;
       case "error":
-        saveStatusEl.innerHTML = '<span class="emdash-tb-badge emdash-tb-badge--error">Save failed</span>';
+        saveStatusEl.innerHTML = badgeHtml("error", toolbarLabels.saveFailed);
         saveHideTimer = setTimeout(function() {
           saveStatusEl.innerHTML = "";
           saveState = "idle";
@@ -751,19 +775,20 @@ export function renderToolbar(config: ToolbarConfig): string {
       var adminLink = document.getElementById("emdash-tb-admin");
       if (adminLink) {
         adminLink.href = "/_emdash/admin/content/" + encodeURIComponent(ref.collection) + "/" + encodeURIComponent(ref.id);
+        adminLink.target = adminWindowName(ref.collection, ref.id);
         adminLink.style.display = "";
       }
 
       if (ref.status === "draft") {
-        statusEl.innerHTML = '<span class="emdash-tb-badge emdash-tb-badge--draft">Draft</span>';
+        statusEl.innerHTML = badgeHtml("draft", toolbarLabels.draft);
         publishBtn.style.display = "";
         publishBtn.onclick = function() { publish(ref.collection, ref.id); };
       } else if (ref.status === "published" && ref.hasDraft) {
-        statusEl.innerHTML = '<span class="emdash-tb-badge emdash-tb-badge--pending">Unpublished changes</span>';
+        statusEl.innerHTML = badgeHtml("pending", toolbarLabels.unpublishedChanges);
         publishBtn.style.display = "";
         publishBtn.onclick = function() { publish(ref.collection, ref.id); };
       } else if (ref.status === "published") {
-        statusEl.innerHTML = '<span class="emdash-tb-badge emdash-tb-badge--published">Published</span>';
+        statusEl.innerHTML = badgeHtml("published", toolbarLabels.published);
         publishBtn.style.display = "none";
       }
     } catch (e) {
@@ -895,11 +920,11 @@ export function renderToolbar(config: ToolbarConfig): string {
   }
 
   function showUnpublishedChanges(collection, id) {
-    statusEl.innerHTML = '<span class="emdash-tb-badge emdash-tb-badge--pending">Unpublished changes</span>';
+    statusEl.innerHTML = badgeHtml("pending", toolbarLabels.unpublishedChanges);
     publishBtn.style.display = "";
     if (!waitingForPublish) {
       publishBtn.disabled = false;
-      publishBtn.textContent = "Publish";
+      publishBtn.textContent = toolbarLabels.publish;
     }
     publishBtn.onclick = function() { publish(collection, id); };
   }
@@ -926,7 +951,37 @@ export function renderToolbar(config: ToolbarConfig): string {
     return text;
   }
 
-  function startTextEdit(element, annotation, multiline) {
+  function caretRangeAt(x, y) {
+    if (document.caretPositionFromPoint) {
+      var position = document.caretPositionFromPoint(x, y);
+      // Over a text input the offset counts into its value, which a range can't hold.
+      if (!position || position.offsetNode.nodeType !== Node.TEXT_NODE) return null;
+      var range = document.createRange();
+      range.setStart(position.offsetNode, position.offset);
+      return range;
+    }
+    return document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
+  }
+
+  function selectionPoints() {
+    var selection = window.getSelection();
+    return [selection.anchorNode, selection.anchorOffset, selection.focusNode, selection.focusOffset];
+  }
+
+  // A click on text moves the selection to where it landed (a caret, or the
+  // end of a drag), and focusing the field keeps it there. A click on a link
+  // leaves the selection where it was.
+  var selectionAtMousedown = null;
+
+  // Where to put the caret for a click, or null when the click placed it.
+  function caretForClick(e) {
+    var moved = !selectionAtMousedown || selectionPoints().some(function(point, i) {
+      return point !== selectionAtMousedown[i];
+    });
+    return moved ? null : caretRangeAt(e.clientX, e.clientY);
+  }
+
+  function startTextEdit(element, annotation, caret, multiline) {
     if (currentlyEditing === element) return;
     if (currentlyEditing) endCurrentEdit();
 
@@ -941,13 +996,9 @@ export function renderToolbar(config: ToolbarConfig): string {
     element.setAttribute("data-emdash-editing", "");
     element.contentEditable = "plaintext-only";
     element.focus();
-
-    // Select all text
-    var range = document.createRange();
-    range.selectNodeContents(element);
-    var sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
+    if (caret && element.contains(caret.startContainer)) {
+      window.getSelection().collapse(caret.startContainer, caret.startOffset);
+    }
 
     // Track dirty state via input events
     function handleInput() {
@@ -1001,7 +1052,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   // Text fields are often rendered transformed (Markdown to HTML, truncated
   // excerpts). Saving the page text over the stored value would lose content,
   // so they are edited in place only when the page shows the stored text.
-  function startTextEditIfShownAsStored(element, annotation) {
+  function startTextEditIfShownAsStored(element, annotation, caret) {
     // Rendered markup means the text was transformed. Open the admin before the
     // lookup, while the click still lets popup blockers allow window.open().
     if (element.children.length > 0) {
@@ -1016,7 +1067,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       var item = body && body.data && body.data.item;
       var stored = item && item.data ? item.data[annotation.field] : null;
       if (typeof stored === "string" && stored.trim() === (element.textContent || "").trim()) {
-        startTextEdit(element, annotation, true);
+        startTextEdit(element, annotation, caret, true);
       } else {
         openAdmin(annotation);
       }
@@ -1026,13 +1077,17 @@ export function renderToolbar(config: ToolbarConfig): string {
     });
   }
 
+  function adminWindowName(collection, id) {
+    return "emdash-admin-" + encodeURIComponent(collection) + "/" + encodeURIComponent(id);
+  }
+
   // Fallback: open admin
   function openAdmin(annotation) {
     var url = "/_emdash/admin/content/" + encodeURIComponent(annotation.collection) + "/" + encodeURIComponent(annotation.id);
     if (annotation.field) {
       url += "?field=" + encodeURIComponent(annotation.field);
     }
-    window.open(url, "emdash-admin");
+    window.open(url, adminWindowName(annotation.collection, annotation.id));
   }
 
   // --- Inline image editing ---
@@ -1106,7 +1161,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     // Build popover HTML
     var html = '';
     html += '<div class="emdash-img-popover-header">';
-    html += '  <span class="emdash-img-popover-title">Image</span>';
+    html += '  <span class="emdash-img-popover-title">' + escapeAttr(toolbarLabels.image) + '</span>';
     html += '  <button class="emdash-img-popover-close" data-action="close">&times;</button>';
     html += '</div>';
     html += '<div class="emdash-img-popover-body" id="emdash-img-main">';
@@ -1114,22 +1169,22 @@ export function renderToolbar(config: ToolbarConfig): string {
     if (currentSrc) {
       html += '<img class="emdash-img-preview" src="' + escapeAttr(currentSrc) + '" alt="" />';
     } else {
-      html += '<div class="emdash-img-empty">No image selected</div>';
+      html += '<div class="emdash-img-empty">' + escapeAttr(toolbarLabels.noImageSelected) + '</div>';
     }
 
     html += '<div class="emdash-img-field">';
-    html += '  <label for="emdash-img-alt">Alt text</label>';
-    html += '  <input type="text" id="emdash-img-alt" value="' + escapeAttr(currentAlt) + '" placeholder="Describe the image" />';
+    html += '  <label for="emdash-img-alt">' + escapeAttr(toolbarLabels.altText) + '</label>';
+    html += '  <input type="text" id="emdash-img-alt" value="' + escapeAttr(currentAlt) + '" placeholder="' + escapeAttr(toolbarLabels.altTextPlaceholder) + '" />';
     html += '</div>';
 
     html += '<div class="emdash-img-actions">';
-    html += '  <button class="emdash-img-btn emdash-img-btn--primary" data-action="browse">Replace</button>';
+    html += '  <button class="emdash-img-btn emdash-img-btn--primary" data-action="browse">' + escapeAttr(toolbarLabels.replaceImage) + '</button>';
     html += '  <label class="emdash-img-btn" style="cursor:pointer">';
-    html += '    Upload';
+    html += '    ' + escapeAttr(toolbarLabels.uploadImage);
     html += '    <input type="file" accept="image/*" id="emdash-img-upload" style="display:none" />';
     html += '  </label>';
     if (currentSrc) {
-      html += '  <button class="emdash-img-btn emdash-img-btn--danger" data-action="remove">Remove</button>';
+      html += '  <button class="emdash-img-btn emdash-img-btn--danger" data-action="remove">' + escapeAttr(toolbarLabels.removeImage) + '</button>';
     }
     html += '</div>';
     html += '</div>';
@@ -1264,10 +1319,10 @@ export function renderToolbar(config: ToolbarConfig): string {
     browser.className = "emdash-img-browser";
 
     browser.innerHTML = '<div class="emdash-img-browser-header">' +
-      '<span class="emdash-img-browser-title">Media Library</span>' +
-      '<button class="emdash-img-browser-back">Back</button>' +
+      '<span class="emdash-img-browser-title">' + escapeAttr(toolbarLabels.mediaLibrary) + '</span>' +
+      '<button class="emdash-img-browser-back">' + escapeAttr(toolbarLabels.back) + '</button>' +
       '</div>' +
-      '<div class="emdash-img-loading">Loading\u2026</div>';
+      '<div class="emdash-img-loading">' + escapeAttr(toolbarLabels.loading) + '</div>';
 
     popover.appendChild(browser);
 
@@ -1288,7 +1343,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       if (items.length === 0) {
         var empty = document.createElement("div");
         empty.className = "emdash-img-loading";
-        empty.textContent = "No images found";
+        empty.textContent = toolbarLabels.noImagesFound;
         browser.appendChild(empty);
         return;
       }
@@ -1316,7 +1371,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     })
     .catch(function(err) {
       var loadingEl = browser.querySelector(".emdash-img-loading");
-      if (loadingEl) loadingEl.textContent = "Failed to load media";
+      if (loadingEl) loadingEl.textContent = toolbarLabels.mediaLoadFailed;
       console.error("Media fetch error:", err);
     });
   }
@@ -1387,7 +1442,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     if (browserEl) browserEl.remove();
     if (mainBody) {
       mainBody.innerHTML = '<div class="emdash-img-uploading">' +
-        '<span>Uploading ' + escapeAttr(file.name) + '\u2026</span>' +
+        '<span>' + escapeAttr(toolbarLabels.uploadingFile.replace("{filename}", function() { return file.name; })) + '</span>' +
         '</div>';
       mainBody.style.display = "";
     }
@@ -1483,6 +1538,10 @@ export function renderToolbar(config: ToolbarConfig): string {
 
   // Click handler for edit mode
   if (isEditMode) {
+    document.addEventListener("mousedown", function() {
+      selectionAtMousedown = selectionPoints();
+    }, true);
+
     document.addEventListener("click", function(e) {
       var target = e.target;
 
@@ -1506,6 +1565,10 @@ export function renderToolbar(config: ToolbarConfig): string {
               continue;
             }
 
+            // Read now: editing may only start once the manifest or the stored
+            // value has loaded, and the page can scroll in the meantime.
+            var caret = caretForClick(e);
+
             function dispatchInline(kind) {
               closeImagePopover();
               // Portable Text is edited in-page by InlinePortableTextEditor — do not open admin
@@ -1515,9 +1578,9 @@ export function renderToolbar(config: ToolbarConfig): string {
               e.preventDefault();
               e.stopPropagation();
               if (kind === "string" || kind === "text") {
-                startTextEdit(target, annotation);
+                startTextEdit(target, annotation, caret);
               } else if (kind === "richText") {
-                startTextEditIfShownAsStored(target, annotation);
+                startTextEditIfShownAsStored(target, annotation, caret);
               } else if (kind === "image") {
                 startImageEdit(target, annotation);
               } else {

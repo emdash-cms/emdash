@@ -9,7 +9,7 @@ import { Image as AstroImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
-import { toAbsoluteMediaUrl, RESPONSIVE_BREAKPOINTS } from "../media/responsive.js";
+import { toAbsoluteMediaUrl, responsiveWidths } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
 import { sanitizeHref } from "../utils/url.js";
 import { normalizeImageLink } from "../content/converters/image-link.js";
@@ -63,8 +63,9 @@ function generateSrcset(
 	getSrc: NonNullable<ImageEmbed["getSrc"]>,
 	maxWidth: number,
 	aspectRatio?: number,
+	originalWidth?: number,
 ): string {
-	return RESPONSIVE_BREAKPOINTS.filter((w) => w <= maxWidth * 2)
+	return responsiveWidths(maxWidth, originalWidth)
 		.map((w) => {
 			const h = aspectRatio ? Math.round(w / aspectRatio) : undefined;
 			return `${getSrc({ width: w, height: h })} ${w}w`;
@@ -148,7 +149,7 @@ if (providerId && providerId !== "local") {
 				if (embed.getSrc) {
 					const maxWidth = renderWidth || 1200;
 					const ar = renderWidth && renderHeight ? renderWidth / renderHeight : aspectRatio;
-					srcset = generateSrcset(embed.getSrc, maxWidth, ar);
+					srcset = generateSrcset(embed.getSrc, maxWidth, ar, originalWidth);
 					sizes = renderWidth
 						? `(min-width: ${renderWidth}px) ${renderWidth}px, 100vw`
 						: "100vw";

@@ -164,6 +164,7 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 				id: z.string(),
 				src: z.string().optional(),
 				alt: z.string().optional(),
+				caption: z.string().optional(),
 				width: z.number().optional(),
 				height: z.number().optional(),
 				filename: z.string().optional(),
@@ -641,7 +642,7 @@ function fieldTypeToTypeScript(field: {
 
 		case "image": {
 			const media =
-				"{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
+				"{ id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
 			return `${media.slice(0, -2)}; darkVariant?: ${media} }`;
 		}
 

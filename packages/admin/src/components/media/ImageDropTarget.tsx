@@ -15,6 +15,8 @@ interface ImageDropTargetProps {
 	onUploaded: (item: MediaItem) => void;
 	allowedMimeTypes?: string[];
 	fieldId?: string;
+	blockType?: string;
+	blockVersion?: number;
 	className?: string;
 }
 
@@ -24,6 +26,8 @@ export function ImageDropTarget({
 	onUploaded,
 	allowedMimeTypes,
 	fieldId,
+	blockType,
+	blockVersion,
 	className,
 }: ImageDropTargetProps) {
 	const { t } = useLingui();
@@ -63,7 +67,12 @@ export function ImageDropTarget({
 		setUploading(true);
 		setError(null);
 		try {
-			const item = await uploadMedia(file, { fieldId, signal: controller.signal });
+			const item = await uploadMedia(file, {
+				fieldId,
+				blockType,
+				blockVersion,
+				signal: controller.signal,
+			});
 			if (controller.signal.aborted || activeUpload.current !== controller) return;
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 			onUploaded(item);

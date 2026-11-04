@@ -41,6 +41,7 @@ import type {
 	PortableTextCodeBlock,
 	PortableTextIframeBlock,
 } from "./types.js";
+import { isPortableTextVideoBlock, videoNodeAttrs } from "./video.js";
 
 function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
@@ -303,6 +304,12 @@ function convertBlock(
 	if (isIframeBlock(block)) {
 		const { _type, _key, ...attrs } = block;
 		return { type: "iframeBlock", attrs: identityAttrs(attrs, _key, preserveIdentity) };
+	}
+	if (isPortableTextVideoBlock(block)) {
+		return {
+			type: "videoBlock",
+			attrs: identityAttrs(videoNodeAttrs(block), block._key, preserveIdentity),
+		};
 	}
 	if (block._type === "break") {
 		return {

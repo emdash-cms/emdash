@@ -1,22 +1,22 @@
 /**
  * Sitemap index endpoint
  *
- * GET /sitemap.xml - Sitemap index listing one sitemap per collection.
+ * GET /sitemap.xml - Sitemap index listing the child sitemaps.
  *
- * Each collection with published, indexable content gets its own
- * child sitemap at /sitemap-{collection}.xml. The index includes
- * a <lastmod> per child derived from the most recently updated entry.
+ * Each collection with published, indexable content gets a child sitemap
+ * at /sitemap-{collection}.xml, continued at /sitemap-{collection}-{n}.xml
+ * once it exceeds one page. The index includes a <lastmod> per child
+ * derived from the most recently updated entry on that page.
  */
 
 import type { APIRoute } from "astro";
 
-import { handleSitemapData } from "#api/handlers/seo.js";
-import { getPublicOrigin } from "#api/public-url.js";
+import { handleSitemapIndexData } from "#api/handlers/seo.js";
+import { getPublicSiteUrl } from "#api/public-url.js";
 import { getSiteSettingsWithDb } from "#settings/index.js";
 
 export const prerender = false;
 
-const TRAILING_SLASH_RE = /\/$/;
 const AMP_RE = /&/g;
 const LT_RE = /</g;
 const GT_RE = />/g;
@@ -35,12 +35,9 @@ export const GET: APIRoute = async ({ locals, url }) => {
 
 	try {
 		const settings = await getSiteSettingsWithDb(emdash.db);
-		const siteUrl = (settings.url || getPublicOrigin(url, emdash?.config)).replace(
-			TRAILING_SLASH_RE,
-			"",
-		);
+		const siteUrl = getPublicSiteUrl(url, emdash.config, settings.url, import.meta.env.BASE_URL);
 
-		const result = await handleSitemapData(emdash.db);
+		const result = await handleSitemapIndexData(emdash.db);
 
 		if (!result.success || !result.data) {
 			return new Response("<!-- Failed to generate sitemap -->", {
@@ -49,18 +46,19 @@ export const GET: APIRoute = async ({ locals, url }) => {
 			});
 		}
 
-		const { collections } = result.data;
+		const { sitemaps } = result.data;
 
 		const lines: string[] = [
 			'<?xml version="1.0" encoding="UTF-8"?>',
 			'<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
 		];
 
-		for (const col of collections) {
-			const loc = `${siteUrl}/sitemap-${encodeURIComponent(col.collection)}.xml`;
+		for (const sitemap of sitemaps) {
+			const suffix = sitemap.page === 1 ? "" : `-${sitemap.page}`;
+			const loc = `${siteUrl}/sitemap-${encodeURIComponent(sitemap.collection)}${suffix}.xml`;
 			lines.push("  <sitemap>");
 			lines.push(`    <loc>${escapeXml(loc)}</loc>`);
-			lines.push(`    <lastmod>${escapeXml(col.lastmod)}</lastmod>`);
+			lines.push(`    <lastmod>${escapeXml(sitemap.lastmod)}</lastmod>`);
 			lines.push("  </sitemap>");
 		}
 

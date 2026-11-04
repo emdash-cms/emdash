@@ -1,0 +1,348 @@
+---
+/**
+ * The publisher page header: avatar, identity, and a one-line summary of their
+ * catalog. On wide screens a shelf of their plugin icons fills the end side.
+ */
+import type { RegistryEntryData } from "@emdash-cms/registry-loader";
+
+import { pluginArtSeed } from "../../lib/plugin-art.js";
+import { identityParts, type PublisherSummary } from "../../lib/publisher.js";
+import { listingImageUrl } from "../../lib/registry.js";
+import PluginArt from "../PluginArt.astro";
+
+interface Props {
+	did: string;
+	identity: string;
+	official: boolean;
+	summary: PublisherSummary;
+	plugins: RegistryEntryData[];
+}
+
+const SHELF_SIZE = 4;
+
+const { did, identity, official, summary, plugins } = Astro.props;
+const shelf = plugins.slice(0, SHELF_SIZE).map((plugin) => ({
+	icon: listingImageUrl(plugin, "icon"),
+	seed: pluginArtSeed(plugin.package),
+}));
+const more = plugins.length - shelf.length;
+const parts = identityParts(identity);
+const longestPart = Math.max(...parts.map((part) => part.length));
+// Phones need the longest label to fit on one line; wide screens, the whole identity.
+const size =
+	longestPart > 16 || identity.length > 34
+		? "sm"
+		: longestPart > 13 || identity.length > 26
+			? "md"
+			: "lg";
+---
+
+<header class="publisher-head page-head shell">
+	<div class="publisher-stage" aria-hidden="true"></div>
+	<span class="publisher-avatar">
+		<PluginArt seed={did} variant="tile" />
+	</span>
+	<div class="publisher-copy">
+		<p class="eyebrow">Publisher</p>
+		<h1
+			class:list={["h-page", "publisher-name", `publisher-name--${size}`]}
+			dir="auto"
+		>
+			{
+				parts.map((part, index) => (
+					<>
+						{index > 0 && <wbr />}
+						{part}
+					</>
+				))
+			}
+		</h1>
+		<div class="publisher-meta">
+			<ul class="publisher-meta-list">
+				{
+					official && (
+						<li class="publisher-official">
+							<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+								<path d="M12 3l2.8 2.2 3.6.4.4 3.6L21 12l-2.2 2.8-.4 3.6-3.6.4L12 21l-2.8-2.2-3.6-.4-.4-3.6L3 12l2.2-2.8.4-3.6 3.6-.4Z" />
+								<path d="m8.8 12.2 2.2 2.2 4.2-4.6" />
+							</svg>
+							Official
+						</li>
+					)
+				}
+				<li>{summary.countLabel}</li>
+				{
+					summary.listedSince && (
+						<li>
+							<span>
+								Listed since{" "}
+								<time datetime={summary.listedSince.datetime}>
+									{summary.listedSince.label}
+								</time>
+							</span>
+						</li>
+					)
+				}
+				{
+					summary.lastUpdated && (
+						<li>
+							<span>
+								Updated{" "}
+								<time datetime={summary.lastUpdated.datetime}>
+									{summary.lastUpdated.label}
+								</time>
+							</span>
+						</li>
+					)
+				}
+			</ul>
+		</div>
+	</div>
+	<div class="publisher-shelf" aria-hidden="true">
+		{
+			shelf.map((tile) => (
+				<span class="publisher-shelf-tile">
+					{tile.icon ? (
+						<img
+							src={tile.icon}
+							alt=""
+							width="64"
+							height="64"
+							decoding="async"
+							referrerpolicy="no-referrer"
+						/>
+					) : (
+						<PluginArt seed={tile.seed} variant="tile" />
+					)}
+				</span>
+			))
+		}
+		{
+			more > 0 && (
+				<span class="publisher-shelf-tile publisher-shelf-more">+{more}</span>
+			)
+		}
+	</div>
+</header>
+
+<style>
+	.publisher-head {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		justify-items: start;
+		gap: 1.5rem;
+	}
+
+	.publisher-stage {
+		position: absolute;
+		inset-block: 0;
+		inset-inline-end: 0;
+		width: min(36rem, 72%);
+		pointer-events: none;
+		background-image: radial-gradient(
+			color-mix(in srgb, var(--ink) 13%, transparent) 1px,
+			transparent 1.2px
+		);
+		background-size: 14px 14px;
+		-webkit-mask-image: radial-gradient(
+			ellipse 85% 60% at 100% 50%,
+			#000 10%,
+			transparent 75%
+		);
+		mask-image: radial-gradient(
+			ellipse 85% 60% at 100% 50%,
+			#000 10%,
+			transparent 75%
+		);
+	}
+
+	.publisher-stage:dir(rtl) {
+		-webkit-mask-image: radial-gradient(
+			ellipse 85% 60% at 0% 50%,
+			#000 10%,
+			transparent 75%
+		);
+		mask-image: radial-gradient(
+			ellipse 85% 60% at 0% 50%,
+			#000 10%,
+			transparent 75%
+		);
+	}
+
+	.publisher-avatar,
+	.publisher-copy {
+		position: relative;
+	}
+
+	.publisher-avatar {
+		display: block;
+		width: 72px;
+		height: 72px;
+		flex: none;
+		overflow: hidden;
+		border: 1px solid var(--line);
+		border-radius: 50%;
+		box-shadow:
+			0 0 0 4px var(--line-soft),
+			var(--shadow-sm);
+	}
+
+	.publisher-copy {
+		min-width: 0;
+		max-width: 100%;
+	}
+
+	.publisher-copy .eyebrow {
+		margin-block-end: 0.75rem;
+	}
+
+	.publisher-name {
+		overflow-wrap: anywhere;
+	}
+
+	.publisher-name--md {
+		font-size: clamp(2rem, 1.4rem + 2.2vw, 3.25rem);
+	}
+
+	.publisher-name--sm {
+		font-size: clamp(1.75rem, 1.3rem + 1.8vw, 2.75rem);
+	}
+
+	/*
+	 * Every item has a leading dot. The list is pulled one dot-width past the
+	 * wrapper's start edge, which clips the overflow, so the item that starts
+	 * each line loses its dot.
+	 */
+	.publisher-meta {
+		--dot-space: 1.375rem;
+
+		margin-block-start: 1rem;
+		overflow: hidden;
+	}
+
+	.publisher-meta-list {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem 0;
+		margin: 0;
+		margin-inline-start: calc(-1 * var(--dot-space));
+		padding: 0;
+		color: var(--muted);
+		font-size: 15px;
+		line-height: 1.4;
+		font-variant-numeric: tabular-nums;
+		list-style: none;
+	}
+
+	.publisher-meta-list li {
+		display: inline-flex;
+		align-items: center;
+		white-space: nowrap;
+	}
+
+	.publisher-meta-list li::before {
+		width: 3px;
+		height: 3px;
+		margin-inline: calc((var(--dot-space) - 3px) / 2);
+		content: "";
+		background: var(--subtle);
+		border-radius: 50%;
+	}
+
+	.publisher-meta-list .publisher-official::before {
+		display: none;
+	}
+
+	.publisher-official {
+		margin-inline-start: var(--dot-space);
+		padding-block: 0.1875rem;
+		padding-inline: 0.4375rem 0.625rem;
+		color: var(--ink);
+		font-size: 13px;
+		font-weight: 500;
+		background: var(--fill);
+		border-radius: var(--radius-full);
+	}
+
+	.publisher-official svg {
+		width: 15px;
+		height: 15px;
+		margin-inline-end: 0.3125rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.75;
+	}
+
+	.publisher-shelf {
+		display: none;
+	}
+
+	@media (min-width: 640px) {
+		.publisher-head {
+			grid-template-columns: auto minmax(0, 1fr);
+			align-items: center;
+			gap: 1.75rem;
+		}
+	}
+
+	@media (min-width: 1120px) {
+		.publisher-head {
+			grid-template-columns: auto minmax(0, 1fr) auto;
+			column-gap: 1.75rem;
+		}
+
+		.publisher-shelf {
+			position: relative;
+			display: flex;
+			align-items: center;
+			padding-inline: 2rem 1.5rem;
+		}
+	}
+
+	.publisher-shelf-tile {
+		position: relative;
+		display: grid;
+		place-items: center;
+		width: 64px;
+		height: 64px;
+		flex: none;
+		overflow: hidden;
+		background: var(--surface-soft);
+		border-radius: 16px;
+		box-shadow:
+			0 0 0 4px var(--page),
+			0 10px 20px -12px rgb(0 0 0 / 30%);
+	}
+
+	.publisher-shelf-tile + .publisher-shelf-tile {
+		margin-inline-start: -12px;
+	}
+
+	/* Above the image, so light icons still have an edge on the page. */
+	.publisher-shelf-tile::after {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		content: "";
+		border-radius: inherit;
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+	}
+
+	.publisher-shelf-tile img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.publisher-shelf-more {
+		color: var(--muted);
+		font-family: var(--font-mono);
+		font-size: 14px;
+		font-variant-numeric: tabular-nums;
+		background: var(--surface);
+	}
+</style>

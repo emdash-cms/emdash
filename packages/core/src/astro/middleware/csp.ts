@@ -96,6 +96,7 @@ export function buildEmDashCsp(registry?: RegistryConfigInput, storageEndpoint?:
 		"frame-src 'self' https:",
 		"frame-ancestors 'none'",
 		"img-src 'self' https: data: blob:",
+		"media-src 'self' blob: https:",
 		"object-src 'none'",
 		"base-uri 'self'",
 	].join("; ");

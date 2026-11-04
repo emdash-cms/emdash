@@ -269,7 +269,7 @@ interface Storage {
 		contentType: string;
 	}): Promise<UploadResult>;
 
-	download(key: string): Promise<DownloadResult>;
+	download(key: string, options?: DownloadOptions): Promise<DownloadResult>;
 	delete(key: string): Promise<void>;
 	exists(key: string): Promise<boolean>;
 	list(options?: ListOptions): Promise<ListResult>;
@@ -279,3 +279,11 @@ interface Storage {
 ```
 
 This consistency allows switching storage backends without changing application code.
+
+### Byte ranges
+
+The media route, `/_emdash/api/media/file/`, answers HTTP `Range` requests. Safari only plays video from servers that support them, and other browsers use them to seek. The route passes the requested range to `download()` as `options.range`, which is either `{ offset, length }` or `{ suffix }` for the last `suffix` bytes. `length` is omitted for an open-ended range such as `bytes=500-`.
+
+An adapter that supports ranges returns the part of the requested range that lies within the file and sets `range: { offset, length }` on the result to describe it. `size` is always the size of the whole file. When an adapter can't serve a range, including one that starts past the end of the file, it returns the whole file without `range`. The route then responds with the whole file, or with `416 Range Not Satisfiable` if the range starts past the end.
+
+The R2, S3, and local adapters support ranges. Range support is optional for a custom adapter: when it ignores `options`, range requests receive the whole file, or `416` if the range starts past the end.

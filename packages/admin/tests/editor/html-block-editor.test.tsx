@@ -219,12 +219,14 @@ describe("HTML block editor", () => {
 
 	it("keeps a selected block out of a quote", async () => {
 		const block: Block = { _type: "htmlBlock", _key: "saved", html: "<p>Saved</p>" };
-		const { screen, editor, latest } = await renderEditor({
+		const { screen, editor, pm, latest } = await renderEditor({
 			value: [block, paragraph("after", "After")],
 		});
 		editor.commands.setNodeSelection(0);
+		pm.focus();
 
-		await screen.getByRole("button", { name: "Quote" }).click();
+		await expect.element(screen.getByRole("button", { name: "Quote" })).toBeDisabled();
+		await userEvent.keyboard("{ControlOrMeta>}{Shift>}b{/Shift}{/ControlOrMeta}");
 
 		expect(editor.getJSON().content?.some((node) => node.type === "blockquote")).toBe(false);
 		expect(htmlBlocks(latest())).toEqual([block]);
@@ -242,6 +244,20 @@ describe("HTML block editor", () => {
 
 		await userEvent.keyboard("{Enter}");
 		await waitForCodeEditorFocus();
+	});
+
+	it("moves between blocks with the arrow keys after Escape", async () => {
+		const saved: Block = { _type: "htmlBlock", _key: "saved", html: "<p>Saved</p>" };
+		const { screen, editor } = await renderEditor({ value: [saved, paragraph("after", "After")] });
+		await screen.getByRole("tab", { name: "HTML" }).click();
+		await vi.waitFor(() => expect(codeEditors()).toHaveLength(1));
+		await userEvent.click(codeEditors()[0]!);
+
+		await userEvent.keyboard("{Escape}");
+		await userEvent.keyboard("{ArrowDown}");
+
+		const { selection } = editor.state;
+		expect(selection instanceof NodeSelection && selection.node.textContent).toBe("After");
 	});
 
 	it("moves Tab from a selected block to that block's tabs", async () => {
@@ -426,7 +442,7 @@ describe("HTML block editor", () => {
 			return element!;
 		});
 		const item = [...menu.querySelectorAll("button")].find(
-			(button) => button.querySelector(".font-medium")?.textContent === "HTML",
+			(button) => button.querySelector("[data-slash-item-title]")?.textContent === "HTML",
 		);
 		item!.click();
 		await waitForCodeEditorFocus();

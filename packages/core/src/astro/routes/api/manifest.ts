@@ -11,6 +11,7 @@ import type { APIRoute } from "astro";
 
 import { apiSuccess, handleError } from "#api/error.js";
 import { getAuthMode } from "#auth/mode.js";
+import { MediaRepository } from "#db/repositories/media.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
 import { COMMIT, VERSION } from "../../../version.js";
@@ -33,6 +34,14 @@ export const GET: APIRoute = async ({ locals }) => {
 
 		// Determine auth mode from config
 		const authMode = getAuthMode(emdash?.config);
+		const providerManagedName =
+			authMode.type === "external" &&
+			!(
+				typeof authMode.config === "object" &&
+				authMode.config !== null &&
+				"syncName" in authMode.config &&
+				authMode.config.syncName === false
+			);
 
 		// Read admin branding from the per-request config plumbed through middleware
 		// (same source admin.astro reads from). Reading from a build-time global
@@ -57,11 +66,29 @@ export const GET: APIRoute = async ({ locals }) => {
 					"site:title",
 					"emdash:site_title",
 					"site:timezone",
+					"site:logo",
 				]);
 				const siteTitle = titles.get("site:title") || titles.get("emdash:site_title");
 				siteTimezone = titles.get("site:timezone") || "UTC";
 				if (!adminBranding?.siteName && siteTitle) {
 					adminBranding = { ...adminBranding, siteName: siteTitle };
+				}
+
+				const siteLogo: unknown = titles.get("site:logo");
+				if (
+					!adminBranding?.logo &&
+					typeof siteLogo === "object" &&
+					siteLogo !== null &&
+					"mediaId" in siteLogo &&
+					typeof siteLogo.mediaId === "string"
+				) {
+					const media = await new MediaRepository(emdash.db).findById(siteLogo.mediaId);
+					if (media) {
+						adminBranding = {
+							...adminBranding,
+							logo: `/_emdash/api/media/file/${media.storageKey}`,
+						};
+					}
 				}
 			} catch {
 				// options table may not exist yet (pre-setup) — keep the default.
@@ -88,6 +115,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					...emdashManifest,
 					timezone: siteTimezone,
 					authMode: authMode.type === "external" ? authMode.providerType : "passkey",
+					providerManagedName,
 					signupEnabled,
 					admin: adminBranding,
 				}
@@ -100,6 +128,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					timezone: siteTimezone,
 					taxonomies: [],
 					authMode: "passkey",
+					providerManagedName,
 					signupEnabled,
 					admin: adminBranding,
 				};

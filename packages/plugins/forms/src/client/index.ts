@@ -47,6 +47,8 @@ export function initForms() {
 		document.querySelectorAll<HTMLFormElement>("[data-ec-form]").forEach((form) => {
 			if (form.dataset.ecInitialized) return;
 			form.dataset.ecInitialized = "1";
+			// Set here, not in the markup, so a reader without JavaScript keeps native validation.
+			form.noValidate = true;
 			restoreState(form);
 			initMultiPage(form);
 			initConditions(form);
@@ -441,7 +443,12 @@ function evaluateConditions(form: HTMLFormElement) {
 			const input = form.elements.namedItem(condition.field) as HTMLInputElement | null;
 			if (!input) return;
 
-			const value = input.value;
+			const value =
+				input instanceof HTMLInputElement &&
+				(input.type === "checkbox" || input.type === "radio") &&
+				!input.checked
+					? ""
+					: input.value;
 			let visible = true;
 
 			switch (condition.op) {

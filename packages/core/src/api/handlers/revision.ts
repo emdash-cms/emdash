@@ -6,7 +6,11 @@ import type { Kysely } from "kysely";
 
 import { after } from "../../after.js";
 import { ContentRepository } from "../../database/repositories/content.js";
-import { RevisionRepository, type Revision } from "../../database/repositories/revision.js";
+import {
+	RevisionRepository,
+	type Revision,
+	type RevisionWithAuthor,
+} from "../../database/repositories/revision.js";
 import { ContentMutationConflictError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { encodeRev } from "../rev.js";
@@ -19,7 +23,7 @@ import {
 } from "./staged-references.js";
 
 export interface RevisionListResponse {
-	items: Revision[];
+	items: RevisionWithAuthor[];
 	total: number;
 }
 

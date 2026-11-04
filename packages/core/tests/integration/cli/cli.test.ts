@@ -416,6 +416,32 @@ describe("CLI Integration", () => {
 			expect(result.email).toBe("dev@emdash.local");
 			expect(result.role).toBe("admin");
 		});
+
+		it("whoami without a token on localhost reports the dev-bypass user", async () => {
+			const { mkdtempSync, rmSync } = await import("node:fs");
+			const { join } = await import("node:path");
+			const { tmpdir } = await import("node:os");
+			const isolated = mkdtempSync(join(tmpdir(), "emdash-whoami-"));
+			const env: NodeJS.ProcessEnv = { ...process.env, XDG_CONFIG_HOME: isolated };
+			delete env.EMDASH_TOKEN;
+			delete env.EMDASH_URL;
+			delete env.EMDASH_HEADERS;
+
+			try {
+				const { stdout } = await exec("node", [CLI_BIN, "whoami", "--url", ctx.baseUrl, "--json"], {
+					cwd: isolated,
+					env,
+					timeout: 15_000,
+				});
+				expect(JSON.parse(stdout)).toMatchObject({
+					email: "dev@emdash.local",
+					role: "admin",
+					authMethod: "dev-bypass",
+				});
+			} finally {
+				rmSync(isolated, { recursive: true, force: true });
+			}
+		});
 	});
 
 	// -----------------------------------------------------------------------

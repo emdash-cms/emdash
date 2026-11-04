@@ -136,9 +136,10 @@ describe("assessment Workflow foundation", () => {
 	});
 
 	it("atomically issues an automatic positive label after clean durable inference", async () => {
+		const pipelineCid = `${PROFILE_CID.slice(0, -4)}pipe`;
 		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
 		const params = await createAssessmentWorkflowParams({
-			subject: { uri: PROFILE_URI, cid: PROFILE_CID, kind: "profile" },
+			subject: { uri: PROFILE_URI, cid: pipelineCid, kind: "profile" },
 			versions: ASSESSMENT_VERSIONS,
 			logicalTriggerId: "workflow:complete-pipeline",
 		});
@@ -179,7 +180,7 @@ describe("assessment Workflow foundation", () => {
 					async verifyExactRecord() {
 						return {
 							uri: PROFILE_URI,
-							cid: PROFILE_CID,
+							cid: pipelineCid,
 							record: PROFILE_RECORD,
 							verification: "did-mst-signature" as const,
 						};
@@ -218,7 +219,7 @@ describe("assessment Workflow foundation", () => {
 		)
 			.bind(params.runKey)
 			.first<{ val: string; cid: string }>();
-		expect(issued).toEqual({ val: "listing-passed", cid: PROFILE_CID });
+		expect(issued).toEqual({ val: "listing-passed", cid: pipelineCid });
 	});
 
 	it("finalizes as an error when required display media cannot be acquired", async () => {
@@ -440,9 +441,10 @@ describe("assessment Workflow foundation", () => {
 	});
 
 	it("stores an operational error without issuing a label when exact verification fails", async () => {
+		const verificationErrorCid = `${PROFILE_CID.slice(0, -4)}rver`;
 		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
 		const params = await createAssessmentWorkflowParams({
-			subject: { uri: PROFILE_URI, cid: PROFILE_CID, kind: "profile" },
+			subject: { uri: PROFILE_URI, cid: verificationErrorCid, kind: "profile" },
 			versions: ASSESSMENT_VERSIONS,
 			logicalTriggerId: "workflow:record-verification-error",
 		});
@@ -496,11 +498,12 @@ describe("assessment Workflow foundation", () => {
 	});
 
 	it("carries every never-fetch trap as inert metadata and acquires only display media", async () => {
+		const trapsCid = `${RELEASE_CID.slice(0, -4)}trpa`;
 		const checksum = await computeMultihash(PNG_BYTES);
 		if (!checksum.success) throw new Error("test checksum could not be computed");
 		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
 		const params = await createAssessmentWorkflowParams({
-			subject: { uri: RELEASE_URI, cid: RELEASE_CID, kind: "release" },
+			subject: { uri: RELEASE_URI, cid: trapsCid, kind: "release" },
 			versions: ASSESSMENT_VERSIONS,
 			logicalTriggerId: "workflow:release-traps",
 		});
@@ -513,7 +516,7 @@ describe("assessment Workflow foundation", () => {
 				async verifyExactRecord() {
 					return {
 						uri: RELEASE_URI,
-						cid: RELEASE_CID,
+						cid: trapsCid,
 						record: createReleaseRecord(checksum.value),
 						verification: "did-mst-signature" as const,
 					};

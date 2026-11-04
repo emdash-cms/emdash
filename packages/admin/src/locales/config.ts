@@ -25,6 +25,11 @@ function isValidLocale(code: string): boolean {
 // Only true in dev when EMDASH_PSEUDO_LOCALE=1 is set.
 declare const __EMDASH_PSEUDO_LOCALE__: boolean;
 
+// Injected by the EmDash Vite integration from `admin.locales`: null when the
+// option is unset. Undefined when the admin package is loaded outside that
+// Vite build, such as in tests.
+declare const __EMDASH_ADMIN_LOCALES__: string[] | null;
+
 /**
  * The pseudo locale, injected into the supported list only when
  * EMDASH_PSEUDO_LOCALE=1 is set. Never available in production.
@@ -34,10 +39,19 @@ const PSEUDO_LOCALE =
 		? LOCALES.find((l) => l.code === "pseudo")
 		: undefined;
 
+const ADMIN_LOCALE_ALLOWLIST =
+	typeof __EMDASH_ADMIN_LOCALES__ !== "undefined" && __EMDASH_ADMIN_LOCALES__
+		? new Set(__EMDASH_ADMIN_LOCALES__)
+		: undefined;
+
+function isAllowedLocale(code: string): boolean {
+	return ADMIN_LOCALE_ALLOWLIST === undefined || ADMIN_LOCALE_ALLOWLIST.has(code);
+}
+
 /** Available locales at runtime, validated against BCP 47. */
 export const SUPPORTED_LOCALES = [
-	...ENABLED_LOCALES.filter((l) => isValidLocale(l.code)),
-	...(PSEUDO_LOCALE ? [PSEUDO_LOCALE] : []),
+	...ENABLED_LOCALES.filter((l) => isValidLocale(l.code) && isAllowedLocale(l.code)),
+	...(PSEUDO_LOCALE && isAllowedLocale("pseudo") ? [PSEUDO_LOCALE] : []),
 ];
 
 export const SUPPORTED_LOCALE_CODES = new Set(SUPPORTED_LOCALES.map((l) => l.code));

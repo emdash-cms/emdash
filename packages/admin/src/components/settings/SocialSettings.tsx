@@ -136,6 +136,7 @@ export function SocialSettings() {
 				>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`Twitter`}
 							value={formData.social?.twitter ?? ""}
 							onChange={(e) => handleSocialChange("twitter", e.target.value)}
@@ -144,6 +145,7 @@ export function SocialSettings() {
 					</SettingRow>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`GitHub`}
 							value={formData.social?.github ?? ""}
 							onChange={(e) => handleSocialChange("github", e.target.value)}
@@ -152,6 +154,7 @@ export function SocialSettings() {
 					</SettingRow>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`Facebook`}
 							value={formData.social?.facebook ?? ""}
 							onChange={(e) => handleSocialChange("facebook", e.target.value)}
@@ -160,6 +163,7 @@ export function SocialSettings() {
 					</SettingRow>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`Instagram`}
 							value={formData.social?.instagram ?? ""}
 							onChange={(e) => handleSocialChange("instagram", e.target.value)}
@@ -168,6 +172,7 @@ export function SocialSettings() {
 					</SettingRow>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`LinkedIn`}
 							value={formData.social?.linkedin ?? ""}
 							onChange={(e) => handleSocialChange("linkedin", e.target.value)}
@@ -176,6 +181,7 @@ export function SocialSettings() {
 					</SettingRow>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`YouTube`}
 							value={formData.social?.youtube ?? ""}
 							onChange={(e) => handleSocialChange("youtube", e.target.value)}

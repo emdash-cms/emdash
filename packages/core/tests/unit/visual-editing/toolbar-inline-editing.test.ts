@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InlinePortableTextEditor } from "../../../src/components/InlinePortableTextEditor.js";
 import { renderToolbar } from "../../../src/visual-editing/toolbar.js";
+import { GERMAN_TOOLBAR_LABELS } from "../../utils/toolbar-labels.js";
 
 const LABELS = {
 	publish: "Publish",
@@ -19,6 +20,26 @@ const LABELS = {
 	editMode: "Edit",
 	openInAdmin: "Open in admin",
 	hideToolbar: "Hide toolbar",
+	draft: "Draft",
+	published: "Published",
+	unpublishedChanges: "Unpublished changes",
+	unsaved: "Unsaved",
+	saving: "Saving…",
+	saved: "Saved",
+	saveFailed: "Save failed",
+	image: "Image",
+	noImageSelected: "No image selected",
+	altText: "Alt text",
+	altTextPlaceholder: "Describe the image",
+	replaceImage: "Replace",
+	uploadImage: "Upload",
+	removeImage: "Remove",
+	mediaLibrary: "Media Library",
+	back: "Back",
+	loading: "Loading…",
+	noImagesFound: "No images found",
+	mediaLoadFailed: "Failed to load media",
+	uploadingFile: "Uploading {filename}…",
 };
 
 const MANIFEST = {
@@ -39,7 +60,10 @@ function ref(field: string): string {
 	return JSON.stringify({ collection: "posts", id: "post-1", field });
 }
 
-function mountEditablePage(content: string, options: { hidden?: boolean } = {}): void {
+function mountEditablePage(
+	content: string,
+	options: { hidden?: boolean; labels?: typeof LABELS } = {},
+): void {
 	const toolbar = renderToolbar({ editMode: true, isPreview: false, labels: LABELS, ...options });
 	document.body.innerHTML = content + toolbar;
 	for (const script of document.body.querySelectorAll("script")) {
@@ -47,14 +71,15 @@ function mountEditablePage(content: string, options: { hidden?: boolean } = {}):
 	}
 }
 
-/** Serves the manifest and the stored post. Pass `manifest` to control when the manifest arrives. */
+/** Serves the manifest, the stored post and saves. Pass `manifest` or `save` to control their answers. */
 function stubApi(
 	stored: Record<string, unknown> = {},
 	manifest: Promise<Response> = Promise.resolve(Response.json(MANIFEST)),
+	save: () => Promise<Response> = async () => Response.json({ success: true, data: {} }),
 ) {
 	const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
 		if (url === "/_emdash/api/manifest") return manifest;
-		if (init?.method === "PUT") return Response.json({ success: true, data: {} });
+		if (init?.method === "PUT") return save();
 		return Response.json({ success: true, data: { item: { data: stored } } });
 	});
 	vi.stubGlobal("fetch", fetchMock);
@@ -100,6 +125,112 @@ afterEach(() => {
 	document.body.innerHTML = "";
 });
 
+describe("toolbar language", () => {
+	function toolbarText() {
+		return {
+			saveStatus: document.getElementById("emdash-tb-save-status")!.textContent,
+			entryStatus: document.getElementById("emdash-tb-status")!.textContent,
+			publish: document.getElementById("emdash-tb-publish")!.textContent,
+		};
+	}
+
+	/** Stubs the API with a content save that stays in flight until it is answered. */
+	function holdSave(): (status: number) => void {
+		let answer!: (status: number) => void;
+		stubApi(
+			{},
+			undefined,
+			() =>
+				new Promise<Response>((resolve) => {
+					answer = (status) => resolve(new Response(null, { status }));
+				}),
+		);
+		return (status) => answer(status);
+	}
+
+	async function startEditingTitle(): Promise<HTMLElement> {
+		mountEditablePage(`<h1 data-emdash-ref='${ref("title")}'>Hello</h1>`, {
+			labels: GERMAN_TOOLBAR_LABELS,
+		});
+		const title = document.querySelector("h1")!;
+		title.click();
+		await waitForEditing(title);
+		return title;
+	}
+
+	it("keeps Publish in the editor's language after a save leaves unpublished changes", async () => {
+		const answerSave = holdSave();
+		const title = await startEditingTitle();
+
+		title.textContent = "Hallo";
+		title.dispatchEvent(new FocusEvent("blur"));
+		answerSave(200);
+
+		await vi.waitFor(() =>
+			expect(toolbarText()).toEqual({
+				saveStatus: "Gespeichert",
+				entryStatus: "Unveröffentlichte Änderungen",
+				publish: "Veröffentlichen",
+			}),
+		);
+
+		// An unanswered publish keeps jsdom from reloading the page.
+		vi.stubGlobal("fetch", () => new Promise<Response>(() => {}));
+		document.getElementById("emdash-tb-publish")!.click();
+
+		await vi.waitFor(() => expect(toolbarText().publish).toBe("Wird veröffentlicht…"));
+	});
+
+	it.each([
+		["succeeds", 200, "Gespeichert"],
+		["fails", 500, "Speichern fehlgeschlagen"],
+	])("shows a save that %s in the editor's language", async (_outcome, status, outcomeBadge) => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const answerSave = holdSave();
+		const title = await startEditingTitle();
+
+		title.textContent = "Hallo";
+		title.dispatchEvent(new Event("input"));
+		expect(toolbarText().saveStatus).toBe("Nicht gespeichert");
+
+		title.dispatchEvent(new FocusEvent("blur"));
+		expect(toolbarText().saveStatus).toBe("Wird gespeichert…");
+
+		answerSave(status);
+		await vi.waitFor(() => expect(toolbarText().saveStatus).toBe(outcomeBadge));
+	});
+
+	it.each([
+		["a draft", { status: "draft" }, "Entwurf"],
+		[
+			"a published entry with changes",
+			{ status: "published", hasDraft: true },
+			"Unveröffentlichte Änderungen",
+		],
+		["a published entry", { status: "published" }, "Veröffentlicht"],
+	])("labels %s in the editor's language", (_entry, state, badge) => {
+		stubApi();
+		const entry = JSON.stringify({ collection: "posts", id: "post-1", ...state });
+		mountEditablePage(`<article data-emdash-ref='${entry}'></article>`, {
+			labels: GERMAN_TOOLBAR_LABELS,
+		});
+
+		expect(toolbarText().entryStatus).toBe(badge);
+	});
+});
+
+describe("toolbar admin link", () => {
+	it("opens each entry in its own admin window", () => {
+		stubApi();
+		const entry = JSON.stringify({ collection: "posts", id: "post-1", status: "published" });
+		mountEditablePage(`<article data-emdash-ref='${entry}'></article>`);
+
+		const adminLink = document.getElementById("emdash-tb-admin") as HTMLAnchorElement;
+		expect(adminLink.getAttribute("href")).toBe("/_emdash/admin/content/posts/post-1");
+		expect(adminLink.target).toBe("emdash-admin-posts/post-1");
+	});
+});
+
 describe("toolbar inline editing", () => {
 	it("edits text in place while the toolbar pill is hidden", async () => {
 		const fetchMock = stubApi();
@@ -135,7 +266,8 @@ describe("toolbar inline editing", () => {
 		await vi.waitFor(() =>
 			expect(openMock).toHaveBeenCalledWith(
 				"/_emdash/admin/content/posts/post-1?field=excerpt",
-				"emdash-admin",
+				// One window per entry, so this entry's admin tab is reused and no other entry's is replaced.
+				"emdash-admin-posts/post-1",
 			),
 		);
 		expect(excerpt.hasAttribute("data-emdash-editing")).toBe(false);
