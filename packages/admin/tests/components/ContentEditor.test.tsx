@@ -2879,6 +2879,27 @@ describe("ContentEditor", () => {
 				.toBeInTheDocument();
 		});
 
+		it("names the back link after the list it opens", async () => {
+			const screen = await renderEditor({
+				isNew: true,
+				collectionLabel: "Post",
+				manifest: {
+					version: "1.0.0",
+					hash: "hash",
+					authMode: "passkey",
+					collections: {
+						posts: { label: "Posts", labelSingular: "Post", supports: [], hasSeo: false },
+					},
+					plugins: {},
+					taxonomies: [],
+				},
+			});
+
+			await expect
+				.element(screen.getByLabelText("Back to Posts list", { exact: true }))
+				.toBeInTheDocument();
+		});
+
 		it("shows a quiet heading for new items", async () => {
 			const screen = await renderEditor({ isNew: true, collectionLabel: "Post" });
 			const heading = screen.getByRole("heading", { name: "New Post" });

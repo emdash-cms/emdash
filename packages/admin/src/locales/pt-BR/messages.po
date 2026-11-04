@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# comentário importado} other {# comentários importados}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2468
+#: packages/admin/src/router.tsx:2469
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# comentário atualizado} other {# comentários atualizados}}"
 
@@ -237,7 +237,7 @@ msgid "{0, plural, one {# content item imported} other {# content items imported
 msgstr "{0, plural, one {# item de conteúdo importado} other {# itens de conteúdo importados}}"
 
 #. placeholder {0}: states.length
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:455
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:409
 msgid "{0, plural, one {# entry} other {# entries}}"
 msgstr "{0, plural, one {# entrada} other {# entradas}}"
 
@@ -553,17 +553,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "{0} de {1} etapas · {2} de {3}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:754
+#: packages/admin/src/router.tsx:755
 msgid "{0} of {total} could not be deleted"
 msgstr "Não foi possível excluir {0} de {total}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:710
+#: packages/admin/src/router.tsx:711
 msgid "{0} of {total} could not be published"
 msgstr "Não foi possível publicar {0} de {total}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:733
+#: packages/admin/src/router.tsx:734
 msgid "{0} of {total} could not be updated"
 msgstr "Não foi possível atualizar {0} de {total}"
 
@@ -668,7 +668,7 @@ msgstr "{count, plural, one {# item} other {# itens}}"
 msgid "{current} of {total}"
 msgstr "{current} de {total}"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:468
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:422
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
 
@@ -698,11 +698,11 @@ msgstr "{filesMissing, plural, one {Ainda falta enviar # arquivo. Escolha o mesm
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} item} other {#{1} itens}}"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:387
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:340
 msgid "{hidden, plural, one {# more entry on {date}} other {# more entries on {date}}}"
 msgstr "{hidden, plural, one {Mais # entrada em {date}} other {Mais # entradas em {date}}}"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:394
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:347
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {+# mais} other {+# mais}}"
 
@@ -749,7 +749,7 @@ msgstr "Opções de {label}"
 msgid "{label}, {restored}"
 msgstr "{label}, {restored}"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:366
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:344
 msgid "{lateness} late"
 msgstr "{lateness} de atraso"
 
@@ -937,15 +937,19 @@ msgstr "{siteName} mudou para {siteHost}"
 msgid "{siteName} is now at {siteHost}. Sign in there from now on."
 msgstr "{siteName} agora está em {siteHost}. A partir de agora, entre por lá."
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:53
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:107
 msgid "{siteZone} · Your time: {viewerZone}"
 msgstr "{siteZone} · Seu horário: {viewerZone}"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:282
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:266
 msgid "{state} · {when}"
 msgstr "{state} · {when}"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:344
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:330
+msgid "{state}, {lateness} late, {time}:"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:330
 msgid "{state}, {time}:"
 msgstr "{state}, {time}:"
 
@@ -953,15 +957,15 @@ msgstr "{state}, {time}:"
 msgid "{subLabel} ({label}, item {position})"
 msgstr "{subLabel} ({label}, item {position})"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:194
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
 msgid "{title} is a draft again."
 msgstr "{title} voltou a ser um rascunho."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 msgid "{title} is now live."
 msgstr "{title} está no ar."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:206
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:249
 msgid "{title} now goes live {when}."
 msgstr "{title} agora entra no ar em {when}."
 
@@ -1309,7 +1313,7 @@ msgstr "Aceitar convite"
 msgid "Access denied"
 msgstr "Acesso negado"
 
-#: packages/admin/src/router.tsx:2490
+#: packages/admin/src/router.tsx:2491
 msgid "Access Denied"
 msgstr "Acesso negado"
 
@@ -1759,7 +1763,7 @@ msgstr "Depois que você acionar este plugin explicitamente, ele poderá enviar 
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to: {0}"
 msgstr "Depois que você acionar este plugin explicitamente, ele poderá enviar o conteúdo não salvo selecionado no editor para: {0}"
 
-#: packages/admin/src/routes/calendar.tsx:308
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:88
 msgid "Agenda"
 msgstr "Agenda"
 
@@ -1987,19 +1991,19 @@ msgstr "Uma chave digital criptografada que você desbloqueia com sua impressão
 #: packages/admin/src/components/TaxonomySidebar.tsx:694
 #: packages/admin/src/components/TaxonomySidebar.tsx:790
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:664
-#: packages/admin/src/router.tsx:685
-#: packages/admin/src/router.tsx:910
-#: packages/admin/src/router.tsx:1339
-#: packages/admin/src/router.tsx:1462
-#: packages/admin/src/router.tsx:1496
-#: packages/admin/src/router.tsx:1520
-#: packages/admin/src/router.tsx:1604
-#: packages/admin/src/router.tsx:1637
-#: packages/admin/src/router.tsx:2440
-#: packages/admin/src/router.tsx:2476
-#: packages/admin/src/router.tsx:2904
-#: packages/admin/src/router.tsx:3091
+#: packages/admin/src/router.tsx:665
+#: packages/admin/src/router.tsx:686
+#: packages/admin/src/router.tsx:911
+#: packages/admin/src/router.tsx:1340
+#: packages/admin/src/router.tsx:1463
+#: packages/admin/src/router.tsx:1497
+#: packages/admin/src/router.tsx:1521
+#: packages/admin/src/router.tsx:1605
+#: packages/admin/src/router.tsx:1638
+#: packages/admin/src/router.tsx:2441
+#: packages/admin/src/router.tsx:2477
+#: packages/admin/src/router.tsx:2905
+#: packages/admin/src/router.tsx:3092
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "Ocorreu um erro"
@@ -2350,7 +2354,7 @@ msgstr "Backups automáticos"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Backups automáticos precisam de um backend de armazenamento (R2, S3 ou armazenamento local). Configure o armazenamento na configuração do EmDash para ativá-los."
 
-#: packages/admin/src/router.tsx:1459
+#: packages/admin/src/router.tsx:1460
 msgid "Autosave failed"
 msgstr "Falha no salvamento automático"
 
@@ -2676,7 +2680,7 @@ msgid "Byline updated"
 msgstr "Crédito atualizado"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:339
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:382
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1110
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1114
 #: packages/admin/src/components/settings/transfer/labels.ts:19
@@ -2701,7 +2705,7 @@ msgstr "C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:581
 #: packages/admin/src/components/Sidebar.tsx:696
-#: packages/admin/src/routes/calendar.tsx:277
+#: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
 msgstr "Calendário"
 
@@ -2990,7 +2994,7 @@ msgstr "Registro de alterações"
 msgid "Changes apply everywhere this byline appears."
 msgstr "As alterações se aplicam em todos os lugares onde este crédito aparece."
 
-#: packages/admin/src/router.tsx:1537
+#: packages/admin/src/router.tsx:1538
 msgid "Changes discarded"
 msgstr "Alterações descartadas"
 
@@ -3038,7 +3042,7 @@ msgstr "Verificar site"
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
 msgstr "Verifique os logs do servidor e depois use a API de recuperação de uso de mídia para o trabalho que falhou."
 
-#: packages/admin/src/routes/calendar.tsx:269
+#: packages/admin/src/routes/calendar.tsx:279
 msgid "Check your connection and try again."
 msgstr "Verifique sua conexão e tente novamente."
 
@@ -3239,7 +3243,7 @@ msgstr "Limpar concluídos"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:79
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:185
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:103
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:88
 #: packages/admin/src/components/ContentList.tsx:1121
 #: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
@@ -3295,7 +3299,7 @@ msgid "Click this link to sign in to {siteName}:"
 msgstr "Clique neste link para entrar em {siteName}:"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:274
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:278
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:321
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/ContentPickerModal.tsx:231
@@ -3389,9 +3393,9 @@ msgstr "A coleção “{0}” tem entradas"
 msgid "Collection “{0}” was created on this site"
 msgstr "A coleção “{0}” foi criada neste site"
 
-#: packages/admin/src/router.tsx:775
-#: packages/admin/src/router.tsx:977
-#: packages/admin/src/router.tsx:1964
+#: packages/admin/src/router.tsx:776
+#: packages/admin/src/router.tsx:978
+#: packages/admin/src/router.tsx:1965
 msgid "Collection \"{collection}\" not found"
 msgstr ""
 
@@ -3585,7 +3589,7 @@ msgstr "Erros de conteúdo ({0})"
 msgid "Content found:"
 msgstr "Conteúdo encontrado:"
 
-#: packages/admin/src/router.tsx:1586
+#: packages/admin/src/router.tsx:1587
 msgid "Content has been scheduled for publishing"
 msgstr "O conteúdo foi agendado para publicação"
 
@@ -3593,7 +3597,7 @@ msgstr "O conteúdo foi agendado para publicação"
 msgid "Content ID:"
 msgstr "ID do conteúdo:"
 
-#: packages/admin/src/router.tsx:1490
+#: packages/admin/src/router.tsx:1491
 msgid "Content is now live"
 msgstr "O conteúdo está no ar"
 
@@ -3618,11 +3622,11 @@ msgstr "O conteúdo faz referência a mídias de forma inválida"
 msgid "Content refers to media that is not in the package"
 msgstr "O conteúdo faz referência a mídias que não estão no pacote"
 
-#: packages/admin/src/router.tsx:1514
+#: packages/admin/src/router.tsx:1515
 msgid "Content removed from public view"
 msgstr "Conteúdo removido da visualização pública"
 
-#: packages/admin/src/router.tsx:1597
+#: packages/admin/src/router.tsx:1598
 msgid "Content reverted to draft"
 msgstr "Conteúdo revertido para rascunho"
 
@@ -3810,11 +3814,11 @@ msgstr "Não foi possível carregar a imagem da URL"
 msgid "Could not load media."
 msgstr "Não foi possível carregar a mídia."
 
-#: packages/admin/src/routes/calendar.tsx:341
+#: packages/admin/src/routes/calendar.tsx:315
 msgid "Could not load the calendar"
 msgstr "Não foi possível carregar o calendário"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:349
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:392
 msgid "Could not load this entry's details."
 msgstr "Não foi possível carregar os detalhes desta entrada."
 
@@ -3822,7 +3826,7 @@ msgstr "Não foi possível carregar os detalhes desta entrada."
 msgid "Could not load this folder."
 msgstr "Não foi possível carregar esta pasta."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:183
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 msgid "Could not publish"
 msgstr "Não foi possível publicar"
 
@@ -3830,7 +3834,7 @@ msgstr "Não foi possível publicar"
 msgid "Could not reach {origin}"
 msgstr "Não foi possível acessar {origin}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:198
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:241
 msgid "Could not remove the schedule"
 msgstr "Não foi possível remover o agendamento"
 
@@ -4165,7 +4169,7 @@ msgid "Created {0}"
 msgstr "Criado em {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1629
+#: packages/admin/src/router.tsx:1630
 msgid "Created {0} translation"
 msgstr "Tradução em {0} criada"
 
@@ -5019,7 +5023,7 @@ msgstr "Baixando o pacote"
 msgid "visualEditing.draft"
 msgstr "Rascunho"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:413
 #: packages/admin/src/components/ContentList.tsx:1017
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
@@ -5788,7 +5792,7 @@ msgstr "entrada do lado que referencia"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3366
+#: packages/admin/src/router.tsx:3367
 msgid "Error"
 msgstr "Erro"
 
@@ -6128,7 +6132,7 @@ msgid "Failed to create term translation"
 msgstr "Falha ao criar tradução do termo"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:789
-#: packages/admin/src/router.tsx:1634
+#: packages/admin/src/router.tsx:1635
 msgid "Failed to create translation"
 msgstr "Falha ao criar tradução"
 
@@ -6140,7 +6144,7 @@ msgstr "Falha ao criar widget"
 msgid "Failed to create widget area"
 msgstr "Falha ao criar área de widgets"
 
-#: packages/admin/src/router.tsx:753
+#: packages/admin/src/router.tsx:754
 msgid "Failed to delete"
 msgstr "Falha ao excluir"
 
@@ -6262,7 +6266,7 @@ msgstr "Falha ao dispensar as boas-vindas"
 msgid "Failed to download a package file"
 msgstr "Falha ao baixar um arquivo do pacote"
 
-#: packages/admin/src/router.tsx:684
+#: packages/admin/src/router.tsx:685
 msgid "Failed to duplicate"
 msgstr "Falha ao duplicar"
 
@@ -6524,7 +6528,7 @@ msgstr "Falha ao carregar o status da atualização"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2386
+#: packages/admin/src/router.tsx:2387
 msgid "Failed to fetch user"
 msgstr "Falha ao carregar usuário"
 
@@ -6713,7 +6717,7 @@ msgid "Failed to lock the entry"
 msgstr "Falha ao bloquear a entrada"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2475
+#: packages/admin/src/router.tsx:2476
 msgid "Failed to perform bulk action"
 msgstr "Falha ao executar ação em massa"
 
@@ -6730,8 +6734,8 @@ msgstr "Falha ao preparar a importação"
 msgid "Failed to probe URL"
 msgstr "Falha ao verificar a URL"
 
-#: packages/admin/src/router.tsx:709
-#: packages/admin/src/router.tsx:1495
+#: packages/admin/src/router.tsx:710
+#: packages/admin/src/router.tsx:1496
 msgid "Failed to publish"
 msgstr "Falha ao publicar"
 
@@ -6743,7 +6747,7 @@ msgstr "Falha ao publicar conteúdo"
 msgid "Failed to read byline field usage"
 msgstr "Falha ao ler o uso do campo de crédito"
 
-#: packages/admin/src/router.tsx:2903
+#: packages/admin/src/router.tsx:2904
 msgid "Failed to register {slug}"
 msgstr "Falha ao registrar {slug}"
 
@@ -6798,7 +6802,7 @@ msgstr "Falha ao reordenar widgets"
 msgid "Failed to replace media image"
 msgstr "Falha ao substituir imagem de mídia"
 
-#: packages/admin/src/router.tsx:663
+#: packages/admin/src/router.tsx:664
 msgid "Failed to restore"
 msgstr "Falha ao restaurar"
 
@@ -6820,9 +6824,9 @@ msgstr "Falha ao revogar token de API"
 msgid "Failed to rewrite URLs"
 msgstr "Falha ao reescrever URLs"
 
-#: packages/admin/src/router.tsx:905
-#: packages/admin/src/router.tsx:1336
-#: packages/admin/src/router.tsx:3090
+#: packages/admin/src/router.tsx:906
+#: packages/admin/src/router.tsx:1337
+#: packages/admin/src/router.tsx:3091
 msgid "Failed to save"
 msgstr "Falha ao salvar"
 
@@ -6877,7 +6881,7 @@ msgstr "Falha ao iniciar a importação"
 msgid "Failed to uninstall plugin"
 msgstr "Falha ao desinstalar plugin"
 
-#: packages/admin/src/router.tsx:1519
+#: packages/admin/src/router.tsx:1520
 msgid "Failed to unpublish"
 msgstr "Falha ao despublicar"
 
@@ -6885,7 +6889,7 @@ msgstr "Falha ao despublicar"
 msgid "Failed to unpublish content"
 msgstr "Falha ao despublicar conteúdo"
 
-#: packages/admin/src/router.tsx:1603
+#: packages/admin/src/router.tsx:1604
 msgid "Failed to unschedule"
 msgstr "Falha ao cancelar o agendamento"
 
@@ -6893,7 +6897,7 @@ msgstr "Falha ao cancelar o agendamento"
 msgid "Failed to unschedule content"
 msgstr "Falha ao cancelar o agendamento do conteúdo"
 
-#: packages/admin/src/router.tsx:732
+#: packages/admin/src/router.tsx:733
 msgid "Failed to update"
 msgstr "Falha ao atualizar"
 
@@ -6984,7 +6988,7 @@ msgstr "Falha ao atualizar seção"
 msgid "Failed to update settings"
 msgstr "Falha ao atualizar configurações"
 
-#: packages/admin/src/router.tsx:2439
+#: packages/admin/src/router.tsx:2440
 msgid "Failed to update status"
 msgstr "Falha ao atualizar status"
 
@@ -7241,7 +7245,7 @@ msgstr "Pasta"
 msgid "Folder deleted"
 msgstr "Pasta excluída"
 
-#: packages/admin/src/router.tsx:2109
+#: packages/admin/src/router.tsx:2110
 msgid "Folder no longer exists"
 msgstr "A pasta não existe mais"
 
@@ -7387,12 +7391,12 @@ msgstr "Go"
 msgid "Go back to editing first."
 msgstr "Volte primeiro à edição."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:436
 msgid "Go live {countdown}"
 msgstr "Entram no ar {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3386
+#: packages/admin/src/router.tsx:3387
 msgid "Go to Dashboard"
 msgstr "Ir para o painel"
 
@@ -7400,11 +7404,11 @@ msgstr "Ir para o painel"
 msgid "Go to sign-in"
 msgstr "Ir para a página de acesso"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:308
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:351
 msgid "Goes live"
 msgstr "Entra no ar"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:375
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:418
 msgid "Goes live {countdown}"
 msgstr "Entra no ar {countdown}"
 
@@ -8365,7 +8369,7 @@ msgstr "Idioma"
 msgid "Large section heading"
 msgstr "Título de seção grande"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:343
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
 msgid "Last edited"
 msgstr "Última edição"
 
@@ -8562,7 +8566,7 @@ msgstr ""
 msgid "List view"
 msgstr "Visualização em lista"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:429
 #: packages/admin/src/components/ContentSettingsPanel.tsx:188
 #: packages/admin/src/components/ContentSettingsPanel.tsx:198
 #: packages/admin/src/components/ContentSettingsPanel.tsx:224
@@ -8603,8 +8607,8 @@ msgstr "Carregar mais pastas"
 msgid "Load preview"
 msgstr "Carregar pré-visualização"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3341
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
+#: packages/admin/src/router.tsx:3342
 msgid "Loading"
 msgstr "Carregando"
 
@@ -8633,8 +8637,8 @@ msgstr "Carregando coleções..."
 msgid "Loading comments..."
 msgstr "Carregando comentários..."
 
-#: packages/admin/src/router.tsx:3343
-#: packages/admin/src/router.tsx:3355
+#: packages/admin/src/router.tsx:3344
+#: packages/admin/src/router.tsx:3356
 msgid "Loading configuration..."
 msgstr "Carregando configuração..."
 
@@ -8778,7 +8782,7 @@ msgstr "Carregando…"
 msgid "Local time"
 msgstr "Horário local"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:320
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:363
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
 #: packages/admin/src/components/ContentList.tsx:506
 #: packages/admin/src/components/ContentList.tsx:762
@@ -8939,11 +8943,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Marketplace"
 
-#: packages/admin/src/router.tsx:2740
+#: packages/admin/src/router.tsx:2741
 msgid "Marketplace browsing is no longer available."
 msgstr "Não é mais possível navegar pelo marketplace."
 
-#: packages/admin/src/router.tsx:2715
+#: packages/admin/src/router.tsx:2716
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Não é mais possível navegar pelo marketplace. Gerencie os plugins instalados em Plugins."
 
@@ -9230,7 +9234,7 @@ msgstr "Sinais de moderação"
 msgid "Modify collection schemas"
 msgstr "Modificar esquemas de coleção"
 
-#: packages/admin/src/routes/calendar.tsx:294
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:74
 msgid "Month"
 msgstr "Mês"
 
@@ -9366,11 +9370,11 @@ msgstr "Movido: “{snippet}”"
 msgid "Moved {filename} to position {0}."
 msgstr "{filename} movido para a posição {0}."
 
-#: packages/admin/src/router.tsx:729
+#: packages/admin/src/router.tsx:730
 msgid "Moved {total} items to draft"
 msgstr "{total} itens movidos para rascunho"
 
-#: packages/admin/src/router.tsx:750
+#: packages/admin/src/router.tsx:751
 msgid "Moved {total} items to trash"
 msgstr "{total} itens movidos para a lixeira"
 
@@ -9521,7 +9525,7 @@ msgstr "Requer atenção"
 msgid "Never"
 msgstr "Nunca"
 
-#: packages/admin/src/router.tsx:1629
+#: packages/admin/src/router.tsx:1630
 msgid "new"
 msgstr "novo"
 
@@ -9632,7 +9636,7 @@ msgstr "Notícias"
 msgid "Next"
 msgstr "Próximo"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:77
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:131
 msgid "Next month"
 msgstr "Próximo mês"
 
@@ -9806,7 +9810,7 @@ msgid "No EmDash users found"
 msgstr "Nenhum usuário do EmDash encontrado"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:66
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:100
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:85
 msgid "No entries match these filters"
 msgstr "Nenhuma entrada corresponde a estes filtros"
 
@@ -9884,7 +9888,7 @@ msgid "No linked user"
 msgstr "Nenhum usuário vinculado"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:63
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:100
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:85
 msgid "No loaded entries match these filters"
 msgstr "Nenhuma entrada carregada corresponde a estes filtros"
 
@@ -10107,7 +10111,7 @@ msgstr "Nenhum (nível superior)"
 msgid "Not compatible with this environment"
 msgstr "Não compatível com este ambiente"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:277
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:298
 msgid "Not loaded"
 msgstr "Não carregado"
 
@@ -10129,7 +10133,7 @@ msgstr "Não definido"
 msgid "Nothing else is scheduled this month."
 msgstr "Nada mais está agendado para este mês."
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:600
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:554
 msgid "Nothing on this day."
 msgstr "Nada neste dia."
 
@@ -10147,7 +10151,7 @@ msgid "Nothing to preview yet."
 msgstr "Nada para pré-visualizar ainda."
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:104
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:419
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:385
 msgid "Now · {time}"
 msgstr "Agora · {time}"
 
@@ -10258,7 +10262,7 @@ msgstr "Abrir pasta {0}"
 msgid "visualEditing.openInAdmin"
 msgstr "Abrir no admin"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:482
 msgid "Open in editor"
 msgstr "Abrir no editor"
 
@@ -10408,7 +10412,7 @@ msgstr "Tamanho de saída"
 msgid "Overdue"
 msgstr "Atrasado"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:160
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:154
 msgid "Overdue · {lateness}"
 msgstr "Atrasado · {lateness}"
 
@@ -10435,7 +10439,7 @@ msgstr "Hash do pacote"
 msgid "Package downloaded"
 msgstr "Pacote baixado"
 
-#: packages/admin/src/router.tsx:3381
+#: packages/admin/src/router.tsx:3382
 msgid "Page Not Found"
 msgstr "Página não encontrada"
 
@@ -10794,8 +10798,8 @@ msgstr "Registro de plugins"
 msgid "Plugin registry configuration error"
 msgstr "Erro na configuração do registro de plugins"
 
-#: packages/admin/src/router.tsx:2675
-#: packages/admin/src/router.tsx:2706
+#: packages/admin/src/router.tsx:2676
+#: packages/admin/src/router.tsx:2707
 msgid "Plugin registry is not configured."
 msgstr "O registro de plugins não está configurado."
 
@@ -10908,7 +10912,7 @@ msgstr "Pressione Esc para sair do editor de código."
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr "Pressione Espaço para pegar uma imagem. Use as teclas de seta para movê-la e depois pressione Espaço para soltá-la."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:491
 #: packages/admin/src/components/ContentSettingsPanel.tsx:415
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
@@ -10918,7 +10922,7 @@ msgstr "Pressione Espaço para pegar uma imagem. Use as teclas de seta para mov�
 msgid "Preview"
 msgstr "Pré-visualização"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:491
 msgid "Preview changes"
 msgstr "Pré-visualizar alterações"
 
@@ -10943,7 +10947,7 @@ msgstr "Pré-visualização indisponível para este formato"
 msgid "Previous"
 msgstr "Anterior"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:64
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:118
 msgid "Previous month"
 msgstr "Mês anterior"
 
@@ -11039,7 +11043,7 @@ msgstr "Publicar alterações?"
 msgid "visualEditing.publishFailed"
 msgstr "Falha ao publicar. Verifique suas permissões e tente novamente."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:408
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:451
 #: packages/admin/src/components/ContentSettingsPanel.tsx:494
 msgid "Publish now"
 msgstr "Publicar agora"
@@ -11052,21 +11056,21 @@ msgstr "Publicar agora?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Publicar, despublicar, agendar e cancelar o agendamento de conteúdo"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "Publicado"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1490
+#: packages/admin/src/router.tsx:1491
 msgid "Published"
-msgstr "Publicado"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "Publicado"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11074,17 +11078,13 @@ msgstr "Publicado"
 msgid "Published {0}"
 msgstr "Publicado {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:387
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:430
 msgid "Published {liveSince}"
 msgstr "Publicada em {liveSince}"
 
-#: packages/admin/src/router.tsx:706
+#: packages/admin/src/router.tsx:707
 msgid "Published {total} items"
 msgstr "{total} itens publicados"
-
-#: packages/admin/src/routes/calendar.tsx:278
-msgid "Published and scheduled entries across collections, in the site's time zone."
-msgstr "Entradas publicadas e agendadas de todas as coleções, no fuso horário do site."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:159
 msgid "Published At"
@@ -11110,7 +11110,7 @@ msgstr "Falha na verificação do handle do publicador"
 msgid "Publisher release policy"
 msgstr "Política de versões do publicador"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:355
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:398
 msgid "Publishing"
 msgstr "Publicação"
 
@@ -11222,7 +11222,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Ler suas taxonomias e termos"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2041
+#: packages/admin/src/router.tsx:2042
 msgid "Read-only"
 msgstr "Somente leitura"
 
@@ -11529,7 +11529,7 @@ msgstr "Remover chave de acesso"
 msgid "Remove passkey?"
 msgstr "Remover chave de acesso?"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:425
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:468
 #: packages/admin/src/components/ContentSettingsPanel.tsx:623
 msgid "Remove schedule"
 msgstr "Remover agendamento"
@@ -11809,11 +11809,11 @@ msgstr "Obrigatório para acessibilidade. Descreve a imagem para leitores de tel
 msgid "Requires EmDash {0}"
 msgstr "Requer EmDash {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:460
 msgid "Reschedule"
 msgstr "Reagendar"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:206
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:249
 msgid "Rescheduled"
 msgstr "Reagendado"
 
@@ -11948,9 +11948,9 @@ msgstr "Descontinuada"
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3369
+#: packages/admin/src/router.tsx:3370
 #: packages/admin/src/routes/byline-schema.tsx:264
-#: packages/admin/src/routes/calendar.tsx:345
+#: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
 msgstr "Tentar novamente"
 
@@ -11999,7 +11999,7 @@ msgstr "Tentando novamente…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Blocos de conteúdo reutilizáveis que você pode inserir em qualquer conteúdo"
 
-#: packages/admin/src/router.tsx:1538
+#: packages/admin/src/router.tsx:1539
 msgid "Reverted to published version"
 msgstr "Revertido para a versão publicada"
 
@@ -12349,19 +12349,19 @@ msgstr "Data do agendamento"
 msgid "Schedule publication"
 msgstr "Agendar publicação"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:190
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:233
 msgid "Schedule removed"
 msgstr "Agendamento removido"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1585
+#: packages/admin/src/router.tsx:1586
 msgid "Scheduled"
 msgstr "Agendado"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:392
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:435
 msgid "Scheduled changes"
 msgstr "Alterações agendadas"
 
@@ -12967,16 +12967,13 @@ msgstr "SEO"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:27
 #: packages/admin/src/components/settings/transfer/labels.ts:87
+#: packages/admin/src/components/WordPressImport.tsx:1900
 msgid "SEO settings"
 msgstr "Configurações de SEO"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
 msgid "SEO Settings"
 msgstr "Configurações de SEO"
-
-#: packages/admin/src/components/WordPressImport.tsx:1900
-msgid "SEO settings (Yoast)"
-msgstr "Configurações de SEO (Yoast)"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 msgid "SEO settings saved"
@@ -13570,7 +13567,7 @@ msgstr "Iniciando"
 msgid "Starting…"
 msgstr "Iniciando…"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:294
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:337
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
 msgstr "Estado"
@@ -13907,11 +13904,11 @@ msgstr "Normalmente o navegador mostra um QR code."
 msgid "The build provenance matches this release and its package."
 msgstr "A procedência do build corresponde a esta versão e ao pacote dela."
 
-#: packages/admin/src/routes/calendar.tsx:356
+#: packages/admin/src/routes/calendar.tsx:330
 msgid "The calendar shows the first {maxEntries}, which end on {cutOffDay}."
 msgstr "O calendário mostra as primeiras {maxEntries}, que terminam em {cutOffDay}."
 
-#: packages/admin/src/routes/calendar.tsx:357
+#: packages/admin/src/routes/calendar.tsx:331
 msgid "The calendar shows the first {maxEntries}."
 msgstr "O calendário mostra as primeiras {maxEntries}."
 
@@ -14146,7 +14143,7 @@ msgstr "O conteúdo do pacote é gravado neste site. A importação não pode se
 msgid "The package’s file index is not valid."
 msgstr "O índice de arquivos do pacote não é válido."
 
-#: packages/admin/src/router.tsx:3383
+#: packages/admin/src/router.tsx:3384
 msgid "The page you're looking for doesn't exist."
 msgstr "A página que você procura não existe."
 
@@ -14209,7 +14206,7 @@ msgstr "O conteúdo de exemplo adicionado até agora foi mantido. Continue para 
 msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:193
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:236
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "As alterações agendadas de {title} continuam como rascunho."
 
@@ -14365,7 +14362,7 @@ msgstr "Este conteúdo não pode ser editado com segurança"
 msgid "This content will be visible on the site immediately."
 msgstr "Este conteúdo ficará visível no site imediatamente."
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:599
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:553
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "Este dia não foi carregado. O período tem mais entradas do que o calendário consegue exibir."
 
@@ -14386,15 +14383,15 @@ msgid "This entry changed somewhere else after you opened it."
 msgstr "Esta entrada foi alterada em outro lugar depois que você a abriu."
 
 #: packages/admin/src/components/ContentEditor.tsx:1485
-#: packages/admin/src/router.tsx:1140
+#: packages/admin/src/router.tsx:1141
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Esta entrada foi alterada em outro lugar. Salve mesmo assim ou recarregue para obter a versão mais recente."
 
-#: packages/admin/src/router.tsx:1976
+#: packages/admin/src/router.tsx:1977
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "Esta entrada não existe ou não está publicada. Sua função só permite ver conteúdo publicado."
 
-#: packages/admin/src/router.tsx:1977
+#: packages/admin/src/router.tsx:1978
 msgid "This entry doesn't exist or was deleted."
 msgstr "Esta entrada não existe ou foi excluída."
 
@@ -14410,7 +14407,7 @@ msgstr "Esta entrada está aberta em outro lugar"
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "Esta entrada está em modo somente leitura porque o esquema dela usa tipos de campo que esta versão do EmDash não suporta."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:363
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:406
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "Esta entrada deveria ter sido publicada {lateness}, mas não foi. A publicação agendada pode não estar em execução."
 
@@ -14601,7 +14598,7 @@ msgstr "Esta identidade de publicador não pode mais ser resolvida."
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr "O handle deste publicador não aponta de volta para a identidade dele. A instalação fica desativada até o publicador corrigir o handle."
 
-#: packages/admin/src/routes/calendar.tsx:353
+#: packages/admin/src/routes/calendar.tsx:327
 msgid "This range has more than {maxEntries} entries"
 msgstr "Este período tem mais de {maxEntries} entradas"
 
@@ -14762,11 +14759,11 @@ msgstr "Pensamentos, tutoriais e mais"
 msgid "Time"
 msgstr "Hora"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:41
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:53
 msgid "Times are in {zoneName}."
 msgstr "Os horários estão em {zoneName}."
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:40
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:52
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "Os horários estão em {zoneName}. Seu navegador usa {viewerZoneName}."
 
@@ -14805,8 +14802,8 @@ msgid "to select"
 msgstr "para selecionar"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:188
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:570
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:71
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:524
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:125
 #: packages/admin/src/components/revisions/revision-format.ts:107
 msgid "Today"
 msgstr "Hoje"
@@ -14896,7 +14893,7 @@ msgstr "Traduzindo..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:785
-#: packages/admin/src/router.tsx:1628
+#: packages/admin/src/router.tsx:1629
 msgid "Translation created"
 msgstr "Tradução criada"
 
@@ -14905,7 +14902,7 @@ msgstr "Tradução criada"
 msgid "Translations"
 msgstr "Traduções"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:327
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
 msgid "Translations:"
 msgstr "Traduções:"
 
@@ -15177,7 +15174,7 @@ msgstr "Usuário sem nome"
 msgid "Unpublish {itemLabel}"
 msgstr "Despublicar {itemLabel}"
 
-#: packages/admin/src/router.tsx:1514
+#: packages/admin/src/router.tsx:1515
 msgid "Unpublished"
 msgstr "Despublicado"
 
@@ -15203,7 +15200,7 @@ msgstr "Não salvo"
 msgid "Unsaved content may leave your site"
 msgstr "O conteúdo não salvo pode sair do seu site"
 
-#: packages/admin/src/router.tsx:1596
+#: packages/admin/src/router.tsx:1597
 msgid "Unscheduled"
 msgstr "Não agendado"
 
@@ -15771,7 +15768,7 @@ msgstr "Falha no envio do vídeo. Tente novamente."
 msgid "View email provider status and send test emails"
 msgstr "Verificar status do provedor de e-mail e enviar e-mails de teste"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:458
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:501
 msgid "View live"
 msgstr "Ver no site"
 
@@ -15847,7 +15844,7 @@ msgstr "Alerta"
 msgid "Warnings"
 msgstr "Alertas"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:307
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:350
 msgid "Was due"
 msgstr "Previsto para"
 
@@ -16208,7 +16205,7 @@ msgstr "Você não tem permissão para editar este item de mídia."
 msgid "You don’t have permission to move this file."
 msgstr "Você não tem permissão para mover este arquivo."
 
-#: packages/admin/src/routes/calendar.tsx:267
+#: packages/admin/src/routes/calendar.tsx:277
 msgid "You don't have permission to view the calendar."
 msgstr "Você não tem permissão para ver o calendário."
 
@@ -16228,7 +16225,7 @@ msgstr "Você precisa de permissões de Admin para gerenciar o índice de uso da
 msgid "You need Admin permissions to transfer this site."
 msgstr "Você precisa de permissões de Admin para transferir este site."
 
-#: packages/admin/src/router.tsx:2491
+#: packages/admin/src/router.tsx:2492
 msgid "You need Editor permissions to moderate comments."
 msgstr "Você precisa de permissões de Editor para moderar comentários."
 
@@ -16369,11 +16366,11 @@ msgstr "Seu nome (opcional)"
 msgid "Your Role"
 msgstr "Sua função"
 
-#: packages/admin/src/router.tsx:2046
+#: packages/admin/src/router.tsx:2047
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2047
+#: packages/admin/src/router.tsx:2048
 msgid "Your role can't edit this entry."
 msgstr ""
 
@@ -16390,8 +16387,8 @@ msgstr "Seu site está atualmente em {currentUrl}."
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr "Seu site exige que as versões tenham pelo menos {0} antes de poderem ser instaladas. Esta versão poderá ser instalada mais tarde."
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:284
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:315
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:268
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:358
 msgid "Your time: {viewerTime}"
 msgstr "Seu horário: {viewerTime}"
 

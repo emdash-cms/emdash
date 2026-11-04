@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# коментар імпортовано} few {# коментарі імпортовано} many {# коментарів імпортовано} other {# коментарів імпортовано}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2468
+#: packages/admin/src/router.tsx:2469
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# коментар оновлено} few {# коментарі оновлено} many {# коментарів оновлено} other {# коментарів оновлено}}"
 
@@ -237,7 +237,7 @@ msgid "{0, plural, one {# content item imported} other {# content items imported
 msgstr "{0, plural, one {# елемент вмісту імпортовано} few {# елементи вмісту імпортовано} many {# елементів вмісту імпортовано} other {# елементів вмісту імпортовано}}"
 
 #. placeholder {0}: states.length
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:455
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:409
 msgid "{0, plural, one {# entry} other {# entries}}"
 msgstr "{0, plural, one {# запис} few {# записи} many {# записів} other {# запису}}"
 
@@ -553,17 +553,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "Кроки: {0} з {1} · {2} з {3}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:754
+#: packages/admin/src/router.tsx:755
 msgid "{0} of {total} could not be deleted"
 msgstr "{0} з {total} не вдалося видалити"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:710
+#: packages/admin/src/router.tsx:711
 msgid "{0} of {total} could not be published"
 msgstr "{0} з {total} не вдалося опублікувати"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:733
+#: packages/admin/src/router.tsx:734
 msgid "{0} of {total} could not be updated"
 msgstr "{0} з {total} не вдалося оновити"
 
@@ -668,7 +668,7 @@ msgstr "{count, plural, one {# елемент} few {# елементи} many {# 
 msgid "{current} of {total}"
 msgstr "{current} з {total}"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:468
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:422
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
 
@@ -698,11 +698,11 @@ msgstr "{filesMissing, plural, one {Ще # файл потрібно заван�
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} елемент} few {#{0} елементи} many {#{1} елементів} other {#{1} елементів}}"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:387
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:340
 msgid "{hidden, plural, one {# more entry on {date}} other {# more entries on {date}}}"
 msgstr "{hidden, plural, one {Ще # запис — {date}} few {Ще # записи — {date}} many {Ще # записів — {date}} other {Ще # запису — {date}}}"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:394
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:347
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {Ще #} few {Ще #} many {Ще #} other {Ще #}}"
 
@@ -749,7 +749,7 @@ msgstr "Варіанти: {label}"
 msgid "{label}, {restored}"
 msgstr "{label}, {restored}"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:366
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:344
 msgid "{lateness} late"
 msgstr "Запізнюється на {lateness}"
 
@@ -937,15 +937,19 @@ msgstr "Сайт {siteName} переїхав на {siteHost}"
 msgid "{siteName} is now at {siteHost}. Sign in there from now on."
 msgstr "Сайт {siteName} тепер доступний за адресою {siteHost}. Відтепер входьте за цією адресою."
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:53
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:107
 msgid "{siteZone} · Your time: {viewerZone}"
 msgstr "{siteZone} · Ваш час: {viewerZone}"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:282
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:266
 msgid "{state} · {when}"
 msgstr "{state} · {when}"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:344
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:330
+msgid "{state}, {lateness} late, {time}:"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:330
 msgid "{state}, {time}:"
 msgstr "{state}, {time}:"
 
@@ -953,15 +957,15 @@ msgstr "{state}, {time}:"
 msgid "{subLabel} ({label}, item {position})"
 msgstr "{subLabel} ({label}, елемент {position})"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:194
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
 msgid "{title} is a draft again."
 msgstr "\"{title}\" знову в чернетках."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 msgid "{title} is now live."
 msgstr "\"{title}\" тепер на сайті."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:206
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:249
 msgid "{title} now goes live {when}."
 msgstr "Нова дата публікації \"{title}\": {when}."
 
@@ -1309,7 +1313,7 @@ msgstr "Прийняти запрошення"
 msgid "Access denied"
 msgstr "Доступ заборонено"
 
-#: packages/admin/src/router.tsx:2490
+#: packages/admin/src/router.tsx:2491
 msgid "Access Denied"
 msgstr "Доступ заборонено"
 
@@ -1759,7 +1763,7 @@ msgstr "Після того як ви явно запустите цей пла�
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to: {0}"
 msgstr "Після того як ви явно запустите цей плагін, він зможе надіслати обраний незбережений вміст редактора на: {0}"
 
-#: packages/admin/src/routes/calendar.tsx:308
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:88
 msgid "Agenda"
 msgstr "Список"
 
@@ -1987,19 +1991,19 @@ msgstr "Зашифрований цифровий ключ, який ви роз
 #: packages/admin/src/components/TaxonomySidebar.tsx:694
 #: packages/admin/src/components/TaxonomySidebar.tsx:790
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:664
-#: packages/admin/src/router.tsx:685
-#: packages/admin/src/router.tsx:910
-#: packages/admin/src/router.tsx:1339
-#: packages/admin/src/router.tsx:1462
-#: packages/admin/src/router.tsx:1496
-#: packages/admin/src/router.tsx:1520
-#: packages/admin/src/router.tsx:1604
-#: packages/admin/src/router.tsx:1637
-#: packages/admin/src/router.tsx:2440
-#: packages/admin/src/router.tsx:2476
-#: packages/admin/src/router.tsx:2904
-#: packages/admin/src/router.tsx:3091
+#: packages/admin/src/router.tsx:665
+#: packages/admin/src/router.tsx:686
+#: packages/admin/src/router.tsx:911
+#: packages/admin/src/router.tsx:1340
+#: packages/admin/src/router.tsx:1463
+#: packages/admin/src/router.tsx:1497
+#: packages/admin/src/router.tsx:1521
+#: packages/admin/src/router.tsx:1605
+#: packages/admin/src/router.tsx:1638
+#: packages/admin/src/router.tsx:2441
+#: packages/admin/src/router.tsx:2477
+#: packages/admin/src/router.tsx:2905
+#: packages/admin/src/router.tsx:3092
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "Сталася помилка"
@@ -2350,7 +2354,7 @@ msgstr "Автоматичні резервні копії"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Автоматичні резервні копії потребують сховища (R2, S3 або локальне). Налаштуйте сховище в конфігурації EmDash, щоб увімкнути їх."
 
-#: packages/admin/src/router.tsx:1459
+#: packages/admin/src/router.tsx:1460
 msgid "Autosave failed"
 msgstr "Автозбереження не вдалося"
 
@@ -2676,7 +2680,7 @@ msgid "Byline updated"
 msgstr "Підпис оновлено"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:339
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:382
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1110
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1114
 #: packages/admin/src/components/settings/transfer/labels.ts:19
@@ -2701,7 +2705,7 @@ msgstr "C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:581
 #: packages/admin/src/components/Sidebar.tsx:696
-#: packages/admin/src/routes/calendar.tsx:277
+#: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
 msgstr "Календар"
 
@@ -2990,7 +2994,7 @@ msgstr "Журнал змін"
 msgid "Changes apply everywhere this byline appears."
 msgstr "Зміни застосуються всюди, де використовується цей підпис."
 
-#: packages/admin/src/router.tsx:1537
+#: packages/admin/src/router.tsx:1538
 msgid "Changes discarded"
 msgstr "Зміни скасовано"
 
@@ -3038,7 +3042,7 @@ msgstr "Перевірити сайт"
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
 msgstr "Перегляньте журнали сервера, а потім повторіть невдалі завдання через API відновлення відстеження медіа."
 
-#: packages/admin/src/routes/calendar.tsx:269
+#: packages/admin/src/routes/calendar.tsx:279
 msgid "Check your connection and try again."
 msgstr "Перевірте з'єднання та спробуйте ще раз."
 
@@ -3239,7 +3243,7 @@ msgstr "Прибрати завершені"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:79
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:185
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:103
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:88
 #: packages/admin/src/components/ContentList.tsx:1121
 #: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
@@ -3295,7 +3299,7 @@ msgid "Click this link to sign in to {siteName}:"
 msgstr "Перейдіть за цим посиланням, щоб увійти на сайт {siteName}:"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:274
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:278
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:321
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/ContentPickerModal.tsx:231
@@ -3389,9 +3393,9 @@ msgstr "Колекція \"{0}\" містить записи"
 msgid "Collection “{0}” was created on this site"
 msgstr "Колекцію \"{0}\" створено на цьому сайті"
 
-#: packages/admin/src/router.tsx:775
-#: packages/admin/src/router.tsx:977
-#: packages/admin/src/router.tsx:1964
+#: packages/admin/src/router.tsx:776
+#: packages/admin/src/router.tsx:978
+#: packages/admin/src/router.tsx:1965
 msgid "Collection \"{collection}\" not found"
 msgstr "Колекцію \"{collection}\" не знайдено"
 
@@ -3585,7 +3589,7 @@ msgstr "Помилки вмісту ({0})"
 msgid "Content found:"
 msgstr "Знайдено вмісту:"
 
-#: packages/admin/src/router.tsx:1586
+#: packages/admin/src/router.tsx:1587
 msgid "Content has been scheduled for publishing"
 msgstr "Вміст заплановано до публікації"
 
@@ -3593,7 +3597,7 @@ msgstr "Вміст заплановано до публікації"
 msgid "Content ID:"
 msgstr "ID вмісту:"
 
-#: packages/admin/src/router.tsx:1490
+#: packages/admin/src/router.tsx:1491
 msgid "Content is now live"
 msgstr "Вміст тепер опубліковано"
 
@@ -3618,11 +3622,11 @@ msgstr "Вміст некоректно посилається на медіа"
 msgid "Content refers to media that is not in the package"
 msgstr "Вміст посилається на медіа, яких немає в пакеті"
 
-#: packages/admin/src/router.tsx:1514
+#: packages/admin/src/router.tsx:1515
 msgid "Content removed from public view"
 msgstr "Вміст прибрано з публічного перегляду"
 
-#: packages/admin/src/router.tsx:1597
+#: packages/admin/src/router.tsx:1598
 msgid "Content reverted to draft"
 msgstr "Вміст повернуто до чернетки"
 
@@ -3810,11 +3814,11 @@ msgstr "Не вдалося завантажити зображення з URL"
 msgid "Could not load media."
 msgstr "Не вдалося завантажити медіа."
 
-#: packages/admin/src/routes/calendar.tsx:341
+#: packages/admin/src/routes/calendar.tsx:315
 msgid "Could not load the calendar"
 msgstr "Не вдалося завантажити календар"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:349
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:392
 msgid "Could not load this entry's details."
 msgstr "Не вдалося завантажити відомості про цей запис."
 
@@ -3822,7 +3826,7 @@ msgstr "Не вдалося завантажити відомості про ц�
 msgid "Could not load this folder."
 msgstr "Не вдалося завантажити цю папку."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:183
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 msgid "Could not publish"
 msgstr "Не вдалося опублікувати"
 
@@ -3830,7 +3834,7 @@ msgstr "Не вдалося опублікувати"
 msgid "Could not reach {origin}"
 msgstr "Не вдалося з'єднатися з {origin}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:198
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:241
 msgid "Could not remove the schedule"
 msgstr "Не вдалося скасувати планування"
 
@@ -4165,7 +4169,7 @@ msgid "Created {0}"
 msgstr "Створено {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1629
+#: packages/admin/src/router.tsx:1630
 msgid "Created {0} translation"
 msgstr "Створено переклад {0}"
 
@@ -5019,7 +5023,7 @@ msgstr "Завантаження пакета"
 msgid "visualEditing.draft"
 msgstr "Чернетка"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:413
 #: packages/admin/src/components/ContentList.tsx:1017
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
@@ -5788,7 +5792,7 @@ msgstr "запис зі сторони, що посилається"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3366
+#: packages/admin/src/router.tsx:3367
 msgid "Error"
 msgstr "Помилка"
 
@@ -6128,7 +6132,7 @@ msgid "Failed to create term translation"
 msgstr "Не вдалося створити переклад терміна"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:789
-#: packages/admin/src/router.tsx:1634
+#: packages/admin/src/router.tsx:1635
 msgid "Failed to create translation"
 msgstr "Не вдалося створити переклад"
 
@@ -6140,7 +6144,7 @@ msgstr "Не вдалося створити віджет"
 msgid "Failed to create widget area"
 msgstr "Не вдалося створити область віджетів"
 
-#: packages/admin/src/router.tsx:753
+#: packages/admin/src/router.tsx:754
 msgid "Failed to delete"
 msgstr "Не вдалося видалити"
 
@@ -6262,7 +6266,7 @@ msgstr "Не вдалося закрити привітання"
 msgid "Failed to download a package file"
 msgstr "Не вдалося завантажити файл пакета із сайту"
 
-#: packages/admin/src/router.tsx:684
+#: packages/admin/src/router.tsx:685
 msgid "Failed to duplicate"
 msgstr "Не вдалося дублювати"
 
@@ -6524,7 +6528,7 @@ msgstr "Не вдалося отримати стан оновлень"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2386
+#: packages/admin/src/router.tsx:2387
 msgid "Failed to fetch user"
 msgstr "Не вдалося отримати користувача"
 
@@ -6713,7 +6717,7 @@ msgid "Failed to lock the entry"
 msgstr "Не вдалося заблокувати запис"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2475
+#: packages/admin/src/router.tsx:2476
 msgid "Failed to perform bulk action"
 msgstr "Не вдалося виконати масову дію"
 
@@ -6730,8 +6734,8 @@ msgstr "Не вдалося підготувати імпорт"
 msgid "Failed to probe URL"
 msgstr "Не вдалося перевірити URL"
 
-#: packages/admin/src/router.tsx:709
-#: packages/admin/src/router.tsx:1495
+#: packages/admin/src/router.tsx:710
+#: packages/admin/src/router.tsx:1496
 msgid "Failed to publish"
 msgstr "Не вдалося опублікувати"
 
@@ -6743,7 +6747,7 @@ msgstr "Не вдалося опублікувати вміст"
 msgid "Failed to read byline field usage"
 msgstr "Не вдалося прочитати використання поля підпису"
 
-#: packages/admin/src/router.tsx:2903
+#: packages/admin/src/router.tsx:2904
 msgid "Failed to register {slug}"
 msgstr "Не вдалося зареєструвати таблицю {slug}"
 
@@ -6798,7 +6802,7 @@ msgstr "Не вдалося змінити порядок віджетів"
 msgid "Failed to replace media image"
 msgstr "Не вдалося замінити зображення в медіатеці"
 
-#: packages/admin/src/router.tsx:663
+#: packages/admin/src/router.tsx:664
 msgid "Failed to restore"
 msgstr "Не вдалося відновити"
 
@@ -6820,9 +6824,9 @@ msgstr "Не вдалося відкликати API-токен"
 msgid "Failed to rewrite URLs"
 msgstr "Не вдалося переписати URL"
 
-#: packages/admin/src/router.tsx:905
-#: packages/admin/src/router.tsx:1336
-#: packages/admin/src/router.tsx:3090
+#: packages/admin/src/router.tsx:906
+#: packages/admin/src/router.tsx:1337
+#: packages/admin/src/router.tsx:3091
 msgid "Failed to save"
 msgstr "Не вдалося зберегти"
 
@@ -6877,7 +6881,7 @@ msgstr "Не вдалося запустити імпорт"
 msgid "Failed to uninstall plugin"
 msgstr "Не вдалося видалити плагін"
 
-#: packages/admin/src/router.tsx:1519
+#: packages/admin/src/router.tsx:1520
 msgid "Failed to unpublish"
 msgstr "Не вдалося зняти з публікації"
 
@@ -6885,7 +6889,7 @@ msgstr "Не вдалося зняти з публікації"
 msgid "Failed to unpublish content"
 msgstr "Не вдалося зняти вміст з публікації"
 
-#: packages/admin/src/router.tsx:1603
+#: packages/admin/src/router.tsx:1604
 msgid "Failed to unschedule"
 msgstr "Не вдалося скасувати планування"
 
@@ -6893,7 +6897,7 @@ msgstr "Не вдалося скасувати планування"
 msgid "Failed to unschedule content"
 msgstr "Не вдалося скасувати заплановану публікацію вмісту"
 
-#: packages/admin/src/router.tsx:732
+#: packages/admin/src/router.tsx:733
 msgid "Failed to update"
 msgstr "Не вдалося оновити"
 
@@ -6984,7 +6988,7 @@ msgstr "Не вдалося оновити секцію"
 msgid "Failed to update settings"
 msgstr "Не вдалося оновити налаштування"
 
-#: packages/admin/src/router.tsx:2439
+#: packages/admin/src/router.tsx:2440
 msgid "Failed to update status"
 msgstr "Не вдалося оновити статус"
 
@@ -7241,7 +7245,7 @@ msgstr "Папка"
 msgid "Folder deleted"
 msgstr "Папку видалено"
 
-#: packages/admin/src/router.tsx:2109
+#: packages/admin/src/router.tsx:2110
 msgid "Folder no longer exists"
 msgstr "Папки більше не існує"
 
@@ -7387,12 +7391,12 @@ msgstr "Go"
 msgid "Go back to editing first."
 msgstr "Спершу поверніться до редагування."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:436
 msgid "Go live {countdown}"
 msgstr "Буде опубліковано {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3386
+#: packages/admin/src/router.tsx:3387
 msgid "Go to Dashboard"
 msgstr "Перейти до панелі"
 
@@ -7400,11 +7404,11 @@ msgstr "Перейти до панелі"
 msgid "Go to sign-in"
 msgstr "Перейти до входу"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:308
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:351
 msgid "Goes live"
 msgstr "Буде опубліковано"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:375
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:418
 msgid "Goes live {countdown}"
 msgstr "Буде опубліковано {countdown}"
 
@@ -8365,7 +8369,7 @@ msgstr "Мова"
 msgid "Large section heading"
 msgstr "Великий заголовок розділу"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:343
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
 msgid "Last edited"
 msgstr "Востаннє змінено"
 
@@ -8562,7 +8566,7 @@ msgstr "Вкажіть кожен варіант лише один раз."
 msgid "List view"
 msgstr "Список"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:429
 #: packages/admin/src/components/ContentSettingsPanel.tsx:188
 #: packages/admin/src/components/ContentSettingsPanel.tsx:198
 #: packages/admin/src/components/ContentSettingsPanel.tsx:224
@@ -8603,8 +8607,8 @@ msgstr "Завантажити ще папки"
 msgid "Load preview"
 msgstr "Завантажити попередній перегляд"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3341
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
+#: packages/admin/src/router.tsx:3342
 msgid "Loading"
 msgstr "Завантаження"
 
@@ -8633,8 +8637,8 @@ msgstr "Завантаження колекцій..."
 msgid "Loading comments..."
 msgstr "Завантаження коментарів..."
 
-#: packages/admin/src/router.tsx:3343
-#: packages/admin/src/router.tsx:3355
+#: packages/admin/src/router.tsx:3344
+#: packages/admin/src/router.tsx:3356
 msgid "Loading configuration..."
 msgstr "Завантаження конфігурації..."
 
@@ -8778,7 +8782,7 @@ msgstr "Завантаження…"
 msgid "Local time"
 msgstr "Місцевий час"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:320
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:363
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
 #: packages/admin/src/components/ContentList.tsx:506
 #: packages/admin/src/components/ContentList.tsx:762
@@ -8939,11 +8943,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Маркетплейс"
 
-#: packages/admin/src/router.tsx:2740
+#: packages/admin/src/router.tsx:2741
 msgid "Marketplace browsing is no longer available."
 msgstr "Перегляд маркетплейсу більше недоступний."
 
-#: packages/admin/src/router.tsx:2715
+#: packages/admin/src/router.tsx:2716
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Перегляд маркетплейсу більше недоступний. Керуйте встановленими плагінами в розділі Плагіни."
 
@@ -9230,7 +9234,7 @@ msgstr "Сигнали модерації"
 msgid "Modify collection schemas"
 msgstr "Змінювати схеми колекцій"
 
-#: packages/admin/src/routes/calendar.tsx:294
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:74
 msgid "Month"
 msgstr "Місяць"
 
@@ -9366,11 +9370,11 @@ msgstr "Переміщено \"{snippet}\""
 msgid "Moved {filename} to position {0}."
 msgstr "Файл {filename} переміщено на позицію {0}."
 
-#: packages/admin/src/router.tsx:729
+#: packages/admin/src/router.tsx:730
 msgid "Moved {total} items to draft"
 msgstr "Переміщено в чернетки елементів: {total}"
 
-#: packages/admin/src/router.tsx:750
+#: packages/admin/src/router.tsx:751
 msgid "Moved {total} items to trash"
 msgstr "Переміщено в кошик елементів: {total}"
 
@@ -9521,7 +9525,7 @@ msgstr "Потребує уваги"
 msgid "Never"
 msgstr "Ніколи"
 
-#: packages/admin/src/router.tsx:1629
+#: packages/admin/src/router.tsx:1630
 msgid "new"
 msgstr "новий"
 
@@ -9632,7 +9636,7 @@ msgstr "Новини"
 msgid "Next"
 msgstr "Далі"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:77
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:131
 msgid "Next month"
 msgstr "Наступний місяць"
 
@@ -9806,7 +9810,7 @@ msgid "No EmDash users found"
 msgstr "Користувачів EmDash не знайдено"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:66
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:100
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:85
 msgid "No entries match these filters"
 msgstr "Жоден запис не відповідає цим фільтрам"
 
@@ -9884,7 +9888,7 @@ msgid "No linked user"
 msgstr "Немає пов'язаного користувача"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:63
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:100
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:85
 msgid "No loaded entries match these filters"
 msgstr "Жоден із завантажених записів не відповідає цим фільтрам"
 
@@ -10107,7 +10111,7 @@ msgstr "Немає (верхній рівень)"
 msgid "Not compatible with this environment"
 msgstr "Несумісний з цим середовищем"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:277
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:298
 msgid "Not loaded"
 msgstr "Не завантажено"
 
@@ -10129,7 +10133,7 @@ msgstr "Не вказано"
 msgid "Nothing else is scheduled this month."
 msgstr "Цього місяця більше нічого не заплановано."
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:600
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:554
 msgid "Nothing on this day."
 msgstr "Цього дня нічого немає."
 
@@ -10147,7 +10151,7 @@ msgid "Nothing to preview yet."
 msgstr "Поки що немає чого показати."
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:104
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:419
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:385
 msgid "Now · {time}"
 msgstr "Зараз · {time}"
 
@@ -10258,7 +10262,7 @@ msgstr "Відкрити папку {0}"
 msgid "visualEditing.openInAdmin"
 msgstr "Відкрити в адмін-панелі"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:482
 msgid "Open in editor"
 msgstr "Відкрити в редакторі"
 
@@ -10408,7 +10412,7 @@ msgstr "Підсумковий розмір"
 msgid "Overdue"
 msgstr "Прострочено"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:160
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:154
 msgid "Overdue · {lateness}"
 msgstr "Прострочено · {lateness}"
 
@@ -10435,7 +10439,7 @@ msgstr "Контрольна сума пакета"
 msgid "Package downloaded"
 msgstr "Пакет завантажено"
 
-#: packages/admin/src/router.tsx:3381
+#: packages/admin/src/router.tsx:3382
 msgid "Page Not Found"
 msgstr "Сторінку не знайдено"
 
@@ -10794,8 +10798,8 @@ msgstr "Реєстр плагінів"
 msgid "Plugin registry configuration error"
 msgstr "Помилка конфігурації реєстру плагінів"
 
-#: packages/admin/src/router.tsx:2675
-#: packages/admin/src/router.tsx:2706
+#: packages/admin/src/router.tsx:2676
+#: packages/admin/src/router.tsx:2707
 msgid "Plugin registry is not configured."
 msgstr "Реєстр плагінів не налаштовано."
 
@@ -10908,7 +10912,7 @@ msgstr "Натисніть Escape, щоб вийти з редактора ко�
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr "Натисніть пробіл, щоб взяти зображення. Переміщуйте його клавішами зі стрілками, а потім натисніть пробіл, щоб відпустити."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:491
 #: packages/admin/src/components/ContentSettingsPanel.tsx:415
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
@@ -10918,7 +10922,7 @@ msgstr "Натисніть пробіл, щоб взяти зображення.
 msgid "Preview"
 msgstr "Попередній перегляд"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:491
 msgid "Preview changes"
 msgstr "Переглянути зміни"
 
@@ -10943,7 +10947,7 @@ msgstr "Для цього формату попередній перегляд �
 msgid "Previous"
 msgstr "Попередній"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:64
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:118
 msgid "Previous month"
 msgstr "Попередній місяць"
 
@@ -11039,7 +11043,7 @@ msgstr "Опублікувати зміни?"
 msgid "visualEditing.publishFailed"
 msgstr "Не вдалося опублікувати. Перевірте свої права доступу та спробуйте ще раз."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:408
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:451
 #: packages/admin/src/components/ContentSettingsPanel.tsx:494
 msgid "Publish now"
 msgstr "Опублікувати зараз"
@@ -11052,21 +11056,21 @@ msgstr "Опублікувати зараз?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Публікувати вміст, знімати його з публікації, планувати публікацію та скасовувати її"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "Опубліковано"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1490
+#: packages/admin/src/router.tsx:1491
 msgid "Published"
-msgstr "Опубліковано"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "Опубліковано"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11074,17 +11078,13 @@ msgstr "Опубліковано"
 msgid "Published {0}"
 msgstr "Опубліковано {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:387
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:430
 msgid "Published {liveSince}"
 msgstr "Опубліковано {liveSince}"
 
-#: packages/admin/src/router.tsx:706
+#: packages/admin/src/router.tsx:707
 msgid "Published {total} items"
 msgstr "Опубліковано елементів: {total}"
-
-#: packages/admin/src/routes/calendar.tsx:278
-msgid "Published and scheduled entries across collections, in the site's time zone."
-msgstr "Опубліковані та заплановані записи з усіх колекцій у часовому поясі сайту."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:159
 msgid "Published At"
@@ -11110,7 +11110,7 @@ msgstr "Не вдалося перевірити псевдонім видавц
 msgid "Publisher release policy"
 msgstr "Політика випусків видавця"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:355
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:398
 msgid "Publishing"
 msgstr "Публікація"
 
@@ -11222,7 +11222,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Читати ваші таксономії та терміни"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2041
+#: packages/admin/src/router.tsx:2042
 msgid "Read-only"
 msgstr "Лише для читання"
 
@@ -11529,7 +11529,7 @@ msgstr "Видалити ключ доступу"
 msgid "Remove passkey?"
 msgstr "Видалити ключ доступу?"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:425
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:468
 #: packages/admin/src/components/ContentSettingsPanel.tsx:623
 msgid "Remove schedule"
 msgstr "Скасувати планування"
@@ -11809,11 +11809,11 @@ msgstr "Обов'язково для доступності. Описує зоб
 msgid "Requires EmDash {0}"
 msgstr "Потребує EmDash {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:460
 msgid "Reschedule"
 msgstr "Перепланувати"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:206
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:249
 msgid "Rescheduled"
 msgstr "Час публікації змінено"
 
@@ -11948,9 +11948,9 @@ msgstr "Виведено з ужитку"
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3369
+#: packages/admin/src/router.tsx:3370
 #: packages/admin/src/routes/byline-schema.tsx:264
-#: packages/admin/src/routes/calendar.tsx:345
+#: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
 msgstr "Повторити"
 
@@ -11999,7 +11999,7 @@ msgstr "Повторна спроба…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Багаторазові блоки вмісту, які можна вставляти в будь-який вміст"
 
-#: packages/admin/src/router.tsx:1538
+#: packages/admin/src/router.tsx:1539
 msgid "Reverted to published version"
 msgstr "Повернуто до опублікованої версії"
 
@@ -12349,19 +12349,19 @@ msgstr "Запланована дата"
 msgid "Schedule publication"
 msgstr "Запланувати публікацію"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:190
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:233
 msgid "Schedule removed"
 msgstr "Планування скасовано"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1585
+#: packages/admin/src/router.tsx:1586
 msgid "Scheduled"
 msgstr "Заплановано"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:392
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:435
 msgid "Scheduled changes"
 msgstr "Заплановані зміни"
 
@@ -12967,16 +12967,13 @@ msgstr "SEO"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:27
 #: packages/admin/src/components/settings/transfer/labels.ts:87
+#: packages/admin/src/components/WordPressImport.tsx:1900
 msgid "SEO settings"
 msgstr "Налаштування SEO"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
 msgid "SEO Settings"
 msgstr "SEO-налаштування"
-
-#: packages/admin/src/components/WordPressImport.tsx:1900
-msgid "SEO settings (Yoast)"
-msgstr "SEO-налаштування (Yoast)"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 msgid "SEO settings saved"
@@ -13570,7 +13567,7 @@ msgstr "Запуск"
 msgid "Starting…"
 msgstr "Запуск…"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:294
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:337
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
 msgstr "Стан"
@@ -13907,11 +13904,11 @@ msgstr "Зазвичай браузер показує QR-код."
 msgid "The build provenance matches this release and its package."
 msgstr "Походження збірки відповідає цьому випуску та його пакету."
 
-#: packages/admin/src/routes/calendar.tsx:356
+#: packages/admin/src/routes/calendar.tsx:330
 msgid "The calendar shows the first {maxEntries}, which end on {cutOffDay}."
 msgstr "Календар показує лише перші {maxEntries} — до {cutOffDay}."
 
-#: packages/admin/src/routes/calendar.tsx:357
+#: packages/admin/src/routes/calendar.tsx:331
 msgid "The calendar shows the first {maxEntries}."
 msgstr "Календар показує лише перші {maxEntries}."
 
@@ -14146,7 +14143,7 @@ msgstr "Вміст пакета буде записано на цей сайт. 
 msgid "The package’s file index is not valid."
 msgstr "Перелік файлів пакета недійсний."
 
-#: packages/admin/src/router.tsx:3383
+#: packages/admin/src/router.tsx:3384
 msgid "The page you're looking for doesn't exist."
 msgstr "Сторінку, яку ви шукаєте, не знайдено."
 
@@ -14209,7 +14206,7 @@ msgstr "Уже доданий демонстраційний вміст збер
 msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
 msgstr "Збережений ID медіафайлу може не спрацювати, коли посиланням діляться. Збережіть URL зображення, щоб використовувати цей файл для поширення."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:193
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:236
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "Заплановані зміни до запису \"{title}\" залишаться в чернетці."
 
@@ -14365,7 +14362,7 @@ msgstr "Цей вміст неможливо безпечно редагуват
 msgid "This content will be visible on the site immediately."
 msgstr "Цей вміст одразу з'явиться на сайті."
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:599
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:553
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "Цей день не завантажено. У цьому діапазоні більше записів, ніж може показати календар."
 
@@ -14386,15 +14383,15 @@ msgid "This entry changed somewhere else after you opened it."
 msgstr "Цей запис змінили в іншому місці після того, як ви його відкрили."
 
 #: packages/admin/src/components/ContentEditor.tsx:1485
-#: packages/admin/src/router.tsx:1140
+#: packages/admin/src/router.tsx:1141
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Цей запис змінили в іншому місці. Усе одно збережіть або перезавантажте сторінку, щоб отримати новішу версію."
 
-#: packages/admin/src/router.tsx:1976
+#: packages/admin/src/router.tsx:1977
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "Цього запису не існує або його не опубліковано. Ваша роль дозволяє переглядати лише опублікований вміст."
 
-#: packages/admin/src/router.tsx:1977
+#: packages/admin/src/router.tsx:1978
 msgid "This entry doesn't exist or was deleted."
 msgstr "Цього запису не існує або його видалено."
 
@@ -14410,7 +14407,7 @@ msgstr "Цей запис відкрито в іншому місці"
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "Цей запис доступний лише для читання: його схема використовує типи полів, які ця версія EmDash не підтримує."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:363
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:406
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "Цей запис мав бути опублікований {lateness}, але його досі не опубліковано. Можливо, планувальник публікацій не працює."
 
@@ -14601,7 +14598,7 @@ msgstr "Ідентичність цього видавця більше не п�
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr "Псевдонім цього видавця не відповідає його ідентичності. Встановлення вимкнено, доки видавець не виправить свій псевдонім."
 
-#: packages/admin/src/routes/calendar.tsx:353
+#: packages/admin/src/routes/calendar.tsx:327
 msgid "This range has more than {maxEntries} entries"
 msgstr "Записів за цей період понад {maxEntries}"
 
@@ -14762,11 +14759,11 @@ msgstr "Думки, навчальні матеріали та інше"
 msgid "Time"
 msgstr "Час"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:41
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:53
 msgid "Times are in {zoneName}."
 msgstr "Час указано {zoneName}."
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:40
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:52
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "Час указано {zoneName}. Ваш браузер працює {viewerZoneName}."
 
@@ -14805,8 +14802,8 @@ msgid "to select"
 msgstr "щоб вибрати"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:188
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:570
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:71
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:524
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:125
 #: packages/admin/src/components/revisions/revision-format.ts:107
 msgid "Today"
 msgstr "Сьогодні"
@@ -14896,7 +14893,7 @@ msgstr "Переклад..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:785
-#: packages/admin/src/router.tsx:1628
+#: packages/admin/src/router.tsx:1629
 msgid "Translation created"
 msgstr "Переклад створено"
 
@@ -14905,7 +14902,7 @@ msgstr "Переклад створено"
 msgid "Translations"
 msgstr "Переклади"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:327
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
 msgid "Translations:"
 msgstr "Переклади:"
 
@@ -15177,7 +15174,7 @@ msgstr "Користувач без імені"
 msgid "Unpublish {itemLabel}"
 msgstr "Зняти з публікації: {itemLabel}"
 
-#: packages/admin/src/router.tsx:1514
+#: packages/admin/src/router.tsx:1515
 msgid "Unpublished"
 msgstr "Знято з публікації"
 
@@ -15203,7 +15200,7 @@ msgstr "Не збережено"
 msgid "Unsaved content may leave your site"
 msgstr "Незбережений вміст може потрапити за межі вашого сайту"
 
-#: packages/admin/src/router.tsx:1596
+#: packages/admin/src/router.tsx:1597
 msgid "Unscheduled"
 msgstr "Планування скасовано"
 
@@ -15771,7 +15768,7 @@ msgstr "Не вдалося завантажити відео. Спробуйт�
 msgid "View email provider status and send test emails"
 msgstr "Статус поштового провайдера та тестові листи"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:458
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:501
 msgid "View live"
 msgstr "Переглянути на сайті"
 
@@ -15847,7 +15844,7 @@ msgstr "Попередження"
 msgid "Warnings"
 msgstr "Попередження"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:307
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:350
 msgid "Was due"
 msgstr "Мало бути опубліковано"
 
@@ -16208,7 +16205,7 @@ msgstr "У вас немає дозволу редагувати цей меді
 msgid "You don’t have permission to move this file."
 msgstr "У вас немає дозволу переміщувати цей файл."
 
-#: packages/admin/src/routes/calendar.tsx:267
+#: packages/admin/src/routes/calendar.tsx:277
 msgid "You don't have permission to view the calendar."
 msgstr "У вас немає прав на перегляд календаря."
 
@@ -16228,7 +16225,7 @@ msgstr "Для керування відстеженням використан�
 msgid "You need Admin permissions to transfer this site."
 msgstr "Для перенесення цього сайту потрібні права адміністратора."
 
-#: packages/admin/src/router.tsx:2491
+#: packages/admin/src/router.tsx:2492
 msgid "You need Editor permissions to moderate comments."
 msgstr "Для модерації коментарів потрібні права редактора."
 
@@ -16369,11 +16366,11 @@ msgstr "Ваше ім’я (необов’язково)"
 msgid "Your Role"
 msgstr "Ваша роль"
 
-#: packages/admin/src/router.tsx:2046
+#: packages/admin/src/router.tsx:2047
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr "Ваша роль дозволяє редагувати власні записи, лише поки вони є чернетками."
 
-#: packages/admin/src/router.tsx:2047
+#: packages/admin/src/router.tsx:2048
 msgid "Your role can't edit this entry."
 msgstr "Ваша роль не дозволяє редагувати цей запис."
 
@@ -16390,8 +16387,8 @@ msgstr "Зараз ваш сайт доступний за адресою {curre
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr "На вашому сайті випуски можна встановлювати лише після {0} з моменту публікації. Цей випуск стане доступним для встановлення пізніше."
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:284
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:315
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:268
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:358
 msgid "Your time: {viewerTime}"
 msgstr "Ваш час: {viewerTime}"
 
