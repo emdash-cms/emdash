@@ -40,6 +40,7 @@ import {
 	type CalendarState,
 } from "../../lib/calendar.js";
 import { canPublishEntry } from "../../lib/content-permissions.js";
+import { openPreviewWindow } from "../../lib/preview-window.js";
 import { contentUrl } from "../../lib/url.js";
 import { cn } from "../../lib/utils.js";
 import { getLocaleLabel } from "../../locales/index.js";
@@ -266,7 +267,7 @@ function CalendarEntryPanelContent({
 					date: entry?.publishedAt,
 				},
 			);
-			window.open(result?.url ?? fallback, "_blank", "noopener,noreferrer");
+			openPreviewWindow(result?.url ?? fallback, item.collection, item.id);
 		} finally {
 			setPreviewing(false);
 		}

@@ -2229,6 +2229,25 @@ describe("ContentEditor", () => {
 			await expect.element(previewBtn).toBeInTheDocument();
 		});
 
+		it("Preview opens the entry's own tab, so a second click reuses it", async () => {
+			const open = vi.spyOn(window, "open").mockReturnValue(null);
+			try {
+				const item = makeItem({ status: "draft" });
+				const screen = await renderEditor({ isNew: false, item, supportsPreview: true });
+				const previewBtn = screen.getByRole("button", { name: "Preview" });
+				await previewBtn.click();
+				await vi.waitFor(() => expect(open).toHaveBeenCalledOnce());
+				await previewBtn.click();
+				await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(2));
+				const [first, second] = open.mock.calls;
+				expect(first![0]).toBe("https://example.com/preview");
+				expect(first![1]).not.toBe("_blank");
+				expect(second![1]).toBe(first![1]);
+			} finally {
+				open.mockRestore();
+			}
+		});
+
 		it("keeps one publish action reachable below lg", async () => {
 			const media = installMatchMedia(true);
 			try {
