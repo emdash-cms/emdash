@@ -3946,6 +3946,7 @@ export class EmDashRuntime {
 		const saveHookDetails = {
 			locale,
 			...(body.translationOf ? { translationOf: body.translationOf } : {}),
+			...(actor ? { editedBy: [actor.id] } : {}),
 		};
 
 		const collectionInfo = await this.schemaRegistry
@@ -4137,6 +4138,9 @@ export class EmDashRuntime {
 		} = body;
 		const editedBy = passedEditors?.length ? [...new Set(passedEditors)] : undefined;
 		const blockWriteOptions = { migrateBlocks, replaceBlocks };
+		const saveHookEditors: ContentSaveHookDetails = {
+			editedBy: editedBy ?? (actor ? [actor.id] : undefined),
+		};
 
 		// Loaded once and threaded through normalization, the stale-key drop and the draft
 		// merge below: each of those needs the field list and the registry does not cache.
@@ -4187,7 +4191,9 @@ export class EmDashRuntime {
 						false,
 						resolvedItem?.id,
 						actor,
-						resolvedItem?.locale ? { locale: resolvedItem.locale } : {},
+						resolvedItem?.locale
+							? { ...saveHookEditors, locale: resolvedItem.locale }
+							: saveHookEditors,
 					);
 					processedData = hookResult.content;
 				} catch (error) {
@@ -4537,7 +4543,7 @@ export class EmDashRuntime {
 				false,
 				actor,
 				undefined,
-				savedLocale ? { locale: savedLocale } : {},
+				savedLocale ? { ...saveHookEditors, locale: savedLocale } : saveHookEditors,
 			);
 		}
 
