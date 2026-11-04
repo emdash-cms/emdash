@@ -477,7 +477,7 @@ msgid "{0} detected"
 msgstr "זוהו {0}"
 
 #. placeholder {0}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:627
+#: packages/admin/src/components/TaxonomySidebar.tsx:629
 msgid "{0} fallback"
 msgstr "חלופה עבור {0}"
 
@@ -592,7 +592,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr "{0} מערכת + {1} מותאמים אישית {2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:687
+#: packages/admin/src/components/TaxonomySidebar.tsx:689
 msgid "{0} updated"
 msgstr "{0} עודכנו"
 
@@ -639,12 +639,12 @@ msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
 msgstr "{columns, plural, one {עמודה נמחקה} two {שתי עמודות נמחקו} other {# עמודות נמחקו}}"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "{completedCount} of {0} complete"
 msgstr "הושלמו {completedCount} מתוך {0}"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:196
+#: packages/admin/src/components/MediaUploadDialog.tsx:199
 msgid "{completedCount} of {0} uploads complete"
 msgstr "הושלמו {completedCount} מתוך {0} העלאות"
 
@@ -685,7 +685,7 @@ msgstr "{earlierCount, plural, one {הצגת פריט מוקדם אחד} two {ה
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr "{failed, plural, one {לא ניתן היה לשלוח אימייל אחד. בדקו את ספק האימייל.} two {לא ניתן היה לשלוח שני אימיילים. בדקו את ספק האימייל.} other {לא ניתן היה לשלוח # אימיילים. בדקו את ספק האימייל.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:198
+#: packages/admin/src/components/MediaUploadDialog.tsx:201
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{failedCount, plural, one {העלאה אחת נכשלה} two {שתי העלאות נכשלו} other {# העלאות נכשלו}}"
 
@@ -742,7 +742,7 @@ msgstr "{label} הועבר למיקום {0} מתוך {1}."
 msgid "{label} moved to position {0}."
 msgstr "{label} הועבר למיקום {0}."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:535
+#: packages/admin/src/components/TaxonomySidebar.tsx:537
 msgid "{label} options"
 msgstr "אפשרויות {label}"
 
@@ -850,7 +850,7 @@ msgstr "{overdueCount, plural, one {פריט מתוזמן אחד באיחור ו
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {פריט מתוזמן אחד באיחור, אך אף הרצת מתזמן לא הושלמה. הריצו `npx emdash doctor` וודאו את Cron Trigger שנפרס.} two {שני פריטים מתוזמנים באיחור, אך אף הרצת מתזמן לא הושלמה. הריצו `npx emdash doctor` וודאו את Cron Trigger שנפרס.} other {# פריטים מתוזמנים באיחור, אך אף הרצת מתזמן לא הושלמה. הריצו `npx emdash doctor` וודאו את Cron Trigger שנפרס.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:287
+#: packages/admin/src/components/MediaUploadDialog.tsx:290
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr "{overflowCount, plural, one {קובץ אחד לא נוסף כי רשימת ההעלאות מלאה.} two {שני קבצים לא נוספו כי רשימת ההעלאות מלאה.} other {# קבצים לא נוספו כי רשימת ההעלאות מלאה.}}"
 
@@ -876,7 +876,7 @@ msgstr "{plural} מתפרסמים מיד; עריכות בטיוטה נשארות
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr "{policyRejected, plural, one {פתחו את הפריט המושפע, טפלו בסיבת המדיניות ותזמנו אותו שוב. תזמון או פרסום מוצלחים מסירים הודעה זו.} two {פתחו את הפריטים המושפעים, טפלו בסיבות המדיניות ותזמנו אותם שוב. תזמון או פרסום מוצלחים מסירים כל הודעה.} other {פתחו את הפריטים המושפעים, טפלו בסיבות המדיניות ותזמנו אותם שוב. תזמון או פרסום מוצלחים מסירים כל הודעה.}}"
 
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:303
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
 msgstr "{position} מתוך {total}"
 
@@ -1247,17 +1247,17 @@ msgstr ""
 #: packages/admin/src/components/BylineFieldEditor.tsx:128
 #: packages/admin/src/components/BylineFieldEditor.tsx:372
 #: packages/admin/src/components/ContentTypeEditor.tsx:239
-#: packages/admin/src/components/FieldEditor.tsx:420
-#: packages/admin/src/components/FieldEditor.tsx:1152
+#: packages/admin/src/components/FieldEditor.tsx:439
+#: packages/admin/src/components/FieldEditor.tsx:1178
 msgid "A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:464
-#: packages/admin/src/components/FieldEditor.tsx:1652
+#: packages/admin/src/components/FieldEditor.tsx:483
+#: packages/admin/src/components/FieldEditor.tsx:1679
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:769
+#: packages/admin/src/components/TaxonomySidebar.tsx:771
 msgid "A source and target locale are required"
 msgstr "נדרשות שפת מקור ושפת יעד"
 
@@ -1393,7 +1393,7 @@ msgstr "פעיל"
 #. placeholder {0}: blockType.currentVersion
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlockTypeList.tsx:81
-#: packages/admin/src/components/FieldEditor.tsx:1506
+#: packages/admin/src/components/FieldEditor.tsx:1532
 msgid "Active v{0}"
 msgstr "פעילה v{0}"
 
@@ -1452,12 +1452,12 @@ msgid "Add at least {minItems} blocks."
 msgstr "הוסיפו לפחות {minItems} בלוקים."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:138
-#: packages/admin/src/components/FieldEditor.tsx:449
+#: packages/admin/src/components/FieldEditor.tsx:387
 msgid "Add at least one option."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:455
-#: packages/admin/src/components/FieldEditor.tsx:1590
+#: packages/admin/src/components/FieldEditor.tsx:474
+#: packages/admin/src/components/FieldEditor.tsx:1617
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "הוסיפו לפחות שדה משנה אחד כדי להגדיר את מבנה הרשימה החוזרת."
 
@@ -1505,8 +1505,8 @@ msgid "Add Domain"
 msgstr "הוספת דומיין"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:780
-#: packages/admin/src/components/FieldEditor.tsx:982
-#: packages/admin/src/components/FieldEditor.tsx:1783
+#: packages/admin/src/components/FieldEditor.tsx:1008
+#: packages/admin/src/components/FieldEditor.tsx:1826
 msgid "Add Field"
 msgstr "הוספת שדה"
 
@@ -1609,7 +1609,7 @@ msgstr "הוספת הנבחרים"
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "הוספת שדות מטא-נתונים של SEO (כותרת, תיאור, תמונה) והכללה במפת האתר"
 
-#: packages/admin/src/components/FieldEditor.tsx:1577
+#: packages/admin/src/components/FieldEditor.tsx:1604
 msgid "Add Sub-Field"
 msgstr "הוספת שדה משנה"
 
@@ -1858,7 +1858,7 @@ msgstr "כל הסטטוסים"
 msgid "All types"
 msgstr "כל הסוגים"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:200
+#: packages/admin/src/components/MediaUploadDialog.tsx:203
 msgid "All uploads finished"
 msgstr "כל ההעלאות הסתיימו"
 
@@ -1866,7 +1866,7 @@ msgstr "כל ההעלאות הסתיימו"
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr "אפשרו לאסימוני MCP בהיקף plugin-tool לקרוא לנתיבים אלה."
 
-#: packages/admin/src/components/FieldEditor.tsx:1386
+#: packages/admin/src/components/FieldEditor.tsx:1412
 msgid "Allow multiple references"
 msgstr "אפשר קישורים מרובים"
 
@@ -1879,8 +1879,8 @@ msgstr "אפשרו למשתמשים מדומיינים מסוימים להירש
 msgid "Allow visitors to leave comments on this collection's content"
 msgstr "אפשרו למבקרים להשאיר תגובות על תוכן האוסף הזה"
 
-#: packages/admin/src/components/FieldEditor.tsx:1413
-#: packages/admin/src/components/FieldEditor.tsx:1430
+#: packages/admin/src/components/FieldEditor.tsx:1439
+#: packages/admin/src/components/FieldEditor.tsx:1456
 msgid "Allowed block types"
 msgstr "סוגי בלוקים מותרים"
 
@@ -1989,8 +1989,8 @@ msgstr "מפתח דיגיטלי מוצפן שנפתח באמצעות טביעת 
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
 #: packages/admin/src/components/settings/TransferSettings.tsx:85
-#: packages/admin/src/components/TaxonomySidebar.tsx:694
-#: packages/admin/src/components/TaxonomySidebar.tsx:790
+#: packages/admin/src/components/TaxonomySidebar.tsx:696
+#: packages/admin/src/components/TaxonomySidebar.tsx:792
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:665
 #: packages/admin/src/router.tsx:686
@@ -2042,7 +2042,7 @@ msgid "Another editor"
 msgstr "עורך/ת אחר/ת"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:151
-#: packages/admin/src/components/FieldEditor.tsx:497
+#: packages/admin/src/components/FieldEditor.tsx:519
 msgid "Another field already uses this slug. Enter a different one."
 msgstr ""
 
@@ -2070,7 +2070,7 @@ msgstr ""
 msgid "Another section already uses this slug. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:470
+#: packages/admin/src/components/FieldEditor.tsx:489
 msgid "Another sub-field already uses this slug. Enter a different one."
 msgstr ""
 
@@ -2168,7 +2168,7 @@ msgstr "אושר"
 msgid "Approving…"
 msgstr "באישור…"
 
-#: packages/admin/src/components/FieldEditor.tsx:707
+#: packages/admin/src/components/FieldEditor.tsx:729
 msgid "Arbitrary JSON data"
 msgstr "נתוני JSON שרירותיים"
 
@@ -2364,7 +2364,7 @@ msgid "Available bylines"
 msgstr "קרדיטים זמינים"
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:853
+#: packages/admin/src/components/TaxonomySidebar.tsx:855
 msgid "Available in {0}"
 msgstr "זמין ב-{0}"
 
@@ -2391,7 +2391,7 @@ msgstr "חזרה"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:500
-#: packages/admin/src/components/FieldEditor.tsx:1771
+#: packages/admin/src/components/FieldEditor.tsx:1814
 #: packages/admin/src/components/MediaDetailPanel.tsx:1786
 #: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
@@ -2552,7 +2552,7 @@ msgstr "גרסאות של סוגי בלוקים"
 msgid "Block types"
 msgstr "סוגי בלוקים"
 
-#: packages/admin/src/components/FieldEditor.tsx:1420
+#: packages/admin/src/components/FieldEditor.tsx:1446
 msgid "Block types could not be loaded."
 msgstr "לא ניתן לטעון את סוגי הבלוקים."
 
@@ -2560,7 +2560,7 @@ msgstr "לא ניתן לטעון את סוגי הבלוקים."
 msgid "Blockers"
 msgstr "חסמים"
 
-#: packages/admin/src/components/FieldEditor.tsx:730
+#: packages/admin/src/components/FieldEditor.tsx:752
 msgid "Blocks"
 msgstr "בלוקים"
 
@@ -2570,8 +2570,8 @@ msgid "Bold"
 msgstr "מודגש"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:58
-#: packages/admin/src/components/FieldEditor.tsx:658
-#: packages/admin/src/components/FieldEditor.tsx:1671
+#: packages/admin/src/components/FieldEditor.tsx:680
+#: packages/admin/src/components/FieldEditor.tsx:1698
 msgid "Boolean"
 msgstr "בוליאני"
 
@@ -2599,7 +2599,7 @@ msgstr "עיינו והתקינו תוספים שפורסמו לרישום המ�
 msgid "Browse and install plugins to extend your site."
 msgstr "עיינו והתקינו תוספים להרחבת האתר שלכם."
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:268
+#: packages/admin/src/components/MediaUploadDialog.tsx:271
 msgid "Browse files"
 msgstr "עיון בקבצים"
 
@@ -2608,7 +2608,7 @@ msgstr "עיון בקבצים"
 msgid "Browse Files"
 msgstr "עיון בקבצים"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:277
+#: packages/admin/src/components/MediaUploadDialog.tsx:280
 msgid "Browse files to upload"
 msgstr "עיון בקבצים להעלאה"
 
@@ -2739,7 +2739,7 @@ msgstr "יכול/ה להציג תוכן"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:826
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
-#: packages/admin/src/components/FieldEditor.tsx:1776
+#: packages/admin/src/components/FieldEditor.tsx:1819
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
@@ -2777,7 +2777,7 @@ msgid "Cancel (Esc)"
 msgstr "ביטול (Esc)"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:141
+#: packages/admin/src/components/MediaUploadDialog.tsx:144
 msgid "Cancel {0}"
 msgstr "ביטול {0}"
 
@@ -2786,7 +2786,7 @@ msgstr "ביטול {0}"
 msgid "Cancel import"
 msgstr "ביטול הייבוא"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:331
+#: packages/admin/src/components/MediaUploadDialog.tsx:334
 msgid "Cancel remaining"
 msgstr "ביטול הנותרים"
 
@@ -2867,7 +2867,7 @@ msgstr "מרכז"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:79
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:110
-#: packages/admin/src/components/FieldEditor.tsx:1040
+#: packages/admin/src/components/FieldEditor.tsx:1066
 msgid "Change"
 msgstr "שינוי"
 
@@ -2913,7 +2913,7 @@ msgstr ""
 msgid "Change schedule"
 msgstr "שינוי תזמון"
 
-#: packages/admin/src/components/FieldEditor.tsx:986
+#: packages/admin/src/components/FieldEditor.tsx:1012
 msgid "Change the field's label and what it accepts."
 msgstr ""
 
@@ -3102,13 +3102,13 @@ msgstr "בדיקת האתר הזה"
 msgid "Checking…"
 msgstr "מתבצעת בדיקה…"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:396
-#: packages/admin/src/components/TaxonomySidebar.tsx:397
-#: packages/admin/src/components/TaxonomySidebar.tsx:490
+#: packages/admin/src/components/TaxonomySidebar.tsx:398
+#: packages/admin/src/components/TaxonomySidebar.tsx:399
+#: packages/admin/src/components/TaxonomySidebar.tsx:492
 msgid "Choose {label}"
 msgstr "בחירת {label}"
 
-#: packages/admin/src/components/FieldEditor.tsx:407
+#: packages/admin/src/components/FieldEditor.tsx:426
 msgid "Choose a collection."
 msgstr ""
 
@@ -3143,7 +3143,7 @@ msgstr "בחרו תמונת {0} שאינה ריקה."
 msgid "Choose a recognized timezone for reliable date display."
 msgstr "בחרו אזור זמן מוכר כדי שהתאריכים יוצגו נכון."
 
-#: packages/admin/src/components/FieldEditor.tsx:406
+#: packages/admin/src/components/FieldEditor.tsx:425
 msgid "Choose a relationship."
 msgstr ""
 
@@ -3171,7 +3171,7 @@ msgstr "בחרו תמונה מהספרייה או העלו תמונה חדשה."
 msgid "Choose another option"
 msgstr "בחירת אפשרות אחרת"
 
-#: packages/admin/src/components/FieldEditor.tsx:480
+#: packages/admin/src/components/FieldEditor.tsx:502
 msgid "Choose at least one block type."
 msgstr ""
 
@@ -3205,7 +3205,7 @@ msgstr "בחרו שוב את אותו קובץ חבילה כדי לסיים לה
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
 msgstr "בחרו Touch ID או מנהל אישורים זמין אחר, ולאחר מכן אשרו באמצעות טביעת האצבע או סיסמת ה-Mac שלכם."
 
-#: packages/admin/src/components/FieldEditor.tsx:988
+#: packages/admin/src/components/FieldEditor.tsx:1014
 msgid "Choose what kind of content the field holds."
 msgstr ""
 
@@ -3238,7 +3238,7 @@ msgstr "בחירת קרדיט מחליפה את הקרדיט האוטומטי ה
 msgid "Clear"
 msgstr "ניקוי"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:316
+#: packages/admin/src/components/MediaUploadDialog.tsx:319
 msgid "Clear completed"
 msgstr "ניקוי שהושלמו"
 
@@ -3312,11 +3312,11 @@ msgstr "לחצו על הקישור הזה כדי להתחבר אל {siteName}:"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
-#: packages/admin/src/components/MediaUploadDialog.tsx:237
+#: packages/admin/src/components/MediaUploadDialog.tsx:240
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
-#: packages/admin/src/components/TaxonomySidebar.tsx:613
+#: packages/admin/src/components/TaxonomySidebar.tsx:615
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:8
 msgid "Close"
@@ -3502,7 +3502,7 @@ msgstr "השלמת הרשמה"
 msgid "Component"
 msgstr "רכיב"
 
-#: packages/admin/src/components/FieldEditor.tsx:982
+#: packages/admin/src/components/FieldEditor.tsx:1008
 msgid "Configure Field"
 msgstr "הגדרת שדה"
 
@@ -3963,7 +3963,7 @@ msgstr "יצירה"
 msgid "Create “{0}”"
 msgstr "יצירת „{0}“"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:586
+#: packages/admin/src/components/TaxonomySidebar.tsx:588
 msgid "Create \"{trimmedInput}\""
 msgstr "יצירת \"{trimmedInput}\""
 
@@ -3973,7 +3973,7 @@ msgid "Create {0}"
 msgstr "יצירת {0}"
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:864
+#: packages/admin/src/components/TaxonomySidebar.tsx:866
 msgid "Create {0} translation"
 msgstr "יצירת תרגום {0}"
 
@@ -3981,7 +3981,7 @@ msgstr "יצירת תרגום {0}"
 msgid "Create {singularLower}"
 msgstr "יצירת {singularLower}"
 
-#: packages/admin/src/components/FieldEditor.tsx:1424
+#: packages/admin/src/components/FieldEditor.tsx:1450
 msgid "Create a block type before adding a blocks field."
 msgstr "צרו סוג בלוק לפני הוספת שדה בלוקים."
 
@@ -3994,7 +3994,7 @@ msgstr "יצירת רשימת תבליטים"
 msgid "Create a new {0}"
 msgstr "יצירת {0} חדש"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:586
+#: packages/admin/src/components/TaxonomySidebar.tsx:588
 msgid "Create a new {singularLabel}"
 msgstr "יצירת {singularLabel} חדש"
 
@@ -4075,7 +4075,7 @@ msgstr "יצירת הפניה עבור נתיב זה"
 msgid "Create redirect rules to manage URL changes."
 msgstr "צרו כללי הפניה לניהול שינויי URL."
 
-#: packages/admin/src/components/FieldEditor.tsx:1063
+#: packages/admin/src/components/FieldEditor.tsx:1089
 msgid "Create relation"
 msgstr "הוספת קשר"
 
@@ -4288,8 +4288,8 @@ msgstr "טקסונומיות מותאמות אישית"
 msgid "Daily automatic backups"
 msgstr "גיבויים אוטומטיים יומיים"
 
-#: packages/admin/src/components/FieldEditor.tsx:1749
-#: packages/admin/src/components/FieldEditor.tsx:1752
+#: packages/admin/src/components/FieldEditor.tsx:1792
+#: packages/admin/src/components/FieldEditor.tsx:1795
 #: packages/admin/src/components/ImageFieldRenderer.tsx:416
 msgid "Dark mode variant"
 msgstr "גרסה למצב כהה"
@@ -4312,12 +4312,12 @@ msgstr "הגדרות ששמורות במסד הנתונים וזמינות לש�
 msgid "Date"
 msgstr "תאריך"
 
-#: packages/admin/src/components/FieldEditor.tsx:664
-#: packages/admin/src/components/FieldEditor.tsx:1672
+#: packages/admin/src/components/FieldEditor.tsx:686
+#: packages/admin/src/components/FieldEditor.tsx:1699
 msgid "Date & Time"
 msgstr "תאריך ושעה"
 
-#: packages/admin/src/components/FieldEditor.tsx:665
+#: packages/admin/src/components/FieldEditor.tsx:687
 msgid "Date and time picker"
 msgstr "בורר תאריך ושעה"
 
@@ -4333,7 +4333,7 @@ msgstr "תבנית תאריך"
 msgid "Date range"
 msgstr "טווח תאריכים"
 
-#: packages/admin/src/components/FieldEditor.tsx:647
+#: packages/admin/src/components/FieldEditor.tsx:669
 msgid "Decimal number"
 msgstr "מספר עשרוני"
 
@@ -4844,7 +4844,7 @@ msgid "Dismiss"
 msgstr "סגירה"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:143
+#: packages/admin/src/components/MediaUploadDialog.tsx:146
 msgid "Dismiss completed {0}"
 msgstr "סגירת {0} שהושלמו"
 
@@ -4951,7 +4951,7 @@ msgstr "ללא מיפוי"
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
 #: packages/admin/src/components/ContentList.tsx:1224
-#: packages/admin/src/components/MediaUploadDialog.tsx:335
+#: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
 #: packages/admin/src/components/WordPressImport.tsx:2185
 msgid "Done"
@@ -5052,7 +5052,7 @@ msgstr "טיוטות"
 msgid "Drafts & Private"
 msgstr "טיוטות ופרטי"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:256
+#: packages/admin/src/components/MediaUploadDialog.tsx:259
 msgid "Drag and drop files here"
 msgstr "גררו ושחררו קבצים כאן"
 
@@ -5201,8 +5201,8 @@ msgstr "עריכת שדה {0}"
 msgid "Edit {itemLabel}"
 msgstr "עריכת {itemLabel}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:416
-#: packages/admin/src/components/TaxonomySidebar.tsx:425
+#: packages/admin/src/components/TaxonomySidebar.tsx:418
+#: packages/admin/src/components/TaxonomySidebar.tsx:427
 msgid "Edit {label}"
 msgstr "עריכת {label}"
 
@@ -5238,7 +5238,7 @@ msgstr "עריכת נכס למצב כהה"
 msgid "Edit Domain"
 msgstr "עריכת דומיין"
 
-#: packages/admin/src/components/FieldEditor.tsx:982
+#: packages/admin/src/components/FieldEditor.tsx:1008
 msgid "Edit Field"
 msgstr "עריכת שדה"
 
@@ -5384,7 +5384,7 @@ msgstr ""
 "מדווח/ת\n"
 "צלם/ת"
 
-#: packages/admin/src/components/FieldEditor.tsx:1747
+#: packages/admin/src/components/FieldEditor.tsx:1790
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "עורכים/ות יכולים לבחור תמונה שנייה שהאתר יציג במצב כהה."
 
@@ -5607,7 +5607,7 @@ msgid "Enter a full URL, such as https://example.com."
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:119
-#: packages/admin/src/components/FieldEditor.tsx:329
+#: packages/admin/src/components/FieldEditor.tsx:341
 #: packages/admin/src/components/MenuEditor.tsx:137
 #: packages/admin/src/components/MenuEditor.tsx:254
 #: packages/admin/src/components/MenuList.tsx:40
@@ -5616,7 +5616,7 @@ msgstr ""
 msgid "Enter a label."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:332
+#: packages/admin/src/components/FieldEditor.tsx:344
 msgid "Enter a maximum that is at least the minimum."
 msgstr ""
 
@@ -5641,11 +5641,11 @@ msgstr ""
 msgid "Enter a number of {min} or more."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:333
+#: packages/admin/src/components/FieldEditor.tsx:345
 msgid "Enter a number of 100 or less."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:331
+#: packages/admin/src/components/FieldEditor.tsx:343
 msgid "Enter a number."
 msgstr ""
 
@@ -5660,7 +5660,7 @@ msgstr "הזינו אזור זמן מוכר כדי לשמור"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:127
 #: packages/admin/src/components/BylineFormDialog.tsx:317
-#: packages/admin/src/components/FieldEditor.tsx:328
+#: packages/admin/src/components/FieldEditor.tsx:340
 #: packages/admin/src/components/RelationForm.tsx:173
 #: packages/admin/src/components/Sections.tsx:98
 #: packages/admin/src/components/TaxonomyManager.tsx:106
@@ -5691,7 +5691,7 @@ msgstr ""
 msgid "Enter a valid email address, such as name@example.com."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:434
+#: packages/admin/src/components/FieldEditor.tsx:453
 msgid "Enter a valid regular expression."
 msgstr ""
 
@@ -5703,11 +5703,11 @@ msgstr ""
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "הזינו URL תקין (למשל, https://example.com)"
 
-#: packages/admin/src/components/FieldEditor.tsx:330
+#: packages/admin/src/components/FieldEditor.tsx:342
 msgid "Enter a whole number of 0 or more."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:393
+#: packages/admin/src/components/FieldEditor.tsx:412
 msgid "Enter a whole number of 1 or more."
 msgstr ""
 
@@ -5771,13 +5771,13 @@ msgstr "הזינו את ה-URL של אתר ה-WordPress שלכם"
 msgid "Entries"
 msgstr "פריטים"
 
-#: packages/admin/src/components/FieldEditor.tsx:1100
-#: packages/admin/src/components/FieldEditor.tsx:1353
+#: packages/admin/src/components/FieldEditor.tsx:1126
+#: packages/admin/src/components/FieldEditor.tsx:1379
 msgid "Entries that link to this one"
 msgstr "פריטים שמקשרים לפריט הזה"
 
-#: packages/admin/src/components/FieldEditor.tsx:1099
-#: packages/admin/src/components/FieldEditor.tsx:1352
+#: packages/admin/src/components/FieldEditor.tsx:1125
+#: packages/admin/src/components/FieldEditor.tsx:1378
 msgid "Entries this one links to"
 msgstr "פריטים שהפריט הזה מקשר אליהם"
 
@@ -5817,7 +5817,7 @@ msgstr "שגיאה בעדכון וידג׳ט"
 msgid "esc"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:611
+#: packages/admin/src/components/TaxonomySidebar.tsx:613
 msgid "Esc"
 msgstr "Esc"
 
@@ -6033,7 +6033,7 @@ msgid "Failed to continue import"
 msgstr "המשך הייבוא נכשל"
 
 #. placeholder {0}: failedLabels.join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:760
+#: packages/admin/src/components/TaxonomySidebar.tsx:762
 msgid "Failed to create {0}"
 msgstr "יצירת {0} נכשלה"
 
@@ -6123,7 +6123,7 @@ msgstr "יצירת חלק מהאוספים נכשלה"
 msgid "Failed to create taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:739
+#: packages/admin/src/components/TaxonomySidebar.tsx:741
 #: packages/admin/src/lib/api/taxonomies.ts:215
 msgid "Failed to create term"
 msgstr "יצירת מונח נכשלה"
@@ -6132,7 +6132,7 @@ msgstr "יצירת מונח נכשלה"
 msgid "Failed to create term translation"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:789
+#: packages/admin/src/components/TaxonomySidebar.tsx:791
 #: packages/admin/src/router.tsx:1635
 msgid "Failed to create translation"
 msgstr "יצירת תרגום נכשלה"
@@ -6903,7 +6903,7 @@ msgid "Failed to update"
 msgstr "העדכון נכשל"
 
 #. placeholder {0}: inlineLabel(taxonomy.label, lingui.locale)
-#: packages/admin/src/components/TaxonomySidebar.tsx:693
+#: packages/admin/src/components/TaxonomySidebar.tsx:695
 msgid "Failed to update {0}"
 msgstr "עדכון {0} נכשל"
 
@@ -7068,15 +7068,15 @@ msgstr "השדה נוצר"
 msgid "Field deleted"
 msgstr "השדה נמחק"
 
-#: packages/admin/src/components/FieldEditor.tsx:1617
+#: packages/admin/src/components/FieldEditor.tsx:1644
 msgid "Field label"
 msgstr "תווית שדה"
 
-#: packages/admin/src/components/FieldEditor.tsx:1128
+#: packages/admin/src/components/FieldEditor.tsx:1154
 msgid "Field Label"
 msgstr "תווית שדה"
 
-#: packages/admin/src/components/FieldEditor.tsx:1137
+#: packages/admin/src/components/FieldEditor.tsx:1163
 msgid "Field slugs cannot be changed after creation"
 msgstr "לא ניתן לשנות slug של שדות לאחר היצירה"
 
@@ -7088,7 +7088,7 @@ msgstr "לא ניתן לשנות סוג שדה לאחר היצירה."
 msgid "Field updated"
 msgstr "השדה עודכן"
 
-#: packages/admin/src/components/FieldEditor.tsx:1648
+#: packages/admin/src/components/FieldEditor.tsx:1675
 msgid "field_slug"
 msgstr ""
 
@@ -7102,7 +7102,7 @@ msgstr "שדות"
 msgid "Fields created:"
 msgstr "שדות שנוצרו:"
 
-#: packages/admin/src/components/FieldEditor.tsx:694
+#: packages/admin/src/components/FieldEditor.tsx:716
 msgid "File"
 msgstr "קובץ"
 
@@ -7111,7 +7111,7 @@ msgstr "קובץ"
 msgid "File {0}"
 msgstr "קובץ {0}"
 
-#: packages/admin/src/components/FieldEditor.tsx:695
+#: packages/admin/src/components/FieldEditor.tsx:717
 msgid "File from media library"
 msgstr "קובץ מספריית המדיה"
 
@@ -7125,7 +7125,7 @@ msgstr "שם קובץ"
 msgid "Filename cannot be changed after upload"
 msgstr "לא ניתן לשנות את שם הקובץ לאחר ההעלאה"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:228
+#: packages/admin/src/components/MediaUploadDialog.tsx:231
 msgid "Files upload as soon as you add them."
 msgstr "הקבצים מועלים מיד לאחר הוספתם."
 
@@ -7717,8 +7717,8 @@ msgid "visualEditing.image"
 msgstr "תמונה"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
-#: packages/admin/src/components/FieldEditor.tsx:688
-#: packages/admin/src/components/FieldEditor.tsx:1675
+#: packages/admin/src/components/FieldEditor.tsx:710
+#: packages/admin/src/components/FieldEditor.tsx:1702
 #: packages/admin/src/components/PortableTextEditor.tsx:3770
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
@@ -7745,7 +7745,7 @@ msgstr "פעולות תמונה"
 msgid "Image controls"
 msgstr "פקדי תמונה"
 
-#: packages/admin/src/components/FieldEditor.tsx:689
+#: packages/admin/src/components/FieldEditor.tsx:711
 msgid "Image from media library"
 msgstr "תמונה מספריית המדיה"
 
@@ -7972,7 +7972,7 @@ msgstr "הגדלת רוחב עמודה"
 msgid "Index existing content and keep Used in results up to date."
 msgstr "אנדקסו תוכן קיים ושמרו את תוצאות השימוש במדיה מעודכנות."
 
-#: packages/admin/src/components/FieldEditor.tsx:1187
+#: packages/admin/src/components/FieldEditor.tsx:1213
 #: packages/admin/src/components/RegistryPluginDetail.tsx:588
 msgid "Indexed"
 msgstr "מאונדקס"
@@ -8135,8 +8135,8 @@ msgstr "מותקן:"
 msgid "Installing..."
 msgstr "בהתקנה..."
 
-#: packages/admin/src/components/FieldEditor.tsx:652
-#: packages/admin/src/components/FieldEditor.tsx:1670
+#: packages/admin/src/components/FieldEditor.tsx:674
+#: packages/admin/src/components/FieldEditor.tsx:1697
 msgid "Integer"
 msgstr "מספר שלם"
 
@@ -8268,7 +8268,7 @@ msgid "JS"
 msgstr "JS"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:41
-#: packages/admin/src/components/FieldEditor.tsx:706
+#: packages/admin/src/components/FieldEditor.tsx:728
 msgid "JSON"
 msgstr "JSON"
 
@@ -8332,8 +8332,8 @@ msgid "Kotlin"
 msgstr "שפת Kotlin"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:341
-#: packages/admin/src/components/FieldEditor.tsx:1125
-#: packages/admin/src/components/FieldEditor.tsx:1603
+#: packages/admin/src/components/FieldEditor.tsx:1151
+#: packages/admin/src/components/FieldEditor.tsx:1630
 #: packages/admin/src/components/MenuEditor.tsx:560
 #: packages/admin/src/components/MenuEditor.tsx:563
 #: packages/admin/src/components/MenuEditor.tsx:625
@@ -8474,7 +8474,7 @@ msgstr ""
 msgid "Link this byline to a user or mark it as a guest profile."
 msgstr "קשרו את הקרדיט הזה למשתמש/ת או סמנו אותו כפרופיל אורח."
 
-#: packages/admin/src/components/FieldEditor.tsx:701
+#: packages/admin/src/components/FieldEditor.tsx:723
 msgid "Link to another content item"
 msgstr "קישור לפריט תוכן אחר"
 
@@ -8622,7 +8622,7 @@ msgid "Loading approval requests…"
 msgstr "מתבצעת טעינת בקשות אישור…"
 
 #: packages/admin/src/components/BlockTypeList.tsx:51
-#: packages/admin/src/components/FieldEditor.tsx:1417
+#: packages/admin/src/components/FieldEditor.tsx:1443
 msgid "Loading block types…"
 msgstr "טוענים סוגי בלוקים…"
 
@@ -8836,8 +8836,8 @@ msgstr "לוגו וסמל אתר"
 msgid "Long text"
 msgstr "טקסט ארוך"
 
-#: packages/admin/src/components/FieldEditor.tsx:640
-#: packages/admin/src/components/FieldEditor.tsx:1668
+#: packages/admin/src/components/FieldEditor.tsx:662
+#: packages/admin/src/components/FieldEditor.tsx:1695
 msgid "Long Text"
 msgstr "טקסט ארוך"
 
@@ -8964,15 +8964,15 @@ msgstr ""
 msgid "Matched by email"
 msgstr "הותאם לפי אימייל"
 
-#: packages/admin/src/components/FieldEditor.tsx:1718
+#: packages/admin/src/components/FieldEditor.tsx:1761
 msgid "Max Items"
 msgstr "מספר פריטים מרבי"
 
-#: packages/admin/src/components/FieldEditor.tsx:1211
+#: packages/admin/src/components/FieldEditor.tsx:1237
 msgid "Max Length"
 msgstr "אורך מרבי"
 
-#: packages/admin/src/components/FieldEditor.tsx:1249
+#: packages/admin/src/components/FieldEditor.tsx:1275
 msgid "Max Value"
 msgstr "ערך מרבי"
 
@@ -8980,7 +8980,7 @@ msgstr "ערך מרבי"
 msgid "Maximum"
 msgstr "מקסימום"
 
-#: packages/admin/src/components/FieldEditor.tsx:1535
+#: packages/admin/src/components/FieldEditor.tsx:1561
 msgid "Maximum blocks"
 msgstr "מקסימום בלוקים"
 
@@ -9195,19 +9195,19 @@ msgstr "מדריך העברה"
 msgid "Migration key"
 msgstr "מפתח העברה"
 
-#: packages/admin/src/components/FieldEditor.tsx:1708
+#: packages/admin/src/components/FieldEditor.tsx:1751
 msgid "Min Items"
 msgstr "מספר פריטים מזערי"
 
-#: packages/admin/src/components/FieldEditor.tsx:1201
+#: packages/admin/src/components/FieldEditor.tsx:1227
 msgid "Min Length"
 msgstr "אורך מזערי"
 
-#: packages/admin/src/components/FieldEditor.tsx:1239
+#: packages/admin/src/components/FieldEditor.tsx:1265
 msgid "Min Value"
 msgstr "ערך מזערי"
 
-#: packages/admin/src/components/FieldEditor.tsx:1524
+#: packages/admin/src/components/FieldEditor.tsx:1550
 msgid "Minimum blocks"
 msgstr "מינימום בלוקים"
 
@@ -9297,24 +9297,24 @@ msgstr "להעביר את \"{title}\" לפח? אפשר לשחזר אותו מא�
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:3146
-#: packages/admin/src/components/FieldEditor.tsx:1495
+#: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "העברת {0} למטה"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:312
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:318
 msgid "Move {0} earlier"
 msgstr "העברת {0} מוקדם יותר"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:321
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:327
 msgid "Move {0} later"
 msgstr "העברת {0} מאוחר יותר"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:3135
-#: packages/admin/src/components/FieldEditor.tsx:1478
+#: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "העברת {0} למעלה"
 
@@ -9460,15 +9460,15 @@ msgstr "עוברים מאתר EmDash אחר?"
 msgid "Moving to trash..."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:676
+#: packages/admin/src/components/FieldEditor.tsx:698
 msgid "Multi Select"
 msgstr "בחירה מרובה"
 
-#: packages/admin/src/components/FieldEditor.tsx:641
+#: packages/admin/src/components/FieldEditor.tsx:663
 msgid "Multi-line plain text"
 msgstr "טקסט פשוט מרובה שורות"
 
-#: packages/admin/src/components/FieldEditor.tsx:677
+#: packages/admin/src/components/FieldEditor.tsx:699
 msgid "Multiple choices from options"
 msgstr "בחירות מרובות מהאפשרויות"
 
@@ -9493,7 +9493,7 @@ msgstr "הבלוג הנהדר שלי"
 msgid "Name"
 msgstr "שם"
 
-#: packages/admin/src/components/FieldEditor.tsx:989
+#: packages/admin/src/components/FieldEditor.tsx:1015
 msgid "Name the field and choose what it accepts."
 msgstr ""
 
@@ -9501,7 +9501,7 @@ msgstr ""
 msgid "Name your section, then add its content in the editor."
 msgstr "תנו שם למקטע, ואז הוסיפו את התוכן שלו בעורך."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:601
+#: packages/admin/src/components/TaxonomySidebar.tsx:603
 msgid "Navigate"
 msgstr "ניווט"
 
@@ -9632,7 +9632,7 @@ msgstr "החדש ביותר"
 msgid "News"
 msgstr "חדשות"
 
-#: packages/admin/src/components/FieldEditor.tsx:1779
+#: packages/admin/src/components/FieldEditor.tsx:1822
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
 msgstr "הבא"
@@ -9682,7 +9682,7 @@ msgstr "עדיין אין {0}."
 msgid "No {0} yet. Create one to get started."
 msgstr "עדיין אין {0}. צרו אחד כדי להתחיל."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:570
+#: packages/admin/src/components/TaxonomySidebar.tsx:572
 msgid "No {label} found."
 msgstr "לא נמצאו {label}."
 
@@ -9832,7 +9832,7 @@ msgstr "אף שדה בסוג התוכן הזה עדיין לא משתמש בו"
 msgid "No fields"
 msgstr "אין שדות"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "No files added"
 msgstr "לא נוספו קבצים"
 
@@ -9880,7 +9880,7 @@ msgstr "לא סופק אסימון הזמנה"
 msgid "No items yet"
 msgstr "עדיין אין פריטים"
 
-#: packages/admin/src/components/FieldEditor.tsx:1723
+#: packages/admin/src/components/FieldEditor.tsx:1766
 msgid "No limit"
 msgstr "ללא מגבלה"
 
@@ -9934,8 +9934,8 @@ msgstr "אין תגיות תואמות"
 msgid "No matching timezones"
 msgstr "אין אזורי זמן תואמים"
 
-#: packages/admin/src/components/FieldEditor.tsx:1216
-#: packages/admin/src/components/FieldEditor.tsx:1254
+#: packages/admin/src/components/FieldEditor.tsx:1242
+#: packages/admin/src/components/FieldEditor.tsx:1280
 msgid "No maximum"
 msgstr "ללא מקסימום"
 
@@ -9956,8 +9956,8 @@ msgstr "עדיין אין פריטי תפריט"
 msgid "No menus yet"
 msgstr "עדיין אין תפריטים"
 
-#: packages/admin/src/components/FieldEditor.tsx:1206
-#: packages/admin/src/components/FieldEditor.tsx:1244
+#: packages/admin/src/components/FieldEditor.tsx:1232
+#: packages/admin/src/components/FieldEditor.tsx:1270
 msgid "No minimum"
 msgstr "ללא מינימום"
 
@@ -10156,8 +10156,8 @@ msgstr "אין עדיין מה להציג."
 msgid "Now · {time}"
 msgstr "עכשיו · {time}"
 
-#: packages/admin/src/components/FieldEditor.tsx:646
-#: packages/admin/src/components/FieldEditor.tsx:1669
+#: packages/admin/src/components/FieldEditor.tsx:668
+#: packages/admin/src/components/FieldEditor.tsx:1696
 msgid "Number"
 msgstr "מספר"
 
@@ -10304,7 +10304,8 @@ msgstr "פתיחת הגדרות Windows"
 msgid "Open WordPress Profile"
 msgstr "פתיחת פרופיל WordPress"
 
-#: packages/admin/src/components/FieldEditor.tsx:1267
+#: packages/admin/src/components/FieldEditor.tsx:1293
+#: packages/admin/src/components/FieldEditor.tsx:1715
 msgid ""
 "Option 1\n"
 "Option 2\n"
@@ -10340,11 +10341,12 @@ msgid "Optional tooltip on hover"
 msgstr "חלונית מידע אופציונלית במעבר עכבר"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:432
-#: packages/admin/src/components/FieldEditor.tsx:1264
+#: packages/admin/src/components/FieldEditor.tsx:1290
+#: packages/admin/src/components/FieldEditor.tsx:1708
 msgid "Options (one per line)"
 msgstr "אפשרויות (אחת בכל שורה)"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:258
+#: packages/admin/src/components/MediaUploadDialog.tsx:261
 msgid "Or browse files from your computer"
 msgstr "או עיינו בקבצים מהמחשב שלכם"
 
@@ -10378,7 +10380,7 @@ msgstr ""
 msgid "Order saved"
 msgstr "הסדר נשמר"
 
-#: packages/admin/src/components/FieldEditor.tsx:731
+#: packages/admin/src/components/FieldEditor.tsx:753
 msgid "Ordered page-building blocks"
 msgstr "בלוקים לבניית עמוד, לפי סדר"
 
@@ -10582,7 +10584,7 @@ msgstr "הדביקו את מפתח ההעברה שלכם"
 msgid "Path"
 msgstr "נתיב"
 
-#: packages/admin/src/components/FieldEditor.tsx:1224
+#: packages/admin/src/components/FieldEditor.tsx:1250
 msgid "Pattern (Regex)"
 msgstr "תבנית (Regex)"
 
@@ -10657,7 +10659,7 @@ msgstr "שפת PHP"
 msgid "Picked up {label}."
 msgstr "{label} נאסף."
 
-#: packages/admin/src/components/FieldEditor.tsx:1836
+#: packages/admin/src/components/FieldEditor.tsx:1879
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr "בחירת הפריטים שהפריט הזה מקשר אליהם מאפשרת לעורכים לגרור אותם לסדר הרצוי. הכיוון השני מציג את כל מה שמצביע על הפריט, ואי אפשר לשנות את הסדר שלו."
 
@@ -11136,11 +11138,11 @@ msgstr "בתור"
 msgid "Quick action on the dashboard"
 msgstr "פעולה מהירה בלוח הבקרה"
 
-#: packages/admin/src/components/FieldEditor.tsx:1317
+#: packages/admin/src/components/FieldEditor.tsx:1343
 msgid "Quick create a relationship"
 msgstr "יצירה מהירה של קשר"
 
-#: packages/admin/src/components/FieldEditor.tsx:1389
+#: packages/admin/src/components/FieldEditor.tsx:1415
 msgid "Quick create names the relationship after this field and this collection, takes how many entries it holds from the switch above, and puts no limit on how many entries link back the other way. <0>Create the relationship yourself</0> to set its slug, the name each side goes by, and both limits, then pick it above."
 msgstr "יצירה מהירה נותנת לקשר שם לפי השדה הזה והאוסף הזה, קובעת כמה פריטים הוא מכיל לפי המתג שלמעלה, ולא מגבילה כמה פריטים יקשרו בחזרה מהכיוון השני. <0>צרו את הקשר בעצמכם</0> כדי לקבוע את ה-slug שלו, את השם של כל צד ואת שתי המגבלות, ואז בחרו אותו למעלה."
 
@@ -11325,17 +11327,17 @@ msgstr "הפניות שיוצרות לולאה ייובאו כשהן מושבת�
 msgid "Redo"
 msgstr "ביצוע מחדש"
 
-#: packages/admin/src/components/FieldEditor.tsx:700
-#: packages/admin/src/components/FieldEditor.tsx:1276
+#: packages/admin/src/components/FieldEditor.tsx:722
+#: packages/admin/src/components/FieldEditor.tsx:1302
 msgid "Reference"
 msgstr "קישור"
 
-#: packages/admin/src/components/FieldEditor.tsx:1079
-#: packages/admin/src/components/FieldEditor.tsx:1082
-#: packages/admin/src/components/FieldEditor.tsx:1297
-#: packages/admin/src/components/FieldEditor.tsx:1332
-#: packages/admin/src/components/FieldEditor.tsx:1335
-#: packages/admin/src/components/FieldEditor.tsx:1368
+#: packages/admin/src/components/FieldEditor.tsx:1105
+#: packages/admin/src/components/FieldEditor.tsx:1108
+#: packages/admin/src/components/FieldEditor.tsx:1323
+#: packages/admin/src/components/FieldEditor.tsx:1358
+#: packages/admin/src/components/FieldEditor.tsx:1361
+#: packages/admin/src/components/FieldEditor.tsx:1394
 msgid "Referenced collection"
 msgstr "האוסף המקושר"
 
@@ -11395,10 +11397,10 @@ msgstr "רישום"
 msgid "Relations"
 msgstr "קשרים"
 
-#: packages/admin/src/components/FieldEditor.tsx:1053
-#: packages/admin/src/components/FieldEditor.tsx:1284
-#: packages/admin/src/components/FieldEditor.tsx:1287
-#: packages/admin/src/components/FieldEditor.tsx:1312
+#: packages/admin/src/components/FieldEditor.tsx:1079
+#: packages/admin/src/components/FieldEditor.tsx:1310
+#: packages/admin/src/components/FieldEditor.tsx:1313
+#: packages/admin/src/components/FieldEditor.tsx:1338
 msgid "Relationship"
 msgstr "קשר"
 
@@ -11440,7 +11442,7 @@ msgstr "הסרה"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:334
 #: packages/admin/src/components/ImageFieldRenderer.tsx:388
 #: packages/admin/src/components/ImageFieldRenderer.tsx:459
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:224
 #: packages/admin/src/components/PortableTextEditor.tsx:6643
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
@@ -11454,15 +11456,15 @@ msgstr "הסרה"
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/ContentEditor.tsx:3159
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:219
-#: packages/admin/src/components/MediaUploadDialog.tsx:144
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:223
+#: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
-#: packages/admin/src/components/TaxonomySidebar.tsx:459
+#: packages/admin/src/components/TaxonomySidebar.tsx:461
 msgid "Remove {0}"
 msgstr "הסרת {0}"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:329
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:335
 msgid "Remove {0} from selection"
 msgstr "הסרת {0} מהבחירה"
 
@@ -11476,7 +11478,7 @@ msgstr "הסרת {entry}"
 msgid "Remove {label}"
 msgstr "הסרת {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:873
+#: packages/admin/src/components/TaxonomySidebar.tsx:875
 msgid "Remove assignment"
 msgstr "הסרת שיוך"
 
@@ -11535,7 +11537,7 @@ msgstr "להסיר מפתח גישה?"
 msgid "Remove schedule"
 msgstr "הסרת תזמון"
 
-#: packages/admin/src/components/FieldEditor.tsx:1698
+#: packages/admin/src/components/FieldEditor.tsx:1741
 msgid "Remove sub-field"
 msgstr "הסרת שדה משנה"
 
@@ -11667,11 +11669,11 @@ msgstr "שינוי סדר"
 msgid "Reorder {0}"
 msgstr "שינוי סדר {0}"
 
-#: packages/admin/src/components/FieldEditor.tsx:724
+#: packages/admin/src/components/FieldEditor.tsx:746
 msgid "Repeater"
 msgstr "רשימה חוזרת"
 
-#: packages/admin/src/components/FieldEditor.tsx:725
+#: packages/admin/src/components/FieldEditor.tsx:747
 msgid "Repeating group of fields"
 msgstr "קבוצת שדות חוזרת"
 
@@ -11791,8 +11793,8 @@ msgstr "דרישת slug לפני שניתן לפרסם תוכן"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:406
 #: packages/admin/src/components/ContentTypeEditor.tsx:956
-#: packages/admin/src/components/FieldEditor.tsx:1167
-#: packages/admin/src/components/FieldEditor.tsx:1680
+#: packages/admin/src/components/FieldEditor.tsx:1193
+#: packages/admin/src/components/FieldEditor.tsx:1723
 #: packages/admin/src/routes/byline-schema.tsx:235
 msgid "Required"
 msgstr "נדרש"
@@ -11928,7 +11930,7 @@ msgid "Results"
 msgstr "תוצאות"
 
 #: packages/admin/src/components/BlocksField.tsx:373
-#: packages/admin/src/components/FieldEditor.tsx:1462
+#: packages/admin/src/components/FieldEditor.tsx:1488
 msgid "Retired"
 msgstr "הוצא משימוש"
 
@@ -11936,7 +11938,7 @@ msgstr "הוצא משימוש"
 #: packages/admin/src/components/ContentEditor.tsx:3173
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:217
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:221
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
@@ -11957,8 +11959,8 @@ msgstr "ניסיון חוזר"
 
 #. placeholder {0}: job.file.name
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:216
-#: packages/admin/src/components/MediaUploadDialog.tsx:130
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/MediaUploadDialog.tsx:133
 msgid "Retry {0}"
 msgstr "ניסיון חוזר עבור {0}"
 
@@ -11971,7 +11973,7 @@ msgstr "ניסיון חוזר לרענון המטמון"
 msgid "Retry copy"
 msgstr "ניסיון חוזר להעתקה"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:326
+#: packages/admin/src/components/MediaUploadDialog.tsx:329
 msgid "Retry failed"
 msgstr "הניסיון החוזר נכשל"
 
@@ -12081,7 +12083,7 @@ msgstr "לבטל?"
 msgid "Revoking..."
 msgstr "בביטול..."
 
-#: packages/admin/src/components/FieldEditor.tsx:682
+#: packages/admin/src/components/FieldEditor.tsx:704
 msgid "Rich Text"
 msgstr "טקסט עשיר"
 
@@ -12089,7 +12091,7 @@ msgstr "טקסט עשיר"
 msgid "Rich text content"
 msgstr "תוכן טקסט עשיר"
 
-#: packages/admin/src/components/FieldEditor.tsx:683
+#: packages/admin/src/components/FieldEditor.tsx:705
 msgid "Rich text editor"
 msgstr "עורך טקסט עשיר"
 
@@ -12284,16 +12286,16 @@ msgstr "נשמר"
 msgid "Saved \"{0}\"."
 msgstr "\"{0}\" נשמר."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:688
+#: packages/admin/src/components/TaxonomySidebar.tsx:690
 msgid "Saved immediately; term changes do not wait for Publish changes."
 msgstr "נשמר מיד; שינויים במונחים לא ממתינים ל\"פרסום שינויים\"."
 
-#: packages/admin/src/components/FieldEditor.tsx:1380
+#: packages/admin/src/components/FieldEditor.tsx:1406
 msgid "Saving a collection here turns this field into an entry picker. Its stored entry IDs move to the relationship, and the field can no longer be searched or filtered on."
 msgstr "שמירת אוסף כאן הופכת את השדה הזה לבורר פריטים. מזהי הפריטים השמורים בו עוברים לקשר, ולא ניתן עוד לחפש או לסנן לפי השדה."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
-#: packages/admin/src/components/FieldEditor.tsx:1783
+#: packages/admin/src/components/FieldEditor.tsx:1826
 #: packages/admin/src/components/MediaDetailPanel.tsx:1859
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
@@ -12459,11 +12461,11 @@ msgstr "חיפוש {0}"
 msgid "Search {0}..."
 msgstr "חיפוש {0}..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:501
+#: packages/admin/src/components/TaxonomySidebar.tsx:503
 msgid "Search {label}"
 msgstr "חיפוש {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:522
+#: packages/admin/src/components/TaxonomySidebar.tsx:524
 msgid "Search {label}…"
 msgstr "חיפוש {label}…"
 
@@ -12554,11 +12556,11 @@ msgstr "טופס חיפוש"
 msgid "Search media"
 msgstr "חיפוש מדיה"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:501
+#: packages/admin/src/components/TaxonomySidebar.tsx:503
 msgid "Search or create {label}"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:522
+#: packages/admin/src/components/TaxonomySidebar.tsx:524
 msgid "Search or create {label}…"
 msgstr ""
 
@@ -12632,7 +12634,7 @@ msgid "Search..."
 msgstr "חיפוש..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:958
-#: packages/admin/src/components/FieldEditor.tsx:1180
+#: packages/admin/src/components/FieldEditor.tsx:1206
 msgid "Searchable"
 msgstr "ניתן לחיפוש"
 
@@ -12736,8 +12738,8 @@ msgid "See where this file is used."
 msgstr "ראו היכן נעשה שימוש בקובץ זה."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:59
-#: packages/admin/src/components/FieldEditor.tsx:670
-#: packages/admin/src/components/FieldEditor.tsx:1673
+#: packages/admin/src/components/FieldEditor.tsx:692
+#: packages/admin/src/components/FieldEditor.tsx:1700
 #: packages/admin/src/components/MediaPickerModal.tsx:891
 #: packages/admin/src/components/Settings.tsx:159
 msgid "Select"
@@ -12755,7 +12757,7 @@ msgstr "בחירת {label}"
 msgid "Select {title}"
 msgstr "בחירת {title}"
 
-#: packages/admin/src/components/FieldEditor.tsx:1373
+#: packages/admin/src/components/FieldEditor.tsx:1399
 msgid "Select a collection"
 msgstr "בחרו אוסף"
 
@@ -12776,7 +12778,7 @@ msgstr "בחרו מיקום"
 msgid "Select a menu..."
 msgstr "בחרו תפריט..."
 
-#: packages/admin/src/components/FieldEditor.tsx:1066
+#: packages/admin/src/components/FieldEditor.tsx:1092
 msgid "Select a relationship"
 msgstr "בחרו קשר"
 
@@ -12881,7 +12883,7 @@ msgstr "בחרו אילו סוגי תוכן לייבא."
 msgid "Select..."
 msgstr "בחירה..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:430
+#: packages/admin/src/components/TaxonomySidebar.tsx:432
 msgid "Selected {label}"
 msgstr "{label} שנבחרו"
 
@@ -12968,16 +12970,13 @@ msgstr "SEO"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:27
 #: packages/admin/src/components/settings/transfer/labels.ts:87
+#: packages/admin/src/components/WordPressImport.tsx:1900
 msgid "SEO settings"
 msgstr "הגדרות SEO"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
 msgid "SEO Settings"
 msgstr "הגדרות SEO"
-
-#: packages/admin/src/components/WordPressImport.tsx:1900
-msgid "SEO settings (Yoast)"
-msgstr "הגדרות SEO ‏(Yoast)"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 msgid "SEO settings saved"
@@ -13097,8 +13096,8 @@ msgstr ""
 msgid "Short text"
 msgstr "טקסט קצר"
 
-#: packages/admin/src/components/FieldEditor.tsx:634
-#: packages/admin/src/components/FieldEditor.tsx:1667
+#: packages/admin/src/components/FieldEditor.tsx:656
+#: packages/admin/src/components/FieldEditor.tsx:1694
 msgid "Short Text"
 msgstr "טקסט קצר"
 
@@ -13223,11 +13222,11 @@ msgstr ""
 msgid "Signup request failed"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:671
+#: packages/admin/src/components/FieldEditor.tsx:693
 msgid "Single choice from options"
 msgstr "בחירה יחידה מהאפשרויות"
 
-#: packages/admin/src/components/FieldEditor.tsx:635
+#: packages/admin/src/components/FieldEditor.tsx:657
 msgid "Single line text input"
 msgstr "קלט טקסט בשורה אחת"
 
@@ -13343,13 +13342,13 @@ msgstr "דולג"
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 #: packages/admin/src/components/ContentTypeEditor.tsx:502
 #: packages/admin/src/components/ContentTypeList.tsx:218
-#: packages/admin/src/components/FieldEditor.tsx:712
-#: packages/admin/src/components/FieldEditor.tsx:1138
-#: packages/admin/src/components/FieldEditor.tsx:1141
-#: packages/admin/src/components/FieldEditor.tsx:1144
-#: packages/admin/src/components/FieldEditor.tsx:1629
-#: packages/admin/src/components/FieldEditor.tsx:1632
-#: packages/admin/src/components/FieldEditor.tsx:1635
+#: packages/admin/src/components/FieldEditor.tsx:734
+#: packages/admin/src/components/FieldEditor.tsx:1164
+#: packages/admin/src/components/FieldEditor.tsx:1167
+#: packages/admin/src/components/FieldEditor.tsx:1170
+#: packages/admin/src/components/FieldEditor.tsx:1656
+#: packages/admin/src/components/FieldEditor.tsx:1659
+#: packages/admin/src/components/FieldEditor.tsx:1662
 #: packages/admin/src/components/RelationForm.tsx:435
 #: packages/admin/src/components/RelationForm.tsx:440
 #: packages/admin/src/components/RelationForm.tsx:444
@@ -13638,11 +13637,11 @@ msgstr "מובנה"
 msgid "Style changed:"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1627
+#: packages/admin/src/components/FieldEditor.tsx:1654
 msgid "Sub-field slugs cannot be changed after creation."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1552
+#: packages/admin/src/components/FieldEditor.tsx:1578
 msgid "Sub-Fields"
 msgstr "שדות משנה"
 
@@ -13761,7 +13760,7 @@ msgstr "שפת יעד"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 #: packages/admin/src/components/settings/transfer/labels.ts:13
-#: packages/admin/src/components/TaxonomySidebar.tsx:905
+#: packages/admin/src/components/TaxonomySidebar.tsx:907
 msgid "Taxonomies"
 msgstr "טקסונומיות"
 
@@ -14067,7 +14066,7 @@ msgstr ""
 msgid "The name of your site, used in the header and metadata"
 msgstr "שם האתר שלכם, המשמש בכותרת ובמטא-נתונים"
 
-#: packages/admin/src/components/FieldEditor.tsx:1414
+#: packages/admin/src/components/FieldEditor.tsx:1440
 msgid "The order controls how block types appear in the picker."
 msgstr "הסדר קובע איך סוגי הבלוקים מופיעים בבוחר."
 
@@ -14193,12 +14192,12 @@ msgstr "התמונה המקושרת אינה זמינה עוד. בחרו תמו�
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "הלוגו המקושר אינו זמין עוד. בחרו לוגו חדש או הסירו את הקישור."
 
-#: packages/admin/src/components/FieldEditor.tsx:1282
+#: packages/admin/src/components/FieldEditor.tsx:1308
 msgid "The relationship and the referenced collection cannot be changed after creation. How many entries this field accepts is set on the relationship."
 msgstr "לא ניתן לשנות את הקשר ואת האוסף המקושר לאחר היצירה. מספר הפריטים שהשדה הזה מקבל נקבע בקשר."
 
-#: packages/admin/src/components/FieldEditor.tsx:1077
-#: packages/admin/src/components/FieldEditor.tsx:1330
+#: packages/admin/src/components/FieldEditor.tsx:1103
+#: packages/admin/src/components/FieldEditor.tsx:1356
 msgid "The relationship decides the referenced collection and how many entries this field accepts."
 msgstr "הקשר קובע את האוסף המקושר ואת מספר הפריטים שהשדה הזה מקבל."
 
@@ -14450,25 +14449,25 @@ msgstr "השדה הזה מצפה לרשימה. הערך השמור יישאר ל
 msgid "This field is required"
 msgstr "שדה זה נדרש"
 
-#: packages/admin/src/components/FieldEditor.tsx:1806
+#: packages/admin/src/components/FieldEditor.tsx:1849
 msgid "This field lists entries that link to this one."
 msgstr "השדה הזה מציג פריטים שמקשרים לפריט הזה."
 
-#: packages/admin/src/components/FieldEditor.tsx:1092
-#: packages/admin/src/components/FieldEditor.tsx:1345
+#: packages/admin/src/components/FieldEditor.tsx:1118
+#: packages/admin/src/components/FieldEditor.tsx:1371
 msgid "This field picks"
 msgstr "השדה הזה בוחר"
 
-#: packages/admin/src/components/FieldEditor.tsx:1805
+#: packages/admin/src/components/FieldEditor.tsx:1848
 msgid "This field picks entries this one links to."
 msgstr "השדה הזה בוחר פריטים שהפריט הזה מקשר אליהם."
 
 #. placeholder {0}: relation.childLabel
-#: packages/admin/src/components/FieldEditor.tsx:1817
+#: packages/admin/src/components/FieldEditor.tsx:1860
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
 msgstr "בשדה הזה יוצגו <0>{0}</0> ש{linkingSide} זה מקשר אליהם"
 
-#: packages/admin/src/components/FieldEditor.tsx:1822
+#: packages/admin/src/components/FieldEditor.tsx:1865
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "בשדה הזה יוצגו <0>{linkingSide}</0> שמקשרים אל {linkedSide} זה"
 
@@ -14693,7 +14692,7 @@ msgid "This site was set up with starter content. It has no entries of its own, 
 msgstr "אתר זה הוקם עם תוכן התחלה. אין בו פריטים משלו, והייבוא מוחק את תוכן ההתחלה לפני שהוא מוסיף את תוכן החבילה."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:161
-#: packages/admin/src/components/FieldEditor.tsx:499
+#: packages/admin/src/components/FieldEditor.tsx:521
 msgid "This slug is reserved. Enter a different one."
 msgstr ""
 
@@ -14812,7 +14811,7 @@ msgstr "לבחירה"
 msgid "Today"
 msgstr "היום"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:607
+#: packages/admin/src/components/TaxonomySidebar.tsx:609
 msgid "Toggle"
 msgstr "החלפה"
 
@@ -14896,7 +14895,7 @@ msgstr "בתרגום..."
 
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
-#: packages/admin/src/components/TaxonomySidebar.tsx:785
+#: packages/admin/src/components/TaxonomySidebar.tsx:787
 #: packages/admin/src/router.tsx:1629
 msgid "Translation created"
 msgstr "התרגום נוצר"
@@ -14934,7 +14933,7 @@ msgstr "הפח ריק."
 msgid "Trash pagination"
 msgstr "חלוקת הפח לעמודים"
 
-#: packages/admin/src/components/FieldEditor.tsx:659
+#: packages/admin/src/components/FieldEditor.tsx:681
 msgid "True/false toggle"
 msgstr "מתג אמת/שקר"
 
@@ -15057,14 +15056,14 @@ msgstr "לשתי רשומות יש אותו ערך בשדה שחייב להיו�
 #: packages/admin/src/components/BylineFieldEditor.tsx:385
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
-#: packages/admin/src/components/FieldEditor.tsx:1659
+#: packages/admin/src/components/FieldEditor.tsx:1686
 #: packages/admin/src/components/MediaLibrary.tsx:1170
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
 msgid "Type"
 msgstr "סוג"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:590
+#: packages/admin/src/components/TaxonomySidebar.tsx:592
 msgid "Type a name above to create a new {singularLabel}."
 msgstr ""
 
@@ -15135,7 +15134,7 @@ msgid "Uninstalling..."
 msgstr "בהסרה..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:957
-#: packages/admin/src/components/FieldEditor.tsx:1172
+#: packages/admin/src/components/FieldEditor.tsx:1198
 msgid "Unique"
 msgstr "ייחודי"
 
@@ -15191,7 +15190,7 @@ msgstr "שינויים שלא פורסמו"
 msgid "Unregistered Content Tables Found"
 msgstr "נמצאו טבלאות תוכן לא רשומות"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:851
+#: packages/admin/src/components/TaxonomySidebar.tsx:853
 msgid "Unresolved assignment"
 msgstr "שיוך שלא נפתר"
 
@@ -15256,7 +15255,7 @@ msgctxt "A published entry's scheduled changes"
 msgid "Update"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1783
+#: packages/admin/src/components/FieldEditor.tsx:1826
 msgid "Update Field"
 msgstr "עדכון שדה"
 
@@ -15415,7 +15414,7 @@ msgstr "העלאת חבילות אתר ובדיקה אם ניתן לייבא א�
 msgid "Upload to {0}"
 msgstr "העלאה אל {0}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:225
+#: packages/admin/src/components/MediaUploadDialog.tsx:228
 msgid "Upload to {providerName}"
 msgstr "העלאה אל {providerName}"
 
@@ -15457,8 +15456,8 @@ msgid "Uploading video…"
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:57
-#: packages/admin/src/components/FieldEditor.tsx:718
-#: packages/admin/src/components/FieldEditor.tsx:1674
+#: packages/admin/src/components/FieldEditor.tsx:740
+#: packages/admin/src/components/FieldEditor.tsx:1701
 #: packages/admin/src/components/MenuEditor.tsx:636
 #: packages/admin/src/components/MenuEditor.tsx:857
 #: packages/admin/src/components/PortableTextEditor.tsx:2805
@@ -15479,7 +15478,7 @@ msgid "URL template (e.g. /blog/:slug)"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:137
-#: packages/admin/src/components/FieldEditor.tsx:713
+#: packages/admin/src/components/FieldEditor.tsx:735
 msgid "URL-friendly identifier"
 msgstr "מזהה ידידותי ל-URL"
 
@@ -15539,7 +15538,7 @@ msgid "Use 200 options or fewer."
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:133
-#: packages/admin/src/components/FieldEditor.tsx:339
+#: packages/admin/src/components/FieldEditor.tsx:351
 #: packages/admin/src/components/RelationForm.tsx:178
 #: packages/admin/src/components/TaxonomyManager.tsx:131
 msgid "Use 63 characters or fewer."
@@ -15573,7 +15572,7 @@ msgid "Use lowercase letters, numbers, and hyphens."
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:131
-#: packages/admin/src/components/FieldEditor.tsx:337
+#: packages/admin/src/components/FieldEditor.tsx:349
 #: packages/admin/src/components/RelationForm.tsx:176
 #: packages/admin/src/components/TaxonomyManager.tsx:129
 msgid "Use lowercase letters, numbers, and underscores, starting with a letter."
@@ -15673,7 +15672,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "משתמשים עם כתובות אימייל מדומיינים אלה יכולים להירשם ללא הזמנה. התפקיד שצוין יוקצה להם אוטומטית."
 
 #. placeholder {0}: version.version
-#: packages/admin/src/components/FieldEditor.tsx:1507
+#: packages/admin/src/components/FieldEditor.tsx:1533
 msgid "v{0}"
 msgstr "גרסה {0}"
 
@@ -15686,8 +15685,8 @@ msgstr "גרסה v{0} זמינה"
 msgid "Validating the package"
 msgstr "מתבצע אימות החבילה"
 
-#: packages/admin/src/components/FieldEditor.tsx:1198
-#: packages/admin/src/components/FieldEditor.tsx:1236
+#: packages/admin/src/components/FieldEditor.tsx:1224
+#: packages/admin/src/components/FieldEditor.tsx:1262
 msgid "Validation"
 msgstr "אימות תקינות"
 
@@ -15873,7 +15872,7 @@ msgstr "נשלח לכם קישור להתחברות ללא סיסמה."
 msgid "We've sent a verification link to <0>{email}</0>"
 msgstr "שלחנו קישור אימות אל <0>{email}</0>"
 
-#: packages/admin/src/components/FieldEditor.tsx:719
+#: packages/admin/src/components/FieldEditor.tsx:741
 msgid "Web address"
 msgstr "כתובת אתר"
 
@@ -15928,7 +15927,7 @@ msgstr "מהו מפתח גישה?"
 msgid "What it leaves out"
 msgstr "מה לא נכלל"
 
-#: packages/admin/src/components/FieldEditor.tsx:1837
+#: packages/admin/src/components/FieldEditor.tsx:1880
 msgid "What the direction changes"
 msgstr "מה משנה הכיוון"
 
@@ -15977,7 +15976,7 @@ msgstr "היכן הוא נשמר?"
 msgid "Which content types can use this taxonomy"
 msgstr "אילו סוגי תוכן יכולים להשתמש בטקסונומיה זו"
 
-#: packages/admin/src/components/FieldEditor.tsx:653
+#: packages/admin/src/components/FieldEditor.tsx:675
 msgid "Whole number"
 msgstr "מספר שלם"
 

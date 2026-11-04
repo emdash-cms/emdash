@@ -103,6 +103,20 @@ describe("widgets on a translated site", () => {
 		expect(html).toContain('href="/en/news/museum-news"');
 	});
 
+	it("link a translated page under the site's base path and then its locale", async () => {
+		vi.stubEnv("BASE_URL", "/field-notes/");
+		try {
+			const html = await renderAt("/en/");
+
+			expect(html.categories).toContain('href="/field-notes/en/category/news"');
+			expect(html.tags).toContain('href="/field-notes/en/tag/history"');
+			expect(html.recent).toContain('href="/field-notes/en/posts/museum-news"');
+			expect(html.archives).toContain('href="/field-notes/en/archives/2025/01"');
+		} finally {
+			vi.unstubAllEnvs();
+		}
+	});
+
 	it("keep default-locale pages unprefixed", async () => {
 		const html = await renderAt("/");
 

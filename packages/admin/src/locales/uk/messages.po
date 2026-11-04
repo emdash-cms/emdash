@@ -476,7 +476,7 @@ msgid "{0} detected"
 msgstr "{0} виявлено"
 
 #. placeholder {0}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:627
+#: packages/admin/src/components/TaxonomySidebar.tsx:629
 msgid "{0} fallback"
 msgstr "{0}, без перекладу"
 
@@ -591,7 +591,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr "{0} системних + {1} {2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:687
+#: packages/admin/src/components/TaxonomySidebar.tsx:689
 msgid "{0} updated"
 msgstr "{0} оновлено"
 
@@ -638,12 +638,12 @@ msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
 msgstr "{columns, plural, one {# стовпець видалено} few {# стовпці видалено} many {# стовпців видалено} other {# стовпця видалено}}"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "{completedCount} of {0} complete"
 msgstr "Завершено: {completedCount} з {0}"
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:196
+#: packages/admin/src/components/MediaUploadDialog.tsx:199
 msgid "{completedCount} of {0} uploads complete"
 msgstr "Завершено завантажень: {completedCount} з {0}"
 
@@ -684,7 +684,7 @@ msgstr "{earlierCount, plural, one {Показати # попередній за
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr "{failed, plural, one {Не вдалося надіслати # лист. Перевірте email-провайдера.} few {Не вдалося надіслати # листи. Перевірте email-провайдера.} many {Не вдалося надіслати # листів. Перевірте email-провайдера.} other {Не вдалося надіслати # листа. Перевірте email-провайдера.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:198
+#: packages/admin/src/components/MediaUploadDialog.tsx:201
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{failedCount, plural, one {Не вдалося завантажити # файл} few {Не вдалося завантажити # файли} many {Не вдалося завантажити # файлів} other {Не вдалося завантажити # файлу}}"
 
@@ -741,7 +741,7 @@ msgstr "{label}: переміщено на позицію {0} з {1}."
 msgid "{label} moved to position {0}."
 msgstr "Переміщено на позицію {0}: {label}."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:535
+#: packages/admin/src/components/TaxonomySidebar.tsx:537
 msgid "{label} options"
 msgstr "Варіанти: {label}"
 
@@ -849,7 +849,7 @@ msgstr "{overdueCount, plural, one {# запланований запис не �
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {# запланований запис не опубліковано вчасно, але жоден запуск планувальника ще не завершився. Запустіть `npx emdash doctor` і перевірте розгорнутий Cron Trigger.} few {# заплановані записи не опубліковано вчасно, але жоден запуск планувальника ще не завершився. Запустіть `npx emdash doctor` і перевірте розгорнутий Cron Trigger.} many {# запланованих записів не опубліковано вчасно, але жоден запуск планувальника ще не завершився. Запустіть `npx emdash doctor` і перевірте розгорнутий Cron Trigger.} other {# запланованого запису не опубліковано вчасно, але жоден запуск планувальника ще не завершився. Запустіть `npx emdash doctor` і перевірте розгорнутий Cron Trigger.}}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:287
+#: packages/admin/src/components/MediaUploadDialog.tsx:290
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr "{overflowCount, plural, one {# файл не додано, бо черга завантаження заповнена.} few {# файли не додано, бо черга завантаження заповнена.} many {# файлів не додано, бо черга завантаження заповнена.} other {# файлу не додано, бо черга завантаження заповнена.}}"
 
@@ -875,7 +875,7 @@ msgstr "{plural} з'являться на сайті одразу; зміни в
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr "{policyRejected, plural, =1 {Відкрийте заблокований запис, усуньте причину, указану політикою, і заплануйте його знову. Сповіщення зникне після успішного планування чи публікації.} one {Відкрийте заблоковані записи, усуньте причини, указані політикою, і заплануйте їх знову. Сповіщення про кожен запис зникне після його успішного планування чи публікації.} few {Відкрийте заблоковані записи, усуньте причини, указані політикою, і заплануйте їх знову. Сповіщення про кожен запис зникне після його успішного планування чи публікації.} many {Відкрийте заблоковані записи, усуньте причини, указані політикою, і заплануйте їх знову. Сповіщення про кожен запис зникне після його успішного планування чи публікації.} other {Відкрийте заблоковані записи, усуньте причини, указані політикою, і заплануйте їх знову. Сповіщення про кожен запис зникне після його успішного планування чи публікації.}}"
 
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:303
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
 msgstr "{position} з {total}"
 
@@ -1246,17 +1246,17 @@ msgstr "З цих назв сторін не вдається утворити s
 #: packages/admin/src/components/BylineFieldEditor.tsx:128
 #: packages/admin/src/components/BylineFieldEditor.tsx:372
 #: packages/admin/src/components/ContentTypeEditor.tsx:239
-#: packages/admin/src/components/FieldEditor.tsx:420
-#: packages/admin/src/components/FieldEditor.tsx:1152
+#: packages/admin/src/components/FieldEditor.tsx:439
+#: packages/admin/src/components/FieldEditor.tsx:1178
 msgid "A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr "Із цієї мітки не вдається створити slug. Введіть його вручну: малі латинські літери, цифри та підкреслення."
 
-#: packages/admin/src/components/FieldEditor.tsx:464
-#: packages/admin/src/components/FieldEditor.tsx:1652
+#: packages/admin/src/components/FieldEditor.tsx:483
+#: packages/admin/src/components/FieldEditor.tsx:1679
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr "Із цієї мітки не вдається створити slug. Введіть його вручну."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:769
+#: packages/admin/src/components/TaxonomySidebar.tsx:771
 msgid "A source and target locale are required"
 msgstr "Потрібні вихідна й цільова локалі"
 
@@ -1392,7 +1392,7 @@ msgstr "Активний"
 #. placeholder {0}: blockType.currentVersion
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlockTypeList.tsx:81
-#: packages/admin/src/components/FieldEditor.tsx:1506
+#: packages/admin/src/components/FieldEditor.tsx:1532
 msgid "Active v{0}"
 msgstr "Активна v{0}"
 
@@ -1451,12 +1451,12 @@ msgid "Add at least {minItems} blocks."
 msgstr "Додайте блоки: потрібно щонайменше {minItems}."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:138
-#: packages/admin/src/components/FieldEditor.tsx:449
+#: packages/admin/src/components/FieldEditor.tsx:387
 msgid "Add at least one option."
 msgstr "Додайте принаймні один варіант."
 
-#: packages/admin/src/components/FieldEditor.tsx:455
-#: packages/admin/src/components/FieldEditor.tsx:1590
+#: packages/admin/src/components/FieldEditor.tsx:474
+#: packages/admin/src/components/FieldEditor.tsx:1617
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Додайте принаймні одне підполе, щоб визначити структуру повторювача."
 
@@ -1504,8 +1504,8 @@ msgid "Add Domain"
 msgstr "Додати домен"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:780
-#: packages/admin/src/components/FieldEditor.tsx:982
-#: packages/admin/src/components/FieldEditor.tsx:1783
+#: packages/admin/src/components/FieldEditor.tsx:1008
+#: packages/admin/src/components/FieldEditor.tsx:1826
 msgid "Add Field"
 msgstr "Додати поле"
 
@@ -1608,7 +1608,7 @@ msgstr "Додати обрані"
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "Додати SEO-поля метаданих (заголовок, опис, зображення) та включити в карту сайту"
 
-#: packages/admin/src/components/FieldEditor.tsx:1577
+#: packages/admin/src/components/FieldEditor.tsx:1604
 msgid "Add Sub-Field"
 msgstr "Додати підполе"
 
@@ -1857,7 +1857,7 @@ msgstr "Усі статуси"
 msgid "All types"
 msgstr "Усі типи"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:200
+#: packages/admin/src/components/MediaUploadDialog.tsx:203
 msgid "All uploads finished"
 msgstr "Усі завантаження завершено"
 
@@ -1865,7 +1865,7 @@ msgstr "Усі завантаження завершено"
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr "Дозволити MCP-токенам з доступом до інструментів плагіна викликати ці маршрути."
 
-#: packages/admin/src/components/FieldEditor.tsx:1386
+#: packages/admin/src/components/FieldEditor.tsx:1412
 msgid "Allow multiple references"
 msgstr "Дозволити кілька посилань"
 
@@ -1878,8 +1878,8 @@ msgstr "Дозволити реєстрацію користувачам із п
 msgid "Allow visitors to leave comments on this collection's content"
 msgstr "Дозволити відвідувачам залишати коментарі до вмісту цієї колекції"
 
-#: packages/admin/src/components/FieldEditor.tsx:1413
-#: packages/admin/src/components/FieldEditor.tsx:1430
+#: packages/admin/src/components/FieldEditor.tsx:1439
+#: packages/admin/src/components/FieldEditor.tsx:1456
 msgid "Allowed block types"
 msgstr "Дозволені типи блоків"
 
@@ -1988,8 +1988,8 @@ msgstr "Зашифрований цифровий ключ, який ви роз
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
 #: packages/admin/src/components/settings/TransferSettings.tsx:85
-#: packages/admin/src/components/TaxonomySidebar.tsx:694
-#: packages/admin/src/components/TaxonomySidebar.tsx:790
+#: packages/admin/src/components/TaxonomySidebar.tsx:696
+#: packages/admin/src/components/TaxonomySidebar.tsx:792
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:665
 #: packages/admin/src/router.tsx:686
@@ -2041,7 +2041,7 @@ msgid "Another editor"
 msgstr "Інший редактор"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:151
-#: packages/admin/src/components/FieldEditor.tsx:497
+#: packages/admin/src/components/FieldEditor.tsx:519
 msgid "Another field already uses this slug. Enter a different one."
 msgstr "Цей slug уже зайнятий іншим полем. Введіть інший."
 
@@ -2069,7 +2069,7 @@ msgstr "Цей slug уже використовує інший зв'язок. В
 msgid "Another section already uses this slug. Enter a different one."
 msgstr "Цей slug уже використовує інша секція. Введіть інший."
 
-#: packages/admin/src/components/FieldEditor.tsx:470
+#: packages/admin/src/components/FieldEditor.tsx:489
 msgid "Another sub-field already uses this slug. Enter a different one."
 msgstr "Цей slug уже використовує інше підполе. Введіть інший."
 
@@ -2167,7 +2167,7 @@ msgstr "Схвалено"
 msgid "Approving…"
 msgstr "Схвалення…"
 
-#: packages/admin/src/components/FieldEditor.tsx:707
+#: packages/admin/src/components/FieldEditor.tsx:729
 msgid "Arbitrary JSON data"
 msgstr "Довільні JSON-дані"
 
@@ -2363,7 +2363,7 @@ msgid "Available bylines"
 msgstr "Доступні підписи"
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:853
+#: packages/admin/src/components/TaxonomySidebar.tsx:855
 msgid "Available in {0}"
 msgstr "Доступно в локалях: {0}"
 
@@ -2390,7 +2390,7 @@ msgstr "Назад"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:500
-#: packages/admin/src/components/FieldEditor.tsx:1771
+#: packages/admin/src/components/FieldEditor.tsx:1814
 #: packages/admin/src/components/MediaDetailPanel.tsx:1786
 #: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
@@ -2551,7 +2551,7 @@ msgstr "Версії типів блоків"
 msgid "Block types"
 msgstr "Типи блоків"
 
-#: packages/admin/src/components/FieldEditor.tsx:1420
+#: packages/admin/src/components/FieldEditor.tsx:1446
 msgid "Block types could not be loaded."
 msgstr "Не вдалося завантажити типи блоків."
 
@@ -2559,7 +2559,7 @@ msgstr "Не вдалося завантажити типи блоків."
 msgid "Blockers"
 msgstr "Перешкоди"
 
-#: packages/admin/src/components/FieldEditor.tsx:730
+#: packages/admin/src/components/FieldEditor.tsx:752
 msgid "Blocks"
 msgstr "Блоки"
 
@@ -2569,8 +2569,8 @@ msgid "Bold"
 msgstr "Жирний"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:58
-#: packages/admin/src/components/FieldEditor.tsx:658
-#: packages/admin/src/components/FieldEditor.tsx:1671
+#: packages/admin/src/components/FieldEditor.tsx:680
+#: packages/admin/src/components/FieldEditor.tsx:1698
 msgid "Boolean"
 msgstr "Логічний"
 
@@ -2598,7 +2598,7 @@ msgstr "Переглядайте та встановлюйте плагіни з
 msgid "Browse and install plugins to extend your site."
 msgstr "Переглядайте та встановлюйте плагіни для розширення сайту."
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:268
+#: packages/admin/src/components/MediaUploadDialog.tsx:271
 msgid "Browse files"
 msgstr "Обрати файли"
 
@@ -2607,7 +2607,7 @@ msgstr "Обрати файли"
 msgid "Browse Files"
 msgstr "Обрати файли"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:277
+#: packages/admin/src/components/MediaUploadDialog.tsx:280
 msgid "Browse files to upload"
 msgstr "Оберіть файли для завантаження"
 
@@ -2738,7 +2738,7 @@ msgstr "Може переглядати вміст"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:826
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
-#: packages/admin/src/components/FieldEditor.tsx:1776
+#: packages/admin/src/components/FieldEditor.tsx:1819
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
@@ -2776,7 +2776,7 @@ msgid "Cancel (Esc)"
 msgstr "Скасувати (Esc)"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:141
+#: packages/admin/src/components/MediaUploadDialog.tsx:144
 msgid "Cancel {0}"
 msgstr "Скасувати завантаження {0}"
 
@@ -2785,7 +2785,7 @@ msgstr "Скасувати завантаження {0}"
 msgid "Cancel import"
 msgstr "Скасувати імпорт"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:331
+#: packages/admin/src/components/MediaUploadDialog.tsx:334
 msgid "Cancel remaining"
 msgstr "Скасувати решту"
 
@@ -2866,7 +2866,7 @@ msgstr "По центру"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:79
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:110
-#: packages/admin/src/components/FieldEditor.tsx:1040
+#: packages/admin/src/components/FieldEditor.tsx:1066
 msgid "Change"
 msgstr "Змінити"
 
@@ -2912,7 +2912,7 @@ msgstr "Змінити дату публікації: {0}"
 msgid "Change schedule"
 msgstr "Змінити час публікації"
 
-#: packages/admin/src/components/FieldEditor.tsx:986
+#: packages/admin/src/components/FieldEditor.tsx:1012
 msgid "Change the field's label and what it accepts."
 msgstr "Змініть мітку поля та допустимі значення."
 
@@ -3101,13 +3101,13 @@ msgstr "Перевірка цього сайту"
 msgid "Checking…"
 msgstr "Перевірка…"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:396
-#: packages/admin/src/components/TaxonomySidebar.tsx:397
-#: packages/admin/src/components/TaxonomySidebar.tsx:490
+#: packages/admin/src/components/TaxonomySidebar.tsx:398
+#: packages/admin/src/components/TaxonomySidebar.tsx:399
+#: packages/admin/src/components/TaxonomySidebar.tsx:492
 msgid "Choose {label}"
 msgstr "Обрати {label}"
 
-#: packages/admin/src/components/FieldEditor.tsx:407
+#: packages/admin/src/components/FieldEditor.tsx:426
 msgid "Choose a collection."
 msgstr "Оберіть колекцію."
 
@@ -3142,7 +3142,7 @@ msgstr "Оберіть непорожнє зображення у форматі
 msgid "Choose a recognized timezone for reliable date display."
 msgstr "Оберіть часовий пояс зі списку, щоб дати відображалися правильно."
 
-#: packages/admin/src/components/FieldEditor.tsx:406
+#: packages/admin/src/components/FieldEditor.tsx:425
 msgid "Choose a relationship."
 msgstr "Оберіть зв'язок."
 
@@ -3170,7 +3170,7 @@ msgstr "Оберіть зображення в бібліотеці або за�
 msgid "Choose another option"
 msgstr "Обрати інший спосіб"
 
-#: packages/admin/src/components/FieldEditor.tsx:480
+#: packages/admin/src/components/FieldEditor.tsx:502
 msgid "Choose at least one block type."
 msgstr "Оберіть принаймні один тип блоку."
 
@@ -3204,7 +3204,7 @@ msgstr "Оберіть той самий файл пакета ще раз, що
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
 msgstr "Оберіть Touch ID або інший доступний менеджер облікових даних і підтвердьте відбитком пальця чи паролем Mac."
 
-#: packages/admin/src/components/FieldEditor.tsx:988
+#: packages/admin/src/components/FieldEditor.tsx:1014
 msgid "Choose what kind of content the field holds."
 msgstr "Оберіть, який вміст зберігатиме поле."
 
@@ -3237,7 +3237,7 @@ msgstr "Якщо обрати підпис, він замінить автома
 msgid "Clear"
 msgstr "Очистити"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:316
+#: packages/admin/src/components/MediaUploadDialog.tsx:319
 msgid "Clear completed"
 msgstr "Прибрати завершені"
 
@@ -3311,11 +3311,11 @@ msgstr "Перейдіть за цим посиланням, щоб увійти
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
-#: packages/admin/src/components/MediaUploadDialog.tsx:237
+#: packages/admin/src/components/MediaUploadDialog.tsx:240
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
-#: packages/admin/src/components/TaxonomySidebar.tsx:613
+#: packages/admin/src/components/TaxonomySidebar.tsx:615
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:8
 msgid "Close"
@@ -3501,7 +3501,7 @@ msgstr "Завершити реєстрацію"
 msgid "Component"
 msgstr "Компонент"
 
-#: packages/admin/src/components/FieldEditor.tsx:982
+#: packages/admin/src/components/FieldEditor.tsx:1008
 msgid "Configure Field"
 msgstr "Налаштувати поле"
 
@@ -3962,7 +3962,7 @@ msgstr "Створити"
 msgid "Create “{0}”"
 msgstr "Створити \"{0}\""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:586
+#: packages/admin/src/components/TaxonomySidebar.tsx:588
 msgid "Create \"{trimmedInput}\""
 msgstr "Створити \"{trimmedInput}\""
 
@@ -3972,7 +3972,7 @@ msgid "Create {0}"
 msgstr "Створити підпис \"{0}\""
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:864
+#: packages/admin/src/components/TaxonomySidebar.tsx:866
 msgid "Create {0} translation"
 msgstr "Створити переклад {0}"
 
@@ -3980,7 +3980,7 @@ msgstr "Створити переклад {0}"
 msgid "Create {singularLower}"
 msgstr "Створити термін ({singularLower})"
 
-#: packages/admin/src/components/FieldEditor.tsx:1424
+#: packages/admin/src/components/FieldEditor.tsx:1450
 msgid "Create a block type before adding a blocks field."
 msgstr "Створіть тип блоку, перш ніж додавати поле блоків."
 
@@ -3993,7 +3993,7 @@ msgstr "Створити маркований список"
 msgid "Create a new {0}"
 msgstr "Створити новий термін ({0})"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:586
+#: packages/admin/src/components/TaxonomySidebar.tsx:588
 msgid "Create a new {singularLabel}"
 msgstr "Створити новий термін ({singularLabel})"
 
@@ -4074,7 +4074,7 @@ msgstr "Створити перенаправлення для цього шля
 msgid "Create redirect rules to manage URL changes."
 msgstr "Створюйте правила перенаправлення для керування змінами URL."
 
-#: packages/admin/src/components/FieldEditor.tsx:1063
+#: packages/admin/src/components/FieldEditor.tsx:1089
 msgid "Create relation"
 msgstr "Створити зв'язок"
 
@@ -4287,8 +4287,8 @@ msgstr "Власні таксономії"
 msgid "Daily automatic backups"
 msgstr "Щоденні автоматичні резервні копії"
 
-#: packages/admin/src/components/FieldEditor.tsx:1749
-#: packages/admin/src/components/FieldEditor.tsx:1752
+#: packages/admin/src/components/FieldEditor.tsx:1792
+#: packages/admin/src/components/FieldEditor.tsx:1795
 #: packages/admin/src/components/ImageFieldRenderer.tsx:416
 msgid "Dark mode variant"
 msgstr "Варіант для темного режиму"
@@ -4311,12 +4311,12 @@ msgstr "Визначення, що зберігаються в базі дани
 msgid "Date"
 msgstr "Дата"
 
-#: packages/admin/src/components/FieldEditor.tsx:664
-#: packages/admin/src/components/FieldEditor.tsx:1672
+#: packages/admin/src/components/FieldEditor.tsx:686
+#: packages/admin/src/components/FieldEditor.tsx:1699
 msgid "Date & Time"
 msgstr "Дата й час"
 
-#: packages/admin/src/components/FieldEditor.tsx:665
+#: packages/admin/src/components/FieldEditor.tsx:687
 msgid "Date and time picker"
 msgstr "Вибір дати й часу"
 
@@ -4332,7 +4332,7 @@ msgstr "Формат дати"
 msgid "Date range"
 msgstr "Діапазон дат"
 
-#: packages/admin/src/components/FieldEditor.tsx:647
+#: packages/admin/src/components/FieldEditor.tsx:669
 msgid "Decimal number"
 msgstr "Десяткове число"
 
@@ -4843,7 +4843,7 @@ msgid "Dismiss"
 msgstr "Закрити"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:143
+#: packages/admin/src/components/MediaUploadDialog.tsx:146
 msgid "Dismiss completed {0}"
 msgstr "Прибрати завершений файл {0}"
 
@@ -4950,7 +4950,7 @@ msgstr "Не зіставляти"
 #: packages/admin/src/components/BulkTagDialog.tsx:505
 #: packages/admin/src/components/BylineCreditsEditor.tsx:774
 #: packages/admin/src/components/ContentList.tsx:1224
-#: packages/admin/src/components/MediaUploadDialog.tsx:335
+#: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
 #: packages/admin/src/components/WordPressImport.tsx:2185
 msgid "Done"
@@ -5051,7 +5051,7 @@ msgstr "Чернетки"
 msgid "Drafts & Private"
 msgstr "Чернетки та приватні"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:256
+#: packages/admin/src/components/MediaUploadDialog.tsx:259
 msgid "Drag and drop files here"
 msgstr "Перетягніть файли сюди"
 
@@ -5200,8 +5200,8 @@ msgstr "Редагувати поле {0}"
 msgid "Edit {itemLabel}"
 msgstr "Редагування запису: {itemLabel}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:416
-#: packages/admin/src/components/TaxonomySidebar.tsx:425
+#: packages/admin/src/components/TaxonomySidebar.tsx:418
+#: packages/admin/src/components/TaxonomySidebar.tsx:427
 msgid "Edit {label}"
 msgstr "Редагувати {label}"
 
@@ -5237,7 +5237,7 @@ msgstr "Редагувати медіафайл для темного режим
 msgid "Edit Domain"
 msgstr "Редагувати домен"
 
-#: packages/admin/src/components/FieldEditor.tsx:982
+#: packages/admin/src/components/FieldEditor.tsx:1008
 msgid "Edit Field"
 msgstr "Редагувати поле"
 
@@ -5383,7 +5383,7 @@ msgstr ""
 "Репортер\n"
 "Фотограф"
 
-#: packages/admin/src/components/FieldEditor.tsx:1747
+#: packages/admin/src/components/FieldEditor.tsx:1790
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "Редактори зможуть обрати друге зображення, яке сайт показуватиме в темному режимі."
 
@@ -5606,7 +5606,7 @@ msgid "Enter a full URL, such as https://example.com."
 msgstr "Введіть повний URL, наприклад https://example.com."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:119
-#: packages/admin/src/components/FieldEditor.tsx:329
+#: packages/admin/src/components/FieldEditor.tsx:341
 #: packages/admin/src/components/MenuEditor.tsx:137
 #: packages/admin/src/components/MenuEditor.tsx:254
 #: packages/admin/src/components/MenuList.tsx:40
@@ -5615,7 +5615,7 @@ msgstr "Введіть повний URL, наприклад https://example.com.
 msgid "Enter a label."
 msgstr "Введіть мітку."
 
-#: packages/admin/src/components/FieldEditor.tsx:332
+#: packages/admin/src/components/FieldEditor.tsx:344
 msgid "Enter a maximum that is at least the minimum."
 msgstr "Введіть максимум, не менший за мінімум."
 
@@ -5640,11 +5640,11 @@ msgstr "Введіть число не більше ніж {max}."
 msgid "Enter a number of {min} or more."
 msgstr "Введіть число не менше ніж {min}."
 
-#: packages/admin/src/components/FieldEditor.tsx:333
+#: packages/admin/src/components/FieldEditor.tsx:345
 msgid "Enter a number of 100 or less."
 msgstr "Введіть число не більше 100."
 
-#: packages/admin/src/components/FieldEditor.tsx:331
+#: packages/admin/src/components/FieldEditor.tsx:343
 msgid "Enter a number."
 msgstr "Введіть число."
 
@@ -5659,7 +5659,7 @@ msgstr "Щоб зберегти, введіть коректний часови�
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:127
 #: packages/admin/src/components/BylineFormDialog.tsx:317
-#: packages/admin/src/components/FieldEditor.tsx:328
+#: packages/admin/src/components/FieldEditor.tsx:340
 #: packages/admin/src/components/RelationForm.tsx:173
 #: packages/admin/src/components/Sections.tsx:98
 #: packages/admin/src/components/TaxonomyManager.tsx:106
@@ -5690,7 +5690,7 @@ msgstr "Введіть URL."
 msgid "Enter a valid email address, such as name@example.com."
 msgstr "Введіть дійсну адресу електронної пошти, наприклад name@example.com."
 
-#: packages/admin/src/components/FieldEditor.tsx:434
+#: packages/admin/src/components/FieldEditor.tsx:453
 msgid "Enter a valid regular expression."
 msgstr "Введіть коректний регулярний вираз."
 
@@ -5702,11 +5702,11 @@ msgstr "Введіть правильний час"
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Введіть дійсний URL (наприклад, https://example.com)"
 
-#: packages/admin/src/components/FieldEditor.tsx:330
+#: packages/admin/src/components/FieldEditor.tsx:342
 msgid "Enter a whole number of 0 or more."
 msgstr "Введіть ціле число не менше 0."
 
-#: packages/admin/src/components/FieldEditor.tsx:393
+#: packages/admin/src/components/FieldEditor.tsx:412
 msgid "Enter a whole number of 1 or more."
 msgstr "Введіть ціле число не менше 1."
 
@@ -5770,13 +5770,13 @@ msgstr "Введіть URL сайту WordPress"
 msgid "Entries"
 msgstr "Записи"
 
-#: packages/admin/src/components/FieldEditor.tsx:1100
-#: packages/admin/src/components/FieldEditor.tsx:1353
+#: packages/admin/src/components/FieldEditor.tsx:1126
+#: packages/admin/src/components/FieldEditor.tsx:1379
 msgid "Entries that link to this one"
 msgstr "Записи, що посилаються на цей запис"
 
-#: packages/admin/src/components/FieldEditor.tsx:1099
-#: packages/admin/src/components/FieldEditor.tsx:1352
+#: packages/admin/src/components/FieldEditor.tsx:1125
+#: packages/admin/src/components/FieldEditor.tsx:1378
 msgid "Entries this one links to"
 msgstr "Записи, на які посилається цей запис"
 
@@ -5816,7 +5816,7 @@ msgstr "Помилка оновлення віджета"
 msgid "esc"
 msgstr "esc"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:611
+#: packages/admin/src/components/TaxonomySidebar.tsx:613
 msgid "Esc"
 msgstr "Esc"
 
@@ -6032,7 +6032,7 @@ msgid "Failed to continue import"
 msgstr "Не вдалося продовжити імпорт"
 
 #. placeholder {0}: failedLabels.join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:760
+#: packages/admin/src/components/TaxonomySidebar.tsx:762
 msgid "Failed to create {0}"
 msgstr "Не вдалося створити: {0}"
 
@@ -6122,7 +6122,7 @@ msgstr "Не вдалося створити деякі колекції"
 msgid "Failed to create taxonomy"
 msgstr "Не вдалося створити таксономію"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:739
+#: packages/admin/src/components/TaxonomySidebar.tsx:741
 #: packages/admin/src/lib/api/taxonomies.ts:215
 msgid "Failed to create term"
 msgstr "Не вдалося створити термін"
@@ -6131,7 +6131,7 @@ msgstr "Не вдалося створити термін"
 msgid "Failed to create term translation"
 msgstr "Не вдалося створити переклад терміна"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:789
+#: packages/admin/src/components/TaxonomySidebar.tsx:791
 #: packages/admin/src/router.tsx:1635
 msgid "Failed to create translation"
 msgstr "Не вдалося створити переклад"
@@ -6902,7 +6902,7 @@ msgid "Failed to update"
 msgstr "Не вдалося оновити"
 
 #. placeholder {0}: inlineLabel(taxonomy.label, lingui.locale)
-#: packages/admin/src/components/TaxonomySidebar.tsx:693
+#: packages/admin/src/components/TaxonomySidebar.tsx:695
 msgid "Failed to update {0}"
 msgstr "Не вдалося оновити {0}"
 
@@ -7067,15 +7067,15 @@ msgstr "Поле створено"
 msgid "Field deleted"
 msgstr "Поле видалено"
 
-#: packages/admin/src/components/FieldEditor.tsx:1617
+#: packages/admin/src/components/FieldEditor.tsx:1644
 msgid "Field label"
 msgstr "Мітка поля"
 
-#: packages/admin/src/components/FieldEditor.tsx:1128
+#: packages/admin/src/components/FieldEditor.tsx:1154
 msgid "Field Label"
 msgstr "Мітка поля"
 
-#: packages/admin/src/components/FieldEditor.tsx:1137
+#: packages/admin/src/components/FieldEditor.tsx:1163
 msgid "Field slugs cannot be changed after creation"
 msgstr "Slug поля не можна змінити після створення"
 
@@ -7087,7 +7087,7 @@ msgstr "Тип поля не можна змінити після створен
 msgid "Field updated"
 msgstr "Поле оновлено"
 
-#: packages/admin/src/components/FieldEditor.tsx:1648
+#: packages/admin/src/components/FieldEditor.tsx:1675
 msgid "field_slug"
 msgstr "field_slug"
 
@@ -7101,7 +7101,7 @@ msgstr "Поля"
 msgid "Fields created:"
 msgstr "Створено полів:"
 
-#: packages/admin/src/components/FieldEditor.tsx:694
+#: packages/admin/src/components/FieldEditor.tsx:716
 msgid "File"
 msgstr "Файл"
 
@@ -7110,7 +7110,7 @@ msgstr "Файл"
 msgid "File {0}"
 msgstr "Файл {0}"
 
-#: packages/admin/src/components/FieldEditor.tsx:695
+#: packages/admin/src/components/FieldEditor.tsx:717
 msgid "File from media library"
 msgstr "Файл з медіатеки"
 
@@ -7124,7 +7124,7 @@ msgstr "Ім'я файлу"
 msgid "Filename cannot be changed after upload"
 msgstr "Ім'я файлу не можна змінити після завантаження"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:228
+#: packages/admin/src/components/MediaUploadDialog.tsx:231
 msgid "Files upload as soon as you add them."
 msgstr "Файли завантажуються одразу після додавання."
 
@@ -7716,8 +7716,8 @@ msgid "visualEditing.image"
 msgstr "Зображення"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
-#: packages/admin/src/components/FieldEditor.tsx:688
-#: packages/admin/src/components/FieldEditor.tsx:1675
+#: packages/admin/src/components/FieldEditor.tsx:710
+#: packages/admin/src/components/FieldEditor.tsx:1702
 #: packages/admin/src/components/PortableTextEditor.tsx:3770
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
@@ -7744,7 +7744,7 @@ msgstr "Дії із зображенням"
 msgid "Image controls"
 msgstr "Елементи керування зображенням"
 
-#: packages/admin/src/components/FieldEditor.tsx:689
+#: packages/admin/src/components/FieldEditor.tsx:711
 msgid "Image from media library"
 msgstr "Зображення з медіатеки"
 
@@ -7971,7 +7971,7 @@ msgstr "Збільшити ширину стовпця"
 msgid "Index existing content and keep Used in results up to date."
 msgstr "Проіндексуйте наявний вміст, щоб дані \"Де використано\" залишалися актуальними."
 
-#: packages/admin/src/components/FieldEditor.tsx:1187
+#: packages/admin/src/components/FieldEditor.tsx:1213
 #: packages/admin/src/components/RegistryPluginDetail.tsx:588
 msgid "Indexed"
 msgstr "Проіндексовано"
@@ -8134,8 +8134,8 @@ msgstr "Встановлено:"
 msgid "Installing..."
 msgstr "Встановлення..."
 
-#: packages/admin/src/components/FieldEditor.tsx:652
-#: packages/admin/src/components/FieldEditor.tsx:1670
+#: packages/admin/src/components/FieldEditor.tsx:674
+#: packages/admin/src/components/FieldEditor.tsx:1697
 msgid "Integer"
 msgstr "Ціле число"
 
@@ -8267,7 +8267,7 @@ msgid "JS"
 msgstr "JS"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:41
-#: packages/admin/src/components/FieldEditor.tsx:706
+#: packages/admin/src/components/FieldEditor.tsx:728
 msgid "JSON"
 msgstr "JSON"
 
@@ -8331,8 +8331,8 @@ msgid "Kotlin"
 msgstr "Kotlin"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:341
-#: packages/admin/src/components/FieldEditor.tsx:1125
-#: packages/admin/src/components/FieldEditor.tsx:1603
+#: packages/admin/src/components/FieldEditor.tsx:1151
+#: packages/admin/src/components/FieldEditor.tsx:1630
 #: packages/admin/src/components/MenuEditor.tsx:560
 #: packages/admin/src/components/MenuEditor.tsx:563
 #: packages/admin/src/components/MenuEditor.tsx:625
@@ -8473,7 +8473,7 @@ msgstr "Параметри посилання"
 msgid "Link this byline to a user or mark it as a guest profile."
 msgstr "Пов'яжіть цей підпис із користувачем або позначте його як гостьовий профіль."
 
-#: packages/admin/src/components/FieldEditor.tsx:701
+#: packages/admin/src/components/FieldEditor.tsx:723
 msgid "Link to another content item"
 msgstr "Посилання на інший елемент вмісту"
 
@@ -8621,7 +8621,7 @@ msgid "Loading approval requests…"
 msgstr "Завантаження запитів на схвалення…"
 
 #: packages/admin/src/components/BlockTypeList.tsx:51
-#: packages/admin/src/components/FieldEditor.tsx:1417
+#: packages/admin/src/components/FieldEditor.tsx:1443
 msgid "Loading block types…"
 msgstr "Завантаження типів блоків…"
 
@@ -8835,8 +8835,8 @@ msgstr "Логотип і favicon"
 msgid "Long text"
 msgstr "Довгий текст"
 
-#: packages/admin/src/components/FieldEditor.tsx:640
-#: packages/admin/src/components/FieldEditor.tsx:1668
+#: packages/admin/src/components/FieldEditor.tsx:662
+#: packages/admin/src/components/FieldEditor.tsx:1695
 msgid "Long Text"
 msgstr "Довгий текст"
 
@@ -8963,15 +8963,15 @@ msgstr "Не вдалося виконати пошук у маркетплей�
 msgid "Matched by email"
 msgstr "Зіставлено за email"
 
-#: packages/admin/src/components/FieldEditor.tsx:1718
+#: packages/admin/src/components/FieldEditor.tsx:1761
 msgid "Max Items"
 msgstr "Макс. елементів"
 
-#: packages/admin/src/components/FieldEditor.tsx:1211
+#: packages/admin/src/components/FieldEditor.tsx:1237
 msgid "Max Length"
 msgstr "Макс. довжина"
 
-#: packages/admin/src/components/FieldEditor.tsx:1249
+#: packages/admin/src/components/FieldEditor.tsx:1275
 msgid "Max Value"
 msgstr "Макс. значення"
 
@@ -8979,7 +8979,7 @@ msgstr "Макс. значення"
 msgid "Maximum"
 msgstr "Максимум"
 
-#: packages/admin/src/components/FieldEditor.tsx:1535
+#: packages/admin/src/components/FieldEditor.tsx:1561
 msgid "Maximum blocks"
 msgstr "Максимум блоків"
 
@@ -9194,19 +9194,19 @@ msgstr "Посібник із міграції"
 msgid "Migration key"
 msgstr "Ключ міграції"
 
-#: packages/admin/src/components/FieldEditor.tsx:1708
+#: packages/admin/src/components/FieldEditor.tsx:1751
 msgid "Min Items"
 msgstr "Мін. елементів"
 
-#: packages/admin/src/components/FieldEditor.tsx:1201
+#: packages/admin/src/components/FieldEditor.tsx:1227
 msgid "Min Length"
 msgstr "Мін. довжина"
 
-#: packages/admin/src/components/FieldEditor.tsx:1239
+#: packages/admin/src/components/FieldEditor.tsx:1265
 msgid "Min Value"
 msgstr "Мін. значення"
 
-#: packages/admin/src/components/FieldEditor.tsx:1524
+#: packages/admin/src/components/FieldEditor.tsx:1550
 msgid "Minimum blocks"
 msgstr "Мінімум блоків"
 
@@ -9296,24 +9296,24 @@ msgstr "Перемістити \"{title}\" до кошика? Пізніше м�
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:3146
-#: packages/admin/src/components/FieldEditor.tsx:1495
+#: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "Перемістити вниз: {0}"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:312
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:318
 msgid "Move {0} earlier"
 msgstr "Перемістити {0} вище"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:321
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:327
 msgid "Move {0} later"
 msgstr "Перемістити {0} нижче"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:3135
-#: packages/admin/src/components/FieldEditor.tsx:1478
+#: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "Перемістити вгору: {0}"
 
@@ -9459,15 +9459,15 @@ msgstr "Переносите вміст з іншого сайту EmDash?"
 msgid "Moving to trash..."
 msgstr "Переміщення в кошик..."
 
-#: packages/admin/src/components/FieldEditor.tsx:676
+#: packages/admin/src/components/FieldEditor.tsx:698
 msgid "Multi Select"
 msgstr "Множинний вибір"
 
-#: packages/admin/src/components/FieldEditor.tsx:641
+#: packages/admin/src/components/FieldEditor.tsx:663
 msgid "Multi-line plain text"
 msgstr "Багаторядковий простий текст"
 
-#: packages/admin/src/components/FieldEditor.tsx:677
+#: packages/admin/src/components/FieldEditor.tsx:699
 msgid "Multiple choices from options"
 msgstr "Множинний вибір із варіантів"
 
@@ -9492,7 +9492,7 @@ msgstr "Мій чудовий блог"
 msgid "Name"
 msgstr "Ім'я"
 
-#: packages/admin/src/components/FieldEditor.tsx:989
+#: packages/admin/src/components/FieldEditor.tsx:1015
 msgid "Name the field and choose what it accepts."
 msgstr "Назвіть поле та визначте допустимі значення."
 
@@ -9500,7 +9500,7 @@ msgstr "Назвіть поле та визначте допустимі зна�
 msgid "Name your section, then add its content in the editor."
 msgstr "Назвіть секцію, а потім додайте її вміст у редакторі."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:601
+#: packages/admin/src/components/TaxonomySidebar.tsx:603
 msgid "Navigate"
 msgstr "Навігація"
 
@@ -9631,7 +9631,7 @@ msgstr "Найновіші"
 msgid "News"
 msgstr "Новини"
 
-#: packages/admin/src/components/FieldEditor.tsx:1779
+#: packages/admin/src/components/FieldEditor.tsx:1822
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
 msgstr "Далі"
@@ -9681,7 +9681,7 @@ msgstr "У колекції \"{0}\" ще немає записів."
 msgid "No {0} yet. Create one to get started."
 msgstr "Ще немає жодного терміна ({0}). Створіть перший, щоб почати."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:570
+#: packages/admin/src/components/TaxonomySidebar.tsx:572
 msgid "No {label} found."
 msgstr "{label} не знайдено."
 
@@ -9831,7 +9831,7 @@ msgstr "Жодне поле цього типу вмісту ще не вико�
 msgid "No fields"
 msgstr "Немає полів"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:311
+#: packages/admin/src/components/MediaUploadDialog.tsx:314
 msgid "No files added"
 msgstr "Файли не додано"
 
@@ -9879,7 +9879,7 @@ msgstr "Токен запрошення не надано"
 msgid "No items yet"
 msgstr "Ще немає елементів"
 
-#: packages/admin/src/components/FieldEditor.tsx:1723
+#: packages/admin/src/components/FieldEditor.tsx:1766
 msgid "No limit"
 msgstr "Без ліміту"
 
@@ -9933,8 +9933,8 @@ msgstr "Немає відповідних тегів"
 msgid "No matching timezones"
 msgstr "Немає відповідних часових поясів"
 
-#: packages/admin/src/components/FieldEditor.tsx:1216
-#: packages/admin/src/components/FieldEditor.tsx:1254
+#: packages/admin/src/components/FieldEditor.tsx:1242
+#: packages/admin/src/components/FieldEditor.tsx:1280
 msgid "No maximum"
 msgstr "Без максимуму"
 
@@ -9955,8 +9955,8 @@ msgstr "Ще немає пунктів меню"
 msgid "No menus yet"
 msgstr "Ще немає меню"
 
-#: packages/admin/src/components/FieldEditor.tsx:1206
-#: packages/admin/src/components/FieldEditor.tsx:1244
+#: packages/admin/src/components/FieldEditor.tsx:1232
+#: packages/admin/src/components/FieldEditor.tsx:1270
 msgid "No minimum"
 msgstr "Без мінімуму"
 
@@ -10155,8 +10155,8 @@ msgstr "Поки що немає чого показати."
 msgid "Now · {time}"
 msgstr "Зараз · {time}"
 
-#: packages/admin/src/components/FieldEditor.tsx:646
-#: packages/admin/src/components/FieldEditor.tsx:1669
+#: packages/admin/src/components/FieldEditor.tsx:668
+#: packages/admin/src/components/FieldEditor.tsx:1696
 msgid "Number"
 msgstr "Число"
 
@@ -10303,7 +10303,8 @@ msgstr "Відкрити параметри Windows"
 msgid "Open WordPress Profile"
 msgstr "Відкрити профіль WordPress"
 
-#: packages/admin/src/components/FieldEditor.tsx:1267
+#: packages/admin/src/components/FieldEditor.tsx:1293
+#: packages/admin/src/components/FieldEditor.tsx:1715
 msgid ""
 "Option 1\n"
 "Option 2\n"
@@ -10339,11 +10340,12 @@ msgid "Optional tooltip on hover"
 msgstr "Необов'язкова підказка при наведенні"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:432
-#: packages/admin/src/components/FieldEditor.tsx:1264
+#: packages/admin/src/components/FieldEditor.tsx:1290
+#: packages/admin/src/components/FieldEditor.tsx:1708
 msgid "Options (one per line)"
 msgstr "Варіанти (по одному на рядок)"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:258
+#: packages/admin/src/components/MediaUploadDialog.tsx:261
 msgid "Or browse files from your computer"
 msgstr "Або оберіть файли на комп'ютері"
 
@@ -10377,7 +10379,7 @@ msgstr "Порядок"
 msgid "Order saved"
 msgstr "Порядок збережено"
 
-#: packages/admin/src/components/FieldEditor.tsx:731
+#: packages/admin/src/components/FieldEditor.tsx:753
 msgid "Ordered page-building blocks"
 msgstr "Упорядковані блоки для побудови сторінки"
 
@@ -10581,7 +10583,7 @@ msgstr "Вставте ключ міграції"
 msgid "Path"
 msgstr "Шлях"
 
-#: packages/admin/src/components/FieldEditor.tsx:1224
+#: packages/admin/src/components/FieldEditor.tsx:1250
 msgid "Pattern (Regex)"
 msgstr "Шаблон (Regex)"
 
@@ -10656,7 +10658,7 @@ msgstr "PHP"
 msgid "Picked up {label}."
 msgstr "Взято: {label}."
 
-#: packages/admin/src/components/FieldEditor.tsx:1836
+#: packages/admin/src/components/FieldEditor.tsx:1879
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr "Якщо поле містить записи, на які посилається цей запис, редактори можуть упорядкувати їх перетягуванням. У протилежному напрямку поле показує все, що посилається на запис, і змінити порядок там не можна."
 
@@ -11135,11 +11137,11 @@ msgstr "У черзі"
 msgid "Quick action on the dashboard"
 msgstr "Швидка дія на панелі керування"
 
-#: packages/admin/src/components/FieldEditor.tsx:1317
+#: packages/admin/src/components/FieldEditor.tsx:1343
 msgid "Quick create a relationship"
 msgstr "Швидко створити зв'язок"
 
-#: packages/admin/src/components/FieldEditor.tsx:1389
+#: packages/admin/src/components/FieldEditor.tsx:1415
 msgid "Quick create names the relationship after this field and this collection, takes how many entries it holds from the switch above, and puts no limit on how many entries link back the other way. <0>Create the relationship yourself</0> to set its slug, the name each side goes by, and both limits, then pick it above."
 msgstr "Під час швидкого створення зв'язок отримує назву за цим полем і цією колекцією, кількість записів у ньому визначає перемикач вище, а кількість записів, що посилаються у зворотному напрямку, не обмежується. <0>Створіть зв'язок самостійно</0>, щоб задати його slug, назви обох сторін і обидва обмеження, а потім оберіть його вище."
 
@@ -11324,17 +11326,17 @@ msgstr "Циклічні перенаправлення буде імпорто�
 msgid "Redo"
 msgstr "Повторити"
 
-#: packages/admin/src/components/FieldEditor.tsx:700
-#: packages/admin/src/components/FieldEditor.tsx:1276
+#: packages/admin/src/components/FieldEditor.tsx:722
+#: packages/admin/src/components/FieldEditor.tsx:1302
 msgid "Reference"
 msgstr "Посилання"
 
-#: packages/admin/src/components/FieldEditor.tsx:1079
-#: packages/admin/src/components/FieldEditor.tsx:1082
-#: packages/admin/src/components/FieldEditor.tsx:1297
-#: packages/admin/src/components/FieldEditor.tsx:1332
-#: packages/admin/src/components/FieldEditor.tsx:1335
-#: packages/admin/src/components/FieldEditor.tsx:1368
+#: packages/admin/src/components/FieldEditor.tsx:1105
+#: packages/admin/src/components/FieldEditor.tsx:1108
+#: packages/admin/src/components/FieldEditor.tsx:1323
+#: packages/admin/src/components/FieldEditor.tsx:1358
+#: packages/admin/src/components/FieldEditor.tsx:1361
+#: packages/admin/src/components/FieldEditor.tsx:1394
 msgid "Referenced collection"
 msgstr "Пов'язана колекція"
 
@@ -11394,10 +11396,10 @@ msgstr "Реєстр"
 msgid "Relations"
 msgstr "Зв'язки"
 
-#: packages/admin/src/components/FieldEditor.tsx:1053
-#: packages/admin/src/components/FieldEditor.tsx:1284
-#: packages/admin/src/components/FieldEditor.tsx:1287
-#: packages/admin/src/components/FieldEditor.tsx:1312
+#: packages/admin/src/components/FieldEditor.tsx:1079
+#: packages/admin/src/components/FieldEditor.tsx:1310
+#: packages/admin/src/components/FieldEditor.tsx:1313
+#: packages/admin/src/components/FieldEditor.tsx:1338
 msgid "Relationship"
 msgstr "Зв'язок"
 
@@ -11439,7 +11441,7 @@ msgstr "Видалити"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:334
 #: packages/admin/src/components/ImageFieldRenderer.tsx:388
 #: packages/admin/src/components/ImageFieldRenderer.tsx:459
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:224
 #: packages/admin/src/components/PortableTextEditor.tsx:6643
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
@@ -11453,15 +11455,15 @@ msgstr "Видалити"
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/ContentEditor.tsx:3159
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:219
-#: packages/admin/src/components/MediaUploadDialog.tsx:144
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:223
+#: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
-#: packages/admin/src/components/TaxonomySidebar.tsx:459
+#: packages/admin/src/components/TaxonomySidebar.tsx:461
 msgid "Remove {0}"
 msgstr "Видалити {0}"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:329
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:335
 msgid "Remove {0} from selection"
 msgstr "Скасувати вибір файлу {0}"
 
@@ -11475,7 +11477,7 @@ msgstr "Видалити {entry}"
 msgid "Remove {label}"
 msgstr "Видалити: {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:873
+#: packages/admin/src/components/TaxonomySidebar.tsx:875
 msgid "Remove assignment"
 msgstr "Прибрати призначення"
 
@@ -11534,7 +11536,7 @@ msgstr "Видалити ключ доступу?"
 msgid "Remove schedule"
 msgstr "Скасувати планування"
 
-#: packages/admin/src/components/FieldEditor.tsx:1698
+#: packages/admin/src/components/FieldEditor.tsx:1741
 msgid "Remove sub-field"
 msgstr "Видалити підполе"
 
@@ -11666,11 +11668,11 @@ msgstr "Зміна порядку"
 msgid "Reorder {0}"
 msgstr "Змінити порядок: {0}"
 
-#: packages/admin/src/components/FieldEditor.tsx:724
+#: packages/admin/src/components/FieldEditor.tsx:746
 msgid "Repeater"
 msgstr "Повторювач"
 
-#: packages/admin/src/components/FieldEditor.tsx:725
+#: packages/admin/src/components/FieldEditor.tsx:747
 msgid "Repeating group of fields"
 msgstr "Група полів, що повторюється"
 
@@ -11790,8 +11792,8 @@ msgstr "Вимагати slug перед публікацією вмісту"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:406
 #: packages/admin/src/components/ContentTypeEditor.tsx:956
-#: packages/admin/src/components/FieldEditor.tsx:1167
-#: packages/admin/src/components/FieldEditor.tsx:1680
+#: packages/admin/src/components/FieldEditor.tsx:1193
+#: packages/admin/src/components/FieldEditor.tsx:1723
 #: packages/admin/src/routes/byline-schema.tsx:235
 msgid "Required"
 msgstr "Обов'язкове"
@@ -11927,7 +11929,7 @@ msgid "Results"
 msgstr "Результати"
 
 #: packages/admin/src/components/BlocksField.tsx:373
-#: packages/admin/src/components/FieldEditor.tsx:1462
+#: packages/admin/src/components/FieldEditor.tsx:1488
 msgid "Retired"
 msgstr "Виведено з ужитку"
 
@@ -11935,7 +11937,7 @@ msgstr "Виведено з ужитку"
 #: packages/admin/src/components/ContentEditor.tsx:3173
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:217
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:221
 #: packages/admin/src/components/MediaDetailPanel.tsx:1547
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
@@ -11956,8 +11958,8 @@ msgstr "Повторити"
 
 #. placeholder {0}: job.file.name
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:216
-#: packages/admin/src/components/MediaUploadDialog.tsx:130
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/MediaUploadDialog.tsx:133
 msgid "Retry {0}"
 msgstr "Повторити завантаження {0}"
 
@@ -11970,7 +11972,7 @@ msgstr "Повторити оновлення кешу"
 msgid "Retry copy"
 msgstr "Скопіювати ще раз"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:326
+#: packages/admin/src/components/MediaUploadDialog.tsx:329
 msgid "Retry failed"
 msgstr "Повторити невдалі"
 
@@ -12080,7 +12082,7 @@ msgstr "Відкликати?"
 msgid "Revoking..."
 msgstr "Відкликання..."
 
-#: packages/admin/src/components/FieldEditor.tsx:682
+#: packages/admin/src/components/FieldEditor.tsx:704
 msgid "Rich Text"
 msgstr "Форматований текст"
 
@@ -12088,7 +12090,7 @@ msgstr "Форматований текст"
 msgid "Rich text content"
 msgstr "Форматований текстовий вміст"
 
-#: packages/admin/src/components/FieldEditor.tsx:683
+#: packages/admin/src/components/FieldEditor.tsx:705
 msgid "Rich text editor"
 msgstr "Редактор форматованого тексту"
 
@@ -12283,16 +12285,16 @@ msgstr "Збережено"
 msgid "Saved \"{0}\"."
 msgstr "Збережено \"{0}\"."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:688
+#: packages/admin/src/components/TaxonomySidebar.tsx:690
 msgid "Saved immediately; term changes do not wait for Publish changes."
 msgstr "Збережено одразу: зміни термінів не чекають на \"Опублікувати зміни\"."
 
-#: packages/admin/src/components/FieldEditor.tsx:1380
+#: packages/admin/src/components/FieldEditor.tsx:1406
 msgid "Saving a collection here turns this field into an entry picker. Its stored entry IDs move to the relationship, and the field can no longer be searched or filtered on."
 msgstr "Якщо зберегти тут колекцію, це поле стане засобом вибору записів. Збережені в ньому ID записів буде перенесено до зв'язку, а шукати й фільтрувати за цим полем стане неможливо."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
-#: packages/admin/src/components/FieldEditor.tsx:1783
+#: packages/admin/src/components/FieldEditor.tsx:1826
 #: packages/admin/src/components/MediaDetailPanel.tsx:1859
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
@@ -12458,11 +12460,11 @@ msgstr "Шукати {0}"
 msgid "Search {0}..."
 msgstr "Шукати {0}..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:501
+#: packages/admin/src/components/TaxonomySidebar.tsx:503
 msgid "Search {label}"
 msgstr "Шукати {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:522
+#: packages/admin/src/components/TaxonomySidebar.tsx:524
 msgid "Search {label}…"
 msgstr "Шукати {label}…"
 
@@ -12553,11 +12555,11 @@ msgstr "Форма пошуку"
 msgid "Search media"
 msgstr "Шукати медіа"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:501
+#: packages/admin/src/components/TaxonomySidebar.tsx:503
 msgid "Search or create {label}"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:522
+#: packages/admin/src/components/TaxonomySidebar.tsx:524
 msgid "Search or create {label}…"
 msgstr ""
 
@@ -12631,7 +12633,7 @@ msgid "Search..."
 msgstr "Пошук..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:958
-#: packages/admin/src/components/FieldEditor.tsx:1180
+#: packages/admin/src/components/FieldEditor.tsx:1206
 msgid "Searchable"
 msgstr "Доступно для пошуку"
 
@@ -12735,8 +12737,8 @@ msgid "See where this file is used."
 msgstr "Перегляньте, де використовується цей файл."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:59
-#: packages/admin/src/components/FieldEditor.tsx:670
-#: packages/admin/src/components/FieldEditor.tsx:1673
+#: packages/admin/src/components/FieldEditor.tsx:692
+#: packages/admin/src/components/FieldEditor.tsx:1700
 #: packages/admin/src/components/MediaPickerModal.tsx:891
 #: packages/admin/src/components/Settings.tsx:159
 msgid "Select"
@@ -12754,7 +12756,7 @@ msgstr "Обрати: {label}"
 msgid "Select {title}"
 msgstr "Обрати {title}"
 
-#: packages/admin/src/components/FieldEditor.tsx:1373
+#: packages/admin/src/components/FieldEditor.tsx:1399
 msgid "Select a collection"
 msgstr "Оберіть колекцію"
 
@@ -12775,7 +12777,7 @@ msgstr "Оберіть розташування"
 msgid "Select a menu..."
 msgstr "Оберіть меню..."
 
-#: packages/admin/src/components/FieldEditor.tsx:1066
+#: packages/admin/src/components/FieldEditor.tsx:1092
 msgid "Select a relationship"
 msgstr "Оберіть зв'язок"
 
@@ -12880,7 +12882,7 @@ msgstr "Оберіть типи вмісту для імпорту."
 msgid "Select..."
 msgstr "Обрати..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:430
+#: packages/admin/src/components/TaxonomySidebar.tsx:432
 msgid "Selected {label}"
 msgstr "Обрані {label}"
 
@@ -12967,16 +12969,13 @@ msgstr "SEO"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:27
 #: packages/admin/src/components/settings/transfer/labels.ts:87
+#: packages/admin/src/components/WordPressImport.tsx:1900
 msgid "SEO settings"
 msgstr "Налаштування SEO"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
 msgid "SEO Settings"
 msgstr "SEO-налаштування"
-
-#: packages/admin/src/components/WordPressImport.tsx:1900
-msgid "SEO settings (Yoast)"
-msgstr "SEO-налаштування (Yoast)"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 msgid "SEO settings saved"
@@ -13096,8 +13095,8 @@ msgstr "Зображенню для соцмереж потрібен URL"
 msgid "Short text"
 msgstr "Короткий текст"
 
-#: packages/admin/src/components/FieldEditor.tsx:634
-#: packages/admin/src/components/FieldEditor.tsx:1667
+#: packages/admin/src/components/FieldEditor.tsx:656
+#: packages/admin/src/components/FieldEditor.tsx:1694
 msgid "Short Text"
 msgstr "Короткий текст"
 
@@ -13222,11 +13221,11 @@ msgstr "Не вдалося завершити реєстрацію"
 msgid "Signup request failed"
 msgstr "Не вдалося надіслати запит на реєстрацію"
 
-#: packages/admin/src/components/FieldEditor.tsx:671
+#: packages/admin/src/components/FieldEditor.tsx:693
 msgid "Single choice from options"
 msgstr "Один варіант із списку"
 
-#: packages/admin/src/components/FieldEditor.tsx:635
+#: packages/admin/src/components/FieldEditor.tsx:657
 msgid "Single line text input"
 msgstr "Однорядкове текстове поле"
 
@@ -13342,13 +13341,13 @@ msgstr "Пропущено"
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 #: packages/admin/src/components/ContentTypeEditor.tsx:502
 #: packages/admin/src/components/ContentTypeList.tsx:218
-#: packages/admin/src/components/FieldEditor.tsx:712
-#: packages/admin/src/components/FieldEditor.tsx:1138
-#: packages/admin/src/components/FieldEditor.tsx:1141
-#: packages/admin/src/components/FieldEditor.tsx:1144
-#: packages/admin/src/components/FieldEditor.tsx:1629
-#: packages/admin/src/components/FieldEditor.tsx:1632
-#: packages/admin/src/components/FieldEditor.tsx:1635
+#: packages/admin/src/components/FieldEditor.tsx:734
+#: packages/admin/src/components/FieldEditor.tsx:1164
+#: packages/admin/src/components/FieldEditor.tsx:1167
+#: packages/admin/src/components/FieldEditor.tsx:1170
+#: packages/admin/src/components/FieldEditor.tsx:1656
+#: packages/admin/src/components/FieldEditor.tsx:1659
+#: packages/admin/src/components/FieldEditor.tsx:1662
 #: packages/admin/src/components/RelationForm.tsx:435
 #: packages/admin/src/components/RelationForm.tsx:440
 #: packages/admin/src/components/RelationForm.tsx:444
@@ -13637,11 +13636,11 @@ msgstr "Структурований"
 msgid "Style changed:"
 msgstr "Змінено стиль:"
 
-#: packages/admin/src/components/FieldEditor.tsx:1627
+#: packages/admin/src/components/FieldEditor.tsx:1654
 msgid "Sub-field slugs cannot be changed after creation."
 msgstr "Slug підполів не можна змінити після створення."
 
-#: packages/admin/src/components/FieldEditor.tsx:1552
+#: packages/admin/src/components/FieldEditor.tsx:1578
 msgid "Sub-Fields"
 msgstr "Підполя"
 
@@ -13760,7 +13759,7 @@ msgstr "Цільова локаль"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 #: packages/admin/src/components/settings/transfer/labels.ts:13
-#: packages/admin/src/components/TaxonomySidebar.tsx:905
+#: packages/admin/src/components/TaxonomySidebar.tsx:907
 msgid "Taxonomies"
 msgstr "Таксономії"
 
@@ -14066,7 +14065,7 @@ msgstr "Тепер меню називається \"{0}\"."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Назва вашого сайту, що використовується в заголовку та метаданих"
 
-#: packages/admin/src/components/FieldEditor.tsx:1414
+#: packages/admin/src/components/FieldEditor.tsx:1440
 msgid "The order controls how block types appear in the picker."
 msgstr "Типи блоків з'являтимуться у списку вибору в цьому порядку."
 
@@ -14192,12 +14191,12 @@ msgstr "Зазначене зображення більше недоступн�
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "Зазначений логотип більше недоступний. Виберіть інший або приберіть посилання."
 
-#: packages/admin/src/components/FieldEditor.tsx:1282
+#: packages/admin/src/components/FieldEditor.tsx:1308
 msgid "The relationship and the referenced collection cannot be changed after creation. How many entries this field accepts is set on the relationship."
 msgstr "Зв'язок і пов'язану колекцію не можна змінити після створення. Скільки записів приймає це поле, визначає зв'язок."
 
-#: packages/admin/src/components/FieldEditor.tsx:1077
-#: packages/admin/src/components/FieldEditor.tsx:1330
+#: packages/admin/src/components/FieldEditor.tsx:1103
+#: packages/admin/src/components/FieldEditor.tsx:1356
 msgid "The relationship decides the referenced collection and how many entries this field accepts."
 msgstr "Зв'язок визначає пов'язану колекцію та кількість записів, які приймає це поле."
 
@@ -14449,25 +14448,25 @@ msgstr "Це поле очікує список. Збережене значен
 msgid "This field is required"
 msgstr "Це поле обов’язкове"
 
-#: packages/admin/src/components/FieldEditor.tsx:1806
+#: packages/admin/src/components/FieldEditor.tsx:1849
 msgid "This field lists entries that link to this one."
 msgstr "У цьому полі показано записи, що посилаються на цей запис."
 
-#: packages/admin/src/components/FieldEditor.tsx:1092
-#: packages/admin/src/components/FieldEditor.tsx:1345
+#: packages/admin/src/components/FieldEditor.tsx:1118
+#: packages/admin/src/components/FieldEditor.tsx:1371
 msgid "This field picks"
 msgstr "Що містить це поле"
 
-#: packages/admin/src/components/FieldEditor.tsx:1805
+#: packages/admin/src/components/FieldEditor.tsx:1848
 msgid "This field picks entries this one links to."
 msgstr "У цьому полі обирають записи, на які посилається цей запис."
 
 #. placeholder {0}: relation.childLabel
-#: packages/admin/src/components/FieldEditor.tsx:1817
+#: packages/admin/src/components/FieldEditor.tsx:1860
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
 msgstr "У цьому полі будуть <0>{0}</0>, на які посилається цей запис ({linkingSide})"
 
-#: packages/admin/src/components/FieldEditor.tsx:1822
+#: packages/admin/src/components/FieldEditor.tsx:1865
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "У цьому полі буде <0>{linkingSide}</0>, що посилається на цей запис ({linkedSide})"
 
@@ -14692,7 +14691,7 @@ msgid "This site was set up with starter content. It has no entries of its own, 
 msgstr "Цей сайт створено з початковим вмістом. Власних записів на ньому немає, а імпорт видалить початковий вміст, перш ніж додати вміст пакета."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:161
-#: packages/admin/src/components/FieldEditor.tsx:499
+#: packages/admin/src/components/FieldEditor.tsx:521
 msgid "This slug is reserved. Enter a different one."
 msgstr "Цей slug зарезервовано. Введіть інший."
 
@@ -14811,7 +14810,7 @@ msgstr "щоб вибрати"
 msgid "Today"
 msgstr "Сьогодні"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:607
+#: packages/admin/src/components/TaxonomySidebar.tsx:609
 msgid "Toggle"
 msgstr "Вибір"
 
@@ -14895,7 +14894,7 @@ msgstr "Переклад..."
 
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
-#: packages/admin/src/components/TaxonomySidebar.tsx:785
+#: packages/admin/src/components/TaxonomySidebar.tsx:787
 #: packages/admin/src/router.tsx:1629
 msgid "Translation created"
 msgstr "Переклад створено"
@@ -14933,7 +14932,7 @@ msgstr "Кошик порожній."
 msgid "Trash pagination"
 msgstr "Посторінкова навігація кошика"
 
-#: packages/admin/src/components/FieldEditor.tsx:659
+#: packages/admin/src/components/FieldEditor.tsx:681
 msgid "True/false toggle"
 msgstr "Перемикач так/ні"
 
@@ -15056,14 +15055,14 @@ msgstr "Два записи мають однакове значення там,
 #: packages/admin/src/components/BylineFieldEditor.tsx:385
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
-#: packages/admin/src/components/FieldEditor.tsx:1659
+#: packages/admin/src/components/FieldEditor.tsx:1686
 #: packages/admin/src/components/MediaLibrary.tsx:1170
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
 msgid "Type"
 msgstr "Тип"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:590
+#: packages/admin/src/components/TaxonomySidebar.tsx:592
 msgid "Type a name above to create a new {singularLabel}."
 msgstr ""
 
@@ -15134,7 +15133,7 @@ msgid "Uninstalling..."
 msgstr "Видалення..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:957
-#: packages/admin/src/components/FieldEditor.tsx:1172
+#: packages/admin/src/components/FieldEditor.tsx:1198
 msgid "Unique"
 msgstr "Унікальний"
 
@@ -15190,7 +15189,7 @@ msgstr "Неопубліковані зміни"
 msgid "Unregistered Content Tables Found"
 msgstr "Знайдено незареєстровані таблиці контенту"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:851
+#: packages/admin/src/components/TaxonomySidebar.tsx:853
 msgid "Unresolved assignment"
 msgstr "Призначення без перекладу"
 
@@ -15255,7 +15254,7 @@ msgctxt "A published entry's scheduled changes"
 msgid "Update"
 msgstr "Оновлення"
 
-#: packages/admin/src/components/FieldEditor.tsx:1783
+#: packages/admin/src/components/FieldEditor.tsx:1826
 msgid "Update Field"
 msgstr "Оновити поле"
 
@@ -15414,7 +15413,7 @@ msgstr "Завантажувати пакети сайтів на цей сай�
 msgid "Upload to {0}"
 msgstr "Завантажити в {0}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:225
+#: packages/admin/src/components/MediaUploadDialog.tsx:228
 msgid "Upload to {providerName}"
 msgstr "Завантаження файлів: {providerName}"
 
@@ -15456,8 +15455,8 @@ msgid "Uploading video…"
 msgstr "Завантаження відео…"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:57
-#: packages/admin/src/components/FieldEditor.tsx:718
-#: packages/admin/src/components/FieldEditor.tsx:1674
+#: packages/admin/src/components/FieldEditor.tsx:740
+#: packages/admin/src/components/FieldEditor.tsx:1701
 #: packages/admin/src/components/MenuEditor.tsx:636
 #: packages/admin/src/components/MenuEditor.tsx:857
 #: packages/admin/src/components/PortableTextEditor.tsx:2805
@@ -15478,7 +15477,7 @@ msgid "URL template (e.g. /blog/:slug)"
 msgstr "Шаблон URL (напр. /blog/:slug)"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:137
-#: packages/admin/src/components/FieldEditor.tsx:713
+#: packages/admin/src/components/FieldEditor.tsx:735
 msgid "URL-friendly identifier"
 msgstr "Ідентифікатор, зручний для URL"
 
@@ -15538,7 +15537,7 @@ msgid "Use 200 options or fewer."
 msgstr "Вкажіть не більше 200 варіантів."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:133
-#: packages/admin/src/components/FieldEditor.tsx:339
+#: packages/admin/src/components/FieldEditor.tsx:351
 #: packages/admin/src/components/RelationForm.tsx:178
 #: packages/admin/src/components/TaxonomyManager.tsx:131
 msgid "Use 63 characters or fewer."
@@ -15572,7 +15571,7 @@ msgid "Use lowercase letters, numbers, and hyphens."
 msgstr "Використовуйте малі латинські літери, цифри та дефіси."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:131
-#: packages/admin/src/components/FieldEditor.tsx:337
+#: packages/admin/src/components/FieldEditor.tsx:349
 #: packages/admin/src/components/RelationForm.tsx:176
 #: packages/admin/src/components/TaxonomyManager.tsx:129
 msgid "Use lowercase letters, numbers, and underscores, starting with a letter."
@@ -15672,7 +15671,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "Користувачі з адресами e-mail цих доменів можуть зареєструватися без запрошення. Їм автоматично буде призначено вказану роль."
 
 #. placeholder {0}: version.version
-#: packages/admin/src/components/FieldEditor.tsx:1507
+#: packages/admin/src/components/FieldEditor.tsx:1533
 msgid "v{0}"
 msgstr "v{0}"
 
@@ -15685,8 +15684,8 @@ msgstr "Доступно v{0}"
 msgid "Validating the package"
 msgstr "Перевірка пакета"
 
-#: packages/admin/src/components/FieldEditor.tsx:1198
-#: packages/admin/src/components/FieldEditor.tsx:1236
+#: packages/admin/src/components/FieldEditor.tsx:1224
+#: packages/admin/src/components/FieldEditor.tsx:1262
 msgid "Validation"
 msgstr "Валідація"
 
@@ -15872,7 +15871,7 @@ msgstr "Ми надішлемо посилання для входу без па
 msgid "We've sent a verification link to <0>{email}</0>"
 msgstr "Ми надіслали посилання для підтвердження на <0>{email}</0>"
 
-#: packages/admin/src/components/FieldEditor.tsx:719
+#: packages/admin/src/components/FieldEditor.tsx:741
 msgid "Web address"
 msgstr "Веб-адреса"
 
@@ -15927,7 +15926,7 @@ msgstr "Що таке ключ доступу?"
 msgid "What it leaves out"
 msgstr "Чого він не містить"
 
-#: packages/admin/src/components/FieldEditor.tsx:1837
+#: packages/admin/src/components/FieldEditor.tsx:1880
 msgid "What the direction changes"
 msgstr "Що змінює напрямок"
 
@@ -15976,7 +15975,7 @@ msgstr "Де він зберігається?"
 msgid "Which content types can use this taxonomy"
 msgstr "Які типи вмісту можуть використовувати цю таксономію"
 
-#: packages/admin/src/components/FieldEditor.tsx:653
+#: packages/admin/src/components/FieldEditor.tsx:675
 msgid "Whole number"
 msgstr "Ціле число"
 
