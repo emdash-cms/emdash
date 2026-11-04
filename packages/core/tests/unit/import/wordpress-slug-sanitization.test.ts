@@ -17,6 +17,7 @@ import {
 	mapPostTypeToCollection,
 	sanitizeSlug,
 } from "../../../src/astro/routes/api/import/wordpress/analyze.js";
+import { mapPostTypeToCollection as mapSourcePostType } from "../../../src/import/utils.js";
 
 describe("sanitizeSlug", () => {
 	it("replaces hyphens with underscores", () => {
@@ -109,5 +110,13 @@ describe("mapPostTypeToCollection", () => {
 		// "content" is not in the known mapping, so it hits sanitizeSlug
 		expect(mapPostTypeToCollection("content")).toBe("wp_content");
 		expect(mapPostTypeToCollection("users")).toBe("wp_users");
+	});
+});
+
+describe("mapPostTypeToCollection for import sources", () => {
+	it("sanitizes unknown post types into valid collection slugs", () => {
+		expect(mapSourcePostType("team-member")).toBe("team_member");
+		expect(mapSourcePostType("content")).toBe("wp_content");
+		expect(mapSourcePostType("123")).toBe("imported");
 	});
 });

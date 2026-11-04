@@ -7,6 +7,7 @@
 
 import type { Kysely } from "kysely";
 
+import { OptionsRepository } from "../../database/repositories/options.js";
 import type { Database } from "../../database/types.js";
 import { validatePluginIdentifier } from "../../database/validate.js";
 import { pluginManifestSchema, reconcileManifestAccess } from "../../plugins/manifest-schema.js";
@@ -858,7 +859,11 @@ export async function handleMarketplaceUninstall(
 	db: Kysely<Database>,
 	storage: Storage | null,
 	pluginId: string,
-	opts?: { deleteData?: boolean; beforeDelete?: () => Promise<void> },
+	opts?: {
+		deleteData?: boolean;
+		rollbackInstall?: boolean;
+		beforeDelete?: () => Promise<void>;
+	},
 ): Promise<ApiResult<MarketplaceUninstallResult>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -878,9 +883,10 @@ export async function handleMarketplaceUninstall(
 
 		// Optionally delete plugin storage data
 		let dataDeleted = false;
-		if (opts?.deleteData) {
+		if (opts?.deleteData && !opts.rollbackInstall) {
 			try {
 				await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
+				await new OptionsRepository(db).deleteByPrefix(`plugin:${pluginId}:`);
 				dataDeleted = true;
 			} catch {
 				// Plugin storage table may not have data for this plugin

@@ -223,7 +223,7 @@ export const pages: PluginAdminExports["pages"] = {
 };
 ```
 
-Page labels are passed through the admin's shared Lingui instance. A label such as `Settings` uses the admin's translation when one exists. A plugin can load its own message catalog into the shared instance for plugin-specific labels and component messages; otherwise the declared English message is the fallback.
+Page labels are translated through the admin's shared Lingui instance when a loaded catalog has an entry for them. A plugin can load its own message catalog into the shared instance for plugin-specific labels and component messages; otherwise the declared English message is the fallback.
 
 Load the plugin catalog when the admin entrypoint is imported, then load it again after the administrator changes locale. The following small German catalog uses the same IDs as the page and widget examples:
 
@@ -528,6 +528,8 @@ Column fields have the following behavior:
 - `header` replaces the header content with a component; `label` remains the host fallback.
 - `collections`, `minRole`, and `order` behave like their panel equivalents.
 - `align` accepts `start` or `end` and uses logical alignment for left-to-right and right-to-left locales.
+
+Contributed columns are hidden while the content list's table is narrower than 42rem (672px), as on phones and portrait tablets, so give anything editors must reach on a phone another home, such as a [content editor panel](#content-editor-panels).
 
 Columns cannot add browser-only sorting or filtering. Those controls would affect only the loaded cursor page, not the full server-backed collection.
 

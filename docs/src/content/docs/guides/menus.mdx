@@ -36,6 +36,8 @@ Content and taxonomy menu items store a reference rather than a finished URL. Wh
 | Collection archive | `/{collection}/` |
 | Custom link | The external URL or root-relative path entered by the editor |
 
+`getMenu()` leaves out a content item when none of its entry's translations is published, for example because the entry is deleted, in the trash, or still a draft. A translation in the trash or not yet published counts as missing, so the item falls back to another translation. When an item is left out, its child items are left out with it. In edit mode, items that link to unpublished entries stay in the menu.
+
 Each returned item also contains its label, optional target, title attribute, CSS classes, and nested `children`. The rendering example below uses those values directly.
 
 ## Render a menu

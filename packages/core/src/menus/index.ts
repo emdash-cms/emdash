@@ -22,9 +22,15 @@ import {
 	resolveLocaleChain,
 } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
-import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
+import {
+	cachedQueryWithEpochs,
+	CacheNamespace,
+	contentCacheNamespaces,
+	isObjectCacheActive,
+} from "../object-cache/index.js";
 import type { CacheHint } from "../query.js";
 import { requestCached } from "../request-cache.js";
+import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { sanitizeHref } from "../utils/url.js";
 import type { Menu, MenuItem, MenuItemRow } from "./types.js";
@@ -36,6 +42,19 @@ export interface MenuQueryOptions {
 	/** Astro's route trailing-slash policy for resolved content links. */
 	trailingSlash?: "always" | "never" | "ignore";
 }
+
+/** Per isolate: the namespaces each resolved menu was last cached under. */
+const LAST_RESOLVED_NAMESPACES_KEY = Symbol.for("emdash:menu-resolved-namespaces");
+const lastResolvedNamespaces: Map<string, string[]> =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
+	((globalThis as Record<symbol, unknown>)[LAST_RESOLVED_NAMESPACES_KEY] as
+		| Map<string, string[]>
+		| undefined) ??
+	(() => {
+		const map = new Map<string, string[]>();
+		(globalThis as Record<symbol, unknown>)[LAST_RESOLVED_NAMESPACES_KEY] = map;
+		return map;
+	})();
 
 /**
  * Get a menu by name with resolved URLs.
@@ -49,16 +68,72 @@ export interface MenuQueryOptions {
 export async function getMenu(name: string, options: MenuQueryOptions = {}): Promise<Menu | null> {
 	const locale = resolveLocale(options.locale);
 	const trailingSlash = options.trailingSlash ?? (await getHostTrailingSlash());
-	return requestCached(`menu:${name}:${locale ?? "*"}:${trailingSlash}`, () =>
-		cachedQuery({
-			namespace: CacheNamespace.MENUS,
-			key: `${name}:${locale ?? "*"}:${trailingSlash}`,
-			load: async () => {
-				const db = await getDb();
-				return getMenuWithDb(name, db, { locale, trailingSlash });
+	const key = `${name}:${locale ?? "*"}:${trailingSlash}`;
+	return requestCached(`menu:${key}`, async () => {
+		if (!(await isObjectCacheActive())) {
+			return getMenuWithDb(name, await getDb(), { locale, trailingSlash });
+		}
+		const readRows = async () => {
+			let epoch: number | undefined;
+			const rows = await cachedQueryWithEpochs({
+				namespace: CacheNamespace.MENUS,
+				key: `rows:${name}:${locale ?? "*"}`,
+				load: async () => loadMenuRows(name, await getDb(), locale),
+				onEpochs: ([menus]) => {
+					epoch = menus;
+				},
+			});
+			return { rows, epoch };
+		};
+		const remembered = lastResolvedNamespaces.get(key);
+		const earlyRead = remembered ? undefined : await readRows();
+		const namespaces =
+			remembered ?? (earlyRead?.rows && resolvedMenuNamespaces(earlyRead.rows.items));
+		if (!namespaces) return null;
+		let resolvedEpoch: number | undefined;
+		let loaded: string[] | undefined;
+		const menu = await cachedQueryWithEpochs<Menu | null>({
+			namespace: namespaces,
+			key,
+			onEpochs: ([menus]) => {
+				resolvedEpoch = menus;
 			},
-		}),
-	);
+			// Rows read before this query captured its epochs are reused only if no menu
+			// edit landed in between; otherwise the old items would be stored as current.
+			load: async () => {
+				const { rows } =
+					earlyRead && earlyRead.epoch === resolvedEpoch ? earlyRead : await readRows();
+				if (!rows) return null;
+				loaded = resolvedMenuNamespaces(rows.items);
+				return resolveMenu(rows, await getDb(), trailingSlash);
+			},
+			cacheable: (value) => value !== null && sameNamespaces(loaded, namespaces),
+		});
+		if (menu) lastResolvedNamespaces.set(key, loaded ?? namespaces);
+		else lastResolvedNamespaces.delete(key);
+		return menu;
+	});
+}
+
+/**
+ * Object-cache namespaces for a resolved menu: the menu epoch plus the content
+ * epoch of every collection its items link to, and the taxonomy epoch when it
+ * links to terms. Which links resolve depends on those rows, so publishing,
+ * unpublishing, or trashing a linked entry invalidates the cached menu.
+ */
+function resolvedMenuNamespaces(items: MenuItemRow[]): string[] {
+	const namespaces: string[] = [CacheNamespace.MENUS];
+	for (const collection of collectContentReferences(items).keys()) {
+		namespaces.push(...contentCacheNamespaces(collection));
+	}
+	if (items.some((item) => item.type === "taxonomy" && item.reference_id)) {
+		namespaces.push(CacheNamespace.TAXONOMIES);
+	}
+	return namespaces;
+}
+
+function sameNamespaces(a: readonly string[] | undefined, b: readonly string[]): boolean {
+	return a !== undefined && a.length === b.length && a.every((namespace, i) => namespace === b[i]);
 }
 
 async function getHostTrailingSlash(): Promise<"always" | "never" | "ignore"> {
@@ -81,7 +156,21 @@ export async function getMenuWithDb(
 	db: Kysely<Database>,
 	options: MenuQueryOptions = {},
 ): Promise<Menu | null> {
-	const chain = resolveLocaleChain(options.locale);
+	const rows = await loadMenuRows(name, db, options.locale);
+	return rows && resolveMenu(rows, db, options.trailingSlash);
+}
+
+interface MenuRows {
+	menu: Omit<Menu, "items">;
+	items: MenuItemRow[];
+}
+
+async function loadMenuRows(
+	name: string,
+	db: Kysely<Database>,
+	requestedLocale: string | undefined,
+): Promise<MenuRows | null> {
+	const chain = resolveLocaleChain(requestedLocale);
 
 	let query = db
 		.selectFrom("_emdash_menus as m")
@@ -116,15 +205,26 @@ export async function getMenuWithDb(
 		(row): row is typeof row & MenuItemRow => row.m_id === menuId && row.id !== null,
 	);
 
-	const items = await buildMenuTree(itemRows, db, menuRow.m_locale, options.trailingSlash);
-
 	return {
-		id: menuRow.m_id,
-		name: menuRow.m_name,
-		label: menuRow.m_label,
-		items,
-		locale: menuRow.m_locale,
-		translationGroup: menuRow.m_translation_group,
+		menu: {
+			id: menuRow.m_id,
+			name: menuRow.m_name,
+			label: menuRow.m_label,
+			locale: menuRow.m_locale,
+			translationGroup: menuRow.m_translation_group,
+		},
+		items: itemRows,
+	};
+}
+
+async function resolveMenu(
+	rows: MenuRows,
+	db: Kysely<Database>,
+	trailingSlash: MenuQueryOptions["trailingSlash"],
+): Promise<Menu> {
+	return {
+		...rows.menu,
+		items: await buildMenuTree(rows.items, db, rows.menu.locale, trailingSlash),
 	};
 }
 
@@ -206,6 +306,7 @@ async function buildMenuTree(
 
 	const itemMap = new Map<string, MenuItem & { children: MenuItem[] }>();
 	const rootItems: MenuItem[] = [];
+	const itemIds = new Set(items.map((item) => item.id));
 
 	for (const item of validItems) {
 		itemMap.set(item.id, { ...item, children: [] });
@@ -214,10 +315,8 @@ async function buildMenuTree(
 	for (const item of items) {
 		const menuItem = itemMap.get(item.id);
 		if (!menuItem) continue;
-		if (item.parent_id) {
-			const parent = itemMap.get(item.parent_id);
-			if (parent) parent.children.push(menuItem);
-			else rootItems.push(menuItem);
+		if (item.parent_id && itemIds.has(item.parent_id)) {
+			itemMap.get(item.parent_id)?.children.push(menuItem);
 		} else {
 			rootItems.push(menuItem);
 		}
@@ -379,6 +478,8 @@ interface ContentReferenceRow {
 	published_at: string | null;
 	locale: string;
 	translation_group: string;
+	status: string;
+	deleted_at: string | null;
 }
 
 interface ResolvedContentReference {
@@ -394,19 +495,27 @@ async function resolveContentReferences(
 	references: Map<string, Set<string>>,
 	locale: string,
 ): Promise<ContentReferenceLookup> {
+	// Edit mode renders drafts, so a menu link to one still leads somewhere there.
+	const editMode = getRequestContext()?.editMode === true;
+	const isVisible = (row: { status: string; deleted_at: string | null }) =>
+		row.deleted_at === null && (editMode || row.status === "published");
 	const entries = await Promise.all(
 		Array.from(references, async ([collection, referenceGroups]) => {
 			const lookup = new Map<string, ResolvedContentReference>();
 			const localized = new Map<string, ContentReferenceRow>();
+			const found = new Set<string>();
 			try {
 				validateIdentifier(collection, "menu item collection");
 				for (const batch of chunks([...referenceGroups], SQL_BATCH_SIZE)) {
 					const result = await sql<ContentReferenceRow>`
-						SELECT id, slug, published_at, locale, translation_group
+						SELECT id, slug, published_at, locale, translation_group, status, deleted_at
 						FROM ${sql.ref(`ec_${collection}`)}
 						WHERE translation_group IN (${sql.join(batch)})
 					`.execute(db);
 					for (const row of result.rows) {
+						// A hidden row still counts as found, so the legacy id lookup below is skipped.
+						found.add(row.translation_group);
+						if (!isVisible(row)) continue;
 						const existing = localized.get(row.translation_group);
 						if (shouldPreferLocalizedRow(row, existing, locale)) {
 							localized.set(row.translation_group, row);
@@ -417,13 +526,16 @@ async function resolveContentReferences(
 					lookup.set(referenceGroup, { id: row.id, slug: row.slug, publishedAt: row.published_at });
 				}
 
-				const unresolved = [...referenceGroups].filter((id) => !lookup.has(id));
+				const unresolved = [...referenceGroups].filter((id) => !found.has(id));
 				for (const batch of chunks(unresolved, SQL_BATCH_SIZE)) {
-					const result = await sql<Pick<ContentReferenceRow, "id" | "slug" | "published_at">>`
-						SELECT id, slug, published_at FROM ${sql.ref(`ec_${collection}`)}
+					const result = await sql<
+						Pick<ContentReferenceRow, "id" | "slug" | "published_at" | "status" | "deleted_at">
+					>`
+						SELECT id, slug, published_at, status, deleted_at FROM ${sql.ref(`ec_${collection}`)}
 						WHERE id IN (${sql.join(batch)})
 					`.execute(db);
 					for (const row of result.rows) {
+						if (!isVisible(row)) continue;
 						lookup.set(row.id, { id: row.id, slug: row.slug, publishedAt: row.published_at });
 					}
 				}

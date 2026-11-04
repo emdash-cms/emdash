@@ -22,7 +22,7 @@ describe("elideLargeDiffSections", () => {
 
 	it.each([
 		"worker-configuration.d.ts",
-		"infra/emdash-bot/worker-configuration.d.ts",
+		"infra/flue-review/worker-configuration.d.ts",
 		"packages/plugins/example/generated/worker-configuration.d.ts",
 	])("always omits generated Worker types at %s", (path) => {
 		const generated = fileSection(path, 2, "+declare const generatedSecret: string;");

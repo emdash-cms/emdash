@@ -6,6 +6,7 @@ import { reset } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import {
 	ContentRepository,
+	handleContentCreate,
 	SchemaRegistry,
 	type CreateCollectionInput,
 	type CreateFieldInput,
@@ -139,6 +140,24 @@ export async function createPluginTestHost(): Promise<PluginTestHost> {
 		await db.destroy();
 		throw new Error(`Plugin sandbox unavailable: ${runner.unavailableReason()}`);
 	}
+	runner.setContentCreate(async (_pluginId, collection, input, options) => {
+		const { seo, slug, status, ...data } = input;
+		const result = await handleContentCreate(db, collection, {
+			data,
+			seo,
+			slug: typeof slug === "string" ? slug : undefined,
+			status: typeof status === "string" ? status : undefined,
+			locale: options?.locale,
+			translationOf: options?.translationOf,
+		});
+		if (!result.success) {
+			throw Object.assign(new Error(result.error.message), {
+				name: result.error.code,
+				code: result.error.code,
+			});
+		}
+		return result.data.item;
+	});
 	const plugin = await runner.load(manifest, bindings.EMDASH_PLUGIN_CODE);
 	const registry = new SchemaRegistry(db);
 	const content = new ContentRepository(db);
@@ -163,6 +182,26 @@ export async function createPluginTestHost(): Promise<PluginTestHost> {
 			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the caller supplies the expected stored JSON type
 			data: JSON.parse(row.data) as T,
 		}));
+	};
+	const readKv = async <T>(key?: string) => {
+		assertActive();
+		const prefix = `plugin:${manifest.id}:`;
+		const query =
+			key === undefined
+				? bindings.DB.prepare(
+						"SELECT name, value FROM options WHERE substr(name, 1, ?) = ? ORDER BY name",
+					).bind(prefix.length, prefix)
+				: bindings.DB.prepare("SELECT name, value FROM options WHERE name = ?").bind(
+						`${prefix}${key}`,
+					);
+		const result = await query.all<{ name: string; value: string }>();
+		return (result.results ?? [])
+			.filter((row) => !row.name.startsWith(`${prefix}settings:`))
+			.map((row) => ({
+				id: row.name.slice(prefix.length),
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the caller supplies the expected stored JSON type
+				data: JSON.parse(row.value) as T,
+			}));
 	};
 
 	return {
@@ -202,10 +241,10 @@ export async function createPluginTestHost(): Promise<PluginTestHost> {
 		},
 		kv: {
 			async get<T>(key: string) {
-				const rows = await readStorage<T>("__kv", key);
+				const rows = await readKv<T>(key);
 				return rows[0]?.data ?? null;
 			},
-			list: () => readStorage("__kv"),
+			list: () => readKv(),
 		},
 		async dispose() {
 			if (disposed) return;

@@ -38,6 +38,7 @@ import {
 import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
 import { readAdminLocaleManifest, resolveAdminLocales } from "./admin-locales.js";
+import { resolveHiddenNavItems } from "./admin-nav.js";
 import { loadDevEnv } from "./dev-env.js";
 import { startDevSchedulerBridge } from "./dev-scheduler-bridge.js";
 import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
@@ -78,9 +79,9 @@ function resolveAstroVersion(): string | undefined {
 }
 
 /**
- * `@emdash-cms/cloudflare` depends on the exact `emdash` version it was
- * released with. A site that upgrades only one of the two installs a second
- * copy of `emdash` for the adapter, so warn when the installed adapter's
+ * `@emdash-cms/cloudflare` requires the exact `emdash` version it was
+ * released with. npm refuses a mismatched install, but pnpm and Yarn only
+ * print a peer dependency warning, so warn when the installed adapter's
  * version differs from this one.
  *
  * @internal Exported for unit testing.
@@ -101,8 +102,8 @@ export function adapterVersionMismatchWarning(
 		}
 		if (typeof pkg.version !== "string" || pkg.version === version) return undefined;
 		return (
-			`@emdash-cms/cloudflare ${pkg.version} does not match emdash ${version}, ` +
-			`so the adapter runs against its own copy of emdash ${pkg.version}. ` +
+			`@emdash-cms/cloudflare ${pkg.version} requires emdash ${pkg.version}, ` +
+			`but emdash ${version} is installed. ` +
 			`Install the same version of both packages, for example:\n\n` +
 			`  npm install emdash@${version} @emdash-cms/cloudflare@${version}`
 		);
@@ -232,6 +233,7 @@ export function buildSerializableConfig(resolvedConfig: EmDashConfig): Record<st
 		siteUrl: resolvedConfig.siteUrl,
 		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
 		maxUploadSize: resolvedConfig.maxUploadSize,
+		imagePlaceholders: resolvedConfig.imagePlaceholders,
 		admin: resolvedConfig.admin,
 		toolbar: resolvedConfig.toolbar,
 		updateCheck: resolvedConfig.updateCheck,
@@ -590,6 +592,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		resolvedConfig.admin = {
 			...config.admin,
 			locales: resolveAdminLocales(config.admin.locales, Object.keys(manifest)),
+		};
+	}
+	if (config.admin?.hiddenNavItems !== undefined) {
+		resolvedConfig.admin = {
+			...resolvedConfig.admin,
+			hiddenNavItems: resolveHiddenNavItems(config.admin.hiddenNavItems),
 		};
 	}
 

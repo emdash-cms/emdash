@@ -1,17 +1,31 @@
 /**
- * A save carrying `_rev` must not overwrite a write that lands between the
- * runtime's `_rev` check and the read whose version guards the draft UPDATE.
+ * A save carrying `_rev` must not overwrite a write that lands after its
+ * `_rev` check.
  */
 
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+	handleContentCreate,
+	handleContentGet,
+	handleContentSchedule,
+	handleContentUpdate,
+} from "../../../src/api/handlers/content.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
-import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import {
+	asInlineTransaction,
+	describeEachDialect,
+	setupForDialect,
+	setupTestDatabase,
+	teardownForDialect,
+	teardownTestDatabase,
+} from "../../utils/test-db.js";
+import type { DialectTestContext } from "../../utils/test-db.js";
 
 describe("handleContentUpdate _rev against an interleaved write", () => {
 	let db: Kysely<Database>;
@@ -117,4 +131,79 @@ describe("handleContentUpdate _rev against an interleaved write", () => {
 		const after = await runtime.handleContentGet("plain_posts", id);
 		expect(after.data!.item.data.title).toBe("Other writer");
 	});
+});
+
+describeEachDialect("a save racing another write made from the same _rev", (dialect) => {
+	let ctx: DialectTestContext;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createCollection({ slug: "notes", label: "Notes", supports: ["seo"] });
+		await registry.createField("notes", { slug: "title", label: "Title", type: "string" });
+	});
+
+	afterEach(async () => {
+		vi.restoreAllMocks();
+		await teardownForDialect(ctx);
+	});
+
+	it.each([
+		{
+			name: "a save",
+			write: (db: Kysely<Database>, id: string, rev?: string) =>
+				handleContentUpdate(db, "notes", id, { data: { title: "First" }, _rev: rev }),
+		},
+		{
+			name: "an SEO-only save",
+			write: (db: Kysely<Database>, id: string, rev?: string) =>
+				handleContentUpdate(db, "notes", id, { seo: { description: "First" }, _rev: rev }),
+		},
+		{
+			name: "a schedule",
+			// A second ahead, so updated_at moves even within the create's millisecond.
+			write: (db: Kysely<Database>, id: string, rev?: string) =>
+				handleContentSchedule(
+					db,
+					"notes",
+					id,
+					"2099-01-01T00:00:00.000Z",
+					new Date(Date.now() + 1000),
+					rev,
+				),
+		},
+	])(
+		"refuses the save when $name lands between its _rev check and its update",
+		async ({ write }) => {
+			// A SQLite transaction holds the only connection and would block the
+			// interleaved write, so SQLite runs the saves inline, as D1 does.
+			const db = dialect === "sqlite" ? asInlineTransaction(ctx.db) : ctx.db;
+			const created = await handleContentCreate(db, "notes", { data: { title: "Start" } });
+			if (!created.success) throw new Error(created.error.message);
+			const id = created.data.item.id;
+			const rev = created.data._rev;
+
+			let first: Awaited<ReturnType<typeof write>> | undefined;
+			let afterFirst: Awaited<ReturnType<typeof handleContentGet>> | undefined;
+			const original = ContentRepository.prototype.update;
+			const spy = vi
+				.spyOn(ContentRepository.prototype, "update")
+				.mockImplementation(async function (this: ContentRepository, ...args) {
+					spy.mockRestore();
+					first = await write(db, id, rev);
+					afterFirst = await handleContentGet(ctx.db, "notes", id);
+					return original.apply(this, args);
+				});
+
+			const second = await handleContentUpdate(db, "notes", id, {
+				data: { title: "Second" },
+				seo: { description: "Second" },
+				_rev: rev,
+			});
+
+			expect(first?.success).toBe(true);
+			expect(second).toMatchObject({ success: false, error: { code: "CONFLICT" } });
+			expect(await handleContentGet(ctx.db, "notes", id)).toEqual(afterFirst);
+		},
+	);
 });

@@ -403,21 +403,23 @@ export class BylineRepository {
 		// query covers everything).
 		const translatableByByline = new Map<string, Map<string, string | null>>();
 		const bylineIds = [...new Set(summaries.map((s) => s.id))];
-		for (const chunk of chunks(bylineIds, SQL_BATCH_SIZE)) {
-			const trRows = await this.db
-				.selectFrom("_emdash_byline_field_values")
-				.select(["byline_id", "field_id", "value"])
-				.where("byline_id", "in", chunk)
-				.execute();
-			for (const trRow of trRows) {
-				let fieldMap = translatableByByline.get(trRow.byline_id);
-				if (!fieldMap) {
-					fieldMap = new Map();
-					translatableByByline.set(trRow.byline_id, fieldMap);
+		const loadTranslatable = async () => {
+			for (const chunk of chunks(bylineIds, SQL_BATCH_SIZE)) {
+				const trRows = await this.db
+					.selectFrom("_emdash_byline_field_values")
+					.select(["byline_id", "field_id", "value"])
+					.where("byline_id", "in", chunk)
+					.execute();
+				for (const trRow of trRows) {
+					let fieldMap = translatableByByline.get(trRow.byline_id);
+					if (!fieldMap) {
+						fieldMap = new Map();
+						translatableByByline.set(trRow.byline_id, fieldMap);
+					}
+					fieldMap.set(trRow.field_id, trRow.value);
 				}
-				fieldMap.set(trRow.field_id, trRow.value);
 			}
-		}
+		};
 
 		// Group-shared values, batched over the union of translation_groups,
 		// with per-group request-cache priming so subsequent calls within
@@ -433,7 +435,13 @@ export class BylineRepository {
 					.filter((g): g is string => typeof g === "string" && g.length > 0),
 			),
 		];
-		const groupByGroup = await this.loadGroupValuesByIds(groups);
+		// The two reads are independent, so issue them together. On D1 with
+		// `coalesce` enabled they share one round trip; elsewhere they still
+		// run one after the other.
+		const [, groupByGroup] = await Promise.all([
+			loadTranslatable(),
+			this.loadGroupValuesByIds(groups),
+		]);
 
 		// Each loop gates on `field.translatable` so a row in the wrong
 		// owner table (e.g. left over from a translatable flip) can't
@@ -1398,17 +1406,16 @@ export class BylineRepository {
 		// actually lands in the junction. Deduping by wire row id BEFORE
 		// resolving would let two locale siblings of the same byline slip
 		// through and trigger a UNIQUE(collection, content, byline_id)
-		// failure at insert time. A single SELECT keeps this O(1) DB
-		// calls regardless of how many credits are being set.
+		// failure at insert time.
 		const idToGroup = new Map<string, string>();
-		if (inputBylines.length > 0) {
-			const wireIds = [...new Set(inputBylines.map((item) => item.bylineId))];
+		const wireIds = [...new Set(inputBylines.map((item) => item.bylineId))];
+		for (const batch of chunks(wireIds, SQL_BATCH_SIZE)) {
 			const rows = await this.db
 				.selectFrom("_emdash_bylines")
 				.select(["id", "translation_group"])
-				.where("id", "in", wireIds)
+				.where("id", "in", batch)
 				.execute();
-			if (rows.length !== wireIds.length) {
+			if (rows.length !== batch.length) {
 				throw new Error("One or more byline IDs do not exist");
 			}
 			for (const row of rows) {

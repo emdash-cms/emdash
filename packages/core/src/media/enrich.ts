@@ -29,10 +29,14 @@ export interface EnrichedImageMetadata {
  * - The placeholder OOM guard uses only header dimensions read from the bytes
  *   actually decoded. Caller-supplied `knownDimensions` are untrusted for the
  *   guard: a client could claim a tiny size for a huge image to bypass the cap.
- * - `placeholder` lets a caller decode a smaller thumbnail for the blurhash to
- *   avoid OOM on large originals; dimensions still come from `bytes`.
- * - Placeholders are jpeg/png only (the generator's supported formats); other
- *   image types still get dimensions.
+ * - `placeholder` supplies thumbnail bytes for LQIP generation instead of
+ *   decoding the original, reducing CPU and memory use. Record dimensions still
+ *   come from `knownDimensions` or the original `bytes`, not the thumbnail.
+ * - `placeholders` defaults to `true`. When `false`, only dimensions are returned
+ *   and the `placeholder` override is ignored.
+ * - Pixel decoding supports JPEG/PNG inputs, either originals or thumbnails.
+ *   Other image formats can receive placeholders through a JPEG/PNG override;
+ *   without one, they receive dimensions only.
  */
 export async function enrichImageMetadata(
 	bytes: Uint8Array,
@@ -40,6 +44,7 @@ export async function enrichImageMetadata(
 	opts?: {
 		knownDimensions?: { width: number; height: number };
 		placeholder?: { bytes: Uint8Array; contentType: string };
+		placeholders?: boolean;
 	},
 ): Promise<EnrichedImageMetadata> {
 	const normalizedContentType = normalizeMime(contentType);
@@ -57,6 +62,17 @@ export async function enrichImageMetadata(
 	// (e.g. browser naturalWidth/Height, which apply EXIF orientation) over the
 	// raw header dims, which are swapped for 90°/270°-rotated JPEGs.
 	const recordDims = opts?.knownDimensions ?? headerDims;
+
+	// Placeholder generation can be disabled entirely for sites that do not use
+	// LQIP, avoiding CPU-intensive decoding on constrained runtimes. Dimensions
+	// and validation are independent concerns and remain enabled.
+	const placeholdersEnabled = opts?.placeholders ?? true;
+	if (!placeholdersEnabled) {
+		return {
+			width: recordDims?.width,
+			height: recordDims?.height,
+		};
+	}
 
 	// When a smaller thumbnail override is supplied, decode that for the blurhash
 	// and let generatePlaceholder read the thumbnail's own header for the OOM

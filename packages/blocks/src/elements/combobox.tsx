@@ -1,6 +1,7 @@
 import { Combobox } from "@cloudflare/kumo";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 
+import { FormOwnerContext } from "../form-context.js";
 import type { BlockInteraction, ComboboxElement } from "../types.js";
 
 export function ComboboxElementComponent({
@@ -12,6 +13,7 @@ export function ComboboxElementComponent({
 	onAction: (interaction: BlockInteraction) => void;
 	onChange?: (actionId: string, value: unknown) => void;
 }) {
+	const form = useContext(FormOwnerContext);
 	const initialOption = useMemo(
 		() => element.options.find((o) => o.value === element.initial_value) ?? null,
 		[element.options, element.initial_value],
@@ -48,7 +50,7 @@ export function ComboboxElementComponent({
 			value={selected}
 			onValueChange={handleChange}
 		>
-			<Combobox.TriggerInput placeholder={element.placeholder ?? "Search..."} />
+			<Combobox.TriggerInput form={form} placeholder={element.placeholder ?? "Search..."} />
 			<Combobox.Content>
 				<Combobox.List>
 					{(item: { label: string; value: string }) => (

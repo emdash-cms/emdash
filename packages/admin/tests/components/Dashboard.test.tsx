@@ -201,6 +201,17 @@ describe("Dashboard", () => {
 		await expect.element(screen.getByText("Scheduled")).not.toBeInTheDocument();
 	});
 
+	it("omits the users summary when the server leaves out the user count", async () => {
+		mockUseCurrentUser.mockReturnValue({ data: { role: 40 } });
+		const { userCount: _userCount, ...stats } = makeStats([]);
+		mockFetchDashboardStats.mockResolvedValue(stats);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect.element(screen.getByText("Media files")).toBeInTheDocument();
+		await expect.element(screen.getByText("Users", { exact: true })).not.toBeInTheDocument();
+	});
+
 	it("warns when scheduled content is overdue and the scheduler has never completed", async () => {
 		const stats = makeStats([
 			{
@@ -414,6 +425,35 @@ describe("Dashboard", () => {
 		await expect.element(screen.getByRole("link", { name: "Page" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("link", { name: "Sync run" })).not.toBeInTheDocument();
 		await expect.element(screen.getByRole("link", { name: "Setting" })).not.toBeInTheDocument();
+	});
+
+	it("omits hidden collections from the Content card", async () => {
+		mockFetchDashboardStats.mockResolvedValue(
+			makeStats([
+				{ slug: "pages", label: "Pages", total: 2, published: 1, draft: 1, scheduled: 0 },
+				{ slug: "sync_runs", label: "Sync runs", total: 5, published: 5, draft: 0, scheduled: 0 },
+			]),
+		);
+		const withHidden: AdminManifest = {
+			...manifest,
+			collections: {
+				...manifest.collections,
+				sync_runs: {
+					...manifest.collections.pages!,
+					label: "Sync runs",
+					labelSingular: "Sync run",
+					hidden: true,
+				},
+			},
+		};
+
+		const screen = await render(<Dashboard manifest={withHidden} />);
+
+		await expect
+			.element(screen.getByRole("link", { name: /^Pages/ }))
+			.toHaveAttribute("href", "/content/pages");
+		await expect.element(screen.getByRole("link", { name: /Sync runs/ })).not.toBeInTheDocument();
+		expect(screen.container.querySelector('a[href="/content/sync_runs"]')).toBeNull();
 	});
 
 	it("uses the same heading level for every dashboard card title", async () => {

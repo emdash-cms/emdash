@@ -475,22 +475,26 @@ describe("Loader field filters", () => {
 		expect(result.entries[0].data.title).toBe("Early");
 	});
 
-	it("should return empty results for non-existent column in where filter", async () => {
-		await createPost("Post A", { series: "alpha" });
+	it.each(["nonexistent_column", "_emdash_missing"])(
+		"should return empty results for non-existent caller field %s",
+		async (field) => {
+			await createPost("Post A", { series: "alpha" });
 
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-		const loader = emdashLoader();
-		const result = await runWithContext({ editMode: false, db }, () =>
-			loader.loadCollection!({
-				filter: {
-					type: "post",
-					where: { nonexistent_column: "value" },
-				},
-			}),
-		);
+			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+			const loader = emdashLoader();
+			const result = await runWithContext({ editMode: false, db }, () =>
+				loader.loadCollection!({
+					filter: {
+						type: "post",
+						where: { [field]: "value" },
+					},
+				}),
+			);
 
-		expect(result.entries).toHaveLength(0);
-		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("no such column"));
-		warnSpy.mockRestore();
-	});
+			expect(result.error).toBeUndefined();
+			expect(result.entries).toHaveLength(0);
+			expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("no such column"));
+			warnSpy.mockRestore();
+		},
+	);
 });

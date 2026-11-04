@@ -197,7 +197,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const fieldId =
 			typeof fieldIdEntry === "string" && fieldIdEntry.length > 0 ? fieldIdEntry : null;
 
-		const fieldAllowlist = fieldId ? await resolveFieldAllowlist(emdash.db, fieldId) : null;
+		const blockTypeEntry = formData.get("blockType");
+		const blockVersionEntry = formData.get("blockVersion");
+		const blockType = typeof blockTypeEntry === "string" ? blockTypeEntry : undefined;
+		const blockVersion =
+			typeof blockVersionEntry === "string" ? Number(blockVersionEntry) : undefined;
+		const fieldAllowlist = fieldId
+			? await resolveFieldAllowlist(emdash.db, fieldId, blockType, blockVersion)
+			: null;
 		const allowlist = fieldAllowlist ?? [...GLOBAL_UPLOAD_ALLOWLIST];
 
 		// Browsers that don't know a format (e.g. `.jxl`) may send an empty or
@@ -259,11 +266,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// (avoids OOM on large originals on memory-constrained runtimes).
 		const thumbnailEntry = formData.get("thumbnail");
 		const thumbnail = thumbnailEntry instanceof File ? thumbnailEntry : null;
+		const placeholdersEnabled = emdash.config?.imagePlaceholders ?? true;
 		const enriched = await enrichImageMetadata(buffer, mimeType, {
 			knownDimensions: width != null && height != null ? { width, height } : undefined,
-			placeholder: thumbnail
-				? { bytes: new Uint8Array(await thumbnail.arrayBuffer()), contentType: thumbnail.type }
-				: undefined,
+			placeholder:
+				placeholdersEnabled && thumbnail
+					? { bytes: new Uint8Array(await thumbnail.arrayBuffer()), contentType: thumbnail.type }
+					: undefined,
+			placeholders: placeholdersEnabled,
 		});
 
 		// Create media record

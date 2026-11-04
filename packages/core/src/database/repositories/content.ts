@@ -17,7 +17,7 @@ import { executeAtomicBatchIfSupported, isPostgres } from "../dialect-helpers.js
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
-import { createRevisionId, RevisionRepository } from "./revision.js";
+import { createRevisionId, RevisionRepository, startingRevisionId } from "./revision.js";
 import type {
 	CreateContentInput,
 	UpdateContentInput,
@@ -580,8 +580,7 @@ export class ContentRepository {
 			return baseSlug;
 		}
 
-		// Find all slugs that are `baseSlug` or start with `baseSlug-`. A prefix
-		// comparison rather than LIKE: D1 rejects LIKE patterns over 50 bytes.
+		// D1 caps LIKE patterns at 50 bytes; compare the literal prefix instead.
 		const prefix = `${baseSlug}-`;
 		const candidates = locale
 			? await sql<{ slug: string }>`
@@ -1071,7 +1070,12 @@ export class ContentRepository {
 	/**
 	 * Update content
 	 */
-	async update(type: string, id: string, input: UpdateContentInput): Promise<ContentItem> {
+	async update(
+		type: string,
+		id: string,
+		input: UpdateContentInput,
+		expectedRevision?: ContentRevisionPrecondition,
+	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
@@ -1123,14 +1127,25 @@ export class ContentRepository {
 		if (hasColumnWrites) {
 			updates.updated_at = now;
 		}
+		if (input.draftRevisionId === null) {
+			updates.draft_revision_id = null;
+		}
 		updates.version = sql`version + 1`;
 
-		await this.db
+		let query = this.db
 			.updateTable(tableName as keyof Database)
 			.set(updates)
 			.where("id", "=", id)
-			.where("deleted_at" as never, "is", null)
-			.execute();
+			.where("deleted_at" as never, "is", null);
+		if (expectedRevision) {
+			query = query
+				.where(sql<boolean>`version = ${expectedRevision.version}`)
+				.where(sql<boolean>`updated_at = ${expectedRevision.updatedAt}`);
+		}
+		const result = await query.executeTakeFirst();
+		if (expectedRevision && result.numUpdatedRows === 0n) {
+			throw new ContentMutationConflictError();
+		}
 
 		if (hasColumnWrites) invalidateCollectionCache(type);
 
@@ -1348,7 +1363,8 @@ export class ContentRepository {
 		const supportsRaw = collectionRows[0]?.supports;
 		const supports: unknown = supportsRaw ? JSON.parse(supportsRaw) : [];
 		if (!Array.isArray(supports) || !supports.includes("revisions")) {
-			return this.update(type, id, { ...input, data });
+			// Reads show any draft revision over the columns this writes.
+			return this.update(type, id, { ...input, data, draftRevisionId: null });
 		}
 
 		const fieldSlugs = new Set(
@@ -1392,6 +1408,7 @@ export class ContentRepository {
 
 			const mergedData = keepKnownFields({ ...baseData, ...incoming }, fieldSlugs);
 			if (stagedSlug !== undefined) mergedData._slug = stagedSlug;
+			await this.keepStartingRevision(revisionRepo, type, existing);
 			const revision = await revisionRepo.create({
 				collection: type,
 				entryId: id,
@@ -1423,6 +1440,41 @@ export class ContentRepository {
 
 		if (!existing) throw new Error("Content not found");
 		throw new ContentMutationConflictError();
+	}
+
+	/**
+	 * Keep an entry's starting content as a revision before any other revision of it is written.
+	 * Until then only the columns hold it, and publishing a later draft overwrites them. A save
+	 * writes it ahead of its own draft, and publishing an entry with no live or draft revision
+	 * publishes it. Neither removes it, so a save that finds any revision already there can skip
+	 * writing it. Returns its id while it is the entry's newest revision and holds the stored
+	 * content, otherwise null.
+	 */
+	async keepStartingRevision(
+		revisionRepo: RevisionRepository,
+		type: string,
+		existing: ContentItem,
+		extraData?: () => Promise<Record<string, unknown>>,
+	): Promise<string | null> {
+		if (existing.draftRevisionId || existing.liveRevisionId) return null;
+		const id = startingRevisionId(type, existing.id, existing.createdAt);
+		const latest = await revisionRepo.findLatest(type, existing.id);
+		if (latest) {
+			const holdsStoredContent =
+				latest.id === id &&
+				Object.entries(existing.data).every(([key, value]) =>
+					sameStoredValue(latest.data[key], value),
+				);
+			return holdsStoredContent ? id : null;
+		}
+		await revisionRepo.createIfMissing({
+			id,
+			collection: type,
+			entryId: existing.id,
+			data: { ...existing.data, ...(await extraData?.()) },
+			authorId: existing.authorId ?? undefined,
+		});
+		return id;
 	}
 
 	private async deleteUnstagedRevision(
@@ -2636,7 +2688,10 @@ export class ContentRepository {
 		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let provisionalRevisionId: string | null = null;
 		try {
-			let revisionToPublish = existing.draftRevisionId || existing.liveRevisionId;
+			let revisionToPublish =
+				existing.draftRevisionId ||
+				existing.liveRevisionId ||
+				(await this.keepStartingRevision(revisionRepo, type, existing));
 
 			if (!revisionToPublish) {
 				const revision = await revisionRepo.create({
@@ -2777,13 +2832,16 @@ export class ContentRepository {
 	 * Unpublish content
 	 *
 	 * Removes live pointer and cancels any pending schedule, but preserves the
-	 * draft and publication date. If no draft exists, creates one from the live
-	 * version so the content isn't lost.
+	 * draft and publication date. If no draft exists and `draftFromLive` is set,
+	 * creates one from the live version so the content isn't lost. Collections
+	 * without revisions save to the columns, and a draft revision would hide
+	 * those saves.
 	 */
 	async unpublish(
 		type: string,
 		id: string,
 		expectedRevision?: ContentRevisionPrecondition,
+		draftFromLive = true,
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
@@ -2801,7 +2859,7 @@ export class ContentRepository {
 		let provisionalRevisionId: string | null = null;
 		try {
 			let draftRevisionId = existing.draftRevisionId;
-			if (!draftRevisionId && existing.liveRevisionId) {
+			if (draftFromLive && !draftRevisionId && existing.liveRevisionId) {
 				const liveRevision = await revisionRepo.findById(existing.liveRevisionId);
 				if (liveRevision) {
 					const draft = await revisionRepo.create({

@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-atproto
 
+## 0.2.4
+
+### Patch Changes
+
+- [#4188](https://github.com/emdash-cms/emdash/pull/4188) [`1709272`](https://github.com/emdash-cms/emdash/commit/17092725d9e59baf56e695d3cad4712aa71864a3) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes unpublished edits to a published post being sent to Bluesky and its standard.site document as soon as they were saved. They now sync when you publish them.
+
 ## 0.2.3
 
 ### Patch Changes

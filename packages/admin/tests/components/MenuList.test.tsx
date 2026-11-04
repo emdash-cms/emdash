@@ -2,8 +2,12 @@ import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
+import "../../dist/styles.css";
 import { MenuList } from "../../src/components/MenuList";
+import { ApiResponseError } from "../../src/lib/api/client.js";
+import { pressOutside } from "../utils/mouse.ts";
 import { render } from "../utils/render.tsx";
 
 vi.mock("@tanstack/react-router", async () => {
@@ -45,6 +49,7 @@ import * as api from "../../src/lib/api";
 
 const DELETE_MENU_CONFIRMATION_REGEX = /Are you sure you want to delete this menu/;
 const CREATE_MENU_REGEX = /Create Menu/;
+const TAKEN_NAME = "Another menu already uses this name. Enter a different one.";
 
 function mockMenus() {
 	vi.mocked(api.fetchMenus).mockResolvedValue([
@@ -109,8 +114,8 @@ describe("MenuList", () => {
 
 		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
 
-		await expect.element(screen.getByLabelText("Name")).toBeInTheDocument();
-		await expect.element(screen.getByLabelText("Label")).toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Name", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Label", { exact: true })).toBeInTheDocument();
 	});
 
 	it("clears a failed creation error after canceling", async () => {
@@ -118,8 +123,8 @@ describe("MenuList", () => {
 		const screen = await render(<MenuList />, { wrapper: Wrapper });
 
 		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
-		await screen.getByLabelText("Label").fill("Duplicate menu");
-		await screen.getByLabelText("Name").fill("duplicate");
+		await screen.getByLabelText("Label", { exact: true }).fill("Duplicate menu");
+		await screen.getByLabelText("Name", { exact: true }).fill("duplicate");
 		screen.getByRole("button", { name: "Create", exact: true }).element().click();
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Name already in use");
 
@@ -129,42 +134,151 @@ describe("MenuList", () => {
 		await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
 	});
 
-	it.each(["Cancel", "Close"])(
-		"keeps creation pending after %s and reopening",
-		async (dismissButton) => {
-			let resolveCreate!: (menu: Awaited<ReturnType<typeof api.createMenu>>) => void;
-			vi.mocked(api.createMenu).mockImplementationOnce(
-				() =>
-					new Promise((resolve) => {
-						resolveCreate = resolve;
-					}),
-			);
-			const screen = await render(<MenuList />, { wrapper: Wrapper });
+	it("refuses to close while the menu is being created", async () => {
+		let resolveCreate!: (menu: Awaited<ReturnType<typeof api.createMenu>>) => void;
+		vi.mocked(api.createMenu).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveCreate = resolve;
+				}),
+		);
+		const screen = await render(<MenuList />, { wrapper: Wrapper });
 
-			await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
-			await screen.getByLabelText("Label").fill("Slow menu");
-			await screen.getByLabelText("Name").fill("slow");
-			screen.getByRole("button", { name: "Create", exact: true }).element().click();
-			await expect.element(screen.getByRole("button", { name: "Creating..." })).toBeDisabled();
+		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
+		await screen.getByLabelText("Label", { exact: true }).fill("Slow menu");
+		await screen.getByLabelText("Name", { exact: true }).fill("slow");
+		screen.getByRole("button", { name: "Create", exact: true }).element().click();
+		await expect.element(screen.getByRole("button", { name: "Creating..." })).toBeDisabled();
 
-			screen.getByRole("button", { name: dismissButton, exact: true }).element().click();
-			await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-			await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
-			await expect.element(screen.getByRole("button", { name: "Creating..." })).toBeDisabled();
-			expect(api.createMenu).toHaveBeenCalledTimes(1);
+		await expect
+			.element(screen.getByRole("button", { name: "Cancel", exact: true }))
+			.toBeDisabled();
+		await userEvent.keyboard("{Escape}");
+		await expect.element(screen.getByRole("dialog")).toBeInTheDocument();
+		expect(api.createMenu).toHaveBeenCalledTimes(1);
 
-			resolveCreate({
-				id: "slow",
-				name: "slow",
-				label: "Slow menu",
-				createdAt: "",
-				updatedAt: "",
-				locale: "en",
-				translationGroup: null,
-			});
-			await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-		},
-	);
+		resolveCreate({
+			id: "slow",
+			name: "slow",
+			label: "Slow menu",
+			createdAt: "",
+			updatedAt: "",
+			locale: "en",
+			translationGroup: null,
+		});
+		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+	});
+
+	it("points at each missing or invalid field when submitted, and sends nothing", async () => {
+		const screen = await render(<MenuList />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create menu" });
+		const label = dialog.getByRole("textbox", { name: "Label", exact: true });
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+		expect(dialog.getByText("Enter a label.").query()).toBeNull();
+
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+
+		await expect.element(dialog.getByText("Enter a label.")).toBeVisible();
+		await expect.element(dialog.getByText("Enter a name.")).toBeVisible();
+		await expect.element(label).toHaveAttribute("aria-invalid", "true");
+		await expect.element(name).toHaveAttribute("aria-invalid", "true");
+		await expect.element(label).toHaveFocus();
+
+		await label.fill("Primary navigation");
+		await name.fill("Primary Nav");
+		await expect.element(dialog.getByText("Enter a label.")).not.toBeInTheDocument();
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+		await expect
+			.element(dialog.getByText("Use lowercase letters, numbers, and hyphens."))
+			.toBeVisible();
+		await expect.element(name).toHaveFocus();
+		expect(api.createMenu).not.toHaveBeenCalled();
+
+		await name.fill("primary-nav");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+		await vi.waitFor(() =>
+			expect(vi.mocked(api.createMenu).mock.calls[0]?.[0]).toMatchObject({
+				name: "primary-nav",
+				label: "Primary navigation",
+			}),
+		);
+	});
+
+	it("shows a name another menu uses on the Name field", async () => {
+		vi.mocked(api.createMenu).mockRejectedValueOnce(
+			new ApiResponseError(409, "CONFLICT", 'Menu "main" already exists'),
+		);
+		const screen = await render(<MenuList />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create menu" });
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("Main again");
+		await name.fill("main");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+
+		await expect.element(dialog.getByText(TAKEN_NAME)).toBeVisible();
+		await expect.element(name).toHaveFocus();
+		await expect.element(name).toHaveAttribute("aria-invalid", "true");
+		expect(dialog.getByText('Menu "main" already exists').query()).toBeNull();
+
+		await name.fill("main-2");
+		await expect.element(dialog.getByText(TAKEN_NAME)).not.toBeInTheDocument();
+	});
+
+	it("reports a refused name in the banner when the name changed during the save", async () => {
+		let rejectCreate!: (error: unknown) => void;
+		vi.mocked(api.createMenu).mockImplementationOnce(
+			() =>
+				new Promise((_, reject) => {
+					rejectCreate = reject;
+				}),
+		);
+		const screen = await render(<MenuList />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create menu" });
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("Main again");
+		await name.fill("main");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+		await expect.element(dialog.getByRole("button", { name: "Creating..." })).toBeVisible();
+		await name.fill("main-2");
+		rejectCreate(new ApiResponseError(409, "CONFLICT", 'Menu "main" already exists'));
+
+		await expect.element(dialog.getByText('Menu "main" already exists')).toBeVisible();
+		await expect.element(name).not.toHaveAttribute("aria-invalid");
+	});
+
+	it("keeps typed input through a press outside, and still closes on Cancel", async () => {
+		const screen = await render(<MenuList />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create menu" });
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("Footer");
+
+		await pressOutside();
+		await expect.element(dialog).toBeVisible();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Label", exact: true }))
+			.toHaveValue("Footer");
+
+		await dialog.getByRole("button", { name: "Cancel" }).click();
+		await expect.element(dialog).not.toBeInTheDocument();
+	});
+
+	it("closes on a press outside when nothing was typed", async () => {
+		const screen = await render(<MenuList />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: CREATE_MENU_REGEX }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create menu" });
+		await expect.element(dialog).toBeVisible();
+
+		await pressOutside();
+		await expect.element(dialog).not.toBeInTheDocument();
+	});
 
 	it("delete button opens confirmation dialog", async () => {
 		const screen = await render(<MenuList />, { wrapper: Wrapper });

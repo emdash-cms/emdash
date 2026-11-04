@@ -4,6 +4,7 @@ import {
 	createPublishedDateFormatter,
 	isThumbnailImage,
 	toPublishedDate,
+	withLocalePrefix,
 } from "../../../src/widgets/recent-posts.js";
 
 describe("toPublishedDate", () => {
@@ -80,5 +81,39 @@ describe("isThumbnailImage", () => {
 		expect(isThumbnailImage("")).toBe(false);
 		expect(isThumbnailImage(123)).toBe(false);
 		expect(isThumbnailImage({ src: "https://example.com/photo.jpg" })).toBe(false);
+	});
+});
+
+describe("withLocalePrefix", () => {
+	it("puts a root-relative URL under the locale prefix", () => {
+		expect(withLocalePrefix("/blog/museum-news", "/en")).toBe("/en/blog/museum-news");
+		expect(withLocalePrefix("/english-lessons", "/en")).toBe("/en/english-lessons");
+	});
+
+	it("leaves a URL that is already under the prefix", () => {
+		expect(withLocalePrefix("/en/news/museum-news", "/en")).toBe("/en/news/museum-news");
+		expect(withLocalePrefix("/en", "/en")).toBe("/en");
+	});
+
+	it("puts the prefix after the site's base path when the URL starts with it", () => {
+		expect(withLocalePrefix("/field-notes/blog/museum-news", "/en", "/field-notes")).toBe(
+			"/field-notes/en/blog/museum-news",
+		);
+		expect(withLocalePrefix("/field-notes/en/blog/museum-news", "/en", "/field-notes")).toBe(
+			"/field-notes/en/blog/museum-news",
+		);
+		expect(withLocalePrefix("/field-notes", "/en", "/field-notes")).toBe("/field-notes/en");
+		expect(withLocalePrefix("/blog/museum-news", "/en", "/field-notes")).toBe(
+			"/en/blog/museum-news",
+		);
+		expect(withLocalePrefix("/field-notesx/a", "/en", "/field-notes")).toBe("/en/field-notesx/a");
+	});
+
+	it("leaves the URL alone without a prefix, and absolute URLs always", () => {
+		expect(withLocalePrefix("/blog/novyna", "")).toBe("/blog/novyna");
+		expect(withLocalePrefix("https://example.com/blog/a", "/en")).toBe(
+			"https://example.com/blog/a",
+		);
+		expect(withLocalePrefix("//example.com/blog/a", "/en")).toBe("//example.com/blog/a");
 	});
 });

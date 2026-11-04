@@ -40,81 +40,65 @@ It does not let you merge PRs, push to branches, or change repository settings �
 
 You can also review pull requests. A Project Team review is useful evidence for the Maintainer who decides whether to approve, but it does not satisfy the required human Maintainer approval.
 
-## Working with EmDashBot
+## Working with the bots
 
-@emdashbot is the project's automated implementation-pull-request reviewer:
+Two project-operated bots work in this repository, each with its own GitHub App account:
 
-- **It reviews implementation PRs automatically** when the PR is opened, reopened, or marked ready for review. New commits do not trigger another review.
-- **Apply the `bot:review` label to summon a re-review**, for example after an author pushes significant changes. It sometimes fails to review the first time (e.g. if there's an error while it is running), in which case it is useful to ask for a re-review.
-- **It skips drafts, design PRs, and unsolicited PRs opened by other bots.** A draft implementation PR gets its review when it is marked ready. `bot:review` never overrides the design-PR exclusion.
+- **EmDashBot** (`emdashbot[bot]`) reviews implementation PRs.
+- **The autofix bot** (`emdash-autofix[bot]`) works on issues it is handed or takes on through auto-intake, and opens PRs with its fixes.
+
+Their reviews and PRs are evidence for a Maintainer, not approval. Either bot can submit an approving GitHub review or have repository permissions, but neither is a Maintainer, and neither satisfies the human approval requirement.
+
+### EmDashBot reviews
+
+- **It reviews implementation PRs automatically** when the PR is opened, reopened, or marked ready for review.
+- **It reviews again after new commits, once CI has finished.** On a PR it has reviewed before, a push schedules a follow-up review of the PR's current head. The review starts when every check run on that head has completed, after 10 minutes if no check runs appear, or after 60 minutes at the latest. A follow-up review checks whether the earlier findings were addressed and whether the new commits introduce a defect. Pushes that only merge `main` or only add the bot's formatting commits are not reviewed again, and a PR gets at most five automatic follow-up reviews in 24 hours.
+- **Apply the `bot:review` label to request a full review of the current head straight away**, for example when a review failed with an error or the PR has reached the follow-up limit. The label removes itself when the review finishes.
+- **It skips drafts, design PRs, and PRs opened by bots other than EmDashBot and the autofix bot.** A draft implementation PR gets its review when it is marked ready. `bot:review` never overrides the design-PR exclusion.
 - Most PR labels — review state, size, area, CLA, `needs-rebase`, `stale` — are applied and removed automatically. See [PR Labels](#pr-labels) for what they mean.
 
 EmDashBot compares a feature implementation with its linked accepted proposal. It reports omissions, divergences, unplanned scope, and missing tests alongside its normal correctness review.
 
-Automated reviews are evidence, not approval. EmDashBot can have repository permissions and submit an approving GitHub review, but it is not a Maintainer and never satisfies the human approval requirement.
-
-EmDashBot also works on issues (see [Issue work and `bot:*` labels](#issue-work-and-bot-labels)). It performs a bounded first pass on new issues, applies area labels and one kind label (`bot:bug`, `bot:enhancement`, or `bot:task`), and asks a focused question when the report lacks information. Issues opened by organization members and repository collaborators skip that pass until a maintainer runs `@emdashbot triage`. It may prepare a fix automatically for an obvious low-risk change, but deeper or sensitive work waits for maintainer approval. Every PR it opens still needs human Maintainer approval to merge.
-
-You can help by:
-
-- Confirming whether a bug is reproducible.
-- Asking for missing reproduction details.
-- Adding priority labels when the impact is clear.
-- Redirecting the reporter if the report is a feature request (to Discussions) or support question (to the docs or the public Discord channels if you can't answer it).
-
-And even on PRs, where the bot reviews every change, there is a lot of work it consistently can't do:
+EmDashBot reviews every change, but there is a lot of work it consistently can't do:
 
 - **Running a real site.** The bot checks out the branch, but it doesn't build, run, or deploy it, or look at any real site. Clicking through the admin UI as an editor would, or trying a change against the workflows real users hit, catches things no code review will.
 - **Judging whether the change should happen at all.** The bot reviews the diff in front of it and does try to judge if the fix is taking the right approach as well as being correct. However it won't notice that a feature contradicts a roadmap decision, that a fix papers over the real bug, or that the same problem was already solved elsewhere.
 - **Understanding what the author actually meant.** Humans notice when the description and the code disagree, or when the interesting question is one the PR doesn't ask.
 - **Empathy.** A first-time contributor who gets a kind, specific comment from a human is far more likely to stick around than one who only ever hears from a bot.
 
-### Issue work and `bot:*` labels
+### Issue work and the autofix bot
 
-New issues enter automatic triage, except issues opened by organization members and repository collaborators, Project Team members included. Those authors have usually looked into the issue already, so the bot waits for a command there. On such an issue, or on an older one, `@emdashbot triage` runs the same pass. The normal maintainer commands are:
+The autofix bot works on issues and PRs a maintainer hands to it, and on new issues it takes on through auto-intake (below). Organization members and repository collaborators can hand work to it in two ways:
 
-- `@emdashbot triage` — classify the issue, check the relevant source area, apply useful labels, and decide whether to ask for information, await approval, or start low-risk work.
-- `@emdashbot investigate` — reproduce and diagnose the report with evidence, without preparing a candidate.
-- `@emdashbot work` — take the issue through reproduction where appropriate, implementation, verification, and a PR.
-- `@emdashbot accept` / `@emdashbot needs changes <feedback>` — confirm the fix works or start another revision. The reporter can also reply naturally after trying the preview.
-- `@emdashbot retry` — retry the last failed or timed-out run, using its saved workspace when available.
-- `@emdashbot decline` — record that the issue won't be actioned (`bot:declined`); the issue itself stays open. From `bot:in-review` it also closes the bot's PR. Under `bot:needs-attention`, the PR stays open.
-- `@emdashbot take over` / `@emdashbot hand back` — take the issue away from the bot so it stops acting on it (`bot:human-owned`), or return it to `bot:triage`.
-- `@emdashbot reopen` — bring a `bot:done` or `bot:declined` issue back to `bot:triage`.
-- `@emdashbot reset` — clear conflicting `bot:*` state labels and put the issue back to `bot:triage`.
-- `@emdashbot status` / `@emdashbot help` — show the current state and available commands without changing anything.
+- **Apply the `bot:fix` label** to an issue, or to a PR opened from a branch in this repository. Removing the label from the issue or from the bot's PR stops the bot, and the bot takes its labels off both.
+- **Start a comment with `@emdash-autofix`**, followed by instructions. The bot takes the issue on and records the rest of the comment as maintainer instructions. On an issue or PR the bot already has, the comment reaches it as feedback.
 
-Older `fix`, `implement`, and `repro` commands remain aliases for `work`. A maintainer does not need to choose between separate bug-fix and implementation modes.
+The bot reads comments and reviews from maintainers, EmDashBot's reviews, and comments from the issue's reporter on that issue. It ignores comments from anyone else.
 
-`decline`, `take over`, and `reset` only run as the exact command, with nothing else after the mention. The other commands can also be written as a sentence after `@emdashbot`; the bot matches it to one of the commands the issue's current state offers.
+The bot also takes on new issues by itself (auto-intake): it triages each new issue, declines likely spam, feature requests, questions, and large changes, and works on clear, small bugs and tasks. A maintainer can still hand it any issue with the `bot:fix` label.
 
-Every verdict carries the commands and evidence behind it. "Could not reproduce," with a transcript, is a complete investigation outcome. Automatic triage never closes an issue or implements features and sensitive-area changes without approval.
+The bot works on a branch named `emdash-bot/issue-<number>` and opens its PR ready for review. It keeps one progress comment with its plan and status, on the issue until the PR opens and on the PR after that. On the PR's head commit it keeps an `EmDash bot` check run, which is in progress while the bot works, succeeds when the PR is ready for human review, and is otherwise neutral; it never fails. EmDashBot reviews every push the bot makes to its own PR. The bot responds to review findings, maintainer reviews and comments, failing checks, and merge conflicts until the PR is ready for human review. When the PR's preview is up, the bot asks the reporter on the issue to try it.
 
-**The preview loop.** When work produces a fix, the bot pushes `bot/fix-<n>`, waits for the `pkg.pr.new` preview, opens a PR, and asks the reporter to try the preview. If the preview fails to build, it opens the PR anyway and says so. The bot does not wait for the reporter before opening the PR, but a reporter who confirms the fix works gets the `triage/verified` label on the issue. Code review happens on the PR, where the bot watches checks, conflicts, and submitted maintainer reviews and continues repairing its branch until it is green or needs human attention.
+The bot keeps `bot:fix` on whatever it is working on, including its own PR. It also applies these labels to the issue and its PR, derived from its own records:
 
-Like the PR labels, the bot's lifecycle labels are managed by the bot:
+- `triage/awaiting-reporter` — the PR is ready, and the reporter hasn't confirmed the fix yet.
+- `triage/verified` — the reporter confirmed that the fix works. Confirmation never gates merging.
+- `triage/skipped` — the bot declined the issue.
+- `triage/failed` — the bot stopped because of a model or platform failure.
+- `area/*` — from the paths the PR changes.
 
-- `bot:triage` — the issue is waiting for a decision on what the bot should do.
-- `bot:triaging` — the bounded issue-classification pass is running.
-- `bot:awaiting-approval` — triage found useful work that needs a maintainer decision.
-- `bot:working` / `bot:investigating` — implementation or investigation is running.
-- `bot:reproduced` / `bot:diagnosed` — the investigation found the cause, with or without a reproduction. The bot changes no code until a maintainer runs `work` or the reporter sends `@emdashbot needs changes <feedback>`.
-- `bot:not-reproduced` — the bot could not reproduce the report; its comment has the transcript. The bot doesn't react to a reply here: if the reporter adds steps, a maintainer has to run `investigate` again.
-- `bot:needs-info` — the reporter can unblock the next pass by replying with the requested details; no bot mention is required.
-- `bot:preview-building` — a fix exists and its preview is being built.
-- `bot:in-review` — a PR is attached; implementation discussion and automatic repair happen there. A reporter reply on the issue that asks for a change goes to the bot as feedback for that PR.
-- `bot:needs-attention` — the fix or PR is retained, but the bot cannot continue safely without a maintainer.
-- `bot:blocked` — the bot stopped and needs a human decision, for example because the reported behavior is intended or reproducing it needs conditions the bot can't set up. Its comment usually gives the reason.
-- `bot:human-owned` — a maintainer took the issue over with `take over`; the bot starts no work on it until `hand back`.
-- `bot:done` / `bot:declined` — the issue is finished: resolved (for example, the bot's PR merged) or won't be actioned. `reopen` brings it back.
+The bot's PRs carry `bot:fix` and no `review/*` label. They need human Maintainer approval to merge like any other PR, and a Maintainer who makes substantial changes to one counts as an author (see [MAINTAINING.md](MAINTAINING.md)).
 
-[BOT_STATE_MACHINE.md](infra/emdash-bot/BOT_STATE_MACHINE.md) lists every state, the commands each one accepts, and the transitions between them. It is generated from the bot's source.
+To see what the bot is doing, read its progress comment or open the public board at [autofix.emdashcms.com](https://autofix.emdashcms.com). The board groups every case by who acts next: needs a maintainer, ready for review, working or queued, waiting, and finished this week. The same data is available as JSON at `https://autofix.emdashcms.com/api/cases`, and `https://autofix.emdashcms.com/api/cases?issue=<number>` returns the cases for one issue or PR number. The board shows only what is already public on GitHub.
 
-Read the bot's current comment before starting a manual reproduction. Its **View live dashboard** link shows the run's work plan and trace. `bot:in-review` means the implementation discussion has moved to the linked PR.
+For issues the bot doesn't take on, or hasn't reached yet, you can help by:
 
-The bot's own PRs carry the `bot` label and no `review/*` state, and the review bot doesn't review them. A maintainer's review that requests changes or leaves comments starts the next revision, and so does a maintainer's `@emdashbot` comment with plain feedback on the PR.
+- Confirming whether a bug is reproducible.
+- Asking for missing reproduction details.
+- Adding priority labels when the impact is clear.
+- Redirecting the reporter if the report is a feature request (to Discussions) or support question (to the docs or the public Discord channels if you can't answer it).
 
-(You may still see older `triage/*` labels other than `triage/verified` on issues filed before the switch to `bot:*`; treat them as historical.)
+Older issues may still carry `bot:*` lifecycle labels such as `bot:triage` or `bot:in-review`, and `triage/*` labels other than those listed above. They come from earlier triage automation; treat them as historical.
 
 ## AI-assisted contributions
 
@@ -261,7 +245,7 @@ The bot does code-level review and is good at it, but it's not perfect. The most
 
 You don't need to check all of these: any one of these checks on a PR is a useful contribution, and nobody runs the whole list every time.
 
-If something is missing, ask for it directly and keep the request narrow. The `review/*` state labels update automatically, so there's nothing to set when a PR looks ready — but if the author has pushed significant changes since the bot's last pass, add `bot:review` to summon a re-review.
+If something is missing, ask for it directly and keep the request narrow. The `review/*` state labels update automatically, so there's nothing to set when a PR looks ready. EmDashBot reviews new commits by itself once CI finishes; add `bot:review` only when a review failed or you want a full review of the current head straight away.
 
 ### Checking Changesets
 
@@ -286,7 +270,8 @@ Almost every label you'll see on a PR is applied and removed automatically. You 
 
 The labels you apply by hand on a PR:
 
-- `bot:review` to summon a bot re-review.
+- `bot:review` to request a full EmDashBot review of the current head.
+- `bot:fix` to hand a PR opened from a branch in this repository to the autofix bot (see [Issue work and the autofix bot](#issue-work-and-the-autofix-bot)).
 - `ci:run` to start CI on the PR's latest commit. It approves workflows waiting for approval (`needs-approval`) and re-runs failed jobs once CI has finished, for example after a flaky test. Approving runs the contributor's code on our runners, so read the diff first and don't approve anything that touches workflows, build scripts, or dependencies in ways you can't account for. The label removes itself, so add it again for another attempt, and again after the contributor pushes new commits.
 - `blocked` when progress depends on another issue, PR, or maintainer decision.
 
