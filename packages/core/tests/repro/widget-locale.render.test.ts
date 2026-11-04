@@ -112,6 +112,14 @@ describe("widgets on a translated site", () => {
 			expect(html.tags).toContain('href="/field-notes/en/tag/history"');
 			expect(html.recent).toContain('href="/field-notes/en/posts/museum-news"');
 			expect(html.archives).toContain('href="/field-notes/en/archives/2025/01"');
+
+			const container = await createContainer();
+			const withBaseTemplate = await container.renderToString(RecentPosts, {
+				request: new Request("http://localhost/field-notes/en/"),
+				locals: {},
+				props: { urlTemplate: "/field-notes/blog/:slug" },
+			});
+			expect(withBaseTemplate).toContain('href="/field-notes/en/blog/museum-news"');
 		} finally {
 			vi.unstubAllEnvs();
 		}

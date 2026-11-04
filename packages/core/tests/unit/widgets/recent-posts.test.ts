@@ -95,6 +95,20 @@ describe("withLocalePrefix", () => {
 		expect(withLocalePrefix("/en", "/en")).toBe("/en");
 	});
 
+	it("puts the prefix after the site's base path when the URL starts with it", () => {
+		expect(withLocalePrefix("/field-notes/blog/museum-news", "/en", "/field-notes")).toBe(
+			"/field-notes/en/blog/museum-news",
+		);
+		expect(withLocalePrefix("/field-notes/en/blog/museum-news", "/en", "/field-notes")).toBe(
+			"/field-notes/en/blog/museum-news",
+		);
+		expect(withLocalePrefix("/field-notes", "/en", "/field-notes")).toBe("/field-notes/en");
+		expect(withLocalePrefix("/blog/museum-news", "/en", "/field-notes")).toBe(
+			"/en/blog/museum-news",
+		);
+		expect(withLocalePrefix("/field-notesx/a", "/en", "/field-notes")).toBe("/en/field-notesx/a");
+	});
+
 	it("leaves the URL alone without a prefix, and absolute URLs always", () => {
 		expect(withLocalePrefix("/blog/novyna", "")).toBe("/blog/novyna");
 		expect(withLocalePrefix("https://example.com/blog/a", "/en")).toBe(

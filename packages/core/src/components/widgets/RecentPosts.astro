@@ -68,6 +68,7 @@ function getTitle(data: Record<string, unknown>): string | undefined {
 								{ posts: urlTemplate },
 							),
 							localePrefix,
+							base,
 						),
 					)
 				: `${base}${localePrefix}/posts/${slug}`;

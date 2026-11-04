@@ -41,7 +41,7 @@ The following built-in component widgets are available:
 | `core:search` | A search form that submits to `/search` |
 | `core:archives` | Monthly or yearly post archive links |
 
-The `core:recent-posts` link template accepts the same tokens as LiveSearch's `routeMap`: `:collection`, `:id` (the content ULID), `:slug` (the bare slug), and `:path` (slug or ID). Without a template, posts link to `/posts/<slug>`. On a multilingual site, both forms go under the page's locale prefix, such as `/en/posts/<slug>`, unless the template already starts with it.
+The `core:recent-posts` link template accepts the same tokens as LiveSearch's `routeMap`: `:collection`, `:id` (the content ULID), `:slug` (the bare slug), and `:path` (slug or ID). Without a template, posts link to `/posts/<slug>`. On a multilingual site, both forms go under the page's locale prefix, such as `/en/posts/<slug>`, unless the template already starts with it. A template that starts with Astro's `base` gets the prefix after the base.
 
 ## Place the area in a template
 
