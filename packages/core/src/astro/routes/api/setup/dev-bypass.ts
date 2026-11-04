@@ -6,7 +6,7 @@
  * Creates a dev admin user and marks setup complete after runtime initialization.
  * Newly applied sample content has its Media Usage index prepared before redirecting.
  *
- * ONLY available when import.meta.env.DEV is true.
+ * ONLY available when isDevOnlyEnabled() is true.
  *
  * Usage:
  * - GET with redirect: /_emdash/api/setup/dev-bypass?redirect=/_emdash/admin
@@ -24,6 +24,7 @@ export const prerender = false;
 
 import { ulid } from "ulidx";
 
+import { isDevOnlyEnabled } from "#api/dev-only.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { escapeHtml } from "#api/escape.js";
 import { deleteApiTokensByName, handleApiTokenCreate } from "#api/handlers/api-tokens.js";
@@ -44,7 +45,7 @@ const DEV_SITE_TITLE = "EmDash Dev Site";
 
 async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Response> {
 	// CRITICAL: Only allow in development mode
-	if (!import.meta.env.DEV) {
+	if (!isDevOnlyEnabled()) {
 		return apiError("FORBIDDEN", "Dev bypass is only available in development mode", 403);
 	}
 

@@ -5,7 +5,7 @@
  * Development-only endpoint to view and clear emails captured by
  * the dev console email provider.
  *
- * ONLY available when import.meta.env.DEV is true.
+ * ONLY available when isDevOnlyEnabled() is true.
  *
  */
 
@@ -13,12 +13,13 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
+import { isDevOnlyEnabled } from "#api/dev-only.js";
 import { apiError, apiSuccess } from "#api/error.js";
 
 import { clearDevEmails, getDevEmails } from "../../../../plugins/email-console.js";
 
 export const GET: APIRoute = async () => {
-	if (!import.meta.env.DEV) {
+	if (!isDevOnlyEnabled()) {
 		return apiError("FORBIDDEN", "Dev emails endpoint is only available in development mode", 403);
 	}
 
@@ -27,7 +28,7 @@ export const GET: APIRoute = async () => {
 };
 
 export const DELETE: APIRoute = async () => {
-	if (!import.meta.env.DEV) {
+	if (!isDevOnlyEnabled()) {
 		return apiError("FORBIDDEN", "Dev emails endpoint is only available in development mode", 403);
 	}
 

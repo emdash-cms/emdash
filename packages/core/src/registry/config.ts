@@ -9,6 +9,7 @@
 
 import { isDid } from "@atcute/lexicons/syntax";
 
+import { isDevOnlyEnabled } from "../api/dev-only.js";
 import type { RegistryConfig, RegistryConfigInput, RegistryConfigOption } from "./types.js";
 
 export const DEFAULT_REGISTRY_AGGREGATOR_URL = "https://registry.emdashcms.com";
@@ -280,7 +281,7 @@ export function validateAggregatorUrl(
 		hostname.startsWith("::ffff:127.") ||
 		hostname.startsWith("::ffff:7f00:");
 
-	const allowLocalhost = options.allowLocalhost ?? import.meta.env.DEV;
+	const allowLocalhost = options.allowLocalhost ?? isDevOnlyEnabled();
 	if (!allowLocalhost) {
 		if (parsed.protocol === "http:") {
 			throw new RegistryConfigurationError(

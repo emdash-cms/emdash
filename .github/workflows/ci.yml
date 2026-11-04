@@ -462,6 +462,8 @@ jobs:
         id: node-e2e
         if: needs.change-plan.outputs.e2e_node == 'true'
         run: pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        env:
+          EMDASH_E2E_BUILD: production
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure() && steps.node-e2e.outcome == 'failure'
         with:

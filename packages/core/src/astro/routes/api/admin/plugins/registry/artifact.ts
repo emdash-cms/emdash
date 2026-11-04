@@ -34,6 +34,7 @@ import { fetchVerifiedResource } from "@emdash-cms/registry-verification/fetch";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
+import { isDevOnlyEnabled } from "#api/dev-only.js";
 import { apiError } from "#api/error.js";
 
 import { verifyRegistryArtifactChecksum } from "../../../../../../registry/artifact-checksum.js";
@@ -467,7 +468,7 @@ function proxyFetchOptions(signal: AbortSignal) {
 			}),
 		resolveHostname: async (hostname: string) =>
 			(await resolveAndValidateExternalUrlTarget(`https://${hostname}/`)).addresses,
-		allowHttpLocalhost: import.meta.env.DEV,
+		allowHttpLocalhost: isDevOnlyEnabled(),
 		maxBytes: MAX_IMAGE_BYTES,
 		maxRedirects: MAX_REDIRECTS,
 		totalTimeoutMs: FETCH_TIMEOUT_MS,

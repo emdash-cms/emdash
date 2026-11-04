@@ -715,6 +715,20 @@ export interface EmDashConfig {
 	 * `env:astro` requirement can be evaluated against the real host version.
 	 */
 	astroVersion?: string;
+
+	/**
+	 * Turns on the development-only endpoints and behavior in a production
+	 * build: dev-bypass login and setup, dev-reset, the console email provider
+	 * and its captured-email endpoint, and plain-HTTP localhost registry URLs.
+	 *
+	 * For end-to-end tests of a built site only. Anyone who can reach a site
+	 * built with this option can sign in as an administrator, so never deploy
+	 * that build. The value is fixed at build time and cannot be switched on
+	 * at runtime.
+	 *
+	 * @default false
+	 */
+	dangerouslyEnableTestHooks?: boolean;
 }
 
 const STORED_CONFIG_KEY = Symbol.for("emdash:stored-config");

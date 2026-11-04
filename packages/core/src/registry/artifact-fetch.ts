@@ -1,6 +1,7 @@
 import type { ClientRequest, IncomingMessage } from "node:http";
 import type { RequestOptions } from "node:https";
 
+import { isDevOnlyEnabled } from "../api/dev-only.js";
 import { resolveAndValidateExternalUrlTarget, SsrfError } from "../security/ssrf.js";
 
 const TRAILING_DOT = /\.+$/;
@@ -75,7 +76,7 @@ async function resolveSafeArtifactTarget(urlString: string): Promise<{
 	const hostname = stripIpv6Brackets(rawHostname);
 	const localhost = isLocalhostHostname(hostname);
 
-	if (!import.meta.env.DEV) {
+	if (!isDevOnlyEnabled()) {
 		if (url.protocol === "http:") {
 			throw new Error("Artifact URL must use https");
 		}
