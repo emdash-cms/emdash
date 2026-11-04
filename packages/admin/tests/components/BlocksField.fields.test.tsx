@@ -173,6 +173,12 @@ function box(locator: Locator): DOMRect {
 	return locator.element().getBoundingClientRect();
 }
 
+/** Where `locator` sits in the editor's page, wherever the page is scrolled to. */
+function pageTop(locator: Locator): number {
+	const canvas = locator.element().closest("[data-emdash-editor-canvas]")!;
+	return box(locator).top + canvas.scrollTop;
+}
+
 function control(name: string): Locator {
 	return page.getByRole("textbox", { name, exact: true });
 }
@@ -601,10 +607,10 @@ describe("Checking fields inside a block", () => {
 		expect(error.bottom).toBeLessThanOrEqual(row.getBoundingClientRect().bottom);
 		expect(getComputedStyle(label).color).toBe(quietLabel);
 
-		const nextRowTop = box(control("Headline")).top;
+		const nextRowTop = pageTop(control("Headline"));
 		await sectionId.click();
 		await expect.poll(() => shownText(problem)).toBeDefined();
-		expect(box(control("Headline")).top).toBe(nextRowTop);
+		expect(pageTop(control("Headline"))).toBe(nextRowTop);
 
 		await sectionId.fill("pricing");
 		await expect.element(sectionId).not.toHaveAttribute("aria-invalid");
