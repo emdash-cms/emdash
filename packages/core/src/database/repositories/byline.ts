@@ -398,29 +398,6 @@ export class BylineRepository {
 
 		const fieldById = new Map(defs.map((d) => [d.id, d]));
 
-		// Translatable values, batched by byline_id (unique per locale, so
-		// IDs across different locale buckets don't collide — one batched
-		// query covers everything).
-		const translatableByByline = new Map<string, Map<string, string | null>>();
-		const bylineIds = [...new Set(summaries.map((s) => s.id))];
-		const loadTranslatable = async () => {
-			for (const chunk of chunks(bylineIds, SQL_BATCH_SIZE)) {
-				const trRows = await this.db
-					.selectFrom("_emdash_byline_field_values")
-					.select(["byline_id", "field_id", "value"])
-					.where("byline_id", "in", chunk)
-					.execute();
-				for (const trRow of trRows) {
-					let fieldMap = translatableByByline.get(trRow.byline_id);
-					if (!fieldMap) {
-						fieldMap = new Map();
-						translatableByByline.set(trRow.byline_id, fieldMap);
-					}
-					fieldMap.set(trRow.field_id, trRow.value);
-				}
-			}
-		};
-
 		// Group-shared values, batched over the union of translation_groups,
 		// with per-group request-cache priming so subsequent calls within
 		// the same request share the lookup. Together with the
@@ -438,8 +415,8 @@ export class BylineRepository {
 		// The two reads are independent, so issue them together. On D1 with
 		// `coalesce` enabled they share one round trip; elsewhere they still
 		// run one after the other.
-		const [, groupByGroup] = await Promise.all([
-			loadTranslatable(),
+		const [translatableByByline, groupByGroup] = await Promise.all([
+			this.loadTranslatableValuesByIds([...new Set(summaries.map((s) => s.id))]),
 			this.loadGroupValuesByIds(groups),
 		]);
 
@@ -467,6 +444,49 @@ export class BylineRepository {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Resolve the translatable custom-field values for a set of byline row
+	 * ids, sharing work across hydration calls within the same request via
+	 * per-byline `requestCached` entries (`byline-field-values:${bylineId}`).
+	 * `update` clears the entry after writing custom fields.
+	 */
+	private async loadTranslatableValuesByIds(
+		bylineIds: string[],
+	): Promise<Map<string, Map<string, string | null>>> {
+		const result = new Map<string, Map<string, string | null>>();
+		const missing: string[] = [];
+		for (const id of bylineIds) {
+			const cached = peekRequestCache<Map<string, string | null>>(`byline-field-values:${id}`);
+			if (cached) {
+				result.set(id, await cached);
+			} else {
+				missing.push(id);
+			}
+		}
+
+		if (missing.length === 0) return result;
+
+		const fetched = new Map<string, Map<string, string | null>>();
+		for (const id of missing) fetched.set(id, new Map());
+		for (const chunk of chunks(missing, SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("_emdash_byline_field_values")
+				.select(["byline_id", "field_id", "value"])
+				.where("byline_id", "in", chunk)
+				.execute();
+			for (const row of rows) {
+				fetched.get(row.byline_id)?.set(row.field_id, row.value);
+			}
+		}
+
+		for (const [id, values] of fetched) {
+			setRequestCacheEntry(`byline-field-values:${id}`, values);
+			result.set(id, values);
+		}
+
+		return result;
 	}
 
 	/**
@@ -898,6 +918,9 @@ export class BylineRepository {
 
 		if (touchedGroupShared) {
 			clearRequestCacheEntry(`byline-field-group-values:${group}`);
+		}
+		if (customFieldWrites.length > 0) {
+			clearRequestCacheEntry(`byline-field-values:${id}`);
 		}
 		invalidateBylineObjectCache();
 

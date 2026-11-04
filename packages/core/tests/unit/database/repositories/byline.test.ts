@@ -1459,6 +1459,41 @@ describe("BylineRepository", () => {
 			expect(results.frResult?.customFields?.twitter_handle).toBe("@jane");
 		});
 
+		it("reads a byline's translatable values once per request", async () => {
+			const byline = await bylineRepo.create({ slug: "jane", displayName: "Jane", locale: "en" });
+			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
+			resetBylineFieldDefsCacheForTests();
+			await bylineRepo.update(byline.id, { customFields: { job_title: "Editor" } });
+
+			let valueReads = 0;
+			const counted = new BylineRepository(
+				db.withPlugin({
+					transformQuery(args) {
+						if (JSON.stringify(args.node).includes('"_emdash_byline_field_values"')) valueReads++;
+						return args.node;
+					},
+					transformResult: async (args) => args.result,
+				}),
+			);
+
+			const results = await runWithContext(
+				{ db: undefined, dbIsIsolated: false, metrics: undefined },
+				async () => {
+					const first = await counted.findById(byline.id);
+					const second = await counted.findById(byline.id);
+					const readsBeforeUpdate = valueReads;
+					await counted.update(byline.id, { customFields: { job_title: "Publisher" } });
+					const afterUpdate = await counted.findById(byline.id);
+					return { first, second, readsBeforeUpdate, afterUpdate };
+				},
+			);
+
+			expect(results.first?.customFields?.job_title).toBe("Editor");
+			expect(results.second?.customFields?.job_title).toBe("Editor");
+			expect(results.readsBeforeUpdate).toBe(1);
+			expect(results.afterUpdate?.customFields?.job_title).toBe("Publisher");
+		});
+
 		it("tolerates orphaned value rows (definition deleted but value lingering)", async () => {
 			const byline = await bylineRepo.create({
 				slug: "jane",
