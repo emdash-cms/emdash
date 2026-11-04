@@ -1585,6 +1585,7 @@ describe("WordPress.com classic editor content", () => {
 		],
 		["a paragraph with an image tag and a long run of tabs", `<p><img${"\t".repeat(100_000)}</p>`],
 		["an image tag with a long run of tabs outside a paragraph", `<img${"\t".repeat(100_000)}`],
+		["repeated paragraph start tags without a closing bracket", "<p".repeat(100_000)],
 	])("converts %s within a second", (_shape, html) => {
 		const started = performance.now();
 		const result = htmlToPortableText(html);

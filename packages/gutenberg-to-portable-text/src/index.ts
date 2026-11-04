@@ -8,6 +8,7 @@
 
 import { parse } from "@wordpress/block-serialization-default-parser";
 
+import { createBlockScanner } from "./block-elements.js";
 import { extractText, parseInlineContent } from "./inline.js";
 import { table as tableTransformer } from "./transformers/core.js";
 import { getTransformer } from "./transformers/index.js";
@@ -19,9 +20,6 @@ import type {
 } from "./types.js";
 
 // Regex patterns for HTML parsing and conversion
-// The image alternative reads attributes as STANDALONE_IMAGE_PATTERN does, in linear time.
-const BLOCK_ELEMENT_PATTERN =
-	/<(p|h[1-6]|blockquote|pre|ul|ol|figure|div|hr)[^>]*>([\s\S]*?)<\/\1>|<(hr|br)\s*\/?>|<img\s(?:[^<>"']|"[^"<]*"|'[^'<]*')*>/gu;
 const WORD_CHARACTER_PATTERN = /\w/;
 const TABLE_BLOCK_CONTENT_PATTERN = /<(?:img|h[1-6]|ul|ol|pre|blockquote|hr)\b/i;
 const MERGED_CELL_PATTERN = /\b(?:colspan|rowspan)\s*=\s*(?:["']\s*)?(?:[2-9]|[1-9]\d)/i;
@@ -214,17 +212,20 @@ export function htmlToPortableText(
 		}
 	};
 
-	while ((match = BLOCK_ELEMENT_PATTERN.exec(html)) !== null) {
+	const nextBlockElement = createBlockScanner(html);
+	let scanFrom = 0;
+	while ((match = nextBlockElement(scanFrom)) !== null) {
+		scanFrom = match.index + match.html.length;
 		pushTablesBefore(match.index);
 		if (lastIndex > match.index) {
 			// A table took in this element: resume the scan after the table.
-			BLOCK_ELEMENT_PATTERN.lastIndex = lastIndex;
+			scanFrom = lastIndex;
 			continue;
 		}
 
-		const fullMatch = match[0];
-		const tag = (match[1] || match[3] || "").toLowerCase();
-		const content = match[2] || "";
+		const fullMatch = match.html;
+		const tag = match.tag.toLowerCase();
+		const content = match.content;
 
 		// Handle text between matches
 		const between = html.slice(lastIndex, match.index).trim();
@@ -240,7 +241,7 @@ export function htmlToPortableText(
 				});
 			}
 		}
-		lastIndex = match.index + match[0].length;
+		lastIndex = match.index + match.html.length;
 
 		// Check for standalone <img> tag (not wrapped in figure/p)
 		if (fullMatch.toLowerCase().startsWith("<img")) {
