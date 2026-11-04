@@ -205,6 +205,7 @@ function resolveEditorBylines(item?: ContentItem | null): {
 
 import type { ContentSeoInput } from "../lib/api";
 import { findUnsupportedPortableTextMarks } from "../lib/portable-text-marks.js";
+import { openPreviewWindow } from "../lib/preview-window.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 import {
 	PortableTextEditor,
@@ -1586,29 +1587,29 @@ export function ContentEditor({
 		try {
 			const result = await getPreviewUrl(collection, item.id);
 			if (result?.url) {
-				window.open(result.url, "_blank", "noopener,noreferrer");
+				openPreviewWindow(result.url, collection, item.id);
 			} else {
-				window.open(
+				openPreviewWindow(
 					contentUrl(collection, slug || item.id, urlPattern, {
 						locale: item.locale,
 						i18n,
 						id: item.id,
 						date: item.publishedAt,
 					}),
-					"_blank",
-					"noopener,noreferrer",
+					collection,
+					item.id,
 				);
 			}
 		} catch {
-			window.open(
-				contentUrl(collection, slug || item?.id || "", urlPattern, {
-					locale: item?.locale,
+			openPreviewWindow(
+				contentUrl(collection, slug || item.id, urlPattern, {
+					locale: item.locale,
 					i18n,
-					id: item?.id,
-					date: item?.publishedAt,
+					id: item.id,
+					date: item.publishedAt,
 				}),
-				"_blank",
-				"noopener,noreferrer",
+				collection,
+				item.id,
 			);
 		} finally {
 			setIsLoadingPreview(false);

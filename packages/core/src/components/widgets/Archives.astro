@@ -1,4 +1,5 @@
 ---
+import { localePathPrefix } from "../../i18n/resolve.js";
 import { getPublishedDates } from "../../query.js";
 import { groupEntriesByPublishedAt } from "../../widgets/archives.js";
 
@@ -9,7 +10,10 @@ interface Props {
 
 const { type = "monthly", limit = 12 } = Astro.props;
 
-const { dates } = await getPublishedDates("posts");
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const locale = Astro.currentLocale;
+const { dates } = await getPublishedDates("posts", { locale });
+const localePrefix = await localePathPrefix(locale);
 
 const archiveList = groupEntriesByPublishedAt(
 	dates.map((publishedAt) => ({ data: { publishedAt } })),
@@ -21,7 +25,7 @@ const archiveList = groupEntriesByPublishedAt(
 	{
 		archiveList.map((archive) => (
 			<li>
-				<a href={archive.url} class="widget-archives__link">
+				<a href={`${base}${localePrefix}${archive.url}`} class="widget-archives__link">
 					{archive.label}
 				</a>
 				<span class="widget-archives__count">({archive.count})</span>

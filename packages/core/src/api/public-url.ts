@@ -155,9 +155,14 @@ export function getPublicSiteUrl(
 	storedUrl: string | undefined,
 	base: string,
 ): string {
-	const siteUrl = (storedUrl || getPublicOrigin(url, config)).replace(TRAILING_SLASH_RE, "");
+	return withBasePath(storedUrl || getPublicOrigin(url, config), base);
+}
+
+/** Append Astro's base to an absolute site URL unless its pathname already ends with it. */
+export function withBasePath(siteUrl: string, base: string): string {
+	const trimmed = siteUrl.replace(TRAILING_SLASH_RE, "");
 	const basePath = base.replace(TRAILING_SLASH_RE, "");
-	if (!basePath) return siteUrl;
-	const pathname = new URL(siteUrl).pathname.replace(TRAILING_SLASH_RE, "");
-	return pathname.endsWith(basePath) ? siteUrl : `${siteUrl}${basePath}`;
+	if (!basePath) return trimmed;
+	const pathname = new URL(trimmed).pathname.replace(TRAILING_SLASH_RE, "");
+	return pathname.endsWith(basePath) ? trimmed : `${trimmed}${basePath}`;
 }
