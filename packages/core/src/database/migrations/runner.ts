@@ -99,6 +99,9 @@ import * as m088 from "./088_cron_oneshot_utc.js";
 import * as m089 from "./089_auto_seed_completion.js";
 import * as m090 from "./090_redirect_enable_loop_guard.js";
 import * as m091 from "./091_redirect_artifacts.js";
+import * as m092 from "./092_plugin_kv_options.js";
+import * as m093 from "./093_menu_item_orphans.js";
+import * as m094 from "./094_media_usage_file_url_reindex.js";
 import { CONTENT_SIZED_MIGRATIONS } from "./content-sized.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
@@ -192,6 +195,9 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"089_auto_seed_completion": m089,
 	"090_redirect_enable_loop_guard": m090,
 	"091_redirect_artifacts": m091,
+	"092_plugin_kv_options": m092,
+	"093_menu_item_orphans": m093,
+	"094_media_usage_file_url_reindex": m094,
 });
 
 /** Ordered names from the statically registered migration set. */
@@ -303,6 +309,12 @@ export interface MigrationOptions {
 	 * the pending content-sized migrations process more rows than this.
 	 */
 	contentRowLimit?: number;
+	/**
+	 * An applied-migration count the caller already read from this database
+	 * (`getAppliedMigrationCount`). The fast path uses it instead of reading
+	 * its own. Leave it undefined to have runMigrations read the count.
+	 */
+	appliedCount?: number | null;
 }
 
 export function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
@@ -418,7 +430,7 @@ const MIGRATION_TABLE_MISSING_PATTERN = new RegExp(
  * permission errors, or other unexpected driver problems behind a 10s wait
  * and a bogus "we're done" verdict.
  */
-async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | null> {
+export async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | null> {
 	try {
 		const result = await sql<{ count: number }>`
 			SELECT COUNT(*) as count FROM ${sql.ref(MIGRATION_TABLE)}
@@ -430,6 +442,17 @@ async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | 
 		}
 		throw error;
 	}
+}
+
+/**
+ * Whether an applied-migration count (from `getAppliedMigrationCount`) covers
+ * every migration this build knows about. `>=` rather than `===` so a
+ * database with extra rows from a newer build (e.g. mid-deploy old isolate,
+ * or downgrade) still counts as current, instead of falling through to the
+ * migrator's race-recovery path unnecessarily.
+ */
+export function isMigrationCountCurrent(count: number | null | undefined): boolean {
+	return count != null && count >= MIGRATION_COUNT;
 }
 
 /**
@@ -556,14 +579,14 @@ export async function runMigrations(
 	options?: MigrationOptions,
 ): Promise<{ applied: string[] }> {
 	// Fast path: check if all migrations are already applied.
-	// A single cheap query vs the Migrator's full schema introspection.
-	// We use `>=` rather than `===` so a database with extra rows from a
-	// newer build (e.g. mid-deploy old isolate, or downgrade) still skips
-	// the migrator instead of falling through to the race-recovery path
-	// unnecessarily.
+	// A single cheap query vs the Migrator's full schema introspection, or
+	// none when the caller already read the count.
 	if (!options?.migrationTableSchema) {
-		const initialCount = await getAppliedMigrationCount(db);
-		if (initialCount !== null && initialCount >= MIGRATION_COUNT) {
+		const initialCount =
+			options?.appliedCount !== undefined
+				? options.appliedCount
+				: await getAppliedMigrationCount(db);
+		if (isMigrationCountCurrent(initialCount)) {
 			return { applied: [] };
 		}
 	}

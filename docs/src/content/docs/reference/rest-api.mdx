@@ -194,7 +194,7 @@ The operation ID is stable within the generated contract and is commonly used as
 | `DELETE` | `/_emdash/api/menus/{name}` | `deleteMenu` | Delete a menu and its items |
 | `POST` | `/_emdash/api/menus/{name}/items` | `createMenuItem` | Add an item to a menu |
 | `PUT` | `/_emdash/api/menus/{name}/items/{id}` | `updateMenuItem` | Update a menu item |
-| `DELETE` | `/_emdash/api/menus/{name}/items/{id}` | `deleteMenuItem` | Delete a menu item |
+| `DELETE` | `/_emdash/api/menus/{name}/items/{id}` | `deleteMenuItem` | Delete a menu item and its nested items |
 | `POST` | `/_emdash/api/menus/{name}/reorder` | `reorderMenuItems` | Batch reorder menu items |
 
 ### Sections
@@ -228,6 +228,8 @@ The operation ID is stable within the generated contract and is commonly used as
 | `PUT` | `/_emdash/api/settings` | `updateSettings` | Update site settings |
 
 ### Search
+
+SQLite full-text search requires FTS5. Search, suggestions, and enabling search return `503` with error code `SEARCH_UNAVAILABLE` when the SQLite build lacks FTS5. Rebuilding an already enabled index reports the same error; rebuilding a collection whose search setup never succeeded returns `400 SEARCH_NOT_ENABLED`. See the [Node.js deployment prerequisites](/deployment/nodejs/#prerequisites) for a capability check and recovery steps. A successful response with an empty `items` list means there are no matches or no enabled collections, not that FTS5 is missing.
 
 | Method | Path | Operation | Summary |
 | --- | --- | --- | --- |
@@ -456,6 +458,8 @@ curl --request POST \
 `curl` adds the multipart boundary. Do not set the `Content-Type` header manually. The OpenAPI `MediaDirectUploadBody` schema lists the optional metadata fields and the response schemas distinguish a new upload from a deduplicated existing item.
 
 The multipart body can also include `alt` text and a `caption` for the new media item, image `width` and `height`, a `fieldId` whose MIME-type allowlist should be applied, and a downscaled `thumbnail` used to create a low-quality placeholder. An omitted or empty `alt` or `caption` field is stored as `null`. A new file returns `201 Created` and is ready immediately. Identical bytes return the existing media item with `200 OK` and `deduplicated: true`; the `alt` and `caption` sent with the upload are not applied to it.
+
+For an image or file field inside a block, send `fieldId` as `<outerFieldId>:<blockKey>:<fieldSlug>`, where `outerFieldId` is the database ID of the collection's blocks field. Also send `blockType` (the block type slug) and `blockVersion` (the block's retained version number). Use a string for `blockVersion` in multipart requests and a number in upload-target JSON requests. EmDash applies the nested field's `allowedMimeTypes` only when the block type is allowed or retired on the outer field and the version contains that image or file field. Missing or unresolvable context falls back to the default upload allowlist.
 
 ### Upload target flow
 

@@ -16,10 +16,15 @@ vi.mock("../../../src/loader.js", () => ({
 }));
 
 import { prefetchLayoutData } from "../../../src/astro/prefetch.js";
+import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { MenuRepository } from "../../../src/database/repositories/menu.js";
+import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import { getDb } from "../../../src/loader.js";
 import { getMenu } from "../../../src/menus/index.js";
-import { __setObjectCacheBackendForTests } from "../../../src/object-cache/index.js";
+import {
+	__setObjectCacheBackendForTests,
+	invalidateMenuObjectCache,
+} from "../../../src/object-cache/index.js";
 import { runWithContext } from "../../../src/request-context.js";
 
 /** SQL of every query executed against the test database. */
@@ -107,6 +112,7 @@ describe("getMenu collection-pattern request cache", () => {
 		expect(footer?.items.map((i) => i.url)).toEqual(["/blog/hello"]);
 
 		expect(collectionPatternQueries()).toHaveLength(1);
+		expect(queries.filter((q) => q.includes('"_emdash_menu_items"'))).toHaveLength(2);
 	});
 
 	it("returns identical results with and without a request context", async () => {
@@ -143,11 +149,23 @@ describe("getMenu collection-pattern request cache", () => {
 	});
 
 	describe("with an object cache backend", () => {
+		let backendReads = 0;
+		let onRowsRead: (() => Promise<void>) | undefined;
+
 		beforeEach(() => {
 			const store = new Map<string, string>();
 			__setObjectCacheBackendForTests(
 				{
-					get: (k) => Promise.resolve(store.get(k) ?? null),
+					get: async (k) => {
+						backendReads++;
+						const value = store.get(k) ?? null;
+						if (k.includes(":rows:") && onRowsRead) {
+							const hook = onRowsRead;
+							onRowsRead = undefined;
+							await hook();
+						}
+						return value;
+					},
 					set: (k, v) => {
 						store.set(k, v);
 						return Promise.resolve();
@@ -182,6 +200,197 @@ describe("getMenu collection-pattern request cache", () => {
 			queries = [];
 			await prefetch();
 			expect(menuNameQueries()).toHaveLength(1);
+		});
+
+		async function insertMenuLinking(
+			name: string,
+			item: { type: string; reference_collection?: string; reference_id: string },
+		): Promise<void> {
+			const menuId = ulid();
+			await db.insertInto("_emdash_menus").values({ id: menuId, name, label: name }).execute();
+			await db
+				.insertInto("_emdash_menu_items")
+				.values({ id: ulid(), menu_id: menuId, sort_order: 0, label: name, ...item })
+				.execute();
+		}
+
+		/** Menu URLs in a fresh request, after checking a repeat read is served from the cache. */
+		async function cachedMenuUrls(name: string): Promise<string[] | undefined> {
+			const read = () => runWithContext({ editMode: false, db }, () => getMenu(name));
+			const menu = await read();
+			await flush();
+			queries = [];
+			expect(await read()).toEqual(menu);
+			expect(queries).toHaveLength(0);
+			return menu?.items.map((item) => item.url);
+		}
+
+		it("returns null for a menu that does not exist", async () => {
+			expect(await cachedMenuUrls("missing")).toBeUndefined();
+		});
+
+		it("keeps cached menus apart by locale and trailing-slash policy", async () => {
+			await db
+				.insertInto("_emdash_menus")
+				.values({ id: ulid(), name: "primary", label: "Hauptmenü", locale: "de" })
+				.execute();
+			const read = (options: { locale: string; trailingSlash: "always" | "never" }) =>
+				runWithContext({ editMode: false, db }, () => getMenu("primary", options));
+
+			const always = await read({ locale: "en", trailingSlash: "always" });
+			await flush();
+			const never = await read({ locale: "en", trailingSlash: "never" });
+			const german = await read({ locale: "de", trailingSlash: "never" });
+
+			expect(always?.items.map((item) => item.url)).toEqual(["/blog/hello/"]);
+			expect(never?.items.map((item) => item.url)).toEqual(["/blog/hello"]);
+			expect(german?.label).toBe("Hauptmenü");
+		});
+
+		it("refreshes a cached menu when a linked entry is published or trashed", async () => {
+			const repo = new ContentRepository(db);
+			const entry = await repo.create({ type: "post", slug: "launch", data: {} });
+			await insertMenuLinking("header", {
+				type: "post",
+				reference_collection: "post",
+				reference_id: entry.id,
+			});
+			expect(await cachedMenuUrls("header")).toEqual([]);
+
+			await repo.publish("post", entry.id);
+			expect(await cachedMenuUrls("header")).toEqual(["/blog/launch"]);
+
+			await repo.delete("post", entry.id);
+			expect(await cachedMenuUrls("header")).toEqual([]);
+		});
+
+		it("reads the cache once for a warm menu, also after its links change", async () => {
+			const urls = async () =>
+				(await runWithContext({ editMode: false, db }, () => getMenu("primary")))?.items.map(
+					(item) => item.url,
+				);
+			const warmReads = async () => {
+				await flush();
+				backendReads = 0;
+				const warm = await urls();
+				expect(backendReads).toBe(1);
+				return warm;
+			};
+
+			await urls();
+			expect(await warmReads()).toEqual(["/blog/hello"]);
+
+			await new SchemaRegistry(db).createCollection({
+				slug: "page",
+				label: "Pages",
+				labelSingular: "Page",
+			});
+			const pages = new ContentRepository(db);
+			const about = await pages.create({ type: "page", slug: "about", data: {} });
+			await pages.publish("page", about.id);
+			const menus = new MenuRepository(db);
+			const [primary] = await menus.findByName("primary");
+			await menus.createItem(primary!.id, primary!.locale, {
+				type: "page",
+				label: "About",
+				referenceCollection: "page",
+				referenceId: about.id,
+			});
+			expect(await urls()).toEqual(["/blog/hello", "/page/about"]);
+			await urls();
+			expect(await warmReads()).toEqual(["/blog/hello", "/page/about"]);
+
+			await pages.delete("page", about.id);
+			expect(await urls()).toEqual(["/blog/hello"]);
+		});
+
+		/** The per-isolate memo of the namespaces each menu was last resolved under. */
+		function namespacesMemo(): Map<string, string[]> {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the per-isolate memo
+			return (globalThis as Record<symbol, unknown>)[
+				Symbol.for("emdash:menu-resolved-namespaces")
+			] as Map<string, string[]>;
+		}
+
+		it.each([
+			["a render", false],
+			["a fresh isolate", true],
+		])("keeps a menu edit that lands while %s reads the menu rows", async (_, freshIsolate) => {
+			const labels = async () =>
+				(await runWithContext({ editMode: false, db }, () => getMenu("primary")))?.items.map(
+					(item) => item.label,
+				);
+			await labels();
+			await flush();
+			await new ContentRepository(db).create({ type: "post", slug: "other", data: {} });
+			if (freshIsolate) namespacesMemo().clear();
+			onRowsRead = async () => {
+				await db.updateTable("_emdash_menu_items").set({ label: "Renamed" }).execute();
+				invalidateMenuObjectCache();
+			};
+
+			await labels();
+			await flush();
+
+			expect(onRowsRead).toBeUndefined();
+			expect(await labels()).toEqual(["Renamed"]);
+		});
+
+		it("never caches a menu under namespaces its links no longer match", async () => {
+			const urls = async () =>
+				(await runWithContext({ editMode: false, db }, () => getMenu("primary")))?.items.map(
+					(item) => item.url,
+				);
+			await urls();
+			const memo = namespacesMemo();
+			const [memoKey, before] = [...memo].find(([key]) => key.startsWith("primary:"))!;
+			// Another isolate still knows the menu by the namespaces it had before the edit.
+			const asOtherIsolate = () => memo.set(memoKey, before);
+
+			await new SchemaRegistry(db).createCollection({
+				slug: "page",
+				label: "Pages",
+				labelSingular: "Page",
+			});
+			const pages = new ContentRepository(db);
+			const about = await pages.create({ type: "page", slug: "about", data: {} });
+			await pages.publish("page", about.id);
+			const menus = new MenuRepository(db);
+			const [primary] = await menus.findByName("primary");
+			await menus.createItem(primary!.id, primary!.locale, {
+				type: "page",
+				label: "About",
+				referenceCollection: "page",
+				referenceId: about.id,
+			});
+			expect(await urls()).toEqual(["/blog/hello", "/page/about"]);
+			await flush();
+
+			await pages.delete("page", about.id);
+			asOtherIsolate();
+			expect(await urls()).toEqual(["/blog/hello"]);
+		});
+
+		it("returns null for a cached menu once it is deleted", async () => {
+			const read = () => runWithContext({ editMode: false, db }, () => getMenu("primary"));
+			expect(await read()).not.toBeNull();
+			await flush();
+
+			const menus = new MenuRepository(db);
+			const [primary] = await menus.findByName("primary");
+			await menus.delete(primary!.id);
+
+			expect(await read()).toBeNull();
+		});
+
+		it("refreshes a cached menu when a linked term changes", async () => {
+			const repo = new TaxonomyRepository(db);
+			const term = await repo.create({ name: "category", slug: "news", label: "News" });
+			await insertMenuLinking("topics", { type: "taxonomy", reference_id: term.id });
+			expect(await cachedMenuUrls("topics")).toEqual(["/category/news"]);
+
+			await repo.update(term.id, { slug: "updates" });
+			expect(await cachedMenuUrls("topics")).toEqual(["/category/updates"]);
 		});
 	});
 });

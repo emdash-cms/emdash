@@ -119,7 +119,7 @@ The object cache and an HTML edge cache solve different problems. A hit in the H
 
 ## Freshness
 
-Editing content through the admin panel or the REST API invalidates the affected cache entries automatically. Creating, updating, publishing, or deleting an entry clears the cached queries for its collection; changing a byline or taxonomy term clears the entries that display it.
+Editing content through the admin panel or the REST API invalidates the affected cache entries automatically. Creating, updating, publishing, or deleting an entry clears the cached queries for its collection, including navigation menus that link to entries in it; changing a byline or taxonomy term clears the entries and menus that display it.
 
 Widget changes made in the admin, by seeding, or by a site transfer clear the cached widget areas. Code that writes the widget tables directly must call `invalidateWidgetObjectCache()` from `emdash` afterwards.
 
@@ -128,6 +128,8 @@ Preview links and visual editing bypass the object cache, so editors previewing 
 </Aside>
 
 For requests that are not route-cache fills, a change takes time to appear across all isolates as they pick up the bumped epoch. With the in-isolate memory backend this is immediate. With Workers KV it is bounded by KV's edge-cache propagation (eventual consistency, up to ~60 seconds) plus the isolate-local `revalidate` window (default one second). Lower `revalidate` for faster local propagation at the cost of more reads against the cache; raise it to read the cache less often.
+
+Every change other than to comments also rewrites a single site-wide change marker. When an isolate's epochs are older than `revalidate`, it can check that marker instead: if nothing has changed, it keeps all of its epochs, so a render past the window costs one epoch read instead of one per collection and shared namespace. An isolate still re-reads its epochs for two minutes after each change, which keeps the KV propagation bound above, and at least every ten minutes. The comments epoch is always read directly. With `revalidate: 0`, every query reads its epochs directly.
 
 ### Scheduled content
 

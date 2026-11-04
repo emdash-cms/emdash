@@ -499,9 +499,9 @@ export async function handleMenuSetItems(
 		const { itemCount } = await repo.setItems(resolved.menu.id, resolved.menu.locale, items);
 		return { success: true, data: { name: menuName, itemCount } };
 	} catch (error) {
-		// `MenuGoneError` is thrown from inside the repository transaction
-		// when the menu was deleted concurrently between `resolveMenu` and the
-		// setItems write. Returning NOT_FOUND mirrors the original handler's
+		// `MenuGoneError` is thrown by the repository when the menu was
+		// deleted concurrently between `resolveMenu` and the setItems
+		// write. Returning NOT_FOUND mirrors the original handler's
 		// in-transaction `notFoundSentinel` branch and keeps the response
 		// shape stable for REST/MCP callers.
 		if (error instanceof MenuGoneError) {

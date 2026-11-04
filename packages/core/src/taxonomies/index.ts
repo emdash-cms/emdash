@@ -12,7 +12,6 @@
 
 import { sql, type Kysely } from "kysely";
 
-import { after } from "../after.js";
 import { taxonomyTag } from "../cache/chrome-tags.js";
 import {
 	parseTaxonomyCollections,
@@ -42,11 +41,11 @@ import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import {
-	createSingleFlightCache,
-	invalidateSingleFlightCache,
-	type SingleFlightCache,
-	singleFlightCached,
-} from "../utils/single-flight-cache.js";
+	createRevalidatingCache,
+	invalidateRevalidatingCache,
+	revalidatingCached,
+	type RevalidatingCache,
+} from "../utils/revalidating-cache.js";
 import { fetchVisibleTermCounts } from "./term-counts.js";
 import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
 
@@ -143,38 +142,17 @@ export function invalidateTermCache(): void {
 }
 
 /**
- * Worker-isolate cache for taxonomy definitions: every locale's rows, resolved
- * per locale in memory.
- *
- * Taxonomy *definitions* (the "category"/"tag" taxonomies themselves, not
- * their terms) are read on every public render that hydrates entry terms —
- * `getAllTermsForEntries` → `getCollectionTaxonomyNames` → `getTaxonomyDefs` —
- * but change extremely rarely: they're written only by the admin API and by
- * seed application. Caching them across the isolate lifetime drops the
- * per-render `SELECT * FROM _emdash_taxonomy_defs` to once-per-isolate.
- *
- * Stored on globalThis behind a Symbol key (same pattern as
- * `settings/index.ts`) so the bundler duplicating this module across SSR
- * chunks can't produce two independent caches. It holds the resolved rows
- * behind a reclaimable single-flight lock, never an in-flight promise (see
- * `utils/single-flight-cache.ts`).
- *
- * When the distributed object cache is configured, it is authoritative and this
- * fallback is bypassed so cross-isolate epoch invalidation cannot be undercut
- * by stale per-isolate data on an object-cache miss.
- *
- * **Isolated databases bypass the cache.** Playground / DO preview requests
- * set `requestContext.dbIsIsolated`; they point at a divergent schema, so we
- * skip both reading and writing the global holder and fall back to the
- * per-request cache (same precedent as `getTaxonomyNames` / byline field defs).
+ * Every locale's definition rows, revalidated in the background after 30 seconds.
+ * The optional object cache remains authoritative when configured; isolated
+ * databases bypass the isolate snapshot.
  */
-const TAXONOMY_DEFS_CACHE_KEY = Symbol.for("emdash:taxonomy-defs@2");
+const TAXONOMY_DEFS_CACHE_KEY = Symbol.for("emdash:taxonomy-defs:swr");
 const taxonomyDefsStore = globalThis as Record<symbol, unknown>;
-const defsCache: SingleFlightCache<TaxonomyDef[]> =
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see settings/index.ts)
-	(taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] as SingleFlightCache<TaxonomyDef[]> | undefined) ??
+const defsCache =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
+	(taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] as RevalidatingCache<TaxonomyDef[]> | undefined) ??
 	(() => {
-		const c = createSingleFlightCache<TaxonomyDef[]>();
+		const c = createRevalidatingCache<TaxonomyDef[]>();
 		taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] = c;
 		return c;
 	})();
@@ -183,22 +161,17 @@ const defsCache: SingleFlightCache<TaxonomyDef[]> =
  * Invalidate the isolate-wide taxonomy-definitions cache (and the related
  * loader taxonomy-names cache). Called from every taxonomy-def write path
  * (`handleTaxonomyCreate`/`Update`/`Delete`, seed application). Other isolates
- * refresh on their next recycle — staleness bounded by isolate lifetime.
+ * pick up remote changes through background revalidation.
  */
 export function invalidateTaxonomyDefsCache(): void {
-	invalidateSingleFlightCache(defsCache);
+	invalidateRevalidatingCache(defsCache);
 	resetTaxonomyNamesCache();
 	invalidateTaxonomyObjectCache();
 }
 
-/**
- * Test/internal helper: clear the per-isolate taxonomy-defs cache. Useful for
- * unit tests that insert defs directly and need to force a refetch without
- * going through a write path. Production code should rely on
- * `invalidateTaxonomyDefsCache()`.
- */
+/** @internal Clear the isolate snapshot between test databases. */
 export function resetTaxonomyDefsCacheForTests(): void {
-	invalidateSingleFlightCache(defsCache);
+	invalidateRevalidatingCache(defsCache);
 }
 
 /** Every locale's definition rows, straight from the database (no caching). */
@@ -216,13 +189,11 @@ async function fetchTaxonomyDefRows(): Promise<TaxonomyDef[]> {
  * for isolated databases.
  */
 function loadTaxonomyDefRows(): Promise<TaxonomyDef[]> {
-	if (getRequestContext()?.dbIsIsolated === true) {
-		return fetchTaxonomyDefRows();
-	}
-	return singleFlightCached(defsCache, fetchTaxonomyDefRows, {
-		anchor: (promise) => after(() => promise),
-		ownerTimeoutMs: 30_000,
-	});
+	const context = getRequestContext();
+	if (context?.dbIsIsolated) return fetchTaxonomyDefRows();
+	return revalidatingCached(defsCache, fetchTaxonomyDefRows, (error) =>
+		console.error("[emdash:taxonomies] revalidating taxonomy definitions failed:", error),
+	);
 }
 
 /**
