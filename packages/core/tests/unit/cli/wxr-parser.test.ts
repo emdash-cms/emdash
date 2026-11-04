@@ -519,6 +519,40 @@ describe("parseWxr", () => {
 			expect(result.posts[0]?.locale).toBe("fr");
 		});
 
+		it("prefers the Polylang `language` term over `_locale` meta", async () => {
+			// The term's slug is the code Polylang's translation maps use, so the
+			// post and its terms resolve in the same locale.
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>Hello</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <category domain="language" nicename="en"><![CDATA[English]]></category>
+      <wp:postmeta>
+        <wp:meta_key>_locale</wp:meta_key>
+        <wp:meta_value><![CDATA[en_US]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+    <item>
+      <title>Only meta</title>
+      <wp:post_id>2</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:postmeta>
+        <wp:meta_key>_locale</wp:meta_key>
+        <wp:meta_value><![CDATA[fr]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+			const result = await parseWxr(createStream(wxr));
+
+			expect(result.posts.map((post) => post.locale)).toEqual(["en", "fr"]);
+		});
+
 		it("derives a stable Polylang translationGroup from _translations meta", async () => {
 			// Polylang stores `_translations` as a serialized PHP map. We
 			// hash the post IDs into a stable key shared by every member of

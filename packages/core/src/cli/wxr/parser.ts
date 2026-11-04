@@ -118,13 +118,15 @@ const WPML_LOCALE_META_KEYS = ["_icl_lang_code"] as const;
 const WPML_TRID_META_KEYS = ["trid", "_icl_translation_id"] as const;
 
 /**
- * Polylang stores per-post language in postmeta as `_locale` on newer
- * exports. The actual language taxonomy assignment lives on
- * `customTaxonomies.language`, which we use as a fallback. Translation
- * grouping is a serialized PHP map of `{ lang_code => post_id }`, in
- * `_translations` meta or in the description of the post's
- * `post_translations` term; we synthesize a stable group key from the sorted
- * IDs so every member of the group resolves to the same string.
+ * Polylang records a post's language as its `language` term, in
+ * `customTaxonomies.language`. The term's slug is the language code that
+ * Polylang's translation maps use, so posts and terms share one set of codes.
+ * `_locale` meta, which Polylang itself doesn't write, is read only when a
+ * post has no `language` term. Translation grouping is a serialized PHP map
+ * of `{ lang_code => post_id }`, in the description of the post's
+ * `post_translations` term or, in exports from Polylang before 1.2, in
+ * `_translations` meta; we synthesize a stable group key from the sorted IDs
+ * so every member of the group resolves to the same string.
  */
 const POLYLANG_LOCALE_META_KEY = "_locale";
 const POLYLANG_TRANSLATIONS_META_KEY = "_translations";
@@ -303,19 +305,13 @@ function promoteI18nMetadata(post: WxrPost): void {
 		}
 	}
 
-	// Polylang fallbacks (only fill what WPML didn't already provide)
+	// Polylang fallbacks (only fill what WPML didn't already provide). The
+	// `language` term's nicename is the language code (e.g. "en", "ar").
 	if (!post.locale) {
-		const pllLocale = post.meta.get(POLYLANG_LOCALE_META_KEY);
-		if (pllLocale) {
-			post.locale = pllLocale;
-		} else {
-			// Polylang's primary language signal is a taxonomy assignment
-			// on the `language` custom taxonomy. The nicename is the locale
-			// code (e.g. "en", "ar").
-			const langTaxonomy = post.customTaxonomies?.get(POLYLANG_LANG_TAXONOMY);
-			const firstLang = langTaxonomy?.[0];
-			if (firstLang) post.locale = firstLang;
-		}
+		const pllLocale =
+			post.customTaxonomies?.get(POLYLANG_LANG_TAXONOMY)?.[0] ||
+			post.meta.get(POLYLANG_LOCALE_META_KEY);
+		if (pllLocale) post.locale = pllLocale;
 	}
 
 	if (!post.translationGroup) {
