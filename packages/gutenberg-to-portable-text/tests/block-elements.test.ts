@@ -34,7 +34,7 @@ describe("createBlockScanner", () => {
 	});
 
 	it.each([
-		["repeated paragraph start tags without a closing bracket", "<p".repeat(100_000)],
+		["repeated paragraph start tags without a closing bracket", "<p ".repeat(100_000)],
 		["paragraphs without end tags", `<p>${"<p>a".repeat(100_000)}`],
 		["an image tag with a long run of tabs", `<img${"\t".repeat(100_000)}`],
 	])("scans %s within a second", (_shape, html) => {

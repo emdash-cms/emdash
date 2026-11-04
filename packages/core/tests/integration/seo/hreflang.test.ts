@@ -11,7 +11,7 @@
 
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createDatabase } from "../../../src/database/connection.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
@@ -47,6 +47,7 @@ describe("getHreflangAlternates (#1690)", () => {
 	});
 
 	afterEach(async () => {
+		vi.unstubAllEnvs();
 		setI18nConfig(null);
 		_resetAstroI18nCacheForTests();
 		await db.destroy();
@@ -251,4 +252,20 @@ describe("getHreflangAlternates (#1690)", () => {
 
 		expect(alternates[0]?.href).toBe(`${SITE}/post/hello`);
 	});
+
+	it.each([SITE, `${SITE}/field-notes`])(
+		"includes the Astro base once when the site URL is %s",
+		async (siteUrl) => {
+			vi.stubEnv("BASE_URL", "/field-notes/");
+			const { en } = await createPair();
+
+			const alternates = await getHreflangAlternatesWithDb(db, "post", en.id, { siteUrl });
+
+			expect(alternates.map((a) => a.href)).toEqual([
+				`${SITE}/field-notes/blog/hello`,
+				`${SITE}/field-notes/fr/blog/bonjour`,
+				`${SITE}/field-notes/blog/hello`,
+			]);
+		},
+	);
 });
