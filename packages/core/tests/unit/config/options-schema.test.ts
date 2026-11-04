@@ -35,6 +35,7 @@ describe("emdash() config validation", () => {
 		["plugins", { plugins: ["audit-log"] }],
 		["admin.siteName", { admin: { siteName: 42 } }],
 		["fonts", { fonts: { scripts: "arabic" } }],
+		["imagePlaceholders", { imagePlaceholders: "no" }],
 	])("names the option path for a wrong %s value", (path, config) => {
 		expect(build(config)).toThrow(`→ at ${path}`);
 	});
@@ -46,6 +47,10 @@ describe("emdash() config validation", () => {
 	it("returns unknown top-level options instead of failing", () => {
 		expect(build({ sitUrl: "https://example.com" })).not.toThrow();
 		expect(validateConfigShape({ sitUrl: "https://example.com", mcp: true })).toEqual(["sitUrl"]);
+	});
+
+	it("recognizes imagePlaceholders as a known option", () => {
+		expect(validateConfigShape({ imagePlaceholders: false })).toEqual([]);
 	});
 
 	it("accepts options set to undefined", () => {
