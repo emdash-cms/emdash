@@ -259,6 +259,34 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		expect(a.entries[0]!.data.title).toBe("News + Featured");
 	});
 
+	it("drives from the smaller taxonomy without an extra query (#3259)", async () => {
+		const news = await term("category", "news");
+		const featured = await term("tag", "featured");
+		const both = await createPost("News + Featured");
+		await tag(both.id, news);
+		await tag(both.id, featured);
+		for (let i = 0; i < 12; i++) {
+			const p = await createPost(`News ${i}`);
+			await tag(p.id, news);
+		}
+
+		// Warm the per-isolate taxonomy definitions so both reads count the same work.
+		await load({ category: ["news"] });
+		const one = await captureReads((target) => load({ category: ["news"] }, undefined, target));
+		const two = await captureReads((target) =>
+			load({ category: ["news"], tag: ["featured"] }, undefined, target),
+		);
+
+		// The second taxonomy costs its own term lookup and nothing more: the size
+		// count rides in that lookup.
+		expect(two.queries).toHaveLength(one.queries.length + 1);
+		// The content query binds the driving set first, so the tag (1 entry) leads
+		// the category (13 entries) although `category` was written first.
+		const content = two.queries.at(-1)!.parameters;
+		expect(content.indexOf(featured)).toBeGreaterThanOrEqual(0);
+		expect(content.indexOf(featured)).toBeLessThan(content.indexOf(news));
+	});
+
 	it("returns no entries when any one taxonomy filter is an empty array", async () => {
 		const news = await term("category", "news");
 		const post = await createPost("In News");
