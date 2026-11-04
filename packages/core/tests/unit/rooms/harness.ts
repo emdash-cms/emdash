@@ -31,10 +31,11 @@ import {
 	encodeSyncStep2,
 	encodeUpdate,
 } from "../../../src/rooms/protocol.js";
-import { Room, RoomSaveError } from "../../../src/rooms/room.js";
+import { Room } from "../../../src/rooms/room.js";
 import { decodeCheckpoint, snapshotContains } from "../../../src/rooms/snapshot.js";
 import {
 	CLOSE_CODES,
+	RoomSaveError,
 	type CheckpointInput,
 	type CloseCode,
 	type EntryRef,

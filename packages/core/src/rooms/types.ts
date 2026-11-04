@@ -8,6 +8,18 @@ import type { FieldType } from "../schema/types.js";
 
 export type EntryRef = { collection: string; id: string };
 
+/** The room's ID on Node.js: `{collection}:{entry ID}`. Collection slugs can't contain `:`. */
+export function roomId(entry: EntryRef): string {
+	return `${entry.collection}:${entry.id}`;
+}
+
+/** The entry a room ID names, or null when it isn't one. */
+export function parseRoomId(id: string): EntryRef | null {
+	const colon = id.indexOf(":");
+	if (colon <= 0 || colon === id.length - 1) return null;
+	return { collection: id.slice(0, colon), id: id.slice(colon + 1) };
+}
+
 /** An EmDash build and its editor schema: the admin manifest's `version`, `commit` and `hash`. */
 export interface Fingerprint {
 	version: string;
@@ -235,5 +247,18 @@ export class RoomClaimLostError extends Error {
 	constructor(message = "The room's claim belongs to another process") {
 		super(message);
 		this.name = "RoomClaimLostError";
+	}
+}
+
+/** An operation's save failed. `reason` and `code` are the site's, `INVALID_CONTENT` or `UNLOADED`. */
+export class RoomSaveError extends Error {
+	readonly reason: string;
+	readonly code: string;
+
+	constructor(reason: string, code: string, message: string) {
+		super(message);
+		this.name = "RoomSaveError";
+		this.reason = reason;
+		this.code = code;
 	}
 }

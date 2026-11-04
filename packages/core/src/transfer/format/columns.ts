@@ -544,6 +544,8 @@ export const NON_PORTABLE_TABLES: Readonly<Record<string, string>> = Object.free
 	_emdash_device_codes: "auth",
 	_emdash_rate_limits: "runtime",
 	_emdash_entry_locks: "runtime",
+	_emdash_rooms: "runtime",
+	_emdash_room_updates: "runtime",
 	_emdash_cron_tasks: "runtime",
 	_emdash_redirect_write_lock: "runtime",
 	_emdash_redirect_state: "derived",

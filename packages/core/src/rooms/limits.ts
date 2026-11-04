@@ -31,3 +31,7 @@ export const OPERATION_HOLD_MS = 30 * SECOND;
 export const OPEN_AFTER_LAST_CONNECTION_MS = 10 * SECOND;
 /** Stored room state lasts this long after the last store or closed connection. */
 export const ROOM_STATE_LIFETIME_MS = 60 * MINUTE;
+/** A Node.js process renews each claim it holds at least this often. */
+export const CLAIM_RENEWAL_MS = 20 * SECOND;
+/** A Node.js claim not renewed for this long can be taken by another process. */
+export const CLAIM_EXPIRY_MS = MINUTE;

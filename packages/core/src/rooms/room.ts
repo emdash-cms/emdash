@@ -22,6 +22,7 @@ import {
 } from "./document.js";
 import { hashValue } from "./hash.js";
 import {
+	CLAIM_RENEWAL_MS,
 	CONNECTION_LIFETIME_MS,
 	COMPACTION_BYTES,
 	MAX_COMPACTED_BYTES,
@@ -61,6 +62,8 @@ import { decodeCheckpoint, encodeCheckpoint, snapshotContains } from "./snapshot
 import {
 	CLOSE_CODES,
 	RoomClaimLostError,
+	RoomSaveError,
+	roomId,
 	type Build,
 	type CheckpointInput,
 	type CloseCode,
@@ -85,19 +88,6 @@ export interface RoomOptions {
 	store: RoomStore;
 	build: Build;
 	timers: RoomTimers;
-}
-
-/** An operation's save failed. `reason` and `code` are the site's, `INVALID_CONTENT` or `UNLOADED`. */
-export class RoomSaveError extends Error {
-	readonly reason: string;
-	readonly code: string;
-
-	constructor(reason: string, code: string, message: string) {
-		super(message);
-		this.name = "RoomSaveError";
-		this.reason = reason;
-		this.code = code;
-	}
 }
 
 const LOG = "[co-editing]";
@@ -210,6 +200,8 @@ export class Room {
 	#cancelClose: (() => void) | null = null;
 	#claimed = false;
 	#shuttingDown = false;
+	/** When a store call or claim last succeeded: each renews the claim. */
+	#renewedAt = Number.NEGATIVE_INFINITY;
 
 	constructor(options: RoomOptions) {
 		this.#entry = options.entry;
@@ -362,6 +354,25 @@ export class Room {
 		}
 	}
 
+	/** Whether the room holds its Node.js claim. */
+	get holdsClaim(): boolean {
+		return this.#claimed;
+	}
+
+	/**
+	 * Renews a held claim that no store call or claim renewed in the last half-interval, for the
+	 * host's renewal tick. A lost claim closes every connection with `rejoin` and forgets the
+	 * document.
+	 */
+	async renew(): Promise<void> {
+		if (!this.#claimed || this.#timers.now() - this.#renewedAt < CLAIM_RENEWAL_MS / 2) return;
+		let renewed = true;
+		await this.#stored(null, async () => {
+			if (this.#claimed) renewed = await this.#store.renew();
+		});
+		if (!renewed && this.#claimed) this.#claimLost();
+	}
+
 	/** The hourly drop, for the host's alarm or cleanup. */
 	async expire(): Promise<void> {
 		if (this.isOpen() || this.#shuttingDown) return;
@@ -476,6 +487,7 @@ export class Room {
 		try {
 			if (!(await this.#claim())) return "busy";
 			stored = await this.#store.load();
+			this.#renewedAt = this.#timers.now();
 		} catch (error) {
 			this.#logError("couldn't load room storage", error);
 			return "failed";
@@ -1253,7 +1265,15 @@ export class Room {
 	async #claim(): Promise<boolean> {
 		if (this.#claimed) return true;
 		this.#claimed = await this.#store.claim();
+		if (this.#claimed) this.#renewedAt = this.#timers.now();
 		return this.#claimed;
+	}
+
+	#claimLost(): void {
+		this.#claimed = false;
+		this.#closeAll(CLOSE_CODES.rejoin, "The room moved");
+		const state = this.#loaded();
+		if (state) this.#unload(state);
 	}
 
 	async #releaseClaim(): Promise<void> {
@@ -1282,6 +1302,7 @@ export class Room {
 		this.#storeChain = run.catch(() => {});
 		try {
 			const ran = await run;
+			if (ran) this.#renewedAt = this.#timers.now();
 			if (ran && state) state.updatedAt = this.#timers.now();
 			return ran;
 		} catch (error) {
@@ -1424,7 +1445,7 @@ export class Room {
 	}
 
 	#roomId(): string {
-		return `${this.#entry.collection}:${this.#entry.id}`;
+		return roomId(this.#entry);
 	}
 
 	#logError(message: string, error: unknown): void {

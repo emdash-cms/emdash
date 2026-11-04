@@ -103,6 +103,7 @@ import * as m092 from "./092_plugin_kv_options.js";
 import * as m093 from "./093_menu_item_orphans.js";
 import * as m094 from "./094_media_usage_file_url_reindex.js";
 import * as m095 from "./095_revision_kind_and_editors.js";
+import * as m096 from "./096_room_storage.js";
 import { CONTENT_SIZED_MIGRATIONS } from "./content-sized.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
@@ -200,6 +201,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"093_menu_item_orphans": m093,
 	"094_media_usage_file_url_reindex": m094,
 	"095_revision_kind_and_editors": m095,
+	"096_room_storage": m096,
 });
 
 /** Ordered names from the statically registered migration set. */
