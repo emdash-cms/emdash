@@ -1,6 +1,6 @@
 import { Banner, Button, Tabs, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui as useLinguiContext } from "@lingui/react";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { useLingui } from "@lingui/react/macro";
 import { ArrowCounterClockwise } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -23,14 +23,6 @@ interface SidebarsSettingsProps {
 }
 
 const SCOPE: Record<SidebarsSettingsTab, LayoutScope> = { navigation: "nav", editor: "editor" };
-
-function Kbd({ children }: { children: React.ReactNode }) {
-	return (
-		<kbd className="inline-block rounded border border-kumo-line bg-kumo-base px-1 font-sans text-xs leading-5 text-kumo-default">
-			{children}
-		</kbd>
-	);
-}
 
 export function SidebarsSettings({ tab }: SidebarsSettingsProps) {
 	const { t } = useLingui();
@@ -161,13 +153,6 @@ export function SidebarsSettings({ tab }: SidebarsSettingsProps) {
 						/>
 					)}
 				</div>
-
-				<p className="text-sm leading-6 text-kumo-subtle">
-					<Trans>
-						Drag a row to move it, or focus its handle and press <Kbd>Alt ↑</Kbd> or{" "}
-						<Kbd>Alt ↓</Kbd>.
-					</Trans>
-				</p>
 			</div>
 		</SettingsFrame>
 	);

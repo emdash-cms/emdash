@@ -1,4 +1,4 @@
-import { Button, Switch } from "@cloudflare/kumo";
+import { Button, Switch, Tooltip } from "@cloudflare/kumo";
 import {
 	closestCenter,
 	defaultDropAnimationSideEffects,
@@ -22,13 +22,14 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useLingui } from "@lingui/react/macro";
-import { DotsSixVertical } from "@phosphor-icons/react";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { ArrowDown, ArrowUp, DotsSixVertical } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { ArrangedNavFolder, ArrangedRow } from "../../lib/admin-layout.js";
 import { cn } from "../../lib/utils.js";
 import { ADMIN_NAV_ICONS, resolveNavIcon } from "../admin-navigation-icons.js";
+import { Kbd } from "../Kbd.js";
 import { NavIcon } from "../Sidebar.js";
 
 export interface LayoutRowItem {
@@ -275,28 +276,46 @@ function SortableEntry<T extends LayoutRowItem>({
 			placeholder={isDragging}
 			rowListeners={coarsePointer || disabled ? undefined : pointerListeners}
 			handle={
-				<Button
-					ref={handleRef}
-					variant="ghost"
-					size="sm"
-					shape="square"
-					{...attributes}
-					{...(coarsePointer ? pointerListeners : {})}
-					disabled={disabled}
-					onKeyDown={(event: React.KeyboardEvent<HTMLButtonElement>) => {
-						if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
-							event.preventDefault();
-							onStep(event.key === "ArrowUp" ? -1 : 1);
-							return;
-						}
-						onKeyDown?.(event);
-					}}
-					aria-label={t`Reorder ${label}`}
-					className={cn(
-						"size-6 cursor-grab touch-none text-kumo-subtle hover:text-kumo-default",
-						!coarsePointer && "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100",
-					)}
-					icon={<DotsSixVertical size={16} weight="bold" aria-hidden="true" />}
+				<Tooltip
+					side="top"
+					content={
+						<span className="flex items-center gap-1.5 whitespace-nowrap">
+							<Trans>
+								Drag, or press{" "}
+								<Kbd>
+									Alt <ArrowUp size={12} weight="bold" role="img" aria-label={t`Up arrow`} />
+								</Kbd>{" "}
+								<Kbd>
+									Alt <ArrowDown size={12} weight="bold" role="img" aria-label={t`Down arrow`} />
+								</Kbd>
+							</Trans>
+						</span>
+					}
+					render={
+						<Button
+							ref={handleRef}
+							variant="ghost"
+							size="sm"
+							shape="square"
+							{...attributes}
+							{...(coarsePointer ? pointerListeners : {})}
+							disabled={disabled}
+							onKeyDown={(event: React.KeyboardEvent<HTMLButtonElement>) => {
+								if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+									event.preventDefault();
+									onStep(event.key === "ArrowUp" ? -1 : 1);
+									return;
+								}
+								onKeyDown?.(event);
+							}}
+							aria-label={t`Reorder ${label}`}
+							className={cn(
+								"size-6 cursor-grab touch-none text-kumo-subtle hover:text-kumo-default",
+								!coarsePointer && "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100",
+							)}
+							icon={<DotsSixVertical size={16} weight="bold" aria-hidden="true" />}
+						/>
+					}
 				/>
 			}
 		/>
