@@ -162,6 +162,7 @@ const SAFE_INLINE_IMAGE_TYPES = new Set([
 	"image/gif",
 	"image/webp",
 	"image/avif",
+	"image/bmp",
 	"image/x-icon",
 ]);
 

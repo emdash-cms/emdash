@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { POST as postMedia } from "../../../src/astro/routes/api/media.js";
 import type { Database } from "../../../src/database/types.js";
+import { computeContentHash } from "../../../src/utils/hash.js";
 import { JPEG_4x4 } from "../../utils/image-fixtures.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -12,6 +13,7 @@ interface CapturedInput {
 	height?: number;
 	blurhash?: string;
 	dominantColor?: string;
+	contentHash?: string;
 }
 
 function buildContext(opts: {
@@ -20,9 +22,12 @@ function buildContext(opts: {
 	captured: { value?: CapturedInput };
 	width?: number;
 	height?: number;
+	thumbnail?: File;
+	imagePlaceholders?: boolean;
 }): APIContext {
 	const formData = new FormData();
 	formData.append("file", opts.file);
+	if (opts.thumbnail) formData.append("thumbnail", opts.thumbnail);
 	if (opts.width != null) formData.append("width", String(opts.width));
 	if (opts.height != null) formData.append("height", String(opts.height));
 	const request = new Request("http://localhost/_emdash/api/media", {
@@ -37,7 +42,7 @@ function buildContext(opts: {
 		locals: {
 			emdash: {
 				db: opts.db,
-				config: {},
+				config: { imagePlaceholders: opts.imagePlaceholders },
 				storage: {
 					async upload(o: { key: string }) {
 						return { key: o.key, url: `/m/${o.key}`, size: 0 };
@@ -55,6 +60,18 @@ function buildContext(opts: {
 		},
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for tests
 	} as unknown as APIContext;
+}
+
+async function solidJpeg(width: number, height: number, color: [number, number, number]) {
+	const { encode } = await import("jpeg-js");
+	const data = new Uint8Array(width * height * 4);
+	for (let i = 0; i < width * height; i++) {
+		data[i * 4] = color[0];
+		data[i * 4 + 1] = color[1];
+		data[i * 4 + 2] = color[2];
+		data[i * 4 + 3] = 255;
+	}
+	return new Uint8Array(encode({ data, width, height }, 100).data);
 }
 
 describe("POST /media — server-side placeholder + dimensions", () => {
@@ -90,6 +107,53 @@ describe("POST /media — server-side placeholder + dimensions", () => {
 		expect(res.status).toBe(201);
 		expect(captured.value?.width).toBe(640);
 		expect(captured.value?.height).toBe(480);
+		expect(captured.value?.blurhash).toBeUndefined();
+		expect(captured.value?.dominantColor).toBeUndefined();
+	});
+
+	it("uses a supplied thumbnail for LQIP while preserving original dimensions and hash", async () => {
+		const captured: { value?: CapturedInput } = {};
+		const original = await solidJpeg(8, 4, [255, 255, 255]);
+		const thumbnail = await solidJpeg(4, 4, [255, 0, 0]);
+		const file = new File([original], "photo.jpg", { type: "image/jpeg" });
+
+		const res = await postMedia(
+			buildContext({
+				db,
+				file,
+				thumbnail: new File([thumbnail], "thumbnail.jpg", { type: "image/jpeg" }),
+				captured,
+			}),
+		);
+
+		expect(res.status).toBe(201);
+		expect(captured.value?.width).toBe(8);
+		expect(captured.value?.height).toBe(4);
+		expect(captured.value?.contentHash).toBe(await computeContentHash(original));
+		expect(captured.value?.blurhash).toBeTruthy();
+		expect(captured.value?.dominantColor).toMatch(/^rgb\(\d+,0,0\)$/);
+	});
+
+	it("keeps dimensions and hash but skips LQIP when placeholders are disabled", async () => {
+		const captured: { value?: CapturedInput } = {};
+		const original = await solidJpeg(8, 4, [255, 255, 255]);
+		const thumbnail = await solidJpeg(4, 4, [255, 0, 0]);
+		const file = new File([original], "photo.jpg", { type: "image/jpeg" });
+
+		const res = await postMedia(
+			buildContext({
+				db,
+				file,
+				thumbnail: new File([thumbnail], "thumbnail.jpg", { type: "image/jpeg" }),
+				captured,
+				imagePlaceholders: false,
+			}),
+		);
+
+		expect(res.status).toBe(201);
+		expect(captured.value?.width).toBe(8);
+		expect(captured.value?.height).toBe(4);
+		expect(captured.value?.contentHash).toBe(await computeContentHash(original));
 		expect(captured.value?.blurhash).toBeUndefined();
 		expect(captured.value?.dominantColor).toBeUndefined();
 	});
