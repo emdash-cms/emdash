@@ -307,6 +307,7 @@ function patchAutosaveQueries(
 			authorId: me?.id ?? savedItem.authorId,
 			createdAt,
 			author: me ? { id: me.id, name: me.name?.trim() || null } : null,
+			editedBy: null,
 		};
 		for (const [queryKey, list] of lists) {
 			if (!list) continue;

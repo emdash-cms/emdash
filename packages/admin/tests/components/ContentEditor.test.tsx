@@ -4038,6 +4038,15 @@ describe("ContentEditor revision view", () => {
 		}
 	});
 
+	it("names who edited since the live version in the publish confirmation", async () => {
+		const screen = await renderRevisionEditor({ onPublish: vi.fn() });
+		await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
+		const dialog = screen.getByRole("dialog", { name: "Publish changes?" });
+
+		await expect.element(dialog.getByText("Edited by Maya Chen", { exact: true })).toBeVisible();
+		expect(dialog.element().textContent).not.toContain("Sam Rivera");
+	});
+
 	it("pauses saving and publishing while a version is shown", async () => {
 		const onSave = vi.fn();
 		const onPublish = vi.fn();

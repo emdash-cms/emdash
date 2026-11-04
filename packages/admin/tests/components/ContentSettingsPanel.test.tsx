@@ -1,6 +1,7 @@
 import { Toasty } from "@cloudflare/kumo";
 import { i18n, setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
@@ -15,13 +16,22 @@ import {
 	type EditorActionsProps,
 } from "../../src/components/ContentSettingsPanel";
 import type { BlockSidebarPanel } from "../../src/components/PortableTextEditor";
-import type { AdminManifest, BylineSummary, ContentItem } from "../../src/lib/api";
+import {
+	fetchRevisions,
+	type AdminManifest,
+	type BylineSummary,
+	type ContentItem,
+	type RevisionAuthor,
+	type RevisionListItem,
+	type RevisionListResponse,
+} from "../../src/lib/api";
 import type { ContentEditorPanelContext } from "../../src/lib/content-editor-panels";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import {
 	publishingInstantToLocalFields,
 	resolvePublishingLocalDateTime,
 } from "../../src/lib/publishing-datetime.js";
+import { withAutosavedDraft } from "../../src/lib/revision-list-cache.js";
 import { messages as enMessages } from "../../src/locales/en/messages.mjs";
 import { render } from "../utils/render.tsx";
 
@@ -62,6 +72,7 @@ vi.mock("../../src/lib/api", async () => {
 	return {
 		...actual,
 		fetchBylines: vi.fn(async () => ({ items: [], nextCursor: null })),
+		fetchRevisions: vi.fn(),
 	};
 });
 
@@ -1412,4 +1423,188 @@ describe("EditorActions", () => {
 			.element(screen.getByRole("button", { name: "Save", exact: true }))
 			.toBeInTheDocument();
 	});
+
+	describe("who edited the entry, in the publish confirmation", () => {
+		const ana: RevisionAuthor = { id: "u-ana", name: "Ana Lima" };
+		const sam: RevisionAuthor = { id: "u-sam", name: "Sam Okafor" };
+		const lee: RevisionAuthor = { id: "u-lee", name: "Lee Park" };
+		const kim: RevisionAuthor = { id: "u-kim", name: "Kim Ito" };
+
+		function revision(
+			id: string,
+			author: RevisionAuthor,
+			editedBy: RevisionListItem["editedBy"] = null,
+		): RevisionListItem {
+			return {
+				id,
+				collection: "posts",
+				entryId: "item-1",
+				data: {},
+				authorId: author.id,
+				author,
+				editedBy,
+				createdAt: "2026-10-02 13:12:00",
+			};
+		}
+
+		const withLiveVersion = () =>
+			makeBarProps({
+				isLive: true,
+				hasPendingChanges: true,
+				revisions: { collection: "posts", entryId: "item-1", liveRevisionId: "rev-2" },
+			});
+
+		const openConfirmation = async (screen: Awaited<ReturnType<typeof render>>) => {
+			await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
+			const dialog = screen.getByRole("dialog", { name: "Publish changes?" });
+			await expect.element(dialog).toBeVisible();
+			return dialog;
+		};
+
+		it("names everyone in the versions newer than the live one, once each, read when it opens", async () => {
+			vi.mocked(fetchRevisions).mockResolvedValue({
+				items: [
+					revision("rev-4", ana, [ana, sam]),
+					revision("rev-3", sam),
+					revision("rev-2", lee),
+					revision("rev-1", kim, [kim, lee]),
+				],
+				total: 4,
+			});
+			const screen = await render(<EditorActions {...withLiveVersion()} />);
+			await expect
+				.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
+				.toBeVisible();
+			expect(fetchRevisions).not.toHaveBeenCalled();
+
+			const dialog = await openConfirmation(screen);
+
+			await expect
+				.element(
+					dialog.getByText(`Edited by ${isolated("Ana Lima")} and ${isolated("Sam Okafor")}`, {
+						exact: true,
+					}),
+				)
+				.toBeVisible();
+			expect(fetchRevisions).toHaveBeenCalledWith(
+				"posts",
+				"item-1",
+				expect.objectContaining({ limit: 100 }),
+			);
+		});
+
+		it("names no one from the list it read before, only from a read since it opened", async () => {
+			vi.mocked(fetchRevisions).mockResolvedValueOnce({
+				items: [revision("rev-3", ana), revision("rev-2", lee)],
+				total: 2,
+			});
+			// Keeps reads fresh for a minute, as the admin does.
+			const queryClient = new QueryClient({
+				defaultOptions: { queries: { staleTime: 60_000, retry: false } },
+			});
+			const screen = await render(<EditorActions {...withLiveVersion()} />, {
+				wrapper: ({ children }) => (
+					<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+				),
+			});
+			let dialog = await openConfirmation(screen);
+			await expect.element(dialog.getByText("Edited by Ana Lima", { exact: true })).toBeVisible();
+			dialog.getByRole("button", { name: "Cancel" }).element().click();
+			await expect.element(dialog).not.toBeInTheDocument();
+
+			let respond!: (list: { items: RevisionListItem[]; total: number }) => void;
+			vi.mocked(fetchRevisions).mockReturnValueOnce(
+				new Promise((resolve) => {
+					respond = resolve;
+				}),
+			);
+			dialog = await openConfirmation(screen);
+			await vi.waitFor(() => expect(fetchRevisions).toHaveBeenCalledTimes(2));
+			expect(dialog.element().textContent).not.toContain("Edited by");
+
+			respond({
+				items: [revision("rev-4", sam), revision("rev-3", ana), revision("rev-2", lee)],
+				total: 3,
+			});
+			await expect
+				.element(
+					dialog.getByText(`Edited by ${isolated("Sam Okafor")} and ${isolated("Ana Lima")}`, {
+						exact: true,
+					}),
+				)
+				.toBeVisible();
+		});
+
+		it("names no one for a version that records no one, such as an unpublish's draft copy", async () => {
+			vi.mocked(fetchRevisions).mockResolvedValue({
+				items: [
+					revision("rev-4", ana),
+					{ ...revision("rev-3", sam), authorId: null, author: null },
+					revision("rev-2", lee),
+				],
+				total: 3,
+			});
+			const screen = await render(<EditorActions {...withLiveVersion()} />);
+
+			const dialog = await openConfirmation(screen);
+
+			await expect.element(dialog.getByText("Edited by Ana Lima", { exact: true })).toBeVisible();
+		});
+
+		it("keeps the names it read when an autosave patches the cached versions", async () => {
+			vi.mocked(fetchRevisions).mockResolvedValue({
+				items: [revision("rev-3", ana), revision("rev-2", lee)],
+				total: 2,
+			});
+			const queryClient = new QueryClient({
+				defaultOptions: { queries: { staleTime: 60_000, retry: false } },
+			});
+			const screen = await render(<EditorActions {...withLiveVersion()} />, {
+				wrapper: ({ children }) => (
+					<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+				),
+			});
+			const dialog = await openConfirmation(screen);
+			await expect.element(dialog.getByText("Edited by Ana Lima", { exact: true })).toBeVisible();
+
+			// As an autosave does: every cached list of the entry's versions gets its guess at the
+			// new draft, without a read.
+			for (const [queryKey, list] of queryClient.getQueriesData<RevisionListResponse>({
+				queryKey: ["revisions", "posts", "item-1"],
+			})) {
+				if (!list) continue;
+				queryClient.setQueryData(
+					queryKey,
+					withAutosavedDraft(list, {
+						draft: revision("rev-5", sam),
+						previousDraftId: "rev-3",
+						liveRevisionId: "rev-2",
+						limit: 100,
+					}),
+				);
+			}
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			expect(dialog.element().textContent).not.toContain("Sam Okafor");
+			await expect.element(dialog.getByText("Edited by Ana Lima", { exact: true })).toBeVisible();
+		});
+
+		it("names no one, and still publishes, when the versions can't be read", async () => {
+			vi.mocked(fetchRevisions).mockRejectedValue(new Error("Failed to fetch revisions"));
+			const props = withLiveVersion();
+			const screen = await render(<EditorActions {...props} />);
+			const dialog = await openConfirmation(screen);
+			await vi.waitFor(() => expect(fetchRevisions).toHaveBeenCalled());
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(dialog.element().textContent).not.toContain("Edited by");
+			dialog.getByRole("button", { name: "Publish changes", exact: true }).element().click();
+			expect(props.onPublish).toHaveBeenCalledOnce();
+		});
+	});
 });
+
+/** A name in a sentence that names several people, isolated from the text around it. */
+function isolated(name: string): string {
+	return `\u2068${name}\u2069`;
+}
