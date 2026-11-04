@@ -141,6 +141,25 @@ describe("typing", () => {
 		expectShape(editor, 'doc(p#k-p("Hello"~k-p-s), p#new(" world"~k-p-s))@8');
 	});
 
+	it("keeps bold on the line Enter starts, before another line", async () => {
+		const editor = await renderEditor([block("k-p", "Hello"), block("k-q", "After")]);
+		await focus(editor, textPosition(editor, "Hello", "end"));
+		editor.commands.toggleBold();
+		await userEvent.keyboard("B{Enter}C");
+		expectShape(
+			editor,
+			'doc(p#k-p("Hello"~k-p-s, "B"+bold), p#new("C"+bold), p#k-q("After"~k-q-s))@10',
+		);
+	});
+
+	it("keeps bold on the line Enter starts at the end", async () => {
+		const editor = await renderEditor([block("k-p", "Hello")]);
+		await focus(editor, textPosition(editor, "Hello", "end"));
+		editor.commands.toggleBold();
+		await userEvent.keyboard("B{Enter}C");
+		expectShape(editor, 'doc(p#k-p("Hello"~k-p-s, "B"+bold), p#new("C"+bold))@10');
+	});
+
 	it("Enter adds a list item, and again leaves the list", async () => {
 		const editor = await renderEditor([item("k-a", "One"), item("k-b", "Two")]);
 		await focus(editor, textPosition(editor, "One", "end"));

@@ -158,6 +158,8 @@ export function portableTextKeysPlugin(): Plugin<ChangedRange[]> {
 			const keyed = assignPortableTextKeys(newState, [...deferred, ...changedRanges(transactions)]);
 			if (!keyed && deferred.length === 0) return null;
 			const transaction = (keyed ?? newState.tr).setMeta(portableTextKeysPluginKey, true);
+			// A step clears stored marks, so typing after Enter would lose the line's bold.
+			if (newState.storedMarks) transaction.setStoredMarks(newState.storedMarks);
 			// TipTap's clearDocument answers every change while an emptied document stays
 			// selected, and drops the keys given here, so the two would answer each other
 			// forever. Only the edit that emptied the document starts it.
