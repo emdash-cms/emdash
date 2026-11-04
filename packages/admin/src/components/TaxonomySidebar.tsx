@@ -218,6 +218,7 @@ function TaxonomyTermPicker({
 	const listId = React.useId();
 	const triggerId = React.useId();
 	const inputId = React.useId();
+	const createHintId = React.useId();
 	const trimmedInput = input.trim();
 	const flatTerms = React.useMemo(() => flattenTerms(terms), [terms]);
 	const termOptions = React.useMemo<TaxonomyPickerOption[]>(
@@ -497,7 +498,8 @@ function TaxonomyTermPicker({
 										ref={inputRef}
 										id={inputId}
 										role="searchbox"
-										aria-label={t`Search ${label}`}
+										aria-label={canCreate ? t`Search or create ${label}` : t`Search ${label}`}
+										aria-describedby={canCreate && !trimmedInput ? createHintId : undefined}
 										aria-controls={listId}
 										value={input}
 										onChange={(event) => {
@@ -517,7 +519,7 @@ function TaxonomyTermPicker({
 											setActiveIndex(0);
 										}}
 										onKeyDown={handleInputKeyDown}
-										placeholder={t`Search ${label}…`}
+										placeholder={canCreate ? t`Search or create ${label}…` : t`Search ${label}…`}
 										className="text-base font-normal"
 									/>
 								</InputGroup>
@@ -576,13 +578,18 @@ function TaxonomyTermPicker({
 										type="button"
 										variant="ghost"
 										className="h-9 w-full justify-start px-2 text-kumo-subtle"
-										disabled={isCreating || (Boolean(trimmedInput) && !canCreateInput)}
+										disabled={isCreating || !canCreateInput}
 										loading={isCreating}
 										onClick={handleCreate}
 										icon={<Plus size={16} aria-hidden="true" />}
 									>
 										{trimmedInput ? t`Create "${trimmedInput}"` : t`Create a new ${singularLabel}`}
 									</Button>
+									{!trimmedInput ? (
+										<p id={createHintId} className="px-2 pb-1.5 text-xs leading-4 text-kumo-subtle">
+											{t`Type a name above to create a new ${singularLabel}.`}
+										</p>
+									) : null}
 								</div>
 							) : null}
 
