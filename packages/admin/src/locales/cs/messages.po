@@ -1396,7 +1396,7 @@ msgstr "Aktivní"
 msgid "Active v{0}"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:200
+#: packages/admin/src/components/AllowedTypesEditor.tsx:208
 #: packages/admin/src/components/BylineCreditsEditor.tsx:402
 #: packages/admin/src/components/MenuEditor.tsx:680
 msgid "Add"
@@ -1555,7 +1555,7 @@ msgstr "Přidat odkaz"
 msgid "Add links to build your navigation menu"
 msgstr "Přidejte odkazy a sestavte tak navigační nabídku"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:188
+#: packages/admin/src/components/AllowedTypesEditor.tsx:196
 msgid "Add MIME type or extension"
 msgstr "Přidat MIME typ nebo příponu"
 
@@ -1887,7 +1887,7 @@ msgstr ""
 msgid "Allowed Domains"
 msgstr "Povolené domény"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:127
+#: packages/admin/src/components/AllowedTypesEditor.tsx:135
 msgid "Allowed types"
 msgstr "Povolené typy"
 
@@ -2089,7 +2089,7 @@ msgstr ""
 msgid "Another widget area already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:130
+#: packages/admin/src/components/AllowedTypesEditor.tsx:138
 msgid "Any media type allowed (subject to global limits)."
 msgstr "Povoleny jsou všechny typy médií (v rámci globálních limitů)."
 
@@ -2176,7 +2176,7 @@ msgstr "Libovolná data ve formátu JSON"
 msgid "Archived"
 msgstr "Archivováno"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:89
+#: packages/admin/src/components/AllowedTypesEditor.tsx:97
 #: packages/admin/src/components/Widgets.tsx:174
 msgid "Archives"
 msgstr "Archivy"
@@ -2244,7 +2244,7 @@ msgstr ""
 msgid "Attribution"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:90
+#: packages/admin/src/components/AllowedTypesEditor.tsx:98
 #: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
@@ -2823,7 +2823,7 @@ msgstr "Oprávnění"
 msgid "Caption"
 msgstr "Popisek"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:92
+#: packages/admin/src/components/AllowedTypesEditor.tsx:100
 msgid "Captions / Subtitles"
 msgstr "Titulky / skryté titulky"
 
@@ -3906,7 +3906,7 @@ msgstr "Nelze načíst využití."
 msgid "Couldn't load versions"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:59
+#: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "Nepodařilo se přiřadit „{draft}“ k typu MIME. Zadejte MIME přímo."
 
@@ -4913,7 +4913,7 @@ msgstr "Dockerfile"
 msgid "Document"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:87
+#: packages/admin/src/components/AllowedTypesEditor.tsx:95
 #: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
@@ -5124,7 +5124,7 @@ msgstr ""
 msgid "Duplicate redirects were left out"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:187
+#: packages/admin/src/components/AllowedTypesEditor.tsx:195
 msgid "e.g. application/zip or .pdf"
 msgstr "např. application/zip nebo .pdf"
 
@@ -7281,7 +7281,7 @@ msgstr "Složky se nepodařilo načíst."
 msgid "Folders navigation"
 msgstr "Navigace ve složkách"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:93
+#: packages/admin/src/components/AllowedTypesEditor.tsx:101
 msgid "Fonts"
 msgstr "Písma"
 
@@ -7791,7 +7791,7 @@ msgstr ""
 msgid "Image URL"
 msgstr "URL obrázku"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:85
+#: packages/admin/src/components/AllowedTypesEditor.tsx:93
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
 #: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
@@ -10233,7 +10233,7 @@ msgstr ""
 msgid "Only images and videos can be uploaded here."
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:131
+#: packages/admin/src/components/AllowedTypesEditor.tsx:139
 msgid "Only the listed MIME types will be accepted for this field."
 msgstr "Pro toto pole budou přijaty pouze uvedené typy MIME."
 
@@ -10610,7 +10610,7 @@ msgstr "Vzor musí obsahovat zástupný symbol {0}"
 msgid "Pause other tools that update content."
 msgstr "Pozastavte ostatní nástroje, které upravují obsah."
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:86
+#: packages/admin/src/components/AllowedTypesEditor.tsx:94
 msgid "PDF"
 msgstr "PDF"
 
@@ -11467,7 +11467,7 @@ msgstr "Odebrat {0}"
 msgid "Remove {0} from selection"
 msgstr "Odebrat {0} z výběru"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:170
+#: packages/admin/src/components/AllowedTypesEditor.tsx:178
 msgid "Remove {entry}"
 msgstr "Odebrat {entry}"
 
@@ -13502,7 +13502,7 @@ msgstr "Spam"
 msgid "Split merged cell"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:88
+#: packages/admin/src/components/AllowedTypesEditor.tsx:96
 msgid "Spreadsheets"
 msgstr "Tabulkové soubory"
 
@@ -15748,7 +15748,7 @@ msgstr ""
 msgid "Version restored"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:91
+#: packages/admin/src/components/AllowedTypesEditor.tsx:99
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407

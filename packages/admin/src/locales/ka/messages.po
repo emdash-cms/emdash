@@ -1396,7 +1396,7 @@ msgstr "აქტიური"
 msgid "Active v{0}"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:200
+#: packages/admin/src/components/AllowedTypesEditor.tsx:208
 #: packages/admin/src/components/BylineCreditsEditor.tsx:402
 #: packages/admin/src/components/MenuEditor.tsx:680
 msgid "Add"
@@ -1555,7 +1555,7 @@ msgstr "ბმულის დამატება"
 msgid "Add links to build your navigation menu"
 msgstr "დაამატეთ ბმულები ნავიგაციის მენიუს შესაქმნელად"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:188
+#: packages/admin/src/components/AllowedTypesEditor.tsx:196
 msgid "Add MIME type or extension"
 msgstr "MIME ტიპის ან გაფართოების დამატება"
 
@@ -1887,7 +1887,7 @@ msgstr ""
 msgid "Allowed Domains"
 msgstr "დაშვებული დომენები"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:127
+#: packages/admin/src/components/AllowedTypesEditor.tsx:135
 msgid "Allowed types"
 msgstr "დაშვებული ტიპები"
 
@@ -2089,7 +2089,7 @@ msgstr ""
 msgid "Another widget area already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:130
+#: packages/admin/src/components/AllowedTypesEditor.tsx:138
 msgid "Any media type allowed (subject to global limits)."
 msgstr "ნებადართულია ნებისმიერი მედია ტიპი (გლობალური ლიმიტების გათვალისწინებით)."
 
@@ -2176,7 +2176,7 @@ msgstr "თვითნებური JSON მონაცემები"
 msgid "Archived"
 msgstr "დაარქივებული"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:89
+#: packages/admin/src/components/AllowedTypesEditor.tsx:97
 #: packages/admin/src/components/Widgets.tsx:174
 msgid "Archives"
 msgstr "არქივები"
@@ -2244,7 +2244,7 @@ msgstr ""
 msgid "Attribution"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:90
+#: packages/admin/src/components/AllowedTypesEditor.tsx:98
 #: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
@@ -2823,7 +2823,7 @@ msgstr "შესაძლებლობები"
 msgid "Caption"
 msgstr "წარწერა"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:92
+#: packages/admin/src/components/AllowedTypesEditor.tsx:100
 msgid "Captions / Subtitles"
 msgstr "წარწერები / სუბტიტრები"
 
@@ -3906,7 +3906,7 @@ msgstr "გამოყენების ჩატვირთვა ვერ 
 msgid "Couldn't load versions"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:59
+#: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "„{draft}“-ის MIME ტიპთან შესაბამისობა ვერ დადგინდა. შეიყვანეთ MIME პირდაპირ."
 
@@ -4913,7 +4913,7 @@ msgstr "Dockerfile"
 msgid "Document"
 msgstr "დოკუმენტი"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:87
+#: packages/admin/src/components/AllowedTypesEditor.tsx:95
 #: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
@@ -5124,7 +5124,7 @@ msgstr ""
 msgid "Duplicate redirects were left out"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:187
+#: packages/admin/src/components/AllowedTypesEditor.tsx:195
 msgid "e.g. application/zip or .pdf"
 msgstr "მაგ.: application/zip ან .pdf"
 
@@ -7281,7 +7281,7 @@ msgstr "საქაღალდეები ვერ ჩაიტვირთ�
 msgid "Folders navigation"
 msgstr "საქაღალდეების ნავიგაცია"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:93
+#: packages/admin/src/components/AllowedTypesEditor.tsx:101
 msgid "Fonts"
 msgstr "შრიფტები"
 
@@ -7791,7 +7791,7 @@ msgstr "სურათის ატვირთვა ვერ მოხერ
 msgid "Image URL"
 msgstr "სურათის URL"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:85
+#: packages/admin/src/components/AllowedTypesEditor.tsx:93
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
 #: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
@@ -10233,7 +10233,7 @@ msgstr ""
 msgid "Only images and videos can be uploaded here."
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:131
+#: packages/admin/src/components/AllowedTypesEditor.tsx:139
 msgid "Only the listed MIME types will be accepted for this field."
 msgstr "ამ ველისთვის მიიღება მხოლოდ ჩამოთვლილი MIME ტიპები."
 
@@ -10610,7 +10610,7 @@ msgstr "ნიმუში უნდა შეიცავდეს {0} ად�
 msgid "Pause other tools that update content."
 msgstr "შეაჩერეთ სხვა ხელსაწყოები, რომლებიც შიგთავსს აახლებენ."
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:86
+#: packages/admin/src/components/AllowedTypesEditor.tsx:94
 msgid "PDF"
 msgstr "PDF"
 
@@ -11467,7 +11467,7 @@ msgstr "{0}-ის მოცილება"
 msgid "Remove {0} from selection"
 msgstr "{0}-ის მოცილება არჩეულებიდან"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:170
+#: packages/admin/src/components/AllowedTypesEditor.tsx:178
 msgid "Remove {entry}"
 msgstr "{entry}-ის მოცილება"
 
@@ -13502,7 +13502,7 @@ msgstr "სპამი"
 msgid "Split merged cell"
 msgstr "გაერთიანებული უჯრის გაყოფა"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:88
+#: packages/admin/src/components/AllowedTypesEditor.tsx:96
 msgid "Spreadsheets"
 msgstr "ცხრილები"
 
@@ -15748,7 +15748,7 @@ msgstr ""
 msgid "Version restored"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:91
+#: packages/admin/src/components/AllowedTypesEditor.tsx:99
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407
