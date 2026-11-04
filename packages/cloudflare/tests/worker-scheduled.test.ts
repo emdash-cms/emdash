@@ -7,9 +7,9 @@ const cache = vi.hoisted(() => ({
 	invalidate: vi.fn(async (_options?: unknown) => {}),
 }));
 const astro = vi.hoisted(() => ({
-	cacheProvider: vi.fn(
-		async (): Promise<{ default: (() => typeof cache) | null }> => ({ default: () => cache }),
-	),
+	cacheProvider: vi.fn(async (): Promise<{ default: (() => typeof cache) | null }> => ({
+		default: () => cache,
+	})),
 }));
 
 vi.mock("@astrojs/cloudflare/entrypoints/server", () => ({ default: {} }));

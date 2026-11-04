@@ -302,13 +302,11 @@ describe("RevisionHistory", () => {
 	});
 
 	it("keeps a picked version under the pointer when the changes listed above it close", async () => {
-		const changes = ["A", "B", "C", "D", "E"].map(
-			(label): ChangeItem => ({
-				kind: "field",
-				field: { slug: label.toLowerCase(), label: `Field ${label}` },
-				target: `f-${label}`,
-			}),
-		);
+		const changes = ["A", "B", "C", "D", "E"].map((label): ChangeItem => ({
+			kind: "field",
+			field: { slug: label.toLowerCase(), label: `Field ${label}` },
+			target: `f-${label}`,
+		}));
 		function Picking() {
 			const [viewingId, setViewingId] = React.useState("rev-3");
 			const view = makeView({
@@ -340,13 +338,11 @@ describe("RevisionHistory", () => {
 	});
 
 	it("shows five changes, then reveals the rest and focuses the first new one", async () => {
-		const fields = ["A", "B", "C", "D", "E", "F", "G"].map(
-			(label): ChangeItem => ({
-				kind: "field",
-				field: { slug: label.toLowerCase(), label: `Field ${label}` },
-				target: `f-${label}`,
-			}),
-		);
+		const fields = ["A", "B", "C", "D", "E", "F", "G"].map((label): ChangeItem => ({
+			kind: "field",
+			field: { slug: label.toLowerCase(), label: `Field ${label}` },
+			target: `f-${label}`,
+		}));
 		const screen = await renderExpanded(
 			makeView({ viewingId: "rev-3", viewingDiff: makeDiff(fields) }),
 		);

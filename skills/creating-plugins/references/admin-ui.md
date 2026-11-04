@@ -25,8 +25,8 @@ Set `group` on a page to place it in a collapsible sidebar folder. A group match
 Any sandboxed plugin that declares a page or widget must define an `admin` route. The admin sends a `page_load`, `block_action`, or `form_submit` interaction as `routeCtx.input`:
 
 ```typescript title="src/plugin.ts"
-import type { SandboxedPlugin } from "emdash/plugin";
 import type { BlockResponse } from "@emdash-cms/blocks";
+import type { SandboxedPlugin } from "emdash/plugin";
 import { z } from "zod";
 
 const interactionSchema = z.discriminatedUnion("type", [
