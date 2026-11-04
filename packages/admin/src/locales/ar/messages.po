@@ -12967,16 +12967,13 @@ msgstr "تحسين محركات البحث"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:27
 #: packages/admin/src/components/settings/transfer/labels.ts:87
+#: packages/admin/src/components/WordPressImport.tsx:1900
 msgid "SEO settings"
 msgstr "إعدادات تحسين محركات البحث"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
 msgid "SEO Settings"
 msgstr "إعدادات تحسين محركات البحث"
-
-#: packages/admin/src/components/WordPressImport.tsx:1900
-msgid "SEO settings (Yoast)"
-msgstr "إعدادات تحسين محركات البحث (Yoast)"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 msgid "SEO settings saved"
