@@ -5,10 +5,13 @@
  * - ?rest_route= fallback for sites with plain permalinks
  */
 
+import type { APIContext } from "astro";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST as analyzeRoute } from "../../../src/astro/routes/api/import/wordpress-plugin/analyze.js";
 import { POST as executeRoute } from "../../../src/astro/routes/api/import/wordpress-plugin/execute.js";
+import { MediaRepository } from "../../../src/database/repositories/media.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import {
 	clearSources,
 	probeUrl,
@@ -17,7 +20,9 @@ import {
 } from "../../../src/import/registry.js";
 import { wordpressPluginSource } from "../../../src/import/sources/wordpress-plugin.js";
 import { setDefaultDnsResolver } from "../../../src/import/ssrf.js";
-import { setupTestDatabase } from "../../utils/test-db.js";
+import type { Storage } from "../../../src/storage/types.js";
+import { JPEG_4x4, PNG_4x4 } from "../../utils/image-fixtures.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 // ─── Mock fetch ──────────────────────────────────────────────────────────────
 
@@ -604,6 +609,97 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 		);
 		expectUserAgentOnAllCalls();
 	});
+});
+
+describe("WordPress Plugin Source: site settings media", () => {
+	it.each([false, true, undefined])(
+		"forwards imagePlaceholders=%s while importing logo and favicon",
+		async (imagePlaceholders) => {
+			const db = await setupTestDatabase();
+			mockFetch.mockImplementation((input: RequestInfo | URL) => {
+				const url = toUrlString(input);
+				if (url.includes("/options")) {
+					return Promise.resolve(
+						new Response(
+							JSON.stringify({
+								custom_logo_url: "https://example.com/logo.jpg",
+								site_icon_url: "https://example.com/favicon.png",
+							}),
+						),
+					);
+				}
+				return Promise.resolve(
+					new Response(url.includes("favicon") ? PNG_4x4 : JPEG_4x4, {
+						status: 200,
+						headers: {
+							"content-type": url.includes("favicon") ? "image/png" : "image/jpeg",
+						},
+					}),
+				);
+			});
+
+			const storage: Pick<Storage, "upload"> = {
+				async upload(options) {
+					const body =
+						options.body instanceof Uint8Array
+							? options.body
+							: new Uint8Array(options.body as ArrayBuffer);
+					return { key: options.key, url: `/media/${options.key}`, size: body.byteLength };
+				},
+			};
+			const request = new Request("http://localhost/_emdash/api/import/wordpress-plugin/execute", {
+				method: "POST",
+				headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+				body: JSON.stringify({
+					url: "https://example.com",
+					token: "test-token",
+					phase: "finalize",
+					config: {
+						postTypeMappings: { post: { collection: "posts", enabled: true } },
+						importMenus: false,
+					},
+				}),
+			});
+
+			try {
+				const response = await executeRoute({
+					request,
+					locals: {
+						emdash: {
+							db,
+							handleContentCreate: vi.fn(),
+							storage: storage as Storage,
+							config: { imagePlaceholders },
+							getManifest: async () => ({ collections: {} }),
+						},
+						user: { id: "admin", role: 50 },
+					},
+				} as unknown as APIContext);
+				expect(response.status).toBe(200);
+
+				const options = new OptionsRepository(db);
+				const logo = await options.get<{ mediaId: string }>("site:logo");
+				const favicon = await options.get<{ mediaId: string }>("site:favicon");
+				expect(logo?.mediaId).toBeTruthy();
+				expect(favicon?.mediaId).toBeTruthy();
+				expect(favicon?.mediaId).not.toBe(logo?.mediaId);
+				const media = new MediaRepository(db);
+				const logoMedia = await media.findById(logo!.mediaId);
+				const faviconMedia = await media.findById(favicon!.mediaId);
+				expect(logoMedia).toMatchObject({ width: 4, height: 4 });
+				expect(faviconMedia).toMatchObject({ width: 4, height: 4 });
+				if (imagePlaceholders !== false) {
+					expect(logoMedia?.blurhash).toBeTruthy();
+					expect(faviconMedia?.blurhash).toBeTruthy();
+				} else {
+					expect(logoMedia).toMatchObject({ blurhash: null, dominantColor: null });
+					expect(faviconMedia).toMatchObject({ blurhash: null, dominantColor: null });
+				}
+			} finally {
+				await teardownTestDatabase(db);
+			}
+		},
+	);
 });
 
 describe("WordPress Plugin Source: bot-protection challenges", () => {
