@@ -19,6 +19,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { getPublicOrigin } from "#api/public-url.js";
 import { inviteRegisterOptionsBody } from "#api/schemas.js";
+import { getSiteTitle } from "#api/site-title.js";
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
 import { OptionsRepository } from "#db/repositories/options.js";
@@ -46,7 +47,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// rejects the WebAuthn registration. See issue #994.
 		const url = new URL(request.url);
 		const options = new OptionsRepository(emdash.db);
-		const siteName = (await options.get<string>("emdash:site_title")) ?? undefined;
+		const siteName = await getSiteTitle(options);
 		const siteUrl = getPublicOrigin(url, emdash?.config);
 		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl);
 

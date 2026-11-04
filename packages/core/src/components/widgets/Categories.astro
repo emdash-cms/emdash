@@ -3,6 +3,7 @@
  * Categories widget component
  * Displays a list of categories with optional post counts
  */
+import { localePathPrefix } from "../../i18n/resolve.js";
 import { getTaxonomyTerms } from "../../taxonomies/index.js";
 
 interface Props {
@@ -12,8 +13,10 @@ interface Props {
 
 const { showCount = true, hierarchical = true } = Astro.props;
 
-const categories = await getTaxonomyTerms("category", { includeCounts: showCount });
+const locale = Astro.currentLocale;
+const categories = await getTaxonomyTerms("category", { includeCounts: showCount, locale });
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const localePrefix = await localePathPrefix(locale);
 
 ---
 
@@ -22,7 +25,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 		categories.length > 0 ? (
 			categories.map((category) => (
 				<li>
-					<a href={`${base}/category/${category.slug}`} class="widget-categories__link">
+					<a href={`${base}${localePrefix}/category/${category.slug}`} class="widget-categories__link">
 						{category.label}
 					</a>
 					{showCount && category.count !== undefined && (
