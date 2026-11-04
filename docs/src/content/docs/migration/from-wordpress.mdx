@@ -37,7 +37,52 @@ Check the exporter version on the WordPress **Plugins** screen. Comments, menus,
 
 With exporter 1.2.0 or later, open **Tools → EmDash Migration** in WordPress and generate a migration key. Paste the key into the EmDash import page.
 
-With any exporter version, you can enter the WordPress site URL. When the exporter is detected, authorize EmDash through the WordPress application-password screen. On local HTTP development sites, enter the WordPress username and application password manually because the authorization callback requires HTTPS.
+With any exporter version, you can enter the WordPress site URL. When the exporter is detected, authorize EmDash through the WordPress application-password screen. When you open the EmDash admin on `localhost` or `127.0.0.1`, enter the WordPress username and application password manually because the authorization callback requires HTTPS.
+
+### Import from a local WordPress site
+
+EmDash connects to WordPress from its server and only to public addresses. It rejects `localhost` and private IP addresses, and it looks up hostnames in public DNS, so a name that exists only on your computer, such as `mysite.local` or `mysite.test`, does not resolve. This applies to the site URL, the exporter import, and the attachment downloads in the media step. For a site at such an address, the import page shows "Couldn't detect WordPress", and the media step can't download the attachments of a WXR file exported from it.
+
+To import from a WordPress site that runs on your computer, give it a public address for the duration of the import:
+
+<Steps>
+
+1. Start a tunnel to the port that your site's own web server listens on. The following command starts a [Cloudflare quick tunnel](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) to a site on port 8080 and prints a public `trycloudflare.com` address:
+
+   ```sh
+   cloudflared tunnel --url http://127.0.0.1:8080
+   ```
+
+   Point the tunnel at the site's port, not at its local hostname. In its default Site Domains mode, [Local](https://localwp.com/) serves all its sites on port 80 and picks one by hostname, so a tunnel to `http://mysite.local` gets Local's "Site Not Found" page. Local also gives each site its own port, and a tunnel to that port reaches the site. Local lists that port in its `sites.json` file (`~/Library/Application Support/Local/sites.json` on macOS), as `services.nginx.ports.HTTP` in the site's entry.
+
+   Laravel Valet serves all its sites through one web server and picks one by hostname, with no port for each site, so these steps don't work for Valet as written. Laravel Herd's documentation describes reaching its sites only by hostname, so the same likely applies to Herd.
+
+2. Make WordPress use the tunnel's address and HTTPS. The tunnel forwards requests to WordPress over plain HTTP, and WordPress accepts application passwords only over HTTPS unless `WP_ENVIRONMENT_TYPE` is `local`. Add the following lines to `wp-config.php`, above the "That's all, stop editing!" comment, so that WordPress treats tunnel requests as HTTPS and puts the tunnel address in API responses and attachment URLs:
+
+   ```php title="wp-config.php"
+   if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+       $_SERVER['HTTPS'] = 'on';
+   }
+   if (isset($_SERVER['HTTP_HOST'])) {
+       $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+       define('WP_HOME', $protocol . '://' . $_SERVER['HTTP_HOST']);
+       define('WP_SITEURL', $protocol . '://' . $_SERVER['HTTP_HOST']);
+   }
+   ```
+
+3. Replace the site's local address with the tunnel address in the WordPress database. Post content keeps each image at the address the site had when the image was inserted, and the media step rewrites only the image URLs that match an attachment's address. The following [`wp search-replace`](https://developer.wordpress.org/cli/commands/search-replace/) command replaces `http://mysite.local` with a tunnel address. Replace `http://mysite.local` with your site's own address, which can differ from the address the tunnel points at, and the example tunnel address with the one the tunnel printed:
+
+   ```sh
+   wp search-replace 'http://mysite.local' 'https://example.trycloudflare.com' --skip-columns=guid
+   ```
+
+   A quick tunnel gets a new address each time it starts, and an import keeps the addresses it read when it started. Keep the tunnel running until step 5. If it restarts before step 4, run the command again from the old tunnel address to the new one.
+
+4. Use the tunnel address for the import: enter it as the site URL, generate the migration key from WordPress opened at that address, or download the WXR file from there so its attachment URLs point at the tunnel.
+
+5. After the media step finishes, run `wp search-replace` again with the two addresses swapped, remove the lines from `wp-config.php`, and stop the tunnel. While the tunnel runs, anyone with the address can reach the site, including its login page.
+
+</Steps>
 
 ## Import through the admin
 
@@ -109,7 +154,7 @@ Categories and tags are imported into the matching EmDash taxonomy definitions. 
 
 Media deduplication compares a SHA-1 hash of the downloaded bytes. An existing media row with the same hash is reused. Filenames and WordPress IDs are not the deduplication key.
 
-The source site must remain reachable while EmDash downloads attachments. Redirects from an attachment URL are validated before they are followed.
+The source site must remain reachable at a public address while EmDash downloads attachments. For a site on your computer, see [Import from a local WordPress site](#import-from-a-local-wordpress-site). Redirects from an attachment URL are validated before they are followed.
 
 ## Retry a partial import
 
