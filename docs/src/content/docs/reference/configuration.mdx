@@ -32,6 +32,10 @@ export default defineConfig({
 
 ## Integration options
 
+`emdash()` checks the type of each option when Astro loads the config, so `astro dev`, `astro build` and `astro sync` stop on a value of the wrong type, such as `mcp: "yes"`. The error lists every invalid option by its path, for example `→ at mcp`. Adapter, plugin and provider descriptors are checked only for their outer shape. `registry`, `migrations`, `middleware`, `admin.locales` and `admin.hiddenNavItems` keep their own, more specific errors.
+
+A top-level option EmDash doesn't recognize is ignored with a warning. When the name is close to a known option, the warning suggests it, so a typo like `sitUrl` points you to `siteUrl`.
+
 ### `database`
 
 **Required.** Database adapter configuration. Choose one adapter:
