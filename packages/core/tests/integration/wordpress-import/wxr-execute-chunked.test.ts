@@ -168,6 +168,57 @@ describe("WXR execute chunked import", () => {
 		expect(rows.length).toBe(35);
 	});
 
+	it("credits an unmapped author's posts to one byline across chunks", async () => {
+		const wxr = makeWxr(35)
+			.replace(
+				"<channel>",
+				`<channel>
+		<wp:author>
+			<wp:author_id>1</wp:author_id>
+			<wp:author_login><![CDATA[author.one]]></wp:author_login>
+			<wp:author_display_name><![CDATA[Author One]]></wp:author_display_name>
+		</wp:author>`,
+			)
+			.replaceAll(
+				"<wp:post_type>post</wp:post_type>",
+				"<wp:post_type>post</wp:post_type>\n\t\t\t<dc:creator><![CDATA[author.one]]></dc:creator>",
+			);
+		const prepared = await prepareChunkedImport(wxr, harness.emdash);
+
+		let state = prepared.data;
+		do {
+			// oxlint-disable-next-line no-await-in-loop -- each chunk continues from the previous cursor
+			const response = await executePost(
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion
+				buildContext(
+					buildFormData(wxr, {
+						phase: "content",
+						cursor: JSON.stringify(state.cursor),
+						chunk: JSON.stringify(state.chunk),
+					}),
+					harness.emdash,
+				) as any,
+			);
+			expect(response.status).toBe(200);
+			// oxlint-disable-next-line no-await-in-loop -- sequential chunks
+			state = (await response.json()).data;
+		} while (!state.done);
+
+		const bylines = await harness.db
+			.selectFrom("_emdash_bylines")
+			.select(["id", "slug", "display_name"])
+			.execute();
+		expect(bylines).toEqual([
+			{ id: expect.any(String), slug: "authorone", display_name: "Author One" },
+		]);
+		const credits = await harness.db
+			.selectFrom("_emdash_content_bylines")
+			.select("byline_id")
+			.execute();
+		expect(credits).toHaveLength(35);
+		expect(new Set(credits.map((credit) => credit.byline_id))).toEqual(new Set([bylines[0]!.id]));
+	});
+
 	it("imports reusable blocks during finalization", async () => {
 		const wxr = makeWxrWithReusableBlock();
 		const prepared = await prepareChunkedImport(wxr, harness.emdash);

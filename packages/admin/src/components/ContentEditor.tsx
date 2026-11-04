@@ -1926,7 +1926,7 @@ export function ContentEditor({
 					to="/content/$collection"
 					params={{ collection }}
 					search={{ locale: undefined }}
-					aria-label={t`Back to ${collectionLabel} list`}
+					aria-label={t`Back to ${{ collectionLabel: collectionListLabel }} list`}
 					variant="ghost"
 					shape="square"
 					size="sm"
