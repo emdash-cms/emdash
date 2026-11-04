@@ -64,6 +64,7 @@ export default defineConfig({
 		"src/portable-text-table.ts",
 		"src/portable-text.ts",
 		"src/html-block.ts",
+		"src/video-block.ts",
 		"src/slugify.ts",
 	],
 	format: ["esm"],

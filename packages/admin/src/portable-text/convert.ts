@@ -12,11 +12,6 @@ import {
 	PORTABLE_TEXT_KEY_ATTR,
 	PORTABLE_TEXT_SPAN_MARK,
 } from "../components/editor/portableTextIdentity.js";
-import {
-	isVideoBlock,
-	videoBlockFields,
-	videoNodeAttrs,
-} from "../components/editor/video-block.js";
 import { htmlBlockFields } from "../html-block.js";
 import { canonicalMediaProviderId, localMediaFileUrl } from "../lib/media-utils.js";
 import {
@@ -30,6 +25,7 @@ import {
 	proseMirrorTableToPortableText,
 	type PortableTextTableProseMirrorNode,
 } from "../portable-text-table.js";
+import { isVideoBlock, videoBlockFields, videoNodeAttrs } from "../video-block.js";
 
 interface PortableTextSpan {
 	_type: "span";

@@ -1,6 +1,6 @@
 /**
- * The video block's Portable Text shape and node attributes.
- * Keep the shape in sync with core's `content/converters/video.ts`.
+ * The video block's Portable Text shape and node attributes. Core's converters
+ * use them too.
  */
 
 type FieldCheck = (value: unknown) => boolean;
@@ -56,10 +56,18 @@ export function videoNodeAttrs(block: unknown): Record<string, unknown> {
 	};
 }
 
+/** A video block's fields besides `_type` and `_key`. */
+export interface VideoBlockFields {
+	asset?: { _ref: string; url?: string; provider?: string };
+	caption?: string;
+	width?: number;
+	height?: number;
+}
+
 /** A video node's Portable Text fields, written only when set. */
-export function videoBlockFields(attrs: Record<string, unknown>): Record<string, unknown> {
+export function videoBlockFields(attrs: Record<string, unknown>): VideoBlockFields {
 	const { src, mediaId, provider, caption, width, height } = attrs;
-	const asset: Record<string, string> = { _ref: isString(mediaId) ? mediaId : "" };
+	const asset: NonNullable<VideoBlockFields["asset"]> = { _ref: isString(mediaId) ? mediaId : "" };
 	if (isString(src) && src) asset.url = src;
 	if (isString(provider) && provider && provider !== "local") asset.provider = provider;
 	// An empty block has no media id, file or provider.

@@ -29,9 +29,9 @@ import {
 import { cn } from "../../lib/utils";
 import { getLocaleDir } from "../../locales/config.js";
 import { VideoBlockNode } from "../../portable-text/schema.js";
+import { isDimension, isString } from "../../video-block.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { useCaptionField, useCaptionText } from "./useCaptionField.js";
-import { isDimension, isString } from "./video-block.js";
 
 /** Node attributes for a picked or uploaded Media Library video. */
 export function mediaItemToVideoAttrs(item: MediaItem) {

@@ -45,6 +45,10 @@
     "./html-block": {
       "types": "./dist/html-block.d.ts",
       "default": "./dist/html-block.js"
+    },
+    "./video-block": {
+      "types": "./dist/video-block.d.ts",
+      "default": "./dist/video-block.js"
     }
   },
   "scripts": {
