@@ -23,12 +23,15 @@ import { getPasskeyConfig } from "#auth/passkey-config.js";
 import { SETUP_NONCE_COOKIE } from "#auth/setup-nonce.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
-export const POST: APIRoute = async ({ cookies, request, locals }) => {
+import { sessionUnavailableError } from "../../../session-user.js";
+
+export const POST: APIRoute = async ({ cookies, request, locals, session }) => {
 	const { emdash } = locals;
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
+	if (!session) return sessionUnavailableError();
 
 	try {
 		// Check if setup is already complete
@@ -117,6 +120,9 @@ export const POST: APIRoute = async ({ cookies, request, locals }) => {
 
 		// Mark setup as complete
 		await options.set("emdash:setup_complete", true);
+
+		// Authenticate the newly created admin so the dashboard opens immediately.
+		session.set("user", { id: user.id });
 
 		// Clean up setup state and the session nonce cookie
 		await options.delete("emdash:setup_state");

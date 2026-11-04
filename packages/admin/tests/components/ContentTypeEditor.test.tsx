@@ -34,10 +34,29 @@ vi.mock("@tanstack/react-router", async () => {
 	};
 });
 
-// Mock FieldEditor — just expose open state via data attribute
+// Mock FieldEditor — exposes open state, a save trigger, and the error a
+// rejected save hands it, without the real dialog's form fields.
 vi.mock("../../src/components/FieldEditor", () => ({
-	FieldEditor: ({ open }: { open: boolean }) =>
-		open ? <div data-testid="field-editor-dialog">Field Editor</div> : null,
+	FieldEditor: ({
+		open,
+		onSave,
+		saveError,
+	}: {
+		open: boolean;
+		onSave: (input: unknown) => void;
+		saveError?: unknown;
+	}) =>
+		open ? (
+			<div data-testid="field-editor-dialog">
+				Field Editor
+				{saveError instanceof Error && (
+					<div data-testid="field-save-error">{saveError.message}</div>
+				)}
+				<button onClick={() => onSave({ slug: "title", label: "Title", type: "string" })}>
+					Save field
+				</button>
+			</div>
+		) : null,
 }));
 
 const DELETE_FIELD_BUTTON_PATTERN = /Delete Title field/i;
@@ -349,6 +368,45 @@ describe("ContentTypeEditor", () => {
 		await expect.element(screen.getByTestId("field-editor-dialog")).toBeInTheDocument();
 	});
 
+	// ---- A rejected field save keeps the dialog open and shows the error ----
+
+	it("keeps the field editor open and shows the error when the save is rejected", async () => {
+		const onUpdateField = vi.fn(() =>
+			Promise.reject(new Error(`Changing required for field "title" requires a manual migration.`)),
+		);
+		const fields = [makeField({ slug: "title", label: "Title" })];
+		const collection = makeCollection({ fields });
+
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onUpdateField })} collection={collection} />,
+		);
+
+		await screen.getByRole("button", { name: EDIT_TITLE_RE }).click();
+		await screen.getByRole("button", { name: "Save field" }).click();
+
+		expect(onUpdateField).toHaveBeenCalled();
+		await expect.element(screen.getByTestId("field-editor-dialog")).toBeInTheDocument();
+		await expect
+			.element(screen.getByTestId("field-save-error"))
+			.toHaveTextContent(/requires a manual migration/i);
+	});
+
+	it("closes the field editor once the save succeeds", async () => {
+		const onUpdateField = vi.fn(() => Promise.resolve());
+		const fields = [makeField({ slug: "title", label: "Title" })];
+		const collection = makeCollection({ fields });
+
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onUpdateField })} collection={collection} />,
+		);
+
+		await screen.getByRole("button", { name: EDIT_TITLE_RE }).click();
+		await screen.getByRole("button", { name: "Save field" }).click();
+
+		expect(onUpdateField).toHaveBeenCalled();
+		await expect.element(screen.getByTestId("field-editor-dialog")).not.toBeInTheDocument();
+	});
+
 	// ---- Delete field with confirm dialog calls onDeleteField ----
 
 	it("calls onDeleteField when delete is confirmed via dialog", async () => {
@@ -393,6 +451,46 @@ describe("ContentTypeEditor", () => {
 		screen.getByRole("button", { name: "Cancel" }).element().click();
 
 		expect(onDeleteField).not.toHaveBeenCalled();
+	});
+
+	it("keeps Delete Field? open with its progress until the delete lands", async () => {
+		let finish = () => {};
+		const onDeleteField = vi.fn(
+			() =>
+				new Promise<void>((resolve) => {
+					finish = resolve;
+				}),
+		);
+		const collection = makeCollection({ fields: [makeField()] });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onDeleteField })} collection={collection} />,
+		);
+
+		await screen.getByRole("button", { name: DELETE_FIELD_BUTTON_PATTERN }).click();
+		const dialog = screen.getByRole("dialog", { name: "Delete Field?" });
+		const confirm = dialog.getByRole("button", { name: "Delete" }).element();
+		confirm.click();
+		confirm.click();
+
+		await expect.element(dialog.getByRole("button", { name: "Deleting..." })).toBeDisabled();
+		expect(onDeleteField).toHaveBeenCalledTimes(1);
+		finish();
+		await expect.element(dialog).not.toBeInTheDocument();
+	});
+
+	it("shows a failed delete inside Delete Field?", async () => {
+		const onDeleteField = vi.fn(() => Promise.reject(new Error("Field could not be deleted")));
+		const collection = makeCollection({ fields: [makeField()] });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onDeleteField })} collection={collection} />,
+		);
+
+		await screen.getByRole("button", { name: DELETE_FIELD_BUTTON_PATTERN }).click();
+		const dialog = screen.getByRole("dialog", { name: "Delete Field?" });
+		dialog.getByRole("button", { name: "Delete" }).element().click();
+
+		await expect.element(dialog.getByRole("alert")).toHaveTextContent("Field could not be deleted");
+		await expect.element(dialog.getByRole("button", { name: "Delete" })).toBeEnabled();
 	});
 
 	// ---- Deleting a reference field offers to delete its relationship ----
@@ -478,6 +576,21 @@ describe("ContentTypeEditor", () => {
 			screen.getByRole("button", { name: "Delete" }).element().click();
 
 			expect(onDeleteField).toHaveBeenCalledWith("author", { deleteRelation: false });
+		});
+
+		it("holds the relationship choice while the delete runs", async () => {
+			const { screen } = await openDeleteDialog(vi.fn(() => new Promise<void>(() => {})));
+			const dialog = screen.getByRole("dialog", { name: "Delete Field?" });
+
+			dialog.getByRole("button", { name: "Delete" }).element().click();
+
+			await expect.element(dialog.getByRole("button", { name: "Deleting..." })).toBeDisabled();
+			await expect
+				.element(
+					dialog.getByRole("checkbox", { name: "Also delete the relationship this field uses" }),
+				)
+				.toBeDisabled();
+			await expect.element(dialog.getByText("This also removes:")).toBeVisible();
 		});
 
 		it("offers nothing extra for a field that uses no relationship", async () => {

@@ -10,7 +10,7 @@ interface Props {
 
 const { slug } = Astro.params;
 const { locale } = Astro.props;
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 const { entry: post } = await getEmDashEntry("posts", slug, { locale });
 if (!post) return new Response("Not found", { status: 404 });
 

@@ -73,7 +73,7 @@ export async function fetchWidgetAreas(): Promise<WidgetArea[]> {
 	const response = await apiFetch(`${API_BASE}/widget-areas`);
 	const data = await parseApiResponse<{ items: WidgetArea[] }>(
 		response,
-		"Failed to fetch widget areas",
+		i18n._(msg`Failed to fetch widget areas`),
 	);
 	return data.items;
 }
@@ -83,7 +83,7 @@ export async function fetchWidgetAreas(): Promise<WidgetArea[]> {
  */
 export async function fetchWidgetArea(name: string): Promise<WidgetArea> {
 	const response = await apiFetch(`${API_BASE}/widget-areas/${name}`);
-	return parseApiResponse<WidgetArea>(response, "Failed to fetch widget area");
+	return parseApiResponse<WidgetArea>(response, i18n._(msg`Failed to fetch widget area`));
 }
 
 /**
@@ -95,7 +95,7 @@ export async function createWidgetArea(input: CreateWidgetAreaInput): Promise<Wi
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	return parseApiResponse<WidgetArea>(response, "Failed to create widget area");
+	return parseApiResponse<WidgetArea>(response, i18n._(msg`Failed to create widget area`));
 }
 
 /**
@@ -117,7 +117,7 @@ export async function createWidget(areaName: string, input: CreateWidgetInput): 
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	return parseApiResponse<Widget>(response, "Failed to create widget");
+	return parseApiResponse<Widget>(response, i18n._(msg`Failed to create widget`));
 }
 
 /**
@@ -133,7 +133,7 @@ export async function updateWidget(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	return parseApiResponse<Widget>(response, "Failed to update widget");
+	return parseApiResponse<Widget>(response, i18n._(msg`Failed to update widget`));
 }
 
 /**
@@ -165,7 +165,7 @@ export async function fetchWidgetComponents(): Promise<WidgetComponent[]> {
 	const response = await apiFetch(`${API_BASE}/widget-components`);
 	const data = await parseApiResponse<{ items: WidgetComponent[] }>(
 		response,
-		"Failed to fetch widget components",
+		i18n._(msg`Failed to fetch widget components`),
 	);
 	return data.items;
 }

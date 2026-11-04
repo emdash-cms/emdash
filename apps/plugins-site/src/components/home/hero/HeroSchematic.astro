@@ -1,0 +1,339 @@
+---
+/**
+ * The faint line-art layer behind the hero exhibit, drawn in the exhibit's
+ * 1120×600 design space so it lines up with the absolutely placed objects.
+ */
+
+interface Rect {
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+}
+
+const BARCODE = "110101101110100101101101011100101011";
+
+function ticks(
+	x: number,
+	y: number,
+	count: number,
+	height: number,
+	offset = 0,
+): string {
+	let d = "";
+	for (let index = 0; index < count; index++) {
+		if (BARCODE[(index + offset) % BARCODE.length] !== "1") continue;
+		d += `M${x + index * 3} ${y}v${height}`;
+	}
+	return d;
+}
+
+function columnTicks(
+	x: number,
+	bottom: number,
+	count: number,
+	max: number,
+): string {
+	let d = "";
+	for (let index = 0; index < count; index++) {
+		const height = max * (0.35 + 0.65 * Math.abs(Math.sin(index * 1.7 + 0.4)));
+		d += `M${x + index * 3} ${bottom}v${-Math.round(height)}`;
+	}
+	return d;
+}
+
+function keycaps(
+	x: number,
+	y: number,
+	rows: number[][],
+	size: number,
+	gap: number,
+): Rect[] {
+	const keys: Rect[] = [];
+	rows.forEach((row, rowIndex) => {
+		let cursor = x;
+		for (const units of row) {
+			const w = size * units + gap * (units - 1);
+			keys.push({ x: cursor, y: y + rowIndex * (size + gap), w, h: size });
+			cursor += w + gap;
+		}
+	});
+	return keys;
+}
+
+function grid(
+	x: number,
+	y: number,
+	columns: number,
+	rows: number,
+	size: number,
+	gap: number,
+): Rect[] {
+	const cells: Rect[] = [];
+	for (let row = 0; row < rows; row++) {
+		for (let column = 0; column < columns; column++) {
+			cells.push({
+				x: x + column * (size + gap),
+				y: y + row * (size + gap),
+				w: size,
+				h: size,
+			});
+		}
+	}
+	return cells;
+}
+
+const bigKeys = keycaps(
+	28,
+	232,
+	[
+		[1, 1, 1, 1],
+		[1, 1, 1, 1],
+		[1, 1, 1, 1],
+		[2, 1, 1],
+	],
+	24,
+	8,
+);
+const smallKeys = keycaps(
+	786,
+	40,
+	[
+		[1, 1, 1, 1, 1],
+		[1, 1, 2, 1],
+	],
+	12,
+	5,
+);
+const pads = grid(216, 396, 4, 2, 10, 14);
+const padsRight = grid(790, 162, 2, 2, 10, 12);
+const ledsLeft = grid(118, 78, 3, 2, 5, 4);
+const ledsRight = grid(1062, 78, 3, 2, 5, 4);
+const icPins = [232, 248, 264, 280];
+
+const captions = [
+	{ x: 24, lines: ["Capabilities", "you", "approve."] },
+	{ x: 968, lines: ["Sandboxed", "by", "default."] },
+];
+---
+
+<svg
+	class="x-schematic"
+	viewBox="0 0 1120 600"
+	aria-hidden="true"
+	focusable="false"
+>
+	<defs>
+		<pattern
+			id="hx-hatch"
+			width="6"
+			height="6"
+			patternUnits="userSpaceOnUse"
+			patternTransform="rotate(45)"
+		>
+			<path d="M0 0v6" class="x-hatch-line"></path>
+		</pattern>
+	</defs>
+
+	<g class="x-rails">
+		<path d="M176 0V600M944 0V600" class="x-rail"></path>
+		<path d="M360 0V600M760 0V600" class="x-rail x-rail--dashed"></path>
+	</g>
+
+	<g class="x-glyph">
+		{
+			captions.map(({ x, lines }) => (
+				<g class="x-outer">
+					<rect x={x} y="64" width="128" height="124" rx="4" class="x-frame" />
+					<text class="x-caption" x={x + 16} y="140">
+						{lines.map((line, index) => (
+							<tspan x={x + 16} dy={index === 0 ? 0 : 16}>
+								{line.toUpperCase()}
+							</tspan>
+						))}
+					</text>
+				</g>
+			))
+		}
+		<g class="x-outer">
+			{
+				[...ledsLeft, ...ledsRight].map((cell) => (
+					<rect x={cell.x} y={cell.y} width={cell.w} height={cell.h} rx="1.5" />
+				))
+			}
+		</g>
+
+		<rect x="16" y="216" width="144" height="152" rx="12" class="x-frame"
+		></rect>
+		{
+			bigKeys.map((key) => (
+				<g>
+					<rect
+						x={key.x}
+						y={key.y}
+						width={key.w}
+						height={key.h}
+						rx="5"
+						class="x-key"
+					/>
+					<rect
+						x={key.x + 3}
+						y={key.y + 2.5}
+						width={key.w - 6}
+						height={key.h - 8}
+						rx="3"
+					/>
+				</g>
+			))
+		}
+		<rect x="16" y="400" width="144" height="216" rx="10" class="x-hatch"
+		></rect>
+
+		<path d={ticks(204, 44, 44, 14)}></path>
+		<path d={ticks(204, 64, 30, 8, 7)}></path>
+		<rect x="240" y="224" width="72" height="64" rx="6" class="x-key"></rect>
+		<rect x="252" y="236" width="48" height="40" rx="3" class="x-dash"></rect>
+		<circle cx="248" cy="232" r="2"></circle>
+		<path d={icPins.map((y) => `M232 ${y}h8M312 ${y}h8`).join("")}></path>
+		{
+			pads.map((pad) => (
+				<g>
+					<rect x={pad.x} y={pad.y} width={pad.w} height={pad.h} rx="2" />
+					<rect
+						x={pad.x + 3.5}
+						y={pad.y + 3.5}
+						width="3"
+						height="3"
+						rx="0.5"
+						class="x-fill"
+					/>
+				</g>
+			))
+		}
+		<path d={columnTicks(292, 568, 14, 84)}></path>
+
+		{
+			smallKeys.map((key) => (
+				<g>
+					<rect
+						x={key.x}
+						y={key.y}
+						width={key.w}
+						height={key.h}
+						rx="3"
+						class="x-key"
+					/>
+					<rect
+						x={key.x + 2}
+						y={key.y + 1.5}
+						width={key.w - 4}
+						height={key.h - 5}
+						rx="1.5"
+					/>
+				</g>
+			))
+		}
+		<path d={ticks(786, 104, 46, 12, 3)}></path>
+		<path d={ticks(786, 122, 30, 8, 11)}></path>
+		<path d={columnTicks(872, 214, 16, 64)}></path>
+		{
+			padsRight.map((pad) => (
+				<rect x={pad.x} y={pad.y} width={pad.w} height={pad.h} rx="2" />
+			))
+		}
+
+		<rect x="960" y="216" width="144" height="120" rx="10" class="x-hatch"
+		></rect>
+		<path d={columnTicks(1052, 552, 16, 120)}></path>
+		<path d={ticks(966, 576, 28, 10, 5)}></path>
+
+		<path d="M368 64h16M738 64h16"></path>
+		<path d="M390 64h1M396 64h1M402 64h1" class="x-dots-line"></path>
+		<path
+			d="M412 59.5l4.5 4.5-4.5 4.5-4.5-4.5ZM708 59.5l4.5 4.5-4.5 4.5-4.5-4.5Z"
+			class="x-fill-page"></path>
+		<path d="M722 58v12M726 58v12M730 58v12"></path>
+	</g>
+</svg>
+
+<style>
+	.x-schematic {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+	}
+
+	.x-schematic * {
+		vector-effect: non-scaling-stroke;
+	}
+
+	.x-schematic .x-glyph {
+		fill: none;
+		stroke: var(--x-glyph);
+		stroke-width: 1;
+	}
+
+	.x-schematic .x-rail {
+		fill: none;
+		stroke: var(--line);
+		stroke-width: 1;
+	}
+
+	.x-schematic .x-rail--dashed {
+		stroke: var(--line-strong);
+		stroke-dasharray: 4 4;
+	}
+
+	.x-schematic .x-frame {
+		fill: color-mix(in srgb, var(--page) 70%, transparent);
+	}
+
+	.x-schematic .x-key {
+		fill: color-mix(in srgb, var(--surface) 55%, transparent);
+	}
+
+	.x-schematic .x-dash {
+		stroke-dasharray: 2 3;
+	}
+
+	.x-schematic .x-fill {
+		fill: var(--x-glyph);
+		stroke: none;
+	}
+
+	.x-schematic .x-fill-page {
+		fill: var(--page);
+	}
+
+	.x-schematic .x-hatch {
+		fill: url(#hx-hatch);
+		stroke: none;
+	}
+
+	.x-schematic .x-hatch-line {
+		stroke: var(--x-glyph);
+		stroke-width: 1;
+	}
+
+	.x-schematic .x-dots-line {
+		stroke-width: 1.5;
+		stroke-linecap: round;
+	}
+
+	.x-schematic .x-caption {
+		fill: var(--x-caption);
+		stroke: none;
+		font-family: var(--font-mono);
+		font-size: 10.5px;
+		letter-spacing: 0.06em;
+	}
+
+	/* Once the frame starts cropping the outer columns, drop their captions rather than cut words. */
+	@container (max-width: 805.98px) {
+		.x-outer {
+			display: none;
+		}
+	}
+</style>

@@ -1,5 +1,6 @@
 import { screen } from "@testing-library/react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { NodeSelection } from "@tiptap/pm/state";
+import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
@@ -7,30 +8,21 @@ import { describe, it, expect, vi } from "vitest";
 import { ImageExtension } from "../../src/components/editor/ImageNode.js";
 import { render } from "../utils/render.js";
 
-function TestEditor({ onSidebarOpen }: { onSidebarOpen?: (panel: unknown) => void } = {}) {
+function TestEditor({ onReady }: { onReady: (editor: Editor) => void }) {
 	const editor = useEditor({
 		extensions: [StarterKit, ImageExtension],
 		content: {
 			type: "doc",
 			content: [
 				{ type: "paragraph", content: [{ type: "text", text: "Before" }] },
-				{
-					type: "image",
-					attrs: { src: "/img.jpg", alt: "Example", provider: "cloudflare-images" },
-				},
+				{ type: "image", attrs: { src: "/img.jpg", alt: "Example" } },
 			],
 		},
 		immediatelyRender: true,
 	});
 	React.useEffect(() => {
-		if (!editor || !onSidebarOpen) return;
-		const storage = (editor.storage as unknown as Record<string, Record<string, unknown>>).image;
-		if (!storage) return;
-		storage.onOpenBlockSidebar = onSidebarOpen;
-		return () => {
-			storage.onOpenBlockSidebar = null;
-		};
-	}, [editor, onSidebarOpen]);
+		if (editor) onReady(editor);
+	}, [editor, onReady]);
 
 	if (!editor) return null;
 	return <EditorContent editor={editor} />;
@@ -61,28 +53,59 @@ function pressWithPointerDrift(target: HTMLElement) {
 }
 
 describe("Editor image selection", () => {
-	it("shows image actions after a primary press with slight pointer drift", async () => {
-		void render(<TestEditor />);
+	it("selects the image after a primary press with slight pointer drift", async () => {
+		let editor: Editor | undefined;
+		void render(
+			<TestEditor
+				onReady={(instance) => {
+					editor = instance;
+				}}
+			/>,
+		);
 		const image = await screen.findByRole("img", { name: "Example" });
+		await vi.waitFor(() => expect(editor).toBeDefined());
 
-		expect(screen.queryByRole("button", { name: "Image settings" })).toBeNull();
 		pressWithPointerDrift(image);
 
-		const settings = await screen.findByRole("button", { name: "Image settings" });
-		expect(getComputedStyle(settings.parentElement!).opacity).toBe("1");
+		await vi.waitFor(() => {
+			const { selection } = editor!.state;
+			expect(selection instanceof NodeSelection && selection.node.type.name === "image").toBe(true);
+		});
 	});
 
-	it("passes the image provider to the settings sidebar", async () => {
-		const onSidebarOpen = vi.fn();
-		void render(<TestEditor onSidebarOpen={onSidebarOpen} />);
+	it("selects the image a finger taps, but not one it scrolls the page from", async () => {
+		let editor: Editor | undefined;
+		void render(
+			<TestEditor
+				onReady={(instance) => {
+					editor = instance;
+				}}
+			/>,
+		);
 		const image = await screen.findByRole("img", { name: "Example" });
+		await vi.waitFor(() => expect(editor).toBeDefined());
+		editor!.commands.setTextSelection(3);
+		const touch = (type: string) =>
+			image.dispatchEvent(
+				new PointerEvent(type, {
+					bubbles: true,
+					isPrimary: true,
+					pointerId: 2,
+					pointerType: "touch",
+				}),
+			);
 
-		pressWithPointerDrift(image);
-		(await screen.findByRole("button", { name: "Image settings" })).click();
+		// The browser takes over a finger that moves, to scroll the page.
+		touch("pointerdown");
+		touch("pointercancel");
+		expect(editor!.state.selection instanceof NodeSelection).toBe(false);
 
-		await vi.waitFor(() => expect(onSidebarOpen).toHaveBeenCalledOnce());
-		expect(onSidebarOpen.mock.calls[0]?.[0]).toMatchObject({
-			attrs: { provider: "cloudflare-images" },
+		touch("pointerdown");
+		touch("pointerup");
+		image.click();
+		await vi.waitFor(() => {
+			const { selection } = editor!.state;
+			expect(selection instanceof NodeSelection && selection.node.type.name === "image").toBe(true);
 		});
 	});
 });

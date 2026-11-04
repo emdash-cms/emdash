@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
 	contentCreateBody,
 	contentListQuery,
+	contentTrashQuery,
 	contentUpdateBody,
 	createFieldBody,
 	updateFieldBody,
@@ -196,6 +197,13 @@ describe("localeCode validator", () => {
 
 	it("contentListQuery still filters by WordPress-style statuses such as pending", () => {
 		expect(contentListQuery.parse({ status: "pending" }).status).toBe("pending");
+	});
+
+	it("content list and trash queries take a numbered page, but not with a cursor", () => {
+		for (const query of [contentListQuery, contentTrashQuery]) {
+			expect(query.parse({ page: "2" }).page).toBe(2);
+			expect(() => query.parse({ page: "2", cursor: "cursor" })).toThrow();
+		}
 	});
 
 	it("contentListQuery parses bounded indexed field filters", () => {

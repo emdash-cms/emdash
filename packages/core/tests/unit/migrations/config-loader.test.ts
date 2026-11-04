@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DatabaseDescriptor } from "../../../src/db/adapters.js";
+import { resolveContentCreateLocale } from "../../../src/i18n/config.js";
 import {
 	buildMigrationManifestFromConfig,
 	findAstroConfigFile,
@@ -121,9 +122,11 @@ describe("buildMigrationManifestFromConfig", () => {
 		expect(manifest.i18n).toEqual({
 			defaultLocale: "en",
 			locales: ["en", "fr"],
+			localeAliases: { "fr-FR": "fr" },
 			fallback: { fr: "en" },
 			prefixDefaultLocale: true,
 		});
+		expect(resolveContentCreateLocale("fr-FR", manifest.i18n)).toBe("fr");
 		expect(manifest.database).toEqual({
 			type: "sqlite",
 			executorEntrypoint: "emdash/internal/db/sqlite-migrations",

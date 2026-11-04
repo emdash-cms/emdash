@@ -214,7 +214,7 @@ async function waitForTableToolbar(): Promise<HTMLElement> {
 	let toolbar: HTMLElement | null = null;
 	await vi.waitFor(
 		() => {
-			toolbar = document.querySelector('[role="group"][aria-label="Table controls"]');
+			toolbar = document.querySelector('[role="toolbar"][aria-label="Table controls"]');
 			expect(toolbar).toBeTruthy();
 		},
 		{ timeout: 3000 },
@@ -229,6 +229,18 @@ async function waitForTableToolbar(): Promise<HTMLElement> {
  */
 function getBubbleMenu(): HTMLElement | null {
 	return document.querySelector<HTMLElement>("[data-emdash-inline-bubble-menu]");
+}
+
+async function waitForImageToolbar(): Promise<HTMLElement> {
+	let toolbar: HTMLElement | null = null;
+	await vi.waitFor(
+		() => {
+			toolbar = document.querySelector<HTMLElement>("[data-emdash-image-bubble-menu]");
+			expect(toolbar).toBeTruthy();
+		},
+		{ timeout: 3000 },
+	);
+	return toolbar!;
 }
 
 /** Wait for bubble menu to appear */
@@ -363,12 +375,83 @@ describe("Bubble Menu", () => {
 		expect(menu).toBeTruthy();
 	});
 
-	it("rounds the scrollable positioning wrapper to preserve every menu corner", async () => {
+	it("is a toolbar whose buttons the arrow keys move between", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+		const menu = await waitForBubbleMenu();
+		const buttons = [...menu.querySelectorAll<HTMLButtonElement>("button:not([disabled])")].filter(
+			(button) => button.getClientRects().length > 0,
+		);
+		expect(menu.getAttribute("role")).toBe("toolbar");
+		expect(menu.getAttribute("aria-label")).toBe("Format selection");
+		expect(buttons.length).toBeGreaterThan(2);
+
+		buttons[0]!.focus();
+		await userEvent.keyboard("{ArrowRight}");
+		expect(document.activeElement).toBe(buttons[1]);
+		await userEvent.keyboard("{End}");
+		expect(document.activeElement).toBe(buttons.at(-1));
+		await userEvent.keyboard("{ArrowRight}");
+		expect(document.activeElement).toBe(buttons[0]);
+		await userEvent.keyboard("{ArrowLeft}");
+		expect(document.activeElement).toBe(buttons.at(-1));
+		await userEvent.keyboard("{Home}");
+		expect(document.activeElement).toBe(buttons[0]);
+	});
+
+	it("leaves the arrow keys to the link field inside it", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+		const menu = await waitForBubbleMenu();
+		getBubbleButton(menu, "Add link")!.click();
+		const input = await vi.waitFor(() => {
+			const field = getLinkInput(menu);
+			expect(field).toBeTruthy();
+			return field!;
+		});
+
+		input.focus();
+		await userEvent.keyboard("abc{ArrowLeft}{Home}");
+
+		expect(document.activeElement).toBe(input);
+		expect(input.selectionStart).toBe(0);
+	});
+
+	it("stays hidden for a selection of only the break between two blocks", async () => {
+		const { editor, pm } = await renderEditor({
+			value: [
+				...defaultValue,
+				{
+					_type: "block" as const,
+					_key: "2",
+					style: "normal" as const,
+					children: [{ _type: "span" as const, _key: "s2", text: "Second" }],
+				},
+			],
+		});
+		pm.focus();
+		const lineEnd = getTextPosition(editor, "Hello world") + "Hello world".length;
+
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({ from: lineEnd - 5, to: lineEnd + 2 })
+			.run();
+		await waitForBubbleMenu();
+
+		editor.commands.setTextSelection({ from: lineEnd, to: lineEnd + 2 });
+		await vi.waitFor(() => expect(getBubbleMenu()).toBeNull());
+	});
+
+	it("scrolls inside its own rounded surface, so no wrapper clips its corners", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);
 
 		const menu = await waitForBubbleMenu();
-		await vi.waitFor(() => expectRoundedFloatingWrapper(menu));
+		await vi.waitFor(() => {
+			expect(getComputedStyle(menu).overflowX).toBe("auto");
+			expect(findScrollableAncestor(menu)).toBeNull();
+		});
 	});
 
 	it("flips below a top-line selection when the sticky toolbar blocks the preferred position", async () => {
@@ -392,18 +475,20 @@ describe("Bubble Menu", () => {
 	});
 
 	it("stays above the selection when there is room below the sticky toolbar", async () => {
-		const value = ["First line", "Second line", "Third line"].map((text, index) => ({
-			_type: "block" as const,
-			_key: String(index),
-			style: "normal" as const,
-			children: [{ _type: "span" as const, _key: `span-${index}`, text }],
-		}));
+		const value = ["First line", "Second line", "Third line", "Fourth line", "Fifth line"].map(
+			(text, index) => ({
+				_type: "block" as const,
+				_key: String(index),
+				style: "normal" as const,
+				children: [{ _type: "span" as const, _key: `span-${index}`, text }],
+			}),
+		);
 		const { editor, pm } = await renderEditor({ value }, 58);
 		pm.focus();
 
 		let textPosition = 0;
 		editor.state.doc.descendants((node, position) => {
-			if (node.isText && node.text === "Third line") {
+			if (node.isText && node.text === "Fifth line") {
 				textPosition = position;
 				return false;
 			}
@@ -423,6 +508,111 @@ describe("Bubble Menu", () => {
 			const menuRect = menu.getBoundingClientRect();
 			expect(menuRect.bottom).toBeLessThanOrEqual(selectionRect.top);
 		});
+	});
+
+	it("flips below a selection that the editor's container scrolls under the sticky toolbar", async () => {
+		const value = Array.from({ length: 30 }, (_, index) => ({
+			_type: "block" as const,
+			_key: String(index),
+			style: "normal" as const,
+			children: [{ _type: "span" as const, _key: `span-${index}`, text: `Line ${index}` }],
+		}));
+		const { editor, pm } = await renderEditor({ value }, 1);
+		// The test build has no Tailwind utilities, so the toolbar and the menus' positioning
+		// root get their positions here.
+		const toolbar = document.querySelector<HTMLElement>(
+			'[role="toolbar"][aria-label="Text formatting"]',
+		)!;
+		toolbar.style.position = "sticky";
+		toolbar.style.top = "0px";
+		pm.closest<HTMLElement>("[data-emdash-editor-floating-root]")!.style.position = "relative";
+		pm.focus();
+		const scroller = pm.closest<HTMLElement>('[style*="overflow-y"]')!;
+		const start = getTextPosition(editor, "Line 20");
+		scroller.scrollTop +=
+			editor.view.coordsAtPos(start).top - scroller.getBoundingClientRect().top - 300;
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({ from: start, to: start + 7 })
+			.run();
+		const menu = await waitForBubbleMenu();
+		const selectionRect = () => window.getSelection()!.getRangeAt(0).getBoundingClientRect();
+		await vi.waitFor(() =>
+			expect(menu.getBoundingClientRect().bottom).toBeLessThanOrEqual(selectionRect().top),
+		);
+
+		scroller.scrollTop += selectionRect().top - toolbar.getBoundingClientRect().bottom - 8;
+
+		await vi.waitFor(() => {
+			const gap = menu.getBoundingClientRect().top - selectionRect().bottom;
+			expect(gap).toBeGreaterThanOrEqual(0);
+			expect(gap).toBeLessThan(24);
+		});
+	});
+
+	it("hides while its selection is under the sticky toolbar", async () => {
+		const value = Array.from({ length: 30 }, (_, index) => ({
+			_type: "block" as const,
+			_key: String(index),
+			style: "normal" as const,
+			children: [{ _type: "span" as const, _key: `span-${index}`, text: `Line ${index}` }],
+		}));
+		const { editor, pm } = await renderEditor({ value }, 1);
+		// The test build has no Tailwind utilities, so the toolbar and the menus' positioning
+		// root get their positions here.
+		const toolbar = document.querySelector<HTMLElement>(
+			'[role="toolbar"][aria-label="Text formatting"]',
+		)!;
+		toolbar.style.position = "sticky";
+		toolbar.style.top = "0px";
+		pm.closest<HTMLElement>("[data-emdash-editor-floating-root]")!.style.position = "relative";
+		pm.focus();
+		const start = getTextPosition(editor, "Line 20");
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({ from: start, to: start + 7 })
+			.run();
+		const menu = await waitForBubbleMenu();
+		const selectionRect = () => window.getSelection()!.getRangeAt(0).getBoundingClientRect();
+
+		const scroller = pm.closest<HTMLElement>('[style*="overflow-y"]')!;
+		scroller.scrollTop += selectionRect().bottom - toolbar.getBoundingClientRect().bottom + 4;
+
+		await vi.waitFor(() => expect(getComputedStyle(menu).visibility).toBe("hidden"));
+	});
+
+	it.each([
+		["end", "here".length],
+		["start", 0],
+	])("previews a link from a caret at its %s", async (_edge, offset) => {
+		const { editor, pm } = await renderEditor({
+			value: [
+				{
+					_type: "block" as const,
+					_key: "1",
+					style: "normal" as const,
+					children: [
+						{ _type: "span" as const, _key: "a", text: "See " },
+						{ _type: "span" as const, _key: "b", text: "here", marks: ["link1"] },
+						{ _type: "span" as const, _key: "c", text: " now" },
+					],
+					markDefs: [{ _type: "link", _key: "link1", href: "https://example.com" }],
+				},
+			],
+		});
+		pm.focus();
+
+		editor
+			.chain()
+			.focus()
+			.setTextSelection(getTextPosition(editor, "here") + offset)
+			.run();
+
+		await vi.waitFor(() =>
+			expect(document.querySelector("[data-emdash-link-bubble-menu]")).toBeTruthy(),
+		);
 	});
 
 	it("keeps table controls mounted, unclipped, and below obstructing sticky chrome", async () => {
@@ -581,9 +771,25 @@ describe("Bubble Menu", () => {
 		expect(getBubbleButton(menu, "Italic")).toBeTruthy();
 		expect(getBubbleButton(menu, "Underline")).toBeTruthy();
 		expect(getBubbleButton(menu, "Strikethrough")).toBeTruthy();
-		expect(getBubbleButton(menu, "Subscript")).toBeTruthy();
-		expect(getBubbleButton(menu, "Superscript")).toBeTruthy();
-		expect(getBubbleButton(menu, "Code")).toBeTruthy();
+		expect(getBubbleButton(menu, "Inline Code")).toBeTruthy();
+	});
+
+	it("keeps subscript and superscript in the More formatting menu", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		menu.querySelector<HTMLElement>('[aria-label="More formatting"]')!.click();
+		const subscript = await vi.waitFor(() => {
+			const item = document.querySelector<HTMLElement>('[role="menuitemcheckbox"]');
+			expect(item?.textContent).toContain("Subscript");
+			return item!;
+		});
+		expect(subscript).toHaveAttribute("aria-checked", "false");
+
+		subscript.click();
+
+		await vi.waitFor(() => expect(editor.isActive("subscript")).toBe(true));
 	});
 
 	it("shows Add link button", async () => {
@@ -666,7 +872,7 @@ describe("Bubble Menu", () => {
 		await focusAndSelectAll(editor, pm);
 
 		const menu = await waitForBubbleMenu();
-		const codeBtn = getBubbleButton(menu, "Code")!;
+		const codeBtn = getBubbleButton(menu, "Inline Code")!;
 
 		codeBtn.click();
 
@@ -697,7 +903,7 @@ describe("Bubble Menu", () => {
 		expect(input).toBeTruthy();
 	});
 
-	it("applies link URL when Apply button is clicked", async () => {
+	it("keeps text typed after an applied link outside the link", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);
 
@@ -732,6 +938,21 @@ describe("Bubble Menu", () => {
 			const link = pm.querySelector("a");
 			expect(link).toBeTruthy();
 			expect(link!.getAttribute("href")).toBe("https://example.com");
+		});
+
+		// ProseMirror only observes native caret moves via the async selectionchange
+		// event, and for 20ms after the editor refocuses it resets moves it has not
+		// observed yet. Back-to-back synthetic keys outrun both, so move the caret
+		// through the editor instead.
+		await vi.waitFor(() => expect(document.activeElement).toBe(pm));
+		const linkEnd = editor.state.selection.from;
+		editor.commands.setTextSelection(linkEnd - 1);
+		editor.commands.setTextSelection(linkEnd);
+		await userEvent.keyboard(" for more information");
+
+		await vi.waitFor(() => {
+			expect(pm.textContent).toBe("Hello world for more information");
+			expect(pm.querySelector("a")?.textContent).toBe("Hello world");
 		});
 	});
 
@@ -800,6 +1021,220 @@ describe("Bubble Menu", () => {
 		await vi.waitFor(() => {
 			expect(getBubbleButton(menu, "Remove link")).toBeTruthy();
 		});
+	});
+
+	it("focuses the URL field when a link is edited from its preview", async () => {
+		const linkValue = [
+			{
+				_type: "block" as const,
+				_key: "1",
+				style: "normal" as const,
+				children: [{ _type: "span" as const, _key: "s1", text: "Click here", marks: ["link1"] }],
+				markDefs: [{ _type: "link", _key: "link1", href: "https://example.com" }],
+			},
+		];
+		const { editor, pm } = await renderEditor({ value: linkValue });
+		pm.focus();
+		editor.commands.setTextSelection(3);
+		const preview = await vi.waitFor(() => {
+			const element = document.querySelector<HTMLElement>("[data-emdash-link-bubble-menu]");
+			expect(element && getBubbleButton(element, "Edit link")).toBeTruthy();
+			return element!;
+		});
+
+		getBubbleButton(preview, "Edit link")!.click();
+		await vi.waitFor(() => expect(document.activeElement).toBe(getLinkInput()));
+		await userEvent.keyboard("x");
+
+		expect(editor.getText()).toBe("Click here");
+	});
+
+	it("moves from the link to its actions with the arrow keys", async () => {
+		const { editor, pm } = await renderEditor({
+			value: [
+				{
+					_type: "block" as const,
+					_key: "1",
+					style: "normal" as const,
+					children: [{ _type: "span" as const, _key: "s1", text: "Click here", marks: ["link1"] }],
+					markDefs: [{ _type: "link", _key: "link1", href: "https://example.com" }],
+				},
+			],
+		});
+		pm.focus();
+		editor.commands.setTextSelection(3);
+		const preview = await vi.waitFor(() => {
+			const element = document.querySelector<HTMLElement>("[data-emdash-link-bubble-menu]");
+			expect(element && getBubbleButton(element, "Edit link")).toBeTruthy();
+			return element!;
+		});
+		expect(preview.getAttribute("role")).toBe("toolbar");
+
+		preview.querySelector<HTMLElement>("a[href]")!.focus();
+		await userEvent.keyboard("{ArrowRight}");
+
+		expect(document.activeElement).toBe(getBubbleButton(preview, "Edit link"));
+	});
+
+	it("keeps the caret and the link preview when a link is clicked", async () => {
+		const { editor } = await renderEditor({
+			value: [
+				{
+					_type: "block" as const,
+					_key: "1",
+					style: "normal" as const,
+					children: [{ _type: "span" as const, _key: "s1", text: "Click here", marks: ["link1"] }],
+					markDefs: [{ _type: "link", _key: "link1", href: "https://example.com" }],
+				},
+			],
+		});
+
+		// A press as long as a person's, so the caret lands before the button is released.
+		await userEvent.click(document.querySelector<HTMLElement>(".ProseMirror a")!, { delay: 120 });
+
+		await vi.waitFor(() =>
+			expect(document.querySelector("[data-emdash-link-bubble-menu]")).toBeTruthy(),
+		);
+		expect(editor.state.selection.empty).toBe(true);
+		expect(document.querySelector("[data-emdash-inline-bubble-menu]")?.checkVisibility()).not.toBe(
+			true,
+		);
+	});
+
+	it("shows a linked table cell's link preview instead of the table controls", async () => {
+		const { editor, pm } = await renderEditor({ value: tableValue });
+		await focusTableCell(editor, pm);
+		await waitForTableToolbar();
+		const start = getTextPosition(editor, "Header");
+		editor
+			.chain()
+			.setTextSelection({ from: start, to: start + 6 })
+			.setLink({ href: "https://example.com" })
+			.setTextSelection(start + 2)
+			.run();
+
+		await vi.waitFor(() => {
+			expect(document.querySelector("[data-emdash-link-bubble-menu]")).toBeVisible();
+			expect(document.querySelector('[aria-label="Table controls"]')).toBeNull();
+		});
+	});
+
+	it("keeps the table controls with the caret at the end of a cell's link", async () => {
+		const { editor, pm } = await renderEditor({ value: tableValue });
+		await focusTableCell(editor, pm);
+		await waitForTableToolbar();
+		const start = getTextPosition(editor, "Header");
+		editor
+			.chain()
+			.setTextSelection({ from: start, to: start + 6 })
+			.setLink({ href: "https://example.com" })
+			.run();
+
+		editor.commands.setTextSelection(start + 6);
+
+		await waitForTableToolbar();
+	});
+
+	const touchingLinks = [
+		{
+			_type: "block" as const,
+			_key: "1",
+			style: "normal" as const,
+			children: [
+				{ _type: "span" as const, _key: "a", text: "first", marks: ["link1"] },
+				{ _type: "span" as const, _key: "b", text: "second", marks: ["link2"] },
+			],
+			markDefs: [
+				{ _type: "link", _key: "link1", href: "https://a.example" },
+				{ _type: "link", _key: "link2", href: "https://b.example" },
+			],
+		},
+	];
+
+	function linkTargets(editor: Editor) {
+		const links: string[] = [];
+		editor.state.doc.descendants((node) => {
+			const link = node.marks.find((mark) => mark.type.name === "link");
+			if (node.isText) links.push(`${node.text}:${link?.attrs.href ?? ""}`);
+		});
+		return links;
+	}
+
+	async function waitForLinkPreview() {
+		let preview: HTMLElement | null = null;
+		await vi.waitFor(() => {
+			preview = document.querySelector<HTMLElement>("[data-emdash-link-bubble-menu]");
+			expect(preview).toBeTruthy();
+		});
+		return preview!;
+	}
+
+	it.each([
+		["inside it", 3],
+		["between the two", 0],
+	])("removes only the second of two touching links from a caret %s", async (_where, offset) => {
+		const { editor, pm } = await renderEditor({ value: touchingLinks });
+		pm.focus();
+		editor
+			.chain()
+			.focus()
+			.setTextSelection(getTextPosition(editor, "second") + offset)
+			.run();
+		const preview = await waitForLinkPreview();
+		expect(preview.textContent).toContain("b.example");
+
+		getBubbleButton(preview, "Remove link")!.click();
+
+		await vi.waitFor(() =>
+			expect(linkTargets(editor)).toEqual(["first:https://a.example", "second:"]),
+		);
+	});
+
+	it("edits one of two touching links without merging them", async () => {
+		const { editor, pm } = await renderEditor({ value: touchingLinks });
+		pm.focus();
+		editor
+			.chain()
+			.focus()
+			.setTextSelection(getTextPosition(editor, "second") + 3)
+			.run();
+		getBubbleButton(await waitForLinkPreview(), "Edit link")!.click();
+		await vi.waitFor(() => expect(document.activeElement).toBe(getLinkInput()));
+
+		setInputValue(getLinkInput()!, "https://c.example");
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() =>
+			expect(linkTargets(editor)).toEqual(["first:https://a.example", "second:https://c.example"]),
+		);
+	});
+
+	it("hides the link preview while typing at the link's edge", async () => {
+		const { editor, pm } = await renderEditor({
+			value: [
+				{
+					_type: "block" as const,
+					_key: "1",
+					style: "normal" as const,
+					children: [
+						{ _type: "span" as const, _key: "a", text: "See " },
+						{ _type: "span" as const, _key: "b", text: "docs", marks: ["link1"] },
+					],
+					markDefs: [{ _type: "link", _key: "link1", href: "https://example.com" }],
+				},
+			],
+		});
+		pm.focus();
+		editor.chain().focus().setTextSelection(getTextPosition(editor, "docs")).run();
+		await vi.waitFor(() =>
+			expect(document.querySelector("[data-emdash-link-bubble-menu]")).toBeTruthy(),
+		);
+
+		await userEvent.keyboard("x");
+
+		await vi.waitFor(() =>
+			expect(document.querySelector("[data-emdash-link-bubble-menu]")).toBeNull(),
+		);
 	});
 
 	it("removes link when Remove link button is clicked", async () => {
@@ -957,27 +1392,25 @@ describe("Bubble Menu", () => {
 });
 
 // =============================================================================
-// Bubble Menu on a selected image
+// Image toolbar links
 // =============================================================================
 
-describe("Bubble Menu on a selected image", () => {
-	it("appears for an image selection and shows only the link control", async () => {
+describe("Image toolbar links", () => {
+	it("does not show the text formatting bubble for a selected image", async () => {
 		const { editor, pm } = await renderEditor();
 		await insertAndSelectImage(editor, pm);
 
-		const menu = await waitForBubbleMenu();
-		expect(getBubbleButton(menu, "Add link")).toBeTruthy();
-		// Text marks are meaningless on an image and must not be offered.
-		expect(getBubbleButton(menu, "Bold")).toBeNull();
-		expect(getBubbleButton(menu, "Italic")).toBeNull();
-		expect(getBubbleButton(menu, "Code")).toBeNull();
+		await waitForImageToolbar();
+		// Past the text bubble's 250 ms show delay.
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		expect(getBubbleMenu()).toBeNull();
 	});
 
 	it("applies a link to the selected image", async () => {
 		const { editor, pm } = await renderEditor();
 		await insertAndSelectImage(editor, pm);
 
-		const menu = await waitForBubbleMenu();
+		const menu = await waitForImageToolbar();
 		getBubbleButton(menu, "Add link")!.click();
 		await vi.waitFor(() => {
 			expect(getLinkInput(menu)).toBeTruthy();
@@ -995,7 +1428,7 @@ describe("Bubble Menu on a selected image", () => {
 		const { editor, pm } = await renderEditor();
 		await insertAndSelectImage(editor, pm, { href: "/old", blank: true });
 
-		const menu = await waitForBubbleMenu();
+		const menu = await waitForImageToolbar();
 		expect(getBubbleButton(menu, "Edit link")).toBeTruthy();
 		getBubbleButton(menu, "Edit link")!.click();
 		await vi.waitFor(() => {
@@ -1016,7 +1449,7 @@ describe("Bubble Menu on a selected image", () => {
 		const { editor, pm } = await renderEditor();
 		await insertAndSelectImage(editor, pm, { href: "https://example.com/promo" });
 
-		const menu = await waitForBubbleMenu();
+		const menu = await waitForImageToolbar();
 		getBubbleButton(menu, "Edit link")!.click();
 		await vi.waitFor(() => {
 			expect(getBubbleButton(menu, "Remove link")).toBeTruthy();

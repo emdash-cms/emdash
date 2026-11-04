@@ -1,6 +1,6 @@
 /**
- * An origin can hold an enabled redirect loop (enabling a redirect does not
- * run the loop check). A package with more redirects than analysis checks
+ * An origin can hold an enabled redirect loop created before the database
+ * rejected enabling a loop closer. A package with more redirects than analysis checks
  * for loops still imports: the importer writes a redirect that would close
  * a loop disabled, and verification expects it that way.
  */
@@ -70,6 +70,11 @@ describeEachDialect("importing redirect loops past the analysis limit", (dialect
 				redirect(second!, "/loop-b", "/loop-a", false),
 			])
 			.execute();
+		await (
+			dialect === "postgres"
+				? sql`DROP TRIGGER emdash_redirect_loop_enable ON _emdash_redirects`
+				: sql`DROP TRIGGER emdash_redirect_loop_enable`
+		).execute(source.db);
 		await source.db
 			.updateTable("_emdash_redirects")
 			.set({ enabled: 1 })

@@ -21,6 +21,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { QueryRecorder } from "./database/instrumentation.js";
 import type { DeferredTaskTracker } from "./deferred-tasks.js";
+import type { SiteSettings } from "./settings/types.js";
 
 /**
  * Lightweight always-on counters surfaced in Server-Timing.
@@ -73,6 +74,13 @@ export interface EmDashRequestContext {
 	 * eventually-consistent object-cache snapshot.
 	 */
 	routeCacheFill?: boolean;
+	/** Shares verified settings with components that render after cache headers are sent. @internal */
+	siteSettings?: {
+		snapshot?: { data: Partial<SiteSettings>; version: string };
+		version?: string;
+		live?: boolean;
+		onRead: (version: string) => void;
+	};
 	/** Preview token info, if this is a preview request */
 	preview?: {
 		collection: string;
@@ -100,7 +108,7 @@ export interface EmDashRequestContext {
 	 */
 	dbIsIsolated?: boolean;
 	/**
-	 * Query recorder attached by middleware when EMDASH_QUERY_LOG_FILE is set.
+	 * Query recorder attached by middleware when EMDASH_QUERY_LOG=1 is set.
 	 * The Kysely `log` hook appends an event per query; middleware flushes
 	 * to NDJSON after the response.
 	 */

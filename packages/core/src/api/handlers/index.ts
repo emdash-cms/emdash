@@ -147,9 +147,11 @@ export {
 // SEO handlers
 export {
 	handleSitemapData,
+	handleSitemapIndexData,
 	type SitemapCollectionData,
 	type SitemapContentEntry,
 	type SitemapDataResponse,
+	type SitemapIndexEntry,
 } from "./seo.js";
 
 // Plugin handlers

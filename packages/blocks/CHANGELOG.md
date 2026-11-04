@@ -1,5 +1,33 @@
 # @emdash-cms/blocks
 
+## 1.4.0
+
+### Patch Changes
+
+- [#4183](https://github.com/emdash-cms/emdash/pull/4183) [`190022c`](https://github.com/emdash-cms/emdash/commit/190022cbd71a20d06c856cf5673acb0b2d2d9f1f) Thanks [@masonjames](https://github.com/masonjames)! - Fixes nested HTML forms in the content editor by rendering Block Kit form blocks as groups of fields instead of native `<form>` elements. This also applies to form blocks on plugin pages.
+
+## 1.3.1
+
+### Patch Changes
+
+- [#4219](https://github.com/emdash-cms/emdash/pull/4219) [`9e74ea3`](https://github.com/emdash-cms/emdash/commit/9e74ea36b88509ba3e6b61f718aabe4dda26784a) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes Block Kit button confirmation dialogs displaying content flush against the edges, matching the padding and small size of admin confirmation dialogs.
+
+## 1.3.0
+
+No changes in this release.
+
+## 1.2.0
+
+No changes in this release.
+
+## 1.1.0
+
+### Patch Changes
+
+- [#3675](https://github.com/emdash-cms/emdash/pull/3675) [`85ab50c`](https://github.com/emdash-cms/emdash/commit/85ab50c60e325b564b427d2d7ffde7e903c2dbf7) Thanks [@masonjames](https://github.com/masonjames)! - Fixes a Block Kit form in a plugin's content editor panel reloading the editor when submitted, instead of sending its values to the plugin.
+
+- [#3673](https://github.com/emdash-cms/emdash/pull/3673) [`3a00448`](https://github.com/emdash-cms/emdash/commit/3a00448c05604eab26c4ad2b851d33b2de8bc605) Thanks [@masonjames](https://github.com/masonjames)! - Fixes Block Kit `select` elements showing the selected option's value instead of its label, so a plugin page, form or editor panel that offers `{ value: "eip155:84532", label: "Base Sepolia" }` now displays "Base Sepolia". The value sent to the plugin is unchanged.
+
 ## 1.0.1
 
 ### Patch Changes

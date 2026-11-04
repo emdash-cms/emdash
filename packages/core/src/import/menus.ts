@@ -10,6 +10,7 @@ import { ulid } from "ulidx";
 import type { WxrNavMenu, WxrNavMenuItem } from "../cli/wxr/parser.js";
 import type { Database } from "../database/types.js";
 import type { MenuItemType } from "../menus/types.js";
+import { invalidateMenuObjectCache } from "../object-cache/index.js";
 
 /**
  * Result of menu import operation
@@ -107,6 +108,7 @@ export async function importMenusFromWxr(
 		}
 	}
 
+	if (result.menusCreated > 0) invalidateMenuObjectCache();
 	return result;
 }
 
@@ -169,6 +171,7 @@ export async function importMenusFromPlugin(
 		}
 	}
 
+	if (result.menusCreated > 0) invalidateMenuObjectCache();
 	return result;
 }
 

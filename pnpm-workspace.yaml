@@ -15,6 +15,9 @@ blockExoticSubdeps: true
 verifyStoreIntegrity: true
 strictStorePkgContentCheck: true
 verifyDepsBeforeRun: error
+# Lockfile changes re-verify full metadata for every package; the largest
+# documents (about 12 MB) can exceed pnpm's default 60s timeout on CI runners.
+fetchTimeout: 300000
 # Worker bundles resolve browser-native packages to their WASM targets.
 supportedArchitectures:
   cpu:
@@ -74,7 +77,7 @@ catalog:
   "@astrojs/check": ^0.9.10
   "@astrojs/cloudflare": ^14.3.1
   "@astrojs/node": ^11.1.5
-  "@astrojs/react": ^6.0.5
+  "@astrojs/react": ^7.0.0
   "@atcute/atproto": ^4.0.2
   "@atcute/car": ^6.0.0
   "@atcute/cbor": ^2.3.3
@@ -100,11 +103,20 @@ catalog:
   # consumer resolve a Kumo whose component classes are absent from that
   # prebuilt CSS, rendering controls invisible. Keep build-time and runtime
   # Kumo identical: bump this version deliberately and rebuild admin.
-  "@cloudflare/kumo": 2.6.0
+  "@cloudflare/kumo": 2.15.0
   "@cloudflare/vite-plugin": ^1.36.3
   "@cloudflare/vitest-plugin": ^1.0.0
   "@cloudflare/workers-types": ^5.20260820.1
+  "@codemirror/autocomplete": ^6.20.3
+  "@codemirror/commands": ^6.10.4
+  "@codemirror/lang-css": ^6.3.1
+  "@codemirror/lang-html": ^6.4.12
+  "@codemirror/lang-javascript": ^6.2.5
+  "@codemirror/language": ^6.12.4
+  "@codemirror/state": ^6.7.1
+  "@codemirror/view": ^6.43.8
   "@iconify-json/ph": ^1.2.2
+  "@lezer/highlight": ^1.2.3
   "@lingui/babel-plugin-lingui-macro": ^5.9.4
   "@lingui/cli": ^5.9.4
   "@lingui/conf": ^5.9.4
@@ -161,6 +173,7 @@ catalog:
   image-size: 2.0.2
   jsonc-parser: ^3.3.1
   kysely: ^0.29.0
+  lightningcss: ^1.33.0
   lowlight: ^3.3.0
   publint: 0.3.17
   react: 19.2.4
@@ -169,9 +182,9 @@ catalog:
   semver: ^7.6.3
   tsdown: 0.20.3
   typescript: ^6.0.3
-  vite: ^8.0.11
+  vite: ^8.3.0
   vitest: 4.1.10
   wrangler: ^4.125.0
   "y-protocols": ^1.0.7
   yjs: ^13.6.0
-  zod: 4.5.4
+  zod: 4.6.7

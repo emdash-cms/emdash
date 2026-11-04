@@ -7,6 +7,7 @@ import {
 	fetchMediaItem,
 	type LocalMediaItem,
 	type MediaItem,
+	type MediaUpdateInput,
 } from "../../lib/api.js";
 import { useCurrentUser } from "../../lib/api/current-user.js";
 import { localMediaFileUrl } from "../../lib/media-utils.js";
@@ -24,7 +25,9 @@ const EMPTY_ITEM: MediaItem = {
 	provider: "content-placeholder",
 };
 
-export function useMediaAssetEditor(onItemChanged: (item: LocalMediaItem) => void) {
+export function useMediaAssetEditor(
+	onItemChanged: (item: LocalMediaItem, metadataChanges?: MediaUpdateInput) => void,
+) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const currentUserQuery = useCurrentUser();
@@ -87,10 +90,10 @@ export function useMediaAssetEditor(onItemChanged: (item: LocalMediaItem) => voi
 		}
 	};
 
-	const handleItemChanged = (nextItem: LocalMediaItem) => {
+	const handleItemChanged = (nextItem: LocalMediaItem, metadataChanges?: MediaUpdateInput) => {
 		setItem(nextItem);
 		queryClient.setQueryData(["media", nextItem.id], nextItem);
-		onItemChanged(nextItem);
+		onItemChanged(nextItem, metadataChanges);
 	};
 
 	const dialog = (

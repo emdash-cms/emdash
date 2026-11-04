@@ -9,10 +9,12 @@
  */
 
 import type { APIContext } from "astro";
-import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { sql, type Kysely } from "kysely";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { SITEMAP_PAGE_SIZE } from "../../../src/api/handlers/seo.js";
 import { GET as getSitemap } from "../../../src/astro/routes/sitemap-[collection].xml.js";
+import { GET as getSitemapIndex } from "../../../src/astro/routes/sitemap.xml.js";
 import { createDatabase } from "../../../src/database/connection.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
@@ -20,6 +22,7 @@ import type { Database } from "../../../src/database/types.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import { _resetAstroI18nCacheForTests } from "../../../src/i18n/resolve.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { setSiteSettings } from "../../../src/settings/index.js";
 
 interface MockContextOpts {
 	collectionSlug: string | undefined;
@@ -65,6 +68,7 @@ describe("sitemap-[collection].xml route", () => {
 	afterEach(async () => {
 		setI18nConfig(null);
 		_resetAstroI18nCacheForTests();
+		vi.unstubAllEnvs();
 		await db.destroy();
 	});
 
@@ -73,9 +77,94 @@ describe("sitemap-[collection].xml route", () => {
 		expect(res.status).toBe(500);
 	});
 
+	// 64 is one past the collection slug cap; 129 is past validateIdentifier's cap.
+	const invalidSlugs = ["0", "1a", "Post", "_post", "po.st", "a".repeat(64), "a".repeat(129)];
+
+	it("still returns a 500 without a runtime for a valid 63-character slug", async () => {
+		const res = await getSitemap(mockContext({ collectionSlug: "a".repeat(63), db: null }));
+		expect(res.status).toBe(500);
+	});
+
+	it.each(invalidSlugs)(
+		"returns a 404 for %s without a runtime, since it cannot be a collection slug",
+		async (collectionSlug) => {
+			const res = await getSitemap(mockContext({ collectionSlug, db: null }));
+			expect(res.status).toBe(404);
+		},
+	);
+
+	it.each(invalidSlugs)("returns a 404 for %s with a runtime", async (collectionSlug) => {
+		const res = await getSitemap(mockContext({ collectionSlug, db }));
+		expect(res.status).toBe(404);
+	});
+
 	it("returns a 404 when the collection has no published content", async () => {
 		const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
 		expect(res.status).toBe(404);
+	});
+
+	it.each(["/field-notes", "/field-notes/"])(
+		"prefixes index, content, and hreflang URLs with Astro base %s",
+		async (base) => {
+			vi.stubEnv("BASE_URL", base);
+			setI18nConfig({
+				defaultLocale: "en",
+				locales: ["en", "fr"],
+				prefixDefaultLocale: false,
+			});
+			const en = await repo.create({
+				type: "post",
+				slug: "hello",
+				data: { title: "Hello" },
+				status: "published",
+				locale: "en",
+			});
+			await repo.create({
+				type: "post",
+				slug: "bonjour",
+				data: { title: "Bonjour" },
+				status: "published",
+				locale: "fr",
+				translationOf: en.id,
+			});
+
+			const index = await (
+				await getSitemapIndex(mockContext({ collectionSlug: undefined, db }))
+			).text();
+			expect(index).toContain("<loc>http://localhost:4321/field-notes/sitemap-post.xml</loc>");
+
+			const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
+			expect(res.status).toBe(200);
+			const xml = await res.text();
+			expect(xml).toContain("<loc>http://localhost:4321/field-notes/blog/hello</loc>");
+			expect(xml).toContain("<loc>http://localhost:4321/field-notes/fr/blog/bonjour</loc>");
+			expect(xml).toContain(
+				'<xhtml:link rel="alternate" hreflang="en" href="http://localhost:4321/field-notes/blog/hello" />',
+			);
+			expect(xml).toContain(
+				'<xhtml:link rel="alternate" hreflang="fr" href="http://localhost:4321/field-notes/fr/blog/bonjour" />',
+			);
+			expect(xml).toContain(
+				'<xhtml:link rel="alternate" hreflang="x-default" href="http://localhost:4321/field-notes/blog/hello" />',
+			);
+		},
+	);
+
+	it("does not duplicate the base when the stored site URL already contains it", async () => {
+		vi.stubEnv("BASE_URL", "/field-notes");
+		await setSiteSettings({ url: "https://example.com/field-notes" }, db);
+		await repo.create({
+			type: "post",
+			slug: "hello",
+			data: { title: "Hello" },
+			status: "published",
+		});
+
+		const index = await (
+			await getSitemapIndex(mockContext({ collectionSlug: undefined, db }))
+		).text();
+		expect(index).toContain("<loc>https://example.com/field-notes/sitemap-post.xml</loc>");
+		expect(index).not.toContain("/field-notes/field-notes/");
 	});
 
 	it("does not advertise non-routable collections", async () => {
@@ -176,6 +265,81 @@ describe("sitemap-[collection].xml route", () => {
 			"<image:loc>http://localhost:4321/_emdash/api/media/file/01ABCDEF.webp</image:loc>",
 		);
 	});
+
+	it.each([
+		["01ABCDEF.webp", "https://example.com/_emdash/api/media/file/01ABCDEF.webp"],
+		[
+			"/_emdash/api/media/file/01ABCDEF.webp",
+			"https://example.com/_emdash/api/media/file/01ABCDEF.webp",
+		],
+		["/uploads/photo.webp", "https://example.com/uploads/photo.webp"],
+		["https://cdn.example.com/photo.webp", "https://cdn.example.com/photo.webp"],
+	])("keeps image %s independent of the public page base", async (image, expected) => {
+		vi.stubEnv("BASE_URL", "/field-notes/");
+		await setSiteSettings({ url: "https://example.com/field-notes/" }, db);
+		const post = await repo.create({
+			type: "post",
+			slug: "hello",
+			data: { title: "Hello" },
+			status: "published",
+		});
+		await db
+			.insertInto("_emdash_seo")
+			.values({
+				collection: "post",
+				content_id: post.id,
+				seo_image: image,
+				seo_no_index: 0,
+			})
+			.execute();
+		const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
+		expect(res.status).toBe(200);
+		const xml = await res.text();
+		expect(xml).toContain("<loc>https://example.com/field-notes/blog/hello</loc>");
+		expect(xml).toContain(`<image:loc>${expected}</image:loc>`);
+	});
+
+	it.each([
+		["/", "https://example.com/legacy/", "https://example.com/legacy/blog/hello"],
+		[
+			"/field-notes/",
+			"https://example.com/legacy",
+			"https://example.com/legacy/field-notes/blog/hello",
+		],
+		[
+			"/field-notes",
+			"https://example.com/legacy/field-notes/",
+			"https://example.com/legacy/field-notes/blog/hello",
+		],
+	])(
+		"preserves the stored media path with base %s and site URL %s",
+		async (base, storedUrl, pageUrl) => {
+			vi.stubEnv("BASE_URL", base);
+			await setSiteSettings({ url: storedUrl }, db);
+			const post = await repo.create({
+				type: "post",
+				slug: "hello",
+				data: { title: "Hello" },
+				status: "published",
+			});
+			await db
+				.insertInto("_emdash_seo")
+				.values({
+					collection: "post",
+					content_id: post.id,
+					seo_image: "01ABCDEF.webp",
+					seo_no_index: 0,
+				})
+				.execute();
+			const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
+			expect(res.status).toBe(200);
+			const xml = await res.text();
+			expect(xml).toContain(`<loc>${pageUrl}</loc>`);
+			expect(xml).toContain(
+				"<image:loc>https://example.com/legacy/_emdash/api/media/file/01ABCDEF.webp</image:loc>",
+			);
+		},
+	);
 
 	it("omits <image:image> for rows without an SEO image", async () => {
 		setI18nConfig(null);
@@ -387,5 +551,82 @@ describe("sitemap-[collection].xml route", () => {
 		expect(xml).toContain(
 			'<xhtml:link rel="alternate" hreflang="x-default" href="http://localhost:4321/blog/hello" />',
 		);
+	});
+
+	describe("pagination", () => {
+		/** Published rows whose IDs sort before any ULID, so they fill page 1 first. */
+		async function insertFiller(count: number) {
+			const rows = Array.from({ length: count }, (_, i) => `000000${String(i).padStart(6, "0")}`);
+			for (let i = 0; i < rows.length; i += 200) {
+				const values = rows
+					.slice(i, i + 200)
+					.map((id) => sql`(${id}, ${`filler-${id}`}, 'published', 'en', ${id})`);
+				await sql`
+					INSERT INTO ec_post (id, slug, status, locale, translation_group)
+					VALUES ${sql.join(values)}
+				`.execute(db);
+			}
+		}
+
+		it("rejects an explicit first-page suffix and malformed names", async () => {
+			await repo.create({ type: "post", slug: "hello", data: {}, status: "published" });
+
+			for (const param of ["post-1", "post-02", "post-", "post-x", "post-1000000"]) {
+				const res = await getSitemap(mockContext({ collectionSlug: param, db }));
+				expect(res.status, param).toBe(404);
+			}
+		});
+
+		it("continues on the next page and keeps cross-page hreflang alternates", async () => {
+			setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"], prefixDefaultLocale: false });
+			await insertFiller(SITEMAP_PAGE_SIZE - 1);
+			const en = await repo.create({
+				type: "post",
+				slug: "hello",
+				data: {},
+				status: "published",
+				locale: "en",
+			});
+			const fr = await repo.create({
+				type: "post",
+				slug: "bonjour",
+				data: {},
+				status: "published",
+				locale: "fr",
+				translationOf: en.id,
+			});
+			const enLoc = "http://localhost:4321/blog/hello";
+			const frLoc = "http://localhost:4321/fr/blog/bonjour";
+			const [firstLoc, secondLoc] = en.id < fr.id ? [enLoc, frLoc] : [frLoc, enLoc];
+
+			const first = await (await getSitemap(mockContext({ collectionSlug: "post", db }))).text();
+			const secondRes = await getSitemap(mockContext({ collectionSlug: "post-2", db }));
+			expect(secondRes.status).toBe(200);
+			const second = await secondRes.text();
+
+			expect(first.match(/<url>/g)).toHaveLength(SITEMAP_PAGE_SIZE);
+			expect(first).toContain(`<loc>${firstLoc}</loc>`);
+			expect(first).not.toContain(`<loc>${secondLoc}</loc>`);
+			expect(second.match(/<url>/g)).toHaveLength(1);
+			expect(second).toContain(`<loc>${secondLoc}</loc>`);
+
+			for (const xml of [first, second]) {
+				expect(xml).toContain(`<xhtml:link rel="alternate" hreflang="en" href="${enLoc}" />`);
+				expect(xml).toContain(`<xhtml:link rel="alternate" hreflang="fr" href="${frLoc}" />`);
+				expect(xml).toContain(
+					`<xhtml:link rel="alternate" hreflang="x-default" href="${enLoc}" />`,
+				);
+			}
+
+			const third = await getSitemap(mockContext({ collectionSlug: "post-3", db }));
+			expect(third.status).toBe(404);
+
+			const index = await (
+				await getSitemapIndex(mockContext({ collectionSlug: undefined, db }))
+			).text();
+			expect(index).toContain("<loc>http://localhost:4321/sitemap-post.xml</loc>");
+			expect(index).toContain("<loc>http://localhost:4321/sitemap-post-2.xml</loc>");
+			expect(index).not.toContain("sitemap-post-3.xml");
+		});
 	});
 });

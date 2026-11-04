@@ -18,7 +18,9 @@ const INVITATION_KEY = "invitation";
 
 export class ContributorInvitation extends DurableObject<Env> {
 	async invite(input: InviteInput): Promise<InviteResult> {
-		const linked = await this.env.KV.get(`github:${input.githubId}`);
+		const linked = await this.env.CONTRIBUTOR_LINKS.getByName("global").getByGitHubId(
+			input.githubId,
+		);
 		if (linked) return { invited: false };
 
 		const record: InvitationRecord = {

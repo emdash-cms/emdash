@@ -1,0 +1,105 @@
+---
+/**
+ * Rendered in place (via `Astro.rewrite`) when a plugin or publisher page
+ * can't reach the registry, so the visitor keeps the URL they asked for and
+ * "Try again" reloads it.
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const TRAILING_SLASHES = /\/+$/;
+const withoutSlash = (path: string) =>
+	path.replace(TRAILING_SLASHES, "") || "/";
+const retryHref = withoutSlash(Astro.originPathname);
+if (retryHref === withoutSlash(Astro.url.pathname))
+	return Astro.rewrite("/404");
+
+Astro.response.status = 503;
+Astro.response.headers.set("Retry-After", "30");
+---
+
+<BaseLayout
+	title="Registry unavailable"
+	description="The EmDash plugin registry is temporarily unavailable."
+	canonical={retryHref}
+	noindex
+>
+	<section
+		class="unavailable page-head shell"
+		aria-labelledby="unavailable-title"
+	>
+		<span class="unavailable-icon" aria-hidden="true">
+			<svg viewBox="0 0 24 24" focusable="false">
+				<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"></path>
+				<path d="M19.5 4.5v4h-4"></path>
+			</svg>
+		</span>
+		<h1 id="unavailable-title" class="h-page">
+			The registry is taking a moment
+		</h1>
+		<p class="lead unavailable-lead">
+			Try again shortly. Plugins already installed on your site keep working.
+		</p>
+		<div class="unavailable-actions">
+			<a class="btn btn-primary btn-lg" href={retryHref}>Try again</a>
+			<a class="btn btn-secondary btn-lg" href="/">Back to home</a>
+		</div>
+	</section>
+</BaseLayout>
+
+<style>
+	.unavailable {
+		display: flex;
+		min-height: 60vh;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	.unavailable-icon {
+		display: grid;
+		place-items: center;
+		width: 3.5rem;
+		height: 3.5rem;
+		margin-bottom: 1.5rem;
+		color: var(--ink);
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-card);
+	}
+
+	.unavailable-icon svg {
+		width: 1.5rem;
+		height: 1.5rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.6;
+	}
+
+	.unavailable .h-page {
+		max-width: 16ch;
+	}
+
+	.unavailable-lead {
+		max-width: 30rem;
+		margin-block-start: 1rem;
+	}
+
+	.unavailable-actions {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 0.75rem;
+		margin-block-start: 2rem;
+	}
+
+	@media (max-width: 479.98px) {
+		.unavailable-actions {
+			width: 100%;
+			flex-direction: column;
+		}
+	}
+</style>

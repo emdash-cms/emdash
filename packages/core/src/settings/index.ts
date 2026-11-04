@@ -16,6 +16,7 @@ import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, invalidateObjectCache } from "../object-cache/index.js";
+import { isRecord } from "../plugin-utils.js";
 import {
 	PluginSettingEncryptionError,
 	decryptPluginSetting,
@@ -23,6 +24,9 @@ import {
 } from "../plugins/settings.js";
 import type { CacheHint } from "../query.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
+import { getRequestContext } from "../request-context.js";
+import { bumpRunningExportWriteEpochs } from "../transfer/fence.js";
+import { isMissingTableError } from "../utils/db-errors.js";
 
 /** Object-cache namespace for site settings. */
 const SETTINGS_CACHE_NAMESPACE = "settings";
@@ -40,9 +44,13 @@ import type {
 	SiteSettingsUpdate,
 	SiteSettingKey,
 } from "./types.js";
+import { normalizeSiteSettingsVersion } from "./version.js";
 
 /** Prefix for site settings in the options table */
 const SETTINGS_PREFIX = "site:";
+
+/** Settings stored as one object whose fields are updated individually. */
+const NESTED_SETTING_KEYS = new Set(["seo", "social"]);
 
 function isPluginSettingEnvelopeRecord(value: unknown): value is Record<string, unknown> {
 	return (
@@ -76,10 +84,8 @@ async function decodePersistedPluginSetting(
  * Worker-isolate cache for the resolved `site:*` settings.
  *
  * Site settings (title, logo, SEO defaults) change rarely but are read on
- * every public request. Caching across the isolate's lifetime drops the
- * `options WHERE name LIKE 'site:%'` prefix scan from once-per-request to
- * once-per-isolate. Cross-isolate staleness is bounded by isolate lifetime
- * (workerd typically recycles within minutes); acceptable for chrome.
+ * every public request. Revalidate warm snapshots after 30 seconds in the
+ * background, retaining the last good value if the reload fails.
  *
  * Backed by single-flight-cache.ts: concurrent cold reads coalesce onto one
  * query via a reclaimable single-flight lock and the resolved *value* is
@@ -88,26 +94,60 @@ async function decodePersistedPluginSetting(
  * Symbol.for key so Vite SSR chunk duplication doesn't produce two
  * independent caches (same pattern as request-context.ts).
  */
-const SITE_SETTINGS_CACHE_KEY = Symbol.for("emdash:site-settings");
+interface CachedSiteSettings {
+	data: Partial<SiteSettings>;
+	version: string;
+}
+
+interface SiteSettingsCache {
+	snapshot: CachedSiteSettings | null;
+	expiresAt: number;
+	generation: number;
+	revalidatingUntil: number;
+	refresh: SingleFlightCache<CachedSiteSettings>;
+}
+
+const SITE_SETTINGS_CACHE_TTL_MS = 30_000;
+const SITE_SETTINGS_CACHE_KEY = Symbol.for("emdash:site-settings:swr");
 const g = globalThis as Record<symbol, unknown>;
-const settingsCache: SingleFlightCache<Partial<SiteSettings>> =
+const settingsCache: SiteSettingsCache =
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
-	(g[SITE_SETTINGS_CACHE_KEY] as SingleFlightCache<Partial<SiteSettings>> | undefined) ??
+	(g[SITE_SETTINGS_CACHE_KEY] as SiteSettingsCache | undefined) ??
 	(() => {
-		const c = createSingleFlightCache<Partial<SiteSettings>>();
+		const c: SiteSettingsCache = {
+			snapshot: null,
+			expiresAt: 0,
+			generation: 0,
+			revalidatingUntil: 0,
+			refresh: createSingleFlightCache<CachedSiteSettings>(),
+		};
 		g[SITE_SETTINGS_CACHE_KEY] = c;
 		return c;
 	})();
+
+/** Capture the resolved snapshot before route-cache headers are finalized. @internal */
+export function peekSiteSettingsSnapshot(): CachedSiteSettings | null {
+	return settingsCache.snapshot;
+}
+
+/** Discard a snapshot found stale by the route-cache freshness check. @internal */
+export function invalidateSiteSettingsSnapshot(): void {
+	settingsCache.generation++;
+	settingsCache.snapshot = null;
+	settingsCache.expiresAt = 0;
+	settingsCache.revalidatingUntil = 0;
+	invalidateSingleFlightCache(settingsCache.refresh);
+}
 
 /**
  * Bump the isolate-wide site-settings cache version, forcing the next
  * `getSiteSettings()` to re-query the database.
  *
  * Called from every `site:*` write path. Other isolates still serve their
- * own cached copy until they expire — staleness bounded by isolate lifetime.
+ * own cached copy while a background refresh picks up remote writes.
  */
 export function invalidateSiteSettingsCache(): void {
-	invalidateSingleFlightCache(settingsCache);
+	invalidateSiteSettingsSnapshot();
 	// Cross-isolate invalidation for the optional distributed object cache.
 	invalidateObjectCache(SETTINGS_CACHE_NAMESPACE);
 }
@@ -241,6 +281,58 @@ export async function getSiteSettingWithDb<K extends SiteSettingKey>(
 	return value;
 }
 
+function refreshSiteSettings(): Promise<CachedSiteSettings> {
+	return singleFlightCached(
+		settingsCache.refresh,
+		() =>
+			cachedQuery({
+				namespace: SETTINGS_CACHE_NAMESPACE,
+				key: "snapshot-v1",
+				load: async () => loadSiteSettingsSnapshot(await getDb()),
+			}),
+		{ anchor: (promise) => after(() => promise), ownerTimeoutMs: 30_000 },
+	);
+}
+
+function installSiteSettings(snapshot: CachedSiteSettings): void {
+	settingsCache.snapshot = snapshot;
+	settingsCache.expiresAt = Date.now() + SITE_SETTINGS_CACHE_TTL_MS;
+}
+
+function revalidateSiteSettings(): void {
+	const now = Date.now();
+	if (settingsCache.revalidatingUntil > now) return;
+	settingsCache.revalidatingUntil = now + SITE_SETTINGS_CACHE_TTL_MS;
+	const generation = ++settingsCache.generation;
+	invalidateSingleFlightCache(settingsCache.refresh);
+	after(async () => {
+		try {
+			const snapshot = await refreshSiteSettings();
+			if (generation === settingsCache.generation) installSiteSettings(snapshot);
+		} catch (error) {
+			console.error("[emdash:settings] revalidating site settings failed:", error);
+		}
+	});
+}
+
+async function loadCachedSiteSettings(): Promise<CachedSiteSettings> {
+	for (let attempt = 0; attempt < 3; attempt++) {
+		const snapshot = settingsCache.snapshot;
+		if (snapshot) {
+			if (Date.now() >= settingsCache.expiresAt) revalidateSiteSettings();
+			return snapshot;
+		}
+		const generation = settingsCache.generation;
+		const loaded = await refreshSiteSettings();
+		if (generation === settingsCache.generation) {
+			installSiteSettings(loaded);
+			return loaded;
+		}
+		if (attempt === 2) return loaded;
+	}
+	throw new Error("Site settings refresh exhausted without loading settings");
+}
+
 /**
  * Get all site settings
  *
@@ -257,26 +349,28 @@ export async function getSiteSettingWithDb<K extends SiteSettingKey>(
  * ```
  */
 export function getSiteSettings(): Promise<Partial<SiteSettings>> {
-	// requestCached dedupes within a single request; singleFlightCached
-	// coalesces across requests and caches the resolved value for the
-	// global scope's lifetime without ever sharing an awaitable promise. The
-	// distributed object cache (cachedQuery) sits beneath both, backing cold
-	// isolates without a database round-trip.
-	return requestCached("siteSettings", () =>
-		singleFlightCached(
-			settingsCache,
-			() =>
-				cachedQuery({
-					namespace: SETTINGS_CACHE_NAMESPACE,
-					key: "all",
-					load: async () => {
-						const db = await getDb();
-						return getSiteSettingsWithDb(db);
-					},
-				}),
-			{ anchor: (promise) => after(() => promise), ownerTimeoutMs: 30_000 },
-		),
-	);
+	return requestCached("siteSettings", async () => {
+		const snapshot = await requestCached("siteSettingsSnapshot", async () => {
+			const ctx = getRequestContext();
+			const requestSettings = ctx?.siteSettings;
+			if (ctx?.routeCacheFill) return loadSiteSettingsSnapshot(await getDb());
+			let loaded = requestSettings?.snapshot ?? (await loadCachedSiteSettings());
+			// A cold streamed component may join a load started before verification.
+			// Reload an older result instead of streaming that snapshot into a fill.
+			if (requestSettings?.version !== undefined && loaded.version !== requestSettings.version) {
+				invalidateSiteSettingsSnapshot();
+				const generation = settingsCache.generation;
+				loaded = await loadSiteSettingsSnapshot(await getDb());
+				if (generation === settingsCache.generation) installSiteSettings(loaded);
+			}
+			return loaded;
+		});
+		return snapshot.data;
+	}).then(async (data) => {
+		const snapshot = await peekRequestCache<CachedSiteSettings>("siteSettingsSnapshot");
+		if (snapshot) getRequestContext()?.siteSettings?.onRead(snapshot.version);
+		return data;
+	});
 }
 
 /**
@@ -303,15 +397,27 @@ export async function getSiteSettingsWithDb(
 	db: Kysely<Database>,
 	storage: Storage | null = null,
 ): Promise<Partial<SiteSettings>> {
-	const options = new OptionsRepository(db);
-	const allOptions = await options.getByPrefix(SETTINGS_PREFIX);
+	return (await loadSiteSettingsSnapshot(db, storage)).data;
+}
 
+async function loadSiteSettingsSnapshot(
+	db: Kysely<Database>,
+	storage: Storage | null = null,
+): Promise<CachedSiteSettings> {
+	const options = new OptionsRepository(db);
+	const allOptions = await options.getVersionedByPrefix(SETTINGS_PREFIX);
+	const version = normalizeSiteSettingsVersion(
+		JSON.stringify(
+			[...allOptions]
+				.filter(([key]) => key.startsWith(SETTINGS_PREFIX))
+				.map(([key, value]) => [key, value.revision]),
+		),
+	);
 	const settings: Record<string, unknown> = {};
 
-	// Convert Map to settings object, removing the prefix
 	for (const [key, value] of allOptions) {
 		const settingKey = key.replace(SETTINGS_PREFIX, "");
-		settings[settingKey] = value;
+		settings[settingKey] = value.value;
 	}
 
 	const typedSettings = settings as Partial<SiteSettings>;
@@ -330,13 +436,14 @@ export async function getSiteSettingsWithDb(
 		};
 	}
 
-	return typedSettings;
+	return { data: typedSettings, version };
 }
 
 /**
  * Set site settings (internal function used by admin API)
  *
- * Merges provided settings with existing ones. Only provided fields are updated.
+ * Merges provided settings with existing ones. Only provided fields are updated,
+ * including fields inside `seo` and `social`; `seo.defaultOgImage: null` removes the default image.
  * Media references should include just the mediaId; URLs are resolved on read.
  *
  * @param settings - Partial settings object with values to update
@@ -361,12 +468,17 @@ export async function setSiteSettings(
 ): Promise<void> {
 	const updates: Record<string, unknown> = {};
 	const deletions: string[] = [];
-	const seo = settings.seo;
+	const nestedPatches: [key: string, patch: Record<string, unknown>][] = [];
 
 	for (const [key, value] of Object.entries(settings)) {
-		if (value === undefined || (key === "seo" && seo?.defaultOgImage === null)) continue;
+		if (value === undefined) continue;
 		if (value === null) deletions.push(`${SETTINGS_PREFIX}${key}`);
+		else if (NESTED_SETTING_KEYS.has(key) && isRecord(value)) nestedPatches.push([key, value]);
 		else updates[`${SETTINGS_PREFIX}${key}`] = value;
+	}
+
+	if (Object.keys(updates).length === 0 && deletions.length === 0 && nestedPatches.length === 0) {
+		return;
 	}
 
 	try {
@@ -375,16 +487,29 @@ export async function setSiteSettings(
 			await transactionOptions.setMany(updates);
 			await transactionOptions.deleteMany(deletions);
 
-			if (seo?.defaultOgImage === null) {
-				const existingSeo =
-					(await transactionOptions.get<SeoSettings>(`${SETTINGS_PREFIX}seo`)) ?? {};
-				const nextSeo = { ...existingSeo, ...seo };
-				delete nextSeo.defaultOgImage;
-				if (Object.keys(nextSeo).length === 0) {
-					await transactionOptions.delete(`${SETTINGS_PREFIX}seo`);
-				} else {
-					await transactionOptions.set(`${SETTINGS_PREFIX}seo`, nextSeo);
+			for (const [key, patch] of nestedPatches) {
+				const optionName = `${SETTINGS_PREFIX}${key}`;
+				const next = { ...(await transactionOptions.get<Record<string, unknown>>(optionName)) };
+				for (const [field, fieldValue] of Object.entries(patch)) {
+					if (fieldValue === null) delete next[field];
+					else if (fieldValue !== undefined) next[field] = fieldValue;
 				}
+				if (Object.keys(next).length === 0) await transactionOptions.delete(optionName);
+				else await transactionOptions.set(optionName, next);
+			}
+
+			// A running export detects writes to tables without updated_at via
+			// the operation's write_epoch. Record that bump in the same
+			// transaction so the settings update is not accepted unless the
+			// export fence can see it. When the transfer system has not been
+			// installed yet (pre-migration, or a minimal seed fixture), there
+			// is no running export to notify, so the absence of its table is
+			// not a reason to reject the settings update.
+			try {
+				await bumpRunningExportWriteEpochs(trx);
+			} catch (error) {
+				if (isMissingTableError(error)) return;
+				throw error;
 			}
 		});
 	} finally {

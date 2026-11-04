@@ -2,10 +2,11 @@
 
 import { runInNewContext } from "node:vm";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiError, apiSuccess } from "../../../src/api/error.js";
 import { renderToolbar } from "../../../src/visual-editing/toolbar.js";
+import { GERMAN_TOOLBAR_LABELS } from "../../utils/toolbar-labels.js";
 
 const LABELS = {
 	publish: "Publish",
@@ -16,6 +17,26 @@ const LABELS = {
 	editMode: "Edit mode",
 	openInAdmin: "Open in admin",
 	hideToolbar: "Hide toolbar",
+	draft: "Draft",
+	published: "Published",
+	unpublishedChanges: "Unpublished changes",
+	unsaved: "Unsaved",
+	saving: "Saving…",
+	saved: "Saved",
+	saveFailed: "Save failed",
+	image: "Image",
+	noImageSelected: "No image selected",
+	altText: "Alt text",
+	altTextPlaceholder: "Describe the image",
+	replaceImage: "Replace",
+	uploadImage: "Upload",
+	removeImage: "Remove",
+	mediaLibrary: "Media Library",
+	back: "Back",
+	loading: "Loading…",
+	noImagesFound: "No images found",
+	mediaLoadFailed: "Failed to load media",
+	uploadingFile: "Uploading {filename}…",
 };
 
 const ENTRY_URL = "/_emdash/api/content/posts/post-1";
@@ -129,11 +150,12 @@ const HERO_SIZES = "(min-width: 1280px) 1280px, 100vw";
 interface PageOptions {
 	pageShowsImage?: boolean;
 	responsive?: "srcset" | "picture";
+	labels?: typeof LABELS;
 }
 
 function mountEditablePage(
 	routes: Routes,
-	{ pageShowsImage = true, responsive }: PageOptions = {},
+	{ pageShowsImage = true, responsive, labels = LABELS }: PageOptions = {},
 ) {
 	const doc = document.implementation.createHTMLDocument("Post");
 	const hero = doc.createElement("div");
@@ -165,7 +187,7 @@ function mountEditablePage(
 	doc.body.append(hero);
 	doc.body.insertAdjacentHTML(
 		"beforeend",
-		renderToolbar({ editMode: true, isPreview: false, labels: LABELS }),
+		renderToolbar({ editMode: true, isPreview: false, labels }),
 	);
 
 	const requests: RecordedRequest[] = [];
@@ -491,5 +513,75 @@ describe("toolbar image popover", () => {
 		await vi.waitFor(() => expect(saveStatus.textContent).toBe("Save failed"), { timeout: 2000 });
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(pageImageState(page)).toEqual(before);
+	});
+});
+
+describe("toolbar image popover language", () => {
+	const german = { labels: GERMAN_TOOLBAR_LABELS };
+
+	afterEach(() => vi.restoreAllMocks());
+
+	it("shows the image controls in the editor's language", async () => {
+		const page = mountEditablePage(entryRoutes, german);
+		const popover = await openImagePopover(page);
+
+		expect({
+			title: popover.querySelector(".emdash-img-popover-title")?.textContent,
+			altLabel: popover.querySelector("label[for='emdash-img-alt']")?.textContent,
+			altPlaceholder: popover.querySelector<HTMLInputElement>("#emdash-img-alt")?.placeholder,
+			buttons: Array.from(
+				popover.querySelectorAll(".emdash-img-actions .emdash-img-btn"),
+				(button) => button.textContent?.trim(),
+			),
+		}).toEqual({
+			title: "Bild",
+			altLabel: "Alt-Text",
+			altPlaceholder: "Beschreibe das Bild",
+			buttons: ["Ersetzen", "Hochladen", "Entfernen"],
+		});
+	});
+
+	it("shows an empty image field in the editor's language", async () => {
+		const page = mountEditablePage(entryRoutesWith(null), { ...german, pageShowsImage: false });
+		const popover = await openImagePopover(page);
+
+		expect(popover.querySelector(".emdash-img-empty")?.textContent).toBe("Kein Bild ausgewählt");
+	});
+
+	it.each([
+		["holds no images", () => apiSuccess({ items: [], totalCount: 0 }), "Keine Bilder gefunden"],
+		[
+			"cannot be loaded",
+			() => apiError("FORBIDDEN", "Insufficient permissions", 403),
+			"Medien konnten nicht geladen werden",
+		],
+	])("shows a media library that %s in the editor's language", async (_state, respond, message) => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const page = mountEditablePage({ ...entryRoutes, [`GET ${LIBRARY_URL}`]: respond }, german);
+		const popover = await openImagePopover(page);
+
+		popover.querySelector<HTMLButtonElement>('[data-action="browse"]')!.click();
+
+		const browser = popover.querySelector<HTMLElement>(".emdash-img-browser")!;
+		expect({
+			title: browser.querySelector(".emdash-img-browser-title")?.textContent,
+			back: browser.querySelector(".emdash-img-browser-back")?.textContent,
+			status: browser.querySelector(".emdash-img-loading")?.textContent,
+		}).toEqual({ title: "Medienbibliothek", back: "Zurück", status: "Wird geladen…" });
+		await vi.waitFor(() =>
+			expect(browser.querySelector(".emdash-img-loading")?.textContent).toBe(message),
+		);
+	});
+
+	it("names the uploading file as text in the editor's language", async () => {
+		const page = mountEditablePage({ ...entryRoutes, ...replacementRoutes }, german);
+		const popover = await openImagePopover(page);
+
+		chooseFileToUpload(popover, pngFile("<b>Hafen</b> $&.png"));
+
+		const uploading = popover.querySelector(".emdash-img-uploading")!;
+		expect(uploading.textContent).toBe("<b>Hafen</b> $&.png wird hochgeladen…");
+		expect(uploading.querySelector("b")).toBeNull();
+		await vi.waitFor(() => expect(page.doc.querySelector(".emdash-img-popover")).toBeNull());
 	});
 });

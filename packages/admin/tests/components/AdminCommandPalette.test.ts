@@ -24,6 +24,35 @@ describe("buildNavItems", () => {
 		expect(items.find((item) => item.id === "import")?.icon).toBe(Download);
 	});
 
+	it("offers the calendar to contributors and above", () => {
+		const manifest = { collections: {}, plugins: {} };
+
+		expect(
+			buildNavItems(manifest, 20, (id) => id).find((item) => item.id === "calendar"),
+		).toMatchObject({
+			to: "/calendar",
+		});
+		expect(buildNavItems(manifest, 10, (id) => id).some((item) => item.id === "calendar")).toBe(
+			false,
+		);
+	});
+
+	it("leaves built-in areas hidden by the site config out of the results", () => {
+		const builtIn = ["calendar", "media", "menus", "widgets", "sections", "import"];
+		const manifest = { collections: {}, plugins: {} };
+
+		const shown = buildNavItems(manifest, 50, (id) => id).map((item) => item.id);
+		const hidden = buildNavItems(
+			{ ...manifest, admin: { hiddenNavItems: builtIn } },
+			50,
+			(id) => id,
+		).map((item) => item.id);
+
+		expect(shown).toEqual(expect.arrayContaining(builtIn));
+		for (const id of builtIn) expect(hidden).not.toContain(id);
+		expect(hidden).toContain("settings");
+	});
+
 	it("leaves hidden collections out of the navigation links", () => {
 		const items = buildNavItems(
 			{

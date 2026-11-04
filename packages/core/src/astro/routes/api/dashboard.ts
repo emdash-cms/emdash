@@ -4,6 +4,7 @@
  * GET /_emdash/api/dashboard - Collection counts, media/user counts, recent items
  */
 
+import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
@@ -23,7 +24,11 @@ export const GET: APIRoute = async ({ locals }) => {
 	}
 
 	try {
-		const result = await handleDashboardStats(emdash.db);
+		const result = await handleDashboardStats(emdash.db, {
+			includeDrafts: hasPermission(user, "content:read_drafts"),
+			includeMediaCount: hasPermission(user, "media:read"),
+			includeUserCount: hasPermission(user, "users:read"),
+		});
 
 		return unwrapResult(result);
 	} catch (error) {

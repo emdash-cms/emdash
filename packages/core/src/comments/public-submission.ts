@@ -1,5 +1,7 @@
+import type { APIContext } from "astro";
 import { sql, type Kysely } from "kysely";
 
+import { after } from "../after.js";
 import { apiError, apiSuccess, handleError } from "../api/error.js";
 import { hashIp } from "../api/handlers/comments.js";
 import { isParseError, parseBody } from "../api/parse.js";
@@ -7,6 +9,7 @@ import { createCommentBody } from "../api/schemas/comments.js";
 import { getSiteBaseUrl } from "../api/site-url.js";
 import type { EmDashConfig } from "../astro/integration/runtime.js";
 import { checkRateLimit } from "../auth/rate-limit.js";
+import { invalidateRouteCache } from "../cache/route-cache.js";
 import { resolveSecretsCached } from "../config/secrets.js";
 import { CommentRepository } from "../database/repositories/comment.js";
 import type { Database } from "../database/types.js";
@@ -51,6 +54,7 @@ export async function submitPublicComment(
 	contentId: string,
 	request: Request,
 	user?: UserInfo,
+	cache?: Pick<APIContext["cache"], "enabled" | "invalidate">,
 ): Promise<Response> {
 	try {
 		const body = await parseBody(request, createCommentBody);
@@ -174,17 +178,23 @@ export async function submitPublicComment(
 					: { status: "pending", reason: "Invalid moderation result" };
 			},
 			fireAfterCreate: (event) => {
-				void runtime.hooks
-					.runCommentAfterCreate(event)
-					.catch((error) =>
-						console.error(
-							"[comments] afterCreate error:",
-							error instanceof Error ? error.message : error,
+				// Deferred through after() so the host's waitUntil keeps the hooks
+				// alive: on Workers, work left running after the response is sent
+				// can be cancelled (sandboxed plugins never got past their first
+				// bridge call).
+				after(() =>
+					runtime.hooks
+						.runCommentAfterCreate(event)
+						.catch((error) =>
+							console.error(
+								"[comments] afterCreate error:",
+								error instanceof Error ? error.message : error,
+							),
 						),
-					);
+				);
 			},
 			fireAfterModerate: (event) => {
-				void runtime.hooks
+				return runtime.hooks
 					.runCommentAfterModerate(event)
 					.catch((error) =>
 						console.error(
@@ -219,6 +229,10 @@ export async function submitPublicComment(
 		);
 
 		if (!result) return apiError("COMMENT_REJECTED", "Comment was rejected", 403);
+
+		if (result.comment.status === "approved") {
+			await invalidateRouteCache(cache, [result.comment.collection, result.comment.contentId]);
+		}
 
 		if (result.comment.status === "approved" && runtime.email && contentAuthor) {
 			try {

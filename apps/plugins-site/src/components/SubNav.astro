@@ -1,0 +1,38 @@
+---
+/** The row under the header on catalog pages: breadcrumbs and a compact search. */
+import Breadcrumbs, { type Crumb } from "./Breadcrumbs.astro";
+import SearchField from "./SearchField.astro";
+
+interface Props {
+	items: Crumb[];
+}
+
+const { items } = Astro.props;
+---
+
+<div class="subnav shell">
+	<Breadcrumbs items={items} />
+	<SearchField id="subnav-search" size="sm" class="subnav-search" />
+</div>
+
+<style>
+	.subnav {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1.5rem;
+		min-height: 40px;
+		padding-block-start: clamp(1.25rem, 0.75rem + 1.5vw, 2rem);
+	}
+
+	.subnav :global(.subnav-search) {
+		flex: none;
+		width: min(18rem, 40%);
+	}
+
+	@media (max-width: 639.98px) {
+		.subnav :global(.subnav-search) {
+			display: none;
+		}
+	}
+</style>

@@ -10,8 +10,7 @@ dist/
 
 # Data
 data.db
-data.db-shm
-data.db-wal
+data.db-*
 uploads/
 .wrangler/
 

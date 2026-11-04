@@ -11,7 +11,7 @@ one post, and traces that post through the template code.
 
 ## Prerequisites
 
-Install [Node.js](https://nodejs.org/) 22.12 or later and
+Install [Node.js](https://nodejs.org/) 22.23.4 or later and
 [pnpm](https://pnpm.io/installation) before starting.
 
 You need a Cloudflare account only when you deploy the site. During local development, the template
@@ -157,12 +157,12 @@ import { decodeSlug, getEmDashEntry } from "emdash";
 import { Image, PortableText } from "emdash/ui";
 
 const slug = decodeSlug(Astro.params.slug);
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, error, cacheHint } = await getEmDashEntry("posts", slug);
 
 if (error) return new Response("Unable to load post", { status: 500 });
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 
@@ -194,7 +194,7 @@ const category = slug
   ? await getTerm("category", slug, { includeCounts: false })
   : null;
 
-if (!category) return Astro.redirect("/404");
+if (!category) return Astro.rewrite("/404");
 
 const { entries: posts, error } = await getEmDashCollection("posts", {
   where: { category: category.slug },

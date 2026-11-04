@@ -188,11 +188,9 @@ export function createKVAccess(
 				: await optionsRepo.getByPrefix(fullPrefix);
 			const result: Array<{ key: string; value: unknown }> = [];
 			for (const [fullKey, value] of entriesMap) {
-				if (includesSettings && fullKey.startsWith(`${prefix}settings:`)) continue;
-				result.push({
-					key: fullKey.slice(prefix.length),
-					value,
-				});
+				const key = fullKey.slice(prefix.length);
+				if (!fullKey.startsWith(fullPrefix) || key.startsWith("settings:")) continue;
+				result.push({ key, value });
 			}
 			if (includesSettings) {
 				const settingPrefix = requestedPrefix.startsWith("settings:")
@@ -403,8 +401,7 @@ export function createTaxonomyAccess(db: Kysely<Database>): TaxonomyAccess {
 
 	return {
 		async getAll(options?: TaxonomyReadOptions): Promise<TaxonomyDefInfo[]> {
-			let query = selectTaxonomyDefs(db);
-			if (options?.locale !== undefined) query = query.where("d.locale", "=", options.locale);
+			const query = selectTaxonomyDefs(db, options?.locale);
 			const rows = await query.orderBy("d.name", "asc").execute();
 			return rows.map((row) => ({
 				name: row.name,
@@ -1394,7 +1391,7 @@ const TRAILING_SLASH_RE = /\/$/;
 export interface SiteInfoOptions {
 	/** Site name from options table */
 	siteName?: string;
-	/** Site URL from options table or Astro config */
+	/** Site URL, resolved by the runtime in the same order as links in emails */
 	siteUrl?: string;
 	/** Site locale from options table */
 	locale?: string;
@@ -1403,12 +1400,8 @@ export interface SiteInfoOptions {
 }
 
 /**
- * Create site info from config and settings.
- *
- * Resolution order for URL:
- * 1. options table (emdash:site_url)
- * 2. Astro `site` config
- * 3. fallback to empty string
+ * Create site info from config and settings. A missing URL becomes an
+ * empty string.
  */
 export function createSiteInfo(options: SiteInfoOptions): SiteInfo {
 	return {

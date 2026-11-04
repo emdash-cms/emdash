@@ -1,10 +1,10 @@
 ﻿# Security Policy
 
-EmDash is a beta CMS with authentication, content management, plugin execution, and Cloudflare/Node deployment surfaces. Please report suspected vulnerabilities privately so maintainers can triage and coordinate a fix before public disclosure.
+EmDash is a CMS with authentication, content management, plugin execution, and Cloudflare/Node deployment surfaces. Please report suspected vulnerabilities privately so maintainers can triage and coordinate a fix before public disclosure.
 
 ## Supported Versions
 
-EmDash is currently in beta preview. Security reports should target the current `main` branch and the latest published `emdash` / `@emdash-cms/*` packages unless maintainers document additional supported release lines.
+Security reports should target the current `main` branch and the latest published `emdash` / `@emdash-cms/*` packages unless maintainers document additional supported release lines.
 
 ## Reporting a Vulnerability
 

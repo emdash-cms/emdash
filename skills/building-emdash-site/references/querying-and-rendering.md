@@ -42,7 +42,7 @@ import { getEmDashEntry } from "emdash";
 const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
 
 if (!post) {
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 ```
 
@@ -185,11 +185,6 @@ import { Image } from "emdash/ui";
 
 {/* Correct -- passes the image object */}
 <Image image={post.data.featured_image} />
-
-{/* Also works with explicit props */}
-{post.data.featured_image?.src && (
-	<img src={post.data.featured_image.src} alt={post.data.featured_image.alt || ""} />
-)}
 ```
 
 **Common mistake:**
@@ -197,6 +192,24 @@ import { Image } from "emdash/ui";
 ```astro
 {/* WRONG -- image is an object, not a string */}
 <img src={post.data.featured_image} />
+```
+
+## File fields
+
+File field values from the Media Library have no `src`. Resolve the URL from `meta.storageKey`. Files added by URL (stored with `provider: "external"`) keep it in `src`. For a registered media provider such as Cloudflare Stream, `src` is only a preview image, so this does not apply.
+
+```astro
+---
+const file = entry.data.video;
+const storageKey = typeof file?.meta?.storageKey === "string" ? file.meta.storageKey : undefined;
+const url = storageKey
+	? Astro.locals.emdash?.getPublicMediaUrl?.(storageKey)
+	: file?.provider === "external"
+		? file.src
+		: file?.url;
+---
+
+{url && <video src={url} controls preload="metadata" />}
 ```
 
 ## Visual Editing Attributes
@@ -249,10 +262,10 @@ import { Image, PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
 const { slug } = Astro.params;
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
@@ -299,7 +312,7 @@ const termsResult = await getTaxonomyTermsWithCacheHint("category", { includeCou
 const findTerm = (terms: TaxonomyTerm[]): TaxonomyTerm | undefined =>
 	terms.find((item) => item.slug === slug) ?? terms.map((item) => findTerm(item.children)).find(Boolean);
 const term = slug ? findTerm(termsResult.data) : undefined;
-if (!term) return Astro.redirect("/404");
+if (!term) return Astro.rewrite("/404");
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	where: { category: term.slug },

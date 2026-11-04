@@ -93,8 +93,10 @@ export function buildEmDashCsp(registry?: RegistryConfigInput, storageEndpoint?:
 		"style-src 'self' 'unsafe-inline'",
 		connectSrc.join(" "),
 		"form-action 'self'",
+		"frame-src 'self' https:",
 		"frame-ancestors 'none'",
 		"img-src 'self' https: data: blob:",
+		"media-src 'self' blob: https:",
 		"object-src 'none'",
 		"base-uri 'self'",
 	].join("; ");

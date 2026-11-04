@@ -36,15 +36,21 @@ beforeAll(async () => {
 	localeIndexName = `${indexName}_loc`;
 
 	const insert = sqlite.prepare(
-		'INSERT INTO "ec_post" ("id", "locale", "priority") VALUES (?, ?, ?)',
+		'INSERT INTO "ec_post" ("id", "locale", "priority", "published_at") VALUES (?, ?, ?, ?)',
 	);
+	const publishedAt = (i: number) => new Date(Date.UTC(2020, 0, 1) + i * 3_600_000).toISOString();
 	sqlite.exec("BEGIN");
 	try {
 		for (let i = 0; i < 1_100; i++) {
-			insert.run(`post-en-${i.toString().padStart(4, "0")}`, "en", i < 100 ? null : (i - 100) % 20);
+			insert.run(
+				`post-en-${i.toString().padStart(4, "0")}`,
+				"en",
+				i < 100 ? null : (i - 100) % 20,
+				i % 4 === 0 ? null : publishedAt(i),
+			);
 		}
 		for (let i = 0; i < 20; i++) {
-			insert.run(`post-nl-${i.toString().padStart(4, "0")}`, "nl", i % 5);
+			insert.run(`post-nl-${i.toString().padStart(4, "0")}`, "nl", i % 5, publishedAt(i));
 		}
 		sqlite.exec("COMMIT");
 	} catch (error) {
@@ -174,3 +180,30 @@ it("seeks locale-scoped cursor pages without scanning other locales", async () =
 		expect(plan.map((row) => row.detail).join("\n")).toContain("locale=?");
 	}
 });
+
+it.each(["asc", "desc"] as const)(
+	"serves every %s publishedAt page from the published-date index",
+	async (direction) => {
+		let cursor: string | undefined;
+		let afterUndated = false;
+		let pages = 0;
+		do {
+			captured.length = 0;
+			const page = await repo.findMany("post", {
+				limit: 100,
+				cursor,
+				orderBy: { field: "publishedAt", direction },
+			});
+			const plan = getListPlan();
+			expectIndexSearch(plan, "idx_ec_post_deleted_published_id");
+			if (afterUndated && direction === "desc") {
+				expect(plan.map((row) => row.detail).join("\n")).toContain("published_at=?");
+			}
+			afterUndated = page.items.at(-1)?.publishedAt === null;
+			cursor = page.nextCursor;
+			pages++;
+		} while (cursor);
+
+		expect(pages).toBe(12);
+	},
+);

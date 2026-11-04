@@ -26,6 +26,16 @@ interface Props {
 	/** Order of top-level comments: chronological (default) or Wilson-ranked. */
 	sort?: "oldest" | "best";
 	class?: string;
+	/** Replaces the built-in English text, for example to translate the list. */
+	labels?: {
+		heading?: (count: number) => string;
+		member?: string;
+		like?: string;
+	};
+	/**
+	 * Locale for comment dates. Defaults to `Astro.currentLocale`, then `en-US`.
+	 */
+	locale?: string;
 }
 
 const {
@@ -35,7 +45,40 @@ const {
 	reactions = false,
 	sort = "oldest",
 	class: className,
+	labels: customLabels = {},
+	locale = Astro.currentLocale,
 } = Astro.props;
+
+const labels = {
+	heading:
+		customLabels.heading ??
+		((count: number) =>
+			count === 0 ? "No comments yet" : count === 1 ? "1 Comment" : `${count} Comments`),
+	member: customLabels.member ?? "Site member",
+	like: customLabels.like ?? "Like",
+};
+
+function resolveDateLocale(value: string | undefined): string {
+	if (!value) return "en-US";
+	try {
+		return Intl.DateTimeFormat.supportedLocalesOf(value)[0] ?? "en-US";
+	} catch {
+		return "en-US";
+	}
+}
+
+const dateFormat = new Intl.DateTimeFormat(resolveDateLocale(locale), {
+	year: "numeric",
+	month: "long",
+	day: "numeric",
+	hour: "numeric",
+	minute: "2-digit",
+});
+
+function formatDate(value: string): string {
+	const date = new Date(value);
+	return Number.isNaN(date.getTime()) ? value : dateFormat.format(date);
+}
 
 const collectionInfo = await getCollectionInfo(collection);
 const enabled = collectionInfo?.commentsEnabled ?? false;
@@ -135,13 +178,7 @@ const REACTION_SCRIPT = `
 			data-content-id={contentId}
 			{...(reactions ? { "data-ec-reactions": "" } : {})}
 		>
-			<h3 class="ec-comments-heading">
-				{total === 0
-					? "No comments yet"
-					: total === 1
-						? "1 Comment"
-						: `${total} Comments`}
-			</h3>
+			<h3 class="ec-comments-heading">{labels.heading(total)}</h3>
 
 			{items.length > 0 && (
 				<ol class="ec-comments-list">
@@ -156,19 +193,13 @@ const REACTION_SCRIPT = `
 									<span class="ec-comment-author">
 										{comment.authorName}
 										{comment.isRegisteredUser && (
-											<span class="ec-comment-badge" aria-label="Site member">
+											<span class="ec-comment-badge" aria-label={labels.member}>
 												&#x2713;
 											</span>
 										)}
 									</span>
 									<time class="ec-comment-date" datetime={comment.createdAt}>
-										{new Date(comment.createdAt).toLocaleDateString("en-US", {
-											year: "numeric",
-											month: "long",
-											day: "numeric",
-											hour: "numeric",
-											minute: "2-digit",
-										})}
+										{formatDate(comment.createdAt)}
 									</time>
 								</header>
 								<div
@@ -187,7 +218,7 @@ const REACTION_SCRIPT = `
 											<span class="ec-reaction-icon" aria-hidden="true">
 												&#x2661;
 											</span>
-											<span class="ec-reaction-label">Like</span>
+											<span class="ec-reaction-label">{labels.like}</span>
 											<span class="ec-reaction-count" data-ec-reaction-count>
 												{comment.reactions?.like ?? 0}
 											</span>
@@ -209,7 +240,7 @@ const REACTION_SCRIPT = `
 															{reply.isRegisteredUser && (
 																<span
 																	class="ec-comment-badge"
-																	aria-label="Site member"
+																	aria-label={labels.member}
 																>
 																	&#x2713;
 																</span>
@@ -219,16 +250,7 @@ const REACTION_SCRIPT = `
 															class="ec-comment-date"
 															datetime={reply.createdAt}
 														>
-															{new Date(reply.createdAt).toLocaleDateString(
-																"en-US",
-																{
-																	year: "numeric",
-																	month: "long",
-																	day: "numeric",
-																	hour: "numeric",
-																	minute: "2-digit",
-																}
-															)}
+															{formatDate(reply.createdAt)}
 														</time>
 													</header>
 													<div
@@ -245,7 +267,7 @@ const REACTION_SCRIPT = `
 																aria-pressed="false"
 															>
 																<span class="ec-reaction-icon" aria-hidden="true">&#x2661;</span>
-																<span class="ec-reaction-label">Like</span>
+																<span class="ec-reaction-label">{labels.like}</span>
 																<span class="ec-reaction-count" data-ec-reaction-count>{reply.reactions?.like ?? 0}</span>
 															</button>
 														</div>
@@ -291,7 +313,7 @@ const REACTION_SCRIPT = `
 
 	.ec-comment-replies {
 		margin-top: var(--ec-comment-gap);
-		padding-left: var(--ec-comment-indent);
+		padding-inline-start: var(--ec-comment-indent);
 	}
 
 	.ec-comment-replies > li + li {

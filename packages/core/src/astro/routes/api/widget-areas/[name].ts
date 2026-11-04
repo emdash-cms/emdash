@@ -10,7 +10,8 @@ import type { APIRoute } from "astro";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { widgetAreaTag } from "#cache/chrome-tags.js";
-import { rowToWidget } from "#widgets/index.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
+import { invalidateWidgetObjectCache, rowToWidget } from "#widgets/index.js";
 import type { WidgetRow } from "#widgets/types.js";
 
 export const prerender = false;
@@ -84,7 +85,8 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 		// Delete area (widgets cascade)
 		await db.deleteFrom("_emdash_widget_areas").where("id", "=", area.id).execute();
 
-		if (cache?.enabled) await cache.invalidate({ tags: [widgetAreaTag(name)] });
+		invalidateWidgetObjectCache();
+		await invalidateRouteCache(cache, [widgetAreaTag(name)]);
 		return apiSuccess({ deleted: true });
 	} catch (error) {
 		return handleError(error, "Failed to delete widget area", "WIDGET_AREA_DELETE_ERROR");

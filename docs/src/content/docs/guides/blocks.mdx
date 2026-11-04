@@ -128,10 +128,10 @@ import FeatureGrid from "../../components/blocks/FeatureGrid.astro";
 import Hero from "../../components/blocks/Hero.astro";
 
 const slug = decodeSlug(Astro.params.slug);
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
-if (!page) return Astro.redirect("/404");
+if (!page) return Astro.rewrite("/404");
 Astro.cache.set(cacheHint);
 
 const components = defineBlockComponents<PageLayoutBlock>({

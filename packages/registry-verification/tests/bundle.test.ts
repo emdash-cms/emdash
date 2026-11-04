@@ -75,6 +75,33 @@ describe("validatePluginBundle", () => {
 		}
 	});
 
+	it("keeps each admin page's sidebar group", async () => {
+		const result = await validatePluginBundle(
+			await bundle([
+				file(
+					"manifest.json",
+					JSON.stringify({
+						...manifest,
+						routes: ["admin"],
+						admin: {
+							pages: [
+								{ path: "/sync", label: "Sync", group: "Calendar" },
+								{ path: "/log", label: "Log" },
+							],
+						},
+					}),
+				),
+				file("backend.js", "export default {};"),
+			]),
+		);
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+		expect(result.value.manifest.admin.pages?.map((page) => page.group)).toEqual([
+			"Calendar",
+			undefined,
+		]);
+	});
+
 	it("rejects expected slug and version mismatches", async () => {
 		const bytes = await canonicalBundle();
 		expect(await validatePluginBundle(bytes, { expectedSlug: "other" })).toMatchObject({

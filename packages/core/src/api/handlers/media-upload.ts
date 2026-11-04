@@ -14,7 +14,7 @@ import { ulid } from "ulidx";
 import { MediaRepository, type MediaItem } from "../../database/repositories/media.js";
 import type { Database } from "../../database/types.js";
 import { enrichImageMetadata } from "../../media/enrich.js";
-import { matchesMimeAllowlist, normalizeMime } from "../../media/mime.js";
+import { matchesMimeAllowlist, normalizeMime, resolveUploadMimeType } from "../../media/mime.js";
 import type { Storage } from "../../storage/types.js";
 import { decodeBase64Bytes } from "../../utils/base64.js";
 import { computeContentHash } from "../../utils/hash.js";
@@ -107,17 +107,20 @@ export async function handleMediaUpload(
 	if ("success" in acquired) return acquired;
 	const { bytes } = acquired;
 
-	// Validate the raw MIME string before normalize/allowlist: normalizeMime
-	// only strips parameters and matchesMimeAllowlist only checks startsWith,
-	// so without this a crafted value like "image/png\r\nX-Evil: 1" would
-	// reach the storage backend's ContentType header and be echoed by the
-	// media file serving route.
-	if (!CONTENT_TYPE_RE.test(acquired.mimeType)) {
+	let filename = input.filename;
+	// Resolve from the supplied content type where possible, but fall back to
+	// the filename extension so callers that can't identify a format such as
+	// JPEG XL (e.g. empty or generic `application/octet-stream`) still work.
+	let mimeType = resolveUploadMimeType(filename, acquired.mimeType);
+	let size = bytes.byteLength;
+
+	// Re-validate the resolved type here: the resolved value is either the
+	// client-supplied type (parameters already stripped) or a value from the
+	// internal extension map, so a crafted Content-Type with header injection
+	// cannot reach the storage backend or the file-serving response.
+	if (!CONTENT_TYPE_RE.test(mimeType)) {
 		return fail("VALIDATION_ERROR", "Invalid content type");
 	}
-	let filename = input.filename;
-	let mimeType = normalizeMime(acquired.mimeType);
-	let size = bytes.byteLength;
 
 	if (!matchesMimeAllowlist(mimeType, GLOBAL_UPLOAD_ALLOWLIST)) {
 		return fail("INVALID_TYPE", "File type not allowed");

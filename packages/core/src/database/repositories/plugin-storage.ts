@@ -36,10 +36,17 @@ import type {
 	ConditionalWriteResult,
 	ConditionalDeleteResult,
 } from "../../plugins/types.js";
-import { pluginDataWriteExpr, pluginDataUpdateGuard } from "../dialect-helpers.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { isPostgres, pluginDataWriteExpr, pluginDataUpdateGuard } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
-import { encodeCursor, decodeCursor } from "./types.js";
+import {
+	encodeCursor,
+	decodeCursor,
+	InvalidCursorError,
+	MAX_CURSOR_LENGTH,
+	type SortFieldBoundary,
+} from "./types.js";
 
 /**
  * SQLSTATEs a losing concurrent `updateIf` writer can abort with.
@@ -111,6 +118,54 @@ function rawWhereExpr(sqlText: string, params: unknown[]): RawBuilder<boolean> {
  */
 function nullRank(expr: RawBuilder<unknown>): RawBuilder<number> {
 	return sql`(case when ${expr} is null then 1 else 0 end)`;
+}
+
+/**
+ * Comparison value for an orderBy cursor, matching the type of the ordered
+ * JSON expression.
+ *
+ * On Postgres the order expression is jsonb, so non-missing cursor values are
+ * cast to jsonb. This is important for explicit JSON `null`: the bound value
+ * must be the jsonb `null` scalar, not SQL NULL, because Postgres
+ * `data::jsonb->'field'` returns jsonb `null` for an explicit null and SQL NULL
+ * for a missing key. SQLite extracts SQL NULL for both cases, so a missing
+ * boundary and an explicit null both bind SQL NULL.
+ */
+function cursorFieldValue(db: Kysely<Database>, boundary: SortFieldBoundary): RawBuilder<unknown> {
+	if (boundary.missing) {
+		return sql`null`;
+	}
+	if (isPostgres(db)) {
+		return sql`${sql.val(JSON.stringify(boundary.value))}::jsonb`;
+	}
+	return sql.val(boundary.value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sortBoundaries(data: unknown, orderFields: string[]): SortFieldBoundary[] {
+	const record = isRecord(data) ? data : undefined;
+	return orderFields.map((field) => {
+		if (record !== undefined && Object.hasOwn(record, field)) {
+			return { value: record[field], missing: false };
+		}
+		return { missing: true };
+	});
+}
+
+function isScalarSortBoundary(boundary: SortFieldBoundary): boolean {
+	if (boundary.missing) {
+		return true;
+	}
+	const value = boundary.value;
+	return (
+		value === null ||
+		typeof value === "string" ||
+		typeof value === "number" ||
+		typeof value === "boolean"
+	);
 }
 
 export class PluginStorageRepository<T = unknown> implements StorageCollection<T> {
@@ -271,18 +326,20 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 	async getMany(ids: string[]): Promise<Map<string, T>> {
 		if (ids.length === 0) return new Map();
 
-		const rows = await this.db
-			.selectFrom("_plugin_storage")
-			.select(["id", "data"])
-			.where("plugin_id", "=", this.pluginId)
-			.where("collection", "=", this.collection)
-			.where("id", "in", ids)
-			.execute();
-
 		const result = new Map<string, T>();
-		for (const row of rows) {
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
-			result.set(row.id, JSON.parse(row.data) as T);
+		for (const batch of chunks(ids, SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("_plugin_storage")
+				.select(["id", "data"])
+				.where("plugin_id", "=", this.pluginId)
+				.where("collection", "=", this.collection)
+				.where("id", "in", batch)
+				.execute();
+
+			for (const row of rows) {
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
+				result.set(row.id, JSON.parse(row.data) as T);
+			}
 		}
 		return result;
 	}
@@ -330,14 +387,20 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 	async deleteMany(ids: string[]): Promise<number> {
 		if (ids.length === 0) return 0;
 
-		const result = await this.db
-			.deleteFrom("_plugin_storage")
-			.where("plugin_id", "=", this.pluginId)
-			.where("collection", "=", this.collection)
-			.where("id", "in", ids)
-			.executeTakeFirst();
+		return withTransaction(this.db, async (trx) => {
+			let deleted = 0;
+			for (const batch of chunks(ids, SQL_BATCH_SIZE)) {
+				const result = await trx
+					.deleteFrom("_plugin_storage")
+					.where("plugin_id", "=", this.pluginId)
+					.where("collection", "=", this.collection)
+					.where("id", "in", batch)
+					.executeTakeFirst();
 
-		return Number(result.numDeletedRows ?? 0);
+				deleted += Number(result.numDeletedRows ?? 0);
+			}
+			return deleted;
+		});
 	}
 
 	/**
@@ -394,15 +457,43 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 					);
 				}
 				const op = descending ? sql`<` : sql`>`;
-				// The cursor row's sort values, recomputed with the same expression
-				// rather than carried in the cursor, so nothing is bound as a literal
-				// and neither dialect has to coerce a JSON value to compare it.
+				const cursorSortValues = decoded.sortValues;
+
+				// New cursors carry the ordered field values so paging survives deletion
+				// of the anchor row. Legacy cursors fall back to re-reading the anchor;
+				// if it has been deleted we can no longer compute the seek boundary, so
+				// we surface a clear error instead of returning a wrong page.
+				//
+				// SQLite's json_extract returns scalar values, so cursors that encode
+				// objects or arrays cannot be bound as query parameters there. On any
+				// dialect we also skip cursor-bound values when they would make the
+				// cursor exceed the length cap, and fall back to the anchor lookup.
+				const useCursorValues =
+					cursorSortValues !== undefined &&
+					cursorSortValues.length === orderEntries.length &&
+					(isPostgres(this.db) || cursorSortValues.every(isScalarSortBoundary));
+
 				const cursorExpr = (field: string): RawBuilder<unknown> =>
 					sql`(select ${sql.raw(jsonOrderExtract(this.db, field))} from _plugin_storage where plugin_id = ${this.pluginId} and collection = ${this.collection} and id = ${decoded.id})`;
 
-				const fields = orderEntries.map(([field]) => {
+				if (!useCursorValues) {
+					const anchorExists = await this.db
+						.selectFrom("_plugin_storage")
+						.select(sql`1`.as("one"))
+						.where("plugin_id", "=", this.pluginId)
+						.where("collection", "=", this.collection)
+						.where("id", "=", decoded.id)
+						.executeTakeFirst();
+					if (!anchorExists) {
+						throw new InvalidCursorError(cursor);
+					}
+				}
+
+				const fields = orderEntries.map(([field], index) => {
 					const own = sortExpr(field);
-					const theirs = cursorExpr(field);
+					const theirs = useCursorValues
+						? cursorFieldValue(this.db, cursorSortValues[index])
+						: cursorExpr(field);
 					return {
 						equal: sql`(${nullRank(own)} = ${nullRank(theirs)} and (${nullRank(own)} = 1 or ${own} = ${theirs}))`,
 						after: sql`(${nullRank(own)} ${op} ${nullRank(theirs)} or (${nullRank(own)} = ${nullRank(theirs)} and ${nullRank(own)} = 0 and ${own} ${op} ${theirs}))`,
@@ -457,7 +548,26 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		if (hasMore) {
 			const lastItem = rows[limit - 1];
 			if (lastItem) {
-				nextCursor = encodeCursor(lastItem.created_at, lastItem.id);
+				let sortValues: SortFieldBoundary[] | undefined;
+				if (orderEntries.length > 0) {
+					const parsed: unknown = JSON.parse(lastItem.data);
+					const candidate = sortBoundaries(
+						parsed,
+						orderEntries.map(([field]) => field),
+					);
+					// Only encode scalar boundaries. Non-scalar values cannot be bound
+					// on SQLite, and large values can blow past the cursor length cap.
+					// In both cases we fall back to the legacy anchor-row lookup.
+					if (candidate.every(isScalarSortBoundary)) {
+						sortValues = candidate;
+					}
+				}
+				nextCursor = encodeCursor(lastItem.created_at, lastItem.id, sortValues);
+				// If the scalar values still produced an oversized cursor, drop them
+				// and rely on the anchor row instead.
+				if (nextCursor.length > MAX_CURSOR_LENGTH) {
+					nextCursor = encodeCursor(lastItem.created_at, lastItem.id, undefined);
+				}
 			}
 		}
 

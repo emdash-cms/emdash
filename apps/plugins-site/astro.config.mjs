@@ -8,6 +8,7 @@ export default defineConfig({
 	adapter: cloudflare({ imageService: "passthrough" }),
 	cache: { provider: cacheCloudflare() },
 	session: false,
+	prefetch: { defaultStrategy: "hover" },
 	fonts: [
 		{
 			provider: fontProviders.google(),

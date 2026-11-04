@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
 	createManualImageModerationAdapter,
+	parseManualImageClefOptions,
 	parseImageByteArray,
 	parseManualImageRequest,
 } from "../evals/sweep-worker.js";
@@ -159,19 +160,23 @@ describe("Workers AI production adapters", () => {
 	});
 
 	it("lets manual image diagnostics outlast the production Workflow deadline", async () => {
-		const adapter = createManualImageModerationAdapter(
+		const adapter = await createManualImageModerationAdapter(
 			{
-				run: async () => ({
-					response: JSON.stringify({
-						schemaVersion: 1,
-						findings: [],
-						coveredEvidenceRefs: ["manual.image:0"],
-					}),
+				run: async (_model, input) => ({
+					model: "clef",
+					answers: Object.fromEntries(
+						Object.keys(input["questions"] as object).map((category) => [
+							category,
+							{ type: "noul", noul: 0.01 },
+						]),
+					),
+					usage: { input_tokens: 10, output_tokens: 0 },
 				}),
 			},
 			{
 				resize: async (request) => ({ bytes: request.bytes, mimeType: "image/webp" }),
 			},
+			parseManualImageClefOptions({}),
 		);
 
 		expect(adapter.identity.parameters.timeoutMs).toBeGreaterThan(20_000);

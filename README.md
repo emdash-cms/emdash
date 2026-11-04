@@ -1,6 +1,6 @@
 # EmDash
 
-A full-stack TypeScript CMS built on [Astro](https://astro.build/) and [Cloudflare](https://www.cloudflare.com/). EmDash takes the ideas that made WordPress dominant -- extensibility, admin UX, a plugin ecosystem -- and rebuilds them on serverless, type-safe foundations. Plugins run in sandboxed Worker isolates, solving the fundamental security problem with WordPress's plugin architecture.
+A full-stack TypeScript CMS built on [Astro](https://astro.build/). EmDash takes the ideas that made WordPress dominant -- extensibility, admin UX, a plugin ecosystem -- and rebuilds them on serverless, type-safe foundations. Plugins run in sandboxed Worker isolates, solving the fundamental security problem with WordPress's plugin architecture.
 
 ## Get Started
 
@@ -41,12 +41,12 @@ A classic blog with sidebar widgets, search, and RSS.
 
 <a href="assets/templates/marketing/latest/"><img src="assets/templates/marketing/latest/homepage-light-desktop.jpg" alt="Marketing template" width="100%"></a>
 
-A conversion-focused landing page with pricing and contact form.
+A photo-led landing page built from modular blocks.
 
-- Hero with CTAs
-- Feature grid
-- Pricing cards
-- FAQ and contact form
+- Hero with photo and CTAs
+- Logo wall, features and stats
+- Text and photo sections
+- Pricing, FAQ and closing CTA
 - Dark / light mode
 
 </td>
@@ -137,7 +137,7 @@ const { entries: posts } = await getEmDashCollection("posts");
 
 **Auth** -- Passkey-first (WebAuthn) with OAuth and magic link fallbacks. Role-based access control: Administrator, Editor, Author, Contributor.
 
-**Plugins** -- `definePlugin()` API with lifecycle hooks, KV storage, settings, admin pages, dashboard widgets, custom block types, and API routes. Sandboxed execution on Cloudflare via Dynamic Worker Loaders.
+**Plugins** -- `definePlugin()` API with lifecycle hooks, KV storage, settings, admin pages, dashboard widgets, custom block types, and API routes. Sandboxed execution on Cloudflare via Dynamic Worker Loaders, and on Node.js in a `workerd` child process.
 
 **Agents** -- [Agent skills](https://github.com/emdash-cms/skills) for AI-assisted site, plugin, and theme development. CLI for programmatic site management. Built-in MCP server for direct AI tool integration.
 
@@ -150,11 +150,13 @@ const { entries: posts } = await getEmDashCollection("posts");
 | Database | D1                          | SQLite, Turso/libSQL, PostgreSQL                    |
 | Storage  | R2                          | AWS S3, any S3-compatible service, local filesystem |
 | Sessions | KV                          | Redis, file-based                                   |
-| Plugins  | Worker isolates (sandboxed) | In-process (safe mode)                              |
+| Plugins  | Worker isolates (sandboxed) | `workerd` child process (sandboxed)                 |
 
 ## Status
 
-EmDash is in **beta preview**. We welcome contributions, feedback, plugins, themes, and ideas.
+EmDash is **stable** and ready for production. The core packages (`emdash`, `create-emdash`, and the `@emdash-cms` admin, auth, blocks, and Cloudflare packages) follow [semantic versioning](https://semver.org/): breaking changes ship only in major releases and are called out in the changelog. First-party plugins and plugin tooling are still on `0.x` and may change between minor releases.
+
+We welcome contributions, feedback, plugins, themes, and ideas.
 
 ```bash
 npm create emdash@latest

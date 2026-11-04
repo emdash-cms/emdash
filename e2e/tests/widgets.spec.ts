@@ -208,6 +208,10 @@ test.describe("Widgets", () => {
 			const deleteButton = page.getByRole("button", { name: `Delete ${widgetTitle}` });
 			if (await deleteButton.isVisible({ timeout: 3000 }).catch(() => false)) {
 				await deleteButton.click();
+
+				const dialog = page.getByRole("dialog", { name: "Delete widget?" });
+				await dialog.getByRole("button", { name: "Delete" }).click();
+				await expect(dialog).not.toBeVisible();
 				await admin.waitForLoading();
 
 				// Widget should disappear

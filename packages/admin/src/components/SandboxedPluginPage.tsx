@@ -5,10 +5,11 @@
  * interactions to the plugin's admin route and renders the returned blocks.
  */
 
+import { Loader } from "@cloudflare/kumo";
 import { BlockRenderer } from "@emdash-cms/blocks";
 import type { Block, BlockInteraction, BlockResponse } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
-import { CircleNotch, WarningCircle } from "@phosphor-icons/react";
+import { WarningCircle } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiFetch, API_BASE } from "../lib/api/client.js";
@@ -23,6 +24,7 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 	const { t } = useLingui();
 	const [blocks, setBlocks] = useState<Block[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [toast, setToast] = useState<BlockResponse["toast"] | null>(null);
 	const requestGeneration = useRef(0);
@@ -38,6 +40,8 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 			if (showLoading) {
 				setLoading(true);
 				setError(null);
+			} else {
+				setPending(true);
 			}
 			try {
 				const requestInteraction =
@@ -74,7 +78,10 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 					setError(err instanceof Error ? err.message : t`Failed to communicate with plugin`);
 				}
 			} finally {
-				if (showLoading && generation === requestGeneration.current) setLoading(false);
+				if (generation === requestGeneration.current) {
+					if (showLoading) setLoading(false);
+					setPending(false);
+				}
 			}
 		},
 		[page, pluginId, t],
@@ -100,7 +107,7 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center py-16">
-				<CircleNotch className="h-6 w-6 animate-spin text-kumo-subtle" />
+				<Loader aria-label={t`Loading...`} className="text-kumo-subtle" />
 			</div>
 		);
 	}
@@ -136,11 +143,27 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 				</div>
 			)}
 
-			<BlockRenderer
-				blocks={blocks}
-				onAction={handleAction}
-				resolveLinkTarget={(target) => resolvePluginLinkTarget(pluginId, target)}
-			/>
+			<div
+				aria-busy={pending || undefined}
+				className={pending ? "opacity-60 transition-opacity" : "transition-opacity"}
+			>
+				<BlockRenderer
+					blocks={blocks}
+					onAction={handleAction}
+					resolveLinkTarget={(target) => resolvePluginLinkTarget(pluginId, target)}
+				/>
+			</div>
+			{pending && (
+				<div
+					aria-hidden="true"
+					className="pointer-events-none absolute inset-0 flex items-center justify-center"
+				>
+					<Loader aria-label={t`Updating...`} className="text-kumo-subtle" />
+				</div>
+			)}
+			<span role="status" className="sr-only">
+				{pending ? t`Updating...` : ""}
+			</span>
 		</div>
 	);
 }

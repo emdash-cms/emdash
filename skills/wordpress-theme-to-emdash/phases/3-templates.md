@@ -32,7 +32,7 @@ The exact route names follow the target site's URL design, not WordPress filenam
 
 Use `getEmDashCollection()` and `getEmDashEntry()` at request time and pass every returned `cacheHint` to `Astro.cache.set()`. Dynamic EmDash content routes remain server-rendered; do not generate them with `getStaticPaths()` or opt them into prerendering.
 
-`entry.id` is the URL slug. `entry.data.id` is the database ID used by APIs such as `getEntryTerms()` and comments. Use the EmDash `Image` component for CMS image fields and `PortableText` for Portable Text content.
+`entry.id` is the URL slug, prefixed with the locale on multilingual sites for locales whose URLs are prefixed. `entry.data.id` is the database ID used by APIs such as `getEntryTerms()` and comments. Use the EmDash `Image` component for CMS image fields and `PortableText` for Portable Text content.
 
 For WordPress page-template choices, add a schema field only when editors need to choose the layout. Map the stored value to a fixed set of imported Astro layouts; do not construct component import paths from content.
 
