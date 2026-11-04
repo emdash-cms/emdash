@@ -1264,45 +1264,58 @@ function isIndexedPivotSort(orderBy: OrderBySpec | undefined): boolean {
  * `IN (subquery)`) keeps the single-term case a plain equality on the pivot
  * index, which is what gives the clean early-`LIMIT` seek.
  *
- * With `probeCollection`, `large` reports whether a resolved term has at least
- * {@link LARGE_TERM_ASSIGNMENTS} pivot rows in that collection. The capped
- * probe rides in this query; a query of its own would add a round trip to
- * every listing.
+ * With `probe`, `assignments` counts the resolved groups' pivot rows in that
+ * collection, or `probe.cap` when a group exceeds its share of the cap or the
+ * sum exceeds the cap. The probe spreads `probe.cap` index entries over the slugs, so a long
+ * slug list reads about as much as a single slug. `large` reports whether
+ * a group reached {@link LARGE_TERM_ASSIGNMENTS}, which only a single slug
+ * probed with that cap can tell. The capped probe rides in this query; a query
+ * of its own would add a round trip to every listing.
  */
 async function resolveTermGroups(
 	db: Kysely<Database>,
 	name: string,
 	slugs: string[],
 	locale: string | undefined,
-	probeCollection?: string,
-): Promise<{ groups: string[]; large: boolean }> {
+	probe?: { collection: string; cap: number },
+): Promise<{ groups: string[]; assignments: number; large: boolean }> {
+	const perGroupCap = probe ? Math.max(1, Math.ceil(probe.cap / slugs.length)) : 0;
 	let query = db
 		.selectFrom("taxonomies")
 		.select("translation_group")
 		.distinct()
 		.where("name", "=", name)
 		.where(taxonomyValuesCondition(db, "slug", slugs))
-		.$if(probeCollection !== undefined, (qb) =>
-			qb.select((eb) =>
-				eb
-					.selectFrom("content_taxonomies")
-					.select(sql<number>`1`.as("hit"))
-					.where("content_taxonomies.collection", "=", probeCollection!)
-					.whereRef("content_taxonomies.taxonomy_id", "=", "taxonomies.translation_group")
-					.limit(1)
-					.offset(LARGE_TERM_ASSIGNMENTS - 1)
-					.as("large"),
+		.$if(probe !== undefined, (qb) =>
+			qb.select(
+				sql<number | string>`(
+					SELECT COUNT(*) FROM (
+						SELECT 1 FROM content_taxonomies
+						WHERE content_taxonomies.collection = ${probe!.collection}
+							AND content_taxonomies.taxonomy_id = taxonomies.translation_group
+						LIMIT ${perGroupCap + 1}
+					) AS capped
+				)`.as("assignments"),
 			),
 		);
 	if (locale) query = query.where(localeMatches("locale", locale));
 	const rows = await query.execute();
-	const groups = new Set<string>();
-	let large = false;
+	const counts = new Map<string, number>();
 	for (const row of rows) {
-		if (row.translation_group) groups.add(row.translation_group);
-		if (row.large != null) large = true;
+		if (row.translation_group) counts.set(row.translation_group, Number(row.assignments ?? 0));
 	}
-	return { groups: [...groups], large };
+	let assignments = 0;
+	let large = false;
+	let capped = false;
+	for (const count of counts.values()) {
+		assignments += count;
+		if (count >= LARGE_TERM_ASSIGNMENTS) large = true;
+		if (probe && count > perGroupCap) capped = true;
+	}
+	// A group cut off at its share of the cap may hold any number of rows, so
+	// the filter counts as the whole cap, and every filter at the cap ties.
+	if (probe && (capped || assignments > probe.cap)) assignments = probe.cap;
+	return { groups: [...counts.keys()], assignments, large };
 }
 
 /** Single-term equality preserves the pivot index's early-LIMIT seek. */
@@ -1881,37 +1894,44 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					// content-field filter falls through to the single-table shape
 					// below (field predicates live on `ec_*`, not the pivot). A byline
 					// filter rides along inside the pivot CTE (see the builder).
-					const groupSets: string[][] = [];
+					const resolved: { groups: string[]; assignments: number }[] = [];
 
 					// Walking `ec_*` fills a page quickly only for one large term group
 					// under an indexed sort with a `LIMIT`. With a second taxonomy or
 					// several groups it reads far more rows than the pivot seek, so
-					// only a single slug of a single taxonomy pays for the size probe.
-					const probeCollection =
-						!isPostgres(db) &&
+					// only a single slug of a single taxonomy can walk.
+					const mayDriveFromContent =
 						taxonomyFilters.length === 1 &&
 						taxonomyFilters[0]?.slugs.length === 1 &&
 						fetchLimit != null &&
-						isIndexedPivotSort(orderBy)
-							? type
-							: undefined;
+						isIndexedPivotSort(orderBy);
+					// With several taxonomies the smallest one drives the seek and the
+					// others become per-candidate EXISTS checks, so each filter's size
+					// is probed. Each later filter is counted only up to one past the
+					// smallest count so far. Postgres keeps the `where` order.
+					const probeSizes = !isPostgres(db) && (mayDriveFromContent || taxonomyFilters.length > 1);
+					let smallest = LARGE_TERM_ASSIGNMENTS;
 					let driveFromContent = false;
 					for (const taxFilter of taxonomyFilters) {
-						const { groups, large } = await resolveTermGroups(
+						const { groups, assignments, large } = await resolveTermGroups(
 							db,
 							taxFilter.name,
 							taxFilter.slugs,
 							locale,
-							probeCollection,
+							probeSizes ? { collection: type, cap: smallest } : undefined,
 						);
+						smallest = Math.min(smallest, assignments + 1);
 						// A slug that resolves to no term matches nothing; since taxonomy
 						// filters AND together, one empty set empties the whole result.
 						if (groups.length === 0) {
 							return { entries: [], cacheHint: { tags: [type] } };
 						}
-						groupSets.push(groups);
-						driveFromContent = large && groups.length === 1;
+						resolved.push({ groups, assignments });
+						driveFromContent = mayDriveFromContent && large && groups.length === 1;
 					}
+					const groupSets = resolved
+						.toSorted((a, b) => a.assignments - b.assignments)
+						.map((r) => r.groups);
 
 					result = await buildTaxonomyPivotQuery({
 						db,
