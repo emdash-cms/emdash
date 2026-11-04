@@ -15,6 +15,9 @@ blockExoticSubdeps: true
 verifyStoreIntegrity: true
 strictStorePkgContentCheck: true
 verifyDepsBeforeRun: error
+# Lockfile changes re-verify full metadata for every package; the largest
+# documents (about 12 MB) can exceed pnpm's default 60s timeout on CI runners.
+fetchTimeout: 300000
 # Worker bundles resolve browser-native packages to their WASM targets.
 supportedArchitectures:
   cpu:
@@ -170,6 +173,7 @@ catalog:
   image-size: 2.0.2
   jsonc-parser: ^3.3.1
   kysely: ^0.29.0
+  lightningcss: ^1.33.0
   lowlight: ^3.3.0
   publint: 0.3.17
   react: 19.2.4
@@ -183,4 +187,4 @@ catalog:
   wrangler: ^4.125.0
   "y-protocols": ^1.0.7
   yjs: ^13.6.0
-  zod: 4.5.4
+  zod: 4.6.7

@@ -4,6 +4,7 @@ import { d1, r2 } from "@emdash-cms/cloudflare";
 import icon from "astro-iconset";
 import { defineConfig, fontProviders } from "astro/config";
 import emdash from "emdash/astro";
+import { Features } from "lightningcss";
 
 export default defineConfig({
 	output: "server",
@@ -13,6 +14,15 @@ export default defineConfig({
 		responsiveStyles: true,
 	},
 	vite: {
+		css: {
+			// Keep light-dark() native so the footer theme switcher works in
+			// production. For older browsers, Lightning CSS otherwise rewrites
+			// it into variables that follow only prefers-color-scheme, which the
+			// :root.light / :root.dark color-scheme rules in Base.astro can't
+			// reach. Browsers without light-dark() get the light fallback in
+			// tokens.css.
+			lightningcss: { exclude: Features.LightDark },
+		},
 		ssr: {
 			optimizeDeps: {
 				// Pre-bundle so it isn't discovered mid-render, which would trigger

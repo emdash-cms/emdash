@@ -1196,6 +1196,55 @@ describe("htmlToPortableText", () => {
 		});
 	});
 
+	it("keeps a code block that is followed by a paragraph", () => {
+		const html = "<p>Before</p><pre>Get-ADUser -Filter *</pre><p>After</p>";
+		const result = htmlToPortableText(html);
+
+		expect(result.map((block) => block._type)).toEqual(["block", "code", "block"]);
+		expect(result[1]).toMatchObject({ _type: "code", code: "Get-ADUser -Filter *" });
+	});
+
+	it("keeps a code block when the pre element has attributes", () => {
+		const html =
+			'<p>Before</p><pre class="brush: powershell">Get-ADUser -Filter *</pre><p>After</p>';
+		const result = htmlToPortableText(html);
+
+		expect(result.map((block) => block._type)).toEqual(["block", "code", "block"]);
+		expect(result[1]).toMatchObject({ _type: "code", code: "Get-ADUser -Filter *" });
+	});
+
+	it("converts line breaks inside a code block to newlines", () => {
+		const html = "<pre>$x = 1<br />$y = 2<br>$z = 3</pre>";
+		const result = htmlToPortableText(html);
+
+		expect(result[0]).toMatchObject({
+			_type: "code",
+			code: "$x = 1\n$y = 2\n$z = 3",
+		});
+	});
+
+	it("keeps the language of a code block", () => {
+		const html = '<pre><code class="language-powershell">Get-ADUser</code></pre>';
+		const result = htmlToPortableText(html);
+
+		expect(result[0]).toMatchObject({
+			_type: "code",
+			code: "Get-ADUser",
+			language: "powershell",
+		});
+	});
+
+	it("does not treat an element whose name starts with a block tag as that block", () => {
+		const html = '<p>One</p><param name="movie" value="video.swf" /><p>Two</p>';
+		const result = htmlToPortableText(html);
+
+		const paragraphs = result.filter((block) => block._type === "block") as PortableTextTextBlock[];
+		expect(paragraphs.map((block) => block.children.map((child) => child.text).join(""))).toEqual([
+			"One",
+			"Two",
+		]);
+	});
+
 	it("converts horizontal rules", () => {
 		const html = "<p>Before</p><hr><p>After</p>";
 		const result = htmlToPortableText(html);
@@ -1536,6 +1585,62 @@ describe("WordPress.com classic editor content", () => {
 
 		// Link should be preserved
 		expect(img.link).toBe("https://sparge.wordpress.com/wp-content/uploads/2011/11/hip-hop.jpg");
+	});
+
+	it.each([
+		[
+			"an attribute after it that ends in href",
+			'<p><a\n\thref="https://example.com/full.jpg"\n\tdata-href="https://wrong.example/"><img\n\tsrc="https://example.com/thumb.jpg" alt="Hall" /></a></p>',
+			"https://example.com/full.jpg",
+		],
+		[
+			"href text in an attribute value before it",
+			`<p><a title="Open href='https://wrong.example/'" href="https://example.com/full.jpg"><img src="https://example.com/thumb.jpg" alt="Hall"></a></p>`,
+			"https://example.com/full.jpg",
+		],
+		[
+			"an apostrophe in its double-quoted value",
+			`<p><a href="https://example.com/hall's-plan.jpg"><img src="https://example.com/thumb.jpg" alt="Hall"></a></p>`,
+			"https://example.com/hall's-plan.jpg",
+		],
+	])("takes a linked image's link from its href with %s", (_shape, html, link) => {
+		expect(htmlToPortableText(html)).toEqual([
+			expect.objectContaining({
+				_type: "image",
+				asset: expect.objectContaining({ url: "https://example.com/thumb.jpg" }),
+				alt: "Hall",
+				link,
+			}),
+		]);
+	});
+
+	it.each([
+		["in a paragraph", '<p><img src="https://example.com/hall.jpg" alt="Hall > Floor 2"></p>'],
+		["outside a paragraph", '<img src="https://example.com/hall.jpg" alt="Hall > Floor 2">'],
+	])("keeps an image's alt text that contains > %s", (_place, html) => {
+		expect(htmlToPortableText(html)).toEqual([
+			expect.objectContaining({ _type: "image", alt: "Hall > Floor 2" }),
+		]);
+	});
+
+	it.each([
+		[
+			"a paragraph with a link start tag and a long run of tabs",
+			`<p><a${"\t".repeat(100_000)}</p>`,
+		],
+		[
+			"a paragraph with a link start tag and many href attributes",
+			`<p><a\thref="!"${'href="!"'.repeat(20_000)}</p>`,
+		],
+		["a paragraph with an image tag and a long run of tabs", `<p><img${"\t".repeat(100_000)}</p>`],
+		["an image tag with a long run of tabs outside a paragraph", `<img${"\t".repeat(100_000)}`],
+		["repeated paragraph start tags without a closing bracket", "<p ".repeat(100_000)],
+	])("converts %s within a second", (_shape, html) => {
+		const started = performance.now();
+		const result = htmlToPortableText(html);
+
+		expect(performance.now() - started).toBeLessThan(1000);
+		expect(result).toEqual([]);
 	});
 
 	it("preserves text content alongside images", () => {
