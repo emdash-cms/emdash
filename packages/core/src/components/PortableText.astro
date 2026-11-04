@@ -26,13 +26,13 @@ import InlineEditor from "./InlineEditor.astro";
 import { groupBlockquoteRuns } from "./portable-text-blockquote-group.js";
 
 export interface Props extends Omit<PortableTextProps, "value"> {
-	value: PortableTextProps["value"];
+	value: PortableTextProps["value"] | undefined;
 	/** Initial label for read-only inline tables; defaults to English. */
 	tablePlaceholder?: string;
 }
 
 const {
-	value,
+	value = [],
 	components: userComponents,
 	listNestingMode = "html",
 	tablePlaceholder,
